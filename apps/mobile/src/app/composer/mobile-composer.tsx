@@ -9,12 +9,21 @@ import {
   getMobileAttachmentUploadReadiness,
   useCallback,
   useEffect,
+  useMemo,
+  useRef,
   useState,
   type MobileBootstrapFeature,
   type MobileChannelSendViewState,
   type MobileDMSendViewState,
   type MobileMediaRuntimeState,
 } from "../mobile-root-screen-shared";
+import { PanResponder } from "react-native";
+import Animated, {
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 import type { UploadedAttachmentInput } from "@wizards/types";
 import { formatMobileMediaAssetMeta } from "../components/media-primitives";
 import { BottomSheet, Icon } from "../components/kit";
@@ -73,7 +82,7 @@ export function DMComposer({
   sendActionLabel?: string;
   sendState: MobileChannelSendViewState | MobileDMSendViewState;
   sendingActionLabel?: string;
-  variant?: "channel" | "default";
+  variant?: "channel" | "default" | "dm";
 }) {
   const theme = useTheme();
   const styles = useMobileComposerStyles();
@@ -87,8 +96,13 @@ export function DMComposer({
   );
   const [isChannelAttachmentUploading, setChannelAttachmentUploading] = useState(false);
   const voiceMessageRecorder = useMobileVoiceMessageRecorder();
+  const [voiceRecordingSeconds, setVoiceRecordingSeconds] = useState(0);
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [gifPickerOpen, setGifPickerOpen] = useState(false);
+  const uploadAbortControllerRef = useRef<AbortController | null>(null);
+  const isEditing = intent?.mode === "edit";
+  const isEditingRef = useRef(isEditing);
+  isEditingRef.current = isEditing;
   const trimmedDraft = draft.trim();
   const selectedAsset = mediaState?.selectedAsset ?? null;
   const isPickingDocument = mediaState?.status === "checking-document-picker";
@@ -103,10 +117,20 @@ export function DMComposer({
   });
   const isSending = sendState.status === "sending";
   const channelAttachments = channelAttachmentDrafts.map((draft) => draft.input);
+  const hasCompletedAttachmentEditConflict = isEditing && channelAttachments.length > 0;
   const channelCanSend = trimmedDraft.length > 0 || channelAttachments.length > 0;
+  const usesUploadedAttachments = variant === "channel" || variant === "dm";
+  const isAttachmentCapabilityAvailable = attachmentsFeature?.status === "available";
+  const attachmentCapabilityHint = getAttachmentCapabilityHint(attachmentsFeature, isEditing);
+  const dmHasSendableContent = trimmedDraft.length > 0 || channelAttachments.length > 0;
+  const reducedMotion = useReducedMotion() === true;
+  const dmPrimaryProgress = useSharedValue(dmHasSendableContent ? 1 : 0);
+  const dmMicIconStyle = useAnimatedStyle(() => ({ opacity: 1 - dmPrimaryProgress.value }));
+  const dmSendIconStyle = useAnimatedStyle(() => ({ opacity: dmPrimaryProgress.value }));
   const isDisabled =
     isSending ||
-    (variant === "channel"
+    hasCompletedAttachmentEditConflict ||
+    (usesUploadedAttachments
       ? isChannelAttachmentUploading || !channelCanSend
       : !sendGuard.canSend);
   const sendBlockText = getAttachmentDraftBlockText(sendGuard.reason, sendGuard.canSend, {
@@ -115,9 +139,45 @@ export function DMComposer({
 
   useEffect(() => {
     if (intent?.mode === "edit") {
+      if (channelAttachmentDrafts.length > 0) return;
       setDraft(intent.content);
     }
-  }, [intent]);
+  }, [channelAttachmentDrafts.length, intent]);
+
+  useEffect(() => {
+    const target = dmHasSendableContent ? 1 : 0;
+    dmPrimaryProgress.value = reducedMotion ? target : withTiming(target, { duration: 180 });
+  }, [dmHasSendableContent, dmPrimaryProgress, reducedMotion]);
+
+  useEffect(() => {
+    if (isEditing) {
+      uploadAbortControllerRef.current?.abort();
+      setAttachmentPickerOpen(false);
+      if (channelAttachmentDrafts.length > 0) {
+        setChannelAttachmentUploadError(copy.composerAttachmentEditBlocked);
+        onCancelIntent?.();
+      }
+    }
+  }, [channelAttachmentDrafts.length, isEditing, onCancelIntent]);
+
+  useEffect(
+    () => () => {
+      uploadAbortControllerRef.current?.abort();
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (!voiceMessageRecorder.isRecording) {
+      setVoiceRecordingSeconds(0);
+      return;
+    }
+    const startedAt = Date.now();
+    const timer = setInterval(() => {
+      setVoiceRecordingSeconds(Math.floor((Date.now() - startedAt) / 1_000));
+    }, 1_000);
+    return () => clearInterval(timer);
+  }, [voiceMessageRecorder.isRecording]);
 
   const handleSend = useCallback(async () => {
     if (isDisabled) {
@@ -126,7 +186,7 @@ export function DMComposer({
 
     const didSend = await onSend(
       trimmedDraft,
-      variant === "channel" && channelAttachments.length > 0 ? channelAttachments : undefined,
+      usesUploadedAttachments && channelAttachments.length > 0 ? channelAttachments : undefined,
     );
     if (didSend) {
       setDraft("");
@@ -142,6 +202,7 @@ export function DMComposer({
     onDraftChange,
     onSend,
     trimmedDraft,
+    usesUploadedAttachments,
     variant,
   ]);
 
@@ -182,7 +243,12 @@ export function DMComposer({
 
   const uploadChannelAttachment = useCallback(
     async (pickAttachment: () => Promise<MobilePickedMessageAttachment | null>) => {
-      if (!getAccessToken || isChannelAttachmentUploading) {
+      if (
+        !getAccessToken ||
+        isChannelAttachmentUploading ||
+        isEditingRef.current ||
+        (variant === "dm" && !isAttachmentCapabilityAvailable)
+      ) {
         return;
       }
 
@@ -193,41 +259,54 @@ export function DMComposer({
 
       setChannelAttachmentUploading(true);
       setChannelAttachmentUploadError(null);
+      const abortController = new AbortController();
+      uploadAbortControllerRef.current = abortController;
       const outcome = await executeMobileMessageAttachmentUpload({
         dependencies: {
           getAccessToken,
           pickAttachment,
           uploadAttachment: uploadMobileMessageAttachmentToUploadThing,
         },
+        signal: abortController.signal,
       });
+      if (uploadAbortControllerRef.current !== abortController) {
+        return;
+      }
+      uploadAbortControllerRef.current = null;
       setChannelAttachmentUploading(false);
 
-      if (outcome.status === "ready") {
+      if (outcome.status === "ready" && !isEditingRef.current) {
         setChannelAttachmentDrafts((current) => [...current, outcome.draft]);
       } else if (outcome.status === "error") {
         setChannelAttachmentUploadError(copy.composerAttachmentUploadFailed);
       }
     },
-    [channelAttachmentDrafts.length, getAccessToken, isChannelAttachmentUploading],
+    [
+      channelAttachmentDrafts.length,
+      getAccessToken,
+      isAttachmentCapabilityAvailable,
+      isChannelAttachmentUploading,
+      variant,
+    ],
   );
 
   const handleSelectDocument = useCallback(async () => {
     setAttachmentPickerOpen(false);
-    if (variant === "channel") {
+    if (usesUploadedAttachments) {
       await uploadChannelAttachment(pickMobileMessageAttachmentFromDocument);
       return;
     }
     await onRequestDocumentPicker?.();
-  }, [onRequestDocumentPicker, uploadChannelAttachment, variant]);
+  }, [onRequestDocumentPicker, uploadChannelAttachment, usesUploadedAttachments]);
 
   const handleSelectPhoto = useCallback(async () => {
     setAttachmentPickerOpen(false);
-    if (variant === "channel") {
+    if (usesUploadedAttachments) {
       await uploadChannelAttachment(pickMobileMessageAttachmentFromPhotoLibrary);
       return;
     }
     await onRequestPhotoLibraryPicker?.();
-  }, [onRequestPhotoLibraryPicker, uploadChannelAttachment, variant]);
+  }, [onRequestPhotoLibraryPicker, uploadChannelAttachment, usesUploadedAttachments]);
 
   const handleVoiceRecord = useCallback(async () => {
     if (voiceMessageRecorder.isRecording) {
@@ -250,12 +329,290 @@ export function DMComposer({
     }
   }, [uploadChannelAttachment, voiceMessageRecorder]);
 
+  const handleCancelVoiceRecord = useCallback(async () => {
+    if (!voiceMessageRecorder.isRecording) return;
+    try {
+      await voiceMessageRecorder.discard();
+      setChannelAttachmentUploadError(copy.dmChatVoiceRecordCancelledNotice);
+    } catch {
+      setChannelAttachmentUploadError(copy.composerVoiceRecordFailed);
+    }
+  }, [voiceMessageRecorder]);
+
+  const voiceCancelResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_event, gesture) =>
+          voiceMessageRecorder.isRecording && gesture.dx < -12,
+        onPanResponderRelease: (_event, gesture) => {
+          if (gesture.dx <= -72) void handleCancelVoiceRecord();
+        },
+      }),
+    [handleCancelVoiceRecord, voiceMessageRecorder.isRecording],
+  );
+
   const handleSelectEmoji = useCallback(
     (emoji: string) => {
       handleDraftChange(`${draft}${emoji}`);
     },
     [draft, handleDraftChange],
   );
+
+  if (variant === "dm") {
+    const hasSendableContent = dmHasSendableContent;
+    const primaryActionUnavailable =
+      isSending ||
+      isChannelAttachmentUploading ||
+      voiceMessageRecorder.phase === "preparing" ||
+      voiceMessageRecorder.phase === "stopping" ||
+      (!hasSendableContent && (!isAttachmentCapabilityAvailable || isEditing));
+    const handlePrimaryAction = () => {
+      if (primaryActionUnavailable) return;
+      if (hasSendableContent) {
+        void handleSend();
+        return;
+      }
+      void handleVoiceRecord();
+    };
+    const primaryTestId = hasSendableContent
+      ? "mobile-dm-send-button"
+      : "mobile-dm-voice-record-button";
+
+    return (
+      <View style={[styles.dmComposer, styles.dmChatComposer]} testID="mobile-dm-composer">
+        {intentBanner}
+        {channelAttachmentDrafts.map((attachmentDraft) => (
+          <View
+            key={attachmentDraft.attachment.id}
+            style={styles.dmComposerAttachmentCard}
+            testID={`mobile-dm-attachment-draft-${attachmentDraft.attachment.id}`}
+          >
+            <View style={styles.dmComposerAttachmentText}>
+              <Text style={styles.dmComposerAttachmentTitle} numberOfLines={1}>
+                {attachmentDraft.attachment.filename}
+              </Text>
+              <Text style={styles.dmComposerAttachmentMeta} numberOfLines={1}>
+                {attachmentDraft.attachment.contentType} Â· {attachmentDraft.attachment.size} B
+              </Text>
+            </View>
+            <Pressable
+              accessibilityLabel={copy.composerAttachmentClearAction}
+              accessibilityRole="button"
+              hitSlop={14}
+              onPress={() =>
+                setChannelAttachmentDrafts((current) =>
+                  current.filter((item) => item.attachment.id !== attachmentDraft.attachment.id),
+                )
+              }
+              style={({ pressed }) => [
+                styles.dmComposerAttachmentClear,
+                pressed && styles.actionButtonPressed,
+              ]}
+              testID={`mobile-dm-attachment-clear-${attachmentDraft.attachment.id}`}
+            >
+              <Ionicons name="close" size={16} color={theme.accent.strong} />
+            </Pressable>
+          </View>
+        ))}
+        <View style={styles.dmChatComposerRow}>
+          <Pressable
+            accessibilityLabel={copy.dmChatAttachAction}
+            accessibilityHint={attachmentCapabilityHint}
+            accessibilityRole="button"
+            accessibilityState={{
+              disabled:
+                isChannelAttachmentUploading ||
+                voiceMessageRecorder.isRecording ||
+                !isAttachmentCapabilityAvailable ||
+                isEditing,
+            }}
+            disabled={
+              isChannelAttachmentUploading ||
+              voiceMessageRecorder.isRecording ||
+              !isAttachmentCapabilityAvailable ||
+              isEditing
+            }
+            onPress={() => setAttachmentPickerOpen(true)}
+            style={({ pressed }) => [
+              styles.dmChatComposerControl,
+              (isChannelAttachmentUploading ||
+                voiceMessageRecorder.isRecording ||
+                !isAttachmentCapabilityAvailable ||
+                isEditing) &&
+                styles.dmChatComposerControlDisabled,
+              pressed && styles.actionButtonPressed,
+            ]}
+            testID="mobile-dm-attach-button"
+          >
+            <Ionicons name="add" size={22} color={theme.text.muted} />
+          </Pressable>
+          <View style={styles.dmChatComposerInputShell}>
+            {voiceMessageRecorder.isRecording ? (
+              <View
+                {...voiceCancelResponder.panHandlers}
+                style={styles.dmChatVoiceRecording}
+                testID="mobile-dm-voice-recording"
+              >
+                <Text style={styles.dmChatVoiceRecordingText}>
+                  {copy.dmChatVoiceRecordingLabel} {formatRecordingDuration(voiceRecordingSeconds)}
+                </Text>
+                <Pressable
+                  accessibilityLabel={copy.dmChatVoiceRecordCancelledNotice}
+                  accessibilityRole="button"
+                  hitSlop={8}
+                  onPress={() => void handleCancelVoiceRecord()}
+                  testID="mobile-dm-voice-record-cancel"
+                >
+                  <Text style={styles.dmChatVoiceRecordingHint} numberOfLines={1}>
+                    {copy.dmChatVoiceRecordCancelHint}
+                  </Text>
+                </Pressable>
+              </View>
+            ) : (
+              <TextInput
+                accessibilityLabel={placeholder}
+                maxLength={2000}
+                multiline
+                onChangeText={handleDraftChange}
+                placeholder={placeholder}
+                placeholderTextColor={theme.text.visualPlaceholder}
+                style={[styles.dmComposerInput, styles.dmChatComposerInput]}
+                testID="mobile-dm-composer-input"
+                value={draft}
+              />
+            )}
+            {!voiceMessageRecorder.isRecording ? (
+              <Pressable
+                accessibilityLabel={copy.dmChatEmojiAction}
+                accessibilityRole="button"
+                hitSlop={8}
+                onPress={() => setEmojiPickerOpen(true)}
+                style={({ pressed }) => [
+                  styles.dmChatEmojiButton,
+                  pressed && styles.actionButtonPressed,
+                ]}
+                testID="mobile-dm-emoji-button"
+              >
+                <Ionicons name="happy-outline" size={18} color={theme.text.visualPlaceholder} />
+              </Pressable>
+            ) : null}
+          </View>
+          <Pressable
+            accessibilityLabel={
+              hasSendableContent ? copy.dmChatSendAction : copy.dmChatVoiceRecordAction
+            }
+            accessibilityRole="button"
+            accessibilityState={{ disabled: primaryActionUnavailable }}
+            disabled={primaryActionUnavailable}
+            onPress={handlePrimaryAction}
+            style={({ pressed }) => [
+              styles.dmChatPrimaryButton,
+              primaryActionUnavailable && styles.dmChatComposerControlDisabled,
+              pressed && styles.actionButtonPressed,
+            ]}
+            testID={primaryTestId}
+          >
+            {voiceMessageRecorder.isRecording ? (
+              <Ionicons name="stop" size={18} color={theme.text.onPrimary} />
+            ) : (
+              <>
+                <Animated.View style={[styles.dmChatPrimaryIcon, dmMicIconStyle]}>
+                  <Ionicons name="mic-outline" size={18} color={theme.text.onPrimary} />
+                </Animated.View>
+                <Animated.View style={[styles.dmChatPrimaryIcon, dmSendIconStyle]}>
+                  <Ionicons name="paper-plane" size={18} color={theme.text.onPrimary} />
+                </Animated.View>
+              </>
+            )}
+          </Pressable>
+        </View>
+        {channelAttachmentUploadError ? (
+          <Text
+            accessibilityLiveRegion="polite"
+            accessibilityRole="alert"
+            style={styles.dmSendErrorText}
+          >
+            {channelAttachmentUploadError}
+          </Text>
+        ) : null}
+        {sendState.status === "error" && sendState.error ? (
+          <Text style={styles.dmSendErrorText}>{sendState.error}</Text>
+        ) : null}
+        <BottomSheet
+          accessibilityLabel={copy.dmChatAttachAction}
+          onClose={() => setAttachmentPickerOpen(false)}
+          open={attachmentPickerOpen}
+          snapPoint={280}
+          testID="mobile-dm-attachment-picker"
+        >
+          <View style={styles.channelComposerAttachmentPicker}>
+            <Text style={styles.channelComposerAttachmentPickerTitle}>
+              {copy.dmChatAttachAction}
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => void handleSelectPhoto()}
+              style={({ pressed }) => [
+                styles.channelComposerAttachmentPickerAction,
+                pressed && styles.actionButtonPressed,
+              ]}
+              testID="mobile-dm-photo-library-picker"
+            >
+              <Ionicons name="image-outline" size={20} color={theme.accent.strong} />
+              <Text style={styles.channelComposerAttachmentPickerActionText}>
+                {copy.dmChatAttachPhotoAction}
+              </Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => void handleSelectDocument()}
+              style={({ pressed }) => [
+                styles.channelComposerAttachmentPickerAction,
+                pressed && styles.actionButtonPressed,
+              ]}
+              testID="mobile-dm-document-picker"
+            >
+              <Ionicons name="document-attach-outline" size={20} color={theme.accent.strong} />
+              <Text style={styles.channelComposerAttachmentPickerActionText}>
+                {copy.dmChatAttachFileAction}
+              </Text>
+            </Pressable>
+            {onSendGif ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => {
+                  setAttachmentPickerOpen(false);
+                  setGifPickerOpen(true);
+                }}
+                style={({ pressed }) => [
+                  styles.channelComposerAttachmentPickerAction,
+                  pressed && styles.actionButtonPressed,
+                ]}
+                testID="mobile-dm-gif-button"
+              >
+                <Text style={styles.channelComposerGifButtonText}>GIF</Text>
+                <Text style={styles.channelComposerAttachmentPickerActionText}>
+                  {copy.dmChatAttachGifAction}
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
+        </BottomSheet>
+        <MessageEmojiPicker
+          isOpen={emojiPickerOpen}
+          onClose={() => setEmojiPickerOpen(false)}
+          onSelect={handleSelectEmoji}
+        />
+        {onSendGif ? (
+          <MobileGifPicker
+            open={gifPickerOpen}
+            onClose={() => setGifPickerOpen(false)}
+            onSelect={onSendGif}
+          />
+        ) : null}
+      </View>
+    );
+  }
 
   if (variant === "channel") {
     return (
@@ -280,7 +637,9 @@ export function DMComposer({
               accessibilityLabel={copy.composerAttachmentClearAction}
               onPress={() =>
                 setChannelAttachmentDrafts((current) =>
-                  current.filter((currentDraft) => currentDraft.attachment.id !== draft.attachment.id),
+                  current.filter(
+                    (currentDraft) => currentDraft.attachment.id !== draft.attachment.id,
+                  ),
                 )
               }
               style={({ pressed }) => [
@@ -309,7 +668,9 @@ export function DMComposer({
             onPress={() => setAttachmentPickerOpen(true)}
             style={({ pressed }) => [
               styles.channelComposerIconButton,
-              (isChannelAttachmentUploading || voiceMessageRecorder.isRecording || !getAccessToken) &&
+              (isChannelAttachmentUploading ||
+                voiceMessageRecorder.isRecording ||
+                !getAccessToken) &&
                 styles.channelComposerIconButtonDisabled,
               pressed &&
                 !isChannelAttachmentUploading &&
@@ -579,12 +940,12 @@ export function DMComposer({
           {isSending ? sendingActionLabel : sendActionLabel}
         </Text>
       </Pressable>
-        {sendBlockText ? (
+      {sendBlockText ? (
         <Text style={styles.dmComposerAttachmentNotice}>{sendBlockText}</Text>
-        ) : null}
-        {channelAttachmentUploadError ? (
-          <Text style={styles.dmSendErrorText}>{channelAttachmentUploadError}</Text>
-        ) : null}
+      ) : null}
+      {channelAttachmentUploadError ? (
+        <Text style={styles.dmSendErrorText}>{channelAttachmentUploadError}</Text>
+      ) : null}
       {sendState.status === "error" && sendState.error ? (
         <Text style={styles.dmSendErrorText}>{sendState.error}</Text>
       ) : null}
@@ -630,4 +991,31 @@ function getAttachmentDraftBlockText(
     default:
       return copy.composerAttachmentUploadPending;
   }
+}
+
+function getAttachmentCapabilityHint(
+  feature: MobileBootstrapFeature | null | undefined,
+  isEditing: boolean,
+): string | undefined {
+  if (isEditing) return copy.messageEditingLabel;
+  if (feature?.status === "available") return undefined;
+  if (feature?.reason) return feature.reason;
+
+  switch (feature?.status) {
+    case "disabled":
+      return copy.composerAttachmentDisabled;
+    case "requires-native-permission":
+      return copy.composerAttachmentNativePermissionPending;
+    case "requires-server-contract":
+      return copy.composerAttachmentServerPending;
+    default:
+      return copy.composerAttachmentUnknown;
+  }
+}
+
+function formatRecordingDuration(totalSeconds: number): string {
+  const normalized = Math.max(0, Math.floor(totalSeconds));
+  const minutes = Math.floor(normalized / 60);
+  const seconds = normalized % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }

@@ -1,33 +1,19 @@
 import {
-  MobileDMMessagesResponseSchema,
   MobileDMSendMessageRequestSchema,
   MobileDMSendMessageResponseSchema,
 } from "@wizards/types";
 import { ApiError, jsonError, parseJsonBody } from "@/lib/api";
 import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import { requireMobileApiUserId } from "@/lib/auth/api";
-import {
-  getDirectMessageConversationForUser,
-  listDMMessages,
-} from "@/lib/dm/service";
 import { sendDirectMessage } from "@/lib/dm/message-send-service";
-import {
-  DMConversationParamsSchema,
-  DMMessagesQuerySchema,
-} from "@/lib/dm/types";
+import { DMConversationParamsSchema } from "@/lib/dm/types";
 import { logError } from "@/lib/logger";
 import { getRedisRate } from "@/lib/redis";
-import {
-  checkDMMessageRateLimits,
-  shouldLogRateLimitUnavailable,
-} from "@/lib/socket/rate-limits";
+import { checkDMMessageRateLimits, shouldLogRateLimitUnavailable } from "@/lib/socket/rate-limits";
 import { getSocketServer } from "@/lib/socket/runtime";
+import { mobileDMMessagesGetRoute, type MobileDMMessagesRouteContext } from "./get-route-logic";
 
-const MOBILE_DM_MESSAGE_LIMIT = 30;
-
-type RouteContext = {
-  params: Promise<{ conversationId: string }>;
-};
+type RouteContext = MobileDMMessagesRouteContext;
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -71,38 +57,7 @@ async function enforceMobileDMMessageSendRateLimit(input: {
 }
 
 export async function GET(request: Request, context: RouteContext) {
-  try {
-    const userId = await requireMobileApiUserId(request);
-    await enforceApiRateLimit(userId, "dm:messages:list");
-
-    const { conversationId } = DMConversationParamsSchema.parse(await context.params);
-    const url = new URL(request.url);
-    const query = DMMessagesQuerySchema.parse({
-      cursor: url.searchParams.get("cursor") ?? undefined,
-      limit: url.searchParams.get("limit") ?? undefined,
-    });
-    const limit = Math.min(query.limit, MOBILE_DM_MESSAGE_LIMIT);
-
-    const [conversation, messagePage] = await Promise.all([
-      getDirectMessageConversationForUser(conversationId, userId),
-      listDMMessages(userId, conversationId, query.cursor, limit),
-    ]);
-
-    return Response.json(
-      MobileDMMessagesResponseSchema.parse({
-        conversation,
-        messages: messagePage.messages,
-        nextCursor: messagePage.nextCursor,
-      }),
-      {
-        headers: {
-          "Cache-Control": "no-store, no-cache, must-revalidate",
-        },
-      },
-    );
-  } catch (error) {
-    return jsonError(error);
-  }
+  return mobileDMMessagesGetRoute(request, context);
 }
 
 export async function POST(request: Request, context: RouteContext) {

@@ -18,6 +18,7 @@ describe("mobile realtime contract", () => {
     assert.equal(new Set(MOBILE_REALTIME_SERVER_EVENTS).size, MOBILE_REALTIME_SERVER_EVENTS.length);
     assert.ok(MOBILE_REALTIME_SERVER_EVENTS.includes("message:new"));
     assert.ok(MOBILE_REALTIME_SERVER_EVENTS.includes("dm:message:new"));
+    assert.ok(MOBILE_REALTIME_SERVER_EVENTS.includes("dm:conversation:read"));
     assert.ok(MOBILE_REALTIME_SERVER_EVENTS.includes("presence:update"));
     assert.ok(MOBILE_REALTIME_SERVER_EVENTS.includes("friends:updated"));
     assert.ok(MOBILE_REALTIME_SERVER_EVENTS.includes("user:profile:updated"));
@@ -32,6 +33,7 @@ describe("mobile realtime contract", () => {
     assert.deepEqual(getMobileRealtimeRefreshSources("message:new"), ["channel", "workspace"]);
     assert.deepEqual(getMobileRealtimeRefreshSources("dm:message:new"), ["dm"]);
     assert.deepEqual(getMobileRealtimeRefreshSources("dm:conversation:updated"), ["dm"]);
+    assert.deepEqual(getMobileRealtimeRefreshSources("dm:conversation:read"), ["dm"]);
     assert.deepEqual(getMobileRealtimeRefreshSources("voice:state:update"), ["workspace"]);
     assert.deepEqual(getMobileRealtimeRefreshSources("voice:audio-level:update"), []);
     assert.deepEqual(getMobileRealtimeRefreshSources("voice:invite:received"), []);
@@ -245,6 +247,28 @@ describe("mobile realtime contract", () => {
       (event.payload as { content: string }).content,
       "must not be copied into realtime state",
     );
+  });
+
+  it("retains only a schema-validated authoritative DM read receipt", () => {
+    const event = createMobileRealtimeEventEnvelope("dm:conversation:read", {
+      conversationId: "conversation-1",
+      lastReadAt: "2026-07-17T08:05:00.000Z",
+      userId: "user-2",
+    });
+    assert.equal(event.conversationId, "conversation-1");
+    assert.deepEqual(event.payload, {
+      conversationId: "conversation-1",
+      lastReadAt: "2026-07-17T08:05:00.000Z",
+      userId: "user-2",
+    });
+
+    const malformed = createMobileRealtimeEventEnvelope("dm:conversation:read", {
+      conversationId: "conversation-1",
+      lastReadAt: "not-a-date",
+      userId: "user-2",
+    });
+    assert.equal(malformed.conversationId, null);
+    assert.equal(malformed.payload, null);
   });
 
   it("preserves active channel message payloads for silent local UI updates", () => {

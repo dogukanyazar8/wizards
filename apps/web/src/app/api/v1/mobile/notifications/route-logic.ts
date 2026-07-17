@@ -45,7 +45,10 @@ export async function mobileNotificationsListRoute(
   try {
     const userId = await dependencies.authenticate(request);
     await dependencies.enforceRateLimit(userId, "mobile:notifications:list");
-    const notifications = await dependencies.listNotifications(userId, getMobileNotificationsQuery(request));
+    const notifications = await dependencies.listNotifications(
+      userId,
+      getMobileNotificationsQuery(request),
+    );
     return Response.json(MobileNotificationsResponseSchema.parse(notifications), {
       headers: { "Cache-Control": "no-store" },
     });

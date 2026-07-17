@@ -30,6 +30,7 @@ import {
   useMobileDMMessageEditMutation,
   useMobileDMMessageMutation,
   useMobileDMMessageReactionMutation,
+  useMobileDMReadMutation,
   type MobileMessageReactionMutationVariables,
   type MobileMessageEditMutationVariables,
 } from "../../query/use-mobile-message-mutations";
@@ -57,6 +58,7 @@ import type { MobileChannelSendViewState, MobileDMSendViewState } from "../mobil
 import { getVisibleMobileSyncHealth, type MobileSyncHealthDomain } from "../mobile-screen-sync";
 import { activeMobileCopy } from "../../locale/mobile-locale-preferences";
 import { createMobileGiphyAttachment } from "../../media/mobile-giphy-client";
+import { getMobileDMReadTarget } from "../../dm/mobile-dm-client";
 import { resolveMobileWorkspaceServerSelection } from "../../workspace/mobile-workspace-selection";
 
 const copy = activeMobileCopy;
@@ -74,6 +76,29 @@ const INITIAL_MESSAGE_SEARCH_INPUT: MobileMessageSearchInput = {
   query: "",
   scope: "dm",
 };
+
+export function useMobileDMReadEffect({
+  conversationId,
+  isSignedIn,
+  latestMessageId,
+  markRead,
+}: {
+  readonly conversationId: string | null;
+  readonly isSignedIn: boolean;
+  readonly latestMessageId: string | null;
+  readonly markRead: (input: { readonly conversationId: string }) => void;
+}) {
+  const readConversationId = getMobileDMReadTarget({
+    conversationId,
+    isSignedIn,
+    latestMessageId,
+  });
+
+  useEffect(() => {
+    if (!readConversationId) return;
+    markRead({ conversationId: readConversationId });
+  }, [latestMessageId, markRead, readConversationId]);
+}
 
 export function useMobileMessagingFeature({
   activeVoiceChannelId,
@@ -150,6 +175,7 @@ export function useMobileMessagingFeature({
     client: apiClient,
     conversationId: selectedDMConversationId ?? "",
   });
+  const dmReadMutation = useMobileDMReadMutation({ client: apiClient });
   const channelReactionMutation = useMobileChannelMessageReactionMutation({
     author: currentUser,
     channelId: activeWorkspaceTextChannelId ?? "",
@@ -197,6 +223,7 @@ export function useMobileMessagingFeature({
   const { isPending: isChannelDeletePending, mutateAsync: deleteChannelMessage } =
     channelDeleteMutation;
   const { isPending: isDMDeletePending, mutateAsync: deleteDMMessage } = dmDeleteMutation;
+  const { mutate: markDMRead } = dmReadMutation;
   const bootstrapState = toMobileBootstrapViewState(
     bootstrapQuery,
     summarizeMobileBootstrap,
@@ -237,6 +264,14 @@ export function useMobileMessagingFeature({
     error: isDMSendError ? copy.dmSendFailed : null,
     status: isDMSending ? "sending" : isDMSendError ? "error" : "idle",
   };
+
+  const latestDMMessageId = dmMessagesState.payload?.messages.at(-1)?.id ?? null;
+  useMobileDMReadEffect({
+    conversationId: selectedDMConversationId,
+    isSignedIn,
+    latestMessageId: latestDMMessageId,
+    markRead: markDMRead,
+  });
 
   useEffect(() => {
     setActiveWorkspaceTextChannelId((channelId) =>
@@ -321,17 +356,31 @@ export function useMobileMessagingFeature({
   const handleSendDMMessage = useCallback(
     async (
       content: string,
-      intent?: { readonly replyToId?: string; readonly threadParentId?: string },
+      intent?: {
+        readonly attachments?: readonly UploadedAttachmentInput[];
+        readonly replyToId?: string;
+        readonly threadParentId?: string;
+      },
     ): Promise<boolean> => {
       const trimmedContent = content.trim();
+      const attachments = intent?.attachments ?? [];
 
-      if (!isSignedIn || !selectedDMConversationId || trimmedContent.length === 0) {
+      if (
+        !isSignedIn ||
+        !selectedDMConversationId ||
+        (trimmedContent.length === 0 && attachments.length === 0)
+      ) {
         return false;
       }
 
       try {
         stopDMTyping(selectedDMConversationId);
-        await sendDMMessage({ content: trimmedContent, ...intent });
+        await sendDMMessage({
+          content: trimmedContent,
+          ...(attachments.length > 0 ? { attachments: [...attachments] } : {}),
+          ...(intent?.replyToId ? { replyToId: intent.replyToId } : {}),
+          ...(intent?.threadParentId ? { threadParentId: intent.threadParentId } : {}),
+        });
         return true;
       } catch {
         return false;
@@ -681,7 +730,9 @@ export function useMobileMessagingFeature({
       return null;
     }
 
-    return dmConversations.find((conversation) => conversation.id === selectedDMConversationId) ?? null;
+    return (
+      dmConversations.find((conversation) => conversation.id === selectedDMConversationId) ?? null
+    );
   }, [dmConversations, selectedDMConversationId]);
 
   useEffect(() => {
@@ -882,6 +933,16 @@ export function useMobileMessagingFeature({
     dmConversations,
     dmConversationsQuery,
     dmMessagesQuery,
+    loadMoreDMConversations: () => {
+      if (dmConversationsQuery.hasNextPage && !dmConversationsQuery.isFetchingNextPage) {
+        void dmConversationsQuery.fetchNextPage();
+      }
+    },
+    loadMoreDMMessages: () => {
+      if (dmMessagesQuery.hasNextPage && !dmMessagesQuery.isFetchingNextPage) {
+        void dmMessagesQuery.fetchNextPage();
+      }
+    },
     dmMessagesState,
     dmSendState,
     dmSyncState: toMobileSyncSnapshot(dmMessagesQuery, "dm"),

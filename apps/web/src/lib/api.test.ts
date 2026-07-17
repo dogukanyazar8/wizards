@@ -3,6 +3,7 @@ import { afterEach, describe, it, mock } from "node:test";
 import { z } from "zod";
 
 import { ApiError, jsonError, parseJsonBody } from "./api";
+import { clearErrorReporter, registerErrorReporter } from "./observability/reporter";
 
 const TestSchema = z.object({
   name: z.string(),
@@ -50,6 +51,7 @@ describe("parseJsonBody", () => {
 describe("jsonError", () => {
   afterEach(() => {
     mock.restoreAll();
+    clearErrorReporter();
   });
 
   it("serializes ApiError responses with stable status and code fields", async () => {
@@ -84,5 +86,26 @@ describe("jsonError", () => {
       error: "Internal server error",
     });
     assert.equal(errorLog.mock.callCount(), 1);
+  });
+
+  it("passes only a safe diagnostic error to the observability reporter", async () => {
+    mock.method(console, "error", () => undefined);
+    const reports: unknown[] = [];
+    registerErrorReporter((_scope, error) => reports.push(error));
+    const original = new Error(
+      "account lookup failed email=ada@example.com userId=user-123 query=private-search",
+    );
+
+    const response = jsonError(original);
+
+    assert.equal(response.status, 500);
+    assert.equal(reports.length, 1);
+    assert.notEqual(reports[0], original);
+    assert.ok(reports[0] instanceof Error);
+    const diagnostic = `${(reports[0] as Error).message}\n${(reports[0] as Error).stack}`;
+    assert.ok(!diagnostic.includes("ada@example.com"));
+    assert.ok(!diagnostic.includes("user-123"));
+    assert.ok(!diagnostic.includes("private-search"));
+    assert.match(diagnostic, /\[redacted-(email|value)\]/);
   });
 });

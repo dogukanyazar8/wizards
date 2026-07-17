@@ -2,6 +2,7 @@ import type { MobileNotificationItem } from "@wizards/types";
 import { resolveMobileRoutePathIntent } from "../../navigation/mobile-linking";
 import { navigateMobileRouteIntent } from "../../navigation/mobile-navigation-ref";
 import { openMobileVoiceRoom } from "../../voice/mobile-voice-room-route-navigation";
+import type { MobileNotificationsScreenProps } from "../providers/mobile-product-screen-provider";
 
 type MobileVoiceChannelInput = {
   readonly channelId: string;
@@ -41,4 +42,14 @@ export function createMobileNotificationActions({
       }
     },
   };
+}
+
+/** Assembles the notifications-tab contract from the shared runtimes. */
+export function createMobileNotificationsScreenProps({
+  joinVoiceChannel,
+  ...rest
+}: Omit<MobileNotificationsScreenProps, "onJoinVoiceNotification" | "onOpenNotification"> & {
+  readonly joinVoiceChannel: (input: MobileVoiceChannelInput) => Promise<boolean>;
+}): MobileNotificationsScreenProps {
+  return { ...rest, ...createMobileNotificationActions({ joinVoiceChannel }) };
 }

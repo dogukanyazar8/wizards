@@ -3,6 +3,7 @@ import {
   ChatMessageSchema,
   DMMessagePayloadSchema,
   MobileChannelMessagesStaleEventSchema,
+  MobileDMReadUpdatedEventSchema,
   MobilePresenceUpdateEventSchema,
   MobileServerUnreadUpdateEventSchema,
   MobileServerMembershipAddedEventSchema,
@@ -88,10 +89,7 @@ export function createMobileRealtimeQueryBridge({
   refreshWorkspace,
   scheduler = defaultScheduler,
 }: CreateMobileRealtimeQueryBridgeOptions): MobileRealtimeQueryBridge {
-  const timers = new Map<
-    string,
-    { readonly queryKeys: QueryKey[]; readonly timer: unknown }
-  >();
+  const timers = new Map<string, { readonly queryKeys: QueryKey[]; readonly timer: unknown }>();
   let disposed = false;
 
   const clearTimers = () => {
@@ -113,7 +111,11 @@ export function createMobileRealtimeQueryBridge({
     const existing = timers.get(timerKey);
     if (existing) {
       for (const queryKey of queryKeys) {
-        if (!existing.queryKeys.some((current) => JSON.stringify(current) === JSON.stringify(queryKey))) {
+        if (
+          !existing.queryKeys.some(
+            (current) => JSON.stringify(current) === JSON.stringify(queryKey),
+          )
+        ) {
           existing.queryKeys.push(queryKey);
         }
       }
@@ -157,10 +159,7 @@ export function createMobileRealtimeQueryBridge({
     }
 
     if (source === "notification") {
-      scheduleInvalidations(source, [
-        mobileQueryKeys.bootstrap(),
-        mobileQueryKeys.notifications(),
-      ]);
+      scheduleInvalidations(source, [mobileQueryKeys.bootstrap(), mobileQueryKeys.notifications()]);
       return;
     }
 
@@ -391,8 +390,8 @@ export function createMobileRealtimeQueryBridge({
       if (!bootstrapPatched) {
         scheduleSource("bootstrap", null);
       }
-      patchWorkspaceDetailCaches((current) =>
-        patchMobileRealtimeWorkspaceServerUnread(current, parsed.data).data,
+      patchWorkspaceDetailCaches(
+        (current) => patchMobileRealtimeWorkspaceServerUnread(current, parsed.data).data,
       );
       return true;
     }
@@ -436,6 +435,21 @@ export function createMobileRealtimeQueryBridge({
     const { conversationId } = getActiveTargets();
     if (!conversationId || (event.conversationId && event.conversationId !== conversationId)) {
       return false;
+    }
+    if (event.eventName === "dm:conversation:read") {
+      const readState = MobileDMReadUpdatedEventSchema.safeParse(event.payload);
+      if (!readState.success || readState.data.conversationId !== conversationId) {
+        return false;
+      }
+      queryClient.setQueryData<MobileDMMessagesInfiniteData>(
+        mobileQueryKeys.dmMessages(conversationId),
+        (current) =>
+          patchDMParticipantReadState(current, {
+            lastReadAt: readState.data.lastReadAt,
+            userId: readState.data.userId,
+          }),
+      );
+      return true;
     }
     if (event.eventName === "dm:message:removed") {
       const messageId = getPayloadString(event.payload, "messageId");
@@ -487,7 +501,11 @@ export function createMobileRealtimeQueryBridge({
   const patchWorkspaceChannelLastMessage = (args: {
     readonly channelId: string;
     readonly preview: {
-      readonly author: { readonly displayName: string | null; readonly id: string; readonly username: string };
+      readonly author: {
+        readonly displayName: string | null;
+        readonly id: string;
+        readonly username: string;
+      };
       readonly createdAt: string;
       readonly id: string;
       readonly text: string;
@@ -517,7 +535,10 @@ export function createMobileRealtimeQueryBridge({
             return channel;
           }
 
-          const existing = channel.lastMessage as { readonly createdAt?: unknown; readonly id?: unknown } | null;
+          const existing = channel.lastMessage as {
+            readonly createdAt?: unknown;
+            readonly id?: unknown;
+          } | null;
           if (
             (args.updateExistingOnly && existing?.id !== args.preview.id) ||
             (!args.updateExistingOnly &&
@@ -649,7 +670,7 @@ export function createMobileRealtimeQueryBridge({
         if (source === "channel" && (channelEventHandled || workspaceChannelPreviewPatched)) {
           continue;
         }
-        if (source === "dm" && dmEventHandled) {
+        if (source === "dm" && dmEventHandled && event.eventName !== "dm:message:new") {
           continue;
         }
         if (source === "workspace" && workspaceRefreshedImmediately) {
@@ -658,6 +679,23 @@ export function createMobileRealtimeQueryBridge({
         scheduleSource(source, event);
       }
     },
+  };
+}
+
+function patchDMParticipantReadState(
+  data: MobileDMMessagesInfiniteData | undefined,
+  readState: { readonly lastReadAt: string | null; readonly userId: string },
+): MobileDMMessagesInfiniteData | undefined {
+  if (!data) return data;
+  return {
+    ...data,
+    pages: data.pages.map((page) => {
+      const current = page.participantReadStates ?? [];
+      const next = current.some((state) => state.userId === readState.userId)
+        ? current.map((state) => (state.userId === readState.userId ? readState : state))
+        : [...current, readState];
+      return { ...page, participantReadStates: next };
+    }),
   };
 }
 
@@ -687,9 +725,7 @@ function isMobileWorkspaceDetail(
     "detail" in value &&
     (value as { readonly detail?: unknown }).detail !== null &&
     typeof (value as { readonly detail?: unknown }).detail === "object" &&
-    Array.isArray(
-      ((value as { readonly detail: { readonly members?: unknown } }).detail.members),
-    )
+    Array.isArray((value as { readonly detail: { readonly members?: unknown } }).detail.members)
   );
 }
 

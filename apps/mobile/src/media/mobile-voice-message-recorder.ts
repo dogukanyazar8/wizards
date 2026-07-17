@@ -22,6 +22,7 @@ const VOICE_MESSAGE_RECORDING_OPTIONS = {
 };
 
 export type MobileVoiceMessageRecorder = {
+  discard(): Promise<void>;
   readonly isRecording: boolean;
   readonly phase: "error" | "idle" | "preparing" | "recording" | "stopping";
   start(): Promise<"denied" | "error" | "recording">;
@@ -102,7 +103,31 @@ export function useMobileVoiceMessageRecorder(): MobileVoiceMessageRecorder {
     }
   }, [phase, recorder, recorderState.isRecording]);
 
+  const discard = useCallback(async (): Promise<void> => {
+    if (phase !== "recording" && !recorderState.isRecording) {
+      return;
+    }
+
+    setPhase("stopping");
+    try {
+      await recorder.stop();
+      const uri = recorder.uri;
+      if (uri) {
+        const recordingFile = new ExpoFile(uri);
+        if (recordingFile.exists) {
+          recordingFile.delete();
+        }
+      }
+    } finally {
+      await setAudioModeAsync({ allowsRecording: false, shouldPlayInBackground: false }).catch(
+        () => undefined,
+      );
+      setPhase("idle");
+    }
+  }, [phase, recorder, recorderState.isRecording]);
+
   return {
+    discard,
     isRecording: phase === "recording" || recorderState.isRecording,
     phase,
     start,

@@ -14,6 +14,11 @@ interface MobileAvatarIdentity {
   readonly id: string;
 }
 
+interface MobileProfileIdentity extends MobileAvatarIdentity {
+  readonly displayName: string | null;
+  readonly username: string;
+}
+
 export interface MobileProfilePresenceCacheSnapshot {
   readonly entries: readonly {
     readonly data: unknown;
@@ -40,6 +45,31 @@ function patchAvatarIdentity<T extends MobileAvatarIdentity>(
   }
 
   return { ...identity, avatarUrl };
+}
+
+function patchProfileIdentity<T extends MobileProfileIdentity>(
+  identity: T,
+  profile: MobileProfileResponse,
+): T {
+  const canonical = profile.user;
+  if (identity.id !== canonical.id) {
+    return identity;
+  }
+
+  if (
+    identity.avatarUrl === canonical.avatarUrl &&
+    identity.displayName === canonical.displayName &&
+    identity.username === canonical.username
+  ) {
+    return identity;
+  }
+
+  return {
+    ...identity,
+    avatarUrl: canonical.avatarUrl,
+    displayName: canonical.displayName,
+    username: canonical.username,
+  };
 }
 
 function patchAvatarArray<T>(items: readonly T[], patch: (item: T) => T): readonly T[] {
@@ -90,6 +120,42 @@ function patchFriends(
       ? data
       : { ...data, blocked, friends, pending }
   ) as MobileFriendsOverviewResponse;
+}
+
+function patchFriendsIdentity(
+  data: MobileFriendsOverviewResponse | undefined,
+  profile: MobileProfileResponse,
+): MobileFriendsOverviewResponse | undefined {
+  if (!data) {
+    return data;
+  }
+
+  const patchUser = <T extends MobileProfileIdentity>(user: T) =>
+    patchProfileIdentity(user, profile);
+  const friends = patchAvatarArray(data.friends, patchUser);
+  const blocked = patchAvatarArray(data.blocked, patchUser);
+  const incoming = patchAvatarArray(data.pending.incoming, (request) => {
+    const sender = patchUser(request.sender);
+    const receiver = patchUser(request.receiver);
+    return sender === request.sender && receiver === request.receiver
+      ? request
+      : { ...request, receiver, sender };
+  });
+  const outgoing = patchAvatarArray(data.pending.outgoing, (request) => {
+    const sender = patchUser(request.sender);
+    const receiver = patchUser(request.receiver);
+    return sender === request.sender && receiver === request.receiver
+      ? request
+      : { ...request, receiver, sender };
+  });
+  const pending =
+    incoming === data.pending.incoming && outgoing === data.pending.outgoing
+      ? data.pending
+      : { incoming, outgoing };
+
+  return friends === data.friends && blocked === data.blocked && pending === data.pending
+    ? data
+    : ({ ...data, blocked, friends, pending } as MobileFriendsOverviewResponse);
 }
 
 function patchWorkspace(
@@ -232,6 +298,26 @@ export function patchMobileProfileAvatarCaches(input: {
   );
 }
 
+export function patchMobileProfileIdentityCaches(input: {
+  profile: MobileProfileResponse;
+  queryClient: QueryClient;
+}): void {
+  const { profile, queryClient } = input;
+
+  queryClient.setQueryData<MobileProfileResponse>(mobileQueryKeys.profile(), profile);
+  queryClient.setQueryData<MobileBootstrapPayload>(mobileQueryKeys.bootstrap(), (current) => {
+    if (!current) {
+      return current;
+    }
+
+    const user = patchProfileIdentity(current.user, profile);
+    return user === current.user ? current : { ...current, user };
+  });
+  queryClient.setQueryData<MobileFriendsOverviewResponse>(mobileQueryKeys.friends(), (current) =>
+    patchFriendsIdentity(current, profile),
+  );
+}
+
 export function patchMobileProfilePresenceCaches(input: {
   queryClient: QueryClient;
   status: MobileFriendPresenceStatus;
@@ -273,7 +359,9 @@ export function patchMobileProfilePresenceCaches(input: {
   return { entries, queryClient };
 }
 
-export function restoreMobileProfilePresenceCaches(snapshot: MobileProfilePresenceCacheSnapshot): void {
+export function restoreMobileProfilePresenceCaches(
+  snapshot: MobileProfilePresenceCacheSnapshot,
+): void {
   for (const entry of snapshot.entries) {
     snapshot.queryClient.setQueryData(entry.queryKey, entry.data);
   }

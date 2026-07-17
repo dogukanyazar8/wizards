@@ -8,9 +8,11 @@ import { useMobileSocialMutations } from "../social/mobile-social-query";
 import { openMobileVoiceRoom } from "../voice/mobile-voice-room-route-navigation";
 import { MobileAppLockScreen } from "./components/mobile-app-lock-screen";
 import { MobileDeviceIntegrityWarning } from "./components/mobile-device-integrity-warning";
-import { getMobileActiveVoiceRoomPresentation } from "./features/mobile-active-voice-room";
-import { createMobileNotificationActions } from "./features/mobile-notification-actions";
+import { createMobileVoiceScreenProps } from "./features/mobile-active-voice-room";
+import { createMobileNotificationsScreenProps } from "./features/mobile-notification-actions";
+import { createMobileSettingsScreenProps } from "./features/mobile-settings-screen-props";
 import { MobileAppShell } from "./mobile-app-shell";
+import { useMobileDirectCallActions } from "./features/use-mobile-direct-call-actions";
 import { useMobileMessagingFeature } from "./features/use-mobile-messaging-feature";
 import { useMobilePermissionSummary } from "./features/use-mobile-permission-summary";
 import { useMobileProductLinks } from "./features/use-mobile-product-links";
@@ -30,10 +32,7 @@ import {
   MobileSettingsScreenProvider,
   MobileVoiceScreenProvider,
   type MobileMessagesScreenProps,
-  type MobileNotificationsScreenProps,
   type MobileOverviewScreenProps,
-  type MobileSettingsScreenProps,
-  type MobileVoiceScreenProps,
 } from "./providers/mobile-product-screen-provider";
 const copy = activeMobileCopy;
 const runtimeConfig = getMobileRuntimeConfig();
@@ -54,6 +53,7 @@ export function MobileProductApp({
     diagnostics,
     dismissDeviceIntegrityWarning,
     error,
+    getAccessToken,
     openWebRegister,
     openWebSignIn,
     refreshSessionFromStorage,
@@ -87,29 +87,7 @@ export function MobileProductApp({
     updateChannelTyping,
     updateDMTyping,
   } = useMobileRealtimeRuntime();
-  const {
-    beginPushToTalk,
-    endPushToTalk,
-    flipCamera: flipVoiceCamera,
-    joinVoiceChannel,
-    leaveVoiceChannel,
-    permissionState: voiceState,
-    pushToTalkState: voicePushToTalkState,
-    requestMicrophonePermission: handleRequestVoicePermission,
-    roomState: voiceRoomState,
-    refreshVoiceDevices,
-    selectAudioDeviceOutput: selectVoiceAudioOutputDevice,
-    selectAudioInput: selectVoiceAudioInput,
-    selectAudioOutput: selectVoiceAudioOutput,
-    selectNoiseSuppression: selectVoiceNoiseSuppression,
-    selectVoiceInputMode: handleSelectMobileVoiceInputMode,
-    syncParticipantAudioLevelFromServer,
-    syncParticipantsFromServer,
-    toggleCamera: toggleVoiceCamera,
-    toggleMute: toggleVoiceMute,
-    toggleScreenShare: toggleVoiceScreenShare,
-    voiceInputMode,
-  } = useMobileVoiceRuntime();
+  const voiceRuntime = useMobileVoiceRuntime();
   const {
     activeWorkspaceTextChannelId,
     activeWorkspaceVoiceChannelId,
@@ -121,6 +99,9 @@ export function MobileProductApp({
     directMessageUnreadCount,
     dmConversations,
     dmConversationsQuery,
+    dmMessagesQuery,
+    loadMoreDMConversations,
+    loadMoreDMMessages,
     dmMessagesState,
     dmSendState,
     getSyncHealth,
@@ -163,13 +144,13 @@ export function MobileProductApp({
     selectedWorkspaceServerId,
     setCurrentTab,
   } = useMobileMessagingFeature({
-    activeVoiceChannelId: voiceRoomState.channelId,
+    activeVoiceChannelId: voiceRuntime.roomState.channelId,
     apiClient,
     currentUser: session?.user ?? null,
     isSignedIn: status === "signed-in",
-    joinVoiceChannel,
-    leaveVoiceChannel,
-    requestMicrophonePermission: handleRequestVoicePermission,
+    joinVoiceChannel: voiceRuntime.joinVoiceChannel,
+    leaveVoiceChannel: voiceRuntime.leaveVoiceChannel,
+    requestMicrophonePermission: voiceRuntime.requestMicrophonePermission,
     stopChannelTyping,
     stopDMTyping,
     updateChannelTyping,
@@ -185,23 +166,27 @@ export function MobileProductApp({
     emitVoiceInviteAccept,
     emitVoiceInviteDecline,
     emitVoiceInviteSend,
-    joinVoiceChannel,
+    joinVoiceChannel: voiceRuntime.joinVoiceChannel,
     onOpenVoiceInvite: handleOpenVoiceInvite,
     onVoiceRoomJoined: openMobileVoiceRoom,
     subscribe: subscribeRealtime,
-    syncParticipantAudioLevelFromServer,
-    syncParticipantsFromServer,
-    voiceChannelId: voiceRoomState.channelId,
-    voiceServerId: voiceRoomState.serverId,
+    syncParticipantAudioLevelFromServer: voiceRuntime.syncParticipantAudioLevelFromServer,
+    syncParticipantsFromServer: voiceRuntime.syncParticipantsFromServer,
+    voiceChannelId: voiceRuntime.roomState.channelId,
+    voiceServerId: voiceRuntime.roomState.serverId,
   });
   const { permissionReadiness, permissionSummary } = useMobilePermissionSummary({
     cameraStatus: mediaState.cameraStatus,
-    microphoneStatus: voiceState.microphoneStatus,
+    microphoneStatus: voiceRuntime.permissionState.microphoneStatus,
     notificationStatus: notificationState.permissionStatus,
     photoLibraryStatus: mediaState.photoLibraryStatus,
   });
   const authStatusLabel =
-    status === "checking" ? copy.authChecking : status === "signed-in" ? copy.authSignedIn : copy.authSignedOut;
+    status === "checking"
+      ? copy.authChecking
+      : status === "signed-in"
+        ? copy.authSignedIn
+        : copy.authSignedOut;
   const signedInUserLabel = session ? (session.user.displayName ?? session.user.username) : null;
   const { channelTypingLabel, channelTypingUsers, dmTypingLabel } = useMobileTypingLabels({
     channelId: selectedWorkspaceChannelId,
@@ -212,18 +197,23 @@ export function MobileProductApp({
   const { openCookies, openPrivacyPolicy, openSupport, openTerms } = useMobileProductLinks(
     runtimeConfig.webUrl,
   );
+  const { onStartVideoCall, onStartVoiceCall } = useMobileDirectCallActions({
+    joinDirectCall: voiceRuntime.joinDirectCall,
+    selectedConversation: selectedDMConversation,
+  });
   const messagesScreenProps: MobileMessagesScreenProps = {
-    bootstrapState, dmConversations,
+    bootstrapState,
+    dmConversations,
+    getAccessToken,
     dmConversationsHasNextPage: dmConversationsQuery.hasNextPage,
     dmConversationsIsLoading: dmConversationsQuery.isLoading,
-    onLoadMoreConversations: () => { if (dmConversationsQuery.hasNextPage && !dmConversationsQuery.isFetchingNextPage) void dmConversationsQuery.fetchNextPage(); },
+    onLoadMoreConversations: loadMoreDMConversations,
+    onLoadMoreMessages: loadMoreDMMessages,
     dmMessagesState,
     dmSendState,
     dmTypingLabel,
     isReactionMutationPending: isDMReactionPending || isDMMessageActionPending,
     mediaState,
-    messageSearchState,
-    onClearMessageSearch: clearMessageSearch,
     onClearSelectedMediaAsset: handleClearSelectedMediaAsset,
     onCloseConversation: handleCloseDMConversation,
     onOpenConversation: handleOpenDMConversation,
@@ -232,7 +222,8 @@ export function MobileProductApp({
     onRefreshVisibleData: refreshVisibleMobileData,
     onRequestDocumentPicker: handleRequestDocumentPicker,
     onRequestPhotoLibraryPicker: handleRequestPhotoLibraryPicker,
-    onSearchMessages: handleSearchMessages,
+    onStartVideoCall,
+    onStartVoiceCall,
     onSendMessage: handleSendDMMessage,
     onSendGif: handleSendDMGif,
     onDeleteMessage: handleDeleteDMMessage,
@@ -250,18 +241,19 @@ export function MobileProductApp({
     channelMessagesState,
     channelSendState,
     isReactionMutationPending: isChannelReactionPending || isChannelMessageActionPending,
-    channelTypingLabel, channelTypingUsers,
+    channelTypingLabel,
+    channelTypingUsers,
     locale: mobileLocale,
     mediaState,
     messageSearchState,
-    onBeginVoicePushToTalk: beginPushToTalk,
+    onBeginVoicePushToTalk: voiceRuntime.beginPushToTalk,
     onChannelDraftChange: handleChannelDraftChange,
     onClearMessageSearch: clearMessageSearch,
     onClearSelectedMediaAsset: handleClearSelectedMediaAsset,
     onCloseWorkspaceChannel: handleCloseWorkspaceChannel,
     onCloseWorkspaceVoiceChannel: handleCloseWorkspaceVoiceChannel,
-    onEndVoicePushToTalk: endPushToTalk,
-    onFlipVoiceCamera: flipVoiceCamera,
+    onEndVoicePushToTalk: voiceRuntime.endPushToTalk,
+    onFlipVoiceCamera: voiceRuntime.flipCamera,
     onLeaveWorkspaceVoiceChannel: handleLeaveWorkspaceVoiceChannel,
     onOpenWorkspaceChannel: handleOpenWorkspaceChannel,
     onOpenWorkspaceServer: handleOpenWorkspaceServer,
@@ -269,44 +261,44 @@ export function MobileProductApp({
     onRefreshChannelMessages: refreshChannelMessages,
     onRefreshVisibleData: refreshVisibleMobileData,
     onRefreshWorkspaceServer: refreshWorkspaceServer,
-    onRefreshVoiceDevices: refreshVoiceDevices,
+    onRefreshVoiceDevices: voiceRuntime.refreshVoiceDevices,
     onRequestDocumentPicker: handleRequestDocumentPicker,
     onRequestPhotoLibraryPicker: handleRequestPhotoLibraryPicker,
     onSearchMessages: handleSearchMessages,
-    onSelectVoiceAudioOutput: selectVoiceAudioOutput,
-    onSelectVoiceAudioInput: selectVoiceAudioInput,
-    onSelectVoiceAudioOutputDevice: selectVoiceAudioOutputDevice,
-    onSelectVoiceNoiseSuppression: selectVoiceNoiseSuppression,
+    onSelectVoiceAudioOutput: voiceRuntime.selectAudioOutput,
+    onSelectVoiceAudioInput: voiceRuntime.selectAudioInput,
+    onSelectVoiceAudioOutputDevice: voiceRuntime.selectAudioDeviceOutput,
+    onSelectVoiceNoiseSuppression: voiceRuntime.selectNoiseSuppression,
     onSendChannelMessage: handleSendChannelMessage,
     onSendChannelGif: handleSendChannelGif,
     onDeleteMessage: handleDeleteChannelMessage,
     onEditMessage: handleEditChannelMessage,
     onToggleMessageReaction: handleToggleChannelMessageReaction,
     onSendVoiceInvite: handleSendVoiceInvite,
-    onToggleVoiceCamera: toggleVoiceCamera,
-    onToggleVoiceMute: toggleVoiceMute,
-    onToggleVoiceScreenShare: toggleVoiceScreenShare,
+    onToggleVoiceCamera: voiceRuntime.toggleCamera,
+    onToggleVoiceMute: voiceRuntime.toggleMute,
+    onToggleVoiceScreenShare: voiceRuntime.toggleScreenShare,
     selectedWorkspaceChannelId,
     selectedWorkspaceServerId,
     syncHealth: getSyncHealth("overview"),
-    voiceInputMode,
+    voiceInputMode: voiceRuntime.voiceInputMode,
     voiceInviteSendStates,
-    voicePushToTalkPhase: voicePushToTalkState.phase,
-    voiceRoomState,
+    voicePushToTalkPhase: voiceRuntime.pushToTalkState.phase,
+    voiceRoomState: voiceRuntime.roomState,
     workspaceServerState,
   };
-  const notificationsScreenProps: MobileNotificationsScreenProps = {
+  const notificationsScreenProps = createMobileNotificationsScreenProps({
     bootstrapState,
+    joinVoiceChannel: voiceRuntime.joinVoiceChannel,
     notificationState,
     onRefreshBootstrap: refreshBootstrap,
     onRefreshVisibleData: refreshVisibleMobileData,
-    ...createMobileNotificationActions({ joinVoiceChannel }),
     onRequestNotificationPermission: handleRequestNotificationPermission,
     permissionReadiness,
     permissionSummary,
     syncHealth: getSyncHealth("notifications"),
-  };
-  const settingsScreenProps: MobileSettingsScreenProps = {
+  });
+  const settingsScreenProps = createMobileSettingsScreenProps({
     appLockAvailability,
     appLockEnabled,
     authStatusLabel,
@@ -318,51 +310,40 @@ export function MobileProductApp({
     onOpenPrivacyPolicy: openPrivacyPolicy,
     onOpenSupport: openSupport,
     onOpenTerms: openTerms,
-    onOpenWebRegister: () => void openWebRegister(),
-    onOpenWebSignIn: () => void openWebSignIn(),
-    onRefresh: () => void refreshSessionFromStorage(),
     onRefreshBootstrap: refreshBootstrap,
+    onRefreshSession: refreshSessionFromStorage,
     onRefreshVisibleData: refreshVisibleMobileData,
-    onRequestCameraPermission: async () => {
-      await handleRequestCameraPermission();
-    },
+    onRequestCameraPermission: handleRequestCameraPermission,
     onRequestDocumentPicker: handleRequestDocumentPicker,
     onRequestNotificationPermission: handleRequestNotificationPermission,
     onRequestPhotoLibraryPermission: handleRequestPhotoLibraryPermission,
     onSelectLocale: handleSelectMobileLocale,
-    onSelectVoiceInputMode: handleSelectMobileVoiceInputMode,
-    onSignOut: () => void signOut(),
-    onUpdatePresence: async (presence) => {
-      await socialMutations.updatePresence.mutateAsync(presence);
-    },
-    onToggleAppLock: (enabled: boolean) => void setAppLockEnabled(enabled),
+    onSelectVoiceInputMode: voiceRuntime.selectVoiceInputMode,
+    onSetAppLockEnabled: setAppLockEnabled,
+    onSignOut: signOut,
+    onUpdatePresence: socialMutations.updatePresence.mutateAsync,
+    openWebRegister,
+    openWebSignIn,
     permissionReadiness,
     permissionSummary,
-    signedInUserLabel,
     sessionDiagnostics: diagnostics,
-    socialActionsEnabled: status === "signed-in",
+    signedInUserLabel,
     status,
     syncHealth: getSyncHealth("settings"),
-    voiceInputMode,
-  };
-  const activeVoiceRoomPresentation = getMobileActiveVoiceRoomPresentation({
-    bootstrapState,
-    onOpenVoiceInvite: handleOpenVoiceInvite,
-    voiceRoomState,
+    voiceInputMode: voiceRuntime.voiceInputMode,
   });
-  const voiceScreenProps: MobileVoiceScreenProps = {
+  const voiceScreenProps = createMobileVoiceScreenProps({
     bootstrapState,
-    onBeginVoicePushToTalk: beginPushToTalk,
-    onEndVoicePushToTalk: endPushToTalk,
+    onBeginVoicePushToTalk: voiceRuntime.beginPushToTalk,
+    onEndVoicePushToTalk: voiceRuntime.endPushToTalk,
     onLeaveVoiceChannel: handleLeaveWorkspaceVoiceChannel,
-    onOpenVoiceInvite: activeVoiceRoomPresentation.onOpenVoiceInvite,
-    onSelectVoiceAudioOutput: selectVoiceAudioOutput,
-    onToggleVoiceMute: toggleVoiceMute,
-    serverName: activeVoiceRoomPresentation.serverName,
-    voiceInputMode,
-    voicePushToTalkPhase: voicePushToTalkState.phase,
-    voiceRoomState,
-  };
+    onOpenVoiceInvite: handleOpenVoiceInvite,
+    onSelectVoiceAudioOutput: voiceRuntime.selectAudioOutput,
+    onToggleVoiceMute: voiceRuntime.toggleMute,
+    voiceInputMode: voiceRuntime.voiceInputMode,
+    voicePushToTalkPhase: voiceRuntime.pushToTalkState.phase,
+    voiceRoomState: voiceRuntime.roomState,
+  });
   return (
     <MobileProductNavigationProvider value={{ openWorkspaceRoute: handleOpenWorkspaceRoute }}>
       <MobileMessagesScreenProvider value={messagesScreenProps}>

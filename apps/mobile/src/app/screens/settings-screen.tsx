@@ -60,6 +60,8 @@ import { formatMobileMediaAssetMeta } from "../components/media-primitives";
 import { useTheme, useThemePreference } from "../providers/mobile-theme-provider";
 import type { MobileThemeMode } from "../../design/mobile-theme-runtime";
 import { useSettingsScreenStyles } from "./settings-screen.styles";
+import { MobileAccountSettingsScreen } from "./mobile-account-settings-screen";
+import { MobileAppearanceSettingsScreen } from "./mobile-appearance-settings-screen";
 import { SocialAccountQuickActions } from "../../social/social-account-screens";
 import { BottomSheet, Button, DestructiveConfirmationSheet, Skeleton } from "../components/kit";
 import { Avatar } from "../components/kit/avatar";
@@ -2163,27 +2165,14 @@ export function ProfileSettingsScreen({
     );
   }
 
-  if (resolvedSection === "account")
-    return sectionShell(
-      sectionLabels.account,
-      <>
-        <SettingsAccountCard
-          authStatusLabel={authStatusLabel}
-          bootstrapState={bootstrapState}
-          signedInUserLabel={signedInUserLabel}
-          status={status}
-        />
-        {socialActionsEnabled ? <SocialAccountQuickActions /> : null}
-        <SettingsSessionActionCard
-          isSignedIn={isSignedIn}
-          onOpenWebRegister={onOpenWebRegister}
-          onOpenWebSignIn={onOpenWebSignIn}
-          onRefresh={onRefresh}
-          onSignOut={onSignOut}
-        />
-      </>,
-      "mobile-settings-account",
+  if (resolvedSection === "account") {
+    return (
+      <MobileAccountSettingsScreen
+        onBack={onBack ?? (() => mobileNavigationRef.isReady() && mobileNavigationRef.goBack())}
+        presence={bootstrapState.status === "ready" ? bootstrapState.payload.user.status : null}
+      />
     );
+  }
   if (resolvedSection === "security")
     return sectionShell(
       sectionLabels.security,
@@ -2213,20 +2202,13 @@ export function ProfileSettingsScreen({
       </>,
       "mobile-settings-security",
     );
-  if (resolvedSection === "appearance")
-    return sectionShell(
-      sectionLabels.appearance,
-      <SettingsPreferenceSection
-        description={copy.settingsAppearanceDescription}
-        rows={appearanceRows.filter((row) => row.id === "theme")}
-        title={copy.settingsAppearanceTitle}
-      >
-        <SettingsAppearanceSelector />
-        <SettingsWorkspaceLayoutSelector />
-        <SettingsHapticsControl />
-      </SettingsPreferenceSection>,
-      "mobile-settings-appearance",
+  if (resolvedSection === "appearance") {
+    return (
+      <MobileAppearanceSettingsScreen
+        onBack={onBack ?? (() => mobileNavigationRef.isReady() && mobileNavigationRef.goBack())}
+      />
     );
+  }
   if (resolvedSection === "language")
     return sectionShell(
       sectionLabels.language,

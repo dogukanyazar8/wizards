@@ -36,6 +36,14 @@ jest.mock("@expo/vector-icons/Ionicons", () => ({
 }));
 
 jest.mock("@livekit/react-native", () => ({
+  AndroidAudioTypePresets: { communication: "communication" },
+  AudioSession: {
+    configureAudio: jest.fn(async () => undefined),
+    getAudioOutputs: jest.fn(async () => []),
+    selectAudioOutput: jest.fn(async () => undefined),
+    startAudioSession: jest.fn(async () => undefined),
+    stopAudioSession: jest.fn(async () => undefined),
+  },
   VideoTrack: (props: Record<string, unknown>) => {
     const React = require("react");
     const { View } = require("react-native");
@@ -68,6 +76,14 @@ jest.mock("expo-system-ui", () => ({
 
 jest.mock("expo-clipboard", () => ({
   setStringAsync: jest.fn(async () => true),
+}));
+
+jest.mock("expo-image", () => ({
+  Image: (props: Record<string, unknown>) => {
+    const React = require("react");
+    const { View } = require("react-native");
+    return React.createElement(View, props);
+  },
 }));
 
 jest.mock("expo-blur", () => ({

@@ -1,11 +1,14 @@
 import {
   MobileDMConversationsResponseSchema,
   MobileDMMessagesResponseSchema,
+  MobileDMMarkReadResponseSchema,
   MobileDMMessagesThreadResponseSchema,
   MobileDMSendMessageResponseSchema,
   MobileMessageDeleteResponseSchema,
   MobileMessageReactionResponseSchema,
   type MobileDMMessagesResponse,
+  type MobileDMMarkReadResponse,
+  type MobileDMParticipantReadState,
   type MobileDMConversationsResponse,
   type MobileDMMessagesThreadResponse,
   type MobileDMSendMessageRequest,
@@ -17,6 +20,35 @@ import type { MobileApiClient } from "../api/mobile-api-client";
 
 export const MOBILE_DM_MESSAGES_LIMIT = 30;
 export const MOBILE_DM_CONVERSATIONS_LIMIT = 20;
+
+export function getMobileDMPartnerLastReadAt(
+  readStates: readonly MobileDMParticipantReadState[] | undefined,
+  currentUserId: string,
+): string | null {
+  let latest: string | null = null;
+  let latestTimestamp = Number.NEGATIVE_INFINITY;
+
+  for (const state of readStates ?? []) {
+    if (state.userId === currentUserId || !state.lastReadAt) continue;
+    const timestamp = Date.parse(state.lastReadAt);
+    if (Number.isFinite(timestamp) && timestamp > latestTimestamp) {
+      latest = state.lastReadAt;
+      latestTimestamp = timestamp;
+    }
+  }
+
+  return latest;
+}
+
+export function getMobileDMReadTarget(input: {
+  readonly conversationId: string | null;
+  readonly isSignedIn: boolean;
+  readonly latestMessageId: string | null;
+}): string | null {
+  return input.isSignedIn && input.conversationId && input.latestMessageId
+    ? input.conversationId
+    : null;
+}
 
 export function buildMobileDMConversationsPath(input: { cursor?: string | null }): string {
   const params = new URLSearchParams({ limit: String(MOBILE_DM_CONVERSATIONS_LIMIT) });
@@ -62,6 +94,20 @@ export async function fetchMobileDMMessages(
 
 export function buildMobileDMSendMessagePath(input: { conversationId: string }): string {
   return `/api/v1/mobile/dm/${encodeURIComponent(input.conversationId)}/messages`;
+}
+
+export function buildMobileDMMarkReadPath(input: { conversationId: string }): string {
+  return `/api/v1/mobile/dm/${encodeURIComponent(input.conversationId)}/read`;
+}
+
+export async function markMobileDMConversationRead(
+  client: MobileApiClient,
+  input: { conversationId: string },
+): Promise<MobileDMMarkReadResponse> {
+  const payload = await client.requestJson<unknown>(buildMobileDMMarkReadPath(input), {
+    method: "PATCH",
+  });
+  return MobileDMMarkReadResponseSchema.parse(payload);
 }
 
 export function buildMobileDMMessagePath(input: {

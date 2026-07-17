@@ -39,7 +39,9 @@ const defaultDependencies: MobileTwoFactorRouteDependencies = {
   setup: startTwoFactorSetup,
 };
 
-function unwrapTwoFactorResult<T extends { success: boolean }>(result: T): Extract<T, { success: true }> {
+function unwrapTwoFactorResult<T extends { success: boolean }>(
+  result: T,
+): Extract<T, { success: true }> {
   if (result.success) {
     return result as Extract<T, { success: true }>;
   }
@@ -69,7 +71,10 @@ async function authorize(request: Request, dependencies: MobileTwoFactorRouteDep
   return userId;
 }
 
-export async function mobileTwoFactorSetupRoute(request: Request, dependencies: MobileTwoFactorRouteDependencies = defaultDependencies) {
+export async function mobileTwoFactorSetupRoute(
+  request: Request,
+  dependencies: MobileTwoFactorRouteDependencies = defaultDependencies,
+) {
   try {
     const userId = await authorize(request, dependencies);
     const result = unwrapTwoFactorResult(await dependencies.setup(userId));
@@ -85,7 +90,10 @@ export async function mobileTwoFactorSetupRoute(request: Request, dependencies: 
   }
 }
 
-export async function mobileTwoFactorConfirmRoute(request: Request, dependencies: MobileTwoFactorRouteDependencies = defaultDependencies) {
+export async function mobileTwoFactorConfirmRoute(
+  request: Request,
+  dependencies: MobileTwoFactorRouteDependencies = defaultDependencies,
+) {
   try {
     const userId = await authorize(request, dependencies);
     const { code } = await dependencies.parseBody(request, MobileTwoFactorConfirmRequestSchema);
@@ -98,7 +106,10 @@ export async function mobileTwoFactorConfirmRoute(request: Request, dependencies
   }
 }
 
-export async function mobileTwoFactorDisableRoute(request: Request, dependencies: MobileTwoFactorRouteDependencies = defaultDependencies) {
+export async function mobileTwoFactorDisableRoute(
+  request: Request,
+  dependencies: MobileTwoFactorRouteDependencies = defaultDependencies,
+) {
   try {
     const userId = await authorize(request, dependencies);
     const input = await dependencies.parseBody(request, MobileTwoFactorDisableRequestSchema);

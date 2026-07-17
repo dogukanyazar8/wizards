@@ -128,6 +128,24 @@ export const redesignLight = {
   voiceRoomParticipant: "#FFFFFF",
 } as const;
 
+/**
+ * Handoff 4c theme/layout preview artwork. These miniatures depict the other
+ * theme, so they stay literal in both themes instead of following the active
+ * surface tokens.
+ */
+export const redesignAppearancePreview = {
+  darkAccentBar: "#7C6CF6",
+  darkMutedBar: "#2A2D45",
+  darkSurface: "#141625",
+  darkTextBar: "#EDEEF6",
+  lightBorder: "#E7E9F4",
+  lightMutedBar: "#DDE0F0",
+  lightSurface: "#F6F7FB",
+  lightTitleBar: "#1E2235",
+  railDot: "#C6CADE",
+  railSurface: "#EDEEF6",
+} as const;
+
 export const redesignDark = {
   bg: "#131529",
   card: "#1C1F3A",

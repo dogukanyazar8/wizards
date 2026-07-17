@@ -19,6 +19,9 @@ import {
 import { AvatarMark, MetricMiniPill, StatusChip } from "../components/ui-atoms";
 import { useTheme } from "../providers/mobile-theme-provider";
 import { useDmScreenStyles } from "./dm-screen.styles";
+import type { MobileDMInboxSegment } from "./dm-screen.types";
+
+const DM_INBOX_SEGMENTS: readonly MobileDMInboxSegment[] = ["conversations", "friends", "requests"];
 import { mobileListLoadHandlers } from "../../performance/mobile-performance-metrics";
 
 export function DMInboxHeader({ onCompose }: { onCompose(): void }) {
@@ -258,6 +261,53 @@ export function DMInboxEmptyState({ onCompose }: { onCompose(): void }) {
       >
         <Text style={styles.dmInboxEmptyActionText}>{copy.directMessageComposeAction}</Text>
       </Pressable>
+    </View>
+  );
+}
+
+export function DMInboxSegmentTabs({
+  incomingRequestCount,
+  onSelectSegment,
+  segment,
+}: {
+  incomingRequestCount: number;
+  onSelectSegment(segment: MobileDMInboxSegment): void;
+  segment: MobileDMInboxSegment;
+}) {
+  const styles = useDmScreenStyles();
+
+  return (
+    <View testID="mobile-dm-filter-tabs">
+      <View style={styles.inboxFilterRow} testID="mobile-social-segment">
+        {DM_INBOX_SEGMENTS.map((candidate) => {
+          const selected = segment === candidate;
+          const label =
+            candidate === "conversations"
+              ? copy.socialSegmentConversations
+              : candidate === "friends"
+                ? copy.socialSegmentFriends
+                : copy.socialSegmentRequests;
+          return (
+            <Pressable
+              accessibilityRole="tab"
+              accessibilityState={{ selected }}
+              key={candidate}
+              onPress={() => onSelectSegment(candidate)}
+              style={[styles.inboxFilterButton, selected && styles.inboxFilterButtonActive]}
+              testID={`mobile-social-segment-${candidate}`}
+            >
+              <Text
+                style={[styles.inboxFilterButtonText, selected && styles.inboxFilterButtonTextActive]}
+              >
+                {label}
+                {candidate === "requests" && incomingRequestCount > 0 ? (
+                  <Text style={styles.inboxFilterRequestCount}> ·{incomingRequestCount}</Text>
+                ) : null}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
     </View>
   );
 }

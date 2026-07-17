@@ -16,8 +16,15 @@ jest.mock("../src/app/components/kit", () => {
 
   return {
     ...actual,
-    BottomSheet: ({ children, open, testID }: { children: React.ReactNode; open: boolean; testID: string }) =>
-      open ? React.createElement(View, { testID: `${testID}-panel` }, children) : null,
+    BottomSheet: ({
+      children,
+      open,
+      testID,
+    }: {
+      children: React.ReactNode;
+      open: boolean;
+      testID: string;
+    }) => (open ? React.createElement(View, { testID: `${testID}-panel` }, children) : null),
   };
 });
 
@@ -257,9 +264,9 @@ describe("1b channel chat redesign", () => {
       kind: "image",
       localUri: "file:///cache/welcome.png",
     });
-    const onSend = jest.fn<
-      (content: string, attachments?: readonly { id: string }[]) => Promise<boolean>
-    >().mockResolvedValue(true);
+    const onSend = jest
+      .fn<(content: string, attachments?: readonly { id: string }[]) => Promise<boolean>>()
+      .mockResolvedValue(true);
     const view = await render(
       <DMComposer
         getAccessToken={async () => "mobile-access-token"}
@@ -287,6 +294,7 @@ describe("1b channel chat redesign", () => {
       expect(uploadMobileMessageAttachmentToUploadThing).toHaveBeenCalledWith({
         accessToken: "mobile-access-token",
         picked: expect.objectContaining({ localUri: "file:///cache/welcome.png" }),
+        signal: expect.any(AbortSignal),
       });
     });
     expect(view.getByTestId(`mobile-channel-attachment-draft-${attachmentId}`)).toBeTruthy();

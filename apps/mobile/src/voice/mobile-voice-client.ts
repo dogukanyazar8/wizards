@@ -3,11 +3,13 @@ import {
   MobileVoiceStateLeaveResponseSchema,
   MobileVoiceStateMutationResponseSchema,
   MobileVoiceStatesResponseSchema,
+  MobileVoiceTokenRequestSchema,
   MobileVoiceTokenResponseSchema,
   type MobileVoiceHeartbeatResponse,
   type MobileVoiceStateLeaveResponse,
   type MobileVoiceStateMutationResponse,
   type MobileVoiceStatesResponse,
+  type MobileVoiceTokenRequest,
   type MobileVoiceTokenResponse,
 } from "@wizards/types";
 
@@ -20,10 +22,11 @@ export const MOBILE_VOICE_TOKEN_ENDPOINT = "/api/v1/mobile/voice/token";
 
 export async function fetchMobileVoiceToken(
   client: MobileApiClient,
-  input: { channelId: string },
+  input: MobileVoiceTokenRequest,
 ): Promise<MobileVoiceTokenResponse> {
+  const target = MobileVoiceTokenRequestSchema.parse(input);
   const payload = await client.requestJson<unknown>(MOBILE_VOICE_TOKEN_ENDPOINT, {
-    body: input,
+    body: target,
     method: "POST",
   });
 

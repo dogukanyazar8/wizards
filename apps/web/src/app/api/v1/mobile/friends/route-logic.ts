@@ -102,9 +102,7 @@ async function friendRequestActionRoute(
     await dependencies.enforceRateLimit(userId, "mobile:friends:request-action");
     const { id } = MobileFriendRequestParamsSchema.parse(await context.params);
     const friendRequest = await dependencies.actOnFriendRequest(userId, id, action);
-    return Response.json(
-      MobileFriendRequestActionResponseSchema.parse({ request: friendRequest }),
-    );
+    return Response.json(MobileFriendRequestActionResponseSchema.parse({ request: friendRequest }));
   } catch (error) {
     return jsonError(error);
   }

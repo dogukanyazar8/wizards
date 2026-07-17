@@ -171,11 +171,17 @@ test("local UAT package commands keep their intended device and ABI contracts", 
     },
   };
 
-  assert.match(packageJson.scripts["android:uat:local"], /build-android-uat\.ps1/);
-  assert.match(packageJson.scripts["android:uat:local:clean"], /-CleanAndroidCaches\b/);
+  const requireScript = (name: string): string => {
+    const script = packageJson.scripts[name];
+    assert.ok(script, `${name} script missing`);
+    return script;
+  };
+
+  assert.match(requireScript("android:uat:local"), /build-android-uat\.ps1/);
+  assert.match(requireScript("android:uat:local:clean"), /-CleanAndroidCaches\b/);
 
   for (const [name, expected] of Object.entries(expectedApkCommands)) {
-    const script = packageJson.scripts[name];
+    const script = requireScript(name);
     assert.match(script, new RegExp(`-AndroidArchitectures ${expected.architectures}`));
     assert.equal(/-BuildType release\b/.test(script), expected.release, `${name} release mode`);
     assert.equal(

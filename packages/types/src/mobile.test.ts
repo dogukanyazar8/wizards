@@ -42,6 +42,9 @@ import {
   MobileDMConversationsResponseSchema,
   MobileDMMessagesThreadResponseSchema,
   MobileDMMessagesResponseSchema,
+  MobileDMMarkReadResponseSchema,
+  MobileDMParticipantReadStateSchema,
+  MobileDMReadUpdatedEventSchema,
   MobileDMSendMessageRequestSchema,
   MobileDMSendMessageResponseSchema,
   MobileMessageDeleteResponseSchema,
@@ -51,6 +54,7 @@ import {
   MobileNotificationIdParamsSchema,
   MobileNotificationItemSchema,
   MobileNotificationMutationResponseSchema,
+  MobileNotificationEventKindSchema,
   MobileNotificationTypeSchema,
   MobileNotificationsQuerySchema,
   MobileNotificationsResponseSchema,
@@ -454,7 +458,10 @@ describe("mobile schemas", () => {
       MobileDMConversationListItemSchema: {
         schema: MobileDMConversationListItemSchema,
         valid: mobileDMConversation,
-        invalid: { ...mobileDMConversation, lastMessage: { ...mobileDMConversation.lastMessage, createdAt: "today" } },
+        invalid: {
+          ...mobileDMConversation,
+          lastMessage: { ...mobileDMConversation.lastMessage, createdAt: "today" },
+        },
       },
       MobileDMConversationsQuerySchema: {
         schema: MobileDMConversationsQuerySchema,
@@ -556,8 +563,35 @@ describe("mobile schemas", () => {
       },
       MobileDMMessagesResponseSchema: {
         schema: MobileDMMessagesResponseSchema,
-        valid: { conversation: dmConversation, messages: [dmMessage], nextCursor: null },
+        valid: {
+          conversation: dmConversation,
+          messages: [dmMessage],
+          nextCursor: null,
+          participantReadStates: [{ lastReadAt: "2026-07-17T08:00:00.000Z", userId: "user-1" }],
+        },
         invalid: { conversation: dmConversation, messages: "message-1", nextCursor: null },
+      },
+      MobileDMParticipantReadStateSchema: {
+        schema: MobileDMParticipantReadStateSchema,
+        valid: { lastReadAt: "2026-07-17T08:00:00.000Z", userId: "user-1" },
+        invalid: { lastReadAt: "not-a-date", userId: "user-1" },
+      },
+      MobileDMMarkReadResponseSchema: {
+        schema: MobileDMMarkReadResponseSchema,
+        valid: {
+          conversationId: "conversation-1",
+          participantReadStates: [{ lastReadAt: "2026-07-17T08:00:00.000Z", userId: "user-1" }],
+        },
+        invalid: { conversationId: "", participantReadStates: [] },
+      },
+      MobileDMReadUpdatedEventSchema: {
+        schema: MobileDMReadUpdatedEventSchema,
+        valid: {
+          conversationId: "conversation-1",
+          lastReadAt: "2026-07-17T08:00:00.000Z",
+          userId: "user-1",
+        },
+        invalid: { conversationId: "conversation-1", lastReadAt: "nope", userId: "user-1" },
       },
       MobileDMMessagesThreadResponseSchema: {
         schema: MobileDMMessagesThreadResponseSchema,
@@ -620,6 +654,11 @@ describe("mobile schemas", () => {
         schema: MobileNotificationMutationResponseSchema,
         valid: { success: true },
         invalid: { success: false },
+      },
+      MobileNotificationEventKindSchema: {
+        schema: MobileNotificationEventKindSchema,
+        valid: "message-reaction",
+        invalid: "unknown-event",
       },
       MobileNotificationTypeSchema: {
         schema: MobileNotificationTypeSchema,
@@ -1038,9 +1077,11 @@ describe("mobile schemas", () => {
 
     assertAccepts(MobileNotificationItemSchema, notification);
     assertRejects(MobileNotificationItemSchema, { ...notification, type: "UNKNOWN" }, ["type"]);
-    assertRejects(MobileNotificationItemSchema, { ...notification, actionUrl: "https://evil.test" }, [
-      "actionUrl",
-    ]);
+    assertRejects(
+      MobileNotificationItemSchema,
+      { ...notification, actionUrl: "https://evil.test" },
+      ["actionUrl"],
+    );
     assertRejects(MobileNotificationItemSchema, { ...notification, actionUrl: "//evil.test" }, [
       "actionUrl",
     ]);
@@ -1054,6 +1095,30 @@ describe("mobile schemas", () => {
   });
 
   it("enforces strict voice request UUIDs, identifiers, and collection limits", () => {
+    assertAccepts(MobileVoiceTokenRequestSchema, { conversationId: "conversation-1" });
+    assertRejects(MobileVoiceTokenRequestSchema, {});
+    assertRejects(MobileVoiceTokenRequestSchema, {
+      channelId: "channel-1",
+      conversationId: "conversation-1",
+    });
+    assertAccepts(MobileVoiceTokenResponseSchema, {
+      conversationId: "conversation-1",
+      provider: "livekit",
+      token: "t".repeat(16),
+      url: "wss://livekit.example.com",
+    });
+    assertRejects(MobileVoiceTokenResponseSchema, {
+      provider: "livekit",
+      token: "t".repeat(16),
+      url: "wss://livekit.example.com",
+    });
+    assertRejects(MobileVoiceTokenResponseSchema, {
+      channelId: "channel-1",
+      conversationId: "conversation-1",
+      provider: "livekit",
+      token: "t".repeat(16),
+      url: "wss://livekit.example.com",
+    });
     assertRejects(MobileVoiceTokenRequestSchema, { channelId: "channel-1", extra: true });
     assertRejects(MobileVoiceStateDeleteRequestSchema, { extra: true, sessionId: uuid });
     assertRejects(MobileVoiceHeartbeatRequestSchema, { extra: true, sessionId: uuid });
@@ -1176,5 +1241,26 @@ describe("mobile schemas", () => {
       },
       ["messages"],
     );
+  });
+
+  it("keeps DM participant read states optional and accepts every returned participant", () => {
+    assertAccepts(MobileDMParticipantReadStateSchema, {
+      lastReadAt: null,
+      userId: "user-1",
+    });
+    assertAccepts(MobileDMMessagesResponseSchema, {
+      conversation: dmConversation,
+      messages: [dmMessage],
+      nextCursor: null,
+    });
+    assertAccepts(MobileDMMessagesResponseSchema, {
+      conversation: dmConversation,
+      messages: [dmMessage],
+      nextCursor: null,
+      participantReadStates: Array.from({ length: 9 }, (_, index) => ({
+        lastReadAt: index % 2 === 0 ? now : null,
+        userId: `user-${index + 1}`,
+      })),
+    });
   });
 });

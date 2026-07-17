@@ -117,7 +117,7 @@ describe("AuthWelcomeScreen", () => {
     mockSystemScheme = scheme;
     const view = await renderWelcome();
 
-    await waitFor(() => expect(mockGetItem).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mockGetItem).toHaveBeenCalledWith(MOBILE_THEME_PREFERENCE_KEY));
 
     expect(
       StyleSheet.flatten(view.getByTestId("mobile-auth-welcome-screen").props.style),

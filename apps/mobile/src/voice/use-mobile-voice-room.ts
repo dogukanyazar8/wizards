@@ -88,6 +88,21 @@ type JoinVoiceChannelInput = {
   serverId: string;
 };
 
+export type JoinDirectCallInput = {
+  conversationId: string;
+  title: string;
+  video: boolean;
+};
+
+type JoinVoiceSessionInput =
+  | (JoinVoiceChannelInput & { sessionMode: "channel"; video: false })
+  | (JoinDirectCallInput & {
+      channelId: null;
+      channelName: string;
+      serverId: null;
+      sessionMode: "direct";
+    });
+
 type SyncServerVoiceParticipantsInput = {
   channelId: string;
   participants: readonly MobileVoiceStateParticipant[];
@@ -275,14 +290,27 @@ function resolveSelfScreenShareStatus(
 
 export function useMobileVoiceRoom({
   apiClient,
+  cameraPermissionDeniedMessage = "Camera permission is required for a video call.",
   currentUser,
+  directCallConnectionErrorMessage = "Direct call could not connect.",
+  directCallMicrophonePermissionDeniedMessage = "Microphone permission is required for a direct call.",
+  directCallVideoErrorMessage = "Video could not be started.",
   onVoiceDevicePreferencesChange,
+  requestCameraPermissionAfterUserAction,
   voiceDevicePreferences = DEFAULT_MOBILE_VOICE_DEVICE_PREFERENCES,
   voiceInputMode,
 }: {
   apiClient: MobileApiClient;
+  cameraPermissionDeniedMessage?: string;
   currentUser: MobileSessionUser | null;
+  directCallConnectionErrorMessage?: string;
+  directCallMicrophonePermissionDeniedMessage?: string;
+  directCallVideoErrorMessage?: string;
   onVoiceDevicePreferencesChange?(preferences: MobileVoiceDevicePreferences): void;
+  requestCameraPermissionAfterUserAction?(): Promise<{
+    readonly errorMessage: string | null;
+    readonly hasCameraPermission: boolean;
+  }>;
   voiceDevicePreferences?: MobileVoiceDevicePreferences;
   voiceInputMode: MobileVoiceInputMode;
 }) {
@@ -299,6 +327,8 @@ export function useMobileVoiceRoom({
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const levelTickerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const sessionIdRef = useRef<string | null>(null);
+  const sessionModeRef = useRef<"channel" | "direct" | null>(null);
+  const joinPendingRef = useRef(false);
   const sessionGenerationRef = useRef(0);
   const currentUserRef = useRef<MobileSessionUser | null>(currentUser);
   const voiceDevicePreferencesRef = useRef(voiceDevicePreferences);
@@ -572,7 +602,7 @@ export function useMobileVoiceRoom({
         // Audio session cleanup must not block server-side voice state cleanup.
       }
 
-      if (sessionId) {
+      if (sessionId && sessionModeRef.current === "channel") {
         try {
           await leaveMobileVoiceState(apiClient, { sessionId });
         } catch {
@@ -582,6 +612,7 @@ export function useMobileVoiceRoom({
 
       if (isCurrentSessionGeneration(generation)) {
         sessionIdRef.current = null;
+        sessionModeRef.current = null;
         setRoomState(createInitialMobileVoiceRoomState());
       }
     } finally {
@@ -654,10 +685,11 @@ export function useMobileVoiceRoom({
       const sessionId = sessionIdRef.current;
       sessionIdRef.current = null;
 
-      if (sessionId) {
+      if (sessionId && sessionModeRef.current === "channel") {
         // Unexpected LiveKit disconnects perform server-leave cleanup to avoid stale mobile voice state.
         void leaveMobileVoiceState(apiClient, { sessionId }).catch(() => undefined);
       }
+      sessionModeRef.current = null;
 
       setRoomState((current) => {
         if (!isCurrentSessionGeneration(terminalGeneration)) {
@@ -756,29 +788,106 @@ export function useMobileVoiceRoom({
     [cleanupDisconnectedRoom, isCurrentSessionGeneration, updateParticipantsFromRoom],
   );
 
-  const joinVoiceChannel = useCallback(
-    async ({
-      channelId,
-      channelName,
-      permission: preparedPermission,
-      serverId,
-    }: JoinVoiceChannelInput): Promise<boolean> => {
+  const enableDirectCallVideo = useCallback(async (): Promise<boolean> => {
+    const room = roomRef.current;
+    const generation = sessionGenerationRef.current;
+    if (!room || sessionModeRef.current !== "direct") {
+      return false;
+    }
+    if (room.localParticipant.isCameraEnabled) {
+      return true;
+    }
+
+    const cameraPermission = await requestCameraPermissionAfterUserAction?.();
+    if (!isCurrentSessionGeneration(generation) || roomRef.current !== room) {
+      return false;
+    }
+    if (!cameraPermission?.hasCameraPermission) {
+      setRoomState((current) =>
+        current.status === "connected" && current.sessionMode === "direct"
+          ? {
+              ...current,
+              errorMessage: cameraPermissionDeniedMessage,
+              updatedAt: Date.now(),
+            }
+          : current,
+      );
+      return false;
+    }
+
+    try {
+      await room.localParticipant.setCameraEnabled(true);
+      if (!isCurrentSessionGeneration(generation) || roomRef.current !== room) {
+        return false;
+      }
+      if (!room.localParticipant.isCameraEnabled) {
+        throw new Error("Direct-call camera publication did not become active.");
+      }
+      updateParticipantsFromRoom();
+      setRoomState((current) => ({
+        ...current,
+        errorMessage: null,
+        selfCameraEnabled: true,
+        updatedAt: Date.now(),
+      }));
+      return true;
+    } catch {
+      updateParticipantsFromRoom();
+      setRoomState((current) =>
+        current.status === "connected" && current.sessionMode === "direct"
+          ? {
+              ...current,
+              errorMessage: directCallVideoErrorMessage,
+              selfCameraEnabled: room.localParticipant.isCameraEnabled,
+              updatedAt: Date.now(),
+            }
+          : current,
+      );
+      return false;
+    }
+  }, [
+    cameraPermissionDeniedMessage,
+    directCallVideoErrorMessage,
+    isCurrentSessionGeneration,
+    requestCameraPermissionAfterUserAction,
+    updateParticipantsFromRoom,
+  ]);
+
+  const joinVoiceSession = useCallback(
+    async (input: JoinVoiceSessionInput): Promise<boolean> => {
+      const isDirectCall = input.sessionMode === "direct";
+      const channelId = isDirectCall ? null : input.channelId;
+      const channelName = isDirectCall ? input.title : input.channelName;
+      const conversationId = isDirectCall ? input.conversationId : null;
+      const preparedPermission = isDirectCall ? undefined : input.permission;
+      const serverId = isDirectCall ? null : input.serverId;
+      const video = isDirectCall && input.video;
       const user = currentUserRef.current;
       if (!user) {
         setRoomState((current) => ({
           ...current,
           channelId,
           channelName,
+          conversationId,
           errorMessage: "Voice room requires an active mobile session.",
           serverId,
+          sessionMode: input.sessionMode,
           status: "error",
           updatedAt: Date.now(),
         }));
         return false;
       }
 
-      if (roomState.status === "connected" && roomState.channelId === channelId) {
-        return true;
+      if (
+        roomState.status === "connected" &&
+        roomState.sessionMode === input.sessionMode &&
+        (isDirectCall
+          ? roomState.conversationId === conversationId
+          : roomState.channelId === channelId)
+      ) {
+        return video && !roomRef.current?.localParticipant.isCameraEnabled
+          ? enableDirectCallVideo()
+          : true;
       }
 
       await leaveVoiceChannel();
@@ -788,8 +897,10 @@ export function useMobileVoiceRoom({
         ...createInitialMobileVoiceRoomState(),
         channelId,
         channelName,
+        conversationId,
         participants: [createSelfVoiceRoomParticipant(user)],
         serverId,
+        sessionMode: input.sessionMode,
         status: "checking-permission",
         updatedAt: Date.now(),
       });
@@ -802,13 +913,30 @@ export function useMobileVoiceRoom({
       if (!permission.hasMicrophonePermission) {
         setRoomState((current) => ({
           ...transitionMobileVoiceRoomConnectionState(current, "permission-denied", Date.now()),
-          errorMessage: permission.errorMessage,
+          errorMessage: isDirectCall
+            ? directCallMicrophonePermissionDeniedMessage
+            : permission.errorMessage,
         }));
         return false;
       }
 
-      const sessionId = createMobileVoiceSessionId();
+      if (video) {
+        const cameraPermission = await requestCameraPermissionAfterUserAction?.();
+        if (!isCurrentSessionGeneration(generation)) {
+          return false;
+        }
+        if (!cameraPermission?.hasCameraPermission) {
+          setRoomState((current) => ({
+            ...transitionMobileVoiceRoomConnectionState(current, "permission-denied", Date.now()),
+            errorMessage: cameraPermissionDeniedMessage,
+          }));
+          return false;
+        }
+      }
+
+      const sessionId = isDirectCall ? null : createMobileVoiceSessionId();
       sessionIdRef.current = sessionId;
+      sessionModeRef.current = input.sessionMode;
       setRoomState((current) => ({
         ...current,
         sessionId,
@@ -816,17 +944,24 @@ export function useMobileVoiceRoom({
         updatedAt: Date.now(),
       }));
 
+      let directFailureMessage = directCallConnectionErrorMessage;
       try {
-        const serverState = await joinMobileVoiceState(apiClient, {
-          channelId,
-          serverId,
-          sessionId,
-        });
+        const serverParticipants = isDirectCall
+          ? []
+          : (
+              await joinMobileVoiceState(apiClient, {
+                channelId: channelId!,
+                serverId: serverId!,
+                sessionId: sessionId!,
+              })
+            ).participants;
         if (!isCurrentSessionGeneration(generation)) {
           return false;
         }
 
-        const tokenResponse = await fetchMobileVoiceToken(apiClient, { channelId });
+        const tokenResponse = isDirectCall
+          ? await fetchMobileVoiceToken(apiClient, { conversationId: conversationId! })
+          : await fetchMobileVoiceToken(apiClient, { channelId: channelId! });
         if (!isCurrentSessionGeneration(generation)) {
           return false;
         }
@@ -874,12 +1009,25 @@ export function useMobileVoiceRoom({
           return false;
         }
 
+        if (video) {
+          directFailureMessage = directCallVideoErrorMessage;
+          await room.localParticipant.setCameraEnabled(true);
+          if (!room.localParticipant.isCameraEnabled) {
+            throw new Error("Direct-call camera publication did not become active.");
+          }
+        }
+        if (!isCurrentSessionGeneration(generation)) {
+          return false;
+        }
+
         await enumerateVoiceDevices(room, generation).catch(() => undefined);
         if (!isCurrentSessionGeneration(generation)) {
           return false;
         }
 
-        startHeartbeat(sessionId, generation);
+        if (sessionId) {
+          startHeartbeat(sessionId, generation);
+        }
         startLevelTicker(generation);
 
         setRoomState((current) => {
@@ -891,10 +1039,11 @@ export function useMobileVoiceRoom({
             ...transitionMobileVoiceRoomConnectionState(current, "connected", Date.now()),
             channelId,
             channelName,
+            conversationId,
             errorMessage: null,
             participants: mergeLiveKitParticipants(
               user,
-              mergeServerParticipants(user, current.participants, serverState.participants),
+              mergeServerParticipants(user, current.participants, serverParticipants),
               room,
             ),
             noiseSuppressionEnabled: voiceDevicePreferencesRef.current.noiseSuppressionEnabled,
@@ -904,6 +1053,7 @@ export function useMobileVoiceRoom({
             selfScreenShareEnabled: false,
             serverId,
             sessionId,
+            sessionMode: input.sessionMode,
           };
         });
 
@@ -928,8 +1078,10 @@ export function useMobileVoiceRoom({
           ...createInitialMobileVoiceRoomState(),
           channelId,
           channelName,
-          errorMessage: redactMobileVoiceRoomError(error),
+          conversationId,
+          errorMessage: isDirectCall ? directFailureMessage : redactMobileVoiceRoomError(error),
           serverId,
+          sessionMode: input.sessionMode,
           status: "error",
           updatedAt: Date.now(),
         });
@@ -939,17 +1091,60 @@ export function useMobileVoiceRoom({
     [
       apiClient,
       bindRoomEvents,
+      cameraPermissionDeniedMessage,
+      directCallConnectionErrorMessage,
+      directCallMicrophonePermissionDeniedMessage,
+      directCallVideoErrorMessage,
+      enableDirectCallVideo,
       enumerateVoiceDevices,
       isCurrentSessionGeneration,
       leaveVoiceChannel,
       requestMicrophonePermission,
+      requestCameraPermissionAfterUserAction,
       roomState.channelId,
+      roomState.conversationId,
+      roomState.sessionMode,
       roomState.status,
       startSessionGeneration,
       startHeartbeat,
       startLevelTicker,
       voiceInputMode,
     ],
+  );
+
+  const joinVoiceSessionOnce = useCallback(
+    async (input: JoinVoiceSessionInput): Promise<boolean> => {
+      if (joinPendingRef.current) {
+        return false;
+      }
+      joinPendingRef.current = true;
+      try {
+        return await joinVoiceSession(input);
+      } finally {
+        joinPendingRef.current = false;
+      }
+    },
+    [joinVoiceSession],
+  );
+
+  const joinVoiceChannel = useCallback(
+    (input: JoinVoiceChannelInput) =>
+      joinVoiceSessionOnce({ ...input, sessionMode: "channel", video: false }),
+    [joinVoiceSessionOnce],
+  );
+
+  const joinDirectCall = useCallback(
+    ({ conversationId, title, video }: JoinDirectCallInput) =>
+      joinVoiceSessionOnce({
+        channelId: null,
+        channelName: title,
+        conversationId,
+        serverId: null,
+        sessionMode: "direct",
+        title,
+        video,
+      }),
+    [joinVoiceSessionOnce],
   );
 
   const toggleMute = useCallback(async () => {
@@ -997,7 +1192,7 @@ export function useMobileVoiceRoom({
     try {
       await room.localParticipant.setCameraEnabled(nextEnabled);
       updateParticipantsFromRoom();
-      if (sessionIdRef.current) {
+      if (sessionIdRef.current && sessionModeRef.current === "channel") {
         void sendMobileVoiceHeartbeat(apiClient, {
           selfVideo: nextEnabled,
           sessionId: sessionIdRef.current,
@@ -1389,6 +1584,7 @@ export function useMobileVoiceRoom({
         );
         sessionIdRef.current = null;
       }
+      sessionModeRef.current = null;
       roomRef.current = null;
       void AudioSession.stopAudioSession().catch(() => undefined);
     },
@@ -1400,6 +1596,7 @@ export function useMobileVoiceRoom({
     endPushToTalk,
     flipCamera,
     joinVoiceChannel,
+    joinDirectCall,
     leaveVoiceChannel,
     permissionState,
     pushToTalkState,

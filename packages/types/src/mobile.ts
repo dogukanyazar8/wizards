@@ -273,16 +273,26 @@ export const MobileVoiceTokenProviderSchema = z.literal("livekit");
 
 export const MobileVoiceTokenRequestSchema = z
   .object({
-    channelId: z.string().min(1).max(128),
+    channelId: z.string().min(1).max(128).optional(),
+    conversationId: z.string().min(1).max(128).optional(),
   })
-  .strict();
+  .strict()
+  .refine((value) => (value.channelId ? !value.conversationId : Boolean(value.conversationId)), {
+    message: "Provide exactly one of channelId or conversationId.",
+  });
 
-export const MobileVoiceTokenResponseSchema = z.object({
-  channelId: z.string().min(1).max(128),
-  provider: MobileVoiceTokenProviderSchema,
-  token: z.string().min(16).max(8192).regex(/^\S+$/),
-  url: z.string().min(1).max(512),
-});
+export const MobileVoiceTokenResponseSchema = z
+  .object({
+    channelId: z.string().min(1).max(128).optional(),
+    conversationId: z.string().min(1).max(128).optional(),
+    provider: MobileVoiceTokenProviderSchema,
+    token: z.string().min(16).max(8192).regex(/^\S+$/),
+    url: z.string().min(1).max(512),
+  })
+  .strict()
+  .refine((value) => (value.channelId ? !value.conversationId : Boolean(value.conversationId)), {
+    message: "Provide exactly one of channelId or conversationId.",
+  });
 
 export const MobileVoiceStateParticipantSchema = z.object({
   avatarUrl: z.string().url().nullable(),
@@ -408,10 +418,11 @@ export const MobileDMConversationLastMessagePreviewSchema = z.object({
   text: z.string().min(1).max(240),
 });
 
-export const MobileDMConversationListItemSchema =
-  MobileBootstrapDMConversationSummarySchema.extend({
+export const MobileDMConversationListItemSchema = MobileBootstrapDMConversationSummarySchema.extend(
+  {
     lastMessage: MobileDMConversationLastMessagePreviewSchema.nullable(),
-  });
+  },
+);
 
 export const MobileDMConversationsQuerySchema = z
   .object({
@@ -470,10 +481,25 @@ export const MobileBootstrapPayloadSchema = z.object({
   }),
 });
 
+export const MobileDMParticipantReadStateSchema = z.object({
+  lastReadAt: z.string().datetime().nullable(),
+  userId: z.string().min(1).max(128),
+});
+
+export const MobileDMMarkReadResponseSchema = z.object({
+  conversationId: z.string().min(1).max(128),
+  participantReadStates: z.array(MobileDMParticipantReadStateSchema).max(100),
+});
+
+export const MobileDMReadUpdatedEventSchema = MobileDMParticipantReadStateSchema.extend({
+  conversationId: z.string().min(1).max(128),
+});
+
 export const MobileDMMessagesResponseSchema = z.object({
   conversation: DMConversationDTOSchema,
   messages: z.array(DMMessagePayloadSchema).max(30),
   nextCursor: z.string().nullable(),
+  participantReadStates: z.array(MobileDMParticipantReadStateSchema).optional(),
 });
 
 export const MobileMessageReactionRequestSchema = z.object({
@@ -650,6 +676,9 @@ export type MobileDMConversationsQuery = z.infer<typeof MobileDMConversationsQue
 export type MobileDMConversationsResponse = z.infer<typeof MobileDMConversationsResponseSchema>;
 export type MobileBootstrapPayload = z.infer<typeof MobileBootstrapPayloadSchema>;
 export type MobileDMMessagesResponse = z.infer<typeof MobileDMMessagesResponseSchema>;
+export type MobileDMParticipantReadState = z.infer<typeof MobileDMParticipantReadStateSchema>;
+export type MobileDMMarkReadResponse = z.infer<typeof MobileDMMarkReadResponseSchema>;
+export type MobileDMReadUpdatedEvent = z.infer<typeof MobileDMReadUpdatedEventSchema>;
 export type MobileDMMessagesThreadResponse = z.infer<typeof MobileDMMessagesThreadResponseSchema>;
 export type MobileDMSendMessageRequest = z.infer<typeof MobileDMSendMessageRequestSchema>;
 export type MobileDMSendMessageResponse = z.infer<typeof MobileDMSendMessageResponseSchema>;
@@ -676,9 +705,7 @@ export type MobileChannelSendMessageResponse = z.infer<
 >;
 export type MobileChannelMarkReadResponse = z.infer<typeof MobileChannelMarkReadResponseSchema>;
 export type MobileServerUnreadUpdateEvent = z.infer<typeof MobileServerUnreadUpdateEventSchema>;
-export type MobileChannelMessagesStaleEvent = z.infer<
-  typeof MobileChannelMessagesStaleEventSchema
->;
+export type MobileChannelMessagesStaleEvent = z.infer<typeof MobileChannelMessagesStaleEventSchema>;
 export type MobileAuthExchangeRequest = z.infer<typeof MobileAuthExchangeRequestSchema>;
 export type MobileAuthExchangeResponse = z.infer<typeof MobileAuthExchangeResponseSchema>;
 export type MobileAuthRefreshRequest = z.infer<typeof MobileAuthRefreshRequestSchema>;

@@ -6,6 +6,9 @@ const PII_KEY_NAMES = new Set(["email", "emailaddress", "ip", "ipaddress", "user
 const SAFE_DIAGNOSTIC_HASH_KEY_NAMES = new Set(["ipaddresshash", "useragenthash"]);
 const JWT_PATTERN = /\beyJ[a-zA-Z0-9_-]{20,}\.[a-zA-Z0-9_-]{20,}\.[a-zA-Z0-9_-]{20,}\b/g;
 const LONG_SECRET_PATTERN = /\b(?:sk|pk|ya29|gh[opsu])_[a-zA-Z0-9_-]{16,}\b/g;
+const EMAIL_PATTERN = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi;
+const KEYED_PII_PATTERN =
+  /(\b(?:email|emailAddress|ip|ipAddress|query|search|userId|username|userAgent)\b\s*[:=]\s*)([^\s,;&]+)/gi;
 
 function shouldRedactKey(key: string) {
   const normalizedKey = key.replace(/[_-]/g, "").toLowerCase();
@@ -22,7 +25,9 @@ function shouldRedactKey(key: string) {
 export function redactText(value: string) {
   return value
     .replace(JWT_PATTERN, "[redacted-jwt]")
-    .replace(LONG_SECRET_PATTERN, "[redacted-secret]");
+    .replace(LONG_SECRET_PATTERN, "[redacted-secret]")
+    .replace(KEYED_PII_PATTERN, "$1[redacted-value]")
+    .replace(EMAIL_PATTERN, "[redacted-email]");
 }
 
 export function redactValue(value: unknown, seen = new WeakSet<object>()): unknown {
@@ -36,9 +41,7 @@ export function redactValue(value: unknown, seen = new WeakSet<object>()): unkno
     return {
       name: value.name,
       message: redactText(value.message),
-      ...(typeof errorWithCode.code === "string"
-        ? { code: errorWithCode.code }
-        : {}),
+      ...(typeof errorWithCode.code === "string" ? { code: errorWithCode.code } : {}),
     };
   }
 
@@ -100,7 +103,12 @@ export function formatWarningLog(scope: string, error: unknown, now = new Date()
 
 export function logError(scope: string, error: unknown) {
   console.error(formatErrorLog(scope, error));
-  reportError(scope, error);
+  // Errors keep their class for the reporter's stack grouping; other payloads
+  // stay plain so structured diagnostics are not flattened into a message.
+  reportError(
+    redactText(scope),
+    error instanceof Error ? redactErrorForReport(error) : redactValue(error),
+  );
 }
 
 export function logWarning(scope: string, error: unknown) {
@@ -122,7 +130,5 @@ export function redactErrorForReport(error: unknown): Error {
   }
 
   const safe = redactValue(error);
-  return new Error(
-    redactText(typeof safe === "string" ? safe : JSON.stringify(safe)),
-  );
+  return new Error(redactText(typeof safe === "string" ? safe : JSON.stringify(safe)));
 }

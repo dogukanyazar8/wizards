@@ -30,6 +30,7 @@ export type MobileVoiceScreenShareStatus =
   | "stopping"
   | "unsupported";
 export type MobileVoiceAudioOutputMode = "default" | "speaker";
+export type MobileVoiceSessionMode = "channel" | "direct";
 export type MobileVoiceInviteStatus = "accepted" | "declined" | "failed" | "sending" | "sent";
 
 export type MobileVoiceInviteMember = Pick<
@@ -120,6 +121,7 @@ export interface MobileVoiceRoomState {
   readonly cameraFacingMode: MobileCameraFacingMode;
   readonly channelId: string | null;
   readonly channelName: string | null;
+  readonly conversationId?: string | null;
   readonly connectedAt: number | null;
   readonly errorMessage: string | null;
   readonly noiseSuppressionEnabled: boolean;
@@ -132,6 +134,7 @@ export interface MobileVoiceRoomState {
   readonly selfMuted: boolean;
   readonly selfScreenShareEnabled: boolean;
   readonly serverId: string | null;
+  readonly sessionMode?: MobileVoiceSessionMode | null;
   readonly sessionId: string | null;
   readonly status: MobileVoiceRoomConnectionStatus;
   readonly updatedAt: number | null;
@@ -148,6 +151,7 @@ export function createInitialMobileVoiceRoomState(): MobileVoiceRoomState {
     cameraFacingMode: DEFAULT_MOBILE_CAMERA_FACING_MODE,
     channelId: null,
     channelName: null,
+    conversationId: null,
     connectedAt: null,
     errorMessage: null,
     noiseSuppressionEnabled: true,
@@ -160,6 +164,7 @@ export function createInitialMobileVoiceRoomState(): MobileVoiceRoomState {
     selfMuted: false,
     selfScreenShareEnabled: false,
     serverId: null,
+    sessionMode: null,
     sessionId: null,
     status: "idle",
     updatedAt: null,
@@ -182,7 +187,11 @@ export function isVoiceSessionActive(status: MobileVoiceRoomConnectionStatus): b
 }
 
 export function hasVoiceRoomContext(state: MobileVoiceRoomState): boolean {
-  if (!state.channelId || !state.channelName || !state.serverId) {
+  const hasTarget =
+    state.sessionMode === "direct"
+      ? Boolean(state.conversationId && state.channelName && state.serverId === null)
+      : Boolean(state.channelId && state.channelName && state.serverId);
+  if (!hasTarget) {
     return false;
   }
 

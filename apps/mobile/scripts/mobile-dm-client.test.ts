@@ -5,12 +5,15 @@ import {
   buildMobileDMMessagePath,
   buildMobileDMMessageReactionPath,
   buildMobileDMMessageThreadPath,
+  buildMobileDMMarkReadPath,
   buildMobileDMSendMessagePath,
   buildMobileDMMessagesPath,
   deleteMobileDMMessage,
   fetchMobileDMMessageThread,
   fetchMobileDMMessages,
   fetchMobileDMConversations,
+  getMobileDMReadTarget,
+  markMobileDMConversationRead,
   MOBILE_DM_CONVERSATIONS_LIMIT,
   MOBILE_DM_MESSAGES_LIMIT,
   sendMobileDMMessage,
@@ -96,7 +99,13 @@ const validConversationsResponse = {
       name: null,
       participantCount: 1,
       participants: [
-        { avatarUrl: null, displayName: "Alice", id: "user-2", status: "ONLINE", username: "alice" },
+        {
+          avatarUrl: null,
+          displayName: "Alice",
+          id: "user-2",
+          status: "ONLINE",
+          username: "alice",
+        },
       ],
       type: "DM",
       unreadCount: 2,
@@ -141,6 +150,61 @@ describe("mobile DM client", () => {
     assert.equal(
       buildMobileDMSendMessagePath({ conversationId: "dm/conversation 1" }),
       "/api/v1/mobile/dm/dm%2Fconversation%201/messages",
+    );
+  });
+
+  it("marks a DM conversation read through the bearer-auth mobile contract", async () => {
+    const requests: Array<{ options: MobileApiRequestOptions | undefined; path: string }> = [];
+    const client: MobileApiClient = {
+      async requestJson<TResponse>(path: string, options?: MobileApiRequestOptions) {
+        requests.push({ options, path });
+        return {
+          conversationId: "conversation-1",
+          participantReadStates: [{ lastReadAt: "2026-07-17T08:05:00.000Z", userId: "user-1" }],
+        } as TResponse;
+      },
+    };
+
+    assert.equal(
+      buildMobileDMMarkReadPath({ conversationId: "dm/conversation 1" }),
+      "/api/v1/mobile/dm/dm%2Fconversation%201/read",
+    );
+    const response = await markMobileDMConversationRead(client, {
+      conversationId: "conversation-1",
+    });
+    assert.deepEqual(requests, [
+      {
+        options: { method: "PATCH" },
+        path: "/api/v1/mobile/dm/conversation-1/read",
+      },
+    ]);
+    assert.equal(response.participantReadStates[0]?.userId, "user-1");
+  });
+
+  it("marks only a signed-in open conversation after a real message is visible", () => {
+    assert.equal(
+      getMobileDMReadTarget({
+        conversationId: "conversation-1",
+        isSignedIn: true,
+        latestMessageId: "message-1",
+      }),
+      "conversation-1",
+    );
+    assert.equal(
+      getMobileDMReadTarget({
+        conversationId: "conversation-1",
+        isSignedIn: false,
+        latestMessageId: "message-1",
+      }),
+      null,
+    );
+    assert.equal(
+      getMobileDMReadTarget({
+        conversationId: "conversation-1",
+        isSignedIn: true,
+        latestMessageId: null,
+      }),
+      null,
     );
   });
 

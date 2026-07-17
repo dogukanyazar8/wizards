@@ -17,6 +17,7 @@ import {
 import { useMobileVoiceRoom } from "../../voice/use-mobile-voice-room";
 import type { MobileVoiceRuntimeState } from "../../voice/mobile-voice-contract";
 import { useMobileMediaRuntime } from "./mobile-media-provider";
+import { activeMobileCopy } from "../../locale/mobile-locale-preferences";
 import {
   DEFAULT_MOBILE_VOICE_DEVICE_PREFERENCES,
   type MobileVoiceDevicePreferences,
@@ -46,8 +47,14 @@ export function MobileVoiceProvider({ children }: PropsWithChildren) {
   }, []);
   const voiceRoom = useMobileVoiceRoom({
     apiClient,
+    cameraPermissionDeniedMessage: activeMobileCopy.voiceDirectCallCameraPermissionDenied,
     currentUser: session?.user ?? null,
+    directCallConnectionErrorMessage: activeMobileCopy.voiceDirectCallConnectionError,
+    directCallMicrophonePermissionDeniedMessage:
+      activeMobileCopy.voiceDirectCallMicrophonePermissionDenied,
+    directCallVideoErrorMessage: activeMobileCopy.voiceDirectCallVideoError,
     onVoiceDevicePreferencesChange: persistVoiceDevicePreferences,
+    requestCameraPermissionAfterUserAction: requestCameraPermission,
     voiceDevicePreferences,
     voiceInputMode,
   });

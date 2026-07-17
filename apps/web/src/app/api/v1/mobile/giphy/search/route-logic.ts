@@ -18,23 +18,40 @@ const defaultDependencies: MobileGiphyRouteDependencies = {
   authenticate: (request) => requireMobileApiUserId(request),
   enforceRateLimit: enforceApiRateLimit,
   async getLocale(userId) {
-    return (await prisma.user.findUnique({ where: { id: userId }, select: { locale: true } }))?.locale ?? null;
+    return (
+      (await prisma.user.findUnique({ where: { id: userId }, select: { locale: true } }))?.locale ??
+      null
+    );
   },
   listGifs: listGiphyGifs,
 };
 
 function readCountryCode(request: Request) {
-  return request.headers.get("x-vercel-ip-country") ?? request.headers.get("cf-ipcountry") ?? request.headers.get("x-country-code");
+  return (
+    request.headers.get("x-vercel-ip-country") ??
+    request.headers.get("cf-ipcountry") ??
+    request.headers.get("x-country-code")
+  );
 }
 
-export async function mobileGiphySearchRoute(request: Request, dependencies: MobileGiphyRouteDependencies = defaultDependencies) {
+export async function mobileGiphySearchRoute(
+  request: Request,
+  dependencies: MobileGiphyRouteDependencies = defaultDependencies,
+) {
   try {
     const userId = await dependencies.authenticate(request);
     await dependencies.enforceRateLimit(userId, "mobile:giphy:search");
     const params = Object.fromEntries(new URL(request.url).searchParams.entries());
     const input = MobileGiphySearchQuerySchema.parse(params);
     const locale = normalizeAppLocale(await dependencies.getLocale(userId));
-    const result = await dependencies.listGifs({ countryCode: readCountryCode(request), limit: input.limit, locale, offset: input.offset, query: input.q, userId });
+    const result = await dependencies.listGifs({
+      countryCode: readCountryCode(request),
+      limit: input.limit,
+      locale,
+      offset: input.offset,
+      query: input.q,
+      userId,
+    });
     return Response.json(MobileGiphySearchResponseSchema.parse(result));
   } catch (error) {
     return jsonError(error);

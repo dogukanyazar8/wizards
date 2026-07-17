@@ -1,13 +1,7 @@
-import {
-  MobileAuthRegisterRequestSchema,
-  type MobileAuthRegisterRequest,
-} from "@wizards/types";
+import { MobileAuthRegisterRequestSchema, type MobileAuthRegisterRequest } from "@wizards/types";
 
 import { ApiError, jsonError, parseJsonBody } from "@/lib/api";
-import {
-  MobileNativeAuthError,
-  registerMobilePasswordAccount,
-} from "@/lib/mobile/auth";
+import { MobileNativeAuthError, registerMobilePasswordAccount } from "@/lib/mobile/auth";
 import { enforceMobileAuthRateLimit } from "../rate-limit";
 
 export type MobilePasswordRegisterRouteDependencies = {
@@ -19,17 +13,14 @@ export type MobilePasswordRegisterRouteDependencies = {
 };
 
 const defaultMobilePasswordRegisterRouteDependencies: MobilePasswordRegisterRouteDependencies = {
-  enforceIpRateLimit: (request) =>
-    enforceMobileAuthRateLimit(request, "mobile:auth-register"),
-  parseRegisterRequest: (request) =>
-    parseJsonBody(request, MobileAuthRegisterRequestSchema),
+  enforceIpRateLimit: (request) => enforceMobileAuthRateLimit(request, "mobile:auth-register"),
+  parseRegisterRequest: (request) => parseJsonBody(request, MobileAuthRegisterRequestSchema),
   registerPassword: registerMobilePasswordAccount,
 };
 
 export async function mobilePasswordRegisterRoute(
   request: Request,
-  dependencies: MobilePasswordRegisterRouteDependencies =
-    defaultMobilePasswordRegisterRouteDependencies,
+  dependencies: MobilePasswordRegisterRouteDependencies = defaultMobilePasswordRegisterRouteDependencies,
 ) {
   try {
     await dependencies.enforceIpRateLimit(request);

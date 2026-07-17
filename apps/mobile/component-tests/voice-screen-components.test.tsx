@@ -136,6 +136,33 @@ describe("mobile voice component rendering", () => {
     expect(view.getByTestId("mobile-voice-leave")).toBeTruthy();
   });
 
+  it("shows the real DM title for a direct call without a server", async () => {
+    const view = await render(
+      <VoiceScreen
+        {...createVoiceScreenProps({
+          serverName: null,
+          voiceRoomState: createConnectedVoiceRoom({
+            channelId: null,
+            channelName: "Ada Lovelace",
+            conversationId: "conversation-1",
+            participants: [
+              createParticipant({
+                displayName: "Current user",
+                isSelf: true,
+                userId: "self",
+                username: "me",
+              }),
+            ],
+            serverId: null,
+            sessionMode: "direct",
+          }),
+        })}
+      />,
+    );
+
+    expect(view.getByText("Ada Lovelace")).toBeTruthy();
+  });
+
   it("minimizes and routes the active-room controls through their existing actions", async () => {
     const onLeaveVoiceChannel = jest.fn(async () => undefined);
     const onMinimize = jest.fn();

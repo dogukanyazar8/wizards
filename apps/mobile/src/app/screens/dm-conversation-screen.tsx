@@ -1,9 +1,9 @@
+import type { UploadedAttachmentInput } from "@wizards/types";
 import {
   Pressable,
   Text,
   View,
   copy,
-  getMobileConversationActiveCount,
   getMobileConversationAvatarUrl,
   getMobileConversationTitle,
   INITIAL_DM_SEND_STATE,
@@ -12,45 +12,59 @@ import {
   type MobileDMMessagesViewState,
   type MobileDMSendViewState,
   type MobileMediaRuntimeState,
-  type MobileMessageSearchViewState,
   type MobileSyncHealthSummary,
   useCallback,
   useState,
 } from "../mobile-root-screen-shared";
 import { DMComposer, type MobileComposerIntent } from "../composer/mobile-composer";
 import {
+  DMChatEncryptionNotice,
+  DMChatHeader,
+  DMChatMessageList,
+  DMChatTypingIndicator,
+} from "../components/dm-chat-primitives";
+import {
   MessageListSkeleton,
-  MessageSearchPanel,
-  MessageStream,
   type MobileMessageActionTarget,
 } from "../components/message-primitives";
-import { AvatarMark, EmptyState, MobileSyncHealthBanner, StatusChip } from "../components/ui-atoms";
-import { useDmScreenStyles } from "./dm-screen.styles";
+import { EmptyState, MobileSyncHealthBanner } from "../components/ui-atoms";
+import { getMobileDMPartnerLastReadAt } from "../../dm/mobile-dm-client";
+import { useDMChatStyles } from "../components/dm-chat-primitives.styles";
+
+export { formatDMLastSeenRelativeTime } from "../components/dm-chat-primitives";
+
+type DMSendIntent = {
+  readonly attachments?: readonly UploadedAttachmentInput[];
+  readonly replyToId?: string;
+  readonly threadParentId?: string;
+};
 
 export function DMConversationScreen({
   attachmentsFeature,
   conversation,
   currentUserId,
+  getAccessToken,
+  isEndToEndEncrypted = false,
   isReactionMutationPending,
+  lastSeenAt,
   mediaState,
-  messageSearchFeature,
-  messageSearchState,
   onBack,
-  onClearMessageSearch,
   onClearSelectedMediaAsset,
+  onDeleteMessage,
+  onDraftChange,
+  onEditMessage,
+  onLoadMoreMessages,
+  onOpenDetails,
+  onOpenThread,
   onRefreshConversation,
   onRefreshVisibleData,
   onRequestDocumentPicker,
   onRequestPhotoLibraryPicker,
-  onSearchMessages,
-  onSendMessage,
   onSendGif,
-  onDraftChange,
-  onDeleteMessage,
-  onEditMessage,
-  onOpenThread,
+  onSendMessage,
+  onStartVideoCall,
+  onStartVoiceCall,
   onToggleMessageReaction,
-  onOpenDetails,
   sendState,
   state,
   syncHealth,
@@ -59,123 +73,92 @@ export function DMConversationScreen({
   attachmentsFeature: MobileBootstrapFeature | null;
   conversation: MobileBootstrapPayload["home"]["directMessages"]["recent"][number];
   currentUserId: string;
+  getAccessToken?: () => Promise<string | null>;
+  isEndToEndEncrypted?: boolean;
   isReactionMutationPending: boolean;
+  lastSeenAt?: string | null;
   mediaState: MobileMediaRuntimeState;
-  messageSearchFeature: MobileBootstrapFeature | null;
-  messageSearchState: MobileMessageSearchViewState;
   sendState: MobileDMSendViewState;
   state: MobileDMMessagesViewState;
   syncHealth: MobileSyncHealthSummary;
   typingLabel: string | null;
   onBack(): void;
-  onClearMessageSearch(): void;
   onClearSelectedMediaAsset(): void;
+  onDeleteMessage(messageId: string): Promise<boolean>;
+  onDraftChange(content: string): void;
+  onEditMessage(input: { content: string; messageId: string }): Promise<boolean>;
+  onLoadMoreMessages?: () => void;
+  onOpenDetails?(): void;
+  onOpenThread?(messageId: string): void;
   onRefreshConversation(): void;
   onRefreshVisibleData(): void;
   onRequestDocumentPicker(): Promise<void>;
   onRequestPhotoLibraryPicker(): Promise<void>;
-  onSearchMessages(input: { conversationId: string; query: string; scope: "dm" }): Promise<void>;
-  onSendMessage(
-    content: string,
-    intent?: { readonly replyToId?: string; readonly threadParentId?: string },
-  ): Promise<boolean>;
   onSendGif?(gifId: string): Promise<boolean>;
-  onDraftChange(content: string): void;
-  onDeleteMessage(messageId: string): Promise<boolean>;
-  onEditMessage(input: { content: string; messageId: string }): Promise<boolean>;
-  onOpenThread?(messageId: string): void;
+  onSendMessage(content: string, intent?: DMSendIntent): Promise<boolean>;
+  onStartVideoCall?(): void;
+  onStartVoiceCall?(): void;
   onToggleMessageReaction(input: { emoji: string; messageId: string; shouldReact: boolean }): void;
-  onOpenDetails?(): void;
 }) {
-  const styles = useDmScreenStyles();
-  const title = getMobileConversationTitle(conversation, copy.directMessageFallback);
-  const activeCount = getMobileConversationActiveCount(conversation);
-  const participantCount =
-    state.payload?.conversation.participants.length ?? conversation.participantCount;
+  const styles = useDMChatStyles();
+  const title =
+    state.payload?.conversation.name ??
+    getMobileConversationTitle(conversation, copy.directMessageFallback);
+  const responsePartner = state.payload?.conversation.participants.find(
+    (participant) => participant.userId !== currentUserId,
+  );
+  const summaryPartner = conversation.participants.find(
+    (participant) => participant.id !== currentUserId,
+  );
+  const avatarUrl =
+    responsePartner?.avatarUrl ??
+    summaryPartner?.avatarUrl ??
+    getMobileConversationAvatarUrl(conversation);
+  const isOnline = (responsePartner?.status ?? summaryPartner?.status) === "ONLINE";
+  // Presence has no dedicated last-seen field; the conversation's real
+  // last-activity timestamp is the closest honest signal for the 4a status line.
+  const resolvedLastSeenAt = lastSeenAt ?? conversation.lastMessageAt ?? null;
 
   return (
-    <View style={styles.chatScreen} testID="mobile-dm-chat-screen">
-      <View style={styles.dmConversationHeader}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={copy.conversationDetailsAction}
-          onPress={onOpenDetails}
-          style={({ pressed }) => [styles.dmRefreshButton, pressed && styles.actionButtonPressed]}
-          testID="mobile-dm-details-open"
-        >
-          <Text style={styles.dmRefreshButtonText}>ⓘ</Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={copy.dmBackAction}
-          testID="mobile-dm-back-button"
-          onPress={onBack}
-          style={({ pressed }) => [styles.dmBackButton, pressed && styles.actionButtonPressed]}
-        >
-          <Text style={styles.dmBackButtonText}>{"<"}</Text>
-        </Pressable>
-        <AvatarMark
-          label={title}
-          imageUrl={getMobileConversationAvatarUrl(conversation)}
-          status={activeCount > 0 ? "active" : "idle"}
+    <View style={styles.root} testID="mobile-dm-conversation-screen">
+      <View style={styles.root} testID="mobile-dm-chat-screen">
+        <DMChatHeader
+          avatarUrl={avatarUrl}
+          isOnline={isOnline}
+          lastSeenAt={resolvedLastSeenAt}
+          onBack={onBack}
+          {...(onOpenDetails ? { onOpenDetails } : {})}
+          {...(onStartVideoCall ? { onStartVideoCall } : {})}
+          {...(onStartVoiceCall ? { onStartVoiceCall } : {})}
+          title={title}
+          typing={typingLabel !== null}
         />
-        <View style={styles.dmConversationHeaderText}>
-          <Text style={styles.dmPreviewTitle} numberOfLines={1}>
-            {state.payload?.conversation.name ?? title}
-          </Text>
-          <View style={styles.dmMetaRow}>
-            <StatusChip
-              label={`${activeCount}/${participantCount} ${copy.activePeopleSuffix}`}
-              tone={activeCount > 0 ? "success" : "muted"}
-            />
-            {conversation.unreadCount > 0 ? (
-              <StatusChip
-                label={`${conversation.unreadCount} ${copy.unreadSuffix}`}
-                tone="accent"
-              />
-            ) : null}
-          </View>
-        </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={copy.retryAction}
-          onPress={onRefreshConversation}
-          style={({ pressed }) => [styles.dmRefreshButton, pressed && styles.actionButtonPressed]}
-        >
-          <Text style={styles.dmRefreshButtonText}>{copy.refreshShortAction}</Text>
-        </Pressable>
+        <MobileSyncHealthBanner health={syncHealth} onRetry={onRefreshVisibleData} />
+        <DMConversationPreviewCard
+          attachmentsFeature={attachmentsFeature}
+          conversation={conversation}
+          currentUserId={currentUserId}
+          {...(getAccessToken ? { getAccessToken } : {})}
+          isEndToEndEncrypted={isEndToEndEncrypted}
+          isReactionMutationPending={isReactionMutationPending}
+          mediaState={mediaState}
+          onClearSelectedMediaAsset={onClearSelectedMediaAsset}
+          onDeleteMessage={onDeleteMessage}
+          onDraftChange={onDraftChange}
+          onEditMessage={onEditMessage}
+          {...(onLoadMoreMessages ? { onLoadMoreMessages } : {})}
+          {...(onOpenThread ? { onOpenThread } : {})}
+          onRequestDocumentPicker={onRequestDocumentPicker}
+          onRequestPhotoLibraryPicker={onRequestPhotoLibraryPicker}
+          onRetry={onRefreshConversation}
+          {...(onSendGif ? { onSendGif } : {})}
+          onSendMessage={onSendMessage}
+          onToggleMessageReaction={onToggleMessageReaction}
+          sendState={sendState}
+          state={state}
+          typingLabel={typingLabel}
+        />
       </View>
-      <MobileSyncHealthBanner health={syncHealth} onRetry={onRefreshVisibleData} />
-      {messageSearchFeature?.status === "available" ? (
-        <MessageSearchPanel
-          conversationId={conversation.id}
-          scope="dm"
-          state={messageSearchState}
-          onClear={onClearMessageSearch}
-          onSearch={onSearchMessages}
-        />
-      ) : null}
-      <DMConversationPreviewCard
-        attachmentsFeature={attachmentsFeature}
-        conversation={conversation}
-        currentUserId={currentUserId}
-        isReactionMutationPending={isReactionMutationPending}
-        sendState={sendState}
-        state={state}
-        mediaState={mediaState}
-        onClearSelectedMediaAsset={onClearSelectedMediaAsset}
-        onRetry={onRefreshConversation}
-        onRequestDocumentPicker={onRequestDocumentPicker}
-        onRequestPhotoLibraryPicker={onRequestPhotoLibraryPicker}
-        onSendMessage={onSendMessage}
-        {...(onSendGif ? { onSendGif } : {})}
-        onDraftChange={onDraftChange}
-        onDeleteMessage={onDeleteMessage}
-        onEditMessage={onEditMessage}
-        {...(onOpenThread ? { onOpenThread } : {})}
-        onToggleMessageReaction={onToggleMessageReaction}
-        typingLabel={typingLabel}
-      />
     </View>
   );
 }
@@ -184,18 +167,21 @@ export function DMConversationPreviewCard({
   attachmentsFeature,
   conversation,
   currentUserId,
+  getAccessToken,
+  isEndToEndEncrypted = false,
   isReactionMutationPending,
   mediaState,
   onClearSelectedMediaAsset,
-  onRetry,
+  onDeleteMessage,
+  onDraftChange,
+  onEditMessage,
+  onLoadMoreMessages,
+  onOpenThread,
   onRequestDocumentPicker,
   onRequestPhotoLibraryPicker,
-  onSendMessage,
+  onRetry,
   onSendGif,
-  onDraftChange,
-  onDeleteMessage,
-  onEditMessage,
-  onOpenThread,
+  onSendMessage,
   onToggleMessageReaction,
   sendState,
   state,
@@ -204,27 +190,27 @@ export function DMConversationPreviewCard({
   attachmentsFeature: MobileBootstrapFeature | null;
   conversation: MobileBootstrapPayload["home"]["directMessages"]["recent"][number] | null;
   currentUserId: string;
+  getAccessToken?: () => Promise<string | null>;
+  isEndToEndEncrypted?: boolean;
   isReactionMutationPending: boolean;
   mediaState: MobileMediaRuntimeState;
   onClearSelectedMediaAsset(): void;
-  onRetry(): void;
+  onDeleteMessage(messageId: string): Promise<boolean>;
+  onDraftChange(content: string): void;
+  onEditMessage(input: { content: string; messageId: string }): Promise<boolean>;
+  onLoadMoreMessages?: () => void;
+  onOpenThread?(messageId: string): void;
   onRequestDocumentPicker(): Promise<void>;
   onRequestPhotoLibraryPicker(): Promise<void>;
-  onSendMessage(
-    content: string,
-    intent?: { readonly replyToId?: string; readonly threadParentId?: string },
-  ): Promise<boolean>;
+  onRetry(): void;
   onSendGif?(gifId: string): Promise<boolean>;
-  onDraftChange(content: string): void;
-  onDeleteMessage(messageId: string): Promise<boolean>;
-  onEditMessage(input: { content: string; messageId: string }): Promise<boolean>;
-  onOpenThread?(messageId: string): void;
+  onSendMessage(content: string, intent?: DMSendIntent): Promise<boolean>;
   onToggleMessageReaction(input: { emoji: string; messageId: string; shouldReact: boolean }): void;
   sendState: MobileDMSendViewState;
   state: MobileDMMessagesViewState;
   typingLabel: string | null;
 }) {
-  const styles = useDmScreenStyles();
+  const styles = useDMChatStyles();
   const [composerIntent, setComposerIntent] = useState<MobileComposerIntent | null>(null);
   const handleReplyMessage = useCallback((message: MobileMessageActionTarget) => {
     setComposerIntent({ content: message.content, messageId: message.id, mode: "reply" });
@@ -233,70 +219,47 @@ export function DMConversationPreviewCard({
     setComposerIntent({ content: message.content, messageId: message.id, mode: "edit" });
   }, []);
   const handleComposerSend = useCallback(
-    (content: string) =>
+    (content: string, attachments?: readonly UploadedAttachmentInput[]) =>
       composerIntent?.mode === "edit"
         ? onEditMessage({ content, messageId: composerIntent.messageId })
-        : onSendMessage(
-            content,
-            composerIntent ? { replyToId: composerIntent.messageId } : undefined,
-          ),
+        : onSendMessage(content, {
+            ...(attachments?.length ? { attachments } : {}),
+            ...(composerIntent ? { replyToId: composerIntent.messageId } : {}),
+          }),
     [composerIntent, onEditMessage, onSendMessage],
   );
-  if (!conversation) {
-    return <EmptyState tone="accent" label={copy.dmSelectConversation} />;
-  }
 
-  const title = getMobileConversationTitle(conversation, copy.directMessageFallback);
+  if (!conversation) return <EmptyState tone="accent" label={copy.dmSelectConversation} />;
+
   const responseConversation = state.payload?.conversation;
-  const participantCount =
-    responseConversation?.participants.length ?? conversation.participantCount;
-  const activeCount = getMobileConversationActiveCount(conversation);
+  const partner = responseConversation?.participants.find(
+    (participant) => participant.userId !== currentUserId,
+  );
+  const title =
+    responseConversation?.name ??
+    getMobileConversationTitle(conversation, copy.directMessageFallback);
+  const avatarUrl = partner?.avatarUrl ?? getMobileConversationAvatarUrl(conversation);
+  const partnerId =
+    partner?.userId ??
+    conversation.participants.find((item) => item.id !== currentUserId)?.id ??
+    conversation.id;
   const conversationSendState =
     sendState.conversationId === conversation.id ? sendState : INITIAL_DM_SEND_STATE;
+  const partnerLastReadAt = getMobileDMPartnerLastReadAt(
+    state.payload?.participantReadStates,
+    currentUserId,
+  );
 
   return (
-    <View style={styles.dmPreviewCard}>
-      <View style={styles.dmPreviewHeader}>
-        <AvatarMark
-          label={title}
-          imageUrl={getMobileConversationAvatarUrl(conversation)}
-          size="large"
-          status={activeCount > 0 ? "active" : "idle"}
-        />
-        <View style={styles.dmPreviewTitleBlock}>
-          <Text style={styles.dmPreviewTitle} numberOfLines={1}>
-            {responseConversation?.name ?? title}
-          </Text>
-          <View style={styles.dmMetaRow}>
-            <StatusChip
-              label={`${activeCount}/${participantCount} ${copy.activePeopleSuffix}`}
-              tone={activeCount > 0 ? "success" : "muted"}
-            />
-            {conversation.unreadCount > 0 ? (
-              <StatusChip
-                label={`${conversation.unreadCount} ${copy.unreadSuffix}`}
-                tone="accent"
-              />
-            ) : null}
-          </View>
-        </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={copy.retryAction}
-          onPress={onRetry}
-          style={({ pressed }) => [styles.dmRefreshButton, pressed && styles.actionButtonPressed]}
-        >
-          <Text style={styles.dmRefreshButtonText}>{copy.refreshShortAction}</Text>
-        </Pressable>
-      </View>
-
+    <View style={styles.messageArea}>
+      {isEndToEndEncrypted ? <DMChatEncryptionNotice /> : null}
       {state.status === "loading" && !state.payload ? <MessageListSkeleton /> : null}
       {state.status === "error" ? (
-        <View style={styles.dmErrorRow}>
+        <View style={styles.errorRow}>
           <Text style={styles.errorText}>{state.error}</Text>
           <Pressable
-            accessibilityRole="button"
             accessibilityLabel={copy.retryAction}
+            accessibilityRole="button"
             onPress={onRetry}
             style={({ pressed }) => [styles.retryButton, pressed && styles.actionButtonPressed]}
           >
@@ -305,37 +268,43 @@ export function DMConversationPreviewCard({
         </View>
       ) : null}
       {state.payload && state.payload.messages.length > 0 ? (
-        <MessageStream
+        <DMChatMessageList
           currentUserId={currentUserId}
           isReactionMutationPending={isReactionMutationPending}
           messages={state.payload.messages}
-          {...(onOpenThread ? { onOpenThread } : {})}
           onDeleteMessage={(messageId) => void onDeleteMessage(messageId)}
           onEditMessage={handleEditMessage}
+          {...(onLoadMoreMessages ? { onLoadMore: onLoadMoreMessages } : {})}
+          {...(onOpenThread ? { onOpenThread } : {})}
           onReplyMessage={handleReplyMessage}
           onToggleReaction={onToggleMessageReaction}
+          partnerLastReadAt={partnerLastReadAt}
         />
       ) : null}
       {state.status === "ready" && state.payload.messages.length === 0 ? (
-        <Text style={styles.contractDescription}>{copy.dmNoMessages}</Text>
+        <Text style={styles.emptyText}>{copy.dmNoMessages}</Text>
+      ) : null}
+      {state.status === "ready" && typingLabel ? (
+        <DMChatTypingIndicator avatarUrl={avatarUrl} participantId={partnerId} title={title} />
       ) : null}
       {state.status === "ready" ? (
-        <>
-          {typingLabel ? <Text testID="mobile-dm-typing-indicator">{typingLabel}</Text> : null}
-          <DMComposer
-            attachmentsFeature={attachmentsFeature}
-            sendState={conversationSendState}
-            mediaState={mediaState}
-            onClearSelectedMediaAsset={onClearSelectedMediaAsset}
-            onDraftChange={onDraftChange}
-            onRequestDocumentPicker={onRequestDocumentPicker}
-            onRequestPhotoLibraryPicker={onRequestPhotoLibraryPicker}
-            intent={composerIntent}
-            onCancelIntent={() => setComposerIntent(null)}
-            onSend={handleComposerSend}
-            {...(onSendGif ? { onSendGif } : {})}
-          />
-        </>
+        <DMComposer
+          attachmentsFeature={attachmentsFeature}
+          {...(getAccessToken ? { getAccessToken } : {})}
+          intent={composerIntent}
+          mediaState={mediaState}
+          onCancelIntent={() => setComposerIntent(null)}
+          onClearSelectedMediaAsset={onClearSelectedMediaAsset}
+          onDraftChange={onDraftChange}
+          onRequestDocumentPicker={onRequestDocumentPicker}
+          onRequestPhotoLibraryPicker={onRequestPhotoLibraryPicker}
+          onSend={handleComposerSend}
+          {...(onSendGif ? { onSendGif } : {})}
+          placeholder={copy.dmChatComposerPlaceholder}
+          sendActionLabel={copy.dmChatSendAction}
+          sendState={conversationSendState}
+          variant="dm"
+        />
       ) : null}
     </View>
   );

@@ -4,10 +4,7 @@ import {
 } from "@wizards/types";
 
 import { ApiError, jsonError, parseJsonBody } from "@/lib/api";
-import {
-  createMobilePasswordSession,
-  MobileNativeAuthError,
-} from "@/lib/mobile/auth";
+import { createMobilePasswordSession, MobileNativeAuthError } from "@/lib/mobile/auth";
 import { enforceMobileAuthRateLimit } from "../rate-limit";
 
 export type MobilePasswordLoginRouteDependencies = {
@@ -21,20 +18,15 @@ export type MobilePasswordLoginRouteDependencies = {
 const defaultMobilePasswordLoginRouteDependencies: MobilePasswordLoginRouteDependencies = {
   createPasswordSession: ({ email, password, twoFactorCode }) =>
     createMobilePasswordSession(
-      twoFactorCode === undefined
-        ? { email, password }
-        : { email, password, twoFactorCode },
+      twoFactorCode === undefined ? { email, password } : { email, password, twoFactorCode },
     ),
-  enforceIpRateLimit: (request) =>
-    enforceMobileAuthRateLimit(request, "mobile:auth-login"),
-  parseLoginRequest: (request) =>
-    parseJsonBody(request, MobileAuthPasswordLoginRequestSchema),
+  enforceIpRateLimit: (request) => enforceMobileAuthRateLimit(request, "mobile:auth-login"),
+  parseLoginRequest: (request) => parseJsonBody(request, MobileAuthPasswordLoginRequestSchema),
 };
 
 export async function mobilePasswordLoginRoute(
   request: Request,
-  dependencies: MobilePasswordLoginRouteDependencies =
-    defaultMobilePasswordLoginRouteDependencies,
+  dependencies: MobilePasswordLoginRouteDependencies = defaultMobilePasswordLoginRouteDependencies,
 ) {
   try {
     await dependencies.enforceIpRateLimit(request);

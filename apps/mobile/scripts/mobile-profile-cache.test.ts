@@ -11,6 +11,7 @@ import type {
 import { mobileQueryKeys } from "../src/query/mobile-query-keys";
 import {
   patchMobileProfileAvatarCaches,
+  patchMobileProfileIdentityCaches,
   patchMobileProfilePresenceCaches,
   restoreMobileProfilePresenceCaches,
 } from "../src/query/mobile-profile-cache";
@@ -39,6 +40,20 @@ function profileFor(userId: string, avatarUrl: string | null): MobileProfileResp
       twoFactorEnabled: false,
       username: "ada_test",
     },
+  };
+}
+
+function expectIdentity(user: {
+  avatarUrl: string | null;
+  displayName: string | null;
+  id: string;
+  username: string;
+}) {
+  return {
+    avatarUrl: user.avatarUrl,
+    displayName: user.displayName,
+    id: user.id,
+    username: user.username,
   };
 }
 
@@ -135,6 +150,46 @@ function workspaceFor(
 }
 
 describe("mobile profile avatar cache contract", () => {
+  it("patches canonical profile identity through profile, bootstrap and friends caches", () => {
+    const queryClient = new QueryClient();
+    const bootstrap = bootstrapFor("user-1", "https://cdn.whispr.team/old.webp");
+    const profile = profileFor("user-1", "https://cdn.whispr.team/old.webp");
+    const friends = friendsFor("user-1", "https://cdn.whispr.team/old.webp");
+    const canonical: MobileProfileResponse = {
+      user: {
+        ...profile.user,
+        avatarUrl: "https://cdn.whispr.team/canonical.webp",
+        displayName: "Ada Byron",
+        username: "ada_byron",
+      },
+    };
+
+    queryClient.setQueryData(mobileQueryKeys.bootstrap(), bootstrap);
+    queryClient.setQueryData(mobileQueryKeys.profile(), profile);
+    queryClient.setQueryData(mobileQueryKeys.friends(), friends);
+
+    patchMobileProfileIdentityCaches({ profile: canonical, queryClient });
+
+    assert.deepEqual(queryClient.getQueryData(mobileQueryKeys.profile()), canonical);
+    assert.deepEqual(
+      expectIdentity(
+        queryClient.getQueryData<MobileBootstrapPayload>(mobileQueryKeys.bootstrap())!.user,
+      ),
+      expectIdentity(canonical.user),
+    );
+    const patchedFriends = queryClient.getQueryData<MobileFriendsOverviewResponse>(
+      mobileQueryKeys.friends(),
+    )!;
+    assert.deepEqual(patchedFriends.friends[0], {
+      ...friends.friends[0],
+      ...expectIdentity(canonical.user),
+    });
+    assert.deepEqual(patchedFriends.pending.incoming[0]?.sender, {
+      ...friends.pending.incoming[0]?.sender,
+      ...expectIdentity(canonical.user),
+    });
+    assert.equal(patchedFriends.friends[1], friends.friends[1]);
+  });
   it("patches only matching identities and preserves unrelated cache references", () => {
     const queryClient = new QueryClient();
     const bootstrap = bootstrapFor("user-1", "https://cdn.whispr.team/old.webp");
@@ -226,7 +281,9 @@ describe("mobile profile avatar cache contract", () => {
     const patchedBootstrap = queryClient.getQueryData<MobileBootstrapPayload>(
       mobileQueryKeys.bootstrap(),
     )!;
-    const patchedProfile = queryClient.getQueryData<MobileProfileResponse>(mobileQueryKeys.profile())!;
+    const patchedProfile = queryClient.getQueryData<MobileProfileResponse>(
+      mobileQueryKeys.profile(),
+    )!;
     const patchedFriends = queryClient.getQueryData<MobileFriendsOverviewResponse>(
       mobileQueryKeys.friends(),
     )!;
@@ -240,7 +297,10 @@ describe("mobile profile avatar cache contract", () => {
     assert.equal(patchedFriends.friends[0]?.presence.status, "DND");
     assert.equal(patchedWorkspace.detail.members[0]?.status, "DND");
     assert.equal(patchedFriends.friends[1], friends.friends[1]);
-    assert.equal(queryClient.getQueryData(mobileQueryKeys.workspace("server-2")), unrelatedWorkspace);
+    assert.equal(
+      queryClient.getQueryData(mobileQueryKeys.workspace("server-2")),
+      unrelatedWorkspace,
+    );
 
     restoreMobileProfilePresenceCaches(snapshot);
 

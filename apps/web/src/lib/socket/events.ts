@@ -109,30 +109,16 @@ export interface ClientToServerEvents {
   "dm:typing:start": (data: { conversationId: string }) => void;
   "dm:typing:stop": (data: { conversationId: string }) => void;
   "dm:screenshare:start": (data: { conversationId: string }) => void;
-  "dm:screenshare:accept": (data: {
-    conversationId: string;
-    fromUserId: string;
-  }) => void;
-  "dm:screenshare:decline": (data: {
-    conversationId: string;
-    fromUserId: string;
-  }) => void;
+  "dm:screenshare:accept": (data: { conversationId: string; fromUserId: string }) => void;
+  "dm:screenshare:decline": (data: { conversationId: string; fromUserId: string }) => void;
   "dm:screenshare:stop": (data: { conversationId: string }) => void;
   "presence:activity": (data: { status: "ONLINE" | "IDLE" }) => void;
   "voice:join": (data: { channelId: string; serverId: string }) => void;
   "voice:leave": (data: { channelId: string; serverId: string }) => void;
   "voice:states:watch": (data: { serverId: string }) => void;
   "voice:states:unwatch": (data: { serverId: string }) => void;
-  "voice:invite:accept": (data: {
-    channelId: string;
-    inviteId: string;
-    serverId: string;
-  }) => void;
-  "voice:invite:decline": (data: {
-    channelId: string;
-    inviteId: string;
-    serverId: string;
-  }) => void;
+  "voice:invite:accept": (data: { channelId: string; inviteId: string; serverId: string }) => void;
+  "voice:invite:decline": (data: { channelId: string; inviteId: string; serverId: string }) => void;
   "voice:invite:send": (data: {
     channelId: string;
     serverId: string;
@@ -185,10 +171,7 @@ export interface ServerToClientEvents {
   "message:removed": (data: { messageId: string; channelId: string }) => void;
   "message:history_cleared": (data: { channelId: string }) => void;
   "message:pins_updated": (data: { channelId: string }) => void;
-  "message:reaction_updated": (data: {
-    messageId: string;
-    reactions: MessageReaction[];
-  }) => void;
+  "message:reaction_updated": (data: { messageId: string; reactions: MessageReaction[] }) => void;
   "server:unread:update": (data: {
     mentionCount?: number;
     serverId: string;
@@ -207,10 +190,7 @@ export interface ServerToClientEvents {
     conversationId: string;
     deletedById?: string;
   }) => void;
-  "dm:message:removed": (data: {
-    messageId: string;
-    conversationId: string;
-  }) => void;
+  "dm:message:removed": (data: { messageId: string; conversationId: string }) => void;
   "dm:message:reaction_updated": (data: {
     messageId: string;
     reactions: MessageReaction[];
@@ -227,24 +207,20 @@ export interface ServerToClientEvents {
     unreadCount: number;
     conversation: DMConversationDTO;
   }) => void;
+  "dm:conversation:read": (data: {
+    conversationId: string;
+    lastReadAt: string | null;
+    userId: string;
+  }) => void;
   "dm:screenshare:started": (data: {
     conversationId: string;
     userId: string;
     username: string;
     displayName: string | null;
   }) => void;
-  "dm:screenshare:accepted": (data: {
-    conversationId: string;
-    userId: string;
-  }) => void;
-  "dm:screenshare:declined": (data: {
-    conversationId: string;
-    userId: string;
-  }) => void;
-  "dm:screenshare:stopped": (data: {
-    conversationId: string;
-    userId: string;
-  }) => void;
+  "dm:screenshare:accepted": (data: { conversationId: string; userId: string }) => void;
+  "dm:screenshare:declined": (data: { conversationId: string; userId: string }) => void;
+  "dm:screenshare:stopped": (data: { conversationId: string; userId: string }) => void;
   "dm:error": (data: {
     code:
       | "UNAUTHORIZED"
@@ -308,10 +284,7 @@ export interface InterServerEvents {
   }) => void;
   "message:removed": (data: { messageId: string; channelId: string }) => void;
   "message:history_cleared": (data: { channelId: string }) => void;
-  "message:reaction_updated": (data: {
-    messageId: string;
-    reactions: MessageReaction[];
-  }) => void;
+  "message:reaction_updated": (data: { messageId: string; reactions: MessageReaction[] }) => void;
   "presence:update": (data: FriendPresenceUpdateDto) => void;
   "user:profile:updated": (data: UserProfileUpdatedPayload) => void;
   "typing:update": (data: { channelId: string; users: string[] }) => void;

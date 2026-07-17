@@ -20,13 +20,24 @@ export type MobileDMCreateDependencies = {
   enforceRateLimit(userId: string, action: ApiRateLimitAction): Promise<void>;
   parseBody: typeof parseJsonBody;
 };
-const defaults: MobileDMCreateDependencies = { authenticate: (request) => requireMobileApiUserId(request), createDM: createOrOpenDirectMessage, enforceRateLimit: enforceApiRateLimit, parseBody: (request, schema) => parseJsonBody(request, schema) };
+const defaults: MobileDMCreateDependencies = {
+  authenticate: (request) => requireMobileApiUserId(request),
+  createDM: createOrOpenDirectMessage,
+  enforceRateLimit: enforceApiRateLimit,
+  parseBody: (request, schema) => parseJsonBody(request, schema),
+};
 
-export async function mobileDMCreateRoute(request: Request, dependencies: MobileDMCreateDependencies = defaults) {
+export async function mobileDMCreateRoute(
+  request: Request,
+  dependencies: MobileDMCreateDependencies = defaults,
+) {
   try {
     const userId = await dependencies.authenticate(request);
     await dependencies.enforceRateLimit(userId, "mobile:dm:create");
-    const { userId: targetUserId } = await dependencies.parseBody(request, MobileDMCreateRequestSchema);
+    const { userId: targetUserId } = await dependencies.parseBody(
+      request,
+      MobileDMCreateRequestSchema,
+    );
     const conversation = await dependencies.createDM(userId, targetUserId);
     return Response.json(MobileDMCreateResponseSchema.parse({ conversation }), { status: 201 });
   } catch (error) {
@@ -62,7 +73,9 @@ function normalizePreviewText(message: NonNullable<DMConversationDTO["lastMessag
 }
 
 function toMobileDMConversationListItem(conversation: DMConversationDTO, currentUserId: string) {
-  const self = conversation.participants.find((participant) => participant.userId === currentUserId);
+  const self = conversation.participants.find(
+    (participant) => participant.userId === currentUserId,
+  );
   const lastMessage = conversation.lastMessage;
 
   return {

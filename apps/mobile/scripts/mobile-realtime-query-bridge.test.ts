@@ -131,6 +131,7 @@ function makeDMPage(messages: DMMessagePayload[]): MobileDMMessagesResponse {
     },
     messages,
     nextCursor: null,
+    participantReadStates: [{ lastReadAt: "2026-07-11T11:00:00.000Z", userId: "user-2" }],
   };
 }
 
@@ -260,32 +261,29 @@ describe("mobile realtime query bridge", () => {
     } as Parameters<typeof createMobileRealtimeQueryBridge>[0]);
 
     bridge.handleEvent(
-      createMobileRealtimeEventEnvelope(
-        "channel:messages:stale" as MobileRealtimeServerEventName,
-        {
-          channelId: "channel-2",
-          lastMessage: {
-            author: {
-              displayName: "Ada",
-              id: "user-2",
-              username: "ada",
-            },
-            createdAt: "2026-07-09T10:05:00.000Z",
-            id: "message-2",
-            text: "Immediate inactive-server preview",
+      createMobileRealtimeEventEnvelope("channel:messages:stale" as MobileRealtimeServerEventName, {
+        channelId: "channel-2",
+        lastMessage: {
+          author: {
+            displayName: "Ada",
+            id: "user-2",
+            username: "ada",
           },
-          latestMessageId: "message-2",
-          serverId: "server-2",
+          createdAt: "2026-07-09T10:05:00.000Z",
+          id: "message-2",
+          text: "Immediate inactive-server preview",
         },
-      ),
+        latestMessageId: "message-2",
+        serverId: "server-2",
+      }),
     );
 
     assert.deepEqual(refreshedServerIds, ["server-2"]);
     assert.equal(queryClient.getQueryState(workspaceKey)?.isInvalidated, true);
     assert.equal(fake.pendingCount(), 0);
     assert.equal(
-      queryClient.getQueryData<ReturnType<typeof makeWorkspaceWithLastMessage>>(workspaceKey)?.detail
-        .categories[0]?.channels[0]?.lastMessage?.text,
+      queryClient.getQueryData<ReturnType<typeof makeWorkspaceWithLastMessage>>(workspaceKey)
+        ?.detail.categories[0]?.channels[0]?.lastMessage?.text,
       "Immediate inactive-server preview",
     );
   });
@@ -332,9 +330,8 @@ describe("mobile realtime query bridge", () => {
 
     bridge.handleEvent(createMobileRealtimeEventEnvelope("message:new", makeMessage("message-2")));
 
-    const updated = queryClient.getQueryData<ReturnType<typeof makeWorkspaceWithLastMessage>>(
-      workspaceKey,
-    );
+    const updated =
+      queryClient.getQueryData<ReturnType<typeof makeWorkspaceWithLastMessage>>(workspaceKey);
     assert.deepEqual(updated?.detail.categories[0]?.channels[0]?.lastMessage, {
       author: {
         displayName: "Dogukan",
@@ -406,7 +403,9 @@ describe("mobile realtime query bridge", () => {
         userId: "user-1",
       }),
     );
-    assert.deepEqual(queryClient.getQueryData<MobileVoiceStatesResponse>(matchingKey), { states: [] });
+    assert.deepEqual(queryClient.getQueryData<MobileVoiceStatesResponse>(matchingKey), {
+      states: [],
+    });
   });
 
   it("updates validated active DM message pages without scheduling a refresh", () => {
@@ -429,6 +428,32 @@ describe("mobile realtime query bridge", () => {
       updated?.pages[0]?.messages.map((message) => message.id),
       ["message-1", "message-2"],
     );
+    assert.equal(fake.pendingCount(), 1);
+  });
+
+  it("patches authoritative participant read states from a DM read event", () => {
+    const queryClient = new QueryClient();
+    const fake = createFakeScheduler();
+    const bridge = createBridge(queryClient, fake.scheduler);
+    const key = mobileQueryKeys.dmMessages("conversation-1");
+    queryClient.setQueryData<InfiniteData<MobileDMMessagesResponse, string | null>>(key, {
+      pageParams: [null],
+      pages: [makeDMPage([makeDMMessage("message-1")])],
+    });
+
+    bridge.handleEvent(
+      createMobileRealtimeEventEnvelope("dm:conversation:read", {
+        conversationId: "conversation-1",
+        lastReadAt: "2026-07-17T08:05:00.000Z",
+        userId: "user-2",
+      }),
+    );
+
+    const updated =
+      queryClient.getQueryData<InfiniteData<MobileDMMessagesResponse, string | null>>(key);
+    assert.deepEqual(updated?.pages[0]?.participantReadStates, [
+      { lastReadAt: "2026-07-17T08:05:00.000Z", userId: "user-2" },
+    ]);
     assert.equal(fake.pendingCount(), 0);
   });
 

@@ -2,13 +2,37 @@ import React, { type ComponentProps } from "react";
 import { fireEvent } from "@testing-library/react-native";
 import { describe, expect, it, jest } from "@jest/globals";
 
+const mockMobileAccountSettingsScreen = jest.fn(
+  ({ onBack, presence }: { onBack(): void; presence: string | null }) => {
+    const ReactRuntime = require("react");
+    const { Pressable, Text } = require("react-native");
+    return ReactRuntime.createElement(
+      Pressable,
+      { onPress: onBack, testID: "mobile-account-settings-delegate" },
+      ReactRuntime.createElement(Text, null, presence ?? "none"),
+    );
+  },
+);
+
+jest.mock("../src/app/screens/mobile-account-settings-screen", () => ({
+  MobileAccountSettingsScreen: (props: { onBack(): void; presence: string | null }) =>
+    mockMobileAccountSettingsScreen(props),
+}));
+
 jest.mock("../src/app/components/kit/bottom-sheet", () => {
   const ReactRuntime = require("react");
   const { View } = require("react-native");
 
   return {
-    BottomSheet: ({ children, open, testID }: { children: React.ReactNode; open: boolean; testID: string }) =>
-      open ? ReactRuntime.createElement(View, { testID: `${testID}-panel` }, children) : null,
+    BottomSheet: ({
+      children,
+      open,
+      testID,
+    }: {
+      children: React.ReactNode;
+      open: boolean;
+      testID: string;
+    }) => (open ? ReactRuntime.createElement(View, { testID: `${testID}-panel` }, children) : null),
   };
 });
 
@@ -110,6 +134,9 @@ function createReadyBootstrapState(): MobileBootstrapViewState {
       user: {
         avatarUrl: null,
         displayName: "Ada Test",
+        id: "user-1",
+        locale: "tr",
+        status: "ONLINE",
         username: "ada_test",
       },
     } as never,
@@ -122,6 +149,26 @@ function createReadyBootstrapState(): MobileBootstrapViewState {
 }
 
 describe("mobile profile settings screen", () => {
+  it("delegates the account section to the connected screen with live presence and back action", async () => {
+    const onBack = jest.fn();
+    const view = await render(
+      <ProfileSettingsScreen
+        {...createProfileSettingsScreenProps({
+          activeSection: "account",
+          bootstrapState: createReadyBootstrapState(),
+          onBack,
+          socialActionsEnabled: true,
+        })}
+      />,
+    );
+
+    expect(mockMobileAccountSettingsScreen).toHaveBeenLastCalledWith(
+      expect.objectContaining({ onBack, presence: "ONLINE" }),
+    );
+    await fireEvent.press(view.getByTestId("mobile-account-settings-delegate"));
+    expect(onBack).toHaveBeenCalledTimes(1);
+  });
+
   it("uses profile-shaped loading and retryable error states without fabricated identity data", async () => {
     const onRefreshBootstrap = jest.fn();
     const loadingView = await render(

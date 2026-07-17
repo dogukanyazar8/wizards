@@ -49,6 +49,50 @@ describe("mobile voice client", () => {
     assert.equal(response.url, "wss://voice.whispr.test");
   });
 
+  it("requests a direct-call token with only the conversation target", async () => {
+    const calls: Array<{ body: unknown; method: string | undefined; path: string }> = [];
+    const client: MobileApiClient = {
+      async requestJson<TResponse>(path: string, options: MobileApiRequestOptions = {}) {
+        calls.push({ body: options.body, method: options.method, path });
+        return {
+          conversationId: "conversation-1",
+          provider: "livekit",
+          token: "livekit.jwt.token.value",
+          url: "wss://voice.whispr.test",
+        } as TResponse;
+      },
+    };
+
+    const response = await fetchMobileVoiceToken(client, { conversationId: "conversation-1" });
+
+    assert.deepEqual(calls, [
+      {
+        body: { conversationId: "conversation-1" },
+        method: "POST",
+        path: MOBILE_VOICE_TOKEN_ENDPOINT,
+      },
+    ]);
+    assert.equal(response.conversationId, "conversation-1");
+    assert.equal(response.channelId, undefined);
+  });
+
+  it("rejects ambiguous token targets before sending a request", async () => {
+    const client: MobileApiClient = {
+      async requestJson<TResponse>() {
+        throw new Error("request must not be sent");
+      },
+    };
+
+    await assert.rejects(
+      () =>
+        fetchMobileVoiceToken(client, {
+          channelId: "voice-channel-1",
+          conversationId: "conversation-1",
+        }),
+      /exactly one/i,
+    );
+  });
+
   it("coordinates mobile voice state, heartbeat, and leave endpoints", async () => {
     const calls: Array<{
       body: unknown;

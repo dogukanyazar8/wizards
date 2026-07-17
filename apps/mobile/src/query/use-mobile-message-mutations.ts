@@ -15,6 +15,7 @@ import type {
   MobileChannelMarkReadResponse,
   MobileChannelSendMessageResponse,
   MobileDMMessagesResponse,
+  MobileDMMarkReadResponse,
   MobileDMSendMessageResponse,
   MobileMessageDeleteResponse,
   MobileMessageReactionResponse,
@@ -26,6 +27,7 @@ import type { MobileApiClient } from "../api/mobile-api-client";
 import type { MobileSessionUser } from "../auth/session-types";
 import {
   deleteMobileDMMessage,
+  markMobileDMConversationRead,
   sendMobileDMMessage,
   setMobileDMMessageReaction,
   updateMobileDMMessage,
@@ -373,7 +375,8 @@ export function useMobileChannelReadMutation(input: { readonly client: MobileApi
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (variables: { channelId: string }) => markMobileChannelRead(input.client, variables),
+    mutationFn: (variables: { channelId: string }) =>
+      markMobileChannelRead(input.client, variables),
     onSuccess: (response: MobileChannelMarkReadResponse) => {
       queryClient.setQueryData<MobileBootstrapPayload>(mobileQueryKeys.bootstrap(), (current) => {
         if (!current) return current;
@@ -386,15 +389,22 @@ export function useMobileChannelReadMutation(input: { readonly client: MobileApi
               }
             : server,
         );
-        return { ...current, home: { ...current.home, servers: { ...current.home.servers, recent } } };
+        return {
+          ...current,
+          home: { ...current.home, servers: { ...current.home.servers, recent } },
+        };
       });
       queryClient.setQueryData<MobileManagedWorkspaceServerDetailResponse>(
         mobileQueryKeys.workspace(response.serverId),
         (current) => {
           if (!current) return current;
-          const patchChannel = (channel: typeof current.detail.ungroupedChannels[number]) =>
+          const patchChannel = (channel: (typeof current.detail.ungroupedChannels)[number]) =>
             channel.id === response.channelId
-              ? { ...channel, mentionCount: response.mentionCount, unreadCount: response.unreadCount }
+              ? {
+                  ...channel,
+                  mentionCount: response.mentionCount,
+                  unreadCount: response.unreadCount,
+                }
               : channel;
           return {
             ...current,
@@ -414,6 +424,35 @@ export function useMobileChannelReadMutation(input: { readonly client: MobileApi
           };
         },
       );
+    },
+  });
+}
+
+export function useMobileDMReadMutation(input: { readonly client: MobileApiClient }) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (variables: { conversationId: string }) =>
+      markMobileDMConversationRead(input.client, variables),
+    onSuccess: (response: MobileDMMarkReadResponse) => {
+      queryClient.setQueryData<InfiniteData<MobileDMMessagesResponse, string | null>>(
+        mobileQueryKeys.dmMessages(response.conversationId),
+        (current) =>
+          current
+            ? {
+                ...current,
+                pages: current.pages.map((page) => ({
+                  ...page,
+                  participantReadStates: response.participantReadStates,
+                })),
+              }
+            : current,
+      );
+      void queryClient.invalidateQueries({
+        exact: true,
+        queryKey: mobileQueryKeys.dmConversations(),
+      });
+      void queryClient.invalidateQueries({ exact: true, queryKey: mobileQueryKeys.bootstrap() });
     },
   });
 }

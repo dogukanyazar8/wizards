@@ -1072,6 +1072,14 @@ export async function markDirectMessageRead(userId: string, conversationId: stri
   });
 }
 
+export async function getDirectMessageParticipantReadStates(conversationId: string) {
+  return prisma.dMParticipant.findMany({
+    where: { conversationId },
+    orderBy: { userId: "asc" },
+    select: { lastReadAt: true, userId: true },
+  });
+}
+
 export async function markDirectMessageUnread(userId: string, conversationId: string) {
   await requireDMParticipant(userId, conversationId);
 

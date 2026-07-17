@@ -244,7 +244,7 @@ describe("Phase 0 Maestro testID contract", () => {
       /id:\s*"mobile-gif-picker-panel"[\s\S]*?id:\s*"mobile-gif-image-loaded-\.\*"[\s\S]*?light-gif-picker/,
     );
     const contracts = {
-      "mobile-dm-details-open": "src/app/screens/dm-conversation-screen.tsx",
+      "mobile-dm-details-open": "src/app/components/dm-chat-primitives.tsx",
       "mobile-dm-details-screen": "src/dm/mobile-dm-details-screen.tsx",
       "mobile-dm-gif-button": "src/app/composer/mobile-composer.tsx",
       "mobile-gif-picker-panel": "src/media/mobile-gif-picker.tsx",

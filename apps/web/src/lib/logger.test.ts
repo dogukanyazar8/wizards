@@ -195,6 +195,24 @@ describe("logError reporter köprüsü", () => {
     assert.equal(calls[0]?.scope, "[bridge] test");
   });
 
+  it("reporter sınırında PII taşıyan Error nesnesini güvenli kopyayla değiştirir", () => {
+    const calls: Array<{ scope: string; error: unknown }> = [];
+    registerErrorReporter((scope, error) => calls.push({ scope, error }));
+    const failure = new Error("email=ada@example.com userId=user-123 query=private-search");
+
+    logError("[bridge] profile", failure);
+    clearErrorReporter();
+
+    assert.equal(calls.length, 1);
+    assert.notEqual(calls[0]?.error, failure);
+    assert.ok(calls[0]?.error instanceof Error);
+    const diagnostic = calls[0]?.error as Error;
+    assert.ok(!diagnostic.message.includes("ada@example.com"));
+    assert.ok(!diagnostic.message.includes("user-123"));
+    assert.ok(!diagnostic.message.includes("private-search"));
+    assert.ok(diagnostic.message.includes("[redacted-value]"));
+  });
+
   it("logWarning reporter'ı tetiklemez", () => {
     const calls: unknown[] = [];
     registerErrorReporter((scope) => calls.push(scope));
@@ -206,8 +224,7 @@ describe("logError reporter köprüsü", () => {
 
 describe("redactErrorForReport", () => {
   it("mesajdaki JWT'yi redakte eder, stack'i korur", () => {
-    const jwt =
-      "eyJaaaaaaaaaaaaaaaaaaaa.eyJbbbbbbbbbbbbbbbbbbbb.cccccccccccccccccccc";
+    const jwt = "eyJaaaaaaaaaaaaaaaaaaaa.eyJbbbbbbbbbbbbbbbbbbbb.cccccccccccccccccccc";
     const failure = new Error(`token sızdı: ${jwt}`);
     const redacted = redactErrorForReport(failure);
     assert.ok(!redacted.message.includes("eyJ"));

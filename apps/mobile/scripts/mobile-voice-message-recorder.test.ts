@@ -14,6 +14,9 @@ describe("mobile voice-message recorder contract", () => {
     assert.match(source, /prepareToRecordAsync\(\)/);
     assert.match(source, /recorder\.record\(\)/);
     assert.match(source, /await recorder\.stop\(\)/);
+    assert.match(source, /discard\(\): Promise<void>/);
+    assert.match(source, /new ExpoFile\(uri\)/);
+    assert.match(source, /recordingFile\.delete\(\)/);
     assert.doesNotMatch(source, /useEffect\s*\(/);
   });
 });

@@ -17,6 +17,7 @@ export const MOBILE_REALTIME_SERVER_EVENTS = [
   "dm:message:reaction_updated",
   "dm:typing:update",
   "dm:conversation:updated",
+  "dm:conversation:read",
   "friends:updated",
   "presence:update",
   "user:profile:updated",
@@ -105,6 +106,7 @@ const CHANNEL_REFRESH_EVENTS = new Set<MobileRealtimeServerEventName>([
 
 const DM_REFRESH_EVENTS = new Set<MobileRealtimeServerEventName>([
   "dm:conversation:updated",
+  "dm:conversation:read",
   "dm:message:new",
   "dm:message:updated",
   "dm:message:deleted",
@@ -134,6 +136,7 @@ const SOCIAL_REFRESH_EVENTS = new Set<MobileRealtimeServerEventName>([
 
 type MobileValidatedRealtimePayload = {
   channelId: string | null;
+  conversationId?: string | null;
   payload: unknown;
   serverId: string | null;
 };
@@ -141,6 +144,17 @@ type MobileValidatedRealtimePayload = {
 type MobileRealtimePayloadParser = (payload: unknown) => MobileValidatedRealtimePayload | null;
 
 const MOBILE_REALTIME_PAYLOAD_PARSERS = {
+  "dm:conversation:read": (payload) => {
+    const parsed = MobileDMReadUpdatedEventSchema.safeParse(payload);
+    return parsed.success
+      ? {
+          channelId: null,
+          conversationId: parsed.data.conversationId,
+          payload: parsed.data,
+          serverId: null,
+        }
+      : null;
+  },
   "channel:messages:stale": (payload) => {
     const parsed = MobileChannelMessagesStaleEventSchema.safeParse(payload);
     return parsed.success
@@ -307,7 +321,12 @@ export function createMobileRealtimeEventEnvelope(
   return {
     channelId:
       parsedPayload?.channelId ?? (parser ? null : getStringProperty(payload, "channelId")),
-    conversationId: parsedPayload ? null : getStringProperty(payload, "conversationId"),
+    conversationId:
+      parsedPayload && "conversationId" in parsedPayload
+        ? (parsedPayload.conversationId ?? null)
+        : parser
+          ? null
+          : getStringProperty(payload, "conversationId"),
     eventName,
     payload: parsedPayload
       ? parsedPayload.payload
@@ -380,6 +399,7 @@ export function validateMobileRealtimeContract(): string[] {
 }
 import {
   MobileChannelMessagesStaleEventSchema,
+  MobileDMReadUpdatedEventSchema,
   MobileMessageHistoryClearedEventSchema,
   MobilePresenceUpdateEventSchema,
   MobileServerUnreadUpdateEventSchema,

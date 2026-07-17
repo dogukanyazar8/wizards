@@ -18,6 +18,17 @@ import {
   type MobileResolvedTheme,
   type MobileThemeMode,
 } from "../../design/mobile-theme-runtime";
+import {
+  composeMobileTheme,
+  MOBILE_ACCENT_PREFERENCE_KEY,
+  MOBILE_DEFAULT_ACCENT_ID,
+  MOBILE_DEFAULT_FONT_SCALE_STEP,
+  MOBILE_FONT_SCALE_PREFERENCE_KEY,
+  normalizeMobileAccentId,
+  normalizeMobileFontScaleStep,
+  type MobileAccentId,
+  type MobileFontScaleStep,
+} from "../../design/mobile-appearance-preferences";
 import type { MobileTheme } from "../../design/themes";
 
 interface MobileThemePreferenceRuntime {
@@ -26,14 +37,27 @@ interface MobileThemePreferenceRuntime {
   setMode(mode: MobileThemeMode): void;
 }
 
+interface MobileAppearancePreferenceRuntime extends MobileThemePreferenceRuntime {
+  readonly accent: MobileAccentId;
+  readonly fontScaleStep: MobileFontScaleStep;
+  setAccent(accent: MobileAccentId): void;
+  setFontScaleStep(step: MobileFontScaleStep): void;
+}
+
 const ThemeContext = createContext<MobileTheme | null>(null);
-const ThemePreferenceContext = createContext<MobileThemePreferenceRuntime | null>(null);
+const ThemePreferenceContext = createContext<MobileAppearancePreferenceRuntime | null>(null);
 const styleCache = new WeakMap<Function, WeakMap<MobileTheme, object>>();
 
 export function MobileThemeProvider({ children }: PropsWithChildren) {
   const systemScheme = useColorScheme();
   const [mode, setModeState] = useState<MobileThemeMode>("system");
+  const [accent, setAccentState] = useState<MobileAccentId>(MOBILE_DEFAULT_ACCENT_ID);
+  const [fontScaleStep, setFontScaleStepState] = useState<MobileFontScaleStep>(
+    MOBILE_DEFAULT_FONT_SCALE_STEP,
+  );
   const userSelectionVersion = useRef(0);
+  const accentSelectionVersion = useRef(0);
+  const fontScaleSelectionVersion = useRef(0);
 
   useEffect(() => {
     let active = true;
@@ -56,6 +80,31 @@ export function MobileThemeProvider({ children }: PropsWithChildren) {
     };
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    const accentVersionAtStart = accentSelectionVersion.current;
+    const fontScaleVersionAtStart = fontScaleSelectionVersion.current;
+
+    void AsyncStorage.getItem(MOBILE_ACCENT_PREFERENCE_KEY)
+      .then((storedAccent) => {
+        if (active && accentSelectionVersion.current === accentVersionAtStart) {
+          setAccentState(normalizeMobileAccentId(storedAccent));
+        }
+      })
+      .catch(() => undefined);
+    void AsyncStorage.getItem(MOBILE_FONT_SCALE_PREFERENCE_KEY)
+      .then((storedStep) => {
+        if (active && fontScaleSelectionVersion.current === fontScaleVersionAtStart) {
+          setFontScaleStepState(normalizeMobileFontScaleStep(storedStep));
+        }
+      })
+      .catch(() => undefined);
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const setMode = useCallback((nextMode: MobileThemeMode) => {
     const normalizedMode = normalizeMobileThemeMode(nextMode);
     userSelectionVersion.current += 1;
@@ -63,11 +112,29 @@ export function MobileThemeProvider({ children }: PropsWithChildren) {
     void AsyncStorage.setItem(MOBILE_THEME_PREFERENCE_KEY, normalizedMode).catch(() => undefined);
   }, []);
 
+  const setAccent = useCallback((nextAccent: MobileAccentId) => {
+    const normalizedAccent = normalizeMobileAccentId(nextAccent);
+    accentSelectionVersion.current += 1;
+    setAccentState(normalizedAccent);
+    void AsyncStorage.setItem(MOBILE_ACCENT_PREFERENCE_KEY, normalizedAccent).catch(
+      () => undefined,
+    );
+  }, []);
+
+  const setFontScaleStep = useCallback((nextStep: MobileFontScaleStep) => {
+    const normalizedStep = normalizeMobileFontScaleStep(nextStep);
+    fontScaleSelectionVersion.current += 1;
+    setFontScaleStepState(normalizedStep);
+    void AsyncStorage.setItem(MOBILE_FONT_SCALE_PREFERENCE_KEY, String(normalizedStep)).catch(
+      () => undefined,
+    );
+  }, []);
+
   const resolvedTheme = resolveMobileTheme(mode, systemScheme);
-  const theme = getMobileTheme(mode, systemScheme);
-  const preferenceRuntime = useMemo<MobileThemePreferenceRuntime>(
-    () => ({ mode, resolvedTheme, setMode }),
-    [mode, resolvedTheme, setMode],
+  const theme = composeMobileTheme(getMobileTheme(mode, systemScheme), accent, fontScaleStep);
+  const preferenceRuntime = useMemo<MobileAppearancePreferenceRuntime>(
+    () => ({ accent, fontScaleStep, mode, resolvedTheme, setAccent, setFontScaleStep, setMode }),
+    [accent, fontScaleStep, mode, resolvedTheme, setAccent, setFontScaleStep, setMode],
   );
 
   return (
@@ -92,6 +159,16 @@ export function useThemePreference(): MobileThemePreferenceRuntime {
 
   if (!runtime) {
     throw new Error("useThemePreference must be used within MobileThemeProvider");
+  }
+
+  return runtime;
+}
+
+export function useMobileAppearancePreferences(): MobileAppearancePreferenceRuntime {
+  const runtime = useContext(ThemePreferenceContext);
+
+  if (!runtime) {
+    throw new Error("useMobileAppearancePreferences must be used within MobileThemeProvider");
   }
 
   return runtime;
