@@ -1402,13 +1402,16 @@ describe("mobile media upload service", { concurrency: false }, () => {
       assert.equal(completed, true);
     });
 
-    it("bounds and redacts a failed opportunistic cleanup without rejecting", async () => {
+    it("bounds a timed-out opportunistic cleanup without waiting for its completion", async () => {
       const logs: Array<{ error: unknown; scope: string }> = [];
-      const startedAt = Date.now();
+      let releaseCleanup: (() => void) | undefined;
+      const cleanupGate = new Promise<void>((resolve) => {
+        releaseCleanup = resolve;
+      });
 
       await runOpportunisticMobileMediaCleanup({
         async cleanup() {
-          await new Promise((resolve) => setTimeout(resolve, 50));
+          await cleanupGate;
           throw new Error("storage-key-secret provider failure");
         },
         logWarning(scope, error) {
@@ -1417,11 +1420,17 @@ describe("mobile media upload service", { concurrency: false }, () => {
         timeoutMs: 5,
       });
 
-      assert.ok(Date.now() - startedAt < 45);
-      assert.equal(logs.length, 1);
-      const serializedLog = JSON.stringify(logs[0]);
+      assert.deepEqual(logs, [
+        {
+          error: { errorName: "CleanupTimeout" },
+          scope: "[mobile-media-cleanup] opportunistic cleanup failed",
+        },
+      ]);
+      const serializedLog = JSON.stringify(logs);
       assert.ok(!serializedLog.includes("storage-key-secret"));
       assert.ok(!serializedLog.includes("provider failure"));
+
+      releaseCleanup?.();
     });
   });
 });
