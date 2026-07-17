@@ -90,3 +90,14 @@ test("relative CSS side-effect imports have real assets and exact declarations",
 
   assert.deepEqual(imports, ["apps/web/src/app/globals.css"]);
 });
+
+test("CI runs the native compiler independently in report-only mode", () => {
+  const workflow = readFileSync(join(root, ".github", "workflows", "ci.yml"), "utf8");
+  assert.match(workflow, /^  typescript-native-shadow:\r?$/m);
+  assert.match(workflow, /^    name: TypeScript 7 Native Shadow\r?$/m);
+  assert.match(workflow, /^    continue-on-error: true\r?$/m);
+  assert.match(workflow, /^      - name: Run TypeScript toolchain contracts\r?$/m);
+  assert.match(workflow, /^        run: pnpm test:toolchain\r?$/m);
+  assert.match(workflow, /^        run: pnpm typecheck:native:ci\r?$/m);
+  assert.match(workflow, /^        run: pnpm typecheck:declarations\r?$/m);
+});

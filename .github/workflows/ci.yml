@@ -107,6 +107,48 @@ jobs:
       - name: Build
         run: pnpm build
 
+  typescript-native-shadow:
+    name: TypeScript 7 Native Shadow
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    continue-on-error: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 10.33.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run TypeScript toolchain contracts
+        run: pnpm test:toolchain
+
+      - name: Run TypeScript 7 native typecheck
+        run: pnpm typecheck:native:ci
+
+      - name: Compare TS6 and TS7 declarations
+        run: pnpm typecheck:declarations
+
+      - name: Upload TypeScript native reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: typescript-native-${{ github.run_id }}
+          path: artifacts/typescript/*.json
+          if-no-files-found: error
+          retention-days: 14
+
   e2e-smoke:
     name: Playwright E2E
     runs-on: ubuntu-latest
