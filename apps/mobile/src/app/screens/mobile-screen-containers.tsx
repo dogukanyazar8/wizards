@@ -144,11 +144,6 @@ export function VoiceRoomStackScreenContainer({
 
     navigation.navigate("ChannelChat", { channelId: room.channelId, serverId: room.serverId });
   }, [navigation, room.channelId, room.serverId]);
-  const openVoiceRoomInvite = useCallback(() => {
-    screenProps.onOpenVoiceInvite?.();
-    minimizeVoiceRoom();
-  }, [minimizeVoiceRoom, screenProps]);
-
   useEffect(() => {
     if (!hasRouteContext) {
       navigation.replace("MainTabs", { screen: "overview" });
@@ -198,7 +193,6 @@ export function VoiceRoomStackScreenContainer({
       onLeaveVoiceChannel={leaveVoiceRoom}
       onMinimize={minimizeVoiceRoom}
       onOpenChat={openVoiceRoomChat}
-      onOpenVoiceInvite={openVoiceRoomInvite}
       testID="mobile-voice-room-screen"
     />
   );

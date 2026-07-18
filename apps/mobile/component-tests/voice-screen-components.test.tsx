@@ -26,7 +26,6 @@ jest.mock("react-native-gesture-handler", () => {
 import { activeMobileCopy } from "../src/locale/mobile-locale-preferences";
 import {
   MobileScreenShareViewer,
-  MobileVoiceChannelScreen,
   PushToTalkButton,
   ScreenShareConsentSheet,
   VoiceScreen,
@@ -167,7 +166,6 @@ describe("mobile voice component rendering", () => {
     const onLeaveVoiceChannel = jest.fn(async () => undefined);
     const onMinimize = jest.fn();
     const onOpenChat = jest.fn();
-    const onOpenVoiceInvite = jest.fn();
     const onSelectVoiceAudioOutput = jest.fn(async () => undefined);
     const onToggleVoiceMute = jest.fn(async () => undefined);
     const view = await render(
@@ -176,7 +174,6 @@ describe("mobile voice component rendering", () => {
           onLeaveVoiceChannel,
           onMinimize,
           onOpenChat,
-          onOpenVoiceInvite,
           onSelectVoiceAudioOutput,
           onToggleVoiceMute,
         })}
@@ -187,15 +184,39 @@ describe("mobile voice component rendering", () => {
     await fireEvent.press(view.getByTestId("mobile-voice-mute-toggle"));
     await fireEvent.press(view.getByTestId("mobile-voice-audio-output"));
     await fireEvent.press(view.getByTestId("mobile-voice-chat"));
-    await fireEvent.press(view.getByTestId("mobile-voice-invite"));
     await fireEvent.press(view.getByTestId("mobile-voice-leave"));
 
     expect(onMinimize).toHaveBeenCalledTimes(1);
     expect(onToggleVoiceMute).toHaveBeenCalledTimes(1);
     expect(onSelectVoiceAudioOutput).toHaveBeenCalledWith("speaker");
     expect(onOpenChat).toHaveBeenCalledTimes(1);
-    expect(onOpenVoiceInvite).toHaveBeenCalledTimes(1);
     expect(onLeaveVoiceChannel).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens the inline invite sheet with online members instead of leaving the room", async () => {
+    const onSendInvite = jest.fn();
+    const view = await render(
+      <VoiceScreen
+        {...createVoiceScreenProps({
+          inviteCandidates: [
+            {
+              avatarUrl: null,
+              label: "Grace Hopper",
+              status: "ONLINE",
+              userId: "grace",
+              username: "grace",
+            },
+          ],
+          onSendInvite,
+        })}
+      />,
+    );
+
+    await fireEvent.press(view.getByTestId("mobile-voice-invite"));
+    expect(view.getByText(copy.voiceInviteSheetSubtitle)).toBeTruthy();
+
+    await fireEvent.press(view.getByLabelText(`${copy.voiceInviteAction}: Grace Hopper`));
+    expect(onSendInvite).toHaveBeenCalledWith("grace");
   });
 
   it("renders bounded camera tracks and exposes the camera flip action", async () => {
@@ -372,54 +393,6 @@ describe("mobile voice component rendering", () => {
 
     expect(view.getByLabelText(copy.voiceScreenShareCloseViewerAction)).toBeTruthy();
     expect(view.getAllByTestId("mobile-livekit-video-track").length).toBeGreaterThan(0);
-  });
-
-  it("disables the microphone control when the voice channel is in push-to-talk mode", async () => {
-    const onToggleMute = jest.fn();
-
-    const view = await render(
-      <MobileVoiceChannelScreen
-        channel={{ id: "voice-general", name: "General Voice", type: "VOICE" } as never}
-        inviteCandidates={[]}
-        inviteSendStates={{}}
-        locale="tr"
-        memberCount={3}
-        onBack={() => undefined}
-        onBeginPushToTalk={async () => undefined}
-        onEndPushToTalk={() => undefined}
-        onFlipCamera={async () => undefined}
-        onLeave={async () => undefined}
-        onRefreshVoiceDevices={async () => undefined}
-        onSelectAudioInput={async () => undefined}
-        onSelectAudioOutputDevice={async () => undefined}
-        onSelectAudioOutput={async () => undefined}
-        onSelectNoiseSuppression={async () => undefined}
-        onSendInvite={() => undefined}
-        onToggleCamera={async () => undefined}
-        onToggleMute={async () => {
-          onToggleMute();
-        }}
-        onToggleScreenShare={async () => undefined}
-        room={createConnectedVoiceRoom()}
-        serverIconUrl={null}
-        serverName="Whispr HQ"
-        serverShortName="WH"
-        voiceInputMode="push-to-talk"
-        voicePushToTalkPhase="idle"
-      />,
-    );
-
-    const microphoneButton = view.getByLabelText(copy.voiceInputModePushToTalk);
-    expect(view.getByTestId("mobile-voice-channel-screen")).toBeTruthy();
-    expect(view.getByTestId("mobile-voice-camera-toggle")).toBeTruthy();
-    expect(view.getByTestId("mobile-voice-settings-open")).toBeTruthy();
-    expect(view.getByTestId("mobile-voice-leave")).toBeTruthy();
-    expect(microphoneButton.props.accessibilityState).toEqual(
-      expect.objectContaining({ disabled: true }),
-    );
-
-    await fireEvent.press(microphoneButton);
-    expect(onToggleMute).not.toHaveBeenCalled();
   });
 });
 

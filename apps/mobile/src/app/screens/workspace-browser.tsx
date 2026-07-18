@@ -8,7 +8,6 @@ import {
   copy,
   filterMobileWorkspaceChannelSections,
   getBoundedMobileList,
-  getMobileVoiceInviteCandidates,
   getMobileWorkspaceChannelSections,
   getMobileWorkspaceChannelSurface,
   getMobileWorkspaceChannels,
@@ -43,7 +42,6 @@ import { MobileChannelChatScreen } from "./channel-screen";
 import { AvatarMark } from "../components/ui-atoms";
 import { useTheme } from "../providers/mobile-theme-provider";
 import { useMobileWorkspaceLayoutPreference } from "../providers/mobile-workspace-layout-provider";
-import { MobileVoiceChannelScreen } from "./voice-screen";
 import { useHomeScreenStyles } from "./home-screen.styles";
 import { WorkspaceChannelSectionList } from "./workspace-channel-section-list";
 import { MobileWorkspaceServerSwitcherSheet } from "./mobile-workspace-server-switcher-sheet";
@@ -212,29 +210,9 @@ export function MobileWorkspaceBrowser({
           (channel) => channel.id === activeWorkspaceTextChannelId && channel.type === "TEXT",
         ) ?? null)
       : null;
-  const activeVoiceChannel =
-    workspacePayload && activeWorkspaceVoiceChannelId
-      ? (getMobileWorkspaceChannels(workspacePayload.detail).find(
-          (channel) => channel.id === activeWorkspaceVoiceChannelId && channel.type === "VOICE",
-        ) ?? null)
-      : null;
   const activeChannelSurface = getMobileWorkspaceChannelSurface(activeTextChannel, {
     isExplicitlyOpened: activeTextChannel?.id === activeWorkspaceTextChannelId,
   });
-  const activeVoiceChannelSurface = getMobileWorkspaceChannelSurface(activeVoiceChannel, {
-    isExplicitlyOpened: activeVoiceChannel?.id === activeWorkspaceVoiceChannelId,
-  });
-  const voiceInviteCandidates = useMemo(() => {
-    if (!workspacePayload) {
-      return [];
-    }
-
-    return getMobileVoiceInviteCandidates({
-      currentUserId: bootstrapState.payload.user.id,
-      members: workspacePayload.detail.members,
-      participants: voiceRoomState.participants,
-    });
-  }, [bootstrapState.payload.user.id, voiceRoomState.participants, workspacePayload]);
   const channelSections = useMemo(() => {
     if (!workspacePayload) {
       return [];
@@ -347,38 +325,6 @@ export function MobileWorkspaceBrowser({
           }
         }}
         onToggleMessageReaction={onToggleMessageReaction}
-      />
-    );
-  }
-
-  if (activeVoiceChannelSurface === "voice-room" && activeVoiceChannel) {
-    return (
-      <MobileVoiceChannelScreen
-        channel={activeVoiceChannel}
-        memberCount={activeMemberCount}
-        room={voiceRoomState}
-        serverIconUrl={activeServerIconUrl}
-        serverName={activeServerName}
-        serverShortName={activeServerShortName}
-        inviteCandidates={voiceInviteCandidates}
-        inviteSendStates={voiceInviteSendStates}
-        locale={locale}
-        voiceInputMode={voiceInputMode}
-        voicePushToTalkPhase={voicePushToTalkPhase}
-        onBack={onCloseWorkspaceVoiceChannel}
-        onBeginPushToTalk={onBeginVoicePushToTalk}
-        onEndPushToTalk={onEndVoicePushToTalk}
-        onFlipCamera={onFlipVoiceCamera}
-        onLeave={onLeaveWorkspaceVoiceChannel}
-        onRefreshVoiceDevices={onRefreshVoiceDevices}
-        onSelectAudioInput={onSelectVoiceAudioInput}
-        onSelectAudioOutputDevice={onSelectVoiceAudioOutputDevice}
-        onSelectAudioOutput={onSelectVoiceAudioOutput}
-        onSelectNoiseSuppression={onSelectVoiceNoiseSuppression}
-        onSendInvite={onSendVoiceInvite}
-        onToggleCamera={onToggleVoiceCamera}
-        onToggleMute={onToggleVoiceMute}
-        onToggleScreenShare={onToggleVoiceScreenShare}
       />
     );
   }

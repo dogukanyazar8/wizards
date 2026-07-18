@@ -215,11 +215,17 @@ function mapLiveKitParticipantToRoomParticipant(
   const screenSharePublication = participant.getTrackPublication(Track.Source.ScreenShare);
   const cameraTrackRef = getCameraTrackRef(participant);
   const screenShareTrackRef = getScreenShareTrackRef(participant);
+  // LiveKit carries the display name in the join token; fall back to it so a
+  // remote participant never renders as a raw UUID before server state syncs.
+  const liveKitName =
+    typeof participant.name === "string" && participant.name.trim().length > 0
+      ? participant.name.trim()
+      : null;
 
   const roomParticipant = {
     audioLevel: toBoundedAudioLevel(participant.audioLevel),
     avatarUrl: isSelf ? currentUser.avatarUrl : null,
-    displayName: isSelf ? currentUser.displayName : null,
+    displayName: isSelf ? currentUser.displayName : liveKitName,
     isCameraEnabled: participant.isCameraEnabled,
     isMuted: microphonePublication ? microphonePublication.isMuted : false,
     isScreenSharing: Boolean(screenSharePublication?.isSubscribed || screenSharePublication),

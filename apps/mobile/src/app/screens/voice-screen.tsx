@@ -29,11 +29,7 @@ import {
   type MobileVoiceRuntimeState,
   type MobileWorkspaceChannelSummary,
 } from "../mobile-root-screen-shared";
-import {
-  ActionButton,
-  AvatarMark,
-  StatusChip,
-} from "../components/ui-atoms";
+import { ActionButton, AvatarMark, StatusChip } from "../components/ui-atoms";
 import { Avatar } from "../components/kit/avatar";
 import { useMobileHaptics } from "../providers/mobile-haptics-provider";
 import { getMobileActiveVoiceRoomModel } from "./active-voice-room-model";
@@ -41,6 +37,7 @@ import { useVoiceScreenStyles } from "./voice-screen.styles";
 import { useVoiceRoomTheme } from "../providers/mobile-theme-provider";
 import { MobileVoiceCameraGrid } from "../../voice/mobile-camera-grid";
 import { MobileVoiceSettingsSheet } from "../../voice/mobile-voice-settings-sheet";
+import { BottomSheet } from "../components/kit/bottom-sheet";
 
 export function VoiceScreen({
   voiceRoomState,
@@ -48,11 +45,17 @@ export function VoiceScreen({
   onToggleVoiceMute,
   onMinimize = () => undefined,
   onOpenChat = () => undefined,
-  onOpenVoiceInvite = () => undefined,
+  onSendInvite = () => undefined,
+  inviteCandidates = [],
+  inviteSendStates = {},
   onSelectVoiceAudioOutput = async () => undefined,
   onToggleVoiceCamera = async () => undefined,
   onToggleVoiceScreenShare = async () => undefined,
   onFlipVoiceCamera = async () => undefined,
+  onRefreshVoiceDevices = async () => undefined,
+  onSelectVoiceAudioInput = async () => undefined,
+  onSelectVoiceAudioOutputDevice = async () => undefined,
+  onSelectVoiceNoiseSuppression = async () => undefined,
   serverName = null,
   testID = "mobile-voice-screen",
 }: {
@@ -61,11 +64,17 @@ export function VoiceScreen({
   onToggleVoiceMute(): Promise<void>;
   onMinimize?(): void;
   onOpenChat?(): void;
-  onOpenVoiceInvite?(): void;
+  onSendInvite?(targetUserId: string): void;
+  inviteCandidates?: readonly MobileVoiceInviteCandidate[];
+  inviteSendStates?: Readonly<Record<string, MobileVoiceInviteSendState>>;
   onSelectVoiceAudioOutput?(mode: MobileVoiceAudioOutputMode): Promise<void>;
   onToggleVoiceCamera?(): Promise<void>;
   onToggleVoiceScreenShare?(): Promise<void>;
   onFlipVoiceCamera?(): Promise<void>;
+  onRefreshVoiceDevices?(): Promise<void>;
+  onSelectVoiceAudioInput?(id: string): Promise<void>;
+  onSelectVoiceAudioOutputDevice?(id: string): Promise<void>;
+  onSelectVoiceNoiseSuppression?(enabled: boolean): Promise<void>;
   serverName?: string | null;
   testID?: string;
 }) {
@@ -73,6 +82,8 @@ export function VoiceScreen({
   const theme = useVoiceRoomTheme();
   const { selection } = useMobileHaptics();
   const [now, setNow] = useState(() => Date.now());
+  const [inviteSheetVisible, setInviteSheetVisible] = useState(false);
+  const [settingsSheetVisible, setSettingsSheetVisible] = useState(false);
   const model = getMobileActiveVoiceRoomModel(voiceRoomState, serverName, now);
 
   useEffect(() => {
@@ -101,12 +112,20 @@ export function VoiceScreen({
   const handleScreenShare = () => {
     void onToggleVoiceScreenShare().then(selection);
   };
+  const handleFlipCamera = () => {
+    void onFlipVoiceCamera().then(selection);
+  };
+  const handleOpenInvite = () => {
+    selection();
+    setInviteSheetVisible(true);
+  };
   const screenShareParticipant = model.participants.find(
     (participant) => participant.isScreenSharing && participant.screenShareTrackRef,
   );
   const screenShareBusy =
     voiceRoomState.screenShareStatus === "starting" ||
     voiceRoomState.screenShareStatus === "stopping";
+  const canOpenSettings = model.connectionStatus === "connected";
 
   return (
     <View style={styles.activeVoiceRoomScreen} testID={testID}>
@@ -123,7 +142,11 @@ export function VoiceScreen({
           ]}
           testID="mobile-voice-minimize"
         >
-          <Ionicons color={theme.dark ? theme.text.inverse : theme.text.primary} name="chevron-back" size={22} />
+          <Ionicons
+            color={theme.dark ? theme.text.inverse : theme.text.primary}
+            name="chevron-back"
+            size={22}
+          />
         </Pressable>
         <View style={styles.activeVoiceRoomHeaderText}>
           <View style={styles.activeVoiceRoomTitleRow}>
@@ -152,6 +175,25 @@ export function VoiceScreen({
             size={20}
           />
         </Pressable>
+        <Pressable
+          accessibilityLabel={copy.voiceSettingsAction}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: !canOpenSettings }}
+          disabled={!canOpenSettings}
+          onPress={() => setSettingsSheetVisible(true)}
+          style={({ pressed }) => [
+            styles.activeVoiceRoomBackButton,
+            !canOpenSettings && styles.activeVoiceRoomControlDisabled,
+            pressed && canOpenSettings && styles.actionButtonPressed,
+          ]}
+          testID="mobile-voice-settings"
+        >
+          <Ionicons
+            color={theme.dark ? theme.text.inverse : theme.text.primary}
+            name="ellipsis-horizontal"
+            size={20}
+          />
+        </Pressable>
         <View style={styles.activeVoiceRoomConnectionChip}>
           <View style={styles.activeVoiceRoomConnectionDot} />
           <Text style={styles.activeVoiceRoomConnectionLabel}>
@@ -167,10 +209,7 @@ export function VoiceScreen({
       ) : null}
 
       {screenShareParticipant ? (
-        <View
-          style={styles.activeVoiceRoomScreenShareTile}
-          testID="mobile-voice-screen-share-tile"
-        >
+        <View style={styles.activeVoiceRoomScreenShareTile} testID="mobile-voice-screen-share-tile">
           <VideoTrack
             objectFit="contain"
             style={styles.activeVoiceRoomScreenShareVideo}
@@ -187,23 +226,27 @@ export function VoiceScreen({
 
       <View style={styles.activeVoiceRoomParticipantGrid}>
         {model.participants.map((participant) => (
-          <ActiveVoiceRoomParticipantCard key={participant.userId} participant={participant} />
+          <ActiveVoiceRoomParticipantCard
+            key={participant.userId}
+            participant={participant}
+            onFlipCamera={handleFlipCamera}
+          />
         ))}
         <Pressable
           accessibilityLabel={copy.voiceRoomInviteFriends}
           accessibilityRole="button"
-          onPress={onOpenVoiceInvite}
+          onPress={handleOpenInvite}
           style={({ pressed }) => [
             styles.activeVoiceRoomInviteCard,
             pressed && styles.actionButtonPressed,
           ]}
           testID="mobile-voice-invite"
         >
-            <Ionicons
-              color={theme.dark ? theme.text.onInverseMuted : theme.text.secondary}
-              name="person-add-outline"
-              size={18}
-            />
+          <Ionicons
+            color={theme.dark ? theme.text.onInverseMuted : theme.text.secondary}
+            name="person-add-outline"
+            size={18}
+          />
           <Text style={styles.activeVoiceRoomInviteLabel}>{copy.voiceRoomInviteFriends}</Text>
         </Pressable>
       </View>
@@ -217,7 +260,9 @@ export function VoiceScreen({
           testID="mobile-voice-mute-toggle"
         />
         <ActiveVoiceRoomControl
-          icon={voiceRoomState.selfAudioOutput === "speaker" ? "volume-high-outline" : "headset-outline"}
+          icon={
+            voiceRoomState.selfAudioOutput === "speaker" ? "volume-high-outline" : "headset-outline"
+          }
           label={copy.voiceRoomAudioOutputAction}
           onPress={handleAudioOutput}
           selected={voiceRoomState.selfAudioOutput === "speaker"}
@@ -254,8 +299,72 @@ export function VoiceScreen({
           testID="mobile-voice-leave"
         />
       </View>
-      <Text style={styles.activeVoiceRoomPermissionFootnote}>{copy.voiceRoomPermissionFootnote}</Text>
+      <Text style={styles.activeVoiceRoomPermissionFootnote}>
+        {copy.voiceRoomPermissionFootnote}
+      </Text>
+
+      <MobileVoiceInviteSheet
+        candidates={inviteCandidates}
+        onClose={() => setInviteSheetVisible(false)}
+        onSendInvite={onSendInvite}
+        open={inviteSheetVisible}
+        sendStates={inviteSendStates}
+      />
+      <MobileVoiceSettingsSheet
+        audioInputs={voiceRoomState.availableAudioInputs}
+        audioOutputs={voiceRoomState.availableAudioOutputs}
+        noiseSuppressionEnabled={voiceRoomState.noiseSuppressionEnabled}
+        onClose={() => setSettingsSheetVisible(false)}
+        onRefresh={onRefreshVoiceDevices}
+        onSelectAudioInput={onSelectVoiceAudioInput}
+        onSelectAudioOutput={onSelectVoiceAudioOutputDevice}
+        onSelectNoiseSuppression={onSelectVoiceNoiseSuppression}
+        open={settingsSheetVisible}
+        selectedAudioInputId={voiceRoomState.selectedAudioInputId}
+        selectedAudioOutputId={voiceRoomState.selectedAudioOutputId}
+      />
     </View>
+  );
+}
+
+/** Bottom-sheet invite panel: online members receive a realtime room invite. */
+export function MobileVoiceInviteSheet({
+  candidates,
+  onClose,
+  onSendInvite,
+  open,
+  sendStates,
+}: {
+  candidates: readonly MobileVoiceInviteCandidate[];
+  onClose(): void;
+  onSendInvite(targetUserId: string): void;
+  open: boolean;
+  sendStates: Readonly<Record<string, MobileVoiceInviteSendState>>;
+}) {
+  const styles = useVoiceScreenStyles();
+  return (
+    <BottomSheet
+      accessibilityLabel={copy.voiceInviteTitle}
+      onClose={onClose}
+      open={open}
+      snapPoint={560}
+      testID="mobile-voice-invite-sheet"
+    >
+      <View style={styles.mobileVoiceInviteSheet}>
+        <Text style={styles.mobileVoiceInviteSheetTitle}>{copy.voiceInviteTitle}</Text>
+        <Text style={styles.mobileVoiceInviteSheetSubtitle}>{copy.voiceInviteSheetSubtitle}</Text>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          style={styles.mobileVoiceInviteSheetScroll}
+        >
+          <MobileVoiceInviteCandidateList
+            candidates={candidates}
+            onSendInvite={onSendInvite}
+            sendStates={sendStates}
+          />
+        </ScrollView>
+      </View>
+    </BottomSheet>
   );
 }
 
@@ -278,11 +387,73 @@ function getActiveVoiceRoomConnectionLabel(status: MobileVoiceRoomState["status"
   }
 }
 
-function ActiveVoiceRoomParticipantCard({ participant }: { participant: MobileVoiceRoomParticipant }) {
+function ActiveVoiceRoomParticipantCard({
+  participant,
+  onFlipCamera,
+}: {
+  participant: MobileVoiceRoomParticipant;
+  onFlipCamera(): void;
+}) {
   const styles = useVoiceScreenStyles();
   const theme = useVoiceRoomTheme();
   const name = getVoiceParticipantName(participant);
   const isSpeaking = participant.isSpeaking && !participant.isMuted;
+  const showCamera = participant.isCameraEnabled && Boolean(participant.cameraTrackRef);
+
+  if (showCamera) {
+    return (
+      <View
+        style={[
+          styles.activeVoiceRoomParticipantCard,
+          styles.activeVoiceRoomVideoCard,
+          isSpeaking && styles.activeVoiceRoomParticipantCardSpeaking,
+        ]}
+        testID={`mobile-voice-participant-${participant.userId}`}
+      >
+        <VideoTrack
+          objectFit="cover"
+          style={styles.activeVoiceRoomVideoSurface}
+          trackRef={participant.cameraTrackRef!}
+        />
+        <View style={styles.activeVoiceRoomVideoBadges}>
+          {participant.isScreenSharing ? (
+            <View style={styles.activeVoiceRoomVideoBadge}>
+              <Ionicons color={theme.status.successOnInverse} name="tv-outline" size={13} />
+            </View>
+          ) : null}
+        </View>
+        {participant.isSelf ? (
+          <Pressable
+            accessibilityLabel={copy.voiceCameraFlipAction}
+            accessibilityRole="button"
+            onPress={onFlipCamera}
+            style={({ pressed }) => [
+              styles.activeVoiceRoomVideoFlip,
+              pressed && styles.actionButtonPressed,
+            ]}
+            testID={`mobile-voice-participant-${participant.userId}-flip`}
+          >
+            <Ionicons color={theme.text.onInverse} name="camera-reverse-outline" size={18} />
+          </Pressable>
+        ) : null}
+        <View style={styles.activeVoiceRoomVideoNameChip}>
+          {participant.isMuted ? (
+            <Ionicons color={theme.text.onInverse} name="mic-off" size={12} />
+          ) : (
+            <View
+              style={[
+                styles.activeVoiceRoomVideoStatusDot,
+                isSpeaking && styles.activeVoiceRoomVideoStatusDotSpeaking,
+              ]}
+            />
+          )}
+          <Text numberOfLines={1} style={styles.activeVoiceRoomVideoName}>
+            {name}
+          </Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View
@@ -292,7 +463,12 @@ function ActiveVoiceRoomParticipantCard({ participant }: { participant: MobileVo
       ]}
       testID={`mobile-voice-participant-${participant.userId}`}
     >
-      <View style={[styles.activeVoiceRoomAvatarRing, isSpeaking && styles.activeVoiceRoomAvatarRingSpeaking]}>
+      <View
+        style={[
+          styles.activeVoiceRoomAvatarRing,
+          isSpeaking && styles.activeVoiceRoomAvatarRingSpeaking,
+        ]}
+      >
         <Avatar
           accessibilityLabel={name}
           avatarBorderColor="transparent"
@@ -305,8 +481,19 @@ function ActiveVoiceRoomParticipantCard({ participant }: { participant: MobileVo
           label={name}
         />
         {participant.isMuted ? (
-          <View style={styles.activeVoiceRoomMutedBadge} testID={`mobile-voice-participant-${participant.userId}-muted-badge`}>
+          <View
+            style={styles.activeVoiceRoomMutedBadge}
+            testID={`mobile-voice-participant-${participant.userId}-muted-badge`}
+          >
             <Ionicons color={theme.text.inverse} name="mic-off" size={13} />
+          </View>
+        ) : null}
+        {participant.isScreenSharing ? (
+          <View
+            style={styles.activeVoiceRoomShareBadge}
+            testID={`mobile-voice-participant-${participant.userId}-share-badge`}
+          >
+            <Ionicons color={theme.status.successOnInverse} name="tv-outline" size={13} />
           </View>
         ) : null}
       </View>
@@ -314,8 +501,17 @@ function ActiveVoiceRoomParticipantCard({ participant }: { participant: MobileVo
         <Text numberOfLines={1} style={styles.activeVoiceRoomParticipantName}>
           {name}
         </Text>
-        <Text style={[styles.activeVoiceRoomParticipantStatus, isSpeaking && styles.activeVoiceRoomParticipantStatusSpeaking]}>
-          {participant.isMuted ? copy.voiceRoomMutedParticipant : isSpeaking ? copy.voiceRoomSpeaking : copy.voiceRoomListening}
+        <Text
+          style={[
+            styles.activeVoiceRoomParticipantStatus,
+            isSpeaking && styles.activeVoiceRoomParticipantStatusSpeaking,
+          ]}
+        >
+          {participant.isMuted
+            ? copy.voiceRoomMutedParticipant
+            : isSpeaking
+              ? copy.voiceRoomSpeaking
+              : copy.voiceRoomListening}
         </Text>
       </View>
     </View>
@@ -1109,284 +1305,5 @@ export function PushToTalkButton({
         {label}
       </Text>
     </Pressable>
-  );
-}
-
-export function MobileVoiceChannelScreen({
-  channel,
-  inviteCandidates,
-  inviteSendStates,
-  locale,
-  memberCount,
-  onBack,
-  onBeginPushToTalk,
-  onEndPushToTalk,
-  onLeave,
-  onFlipCamera,
-  onRefreshVoiceDevices,
-  onSelectAudioInput,
-  onSelectAudioOutputDevice,
-  onSelectNoiseSuppression,
-  onSelectAudioOutput,
-  onSendInvite,
-  onToggleCamera,
-  onToggleMute,
-  onToggleScreenShare,
-  room,
-  serverIconUrl,
-  serverName,
-  serverShortName,
-  voiceInputMode,
-  voicePushToTalkPhase,
-}: {
-  channel: MobileWorkspaceChannelSummary;
-  inviteCandidates: readonly MobileVoiceInviteCandidate[];
-  inviteSendStates: Readonly<Record<string, MobileVoiceInviteSendState>>;
-  locale: MobileLocale;
-  memberCount: number;
-  onBack(): void;
-  onBeginPushToTalk(): Promise<void>;
-  onEndPushToTalk(): void;
-  onLeave(): Promise<void>;
-  onFlipCamera(): Promise<void>;
-  onRefreshVoiceDevices(): Promise<void>;
-  onSelectAudioOutput(mode: MobileVoiceAudioOutputMode): Promise<void>;
-  onSelectAudioInput(id: string): Promise<void>;
-  onSelectAudioOutputDevice(id: string): Promise<void>;
-  onSelectNoiseSuppression(enabled: boolean): Promise<void>;
-  onSendInvite(targetUserId: string): void;
-  onToggleCamera(): Promise<void>;
-  onToggleMute(): Promise<void>;
-  onToggleScreenShare(): Promise<void>;
-  room: MobileVoiceRoomState;
-  serverIconUrl: string | null;
-  serverName: string;
-  serverShortName: string;
-  voiceInputMode: MobileVoiceInputMode;
-  voicePushToTalkPhase: MobilePushToTalkPhase;
-}) {
-  const theme = useVoiceRoomTheme();
-  const styles = useVoiceScreenStyles();
-  const model = useMemo(
-    () =>
-      getMobileVoiceChannelScreenModel(room, {
-        channelName: channel.name,
-        locale,
-        memberCount,
-        serverName,
-        serverShortName,
-      }),
-    [channel.name, locale, memberCount, room, serverName, serverShortName],
-  );
-  const statusText = getVoiceRoomScreenStatus(room);
-  const createdValue = copy.voiceRoomUnknownInfo;
-  const isPushToTalkMode = voiceInputMode === "push-to-talk";
-  const [screenShareConsentVisible, setScreenShareConsentVisible] = useState(false);
-  const [voiceSettingsVisible, setVoiceSettingsVisible] = useState(false);
-  const requestScreenShareToggle = () => {
-    if (room.selfScreenShareEnabled) {
-      void onToggleScreenShare();
-      return;
-    }
-
-    setScreenShareConsentVisible(true);
-  };
-
-  return (
-    <View style={styles.mobileVoiceChannelScreen} testID="mobile-voice-channel-screen">
-      <View style={styles.mobileVoiceChannelHeader}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={copy.openWorkspaceServerAction}
-          onPress={onBack}
-          style={({ pressed }) => [
-            styles.mobileChannelChatIconButton,
-            pressed && styles.actionButtonPressed,
-          ]}
-        >
-          <Ionicons name="chevron-back" size={20} color={theme.text.primary} />
-        </Pressable>
-        <AvatarMark
-          imageUrl={serverIconUrl}
-          label={model.serverShortName}
-          size="large"
-          status={model.isConnected ? "active" : "idle"}
-        />
-        <View style={styles.mobileVoiceChannelHeaderText}>
-          <Text style={styles.mobileVoiceChannelTitle} numberOfLines={1}>
-            {model.title}
-          </Text>
-          <View style={styles.mobileChannelChatMetaRow}>
-            <Text style={styles.mobileChannelChatServerName} numberOfLines={1}>
-              {model.serverName}
-            </Text>
-            <Text style={styles.mobileChannelChatDot}>-</Text>
-            <Text style={styles.mobileChannelChatMemberCount}>
-              {model.memberCountLabel} {copy.membersSuffix}
-            </Text>
-          </View>
-        </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={copy.voiceSettingsAction}
-          accessibilityState={{ disabled: !model.canOpenSettings }}
-          disabled={!model.canOpenSettings}
-          onPress={() => setVoiceSettingsVisible(true)}
-          style={styles.mobileChannelChatIconButton}
-          testID="mobile-voice-settings-open"
-        >
-          <Ionicons name="ellipsis-horizontal" size={18} color={theme.text.soft} />
-        </Pressable>
-      </View>
-
-      <View style={styles.mobileVoiceStatusRow}>
-        <StatusChip label={model.noiseSuppressionLabel} tone="success" />
-        <StatusChip label={model.qualityLabel} tone="accent" />
-        <StatusChip label={model.signalLabel} tone={model.isConnected ? "success" : "muted"} />
-      </View>
-
-      {room.errorMessage ? <Text style={styles.mobileVoiceError}>{room.errorMessage}</Text> : null}
-      <ScreenShareActiveBanner room={room} onStop={() => void onToggleScreenShare()} />
-      <ScreenShareConsentSheet
-        visible={screenShareConsentVisible}
-        onCancel={() => setScreenShareConsentVisible(false)}
-        onConfirm={() => {
-          setScreenShareConsentVisible(false);
-          void onToggleScreenShare();
-        }}
-      />
-      <MobileVoiceSettingsSheet
-        audioInputs={room.availableAudioInputs}
-        audioOutputs={room.availableAudioOutputs}
-        noiseSuppressionEnabled={room.noiseSuppressionEnabled}
-        onClose={() => setVoiceSettingsVisible(false)}
-        onRefresh={onRefreshVoiceDevices}
-        onSelectAudioInput={onSelectAudioInput}
-        onSelectAudioOutput={onSelectAudioOutputDevice}
-        onSelectNoiseSuppression={onSelectNoiseSuppression}
-        open={voiceSettingsVisible}
-        selectedAudioInputId={room.selectedAudioInputId}
-        selectedAudioOutputId={room.selectedAudioOutputId}
-      />
-
-      <ScrollView
-        contentContainerStyle={styles.mobileVoiceChannelContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <Text style={styles.mobileVoiceStatusText}>{statusText}</Text>
-        <MobileVoiceCameraGrid
-          canFlip={room.selfCameraEnabled}
-          onFlip={() => void onFlipCamera()}
-          participants={model.allParticipants}
-        />
-        <MobileScreenShareViewer participants={model.allParticipants} />
-        <MobileVoiceParticipantGroup
-          emptyLabel={copy.voiceRoomNoParticipants}
-          participants={model.allParticipants}
-          title={copy.voiceRoomParticipantsTitle}
-        />
-        <MobileVoiceInviteCandidateList
-          candidates={inviteCandidates}
-          sendStates={inviteSendStates}
-          onSendInvite={onSendInvite}
-        />
-        <View style={styles.mobileVoiceSectionCard}>
-          <Text style={styles.mobileVoiceSectionTitle}>{copy.voiceRoomInfoTitle}</Text>
-          <MobileVoiceInfoRow
-            icon="radio-outline"
-            label={copy.voiceRoomChannelInfoLabel}
-            value={model.channelName}
-          />
-          <MobileVoiceInfoRow
-            icon="pulse-outline"
-            label={copy.voiceRoomQualityInfoLabel}
-            value={model.qualityLabel}
-          />
-          <MobileVoiceInfoRow
-            icon="people-outline"
-            label={copy.voiceRoomParticipantLimitLabel}
-            value={copy.voiceRoomUnknownInfo}
-          />
-          <MobileVoiceInfoRow
-            icon="time-outline"
-            label={copy.voiceRoomCreatedInfoLabel}
-            value={createdValue}
-          />
-        </View>
-      </ScrollView>
-
-      <PushToTalkButton
-        disabled={!model.canToggleMicrophone}
-        inputMode={voiceInputMode}
-        phase={voicePushToTalkPhase}
-        onBegin={onBeginPushToTalk}
-        onEnd={onEndPushToTalk}
-      />
-      <View style={styles.mobileVoiceControlBar}>
-        <MobileVoiceControlButton
-          icon={isPushToTalkMode || room.selfMuted ? "mic-off-outline" : "mic-outline"}
-          label={
-            isPushToTalkMode
-              ? copy.voiceInputModePushToTalk
-              : room.selfMuted
-                ? copy.voiceUnmuteAction
-                : copy.voiceMuteAction
-          }
-          disabled={!model.canToggleMicrophone || isPushToTalkMode}
-          onPress={() => void onToggleMute()}
-          testID="mobile-voice-mute-toggle"
-          tone={!isPushToTalkMode && !room.selfMuted ? "primary" : "neutral"}
-        />
-        <MobileVoiceControlButton
-          icon={room.selfCameraEnabled ? "videocam-outline" : "videocam-off-outline"}
-          label={room.selfCameraEnabled ? copy.voiceCameraOffAction : copy.voiceCameraOnAction}
-          disabled={!model.canToggleCamera}
-          isActive={room.selfCameraEnabled}
-          onPress={() => void onToggleCamera()}
-          testID="mobile-voice-camera-toggle"
-        />
-        <MobileVoiceControlButton
-          icon="headset-outline"
-          label={copy.voiceHeadphonesAction}
-          disabled={!model.canSelectDefaultAudio}
-          isActive={room.selfAudioOutput === "default"}
-          onPress={() => void onSelectAudioOutput("default")}
-        />
-        <MobileVoiceControlButton
-          icon="volume-high-outline"
-          label={copy.voiceSpeakerAction}
-          disabled={!model.canSelectSpeaker}
-          isActive={room.selfAudioOutput === "speaker"}
-          onPress={() => void onSelectAudioOutput("speaker")}
-        />
-        <MobileVoiceControlButton
-          icon="desktop-outline"
-          label={
-            room.selfScreenShareEnabled
-              ? copy.voiceScreenShareStopShortAction
-              : copy.voiceScreenShareAction
-          }
-          disabled={!model.canShareScreen || isScreenShareBusy(room)}
-          isActive={room.selfScreenShareEnabled}
-          onPress={requestScreenShareToggle}
-          tone={room.selfScreenShareEnabled ? "primary" : "neutral"}
-        />
-        <MobileVoiceControlButton
-          icon="settings-outline"
-          label={copy.voiceSettingsAction}
-          disabled={!model.canOpenSettings}
-          onPress={() => setVoiceSettingsVisible(true)}
-          testID="mobile-voice-settings-open-control"
-        />
-        <MobileVoiceControlButton
-          icon="exit-outline"
-          label={copy.voiceLeaveAction}
-          disabled={!model.canLeave}
-          onPress={() => void onLeave()}
-          testID="mobile-voice-leave"
-          tone="danger"
-        />
-      </View>
-    </View>
   );
 }

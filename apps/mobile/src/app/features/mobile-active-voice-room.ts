@@ -1,53 +1,74 @@
-import type { MobileBootstrapViewState, MobileVoiceRoomState } from "../mobile-root-screen-shared";
+import {
+  getMobileVoiceInviteCandidates,
+  type MobileBootstrapViewState,
+  type MobileVoiceInviteCandidate,
+  type MobileVoiceInviteSendState,
+  type MobileVoiceRoomParticipant,
+  type MobileVoiceRoomState,
+  type MobileWorkspaceServerViewState,
+} from "../mobile-root-screen-shared";
 import type { MobileVoiceScreenProps } from "../providers/mobile-product-screen-provider";
 
-type MobileVoiceInviteInput = {
-  readonly channelId: string;
-  readonly channelName: string;
-  readonly serverId: string;
-};
+/**
+ * Online, invitable members for the room's server, excluding those already
+ * connected. Empty until the active server detail matches the room's server.
+ */
+export function getMobileActiveVoiceInviteCandidates({
+  currentUserId,
+  participants,
+  serverId,
+  workspaceServerState,
+}: {
+  readonly currentUserId: string | null;
+  readonly participants: readonly MobileVoiceRoomParticipant[];
+  readonly serverId: string | null;
+  readonly workspaceServerState: MobileWorkspaceServerViewState;
+}): MobileVoiceInviteCandidate[] {
+  const detail =
+    workspaceServerState.status === "ready" && workspaceServerState.serverId === serverId
+      ? workspaceServerState.payload.detail
+      : null;
+  if (!serverId || !detail) {
+    return [];
+  }
 
-export function getMobileActiveVoiceRoomPresentation({
+  return getMobileVoiceInviteCandidates({
+    currentUserId,
+    members: detail.members,
+    participants,
+  });
+}
+
+/** Resolves the display name of the server hosting the active voice room. */
+export function getMobileActiveVoiceRoomServerName({
   bootstrapState,
-  onOpenVoiceInvite,
   voiceRoomState,
 }: {
   readonly bootstrapState: MobileBootstrapViewState;
-  readonly onOpenVoiceInvite: (input: MobileVoiceInviteInput) => void;
   readonly voiceRoomState: MobileVoiceRoomState;
-}) {
-  const serverName =
-    bootstrapState.status === "ready"
-      ? (bootstrapState.payload.home.servers.recent.find(
-          (server) => server.id === voiceRoomState.serverId,
-        )?.name ?? null)
-      : null;
-
-  return {
-    onOpenVoiceInvite: () => {
-      if (!voiceRoomState.channelId || !voiceRoomState.channelName || !voiceRoomState.serverId) {
-        return;
-      }
-
-      onOpenVoiceInvite({
-        channelId: voiceRoomState.channelId,
-        channelName: voiceRoomState.channelName,
-        serverId: voiceRoomState.serverId,
-      });
-    },
-    serverName,
-  };
+}): string | null {
+  return bootstrapState.status === "ready"
+    ? (bootstrapState.payload.home.servers.recent.find(
+        (server) => server.id === voiceRoomState.serverId,
+      )?.name ?? null)
+    : null;
 }
 
 /** Binds the voice-room screen contract to the active session runtime. */
 export function createMobileVoiceScreenProps({
   bootstrapState,
+  inviteCandidates,
+  inviteSendStates,
   onBeginVoicePushToTalk,
   onEndVoicePushToTalk,
   onFlipVoiceCamera,
   onLeaveVoiceChannel,
-  onOpenVoiceInvite,
+  onRefreshVoiceDevices,
+  onSelectVoiceAudioInput,
   onSelectVoiceAudioOutput,
+  onSelectVoiceAudioOutputDevice,
+  onSelectVoiceNoiseSuppression,
+  onSendInvite,
   onToggleVoiceCamera,
   onToggleVoiceMute,
   onToggleVoiceScreenShare,
@@ -56,12 +77,18 @@ export function createMobileVoiceScreenProps({
   voiceRoomState,
 }: {
   readonly bootstrapState: MobileBootstrapViewState;
+  readonly inviteCandidates: readonly MobileVoiceInviteCandidate[];
+  readonly inviteSendStates: Readonly<Record<string, MobileVoiceInviteSendState>>;
   readonly onBeginVoicePushToTalk: MobileVoiceScreenProps["onBeginVoicePushToTalk"];
   readonly onEndVoicePushToTalk: MobileVoiceScreenProps["onEndVoicePushToTalk"];
   readonly onFlipVoiceCamera?: MobileVoiceScreenProps["onFlipVoiceCamera"];
   readonly onLeaveVoiceChannel: MobileVoiceScreenProps["onLeaveVoiceChannel"];
-  readonly onOpenVoiceInvite: (input: MobileVoiceInviteInput) => void;
+  readonly onRefreshVoiceDevices: MobileVoiceScreenProps["onRefreshVoiceDevices"];
+  readonly onSelectVoiceAudioInput: MobileVoiceScreenProps["onSelectVoiceAudioInput"];
   readonly onSelectVoiceAudioOutput: MobileVoiceScreenProps["onSelectVoiceAudioOutput"];
+  readonly onSelectVoiceAudioOutputDevice: MobileVoiceScreenProps["onSelectVoiceAudioOutputDevice"];
+  readonly onSelectVoiceNoiseSuppression: MobileVoiceScreenProps["onSelectVoiceNoiseSuppression"];
+  readonly onSendInvite: (targetUserId: string) => void;
   readonly onToggleVoiceCamera?: MobileVoiceScreenProps["onToggleVoiceCamera"];
   readonly onToggleVoiceMute: MobileVoiceScreenProps["onToggleVoiceMute"];
   readonly onToggleVoiceScreenShare?: MobileVoiceScreenProps["onToggleVoiceScreenShare"];
@@ -69,24 +96,24 @@ export function createMobileVoiceScreenProps({
   readonly voicePushToTalkPhase: MobileVoiceScreenProps["voicePushToTalkPhase"];
   readonly voiceRoomState: MobileVoiceRoomState;
 }): MobileVoiceScreenProps {
-  const presentation = getMobileActiveVoiceRoomPresentation({
-    bootstrapState,
-    onOpenVoiceInvite,
-    voiceRoomState,
-  });
-
   return {
     bootstrapState,
+    inviteCandidates,
+    inviteSendStates,
     onBeginVoicePushToTalk,
     onEndVoicePushToTalk,
     ...(onFlipVoiceCamera ? { onFlipVoiceCamera } : {}),
     onLeaveVoiceChannel,
-    onOpenVoiceInvite: presentation.onOpenVoiceInvite,
+    ...(onRefreshVoiceDevices ? { onRefreshVoiceDevices } : {}),
+    ...(onSelectVoiceAudioInput ? { onSelectVoiceAudioInput } : {}),
     ...(onSelectVoiceAudioOutput ? { onSelectVoiceAudioOutput } : {}),
+    ...(onSelectVoiceAudioOutputDevice ? { onSelectVoiceAudioOutputDevice } : {}),
+    ...(onSelectVoiceNoiseSuppression ? { onSelectVoiceNoiseSuppression } : {}),
+    onSendInvite,
     ...(onToggleVoiceCamera ? { onToggleVoiceCamera } : {}),
     onToggleVoiceMute,
     ...(onToggleVoiceScreenShare ? { onToggleVoiceScreenShare } : {}),
-    serverName: presentation.serverName,
+    serverName: getMobileActiveVoiceRoomServerName({ bootstrapState, voiceRoomState }),
     voiceInputMode,
     voicePushToTalkPhase,
     voiceRoomState,

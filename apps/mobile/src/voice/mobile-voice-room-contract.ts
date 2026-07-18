@@ -459,6 +459,25 @@ export function mapServerVoiceParticipantToRoomParticipant(
   };
 }
 
+/**
+ * Picks the most human-readable username. A username equal to the userId is the
+ * raw LiveKit-identity fallback, so a previously resolved real username wins.
+ */
+function preferResolvedVoiceUsername(
+  incoming: MobileVoiceRoomParticipant,
+  previous: MobileVoiceRoomParticipant | undefined,
+): string {
+  if (incoming.username && incoming.username !== incoming.userId) {
+    return incoming.username;
+  }
+
+  if (previous?.username && previous.username !== incoming.userId) {
+    return previous.username;
+  }
+
+  return incoming.username;
+}
+
 export function mergeMobileVoiceRoomParticipants(
   current: readonly MobileVoiceRoomParticipant[],
   incoming: readonly MobileVoiceRoomParticipant[],
@@ -493,6 +512,12 @@ export function mergeMobileVoiceRoomParticipants(
       audioLevel: Number.isFinite(participant.audioLevel)
         ? participant.audioLevel
         : (previous?.audioLevel ?? 0),
+      // Identity fields survive a merge from a source that only knows the raw
+      // LiveKit identity (displayName null, username === userId). Real names and
+      // avatars from the server voice-state must not be clobbered back to a UUID.
+      avatarUrl: participant.avatarUrl ?? previous?.avatarUrl ?? null,
+      displayName: participant.displayName ?? previous?.displayName ?? null,
+      username: preferResolvedVoiceUsername(participant, previous),
       isCameraEnabled: participant.isCameraEnabled,
       isMuted: participant.isMuted,
       isScreenSharing: participant.isScreenSharing,

@@ -8,7 +8,10 @@ import { useMobileSocialMutations } from "../social/mobile-social-query";
 import { openMobileVoiceRoom } from "../voice/mobile-voice-room-route-navigation";
 import { MobileAppLockScreen } from "./components/mobile-app-lock-screen";
 import { MobileDeviceIntegrityWarning } from "./components/mobile-device-integrity-warning";
-import { createMobileVoiceScreenProps } from "./features/mobile-active-voice-room";
+import {
+  createMobileVoiceScreenProps,
+  getMobileActiveVoiceInviteCandidates,
+} from "./features/mobile-active-voice-room";
 import { createMobileNotificationsScreenProps } from "./features/mobile-notification-actions";
 import { createMobileSettingsScreenProps } from "./features/mobile-settings-screen-props";
 import { MobileAppShell } from "./mobile-app-shell";
@@ -334,12 +337,23 @@ export function MobileProductApp({
   });
   const voiceScreenProps = createMobileVoiceScreenProps({
     bootstrapState,
+    inviteCandidates: getMobileActiveVoiceInviteCandidates({
+      currentUserId: session?.user.id ?? null,
+      participants: voiceRuntime.roomState.participants,
+      serverId: voiceRuntime.roomState.serverId,
+      workspaceServerState,
+    }),
+    inviteSendStates: voiceInviteSendStates,
     onBeginVoicePushToTalk: voiceRuntime.beginPushToTalk,
     onEndVoicePushToTalk: voiceRuntime.endPushToTalk,
     onFlipVoiceCamera: voiceRuntime.flipCamera,
     onLeaveVoiceChannel: handleLeaveWorkspaceVoiceChannel,
-    onOpenVoiceInvite: handleOpenVoiceInvite,
+    onRefreshVoiceDevices: voiceRuntime.refreshVoiceDevices,
+    onSelectVoiceAudioInput: voiceRuntime.selectAudioInput,
     onSelectVoiceAudioOutput: voiceRuntime.selectAudioOutput,
+    onSelectVoiceAudioOutputDevice: voiceRuntime.selectAudioDeviceOutput,
+    onSelectVoiceNoiseSuppression: voiceRuntime.selectNoiseSuppression,
+    onSendInvite: handleSendVoiceInvite,
     onToggleVoiceCamera: voiceRuntime.toggleCamera,
     onToggleVoiceMute: voiceRuntime.toggleMute,
     onToggleVoiceScreenShare: voiceRuntime.toggleScreenShare,
