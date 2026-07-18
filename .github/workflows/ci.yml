@@ -76,6 +76,11 @@ jobs:
       - name: Dependency audit
         run: pnpm audit --audit-level moderate
 
+      - name: Format
+        env:
+          PRETTIER_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: pnpm format
+
       - name: Lint
         run: pnpm lint
 

@@ -16,7 +16,7 @@
     "lint": "tsc6 --noEmit",
     "test": "node --import tsx --test \"src/**/*.test.ts\"",
     "typecheck": "tsc6 --noEmit",
-    "format": "prettier --check ."
+    "format": "node ../../scripts/quality/prettier-changed.mjs --scope packages/ui"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",

@@ -18,7 +18,7 @@
     "dev": "echo db package ready",
     "lint": "prisma generate && tsc6 --noEmit",
     "typecheck": "prisma generate && tsc6 --noEmit",
-    "format": "prettier --check ."
+    "format": "node ../../scripts/quality/prettier-changed.mjs --scope packages/db"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

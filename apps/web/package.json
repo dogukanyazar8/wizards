@@ -34,7 +34,7 @@
     "test": "node scripts/run-node-tests.mjs",
     "test:coverage": "tsx scripts/run-coverage.ts",
     "typecheck": "tsc6 --noEmit",
-    "format": "prettier --check ."
+    "format": "node ../../scripts/quality/prettier-changed.mjs --scope apps/web"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.2",
