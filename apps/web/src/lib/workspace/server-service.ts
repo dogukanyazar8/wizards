@@ -67,6 +67,8 @@ export type MobileWorkspaceServerDetailProjection = {
   members: WorkspaceServerDetail["members"];
   server: Pick<
     WorkspaceServerDetail["server"],
+    | "allowFileUploads"
+    | "allowGifs"
     | "defaultChannelId"
     | "description"
     | "iconUrl"
@@ -603,6 +605,7 @@ async function loadMobileWorkspaceServerDetail(access: AccessContext): Promise<{
         },
       },
       description: true,
+      features: true,
       iconUrl: true,
       id: true,
       members: {
@@ -703,12 +706,15 @@ async function loadMobileWorkspaceServerDetail(access: AccessContext): Promise<{
   );
   const memberRows = server.members.slice(0, MOBILE_SERVER_DETAIL_MEMBER_LIMIT);
   const members = await mapMembers(server.ownerId, memberRows);
+  const mediaSettings = getServerMediaSettings(server.features);
 
   return {
     detail: {
       categories,
       members,
       server: {
+        allowFileUploads: mediaSettings.allowFileUploads,
+        allowGifs: mediaSettings.allowGifs,
         defaultChannelId: pickDefaultChannelId({ categories, ungroupedChannels }),
         description: server.description,
         iconUrl: server.iconUrl,

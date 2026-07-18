@@ -589,11 +589,22 @@ export const MobileWorkspaceCategorySummarySchema = z.object({
   position: z.number().int().nonnegative(),
 });
 
+// Fixed platform-wide attachment ceiling; mirrors the DM attachment size guard
+// (`max(25_000_000)`) so the mobile "Maks 25 MB" copy is backend-derived, not
+// hardcoded per screen.
+export const MOBILE_SERVER_ATTACHMENT_MAX_BYTES = 25_000_000;
+
 export const MobileWorkspaceServerDetailSchema = z.object({
   categories: z.array(MobileWorkspaceCategorySummarySchema).max(20),
   hasMoreChannels: z.boolean(),
   members: z.array(WorkspaceMemberSchema).max(80).default([]),
   server: z.object({
+    // UAT/web backends may deploy independently of the mobile client. Until the
+    // media-settings projection ships, older servers omit these fields; default
+    // to the platform-default (CreateServerSchema also defaults both to true) so
+    // the strict response parse keeps working instead of failing the whole load.
+    allowFileUploads: z.boolean().default(true),
+    allowGifs: z.boolean().default(true),
     defaultChannelId: z.string().min(1).nullable(),
     description: z.string().max(240).nullable(),
     iconUrl: z.string().url().nullable(),

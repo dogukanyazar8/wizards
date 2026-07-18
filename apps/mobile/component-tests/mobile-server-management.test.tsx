@@ -7,6 +7,7 @@ let mockWorkspaceQuery: Record<string, unknown>;
 let mockMutations: Record<string, { isPending: boolean; mutateAsync: jest.Mock }>;
 let mockMembersQuery: Record<string, unknown>;
 let mockRolesQuery: Record<string, unknown>;
+let mockInvitesQuery: Record<string, unknown>;
 const mockSelectAndUpload = jest.fn();
 const mockPatchServerIconCaches = jest.fn();
 
@@ -15,7 +16,11 @@ jest.mock("@tanstack/react-query", () => ({
 }));
 
 jest.mock("@shopify/flash-list", () => ({
-  FlashList: ({ data, renderItem, testID }: {
+  FlashList: ({
+    data,
+    renderItem,
+    testID,
+  }: {
     data: readonly unknown[];
     renderItem(input: { item: unknown }): React.ReactNode;
     testID: string;
@@ -25,7 +30,9 @@ jest.mock("@shopify/flash-list", () => ({
     return React.createElement(
       View,
       { testID },
-      data.map((item, index) => React.createElement(React.Fragment, { key: index }, renderItem({ item }))),
+      data.map((item, index) =>
+        React.createElement(React.Fragment, { key: index }, renderItem({ item })),
+      ),
     );
   },
 }));
@@ -52,6 +59,7 @@ jest.mock("../src/query/mobile-server-cache", () => ({
 
 jest.mock("../src/workspace/mobile-server-management-query", () => ({
   useMobileAssignableRolesQuery: () => mockRolesQuery,
+  useMobileServerInvitesQuery: () => mockInvitesQuery,
   useMobileServerMembersInfiniteQuery: () => mockMembersQuery,
 }));
 
@@ -65,7 +73,13 @@ jest.mock("../src/app/components/kit", () => {
   const { Pressable, Text, View } = require("react-native");
   return {
     ...actual,
-    DestructiveConfirmationSheet: ({ onConfirm, open, testID }: {
+    BottomSheet: ({ children, open }: { children: React.ReactNode; open: boolean }) =>
+      open ? React.createElement(View, null, children) : null,
+    DestructiveConfirmationSheet: ({
+      onConfirm,
+      open,
+      testID,
+    }: {
       onConfirm(): void | Promise<void>;
       open: boolean;
       testID: string;
@@ -109,6 +123,8 @@ function createDetail(overrides: Record<string, boolean> = {}) {
     hasMoreChannels: false,
     members: [],
     server: {
+      allowFileUploads: true,
+      allowGifs: true,
       defaultChannelId: null,
       description: null,
       iconUrl: null,
@@ -116,6 +132,7 @@ function createDetail(overrides: Record<string, boolean> = {}) {
       memberCount: 4,
       mentionCount: 0,
       name: "Wizards",
+      onlineMemberCount: 2,
       shortName: null,
       unreadCount: 0,
       visibleChannelCount: 1,
@@ -201,24 +218,33 @@ function resetMocks() {
     refetch: jest.fn().mockResolvedValue({}),
   };
   mockRolesQuery = { data: { roles: [] }, isLoading: false };
+  mockInvitesQuery = { data: { invites: [] }, isLoading: false };
   mockSelectAndUpload.mockReset();
   mockPatchServerIconCaches.mockReset();
 }
 
 describe("mobile server management", () => {
-  it("uses server capabilities, trims server names, and keeps the id contextual", async () => {
+  it("edits server fields and keeps management actions contextual", async () => {
     resetMocks();
+    const onOpenInvites = jest.fn();
+    const onOpenMembers = jest.fn();
+    const onOpenRoles = jest.fn();
     const view = await render(
       <MobileServerSettingsScreen
         serverId="server-1"
         onBack={jest.fn()}
-        onOpenChannelSettings={jest.fn()}
-        onOpenMembers={jest.fn()}
+        onOpenInvites={onOpenInvites}
+        onOpenMembers={onOpenMembers}
+        onOpenRoles={onOpenRoles}
       />,
     );
 
-    await fireEvent.changeText(view.getByTestId("mobile-server-settings-name"), "  Wizards UAT  ");
-    await fireEvent.press(view.getByTestId("mobile-server-settings-save"));
+    await fireEvent.press(view.getByTestId("mobile-server-name-pill"));
+    await fireEvent.changeText(
+      view.getByTestId("mobile-server-field-editor-input"),
+      "  Wizards UAT  ",
+    );
+    await fireEvent.press(view.getByTestId("mobile-server-field-editor-save"));
 
     await waitFor(() =>
       expect(mockMutations.updateServer.mutateAsync).toHaveBeenCalledWith({
@@ -226,8 +252,12 @@ describe("mobile server management", () => {
         serverId: "server-1",
       }),
     );
-    expect(view.getByTestId("mobile-server-members-open-server-1")).toBeTruthy();
-    expect(view.getByTestId("mobile-channel-settings-open-channel-text")).toBeTruthy();
+    await fireEvent.press(view.getByTestId("mobile-server-members-row"));
+    await fireEvent.press(view.getByTestId("mobile-server-roles-row"));
+    await fireEvent.press(view.getByTestId("mobile-server-invites-row"));
+    expect(onOpenMembers).toHaveBeenCalledTimes(1);
+    expect(onOpenRoles).toHaveBeenCalledTimes(1);
+    expect(onOpenInvites).toHaveBeenCalledTimes(1);
   });
 
   it("uses the approved server-icon claim target and exact name for deletion", async () => {
@@ -286,6 +316,7 @@ describe("mobile server management", () => {
           canDeleteServer: false,
           canKickMembers: false,
           canManageChannels: false,
+          canManageInvites: false,
           canManageRoles: false,
           canManageServer: false,
           canUploadServerIcon: false,
@@ -298,17 +329,36 @@ describe("mobile server management", () => {
       <MobileServerSettingsScreen
         serverId="server-1"
         onBack={jest.fn()}
-        onOpenChannelSettings={jest.fn()}
+        onOpenInvites={jest.fn()}
         onOpenMembers={jest.fn()}
+        onOpenRoles={jest.fn()}
       />,
     );
     const channel = await render(
-      <MobileChannelSettingsScreen channelId="channel-voice" serverId="server-1" onBack={jest.fn()} />,
+      <MobileChannelSettingsScreen
+        channelId="channel-voice"
+        serverId="server-1"
+        onBack={jest.fn()}
+      />,
     );
 
-    expect(server.queryByTestId("mobile-server-settings-save")).toBeNull();
     expect(server.queryByTestId("mobile-server-icon-picker")).toBeNull();
     expect(server.queryByTestId("mobile-server-delete-open")).toBeNull();
+    expect(server.getByTestId("mobile-server-name-pill").props.accessibilityState.disabled).toBe(
+      true,
+    );
+    expect(server.getByTestId("mobile-server-gif-toggle").props.accessibilityState.disabled).toBe(
+      true,
+    );
+    expect(server.getByTestId("mobile-server-members-row").props.accessibilityState.disabled).toBe(
+      true,
+    );
+    expect(server.getByTestId("mobile-server-roles-row").props.accessibilityState.disabled).toBe(
+      true,
+    );
+    expect(server.getByTestId("mobile-server-invites-row").props.accessibilityState.disabled).toBe(
+      true,
+    );
     expect(channel.queryByTestId("mobile-channel-history-clear-open-channel-voice")).toBeNull();
     expect(channel.queryByTestId("mobile-channel-delete-open-channel-voice")).toBeNull();
   });

@@ -85,6 +85,7 @@ export function createMobileQueryKeys(registry: MobileSearchKeyRegistry) {
     workspace: (serverId: string) => [...all, "workspace", serverId] as const,
     workspaceMembers: (serverId: string) => [...all, "workspace", serverId, "members"] as const,
     workspaceRoles: (serverId: string) => [...all, "workspace", serverId, "roles"] as const,
+    workspaceInvites: (serverId: string) => [...all, "workspace", serverId, "invites"] as const,
   };
 }
 

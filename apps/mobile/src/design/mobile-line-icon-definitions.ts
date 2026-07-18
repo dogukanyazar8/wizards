@@ -1,15 +1,22 @@
 export const MOBILE_LINE_ICON_NAMES = [
+  "audit-log",
   "back-arrow",
   "bell",
+  "camera",
   "chat-bubble",
   "check",
   "chevron-down",
   "chevron-right",
+  "clock",
   "edit",
   "emoji",
+  "external-link",
+  "file",
   "headphones",
   "invite-user",
   "leave",
+  "log-out",
+  "members",
   "mic",
   "mic-off",
   "plus",
@@ -17,6 +24,7 @@ export const MOBILE_LINE_ICON_NAMES = [
   "search",
   "send",
   "servers",
+  "shield",
   "speaker",
 ] as const;
 
@@ -214,5 +222,81 @@ export const MOBILE_LINE_ICON_DEFINITIONS = {
   speaker: {
     mode: "fill",
     children: [{ type: "path", d: "M4 10v4h4l5 4V6L8 10z" }],
+  },
+  "audit-log": {
+    mode: "stroke",
+    defaultStrokeWidth: 1.9,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    children: [{ type: "path", d: "M4 6h16M4 12h16M4 18h10" }],
+  },
+  camera: {
+    mode: "stroke",
+    defaultStrokeWidth: 2,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    children: [
+      { type: "path", d: "M4 8h3l2-2.5h6L17 8h3v11H4z" },
+      { type: "circle", cx: 12, cy: 13, r: 3 },
+    ],
+  },
+  clock: {
+    mode: "stroke",
+    defaultStrokeWidth: 1.9,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    children: [
+      { type: "circle", cx: 12, cy: 12, r: 8.5 },
+      { type: "path", d: "M12 7.5V12l3 2" },
+    ],
+  },
+  "external-link": {
+    mode: "stroke",
+    defaultStrokeWidth: 1.9,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    children: [
+      {
+        type: "path",
+        d: "M13.5 10.5L21 3M16 3h5v5M10 5H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5",
+      },
+    ],
+  },
+  file: {
+    mode: "stroke",
+    defaultStrokeWidth: 1.9,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    children: [
+      { type: "path", d: "M13 3H6v18h12V8z" },
+      { type: "path", d: "M13 3v5h5" },
+    ],
+  },
+  "log-out": {
+    mode: "stroke",
+    defaultStrokeWidth: 1.9,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    children: [{ type: "path", d: "M9 4h7v16H9M13 12H4M7 9l-3 3 3 3" }],
+  },
+  members: {
+    mode: "stroke",
+    defaultStrokeWidth: 1.9,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    children: [
+      { type: "circle", cx: 9, cy: 8.5, r: 3.2 },
+      {
+        type: "path",
+        d: "M3 20c1-3.5 11-3.5 12 0M16.5 5.7a3.2 3.2 0 0 1 0 5.6M18 14.5c2 .7 3 1.9 3.5 3.5",
+      },
+    ],
+  },
+  shield: {
+    mode: "stroke",
+    defaultStrokeWidth: 1.9,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    children: [{ type: "path", d: "M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z" }],
   },
 } as const satisfies Record<MobileLineIconName, MobileLineIconDefinition>;

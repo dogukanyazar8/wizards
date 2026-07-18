@@ -88,6 +88,8 @@ function createWorkspace(serverId: string): MobileManagedWorkspaceServerDetailRe
       hasMoreChannels: false,
       members: [],
       server: {
+        allowFileUploads: true,
+        allowGifs: true,
         defaultChannelId: null,
         description: null,
         iconUrl: `https://cdn.example.test/old-${serverId}.png`,
@@ -131,7 +133,10 @@ describe("mobile server icon cache", () => {
       mobileQueryKeys.workspace("server-2"),
     );
 
-    assert.equal(nextBootstrap?.home.servers.recent[0]?.iconUrl, "https://cdn.example.test/server-1-new.png");
+    assert.equal(
+      nextBootstrap?.home.servers.recent[0]?.iconUrl,
+      "https://cdn.example.test/server-1-new.png",
+    );
     assert.equal(nextBootstrap?.home.servers.recent[1], bootstrap.home.servers.recent[1]);
     assert.equal(nextFirst?.detail.server.iconUrl, "https://cdn.example.test/server-1-new.png");
     assert.equal(nextFirst?.detail.capabilities, firstWorkspace.detail.capabilities);

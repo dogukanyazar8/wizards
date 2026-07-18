@@ -191,6 +191,8 @@ function toMobileWorkspaceServerDetail(
       avatarUrl: normalizeMobileImageUrl(member.avatarUrl),
     })),
     server: {
+      allowFileUploads: detail.server.allowFileUploads,
+      allowGifs: detail.server.allowGifs,
       defaultChannelId,
       description: detail.server.description,
       iconUrl: normalizeMobileImageUrl(detail.server.iconUrl),

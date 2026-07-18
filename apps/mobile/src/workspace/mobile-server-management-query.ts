@@ -11,6 +11,7 @@ import type { MobileApiClient } from "../api/mobile-api-client";
 import { mobileQueryKeys } from "../query/mobile-query-keys";
 import {
   fetchMobileAssignableRoles,
+  fetchMobileServerInvites,
   fetchMobileServerMembers,
 } from "./mobile-server-management-client";
 
@@ -28,8 +29,7 @@ export function getMobileServerMembersInfiniteQueryOptions(
     enabled: serverId.length > 0,
     getNextPageParam: (lastPage) => lastPage.memberPage.nextCursor ?? undefined,
     initialPageParam: null as string | null,
-    queryFn: ({ pageParam }) =>
-      fetchMobileServerMembers(client, { cursor: pageParam, serverId }),
+    queryFn: ({ pageParam }) => fetchMobileServerMembers(client, { cursor: pageParam, serverId }),
     queryKey: mobileQueryKeys.workspaceMembers(serverId),
   });
 }
@@ -56,4 +56,24 @@ export function useMobileAssignableRolesQuery(
   enabled: boolean,
 ) {
   return useQuery(getMobileAssignableRolesQueryOptions(client, serverId, enabled));
+}
+
+export function getMobileServerInvitesQueryOptions(
+  client: MobileApiClient,
+  serverId: string,
+  enabled: boolean,
+) {
+  return queryOptions({
+    enabled: enabled && serverId.length > 0,
+    queryFn: () => fetchMobileServerInvites(client, { serverId }),
+    queryKey: mobileQueryKeys.workspaceInvites(serverId),
+  });
+}
+
+export function useMobileServerInvitesQuery(
+  client: MobileApiClient,
+  serverId: string,
+  enabled: boolean,
+) {
+  return useQuery(getMobileServerInvitesQueryOptions(client, serverId, enabled));
 }

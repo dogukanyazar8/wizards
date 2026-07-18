@@ -682,6 +682,8 @@ export function Fixture({ cap }: { cap: number }) {
       danger: "#C94343",
       dangerOnBase: "#C84343",
       dangerSurface: "#FCE9E9",
+      controlChevron: "#B7BCD6",
+      controlSeparatorDot: "#C6CADE",
       inkSurface: "#1E2235",
       voiceRoomControl: "#FFFFFF",
       voiceRoomControlBorder: "#E7E9F4",
@@ -716,6 +718,8 @@ export function Fixture({ cap }: { cap: number }) {
       dangerAction: "#C94343",
       dangerOnBase: "#E45A5A",
       dangerSurface: "rgba(224,82,82,.14)",
+      controlChevron: "#5B608C",
+      controlSeparatorDot: "#3B3F73",
       success: "#34D399",
       successSurface: "rgba(52,211,153,.12)",
       warning: "#F59E0B",
@@ -1157,14 +1161,8 @@ export function Fixture({ cap }: { cap: number }) {
       "utf8",
     );
 
-    assert.match(
-      authPrimaryButton,
-      /solid: \{\s*backgroundColor: theme\.accent\.action,/,
-    );
-    assert.match(
-      authScreenBackground,
-      /dot: \{\s*backgroundColor: theme\.accent\.default,/,
-    );
+    assert.match(authPrimaryButton, /solid: \{\s*backgroundColor: theme\.accent\.action,/);
+    assert.match(authScreenBackground, /dot: \{\s*backgroundColor: theme\.accent\.default,/);
     assert.match(uiAtoms, /actionButtonPrimary: \{[\s\S]*?backgroundColor: theme\.accent\.action,/);
     assert.match(uiAtoms, /statusChipDotAccent: \{\s*backgroundColor: theme\.accent\.strong,/);
     assert.equal(getMobileThemeCompatibilityColors(lightTheme).primary, lightTheme.accent.action);
@@ -1336,10 +1334,7 @@ export function Fixture({ cap }: { cap: number }) {
 
     assert.match(cameraGrid, /label: \{[\s\S]*?backgroundColor: theme\.surface\.inverse,/);
     assert.match(cameraGrid, /flip: \{[\s\S]*?backgroundColor: theme\.surface\.inverse,/);
-    assert.match(
-      authSecurityCard,
-      /icon: \{[\s\S]*?backgroundColor: theme\.status\.successSoft,/,
-    );
+    assert.match(authSecurityCard, /icon: \{[\s\S]*?backgroundColor: theme\.status\.successSoft,/);
     assert.match(authSecurityCard, /color=\{theme\.status\.successText\}/);
     assert.match(uiAtoms, /homeMetricTile: \{[\s\S]*?backgroundColor: theme\.accent\.action,/);
     assert.match(

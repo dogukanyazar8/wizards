@@ -1,0 +1,277 @@
+import type { ImageStyle, TextStyle, ViewStyle } from "react-native";
+
+import type { MobileTheme } from "../design/themes";
+
+// All measurements mirror design handoff anchor #5a (390×844 logical). Colors are
+// tokenized (theme.*); only geometry/typographic sizes are literal per handoff.
+export const createMobileServerSettingsStyles = (theme: MobileTheme) =>
+  ({
+    root: { backgroundColor: theme.surface.base, flex: 1 },
+    content: { paddingBottom: 32 },
+
+    // Header (back + title)
+    header: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: 10,
+      paddingBottom: 2,
+      paddingHorizontal: 20,
+      paddingTop: 10,
+    },
+    backButton: {
+      alignItems: "center",
+      backgroundColor: theme.surface.card,
+      borderColor: theme.border.subtle,
+      borderRadius: 14,
+      borderWidth: 1,
+      height: 40,
+      justifyContent: "center",
+      width: 40,
+    },
+    headerText: { flex: 1, gap: 1, minWidth: 0 },
+    headerTitle: {
+      color: theme.text.primary,
+      fontFamily: theme.typography.fontFamilyExtraBold,
+      fontSize: 22,
+      letterSpacing: -0.44,
+      lineHeight: 27,
+    },
+    headerSubtitle: {
+      color: theme.text.visualSecondary,
+      fontFamily: theme.typography.fontFamilyMedium,
+      fontSize: 12.5,
+      lineHeight: 16,
+    },
+
+    // Profile card
+    profileCard: {
+      backgroundColor: theme.surface.card,
+      borderColor: theme.border.subtle,
+      borderRadius: theme.radii.cardLarge,
+      borderWidth: 1,
+      gap: 9,
+      marginHorizontal: 20,
+      marginTop: 12,
+      paddingHorizontal: 16,
+      paddingVertical: 11,
+    },
+    profileTop: { alignItems: "center", flexDirection: "row", gap: 14 },
+    iconWrap: { flexShrink: 0, position: "relative" },
+    icon: {
+      alignItems: "center",
+      backgroundColor: theme.accent.default,
+      borderRadius: 22,
+      height: 62,
+      justifyContent: "center",
+      overflow: "hidden",
+      width: 62,
+    },
+    iconImage: { borderRadius: 22, height: 62, width: 62 },
+    iconInitials: {
+      color: theme.text.onPrimary,
+      fontFamily: theme.typography.fontFamilyExtraBold,
+      fontSize: 20,
+    },
+    cameraBadge: {
+      alignItems: "center",
+      backgroundColor: theme.surface.inverse,
+      borderColor: theme.surface.card,
+      borderRadius: 10,
+      borderWidth: 2.5,
+      bottom: -4,
+      height: 26,
+      justifyContent: "center",
+      position: "absolute",
+      right: -4,
+      width: 26,
+    },
+    profileInfo: { flex: 1, gap: 2, minWidth: 0 },
+    profileName: {
+      color: theme.text.primary,
+      fontFamily: theme.typography.fontFamilyExtraBold,
+      fontSize: 17,
+      lineHeight: 21,
+    },
+    countsRow: { alignItems: "center", flexDirection: "row", gap: 6 },
+    countText: {
+      color: theme.text.visualSecondary,
+      fontFamily: theme.typography.fontFamily,
+      fontSize: 12.5,
+    },
+    countDot: {
+      backgroundColor: theme.control.separatorDot,
+      borderRadius: 1.5,
+      height: 3,
+      width: 3,
+    },
+    onlineDot: { backgroundColor: theme.status.success, borderRadius: 3.5, height: 7, width: 7 },
+
+    // Editable pills
+    pillsRow: { flexDirection: "row", gap: 8 },
+    pill: {
+      alignItems: "center",
+      backgroundColor: theme.surface.soft,
+      borderColor: theme.border.subtle,
+      borderRadius: 14,
+      borderWidth: 1,
+      flexDirection: "row",
+      flex: 1,
+      gap: 10,
+      minWidth: 0,
+      paddingHorizontal: 13,
+      paddingVertical: 9,
+    },
+    pillShort: { flex: 0, gap: 8, width: 108 },
+    pillBody: { flex: 1, gap: 3, minWidth: 0 },
+    pillLabel: {
+      color: theme.text.visualFaint,
+      fontFamily: theme.typography.fontFamilyBold,
+      fontSize: 10,
+      letterSpacing: 1.2,
+      textTransform: "uppercase",
+    },
+    pillValue: {
+      color: theme.text.primary,
+      fontFamily: theme.typography.fontFamilySemiBold,
+      fontSize: 13.5,
+    },
+    descPill: {
+      backgroundColor: theme.surface.soft,
+      borderColor: theme.border.subtle,
+      borderRadius: 14,
+      borderWidth: 1,
+      gap: 3,
+      paddingHorizontal: 13,
+      paddingVertical: 9,
+    },
+    descValue: {
+      color: theme.text.primary,
+      fontFamily: theme.typography.fontFamily,
+      fontSize: 13,
+      lineHeight: 18.85,
+    },
+    descPlaceholder: { color: theme.text.visualFaint },
+
+    // Section label
+    sectionLabel: { paddingBottom: 6, paddingHorizontal: 24, paddingTop: 10 },
+    sectionLabelText: {
+      color: theme.text.visualFaint,
+      fontFamily: theme.typography.fontFamilyBold,
+      fontSize: 11.5,
+      letterSpacing: 1.38,
+      textTransform: "uppercase",
+    },
+
+    // List cards / rows
+    card: {
+      backgroundColor: theme.surface.card,
+      borderColor: theme.border.subtle,
+      borderRadius: theme.radii.cardLarge,
+      borderWidth: 1,
+      marginHorizontal: 20,
+      overflow: "hidden",
+    },
+    cardSpaced: { marginTop: 12 },
+    row: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: 14,
+      paddingHorizontal: 18,
+      paddingVertical: 9,
+    },
+    rowDivider: { borderBottomColor: theme.border.default, borderBottomWidth: 1 },
+    rowPressed: { backgroundColor: theme.surface.soft },
+    rowDisabled: { opacity: 0.55 },
+    tile: {
+      alignItems: "center",
+      borderRadius: theme.sizing.squircle38Radius,
+      flexShrink: 0,
+      height: theme.sizing.squircle38,
+      justifyContent: "center",
+      width: theme.sizing.squircle38,
+    },
+    tileAccent: { backgroundColor: theme.accent.soft },
+    tileSuccess: { backgroundColor: theme.status.successSoft },
+    tileNeutral: { backgroundColor: theme.border.default },
+    tileDanger: { backgroundColor: theme.status.dangerSoft },
+    tileGifText: {
+      color: theme.accent.default,
+      fontFamily: theme.typography.fontFamilyExtraBold,
+      fontSize: 9.5,
+      letterSpacing: 0.38,
+    },
+    rowBody: { flex: 1, gap: 1, minWidth: 0 },
+    rowLabelOnly: { color: theme.text.primary, flex: 1 },
+    rowTitle: {
+      color: theme.text.primary,
+      fontFamily: theme.typography.fontFamilySemiBold,
+      fontSize: 14.5,
+    },
+    rowSubtitle: {
+      color: theme.text.visualFaint,
+      fontFamily: theme.typography.fontFamily,
+      fontSize: 12,
+    },
+    rowValue: {
+      color: theme.text.visualFaint,
+      fontFamily: theme.typography.fontFamily,
+      fontSize: 13,
+      marginRight: 4,
+    },
+    dangerLabel: {
+      color: theme.status.dangerOnInverse,
+      flex: 1,
+      fontFamily: theme.typography.fontFamilyBold,
+      fontSize: 14.5,
+    },
+    soonBadge: {
+      backgroundColor: theme.surface.soft,
+      borderRadius: theme.radii.pill,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+    },
+    soonBadgeText: {
+      color: theme.text.visualFaint,
+      fontFamily: theme.typography.fontFamilyBold,
+      fontSize: 10,
+      letterSpacing: 0.6,
+      textTransform: "uppercase",
+    },
+
+    // Editor sheet
+    sheet: { gap: 12 },
+    sheetTitle: { ...theme.typography.title, color: theme.text.primary },
+    input: {
+      ...theme.typography.body,
+      backgroundColor: theme.surface.soft,
+      borderColor: theme.border.subtle,
+      borderRadius: theme.radii.control,
+      borderWidth: 1,
+      color: theme.text.primary,
+      minHeight: theme.sizing.minTouchTarget,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+    },
+    inputMultiline: { minHeight: 96, textAlignVertical: "top" },
+    sheetActions: { flexDirection: "row", gap: 10 },
+    sheetAction: { flex: 1 },
+
+    // Feedback / states
+    error: { ...theme.typography.body, color: theme.status.dangerOnBase },
+    notice: { ...theme.typography.body, color: theme.status.successText },
+    feedbackWrap: { gap: 12, marginHorizontal: 20, marginTop: 12 },
+    centered: { alignItems: "center", gap: 12, paddingHorizontal: 20, paddingTop: 64 },
+
+    // Skeleton
+    skeletonCard: {
+      backgroundColor: theme.surface.card,
+      borderColor: theme.border.subtle,
+      borderRadius: theme.radii.cardLarge,
+      borderWidth: 1,
+      gap: 12,
+      marginHorizontal: 20,
+      marginTop: 12,
+      padding: 16,
+    },
+    skeletonRow: { alignItems: "center", flexDirection: "row", gap: 14 },
+  }) satisfies Record<string, ImageStyle | TextStyle | ViewStyle>;

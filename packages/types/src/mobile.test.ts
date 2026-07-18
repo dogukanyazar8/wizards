@@ -309,6 +309,8 @@ const workspaceDetail = {
   hasMoreChannels: false,
   members: [],
   server: {
+    allowFileUploads: true,
+    allowGifs: true,
     defaultChannelId: "channel-1",
     description: null,
     iconUrl: null,

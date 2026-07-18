@@ -96,6 +96,13 @@ export interface MobileTheme {
     readonly personal: MobileAuthProfileAccent;
   };
   readonly avatarTints: MobileAvatarTints;
+  /** Settings/list-row control chrome: disclosure chevrons, separator dots, toggle track. */
+  readonly control: {
+    readonly chevron: string;
+    readonly separatorDot: string;
+    readonly trackOff: string;
+    readonly trackThumb: string;
+  };
   readonly border: {
     readonly default: string;
     readonly focus: string;
@@ -275,6 +282,12 @@ export const lightTheme = deepFreeze({
     onSurfaceRing: mobilePalette.neutral.white,
     subtle: redesignLight.border,
   },
+  control: {
+    chevron: redesignLight.controlChevron,
+    separatorDot: redesignLight.controlSeparatorDot,
+    trackOff: redesignLight.languageHandle,
+    trackThumb: mobilePalette.neutral.white,
+  },
   dark: false,
   elevation: {
     authBrandMark: {
@@ -369,11 +382,11 @@ export const lightTheme = deepFreeze({
     info: mobilePalette.status.info,
     infoSoft: mobilePalette.status.infoSoft,
     onStatus: redesignLight.text,
-      success: redesignLight.success,
-      successOnInverse: redesignDark.success,
-      successSoft: redesignLight.successSurface,
-      visualText: redesignLight.canonicalSuccessText,
-      successText: redesignLight.successText,
+    success: redesignLight.success,
+    successOnInverse: redesignDark.success,
+    successSoft: redesignLight.successSurface,
+    visualText: redesignLight.canonicalSuccessText,
+    successText: redesignLight.successText,
     warning: mobilePalette.status.warning,
     warningSoft: mobilePalette.status.warningSoft,
   },
@@ -399,12 +412,12 @@ export const lightTheme = deepFreeze({
     statusBar: "dark",
   },
   text: {
-      dateSeparator: redesignLight.canonicalTextFaint,
-      inverse: mobilePalette.neutral.white,
-      visualFaint: redesignLight.canonicalTextFaint,
-      visualPlaceholder: redesignLight.canonicalPlaceholder,
-      visualSecondary: redesignLight.canonicalTextSecondary,
-      muted: redesignLight.textFaint,
+    dateSeparator: redesignLight.canonicalTextFaint,
+    inverse: mobilePalette.neutral.white,
+    visualFaint: redesignLight.canonicalTextFaint,
+    visualPlaceholder: redesignLight.canonicalPlaceholder,
+    visualSecondary: redesignLight.canonicalTextSecondary,
+    muted: redesignLight.textFaint,
     onInverseMuted: "#9BA1C7",
     onInverse: mobilePalette.neutral.white,
     onPrimary: mobilePalette.neutral.white,
@@ -464,6 +477,12 @@ export const darkTheme = deepFreeze({
     focusRing: redesignDark.focusRing,
     onSurfaceRing: redesignDark.card,
     subtle: redesignDark.border,
+  },
+  control: {
+    chevron: redesignDark.controlChevron,
+    separatorDot: redesignDark.controlSeparatorDot,
+    trackOff: redesignDark.languageHandle,
+    trackThumb: mobilePalette.neutral.white,
   },
   dark: true,
   elevation: {
@@ -540,11 +559,11 @@ export const darkTheme = deepFreeze({
     info: mobilePalette.status.infoDark,
     infoSoft: mobilePalette.status.infoSoftDark,
     onStatus: redesignDark.text,
-      success: redesignDark.success,
-      successOnInverse: redesignDark.success,
-      successSoft: redesignDark.successSurface,
-      visualText: redesignDark.success,
-      successText: redesignDark.success,
+    success: redesignDark.success,
+    successOnInverse: redesignDark.success,
+    successSoft: redesignDark.successSurface,
+    visualText: redesignDark.success,
+    successText: redesignDark.success,
     warning: redesignDark.warning,
     warningSoft: redesignDark.warningSurface,
   },
@@ -570,12 +589,12 @@ export const darkTheme = deepFreeze({
     statusBar: "light",
   },
   text: {
-      dateSeparator: redesignDark.canonicalTextFaint,
-      inverse: mobilePalette.neutral.white,
-      visualFaint: redesignDark.canonicalTextFaint,
-      visualPlaceholder: redesignDark.canonicalTextFaint,
-      visualSecondary: redesignDark.textSecondary,
-      muted: redesignDark.textFaint,
+    dateSeparator: redesignDark.canonicalTextFaint,
+    inverse: mobilePalette.neutral.white,
+    visualFaint: redesignDark.canonicalTextFaint,
+    visualPlaceholder: redesignDark.canonicalTextFaint,
+    visualSecondary: redesignDark.textSecondary,
+    muted: redesignDark.textFaint,
     onInverseMuted: "#9BA1C7",
     onInverse: mobilePalette.neutral.white,
     onPrimary: mobilePalette.neutral.white,

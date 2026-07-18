@@ -113,6 +113,8 @@ const managedDetail = {
     hasMoreChannels: false,
     members: [],
     server: {
+      allowFileUploads: true,
+      allowGifs: true,
       defaultChannelId: null,
       description: null,
       iconUrl: null,

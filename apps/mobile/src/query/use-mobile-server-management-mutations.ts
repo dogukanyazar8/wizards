@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type {
+  MobileManagedWorkspaceServerDetailResponse,
   MobileServerCreateRequest,
   MobileServerInviteCreateRequest,
   MobileServerJoinRequest,
@@ -22,6 +23,7 @@ import {
   updateMobileChannel,
   updateMobileMemberRoles,
   updateMobileServer,
+  type UpdateMobileServerInput,
 } from "../workspace/mobile-server-management-client";
 
 export function useMobileServerManagementMutations(client: MobileApiClient) {
@@ -47,7 +49,10 @@ export function useMobileServerManagementMutations(client: MobileApiClient) {
     });
   const removeServerScope = (serverId: string) => {
     queryClient.removeQueries({ exact: true, queryKey: mobileQueryKeys.workspace(serverId) });
-    queryClient.removeQueries({ exact: true, queryKey: mobileQueryKeys.workspaceMembers(serverId) });
+    queryClient.removeQueries({
+      exact: true,
+      queryKey: mobileQueryKeys.workspaceMembers(serverId),
+    });
     queryClient.removeQueries({ exact: true, queryKey: mobileQueryKeys.workspaceRoles(serverId) });
   };
 
@@ -69,8 +74,41 @@ export function useMobileServerManagementMutations(client: MobileApiClient) {
       },
     }),
     updateServer: useMutation({
-      mutationFn: (input: { name: string; serverId: string }) => updateMobileServer(client, input),
-      onSuccess: (_response, input) => {
+      mutationFn: (input: UpdateMobileServerInput) => updateMobileServer(client, input),
+      onMutate: async (input) => {
+        const queryKey = mobileQueryKeys.workspace(input.serverId);
+        await queryClient.cancelQueries({ exact: true, queryKey });
+        const previous =
+          queryClient.getQueryData<MobileManagedWorkspaceServerDetailResponse>(queryKey);
+        if (previous) {
+          queryClient.setQueryData<MobileManagedWorkspaceServerDetailResponse>(queryKey, {
+            ...previous,
+            detail: {
+              ...previous.detail,
+              server: {
+                ...previous.detail.server,
+                ...(input.name !== undefined ? { name: input.name } : {}),
+                ...(input.shortName !== undefined ? { shortName: input.shortName } : {}),
+                ...(input.description !== undefined ? { description: input.description } : {}),
+                ...(input.allowGifs !== undefined ? { allowGifs: input.allowGifs } : {}),
+                ...(input.allowFileUploads !== undefined
+                  ? { allowFileUploads: input.allowFileUploads }
+                  : {}),
+              },
+            },
+          });
+        }
+        return { previous, queryKey };
+      },
+      onError: (_error, _input, context) => {
+        if (context?.previous) {
+          queryClient.setQueryData(context.queryKey, context.previous);
+        }
+      },
+      onSuccess: (response, input) => {
+        queryClient.setQueryData(mobileQueryKeys.workspace(input.serverId), response);
+      },
+      onSettled: (_response, _error, input) => {
         void invalidateServer(input.serverId).catch(() => undefined);
       },
     }),
@@ -84,7 +122,8 @@ export function useMobileServerManagementMutations(client: MobileApiClient) {
       },
     }),
     createCategory: useMutation({
-      mutationFn: (input: { name: string; serverId: string }) => createMobileCategory(client, input),
+      mutationFn: (input: { name: string; serverId: string }) =>
+        createMobileCategory(client, input),
       onSuccess: (_response, input) => {
         void invalidateWorkspace(input.serverId).catch(() => undefined);
       },
@@ -142,7 +181,8 @@ export function useMobileServerManagementMutations(client: MobileApiClient) {
       },
     }),
     kickMember: useMutation({
-      mutationFn: (input: { memberId: string; serverId: string }) => kickMobileMember(client, input),
+      mutationFn: (input: { memberId: string; serverId: string }) =>
+        kickMobileMember(client, input),
       onSuccess: (_response, input) => {
         void invalidateMembers(input.serverId).catch(() => undefined);
       },

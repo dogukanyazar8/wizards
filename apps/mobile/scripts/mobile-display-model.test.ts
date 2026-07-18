@@ -123,6 +123,8 @@ const workspaceDetail: MobileWorkspaceServerDetailResponse["detail"] = {
     },
   ],
   server: {
+    allowFileUploads: true,
+    allowGifs: true,
     defaultChannelId: "voice-1",
     description: null,
     iconUrl: null,

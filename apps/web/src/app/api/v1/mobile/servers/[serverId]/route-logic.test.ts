@@ -82,6 +82,8 @@ const mobileDetail = {
   hasMoreChannels: false,
   members: [],
   server: {
+    allowFileUploads: true,
+    allowGifs: true,
     defaultChannelId: "channel-1",
     description: "A guild",
     iconUrl: "https://cdn.whispr.test/icon.png",
@@ -134,7 +136,11 @@ function dependencies(overrides: Record<string, unknown> = {}) {
     authenticate: async () => "user-1",
     deleteServer: async () => undefined,
     enforceRateLimit: async () => undefined,
-    getServerDetailWithAccess: async () => ({ access, detail: mobileProjection, hasMoreChannels: false }),
+    getServerDetailWithAccess: async () => ({
+      access,
+      detail: mobileProjection,
+      hasMoreChannels: false,
+    }),
     parseBody: parseJsonBody,
     resolveCapabilities: () => capabilities,
     updateServer: async () => detail,

@@ -12,3 +12,4 @@ export * from "./icon-button";
 export * from "./list-row";
 export * from "./skeleton";
 export * from "./toast";
+export * from "./toggle";

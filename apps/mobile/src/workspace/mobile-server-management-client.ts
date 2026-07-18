@@ -18,6 +18,7 @@ import {
   MobileServerIdParamsSchema,
   MobileServerInviteCreateRequestSchema,
   MobileServerInviteCreateResponseSchema,
+  MobileServerInvitesResponseSchema,
   MobileServerJoinRequestSchema,
   MobileServerJoinResponseSchema,
   MobileServerMemberParamsSchema,
@@ -35,6 +36,7 @@ import {
   type MobileServerCreateResponse,
   type MobileServerInviteCreateRequest,
   type MobileServerInviteCreateResponse,
+  type MobileServerInvitesResponse,
   type MobileServerJoinRequest,
   type MobileServerJoinResponse,
   type MobileServerMembersResponse,
@@ -60,7 +62,10 @@ export function buildMobileServerPath(input: { serverId: string }): string {
   return `/api/v1/mobile/servers/${encodeURIComponent(input.serverId)}`;
 }
 
-export function buildMobileServerCategoryPath(input: { categoryId: string; serverId: string }): string {
+export function buildMobileServerCategoryPath(input: {
+  categoryId: string;
+  serverId: string;
+}): string {
   return `${buildMobileServerPath(input)}/categories/${encodeURIComponent(input.categoryId)}`;
 }
 
@@ -68,11 +73,17 @@ export function buildMobileServerChannelsPath(input: { serverId: string }): stri
   return `${buildMobileServerPath(input)}/channels`;
 }
 
-export function buildMobileServerChannelPath(input: { channelId: string; serverId: string }): string {
+export function buildMobileServerChannelPath(input: {
+  channelId: string;
+  serverId: string;
+}): string {
   return `${buildMobileServerChannelsPath(input)}/${encodeURIComponent(input.channelId)}`;
 }
 
-export function buildMobileServerMembersPath(input: { cursor?: string | null; serverId: string }): string {
+export function buildMobileServerMembersPath(input: {
+  cursor?: string | null;
+  serverId: string;
+}): string {
   const params = new URLSearchParams({ limit: String(MOBILE_SERVER_MEMBERS_LIMIT) });
   if (input.cursor) {
     params.set("cursor", input.cursor);
@@ -89,7 +100,10 @@ export function buildMobileServerMemberPath(input: { memberId: string; serverId:
   return `${buildMobileServerPath(input)}/members/${encodeURIComponent(input.memberId)}`;
 }
 
-export function buildMobileServerMemberRolesPath(input: { memberId: string; serverId: string }): string {
+export function buildMobileServerMemberRolesPath(input: {
+  memberId: string;
+  serverId: string;
+}): string {
   return `${buildMobileServerMemberPath(input)}/roles`;
 }
 
@@ -123,6 +137,15 @@ export async function joinMobileServer(
   return MobileServerJoinResponseSchema.parse(payload);
 }
 
+export async function fetchMobileServerInvites(
+  client: MobileApiClient,
+  input: { serverId: string },
+): Promise<MobileServerInvitesResponse> {
+  const params = MobileServerIdParamsSchema.parse(input);
+  const payload = await client.requestJson<unknown>(buildMobileServerInviteCreatePath(params));
+  return MobileServerInvitesResponseSchema.parse(payload);
+}
+
 export async function createMobileServerInvite(
   client: MobileApiClient,
   serverId: string,
@@ -130,23 +153,30 @@ export async function createMobileServerInvite(
 ): Promise<MobileServerInviteCreateResponse> {
   const params = MobileServerIdParamsSchema.parse({ serverId });
   const body = MobileServerInviteCreateRequestSchema.parse(input);
-  const payload = await client.requestJson<unknown>(
-    buildMobileServerInviteCreatePath(params),
-    {
-      body,
-      method: "POST",
-    },
-  );
+  const payload = await client.requestJson<unknown>(buildMobileServerInviteCreatePath(params), {
+    body,
+    method: "POST",
+  });
 
   return MobileServerInviteCreateResponseSchema.parse(payload);
 }
 
+export type UpdateMobileServerInput = {
+  allowFileUploads?: boolean;
+  allowGifs?: boolean;
+  description?: string | null;
+  name?: string;
+  serverId: string;
+  shortName?: string | null;
+};
+
 export async function updateMobileServer(
   client: MobileApiClient,
-  input: { name: string; serverId: string },
+  input: UpdateMobileServerInput,
 ): Promise<MobileManagedWorkspaceServerDetailResponse> {
-  const params = MobileServerIdParamsSchema.parse({ serverId: input.serverId });
-  const body = MobileServerUpdateRequestSchema.parse({ name: input.name });
+  const { serverId, ...fields } = input;
+  const params = MobileServerIdParamsSchema.parse({ serverId });
+  const body = MobileServerUpdateRequestSchema.parse(fields);
   const payload = await client.requestJson<unknown>(buildMobileServerPath(params), {
     body,
     method: "PATCH",
@@ -282,9 +312,7 @@ export async function fetchMobileServerMembers(
     ...(query.cursor ? { cursor: query.cursor } : {}),
     serverId: params.serverId,
   };
-  const payload = await client.requestJson<unknown>(
-    buildMobileServerMembersPath(pathInput),
-  );
+  const payload = await client.requestJson<unknown>(buildMobileServerMembersPath(pathInput));
 
   return MobileServerMembersResponseSchema.parse(payload);
 }

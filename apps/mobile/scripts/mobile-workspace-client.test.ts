@@ -66,6 +66,8 @@ const validServerDetailResponse = {
     ],
     hasMoreChannels: false,
     server: {
+      allowFileUploads: true,
+      allowGifs: true,
       defaultChannelId: "channel-1",
       description: null,
       iconUrl: null,
