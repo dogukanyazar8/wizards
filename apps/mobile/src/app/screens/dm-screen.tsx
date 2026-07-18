@@ -109,16 +109,20 @@ export function MessagesScreen({
 
   return (
     <View style={[styles.chatScreen, styles.dmInboxScreen]} testID="mobile-dm-inbox-screen">
-      <DMInboxHeader onCompose={() => setInboxSegment("friends")} />
-      <DMInboxSegmentTabs
-        incomingRequestCount={incomingRequestCount}
-        onSelectSegment={setInboxSegment}
-        segment={inboxSegment}
-      />
       {inboxSegment !== "conversations" ? (
-        <FriendsHub mode={inboxSegment === "requests" ? "requests" : "friends"} />
+        <FriendsHub
+          mode={inboxSegment === "requests" ? "requests" : "friends"}
+          onBack={() => setInboxSegment("conversations")}
+          onSelectMode={(nextMode) => setInboxSegment(nextMode)}
+        />
       ) : (
         <>
+          <DMInboxHeader onCompose={() => setInboxSegment("friends")} />
+          <DMInboxSegmentTabs
+            incomingRequestCount={incomingRequestCount}
+            onSelectSegment={setInboxSegment}
+            segment={inboxSegment}
+          />
           <MobileSyncHealthBanner health={syncHealth} onRetry={onRefreshVisibleData} />
           <BootstrapStateNotice state={bootstrapState} onRetry={onRefreshBootstrap} />
           {dmConversationsIsLoading ? (

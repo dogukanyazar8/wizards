@@ -785,6 +785,9 @@ if ($resolvedBuildRoot -match "^[A-Za-z]:\\?$") {
   throw "BuildRoot cannot be a drive root. Received: $resolvedBuildRoot"
 }
 
+$sourceMobileRoot = Join-Path $resolvedSourceRoot "apps\mobile"
+Resolve-ExistingPath $sourceMobileRoot "Source mobile root" | Out-Null
+
 $sourceEqualsBuild = $false
 if (Test-Path -LiteralPath $resolvedBuildRoot) {
   $sourceEqualsBuild = ((Resolve-Path -LiteralPath $resolvedBuildRoot).Path -ieq $resolvedSourceRoot)
@@ -952,5 +955,5 @@ Write-Host "Embedded environment: uat -> $UatUrl"
 if (-not $NoStartMetro) {
   Write-Step "Starting Expo dev-client Metro server"
   Write-Host "Keep this PowerShell window open while testing. Press Ctrl+C to stop Metro." -ForegroundColor Yellow
-  Invoke-CommandChecked -Command "corepack" -Arguments @("pnpm", "exec", "expo", "start", "--dev-client", "--port", $metroPort) -WorkingDirectory $mobileRoot
+  Invoke-CommandChecked -Command "corepack" -Arguments @("pnpm", "exec", "expo", "start", "--dev-client", "--port", $metroPort) -WorkingDirectory $sourceMobileRoot
 }

@@ -30,8 +30,11 @@ const M1_MOBILE_RATE_LIMITS = {
   "mobile:server:member:kick": { limit: 30, windowSeconds: 600 },
   "mobile:server:member-roles:update": { limit: 40, windowSeconds: 600 },
   "mobile:server:members:list": { limit: 60, windowSeconds: 60 },
+  "mobile:server:roles:create": { limit: 20, windowSeconds: 10 * 60 },
+  "mobile:server:roles:delete": { limit: 20, windowSeconds: 10 * 60 },
   "mobile:server:roles:list": { limit: 60, windowSeconds: 60 },
   "mobile:server:roles:overview:list": { limit: 60, windowSeconds: 60 },
+  "mobile:server:roles:update": { limit: 40, windowSeconds: 10 * 60 },
   "mobile:server:update": { limit: 30, windowSeconds: 60 },
 } as const;
 
@@ -151,7 +154,7 @@ describe("API rate limit configuration", () => {
       )
       .sort();
 
-    assert.equal(expectedActions.length, 21);
+    assert.equal(expectedActions.length, 24);
     assert.deepEqual(actualActions, expectedActions);
 
     for (const [action, expectedConfig] of Object.entries(M1_MOBILE_RATE_LIMITS)) {

@@ -11,6 +11,10 @@ import {
   MobileChannelUpdateRequestSchema,
   MobileMemberRolesUpdateRequestSchema,
   MobileMutationSuccessResponseSchema,
+  MobileRoleCreateRequestSchema,
+  MobileRoleMutationResponseSchema,
+  MobileRoleUpdateRequestSchema,
+  MobileServerRoleParamsSchema,
   MobileServerCategoryParamsSchema,
   MobileServerChannelParamsSchema,
   MobileServerCreateRequestSchema,
@@ -38,6 +42,8 @@ import {
   type MobileServerCreateResponse,
   type MobileServerInviteCreateRequest,
   type MobileServerInviteCreateResponse,
+  type MobileRoleMutationResponse,
+  type MobilePermissionKey,
   type MobileServerInvitesResponse,
   type MobileServerJoinRequest,
   type MobileServerJoinResponse,
@@ -96,6 +102,10 @@ export function buildMobileServerMembersPath(input: {
 
 export function buildMobileServerRolesPath(input: { serverId: string }): string {
   return `${buildMobileServerPath(input)}/roles`;
+}
+
+export function buildMobileServerRolePath(input: { roleId: string; serverId: string }): string {
+  return `${buildMobileServerRolesPath(input)}/${encodeURIComponent(input.roleId)}`;
 }
 
 export function buildMobileServerRoleOverviewPath(input: { serverId: string }): string {
@@ -339,6 +349,69 @@ export async function fetchMobileServerRoleOverview(
   const params = MobileServerIdParamsSchema.parse(input);
   const payload = await client.requestJson<unknown>(buildMobileServerRoleOverviewPath(params));
   return MobileServerRoleOverviewResponseSchema.parse(payload);
+}
+
+export type CreateMobileRoleInput = {
+  color?: number;
+  name: string;
+  permissionKeys?: readonly MobilePermissionKey[];
+  serverId: string;
+};
+
+export async function createMobileRole(
+  client: MobileApiClient,
+  input: CreateMobileRoleInput,
+): Promise<MobileRoleMutationResponse> {
+  const params = MobileServerIdParamsSchema.parse({ serverId: input.serverId });
+  const body = MobileRoleCreateRequestSchema.parse({
+    ...(input.color !== undefined ? { color: input.color } : {}),
+    name: input.name,
+    permissionKeys: input.permissionKeys ?? [],
+  });
+  const payload = await client.requestJson<unknown>(buildMobileServerRolesPath(params), {
+    body,
+    method: "POST",
+  });
+  return MobileRoleMutationResponseSchema.parse(payload);
+}
+
+export type UpdateMobileRoleInput = {
+  color?: number;
+  name?: string;
+  permissionKeys?: readonly MobilePermissionKey[];
+  roleId: string;
+  serverId: string;
+};
+
+export async function updateMobileRole(
+  client: MobileApiClient,
+  input: UpdateMobileRoleInput,
+): Promise<MobileRoleMutationResponse> {
+  const params = MobileServerRoleParamsSchema.parse({
+    roleId: input.roleId,
+    serverId: input.serverId,
+  });
+  const body = MobileRoleUpdateRequestSchema.parse({
+    ...(input.color !== undefined ? { color: input.color } : {}),
+    ...(input.name !== undefined ? { name: input.name } : {}),
+    ...(input.permissionKeys !== undefined ? { permissionKeys: input.permissionKeys } : {}),
+  });
+  const payload = await client.requestJson<unknown>(buildMobileServerRolePath(params), {
+    body,
+    method: "PATCH",
+  });
+  return MobileRoleMutationResponseSchema.parse(payload);
+}
+
+export async function deleteMobileRole(
+  client: MobileApiClient,
+  input: { roleId: string; serverId: string },
+): Promise<MobileMutationSuccessResponse> {
+  const params = MobileServerRoleParamsSchema.parse(input);
+  const payload = await client.requestJson<unknown>(buildMobileServerRolePath(params), {
+    method: "DELETE",
+  });
+  return MobileMutationSuccessResponseSchema.parse(payload);
 }
 
 export async function updateMobileMemberRoles(

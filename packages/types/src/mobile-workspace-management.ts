@@ -150,6 +150,9 @@ export const MobileServerMemberParamsSchema = z
   })
   .strict();
 export const MobileChannelIdParamsSchema = z.object({ channelId: MobileResourceIdSchema }).strict();
+export const MobileServerRoleParamsSchema = z
+  .object({ roleId: MobileResourceIdSchema, serverId: MobileResourceIdSchema })
+  .strict();
 
 export const MobileManagedWorkspaceServerDetailResponseSchema = z
   .object({
@@ -287,7 +290,7 @@ export const MobileAssignableRoleSchema = z
 export const MobileAssignableRolesResponseSchema = z
   .object({ roles: z.array(MobileAssignableRoleSchema).max(100) })
   .strict();
-const MobilePermissionKeySchema = z.enum([
+export const MobilePermissionKeySchema = z.enum([
   "ADMINISTRATOR",
   "MANAGE_SERVER",
   "MANAGE_CHANNELS",
@@ -328,6 +331,43 @@ export const MobileServerRoleOverviewSchema = z
 export const MobileServerRoleOverviewResponseSchema = z
   .object({ roles: z.array(MobileServerRoleOverviewSchema).max(100) })
   .strict();
+
+const MobileRoleColorSchema = z.number().int().min(0).max(0xffffff);
+const MobileRolePermissionKeysSchema = z.array(MobilePermissionKeySchema).max(24);
+export const MobileServerRoleSchema = z
+  .object({
+    color: MobileRoleColorSchema,
+    id: MobileResourceIdSchema,
+    isDefault: z.boolean(),
+    managed: z.boolean(),
+    mentionable: z.boolean(),
+    name: z.string().trim().min(1).max(48),
+    permissionKeys: MobileRolePermissionKeysSchema,
+    position: z.number().int(),
+  })
+  .strict();
+export const MobileRoleMutationResponseSchema = z
+  .object({ role: MobileServerRoleSchema })
+  .strict();
+export const MobileRoleCreateRequestSchema = z
+  .object({
+    color: MobileRoleColorSchema.optional(),
+    name: z.string().trim().min(1).max(48),
+    permissionKeys: MobileRolePermissionKeysSchema.default([]),
+  })
+  .strict();
+export const MobileRoleUpdateRequestSchema = z
+  .object({
+    color: MobileRoleColorSchema.optional(),
+    name: z.string().trim().min(1).max(48).optional(),
+    permissionKeys: MobileRolePermissionKeysSchema.optional(),
+  })
+  .strict()
+  .refine(
+    (value) =>
+      value.name !== undefined || value.color !== undefined || value.permissionKeys !== undefined,
+    { message: "validation.form.atLeastOne" },
+  );
 export const MobileMemberRolesUpdateRequestSchema = z
   .object({
     roleIds: z
@@ -371,6 +411,7 @@ export type MobileServerCategoryParams = z.infer<typeof MobileServerCategoryPara
 export type MobileServerChannelParams = z.infer<typeof MobileServerChannelParamsSchema>;
 export type MobileServerMemberParams = z.infer<typeof MobileServerMemberParamsSchema>;
 export type MobileChannelIdParams = z.infer<typeof MobileChannelIdParamsSchema>;
+export type MobileServerRoleParams = z.infer<typeof MobileServerRoleParamsSchema>;
 export type MobileManagedWorkspaceServerDetailResponse = z.infer<
   typeof MobileManagedWorkspaceServerDetailResponseSchema
 >;
@@ -399,6 +440,11 @@ export type MobileServerMembersResponse = z.infer<typeof MobileServerMembersResp
 export type MobileAssignableRole = z.infer<typeof MobileAssignableRoleSchema>;
 export type MobileAssignableRolesResponse = z.infer<typeof MobileAssignableRolesResponseSchema>;
 export type MobileServerRoleOverview = z.infer<typeof MobileServerRoleOverviewSchema>;
+export type MobilePermissionKey = z.infer<typeof MobilePermissionKeySchema>;
+export type MobileServerRole = z.infer<typeof MobileServerRoleSchema>;
+export type MobileRoleMutationResponse = z.infer<typeof MobileRoleMutationResponseSchema>;
+export type MobileRoleCreateRequest = z.infer<typeof MobileRoleCreateRequestSchema>;
+export type MobileRoleUpdateRequest = z.infer<typeof MobileRoleUpdateRequestSchema>;
 export type MobileServerRoleOverviewResponse = z.infer<
   typeof MobileServerRoleOverviewResponseSchema
 >;

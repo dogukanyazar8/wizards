@@ -60,6 +60,21 @@ cd C:\Users\doguk\Desktop\Wizards\apps\mobile
 corepack pnpm run android:uat:local
 ```
 
+This command is for the initial native install and for native changes only. It compiles Android
+from the short managed build path, then starts Metro from the editable source workspace. Keep the
+Metro window open while developing: TypeScript, TSX, style, and JavaScript changes should appear
+through Fast Refresh without rebuilding the APK.
+
+Run the Android build again only after changing native dependencies, `app.config.js`, Android
+configuration, permissions, Expo plugins, or generated native code. If the development build is
+already installed and Metro has stopped, restart Metro without rebuilding:
+
+```powershell
+cd C:\Users\doguk\Desktop\Wizards\apps\mobile
+$env:WHISPR_MOBILE_ENV = "uat"
+corepack pnpm exec expo start --dev-client --port 8081
+```
+
 The local UAT script exposes all mutable build state at this managed path:
 
 ```text

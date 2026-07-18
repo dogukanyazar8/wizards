@@ -144,6 +144,20 @@ test("native cache recovery resolves pnpm's truncated virtual-store directories 
   );
 });
 
+test("local UAT Metro serves the editable source workspace instead of the staged native build", () => {
+  const buildScript = readFileSync(join(root, "scripts", "build-android-uat.ps1"), "utf8");
+
+  assert.match(
+    buildScript,
+    /\$sourceMobileRoot\s*=\s*Join-Path \$resolvedSourceRoot "apps\\mobile"/,
+  );
+  assert.match(buildScript, /Resolve-ExistingPath \$sourceMobileRoot "Source mobile root"/);
+  assert.match(
+    buildScript,
+    /Starting Expo dev-client Metro server[\s\S]*?-WorkingDirectory \$sourceMobileRoot/,
+  );
+});
+
 test("local UAT package commands keep their intended device and ABI contracts", () => {
   const buildScript = readFileSync(join(root, "scripts", "build-android-uat.ps1"), "utf8");
   const expectedApkCommands: Record<

@@ -8,6 +8,12 @@ import {
   MobileAssignableRolesResponseSchema,
   MobileServerRoleOverviewResponseSchema,
   MobileServerRoleOverviewSchema,
+  MobilePermissionKeySchema,
+  MobileRoleCreateRequestSchema,
+  MobileRoleMutationResponseSchema,
+  MobileRoleUpdateRequestSchema,
+  MobileServerRoleParamsSchema,
+  MobileServerRoleSchema,
   MobileCategoryCreateRequestSchema,
   MobileCategoryCreateResponseSchema,
   MobileCategoryUpdateRequestSchema,
@@ -148,6 +154,17 @@ const roleOverview = {
   position: 1,
 };
 
+const serverRole = {
+  color: 0x336699,
+  id: "role-1",
+  isDefault: false,
+  managed: false,
+  mentionable: true,
+  name: "Moderator",
+  permissionKeys: ["MANAGE_MESSAGES"],
+  position: 1,
+};
+
 describe("mobile workspace management schemas", () => {
   it("keeps every exported schema covered by an acceptance and rejection fixture", () => {
     assertSchemaBehaviorCoverage(mobileWorkspaceSchemas, {
@@ -170,6 +187,36 @@ describe("mobile workspace management schemas", () => {
         schema: MobileServerRoleOverviewResponseSchema,
         valid: { roles: [roleOverview] },
         invalid: { roles: [{ ...roleOverview, permissionKeys: ["UNSUPPORTED_PERMISSION"] }] },
+      },
+      MobilePermissionKeySchema: {
+        schema: MobilePermissionKeySchema,
+        valid: "SEND_MESSAGES",
+        invalid: "UNSUPPORTED_PERMISSION",
+      },
+      MobileServerRoleSchema: {
+        schema: MobileServerRoleSchema,
+        valid: serverRole,
+        invalid: { ...serverRole, permissionKeys: ["UNSUPPORTED_PERMISSION"] },
+      },
+      MobileRoleMutationResponseSchema: {
+        schema: MobileRoleMutationResponseSchema,
+        valid: { role: serverRole },
+        invalid: { role: { ...serverRole, id: "" } },
+      },
+      MobileRoleCreateRequestSchema: {
+        schema: MobileRoleCreateRequestSchema,
+        valid: { name: "Support", permissionKeys: ["SEND_MESSAGES"] },
+        invalid: { name: "" },
+      },
+      MobileRoleUpdateRequestSchema: {
+        schema: MobileRoleUpdateRequestSchema,
+        valid: { name: "Support" },
+        invalid: {},
+      },
+      MobileServerRoleParamsSchema: {
+        schema: MobileServerRoleParamsSchema,
+        valid: { roleId: resourceId, serverId: resourceId },
+        invalid: { roleId: "", serverId: resourceId },
       },
       MobileCategoryCreateRequestSchema: {
         schema: MobileCategoryCreateRequestSchema,

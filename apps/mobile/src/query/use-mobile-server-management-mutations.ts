@@ -12,17 +12,22 @@ import {
   clearMobileChannelHistory,
   createMobileCategory,
   createMobileChannel,
+  createMobileRole,
   createMobileServer,
   createMobileServerInvite,
   deleteMobileCategory,
   deleteMobileChannel,
+  deleteMobileRole,
   deleteMobileServer,
   kickMobileMember,
   joinMobileServer,
   updateMobileCategory,
   updateMobileChannel,
   updateMobileMemberRoles,
+  updateMobileRole,
   updateMobileServer,
+  type CreateMobileRoleInput,
+  type UpdateMobileRoleInput,
   type UpdateMobileServerInput,
 } from "../workspace/mobile-server-management-client";
 
@@ -47,6 +52,25 @@ export function useMobileServerManagementMutations(client: MobileApiClient) {
       exact: true,
       queryKey: mobileQueryKeys.workspaceMembers(serverId),
     });
+  const invalidateRoles = (serverId: string) =>
+    Promise.all([
+      queryClient.invalidateQueries({
+        exact: true,
+        queryKey: mobileQueryKeys.workspaceRoleOverview(serverId),
+      }),
+      queryClient.invalidateQueries({
+        exact: true,
+        queryKey: mobileQueryKeys.workspaceRoles(serverId),
+      }),
+      queryClient.invalidateQueries({
+        exact: true,
+        queryKey: mobileQueryKeys.workspaceMembers(serverId),
+      }),
+      queryClient.invalidateQueries({
+        exact: true,
+        queryKey: mobileQueryKeys.workspace(serverId),
+      }),
+    ]);
   const invalidateRoleOverview = (serverId: string) =>
     queryClient.invalidateQueries({
       exact: true,
@@ -188,6 +212,24 @@ export function useMobileServerManagementMutations(client: MobileApiClient) {
       onSuccess: (_response, input) => {
         void invalidateMembers(input.serverId).catch(() => undefined);
         void invalidateRoleOverview(input.serverId).catch(() => undefined);
+      },
+    }),
+    createRole: useMutation({
+      mutationFn: (input: CreateMobileRoleInput) => createMobileRole(client, input),
+      onSuccess: (_response, input) => {
+        void invalidateRoles(input.serverId).catch(() => undefined);
+      },
+    }),
+    updateRole: useMutation({
+      mutationFn: (input: UpdateMobileRoleInput) => updateMobileRole(client, input),
+      onSuccess: (_response, input) => {
+        void invalidateRoles(input.serverId).catch(() => undefined);
+      },
+    }),
+    deleteRole: useMutation({
+      mutationFn: (input: { roleId: string; serverId: string }) => deleteMobileRole(client, input),
+      onSuccess: (_response, input) => {
+        void invalidateRoles(input.serverId).catch(() => undefined);
       },
     }),
     kickMember: useMutation({

@@ -47,6 +47,7 @@ const BODYLESS_MUTATING_METHOD_PATHS = new Set([
   "DELETE mobile/servers/[serverId]/categories/[categoryId]",
   "DELETE mobile/servers/[serverId]/channels/[channelId]",
   "DELETE mobile/servers/[serverId]/members/[memberId]",
+  "DELETE mobile/servers/[serverId]/roles/[roleId]",
   "POST mobile/account/two-factor/setup",
   "POST mobile/friends/requests/[id]/accept",
   "POST mobile/friends/requests/[id]/reject",
@@ -169,9 +170,24 @@ const EXPECTED_RATE_LIMIT_ACTIONS = [
     routePath: "mobile/servers/[serverId]/roles",
   },
   {
+    action: "mobile:server:roles:create",
+    method: "POST",
+    routePath: "mobile/servers/[serverId]/roles",
+  },
+  {
     action: "mobile:server:roles:overview:list",
     method: "GET",
     routePath: "mobile/servers/[serverId]/roles/overview",
+  },
+  {
+    action: "mobile:server:roles:update",
+    method: "PATCH",
+    routePath: "mobile/servers/[serverId]/roles/[roleId]",
+  },
+  {
+    action: "mobile:server:roles:delete",
+    method: "DELETE",
+    routePath: "mobile/servers/[serverId]/roles/[roleId]",
   },
   {
     action: "mobile:server:member-roles:update",
@@ -1329,7 +1345,7 @@ describe("API v1 route contract", () => {
       )
       .sort();
 
-    assert.equal(expectedM1Mappings.length, 20);
+    assert.equal(expectedM1Mappings.length, 23);
     assert.deepEqual(actualM1Mappings, expectedM1Mappings);
   });
 
