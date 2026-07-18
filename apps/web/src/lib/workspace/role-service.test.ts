@@ -4,7 +4,7 @@ import { prisma } from "@wizards/db";
 
 import { ApiError } from "@/lib/api";
 import { PermissionBits } from "./permissions";
-import { listAssignableWorkspaceRoles } from "./role-service";
+import { listAssignableWorkspaceRoles, listMobileWorkspaceRoleOverview } from "./role-service";
 
 type Restore = () => void;
 type UnknownRecord = Record<string, unknown>;
@@ -174,6 +174,63 @@ describe("assignable workspace roles", { concurrency: false }, () => {
       const query = capturedQuery as { orderBy?: unknown; take?: unknown };
       assert.deepEqual(query.take, 101);
       assert.deepEqual(query.orderBy, [{ position: "desc" }, { createdAt: "asc" }, { id: "asc" }]);
+    });
+  });
+
+  it("returns every visible role with its real member count for the mobile read-only overview", async () => {
+    await withRoleEnvironment({ owner: false }, async (restores) => {
+      patchMethod(
+        prisma.role,
+        "findMany",
+        async () => [
+          {
+            _count: { memberRoles: 4 },
+            color: 1,
+            id: "role-default",
+            isDefault: true,
+            managed: false,
+            name: "@everyone",
+            permissions: 0n,
+            position: 0,
+          },
+          {
+            _count: { memberRoles: 2 },
+            color: 2,
+            id: "role-moderator",
+            isDefault: false,
+            managed: false,
+            name: "Moderator",
+            permissions: PermissionBits.MANAGE_MESSAGES,
+            position: 2,
+          },
+        ],
+        restores,
+      );
+
+      const result = await listMobileWorkspaceRoleOverview("manager", "server-1");
+
+      assert.deepEqual(result, [
+        {
+          color: 2,
+          id: "role-moderator",
+          isDefault: false,
+          managed: false,
+          memberCount: 2,
+          name: "Moderator",
+          permissionKeys: ["MANAGE_MESSAGES"],
+          position: 2,
+        },
+        {
+          color: 1,
+          id: "role-default",
+          isDefault: true,
+          managed: false,
+          memberCount: 4,
+          name: "@everyone",
+          permissionKeys: [],
+          position: 0,
+        },
+      ]);
     });
   });
 });

@@ -36,6 +36,14 @@ describe("mobile linking configuration", () => {
       params: { section: "voice" },
       type: "route",
     });
+    assert.deepEqual(
+      resolveMobileNavigationIntent("whispr://server/server-1/settings/roles", { webUrl }),
+      {
+        name: "ServerRoles",
+        params: { serverId: "server-1" },
+        type: "route",
+      },
+    );
   });
 
   it("rejects sensitive and unsupported route URLs", () => {

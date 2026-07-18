@@ -49,7 +49,7 @@ const SENSITIVE_QUERY_PARAMS = new Set([
   "session",
   "token",
 ]);
-const SAFE_ROUTE_PREFIXES = ["/channels", "/settings", "/invite"] as const;
+const SAFE_ROUTE_PREFIXES = ["/channels", "/settings", "/server", "/invite"] as const;
 const URL_SCHEME_PATTERN = /^[a-zA-Z][a-zA-Z\d+.-]*:/;
 
 export function buildMobileWebSignInUrl(webUrl: string, callbackPath = "/channels/@me"): string {
@@ -177,7 +177,7 @@ function parseAuthHandoffIntent(
     segments[0] === "oauth" || segments[0] === "auth"
       ? segments[1]
       : segments[0] === "mobile" && segments[1] === "oauth"
-        ? segments[3] ?? segments[2]
+        ? (segments[3] ?? segments[2])
         : null;
   const queryToken = searchParams.get("handoff");
   const token = [pathToken, queryToken].find(

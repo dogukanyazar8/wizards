@@ -287,6 +287,47 @@ export const MobileAssignableRoleSchema = z
 export const MobileAssignableRolesResponseSchema = z
   .object({ roles: z.array(MobileAssignableRoleSchema).max(100) })
   .strict();
+const MobilePermissionKeySchema = z.enum([
+  "ADMINISTRATOR",
+  "MANAGE_SERVER",
+  "MANAGE_CHANNELS",
+  "MANAGE_ROLES",
+  "MANAGE_MESSAGES",
+  "CLEAR_CHANNEL_HISTORY",
+  "ATTACH_FILES",
+  "USE_GIFS",
+  "ADD_REACTIONS",
+  "VIEW_CHANNEL",
+  "SEND_MESSAGES",
+  "CONNECT_VOICE",
+  "SPEAK",
+  "STREAM",
+  "USE_VIDEO",
+  "MUTE_MEMBERS",
+  "DEAFEN_MEMBERS",
+  "MOVE_MEMBERS",
+  "MANAGE_INVITES",
+  "KICK_MEMBERS",
+  "BAN_MEMBERS",
+  "TIMEOUT_MEMBERS",
+  "VIEW_AUDIT_LOG",
+  "MENTION_EVERYONE",
+]);
+export const MobileServerRoleOverviewSchema = z
+  .object({
+    color: z.number().int().min(0).max(0xffffff),
+    id: MobileResourceIdSchema,
+    isDefault: z.boolean(),
+    managed: z.boolean(),
+    memberCount: z.number().int().nonnegative(),
+    name: z.string().trim().min(1).max(48),
+    permissionKeys: z.array(MobilePermissionKeySchema).max(24),
+    position: z.number().int(),
+  })
+  .strict();
+export const MobileServerRoleOverviewResponseSchema = z
+  .object({ roles: z.array(MobileServerRoleOverviewSchema).max(100) })
+  .strict();
 export const MobileMemberRolesUpdateRequestSchema = z
   .object({
     roleIds: z
@@ -357,6 +398,10 @@ export type MobileServerMember = z.infer<typeof MobileServerMemberSchema>;
 export type MobileServerMembersResponse = z.infer<typeof MobileServerMembersResponseSchema>;
 export type MobileAssignableRole = z.infer<typeof MobileAssignableRoleSchema>;
 export type MobileAssignableRolesResponse = z.infer<typeof MobileAssignableRolesResponseSchema>;
+export type MobileServerRoleOverview = z.infer<typeof MobileServerRoleOverviewSchema>;
+export type MobileServerRoleOverviewResponse = z.infer<
+  typeof MobileServerRoleOverviewResponseSchema
+>;
 export type MobileMemberRolesUpdateRequest = z.infer<typeof MobileMemberRolesUpdateRequestSchema>;
 export type MobileMutationSuccessResponse = z.infer<typeof MobileMutationSuccessResponseSchema>;
 export type MobileChannelHistoryClearResponse = z.infer<

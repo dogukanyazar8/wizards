@@ -1,0 +1,118 @@
+import type { TextStyle, ViewStyle } from "react-native";
+
+import type { MobileTheme } from "../design/themes";
+
+// Measurements mirror handoff anchor #5b (390×844 logical); all colors remain theme or API derived.
+export const createMobileServerRolesStyles = (theme: MobileTheme) =>
+  ({
+    root: { backgroundColor: theme.surface.base, flex: 1 },
+    content: { paddingBottom: 32 },
+    header: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: 10,
+      paddingBottom: 2,
+      paddingHorizontal: 20,
+      paddingTop: 10,
+    },
+    backButton: {
+      alignItems: "center",
+      backgroundColor: theme.surface.card,
+      borderColor: theme.border.subtle,
+      borderRadius: 14,
+      borderWidth: 1,
+      height: 40,
+      justifyContent: "center",
+      width: 40,
+    },
+    headerBody: { flex: 1, gap: 1, minWidth: 0 },
+    title: {
+      color: theme.text.primary,
+      fontFamily: theme.typography.fontFamilyExtraBold,
+      fontSize: 22,
+      letterSpacing: -0.44,
+      lineHeight: 27,
+    },
+    subtitle: {
+      color: theme.text.visualSecondary,
+      fontFamily: theme.typography.fontFamilyMedium,
+      fontSize: 12.5,
+      lineHeight: 16,
+    },
+    createButton: {
+      alignItems: "center",
+      backgroundColor: theme.accent.default,
+      borderRadius: 15,
+      height: 44,
+      justifyContent: "center",
+      opacity: 0.56,
+      width: 44,
+    },
+    card: {
+      backgroundColor: theme.surface.card,
+      borderColor: theme.border.subtle,
+      borderRadius: theme.radii.cardLarge,
+      borderWidth: 1,
+      marginHorizontal: 20,
+      marginTop: 14,
+      overflow: "hidden",
+    },
+    roleRow: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: 12,
+      padding: 10,
+      paddingHorizontal: 16,
+    },
+    rowDivider: { borderBottomColor: theme.border.default, borderBottomWidth: 1 },
+    grip: { color: theme.text.visualFaint, fontSize: 16, letterSpacing: -1, width: 14 },
+    gripPlaceholder: { width: 14 },
+    roleDot: { borderRadius: 7, height: 14, width: 14 },
+    roleBody: { flex: 1, gap: 1, minWidth: 0 },
+    roleName: { fontFamily: theme.typography.fontFamilyBold, fontSize: 14.5, lineHeight: 18 },
+    roleSummary: {
+      color: theme.text.visualFaint,
+      fontFamily: theme.typography.fontFamily,
+      fontSize: 11.5,
+      lineHeight: 15,
+    },
+    count: {
+      color: theme.text.visualFaint,
+      fontFamily: theme.typography.fontFamily,
+      fontSize: 13,
+      marginRight: 4,
+    },
+    sectionLabel: { paddingBottom: 6, paddingHorizontal: 24, paddingTop: 12 },
+    sectionLabelText: {
+      color: theme.text.visualFaint,
+      fontFamily: theme.typography.fontFamilyBold,
+      fontSize: 11.5,
+      letterSpacing: 1.38,
+    },
+    permissionRow: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: 14,
+      paddingHorizontal: 18,
+      paddingVertical: 9,
+    },
+    permissionBody: { flex: 1, gap: 1, minWidth: 0 },
+    permissionName: {
+      color: theme.text.primary,
+      fontFamily: theme.typography.fontFamilySemiBold,
+      fontSize: 14.5,
+    },
+    permissionHint: {
+      color: theme.text.visualFaint,
+      fontFamily: theme.typography.fontFamily,
+      fontSize: 12,
+    },
+    state: { marginHorizontal: 20, marginTop: 14 },
+    skeletonRow: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: 12,
+      padding: 12,
+      paddingHorizontal: 16,
+    },
+  }) satisfies Record<string, TextStyle | ViewStyle>;

@@ -114,6 +114,7 @@ export const API_RATE_LIMITS = {
   "mobile:server:member-roles:update": { limit: 40, windowSeconds: 10 * 60 },
   "mobile:server:members:list": { limit: 60, windowSeconds: 60 },
   "mobile:server:roles:list": { limit: 60, windowSeconds: 60 },
+  "mobile:server:roles:overview:list": { limit: 60, windowSeconds: 60 },
   "mobile:server:update": { limit: 30, windowSeconds: 60 },
   "notification:clear": { limit: 30, windowSeconds: 60 },
   "notification:mark-read": { limit: 120, windowSeconds: 60 },

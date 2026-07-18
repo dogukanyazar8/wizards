@@ -272,7 +272,8 @@ export function MobileWorkspaceBrowser({
   const canManageInvites = workspacePayload?.detail.capabilities.canManageInvites === true;
   const canManageServer = workspacePayload?.detail.capabilities.canManageServer === true;
   const ownerUserId =
-    workspacePayload?.detail.members.find((member) => member.accessLevel === "OWNER")?.userId ?? null;
+    workspacePayload?.detail.members.find((member) => member.accessLevel === "OWNER")?.userId ??
+    null;
   const handleServerPress = useCallback(
     (serverId: string) => {
       setChannelQuery("");
@@ -389,50 +390,52 @@ export function MobileWorkspaceBrowser({
         isCompactWorkspaceLayout && styles.workspaceBrowserShellCompact,
       ]}
     >
-      {!isCompactWorkspaceLayout ? <View style={styles.mobileServerRail}>
-        <View style={styles.mobileServerRailList}>
-          {servers.map((server) => {
-            const isActive = server.id === activeServerId;
-            const unreadCount = server.unreadCount;
+      {!isCompactWorkspaceLayout ? (
+        <View style={styles.mobileServerRail}>
+          <View style={styles.mobileServerRailList}>
+            {servers.map((server) => {
+              const isActive = server.id === activeServerId;
+              const unreadCount = server.unreadCount;
 
-            return (
-              <Pressable
-                key={server.id}
-                accessibilityRole="button"
-                accessibilityLabel={`${copy.openWorkspaceServerAction}: ${server.name}`}
-                accessibilityState={{ selected: isActive }}
-                onPress={() => handleServerPress(server.id)}
-                style={({ pressed }) => [
-                  styles.mobileServerRailItem,
-                  isActive && styles.mobileServerRailItemActive,
-                  pressed && styles.compactListRowPressed,
-                ]}
-              >
-                {isActive ? <View style={styles.mobileServerRailActiveIndicator} /> : null}
-                <AvatarMark
-                  avatarBorderRadius={16}
-                  imageUrl={server.iconUrl}
-                  label={server.shortName ?? server.name}
-                  size="regular"
-                />
-                {unreadCount > 0 ? (
-                  <Text style={styles.mobileServerRailBadge}>{Math.min(unreadCount, 99)}</Text>
-                ) : null}
-              </Pressable>
-            );
-          })}
+              return (
+                <Pressable
+                  key={server.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${copy.openWorkspaceServerAction}: ${server.name}`}
+                  accessibilityState={{ selected: isActive }}
+                  onPress={() => handleServerPress(server.id)}
+                  style={({ pressed }) => [
+                    styles.mobileServerRailItem,
+                    isActive && styles.mobileServerRailItemActive,
+                    pressed && styles.compactListRowPressed,
+                  ]}
+                >
+                  {isActive ? <View style={styles.mobileServerRailActiveIndicator} /> : null}
+                  <AvatarMark
+                    avatarBorderRadius={16}
+                    imageUrl={server.iconUrl}
+                    label={server.shortName ?? server.name}
+                    size="regular"
+                  />
+                  {unreadCount > 0 ? (
+                    <Text style={styles.mobileServerRailBadge}>{Math.min(unreadCount, 99)}</Text>
+                  ) : null}
+                </Pressable>
+              );
+            })}
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={copy.workspaceAddServerAction}
+            accessibilityState={{ disabled: false }}
+            onPress={serverManagement.openCreateJoinSheet}
+            style={styles.mobileServerRailAddButton}
+            testID="mobile-server-add-open"
+          >
+            <Ionicons name="add" size={22} color={theme.accent.strong} />
+          </Pressable>
         </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={copy.workspaceAddServerAction}
-          accessibilityState={{ disabled: false }}
-          onPress={serverManagement.openCreateJoinSheet}
-          style={styles.mobileServerRailAddButton}
-          testID="mobile-server-add-open"
-        >
-          <Ionicons name="add" size={22} color={theme.accent.strong} />
-        </Pressable>
-      </View> : null}
+      ) : null}
 
       <View
         style={[
@@ -491,7 +494,7 @@ export function MobileWorkspaceBrowser({
                   />
                 )}
               </Pressable>
-              {isCompactWorkspaceLayout && canManageInvites ? (
+              {canManageInvites ? (
                 <Pressable
                   accessibilityLabel={copy.workspaceServerInviteShareAction}
                   accessibilityRole="button"
@@ -503,14 +506,10 @@ export function MobileWorkspaceBrowser({
                   ]}
                   testID={`mobile-server-invite-share-${activeServerId}`}
                 >
-                  <MobileLineIcon
-                    color={theme.accent.default}
-                    name="invite-user"
-                    size={20}
-                  />
+                  <MobileLineIcon color={theme.accent.default} name="invite-user" size={20} />
                 </Pressable>
               ) : null}
-              {isCompactWorkspaceLayout && canManageServer && activeServerId ? (
+              {activeServerId && (canManageServer || canManageInvites) ? (
                 <Pressable
                   accessibilityLabel={copy.workspaceServerSettingsAction}
                   accessibilityRole="button"
@@ -570,7 +569,7 @@ export function MobileWorkspaceBrowser({
                       ? copy.workspaceChannelSearchPlaceholder
                       : copy.workspaceSearchPlaceholder
                   }
-                    placeholderTextColor={theme.text.visualPlaceholder}
+                  placeholderTextColor={theme.text.visualPlaceholder}
                   returnKeyType="search"
                   style={styles.mobileWorkspaceSearchInput}
                   value={channelQuery}

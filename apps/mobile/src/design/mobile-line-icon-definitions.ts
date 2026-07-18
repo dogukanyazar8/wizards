@@ -16,6 +16,7 @@ export const MOBILE_LINE_ICON_NAMES = [
   "invite-user",
   "leave",
   "log-out",
+  "lock",
   "members",
   "mic",
   "mic-off",
@@ -278,6 +279,16 @@ export const MOBILE_LINE_ICON_DEFINITIONS = {
     strokeLinecap: "round",
     strokeLinejoin: "round",
     children: [{ type: "path", d: "M9 4h7v16H9M13 12H4M7 9l-3 3 3 3" }],
+  },
+  lock: {
+    mode: "stroke",
+    defaultStrokeWidth: 1.9,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    children: [
+      { type: "rect", x: 5.5, y: 10, width: 13, height: 10, rx: 2 },
+      { type: "path", d: "M8 10V7.5a4 4 0 0 1 8 0V10" },
+    ],
   },
   members: {
     mode: "stroke",

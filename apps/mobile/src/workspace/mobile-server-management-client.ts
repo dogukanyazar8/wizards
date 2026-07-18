@@ -1,5 +1,6 @@
 import {
   MobileAssignableRolesResponseSchema,
+  MobileServerRoleOverviewResponseSchema,
   MobileCategoryCreateRequestSchema,
   MobileCategoryCreateResponseSchema,
   MobileCategoryUpdateRequestSchema,
@@ -27,6 +28,7 @@ import {
   MobileServerUpdateRequestSchema,
   MobileManagedWorkspaceServerDetailResponseSchema,
   type MobileAssignableRolesResponse,
+  type MobileServerRoleOverviewResponse,
   type MobileCategoryCreateResponse,
   type MobileChannelCreateResponse,
   type MobileChannelHistoryClearResponse,
@@ -94,6 +96,10 @@ export function buildMobileServerMembersPath(input: {
 
 export function buildMobileServerRolesPath(input: { serverId: string }): string {
   return `${buildMobileServerPath(input)}/roles`;
+}
+
+export function buildMobileServerRoleOverviewPath(input: { serverId: string }): string {
+  return `${buildMobileServerRolesPath(input)}/overview`;
 }
 
 export function buildMobileServerMemberPath(input: { memberId: string; serverId: string }): string {
@@ -324,6 +330,15 @@ export async function fetchMobileAssignableRoles(
   const params = MobileServerIdParamsSchema.parse(input);
   const payload = await client.requestJson<unknown>(buildMobileServerRolesPath(params));
   return MobileAssignableRolesResponseSchema.parse(payload);
+}
+
+export async function fetchMobileServerRoleOverview(
+  client: MobileApiClient,
+  input: { serverId: string },
+): Promise<MobileServerRoleOverviewResponse> {
+  const params = MobileServerIdParamsSchema.parse(input);
+  const payload = await client.requestJson<unknown>(buildMobileServerRoleOverviewPath(params));
+  return MobileServerRoleOverviewResponseSchema.parse(payload);
 }
 
 export async function updateMobileMemberRoles(

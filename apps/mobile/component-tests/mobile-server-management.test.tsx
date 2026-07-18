@@ -59,6 +59,7 @@ jest.mock("../src/query/mobile-server-cache", () => ({
 
 jest.mock("../src/workspace/mobile-server-management-query", () => ({
   useMobileAssignableRolesQuery: () => mockRolesQuery,
+  useMobileServerRoleOverviewQuery: () => mockRolesQuery,
   useMobileServerInvitesQuery: () => mockInvitesQuery,
   useMobileServerMembersInfiniteQuery: () => mockMembersQuery,
 }));
@@ -99,6 +100,7 @@ jest.mock("../src/app/components/kit", () => {
 });
 
 import { MobileServerSettingsScreen } from "../src/workspace/mobile-server-settings-screen";
+import { MobileServerRolesScreen } from "../src/workspace/mobile-server-roles-screen";
 import { MobileChannelSettingsScreen } from "../src/workspace/mobile-channel-settings-screen";
 import { MobileServerMembersScreen } from "../src/workspace/mobile-server-members-screen";
 
@@ -217,7 +219,35 @@ function resetMocks() {
     isLoading: false,
     refetch: jest.fn().mockResolvedValue({}),
   };
-  mockRolesQuery = { data: { roles: [] }, isLoading: false };
+  mockRolesQuery = {
+    data: {
+      roles: [
+        {
+          color: 0xe0527e,
+          id: "role-owner",
+          isDefault: false,
+          managed: false,
+          memberCount: 1,
+          name: "Kurucu",
+          permissionKeys: ["ADMINISTRATOR"],
+          position: 2,
+        },
+        {
+          color: 0xb7bcd6,
+          id: "role-everyone",
+          isDefault: true,
+          managed: false,
+          memberCount: 4,
+          name: "@everyone",
+          permissionKeys: ["SEND_MESSAGES", "CONNECT_VOICE"],
+          position: 0,
+        },
+      ],
+    },
+    isError: false,
+    isLoading: false,
+    refetch: jest.fn().mockResolvedValue({}),
+  };
   mockInvitesQuery = { data: { invites: [] }, isLoading: false };
   mockSelectAndUpload.mockReset();
   mockPatchServerIconCaches.mockReset();
@@ -371,5 +401,22 @@ describe("mobile server management", () => {
     expect(view.getByTestId("mobile-server-member-member-1")).toBeTruthy();
     expect(view.getByTestId("mobile-member-member-1-roles")).toBeTruthy();
     expect(view.getByTestId("mobile-member-member-1-kick")).toBeTruthy();
+  });
+
+  it("renders the read-only server role overview from the server response", async () => {
+    resetMocks();
+    const view = await render(<MobileServerRolesScreen serverId="server-1" onBack={jest.fn()} />);
+
+    expect(view.getByTestId("mobile-server-roles-screen")).toBeTruthy();
+    expect(view.getByTestId("mobile-server-role-role-owner")).toBeTruthy();
+    expect(view.getByTestId("mobile-server-role-role-everyone")).toBeTruthy();
+    expect(view.getByText("Kurucu")).toBeTruthy();
+    expect(view.getByText("1")).toBeTruthy();
+    expect(
+      view.getByTestId("mobile-server-roles-create-disabled").props.accessibilityState.disabled,
+    ).toBe(true);
+    expect(
+      view.getByTestId("mobile-server-roles-default-permissions").props.accessibilityState.disabled,
+    ).toBe(true);
   });
 });

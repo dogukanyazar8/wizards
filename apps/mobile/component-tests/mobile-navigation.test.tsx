@@ -121,6 +121,10 @@ jest.mock(
         "mobile-server-settings-stack-screen",
         "mobile-test-server-settings-back",
       ),
+      ServerRolesStackScreenContainer: stackScreen(
+        "mobile-server-roles-stack-screen",
+        "mobile-test-server-roles-back",
+      ),
       ServerMembersStackScreenContainer: stackScreen(
         "mobile-server-members-stack-screen",
         "mobile-test-server-members-back",

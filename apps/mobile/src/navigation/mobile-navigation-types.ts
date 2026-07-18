@@ -31,6 +31,7 @@ export type MobileRootStackParamList = {
   Security: undefined;
   DMDetails: { readonly conversationId: string };
   ServerSettings: { readonly serverId: string };
+  ServerRoles: { readonly serverId: string };
   ServerMembers: { readonly serverId: string };
   ChannelSettings: { readonly channelId: string; readonly serverId: string };
 };
@@ -64,6 +65,11 @@ export type MobileNavigationRouteIntent =
   | {
       readonly name: "SettingsDetail";
       readonly params: MobileRootStackParamList["SettingsDetail"];
+      readonly type: "route";
+    }
+  | {
+      readonly name: "ServerRoles";
+      readonly params: MobileRootStackParamList["ServerRoles"];
       readonly type: "route";
     }
   | { readonly name: "ProfileEdit"; readonly params: undefined; readonly type: "route" }

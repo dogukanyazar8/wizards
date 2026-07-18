@@ -169,6 +169,11 @@ const EXPECTED_RATE_LIMIT_ACTIONS = [
     routePath: "mobile/servers/[serverId]/roles",
   },
   {
+    action: "mobile:server:roles:overview:list",
+    method: "GET",
+    routePath: "mobile/servers/[serverId]/roles/overview",
+  },
+  {
     action: "mobile:server:member-roles:update",
     method: "PATCH",
     routePath: "mobile/servers/[serverId]/members/[memberId]/roles",
@@ -1324,7 +1329,7 @@ describe("API v1 route contract", () => {
       )
       .sort();
 
-    assert.equal(expectedM1Mappings.length, 19);
+    assert.equal(expectedM1Mappings.length, 20);
     assert.deepEqual(actualM1Mappings, expectedM1Mappings);
   });
 

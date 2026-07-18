@@ -47,6 +47,11 @@ export function useMobileServerManagementMutations(client: MobileApiClient) {
       exact: true,
       queryKey: mobileQueryKeys.workspaceMembers(serverId),
     });
+  const invalidateRoleOverview = (serverId: string) =>
+    queryClient.invalidateQueries({
+      exact: true,
+      queryKey: mobileQueryKeys.workspaceRoleOverview(serverId),
+    });
   const removeServerScope = (serverId: string) => {
     queryClient.removeQueries({ exact: true, queryKey: mobileQueryKeys.workspace(serverId) });
     queryClient.removeQueries({
@@ -54,6 +59,10 @@ export function useMobileServerManagementMutations(client: MobileApiClient) {
       queryKey: mobileQueryKeys.workspaceMembers(serverId),
     });
     queryClient.removeQueries({ exact: true, queryKey: mobileQueryKeys.workspaceRoles(serverId) });
+    queryClient.removeQueries({
+      exact: true,
+      queryKey: mobileQueryKeys.workspaceRoleOverview(serverId),
+    });
   };
 
   return {
@@ -178,6 +187,7 @@ export function useMobileServerManagementMutations(client: MobileApiClient) {
         updateMobileMemberRoles(client, input),
       onSuccess: (_response, input) => {
         void invalidateMembers(input.serverId).catch(() => undefined);
+        void invalidateRoleOverview(input.serverId).catch(() => undefined);
       },
     }),
     kickMember: useMutation({
@@ -185,6 +195,7 @@ export function useMobileServerManagementMutations(client: MobileApiClient) {
         kickMobileMember(client, input),
       onSuccess: (_response, input) => {
         void invalidateMembers(input.serverId).catch(() => undefined);
+        void invalidateRoleOverview(input.serverId).catch(() => undefined);
       },
     }),
     clearChannelHistory: useMutation({

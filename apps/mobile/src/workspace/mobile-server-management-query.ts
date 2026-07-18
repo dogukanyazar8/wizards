@@ -11,6 +11,7 @@ import type { MobileApiClient } from "../api/mobile-api-client";
 import { mobileQueryKeys } from "../query/mobile-query-keys";
 import {
   fetchMobileAssignableRoles,
+  fetchMobileServerRoleOverview,
   fetchMobileServerInvites,
   fetchMobileServerMembers,
 } from "./mobile-server-management-client";
@@ -56,6 +57,26 @@ export function useMobileAssignableRolesQuery(
   enabled: boolean,
 ) {
   return useQuery(getMobileAssignableRolesQueryOptions(client, serverId, enabled));
+}
+
+export function getMobileServerRoleOverviewQueryOptions(
+  client: MobileApiClient,
+  serverId: string,
+  enabled: boolean,
+) {
+  return queryOptions({
+    enabled: enabled && serverId.length > 0,
+    queryFn: () => fetchMobileServerRoleOverview(client, { serverId }),
+    queryKey: mobileQueryKeys.workspaceRoleOverview(serverId),
+  });
+}
+
+export function useMobileServerRoleOverviewQuery(
+  client: MobileApiClient,
+  serverId: string,
+  enabled: boolean,
+) {
+  return useQuery(getMobileServerRoleOverviewQueryOptions(client, serverId, enabled));
 }
 
 export function getMobileServerInvitesQueryOptions(

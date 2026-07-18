@@ -6,6 +6,8 @@ import * as mobileWorkspaceSchemas from "./mobile-workspace-management";
 import {
   MobileAssignableRoleSchema,
   MobileAssignableRolesResponseSchema,
+  MobileServerRoleOverviewResponseSchema,
+  MobileServerRoleOverviewSchema,
   MobileCategoryCreateRequestSchema,
   MobileCategoryCreateResponseSchema,
   MobileCategoryUpdateRequestSchema,
@@ -135,6 +137,16 @@ const assignableRole = {
   name: "Moderator",
   position: 1,
 };
+const roleOverview = {
+  color: 0x336699,
+  id: "role-1",
+  isDefault: false,
+  managed: false,
+  memberCount: 3,
+  name: "Moderator",
+  permissionKeys: ["MANAGE_MESSAGES"],
+  position: 1,
+};
 
 describe("mobile workspace management schemas", () => {
   it("keeps every exported schema covered by an acceptance and rejection fixture", () => {
@@ -148,6 +160,16 @@ describe("mobile workspace management schemas", () => {
         schema: MobileAssignableRolesResponseSchema,
         valid: { roles: [assignableRole] },
         invalid: { roles: "role-1" },
+      },
+      MobileServerRoleOverviewSchema: {
+        schema: MobileServerRoleOverviewSchema,
+        valid: roleOverview,
+        invalid: { ...roleOverview, memberCount: -1 },
+      },
+      MobileServerRoleOverviewResponseSchema: {
+        schema: MobileServerRoleOverviewResponseSchema,
+        valid: { roles: [roleOverview] },
+        invalid: { roles: [{ ...roleOverview, permissionKeys: ["UNSUPPORTED_PERMISSION"] }] },
       },
       MobileCategoryCreateRequestSchema: {
         schema: MobileCategoryCreateRequestSchema,

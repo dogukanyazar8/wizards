@@ -29,6 +29,7 @@ import { VoiceScreen } from "./voice-screen";
 import { MobileTwoFactorScreen } from "../../account/mobile-two-factor-screen";
 import { MobileDMDetailsScreen } from "../../dm/mobile-dm-details-screen";
 import { MobileServerSettingsScreen } from "../../workspace/mobile-server-settings-screen";
+import { MobileServerRolesScreen } from "../../workspace/mobile-server-roles-screen";
 import { MobileServerMembersScreen } from "../../workspace/mobile-server-members-screen";
 import { MobileChannelSettingsScreen } from "../../workspace/mobile-channel-settings-screen";
 import {
@@ -356,10 +357,20 @@ export function ServerSettingsStackScreenContainer({
       serverId={serverId}
       onBack={() => navigation.goBack()}
       onOpenMembers={() => navigation.navigate("ServerMembers", { serverId })}
+      onOpenRoles={() => navigation.navigate("ServerRoles", { serverId })}
       onOpenChannelSettings={(channelId) =>
         navigation.navigate("ChannelSettings", { channelId, serverId })
       }
     />
+  );
+}
+
+export function ServerRolesStackScreenContainer({
+  navigation,
+  route,
+}: NativeStackScreenProps<MobileRootStackParamList, "ServerRoles">) {
+  return (
+    <MobileServerRolesScreen serverId={route.params.serverId} onBack={() => navigation.goBack()} />
   );
 }
 

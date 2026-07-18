@@ -79,6 +79,7 @@ export function createMobileLinkingOptions({
         },
         ChannelChat: "channels/:serverId/:channelId",
         DirectMessage: "channels/@me/:conversationId",
+        ServerRoles: "server/:serverId/settings/roles",
         SettingsDetail: "settings/:section",
       },
     },
@@ -126,6 +127,15 @@ export function resolveMobileRoutePathIntent(path: string): MobileNavigationRout
   }
 
   const pathname = getPathname(path);
+  const serverRolesMatch = /^\/server\/([^/]+)\/settings\/roles$/.exec(pathname);
+  if (serverRolesMatch?.[1]) {
+    return {
+      name: "ServerRoles",
+      params: { serverId: decodePathSegment(serverRolesMatch[1]) },
+      type: "route",
+    };
+  }
+
   if (pathname === "/channels" || channelRoute) {
     return createMainTabsIntent("overview");
   }

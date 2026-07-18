@@ -452,6 +452,7 @@ export const createHomeScreenStyles = (theme: MobileTheme) => {
     },
     mobileWorkspaceHeader: {
       ...theme.elevation.headerCard,
+      flex: 1,
       minHeight: 64,
       minWidth: 0,
       flexDirection: "row",

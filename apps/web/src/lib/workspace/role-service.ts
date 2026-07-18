@@ -6,7 +6,7 @@ import { ApiError } from "@/lib/api";
 import { getSocketServer } from "@/lib/socket/runtime";
 import { ensureServerPermission, getAccessContext } from "@/lib/workspace/access-context";
 import { invalidateServerPermissionCache } from "@/lib/workspace/permission-cache";
-import { PermissionBits } from "@/lib/workspace/permissions";
+import { PermissionBits, permissionMaskToKeys } from "@/lib/workspace/permissions";
 import {
   ensureCanWriteRolePermissions,
   getRolePresetPermissions,
@@ -99,6 +99,48 @@ export async function listAssignableWorkspaceRoles(userId: string, serverId: str
         (isOwnerAccess(access) || !isElevatedPermissions(role.permissions)),
     )
     .map(({ color, id, name, position }) => ({ color, id, name, position }));
+}
+
+export async function listMobileWorkspaceRoleOverview(userId: string, serverId: string) {
+  const access = await getAccessContext(userId, serverId);
+  ensureServerPermission(access, PermissionBits.MANAGE_ROLES);
+
+  const roles = await prisma.role.findMany({
+    orderBy: [{ position: "desc" }, { createdAt: "asc" }, { id: "asc" }],
+    select: {
+      _count: { select: { memberRoles: true } },
+      color: true,
+      id: true,
+      isDefault: true,
+      managed: true,
+      name: true,
+      permissions: true,
+      position: true,
+    },
+    where: { serverId },
+    take: MOBILE_ASSIGNABLE_ROLE_LIMIT + 1,
+  });
+
+  if (roles.length > MOBILE_ASSIGNABLE_ROLE_LIMIT) {
+    throw new ApiError(
+      "Mobile role list exceeds the supported limit",
+      409,
+      "MOBILE_RESPONSE_LIMIT_EXCEEDED",
+    );
+  }
+
+  return roles
+    .sort((left, right) => right.position - left.position || left.id.localeCompare(right.id))
+    .map((role) => ({
+      color: role.color,
+      id: role.id,
+      isDefault: role.isDefault,
+      managed: role.managed,
+      memberCount: role._count.memberRoles,
+      name: role.name,
+      permissionKeys: permissionMaskToKeys(role.permissions),
+      position: role.position,
+    }));
 }
 
 export async function createWorkspaceRole(

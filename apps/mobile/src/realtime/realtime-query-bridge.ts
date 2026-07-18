@@ -347,6 +347,10 @@ export function createMobileRealtimeQueryBridge({
         exact: true,
         queryKey: mobileQueryKeys.workspaceRoles(parsed.data.serverId),
       });
+      queryClient.removeQueries({
+        exact: true,
+        queryKey: mobileQueryKeys.workspaceRoleOverview(parsed.data.serverId),
+      });
       return true;
     }
 
@@ -356,6 +360,10 @@ export function createMobileRealtimeQueryBridge({
         return true;
       }
       void queryClient.invalidateQueries({ exact: true, queryKey: mobileQueryKeys.bootstrap() });
+      void queryClient.invalidateQueries({
+        exact: true,
+        queryKey: mobileQueryKeys.workspaceRoleOverview(parsed.data.serverId),
+      });
       scheduleSource("workspace", {
         ...event,
         serverId: parsed.data.serverId,
@@ -369,6 +377,10 @@ export function createMobileRealtimeQueryBridge({
         return true;
       }
       void queryClient.invalidateQueries({ exact: true, queryKey: mobileQueryKeys.bootstrap() });
+      void queryClient.invalidateQueries({
+        exact: true,
+        queryKey: mobileQueryKeys.workspaceRoleOverview(parsed.data.serverId),
+      });
       scheduleSource("workspace", {
         ...event,
         serverId: parsed.data.serverId,
