@@ -426,7 +426,7 @@ describe("mobile design contract", () => {
       "utf8",
     );
 
-    assert.match(voiceSource, /useThemedStyles\(createMobileVoiceRoomPanelStyles\)/);
+    assert.match(voiceSource, /useVoiceRoomThemedStyles\(createMobileVoiceRoomPanelStyles\)/);
     assert.match(voiceSource, /theme\.typography\.headline/);
     assert.match(voiceSource, /theme\.typography\.bodyStrong/);
     assert.match(voiceSource, /theme\.elevation\.headerCard/);
@@ -462,8 +462,8 @@ describe("mobile design contract", () => {
     assert.doesNotMatch(modelSource, /\b(dummy|fake|mock)\b/i);
     assert.match(modelSource, /participants: room\.participants/);
     assert.match(voiceStylesSource, /activeVoiceRoomParticipantCard:[\s\S]*borderRadius: 28/);
-    assert.match(voiceStylesSource, /activeVoiceRoomControl:[\s\S]*width: 60/);
-    assert.match(voiceStylesSource, /activeVoiceRoomControl:[\s\S]*height: 60/);
+    assert.match(voiceStylesSource, /activeVoiceRoomControl:[\s\S]*width: 54/);
+    assert.match(voiceStylesSource, /activeVoiceRoomControl:[\s\S]*height: 54/);
     assert.match(voiceStylesSource, /activeVoiceRoomMutedBadge:[\s\S]*width: 26/);
   });
 });

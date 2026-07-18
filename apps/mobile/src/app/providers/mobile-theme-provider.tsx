@@ -23,11 +23,16 @@ import {
   MOBILE_ACCENT_PREFERENCE_KEY,
   MOBILE_DEFAULT_ACCENT_ID,
   MOBILE_DEFAULT_FONT_SCALE_STEP,
+  MOBILE_DEFAULT_VOICE_APPEARANCE,
   MOBILE_FONT_SCALE_PREFERENCE_KEY,
+  MOBILE_VOICE_APPEARANCE_PREFERENCE_KEY,
   normalizeMobileAccentId,
   normalizeMobileFontScaleStep,
+  normalizeMobileVoiceRoomAppearance,
+  resolveMobileVoiceRoomBaseTheme,
   type MobileAccentId,
   type MobileFontScaleStep,
+  type MobileVoiceRoomAppearance,
 } from "../../design/mobile-appearance-preferences";
 import type { MobileTheme } from "../../design/themes";
 
@@ -40,8 +45,10 @@ interface MobileThemePreferenceRuntime {
 interface MobileAppearancePreferenceRuntime extends MobileThemePreferenceRuntime {
   readonly accent: MobileAccentId;
   readonly fontScaleStep: MobileFontScaleStep;
+  readonly voiceRoomAppearance: MobileVoiceRoomAppearance;
   setAccent(accent: MobileAccentId): void;
   setFontScaleStep(step: MobileFontScaleStep): void;
+  setVoiceRoomAppearance(appearance: MobileVoiceRoomAppearance): void;
 }
 
 const ThemeContext = createContext<MobileTheme | null>(null);
@@ -55,9 +62,13 @@ export function MobileThemeProvider({ children }: PropsWithChildren) {
   const [fontScaleStep, setFontScaleStepState] = useState<MobileFontScaleStep>(
     MOBILE_DEFAULT_FONT_SCALE_STEP,
   );
+  const [voiceRoomAppearance, setVoiceRoomAppearanceState] = useState<MobileVoiceRoomAppearance>(
+    MOBILE_DEFAULT_VOICE_APPEARANCE,
+  );
   const userSelectionVersion = useRef(0);
   const accentSelectionVersion = useRef(0);
   const fontScaleSelectionVersion = useRef(0);
+  const voiceAppearanceSelectionVersion = useRef(0);
 
   useEffect(() => {
     let active = true;
@@ -84,6 +95,7 @@ export function MobileThemeProvider({ children }: PropsWithChildren) {
     let active = true;
     const accentVersionAtStart = accentSelectionVersion.current;
     const fontScaleVersionAtStart = fontScaleSelectionVersion.current;
+    const voiceAppearanceVersionAtStart = voiceAppearanceSelectionVersion.current;
 
     void AsyncStorage.getItem(MOBILE_ACCENT_PREFERENCE_KEY)
       .then((storedAccent) => {
@@ -96,6 +108,13 @@ export function MobileThemeProvider({ children }: PropsWithChildren) {
       .then((storedStep) => {
         if (active && fontScaleSelectionVersion.current === fontScaleVersionAtStart) {
           setFontScaleStepState(normalizeMobileFontScaleStep(storedStep));
+        }
+      })
+      .catch(() => undefined);
+    void AsyncStorage.getItem(MOBILE_VOICE_APPEARANCE_PREFERENCE_KEY)
+      .then((storedAppearance) => {
+        if (active && voiceAppearanceSelectionVersion.current === voiceAppearanceVersionAtStart) {
+          setVoiceRoomAppearanceState(normalizeMobileVoiceRoomAppearance(storedAppearance));
         }
       })
       .catch(() => undefined);
@@ -130,11 +149,41 @@ export function MobileThemeProvider({ children }: PropsWithChildren) {
     );
   }, []);
 
+  const setVoiceRoomAppearance = useCallback((nextAppearance: MobileVoiceRoomAppearance) => {
+    const normalizedAppearance = normalizeMobileVoiceRoomAppearance(nextAppearance);
+    voiceAppearanceSelectionVersion.current += 1;
+    setVoiceRoomAppearanceState(normalizedAppearance);
+    void AsyncStorage.setItem(
+      MOBILE_VOICE_APPEARANCE_PREFERENCE_KEY,
+      normalizedAppearance,
+    ).catch(() => undefined);
+  }, []);
+
   const resolvedTheme = resolveMobileTheme(mode, systemScheme);
   const theme = composeMobileTheme(getMobileTheme(mode, systemScheme), accent, fontScaleStep);
   const preferenceRuntime = useMemo<MobileAppearancePreferenceRuntime>(
-    () => ({ accent, fontScaleStep, mode, resolvedTheme, setAccent, setFontScaleStep, setMode }),
-    [accent, fontScaleStep, mode, resolvedTheme, setAccent, setFontScaleStep, setMode],
+    () => ({
+      accent,
+      fontScaleStep,
+      mode,
+      resolvedTheme,
+      setAccent,
+      setFontScaleStep,
+      setMode,
+      setVoiceRoomAppearance,
+      voiceRoomAppearance,
+    }),
+    [
+      accent,
+      fontScaleStep,
+      mode,
+      resolvedTheme,
+      setAccent,
+      setFontScaleStep,
+      setMode,
+      setVoiceRoomAppearance,
+      voiceRoomAppearance,
+    ],
   );
 
   return (
@@ -178,6 +227,44 @@ export function useThemedStyles<T extends StyleSheet.NamedStyles<T>>(
   factory: (theme: MobileTheme) => T,
 ): T {
   const theme = useTheme();
+  let factoryCache = styleCache.get(factory) as WeakMap<MobileTheme, T> | undefined;
+
+  if (!factoryCache) {
+    factoryCache = new WeakMap<MobileTheme, T>();
+    styleCache.set(factory, factoryCache);
+  }
+
+  let styles = factoryCache.get(theme);
+  if (!styles) {
+    styles = StyleSheet.create(factory(theme));
+    factoryCache.set(theme, styles);
+  }
+
+  return styles;
+}
+
+/**
+ * The theme the voice room should render with: honours the dedicated voice
+ * appearance preference (system/dark/light) over the active app theme, while
+ * still applying the user's accent and text-size choices.
+ */
+export function useVoiceRoomTheme(): MobileTheme {
+  const appTheme = useTheme();
+  const runtime = useContext(ThemePreferenceContext);
+  const appearance = runtime?.voiceRoomAppearance ?? MOBILE_DEFAULT_VOICE_APPEARANCE;
+  const base = resolveMobileVoiceRoomBaseTheme(appearance, appTheme);
+  return composeMobileTheme(
+    base,
+    runtime?.accent ?? MOBILE_DEFAULT_ACCENT_ID,
+    runtime?.fontScaleStep ?? MOBILE_DEFAULT_FONT_SCALE_STEP,
+  );
+}
+
+/** `useThemedStyles`, but resolved against the voice-room theme. */
+export function useVoiceRoomThemedStyles<T extends StyleSheet.NamedStyles<T>>(
+  factory: (theme: MobileTheme) => T,
+): T {
+  const theme = useVoiceRoomTheme();
   let factoryCache = styleCache.get(factory) as WeakMap<MobileTheme, T> | undefined;
 
   if (!factoryCache) {

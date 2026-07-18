@@ -2120,8 +2120,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/query/use-mobile-server-management-mutations.ts": {
-    "mtime": 1784388522.7483456,
-    "ast_hash": "e4c0ee9aa8645387698765065d7a8c28",
+    "mtime": 1784399808.6234634,
+    "ast_hash": "b966bfd6f013464329c25b99e0a5445f",
     "semantic_hash": ""
   },
   "apps/mobile/src/realtime/mobile-realtime-client.ts": {
@@ -2365,8 +2365,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/workspace/mobile-server-management-client.ts": {
-    "mtime": 1784388356.1526697,
-    "ast_hash": "d6067e93c583a604e9d061a2012ff8c6",
+    "mtime": 1784399725.5239878,
+    "ast_hash": "4b7a6d643b1a2cb98ab84f1ed3f5268e",
     "semantic_hash": ""
   },
   "apps/mobile/src/workspace/mobile-server-management-query.ts": {
@@ -2805,8 +2805,8 @@
     "semantic_hash": ""
   },
   "apps/web/src/app/api/v1/route-contract.test.ts": {
-    "mtime": 1784388675.5201032,
-    "ast_hash": "5ee89f4d4052a1598348e0518998d641",
+    "mtime": 1784400852.070894,
+    "ast_hash": "bb4156afb6a2e3953a5c0b207e5f88ec",
     "semantic_hash": ""
   },
   "apps/web/src/app/api/v1/admin/dashboard/route-logic.ts": {
@@ -3625,13 +3625,13 @@
     "semantic_hash": ""
   },
   "apps/web/src/app/api/v1/mobile/servers/[serverId]/roles/route-logic.ts": {
-    "mtime": 1783939623.6463096,
-    "ast_hash": "525023100a0baa12376d51701695f2ed",
+    "mtime": 1784399965.846631,
+    "ast_hash": "3fd8ad9ba54c6e59e9a7d7b15c8ca11d",
     "semantic_hash": ""
   },
   "apps/web/src/app/api/v1/mobile/servers/[serverId]/roles/route.ts": {
-    "mtime": 1783938861.735298,
-    "ast_hash": "c571063ab2172a30c2f72d8ec7644f1e",
+    "mtime": 1784399634.3721251,
+    "ast_hash": "8288f3cc449db1e37fcd031a24f7dbcc",
     "semantic_hash": ""
   },
   "apps/web/src/app/api/v1/mobile/uploads/route-logic.test.ts": {
@@ -4565,13 +4565,13 @@
     "semantic_hash": ""
   },
   "apps/web/src/lib/api-rate-limit.test.ts": {
-    "mtime": 1784388675.5211034,
-    "ast_hash": "e91fedf79e449118e22ce7219eb684a8",
+    "mtime": 1784400133.527302,
+    "ast_hash": "703fbebf6e80297108262ff0f4bfbd66",
     "semantic_hash": ""
   },
   "apps/web/src/lib/api-rate-limit.ts": {
-    "mtime": 1784388601.8346756,
-    "ast_hash": "813c171bbc1f2c932c880286340b1118",
+    "mtime": 1784399886.6725597,
+    "ast_hash": "ca6ba11b62e915ec514d810212e85c9b",
     "semantic_hash": ""
   },
   "apps/web/src/lib/api.test.ts": {
@@ -6475,13 +6475,13 @@
     "semantic_hash": ""
   },
   "packages/types/src/mobile-workspace-management.test.ts": {
-    "mtime": 1784388271.2180998,
-    "ast_hash": "ead6f16229d7c44d318519c498feb9f2",
+    "mtime": 1784400066.492446,
+    "ast_hash": "455ca85cb8f6ea162e7541b159940262",
     "semantic_hash": ""
   },
   "packages/types/src/mobile-workspace-management.ts": {
-    "mtime": 1784388356.1516721,
-    "ast_hash": "c3737097c5d24636dbb6c818d14b9b82",
+    "mtime": 1784399652.474854,
+    "ast_hash": "f48615f5c8b94932ff19ee7e151c8af9",
     "semantic_hash": ""
   },
   "packages/types/src/mobile.test.ts": {
@@ -7462,6 +7462,21 @@
   "apps/mobile/component-tests/mobile-friends-screen.test.tsx": {
     "mtime": 1784391895.181224,
     "ast_hash": "0516c6cf343a9f35e3a3a9d106792707",
+    "semantic_hash": ""
+  },
+  "apps/web/src/app/api/v1/mobile/servers/[serverId]/roles/[roleId]/route-logic.ts": {
+    "mtime": 1784399676.93836,
+    "ast_hash": "9f1823025ff5c0cb53e62e3e108b386a",
+    "semantic_hash": ""
+  },
+  "apps/web/src/app/api/v1/mobile/servers/[serverId]/roles/[roleId]/route.ts": {
+    "mtime": 1784399682.3426907,
+    "ast_hash": "cfe28824fea0f575535697a6505049b1",
+    "semantic_hash": ""
+  },
+  "apps/web/src/lib/workspace/mobile-role-mapper.ts": {
+    "mtime": 1784399612.690377,
+    "ast_hash": "c5eccbfee74facd12680e0fe3835bffd",
     "semantic_hash": ""
   }
 }

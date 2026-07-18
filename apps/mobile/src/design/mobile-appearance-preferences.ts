@@ -1,7 +1,40 @@
-import type { MobileTheme } from "./themes";
+import { darkTheme, lightTheme, type MobileTheme } from "./themes";
 
 export const MOBILE_ACCENT_PREFERENCE_KEY = "whispr.mobile.accent-preference";
 export const MOBILE_FONT_SCALE_PREFERENCE_KEY = "whispr.mobile.font-scale-preference";
+export const MOBILE_VOICE_APPEARANCE_PREFERENCE_KEY = "whispr.mobile.voice-appearance-preference";
+
+/**
+ * Voice-room canvas appearance, independent of the app theme. "system" follows
+ * the resolved app theme; "dark" is the canonical #5g design; "light" is the
+ * light-surface variant. Default follows the app theme.
+ */
+export const MOBILE_VOICE_APPEARANCE_OPTIONS = ["system", "dark", "light"] as const;
+export type MobileVoiceRoomAppearance = (typeof MOBILE_VOICE_APPEARANCE_OPTIONS)[number];
+export const MOBILE_DEFAULT_VOICE_APPEARANCE: MobileVoiceRoomAppearance = "system";
+
+export function normalizeMobileVoiceRoomAppearance(value: unknown): MobileVoiceRoomAppearance {
+  return MOBILE_VOICE_APPEARANCE_OPTIONS.includes(value as MobileVoiceRoomAppearance)
+    ? (value as MobileVoiceRoomAppearance)
+    : MOBILE_DEFAULT_VOICE_APPEARANCE;
+}
+
+/**
+ * Resolves the base theme the voice room should render with, honouring the
+ * dedicated voice appearance preference over the active app theme.
+ */
+export function resolveMobileVoiceRoomBaseTheme(
+  appearance: MobileVoiceRoomAppearance,
+  appTheme: MobileTheme,
+): MobileTheme {
+  if (appearance === "dark") {
+    return darkTheme;
+  }
+  if (appearance === "light") {
+    return lightTheme;
+  }
+  return appTheme.dark ? darkTheme : lightTheme;
+}
 
 /** Handoff 4c swatch row, left to right; indigo is the reference default. */
 export const MOBILE_ACCENT_OPTIONS = [

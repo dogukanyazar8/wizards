@@ -10,7 +10,7 @@ import {
   type ViewStyle,
 } from "react-native";
 
-import { useTheme, useThemedStyles } from "../app/providers/mobile-theme-provider";
+import { useVoiceRoomTheme, useVoiceRoomThemedStyles } from "../app/providers/mobile-theme-provider";
 import type { MobileTheme } from "../design/themes";
 import { activeMobileCopy } from "../locale/mobile-locale-preferences";
 import type {
@@ -91,7 +91,7 @@ function SpeakingWave({ active, level }: { active: boolean; level: number }) {
 }
 
 function VoiceParticipantRow({ participant }: { participant: MobileVoiceRoomParticipant }) {
-  const theme = useTheme();
+  const theme = useVoiceRoomTheme();
   const styles = useMobileVoiceRoomPanelStyles();
   return (
     <View style={[styles.participantRow, participant.isSpeaking && styles.participantRowSpeaking]}>
@@ -137,7 +137,7 @@ function VoiceControlButton({
   onPress(): void;
   tone?: "danger" | "neutral" | "primary";
 }) {
-  const theme = useTheme();
+  const theme = useVoiceRoomTheme();
   const styles = useMobileVoiceRoomPanelStyles();
   return (
     <Pressable
@@ -198,7 +198,7 @@ export function MobileVoiceRoomPanel({
   room: MobileVoiceRoomState;
   voiceInputMode?: MobileVoiceInputMode;
 }) {
-  const theme = useTheme();
+  const theme = useVoiceRoomTheme();
   const styles = useMobileVoiceRoomPanelStyles();
   const isBusy =
     room.status === "checking-permission" ||
@@ -548,4 +548,4 @@ export const createMobileVoiceRoomPanelStyles = (theme: MobileTheme) =>
     },
   }) satisfies Record<string, ImageStyle | TextStyle | ViewStyle>;
 
-const useMobileVoiceRoomPanelStyles = () => useThemedStyles(createMobileVoiceRoomPanelStyles);
+const useMobileVoiceRoomPanelStyles = () => useVoiceRoomThemedStyles(createMobileVoiceRoomPanelStyles);

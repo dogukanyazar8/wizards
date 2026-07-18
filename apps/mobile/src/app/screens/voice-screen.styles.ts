@@ -1,6 +1,6 @@
 import type { ImageStyle, TextStyle, ViewStyle } from "react-native";
 import type { MobileTheme } from "../../design/themes";
-import { useThemedStyles } from "../providers/mobile-theme-provider";
+import { useVoiceRoomThemedStyles } from "../providers/mobile-theme-provider";
 import { createSharedStyles } from "../styles/shared-styles";
 
 export const createVoiceScreenStyles = (theme: MobileTheme) => {
@@ -52,13 +52,13 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
       fontFamily: theme.typography.fontFamilyExtraBold,
     },
     activeVoiceRoomControl: {
-      width: 60,
-      height: 60,
+      width: 54,
+      height: 54,
       alignItems: "center",
       justifyContent: "center",
       borderWidth: 1,
       borderColor: theme.surface.voiceRoomControlBorder,
-      borderRadius: 22,
+      borderRadius: 20,
       backgroundColor: theme.surface.voiceRoomControl,
     },
     activeVoiceRoomControlDanger: {
@@ -80,10 +80,15 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",
-      gap: 14,
-      paddingHorizontal: 24,
-      paddingTop: 10,
-      paddingBottom: 8,
+      gap: 12,
+      marginHorizontal: 20,
+      marginTop: 6,
+      marginBottom: 10,
+      padding: 12,
+      borderWidth: 1,
+      borderColor: theme.surface.voiceRoomControlBorder,
+      borderRadius: 28,
+      backgroundColor: theme.surface.soft,
     },
     activeVoiceRoomError: {
       color: theme.status.dangerOnInverse,
@@ -91,6 +96,37 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
       lineHeight: 17,
       fontFamily: theme.typography.fontFamilyBold,
       paddingHorizontal: 24,
+    },
+    // #5g screen-share tile: green-bordered live surface with a source chip.
+    activeVoiceRoomScreenShareTile: {
+      backgroundColor: theme.media.surface,
+      borderColor: theme.status.successOnInverse,
+      borderRadius: theme.radii.cardLarge,
+      borderWidth: 2,
+      height: 246,
+      marginHorizontal: 20,
+      marginTop: 10,
+      overflow: "hidden",
+      position: "relative",
+    },
+    activeVoiceRoomScreenShareVideo: { height: "100%", width: "100%" },
+    activeVoiceRoomScreenShareChip: {
+      alignItems: "center",
+      backgroundColor: theme.surface.scrim,
+      borderRadius: 11,
+      bottom: 12,
+      flexDirection: "row",
+      gap: 7,
+      left: 12,
+      maxWidth: "80%",
+      paddingHorizontal: 11,
+      paddingVertical: 6,
+      position: "absolute",
+    },
+    activeVoiceRoomScreenShareChipText: {
+      color: theme.text.onInverse,
+      fontFamily: theme.typography.fontFamilyBold,
+      fontSize: 11.5,
     },
     activeVoiceRoomHeader: {
       minHeight: 70,
@@ -826,4 +862,4 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
   } satisfies Record<string, ImageStyle | TextStyle | ViewStyle>;
 };
 
-export const useVoiceScreenStyles = () => useThemedStyles(createVoiceScreenStyles);
+export const useVoiceScreenStyles = () => useVoiceRoomThemedStyles(createVoiceScreenStyles);

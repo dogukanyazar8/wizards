@@ -6,6 +6,8 @@ export interface ToggleProps {
   readonly accessibilityLabel: string;
   readonly disabled?: boolean;
   readonly onValueChange: (next: boolean) => void;
+  /** Non-interactive but shown at full colour (reflects real state, no dimming). */
+  readonly readOnly?: boolean;
   readonly testID?: string;
   readonly value: boolean;
 }
@@ -47,6 +49,7 @@ export function Toggle({
   accessibilityLabel,
   disabled = false,
   onValueChange,
+  readOnly = false,
   testID,
   value,
 }: ToggleProps) {
@@ -56,8 +59,8 @@ export function Toggle({
     <Pressable
       accessibilityLabel={accessibilityLabel}
       accessibilityRole="switch"
-      accessibilityState={{ checked: value, disabled }}
-      disabled={disabled}
+      accessibilityState={{ checked: value, disabled: disabled || readOnly }}
+      disabled={disabled || readOnly}
       hitSlop={{ bottom: 9, left: 8, right: 8, top: 9 }}
       onPress={() => onValueChange(!value)}
       style={[styles.track, value ? styles.trackOn : styles.trackOff, disabled && styles.disabled]}

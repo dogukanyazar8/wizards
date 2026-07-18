@@ -38,7 +38,7 @@ import { Avatar } from "../components/kit/avatar";
 import { useMobileHaptics } from "../providers/mobile-haptics-provider";
 import { getMobileActiveVoiceRoomModel } from "./active-voice-room-model";
 import { useVoiceScreenStyles } from "./voice-screen.styles";
-import { useTheme } from "../providers/mobile-theme-provider";
+import { useVoiceRoomTheme } from "../providers/mobile-theme-provider";
 import { MobileVoiceCameraGrid } from "../../voice/mobile-camera-grid";
 import { MobileVoiceSettingsSheet } from "../../voice/mobile-voice-settings-sheet";
 
@@ -50,6 +50,9 @@ export function VoiceScreen({
   onOpenChat = () => undefined,
   onOpenVoiceInvite = () => undefined,
   onSelectVoiceAudioOutput = async () => undefined,
+  onToggleVoiceCamera = async () => undefined,
+  onToggleVoiceScreenShare = async () => undefined,
+  onFlipVoiceCamera = async () => undefined,
   serverName = null,
   testID = "mobile-voice-screen",
 }: {
@@ -60,11 +63,14 @@ export function VoiceScreen({
   onOpenChat?(): void;
   onOpenVoiceInvite?(): void;
   onSelectVoiceAudioOutput?(mode: MobileVoiceAudioOutputMode): Promise<void>;
+  onToggleVoiceCamera?(): Promise<void>;
+  onToggleVoiceScreenShare?(): Promise<void>;
+  onFlipVoiceCamera?(): Promise<void>;
   serverName?: string | null;
   testID?: string;
 }) {
   const styles = useVoiceScreenStyles();
-  const theme = useTheme();
+  const theme = useVoiceRoomTheme();
   const { selection } = useMobileHaptics();
   const [now, setNow] = useState(() => Date.now());
   const model = getMobileActiveVoiceRoomModel(voiceRoomState, serverName, now);
@@ -89,6 +95,18 @@ export function VoiceScreen({
   const handleLeave = () => {
     void onLeaveVoiceChannel().then(selection);
   };
+  const handleCamera = () => {
+    void onToggleVoiceCamera().then(selection);
+  };
+  const handleScreenShare = () => {
+    void onToggleVoiceScreenShare().then(selection);
+  };
+  const screenShareParticipant = model.participants.find(
+    (participant) => participant.isScreenSharing && participant.screenShareTrackRef,
+  );
+  const screenShareBusy =
+    voiceRoomState.screenShareStatus === "starting" ||
+    voiceRoomState.screenShareStatus === "stopping";
 
   return (
     <View style={styles.activeVoiceRoomScreen} testID={testID}>
@@ -118,6 +136,22 @@ export function VoiceScreen({
             {[model.serverName, model.durationLabel].filter(Boolean).join(" · ")}
           </Text>
         </View>
+        <Pressable
+          accessibilityLabel={copy.voiceRoomOpenChatAction}
+          accessibilityRole="button"
+          onPress={onOpenChat}
+          style={({ pressed }) => [
+            styles.activeVoiceRoomBackButton,
+            pressed && styles.actionButtonPressed,
+          ]}
+          testID="mobile-voice-chat"
+        >
+          <Ionicons
+            color={theme.dark ? theme.text.inverse : theme.text.primary}
+            name="chatbubble-outline"
+            size={20}
+          />
+        </Pressable>
         <View style={styles.activeVoiceRoomConnectionChip}>
           <View style={styles.activeVoiceRoomConnectionDot} />
           <Text style={styles.activeVoiceRoomConnectionLabel}>
@@ -130,6 +164,25 @@ export function VoiceScreen({
         <Text style={styles.activeVoiceRoomError} numberOfLines={2}>
           {voiceRoomState.errorMessage}
         </Text>
+      ) : null}
+
+      {screenShareParticipant ? (
+        <View
+          style={styles.activeVoiceRoomScreenShareTile}
+          testID="mobile-voice-screen-share-tile"
+        >
+          <VideoTrack
+            objectFit="contain"
+            style={styles.activeVoiceRoomScreenShareVideo}
+            trackRef={screenShareParticipant.screenShareTrackRef!}
+          />
+          <View style={styles.activeVoiceRoomScreenShareChip}>
+            <Ionicons color={theme.status.successOnInverse} name="tv-outline" size={13} />
+            <Text numberOfLines={1} style={styles.activeVoiceRoomScreenShareChipText}>
+              {getScreenShareViewerTitle(screenShareParticipant)}
+            </Text>
+          </View>
+        </View>
       ) : null}
 
       <View style={styles.activeVoiceRoomParticipantGrid}>
@@ -171,10 +224,26 @@ export function VoiceScreen({
           testID="mobile-voice-audio-output"
         />
         <ActiveVoiceRoomControl
-          icon="chatbubble-outline"
-          label={copy.voiceRoomOpenChatAction}
-          onPress={onOpenChat}
-          testID="mobile-voice-chat"
+          disabled={!model.canToggleMute}
+          icon={voiceRoomState.selfCameraEnabled ? "videocam-outline" : "videocam-off-outline"}
+          label={
+            voiceRoomState.selfCameraEnabled ? copy.voiceCameraOffAction : copy.voiceCameraOnAction
+          }
+          onPress={handleCamera}
+          selected={voiceRoomState.selfCameraEnabled}
+          testID="mobile-voice-camera"
+        />
+        <ActiveVoiceRoomControl
+          disabled={!model.canToggleMute || screenShareBusy}
+          icon="tv-outline"
+          label={
+            voiceRoomState.selfScreenShareEnabled
+              ? copy.voiceScreenShareStopShortAction
+              : copy.voiceScreenShareAction
+          }
+          onPress={handleScreenShare}
+          selected={voiceRoomState.selfScreenShareEnabled}
+          testID="mobile-voice-screen-share"
         />
         <ActiveVoiceRoomControl
           danger
@@ -211,7 +280,7 @@ function getActiveVoiceRoomConnectionLabel(status: MobileVoiceRoomState["status"
 
 function ActiveVoiceRoomParticipantCard({ participant }: { participant: MobileVoiceRoomParticipant }) {
   const styles = useVoiceScreenStyles();
-  const theme = useTheme();
+  const theme = useVoiceRoomTheme();
   const name = getVoiceParticipantName(participant);
   const isSpeaking = participant.isSpeaking && !participant.isMuted;
 
@@ -271,7 +340,7 @@ function ActiveVoiceRoomControl({
   testID: string;
 }) {
   const styles = useVoiceScreenStyles();
-  const theme = useTheme();
+  const theme = useVoiceRoomTheme();
   const color = danger || theme.dark ? theme.text.inverse : theme.text.primary;
 
   return (
@@ -431,7 +500,7 @@ export function ScreenShareActiveBanner({
   onStop(): void;
   room: MobileVoiceRoomState;
 }) {
-  const theme = useTheme();
+  const theme = useVoiceRoomTheme();
   const styles = useVoiceScreenStyles();
   if (!shouldShowScreenShareActiveBanner(room)) {
     return null;
@@ -469,7 +538,7 @@ export function ScreenShareConsentSheet({
   onConfirm(): void;
   visible: boolean;
 }) {
-  const theme = useTheme();
+  const theme = useVoiceRoomTheme();
   const styles = useVoiceScreenStyles();
   if (!visible) {
     return null;
@@ -529,7 +598,7 @@ function ScreenShareVideoSurface({
   participant: MobileVoiceRoomParticipant;
   variant: "fullscreen" | "inline";
 }) {
-  const theme = useTheme();
+  const theme = useVoiceRoomTheme();
   const styles = useVoiceScreenStyles();
   if (!participant.screenShareTrackRef) {
     return (
@@ -566,7 +635,7 @@ export function MobileScreenShareViewer({
 }: {
   participants: readonly MobileVoiceRoomParticipant[];
 }) {
-  const theme = useTheme();
+  const theme = useVoiceRoomTheme();
   const styles = useVoiceScreenStyles();
   const [expanded, setExpanded] = useState(false);
   const participant = getActiveScreenShareParticipant(participants);
@@ -711,7 +780,7 @@ export function MobileVoiceParticipantRow({
 }: {
   participant: MobileVoiceRoomParticipant;
 }) {
-  const theme = useTheme();
+  const theme = useVoiceRoomTheme();
   const styles = useVoiceScreenStyles();
   const title = getVoiceParticipantName(participant);
   const subtitle = participant.isMuted
@@ -903,7 +972,7 @@ export function MobileVoiceInfoRow({
   label: string;
   value: string;
 }) {
-  const theme = useTheme();
+  const theme = useVoiceRoomTheme();
   const styles = useVoiceScreenStyles();
   return (
     <View style={styles.mobileVoiceInfoRow}>
@@ -933,7 +1002,7 @@ export function MobileVoiceControlButton({
   testID?: string;
   tone?: "danger" | "neutral" | "primary";
 }) {
-  const theme = useTheme();
+  const theme = useVoiceRoomTheme();
   const styles = useVoiceScreenStyles();
   return (
     <Pressable
@@ -1003,7 +1072,7 @@ export function PushToTalkButton({
   onEnd(): void;
   phase: MobilePushToTalkPhase;
 }) {
-  const theme = useTheme();
+  const theme = useVoiceRoomTheme();
   const styles = useVoiceScreenStyles();
   if (inputMode !== "push-to-talk") {
     return null;
@@ -1096,7 +1165,7 @@ export function MobileVoiceChannelScreen({
   voiceInputMode: MobileVoiceInputMode;
   voicePushToTalkPhase: MobilePushToTalkPhase;
 }) {
-  const theme = useTheme();
+  const theme = useVoiceRoomTheme();
   const styles = useVoiceScreenStyles();
   const model = useMemo(
     () =>

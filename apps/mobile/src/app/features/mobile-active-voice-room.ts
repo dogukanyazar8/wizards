@@ -44,10 +44,13 @@ export function createMobileVoiceScreenProps({
   bootstrapState,
   onBeginVoicePushToTalk,
   onEndVoicePushToTalk,
+  onFlipVoiceCamera,
   onLeaveVoiceChannel,
   onOpenVoiceInvite,
   onSelectVoiceAudioOutput,
+  onToggleVoiceCamera,
   onToggleVoiceMute,
+  onToggleVoiceScreenShare,
   voiceInputMode,
   voicePushToTalkPhase,
   voiceRoomState,
@@ -55,10 +58,13 @@ export function createMobileVoiceScreenProps({
   readonly bootstrapState: MobileBootstrapViewState;
   readonly onBeginVoicePushToTalk: MobileVoiceScreenProps["onBeginVoicePushToTalk"];
   readonly onEndVoicePushToTalk: MobileVoiceScreenProps["onEndVoicePushToTalk"];
+  readonly onFlipVoiceCamera?: MobileVoiceScreenProps["onFlipVoiceCamera"];
   readonly onLeaveVoiceChannel: MobileVoiceScreenProps["onLeaveVoiceChannel"];
   readonly onOpenVoiceInvite: (input: MobileVoiceInviteInput) => void;
   readonly onSelectVoiceAudioOutput: MobileVoiceScreenProps["onSelectVoiceAudioOutput"];
+  readonly onToggleVoiceCamera?: MobileVoiceScreenProps["onToggleVoiceCamera"];
   readonly onToggleVoiceMute: MobileVoiceScreenProps["onToggleVoiceMute"];
+  readonly onToggleVoiceScreenShare?: MobileVoiceScreenProps["onToggleVoiceScreenShare"];
   readonly voiceInputMode: MobileVoiceScreenProps["voiceInputMode"];
   readonly voicePushToTalkPhase: MobileVoiceScreenProps["voicePushToTalkPhase"];
   readonly voiceRoomState: MobileVoiceRoomState;
@@ -73,10 +79,13 @@ export function createMobileVoiceScreenProps({
     bootstrapState,
     onBeginVoicePushToTalk,
     onEndVoicePushToTalk,
+    ...(onFlipVoiceCamera ? { onFlipVoiceCamera } : {}),
     onLeaveVoiceChannel,
     onOpenVoiceInvite: presentation.onOpenVoiceInvite,
     ...(onSelectVoiceAudioOutput ? { onSelectVoiceAudioOutput } : {}),
+    ...(onToggleVoiceCamera ? { onToggleVoiceCamera } : {}),
     onToggleVoiceMute,
+    ...(onToggleVoiceScreenShare ? { onToggleVoiceScreenShare } : {}),
     serverName: presentation.serverName,
     voiceInputMode,
     voicePushToTalkPhase,

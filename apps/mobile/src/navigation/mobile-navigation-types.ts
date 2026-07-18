@@ -32,6 +32,7 @@ export type MobileRootStackParamList = {
   DMDetails: { readonly conversationId: string };
   ServerSettings: { readonly serverId: string };
   ServerRoles: { readonly serverId: string };
+  RoleDetail: { readonly roleId: string; readonly serverId: string };
   ServerMembers: { readonly serverId: string };
   ChannelSettings: { readonly channelId: string; readonly serverId: string };
 };

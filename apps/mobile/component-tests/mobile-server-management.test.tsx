@@ -176,15 +176,18 @@ function resetMocks() {
     createCategory: createMutation(),
     createChannel: createMutation(),
     createInvite: createMutation(),
+    createRole: createMutation(),
     createServer: createMutation(),
     deleteCategory: createMutation(),
     deleteChannel: createMutation(),
+    deleteRole: createMutation(),
     deleteServer: createMutation(),
     joinServer: createMutation(),
     kickMember: createMutation(),
     updateCategory: createMutation(),
     updateChannel: createMutation(),
     updateMemberRoles: createMutation(),
+    updateRole: createMutation(),
     updateServer: createMutation(),
   };
   mockWorkspaceQuery = { data: { detail: createDetail() }, isError: false, isLoading: false };
@@ -403,20 +406,37 @@ describe("mobile server management", () => {
     expect(view.getByTestId("mobile-member-member-1-kick")).toBeTruthy();
   });
 
-  it("renders the read-only server role overview from the server response", async () => {
+  it("renders the server role overview and creates a role through the managed mutation", async () => {
     resetMocks();
-    const view = await render(<MobileServerRolesScreen serverId="server-1" onBack={jest.fn()} />);
+    const onOpenRoleDetail = jest.fn();
+    mockMutations.createRole.mutateAsync.mockResolvedValue({
+      role: { id: "role-support" },
+    });
+    const view = await render(
+      <MobileServerRolesScreen
+        serverId="server-1"
+        onBack={jest.fn()}
+        onOpenRoleDetail={onOpenRoleDetail}
+      />,
+    );
 
     expect(view.getByTestId("mobile-server-roles-screen")).toBeTruthy();
     expect(view.getByTestId("mobile-server-role-role-owner")).toBeTruthy();
     expect(view.getByTestId("mobile-server-role-role-everyone")).toBeTruthy();
     expect(view.getByText("Kurucu")).toBeTruthy();
     expect(view.getByText("1")).toBeTruthy();
-    expect(
-      view.getByTestId("mobile-server-roles-create-disabled").props.accessibilityState.disabled,
-    ).toBe(true);
-    expect(
-      view.getByTestId("mobile-server-roles-default-permissions").props.accessibilityState.disabled,
-    ).toBe(true);
+    await fireEvent.press(view.getByTestId("mobile-server-roles-create"));
+    await fireEvent.changeText(view.getByTestId("mobile-server-role-create-name"), "Support");
+    await fireEvent.press(view.getByTestId("mobile-server-role-create-submit"));
+
+    await waitFor(() =>
+      expect(mockMutations.createRole.mutateAsync).toHaveBeenCalledWith({
+        color: 0x4f46e5,
+        name: "Support",
+        permissionKeys: [],
+        serverId: "server-1",
+      }),
+    );
+    expect(onOpenRoleDetail).toHaveBeenCalledWith("role-support");
   });
 });

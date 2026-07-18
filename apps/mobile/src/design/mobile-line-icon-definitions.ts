@@ -12,6 +12,7 @@ export const MOBILE_LINE_ICON_NAMES = [
   "emoji",
   "external-link",
   "file",
+  "grip",
   "headphones",
   "invite-user",
   "leave",
@@ -272,6 +273,13 @@ export const MOBILE_LINE_ICON_DEFINITIONS = {
       { type: "path", d: "M13 3H6v18h12V8z" },
       { type: "path", d: "M13 3v5h5" },
     ],
+  },
+  grip: {
+    mode: "stroke",
+    defaultStrokeWidth: 2.4,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    children: [{ type: "path", d: "M9 5h.01M9 12h.01M9 19h.01M15 5h.01M15 12h.01M15 19h.01" }],
   },
   "log-out": {
     mode: "stroke",

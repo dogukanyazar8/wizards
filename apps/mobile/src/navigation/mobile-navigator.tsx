@@ -24,6 +24,7 @@ import {
   DMDetailsScreenContainer,
   ServerSettingsStackScreenContainer,
   ServerRolesStackScreenContainer,
+  RoleDetailStackScreenContainer,
   ServerMembersStackScreenContainer,
   ChannelSettingsStackScreenContainer,
 } from "../app/screens/mobile-screen-containers";
@@ -130,6 +131,9 @@ export function MobileNavigator({
           </RootStack.Screen>
           <RootStack.Screen name="ServerRoles">
             {(props) => <ServerRolesStackScreenContainer {...props} />}
+          </RootStack.Screen>
+          <RootStack.Screen name="RoleDetail">
+            {(props) => <RoleDetailStackScreenContainer {...props} />}
           </RootStack.Screen>
           <RootStack.Screen name="ServerMembers">
             {(props) => <ServerMembersStackScreenContainer {...props} />}

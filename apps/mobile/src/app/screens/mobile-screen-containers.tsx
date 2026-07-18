@@ -30,6 +30,7 @@ import { MobileTwoFactorScreen } from "../../account/mobile-two-factor-screen";
 import { MobileDMDetailsScreen } from "../../dm/mobile-dm-details-screen";
 import { MobileServerSettingsScreen } from "../../workspace/mobile-server-settings-screen";
 import { MobileServerRolesScreen } from "../../workspace/mobile-server-roles-screen";
+import { MobileRoleDetailScreen } from "../../workspace/mobile-role-detail-screen";
 import { MobileServerMembersScreen } from "../../workspace/mobile-server-members-screen";
 import { MobileChannelSettingsScreen } from "../../workspace/mobile-channel-settings-screen";
 import {
@@ -369,8 +370,26 @@ export function ServerRolesStackScreenContainer({
   navigation,
   route,
 }: NativeStackScreenProps<MobileRootStackParamList, "ServerRoles">) {
+  const { serverId } = route.params;
   return (
-    <MobileServerRolesScreen serverId={route.params.serverId} onBack={() => navigation.goBack()} />
+    <MobileServerRolesScreen
+      serverId={serverId}
+      onBack={() => navigation.goBack()}
+      onOpenRoleDetail={(roleId) => navigation.navigate("RoleDetail", { roleId, serverId })}
+    />
+  );
+}
+
+export function RoleDetailStackScreenContainer({
+  navigation,
+  route,
+}: NativeStackScreenProps<MobileRootStackParamList, "RoleDetail">) {
+  return (
+    <MobileRoleDetailScreen
+      roleId={route.params.roleId}
+      serverId={route.params.serverId}
+      onBack={() => navigation.goBack()}
+    />
   );
 }
 

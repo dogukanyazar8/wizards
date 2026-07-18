@@ -5,7 +5,7 @@ import { Pressable, Text, View } from "react-native";
 
 import { activeMobileCopy as copy } from "../locale/mobile-locale-preferences";
 import type { MobileTheme } from "../design/themes";
-import { useTheme, useThemedStyles } from "../app/providers/mobile-theme-provider";
+import { useVoiceRoomTheme, useVoiceRoomThemedStyles } from "../app/providers/mobile-theme-provider";
 import type { MobileVoiceRoomParticipant } from "./mobile-voice-room-contract";
 
 export const MAX_VISIBLE_CAMERA_TILES = 6;
@@ -61,8 +61,8 @@ export const MobileVoiceCameraGrid = memo(function MobileVoiceCameraGrid({
   onFlip(): void;
   readonly participants: readonly MobileVoiceRoomParticipant[];
 }) {
-  const theme = useTheme();
-  const styles = useThemedStyles(createStyles);
+  const theme = useVoiceRoomTheme();
+  const styles = useVoiceRoomThemedStyles(createStyles);
   const visible = participants
     .filter((participant) => participant.isCameraEnabled && participant.cameraTrackRef)
     .slice(0, MAX_VISIBLE_CAMERA_TILES);

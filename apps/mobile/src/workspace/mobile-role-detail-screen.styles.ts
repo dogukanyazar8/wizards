@@ -1,0 +1,151 @@
+import type { TextStyle, ViewStyle } from "react-native";
+
+import type { MobileTheme } from "../design/themes";
+
+export const createMobileRoleDetailStyles = (theme: MobileTheme) =>
+  ({
+    root: { backgroundColor: theme.surface.base, flex: 1 },
+    content: { paddingBottom: 40 },
+    header: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: 10,
+      paddingBottom: 2,
+      paddingHorizontal: 20,
+      paddingTop: 10,
+    },
+    backButton: {
+      alignItems: "center",
+      backgroundColor: theme.surface.card,
+      borderColor: theme.border.subtle,
+      borderRadius: 14,
+      borderWidth: 1,
+      height: 40,
+      justifyContent: "center",
+      width: 40,
+    },
+    headerBody: { flex: 1, flexDirection: "row", alignItems: "center", gap: 10, minWidth: 0 },
+    headerDot: { borderRadius: 7, height: 14, width: 14 },
+    title: {
+      color: theme.text.primary,
+      flexShrink: 1,
+      fontFamily: theme.typography.fontFamilyExtraBold,
+      fontSize: 22,
+      letterSpacing: -0.44,
+      lineHeight: 27,
+    },
+    deleteButton: {
+      alignItems: "center",
+      backgroundColor: theme.status.dangerSoft,
+      borderRadius: 14,
+      height: 40,
+      justifyContent: "center",
+      width: 40,
+    },
+
+    sectionLabel: { paddingBottom: 6, paddingHorizontal: 24, paddingTop: 14 },
+    sectionLabelText: {
+      color: theme.text.visualFaint,
+      fontFamily: theme.typography.fontFamilyBold,
+      fontSize: 11.5,
+      letterSpacing: 1.38,
+      textTransform: "uppercase",
+    },
+    card: {
+      backgroundColor: theme.surface.card,
+      borderColor: theme.border.subtle,
+      borderRadius: theme.radii.cardLarge,
+      borderWidth: 1,
+      marginHorizontal: 20,
+      overflow: "hidden",
+    },
+    cardPadded: { gap: 12, padding: 16 },
+
+    input: {
+      ...theme.typography.body,
+      backgroundColor: theme.surface.soft,
+      borderColor: theme.border.subtle,
+      borderRadius: theme.radii.control,
+      borderWidth: 1,
+      color: theme.text.primary,
+      minHeight: theme.sizing.minTouchTarget,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+    },
+    colorRow: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
+    swatch: {
+      alignItems: "center",
+      borderColor: "transparent",
+      borderRadius: 18,
+      borderWidth: 2,
+      height: 36,
+      justifyContent: "center",
+      width: 36,
+    },
+    swatchSelected: { borderColor: theme.text.primary },
+    swatchDot: { borderRadius: 12, height: 24, width: 24 },
+
+    row: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: 12,
+      paddingHorizontal: 18,
+      paddingVertical: 9,
+    },
+    rowDivider: { borderBottomColor: theme.border.default, borderBottomWidth: 1 },
+    rowBody: { flex: 1, gap: 1, minWidth: 0 },
+    rowTitle: {
+      color: theme.text.primary,
+      fontFamily: theme.typography.fontFamilySemiBold,
+      fontSize: 14.5,
+    },
+    rowHint: {
+      color: theme.text.visualFaint,
+      fontFamily: theme.typography.fontFamily,
+      fontSize: 12,
+    },
+
+    memberRow: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: 12,
+      paddingHorizontal: 18,
+      paddingVertical: 10,
+    },
+    memberAvatar: {
+      alignItems: "center",
+      backgroundColor: theme.accent.soft,
+      borderRadius: 16,
+      height: 40,
+      justifyContent: "center",
+      overflow: "hidden",
+      width: 40,
+    },
+    memberAvatarImage: { height: 40, width: 40 },
+    memberInitials: {
+      color: theme.accent.strong,
+      fontFamily: theme.typography.fontFamilyExtraBold,
+      fontSize: 14,
+    },
+    memberName: {
+      color: theme.text.primary,
+      fontFamily: theme.typography.fontFamilySemiBold,
+      fontSize: 14.5,
+    },
+    memberHandle: {
+      color: theme.text.visualFaint,
+      fontFamily: theme.typography.fontFamily,
+      fontSize: 12,
+    },
+
+    noticeBox: { gap: 12, marginHorizontal: 20, marginTop: 12 },
+    protectedNote: {
+      ...theme.typography.caption,
+      color: theme.text.visualFaint,
+      marginHorizontal: 24,
+      marginTop: 8,
+    },
+    error: { ...theme.typography.body, color: theme.status.dangerOnBase },
+    saveBar: { marginHorizontal: 20, marginTop: 16 },
+    state: { marginHorizontal: 20, marginTop: 40 },
+  }) satisfies Record<string, TextStyle | ViewStyle>;

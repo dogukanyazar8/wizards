@@ -12,10 +12,12 @@ import {
 import {
   MOBILE_ACCENT_OPTIONS,
   MOBILE_FONT_SCALE_STEPS,
+  MOBILE_VOICE_APPEARANCE_OPTIONS,
   getMobileFontScaleSliderProgress,
   getMobileFontScaleStepForSliderProgress,
   type MobileAccentId,
   type MobileFontScaleStep,
+  type MobileVoiceRoomAppearance,
 } from "../../design/mobile-appearance-preferences";
 import type { MobileThemeMode } from "../../design/mobile-theme-runtime";
 import { mobileCopy, type MobileLocale } from "../../locale/mobile-copy";
@@ -247,8 +249,16 @@ export function MobileAppearanceSettingsScreen({ onBack }: { onBack(): void }) {
   const { locale } = useMobileLocaleRuntime();
   const copy = mobileCopy[locale];
   const { selection } = useMobileHaptics();
-  const { accent, fontScaleStep, mode, setAccent, setFontScaleStep, setMode } =
-    useMobileAppearancePreferences();
+  const {
+    accent,
+    fontScaleStep,
+    mode,
+    setAccent,
+    setFontScaleStep,
+    setMode,
+    setVoiceRoomAppearance,
+    voiceRoomAppearance,
+  } = useMobileAppearancePreferences();
   const { layout, setLayout } = useMobileWorkspaceLayoutPreference();
 
   const selectTheme = useCallback(
@@ -271,6 +281,13 @@ export function MobileAppearanceSettingsScreen({ onBack }: { onBack(): void }) {
       setLayout(nextLayout);
     },
     [selection, setLayout],
+  );
+  const selectVoiceAppearance = useCallback(
+    (nextAppearance: MobileVoiceRoomAppearance) => {
+      selection();
+      setVoiceRoomAppearance(nextAppearance);
+    },
+    [selection, setVoiceRoomAppearance],
   );
 
   return (
@@ -324,6 +341,36 @@ export function MobileAppearanceSettingsScreen({ onBack }: { onBack(): void }) {
               <View style={styles.optionLabelRow}>
                 <Text style={[styles.optionLabel, selected && styles.optionLabelSelected]}>
                   {getThemeModeLabel(locale, themeMode)}
+                </Text>
+                {selected ? <SelectionCheck /> : null}
+              </View>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      <Text style={styles.sectionHeading}>{copy.appearanceSettingsVoiceRoomHeading}</Text>
+      <View style={styles.optionRow}>
+        {MOBILE_VOICE_APPEARANCE_OPTIONS.map((appearance) => {
+          const selected = voiceRoomAppearance === appearance;
+          return (
+            <Pressable
+              accessibilityLabel={getThemeModeLabel(locale, appearance)}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: selected, selected }}
+              key={appearance}
+              onPress={() => selectVoiceAppearance(appearance)}
+              style={({ pressed }) => [
+                styles.optionCard,
+                selected && styles.optionCardSelected,
+                pressed && styles.pressed,
+              ]}
+              testID={`mobile-appearance-settings-voice-${appearance}`}
+            >
+              <ThemePreview mode={appearance} />
+              <View style={styles.optionLabelRow}>
+                <Text style={[styles.optionLabel, selected && styles.optionLabelSelected]}>
+                  {getThemeModeLabel(locale, appearance)}
                 </Text>
                 {selected ? <SelectionCheck /> : null}
               </View>
