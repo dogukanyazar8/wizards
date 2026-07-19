@@ -155,9 +155,38 @@ test("all GitHub Actions pnpm jobs consume packageManager as their version sourc
 test("Node 22 remains a nightly native compatibility lane for one release", () => {
   const workflow = readText(join(".github", "workflows", "ci.yml"));
   const compatibilityJob = readWorkflowJob(workflow, "node22-compatibility");
+  const installRuntimeIndex = compatibilityJob.indexOf(
+    "- name: Setup Node.js 24 dependency installation runtime",
+  );
+  const installDependenciesIndex = compatibilityJob.indexOf("- name: Install dependencies");
+  const compatibilityRuntimeIndex = compatibilityJob.indexOf(
+    "- name: Setup Node.js 22 compatibility runtime",
+  );
+  const nativeVerificationIndex = compatibilityJob.indexOf(
+    "- name: Verify Node.js native dependencies",
+  );
 
   assert.match(compatibilityJob, /^    if: github\.event_name == 'schedule'$/mu);
+  assert.match(compatibilityJob, /^          node-version-file: \.nvmrc$/mu);
   assert.match(compatibilityJob, /^          node-version: 22\.23\.1$/mu);
+  assert.equal(
+    compatibilityJob.match(/uses:\s*actions\/setup-node@/gu)?.length,
+    2,
+    "compatibility lane must use separate install and test runtimes",
+  );
+  assert.ok(installRuntimeIndex >= 0, "missing canonical dependency installation runtime");
+  assert.ok(
+    installDependenciesIndex > installRuntimeIndex,
+    "dependencies must be installed under the canonical Node runtime",
+  );
+  assert.ok(
+    compatibilityRuntimeIndex > installDependenciesIndex,
+    "Node 22 must be activated only after dependency installation",
+  );
+  assert.ok(
+    nativeVerificationIndex > compatibilityRuntimeIndex,
+    "native compatibility checks must run under Node 22",
+  );
   assert.match(compatibilityJob, /pnpm --filter @wizards\/db db:generate/u);
   assert.match(compatibilityJob, /import\('sharp'\)/u);
   assert.match(compatibilityJob, /pnpm --filter @wizards\/web exec esbuild --version/u);
