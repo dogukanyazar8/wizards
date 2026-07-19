@@ -99,3 +99,32 @@ test("collector combines committed, staged, unstaged, and untracked changes", as
   assert.deepEqual(files, ["committed.ts", "nested/untracked.ts", "staged.ts", "tracked.ts"]);
   assert.deepEqual(filterFilesByScope(files, "nested"), ["nested/untracked.ts"]);
 });
+
+test("CI fallback uses the previous commit when the event has no base SHA", async (t) => {
+  const fixture = mkdtempSync(join(tmpdir(), "whispr-format-ci-base-"));
+  t.after(() => rmSync(fixture, { force: true, recursive: true }));
+
+  runGit(fixture, ["init", "--quiet"]);
+  runGit(fixture, ["config", "core.autocrlf", "false"]);
+  runGit(fixture, ["config", "user.email", "quality@whispr.invalid"]);
+  runGit(fixture, ["config", "user.name", "Whispr Quality"]);
+  writeFileSync(join(fixture, "tracked.ts"), "export const tracked = 1;\n");
+  runGit(fixture, ["add", "."]);
+  runGit(fixture, ["commit", "--quiet", "-m", "uat baseline"]);
+  const uatBase = runGit(fixture, ["rev-parse", "HEAD"]);
+
+  writeFileSync(join(fixture, "tracked.ts"), "export const tracked = 2;\n");
+  runGit(fixture, ["commit", "--quiet", "-am", "previous commit"]);
+  const previousCommit = runGit(fixture, ["rev-parse", "HEAD"]);
+  writeFileSync(join(fixture, "tracked.ts"), "export const tracked = 3;\n");
+  runGit(fixture, ["commit", "--quiet", "-am", "scheduled head"]);
+  runGit(fixture, ["update-ref", "refs/remotes/origin/uat", uatBase]);
+
+  const { resolveBaseRef } = await import(pathToFileURL(checkerPath).href);
+  const base = resolveBaseRef({
+    environment: { GITHUB_ACTIONS: "true" },
+    root: fixture,
+  });
+
+  assert.equal(base, previousCommit);
+});

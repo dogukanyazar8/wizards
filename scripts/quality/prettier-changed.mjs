@@ -70,11 +70,12 @@ export function resolveBaseRef({ base, environment = process.env, root = reposit
   }
 
   const eventBase = readGitHubEventBase(environment);
+  const fallbackCandidates =
+    environment.GITHUB_ACTIONS === "true" ? ["HEAD^", "origin/uat"] : ["origin/uat", "HEAD^"];
   const candidates = [
     eventBase,
     environment.GITHUB_BASE_REF ? `origin/${environment.GITHUB_BASE_REF}` : null,
-    "origin/uat",
-    "HEAD^",
+    ...fallbackCandidates,
   ];
   const head = resolveCommit(root, "HEAD");
 
