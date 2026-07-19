@@ -16,7 +16,7 @@
     "lint": "tsc6 --noEmit",
     "test": "node --import tsx --test \"src/**/*.test.ts\"",
     "typecheck": "tsc6 --noEmit",
-    "format": "prettier --check ."
+    "format": "node ../../scripts/quality/prettier-changed.mjs --scope packages/ui"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",
@@ -24,9 +24,11 @@
     "tailwind-merge": "^3.2.0"
   },
   "devDependencies": {
-    "@types/node": "^22.14.1",
-    "@types/react": "^19.1.2",
-    "prettier": "^3.5.3",
+    "@types/node": "^24.13.3",
+    "@types/react": "19.2.14",
+    "prettier": "3.9.5",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
     "tsx": "^4.22.4",
     "typescript": "catalog:"
   },

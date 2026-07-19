@@ -3,14 +3,14 @@
   "private": true,
   "version": "0.8.15",
   "engines": {
-    "node": ">=22 <25"
+    "node": ">=24.18.0 <25"
   },
-  "packageManager": "pnpm@10.33.2",
+  "packageManager": "pnpm@11.15.0",
   "scripts": {
     "dev": "turbo dev",
     "dev:clear-auth-rate-limits": "pnpm --filter @wizards/web dev:clear-auth-rate-limits",
     "build": "turbo build",
-    "ci": "pnpm audit --audit-level moderate && pnpm test:toolchain && pnpm lint && pnpm typecheck && pnpm typecheck:native:ci && pnpm typecheck:declarations && pnpm test:coverage && pnpm build",
+    "ci": "pnpm audit --audit-level moderate && pnpm test:toolchain && pnpm format && pnpm lint && pnpm typecheck && pnpm typecheck:native:ci && pnpm typecheck:declarations && pnpm test:coverage && pnpm build",
     "e2e": "turbo e2e --filter @wizards/web",
     "e2e:api": "turbo e2e:api --filter @wizards/web",
     "e2e:realtime": "turbo e2e:realtime --filter @wizards/web",
@@ -21,18 +21,18 @@
     "test": "turbo test",
     "test:coverage": "turbo test:coverage --filter @wizards/web",
     "test:toolchain": "node --test scripts/quality/*.test.mjs",
-    "typecheck": "turbo typecheck",
+    "typecheck": "pnpm db:generate && turbo typecheck",
     "typecheck:declarations": "node scripts/quality/typescript-declaration-parity.mjs",
     "typecheck:native": "node scripts/quality/typescript-native-runner.mjs",
     "typecheck:native:ci": "node scripts/quality/typescript-native-runner.mjs --checkers=1",
-    "format": "turbo format",
+    "format": "node scripts/quality/prettier-changed.mjs",
     "db:generate": "turbo db:generate",
     "contributors:sync": "pnpm --filter @wizards/db contributors:sync"
   },
   "devDependencies": {
     "@typescript/native": "catalog:",
-    "prettier": "^3.5.3",
-    "turbo": "^2.9.14",
+    "prettier": "3.9.5",
+    "turbo": "2.10.5",
     "typescript": "catalog:"
   }
 }

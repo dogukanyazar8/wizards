@@ -18,7 +18,7 @@
     "dev": "echo db package ready",
     "lint": "prisma generate && tsc6 --noEmit",
     "typecheck": "prisma generate && tsc6 --noEmit",
-    "format": "prettier --check ."
+    "format": "node ../../scripts/quality/prettier-changed.mjs --scope packages/db"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
@@ -26,8 +26,8 @@
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
-    "@types/node": "^22.14.1",
-    "prettier": "^3.5.3",
+    "@types/node": "^24.13.3",
+    "prettier": "3.9.5",
     "prisma": "^5.22.0",
     "ts-node": "^10.9.2",
     "typescript": "catalog:"
