@@ -227,7 +227,7 @@ docker run --rm --network host \
   -e E2E_TEST_PASSWORD \
   -e NODE_ENV=test \
   mcr.microsoft.com/playwright:v1.59.1-noble \
-  bash -lc "corepack enable && corepack prepare pnpm@10.33.2 --activate && pnpm db:generate && pnpm --filter @wizards/web e2e:visual --update-snapshots"
+  bash -lc "corepack enable && pnpm db:generate && pnpm --filter @wizards/web e2e:visual --update-snapshots"
 ```
 
 Commit the generated `*-chromium-linux.png` files. Never commit

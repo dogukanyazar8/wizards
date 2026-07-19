@@ -5,7 +5,7 @@
   "engines": {
     "node": ">=24.18.0 <25"
   },
-  "packageManager": "pnpm@10.33.2",
+  "packageManager": "pnpm@11.15.0",
   "scripts": {
     "dev": "turbo dev",
     "dev:clear-auth-rate-limits": "pnpm --filter @wizards/web dev:clear-auth-rate-limits",
@@ -21,7 +21,7 @@
     "test": "turbo test",
     "test:coverage": "turbo test:coverage --filter @wizards/web",
     "test:toolchain": "node --test scripts/quality/*.test.mjs",
-    "typecheck": "turbo typecheck",
+    "typecheck": "pnpm db:generate && turbo typecheck",
     "typecheck:declarations": "node scripts/quality/typescript-declaration-parity.mjs",
     "typecheck:native": "node scripts/quality/typescript-native-runner.mjs",
     "typecheck:native:ci": "node scripts/quality/typescript-native-runner.mjs --checkers=1",
