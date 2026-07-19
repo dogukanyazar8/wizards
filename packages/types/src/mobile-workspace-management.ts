@@ -218,6 +218,9 @@ export const MobileServerInviteCreateResponseSchema = z
 export const MobileServerInvitesResponseSchema = z
   .object({ invites: z.array(MobileServerInviteSchema).max(100) })
   .strict();
+export const MobileServerInviteParamsSchema = z
+  .object({ inviteId: MobileResourceIdSchema, serverId: MobileResourceIdSchema })
+  .strict();
 
 export const MobileCategoryCreateRequestSchema = CreateCategorySchema.strict();
 const MobileCategoryReferenceSchema = z.object({ id: MobileResourceIdSchema }).strict();
@@ -427,6 +430,7 @@ export type MobileServerInviteCreateResponse = z.infer<
   typeof MobileServerInviteCreateResponseSchema
 >;
 export type MobileServerInvitesResponse = z.infer<typeof MobileServerInvitesResponseSchema>;
+export type MobileServerInviteParams = z.infer<typeof MobileServerInviteParamsSchema>;
 export type MobileCategoryCreateRequest = z.infer<typeof MobileCategoryCreateRequestSchema>;
 export type MobileCategoryCreateResponse = z.infer<typeof MobileCategoryCreateResponseSchema>;
 export type MobileCategoryUpdateRequest = z.infer<typeof MobileCategoryUpdateRequestSchema>;

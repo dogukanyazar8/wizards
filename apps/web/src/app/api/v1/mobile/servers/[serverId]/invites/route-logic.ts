@@ -2,6 +2,7 @@ import {
   MobileServerIdParamsSchema,
   MobileServerInviteCreateRequestSchema,
   MobileServerInviteCreateResponseSchema,
+  MobileServerInviteParamsSchema,
   MobileServerInvitesResponseSchema,
   type WorkspaceInvite,
 } from "@wizards/types";
@@ -13,11 +14,13 @@ import {
   buildMobileInviteShareUrl,
   createWorkspaceInviteWithDetails,
   listMobileWorkspaceInvites,
+  revokeWorkspaceInvite,
 } from "@/lib/workspace/invite-service";
 
 type MobileServerInviteRateLimitAction =
   | "mobile:server:invites:create"
-  | "mobile:server:invites:list";
+  | "mobile:server:invites:list"
+  | "mobile:server:invites:revoke";
 
 export type MobileServerInvitesRouteContext = {
   params: Promise<Record<string, string>>;
@@ -30,6 +33,7 @@ export type MobileServerInvitesRouteDependencies = {
   enforceRateLimit(userId: string, action: MobileServerInviteRateLimitAction): Promise<void>;
   listInvites: typeof listMobileWorkspaceInvites;
   parseBody: typeof parseJsonBody;
+  revokeInvite: typeof revokeWorkspaceInvite;
 };
 
 const defaultDependencies: MobileServerInvitesRouteDependencies = {
@@ -39,6 +43,7 @@ const defaultDependencies: MobileServerInvitesRouteDependencies = {
   enforceRateLimit: enforceApiRateLimit,
   listInvites: listMobileWorkspaceInvites,
   parseBody: (request, schema) => parseJsonBody(request, schema),
+  revokeInvite: revokeWorkspaceInvite,
 };
 
 export async function mobileServerInvitesListRoute(
@@ -85,6 +90,23 @@ export async function mobileServerInviteCreateRoute(
       }),
       { status: 201 },
     );
+  } catch (error) {
+    return jsonError(error);
+  }
+}
+
+export async function mobileServerInviteRevokeRoute(
+  request: Request,
+  context: MobileServerInvitesRouteContext,
+  dependencies: MobileServerInvitesRouteDependencies = defaultDependencies,
+) {
+  try {
+    const userId = await dependencies.authenticate(request);
+    await dependencies.enforceRateLimit(userId, "mobile:server:invites:revoke");
+    const { inviteId, serverId } = MobileServerInviteParamsSchema.parse(await context.params);
+    await dependencies.revokeInvite(userId, serverId, inviteId);
+
+    return Response.json({ success: true });
   } catch (error) {
     return jsonError(error);
   }

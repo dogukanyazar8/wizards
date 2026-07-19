@@ -34,6 +34,7 @@ export type MobileRootStackParamList = {
   ServerRoles: { readonly serverId: string };
   RoleDetail: { readonly roleId: string; readonly serverId: string };
   ServerMembers: { readonly serverId: string };
+  ServerInvites: { readonly serverId: string };
   ChannelSettings: { readonly channelId: string; readonly serverId: string };
 };
 

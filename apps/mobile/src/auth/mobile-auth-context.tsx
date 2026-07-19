@@ -347,7 +347,7 @@ export function MobileAuthProvider({
 
       return refreshPromiseRef.current;
     },
-    [createUnauthenticatedClient, repository],
+    [commitAuthState, createUnauthenticatedClient, repository],
   );
 
   const ensureFreshSession = useCallback(

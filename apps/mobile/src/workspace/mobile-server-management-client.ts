@@ -23,6 +23,7 @@ import {
   MobileServerIdParamsSchema,
   MobileServerInviteCreateRequestSchema,
   MobileServerInviteCreateResponseSchema,
+  MobileServerInviteParamsSchema,
   MobileServerInvitesResponseSchema,
   MobileServerJoinRequestSchema,
   MobileServerJoinResponseSchema,
@@ -64,6 +65,12 @@ export function buildMobileServerJoinPath(): string {
 
 export function buildMobileServerInviteCreatePath(input: { serverId: string }): string {
   return `/api/v1/mobile/servers/${encodeURIComponent(input.serverId)}/invites`;
+}
+
+export function buildMobileServerInvitePath(input: { inviteId: string; serverId: string }): string {
+  return `${buildMobileServerInviteCreatePath({ serverId: input.serverId })}/${encodeURIComponent(
+    input.inviteId,
+  )}`;
 }
 
 export function buildMobileServerPath(input: { serverId: string }): string {
@@ -175,6 +182,14 @@ export async function createMobileServerInvite(
   });
 
   return MobileServerInviteCreateResponseSchema.parse(payload);
+}
+
+export async function deleteMobileServerInvite(
+  client: MobileApiClient,
+  input: { inviteId: string; serverId: string },
+): Promise<void> {
+  const params = MobileServerInviteParamsSchema.parse(input);
+  await client.requestJson<unknown>(buildMobileServerInvitePath(params), { method: "DELETE" });
 }
 
 export type UpdateMobileServerInput = {

@@ -262,10 +262,16 @@ function matchesFriendQuery(
 }
 
 export function FriendsHub({
+  embedded = false,
+  externalSearch,
   mode = "all",
   onBack,
   onSelectMode,
 }: {
+  /** When embedded the parent Messages screen owns the header, segment and search. */
+  embedded?: boolean;
+  /** Search value supplied by the parent when embedded. */
+  externalSearch?: string;
   mode?: FriendsHubMode;
   onBack?(): void;
   onSelectMode?(mode: Exclude<FriendsHubMode, "all">): void;
@@ -281,12 +287,14 @@ export function FriendsHub({
   const [username, setUsername] = useState("");
   const [friendSegment, setFriendSegment] =
     useState<Exclude<FriendsHubSegment, "requests">>("online");
+  const effectiveSearch = embedded ? (externalSearch ?? "") : search;
   const busy = Object.values(mutations).some((mutation) => mutation.isPending);
   const incoming = query.data?.pending.incoming ?? [];
   const outgoing = query.data?.pending.outgoing ?? [];
   const friends = useMemo(
-    () => (query.data?.friends ?? []).filter((friend) => matchesFriendQuery(friend, search)),
-    [query.data?.friends, search],
+    () =>
+      (query.data?.friends ?? []).filter((friend) => matchesFriendQuery(friend, effectiveSearch)),
+    [query.data?.friends, effectiveSearch],
   );
   const onlineFriends = friends.filter((friend) => friend.status !== "OFFLINE");
   const offlineFriends = friends.filter((friend) => friend.status === "OFFLINE");
@@ -406,61 +414,65 @@ export function FriendsHub({
       style={styles.root}
       testID="mobile-friends-screen"
     >
-      <View style={styles.header}>
-        <Pressable
-          accessibilityLabel={t.back}
-          accessibilityRole="button"
-          onPress={onBack}
-          style={styles.headerBack}
-          testID="mobile-friends-back"
-        >
-          <Icon name="chevron-back" size={20} />
-        </Pressable>
-        <Text accessibilityRole="header" style={styles.headerTitle}>
-          {t.friends}
-        </Text>
-        <Pressable
-          accessibilityLabel={t.addFriendAction}
-          accessibilityRole="button"
-          onPress={() => selectSegment("requests")}
-          style={styles.headerAction}
-          testID="mobile-friends-add"
-        >
-          <Icon name="person-add-outline" size={19} tone="inverse" />
-        </Pressable>
-      </View>
-
-      <View style={styles.segmentShell} testID="mobile-friends-segments">
-        {(
-          [
-            ["online", t.online],
-            ["all", t.all],
-            ["requests", t.requests],
-          ] as const
-        ).map(([segment, label]) => (
+      {embedded ? null : (
+        <View style={styles.header}>
           <Pressable
-            accessibilityRole="tab"
-            accessibilityState={{ selected: activeSegment === segment }}
-            key={segment}
-            onPress={() => selectSegment(segment)}
-            style={[styles.segment, activeSegment === segment && styles.segmentActive]}
-            testID={`mobile-friends-segment-${segment}`}
+            accessibilityLabel={t.back}
+            accessibilityRole="button"
+            onPress={onBack}
+            style={styles.headerBack}
+            testID="mobile-friends-back"
           >
-            <Text
-              style={[styles.segmentText, activeSegment === segment && styles.segmentTextActive]}
-            >
-              {label}
-            </Text>
-            {segment === "requests" && incoming.length > 0 ? (
-              <View style={styles.requestCount}>
-                <Text style={styles.requestCountText}>{incoming.length}</Text>
-              </View>
-            ) : null}
+            <Icon name="chevron-back" size={20} />
           </Pressable>
-        ))}
-      </View>
+          <Text accessibilityRole="header" style={styles.headerTitle}>
+            {t.friends}
+          </Text>
+          <Pressable
+            accessibilityLabel={t.addFriendAction}
+            accessibilityRole="button"
+            onPress={() => selectSegment("requests")}
+            style={styles.headerAction}
+            testID="mobile-friends-add"
+          >
+            <Icon name="person-add-outline" size={19} tone="inverse" />
+          </Pressable>
+        </View>
+      )}
 
-      {activeSegment !== "requests" ? (
+      {embedded ? null : (
+        <View style={styles.segmentShell} testID="mobile-friends-segments">
+          {(
+            [
+              ["online", t.online],
+              ["all", t.all],
+              ["requests", t.requests],
+            ] as const
+          ).map(([segment, label]) => (
+            <Pressable
+              accessibilityRole="tab"
+              accessibilityState={{ selected: activeSegment === segment }}
+              key={segment}
+              onPress={() => selectSegment(segment)}
+              style={[styles.segment, activeSegment === segment && styles.segmentActive]}
+              testID={`mobile-friends-segment-${segment}`}
+            >
+              <Text
+                style={[styles.segmentText, activeSegment === segment && styles.segmentTextActive]}
+              >
+                {label}
+              </Text>
+              {segment === "requests" && incoming.length > 0 ? (
+                <View style={styles.requestCount}>
+                  <Text style={styles.requestCountText}>{incoming.length}</Text>
+                </View>
+              ) : null}
+            </Pressable>
+          ))}
+        </View>
+      )}
+
+      {!embedded && activeSegment !== "requests" ? (
         <View style={styles.searchShell}>
           <Icon name="search" size={17} tone="muted" />
           <TextInput

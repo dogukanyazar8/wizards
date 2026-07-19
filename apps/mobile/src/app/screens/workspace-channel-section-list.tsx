@@ -1,4 +1,5 @@
 import { FlashList } from "@shopify/flash-list";
+import { memo } from "react";
 import type { MobileVoiceChannelState } from "@wizards/types";
 import {
   Ionicons,
@@ -118,7 +119,7 @@ export function WorkspaceChannelSectionList({
   );
 }
 
-export function WorkspaceChannelCompactRow({
+export const WorkspaceChannelCompactRow = memo(function WorkspaceChannelCompactRow({
   channel,
   isSelected,
   layout = "compact",
@@ -271,4 +272,4 @@ export function WorkspaceChannelCompactRow({
   );
 
   return channelRow;
-}
+});

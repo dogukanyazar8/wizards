@@ -62,9 +62,6 @@ export function MobileWorkspaceBrowser({
   mediaState,
   messageSearchFeature,
   messageSearchState,
-  voiceInputMode,
-  voicePushToTalkPhase,
-  voiceRoomState,
   activeWorkspaceTextChannelId,
   activeWorkspaceVoiceChannelId,
   selectedChannelId,
@@ -73,26 +70,12 @@ export function MobileWorkspaceBrowser({
   onClearMessageSearch,
   onClearSelectedMediaAsset,
   onCloseWorkspaceChannel,
-  onCloseWorkspaceVoiceChannel,
-  onLeaveWorkspaceVoiceChannel,
   onOpenChannel,
   onOpenServer,
   onRefreshChannel,
   onRefreshServer,
   onRequestDocumentPicker,
   onRequestPhotoLibraryPicker,
-  onBeginVoicePushToTalk,
-  onEndVoicePushToTalk,
-  onFlipVoiceCamera,
-  onRefreshVoiceDevices,
-  onSelectVoiceAudioInput,
-  onSelectVoiceAudioOutputDevice,
-  onSelectVoiceAudioOutput,
-  onSelectVoiceNoiseSuppression,
-  onToggleVoiceCamera,
-  onToggleVoiceMute,
-  onToggleVoiceScreenShare,
-  voiceInviteSendStates,
   onChannelDraftChange,
   onSearchMessages,
   onSendChannelMessage,
@@ -101,7 +84,6 @@ export function MobileWorkspaceBrowser({
   onEditMessage,
   onOpenThread,
   onToggleMessageReaction,
-  onSendVoiceInvite,
 }: {
   attachmentsFeature: MobileBootstrapFeature | null;
   bootstrapState: MobileBootstrapViewState & {
@@ -117,9 +99,6 @@ export function MobileWorkspaceBrowser({
   mediaState: MobileMediaRuntimeState;
   messageSearchFeature: MobileBootstrapFeature | null;
   messageSearchState: MobileMessageSearchViewState;
-  voiceInputMode: MobileVoiceInputMode;
-  voicePushToTalkPhase: MobilePushToTalkPhase;
-  voiceRoomState: MobileVoiceRoomState;
   activeWorkspaceTextChannelId: string | null;
   activeWorkspaceVoiceChannelId: string | null;
   selectedChannelId: string | null;
@@ -128,26 +107,12 @@ export function MobileWorkspaceBrowser({
   onClearMessageSearch(): void;
   onClearSelectedMediaAsset(): void;
   onCloseWorkspaceChannel(): void;
-  onCloseWorkspaceVoiceChannel(): void;
-  onLeaveWorkspaceVoiceChannel(): Promise<void>;
   onOpenChannel(channel: MobileWorkspaceChannelSummary): void;
   onOpenServer(serverId: string): void;
   onRefreshChannel(): void;
   onRefreshServer(): void;
   onRequestDocumentPicker(): Promise<void>;
   onRequestPhotoLibraryPicker(): Promise<void>;
-  onBeginVoicePushToTalk(): Promise<void>;
-  onEndVoicePushToTalk(): void;
-  onFlipVoiceCamera(): Promise<void>;
-  onRefreshVoiceDevices(): Promise<void>;
-  onSelectVoiceAudioInput(id: string): Promise<void>;
-  onSelectVoiceAudioOutputDevice(id: string): Promise<void>;
-  onSelectVoiceAudioOutput(mode: MobileVoiceAudioOutputMode): Promise<void>;
-  onSelectVoiceNoiseSuppression(enabled: boolean): Promise<void>;
-  onToggleVoiceCamera(): Promise<void>;
-  onToggleVoiceMute(): Promise<void>;
-  onToggleVoiceScreenShare(): Promise<void>;
-  voiceInviteSendStates: Readonly<Record<string, MobileVoiceInviteSendState>>;
   onChannelDraftChange(content: string): void;
   onSearchMessages(input: {
     conversationId: string;
@@ -167,7 +132,6 @@ export function MobileWorkspaceBrowser({
   onEditMessage(input: { content: string; messageId: string }): Promise<boolean>;
   onOpenThread?(messageId: string): void;
   onToggleMessageReaction(input: { emoji: string; messageId: string; shouldReact: boolean }): void;
-  onSendVoiceInvite(targetUserId: string): void;
 }) {
   const styles = useHomeScreenStyles();
   const theme = useTheme();

@@ -13,6 +13,7 @@ export interface DestructiveConfirmationSheetProps {
   confirmLabel: string;
   open: boolean;
   requiredText?: string;
+  snapPoint?: number;
   testID: string;
   title: string;
   onCancel(): void;
@@ -45,6 +46,7 @@ export function DestructiveConfirmationSheet({
   onConfirm,
   open,
   requiredText,
+  snapPoint,
   testID,
   title,
 }: DestructiveConfirmationSheetProps) {
@@ -84,7 +86,13 @@ export function DestructiveConfirmationSheet({
   };
 
   return (
-    <BottomSheet accessibilityLabel={title} onClose={onCancel} open={open} testID={testID}>
+    <BottomSheet
+      accessibilityLabel={title}
+      onClose={onCancel}
+      open={open}
+      {...(snapPoint !== undefined ? { snapPoint } : {})}
+      testID={testID}
+    >
       <View style={styles.root}>
         <Text accessibilityRole="header" style={styles.title}>
           {title}

@@ -1,4 +1,6 @@
 import { FlashList } from "@shopify/flash-list";
+import { memo, useRef } from "react";
+import { PanResponder, ScrollView } from "react-native";
 import {
   Ionicons,
   Pressable,
@@ -13,16 +15,44 @@ import {
   getMobileConversationInitialsLabel,
   getMobileConversationTitle,
   useMemo,
-  useState,
   type MobileDMConversationListItem,
 } from "../mobile-root-screen-shared";
 import { AvatarMark, MetricMiniPill, StatusChip } from "../components/ui-atoms";
 import { useTheme } from "../providers/mobile-theme-provider";
 import { useDmScreenStyles } from "./dm-screen.styles";
-import type { MobileDMInboxSegment } from "./dm-screen.types";
+import type { MobileDMInboxSegment, MobileDMOnlineFriend } from "./dm-screen.types";
 
 const DM_INBOX_SEGMENTS: readonly MobileDMInboxSegment[] = ["conversations", "friends", "requests"];
 import { mobileListLoadHandlers } from "../../performance/mobile-performance-metrics";
+
+/** Horizontal swipe gesture that steps between the three inbox segments. */
+export function useMobileDmSegmentSwipe(
+  segment: MobileDMInboxSegment,
+  onSelectSegment: (next: MobileDMInboxSegment) => void,
+) {
+  const segmentRef = useRef(segment);
+  segmentRef.current = segment;
+  return useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_event, gesture) =>
+          Math.abs(gesture.dx) > 28 && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.8,
+        onPanResponderRelease: (_event, gesture) => {
+          const index = DM_INBOX_SEGMENTS.indexOf(segmentRef.current);
+          const next =
+            gesture.dx <= -40
+              ? DM_INBOX_SEGMENTS[index + 1]
+              : gesture.dx >= 40
+                ? DM_INBOX_SEGMENTS[index - 1]
+                : undefined;
+          if (next) {
+            onSelectSegment(next);
+          }
+        },
+      }).panHandlers,
+    [onSelectSegment],
+  );
+}
 
 export function DMInboxHeader({ onCompose }: { onCompose(): void }) {
   const theme = useTheme();
@@ -35,12 +65,12 @@ export function DMInboxHeader({ onCompose }: { onCompose(): void }) {
       </View>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={copy.directMessageComposeAction}
+        accessibilityLabel={copy.dmAddFriendAction}
         onPress={onCompose}
         testID="mobile-dm-compose-button"
         style={styles.dmComposeButton}
       >
-        <Ionicons name="chatbubble-ellipses-outline" size={20} color={theme.text.onPrimary} />
+        <Ionicons name="person-add-outline" size={19} color={theme.text.onPrimary} />
       </Pressable>
     </View>
   );
@@ -72,22 +102,135 @@ export function DirectMessageSummaryCard({
   );
 }
 
+export function DMInboxSearchField({
+  onChangeText,
+  placeholder,
+  value,
+}: {
+  onChangeText(next: string): void;
+  placeholder: string;
+  value: string;
+}) {
+  const theme = useTheme();
+  const styles = useDmScreenStyles();
+  return (
+    <View style={styles.dmUnifiedSearchWrap}>
+      <View style={styles.dmUnifiedSearchPill}>
+        <Ionicons name="search" size={17} color={theme.text.visualPlaceholder} />
+        <TextInput
+          accessibilityLabel={placeholder}
+          autoCapitalize="none"
+          autoCorrect={false}
+          clearButtonMode="while-editing"
+          onChangeText={onChangeText}
+          placeholder={placeholder}
+          placeholderTextColor={theme.text.visualPlaceholder}
+          returnKeyType="search"
+          style={styles.dmUnifiedSearchInput}
+          testID="mobile-dm-search-input"
+          value={value}
+        />
+      </View>
+    </View>
+  );
+}
+
+export function DMOnlineStrip({
+  friends,
+  onAddFriend,
+  onOpenFriendDM,
+}: {
+  friends: readonly MobileDMOnlineFriend[];
+  onAddFriend(): void;
+  onOpenFriendDM(friendId: string): void;
+}) {
+  const styles = useDmScreenStyles();
+  const theme = useTheme();
+  if (friends.length === 0) {
+    return null;
+  }
+  return (
+    <View testID="mobile-dm-online-strip">
+      <Text style={styles.dmOnlineStripLabel}>
+        {`${copy.dmSectionOnlineLabel} — ${friends.length}`}
+      </Text>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.dmOnlineStripContent}
+      >
+        {friends.map((friend) => {
+          const title = friend.displayName ?? friend.username;
+          const isIdle = friend.status !== "ONLINE";
+          const ringColor = isIdle ? theme.status.warning : theme.status.success;
+          return (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`${copy.openConversationAction}: ${title}`}
+              key={friend.id}
+              onPress={() => onOpenFriendDM(friend.id)}
+              style={styles.dmOnlineStripCell}
+              testID={`mobile-dm-online-friend-${friend.id}`}
+            >
+              <View style={styles.dmOnlineStripAvatarWrap}>
+                <AvatarMark
+                  avatarBorderColor={ringColor}
+                  avatarBorderRadius={20}
+                  avatarBorderWidth={2}
+                  dimension={56}
+                  identityId={friend.id}
+                  imageUrl={friend.avatarUrl}
+                  label={title}
+                />
+                <View style={[styles.dmOnlineStripDot, isIdle && styles.dmOnlineStripDotIdle]} />
+              </View>
+              <Text numberOfLines={1} style={styles.dmOnlineStripName}>
+                {friend.username}
+              </Text>
+            </Pressable>
+          );
+        })}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={copy.dmAddFriendAction}
+          onPress={onAddFriend}
+          style={styles.dmOnlineStripCell}
+          testID="mobile-dm-online-add"
+        >
+          <View style={styles.dmOnlineStripAddCell}>
+            <Ionicons name="add" size={20} color={theme.text.visualFaint} />
+          </View>
+          <Text numberOfLines={1} style={styles.dmOnlineStripAddLabel}>
+            {copy.dmOnlineStripAddLabel}
+          </Text>
+        </Pressable>
+      </ScrollView>
+    </View>
+  );
+}
+
 export function DirectMessageListCard({
   conversations,
   hasNextPage,
+  onlineFriends = [],
+  onAddFriend = () => {},
   onLoadMore,
   onOpenConversation,
+  onOpenFriendDM = () => {},
+  query = "",
   selectedConversationId,
 }: {
   conversations: readonly MobileDMConversationListItem[];
   hasNextPage: boolean;
+  onlineFriends?: readonly MobileDMOnlineFriend[];
+  onAddFriend?(): void;
   onLoadMore(): void;
   onOpenConversation(conversationId: string): void;
+  onOpenFriendDM?(friendId: string): void;
+  query?: string;
   selectedConversationId: string | null;
 }) {
-  const theme = useTheme();
   const styles = useDmScreenStyles();
-  const [query, setQuery] = useState("");
   const filteredConversations = useMemo(
     () =>
       filterMobileConversations(conversations, {
@@ -100,28 +243,24 @@ export function DirectMessageListCard({
 
   return (
     <View style={styles.dmListCard}>
-      <View style={[styles.dmSearchRow, styles.dmInboxSearchArea]}>
-        <View style={styles.dmSearchShell}>
-          <Ionicons name="search" size={19} color={theme.text.soft} />
-          <TextInput
-            accessibilityLabel={copy.directMessageSearchPlaceholder}
-            autoCapitalize="none"
-            autoCorrect={false}
-            clearButtonMode="while-editing"
-            onChangeText={setQuery}
-            placeholder={copy.directMessageSearchPlaceholder}
-            placeholderTextColor={theme.text.soft}
-            returnKeyType="search"
-            style={styles.inboxSearchInput}
-            testID="mobile-dm-search-input"
-            value={query}
-          />
-        </View>
-      </View>
       <FlashList
         contentContainerStyle={styles.dmConversationList}
         data={filteredConversations}
         keyExtractor={(conversation) => conversation.id}
+        ListHeaderComponent={
+          <View>
+            {query.trim().length === 0 ? (
+              <DMOnlineStrip
+                friends={onlineFriends}
+                onAddFriend={onAddFriend}
+                onOpenFriendDM={onOpenFriendDM}
+              />
+            ) : null}
+            <Text style={styles.dmConversationsSectionLabel}>
+              {copy.dmSectionConversationsLabel}
+            </Text>
+          </View>
+        }
         onLoad={mobileListLoadHandlers.dmInbox}
         onEndReached={hasNextPage ? onLoadMore : undefined}
         onEndReachedThreshold={0.6}
@@ -132,18 +271,18 @@ export function DirectMessageListCard({
             onOpenConversation={onOpenConversation}
           />
         )}
+        ListEmptyComponent={
+          <Text style={styles.contractDescription}>{copy.directMessageFilteredEmpty}</Text>
+        }
         showsVerticalScrollIndicator={false}
         style={{ ...styles.dmConversationListViewport, ...styles.dmInboxListArea }}
         testID="mobile-dm-conversation-list"
       />
-      {filteredConversations.length === 0 ? (
-        <Text style={styles.contractDescription}>{copy.directMessageFilteredEmpty}</Text>
-      ) : null}
     </View>
   );
 }
 
-export function DirectMessageConversationCard({
+export const DirectMessageConversationCard = memo(function DirectMessageConversationCard({
   conversation,
   onOpenConversation,
   selected,
@@ -227,7 +366,7 @@ export function DirectMessageConversationCard({
       </View>
     </Pressable>
   );
-}
+});
 
 export function DMInboxLoadingSkeleton() {
   const styles = useDmScreenStyles();
@@ -255,11 +394,11 @@ export function DMInboxEmptyState({ onCompose }: { onCompose(): void }) {
       <Text style={styles.dmInboxEmptyTitle}>{copy.messagesEmpty}</Text>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={copy.directMessageComposeAction}
+        accessibilityLabel={copy.dmEmptyWriteFriendsAction}
         onPress={onCompose}
         style={styles.dmInboxEmptyAction}
       >
-        <Text style={styles.dmInboxEmptyActionText}>{copy.directMessageComposeAction}</Text>
+        <Text style={styles.dmInboxEmptyActionText}>{copy.dmEmptyWriteFriendsAction}</Text>
       </Pressable>
     </View>
   );
@@ -278,32 +417,33 @@ export function DMInboxSegmentTabs({
 
   return (
     <View testID="mobile-dm-filter-tabs">
-      <View style={styles.inboxFilterRow} testID="mobile-social-segment">
+      <View style={styles.dmSegmentTrack} testID="mobile-social-segment">
         {DM_INBOX_SEGMENTS.map((candidate) => {
           const selected = segment === candidate;
           const label =
             candidate === "conversations"
-              ? copy.socialSegmentConversations
+              ? copy.dmSegmentConversations
               : candidate === "friends"
                 ? copy.socialSegmentFriends
                 : copy.socialSegmentRequests;
+          const showBadge = candidate === "requests" && incomingRequestCount > 0;
           return (
             <Pressable
               accessibilityRole="tab"
               accessibilityState={{ selected }}
               key={candidate}
               onPress={() => onSelectSegment(candidate)}
-              style={[styles.inboxFilterButton, selected && styles.inboxFilterButtonActive]}
+              style={[styles.dmSegmentItem, selected && styles.dmSegmentItemActive]}
               testID={`mobile-social-segment-${candidate}`}
             >
-              <Text
-                style={[styles.inboxFilterButtonText, selected && styles.inboxFilterButtonTextActive]}
-              >
+              <Text style={[styles.dmSegmentLabel, selected && styles.dmSegmentLabelActive]}>
                 {label}
-                {candidate === "requests" && incomingRequestCount > 0 ? (
-                  <Text style={styles.inboxFilterRequestCount}> ·{incomingRequestCount}</Text>
-                ) : null}
               </Text>
+              {showBadge ? (
+                <View style={styles.dmSegmentRequestBadge} testID="mobile-social-segment-request-badge">
+                  <Text style={styles.dmSegmentRequestBadgeText}>{incomingRequestCount}</Text>
+                </View>
+              ) : null}
             </Pressable>
           );
         })}

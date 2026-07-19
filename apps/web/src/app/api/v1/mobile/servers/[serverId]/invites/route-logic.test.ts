@@ -43,6 +43,7 @@ function dependencies(overrides: Record<string, unknown> = {}) {
     enforceRateLimit: async () => undefined,
     listInvites: async () => [invite],
     parseBody: parseJsonBody,
+    revokeInvite: async () => undefined,
     ...overrides,
   };
 }
@@ -350,5 +351,49 @@ describe("mobile server invite route logic", () => {
     }
     assert.equal(paramsRead, false);
     assert.equal(laterDependencyCalled, false);
+  });
+
+  it("DELETE authenticates, rate limits, validates params, and revokes the invite", async () => {
+    const { mobileServerInviteRevokeRoute } = await routes;
+    const calls: Array<{ userId: string; serverId: string; inviteId: string }> = [];
+    let rateLimitAction: string | null = null;
+    const response = await mobileServerInviteRevokeRoute(
+      new Request("https://whispr.test/api/v1/mobile/servers/server-1/invites/invite-1", {
+        method: "DELETE",
+      }),
+      context({ inviteId: "invite-1", serverId: "server-1" }),
+      dependencies({
+        enforceRateLimit: async (_userId: string, action: string) => {
+          rateLimitAction = action;
+        },
+        revokeInvite: async (userId: string, serverId: string, inviteId: string) => {
+          calls.push({ inviteId, serverId, userId });
+        },
+      }),
+    );
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { success: true });
+    assert.equal(rateLimitAction, "mobile:server:invites:revoke");
+    assert.deepEqual(calls, [{ inviteId: "invite-1", serverId: "server-1", userId: "user-1" }]);
+  });
+
+  it("DELETE rejects a malformed invite id before revoking", async () => {
+    const { mobileServerInviteRevokeRoute } = await routes;
+    let revokeCalled = false;
+    const response = await mobileServerInviteRevokeRoute(
+      new Request("https://whispr.test/api/v1/mobile/servers/server-1/invites/x", {
+        method: "DELETE",
+      }),
+      context({ inviteId: "", serverId: "server-1" }),
+      dependencies({
+        revokeInvite: async () => {
+          revokeCalled = true;
+        },
+      }),
+    );
+
+    assert.equal(response.status >= 400, true);
+    assert.equal(revokeCalled, false);
   });
 });

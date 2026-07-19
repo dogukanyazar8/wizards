@@ -203,7 +203,6 @@ export function DMComposer({
     onSend,
     trimmedDraft,
     usesUploadedAttachments,
-    variant,
   ]);
 
   const intentBanner = intent ? (

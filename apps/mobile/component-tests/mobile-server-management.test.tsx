@@ -68,6 +68,15 @@ jest.mock("../src/workspace/mobile-workspace-editor-sheets", () => ({
   MobileWorkspaceEditorSheets: () => null,
 }));
 
+const mockShareInvite = jest.fn();
+const mockCopyToClipboard = jest.fn();
+jest.mock("expo-clipboard", () => ({
+  setStringAsync: (...args: unknown[]) => mockCopyToClipboard(...args),
+}));
+jest.mock("../src/invite/mobile-invite-share", () => ({
+  shareMobileInviteUrl: (...args: unknown[]) => mockShareInvite(...args),
+}));
+
 jest.mock("../src/app/components/kit", () => {
   const actual = jest.requireActual("../src/app/components/kit");
   const React = require("react");
@@ -103,6 +112,7 @@ import { MobileServerSettingsScreen } from "../src/workspace/mobile-server-setti
 import { MobileServerRolesScreen } from "../src/workspace/mobile-server-roles-screen";
 import { MobileChannelSettingsScreen } from "../src/workspace/mobile-channel-settings-screen";
 import { MobileServerMembersScreen } from "../src/workspace/mobile-server-members-screen";
+import { MobileServerInvitesScreen } from "../src/workspace/mobile-server-invites-screen";
 
 function createMutation() {
   return { isPending: false, mutateAsync: jest.fn().mockResolvedValue({ success: true }) };
@@ -180,6 +190,7 @@ function resetMocks() {
     createServer: createMutation(),
     deleteCategory: createMutation(),
     deleteChannel: createMutation(),
+    deleteInvite: createMutation(),
     deleteRole: createMutation(),
     deleteServer: createMutation(),
     joinServer: createMutation(),
@@ -438,5 +449,92 @@ describe("mobile server management", () => {
       }),
     );
     expect(onOpenRoleDetail).toHaveBeenCalledWith("role-support");
+  });
+
+  it("shows the empty invites state and creates an invite through the managed mutation", async () => {
+    resetMocks();
+    mockShareInvite.mockReset();
+    mockCopyToClipboard.mockReset();
+    const view = await render(<MobileServerInvitesScreen serverId="server-1" onBack={jest.fn()} />);
+
+    expect(view.getByTestId("mobile-server-invites-empty")).toBeTruthy();
+    await fireEvent.press(view.getByTestId("mobile-server-invites-create"));
+    await waitFor(() =>
+      expect(mockMutations.createInvite.mutateAsync).toHaveBeenCalledWith({ serverId: "server-1" }),
+    );
+  });
+
+  it("renders invite cards and shares the exact canonical url", async () => {
+    resetMocks();
+    mockShareInvite.mockReset();
+    mockCopyToClipboard.mockReset();
+    mockInvitesQuery = {
+      data: {
+        invites: [
+          {
+            channelId: null,
+            createdAt: "2026-07-01T00:00:00.000Z",
+            createdByDisplayName: "Ada",
+            expiresAt: null,
+            id: "invite-1",
+            maxUses: null,
+            shareUrl: "https://whispr.example/invite/abc123",
+            uses: 3,
+          },
+        ],
+      },
+      isLoading: false,
+    };
+    const view = await render(<MobileServerInvitesScreen serverId="server-1" onBack={jest.fn()} />);
+
+    expect(view.getByTestId("mobile-server-invite-invite-1")).toBeTruthy();
+    expect(view.getByText("abc123")).toBeTruthy();
+
+    await fireEvent.press(view.getByTestId("mobile-server-invite-invite-1-copy"));
+    expect(mockCopyToClipboard).toHaveBeenCalledWith("https://whispr.example/invite/abc123");
+
+    await fireEvent.press(view.getByTestId("mobile-server-invite-invite-1-share"));
+    expect(mockShareInvite).toHaveBeenCalledWith("https://whispr.example/invite/abc123");
+  });
+
+  it("revokes an invite after confirmation through the managed mutation", async () => {
+    resetMocks();
+    mockInvitesQuery = {
+      data: {
+        invites: [
+          {
+            channelId: null,
+            createdAt: "2026-07-01T00:00:00.000Z",
+            createdByDisplayName: "Ada",
+            expiresAt: null,
+            id: "invite-1",
+            maxUses: null,
+            shareUrl: "https://whispr.example/invite/abc123",
+            uses: 3,
+          },
+        ],
+      },
+      isLoading: false,
+      refetch: jest.fn().mockResolvedValue({}),
+    };
+    const view = await render(<MobileServerInvitesScreen serverId="server-1" onBack={jest.fn()} />);
+
+    await fireEvent.press(view.getByTestId("mobile-server-invite-invite-1-delete"));
+    await fireEvent.press(view.getByTestId("mobile-server-invite-delete-confirm-confirm"));
+
+    await waitFor(() =>
+      expect(mockMutations.deleteInvite.mutateAsync).toHaveBeenCalledWith({
+        inviteId: "invite-1",
+        serverId: "server-1",
+      }),
+    );
+  });
+
+  it("shows the invites loading skeleton while the query is pending", async () => {
+    resetMocks();
+    mockInvitesQuery = { data: undefined, isLoading: true };
+    const view = await render(<MobileServerInvitesScreen serverId="server-1" onBack={jest.fn()} />);
+
+    expect(view.getByTestId("mobile-server-invites-loading")).toBeTruthy();
   });
 });

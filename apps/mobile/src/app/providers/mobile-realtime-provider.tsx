@@ -304,6 +304,12 @@ export function MobileRealtimeProvider({ children }: PropsWithChildren) {
         clientRef.current = null;
       }
     };
+    // `connection.status` and full `session` are read but intentionally NOT deps:
+    // this effect owns the connect/disconnect lifecycle, so re-running it when the
+    // connection status changes would reconnect on every status transition (loop),
+    // and keying on `session?.user.id` (not the whole session) avoids reconnecting
+    // on token refreshes that keep the same user.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bridge, connection.visibility, getAccessToken, handleEvent, session?.user.id, status]);
 
   const channelId = useMobileActiveTargetStore((state) => state.channelId);

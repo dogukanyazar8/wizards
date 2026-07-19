@@ -26,6 +26,7 @@ const M1_MOBILE_RATE_LIMITS = {
   "mobile:server:detail": { limit: 120, windowSeconds: 60 },
   "mobile:server:invites:create": { limit: 20, windowSeconds: 600 },
   "mobile:server:invites:list": { limit: 60, windowSeconds: 60 },
+  "mobile:server:invites:revoke": { limit: 20, windowSeconds: 600 },
   "mobile:server:join": { limit: 20, windowSeconds: 600 },
   "mobile:server:member:kick": { limit: 30, windowSeconds: 600 },
   "mobile:server:member-roles:update": { limit: 40, windowSeconds: 600 },
@@ -154,7 +155,7 @@ describe("API rate limit configuration", () => {
       )
       .sort();
 
-    assert.equal(expectedActions.length, 24);
+    assert.equal(expectedActions.length, 25);
     assert.deepEqual(actualActions, expectedActions);
 
     for (const [action, expectedConfig] of Object.entries(M1_MOBILE_RATE_LIMITS)) {

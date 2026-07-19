@@ -60,9 +60,6 @@ export function OverviewScreen({
   locale,
   mediaState,
   messageSearchState,
-  voiceInputMode,
-  voicePushToTalkPhase,
-  voiceRoomState,
   activeWorkspaceTextChannelId,
   activeWorkspaceVoiceChannelId,
   selectedWorkspaceChannelId,
@@ -72,8 +69,6 @@ export function OverviewScreen({
   onClearMessageSearch,
   onClearSelectedMediaAsset,
   onCloseWorkspaceChannel,
-  onCloseWorkspaceVoiceChannel,
-  onLeaveWorkspaceVoiceChannel,
   onOpenWorkspaceChannel,
   onOpenWorkspaceServer,
   onRefreshBootstrap,
@@ -82,18 +77,6 @@ export function OverviewScreen({
   onRefreshWorkspaceServer,
   onRequestDocumentPicker,
   onRequestPhotoLibraryPicker,
-  onBeginVoicePushToTalk,
-  onEndVoicePushToTalk,
-  onFlipVoiceCamera,
-  onRefreshVoiceDevices,
-  onSelectVoiceAudioInput,
-  onSelectVoiceAudioOutputDevice,
-  onSelectVoiceAudioOutput,
-  onSelectVoiceNoiseSuppression,
-  onToggleVoiceCamera,
-  onToggleVoiceMute,
-  onToggleVoiceScreenShare,
-  voiceInviteSendStates,
   onChannelDraftChange,
   onSearchMessages,
   onSendChannelMessage,
@@ -102,7 +85,6 @@ export function OverviewScreen({
   onEditMessage,
   onOpenThread,
   onToggleMessageReaction,
-  onSendVoiceInvite,
 }: {
   bootstrapState: MobileBootstrapViewState;
   channelMessagesState: MobileChannelMessagesViewState;
@@ -113,9 +95,6 @@ export function OverviewScreen({
   locale: MobileLocale;
   mediaState: MobileMediaRuntimeState;
   messageSearchState: MobileMessageSearchViewState;
-  voiceInputMode: MobileVoiceInputMode;
-  voicePushToTalkPhase: MobilePushToTalkPhase;
-  voiceRoomState: MobileVoiceRoomState;
   activeWorkspaceTextChannelId: string | null;
   activeWorkspaceVoiceChannelId: string | null;
   selectedWorkspaceChannelId: string | null;
@@ -125,8 +104,6 @@ export function OverviewScreen({
   onClearMessageSearch(): void;
   onClearSelectedMediaAsset(): void;
   onCloseWorkspaceChannel(): void;
-  onCloseWorkspaceVoiceChannel(): void;
-  onLeaveWorkspaceVoiceChannel(): Promise<void>;
   onOpenWorkspaceChannel(channel: MobileWorkspaceChannelSummary): Promise<boolean>;
   onOpenWorkspaceServer(serverId: string): void;
   onRefreshBootstrap(): void;
@@ -135,18 +112,6 @@ export function OverviewScreen({
   onRefreshWorkspaceServer(): void;
   onRequestDocumentPicker(): Promise<void>;
   onRequestPhotoLibraryPicker(): Promise<void>;
-  onBeginVoicePushToTalk(): Promise<void>;
-  onEndVoicePushToTalk(): void;
-  onFlipVoiceCamera(): Promise<void>;
-  onRefreshVoiceDevices(): Promise<void>;
-  onSelectVoiceAudioInput(id: string): Promise<void>;
-  onSelectVoiceAudioOutputDevice(id: string): Promise<void>;
-  onSelectVoiceAudioOutput(mode: MobileVoiceAudioOutputMode): Promise<void>;
-  onSelectVoiceNoiseSuppression(enabled: boolean): Promise<void>;
-  onToggleVoiceCamera(): Promise<void>;
-  onToggleVoiceMute(): Promise<void>;
-  onToggleVoiceScreenShare(): Promise<void>;
-  voiceInviteSendStates: Readonly<Record<string, MobileVoiceInviteSendState>>;
   onChannelDraftChange(content: string): void;
   onSearchMessages(input: {
     conversationId: string;
@@ -166,7 +131,6 @@ export function OverviewScreen({
   onEditMessage(input: { content: string; messageId: string }): Promise<boolean>;
   onOpenThread?(messageId: string): void;
   onToggleMessageReaction(input: { emoji: string; messageId: string; shouldReact: boolean }): void;
-  onSendVoiceInvite(targetUserId: string): void;
 }) {
   const styles = useHomeScreenStyles();
   const attachmentsFeature =
@@ -191,9 +155,6 @@ export function OverviewScreen({
           mediaState={mediaState}
           messageSearchFeature={messageSearchFeature}
           messageSearchState={messageSearchState}
-          voiceInputMode={voiceInputMode}
-          voicePushToTalkPhase={voicePushToTalkPhase}
-          voiceRoomState={voiceRoomState}
           activeWorkspaceTextChannelId={activeWorkspaceTextChannelId}
           activeWorkspaceVoiceChannelId={activeWorkspaceVoiceChannelId}
           selectedChannelId={selectedWorkspaceChannelId}
@@ -202,26 +163,12 @@ export function OverviewScreen({
           onClearMessageSearch={onClearMessageSearch}
           onClearSelectedMediaAsset={onClearSelectedMediaAsset}
           onCloseWorkspaceChannel={onCloseWorkspaceChannel}
-          onCloseWorkspaceVoiceChannel={onCloseWorkspaceVoiceChannel}
-          onLeaveWorkspaceVoiceChannel={onLeaveWorkspaceVoiceChannel}
           onOpenChannel={onOpenWorkspaceChannel}
           onOpenServer={onOpenWorkspaceServer}
           onRefreshChannel={onRefreshChannelMessages}
           onRefreshServer={onRefreshWorkspaceServer}
           onRequestDocumentPicker={onRequestDocumentPicker}
           onRequestPhotoLibraryPicker={onRequestPhotoLibraryPicker}
-          onBeginVoicePushToTalk={onBeginVoicePushToTalk}
-          onEndVoicePushToTalk={onEndVoicePushToTalk}
-          onFlipVoiceCamera={onFlipVoiceCamera}
-          onRefreshVoiceDevices={onRefreshVoiceDevices}
-          onSelectVoiceAudioInput={onSelectVoiceAudioInput}
-          onSelectVoiceAudioOutputDevice={onSelectVoiceAudioOutputDevice}
-          onSelectVoiceAudioOutput={onSelectVoiceAudioOutput}
-          onSelectVoiceNoiseSuppression={onSelectVoiceNoiseSuppression}
-          onToggleVoiceCamera={onToggleVoiceCamera}
-          onToggleVoiceMute={onToggleVoiceMute}
-          onToggleVoiceScreenShare={onToggleVoiceScreenShare}
-          voiceInviteSendStates={voiceInviteSendStates}
           onChannelDraftChange={onChannelDraftChange}
           onSearchMessages={onSearchMessages}
           onSendChannelMessage={onSendChannelMessage}
@@ -230,7 +177,6 @@ export function OverviewScreen({
           onEditMessage={onEditMessage}
           {...(onOpenThread ? { onOpenThread } : {})}
           onToggleMessageReaction={onToggleMessageReaction}
-          onSendVoiceInvite={onSendVoiceInvite}
         />
       ) : null}
     </View>

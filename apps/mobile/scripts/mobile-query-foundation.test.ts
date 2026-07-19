@@ -47,11 +47,17 @@ test("mobile query client uses a bounded in-memory policy", () => {
   const client = createMobileQueryClient();
   const defaults = client.getDefaultOptions().queries;
 
-  assert.equal(defaults?.retry, 2);
+  assert.equal(defaults?.retry, 1);
   assert.equal(defaults?.staleTime, 15_000);
   assert.equal(defaults?.gcTime, 5 * 60_000);
   assert.equal(defaults?.refetchOnReconnect, true);
   assert.equal("persister" in client, false);
+  const retryDelay = defaults?.retryDelay;
+  assert.equal(typeof retryDelay, "function");
+  if (typeof retryDelay === "function") {
+    assert.equal(retryDelay(0, new Error("x")), 1_000);
+    assert.equal(retryDelay(5, new Error("x")), 2_000);
+  }
 });
 
 test("infinite pages flatten chronologically and keep newest duplicate values", () => {

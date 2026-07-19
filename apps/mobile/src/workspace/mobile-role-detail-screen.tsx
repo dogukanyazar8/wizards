@@ -1,3 +1,4 @@
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useEffect, useMemo, useState } from "react";
 import { Image, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import type { MobilePermissionKey } from "@wizards/types";
@@ -86,8 +87,7 @@ const copy = {
   en: {
     back: "Back",
     delete: "Delete role",
-    deleteBody:
-      "This permanently deletes the role and removes it from every member. Type the role name to continue.",
+    deleteBody: "Delete this role for everyone? It is removed from all members right away.",
     error: "This role action could not be completed. Please try again.",
     loadingTitle: "Loading role…",
     members: "Members in role",
@@ -103,8 +103,7 @@ const copy = {
   tr: {
     back: "Geri",
     delete: "Rolü sil",
-    deleteBody:
-      "Bu işlem rolü kalıcı olarak siler ve tüm üyelerden kaldırır. Devam etmek için rol adını yazın.",
+    deleteBody: "Bu rol herkes için silinsin mi? Anında tüm üyelerden kaldırılır.",
     error: "Rol işlemi tamamlanamadı. Lütfen yeniden deneyin.",
     loadingTitle: "Rol yükleniyor…",
     members: "Roldeki üyeler",
@@ -164,6 +163,14 @@ export function MobileRoleDetailScreen({ onBack, roleId, serverId }: MobileRoleD
       setSyncedRoleId(role.id);
     }
   }, [role, syncedRoleId]);
+
+  // Arriving from "create role" the overview cache can be one refetch behind, so
+  // pull it again rather than rendering the "role not found" state.
+  useEffect(() => {
+    if (!role && rolesQuery.data && !rolesQuery.isFetching) {
+      void rolesQuery.refetch();
+    }
+  }, [role, rolesQuery]);
 
   const togglePermission = (key: MobilePermissionKey, next: boolean) => {
     setPermissions((previous) => {
@@ -271,13 +278,15 @@ export function MobileRoleDetailScreen({ onBack, roleId, serverId }: MobileRoleD
           style={styles.deleteButton}
           testID="mobile-role-detail-delete"
         >
-          <MobileLineIcon color={theme.status.dangerOnInverse} name="leave" size={18} />
+          <Ionicons color={theme.status.dangerOnInverse} name="trash-outline" size={18} />
         </Pressable>
       ) : null}
     </View>
   );
 
-  if (rolesQuery.isLoading) {
+  // A freshly created role may not be in the overview cache yet; keep showing the
+  // loading skeleton while the query refetches so "Rol bulunamadı" never flashes.
+  if (rolesQuery.isLoading || (!role && rolesQuery.isFetching)) {
     return (
       <View style={styles.root} testID="mobile-role-detail-screen">
         {headerNode}
@@ -420,10 +429,8 @@ export function MobileRoleDetailScreen({ onBack, roleId, serverId }: MobileRoleD
                   </View>
                   <Toggle
                     accessibilityLabel={display}
-                    disabled={
-                      !member.actions.canManageRoles || mutations.updateMemberRoles.isPending
-                    }
                     onValueChange={(next) => void toggleMemberRole(member, next)}
+                    readOnly={!member.actions.canManageRoles}
                     value={hasRole}
                   />
                 </View>
@@ -461,7 +468,7 @@ export function MobileRoleDetailScreen({ onBack, roleId, serverId }: MobileRoleD
         onCancel={() => setDeleteOpen(false)}
         onConfirm={remove}
         open={deleteOpen}
-        requiredText={role.name}
+        snapPoint={260}
         testID="mobile-role-detail-delete-confirm"
         title={labels.delete}
       />

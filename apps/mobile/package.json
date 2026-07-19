@@ -26,7 +26,8 @@
     "visual:capture:android": "node --import tsx scripts/mobile-redesign-device-capture.ts --platform android",
     "visual:capture:ios": "node --import tsx scripts/mobile-redesign-device-capture.ts --platform ios",
     "visual:diff": "node --import tsx scripts/mobile-redesign-diff.ts",
-    "visual:gate": "node --import tsx scripts/mobile-redesign-visual-gate.ts"
+    "visual:gate": "node --import tsx scripts/mobile-redesign-visual-gate.ts",
+    "lint:hooks": "eslint ."
   },
   "dependencies": {
     "@config-plugins/react-native-webrtc": "^15.0.1",
@@ -86,6 +87,9 @@
     "@types/node": "^24.13.3",
     "@types/react": "19.2.14",
     "babel-preset-expo": "~56.0.17",
+    "eslint": "^9.39.4",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.7.0",
     "jest": "29.7.0",
     "jest-expo": "56.0.5",
     "pixelmatch": "7.1.0",
@@ -94,6 +98,7 @@
     "ssim.js": "3.5.0",
     "test-renderer": "1.2.0",
     "tsx": "^4.22.4",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "typescript-eslint": "^8.64.0"
   }
 }

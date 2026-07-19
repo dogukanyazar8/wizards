@@ -1,9 +1,12 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, type InfiniteData } from "@tanstack/react-query";
 import type {
   MobileManagedWorkspaceServerDetailResponse,
   MobileServerCreateRequest,
   MobileServerInviteCreateRequest,
+  MobileServerInvitesResponse,
   MobileServerJoinRequest,
+  MobileServerMembersResponse,
+  MobileServerRoleOverviewResponse,
 } from "@wizards/types";
 
 import type { MobileApiClient } from "../api/mobile-api-client";
@@ -15,6 +18,7 @@ import {
   createMobileRole,
   createMobileServer,
   createMobileServerInvite,
+  deleteMobileServerInvite,
   deleteMobileCategory,
   deleteMobileChannel,
   deleteMobileRole,
@@ -51,6 +55,11 @@ export function useMobileServerManagementMutations(client: MobileApiClient) {
     queryClient.invalidateQueries({
       exact: true,
       queryKey: mobileQueryKeys.workspaceMembers(serverId),
+    });
+  const invalidateInvites = (serverId: string) =>
+    queryClient.invalidateQueries({
+      exact: true,
+      queryKey: mobileQueryKeys.workspaceInvites(serverId),
     });
   const invalidateRoles = (serverId: string) =>
     Promise.all([
@@ -93,6 +102,32 @@ export function useMobileServerManagementMutations(client: MobileApiClient) {
     createInvite: useMutation({
       mutationFn: (input: { request?: MobileServerInviteCreateRequest; serverId: string }) =>
         createMobileServerInvite(client, input.serverId, input.request ?? {}),
+    }),
+    deleteInvite: useMutation({
+      mutationFn: (input: { inviteId: string; serverId: string }) =>
+        deleteMobileServerInvite(client, input),
+      // Drop the invite from the cache immediately so the row disappears the
+      // moment the user confirms, then reconcile with the server on settle.
+      onMutate: async (input) => {
+        const queryKey = mobileQueryKeys.workspaceInvites(input.serverId);
+        await queryClient.cancelQueries({ exact: true, queryKey });
+        const previous = queryClient.getQueryData<MobileServerInvitesResponse>(queryKey);
+        if (previous) {
+          queryClient.setQueryData<MobileServerInvitesResponse>(queryKey, {
+            ...previous,
+            invites: previous.invites.filter((invite) => invite.id !== input.inviteId),
+          });
+        }
+        return { previous, queryKey };
+      },
+      onError: (_error, _input, context) => {
+        if (context?.previous) {
+          queryClient.setQueryData(context.queryKey, context.previous);
+        }
+      },
+      onSettled: (_response, _error, input) => {
+        void invalidateInvites(input.serverId).catch(() => undefined);
+      },
     }),
     createServer: useMutation({
       mutationFn: (input: MobileServerCreateRequest) => createMobileServer(client, input),
@@ -209,7 +244,35 @@ export function useMobileServerManagementMutations(client: MobileApiClient) {
     updateMemberRoles: useMutation({
       mutationFn: (input: { memberId: string; roleIds: readonly string[]; serverId: string }) =>
         updateMobileMemberRoles(client, input),
-      onSuccess: (_response, input) => {
+      // Flip the member's roles in the cache immediately so the role toggle
+      // reacts instantly (like the permission toggles) instead of waiting for
+      // the network round-trip and refetch.
+      onMutate: async (input) => {
+        const queryKey = mobileQueryKeys.workspaceMembers(input.serverId);
+        await queryClient.cancelQueries({ exact: true, queryKey });
+        const previous =
+          queryClient.getQueryData<InfiniteData<MobileServerMembersResponse>>(queryKey);
+        if (previous) {
+          queryClient.setQueryData<InfiniteData<MobileServerMembersResponse>>(queryKey, {
+            ...previous,
+            pages: previous.pages.map((page) => ({
+              ...page,
+              members: page.members.map((member) =>
+                member.id === input.memberId
+                  ? { ...member, roleIds: [...input.roleIds] }
+                  : member,
+              ),
+            })),
+          });
+        }
+        return { previous, queryKey };
+      },
+      onError: (_error, _input, context) => {
+        if (context?.previous) {
+          queryClient.setQueryData(context.queryKey, context.previous);
+        }
+      },
+      onSettled: (_response, _error, input) => {
         void invalidateMembers(input.serverId).catch(() => undefined);
         void invalidateRoleOverview(input.serverId).catch(() => undefined);
       },
@@ -228,7 +291,27 @@ export function useMobileServerManagementMutations(client: MobileApiClient) {
     }),
     deleteRole: useMutation({
       mutationFn: (input: { roleId: string; serverId: string }) => deleteMobileRole(client, input),
-      onSuccess: (_response, input) => {
+      // Drop the role from the overview cache immediately so the roles list
+      // updates the moment the user confirms, before the refetch lands.
+      onMutate: async (input) => {
+        const overviewKey = mobileQueryKeys.workspaceRoleOverview(input.serverId);
+        await queryClient.cancelQueries({ exact: true, queryKey: overviewKey });
+        const previousOverview =
+          queryClient.getQueryData<MobileServerRoleOverviewResponse>(overviewKey);
+        if (previousOverview) {
+          queryClient.setQueryData<MobileServerRoleOverviewResponse>(overviewKey, {
+            ...previousOverview,
+            roles: previousOverview.roles.filter((role) => role.id !== input.roleId),
+          });
+        }
+        return { overviewKey, previousOverview };
+      },
+      onError: (_error, _input, context) => {
+        if (context?.previousOverview) {
+          queryClient.setQueryData(context.overviewKey, context.previousOverview);
+        }
+      },
+      onSettled: (_response, _error, input) => {
         void invalidateRoles(input.serverId).catch(() => undefined);
       },
     }),

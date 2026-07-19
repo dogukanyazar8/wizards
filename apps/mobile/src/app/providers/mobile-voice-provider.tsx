@@ -92,6 +92,9 @@ export function MobileVoiceProvider({ children }: PropsWithChildren) {
 
   const requestMicrophonePermission = useCallback(async () => {
     return voiceRoom.requestMicrophonePermission();
+    // `voiceRoom.requestMicrophonePermission` is a stable useCallback; depending on
+    // the whole `voiceRoom` (a fresh object each render) would rebuild this every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [voiceRoom.requestMicrophonePermission]);
 
   const toggleCamera = useCallback(async () => {

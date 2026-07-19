@@ -54,3 +54,12 @@ export type MobileMessagesScreenProps = {
 };
 
 export type MobileDMInboxSegment = "conversations" | "friends" | "requests";
+
+/** Online friend surfaced in the 6A conversations "ÇEVRİMİÇİ" strip. */
+export type MobileDMOnlineFriend = {
+  readonly id: string;
+  readonly username: string;
+  readonly displayName: string | null;
+  readonly avatarUrl: string | null;
+  readonly status: "ONLINE" | "IDLE" | "DND" | "OFFLINE";
+};

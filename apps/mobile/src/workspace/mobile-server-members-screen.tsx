@@ -1,3 +1,4 @@
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { FlashList } from "@shopify/flash-list";
@@ -13,8 +14,9 @@ import {
   EmptyState,
   Skeleton,
 } from "../app/components/kit";
+import { MobileLineIcon } from "../design/mobile-line-icons";
 import { useMobileLocaleRuntime } from "../app/providers/mobile-locale-provider";
-import { useThemedStyles } from "../app/providers/mobile-theme-provider";
+import { useTheme, useThemedStyles } from "../app/providers/mobile-theme-provider";
 import { mobileQueryKeys } from "../query/mobile-query-keys";
 import { useMobileServerManagementMutations } from "../query/use-mobile-server-management-mutations";
 import {
@@ -26,7 +28,7 @@ import {
   buildNextMobileMemberRoleIds,
   type MobileServerMemberListRow,
 } from "./mobile-server-member-model";
-import { createMobileServerManagementStyles } from "./mobile-server-management.styles";
+import { createMobileServerMembersStyles } from "./mobile-server-members-screen.styles";
 
 export interface MobileServerMembersScreenProps {
   readonly serverId: string;
@@ -44,12 +46,17 @@ const COPY = {
     loadMore: "Could not load more members. Try again.",
     members: "Members",
     offline: "Offline",
-    present: "Present",
-    role: "role",
-    removeRole: "Remove role",
+    present: "Online",
     retry: "Retry",
     roles: "Roles",
+    rolesHint: "Tap a role to assign or remove it instantly.",
     rolesUnavailable: "No assignable roles are available.",
+    status: {
+      DND: "Do not disturb",
+      IDLE: "Idle",
+      OFFLINE: "Offline",
+      ONLINE: "Online",
+    } as Record<string, string>,
   },
   tr: {
     back: "Geri",
@@ -61,31 +68,38 @@ const COPY = {
     members: "Üyeler",
     offline: "Çevrimdışı",
     present: "Çevrimiçi",
-    role: "rolü",
-    removeRole: "Rolü kaldır",
     retry: "Tekrar dene",
     roles: "Roller",
+    rolesHint: "Rolü anında atamak veya kaldırmak için dokun.",
     rolesUnavailable: "Atanabilir rol bulunmuyor.",
+    status: {
+      DND: "Rahatsız etmeyin",
+      IDLE: "Boşta",
+      OFFLINE: "Çevrimdışı",
+      ONLINE: "Çevrimiçi",
+    } as Record<string, string>,
   },
 } as const;
 
-type PendingRoleRemoval = {
-  readonly member: MobileServerMember;
-  readonly roleId: string;
-  readonly roleName: string;
-};
+function localizeStatus(status: string, labels: (typeof COPY)[keyof typeof COPY]): string {
+  return labels.status[status] ?? status;
+}
+
+function colorFromRole(color: number): string {
+  return `#${color.toString(16).padStart(6, "0")}`;
+}
 
 export function MobileServerMembersScreen({ onBack, serverId }: MobileServerMembersScreenProps) {
   const { apiClient } = useMobileAuth();
   const { locale } = useMobileLocaleRuntime();
   const labels = COPY[locale];
-  const styles = useThemedStyles(createMobileServerManagementStyles);
+  const theme = useTheme();
+  const styles = useThemedStyles(createMobileServerMembersStyles);
   const queryClient = useQueryClient();
   const members = useMobileServerMembersInfiniteQuery(apiClient, serverId);
   const mutations = useMobileServerManagementMutations(apiClient);
   const [expandedMemberId, setExpandedMemberId] = useState<string | null>(null);
   const [pendingKick, setPendingKick] = useState<MobileServerMember | null>(null);
-  const [pendingRoleRemoval, setPendingRoleRemoval] = useState<PendingRoleRemoval | null>(null);
   const [error, setError] = useState<string | null>(null);
   const expandedMember = useMemo(
     () =>
@@ -118,11 +132,7 @@ export function MobileServerMembersScreen({ onBack, serverId }: MobileServerMemb
     try {
       await mutations.updateMemberRoles.mutateAsync({
         memberId: member.id,
-        roleIds: buildNextMobileMemberRoleIds({
-          assigned,
-          currentRoleIds: member.roleIds,
-          roleId,
-        }),
+        roleIds: buildNextMobileMemberRoleIds({ assigned, currentRoleIds: member.roleIds, roleId }),
         serverId,
       });
     } catch {
@@ -147,45 +157,81 @@ export function MobileServerMembersScreen({ onBack, serverId }: MobileServerMemb
     }
   };
 
+  const headerNode = (
+    <View style={styles.header}>
+      <Pressable
+        accessibilityLabel={labels.back}
+        accessibilityRole="button"
+        hitSlop={8}
+        onPress={onBack}
+        style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
+        testID="mobile-server-members-back"
+      >
+        <MobileLineIcon color={theme.text.primary} name="back-arrow" size={18} strokeWidth={2.2} />
+      </Pressable>
+      <View style={styles.headerBody}>
+        <Text maxFontSizeMultiplier={2} numberOfLines={1} style={styles.title}>
+          {labels.members}
+        </Text>
+      </View>
+    </View>
+  );
+
   const renderMember = ({ item }: { readonly item: MobileServerMemberListRow }) => {
     if (item.kind === "header") {
       return (
-        <Text style={styles.memberHeader}>
-          {item.id === "present" ? labels.present : labels.offline}
-        </Text>
+        <View style={styles.sectionLabel}>
+          <Text maxFontSizeMultiplier={2} style={styles.sectionLabelText}>
+            {item.id === "present" ? labels.present : labels.offline}
+          </Text>
+        </View>
       );
     }
     const { member } = item;
-    const canExpandRoles = member.actions.canManageRoles;
+    const display = member.displayName ?? member.username;
     return (
       <View style={styles.memberRow} testID={`mobile-server-member-${member.id}`}>
         <Avatar
           imageUrl={member.avatarUrl}
-          label={member.displayName}
+          label={display}
           {...(member.status === "OFFLINE" ? {} : { status: "active" as const })}
         />
         <View style={styles.rowBody}>
-          <Text style={styles.body}>{member.displayName}</Text>
-          <Text style={styles.caption}>
-            {member.status} · @{member.username}
+          <Text maxFontSizeMultiplier={2} numberOfLines={1} style={styles.memberName}>
+            {display}
+          </Text>
+          <Text maxFontSizeMultiplier={2} numberOfLines={1} style={styles.memberMeta}>
+            {localizeStatus(member.status, labels)} · @{member.username}
           </Text>
         </View>
-        {canExpandRoles ? (
-          <Button
-            label={labels.roles}
-            onPress={() => setExpandedMemberId(member.id)}
-            testID={`mobile-member-${member.id}-roles`}
-            variant="ghost"
-          />
-        ) : null}
-        {member.actions.canKick ? (
-          <Button
-            label={labels.kick}
-            onPress={() => setPendingKick(member)}
-            testID={`mobile-member-${member.id}-kick`}
-            variant="danger"
-          />
-        ) : null}
+        <View style={styles.actions}>
+          {member.actions.canManageRoles ? (
+            <Pressable
+              accessibilityLabel={labels.roles}
+              accessibilityRole="button"
+              onPress={() => setExpandedMemberId(member.id)}
+              style={({ pressed }) => [styles.rolesButton, pressed && styles.pressed]}
+              testID={`mobile-member-${member.id}-roles`}
+            >
+              <Text maxFontSizeMultiplier={2} style={styles.rolesButtonText}>
+                {labels.roles}
+              </Text>
+            </Pressable>
+          ) : null}
+          {member.actions.canKick ? (
+            <Pressable
+              accessibilityLabel={labels.kick}
+              accessibilityRole="button"
+              onPress={() => setPendingKick(member)}
+              style={({ pressed }) => [styles.kickButton, pressed && styles.pressed]}
+              testID={`mobile-member-${member.id}-kick`}
+            >
+              <Text maxFontSizeMultiplier={2} style={styles.kickButtonText}>
+                {labels.kick}
+              </Text>
+            </Pressable>
+          ) : null}
+        </View>
       </View>
     );
   };
@@ -193,10 +239,17 @@ export function MobileServerMembersScreen({ onBack, serverId }: MobileServerMemb
   if (members.isLoading) {
     return (
       <View style={styles.root} testID="mobile-server-members-screen">
-        <View style={styles.content} testID="mobile-server-members-loading">
-          <Skeleton height={64} />
-          <Skeleton height={64} />
-          <Skeleton height={64} />
+        {headerNode}
+        <View style={styles.sectionLabel}>
+          <Text style={styles.sectionLabelText}>{labels.present}</Text>
+        </View>
+        <View testID="mobile-server-members-loading">
+          {[0, 1, 2, 3].map((index) => (
+            <View key={index} style={styles.skeletonCard}>
+              <Skeleton height={44} />
+              <Skeleton height={12} width="60%" />
+            </View>
+          ))}
         </View>
       </View>
     );
@@ -205,10 +258,11 @@ export function MobileServerMembersScreen({ onBack, serverId }: MobileServerMemb
   if (members.isError) {
     return (
       <View style={styles.root} testID="mobile-server-members-screen">
-        <View style={styles.content}>
-          <Text accessibilityRole="alert" style={styles.error}>
-            {labels.error}
-          </Text>
+        {headerNode}
+        <Text accessibilityRole="alert" style={styles.error}>
+          {labels.error}
+        </Text>
+        <View style={styles.stateActions}>
           <Button label={labels.retry} onPress={() => void members.refetch()} />
           <Button label={labels.back} onPress={onBack} variant="ghost" />
         </View>
@@ -218,16 +272,18 @@ export function MobileServerMembersScreen({ onBack, serverId }: MobileServerMemb
 
   return (
     <View style={styles.root} testID="mobile-server-members-screen">
-      <View style={styles.content}>
-        <Button label={labels.back} onPress={onBack} variant="ghost" />
-        <Text style={styles.title}>{labels.members}</Text>
-      </View>
+      {headerNode}
       {rows.length === 0 ? (
-        <View style={styles.content} testID="mobile-server-members-empty">
-          <EmptyState description={labels.empty} icon="people-outline" title={labels.members} />
-        </View>
+        <EmptyState
+          description={labels.empty}
+          icon="people-outline"
+          style={styles.state}
+          testID="mobile-server-members-empty"
+          title={labels.members}
+        />
       ) : (
         <FlashList
+          contentContainerStyle={styles.listContent}
           data={rows}
           keyExtractor={(item) => item.id}
           onEndReached={() => {
@@ -242,7 +298,7 @@ export function MobileServerMembersScreen({ onBack, serverId }: MobileServerMemb
         />
       )}
       {members.isFetchNextPageError ? (
-        <View style={styles.content}>
+        <View style={styles.stateActions}>
           <Text
             accessibilityRole="alert"
             style={styles.error}
@@ -262,65 +318,45 @@ export function MobileServerMembersScreen({ onBack, serverId }: MobileServerMemb
         accessibilityLabel={labels.roles}
         onClose={() => setExpandedMemberId(null)}
         open={expandedMember !== null}
+        snapPoint={440}
         testID="mobile-member-roles-sheet"
       >
         <View style={styles.sheet}>
-          <Text accessibilityRole="header" style={styles.sectionTitle}>
+          <Text accessibilityRole="header" style={styles.sheetTitle}>
             {labels.roles}
           </Text>
+          <Text style={styles.sheetHint}>{labels.rolesHint}</Text>
           {roles.isLoading ? <ActivityIndicator /> : null}
           {!roles.isLoading && (roles.data?.roles.length ?? 0) === 0 ? (
-            <Text style={styles.body}>{labels.rolesUnavailable}</Text>
+            <Text style={styles.sheetHint}>{labels.rolesUnavailable}</Text>
           ) : null}
           {expandedMember &&
             roles.data?.roles.map((role) => {
               const assigned = expandedMember.roleIds.includes(role.id);
               return (
                 <Pressable
-                  accessibilityLabel={`${role.name} ${labels.role}`}
+                  accessibilityLabel={role.name}
                   accessibilityRole="checkbox"
                   accessibilityState={{ checked: assigned }}
                   key={role.id}
-                  onPress={() => {
-                    if (assigned) {
-                      setPendingRoleRemoval({
-                        member: expandedMember,
-                        roleId: role.id,
-                        roleName: role.name,
-                      });
-                    } else {
-                      void mutateRoles(expandedMember, role.id, true).catch(() => undefined);
-                    }
-                  }}
-                  style={styles.roleRow}
+                  onPress={() =>
+                    void mutateRoles(expandedMember, role.id, !assigned).catch(() => undefined)
+                  }
+                  style={[styles.roleRow, assigned && styles.roleRowSelected]}
                   testID={`mobile-member-${expandedMember.id}-role-${role.id}`}
                 >
-                  <View
-                    style={[
-                      styles.roleDot,
-                      { backgroundColor: `#${role.color.toString(16).padStart(6, "0")}` },
-                    ]}
-                  />
-                  <Text style={styles.body}>{role.name}</Text>
+                  <View style={[styles.roleDot, { backgroundColor: colorFromRole(role.color) }]} />
+                  <Text maxFontSizeMultiplier={2} numberOfLines={1} style={styles.roleName}>
+                    {role.name}
+                  </Text>
+                  {assigned ? (
+                    <Ionicons color={theme.accent.default} name="checkmark" size={20} />
+                  ) : null}
                 </Pressable>
               );
             })}
         </View>
       </BottomSheet>
-      <DestructiveConfirmationSheet
-        body={pendingRoleRemoval ? `Remove ${pendingRoleRemoval.roleName} from this member?` : ""}
-        busy={mutations.updateMemberRoles.isPending}
-        confirmLabel={labels.removeRole}
-        onCancel={() => setPendingRoleRemoval(null)}
-        onConfirm={async () => {
-          if (!pendingRoleRemoval) return;
-          await mutateRoles(pendingRoleRemoval.member, pendingRoleRemoval.roleId, false);
-          setPendingRoleRemoval(null);
-        }}
-        open={pendingRoleRemoval !== null}
-        testID="mobile-member-role-remove-confirm"
-        title={labels.removeRole}
-      />
       <DestructiveConfirmationSheet
         body={labels.kickBody}
         busy={mutations.kickMember.isPending}
@@ -328,6 +364,7 @@ export function MobileServerMembersScreen({ onBack, serverId }: MobileServerMemb
         onCancel={() => setPendingKick(null)}
         onConfirm={kick}
         open={pendingKick !== null}
+        snapPoint={260}
         testID="mobile-member-kick-confirm"
         title={labels.kick}
       />

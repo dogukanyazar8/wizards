@@ -365,7 +365,7 @@ export function ChannelMessageList({
 }) {
   const theme = useTheme();
   const styles = useChannelScreenStyles();
-  const messages = state.payload?.messages ?? [];
+  const messages = useMemo(() => state.payload?.messages ?? [], [state.payload?.messages]);
   const streamItems = useMemo(() => getMobileMessageStreamItems(messages), [messages]);
   const latestMessageId = messages[messages.length - 1]?.id ?? null;
   const listRef = useRef<FlashListRef<MobileMessageStreamItem<MobileRenderableMessage>> | null>(
@@ -451,7 +451,8 @@ export function ChannelMessageList({
       onOpenThread,
       onReplyMessage,
       onToggleMessageReaction,
-      styles.messageStreamItem,
+      ownerUserId,
+      styles,
     ],
   );
 
@@ -487,7 +488,7 @@ export function ChannelMessageList({
     }
 
     return null;
-  }, [messages.length, onRefresh, state.error, state.payload, state.status]);
+  }, [messages.length, onRefresh, state.error, state.payload, state.status, styles]);
 
   return (
     <View style={styles.mobileChannelChatBodyShell}>

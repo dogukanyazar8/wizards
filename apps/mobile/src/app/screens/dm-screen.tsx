@@ -1,4 +1,6 @@
-import { View, useState } from "../mobile-root-screen-shared";
+import { useMemo } from "react";
+import { View } from "react-native";
+import { copy, useState } from "../mobile-root-screen-shared";
 import { BootstrapStateNotice, MobileSyncHealthBanner } from "../components/ui-atoms";
 import { useDmScreenStyles } from "./dm-screen.styles";
 import { DMConversationScreen } from "./dm-conversation-screen";
@@ -6,13 +8,20 @@ import {
   DMInboxEmptyState,
   DMInboxHeader,
   DMInboxLoadingSkeleton,
+  DMInboxSearchField,
   DMInboxSegmentTabs,
   DirectMessageListCard,
+  useMobileDmSegmentSwipe,
 } from "./dm-inbox";
-import type { MobileDMInboxSegment, MobileMessagesScreenProps } from "./dm-screen.types";
+import type {
+  MobileDMInboxSegment,
+  MobileDMOnlineFriend,
+  MobileMessagesScreenProps,
+} from "./dm-screen.types";
 import { FriendsHub } from "../../social/friends-hub";
 import { useMobileAuth } from "../../auth/mobile-auth-context";
-import { useMobileFriendsQuery } from "../../social/mobile-social-query";
+import { mobileNavigationRef } from "../../navigation/mobile-navigation-ref";
+import { useMobileFriendsQuery, useMobileSocialMutations } from "../../social/mobile-social-query";
 
 export { DMConversationScreen, DMConversationPreviewCard } from "./dm-conversation-screen";
 export {
@@ -62,9 +71,31 @@ export function MessagesScreen({
 }: MobileMessagesScreenProps) {
   const styles = useDmScreenStyles();
   const [inboxSegment, setInboxSegment] = useState<MobileDMInboxSegment>("conversations");
+  const [searchQuery, setSearchQuery] = useState("");
   const { apiClient, status } = useMobileAuth();
   const friendsQuery = useMobileFriendsQuery(apiClient, status === "signed-in");
+  const socialMutations = useMobileSocialMutations(apiClient);
   const incomingRequestCount = friendsQuery.data?.pending.incoming.length ?? 0;
+  const onlineFriends = useMemo<readonly MobileDMOnlineFriend[]>(
+    () =>
+      (friendsQuery.data?.friends ?? [])
+        .filter((friend) => friend.status !== "OFFLINE")
+        .map((friend) => ({
+          id: friend.id,
+          username: friend.username,
+          displayName: friend.displayName,
+          avatarUrl: friend.avatarUrl,
+          status: friend.status,
+        })),
+    [friendsQuery.data?.friends],
+  );
+  const openFriendDM = async (userId: string) => {
+    const result = await socialMutations.openDM.mutateAsync(userId);
+    if (mobileNavigationRef.isReady()) {
+      mobileNavigationRef.navigate("DirectMessage", { conversationId: result.conversation.id });
+    }
+  };
+  const swipeHandlers = useMobileDmSegmentSwipe(inboxSegment, setInboxSegment);
   const hasConversations = dmConversations.length > 0;
   const shouldShowEmpty =
     bootstrapState.status === "ready" && !dmConversationsIsLoading && !hasConversations;
@@ -109,37 +140,59 @@ export function MessagesScreen({
 
   return (
     <View style={[styles.chatScreen, styles.dmInboxScreen]} testID="mobile-dm-inbox-screen">
-      {inboxSegment !== "conversations" ? (
-        <FriendsHub
-          mode={inboxSegment === "requests" ? "requests" : "friends"}
-          onBack={() => setInboxSegment("conversations")}
-          onSelectMode={(nextMode) => setInboxSegment(nextMode)}
+      <DMInboxHeader onCompose={() => setInboxSegment("requests")} />
+      <DMInboxSegmentTabs
+        incomingRequestCount={incomingRequestCount}
+        onSelectSegment={setInboxSegment}
+        segment={inboxSegment}
+      />
+      {inboxSegment === "requests" ? null : (
+        <DMInboxSearchField
+          onChangeText={setSearchQuery}
+          placeholder={
+            inboxSegment === "friends"
+              ? copy.dmFriendSearchPlaceholder
+              : copy.dmConversationSearchPlaceholder
+          }
+          value={searchQuery}
         />
-      ) : (
-        <>
-          <DMInboxHeader onCompose={() => setInboxSegment("friends")} />
-          <DMInboxSegmentTabs
-            incomingRequestCount={incomingRequestCount}
-            onSelectSegment={setInboxSegment}
-            segment={inboxSegment}
-          />
-          <MobileSyncHealthBanner health={syncHealth} onRetry={onRefreshVisibleData} />
-          <BootstrapStateNotice state={bootstrapState} onRetry={onRefreshBootstrap} />
-          {dmConversationsIsLoading ? (
+      )}
+      <MobileSyncHealthBanner health={syncHealth} onRetry={onRefreshVisibleData} />
+      <BootstrapStateNotice state={bootstrapState} onRetry={onRefreshBootstrap} />
+      <View style={styles.dmInboxBody} {...swipeHandlers}>
+        {inboxSegment === "conversations" ? (
+          dmConversationsIsLoading ? (
             <DMInboxLoadingSkeleton />
           ) : hasConversations ? (
             <DirectMessageListCard
               conversations={dmConversations}
               hasNextPage={dmConversationsHasNextPage}
+              onlineFriends={onlineFriends}
+              onAddFriend={() => setInboxSegment("requests")}
               onLoadMore={onLoadMoreConversations}
-              selectedConversationId={selectedConversationId}
               onOpenConversation={onOpenConversation}
+              onOpenFriendDM={(friendId) => void openFriendDM(friendId)}
+              query={searchQuery}
+              selectedConversationId={selectedConversationId}
             />
           ) : shouldShowEmpty ? (
             <DMInboxEmptyState onCompose={() => setInboxSegment("friends")} />
-          ) : null}
-        </>
-      )}
+          ) : null
+        ) : inboxSegment === "friends" ? (
+          <FriendsHub
+            embedded
+            externalSearch={searchQuery}
+            mode="friends"
+            onSelectMode={(nextMode) => setInboxSegment(nextMode)}
+          />
+        ) : (
+          <FriendsHub
+            embedded
+            mode="requests"
+            onSelectMode={(nextMode) => setInboxSegment(nextMode)}
+          />
+        )}
+      </View>
     </View>
   );
 }

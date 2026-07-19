@@ -1,6 +1,12 @@
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { enableFreeze } from "react-native-screens";
 import { MobileAuthProvider } from "./src/auth/mobile-auth-context";
+
+// Freeze (skip re-rendering) screens that are not on top of the stack or the
+// focused tab. Blurred screens keep their state but stop reacting to realtime,
+// voice-level, and typing ticks — the main source of app-wide re-render churn.
+enableFreeze(true);
 import { mobileAppLockPreferenceStore } from "./src/auth/expo-mobile-app-lock-preference-store";
 import { MobileBootstrapErrorBoundary, MobileErrorBoundary } from "./src/app/mobile-error-boundary";
 import { MobileQueryProvider } from "./src/app/providers/mobile-query-provider";

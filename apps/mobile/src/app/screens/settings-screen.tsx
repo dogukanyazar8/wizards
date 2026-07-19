@@ -61,7 +61,9 @@ import { useTheme, useThemePreference } from "../providers/mobile-theme-provider
 import type { MobileThemeMode } from "../../design/mobile-theme-runtime";
 import { useSettingsScreenStyles } from "./settings-screen.styles";
 import { MobileAccountSettingsScreen } from "./mobile-account-settings-screen";
+import { MobileAboutSettingsScreen } from "./mobile-about-settings-screen";
 import { MobileAppearanceSettingsScreen } from "./mobile-appearance-settings-screen";
+import { MobileNotificationSettingsScreen } from "./mobile-notification-settings-screen";
 import { SocialAccountQuickActions } from "../../social/social-account-screens";
 import { BottomSheet, Button, DestructiveConfirmationSheet, Skeleton } from "../components/kit";
 import { Avatar } from "../components/kit/avatar";
@@ -2221,45 +2223,26 @@ export function ProfileSettingsScreen({
       </SettingsPreferenceSection>,
       "mobile-settings-language",
     );
-  if (resolvedSection === "notifications")
-    return sectionShell(
-      sectionLabels.notifications,
-      <>
-        <SettingsPreferenceSection
-          description={copy.settingsNotificationsDescription}
-          rows={notificationRows}
-          title={copy.settingsNotificationsTitle}
-        />
-        <SettingsNativePermissionCard
-          mediaState={mediaState}
-          onRequestCameraPermission={onRequestCameraPermission}
-          onRequestDocumentPicker={onRequestDocumentPicker}
-          onRequestNotificationPermission={onRequestNotificationPermission}
-          onRequestPhotoLibraryPermission={onRequestPhotoLibraryPermission}
-          readiness={permissionReadiness}
-          summary={permissionSummary}
-        />
-      </>,
-      "mobile-settings-notifications",
+  if (resolvedSection === "notifications") {
+    return (
+      <MobileNotificationSettingsScreen
+        onBack={onBack ?? (() => mobileNavigationRef.isReady() && mobileNavigationRef.goBack())}
+      />
     );
-  if (resolvedSection === "about")
-    return sectionShell(
-      sectionLabels.about,
-      <>
-        <SettingsPreferenceSection
-          description={copy.settingsAboutDescription}
-          rows={aboutRows}
-          title={copy.settingsAboutTitle}
-        />
-        <SettingsSupportLegalCard
-          onOpenCookies={onOpenCookies}
-          onOpenPrivacyPolicy={onOpenPrivacyPolicy}
-          onOpenSupport={onOpenSupport}
-          onOpenTerms={onOpenTerms}
-        />
-      </>,
-      "mobile-settings-about",
+  }
+  if (resolvedSection === "about") {
+    return (
+      <MobileAboutSettingsScreen
+        appVersion={appVersion}
+        onBack={onBack ?? (() => mobileNavigationRef.isReady() && mobileNavigationRef.goBack())}
+        onOpenFeedback={onOpenSupport}
+        onOpenPrivacy={onOpenPrivacyPolicy}
+        onOpenTerms={onOpenTerms}
+        releaseChannel={releaseChannel}
+        serviceOnline={bootstrapState.status === "ready"}
+      />
     );
+  }
   if (resolvedSection === "developer")
     return sectionShell(
       sectionLabels.developer,

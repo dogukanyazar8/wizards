@@ -46,6 +46,7 @@ const BODYLESS_MUTATING_METHOD_PATHS = new Set([
   "PATCH mobile/notifications/read-all",
   "DELETE mobile/servers/[serverId]/categories/[categoryId]",
   "DELETE mobile/servers/[serverId]/channels/[channelId]",
+  "DELETE mobile/servers/[serverId]/invites/[inviteId]",
   "DELETE mobile/servers/[serverId]/members/[memberId]",
   "DELETE mobile/servers/[serverId]/roles/[roleId]",
   "POST mobile/account/two-factor/setup",
@@ -128,6 +129,11 @@ const EXPECTED_RATE_LIMIT_ACTIONS = [
     action: "mobile:server:invites:create",
     method: "POST",
     routePath: "mobile/servers/[serverId]/invites",
+  },
+  {
+    action: "mobile:server:invites:revoke",
+    method: "DELETE",
+    routePath: "mobile/servers/[serverId]/invites/[inviteId]",
   },
   {
     action: "mobile:server:categories:create",
@@ -1345,7 +1351,7 @@ describe("API v1 route contract", () => {
       )
       .sort();
 
-    assert.equal(expectedM1Mappings.length, 23);
+    assert.equal(expectedM1Mappings.length, 24);
     assert.deepEqual(actualM1Mappings, expectedM1Mappings);
   });
 

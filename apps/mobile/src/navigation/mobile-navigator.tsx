@@ -26,6 +26,7 @@ import {
   ServerRolesStackScreenContainer,
   RoleDetailStackScreenContainer,
   ServerMembersStackScreenContainer,
+  ServerInvitesStackScreenContainer,
   ChannelSettingsStackScreenContainer,
 } from "../app/screens/mobile-screen-containers";
 import { useMobileVoiceScreenProps } from "../app/providers/mobile-product-screen-provider";
@@ -87,6 +88,7 @@ export function MobileNavigator({
   const rootStackOptions = useMemo(
     () => ({
       animation: reducedMotion ? ("none" as const) : ("slide_from_right" as const),
+      freezeOnBlur: true,
       headerShown: false,
     }),
     [reducedMotion],
@@ -138,6 +140,9 @@ export function MobileNavigator({
           <RootStack.Screen name="ServerMembers">
             {(props) => <ServerMembersStackScreenContainer {...props} />}
           </RootStack.Screen>
+          <RootStack.Screen name="ServerInvites">
+            {(props) => <ServerInvitesStackScreenContainer {...props} />}
+          </RootStack.Screen>
           <RootStack.Screen name="ChannelSettings">
             {(props) => <ChannelSettingsStackScreenContainer {...props} />}
           </RootStack.Screen>
@@ -178,7 +183,12 @@ function MobileBottomTabs({
     <BottomTabs.Navigator
       backBehavior="history"
       initialRouteName="overview"
-      screenOptions={{ headerShown: false, lazy: true, tabBarHideOnKeyboard: true }}
+      screenOptions={{
+        freezeOnBlur: true,
+        headerShown: false,
+        lazy: true,
+        tabBarHideOnKeyboard: true,
+      }}
       tabBar={(props) => (
         <FloatingNavigationChrome
           {...props}

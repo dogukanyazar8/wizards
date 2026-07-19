@@ -26,12 +26,15 @@ import { NotificationsScreen } from "./notifications-screen";
 import { ProfileSettingsScreen } from "./settings-screen";
 import { BlockedUsersScreen, ProfileEditScreen } from "../../social/social-account-screens";
 import { VoiceScreen } from "./voice-screen";
+import { MobileDirectCallScreen } from "./mobile-direct-call-screen";
+import { MobileDirectVideoCallScreen } from "./mobile-direct-video-call-screen";
 import { MobileTwoFactorScreen } from "../../account/mobile-two-factor-screen";
 import { MobileDMDetailsScreen } from "../../dm/mobile-dm-details-screen";
 import { MobileServerSettingsScreen } from "../../workspace/mobile-server-settings-screen";
 import { MobileServerRolesScreen } from "../../workspace/mobile-server-roles-screen";
 import { MobileRoleDetailScreen } from "../../workspace/mobile-role-detail-screen";
 import { MobileServerMembersScreen } from "../../workspace/mobile-server-members-screen";
+import { MobileServerInvitesScreen } from "../../workspace/mobile-server-invites-screen";
 import { MobileChannelSettingsScreen } from "../../workspace/mobile-channel-settings-screen";
 import {
   clearMobileVoiceRoomRouteContext,
@@ -185,6 +188,32 @@ export function VoiceRoomStackScreenContainer({
 
   if (!hasRouteContext) {
     return null;
+  }
+
+  if (room.sessionMode === "direct") {
+    const isVideoCall =
+      room.selfCameraEnabled ||
+      room.participants.some((participant) => !participant.isSelf && participant.isCameraEnabled);
+
+    if (isVideoCall) {
+      return (
+        <MobileDirectVideoCallScreen
+          {...screenProps}
+          onLeaveVoiceChannel={leaveVoiceRoom}
+          onMinimize={minimizeVoiceRoom}
+          testID="mobile-direct-video-call-screen"
+        />
+      );
+    }
+
+    return (
+      <MobileDirectCallScreen
+        {...screenProps}
+        onLeaveVoiceChannel={leaveVoiceRoom}
+        onMinimize={minimizeVoiceRoom}
+        testID="mobile-direct-call-screen"
+      />
+    );
   }
 
   return (
@@ -353,6 +382,7 @@ export function ServerSettingsStackScreenContainer({
       onBack={() => navigation.goBack()}
       onOpenMembers={() => navigation.navigate("ServerMembers", { serverId })}
       onOpenRoles={() => navigation.navigate("ServerRoles", { serverId })}
+      onOpenInvites={() => navigation.navigate("ServerInvites", { serverId })}
       onOpenChannelSettings={(channelId) =>
         navigation.navigate("ChannelSettings", { channelId, serverId })
       }
@@ -393,6 +423,18 @@ export function ServerMembersStackScreenContainer({
 }: NativeStackScreenProps<MobileRootStackParamList, "ServerMembers">) {
   return (
     <MobileServerMembersScreen
+      serverId={route.params.serverId}
+      onBack={() => navigation.goBack()}
+    />
+  );
+}
+
+export function ServerInvitesStackScreenContainer({
+  navigation,
+  route,
+}: NativeStackScreenProps<MobileRootStackParamList, "ServerInvites">) {
+  return (
+    <MobileServerInvitesScreen
       serverId={route.params.serverId}
       onBack={() => navigation.goBack()}
     />

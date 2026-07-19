@@ -41,7 +41,8 @@ describe("mobile locale preferences", () => {
     assert.equal(mobileCopy.tr.directMessageFilterAll, "Tümü");
     assert.equal(mobileCopy.tr.directMessageFilterUnread, "Okunmamış");
     assert.equal(mobileCopy.tr.directMessageSectionAll, "Tüm DM'ler");
-    assert.equal(mobileCopy.tr.dmInboxDescription, "Özel sohbetlerin burada.");
+    assert.equal(mobileCopy.tr.dmInboxDescription, "Sohbetlerin ve arkadaşların");
+    assert.equal(mobileCopy.tr.dmSegmentConversations, "Sohbetler");
     assert.equal(mobileCopy.tr.socialSegmentConversations, "Konuşmalar");
     assert.equal(mobileCopy.tr.socialSegmentFriends, "Arkadaşlar");
     assert.equal(mobileCopy.tr.workspaceServerInviteShareAction, "Daveti paylaş");

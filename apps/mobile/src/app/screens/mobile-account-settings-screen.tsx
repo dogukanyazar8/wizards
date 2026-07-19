@@ -745,12 +745,7 @@ export function MobileAccountSettingsScreen({
 
   useEffect(() => {
     setCanonicalUser(session?.user ?? null);
-  }, [
-    session?.user.avatarUrl,
-    session?.user.displayName,
-    session?.user.id,
-    session?.user.username,
-  ]);
+  }, [session?.user]);
 
   useEffect(() => {
     let mounted = true;

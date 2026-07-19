@@ -12,6 +12,7 @@ import {
   MobileRoleCreateRequestSchema,
   MobileRoleMutationResponseSchema,
   MobileRoleUpdateRequestSchema,
+  MobileServerInviteParamsSchema,
   MobileServerRoleParamsSchema,
   MobileServerRoleSchema,
   MobileCategoryCreateRequestSchema,
@@ -217,6 +218,11 @@ describe("mobile workspace management schemas", () => {
         schema: MobileServerRoleParamsSchema,
         valid: { roleId: resourceId, serverId: resourceId },
         invalid: { roleId: "", serverId: resourceId },
+      },
+      MobileServerInviteParamsSchema: {
+        schema: MobileServerInviteParamsSchema,
+        valid: { inviteId: resourceId, serverId: resourceId },
+        invalid: { inviteId: "", serverId: resourceId },
       },
       MobileCategoryCreateRequestSchema: {
         schema: MobileCategoryCreateRequestSchema,

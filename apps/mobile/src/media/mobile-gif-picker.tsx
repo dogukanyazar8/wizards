@@ -59,6 +59,9 @@ export function MobileGifPicker({
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     if (open && gifs.length === 0) void runSearch();
+    // Fire the initial search only on open. `runSearch` is a plain function (a dep
+    // would re-run every render → loop) and `gifs.length` is read only as a guard.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
   async function runSearch() {
     setBusy(true);

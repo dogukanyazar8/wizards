@@ -161,6 +161,8 @@ export interface MobileTheme {
     readonly infoSoft: string;
     /** Primary foreground for semantic status bands. */
     readonly onStatus: string;
+    /** Canonical pending friend-request pill accent (6A/6B "İstekler" badge). */
+    readonly pendingBadge: string;
     /** Canonical success accent for icons, borders and decorative controls. */
     readonly success: string;
     /** Canonical success accent for icons and controls on inverse surfaces. */
@@ -382,6 +384,7 @@ export const lightTheme = deepFreeze({
     info: mobilePalette.status.info,
     infoSoft: mobilePalette.status.infoSoft,
     onStatus: redesignLight.text,
+    pendingBadge: redesignLight.pendingBadge,
     success: redesignLight.success,
     successOnInverse: redesignDark.success,
     successSoft: redesignLight.successSurface,
@@ -559,6 +562,7 @@ export const darkTheme = deepFreeze({
     info: mobilePalette.status.infoDark,
     infoSoft: mobilePalette.status.infoSoftDark,
     onStatus: redesignDark.text,
+    pendingBadge: redesignDark.pendingBadge,
     success: redesignDark.success,
     successOnInverse: redesignDark.success,
     successSoft: redesignDark.successSurface,
