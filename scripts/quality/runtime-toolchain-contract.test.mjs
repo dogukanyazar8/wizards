@@ -37,6 +37,23 @@ function readText(relativePath) {
   return readFileSync(join(root, relativePath), "utf8");
 }
 
+function readWorkflowJob(source, jobName) {
+  const lineEnding = source.includes("\r\n") ? "\r\n" : "\n";
+  const lines = source.split(lineEnding);
+  const headerIndex = lines.findIndex((line) => line === `  ${jobName}:`);
+  assert.notEqual(headerIndex, -1, `missing workflow job: ${jobName}`);
+
+  const jobLines = [lines[headerIndex]];
+  for (const line of lines.slice(headerIndex + 1)) {
+    if (/^  [\w-]+:\s*$/u.test(line)) {
+      break;
+    }
+    jobLines.push(line);
+  }
+
+  return jobLines.join(lineEnding);
+}
+
 function parseTopLevelBooleanMap(source, key) {
   const lines = source.split(/\r?\n/u);
   const headerIndex = lines.findIndex((line) => line === `${key}:`);
@@ -81,6 +98,10 @@ test("Node type definitions match the runtime major", () => {
 
 test("pnpm is pinned to the controlled package-manager release", () => {
   assert.equal(readJson("package.json").packageManager, expectedPackageManager);
+});
+
+test("Turbo is pinned to the reviewed toolchain release", () => {
+  assert.equal(readJson("package.json").devDependencies?.turbo, "2.10.5");
 });
 
 test("stable typecheck generates Prisma before Turbo can replay cached tasks", () => {
@@ -128,7 +149,23 @@ test("all GitHub Actions pnpm jobs consume packageManager as their version sourc
     }
   }
 
-  assert.equal(setupPnpmSteps, 12, "unexpected pnpm/action-setup step count");
+  assert.equal(setupPnpmSteps, 13, "unexpected pnpm/action-setup step count");
+});
+
+test("Node 22 remains a nightly native compatibility lane for one release", () => {
+  const workflow = readText(join(".github", "workflows", "ci.yml"));
+  const compatibilityJob = readWorkflowJob(workflow, "node22-compatibility");
+
+  assert.match(compatibilityJob, /^    if: github\.event_name == 'schedule'$/mu);
+  assert.match(compatibilityJob, /^          node-version: 22\.23\.1$/mu);
+  assert.match(compatibilityJob, /pnpm --filter @wizards\/db db:generate/u);
+  assert.match(compatibilityJob, /import\('sharp'\)/u);
+  assert.match(compatibilityJob, /pnpm --filter @wizards\/web exec esbuild --version/u);
+  assert.match(compatibilityJob, /pnpm --filter @wizards\/desktop exec tauri --version/u);
+  assert.match(
+    compatibilityJob,
+    /cargo check --locked --manifest-path apps\/desktop\/src-tauri\/Cargo\.toml/u,
+  );
 });
 
 test("all GitHub Actions jobs consume the central Node runtime contract", () => {
@@ -137,7 +174,11 @@ test("all GitHub Actions jobs consume the central Node runtime contract", () => 
   let setupNodeSteps = 0;
 
   for (const workflowName of workflowNames) {
-    const source = readFileSync(join(workflowsDirectory, workflowName), "utf8");
+    const workflowSource = readFileSync(join(workflowsDirectory, workflowName), "utf8");
+    const source =
+      workflowName === "ci.yml"
+        ? workflowSource.replace(readWorkflowJob(workflowSource, "node22-compatibility"), "")
+        : workflowSource;
     const setupNodeCount = source.match(/uses:\s*actions\/setup-node@/gu)?.length ?? 0;
 
     if (setupNodeCount === 0) {

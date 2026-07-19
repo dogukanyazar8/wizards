@@ -149,6 +149,60 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  node22-compatibility:
+    name: Node 22 Native Compatibility
+    if: github.event_name == 'schedule'
+    runs-on: windows-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+
+      - name: Setup Node.js 22 compatibility runtime
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22.23.1
+          cache: pnpm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+        with:
+          toolchain: stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
+        with:
+          workspaces: apps/desktop/src-tauri
+          cache-on-failure: true
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify Node.js native dependencies
+        shell: pwsh
+        run: |
+          pnpm --filter @wizards/db db:generate
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          pnpm --filter @wizards/web exec node --input-type=module -e "const { default: sharp } = await import('sharp'); await sharp({ create: { width: 1, height: 1, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } }).png().toBuffer();"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          pnpm --filter @wizards/web exec esbuild --version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Verify Tauri native toolchain
+        shell: pwsh
+        run: |
+          pnpm --filter @wizards/desktop exec tauri --version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          cargo check --locked --manifest-path apps/desktop/src-tauri/Cargo.toml
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
   e2e-smoke:
     name: Playwright E2E
     runs-on: ubuntu-latest
