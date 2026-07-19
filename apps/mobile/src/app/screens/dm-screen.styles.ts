@@ -15,6 +15,9 @@ export const createDmScreenStyles = (theme: MobileTheme) => {
       minWidth: 0,
     },
     dmActivePresenceDot: {
+      position: "absolute",
+      right: theme.layout.dmInbox.groupBadgeOffset,
+      bottom: theme.layout.dmInbox.groupBadgeOffset,
       width: 14,
       height: 14,
       borderRadius: mobileRadii.pill,
@@ -574,9 +577,6 @@ export const createDmScreenStyles = (theme: MobileTheme) => {
       borderWidth: 2.5,
       borderColor: theme.surface.base,
       backgroundColor: theme.status.success,
-    },
-    dmOnlineStripDotIdle: {
-      backgroundColor: theme.status.warning,
     },
     dmOnlineStripName: {
       maxWidth: 56,

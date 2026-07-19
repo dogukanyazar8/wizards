@@ -254,6 +254,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
 
   const {
     activeChannelId,
+    activeConversationId,
     audioPreferences,
     cameraPreferences,
     desktopGlobalShortcutsEnabled,
@@ -265,10 +266,12 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
     screenShareError,
     screenShareQuality,
     serverId,
+    sessionMode,
     voiceInputMode,
   } = useVoiceStore(
     useShallow((state) => ({
       activeChannelId: state.activeChannelId,
+      activeConversationId: state.activeConversationId,
       audioPreferences: state.audioPreferences,
       cameraPreferences: state.cameraPreferences,
       desktopGlobalShortcutsEnabled: state.desktopGlobalShortcutsEnabled,
@@ -280,6 +283,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       screenShareError: state.screenShareError,
       screenShareQuality: state.screenShareQuality,
       serverId: state.serverId,
+      sessionMode: state.sessionMode,
       voiceInputMode: state.voiceInputMode,
     })),
   );
@@ -1704,6 +1708,8 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
     const activeSession = useVoiceStore.getState().sessionId;
     const activeServer = useVoiceStore.getState().serverId;
     const activeChannel = useVoiceStore.getState().activeChannelId;
+    // Direct calls never create a server-side voice state, so there is nothing to delete.
+    const hasServerVoiceState = useVoiceStore.getState().sessionMode === "channel";
     const activeRoom = roomRef.current;
 
     if (!activeSession && !activeRoom && leaveCleanupPromiseRef.current) {
@@ -1759,7 +1765,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
         });
       }
 
-      if (activeSession) {
+      if (activeSession && hasServerVoiceState) {
         await measureVoicePerformance(
           {
             operation: "voice_state_delete",
@@ -1807,14 +1813,23 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
     stopScreenShare,
   ]);
 
-  const joinChannel = useCallback(
-    async ({ channelId, serverId: nextServerId }: { channelId: string; serverId: string }) => {
+  const joinVoiceSession = useCallback(
+    async ({
+      channelId,
+      conversationId = null,
+      serverId: nextServerId,
+    }: {
+      channelId: string | null;
+      conversationId?: string | null;
+      serverId: string | null;
+    }) => {
+      const isDirectCall = !channelId;
       if (leaveCleanupPromiseRef.current) {
         await leaveCleanupPromiseRef.current;
       }
 
       const currentState = useVoiceStore.getState();
-      const nextJoinKey = `${nextServerId}:${channelId}`;
+      const nextJoinKey = isDirectCall ? `dm:${conversationId}` : `${nextServerId}:${channelId}`;
       const microphoneDeniedMessage = isDesktopRuntime
         ? t("voice.errors.microphoneDeniedDesktop")
         : t("voice.errors.microphoneDenied");
@@ -1825,8 +1840,9 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       const activeRoom = roomRef.current;
       const isAlreadyJoiningTarget = joinRequestRef.current === nextJoinKey;
       const isAlreadyInTarget =
-        currentState.activeChannelId === channelId &&
-        currentState.serverId === nextServerId &&
+        (isDirectCall
+          ? currentState.activeConversationId === conversationId
+          : currentState.activeChannelId === channelId && currentState.serverId === nextServerId) &&
         activeRoom &&
         activeRoom.state !== ConnectionState.Disconnected;
       if (isAlreadyJoiningTarget || isAlreadyInTarget) {
@@ -1837,6 +1853,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
         Boolean(joinRequestRef.current) ||
         Boolean(activeRoom) ||
         Boolean(currentState.activeChannelId) ||
+        Boolean(currentState.activeConversationId) ||
         Boolean(currentState.sessionId);
       if (hasExistingVoiceSession) {
         await leaveChannel();
@@ -1929,17 +1946,19 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       nextRoom.on("reconnected", () => {
         clearReconnectTimeout();
         clearConnectionWarning();
-        void upsertVoiceState({
-          channelId,
-          serverId: nextServerId,
-          sessionId,
-        })
-          .then((state) => {
-            updateVoiceStatesCache(nextServerId, channelId, state.participants);
+        if (channelId && nextServerId) {
+          void upsertVoiceState({
+            channelId,
+            serverId: nextServerId,
+            sessionId,
           })
-          .catch(() => {
-            setErrorMessage("Voice state could not be restored.");
-          });
+            .then((state) => {
+              updateVoiceStatesCache(nextServerId, channelId, state.participants);
+            })
+            .catch(() => {
+              setErrorMessage("Voice state could not be restored.");
+            });
+        }
         void ensureLocalMicrophonePublished(nextRoom)
           .then((recovered) => {
             if (!recovered) {
@@ -1970,7 +1989,10 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
             operation: "livekit_token_fetch",
             runtime: "client",
           },
-          () => fetchLiveKitToken({ channelId }),
+          () =>
+            fetchLiveKitToken(
+              channelId ? { channelId } : { conversationId: conversationId as string },
+            ),
         );
         supportsLiveKitCloudNoiseCancellationRef.current = isLiveKitCloudUrl(tokenResponse.url);
 
@@ -1989,41 +2011,52 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
         );
         setConnectionState(nextRoom.state);
 
-        const state = await measureVoicePerformance(
-          {
-            operation: "voice_state_post",
-            runtime: "client",
-          },
-          () =>
-            upsertVoiceState({
-              channelId,
-              serverId: nextServerId,
-              sessionId,
-            }),
-        );
-        voiceStateCreated = true;
+        // Voice presence, heartbeats and the voice-state cache are channel concepts; a DM
+        // call is a bare LiveKit session and skips all of them.
+        const state =
+          channelId && nextServerId
+            ? await measureVoicePerformance(
+                {
+                  operation: "voice_state_post",
+                  runtime: "client",
+                },
+                () =>
+                  upsertVoiceState({
+                    channelId,
+                    serverId: nextServerId,
+                    sessionId,
+                  }),
+              )
+            : null;
+        voiceStateCreated = Boolean(state);
 
         useVoiceStore.getState().join({
           channelId,
+          conversationId,
           serverId: nextServerId,
           sessionId,
+          sessionMode: isDirectCall ? "direct" : "channel",
         });
         remoteAudioLevelsRef.current.clear();
-        runNonFatalVoiceJoinStep("socket voice join emit", () => {
-          getSocket().emit("voice:join", {
-            channelId,
-            serverId: nextServerId,
+        if (channelId && nextServerId) {
+          runNonFatalVoiceJoinStep("socket voice join emit", () => {
+            getSocket().emit("voice:join", {
+              channelId,
+              serverId: nextServerId,
+            });
           });
-        });
+        }
         useVoiceStore.getState().setMuted(shouldStartMuted || !hasMicrophoneAccess);
         useVoiceStore.getState().setDeafened(shouldStartDeafened);
 
-        runNonFatalVoiceJoinStep("voice state cache update", () => {
-          updateVoiceStatesCache(nextServerId, channelId, state.participants);
-        });
-        runNonFatalVoiceJoinStep("heartbeat start", () => {
-          startHeartbeat(sessionId);
-        });
+        if (state && channelId && nextServerId) {
+          runNonFatalVoiceJoinStep("voice state cache update", () => {
+            updateVoiceStatesCache(nextServerId, channelId, state.participants);
+          });
+          runNonFatalVoiceJoinStep("heartbeat start", () => {
+            startHeartbeat(sessionId);
+          });
+        }
         void nextRoom.startAudio().catch(() => undefined);
         syncRoomParticipants();
         joinResult = "success";
@@ -2105,7 +2138,10 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       } catch (error) {
         const isCurrentJoinAttempt =
           joinRequestRef.current === nextJoinKey || roomRef.current === nextRoom;
-        logError("[voice] Channel join failed", error);
+        logError(
+          isDirectCall ? "[voice] Direct call join failed" : "[voice] Channel join failed",
+          error,
+        );
         stopHeartbeat();
         clearReconnectTimeout();
         if (roomRef.current === nextRoom) {
@@ -2175,6 +2211,18 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       t,
       updateVoiceStatesCache,
     ],
+  );
+
+  const joinChannel = useCallback(
+    ({ channelId, serverId: nextServerId }: { channelId: string; serverId: string }) =>
+      joinVoiceSession({ channelId, serverId: nextServerId }),
+    [joinVoiceSession],
+  );
+
+  const joinDirectCall = useCallback(
+    ({ conversationId }: { conversationId: string }) =>
+      joinVoiceSession({ channelId: null, conversationId, serverId: null }),
+    [joinVoiceSession],
   );
 
   const toggleMute = useCallback(async () => {
@@ -2747,6 +2795,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
   const voiceStateValue = useMemo<VoiceStateContextValue>(
     () => ({
       activeChannelId,
+      activeConversationId,
       activeNoiseFilterTier,
       audioPreferences,
       cameraError,
@@ -2780,7 +2829,9 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       preloadVoiceProcessing,
       prepareForVoiceJoin,
       joinChannel,
+      joinDirectCall,
       leaveChannel,
+      sessionMode,
       stopCamera,
       stopScreenShare,
       toggleDeafen,
@@ -2790,6 +2841,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
     }),
     [
       activeChannelId,
+      activeConversationId,
       activeScreenShareId,
       activeNoiseFilterTier,
       audioPreferences,
@@ -2807,6 +2859,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       isMuted,
       isScreenSharing,
       joinChannel,
+      joinDirectCall,
       krispAvailability,
       leaveChannel,
       preloadVoiceProcessing,
@@ -2816,6 +2869,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       screenShareError,
       screenShareQuality,
       serverId,
+      sessionMode,
       setActiveScreenShareId,
       setScreenShareQuality,
       startPushToTalk,

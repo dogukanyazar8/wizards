@@ -19,6 +19,11 @@ export type MobileRealtimeClient = {
   disconnect(): void;
   emitChannelTypingStart(channelId: string): void;
   emitChannelTypingStop(channelId: string): void;
+  emitDMCallAccept(input: { conversationId: string; fromUserId: string; video: boolean }): void;
+  emitDMCallCancel(input: { conversationId: string }): void;
+  emitDMCallDecline(input: { conversationId: string; fromUserId: string }): void;
+  emitDMCallEnd(input: { conversationId: string }): void;
+  emitDMCallStart(input: { conversationId: string; video: boolean }): void;
   emitDMTypingStart(conversationId: string): void;
   emitDMTypingStop(conversationId: string): void;
   emitVoiceInviteAccept(input: { channelId: string; inviteId: string; serverId: string }): void;
@@ -208,6 +213,46 @@ export function createMobileRealtimeClient(
       }
 
       socket.emit("typing:stop", channelId);
+    },
+
+    emitDMCallStart(input) {
+      if (!socket?.connected) {
+        return;
+      }
+
+      socket.emit("dm:call:start", input);
+    },
+
+    emitDMCallAccept(input) {
+      if (!socket?.connected) {
+        return;
+      }
+
+      socket.emit("dm:call:accept", input);
+    },
+
+    emitDMCallDecline(input) {
+      if (!socket?.connected) {
+        return;
+      }
+
+      socket.emit("dm:call:decline", input);
+    },
+
+    emitDMCallCancel(input) {
+      if (!socket?.connected) {
+        return;
+      }
+
+      socket.emit("dm:call:cancel", input);
+    },
+
+    emitDMCallEnd(input) {
+      if (!socket?.connected) {
+        return;
+      }
+
+      socket.emit("dm:call:end", input);
     },
 
     emitDMTypingStart(conversationId) {

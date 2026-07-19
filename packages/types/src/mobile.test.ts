@@ -44,6 +44,10 @@ import {
   MobileDMMessagesResponseSchema,
   MobileDMMarkReadResponseSchema,
   MobileDMParticipantReadStateSchema,
+  MobileDMCallAcceptedEventSchema,
+  MobileDMCallIncomingEventSchema,
+  MobileDMCallPeerSchema,
+  MobileDMCallSignalEventSchema,
   MobileDMReadUpdatedEventSchema,
   MobileDMSendMessageRequestSchema,
   MobileDMSendMessageResponseSchema,
@@ -172,6 +176,13 @@ const bootstrapDMParticipant = {
   displayName: "Charles",
   id: "user-2",
   status: "ONLINE",
+  username: "charles",
+};
+
+const dmCallPeer = {
+  avatarUrl: null,
+  displayName: "Charles",
+  id: "user-2",
   username: "charles",
 };
 
@@ -446,6 +457,36 @@ describe("mobile schemas", () => {
         schema: MobileBootstrapDMParticipantSchema,
         valid: bootstrapDMParticipant,
         invalid: { ...bootstrapDMParticipant, username: "" },
+      },
+      MobileDMCallPeerSchema: {
+        schema: MobileDMCallPeerSchema,
+        valid: dmCallPeer,
+        invalid: { ...dmCallPeer, username: "" },
+      },
+      MobileDMCallIncomingEventSchema: {
+        schema: MobileDMCallIncomingEventSchema,
+        valid: {
+          conversationId: "conversation-1",
+          expiresAt: "2026-07-19T12:00:45.000Z",
+          fromUser: dmCallPeer,
+          video: false,
+        },
+        invalid: {
+          conversationId: "conversation-1",
+          expiresAt: "2026-07-19T12:00:45.000Z",
+          fromUser: dmCallPeer,
+          video: "yes",
+        },
+      },
+      MobileDMCallSignalEventSchema: {
+        schema: MobileDMCallSignalEventSchema,
+        valid: { conversationId: "conversation-1", userId: "user-1" },
+        invalid: { conversationId: "conversation-1", userId: "" },
+      },
+      MobileDMCallAcceptedEventSchema: {
+        schema: MobileDMCallAcceptedEventSchema,
+        valid: { conversationId: "conversation-1", userId: "user-1", video: true },
+        invalid: { conversationId: "", userId: "user-1", video: true },
       },
       MobileDMConversationPreviewAuthorSchema: {
         schema: MobileDMConversationPreviewAuthorSchema,

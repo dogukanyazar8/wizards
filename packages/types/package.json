@@ -9,11 +9,11 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "build": "tsc6 -p tsconfig.json",
-    "dev": "tsc6 --watch --preserveWatchOutput",
-    "lint": "tsc6 --noEmit",
+    "build": "node ../../scripts/quality/typescript-project-runner.mjs --project=types --mode=build",
+    "dev": "node ../../scripts/quality/typescript-project-runner.mjs --project=types --mode=watch",
+    "lint": "node ../../scripts/quality/typescript-project-runner.mjs --project=types --mode=check",
     "test": "node --import tsx --test \"src/**/*.test.ts\"",
-    "typecheck": "tsc6 --noEmit",
+    "typecheck": "node ../../scripts/quality/typescript-project-runner.mjs --project=types --mode=check",
     "format": "node ../../scripts/quality/prettier-changed.mjs --scope packages/types"
   },
   "dependencies": {

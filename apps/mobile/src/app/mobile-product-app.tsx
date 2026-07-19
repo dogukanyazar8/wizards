@@ -19,8 +19,10 @@ import { useMobileDirectCallActions } from "./features/use-mobile-direct-call-ac
 import { useMobileMessagingFeature } from "./features/use-mobile-messaging-feature";
 import { useMobilePermissionSummary } from "./features/use-mobile-permission-summary";
 import { useMobileProductLinks } from "./features/use-mobile-product-links";
+import { useMobileDMCallFeature } from "./features/use-mobile-dm-call-feature";
 import { useMobileVoiceInviteFeature } from "./features/use-mobile-voice-invite-feature";
 import { useMobileTypingLabels } from "./features/use-mobile-typing-labels";
+import { MobileIncomingCallOverlay } from "./overlays/mobile-incoming-call-overlay";
 import { MobileVoiceInviteOverlay } from "./overlays/mobile-voice-invite-overlay";
 import { useMobileLocaleRuntime } from "./providers/mobile-locale-provider";
 import { useMobileMediaRuntime } from "./providers/mobile-media-provider";
@@ -79,6 +81,11 @@ export function MobileProductApp({
   const { requestPermission: handleRequestNotificationPermission, state: notificationState } =
     useMobileNotificationRuntime();
   const {
+    emitDMCallAccept,
+    emitDMCallCancel,
+    emitDMCallDecline,
+    emitDMCallEnd,
+    emitDMCallStart,
     emitVoiceInviteAccept,
     emitVoiceInviteDecline,
     emitVoiceInviteSend,
@@ -200,9 +207,24 @@ export function MobileProductApp({
   const { openCookies, openPrivacyPolicy, openSupport, openTerms } = useMobileProductLinks(
     runtimeConfig.webUrl,
   );
-  const { onStartVideoCall, onStartVoiceCall } = useMobileDirectCallActions({
+  const {
+    acceptCall: handleAcceptDMCall,
+    declineCall: handleDeclineDMCall,
+    incomingCall: incomingDMCall,
+    startCall: startDMCall,
+  } = useMobileDMCallFeature({
+    emitDMCallAccept,
+    emitDMCallCancel,
+    emitDMCallDecline,
+    emitDMCallEnd,
+    emitDMCallStart,
     joinDirectCall: voiceRuntime.joinDirectCall,
+    leaveVoiceChannel: voiceRuntime.leaveVoiceChannel,
+    subscribe: subscribeRealtime,
+  });
+  const { onStartVideoCall, onStartVoiceCall } = useMobileDirectCallActions({
     selectedConversation: selectedDMConversation,
+    startCall: startDMCall,
   });
   // getSyncHealth() builds a fresh object per call, so memoize per tab to keep
   // the screen-props objects below stable when nothing else changed.
@@ -454,6 +476,11 @@ export function MobileProductApp({
                           invites={voiceInviteEntries}
                           onAccept={handleAcceptVoiceInvite}
                           onDecline={handleDeclineVoiceInvite}
+                        />
+                        <MobileIncomingCallOverlay
+                          call={incomingDMCall}
+                          onAccept={() => void handleAcceptDMCall()}
+                          onDecline={() => void handleDeclineDMCall()}
                         />
                       </>
                     )}

@@ -49,6 +49,11 @@ interface MobileRealtimeRuntime {
   readonly connection: MobileRealtimeConnectionSnapshot;
   readonly dmTyping: MobileChannelTypingState;
   readonly typing: MobileChannelTypingState;
+  emitDMCallAccept(input: { conversationId: string; fromUserId: string; video: boolean }): void;
+  emitDMCallCancel(input: { conversationId: string }): void;
+  emitDMCallDecline(input: { conversationId: string; fromUserId: string }): void;
+  emitDMCallEnd(input: { conversationId: string }): void;
+  emitDMCallStart(input: { conversationId: string; video: boolean }): void;
   emitVoiceInviteAccept(input: { channelId: string; inviteId: string; serverId: string }): void;
   emitVoiceInviteDecline(input: { channelId: string; inviteId: string; serverId: string }): void;
   emitVoiceInviteSend(input: { channelId: string; serverId: string; targetUserId: string }): void;
@@ -381,6 +386,11 @@ export function MobileRealtimeProvider({ children }: PropsWithChildren) {
     () => ({
       connection,
       dmTyping,
+      emitDMCallAccept: (input) => clientRef.current?.emitDMCallAccept(input),
+      emitDMCallCancel: (input) => clientRef.current?.emitDMCallCancel(input),
+      emitDMCallDecline: (input) => clientRef.current?.emitDMCallDecline(input),
+      emitDMCallEnd: (input) => clientRef.current?.emitDMCallEnd(input),
+      emitDMCallStart: (input) => clientRef.current?.emitDMCallStart(input),
       emitVoiceInviteAccept: (input) => clientRef.current?.emitVoiceInviteAccept(input),
       emitVoiceInviteDecline: (input) => clientRef.current?.emitVoiceInviteDecline(input),
       emitVoiceInviteSend: (input) => clientRef.current?.emitVoiceInviteSend(input),

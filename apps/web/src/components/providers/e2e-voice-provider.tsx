@@ -105,6 +105,7 @@ export function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) 
   const [isApplyingScreenShareQuality, setIsApplyingScreenShareQuality] = useState(false);
   const {
     activeChannelId,
+    activeConversationId,
     audioPreferences,
     isDeafened,
     isMuted,
@@ -113,9 +114,11 @@ export function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) 
     screenShareError,
     screenShareQuality,
     serverId,
+    sessionMode,
   } = useVoiceStore(
     useShallow((state) => ({
       activeChannelId: state.activeChannelId,
+      activeConversationId: state.activeConversationId,
       audioPreferences: state.audioPreferences,
       isDeafened: state.isDeafened,
       isMuted: state.isMuted,
@@ -124,6 +127,7 @@ export function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) 
       screenShareError: state.screenShareError,
       screenShareQuality: state.screenShareQuality,
       serverId: state.serverId,
+      sessionMode: state.sessionMode,
     })),
   );
 
@@ -277,6 +281,30 @@ export function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) 
 
     store.leave();
   }, [currentUser.id, removeVoiceStateParticipant, stopCamera, stopHeartbeat, stopScreenShare]);
+
+  const joinDirectCall = useCallback(
+    async ({ conversationId }: { conversationId: string }) => {
+      const store = useVoiceStore.getState();
+
+      if (store.activeConversationId === conversationId) {
+        return;
+      }
+
+      if (store.activeChannelId || store.activeConversationId || store.sessionId) {
+        await leaveChannel();
+      }
+
+      store.join({
+        channelId: null,
+        conversationId,
+        serverId: null,
+        sessionId: crypto.randomUUID(),
+        sessionMode: "direct",
+      });
+      setConnectionState(ConnectionState.Connected);
+    },
+    [leaveChannel],
+  );
 
   const joinChannel = useCallback(
     async ({ channelId, serverId: nextServerId }: { channelId: string; serverId: string }) => {
@@ -702,6 +730,7 @@ export function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) 
   const voiceStateValue = useMemo<VoiceStateContextValue>(
     () => ({
       activeChannelId,
+      activeConversationId,
       activeNoiseFilterTier: "browser_native",
       audioPreferences,
       cameraError,
@@ -735,6 +764,8 @@ export function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) 
       preloadVoiceProcessing: async () => true,
       prepareForVoiceJoin,
       joinChannel,
+      joinDirectCall,
+      sessionMode,
       leaveChannel,
       stopCamera,
       stopScreenShare,
@@ -745,6 +776,9 @@ export function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) 
     }),
     [
       activeChannelId,
+      activeConversationId,
+      joinDirectCall,
+      sessionMode,
       activeScreenShareId,
       audioPreferences,
       cameraError,

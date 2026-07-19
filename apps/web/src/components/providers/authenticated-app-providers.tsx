@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { AppUpdateNotifier } from "@/components/app/app-update-notifier";
 import { DesktopExperience } from "@/components/desktop/desktop-experience";
+import { DMCallProvider } from "@/components/providers/dm-call-provider";
 import { SocketProvider } from "@/components/providers/socket-provider";
 import { SoundEffectsProvider } from "@/components/providers/sound-effects-provider";
 import { VoiceProvider } from "@/components/providers/voice-provider";
@@ -37,9 +38,11 @@ export function AuthenticatedAppProviders({
       <SoundEffectsProvider currentUserId={currentUser.id}>
         {shouldEnableVoiceFeatures ? (
           <VoiceProvider currentUser={currentUser}>
-            <DesktopExperience />
-            {content}
-            <ActiveVoiceReminder />
+            <DMCallProvider>
+              <DesktopExperience />
+              {content}
+              <ActiveVoiceReminder />
+            </DMCallProvider>
           </VoiceProvider>
         ) : (
           content

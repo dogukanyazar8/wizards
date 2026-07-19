@@ -12,8 +12,10 @@ import { checkDMMessageRateLimits, shouldLogRateLimitUnavailable } from "@/lib/s
 import {
   parseSocketPayload,
   SocketConversationPayloadSchema,
+  SocketDMCallAcceptPayloadSchema,
+  SocketDMCallStartPayloadSchema,
+  SocketDMCallTargetPayloadSchema,
   SocketDMMessageSendPayloadSchema,
-  SocketDMScreenShareTargetPayloadSchema,
   SocketIdSchema,
   SocketMessageDeletePayloadSchema,
   SocketMessageEditPayloadSchema,
@@ -21,6 +23,9 @@ import {
 } from "@/lib/socket/schemas";
 
 import type { SocketHandlerRegistration } from ".";
+
+/** How long an unanswered DM call keeps ringing before both sides give up. */
+const DM_CALL_RING_TTL_MS = 45_000;
 
 export function registerDMHandlers(
   ctx: HandlerContext,
@@ -39,6 +44,7 @@ export function registerDMHandlers(
         userId: true,
         user: {
           select: {
+            avatarUrl: true,
             displayName: true,
             username: true,
           },
@@ -62,6 +68,47 @@ export function registerDMHandlers(
     await assertUnblockedDMParticipants({ currentUserId: userId, participants });
 
     return participants;
+  }
+
+  /** Resolves the other side of a ring signal, or reports the failure to the sender. */
+  async function requireDMCallPeer(conversationId: string, peerUserId: string) {
+    const participants = await requireUnblockedDMParticipants(conversationId);
+    if (!participants) {
+      emitDMError("FORBIDDEN", "You are not a participant in this DM");
+      return null;
+    }
+
+    const peer = participants.find((participant) => participant.userId === peerUserId);
+    if (!peer || peer.userId === userId) {
+      emitDMError("NOT_FOUND", "The caller was not found.");
+      return null;
+    }
+
+    return peer;
+  }
+
+  /** Relays a call lifecycle signal to every other participant of the conversation. */
+  async function broadcastDMCallSignal(
+    rawData: unknown,
+    eventName: "dm:call:cancelled" | "dm:call:ended",
+  ) {
+    const data = parseSocketPayload(SocketConversationPayloadSchema, rawData);
+    const participants = await requireUnblockedDMParticipants(data.conversationId);
+    if (!participants) {
+      emitDMError("FORBIDDEN", "You are not a participant in this DM");
+      return;
+    }
+
+    for (const participant of participants) {
+      if (participant.userId === userId) {
+        continue;
+      }
+
+      io.to(`user:${participant.userId}`).emit(eventName, {
+        conversationId: data.conversationId,
+        userId,
+      });
+    }
   }
 
   socket.on("dm:join", async (rawConversationId: string) => {
@@ -92,111 +139,92 @@ export function registerDMHandlers(
     }
   });
 
-  socket.on("dm:screenshare:start", async (rawData) => {
+  socket.on("dm:call:start", async (rawData) => {
     try {
-      const data = parseSocketPayload(SocketConversationPayloadSchema, rawData);
+      const data = parseSocketPayload(SocketDMCallStartPayloadSchema, rawData);
       const participants = await requireUnblockedDMParticipants(data.conversationId);
       if (!participants) {
         emitDMError("FORBIDDEN", "You are not a participant in this DM");
         return;
       }
 
-      const sender = participants.find((participant) => participant.userId === userId);
-      if (!sender) {
+      const caller = participants.find((participant) => participant.userId === userId);
+      if (!caller) {
         emitDMError("FORBIDDEN", "You are not a participant in this DM");
         return;
       }
 
+      const expiresAt = new Date(Date.now() + DM_CALL_RING_TTL_MS).toISOString();
       for (const participant of participants) {
         if (participant.userId === userId) {
           continue;
         }
 
-        io.to(`user:${participant.userId}`).emit("dm:screenshare:started", {
+        io.to(`user:${participant.userId}`).emit("dm:call:incoming", {
           conversationId: data.conversationId,
-          userId,
-          username: sender.user.username,
-          displayName: sender.user.displayName,
+          expiresAt,
+          fromUser: {
+            avatarUrl: caller.user.avatarUrl,
+            displayName: caller.user.displayName,
+            id: userId,
+            username: caller.user.username,
+          },
+          video: data.video,
         });
       }
     } catch (error) {
-      emitSafeDMError("FORBIDDEN", "Unable to start DM screen sharing.", error);
+      emitSafeDMError("FORBIDDEN", "Unable to start this call.", error);
     }
   });
 
-  socket.on("dm:screenshare:accept", async (rawData) => {
+  socket.on("dm:call:accept", async (rawData) => {
     try {
-      const data = parseSocketPayload(SocketDMScreenShareTargetPayloadSchema, rawData);
-      const participants = await requireUnblockedDMParticipants(data.conversationId);
-      if (!participants) {
-        emitDMError("FORBIDDEN", "You are not a participant in this DM");
+      const data = parseSocketPayload(SocketDMCallAcceptPayloadSchema, rawData);
+      const caller = await requireDMCallPeer(data.conversationId, data.fromUserId);
+      if (!caller) {
         return;
       }
 
-      const targetParticipant = participants.find(
-        (participant) => participant.userId === data.fromUserId,
-      );
-      if (!targetParticipant || targetParticipant.userId === userId) {
-        emitDMError("NOT_FOUND", "Screen share sender was not found.");
+      io.to(`user:${caller.userId}`).emit("dm:call:accepted", {
+        conversationId: data.conversationId,
+        userId,
+        video: data.video,
+      });
+    } catch (error) {
+      emitSafeDMError("FORBIDDEN", "Unable to accept this call.", error);
+    }
+  });
+
+  socket.on("dm:call:decline", async (rawData) => {
+    try {
+      const data = parseSocketPayload(SocketDMCallTargetPayloadSchema, rawData);
+      const caller = await requireDMCallPeer(data.conversationId, data.fromUserId);
+      if (!caller) {
         return;
       }
 
-      io.to(`user:${targetParticipant.userId}`).emit("dm:screenshare:accepted", {
+      io.to(`user:${caller.userId}`).emit("dm:call:declined", {
         conversationId: data.conversationId,
         userId,
       });
     } catch (error) {
-      emitSafeDMError("FORBIDDEN", "Unable to accept DM screen sharing.", error);
+      emitSafeDMError("FORBIDDEN", "Unable to decline this call.", error);
     }
   });
 
-  socket.on("dm:screenshare:decline", async (rawData) => {
+  socket.on("dm:call:cancel", async (rawData) => {
     try {
-      const data = parseSocketPayload(SocketDMScreenShareTargetPayloadSchema, rawData);
-      const participants = await requireUnblockedDMParticipants(data.conversationId);
-      if (!participants) {
-        emitDMError("FORBIDDEN", "You are not a participant in this DM");
-        return;
-      }
-
-      const targetParticipant = participants.find(
-        (participant) => participant.userId === data.fromUserId,
-      );
-      if (!targetParticipant || targetParticipant.userId === userId) {
-        emitDMError("NOT_FOUND", "Screen share sender was not found.");
-        return;
-      }
-
-      io.to(`user:${targetParticipant.userId}`).emit("dm:screenshare:declined", {
-        conversationId: data.conversationId,
-        userId,
-      });
+      await broadcastDMCallSignal(rawData, "dm:call:cancelled");
     } catch (error) {
-      emitSafeDMError("FORBIDDEN", "Unable to decline DM screen sharing.", error);
+      emitSafeDMError("FORBIDDEN", "Unable to cancel this call.", error);
     }
   });
 
-  socket.on("dm:screenshare:stop", async (rawData) => {
+  socket.on("dm:call:end", async (rawData) => {
     try {
-      const data = parseSocketPayload(SocketConversationPayloadSchema, rawData);
-      const participants = await requireUnblockedDMParticipants(data.conversationId);
-      if (!participants) {
-        emitDMError("FORBIDDEN", "You are not a participant in this DM");
-        return;
-      }
-
-      for (const participant of participants) {
-        if (participant.userId === userId) {
-          continue;
-        }
-
-        io.to(`user:${participant.userId}`).emit("dm:screenshare:stopped", {
-          conversationId: data.conversationId,
-          userId,
-        });
-      }
+      await broadcastDMCallSignal(rawData, "dm:call:ended");
     } catch (error) {
-      emitSafeDMError("FORBIDDEN", "Unable to stop DM screen sharing.", error);
+      emitSafeDMError("FORBIDDEN", "Unable to end this call.", error);
     }
   });
 

@@ -62,7 +62,22 @@ export const SocketConversationPayloadSchema = z
   })
   .strict();
 
-export const SocketDMScreenShareTargetPayloadSchema = z
+export const SocketDMCallStartPayloadSchema = z
+  .object({
+    conversationId: SocketIdSchema,
+    video: z.boolean(),
+  })
+  .strict();
+
+export const SocketDMCallAcceptPayloadSchema = z
+  .object({
+    conversationId: SocketIdSchema,
+    fromUserId: SocketIdSchema,
+    video: z.boolean(),
+  })
+  .strict();
+
+export const SocketDMCallTargetPayloadSchema = z
   .object({
     conversationId: SocketIdSchema,
     fromUserId: SocketIdSchema,

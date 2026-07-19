@@ -87,6 +87,8 @@ export interface MobileHomeQuickAction {
 
 const ACTIVE_PRESENCE_STATUSES = new Set(["ONLINE", "IDLE", "DND"]);
 
+export type MobilePresenceTone = "online" | "idle" | "dnd" | "offline";
+
 const MOBILE_CHANNEL_CHAT_LABEL_LIMITS = {
   accessibilityLabel: 160,
   channelName: 48,
@@ -134,6 +136,20 @@ export function isMobilePresenceActive(status: string | null | undefined): boole
   }
 
   return ACTIVE_PRESENCE_STATUSES.has(status.toUpperCase());
+}
+
+/** Presence tone shared by every surface, mirroring the web status colours. */
+export function getMobilePresenceTone(status: string | null | undefined): MobilePresenceTone {
+  switch (status?.toUpperCase()) {
+    case "ONLINE":
+      return "online";
+    case "IDLE":
+      return "idle";
+    case "DND":
+      return "dnd";
+    default:
+      return "offline";
+  }
 }
 
 export function getMobileConversationTitle(

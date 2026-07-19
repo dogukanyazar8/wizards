@@ -495,6 +495,29 @@ export const MobileDMReadUpdatedEventSchema = MobileDMParticipantReadStateSchema
   conversationId: z.string().min(1).max(128),
 });
 
+export const MobileDMCallPeerSchema = z.object({
+  avatarUrl: z.string().nullable(),
+  displayName: z.string().min(1).max(120).nullable(),
+  id: z.string().min(1).max(128),
+  username: z.string().min(1).max(80),
+});
+
+export const MobileDMCallIncomingEventSchema = z.object({
+  conversationId: z.string().min(1).max(128),
+  expiresAt: z.string().min(1).max(64),
+  fromUser: MobileDMCallPeerSchema,
+  video: z.boolean(),
+});
+
+export const MobileDMCallSignalEventSchema = z.object({
+  conversationId: z.string().min(1).max(128),
+  userId: z.string().min(1).max(128),
+});
+
+export const MobileDMCallAcceptedEventSchema = MobileDMCallSignalEventSchema.extend({
+  video: z.boolean().default(false),
+});
+
 export const MobileDMMessagesResponseSchema = z.object({
   conversation: DMConversationDTOSchema,
   messages: z.array(DMMessagePayloadSchema).max(30),
@@ -690,6 +713,10 @@ export type MobileDMMessagesResponse = z.infer<typeof MobileDMMessagesResponseSc
 export type MobileDMParticipantReadState = z.infer<typeof MobileDMParticipantReadStateSchema>;
 export type MobileDMMarkReadResponse = z.infer<typeof MobileDMMarkReadResponseSchema>;
 export type MobileDMReadUpdatedEvent = z.infer<typeof MobileDMReadUpdatedEventSchema>;
+export type MobileDMCallPeer = z.infer<typeof MobileDMCallPeerSchema>;
+export type MobileDMCallIncomingEvent = z.infer<typeof MobileDMCallIncomingEventSchema>;
+export type MobileDMCallSignalEvent = z.infer<typeof MobileDMCallSignalEventSchema>;
+export type MobileDMCallAcceptedEvent = z.infer<typeof MobileDMCallAcceptedEventSchema>;
 export type MobileDMMessagesThreadResponse = z.infer<typeof MobileDMMessagesThreadResponseSchema>;
 export type MobileDMSendMessageRequest = z.infer<typeof MobileDMSendMessageRequestSchema>;
 export type MobileDMSendMessageResponse = z.infer<typeof MobileDMSendMessageResponseSchema>;

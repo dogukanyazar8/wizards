@@ -40,6 +40,8 @@ export type VoiceCameraStatus =
 
 export type VoiceContextValue = {
   activeChannelId: string | null;
+  /** Conversation of the active DM call, or null outside a direct session. */
+  activeConversationId: string | null;
   activeNoiseFilterTier: NoiseFilterTier;
   audioPreferences: VoiceAudioPreferences;
   cameraError: string | null;
@@ -77,6 +79,8 @@ export type VoiceContextValue = {
   preloadVoiceProcessing: () => Promise<boolean>;
   prepareForVoiceJoin: () => Promise<boolean>;
   joinChannel: (input: { channelId: string; serverId: string }) => Promise<void>;
+  joinDirectCall: (input: { conversationId: string }) => Promise<void>;
+  sessionMode: "channel" | "direct" | null;
   leaveChannel: () => Promise<void>;
   stopCamera: () => Promise<void>;
   stopScreenShare: () => Promise<void>;

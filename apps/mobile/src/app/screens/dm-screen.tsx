@@ -166,6 +166,7 @@ export function MessagesScreen({
           ) : hasConversations ? (
             <DirectMessageListCard
               conversations={dmConversations}
+              currentUserId={bootstrapState.status === "ready" ? bootstrapState.payload.user.id : ""}
               hasNextPage={dmConversationsHasNextPage}
               onlineFriends={onlineFriends}
               onAddFriend={() => setInboxSegment("requests")}

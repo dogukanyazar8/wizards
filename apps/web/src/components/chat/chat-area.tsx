@@ -27,7 +27,6 @@ import { MessageInput } from "./message-input";
 import { MessageSearchPanel } from "./message-search-panel";
 import { ThreadPanel } from "./thread-panel";
 import { TypingIndicator } from "./typing-indicator";
-import { DMScreenSharePanel, IncomingDMScreenShareModal } from "./dm-screen-share";
 import { ServerMemberPanel } from "@/components/shell/server-member-panel";
 import {
   DmComposer,
@@ -42,7 +41,9 @@ import {
   type MessagePages,
 } from "@/hooks/use-messages";
 import { useSocket } from "@/hooks/use-socket";
-import { useDMScreenShare } from "@/hooks/use-dm-screen-share";
+import { DmCallView } from "@/components/dm/dm-call-view";
+import { useDMCallActions } from "@/components/providers/dm-call-provider";
+import { useDMCallStore } from "@/store/dm-call-store";
 import { useBodyScrollLock, useResponsiveLayout } from "@/hooks/use-responsive-layout";
 import { useTyping } from "@/hooks/use-typing";
 import {
@@ -213,12 +214,28 @@ export function ChatArea({
     },
   });
   const { typingUsers } = useTyping(conversationId, mode);
-  const dmScreenShare = useDMScreenShare({
-    conversationId,
-    currentUserDisplayName,
-    currentUserId,
-    currentUserUsername,
-  });
+  const { endCall, startCall } = useDMCallActions();
+  const callSession = useDMCallStore((state) => state.session);
+  const isCallMinimized = useDMCallStore((state) => state.isMinimized);
+  const activeCallSession =
+    callSession?.conversationId === conversationId ? callSession : null;
+  const showCallView = Boolean(activeCallSession) && !isCallMinimized;
+  const startDirectCall = (video: boolean) => {
+    if (!directMessageParticipant) {
+      return;
+    }
+
+    void startCall({
+      conversationId,
+      peer: {
+        avatarUrl: directMessageParticipant.avatarUrl ?? null,
+        displayName: directMessageParticipant.displayName ?? null,
+        id: directMessageParticipant.userId,
+        username: directMessageParticipant.username,
+      },
+      video,
+    });
+  };
   const pendingMessagesRef = useRef<Map<string, PendingMessagePayload>>(new Map());
   const pendingOrderRef = useRef<string[]>([]);
   const notificationButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -840,11 +857,10 @@ export function ChatArea({
         <DmConversationHeader
           onOpenDetails={onOpenDirectMessageDetails}
           onOpenSearch={() => setShowSearch(true)}
-          onStartScreenShare={() => {
-            void dmScreenShare.startShare();
-          }}
+          callDisabled={Boolean(callSession)}
+          onStartVideoCall={() => startDirectCall(true)}
+          onStartVoiceCall={() => startDirectCall(false)}
           participant={directMessageParticipant}
-          screenShareStarting={dmScreenShare.isStarting}
           searchButtonRef={searchButtonRef}
           searchOpen={showSearch}
         >
@@ -1138,32 +1154,12 @@ export function ChatArea({
         </div>
       ) : null}
 
-      {mode === "dm" ? (
-        <IncomingDMScreenShareModal
-          incomingShare={dmScreenShare.incomingShare}
-          onAccept={() => {
-            void dmScreenShare.acceptIncomingShare();
+      {mode === "dm" && showCallView && activeCallSession ? (
+        <DmCallView
+          onLeave={() => {
+            void endCall();
           }}
-          onDecline={dmScreenShare.declineIncomingShare}
-        />
-      ) : null}
-
-      {mode === "dm" && dmScreenShare.error ? (
-        <div className="border-b border-[hsl(var(--warning)/0.24)] bg-[hsl(var(--warning)/0.08)] px-5 py-3">
-          <p className="text-sm font-medium text-app-foreground">{dmScreenShare.error}</p>
-        </div>
-      ) : null}
-
-      {mode === "dm" && dmScreenShare.activeShare ? (
-        <DMScreenSharePanel
-          activeShare={dmScreenShare.activeShare}
-          connectionState={dmScreenShare.connectionState}
-          onStopSharing={() => {
-            void dmScreenShare.stopSharing();
-          }}
-          onStopViewing={() => {
-            void dmScreenShare.stopViewing();
-          }}
+          session={activeCallSession}
         />
       ) : mode === "dm" ? (
         <DmMessageSurface>{messageConversationContent}</DmMessageSurface>

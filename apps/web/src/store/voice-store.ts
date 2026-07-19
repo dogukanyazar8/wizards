@@ -322,6 +322,8 @@ type PersistedVoiceStoreState = {
 
 interface VoiceStoreState extends PersistedVoiceStoreState {
   activeChannelId: string | null;
+  /** Conversation whose DM call owns the current session, when sessionMode is "direct". */
+  activeConversationId: string | null;
   clearParticipantVolumes: () => void;
   clearScreenShareState: () => void;
   desktopGlobalShortcutsEnabled: boolean;
@@ -341,13 +343,20 @@ interface VoiceStoreState extends PersistedVoiceStoreState {
   screenShareMode: "dm" | "voice" | null;
   serverId: string | null;
   sessionId: string | null;
+  sessionMode: "channel" | "direct" | null;
   gameOverlayPanicShortcut: string;
   pushToTalkHangoverMs: number;
   pushToTalkShortcut: string;
   toggleDeafenShortcut: string;
   toggleMuteShortcut: string;
   voiceInputMode: VoiceInputMode;
-  join: (input: { channelId: string; serverId: string; sessionId: string }) => void;
+  join: (input: {
+    channelId: string | null;
+    conversationId?: string | null;
+    serverId: string | null;
+    sessionId: string;
+    sessionMode?: "channel" | "direct";
+  }) => void;
   leave: () => void;
   resetParticipantVolume: (userId: string) => void;
   resetCameraPreferences: () => void;
@@ -396,6 +405,7 @@ export const useVoiceStore = create<VoiceStoreState>()(
   persist(
     (set) => ({
       activeChannelId: null,
+      activeConversationId: null,
       audioProcessingVersion: CLEAN_VOICE_PROCESSING_VERSION,
       audioPreferences: DEFAULT_VOICE_AUDIO_PREFERENCES,
       cameraPreferences: DEFAULT_VOICE_CAMERA_PREFERENCES,
@@ -440,22 +450,27 @@ export const useVoiceStore = create<VoiceStoreState>()(
       screenShareQuality: DEFAULT_SCREEN_SHARE_QUALITY_ID,
       serverId: null,
       sessionId: null,
+      sessionMode: null,
       pushToTalkHangoverMs: DEFAULT_PUSH_TO_TALK_HANGOVER_MS,
       pushToTalkShortcut: DEFAULT_PUSH_TO_TALK_SHORTCUT,
       toggleDeafenShortcut: DEFAULT_TOGGLE_DEAFEN_SHORTCUT,
       toggleMuteShortcut: DEFAULT_TOGGLE_MUTE_SHORTCUT,
       voiceInputMode: "voice-activity",
-      join: ({ channelId, serverId, sessionId }) =>
+      join: ({ channelId, conversationId = null, serverId, sessionId, sessionMode = "channel" }) =>
         set({
           activeChannelId: channelId,
+          activeConversationId: conversationId,
           serverId,
           sessionId,
+          sessionMode,
         }),
       leave: () =>
         set({
           activeChannelId: null,
+          activeConversationId: null,
           serverId: null,
           sessionId: null,
+          sessionMode: null,
           isScreenSharing: false,
           screenShareActiveSharerId: null,
           screenShareChannelId: null,

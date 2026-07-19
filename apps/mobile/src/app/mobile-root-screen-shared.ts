@@ -112,12 +112,15 @@ export {
   getMobileWorkspaceChannelSurface,
   getMobileWorkspaceChannelSections,
   getMobileWorkspaceChannels,
+  getMobilePresenceTone,
   getVisibleMobileWorkspaceChannelSections,
+  isMobilePresenceActive,
   MOBILE_RENDER_LIMITS,
 } from "./mobile-display-model";
 export type {
   MobileConversationFilter,
   MobileHomeQuickAction,
+  MobilePresenceTone,
   MobileMessageStreamItem,
   MobileVisibleWorkspaceChannelSection,
 } from "./mobile-display-model";

@@ -217,7 +217,7 @@ export function DmProfileCard({
         <button
           className="flex min-h-12 flex-col items-center justify-center gap-1 rounded-[16px] bg-[hsl(var(--surface-card)/0.68)] text-xs font-black text-app-muted transition hover:bg-[hsl(var(--surface-card)/0.9)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-55"
           disabled
-          title={t("dm.header.voiceComingSoon")}
+          title={t("dm.details.comingSoon")}
           type="button"
         >
           <UserRound className="h-4 w-4" />
@@ -235,7 +235,7 @@ export function DmProfileCard({
         <button
           className="flex min-h-12 flex-col items-center justify-center gap-1 rounded-[16px] bg-[hsl(var(--surface-card)/0.68)] text-xs font-black text-app-muted transition hover:bg-[hsl(var(--surface-card)/0.9)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-55"
           disabled
-          title={t("dm.header.voiceComingSoon")}
+          title={t("dm.details.comingSoon")}
           type="button"
         >
           <BellOff className="h-4 w-4" />

@@ -108,10 +108,11 @@ export interface ClientToServerEvents {
   "dm:message:unreact": (data: { messageId: string; emoji: string }) => void;
   "dm:typing:start": (data: { conversationId: string }) => void;
   "dm:typing:stop": (data: { conversationId: string }) => void;
-  "dm:screenshare:start": (data: { conversationId: string }) => void;
-  "dm:screenshare:accept": (data: { conversationId: string; fromUserId: string }) => void;
-  "dm:screenshare:decline": (data: { conversationId: string; fromUserId: string }) => void;
-  "dm:screenshare:stop": (data: { conversationId: string }) => void;
+  "dm:call:start": (data: { conversationId: string; video: boolean }) => void;
+  "dm:call:accept": (data: { conversationId: string; fromUserId: string; video: boolean }) => void;
+  "dm:call:decline": (data: { conversationId: string; fromUserId: string }) => void;
+  "dm:call:cancel": (data: { conversationId: string }) => void;
+  "dm:call:end": (data: { conversationId: string }) => void;
   "presence:activity": (data: { status: "ONLINE" | "IDLE" }) => void;
   "voice:join": (data: { channelId: string; serverId: string }) => void;
   "voice:leave": (data: { channelId: string; serverId: string }) => void;
@@ -212,15 +213,21 @@ export interface ServerToClientEvents {
     lastReadAt: string | null;
     userId: string;
   }) => void;
-  "dm:screenshare:started": (data: {
+  "dm:call:incoming": (data: {
     conversationId: string;
-    userId: string;
-    username: string;
-    displayName: string | null;
+    expiresAt: string;
+    fromUser: {
+      avatarUrl: string | null;
+      displayName: string | null;
+      id: string;
+      username: string;
+    };
+    video: boolean;
   }) => void;
-  "dm:screenshare:accepted": (data: { conversationId: string; userId: string }) => void;
-  "dm:screenshare:declined": (data: { conversationId: string; userId: string }) => void;
-  "dm:screenshare:stopped": (data: { conversationId: string; userId: string }) => void;
+  "dm:call:accepted": (data: { conversationId: string; userId: string; video: boolean }) => void;
+  "dm:call:declined": (data: { conversationId: string; userId: string }) => void;
+  "dm:call:cancelled": (data: { conversationId: string; userId: string }) => void;
+  "dm:call:ended": (data: { conversationId: string; userId: string }) => void;
   "dm:error": (data: {
     code:
       | "UNAUTHORIZED"

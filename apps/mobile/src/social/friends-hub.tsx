@@ -6,8 +6,17 @@ import { useMobileLocaleRuntime } from "../app/providers/mobile-locale-provider"
 import { useTheme, useThemedStyles } from "../app/providers/mobile-theme-provider";
 import { useMobileAuth } from "../auth/mobile-auth-context";
 import type { MobileTheme } from "../design/themes";
+import { getMobilePresenceTone, type MobilePresenceTone } from "../app/mobile-display-model";
 import { mobileNavigationRef } from "../navigation/mobile-navigation-ref";
 import { useMobileFriendsQuery, useMobileSocialMutations } from "./mobile-social-query";
+
+/** Presence tone → Avatar dot variant, so friend rows use the web status colours. */
+const AVATAR_PRESENCE_STATUS = {
+  dnd: "dnd",
+  idle: "idle",
+  offline: "offline",
+  online: "active",
+} as const satisfies Record<MobilePresenceTone, "active" | "idle" | "dnd" | "offline">;
 
 type FriendsHubMode = "all" | "friends" | "requests";
 type FriendsHubSegment = "online" | "all" | "requests";
@@ -362,9 +371,7 @@ export function FriendsHub({
             identityId={friend.id}
             imageUrl={friend.avatarUrl}
             label={title}
-            {...(!isOffline
-              ? { status: friend.status === "ONLINE" ? ("active" as const) : ("idle" as const) }
-              : {})}
+            status={AVATAR_PRESENCE_STATUS[getMobilePresenceTone(friend.status)]}
           />
           <View style={styles.friendIdentity}>
             <Text numberOfLines={1} style={styles.friendName}>

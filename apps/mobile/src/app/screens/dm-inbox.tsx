@@ -10,19 +10,22 @@ import {
   copy,
   filterMobileConversations,
   formatMobileDisplayTime,
-  getMobileConversationActiveCount,
   getMobileConversationAvatarUrl,
   getMobileConversationInitialsLabel,
   getMobileConversationTitle,
+  getMobilePresenceTone,
+  isMobilePresenceActive,
   useMemo,
   type MobileDMConversationListItem,
 } from "../mobile-root-screen-shared";
+import { getMobilePresenceColor } from "../../design/mobile-presence-color";
 import { AvatarMark, MetricMiniPill, StatusChip } from "../components/ui-atoms";
 import { useTheme } from "../providers/mobile-theme-provider";
 import { useDmScreenStyles } from "./dm-screen.styles";
 import type { MobileDMInboxSegment, MobileDMOnlineFriend } from "./dm-screen.types";
 
 const DM_INBOX_SEGMENTS: readonly MobileDMInboxSegment[] = ["conversations", "friends", "requests"];
+const EMPTY_PRESENCE_MAP: ReadonlyMap<string, string> = new Map<string, string>();
 import { mobileListLoadHandlers } from "../../performance/mobile-performance-metrics";
 
 /** Horizontal swipe gesture that steps between the three inbox segments. */
@@ -161,8 +164,7 @@ export function DMOnlineStrip({
       >
         {friends.map((friend) => {
           const title = friend.displayName ?? friend.username;
-          const isIdle = friend.status !== "ONLINE";
-          const ringColor = isIdle ? theme.status.warning : theme.status.success;
+          const presenceColor = getMobilePresenceColor(getMobilePresenceTone(friend.status), theme);
           return (
             <Pressable
               accessibilityRole="button"
@@ -174,7 +176,7 @@ export function DMOnlineStrip({
             >
               <View style={styles.dmOnlineStripAvatarWrap}>
                 <AvatarMark
-                  avatarBorderColor={ringColor}
+                  avatarBorderColor={presenceColor}
                   avatarBorderRadius={20}
                   avatarBorderWidth={2}
                   dimension={56}
@@ -182,7 +184,10 @@ export function DMOnlineStrip({
                   imageUrl={friend.avatarUrl}
                   label={title}
                 />
-                <View style={[styles.dmOnlineStripDot, isIdle && styles.dmOnlineStripDotIdle]} />
+                <View
+                  style={[styles.dmOnlineStripDot, { backgroundColor: presenceColor }]}
+                  testID={`mobile-dm-online-dot-${friend.id}`}
+                />
               </View>
               <Text numberOfLines={1} style={styles.dmOnlineStripName}>
                 {friend.username}
@@ -211,6 +216,7 @@ export function DMOnlineStrip({
 
 export function DirectMessageListCard({
   conversations,
+  currentUserId = "",
   hasNextPage,
   onlineFriends = [],
   onAddFriend = () => {},
@@ -221,6 +227,7 @@ export function DirectMessageListCard({
   selectedConversationId,
 }: {
   conversations: readonly MobileDMConversationListItem[];
+  currentUserId?: string;
   hasNextPage: boolean;
   onlineFriends?: readonly MobileDMOnlineFriend[];
   onAddFriend?(): void;
@@ -239,6 +246,11 @@ export function DirectMessageListCard({
         query,
       }),
     [conversations, query],
+  );
+  // Live friend presence keyed by user id, so conversation rows match the strip.
+  const presenceByUserId = useMemo(
+    () => new Map(onlineFriends.map((friend) => [friend.id, friend.status] as const)),
+    [onlineFriends],
   );
 
   return (
@@ -267,6 +279,8 @@ export function DirectMessageListCard({
         renderItem={({ item: conversation }) => (
           <DirectMessageConversationCard
             conversation={conversation}
+            currentUserId={currentUserId}
+            presenceByUserId={presenceByUserId}
             selected={conversation.id === selectedConversationId}
             onOpenConversation={onOpenConversation}
           />
@@ -282,19 +296,55 @@ export function DirectMessageListCard({
   );
 }
 
+/**
+ * Presence shown on a conversation avatar: the counterpart's status, never the
+ * viewer's own (the API returns every participant, including the viewer).
+ * Live friend presence wins over the list payload so the row and the online
+ * strip never disagree.
+ */
+export function getMobileConversationPresenceStatus(
+  conversation: MobileDMConversationListItem,
+  currentUserId: string,
+  presenceByUserId: ReadonlyMap<string, string>,
+): string | null {
+  const counterparts = conversation.participants.filter(
+    (participant) => participant.id !== currentUserId,
+  );
+  if (counterparts.length === 0) {
+    return null;
+  }
+
+  const statuses = counterparts.map(
+    (participant) => presenceByUserId.get(participant.id) ?? participant.status ?? "OFFLINE",
+  );
+  return (
+    statuses.find((status) => status.toUpperCase() === "ONLINE") ??
+    statuses.find((status) => isMobilePresenceActive(status)) ??
+    "OFFLINE"
+  );
+}
+
 export const DirectMessageConversationCard = memo(function DirectMessageConversationCard({
   conversation,
+  currentUserId = "",
   onOpenConversation,
+  presenceByUserId = EMPTY_PRESENCE_MAP,
   selected,
 }: {
   conversation: MobileDMConversationListItem;
+  currentUserId?: string;
   onOpenConversation(conversationId: string): void;
+  presenceByUserId?: ReadonlyMap<string, string>;
   selected: boolean;
 }) {
   const theme = useTheme();
   const styles = useDmScreenStyles();
   const title = getMobileConversationTitle(conversation, copy.directMessageFallback);
-  const activeCount = getMobileConversationActiveCount(conversation);
+  const presenceStatus = getMobileConversationPresenceStatus(
+    conversation,
+    currentUserId,
+    presenceByUserId,
+  );
   const lastActivity = formatMobileDisplayTime(conversation.lastMessageAt);
   const isGroupConversation = conversation.type === "GROUP_DM" && conversation.participantCount > 1;
   const isUnread = conversation.unreadCount > 0;
@@ -335,8 +385,14 @@ export const DirectMessageConversationCard = memo(function DirectMessageConversa
           <View style={styles.dmConversationGroupBadge} testID="mobile-dm-conversation-group-badge">
             <Ionicons name="people" size={9} color={theme.accent.default} />
           </View>
-        ) : activeCount > 0 ? (
-          <View style={styles.dmActivePresenceDot} testID="mobile-dm-conversation-online-dot" />
+        ) : presenceStatus ? (
+          <View
+            style={[
+              styles.dmActivePresenceDot,
+              { backgroundColor: getMobilePresenceColor(getMobilePresenceTone(presenceStatus), theme) },
+            ]}
+            testID="mobile-dm-conversation-online-dot"
+          />
         ) : null}
       </View>
       <View style={styles.dmConversationContent}>

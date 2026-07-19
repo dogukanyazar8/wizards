@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode, RefObject } from "react";
-import { Info, MonitorUp, MoreHorizontal, Phone, Search } from "lucide-react";
+import { Info, MoreHorizontal, Phone, Search, Video } from "lucide-react";
 import type { DMParticipantDTO } from "@wizards/types";
 import { Avatar } from "@/components/ui/avatar";
 import { useI18n } from "@/components/providers/locale-provider";
@@ -40,23 +40,25 @@ export function getDmStatusKey(status: DMParticipantDTO["status"] | undefined) {
 }
 
 interface DmConversationHeaderProps {
+  callDisabled: boolean;
   children?: ReactNode;
   onOpenDetails?: (() => void) | undefined;
   onOpenSearch: () => void;
-  onStartScreenShare: () => void;
+  onStartVideoCall: () => void;
+  onStartVoiceCall: () => void;
   participant: DMParticipantDTO;
-  screenShareStarting: boolean;
   searchButtonRef: RefObject<HTMLButtonElement | null>;
   searchOpen: boolean;
 }
 
 export function DmConversationHeader({
+  callDisabled,
   children,
   onOpenDetails,
   onOpenSearch,
-  onStartScreenShare,
+  onStartVideoCall,
+  onStartVoiceCall,
   participant,
-  screenShareStarting,
   searchButtonRef,
   searchOpen,
 }: DmConversationHeaderProps) {
@@ -107,10 +109,11 @@ export function DmConversationHeader({
         </div>
 
         <DmConversationToolbar
+          callDisabled={callDisabled}
           onOpenDetails={onOpenDetails}
           onOpenSearch={onOpenSearch}
-          onStartScreenShare={onStartScreenShare}
-          screenShareStarting={screenShareStarting}
+          onStartVideoCall={onStartVideoCall}
+          onStartVoiceCall={onStartVoiceCall}
           searchButtonRef={searchButtonRef}
           searchOpen={searchOpen}
         />
@@ -122,19 +125,21 @@ export function DmConversationHeader({
 }
 
 interface DmConversationToolbarProps {
+  callDisabled: boolean;
   onOpenDetails?: (() => void) | undefined;
   onOpenSearch: () => void;
-  onStartScreenShare: () => void;
-  screenShareStarting: boolean;
+  onStartVideoCall: () => void;
+  onStartVoiceCall: () => void;
   searchButtonRef: RefObject<HTMLButtonElement | null>;
   searchOpen: boolean;
 }
 
 export function DmConversationToolbar({
+  callDisabled,
   onOpenDetails,
   onOpenSearch,
-  onStartScreenShare,
-  screenShareStarting,
+  onStartVideoCall,
+  onStartVoiceCall,
   searchButtonRef,
   searchOpen,
 }: DmConversationToolbarProps) {
@@ -147,21 +152,24 @@ export function DmConversationToolbar({
       <button
         aria-label={t("dm.header.voiceCall")}
         className={buttonClass}
-        disabled
-        title={t("dm.header.voiceComingSoon")}
+        data-testid="dm-start-voice-call"
+        disabled={callDisabled}
+        onClick={onStartVoiceCall}
+        title={t("dm.header.voiceCall")}
         type="button"
       >
         <Phone className="h-4 w-4" />
       </button>
       <button
-        aria-label={t("dm.screenShare.share")}
+        aria-label={t("dm.header.videoCall")}
         className={buttonClass}
-        disabled={screenShareStarting}
-        onClick={onStartScreenShare}
-        title={t("dm.screenShare.share")}
+        data-testid="dm-start-video-call"
+        disabled={callDisabled}
+        onClick={onStartVideoCall}
+        title={t("dm.header.videoCall")}
         type="button"
       >
-        <MonitorUp className="h-4 w-4" />
+        <Video className="h-4 w-4" />
       </button>
       <button
         aria-expanded={searchOpen}
@@ -191,7 +199,7 @@ export function DmConversationToolbar({
         aria-label={t("chat.message.moreActions")}
         className={buttonClass}
         disabled
-        title={t("dm.header.voiceComingSoon")}
+        title={t("chat.message.moreActions")}
         type="button"
       >
         <MoreHorizontal className="h-4 w-4" />

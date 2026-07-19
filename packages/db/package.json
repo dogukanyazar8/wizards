@@ -14,10 +14,10 @@
     "prisma:ensure-runtime": "node ./scripts/ensure-prisma-client-runtime.mjs",
     "db:seed": "node --loader ts-node/esm src/seed.ts",
     "contributors:sync": "node --loader ts-node/esm src/sync-contributors.ts",
-    "build": "prisma generate && tsc6 -p tsconfig.json",
+    "build": "prisma generate && node ../../scripts/quality/typescript-project-runner.mjs --project=db --mode=build",
     "dev": "echo db package ready",
-    "lint": "prisma generate && tsc6 --noEmit",
-    "typecheck": "prisma generate && tsc6 --noEmit",
+    "lint": "prisma generate && node ../../scripts/quality/typescript-project-runner.mjs --project=db --mode=check",
+    "typecheck": "prisma generate && node ../../scripts/quality/typescript-project-runner.mjs --project=db --mode=check",
     "format": "node ../../scripts/quality/prettier-changed.mjs --scope packages/db"
   },
   "dependencies": {

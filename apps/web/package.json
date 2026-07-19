@@ -33,7 +33,7 @@
     "maintenance:cleanup-reauth": "node ../../packages/db/scripts/ensure-prisma-client-runtime.mjs && tsx scripts/cleanup-account-reauth-challenges.ts",
     "test": "node scripts/run-node-tests.mjs",
     "test:coverage": "tsx scripts/run-coverage.ts",
-    "typecheck": "tsc6 --noEmit",
+    "typecheck": "node ../../scripts/quality/typescript-project-runner.mjs --project=web --mode=check",
     "format": "node ../../scripts/quality/prettier-changed.mjs --scope apps/web"
   },
   "dependencies": {

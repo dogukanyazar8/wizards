@@ -85,6 +85,45 @@ describe("5c friends screen", () => {
     expect(onSelectMode).toHaveBeenCalledWith("requests");
   });
 
+  it("colours friend presence dots with the web status palette", async () => {
+    mockFriendsQuery = {
+      data: {
+        blocked: [],
+        friends: [
+          {
+            avatarUrl: null,
+            customStatus: null,
+            displayName: null,
+            id: "friend-idle",
+            presence: { customStatus: null, status: "IDLE" },
+            status: "IDLE",
+            username: "idle_user",
+          },
+          {
+            avatarUrl: null,
+            customStatus: null,
+            displayName: null,
+            id: "friend-dnd",
+            presence: { customStatus: null, status: "DND" },
+            status: "DND",
+            username: "dnd_user",
+          },
+        ],
+        pending: { incoming: [], outgoing: [] },
+      },
+      isError: false,
+      isLoading: false,
+      refetch: mockRefetch,
+    };
+    const view = await render(<FriendsHub mode="friends" />);
+
+    const dotColors = view
+      .getAllByTestId("mobile-avatar-status-dot")
+      .map((dot) => (dot.props.style as Array<{ backgroundColor?: string }>).at(-1)?.backgroundColor);
+    expect(dotColors).toContain(lightTheme.status.warning);
+    expect(dotColors).toContain(lightTheme.status.danger);
+  });
+
   it("uses the 5c card and touch geometry from semantic theme tokens", () => {
     const styles = createFriendsHubStyles(lightTheme);
 

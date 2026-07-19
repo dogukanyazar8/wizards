@@ -111,7 +111,7 @@ jobs:
         run: pnpm build
 
   typescript-native-shadow:
-    name: TypeScript 7 Native
+    name: TypeScript Compiler Compatibility
     runs-on: ubuntu-latest
     timeout-minutes: 12
 
@@ -134,17 +134,20 @@ jobs:
       - name: Run TypeScript toolchain contracts
         run: pnpm test:toolchain
 
-      - name: Run TypeScript 7 native typecheck
-        run: pnpm typecheck:native:ci
+      - name: Run TypeScript 7 main typecheck
+        run: pnpm typecheck:main:ci
+
+      - name: Run TypeScript 6 compatibility typecheck
+        run: pnpm typecheck:compat
 
       - name: Compare TS6 and TS7 declarations
         run: pnpm typecheck:declarations
 
-      - name: Upload TypeScript native reports
+      - name: Upload TypeScript compiler reports
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: typescript-native-${{ github.run_id }}
+          name: typescript-compiler-${{ github.run_id }}
           path: artifacts/typescript/*.json
           if-no-files-found: error
           retention-days: 14

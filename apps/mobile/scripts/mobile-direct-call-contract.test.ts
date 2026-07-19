@@ -18,6 +18,10 @@ const directCallActionsSource = readFileSync(
   new URL("../src/app/features/use-mobile-direct-call-actions.ts", import.meta.url),
   "utf8",
 );
+const dmCallFeatureSource = readFileSync(
+  new URL("../src/app/features/use-mobile-dm-call-feature.ts", import.meta.url),
+  "utf8",
+);
 const routeNavigationSource = readFileSync(
   new URL("../src/voice/mobile-voice-room-route-navigation.ts", import.meta.url),
   "utf8",
@@ -48,13 +52,17 @@ describe("mobile direct-call contract", () => {
     assert.match(appSource, /onStartVideoCall/);
     assert.match(directCallActionsSource, /onStartVoiceCall/);
     assert.match(directCallActionsSource, /onStartVideoCall/);
-    assert.match(directCallActionsSource, /await launchMobileDirectCall/);
+    assert.match(directCallActionsSource, /await startCall\(/);
+    assert.match(dmCallFeatureSource, /await launchMobileDirectCall/);
     assert.match(routeNavigationSource, /const joined = await joinDirectCall/);
     assert.match(routeNavigationSource, /if \(!joined\) \{\s*return false/);
     assert.match(routeNavigationSource, /openVoiceRoom/);
   });
 
-  it("does not invent incoming or ringing direct-call state", () => {
+  it("keeps ring state out of the LiveKit runtime hook", () => {
+    // The ring handshake belongs to the DM call feature; the voice runtime only joins rooms.
     assert.doesNotMatch(hookSource, /incoming-call|ringing/i);
+    assert.match(dmCallFeatureSource, /emitDMCallStart/);
+    assert.match(dmCallFeatureSource, /ringing-out/);
   });
 });

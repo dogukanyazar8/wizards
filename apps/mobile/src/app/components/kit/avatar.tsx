@@ -14,7 +14,7 @@ export interface AvatarProps extends ViewProps {
   readonly imageUrl: string | null;
   readonly label: string;
   readonly size?: "sm" | "md" | "lg";
-  readonly status?: "active" | "idle";
+  readonly status?: "active" | "idle" | "dnd" | "offline";
 }
 
 const createStyles = (theme: MobileTheme) => ({
@@ -47,7 +47,17 @@ const createStyles = (theme: MobileTheme) => ({
     width: 12,
   },
   activeStatus: { backgroundColor: theme.status.success },
+  idleStatus: { backgroundColor: theme.status.warning },
+  dndStatus: { backgroundColor: theme.status.danger },
+  offlineStatus: { backgroundColor: theme.control.separatorDot },
 });
+
+const AVATAR_STATUS_STYLE_KEY = {
+  active: "activeStatus",
+  dnd: "dndStatus",
+  idle: "idleStatus",
+  offline: "offlineStatus",
+} as const;
 
 export function Avatar({
   avatarBorderColor,
@@ -125,7 +135,10 @@ export function Avatar({
         </View>
       )}
       {status ? (
-        <View style={[styles.status, status === "active" && styles.activeStatus]} />
+        <View
+          style={[styles.status, styles[AVATAR_STATUS_STYLE_KEY[status]]]}
+          testID="mobile-avatar-status-dot"
+        />
       ) : null}
     </View>
   );
