@@ -322,6 +322,8 @@ export const TR_MESSAGES = {
     "dm.call.expand": "Görüşmeye dön",
     "dm.call.autoDecline": "{seconds} sn içinde otomatik reddedilir",
     "dm.call.declined": "Arama reddedildi.",
+    "dm.call.declinedBy": "{name} aramayı kabul etmedi.",
+    "dm.call.unansweredBy": "{name} şu anda ulaşılamıyor, arama cevaplanmadı.",
     "dm.call.cancelled": "Arama iptal edildi.",
     "dm.call.ended": "Görüşme sona erdi.",
     "dm.call.unanswered": "Cevap verilmedi.",

@@ -13,8 +13,31 @@ import { renderWithMobileTheme as render } from "./render-with-mobile-theme";
 const mockMarkAllRead = jest.fn();
 const mockMarkRead = jest.fn();
 const mockRefetch = jest.fn();
+const mockClearAll = jest.fn(async () => undefined);
+const mockAcceptRequest = jest.fn();
+const mockRejectRequest = jest.fn();
+const mockRequestedFilters: string[] = [];
 let mockNotifications: readonly MobileNotificationItem[] = [];
 let mockQueryState = { isError: false, isLoading: false, isRefetching: false };
+
+jest.mock("react-native-gesture-handler", () => {
+  const ReactRuntime = require("react");
+  const ReactNative = require("react-native");
+  return {
+    Gesture: {
+      Pan: () => {
+        const gesture = {
+          enabled: () => gesture,
+          onEnd: () => gesture,
+          onUpdate: () => gesture,
+        };
+        return gesture;
+      },
+    },
+    GestureDetector: ({ children }: { children: React.ReactNode }) =>
+      ReactRuntime.createElement(ReactNative.View, null, children),
+  };
+});
 
 jest.mock("../src/auth/mobile-auth-context", () => ({
   useMobileAuth: () => ({ apiClient: {} }),
@@ -22,15 +45,33 @@ jest.mock("../src/auth/mobile-auth-context", () => ({
 
 jest.mock("../src/notifications/mobile-notification-query", () => ({
   useMobileNotificationMutations: () => ({
+    clearAll: { isPending: false, mutate: mockClearAll, mutateAsync: mockClearAll },
     markAllRead: { isPending: false, mutate: mockMarkAllRead },
     markRead: { mutate: mockMarkRead },
   }),
-  useMobileNotificationsQuery: () => ({
-    data: { pages: [{ notifications: mockNotifications }] },
-    fetchNextPage: jest.fn(),
-    hasNextPage: false,
-    refetch: mockRefetch,
-    ...mockQueryState,
+  useMobileNotificationsQuery: (_client: unknown, filter: string = "all") => {
+    mockRequestedFilters.push(filter);
+    return {
+      data: {
+        pages: [
+          {
+            notifications: mockNotifications,
+            unreadCount: mockNotifications.filter((notification) => !notification.read).length,
+          },
+        ],
+      },
+      fetchNextPage: jest.fn(),
+      hasNextPage: false,
+      refetch: mockRefetch,
+      ...mockQueryState,
+    };
+  },
+}));
+
+jest.mock("../src/social/mobile-social-query", () => ({
+  useMobileSocialMutations: () => ({
+    acceptRequest: { isPending: false, mutate: mockAcceptRequest },
+    rejectRequest: { isPending: false, mutate: mockRejectRequest },
   }),
 }));
 
@@ -55,6 +96,14 @@ const yesterdayInvite: MobileNotificationItem = {
   createdAt: "2026-07-15T10:00:00.000Z",
   id: "00000000-0000-4000-8000-000000000002",
   type: "SERVER_INVITE",
+};
+
+const friendRequest: MobileNotificationItem = {
+  ...mention,
+  body: "Ada sana arkadaşlık isteği gönderdi",
+  friendRequestId: "request-1",
+  id: "00000000-0000-4000-8000-000000000004",
+  type: "FRIEND_REQUEST",
 };
 
 const voiceRoomStarted: MobileNotificationItem = {
@@ -186,6 +235,67 @@ describe("1d notifications screen", () => {
       syncHealth: { failedSources: [], failureCount: 0, isRefreshing: true, status: "healthy" },
     });
     expect(reconnecting.getByTestId("mobile-notifications-sync-status")).toBeTruthy();
+  });
+
+  it("reports the real unread total and requests the matching server-side filter", async () => {
+    mockNotifications = [mention];
+    mockRequestedFilters.length = 0;
+    const view = await renderScreen();
+
+    expect(view.getByText("Seni bekleyen 1 okunmamış güncelleme var")).toBeTruthy();
+    expect(mockRequestedFilters.at(-1)).toBe("all");
+
+    await fireEvent.press(view.getByTestId("mobile-notifications-filter-unread"));
+    expect(mockRequestedFilters.at(-1)).toBe("unread");
+
+    await fireEvent.press(view.getByTestId("mobile-notifications-filter-mentions"));
+    expect(mockRequestedFilters.at(-1)).toBe("mentions");
+  });
+
+  it("reports an empty feed as caught up", async () => {
+    const view = await renderScreen();
+
+    expect(view.getByText("Her şey okundu")).toBeTruthy();
+  });
+
+  it("clears the feed only after the destructive confirmation", async () => {
+    mockNotifications = [mention];
+    const view = await renderScreen();
+
+    await fireEvent.press(view.getByTestId("mobile-notifications-clear-all"));
+    expect(mockClearAll).not.toHaveBeenCalled();
+
+    await fireEvent.press(view.getByTestId("mobile-notifications-clear-sheet-confirm"));
+    expect(mockClearAll).toHaveBeenCalledTimes(1);
+  });
+
+  it("answers a friend request inline and marks it read", async () => {
+    mockNotifications = [friendRequest];
+    const view = await renderScreen();
+
+    await fireEvent.press(
+      view.getByTestId(`mobile-notification-friend-accept-${friendRequest.id}`),
+    );
+    expect(mockAcceptRequest).toHaveBeenCalledWith("request-1");
+    expect(mockMarkRead).toHaveBeenCalledWith(friendRequest.id);
+
+    await fireEvent.press(
+      view.getByTestId(`mobile-notification-friend-decline-${friendRequest.id}`),
+    );
+    expect(mockRejectRequest).toHaveBeenCalledWith("request-1");
+  });
+
+  it("keeps inline friend actions off rows without a backing request id", async () => {
+    mockNotifications = [mention];
+    const view = await renderScreen();
+
+    expect(view.queryByTestId(`mobile-notification-friend-accept-${mention.id}`)).toBeNull();
+  });
+
+  it("opens the notification preferences screen from the header", async () => {
+    const view = await renderScreen();
+
+    expect(view.getByTestId("mobile-notifications-open-settings")).toBeTruthy();
   });
 
   it("locks the 1d permission card and unread-card geometry to theme roles", () => {

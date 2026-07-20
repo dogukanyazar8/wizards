@@ -70,7 +70,8 @@ export function createMobileQueryKeys(registry: MobileSearchKeyRegistry) {
     friends: () => [...all, "friends"] as const,
     profile: () => [...all, "profile"] as const,
     linkPreview: (messageId: string) => [...all, "link-preview", messageId] as const,
-    notifications: () => [...all, "notifications"] as const,
+    notificationsRoot: () => [...all, "notifications"] as const,
+    notifications: (filter: string = "all") => [...all, "notifications", filter] as const,
     voiceStatesRoot: () => [...all, "voice-states"] as const,
     voiceStates: (serverId: string) => [...all, "voice-states", serverId] as const,
     messageSearch: (input: MobileMessageSearchKeyInput) =>

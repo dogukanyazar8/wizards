@@ -1,3 +1,6 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import React from "react";
 import { describe, expect, it } from "@jest/globals";
 
@@ -49,5 +52,20 @@ describe("mobile call pulses", () => {
     );
 
     expect(view.getByTestId("speaking")).toBeTruthy();
+  });
+});
+
+describe("ringing animation contract", () => {
+  it("loops each wave around a single timing so it never stops after one pass", () => {
+    const source = readFileSync(
+      resolve(__dirname, "../src/app/components/mobile-call-pulse.tsx"),
+      "utf8",
+    );
+
+    // Regression: Animated.loop only resets the first child of a sequence, so looping a
+    // sequence played the wave once and then left the value pinned at its end state.
+    const waveLoop = source.slice(source.indexOf("const loops = waves.map"));
+    assert.match(waveLoop.slice(0, 400), /Animated\.loop\(\s*Animated\.timing\(/);
+    assert.doesNotMatch(waveLoop.slice(0, 400), /Animated\.loop\(\s*Animated\.sequence\(/);
   });
 });

@@ -239,6 +239,9 @@ export const MobileNotificationItemSchema = z.object({
   channel: MobileNotificationContextSchema.nullable(),
   createdAt: z.string().datetime(),
   eventKind: MobileNotificationEventKindSchema.nullable().default(null),
+  // Added after the UAT backend shipped; must default so an un-redeployed server
+  // response still parses.
+  friendRequestId: z.string().min(1).max(128).nullable().default(null),
   id: z.string().uuid(),
   messageQuote: MobileNotificationMessageQuoteSchema.nullable(),
   read: z.boolean(),
@@ -247,9 +250,13 @@ export const MobileNotificationItemSchema = z.object({
   type: MobileNotificationTypeSchema,
 });
 
+export const MOBILE_NOTIFICATION_FILTERS = ["all", "unread", "mentions"] as const;
+export const MobileNotificationFilterSchema = z.enum(["all", "mentions", "unread"]);
+
 export const MobileNotificationsQuerySchema = z
   .object({
     cursor: z.string().min(1).max(512).optional(),
+    filter: MobileNotificationFilterSchema.default("all"),
     limit: z.coerce.number().int().min(1).max(30).default(20),
   })
   .strict();
@@ -257,6 +264,9 @@ export const MobileNotificationsQuerySchema = z
 export const MobileNotificationsResponseSchema = z.object({
   nextCursor: z.string().min(1).max(512).nullable(),
   notifications: z.array(MobileNotificationItemSchema).max(30),
+  // Added after the UAT backend shipped; must default so an un-redeployed server
+  // response still parses.
+  unreadCount: z.number().int().min(0).max(9_999).default(0),
 });
 
 export const MobileNotificationIdParamsSchema = z
@@ -773,6 +783,7 @@ export type MobilePushRegistrationRevokeResponse = z.infer<
 >;
 export type MobileNotificationType = z.infer<typeof MobileNotificationTypeSchema>;
 export type MobileNotificationEventKind = z.infer<typeof MobileNotificationEventKindSchema>;
+export type MobileNotificationFilter = z.infer<typeof MobileNotificationFilterSchema>;
 export type MobileNotificationItem = z.infer<typeof MobileNotificationItemSchema>;
 export type MobileNotificationsQuery = z.infer<typeof MobileNotificationsQuerySchema>;
 export type MobileNotificationsResponse = z.infer<typeof MobileNotificationsResponseSchema>;

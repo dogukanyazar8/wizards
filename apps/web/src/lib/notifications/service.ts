@@ -106,6 +106,12 @@ export async function listMobileNotifications(
   query: MobileNotificationsQuery,
 ): Promise<MobileNotificationsResponse> {
   const cursor = query.cursor ? decodeMobileNotificationCursor(query.cursor) : null;
+  const filterWhere =
+    query.filter === "unread"
+      ? { read: false }
+      : query.filter === "mentions"
+        ? { type: "MENTION" as const }
+        : {};
   const records = await prisma.notification.findMany({
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     select: {
@@ -122,6 +128,7 @@ export async function listMobileNotifications(
     where: {
       type: { in: VISIBLE_NOTIFICATION_TYPES },
       userId,
+      ...filterWhere,
       ...(cursor
         ? {
             OR: [
@@ -144,7 +151,7 @@ export async function listMobileNotifications(
     .map((value) => getNotificationMetadataString(value, "channelId"))
     .filter((id): id is string => id !== null);
 
-  const [users, channels] = await Promise.all([
+  const [users, channels, unreadCount] = await Promise.all([
     prisma.user.findMany({
       select: { avatarUrl: true, displayName: true, id: true, username: true },
       where: { id: { in: senderIds } },
@@ -152,6 +159,9 @@ export async function listMobileNotifications(
     prisma.channel.findMany({
       select: { id: true, name: true, serverId: true },
       where: { id: { in: channelIds } },
+    }),
+    prisma.notification.count({
+      where: { read: false, type: { in: VISIBLE_NOTIFICATION_TYPES }, userId },
     }),
   ]);
   const channelMap = new Map(channels.map((channel) => [channel.id, channel]));
@@ -171,6 +181,7 @@ export async function listMobileNotifications(
       hasNextPage && notifications.length > 0
         ? encodeMobileNotificationCursor(notifications[notifications.length - 1]!)
         : null,
+    unreadCount,
     notifications: notifications.map((notification, index) => {
       const notificationMetadata = metadata[index]!;
       const senderId = getNotificationMetadataString(notificationMetadata, "senderId");
@@ -181,6 +192,10 @@ export async function listMobileNotifications(
       const messageId = getNotificationMetadataString(notificationMetadata, "messageId");
       const preview = getNotificationMetadataString(notificationMetadata, "threadReplyPreview", 240);
       const eventKind = getMobileNotificationEventKind(notificationMetadata);
+      const friendRequestId = getNotificationMetadataString(
+        notificationMetadata,
+        "friendRequestId",
+      );
       const actor = senderId ? userMap.get(senderId) ?? null : null;
       const channel = channelId ? channelMap.get(channelId) ?? null : null;
       const server = serverId ? serverMap.get(serverId) ?? null : null;
@@ -199,6 +214,7 @@ export async function listMobileNotifications(
         channel: channel ? { id: channel.id, name: channel.name } : null,
         createdAt: notification.createdAt.toISOString(),
         eventKind,
+        friendRequestId: notification.type === "FRIEND_REQUEST" ? friendRequestId : null,
         id: notification.id,
         messageQuote: messageId ? { id: messageId, preview } : null,
         read: notification.read,
@@ -300,6 +316,11 @@ export async function markRead(userId: string, notificationId: string): Promise<
   if (result.count === 0) {
     throw new ApiError("Notification not found", 404);
   }
+}
+
+/** Mirrors the web "clear all" action: drops the user's whole notification feed. */
+export async function clearNotifications(userId: string): Promise<void> {
+  await prisma.notification.deleteMany({ where: { userId } });
 }
 
 export async function markAllRead(userId: string): Promise<void> {

@@ -185,7 +185,12 @@ describe("mobile realtime query bridge", () => {
     assert.deepEqual(mobileQueryKeys.workspaceRoot(), ["mobile", "workspace"]);
     assert.deepEqual(mobileQueryKeys.channelMessagesRoot(), ["mobile", "channel-messages"]);
     assert.deepEqual(mobileQueryKeys.dmMessagesRoot(), ["mobile", "dm-messages"]);
-    assert.deepEqual(mobileQueryKeys.notifications(), ["mobile", "notifications"]);
+    assert.deepEqual(mobileQueryKeys.notificationsRoot(), ["mobile", "notifications"]);
+    assert.deepEqual(mobileQueryKeys.notifications("unread"), [
+      "mobile",
+      "notifications",
+      "unread",
+    ]);
   });
 
   it("debounces presence, notification, workspace, channel, and DM mappings by timer source", () => {

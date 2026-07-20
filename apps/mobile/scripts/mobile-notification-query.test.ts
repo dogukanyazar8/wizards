@@ -22,11 +22,11 @@ test("notification feed query uses the bounded notifications key and opaque curs
   assert.deepEqual(options.queryKey, mobileQueryKeys.notifications());
   assert.equal(options.initialPageParam, null);
   assert.equal(
-    options.getNextPageParam?.({ nextCursor: "next", notifications: [] }, [], null, []),
+    options.getNextPageParam?.({ nextCursor: "next", notifications: [], unreadCount: 0 }, [], null, []),
     "next",
   );
   assert.equal(
-    options.getNextPageParam?.({ nextCursor: null, notifications: [] }, [], null, []),
+    options.getNextPageParam?.({ nextCursor: null, notifications: [], unreadCount: 0 }, [], null, []),
     undefined,
   );
 });

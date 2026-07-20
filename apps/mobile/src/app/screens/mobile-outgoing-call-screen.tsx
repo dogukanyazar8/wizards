@@ -4,7 +4,7 @@ import { Pressable, Text, View } from "react-native";
 
 import { activeMobileCopy as copy } from "../../locale/mobile-locale-preferences";
 import type { MobileVoiceAudioOutputMode, MobileVoiceRoomState } from "../mobile-root-screen-shared";
-import { MobileRingingPulse } from "../components/mobile-call-pulse";
+import { MobileRingingDots, MobileRingingPulse } from "../components/mobile-call-pulse";
 import { useMobileHaptics } from "../providers/mobile-haptics-provider";
 import { useVoiceRoomTheme } from "../providers/mobile-theme-provider";
 import { useMobileOutgoingCallStyles } from "./mobile-outgoing-call-screen.styles";
@@ -26,19 +26,6 @@ export type MobileOutgoingCallScreenProps = {
 
 function getOutgoingCallInitials(name: string): string {
   return name.trim().slice(0, 2).toUpperCase() || "??";
-}
-
-/** Three fading dots that follow the "Çalıyor" label in 7a/7b. */
-function RingingDots() {
-  const styles = useMobileOutgoingCallStyles();
-
-  return (
-    <View style={styles.statusDots}>
-      <View style={styles.statusDot} />
-      <View style={[styles.statusDot, styles.statusDotSecond]} />
-      <View style={[styles.statusDot, styles.statusDotThird]} />
-    </View>
-  );
 }
 
 function OutgoingCallDockButton({
@@ -204,7 +191,6 @@ export function MobileOutgoingVoiceCallScreen({
 
   return (
     <View style={styles.screen} testID={testID}>
-      <View pointerEvents="none" style={styles.glow} />
       <View style={styles.header}>
         <Pressable
           accessibilityLabel={copy.voiceRoomMinimizeAction}
@@ -241,9 +227,11 @@ export function MobileOutgoingVoiceCallScreen({
 
       <View style={styles.stage}>
         <View style={styles.avatarWrap}>
+          <View pointerEvents="none" style={styles.stageHalo} />
           <MobileRingingPulse
             borderRadius={52}
             color={theme.accent.default}
+            fillColor={theme.accent.soft}
             size={168}
             testID="mobile-outgoing-call-pulse"
           />
@@ -259,7 +247,7 @@ export function MobileOutgoingVoiceCallScreen({
             <Text style={styles.statusText} testID="mobile-outgoing-call-status">
               {copy.directCallRingingVoice}
             </Text>
-            <RingingDots />
+            <MobileRingingDots color={theme.text.onInverseMuted} />
           </View>
         </View>
         <View style={styles.hintPill}>
@@ -332,7 +320,7 @@ export function MobileOutgoingVideoCallScreen({
           <Text numberOfLines={1} style={styles.videoHeaderTitle}>
             {copy.directCallVideoTitle}
           </Text>
-          <Text numberOfLines={1} style={styles.headerSubtitle}>
+          <Text numberOfLines={1} style={styles.videoHeaderSubtitle}>
             {copy.directCallEncrypted}
           </Text>
         </View>
@@ -365,6 +353,7 @@ export function MobileOutgoingVideoCallScreen({
           <MobileRingingPulse
             borderRadius={42}
             color={theme.accent.default}
+            fillColor={theme.accent.soft}
             size={128}
             testID="mobile-outgoing-video-call-pulse"
           />
@@ -380,7 +369,7 @@ export function MobileOutgoingVideoCallScreen({
             <Text style={styles.videoStatusText} testID="mobile-outgoing-video-call-status">
               {copy.directCallRingingVideo}
             </Text>
-            <RingingDots />
+            <MobileRingingDots color={theme.text.onInverseMuted} />
           </View>
         </View>
       </View>

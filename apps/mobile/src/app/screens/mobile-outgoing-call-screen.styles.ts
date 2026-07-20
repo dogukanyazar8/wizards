@@ -16,15 +16,13 @@ export const createMobileOutgoingCallStyles = (theme: MobileTheme) =>
       flex: 1,
       minWidth: 0,
     },
-    glow: {
+    stageHalo: {
       backgroundColor: theme.accent.soft,
-      borderRadius: 260,
-      height: 520,
-      left: -65,
-      opacity: theme.dark ? 0.16 : 0.5,
+      borderRadius: 170,
+      height: 340,
+      opacity: theme.dark ? 0.22 : 0.55,
       position: "absolute",
-      top: -120,
-      width: 520,
+      width: 340,
     },
     header: {
       alignItems: "center",
@@ -47,13 +45,13 @@ export const createMobileOutgoingCallStyles = (theme: MobileTheme) =>
       fontSize: 15,
     },
     headerSubtitle: {
-      color: theme.text.onInverseMuted,
+      color: theme.dark ? theme.text.onInverseMuted : theme.text.muted,
       fontFamily: theme.typography.fontFamily,
       fontSize: 12,
     },
     headerButton: {
       alignItems: "center",
-      backgroundColor: theme.surface.voiceRoomControl,
+      backgroundColor: theme.dark ? theme.surface.voiceRoomControl : theme.surface.rail,
       borderRadius: 14,
       height: 40,
       justifyContent: "center",
@@ -61,8 +59,8 @@ export const createMobileOutgoingCallStyles = (theme: MobileTheme) =>
     },
     encryptionBadge: {
       alignItems: "center",
-      backgroundColor: theme.surface.voiceRoomInvite,
-      borderColor: theme.surface.voiceRoomInviteBorder,
+      backgroundColor: theme.dark ? theme.surface.voiceRoomInvite : theme.surface.card,
+      borderColor: theme.dark ? theme.surface.voiceRoomInviteBorder : theme.border.subtle,
       borderRadius: theme.radii.pill,
       borderWidth: 1,
       flexDirection: "row",
@@ -71,7 +69,7 @@ export const createMobileOutgoingCallStyles = (theme: MobileTheme) =>
       paddingVertical: 6,
     },
     encryptionBadgeText: {
-      color: theme.text.onInverseMuted,
+      color: theme.dark ? theme.text.onInverseMuted : theme.text.muted,
       fontFamily: theme.typography.fontFamilyBold,
       fontSize: 11,
     },
@@ -141,7 +139,7 @@ export const createMobileOutgoingCallStyles = (theme: MobileTheme) =>
     },
     statusRow: { alignItems: "center", flexDirection: "row", gap: 8 },
     statusText: {
-      color: theme.text.onInverseMuted,
+      color: theme.dark ? theme.text.onInverseMuted : theme.text.muted,
       fontFamily: theme.typography.fontFamilySemiBold,
       fontSize: 15,
     },
@@ -156,8 +154,8 @@ export const createMobileOutgoingCallStyles = (theme: MobileTheme) =>
     statusDotThird: { opacity: 0.3 },
     hintPill: {
       alignItems: "center",
-      backgroundColor: theme.surface.voiceRoomInvite,
-      borderColor: theme.surface.voiceRoomInviteBorder,
+      backgroundColor: theme.dark ? theme.surface.voiceRoomInvite : theme.surface.card,
+      borderColor: theme.dark ? theme.surface.voiceRoomInviteBorder : theme.border.subtle,
       borderRadius: 13,
       borderWidth: 1,
       flexDirection: "row",
@@ -166,13 +164,13 @@ export const createMobileOutgoingCallStyles = (theme: MobileTheme) =>
       paddingVertical: 7,
     },
     hintPillText: {
-      color: theme.text.onInverseMuted,
+      color: theme.dark ? theme.text.onInverseMuted : theme.text.muted,
       fontFamily: theme.typography.fontFamilySemiBold,
       fontSize: 11.5,
     },
     dock: {
-      backgroundColor: theme.surface.voiceRoomInvite,
-      borderColor: theme.surface.voiceRoomInviteBorder,
+      backgroundColor: theme.dark ? theme.surface.voiceRoomInvite : theme.surface.card,
+      borderColor: theme.dark ? theme.surface.voiceRoomInviteBorder : theme.border.subtle,
       borderRadius: 28,
       borderWidth: 1,
       flexDirection: "row",
@@ -199,6 +197,11 @@ export const createMobileOutgoingCallStyles = (theme: MobileTheme) =>
     dockButtonGlassActive: { backgroundColor: theme.text.onInverse },
     dockLabelGlass: { color: theme.text.onInverseMuted },
     dockLabelGlassActive: { color: theme.text.onInverse },
+    videoHeaderSubtitle: {
+      color: theme.text.onInverseMuted,
+      fontFamily: theme.typography.fontFamily,
+      fontSize: 12,
+    },
     videoHeaderTitle: {
       color: theme.text.onInverse,
       fontFamily: theme.typography.fontFamilyBold,
@@ -206,7 +209,7 @@ export const createMobileOutgoingCallStyles = (theme: MobileTheme) =>
     },
     dockButton: {
       alignItems: "center",
-      backgroundColor: theme.surface.voiceRoomControl,
+      backgroundColor: theme.dark ? theme.surface.voiceRoomControl : theme.surface.rail,
       borderRadius: 20,
       height: 56,
       justifyContent: "center",
@@ -219,7 +222,7 @@ export const createMobileOutgoingCallStyles = (theme: MobileTheme) =>
     },
     dockButtonDisabled: { opacity: 0.45 },
     dockLabel: {
-      color: theme.text.onInverseMuted,
+      color: theme.dark ? theme.text.onInverseMuted : theme.text.muted,
       fontFamily: theme.typography.fontFamilySemiBold,
       fontSize: 10,
     },
@@ -334,6 +337,7 @@ export const createMobileOutgoingCallStyles = (theme: MobileTheme) =>
     },
     videoStatusText: {
       color: theme.text.onInverseMuted,
+      // Always inverse: 7b renders over the camera feed in both themes.
       fontFamily: theme.typography.fontFamilySemiBold,
       fontSize: 14,
     },

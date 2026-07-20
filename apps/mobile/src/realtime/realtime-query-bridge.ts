@@ -2,6 +2,7 @@ import type { InfiniteData, QueryClient, QueryKey } from "@tanstack/react-query"
 import {
   ChatMessageSchema,
   DMMessagePayloadSchema,
+  MOBILE_NOTIFICATION_FILTERS,
   MobileChannelMessagesStaleEventSchema,
   MobileDMReadUpdatedEventSchema,
   MobilePresenceUpdateEventSchema,
@@ -159,7 +160,11 @@ export function createMobileRealtimeQueryBridge({
     }
 
     if (source === "notification") {
-      scheduleInvalidations(source, [mobileQueryKeys.bootstrap(), mobileQueryKeys.notifications()]);
+      // Invalidations stay exact, so every filtered feed key is listed explicitly.
+      scheduleInvalidations(source, [
+        mobileQueryKeys.bootstrap(),
+        ...MOBILE_NOTIFICATION_FILTERS.map((filter) => mobileQueryKeys.notifications(filter)),
+      ]);
       return;
     }
 

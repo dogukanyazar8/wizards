@@ -63,6 +63,7 @@ import { useSettingsScreenStyles } from "./settings-screen.styles";
 import { MobileAccountSettingsScreen } from "./mobile-account-settings-screen";
 import { MobileAboutSettingsScreen } from "./mobile-about-settings-screen";
 import { MobileAppearanceSettingsScreen } from "./mobile-appearance-settings-screen";
+import { MobileLanguageSettingsScreen } from "./mobile-language-settings-screen";
 import { MobileNotificationSettingsScreen } from "./mobile-notification-settings-screen";
 import { MobileSecuritySettingsScreen } from "./mobile-security-settings-screen";
 import { SocialAccountQuickActions } from "../../social/social-account-screens";
@@ -2200,18 +2201,13 @@ export function ProfileSettingsScreen({
       />
     );
   }
-  if (resolvedSection === "language")
-    return sectionShell(
-      sectionLabels.language,
-      <SettingsPreferenceSection
-        description={copy.settingsLanguageDescription}
-        rows={appearanceRows.filter((row) => row.id === "language")}
-        title={copy.settingsLanguageTitle}
-      >
-        <SettingsLocaleSelector locale={locale} onSelectLocale={onSelectLocale} />
-      </SettingsPreferenceSection>,
-      "mobile-settings-language",
+  if (resolvedSection === "language") {
+    return (
+      <MobileLanguageSettingsScreen
+        onBack={onBack ?? (() => mobileNavigationRef.isReady() && mobileNavigationRef.goBack())}
+      />
     );
+  }
   if (resolvedSection === "notifications") {
     return (
       <MobileNotificationSettingsScreen

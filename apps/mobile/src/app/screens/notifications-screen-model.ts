@@ -1,5 +1,8 @@
 import type { MobileNotificationItem } from "@wizards/types";
 
+import { mobileCopy, type MobileLocale } from "../../locale/mobile-copy";
+import { getMobileIntlLocale } from "../../locale/mobile-locale-preferences";
+
 export type MobileNotificationPresentationKind =
   | "direct-message"
   | "friend"
@@ -34,11 +37,12 @@ export type MobileNotificationPresentation = {
 export function groupMobileNotificationsByDay(
   notifications: readonly MobileNotificationItem[],
   now: Date,
+  locale: MobileLocale = "tr",
 ): readonly MobileNotificationDayGroup[] {
   const groups = new Map<string, MobileNotificationItem[]>();
 
   for (const notification of notifications) {
-    const label = getMobileNotificationDayLabel(new Date(notification.createdAt), now);
+    const label = getMobileNotificationDayLabel(new Date(notification.createdAt), now, locale);
     const currentGroup = groups.get(label);
 
     if (currentGroup) {
@@ -90,24 +94,27 @@ export function getMobileNotificationPresentation(
   }
 }
 
-function getMobileNotificationDayLabel(date: Date, now: Date): string {
+function getMobileNotificationDayLabel(date: Date, now: Date, locale: MobileLocale): string {
+  const copy = mobileCopy[locale];
+  const intlLocale = getMobileIntlLocale(locale);
+
   if (isSameLocalDay(date, now)) {
-    return "BUGÜN";
+    return copy.notificationsToday.toLocaleUpperCase(intlLocale);
   }
 
   const yesterday = new Date(now);
   yesterday.setDate(yesterday.getDate() - 1);
   if (isSameLocalDay(date, yesterday)) {
-    return "DÜN";
+    return copy.notificationsYesterday.toLocaleUpperCase(intlLocale);
   }
 
-  return new Intl.DateTimeFormat("tr-TR", {
+  return new Intl.DateTimeFormat(intlLocale, {
     day: "numeric",
     month: "long",
     year: "numeric",
   })
     .format(date)
-    .toLocaleUpperCase("tr-TR");
+    .toLocaleUpperCase(intlLocale);
 }
 
 function isSameLocalDay(left: Date, right: Date): boolean {

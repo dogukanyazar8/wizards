@@ -3,6 +3,7 @@ import {
   MobileNotificationsResponseSchema,
   MobilePushRegistrationRevokeResponseSchema,
   MobilePushRegistrationResponseSchema,
+  type MobileNotificationFilter,
   type MobileNotificationsResponse,
   type MobilePushPlatform,
   type MobilePushProvider,
@@ -14,10 +15,19 @@ import type { MobileApiClient } from "../api/mobile-api-client";
 export const MOBILE_PUSH_NOTIFICATIONS_ENDPOINT = "/api/v1/mobile/notifications";
 export const MOBILE_NOTIFICATIONS_ENDPOINT = "/api/v1/mobile/notifications";
 
-function getMobileNotificationsPath(input: { cursor?: string | null; limit?: number | null } = {}) {
+function getMobileNotificationsPath(
+  input: {
+    cursor?: string | null;
+    filter?: MobileNotificationFilter | null;
+    limit?: number | null;
+  } = {},
+) {
   const searchParams = new URLSearchParams();
   if (input.cursor) {
     searchParams.set("cursor", input.cursor);
+  }
+  if (input.filter) {
+    searchParams.set("filter", input.filter);
   }
   if (input.limit !== null && input.limit !== undefined) {
     searchParams.set("limit", String(input.limit));
@@ -28,7 +38,11 @@ function getMobileNotificationsPath(input: { cursor?: string | null; limit?: num
 
 export async function fetchMobileNotifications(
   client: MobileApiClient,
-  input: { cursor?: string | null; limit?: number | null } = {},
+  input: {
+    cursor?: string | null;
+    filter?: MobileNotificationFilter | null;
+    limit?: number | null;
+  } = {},
 ): Promise<MobileNotificationsResponse> {
   const payload = await client.requestJson<unknown>(getMobileNotificationsPath(input), {
     method: "GET",
@@ -52,6 +66,13 @@ export async function markAllMobileNotificationsRead(client: MobileApiClient): P
     `${MOBILE_NOTIFICATIONS_ENDPOINT}/read-all`,
     { method: "PATCH" },
   );
+  MobileNotificationMutationResponseSchema.parse(payload);
+}
+
+export async function clearMobileNotifications(client: MobileApiClient): Promise<void> {
+  const payload = await client.requestJson<unknown>(`${MOBILE_NOTIFICATIONS_ENDPOINT}/clear`, {
+    method: "DELETE",
+  });
   MobileNotificationMutationResponseSchema.parse(payload);
 }
 

@@ -47,6 +47,19 @@ describe("1d notification presentation model", () => {
     ]);
   });
 
+  it("localizes the day headings instead of hardcoding Turkish labels", () => {
+    const english = groupMobileNotificationsByDay([todayMention, yesterdayInvite], now, "en");
+
+    expect(english.map((group) => group.label)).toEqual(["TODAY", "YESTERDAY"]);
+    expect(
+      groupMobileNotificationsByDay(
+        [{ ...todayMention, createdAt: "2026-05-04T10:00:00.000Z" }],
+        now,
+        "en",
+      )[0]?.label,
+    ).toBe("MAY 4, 2026");
+  });
+
   it("derives mention presentation from the typed API record without parsing copy", () => {
     expect(getMobileNotificationPresentation(todayMention)).toMatchObject({
       canJoinVoice: false,

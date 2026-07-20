@@ -12,6 +12,7 @@ const notification = {
   channel: { id: "channel-1", name: "general" },
   createdAt: "2026-07-15T10:00:00.000Z",
   eventKind: null,
+  friendRequestId: null,
   id: "00000000-0000-4000-8000-000000000001",
   messageQuote: { id: "message-1", preview: "Please review the contract" },
   read: false,
@@ -27,8 +28,13 @@ function context(params: Record<string, string>) {
 function dependencies(overrides: Record<string, unknown> = {}) {
   return {
     authenticate: async () => "user-1",
+    clearNotifications: async () => undefined,
     enforceRateLimit: async () => undefined,
-    listNotifications: async () => ({ nextCursor: null, notifications: [notification] }),
+    listNotifications: async () => ({
+      nextCursor: null,
+      notifications: [notification],
+      unreadCount: 1,
+    }),
     markAllRead: async () => undefined,
     markRead: async () => undefined,
     ...overrides,
@@ -50,17 +56,21 @@ describe("mobile notifications route logic", () => {
           calls.push(`rate:${userId}:${action}`),
         listNotifications: async (userId: string, query: unknown) => {
           calls.push(`list:${userId}:${JSON.stringify(query)}`);
-          return { nextCursor: null, notifications: [notification] };
+          return { nextCursor: null, notifications: [notification], unreadCount: 1 };
         },
       }),
     );
 
     assert.equal(response.status, 200);
-    assert.deepEqual(await response.json(), { nextCursor: null, notifications: [notification] });
+    assert.deepEqual(await response.json(), {
+      nextCursor: null,
+      notifications: [notification],
+      unreadCount: 1,
+    });
     assert.deepEqual(calls, [
       "auth",
       "rate:user-1:mobile:notifications:list",
-      'list:user-1:{"cursor":"cursor-1","limit":20}',
+      'list:user-1:{"cursor":"cursor-1","filter":"all","limit":20}',
     ]);
   });
 
@@ -96,6 +106,52 @@ describe("mobile notifications route logic", () => {
     ]);
   });
 
+  it("passes the requested feed filter through to the notification service", async () => {
+    const { mobileNotificationsListRoute } = await routes;
+    const queries: unknown[] = [];
+    const deps = dependencies({
+      listNotifications: async (_userId: string, query: unknown) => {
+        queries.push(query);
+        return { nextCursor: null, notifications: [], unreadCount: 3 };
+      },
+    });
+
+    for (const filter of ["unread", "mentions"]) {
+      await mobileNotificationsListRoute(
+        new Request(`https://whispr.test/api/v1/mobile/notifications?filter=${filter}`),
+        deps,
+      );
+    }
+    const rejected = await mobileNotificationsListRoute(
+      new Request("https://whispr.test/api/v1/mobile/notifications?filter=everything"),
+      deps,
+    );
+
+    assert.deepEqual(queries, [
+      { filter: "unread", limit: 20 },
+      { filter: "mentions", limit: 20 },
+    ]);
+    assert.equal(rejected.status, 400);
+  });
+
+  it("clears the whole feed behind its own rate-limit action", async () => {
+    const { mobileNotificationsClearRoute } = await routes;
+    const calls: string[] = [];
+    const response = await mobileNotificationsClearRoute(
+      new Request("https://whispr.test/api/v1/mobile/notifications/clear", { method: "DELETE" }),
+      dependencies({
+        clearNotifications: async (userId: string) => {
+          calls.push(`clear:${userId}`);
+        },
+        enforceRateLimit: async (_userId: string, action: string) => calls.push(action),
+      }),
+    );
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { success: true });
+    assert.deepEqual(calls, ["mobile:notifications:clear", "clear:user-1"]);
+  });
+
   it("rejects unauthorized and malformed mobile notification requests before domain access", async () => {
     const { mobileNotificationMarkReadRoute, mobileNotificationsListRoute } = await routes;
     let listed = false;
@@ -107,7 +163,7 @@ describe("mobile notifications route logic", () => {
         },
         listNotifications: async () => {
           listed = true;
-          return { nextCursor: null, notifications: [] };
+          return { nextCursor: null, notifications: [], unreadCount: 0 };
         },
       }),
     );

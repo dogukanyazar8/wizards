@@ -7,16 +7,20 @@ import {
   type QueryClient,
 } from "@tanstack/react-query";
 
-import type { MobileNotificationsResponse } from "@wizards/types";
+import type { MobileNotificationFilter, MobileNotificationsResponse } from "@wizards/types";
 import type { MobileApiClient } from "../api/mobile-api-client";
 import { mobileQueryKeys } from "../query/mobile-query-keys";
 import {
+  clearMobileNotifications,
   fetchMobileNotifications,
   markAllMobileNotificationsRead,
   markMobileNotificationRead,
 } from "./mobile-notification-client";
 
-export function getMobileNotificationsQueryOptions(client: MobileApiClient) {
+export function getMobileNotificationsQueryOptions(
+  client: MobileApiClient,
+  filter: MobileNotificationFilter = "all",
+) {
   return infiniteQueryOptions<
     MobileNotificationsResponse,
     Error,
@@ -26,13 +30,17 @@ export function getMobileNotificationsQueryOptions(client: MobileApiClient) {
   >({
     getNextPageParam: (page) => page.nextCursor ?? undefined,
     initialPageParam: null as string | null,
-    queryFn: ({ pageParam }) => fetchMobileNotifications(client, { cursor: pageParam, limit: 20 }),
-    queryKey: mobileQueryKeys.notifications(),
+    queryFn: ({ pageParam }) =>
+      fetchMobileNotifications(client, { cursor: pageParam, filter, limit: 20 }),
+    queryKey: mobileQueryKeys.notifications(filter),
   });
 }
 
-export function useMobileNotificationsQuery(client: MobileApiClient) {
-  return useInfiniteQuery(getMobileNotificationsQueryOptions(client));
+export function useMobileNotificationsQuery(
+  client: MobileApiClient,
+  filter: MobileNotificationFilter = "all",
+) {
+  return useInfiniteQuery(getMobileNotificationsQueryOptions(client, filter));
 }
 
 type MobileNotificationMutationOptionsInput = {
@@ -40,10 +48,10 @@ type MobileNotificationMutationOptionsInput = {
   queryClient: QueryClient;
 };
 
+/** Every filtered feed hangs off the notifications root, so one prefix invalidation covers them all. */
 function invalidateMobileNotifications(queryClient: QueryClient) {
   return queryClient.invalidateQueries({
-    exact: true,
-    queryKey: mobileQueryKeys.notifications(),
+    queryKey: mobileQueryKeys.notificationsRoot(),
   });
 }
 
@@ -67,10 +75,23 @@ export function createMobileNotificationMarkAllReadMutationOptions({
   };
 }
 
+export function createMobileNotificationClearMutationOptions({
+  client,
+  queryClient,
+}: MobileNotificationMutationOptionsInput) {
+  return {
+    mutationFn: () => clearMobileNotifications(client),
+    onSuccess: () => invalidateMobileNotifications(queryClient),
+  };
+}
+
 export function useMobileNotificationMutations(client: MobileApiClient) {
   const queryClient = useQueryClient();
   return {
-    markAllRead: useMutation(createMobileNotificationMarkAllReadMutationOptions({ client, queryClient })),
+    clearAll: useMutation(createMobileNotificationClearMutationOptions({ client, queryClient })),
+    markAllRead: useMutation(
+      createMobileNotificationMarkAllReadMutationOptions({ client, queryClient }),
+    ),
     markRead: useMutation(createMobileNotificationMarkReadMutationOptions({ client, queryClient })),
   };
 }

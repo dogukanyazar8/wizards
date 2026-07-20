@@ -3,6 +3,7 @@
 import { createContext, useContext, type ReactNode } from "react";
 
 import { DmCallBar } from "@/components/dm/dm-call-bar";
+import { DmCallNotice } from "@/components/dm/dm-call-notice";
 import { IncomingDMCallDialog } from "@/components/dm/incoming-call-dialog";
 import { useDMCallController, type DMCallActions } from "@/hooks/use-dm-call";
 
@@ -19,6 +20,7 @@ export function DMCallProvider({ children }: { children: ReactNode }) {
     <DMCallContext.Provider value={actions}>
       {children}
       <DmCallBar onLeave={actions.endCall} />
+      <DmCallNotice />
       <IncomingDMCallDialog onAccept={actions.acceptCall} onDecline={actions.declineCall} />
     </DMCallContext.Provider>
   );

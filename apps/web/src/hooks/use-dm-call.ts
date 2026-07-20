@@ -63,11 +63,15 @@ export function useDMCallController() {
     };
 
     const handleDeclined = (data: { conversationId: string }) => {
-      if (!signalMatchesSession(readSession(), data.conversationId)) {
+      const current = readSession();
+      if (!signalMatchesSession(current, data.conversationId)) {
         return;
       }
 
-      void teardown(t("dm.call.declined"));
+      const peerName = current.peer?.displayName ?? current.peer?.username ?? "";
+      void teardown(
+        peerName ? t("dm.call.declinedBy", { name: peerName }) : t("dm.call.declined"),
+      );
     };
 
     const handleCancelled = (data: { conversationId: string }) => {
@@ -113,6 +117,7 @@ export function useDMCallController() {
         return;
       }
 
+      const peerName = current.peer?.displayName ?? current.peer?.username ?? "";
       if (current.status === "ringing-out") {
         socket.emit("dm:call:cancel", { conversationId: current.conversationId });
       } else if (current.peer) {
@@ -122,7 +127,14 @@ export function useDMCallController() {
         });
       }
 
-      void teardown(t("dm.call.unanswered"));
+      // Only the caller needs the "nobody picked up" notice; the callee just stops ringing.
+      void teardown(
+        current.status === "ringing-out"
+          ? peerName
+            ? t("dm.call.unansweredBy", { name: peerName })
+            : t("dm.call.unanswered")
+          : null,
+      );
     }, RING_TICK_MS);
 
     return () => window.clearInterval(timer);

@@ -19,6 +19,8 @@ import {
 import { useMobileDMCallStore } from "../../state/mobile-dm-call-store";
 import { shouldAlertMobileIncomingCall } from "../../notifications/mobile-notification-preferences";
 import { useMobileNotificationPreferences } from "../providers/mobile-notification-preferences-provider";
+import { useToast } from "../components/kit/toast";
+import { activeMobileCopy as copy } from "../../locale/mobile-locale-preferences";
 
 const RING_TICK_MS = 1_000;
 
@@ -53,6 +55,7 @@ export function useMobileDMCallFeature({
 }: MobileDMCallFeatureInput) {
   const session = useMobileDMCallStore((state) => state.session);
   const { preferences } = useMobileNotificationPreferences();
+  const { showToast } = useToast();
   // Handlers read the live session from the store so listeners never close over a stale copy.
   const readSession = useCallback(() => useMobileDMCallStore.getState().session, []);
   const setSession = useCallback(
@@ -195,13 +198,21 @@ export function useMobileDMCallFeature({
         event.eventName === "dm:call:ended"
       ) {
         const payload = getMobileDMCallSignalPayload(event.payload);
-        if (payload && isMobileCallSignalForSession(readSession(), payload.conversationId)) {
-          const wasRingingIn = readSession()?.status === "ringing-in";
+        const current = readSession();
+        if (payload && isMobileCallSignalForSession(current, payload.conversationId)) {
+          const wasRingingIn = current?.status === "ringing-in";
+          // Only the caller is told the call was refused; the callee already knows.
+          if (event.eventName === "dm:call:declined" && current?.status === "ringing-out") {
+            showToast({
+              message: copy.directCallDeclinedNotice.replace("{name}", current.title),
+              tone: "warning",
+            });
+          }
           void teardown({ leaveRoom: !wasRingingIn });
         }
       }
     },
-    [readSession, setSession, teardown],
+    [readSession, setSession, showToast, teardown],
   );
 
   useEffect(() => subscribe(handleRealtimeEvent), [handleRealtimeEvent, subscribe]);
@@ -220,6 +231,10 @@ export function useMobileDMCallFeature({
 
       if (current.status === "ringing-out") {
         emitDMCallCancel({ conversationId: current.conversationId });
+        showToast({
+          message: copy.directCallUnansweredNotice.replace("{name}", current.title),
+          tone: "warning",
+        });
         void teardown({ leaveRoom: true });
         return;
       }
@@ -234,7 +249,7 @@ export function useMobileDMCallFeature({
     }, RING_TICK_MS);
 
     return () => clearInterval(timer);
-  }, [emitDMCallCancel, emitDMCallDecline, readSession, session, teardown]);
+  }, [emitDMCallCancel, emitDMCallDecline, readSession, session, showToast, teardown]);
 
   return {
     acceptCall,

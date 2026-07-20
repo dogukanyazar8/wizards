@@ -164,6 +164,14 @@ export const MobilePasswordChangeRequestSchema = z
   });
 export const MobilePasswordChangeResponseSchema = z.object({ success: z.literal(true) }).strict();
 
+export const MobileAccountLocaleSchema = z.enum(["en", "tr"]);
+export const MobileLocaleUpdateRequestSchema = z
+  .object({ locale: MobileAccountLocaleSchema })
+  .strict();
+export const MobileLocaleUpdateResponseSchema = z
+  .object({ locale: MobileAccountLocaleSchema })
+  .strict();
+
 export const MobileAccountDmPolicySchema = z.enum([
   "EVERYONE",
   "FRIENDS",
@@ -319,6 +327,9 @@ export type MobileAccountDmPolicy = z.infer<typeof MobileAccountDmPolicySchema>;
 export type MobileAccountFriendRequestPolicy = z.infer<
   typeof MobileAccountFriendRequestPolicySchema
 >;
+export type MobileAccountLocale = z.infer<typeof MobileAccountLocaleSchema>;
+export type MobileLocaleUpdateRequest = z.infer<typeof MobileLocaleUpdateRequestSchema>;
+export type MobileLocaleUpdateResponse = z.infer<typeof MobileLocaleUpdateResponseSchema>;
 export type MobilePasswordChangeRequest = z.infer<typeof MobilePasswordChangeRequestSchema>;
 export type MobilePasswordChangeResponse = z.infer<typeof MobilePasswordChangeResponseSchema>;
 export type MobileAccountSettingsResponse = z.infer<typeof MobileAccountSettingsResponseSchema>;

@@ -8,7 +8,12 @@ import {
 import { enforceApiRateLimit, type ApiRateLimitAction } from "@/lib/api-rate-limit";
 import { jsonError } from "@/lib/api";
 import { requireMobileApiUserId } from "@/lib/auth/api";
-import { listMobileNotifications, markAllRead, markRead } from "@/lib/notifications/service";
+import {
+  clearNotifications,
+  listMobileNotifications,
+  markAllRead,
+  markRead,
+} from "@/lib/notifications/service";
 
 export type MobileNotificationRouteContext = {
   params: Promise<Record<string, string>>;
@@ -16,6 +21,7 @@ export type MobileNotificationRouteContext = {
 
 export type MobileNotificationsRouteDependencies = {
   authenticate: (request: Request) => Promise<string>;
+  clearNotifications: typeof clearNotifications;
   enforceRateLimit: (userId: string, action: ApiRateLimitAction) => Promise<void>;
   listNotifications: typeof listMobileNotifications;
   markAllRead: typeof markAllRead;
@@ -24,6 +30,7 @@ export type MobileNotificationsRouteDependencies = {
 
 const defaultDependencies: MobileNotificationsRouteDependencies = {
   authenticate: (request) => requireMobileApiUserId(request),
+  clearNotifications,
   enforceRateLimit: enforceApiRateLimit,
   listNotifications: listMobileNotifications,
   markAllRead,
@@ -34,6 +41,7 @@ function getMobileNotificationsQuery(request: Request) {
   const searchParams = new URL(request.url).searchParams;
   return MobileNotificationsQuerySchema.parse({
     ...(searchParams.has("cursor") ? { cursor: searchParams.get("cursor") } : {}),
+    ...(searchParams.has("filter") ? { filter: searchParams.get("filter") } : {}),
     ...(searchParams.has("limit") ? { limit: searchParams.get("limit") } : {}),
   });
 }
@@ -67,6 +75,22 @@ export async function mobileNotificationMarkReadRoute(
     await dependencies.enforceRateLimit(userId, "mobile:notifications:mark-read");
     const { id } = MobileNotificationIdParamsSchema.parse(await context.params);
     await dependencies.markRead(userId, id);
+    return Response.json(MobileNotificationMutationResponseSchema.parse({ success: true }), {
+      headers: { "Cache-Control": "no-store" },
+    });
+  } catch (error) {
+    return jsonError(error);
+  }
+}
+
+export async function mobileNotificationsClearRoute(
+  request: Request,
+  dependencies: MobileNotificationsRouteDependencies = defaultDependencies,
+) {
+  try {
+    const userId = await dependencies.authenticate(request);
+    await dependencies.enforceRateLimit(userId, "mobile:notifications:clear");
+    await dependencies.clearNotifications(userId);
     return Response.json(MobileNotificationMutationResponseSchema.parse({ success: true }), {
       headers: { "Cache-Control": "no-store" },
     });

@@ -9,7 +9,7 @@ import {
   MobileOutgoingVoiceCallScreen,
 } from "../src/app/screens/mobile-outgoing-call-screen";
 import { createMobileOutgoingCallStyles } from "../src/app/screens/mobile-outgoing-call-screen.styles";
-import { darkTheme } from "../src/design/themes";
+import { darkTheme, lightTheme } from "../src/design/themes";
 import type { MobileVoiceRoomState } from "../src/voice/mobile-voice-room-contract";
 
 function createRingingRoom(overrides: Partial<MobileVoiceRoomState> = {}): MobileVoiceRoomState {
@@ -156,5 +156,48 @@ describe("7b outgoing video call screen", () => {
     expect(styles.videoAvatarRingFar).toMatchObject({ borderRadius: 54, top: -30 });
     expect(styles.videoPreviewChip).toMatchObject({ bottom: 214 });
     expect(styles.dockGlass).toMatchObject({ bottom: 16, left: 16, right: 16 });
+  });
+});
+
+describe("7a/7b theme parity", () => {
+  it("keeps every waiting-dock chip distinguishable from the dock in both themes", () => {
+    for (const theme of [lightTheme, darkTheme]) {
+      const styles = createMobileOutgoingCallStyles(theme);
+
+      // Regression: the light theme resolved dock and chips to the same white.
+      expect(styles.dockButton.backgroundColor).not.toBe(styles.dock.backgroundColor);
+      expect(styles.dockButtonActive.backgroundColor).not.toBe(styles.dockButton.backgroundColor);
+      expect(styles.headerButton.backgroundColor).not.toBe(theme.surface.voiceRoom);
+    }
+  });
+
+  it("uses readable muted copy on the light room surface", () => {
+    const light = createMobileOutgoingCallStyles(lightTheme);
+    const dark = createMobileOutgoingCallStyles(darkTheme);
+
+    expect(light.statusText.color).toBe(lightTheme.text.muted);
+    expect(light.hintPillText.color).toBe(lightTheme.text.muted);
+    expect(light.dockLabel.color).toBe(lightTheme.text.muted);
+    expect(dark.statusText.color).toBe(darkTheme.text.onInverseMuted);
+  });
+
+  it("keeps 7b chrome inverse-toned because it floats on the camera feed", () => {
+    for (const theme of [lightTheme, darkTheme]) {
+      const styles = createMobileOutgoingCallStyles(theme);
+
+      expect(styles.videoHeaderTitle.color).toBe(theme.text.onInverse);
+      expect(styles.videoHeaderSubtitle.color).toBe(theme.text.onInverseMuted);
+      expect(styles.videoName.color).toBe(theme.text.onInverse);
+      expect(styles.dockGlass.backgroundColor).toBe(theme.surface.inverse);
+      expect(styles.dockButtonGlass.backgroundColor).toBe(theme.surface.inverseControl);
+    }
+  });
+
+  it("draws the ring halo behind the avatar instead of a full-screen blob", () => {
+    const styles = createMobileOutgoingCallStyles(lightTheme);
+
+    expect(styles.stageHalo).toMatchObject({ height: 340, position: "absolute", width: 340 });
+    expect(styles.stageHalo).not.toHaveProperty("top");
+    expect(styles.stageHalo).not.toHaveProperty("left");
   });
 });

@@ -321,6 +321,8 @@ export const EN_MESSAGES = {
     "dm.call.expand": "Back to call",
     "dm.call.autoDecline": "Auto-declines in {seconds}s",
     "dm.call.declined": "The call was declined.",
+    "dm.call.declinedBy": "{name} declined the call.",
+    "dm.call.unansweredBy": "{name} could not be reached — the call went unanswered.",
     "dm.call.cancelled": "The call was cancelled.",
     "dm.call.ended": "The call ended.",
     "dm.call.unanswered": "No answer.",

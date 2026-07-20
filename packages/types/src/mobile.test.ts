@@ -56,6 +56,7 @@ import {
   MobileMessageReactionRequestSchema,
   MobileMessageReactionResponseSchema,
   MobileNotificationEventKindSchema,
+  MobileNotificationFilterSchema,
   MobileNotificationIdParamsSchema,
   MobileNotificationItemSchema,
   MobileNotificationMutationResponseSchema,
@@ -675,6 +676,11 @@ describe("mobile schemas", () => {
         schema: MobileNotificationEventKindSchema,
         valid: "message-reaction",
         invalid: "unknown-event",
+      },
+      MobileNotificationFilterSchema: {
+        schema: MobileNotificationFilterSchema,
+        valid: "unread",
+        invalid: "everything",
       },
       MobileNotificationIdParamsSchema: {
         schema: MobileNotificationIdParamsSchema,
