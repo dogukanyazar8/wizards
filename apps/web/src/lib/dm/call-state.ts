@@ -13,6 +13,8 @@ export type DMCallPeer = {
 export type DMCallStatus = "connected" | "connecting" | "ringing-in" | "ringing-out";
 
 export type DMCallSession = {
+  /** Epoch millis the call was answered; drives the duration shown on both platforms. */
+  connectedAt: number | null;
   conversationId: string;
   /** True when the call was started as (or upgraded to) a video call. */
   isVideo: boolean;
@@ -32,6 +34,7 @@ export function createOutgoingCall(input: {
   video: boolean;
 }): DMCallSession {
   return {
+    connectedAt: null,
     conversationId: input.conversationId,
     isVideo: input.video,
     peer: input.peer,
@@ -49,6 +52,7 @@ export function createIncomingCall(input: {
   const parsed = Date.parse(input.expiresAt);
 
   return {
+    connectedAt: null,
     conversationId: input.conversationId,
     isVideo: input.video,
     peer: input.peer,
@@ -57,9 +61,15 @@ export function createIncomingCall(input: {
   };
 }
 
-export function markCallConnected(session: DMCallSession, video?: boolean): DMCallSession {
+export function markCallConnected(
+  session: DMCallSession,
+  video?: boolean,
+  now = Date.now(),
+): DMCallSession {
   return {
     ...session,
+    // Both sides stamp this when the call is answered, so their timers stay in step.
+    connectedAt: session.connectedAt ?? now,
     isVideo: video ?? session.isVideo,
     ringExpiresAt: null,
     status: "connected",
@@ -92,4 +102,14 @@ export function signalMatchesSession(
   conversationId: string,
 ): session is DMCallSession {
   return session?.conversationId === conversationId;
+}
+
+/** "m:ss" duration label shared with the mobile call screens. */
+export function formatDMCallDuration(connectedAt: number | null, now: number): string | null {
+  if (connectedAt === null || !Number.isFinite(connectedAt) || !Number.isFinite(now)) {
+    return null;
+  }
+
+  const elapsedSeconds = Math.max(0, Math.floor((now - connectedAt) / 1_000));
+  return `${Math.floor(elapsedSeconds / 60)}:${(elapsedSeconds % 60).toString().padStart(2, "0")}`;
 }

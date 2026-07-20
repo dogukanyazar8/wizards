@@ -147,6 +147,23 @@ export const MobileTwoFactorConfirmResponseSchema = z
   .strict();
 export const MobileTwoFactorDisableResponseSchema = z.object({ success: z.literal(true) }).strict();
 
+export const MobilePasswordChangeRequestSchema = z
+  .object({
+    confirmPassword: z.string().min(1).max(100),
+    currentPassword: z.string().min(1).max(256),
+    newPassword: z.string().min(8).max(100),
+  })
+  .strict()
+  .refine((value) => value.newPassword === value.confirmPassword, {
+    message: "validation.password.confirmMismatch",
+    path: ["confirmPassword"],
+  })
+  .refine((value) => value.newPassword !== value.currentPassword, {
+    message: "validation.password.reused",
+    path: ["newPassword"],
+  });
+export const MobilePasswordChangeResponseSchema = z.object({ success: z.literal(true) }).strict();
+
 export const MobileAccountDmPolicySchema = z.enum([
   "EVERYONE",
   "FRIENDS",
@@ -167,6 +184,9 @@ export const MobileAccountSettingsResponseSchema = z
         customStatus: z.string().max(128).nullable(),
         email: z.string().email().max(254),
         emailVerified: z.boolean(),
+        // Added after the UAT backend shipped; must default so an un-redeployed
+        // server response still parses.
+        twoFactorEnabled: z.boolean().default(false),
       })
       .strict(),
     privacy: z
@@ -299,5 +319,7 @@ export type MobileAccountDmPolicy = z.infer<typeof MobileAccountDmPolicySchema>;
 export type MobileAccountFriendRequestPolicy = z.infer<
   typeof MobileAccountFriendRequestPolicySchema
 >;
+export type MobilePasswordChangeRequest = z.infer<typeof MobilePasswordChangeRequestSchema>;
+export type MobilePasswordChangeResponse = z.infer<typeof MobilePasswordChangeResponseSchema>;
 export type MobileAccountSettingsResponse = z.infer<typeof MobileAccountSettingsResponseSchema>;
 export type MobileAccountSettingsUpdate = z.infer<typeof MobileAccountSettingsUpdateSchema>;

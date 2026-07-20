@@ -16,6 +16,7 @@ const settingsRecord: MobileAccountSettingsRecord = {
     customStatus: "focus",
     email: "dogukan@whispr.app",
     emailVerified: true,
+    twoFactorEnabled: true,
   },
   privacy: { dmPermission: "FRIENDS", friendRequests: "EVERYONE" },
 };
@@ -49,6 +50,7 @@ describe("mobile account settings route", () => {
     assert.deepEqual(calls, ["auth", "mobile:account:settings:user-1", "load:user-1"]);
     const payload = await response.json();
     assert.equal(payload.account.email, "dogukan@whispr.app");
+    assert.equal(payload.account.twoFactorEnabled, true);
     assert.equal(payload.privacy.dmPermission, "FRIENDS");
   });
 

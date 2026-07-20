@@ -28,11 +28,8 @@ export async function launchMobileDirectCall({
   title: string;
   video: boolean;
 }): Promise<boolean> {
-  const joined = await joinDirectCall({ conversationId, title, video });
-  if (!joined) {
-    return false;
-  }
-
+  // The room screen opens first: joining costs a token fetch plus an ICE handshake, and
+  // waiting for it made the ringing screen appear seconds after the button press.
   openVoiceRoom({
     channelId: null,
     channelName: title,
@@ -40,5 +37,15 @@ export async function launchMobileDirectCall({
     serverId: null,
     sessionMode: "direct",
   });
-  return true;
+
+  return joinDirectCall({ conversationId, title, video });
+}
+
+/** Sends the user back to the conversation the call belonged to. */
+export function openMobileDirectMessage(conversationId: string): void {
+  navigateMobileRouteIntent({
+    name: "DirectMessage",
+    params: { conversationId },
+    type: "route",
+  });
 }

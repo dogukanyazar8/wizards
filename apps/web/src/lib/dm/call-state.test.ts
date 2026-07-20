@@ -5,6 +5,7 @@ import {
   DM_CALL_RING_TTL_MS,
   createIncomingCall,
   createOutgoingCall,
+  formatDMCallDuration,
   hasRingExpired,
   isRinging,
   markCallConnected,
@@ -100,5 +101,23 @@ describe("DM call ring contract", () => {
     const rawTtl = handlerSource.match(/DM_CALL_RING_TTL_MS = ([\d_]+)/)?.[1];
     assert.ok(rawTtl, "socket handler must define the ring TTL");
     assert.equal(Number(rawTtl.replace(/_/g, "")), DM_CALL_RING_TTL_MS);
+  });
+});
+
+describe("DM call duration", () => {
+  it("stamps the answered-at time once so the label matches the mobile screens", () => {
+    const ringing = createOutgoingCall({ conversationId: "dm-1", now: 0, peer, video: false });
+    assert.equal(ringing.connectedAt, null);
+
+    const connected = markCallConnected(ringing, false, 5_000);
+    assert.equal(connected.connectedAt, 5_000);
+    assert.equal(markCallConnected(connected, true, 9_000).connectedAt, 5_000);
+  });
+
+  it("formats m:ss and stays blank before the call is answered", () => {
+    assert.equal(formatDMCallDuration(0, 5_000), "0:05");
+    assert.equal(formatDMCallDuration(0, 75_000), "1:15");
+    assert.equal(formatDMCallDuration(0, 3_605_000), "60:05");
+    assert.equal(formatDMCallDuration(null, 5_000), null);
   });
 });

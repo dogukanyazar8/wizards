@@ -173,16 +173,22 @@ export function VoiceRoomStackScreenContainer({
     }
   }, [hasRouteContext, navigation]);
 
-  // A declined, cancelled or peer-ended DM call clears the session; leaving this screen up
-  // would strand the user in the empty channel room UI.
+  // A declined, cancelled or peer-ended DM call clears the session. Land the user back in
+  // the conversation the call belonged to instead of the empty channel room UI.
   useEffect(() => {
     if (routeContext?.sessionMode !== "direct" || dmCallSession) {
       return;
     }
 
+    const conversationId = routeContext.conversationId;
     clearMobileVoiceRoomRouteContext();
+    if (conversationId) {
+      navigation.replace("DirectMessage", { conversationId });
+      return;
+    }
+
     navigation.replace("MainTabs", { screen: "overview" });
-  }, [dmCallSession, navigation, routeContext?.sessionMode]);
+  }, [dmCallSession, navigation, routeContext?.conversationId, routeContext?.sessionMode]);
 
   useEffect(() => {
     if (room.status !== "leaving") {
@@ -255,6 +261,7 @@ export function VoiceRoomStackScreenContainer({
       return (
         <MobileDirectVideoCallScreen
           {...screenProps}
+          callStartedAt={dmCallSession?.connectedAt ?? null}
           onLeaveVoiceChannel={leaveVoiceRoom}
           onMinimize={minimizeVoiceRoom}
           testID="mobile-direct-video-call-screen"
@@ -265,6 +272,7 @@ export function VoiceRoomStackScreenContainer({
     return (
       <MobileDirectCallScreen
         {...screenProps}
+        callStartedAt={dmCallSession?.connectedAt ?? null}
         onLeaveVoiceChannel={leaveVoiceRoom}
         onMinimize={minimizeVoiceRoom}
         testID="mobile-direct-call-screen"

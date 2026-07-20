@@ -376,27 +376,27 @@ describe("mobile direct-call runtime", () => {
     expect(harness.hook.result.current.roomState.errorMessage).not.toContain("secret.example");
   });
 
-  it("opens product navigation only after the direct join returns true", async () => {
+  it("opens the call screen before joining so the ringing UI is immediate", async () => {
     expect(voiceRouteNavigation.launchMobileDirectCall).toEqual(expect.any(Function));
-    const openVoiceRoom = jest.fn();
-    const join = jest.fn(async () => false);
-    await voiceRouteNavigation.launchMobileDirectCall({
-      conversationId: "conversation-1",
-      joinDirectCall: join,
-      openVoiceRoom,
-      title: "Ada Lovelace",
-      video: false,
+    const order: string[] = [];
+    const openVoiceRoom = jest.fn(() => {
+      order.push("open");
     });
-    expect(openVoiceRoom).not.toHaveBeenCalled();
+    const join = jest.fn(async () => {
+      order.push("join");
+      return true;
+    });
 
-    join.mockResolvedValueOnce(true);
-    await voiceRouteNavigation.launchMobileDirectCall({
+    const joined = await voiceRouteNavigation.launchMobileDirectCall({
       conversationId: "conversation-1",
       joinDirectCall: join,
       openVoiceRoom,
       title: "Ada Lovelace",
       video: true,
     });
+
+    expect(joined).toBe(true);
+    expect(order).toEqual(["open", "join"]);
     expect(openVoiceRoom).toHaveBeenCalledWith({
       channelId: null,
       channelName: "Ada Lovelace",
@@ -404,5 +404,21 @@ describe("mobile direct-call runtime", () => {
       serverId: null,
       sessionMode: "direct",
     });
+  });
+
+  it("reports a failed join so the caller can tear the ring down", async () => {
+    const openVoiceRoom = jest.fn();
+    const join = jest.fn(async () => false);
+
+    const joined = await voiceRouteNavigation.launchMobileDirectCall({
+      conversationId: "conversation-1",
+      joinDirectCall: join,
+      openVoiceRoom,
+      title: "Ada Lovelace",
+      video: false,
+    });
+
+    expect(joined).toBe(false);
+    expect(openVoiceRoom).toHaveBeenCalledTimes(1);
   });
 });

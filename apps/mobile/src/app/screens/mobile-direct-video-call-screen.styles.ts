@@ -143,8 +143,8 @@ export const createMobileDirectVideoCallStyles = (theme: MobileTheme) =>
     },
     dock: {
       alignItems: "center",
-      backgroundColor: theme.surface.voiceRoomControl,
-      borderColor: theme.surface.voiceRoomControlBorder,
+      backgroundColor: theme.surface.inverse,
+      borderColor: theme.surface.inverseControl,
       borderRadius: 28,
       borderWidth: 1,
       bottom: 96,
@@ -158,7 +158,7 @@ export const createMobileDirectVideoCallStyles = (theme: MobileTheme) =>
     },
     dockButton: {
       alignItems: "center",
-      backgroundColor: theme.media.surfaceElevated,
+      backgroundColor: theme.surface.inverseControl,
       borderRadius: 20,
       height: 54,
       justifyContent: "center",
@@ -183,8 +183,8 @@ export const createMobileDirectVideoCallStyles = (theme: MobileTheme) =>
       position: "absolute",
     },
     outputSelector: {
-      backgroundColor: theme.surface.voiceRoomControl,
-      borderColor: theme.surface.voiceRoomControlBorder,
+      backgroundColor: theme.surface.inverse,
+      borderColor: theme.surface.inverseControl,
       borderRadius: 20,
       borderWidth: 1,
       bottom: 162,

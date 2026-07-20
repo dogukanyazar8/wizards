@@ -24,6 +24,8 @@ jest.mock("react-native-gesture-handler", () => {
 
 import { activeMobileCopy as copy } from "../src/locale/mobile-locale-preferences";
 import { MobileDirectVideoCallScreen } from "../src/app/screens/mobile-direct-video-call-screen";
+import { createMobileDirectVideoCallStyles } from "../src/app/screens/mobile-direct-video-call-screen.styles";
+import { lightTheme } from "../src/design/themes";
 import type {
   MobileVoiceRoomParticipant,
   MobileVoiceRoomState,
@@ -158,5 +160,19 @@ describe("5f direct video call screen", () => {
     await fireEvent.press(view.getByTestId("mobile-direct-video-call-output-earpiece"));
 
     expect(onSelectVoiceAudioOutputDevice).toHaveBeenCalledWith("earpiece");
+  });
+});
+
+describe("5f video chrome contrast", () => {
+  it("keeps the floating dock inverse-toned so controls read on the video surface", () => {
+    const styles = createMobileDirectVideoCallStyles(lightTheme);
+
+    // Regression: the dock used to inherit the light room surface, which rendered white
+    // active buttons with white glyphs on a white dock.
+    expect(styles.dock.backgroundColor).toBe(lightTheme.surface.inverse);
+    expect(styles.dockButton.backgroundColor).toBe(lightTheme.surface.inverseControl);
+    expect(styles.dockButtonActive.backgroundColor).toBe(lightTheme.text.onInverse);
+    expect(styles.dockButton.backgroundColor).not.toBe(styles.dockButtonActive.backgroundColor);
+    expect(styles.outputSelector.backgroundColor).toBe(lightTheme.surface.inverse);
   });
 });

@@ -13,6 +13,7 @@ import {
   isMobileCallSignalForSession,
   markMobileCallConnected,
 } from "../src/voice/mobile-dm-call-state";
+import { formatMobileVoiceRoomDuration } from "../src/app/screens/active-voice-room-model";
 
 const peer = {
   avatarUrl: null,
@@ -99,5 +100,36 @@ describe("mobile DM call state", () => {
 
     assert.ok(rawTtl, "web client must define the ring TTL");
     assert.equal(Number(rawTtl.replace(/_/g, "")), MOBILE_DM_CALL_RING_TTL_MS);
+  });
+});
+
+describe("mobile DM call duration", () => {
+  it("stamps the answered-at time once so both clients count from the same instant", () => {
+    const ringing = createMobileOutgoingCall({
+      conversationId: "dm-1",
+      now: 0,
+      title: "Ada",
+      video: false,
+    });
+    assert.equal(ringing.connectedAt, null);
+
+    const connected = markMobileCallConnected(ringing, false, 5_000);
+    assert.equal(connected.connectedAt, 5_000);
+
+    // A later accepted signal must not restart the timer.
+    assert.equal(markMobileCallConnected(connected, true, 9_000).connectedAt, 5_000);
+  });
+
+  it("formats the shared duration label the same way as the web client", () => {
+    assert.equal(formatMobileVoiceRoomDuration(0, 5_000), "0:05");
+    assert.equal(formatMobileVoiceRoomDuration(0, 75_000), "1:15");
+    assert.equal(formatMobileVoiceRoomDuration(null, 75_000), null);
+
+    const webSource = readFileSync(
+      new URL("../../web/src/lib/dm/call-state.ts", import.meta.url),
+      "utf8",
+    );
+    assert.match(webSource, /export function formatDMCallDuration/);
+    assert.match(webSource, /Math\.floor\(elapsedSeconds \/ 60\)/);
   });
 });

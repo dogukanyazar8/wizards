@@ -64,6 +64,7 @@ import { MobileAccountSettingsScreen } from "./mobile-account-settings-screen";
 import { MobileAboutSettingsScreen } from "./mobile-about-settings-screen";
 import { MobileAppearanceSettingsScreen } from "./mobile-appearance-settings-screen";
 import { MobileNotificationSettingsScreen } from "./mobile-notification-settings-screen";
+import { MobileSecuritySettingsScreen } from "./mobile-security-settings-screen";
 import { SocialAccountQuickActions } from "../../social/social-account-screens";
 import { BottomSheet, Button, DestructiveConfirmationSheet, Skeleton } from "../components/kit";
 import { Avatar } from "../components/kit/avatar";
@@ -2175,35 +2176,23 @@ export function ProfileSettingsScreen({
       />
     );
   }
-  if (resolvedSection === "security")
-    return sectionShell(
-      sectionLabels.security,
-      <>
-        <Button
-          label={copy.settingsTwoFactorAction}
-          icon="shield-checkmark-outline"
-          onPress={() => mobileNavigationRef.isReady() && mobileNavigationRef.navigate("Security")}
-          testID="mobile-settings-open-2fa"
-        />
-        <SettingsPreferenceSection
-          description={copy.settingsPrivacyDescription}
-          rows={privacyRows}
-          title={copy.settingsPrivacyTitle}
-        />
-        <SettingsPreferenceSection
-          description={copy.settingsAppLockDescription}
-          rows={[]}
-          title={copy.settingsAppLockTitle}
-        >
-          <SettingsAppLockControl
-            availability={appLockAvailability}
-            enabled={appLockEnabled}
-            onToggle={onToggleAppLock}
-          />
-        </SettingsPreferenceSection>
-      </>,
-      "mobile-settings-security",
+  if (resolvedSection === "security") {
+    return (
+      <MobileSecuritySettingsScreen
+        appLockAvailability={appLockAvailability}
+        appLockEnabled={appLockEnabled}
+        isSignedIn={isSignedIn}
+        onBack={onBack ?? (() => mobileNavigationRef.isReady() && mobileNavigationRef.goBack())}
+        onOpenTwoFactor={() =>
+          mobileNavigationRef.isReady() && mobileNavigationRef.navigate("Security")
+        }
+        onRefreshSession={onRefresh}
+        onSignOut={onSignOut}
+        onToggleAppLock={onToggleAppLock}
+        sessionDiagnostics={sessionDiagnostics}
+      />
     );
+  }
   if (resolvedSection === "appearance") {
     return (
       <MobileAppearanceSettingsScreen

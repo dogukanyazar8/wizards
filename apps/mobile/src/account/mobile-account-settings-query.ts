@@ -5,10 +5,15 @@ import {
   useQueryClient,
   type QueryClient,
 } from "@tanstack/react-query";
-import type { MobileAccountSettingsResponse, MobileAccountSettingsUpdate } from "@wizards/types";
+import type {
+  MobileAccountSettingsResponse,
+  MobileAccountSettingsUpdate,
+  MobilePasswordChangeRequest,
+} from "@wizards/types";
 
 import type { MobileApiClient } from "../api/mobile-api-client";
 import { mobileQueryKeys } from "../query/mobile-query-keys";
+import { changeMobilePassword } from "./mobile-account-password-client";
 import {
   fetchMobileAccountSettings,
   updateMobileAccountSettings,
@@ -57,6 +62,20 @@ export function optimisticallyPatchMobileAccountSettings(
 
 export function restoreMobileAccountSettings(snapshot: MobileAccountSettingsSnapshot): void {
   snapshot.queryClient.setQueryData(mobileQueryKeys.accountSettings(), snapshot.data);
+}
+
+/**
+ * The password endpoint revokes web sessions only, so the caller's mobile session
+ * stays valid and no cache beyond the account settings needs to be reset.
+ */
+export function useMobileChangePasswordMutation(client: MobileApiClient) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: MobilePasswordChangeRequest) => changeMobilePassword(client, input),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: mobileQueryKeys.accountSettings() }),
+  });
 }
 
 export function useMobileAccountSettingsMutation(client: MobileApiClient) {

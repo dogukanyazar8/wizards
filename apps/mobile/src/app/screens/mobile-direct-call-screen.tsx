@@ -10,7 +10,11 @@ import type {
   MobileVoiceRoomState,
 } from "../mobile-root-screen-shared";
 import type { MobileVoiceOutputOption } from "../../voice/mobile-voice-device-contract";
-import { getMobileActiveVoiceRoomModel } from "./active-voice-room-model";
+import {
+  formatMobileVoiceRoomDuration,
+  getMobileActiveVoiceRoomModel,
+} from "./active-voice-room-model";
+import { MobileSpeakingPulse } from "../components/mobile-call-pulse";
 import { useMobileHaptics } from "../providers/mobile-haptics-provider";
 import { useVoiceRoomTheme } from "../providers/mobile-theme-provider";
 import { MobileVoiceSettingsSheet } from "../../voice/mobile-voice-settings-sheet";
@@ -132,6 +136,7 @@ function DirectCallDockButton({
 }
 
 export function MobileDirectCallScreen({
+  callStartedAt = null,
   onLeaveVoiceChannel,
   onMinimize = () => undefined,
   onRefreshVoiceDevices = async () => undefined,
@@ -145,6 +150,8 @@ export function MobileDirectCallScreen({
   testID = "mobile-direct-call-screen",
   voiceRoomState,
 }: {
+  /** Answered-at stamp shared with the web client; falls back to the room connection time. */
+  callStartedAt?: number | null;
   onLeaveVoiceChannel(): Promise<void>;
   onMinimize?(): void;
   onRefreshVoiceDevices?(): Promise<void>;
@@ -165,6 +172,8 @@ export function MobileDirectCallScreen({
   const [outputSelectorOpen, setOutputSelectorOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const model = getMobileActiveVoiceRoomModel(voiceRoomState, null, now);
+  const durationLabel =
+    formatMobileVoiceRoomDuration(callStartedAt, now) ?? model.durationLabel;
   const isConnected = voiceRoomState.status === "connected";
 
   useEffect(() => {
@@ -255,6 +264,14 @@ export function MobileDirectCallScreen({
         <View style={styles.avatarWrap}>
           <View style={styles.avatarRingOuter} />
           <View style={styles.avatarRingInner} />
+          <MobileSpeakingPulse
+            borderRadius={52}
+            color={theme.accent.default}
+            isSpeaking={Boolean(participant?.isSpeaking && !participant.isMuted)}
+            level={participant?.audioLevel ?? 0}
+            size={152}
+            testID="mobile-direct-call-speaking-pulse"
+          />
           <View style={styles.avatar}>
             {showRemoteVideo ? (
               <VideoTrack
@@ -271,7 +288,7 @@ export function MobileDirectCallScreen({
           <Text numberOfLines={1} style={styles.name}>
             {name}
           </Text>
-          {model.durationLabel ? <Text style={styles.duration}>{model.durationLabel}</Text> : null}
+          {durationLabel ? <Text style={styles.duration}>{durationLabel}</Text> : null}
         </View>
         {connectionLabel ? (
           <View style={styles.connectionChip} testID="mobile-direct-call-connection">

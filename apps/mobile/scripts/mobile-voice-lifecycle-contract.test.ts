@@ -108,3 +108,34 @@ describe("mobile voice lifecycle contract", () => {
     assert.deepEqual(validateMobileVoiceLifecycleContract(), []);
   });
 });
+
+describe("mobile voice teardown safety", () => {
+  const roomHookSource = readFileSync(
+    resolve(import.meta.dirname, "../src/voice/use-mobile-voice-room.ts"),
+    "utf8",
+  );
+  const dmCallFeatureSource = readFileSync(
+    resolve(import.meta.dirname, "../src/app/features/use-mobile-dm-call-feature.ts"),
+    "utf8",
+  );
+
+  it("never leaves a LiveKit teardown promise unguarded", () => {
+    // Regression: when the peer hangs up first the peer connection is already closed, so
+    // disconnect() and microphone toggles reject with "PC manager is closed". Unguarded,
+    // that surfaced in the app as an uncaught promise rejection.
+    const disconnectCalls = roomHookSource.match(/disconnect\(true\).*/g) ?? [];
+
+    assert.ok(disconnectCalls.length > 0);
+    for (const call of disconnectCalls) {
+      assert.match(call, /\.catch\(/);
+    }
+    assert.match(
+      roomHookSource,
+      /pushToTalkController\.cancel\(\{ closeMicrophone: true \}\)\.catch\(/,
+    );
+  });
+
+  it("keeps DM call teardown resilient to a failing room leave", () => {
+    assert.match(dmCallFeatureSource, /leaveVoiceChannel\(\)\)\.catch\(/);
+  });
+});

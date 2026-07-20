@@ -39,6 +39,7 @@ const accountSettings = {
     customStatus: null,
     email: "ada@example.com",
     emailVerified: true,
+    twoFactorEnabled: false,
   },
   privacy: { dmPermission: "MUTUAL_SERVERS" as const, friendRequests: "MUTUAL_FRIENDS" as const },
 };

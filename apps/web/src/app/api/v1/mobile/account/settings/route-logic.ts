@@ -23,6 +23,7 @@ export type MobileAccountSettingsRecord = {
     customStatus: string | null;
     email: string;
     emailVerified: boolean;
+    twoFactorEnabled: boolean;
   };
   privacy: {
     dmPermission: MobileAccountSettingsResponse["privacy"]["dmPermission"];
@@ -49,6 +50,7 @@ async function loadMobileAccountSettings(userId: string): Promise<MobileAccountS
       customStatus: true,
       email: true,
       emailVerified: true,
+      twoFactorEnabled: true,
       settings: {
         select: {
           dmPolicy: true,
@@ -68,6 +70,7 @@ async function loadMobileAccountSettings(userId: string): Promise<MobileAccountS
       customStatus: user.customStatus,
       email: user.email,
       emailVerified: user.emailVerified,
+      twoFactorEnabled: user.twoFactorEnabled,
     },
     privacy: {
       dmPermission: user.settings.dmPolicy,

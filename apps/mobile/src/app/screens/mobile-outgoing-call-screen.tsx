@@ -4,6 +4,7 @@ import { Pressable, Text, View } from "react-native";
 
 import { activeMobileCopy as copy } from "../../locale/mobile-locale-preferences";
 import type { MobileVoiceAudioOutputMode, MobileVoiceRoomState } from "../mobile-root-screen-shared";
+import { MobileRingingPulse } from "../components/mobile-call-pulse";
 import { useMobileHaptics } from "../providers/mobile-haptics-provider";
 import { useVoiceRoomTheme } from "../providers/mobile-theme-provider";
 import { useMobileOutgoingCallStyles } from "./mobile-outgoing-call-screen.styles";
@@ -44,6 +45,7 @@ function OutgoingCallDockButton({
   active = false,
   danger = false,
   disabled = false,
+  glass = false,
   icon,
   label,
   onPress,
@@ -52,6 +54,8 @@ function OutgoingCallDockButton({
   active?: boolean;
   danger?: boolean;
   disabled?: boolean;
+  /** True on 7b, where the dock floats over the camera feed in every theme. */
+  glass?: boolean;
   icon: IoniconName;
   label: string;
   onPress(): void;
@@ -62,11 +66,11 @@ function OutgoingCallDockButton({
   const iconColor = danger
     ? theme.text.onInverse
     : active
-      ? theme.dark
-        ? theme.surface.voiceRoom
+      ? glass || theme.dark
+        ? theme.surface.inverse
         : theme.text.onPrimary
-      : theme.dark
-        ? theme.text.inverse
+      : glass || theme.dark
+        ? theme.text.onInverse
         : theme.text.primary;
 
   return (
@@ -79,7 +83,9 @@ function OutgoingCallDockButton({
         onPress={onPress}
         style={({ pressed }) => [
           styles.dockButton,
+          glass && styles.dockButtonGlass,
           active && styles.dockButtonActive,
+          active && glass && styles.dockButtonGlassActive,
           danger && styles.dockButtonDanger,
           disabled && styles.dockButtonDisabled,
           pressed && !disabled && styles.pressed,
@@ -92,7 +98,9 @@ function OutgoingCallDockButton({
         numberOfLines={1}
         style={[
           styles.dockLabel,
+          glass && styles.dockLabelGlass,
           active && styles.dockLabelActive,
+          active && glass && styles.dockLabelGlassActive,
           danger && styles.dockLabelDanger,
           disabled && styles.dockLabelDisabled,
         ]}
@@ -132,6 +140,7 @@ function OutgoingCallDock({
     <View style={[styles.dock, glass && styles.dockGlass]} testID={`${testIDPrefix}-dock`}>
       <OutgoingCallDockButton
         active={voiceRoomState.selfMuted}
+        glass={glass}
         icon={voiceRoomState.selfMuted ? "mic-off" : "mic"}
         label={copy.directCallMic}
         onPress={() => void onToggleVoiceMute().then(selection)}
@@ -139,6 +148,7 @@ function OutgoingCallDock({
       />
       <OutgoingCallDockButton
         active={isSpeakerOn}
+        glass={glass}
         icon="volume-high"
         label={copy.voiceSpeakerAction}
         onPress={() =>
@@ -148,6 +158,7 @@ function OutgoingCallDock({
       />
       <OutgoingCallDockButton
         active={voiceRoomState.selfCameraEnabled}
+        glass={glass}
         icon={voiceRoomState.selfCameraEnabled ? "videocam" : "videocam-off"}
         label={copy.voiceCameraOnAction}
         onPress={() => void onToggleVoiceCamera().then(selection)}
@@ -155,6 +166,7 @@ function OutgoingCallDock({
       />
       <OutgoingCallDockButton
         disabled
+        glass={glass}
         icon="tv-outline"
         label={copy.directCallScreen}
         onPress={() => undefined}
@@ -162,6 +174,7 @@ function OutgoingCallDock({
       />
       <OutgoingCallDockButton
         danger
+        glass={glass}
         icon="call"
         label={copy.directCallCancelAction}
         onPress={() => {
@@ -228,9 +241,12 @@ export function MobileOutgoingVoiceCallScreen({
 
       <View style={styles.stage}>
         <View style={styles.avatarWrap}>
-          <View style={styles.avatarRingNear} />
-          <View style={styles.avatarRingMid} />
-          <View style={styles.avatarRingFar} />
+          <MobileRingingPulse
+            borderRadius={52}
+            color={theme.accent.default}
+            size={168}
+            testID="mobile-outgoing-call-pulse"
+          />
           <View style={styles.avatar}>
             <Text style={styles.avatarInitials}>{getOutgoingCallInitials(name)}</Text>
           </View>
@@ -310,14 +326,10 @@ export function MobileOutgoingVideoCallScreen({
           style={({ pressed }) => [styles.headerMinimize, pressed && styles.pressed]}
           testID="mobile-outgoing-video-call-minimize"
         >
-          <Ionicons
-            color={theme.dark ? theme.text.inverse : theme.text.primary}
-            name="chevron-down"
-            size={22}
-          />
+          <Ionicons color={theme.text.onInverse} name="chevron-down" size={22} />
         </Pressable>
         <View style={styles.headerText}>
-          <Text numberOfLines={1} style={styles.headerTitle}>
+          <Text numberOfLines={1} style={styles.videoHeaderTitle}>
             {copy.directCallVideoTitle}
           </Text>
           <Text numberOfLines={1} style={styles.headerSubtitle}>
@@ -332,16 +344,13 @@ export function MobileOutgoingVideoCallScreen({
           onPress={() => void onFlipVoiceCamera().then(selection)}
           style={({ pressed }) => [
             styles.headerButton,
+            styles.dockButtonGlass,
             !voiceRoomState.selfCameraEnabled && styles.dockButtonDisabled,
             pressed && voiceRoomState.selfCameraEnabled && styles.pressed,
           ]}
           testID="mobile-outgoing-video-call-flip"
         >
-          <Ionicons
-            color={theme.dark ? theme.text.inverse : theme.text.primary}
-            name="camera-reverse-outline"
-            size={18}
-          />
+          <Ionicons color={theme.text.onInverse} name="camera-reverse-outline" size={18} />
         </Pressable>
       </View>
 
@@ -353,8 +362,12 @@ export function MobileOutgoingVideoCallScreen({
 
       <View style={styles.videoCallee}>
         <View style={styles.avatarWrap}>
-          <View style={styles.videoAvatarRingNear} />
-          <View style={styles.videoAvatarRingFar} />
+          <MobileRingingPulse
+            borderRadius={42}
+            color={theme.accent.default}
+            size={128}
+            testID="mobile-outgoing-video-call-pulse"
+          />
           <View style={styles.videoAvatar}>
             <Text style={styles.videoAvatarInitials}>{getOutgoingCallInitials(name)}</Text>
           </View>

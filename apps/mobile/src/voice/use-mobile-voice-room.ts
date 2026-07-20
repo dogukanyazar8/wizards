@@ -584,7 +584,8 @@ export function useMobileVoiceRoom({
       intentionallyDisconnectedRoomsRef.current.add(room);
     }
 
-    await pushToTalkController.cancel({ closeMicrophone: true });
+    // Muting a track whose peer connection already closed rejects; leaving must continue.
+    await pushToTalkController.cancel({ closeMicrophone: true }).catch(() => undefined);
     clearHeartbeat();
     clearLevelTicker();
     setRoomState((current) =>
@@ -595,7 +596,10 @@ export function useMobileVoiceRoom({
 
     try {
       try {
-        room?.disconnect(true);
+        // disconnect() is async: when the peer already tore the peer connection down it
+        // rejects with "PC manager is closed", so the rejection must be swallowed here
+        // instead of surfacing as an unhandled promise.
+        await room?.disconnect(true).catch(() => undefined);
       } catch {
         // Room disconnect is best-effort; server state cleanup is still attempted.
       } finally {
@@ -1580,7 +1584,9 @@ export function useMobileVoiceRoom({
       }
       void pushToTalkController.cancel({ closeMicrophone: true }).catch(() => undefined);
       try {
-        room?.disconnect(true);
+        // Same rejection guard as leaveVoiceChannel: unmount must never leave a dangling
+        // rejected disconnect promise behind.
+        void room?.disconnect(true).catch(() => undefined);
       } catch {
         // Best-effort cleanup on unmount.
       }

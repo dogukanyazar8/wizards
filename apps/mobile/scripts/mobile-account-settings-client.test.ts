@@ -24,6 +24,7 @@ const accountSettings = {
     customStatus: null,
     email: "ada@example.com",
     emailVerified: true,
+    twoFactorEnabled: false,
   },
   privacy: {
     dmPermission: "FRIENDS" as const,

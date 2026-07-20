@@ -13,6 +13,8 @@ export const MOBILE_DM_CALL_RING_TTL_MS = 45_000;
 export type MobileDMCallStatus = "connected" | "ringing-in" | "ringing-out";
 
 export type MobileDMCallSession = {
+  /** Epoch millis the call was answered; the duration label counts from here. */
+  readonly connectedAt: number | null;
   readonly conversationId: string;
   readonly isVideo: boolean;
   readonly peer: MobileDMCallIncomingEvent["fromUser"] | null;
@@ -44,6 +46,7 @@ export function createMobileOutgoingCall(input: {
   video: boolean;
 }): MobileDMCallSession {
   return {
+    connectedAt: null,
     conversationId: input.conversationId,
     isVideo: input.video,
     peer: null,
@@ -57,6 +60,7 @@ export function createMobileIncomingCall(event: MobileDMCallIncomingEvent): Mobi
   const expiresAt = Date.parse(event.expiresAt);
 
   return {
+    connectedAt: null,
     conversationId: event.conversationId,
     isVideo: event.video,
     peer: event.fromUser,
@@ -69,9 +73,12 @@ export function createMobileIncomingCall(event: MobileDMCallIncomingEvent): Mobi
 export function markMobileCallConnected(
   session: MobileDMCallSession,
   video?: boolean,
+  now = Date.now(),
 ): MobileDMCallSession {
   return {
     ...session,
+    // Stamped on answer so the mobile and web timers stay in step.
+    connectedAt: session.connectedAt ?? now,
     isVideo: video ?? session.isVideo,
     ringExpiresAt: null,
     status: "connected",

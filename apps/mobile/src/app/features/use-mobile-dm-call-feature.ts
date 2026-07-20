@@ -64,7 +64,9 @@ export function useMobileDMCallFeature({
     async (options: { leaveRoom: boolean }) => {
       useMobileDMCallStore.getState().clear();
       if (options.leaveRoom) {
-        await leaveVoiceChannel();
+        // Teardown runs from socket handlers and timers, so a failing leave must not
+        // escape as an unhandled rejection.
+        await Promise.resolve(leaveVoiceChannel()).catch(() => undefined);
       }
     },
     [leaveVoiceChannel],

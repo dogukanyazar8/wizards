@@ -54,5 +54,8 @@ test("DM details and settings information architecture expose stable automation 
   ]) {
     assert.match(settings, new RegExp(`${id}:`));
   }
-  assert.match(settings, /mobile-settings-open-2fa/);
+  assert.match(
+    read("app", "screens", "mobile-security-settings-screen.tsx"),
+    /mobile-settings-open-2fa/,
+  );
 });

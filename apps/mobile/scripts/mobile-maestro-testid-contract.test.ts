@@ -248,7 +248,7 @@ describe("Phase 0 Maestro testID contract", () => {
       "mobile-dm-details-screen": "src/dm/mobile-dm-details-screen.tsx",
       "mobile-dm-gif-button": "src/app/composer/mobile-composer.tsx",
       "mobile-gif-picker-panel": "src/media/mobile-gif-picker.tsx",
-      "mobile-settings-open-2fa": "src/app/screens/settings-screen.tsx",
+      "mobile-settings-open-2fa": "src/app/screens/mobile-security-settings-screen.tsx",
       "mobile-security-screen": "src/account/mobile-two-factor-screen.tsx",
     } as const;
     for (const [testId, sourcePath] of Object.entries(contracts)) {

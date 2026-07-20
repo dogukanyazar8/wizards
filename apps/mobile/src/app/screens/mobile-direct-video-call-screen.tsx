@@ -9,7 +9,10 @@ import type {
   MobileVoiceRoomParticipant,
   MobileVoiceRoomState,
 } from "../mobile-root-screen-shared";
-import { getMobileActiveVoiceRoomModel } from "./active-voice-room-model";
+import {
+  formatMobileVoiceRoomDuration,
+  getMobileActiveVoiceRoomModel,
+} from "./active-voice-room-model";
 import {
   getDirectCallOutputIcon,
   getDirectCallOutputLabel,
@@ -51,11 +54,9 @@ function VideoDockButton({
 }) {
   const theme = useVoiceRoomTheme();
   const styles = useMobileDirectVideoCallStyles();
-  const iconColor = danger
-    ? theme.text.onInverse
-    : active
-      ? theme.surface.voiceRoom
-      : theme.text.onInverse;
+  // The dock always sits on the dark video surface, so its icons stay inverse-toned in
+  // both app themes; an active button flips to a light chip with a dark glyph.
+  const iconColor = danger || !active ? theme.text.onInverse : theme.surface.inverse;
 
   return (
     <Pressable
@@ -80,6 +81,7 @@ function VideoDockButton({
 }
 
 export function MobileDirectVideoCallScreen({
+  callStartedAt = null,
   onFlipVoiceCamera = async () => undefined,
   onLeaveVoiceChannel,
   onMinimize = () => undefined,
@@ -94,6 +96,8 @@ export function MobileDirectVideoCallScreen({
   testID = "mobile-direct-video-call-screen",
   voiceRoomState,
 }: {
+  /** Answered-at stamp shared with the web client; falls back to the room connection time. */
+  callStartedAt?: number | null;
   onFlipVoiceCamera?(): Promise<void>;
   onLeaveVoiceChannel(): Promise<void>;
   onMinimize?(): void;
@@ -117,6 +121,8 @@ export function MobileDirectVideoCallScreen({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const model = getMobileActiveVoiceRoomModel(voiceRoomState, null, now);
+  const durationLabel =
+    formatMobileVoiceRoomDuration(callStartedAt, now) ?? model.durationLabel;
   const isConnected = voiceRoomState.status === "connected";
 
   useEffect(() => {
@@ -251,7 +257,7 @@ export function MobileDirectVideoCallScreen({
                 {name}
               </Text>
               <Text numberOfLines={1} style={styles.headerSubtitle}>
-                {[copy.directCallVideoLabel, model.durationLabel].filter(Boolean).join(" · ")}
+                {[copy.directCallVideoLabel, durationLabel].filter(Boolean).join(" · ")}
               </Text>
             </View>
             <Pressable

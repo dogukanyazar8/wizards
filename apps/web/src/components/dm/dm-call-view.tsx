@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, Loader2, PhoneOff, ShieldCheck } from "lucide-react";
 
 import { useI18n } from "@/components/providers/locale-provider";
@@ -15,7 +15,7 @@ import {
   type VoiceStageFocus,
 } from "@/components/voice/room/voice-room-primitives";
 import { useDMCallStore } from "@/store/dm-call-store";
-import type { DMCallSession } from "@/lib/dm/call-state";
+import { formatDMCallDuration, type DMCallSession } from "@/lib/dm/call-state";
 
 /**
  * The DM call surface. It reuses the voice-room presentation so a call looks like the rest
@@ -55,6 +55,17 @@ export function DmCallView({
   const [stageFocus, setStageFocus] = useState<VoiceStageFocus>("screen");
   const [activeCameraParticipantId, setActiveCameraParticipantId] = useState<string | null>(null);
   const setMinimized = useDMCallStore((state) => state.setMinimized);
+  // The clock only advances from the interval, so the render stays pure.
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (session.connectedAt === null) {
+      return;
+    }
+
+    const timer = window.setInterval(() => setNow(Date.now()), 1_000);
+    return () => window.clearInterval(timer);
+  }, [session.connectedAt]);
 
   const orderedParticipants = useMemo(
     () => renderGridParticipants(room, participants),
@@ -81,6 +92,7 @@ export function DmCallView({
   const hasStage = Boolean(activeShare || activeCameraParticipant);
 
   const peerName = session.peer?.displayName ?? session.peer?.username ?? "";
+  const durationLabel = formatDMCallDuration(session.connectedAt, now);
   const statusLabel =
     session.status === "ringing-out"
       ? t("dm.call.ringingOut")
@@ -117,6 +129,17 @@ export function DmCallView({
           <p className="flex items-center gap-1.5 text-xs text-app-muted">
             <ShieldCheck className="h-3.5 w-3.5" />
             {t("dm.call.encrypted")}
+            {durationLabel ? (
+              <>
+                <span aria-hidden="true">·</span>
+                <span
+                  className="font-semibold tabular-nums text-[hsl(var(--success))]"
+                  data-testid="dm-call-duration"
+                >
+                  {durationLabel}
+                </span>
+              </>
+            ) : null}
           </p>
         </div>
         {session.status === "ringing-out" ? (

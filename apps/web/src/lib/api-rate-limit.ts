@@ -59,6 +59,7 @@ export const API_RATE_LIMITS = {
   "mobile:auth-revoke": { limit: 60, windowSeconds: 10 * 60 },
   "mobile:auth-verification-email": { limit: 5, windowSeconds: 60 * 60 },
   "mobile:bootstrap": { limit: 120, windowSeconds: 60 },
+  "mobile:account:password": { limit: 5, windowSeconds: 15 * 60 },
   "mobile:account:presence": { limit: 60, windowSeconds: 60 },
   "mobile:account:profile": { limit: 30, windowSeconds: 60 },
   "mobile:account:settings": { limit: 60, windowSeconds: 60 },

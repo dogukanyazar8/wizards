@@ -62,9 +62,13 @@ describe("mobile direct-call contract", () => {
     assert.match(directCallActionsSource, /onStartVideoCall/);
     assert.match(directCallActionsSource, /await startCall\(/);
     assert.match(dmCallFeatureSource, /await launchMobileDirectCall/);
-    assert.match(routeNavigationSource, /const joined = await joinDirectCall/);
-    assert.match(routeNavigationSource, /if \(!joined\) \{\s*return false/);
-    assert.match(routeNavigationSource, /openVoiceRoom/);
+    // The room screen must open before joining: waiting for the LiveKit handshake made the
+    // ringing screen appear seconds late.
+    const openIndex = routeNavigationSource.indexOf("openVoiceRoom({");
+    const joinIndex = routeNavigationSource.indexOf("joinDirectCall({");
+    assert.ok(openIndex > 0 && joinIndex > 0);
+    assert.ok(openIndex < joinIndex);
+    assert.match(routeNavigationSource, /return joinDirectCall\(/);
   });
 
   it("keeps ring state out of the LiveKit runtime hook", () => {
@@ -80,7 +84,7 @@ describe("mobile direct-call contract", () => {
     assert.match(voiceRoomContainerSource, /MobileOutgoingVoiceCallScreen/);
     // 7a and 7b keep the full waiting dock with screen share disabled until connected.
     assert.match(outgoingScreenSource, /directCallCancelAction/);
-    assert.match(outgoingScreenSource, /disabled\s+icon="tv-outline"/);
+    assert.match(outgoingScreenSource, /disabled\s+glass=\{glass\}\s+icon="tv-outline"/);
   });
 
   it("leaves the voice room route when the DM call ends", () => {
@@ -90,5 +94,9 @@ describe("mobile direct-call contract", () => {
       /routeContext\?\.sessionMode !== "direct" \|\| dmCallSession/,
     );
     assert.match(voiceRoomContainerSource, /const endDirectCall = useMobileDMCallStore/);
+  });
+
+  it("returns to the conversation when an outgoing call is not answered", () => {
+    assert.match(voiceRoomContainerSource, /navigation\.replace\("DirectMessage", \{ conversationId \}\)/);
   });
 });

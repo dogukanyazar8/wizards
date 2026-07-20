@@ -184,7 +184,8 @@ export const createMobileOutgoingCallStyles = (theme: MobileTheme) =>
       paddingTop: 14,
     },
     dockGlass: {
-      backgroundColor: theme.surface.voiceRoomVideoGlass,
+      backgroundColor: theme.surface.inverse,
+      borderColor: theme.surface.inverseControl,
       bottom: 16,
       left: 16,
       marginBottom: 0,
@@ -193,6 +194,16 @@ export const createMobileOutgoingCallStyles = (theme: MobileTheme) =>
       right: 16,
     },
     dockCell: { alignItems: "center", gap: 6, width: 62 },
+    /** Glass variants: 7b's dock floats on the camera feed, so it is always inverse-toned. */
+    dockButtonGlass: { backgroundColor: theme.surface.inverseControl },
+    dockButtonGlassActive: { backgroundColor: theme.text.onInverse },
+    dockLabelGlass: { color: theme.text.onInverseMuted },
+    dockLabelGlassActive: { color: theme.text.onInverse },
+    videoHeaderTitle: {
+      color: theme.text.onInverse,
+      fontFamily: theme.typography.fontFamilyBold,
+      fontSize: 15,
+    },
     dockButton: {
       alignItems: "center",
       backgroundColor: theme.surface.voiceRoomControl,
@@ -314,7 +325,7 @@ export const createMobileOutgoingCallStyles = (theme: MobileTheme) =>
     },
     videoIdentity: { alignItems: "center", gap: 5 },
     videoName: {
-      color: theme.dark ? theme.text.inverse : theme.text.primary,
+      color: theme.text.onInverse,
       fontFamily: theme.typography.fontFamilyExtraBold,
       fontSize: 24,
       letterSpacing: -0.48,
@@ -329,8 +340,8 @@ export const createMobileOutgoingCallStyles = (theme: MobileTheme) =>
     videoPreviewChip: {
       alignItems: "center",
       alignSelf: "center",
-      backgroundColor: theme.surface.voiceRoomVideoGlass,
-      borderColor: theme.surface.voiceRoomInviteBorder,
+      backgroundColor: theme.surface.inverse,
+      borderColor: theme.surface.inverseControl,
       borderRadius: theme.radii.pill,
       borderWidth: 1,
       bottom: 214,
