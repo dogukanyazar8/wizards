@@ -194,6 +194,71 @@ function Invoke-CommandChecked {
   }
 }
 
+function Test-SourceMetroDependencies {
+  param([string]$MobileRoot)
+
+  $requiredModules = @(
+    "@babel/runtime/helpers/asyncToGenerator",
+    "@tanstack/react-query/package.json",
+    "expo/package.json",
+    "react-native/package.json"
+  )
+
+  Push-Location $MobileRoot
+  try {
+    foreach ($requiredModule in $requiredModules) {
+      & node -e "require.resolve(process.argv[1])" $requiredModule 2>$null
+      if ($LASTEXITCODE -ne 0) {
+        return $false
+      }
+    }
+  } finally {
+    Pop-Location
+  }
+
+  return $true
+}
+
+function Invoke-SourceMetroInstallWithRecovery {
+  param(
+    [string]$WorkingDirectory,
+    [string]$MobileRoot
+  )
+
+  if (Test-SourceMetroDependencies -MobileRoot $MobileRoot) {
+    return
+  }
+
+  $requiresForcedReinstall = $false
+  try {
+    Invoke-CommandChecked -Command "corepack" -Arguments @(
+      "pnpm",
+      "install",
+      "--frozen-lockfile"
+    ) -WorkingDirectory $WorkingDirectory
+  } catch {
+    $requiresForcedReinstall = $true
+  }
+
+  if (-not $requiresForcedReinstall -and -not (Test-SourceMetroDependencies -MobileRoot $MobileRoot)) {
+    $requiresForcedReinstall = $true
+  }
+
+  if ($requiresForcedReinstall) {
+    Write-Host "Editable source dependencies are stale or incomplete. Rebuilding the source pnpm layout for Metro." -ForegroundColor Yellow
+    Invoke-CommandChecked -Command "corepack" -Arguments @(
+      "pnpm",
+      "install",
+      "--force",
+      "--frozen-lockfile"
+    ) -WorkingDirectory $WorkingDirectory
+  }
+
+  if (-not (Test-SourceMetroDependencies -MobileRoot $MobileRoot)) {
+    throw "Editable source dependencies remain incomplete after pnpm recovery. Metro requires @babel/runtime, @tanstack/react-query, expo, and react-native from $MobileRoot."
+  }
+}
+
 function Invoke-RobocopyChecked {
   param(
     [string]$From,
@@ -802,6 +867,11 @@ Write-Host "Managed root: $managedBuildRootLink"
 Write-Host "Build root  : $resolvedBuildRoot"
 Write-Host "APK output  : $ApkOutputDir"
 Write-Host "UAT URL     : $UatUrl"
+
+if (-not $NoStartMetro) {
+  Write-Step "Validating editable source dependencies for Metro"
+  Invoke-SourceMetroInstallWithRecovery -WorkingDirectory $resolvedSourceRoot -MobileRoot $sourceMobileRoot
+}
 
 if (-not $SkipSync -and -not $sourceEqualsBuild) {
   Write-Step "Syncing workspace to short Android build path"

@@ -687,6 +687,8 @@ export function Fixture({ cap }: { cap: number }) {
       controlSeparatorDot: "#C6CADE",
       inkSurface: "#1E2235",
       voiceRoomControl: "#FFFFFF",
+      voiceRoomVideo: "#F6F7FB",
+      voiceRoomVideoGlass: "rgba(255,255,255,.72)",
       voiceRoomControlBorder: "#E7E9F4",
       voiceRoomInvite: "#FFFFFF",
       voiceRoomInviteBorder: "#E7E9F4",
@@ -727,6 +729,8 @@ export function Fixture({ cap }: { cap: number }) {
       warning: "#F59E0B",
       voiceRoom: "#1E2235",
       voiceRoomControl: "rgba(255,255,255,.1)",
+      voiceRoomVideo: "#12141F",
+      voiceRoomVideoGlass: "rgba(18,20,31,.6)",
       voiceRoomControlBorder: "transparent",
       voiceRoomInvite: "rgba(255,255,255,.04)",
       voiceRoomInviteBorder: "rgba(255,255,255,.15)",
@@ -939,6 +943,8 @@ export function Fixture({ cap }: { cap: number }) {
       voiceRoomInvite: "#FFFFFF",
       voiceRoomInviteBorder: "#E7E9F4",
       voiceRoomParticipant: "#FFFFFF",
+      voiceRoomVideo: "#F6F7FB",
+      voiceRoomVideoGlass: "rgba(255,255,255,.72)",
     });
     assert.deepEqual(darkTheme.surface, {
       base: "#131529",
@@ -956,6 +962,8 @@ export function Fixture({ cap }: { cap: number }) {
       voiceRoomInvite: "rgba(255,255,255,.04)",
       voiceRoomInviteBorder: "rgba(255,255,255,.15)",
       voiceRoomParticipant: "rgba(255,255,255,.05)",
+      voiceRoomVideo: "#12141F",
+      voiceRoomVideoGlass: "rgba(18,20,31,.6)",
     });
 
     assert.deepEqual(lightTheme.text, {

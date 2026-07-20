@@ -195,6 +195,10 @@ export interface MobileTheme {
     readonly voiceRoomInviteBorder: string;
     /** Canonical active voice room control surface. */
     readonly voiceRoomControl: string;
+    /** Full-bleed backdrop behind a video call while it is still ringing (7b). */
+    readonly voiceRoomVideo: string;
+    /** Glass dock and chips layered over the video-call backdrop (7b). */
+    readonly voiceRoomVideoGlass: string;
     /** Canonical active voice room control border. */
     readonly voiceRoomControlBorder: string;
   };
@@ -405,6 +409,8 @@ export const lightTheme = deepFreeze({
     soft: redesignLight.bg,
     voiceRoom: redesignLight.bg,
     voiceRoomControl: redesignLight.voiceRoomControl,
+    voiceRoomVideo: redesignLight.voiceRoomVideo,
+    voiceRoomVideoGlass: redesignLight.voiceRoomVideoGlass,
     voiceRoomControlBorder: redesignLight.voiceRoomControlBorder,
     voiceRoomInvite: redesignLight.voiceRoomInvite,
     voiceRoomInviteBorder: redesignLight.voiceRoomInviteBorder,
@@ -583,6 +589,8 @@ export const darkTheme = deepFreeze({
     soft: redesignDark.hairline,
     voiceRoom: redesignDark.voiceRoom,
     voiceRoomControl: redesignDark.voiceRoomControl,
+    voiceRoomVideo: redesignDark.voiceRoomVideo,
+    voiceRoomVideoGlass: redesignDark.voiceRoomVideoGlass,
     voiceRoomControlBorder: redesignDark.voiceRoomControlBorder,
     voiceRoomInvite: redesignDark.voiceRoomInvite,
     voiceRoomInviteBorder: redesignDark.voiceRoomInviteBorder,

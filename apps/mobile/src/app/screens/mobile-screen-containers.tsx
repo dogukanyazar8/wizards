@@ -28,6 +28,11 @@ import { BlockedUsersScreen, ProfileEditScreen } from "../../social/social-accou
 import { VoiceScreen } from "./voice-screen";
 import { MobileDirectCallScreen } from "./mobile-direct-call-screen";
 import { MobileDirectVideoCallScreen } from "./mobile-direct-video-call-screen";
+import {
+  MobileOutgoingVideoCallScreen,
+  MobileOutgoingVoiceCallScreen,
+} from "./mobile-outgoing-call-screen";
+import { useMobileDMCallStore } from "../../state/mobile-dm-call-store";
 import { MobileTwoFactorScreen } from "../../account/mobile-two-factor-screen";
 import { MobileDMDetailsScreen } from "../../dm/mobile-dm-details-screen";
 import { MobileServerSettingsScreen } from "../../workspace/mobile-server-settings-screen";
@@ -122,24 +127,39 @@ export function VoiceRoomStackScreenContainer({
   const screenProps = useMobileVoiceScreenProps();
   const room = screenProps.voiceRoomState;
   const routeContext = getMobileVoiceRoomRouteContext();
+  const dmCallSession = useMobileDMCallStore((state) => state.session);
+  // The room state resets the moment the session drops, so the route context is what still
+  // says this screen belongs to a DM call.
+  const isDirectCall = room.sessionMode === "direct" || routeContext?.sessionMode === "direct";
+  const isRingingOut = isDirectCall && dmCallSession?.status === "ringing-out";
   const hasRouteContext =
     routeContext !== null &&
     (room.status === "idle" ||
       (hasMatchingMobileVoiceRoomRouteContext(room) && hasVoiceRoomContext(room)));
   const leaveVoiceRoom = useCallback(async () => {
     try {
-      await screenProps.onLeaveVoiceChannel();
+      // A DM call hangs up through its own handler so the peer is told and the ring state
+      // is cleared; otherwise the stale session would block the next call.
+      const endDirectCall = useMobileDMCallStore.getState().endCall;
+      if (endDirectCall && isDirectCall) {
+        await endDirectCall();
+      } else {
+        await screenProps.onLeaveVoiceChannel();
+      }
     } finally {
       clearMobileVoiceRoomRouteContext();
       navigation.replace("MainTabs", { screen: "overview" });
     }
-  }, [navigation, screenProps]);
+  }, [isDirectCall, navigation, screenProps]);
   const leaveAndReturnToOverview = useCallback(() => {
     void leaveVoiceRoom();
   }, [leaveVoiceRoom]);
   const minimizeVoiceRoom = useCallback(() => {
     navigation.navigate("MainTabs", { screen: "overview" });
   }, [navigation]);
+  const cancelOutgoingCall = useCallback(() => {
+    void (useMobileDMCallStore.getState().endCall?.() ?? Promise.resolve());
+  }, []);
   const openVoiceRoomChat = useCallback(() => {
     if (!room.channelId || !room.serverId) {
       return;
@@ -152,6 +172,17 @@ export function VoiceRoomStackScreenContainer({
       navigation.replace("MainTabs", { screen: "overview" });
     }
   }, [hasRouteContext, navigation]);
+
+  // A declined, cancelled or peer-ended DM call clears the session; leaving this screen up
+  // would strand the user in the empty channel room UI.
+  useEffect(() => {
+    if (routeContext?.sessionMode !== "direct" || dmCallSession) {
+      return;
+    }
+
+    clearMobileVoiceRoomRouteContext();
+    navigation.replace("MainTabs", { screen: "overview" });
+  }, [dmCallSession, navigation, routeContext?.sessionMode]);
 
   useEffect(() => {
     if (room.status !== "leaving") {
@@ -190,7 +221,32 @@ export function VoiceRoomStackScreenContainer({
     return null;
   }
 
-  if (room.sessionMode === "direct") {
+  if (isRingingOut && dmCallSession) {
+    const outgoingProps = {
+      calleeName: dmCallSession.title,
+      onCancelCall: cancelOutgoingCall,
+      onMinimize: minimizeVoiceRoom,
+      onToggleVoiceMute: screenProps.onToggleVoiceMute,
+      voiceRoomState: room,
+      ...(screenProps.onFlipVoiceCamera
+        ? { onFlipVoiceCamera: screenProps.onFlipVoiceCamera }
+        : {}),
+      ...(screenProps.onSelectVoiceAudioOutput
+        ? { onSelectVoiceAudioOutput: screenProps.onSelectVoiceAudioOutput }
+        : {}),
+      ...(screenProps.onToggleVoiceCamera
+        ? { onToggleVoiceCamera: screenProps.onToggleVoiceCamera }
+        : {}),
+    };
+
+    return dmCallSession.isVideo ? (
+      <MobileOutgoingVideoCallScreen {...outgoingProps} />
+    ) : (
+      <MobileOutgoingVoiceCallScreen {...outgoingProps} />
+    );
+  }
+
+  if (isDirectCall) {
     const isVideoCall =
       room.selfCameraEnabled ||
       room.participants.some((participant) => !participant.isSelf && participant.isCameraEnabled);

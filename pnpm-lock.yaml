@@ -53,6 +53,9 @@ importers:
 
   apps/mobile:
     dependencies:
+      '@babel/runtime':
+        specifier: 7.29.7
+        version: 7.29.7
       '@config-plugins/react-native-webrtc':
         specifier: ^15.0.1
         version: 15.0.1(expo@56.0.15)

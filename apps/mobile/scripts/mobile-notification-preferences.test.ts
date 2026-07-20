@@ -6,6 +6,8 @@ import {
   MOBILE_QUIET_HOURS_TIME_OPTIONS,
   MOBILE_SERVER_NOTIFICATION_MODES,
   formatMobileQuietHoursRange,
+  isWithinMobileQuietHours,
+  shouldAlertMobileIncomingCall,
   loadMobileNotificationPreferences,
   normalizeMobileNotificationPreferences,
   saveMobileNotificationPreferences,
@@ -79,6 +81,64 @@ describe("mobile notification preferences", () => {
     assert.deepEqual(
       await loadMobileNotificationPreferences(storage),
       DEFAULT_MOBILE_NOTIFICATION_PREFERENCES,
+    );
+  });
+});
+
+describe("incoming DM call alerts", () => {
+  const at = (hours: number, minutes = 0) => new Date(2026, 6, 19, hours, minutes);
+  const quietNight = {
+    ...DEFAULT_MOBILE_NOTIFICATION_PREFERENCES,
+    quietHoursEnabled: true,
+    quietHoursStart: "23:00",
+    quietHoursEnd: "08:00",
+  };
+
+  it("treats an overnight quiet-hours range as wrapping midnight", () => {
+    assert.equal(isWithinMobileQuietHours(quietNight, at(23, 30)), true);
+    assert.equal(isWithinMobileQuietHours(quietNight, at(3)), true);
+    assert.equal(isWithinMobileQuietHours(quietNight, at(8)), false);
+    assert.equal(isWithinMobileQuietHours(quietNight, at(12)), false);
+    assert.equal(
+      isWithinMobileQuietHours({ ...quietNight, quietHoursEnabled: false }, at(3)),
+      false,
+    );
+  });
+
+  it("keeps a same-day quiet-hours range inside its own window", () => {
+    const quietAfternoon = { ...quietNight, quietHoursStart: "13:00", quietHoursEnd: "15:00" };
+
+    assert.equal(isWithinMobileQuietHours(quietAfternoon, at(14)), true);
+    assert.equal(isWithinMobileQuietHours(quietAfternoon, at(15)), false);
+    assert.equal(isWithinMobileQuietHours(quietAfternoon, at(9)), false);
+  });
+
+  it("rings through quiet hours only with the DM call exception", () => {
+    assert.equal(shouldAlertMobileIncomingCall(quietNight, at(3)), true);
+    assert.equal(
+      shouldAlertMobileIncomingCall({ ...quietNight, dmCallsAlwaysRing: false }, at(3)),
+      false,
+    );
+    assert.equal(
+      shouldAlertMobileIncomingCall({ ...quietNight, dmCallsAlwaysRing: false }, at(12)),
+      true,
+    );
+  });
+
+  it("stays silent when calls or notifications are switched off", () => {
+    assert.equal(
+      shouldAlertMobileIncomingCall(
+        { ...DEFAULT_MOBILE_NOTIFICATION_PREFERENCES, allowNotifications: false },
+        at(12),
+      ),
+      false,
+    );
+    assert.equal(
+      shouldAlertMobileIncomingCall(
+        { ...DEFAULT_MOBILE_NOTIFICATION_PREFERENCES, calls: false },
+        at(12),
+      ),
+      false,
     );
   });
 });

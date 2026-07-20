@@ -1,25 +1,45 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { useEffect } from "react";
 import { Pressable, Text, View } from "react-native";
 
 import { activeMobileCopy } from "../../locale/mobile-locale-preferences";
 import type { MobileDMCallSession } from "../../voice/mobile-dm-call-state";
 import { useMobileVoiceInviteOverlayStyles } from "./mobile-voice-invite-overlay.styles";
+import { useMobileHaptics } from "../providers/mobile-haptics-provider";
 import { useTheme } from "../providers/mobile-theme-provider";
 
 const copy = activeMobileCopy;
+/** Ring cadence: a pulse every two seconds, like a phone ringtone burst. */
+const RING_PULSE_INTERVAL_MS = 2_000;
 
 /** Ring UI for an inbound DM call. Reuses the voice-invite overlay chrome. */
 export function MobileIncomingCallOverlay({
   call,
   onAccept,
   onDecline,
+  vibrationEnabled = false,
 }: {
   call: MobileDMCallSession | null;
   onAccept(): void;
   onDecline(): void;
+  /** Resolved from the notification preferences by the product shell. */
+  vibrationEnabled?: boolean;
 }) {
   const theme = useTheme();
   const styles = useMobileVoiceInviteOverlayStyles();
+  const { notification } = useMobileHaptics();
+  const isRinging = Boolean(call?.peer);
+
+  // Pulse while the call rings so it is noticed even when the phone is not being watched.
+  useEffect(() => {
+    if (!isRinging || !vibrationEnabled) {
+      return;
+    }
+
+    notification("warning");
+    const interval = setInterval(() => notification("warning"), RING_PULSE_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [isRinging, notification, vibrationEnabled]);
 
   if (!call?.peer) {
     return null;

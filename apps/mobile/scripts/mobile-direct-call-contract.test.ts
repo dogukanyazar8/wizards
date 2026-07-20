@@ -22,6 +22,14 @@ const dmCallFeatureSource = readFileSync(
   new URL("../src/app/features/use-mobile-dm-call-feature.ts", import.meta.url),
   "utf8",
 );
+const voiceRoomContainerSource = readFileSync(
+  new URL("../src/app/screens/mobile-screen-containers.tsx", import.meta.url),
+  "utf8",
+);
+const outgoingScreenSource = readFileSync(
+  new URL("../src/app/screens/mobile-outgoing-call-screen.tsx", import.meta.url),
+  "utf8",
+);
 const routeNavigationSource = readFileSync(
   new URL("../src/voice/mobile-voice-room-route-navigation.ts", import.meta.url),
   "utf8",
@@ -64,5 +72,23 @@ describe("mobile direct-call contract", () => {
     assert.doesNotMatch(hookSource, /incoming-call|ringing/i);
     assert.match(dmCallFeatureSource, /emitDMCallStart/);
     assert.match(dmCallFeatureSource, /ringing-out/);
+  });
+
+  it("routes an unanswered outgoing call to the 7a/7b screens", () => {
+    assert.match(voiceRoomContainerSource, /dmCallSession\?\.status === "ringing-out"/);
+    assert.match(voiceRoomContainerSource, /MobileOutgoingVideoCallScreen/);
+    assert.match(voiceRoomContainerSource, /MobileOutgoingVoiceCallScreen/);
+    // 7a and 7b keep the full waiting dock with screen share disabled until connected.
+    assert.match(outgoingScreenSource, /directCallCancelAction/);
+    assert.match(outgoingScreenSource, /disabled\s+icon="tv-outline"/);
+  });
+
+  it("leaves the voice room route when the DM call ends", () => {
+    // Without this the room state resets and the channel voice UI would be left on screen.
+    assert.match(
+      voiceRoomContainerSource,
+      /routeContext\?\.sessionMode !== "direct" \|\| dmCallSession/,
+    );
+    assert.match(voiceRoomContainerSource, /const endDirectCall = useMobileDMCallStore/);
   });
 });

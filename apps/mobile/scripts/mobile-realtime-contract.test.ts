@@ -337,4 +337,46 @@ describe("mobile realtime contract", () => {
     assert.equal(getMobileRealtimeRefreshTimerSource("channel"), "channel");
     assert.equal(getMobileRealtimeRefreshTimerSource("workspace"), "workspace");
   });
+
+  it("keeps the DM call ring payload intact so the incoming-call UI can read it", () => {
+    const incoming = createMobileRealtimeEventEnvelope("dm:call:incoming", {
+      conversationId: "conversation-1",
+      expiresAt: "2026-07-19T12:00:45.000Z",
+      fromUser: { avatarUrl: null, displayName: "Ada", id: "user-ada", username: "ada" },
+      video: true,
+    });
+
+    // Regression: unparsed events lose their payload, which silently killed the ring.
+    assert.deepEqual(incoming.payload, {
+      conversationId: "conversation-1",
+      expiresAt: "2026-07-19T12:00:45.000Z",
+      fromUser: { avatarUrl: null, displayName: "Ada", id: "user-ada", username: "ada" },
+      video: true,
+    });
+    assert.equal(incoming.conversationId, "conversation-1");
+    assert.deepEqual(incoming.refreshSources, []);
+
+    const ended = createMobileRealtimeEventEnvelope("dm:call:ended", {
+      conversationId: "conversation-1",
+      userId: "user-ada",
+    });
+    assert.deepEqual(ended.payload, { conversationId: "conversation-1", userId: "user-ada" });
+    assert.deepEqual(ended.refreshSources, []);
+
+    const accepted = createMobileRealtimeEventEnvelope("dm:call:accepted", {
+      conversationId: "conversation-1",
+      userId: "user-ada",
+    });
+    // video defaults so an older backend cannot break the handshake.
+    assert.deepEqual(accepted.payload, {
+      conversationId: "conversation-1",
+      userId: "user-ada",
+      video: false,
+    });
+
+    assert.equal(
+      createMobileRealtimeEventEnvelope("dm:call:incoming", { conversationId: "" }).payload,
+      null,
+    );
+  });
 });

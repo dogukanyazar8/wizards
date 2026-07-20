@@ -23,6 +23,7 @@ import { useMobileDMCallFeature } from "./features/use-mobile-dm-call-feature";
 import { useMobileVoiceInviteFeature } from "./features/use-mobile-voice-invite-feature";
 import { useMobileTypingLabels } from "./features/use-mobile-typing-labels";
 import { MobileIncomingCallOverlay } from "./overlays/mobile-incoming-call-overlay";
+
 import { MobileVoiceInviteOverlay } from "./overlays/mobile-voice-invite-overlay";
 import { useMobileLocaleRuntime } from "./providers/mobile-locale-provider";
 import { useMobileMediaRuntime } from "./providers/mobile-media-provider";
@@ -211,6 +212,7 @@ export function MobileProductApp({
     acceptCall: handleAcceptDMCall,
     declineCall: handleDeclineDMCall,
     incomingCall: incomingDMCall,
+    incomingCallAlertsEnabled,
     startCall: startDMCall,
   } = useMobileDMCallFeature({
     emitDMCallAccept,
@@ -481,6 +483,7 @@ export function MobileProductApp({
                           call={incomingDMCall}
                           onAccept={() => void handleAcceptDMCall()}
                           onDecline={() => void handleDeclineDMCall()}
+                          vibrationEnabled={incomingCallAlertsEnabled}
                         />
                       </>
                     )}

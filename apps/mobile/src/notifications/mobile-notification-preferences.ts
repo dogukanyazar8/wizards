@@ -132,3 +132,52 @@ export async function saveMobileNotificationPreferences(
     JSON.stringify(normalizeMobileNotificationPreferences(preferences)),
   );
 }
+
+function parseMobileQuietHourMinutes(value: string): number | null {
+  const match = /^(\d{2}):(\d{2})$/.exec(value);
+  if (!match) {
+    return null;
+  }
+
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (hours > 23 || minutes > 59) {
+    return null;
+  }
+
+  return hours * 60 + minutes;
+}
+
+/** True while "now" falls inside the configured quiet-hours window (may wrap midnight). */
+export function isWithinMobileQuietHours(
+  preferences: MobileNotificationPreferences,
+  now: Date,
+): boolean {
+  if (!preferences.quietHoursEnabled) {
+    return false;
+  }
+
+  const start = parseMobileQuietHourMinutes(preferences.quietHoursStart);
+  const end = parseMobileQuietHourMinutes(preferences.quietHoursEnd);
+  if (start === null || end === null || start === end) {
+    return false;
+  }
+
+  const current = now.getHours() * 60 + now.getMinutes();
+  return start < end ? current >= start && current < end : current >= start || current < end;
+}
+
+/**
+ * Whether an incoming DM call may alert the user right now. Quiet hours silence calls
+ * unless the "DM calls always ring" exception is on.
+ */
+export function shouldAlertMobileIncomingCall(
+  preferences: MobileNotificationPreferences,
+  now: Date,
+): boolean {
+  if (!preferences.allowNotifications || !preferences.calls) {
+    return false;
+  }
+
+  return preferences.dmCallsAlwaysRing || !isWithinMobileQuietHours(preferences, now);
+}

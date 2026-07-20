@@ -18,6 +18,7 @@ function requiredPackageScript(name: string): string {
 
 test("phase zero dependencies and SDK 56 native configuration stay aligned", () => {
   for (const dependency of [
+    "@babel/runtime",
     "@react-navigation/native",
     "@react-navigation/native-stack",
     "@react-navigation/bottom-tabs",
@@ -156,6 +157,14 @@ test("local UAT Metro serves the editable source workspace instead of the staged
     buildScript,
     /Starting Expo dev-client Metro server[\s\S]*?-WorkingDirectory \$sourceMobileRoot/,
   );
+  assert.match(buildScript, /function Invoke-SourceMetroInstallWithRecovery/);
+  assert.match(buildScript, /@babel\/runtime\/helpers\/asyncToGenerator/);
+  assert.match(buildScript, /@tanstack\/react-query\/package\.json/);
+  assert.match(
+    buildScript,
+    /Invoke-SourceMetroInstallWithRecovery -WorkingDirectory \$resolvedSourceRoot -MobileRoot \$sourceMobileRoot/,
+  );
+  assert.match(buildScript, /"install",\s*"--force",\s*"--frozen-lockfile"/);
 });
 
 test("local UAT package commands keep their intended device and ABI contracts", () => {

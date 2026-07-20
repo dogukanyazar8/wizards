@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect } from "react";
 
 import type { MobileRealtimeEventEnvelope } from "../../realtime/mobile-realtime-contract";
 import {
@@ -16,6 +16,9 @@ import {
   launchMobileDirectCall,
   openMobileVoiceRoom,
 } from "../../voice/mobile-voice-room-route-navigation";
+import { useMobileDMCallStore } from "../../state/mobile-dm-call-store";
+import { shouldAlertMobileIncomingCall } from "../../notifications/mobile-notification-preferences";
+import { useMobileNotificationPreferences } from "../providers/mobile-notification-preferences-provider";
 
 const RING_TICK_MS = 1_000;
 
@@ -48,13 +51,18 @@ export function useMobileDMCallFeature({
   leaveVoiceChannel,
   subscribe,
 }: MobileDMCallFeatureInput) {
-  const [session, setSession] = useState<MobileDMCallSession | null>(null);
-  const sessionRef = useRef<MobileDMCallSession | null>(null);
-  sessionRef.current = session;
+  const session = useMobileDMCallStore((state) => state.session);
+  const { preferences } = useMobileNotificationPreferences();
+  // Handlers read the live session from the store so listeners never close over a stale copy.
+  const readSession = useCallback(() => useMobileDMCallStore.getState().session, []);
+  const setSession = useCallback(
+    (next: MobileDMCallSession | null) => useMobileDMCallStore.getState().setSession(next),
+    [],
+  );
 
   const teardown = useCallback(
     async (options: { leaveRoom: boolean }) => {
-      setSession(null);
+      useMobileDMCallStore.getState().clear();
       if (options.leaveRoom) {
         await leaveVoiceChannel();
       }
@@ -72,7 +80,7 @@ export function useMobileDMCallFeature({
       title: string;
       video: boolean;
     }) => {
-      if (sessionRef.current) {
+      if (readSession()) {
         return;
       }
 
@@ -92,11 +100,11 @@ export function useMobileDMCallFeature({
         await teardown({ leaveRoom: false });
       }
     },
-    [emitDMCallCancel, emitDMCallStart, joinDirectCall, teardown],
+    [emitDMCallCancel, emitDMCallStart, joinDirectCall, readSession, setSession, teardown],
   );
 
   const acceptCall = useCallback(async () => {
-    const current = sessionRef.current;
+    const current = readSession();
     if (!current || current.status !== "ringing-in" || !current.peer) {
       return;
     }
@@ -120,10 +128,10 @@ export function useMobileDMCallFeature({
       emitDMCallEnd({ conversationId: current.conversationId });
       await teardown({ leaveRoom: false });
     }
-  }, [emitDMCallAccept, emitDMCallEnd, joinDirectCall, teardown]);
+  }, [emitDMCallAccept, emitDMCallEnd, joinDirectCall, readSession, setSession, teardown]);
 
   const declineCall = useCallback(async () => {
-    const current = sessionRef.current;
+    const current = readSession();
     if (!current?.peer) {
       return;
     }
@@ -133,10 +141,10 @@ export function useMobileDMCallFeature({
       fromUserId: current.peer.id,
     });
     await teardown({ leaveRoom: false });
-  }, [emitDMCallDecline, teardown]);
+  }, [emitDMCallDecline, readSession, teardown]);
 
   const endCall = useCallback(async () => {
-    const current = sessionRef.current;
+    const current = readSession();
     if (!current) {
       return;
     }
@@ -148,14 +156,20 @@ export function useMobileDMCallFeature({
     }
 
     await teardown({ leaveRoom: true });
-  }, [emitDMCallCancel, emitDMCallEnd, teardown]);
+  }, [emitDMCallCancel, emitDMCallEnd, readSession, teardown]);
+
+  // The voice-room screen cancels through the store so the emit logic stays in one place.
+  useEffect(() => {
+    useMobileDMCallStore.getState().setEndCallHandler(endCall);
+    return () => useMobileDMCallStore.getState().setEndCallHandler(null);
+  }, [endCall]);
 
   const handleRealtimeEvent = useCallback(
     (event: MobileRealtimeEventEnvelope) => {
       if (event.eventName === "dm:call:incoming") {
         const payload = getMobileDMCallIncomingPayload(event.payload);
         // A second ring while already in a call is ignored: DM calls are exclusive.
-        if (payload && !sessionRef.current) {
+        if (payload && !readSession()) {
           setSession(createMobileIncomingCall(payload));
         }
         return;
@@ -163,10 +177,12 @@ export function useMobileDMCallFeature({
 
       if (event.eventName === "dm:call:accepted") {
         const payload = getMobileDMCallAcceptedPayload(event.payload);
-        if (payload && isMobileCallSignalForSession(sessionRef.current, payload.conversationId)) {
-          setSession((current) =>
-            current ? markMobileCallConnected(current, current.isVideo || payload.video) : current,
-          );
+        if (payload && isMobileCallSignalForSession(readSession(), payload.conversationId)) {
+          useMobileDMCallStore
+            .getState()
+            .updateSession((current) =>
+              markMobileCallConnected(current, current.isVideo || payload.video),
+            );
         }
         return;
       }
@@ -177,13 +193,13 @@ export function useMobileDMCallFeature({
         event.eventName === "dm:call:ended"
       ) {
         const payload = getMobileDMCallSignalPayload(event.payload);
-        if (payload && isMobileCallSignalForSession(sessionRef.current, payload.conversationId)) {
-          const wasRingingIn = sessionRef.current?.status === "ringing-in";
+        if (payload && isMobileCallSignalForSession(readSession(), payload.conversationId)) {
+          const wasRingingIn = readSession()?.status === "ringing-in";
           void teardown({ leaveRoom: !wasRingingIn });
         }
       }
     },
-    [teardown],
+    [readSession, setSession, teardown],
   );
 
   useEffect(() => subscribe(handleRealtimeEvent), [handleRealtimeEvent, subscribe]);
@@ -195,7 +211,7 @@ export function useMobileDMCallFeature({
     }
 
     const timer = setInterval(() => {
-      const current = sessionRef.current;
+      const current = readSession();
       if (!current || !hasMobileRingExpired(current, Date.now())) {
         return;
       }
@@ -216,13 +232,16 @@ export function useMobileDMCallFeature({
     }, RING_TICK_MS);
 
     return () => clearInterval(timer);
-  }, [emitDMCallCancel, emitDMCallDecline, session, teardown]);
+  }, [emitDMCallCancel, emitDMCallDecline, readSession, session, teardown]);
 
   return {
     acceptCall,
     callSession: session,
     declineCall,
     endCall,
+    /** Vibrate on an inbound ring only when the notification preferences allow it. */
+    incomingCallAlertsEnabled:
+      preferences.vibration && shouldAlertMobileIncomingCall(preferences, new Date()),
     incomingCall: session?.status === "ringing-in" ? session : null,
     startCall,
   };

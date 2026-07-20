@@ -148,7 +148,45 @@ type MobileValidatedRealtimePayload = {
 
 type MobileRealtimePayloadParser = (payload: unknown) => MobileValidatedRealtimePayload | null;
 
+/** Decline, cancel and end all carry the same {conversationId, userId} shape. */
+function parseMobileDMCallSignal(payload: unknown): MobileValidatedRealtimePayload | null {
+  const parsed = MobileDMCallSignalEventSchema.safeParse(payload);
+  return parsed.success
+    ? {
+        channelId: null,
+        conversationId: parsed.data.conversationId,
+        payload: parsed.data,
+        serverId: null,
+      }
+    : null;
+}
+
 const MOBILE_REALTIME_PAYLOAD_PARSERS = {
+  "dm:call:incoming": (payload) => {
+    const parsed = MobileDMCallIncomingEventSchema.safeParse(payload);
+    return parsed.success
+      ? {
+          channelId: null,
+          conversationId: parsed.data.conversationId,
+          payload: parsed.data,
+          serverId: null,
+        }
+      : null;
+  },
+  "dm:call:accepted": (payload) => {
+    const parsed = MobileDMCallAcceptedEventSchema.safeParse(payload);
+    return parsed.success
+      ? {
+          channelId: null,
+          conversationId: parsed.data.conversationId,
+          payload: parsed.data,
+          serverId: null,
+        }
+      : null;
+  },
+  "dm:call:declined": (payload) => parseMobileDMCallSignal(payload),
+  "dm:call:cancelled": (payload) => parseMobileDMCallSignal(payload),
+  "dm:call:ended": (payload) => parseMobileDMCallSignal(payload),
   "dm:conversation:read": (payload) => {
     const parsed = MobileDMReadUpdatedEventSchema.safeParse(payload);
     return parsed.success
@@ -245,6 +283,11 @@ export function getMobileRealtimeRefreshSources(
   eventName: MobileRealtimeServerEventName,
 ): readonly MobileRealtimeRefreshSource[] {
   if (
+    eventName === "dm:call:incoming" ||
+    eventName === "dm:call:accepted" ||
+    eventName === "dm:call:declined" ||
+    eventName === "dm:call:cancelled" ||
+    eventName === "dm:call:ended" ||
     eventName === "voice:audio-level:update" ||
     eventName === "voice:invite:accepted" ||
     eventName === "voice:invite:error" ||
@@ -365,7 +408,12 @@ export function validateMobileRealtimeContract(): string[] {
 
     const sources = getMobileRealtimeRefreshSources(eventName);
     const isLocalOnlyEvent =
-      eventName === "voice:audio-level:update" ||
+      eventName === "dm:call:incoming" ||
+    eventName === "dm:call:accepted" ||
+    eventName === "dm:call:declined" ||
+    eventName === "dm:call:cancelled" ||
+    eventName === "dm:call:ended" ||
+    eventName === "voice:audio-level:update" ||
       eventName === "voice:invite:accepted" ||
       eventName === "voice:invite:error" ||
       eventName === "voice:invite:received" ||
@@ -404,6 +452,9 @@ export function validateMobileRealtimeContract(): string[] {
 }
 import {
   MobileChannelMessagesStaleEventSchema,
+  MobileDMCallAcceptedEventSchema,
+  MobileDMCallIncomingEventSchema,
+  MobileDMCallSignalEventSchema,
   MobileDMReadUpdatedEventSchema,
   MobileMessageHistoryClearedEventSchema,
   MobilePresenceUpdateEventSchema,
