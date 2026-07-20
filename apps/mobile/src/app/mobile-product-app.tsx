@@ -8,12 +8,9 @@ import { useMobileSocialMutations } from "../social/mobile-social-query";
 import { openMobileVoiceRoom } from "../voice/mobile-voice-room-route-navigation";
 import { MobileAppLockScreen } from "./components/mobile-app-lock-screen";
 import { MobileDeviceIntegrityWarning } from "./components/mobile-device-integrity-warning";
-import {
-  createMobileVoiceScreenProps,
-  getMobileActiveVoiceInviteCandidates,
-} from "./features/mobile-active-voice-room";
 import { createMobileNotificationsScreenProps } from "./features/mobile-notification-actions";
-import { createMobileSettingsScreenProps } from "./features/mobile-settings-screen-props";
+import { useMobileSettingsScreenProps } from "./features/use-mobile-settings-screen-props";
+import { useMobileVoiceScreenProps } from "./features/use-mobile-voice-screen-props";
 import { MobileAppShell } from "./mobile-app-shell";
 import { useMobileDirectCallActions } from "./features/use-mobile-direct-call-actions";
 import { useMobileMessagingFeature } from "./features/use-mobile-messaging-feature";
@@ -111,6 +108,7 @@ export function MobileProductApp({
     dmConversations,
     dmConversationsQuery,
     dmMessagesQuery,
+    loadMoreChannelMessages,
     loadMoreDMConversations,
     loadMoreDMMessages,
     dmMessagesState,
@@ -232,6 +230,8 @@ export function MobileProductApp({
   // the screen-props objects below stable when nothing else changed.
   const messagesSyncHealth = useMemo(() => getSyncHealth("messages"), [getSyncHealth]);
   const overviewSyncHealth = useMemo(() => getSyncHealth("overview"), [getSyncHealth]);
+  const notificationsSyncHealth = useMemo(() => getSyncHealth("notifications"), [getSyncHealth]);
+  const settingsSyncHealth = useMemo(() => getSyncHealth("settings"), [getSyncHealth]);
   const dmConversationsHasNextPage = dmConversationsQuery.hasNextPage;
   const dmConversationsIsLoading = dmConversationsQuery.isLoading;
   // Memoized so the messages tab only re-renders when its own inputs change —
@@ -322,6 +322,7 @@ export function MobileProductApp({
       onClearMessageSearch: clearMessageSearch,
       onClearSelectedMediaAsset: handleClearSelectedMediaAsset,
       onCloseWorkspaceChannel: handleCloseWorkspaceChannel,
+      onLoadMoreChannelMessages: loadMoreChannelMessages,
       onOpenWorkspaceChannel: handleOpenWorkspaceChannel,
       onOpenWorkspaceServer: handleOpenWorkspaceServer,
       onRefreshBootstrap: refreshBootstrap,
@@ -358,6 +359,7 @@ export function MobileProductApp({
       clearMessageSearch,
       handleClearSelectedMediaAsset,
       handleCloseWorkspaceChannel,
+      loadMoreChannelMessages,
       handleOpenWorkspaceChannel,
       handleOpenWorkspaceServer,
       refreshBootstrap,
@@ -378,18 +380,33 @@ export function MobileProductApp({
       workspaceServerState,
     ],
   );
-  const notificationsScreenProps = createMobileNotificationsScreenProps({
-    bootstrapState,
-    joinVoiceChannel: voiceRuntime.joinVoiceChannel,
-    notificationState,
-    onRefreshBootstrap: refreshBootstrap,
-    onRefreshVisibleData: refreshVisibleMobileData,
-    onRequestNotificationPermission: handleRequestNotificationPermission,
-    permissionReadiness,
-    permissionSummary,
-    syncHealth: getSyncHealth("notifications"),
-  });
-  const settingsScreenProps = createMobileSettingsScreenProps({
+  const joinVoiceChannel = voiceRuntime.joinVoiceChannel;
+  const notificationsScreenProps = useMemo(
+    () =>
+      createMobileNotificationsScreenProps({
+        bootstrapState,
+        joinVoiceChannel,
+        notificationState,
+        onRefreshBootstrap: refreshBootstrap,
+        onRefreshVisibleData: refreshVisibleMobileData,
+        onRequestNotificationPermission: handleRequestNotificationPermission,
+        permissionReadiness,
+        permissionSummary,
+        syncHealth: notificationsSyncHealth,
+      }),
+    [
+      bootstrapState,
+      joinVoiceChannel,
+      notificationState,
+      refreshBootstrap,
+      refreshVisibleMobileData,
+      handleRequestNotificationPermission,
+      permissionReadiness,
+      permissionSummary,
+      notificationsSyncHealth,
+    ],
+  );
+  const settingsScreenProps = useMobileSettingsScreenProps({
     appLockAvailability,
     appLockEnabled,
     authStatusLabel,
@@ -420,34 +437,17 @@ export function MobileProductApp({
     sessionDiagnostics: diagnostics,
     signedInUserLabel,
     status,
-    syncHealth: getSyncHealth("settings"),
+    syncHealth: settingsSyncHealth,
     voiceInputMode: voiceRuntime.voiceInputMode,
   });
-  const voiceScreenProps = createMobileVoiceScreenProps({
+  const voiceScreenProps = useMobileVoiceScreenProps({
+    apiClient,
     bootstrapState,
-    inviteCandidates: getMobileActiveVoiceInviteCandidates({
-      currentUserId: session?.user.id ?? null,
-      participants: voiceRuntime.roomState.participants,
-      serverId: voiceRuntime.roomState.serverId,
-      workspaceServerState,
-    }),
+    currentUserId: session?.user.id ?? null,
     inviteSendStates: voiceInviteSendStates,
-    onBeginVoicePushToTalk: voiceRuntime.beginPushToTalk,
-    onEndVoicePushToTalk: voiceRuntime.endPushToTalk,
-    onFlipVoiceCamera: voiceRuntime.flipCamera,
     onLeaveVoiceChannel: handleLeaveWorkspaceVoiceChannel,
-    onRefreshVoiceDevices: voiceRuntime.refreshVoiceDevices,
-    onSelectVoiceAudioInput: voiceRuntime.selectAudioInput,
-    onSelectVoiceAudioOutput: voiceRuntime.selectAudioOutput,
-    onSelectVoiceAudioOutputDevice: voiceRuntime.selectAudioDeviceOutput,
-    onSelectVoiceNoiseSuppression: voiceRuntime.selectNoiseSuppression,
     onSendInvite: handleSendVoiceInvite,
-    onToggleVoiceCamera: voiceRuntime.toggleCamera,
-    onToggleVoiceMute: voiceRuntime.toggleMute,
-    onToggleVoiceScreenShare: voiceRuntime.toggleScreenShare,
-    voiceInputMode: voiceRuntime.voiceInputMode,
-    voicePushToTalkPhase: voiceRuntime.pushToTalkState.phase,
-    voiceRoomState: voiceRuntime.roomState,
+    voiceRuntime,
   });
   return (
     <MobileProductNavigationProvider value={{ openWorkspaceRoute: handleOpenWorkspaceRoute }}>

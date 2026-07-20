@@ -164,6 +164,10 @@ module.exports = ({ config }) => {
         },
       ],
       "expo-localization",
+      // Native Google account sheet (Credential Manager on Android). The client
+      // only ever receives an ID token; no browser and no client secret ship
+      // inside the app.
+      "@react-native-google-signin/google-signin",
       "./plugins/withScreenShare",
       [
         "@sentry/react-native/expo",

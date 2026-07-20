@@ -5,9 +5,9 @@ import {
   type MobileWorkspaceChannelSummary,
 } from "@wizards/types";
 import { ChannelType, prisma } from "@wizards/db";
-import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import { ApiError, jsonError, parseJsonBody } from "@/lib/api";
-import { requireMobileApiUserId } from "@/lib/auth/api";
+import { authorizeMobileApiRequest } from "@/lib/auth/api";
+import { createServerTiming } from "@/lib/server-timing";
 import { logError } from "@/lib/logger";
 import { getRedisRate } from "@/lib/redis";
 import {
@@ -62,9 +62,12 @@ async function enforceMobileChannelMessageSendRateLimit(userId: string) {
 }
 
 export async function GET(request: Request, context: RouteContext) {
+  const timing = createServerTiming();
+
   try {
-    const userId = await requireMobileApiUserId(request);
-    await enforceApiRateLimit(userId, "mobile:channel:messages:list");
+    const stopAuthTiming = timing.start("auth");
+    const userId = await authorizeMobileApiRequest(request, "mobile:channel:messages:list");
+    stopAuthTiming();
 
     const { channelId } = await context.params;
     const { searchParams } = new URL(request.url);
@@ -77,14 +80,18 @@ export async function GET(request: Request, context: RouteContext) {
       ? Math.min(Math.max(requestedLimit, 1), MOBILE_CHANNEL_MESSAGES_LIMIT)
       : MOBILE_CHANNEL_MESSAGES_LIMIT;
 
-    await requireChannelPermissionForUser(userId, channelId, PermissionBits.VIEW_CHANNEL, {
-      requiredType: ChannelType.TEXT,
-    });
+    await timing.measure("auth", () =>
+      requireChannelPermissionForUser(userId, channelId, PermissionBits.VIEW_CHANNEL, {
+        requiredType: ChannelType.TEXT,
+      }),
+    );
 
-    const [channel, result] = await Promise.all([
-      getMobileChannelSummary(channelId),
-      getChannelMessages(channelId, cursor, limit, userId),
-    ]);
+    const [channel, result] = await timing.measure("db", () =>
+      Promise.all([
+        getMobileChannelSummary(channelId),
+        getChannelMessages(channelId, cursor, limit, userId),
+      ]),
+    );
 
     return Response.json(
       MobileChannelMessagesResponseSchema.parse({
@@ -94,9 +101,7 @@ export async function GET(request: Request, context: RouteContext) {
         nextCursor: result.nextCursor ?? null,
       }),
       {
-        headers: {
-          "Cache-Control": "no-store, no-cache, must-revalidate",
-        },
+        headers: timing.headers({ "Cache-Control": "no-store, no-cache, must-revalidate" }),
       },
     );
   } catch (error) {
@@ -106,8 +111,7 @@ export async function GET(request: Request, context: RouteContext) {
 
 export async function POST(request: Request, context: RouteContext) {
   try {
-    const userId = await requireMobileApiUserId(request);
-    await enforceApiRateLimit(userId, "mobile:channel:messages:send");
+    const userId = await authorizeMobileApiRequest(request, "mobile:channel:messages:send");
 
     const { channelId } = await context.params;
     const body = await parseJsonBody(request, MobileChannelSendMessageRequestSchema);
@@ -134,9 +138,7 @@ export async function POST(request: Request, context: RouteContext) {
   }
 }
 
-async function getMobileChannelSummary(
-  channelId: string,
-): Promise<MobileWorkspaceChannelSummary> {
+async function getMobileChannelSummary(channelId: string): Promise<MobileWorkspaceChannelSummary> {
   const channel = await prisma.channel.findUnique({
     where: { id: channelId },
     select: {

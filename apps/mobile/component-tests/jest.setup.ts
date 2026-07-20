@@ -9,6 +9,7 @@ jest.mock("@react-native-async-storage/async-storage", () => ({
   __esModule: true,
   default: {
     getItem: jest.fn(async () => null),
+    removeItem: jest.fn(async () => undefined),
     setItem: jest.fn(async () => undefined),
   },
 }));
@@ -76,6 +77,23 @@ jest.mock("expo-system-ui", () => ({
 
 jest.mock("expo-clipboard", () => ({
   setStringAsync: jest.fn(async () => true),
+}));
+
+jest.mock("@react-native-google-signin/google-signin", () => ({
+  GoogleSignin: {
+    configure: jest.fn(),
+    hasPlayServices: jest.fn(async () => false),
+    signIn: jest.fn(async () => ({ type: "cancelled" })),
+    signOut: jest.fn(async () => null),
+  },
+  statusCodes: { SIGN_IN_CANCELLED: "SIGN_IN_CANCELLED" },
+}));
+
+jest.mock("expo-web-browser", () => ({
+  coolDownAsync: jest.fn(async () => ({ type: "cool" })),
+  dismissAuthSession: jest.fn(),
+  openAuthSessionAsync: jest.fn(async () => ({ type: "dismiss" })),
+  warmUpAsync: jest.fn(async () => ({ type: "warm" })),
 }));
 
 jest.mock("expo-image", () => ({

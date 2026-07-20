@@ -25,6 +25,30 @@ describe("mobile environment contract", () => {
     assert.equal(config.releaseChannel, "development");
   });
 
+  it("arms the native Google sheet only for a real Google client id", () => {
+    const configured = buildMobileEnvironmentConfig({
+      mobileEnvironment: "uat",
+      publicApiUrl: "https://wizardsweb-uat.up.railway.app",
+      publicGoogleWebClientId: " 1234567890-whispr.apps.googleusercontent.com ",
+      publicSocketUrl: "https://wizardsweb-uat.up.railway.app",
+      publicWebUrl: "https://wizardsweb-uat.up.railway.app",
+    });
+
+    assert.equal(configured.googleWebClientId, "1234567890-whispr.apps.googleusercontent.com");
+
+    for (const value of [undefined, "", "   ", "not-a-client-id", "1234567890.example.com"]) {
+      const config = buildMobileEnvironmentConfig({
+        mobileEnvironment: "uat",
+        publicApiUrl: "https://wizardsweb-uat.up.railway.app",
+        ...(value === undefined ? {} : { publicGoogleWebClientId: value }),
+        publicSocketUrl: "https://wizardsweb-uat.up.railway.app",
+        publicWebUrl: "https://wizardsweb-uat.up.railway.app",
+      });
+
+      assert.equal(config.googleWebClientId, null);
+    }
+  });
+
   it("rejects non-HTTPS release endpoints", () => {
     assert.throws(
       () =>

@@ -98,6 +98,7 @@ function createWorkspace(serverId: string): MobileManagedWorkspaceServerDetailRe
         mentionCount: 0,
         name: serverId,
         onlineMemberCount: 1,
+        ownerUserId: null,
         shortName: null,
         unreadCount: 0,
         visibleChannelCount: 1,

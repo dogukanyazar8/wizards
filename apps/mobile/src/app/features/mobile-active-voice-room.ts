@@ -5,36 +5,34 @@ import {
   type MobileVoiceInviteSendState,
   type MobileVoiceRoomParticipant,
   type MobileVoiceRoomState,
-  type MobileWorkspaceServerViewState,
 } from "../mobile-root-screen-shared";
+import type { MobileVoiceInviteMember } from "../../voice/mobile-voice-room-contract";
 import type { MobileVoiceScreenProps } from "../providers/mobile-product-screen-provider";
 
 /**
- * Online, invitable members for the room's server, excluding those already
- * connected. Empty until the active server detail matches the room's server.
+ * Members come from the paged `/servers/:id/members` read rather than the
+ * workspace detail payload. Inviting only happens while a voice room is open,
+ * so loading the roster there keeps it off the critical path of every server
+ * open — the detail response no longer carries a member list at all.
  */
 export function getMobileActiveVoiceInviteCandidates({
   currentUserId,
+  members,
   participants,
   serverId,
-  workspaceServerState,
 }: {
   readonly currentUserId: string | null;
+  readonly members: readonly MobileVoiceInviteMember[];
   readonly participants: readonly MobileVoiceRoomParticipant[];
   readonly serverId: string | null;
-  readonly workspaceServerState: MobileWorkspaceServerViewState;
 }): MobileVoiceInviteCandidate[] {
-  const detail =
-    workspaceServerState.status === "ready" && workspaceServerState.serverId === serverId
-      ? workspaceServerState.payload.detail
-      : null;
-  if (!serverId || !detail) {
+  if (!serverId || members.length === 0) {
     return [];
   }
 
   return getMobileVoiceInviteCandidates({
     currentUserId,
-    members: detail.members,
+    members,
     participants,
   });
 }

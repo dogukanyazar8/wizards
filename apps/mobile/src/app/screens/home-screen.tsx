@@ -3,6 +3,7 @@ import {
   Text,
   View,
   copy,
+  formatMobileUnreadCount,
   getBoundedMobileList,
   getMobileChannelPriority,
   getMobileHomeQuickActions,
@@ -69,6 +70,7 @@ export function OverviewScreen({
   onClearMessageSearch,
   onClearSelectedMediaAsset,
   onCloseWorkspaceChannel,
+  onLoadMoreChannelMessages,
   onOpenWorkspaceChannel,
   onOpenWorkspaceServer,
   onRefreshBootstrap,
@@ -104,6 +106,7 @@ export function OverviewScreen({
   onClearMessageSearch(): void;
   onClearSelectedMediaAsset(): void;
   onCloseWorkspaceChannel(): void;
+  onLoadMoreChannelMessages(): void;
   onOpenWorkspaceChannel(channel: MobileWorkspaceChannelSummary): Promise<boolean>;
   onOpenWorkspaceServer(serverId: string): void;
   onRefreshBootstrap(): void;
@@ -163,6 +166,7 @@ export function OverviewScreen({
           onClearMessageSearch={onClearMessageSearch}
           onClearSelectedMediaAsset={onClearSelectedMediaAsset}
           onCloseWorkspaceChannel={onCloseWorkspaceChannel}
+          onLoadMoreChannelMessages={onLoadMoreChannelMessages}
           onOpenChannel={onOpenWorkspaceChannel}
           onOpenServer={onOpenWorkspaceServer}
           onRefreshChannel={onRefreshChannelMessages}
@@ -560,7 +564,7 @@ export function WorkspacePreviewCard({
                 />
                 {serverState.payload.detail.server.unreadCount > 0 ? (
                   <StatusChip
-                    label={`${serverState.payload.detail.server.unreadCount} ${copy.unreadSuffix}`}
+                    label={`${formatMobileUnreadCount(serverState.payload.detail.server.unreadCount)} ${copy.unreadSuffix}`}
                     tone="accent"
                   />
                 ) : null}
@@ -660,7 +664,10 @@ export function WorkspaceChannelList({
                   <StatusChip label={channel.categoryName} tone="muted" />
                 ) : null}
                 {priority.hasUnread ? (
-                  <StatusChip label={`${channel.unreadCount} ${copy.unreadSuffix}`} tone="accent" />
+                  <StatusChip
+                    label={`${formatMobileUnreadCount(channel.unreadCount)} ${copy.unreadSuffix}`}
+                    tone="accent"
+                  />
                 ) : null}
                 {priority.isLocked ? (
                   <StatusChip label={copy.workspaceLockedLabel} tone="muted" />

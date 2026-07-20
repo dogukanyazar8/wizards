@@ -187,6 +187,7 @@ function makeWorkspace(): MobileManagedWorkspaceServerDetailResponse {
         mentionCount: 0,
         name: "Primary",
         onlineMemberCount: 1,
+        ownerUserId: null,
         shortName: null,
         unreadCount: 0,
         visibleChannelCount: 0,

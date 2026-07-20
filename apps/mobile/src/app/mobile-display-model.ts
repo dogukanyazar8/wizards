@@ -130,6 +130,22 @@ export function getBoundedMobileList<T>(
   return direction === "end" ? items.slice(-limit) : items.slice(0, limit);
 }
 
+/**
+ * The API caps unread counting at MOBILE_UNREAD_COUNT_CAP so the read stays a
+ * bounded scan, which means a count sitting exactly on the cap means "at least
+ * this many". Render that as a ceiling rather than claiming an exact total.
+ */
+export const MOBILE_UNREAD_DISPLAY_CAP = 99;
+
+export function formatMobileUnreadCount(count: number): string {
+  if (Number.isNaN(count) || count <= 0) {
+    return "0";
+  }
+
+  const whole = Math.trunc(count);
+  return whole >= MOBILE_UNREAD_DISPLAY_CAP ? `${MOBILE_UNREAD_DISPLAY_CAP}+` : String(whole);
+}
+
 export function isMobilePresenceActive(status: string | null | undefined): boolean {
   if (!status) {
     return false;
@@ -391,7 +407,8 @@ export function getMobileMessageStreamItems<
       isGroupedWithNext:
         nextMessage !== undefined && shouldGroupMobileMessageStreamItems(message, nextMessage),
       isGroupedWithPrevious:
-        previousMessage !== undefined && shouldGroupMobileMessageStreamItems(previousMessage, message),
+        previousMessage !== undefined &&
+        shouldGroupMobileMessageStreamItems(previousMessage, message),
       message,
       showDateSeparator: dayKey !== "" && dayKey !== previousDayKey,
     };

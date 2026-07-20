@@ -1,4 +1,5 @@
 import { QueryClient } from "@tanstack/react-query";
+import { MOBILE_QUERY_CACHE_MAX_AGE_MS } from "./mobile-query-cache-policy";
 
 export function createMobileQueryClient(): QueryClient {
   return new QueryClient({
@@ -7,7 +8,9 @@ export function createMobileQueryClient(): QueryClient {
         retry: 0,
       },
       queries: {
-        gcTime: 5 * 60_000,
+        // Matches the persisted cache max-age: a query that outlives the process
+        // is worthless if the in-memory cache garbage-collects it minutes later.
+        gcTime: MOBILE_QUERY_CACHE_MAX_AGE_MS,
         refetchOnReconnect: true,
         // One retry recovers transient blips without stacking exponential
         // backoff (retry:2 delayed a hard failure ~3s before the error/skeleton

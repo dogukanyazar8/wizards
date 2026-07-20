@@ -10,6 +10,8 @@ import {
   MobileAuthExchangeResponseSchema,
   MobileAuthForgotPasswordRequestSchema,
   MobileAuthForgotPasswordResponseSchema,
+  MobileAuthGoogleLoginRequestSchema,
+  MobileAuthGoogleLoginResponseSchema,
   MobileAuthPasswordLoginRequestSchema,
   MobileAuthPasswordLoginResponseSchema,
   MobileAuthRefreshRequestSchema,
@@ -102,8 +104,7 @@ describe("mobile realtime stale-channel contract", () => {
   it("validates only the bounded user-room payload needed to refresh a workspace", () => {
     const schema = (mobileSchemas as Record<string, unknown>)
       .MobileChannelMessagesStaleEventSchema as
-      | { safeParse(input: unknown): { success: boolean } }
-      | undefined;
+      { safeParse(input: unknown): { success: boolean } } | undefined;
 
     assert.ok(schema);
     assert.equal(
@@ -380,6 +381,16 @@ describe("mobile schemas", () => {
         schema: MobileAuthForgotPasswordResponseSchema,
         valid: { email: "ada@example.com", message: "Accepted", status: "accepted" },
         invalid: { email: "ada@example.com", message: "Accepted", status: "sent" },
+      },
+      MobileAuthGoogleLoginRequestSchema: {
+        schema: MobileAuthGoogleLoginRequestSchema,
+        valid: { idToken: `${"a".repeat(40)}.${"b".repeat(40)}.${"c".repeat(40)}` },
+        invalid: { idToken: "not-a-compact-jws" },
+      },
+      MobileAuthGoogleLoginResponseSchema: {
+        schema: MobileAuthGoogleLoginResponseSchema,
+        valid: { session },
+        invalid: { session: {} },
       },
       MobileAuthPasswordLoginRequestSchema: {
         schema: MobileAuthPasswordLoginRequestSchema,

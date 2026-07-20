@@ -27,6 +27,7 @@ export async function enforceMobileAuthRateLimit(
     ApiRateLimitAction,
     | "mobile:auth-exchange"
     | "mobile:auth-forgot-password"
+    | "mobile:auth-google"
     | "mobile:auth-login"
     | "mobile:auth-refresh"
     | "mobile:auth-register"

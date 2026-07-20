@@ -12,6 +12,7 @@ const UNAUTHENTICATED_ROUTE_PATHS = new Set([
   "desktop/download",
   "mobile/auth/exchange",
   "mobile/auth/forgot-password",
+  "mobile/auth/google",
   "mobile/auth/login",
   "mobile/auth/refresh",
   "mobile/auth/register",
@@ -65,7 +66,7 @@ const BODYLESS_MUTATING_METHOD_PATHS = new Set([
 ]);
 
 const AUTH_GUARD_CALL_PATTERN =
-  /\b(?:requireApiUserId|requireMobileApiUserId|requireMobileApiSession|requireAdminUser)\s*\(/;
+  /\b(?:requireApiUserId|requireMobileApiUserId|requireMobileApiSession|requireAdminUser|authorizeMobileApiRequest)\s*\(/;
 const HTTP_METHODS = ["GET", "POST", "PATCH", "PUT", "DELETE"] as const;
 const MUTATING_METHODS = new Set(["POST", "PATCH", "PUT", "DELETE"]);
 const RAW_REQUEST_BODY_CALL_PATTERN = /\b(?:request|req)\.(?:json|text|formData)\s*\(/;
@@ -524,6 +525,12 @@ function resolveSymbolTraceValue(
   if (isImportedSymbol(inputSymbol, "@/lib/api-rate-limit", "enforceApiRateLimit")) {
     return CENTRAL_RATE_LIMITER_VALUE;
   }
+  // `authorizeMobileApiRequest(request, action)` runs the same central limiter
+  // concurrently with authentication and takes the action in the same argument
+  // position, so it stays traceable by this contract.
+  if (isImportedSymbol(inputSymbol, "@/lib/auth/api", "authorizeMobileApiRequest")) {
+    return CENTRAL_RATE_LIMITER_VALUE;
+  }
 
   if (frame.has(inputSymbol)) {
     return frame.get(inputSymbol) ?? UNKNOWN_TRACE_VALUE;
@@ -621,6 +628,10 @@ function resolveTraceValue(
   }
 
   if (isImportedBinding(expression, "@/lib/api-rate-limit", "enforceApiRateLimit", state.checker)) {
+    return CENTRAL_RATE_LIMITER_VALUE;
+  }
+
+  if (isImportedBinding(expression, "@/lib/auth/api", "authorizeMobileApiRequest", state.checker)) {
     return CENTRAL_RATE_LIMITER_VALUE;
   }
 

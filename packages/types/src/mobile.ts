@@ -116,6 +116,24 @@ export const MobileAuthPasswordLoginResponseSchema = z.object({
   session: MobileSessionSnapshotSchema,
 });
 
+/**
+ * Native Google sign-in: the device runs the Google account sheet and only the
+ * resulting ID token (a compact JWS) reaches the API, which verifies it against
+ * Google's JWKS before minting a Whispr session.
+ */
+export const MobileAuthGoogleLoginRequestSchema = z.object({
+  idToken: z
+    .string()
+    .min(64)
+    .max(8192)
+    .regex(/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/),
+  locale: MobileAuthLocaleSchema,
+});
+
+export const MobileAuthGoogleLoginResponseSchema = z.object({
+  session: MobileSessionSnapshotSchema,
+});
+
 export const MobileAuthRegisterRequestSchema = z
   .object({
     confirmPassword: z.string().max(100, "validation.password.max"),
@@ -630,6 +648,9 @@ export const MOBILE_SERVER_ATTACHMENT_MAX_BYTES = 25_000_000;
 export const MobileWorkspaceServerDetailSchema = z.object({
   categories: z.array(MobileWorkspaceCategorySummarySchema).max(20),
   hasMoreChannels: z.boolean(),
+  // Empty since the member list moved to `/servers/:id/members`. The field is
+  // kept so an older client build still parses a new response, and so a newer
+  // build still parses an older response that fills it in.
   members: z.array(WorkspaceMemberSchema).max(80).default([]),
   server: z.object({
     // UAT/web backends may deploy independently of the mobile client. Until the
@@ -649,6 +670,9 @@ export const MobileWorkspaceServerDetailSchema = z.object({
     // Defaulting to zero keeps those typed responses usable until the live
     // socket-derived aggregate becomes available after the server rollout.
     onlineMemberCount: z.number().int().nonnegative().default(0),
+    // Also independently deployed: older servers omit it, and the client then
+    // falls back to scanning `members` for the OWNER row.
+    ownerUserId: z.string().min(1).nullable().default(null),
     shortName: z.string().min(1).max(8).nullable(),
     unreadCount: z.number().int().nonnegative(),
     visibleChannelCount: z.number().int().nonnegative(),
@@ -761,6 +785,8 @@ export type MobileAuthRefreshResponse = z.infer<typeof MobileAuthRefreshResponse
 export type MobileAuthRevokeRequest = z.infer<typeof MobileAuthRevokeRequestSchema>;
 export type MobileAuthPasswordLoginRequest = z.infer<typeof MobileAuthPasswordLoginRequestSchema>;
 export type MobileAuthPasswordLoginResponse = z.infer<typeof MobileAuthPasswordLoginResponseSchema>;
+export type MobileAuthGoogleLoginRequest = z.infer<typeof MobileAuthGoogleLoginRequestSchema>;
+export type MobileAuthGoogleLoginResponse = z.infer<typeof MobileAuthGoogleLoginResponseSchema>;
 export type MobileAuthRegisterRequest = z.infer<typeof MobileAuthRegisterRequestSchema>;
 export type MobileAuthRegisterResponse = z.infer<typeof MobileAuthRegisterResponseSchema>;
 export type MobileAuthForgotPasswordRequest = z.infer<typeof MobileAuthForgotPasswordRequestSchema>;

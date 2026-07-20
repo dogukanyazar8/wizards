@@ -54,7 +54,11 @@ export function patchMobileServerIconCaches(input: {
   queryClient.setQueryData<MobileManagedWorkspaceServerDetailResponse>(
     mobileQueryKeys.workspace(serverId),
     (current) => {
-      if (!current || current.detail.server.id !== serverId || current.detail.server.iconUrl === iconUrl) {
+      if (
+        !current ||
+        current.detail.server.id !== serverId ||
+        current.detail.server.iconUrl === iconUrl
+      ) {
         return current;
       }
 

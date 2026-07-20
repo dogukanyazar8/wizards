@@ -258,9 +258,7 @@ export function useMobileServerManagementMutations(client: MobileApiClient) {
             pages: previous.pages.map((page) => ({
               ...page,
               members: page.members.map((member) =>
-                member.id === input.memberId
-                  ? { ...member, roleIds: [...input.roleIds] }
-                  : member,
+                member.id === input.memberId ? { ...member, roleIds: [...input.roleIds] } : member,
               ),
             })),
           });

@@ -67,6 +67,7 @@
     "emoji-mart": "^5.6.0",
     "framer-motion": "^12.38.0",
     "ioredis": "^5.10.1",
+    "jose": "^6.2.2",
     "livekit-client": "^2.18.7",
     "livekit-server-sdk": "^2.15.2",
     "lucide-react": "^0.511.0",

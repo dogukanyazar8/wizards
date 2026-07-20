@@ -102,9 +102,13 @@ test("build-only Android APK scripts do not require or mutate a connected device
   assert.match(buildScript, /-not \(Test-Path -LiteralPath \$managedRootParent\)/);
   assert.match(buildScript, /function Invoke-PnpmInstallWithRecovery/);
   assert.match(buildScript, /function Get-WhisprUatPnpmVirtualStoreDir/);
+  assert.match(buildScript, /function Get-WhisprUatPnpmVirtualStoreMaxLength/);
   assert.match(buildScript, /function Test-WhisprUatPnpmLayout/);
   assert.match(buildScript, /Managed pnpm layout is stale or incomplete/);
-  assert.match(buildScript, /Test-WhisprUatPnpmLayout -WorkingDirectory \$WorkingDirectory -ExpectedVirtualStoreDir \$PhysicalVirtualStoreDir/);
+  assert.match(
+    buildScript,
+    /Test-WhisprUatPnpmLayout -WorkingDirectory \$WorkingDirectory -ExpectedVirtualStoreDir \$PhysicalVirtualStoreDir -ExpectedVirtualStoreMaxLength \$PnpmVirtualStoreMaxLength/,
+  );
   assert.match(buildScript, /apps\\mobile\\node_modules\\tsx/);
   assert.match(buildScript, /Join-Path \$tsxTarget "package\.json"/);
   assert.match(buildScript, /function Use-WhisprMobileUatBuildMutex/);
@@ -113,6 +117,7 @@ test("build-only Android APK scripts do not require or mutate a connected device
   assert.match(buildScript, /"virtual-store-dir-max-length"\s*=\s*\$VirtualStoreMaxLength/);
   assert.match(buildScript, /"--config\.store-dir=\$PhysicalStoreDir"/);
   assert.match(buildScript, /"--config\.virtual-store-dir=\$PhysicalVirtualStoreDir"/);
+  assert.match(buildScript, /"--config\.virtual-store-dir-max-length=\$PnpmVirtualStoreMaxLength"/);
   assert.match(buildScript, /\$env:GRADLE_USER_HOME\s*=\s*\$gradleUserHome/);
   assert.match(buildScript, /"--force",\s*"--frozen-lockfile"/);
   assert.match(buildScript, /\$env:CI\s*=\s*"true"/);

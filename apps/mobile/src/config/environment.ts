@@ -5,6 +5,8 @@ export type MobileEnvironmentName = (typeof MOBILE_ENVIRONMENTS)[number];
 export type MobileEnvironmentConfig = {
   apiUrl: string;
   environment: MobileEnvironmentName;
+  /** Google *web* client id used as `serverClientId`; null disables native sign-in. */
+  googleWebClientId: string | null;
   releaseChannel: MobileEnvironmentName;
   sentryDsn: string | null;
   socketUrl: string;
@@ -14,6 +16,7 @@ export type MobileEnvironmentConfig = {
 type BuildMobileEnvironmentConfigInput = {
   mobileEnvironment?: string;
   publicApiUrl?: string;
+  publicGoogleWebClientId?: string;
   publicSentryDsn?: string;
   publicSocketUrl?: string;
   publicWebUrl?: string;
@@ -94,7 +97,9 @@ function assertReleaseUrl(value: string, fieldName: string, environment: MobileE
   }
 
   if (isLocalOrInvalidUrl(value)) {
-    throw new Error(`${fieldName} cannot point to local or invalid hosts for ${environment} builds.`);
+    throw new Error(
+      `${fieldName} cannot point to local or invalid hosts for ${environment} builds.`,
+    );
   }
 }
 
@@ -114,12 +119,12 @@ export function buildMobileEnvironmentConfig(
     assertReleaseUrl(apiUrl, "EXPO_PUBLIC_WHISPR_API_URL", environment);
     assertReleaseUrl(socketUrl, "EXPO_PUBLIC_WHISPR_SOCKET_URL", environment);
     assertReleaseUrl(webUrl, "EXPO_PUBLIC_WHISPR_WEB_URL", environment);
-
   }
 
   return {
     apiUrl,
     environment,
+    googleWebClientId: normalizeGoogleWebClientId(input.publicGoogleWebClientId),
     releaseChannel: environment,
     sentryDsn: input.publicSentryDsn?.trim() || null,
     socketUrl,
@@ -127,10 +132,26 @@ export function buildMobileEnvironmentConfig(
   };
 }
 
+/**
+ * A misconfigured id would make the native sheet fail at tap time, so anything
+ * that is not a Google OAuth client id is treated as "not configured" and the
+ * sign-in falls back to the in-app browser hand-off.
+ */
+function normalizeGoogleWebClientId(value: string | undefined): string | null {
+  const trimmed = value?.trim();
+
+  if (!trimmed || !trimmed.endsWith(".apps.googleusercontent.com")) {
+    return null;
+  }
+
+  return trimmed;
+}
+
 export function getMobileRuntimeConfig(): MobileEnvironmentConfig {
   return buildMobileEnvironmentConfig({
     mobileEnvironment: process.env.EXPO_PUBLIC_WHISPR_MOBILE_ENV ?? process.env.WHISPR_MOBILE_ENV,
     publicApiUrl: process.env.EXPO_PUBLIC_WHISPR_API_URL,
+    publicGoogleWebClientId: process.env.EXPO_PUBLIC_WHISPR_GOOGLE_WEB_CLIENT_ID,
     publicSentryDsn: process.env.EXPO_PUBLIC_WHISPR_SENTRY_DSN,
     publicSocketUrl: process.env.EXPO_PUBLIC_WHISPR_SOCKET_URL,
     publicWebUrl: process.env.EXPO_PUBLIC_WHISPR_WEB_URL,

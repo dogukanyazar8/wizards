@@ -10,6 +10,10 @@ import { mobileCopy } from "../src/locale/mobile-copy";
 
 const copy = mobileCopy.tr;
 
+type SocialSignInResult = Awaited<
+  ReturnType<React.ComponentProps<typeof AuthLoginScreen>["onSocialSignIn"]>
+>;
+
 type SignInInput = {
   email: string;
   password: string;
@@ -24,11 +28,16 @@ function renderLogin(props?: Partial<React.ComponentProps<typeof AuthLoginScreen
           developmentCredentials={props?.developmentCredentials}
           onBack={props?.onBack ?? jest.fn()}
           onForgotPassword={props?.onForgotPassword ?? jest.fn()}
-          onOpenWebSignIn={props?.onOpenWebSignIn ?? jest.fn()}
           onRegister={props?.onRegister ?? jest.fn()}
           onSignIn={
             props?.onSignIn ??
             jest.fn<Promise<{ ok: true }>, [SignInInput]>().mockResolvedValue({ ok: true })
+          }
+          onSocialSignIn={
+            props?.onSocialSignIn ??
+            jest
+              .fn<Promise<SocialSignInResult>, ["google"]>()
+              .mockResolvedValue({ ok: true, via: "in-app" })
           }
         />
       </MobileLocaleProvider>
@@ -75,7 +84,7 @@ describe("AuthLoginScreen", () => {
     ).toMatchObject({ height: 32, width: 32 });
     expect(
       resolvePressableStyle(view.getByTestId("mobile-auth-social-google").props.style),
-    ).toEqual(expect.objectContaining({ height: 48, width: 78 }));
+    ).toEqual(expect.objectContaining({ flexBasis: 0, flexGrow: 1, height: 48, maxWidth: 78 }));
     expect(view.queryByText(copy.authSocialGoogle)).toBeNull();
   });
 
@@ -84,7 +93,7 @@ describe("AuthLoginScreen", () => {
 
     expect(
       resolvePressableStyle(view.getByTestId("mobile-auth-login-main-content").props.style),
-    ).toEqual(expect.objectContaining({ flexGrow: 1, paddingTop: 18 }));
+    ).toEqual(expect.objectContaining({ flexGrow: 1, paddingBottom: 18, paddingTop: 18 }));
     expect(resolvePressableStyle(view.getByTestId("mobile-auth-login-footer").props.style)).toEqual(
       expect.objectContaining({ paddingBottom: 26, paddingTop: 14 }),
     );
@@ -198,16 +207,81 @@ describe("AuthLoginScreen", () => {
     });
   });
 
-  it("renders only the supported Google web handoff", async () => {
-    const onOpenWebSignIn = jest.fn();
-    const view = await renderLogin({ onOpenWebSignIn });
+  it("completes the in-app Google session without printing a browser hand-off hint", async () => {
+    const onSocialSignIn = jest
+      .fn<Promise<SocialSignInResult>, ["google"]>()
+      .mockResolvedValue({ ok: true, via: "in-app" });
+    const view = await renderLogin({ onSocialSignIn });
 
     await fireEvent.press(view.getByTestId("mobile-auth-social-google"));
 
-    expect(onOpenWebSignIn).toHaveBeenCalledTimes(1);
-    expect(view.queryByTestId("mobile-auth-social-microsoft")).toBeNull();
-    expect(view.queryByTestId("mobile-auth-social-apple")).toBeNull();
-    expect(view.queryByTestId("mobile-auth-social-whispr")).toBeNull();
+    expect(onSocialSignIn).toHaveBeenCalledTimes(1);
+    expect(onSocialSignIn).toHaveBeenCalledWith("google");
+    await waitFor(() => expect(view.queryByTestId("mobile-auth-login-notice")).toBeNull());
+    expect(view.queryByTestId("mobile-auth-login-error")).toBeNull();
+  });
+
+  it("hints at the browser hand-off only when the in-app session is unavailable", async () => {
+    const onSocialSignIn = jest
+      .fn<Promise<SocialSignInResult>, ["google"]>()
+      .mockResolvedValue({ ok: true, via: "external-browser" });
+    const view = await renderLogin({ onSocialSignIn });
+
+    await fireEvent.press(view.getByTestId("mobile-auth-social-google"));
+
+    await waitFor(() =>
+      expect(view.getByTestId("mobile-auth-login-notice").props.children).toBe(
+        copy.authSocialRedirectNotice,
+      ),
+    );
+  });
+
+  it("keeps a cancelled consent sheet silent instead of raising an error", async () => {
+    const onSocialSignIn = jest
+      .fn<Promise<SocialSignInResult>, ["google"]>()
+      .mockResolvedValue({ ok: false, reason: "cancelled" });
+    const view = await renderLogin({ onSocialSignIn });
+
+    await fireEvent.press(view.getByTestId("mobile-auth-social-google"));
+
+    await waitFor(() => expect(onSocialSignIn).toHaveBeenCalledTimes(1));
+    expect(view.queryByTestId("mobile-auth-login-error")).toBeNull();
+    expect(view.queryByTestId("mobile-auth-login-notice")).toBeNull();
+  });
+
+  it("previews the unwired providers without dispatching an OAuth session", async () => {
+    const onSocialSignIn = jest
+      .fn<Promise<SocialSignInResult>, ["google"]>()
+      .mockResolvedValue({ ok: true, via: "in-app" });
+    const view = await renderLogin({ onSocialSignIn });
+
+    for (const provider of ["microsoft", "apple", "discord"] as const) {
+      expect(view.getByTestId(`mobile-auth-social-${provider}`)).toBeTruthy();
+    }
+
+    await fireEvent.press(view.getByTestId("mobile-auth-social-discord"));
+
+    expect(onSocialSignIn).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(view.getByTestId("mobile-auth-login-notice").props.children).toBe(
+        copy.authSocialProviderComingSoon.replace("{provider}", "Discord"),
+      ),
+    );
+  });
+
+  it("surfaces a recoverable error when the Google session fails", async () => {
+    const onSocialSignIn = jest
+      .fn<Promise<SocialSignInResult>, ["google"]>()
+      .mockResolvedValue({ ok: false, reason: "failed" });
+    const view = await renderLogin({ onSocialSignIn });
+
+    await fireEvent.press(view.getByTestId("mobile-auth-social-google"));
+
+    await waitFor(() =>
+      expect(view.getByTestId("mobile-auth-login-error").props.children).toBe(
+        copy.authSocialSignInFailed,
+      ),
+    );
   });
 
   it("keeps the forgot action in the password label row", async () => {

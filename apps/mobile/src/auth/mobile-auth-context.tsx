@@ -9,10 +9,18 @@ import {
   type ReactNode,
 } from "react";
 import { AppState, Linking, Platform, type AppStateStatus } from "react-native";
+import * as WebBrowser from "expo-web-browser";
 import { createMobileApiClient, type MobileApiClient } from "../api/mobile-api-client";
 import { revokeMobilePushToken } from "../notifications/mobile-notification-client";
 import { getMobileRuntimeConfig, type MobileEnvironmentConfig } from "../config/environment";
-import { buildMobileWebRegisterUrl, buildMobileWebSignInUrl } from "../deep-link/mobile-deep-links";
+import {
+  buildMobileWebRegisterUrl,
+  buildMobileWebSignInUrl,
+  buildMobileWebSocialSignInUrl,
+  parseMobileDeepLink,
+} from "../deep-link/mobile-deep-links";
+import type { MobileAuthLiveSocialProviderId } from "./mobile-auth-social-config";
+import { runMobileSocialAuthSession } from "./mobile-social-auth-session";
 import {
   assessMobileDeviceIntegrity,
   createMobileDeviceIntegritySignal,
@@ -31,6 +39,11 @@ import {
 import { activeMobileCopy } from "../locale/mobile-locale-preferences";
 import { mobileSecureSessionRepository } from "./expo-secure-session-store";
 import type { MobileAppLockPreferenceStore } from "./mobile-app-lock-preference-store";
+import { mobileGoogleNativeSignInClient } from "./mobile-google-signin-client";
+import {
+  runMobileGoogleNativeSignIn,
+  type MobileGoogleNativeSignInClient,
+} from "./mobile-google-native-sign-in";
 import {
   exchangeMobileAuthHandoff,
   refreshMobileAuthSession,
@@ -38,6 +51,7 @@ import {
   requestMobilePasswordReset,
   requestMobileVerificationEmail,
   revokeMobileAuthSession,
+  signInMobileWithGoogleIdToken,
   signInMobileWithPassword,
 } from "./mobile-auth-exchange";
 import { getMobilePasswordSignInFailure } from "./mobile-auth-error-mapping";
@@ -58,6 +72,9 @@ import type { MobileSessionRepository } from "./session-store";
 
 const appLockCopy = activeMobileCopy;
 
+/** Enough to cover a retried hand-off without growing the map unbounded. */
+const MAX_TRACKED_HANDOFF_EXCHANGES = 8;
+
 // disableDeviceFallback stays false so the OS device-passcode fallback is always
 // offered; combined with the on-screen sign-out escape the user can never be trapped.
 const APP_LOCK_PROMPT_OPTIONS = {
@@ -66,6 +83,10 @@ const APP_LOCK_PROMPT_OPTIONS = {
   fallbackLabel: "",
   promptMessage: appLockCopy.appLockScreenTitle,
 } as const;
+
+export type MobileSocialSignInResult =
+  | { readonly ok: true; readonly via: "external-browser" | "in-app" | "native" }
+  | { readonly ok: false; readonly reason: "cancelled" | "failed" };
 
 export interface MobileAuthContextValue extends MobileAuthState {
   apiClient: MobileApiClient;
@@ -81,6 +102,7 @@ export interface MobileAuthContextValue extends MobileAuthState {
   getAccessToken(): Promise<string | null>;
   openWebRegister(): Promise<void>;
   openWebSignIn(): Promise<void>;
+  startSocialSignIn(provider: MobileAuthLiveSocialProviderId): Promise<MobileSocialSignInResult>;
   registerWithPassword(input: {
     confirmPassword: string;
     email: string;
@@ -90,8 +112,7 @@ export interface MobileAuthContextValue extends MobileAuthState {
   requestPasswordReset(input: {
     email: string;
   }): Promise<
-    | { email: string; ok: true; resetLinkTtlMinutes?: number }
-    | { message: string; ok: false }
+    { email: string; ok: true; resetLinkTtlMinutes?: number } | { message: string; ok: false }
   >;
   requestVerificationEmail(input: {
     email: string;
@@ -104,10 +125,7 @@ export interface MobileAuthContextValue extends MobileAuthState {
     email: string;
     password: string;
     twoFactorCode?: string;
-  }): Promise<
-    | { ok: true }
-    | { message: string; ok: false; requiresTwoFactor: boolean }
-  >;
+  }): Promise<{ ok: true } | { message: string; ok: false; requiresTwoFactor: boolean }>;
   signOut(): Promise<void>;
 }
 
@@ -116,6 +134,7 @@ interface MobileAuthProviderProps {
   biometricAuthenticator: MobileBiometricAuthenticator;
   children: ReactNode;
   deviceIntegrityDetector: MobileDeviceIntegrityDetector;
+  googleSignInClient?: MobileGoogleNativeSignInClient | null;
   repository?: MobileSessionRepository;
   runtimeConfig?: MobileEnvironmentConfig;
   securitySignalLogger: MobileSecuritySignalLogger;
@@ -128,6 +147,7 @@ export function MobileAuthProvider({
   biometricAuthenticator,
   children,
   deviceIntegrityDetector,
+  googleSignInClient = mobileGoogleNativeSignInClient,
   repository = mobileSecureSessionRepository,
   runtimeConfig = getMobileRuntimeConfig(),
   securitySignalLogger,
@@ -451,7 +471,12 @@ export function MobileAuthProvider({
     [commitAuthState, repository],
   );
 
-  const completeAuthHandoff = useCallback(
+  // The in-app auth session and the OS deep-link listener can both surface the
+  // same `whispr://oauth/<token>` URL. The token is single-use server side, so
+  // the second exchange would fail and stomp a healthy session with an error.
+  const handoffExchangesRef = useRef(new Map<string, Promise<boolean>>());
+
+  const exchangeAuthHandoff = useCallback(
     async (input: { callbackPath: string; handoffToken: string }) => {
       commitAuthState(createMobileAuthState("checking", stateRef.current.session));
 
@@ -474,12 +499,30 @@ export function MobileAuthProvider({
     [commitAuthState, commitAuthStateFromCurrent, createUnauthenticatedClient, repository],
   );
 
+  const completeAuthHandoff = useCallback(
+    async (input: { callbackPath: string; handoffToken: string }) => {
+      const pendingExchange = handoffExchangesRef.current.get(input.handoffToken);
+      if (pendingExchange) {
+        return pendingExchange;
+      }
+
+      const exchange = exchangeAuthHandoff(input);
+      handoffExchangesRef.current.set(input.handoffToken, exchange);
+
+      if (handoffExchangesRef.current.size > MAX_TRACKED_HANDOFF_EXCHANGES) {
+        const oldestToken = handoffExchangesRef.current.keys().next().value;
+        if (oldestToken !== undefined) {
+          handoffExchangesRef.current.delete(oldestToken);
+        }
+      }
+
+      return exchange;
+    },
+    [exchangeAuthHandoff],
+  );
+
   const signInWithPassword = useCallback(
-    async (input: {
-      email: string;
-      password: string;
-      twoFactorCode?: string;
-    }) => {
+    async (input: { email: string; password: string; twoFactorCode?: string }) => {
       try {
         const session = await signInMobileWithPassword(createUnauthenticatedClient(), {
           ...input,
@@ -599,6 +642,119 @@ export function MobileAuthProvider({
     }
   }, [commitAuthStateFromCurrent, runtimeConfig.webUrl]);
 
+  // Runs the whole provider consent flow inside the app (Android Custom Tabs /
+  // iOS ASWebAuthenticationSession) and completes the session before the sheet
+  // is gone. Only the one-time handoff token crosses back in; the OAuth code and
+  // provider tokens never leave the browser session. When no in-app browser is
+  // available the external browser hand-off still works through the deep link.
+  // Preferred path: Google's own account sheet, fully on device. Only the ID
+  // token leaves the sheet, and the API verifies it against Google's JWKS before
+  // a Whispr session exists. No browser, no OAuth code, no client secret.
+  const startNativeGoogleSignIn =
+    useCallback(async (): Promise<MobileSocialSignInResult | null> => {
+      const outcome = await runMobileGoogleNativeSignIn({
+        client: googleSignInClient,
+        webClientId: runtimeConfig.googleWebClientId,
+      });
+
+      if (outcome.type === "cancelled") {
+        return { ok: false, reason: "cancelled" } as const;
+      }
+
+      if (outcome.type === "failed") {
+        // Native path is not usable on this device/build: let the caller fall
+        // back to the browser hand-off instead of failing the sign-in.
+        return null;
+      }
+
+      commitAuthState(createMobileAuthState("checking", stateRef.current.session));
+
+      try {
+        const session = await signInMobileWithGoogleIdToken(createUnauthenticatedClient(), {
+          idToken: outcome.idToken,
+        });
+
+        await repository.save(session);
+        commitAuthState(createMobileAuthState("signed-in", session));
+        return { ok: true, via: "native" } as const;
+      } catch {
+        commitAuthStateFromCurrent((current: MobileAuthState) => ({
+          ...current,
+          error: activeMobileCopy.authSocialSignInFailed,
+          status: current.session ? "signed-in" : "signed-out",
+        }));
+        return { ok: false, reason: "failed" } as const;
+      }
+    }, [
+      commitAuthState,
+      commitAuthStateFromCurrent,
+      createUnauthenticatedClient,
+      googleSignInClient,
+      repository,
+      runtimeConfig.googleWebClientId,
+    ]);
+
+  const startSocialSignIn = useCallback(
+    async (provider: MobileAuthLiveSocialProviderId): Promise<MobileSocialSignInResult> => {
+      const nativeResult = await startNativeGoogleSignIn();
+      if (nativeResult) {
+        return nativeResult;
+      }
+
+      const startUrl = buildMobileWebSocialSignInUrl(runtimeConfig.webUrl, provider);
+      const outcome = await runMobileSocialAuthSession({
+        openAuthSession: (url, redirectUrl) =>
+          WebBrowser.openAuthSessionAsync(url, redirectUrl, {
+            createTask: false,
+            preferEphemeralSession: true,
+            showInRecents: false,
+          }),
+        parseDeepLink: (url) => parseMobileDeepLink(url, { webUrl: runtimeConfig.webUrl }),
+        startUrl,
+      });
+
+      if (outcome.type === "cancelled") {
+        return { ok: false, reason: "cancelled" } as const;
+      }
+
+      if (outcome.type === "completed") {
+        const completed = await completeAuthHandoff({
+          callbackPath: outcome.callbackPath,
+          handoffToken: outcome.handoffToken,
+        });
+
+        return completed
+          ? ({ ok: true, via: "in-app" } as const)
+          : ({ ok: false, reason: "failed" } as const);
+      }
+
+      if (outcome.reason === "invalid-callback") {
+        commitAuthStateFromCurrent((current: MobileAuthState) => ({
+          ...current,
+          error: activeMobileCopy.authSocialSignInFailed,
+        }));
+        return { ok: false, reason: "failed" } as const;
+      }
+
+      try {
+        await Linking.openURL(startUrl);
+        return { ok: true, via: "external-browser" } as const;
+      } catch {
+        commitAuthStateFromCurrent((current: MobileAuthState) => ({
+          ...current,
+          error: activeMobileCopy.authSocialSignInFailed,
+        }));
+        return { ok: false, reason: "failed" } as const;
+      }
+    },
+    [
+      commitAuthStateFromCurrent,
+      completeAuthHandoff,
+      runtimeConfig.webUrl,
+      startNativeGoogleSignIn,
+    ],
+  );
+
   const openWebRegister = useCallback(async () => {
     try {
       await Linking.openURL(buildMobileWebRegisterUrl(runtimeConfig.webUrl));
@@ -653,6 +809,7 @@ export function MobileAuthProvider({
       setAppLockEnabled,
       signInWithPassword,
       signOut,
+      startSocialSignIn,
     }),
     [
       apiClient,
@@ -677,6 +834,7 @@ export function MobileAuthProvider({
       setAppLockEnabled,
       signInWithPassword,
       signOut,
+      startSocialSignIn,
       state,
     ],
   );

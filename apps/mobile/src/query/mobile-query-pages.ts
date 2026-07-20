@@ -24,3 +24,23 @@ export function flattenMobileInfinitePages<TMessage extends { readonly id: strin
 
   return messages;
 }
+
+export type MobileInfiniteLoadMoreSource = {
+  readonly fetchNextPage: () => unknown;
+  readonly hasNextPage: boolean;
+  readonly isFetchingNextPage: boolean;
+};
+
+/**
+ * `onStartReached` fires repeatedly while the reader sits near the top of a
+ * message list, so the guard matters more than it looks: without it a single
+ * scroll gesture queues one request per frame.
+ */
+export function loadMoreMobileInfinitePages(source: MobileInfiniteLoadMoreSource): boolean {
+  if (!source.hasNextPage || source.isFetchingNextPage) {
+    return false;
+  }
+
+  void source.fetchNextPage();
+  return true;
+}

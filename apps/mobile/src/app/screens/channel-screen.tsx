@@ -61,6 +61,7 @@ export function MobileChannelChatScreen({
   onClearMessageSearch,
   onClearSelectedMediaAsset,
   onDraftChange,
+  onLoadMore,
   onRefresh,
   onRequestDocumentPicker,
   onRequestPhotoLibraryPicker,
@@ -94,6 +95,7 @@ export function MobileChannelChatScreen({
   onClearMessageSearch(): void;
   onClearSelectedMediaAsset(): void;
   onDraftChange(content: string): void;
+  onLoadMore?(): void;
   onRefresh(): void;
   onRequestDocumentPicker(): Promise<void>;
   onRequestPhotoLibraryPicker(): Promise<void>;
@@ -303,6 +305,7 @@ export function MobileChannelChatScreen({
         <ChannelMessageList
           currentUserId={currentUserId}
           isReactionMutationPending={isReactionMutationPending}
+          {...(onLoadMore ? { onLoadMore } : {})}
           onRefresh={onRefresh}
           onDeleteMessage={onDeleteMessage}
           onEditMessage={handleEditMessage}
@@ -343,6 +346,7 @@ export function MobileChannelChatScreen({
 export function ChannelMessageList({
   currentUserId,
   isReactionMutationPending = false,
+  onLoadMore,
   onRefresh,
   onDeleteMessage,
   onEditMessage,
@@ -354,6 +358,7 @@ export function ChannelMessageList({
 }: {
   currentUserId: string;
   isReactionMutationPending?: boolean;
+  onLoadMore?(): void;
   onRefresh(): void;
   onDeleteMessage?(messageId: string): Promise<boolean>;
   onEditMessage?(message: MobileMessageActionTarget): void;
@@ -367,7 +372,6 @@ export function ChannelMessageList({
   const styles = useChannelScreenStyles();
   const messages = useMemo(() => state.payload?.messages ?? [], [state.payload?.messages]);
   const streamItems = useMemo(() => getMobileMessageStreamItems(messages), [messages]);
-  const latestMessageId = messages[messages.length - 1]?.id ?? null;
   const listRef = useRef<FlashListRef<MobileMessageStreamItem<MobileRenderableMessage>> | null>(
     null,
   );
@@ -405,10 +409,6 @@ export function ChannelMessageList({
     [onRefresh, streamItems],
   );
 
-  useEffect(() => {
-    scrollToLatestMessage(true);
-  }, [latestMessageId, scrollToLatestMessage]);
-
   const renderItem = useCallback(
     ({ item }: { item: MobileMessageStreamItem<MobileRenderableMessage> }) => (
       <View
@@ -420,9 +420,9 @@ export function ChannelMessageList({
             : styles.mobileChannelMessageGroupSpacing,
         ]}
       >
-          {item.showDateSeparator ? (
-            <MessageDateSeparator createdAt={item.message.createdAt} variant="channel" />
-          ) : null}
+        {item.showDateSeparator ? (
+          <MessageDateSeparator createdAt={item.message.createdAt} variant="channel" />
+        ) : null}
         <MemoizedMessagePreviewRow
           currentUserId={currentUserId}
           isReactionMutationPending={isReactionMutationPending}
@@ -503,10 +503,19 @@ export function ChannelMessageList({
         keyboardShouldPersistTaps="handled"
         keyExtractor={(item) => item.id}
         ListEmptyComponent={emptyComponent}
-        onContentSizeChange={() => scrollToLatestMessage(false)}
-        onLayout={() => scrollToLatestMessage(false)}
+        // FlashList anchors the viewport itself: it renders from the bottom,
+        // keeps the visible message pinned when an older page prepends, and
+        // only follows a new message when the reader is already near the end.
+        // The manual scrollToEnd this replaced fought pagination — every
+        // prepended page changed the content size and yanked the view back down.
+        maintainVisibleContentPosition={{
+          animateAutoScrollToBottom: true,
+          autoscrollToBottomThreshold: 0.2,
+          startRenderingFromBottom: true,
+        }}
         onLoad={mobileListLoadHandlers.channelMessages}
         onScroll={handleScroll}
+        {...(onLoadMore ? { onStartReached: onLoadMore, onStartReachedThreshold: 0.35 } : {})}
         renderItem={renderItem}
         refreshControl={
           <RefreshControl

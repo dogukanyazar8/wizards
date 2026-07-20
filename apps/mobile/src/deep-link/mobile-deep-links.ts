@@ -37,6 +37,7 @@ interface ParseMobileDeepLinkOptions {
 }
 
 const WHISPR_SCHEME = "whispr:";
+export const MOBILE_WEB_OAUTH_START_PATH = "/mobile/oauth/start";
 const AUTH_HANDOFF_TOKEN_PATTERN = /^[A-Za-z0-9_-]{32,128}$/;
 const INVITE_CODE_PATTERN = /^[A-Za-z0-9_-]{1,96}$/;
 const SENSITIVE_QUERY_PARAMS = new Set([
@@ -58,6 +59,27 @@ export function buildMobileWebSignInUrl(webUrl: string, callbackPath = "/channel
 
 export function buildMobileWebRegisterUrl(webUrl: string, callbackPath = "/channels/@me"): string {
   return buildMobileWebAuthUrl(webUrl, "/register", callbackPath);
+}
+
+/**
+ * Starts the provider OAuth flow on web directly (mirrors the desktop
+ * `/desktop/oauth/start` hand-off) instead of dropping the user on the web
+ * password form. The web route signs the browser session out first, runs the
+ * provider consent screen and then redirects to `/mobile/oauth/complete`, which
+ * mints the single-use handoff token delivered back over `whispr://oauth/<token>`.
+ */
+export function buildMobileWebSocialSignInUrl(
+  webUrl: string,
+  provider: "google",
+  callbackPath = "/channels/@me",
+): string {
+  const safeCallbackPath =
+    normalizeSafeMobileRoutePath(callbackPath, "/channels/@me") ?? "/channels/@me";
+  const url = new URL(MOBILE_WEB_OAUTH_START_PATH, webUrl);
+  url.searchParams.set("callbackUrl", safeCallbackPath);
+  url.searchParams.set("provider", provider);
+  url.searchParams.set("client", "mobile");
+  return url.toString();
 }
 
 function buildMobileWebAuthUrl(

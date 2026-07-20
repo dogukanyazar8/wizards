@@ -29,7 +29,8 @@ export function applyMobileVoiceStateUpdate(
   if (!current) return current;
 
   const existingIndex = current.states.findIndex((state) => state.channelId === update.channelId);
-  const existingParticipants = existingIndex >= 0 ? current.states[existingIndex]?.participants ?? [] : [];
+  const existingParticipants =
+    existingIndex >= 0 ? (current.states[existingIndex]?.participants ?? []) : [];
   const participants = update.participants.map((participant) => {
     const existing = existingParticipants.find((entry) => entry.userId === participant.userId);
     return {

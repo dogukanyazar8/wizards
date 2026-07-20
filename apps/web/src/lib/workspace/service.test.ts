@@ -475,20 +475,13 @@ describe("workspace service characterization", { concurrency: false }, () => {
       const categorySelect = categories.select as UnknownRecord;
       const categoryChannels = categorySelect.channels as UnknownRecord;
       const ungroupedChannels = select.channels as UnknownRecord;
-      const members = select.members as UnknownRecord;
-      const memberSelect = members.select as UnknownRecord;
-      const memberRoles = memberSelect.roles as UnknownRecord;
-
       assert.equal(categories.take, 21);
       assert.deepEqual(categories.orderBy, [{ position: "asc" }, { id: "asc" }]);
       assert.equal(categoryChannels.take, 41);
       assert.deepEqual(categoryChannels.orderBy, [{ position: "asc" }, { id: "asc" }]);
       assert.equal(ungroupedChannels.take, 81);
       assert.deepEqual(ungroupedChannels.orderBy, [{ position: "asc" }, { id: "asc" }]);
-      assert.equal(members.take, 81);
-      assert.deepEqual(members.orderBy, [{ joinedAt: "asc" }, { id: "asc" }]);
-      assert.equal(memberRoles.take, 27);
-      assert.deepEqual(memberRoles.orderBy, [{ role: { position: "desc" } }, { roleId: "asc" }]);
+      assert.equal("members" in select, false);
       assert.equal("roles" in select, false);
       assert.equal(inviteQueryCount, 0);
       assert.equal(result.hasMoreChannels, false);
@@ -567,173 +560,55 @@ describe("workspace service characterization", { concurrency: false }, () => {
     });
   });
 
-  it("fails mobile server detail closed when a member exceeds the bounded role set", async () => {
-    const roleSets = [
-      Array.from({ length: 26 }, (_, index) => ({
-        role: {
-          color: index,
-          id: `ordinary-${index}`,
-          isDefault: false,
-          name: `Ordinary ${index}`,
-          permissions: 0n,
+  it("keeps the member list out of the mobile server detail read", async () => {
+    await withPatchedEnvironment(async (restores) => {
+      let serverQuery: unknown;
+      patchMethod(prisma.serverBan, "findUnique", async () => null, restores);
+      patchMethod(
+        prisma.serverMember,
+        "findFirst",
+        async () =>
+          accessMembership({
+            ownerId: "owner",
+            permissions: PermissionBits.VIEW_CHANNEL,
+            userId: "manager",
+          }),
+        restores,
+      );
+      patchMethod(
+        prisma.server,
+        "findUnique",
+        async (query?: unknown) => {
+          serverQuery = query;
+          return {
+            _count: { members: 4 },
+            categories: [],
+            channels: [],
+            description: null,
+            features: null,
+            iconUrl: null,
+            id: "server-1",
+            name: "Guild",
+            ownerId: "owner",
+            shortName: null,
+          };
         },
-      })),
-      [
-        ...Array.from({ length: 25 }, (_, index) => ({
-          role: {
-            color: index,
-            id: `ordinary-${index}`,
-            isDefault: false,
-            name: `Ordinary ${index}`,
-            permissions: 0n,
-          },
-        })),
-        ...Array.from({ length: 2 }, (_, index) => ({
-          role: {
-            color: 0,
-            id: `default-${index}`,
-            isDefault: true,
-            name: "@everyone",
-            permissions: 0n,
-          },
-        })),
-      ],
-    ];
+        restores,
+      );
+      patchMethod(prisma, "$queryRaw", async () => [], restores);
 
-    for (const roles of roleSets) {
-      await withPatchedEnvironment(async (restores) => {
-        patchMethod(prisma.serverBan, "findUnique", async () => null, restores);
-        patchMethod(
-          prisma.serverMember,
-          "findFirst",
-          async () =>
-            accessMembership({
-              ownerId: "owner",
-              permissions: PermissionBits.VIEW_CHANNEL,
-              userId: "manager",
-            }),
-          restores,
-        );
-        patchMethod(
-          prisma.server,
-          "findUnique",
-          async () => ({
-            _count: { members: 1 },
-            categories: [],
-            channels: [],
-            description: null,
-            iconUrl: null,
-            id: "server-1",
-            members: [
-              {
-                id: "member-target",
-                nickname: null,
-                roles,
-                user: {
-                  avatarUrl: null,
-                  customStatus: null,
-                  displayName: null,
-                  id: "target",
-                  status: "OFFLINE",
-                  username: "target",
-                },
-              },
-            ],
-            name: "Guild",
-            ownerId: "owner",
-            shortName: null,
-          }),
-          restores,
-        );
-        patchMethod(prisma, "$queryRaw", async () => [], restores);
+      const result = await getMobileWorkspaceServerDetailWithAccess("manager", "server-1");
+      const select = (serverQuery as { select: UnknownRecord }).select;
 
-        await assert.rejects(
-          () => getMobileWorkspaceServerDetailWithAccess("manager", "server-1"),
-          (error) =>
-            error instanceof ApiError &&
-            error.status === 409 &&
-            error.code === "MOBILE_RESPONSE_LIMIT_EXCEEDED",
-        );
-      });
-    }
-  });
-
-  it("allows 25 non-default member roles with or without one attached default role", async () => {
-    for (const includeDefault of [false, true]) {
-      await withPatchedEnvironment(async (restores) => {
-        const roles = [
-          ...(includeDefault
-            ? [
-                {
-                  role: {
-                    color: 0,
-                    id: "role-default",
-                    isDefault: true,
-                    name: "@everyone",
-                    permissions: PermissionBits.VIEW_CHANNEL,
-                  },
-                },
-              ]
-            : []),
-          ...Array.from({ length: 25 }, (_, index) => ({
-            role: {
-              color: index,
-              id: `role-${index}`,
-              isDefault: false,
-              name: `Role ${index}`,
-              permissions: 0n,
-            },
-          })),
-        ];
-        patchMethod(prisma.serverBan, "findUnique", async () => null, restores);
-        patchMethod(
-          prisma.serverMember,
-          "findFirst",
-          async () =>
-            accessMembership({
-              ownerId: "owner",
-              permissions: PermissionBits.VIEW_CHANNEL,
-              userId: "manager",
-            }),
-          restores,
-        );
-        patchMethod(
-          prisma.server,
-          "findUnique",
-          async () => ({
-            _count: { members: 1 },
-            categories: [],
-            channels: [],
-            description: null,
-            iconUrl: null,
-            id: "server-1",
-            members: [
-              {
-                id: "member-target",
-                nickname: null,
-                roles,
-                user: {
-                  avatarUrl: null,
-                  customStatus: null,
-                  displayName: null,
-                  id: "target",
-                  status: "OFFLINE",
-                  username: "target",
-                },
-              },
-            ],
-            name: "Guild",
-            ownerId: "owner",
-            shortName: null,
-          }),
-          restores,
-        );
-        patchMethod(prisma, "$queryRaw", async () => [], restores);
-
-        const result = await getMobileWorkspaceServerDetailWithAccess("manager", "server-1");
-        assert.equal(result.detail.members[0]?.roles.length, includeDefault ? 26 : 25);
-      });
-    }
+      // Members, their roles, and their users were three joins on the critical
+      // path of opening a server for a list the channel screen never rendered.
+      // The member surfaces page through listMobileWorkspaceServerMembersWithAccess,
+      // which is where the bounded-role guard is exercised.
+      assert.equal("members" in select, false);
+      assert.deepEqual(result.detail.members, []);
+      assert.equal(result.detail.server.ownerUserId, "owner");
+      assert.equal(result.detail.server.memberCount, 4);
+    });
   });
 
   it("bounds nested roles only for the mobile member list and keeps the web list unbounded", async () => {

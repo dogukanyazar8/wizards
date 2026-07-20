@@ -6,6 +6,7 @@ import {
   View,
   Ionicons,
   copy,
+  formatMobileUnreadCount,
   type MobileBootstrapPayload,
 } from "../mobile-root-screen-shared";
 import { AvatarMark } from "../components/ui-atoms";
@@ -126,7 +127,9 @@ export function MobileWorkspaceServerSwitcherSheet({
                     <Ionicons name="checkmark" size={20} color={theme.accent.strong} />
                   ) : unreadCount > 0 ? (
                     <View style={styles.unreadBadge}>
-                      <Text style={styles.unreadBadgeText}>{unreadCount}</Text>
+                      <Text style={styles.unreadBadgeText}>
+                        {formatMobileUnreadCount(unreadCount)}
+                      </Text>
                     </View>
                   ) : null}
                 </Pressable>

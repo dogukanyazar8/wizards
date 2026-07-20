@@ -9,8 +9,8 @@ import {
 } from "@wizards/types";
 
 import { jsonError, parseJsonBody } from "@/lib/api";
-import { enforceApiRateLimit } from "@/lib/api-rate-limit";
-import { requireMobileApiUserId } from "@/lib/auth/api";
+import { authorizeMobileApiRequest } from "@/lib/auth/api";
+import { createServerTiming } from "@/lib/server-timing";
 import { resolveMobileServerCapabilities } from "@/lib/workspace/mobile-capabilities";
 import {
   deleteWorkspaceServer,
@@ -25,9 +25,7 @@ const MOBILE_SERVER_CHANNEL_LIMIT = 80;
 const MOBILE_SERVER_MEMBER_LIMIT = 80;
 
 type MobileServerRateLimitAction =
-  | "mobile:server:delete"
-  | "mobile:server:detail"
-  | "mobile:server:update";
+  "mobile:server:delete" | "mobile:server:detail" | "mobile:server:update";
 
 type WorkspaceChannel = MobileWorkspaceServerDetailProjection["ungroupedChannels"][number] & {
   lastMessage?: MobileWorkspaceChannelSummary["lastMessage"];
@@ -38,9 +36,13 @@ export type MobileServerDetailRouteContext = {
 };
 
 export type MobileServerDetailRouteDependencies = {
-  authenticate(request: Request): Promise<string>;
+  /**
+   * Authentication and rate limiting are one dependency because they resolve
+   * concurrently — see `authorizeMobileApiRequest`. Server detail is the read
+   * the workspace screen blocks on, so the saved round trip is user-visible.
+   */
+  authorize(request: Request, action: MobileServerRateLimitAction): Promise<string>;
   deleteServer: typeof deleteWorkspaceServer;
-  enforceRateLimit(userId: string, action: MobileServerRateLimitAction): Promise<void>;
   getServerDetailWithAccess: typeof getMobileWorkspaceServerDetailWithAccess;
   parseBody: typeof parseJsonBody;
   resolveCapabilities: typeof resolveMobileServerCapabilities;
@@ -48,9 +50,8 @@ export type MobileServerDetailRouteDependencies = {
 };
 
 const defaultDependencies: MobileServerDetailRouteDependencies = {
-  authenticate: (request) => requireMobileApiUserId(request),
+  authorize: (request, action) => authorizeMobileApiRequest(request, action),
   deleteServer: deleteWorkspaceServer,
-  enforceRateLimit: enforceApiRateLimit,
   getServerDetailWithAccess: getMobileWorkspaceServerDetailWithAccess,
   parseBody: (request, schema) => parseJsonBody(request, schema),
   resolveCapabilities: resolveMobileServerCapabilities,
@@ -62,11 +63,16 @@ export async function mobileServerDetailRoute(
   context: MobileServerDetailRouteContext,
   dependencies: MobileServerDetailRouteDependencies = defaultDependencies,
 ) {
+  const timing = createServerTiming();
+
   try {
-    const userId = await dependencies.authenticate(request);
-    await dependencies.enforceRateLimit(userId, "mobile:server:detail");
+    const stopAuthTiming = timing.start("auth");
+    const userId = await dependencies.authorize(request, "mobile:server:detail");
+    stopAuthTiming();
     const { serverId } = MobileServerIdParamsSchema.parse(await context.params);
-    const result = await dependencies.getServerDetailWithAccess(userId, serverId);
+    const result = await timing.measure("db", () =>
+      dependencies.getServerDetailWithAccess(userId, serverId),
+    );
 
     return Response.json(
       MobileManagedWorkspaceServerDetailResponseSchema.parse({
@@ -76,9 +82,7 @@ export async function mobileServerDetailRoute(
         },
       }),
       {
-        headers: {
-          "Cache-Control": "no-store, no-cache, must-revalidate",
-        },
+        headers: timing.headers({ "Cache-Control": "no-store, no-cache, must-revalidate" }),
       },
     );
   } catch (error) {
@@ -92,8 +96,7 @@ export async function mobileServerUpdateRoute(
   dependencies: MobileServerDetailRouteDependencies = defaultDependencies,
 ) {
   try {
-    const userId = await dependencies.authenticate(request);
-    await dependencies.enforceRateLimit(userId, "mobile:server:update");
+    const userId = await dependencies.authorize(request, "mobile:server:update");
     const { serverId } = MobileServerIdParamsSchema.parse(await context.params);
     const input = await dependencies.parseBody(request, MobileServerUpdateRequestSchema);
     await dependencies.updateServer(userId, serverId, input);
@@ -118,8 +121,7 @@ export async function mobileServerDeleteRoute(
   dependencies: MobileServerDetailRouteDependencies = defaultDependencies,
 ) {
   try {
-    const userId = await dependencies.authenticate(request);
-    await dependencies.enforceRateLimit(userId, "mobile:server:delete");
+    const userId = await dependencies.authorize(request, "mobile:server:delete");
     const { serverId } = MobileServerIdParamsSchema.parse(await context.params);
     const input = await dependencies.parseBody(request, MobileServerDeleteRequestSchema);
     await dependencies.deleteServer(userId, serverId, input);
@@ -201,6 +203,7 @@ function toMobileWorkspaceServerDetail(
       mentionCount: detail.server.mentionCount,
       name: detail.server.name,
       onlineMemberCount: detail.server.onlineMemberCount ?? 0,
+      ownerUserId: detail.server.ownerUserId ?? null,
       shortName: detail.server.shortName,
       unreadCount: detail.server.unreadCount,
       visibleChannelCount: returnedChannelCount,

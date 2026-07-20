@@ -72,11 +72,23 @@ export const mobilePalette = Object.freeze({
 
 /** Brand-only colors that cannot be expressed through semantic foreground/surface roles. */
 export const mobileBrandPalette = Object.freeze({
+  apple: {
+    ink: "#1E2235",
+  },
+  discord: {
+    blurple: "#5865F2",
+  },
   google: {
     blue: "#4285F4",
     green: "#34A853",
     red: "#EA4335",
     yellow: "#FBBC05",
+  },
+  microsoft: {
+    blue: "#00A4EF",
+    green: "#7FBA00",
+    red: "#F25022",
+    yellow: "#FFB900",
   },
   whisprWave: {
     blue: "#2F6DFF",

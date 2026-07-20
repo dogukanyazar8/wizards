@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   buildMobileWebRegisterUrl,
   buildMobileWebSignInUrl,
+  buildMobileWebSocialSignInUrl,
   normalizeSafeMobileRoutePath,
   parseMobileDeepLink,
 } from "../src/deep-link/mobile-deep-links";
@@ -37,6 +38,25 @@ describe("mobile deep link contract", () => {
     );
     assert.equal(url.searchParams.has("token"), false);
     assert.equal(url.searchParams.has("password"), false);
+  });
+
+  it("starts the Google provider flow on the mobile oauth start route", () => {
+    const url = new URL(buildMobileWebSocialSignInUrl(webUrl, "google", "/channels/@me"));
+
+    assert.equal(url.origin, webUrl);
+    assert.equal(url.pathname, "/mobile/oauth/start");
+    assert.equal(url.searchParams.get("provider"), "google");
+    assert.equal(url.searchParams.get("client"), "mobile");
+    assert.equal(url.searchParams.get("callbackUrl"), "/channels/@me");
+    assert.equal(url.searchParams.has("token"), false);
+    assert.equal(url.searchParams.has("id_token"), false);
+  });
+
+  it("falls back to the default callback when the social callback path is unsafe", () => {
+    const url = new URL(buildMobileWebSocialSignInUrl(webUrl, "google", "https://evil.test/steal"));
+
+    assert.equal(url.pathname, "/mobile/oauth/start");
+    assert.equal(url.searchParams.get("callbackUrl"), "/channels/@me");
   });
 
   it("parses whispr auth handoff links as one-time token intents", () => {

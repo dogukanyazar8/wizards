@@ -1,6 +1,7 @@
 import {
   MobileAuthExchangeResponseSchema,
   MobileAuthForgotPasswordResponseSchema,
+  MobileAuthGoogleLoginResponseSchema,
   MobileAuthPasswordLoginResponseSchema,
   MobileAuthRegisterResponseSchema,
   MobileAuthRefreshResponseSchema,
@@ -14,14 +15,13 @@ import {
 import type { MobileApiClient } from "../api/mobile-api-client";
 
 export const MOBILE_AUTH_EXCHANGE_ENDPOINT = "/api/v1/mobile/auth/exchange";
-export const MOBILE_AUTH_FORGOT_PASSWORD_ENDPOINT =
-  "/api/v1/mobile/auth/forgot-password";
+export const MOBILE_AUTH_GOOGLE_ENDPOINT = "/api/v1/mobile/auth/google";
+export const MOBILE_AUTH_FORGOT_PASSWORD_ENDPOINT = "/api/v1/mobile/auth/forgot-password";
 export const MOBILE_AUTH_LOGIN_ENDPOINT = "/api/v1/mobile/auth/login";
 export const MOBILE_AUTH_REGISTER_ENDPOINT = "/api/v1/mobile/auth/register";
 export const MOBILE_AUTH_REFRESH_ENDPOINT = "/api/v1/mobile/auth/refresh";
 export const MOBILE_AUTH_REVOKE_ENDPOINT = "/api/v1/mobile/auth/revoke";
-export const MOBILE_AUTH_VERIFICATION_EMAIL_ENDPOINT =
-  "/api/v1/mobile/auth/verification-email";
+export const MOBILE_AUTH_VERIFICATION_EMAIL_ENDPOINT = "/api/v1/mobile/auth/verification-email";
 
 export async function signInMobileWithPassword(
   client: MobileApiClient,
@@ -37,6 +37,21 @@ export async function signInMobileWithPassword(
   });
 
   return MobileAuthPasswordLoginResponseSchema.parse(payload).session;
+}
+
+export async function signInMobileWithGoogleIdToken(
+  client: MobileApiClient,
+  input: {
+    idToken: string;
+    locale?: "en" | "tr";
+  },
+): Promise<MobileSessionSnapshotPayload> {
+  const payload = await client.requestJson<unknown>(MOBILE_AUTH_GOOGLE_ENDPOINT, {
+    body: input,
+    method: "POST",
+  });
+
+  return MobileAuthGoogleLoginResponseSchema.parse(payload).session;
 }
 
 export async function registerMobileWithPassword(
@@ -79,13 +94,10 @@ export async function requestMobileVerificationEmail(
     locale?: "en" | "tr";
   },
 ): Promise<MobileAuthVerificationEmailResponse> {
-  const payload = await client.requestJson<unknown>(
-    MOBILE_AUTH_VERIFICATION_EMAIL_ENDPOINT,
-    {
-      body: input,
-      method: "POST",
-    },
-  );
+  const payload = await client.requestJson<unknown>(MOBILE_AUTH_VERIFICATION_EMAIL_ENDPOINT, {
+    body: input,
+    method: "POST",
+  });
 
   return MobileAuthVerificationEmailResponseSchema.parse(payload);
 }

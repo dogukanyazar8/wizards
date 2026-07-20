@@ -53,6 +53,7 @@ export const API_RATE_LIMITS = {
   "message:search": { limit: 80, windowSeconds: 60 },
   "mobile:auth-exchange": { limit: 20, windowSeconds: 10 * 60 },
   "mobile:auth-forgot-password": { limit: 5, windowSeconds: 60 * 60 },
+  "mobile:auth-google": { limit: 10, windowSeconds: 15 * 60 },
   "mobile:auth-login": { limit: 5, windowSeconds: 15 * 60 },
   "mobile:auth-register": { limit: 8, windowSeconds: 60 * 60 },
   "mobile:auth-refresh": { limit: 30, windowSeconds: 10 * 60 },

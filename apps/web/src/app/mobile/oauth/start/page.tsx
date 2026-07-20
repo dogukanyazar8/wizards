@@ -1,0 +1,22 @@
+import { getSafeMobileOAuthProvider } from "@/lib/auth/mobile-oauth-start";
+import { getSafeAuthRedirectPath } from "@/lib/auth/redirect";
+import { MobileOAuthStartClient } from "./mobile-oauth-start-client";
+
+interface MobileOAuthStartPageProps {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}
+
+function readSingleParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+export default async function MobileOAuthStartPage({ searchParams }: MobileOAuthStartPageProps) {
+  const queryParams = await searchParams;
+  const callbackUrl = getSafeAuthRedirectPath(
+    readSingleParam(queryParams?.callbackUrl),
+    "/channels/@me",
+  );
+  const provider = getSafeMobileOAuthProvider(readSingleParam(queryParams?.provider));
+
+  return <MobileOAuthStartClient callbackUrl={callbackUrl} provider={provider} />;
+}

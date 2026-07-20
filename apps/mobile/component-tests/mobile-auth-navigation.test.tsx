@@ -75,7 +75,7 @@ jest.mock("../src/app/screens/auth/auth-login-screen", () => {
   const { Pressable, Text, View } = require("react-native");
 
   return {
-    AuthLoginScreen: ({ developmentCredentials, onBack, onForgotPassword, onOpenWebSignIn, onRegister, onSignIn }: any) =>
+    AuthLoginScreen: ({ developmentCredentials, onBack, onForgotPassword, onRegister, onSignIn, onSocialSignIn }: any) =>
       ReactRuntime.createElement(
         View,
         { testID: "mobile-auth-login-screen" },
@@ -90,8 +90,8 @@ jest.mock("../src/app/screens/auth/auth-login-screen", () => {
           testID: "mobile-auth-login-forgot-password",
         }),
         ReactRuntime.createElement(Pressable, {
-          onPress: onOpenWebSignIn,
-          testID: "mobile-auth-login-web-sign-in",
+          onPress: () => void onSocialSignIn("google"),
+          testID: "mobile-auth-login-social-google",
         }),
         ReactRuntime.createElement(Pressable, { onPress: onRegister, testID: "mobile-auth-login-register" }),
         ReactRuntime.createElement(Pressable, {
@@ -163,6 +163,9 @@ const mockedGetMobileDevLoginCredentials = jest.mocked(getMobileDevLoginCredenti
 
 const auth = {
   openWebSignIn: jest.fn<Promise<void>, []>().mockResolvedValue(undefined),
+  startSocialSignIn: jest
+    .fn<Promise<{ ok: true; via: "in-app" }>, ["google"]>()
+    .mockResolvedValue({ ok: true, via: "in-app" }),
   registerWithPassword: jest.fn<Promise<{ email: string; ok: true }>, [typeof REGISTER_INPUT]>().mockResolvedValue({
     email: REGISTER_INPUT.email,
     ok: true,
@@ -215,7 +218,7 @@ describe("MobileAuthNavigator", () => {
     const view = await renderNavigator();
 
     await fireEvent.press(view.getByTestId("mobile-auth-welcome-sign-in"));
-    await fireEvent.press(view.getByTestId("mobile-auth-login-web-sign-in"));
+    await fireEvent.press(view.getByTestId("mobile-auth-login-social-google"));
     await fireEvent.press(view.getByTestId("mobile-auth-login-submit"));
     await fireEvent.press(view.getByTestId("mobile-auth-login-forgot-password"));
     await fireEvent.press(view.getByTestId("mobile-auth-forgot-submit"));
@@ -223,7 +226,8 @@ describe("MobileAuthNavigator", () => {
     await fireEvent.press(view.getByTestId("mobile-auth-login-register"));
     await fireEvent.press(view.getByTestId("mobile-auth-register-submit"));
 
-    expect(auth.openWebSignIn).toHaveBeenCalledTimes(1);
+    expect(auth.startSocialSignIn).toHaveBeenCalledTimes(1);
+    expect(auth.startSocialSignIn).toHaveBeenCalledWith("google");
     expect(auth.signInWithPassword).toHaveBeenCalledWith(LOGIN_INPUT);
     expect(auth.requestPasswordReset).toHaveBeenCalledWith(RESET_INPUT);
     expect(auth.registerWithPassword).toHaveBeenCalledWith(REGISTER_INPUT);

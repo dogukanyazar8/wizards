@@ -26,6 +26,15 @@ type VisibleChannelUserGroup = {
   userIds: string[];
 };
 
+/**
+ * Counting every message since `lastReadAt` is unbounded work — a user away for
+ * a month makes the bootstrap read scan tens of thousands of rows per server.
+ * Mobile asks for a capped count and renders the ceiling as "99+", which turns
+ * the scan into a bounded `LIMIT` per channel. Web still asks for exact counts.
+ */
+export const MOBILE_UNREAD_COUNT_CAP = 99;
+const UNCAPPED_UNREAD_COUNT = 2_147_483_647;
+
 function toUnreadCount(value: bigint | number) {
   return typeof value === "bigint" ? Number(value) : value;
 }
@@ -131,19 +140,18 @@ export function groupUsersByVisibleChannelIds(
   return [...groups.values()];
 }
 
-async function getServerChannelUnreadCountsForVisibleChannelIds(
-  userId: string,
-  serverId: string,
-  visibleChannelIds: string[],
-) {
-  if (visibleChannelIds.length === 0) {
-    return new Map<string, { mentionCount: number; unreadCount: number }>();
-  }
+export function buildServerChannelUnreadQuery(input: {
+  serverId: string;
+  unreadCountCap: number;
+  userId: string;
+  visibleChannelIds: string[];
+}): Prisma.Sql {
+  const { serverId, unreadCountCap, userId, visibleChannelIds } = input;
 
-  const rows = await prisma.$queryRaw<ChannelUnreadCountRow[]>(Prisma.sql`
+  return Prisma.sql`
     SELECT
       c."id" AS "channelId",
-      COUNT(m."id")::bigint AS "unreadCount",
+      COALESCE(unread."unreadCount", 0)::bigint AS "unreadCount",
       COALESCE(crs."mentionCount", 0)::bigint AS "mentionCount"
     FROM "Channel" c
     INNER JOIN "ServerMember" sm
@@ -152,17 +160,38 @@ async function getServerChannelUnreadCountsForVisibleChannelIds(
     LEFT JOIN "ChannelReadState" crs
       ON crs."channelId" = c."id"
       AND crs."userId" = ${userId}
-    LEFT JOIN "Message" m
-      ON m."channelId" = c."id"
-      AND m."threadId" IS NULL
-      AND m."threadParentId" IS NULL
-      AND m."createdAt" > COALESCE(crs."lastReadAt", sm."joinedAt")
+    LEFT JOIN LATERAL (
+      SELECT COUNT(*)::bigint AS "unreadCount"
+      FROM (
+        SELECT 1
+        FROM "Message" m
+        WHERE m."channelId" = c."id"
+          AND m."threadId" IS NULL
+          AND m."threadParentId" IS NULL
+          AND m."createdAt" > COALESCE(crs."lastReadAt", sm."joinedAt")
+        LIMIT ${unreadCountCap}
+      ) capped
+    ) unread ON TRUE
     WHERE c."serverId" = ${serverId}
       AND c."type" = 'TEXT'
       AND c."parentId" IS NULL
       AND c."id" IN (${Prisma.join(visibleChannelIds)})
-    GROUP BY c."id", crs."mentionCount"
-  `);
+  `;
+}
+
+async function getServerChannelUnreadCountsForVisibleChannelIds(
+  userId: string,
+  serverId: string,
+  visibleChannelIds: string[],
+  unreadCountCap = UNCAPPED_UNREAD_COUNT,
+) {
+  if (visibleChannelIds.length === 0) {
+    return new Map<string, { mentionCount: number; unreadCount: number }>();
+  }
+
+  const rows = await prisma.$queryRaw<ChannelUnreadCountRow[]>(
+    buildServerChannelUnreadQuery({ serverId, unreadCountCap, userId, visibleChannelIds }),
+  );
 
   const counts = new Map<string, { mentionCount: number; unreadCount: number }>();
   for (const row of rows) {
@@ -195,10 +224,54 @@ function createServerCountMap(serverIds: string[]) {
   return counts;
 }
 
+export function buildServerUnreadTotalsQuery(input: {
+  uniqueServerIds: string[];
+  unreadCountCap: number;
+  userId: string;
+  visibleChannelIds: string[];
+}): Prisma.Sql {
+  const { uniqueServerIds, unreadCountCap, userId, visibleChannelIds } = input;
+
+  return Prisma.sql`
+    SELECT
+      "serverId",
+      LEAST(SUM("unreadCount"), ${unreadCountCap})::bigint AS "unreadCount"
+    FROM (
+      SELECT
+        sm."serverId" AS "serverId",
+        COALESCE(unread."unreadCount", 0) AS "unreadCount"
+      FROM "ServerMember" sm
+      INNER JOIN "Channel" c
+        ON c."serverId" = sm."serverId"
+        AND c."type" = 'TEXT'
+      LEFT JOIN "ChannelReadState" crs
+        ON crs."channelId" = c."id"
+        AND crs."userId" = sm."userId"
+      LEFT JOIN LATERAL (
+        SELECT COUNT(*)::bigint AS "unreadCount"
+        FROM (
+          SELECT 1
+          FROM "Message" m
+          WHERE m."channelId" = c."id"
+            AND m."threadId" IS NULL
+            AND m."threadParentId" IS NULL
+            AND m."createdAt" > COALESCE(crs."lastReadAt", sm."joinedAt")
+          LIMIT ${unreadCountCap}
+        ) capped
+      ) unread ON TRUE
+      WHERE sm."userId" = ${userId}
+        AND sm."serverId" IN (${Prisma.join(uniqueServerIds)})
+        AND c."id" IN (${Prisma.join(visibleChannelIds)})
+    ) "channelUnread"
+    GROUP BY "serverId"
+  `;
+}
+
 async function getServerUnreadCountsForVisibleChannelIds(
   userId: string,
   serverIds: string[],
   visibleChannelIds: string[],
+  unreadCountCap = UNCAPPED_UNREAD_COUNT,
 ) {
   const uniqueServerIds = normalizeIds(serverIds);
   const unreadCounts = createServerCountMap(uniqueServerIds);
@@ -206,27 +279,9 @@ async function getServerUnreadCountsForVisibleChannelIds(
     return unreadCounts;
   }
 
-  const rows = await prisma.$queryRaw<ServerUnreadCountRow[]>(Prisma.sql`
-    SELECT
-      sm."serverId" AS "serverId",
-      COUNT(m."id")::bigint AS "unreadCount"
-    FROM "ServerMember" sm
-    LEFT JOIN "Channel" c
-      ON c."serverId" = sm."serverId"
-      AND c."type" = 'TEXT'
-    LEFT JOIN "ChannelReadState" crs
-      ON crs."channelId" = c."id"
-      AND crs."userId" = sm."userId"
-    LEFT JOIN "Message" m
-      ON m."channelId" = c."id"
-      AND m."threadId" IS NULL
-      AND m."threadParentId" IS NULL
-      AND m."createdAt" > COALESCE(crs."lastReadAt", sm."joinedAt")
-    WHERE sm."userId" = ${userId}
-      AND sm."serverId" IN (${Prisma.join(uniqueServerIds)})
-      AND c."id" IN (${Prisma.join(visibleChannelIds)})
-    GROUP BY sm."serverId"
-  `);
+  const rows = await prisma.$queryRaw<ServerUnreadCountRow[]>(
+    buildServerUnreadTotalsQuery({ uniqueServerIds, unreadCountCap, userId, visibleChannelIds }),
+  );
 
   for (const row of rows) {
     unreadCounts.set(row.serverId, toUnreadCount(row.unreadCount));
@@ -280,8 +335,18 @@ export async function getBoundedMobileServerUnreadSummary(
   }
 
   const [channelUnreadCounts, unreadCounts, mentionCounts] = await Promise.all([
-    getServerChannelUnreadCountsForVisibleChannelIds(userId, serverId, channelIds),
-    getServerUnreadCountsForVisibleChannelIds(userId, [serverId], channelIds),
+    getServerChannelUnreadCountsForVisibleChannelIds(
+      userId,
+      serverId,
+      channelIds,
+      MOBILE_UNREAD_COUNT_CAP,
+    ),
+    getServerUnreadCountsForVisibleChannelIds(
+      userId,
+      [serverId],
+      channelIds,
+      MOBILE_UNREAD_COUNT_CAP,
+    ),
     getServerMentionCountsForVisibleChannelIds(userId, [serverId], channelIds),
   ]);
 
@@ -314,12 +379,21 @@ export async function getServerMentionCounts(userId: string, serverIds: string[]
   );
 }
 
-export async function getServerUnreadAndMentionCounts(userId: string, serverIds: string[]) {
+export async function getServerUnreadAndMentionCounts(
+  userId: string,
+  serverIds: string[],
+  options: { unreadCountCap?: number } = {},
+) {
   const uniqueServerIds = normalizeIds(serverIds);
   const visibleChannelIdsByServer = await getVisibleTextChannelIdsByServer(userId, uniqueServerIds);
   const visibleChannelIds = getVisibleChannelIds(visibleChannelIdsByServer);
   const [unreadCounts, mentionCounts] = await Promise.all([
-    getServerUnreadCountsForVisibleChannelIds(userId, uniqueServerIds, visibleChannelIds),
+    getServerUnreadCountsForVisibleChannelIds(
+      userId,
+      uniqueServerIds,
+      visibleChannelIds,
+      options.unreadCountCap ?? UNCAPPED_UNREAD_COUNT,
+    ),
     getServerMentionCountsForVisibleChannelIds(userId, uniqueServerIds, visibleChannelIds),
   ]);
 

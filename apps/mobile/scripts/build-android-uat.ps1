@@ -638,15 +638,42 @@ function Get-WhisprUatPnpmVirtualStoreDir {
   }
 }
 
+function Get-WhisprUatPnpmVirtualStoreMaxLength {
+  param([string]$WorkingDirectory)
+
+  $modulesMetadataPath = Join-Path $WorkingDirectory "node_modules\.modules.yaml"
+  if (-not (Test-Path -LiteralPath $modulesMetadataPath)) {
+    return $null
+  }
+
+  try {
+    $modulesMetadata = Get-Content -Raw -LiteralPath $modulesMetadataPath | ConvertFrom-Json
+    $virtualStoreMaxLengthProperty = $modulesMetadata.PSObject.Properties["virtualStoreDirMaxLength"]
+    if ($null -eq $virtualStoreMaxLengthProperty) {
+      return $null
+    }
+
+    return [int]$virtualStoreMaxLengthProperty.Value
+  } catch {
+    return $null
+  }
+}
+
 function Test-WhisprUatPnpmLayout {
   param(
     [string]$WorkingDirectory,
-    [string]$ExpectedVirtualStoreDir
+    [string]$ExpectedVirtualStoreDir,
+    [int]$ExpectedVirtualStoreMaxLength
   )
 
   $normalizedExpectedVirtualStoreDir = [System.IO.Path]::GetFullPath($ExpectedVirtualStoreDir).TrimEnd("\\")
   $actualVirtualStoreDir = Get-WhisprUatPnpmVirtualStoreDir -WorkingDirectory $WorkingDirectory
   if ($null -eq $actualVirtualStoreDir -or -not $actualVirtualStoreDir.Equals($normalizedExpectedVirtualStoreDir, [System.StringComparison]::OrdinalIgnoreCase)) {
+    return $false
+  }
+
+  $actualVirtualStoreMaxLength = Get-WhisprUatPnpmVirtualStoreMaxLength -WorkingDirectory $WorkingDirectory
+  if ($null -eq $actualVirtualStoreMaxLength -or $actualVirtualStoreMaxLength -ne $ExpectedVirtualStoreMaxLength) {
     return $false
   }
 
@@ -672,10 +699,11 @@ function Test-WhisprUatPnpmLayout {
 function Invoke-PnpmInstallWithRecovery {
   param(
     [string]$WorkingDirectory,
-    [string]$ResolvedBuildHome,
-    [string]$PhysicalWorkspaceRoot,
-    [string]$PhysicalStoreDir,
-    [string]$PhysicalVirtualStoreDir
+      [string]$ResolvedBuildHome,
+      [string]$PhysicalWorkspaceRoot,
+      [string]$PhysicalStoreDir,
+      [string]$PhysicalVirtualStoreDir,
+      [int]$PnpmVirtualStoreMaxLength
   )
 
   $previousCi = $env:CI
@@ -688,6 +716,7 @@ function Invoke-PnpmInstallWithRecovery {
         "pnpm",
         "--config.store-dir=$PhysicalStoreDir",
         "--config.virtual-store-dir=$PhysicalVirtualStoreDir",
+        "--config.virtual-store-dir-max-length=$PnpmVirtualStoreMaxLength",
         "install",
         "--frozen-lockfile"
       ) -WorkingDirectory $WorkingDirectory
@@ -695,7 +724,7 @@ function Invoke-PnpmInstallWithRecovery {
       $requiresForcedReinstall = $true
     }
 
-    if (-not $requiresForcedReinstall -and -not (Test-WhisprUatPnpmLayout -WorkingDirectory $WorkingDirectory -ExpectedVirtualStoreDir $PhysicalVirtualStoreDir)) {
+    if (-not $requiresForcedReinstall -and -not (Test-WhisprUatPnpmLayout -WorkingDirectory $WorkingDirectory -ExpectedVirtualStoreDir $PhysicalVirtualStoreDir -ExpectedVirtualStoreMaxLength $PnpmVirtualStoreMaxLength)) {
       Write-Host "Managed pnpm layout is stale or incomplete after installation. Rebuilding managed dependency state." -ForegroundColor Yellow
       $requiresForcedReinstall = $true
     }
@@ -706,13 +735,14 @@ function Invoke-PnpmInstallWithRecovery {
         "pnpm",
         "--config.store-dir=$PhysicalStoreDir",
         "--config.virtual-store-dir=$PhysicalVirtualStoreDir",
+        "--config.virtual-store-dir-max-length=$PnpmVirtualStoreMaxLength",
         "install",
         "--force",
         "--frozen-lockfile"
       ) -WorkingDirectory $WorkingDirectory
     }
 
-    if (-not (Test-WhisprUatPnpmLayout -WorkingDirectory $WorkingDirectory -ExpectedVirtualStoreDir $PhysicalVirtualStoreDir)) {
+    if (-not (Test-WhisprUatPnpmLayout -WorkingDirectory $WorkingDirectory -ExpectedVirtualStoreDir $PhysicalVirtualStoreDir -ExpectedVirtualStoreMaxLength $PnpmVirtualStoreMaxLength)) {
       $actualVirtualStoreDir = Get-WhisprUatPnpmVirtualStoreDir -WorkingDirectory $WorkingDirectory
       throw "Managed pnpm layout is stale or incomplete after forced recovery. Expected virtual store: $PhysicalVirtualStoreDir; actual virtual store: $actualVirtualStoreDir"
     }
@@ -940,7 +970,7 @@ Write-Host "Metro development server port: $metroPort"
 Write-Step "Preparing package manager and Android SDK config"
 Ensure-ProjectNpmrc -Root $resolvedBuildRoot -StoreDir $pnpmStoreDir -VirtualStoreDir $pnpmVirtualStoreDir -VirtualStoreMaxLength $PnpmVirtualStoreMaxLength
 Ensure-AndroidLocalProperties -MobileRoot $mobileRoot -SdkRoot $AndroidHome
-Invoke-PnpmInstallWithRecovery -WorkingDirectory $resolvedBuildRoot -ResolvedBuildHome $resolvedBuildHome -PhysicalWorkspaceRoot $physicalWorkspaceRoot -PhysicalStoreDir $physicalPnpmStoreDir -PhysicalVirtualStoreDir $physicalPnpmVirtualStoreDir
+Invoke-PnpmInstallWithRecovery -WorkingDirectory $resolvedBuildRoot -ResolvedBuildHome $resolvedBuildHome -PhysicalWorkspaceRoot $physicalWorkspaceRoot -PhysicalStoreDir $physicalPnpmStoreDir -PhysicalVirtualStoreDir $physicalPnpmVirtualStoreDir -PnpmVirtualStoreMaxLength $PnpmVirtualStoreMaxLength
 Invoke-CommandChecked -Command "corepack" -Arguments @("pnpm", "--filter", "@wizards/mobile", "validate:env") -WorkingDirectory $resolvedBuildRoot
 Assert-ExpoReleaseBundlePrerequisites -WorkingDirectory $mobileRoot -BuildType $BuildType
 Stop-GradleDaemons -GradleWrapperPath $gradlew -WorkingDirectory $androidRoot

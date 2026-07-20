@@ -95,6 +95,7 @@ export {
   filterMobileConversations,
   filterMobileWorkspaceChannelSections,
   formatMobileDisplayTime,
+  formatMobileUnreadCount,
   getBoundedMobileList,
   getMobileChannelChatHeaderModel,
   getMobileChannelChatSearchVisibility,

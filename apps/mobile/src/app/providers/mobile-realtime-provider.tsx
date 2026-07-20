@@ -36,6 +36,7 @@ import {
   replaceMobileChannelTypingUsers,
   type MobileChannelTypingState,
 } from "../../realtime/mobile-typing-state";
+import { purgeMobileQueryCache } from "../../query/mobile-query-persistence";
 import { resetMobileSessionState } from "../../state/reset-mobile-session-state";
 import { useMobileActiveTargetStore } from "../../state/mobile-active-target-store";
 import { useMobileQueryClient } from "./mobile-query-provider";
@@ -353,6 +354,10 @@ export function MobileRealtimeProvider({ children }: PropsWithChildren) {
     }
     bridge.cancelPending();
     queryClient.removeQueries({ queryKey: mobileQueryKeys.all });
+    // Clearing the in-memory cache only schedules a throttled empty write, so
+    // drop the persisted file outright — a signed-out device must not keep the
+    // previous account's servers and conversations readable on disk.
+    void purgeMobileQueryCache(getMobileRuntimeConfig().environment);
     resetMobileSessionState();
     setTyping(createInitialMobileChannelTypingState());
     setDMTyping(createInitialMobileChannelTypingState());

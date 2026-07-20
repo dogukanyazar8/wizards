@@ -29,14 +29,18 @@ describe("mobile phase zero boundary", () => {
     assert.doesNotMatch(source, /ActiveScreenProps|MobileScreenRuntime|mobile-root-screens/);
   });
 
-  it("keeps query and UI state memory-only without persistence or offline queues", () => {
-    const source = [
-      readTree(resolve(process.cwd(), "src/query")),
-      readTree(resolve(process.cwd(), "src/state")),
-    ].join("\n");
+  it("keeps UI state memory-only and query persistence off the offline-queue path", () => {
+    // Phase 0 kept the query cache memory-only. Read caching for the workspace
+    // shell is now persisted (see mobile-query-cache-policy.ts), so the guard
+    // narrowed rather than lifted: Zustand stores stay memory-only, no query
+    // cache reaches SecureStore, and mutations still have no offline queue.
     assert.doesNotMatch(
-      source,
+      readTree(resolve(process.cwd(), "src/state")),
       /createJSONStorage|AsyncStorage|SecureStore|persist\s*\(|dehydrate\s*\(|hydrate\s*\(|offlineMutation|offlineQueue/i,
+    );
+    assert.doesNotMatch(
+      readTree(resolve(process.cwd(), "src/query")),
+      /createJSONStorage|SecureStore|offlineMutation|offlineQueue/i,
     );
   });
 

@@ -1,7 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 
-import { MOBILE_AUTH_SOCIAL_PROVIDERS } from "../../../auth/mobile-auth-social-config";
+import {
+  isLiveMobileAuthSocialProvider,
+  MOBILE_AUTH_SOCIAL_PROVIDERS,
+  type MobileAuthLiveSocialProviderId,
+} from "../../../auth/mobile-auth-social-config";
+import type { MobileSocialSignInResult } from "../../../auth/mobile-auth-context";
 import { mobileCopy } from "../../../locale/mobile-copy";
 import {
   AuthCheckbox,
@@ -29,13 +34,15 @@ export interface AuthLoginScreenProps {
   } | null;
   readonly onBack: () => void;
   readonly onForgotPassword: () => void;
-  readonly onOpenWebSignIn: () => void;
   readonly onRegister: () => void;
   readonly onSignIn: (input: {
     email: string;
     password: string;
     twoFactorCode?: string;
   }) => Promise<{ ok: true } | { message: string; ok: false; requiresTwoFactor?: boolean }>;
+  readonly onSocialSignIn: (
+    provider: MobileAuthLiveSocialProviderId,
+  ) => Promise<MobileSocialSignInResult>;
 }
 
 function normalizeEmail(value: string) {
@@ -50,9 +57,9 @@ export function AuthLoginScreen({
   developmentCredentials = null,
   onBack,
   onForgotPassword,
-  onOpenWebSignIn,
   onRegister,
   onSignIn,
+  onSocialSignIn,
 }: AuthLoginScreenProps) {
   const theme = useTheme();
   const { locale } = useMobileLocaleRuntime();
@@ -69,6 +76,8 @@ export function AuthLoginScreen({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [socialProviderInFlight, setSocialProviderInFlight] =
+    useState<MobileAuthLiveSocialProviderId | null>(null);
 
   const clearFeedback = () => {
     setErrorMessage(null);
@@ -79,6 +88,45 @@ export function AuthLoginScreen({
     setTwoFactorVisible((visible) => !visible);
     setTwoFactorCode("");
     clearFeedback();
+  };
+
+  const handleSocialPress = async (provider: (typeof MOBILE_AUTH_SOCIAL_PROVIDERS)[number]) => {
+    if (isSubmitting || socialProviderInFlight) {
+      return;
+    }
+
+    clearFeedback();
+
+    if (!isLiveMobileAuthSocialProvider(provider)) {
+      setNoticeMessage(
+        copy.authSocialProviderComingSoon.replace("{provider}", provider.displayName),
+      );
+      return;
+    }
+
+    setSocialProviderInFlight(provider.id);
+
+    try {
+      const result = await onSocialSignIn(provider.id);
+
+      if (result.ok) {
+        // The in-app session already signed the user in and this screen is about
+        // to unmount; only the browser fallback still needs a hand-off hint.
+        if (result.via === "external-browser") {
+          setNoticeMessage(copy.authSocialRedirectNotice);
+        }
+        return;
+      }
+
+      // A cancelled consent sheet is a normal user action, not an error.
+      if (result.reason === "failed") {
+        setErrorMessage(copy.authSocialSignInFailed);
+      }
+    } catch {
+      setErrorMessage(copy.authSocialSignInFailed);
+    } finally {
+      setSocialProviderInFlight(null);
+    }
   };
 
   const handleFillDevelopmentCredentials = () => {
@@ -357,11 +405,28 @@ export function AuthLoginScreen({
                   return (
                     <Pressable
                       key={provider.id}
+                      {...(provider.status === "preview"
+                        ? {
+                            accessibilityHint: copy.authSocialProviderComingSoon.replace(
+                              "{provider}",
+                              provider.displayName,
+                            ),
+                          }
+                        : {})}
                       accessibilityLabel={label}
                       accessibilityRole="button"
-                      disabled={isSubmitting}
-                      onPress={onOpenWebSignIn}
-                      style={styles.socialAction}
+                      accessibilityState={{
+                        busy: socialProviderInFlight === provider.id,
+                        disabled: isSubmitting || socialProviderInFlight !== null,
+                      }}
+                      disabled={isSubmitting || socialProviderInFlight !== null}
+                      onPress={() => void handleSocialPress(provider)}
+                      style={[
+                        styles.socialAction,
+                        socialProviderInFlight !== null && socialProviderInFlight !== provider.id
+                          ? styles.socialActionMuted
+                          : null,
+                      ]}
                       testID={provider.testID}
                     >
                       <AuthSocialProviderIcon

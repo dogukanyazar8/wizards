@@ -1,20 +1,23 @@
 import { prisma } from "@wizards/db";
-import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import { ApiError, jsonError } from "@/lib/api";
-import { requireMobileApiUserId } from "@/lib/auth/api";
-import { getServerUnreadAndMentionCounts } from "@/lib/workspace/unread-service";
+import { authorizeMobileApiRequest } from "@/lib/auth/api";
+import { createServerTiming } from "@/lib/server-timing";
 import {
-  getMobileBootstrapPayload,
-  type MobileBootstrapHomeSummary,
-} from "@/lib/mobile/bootstrap";
+  MOBILE_UNREAD_COUNT_CAP,
+  getServerUnreadAndMentionCounts,
+} from "@/lib/workspace/unread-service";
+import { getMobileBootstrapPayload, type MobileBootstrapHomeSummary } from "@/lib/mobile/bootstrap";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export async function GET(request: Request) {
+  const timing = createServerTiming();
+
   try {
-    const userId = await requireMobileApiUserId(request);
-    await enforceApiRateLimit(userId, "mobile:bootstrap");
+    const stopAuthTiming = timing.start("auth");
+    const userId = await authorizeMobileApiRequest(request, "mobile:bootstrap");
+    stopAuthTiming();
 
     const [
       user,
@@ -23,121 +26,124 @@ export async function GET(request: Request) {
       recentDMParticipants,
       dmTotalCount,
       dmUnreadAggregate,
-    ] = await Promise.all([
-      prisma.user.findUnique({
-        where: { id: userId },
-        select: {
-          avatarUrl: true,
-          displayName: true,
-          id: true,
-          locale: true,
-          status: true,
-          username: true,
-        },
-      }),
-      prisma.serverMember.findMany({
-        orderBy: { joinedAt: "desc" },
-        take: 50,
-        where: {
-          pending: false,
-          userId,
-        },
-        select: {
-          joinedAt: true,
-          server: {
-            select: {
-              _count: {
-                select: {
-                  channels: true,
-                  members: true,
-                },
-              },
-              iconUrl: true,
-              id: true,
-              name: true,
-              shortName: true,
-            },
+    ] = await timing.measure("db", () =>
+      Promise.all([
+        prisma.user.findUnique({
+          where: { id: userId },
+          select: {
+            avatarUrl: true,
+            displayName: true,
+            id: true,
+            locale: true,
+            status: true,
+            username: true,
           },
-        },
-      }),
-      prisma.serverMember.count({
-        where: {
-          pending: false,
-          userId,
-        },
-      }),
-      prisma.dMParticipant.findMany({
-        orderBy: {
-          conversation: {
-            lastMessageAt: "desc",
+        }),
+        prisma.serverMember.findMany({
+          orderBy: { joinedAt: "desc" },
+          take: 50,
+          where: {
+            pending: false,
+            userId,
           },
-        },
-        take: 5,
-        where: {
-          hiddenAt: null,
-          userId,
-        },
-        select: {
-          muted: true,
-          unreadCount: true,
-          conversation: {
-            select: {
-              iconUrl: true,
-              id: true,
-              lastMessageAt: true,
-              name: true,
-              participants: {
-                orderBy: {
-                  joinedAt: "asc",
-                },
-                select: {
-                  user: {
-                    select: {
-                      avatarUrl: true,
-                      displayName: true,
-                      id: true,
-                      status: true,
-                      username: true,
-                    },
+          select: {
+            joinedAt: true,
+            server: {
+              select: {
+                _count: {
+                  select: {
+                    channels: true,
+                    members: true,
                   },
                 },
-                take: 4,
+                iconUrl: true,
+                id: true,
+                name: true,
+                shortName: true,
               },
-              type: true,
-              _count: {
-                select: {
-                  participants: true,
+            },
+          },
+        }),
+        prisma.serverMember.count({
+          where: {
+            pending: false,
+            userId,
+          },
+        }),
+        prisma.dMParticipant.findMany({
+          orderBy: {
+            conversation: {
+              lastMessageAt: "desc",
+            },
+          },
+          take: 5,
+          where: {
+            hiddenAt: null,
+            userId,
+          },
+          select: {
+            muted: true,
+            unreadCount: true,
+            conversation: {
+              select: {
+                iconUrl: true,
+                id: true,
+                lastMessageAt: true,
+                name: true,
+                participants: {
+                  orderBy: {
+                    joinedAt: "asc",
+                  },
+                  select: {
+                    user: {
+                      select: {
+                        avatarUrl: true,
+                        displayName: true,
+                        id: true,
+                        status: true,
+                        username: true,
+                      },
+                    },
+                  },
+                  take: 4,
+                },
+                type: true,
+                _count: {
+                  select: {
+                    participants: true,
+                  },
                 },
               },
             },
           },
-        },
-      }),
-      prisma.dMParticipant.count({
-        where: {
-          hiddenAt: null,
-          userId,
-        },
-      }),
-      prisma.dMParticipant.aggregate({
-        _sum: {
-          unreadCount: true,
-        },
-        where: {
-          hiddenAt: null,
-          userId,
-        },
-      }),
-    ]);
+        }),
+        prisma.dMParticipant.count({
+          where: {
+            hiddenAt: null,
+            userId,
+          },
+        }),
+        prisma.dMParticipant.aggregate({
+          _sum: {
+            unreadCount: true,
+          },
+          where: {
+            hiddenAt: null,
+            userId,
+          },
+        }),
+      ]),
+    );
 
     if (!user) {
       throw new ApiError("User not found", 404, "USER_NOT_FOUND");
     }
 
     const recentServerIds = recentServerMemberships.map((membership) => membership.server.id);
-    const { mentionCounts, unreadCounts } = await getServerUnreadAndMentionCounts(
-      userId,
-      recentServerIds,
+    const { mentionCounts, unreadCounts } = await timing.measure("db", () =>
+      getServerUnreadAndMentionCounts(userId, recentServerIds, {
+        unreadCountCap: MOBILE_UNREAD_COUNT_CAP,
+      }),
     );
 
     const home: MobileBootstrapHomeSummary = {
@@ -179,9 +185,7 @@ export async function GET(request: Request) {
     };
 
     return Response.json(getMobileBootstrapPayload({ home, user }), {
-      headers: {
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      },
+      headers: timing.headers({ "Cache-Control": "no-store, no-cache, must-revalidate" }),
     });
   } catch (error) {
     return jsonError(error);

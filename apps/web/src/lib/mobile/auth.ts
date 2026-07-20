@@ -1,14 +1,10 @@
-import {
-  createHash,
-  createHmac,
-  randomBytes,
-  timingSafeEqual,
-} from "node:crypto";
+import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 import { Prisma, prisma } from "@wizards/db";
 import {
   MobileAuthExchangeResponseSchema,
   MobileAuthForgotPasswordResponseSchema,
+  MobileAuthGoogleLoginResponseSchema,
   MobileAuthPasswordLoginResponseSchema,
   MobileAuthRegisterResponseSchema,
   MobileAuthRefreshResponseSchema,
@@ -17,10 +13,7 @@ import {
 import bcrypt from "bcryptjs";
 
 import { DEFAULT_WIZARDS_THEME } from "@/lib/appearance";
-import {
-  EmailVerificationError,
-  sendVerificationEmail,
-} from "@/lib/auth/email-verification";
+import { EmailVerificationError, sendVerificationEmail } from "@/lib/auth/email-verification";
 import {
   PASSWORD_RESET_TOKEN_EXPIRY_MINUTES,
   PasswordResetError,
@@ -35,14 +28,17 @@ import {
   recordMobileLoginAttemptFailure,
   resetMobileLoginAttemptFailures,
 } from "@/lib/auth/mobile-login-attempts";
-import {
-  createRedisAttemptStore,
-  type AttemptStore,
-} from "@/lib/auth/attempt-tracker";
+import { createRedisAttemptStore, type AttemptStore } from "@/lib/auth/attempt-tracker";
 import { normalizeAppLocale } from "@/lib/locale";
 import { persistUserLocale } from "@/lib/locale/persistence";
 import { logError } from "@/lib/logger";
 import { getRedis, getRedisRate } from "@/lib/redis";
+import {
+  linkMobileGoogleAccount,
+  MobileGoogleAuthError,
+  verifyMobileGoogleIdToken,
+  type MobileGoogleIdentity,
+} from "./google-native-auth";
 
 export const MOBILE_AUTH_HANDOFF_TTL_SECONDS = 120;
 export const MOBILE_ACCESS_TOKEN_TTL_SECONDS = 15 * 60;
@@ -117,6 +113,11 @@ interface MobilePasswordAuthUser extends MobileAuthUser {
   passwordHash: string | null;
   twoFactorEnabled: boolean;
   twoFactorSecret: string | null;
+}
+
+interface MobileGoogleAuthOptions extends MobileAuthOptions {
+  linkAccount?: typeof linkMobileGoogleAccount;
+  verifyIdToken?: (idToken: string) => Promise<MobileGoogleIdentity>;
 }
 
 interface MobileNativeAuthOptions extends MobileAuthOptions {
@@ -227,10 +228,7 @@ function safeEqualBase64Url(left: string, right: string) {
   const leftBuffer = Buffer.from(left);
   const rightBuffer = Buffer.from(right);
 
-  return (
-    leftBuffer.length === rightBuffer.length &&
-    timingSafeEqual(leftBuffer, rightBuffer)
-  );
+  return leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer);
 }
 
 function getMobileAuthSecret(env: NodeJS.ProcessEnv = process.env) {
@@ -477,9 +475,7 @@ async function loadMobileVerificationEmailUser(email: string) {
   });
 }
 
-async function loadMobilePasswordResetUser(
-  email: string,
-): Promise<MobilePasswordResetUser | null> {
+async function loadMobilePasswordResetUser(email: string): Promise<MobilePasswordResetUser | null> {
   return prisma.user.findUnique({
     where: { email },
     select: {
@@ -694,10 +690,7 @@ export async function exchangeMobileAuthHandoffToken(
   const redis = getMobileAuthRedis(options);
   const rawPayload = await takeRedisValue(redis, getMobileAuthHandoffKey(handoffToken));
   const payload = parseMobileAuthHandoffPayload(rawPayload);
-  const expectedCallbackPath = getSafeAuthRedirectPath(
-    input.expectedCallbackPath,
-    "/channels/@me",
-  );
+  const expectedCallbackPath = getSafeAuthRedirectPath(input.expectedCallbackPath, "/channels/@me");
 
   if (!payload || payload.callbackPath !== expectedCallbackPath) {
     return null;
@@ -714,6 +707,49 @@ export async function exchangeMobileAuthHandoffToken(
   });
 }
 
+/**
+ * Native Google sign-in. The device runs Google's own account sheet, so the only
+ * credential that reaches this server is the ID token, which is verified against
+ * Google's JWKS before any account is touched. No OAuth code, refresh token or
+ * browser session is involved.
+ */
+export async function createMobileGoogleSession(
+  input: {
+    idToken: string;
+    locale?: "en" | "tr" | undefined;
+  },
+  options: MobileGoogleAuthOptions = {},
+) {
+  const nowMs = Math.trunc(options.nowMs ?? Date.now());
+
+  try {
+    const identity = await (options.verifyIdToken ?? verifyMobileGoogleIdToken)(input.idToken);
+    const user = await (options.linkAccount ?? linkMobileGoogleAccount)({
+      identity,
+      locale: input.locale,
+    });
+
+    if (!isActiveMobileAuthUser(user)) {
+      throw new MobileNativeAuthError(
+        "ACCOUNT_UNAVAILABLE",
+        403,
+        "This account cannot sign in right now.",
+      );
+    }
+
+    const redis = getMobileAuthRedis(options);
+    return MobileAuthGoogleLoginResponseSchema.parse({
+      session: await createMobileSessionSnapshot(user, { nowMs, redis }, options),
+    });
+  } catch (error) {
+    if (error instanceof MobileGoogleAuthError) {
+      throw new MobileNativeAuthError(error.code, error.status, error.message);
+    }
+
+    throw error;
+  }
+}
+
 export async function createMobilePasswordSession(
   input: {
     email: string;
@@ -724,8 +760,7 @@ export async function createMobilePasswordSession(
 ) {
   const email = normalizeMobileAuthEmail(input.email);
   const nowMs = Math.trunc(options.nowMs ?? Date.now());
-  const loginAttemptStore =
-    options.loginAttemptStore ?? createRedisAttemptStore(getRedisRate());
+  const loginAttemptStore = options.loginAttemptStore ?? createRedisAttemptStore(getRedisRate());
   const attemptAllowed = await assertMobileLoginAttemptAllowed({
     email,
     nowMs,
@@ -875,11 +910,7 @@ export async function registerMobilePasswordAccount(input: {
   }
 
   if (existingUsername) {
-    throw new MobileNativeAuthError(
-      "USERNAME_TAKEN",
-      409,
-      "This username is already taken.",
-    );
+    throw new MobileNativeAuthError("USERNAME_TAKEN", 409, "This username is already taken.");
   }
 
   const passwordHash = await bcrypt.hash(input.password, 12);
@@ -944,10 +975,13 @@ export async function registerMobilePasswordAccount(input: {
   }
 }
 
-export async function requestMobilePasswordReset(input: {
-  email: string;
-  locale?: "en" | "tr" | undefined;
-}, options: MobilePasswordResetOptions = {}) {
+export async function requestMobilePasswordReset(
+  input: {
+    email: string;
+    locale?: "en" | "tr" | undefined;
+  },
+  options: MobilePasswordResetOptions = {},
+) {
   const email = normalizeMobileAuthEmail(input.email);
   const locale = normalizeAppLocale(input.locale);
   const genericResponse = MobileAuthForgotPasswordResponseSchema.parse({
@@ -1023,10 +1057,7 @@ export async function requestMobileVerificationEmail(
   return genericResponse;
 }
 
-export async function refreshMobileSession(
-  refreshToken: string,
-  options: MobileAuthOptions = {},
-) {
+export async function refreshMobileSession(refreshToken: string, options: MobileAuthOptions = {}) {
   if (!isMobileRefreshToken(refreshToken)) {
     return null;
   }
@@ -1100,12 +1131,7 @@ export function verifyMobileAccessToken(
   token: string,
   options: Pick<MobileAuthOptions, "env" | "nowMs"> = {},
 ): MobileAccessTokenClaims | null {
-  if (
-    typeof token !== "string" ||
-    token.length < 16 ||
-    token.length > 8192 ||
-    /\s/.test(token)
-  ) {
+  if (typeof token !== "string" || token.length < 16 || token.length > 8192 || /\s/.test(token)) {
     return null;
   }
 

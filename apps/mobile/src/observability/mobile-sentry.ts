@@ -1,4 +1,8 @@
 import * as Sentry from "@sentry/react-native";
+import {
+  setMobileLatencyReporter,
+  type MobileLatencyReporter,
+} from "../performance/mobile-request-metrics";
 
 // KAYNAK-DOĞRU: apps/web/src/lib/logger.ts — mobil web logger'ı paylaşmaz,
 // desen kasıtlı olarak burada tekrarlanır.
@@ -40,10 +44,14 @@ export function initMobileSentry(config: MobileSentryConfig) {
   });
 
   initialized = true;
+  setMobileLatencyReporter(reportMobileSlowRequestToSentry);
   return true;
 }
 
-export function reportMobileBoundaryError(error: unknown, componentStack: string | null | undefined) {
+export function reportMobileBoundaryError(
+  error: unknown,
+  componentStack: string | null | undefined,
+) {
   if (!initialized) {
     return;
   }
@@ -62,5 +70,29 @@ export function addMobileSecurityBreadcrumb(event: string) {
 
   Sentry.addBreadcrumb({ category: "security", level: "warning", message: event });
 }
+
+/**
+ * Records where a slow request actually spent its time. `route` is already
+ * templated by the caller, so no channel, server, or conversation id reaches
+ * Sentry — which is what `sendDefaultPii: false` above promises.
+ */
+export const reportMobileSlowRequestToSentry: MobileLatencyReporter = (sample) => {
+  if (!initialized) {
+    return;
+  }
+
+  Sentry.addBreadcrumb({
+    category: "latency",
+    data: {
+      auth_ms: sample.server.authMs,
+      client_ms: sample.clientMs,
+      db_ms: sample.server.dbMs,
+      server_ms: sample.server.totalMs,
+      transport_ms: sample.transportMs,
+    },
+    level: "info",
+    message: `slow request ${sample.route}`,
+  });
+};
 
 export const wrapWithSentry = Sentry.wrap;

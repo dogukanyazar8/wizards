@@ -54,6 +54,9 @@ export const createAuthLoginScreenStyles = (theme: MobileTheme) => ({
     flexGrow: 1,
     gap: 14,
     minWidth: 0,
+    // Without a bottom inset the last social tile ends flush with the scroll
+    // viewport and its border reads as clipped above the pinned footer.
+    paddingBottom: 18,
     paddingTop: 18,
   },
   mainScroll: {
@@ -105,13 +108,20 @@ export const createAuthLoginScreenStyles = (theme: MobileTheme) => ({
     borderColor: theme.border.subtle,
     borderRadius: theme.layout.auth.fieldRadius,
     borderWidth: theme.layout.border.hairline,
+    // 4 equal columns like the redesign grid, capped at the reference tile width
+    // so wider devices keep the handoff row centered instead of stretching it.
+    flexBasis: 0,
+    flexGrow: 1,
     height: theme.layout.auth.loginSocialActionHeight,
     justifyContent: "center" as const,
-    width: theme.layout.auth.loginSocialActionWidth,
+    maxWidth: theme.layout.auth.loginSocialActionWidth,
+    minWidth: 0,
+  },
+  socialActionMuted: {
+    opacity: theme.layout.opacity.disabled,
   },
   socialGrid: {
     flexDirection: "row" as const,
-    flexWrap: "wrap" as const,
     gap: theme.layout.auth.loginSocialActionGap,
     justifyContent: "center" as const,
     minWidth: 0,

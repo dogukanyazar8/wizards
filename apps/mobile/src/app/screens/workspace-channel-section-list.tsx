@@ -7,6 +7,7 @@ import {
   Text,
   View,
   copy,
+  formatMobileUnreadCount,
   getMobileChannelPriority,
   type MobileVisibleWorkspaceChannelSection,
   type MobileWorkspaceChannelSummary,
@@ -54,9 +55,7 @@ export function WorkspaceChannelSectionList({
   return (
     <FlashList
       contentContainerStyle={
-        isRailLayout
-          ? styles.mobileWorkspaceSectionListRail
-          : styles.mobileWorkspaceSectionList
+        isRailLayout ? styles.mobileWorkspaceSectionListRail : styles.mobileWorkspaceSectionList
       }
       data={items}
       keyExtractor={(item) => item.id}
@@ -136,7 +135,7 @@ export const WorkspaceChannelCompactRow = memo(function WorkspaceChannelCompactR
   const theme = useTheme();
   const isRailLayout = layout === "rail";
   const priority = getMobileChannelPriority(channel);
-  const participants = channel.type === "VOICE" ? voiceState?.participants ?? [] : [];
+  const participants = channel.type === "VOICE" ? (voiceState?.participants ?? []) : [];
   const lastMessagePreview =
     channel.type === "TEXT" && channel.lastMessage
       ? `${channel.lastMessage.author.displayName ?? channel.lastMessage.author.username}: ${channel.lastMessage.text}`
@@ -152,9 +151,7 @@ export const WorkspaceChannelCompactRow = memo(function WorkspaceChannelCompactR
       testID={`mobile-workspace-channel-${channel.type.toLowerCase()}`}
       onPress={() => onOpenChannel(channel)}
       style={({ pressed }) => [
-        isRailLayout
-          ? styles.mobileWorkspaceChannelRowRail
-          : styles.mobileWorkspaceChannelRow,
+        isRailLayout ? styles.mobileWorkspaceChannelRowRail : styles.mobileWorkspaceChannelRow,
         isSelected &&
           (isRailLayout
             ? styles.mobileWorkspaceChannelRowRailActive
@@ -221,9 +218,13 @@ export const WorkspaceChannelCompactRow = memo(function WorkspaceChannelCompactR
             {channel.name}
           </Text>
           {priority.hasMentions ? (
-            <Text style={styles.channelMentionBadge}>{channel.mentionCount}</Text>
+            <Text style={styles.channelMentionBadge}>
+              {formatMobileUnreadCount(channel.mentionCount)}
+            </Text>
           ) : priority.hasUnread ? (
-            <Text style={styles.mobileWorkspaceUnreadDot}>{channel.unreadCount}</Text>
+            <Text style={styles.mobileWorkspaceUnreadDot}>
+              {formatMobileUnreadCount(channel.unreadCount)}
+            </Text>
           ) : null}
         </View>
         {!isRailLayout && lastMessagePreview ? (
@@ -232,7 +233,10 @@ export const WorkspaceChannelCompactRow = memo(function WorkspaceChannelCompactR
           </Text>
         ) : null}
         {!isRailLayout && participants.length > 0 ? (
-          <View style={styles.mobileWorkspaceVoicePresence} testID={`mobile-voice-state-${channel.id}`}>
+          <View
+            style={styles.mobileWorkspaceVoicePresence}
+            testID={`mobile-voice-state-${channel.id}`}
+          >
             <Text style={styles.mobileWorkspaceVoicePresenceText} numberOfLines={1}>
               {participants.length} {copy.voiceParticipantsSpeaking}
             </Text>

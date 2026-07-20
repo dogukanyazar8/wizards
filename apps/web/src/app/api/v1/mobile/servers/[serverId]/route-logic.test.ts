@@ -74,7 +74,7 @@ const detail = {
 
 const mobileProjection = {
   ...detail,
-  server: { ...detail.server, onlineMemberCount: 1 },
+  server: { ...detail.server, onlineMemberCount: 1, ownerUserId: "owner-1" },
 };
 
 const mobileDetail = {
@@ -93,6 +93,7 @@ const mobileDetail = {
     name: "Guild",
     shortName: "GLD",
     onlineMemberCount: 1,
+    ownerUserId: "owner-1",
     unreadCount: 3,
     visibleChannelCount: 1,
   },
@@ -133,9 +134,8 @@ function context(params: Record<string, string>, onRead: () => void = () => unde
 
 function dependencies(overrides: Record<string, unknown> = {}) {
   return {
-    authenticate: async () => "user-1",
+    authorize: async () => "user-1",
     deleteServer: async () => undefined,
-    enforceRateLimit: async () => undefined,
     getServerDetailWithAccess: async () => ({
       access,
       detail: mobileProjection,
@@ -149,7 +149,7 @@ function dependencies(overrides: Record<string, unknown> = {}) {
 }
 
 describe("mobile server detail route logic", () => {
-  it("GET authenticates, rate limits, validates params, loads access, and returns managed detail", async () => {
+  it("GET authorizes, validates params, loads access, and returns managed detail", async () => {
     const { mobileServerDetailRoute } = await routes;
     const calls: string[] = [];
 
@@ -157,12 +157,9 @@ describe("mobile server detail route logic", () => {
       request("GET"),
       context({ serverId: "server-1" }, () => calls.push("params")),
       dependencies({
-        authenticate: async () => {
-          calls.push("auth");
+        authorize: async (_request: Request, action: string) => {
+          calls.push(`authorize:user-1:${action}`);
           return "user-1";
-        },
-        enforceRateLimit: async (userId: string, action: string) => {
-          calls.push(`rate:${userId}:${action}`);
         },
         getServerDetailWithAccess: async (userId: string, serverId: string) => {
           calls.push(`service:${userId}:${serverId}`);
@@ -181,8 +178,7 @@ describe("mobile server detail route logic", () => {
       detail: { ...mobileDetail, capabilities },
     });
     assert.deepEqual(calls, [
-      "auth",
-      "rate:user-1:mobile:server:detail",
+      "authorize:user-1:mobile:server:detail",
       "params",
       "service:user-1:server-1",
       "capabilities",
@@ -201,12 +197,9 @@ describe("mobile server detail route logic", () => {
       request("PATCH", { name: "  Guild  " }),
       context({ serverId: "server-1" }, () => calls.push("params")),
       dependencies({
-        authenticate: async () => {
-          calls.push("auth");
+        authorize: async (_request: Request, action: string) => {
+          calls.push(`authorize:user-1:${action}`);
           return "user-1";
-        },
-        enforceRateLimit: async (userId: string, action: string) => {
-          calls.push(`rate:${userId}:${action}`);
         },
         getServerDetailWithAccess: async (userId: string, serverId: string) => {
           calls.push(`reload:${userId}:${serverId}`);
@@ -230,8 +223,7 @@ describe("mobile server detail route logic", () => {
       detail: { ...mobileDetail, capabilities },
     });
     assert.deepEqual(calls, [
-      "auth",
-      "rate:user-1:mobile:server:update",
+      "authorize:user-1:mobile:server:update",
       "params",
       "body",
       "service:user-1:server-1:Guild",
@@ -444,7 +436,7 @@ describe("mobile server detail route logic", () => {
     assert.equal(body.detail.server.defaultChannelId, "text-1");
   });
 
-  it("DELETE authenticates, rate limits, validates params and confirmation, then deletes", async () => {
+  it("DELETE authorizes, validates params and confirmation, then deletes", async () => {
     const { mobileServerDeleteRoute } = await routes;
     const calls: string[] = [];
     const parseBody: typeof parseJsonBody = async (inputRequest, schema) => {
@@ -456,8 +448,8 @@ describe("mobile server detail route logic", () => {
       request("DELETE", { confirmationName: " Guild " }),
       context({ serverId: "server-1" }, () => calls.push("params")),
       dependencies({
-        authenticate: async () => {
-          calls.push("auth");
+        authorize: async (_request: Request, action: string) => {
+          calls.push(`authorize:user-1:${action}`);
           return "user-1";
         },
         deleteServer: async (
@@ -467,9 +459,6 @@ describe("mobile server detail route logic", () => {
         ) => {
           calls.push(`service:${userId}:${serverId}:${input.confirmationName}`);
         },
-        enforceRateLimit: async (userId: string, action: string) => {
-          calls.push(`rate:${userId}:${action}`);
-        },
         parseBody,
       }),
     );
@@ -477,8 +466,7 @@ describe("mobile server detail route logic", () => {
     assert.equal(response.status, 200);
     assert.deepEqual(await response.json(), { success: true });
     assert.deepEqual(calls, [
-      "auth",
-      "rate:user-1:mobile:server:delete",
+      "authorize:user-1:mobile:server:delete",
       "params",
       "body",
       "service:user-1:server-1:Guild",
@@ -598,11 +586,11 @@ describe("mobile server detail route logic", () => {
     assert.equal(patchResponse.status, 400);
   });
 
-  it("maps authentication failures for every method to bounded shared errors", async () => {
+  it("maps authorization failures for every method to bounded shared errors", async () => {
     const { mobileServerDeleteRoute, mobileServerDetailRoute, mobileServerUpdateRoute } =
       await routes;
     const deps = dependencies({
-      authenticate: async () => {
+      authorize: async () => {
         throw new ApiError("Unauthorized", 401, "UNAUTHORIZED");
       },
     });

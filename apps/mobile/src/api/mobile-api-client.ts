@@ -7,6 +7,7 @@ import {
   emitMobileOfflineMutationAttempt,
   getMobileNetworkStatusSnapshot,
 } from "../network/mobile-network-events";
+import { recordMobileRequestLatency } from "../performance/mobile-request-metrics";
 
 export class MobileApiError extends Error {
   readonly apiPath: string | null;
@@ -153,7 +154,15 @@ export function createMobileApiClient(options: MobileApiClientOptions): MobileAp
         }
 
         const safeErrorPath = getSafeErrorPath(path);
+        const requestStartedAt = Date.now();
         const response = await fetchImpl(buildRequestUrl(baseUrl, path), fetchOptions);
+        // Measured at the response headers rather than after the body parse so
+        // the sample lines up with the server's own `total` bucket.
+        recordMobileRequestLatency({
+          clientMs: Date.now() - requestStartedAt,
+          path,
+          serverTimingHeader: response.headers.get("Server-Timing"),
+        });
 
         if (!response.ok) {
           const serverCode = await readSafeServerErrorCode(response);

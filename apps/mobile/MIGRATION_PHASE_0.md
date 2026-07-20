@@ -21,38 +21,38 @@ Provider order:
 
 ### Navigation routes
 
-| Level | Route | Parameters / behavior |
-| --- | --- | --- |
-| Root stack | `MainTabs` | Five stable tabs: `overview`, `messages`, `notifications`, `voice`, `settings` |
-| Root stack | `ChannelChat` | Opaque `serverId` and `channelId`; Android back pops to overview |
-| Root stack | `DirectMessage` | Opaque `conversationId`; Android back pops to the DM inbox |
-| Root stack | `SettingsDetail` | Bounded settings section |
+| Level      | Route            | Parameters / behavior                                                          |
+| ---------- | ---------------- | ------------------------------------------------------------------------------ |
+| Root stack | `MainTabs`       | Five stable tabs: `overview`, `messages`, `notifications`, `voice`, `settings` |
+| Root stack | `ChannelChat`    | Opaque `serverId` and `channelId`; Android back pops to overview               |
+| Root stack | `DirectMessage`  | Opaque `conversationId`; Android back pops to the DM inbox                     |
+| Root stack | `SettingsDetail` | Bounded settings section                                                       |
 
 The existing route validator runs before React Navigation. Auth handoff and invite values remain command intents; unsafe origins, sensitive query values, and unsupported routes fail closed.
 
 ## Screen ownership
 
-| Surface | Focused data / state |
-| --- | --- |
+| Surface              | Focused data / state                                                                                          |
+| -------------------- | ------------------------------------------------------------------------------------------------------------- |
 | Overview and channel | Bootstrap/workspace/channel Query hooks, active-target store, composer draft store, media and voice providers |
-| Messages and DM | Bootstrap DM selector, infinite DM messages Query hook, optimistic DM mutation, active conversation store |
-| Notifications | Bootstrap Query plus notification provider |
-| Voice | Bootstrap Query plus unchanged voice runtime provider |
-| Settings | Auth, locale, media, notification, and voice providers |
-| Global overlay | Voice invite state sourced from the single realtime provider subscription |
+| Messages and DM      | Bootstrap DM selector, infinite DM messages Query hook, optimistic DM mutation, active conversation store     |
+| Notifications        | Bootstrap Query plus notification provider                                                                    |
+| Voice                | Bootstrap Query plus unchanged voice runtime provider                                                         |
+| Settings             | Auth, locale, media, notification, and voice providers                                                        |
+| Global overlay       | Voice invite state sourced from the single realtime provider subscription                                     |
 
 Presentational screen state types remain as fail-closed render contracts. Query activity is adapted directly into these types; it is not copied into a second request state machine.
 
 ## Query keys and realtime behavior
 
-| Domain | Query key | Realtime behavior |
-| --- | --- | --- |
-| Bootstrap / DM summaries | `mobile/bootstrap` | Bootstrap, presence, and notification sources invalidate after the 350 ms grouped debounce |
-| Workspace | `mobile/workspace/{serverId}` | Only the active matching server invalidates |
-| Channel messages | `mobile/channel-messages/{channelId}` | Validated active-channel payloads update infinite pages; unsafe or unhandled payloads invalidate |
-| DM messages | `mobile/dm-messages/{conversationId}` | Only the active matching conversation invalidates |
-| DM conversations | `mobile/dm-conversations` | Selector/facade over bootstrap; no endpoint was invented |
-| Search | `mobile/message-search/{scope}/{conversationId}/{search-N}` | Raw query/filter text stays in a private memory registry and never enters the key |
+| Domain                   | Query key                                                   | Realtime behavior                                                                                |
+| ------------------------ | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Bootstrap / DM summaries | `mobile/bootstrap`                                          | Bootstrap, presence, and notification sources invalidate after the 350 ms grouped debounce       |
+| Workspace                | `mobile/workspace/{serverId}`                               | Only the active matching server invalidates                                                      |
+| Channel messages         | `mobile/channel-messages/{channelId}`                       | Validated active-channel payloads update infinite pages; unsafe or unhandled payloads invalidate |
+| DM messages              | `mobile/dm-messages/{conversationId}`                       | Only the active matching conversation invalidates                                                |
+| DM conversations         | `mobile/dm-conversations`                                   | Selector/facade over bootstrap; no endpoint was invented                                         |
+| Search                   | `mobile/message-search/{scope}/{conversationId}/{search-N}` | Raw query/filter text stays in a private memory registry and never enters the key                |
 
 Channel and DM sends use Query mutations: cancel, exact cache snapshot, memory-only optimistic insert, server replacement/deduplication, exact rollback on failure, and narrow invalidation on settle. The realtime provider owns socket connection, foreground backfill, typing timers, bridge cleanup, and active-target synchronization.
 
@@ -60,7 +60,9 @@ Channel and DM sends use Query mutations: cancel, exact cache snapshot, memory-o
 
 Sign-out disconnects realtime, cancels pending bridge timers, removes all `mobile` queries, clears the private search-key registry, and resets the active-target, composer-draft, and overlay stores. Voice state is also left through the existing voice runtime.
 
-Query persistence and offline cache are **not enabled**. There is no TanStack persister, dehydration/hydration, AsyncStorage or SecureStore query cache, persisted Zustand middleware, offline mutation queue, or offline message cache. Auth/session storage remains the pre-existing secure-session responsibility and is not used as a Query cache.
+Query persistence and offline cache were **not enabled** in Phase 0. There was no TanStack persister, dehydration/hydration, AsyncStorage or SecureStore query cache, persisted Zustand middleware, offline mutation queue, or offline message cache. Auth/session storage remains the pre-existing secure-session responsibility and is not used as a Query cache.
+
+> **Superseded (2026-07-20, cold-start latency work).** An AsyncStorage persister now backs the query cache so the workspace shell survives a restart. The boundary narrowed rather than lifted: only the roots allowlisted in `src/query/mobile-query-cache-policy.ts` (`bootstrap`, `workspace`, `dm-conversations`, `friends`, `profile`) are written, channel/DM message bodies and search results are never persisted, workspace channel previews are stripped on the way to disk, and sign-out deletes the persisted file. Zustand stores stay memory-only and there is still no offline mutation queue.
 
 ## Native decisions
 
@@ -75,16 +77,16 @@ Query persistence and offline cache are **not enabled**. There is no TanStack pe
 
 `scripts/mobile-maestro-testid-contract.test.ts` extracts every `id` used by `.maestro/phase0-navigation.yml`, compares the exact set with this production-source contract, and fails when an ID or quality-gate requirement drifts.
 
-| Maestro ID | Production source |
-| --- | --- |
-| `mobile-bottom-tab-overview` | `src/navigation/mobile-bottom-tab-bar.tsx` |
-| `mobile-bottom-tab-messages` | `src/navigation/mobile-bottom-tab-bar.tsx` |
-| `mobile-workspace-channel-text` | `src/app/screens/home-screen.tsx` |
-| `mobile-channel-chat-screen` | `src/app/screens/channel-screen.tsx` |
-| `mobile-dm-conversation-row` | `src/app/screens/dm-screen.tsx` |
-| `mobile-dm-chat-screen` | `src/app/screens/dm-screen.tsx` |
-| `mobile-dm-inbox-screen` | `src/app/screens/dm-screen.tsx` |
-| `mobile-settings-screen` | `src/app/screens/settings-screen.tsx` |
+| Maestro ID                      | Production source                          |
+| ------------------------------- | ------------------------------------------ |
+| `mobile-bottom-tab-overview`    | `src/navigation/mobile-bottom-tab-bar.tsx` |
+| `mobile-bottom-tab-messages`    | `src/navigation/mobile-bottom-tab-bar.tsx` |
+| `mobile-workspace-channel-text` | `src/app/screens/home-screen.tsx`          |
+| `mobile-channel-chat-screen`    | `src/app/screens/channel-screen.tsx`       |
+| `mobile-dm-conversation-row`    | `src/app/screens/dm-screen.tsx`            |
+| `mobile-dm-chat-screen`         | `src/app/screens/dm-screen.tsx`            |
+| `mobile-dm-inbox-screen`        | `src/app/screens/dm-screen.tsx`            |
+| `mobile-settings-screen`        | `src/app/screens/settings-screen.tsx`      |
 
 ## Android device evidence
 
@@ -115,14 +117,14 @@ Exit code: `0`. Expo SDK remains 56 and no dependency mismatch was reported.
 
 ## Final quality gates
 
-| Gate | Result |
-| --- | --- |
-| `pnpm --dir apps/mobile typecheck` | PASS |
-| `pnpm --dir apps/mobile test` | PASS — 279/279 |
-| `pnpm --dir apps/mobile test:components` | PASS — 6 suites, 19/19 |
-| `pnpm --dir apps/mobile quality:check` | PASS — 0 blockers |
-| Persistence/offline-cache negative scan | PASS — no matches |
-| `npx expo install --check` | PASS — dependencies up to date |
+| Gate                                     | Result                         |
+| ---------------------------------------- | ------------------------------ |
+| `pnpm --dir apps/mobile typecheck`       | PASS                           |
+| `pnpm --dir apps/mobile test`            | PASS — 279/279                 |
+| `pnpm --dir apps/mobile test:components` | PASS — 6 suites, 19/19         |
+| `pnpm --dir apps/mobile quality:check`   | PASS — 0 blockers              |
+| Persistence/offline-cache negative scan  | PASS — no matches              |
+| `npx expo install --check`               | PASS — dependencies up to date |
 
 Command logs are retained under `artifacts/mobile/phase0-navigation/final-verification/`.
 

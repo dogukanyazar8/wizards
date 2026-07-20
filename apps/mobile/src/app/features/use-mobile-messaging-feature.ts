@@ -20,6 +20,7 @@ import {
   useMobileDMMessagesQuery,
 } from "../../query/mobile-message-queries";
 import { useMobileMessageSearchQuery } from "../../query/mobile-message-search-query";
+import { loadMoreMobileInfinitePages } from "../../query/mobile-query-pages";
 import {
   useMobileChannelMessageMutation,
   useMobileChannelReadMutation,
@@ -35,6 +36,8 @@ import {
   type MobileMessageEditMutationVariables,
 } from "../../query/use-mobile-message-mutations";
 import { useMobileWorkspaceQuery } from "../../query/mobile-workspace-query";
+import { useMobileWorkspacePrefetch } from "../../query/mobile-workspace-prefetch";
+import { useMobileQueryClient } from "../providers/mobile-query-provider";
 import {
   MOBILE_MESSAGE_SEARCH_DEFAULT_LIMIT,
   MOBILE_MESSAGE_SEARCH_MIN_QUERY_LENGTH,
@@ -157,6 +160,15 @@ export function useMobileMessagingFeature({
   );
   const dmMessagesQuery = useMobileDMMessagesQuery(apiClient, selectedDMConversationId ?? "");
   const messageSearchQuery = useMobileMessageSearchQuery(apiClient, messageSearchInput);
+  const queryClient = useMobileQueryClient();
+  useMobileWorkspacePrefetch({
+    apiClient,
+    enabled: isSignedIn,
+    queryClient,
+    recentServers: bootstrapQuery.data?.home.servers.recent,
+    selectedServerId: selectedWorkspaceServerId,
+    workspaceDetail: workspaceQuery.data,
+  });
   const dmMessageAuthor = currentUser
     ? {
         ...currentUser,
@@ -934,14 +946,13 @@ export function useMobileMessagingFeature({
     dmConversationsQuery,
     dmMessagesQuery,
     loadMoreDMConversations: () => {
-      if (dmConversationsQuery.hasNextPage && !dmConversationsQuery.isFetchingNextPage) {
-        void dmConversationsQuery.fetchNextPage();
-      }
+      loadMoreMobileInfinitePages(dmConversationsQuery);
     },
     loadMoreDMMessages: () => {
-      if (dmMessagesQuery.hasNextPage && !dmMessagesQuery.isFetchingNextPage) {
-        void dmMessagesQuery.fetchNextPage();
-      }
+      loadMoreMobileInfinitePages(dmMessagesQuery);
+    },
+    loadMoreChannelMessages: () => {
+      loadMoreMobileInfinitePages(channelMessagesQuery);
     },
     dmMessagesState,
     dmSendState,

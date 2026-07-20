@@ -64,7 +64,10 @@ export function patchMobileRealtimeBootstrapServerUnread(
   });
 
   return patched
-    ? { data: { ...data, home: { ...data.home, servers: { ...data.home.servers, recent } } }, patched }
+    ? {
+        data: { ...data, home: { ...data.home, servers: { ...data.home.servers, recent } } },
+        patched,
+      }
     : unchanged(data);
 }
 

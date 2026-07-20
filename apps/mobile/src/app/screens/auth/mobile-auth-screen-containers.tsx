@@ -115,9 +115,9 @@ export function MobileAuthLoginScreenContainer({ navigation }: LoginScreenProps)
       developmentCredentials={developmentCredentials}
       onBack={() => navigateBackOrWelcome(navigation)}
       onForgotPassword={() => navigation.navigate("ForgotPassword")}
-      onOpenWebSignIn={() => void auth.openWebSignIn()}
       onRegister={() => navigation.navigate("Register")}
       onSignIn={auth.signInWithPassword}
+      onSocialSignIn={auth.startSocialSignIn}
     />
   );
 }

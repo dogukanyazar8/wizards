@@ -70,6 +70,7 @@ export function MobileWorkspaceBrowser({
   onClearMessageSearch,
   onClearSelectedMediaAsset,
   onCloseWorkspaceChannel,
+  onLoadMoreChannelMessages,
   onOpenChannel,
   onOpenServer,
   onRefreshChannel,
@@ -107,6 +108,7 @@ export function MobileWorkspaceBrowser({
   onClearMessageSearch(): void;
   onClearSelectedMediaAsset(): void;
   onCloseWorkspaceChannel(): void;
+  onLoadMoreChannelMessages(): void;
   onOpenChannel(channel: MobileWorkspaceChannelSummary): void;
   onOpenServer(serverId: string): void;
   onRefreshChannel(): void;
@@ -213,7 +215,11 @@ export function MobileWorkspaceBrowser({
   const isCompactWorkspaceLayout = workspaceLayout === "compact";
   const canManageInvites = workspacePayload?.detail.capabilities.canManageInvites === true;
   const canManageServer = workspacePayload?.detail.capabilities.canManageServer === true;
+  // The detail payload no longer carries the member list. `ownerUserId` is the
+  // authoritative field; the member scan stays as a fallback so a client running
+  // against an older API keeps resolving the owner.
   const ownerUserId =
+    workspacePayload?.detail.server.ownerUserId ??
     workspacePayload?.detail.members.find((member) => member.accessLevel === "OWNER")?.userId ??
     null;
   const handleServerPress = useCallback(
@@ -274,6 +280,7 @@ export function MobileWorkspaceBrowser({
         onClearMessageSearch={onClearMessageSearch}
         onClearSelectedMediaAsset={onClearSelectedMediaAsset}
         onDraftChange={onChannelDraftChange}
+        onLoadMore={onLoadMoreChannelMessages}
         onRefresh={onRefreshChannel}
         onRequestDocumentPicker={onRequestDocumentPicker}
         onRequestPhotoLibraryPicker={onRequestPhotoLibraryPicker}

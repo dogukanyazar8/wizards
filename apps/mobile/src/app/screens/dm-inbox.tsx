@@ -10,6 +10,7 @@ import {
   copy,
   filterMobileConversations,
   formatMobileDisplayTime,
+  formatMobileUnreadCount,
   getMobileConversationAvatarUrl,
   getMobileConversationInitialsLabel,
   getMobileConversationTitle,
@@ -389,7 +390,12 @@ export const DirectMessageConversationCard = memo(function DirectMessageConversa
           <View
             style={[
               styles.dmActivePresenceDot,
-              { backgroundColor: getMobilePresenceColor(getMobilePresenceTone(presenceStatus), theme) },
+              {
+                backgroundColor: getMobilePresenceColor(
+                  getMobilePresenceTone(presenceStatus),
+                  theme,
+                ),
+              },
             ]}
             testID="mobile-dm-conversation-online-dot"
           />
@@ -402,10 +408,14 @@ export const DirectMessageConversationCard = memo(function DirectMessageConversa
           </Text>
           <View style={styles.dmConversationRightMeta}>
             {isUnread ? (
-              <Text style={styles.dmUnreadBadge}>{conversation.unreadCount}</Text>
+              <Text style={styles.dmUnreadBadge}>
+                {formatMobileUnreadCount(conversation.unreadCount)}
+              </Text>
             ) : null}
             {lastActivity ? (
-              <Text style={[styles.dmConversationTime, isUnread && styles.dmConversationTimeUnread]}>
+              <Text
+                style={[styles.dmConversationTime, isUnread && styles.dmConversationTimeUnread]}
+              >
                 {lastActivity}
               </Text>
             ) : null}
@@ -496,7 +506,10 @@ export function DMInboxSegmentTabs({
                 {label}
               </Text>
               {showBadge ? (
-                <View style={styles.dmSegmentRequestBadge} testID="mobile-social-segment-request-badge">
+                <View
+                  style={styles.dmSegmentRequestBadge}
+                  testID="mobile-social-segment-request-badge"
+                >
                   <Text style={styles.dmSegmentRequestBadgeText}>{incomingRequestCount}</Text>
                 </View>
               ) : null}

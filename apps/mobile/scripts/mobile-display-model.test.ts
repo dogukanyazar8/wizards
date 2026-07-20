@@ -10,6 +10,8 @@ import {
   filterMobileWorkspaceChannelSections,
   findInitialMobileWorkspaceChannel,
   formatMobileDisplayTime,
+  formatMobileUnreadCount,
+  MOBILE_UNREAD_DISPLAY_CAP,
   getBoundedMobileList,
   getMobileChannelChatSearchVisibility,
   getMobileChannelPriority,
@@ -133,6 +135,7 @@ const workspaceDetail: MobileWorkspaceServerDetailResponse["detail"] = {
     mentionCount: 3,
     name: "Whispr",
     onlineMemberCount: 1,
+    ownerUserId: null,
     shortName: "WH",
     unreadCount: 4,
     visibleChannelCount: 3,
@@ -810,5 +813,22 @@ describe("mobile display model", () => {
     assert.equal(resolveMobileTabActiveTextChannelId("overview", "channel-1"), "channel-1");
     assert.equal(resolveMobileTabActiveTextChannelId("settings", "channel-1"), null);
     assert.equal(resolveMobileTabActiveTextChannelId("messages", "channel-1"), null);
+  });
+});
+
+describe("mobile unread badge formatting", () => {
+  it("renders the API cap as a ceiling instead of an exact total", () => {
+    assert.equal(formatMobileUnreadCount(0), "0");
+    assert.equal(formatMobileUnreadCount(-3), "0");
+    assert.equal(formatMobileUnreadCount(7), "7");
+    assert.equal(formatMobileUnreadCount(98), "98");
+    assert.equal(formatMobileUnreadCount(MOBILE_UNREAD_DISPLAY_CAP), "99+");
+    assert.equal(formatMobileUnreadCount(4_812), "99+");
+  });
+
+  it("degrades non-finite and fractional counts without printing NaN", () => {
+    assert.equal(formatMobileUnreadCount(Number.NaN), "0");
+    assert.equal(formatMobileUnreadCount(Number.POSITIVE_INFINITY), "99+");
+    assert.equal(formatMobileUnreadCount(12.7), "12");
   });
 });

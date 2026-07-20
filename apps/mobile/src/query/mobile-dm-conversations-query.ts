@@ -1,16 +1,11 @@
 import { infiniteQueryOptions, useInfiniteQuery } from "@tanstack/react-query";
-import type {
-  InfiniteData,
-} from "@tanstack/react-query";
+import type { InfiniteData } from "@tanstack/react-query";
 import type { MobileDMConversationListItem, MobileDMConversationsResponse } from "@wizards/types";
 import type { MobileApiClient } from "../api/mobile-api-client";
 import { fetchMobileDMConversations } from "../dm/mobile-dm-client";
 import { mobileQueryKeys } from "./mobile-query-keys";
 
-export function getMobileDMConversationsQueryOptions(
-  client: MobileApiClient,
-  enabled: boolean,
-) {
+export function getMobileDMConversationsQueryOptions(client: MobileApiClient, enabled: boolean) {
   return infiniteQueryOptions({
     enabled,
     getNextPageParam: (page: MobileDMConversationsResponse) => page.nextCursor ?? undefined,
