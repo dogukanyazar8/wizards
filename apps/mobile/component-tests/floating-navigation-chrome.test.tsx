@@ -22,7 +22,7 @@ jest.mock("../src/navigation/mobile-bottom-tab-bar", () => ({
     const { View } = require("react-native");
     return React.createElement(View, {
       bottomSafeAreaInset,
-      testID: "mobile-floating-navigation-pill",
+      testID: "mobile-bottom-tab-bar",
     });
   },
 }));
@@ -108,14 +108,16 @@ describe("FloatingNavigationChrome", () => {
     );
   });
 
-  it("keeps the floating tab chrome above the supplied Android bottom inset", async () => {
+  it("reclaims the shell's bottom inset so the edge-to-edge bar can repad it", async () => {
     const view = await renderChrome({ status: "idle" });
 
-    expect(view.view.getByTestId("mobile-floating-navigation-pill").props.bottomSafeAreaInset).toBe(
-      0,
+    expect(view.view.getByTestId("mobile-bottom-tab-bar").props.bottomSafeAreaInset).toBe(
+      tabBarProps.insets.bottom,
     );
     expect(view.view.getByTestId("mobile-floating-navigation-chrome").props.style).toEqual(
-      expect.arrayContaining([expect.objectContaining({ paddingBottom: 24 })]),
+      expect.arrayContaining([
+        expect.objectContaining({ marginBottom: -tabBarProps.insets.bottom }),
+      ]),
     );
 
     await fireEvent(view.view.getByTestId("mobile-floating-navigation-chrome"), "layout", {

@@ -395,17 +395,15 @@ describe("mobile design contract", () => {
     assert.match(profileSettingsSource, /"mobile-settings-developer"/);
   });
 
-  it("keeps the bottom navigation on the canonical floating pill contract", () => {
+  it("keeps the bottom navigation on the canonical edge-to-edge contract", () => {
     const shellSource = readFileSync(
       join(process.cwd(), "src", "navigation", "mobile-bottom-tab-bar.tsx"),
       "utf8",
     );
 
     assert.match(shellSource, /function MobileBottomTabBar\(/);
-    assert.match(shellSource, /styles\.bottomNavShadow/);
     assert.match(shellSource, /styles\.bottomNavSurface/);
     assert.match(shellSource, /MobileLineIcon/);
-    assert.match(shellSource, /styles\.navButtonActive/);
     assert.match(shellSource, /useThemedStyles\(createMobileBottomTabBarStyles\)/);
     assert.match(shellSource, /theme\.elevation\.tabBar/);
     assert.doesNotMatch(shellSource, /theme\.elevation\.(?:floating|soft)/);
@@ -413,7 +411,9 @@ describe("mobile design contract", () => {
     assert.match(shellSource, /mobileNavigationMetrics\.tabItemPaddingVertical/);
     assert.match(shellSource, /theme\.surface\.card/);
     assert.match(shellSource, /theme\.text\.visualFaint/);
-    assert.match(shellSource, /theme\.radii\.tabPill/);
+    assert.match(shellSource, /theme\.border\.tabBarTop/);
+    assert.match(shellSource, /theme\.accent\.tabActive/);
+    assert.doesNotMatch(shellSource, /navButtonActive/);
     assert.match(shellSource, /accessibilityRole="tablist"/);
     assert.match(shellSource, /accessibilityRole="tab"/);
     assert.doesNotMatch(shellSource, /navSelectionBar/);

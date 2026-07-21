@@ -140,8 +140,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/App.tsx": {
-    "mtime": 1784458943.1166365,
-    "ast_hash": "5e1b3ef0ec700dc92c7fc1390dbd388c",
+    "mtime": 1784557683.7823222,
+    "ast_hash": "b5a866beafc43eca765df28d7bfce39a",
     "semantic_hash": ""
   },
   "apps/mobile/babel.config.js": {
@@ -215,8 +215,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/component-tests/mobile-app-providers.test.tsx": {
-    "mtime": 1784289194.7902853,
-    "ast_hash": "8ea2b1f8f1e61569ecc79556c82be093",
+    "mtime": 1784553510.4740846,
+    "ast_hash": "84793267945576424598f5d808340fe1",
     "semantic_hash": ""
   },
   "apps/mobile/component-tests/mobile-app-shell.test.tsx": {
@@ -380,8 +380,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/component-tests/mobile-server-management.test.tsx": {
-    "mtime": 1784458943.1191502,
-    "ast_hash": "eadbd978ec212fb57e9a9a00f7e30844",
+    "mtime": 1784557822.0020208,
+    "ast_hash": "76feaa8b9510215197255f6111ad66d8",
     "semantic_hash": ""
   },
   "apps/mobile/component-tests/mobile-theme-provider.test.tsx": {
@@ -400,8 +400,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/component-tests/notifications-screen-1d.test.tsx": {
-    "mtime": 1784540864.227676,
-    "ast_hash": "e988565f46f96e8e883cfa50c0b1688c",
+    "mtime": 1784553469.8826156,
+    "ast_hash": "ac02fb797ee0a0f8bf64e8fb7f13cb33",
     "semantic_hash": ""
   },
   "apps/mobile/component-tests/notifications-screen-model.test.tsx": {
@@ -440,8 +440,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/scripts/build-android-uat.ps1": {
-    "mtime": 1784485323.110524,
-    "ast_hash": "2cf587e87c9ba5bdcc6e3037ae99d0b7",
+    "mtime": 1784553146.225825,
+    "ast_hash": "f34f4e341857ee0dba09e7d9e0156ee9",
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-account-settings-client.test.ts": {
@@ -675,8 +675,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-notification-contract.test.ts": {
-    "mtime": 1782987330.424498,
-    "ast_hash": "e985dd01f0fe77ecb84e52955aa8265d",
+    "mtime": 1784553489.4479978,
+    "ast_hash": "76a9fc29426fe916ce8a8e5fb94c0d09",
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-notification-event-contract.test.ts": {
@@ -720,8 +720,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-phase-zero-native-config.test.ts": {
-    "mtime": 1784485277.99256,
-    "ast_hash": "c0b8ace86162a4d984fb71a579b79130",
+    "mtime": 1784550989.4642782,
+    "ast_hash": "b49e911b4b0ca2d0e40cf35528da89ad",
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-phase3-m4-client.test.ts": {
@@ -875,8 +875,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-server-cache.test.ts": {
-    "mtime": 1784547377.7468226,
-    "ast_hash": "8c9d6ac8a44aa2ae8afcf8a8ba7b6a6a",
+    "mtime": 1784557884.7967348,
+    "ast_hash": "ec978f53755ac83a8d1a13bfb692002c",
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-server-management-client.test.ts": {
@@ -1035,13 +1035,13 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/app/mobile-app-shell.tsx": {
-    "mtime": 1784181312.3632102,
-    "ast_hash": "14467d23a7f41a388fa65ba4540332d3",
+    "mtime": 1784557616.384643,
+    "ast_hash": "c3c865e95e2ef02c478b59722d40a0a0",
     "semantic_hash": ""
   },
   "apps/mobile/src/app/mobile-bottom-system-inset.ts": {
-    "mtime": 1784228711.7002175,
-    "ast_hash": "483e9407eb1ff2edfa36524ce085f60e",
+    "mtime": 1784557586.1299255,
+    "ast_hash": "8e385d4de6fb9d5dae42eeece7563c7c",
     "semantic_hash": ""
   },
   "apps/mobile/src/app/mobile-display-model.ts": {
@@ -1065,8 +1065,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/app/mobile-root-screen-shared.ts": {
-    "mtime": 1784544881.5402544,
-    "ast_hash": "5191e25a6a5e44f07c735da6c549cccf",
+    "mtime": 1784557955.2758608,
+    "ast_hash": "31fc9a066f0729edc3d2cf67e76b14c3",
     "semantic_hash": ""
   },
   "apps/mobile/src/app/mobile-screen-state.ts": {
@@ -1295,8 +1295,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/app/components/kit/auth/auth-screen-background.tsx": {
-    "mtime": 1784275983.5335586,
-    "ast_hash": "51d5c6623d07a0b085954f1c7e68084f",
+    "mtime": 1784557934.8693612,
+    "ast_hash": "ede9430983ea1809919aac15dcb87e72",
     "semantic_hash": ""
   },
   "apps/mobile/src/app/components/kit/auth/auth-secondary-button.tsx": {
@@ -1380,8 +1380,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/app/features/use-mobile-server-management-feature.ts": {
-    "mtime": 1783947240.9115355,
-    "ast_hash": "f479a552228b7f7f34463b87a79b5e8d",
+    "mtime": 1784557757.0641322,
+    "ast_hash": "4820e7f11e35e07cc07accecf3bc3c15",
     "semantic_hash": ""
   },
   "apps/mobile/src/app/features/use-mobile-typing-labels.ts": {
@@ -1435,8 +1435,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/app/providers/mobile-notification-provider.tsx": {
-    "mtime": 1783628770.5839696,
-    "ast_hash": "4810b35cf59d461c0cf40e303f540c73",
+    "mtime": 1784553417.5984418,
+    "ast_hash": "e6a215b4f0fab80f649a299f352c1999",
     "semantic_hash": ""
   },
   "apps/mobile/src/app/providers/mobile-product-screen-provider.tsx": {
@@ -1485,8 +1485,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/app/screens/channel-screen.tsx": {
-    "mtime": 1784547717.316867,
-    "ast_hash": "9fee11934b22fe9ff906e1038b2cbdbf",
+    "mtime": 1784557886.6406794,
+    "ast_hash": "4aa062ab00ecb8a4ef38eb56f256f45d",
     "semantic_hash": ""
   },
   "apps/mobile/src/app/screens/dm-conversation-screen.tsx": {
@@ -1570,8 +1570,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/app/screens/notifications-screen.tsx": {
-    "mtime": 1784540722.1450164,
-    "ast_hash": "7b0d44affc697d54a167bd97d18568f4",
+    "mtime": 1784553437.0785615,
+    "ast_hash": "9d213923c307431b150deaae89da27d3",
     "semantic_hash": ""
   },
   "apps/mobile/src/app/screens/settings-screen.styles.ts": {
@@ -1680,8 +1680,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/auth/mobile-auth-context.tsx": {
-    "mtime": 1784547106.9429936,
-    "ast_hash": "cf46b2def53b2ca2fced3c6665dd185a",
+    "mtime": 1784553264.7925098,
+    "ast_hash": "0c533a7d1f19f7dc9a311466cb989a7c",
     "semantic_hash": ""
   },
   "apps/mobile/src/auth/mobile-auth-error-mapping.ts": {
@@ -1875,8 +1875,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/media/mobile-image-upload-service.ts": {
-    "mtime": 1783957537.2036643,
-    "ast_hash": "fe77c465308f9a0cae2b3b84732f29cc",
+    "mtime": 1784557618.5359106,
+    "ast_hash": "0b297d79dea7b34b4c4c3a52a1358f1a",
     "semantic_hash": ""
   },
   "apps/mobile/src/media/mobile-media-claim-client.ts": {
@@ -1940,8 +1940,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/navigation/floating-navigation-chrome.tsx": {
-    "mtime": 1784229287.6801984,
-    "ast_hash": "2d4f416235c3f59eba533a2387598b99",
+    "mtime": 1784557816.6248562,
+    "ast_hash": "b332aafc5e90d80a676d5b17fa520b82",
     "semantic_hash": ""
   },
   "apps/mobile/src/navigation/mobile-auth-navigation-types.ts": {
@@ -2000,8 +2000,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/notifications/mobile-notification-contract.ts": {
-    "mtime": 1782987029.3367596,
-    "ast_hash": "e4f44a7e560235c79042b00166493305",
+    "mtime": 1784553389.1507466,
+    "ast_hash": "89176f2e879ae0f9b4115b3a204182e9",
     "semantic_hash": ""
   },
   "apps/mobile/src/notifications/mobile-notification-lifecycle-contract.ts": {
@@ -2015,13 +2015,13 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/notifications/mobile-notification-runtime.ts": {
-    "mtime": 1783962834.0663846,
-    "ast_hash": "e598627d73fed512ad7eb8835928ecfb",
+    "mtime": 1784553404.409015,
+    "ast_hash": "f6b9415a1f8732158005452078f16fd8",
     "semantic_hash": ""
   },
   "apps/mobile/src/observability/mobile-sentry.ts": {
-    "mtime": 1784547717.4321914,
-    "ast_hash": "98adf209b280207330d4b891222179ed",
+    "mtime": 1784553241.359652,
+    "ast_hash": "31e7d0ca7a752f7da97fcbe747c63ae0",
     "semantic_hash": ""
   },
   "apps/mobile/src/performance/mobile-performance-metrics.ts": {
@@ -2100,8 +2100,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/query/mobile-server-cache.ts": {
-    "mtime": 1784547717.516776,
-    "ast_hash": "2aabe62227015446a4d015777dae1e30",
+    "mtime": 1784557639.9368775,
+    "ast_hash": "d3cbfcfd93fd73b92c80fd5e9d9ae0a9",
     "semantic_hash": ""
   },
   "apps/mobile/src/query/mobile-voice-states-query.ts": {
@@ -2390,8 +2390,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/workspace/mobile-server-settings-screen.tsx": {
-    "mtime": 1784385110.6429524,
-    "ast_hash": "78843dc1b24e966e9edbdfb23c0cb907",
+    "mtime": 1784557734.655883,
+    "ast_hash": "6fd743569c5d5084c4fee0759a617b23",
     "semantic_hash": ""
   },
   "apps/mobile/src/workspace/mobile-workspace-client.ts": {
@@ -5100,8 +5100,8 @@
     "semantic_hash": ""
   },
   "apps/web/src/lib/auth/utils.ts": {
-    "mtime": 1781862284.8993957,
-    "ast_hash": "0a00e5096cb557be66f76f3e1d5e339f",
+    "mtime": 1784557628.3128338,
+    "ast_hash": "bbb77af3548e97559b3f13d43d7e15d4",
     "semantic_hash": ""
   },
   "apps/web/src/lib/deployment/railway-contract.test.ts": {
@@ -6190,13 +6190,13 @@
     "semantic_hash": ""
   },
   "apps/web/src/lib/workspace/server-service.ts": {
-    "mtime": 1784547274.4588075,
-    "ast_hash": "388210b8b022094120c2e7bedbe679a4",
+    "mtime": 1784557881.71719,
+    "ast_hash": "655dc5e9aa4be7a47284f7a96ba36c89",
     "semantic_hash": ""
   },
   "apps/web/src/lib/workspace/service.test.ts": {
-    "mtime": 1784547717.8376236,
-    "ast_hash": "8e79adaf38e6f5c4d9fa7adfda400f71",
+    "mtime": 1784557881.814714,
+    "ast_hash": "401cabcefb4830a41ccd2905183d6bfa",
     "semantic_hash": ""
   },
   "apps/web/src/lib/workspace/unread-service.test.ts": {
@@ -6725,8 +6725,8 @@
     "semantic_hash": ""
   },
   "docs/operations/workspace-performance-monitoring.md": {
-    "mtime": 1779082192.536619,
-    "ast_hash": "4eb4c01a5b8149734869c9d21df241b6",
+    "mtime": 1784557262.949355,
+    "ast_hash": "59496c01bc40dfde16c949613c4b7df9",
     "semantic_hash": ""
   },
   "docs/prompts/audit.md": {
@@ -7175,13 +7175,13 @@
     "semantic_hash": ""
   },
   "apps/mobile/eas.json": {
-    "mtime": 1783962831.353285,
-    "ast_hash": "8c4504c6f47cd49cb38a0c13fbf34d44",
+    "mtime": 1784553175.3868444,
+    "ast_hash": "c76bb71ba9aecde5d4a6c4626948eb28",
     "semantic_hash": ""
   },
   "apps/mobile/package.json": {
-    "mtime": 1784547360.3319025,
-    "ast_hash": "b7ea195e274ec137fb403b8bc350d6cf",
+    "mtime": 1784557331.757072,
+    "ast_hash": "8ea40bcc9555e06bd291c6ad1e16d73c",
     "semantic_hash": ""
   },
   "apps/mobile/src/app/components/kit/auth/auth-password-strength-row.tsx": {
@@ -7200,8 +7200,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/design/tokens.ts": {
-    "mtime": 1784224084.5714426,
-    "ast_hash": "a02fcb70c0d89087c5861f9e3ab689c5",
+    "mtime": 1784557739.4098594,
+    "ast_hash": "7e036f87babcba611a44e78bbb304df2",
     "semantic_hash": ""
   },
   "apps/mobile/src/release/mobile-store-contract-data.json": {
@@ -7920,13 +7920,13 @@
     "semantic_hash": ""
   },
   "apps/mobile/scripts/google-signin-doctor.ts": {
-    "mtime": 1784547518.8246074,
-    "ast_hash": "0b692b637759a01045c98f9bb827516b",
+    "mtime": 1784553360.3667848,
+    "ast_hash": "7a52524d14071f396eac254893fdd8a2",
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-google-native-sign-in.test.ts": {
-    "mtime": 1784547150.754739,
-    "ast_hash": "863c131f38c9b93dbae9c1dbb2b07e80",
+    "mtime": 1784553298.2174928,
+    "ast_hash": "2938ee1c8d1b8e1f73f42332f019ec7e",
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-request-metrics.test.ts": {
@@ -7935,8 +7935,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/auth/mobile-google-native-sign-in.ts": {
-    "mtime": 1784547027.6808617,
-    "ast_hash": "c901ee6a5c2edd6d5e48512d745b3c3f",
+    "mtime": 1784553212.7495852,
+    "ast_hash": "6a6254f57685c6756276dc439c526723",
     "semantic_hash": ""
   },
   "apps/mobile/src/auth/mobile-google-signin-client.ts": {
@@ -7972,6 +7972,16 @@
   "apps/web/src/lib/mobile/google-native-auth.ts": {
     "mtime": 1784547518.877882,
     "ast_hash": "2d9233365819f959ce9c69f2227b5306",
+    "semantic_hash": ""
+  },
+  "apps/mobile/scripts/mobile-build-env-parity.test.ts": {
+    "mtime": 1784553434.1594732,
+    "ast_hash": "9c8374466e7802cfe2481ad14f1fa386",
+    "semantic_hash": ""
+  },
+  "apps/web/src/lib/auth/utils.test.ts": {
+    "mtime": 1784557667.524994,
+    "ast_hash": "ee504f62ab9a3e22c412dc749c111856",
     "semantic_hash": ""
   }
 }

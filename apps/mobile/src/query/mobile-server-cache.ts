@@ -4,6 +4,8 @@ import type {
   MobileManagedWorkspaceServerDetailResponse,
 } from "@wizards/types";
 
+import type { MobileApiClient } from "../api/mobile-api-client";
+import { getMobileWorkspaceQueryOptions } from "./mobile-workspace-query";
 import { mobileQueryKeys } from "./mobile-query-keys";
 
 function isCanonicalHttpsUrl(value: string): boolean {
@@ -71,4 +73,28 @@ export function patchMobileServerIconCaches(input: {
       };
     },
   );
+}
+
+/**
+ * Re-reads the server detail straight from the API (bypassing staleTime, which the
+ * optimistic patch above just refreshed) and reports whether the claimed icon actually
+ * survived on the backend. Without this read-back a failed persist is indistinguishable
+ * from a working one on screen: the local preview keeps showing the picked image.
+ */
+export async function confirmMobileServerIconPersisted(input: {
+  client: MobileApiClient;
+  iconUrl: string;
+  queryClient: QueryClient;
+  serverId: string;
+}): Promise<boolean> {
+  try {
+    const refreshed = await input.queryClient.fetchQuery({
+      ...getMobileWorkspaceQueryOptions(input.client, input.serverId),
+      staleTime: 0,
+    });
+
+    return refreshed.detail.server.iconUrl === input.iconUrl;
+  } catch {
+    return false;
+  }
 }

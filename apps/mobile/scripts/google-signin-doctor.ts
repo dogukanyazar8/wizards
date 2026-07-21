@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 import { getMobileRuntimeConfig } from "../src/config/environment";
@@ -16,6 +16,40 @@ const KEYTOOL_CANDIDATES = [
   "/Applications/Android Studio.app/Contents/jbr/Contents/Home/bin/keytool",
   "keytool",
 ].filter((candidate): candidate is string => Boolean(candidate));
+
+/**
+ * Node does not read `.env.local`, but Expo's dev bundling does — reproduce it
+ * here so the report matches what a Metro run would inline. Values already in
+ * the environment (an EAS/CI export) win.
+ */
+function loadMobileDotEnvIntoProcess() {
+  for (const fileName of [".env.local", ".env"]) {
+    const envFile = path.join(__dirname, "..", fileName);
+
+    if (!existsSync(envFile)) {
+      continue;
+    }
+
+    for (const line of readFileSync(envFile, "utf8").split(/\r?\n/)) {
+      const trimmed = line.trim();
+      const separatorIndex = trimmed.indexOf("=");
+
+      if (!trimmed || trimmed.startsWith("#") || separatorIndex < 1) {
+        continue;
+      }
+
+      const name = trimmed.slice(0, separatorIndex).trim();
+      if (!name.startsWith("EXPO_PUBLIC_") || process.env[name] !== undefined) {
+        continue;
+      }
+
+      process.env[name] = trimmed
+        .slice(separatorIndex + 1)
+        .trim()
+        .replace(/^["']|["']$/g, "");
+    }
+  }
+}
 
 function findKeystoreSha1(): string | null {
   if (!existsSync(DEBUG_KEYSTORE_PATH)) {
@@ -47,8 +81,19 @@ function findKeystoreSha1(): string | null {
   return null;
 }
 
+loadMobileDotEnvIntoProcess();
+
 const config = getMobileRuntimeConfig();
 const sha1 = findKeystoreSha1();
+const easProfilesWithClientId = Object.entries(
+  (
+    JSON.parse(readFileSync(path.join(__dirname, "..", "eas.json"), "utf8")) as {
+      build: Record<string, { env?: Record<string, string> }>;
+    }
+  ).build,
+)
+  .filter(([, definition]) => Boolean(definition.env?.EXPO_PUBLIC_WHISPR_GOOGLE_WEB_CLIENT_ID))
+  .map(([profile]) => profile);
 
 console.log("Whispr mobile — native Google sign-in setup\n");
 console.log(`  environment          ${config.environment}`);
@@ -65,6 +110,15 @@ console.log(
 );
 console.log(
   `  native sheet         ${config.googleWebClientId ? "armed" : "falls back to the in-app browser hand-off"}`,
+);
+console.log(
+  `  eas profiles         ${easProfilesWithClientId.length > 0 ? easProfilesWithClientId.join(", ") : "none — cloud builds would ship without the client id"}`,
+);
+console.log(
+  "\nNote: EXPO_PUBLIC_* values are inlined at bundle time. A build pipeline that does not export",
+);
+console.log(
+  "them ships an APK without them, and the app silently falls back to the browser hand-off.",
 );
 console.log("\nGoogle Cloud checklist (same project as the web GOOGLE_CLIENT_ID):");
 console.log("  1. OAuth client · type Android · package + SHA-1 exactly as printed above.");

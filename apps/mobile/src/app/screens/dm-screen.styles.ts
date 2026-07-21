@@ -64,11 +64,7 @@ export const createDmScreenStyles = (theme: MobileTheme) => {
       justifyContent: "center",
       borderRadius: 16,
       backgroundColor: theme.accent.action,
-      shadowColor: theme.accent.default,
-      shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.35,
-      shadowRadius: 14,
-      elevation: 5,
+      ...theme.elevation.primaryAction,
     },
     dmConversationCard: {
       minHeight: theme.layout.dmInbox.conversationRowMinHeight,

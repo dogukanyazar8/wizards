@@ -7,21 +7,6 @@ export const createNotificationsScreenStyles = (theme: MobileTheme) => {
   const mobileRadii = theme.radii;
   const mobileSizing = theme.sizing;
   const notificationsScreenStyles = {
-    markAllReadAction: {
-      alignItems: "center" as const,
-      alignSelf: "flex-start" as const,
-      justifyContent: "center" as const,
-      minHeight: 44,
-      paddingHorizontal: 2,
-    },
-    markAllReadActionDisabled: {
-      opacity: theme.layout.opacity.notificationMarkAllReadDisabled,
-    },
-    markAllReadActionText: {
-      color: theme.accent.strong,
-      fontFamily: theme.typography.fontFamilyBold,
-      fontSize: 13,
-    },
     notificationFeedBody: {
       color: theme.text.primary,
       fontFamily: theme.typography.fontFamily,
@@ -182,22 +167,12 @@ export const createNotificationsScreenStyles = (theme: MobileTheme) => {
       minWidth: 0,
     },
     notificationsHeader: {
-      alignItems: "flex-start" as const,
+      alignItems: "center" as const,
       flexDirection: "row" as const,
       gap: 10,
+      justifyContent: "space-between" as const,
       paddingHorizontal: 24,
       paddingTop: 16,
-    },
-    notificationsHeaderText: {
-      flex: 1,
-      gap: 2,
-      minWidth: 0,
-    },
-    notificationsDescription: {
-      color: theme.text.muted,
-      fontFamily: theme.typography.fontFamily,
-      fontSize: 13,
-      lineHeight: 18,
     },
     notificationsList: {
       gap: 10,
@@ -247,11 +222,8 @@ export const createNotificationsScreenStyles = (theme: MobileTheme) => {
       justifyContent: "center" as const,
       width: 40,
     },
-    notificationsSummary: {
-      color: theme.text.soft,
-      fontFamily: theme.typography.fontFamily,
-      fontSize: 12.5,
-      paddingHorizontal: 24,
+    notificationsHeaderIconButtonDisabled: {
+      opacity: theme.layout.opacity.notificationMarkAllReadDisabled,
     },
     notificationsSegmentTrack: {
       backgroundColor: theme.surface.rail,

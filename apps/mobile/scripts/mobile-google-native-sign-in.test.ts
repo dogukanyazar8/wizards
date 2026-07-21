@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 
 import {
   isMobileGoogleCancellation,
+  isMobileGoogleDeveloperError,
   runMobileGoogleNativeSignIn,
   type MobileGoogleNativeSignInClient,
 } from "../src/auth/mobile-google-native-sign-in";
@@ -76,49 +77,102 @@ describe("mobile native Google sign-in", () => {
     assert.deepEqual(thrown, { type: "cancelled" });
   });
 
-  it("falls back when the native path cannot run on this device or build", async () => {
-    const withoutClientId = await runMobileGoogleNativeSignIn({
-      client: createClient(),
-      webClientId: null,
-    });
-    const withoutModule = await runMobileGoogleNativeSignIn({ client: null, webClientId });
-    const withoutPlayServices = await runMobileGoogleNativeSignIn({
-      client: createClient({ hasPlayServices: async () => false }),
-      webClientId,
-    });
-    const nativeModuleMissing = await runMobileGoogleNativeSignIn({
-      client: createClient({
-        configure: () => {
-          throw new Error("native module is not linked");
-        },
-      }),
-      webClientId,
-    });
+  it("separates the fallback causes so a build problem is not read as a device problem", async () => {
+    const cases: Array<[string, Awaited<ReturnType<typeof runMobileGoogleNativeSignIn>>]> = [
+      [
+        "not-configured",
+        await runMobileGoogleNativeSignIn({ client: createClient(), webClientId: null }),
+      ],
+      ["module-missing", await runMobileGoogleNativeSignIn({ client: null, webClientId })],
+      [
+        "module-missing",
+        await runMobileGoogleNativeSignIn({
+          client: createClient({
+            configure: () => {
+              throw new Error("native module is not linked");
+            },
+          }),
+          webClientId,
+        }),
+      ],
+      [
+        "play-services-unavailable",
+        await runMobileGoogleNativeSignIn({
+          client: createClient({ hasPlayServices: async () => false }),
+          webClientId,
+        }),
+      ],
+      [
+        "developer-error",
+        await runMobileGoogleNativeSignIn({
+          client: createClient({
+            signIn: async () => {
+              throw Object.assign(new Error("developer error"), { code: 10 });
+            },
+          }),
+          webClientId,
+        }),
+      ],
+      [
+        "sign-in-error",
+        await runMobileGoogleNativeSignIn({
+          client: createClient({
+            signIn: async () => {
+              throw new Error("network unreachable");
+            },
+          }),
+          webClientId,
+        }),
+      ],
+      [
+        "no-id-token",
+        await runMobileGoogleNativeSignIn({
+          client: createClient({
+            signIn: async () => ({ data: { idToken: null }, type: "success" }),
+          }),
+          webClientId,
+        }),
+      ],
+    ];
 
-    for (const outcome of [
-      withoutClientId,
-      withoutModule,
-      withoutPlayServices,
-      nativeModuleMissing,
-    ]) {
-      assert.deepEqual(outcome, { reason: "unavailable", type: "failed" });
+    for (const [expectedReason, outcome] of cases) {
+      assert.equal(outcome.type, "failed");
+      assert.equal(outcome.type === "failed" ? outcome.reason : null, expectedReason);
     }
   });
 
-  it("fails loudly when the sheet succeeds without an ID token", async () => {
-    const outcome = await runMobileGoogleNativeSignIn({
-      client: createClient({ signIn: async () => ({ data: { idToken: null }, type: "success" }) }),
+  it("reports every non-cancellation failure to the caller for diagnostics", async () => {
+    const failures: Array<{ detail?: string; reason: string }> = [];
+
+    await runMobileGoogleNativeSignIn({
+      client: createClient(),
+      onFailure: (failure) => failures.push(failure),
+      webClientId: null,
+    });
+    await runMobileGoogleNativeSignIn({
+      client: createClient({ signIn: async () => ({ type: "cancelled" }) }),
+      onFailure: (failure) => failures.push(failure),
       webClientId,
     });
 
-    assert.deepEqual(outcome, { reason: "no-id-token", type: "failed" });
+    assert.equal(failures.length, 1);
+    assert.equal(failures[0]?.reason, "not-configured");
+    assert.match(failures[0]?.detail ?? "", /EXPO_PUBLIC_WHISPR_GOOGLE_WEB_CLIENT_ID/);
   });
 
   it("recognizes the legacy cancellation codes only", () => {
     assert.equal(isMobileGoogleCancellation({ code: "12501" }), true);
+    assert.equal(isMobileGoogleCancellation({ code: 12501 }), true);
     assert.equal(isMobileGoogleCancellation({ code: "SIGN_IN_CANCELLED" }), true);
     assert.equal(isMobileGoogleCancellation({ code: "PLAY_SERVICES_NOT_AVAILABLE" }), false);
     assert.equal(isMobileGoogleCancellation(new Error("boom")), false);
     assert.equal(isMobileGoogleCancellation(null), false);
+  });
+
+  it("recognizes the signature/package mismatch code in both shapes", () => {
+    assert.equal(isMobileGoogleDeveloperError({ code: 10 }), true);
+    assert.equal(isMobileGoogleDeveloperError({ code: "DEVELOPER_ERROR" }), true);
+    assert.equal(isMobileGoogleDeveloperError({ code: "SIGN_IN_CANCELLED" }), false);
+    assert.equal(isMobileGoogleDeveloperError(null), false);
   });
 });

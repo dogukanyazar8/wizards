@@ -130,6 +130,17 @@ export async function recordVerifiedMobileMediaUpload(
   dependencies: MobileMediaRecordDependencies = defaultRecordDependencies,
 ): Promise<MobileMediaUploadCompletionResponse> {
   const now = dependencies.now();
+
+  // A server-icon row without a target (or an avatar row with one) passes the upload but
+  // fails every later claim with a generic 409, which on the device looks exactly like a
+  // stale cache. Reject it at write time instead.
+  if (
+    (input.purpose === "server-icon" && !input.targetServerId) ||
+    (input.purpose === "profile-avatar" && input.targetServerId !== null)
+  ) {
+    throw new ApiError("Upload target is invalid", 400, "UPLOAD_TARGET_INVALID");
+  }
+
   const expiresAt = new Date(now.getTime() + CLAIM_TTL_MS);
   const purpose = toDatabasePurpose(input.purpose);
   const upload = await dependencies.client.mobileMediaUpload.upsert({
@@ -172,6 +183,52 @@ function uploadClaimUnavailable(): never {
   throw new ApiError("Upload claim is invalid or expired", 409, "UPLOAD_CLAIM_UNAVAILABLE");
 }
 
+/**
+ * Every claim rejection shares one opaque 409, so a failed server icon is impossible to
+ * tell apart from a stale device cache. The public error stays unchanged; the reason is
+ * logged so the failing check is visible in server logs.
+ */
+function describeUnclaimableUpload(
+  upload: {
+    claimedAt: Date | null;
+    cleanupAfter: Date | null;
+    expiresAt: Date;
+    ownerId: string;
+    purpose: MobileMediaUploadPurpose;
+    storageDeletedAt: Date | null;
+    targetServerId: string | null;
+  } | null,
+  userId: string,
+  now: Date,
+): string | null {
+  if (!upload) {
+    return "claim-not-found";
+  }
+  if (upload.ownerId !== userId) {
+    return "claim-owner-mismatch";
+  }
+  if (upload.claimedAt !== null) {
+    return "claim-already-claimed";
+  }
+  if (upload.cleanupAfter === null) {
+    return "claim-cleanup-cleared";
+  }
+  if (upload.cleanupAfter.getTime() !== upload.expiresAt.getTime()) {
+    return "claim-cleanup-mismatch";
+  }
+  if (upload.storageDeletedAt !== null) {
+    return "claim-storage-deleted";
+  }
+  if (upload.expiresAt <= now) {
+    return "claim-expired";
+  }
+  if (!hasValidPurposeTarget(upload)) {
+    return "claim-purpose-target-invalid";
+  }
+
+  return null;
+}
+
 function hasValidPurposeTarget(upload: {
   purpose: MobileMediaUploadPurpose;
   targetServerId: string | null;
@@ -189,6 +246,18 @@ export async function claimMobileMediaUpload(
   dependencies: MobileMediaClaimDependencies = defaultClaimDependencies,
 ): Promise<MobileMediaClaimResponse> {
   const now = dependencies.now();
+  const claimUnavailable = (reason: string): never => {
+    try {
+      dependencies.logWarning?.("[mobile-media-claim] upload claim rejected", {
+        claimId: input.claimId,
+        reason,
+      });
+    } catch {
+      // Diagnostics must never replace the bounded claim failure.
+    }
+
+    return uploadClaimUnavailable();
+  };
   const committed = await dependencies.client.$transaction(async (tx) => {
     const upload = await tx.mobileMediaUpload.findUnique({
       where: { id: input.claimId },
@@ -205,17 +274,9 @@ export async function claimMobileMediaUpload(
       },
     });
 
-    if (
-      !upload ||
-      upload.ownerId !== userId ||
-      upload.claimedAt !== null ||
-      upload.cleanupAfter === null ||
-      upload.cleanupAfter.getTime() !== upload.expiresAt.getTime() ||
-      upload.storageDeletedAt !== null ||
-      upload.expiresAt <= now ||
-      !hasValidPurposeTarget(upload)
-    ) {
-      return uploadClaimUnavailable();
+    const unclaimableReason = describeUnclaimableUpload(upload, userId, now);
+    if (!upload || unclaimableReason) {
+      return claimUnavailable(unclaimableReason ?? "claim-not-found");
     }
 
     let previousUrl: string | null;
@@ -231,7 +292,7 @@ export async function claimMobileMediaUpload(
     } else {
       const targetServerId = upload.targetServerId;
       if (!targetServerId) {
-        return uploadClaimUnavailable();
+        return claimUnavailable("claim-server-target-missing");
       }
       const access = await getAccessContextWithClient(tx, userId, targetServerId);
       ensureServerPermission(access, PermissionBits.MANAGE_SERVER);
@@ -240,7 +301,7 @@ export async function claimMobileMediaUpload(
         select: { iconUrl: true },
       });
       if (!currentServer) {
-        return uploadClaimUnavailable();
+        return claimUnavailable("claim-server-not-found");
       }
       previousUrl = currentServer.iconUrl;
     }
@@ -276,7 +337,7 @@ export async function claimMobileMediaUpload(
       },
     });
     if (claimed.count !== 1) {
-      return uploadClaimUnavailable();
+      return claimUnavailable("claim-row-race-lost");
     }
 
     if (upload.purpose === MobileMediaUploadPurpose.PROFILE_AVATAR) {
@@ -285,7 +346,7 @@ export async function claimMobileMediaUpload(
         data: { avatarUrl: upload.url },
       });
       if (targetUpdated.count !== 1) {
-        return uploadClaimUnavailable();
+        return claimUnavailable("claim-avatar-write-race-lost");
       }
 
       const profile = await tx.user.findUnique({
@@ -301,7 +362,7 @@ export async function claimMobileMediaUpload(
         },
       });
       if (!profile) {
-        return uploadClaimUnavailable();
+        return claimUnavailable("claim-profile-not-found");
       }
 
       if (superseded) {
@@ -341,14 +402,14 @@ export async function claimMobileMediaUpload(
 
     const targetServerId = upload.targetServerId;
     if (!targetServerId) {
-      return uploadClaimUnavailable();
+      return claimUnavailable("claim-server-target-missing");
     }
     const targetUpdated = await tx.server.updateMany({
       where: { iconUrl: previousUrl, id: targetServerId },
       data: { iconUrl: upload.url },
     });
     if (targetUpdated.count !== 1) {
-      return uploadClaimUnavailable();
+      return claimUnavailable("claim-server-icon-write-race-lost");
     }
 
     const server = await tx.server.findUnique({
@@ -356,7 +417,7 @@ export async function claimMobileMediaUpload(
       select: { iconUrl: true, id: true },
     });
     if (!server) {
-      return uploadClaimUnavailable();
+      return claimUnavailable("claim-server-vanished");
     }
 
     if (superseded) {

@@ -32,6 +32,7 @@ export async function mobileProfileUpdateRoute(
       MobileProfileResponseSchema.parse({
         user: {
           avatarUrl: user.avatarUrl,
+          bio: user.bio,
           customStatus: user.customStatus,
           displayName: user.displayName,
           id: user.id,

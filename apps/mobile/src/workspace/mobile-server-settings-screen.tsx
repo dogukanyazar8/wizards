@@ -15,7 +15,10 @@ import { MobileLineIcon } from "../design/mobile-line-icons";
 import { useMobileLocaleRuntime } from "../app/providers/mobile-locale-provider";
 import { useTheme, useThemedStyles } from "../app/providers/mobile-theme-provider";
 import { useMobileImageUpload } from "../media/use-mobile-image-upload";
-import { patchMobileServerIconCaches } from "../query/mobile-server-cache";
+import {
+  confirmMobileServerIconPersisted,
+  patchMobileServerIconCaches,
+} from "../query/mobile-server-cache";
 import { mobileQueryKeys } from "../query/mobile-query-keys";
 import { useMobileServerManagementMutations } from "../query/use-mobile-server-management-mutations";
 import { useMobileWorkspaceQuery } from "../query/mobile-workspace-query";
@@ -56,6 +59,8 @@ const copy = {
     fileUploadsHint: `Max ${UPLOAD_MAX_MB} MB / file`,
     gifSharing: "GIF sharing",
     gifSharingHint: "All members can send",
+    iconLoadFailed: "The server icon could not be loaded from storage.",
+    iconNotPersisted: "The new server icon was not saved on the server. Please try again.",
     invites: "Invites",
     invitesActive: (count: number) => `${count} active`,
     leave: "Leave server",
@@ -93,6 +98,8 @@ const copy = {
     fileUploadsHint: `Maks ${UPLOAD_MAX_MB} MB / dosya`,
     gifSharing: "GIF paylaşımı",
     gifSharingHint: "Tüm üyeler gönderebilir",
+    iconLoadFailed: "Sunucu simgesi depolamadan yüklenemedi.",
+    iconNotPersisted: "Yeni sunucu simgesi sunucuya kaydedilmedi. Lütfen yeniden deneyin.",
     invites: "Davetler",
     invitesActive: (count: number) => `${count} aktif`,
     leave: "Sunucudan ayrıl",
@@ -166,6 +173,7 @@ export function MobileServerSettingsScreen({
   const [notice, setNotice] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [iconPreviewUri, setIconPreviewUri] = useState<string | null>(null);
+  const [failedIconUri, setFailedIconUri] = useState<string | null>(null);
 
   useEffect(() => {
     setError(null);
@@ -173,6 +181,7 @@ export function MobileServerSettingsScreen({
   }, [locale]);
 
   const shownIcon = iconPreviewUri ?? server?.iconUrl ?? null;
+  const isIconBroken = shownIcon !== null && shownIcon === failedIconUri;
   const initials = useMemo(
     () => (server ? (server.shortName?.toUpperCase() ?? deriveInitials(server.name)) : ""),
     [server],
@@ -235,6 +244,7 @@ export function MobileServerSettingsScreen({
     }
     setError(null);
     setNotice(null);
+    setFailedIconUri(null);
     let outcome;
     try {
       outcome = await selectAndUpload(
@@ -246,26 +256,40 @@ export function MobileServerSettingsScreen({
       setError(labels.error);
       return;
     }
+    if (outcome.status === "cancelled") {
+      setIconPreviewUri(null);
+      return;
+    }
     if (
       outcome.status !== "claimed" ||
       outcome.response.purpose !== "server-icon" ||
       outcome.response.server.id !== serverId
     ) {
       setIconPreviewUri(null);
-      setError(labels.error);
+      setError(outcome.status === "error" ? outcome.message : labels.error);
       return;
     }
-    patchMobileServerIconCaches({
-      iconUrl: outcome.response.server.iconUrl,
+    const claimedIconUrl = outcome.response.server.iconUrl;
+    patchMobileServerIconCaches({ iconUrl: claimedIconUrl, queryClient, serverId });
+    setIconPreviewUri(claimedIconUrl);
+
+    // Read the icon back from the API before claiming success: the optimistic patch
+    // above would otherwise keep showing an icon the backend never stored.
+    const persisted = await confirmMobileServerIconPersisted({
+      client: apiClient,
+      iconUrl: claimedIconUrl,
       queryClient,
       serverId,
     });
+
+    setIconPreviewUri(null);
+
+    if (!persisted) {
+      setError(labels.iconNotPersisted);
+      return;
+    }
+
     void queryClient.invalidateQueries({ exact: true, queryKey: mobileQueryKeys.bootstrap() });
-    void queryClient.invalidateQueries({
-      exact: true,
-      queryKey: mobileQueryKeys.workspace(serverId),
-    });
-    setIconPreviewUri(outcome.response.server.iconUrl);
     setNotice(labels.saved);
   };
 
@@ -404,13 +428,40 @@ export function MobileServerSettingsScreen({
         </View>
       </View>
 
+      {/* Feedback sits directly under the header: at the end of this scroll view the
+          user never saw a failed icon upload and read it as a stale cache. */}
+      {error || isIconBroken ? (
+        <View style={styles.feedbackWrap}>
+          <Text
+            accessibilityRole="alert"
+            maxFontSizeMultiplier={2}
+            style={styles.error}
+            testID="mobile-server-settings-error"
+          >
+            {error ?? labels.iconLoadFailed}
+          </Text>
+        </View>
+      ) : null}
+      {notice ? (
+        <View style={styles.feedbackWrap}>
+          <Text accessibilityLiveRegion="polite" maxFontSizeMultiplier={2} style={styles.notice}>
+            {notice}
+          </Text>
+        </View>
+      ) : null}
+
       {/* Profile card */}
       <View style={styles.profileCard}>
         <View style={styles.profileTop}>
           <View style={styles.iconWrap}>
             <View style={styles.icon}>
-              {shownIcon ? (
-                <Image source={{ uri: shownIcon }} style={styles.iconImage} />
+              {shownIcon && !isIconBroken ? (
+                <Image
+                  onError={() => setFailedIconUri(shownIcon)}
+                  source={{ uri: shownIcon }}
+                  style={styles.iconImage}
+                  testID="mobile-server-icon-image"
+                />
               ) : (
                 <Text maxFontSizeMultiplier={2} style={styles.iconInitials}>
                   {initials}
@@ -701,26 +752,6 @@ export function MobileServerSettingsScreen({
           </View>
         )}
       </View>
-
-      {error ? (
-        <View style={styles.feedbackWrap}>
-          <Text
-            accessibilityRole="alert"
-            maxFontSizeMultiplier={2}
-            style={styles.error}
-            testID="mobile-server-settings-error"
-          >
-            {error}
-          </Text>
-        </View>
-      ) : null}
-      {notice ? (
-        <View style={styles.feedbackWrap}>
-          <Text accessibilityLiveRegion="polite" maxFontSizeMultiplier={2} style={styles.notice}>
-            {notice}
-          </Text>
-        </View>
-      ) : null}
 
       <BottomSheet
         accessibilityLabel={

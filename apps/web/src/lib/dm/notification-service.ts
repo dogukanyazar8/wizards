@@ -2,6 +2,7 @@ import { prisma } from "@wizards/db";
 
 import { normalizeAppLocale, translate } from "@/lib/locale";
 import { isMessageGifContentType, isMessageImageContentType } from "@/lib/messages/attachments";
+import { sendMobilePushForNotifications } from "@/lib/mobile/push-sender";
 import { serializeNotification, type NotificationRecord } from "@/lib/socket/notification-payload";
 import type { AppSocketServer } from "@/lib/socket/runtime";
 
@@ -88,4 +89,15 @@ export async function createDMMessageNotifications(args: {
       ?.to(`user:${notification.userId}`)
       .emit("notification:new", serializeNotification(notification as NotificationRecord));
   }
+
+  void sendMobilePushForNotifications(
+    notifications.map((notification) => ({
+      actionUrl: notification.actionUrl,
+      body: notification.body,
+      id: notification.id,
+      title: notification.title,
+      type: notification.type,
+      userId: notification.userId,
+    })),
+  ).catch(() => undefined);
 }

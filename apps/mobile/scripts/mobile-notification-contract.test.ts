@@ -3,11 +3,16 @@ import { describe, it } from "node:test";
 import {
   createRegisteredMobileNotificationRuntimeState,
   createInitialMobileNotificationRuntimeState,
+  createMobileNotificationRegistrationFailedState,
   createMobileNotificationRuntimeStateFromPermission,
+  createCheckingMobileNotificationRuntimeState,
   mapExpoNotificationPermissionStatus,
   redactMobileNotificationError,
+  shouldAttemptMobilePushRegistration,
+  shouldOfferMobileNotificationPermission,
   summarizeMobileNotificationRuntimeState,
   validateMobileNotificationContract,
+  MOBILE_PUSH_REGISTRATION_RETRY_INTERVAL_MS,
 } from "../src/notifications/mobile-notification-contract";
 
 describe("mobile notification contract", () => {
@@ -67,6 +72,68 @@ describe("mobile notification contract", () => {
       "Notification setup failed without exposing sensitive details.",
     );
     assert.match(redactMobileNotificationError("Native module is unavailable"), /Native module/);
+  });
+
+  it("stops offering the permission prompt once the platform granted it", () => {
+    assert.equal(
+      shouldOfferMobileNotificationPermission(createInitialMobileNotificationRuntimeState()),
+      true,
+    );
+    assert.equal(
+      shouldOfferMobileNotificationPermission(
+        createMobileNotificationRuntimeStateFromPermission("denied", 1_000),
+      ),
+      true,
+    );
+    assert.equal(
+      shouldOfferMobileNotificationPermission(
+        createMobileNotificationRuntimeStateFromPermission("granted", 1_000),
+      ),
+      false,
+    );
+    assert.equal(
+      shouldOfferMobileNotificationPermission(
+        createMobileNotificationRegistrationFailedState(new Error("no push token"), 1_000),
+      ),
+      false,
+    );
+    assert.equal(
+      shouldOfferMobileNotificationPermission(
+        createMobileNotificationRuntimeStateFromPermission("blocked", 1_000),
+      ),
+      false,
+    );
+    assert.equal(
+      shouldOfferMobileNotificationPermission(
+        createCheckingMobileNotificationRuntimeState(
+          createInitialMobileNotificationRuntimeState(),
+          1_000,
+        ),
+      ),
+      false,
+    );
+  });
+
+  it("retries push registration only outside the failure cooldown", () => {
+    const registered = createRegisteredMobileNotificationRuntimeState(
+      { registeredAt: "2026-07-01T10:00:00.000Z", tokenFingerprint: "fingerprint" },
+      1_000,
+    );
+    const failed = createMobileNotificationRegistrationFailedState(new Error("offline"), 1_000);
+
+    assert.equal(shouldAttemptMobilePushRegistration(registered, 2_000), false);
+    assert.equal(shouldAttemptMobilePushRegistration(failed, 2_000), false);
+    assert.equal(
+      shouldAttemptMobilePushRegistration(failed, 1_000 + MOBILE_PUSH_REGISTRATION_RETRY_INTERVAL_MS),
+      true,
+    );
+    assert.equal(
+      shouldAttemptMobilePushRegistration(
+        createMobileNotificationRuntimeStateFromPermission("granted", 1_000),
+        2_000,
+      ),
+      true,
+    );
   });
 
   it("validates native notification capability readiness", () => {

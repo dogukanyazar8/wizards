@@ -6,6 +6,8 @@ import { createNotificationsScreenStyles } from "../src/app/screens/notification
 import { lightTheme } from "../src/design/themes";
 import {
   createInitialMobileNotificationRuntimeState,
+  createMobileNotificationRegistrationFailedState,
+  createMobileNotificationRuntimeStateFromPermission,
   createRegisteredMobileNotificationRuntimeState,
 } from "../src/notifications/mobile-notification-contract";
 import { renderWithMobileTheme as render } from "./render-with-mobile-theme";
@@ -161,6 +163,25 @@ describe("1d notifications screen", () => {
     expect(view.queryByTestId("mobile-notifications-request-permission")).toBeNull();
   });
 
+  it("hides the permission card once the operating system granted the permission", async () => {
+    const view = await renderScreen({
+      notificationState: createMobileNotificationRuntimeStateFromPermission("granted", Date.now()),
+    });
+
+    expect(view.queryByTestId("mobile-notifications-request-permission")).toBeNull();
+  });
+
+  it("keeps the permission card hidden when push token registration failed after a grant", async () => {
+    const view = await renderScreen({
+      notificationState: createMobileNotificationRegistrationFailedState(
+        new Error("Expo push token unavailable"),
+        Date.now(),
+      ),
+    });
+
+    expect(view.queryByTestId("mobile-notifications-request-permission")).toBeNull();
+  });
+
   it("marks every real unread notification read through the existing mutation", async () => {
     mockNotifications = [mention];
     const view = await renderScreen();
@@ -237,12 +258,13 @@ describe("1d notifications screen", () => {
     expect(reconnecting.getByTestId("mobile-notifications-sync-status")).toBeTruthy();
   });
 
-  it("reports the real unread total and requests the matching server-side filter", async () => {
+  it("reports the real unread total on the segment badge and requests the matching filter", async () => {
     mockNotifications = [mention];
     mockRequestedFilters.length = 0;
     const view = await renderScreen();
 
-    expect(view.getByText("Seni bekleyen 1 okunmamış güncelleme var")).toBeTruthy();
+    expect(view.getByTestId("mobile-notifications-unread-badge")).toBeTruthy();
+    expect(view.getByText("1")).toBeTruthy();
     expect(mockRequestedFilters.at(-1)).toBe("all");
 
     await fireEvent.press(view.getByTestId("mobile-notifications-filter-unread"));
@@ -252,10 +274,11 @@ describe("1d notifications screen", () => {
     expect(mockRequestedFilters.at(-1)).toBe("mentions");
   });
 
-  it("reports an empty feed as caught up", async () => {
+  it("hides the unread badge and repeats no summary text when caught up", async () => {
     const view = await renderScreen();
 
-    expect(view.getByText("Her şey okundu")).toBeTruthy();
+    expect(view.queryByTestId("mobile-notifications-unread-badge")).toBeNull();
+    expect(view.queryByTestId("mobile-notifications-summary")).toBeNull();
   });
 
   it("clears the feed only after the destructive confirmation", async () => {

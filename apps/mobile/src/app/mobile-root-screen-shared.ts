@@ -27,7 +27,6 @@ export {
   ActivityIndicator,
   FlatList,
   Image,
-  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -55,7 +54,10 @@ export { getMobileAttachmentUploadReadiness } from "../media/mobile-attachment-u
 export { getMobileInviteReadiness } from "../invite/mobile-invite-contract";
 export type { MobileInviteReadiness } from "../invite/mobile-invite-contract";
 export type { MobileTabId } from "../navigation/mobile-navigation";
-export { summarizeMobileNotificationRuntimeState } from "../notifications/mobile-notification-contract";
+export {
+  shouldOfferMobileNotificationPermission,
+  summarizeMobileNotificationRuntimeState,
+} from "../notifications/mobile-notification-contract";
 export type { MobileNotificationRuntimeState } from "../notifications/mobile-notification-contract";
 export { summarizeMobileVoiceRuntimeState } from "../voice/mobile-voice-contract";
 export type { MobileVoiceRuntimeState } from "../voice/mobile-voice-contract";

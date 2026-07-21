@@ -27,7 +27,7 @@ import {
 import { useMobileAuth } from "../../auth/mobile-auth-context";
 import { requestMobileVerificationEmail } from "../../auth/mobile-auth-exchange";
 import type { MobileSessionUser } from "../../auth/session-types";
-import { getMobileAvatarInitials, getMobileAvatarTint } from "../../design/mobile-avatar-color";
+import { getMobileAvatarInitials } from "../../design/mobile-avatar-color";
 import { mobileCopy, type MobileLocale } from "../../locale/mobile-copy";
 import { useMobileSocialMutations } from "../../social/mobile-social-query";
 import { BottomSheet, Button, Skeleton } from "../components/kit";
@@ -143,7 +143,9 @@ function AccountAvatar({
   const styles = useMobileAccountSettingsStyles();
   const theme = useTheme();
   const label = user.displayName ?? user.username;
-  const tint = getMobileAvatarTint(user.id, theme);
+  // 4b and 1f both paint the signed-in user's own avatar with the accent tint, so the
+  // account card and the profile identity card cannot drift apart per identity hash.
+  const tint = { bg: theme.accent.soft, fg: theme.accent.strong };
   const presenceColor =
     presence === "ONLINE"
       ? theme.status.success

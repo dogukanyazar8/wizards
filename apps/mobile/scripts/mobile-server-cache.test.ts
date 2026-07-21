@@ -6,8 +6,12 @@ import type {
   MobileManagedWorkspaceServerDetailResponse,
 } from "@wizards/types";
 
+import type { MobileApiClient } from "../src/api/mobile-api-client";
 import { mobileQueryKeys } from "../src/query/mobile-query-keys";
-import { patchMobileServerIconCaches } from "../src/query/mobile-server-cache";
+import {
+  confirmMobileServerIconPersisted,
+  patchMobileServerIconCaches,
+} from "../src/query/mobile-server-cache";
 
 const capabilities = {
   canClearHistory: false,
@@ -142,6 +146,58 @@ describe("mobile server icon cache", () => {
     assert.equal(nextFirst?.detail.server.iconUrl, "https://cdn.example.test/server-1-new.png");
     assert.equal(nextFirst?.detail.capabilities, firstWorkspace.detail.capabilities);
     assert.equal(nextSecond, secondWorkspace);
+  });
+
+  it("confirms the icon only when the API read-back returns the claimed url", async () => {
+    const queryClient = new QueryClient();
+    const claimedIconUrl = "https://cdn.example.test/server-1-new.png";
+    const workspace = createWorkspace("server-1");
+    // Optimistically patched cache: a staleTime-respecting read would confirm itself.
+    queryClient.setQueryData(mobileQueryKeys.workspace("server-1"), {
+      ...workspace,
+      detail: {
+        ...workspace.detail,
+        server: { ...workspace.detail.server, iconUrl: claimedIconUrl },
+      },
+    });
+
+    const requestedPaths: string[] = [];
+    const client = {
+      requestJson: async (path: string) => {
+        requestedPaths.push(path);
+        return workspace;
+      },
+    } as unknown as MobileApiClient;
+
+    assert.equal(
+      await confirmMobileServerIconPersisted({
+        client,
+        iconUrl: claimedIconUrl,
+        queryClient,
+        serverId: "server-1",
+      }),
+      false,
+    );
+    assert.equal(requestedPaths.length, 1);
+  });
+
+  it("reports an unconfirmed icon when the read-back fails", async () => {
+    const queryClient = new QueryClient();
+    const client = {
+      requestJson: async () => {
+        throw new Error("offline");
+      },
+    } as unknown as MobileApiClient;
+
+    assert.equal(
+      await confirmMobileServerIconPersisted({
+        client,
+        iconUrl: "https://cdn.example.test/server-1-new.png",
+        queryClient,
+        serverId: "server-1",
+      }),
+      false,
+    );
   });
 
   it("fails closed for a non-HTTPS icon URL", () => {

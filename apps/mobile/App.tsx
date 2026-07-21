@@ -1,4 +1,5 @@
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { enableFreeze } from "react-native-screens";
 import { MobileAuthProvider } from "./src/auth/mobile-auth-context";
@@ -26,31 +27,36 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <MobileBootstrapErrorBoundary>
-          <MobileQueryProvider>
-            <MobileThemeProvider>
-              <ToastProvider>
-                <MobileHapticsProvider>
-                  <MobileNetworkProvider>
-                    <MobileStartupPerformanceMarker />
-                    <MobileErrorBoundary>
-                      <MobileAuthProvider
-                        appLockPreferenceStore={mobileAppLockPreferenceStore}
-                        biometricAuthenticator={expoMobileBiometricAuthenticator}
-                        deviceIntegrityDetector={expoMobileDeviceIntegrityDetector}
-                        securitySignalLogger={mobileSecuritySignalLogger}
-                      >
-                        <WhisprMobileRoot />
-                      </MobileAuthProvider>
-                      <MobileThemeSystemSurfaces />
-                    </MobileErrorBoundary>
-                    <MobilePrivacyShield />
-                  </MobileNetworkProvider>
-                </MobileHapticsProvider>
-              </ToastProvider>
-            </MobileThemeProvider>
-          </MobileQueryProvider>
-        </MobileBootstrapErrorBoundary>
+        {/* Tracks the IME per frame. Android runs edge-to-edge, so the window is
+            never resized for the keyboard and every avoiding surface below reads
+            its height from here. */}
+        <KeyboardProvider>
+          <MobileBootstrapErrorBoundary>
+            <MobileQueryProvider>
+              <MobileThemeProvider>
+                <ToastProvider>
+                  <MobileHapticsProvider>
+                    <MobileNetworkProvider>
+                      <MobileStartupPerformanceMarker />
+                      <MobileErrorBoundary>
+                        <MobileAuthProvider
+                          appLockPreferenceStore={mobileAppLockPreferenceStore}
+                          biometricAuthenticator={expoMobileBiometricAuthenticator}
+                          deviceIntegrityDetector={expoMobileDeviceIntegrityDetector}
+                          securitySignalLogger={mobileSecuritySignalLogger}
+                        >
+                          <WhisprMobileRoot />
+                        </MobileAuthProvider>
+                        <MobileThemeSystemSurfaces />
+                      </MobileErrorBoundary>
+                      <MobilePrivacyShield />
+                    </MobileNetworkProvider>
+                  </MobileHapticsProvider>
+                </ToastProvider>
+              </MobileThemeProvider>
+            </MobileQueryProvider>
+          </MobileBootstrapErrorBoundary>
+        </KeyboardProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

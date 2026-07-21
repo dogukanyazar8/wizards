@@ -48,7 +48,7 @@ function wrapTabBar(props: ReturnType<typeof createProps>) {
   );
 }
 
-describe("mobile redesign pill tab bar", () => {
+describe("mobile redesign edge-to-edge tab bar", () => {
   it("renders four canonical tabs with a dot-only typed DM unread indicator", async () => {
     const props = createProps(0, 3);
     const view = await render(<MobileBottomTabBar {...props} />);
@@ -59,10 +59,15 @@ describe("mobile redesign pill tab bar", () => {
     expect(view.queryByTestId("mobile-bottom-tab-voice")).toBeNull();
     expect(view.getByTestId("mobile-bottom-tab-unread-dot")).toBeTruthy();
     expect(view.queryByText("3")).toBeNull();
-    expect(view.getByTestId("mobile-bottom-tab-overview").props.style).toEqual(
+    // Aktiflik yalnızca renk/ağırlıkla belirtilir; arka plan kutusu (pill) yok.
+    expect(view.getByTestId("mobile-bottom-tab-overview").props.style).not.toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ backgroundColor: lightTheme.accent.soft }),
+        expect.objectContaining({ backgroundColor: expect.anything() }),
       ]),
+    );
+    // Bar, safe-area insetini kendi yüzeyinin içinde 15px tabana ekleyerek kapatır.
+    expect(view.getByTestId("mobile-bottom-tab-bar").props.style).toEqual(
+      expect.arrayContaining([expect.objectContaining({ paddingBottom: 15 + 18 })]),
     );
   });
 
@@ -73,9 +78,28 @@ describe("mobile redesign pill tab bar", () => {
       "utf8",
     );
 
+    expect(styles.bottomNavSurface).toEqual(
+      expect.objectContaining({
+        backgroundColor: lightTheme.surface.card,
+        borderTopColor: lightTheme.border.tabBarTop,
+        borderTopWidth: 1,
+        gap: 2,
+        paddingHorizontal: 8,
+        paddingTop: 8,
+      }),
+    );
+    expect(styles.bottomNavSurface).not.toHaveProperty("borderRadius");
+    expect(styles.bottomNavSurface).not.toHaveProperty("marginHorizontal");
+    expect(styles.navButton).toEqual(
+      expect.objectContaining({
+        borderRadius: 14,
+        minHeight: lightTheme.sizing.minTouchTarget,
+        paddingVertical: 5,
+      }),
+    );
     expect(styles.navLabelActive).toEqual(
       expect.objectContaining({
-        color: lightTheme.accent.default,
+        color: lightTheme.accent.tabActive,
         fontFamily: lightTheme.typography.fontFamilyBold,
       }),
     );
@@ -101,7 +125,7 @@ describe("mobile redesign pill tab bar", () => {
       expect.objectContaining({ height: 22, width: 22 }),
     );
     expect(styles.navVisualWrap).not.toHaveProperty("position");
-    expect(source).toContain("color={isActive ? theme.accent.default : theme.text.visualFaint}");
+    expect(source).toContain("color={isActive ? theme.accent.tabActive : theme.text.visualFaint}");
     expect(source).toContain("size={22}");
   });
 

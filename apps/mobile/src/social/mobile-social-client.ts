@@ -98,7 +98,12 @@ export async function updateMobilePresence(
 
 export async function updateMobileProfile(
   client: MobileApiClient,
-  input: { displayName?: string | null; username?: string },
+  input: {
+    bio?: string | null;
+    customStatus?: string | null;
+    displayName?: string | null;
+    username?: string;
+  },
 ) {
   const body = MobileProfileUpdateSchema.parse(input);
   return MobileProfileResponseSchema.parse(

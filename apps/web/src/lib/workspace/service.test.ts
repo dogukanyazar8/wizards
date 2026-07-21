@@ -149,13 +149,17 @@ function createFakeSocketServer(
           operations.push(`socket.fetch:${room}`);
           return socketsByRoom[room] ?? [];
         },
+        socketsLeave: (leftRoom: string | string[]) => {
+          operations.push(`socket.rooms-leave:${room}:${[leftRoom].flat().join(",")}`);
+        },
       };
     },
-    to(room: string) {
+    to(room: string | string[]) {
+      const rooms = [room].flat();
       return {
         emit: (event: string, payload?: { reason?: string }) => {
           operations.push(
-            `socket.emit:${room}:${event}${payload?.reason ? `:${payload.reason}` : ""}`,
+            `socket.emit:${rooms.join(",")}:${event}${payload?.reason ? `:${payload.reason}` : ""}`,
           );
         },
       };
@@ -2253,16 +2257,87 @@ describe("workspace service characterization", { concurrency: false }, () => {
         indexOfOperation(operations, "permission-cache.server") <
           indexOfOperation(operations, "server-room-cache.del:socket:v1:user-servers:member-a"),
       );
-      assert.ok(
-        indexOfOperation(operations, "server-room-cache.del:socket:v1:user-servers:member-b") <
-          indexOfOperation(operations, "socket.leave:member-a:server:server-1"),
+      // Room detachment is now one cluster-aware call instead of one
+      // `fetchSockets()` round trip per member.
+      assert.deepEqual(
+        operations.filter((operation) => operation.startsWith("socket.fetch:")),
+        [],
       );
       assert.ok(
-        indexOfOperation(operations, "socket.leave:member-b:server:server-1") <
+        indexOfOperation(operations, "server-room-cache.del:socket:v1:user-servers:member-b") <
+          indexOfOperation(operations, "socket.rooms-leave:server:server-1:server:server-1"),
+      );
+      // One broadcast carries every member room, and it lands after the room
+      // detachment so a client cannot receive further server events between
+      // the two.
+      assert.ok(
+        indexOfOperation(operations, "socket.rooms-leave:server:server-1:server:server-1") <
           indexOfOperation(
             operations,
-            "socket.emit:user:member-b:server:membership:removed:deleted",
+            "socket.emit:user:member-a,user:member-b:server:membership:removed:deleted",
           ),
+      );
+      assert.equal(
+        operations.filter((operation) => operation.includes("membership:removed")).length,
+        1,
+      );
+    });
+  });
+
+  it("detaches a large server with bounded broadcasts instead of a call per member", async () => {
+    await withPatchedEnvironment(async (restores) => {
+      const operations: string[] = [];
+      const members = Array.from({ length: 1_200 }, (_, index) => ({
+        userId: `member-${index}`,
+      }));
+      setPermissionCacheRedisForTest(createPermissionRedis(operations));
+      setServerRoomIdsCacheRedisForTest(createServerRoomRedis(operations));
+      setSocketServer(createFakeSocketServer(operations));
+
+      patchMethod(prisma.serverBan, "findUnique", async () => null, restores);
+      patchMethod(
+        prisma.serverMember,
+        "findFirst",
+        async () => accessMembership({ userId: "owner" }),
+        restores,
+      );
+      patchMethod(prisma.serverMember, "findMany", async () => members, restores);
+      patchMethod(
+        prisma,
+        "$transaction",
+        async (callback: unknown) =>
+          (callback as (transaction: unknown) => Promise<unknown>)({
+            mobileMediaUpload: { updateMany: async () => ({ count: 0 }) },
+            server: { delete: async () => ({}) },
+          }),
+        restores,
+      );
+
+      await deleteWorkspaceServer("owner", "server-1", { confirmationName: "Guild" });
+
+      // The behaviour that matters: cluster work stays constant-ish in the
+      // member count. 1200 members used to mean 1200 awaited `fetchSockets()`
+      // round trips; it is now one room detachment plus ceil(1200 / 500)
+      // broadcasts.
+      assert.deepEqual(
+        operations.filter((operation) => operation.startsWith("socket.fetch:")),
+        [],
+      );
+      assert.equal(
+        operations.filter((operation) => operation.startsWith("socket.rooms-leave:")).length,
+        1,
+      );
+
+      const broadcasts = operations.filter((operation) => operation.includes("membership:removed"));
+      assert.equal(broadcasts.length, 3);
+      // Room names contain colons, so count the `user:` prefixes rather than
+      // splitting the operation label.
+      assert.equal(
+        broadcasts.reduce(
+          (total, broadcast) => total + (broadcast.match(/user:member-/g)?.length ?? 0),
+          0,
+        ),
+        members.length,
       );
     });
   });

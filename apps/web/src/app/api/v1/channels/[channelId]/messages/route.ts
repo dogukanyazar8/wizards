@@ -1,6 +1,7 @@
 import { requireApiUserId } from "@/lib/auth/api";
 import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import { jsonError } from "@/lib/api";
+import { createServerTiming } from "@/lib/server-timing";
 import { getChannelMessages } from "@/lib/workspace/message-service";
 import { getSocketServer } from "@/lib/socket/runtime";
 import { emitServerUnreadUpdatesForServer } from "@/lib/workspace/unread-service";
@@ -14,24 +15,30 @@ type RouteContext = {
 };
 
 export async function GET(request: Request, context: RouteContext) {
+  const timing = createServerTiming();
+
   try {
+    const stopAuthTiming = timing.start("auth");
     const userId = await requireApiUserId();
     await enforceApiRateLimit(userId, "channel:messages:list");
+    stopAuthTiming();
     const { channelId } = await context.params;
     const { searchParams } = new URL(request.url);
 
     const cursor = searchParams.get("before") || undefined;
     const requestedLimit = Number.parseInt(searchParams.get("limit") || "50", 10);
-    const limit = Number.isFinite(requestedLimit)
-      ? Math.min(Math.max(requestedLimit, 1), 100)
-      : 50;
+    const limit = Number.isFinite(requestedLimit) ? Math.min(Math.max(requestedLimit, 1), 100) : 50;
 
-    await requireChannelPermissionForUser(userId, channelId, PermissionBits.VIEW_CHANNEL, {
-      requiredType: ChannelType.TEXT,
-    });
-    const result = await getChannelMessages(channelId, cursor, limit, userId);
+    await timing.measure("auth", () =>
+      requireChannelPermissionForUser(userId, channelId, PermissionBits.VIEW_CHANNEL, {
+        requiredType: ChannelType.TEXT,
+      }),
+    );
+    const result = await timing.measure("db", () =>
+      getChannelMessages(channelId, cursor, limit, userId),
+    );
 
-    return Response.json(result);
+    return Response.json(result, { headers: timing.headers() });
   } catch (error) {
     return jsonError(error);
   }

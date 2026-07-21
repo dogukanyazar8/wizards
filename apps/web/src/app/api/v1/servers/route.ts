@@ -1,19 +1,21 @@
 import { CreateServerSchema } from "@wizards/types";
 import { requireApiUserId } from "@/lib/auth/api";
+import { createServerTiming } from "@/lib/server-timing";
 import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import { jsonError, parseJsonBody } from "@/lib/api";
-import {
-  createWorkspaceServer,
-  listWorkspaceServers,
-} from "@/lib/workspace/server-service";
+import { createWorkspaceServer, listWorkspaceServers } from "@/lib/workspace/server-service";
 
 export async function GET() {
+  const timing = createServerTiming();
+
   try {
+    const stopAuthTiming = timing.start("auth");
     const userId = await requireApiUserId();
     await enforceApiRateLimit(userId, "server:list");
-    const servers = await listWorkspaceServers(userId);
+    stopAuthTiming();
+    const servers = await timing.measure("db", () => listWorkspaceServers(userId));
 
-    return Response.json({ servers });
+    return Response.json({ servers }, { headers: timing.headers() });
   } catch (error) {
     return jsonError(error);
   }

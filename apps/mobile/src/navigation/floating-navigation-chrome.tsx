@@ -25,7 +25,7 @@ const copy = activeMobileCopy;
 
 export function FloatingNavigationChrome({
   directMessageUnreadCount = 0,
-  insets,
+  insets: systemBarInsets,
   onBeginPushToTalk,
   onEndPushToTalk,
   onLeaveVoiceChannel,
@@ -51,7 +51,10 @@ export function FloatingNavigationChrome({
   const styles = useThemedStyles(createFloatingNavigationChromeStyles);
   const onHeightChange = useContext(BottomTabBarHeightCallbackContext);
   const keyboardVisible = useMobileKeyboardVisibility();
-  const bottomSpacing = resolveMobileBottomSystemSpacing(insets.bottom, 18);
+  // MobileAppShell reserves the system-bar inset for every screen. The 1a tab
+  // bar is edge-to-edge, so the chrome reclaims that reservation with a negative
+  // margin and the bar repads its own surface past the home indicator instead.
+  const bottomInset = resolveMobileBottomSystemSpacing(systemBarInsets.bottom, 0);
   const miniVoiceBarVisible = isVoiceSessionActive(voiceRoom.status);
   const handleLayout = useCallback(
     (event: LayoutChangeEvent) => {
@@ -65,7 +68,7 @@ export function FloatingNavigationChrome({
       onLayout={handleLayout}
       style={[
         styles.chrome,
-        keyboardVisible ? styles.chromeKeyboardHidden : { paddingBottom: bottomSpacing },
+        keyboardVisible ? styles.chromeKeyboardHidden : { marginBottom: -bottomInset },
       ]}
       testID="mobile-floating-navigation-chrome"
     >
@@ -86,7 +89,7 @@ export function FloatingNavigationChrome({
           ) : null}
           <MobileBottomTabBar
             {...tabBarProps}
-            bottomSafeAreaInset={0}
+            bottomSafeAreaInset={bottomInset}
             directMessageUnreadCount={directMessageUnreadCount}
           />
         </>
@@ -249,12 +252,10 @@ export const createFloatingNavigationChromeStyles = (theme: MobileTheme) => ({
   chrome: {
     gap: mobileNavigationMetrics.miniVoiceBarToTabBarGap,
     minWidth: 0,
-    paddingTop: 8,
   },
   chromeKeyboardHidden: {
     height: 0,
     overflow: "hidden" as const,
-    paddingTop: 0,
   },
   miniVoiceBar: {
     minHeight: 60,

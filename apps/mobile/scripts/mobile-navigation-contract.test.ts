@@ -188,7 +188,27 @@ test("floating navigation chrome is the measured inset owner for tab roots", () 
   assert.doesNotMatch(settingsStyles, /paddingBottom:\s*132/);
 });
 
-test("floating pill tab bar uses canonical styling and typed DM unread state", () => {
+test("app shell is the single owner of the keyboard and system bottom inset", () => {
+  const app = read("../App.tsx");
+  const shell = read("../src/app/mobile-app-shell.tsx");
+  const chrome = read("../src/navigation/floating-navigation-chrome.tsx");
+  const channelScreen = read("../src/app/screens/channel-screen.tsx");
+  const authBackground = read("../src/app/components/kit/auth/auth-screen-background.tsx");
+
+  assert.match(app, /<KeyboardProvider>/);
+  assert.match(shell, /useReanimatedKeyboardAnimation/);
+  assert.match(shell, /resolveMobileBottomKeyboardSpacing/);
+  // The edge-to-edge tab bar is the one surface allowed under the shell's
+  // reservation: the chrome reclaims the inset with a negative margin and the
+  // bar repads it inside its own background so nothing is padded twice.
+  assert.match(chrome, /resolveMobileBottomSystemSpacing\(systemBarInsets\.bottom,\s*0\)/);
+  assert.match(chrome, /marginBottom: -bottomInset/);
+  assert.match(chrome, /bottomSafeAreaInset=\{bottomInset\}/);
+  assert.doesNotMatch(channelScreen, /KeyboardAvoidingView/);
+  assert.doesNotMatch(authBackground, /KeyboardAvoidingView/);
+});
+
+test("edge-to-edge tab bar uses canonical styling and typed DM unread state", () => {
   const bottomTabBar = read("../src/navigation/mobile-bottom-tab-bar.tsx");
   const productApp = read("../src/app/mobile-product-app.tsx");
   const messagingFeature = read("../src/app/features/use-mobile-messaging-feature.ts");
@@ -198,12 +218,18 @@ test("floating pill tab bar uses canonical styling and typed DM unread state", (
     assert.match(bottomTabBar, new RegExp(`"${icon}"`));
   }
   assert.match(bottomTabBar, /MobileLineIcon/);
-  assert.match(bottomTabBar, /marginHorizontal:\s*16/);
-  assert.match(bottomTabBar, /padding:\s*8/);
-  assert.match(bottomTabBar, /gap:\s*4/);
+  // Edge-to-edge: no side margins, no floating pill card, no active-tab box.
+  assert.doesNotMatch(bottomTabBar, /marginHorizontal/);
+  assert.doesNotMatch(bottomTabBar, /navButtonActive/);
+  assert.match(bottomTabBar, /borderTopWidth:\s*1/);
+  assert.match(bottomTabBar, /theme\.border\.tabBarTop/);
+  assert.match(bottomTabBar, /theme\.accent\.tabActive/);
+  assert.match(
+    bottomTabBar,
+    /mobileNavigationMetrics\.tabBarPaddingBottom \+ bottomSafeAreaInset/,
+  );
   assert.match(bottomTabBar, /theme\.surface\.card/);
   assert.match(bottomTabBar, /theme\.elevation\.tabBar/);
-  assert.match(bottomTabBar, /theme\.radii\.tabPill/);
   assert.match(bottomTabBar, /mobile-bottom-tab-unread-dot/);
   assert.doesNotMatch(bottomTabBar, /navBadgeText|Math\.min\(badge/);
   assert.match(bottomTabBar, /pendingTabKeyRef/);

@@ -8,6 +8,7 @@ import {
   haveMutualFriends,
   haveMutualServers,
 } from "@/lib/friends/helpers";
+import { sendMobilePushForNotifications } from "@/lib/mobile/push-sender";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getSocketServer } from "@/lib/socket/runtime";
 import { logError } from "@/lib/logger";
@@ -155,6 +156,17 @@ async function createFriendRequestNotification(
       createdAt: notification.createdAt.toISOString(),
     });
   }
+
+  void sendMobilePushForNotifications([
+    {
+      actionUrl: notification.actionUrl,
+      body: notification.body,
+      id: notification.id,
+      title: notification.title,
+      type: notification.type,
+      userId: notification.userId,
+    },
+  ]).catch(() => undefined);
 }
 
 function emitFriendsUpdated(userIds: Iterable<string>, reason: FriendsUpdatedReason) {
@@ -229,6 +241,17 @@ async function createFriendAcceptedNotification(
       createdAt: notification.createdAt.toISOString(),
     });
   }
+
+  void sendMobilePushForNotifications([
+    {
+      actionUrl: notification.actionUrl,
+      body: notification.body,
+      id: notification.id,
+      title: notification.title,
+      type: notification.type,
+      userId: notification.userId,
+    },
+  ]).catch(() => undefined);
 }
 
 function ensureDistinctUsers(userId: string, targetUserId: string) {

@@ -104,6 +104,7 @@ export const redesignLight = {
   bg: "#F6F7FB",
   card: "#FFFFFF",
   border: "#E7E9F4",
+  tabBarBorder: "#ECEEF6",
   hairline: "#F0F1F8",
   text: "#1E2235",
   canonicalTextSecondary: "#6B7194",

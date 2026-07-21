@@ -9,6 +9,7 @@ import {
   View,
   copy,
   formatMobileDisplayTime,
+  shouldOfferMobileNotificationPermission,
   summarizeMobileMediaRuntimeState,
   summarizeMobileNotificationRuntimeState,
   type MobileBootstrapFeature,
@@ -72,16 +73,6 @@ function getNotificationEmptyLabel(filter: MobileNotificationFilter): string {
   }
 }
 
-export function getMobileNotificationsSummaryLabel(unreadCount: number): string {
-  if (unreadCount <= 0) {
-    return copy.notificationsAllCaughtUp;
-  }
-
-  return unreadCount === 1
-    ? copy.notificationsUnreadSummaryOne
-    : copy.notificationsUnreadSummaryMany.replace("{count}", String(unreadCount));
-}
-
 export function NotificationsScreen({
   bootstrapState,
   notificationState,
@@ -127,22 +118,14 @@ export function NotificationsScreen({
     : syncHealth.isRefreshing || notificationsQuery.isRefetching
       ? { ...syncHealth, isRefreshing: true, status: "refreshing" }
       : syncHealth;
-  const notificationRuntimeSummary = summarizeMobileNotificationRuntimeState(notificationState);
-  const canRequestPermission =
-    notificationRuntimeSummary.actionEnabled &&
-    notificationState.status !== "registered" &&
-    notificationState.status !== "server-contract-pending" &&
-    notificationState.status !== "blocked";
+  const canRequestPermission = shouldOfferMobileNotificationPermission(notificationState);
 
   const markAllDisabled = unreadCount === 0 || notificationMutations.markAllRead.isPending;
 
   return (
     <View style={styles.notificationsScreen} testID="mobile-notifications-screen">
       <View style={styles.notificationsHeader}>
-        <View style={styles.notificationsHeaderText}>
-          <Text style={styles.notificationsTitle}>{copy.notificationsTitle}</Text>
-          <Text style={styles.notificationsDescription}>{copy.notificationsDescription}</Text>
-        </View>
+        <Text style={styles.notificationsTitle}>{copy.notificationsTitle}</Text>
         <View style={styles.notificationsHeaderActions}>
           <Pressable
             accessibilityLabel={copy.notificationsMarkAllRead}
@@ -151,13 +134,17 @@ export function NotificationsScreen({
             disabled={markAllDisabled}
             onPress={() => notificationMutations.markAllRead.mutate()}
             style={({ pressed }) => [
-              styles.markAllReadAction,
-              markAllDisabled && styles.markAllReadActionDisabled,
+              styles.notificationsHeaderIconButton,
+              markAllDisabled && styles.notificationsHeaderIconButtonDisabled,
               pressed && !markAllDisabled && styles.actionButtonPressed,
             ]}
             testID="mobile-notifications-mark-all-read"
           >
-            <Text style={styles.markAllReadActionText}>{copy.notificationsMarkAllRead}</Text>
+            <Ionicons
+              color={markAllDisabled ? theme.text.muted : theme.accent.strong}
+              name="checkmark-done-outline"
+              size={19}
+            />
           </Pressable>
           <Pressable
             accessibilityLabel={copy.notificationsOpenSettings}
@@ -177,9 +164,6 @@ export function NotificationsScreen({
           </Pressable>
         </View>
       </View>
-      <Text style={styles.notificationsSummary} testID="mobile-notifications-summary">
-        {getMobileNotificationsSummaryLabel(unreadCount)}
-      </Text>
       <View
         accessibilityRole="tablist"
         style={styles.notificationsSegmentTrack}
@@ -208,7 +192,10 @@ export function NotificationsScreen({
                 {getNotificationFilterLabel(option)}
               </Text>
               {option === "unread" && unreadCount > 0 ? (
-                <View style={styles.notificationsSegmentBadge}>
+                <View
+                  style={styles.notificationsSegmentBadge}
+                  testID="mobile-notifications-unread-badge"
+                >
                   <Text style={styles.notificationsSegmentBadgeText}>
                     {unreadCount > 99 ? "99+" : unreadCount}
                   </Text>

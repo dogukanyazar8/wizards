@@ -4,6 +4,7 @@ import { act, render, waitFor } from "@testing-library/react-native";
 import { describe, expect, it, jest } from "@jest/globals";
 
 const mockRequestNotifications = jest.fn();
+const mockSyncNotifications = jest.fn(async (...args: unknown[]) => args[1]);
 const mockRequestCamera = jest.fn();
 const mockRequestDocument = jest.fn();
 const mockRequestPhotoPicker = jest.fn();
@@ -32,6 +33,7 @@ jest.mock("../src/locale/expo-mobile-locale-preferences", () => ({
 
 jest.mock("../src/notifications/mobile-notification-runtime", () => ({
   requestMobileNotificationsAfterUserAction: mockRequestNotifications,
+  syncMobileNotificationPermissionState: (...args: unknown[]) => mockSyncNotifications(...args),
 }));
 
 jest.mock("../src/media/mobile-media-runtime", () => ({
@@ -158,6 +160,10 @@ describe("mobile app providers", () => {
     expect(view.getByTestId("provider-deep-link").props.children).toBe("idle");
 
     expect(mockRequestNotifications).not.toHaveBeenCalled();
+    await waitFor(() => expect(mockSyncNotifications).toHaveBeenCalled());
+    expect(mockSyncNotifications).toHaveBeenCalledWith(null, expect.objectContaining({
+      status: "not-requested",
+    }));
     expect(mockRequestCamera).not.toHaveBeenCalled();
     expect(mockRequestDocument).not.toHaveBeenCalled();
     expect(mockRequestPhotoPicker).not.toHaveBeenCalled();

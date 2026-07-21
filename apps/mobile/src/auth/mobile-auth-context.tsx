@@ -43,7 +43,9 @@ import { mobileGoogleNativeSignInClient } from "./mobile-google-signin-client";
 import {
   runMobileGoogleNativeSignIn,
   type MobileGoogleNativeSignInClient,
+  type MobileGoogleNativeSignInFailureReason,
 } from "./mobile-google-native-sign-in";
+import { addMobileGoogleSignInFallbackBreadcrumb } from "../observability/mobile-sentry";
 import {
   exchangeMobileAuthHandoff,
   refreshMobileAuthSession,
@@ -74,6 +76,26 @@ const appLockCopy = activeMobileCopy;
 
 /** Enough to cover a retried hand-off without growing the map unbounded. */
 const MAX_TRACKED_HANDOFF_EXCHANGES = 8;
+
+/**
+ * The browser fallback is deliberately silent for the user, which also hid the
+ * cause from us: an APK built without the Google client id looks exactly like a
+ * device without Play services. Log it loudly in development and leave a Sentry
+ * breadcrumb everywhere else.
+ */
+function reportMobileGoogleSignInFallback(failure: {
+  detail?: string;
+  reason: MobileGoogleNativeSignInFailureReason;
+}) {
+  if (__DEV__) {
+    console.warn(
+      `[whispr] native Google sign-in unavailable (${failure.reason}); falling back to the browser hand-off.` +
+        (failure.detail ? ` ${failure.detail}` : ""),
+    );
+  }
+
+  addMobileGoogleSignInFallbackBreadcrumb(failure);
+}
 
 // disableDeviceFallback stays false so the OS device-passcode fallback is always
 // offered; combined with the on-screen sign-out escape the user can never be trapped.
@@ -642,11 +664,6 @@ export function MobileAuthProvider({
     }
   }, [commitAuthStateFromCurrent, runtimeConfig.webUrl]);
 
-  // Runs the whole provider consent flow inside the app (Android Custom Tabs /
-  // iOS ASWebAuthenticationSession) and completes the session before the sheet
-  // is gone. Only the one-time handoff token crosses back in; the OAuth code and
-  // provider tokens never leave the browser session. When no in-app browser is
-  // available the external browser hand-off still works through the deep link.
   // Preferred path: Google's own account sheet, fully on device. Only the ID
   // token leaves the sheet, and the API verifies it against Google's JWKS before
   // a Whispr session exists. No browser, no OAuth code, no client secret.
@@ -654,6 +671,7 @@ export function MobileAuthProvider({
     useCallback(async (): Promise<MobileSocialSignInResult | null> => {
       const outcome = await runMobileGoogleNativeSignIn({
         client: googleSignInClient,
+        onFailure: reportMobileGoogleSignInFallback,
         webClientId: runtimeConfig.googleWebClientId,
       });
 

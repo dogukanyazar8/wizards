@@ -1,7 +1,5 @@
 import {
   Ionicons,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   RefreshControl,
   Text,
@@ -214,11 +212,9 @@ export function MobileChannelChatScreen({
   );
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 8 : 0}
-      style={styles.mobileChannelChatKeyboard}
-    >
+    // MobileAppShell shrinks by the tracked keyboard height for every screen, so
+    // the chat tree only has to fill what is left of the shell.
+    <View style={styles.mobileChannelChatKeyboard}>
       <View
         accessibilityLabel={headerModel.accessibilityLabel}
         style={styles.mobileChannelChatScreen}
@@ -339,7 +335,7 @@ export function MobileChannelChatScreen({
           </>
         ) : null}
       </View>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 

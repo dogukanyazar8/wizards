@@ -50,7 +50,11 @@ export const mobileSpacing = {
 /** Measured from the canonical 390x844 reference extractor; do not normalize to the spacing scale. */
 export const mobileNavigationMetrics = {
   miniVoiceBarToTabBarGap: 14,
-  tabItemPaddingVertical: 8,
+  tabBarPaddingBottom: 15,
+  tabBarPaddingHorizontal: 8,
+  tabBarPaddingTop: 8,
+  tabItemGap: 2,
+  tabItemPaddingVertical: 5,
 } as const;
 
 /**
@@ -195,7 +199,16 @@ export const mobileLayoutMetrics = {
     notificationFeedRowMinHeight: 68,
     permissionRowHeight: 64,
     profileHubContentBottomPadding: 108,
+    // 1f identity card: a 76px squircle whose 4px white border is the visible frame, with
+    // the 68px avatar inside it and an 18px presence dot hanging off the corner.
+    profileIdentityAvatarInner: 68,
+    profileIdentityAvatarInnerRadius: 22,
     profileIdentityAvatarOverlap: -34,
+    profileIdentityAvatarRingBorder: 4,
+    profileIdentityEditActionRadius: 12,
+    profileIdentityPresenceDot: 18,
+    profileIdentityPresenceDotBorder: 3,
+    profileIdentityPresenceDotOffset: -2,
     readingColumn: 92,
     summaryMaxWidth: 128,
   },

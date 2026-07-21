@@ -10,9 +10,10 @@ let mockRolesQuery: Record<string, unknown>;
 let mockInvitesQuery: Record<string, unknown>;
 const mockSelectAndUpload = jest.fn();
 const mockPatchServerIconCaches = jest.fn();
+const mockConfirmServerIconPersisted = jest.fn(async () => true);
 
 jest.mock("@tanstack/react-query", () => ({
-  useQueryClient: () => ({ invalidateQueries: jest.fn() }),
+  useQueryClient: () => ({ fetchQuery: jest.fn(), invalidateQueries: jest.fn() }),
 }));
 
 jest.mock("@shopify/flash-list", () => ({
@@ -54,6 +55,8 @@ jest.mock("../src/media/use-mobile-image-upload", () => ({
 }));
 
 jest.mock("../src/query/mobile-server-cache", () => ({
+  confirmMobileServerIconPersisted: (...args: unknown[]) =>
+    mockConfirmServerIconPersisted(...(args as [])),
   patchMobileServerIconCaches: (...args: unknown[]) => mockPatchServerIconCaches(...args),
 }));
 
@@ -265,6 +268,8 @@ function resetMocks() {
   mockInvitesQuery = { data: { invites: [] }, isLoading: false };
   mockSelectAndUpload.mockReset();
   mockPatchServerIconCaches.mockReset();
+  mockConfirmServerIconPersisted.mockReset();
+  mockConfirmServerIconPersisted.mockResolvedValue(true);
 }
 
 describe("mobile server management", () => {
@@ -348,6 +353,54 @@ describe("mobile server management", () => {
         name: "Wizards",
         serverId: "server-1",
       }),
+    );
+  });
+
+  it("reports an unpersisted server icon instead of keeping the optimistic preview", async () => {
+    resetMocks();
+    mockConfirmServerIconPersisted.mockResolvedValue(false);
+    mockSelectAndUpload.mockImplementation(async (_target, onLocalPreview) => {
+      onLocalPreview("file:///temporary.png");
+      return {
+        response: {
+          claimId: "claim-1",
+          claimedAt: "2026-07-13T00:00:00.000Z",
+          purpose: "server-icon",
+          server: { iconUrl: "https://cdn.example.com/icon.png", id: "server-1" },
+        },
+        status: "claimed",
+      };
+    });
+    const view = await render(
+      <MobileServerSettingsScreen serverId="server-1" onBack={jest.fn()} onOpenMembers={jest.fn()} />,
+    );
+
+    await fireEvent.press(view.getByTestId("mobile-server-icon-picker"));
+
+    await waitFor(() =>
+      expect(view.getByTestId("mobile-server-settings-error").props.children).toBe(
+        "Yeni sunucu simgesi sunucuya kaydedilmedi. Lütfen yeniden deneyin.",
+      ),
+    );
+    expect(view.queryByTestId("mobile-server-icon-image")).toBeNull();
+  });
+
+  it("surfaces the failing upload hop instead of a generic error", async () => {
+    resetMocks();
+    mockSelectAndUpload.mockResolvedValue({
+      message: "The image upload could not be completed. (409 UPLOAD_CLAIM_UNAVAILABLE)",
+      status: "error",
+    });
+    const view = await render(
+      <MobileServerSettingsScreen serverId="server-1" onBack={jest.fn()} onOpenMembers={jest.fn()} />,
+    );
+
+    await fireEvent.press(view.getByTestId("mobile-server-icon-picker"));
+
+    await waitFor(() =>
+      expect(view.getByTestId("mobile-server-settings-error").props.children).toBe(
+        "The image upload could not be completed. (409 UPLOAD_CLAIM_UNAVAILABLE)",
+      ),
     );
   });
 

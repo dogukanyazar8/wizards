@@ -1136,6 +1136,27 @@ export async function updateWorkspaceServer(
   return detail;
 }
 
+/**
+ * Socket.IO accepts an array of rooms in a single broadcast, so member
+ * notification costs one publish per chunk instead of one per member. The size
+ * mirrors the permission-service user chunking so both stay predictable.
+ */
+const SERVER_MEMBER_ROOM_BROADCAST_CHUNK_SIZE = 500;
+
+function chunkServerMemberRooms(members: readonly { userId: string }[]): string[][] {
+  const chunks: string[][] = [];
+
+  for (let index = 0; index < members.length; index += SERVER_MEMBER_ROOM_BROADCAST_CHUNK_SIZE) {
+    chunks.push(
+      members
+        .slice(index, index + SERVER_MEMBER_ROOM_BROADCAST_CHUNK_SIZE)
+        .map((member) => `user:${member.userId}`),
+    );
+  }
+
+  return chunks;
+}
+
 export async function deleteWorkspaceServer(
   userId: string,
   serverId: string,
@@ -1179,12 +1200,19 @@ export async function deleteWorkspaceServer(
 
   const io = getSocketServer();
   if (io) {
-    for (const member of members) {
-      const sockets = await io.in(`user:${member.userId}`).fetchSockets();
-      for (const socket of sockets) {
-        socket.leave(`server:${serverId}`);
-      }
-      io.to(`user:${member.userId}`).emit("server:membership:removed", {
+    const serverRoom = `server:${serverId}`;
+    // `socketsLeave` is cluster-aware: the adapter clears the room on every
+    // node. The loop this replaced awaited one `fetchSockets()` per member,
+    // and each of those is a request/response broadcast over the Redis
+    // adapter with a five second timeout — roughly one cluster round trip per
+    // member, which a large server could not finish inside a request.
+    io.in(serverRoom).socketsLeave(serverRoom);
+
+    // Notify the member rooms rather than the server room so a socket that had
+    // not joined the server room yet still hears about the deletion. Chunked so
+    // one enormous server cannot turn this into a single oversized publish.
+    for (const memberRooms of chunkServerMemberRooms(members)) {
+      io.to(memberRooms).emit("server:membership:removed", {
         reason: "deleted",
         serverId,
       });

@@ -162,7 +162,11 @@ describe("mobile redesign palette contract", () => {
     });
     assert.deepEqual(mobileNavigationMetrics, {
       miniVoiceBarToTabBarGap: 14,
-      tabItemPaddingVertical: 8,
+      tabBarPaddingBottom: 15,
+      tabBarPaddingHorizontal: 8,
+      tabBarPaddingTop: 8,
+      tabItemGap: 2,
+      tabItemPaddingVertical: 5,
     });
     assert.deepEqual(mobileLayoutMetrics.auth, {
       backButton: 42,
@@ -654,6 +658,7 @@ export function Fixture({ cap }: { cap: number }) {
       bg: "#F6F7FB",
       card: "#FFFFFF",
       border: "#E7E9F4",
+      tabBarBorder: "#ECEEF6",
       hairline: "#F0F1F8",
       text: "#1E2235",
       canonicalTextSecondary: "#6B7194",
@@ -902,6 +907,7 @@ export function Fixture({ cap }: { cap: number }) {
       soft: "#EEF0FE",
       softBorder: "#DFE2FC",
       strong: "#3F38C9",
+      tabActive: "#4F46E5",
     });
     assert.deepEqual(darkTheme.accent, {
       action: "#6B63EC",
@@ -910,6 +916,7 @@ export function Fixture({ cap }: { cap: number }) {
       soft: "#2A2D55",
       softBorder: "#3B3F73",
       strong: "#A5A8F5",
+      tabActive: "#A5A8F5",
     });
 
     assert.deepEqual(lightTheme.border, {
@@ -918,6 +925,7 @@ export function Fixture({ cap }: { cap: number }) {
       focusRing: "rgba(79,70,229,.15)",
       onSurfaceRing: "#FFFFFF",
       subtle: "#E7E9F4",
+      tabBarTop: "#ECEEF6",
     });
     assert.deepEqual(darkTheme.border, {
       default: "#232644",
@@ -925,6 +933,7 @@ export function Fixture({ cap }: { cap: number }) {
       focusRing: "rgba(109,102,240,.24)",
       onSurfaceRing: "#1C1F3A",
       subtle: "#2B2F52",
+      tabBarTop: "#2B2F52",
     });
 
     assert.deepEqual(lightTheme.surface, {
@@ -1079,9 +1088,9 @@ export function Fixture({ cap }: { cap: number }) {
     assert.deepEqual(lightTheme.elevation.tabBar, {
       elevation: 6,
       shadowColor: "#1E2235",
-      shadowOffset: { height: 8, width: 0 },
-      shadowOpacity: 0.08,
-      shadowRadius: 24,
+      shadowOffset: { height: -6, width: 0 },
+      shadowOpacity: 0.06,
+      shadowRadius: 22,
     });
     assert.deepEqual(lightTheme.elevation.primaryAction, {
       elevation: 6,
@@ -1142,9 +1151,9 @@ export function Fixture({ cap }: { cap: number }) {
     assert.deepEqual(darkTheme.elevation.tabBar, {
       elevation: 6,
       shadowColor: "#000000",
-      shadowOffset: { height: 8, width: 0 },
-      shadowOpacity: 0.35,
-      shadowRadius: 24,
+      shadowOffset: { height: -6, width: 0 },
+      shadowOpacity: 0.4,
+      shadowRadius: 22,
     });
     assert.deepEqual(darkTheme.elevation.primaryAction, {
       elevation: 6,

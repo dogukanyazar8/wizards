@@ -1,6 +1,6 @@
 import { Text, View, type TextStyle, type ViewProps } from "react-native";
 import { useTheme, useThemedStyles } from "../../providers/mobile-theme-provider";
-import type { MobileTheme } from "../../../design/themes";
+import type { MobileAvatarTint, MobileTheme } from "../../../design/themes";
 import { getMobileAvatarTint } from "../../../design/mobile-avatar-color";
 import { MobileCachedImage } from "../mobile-cached-image";
 
@@ -9,6 +9,11 @@ export interface AvatarProps extends ViewProps {
   readonly avatarBorderRadius?: number;
   readonly avatarBorderWidth?: number;
   readonly dimension?: number;
+  /**
+   * Overrides the identity-hashed tint. The signed-in user's own avatar uses the accent
+   * tint in the handoff (1f, 4b), so those surfaces must not vary it per identity hash.
+   */
+  readonly fallbackTint?: MobileAvatarTint;
   readonly fallbackTextStyle?: TextStyle;
   readonly identityId?: string;
   readonly imageUrl: string | null;
@@ -64,6 +69,7 @@ export function Avatar({
   avatarBorderRadius,
   avatarBorderWidth,
   dimension,
+  fallbackTint,
   fallbackTextStyle,
   identityId,
   imageUrl,
@@ -76,7 +82,9 @@ export function Avatar({
   const theme = useTheme();
   const styles = useThemedStyles(createStyles);
   const fallback = label.trim().slice(0, 2).toUpperCase() || "W";
-  const fallbackTint = getMobileAvatarTint(identityId?.trim() || label.trim() || "mobile-avatar", theme);
+  const resolvedTint =
+    fallbackTint ??
+    getMobileAvatarTint(identityId?.trim() || label.trim() || "mobile-avatar", theme);
   const shellSizeStyle =
     size === "sm" ? styles.smallShell : size === "lg" ? styles.largeShell : styles.mediumShell;
   const avatarSizeStyle =
@@ -117,7 +125,7 @@ export function Avatar({
             styles.avatar,
             avatarSizeStyle,
             customSizeStyle,
-            { backgroundColor: fallbackTint.bg },
+            { backgroundColor: resolvedTint.bg },
             customAvatarStyle,
           ]}
         >
@@ -125,7 +133,7 @@ export function Avatar({
             style={[
               styles.fallback,
               size === "sm" && styles.smallFallback,
-              { color: fallbackTint.fg },
+              { color: resolvedTint.fg },
               customFallbackStyle,
               fallbackTextStyle,
             ]}

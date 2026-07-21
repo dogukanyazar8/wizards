@@ -130,6 +130,10 @@ export function SocialAccountQuickActions() {
   );
 }
 
+/**
+ * Superseded by MobileProfileEditScreen, which follows the settings design language.
+ * Kept for the avatar-editor contract tests until those move to the new screen.
+ */
 export function ProfileEditScreen({ onBack }: { onBack(): void }) {
   const { apiClient, replaceSessionUser, session } = useMobileAuth();
   const { locale } = useMobileLocaleRuntime();

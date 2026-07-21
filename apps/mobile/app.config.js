@@ -1,7 +1,14 @@
 "use strict";
 
+const fs = require("node:fs");
+const path = require("node:path");
+
 const pkg = require("./package.json");
 const storeContractData = require("./src/release/mobile-store-contract-data.json");
+
+// FCM credential file for Android push. Optional on purpose: builds must keep
+// working before Firebase is configured (push then degrades silently).
+const GOOGLE_SERVICES_FILE = path.join(__dirname, "google-services.json");
 
 const EAS_PROJECT_ID = "3b8b3f68-dd6c-4c9c-84e7-10ed8f4b2aad";
 const MOBILE_ENVIRONMENTS = ["development", "uat", "canary", "production"];
@@ -149,6 +156,9 @@ module.exports = ({ config }) => {
       },
       permissions: getWhisprMobileAndroidPermissions(),
       predictiveBackGestureEnabled: true,
+      ...(fs.existsSync(GOOGLE_SERVICES_FILE)
+        ? { googleServicesFile: "./google-services.json" }
+        : {}),
     },
     plugins: [
       ...(config.plugins ?? []),

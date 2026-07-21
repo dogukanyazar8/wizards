@@ -290,10 +290,30 @@ export function MobileProfileSettingsHub({
           <View style={styles.mobileProfileIdentityTopRow}>
             <View style={styles.mobileProfileAvatarRing}>
               <Avatar
+                avatarBorderRadius={theme.layout.fixed.profileIdentityAvatarInnerRadius}
+                avatarBorderWidth={0}
+                dimension={theme.layout.fixed.profileIdentityAvatarInner}
+                fallbackTextStyle={styles.mobileProfileAvatarInitials}
+                fallbackTint={{ bg: theme.accent.soft, fg: theme.accent.strong }}
+                identityId={user?.id}
                 imageUrl={user?.avatarUrl ?? null}
                 label={displayName}
-                size="lg"
-                status={visiblePresence === "ONLINE" ? "active" : "idle"}
+              />
+              <View
+                style={[
+                  styles.mobileProfileAvatarPresence,
+                  {
+                    backgroundColor:
+                      visiblePresence === "ONLINE"
+                        ? theme.status.success
+                        : visiblePresence === "IDLE"
+                          ? theme.status.warning
+                          : visiblePresence === "DND"
+                            ? theme.status.danger
+                            : theme.text.soft,
+                  },
+                ]}
+                testID="mobile-profile-avatar-presence"
               />
             </View>
             <Pressable
@@ -304,11 +324,20 @@ export function MobileProfileSettingsHub({
                   mobileNavigationRef.navigate("ProfileEdit");
                 }
               }}
-              style={({ pressed }) => [styles.mobileProfileEditAction, pressed && styles.actionButtonPressed]}
+              style={styles.mobileProfileEditAction}
               testID="mobile-profile-edit"
             >
-              <Ionicons name="pencil-outline" size={15} color={theme.text.muted} />
-              <Text style={styles.mobileProfileEditActionText}>{copy.messageEditAction}</Text>
+              {({ pressed }) => (
+                <View
+                  style={[
+                    styles.mobileProfileEditActionVisual,
+                    pressed && styles.actionButtonPressed,
+                  ]}
+                >
+                  <Ionicons name="pencil-outline" size={13} color={theme.text.muted} />
+                  <Text style={styles.mobileProfileEditActionText}>{copy.messageEditAction}</Text>
+                </View>
+              )}
             </Pressable>
           </View>
           <View style={styles.mobileProfileIdentityText}>
@@ -529,6 +558,7 @@ export function SettingsAccountCard({
   return (
     <View style={styles.settingsHeroCard}>
       <AvatarMark
+        {...(user?.id ? { identityId: user.id } : {})}
         imageUrl={user?.avatarUrl ?? null}
         label={displayName}
         size="large"

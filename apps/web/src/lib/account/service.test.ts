@@ -8,6 +8,7 @@ const service = import("./service");
 
 const currentUser = {
   avatarUrl: null,
+  bio: null,
   customStatus: null,
   displayName: "Old Name",
   email: "dogukan@example.com",
@@ -60,6 +61,8 @@ describe("account service", () => {
       "update",
       "user-1",
       {
+        bio: currentUser.bio,
+        customStatus: currentUser.customStatus,
         displayName: "Ada",
         email: currentUser.email,
         status: currentUser.status,

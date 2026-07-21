@@ -4,6 +4,7 @@ import type { AddServerMemberInput, UpdateWorkspaceMemberRolesInput } from "@wiz
 
 import { ApiError } from "@/lib/api";
 import { normalizeAppLocale, translate } from "@/lib/locale";
+import { sendMobilePushForNotifications } from "@/lib/mobile/push-sender";
 import { getSocketServer } from "@/lib/socket/runtime";
 import { invalidateServerRoomIdsCache } from "@/lib/socket/server-room-cache";
 import { getWorkspaceServerDetail } from "@/lib/workspace/server-service";
@@ -492,6 +493,16 @@ export async function addWorkspaceServerMemberByUsername(
     "notification:new",
     serializeWorkspaceNotification(result.notification),
   );
+  void sendMobilePushForNotifications([
+    {
+      actionUrl: result.notification.actionUrl,
+      body: result.notification.body,
+      id: result.notification.id,
+      title: result.notification.title,
+      type: result.notification.type,
+      userId: result.notification.userId,
+    },
+  ]).catch(() => undefined);
   io?.to(`user:${targetUser.id}`).emit("server:membership:added", { serverId });
   io?.to(`user:${targetUser.id}`).emit("server:settings:updated", { serverId });
   io?.to(`server:${serverId}`).emit("server:settings:updated", { serverId });

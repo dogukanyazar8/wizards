@@ -164,6 +164,27 @@ describe("authorizeMobileMediaUpload", () => {
     });
   });
 
+  it("refuses a server-icon intent without a target instead of matching any membership", async () => {
+    await assert.rejects(
+      () =>
+        authorizeMobileMediaUpload(
+          {
+            intent: { purpose: "server-icon" } as never,
+            request,
+          },
+          authorizationDependencies({
+            ensureServerPermission: () => {
+              assert.fail("permission checks must not run for an unusable intent");
+            },
+            getAccessContext: async () => {
+              assert.fail("membership lookup must not run without an explicit server id");
+            },
+          }),
+        ),
+      (error) => error instanceof UploadThingError,
+    );
+  });
+
   it("maps invalid bearer credentials to a bounded UploadThing error", async () => {
     const leakedToken = "secret-mobile-token";
 

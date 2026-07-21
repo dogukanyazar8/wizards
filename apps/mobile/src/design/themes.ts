@@ -50,6 +50,7 @@ const lightThemeAccent = {
   softBorder: redesignLight.lavenderBorder,
   strong: redesignLight.primaryStrong,
   ownerBadge: redesignLight.ownerBadge,
+  tabActive: redesignLight.primary,
 } as const;
 
 const darkThemeAccent = {
@@ -59,6 +60,7 @@ const darkThemeAccent = {
   softBorder: redesignDark.selectedBorder,
   strong: redesignDark.accentText,
   ownerBadge: redesignDark.ownerBadge,
+  tabActive: redesignDark.accentText,
 } as const;
 
 export interface MobileTheme {
@@ -73,6 +75,8 @@ export interface MobileTheme {
     readonly softBorder: string;
     /** Accessible accent foreground for normal-size text. */
     readonly strong: string;
+    /** 1a edge-to-edge tab bar active icon/label foreground. */
+    readonly tabActive: string;
   };
   readonly authFeature: {
     readonly community: string;
@@ -111,6 +115,8 @@ export interface MobileTheme {
     /** Surface-matched ring for non-text controls layered on a card. */
     readonly onSurfaceRing: string;
     readonly subtle: string;
+    /** 1a edge-to-edge tab bar top hairline. */
+    readonly tabBarTop: string;
   };
   readonly dark: boolean;
   readonly elevation: {
@@ -287,6 +293,7 @@ export const lightTheme = deepFreeze({
     focusRing: redesignLight.focusRing,
     onSurfaceRing: mobilePalette.neutral.white,
     subtle: redesignLight.border,
+    tabBarTop: redesignLight.tabBarBorder,
   },
   control: {
     chevron: redesignLight.controlChevron,
@@ -348,9 +355,9 @@ export const lightTheme = deepFreeze({
     tabBar: {
       elevation: 6,
       shadowColor: redesignLight.inkSurface,
-      shadowOffset: { height: 8, width: 0 },
-      shadowOpacity: 0.08,
-      shadowRadius: 24,
+      shadowOffset: { height: -6, width: 0 },
+      shadowOpacity: 0.06,
+      shadowRadius: 22,
     },
   },
   gradients: {
@@ -486,6 +493,7 @@ export const darkTheme = deepFreeze({
     focusRing: redesignDark.focusRing,
     onSurfaceRing: redesignDark.card,
     subtle: redesignDark.border,
+    tabBarTop: redesignDark.border,
   },
   control: {
     chevron: redesignDark.controlChevron,
@@ -531,9 +539,9 @@ export const darkTheme = deepFreeze({
     tabBar: {
       elevation: 6,
       shadowColor: "#000000",
-      shadowOffset: { height: 8, width: 0 },
-      shadowOpacity: 0.35,
-      shadowRadius: 24,
+      shadowOffset: { height: -6, width: 0 },
+      shadowOpacity: 0.4,
+      shadowRadius: 22,
     },
   },
   gradients: {

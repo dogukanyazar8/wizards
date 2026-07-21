@@ -33,6 +33,7 @@ function profileFor(userId: string, avatarUrl: string | null): MobileProfileResp
   return {
     user: {
       avatarUrl,
+      bio: null,
       customStatus: null,
       displayName: "Ada Test",
       id: userId,
@@ -241,6 +242,36 @@ describe("mobile profile avatar cache contract", () => {
     assert.equal(
       queryClient.getQueryData(mobileQueryKeys.workspace("server-2")),
       unrelatedWorkspace,
+    );
+  });
+
+  it("leaves nested workspace caches untouched instead of crashing on their shape", () => {
+    const queryClient = new QueryClient();
+    const workspace = workspaceFor("user-1", "https://cdn.whispr.team/old.webp");
+    const members = { memberPage: { limit: 50, nextCursor: null }, members: [] };
+    const roles = { roles: [] };
+    const invites = { invites: [] };
+
+    queryClient.setQueryData(mobileQueryKeys.workspace("server-1"), workspace);
+    queryClient.setQueryData(mobileQueryKeys.workspaceMembers("server-1"), members);
+    queryClient.setQueryData(mobileQueryKeys.workspaceRoles("server-1"), roles);
+    queryClient.setQueryData(mobileQueryKeys.workspaceInvites("server-1"), invites);
+
+    patchMobileProfileAvatarCaches({
+      avatarUrl: "https://cdn.whispr.team/canonical.webp",
+      queryClient,
+      userId: "user-1",
+    });
+    patchMobileProfilePresenceCaches({ queryClient, status: "DND", userId: "user-1" });
+
+    assert.equal(queryClient.getQueryData(mobileQueryKeys.workspaceMembers("server-1")), members);
+    assert.equal(queryClient.getQueryData(mobileQueryKeys.workspaceRoles("server-1")), roles);
+    assert.equal(queryClient.getQueryData(mobileQueryKeys.workspaceInvites("server-1")), invites);
+    assert.equal(
+      queryClient.getQueryData<MobileManagedWorkspaceServerDetailResponse>(
+        mobileQueryKeys.workspace("server-1"),
+      )?.detail.members[0]?.avatarUrl,
+      "https://cdn.whispr.team/canonical.webp",
     );
   });
 

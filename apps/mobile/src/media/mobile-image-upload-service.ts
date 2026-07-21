@@ -100,7 +100,7 @@ export async function executeMobileImageUpload(input: {
       return { status: "cancelled" };
     }
 
-    return { message: MOBILE_UPLOAD_MESSAGES.failed, status: "error" };
+    return { message: describeMobileUploadFailure(error), status: "error" };
   } finally {
     accessToken = null;
   }
@@ -135,4 +135,19 @@ function doesClaimMatchCompletion(
 
 function isAbortError(error: unknown) {
   return error instanceof Error && error.name === "AbortError";
+}
+
+/**
+ * A bare "upload failed" string hides which hop broke (auth, uploadthing, claim), so a
+ * failed server icon looks identical to a stale cache on the device. Append the API
+ * status and code when the failure carries them; both are safe, non-personal values.
+ */
+function describeMobileUploadFailure(error: unknown): string {
+  const candidate = error as { code?: unknown; status?: unknown } | null;
+  const code = typeof candidate?.code === "string" ? candidate.code : null;
+  const status =
+    typeof candidate?.status === "number" && candidate.status > 0 ? String(candidate.status) : null;
+  const detail = [status, code].filter((value): value is string => value !== null).join(" ");
+
+  return detail ? `${MOBILE_UPLOAD_MESSAGES.failed} (${detail})` : MOBILE_UPLOAD_MESSAGES.failed;
 }

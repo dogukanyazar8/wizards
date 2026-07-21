@@ -89,11 +89,16 @@ export function useMobileSocialMutations(client: MobileApiClient) {
       },
     }),
     updateProfile: useMutation({
-      mutationFn: (input: { displayName?: string | null; username?: string }) =>
-        updateMobileProfile(client, input),
+      mutationFn: (input: {
+        bio?: string | null;
+        customStatus?: string | null;
+        displayName?: string | null;
+        username?: string;
+      }) => updateMobileProfile(client, input),
       onSuccess: async (profile) => {
         patchMobileProfileIdentityCaches({ profile, queryClient });
         await Promise.all([
+          queryClient.invalidateQueries({ queryKey: mobileQueryKeys.accountSettings() }),
           queryClient.invalidateQueries({ queryKey: mobileQueryKeys.profile() }),
           queryClient.invalidateQueries({ queryKey: mobileQueryKeys.bootstrap() }),
           queryClient.invalidateQueries({ queryKey: mobileQueryKeys.friends() }),

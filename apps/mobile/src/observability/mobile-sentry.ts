@@ -63,6 +63,28 @@ export function reportMobileBoundaryError(
   });
 }
 
+/**
+ * Native Google sign-in falls back to the browser hand-off on any failure, so
+ * without a breadcrumb a misconfigured build looks like "it just opens a
+ * browser". Only the reason code and a static detail string are sent — no
+ * account, token, or email.
+ */
+export function addMobileGoogleSignInFallbackBreadcrumb(failure: {
+  detail?: string;
+  reason: string;
+}) {
+  if (!initialized) {
+    return;
+  }
+
+  Sentry.addBreadcrumb({
+    category: "auth",
+    data: failure.detail === undefined ? { reason: failure.reason } : failure,
+    level: "warning",
+    message: "google-native-sign-in-fallback",
+  });
+}
+
 export function addMobileSecurityBreadcrumb(event: string) {
   if (!initialized) {
     return;

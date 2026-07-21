@@ -5,7 +5,14 @@ import { assertUnblockedDMParticipants } from "@/lib/dm/blocking";
 import { isDMParticipant } from "@/lib/dm/participant-service";
 import { sendDirectMessage } from "@/lib/dm/message-send-service";
 import { deleteDMMessage, editDMMessage, getDMDisplayName, setDMReaction } from "@/lib/dm/service";
+import { normalizeAppLocale, translate } from "@/lib/locale";
 import { logError } from "@/lib/logger";
+import {
+  MOBILE_PUSH_ANDROID_CHANNELS,
+  MOBILE_PUSH_CATEGORY_INCOMING_CALL,
+  sendMobilePushToUsers,
+  type MobilePushSenderDeps,
+} from "@/lib/mobile/push-sender";
 import type { HandlerContext } from "@/lib/socket/context";
 import { createDMErrorEmitter, createSafeDMErrorEmitter } from "@/lib/socket/errors";
 import { checkDMMessageRateLimits, shouldLogRateLimitUnavailable } from "@/lib/socket/rate-limits";
@@ -27,6 +34,44 @@ import type { SocketHandlerRegistration } from ".";
 /** How long an unanswered DM call keeps ringing before both sides give up. */
 const DM_CALL_RING_TTL_MS = 45_000;
 
+/**
+ * Rings every callee's mobile devices alongside the socket signal. Exported for
+ * tests; callers fire-and-forget because ring latency beats delivery guarantees.
+ */
+export async function sendDMCallPush(args: {
+  callerName: string;
+  callerUserId: string;
+  conversationId: string;
+  deps?: MobilePushSenderDeps;
+  recipients: Array<{ locale: string | null; userId: string }>;
+  video: boolean;
+}) {
+  await Promise.all(
+    args.recipients.map((recipient) =>
+      sendMobilePushToUsers(
+        {
+          androidChannelId: MOBILE_PUSH_ANDROID_CHANNELS.calls,
+          body: translate(
+            normalizeAppLocale(recipient.locale),
+            args.video ? "dm.call.push.videoBody" : "dm.call.push.voiceBody",
+          ),
+          categoryId: MOBILE_PUSH_CATEGORY_INCOMING_CALL,
+          data: {
+            callType: args.video ? "video" : "voice",
+            conversationId: args.conversationId,
+            fromUserId: args.callerUserId,
+            kind: "dm-call",
+          },
+          priority: "high",
+          title: args.callerName,
+          userIds: [recipient.userId],
+        },
+        args.deps ?? {},
+      ),
+    ),
+  );
+}
+
 export function registerDMHandlers(
   ctx: HandlerContext,
   options: {
@@ -46,6 +91,7 @@ export function registerDMHandlers(
           select: {
             avatarUrl: true,
             displayName: true,
+            locale: true,
             username: true,
           },
         },
@@ -172,6 +218,18 @@ export function registerDMHandlers(
           video: data.video,
         });
       }
+
+      const callees = participants.filter((participant) => participant.userId !== userId);
+      void sendDMCallPush({
+        callerName: caller.user.displayName ?? caller.user.username,
+        callerUserId: userId,
+        conversationId: data.conversationId,
+        recipients: callees.map((participant) => ({
+          locale: participant.user.locale ?? null,
+          userId: participant.userId,
+        })),
+        video: data.video,
+      }).catch(() => undefined);
     } catch (error) {
       emitSafeDMError("FORBIDDEN", "Unable to start this call.", error);
     }

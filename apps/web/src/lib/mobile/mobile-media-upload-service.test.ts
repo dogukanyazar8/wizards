@@ -745,6 +745,38 @@ describe("mobile media upload service", { concurrency: false }, () => {
       assert.equal(stored.cleanupAfter?.getTime(), stored.expiresAt.getTime());
     });
 
+    it("refuses to store an upload whose purpose and target can never be claimed", async () => {
+      const { dependencies, records } = createRecordHarness();
+
+      await assert.rejects(
+        () =>
+          recordVerifiedMobileMediaUpload(
+            {
+              image: verifiedImage(),
+              ownerId: "user-1",
+              purpose: "server-icon",
+              targetServerId: null,
+            },
+            dependencies as never,
+          ),
+        (error) => error instanceof ApiError && error.code === "UPLOAD_TARGET_INVALID",
+      );
+      await assert.rejects(
+        () =>
+          recordVerifiedMobileMediaUpload(
+            {
+              image: verifiedImage(),
+              ownerId: "user-1",
+              purpose: "profile-avatar",
+              targetServerId: "server-1",
+            },
+            dependencies as never,
+          ),
+        (error) => error instanceof ApiError && error.code === "UPLOAD_TARGET_INVALID",
+      );
+      assert.equal(records.size, 0);
+    });
+
     it("returns the original claim without extending or reviving it on provider retry", async () => {
       const { dependencies, records, upserts } = createRecordHarness();
       const input = {

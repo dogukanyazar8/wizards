@@ -33,6 +33,28 @@ The second log argument is JSON with `type: "workspace_performance"`. Each paylo
 - `permissionCache.*.stale` should rise only after role, override, channel, or member changes.
 - `unreadFanout.maxVisibilityGroupCount` should usually be low. A value close to target user count means users are resolving into many unique visible-channel sets.
 
+## Sizing The Cluster-Wide Presence Lookup
+
+`emitChannelMessageFanout` awaits two cluster-wide `fetchSockets()` calls before it
+emits anything, so their cost sits on the critical path of every message send.
+`messageSendFanout.totalPresenceLookupDurationMs / calls` is the average of that
+pair, and `maxPresenceLookupDurationMs` is the worst case in the window.
+
+Read it against the other buckets in the same payload:
+
+- `presenceLookup` dominating `permissionFilter` and `directEmit` means the Redis
+  adapter request/response round trip is the bottleneck, not permissions or the
+  emit itself. That is the signal to build a server-scoped presence index rather
+  than asking the adapter who is connected.
+- `presenceLookup` staying small while `activeServerMemberCount` is large means
+  the adapter is coping and the work belongs further down the queue.
+- Compare single-replica and multi-replica deploys. The adapter broadcasts to
+  every node and waits, so this number is expected to grow with replica count —
+  that growth is the thing worth measuring before changing anything.
+
+Collect at least a full day, including a busy period, before drawing a conclusion.
+One window is a sample, not a trend.
+
 ## UAT Smoke
 
 1. Deploy with the env values above.

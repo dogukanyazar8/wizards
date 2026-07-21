@@ -2,7 +2,10 @@ import { useCallback, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { MobileImageUploadOutcome } from "../../media/mobile-image-upload-service";
 import { useMobileImageUpload } from "../../media/use-mobile-image-upload";
-import { patchMobileServerIconCaches } from "../../query/mobile-server-cache";
+import {
+  confirmMobileServerIconPersisted,
+  patchMobileServerIconCaches,
+} from "../../query/mobile-server-cache";
 import { mobileQueryKeys } from "../../query/mobile-query-keys";
 import type { MobileApiClient } from "../../api/mobile-api-client";
 import { useMobileServerManagementMutations } from "../../query/use-mobile-server-management-mutations";
@@ -83,19 +86,26 @@ export function useMobileServerManagementFeature({
           : outcome;
       }
 
-      patchMobileServerIconCaches({
-        iconUrl: outcome.response.server.iconUrl,
+      const iconUrl = outcome.response.server.iconUrl;
+      patchMobileServerIconCaches({ iconUrl, queryClient, serverId });
+
+      // Same read-back as the server settings screen: an unpersisted icon must not be
+      // reported as a success, otherwise it only looks applied until the next fetch.
+      const persisted = await confirmMobileServerIconPersisted({
+        client,
+        iconUrl,
         queryClient,
         serverId,
       });
+
+      if (!persisted) {
+        return { message: "The server icon could not be synchronized.", status: "error" };
+      }
+
       void queryClient.invalidateQueries({ exact: true, queryKey: mobileQueryKeys.bootstrap() });
-      void queryClient.invalidateQueries({
-        exact: true,
-        queryKey: mobileQueryKeys.workspace(serverId),
-      });
       return outcome;
     },
-    [queryClient, selectAndUpload],
+    [client, queryClient, selectAndUpload],
   );
 
   const openServerIconUpload = useCallback(

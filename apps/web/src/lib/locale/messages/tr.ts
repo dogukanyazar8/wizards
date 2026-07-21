@@ -273,6 +273,8 @@ export const TR_MESSAGES = {
     "friends.notification.accepted.title": "Arkadaşlık isteği kabul edildi",
     "friends.notification.accepted.body": "{name} arkadaşlık isteğini kabul etti.",
     "dm.notification.title": "{name} kullanıcısından yeni mesaj",
+    "dm.call.push.videoBody": "Gelen görüntülü arama",
+    "dm.call.push.voiceBody": "Gelen sesli arama",
     "dm.message.deleted": "Mesaj silindi",
     "dm.sidebar.empty": "Mesajlaşmaya başlamak için bir arkadaş sohbeti aç.",
     "dm.sidebar.emptyRequests": "Bekleyen arkadaşlık isteğin yok.",

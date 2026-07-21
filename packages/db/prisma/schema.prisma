@@ -314,6 +314,7 @@ model User {
   dailyMetrics            UserDailyMetric[]
   mediaUsageSessions      MediaUsageSession[]
   notificationCampaigns   NotificationCampaign[]    @relation("NotificationCampaignCreator")
+  mobilePushTokens        MobilePushToken[]
 
   @@index([email])
   @@index([username])
@@ -1080,6 +1081,22 @@ model Notification {
   @@index([userId, read])
   @@index([userId, createdAt])
   @@index([campaignId])
+}
+
+model MobilePushToken {
+  id               String   @id @default(uuid())
+  userId           String
+  sessionKey       String   @unique
+  token            String   @unique
+  tokenFingerprint String
+  platform         String   @db.VarChar(16)
+  provider         String   @db.VarChar(16)
+  registeredAt     DateTime @default(now())
+  lastSeenAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model OutboxJob {

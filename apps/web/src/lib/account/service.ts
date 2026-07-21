@@ -14,6 +14,7 @@ import { getSocketServer } from "@/lib/socket/runtime";
 
 const accountUserSelect = {
   avatarUrl: true,
+  bio: true,
   customStatus: true,
   displayName: true,
   email: true,
@@ -26,6 +27,7 @@ const accountUserSelect = {
 
 export type AccountProfileRecord = {
   avatarUrl: string | null;
+  bio: string | null;
   customStatus: string | null;
   displayName: string | null;
   email: string;
@@ -37,6 +39,8 @@ export type AccountProfileRecord = {
 };
 
 export type AccountProfileUpdate = {
+  bio?: string | null | undefined;
+  customStatus?: string | null | undefined;
   displayName?: string | null | undefined;
   email?: string | undefined;
   status?: UserStatus | undefined;
@@ -45,7 +49,7 @@ export type AccountProfileUpdate = {
 
 type PersistedAccountProfile = Pick<
   AccountProfileRecord,
-  "displayName" | "email" | "status" | "username"
+  "bio" | "customStatus" | "displayName" | "email" | "status" | "username"
 >;
 
 export type AccountServiceDependencies = {
@@ -155,6 +159,13 @@ export async function updateAccountProfile(
   }
 
   const nextProfile: PersistedAccountProfile = {
+    // Free-text profile fields collapse to null when cleared so an empty string never
+    // becomes a "set" value that clients must special-case.
+    bio: input.bio === undefined ? currentUser.bio : input.bio?.trim() || null,
+    customStatus:
+      input.customStatus === undefined
+        ? currentUser.customStatus
+        : input.customStatus?.trim() || null,
     displayName:
       input.displayName === undefined
         ? currentUser.displayName

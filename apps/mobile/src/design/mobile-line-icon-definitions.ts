@@ -91,14 +91,17 @@ export const MOBILE_LINE_ICON_DEFINITIONS = {
     defaultStrokeWidth: 1.9,
     strokeLinecap: "round",
     strokeLinejoin: "round",
-    children: [{ type: "path", d: "M6 16v-5a6 6 0 0 1 12 0v5l2 3H4zM10 21.5h4" }],
+    children: [
+      { type: "path", d: "M18 9.5a6 6 0 0 0-12 0c0 4.5-2 6-2 6h16s-2-1.5-2-6Z" },
+      { type: "path", d: "M10.2 20a2 2 0 0 0 3.6 0" },
+    ],
   },
   "chat-bubble": {
     mode: "stroke",
     defaultStrokeWidth: 1.9,
     strokeLinecap: "round",
     strokeLinejoin: "round",
-    children: [{ type: "path", d: "M4 5.5h16v11H10l-6 4z" }],
+    children: [{ type: "path", d: "M20 11.5a7 7 0 0 1-9.9 6.4L5 19.5l1.3-4.2A7 7 0 1 1 20 11.5Z" }],
   },
   check: {
     mode: "stroke",
@@ -197,8 +200,8 @@ export const MOBILE_LINE_ICON_DEFINITIONS = {
     defaultStrokeWidth: 1.9,
     strokeLinecap: "round",
     children: [
-      { type: "circle", cx: 12, cy: 8, r: 3.6 },
-      { type: "path", d: "M5 20.5c1.3-4 12.7-4 14 0" },
+      { type: "circle", cx: 12, cy: 8.5, r: 3.5 },
+      { type: "path", d: "M5.5 19.5c1.2-3.9 11.8-3.9 13 0" },
     ],
   },
   search: {
@@ -219,7 +222,12 @@ export const MOBILE_LINE_ICON_DEFINITIONS = {
     defaultStrokeWidth: 1.9,
     strokeLinecap: "round",
     strokeLinejoin: "round",
-    children: [{ type: "path", d: "M4 11l8-7 8 7v9H4z" }],
+    children: [
+      { type: "rect", x: 3.5, y: 3.5, width: 7, height: 7, rx: 2.3 },
+      { type: "rect", x: 13.5, y: 3.5, width: 7, height: 7, rx: 2.3 },
+      { type: "rect", x: 3.5, y: 13.5, width: 7, height: 7, rx: 2.3 },
+      { type: "rect", x: 13.5, y: 13.5, width: 7, height: 7, rx: 2.3 },
+    ],
   },
   speaker: {
     mode: "fill",

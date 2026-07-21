@@ -1,6 +1,7 @@
 import { prisma } from "@wizards/db";
 
 import { normalizeAppLocale, translate } from "@/lib/locale";
+import { sendMobilePushForNotifications } from "@/lib/mobile/push-sender";
 import { serializeNotification, type NotificationRecord } from "@/lib/socket/notification-payload";
 import type { AppSocketServer } from "@/lib/socket/runtime";
 import { filterUserIdsByChannelPermission } from "@/lib/workspace/permission-service";
@@ -215,6 +216,17 @@ export async function createChannelMentionNotifications(args: {
       .emit("notification:new", serializeNotification(notification as NotificationRecord));
     void emitServerUnreadUpdateToUser(notification.userId, args.serverId).catch(() => undefined);
   }
+
+  void sendMobilePushForNotifications(
+    notifications.map((notification) => ({
+      actionUrl: notification.actionUrl,
+      body: notification.body,
+      id: notification.id,
+      title: notification.title,
+      type: notification.type,
+      userId: notification.userId,
+    })),
+  ).catch(() => undefined);
 }
 
 export async function createChannelThreadReplyNotification(args: {
@@ -288,4 +300,15 @@ export async function createChannelThreadReplyNotification(args: {
       ?.to(`user:${parent.userId}`)
       .emit("notification:new", serializeNotification(notification as NotificationRecord));
   }
+
+  void sendMobilePushForNotifications(
+    notifications.map((notification) => ({
+      actionUrl: notification.actionUrl,
+      body: notification.body,
+      id: notification.id,
+      title: notification.title,
+      type: notification.type,
+      userId: notification.userId,
+    })),
+  ).catch(() => undefined);
 }

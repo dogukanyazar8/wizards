@@ -1,13 +1,18 @@
 import { requireApiUserId } from "@/lib/auth/api";
+import { createServerTiming } from "@/lib/server-timing";
 import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import { jsonError, parseJsonBody } from "@/lib/api";
 import { createOrOpenDirectMessage, listDirectMessages } from "@/lib/dm/service";
 import { CreateDMBodySchema, DMConversationsQuerySchema } from "@/lib/dm/types";
 
 export async function GET(request: Request) {
+  const timing = createServerTiming();
+
   try {
+    const stopAuthTiming = timing.start("auth");
     const userId = await requireApiUserId();
     await enforceApiRateLimit(userId, "dm:conversations:list");
+    stopAuthTiming();
     const url = new URL(request.url);
     const wantsPaginatedResponse =
       url.searchParams.has("cursor") ||
@@ -17,12 +22,16 @@ export async function GET(request: Request) {
       cursor: url.searchParams.get("cursor") ?? undefined,
       limit: url.searchParams.get("limit") ?? undefined,
     });
-    const result = await listDirectMessages(userId, {
-      ...(query.cursor ? { cursor: query.cursor } : {}),
-      limit: query.limit,
-    });
+    const result = await timing.measure("db", () =>
+      listDirectMessages(userId, {
+        ...(query.cursor ? { cursor: query.cursor } : {}),
+        limit: query.limit,
+      }),
+    );
 
-    return Response.json(wantsPaginatedResponse ? result : result.conversations);
+    return Response.json(wantsPaginatedResponse ? result : result.conversations, {
+      headers: timing.headers(),
+    });
   } catch (error) {
     return jsonError(error);
   }

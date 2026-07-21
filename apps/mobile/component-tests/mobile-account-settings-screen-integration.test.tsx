@@ -160,6 +160,7 @@ describe("production mobile account settings integration", () => {
     const canonicalProfile = {
       user: {
         avatarUrl: null,
+        bio: null,
         customStatus: null,
         displayName: "Ada Byron",
         id: "user-1",

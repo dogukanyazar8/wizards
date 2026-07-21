@@ -1,5 +1,5 @@
 import type { PropsWithChildren } from "react";
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 
 import type { MobileTheme } from "../../../../design/themes";
 import { useTheme, useThemedStyles } from "../../../providers/mobile-theme-provider";
@@ -110,11 +110,9 @@ export function AuthScreenBackground({
   );
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      style={styles.keyboard}
-      testID={testID}
-    >
+    // MobileAppShell reserves the keyboard height for the whole tree, so this
+    // background only owns the auth layout itself.
+    <View style={styles.keyboard} testID={testID}>
       {rendersCanonicalWelcomeBackground ? (
         // Promote the static background to its own hardware-textured layer so the
         // native-stack slide transition composites a cached bitmap instead of
@@ -167,6 +165,6 @@ export function AuthScreenBackground({
       ) : (
         <View style={styles.staticContent}>{content}</View>
       )}
-    </KeyboardAvoidingView>
+    </View>
   );
 }

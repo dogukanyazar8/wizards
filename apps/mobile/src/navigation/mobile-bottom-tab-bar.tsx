@@ -54,58 +54,57 @@ export function MobileBottomTabBar({
   }, [selection, state.index, state.routes]);
 
   return (
-    <View style={[styles.bottomNavOuter, { paddingBottom: bottomSafeAreaInset }]}>
-      <View style={styles.bottomNavShadow}>
-        <View style={styles.bottomNavSurface} accessibilityRole="tablist">
-          {state.routes.map((route, index) => {
-            if (!isMobileTabId(route.name)) {
-              return null;
-            }
+    <View
+      accessibilityRole="tablist"
+      style={[
+        styles.bottomNavSurface,
+        { paddingBottom: mobileNavigationMetrics.tabBarPaddingBottom + bottomSafeAreaInset },
+      ]}
+      testID="mobile-bottom-tab-bar"
+    >
+      {state.routes.map((route, index) => {
+        if (!isMobileTabId(route.name)) {
+          return null;
+        }
 
-            const tabId = route.name;
-            const isActive = state.index === index;
-            const showUnreadDot = tabId === "messages" && directMessageUnreadCount > 0;
+        const tabId = route.name;
+        const isActive = state.index === index;
+        const showUnreadDot = tabId === "messages" && directMessageUnreadCount > 0;
 
-            return (
-              <Pressable
-                key={route.key}
-                accessibilityRole="tab"
-                accessibilityLabel={getMobileTabLabel(tabId)}
-                accessibilityState={{ selected: isActive }}
-                testID={`mobile-bottom-tab-${tabId}`}
-                onPress={() => {
-                  const event = navigation.emit({
-                    canPreventDefault: true,
-                    target: route.key,
-                    type: "tabPress",
-                  });
+        return (
+          <Pressable
+            key={route.key}
+            accessibilityRole="tab"
+            accessibilityLabel={getMobileTabLabel(tabId)}
+            accessibilityState={{ selected: isActive }}
+            testID={`mobile-bottom-tab-${tabId}`}
+            onPress={() => {
+              const event = navigation.emit({
+                canPreventDefault: true,
+                target: route.key,
+                type: "tabPress",
+              });
 
-                  if (!isActive && !event.defaultPrevented) {
-                    pendingTabKeyRef.current = route.key;
-                    navigation.navigate(route.name, route.params);
-                  }
-                }}
-                style={({ pressed }) => [
-                  styles.navButton,
-                  isActive && styles.navButtonActive,
-                  pressed && styles.navButtonPressed,
-                ]}
-              >
-                <MobileTabIcon
-                  icon={tabIcons[tabId]}
-                  isActive={isActive}
-                />
-                <Text style={[styles.navLabel, isActive && styles.navLabelActive]}>
-                  {getMobileTabLabel(tabId)}
-                </Text>
-                {showUnreadDot ? (
-                  <View style={styles.navUnreadDot} testID="mobile-bottom-tab-unread-dot" />
-                ) : null}
-              </Pressable>
-            );
-          })}
-        </View>
-      </View>
+              if (!isActive && !event.defaultPrevented) {
+                pendingTabKeyRef.current = route.key;
+                navigation.navigate(route.name, route.params);
+              }
+            }}
+            style={({ pressed }) => [styles.navButton, pressed && styles.navButtonPressed]}
+          >
+            <MobileTabIcon
+              icon={tabIcons[tabId]}
+              isActive={isActive}
+            />
+            <Text style={[styles.navLabel, isActive && styles.navLabelActive]}>
+              {getMobileTabLabel(tabId)}
+            </Text>
+            {showUnreadDot ? (
+              <View style={styles.navUnreadDot} testID="mobile-bottom-tab-unread-dot" />
+            ) : null}
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
@@ -123,7 +122,7 @@ function MobileTabIcon({
   return (
     <View style={styles.navVisualWrap}>
       <MobileLineIcon
-        color={isActive ? theme.accent.default : theme.text.visualFaint}
+        color={isActive ? theme.accent.tabActive : theme.text.visualFaint}
         name={icon}
         size={22}
       />
@@ -133,19 +132,16 @@ function MobileTabIcon({
 
 export const createMobileBottomTabBarStyles = (theme: MobileTheme) =>
   ({
-    bottomNavOuter: { marginHorizontal: 16 },
-    bottomNavShadow: { borderRadius: theme.radii.tabBar, ...theme.elevation.tabBar },
     bottomNavSurface: {
-      minHeight: 60,
       flexDirection: "row",
-      gap: 4,
+      gap: mobileNavigationMetrics.tabItemGap,
       minWidth: 0,
-      borderWidth: 1,
-      borderColor: theme.border.subtle,
-      borderRadius: theme.radii.tabBar,
+      borderTopWidth: 1,
+      borderTopColor: theme.border.tabBarTop,
       backgroundColor: theme.surface.card,
-      padding: 8,
-      overflow: "hidden",
+      paddingTop: mobileNavigationMetrics.tabBarPaddingTop,
+      paddingHorizontal: mobileNavigationMetrics.tabBarPaddingHorizontal,
+      ...theme.elevation.tabBar,
     },
     navButton: {
       minHeight: theme.sizing.minTouchTarget,
@@ -155,10 +151,9 @@ export const createMobileBottomTabBarStyles = (theme: MobileTheme) =>
       justifyContent: "center",
       gap: 3,
       paddingVertical: mobileNavigationMetrics.tabItemPaddingVertical,
-      borderRadius: theme.radii.tabPill,
+      borderRadius: theme.radii.control,
       position: "relative",
     },
-    navButtonActive: { backgroundColor: theme.accent.soft },
     navButtonPressed: { opacity: 0.78 },
     navVisualWrap: {
       width: 22,
@@ -175,7 +170,7 @@ export const createMobileBottomTabBarStyles = (theme: MobileTheme) =>
       textAlign: "center",
     },
     navLabelActive: {
-      color: theme.accent.default,
+      color: theme.accent.tabActive,
       fontFamily: theme.typography.fontFamilyBold,
     },
     navUnreadDot: {

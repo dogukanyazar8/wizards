@@ -10,13 +10,16 @@ import {
   type ViewStyle,
 } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { KeyboardProvider, useReanimatedKeyboardAnimation } from "react-native-keyboard-controller";
 import Animated, {
   runOnJS,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
   withSpring,
+  type SharedValue,
 } from "react-native-reanimated";
+import { resolveMobileKeyboardLift } from "../../mobile-bottom-system-inset";
 import { useTheme, useThemedStyles } from "../../providers/mobile-theme-provider";
 import { useMobileBottomSystemSpacing } from "../../use-mobile-bottom-system-spacing";
 import { createBottomSheetStyles } from "./bottom-sheet.styles";
@@ -121,10 +124,6 @@ export function BottomSheet({
     [onClose, open, reducedMotion, snapPoint, translateY],
   );
 
-  const animatedPanelStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
-  }));
-
   if (!open) {
     return null;
   }
@@ -138,44 +137,103 @@ export function BottomSheet({
       transparent
       visible
     >
-      <View style={styles.root}>
-        <Pressable
-          accessibilityLabel={accessibilityLabel}
-          accessibilityRole="button"
-          onPress={onClose}
-          style={[styles.backdrop, presentation?.backdropStyle]}
-          testID={`${testID}-backdrop`}
-        >
-          {presentation?.backdropBlurIntensity ? (
-            <BlurView
-              intensity={presentation.backdropBlurIntensity}
-              pointerEvents="none"
-              style={StyleSheet.absoluteFill}
-            />
-          ) : null}
-        </Pressable>
-        <GestureDetector gesture={panGesture}>
-          <Animated.View
+      {/* A modal is its own native window, so it needs its own keyboard tracker —
+          the app-level provider only measures the window behind this one. */}
+      <KeyboardProvider>
+        <View style={styles.root}>
+          <Pressable
             accessibilityLabel={accessibilityLabel}
-            accessibilityViewIsModal
-            onAccessibilityEscape={onClose}
-            role="dialog"
-            style={[
-              styles.panel,
-              { paddingBottom: theme.spacing.page + bottomSystemInset },
-              presentation?.panelStyle,
-              { height: snapPoint },
-              animatedPanelStyle,
-            ]}
-            testID={`${testID}-panel`}
+            accessibilityRole="button"
+            onPress={onClose}
+            style={[styles.backdrop, presentation?.backdropStyle]}
+            testID={`${testID}-backdrop`}
           >
-            <View style={[styles.handleArea, presentation?.handleAreaStyle]}>
-              <View style={[styles.handle, presentation?.handleStyle]} />
-            </View>
-            <View style={[styles.content, presentation?.contentStyle]}>{children}</View>
-          </Animated.View>
-        </GestureDetector>
-      </View>
+            {presentation?.backdropBlurIntensity ? (
+              <BlurView
+                intensity={presentation.backdropBlurIntensity}
+                pointerEvents="none"
+                style={StyleSheet.absoluteFill}
+              />
+            ) : null}
+          </Pressable>
+          <GestureDetector gesture={panGesture}>
+            <BottomSheetPanel
+              accessibilityLabel={accessibilityLabel}
+              bottomSystemInset={bottomSystemInset}
+              onClose={onClose}
+              {...(presentation ? { presentation } : {})}
+              snapPoint={snapPoint}
+              testID={testID}
+              translateY={translateY}
+            >
+              {children}
+            </BottomSheetPanel>
+          </GestureDetector>
+        </View>
+      </KeyboardProvider>
     </Modal>
+  );
+}
+
+function BottomSheetPanel({
+  accessibilityLabel,
+  bottomSystemInset,
+  children,
+  onClose,
+  presentation,
+  snapPoint,
+  testID,
+  translateY,
+}: {
+  readonly accessibilityLabel: string;
+  readonly bottomSystemInset: number;
+  readonly children: ReactNode;
+  readonly onClose: () => void;
+  readonly presentation?: BottomSheetPresentation;
+  readonly snapPoint: number;
+  readonly testID: string;
+  readonly translateY: SharedValue<number>;
+}) {
+  const theme = useTheme();
+  const styles = useThemedStyles(createBottomSheetStyles);
+  const keyboard = useReanimatedKeyboardAnimation();
+  // The panel already pads itself past the navigation bar, so it only has to
+  // travel the distance the keyboard adds on top of that inset.
+  const animatedPanelStyle = useAnimatedStyle(
+    () => ({
+      transform: [
+        {
+          translateY:
+            translateY.value -
+            resolveMobileKeyboardLift({
+              keyboardHeight: -keyboard.height.value,
+              systemInset: bottomSystemInset,
+            }),
+        },
+      ],
+    }),
+    [bottomSystemInset],
+  );
+
+  return (
+    <Animated.View
+      accessibilityLabel={accessibilityLabel}
+      accessibilityViewIsModal
+      onAccessibilityEscape={onClose}
+      role="dialog"
+      style={[
+        styles.panel,
+        { paddingBottom: theme.spacing.page + bottomSystemInset },
+        presentation?.panelStyle,
+        { height: snapPoint },
+        animatedPanelStyle,
+      ]}
+      testID={`${testID}-panel`}
+    >
+      <View style={[styles.handleArea, presentation?.handleAreaStyle]}>
+        <View style={[styles.handle, presentation?.handleStyle]} />
+      </View>
+      <View style={[styles.content, presentation?.contentStyle]}>{children}</View>
+    </Animated.View>
   );
 }

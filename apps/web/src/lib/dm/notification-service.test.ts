@@ -88,4 +88,80 @@ describe("DM notification service helpers", () => {
       }
     }
   });
+
+  it("sends a mobile push per created notification row", async () => {
+    const restores: Restore[] = [];
+    const pushRequests: string[] = [];
+
+    patchMethod(
+      prisma.notification,
+      "createManyAndReturn",
+      async () => [
+        {
+          actionUrl: "/channels/@me/conversation-1",
+          body: "hello",
+          id: "notification-1",
+          title: "New message from Sender",
+          type: "DM",
+          userId: "recipient",
+        },
+      ],
+      restores,
+    );
+    patchMethod(
+      prisma.mobilePushToken,
+      "findMany",
+      async () => [{ token: "ExpoPushToken[x]", userId: "recipient" }],
+      restores,
+    );
+    patchMethod(
+      globalThis,
+      "fetch",
+      async (_url: string, init: { body: string }) => {
+        pushRequests.push(init.body);
+        return {
+          json: async () => ({
+            data: (JSON.parse(init.body) as unknown[]).map(() => ({ status: "ok" })),
+          }),
+          ok: true,
+          status: 200,
+        };
+      },
+      restores,
+    );
+
+    try {
+      await createDMMessageNotifications({
+        attachmentLabelKey: "chat.attachments.file",
+        content: "hello",
+        conversationId: "conversation-1",
+        messageId: "message-1",
+        participants: [
+          { muted: false, userId: "sender", user: { locale: "en" } },
+          { muted: false, userId: "recipient", user: { locale: "en" } },
+        ],
+        senderId: "sender",
+        senderName: "Sender",
+      });
+      // The push hook is fire-and-forget; let its microtasks/macrotask settle.
+      await new Promise((resolve) => setImmediate(resolve));
+
+      assert.equal(pushRequests.length, 1);
+      const [message] = JSON.parse(pushRequests[0]!) as Array<Record<string, unknown>>;
+      assert.equal(message!.to, "ExpoPushToken[x]");
+      assert.equal(message!.channelId, "whispr-default");
+      assert.equal(message!.title, "New message from Sender");
+      assert.equal(message!.body, "hello");
+      assert.deepEqual(message!.data, {
+        actionUrl: "/channels/@me/conversation-1",
+        kind: "notification",
+        notificationId: "notification-1",
+        type: "DM",
+      });
+    } finally {
+      for (const restore of restores.reverse()) {
+        restore();
+      }
+    }
+  });
 });

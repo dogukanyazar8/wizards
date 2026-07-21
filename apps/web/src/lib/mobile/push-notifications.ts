@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 
+import { prisma } from "@wizards/db";
 import {
   MobilePushRegistrationRevokeResponseSchema,
   MobilePushRegistrationResponseSchema,
@@ -9,52 +10,53 @@ import {
   type MobilePushRegistrationResponse,
 } from "@wizards/types";
 
-import { getRedis } from "@/lib/redis";
-
-export const MOBILE_PUSH_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60;
-
-const MOBILE_PUSH_TOKEN_KEY_PREFIX = "mobile:push-token:";
-
-interface MobilePushRedis {
-  del(key: string): Promise<number>;
-  set(
-    key: string,
-    value: string,
-    mode: "EX",
-    ttlSeconds: number,
-  ): Promise<"OK" | null>;
+/**
+ * Structural slice of PrismaClient so tests can substitute an in-memory store
+ * (same pattern the Redis-backed version used).
+ */
+export interface MobilePushTokenStore {
+  mobilePushToken: {
+    deleteMany(args: {
+      where: { NOT?: { sessionKey: string }; sessionKey?: string; token?: string };
+    }): Promise<{ count: number }>;
+    upsert(args: {
+      create: {
+        platform: string;
+        provider: string;
+        sessionKey: string;
+        token: string;
+        tokenFingerprint: string;
+        userId: string;
+      };
+      update: {
+        platform: string;
+        provider: string;
+        token: string;
+        tokenFingerprint: string;
+        userId: string;
+      };
+      where: { sessionKey: string };
+    }): Promise<unknown>;
+  };
 }
 
 interface RegisterMobilePushTokenInput {
+  db?: MobilePushTokenStore;
   now?: Date;
   platform: MobilePushPlatform;
   provider: MobilePushProvider;
-  redis?: MobilePushRedis;
   sessionId: string;
   token: string;
   userId: string;
 }
 
 interface RevokeMobilePushTokenInput {
+  db?: MobilePushTokenStore;
   now?: Date;
-  redis?: MobilePushRedis;
   sessionId: string;
 }
 
-interface MobilePushTokenRecord {
-  platform: MobilePushPlatform;
-  provider: MobilePushProvider;
-  registeredAt: string;
-  token: string;
-  tokenFingerprint: string;
-  userId: string;
-}
-
-function getMobilePushRedis(redis?: MobilePushRedis) {
-  return (redis ?? getRedis()) as MobilePushRedis;
-}
-
-function hashMobilePushSessionId(sessionId: string) {
+export function hashMobilePushSessionId(sessionId: string) {
   return createHash("sha256").update(sessionId).digest("base64url");
 }
 
@@ -62,54 +64,46 @@ export function getMobilePushTokenFingerprint(token: string) {
   return createHash("sha256").update(token).digest("base64url");
 }
 
-export function getMobilePushTokenKey(sessionId: string) {
-  return `${MOBILE_PUSH_TOKEN_KEY_PREFIX}${hashMobilePushSessionId(sessionId)}`;
-}
-
 export async function registerMobilePushToken({
+  db = prisma,
   now = new Date(),
   platform,
   provider,
-  redis,
   sessionId,
   token,
   userId,
 }: RegisterMobilePushTokenInput): Promise<MobilePushRegistrationResponse> {
-  const registeredAt = now.toISOString();
+  const sessionKey = hashMobilePushSessionId(sessionId);
   const tokenFingerprint = getMobilePushTokenFingerprint(token);
-  const record: MobilePushTokenRecord = {
-    platform,
-    provider,
-    registeredAt,
-    token,
-    tokenFingerprint,
-    userId,
-  };
 
-  await getMobilePushRedis(redis).set(
-    getMobilePushTokenKey(sessionId),
-    JSON.stringify(record),
-    "EX",
-    MOBILE_PUSH_TOKEN_TTL_SECONDS,
-  );
+  // A device token follows the newest session: drop any older session that
+  // still holds it, then upsert this session's row.
+  await db.mobilePushToken.deleteMany({ where: { NOT: { sessionKey }, token } });
+  await db.mobilePushToken.upsert({
+    create: { platform, provider, sessionKey, token, tokenFingerprint, userId },
+    update: { platform, provider, token, tokenFingerprint, userId },
+    where: { sessionKey },
+  });
 
   return MobilePushRegistrationResponseSchema.parse({
     provider,
     registered: true,
-    registeredAt,
+    registeredAt: now.toISOString(),
     tokenFingerprint,
   });
 }
 
 export async function revokeMobilePushToken({
+  db = prisma,
   now = new Date(),
-  redis,
   sessionId,
 }: RevokeMobilePushTokenInput): Promise<MobilePushRegistrationRevokeResponse> {
-  const deletedCount = await getMobilePushRedis(redis).del(getMobilePushTokenKey(sessionId));
+  const { count } = await db.mobilePushToken.deleteMany({
+    where: { sessionKey: hashMobilePushSessionId(sessionId) },
+  });
 
   return MobilePushRegistrationRevokeResponseSchema.parse({
-    revoked: deletedCount > 0,
+    revoked: count > 0,
     revokedAt: now.toISOString(),
   });
 }

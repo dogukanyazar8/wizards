@@ -1313,6 +1313,31 @@ describe("API v1 route contract", () => {
     assert.deepEqual(directlyAliasedHandlers, []);
   });
 
+  it("keeps Server-Timing on the reads a slow client complains about", () => {
+    // These are the reads that block a screen: opening a channel, a DM, the
+    // server list, a server, and the notification tray. Without the header a
+    // report of "the app is slow" cannot be split into server work versus
+    // transport, which is the whole reason the buckets exist.
+    const instrumentedReadRoutes = [
+      "channels/[channelId]/messages",
+      "dm",
+      "dm/[conversationId]/messages",
+      "mobile/bootstrap",
+      "mobile/channels/[channelId]/messages",
+      "mobile/servers/[serverId]",
+      "notifications",
+      "servers",
+      "servers/[serverId]",
+    ];
+
+    const missing = instrumentedReadRoutes.filter((routePath) => {
+      const route = routes.find((candidate) => candidate.routePath === routePath);
+      return !route || !/timing\.headers\(/.test(route.content);
+    });
+
+    assert.deepEqual(missing, []);
+  });
+
   it("keeps exported mobile Next handlers on request/context signatures", () => {
     const invalidHandlers = routes
       .filter(({ routePath }) => routePath.startsWith("mobile/"))

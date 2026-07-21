@@ -7,6 +7,7 @@ param(
   [string]$JavaHome = "C:\Program Files\Java\jdk-17",
   [string]$AndroidHome = "$env:LOCALAPPDATA\Android\Sdk",
   [string]$AndroidArchitectures,
+  [string]$GoogleWebClientId,
   [ValidateSet("debug", "release")]
   [string]$BuildType = "debug",
   [ValidateRange(32, 120)]
@@ -14,6 +15,7 @@ param(
   [int]$WaitForDeviceSeconds = 90,
   [ValidateRange(1024, 65535)]
   [int]$DevServerPort = 8081,
+  [switch]$RequireGoogleSignIn,
   [switch]$SkipSync,
   [switch]$SkipUninstall,
   [switch]$SkipInstall,
@@ -192,6 +194,43 @@ function Invoke-CommandChecked {
   } finally {
     Pop-Location
   }
+}
+
+function Get-DotEnvValue {
+  param(
+    [string]$MobileRoot,
+    [string]$Name
+  )
+
+  # The workspace sync deliberately excludes .env files (see $excludedFiles), so
+  # EXPO_PUBLIC_* values have to be read from the *source* tree and re-exported
+  # here; otherwise they are simply missing from the bundled APK.
+  foreach ($fileName in @(".env.local", ".env")) {
+    $envFile = Join-Path $MobileRoot $fileName
+    if (-not (Test-Path -LiteralPath $envFile)) {
+      continue
+    }
+
+    foreach ($line in (Get-Content -LiteralPath $envFile)) {
+      $trimmed = $line.Trim()
+      if (-not $trimmed -or $trimmed.StartsWith("#")) {
+        continue
+      }
+
+      $separatorIndex = $trimmed.IndexOf("=")
+      if ($separatorIndex -lt 1) {
+        continue
+      }
+
+      if ($trimmed.Substring(0, $separatorIndex).Trim() -ne $Name) {
+        continue
+      }
+
+      return $trimmed.Substring($separatorIndex + 1).Trim().Trim('"').Trim("'")
+    }
+  }
+
+  return ""
 }
 
 function Test-SourceMetroDependencies {
@@ -933,6 +972,30 @@ $env:WHISPR_MOBILE_ENV = "uat"
 $env:EXPO_PUBLIC_WHISPR_API_URL = $UatUrl
 $env:EXPO_PUBLIC_WHISPR_SOCKET_URL = $UatUrl
 $env:EXPO_PUBLIC_WHISPR_WEB_URL = $UatUrl
+
+# Native Google sign-in only arms when this id is inlined into the bundle. An
+# APK built without it silently falls back to the browser hand-off, which looks
+# exactly like "native sign-in is broken on device".
+$resolvedGoogleWebClientId = $GoogleWebClientId
+if (-not $resolvedGoogleWebClientId) {
+  $resolvedGoogleWebClientId = $env:EXPO_PUBLIC_WHISPR_GOOGLE_WEB_CLIENT_ID
+}
+if (-not $resolvedGoogleWebClientId) {
+  $resolvedGoogleWebClientId = Get-DotEnvValue -MobileRoot $sourceMobileRoot -Name "EXPO_PUBLIC_WHISPR_GOOGLE_WEB_CLIENT_ID"
+}
+
+if ($resolvedGoogleWebClientId -and -not $resolvedGoogleWebClientId.EndsWith(".apps.googleusercontent.com")) {
+  throw "EXPO_PUBLIC_WHISPR_GOOGLE_WEB_CLIENT_ID must be a Google OAuth *web* client id ending in .apps.googleusercontent.com. Received: $resolvedGoogleWebClientId"
+}
+
+if ($resolvedGoogleWebClientId) {
+  $env:EXPO_PUBLIC_WHISPR_GOOGLE_WEB_CLIENT_ID = $resolvedGoogleWebClientId
+  Write-Host "Google sign-in: native account sheet armed"
+} elseif ($RequireGoogleSignIn) {
+  throw "Native Google sign-in was required but EXPO_PUBLIC_WHISPR_GOOGLE_WEB_CLIENT_ID is not set. Add it to apps/mobile/.env.local or pass -GoogleWebClientId."
+} else {
+  Write-Warning "EXPO_PUBLIC_WHISPR_GOOGLE_WEB_CLIENT_ID is not set. This build will fall back to the browser hand-off instead of the native Google sheet. Run: pnpm --filter @wizards/mobile google:doctor"
+}
 if ($BuildType -eq "release") {
   $env:NODE_ENV = "production"
 } elseif (-not $env:NODE_ENV) {

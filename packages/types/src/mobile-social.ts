@@ -100,6 +100,8 @@ export const MobilePresenceResponseSchema = z
 
 export const MobileProfileUpdateSchema = z
   .object({
+    bio: z.string().trim().max(500).nullable().optional(),
+    customStatus: z.string().trim().max(128).nullable().optional(),
     displayName: z.string().trim().max(60).nullable().optional(),
     username: z
       .string()
@@ -110,16 +112,27 @@ export const MobileProfileUpdateSchema = z
       .optional(),
   })
   .strict()
-  .refine((value) => value.displayName !== undefined || value.username !== undefined, {
-    message: "At least one profile field is required",
-  });
+  .refine(
+    (value) =>
+      value.bio !== undefined ||
+      value.customStatus !== undefined ||
+      value.displayName !== undefined ||
+      value.username !== undefined,
+    { message: "At least one profile field is required" },
+  );
 
 export const MobileProfileUserSchema = MobileFriendUserSchema.extend({
   customStatus: z.string().max(128).nullable(),
   status: MobileFriendPresenceStatusSchema,
   twoFactorEnabled: z.boolean(),
 }).strict();
-export const MobileProfileResponseSchema = z.object({ user: MobileProfileUserSchema }).strict();
+export const MobileProfileResponseSchema = z
+  .object({
+    // Only the signed-in user's own profile carries the bio; peer-facing payloads keep
+    // the narrower user shape. Defaulted so an un-redeployed server still parses.
+    user: MobileProfileUserSchema.extend({ bio: z.string().max(500).nullable().default(null) }),
+  })
+  .strict();
 
 export const MobileTwoFactorConfirmRequestSchema = z
   .object({ code: z.string().trim().min(6).max(64) })

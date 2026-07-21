@@ -1,4 +1,8 @@
-import type { MobileMediaUploadCompletionResponse, MobileMediaUploadIntent } from "@wizards/types";
+import {
+  MobileMediaUploadIntentSchema,
+  type MobileMediaUploadCompletionResponse,
+  type MobileMediaUploadIntent,
+} from "@wizards/types";
 import { UTApi, UploadThingError } from "uploadthing/server";
 
 import { ApiError } from "@/lib/api";
@@ -126,7 +130,13 @@ export async function authorizeMobileMediaUpload(
     await dependencies.enforceRateLimit(ownerId, MOBILE_MEDIA_UPLOAD_RATE_LIMIT_ACTION);
     await runBestEffortAuthenticatedCleanup(dependencies);
 
-    if (input.intent.purpose === "profile-avatar") {
+    // Re-validate the client-supplied intent here. A server-icon intent that reaches this
+    // point without a target id would make the Prisma membership lookup drop its filter
+    // (undefined = no filter) and authorize against an arbitrary server, then record an
+    // upload that can never be claimed.
+    const intent = MobileMediaUploadIntentSchema.parse(input.intent);
+
+    if (intent.purpose === "profile-avatar") {
       return {
         ownerId,
         purpose: "profile-avatar",
@@ -134,12 +144,12 @@ export async function authorizeMobileMediaUpload(
       };
     }
 
-    const access = await dependencies.getAccessContext(ownerId, input.intent.targetServerId);
+    const access = await dependencies.getAccessContext(ownerId, intent.targetServerId);
     dependencies.ensureServerPermission(access, PermissionBits.MANAGE_SERVER);
     return {
       ownerId,
       purpose: "server-icon",
-      targetServerId: input.intent.targetServerId,
+      targetServerId: intent.targetServerId,
     };
   } catch (error) {
     throw authorizationUploadThingError(error);

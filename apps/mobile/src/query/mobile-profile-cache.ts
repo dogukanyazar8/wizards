@@ -35,6 +35,22 @@ function isHttpsUrl(value: string): boolean {
   }
 }
 
+/**
+ * `workspaceRoot()` is a key prefix: it also matches the members, roles, role-overview and
+ * invites caches, whose payloads have no `detail`. Patching those with the workspace-detail
+ * shape threw "Cannot read property 'members' of undefined" mid-upload and aborted the rest
+ * of the avatar flow, so every workspace fan-out must filter down to the detail key.
+ */
+function isMobileWorkspaceDetailKey(queryKey: QueryKey): boolean {
+  return queryKey.length === 3 && queryKey[0] === "mobile" && queryKey[1] === "workspace";
+}
+
+function hasWorkspaceDetailMembers(
+  data: MobileManagedWorkspaceServerDetailResponse | undefined,
+): data is MobileManagedWorkspaceServerDetailResponse {
+  return Array.isArray(data?.detail?.members);
+}
+
 function patchAvatarIdentity<T extends MobileAvatarIdentity>(
   identity: T,
   userId: string,
@@ -163,7 +179,7 @@ function patchWorkspace(
   userId: string,
   avatarUrl: string,
 ): MobileManagedWorkspaceServerDetailResponse | undefined {
-  if (!data) {
+  if (!hasWorkspaceDetailMembers(data)) {
     return data;
   }
 
@@ -231,7 +247,7 @@ function patchWorkspacePresence(
   userId: string,
   status: MobileFriendPresenceStatus,
 ): MobileManagedWorkspaceServerDetailResponse | undefined {
-  if (!data) {
+  if (!hasWorkspaceDetailMembers(data)) {
     return data;
   }
 
@@ -293,7 +309,10 @@ export function patchMobileProfileAvatarCaches(input: {
     patchFriends(current, userId, avatarUrl),
   );
   queryClient.setQueriesData<MobileManagedWorkspaceServerDetailResponse>(
-    { queryKey: mobileQueryKeys.workspaceRoot() },
+    {
+      predicate: (query) => isMobileWorkspaceDetailKey(query.queryKey),
+      queryKey: mobileQueryKeys.workspaceRoot(),
+    },
     (current) => patchWorkspace(current, userId, avatarUrl),
   );
 }
@@ -346,6 +365,7 @@ export function patchMobileProfilePresenceCaches(input: {
   });
 
   for (const [queryKey] of queryClient.getQueriesData<MobileManagedWorkspaceServerDetailResponse>({
+    predicate: (query) => isMobileWorkspaceDetailKey(query.queryKey),
     queryKey: mobileQueryKeys.workspaceRoot(),
   })) {
     patchCachedValue<MobileManagedWorkspaceServerDetailResponse>({

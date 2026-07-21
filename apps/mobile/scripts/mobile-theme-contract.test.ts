@@ -236,7 +236,7 @@ describe("mobile semantic theme contract", () => {
     assert.notEqual(darkTheme.accent.default, lightTheme.accent.default);
     assert.notEqual(darkTheme.surface.base, darkTheme.surface.card);
     assert.equal(darkTheme.elevation.headerCard.shadowOpacity, 0);
-    assert.equal(darkTheme.elevation.tabBar.shadowOpacity, 0.35);
+    assert.equal(darkTheme.elevation.tabBar.shadowOpacity, 0.4);
     assert.equal(darkTheme.elevation.primaryAction.shadowOpacity, 0.4);
   });
 

@@ -9,7 +9,8 @@
       "distribution": "internal",
       "channel": "development",
       "env": {
-        "WHISPR_MOBILE_ENV": "development"
+        "WHISPR_MOBILE_ENV": "development",
+        "EXPO_PUBLIC_WHISPR_GOOGLE_WEB_CLIENT_ID": "392832784348-1ck9nah3aq2pqoaufouks2dbb3llbhtr.apps.googleusercontent.com"
       }
     },
     "uat": {
@@ -21,7 +22,8 @@
         "EXPO_PUBLIC_WHISPR_API_URL": "https://wizardsweb-uat.up.railway.app",
         "EXPO_PUBLIC_WHISPR_SOCKET_URL": "https://wizardsweb-uat.up.railway.app",
         "EXPO_PUBLIC_WHISPR_WEB_URL": "https://wizardsweb-uat.up.railway.app",
-        "EXPO_PUBLIC_WHISPR_SENTRY_DSN": "https://74b46a856eefe32a4df74f7196249590@o4511722135617536.ingest.de.sentry.io/4511727701065808"
+        "EXPO_PUBLIC_WHISPR_SENTRY_DSN": "https://74b46a856eefe32a4df74f7196249590@o4511722135617536.ingest.de.sentry.io/4511727701065808",
+        "EXPO_PUBLIC_WHISPR_GOOGLE_WEB_CLIENT_ID": "392832784348-1ck9nah3aq2pqoaufouks2dbb3llbhtr.apps.googleusercontent.com"
       }
     },
     "canary": {
@@ -33,7 +35,8 @@
         "EXPO_PUBLIC_WHISPR_API_URL": "https://whispr.team",
         "EXPO_PUBLIC_WHISPR_SOCKET_URL": "https://whispr.team",
         "EXPO_PUBLIC_WHISPR_WEB_URL": "https://whispr.team",
-        "EXPO_PUBLIC_WHISPR_SENTRY_DSN": "https://74b46a856eefe32a4df74f7196249590@o4511722135617536.ingest.de.sentry.io/4511727701065808"
+        "EXPO_PUBLIC_WHISPR_SENTRY_DSN": "https://74b46a856eefe32a4df74f7196249590@o4511722135617536.ingest.de.sentry.io/4511727701065808",
+        "EXPO_PUBLIC_WHISPR_GOOGLE_WEB_CLIENT_ID": "392832784348-1ck9nah3aq2pqoaufouks2dbb3llbhtr.apps.googleusercontent.com"
       }
     },
     "production": {
@@ -45,7 +48,8 @@
         "EXPO_PUBLIC_WHISPR_API_URL": "https://whispr.team",
         "EXPO_PUBLIC_WHISPR_SOCKET_URL": "https://whispr.team",
         "EXPO_PUBLIC_WHISPR_WEB_URL": "https://whispr.team",
-        "EXPO_PUBLIC_WHISPR_SENTRY_DSN": "https://74b46a856eefe32a4df74f7196249590@o4511722135617536.ingest.de.sentry.io/4511727701065808"
+        "EXPO_PUBLIC_WHISPR_SENTRY_DSN": "https://74b46a856eefe32a4df74f7196249590@o4511722135617536.ingest.de.sentry.io/4511727701065808",
+        "EXPO_PUBLIC_WHISPR_GOOGLE_WEB_CLIENT_ID": "392832784348-1ck9nah3aq2pqoaufouks2dbb3llbhtr.apps.googleusercontent.com"
       }
     }
   },

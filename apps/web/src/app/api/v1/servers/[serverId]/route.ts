@@ -1,8 +1,6 @@
-import {
-  DeleteServerSchema,
-  UpdateServerSchema,
-} from "@wizards/types";
+import { DeleteServerSchema, UpdateServerSchema } from "@wizards/types";
 import { requireApiUserId } from "@/lib/auth/api";
+import { createServerTiming } from "@/lib/server-timing";
 import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import { jsonError, parseJsonBody } from "@/lib/api";
 import {
@@ -18,13 +16,17 @@ type RouteContext = {
 };
 
 export async function GET(_: Request, context: RouteContext) {
+  const timing = createServerTiming();
+
   try {
+    const stopAuthTiming = timing.start("auth");
     const userId = await requireApiUserId();
     await enforceApiRateLimit(userId, "server:detail");
+    stopAuthTiming();
     const { serverId } = await context.params;
-    const detail = await getWorkspaceServerDetail(userId, serverId);
+    const detail = await timing.measure("db", () => getWorkspaceServerDetail(userId, serverId));
 
-    return Response.json({ detail });
+    return Response.json({ detail }, { headers: timing.headers() });
   } catch (error) {
     return jsonError(error);
   }

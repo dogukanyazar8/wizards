@@ -272,6 +272,8 @@ export const EN_MESSAGES = {
     "friends.notification.accepted.title": "Friend request accepted",
     "friends.notification.accepted.body": "{name} accepted your friend request.",
     "dm.notification.title": "New message from {name}",
+    "dm.call.push.videoBody": "Incoming video call",
+    "dm.call.push.voiceBody": "Incoming voice call",
     "dm.message.deleted": "Message deleted",
     "dm.sidebar.empty": "Open a friend conversation to start messaging.",
     "dm.sidebar.emptyRequests": "You do not have pending friend requests.",

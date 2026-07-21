@@ -37,6 +37,8 @@ export interface MobileNotificationRuntimeSummary {
 const SENSITIVE_NOTIFICATION_ERROR_PATTERN =
   /(access[_-]?token|refresh[_-]?token|oauth[_-]?code|password|secret|bearer\s+[a-z0-9._-]+)/i;
 
+export const MOBILE_PUSH_REGISTRATION_RETRY_INTERVAL_MS = 5 * 60 * 1000;
+
 export function createInitialMobileNotificationRuntimeState(): MobileNotificationRuntimeState {
   return {
     errorMessage: null,
@@ -183,6 +185,50 @@ export function summarizeMobileNotificationRuntimeState(
     shouldAskAfterUserAction:
       state.permissionStatus === "unknown" || state.permissionStatus === "not-requested",
   };
+}
+
+export function hasGrantedMobileNotificationPermission(
+  state: MobileNotificationRuntimeState,
+): boolean {
+  return state.hasLocalPermission || state.permissionStatus === "granted";
+}
+
+/**
+ * The permission prompt card must disappear as soon as the operating system grants the
+ * permission, even when push-token registration is still pending or failed. Registration
+ * problems are surfaced by the notification setup card instead, because tapping "allow"
+ * again cannot fix them.
+ */
+export function shouldOfferMobileNotificationPermission(
+  state: MobileNotificationRuntimeState,
+): boolean {
+  if (state.status === "checking" || hasGrantedMobileNotificationPermission(state)) {
+    return false;
+  }
+
+  return (
+    state.status !== "blocked" &&
+    state.status !== "server-contract-pending" &&
+    state.status !== "unavailable"
+  );
+}
+
+export function shouldAttemptMobilePushRegistration(
+  state: MobileNotificationRuntimeState,
+  now = Date.now(),
+): boolean {
+  if (state.status === "registered") {
+    return false;
+  }
+
+  if (state.status !== "registration-failed") {
+    return true;
+  }
+
+  return (
+    state.lastAttemptAt === null ||
+    now - state.lastAttemptAt >= MOBILE_PUSH_REGISTRATION_RETRY_INTERVAL_MS
+  );
 }
 
 export function mapExpoNotificationPermissionStatus(

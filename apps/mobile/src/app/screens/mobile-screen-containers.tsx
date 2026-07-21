@@ -24,7 +24,8 @@ import { MobileMessageThreadScreen } from "./message-thread-screen";
 import { OverviewScreen } from "./home-screen";
 import { NotificationsScreen } from "./notifications-screen";
 import { ProfileSettingsScreen } from "./settings-screen";
-import { BlockedUsersScreen, ProfileEditScreen } from "../../social/social-account-screens";
+import { BlockedUsersScreen } from "../../social/social-account-screens";
+import { MobileProfileEditScreen } from "../../social/mobile-profile-edit-screen";
 import { VoiceScreen } from "./voice-screen";
 import { MobileDirectCallScreen } from "./mobile-direct-call-screen";
 import { MobileDirectVideoCallScreen } from "./mobile-direct-video-call-screen";
@@ -408,7 +409,12 @@ export function SettingsDetailScreenContainer({
 export function ProfileEditScreenContainer({
   navigation,
 }: NativeStackScreenProps<MobileRootStackParamList, "ProfileEdit">) {
-  return <ProfileEditScreen onBack={() => navigation.goBack()} />;
+  return (
+    <MobileProfileEditScreen
+      onBack={() => navigation.goBack()}
+      onOpenBlockedUsers={() => navigation.navigate("BlockedUsers")}
+    />
+  );
 }
 
 export function BlockedUsersScreenContainer({
