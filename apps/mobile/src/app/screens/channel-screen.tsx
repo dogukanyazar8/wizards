@@ -42,6 +42,7 @@ import {
 } from "../components/message-primitives";
 import { StatusChip } from "../components/ui-atoms";
 import { Avatar, BottomSheet, EmptyState } from "../components/kit";
+import { MobileChatKeyboardRegion } from "../mobile-chat-keyboard-region";
 import {
   MessageForwardSheet,
   type MobileForwardSendInput,
@@ -256,8 +257,10 @@ export function MobileChannelChatScreen({
   );
 
   return (
-    // MobileAppShell shrinks by the tracked keyboard height for every screen, so
-    // the chat tree only has to fill what is left of the shell.
+    // MobileAppShell only reserves the system inset here; the chat body below
+    // the header rides the IME inside MobileChatKeyboardRegion (transform on
+    // the UI thread), so the message tree never relayouts during the keyboard
+    // animation.
     <View style={styles.mobileChannelChatKeyboard}>
       <View
         accessibilityLabel={headerModel.accessibilityLabel}
@@ -383,117 +386,119 @@ export function MobileChannelChatScreen({
           />
         ) : null}
 
-        <ChannelMessageList
-          currentUserId={currentUserId}
-          firstUnreadMessageId={channelFirstUnreadMessageId}
-          isReactionMutationPending={isReactionMutationPending}
-          {...(onLoadMore ? { onLoadMore } : {})}
-          onRefresh={onRefresh}
-          onDeleteMessage={onDeleteMessage}
-          onDiscardMessage={onDiscardMessage}
-          onEditMessage={handleEditMessage}
-          {...(onForwardMessage ? { onForwardMessage: handleRequestForward } : {})}
-          {...(onPinMessage ? { onPinMessage: handlePinMessage } : {})}
-          onReplyMessage={handleReplyMessage}
-          onRetryMessage={onRetryMessage}
-          onToggleMessageReaction={onToggleMessageReaction}
-          ownerUserId={ownerUserId}
-          {...(onOpenThread ? { onOpenThread } : {})}
-          ref={messageListRef}
-          state={state}
-        />
-        <BottomSheet
-          accessibilityLabel={copy.messagePinnedSheetTitle}
-          onClose={() => setPinsSheetOpen(false)}
-          open={isPinsSheetOpen}
-          snapPoint={520}
-          testID="mobile-channel-pins-sheet"
-        >
-          <Text style={styles.pinnedSheetTitle}>{copy.messagePinnedSheetTitle}</Text>
-          {channelPinnedMessages.length === 0 ? (
-            <Text style={styles.pinnedSheetEmptyText}>{copy.messagePinnedEmptyNotice}</Text>
-          ) : (
-            <ScrollView showsVerticalScrollIndicator={false} style={styles.pinnedSheetList}>
-              {channelPinnedMessages.map((pinnedMessage) => (
-                <Pressable
-                  accessibilityLabel={copy.messagePinnedJumpAction}
-                  accessibilityRole="button"
-                  key={pinnedMessage.id}
-                  onPress={() => handleJumpToMessage(pinnedMessage.id)}
-                  style={({ pressed }) => [
-                    styles.pinnedSheetRow,
-                    pressed && styles.pinnedSheetRowPressed,
-                  ]}
-                  testID={`mobile-channel-pinned-row-${pinnedMessage.id}`}
-                >
-                  <View style={styles.pinnedSheetRowBody}>
-                    <Text numberOfLines={1} style={styles.pinnedSheetRowAuthor}>
-                      {pinnedMessage.author.displayName ?? pinnedMessage.author.username}
-                    </Text>
-                    <Text numberOfLines={1} style={styles.pinnedSheetRowContent}>
-                      {pinnedMessage.content}
-                    </Text>
-                  </View>
-                  <Text style={styles.pinnedSheetRowTime}>
-                    {formatMobileDisplayTime(pinnedMessage.createdAt)}
-                  </Text>
-                  {onPinMessage ? (
-                    <Pressable
-                      accessibilityLabel={copy.messageUnpinAction}
-                      accessibilityRole="button"
-                      hitSlop={6}
-                      onPress={() => handlePinMessage(pinnedMessage.id, false)}
-                      style={({ pressed }) => [
-                        styles.pinnedSheetUnpinButton,
-                        pressed && styles.pinnedSheetRowPressed,
-                      ]}
-                      testID={`mobile-channel-pinned-unpin-${pinnedMessage.id}`}
-                    >
-                      <Ionicons name="close" size={16} color={theme.text.visualSecondary} />
-                    </Pressable>
-                  ) : null}
-                </Pressable>
-              ))}
-            </ScrollView>
-          )}
-        </BottomSheet>
-        {onForwardMessage ? (
-          <MessageForwardSheet
-            onClose={() => setForwardSource(null)}
-            onForward={async (target) =>
-              forwardSource
-                ? onForwardMessage({
-                    content: forwardSource.content,
-                    forwardOfMessageId: forwardSource.id,
-                    target,
-                  })
-                : false
-            }
-            open={forwardSource !== null}
-            targets={forwardTargets ?? []}
+        <MobileChatKeyboardRegion testID="mobile-channel-chat-keyboard-region">
+          <ChannelMessageList
+            currentUserId={currentUserId}
+            firstUnreadMessageId={channelFirstUnreadMessageId}
+            isReactionMutationPending={isReactionMutationPending}
+            {...(onLoadMore ? { onLoadMore } : {})}
+            onRefresh={onRefresh}
+            onDeleteMessage={onDeleteMessage}
+            onDiscardMessage={onDiscardMessage}
+            onEditMessage={handleEditMessage}
+            {...(onForwardMessage ? { onForwardMessage: handleRequestForward } : {})}
+            {...(onPinMessage ? { onPinMessage: handlePinMessage } : {})}
+            onReplyMessage={handleReplyMessage}
+            onRetryMessage={onRetryMessage}
+            onToggleMessageReaction={onToggleMessageReaction}
+            ownerUserId={ownerUserId}
+            {...(onOpenThread ? { onOpenThread } : {})}
+            ref={messageListRef}
+            state={state}
           />
-        ) : null}
-
-        {state.status === "ready" ? (
-          <>
-            <ChannelTypingIndicator label={typingLabel} users={typingUsers} />
-            <DMComposer
-              attachmentsFeature={attachmentsFeature}
-              getAccessToken={getAccessToken}
-              placeholder={copy.channelComposerPlaceholder}
-              sendActionLabel={copy.channelSendAction}
-              mediaState={mediaState}
-              intent={composerIntent}
-              onCancelIntent={() => setComposerIntent(null)}
-              onClearSelectedMediaAsset={onClearSelectedMediaAsset}
-              onDraftChange={onDraftChange}
-              onRequestDocumentPicker={onRequestDocumentPicker}
-              onSend={handleComposerSend}
-              {...(onSendGif ? { onSendGif } : {})}
-              variant="channel"
+          <BottomSheet
+            accessibilityLabel={copy.messagePinnedSheetTitle}
+            onClose={() => setPinsSheetOpen(false)}
+            open={isPinsSheetOpen}
+            snapPoint={520}
+            testID="mobile-channel-pins-sheet"
+          >
+            <Text style={styles.pinnedSheetTitle}>{copy.messagePinnedSheetTitle}</Text>
+            {channelPinnedMessages.length === 0 ? (
+              <Text style={styles.pinnedSheetEmptyText}>{copy.messagePinnedEmptyNotice}</Text>
+            ) : (
+              <ScrollView showsVerticalScrollIndicator={false} style={styles.pinnedSheetList}>
+                {channelPinnedMessages.map((pinnedMessage) => (
+                  <Pressable
+                    accessibilityLabel={copy.messagePinnedJumpAction}
+                    accessibilityRole="button"
+                    key={pinnedMessage.id}
+                    onPress={() => handleJumpToMessage(pinnedMessage.id)}
+                    style={({ pressed }) => [
+                      styles.pinnedSheetRow,
+                      pressed && styles.pinnedSheetRowPressed,
+                    ]}
+                    testID={`mobile-channel-pinned-row-${pinnedMessage.id}`}
+                  >
+                    <View style={styles.pinnedSheetRowBody}>
+                      <Text numberOfLines={1} style={styles.pinnedSheetRowAuthor}>
+                        {pinnedMessage.author.displayName ?? pinnedMessage.author.username}
+                      </Text>
+                      <Text numberOfLines={1} style={styles.pinnedSheetRowContent}>
+                        {pinnedMessage.content}
+                      </Text>
+                    </View>
+                    <Text style={styles.pinnedSheetRowTime}>
+                      {formatMobileDisplayTime(pinnedMessage.createdAt)}
+                    </Text>
+                    {onPinMessage ? (
+                      <Pressable
+                        accessibilityLabel={copy.messageUnpinAction}
+                        accessibilityRole="button"
+                        hitSlop={6}
+                        onPress={() => handlePinMessage(pinnedMessage.id, false)}
+                        style={({ pressed }) => [
+                          styles.pinnedSheetUnpinButton,
+                          pressed && styles.pinnedSheetRowPressed,
+                        ]}
+                        testID={`mobile-channel-pinned-unpin-${pinnedMessage.id}`}
+                      >
+                        <Ionicons name="close" size={16} color={theme.text.visualSecondary} />
+                      </Pressable>
+                    ) : null}
+                  </Pressable>
+                ))}
+              </ScrollView>
+            )}
+          </BottomSheet>
+          {onForwardMessage ? (
+            <MessageForwardSheet
+              onClose={() => setForwardSource(null)}
+              onForward={async (target) =>
+                forwardSource
+                  ? onForwardMessage({
+                      content: forwardSource.content,
+                      forwardOfMessageId: forwardSource.id,
+                      target,
+                    })
+                  : false
+              }
+              open={forwardSource !== null}
+              targets={forwardTargets ?? []}
             />
-          </>
-        ) : null}
+          ) : null}
+
+          {state.status === "ready" ? (
+            <>
+              <ChannelTypingIndicator label={typingLabel} users={typingUsers} />
+              <DMComposer
+                attachmentsFeature={attachmentsFeature}
+                getAccessToken={getAccessToken}
+                placeholder={copy.channelComposerPlaceholder}
+                sendActionLabel={copy.channelSendAction}
+                mediaState={mediaState}
+                intent={composerIntent}
+                onCancelIntent={() => setComposerIntent(null)}
+                onClearSelectedMediaAsset={onClearSelectedMediaAsset}
+                onDraftChange={onDraftChange}
+                onRequestDocumentPicker={onRequestDocumentPicker}
+                onSend={handleComposerSend}
+                {...(onSendGif ? { onSendGif } : {})}
+                variant="channel"
+              />
+            </>
+          ) : null}
+        </MobileChatKeyboardRegion>
       </View>
     </View>
   );

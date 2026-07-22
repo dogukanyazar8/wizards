@@ -217,6 +217,81 @@ describe("mobile social and account schemas", () => {
     );
   });
 
+  it("bounds the 9d user search query and tags every result with a relationship", async () => {
+    const {
+      MobileUserSearchQuerySchema,
+      MobileUserSearchResponseSchema,
+      MOBILE_USER_SEARCH_LIMIT,
+    } = await schemas;
+
+    assert.deepEqual(MobileUserSearchQuerySchema.parse({ q: "  ada  " }), {
+      limit: MOBILE_USER_SEARCH_LIMIT,
+      q: "ada",
+    });
+    assert.deepEqual(MobileUserSearchQuerySchema.parse({ limit: "5", q: "ada" }), {
+      limit: 5,
+      q: "ada",
+    });
+    assert.equal(MobileUserSearchQuerySchema.safeParse({ q: "a" }).success, false);
+    assert.equal(MobileUserSearchQuerySchema.safeParse({ limit: 100, q: "ada" }).success, false);
+    assert.equal(
+      MobileUserSearchQuerySchema.safeParse({ page: 2, q: "ada" }).success,
+      false,
+      "unknown query keys stay rejected",
+    );
+
+    assert.deepEqual(
+      MobileUserSearchResponseSchema.parse({
+        results: [{ ...friendUser, relationship: "outgoing", requestId: "request-1" }],
+      }),
+      { results: [{ ...friendUser, relationship: "outgoing", requestId: "request-1" }] },
+    );
+    assert.equal(
+      MobileUserSearchResponseSchema.safeParse({
+        results: [{ ...friendUser, relationship: "pending", requestId: null }],
+      }).success,
+      false,
+    );
+    assert.equal(
+      MobileUserSearchResponseSchema.safeParse({ results: [{ ...friendUser }] }).success,
+      false,
+      "relationship and requestId are required on every row",
+    );
+  });
+
+  it("carries request timestamps so 9d rows can render relative times", async () => {
+    const { MobileFriendsOverviewResponseSchema } = await schemas;
+    const request = {
+      createdAt: "2026-07-22T09:00:00.000Z",
+      id: "request-1",
+      receiver: friendUser,
+      receiverId: friendUser.id,
+      sender: { ...friendUser, id: "user-3", username: "grace" },
+      senderId: "user-3",
+      status: "PENDING" as const,
+      updatedAt: "2026-07-22T09:00:00.000Z",
+    };
+
+    const parsed = MobileFriendsOverviewResponseSchema.parse({
+      blocked: [friendUser],
+      friends: [],
+      pending: { incoming: [request], outgoing: [] },
+    });
+
+    assert.equal(parsed.pending.incoming[0]?.createdAt, "2026-07-22T09:00:00.000Z");
+    assert.equal(
+      MobileFriendsOverviewResponseSchema.safeParse({
+        blocked: [],
+        friends: [],
+        pending: {
+          incoming: [{ ...request, createdAt: "not-a-date" }],
+          outgoing: [],
+        },
+      }).success,
+      false,
+    );
+  });
+
   it("validates cursor-bounded DM details without exposing private server fields", async () => {
     const { MobileDMDetailsQuerySchema, MobileDMDetailsResponseSchema } = await schemas;
     assert.deepEqual(MobileDMDetailsQuerySchema.parse({ cursor: "message-1", limit: "20" }), {

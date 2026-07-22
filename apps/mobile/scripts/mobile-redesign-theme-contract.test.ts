@@ -1327,8 +1327,10 @@ export function Fixture({ cap }: { cap: number }) {
       "utf8",
     );
 
+    // Both surfaces now darken through the shared overlay backdrop, which fades
+    // with the open/close progress instead of snapping with the container.
     assert.match(bottomSheet, /backdrop: \{[\s\S]*?backgroundColor: theme\.surface\.scrim,/);
-    assert.match(lightbox, /root: \{[\s\S]*?backgroundColor: theme\.surface\.scrim,/);
+    assert.match(lightbox, /backdrop: \{[\s\S]*?backgroundColor: theme\.surface\.scrim,/);
   });
 
   it("keeps auth and legacy white-foreground controls on audited contrast pairs", () => {

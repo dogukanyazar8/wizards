@@ -204,9 +204,27 @@ jest.mock("react-native-reanimated", () => {
       View: AnimatedView,
       createAnimatedComponent: (component: unknown) => component,
     },
-    Easing: { bezier: jest.fn(() => "bezier") },
+    Easing: {
+      bezier: jest.fn(() => "bezier"),
+      cubic: "cubic",
+      in: (easing: unknown) => `in(${String(easing)})`,
+      inOut: (easing: unknown) => `inOut(${String(easing)})`,
+      linear: "linear",
+      out: (easing: unknown) => `out(${String(easing)})`,
+    },
+    Extrapolation: { CLAMP: "clamp", EXTEND: "extend", IDENTITY: "identity" },
     ReduceMotion: { Always: "always", Never: "never", System: "system" },
     cancelAnimation: jest.fn(),
+    // Only the two-stop clamped form the mobile surfaces use.
+    interpolate: (value: number, input: readonly number[], output: readonly number[]) => {
+      const [inputStart = 0, inputEnd = 1] = input;
+      const [outputStart = 0, outputEnd = 1] = output;
+      if (inputEnd === inputStart) {
+        return outputStart;
+      }
+      const progress = Math.min(1, Math.max(0, (value - inputStart) / (inputEnd - inputStart)));
+      return outputStart + progress * (outputEnd - outputStart);
+    },
     runOnJS: (callback: (...args: unknown[]) => unknown) => callback,
     useAnimatedProps: (factory: () => Record<string, unknown>) => factory(),
     useAnimatedStyle: (factory: () => Record<string, unknown>) => factory(),
@@ -215,7 +233,19 @@ jest.mock("react-native-reanimated", () => {
     withDelay: jest.fn((_delay: number, value: unknown) => value),
     withRepeat: jest.fn((value: unknown) => value),
     withSequence: jest.fn((...values: unknown[]) => values.at(-1)),
-    withSpring: (value: unknown) => value,
-    withTiming: jest.fn((value: unknown) => value),
+    // Animations settle in the same tick, so completion callbacks (sheet exit)
+    // run without fake timers; suites that need the in-flight state override it.
+    withSpring: jest.fn(
+      (value: unknown, _config?: unknown, callback?: (finished: boolean) => void) => {
+        callback?.(true);
+        return value;
+      },
+    ),
+    withTiming: jest.fn(
+      (value: unknown, _config?: unknown, callback?: (finished: boolean) => void) => {
+        callback?.(true);
+        return value;
+      },
+    ),
   };
 });

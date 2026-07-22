@@ -302,10 +302,10 @@ export function NotificationsScreen({
                 key={notification.id}
                 notification={notification}
                 onAcceptFriendRequest={(requestId) =>
-                  socialMutations.acceptRequest.mutate(requestId)
+                  socialMutations.acceptRequest.mutate({ requestId })
                 }
                 onDeclineFriendRequest={(requestId) =>
-                  socialMutations.rejectRequest.mutate(requestId)
+                  socialMutations.rejectRequest.mutate({ requestId })
                 }
                 onJoinVoiceNotification={onJoinVoiceNotification}
                 onMarkRead={() => notificationMutations.markRead.mutate(notification.id)}

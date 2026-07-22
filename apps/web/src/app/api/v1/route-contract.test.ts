@@ -43,6 +43,7 @@ const BODYLESS_MUTATING_METHOD_PATHS = new Set([
   "PATCH mobile/dm/[conversationId]/read",
   "DELETE mobile/friends/[userId]",
   "DELETE mobile/friends/blocks/[userId]",
+  "DELETE mobile/friends/requests/[id]",
   "DELETE mobile/notifications",
   "DELETE mobile/notifications/clear",
   "PATCH mobile/channels/[channelId]/read",

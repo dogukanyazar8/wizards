@@ -2,6 +2,7 @@ import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 import type { MobileApiClient } from "../api/mobile-api-client";
 import { mobilePalette } from "../design/palette";
+import { activeMobileCopy as copy } from "../locale/mobile-locale-preferences";
 import { registerMobilePushToken } from "./mobile-notification-client";
 import {
   createMobileNotificationRegistrationFailedState,
@@ -34,7 +35,7 @@ async function ensureNotificationChannelsAndCategories(): Promise<void> {
   }
 
   await Notifications.setNotificationChannelAsync(MOBILE_PUSH_ANDROID_CHANNELS.default, {
-    description: "Whispr message and server activity notifications.",
+    description: copy.notificationChannelDescription,
     importance: Notifications.AndroidImportance.HIGH,
     lightColor: mobilePalette.violet[600],
     name: "Whispr",

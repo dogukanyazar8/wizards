@@ -6,15 +6,19 @@ import {
   type MobileVoiceRuntimeState,
 } from "./mobile-voice-contract";
 import { PermissionsAndroid, Platform } from "react-native";
+import { activeMobileCopy as copy } from "../locale/mobile-locale-preferences";
 
 const ANDROID_MICROPHONE_PERMISSION = PermissionsAndroid.PERMISSIONS.RECORD_AUDIO;
 
-const ANDROID_MICROPHONE_RATIONALE = {
-  buttonNegative: "Not now",
-  buttonPositive: "Continue",
-  message: "Whispr uses the microphone only when you join voice channels or calls.",
-  title: "Prepare microphone",
-} as const;
+/** Read per request so the dialog follows the language the user picked. */
+function getAndroidMicrophoneRationale() {
+  return {
+    buttonNegative: copy.voicePermissionRationaleNotNowAction,
+    buttonPositive: copy.voicePermissionRationaleContinueAction,
+    message: copy.voicePermissionRationaleMessage,
+    title: copy.voicePermissionRationaleTitle,
+  };
+}
 
 export async function requestMobileVoicePermissionAfterUserAction(
   now = Date.now(),
@@ -34,7 +38,7 @@ export async function requestMobileVoicePermissionAfterUserAction(
 
     const requestedStatus = await PermissionsAndroid.request(
       ANDROID_MICROPHONE_PERMISSION,
-      ANDROID_MICROPHONE_RATIONALE,
+      getAndroidMicrophoneRationale(),
     );
 
     return createMobileVoiceRuntimeStateFromPermission(

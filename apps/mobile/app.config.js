@@ -174,6 +174,15 @@ module.exports = ({ config }) => {
         },
       ],
       "expo-localization",
+      [
+        // Edge-to-edge draws the app behind the navigation bar. Android's contrast
+        // scrim would paint a grey band over the themed background there, and it
+        // also suppresses the runtime button style, so the app owns both instead:
+        // every surface pads past the bar and MobileThemeSystemSurfaces picks the
+        // button style that contrasts with the active theme.
+        "expo-navigation-bar",
+        { enforceContrast: false },
+      ],
       // Native Google account sheet (Credential Manager on Android). The client
       // only ever receives an ID token; no browser and no client secret ship
       // inside the app.

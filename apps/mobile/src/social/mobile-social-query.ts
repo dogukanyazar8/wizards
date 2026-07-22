@@ -1,4 +1,10 @@
-import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  queryOptions,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+} from "@tanstack/react-query";
 import type { MobileBootstrapPayload } from "@wizards/types";
 
 import type { MobileApiClient } from "../api/mobile-api-client";
@@ -11,15 +17,24 @@ import {
 import {
   actOnMobileFriendRequest,
   blockMobileFriend,
+  cancelMobileFriendRequest,
   createMobileFriendRequest,
   fetchMobileFriends,
+  normalizeMobileUserSearchTerm,
   openMobileFriendDM,
   removeMobileFriend,
+  searchMobileUsers,
   unblockMobileFriend,
   updateMobilePresence,
   updateMobileProfile,
+  MOBILE_USER_SEARCH_MIN_TERM_LENGTH,
+  type MobileFriend,
   type MobileFriendPresenceStatus,
+  type MobileFriendsOverview,
+  type MobileUserSearchResult,
 } from "./mobile-social-client";
+
+type MobileUserSearchRelationPatch = Pick<MobileUserSearchResult, "relationship" | "requestId">;
 
 export function getMobileFriendsQueryOptions(client: MobileApiClient, enabled = true) {
   return queryOptions({
@@ -34,31 +49,247 @@ export function useMobileFriendsQuery(client: MobileApiClient, enabled = true) {
   return useQuery(getMobileFriendsQueryOptions(client, enabled));
 }
 
+export function getMobileUserSearchQueryOptions(
+  client: MobileApiClient,
+  term: string,
+  enabled = true,
+) {
+  const normalized = normalizeMobileUserSearchTerm(term);
+  return queryOptions({
+    enabled: enabled && normalized.length >= MOBILE_USER_SEARCH_MIN_TERM_LENGTH,
+    queryFn: () => searchMobileUsers(client, normalized),
+    queryKey: mobileQueryKeys.userSearch(normalized),
+    staleTime: 15_000,
+  });
+}
+
+/** Live "add friend" search; the caller owns the debounce so keystrokes do not thrash the cache. */
+export function useMobileUserSearchQuery(client: MobileApiClient, term: string, enabled = true) {
+  return useQuery(getMobileUserSearchQueryOptions(client, term, enabled));
+}
+
+/** An accepted request starts with a placeholder presence until the refetch returns the live one. */
+function toOptimisticFriend(user: {
+  avatarUrl: string | null;
+  displayName: string | null;
+  id: string;
+  username: string;
+}): MobileFriend {
+  return {
+    avatarUrl: user.avatarUrl,
+    customStatus: null,
+    displayName: user.displayName,
+    id: user.id,
+    presence: { customStatus: null, status: "OFFLINE" },
+    status: "OFFLINE",
+    username: user.username,
+  };
+}
+
+function patchMobileFriendsOverview(
+  queryClient: QueryClient,
+  update: (current: MobileFriendsOverview) => MobileFriendsOverview,
+): MobileFriendsOverview | undefined {
+  const previous = queryClient.getQueryData<MobileFriendsOverview>(mobileQueryKeys.friends());
+  if (previous) {
+    queryClient.setQueryData<MobileFriendsOverview>(mobileQueryKeys.friends(), update(previous));
+  }
+  return previous;
+}
+
+function restoreMobileFriendsOverview(
+  queryClient: QueryClient,
+  previous: MobileFriendsOverview | undefined | null,
+) {
+  if (previous) {
+    queryClient.setQueryData<MobileFriendsOverview>(mobileQueryKeys.friends(), previous);
+  }
+}
+
+/** Every cached search term holds the same user row, so all of them move together. */
+export function patchMobileUserSearchCaches(
+  queryClient: QueryClient,
+  userId: string,
+  patch: MobileUserSearchRelationPatch,
+) {
+  queryClient.setQueriesData<{ results: MobileUserSearchResult[] }>(
+    { queryKey: mobileQueryKeys.userSearchRoot() },
+    (current) =>
+      current
+        ? {
+            results: current.results.map((result) =>
+              result.id === userId ? { ...result, ...patch } : result,
+            ),
+          }
+        : current,
+  );
+}
+
+function snapshotMobileUserSearchRelation(
+  queryClient: QueryClient,
+  userId: string,
+): MobileUserSearchRelationPatch | null {
+  for (const [, data] of queryClient.getQueriesData<{ results: MobileUserSearchResult[] }>({
+    queryKey: mobileQueryKeys.userSearchRoot(),
+  })) {
+    const match = data?.results.find((result) => result.id === userId);
+    if (match) {
+      return { relationship: match.relationship, requestId: match.requestId };
+    }
+  }
+
+  return null;
+}
+
 export function useMobileSocialMutations(client: MobileApiClient) {
   const queryClient = useQueryClient();
   const refreshFriends = () =>
     queryClient.invalidateQueries({ queryKey: mobileQueryKeys.friends() });
+  const cancelFriendsQuery = () =>
+    queryClient.cancelQueries({ queryKey: mobileQueryKeys.friends() });
 
   return {
     acceptRequest: useMutation({
-      mutationFn: (requestId: string) => actOnMobileFriendRequest(client, requestId, "accept"),
-      onSuccess: refreshFriends,
+      mutationFn: (input: { requestId: string; userId?: string }) =>
+        actOnMobileFriendRequest(client, input.requestId, "accept"),
+      onMutate: async (input) => {
+        await cancelFriendsQuery();
+        if (input.userId) {
+          patchMobileUserSearchCaches(queryClient, input.userId, {
+            relationship: "friend",
+            requestId: null,
+          });
+        }
+        return patchMobileFriendsOverview(queryClient, (current) => {
+          const accepted = current.pending.incoming.find((entry) => entry.id === input.requestId);
+          const alreadyFriend =
+            accepted && current.friends.some((friend) => friend.id === accepted.sender.id);
+          return {
+            ...current,
+            friends:
+              accepted && !alreadyFriend
+                ? [toOptimisticFriend(accepted.sender), ...current.friends]
+                : current.friends,
+            pending: {
+              ...current.pending,
+              incoming: current.pending.incoming.filter((entry) => entry.id !== input.requestId),
+            },
+          };
+        });
+      },
+      onError: (_error, input, previous) => {
+        restoreMobileFriendsOverview(queryClient, previous);
+        if (input.userId) {
+          patchMobileUserSearchCaches(queryClient, input.userId, {
+            relationship: "incoming",
+            requestId: input.requestId,
+          });
+        }
+      },
+      onSettled: refreshFriends,
     }),
     blockFriend: useMutation({
       mutationFn: (userId: string) => blockMobileFriend(client, userId),
-      onSuccess: refreshFriends,
+      onSuccess: (_result, userId) =>
+        patchMobileUserSearchCaches(queryClient, userId, {
+          relationship: "blocked",
+          requestId: null,
+        }),
+      onSettled: refreshFriends,
+    }),
+    cancelRequest: useMutation({
+      mutationFn: (input: { requestId: string; userId?: string }) =>
+        cancelMobileFriendRequest(client, input.requestId),
+      onMutate: async (input) => {
+        await cancelFriendsQuery();
+        if (input.userId) {
+          patchMobileUserSearchCaches(queryClient, input.userId, {
+            relationship: "none",
+            requestId: null,
+          });
+        }
+        return patchMobileFriendsOverview(queryClient, (current) => ({
+          ...current,
+          pending: {
+            ...current.pending,
+            outgoing: current.pending.outgoing.filter((entry) => entry.id !== input.requestId),
+          },
+        }));
+      },
+      onError: (_error, input, previous) => {
+        restoreMobileFriendsOverview(queryClient, previous);
+        if (input.userId) {
+          patchMobileUserSearchCaches(queryClient, input.userId, {
+            relationship: "outgoing",
+            requestId: input.requestId,
+          });
+        }
+      },
+      onSettled: refreshFriends,
     }),
     createRequest: useMutation({
-      mutationFn: (username: string) => createMobileFriendRequest(client, username),
-      onSuccess: refreshFriends,
+      mutationFn: (input: { userId?: string; username: string }) =>
+        createMobileFriendRequest(client, input.username),
+      onMutate: (input) => {
+        if (!input.userId) {
+          return null;
+        }
+
+        const snapshot = snapshotMobileUserSearchRelation(queryClient, input.userId);
+        patchMobileUserSearchCaches(queryClient, input.userId, {
+          relationship: "outgoing",
+          requestId: null,
+        });
+        return snapshot;
+      },
+      onError: (_error, input, snapshot) => {
+        if (input.userId && snapshot) {
+          patchMobileUserSearchCaches(queryClient, input.userId, snapshot);
+        }
+      },
+      onSuccess: (result, input) => {
+        if (input.userId) {
+          patchMobileUserSearchCaches(queryClient, input.userId, {
+            relationship: "outgoing",
+            requestId: result.request.id,
+          });
+        }
+      },
+      onSettled: refreshFriends,
     }),
     openDM: useMutation({
       mutationFn: (userId: string) => openMobileFriendDM(client, userId),
       onSuccess: () => queryClient.invalidateQueries({ queryKey: mobileQueryKeys.bootstrap() }),
     }),
     rejectRequest: useMutation({
-      mutationFn: (requestId: string) => actOnMobileFriendRequest(client, requestId, "reject"),
-      onSuccess: refreshFriends,
+      mutationFn: (input: { requestId: string; userId?: string }) =>
+        actOnMobileFriendRequest(client, input.requestId, "reject"),
+      onMutate: async (input) => {
+        await cancelFriendsQuery();
+        if (input.userId) {
+          patchMobileUserSearchCaches(queryClient, input.userId, {
+            relationship: "none",
+            requestId: null,
+          });
+        }
+        return patchMobileFriendsOverview(queryClient, (current) => ({
+          ...current,
+          pending: {
+            ...current.pending,
+            incoming: current.pending.incoming.filter((entry) => entry.id !== input.requestId),
+          },
+        }));
+      },
+      onError: (_error, input, previous) => {
+        restoreMobileFriendsOverview(queryClient, previous);
+        if (input.userId) {
+          patchMobileUserSearchCaches(queryClient, input.userId, {
+            relationship: "incoming",
+            requestId: input.requestId,
+          });
+        }
+      },
+      onSettled: refreshFriends,
     }),
     removeFriend: useMutation({
       mutationFn: (userId: string) => removeMobileFriend(client, userId),
@@ -66,7 +297,15 @@ export function useMobileSocialMutations(client: MobileApiClient) {
     }),
     unblockFriend: useMutation({
       mutationFn: (userId: string) => unblockMobileFriend(client, userId),
-      onSuccess: refreshFriends,
+      onMutate: async (userId) => {
+        await cancelFriendsQuery();
+        return patchMobileFriendsOverview(queryClient, (current) => ({
+          ...current,
+          blocked: current.blocked.filter((entry) => entry.id !== userId),
+        }));
+      },
+      onError: (_error, _userId, previous) => restoreMobileFriendsOverview(queryClient, previous),
+      onSettled: refreshFriends,
     }),
     updatePresence: useMutation({
       mutationFn: (status: MobileFriendPresenceStatus) => updateMobilePresence(client, status),

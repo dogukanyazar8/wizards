@@ -90,6 +90,11 @@ export const DARK_SCREEN_SEMANTIC_ROLE_TARGETS: readonly DarkScreenSemanticRoleT
     sourcePaths: [
       "src/app/components/kit/bottom-sheet.tsx",
       "src/app/components/kit/bottom-sheet.styles.ts",
+      "src/app/components/kit/overlay-surface.tsx",
+      "src/app/components/kit/overlay-host.tsx",
+      "src/app/components/kit/overlay-registry.ts",
+      "src/app/components/kit/overlay-context-bridge.tsx",
+      "src/app/components/kit/overlay-scoped-contexts.ts",
     ],
   }),
   createDarkScreenSemanticRoleTarget({

@@ -11,6 +11,7 @@ import {
   disableMobileTwoFactor,
   setupMobileTwoFactor,
 } from "./mobile-two-factor-client";
+import { mobileCopy } from "../locale/mobile-copy";
 
 const createStyles = (theme: MobileTheme) => ({
   root: { backgroundColor: theme.surface.base, flex: 1 },
@@ -49,7 +50,7 @@ export function MobileTwoFactorScreen({ onBack }: { onBack(): void }) {
   const { locale } = useMobileLocaleRuntime();
   const theme = useTheme();
   const styles = useThemedStyles(createStyles);
-  const tr = locale === "tr";
+  const copy = mobileCopy[locale];
   const [setup, setSetup] = useState<SetupState | null>(null);
   const [code, setCode] = useState("");
   const [disableCode, setDisableCode] = useState("");
@@ -65,9 +66,7 @@ export function MobileTwoFactorScreen({ onBack }: { onBack(): void }) {
       setSetup(await setupMobileTwoFactor(apiClient));
     } catch {
       setError(
-        tr
-          ? "Kurulum başlatılamadı. Hesapta 2FA zaten etkin olabilir."
-          : "Setup could not start. Two-factor authentication may already be enabled.",
+        copy.twoFactorSetupFailed,
       );
     } finally {
       setBusy(null);
@@ -83,7 +82,7 @@ export function MobileTwoFactorScreen({ onBack }: { onBack(): void }) {
       setSetup(null);
       setCode("");
     } catch {
-      setError(tr ? "Kod doğrulanamadı." : "The verification code could not be confirmed.");
+      setError(copy.twoFactorVerifyFailed);
     } finally {
       setBusy(null);
     }
@@ -99,9 +98,7 @@ export function MobileTwoFactorScreen({ onBack }: { onBack(): void }) {
       setRecoveryCodes([]);
     } catch {
       setError(
-        tr
-          ? "2FA kapatılamadı. Şifreyi ve kodu kontrol edin."
-          : "Two-factor authentication could not be disabled. Check the password and code.",
+        copy.twoFactorDisableFailed,
       );
     } finally {
       setBusy(null);
@@ -116,25 +113,21 @@ export function MobileTwoFactorScreen({ onBack }: { onBack(): void }) {
       testID="mobile-security-screen"
     >
       <Button
-        label={tr ? "Geri" : "Back"}
+        label={copy.twoFactorBack}
         variant="ghost"
         icon="arrow-back"
         onPress={onBack}
         testID="mobile-security-back"
       />
-      <Text style={styles.title}>{tr ? "Güvenlik" : "Security"}</Text>
+      <Text style={styles.title}>{copy.twoFactorSecurity}</Text>
       <Text style={styles.body}>
-        {tr
-          ? "Kimlik doğrulayıcı uygulamasıyla hesabınızı koruyun. Kurulum sırrı bu cihazda kaydedilmez."
-          : "Protect your account with an authenticator app. Setup secrets are never stored on this device."}
+        {copy.twoFactorDescription}
       </Text>
       {recoveryCodes.length > 0 ? (
         <View style={styles.card} testID="mobile-2fa-recovery-codes">
-          <Text style={styles.sectionTitle}>{tr ? "Kurtarma kodları" : "Recovery codes"}</Text>
+          <Text style={styles.sectionTitle}>{copy.twoFactorRecoveryCodes}</Text>
           <Text style={styles.body}>
-            {tr
-              ? "Bu kodları güvenli bir yerde saklayın. Bu ekrandan ayrılınca silinirler."
-              : "Store these codes securely. They are cleared when you leave this screen."}
+            {copy.twoFactorRecoveryCodesHint}
           </Text>
           {recoveryCodes.map((item) => (
             <Text key={item} style={styles.recovery}>
@@ -142,17 +135,17 @@ export function MobileTwoFactorScreen({ onBack }: { onBack(): void }) {
             </Text>
           ))}
           <Button
-            label={tr ? "Kodları gizle" : "Hide codes"}
+            label={copy.twoFactorHideCodes}
             onPress={() => setRecoveryCodes([])}
             testID="mobile-2fa-recovery-dismiss"
           />
         </View>
       ) : null}
       <View style={styles.card} testID="mobile-2fa-setup-card">
-        <Text style={styles.sectionTitle}>{tr ? "2FA kurulumu" : "Set up 2FA"}</Text>
+        <Text style={styles.sectionTitle}>{copy.twoFactorSetupTitle}</Text>
         {!setup ? (
           <Button
-            label={tr ? "Kurulumu başlat" : "Start setup"}
+            label={copy.twoFactorStartSetup}
             busy={busy === "setup"}
             onPress={() => void runSetup()}
             testID="mobile-2fa-setup-start"
@@ -162,15 +155,15 @@ export function MobileTwoFactorScreen({ onBack }: { onBack(): void }) {
             <Image
               source={{ uri: setup.qrCodeDataUrl }}
               style={styles.qr}
-              accessibilityLabel={tr ? "2FA QR kodu" : "2FA QR code"}
+              accessibilityLabel={copy.twoFactorQrCodeLabel}
               testID="mobile-2fa-qr"
             />
-            <Text style={styles.body}>{tr ? "Manuel anahtar" : "Manual key"}</Text>
+            <Text style={styles.body}>{copy.twoFactorManualKey}</Text>
             <Text selectable style={styles.secret} testID="mobile-2fa-manual-key">
               {setup.manualEntryKey}
             </Text>
             <TextInput
-              accessibilityLabel={tr ? "Doğrulama kodu" : "Verification code"}
+              accessibilityLabel={copy.twoFactorVerificationCode}
               keyboardType="number-pad"
               maxLength={64}
               onChangeText={setCode}
@@ -181,7 +174,7 @@ export function MobileTwoFactorScreen({ onBack }: { onBack(): void }) {
               testID="mobile-2fa-confirm-code"
             />
             <Button
-              label={tr ? "Etkinleştir" : "Enable"}
+              label={copy.twoFactorEnable}
               busy={busy === "confirm"}
               disabled={code.trim().length < 6}
               onPress={() => void runConfirm()}
@@ -191,20 +184,20 @@ export function MobileTwoFactorScreen({ onBack }: { onBack(): void }) {
         )}
       </View>
       <View style={styles.card} testID="mobile-2fa-disable-card">
-        <Text style={styles.sectionTitle}>{tr ? "2FA kapatma" : "Disable 2FA"}</Text>
+        <Text style={styles.sectionTitle}>{copy.twoFactorDisableTitle}</Text>
         <TextInput
-          accessibilityLabel={tr ? "Hesap şifresi" : "Account password"}
+          accessibilityLabel={copy.twoFactorAccountPassword}
           secureTextEntry
           autoCapitalize="none"
           onChangeText={setPassword}
-          placeholder={tr ? "Şifre" : "Password"}
+          placeholder={copy.twoFactorPassword}
           placeholderTextColor={theme.text.soft}
           style={styles.input}
           value={password}
           testID="mobile-2fa-disable-password"
         />
         <TextInput
-          accessibilityLabel={tr ? "Authenticator kodu" : "Authenticator code"}
+          accessibilityLabel={copy.twoFactorAuthenticatorCode}
           keyboardType="number-pad"
           maxLength={64}
           onChangeText={setDisableCode}
@@ -215,7 +208,7 @@ export function MobileTwoFactorScreen({ onBack }: { onBack(): void }) {
           testID="mobile-2fa-disable-code"
         />
         <Button
-          label={tr ? "2FA'yı kapat" : "Disable 2FA"}
+          label={copy.twoFactorDisableAction}
           variant="danger"
           busy={busy === "disable"}
           disabled={!password || disableCode.trim().length < 6}

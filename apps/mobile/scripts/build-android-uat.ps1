@@ -732,7 +732,11 @@ function Test-WhisprUatPnpmLayout {
     return $false
   }
 
-  return (Test-Path -LiteralPath (Join-Path $tsxTarget "package.json"))
+  if (-not (Test-Path -LiteralPath (Join-Path $tsxTarget "package.json"))) {
+    return $false
+  }
+
+  return (Test-Path -LiteralPath (Join-Path $WorkingDirectory "apps\mobile\node_modules\@sentry\cli\bin\sentry-cli"))
 }
 
 function Invoke-PnpmInstallWithRecovery {
@@ -808,6 +812,12 @@ function Assert-ExpoReleaseBundlePrerequisites {
     Invoke-CommandChecked -Command "node" -Arguments @("-e", "require.resolve('babel-preset-expo')") -WorkingDirectory $WorkingDirectory
   } catch {
     throw "UAT release bundling requires babel-preset-expo as a direct mobile devDependency. Run corepack pnpm install from the repository root, then retry. Details: $($_.Exception.Message)"
+  }
+
+  try {
+    Invoke-CommandChecked -Command "node" -Arguments @("-e", "const fs = require('node:fs'); require.resolve('@sentry/cli/package.json'); fs.accessSync('node_modules/@sentry/cli/bin/sentry-cli')") -WorkingDirectory $WorkingDirectory
+  } catch {
+    throw "UAT release source-map upload requires @sentry/cli as a direct mobile dependency. Run corepack pnpm install from the repository root, then retry. Details: $($_.Exception.Message)"
   }
 }
 
@@ -1001,6 +1011,12 @@ if ($BuildType -eq "release") {
 } elseif (-not $env:NODE_ENV) {
   $env:NODE_ENV = "development"
 }
+
+if ($BuildType -eq "release" -and -not $env:SENTRY_AUTH_TOKEN) {
+  $env:SENTRY_DISABLE_AUTO_UPLOAD = "true"
+  Write-Warning "SENTRY_AUTH_TOKEN is not set; skipping Sentry source-map upload for this local UAT release build."
+}
+
 $env:Path = "$env:JAVA_HOME\bin;$env:ANDROID_HOME\platform-tools;$env:ANDROID_HOME\emulator;$env:ANDROID_HOME\cmdline-tools\latest\bin;$env:Path"
 
 Write-Step "Validating local Android toolchain"

@@ -1,5 +1,4 @@
 import {
-  Modal,
   Pressable,
   ScrollView,
   Text,
@@ -10,7 +9,7 @@ import {
   type MobileBootstrapPayload,
 } from "../mobile-root-screen-shared";
 import { AvatarMark } from "../components/ui-atoms";
-import { useMobileBottomSystemSpacing } from "../use-mobile-bottom-system-spacing";
+import { BottomSheet } from "../components/kit";
 import { useTheme, useThemedStyles } from "../providers/mobile-theme-provider";
 import type { MobileTheme } from "../../design/themes";
 
@@ -33,142 +32,125 @@ export function MobileWorkspaceServerSwitcherSheet({
 }) {
   const styles = useThemedStyles(createMobileWorkspaceServerSwitcherSheetStyles);
   const theme = useTheme();
-  const bottomSpacing = useMobileBottomSystemSpacing(28);
-
-  if (!open) {
-    return null;
-  }
 
   return (
-    <Modal
-      animationType="slide"
-      transparent
-      visible={open}
-      onRequestClose={onClose}
-      navigationBarTranslucent
-      statusBarTranslucent
+    <BottomSheet
+      accessibilityLabel={copy.workspaceServerSwitcherTitle}
+      onClose={onClose}
+      open={open}
+      presentation={{
+        handleAreaStyle: styles.handleArea,
+        handleStyle: styles.handle,
+        panelStyle: styles.panel,
+      }}
+      // The list decides how tall the sheet is, up to the cap in `panel`.
+      sizing="content"
+      testID="mobile-server-switcher-sheet"
     >
-      <View style={styles.root} testID="mobile-server-switcher-sheet">
-        <Pressable
-          accessibilityLabel={copy.messageThreadBackAction}
-          accessibilityRole="button"
-          onPress={onClose}
-          style={styles.backdrop}
-          testID="mobile-server-switcher-dismiss"
-        />
-        <View
-          style={[styles.sheet, { paddingBottom: bottomSpacing }]}
-          testID="mobile-server-switcher-sheet-panel"
-        >
-          <View style={styles.handle} />
-          <View style={styles.header}>
-            <Text style={styles.title}>Sunucuların</Text>
-            <Pressable
-              accessibilityLabel={copy.workspaceAddServerAction}
-              accessibilityRole="button"
-              onPress={() => {
-                onClose();
-                onOpenCreateJoin();
-              }}
-              style={({ pressed }) => [styles.createJoinAction, pressed && styles.pressed]}
-              testID="mobile-server-switcher-create-join"
-            >
-              <Ionicons name="add" size={16} color={theme.accent.strong} />
-              <Text style={styles.createJoinActionText}>Katıl / Kur</Text>
-            </Pressable>
-          </View>
-          <ScrollView
-            contentContainerStyle={styles.list}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
+      <>
+        <View style={styles.header}>
+          <Text style={styles.title}>{copy.workspaceServerSwitcherTitle}</Text>
+          <Pressable
+            accessibilityLabel={copy.workspaceAddServerAction}
+            accessibilityRole="button"
+            onPress={() => {
+              onClose();
+              onOpenCreateJoin();
+            }}
+            style={({ pressed }) => [styles.createJoinAction, pressed && styles.pressed]}
+            testID="mobile-server-switcher-create-join"
           >
-            {servers.map((server) => {
-              const selected = server.id === activeServerId;
-              const unreadCount = Math.min(server.unreadCount, 99);
+            <Ionicons name="add" size={16} color={theme.accent.strong} />
+            <Text style={styles.createJoinActionText}>
+              {copy.workspaceServerSwitcherCreateJoinAction}
+            </Text>
+          </Pressable>
+        </View>
+        <ScrollView
+          contentContainerStyle={styles.list}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {servers.map((server) => {
+            const selected = server.id === activeServerId;
+            const unreadCount = Math.min(server.unreadCount, 99);
 
-              return (
-                <Pressable
-                  key={server.id}
-                  accessibilityLabel={`${copy.openWorkspaceServerAction}: ${server.name}`}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected }}
-                  onPress={() => {
-                    onOpenServer(server.id);
-                    onClose();
-                  }}
-                  style={({ pressed }) => [
-                    styles.serverRow,
-                    selected && styles.serverRowSelected,
-                    pressed && styles.pressed,
-                  ]}
-                  testID={`mobile-server-switcher-option-${server.id}`}
-                >
-                  <AvatarMark
-                    avatarBorderRadius={18}
-                    dimension={52}
-                    fallbackTextStyle={styles.serverAvatarFallback}
-                    imageUrl={server.iconUrl}
-                    label={server.shortName ?? server.name}
-                    size="large"
-                  />
-                  <View style={styles.serverText}>
-                    <Text
-                      style={[styles.serverName, selected && styles.serverNameSelected]}
-                      numberOfLines={1}
-                    >
-                      {server.name}
-                    </Text>
-                    <Text style={styles.serverMeta} numberOfLines={1}>
-                      {server.memberCount} {copy.membersSuffix} · {server.channelCount}{" "}
-                      {copy.channelsSuffix}
+            return (
+              <Pressable
+                key={server.id}
+                accessibilityLabel={`${copy.openWorkspaceServerAction}: ${server.name}`}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                onPress={() => {
+                  onOpenServer(server.id);
+                  onClose();
+                }}
+                style={({ pressed }) => [
+                  styles.serverRow,
+                  selected && styles.serverRowSelected,
+                  pressed && styles.pressed,
+                ]}
+                testID={`mobile-server-switcher-option-${server.id}`}
+              >
+                <AvatarMark
+                  avatarBorderRadius={18}
+                  dimension={52}
+                  fallbackTextStyle={styles.serverAvatarFallback}
+                  imageUrl={server.iconUrl}
+                  label={server.shortName ?? server.name}
+                  size="large"
+                />
+                <View style={styles.serverText}>
+                  <Text
+                    style={[styles.serverName, selected && styles.serverNameSelected]}
+                    numberOfLines={1}
+                  >
+                    {server.name}
+                  </Text>
+                  <Text style={styles.serverMeta} numberOfLines={1}>
+                    {server.memberCount} {copy.membersSuffix} · {server.channelCount}{" "}
+                    {copy.channelsSuffix}
+                  </Text>
+                </View>
+                {selected ? (
+                  <Ionicons name="checkmark" size={20} color={theme.accent.strong} />
+                ) : unreadCount > 0 ? (
+                  <View style={styles.unreadBadge}>
+                    <Text style={styles.unreadBadgeText}>
+                      {formatMobileUnreadCount(unreadCount)}
                     </Text>
                   </View>
-                  {selected ? (
-                    <Ionicons name="checkmark" size={20} color={theme.accent.strong} />
-                  ) : unreadCount > 0 ? (
-                    <View style={styles.unreadBadge}>
-                      <Text style={styles.unreadBadgeText}>
-                        {formatMobileUnreadCount(unreadCount)}
-                      </Text>
-                    </View>
-                  ) : null}
-                </Pressable>
-              );
-            })}
-            <Pressable
-              accessibilityLabel={copy.workspaceAddServerAction}
-              accessibilityRole="button"
-              onPress={() => {
-                onClose();
-                onOpenCreateJoin();
-              }}
-              style={({ pressed }) => [styles.newServerRow, pressed && styles.pressed]}
-              testID="mobile-server-switcher-new-server"
-            >
-              <View style={styles.newServerIcon}>
-                <Ionicons name="add" size={21} color={theme.text.muted} />
-              </View>
-              <View style={styles.serverText}>
-                <Text style={styles.newServerTitle}>Yeni sunucu</Text>
-                <Text style={styles.newServerMeta}>Davet koduyla katıl veya kur</Text>
-              </View>
-            </Pressable>
-          </ScrollView>
-        </View>
-      </View>
-    </Modal>
+                ) : null}
+              </Pressable>
+            );
+          })}
+          <Pressable
+            accessibilityLabel={copy.workspaceAddServerAction}
+            accessibilityRole="button"
+            onPress={() => {
+              onClose();
+              onOpenCreateJoin();
+            }}
+            style={({ pressed }) => [styles.newServerRow, pressed && styles.pressed]}
+            testID="mobile-server-switcher-new-server"
+          >
+            <View style={styles.newServerIcon}>
+              <Ionicons name="add" size={21} color={theme.text.muted} />
+            </View>
+            <View style={styles.serverText}>
+              <Text style={styles.newServerTitle}>{copy.workspaceServerSwitcherNewServerTitle}</Text>
+              <Text style={styles.newServerMeta}>
+                {copy.workspaceServerSwitcherNewServerDescription}
+              </Text>
+            </View>
+          </Pressable>
+        </ScrollView>
+      </>
+    </BottomSheet>
   );
 }
 
 export const createMobileWorkspaceServerSwitcherSheetStyles = (theme: MobileTheme) => ({
-  backdrop: {
-    backgroundColor: theme.surface.scrim,
-    bottom: 0,
-    left: 0,
-    position: "absolute" as const,
-    right: 0,
-    top: 0,
-  },
   createJoinAction: {
     alignItems: "center" as const,
     backgroundColor: theme.accent.soft,
@@ -184,13 +166,12 @@ export const createMobileWorkspaceServerSwitcherSheetStyles = (theme: MobileThem
     fontSize: 13,
   },
   handle: {
-    alignSelf: "center" as const,
     backgroundColor: theme.authLanguage.handle,
     borderRadius: 3,
     height: 5,
-    marginBottom: 18,
     width: 44,
   },
+  handleArea: { paddingBottom: 18, paddingTop: 12 },
   header: {
     alignItems: "center" as const,
     flexDirection: "row" as const,
@@ -229,8 +210,14 @@ export const createMobileWorkspaceServerSwitcherSheetStyles = (theme: MobileThem
     fontFamily: theme.typography.fontFamilyBold,
     fontSize: 15,
   },
+  panel: {
+    backgroundColor: theme.surface.card,
+    borderTopLeftRadius: 36,
+    borderTopRightRadius: 36,
+    borderWidth: 0,
+    maxHeight: "78%" as const,
+  },
   pressed: { opacity: 0.78 },
-  root: { flex: 1, justifyContent: "flex-end" as const },
   serverAvatarFallback: {
     fontSize: 16,
     lineHeight: 20,
@@ -264,16 +251,6 @@ export const createMobileWorkspaceServerSwitcherSheetStyles = (theme: MobileThem
     borderWidth: 1,
   },
   serverText: { flex: 1, gap: 1, minWidth: 0 },
-  sheet: {
-    backgroundColor: theme.surface.card,
-    borderTopLeftRadius: 36,
-    borderTopRightRadius: 36,
-    maxHeight: "78%" as const,
-    paddingBottom: 28,
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    ...theme.elevation.bottomSheet,
-  },
   title: {
     color: theme.text.primary,
     fontFamily: theme.typography.fontFamilyExtraBold,

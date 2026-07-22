@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { MobileImageUploadOutcome } from "../../media/mobile-image-upload-service";
 import { useMobileImageUpload } from "../../media/use-mobile-image-upload";
+import { activeMobileCopy as copy } from "../../locale/mobile-locale-preferences";
 import {
   confirmMobileServerIconPersisted,
   patchMobileServerIconCaches,
@@ -82,7 +83,7 @@ export function useMobileServerManagementFeature({
         outcome.response.server.id !== serverId
       ) {
         return outcome.status === "claimed"
-          ? { message: "The server icon could not be synchronized.", status: "error" }
+          ? { message: copy.workspaceServerIconSyncFailed, status: "error" }
           : outcome;
       }
 

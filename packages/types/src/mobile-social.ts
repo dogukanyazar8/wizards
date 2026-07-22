@@ -91,6 +91,36 @@ export const MobileFriendBlockResponseSchema = z
 export const MobileFriendRequestParamsSchema = z.object({ id: MobileBoundedIdSchema }).strict();
 export const MobileFriendUserParamsSchema = z.object({ userId: MobileBoundedIdSchema }).strict();
 
+/** Viewer-relative state of a searched user, so 9d rows pick the right row action. */
+export const MobileFriendRelationshipSchema = z.enum([
+  "none",
+  "friend",
+  "incoming",
+  "outgoing",
+  "blocked",
+]);
+
+export const MOBILE_USER_SEARCH_LIMIT = 20;
+
+export const MobileUserSearchQuerySchema = z
+  .object({
+    limit: z.coerce.number().int().min(1).max(MOBILE_USER_SEARCH_LIMIT).optional().default(
+      MOBILE_USER_SEARCH_LIMIT,
+    ),
+    q: z.string().trim().min(2).max(32),
+  })
+  .strict();
+
+export const MobileUserSearchResultSchema = MobileFriendUserSchema.extend({
+  relationship: MobileFriendRelationshipSchema,
+  /** Pending request id for incoming/outgoing rows, so a row can accept or cancel directly. */
+  requestId: MobileBoundedIdSchema.nullable(),
+}).strict();
+
+export const MobileUserSearchResponseSchema = z
+  .object({ results: z.array(MobileUserSearchResultSchema).max(MOBILE_USER_SEARCH_LIMIT) })
+  .strict();
+
 export const MobilePresenceUpdateSchema = z
   .object({ status: MobileFriendPresenceStatusSchema })
   .strict();
@@ -324,6 +354,10 @@ export const MobileDMDetailsResponseSchema = z
 
 export type MobileFriendRequestCreate = z.infer<typeof MobileFriendRequestCreateSchema>;
 export type MobileFriendsOverviewResponse = z.infer<typeof MobileFriendsOverviewResponseSchema>;
+export type MobileFriendRelationship = z.infer<typeof MobileFriendRelationshipSchema>;
+export type MobileUserSearchQuery = z.infer<typeof MobileUserSearchQuerySchema>;
+export type MobileUserSearchResult = z.infer<typeof MobileUserSearchResultSchema>;
+export type MobileUserSearchResponse = z.infer<typeof MobileUserSearchResponseSchema>;
 export type MobileFriendPresenceStatus = z.infer<typeof MobileFriendPresenceStatusSchema>;
 export type MobileProfileResponse = z.infer<typeof MobileProfileResponseSchema>;
 export type MobilePresenceUpdate = z.infer<typeof MobilePresenceUpdateSchema>;

@@ -17,6 +17,7 @@ const pendingRequest = {
   status: "PENDING" as const,
   updatedAt: "2026-07-11T10:00:00.000Z",
 };
+const searchResult = { ...ada, relationship: "none" as const, requestId: null };
 
 function jsonRequest(path: string, method: string, body?: unknown) {
   return new Request(`https://whispr.test${path}`, {
@@ -42,6 +43,7 @@ function dependencies(overrides: Record<string, unknown> = {}) {
     }),
     authenticate: async () => "user-1",
     blockUser: async () => ada,
+    cancelFriendRequest: async () => undefined,
     enforceRateLimit: async () => undefined,
     listBlockedUsers: async () => [ada],
     listFriends: async () => [
@@ -55,6 +57,7 @@ function dependencies(overrides: Record<string, unknown> = {}) {
     listPendingFriendRequests: async () => ({ incoming: [pendingRequest], outgoing: [] }),
     parseBody: parseJsonBody,
     removeFriend: async () => undefined,
+    searchUsers: async () => [searchResult],
     sendFriendRequest: async () => pendingRequest,
     unblockUser: async () => undefined,
     ...overrides,
@@ -207,6 +210,87 @@ describe("mobile friends route logic", () => {
       "mobile:friends:block",
       "unblock:user-1:user-2",
     ]);
+  });
+
+  it("searches users behind auth, a rate limit and the bounded query contract", async () => {
+    const { mobileFriendUserSearchRoute } = await routes;
+    const calls: string[] = [];
+    const deps = dependencies({
+      enforceRateLimit: async (_userId: string, action: string) => calls.push(action),
+      searchUsers: async (userId: string, term: string, limit: number) => {
+        calls.push(`search:${userId}:${term}:${limit}`);
+        return [searchResult, { ...dogukan, relationship: "outgoing", requestId: "request-1" }];
+      },
+    });
+
+    const response = await mobileFriendUserSearchRoute(
+      new Request("https://whispr.test/api/v1/mobile/friends/search?q=%20ada%20&limit=5"),
+      deps,
+    );
+    const defaultLimit = await mobileFriendUserSearchRoute(
+      new Request("https://whispr.test/api/v1/mobile/friends/search?q=ad"),
+      deps,
+    );
+    const tooShort = await mobileFriendUserSearchRoute(
+      new Request("https://whispr.test/api/v1/mobile/friends/search?q=a"),
+      dependencies(),
+    );
+    const overLimit = await mobileFriendUserSearchRoute(
+      new Request("https://whispr.test/api/v1/mobile/friends/search?q=ada&limit=500"),
+      dependencies(),
+    );
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), {
+      results: [
+        searchResult,
+        { ...dogukan, relationship: "outgoing", requestId: "request-1" },
+      ],
+    });
+    assert.equal(defaultLimit.status, 200);
+    assert.equal(tooShort.status, 400);
+    assert.equal(overLimit.status, 400);
+    assert.deepEqual(calls, [
+      "mobile:friends:search",
+      "search:user-1:ada:5",
+      "mobile:friends:search",
+      "search:user-1:ad:20",
+    ]);
+  });
+
+  it("cancels an outgoing request only for the sender", async () => {
+    const { mobileFriendRequestCancelRoute } = await routes;
+    const calls: string[] = [];
+    const cancelled = await mobileFriendRequestCancelRoute(
+      new Request("https://whispr.test/api/v1/mobile/friends/requests/request-1", {
+        method: "DELETE",
+      }),
+      context({ id: "request-1" }),
+      dependencies({
+        cancelFriendRequest: async (userId: string, requestId: string) =>
+          void calls.push(`cancel:${userId}:${requestId}`),
+        enforceRateLimit: async (_userId: string, action: string) => calls.push(action),
+      }),
+    );
+    const forbidden = await mobileFriendRequestCancelRoute(
+      new Request("https://whispr.test/api/v1/mobile/friends/requests/request-1", {
+        method: "DELETE",
+      }),
+      context({ id: "request-1" }),
+      dependencies({
+        cancelFriendRequest: async () => {
+          throw new ApiError("Only the sender can cancel this request", 403);
+        },
+      }),
+    );
+
+    assert.equal(cancelled.status, 200);
+    assert.deepEqual(await cancelled.json(), { success: true });
+    assert.deepEqual(calls, ["mobile:friends:request-action", "cancel:user-1:request-1"]);
+    assert.equal(forbidden.status, 403);
+    assert.deepEqual(await forbidden.json(), {
+      error: "Only the sender can cancel this request",
+    });
   });
 
   it("returns bounded shared errors before calling domain services", async () => {

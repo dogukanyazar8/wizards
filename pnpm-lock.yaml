@@ -89,6 +89,9 @@ importers:
       '@react-navigation/native-stack':
         specifier: ^7.17.10
         version: 7.17.10(6979c24ad2ecb7f6481a2e53b7237637)
+      '@sentry/cli':
+        specifier: 2.58.4
+        version: 2.58.4(supports-color@8.1.1)
       '@sentry/react-native':
         specifier: ^7.11.0
         version: 7.11.0(expo@56.0.15)(react-native@0.85.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/jest-preset@0.85.3(@babel/core@7.29.7(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1))(@react-native/metro-config@0.85.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.14)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1)

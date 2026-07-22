@@ -1,14 +1,34 @@
-import { useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  Share,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 
-import { Avatar, ContextMenu, Icon, Skeleton } from "../app/components/kit";
+import { Avatar, ContextMenu, EmptyState, Icon, Skeleton, useToast } from "../app/components/kit";
 import { useMobileLocaleRuntime } from "../app/providers/mobile-locale-provider";
 import { useTheme, useThemedStyles } from "../app/providers/mobile-theme-provider";
+import { MobileApiError } from "../api/mobile-api-client";
 import { useMobileAuth } from "../auth/mobile-auth-context";
 import type { MobileTheme } from "../design/themes";
 import { getMobilePresenceTone, type MobilePresenceTone } from "../app/mobile-display-model";
+import { formatMobileRelativeTime } from "../locale/mobile-relative-time";
 import { mobileNavigationRef } from "../navigation/mobile-navigation-ref";
-import { useMobileFriendsQuery, useMobileSocialMutations } from "./mobile-social-query";
+import {
+  MOBILE_USER_SEARCH_MIN_TERM_LENGTH,
+  normalizeMobileUserSearchTerm,
+  type MobileUserSearchResult,
+} from "./mobile-social-client";
+import {
+  useMobileFriendsQuery,
+  useMobileSocialMutations,
+  useMobileUserSearchQuery,
+} from "./mobile-social-query";
+import { mobileCopy } from "../locale/mobile-copy";
 
 /** Presence tone → Avatar dot variant, so friend rows use the web status colours. */
 const AVATAR_PRESENCE_STATUS = {
@@ -18,71 +38,11 @@ const AVATAR_PRESENCE_STATUS = {
   online: "active",
 } as const satisfies Record<MobilePresenceTone, "active" | "idle" | "dnd" | "offline">;
 
+/** Keystrokes settle before the search request fires. */
+const USER_SEARCH_DEBOUNCE_MS = 300;
+
 type FriendsHubMode = "all" | "friends" | "requests";
 type FriendsHubSegment = "online" | "all" | "requests";
-
-const socialCopy = {
-  tr: {
-    accept: "Kabul et",
-    add: "Arkadaş ekle",
-    addFriendAction: "Arkadaş ekle",
-    all: "Tümü",
-    back: "Geri",
-    block: "Engelle",
-    empty: "Henüz arkadaşın yok.",
-    emptyRequests: "Bekleyen arkadaşlık isteği yok.",
-    error: "Arkadaşlar yüklenemedi.",
-    friends: "Arkadaşlar",
-    incoming: "Gelen istekler",
-    offline: "ÇEVRİMDIŞI",
-    online: "ÇEVRİMİÇİ",
-    open: "Mesaj gönder",
-    outgoing: "Gönderilen istekler",
-    placeholder: "Arkadaş ara…",
-    requestPlaceholder: "Kullanıcı adı",
-    requests: "İstekler",
-    reject: "Reddet",
-    remove: "Arkadaşlıktan çıkar",
-    retry: "Tekrar dene",
-    search: "Arkadaş ara",
-    sendRequest: "İstek gönder",
-    statusDnd: "Rahatsız etmeyin",
-    statusIdle: "Boşta",
-    statusOffline: "Çevrimdışı",
-    statusOnline: "Çevrimiçi",
-    voiceCall: "Sesli arama",
-  },
-  en: {
-    accept: "Accept",
-    add: "Add friend",
-    addFriendAction: "Add friend",
-    all: "All",
-    back: "Back",
-    block: "Block",
-    empty: "You do not have friends yet.",
-    emptyRequests: "There are no pending friend requests.",
-    error: "Friends could not be loaded.",
-    friends: "Friends",
-    incoming: "Incoming requests",
-    offline: "OFFLINE",
-    online: "ONLINE",
-    open: "Message",
-    outgoing: "Sent requests",
-    placeholder: "Search friends…",
-    requestPlaceholder: "Username",
-    requests: "Requests",
-    reject: "Reject",
-    remove: "Remove friend",
-    retry: "Try again",
-    search: "Search friends",
-    sendRequest: "Send request",
-    statusDnd: "Do not disturb",
-    statusIdle: "Idle",
-    statusOffline: "Offline",
-    statusOnline: "Online",
-    voiceCall: "Voice call",
-  },
-} as const;
 
 export const createFriendsHubStyles = (theme: MobileTheme) => ({
   root: { backgroundColor: theme.surface.base, flex: 1 },
@@ -172,6 +132,17 @@ export const createFriendsHubStyles = (theme: MobileTheme) => ({
     flex: 1,
     minHeight: theme.sizing.minTouchTarget,
   },
+  searchSpinnerSlot: {
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    minWidth: 20,
+  },
+  searchHint: {
+    ...theme.typography.secondary,
+    color: theme.text.muted,
+    paddingHorizontal: 24,
+    paddingTop: 10,
+  },
   sectionHeading: {
     ...theme.typography.overline,
     color: theme.text.visualFaint,
@@ -204,6 +175,7 @@ export const createFriendsHubStyles = (theme: MobileTheme) => ({
     color: theme.status.successText,
     fontFamily: theme.typography.fontFamilySemiBold,
   },
+  rowMeta: { ...theme.typography.caption, color: theme.text.visualFaint, marginTop: 2 },
   actionRow: { flexDirection: "row" as const, gap: 6 },
   rowAction: {
     alignItems: "center" as const,
@@ -223,37 +195,65 @@ export const createFriendsHubStyles = (theme: MobileTheme) => ({
     textAlign: "center" as const,
   },
   error: { color: theme.status.dangerOnBase },
-  requestForm: { flexDirection: "row" as const, gap: 8, padding: 12 },
-  requestInput: {
-    ...theme.typography.message,
-    backgroundColor: theme.surface.base,
+  inviteCard: {
+    alignItems: "center" as const,
+    backgroundColor: theme.surface.card,
     borderColor: theme.border.subtle,
+    borderRadius: theme.radii.cardLarge,
+    borderWidth: 1,
+    flexDirection: "row" as const,
+    gap: 12,
+    marginHorizontal: theme.spacing.page,
+    marginTop: 12,
+    minHeight: theme.sizing.minTouchTarget + 16,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  inviteIcon: {
+    alignItems: "center" as const,
+    backgroundColor: theme.accent.soft,
+    borderRadius: theme.radii.control,
+    height: 38,
+    justifyContent: "center" as const,
+    width: 38,
+  },
+  inviteTitle: { ...theme.typography.bodyStrong, color: theme.text.primary, flex: 1 },
+  rowPill: {
+    alignItems: "center" as const,
     borderRadius: theme.radii.control,
     borderWidth: 1,
-    color: theme.text.primary,
-    flex: 1,
-    minHeight: theme.sizing.minTouchTarget,
-    paddingHorizontal: 12,
-  },
-  requestSubmit: {
-    alignItems: "center" as const,
-    backgroundColor: theme.accent.action,
-    borderRadius: theme.radii.control,
     justifyContent: "center" as const,
     minHeight: theme.sizing.minTouchTarget,
+    minWidth: 78,
     paddingHorizontal: 14,
   },
-  requestSubmitDisabled: { opacity: theme.layout.opacity.disabled },
-  requestSubmitText: { ...theme.typography.button, color: theme.text.onPrimary },
-  requestActions: { flexDirection: "row" as const, gap: 6 },
-  requestAction: {
+  rowPillFilled: { backgroundColor: theme.accent.action, borderColor: theme.accent.action },
+  rowPillFilledText: { ...theme.typography.button, color: theme.text.onPrimary },
+  rowPillOutline: { backgroundColor: theme.surface.base, borderColor: theme.border.subtle },
+  rowPillOutlineText: { ...theme.typography.button, color: theme.text.secondary },
+  rowPillDisabled: { opacity: theme.layout.opacity.disabled },
+  friendsAlreadyText: { ...theme.typography.caption, color: theme.text.muted },
+  requestActions: { alignItems: "center" as const, flexDirection: "row" as const, gap: 8 },
+  requestCircle: {
     alignItems: "center" as const,
+    borderRadius: theme.sizing.minTouchTarget / 2,
+    borderWidth: 1,
+    height: theme.sizing.minTouchTarget,
     justifyContent: "center" as const,
-    minHeight: theme.sizing.minTouchTarget,
-    minWidth: theme.sizing.minTouchTarget,
+    width: theme.sizing.minTouchTarget,
   },
-  requestActionText: { ...theme.typography.caption, color: theme.accent.strong },
-  dangerText: { color: theme.status.dangerOnBase },
+  requestCircleAccept: { backgroundColor: theme.accent.action, borderColor: theme.accent.action },
+  requestCircleReject: { backgroundColor: theme.surface.base, borderColor: theme.border.subtle },
+  emptyStateWrap: { paddingHorizontal: theme.spacing.page, paddingTop: 2 },
+  collapseHeader: {
+    alignItems: "center" as const,
+    flexDirection: "row" as const,
+    gap: 8,
+    minHeight: theme.sizing.minTouchTarget,
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+  },
+  collapseHeaderText: { ...theme.typography.overline, color: theme.text.visualFaint, flex: 1 },
   loadingCard: { gap: 12, padding: 16 },
   loadingRow: { alignItems: "center" as const, flexDirection: "row" as const, gap: 12 },
   loadingText: { flex: 1, gap: 7 },
@@ -285,21 +285,24 @@ export function FriendsHub({
   onBack?(): void;
   onSelectMode?(mode: Exclude<FriendsHubMode, "all">): void;
 }) {
-  const { apiClient, status } = useMobileAuth();
+  const { apiClient, session, status } = useMobileAuth();
   const { locale } = useMobileLocaleRuntime();
   const theme = useTheme();
   const styles = useThemedStyles(createFriendsHubStyles);
-  const t = socialCopy[locale];
+  const { showToast } = useToast();
+  const t = mobileCopy[locale];
   const query = useMobileFriendsQuery(apiClient, status === "signed-in");
   const mutations = useMobileSocialMutations(apiClient);
   const [search, setSearch] = useState("");
-  const [username, setUsername] = useState("");
+  const [userSearchDraft, setUserSearchDraft] = useState("");
+  const [userSearchTerm, setUserSearchTerm] = useState("");
+  const [blockedExpanded, setBlockedExpanded] = useState(false);
   const [friendSegment, setFriendSegment] =
     useState<Exclude<FriendsHubSegment, "requests">>("online");
   const effectiveSearch = embedded ? (externalSearch ?? "") : search;
-  const busy = Object.values(mutations).some((mutation) => mutation.isPending);
   const incoming = query.data?.pending.incoming ?? [];
   const outgoing = query.data?.pending.outgoing ?? [];
+  const blocked = query.data?.blocked ?? [];
   const friends = useMemo(
     () =>
       (query.data?.friends ?? []).filter((friend) => matchesFriendQuery(friend, effectiveSearch)),
@@ -309,11 +312,30 @@ export function FriendsHub({
   const offlineFriends = friends.filter((friend) => friend.status === "OFFLINE");
   const activeSegment: FriendsHubSegment = mode === "requests" ? "requests" : friendSegment;
   const presenceLabels = {
-    DND: t.statusDnd,
-    IDLE: t.statusIdle,
-    OFFLINE: t.statusOffline,
-    ONLINE: t.statusOnline,
+    DND: t.friendsStatusDnd,
+    IDLE: t.friendsStatusIdle,
+    OFFLINE: t.friendsStatusOffline,
+    ONLINE: t.friendsStatusOnline,
   } as const;
+
+  useEffect(() => {
+    const timer = setTimeout(() => setUserSearchTerm(userSearchDraft), USER_SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [userSearchDraft]);
+
+  const normalizedUserSearch = normalizeMobileUserSearchTerm(userSearchTerm);
+  const userSearch = useMobileUserSearchQuery(
+    apiClient,
+    userSearchTerm,
+    status === "signed-in" && activeSegment === "requests",
+  );
+  const searchResults = (userSearch.data?.results ?? []).filter(
+    (result) => result.relationship !== "blocked",
+  );
+  const hasUserSearchTerm = normalizedUserSearch.length >= MOBILE_USER_SEARCH_MIN_TERM_LENGTH;
+  const draftIsAhead =
+    normalizeMobileUserSearchTerm(userSearchDraft) !== normalizedUserSearch &&
+    normalizeMobileUserSearchTerm(userSearchDraft).length >= MOBILE_USER_SEARCH_MIN_TERM_LENGTH;
 
   const openDM = async (userId: string) => {
     const result = await mutations.openDM.mutateAsync(userId);
@@ -331,6 +353,47 @@ export function FriendsHub({
     onSelectMode?.("friends");
   };
 
+  const resolveRequestErrorCopy = (error: unknown) => {
+    const serverCode = error instanceof MobileApiError ? error.serverCode : null;
+    if (serverCode === "NOT_FOUND") return t.friendsRequestUserNotFound;
+    if (serverCode === "ALREADY_FRIENDS") return t.friendsRequestAlreadyFriends;
+    if (serverCode === "ALREADY_PENDING") return t.friendsRequestAlreadyPending;
+    if (serverCode === "BLOCKED" || serverCode === "FRIEND_REQUEST_POLICY") return t.friendsRequestBlocked;
+    return t.friendsRequestFailed;
+  };
+
+  const sendRequest = async (result: MobileUserSearchResult) => {
+    try {
+      await mutations.createRequest.mutateAsync({
+        userId: result.id,
+        username: result.username,
+      });
+      showToast({ message: t.friendsRequestSent, tone: "success" });
+    } catch (error) {
+      showToast({ message: resolveRequestErrorCopy(error), tone: "danger" });
+    }
+  };
+
+  const cancelRequest = async (requestId: string, userId?: string) => {
+    try {
+      await mutations.cancelRequest.mutateAsync(
+        userId === undefined ? { requestId } : { requestId, userId },
+      );
+      showToast({ message: t.friendsRequestCanceled, tone: "info" });
+    } catch (error) {
+      showToast({ message: resolveRequestErrorCopy(error), tone: "danger" });
+    }
+  };
+
+  const shareInvite = async () => {
+    const username = session?.user.username ?? "";
+    await Share.share({
+      message: username
+        ? t.friendsInviteMessage.replace("{username}", username)
+        : t.friendsInviteMessageFallback,
+    });
+  };
+
   const renderFriend = (friend: (typeof friends)[number], index: number, total: number) => {
     const isOffline = friend.status === "OFFLINE";
     const title = friend.displayName ?? friend.username;
@@ -342,21 +405,21 @@ export function FriendsHub({
           {
             icon: "chatbubble-outline",
             id: "message",
-            label: t.open,
+            label: t.friendsOpen,
             onPress: () => void openDM(friend.id),
           },
           {
             destructive: true,
             icon: "person-remove-outline",
             id: "remove",
-            label: t.remove,
+            label: t.friendsRemove,
             onPress: () => mutations.removeFriend.mutate(friend.id),
           },
           {
             destructive: true,
             icon: "ban-outline",
             id: "block",
-            label: t.block,
+            label: t.friendsBlock,
             onPress: () => mutations.blockFriend.mutate(friend.id),
           },
         ]}
@@ -389,7 +452,7 @@ export function FriendsHub({
           </View>
           <View style={styles.actionRow}>
             <Pressable
-              accessibilityLabel={`${t.open}: ${title}`}
+              accessibilityLabel={`${t.friendsOpen}: ${title}`}
               accessibilityRole="button"
               onPress={() => void openDM(friend.id)}
               style={styles.rowAction}
@@ -399,7 +462,7 @@ export function FriendsHub({
             </Pressable>
             {!isOffline ? (
               <Pressable
-                accessibilityLabel={`${t.voiceCall}: ${title}`}
+                accessibilityLabel={`${t.friendsVoiceCall}: ${title}`}
                 accessibilityRole="button"
                 accessibilityState={{ disabled: true }}
                 disabled
@@ -415,16 +478,128 @@ export function FriendsHub({
     );
   };
 
+  const renderSearchResultAction = (result: MobileUserSearchResult) => {
+    const title = result.displayName ?? result.username;
+
+    if (result.relationship === "friend") {
+      return (
+        <View style={styles.requestActions}>
+          <Text style={styles.friendsAlreadyText}>{t.friendsFriendsAlready}</Text>
+          <Pressable
+            accessibilityLabel={`${t.friendsOpen}: ${title}`}
+            accessibilityRole="button"
+            onPress={() => void openDM(result.id)}
+            style={styles.rowAction}
+            testID={`mobile-friend-search-message-${result.id}`}
+          >
+            <Icon name="chatbubble-outline" size={16} tone="accent" />
+          </Pressable>
+        </View>
+      );
+    }
+
+    if (result.relationship === "outgoing") {
+      return (
+        <Pressable
+          accessibilityLabel={`${t.friendsCancelRequest}: ${title}`}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: !result.requestId }}
+          disabled={!result.requestId}
+          onPress={() => void cancelRequest(result.requestId ?? "", result.id)}
+          style={[styles.rowPill, styles.rowPillOutline, !result.requestId && styles.rowPillDisabled]}
+          testID={`mobile-friend-search-cancel-${result.id}`}
+        >
+          <Text style={styles.rowPillOutlineText}>{t.friendsCancelRequest}</Text>
+        </Pressable>
+      );
+    }
+
+    if (result.relationship === "incoming") {
+      return (
+        <Pressable
+          accessibilityLabel={`${t.friendsAccept}: ${title}`}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: !result.requestId }}
+          disabled={!result.requestId}
+          onPress={() =>
+            mutations.acceptRequest.mutate({
+              requestId: result.requestId ?? "",
+              userId: result.id,
+            })
+          }
+          style={[styles.rowPill, styles.rowPillFilled, !result.requestId && styles.rowPillDisabled]}
+          testID={`mobile-friend-search-accept-${result.id}`}
+        >
+          <Text style={styles.rowPillFilledText}>{t.friendsAccept}</Text>
+        </Pressable>
+      );
+    }
+
+    return (
+      <Pressable
+        accessibilityLabel={`${t.friendsAddAction}: ${title}`}
+        accessibilityRole="button"
+        onPress={() => void sendRequest(result)}
+        style={[styles.rowPill, styles.rowPillFilled]}
+        testID={`mobile-friend-search-add-${result.id}`}
+      >
+        <Text style={styles.rowPillFilledText}>{t.friendsAddAction}</Text>
+      </Pressable>
+    );
+  };
+
+  const renderPendingRow = (
+    entry: {
+      avatarUrl: string | null;
+      createdAt: string;
+      displayName: string | null;
+      id: string;
+      username: string;
+    },
+    action: ReactNode,
+    index: number,
+    total: number,
+    testID: string,
+  ) => {
+    const title = entry.displayName ?? entry.username;
+    return (
+      <View
+        key={entry.id}
+        style={[styles.friendRow, index < total - 1 && styles.friendRowBorder]}
+        testID={testID}
+      >
+        <Avatar
+          avatarBorderRadius={theme.sizing.squircle46Radius}
+          dimension={theme.sizing.squircle46}
+          identityId={entry.id}
+          imageUrl={entry.avatarUrl}
+          label={title}
+        />
+        <View style={styles.friendIdentity}>
+          <Text numberOfLines={1} style={styles.friendName}>
+            {title}
+          </Text>
+          <Text numberOfLines={1} style={styles.friendStatus}>{`@${entry.username}`}</Text>
+          <Text numberOfLines={1} style={styles.rowMeta}>
+            {formatMobileRelativeTime(entry.createdAt, locale)}
+          </Text>
+        </View>
+        {action}
+      </View>
+    );
+  };
+
   return (
     <ScrollView
       contentContainerStyle={styles.content}
+      keyboardShouldPersistTaps="handled"
       style={styles.root}
       testID="mobile-friends-screen"
     >
       {embedded ? null : (
         <View style={styles.header}>
           <Pressable
-            accessibilityLabel={t.back}
+            accessibilityLabel={t.friendsBack}
             accessibilityRole="button"
             onPress={onBack}
             style={styles.headerBack}
@@ -433,10 +608,10 @@ export function FriendsHub({
             <Icon name="chevron-back" size={20} />
           </Pressable>
           <Text accessibilityRole="header" style={styles.headerTitle}>
-            {t.friends}
+            {t.friendsFriends}
           </Text>
           <Pressable
-            accessibilityLabel={t.addFriendAction}
+            accessibilityLabel={t.friendsAddFriendAction}
             accessibilityRole="button"
             onPress={() => selectSegment("requests")}
             style={styles.headerAction}
@@ -451,9 +626,9 @@ export function FriendsHub({
         <View style={styles.segmentShell} testID="mobile-friends-segments">
           {(
             [
-              ["online", t.online],
-              ["all", t.all],
-              ["requests", t.requests],
+              ["online", t.friendsOnline],
+              ["all", t.friendsAll],
+              ["requests", t.friendsRequests],
             ] as const
           ).map(([segment, label]) => (
             <Pressable
@@ -483,12 +658,12 @@ export function FriendsHub({
         <View style={styles.searchShell}>
           <Icon name="search" size={17} tone="muted" />
           <TextInput
-            accessibilityLabel={t.search}
+            accessibilityLabel={t.friendsSearch}
             autoCapitalize="none"
             autoCorrect={false}
             clearButtonMode="while-editing"
             onChangeText={setSearch}
-            placeholder={t.placeholder}
+            placeholder={t.friendsPlaceholder}
             placeholderTextColor={theme.text.visualPlaceholder}
             returnKeyType="search"
             style={styles.searchInput}
@@ -519,14 +694,14 @@ export function FriendsHub({
       {query.isError ? (
         <Pressable onPress={() => void query.refetch()} testID="mobile-friends-retry">
           <Text style={[styles.notice, styles.error]}>
-            {t.error} {t.retry}
+            {t.friendsError} {t.friendsRetry}
           </Text>
         </Pressable>
       ) : null}
 
       {!query.isLoading && !query.isError && activeSegment !== "requests" ? (
         <>
-          <Text style={styles.sectionHeading}>{`${t.online} — ${onlineFriends.length}`}</Text>
+          <Text style={styles.sectionHeading}>{`${t.friendsOnline} — ${onlineFriends.length}`}</Text>
           {onlineFriends.length > 0 ? (
             <View style={styles.sectionCard}>
               {onlineFriends.map((friend, index) =>
@@ -534,7 +709,7 @@ export function FriendsHub({
               )}
             </View>
           ) : null}
-          <Text style={styles.sectionHeading}>{`${t.offline} — ${offlineFriends.length}`}</Text>
+          <Text style={styles.sectionHeading}>{`${t.friendsOffline} — ${offlineFriends.length}`}</Text>
           {offlineFriends.length > 0 ? (
             <View style={[styles.sectionCard, styles.offlineCard]}>
               {offlineFriends.map((friend, index) =>
@@ -542,128 +717,247 @@ export function FriendsHub({
               )}
             </View>
           ) : null}
-          {friends.length === 0 ? <Text style={styles.notice}>{t.empty}</Text> : null}
+          {friends.length === 0 ? <Text style={styles.notice}>{t.friendsEmpty}</Text> : null}
         </>
       ) : null}
 
       {!query.isLoading && !query.isError && activeSegment === "requests" ? (
         <>
-          <Text style={styles.sectionHeading}>{t.add}</Text>
-          <View style={styles.sectionCard}>
-            <View style={styles.requestForm}>
-              <TextInput
-                accessibilityLabel={t.add}
-                autoCapitalize="none"
-                autoCorrect={false}
-                onChangeText={setUsername}
-                placeholder={t.requestPlaceholder}
-                placeholderTextColor={theme.text.visualPlaceholder}
-                style={styles.requestInput}
-                testID="mobile-friend-request-input"
-                value={username}
-              />
-              <Pressable
-                accessibilityLabel={t.sendRequest}
-                accessibilityRole="button"
-                accessibilityState={{
-                  disabled: username.trim().length < 2 || mutations.createRequest.isPending,
-                }}
-                disabled={username.trim().length < 2 || mutations.createRequest.isPending}
-                onPress={() =>
-                  void mutations.createRequest.mutateAsync(username).then(() => setUsername(""))
-                }
-                style={[
-                  styles.requestSubmit,
-                  (username.trim().length < 2 || mutations.createRequest.isPending) &&
-                    styles.requestSubmitDisabled,
-                ]}
-                testID="mobile-friend-request-submit"
-              >
-                <Text style={styles.requestSubmitText}>{t.sendRequest}</Text>
-              </Pressable>
+          <Pressable
+            accessibilityLabel={t.friendsInviteTitle}
+            accessibilityRole="button"
+            onPress={() => void shareInvite()}
+            style={styles.inviteCard}
+            testID="mobile-friend-invite-card"
+          >
+            <View style={styles.inviteIcon}>
+              <Icon name="share-social-outline" size={18} tone="accent" />
             </View>
+            <Text numberOfLines={1} style={styles.inviteTitle}>
+              {t.friendsInviteTitle}
+            </Text>
+            <Icon name="chevron-forward" size={18} tone="muted" />
+          </Pressable>
+
+          <Text style={styles.sectionHeading}>{t.friendsAdd}</Text>
+          <View style={styles.searchShell}>
+            <Icon name="search" size={17} tone="muted" />
+            <TextInput
+              accessibilityLabel={t.friendsAdd}
+              autoCapitalize="none"
+              autoCorrect={false}
+              clearButtonMode="while-editing"
+              onChangeText={setUserSearchDraft}
+              placeholder={t.friendsSearchPlaceholder}
+              placeholderTextColor={theme.text.visualPlaceholder}
+              returnKeyType="search"
+              style={styles.searchInput}
+              testID="mobile-friend-search-users-input"
+              value={userSearchDraft}
+            />
+            {userSearch.isFetching || draftIsAhead ? (
+              <View style={styles.searchSpinnerSlot}>
+                <ActivityIndicator
+                  color={theme.accent.default}
+                  size="small"
+                  testID="mobile-friend-search-spinner"
+                />
+              </View>
+            ) : null}
           </View>
-          <Text style={styles.sectionHeading}>{`${t.incoming} — ${incoming.length}`}</Text>
-          {incoming.length > 0 ? (
-            <View style={styles.sectionCard}>
-              {incoming.map((request, index) => (
-                <View
-                  key={request.id}
-                  style={[styles.friendRow, index < incoming.length - 1 && styles.friendRowBorder]}
-                >
-                  <Avatar
-                    avatarBorderRadius={theme.sizing.squircle46Radius}
-                    dimension={theme.sizing.squircle46}
-                    identityId={request.sender.id}
-                    imageUrl={request.sender.avatarUrl}
-                    label={request.sender.displayName ?? request.sender.username}
-                  />
-                  <View style={styles.friendIdentity}>
-                    <Text numberOfLines={1} style={styles.friendName}>
-                      {request.sender.displayName ?? request.sender.username}
-                    </Text>
-                    <Text
-                      numberOfLines={1}
-                      style={styles.friendStatus}
-                    >{`@${request.sender.username}`}</Text>
-                  </View>
-                  <View style={styles.requestActions}>
-                    <Pressable
-                      accessibilityLabel={`${t.accept}: ${request.sender.username}`}
-                      accessibilityRole="button"
-                      disabled={busy}
-                      onPress={() => mutations.acceptRequest.mutate(request.id)}
-                      style={styles.requestAction}
-                    >
-                      <Text style={styles.requestActionText}>{t.accept}</Text>
-                    </Pressable>
-                    <Pressable
-                      accessibilityLabel={`${t.reject}: ${request.sender.username}`}
-                      accessibilityRole="button"
-                      disabled={busy}
-                      onPress={() => mutations.rejectRequest.mutate(request.id)}
-                      style={styles.requestAction}
-                    >
-                      <Text style={[styles.requestActionText, styles.dangerText]}>{t.reject}</Text>
-                    </Pressable>
-                  </View>
+
+          {!hasUserSearchTerm ? (
+            <Text style={styles.searchHint} testID="mobile-friend-search-hint">
+              {t.friendsSearchHint}
+            </Text>
+          ) : userSearch.isLoading ? (
+            <View
+              style={[styles.sectionCard, styles.loadingCard]}
+              testID="mobile-friend-search-loading"
+            >
+              <View style={styles.loadingRow}>
+                <Skeleton height={theme.sizing.squircle46} width={theme.sizing.squircle46} />
+                <View style={styles.loadingText}>
+                  <Skeleton height={15} width="52%" />
+                  <Skeleton height={12} width="34%" />
                 </View>
-              ))}
+              </View>
             </View>
+          ) : searchResults.length === 0 ? (
+            <Text style={styles.notice} testID="mobile-friend-search-empty">
+              {t.friendsSearchNoResults}
+            </Text>
           ) : (
-            <Text style={styles.notice}>{t.emptyRequests}</Text>
-          )}
-          {outgoing.length > 0 ? (
-            <>
-              <Text style={styles.sectionHeading}>{`${t.outgoing} — ${outgoing.length}`}</Text>
-              <View style={styles.sectionCard}>
-                {outgoing.map((request, index) => (
+            <View style={styles.sectionCard} testID="mobile-friend-search-results">
+              {searchResults.map((result, index) => {
+                const title = result.displayName ?? result.username;
+                return (
                   <View
-                    key={request.id}
+                    key={result.id}
                     style={[
                       styles.friendRow,
-                      index < outgoing.length - 1 && styles.friendRowBorder,
+                      index < searchResults.length - 1 && styles.friendRowBorder,
                     ]}
+                    testID={`mobile-friend-search-row-${result.id}`}
                   >
                     <Avatar
                       avatarBorderRadius={theme.sizing.squircle46Radius}
                       dimension={theme.sizing.squircle46}
-                      identityId={request.receiver.id}
-                      imageUrl={request.receiver.avatarUrl}
-                      label={request.receiver.displayName ?? request.receiver.username}
+                      identityId={result.id}
+                      imageUrl={result.avatarUrl}
+                      label={title}
                     />
                     <View style={styles.friendIdentity}>
                       <Text numberOfLines={1} style={styles.friendName}>
-                        {request.receiver.displayName ?? request.receiver.username}
+                        {title}
                       </Text>
                       <Text
                         numberOfLines={1}
                         style={styles.friendStatus}
-                      >{`@${request.receiver.username}`}</Text>
+                      >{`@${result.username}`}</Text>
                     </View>
+                    {renderSearchResultAction(result)}
                   </View>
-                ))}
+                );
+              })}
+            </View>
+          )}
+
+          <Text style={styles.sectionHeading}>{`${t.friendsIncoming} — ${incoming.length}`}</Text>
+          {incoming.length > 0 ? (
+            <View style={styles.sectionCard}>
+              {incoming.map((request, index) =>
+                renderPendingRow(
+                  { ...request.sender, createdAt: request.createdAt },
+                  <View style={styles.requestActions} key={`${request.id}-actions`}>
+                    <Pressable
+                      accessibilityLabel={`${t.friendsAccept}: ${request.sender.username}`}
+                      accessibilityRole="button"
+                      onPress={() =>
+                        mutations.acceptRequest.mutate({
+                          requestId: request.id,
+                          userId: request.sender.id,
+                        })
+                      }
+                      style={[styles.requestCircle, styles.requestCircleAccept]}
+                      testID={`mobile-friend-request-accept-${request.id}`}
+                    >
+                      <Icon name="checkmark" size={20} tone="inverse" />
+                    </Pressable>
+                    <Pressable
+                      accessibilityLabel={`${t.friendsReject}: ${request.sender.username}`}
+                      accessibilityRole="button"
+                      onPress={() =>
+                        mutations.rejectRequest.mutate({
+                          requestId: request.id,
+                          userId: request.sender.id,
+                        })
+                      }
+                      style={[styles.requestCircle, styles.requestCircleReject]}
+                      testID={`mobile-friend-request-reject-${request.id}`}
+                    >
+                      <Icon name="close" size={20} tone="secondary" />
+                    </Pressable>
+                  </View>,
+                  index,
+                  incoming.length,
+                  `mobile-friend-incoming-${request.id}`,
+                ),
+              )}
+            </View>
+          ) : (
+            <View style={styles.emptyStateWrap}>
+              <EmptyState
+                description={t.friendsEmptyRequestsDescription}
+                icon="person-add-outline"
+                testID="mobile-friend-requests-empty"
+                title={t.friendsEmptyRequestsTitle}
+              />
+            </View>
+          )}
+
+          {outgoing.length > 0 ? (
+            <>
+              <Text style={styles.sectionHeading}>{`${t.friendsOutgoing} — ${outgoing.length}`}</Text>
+              <View style={styles.sectionCard}>
+                {outgoing.map((request, index) =>
+                  renderPendingRow(
+                    { ...request.receiver, createdAt: request.createdAt },
+                    <Pressable
+                      accessibilityLabel={`${t.friendsCancelRequest}: ${request.receiver.username}`}
+                      accessibilityRole="button"
+                      key={`${request.id}-cancel`}
+                      onPress={() => void cancelRequest(request.id, request.receiver.id)}
+                      style={[styles.rowPill, styles.rowPillOutline]}
+                      testID={`mobile-friend-request-cancel-${request.id}`}
+                    >
+                      <Text style={styles.rowPillOutlineText}>{t.friendsCancelRequest}</Text>
+                    </Pressable>,
+                    index,
+                    outgoing.length,
+                    `mobile-friend-outgoing-${request.id}`,
+                  ),
+                )}
               </View>
+            </>
+          ) : null}
+
+          {blocked.length > 0 ? (
+            <>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ expanded: blockedExpanded }}
+                onPress={() => setBlockedExpanded((current) => !current)}
+                style={styles.collapseHeader}
+                testID="mobile-friend-blocked-toggle"
+              >
+                <Text
+                  style={styles.collapseHeaderText}
+                >{`${t.friendsBlocked} — ${blocked.length}`}</Text>
+                <Icon name={blockedExpanded ? "chevron-up" : "chevron-down"} size={18} tone="muted" />
+              </Pressable>
+              {blockedExpanded ? (
+                <View style={styles.sectionCard} testID="mobile-friend-blocked-list">
+                  {blocked.map((user, index) => {
+                    const title = user.displayName ?? user.username;
+                    return (
+                      <View
+                        key={user.id}
+                        style={[
+                          styles.friendRow,
+                          index < blocked.length - 1 && styles.friendRowBorder,
+                        ]}
+                      >
+                        <Avatar
+                          avatarBorderRadius={theme.sizing.squircle46Radius}
+                          dimension={theme.sizing.squircle46}
+                          identityId={user.id}
+                          imageUrl={user.avatarUrl}
+                          label={title}
+                        />
+                        <View style={styles.friendIdentity}>
+                          <Text numberOfLines={1} style={styles.friendName}>
+                            {title}
+                          </Text>
+                          <Text
+                            numberOfLines={1}
+                            style={styles.friendStatus}
+                          >{`@${user.username}`}</Text>
+                        </View>
+                        <Pressable
+                          accessibilityLabel={`${t.friendsUnblock}: ${title}`}
+                          accessibilityRole="button"
+                          onPress={() => mutations.unblockFriend.mutate(user.id)}
+                          style={[styles.rowPill, styles.rowPillOutline]}
+                          testID={`mobile-friend-unblock-${user.id}`}
+                        >
+                          <Text style={styles.rowPillOutlineText}>{t.friendsUnblock}</Text>
+                        </Pressable>
+                      </View>
+                    );
+                  })}
+                </View>
+              ) : null}
             </>
           ) : null}
         </>

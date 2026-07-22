@@ -1,8 +1,16 @@
 import { VideoTrack } from "@livekit/react-native";
+import { useLayoutEffect } from "react";
+import Animated, {
+  runOnJS,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated";
 import {
   MobileVoiceRoomPanel,
   Ionicons,
-  Modal,
   Pressable,
   ScrollView,
   Text,
@@ -13,6 +21,7 @@ import {
   useEffect,
   useMemo,
   useState,
+  type ReactNode,
   type MobileBootstrapViewState,
   type MobileIoniconName,
   type MobileLocale,
@@ -35,9 +44,17 @@ import { useMobileHaptics } from "../providers/mobile-haptics-provider";
 import { getMobileActiveVoiceRoomModel } from "./active-voice-room-model";
 import { useVoiceScreenStyles } from "./voice-screen.styles";
 import { useVoiceRoomTheme } from "../providers/mobile-theme-provider";
+import { useMobileBottomSystemSpacing } from "../use-mobile-bottom-system-spacing";
 import { MobileVoiceCameraGrid } from "../../voice/mobile-camera-grid";
 import { MobileVoiceSettingsSheet } from "../../voice/mobile-voice-settings-sheet";
 import { BottomSheet } from "../components/kit/bottom-sheet";
+import {
+  MOBILE_OVERLAY_CLOSE_DURATION_MS,
+  MOBILE_OVERLAY_CLOSE_EASING,
+  MOBILE_OVERLAY_OPEN_SPRING,
+  OverlaySurface,
+  useOverlayPhase,
+} from "../components/kit/overlay-surface";
 
 export function VoiceScreen({
   voiceRoomState,
@@ -834,6 +851,10 @@ export function MobileScreenShareViewer({
   const theme = useVoiceRoomTheme();
   const styles = useVoiceScreenStyles();
   const [expanded, setExpanded] = useState(false);
+  // The fullscreen viewer covers the whole window, so the shell's bottom
+  // reservation does not reach it and the stream would run under a three-button
+  // navigation bar.
+  const bottomSystemInset = useMobileBottomSystemSpacing(12);
   const participant = getActiveScreenShareParticipant(participants);
 
   if (!participant) {
@@ -891,12 +912,11 @@ export function MobileScreenShareViewer({
         <ScreenShareVideoSurface participant={participant} variant="inline" />
       </Pressable>
 
-      <Modal
-        animationType="fade"
-        onRequestClose={() => setExpanded(false)}
-        visible={expanded && canExpand}
-      >
-        <View style={styles.mobileVoiceScreenShareFullscreen}>
+      <ScreenShareFullscreenOverlay onClose={() => setExpanded(false)} open={expanded && canExpand}>
+        <View
+          style={[styles.mobileVoiceScreenShareFullscreen, { paddingBottom: bottomSystemInset }]}
+          testID="mobile-voice-screen-share-fullscreen"
+        >
           <View style={styles.mobileVoiceScreenShareFullscreenHeader}>
             <View style={styles.mobileVoiceScreenShareFullscreenText}>
               <Text style={styles.mobileVoiceScreenShareFullscreenEyebrow}>
@@ -933,10 +953,87 @@ export function MobileScreenShareViewer({
             </View>
           </ScrollView>
         </View>
-      </Modal>
+      </ScreenShareFullscreenOverlay>
     </View>
   );
 }
+
+/**
+ * The expanded stream, opaque and full-bleed. It rides the shared overlay host
+ * like every other surface, so the viewer costs no extra native window and the
+ * back key closes it through the same path as a sheet.
+ */
+function ScreenShareFullscreenOverlay({
+  children,
+  onClose,
+  open,
+}: {
+  readonly children: ReactNode;
+  readonly onClose: () => void;
+  readonly open: boolean;
+}) {
+  const theme = useVoiceRoomTheme();
+  const reducedMotion = useReducedMotion() === true;
+  const { phase, settleClosed } = useOverlayPhase(open);
+  const progress = useSharedValue(open ? 1 : 0);
+
+  useLayoutEffect(() => {
+    if (phase === "closed") {
+      return;
+    }
+
+    if (phase === "open") {
+      progress.value = reducedMotion ? 1 : withSpring(1, MOBILE_OVERLAY_OPEN_SPRING);
+      return;
+    }
+
+    if (reducedMotion) {
+      progress.value = 0;
+      settleClosed();
+      return;
+    }
+
+    progress.value = withTiming(
+      0,
+      { duration: MOBILE_OVERLAY_CLOSE_DURATION_MS, easing: MOBILE_OVERLAY_CLOSE_EASING },
+      (finished) => {
+        "worklet";
+        if (finished === true) {
+          runOnJS(settleClosed)();
+        }
+      },
+    );
+  }, [phase, progress, reducedMotion, settleClosed]);
+
+  const animatedBackdropStyle = useAnimatedStyle(() => ({ opacity: progress.value }));
+
+  if (phase === "closed") {
+    return null;
+  }
+
+  return (
+    <OverlaySurface
+      // The opaque stream covers the backdrop, so this label names the surface
+      // rather than repeating the close button behind it.
+      accessibilityLabel={copy.voiceScreenShareViewerLabel}
+      animatedBackdropStyle={animatedBackdropStyle}
+      backdropStyle={{ backgroundColor: theme.media.surface }}
+      onClose={onClose}
+      open={open}
+      style={screenShareOverlayStyles.root}
+      testID="mobile-voice-screen-share-overlay"
+    >
+      <Animated.View style={[screenShareOverlayStyles.content, animatedBackdropStyle]}>
+        {children}
+      </Animated.View>
+    </OverlaySurface>
+  );
+}
+
+const screenShareOverlayStyles = {
+  content: { flex: 1, minWidth: 0 },
+  root: { flex: 1, minWidth: 0 },
+} as const;
 
 function getVoiceParticipantName(participant: MobileVoiceRoomParticipant): string {
   return participant.displayName ?? participant.username;

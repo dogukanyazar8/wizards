@@ -1,9 +1,9 @@
 import React from "react";
 import { Alert, BackHandler, Pressable, Share, StyleSheet, Text } from "react-native";
 import * as Clipboard from "expo-clipboard";
-import { fireEvent, render, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, render, waitFor } from "@testing-library/react-native";
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { useReducedMotion } from "react-native-reanimated";
+import { Easing, useReducedMotion, withTiming } from "react-native-reanimated";
 import type { ChatMessage } from "@wizards/types";
 import { darkTheme, lightTheme, type MobileTheme } from "../src/design/themes";
 import { activeMobileCopy as copy } from "../src/locale/mobile-locale-preferences";
@@ -62,7 +62,25 @@ jest.mock("react-native-gesture-handler", () => {
 });
 
 import { BottomSheet, ContextMenu } from "../src/app/components/kit";
+import { MOBILE_OVERLAY_CLOSE_DURATION_MS } from "../src/app/components/kit/overlay-surface";
 import { MessageAttachmentList, MessagePreviewRow } from "../src/app/components/message-primitives";
+
+/** Exit animations parked mid-flight so the closing panel can be inspected. */
+let exitCompletions: ((finished: boolean) => void)[] = [];
+
+/** Leaves the sheet in its closing phase until the test completes it. */
+function holdExitAnimation() {
+  jest.mocked(withTiming).mockImplementation(((
+    value: unknown,
+    _config: unknown,
+    completion?: (finished: boolean) => void,
+  ) => {
+    if (completion) {
+      exitCompletions.push(completion);
+    }
+    return value;
+  }) as never);
+}
 
 beforeEach(() => {
   mockGestureHandlers = {};
@@ -70,6 +88,16 @@ beforeEach(() => {
   mockBottomSystemSpacing.mockReturnValue(0);
   jest.mocked(useReducedMotion).mockReturnValue(false);
   jest.mocked(Clipboard.setStringAsync).mockClear();
+  exitCompletions = [];
+  jest.mocked(withTiming).mockReset();
+  jest.mocked(withTiming).mockImplementation(((
+    value: unknown,
+    _config: unknown,
+    completion?: (finished: boolean) => void,
+  ) => {
+    completion?.(true);
+    return value;
+  }) as never);
 });
 
 for (const theme of [lightTheme, darkTheme]) {
@@ -137,6 +165,123 @@ for (const theme of [lightTheme, darkTheme]) {
 
       expect(view.queryByTestId("closed-sheet-panel")).toBeNull();
       expect(view.queryByText("Hidden content")).toBeNull();
+    });
+
+    it("slides the panel out and fades the backdrop before unmounting the sheet", async () => {
+      mockTheme = theme;
+      holdExitAnimation();
+      const view = await render(
+        <BottomSheet accessibilityLabel="Actions" onClose={jest.fn()} open testID="exit-sheet">
+          <Text>Opened content</Text>
+        </BottomSheet>,
+      );
+
+      expect(
+        StyleSheet.flatten(view.getByTestId("exit-sheet-backdrop").props.style),
+      ).toMatchObject({ opacity: 1 });
+
+      await view.rerender(
+        <BottomSheet
+          accessibilityLabel="Actions"
+          onClose={jest.fn()}
+          open={false}
+          testID="exit-sheet"
+        >
+          <Text>Content the screen already cleared</Text>
+        </BottomSheet>,
+      );
+
+      // Still on screen, running the exit animation with the content it opened
+      // with — the screen is free to drop its selection on close.
+      expect(view.getByTestId("exit-sheet-panel")).toBeTruthy();
+      expect(view.getByText("Opened content")).toBeTruthy();
+      expect(withTiming).toHaveBeenCalledWith(
+        420,
+        { duration: MOBILE_OVERLAY_CLOSE_DURATION_MS, easing: Easing.in(Easing.cubic) },
+        expect.any(Function),
+      );
+      expect(
+        StyleSheet.flatten(view.getByTestId("exit-sheet-backdrop").props.style),
+      ).toMatchObject({ opacity: 0 });
+
+      await act(async () => {
+        exitCompletions.at(-1)?.(true);
+      });
+
+      expect(view.queryByTestId("exit-sheet-panel")).toBeNull();
+      expect(view.queryByText("Opened content")).toBeNull();
+    });
+
+    it("animates a content-sized sheet over its measured height instead of a snap point", async () => {
+      mockTheme = theme;
+      holdExitAnimation();
+      const view = await render(
+        <BottomSheet
+          accessibilityLabel="Servers"
+          onClose={jest.fn()}
+          open
+          presentation={{ panelStyle: { maxHeight: "78%" } }}
+          sizing="content"
+          testID="content-sheet"
+        >
+          <Text>Server list</Text>
+        </BottomSheet>,
+      );
+
+      const panel = view.getByTestId("content-sheet-panel");
+      // No fixed height: the panel is as tall as its content, up to the cap.
+      expect(StyleSheet.flatten(panel.props.style).height).toBeUndefined();
+      expect(StyleSheet.flatten(panel.props.style).maxHeight).toBe("78%");
+
+      await fireEvent(panel, "layout", { nativeEvent: { layout: { height: 612 } } });
+      await view.rerender(
+        <BottomSheet
+          accessibilityLabel="Servers"
+          onClose={jest.fn()}
+          open={false}
+          presentation={{ panelStyle: { maxHeight: "78%" } }}
+          sizing="content"
+          testID="content-sheet"
+        >
+          <Text>Server list</Text>
+        </BottomSheet>,
+      );
+
+      expect(withTiming).toHaveBeenCalledWith(
+        612,
+        { duration: MOBILE_OVERLAY_CLOSE_DURATION_MS, easing: Easing.in(Easing.cubic) },
+        expect.any(Function),
+      );
+
+      await act(async () => {
+        exitCompletions.at(-1)?.(true);
+      });
+      expect(view.queryByTestId("content-sheet-panel")).toBeNull();
+    });
+
+    it("drops the sheet without an exit animation under reduced motion", async () => {
+      mockTheme = theme;
+      jest.mocked(useReducedMotion).mockReturnValue(true);
+      const view = await render(
+        <BottomSheet accessibilityLabel="Actions" onClose={jest.fn()} open testID="static-sheet">
+          <Text>Opened content</Text>
+        </BottomSheet>,
+      );
+      expect(view.getByTestId("static-sheet-panel")).toBeTruthy();
+
+      await view.rerender(
+        <BottomSheet
+          accessibilityLabel="Actions"
+          onClose={jest.fn()}
+          open={false}
+          testID="static-sheet"
+        >
+          <Text>Opened content</Text>
+        </BottomSheet>,
+      );
+
+      expect(view.queryByTestId("static-sheet-panel")).toBeNull();
+      expect(withTiming).not.toHaveBeenCalled();
     });
 
     it("supports a screen-specific backdrop blur and panel presentation without changing dismissal ownership", async () => {

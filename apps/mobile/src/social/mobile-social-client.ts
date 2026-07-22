@@ -1,4 +1,5 @@
 import {
+  MOBILE_USER_SEARCH_LIMIT,
   MobileFriendBlockResponseSchema,
   MobileFriendMutationResponseSchema,
   MobileFriendRequestActionResponseSchema,
@@ -7,17 +8,29 @@ import {
   MobilePresenceResponseSchema,
   MobileProfileResponseSchema,
   MobileProfileUpdateSchema,
+  MobileUserSearchResponseSchema,
+  type MobileFriendRelationship,
   type MobileFriendsOverviewResponse,
   type MobileFriendPresenceStatus,
   type MobileProfileResponse,
+  type MobileUserSearchResponse,
+  type MobileUserSearchResult,
 } from "@wizards/types";
 
 import type { MobileApiClient } from "../api/mobile-api-client";
 
 export type MobileFriendsOverview = MobileFriendsOverviewResponse;
 export type MobileFriend = MobileFriendsOverview["friends"][number];
-export type { MobileFriendPresenceStatus };
+export type MobileFriendRequest = MobileFriendsOverview["pending"]["incoming"][number];
+export type { MobileFriendPresenceStatus, MobileFriendRelationship, MobileUserSearchResult };
 export type MobileProfile = MobileProfileResponse["user"];
+
+export const MOBILE_USER_SEARCH_MIN_TERM_LENGTH = 2;
+
+/** Search input is `@`-tolerant, so "@ada" and "ada" hit the same query cache entry. */
+export function normalizeMobileUserSearchTerm(value: string): string {
+  return value.trim().replace(/^@+/, "").trim();
+}
 
 function encodeId(value: string) {
   return encodeURIComponent(value);
@@ -43,6 +56,30 @@ export async function createMobileFriendRequest(client: MobileApiClient, usernam
     await client.requestJson("/api/v1/mobile/friends/requests", {
       body: { username: username.trim() },
       method: "POST",
+    }),
+  );
+}
+
+export async function searchMobileUsers(
+  client: MobileApiClient,
+  query: string,
+  limit = MOBILE_USER_SEARCH_LIMIT,
+): Promise<MobileUserSearchResponse> {
+  const term = normalizeMobileUserSearchTerm(query);
+  if (term.length < MOBILE_USER_SEARCH_MIN_TERM_LENGTH) {
+    return { results: [] };
+  }
+
+  const params = new URLSearchParams({ limit: String(limit), q: term });
+  return MobileUserSearchResponseSchema.parse(
+    await client.requestJson(`/api/v1/mobile/friends/search?${params.toString()}`),
+  );
+}
+
+export async function cancelMobileFriendRequest(client: MobileApiClient, requestId: string) {
+  return MobileFriendMutationResponseSchema.parse(
+    await client.requestJson(`/api/v1/mobile/friends/requests/${encodeId(requestId)}`, {
+      method: "DELETE",
     }),
   );
 }

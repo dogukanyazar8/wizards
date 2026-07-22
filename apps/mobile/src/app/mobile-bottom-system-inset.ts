@@ -16,6 +16,30 @@ export function resolveMobileBottomSystemSpacing(
 }
 
 /**
+ * Extra spacing a surface that already paints its own design padding needs so the
+ * three-button Android navigation bar cannot cover it. Adding this on top of the
+ * design padding lands on the same total as
+ * {@link resolveMobileBottomSystemSpacing}, which keeps gesture navigation — where
+ * the reported inset stays under the design padding — pixel-identical.
+ *
+ * The IME is drawn over the navigation bar, and the app shell already lifts the
+ * tree above the keyboard, so an open keyboard drops the top-up to zero instead of
+ * stacking a second gap above the IME.
+ */
+export function resolveMobileBottomSystemTopUp(input: {
+  readonly keyboardHeight: number;
+  readonly minimumSpacing: number;
+  readonly systemInset: number;
+}): number {
+  "worklet";
+  if (normalizeSpacing(input.keyboardHeight) > 0) {
+    return 0;
+  }
+
+  return Math.max(0, normalizeSpacing(input.systemInset) - normalizeSpacing(input.minimumSpacing));
+}
+
+/**
  * Distance a bottom-anchored surface has to travel to clear the keyboard. The
  * surface already pads itself past the system bar, and the IME covers that bar,
  * so only the difference is real movement.

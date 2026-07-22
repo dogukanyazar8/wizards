@@ -4,6 +4,7 @@ import { fireEvent } from "@testing-library/react-native";
 import { describe, expect, it, jest } from "@jest/globals";
 
 import { MobileWorkspaceServerSwitcherSheet } from "../src/app/screens/mobile-workspace-server-switcher-sheet";
+import { lightTheme } from "../src/design/themes";
 import { renderWithMobileTheme as render } from "./render-with-mobile-theme";
 
 const mockBottomSystemSpacing = jest.fn(() => 28);
@@ -49,7 +50,7 @@ describe("MobileWorkspaceServerSwitcherSheet", () => {
       />,
     );
 
-    expect(view.getByTestId("mobile-server-switcher-sheet")).toBeTruthy();
+    expect(view.getByTestId("mobile-server-switcher-sheet-panel")).toBeTruthy();
     expect(view.getByText("Sunucuların")).toBeTruthy();
     expect(view.getByText("UAT ENV")).toBeTruthy();
     expect(view.getByText("Windows Ekibi")).toBeTruthy();
@@ -76,11 +77,38 @@ describe("MobileWorkspaceServerSwitcherSheet", () => {
       />,
     );
 
-    expect(mockBottomSystemSpacing).toHaveBeenCalledWith(28);
+    // The shared sheet primitive owns the inset now, so the panel keeps its own
+    // design spacing on top of the navigation bar instead of sitting on it.
+    expect(mockBottomSystemSpacing).toHaveBeenCalledWith(0);
     expect(
       StyleSheet.flatten(view.getByTestId("mobile-server-switcher-sheet-panel").props.style),
     ).toMatchObject({
-      paddingBottom: 48,
+      paddingBottom: lightTheme.spacing.page + 48,
+    });
+  });
+
+  it("sizes the panel from its content and caps it before the sheet fills the screen", async () => {
+    mockBottomSystemSpacing.mockReturnValue(0);
+    const view = await render(
+      <MobileWorkspaceServerSwitcherSheet
+        activeServerId="server-uat"
+        onClose={jest.fn()}
+        onOpenCreateJoin={jest.fn()}
+        onOpenServer={jest.fn()}
+        open
+        servers={servers as never}
+      />,
+    );
+
+    const panel = StyleSheet.flatten(
+      view.getByTestId("mobile-server-switcher-sheet-panel").props.style,
+    );
+    expect(panel.height).toBeUndefined();
+    expect(panel.maxHeight).toBe("78%");
+    expect(panel).toMatchObject({
+      backgroundColor: lightTheme.surface.card,
+      borderTopLeftRadius: 36,
+      borderWidth: 0,
     });
   });
 });

@@ -19,7 +19,9 @@ import type {
   FriendDto,
   FriendPresenceStatus,
   FriendPresenceUpdateDto,
+  FriendRelationship,
   FriendRequestDto,
+  FriendSearchResultDto,
   FriendStatusDto,
   FriendUserDto,
   PendingFriendsResponse,
@@ -457,6 +459,119 @@ export async function listPendingFriendRequests(userId: string): Promise<Pending
     incoming: incoming.map(toFriendRequestDto),
     outgoing: outgoing.map(toFriendRequestDto),
   };
+}
+
+/** Highest-precedence relationship wins when a pair carries several request rows. */
+const FRIEND_RELATIONSHIP_PRECEDENCE: Record<FriendRelationship, number> = {
+  none: 0,
+  outgoing: 1,
+  incoming: 2,
+  friend: 3,
+  blocked: 4,
+};
+
+export const USER_SEARCH_RESULT_LIMIT = 20;
+export const USER_SEARCH_MIN_TERM_LENGTH = 2;
+
+/** Mobile clients send the typed value verbatim, so a leading "@" is tolerated here. */
+export function normalizeUserSearchTerm(query: string): string {
+  return query.trim().replace(/^@+/, "").trim();
+}
+
+function toFriendRelationship(
+  userId: string,
+  row: { receiverId: string; senderId: string; status: string },
+): FriendRelationship {
+  if (row.status === "BLOCKED") {
+    return "blocked";
+  }
+
+  if (row.status === "ACCEPTED") {
+    return "friend";
+  }
+
+  if (row.status === "PENDING") {
+    return row.senderId === userId ? "outgoing" : "incoming";
+  }
+
+  return "none";
+}
+
+export async function searchUsers(
+  userId: string,
+  query: string,
+  limit = USER_SEARCH_RESULT_LIMIT,
+): Promise<FriendSearchResultDto[]> {
+  const term = normalizeUserSearchTerm(query);
+  if (term.length < USER_SEARCH_MIN_TERM_LENGTH) {
+    return [];
+  }
+
+  const take = Math.min(Math.max(1, Math.trunc(limit)), USER_SEARCH_RESULT_LIMIT);
+  const users = await prisma.user.findMany({
+    where: {
+      id: { not: userId },
+      OR: [
+        { username: { contains: term, mode: "insensitive" as const } },
+        { displayName: { contains: term, mode: "insensitive" as const } },
+      ],
+    },
+    select: friendUserSelect,
+    orderBy: [{ username: "asc" }],
+    take,
+  });
+
+  if (users.length === 0) {
+    return [];
+  }
+
+  const relationRows = await prisma.friendRequest.findMany({
+    where: {
+      OR: [
+        { senderId: userId, receiverId: { in: users.map((user) => user.id) } },
+        { senderId: { in: users.map((user) => user.id) }, receiverId: userId },
+      ],
+    },
+    select: { id: true, receiverId: true, senderId: true, status: true },
+  });
+
+  const relationByUserId = new Map<
+    string,
+    { relationship: FriendRelationship; requestId: string | null }
+  >();
+
+  for (const row of relationRows) {
+    const relationship = toFriendRelationship(userId, row);
+    if (relationship === "none") {
+      continue;
+    }
+
+    const otherUserId = row.senderId === userId ? row.receiverId : row.senderId;
+    const current = relationByUserId.get(otherUserId);
+    if (
+      current &&
+      FRIEND_RELATIONSHIP_PRECEDENCE[current.relationship] >=
+        FRIEND_RELATIONSHIP_PRECEDENCE[relationship]
+    ) {
+      continue;
+    }
+
+    relationByUserId.set(otherUserId, {
+      relationship,
+      requestId: relationship === "incoming" || relationship === "outgoing" ? row.id : null,
+    });
+  }
+
+  return users
+    .map((user) => {
+      const relation = relationByUserId.get(user.id);
+      return {
+        ...toFriendUserDto(user),
+        relationship: relation?.relationship ?? ("none" as const),
+        requestId: relation?.requestId ?? null,
+      };
+    })
+    .filter((result) => result.relationship !== "blocked");
 }
 
 export async function sendFriendRequest(

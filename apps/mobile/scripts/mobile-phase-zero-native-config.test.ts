@@ -134,6 +134,22 @@ test("release bundling declares and validates the Expo Babel preset directly", (
   assert.match(buildScript, /Assert-ExpoReleaseBundlePrerequisites -WorkingDirectory \$mobileRoot -BuildType \$BuildType/);
 });
 
+test("release source-map upload declares and validates the Sentry CLI directly", () => {
+  const buildScript = readFileSync(join(root, "scripts", "build-android-uat.ps1"), "utf8");
+
+  assert.equal(packageJson.dependencies["@sentry/cli"], "2.58.4");
+  assert.match(buildScript, /require\.resolve\('@sentry\/cli\/package\.json'\)/);
+  assert.match(buildScript, /@sentry\\cli\\bin\\sentry-cli/);
+});
+
+test("local UAT releases skip Sentry source-map upload only when no auth token is available", () => {
+  const buildScript = readFileSync(join(root, "scripts", "build-android-uat.ps1"), "utf8");
+
+  assert.match(buildScript, /\$BuildType -eq "release" -and -not \$env:SENTRY_AUTH_TOKEN/);
+  assert.match(buildScript, /\$env:SENTRY_DISABLE_AUTO_UPLOAD\s*=\s*"true"/);
+  assert.match(buildScript, /SENTRY_AUTH_TOKEN is not set; skipping Sentry source-map upload for this local UAT release build\./);
+});
+
 test("native cache recovery resolves pnpm's truncated virtual-store directories by package contents", () => {
   const buildScript = readFileSync(join(root, "scripts", "build-android-uat.ps1"), "utf8");
 

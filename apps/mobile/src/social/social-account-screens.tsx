@@ -10,41 +10,7 @@ import { mobileNavigationRef } from "../navigation/mobile-navigation-ref";
 import { useMobileFriendsQuery, useMobileSocialMutations } from "./mobile-social-query";
 import type { MobileFriendPresenceStatus } from "./mobile-social-client";
 import { MobileProfileAvatarEditor } from "./mobile-profile-avatar-editor";
-
-const labels = {
-  tr: {
-    back: "Geri",
-    blocked: "Engellenen kullanıcılar",
-    blockedEmpty: "Engellediğin kullanıcı yok.",
-    edit: "Profili düzenle",
-    displayName: "Görünen ad",
-    presence: "Durumunu değiştir",
-    save: "Kaydet",
-    statusDnd: "Rahatsız etmeyin",
-    statusIdle: "Boşta",
-    statusOffline: "Çevrimdışı",
-    statusOnline: "Çevrimiçi",
-    title: "Profil düzenleme",
-    unblock: "Engeli kaldır",
-    username: "Kullanıcı adı",
-  },
-  en: {
-    back: "Back",
-    blocked: "Blocked users",
-    blockedEmpty: "You have no blocked users.",
-    edit: "Edit profile",
-    displayName: "Display name",
-    presence: "Change presence",
-    save: "Save",
-    statusDnd: "Do not disturb",
-    statusIdle: "Idle",
-    statusOffline: "Offline",
-    statusOnline: "Online",
-    title: "Edit profile",
-    unblock: "Unblock",
-    username: "Username",
-  },
-} as const;
+import { mobileCopy } from "../locale/mobile-copy";
 
 const createStyles = (theme: MobileTheme) => ({
   root: { flex: 1, backgroundColor: theme.surface.base },
@@ -70,34 +36,34 @@ export function SocialAccountQuickActions() {
   const { apiClient, status } = useMobileAuth();
   const { locale } = useMobileLocaleRuntime();
   const styles = useThemedStyles(createStyles);
-  const t = labels[locale];
+  const t = mobileCopy[locale];
   const [open, setOpen] = useState(false);
   const mutations = useMobileSocialMutations(apiClient);
   const statuses: MobileFriendPresenceStatus[] = ["ONLINE", "IDLE", "DND", "OFFLINE"];
   const presenceLabels = {
-    DND: t.statusDnd,
-    IDLE: t.statusIdle,
-    OFFLINE: t.statusOffline,
-    ONLINE: t.statusOnline,
+    DND: t.socialAccountStatusDnd,
+    IDLE: t.socialAccountStatusIdle,
+    OFFLINE: t.socialAccountStatusOffline,
+    ONLINE: t.socialAccountStatusOnline,
   } as const;
   if (status !== "signed-in") return null;
   return (
     <View style={styles.actions} testID="mobile-social-account-actions">
       <Button
-        label={t.edit}
+        label={t.socialAccountEdit}
         icon="person-outline"
         onPress={() => mobileNavigationRef.isReady() && mobileNavigationRef.navigate("ProfileEdit")}
         testID="mobile-profile-edit-open"
       />
       <Button
-        label={t.presence}
+        label={t.socialAccountPresence}
         icon="radio-button-on-outline"
         variant="secondary"
         onPress={() => setOpen(true)}
         testID="mobile-presence-open"
       />
       <Button
-        label={t.blocked}
+        label={t.socialAccountBlocked}
         icon="ban-outline"
         variant="secondary"
         onPress={() =>
@@ -106,7 +72,7 @@ export function SocialAccountQuickActions() {
         testID="mobile-blocked-users-open"
       />
       <BottomSheet
-        accessibilityLabel={t.presence}
+        accessibilityLabel={t.socialAccountPresence}
         onClose={() => setOpen(false)}
         open={open}
         testID="mobile-presence-sheet"
@@ -138,7 +104,7 @@ export function ProfileEditScreen({ onBack }: { onBack(): void }) {
   const { apiClient, replaceSessionUser, session } = useMobileAuth();
   const { locale } = useMobileLocaleRuntime();
   const styles = useThemedStyles(createStyles);
-  const t = labels[locale];
+  const t = mobileCopy[locale];
   const mutations = useMobileSocialMutations(apiClient);
   const [displayName, setDisplayName] = useState(session?.user.displayName ?? "");
   const [username, setUsername] = useState(session?.user.username ?? "");
@@ -148,25 +114,25 @@ export function ProfileEditScreen({ onBack }: { onBack(): void }) {
       contentContainerStyle={styles.content}
       testID="mobile-profile-edit-screen"
     >
-      <Text style={styles.title}>{t.title}</Text>
+      <Text style={styles.title}>{t.socialAccountTitle}</Text>
       <MobileProfileAvatarEditor
         replaceSessionUser={replaceSessionUser}
         user={session?.user ?? null}
       />
       <View style={styles.form}>
         <TextInput
-          accessibilityLabel={t.displayName}
+          accessibilityLabel={t.socialAccountDisplayName}
           onChangeText={setDisplayName}
-          placeholder={t.displayName}
+          placeholder={t.socialAccountDisplayName}
           style={styles.input}
           value={displayName}
           testID="mobile-profile-display-name"
         />
         <TextInput
-          accessibilityLabel={t.username}
+          accessibilityLabel={t.socialAccountUsername}
           autoCapitalize="none"
           onChangeText={setUsername}
-          placeholder={t.username}
+          placeholder={t.socialAccountUsername}
           style={styles.input}
           value={username}
           testID="mobile-profile-username"
@@ -175,7 +141,7 @@ export function ProfileEditScreen({ onBack }: { onBack(): void }) {
       <Button
         busy={mutations.updateProfile.isPending}
         disabled={username.trim().length < 2}
-        label={t.save}
+        label={t.socialAccountSave}
         onPress={() =>
           void mutations.updateProfile
             .mutateAsync({ displayName, username: username.trim() })
@@ -183,7 +149,7 @@ export function ProfileEditScreen({ onBack }: { onBack(): void }) {
         }
         testID="mobile-profile-save"
       />
-      <Button label={t.back} variant="ghost" onPress={onBack} />
+      <Button label={t.socialAccountBack} variant="ghost" onPress={onBack} />
     </ScrollView>
   );
 }
@@ -192,7 +158,7 @@ export function BlockedUsersScreen({ onBack }: { onBack(): void }) {
   const { apiClient, status } = useMobileAuth();
   const { locale } = useMobileLocaleRuntime();
   const styles = useThemedStyles(createStyles);
-  const t = labels[locale];
+  const t = mobileCopy[locale];
   const query = useMobileFriendsQuery(apiClient, status === "signed-in");
   const mutations = useMobileSocialMutations(apiClient);
   return (
@@ -201,7 +167,7 @@ export function BlockedUsersScreen({ onBack }: { onBack(): void }) {
       contentContainerStyle={styles.content}
       testID="mobile-blocked-users-screen"
     >
-      <Text style={styles.title}>{t.blocked}</Text>
+      <Text style={styles.title}>{t.socialAccountBlocked}</Text>
       <View style={styles.list}>
         {query.data?.blocked.map((user) => (
           <ListRow
@@ -218,7 +184,7 @@ export function BlockedUsersScreen({ onBack }: { onBack(): void }) {
             trailing={
               <Button
                 busy={mutations.unblockFriend.isPending}
-                label={t.unblock}
+                label={t.socialAccountUnblock}
                 variant="ghost"
                 onPress={() => mutations.unblockFriend.mutate(user.id)}
               />
@@ -227,9 +193,9 @@ export function BlockedUsersScreen({ onBack }: { onBack(): void }) {
         ))}
       </View>
       {!query.isLoading && (query.data?.blocked.length ?? 0) === 0 ? (
-        <Text style={styles.subtitle}>{t.blockedEmpty}</Text>
+        <Text style={styles.subtitle}>{t.socialAccountBlockedEmpty}</Text>
       ) : null}
-      <Button label={t.back} variant="ghost" onPress={onBack} />
+      <Button label={t.socialAccountBack} variant="ghost" onPress={onBack} />
     </ScrollView>
   );
 }

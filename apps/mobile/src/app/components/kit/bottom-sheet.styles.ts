@@ -31,4 +31,9 @@ export const createBottomSheetStyles = (theme: MobileTheme) =>
       width: 42,
     },
     content: { flex: 1, paddingHorizontal: theme.spacing.page },
+    /**
+     * Content-sized panels must not hand their children a zero flex basis, or
+     * the panel collapses to its handle; they shrink instead of filling.
+     */
+    contentSized: { flexShrink: 1, paddingHorizontal: theme.spacing.page },
   }) satisfies Record<string, ViewStyle>;

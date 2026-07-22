@@ -1,35 +1,57 @@
-import { useEffect, useMemo, type ReactNode } from "react";
-import { BlurView } from "expo-blur";
 import {
-  BackHandler,
-  Modal,
-  Pressable,
-  StyleSheet,
+  useCallback,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from "react";
+import {
   View,
+  useWindowDimensions,
+  type LayoutChangeEvent,
   type StyleProp,
   type ViewStyle,
 } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import { KeyboardProvider, useReanimatedKeyboardAnimation } from "react-native-keyboard-controller";
+import { useReanimatedKeyboardAnimation } from "react-native-keyboard-controller";
 import Animated, {
+  Extrapolation,
+  interpolate,
   runOnJS,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
   withSpring,
+  withTiming,
   type SharedValue,
 } from "react-native-reanimated";
 import { resolveMobileKeyboardLift } from "../../mobile-bottom-system-inset";
 import { useTheme, useThemedStyles } from "../../providers/mobile-theme-provider";
 import { useMobileBottomSystemSpacing } from "../../use-mobile-bottom-system-spacing";
 import { createBottomSheetStyles } from "./bottom-sheet.styles";
+import {
+  MOBILE_OVERLAY_CLOSE_DURATION_MS,
+  MOBILE_OVERLAY_CLOSE_EASING,
+  MOBILE_OVERLAY_OPEN_SPRING,
+  OverlaySurface,
+  useOverlayPhase,
+} from "./overlay-surface";
 
 export interface BottomSheetProps {
   accessibilityLabel: string;
   children: ReactNode;
   onClose(): void;
   open: boolean;
+  /** Panel height in "fixed" sizing; ignored when the panel sizes to content. */
   snapPoint?: number;
+  /**
+   * "fixed" (default) pins the panel to `snapPoint`. "content" lets the panel
+   * grow with what it renders — cap it with a `maxHeight` in
+   * `presentation.panelStyle`, and the sheet measures the rest itself.
+   */
+  sizing?: BottomSheetSizing;
   testID?: string;
   /**
    * Screen-specific visual treatment without creating a second sheet primitive.
@@ -37,6 +59,8 @@ export interface BottomSheetProps {
    */
   presentation?: BottomSheetPresentation;
 }
+
+export type BottomSheetSizing = "content" | "fixed";
 
 export interface BottomSheetPresentation {
   readonly backdropBlurIntensity?: number;
@@ -51,6 +75,13 @@ const DEFAULT_SNAP_POINT = 420;
 const MIN_SNAP_POINT = 240;
 const MAX_SNAP_POINT = 720;
 const CLOSE_VELOCITY = 900;
+
+interface BottomSheetContent {
+  readonly accessibilityLabel: string;
+  readonly children: ReactNode;
+  readonly presentation: BottomSheetPresentation | undefined;
+  readonly snapPoint: number;
+}
 
 function clampSnapPoint(snapPoint: number | undefined): number {
   const value = Number.isFinite(snapPoint)
@@ -71,38 +102,91 @@ export function BottomSheet({
   onClose,
   open,
   presentation,
+  sizing = "fixed",
   snapPoint: requestedSnapPoint,
   testID = "mobile-bottom-sheet",
 }: BottomSheetProps) {
-  const theme = useTheme();
   const styles = useThemedStyles(createBottomSheetStyles);
   const bottomSystemInset = useMobileBottomSystemSpacing(0);
   const reducedMotion = useReducedMotion() === true;
+  const windowHeight = useWindowDimensions().height;
+  const isContentSized = sizing === "content";
   const snapPoint = clampSnapPoint(requestedSnapPoint);
-  const translateY = useSharedValue(open ? 0 : snapPoint);
+  // A content-sized panel has no height to animate against until it has been
+  // laid out once, so it starts a whole window below the fold.
+  const initialHiddenOffset = isContentSized ? windowHeight : snapPoint;
+  const translateY = useSharedValue(open ? 0 : initialHiddenOffset);
+  const [measuredPanelHeight, setMeasuredPanelHeight] = useState<number | null>(null);
+  const panelRef = useRef<View | null>(null);
 
-  useEffect(() => {
-    translateY.value = reducedMotion
-      ? open
-        ? 0
-        : snapPoint
-      : withSpring(open ? 0 : snapPoint, {
-          damping: 24,
-          stiffness: 240,
-        });
-  }, [open, reducedMotion, snapPoint, translateY]);
+  // The panel outlives `open` by one exit animation, so it keeps the props it
+  // was opened with: callers stay free to drop the member, policy or message
+  // that produced the content in the same tick they ask for a close.
+  const openedWith = useRef<BottomSheetContent>({
+    accessibilityLabel,
+    children,
+    presentation,
+    snapPoint,
+  });
+  if (open) {
+    openedWith.current = { accessibilityLabel, children, presentation, snapPoint };
+  }
+  const content = openedWith.current;
 
-  useEffect(() => {
-    if (!open) {
+  const { phase, settleClosed } = useOverlayPhase(open);
+
+  // How far the panel travels: its own height. Fixed sheets know it up front,
+  // content-sized ones learn it from the first layout.
+  const hiddenOffset = isContentSized ? measuredPanelHeight : content.snapPoint;
+  /** Travel distance, falling back to the window until the first measurement. */
+  const panelTravel = hiddenOffset ?? windowHeight;
+
+  const handlePanelLayout = useCallback((event: LayoutChangeEvent) => {
+    const height = Math.round(event.nativeEvent.layout.height);
+    setMeasuredPanelHeight((current) => (height > 0 && current !== height ? height : current));
+  }, []);
+
+  useLayoutEffect(() => {
+    if (phase === "closed") {
       return;
     }
 
-    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
-      onClose();
-      return true;
-    });
-    return () => subscription.remove();
-  }, [onClose, open]);
+    if (phase === "open") {
+      if (hiddenOffset === null) {
+        // Still unmeasured: entering from a guessed distance would either clip
+        // the entry or leave the panel peeking, so it waits one layout pass.
+        return;
+      }
+
+      if (!reducedMotion && translateY.value > hiddenOffset) {
+        translateY.value = hiddenOffset;
+      }
+      // A layout effect lands in the commit that registers the panel with the
+      // overlay host, so the spring is already running on the UI thread by the
+      // frame the panel first draws instead of one effect flush later.
+      translateY.value = reducedMotion ? 0 : withSpring(0, MOBILE_OVERLAY_OPEN_SPRING);
+      return;
+    }
+
+    if (reducedMotion) {
+      translateY.value = panelTravel;
+      settleClosed();
+      return;
+    }
+
+    translateY.value = withTiming(
+      panelTravel,
+      { duration: MOBILE_OVERLAY_CLOSE_DURATION_MS, easing: MOBILE_OVERLAY_CLOSE_EASING },
+      (finished) => {
+        "worklet";
+        // An unfinished run means the sheet was re-opened mid-exit; that render
+        // already owns the panel and must keep it mounted.
+        if (finished === true) {
+          runOnJS(settleClosed)();
+        }
+      },
+    );
+  }, [hiddenOffset, panelTravel, phase, reducedMotion, settleClosed, translateY]);
 
   const panGesture = useMemo(
     () =>
@@ -114,64 +198,59 @@ export function BottomSheet({
         })
         .onEnd((event) => {
           "worklet";
-          if (shouldCloseSheet(event.translationY, event.velocityY, snapPoint)) {
+          if (shouldCloseSheet(event.translationY, event.velocityY, panelTravel)) {
+            // The exit animation is owned by the closing phase, so a dragged
+            // sheet leaves the screen exactly like a tapped one.
             runOnJS(onClose)();
             return;
           }
 
-          translateY.value = reducedMotion ? 0 : withSpring(0, { damping: 24, stiffness: 240 });
+          translateY.value = reducedMotion ? 0 : withSpring(0, MOBILE_OVERLAY_OPEN_SPRING);
         }),
-    [onClose, open, reducedMotion, snapPoint, translateY],
+    [onClose, open, panelTravel, reducedMotion, translateY],
   );
 
-  if (!open) {
+  // Darkening is derived from the panel position, so both directions fade in
+  // step with the motion instead of snapping at mount and unmount.
+  const animatedBackdropStyle = useAnimatedStyle(
+    () => ({
+      opacity: interpolate(translateY.value, [0, panelTravel], [1, 0], Extrapolation.CLAMP),
+    }),
+    [panelTravel],
+  );
+
+  if (phase === "closed") {
     return null;
   }
 
   return (
-    <Modal
-      animationType="none"
-      navigationBarTranslucent
-      onRequestClose={onClose}
-      statusBarTranslucent
-      transparent
-      visible
+    <OverlaySurface
+      accessibilityLabel={content.accessibilityLabel}
+      animatedBackdropStyle={animatedBackdropStyle}
+      backdropBlurIntensity={content.presentation?.backdropBlurIntensity}
+      backdropStyle={[styles.backdrop, content.presentation?.backdropStyle]}
+      focusRef={panelRef}
+      onClose={onClose}
+      open={open}
+      style={styles.root}
+      testID={testID}
     >
-      {/* A modal is its own native window, so it needs its own keyboard tracker —
-          the app-level provider only measures the window behind this one. */}
-      <KeyboardProvider>
-        <View style={styles.root}>
-          <Pressable
-            accessibilityLabel={accessibilityLabel}
-            accessibilityRole="button"
-            onPress={onClose}
-            style={[styles.backdrop, presentation?.backdropStyle]}
-            testID={`${testID}-backdrop`}
-          >
-            {presentation?.backdropBlurIntensity ? (
-              <BlurView
-                intensity={presentation.backdropBlurIntensity}
-                pointerEvents="none"
-                style={StyleSheet.absoluteFill}
-              />
-            ) : null}
-          </Pressable>
-          <GestureDetector gesture={panGesture}>
-            <BottomSheetPanel
-              accessibilityLabel={accessibilityLabel}
-              bottomSystemInset={bottomSystemInset}
-              onClose={onClose}
-              {...(presentation ? { presentation } : {})}
-              snapPoint={snapPoint}
-              testID={testID}
-              translateY={translateY}
-            >
-              {children}
-            </BottomSheetPanel>
-          </GestureDetector>
-        </View>
-      </KeyboardProvider>
-    </Modal>
+      <GestureDetector gesture={panGesture}>
+        <BottomSheetPanel
+          accessibilityLabel={content.accessibilityLabel}
+          bottomSystemInset={bottomSystemInset}
+          onClose={onClose}
+          {...(isContentSized ? { onLayout: handlePanelLayout } : {})}
+          panelRef={panelRef}
+          {...(content.presentation ? { presentation: content.presentation } : {})}
+          snapPoint={isContentSized ? null : content.snapPoint}
+          testID={testID}
+          translateY={translateY}
+        >
+          {content.children}
+        </BottomSheetPanel>
+      </GestureDetector>
+    </OverlaySurface>
   );
 }
 
@@ -180,6 +259,8 @@ function BottomSheetPanel({
   bottomSystemInset,
   children,
   onClose,
+  onLayout,
+  panelRef,
   presentation,
   snapPoint,
   testID,
@@ -189,8 +270,12 @@ function BottomSheetPanel({
   readonly bottomSystemInset: number;
   readonly children: ReactNode;
   readonly onClose: () => void;
+  readonly onLayout?: (event: LayoutChangeEvent) => void;
+  /** Screen-reader focus target once the sheet is on screen. */
+  readonly panelRef: RefObject<View | null>;
   readonly presentation?: BottomSheetPresentation;
-  readonly snapPoint: number;
+  /** `null` hands the height to the content and the presentation's `maxHeight`. */
+  readonly snapPoint: number | null;
   readonly testID: string;
   readonly translateY: SharedValue<number>;
 }) {
@@ -220,12 +305,14 @@ function BottomSheetPanel({
       accessibilityLabel={accessibilityLabel}
       accessibilityViewIsModal
       onAccessibilityEscape={onClose}
+      {...(onLayout ? { onLayout } : {})}
+      ref={panelRef}
       role="dialog"
       style={[
         styles.panel,
         { paddingBottom: theme.spacing.page + bottomSystemInset },
         presentation?.panelStyle,
-        { height: snapPoint },
+        snapPoint === null ? null : { height: snapPoint },
         animatedPanelStyle,
       ]}
       testID={`${testID}-panel`}
@@ -233,7 +320,14 @@ function BottomSheetPanel({
       <View style={[styles.handleArea, presentation?.handleAreaStyle]}>
         <View style={[styles.handle, presentation?.handleStyle]} />
       </View>
-      <View style={[styles.content, presentation?.contentStyle]}>{children}</View>
+      <View
+        style={[
+          snapPoint === null ? styles.contentSized : styles.content,
+          presentation?.contentStyle,
+        ]}
+      >
+        {children}
+      </View>
     </Animated.View>
   );
 }

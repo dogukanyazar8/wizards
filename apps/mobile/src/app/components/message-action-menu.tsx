@@ -1,19 +1,40 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { BlurView } from "expo-blur";
 import * as Clipboard from "expo-clipboard";
-import { useState, type ComponentProps, type ReactNode } from "react";
-import { Alert, Modal, Pressable, StyleSheet, Text, View } from "react-native";
-import { useReducedMotion } from "react-native-reanimated";
+import { useLayoutEffect, useRef, useState, type ComponentProps, type ReactNode } from "react";
+import { Alert, Pressable, Text, View } from "react-native";
+import Animated, {
+  Extrapolation,
+  interpolate,
+  runOnJS,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated";
 
 import { activeMobileCopy as copy } from "../../locale/mobile-locale-preferences";
+import {
+  MOBILE_OVERLAY_CLOSE_DURATION_MS,
+  MOBILE_OVERLAY_CLOSE_EASING,
+  MOBILE_OVERLAY_OPEN_SPRING,
+  OverlaySurface,
+  useOverlayPhase,
+} from "./kit/overlay-surface";
 import { useMobileHaptics } from "../providers/mobile-haptics-provider";
 import { useTheme } from "../providers/mobile-theme-provider";
+import { useMobileBottomSystemSpacing } from "../use-mobile-bottom-system-spacing";
 import { AvatarMark } from "./ui-atoms";
 import { useMessageActionMenuStyles } from "./message-action-menu.styles";
 import type { MobileMessageReactionToggleInput } from "./message-primitives";
 
 /** 8a quick-reaction bar order is part of the visual handoff contract. */
 export const MOBILE_MESSAGE_REACTION_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🙏"] as const;
+
+/** How small the menu starts before it settles at its resting size. */
+const MENU_ENTRY_SCALE = 0.92;
+
+const MENU_BACKDROP_BLUR_INTENSITY = 12;
 
 export type MessageActionMenuMessage = {
   readonly content: string;
@@ -99,14 +120,61 @@ export function MessageActionMenu({
   const styles = useMessageActionMenuStyles();
   const theme = useTheme();
   const haptics = useMobileHaptics();
+  // The card is centred, so a three-button navigation bar would otherwise crop
+  // its bottom row; the inset keeps the last action above the bar.
+  const bottomSystemInset = useMobileBottomSystemSpacing(0);
   const reducedMotion = useReducedMotion() === true;
   const [internalOpen, setInternalOpen] = useState(false);
+  const menuRef = useRef<View | null>(null);
   const isControlled = controlledOpen !== undefined;
   const open = isControlled ? controlledOpen : internalOpen;
   const close = () => {
     if (!isControlled) setInternalOpen(false);
     onClose?.();
   };
+
+  const { phase, settleClosed } = useOverlayPhase(open);
+  // The card grows into place and shrinks back out; the backdrop rides the same
+  // progress so the blur never snaps on or off.
+  const progress = useSharedValue(open ? 1 : 0);
+
+  useLayoutEffect(() => {
+    if (phase === "closed") {
+      return;
+    }
+
+    if (phase === "open") {
+      progress.value = reducedMotion ? 1 : withSpring(1, MOBILE_OVERLAY_OPEN_SPRING);
+      return;
+    }
+
+    if (reducedMotion) {
+      progress.value = 0;
+      settleClosed();
+      return;
+    }
+
+    progress.value = withTiming(
+      0,
+      { duration: MOBILE_OVERLAY_CLOSE_DURATION_MS, easing: MOBILE_OVERLAY_CLOSE_EASING },
+      (finished) => {
+        "worklet";
+        if (finished === true) {
+          runOnJS(settleClosed)();
+        }
+      },
+    );
+  }, [phase, progress, reducedMotion, settleClosed]);
+
+  const animatedBackdropStyle = useAnimatedStyle(() => ({ opacity: progress.value }));
+  const animatedMenuStyle = useAnimatedStyle(() => ({
+    opacity: progress.value,
+    transform: [
+      {
+        scale: interpolate(progress.value, [0, 1], [MENU_ENTRY_SCALE, 1], Extrapolation.CLAMP),
+      },
+    ],
+  }));
 
   const isFailed = message.deliveryStatus === "failed";
   const shouldRenderQuickBar = showQuickBar && !isFailed && onToggleReaction !== undefined;
@@ -273,26 +341,24 @@ export function MessageActionMenu({
           {children}
         </Pressable>
       ) : null}
-      {open ? (
-        <Modal
-          animationType={reducedMotion ? "none" : "fade"}
-          navigationBarTranslucent
-          onRequestClose={close}
-          statusBarTranslucent
-          transparent
-          visible
+      {phase === "closed" ? null : (
+        <OverlaySurface
+          accessibilityLabel={copy.messageActionMenuCloseAction}
+          animatedBackdropStyle={animatedBackdropStyle}
+          backdropBlurIntensity={MENU_BACKDROP_BLUR_INTENSITY}
+          backdropStyle={styles.backdrop}
+          focusRef={menuRef}
+          onClose={close}
+          open={open}
+          style={styles.root}
+          testID={testID}
         >
-          <View style={styles.root} testID={`${testID}-menu`}>
-            <Pressable
-              accessibilityLabel={copy.messageActionMenuCloseAction}
-              accessibilityRole="button"
-              onPress={close}
-              style={styles.backdrop}
-              testID={`${testID}-backdrop`}
-            >
-              <BlurView intensity={12} pointerEvents="none" style={StyleSheet.absoluteFill} />
-            </Pressable>
-            <View pointerEvents="box-none" style={styles.content}>
+          <Animated.View
+            pointerEvents="box-none"
+            ref={menuRef}
+            style={[styles.content, { paddingBottom: bottomSystemInset }, animatedMenuStyle]}
+            testID={`${testID}-menu`}
+          >
               {shouldRenderQuickBar ? (
                 <View
                   style={[styles.quickBar, own ? styles.alignOwn : styles.alignIncoming, !own && styles.incomingInset]}
@@ -389,10 +455,9 @@ export function MessageActionMenu({
                   {dangerRows.map(renderRow)}
                 </View>
               ) : null}
-            </View>
-          </View>
-        </Modal>
-      ) : null}
+          </Animated.View>
+        </OverlaySurface>
+      )}
     </>
   );
 }

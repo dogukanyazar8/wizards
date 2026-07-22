@@ -14,6 +14,7 @@ import type { MobileTheme } from "../design/themes";
 import { activeMobileCopy } from "../locale/mobile-locale-preferences";
 import { reportMobileBoundaryError } from "../observability/mobile-sentry";
 import { useThemedStyles } from "./providers/mobile-theme-provider";
+import { useMobileBottomSystemSpacing } from "./use-mobile-bottom-system-spacing";
 
 const copy = activeMobileCopy;
 
@@ -108,6 +109,9 @@ function MobileErrorFallback({
   styles: ReturnType<typeof createMobileErrorStyles>;
 }) {
   const insets = useSafeAreaInsets();
+  // The fallback replaces the whole app, shell included, so it clears the Android
+  // navigation bar through the shared policy instead of its own inset math.
+  const bottomSystemSpacing = useMobileBottomSystemSpacing(20);
 
   return (
     <View
@@ -116,7 +120,7 @@ function MobileErrorFallback({
       style={[
         styles.safeArea,
         {
-          paddingBottom: Math.max(insets.bottom, 20),
+          paddingBottom: bottomSystemSpacing,
           paddingTop: Math.max(insets.top, 20),
         },
       ]}

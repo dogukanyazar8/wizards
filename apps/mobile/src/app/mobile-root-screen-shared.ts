@@ -27,7 +27,6 @@ export {
   ActivityIndicator,
   FlatList,
   Image,
-  Modal,
   Platform,
   Pressable,
   RefreshControl,

@@ -8,6 +8,7 @@ import { useMobileLocaleRuntime } from "../app/providers/mobile-locale-provider"
 import { useThemedStyles } from "../app/providers/mobile-theme-provider";
 import { useMobileServerManagementMutations } from "../query/use-mobile-server-management-mutations";
 import { createMobileServerManagementStyles } from "./mobile-server-management.styles";
+import { mobileCopy } from "../locale/mobile-copy";
 
 export type MobileWorkspaceEditorState =
   | { readonly kind: "category-create" }
@@ -22,35 +23,6 @@ export interface MobileWorkspaceEditorSheetsProps {
   readonly serverId: string;
   onClose(): void;
 }
-
-const COPY = {
-  en: {
-    cancel: "Cancel",
-    category: "Category",
-    channel: "Channel",
-    create: "Create",
-    delete: "Delete",
-    error: "This change could not be completed. Please try again.",
-    name: "Name",
-    save: "Save",
-    text: "Text",
-    topic: "Topic",
-    voice: "Voice",
-  },
-  tr: {
-    cancel: "İptal",
-    category: "Kategori",
-    channel: "Kanal",
-    create: "Oluştur",
-    delete: "Sil",
-    error: "Değişiklik tamamlanamadı. Lütfen tekrar deneyin.",
-    name: "Ad",
-    save: "Kaydet",
-    text: "Metin",
-    topic: "Konu",
-    voice: "Ses",
-  },
-} as const;
 
 function normalizeName(value: string): string | null {
   const trimmed = value.trim();
@@ -70,7 +42,7 @@ export function MobileWorkspaceEditorSheets({
 }: MobileWorkspaceEditorSheetsProps) {
   const { apiClient } = useMobileAuth();
   const { locale } = useMobileLocaleRuntime();
-  const labels = COPY[locale];
+  const labels = mobileCopy[locale];
   const styles = useThemedStyles(createMobileServerManagementStyles);
   const mutations = useMobileServerManagementMutations(apiClient);
   const [name, setName] = useState("");
@@ -145,7 +117,7 @@ export function MobileWorkspaceEditorSheets({
     const normalizedName = normalizeName(name);
     const normalizedTopic = normalizeTopic(topic);
     if (!normalizedName || normalizedTopic === null) {
-      setError(labels.error);
+      setError(labels.workspaceEditorError);
       return;
     }
 
@@ -179,7 +151,7 @@ export function MobileWorkspaceEditorSheets({
       }
       onClose();
     } catch {
-      setError(labels.error);
+      setError(labels.workspaceEditorError);
     } finally {
       submittingRef.current = false;
     }
@@ -194,7 +166,7 @@ export function MobileWorkspaceEditorSheets({
       setDeleteCategory(null);
       onClose();
     } catch {
-      setError(labels.error);
+      setError(labels.workspaceEditorError);
       throw new Error("mobile-category-delete-failed");
     }
   };
@@ -212,7 +184,7 @@ export function MobileWorkspaceEditorSheets({
   return (
     <>
       <BottomSheet
-        accessibilityLabel={isCategoryEditor ? labels.category : labels.channel}
+        accessibilityLabel={isCategoryEditor ? labels.workspaceEditorCategory : labels.workspaceEditorChannel}
         onClose={onClose}
         open={isOpen}
         snapPoint={560}
@@ -220,15 +192,15 @@ export function MobileWorkspaceEditorSheets({
       >
         <View style={styles.sheet}>
           <Text accessibilityRole="header" style={styles.sectionTitle}>
-            {isCategoryEditor ? labels.category : labels.channel}
+            {isCategoryEditor ? labels.workspaceEditorCategory : labels.workspaceEditorChannel}
           </Text>
           <TextInput
-            accessibilityLabel={labels.name}
+            accessibilityLabel={labels.workspaceEditorName}
             autoCapitalize="words"
             autoCorrect
             maxLength={48}
             onChangeText={setName}
-            placeholder={labels.name}
+            placeholder={labels.workspaceEditorName}
             style={styles.input}
             testID={isCategoryEditor ? "mobile-category-name" : "mobile-channel-name"}
             value={name}
@@ -236,10 +208,10 @@ export function MobileWorkspaceEditorSheets({
           {!isCategoryEditor ? (
             <>
               <TextInput
-                accessibilityLabel={labels.topic}
+                accessibilityLabel={labels.workspaceEditorTopic}
                 maxLength={120}
                 onChangeText={setTopic}
-                placeholder={labels.topic}
+                placeholder={labels.workspaceEditorTopic}
                 style={styles.input}
                 testID="mobile-channel-topic"
                 value={topic}
@@ -248,14 +220,14 @@ export function MobileWorkspaceEditorSheets({
                 <View style={styles.row}>
                   <Button
                     accessibilityState={{ selected: type === "TEXT" }}
-                    label={labels.text}
+                    label={labels.workspaceEditorText}
                     onPress={() => setType("TEXT")}
                     testID="mobile-channel-type-text"
                     variant={type === "TEXT" ? "primary" : "secondary"}
                   />
                   <Button
                     accessibilityState={{ selected: type === "VOICE" }}
-                    label={labels.voice}
+                    label={labels.workspaceEditorVoice}
                     onPress={() => setType("VOICE")}
                     testID="mobile-channel-type-voice"
                     variant={type === "VOICE" ? "primary" : "secondary"}
@@ -263,7 +235,7 @@ export function MobileWorkspaceEditorSheets({
                 </View>
               ) : null}
               <Button
-                label={`${labels.category}: ${currentCategoryName}`}
+                label={`${labels.workspaceEditorCategory}: ${currentCategoryName}`}
                 onPress={cycleCategory}
                 testID="mobile-channel-category"
                 variant="secondary"
@@ -282,15 +254,15 @@ export function MobileWorkspaceEditorSheets({
             }
             label={
               editor?.kind === "category-create" || editor?.kind === "channel-create"
-                ? labels.create
-                : labels.save
+                ? labels.workspaceEditorCreate
+                : labels.workspaceEditorSave
             }
             onPress={() => void save()}
             testID={isCategoryEditor ? "mobile-category-save" : "mobile-channel-save"}
           />
           {editingCategory ? (
             <Button
-              label={labels.delete}
+              label={labels.workspaceEditorDelete}
               onPress={() =>
                 setDeleteCategory({ id: editingCategory.id, name: editingCategory.name })
               }
@@ -298,19 +270,19 @@ export function MobileWorkspaceEditorSheets({
               variant="danger"
             />
           ) : null}
-          <Button label={labels.cancel} onPress={onClose} variant="ghost" />
+          <Button label={labels.workspaceEditorCancel} onPress={onClose} variant="ghost" />
         </View>
       </BottomSheet>
       <DestructiveConfirmationSheet
-        body="Deleting a category cannot be undone."
+        body={labels.workspaceEditorCategoryDeleteBody}
         busy={mutations.deleteCategory.isPending}
-        confirmLabel={labels.delete}
+        confirmLabel={labels.workspaceEditorDelete}
         onCancel={() => setDeleteCategory(null)}
         onConfirm={confirmDeleteCategory}
         open={deleteCategory !== null}
         {...(deleteCategory ? { requiredText: deleteCategory.name } : {})}
         testID="mobile-category-delete-confirm"
-        title={labels.delete}
+        title={labels.workspaceEditorDelete}
       />
     </>
   );

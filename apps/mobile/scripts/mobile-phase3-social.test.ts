@@ -11,7 +11,8 @@ describe("mobile Phase 3 social contract", () => {
     const friends = read("../src/social/friends-hub.tsx");
     const account = read("../src/social/social-account-screens.tsx");
     const sources = `${dm}\n${dmInbox}\n${friends}\n${account}`;
-    for (const testId of ["mobile-friends-screen", "mobile-friend-request-submit", "mobile-presence-sheet", "mobile-profile-edit-screen", "mobile-blocked-users-screen"]) {
+    // 9d replaced the username submit form with live search plus per-row actions.
+    for (const testId of ["mobile-friends-screen", "mobile-friend-search-users-input", "mobile-friend-invite-card", "mobile-presence-sheet", "mobile-profile-edit-screen", "mobile-blocked-users-screen"]) {
       assert.equal(sources.includes(testId), true, `Missing ${testId}`);
     }
     // Segment ids are built from the segment union, so assert the template and its members.
@@ -22,7 +23,8 @@ describe("mobile Phase 3 social contract", () => {
   it("keeps social state remote-only and maps verified socket events narrowly", () => {
     const query = read("../src/social/mobile-social-query.ts");
     const realtime = read("../src/realtime/mobile-realtime-contract.ts");
-    assert.equal(/AsyncStorage|persistQueryClient|offline/i.test(query), false);
+    // Case-sensitive so the OFFLINE presence literal is not read as offline persistence.
+    assert.equal(/AsyncStorage|persistQueryClient|[Oo]ffline/.test(query), false);
     assert.match(realtime, /"friends:updated"/);
     assert.match(realtime, /"presence:update"/);
     assert.match(realtime, /"user:profile:updated"/);

@@ -15,6 +15,7 @@ import {
   useState,
 } from "../mobile-root-screen-shared";
 import { DMComposer, type MobileComposerIntent } from "../composer/mobile-composer";
+import { MobileChatKeyboardRegion } from "../mobile-chat-keyboard-region";
 import {
   DMChatEncryptionNotice,
   DMChatHeader,
@@ -276,7 +277,9 @@ export function DMConversationPreviewCard({
   );
 
   return (
-    <View style={styles.messageArea}>
+    // The chat body rides the IME with a transform (no per-frame relayout of
+    // the message list); the shell keeps only the system inset underneath.
+    <MobileChatKeyboardRegion style={styles.messageArea} testID="mobile-dm-chat-keyboard-region">
       {isEndToEndEncrypted ? <DMChatEncryptionNotice /> : null}
       {state.status === "loading" && !state.payload ? <MessageListSkeleton /> : null}
       {state.status === "error" ? (
@@ -349,6 +352,6 @@ export function DMConversationPreviewCard({
           variant="dm"
         />
       ) : null}
-    </View>
+    </MobileChatKeyboardRegion>
   );
 }

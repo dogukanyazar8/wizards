@@ -9,6 +9,7 @@ import { BottomSheet, Button, EmptyState, Skeleton, Toggle } from "../app/compon
 import { useMobileServerManagementMutations } from "../query/use-mobile-server-management-mutations";
 import { useMobileServerRoleOverviewQuery } from "./mobile-server-management-query";
 import { createMobileServerRolesStyles } from "./mobile-server-roles-screen.styles";
+import { mobileCopy } from "../locale/mobile-copy";
 
 export interface MobileServerRolesScreenProps {
   readonly serverId: string;
@@ -19,74 +20,19 @@ export interface MobileServerRolesScreenProps {
 // Preset role colours offered by the create sheet (handoff swatch set).
 const ROLE_COLOR_PRESETS = [0xe0527e, 0xc77a2b, 0x4f46e5, 0x3b82f6, 0x22a366, 0x8b5cf6] as const;
 
-const copy = {
-  en: {
-    allPermissions: "All permissions",
-    back: "Back",
-    cancel: "Cancel",
-    create: "Create",
-    createRole: "New role",
-    defaultPermissions: "@EVERYONE DEFAULT PERMISSIONS",
-    defaultRole: "Default role · all members",
-    emptyBody: "No roles are available for this server.",
-    emptyTitle: "No roles yet",
-    error: "This role action could not be completed. Please try again.",
-    inviteCreate: "Create invites",
-    joinVoice: "Join voice channels",
-    loading: "Loading roles…",
-    manageServer: "Manage server",
-    nameLabel: "Role name",
-    namePlaceholder: "e.g. Moderator",
-    noPermissions: "No explicit permissions",
-    permissionRestricted: "Moderators and above only",
-    retry: "Try again",
-    roleColor: "Colour",
-    roles: "Roles",
-    rolesReorder: (count: number) => `${count} roles · drag to prioritise`,
-    sendMessages: "Send messages",
-    undelegable: "All permissions · non-transferable",
-  },
-  tr: {
-    allPermissions: "Tüm izinler",
-    back: "Geri",
-    cancel: "İptal",
-    create: "Oluştur",
-    createRole: "Yeni rol",
-    defaultPermissions: "@EVERYONE VARSAYILAN İZİNLERİ",
-    defaultRole: "Varsayılan rol · tüm üyeler",
-    emptyBody: "Bu sunucuda görüntülenecek rol yok.",
-    emptyTitle: "Henüz rol yok",
-    error: "Rol işlemi tamamlanamadı. Lütfen yeniden deneyin.",
-    inviteCreate: "Davet oluşturma",
-    joinVoice: "Ses kanallarına katılma",
-    loading: "Roller yükleniyor…",
-    manageServer: "Sunucu ayarları",
-    nameLabel: "Rol adı",
-    namePlaceholder: "örn. Moderatör",
-    noPermissions: "Açık izin yok",
-    permissionRestricted: "Yalnızca Moderatör ve üstü",
-    retry: "Yeniden dene",
-    roleColor: "Renk",
-    roles: "Roller",
-    rolesReorder: (count: number) => `${count} rol · sürükleyerek önceliklendir`,
-    sendMessages: "Mesaj gönderme",
-    undelegable: "Tüm izinler · devredilemez",
-  },
-} as const;
-
 function colorFromRole(color: number): string {
   return `#${color.toString(16).padStart(6, "0")}`;
 }
 
 function getRoleSummary(
   role: { readonly isDefault: boolean; readonly permissionKeys: readonly string[] },
-  labels: (typeof copy)[keyof typeof copy],
+  labels: (typeof mobileCopy)[keyof typeof mobileCopy],
 ): string {
   if (role.isDefault) {
-    return labels.defaultRole;
+    return labels.serverRolesDefaultRole;
   }
   if (role.permissionKeys.includes("ADMINISTRATOR")) {
-    return labels.allPermissions;
+    return labels.serverRolesAllPermissions;
   }
   const summary = role.permissionKeys
     .filter(
@@ -95,12 +41,12 @@ function getRoleSummary(
     .slice(0, 2)
     .map((key) =>
       key === "MANAGE_SERVER"
-        ? labels.manageServer
+        ? labels.serverRolesManageServer
         : key === "MANAGE_MESSAGES"
-          ? labels.sendMessages
-          : labels.inviteCreate,
+          ? labels.serverRolesSendMessages
+          : labels.serverRolesInviteCreate,
     );
-  return summary.length > 0 ? summary.join(" · ") : labels.noPermissions;
+  return summary.length > 0 ? summary.join(" · ") : labels.serverRolesNoPermissions;
 }
 
 export function MobileServerRolesScreen({
@@ -110,7 +56,7 @@ export function MobileServerRolesScreen({
 }: MobileServerRolesScreenProps) {
   const { apiClient } = useMobileAuth();
   const { locale } = useMobileLocaleRuntime();
-  const labels = copy[locale];
+  const labels = mobileCopy[locale];
   const theme = useTheme();
   const styles = useThemedStyles(createMobileServerRolesStyles);
   const mutations = useMobileServerManagementMutations(apiClient);
@@ -146,14 +92,14 @@ export function MobileServerRolesScreen({
       setCreateOpen(false);
       onOpenRoleDetail?.(created.role.id);
     } catch {
-      setError(labels.error);
+      setError(labels.serverRolesError);
     }
   };
 
   const header = (
     <View style={styles.header}>
       <Pressable
-        accessibilityLabel={labels.back}
+        accessibilityLabel={labels.serverRolesBack}
         accessibilityRole="button"
         hitSlop={8}
         onPress={onBack}
@@ -164,14 +110,16 @@ export function MobileServerRolesScreen({
       </Pressable>
       <View style={styles.headerBody}>
         <Text maxFontSizeMultiplier={2} numberOfLines={1} style={styles.title}>
-          {labels.roles}
+          {labels.serverRolesRoles}
         </Text>
         <Text maxFontSizeMultiplier={2} numberOfLines={1} style={styles.subtitle}>
-          {rolesQuery.isLoading ? labels.loading : labels.rolesReorder(roles.length)}
+          {rolesQuery.isLoading
+            ? labels.serverRolesLoading
+            : labels.serverRolesRolesReorder.replace("{count}", String(roles.length))}
         </Text>
       </View>
       <Pressable
-        accessibilityLabel={labels.createRole}
+        accessibilityLabel={labels.serverRolesCreateRole}
         accessibilityRole="button"
         onPress={openCreate}
         style={({ pressed }) => [styles.createButton, pressed && styles.createButtonPressed]}
@@ -208,18 +156,18 @@ export function MobileServerRolesScreen({
 
         {rolesQuery.isError ? (
           <EmptyState
-            action={<Button label={labels.retry} onPress={() => void rolesQuery.refetch()} />}
-            description={labels.emptyBody}
+            action={<Button label={labels.serverRolesRetry} onPress={() => void rolesQuery.refetch()} />}
+            description={labels.serverRolesEmptyBody}
             style={styles.state}
             testID="mobile-server-roles-error"
-            title={labels.emptyTitle}
+            title={labels.serverRolesEmptyTitle}
           />
         ) : roles.length === 0 ? (
           <EmptyState
-            description={labels.emptyBody}
+            description={labels.serverRolesEmptyBody}
             style={styles.state}
             testID="mobile-server-roles-empty"
-            title={labels.emptyTitle}
+            title={labels.serverRolesEmptyTitle}
           />
         ) : (
           <>
@@ -256,7 +204,7 @@ export function MobileServerRolesScreen({
                       </Text>
                       <Text numberOfLines={1} maxFontSizeMultiplier={2} style={styles.roleSummary}>
                         {role.isDefault && !role.permissionKeys.includes("ADMINISTRATOR")
-                          ? labels.defaultRole
+                          ? labels.serverRolesDefaultRole
                           : getRoleSummary(role, labels)}
                       </Text>
                     </View>
@@ -271,7 +219,7 @@ export function MobileServerRolesScreen({
 
             <View style={styles.sectionLabel}>
               <Text maxFontSizeMultiplier={2} style={styles.sectionLabelText}>
-                {labels.defaultPermissions}
+                {labels.serverRolesDefaultPermissions}
               </Text>
             </View>
             <View
@@ -279,16 +227,16 @@ export function MobileServerRolesScreen({
               testID="mobile-server-roles-default-permissions"
             >
               <ReadOnlyPermissionRow
-                label={labels.sendMessages}
+                label={labels.serverRolesSendMessages}
                 value={defaultPermissionKeys.has("SEND_MESSAGES")}
               />
               <ReadOnlyPermissionRow
-                label={labels.joinVoice}
+                label={labels.serverRolesJoinVoice}
                 value={defaultPermissionKeys.has("CONNECT_VOICE")}
               />
               <ReadOnlyPermissionRow
-                hint={labels.permissionRestricted}
-                label={labels.inviteCreate}
+                hint={labels.serverRolesPermissionRestricted}
+                label={labels.serverRolesInviteCreate}
                 last
                 value={defaultPermissionKeys.has("MANAGE_INVITES")}
               />
@@ -298,7 +246,7 @@ export function MobileServerRolesScreen({
       </ScrollView>
 
       <BottomSheet
-        accessibilityLabel={labels.createRole}
+        accessibilityLabel={labels.serverRolesCreateRole}
         onClose={() => setCreateOpen(false)}
         open={createOpen}
         snapPoint={380}
@@ -306,18 +254,18 @@ export function MobileServerRolesScreen({
       >
         <View style={styles.sheet}>
           <Text maxFontSizeMultiplier={2} style={styles.sheetTitle}>
-            {labels.createRole}
+            {labels.serverRolesCreateRole}
           </Text>
           <View style={{ gap: 8 }}>
             <Text maxFontSizeMultiplier={2} style={styles.sheetLabel}>
-              {labels.nameLabel}
+              {labels.serverRolesNameLabel}
             </Text>
             <TextInput
-              accessibilityLabel={labels.nameLabel}
+              accessibilityLabel={labels.serverRolesNameLabel}
               autoFocus
               maxLength={48}
               onChangeText={setDraftName}
-              placeholder={labels.namePlaceholder}
+              placeholder={labels.serverRolesNamePlaceholder}
               placeholderTextColor={theme.text.placeholder}
               style={styles.input}
               testID="mobile-server-role-create-name"
@@ -326,7 +274,7 @@ export function MobileServerRolesScreen({
           </View>
           <View style={{ gap: 8 }}>
             <Text maxFontSizeMultiplier={2} style={styles.sheetLabel}>
-              {labels.roleColor}
+              {labels.serverRolesRoleColor}
             </Text>
             <View style={styles.colorRow}>
               {ROLE_COLOR_PRESETS.map((preset) => (
@@ -352,7 +300,7 @@ export function MobileServerRolesScreen({
             <View style={styles.sheetAction}>
               <Button
                 fullWidth
-                label={labels.cancel}
+                label={labels.serverRolesCancel}
                 onPress={() => setCreateOpen(false)}
                 variant="secondary"
               />
@@ -362,7 +310,7 @@ export function MobileServerRolesScreen({
                 busy={mutations.createRole.isPending}
                 disabled={draftName.trim().length === 0}
                 fullWidth
-                label={labels.create}
+                label={labels.serverRolesCreate}
                 onPress={() => void submitCreate()}
                 testID="mobile-server-role-create-submit"
               />

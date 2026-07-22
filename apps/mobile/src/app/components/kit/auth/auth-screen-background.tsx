@@ -1,12 +1,19 @@
 import type { PropsWithChildren } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
+import Animated from "react-native-reanimated";
 
 import type { MobileTheme } from "../../../../design/themes";
+import { useMobileBottomSystemTopUpStyle } from "../../../use-mobile-bottom-system-spacing";
 import { useTheme, useThemedStyles } from "../../../providers/mobile-theme-provider";
 import { AuthWelcomeBackground } from "./auth-welcome-background";
 
 export interface AuthScreenBackgroundProps extends PropsWithChildren {
   readonly centered?: boolean;
+  /**
+   * Set by screens that pin their own bottom chrome and already apply the shared
+   * Android system-bar policy, so the two do not stack into a double gap.
+   */
+  readonly contentOwnsBottomInset?: boolean;
   /** Keeps the content container viewport-sized for screens with pinned chrome. */
   readonly fill?: boolean;
   readonly scrollable?: boolean;
@@ -16,6 +23,10 @@ export interface AuthScreenBackgroundProps extends PropsWithChildren {
 }
 
 const createStyles = (theme: MobileTheme) => ({
+  body: {
+    flex: 1,
+    minWidth: 0,
+  },
   content: {
     alignSelf: "center" as const,
     gap: theme.spacing.row,
@@ -91,6 +102,7 @@ const createStyles = (theme: MobileTheme) => ({
 export function AuthScreenBackground({
   centered = true,
   children,
+  contentOwnsBottomInset = false,
   fill = false,
   scrollable = false,
   testID,
@@ -98,6 +110,10 @@ export function AuthScreenBackground({
 }: AuthScreenBackgroundProps) {
   const theme = useTheme();
   const styles = useThemedStyles(createStyles);
+  // Auth screens render outside the shell's signed-in bottom reservation, so this
+  // layer clears the Android navigation bar for them. The background stays
+  // full-bleed underneath — only the interactive layout moves up.
+  const bottomSystemTopUpStyle = useMobileBottomSystemTopUpStyle(theme.spacing.section);
   const { auth } = theme.layout;
   const rendersCanonicalWelcomeBackground = visualVariant === "welcome";
   const content = (
@@ -155,16 +171,21 @@ export function AuthScreenBackground({
           </View>
         </>
       )}
-      {scrollable ? (
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-        >
-          {content}
-        </ScrollView>
-      ) : (
-        <View style={styles.staticContent}>{content}</View>
-      )}
+      <Animated.View
+        style={[styles.body, contentOwnsBottomInset ? undefined : bottomSystemTopUpStyle]}
+        testID={testID ? `${testID}-body` : undefined}
+      >
+        {scrollable ? (
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+          >
+            {content}
+          </ScrollView>
+        ) : (
+          <View style={styles.staticContent}>{content}</View>
+        )}
+      </Animated.View>
     </View>
   );
 }

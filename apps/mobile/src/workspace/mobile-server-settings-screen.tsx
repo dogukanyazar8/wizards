@@ -27,6 +27,7 @@ import {
   useMobileServerInvitesQuery,
 } from "./mobile-server-management-query";
 import { createMobileServerSettingsStyles } from "./mobile-server-settings-screen.styles";
+import { mobileCopy } from "../locale/mobile-copy";
 
 export interface MobileServerSettingsScreenProps {
   readonly serverId: string;
@@ -41,87 +42,6 @@ type EditorField = "description" | "name" | "shortName";
 
 const UPLOAD_MAX_MB = Math.round(MOBILE_SERVER_ATTACHMENT_MAX_BYTES / 1_000_000);
 
-const copy = {
-  en: {
-    adminsOnly: "admins only",
-    auditLog: "Audit log",
-    back: "Back",
-    cancel: "Cancel",
-    changeIcon: "Change server icon",
-    contentPermissions: "Content permissions",
-    deleteBody:
-      "This permanently deletes the server and its visible mobile data. Type the server name to continue.",
-    deleteServer: "Delete server",
-    description: "Description",
-    descriptionEmpty: "Add a description",
-    error: "This server action could not be completed. Please try again.",
-    fileUploads: "File uploads",
-    fileUploadsHint: `Max ${UPLOAD_MAX_MB} MB / file`,
-    gifSharing: "GIF sharing",
-    gifSharingHint: "All members can send",
-    iconLoadFailed: "The server icon could not be loaded from storage.",
-    iconNotPersisted: "The new server icon was not saved on the server. Please try again.",
-    invites: "Invites",
-    invitesActive: (count: number) => `${count} active`,
-    leave: "Leave server",
-    loading: "Loading server settings…",
-    management: "Management",
-    members: "Members",
-    membersSuffix: "members",
-    name: "Server name",
-    off: "Off",
-    onlineSuffix: "online",
-    retry: "Try again",
-    roles: "Roles",
-    save: "Save",
-    saved: "Server settings saved.",
-    shortName: "Short name",
-    slowMode: "Slow mode",
-    slowModeHint: "Wait time between messages",
-    soon: "Soon",
-    title: "Server settings",
-  },
-  tr: {
-    adminsOnly: "yalnızca yöneticiler",
-    auditLog: "Denetim kaydı",
-    back: "Geri",
-    cancel: "İptal",
-    changeIcon: "Sunucu simgesini değiştir",
-    contentPermissions: "İçerik izinleri",
-    deleteBody:
-      "Bu işlem sunucuyu ve mobilde görünen verilerini kalıcı olarak siler. Devam etmek için sunucu adını yazın.",
-    deleteServer: "Sunucuyu sil",
-    description: "Açıklama",
-    descriptionEmpty: "Bir açıklama ekle",
-    error: "Sunucu işlemi tamamlanamadı. Lütfen yeniden deneyin.",
-    fileUploads: "Dosya yükleme",
-    fileUploadsHint: `Maks ${UPLOAD_MAX_MB} MB / dosya`,
-    gifSharing: "GIF paylaşımı",
-    gifSharingHint: "Tüm üyeler gönderebilir",
-    iconLoadFailed: "Sunucu simgesi depolamadan yüklenemedi.",
-    iconNotPersisted: "Yeni sunucu simgesi sunucuya kaydedilmedi. Lütfen yeniden deneyin.",
-    invites: "Davetler",
-    invitesActive: (count: number) => `${count} aktif`,
-    leave: "Sunucudan ayrıl",
-    loading: "Sunucu ayarları yükleniyor…",
-    management: "Yönetim",
-    members: "Üyeler",
-    membersSuffix: "üye",
-    name: "Sunucu adı",
-    off: "Kapalı",
-    onlineSuffix: "çevrimiçi",
-    retry: "Yeniden dene",
-    roles: "Roller",
-    save: "Kaydet",
-    saved: "Sunucu ayarları kaydedildi.",
-    shortName: "Kısaltma",
-    slowMode: "Yavaş mod",
-    slowModeHint: "Mesajlar arası bekleme",
-    soon: "YAKINDA",
-    title: "Sunucu ayarları",
-  },
-} as const;
-
 function deriveInitials(name: string): string {
   const words = name.trim().split(/\s+/).filter(Boolean);
   if (words.length === 0) {
@@ -133,6 +53,17 @@ function deriveInitials(name: string): string {
   return `${words[0]![0]!}${words[1]![0]!}`.toUpperCase();
 }
 
+/** The field editor reuses the row labels it was opened from. */
+function getServerFieldLabel(
+  labels: (typeof mobileCopy)[keyof typeof mobileCopy],
+  field: "description" | "name" | "shortName",
+): string {
+  if (field === "description") {
+    return labels.serverSettingsDescription;
+  }
+  return field === "shortName" ? labels.serverSettingsShortName : labels.serverSettingsName;
+}
+
 export function MobileServerSettingsScreen({
   onBack,
   onOpenInvites,
@@ -142,7 +73,7 @@ export function MobileServerSettingsScreen({
 }: MobileServerSettingsScreenProps) {
   const { apiClient } = useMobileAuth();
   const { locale } = useMobileLocaleRuntime();
-  const labels = copy[locale];
+  const labels = mobileCopy[locale];
   const theme = useTheme();
   const styles = useThemedStyles(createMobileServerSettingsStyles);
   const queryClient = useQueryClient();
@@ -219,9 +150,9 @@ export function MobileServerSettingsScreen({
         ...(editorField === "description" ? { description: value.length > 0 ? value : null } : {}),
       });
       setEditorField(null);
-      setNotice(labels.saved);
+      setNotice(labels.serverSettingsSaved);
     } catch {
-      setError(labels.error);
+      setError(labels.serverSettingsError);
     }
   };
 
@@ -234,7 +165,7 @@ export function MobileServerSettingsScreen({
     try {
       await mutations.updateServer.mutateAsync({ serverId, [key]: next });
     } catch {
-      setError(labels.error);
+      setError(labels.serverSettingsError);
     }
   };
 
@@ -253,7 +184,7 @@ export function MobileServerSettingsScreen({
       );
     } catch {
       setIconPreviewUri(null);
-      setError(labels.error);
+      setError(labels.serverSettingsError);
       return;
     }
     if (outcome.status === "cancelled") {
@@ -266,7 +197,7 @@ export function MobileServerSettingsScreen({
       outcome.response.server.id !== serverId
     ) {
       setIconPreviewUri(null);
-      setError(outcome.status === "error" ? outcome.message : labels.error);
+      setError(outcome.status === "error" ? outcome.message : labels.serverSettingsError);
       return;
     }
     const claimedIconUrl = outcome.response.server.iconUrl;
@@ -285,12 +216,12 @@ export function MobileServerSettingsScreen({
     setIconPreviewUri(null);
 
     if (!persisted) {
-      setError(labels.iconNotPersisted);
+      setError(labels.serverSettingsIconNotPersisted);
       return;
     }
 
     void queryClient.invalidateQueries({ exact: true, queryKey: mobileQueryKeys.bootstrap() });
-    setNotice(labels.saved);
+    setNotice(labels.serverSettingsSaved);
   };
 
   const deleteServer = async () => {
@@ -303,7 +234,7 @@ export function MobileServerSettingsScreen({
       setDeleteOpen(false);
       onBack();
     } catch {
-      setError(labels.error);
+      setError(labels.serverSettingsError);
       throw new Error("mobile-server-delete-failed");
     }
   };
@@ -321,7 +252,7 @@ export function MobileServerSettingsScreen({
             />
           </View>
           <Text maxFontSizeMultiplier={2} style={styles.headerTitle}>
-            {labels.title}
+            {labels.serverSettingsTitle}
           </Text>
         </View>
         <View style={styles.skeletonCard} testID="mobile-server-settings-skeleton">
@@ -348,7 +279,7 @@ export function MobileServerSettingsScreen({
       <View style={styles.root} testID="mobile-server-settings-screen">
         <View style={styles.header}>
           <Pressable
-            accessibilityLabel={labels.back}
+            accessibilityLabel={labels.serverSettingsBack}
             accessibilityRole="button"
             hitSlop={8}
             onPress={onBack}
@@ -363,7 +294,7 @@ export function MobileServerSettingsScreen({
             />
           </Pressable>
           <Text maxFontSizeMultiplier={2} style={styles.headerTitle}>
-            {labels.title}
+            {labels.serverSettingsTitle}
           </Text>
         </View>
         <View style={styles.centered}>
@@ -373,10 +304,10 @@ export function MobileServerSettingsScreen({
             style={styles.error}
             testID="mobile-server-settings-error"
           >
-            {labels.error}
+            {labels.serverSettingsError}
           </Text>
           <Button
-            label={labels.retry}
+            label={labels.serverSettingsRetry}
             onPress={() => void workspace.refetch()}
             variant="secondary"
           />
@@ -389,7 +320,7 @@ export function MobileServerSettingsScreen({
   const soonBadge = (
     <View style={styles.soonBadge}>
       <Text maxFontSizeMultiplier={2} style={styles.soonBadgeText}>
-        {labels.soon}
+        {labels.serverSettingsSoon}
       </Text>
     </View>
   );
@@ -404,7 +335,7 @@ export function MobileServerSettingsScreen({
       {/* Header */}
       <View style={styles.header}>
         <Pressable
-          accessibilityLabel={labels.back}
+          accessibilityLabel={labels.serverSettingsBack}
           accessibilityRole="button"
           hitSlop={8}
           onPress={onBack}
@@ -420,10 +351,10 @@ export function MobileServerSettingsScreen({
         </Pressable>
         <View style={styles.headerText}>
           <Text maxFontSizeMultiplier={2} numberOfLines={1} style={styles.headerTitle}>
-            {labels.title}
+            {labels.serverSettingsTitle}
           </Text>
           <Text maxFontSizeMultiplier={2} numberOfLines={1} style={styles.headerSubtitle}>
-            {`${server.name} · ${labels.adminsOnly}`}
+            {`${server.name} · ${labels.serverSettingsAdminsOnly}`}
           </Text>
         </View>
       </View>
@@ -438,7 +369,7 @@ export function MobileServerSettingsScreen({
             style={styles.error}
             testID="mobile-server-settings-error"
           >
-            {error ?? labels.iconLoadFailed}
+            {error ?? labels.serverSettingsIconLoadFailed}
           </Text>
         </View>
       ) : null}
@@ -470,7 +401,7 @@ export function MobileServerSettingsScreen({
             </View>
             {capabilities?.canUploadServerIcon ? (
               <Pressable
-                accessibilityLabel={labels.changeIcon}
+                accessibilityLabel={labels.serverSettingsChangeIcon}
                 accessibilityRole="button"
                 accessibilityState={{ busy: isUploadingIcon }}
                 hitSlop={10}
@@ -488,12 +419,12 @@ export function MobileServerSettingsScreen({
             </Text>
             <View style={styles.countsRow}>
               <Text maxFontSizeMultiplier={2} style={styles.countText}>
-                {`${server.memberCount} ${labels.membersSuffix}`}
+                {`${server.memberCount} ${labels.serverSettingsMembersSuffix}`}
               </Text>
               <View style={styles.countDot} />
               <View style={styles.onlineDot} />
               <Text maxFontSizeMultiplier={2} style={styles.countText}>
-                {`${server.onlineMemberCount} ${labels.onlineSuffix}`}
+                {`${server.onlineMemberCount} ${labels.serverSettingsOnlineSuffix}`}
               </Text>
             </View>
           </View>
@@ -501,7 +432,7 @@ export function MobileServerSettingsScreen({
 
         <View style={styles.pillsRow}>
           <Pressable
-            accessibilityLabel={labels.name}
+            accessibilityLabel={labels.serverSettingsName}
             accessibilityRole="button"
             disabled={!canManageServer}
             onPress={() => openEditor("name")}
@@ -510,7 +441,7 @@ export function MobileServerSettingsScreen({
           >
             <View style={styles.pillBody}>
               <Text maxFontSizeMultiplier={2} style={styles.pillLabel}>
-                {labels.name}
+                {labels.serverSettingsName}
               </Text>
               <Text maxFontSizeMultiplier={2} numberOfLines={1} style={styles.pillValue}>
                 {server.name}
@@ -521,7 +452,7 @@ export function MobileServerSettingsScreen({
             ) : null}
           </Pressable>
           <Pressable
-            accessibilityLabel={labels.shortName}
+            accessibilityLabel={labels.serverSettingsShortName}
             accessibilityRole="button"
             disabled={!canManageServer}
             onPress={() => openEditor("shortName")}
@@ -530,7 +461,7 @@ export function MobileServerSettingsScreen({
           >
             <View style={styles.pillBody}>
               <Text maxFontSizeMultiplier={2} style={styles.pillLabel}>
-                {labels.shortName}
+                {labels.serverSettingsShortName}
               </Text>
               <Text maxFontSizeMultiplier={2} numberOfLines={1} style={styles.pillValue}>
                 {server.shortName ?? initials}
@@ -543,7 +474,7 @@ export function MobileServerSettingsScreen({
         </View>
 
         <Pressable
-          accessibilityLabel={labels.description}
+          accessibilityLabel={labels.serverSettingsDescription}
           accessibilityRole="button"
           disabled={!canManageServer}
           onPress={() => openEditor("description")}
@@ -551,13 +482,13 @@ export function MobileServerSettingsScreen({
           testID="mobile-server-description-pill"
         >
           <Text maxFontSizeMultiplier={2} style={styles.pillLabel}>
-            {labels.description}
+            {labels.serverSettingsDescription}
           </Text>
           <Text
             maxFontSizeMultiplier={2}
             style={[styles.descValue, !server.description && styles.descPlaceholder]}
           >
-            {server.description ?? labels.descriptionEmpty}
+            {server.description ?? labels.serverSettingsDescriptionEmpty}
           </Text>
         </Pressable>
       </View>
@@ -565,7 +496,7 @@ export function MobileServerSettingsScreen({
       {/* Content permissions */}
       <View style={styles.sectionLabel}>
         <Text maxFontSizeMultiplier={2} style={styles.sectionLabelText}>
-          {labels.contentPermissions}
+          {labels.serverSettingsContentPermissions}
         </Text>
       </View>
       <View style={styles.card}>
@@ -577,14 +508,14 @@ export function MobileServerSettingsScreen({
           </View>
           <View style={styles.rowBody}>
             <Text maxFontSizeMultiplier={2} style={styles.rowTitle}>
-              {labels.gifSharing}
+              {labels.serverSettingsGifSharing}
             </Text>
             <Text maxFontSizeMultiplier={2} style={styles.rowSubtitle}>
-              {labels.gifSharingHint}
+              {labels.serverSettingsGifSharingHint}
             </Text>
           </View>
           <Toggle
-            accessibilityLabel={labels.gifSharing}
+            accessibilityLabel={labels.serverSettingsGifSharing}
             disabled={!canManageServer || mutations.updateServer.isPending}
             onValueChange={(next) => void togglePermission("allowGifs", next)}
             testID="mobile-server-gif-toggle"
@@ -597,14 +528,14 @@ export function MobileServerSettingsScreen({
           </View>
           <View style={styles.rowBody}>
             <Text maxFontSizeMultiplier={2} style={styles.rowTitle}>
-              {labels.fileUploads}
+              {labels.serverSettingsFileUploads}
             </Text>
             <Text maxFontSizeMultiplier={2} style={styles.rowSubtitle}>
-              {labels.fileUploadsHint}
+              {labels.serverSettingsFileUploadsHint.replace("{size}", String(UPLOAD_MAX_MB))}
             </Text>
           </View>
           <Toggle
-            accessibilityLabel={labels.fileUploads}
+            accessibilityLabel={labels.serverSettingsFileUploads}
             disabled={!canManageServer || mutations.updateServer.isPending}
             onValueChange={(next) => void togglePermission("allowFileUploads", next)}
             testID="mobile-server-file-toggle"
@@ -618,10 +549,10 @@ export function MobileServerSettingsScreen({
           </View>
           <View style={styles.rowBody}>
             <Text maxFontSizeMultiplier={2} style={styles.rowTitle}>
-              {labels.slowMode}
+              {labels.serverSettingsSlowMode}
             </Text>
             <Text maxFontSizeMultiplier={2} style={styles.rowSubtitle}>
-              {labels.slowModeHint}
+              {labels.serverSettingsSlowModeHint}
             </Text>
           </View>
           {soonBadge}
@@ -631,12 +562,12 @@ export function MobileServerSettingsScreen({
       {/* Management */}
       <View style={styles.sectionLabel}>
         <Text maxFontSizeMultiplier={2} style={styles.sectionLabelText}>
-          {labels.management}
+          {labels.serverSettingsManagement}
         </Text>
       </View>
       <View style={styles.card}>
         <Pressable
-          accessibilityLabel={labels.roles}
+          accessibilityLabel={labels.serverSettingsRoles}
           accessibilityRole="button"
           disabled={!canOpenRoles}
           onPress={onOpenRoles}
@@ -651,7 +582,7 @@ export function MobileServerSettingsScreen({
             <MobileLineIcon color={theme.accent.default} name="shield" size={17} />
           </View>
           <Text maxFontSizeMultiplier={2} style={[styles.rowTitle, styles.rowLabelOnly]}>
-            {labels.roles}
+            {labels.serverSettingsRoles}
           </Text>
           {roleCount !== undefined ? (
             <Text maxFontSizeMultiplier={2} style={styles.rowValue}>
@@ -662,7 +593,7 @@ export function MobileServerSettingsScreen({
         </Pressable>
 
         <Pressable
-          accessibilityLabel={labels.members}
+          accessibilityLabel={labels.serverSettingsMembers}
           accessibilityRole="button"
           disabled={!canOpenMembers}
           onPress={onOpenMembers}
@@ -677,7 +608,7 @@ export function MobileServerSettingsScreen({
             <MobileLineIcon color={theme.status.visualText} name="members" size={17} />
           </View>
           <Text maxFontSizeMultiplier={2} style={[styles.rowTitle, styles.rowLabelOnly]}>
-            {labels.members}
+            {labels.serverSettingsMembers}
           </Text>
           <Text maxFontSizeMultiplier={2} style={styles.rowValue}>
             {server.memberCount}
@@ -686,7 +617,7 @@ export function MobileServerSettingsScreen({
         </Pressable>
 
         <Pressable
-          accessibilityLabel={labels.invites}
+          accessibilityLabel={labels.serverSettingsInvites}
           accessibilityRole="button"
           disabled={!canOpenInvites}
           onPress={onOpenInvites}
@@ -701,11 +632,11 @@ export function MobileServerSettingsScreen({
             <MobileLineIcon color={theme.accent.default} name="external-link" size={17} />
           </View>
           <Text maxFontSizeMultiplier={2} style={[styles.rowTitle, styles.rowLabelOnly]}>
-            {labels.invites}
+            {labels.serverSettingsInvites}
           </Text>
           {inviteCount !== undefined ? (
             <Text maxFontSizeMultiplier={2} style={styles.rowValue}>
-              {labels.invitesActive(inviteCount)}
+              {labels.serverSettingsInvitesActive.replace("{count}", String(inviteCount))}
             </Text>
           ) : null}
           {chevron}
@@ -717,7 +648,7 @@ export function MobileServerSettingsScreen({
             <MobileLineIcon color={theme.text.visualSecondary} name="audit-log" size={17} />
           </View>
           <Text maxFontSizeMultiplier={2} style={[styles.rowTitle, styles.rowLabelOnly]}>
-            {labels.auditLog}
+            {labels.serverSettingsAuditLog}
           </Text>
           {soonBadge}
         </View>
@@ -727,7 +658,7 @@ export function MobileServerSettingsScreen({
       <View style={[styles.card, styles.cardSpaced]}>
         {canDeleteServer ? (
           <Pressable
-            accessibilityLabel={labels.deleteServer}
+            accessibilityLabel={labels.serverSettingsDeleteServer}
             accessibilityRole="button"
             onPress={() => setDeleteOpen(true)}
             style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
@@ -737,7 +668,7 @@ export function MobileServerSettingsScreen({
               <MobileLineIcon color={theme.status.dangerOnInverse} name="log-out" size={17} />
             </View>
             <Text maxFontSizeMultiplier={2} style={styles.dangerLabel}>
-              {labels.deleteServer}
+              {labels.serverSettingsDeleteServer}
             </Text>
           </Pressable>
         ) : (
@@ -746,7 +677,7 @@ export function MobileServerSettingsScreen({
               <MobileLineIcon color={theme.status.dangerOnInverse} name="log-out" size={17} />
             </View>
             <Text maxFontSizeMultiplier={2} style={styles.dangerLabel}>
-              {labels.leave}
+              {labels.serverSettingsLeave}
             </Text>
             {soonBadge}
           </View>
@@ -756,8 +687,8 @@ export function MobileServerSettingsScreen({
       <BottomSheet
         accessibilityLabel={
           editorField
-            ? labels[editorField === "shortName" ? "shortName" : editorField]
-            : labels.title
+            ? getServerFieldLabel(labels, editorField)
+            : labels.serverSettingsTitle
         }
         onClose={() => setEditorField(null)}
         open={editorField !== null}
@@ -767,18 +698,18 @@ export function MobileServerSettingsScreen({
         <View style={styles.sheet}>
           <Text maxFontSizeMultiplier={2} style={styles.sheetTitle}>
             {editorField === "name"
-              ? labels.name
+              ? labels.serverSettingsName
               : editorField === "shortName"
-                ? labels.shortName
-                : labels.description}
+                ? labels.serverSettingsShortName
+                : labels.serverSettingsDescription}
           </Text>
           <TextInput
             accessibilityLabel={
               editorField === "name"
-                ? labels.name
+                ? labels.serverSettingsName
                 : editorField === "shortName"
-                  ? labels.shortName
-                  : labels.description
+                  ? labels.serverSettingsShortName
+                  : labels.serverSettingsDescription
             }
             autoFocus
             maxLength={editorField === "shortName" ? 8 : editorField === "name" ? 64 : 160}
@@ -792,7 +723,7 @@ export function MobileServerSettingsScreen({
             <View style={styles.sheetAction}>
               <Button
                 fullWidth
-                label={labels.cancel}
+                label={labels.serverSettingsCancel}
                 onPress={() => setEditorField(null)}
                 variant="secondary"
               />
@@ -801,7 +732,7 @@ export function MobileServerSettingsScreen({
               <Button
                 busy={mutations.updateServer.isPending}
                 fullWidth
-                label={labels.save}
+                label={labels.serverSettingsSave}
                 onPress={() => void saveEditor()}
                 testID="mobile-server-field-editor-save"
               />
@@ -811,15 +742,15 @@ export function MobileServerSettingsScreen({
       </BottomSheet>
 
       <DestructiveConfirmationSheet
-        body={labels.deleteBody}
+        body={labels.serverSettingsDeleteBody}
         busy={mutations.deleteServer.isPending}
-        confirmLabel={labels.deleteServer}
+        confirmLabel={labels.serverSettingsDeleteServer}
         onCancel={() => setDeleteOpen(false)}
         onConfirm={deleteServer}
         open={deleteOpen}
         requiredText={server.name}
         testID="mobile-server-delete-confirm"
-        title={labels.deleteServer}
+        title={labels.serverSettingsDeleteServer}
       />
     </ScrollView>
   );

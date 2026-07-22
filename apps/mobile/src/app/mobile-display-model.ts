@@ -10,6 +10,7 @@ import type {
   MobileVoiceRoomState,
 } from "../voice/mobile-voice-room-contract";
 import { getMobileNoiseSuppressionLabel } from "../voice/mobile-voice-noise-contract";
+import { mobileCopy } from "../locale/mobile-copy";
 import type { MobileLocale } from "../locale/mobile-locale-preferences";
 import type { MobileTabId } from "../navigation/mobile-navigation";
 
@@ -479,6 +480,7 @@ export function getMobileVoiceChannelScreenModel(
     (participant) => !speakerIds.has(participant.userId),
   );
   const isConnected = room.status === "connected";
+  const localized = mobileCopy[options.locale];
 
   return {
     allParticipants,
@@ -495,13 +497,13 @@ export function getMobileVoiceChannelScreenModel(
     listeningParticipants,
     memberCountLabel: String(Math.max(0, options.memberCount)),
     participantCountLabel: String(allParticipants.length),
-    qualityLabel: isConnected ? "Ses bagli" : "Hazirlaniyor",
+    qualityLabel: isConnected ? localized.voiceRoomQualityConnected : localized.voiceRoomQualityPreparing,
     serverName: options.serverName,
     serverShortName: options.serverShortName,
     shouldSplitParticipantsBySpeakingState: false,
-    signalLabel: isConnected ? "Baglanti aktif" : "Baglaniyor",
+    signalLabel: isConnected ? localized.voiceRoomSignalActive : localized.voiceRoomSignalConnecting,
     speakingParticipants,
-    title: "Canli ses odasi",
+    title: localized.voiceRoomLiveTitle,
   };
 }
 

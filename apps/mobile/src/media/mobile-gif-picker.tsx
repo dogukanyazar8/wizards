@@ -9,6 +9,7 @@ import { useMobileLocaleRuntime } from "../app/providers/mobile-locale-provider"
 import { useTheme, useThemedStyles } from "../app/providers/mobile-theme-provider";
 import type { MobileTheme } from "../design/themes";
 import { searchMobileGiphy } from "./mobile-giphy-client";
+import { mobileCopy } from "../locale/mobile-copy";
 
 type Gif = Awaited<ReturnType<typeof searchMobileGiphy>>["gifs"][number];
 
@@ -50,7 +51,7 @@ export function MobileGifPicker({
   const { locale } = useMobileLocaleRuntime();
   const theme = useTheme();
   const styles = useThemedStyles(createStyles);
-  const tr = locale === "tr";
+  const copy = mobileCopy[locale];
   const [query, setQuery] = useState("");
   const [gifs, setGifs] = useState<readonly Gif[]>([]);
   const [loadedGifIds, setLoadedGifIds] = useState<ReadonlySet<string>>(() => new Set());
@@ -70,7 +71,7 @@ export function MobileGifPicker({
     try {
       setGifs((await searchMobileGiphy(apiClient, { limit: 24, offset: 0, query })).gifs);
     } catch {
-      setError(tr ? "GIF'ler yüklenemedi." : "GIFs could not be loaded.");
+      setError(copy.gifPickerLoadFailed);
     } finally {
       setBusy(false);
     }
@@ -93,7 +94,7 @@ export function MobileGifPicker({
   }
   return (
     <BottomSheet
-      accessibilityLabel={tr ? "GIF seçici" : "GIF picker"}
+      accessibilityLabel={copy.gifPickerTitle}
       onClose={onClose}
       open={open}
       snapPoint={620}
@@ -103,18 +104,18 @@ export function MobileGifPicker({
         <Text style={styles.header}>GIF</Text>
         <View style={styles.searchRow}>
           <TextInput
-            accessibilityLabel={tr ? "GIF ara" : "Search GIFs"}
+            accessibilityLabel={copy.gifPickerSearchGifs}
             autoCapitalize="none"
             onChangeText={setQuery}
             onSubmitEditing={() => void runSearch()}
-            placeholder={tr ? "GIF ara" : "Search GIFs"}
+            placeholder={copy.gifPickerSearchGifs}
             placeholderTextColor={theme.text.soft}
             style={styles.input}
             value={query}
             testID="mobile-gif-search-input"
           />
           <Button
-            label={tr ? "Ara" : "Search"}
+            label={copy.gifPickerSearch}
             busy={busy}
             onPress={() => void runSearch()}
             testID="mobile-gif-search"
@@ -131,7 +132,7 @@ export function MobileGifPicker({
           keyExtractor={(item) => item.id}
           ListEmptyComponent={
             !busy ? (
-              <Text style={styles.empty}>{tr ? "Sonuç bulunamadı" : "No GIFs found"}</Text>
+              <Text style={styles.empty}>{copy.gifPickerEmpty}</Text>
             ) : null
           }
           renderItem={({ item }) => (
@@ -153,7 +154,7 @@ export function MobileGifPicker({
                 transition={0}
               />
               <Text numberOfLines={1} style={styles.label}>
-                {sendingId === item.id ? (tr ? "Gönderiliyor" : "Sending") : item.title}
+                {sendingId === item.id ? (copy.gifPickerSending) : item.title}
               </Text>
             </Pressable>
           )}

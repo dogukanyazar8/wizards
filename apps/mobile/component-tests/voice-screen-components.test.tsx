@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { Text } from "react-native";
+import { StyleSheet, Text } from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { fireEvent } from "@testing-library/react-native";
 import { describe, expect, it, jest } from "@jest/globals";
 import { renderWithMobileTheme as render } from "./render-with-mobile-theme";
@@ -393,6 +394,36 @@ describe("mobile voice component rendering", () => {
 
     expect(view.getByLabelText(copy.voiceScreenShareCloseViewerAction)).toBeTruthy();
     expect(view.getAllByTestId("mobile-livekit-video-track").length).toBeGreaterThan(0);
+  });
+
+  it("keeps the fullscreen screen-share stream above an Android three-button navigation bar", async () => {
+    const trackRef = {
+      participant: {},
+      publication: {},
+      source: "screen_share",
+    } as MobileScreenShareTrackReference;
+
+    const view = await render(
+      <SafeAreaProvider
+        initialMetrics={{
+          frame: { height: 844, width: 390, x: 0, y: 0 },
+          insets: { bottom: 48, left: 0, right: 0, top: 42 },
+        }}
+      >
+        <MobileScreenShareViewer
+          participants={[createParticipant({ isScreenSharing: true, screenShareTrackRef: trackRef })]}
+        />
+      </SafeAreaProvider>,
+    );
+
+    await fireEvent.press(view.getByLabelText(copy.voiceScreenShareExpandViewerAction));
+
+    // The viewer is its own modal window, so the shell's reservation misses it.
+    expect(
+      StyleSheet.flatten(
+        view.getByTestId("mobile-voice-screen-share-fullscreen").props.style as never,
+      ),
+    ).toMatchObject({ paddingBottom: 48 });
   });
 });
 

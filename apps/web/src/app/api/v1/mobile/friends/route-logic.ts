@@ -6,6 +6,8 @@ import {
   MobileFriendRequestParamsSchema,
   MobileFriendUserParamsSchema,
   MobileFriendsOverviewResponseSchema,
+  MobileUserSearchQuerySchema,
+  MobileUserSearchResponseSchema,
 } from "@wizards/types";
 
 import { enforceApiRateLimit, type ApiRateLimitAction } from "@/lib/api-rate-limit";
@@ -14,10 +16,12 @@ import { requireMobileApiUserId } from "@/lib/auth/api";
 import {
   actOnFriendRequest,
   blockUser,
+  cancelFriendRequest,
   listBlockedUsers,
   listFriends,
   listPendingFriendRequests,
   removeFriend,
+  searchUsers,
   sendFriendRequest,
   unblockUser,
 } from "@/lib/friends/service";
@@ -30,12 +34,14 @@ export type MobileFriendsRouteDependencies = {
   actOnFriendRequest: typeof actOnFriendRequest;
   authenticate: (request: Request) => Promise<string>;
   blockUser: typeof blockUser;
+  cancelFriendRequest: typeof cancelFriendRequest;
   enforceRateLimit: (userId: string, action: ApiRateLimitAction) => Promise<void>;
   listBlockedUsers: typeof listBlockedUsers;
   listFriends: typeof listFriends;
   listPendingFriendRequests: typeof listPendingFriendRequests;
   parseBody: typeof parseJsonBody;
   removeFriend: typeof removeFriend;
+  searchUsers: typeof searchUsers;
   sendFriendRequest: typeof sendFriendRequest;
   unblockUser: typeof unblockUser;
 };
@@ -44,12 +50,14 @@ const defaultDependencies: MobileFriendsRouteDependencies = {
   actOnFriendRequest,
   authenticate: (request) => requireMobileApiUserId(request),
   blockUser,
+  cancelFriendRequest,
   enforceRateLimit: enforceApiRateLimit,
   listBlockedUsers,
   listFriends,
   listPendingFriendRequests,
   parseBody: (request, schema) => parseJsonBody(request, schema),
   removeFriend,
+  searchUsers,
   sendFriendRequest,
   unblockUser,
 };
@@ -68,6 +76,25 @@ export async function mobileFriendsListRoute(
     ]);
 
     return Response.json(MobileFriendsOverviewResponseSchema.parse({ blocked, friends, pending }));
+  } catch (error) {
+    return jsonError(error);
+  }
+}
+
+export async function mobileFriendUserSearchRoute(
+  request: Request,
+  dependencies: MobileFriendsRouteDependencies = defaultDependencies,
+) {
+  try {
+    const userId = await dependencies.authenticate(request);
+    await dependencies.enforceRateLimit(userId, "mobile:friends:search");
+    const searchParams = new URL(request.url).searchParams;
+    const input = MobileUserSearchQuerySchema.parse({
+      limit: searchParams.get("limit") ?? undefined,
+      q: searchParams.get("q") ?? "",
+    });
+    const results = await dependencies.searchUsers(userId, input.q, input.limit);
+    return Response.json(MobileUserSearchResponseSchema.parse({ results }));
   } catch (error) {
     return jsonError(error);
   }
@@ -122,6 +149,22 @@ export function mobileFriendRequestRejectRoute(
   dependencies: MobileFriendsRouteDependencies = defaultDependencies,
 ) {
   return friendRequestActionRoute(request, context, "decline", dependencies);
+}
+
+export async function mobileFriendRequestCancelRoute(
+  request: Request,
+  context: MobileFriendRouteContext,
+  dependencies: MobileFriendsRouteDependencies = defaultDependencies,
+) {
+  try {
+    const userId = await dependencies.authenticate(request);
+    await dependencies.enforceRateLimit(userId, "mobile:friends:request-action");
+    const { id } = MobileFriendRequestParamsSchema.parse(await context.params);
+    await dependencies.cancelFriendRequest(userId, id);
+    return Response.json(MobileFriendMutationResponseSchema.parse({ success: true }));
+  } catch (error) {
+    return jsonError(error);
+  }
 }
 
 async function getTargetUserId(context: MobileFriendRouteContext) {

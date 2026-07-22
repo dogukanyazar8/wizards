@@ -45,6 +45,7 @@ import {
   type MobileVoiceInputMode,
   type ReactNode,
 } from "../mobile-root-screen-shared";
+import { mobileCopy } from "../../locale/mobile-copy";
 import {
   ActionButton,
   AvatarMark,
@@ -87,64 +88,22 @@ function getMobileProfilePresenceStatus(value: string | null): MobileFriendPrese
     : null;
 }
 
-function getMobileProfileCopy(locale: MobileLocale) {
-  return locale === "tr"
-    ? {
-        account: "Hesap",
-        appearance: "Görünüm",
-        error: "Profil bilgileri yüklenemedi. Lütfen tekrar deneyin.",
-        idle: "Boşta",
-        language: "Dil",
-        notifications: "Bildirimler",
-        offline: "Görünmez",
-        online: "Çevrimiçi",
-        presenceError: "Durum güncellenemedi. Lütfen tekrar deneyin.",
-        presenceUnavailable: "Durum bilinmiyor",
-        security: "Güvenli oturum",
-        securityActive: "Aktif",
-        securityActionRequired: "İşlem gerekli",
-        signOutBody: "Oturumunu güvenli şekilde kapatmak istediğine emin misin?",
-        signOutTitle: "Çıkış yapılsın mı?",
-        about: "Hakkında",
-        dnd: "Rahatsız etmeyin",
-      }
-    : {
-        account: "Account",
-        appearance: "Appearance",
-        error: "Profile information could not be loaded. Please try again.",
-        idle: "Idle",
-        language: "Language",
-        notifications: "Notifications",
-        offline: "Invisible",
-        online: "Online",
-        presenceError: "Your status could not be updated. Please try again.",
-        presenceUnavailable: "Status unavailable",
-        security: "Secure session",
-        securityActive: "Active",
-        securityActionRequired: "Action required",
-        signOutBody: "Are you sure you want to securely sign out?",
-        signOutTitle: "Sign out?",
-        about: "About",
-        dnd: "Do not disturb",
-      };
-}
-
 function getMobileProfilePresenceLabel(
   locale: MobileLocale,
   presence: MobileFriendPresenceStatus | null,
 ): string {
-  const labels = getMobileProfileCopy(locale);
+  const labels = mobileCopy[locale];
   switch (presence) {
     case "ONLINE":
-      return labels.online;
+      return labels.profileHubOnline;
     case "IDLE":
-      return labels.idle;
+      return labels.profileHubIdle;
     case "DND":
-      return labels.dnd;
+      return labels.profileHubDnd;
     case "OFFLINE":
-      return labels.offline;
+      return labels.profileHubOffline;
     default:
-      return labels.presenceUnavailable;
+      return labels.profileHubPresenceUnavailable;
   }
 }
 
@@ -218,6 +177,7 @@ export function MobileProfileSettingsHub({
   const [isUpdatingPresence, setIsUpdatingPresence] = useState(false);
   const [optimisticPresence, setOptimisticPresence] = useState<MobileFriendPresenceStatus | null>(null);
   const [presenceError, setPresenceError] = useState<string | null>(null);
+  const profileCopy = mobileCopy[locale];
   const isSecureSessionActive = sessionDiagnostics.hasSession && !sessionDiagnostics.isExpired;
   const user = bootstrapState.status === "ready" ? bootstrapState.payload.user : null;
   const displayName = user?.displayName ?? user?.username ?? "";
@@ -245,7 +205,7 @@ export function MobileProfileSettingsHub({
       setIsPresencePickerOpen(false);
     } catch {
       setOptimisticPresence(previousPresence);
-      setPresenceError(getMobileProfileCopy(locale).presenceError);
+      setPresenceError(profileCopy.profileHubPresenceError);
     } finally {
       setIsUpdatingPresence(false);
     }
@@ -261,7 +221,7 @@ export function MobileProfileSettingsHub({
         <Text style={styles.mobileProfileHubTitle}>{copy.tabProfile}</Text>
         {bootstrapState.status === "error" ? (
           <View style={styles.mobileProfileStateCard} testID="mobile-settings-profile-error">
-            <Text style={styles.mobileProfileStateText}>{getMobileProfileCopy(locale).error}</Text>
+            <Text style={styles.mobileProfileStateText}>{profileCopy.profileHubError}</Text>
             <Button label={copy.retryAction} onPress={onRefreshBootstrap} testID="mobile-settings-profile-retry" />
           </View>
         ) : (
@@ -349,7 +309,7 @@ export function MobileProfileSettingsHub({
             </Text>
           </View>
           <Pressable
-            accessibilityLabel="Profile presence"
+            accessibilityLabel={copy.profilePresenceAction}
             accessibilityRole="button"
             accessibilityState={{ disabled: !onUpdatePresence || isUpdatingPresence }}
             disabled={!onUpdatePresence || isUpdatingPresence}
@@ -383,21 +343,21 @@ export function MobileProfileSettingsHub({
         <MobileProfileHubRow
           icon="person-outline"
           iconTone="accent"
-          label="Hesap"
+          label={profileCopy.profileHubAccount}
           onPress={() => navigateToMobileSettingsDetail("account")}
         />
         <MobileProfileHubRow
           icon="shield-checkmark-outline"
           iconTone="success"
-          label="Güvenli oturum"
+          label={profileCopy.profileHubSecurity}
           onPress={() => navigateToMobileSettingsDetail("security")}
-          value={isSecureSessionActive ? getMobileProfileCopy(locale).securityActive : getMobileProfileCopy(locale).securityActionRequired}
+          value={isSecureSessionActive ? profileCopy.profileHubSecurityActive : profileCopy.profileHubSecurityActionRequired}
           valueTone={isSecureSessionActive ? "success" : "default"}
         />
         <MobileProfileHubRow
           icon="sunny-outline"
           iconTone="warning"
-          label="Görünüm"
+          label={profileCopy.profileHubAppearance}
           onPress={() => navigateToMobileSettingsDetail("appearance")}
           value={themeLabel}
         />
@@ -410,7 +370,7 @@ export function MobileProfileSettingsHub({
         <MobileProfileHubRow
           icon="language-outline"
           iconTone="neutral"
-          label="Dil"
+          label={profileCopy.profileHubLanguage}
           onPress={() => navigateToMobileSettingsDetail("language")}
           value={localeLabel}
         />
@@ -420,7 +380,7 @@ export function MobileProfileSettingsHub({
         <MobileProfileHubRow
           icon="information-circle-outline"
           iconTone="neutral"
-          label="Hakkında"
+          label={profileCopy.profileHubAbout}
           onPress={() => navigateToMobileSettingsDetail("about")}
           value={appVersion}
         />
@@ -434,7 +394,7 @@ export function MobileProfileSettingsHub({
         />
       </View>
       <BottomSheet
-        accessibilityLabel="Profile presence"
+        accessibilityLabel={copy.profilePresenceAction}
         onClose={() => setIsPresencePickerOpen(false)}
         open={isPresencePickerOpen}
         testID="mobile-profile-presence-sheet"
@@ -453,14 +413,14 @@ export function MobileProfileSettingsHub({
         </View>
       </BottomSheet>
       <DestructiveConfirmationSheet
-        body={getMobileProfileCopy(locale).signOutBody}
+        body={profileCopy.profileHubSignOutBody}
         busy={false}
         confirmLabel={copy.signOutAction}
         onCancel={() => setIsSignOutConfirmationOpen(false)}
         onConfirm={onSignOut}
         open={isSignOutConfirmationOpen}
         testID="mobile-profile-sign-out-confirmation"
-        title={getMobileProfileCopy(locale).signOutTitle}
+        title={profileCopy.profileHubSignOutTitle}
       />
     </ScrollView>
   );
@@ -1423,19 +1383,19 @@ export function SettingsWorkspaceLayoutSelector() {
   const styles = useSettingsScreenStyles();
   const { layout, setLayout } = useMobileWorkspaceLayoutPreference();
   const options = [
-    { id: "rail" as const, label: "Sol ray" },
-    { id: "compact" as const, label: "Kompakt" },
+    { id: "rail" as const, label: copy.settingsWorkspaceLayoutRailOption },
+    { id: "compact" as const, label: copy.settingsWorkspaceLayoutCompactOption },
   ];
 
   return (
     <View
-      accessibilityLabel="Sunucu görünümü"
+      accessibilityLabel={copy.settingsWorkspaceLayoutLabel}
       accessibilityRole="radiogroup"
       style={styles.settingsLocaleControl}
       testID="mobile-settings-workspace-layout-control"
     >
       <Text maxFontSizeMultiplier={2} style={styles.settingsLocaleDescription}>
-        Sunucular ekranındaki varsayılan düzen
+        {copy.settingsWorkspaceLayoutDescription}
       </Text>
       <View style={styles.settingsLocaleOptions}>
         {options.map((option) => {

@@ -89,6 +89,7 @@ export const API_RATE_LIMITS = {
   "mobile:friends:remove": { limit: 30, windowSeconds: 10 * 60 },
   "mobile:friends:request": { limit: 20, windowSeconds: 10 * 60 },
   "mobile:friends:request-action": { limit: 60, windowSeconds: 10 * 60 },
+  "mobile:friends:search": { limit: 90, windowSeconds: 60 },
   "mobile:giphy:search": { limit: 60, windowSeconds: 60 },
   "mobile:giphy:attachment": { limit: 60, windowSeconds: 60 },
   "mobile:link-preview": { limit: 30, windowSeconds: 60 },

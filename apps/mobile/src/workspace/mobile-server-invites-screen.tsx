@@ -13,54 +13,12 @@ import { useTheme, useThemedStyles } from "../app/providers/mobile-theme-provide
 import { useMobileServerManagementMutations } from "../query/use-mobile-server-management-mutations";
 import { useMobileServerInvitesQuery } from "./mobile-server-management-query";
 import { createMobileServerInvitesStyles } from "./mobile-server-invites-screen.styles";
+import { mobileCopy } from "../locale/mobile-copy";
 
 export interface MobileServerInvitesScreenProps {
   readonly serverId: string;
   onBack(): void;
 }
-
-const COPY = {
-  en: {
-    back: "Back",
-    copied: "Copied",
-    copy: "Copy",
-    create: "Create invite",
-    createdBy: (name: string) => `Created by ${name}`,
-    delete: "Delete",
-    deleteBody: "Revoke this invite link? It stops working immediately.",
-    deleteTitle: "Delete invite",
-    emptyBody: "Create an invite link to bring people into this server.",
-    emptyTitle: "No invites yet",
-    error: "Invites could not be loaded. Please try again.",
-    neverExpires: "Never expires",
-    retry: "Try again",
-    share: "Share",
-    title: "Invites",
-    unlimited: "Unlimited uses",
-    uses: (used: number, max: number | null) =>
-      max === null ? `${used} uses` : `${used}/${max} uses`,
-  },
-  tr: {
-    back: "Geri",
-    copied: "Kopyalandı",
-    copy: "Kopyala",
-    create: "Yeni davet oluştur",
-    createdBy: (name: string) => `Oluşturan: ${name}`,
-    delete: "Sil",
-    deleteBody: "Bu davet bağlantısı iptal edilsin mi? Anında çalışmayı durdurur.",
-    deleteTitle: "Daveti sil",
-    emptyBody: "Bu sunucuya insan davet etmek için bir bağlantı oluştur.",
-    emptyTitle: "Henüz davet yok",
-    error: "Davetler yüklenemedi. Lütfen yeniden dene.",
-    neverExpires: "Süresiz",
-    retry: "Yeniden dene",
-    share: "Paylaş",
-    title: "Davetler",
-    unlimited: "Sınırsız kullanım",
-    uses: (used: number, max: number | null) =>
-      max === null ? `${used} kullanım` : `${used}/${max} kullanım`,
-  },
-} as const;
 
 function inviteCode(shareUrl: string): string {
   try {
@@ -69,6 +27,19 @@ function inviteCode(shareUrl: string): string {
   } catch {
     return shareUrl;
   }
+}
+
+/** The invite-usage chip reads differently once a maximum exists. */
+function formatInviteUses(
+  labels: (typeof mobileCopy)[keyof typeof mobileCopy],
+  used: number,
+  max: number | null,
+): string {
+  return max === null
+    ? labels.serverInvitesUses.replace("{used}", String(used))
+    : labels.serverInvitesUsesLimited
+        .replace("{used}", String(used))
+        .replace("{max}", String(max));
 }
 
 function formatExpiry(expiresAt: string | null, locale: string, neverLabel: string): string {
@@ -89,7 +60,7 @@ function formatExpiry(expiresAt: string | null, locale: string, neverLabel: stri
 export function MobileServerInvitesScreen({ onBack, serverId }: MobileServerInvitesScreenProps) {
   const { apiClient } = useMobileAuth();
   const { locale } = useMobileLocaleRuntime();
-  const labels = COPY[locale];
+  const labels = mobileCopy[locale];
   const theme = useTheme();
   const styles = useThemedStyles(createMobileServerInvitesStyles);
   const invitesQuery = useMobileServerInvitesQuery(apiClient, serverId, true);
@@ -123,7 +94,7 @@ export function MobileServerInvitesScreen({ onBack, serverId }: MobileServerInvi
   const headerNode = (
     <View style={styles.header}>
       <Pressable
-        accessibilityLabel={labels.back}
+        accessibilityLabel={labels.serverInvitesBack}
         accessibilityRole="button"
         hitSlop={8}
         onPress={onBack}
@@ -134,7 +105,7 @@ export function MobileServerInvitesScreen({ onBack, serverId }: MobileServerInvi
       </Pressable>
       <View style={styles.headerBody}>
         <Text maxFontSizeMultiplier={2} numberOfLines={1} style={styles.title}>
-          {labels.title}
+          {labels.serverInvitesTitle}
         </Text>
       </View>
     </View>
@@ -142,7 +113,7 @@ export function MobileServerInvitesScreen({ onBack, serverId }: MobileServerInvi
 
   const createButton = (
     <Pressable
-      accessibilityLabel={labels.create}
+      accessibilityLabel={labels.serverInvitesCreate}
       accessibilityRole="button"
       accessibilityState={{ busy: mutations.createInvite.isPending }}
       disabled={mutations.createInvite.isPending}
@@ -155,7 +126,7 @@ export function MobileServerInvitesScreen({ onBack, serverId }: MobileServerInvi
       testID="mobile-server-invites-create"
     >
       <Ionicons color={theme.text.onPrimary} name="add" size={18} />
-      <Text style={styles.createButtonText}>{labels.create}</Text>
+      <Text style={styles.createButtonText}>{labels.serverInvitesCreate}</Text>
     </Pressable>
   );
 
@@ -182,10 +153,10 @@ export function MobileServerInvitesScreen({ onBack, serverId }: MobileServerInvi
       <View style={styles.root} testID="mobile-server-invites-screen">
         {headerNode}
         <Text accessibilityRole="alert" style={styles.error}>
-          {labels.error}
+          {labels.serverInvitesError}
         </Text>
         <View style={{ marginHorizontal: 20, marginTop: 16 }}>
-          <Button label={labels.retry} onPress={() => void invitesQuery.refetch()} />
+          <Button label={labels.serverInvitesRetry} onPress={() => void invitesQuery.refetch()} />
         </View>
       </View>
     );
@@ -199,11 +170,11 @@ export function MobileServerInvitesScreen({ onBack, serverId }: MobileServerInvi
 
         {invites.length === 0 ? (
           <EmptyState
-            description={labels.emptyBody}
+            description={labels.serverInvitesEmptyBody}
             icon="link-outline"
             style={styles.state}
             testID="mobile-server-invites-empty"
-            title={labels.emptyTitle}
+            title={labels.serverInvitesEmptyTitle}
           />
         ) : (
           invites.map((invite) => {
@@ -224,25 +195,25 @@ export function MobileServerInvitesScreen({ onBack, serverId }: MobileServerInvi
                 </View>
                 <View style={styles.metaRow}>
                   <View style={styles.metaChip}>
-                    <Text style={styles.metaChipText}>{labels.uses(invite.uses, invite.maxUses)}</Text>
+                    <Text style={styles.metaChipText}>{formatInviteUses(labels, invite.uses, invite.maxUses)}</Text>
                   </View>
                   <View style={styles.metaChip}>
                     <Text style={styles.metaChipText}>
-                      {formatExpiry(invite.expiresAt, locale, labels.neverExpires)}
+                      {formatExpiry(invite.expiresAt, locale, labels.serverInvitesNeverExpires)}
                     </Text>
                   </View>
                   {invite.maxUses === null ? (
                     <View style={styles.metaChip}>
-                      <Text style={styles.metaChipText}>{labels.unlimited}</Text>
+                      <Text style={styles.metaChipText}>{labels.serverInvitesUnlimited}</Text>
                     </View>
                   ) : null}
                 </View>
                 <Text maxFontSizeMultiplier={2} numberOfLines={1} style={styles.createdBy}>
-                  {labels.createdBy(invite.createdByDisplayName)}
+                  {labels.serverInvitesCreatedBy.replace("{name}", invite.createdByDisplayName)}
                 </Text>
                 <View style={styles.actions}>
                   <Pressable
-                    accessibilityLabel={copied ? labels.copied : labels.copy}
+                    accessibilityLabel={copied ? labels.serverInvitesCopied : labels.serverInvitesCopy}
                     accessibilityRole="button"
                     onPress={() => void copyInvite(invite)}
                     style={({ pressed }) => [styles.action, pressed && styles.pressed]}
@@ -253,20 +224,20 @@ export function MobileServerInvitesScreen({ onBack, serverId }: MobileServerInvi
                       name={copied ? "checkmark" : "copy-outline"}
                       size={16}
                     />
-                    <Text style={styles.actionText}>{copied ? labels.copied : labels.copy}</Text>
+                    <Text style={styles.actionText}>{copied ? labels.serverInvitesCopied : labels.serverInvitesCopy}</Text>
                   </Pressable>
                   <Pressable
-                    accessibilityLabel={labels.share}
+                    accessibilityLabel={labels.serverInvitesShare}
                     accessibilityRole="button"
                     onPress={() => void shareMobileInviteUrl(invite.shareUrl)}
                     style={({ pressed }) => [styles.action, pressed && styles.pressed]}
                     testID={`mobile-server-invite-${invite.id}-share`}
                   >
                     <Ionicons color={theme.text.primary} name="share-outline" size={16} />
-                    <Text style={styles.actionText}>{labels.share}</Text>
+                    <Text style={styles.actionText}>{labels.serverInvitesShare}</Text>
                   </Pressable>
                   <Pressable
-                    accessibilityLabel={labels.delete}
+                    accessibilityLabel={labels.serverInvitesDelete}
                     accessibilityRole="button"
                     onPress={() => setPendingDelete(invite)}
                     style={({ pressed }) => [styles.deleteAction, pressed && styles.pressed]}
@@ -281,9 +252,9 @@ export function MobileServerInvitesScreen({ onBack, serverId }: MobileServerInvi
         )}
       </ScrollView>
       <DestructiveConfirmationSheet
-        body={labels.deleteBody}
+        body={labels.serverInvitesDeleteBody}
         busy={mutations.deleteInvite.isPending}
-        confirmLabel={labels.delete}
+        confirmLabel={labels.serverInvitesDelete}
         onCancel={() => setPendingDelete(null)}
         onConfirm={async () => {
           if (!pendingDelete) return;
@@ -299,7 +270,7 @@ export function MobileServerInvitesScreen({ onBack, serverId }: MobileServerInvi
         open={pendingDelete !== null}
         snapPoint={260}
         testID="mobile-server-invite-delete-confirm"
-        title={labels.deleteTitle}
+        title={labels.serverInvitesDeleteTitle}
       />
     </View>
   );

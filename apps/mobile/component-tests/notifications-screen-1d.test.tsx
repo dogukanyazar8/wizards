@@ -299,13 +299,13 @@ describe("1d notifications screen", () => {
     await fireEvent.press(
       view.getByTestId(`mobile-notification-friend-accept-${friendRequest.id}`),
     );
-    expect(mockAcceptRequest).toHaveBeenCalledWith("request-1");
+    expect(mockAcceptRequest).toHaveBeenCalledWith({ requestId: "request-1" });
     expect(mockMarkRead).toHaveBeenCalledWith(friendRequest.id);
 
     await fireEvent.press(
       view.getByTestId(`mobile-notification-friend-decline-${friendRequest.id}`),
     );
-    expect(mockRejectRequest).toHaveBeenCalledWith("request-1");
+    expect(mockRejectRequest).toHaveBeenCalledWith({ requestId: "request-1" });
   });
 
   it("keeps inline friend actions off rows without a backing request id", async () => {

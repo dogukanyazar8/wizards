@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { mobileCopy } from "../src/locale/mobile-copy";
 import type {
   ChatMessage,
   MobileBootstrapPayload,
@@ -332,7 +333,9 @@ describe("mobile display model", () => {
       },
     );
 
-    assert.equal(model.title, "Canli ses odasi");
+    assert.equal(model.title, mobileCopy.tr.voiceRoomLiveTitle);
+    assert.equal(model.qualityLabel, mobileCopy.tr.voiceRoomQualityConnected);
+    assert.equal(model.signalLabel, mobileCopy.tr.voiceRoomSignalActive);
     assert.equal(model.serverName, "UAT ENV");
     assert.equal(model.channelName, "live-room");
     assert.equal(model.speakingParticipants.length, 1);

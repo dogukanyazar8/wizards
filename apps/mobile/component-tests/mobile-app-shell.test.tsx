@@ -3,6 +3,7 @@ import { StyleSheet, Text } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { describe, expect, it } from "@jest/globals";
 import { createMobileAppShellStyles, MobileAppShell } from "../src/app/mobile-app-shell";
+import { MobileChatKeyboardRegion } from "../src/app/mobile-chat-keyboard-region";
 import { lightTheme } from "../src/design/themes";
 import { renderWithMobileTheme } from "./render-with-mobile-theme";
 
@@ -53,5 +54,35 @@ describe("MobileAppShell", () => {
     });
     expect(styles.contentUnauthenticated).not.toHaveProperty("paddingBottom");
     expect(styles.contentUnauthenticated).not.toHaveProperty("paddingTop");
+  });
+});
+
+describe("MobileChatKeyboardRegion", () => {
+  it("keeps the shell's system-inset reservation while a chat region owns the keyboard", async () => {
+    const view = await renderWithMobileTheme(
+      <SafeAreaProvider initialMetrics={androidThreeButtonMetrics}>
+        <MobileAppShell authStatus="signed-in">
+          <MobileChatKeyboardRegion testID="mobile-chat-keyboard-region">
+            <Text testID="mobile-chat-keyboard-region-child">chat</Text>
+          </MobileChatKeyboardRegion>
+        </MobileAppShell>
+      </SafeAreaProvider>,
+    );
+
+    expect(view.getByTestId("mobile-chat-keyboard-region-child")).toBeTruthy();
+    // A mounted region moves keyboard avoidance to the chat body, but the
+    // shell must keep clearing the Android navigation bar.
+    expect(
+      StyleSheet.flatten(view.getByTestId("mobile-app-shell").props.style as never) as {
+        paddingBottom?: number;
+      },
+    ).toMatchObject({ paddingBottom: 48 });
+    // The lifted chat body is clipped so it slides under the screen header
+    // instead of painting over it.
+    expect(
+      StyleSheet.flatten(view.getByTestId("mobile-chat-keyboard-region").props.style as never) as {
+        overflow?: string;
+      },
+    ).toMatchObject({ overflow: "hidden" });
   });
 });

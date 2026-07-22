@@ -188,16 +188,34 @@ test("floating navigation chrome is the measured inset owner for tab roots", () 
   assert.doesNotMatch(settingsStyles, /paddingBottom:\s*132/);
 });
 
-test("app shell is the single owner of the keyboard and system bottom inset", () => {
+test("keyboard ownership is split between the shell and chat keyboard regions", () => {
   const app = read("../App.tsx");
   const shell = read("../src/app/mobile-app-shell.tsx");
   const chrome = read("../src/navigation/floating-navigation-chrome.tsx");
   const channelScreen = read("../src/app/screens/channel-screen.tsx");
+  const dmScreen = read("../src/app/screens/dm-conversation-screen.tsx");
+  const region = read("../src/app/mobile-chat-keyboard-region.tsx");
   const authBackground = read("../src/app/components/kit/auth/auth-screen-background.tsx");
 
-  assert.match(app, /<KeyboardProvider>/);
+  // Expo runs Android edge-to-edge without shipping react-native-edge-to-edge,
+  // so the provider cannot auto-detect it: both translucency hints must be set
+  // or the measured keyboard height is offset by the system-bar heights.
+  assert.match(app, /<KeyboardProvider[\s\S]{0,120}?\bnavigationBarTranslucent\b/);
+  assert.match(app, /<KeyboardProvider[\s\S]{0,120}?\bstatusBarTranslucent\b/);
+  // The shell keeps padding top-anchored screens (auth forms, settings,
+  // threads) clear of the keyboard and reserves the system bottom inset once
+  // for everyone.
   assert.match(shell, /useReanimatedKeyboardAnimation/);
   assert.match(shell, /resolveMobileBottomKeyboardSpacing/);
+  assert.match(shell, /MobileChatKeyboardScopeProvider/);
+  assert.match(shell, /useMobileChatKeyboardOwnership/);
+  // Chat bodies ride the IME on the compositor: transform only — never an
+  // animated layout property — and clipped so the lift slides under the header.
+  assert.match(region, /translateY:\s*-resolveMobileKeyboardLift/);
+  assert.match(region, /overflow:\s*"hidden"/);
+  assert.doesNotMatch(region, /paddingBottom|paddingTop/);
+  assert.match(channelScreen, /<MobileChatKeyboardRegion/);
+  assert.match(dmScreen, /<MobileChatKeyboardRegion/);
   // The edge-to-edge tab bar is the one surface allowed under the shell's
   // reservation: the chrome reclaims the inset with a negative margin and the
   // bar repads it inside its own background so nothing is padded twice.
@@ -205,6 +223,7 @@ test("app shell is the single owner of the keyboard and system bottom inset", ()
   assert.match(chrome, /marginBottom: -bottomInset/);
   assert.match(chrome, /bottomSafeAreaInset=\{bottomInset\}/);
   assert.doesNotMatch(channelScreen, /KeyboardAvoidingView/);
+  assert.doesNotMatch(dmScreen, /KeyboardAvoidingView/);
   assert.doesNotMatch(authBackground, /KeyboardAvoidingView/);
 });
 

@@ -39,6 +39,13 @@ export interface PendingFriendsResponse {
   outgoing: FriendRequestDto[];
 }
 
+export type FriendRelationship = "none" | "friend" | "incoming" | "outgoing" | "blocked";
+
+export interface FriendSearchResultDto extends FriendUserDto {
+  relationship: FriendRelationship;
+  requestId: string | null;
+}
+
 export interface BlockStatus {
   blocked: boolean;
   blockedByUserA: boolean;

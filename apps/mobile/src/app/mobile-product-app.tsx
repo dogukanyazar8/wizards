@@ -1,11 +1,11 @@
 import { useMemo, type ComponentType } from "react";
-import { View } from "react-native";
 import { useMobileAuth } from "../auth/mobile-auth-context";
 import { getMobileRuntimeConfig } from "../config/environment";
 import { activeMobileCopy } from "../locale/mobile-locale-preferences";
 import type { MobileTabId } from "../navigation/mobile-navigation";
 import { useMobileSocialMutations } from "../social/mobile-social-query";
 import { openMobileVoiceRoom } from "../voice/mobile-voice-room-route-navigation";
+import { MobileOverlayContentScope, MobileOverlayHost } from "./components/kit/overlay-host";
 import { MobileAppLockScreen } from "./components/mobile-app-lock-screen";
 import { MobileDeviceIntegrityWarning } from "./components/mobile-device-integrity-warning";
 import { createMobileNotificationsScreenProps } from "./features/mobile-notification-actions";
@@ -476,7 +476,7 @@ export function MobileProductApp({
             <MobileSettingsScreenProvider value={settingsScreenProps}>
               <MobileVoiceScreenProvider value={voiceScreenProps}>
                 <MobileAppShell authStatus={status}>
-                  <View style={{ flex: 1, minWidth: 0 }}>
+                  <MobileOverlayContentScope style={{ flex: 1, minWidth: 0 }}>
                     {appLockLocked ? (
                       <MobileAppLockScreen
                         onRetry={() => void retryAppLockUnlock()}
@@ -506,8 +506,9 @@ export function MobileProductApp({
                         />
                       </>
                     )}
-                  </View>
+                  </MobileOverlayContentScope>
                 </MobileAppShell>
+                <MobileOverlayHost />
               </MobileVoiceScreenProvider>
             </MobileSettingsScreenProvider>
           </MobileOverviewScreenProvider>

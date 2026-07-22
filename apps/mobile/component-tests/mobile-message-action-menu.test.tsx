@@ -1,7 +1,10 @@
 import React from "react";
 import { describe, expect, it, jest } from "@jest/globals";
-import { fireEvent } from "@testing-library/react-native";
+import { act, fireEvent } from "@testing-library/react-native";
 import { Alert, StyleSheet, Text } from "react-native";
+import { Easing, withTiming } from "react-native-reanimated";
+
+import { MOBILE_OVERLAY_CLOSE_DURATION_MS } from "../src/app/components/kit/overlay-surface";
 
 import {
   MOBILE_MESSAGE_REACTION_EMOJIS,
@@ -13,6 +16,12 @@ import { activeMobileCopy as copy } from "../src/locale/mobile-locale-preference
 import { renderWithMobileTheme as render } from "./render-with-mobile-theme";
 
 const TEST_ID = "mobile-message-actions-message-8a";
+
+const mockBottomSystemSpacing = jest.fn(() => 0);
+
+jest.mock("../src/app/use-mobile-bottom-system-spacing", () => ({
+  useMobileBottomSystemSpacing: (minimumSpacing: number) => mockBottomSystemSpacing(minimumSpacing),
+}));
 
 const baseMessage = {
   content: "Süper, hotfix'i akşam alırım. İstersen kısaca sesli konuşalım?",
@@ -145,6 +154,66 @@ describe("8a message action menu", () => {
 
     await fireEvent.press(view.getByLabelText(copy.messageRetrySendAction));
     expect(onRetryFailedSend).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the action card clear of a three-button Android navigation bar", async () => {
+    mockBottomSystemSpacing.mockReturnValue(48);
+    const threeButton = await renderMenu({ onToggleReaction: jest.fn() });
+    await openMenu(threeButton);
+
+    expect(mockBottomSystemSpacing).toHaveBeenCalledWith(0);
+    expect(
+      StyleSheet.flatten(threeButton.getByTestId(`${TEST_ID}-menu`).props.style),
+    ).toMatchObject({ paddingBottom: 48 });
+
+    mockBottomSystemSpacing.mockReturnValue(0);
+    const gesture = await renderMenu({ onToggleReaction: jest.fn() });
+    await openMenu(gesture);
+
+    expect(
+      StyleSheet.flatten(gesture.getByTestId(`${TEST_ID}-menu`).props.style),
+    ).toMatchObject({ paddingBottom: 0 });
+  });
+
+  it("shrinks and fades the menu out on the shared overlay timing before unmounting", async () => {
+    const exitCompletions: ((finished: boolean) => void)[] = [];
+    jest.mocked(withTiming).mockImplementation(((
+      value: unknown,
+      _config: unknown,
+      completion?: (finished: boolean) => void,
+    ) => {
+      if (completion) {
+        exitCompletions.push(completion);
+      }
+      return value;
+    }) as never);
+
+    const view = await renderMenu({ onToggleReaction: jest.fn() });
+    await openMenu(view);
+    await fireEvent.press(view.getByTestId(`${TEST_ID}-backdrop`));
+
+    // The card is still on screen, running the exit animation.
+    const menu = view.getByTestId(`${TEST_ID}-menu`);
+    expect(StyleSheet.flatten(menu.props.style)).toMatchObject({ opacity: 0 });
+    expect(withTiming).toHaveBeenCalledWith(
+      0,
+      { duration: MOBILE_OVERLAY_CLOSE_DURATION_MS, easing: Easing.in(Easing.cubic) },
+      expect.any(Function),
+    );
+
+    await act(async () => {
+      exitCompletions.at(-1)?.(true);
+    });
+    expect(view.queryByTestId(`${TEST_ID}-menu`)).toBeNull();
+
+    jest.mocked(withTiming).mockImplementation(((
+      value: unknown,
+      _config: unknown,
+      completion?: (finished: boolean) => void,
+    ) => {
+      completion?.(true);
+      return value;
+    }) as never);
   });
 
   it("closes from the backdrop without firing any action", async () => {

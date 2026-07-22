@@ -18,6 +18,7 @@ import {
   useThemePreference,
   useThemedStyles,
 } from "../../providers/mobile-theme-provider";
+import { useMobileBottomSystemSpacing } from "../../use-mobile-bottom-system-spacing";
 import { MOBILE_LOCALE_OPTIONS } from "../../../locale/mobile-locale-preferences";
 import { mobileCopy } from "../../../locale/mobile-copy";
 import { redesignAuthLight } from "../../../design/palette";
@@ -42,6 +43,11 @@ export function AuthWelcomeScreen({
 }: AuthWelcomeScreenProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  // The pinned CTA block owns this screen's bottom edge, so it applies the shared
+  // Android system-bar policy itself instead of letting the background do it.
+  const bottomSystemSpacing = useMobileBottomSystemSpacing(
+    theme.layout.auth.welcomeCtaBottomPadding,
+  );
   const { locale } = useMobileLocaleRuntime();
   const { resolvedTheme, setMode } = useThemePreference();
   const styles = useThemedStyles(createAuthWelcomeScreenStyles);
@@ -62,6 +68,7 @@ export function AuthWelcomeScreen({
   return (
     <AuthScreenBackground
       centered={false}
+      contentOwnsBottomInset
       fill
       scrollable
       testID="mobile-auth-welcome-screen"
@@ -71,7 +78,7 @@ export function AuthWelcomeScreen({
         style={[
           styles.screen,
           {
-            paddingBottom: Math.max(insets.bottom, theme.layout.auth.welcomeCtaBottomPadding),
+            paddingBottom: bottomSystemSpacing,
             paddingTop: Math.max(insets.top, theme.spacing.section),
           },
         ]}

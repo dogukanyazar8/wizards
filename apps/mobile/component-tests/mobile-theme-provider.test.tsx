@@ -250,7 +250,9 @@ describe("MobileThemeProvider", () => {
       expect(SystemUI.setBackgroundColorAsync).toHaveBeenCalledWith(lightTheme.surface.base),
     );
     expect(view.getByTestId("mobile-system-status-bar").props.style).toBe("dark");
-    expect(view.getByTestId("mobile-system-navigation-bar").props.style).toBe("light");
+    // expo-navigation-bar's style names the bar content: a light theme needs dark
+    // buttons, or the three-button navigation bar renders invisible over it.
+    expect(view.getByTestId("mobile-system-navigation-bar").props.style).toBe("dark");
 
     await fireEvent.press(view.getByTestId("theme-probe"));
 
@@ -258,7 +260,7 @@ describe("MobileThemeProvider", () => {
       expect(SystemUI.setBackgroundColorAsync).toHaveBeenCalledWith(darkTheme.surface.base),
     );
     expect(view.getByTestId("mobile-system-status-bar").props.style).toBe("light");
-    expect(view.getByTestId("mobile-system-navigation-bar").props.style).toBe("dark");
+    expect(view.getByTestId("mobile-system-navigation-bar").props.style).toBe("light");
   });
 
   it("keeps the crash fallback on the persisted manual theme", async () => {
