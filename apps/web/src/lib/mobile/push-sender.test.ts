@@ -107,7 +107,7 @@ describe("sendMobilePushToUsers", () => {
     const [message] = JSON.parse(requests[0]!.body) as Array<Record<string, unknown>>;
     assert.equal(message!.to, "ExpoPushToken[a]");
     assert.equal(message!.channelId, "whispr-calls");
-    assert.equal(message!.categoryId, "incoming-call");
+    assert.equal(message!.categoryId, "incomingcall");
     assert.equal(message!.priority, "high");
     assert.equal(message!.sound, "default");
     assert.deepEqual(message!.data, { conversationId: "c1", kind: "dm-call" });

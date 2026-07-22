@@ -15,6 +15,7 @@ export async function createRealtimeDMMessage(args: {
   attachmentInputs: UploadedAttachmentInput[];
   content: string;
   conversationId: string;
+  forwardOfMessageId?: string | null;
   participants: DMRealtimeParticipant[];
   replyToId?: string | null;
   threadParentId?: string | null;
@@ -28,6 +29,7 @@ export async function createRealtimeDMMessage(args: {
         content: args.content,
         replyToId: args.replyToId ?? null,
         threadParentId: args.threadParentId ?? null,
+        forwardedAt: args.forwardOfMessageId ? new Date() : null,
       },
       select: { id: true, createdAt: true },
     });

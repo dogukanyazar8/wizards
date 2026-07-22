@@ -23,6 +23,8 @@ export const MessageReactionSchema = z.object({
         username: z.string(),
         displayName: z.string().nullable(),
         avatarUrl: z.string().nullable(),
+        /** 8e reaction detail sheet timestamp; older payloads omit it. */
+        reactedAt: z.string().datetime().optional(),
       }),
     )
     .optional(),
@@ -60,6 +62,7 @@ export const UploadedAttachmentInputSchema = z.object({
   id: z.string().uuid(),
   width: z.number().int().positive().max(20000).nullable().optional(),
   height: z.number().int().positive().max(20000).nullable().optional(),
+  duration: z.number().positive().max(3600).nullable().optional(),
 });
 
 export const ReplyToSchema = z.object({
@@ -78,6 +81,8 @@ export const ChatMessageSchema = z.object({
   type: ChatMessageTypeSchema,
   mentionEveryone: z.boolean().optional(),
   threadParentId: z.string().nullable().optional(),
+  /** 8d: a thread reply the author also published into the parent channel. */
+  alsoSentToChannel: z.boolean().optional(),
   threadSummary: MessageThreadSummarySchema.optional(),
   isPinned: z.boolean().optional(),
   pinnedAt: z.string().datetime().nullable().optional(),
@@ -88,6 +93,7 @@ export const ChatMessageSchema = z.object({
   createdAt: z.string().datetime(),
   deliveryStatus: z.enum(["sending", "failed"]).optional(),
   errorMessage: z.string().optional(),
+  forwardedAt: z.string().datetime().nullable().optional(),
   editedAt: z.string().datetime().nullable(),
   deletedAt: z.string().datetime().nullable(),
   deletedById: z.string().nullable().optional(),
@@ -126,6 +132,8 @@ export const SendMessageInputSchema = z
     content: z.string().max(MESSAGE_CONTENT_HARD_LIMIT),
     replyToId: z.string().optional(),
     threadParentId: z.string().optional(),
+    alsoSendToChannel: z.boolean().optional(),
+    forwardOfMessageId: z.string().optional(),
     attachments: z.array(UploadedAttachmentInputSchema).max(5).default([]),
   })
   .refine((value) => value.content.trim().length > 0 || value.attachments.length > 0, {

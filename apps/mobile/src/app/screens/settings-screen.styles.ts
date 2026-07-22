@@ -327,6 +327,7 @@ export const createSettingsScreenStyles = (theme: MobileTheme) => {
       fontFamily: theme.typography.fontFamilyExtraBold,
       fontSize: 26,
       letterSpacing: -0.52,
+      lineHeight: 31,
       paddingHorizontal: 4,
     },
     mobileProfileIdentityBanner: {

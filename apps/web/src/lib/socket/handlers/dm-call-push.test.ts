@@ -42,6 +42,7 @@ describe("sendDMCallPush", () => {
       conversationId: "conversation-1",
       deps,
       recipients: [{ locale: "tr", userId: "callee-1" }],
+      ringTtlMs: 45_000,
       video: true,
     });
 
@@ -49,7 +50,7 @@ describe("sendDMCallPush", () => {
     const [message] = JSON.parse(requests[0]!) as Array<Record<string, unknown>>;
     assert.equal(message!.to, "ExpoPushToken[callee]");
     assert.equal(message!.channelId, "whispr-calls");
-    assert.equal(message!.categoryId, "incoming-call");
+    assert.equal(message!.categoryId, "incomingcall");
     assert.equal(message!.priority, "high");
     assert.equal(message!.title, "Ada");
     assert.equal(message!.body, "Gelen görüntülü arama");
@@ -58,6 +59,7 @@ describe("sendDMCallPush", () => {
       conversationId: "conversation-1",
       fromUserId: "caller-1",
       kind: "dm-call",
+      ringTtlMs: "45000",
     });
   });
 
@@ -70,6 +72,7 @@ describe("sendDMCallPush", () => {
       conversationId: "conversation-1",
       deps,
       recipients: [{ locale: null, userId: "callee-1" }],
+      ringTtlMs: 45_000,
       video: false,
     });
 

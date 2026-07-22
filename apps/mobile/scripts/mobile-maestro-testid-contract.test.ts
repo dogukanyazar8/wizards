@@ -207,7 +207,7 @@ describe("Phase 0 Maestro testID contract", () => {
       assert.match(phase2FlowSource, new RegExp(`id:\\s*"${testId}"`));
       assert.ok(readFileSync(path.join(process.cwd(), sourcePath), "utf8").includes(needle));
     }
-    for (const action of ["More emoji", "Reply", "Edit", "Open thread", "Delete"]) {
+    for (const action of ["More emoji", "Reply", "Edit", "Start thread", "Delete"]) {
       assert.match(phase2FlowSource, new RegExp(action));
     }
     assert.ok(

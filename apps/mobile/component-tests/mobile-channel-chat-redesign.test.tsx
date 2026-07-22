@@ -144,18 +144,45 @@ describe("1b channel chat redesign", () => {
     expect(composer.channelComposerSendButtonDisabled).toMatchObject({
       backgroundColor: theme.accent.action,
     });
+    // 8c: channel rows are flat Discord-style lines without card chrome.
     expect(messages.messagePreviewBubbleChannel).toMatchObject({
-      backgroundColor: theme.surface.card,
-      borderRadius: 18,
-      borderTopLeftRadius: 6,
-      borderWidth: 1,
-      paddingHorizontal: 14,
-      paddingVertical: 10,
+      backgroundColor: "transparent",
+      borderRadius: 0,
+      borderWidth: 0,
+      paddingHorizontal: 0,
+      paddingVertical: 0,
     });
     expect(messages.messageReactionChip).toMatchObject({
+      backgroundColor: theme.surface.card,
+      borderColor: theme.border.subtle,
+      borderRadius: 11,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+    });
+    expect(messages.messageReactionChipOwn).toMatchObject({
       backgroundColor: theme.accent.soft,
-      borderColor: theme.accent.softBorder,
-      borderRadius: 12,
+      borderColor: theme.accent.default,
+    });
+    expect(messages.messageReactionAddChip).toMatchObject({
+      borderRadius: 11,
+      borderStyle: "dashed",
+    });
+    expect(messages.messageThreadCard).toMatchObject({
+      borderRadius: 13,
+      maxWidth: 270,
+      paddingHorizontal: 11,
+      paddingVertical: 8,
+    });
+    expect(messages.channelActionBar).toMatchObject({
+      borderRadius: 14,
+      paddingHorizontal: 6,
+      paddingVertical: 4,
+      right: 8,
+      top: -16,
+    });
+    expect(messages.channelUnreadSeparatorLabel).toMatchObject({
+      color: theme.messageMenu.unreadDivider,
+      fontSize: 10.5,
     });
   });
 
@@ -172,11 +199,12 @@ describe("1b channel chat redesign", () => {
 
     const bubble = view.getByTestId("mobile-channel-message-bubble-message-1");
     expect(StyleSheet.flatten(bubble.props.style)).toMatchObject({
-      borderRadius: 18,
-      borderTopLeftRadius: 6,
+      backgroundColor: "transparent",
+      borderWidth: 0,
     });
     expect(view.getByTestId("mobile-channel-message-thread-message-1")).toBeTruthy();
     expect(view.getByTestId("mobile-message-reply-quote-message-1")).toBeTruthy();
+    expect(view.getByTestId("mobile-message-reaction-add-message-1")).toBeTruthy();
   });
 
   it("keeps consecutive 1b channel messages aligned without repeating the author chrome", async () => {
@@ -190,7 +218,9 @@ describe("1b channel chat redesign", () => {
     );
 
     const bubble = view.getByTestId("mobile-channel-message-bubble-message-1");
-    expect(StyleSheet.flatten(bubble.props.style)).toMatchObject({ borderTopLeftRadius: 18 });
+    expect(StyleSheet.flatten(bubble.props.style)).toMatchObject({
+      backgroundColor: "transparent",
+    });
     expect(view.getByTestId("mobile-channel-message-avatar-spacer-message-1")).toBeTruthy();
     expect(view.queryByText("08:45")).toBeNull();
   });
@@ -271,7 +301,6 @@ describe("1b channel chat redesign", () => {
       <DMComposer
         getAccessToken={async () => "mobile-access-token"}
         onSend={onSend}
-        sendState={{ channelId: "channel-1", error: null, status: "idle" }}
         variant="channel"
       />,
     );
@@ -282,7 +311,8 @@ describe("1b channel chat redesign", () => {
     expect(voiceAction.props.accessibilityState).toEqual({
       disabled: false,
     });
-    await fireEvent.press(voiceAction);
+    // 8c: recording is press-and-hold on the primary button.
+    await fireEvent(voiceAction, "pressIn");
     expect(mockVoiceRecorder.start).toHaveBeenCalledTimes(1);
     await fireEvent.press(emojiAction);
     expect(view.getByTestId("mobile-message-emoji-picker-panel")).toBeTruthy();

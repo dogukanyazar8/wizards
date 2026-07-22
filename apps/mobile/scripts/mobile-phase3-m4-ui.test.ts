@@ -26,7 +26,7 @@ test("GIF selection uses the in-house sheet, FlashList, and server-created attac
     /import\s*\{[\s\S]*?\bImage\b[\s\S]*?\}\s*from\s*["']react-native["']/,
   );
   assert.match(feature, /createMobileGiphyAttachment/);
-  assert.match(feature, /attachments: \[input\]/);
+  assert.match(feature, /attachments: \[attachment\.input\]/);
 });
 
 test("link previews never fetch arbitrary message URLs from the device", () => {

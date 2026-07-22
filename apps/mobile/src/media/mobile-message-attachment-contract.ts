@@ -36,6 +36,7 @@ const MOBILE_LOCAL_URI_SCHEMES = new Set(["content:", "file:", "ph:"]);
 export type MobileMessageAttachmentKind = "audio" | "file" | "image" | "video";
 
 export type MobilePickedMessageAttachment = {
+  readonly durationSeconds?: number;
   readonly file: File;
   readonly kind: MobileMessageAttachmentKind;
   readonly localUri: string;
@@ -146,12 +147,15 @@ export function parseMobileMessageAttachmentUploadCompletion(
     throw new MobileMessageAttachmentUploadError("invalid-upload-completion");
   }
 
+  const duration = parsed.data.duration ?? picked.durationSeconds ?? null;
+
   return {
-    attachment: parsed.data,
+    attachment: duration ? { ...parsed.data, duration } : parsed.data,
     input: {
       id: parsed.data.id,
       ...(parsed.data.width ? { width: parsed.data.width } : {}),
       ...(parsed.data.height ? { height: parsed.data.height } : {}),
+      ...(duration ? { duration } : {}),
     },
     kind: picked.kind,
     localUri: picked.localUri,

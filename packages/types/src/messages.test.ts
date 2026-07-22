@@ -172,6 +172,34 @@ describe("message schemas", () => {
     assertAccepts(MessageReactionSchema, reaction);
     assertRejects(MessageReactionSchema, { ...reaction, count: 1.5 }, ["count"]);
     assertRejects(MessageReactionSchema, { ...reaction, count: 0 }, ["count"]);
+    assertAccepts(MessageReactionSchema, {
+      ...reaction,
+      users: [
+        {
+          avatarUrl: "https://cdn.example.com/avatar.png",
+          displayName: "Ada Lovelace",
+          id: "user-1",
+          reactedAt: "2026-07-21T13:58:00.000Z",
+          username: "ada",
+        },
+      ],
+    });
+    assertRejects(
+      MessageReactionSchema,
+      {
+        ...reaction,
+        users: [
+          {
+            avatarUrl: null,
+            displayName: null,
+            id: "user-1",
+            reactedAt: "13:58",
+            username: "ada",
+          },
+        ],
+      },
+      ["users", 0, "reactedAt"],
+    );
 
     assertAccepts(MessageAttachmentSchema, {
       ...attachment,
@@ -193,6 +221,11 @@ describe("message schemas", () => {
     assertRejects(UploadedAttachmentInputSchema, { id, width: 0 }, ["width"]);
     assertRejects(UploadedAttachmentInputSchema, { height: 20_001, id }, ["height"]);
     assertRejects(UploadedAttachmentInputSchema, { id, width: 1.5 }, ["width"]);
+    // 8b voice messages report their recorded duration at send time.
+    assertAccepts(UploadedAttachmentInputSchema, { duration: 42.5, id });
+    assertAccepts(UploadedAttachmentInputSchema, { duration: null, id });
+    assertRejects(UploadedAttachmentInputSchema, { duration: 0, id }, ["duration"]);
+    assertRejects(UploadedAttachmentInputSchema, { duration: 3_601, id }, ["duration"]);
   });
 
   it("validates message dates and supplies collection defaults", () => {
@@ -203,6 +236,12 @@ describe("message schemas", () => {
     });
     assert.deepEqual(parsed?.attachments, []);
     assert.deepEqual(parsed?.reactions, []);
+    // 8b forward marker stays optional so older payloads keep parsing.
+    assertAccepts(ChatMessageSchema, { ...chatMessage, forwardedAt: "2026-07-21T10:00:00.000Z" });
+    assertAccepts(ChatMessageSchema, { ...chatMessage, forwardedAt: null });
+    assertRejects(ChatMessageSchema, { ...chatMessage, forwardedAt: "not-a-date" }, [
+      "forwardedAt",
+    ]);
     assertRejects(ChatMessageSchema, { ...chatMessage, editedAt: "not-a-date" }, ["editedAt"]);
     assertRejects(MessageThreadSummarySchema, { ...threadSummary, lastReplyAt: "soon" }, [
       "lastReplyAt",
@@ -222,6 +261,11 @@ describe("message schemas", () => {
       { attachments: [], channelId: "channel-1", content: "   " },
       ["content"],
     );
+    assertAccepts(SendMessageInputSchema, {
+      channelId: "channel-1",
+      content: "forwarded",
+      forwardOfMessageId: "message-9",
+    });
     assertAccepts(SendMessageInputSchema, {
       channelId: "channel-1",
       content: "x".repeat(MESSAGE_CONTENT_HARD_LIMIT),

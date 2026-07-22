@@ -137,6 +137,37 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
       paddingVertical: 4,
       textTransform: "uppercase",
     },
+    messageFailedAction: {
+      color: theme.status.dangerOnBase,
+      fontSize: 12,
+      fontFamily: theme.typography.fontFamilyExtraBold,
+    },
+    messageFailedRow: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: 6,
+      marginTop: 4,
+    },
+    messageFailedText: {
+      color: theme.status.dangerOnBase,
+      fontSize: 12,
+    },
+    messageSendingDim: {
+      opacity: 0.6,
+    },
+    messageForwardedRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 5,
+      marginBottom: 4,
+    },
+    messageForwardedText: {
+      color: theme.text.visualFaint,
+      fontSize: 10.5,
+      lineHeight: 14,
+      fontFamily: theme.typography.fontFamilyBold,
+      fontStyle: "italic",
+    },
     messageDateTextChannel: {
       borderWidth: 0,
       borderRadius: 0,
@@ -169,13 +200,14 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
     messagePreviewAuthorChannel: {
       flex: 0,
       fontSize: 14,
-      fontFamily: theme.typography.fontFamilyBold,
+      fontFamily: theme.typography.fontFamilyExtraBold,
       lineHeight: 19,
     },
     messagePreviewBodyChannel: {
       marginTop: 0,
-      fontSize: 14.5,
-      lineHeight: 21,
+      fontSize: 14,
+      lineHeight: 20.3,
+      fontFamily: theme.typography.fontFamily,
     },
     messagePreviewBubble: {
       flexShrink: 1,
@@ -189,21 +221,18 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
       paddingHorizontal: 11,
       paddingVertical: 9,
     },
+    // 8c: channel rows are flat Discord-style lines — no card chrome.
     messagePreviewBubbleChannel: {
-      alignSelf: "flex-start",
+      alignSelf: "stretch",
       flexShrink: 1,
       maxWidth: "100%",
-      borderWidth: 1,
-      borderColor: theme.border.subtle,
-      borderRadius: 18,
-      borderTopLeftRadius: 6,
-      backgroundColor: theme.surface.card,
-      paddingHorizontal: 14,
-      paddingVertical: 10,
+      borderWidth: 0,
+      borderRadius: 0,
+      backgroundColor: "transparent",
+      paddingHorizontal: 0,
+      paddingVertical: 0,
     },
-    messagePreviewBubbleChannelContinuation: {
-      borderTopLeftRadius: 18,
-    },
+    messagePreviewBubbleChannelContinuation: {},
     messagePreviewBubbleOwn: {
       borderBottomLeftRadius: 18,
       borderBottomRightRadius: 8,
@@ -211,6 +240,7 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
       backgroundColor: theme.accent.soft,
     },
     messagePreviewHeaderChannel: {
+      alignItems: "baseline",
       gap: 7,
     },
     messagePreviewOwnerBadge: {
@@ -228,10 +258,10 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
     messagePreviewChannelContent: {
       flex: 1,
       minWidth: 0,
-      gap: 5,
+      gap: 3,
     },
     messagePreviewAvatarSpacerChannel: {
-      width: 40,
+      width: 38,
       flexShrink: 0,
     },
     messagePreviewRow: {
@@ -242,72 +272,189 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
       gap: 9,
     },
     messagePreviewRowChannel: {
-      gap: 12,
+      gap: 10,
+    },
+    // 8c: long-press highlight bleeds past the stream padding.
+    messagePreviewRowChannelActive: {
+      backgroundColor: theme.messageMenu.rowHighlight,
+      borderRadius: 16,
+      marginHorizontal: -10,
+      paddingHorizontal: 10,
+      paddingVertical: 8,
     },
     messagePreviewTimeChannel: {
-      color: theme.text.soft,
-      fontSize: 11.5,
+      color: theme.text.visualPlaceholder,
+      fontSize: 10.5,
       fontFamily: theme.typography.fontFamilyMedium,
-      lineHeight: 16,
+      lineHeight: 14,
     },
     messagePreviewRowOwn: {
       justifyContent: "flex-end",
     },
+    // 8c reaction chips: white base, accent own-reaction, dashed add chip.
     messageReactionChip: {
       minHeight: 0,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 3,
+      borderWidth: 1,
+      borderColor: theme.border.subtle,
+      borderRadius: 11,
+      backgroundColor: theme.surface.card,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+    },
+    messageReactionChipOwn: {
+      backgroundColor: theme.accent.soft,
+      borderColor: theme.accent.default,
+    },
+    messageReactionEmoji: {
+      fontSize: 12,
+      lineHeight: 16,
+    },
+    messageReactionCount: {
+      color: theme.text.visualSecondary,
+      fontSize: 11,
+      lineHeight: 15,
+      fontFamily: theme.typography.fontFamilyBold,
+    },
+    messageReactionCountOwn: {
+      color: theme.accent.strong,
+    },
+    messageReactionAddChip: {
+      alignItems: "center",
       justifyContent: "center",
       borderWidth: 1,
-      borderColor: theme.accent.softBorder,
-      borderRadius: 12,
-      backgroundColor: theme.accent.soft,
+      borderColor: theme.messageMenu.addReactionBorder,
+      borderStyle: "dashed",
+      borderRadius: 11,
+      backgroundColor: theme.surface.card,
       paddingHorizontal: 9,
       paddingVertical: 3,
     },
     messageReactionRow: {
       flexDirection: "row",
       flexWrap: "wrap",
+      alignItems: "center",
       gap: 6,
       marginTop: 8,
       minWidth: 0,
     },
-    messageReactionText: {
-      color: theme.accent.strong,
-      fontSize: 12,
-      fontFamily: theme.typography.fontFamilyBold,
+    messageReactionRowChannel: {
+      gap: 5,
+      marginTop: 3,
     },
-    messageReplyQuoteChannel: {
-      borderLeftColor: theme.accent.strong,
-      borderLeftWidth: 3,
-      borderRadius: 4,
-      backgroundColor: theme.surface.soft,
-      gap: 1,
-      marginBottom: 0,
-      paddingHorizontal: 10,
-      paddingVertical: 4,
+    // 8c compact reply line above the channel author row.
+    messageReplyLineChannel: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      minWidth: 0,
     },
-    messageReplyQuoteChannelAuthor: {
-      color: theme.accent.strong,
+    messageReplyLineText: {
+      flex: 1,
+      minWidth: 0,
+      color: theme.text.visualSecondary,
       fontSize: 11.5,
-      fontFamily: theme.typography.fontFamilyBold,
+      lineHeight: 15,
     },
-    messageReplyQuoteChannelContent: {
-      color: theme.text.muted,
-      fontSize: 12,
-      lineHeight: 17,
+    messageReplyLineName: {
+      color: theme.accent.strong,
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
-    messagePreviewThreadSummary: {
+    messageReplyLineQuote: {
+      color: theme.text.visualPlaceholder,
+    },
+    // 8c thread summary card with the overlapping replier facepile.
+    messageThreadCard: {
       alignSelf: "flex-start",
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      maxWidth: 270,
+      minWidth: 0,
       borderWidth: 1,
-      borderColor: theme.accent.softBorder,
-      borderRadius: 12,
-      backgroundColor: theme.accent.soft,
-      paddingHorizontal: 9,
-      paddingVertical: 3,
+      borderColor: theme.border.subtle,
+      borderRadius: 13,
+      backgroundColor: theme.surface.card,
+      paddingHorizontal: 11,
+      paddingVertical: 8,
+      marginTop: 5,
     },
-    messagePreviewThreadSummaryText: {
+    messageThreadFacepile: {
+      flexDirection: "row",
+    },
+    messageThreadFaceOverlap: {
+      marginLeft: -7,
+    },
+    messageThreadReplyCount: {
       color: theme.accent.strong,
       fontSize: 12,
-      fontFamily: theme.typography.fontFamilyBold,
+      lineHeight: 16,
+      fontFamily: theme.typography.fontFamilyExtraBold,
+    },
+    messageThreadLastReply: {
+      flexShrink: 1,
+      minWidth: 0,
+      color: theme.text.visualPlaceholder,
+      fontSize: 11,
+      lineHeight: 14,
+    },
+    // 8c floating action bar pinned to the highlighted row's top-right corner.
+    channelActionBar: {
+      position: "absolute",
+      top: -16,
+      right: 8,
+      zIndex: 10,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 2,
+      borderWidth: 1,
+      borderColor: theme.border.subtle,
+      borderRadius: 14,
+      backgroundColor: theme.surface.card,
+      paddingHorizontal: 6,
+      paddingVertical: 4,
+      shadowColor: theme.surface.inverse,
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: theme.dark ? 0 : 0.12,
+      shadowRadius: 18,
+      elevation: theme.dark ? 0 : 8,
+    },
+    channelActionBarButton: {
+      width: 32,
+      height: 32,
+      borderRadius: 10,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    channelActionBarButtonPressed: {
+      backgroundColor: theme.surface.soft,
+    },
+    channelActionBarEmoji: {
+      fontSize: 15,
+      lineHeight: 20,
+    },
+    // 8c unread boundary divider.
+    channelUnreadSeparator: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      minWidth: 0,
+      paddingBottom: 10,
+      paddingTop: 4,
+    },
+    channelUnreadSeparatorLine: {
+      flex: 1,
+      height: 1,
+      backgroundColor: theme.messageMenu.unreadDividerLine,
+    },
+    channelUnreadSeparatorLabel: {
+      color: theme.messageMenu.unreadDivider,
+      fontSize: 10.5,
+      lineHeight: 14,
+      fontFamily: theme.typography.fontFamilyExtraBold,
+      letterSpacing: 1.05,
     },
     messageSearchButton: {
       minHeight: mobileSizing.minTouchTarget,

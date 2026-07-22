@@ -174,6 +174,17 @@ export const createNotificationsScreenStyles = (theme: MobileTheme) => {
       paddingHorizontal: 24,
       paddingTop: 16,
     },
+    notificationsHeaderText: {
+      flex: 1,
+      gap: 2,
+      minWidth: 0,
+    },
+    notificationsSubtitle: {
+      color: theme.text.muted,
+      fontFamily: theme.typography.fontFamily,
+      fontSize: 13,
+      lineHeight: 18,
+    },
     notificationsList: {
       gap: 10,
       paddingBottom: theme.layout.notifications.contentBottomPadding,
@@ -343,6 +354,7 @@ export const createNotificationsScreenStyles = (theme: MobileTheme) => {
       fontFamily: theme.typography.fontFamilyExtraBold,
       fontSize: 26,
       letterSpacing: -0.52,
+      lineHeight: 31,
     },
     notificationSkeletonRow: {
       alignItems: "flex-start" as const,

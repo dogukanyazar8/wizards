@@ -1,5 +1,9 @@
 import type { InfiniteData } from "@tanstack/react-query";
-import type { MessageReaction } from "@wizards/types";
+import type {
+  MessageReaction,
+  MessageThreadParticipant,
+  MessageThreadSummary,
+} from "@wizards/types";
 import { flattenMobileInfinitePages } from "./mobile-query-pages";
 
 type MobileCacheMessage = {
@@ -189,6 +193,21 @@ function updateMobileMessageById<
   return changed ? { ...data, pages } : data;
 }
 
+export function markMobileMessageFailed<
+  TMessage extends MobileCacheMessage & {
+    readonly deliveryStatus?: "sending" | "failed" | undefined;
+  },
+  TPage extends MobileCachePage<TMessage>,
+  TPageParam,
+>(
+  data: MobileMessageData<TMessage, TPage, TPageParam> | undefined,
+  messageId: string,
+): MobileMessageData<TMessage, TPage, TPageParam> | undefined {
+  return updateMobileMessageById(data, messageId, (message) =>
+    message.deliveryStatus === "failed" ? message : { ...message, deliveryStatus: "failed" },
+  );
+}
+
 export function updateMobileMessageContent<
   TMessage extends MobileCacheMessage & {
     readonly content: string;
@@ -209,7 +228,7 @@ export function updateMobileMessageContent<
   }));
 }
 
-function getNextMobileMessageReactions(
+export function getNextMobileMessageReactions(
   reactions: readonly MessageReaction[],
   emoji: string,
   userId: string,
@@ -277,4 +296,56 @@ export function replaceMobileMessageReactions<
 
 export function restoreMobileMessageSnapshot<TData>(_current: TData, snapshot: TData): TData {
   return snapshot;
+}
+
+type MobileThreadSummaryCacheMessage = MobileCacheMessage & {
+  readonly threadSummary?: MessageThreadSummary | undefined;
+};
+
+/**
+ * 8d: a thread reply bumps the parent's summary card in the channel stream
+ * (reply count, last reply time, and the facepile) before the server confirms.
+ */
+export function applyMobileOptimisticThreadReply<
+  TMessage extends MobileThreadSummaryCacheMessage,
+  TPage extends MobileCachePage<TMessage>,
+  TPageParam,
+>(
+  data: MobileMessageData<TMessage, TPage, TPageParam> | undefined,
+  parentMessageId: string,
+  replier: MessageThreadParticipant,
+  repliedAt: string,
+): MobileMessageData<TMessage, TPage, TPageParam> | undefined {
+  return updateMobileMessageById(data, parentMessageId, (message) => {
+    const summary = message.threadSummary ?? {
+      lastReplyAt: null,
+      recentRepliers: [],
+      replyCount: 0,
+    };
+    const recentRepliers = summary.recentRepliers.some(
+      (participant) => participant.userId === replier.userId,
+    )
+      ? summary.recentRepliers
+      : [...summary.recentRepliers, replier].slice(-3);
+
+    return {
+      ...message,
+      threadSummary: {
+        lastReplyAt: repliedAt,
+        recentRepliers,
+        replyCount: summary.replyCount + 1,
+      },
+    };
+  });
+}
+
+/**
+ * 8d: thread replies stay out of the channel stream unless their author ticked
+ * "also send to channel", so realtime and optimistic writes both filter them.
+ */
+export function shouldRenderMobileMessageInChannelStream(message: {
+  readonly alsoSentToChannel?: boolean | undefined;
+  readonly threadParentId?: string | null | undefined;
+}): boolean {
+  return !message.threadParentId || message.alsoSentToChannel === true;
 }

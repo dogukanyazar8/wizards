@@ -1,10 +1,10 @@
 import type { UploadedAttachmentInput } from "@wizards/types";
 
+import type { MobileForwardSendInput } from "../components/message-forward-sheet";
 import type {
   MobileBootstrapViewState,
   MobileDMConversationListItem,
   MobileDMMessagesViewState,
-  MobileDMSendViewState,
   MobileMediaRuntimeState,
   MobileSyncHealthSummary,
 } from "../mobile-root-screen-shared";
@@ -21,7 +21,6 @@ export type MobileMessagesScreenProps = {
   dmConversationsHasNextPage: boolean;
   dmConversationsIsLoading: boolean;
   dmMessagesState: MobileDMMessagesViewState;
-  dmSendState: MobileDMSendViewState;
   dmTypingLabel: string | null;
   getAccessToken?: () => Promise<string | null>;
   isEndToEndEncrypted?: boolean;
@@ -34,8 +33,10 @@ export type MobileMessagesScreenProps = {
   onClearSelectedMediaAsset(): void;
   onCloseConversation(): void;
   onDeleteMessage(messageId: string): Promise<boolean>;
+  onDiscardMessage(messageId: string): void;
   onDraftChange(content: string): void;
   onEditMessage(input: { content: string; messageId: string }): Promise<boolean>;
+  onForwardMessage?(input: MobileForwardSendInput): Promise<boolean>;
   onLoadMoreConversations(): void;
   onLoadMoreMessages?(): void;
   onOpenConversation(conversationId: string): void;
@@ -46,6 +47,7 @@ export type MobileMessagesScreenProps = {
   onRefreshVisibleData(): void;
   onRequestDocumentPicker(): Promise<void>;
   onRequestPhotoLibraryPicker(): Promise<void>;
+  onRetryMessage(messageId: string): void;
   onSendGif?(gifId: string): Promise<boolean>;
   onSendMessage(content: string, intent?: MobileDMSendIntent): Promise<boolean>;
   onStartVideoCall?(): void;

@@ -119,9 +119,11 @@ export async function POST(request: Request, context: RouteContext) {
     await enforceMobileChannelMessageSendRateLimit(userId);
 
     const message = await sendChannelMessage({
+      alsoSendToChannel: body.alsoSendToChannel === true,
       attachments: body.attachments,
       channelId,
       content: body.content,
+      forwardOfMessageId: body.forwardOfMessageId ?? null,
       io: getSocketServer(),
       replyToId: body.replyToId ?? null,
       threadParentId: body.threadParentId ?? null,

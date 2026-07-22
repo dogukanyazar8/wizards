@@ -6,11 +6,9 @@ import {
   copy,
   getMobileConversationAvatarUrl,
   getMobileConversationTitle,
-  INITIAL_DM_SEND_STATE,
   type MobileBootstrapFeature,
   type MobileBootstrapPayload,
   type MobileDMMessagesViewState,
-  type MobileDMSendViewState,
   type MobileMediaRuntimeState,
   type MobileSyncHealthSummary,
   useCallback,
@@ -27,6 +25,11 @@ import {
   MessageListSkeleton,
   type MobileMessageActionTarget,
 } from "../components/message-primitives";
+import {
+  MessageForwardSheet,
+  type MobileForwardSendInput,
+  type MobileForwardTarget,
+} from "../components/message-forward-sheet";
 import { EmptyState, MobileSyncHealthBanner } from "../components/ui-atoms";
 import { getMobileDMPartnerLastReadAt } from "../../dm/mobile-dm-client";
 import { useDMChatStyles } from "../components/dm-chat-primitives.styles";
@@ -43,6 +46,7 @@ export function DMConversationScreen({
   attachmentsFeature,
   conversation,
   currentUserId,
+  forwardTargets,
   getAccessToken,
   isEndToEndEncrypted = false,
   isReactionMutationPending,
@@ -51,8 +55,10 @@ export function DMConversationScreen({
   onBack,
   onClearSelectedMediaAsset,
   onDeleteMessage,
+  onDiscardMessage,
   onDraftChange,
   onEditMessage,
+  onForwardMessage,
   onLoadMoreMessages,
   onOpenDetails,
   onOpenThread,
@@ -60,12 +66,12 @@ export function DMConversationScreen({
   onRefreshVisibleData,
   onRequestDocumentPicker,
   onRequestPhotoLibraryPicker,
+  onRetryMessage,
   onSendGif,
   onSendMessage,
   onStartVideoCall,
   onStartVoiceCall,
   onToggleMessageReaction,
-  sendState,
   state,
   syncHealth,
   typingLabel,
@@ -73,20 +79,22 @@ export function DMConversationScreen({
   attachmentsFeature: MobileBootstrapFeature | null;
   conversation: MobileBootstrapPayload["home"]["directMessages"]["recent"][number];
   currentUserId: string;
+  forwardTargets?: readonly MobileForwardTarget[];
   getAccessToken?: () => Promise<string | null>;
   isEndToEndEncrypted?: boolean;
   isReactionMutationPending: boolean;
   lastSeenAt?: string | null;
   mediaState: MobileMediaRuntimeState;
-  sendState: MobileDMSendViewState;
   state: MobileDMMessagesViewState;
   syncHealth: MobileSyncHealthSummary;
   typingLabel: string | null;
   onBack(): void;
   onClearSelectedMediaAsset(): void;
   onDeleteMessage(messageId: string): Promise<boolean>;
+  onDiscardMessage(messageId: string): void;
   onDraftChange(content: string): void;
   onEditMessage(input: { content: string; messageId: string }): Promise<boolean>;
+  onForwardMessage?(input: MobileForwardSendInput): Promise<boolean>;
   onLoadMoreMessages?: () => void;
   onOpenDetails?(): void;
   onOpenThread?(messageId: string): void;
@@ -94,6 +102,7 @@ export function DMConversationScreen({
   onRefreshVisibleData(): void;
   onRequestDocumentPicker(): Promise<void>;
   onRequestPhotoLibraryPicker(): Promise<void>;
+  onRetryMessage(messageId: string): void;
   onSendGif?(gifId: string): Promise<boolean>;
   onSendMessage(content: string, intent?: DMSendIntent): Promise<boolean>;
   onStartVideoCall?(): void;
@@ -138,23 +147,26 @@ export function DMConversationScreen({
           attachmentsFeature={attachmentsFeature}
           conversation={conversation}
           currentUserId={currentUserId}
+          {...(forwardTargets ? { forwardTargets } : {})}
           {...(getAccessToken ? { getAccessToken } : {})}
           isEndToEndEncrypted={isEndToEndEncrypted}
           isReactionMutationPending={isReactionMutationPending}
           mediaState={mediaState}
           onClearSelectedMediaAsset={onClearSelectedMediaAsset}
           onDeleteMessage={onDeleteMessage}
+          onDiscardMessage={onDiscardMessage}
           onDraftChange={onDraftChange}
           onEditMessage={onEditMessage}
+          {...(onForwardMessage ? { onForwardMessage } : {})}
           {...(onLoadMoreMessages ? { onLoadMoreMessages } : {})}
           {...(onOpenThread ? { onOpenThread } : {})}
           onRequestDocumentPicker={onRequestDocumentPicker}
           onRequestPhotoLibraryPicker={onRequestPhotoLibraryPicker}
           onRetry={onRefreshConversation}
+          onRetryMessage={onRetryMessage}
           {...(onSendGif ? { onSendGif } : {})}
           onSendMessage={onSendMessage}
           onToggleMessageReaction={onToggleMessageReaction}
-          sendState={sendState}
           state={state}
           typingLabel={typingLabel}
         />
@@ -167,53 +179,68 @@ export function DMConversationPreviewCard({
   attachmentsFeature,
   conversation,
   currentUserId,
+  forwardTargets,
   getAccessToken,
   isEndToEndEncrypted = false,
   isReactionMutationPending,
   mediaState,
   onClearSelectedMediaAsset,
   onDeleteMessage,
+  onDiscardMessage,
   onDraftChange,
   onEditMessage,
+  onForwardMessage,
   onLoadMoreMessages,
   onOpenThread,
   onRequestDocumentPicker,
   onRequestPhotoLibraryPicker,
   onRetry,
+  onRetryMessage,
   onSendGif,
   onSendMessage,
   onToggleMessageReaction,
-  sendState,
   state,
   typingLabel,
 }: {
   attachmentsFeature: MobileBootstrapFeature | null;
   conversation: MobileBootstrapPayload["home"]["directMessages"]["recent"][number] | null;
   currentUserId: string;
+  forwardTargets?: readonly MobileForwardTarget[];
   getAccessToken?: () => Promise<string | null>;
   isEndToEndEncrypted?: boolean;
   isReactionMutationPending: boolean;
   mediaState: MobileMediaRuntimeState;
   onClearSelectedMediaAsset(): void;
   onDeleteMessage(messageId: string): Promise<boolean>;
+  onDiscardMessage(messageId: string): void;
   onDraftChange(content: string): void;
   onEditMessage(input: { content: string; messageId: string }): Promise<boolean>;
+  onForwardMessage?(input: MobileForwardSendInput): Promise<boolean>;
   onLoadMoreMessages?: () => void;
   onOpenThread?(messageId: string): void;
   onRequestDocumentPicker(): Promise<void>;
   onRequestPhotoLibraryPicker(): Promise<void>;
   onRetry(): void;
+  onRetryMessage(messageId: string): void;
   onSendGif?(gifId: string): Promise<boolean>;
   onSendMessage(content: string, intent?: DMSendIntent): Promise<boolean>;
   onToggleMessageReaction(input: { emoji: string; messageId: string; shouldReact: boolean }): void;
-  sendState: MobileDMSendViewState;
   state: MobileDMMessagesViewState;
   typingLabel: string | null;
 }) {
   const styles = useDMChatStyles();
   const [composerIntent, setComposerIntent] = useState<MobileComposerIntent | null>(null);
+  const [forwardSource, setForwardSource] = useState<MobileMessageActionTarget | null>(null);
+  const handleRequestForward = useCallback((message: MobileMessageActionTarget) => {
+    setForwardSource(message);
+  }, []);
   const handleReplyMessage = useCallback((message: MobileMessageActionTarget) => {
-    setComposerIntent({ content: message.content, messageId: message.id, mode: "reply" });
+    setComposerIntent({
+      ...(message.authorLabel ? { authorLabel: message.authorLabel } : {}),
+      content: message.content,
+      messageId: message.id,
+      mode: "reply",
+    });
   }, []);
   const handleEditMessage = useCallback((message: MobileMessageActionTarget) => {
     setComposerIntent({ content: message.content, messageId: message.id, mode: "edit" });
@@ -243,8 +270,6 @@ export function DMConversationPreviewCard({
     partner?.userId ??
     conversation.participants.find((item) => item.id !== currentUserId)?.id ??
     conversation.id;
-  const conversationSendState =
-    sendState.conversationId === conversation.id ? sendState : INITIAL_DM_SEND_STATE;
   const partnerLastReadAt = getMobileDMPartnerLastReadAt(
     state.payload?.participantReadStates,
     currentUserId,
@@ -273,12 +298,31 @@ export function DMConversationPreviewCard({
           isReactionMutationPending={isReactionMutationPending}
           messages={state.payload.messages}
           onDeleteMessage={(messageId) => void onDeleteMessage(messageId)}
+          onDiscardFailedMessage={onDiscardMessage}
           onEditMessage={handleEditMessage}
+          {...(onForwardMessage ? { onForwardMessage: handleRequestForward } : {})}
           {...(onLoadMoreMessages ? { onLoadMore: onLoadMoreMessages } : {})}
           {...(onOpenThread ? { onOpenThread } : {})}
           onReplyMessage={handleReplyMessage}
+          onRetryFailedMessage={onRetryMessage}
           onToggleReaction={onToggleMessageReaction}
           partnerLastReadAt={partnerLastReadAt}
+        />
+      ) : null}
+      {onForwardMessage ? (
+        <MessageForwardSheet
+          onClose={() => setForwardSource(null)}
+          onForward={async (target) =>
+            forwardSource
+              ? onForwardMessage({
+                  content: forwardSource.content,
+                  forwardOfMessageId: forwardSource.id,
+                  target,
+                })
+              : false
+          }
+          open={forwardSource !== null}
+          targets={forwardTargets ?? []}
         />
       ) : null}
       {state.status === "ready" && state.payload.messages.length === 0 ? (
@@ -302,7 +346,6 @@ export function DMConversationPreviewCard({
           {...(onSendGif ? { onSendGif } : {})}
           placeholder={copy.dmChatComposerPlaceholder}
           sendActionLabel={copy.dmChatSendAction}
-          sendState={conversationSendState}
           variant="dm"
         />
       ) : null}

@@ -8,6 +8,7 @@ import {
   appendOrReplaceMobileMessage,
   flattenMobileInfiniteData,
   insertOptimisticMobileMessage,
+  markMobileMessageFailed,
   replaceMobileMessageReactions,
   replaceMobileMessage,
   updateMobileMessageContent,
@@ -94,6 +95,24 @@ test("cache helpers preserve an absent query cache", () => {
   assert.equal(replaceMobileMessage(undefined, message.id, message), undefined);
   assert.equal(appendOrReplaceMobileMessage(undefined, message), undefined);
   assert.equal(removeMobileMessage(undefined, message.id), undefined);
+});
+
+test("markMobileMessageFailed flags the matching message and leaves others untouched", () => {
+  const data = insertOptimisticMobileMessage(createData(), {
+    content: "sending",
+    id: "client-1",
+  });
+
+  const marked = markMobileMessageFailed(data, "client-1");
+  const flat = flattenMobileInfiniteData(marked);
+  assert.deepEqual(flat.at(-1), { content: "sending", deliveryStatus: "failed", id: "client-1" });
+  assert.deepEqual(
+    flat.filter((message) => message.id !== "client-1"),
+    flattenMobileInfiniteData(createData()),
+  );
+
+  assert.equal(markMobileMessageFailed(marked, "missing-id"), marked);
+  assert.equal(markMobileMessageFailed(undefined, "client-1"), undefined);
 });
 
 test("message cache removal updates only the requested message", () => {
@@ -381,29 +400,36 @@ test("query option factories use opaque domain keys and cursor pagination", () =
   );
 });
 
-test("optimistic mutation options insert, replace, and roll back exact snapshots", async () => {
+test("optimistic mutation options insert, replace on success, and mark failed on error", async () => {
   const queryClient = new QueryClient();
   const queryKey = ["mobile", "dm-messages", "conversation-1"] as const;
-  const snapshot = createData();
-  queryClient.setQueryData(queryKey, snapshot);
+  queryClient.setQueryData(queryKey, createData());
+  const failedDrafts: Array<{
+    clientId: string;
+    content: string;
+    failedMessage: { content: string; deliveryStatus?: string; id: string };
+  }> = [];
 
-  const successOptions = createMobileOptimisticMutationOptions({
+  const options = createMobileOptimisticMutationOptions({
     createOptimisticMessage: (input: { content: string }, clientId: string) => ({
       content: input.content,
       id: clientId,
     }),
     getResponseMessage: (response: { message: TestMessage }) => response.message,
-    invalidateKeys: [["mobile", "bootstrap"]],
     mutationFn: async () => ({ message: { content: "sent", id: "server-1" } }),
+    onSendFailed: (clientId, variables, failedMessage) => {
+      failedDrafts.push({ clientId, content: variables.content, failedMessage });
+    },
     queryClient,
     queryKey,
   });
-  const successContext = await successOptions.onMutate!({ content: "sending" }, {} as never);
+
+  const successContext = await options.onMutate!({ content: "sending" }, {} as never);
   assert.match(
     flattenMobileInfiniteData(queryClient.getQueryData(queryKey)).at(-1)!.id,
     /^client-/,
   );
-  await successOptions.onSuccess!(
+  await options.onSuccess!(
     { message: { content: "sent", id: "server-1" } },
     { content: "sending" },
     successContext,
@@ -414,14 +440,24 @@ test("optimistic mutation options insert, replace, and roll back exact snapshots
     "server-1",
   );
 
-  queryClient.setQueryData(queryKey, snapshot);
-  const cachedSnapshot = queryClient.getQueryData(queryKey);
-  const failureContext = await successOptions.onMutate!({ content: "failing" }, {} as never);
-  await successOptions.onError!(
-    new Error("failed"),
-    { content: "failing" },
-    failureContext,
-    {} as never,
-  );
-  assert.deepEqual(queryClient.getQueryData(queryKey), cachedSnapshot);
+  const failureContext = await options.onMutate!({ content: "failing" }, {} as never);
+  await options.onError!(new Error("failed"), { content: "failing" }, failureContext, {} as never);
+  const lastMessage = flattenMobileInfiniteData(queryClient.getQueryData(queryKey)).at(-1)!;
+  assert.equal(lastMessage.id, failureContext!.clientId);
+  assert.deepEqual(lastMessage, {
+    content: "failing",
+    deliveryStatus: "failed",
+    id: failureContext!.clientId,
+  });
+  assert.deepEqual(failedDrafts, [
+    {
+      clientId: failureContext!.clientId,
+      content: "failing",
+      failedMessage: {
+        content: "failing",
+        deliveryStatus: "failed",
+        id: failureContext!.clientId,
+      },
+    },
+  ]);
 });

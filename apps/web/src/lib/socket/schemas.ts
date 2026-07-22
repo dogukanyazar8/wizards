@@ -18,6 +18,7 @@ const SocketOptionalIdSchema = SocketIdSchema.optional();
 
 export const SocketMessageSendPayloadSchema = z
   .object({
+    alsoSendToChannel: z.boolean().optional(),
     attachments: z.array(UploadedAttachmentInputSchema).max(SOCKET_ATTACHMENT_MAX_COUNT).optional(),
     channelId: SocketIdSchema,
     content: z.string().max(SOCKET_CHANNEL_MESSAGE_MAX_LENGTH),

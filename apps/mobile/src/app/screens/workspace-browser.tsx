@@ -20,7 +20,6 @@ import {
   type MobileBootstrapPayload,
   type MobileBootstrapViewState,
   type MobileChannelMessagesViewState,
-  type MobileChannelSendViewState,
   type MobileLocale,
   type MobileMediaRuntimeState,
   type MobileMessageSearchViewState,
@@ -32,7 +31,7 @@ import {
   type MobileWorkspaceChannelSummary,
   type MobileWorkspaceServerViewState,
 } from "../mobile-root-screen-shared";
-import type { UploadedAttachmentInput } from "@wizards/types";
+import type { ChatMessage, UploadedAttachmentInput } from "@wizards/types";
 import { useMobileServerManagementFeature } from "../features/use-mobile-server-management-feature";
 import { MobileServerCreateJoinSheet } from "../../workspace/mobile-server-create-join-sheet";
 import { shareMobileInviteUrl } from "../../invite/mobile-invite-share";
@@ -49,12 +48,15 @@ import { EmptyState, Skeleton } from "../components/kit";
 import { MobileLineIcon } from "../../design/mobile-line-icons";
 import { mobileNavigationRef } from "../../navigation/mobile-navigation-ref";
 import type { MobileChannelTypingUser } from "../../realtime/mobile-typing-state";
+import type {
+  MobileForwardSendInput,
+  MobileForwardTarget,
+} from "../components/message-forward-sheet";
 
 export function MobileWorkspaceBrowser({
   attachmentsFeature,
   bootstrapState,
   channelMessagesState,
-  channelSendState,
   channelTypingLabel,
   channelTypingUsers,
   isReactionMutationPending,
@@ -82,17 +84,24 @@ export function MobileWorkspaceBrowser({
   onSendChannelMessage,
   onSendChannelGif,
   onDeleteMessage,
+  onDiscardMessage,
   onEditMessage,
+  onForwardMessage,
   onOpenThread,
+  onPinMessage,
+  onRetryMessage,
   onToggleMessageReaction,
+  channelFirstUnreadMessageId = null,
+  channelPinnedMessages = [],
 }: {
   attachmentsFeature: MobileBootstrapFeature | null;
+  channelFirstUnreadMessageId?: string | null;
+  channelPinnedMessages?: readonly ChatMessage[];
   bootstrapState: MobileBootstrapViewState & {
     payload: MobileBootstrapPayload;
     status: "ready";
   };
   channelMessagesState: MobileChannelMessagesViewState;
-  channelSendState: MobileChannelSendViewState;
   channelTypingLabel: string | null;
   channelTypingUsers: readonly MobileChannelTypingUser[];
   isReactionMutationPending: boolean;
@@ -131,8 +140,12 @@ export function MobileWorkspaceBrowser({
   ): Promise<boolean>;
   onSendChannelGif?(gifId: string): Promise<boolean>;
   onDeleteMessage(messageId: string): Promise<boolean>;
+  onDiscardMessage(messageId: string): void;
   onEditMessage(input: { content: string; messageId: string }): Promise<boolean>;
+  onForwardMessage?(input: MobileForwardSendInput): Promise<boolean>;
   onOpenThread?(messageId: string): void;
+  onPinMessage?(messageId: string, shouldPin: boolean): Promise<boolean>;
+  onRetryMessage(messageId: string): void;
   onToggleMessageReaction(input: { emoji: string; messageId: string; shouldReact: boolean }): void;
 }) {
   const styles = useHomeScreenStyles();
@@ -192,6 +205,18 @@ export function MobileWorkspaceBrowser({
     );
   }, [channelQuery, workspacePayload]);
   const isSearchingChannels = channelQuery.trim().length > 0;
+  // 8b forward targets: every text channel the member can currently see in
+  // the active server; DM targets are provided by the messages tab instead.
+  const forwardChannelTargets = useMemo<readonly MobileForwardTarget[]>(() => {
+    if (!workspacePayload) return [];
+    const channels = [
+      ...workspacePayload.detail.categories.flatMap((category) => category.channels),
+      ...workspacePayload.detail.ungroupedChannels,
+    ];
+    return channels
+      .filter((channel) => channel.type === "TEXT")
+      .map((channel) => ({ id: channel.id, label: `#${channel.name}`, type: "channel" as const }));
+  }, [workspacePayload]);
   const visibleChannelSections = useMemo(() => {
     const collapsedMap = Object.fromEntries(
       channelSections.map((section) => [
@@ -262,6 +287,8 @@ export function MobileWorkspaceBrowser({
       <MobileChannelChatScreen
         attachmentsFeature={attachmentsFeature}
         channel={activeTextChannel}
+        channelFirstUnreadMessageId={channelFirstUnreadMessageId}
+        channelPinnedMessages={channelPinnedMessages}
         currentUserId={bootstrapState.payload.user.id}
         getAccessToken={getAccessToken}
         isReactionMutationPending={isReactionMutationPending}
@@ -270,7 +297,6 @@ export function MobileWorkspaceBrowser({
         onlineMemberCount={activeOnlineMemberCount}
         messageSearchFeature={messageSearchFeature}
         messageSearchState={messageSearchState}
-        sendState={channelSendState}
         serverName={activeServerName}
         state={channelMessagesState}
         typingLabel={channelTypingLabel}
@@ -288,13 +314,19 @@ export function MobileWorkspaceBrowser({
         onSendMessage={onSendChannelMessage}
         {...(onSendChannelGif ? { onSendGif: onSendChannelGif } : {})}
         onDeleteMessage={onDeleteMessage}
+        onDiscardMessage={onDiscardMessage}
         onEditMessage={onEditMessage}
+        {...(onForwardMessage
+          ? { forwardTargets: forwardChannelTargets, onForwardMessage }
+          : {})}
         {...(onOpenThread ? { onOpenThread } : {})}
+        {...(onPinMessage ? { onPinMessage } : {})}
         onOpenMembers={() => {
           if (activeServerId && mobileNavigationRef.isReady()) {
             mobileNavigationRef.navigate("ServerMembers", { serverId: activeServerId });
           }
         }}
+        onRetryMessage={onRetryMessage}
         onToggleMessageReaction={onToggleMessageReaction}
       />
     );

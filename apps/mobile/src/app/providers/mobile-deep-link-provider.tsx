@@ -11,6 +11,7 @@ import type { MobileDeepLinkParseResult } from "../../deep-link/mobile-deep-link
 import { resolveMobileRoutePathIntent } from "../../navigation/mobile-linking";
 import { navigateMobileRouteIntent } from "../../navigation/mobile-navigation-ref";
 import type { MobileNavigationCommandIntent } from "../../navigation/mobile-navigation-types";
+import { useMobileDMCallStore } from "../../state/mobile-dm-call-store";
 
 interface MobileDeepLinkRuntime {
   readonly handleCommand: (command: MobileNavigationCommandIntent) => void;
@@ -36,6 +37,22 @@ export function MobileDeepLinkProvider({ children }: PropsWithChildren) {
 
       if (command.type === "invite") {
         navigatePath("/channels");
+        return;
+      }
+
+      if (command.type === "dm-call-answer") {
+        navigatePath(`/channels/@me/${command.conversationId}`);
+
+        // Only a live inbound ring can be answered. After a cold start the socket
+        // signal is gone, so the tap just opens the conversation.
+        const { answerCall, session } = useMobileDMCallStore.getState();
+        if (
+          answerCall &&
+          session?.status === "ringing-in" &&
+          session.conversationId === command.conversationId
+        ) {
+          void answerCall().catch(() => undefined);
+        }
         return;
       }
 

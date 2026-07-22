@@ -169,6 +169,13 @@ export function useMobileDMCallFeature({
     return () => useMobileDMCallStore.getState().setEndCallHandler(null);
   }, [endCall]);
 
+  // Answering from the Android call notification reuses this handler rather than
+  // rebuilding the join flow behind the deep link.
+  useEffect(() => {
+    useMobileDMCallStore.getState().setAnswerCallHandler(acceptCall);
+    return () => useMobileDMCallStore.getState().setAnswerCallHandler(null);
+  }, [acceptCall]);
+
   const handleRealtimeEvent = useCallback(
     (event: MobileRealtimeEventEnvelope) => {
       if (event.eventName === "dm:call:incoming") {

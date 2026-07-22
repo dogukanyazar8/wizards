@@ -29,6 +29,7 @@ export type SendDirectMessageInput = {
   attachments?: unknown;
   content: string;
   conversationId: string;
+  forwardOfMessageId?: string | null;
   io?: AppSocketServer | null;
   replyToId?: string | null;
   senderName?: string | null;
@@ -131,6 +132,7 @@ export async function sendDirectMessage(input: SendDirectMessageInput) {
     attachmentInputs,
     content,
     conversationId: input.conversationId,
+    forwardOfMessageId: input.forwardOfMessageId ?? null,
     participants,
     replyToId: input.replyToId ?? null,
     threadParentId: input.threadParentId ?? null,

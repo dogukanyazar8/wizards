@@ -125,7 +125,10 @@ export function NotificationsScreen({
   return (
     <View style={styles.notificationsScreen} testID="mobile-notifications-screen">
       <View style={styles.notificationsHeader}>
-        <Text style={styles.notificationsTitle}>{copy.notificationsTitle}</Text>
+        <View style={styles.notificationsHeaderText}>
+          <Text style={styles.notificationsTitle}>{copy.notificationsTitle}</Text>
+          <Text style={styles.notificationsSubtitle}>{copy.notificationsSubtitle}</Text>
+        </View>
         <View style={styles.notificationsHeaderActions}>
           <Pressable
             accessibilityLabel={copy.notificationsMarkAllRead}

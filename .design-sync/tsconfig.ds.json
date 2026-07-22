@@ -1,0 +1,53 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "jsx": "react-jsx",
+    "paths": {
+      "@livekit/krisp-noise-filter": [
+        "./stubs/krisp-noise-filter.ts"
+      ],
+      "@/lib/account/actions": [
+        "./stubs/account-actions.ts"
+      ],
+      "@/lib/appearance/actions": [
+        "./stubs/appearance-actions.ts"
+      ],
+      "@/lib/auth/actions": [
+        "./stubs/auth-actions.ts"
+      ],
+      "@/lib/locale/actions": [
+        "./stubs/locale-actions.ts"
+      ],
+      "@/lib/appearance": [
+        "../apps/web/src/lib/appearance.ts"
+      ],
+      "@/lib/locale": [
+        "../apps/web/src/lib/locale.ts"
+      ],
+      "@/lib/socket/handlers": [
+        "../apps/web/src/lib/socket/handlers/index.ts"
+      ],
+      "@/components/*": [
+        "../apps/web/src/components/*"
+      ],
+      "@/lib/*": [
+        "../apps/web/src/lib/*"
+      ],
+      "@/*": [
+        "../apps/web/src/*"
+      ],
+      "@wizards/db": [
+        "../packages/db/src/index.ts"
+      ],
+      "@wizards/types": [
+        "../packages/types/src/index.ts"
+      ],
+      "@wizards/ui": [
+        "../packages/ui/src/index.ts"
+      ],
+      "@wizards/ui/*": [
+        "../packages/ui/src/*"
+      ]
+    }
+  }
+}

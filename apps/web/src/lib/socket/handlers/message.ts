@@ -212,7 +212,7 @@ export function registerMessageHandlers(
         data.replyToId,
         attachmentInputs,
         data.threadParentId,
-        { permissions },
+        { alsoSendToChannel: data.alsoSendToChannel === true, permissions },
       );
       const messageCreatedAt = new Date(message.createdAt);
       const fanoutStartedAt = Date.now();

@@ -119,6 +119,17 @@ jest.mock("expo-audio", () => ({
   },
   RecordingPresets: { HIGH_QUALITY: {} },
   setAudioModeAsync: jest.fn(async () => undefined),
+  useAudioPlayer: jest.fn(() => ({
+    pause: jest.fn(),
+    play: jest.fn(),
+    seekTo: jest.fn(),
+  })),
+  useAudioPlayerStatus: jest.fn(() => ({
+    currentTime: 0,
+    didJustFinish: false,
+    duration: 0,
+    playing: false,
+  })),
   useAudioRecorder: jest.fn(() => ({
     prepareToRecordAsync: jest.fn(async () => undefined),
     record: jest.fn(),
@@ -131,6 +142,54 @@ jest.mock("expo-audio", () => ({
 jest.mock("react-native-keyboard-controller", () =>
   require("react-native-keyboard-controller/jest"),
 );
+
+// Real GestureDetector needs the full Reanimated runtime (useEvent etc.), which
+// the lightweight mock below does not provide. Individual suites may still
+// override this module with their own gesture spies.
+jest.mock("react-native-gesture-handler", () => {
+  const ReactRuntime = require("react");
+  const ReactNative = require("react-native");
+  const createChainableGesture = () => {
+    const gesture: Record<string, () => unknown> = {};
+    for (const method of [
+      "activeOffsetX",
+      "activeOffsetY",
+      "enabled",
+      "failOffsetX",
+      "failOffsetY",
+      "hitSlop",
+      "maxPointers",
+      "minDistance",
+      "minPointers",
+      "onBegin",
+      "onEnd",
+      "onFinalize",
+      "onStart",
+      "onTouchesDown",
+      "onUpdate",
+      "runOnJS",
+      "shouldCancelWhenOutside",
+      "simultaneousWithExternalGesture",
+    ]) {
+      gesture[method] = () => gesture;
+    }
+    return gesture;
+  };
+
+  return {
+    Gesture: {
+      Exclusive: (...gestures: unknown[]) => gestures[0],
+      Pan: createChainableGesture,
+      Pinch: createChainableGesture,
+      Simultaneous: (...gestures: unknown[]) => gestures[0],
+      Tap: createChainableGesture,
+    },
+    GestureDetector: ({ children }: { children: unknown }) =>
+      ReactRuntime.createElement(ReactNative.View, null, children),
+    GestureHandlerRootView: ({ children, ...props }: { children?: unknown }) =>
+      ReactRuntime.createElement(ReactNative.View, props, children),
+  };
+});
 
 jest.mock("react-native-reanimated", () => {
   const React = require("react");

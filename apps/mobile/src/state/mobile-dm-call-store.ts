@@ -7,7 +7,13 @@ export type MobileDMCallStoreState = {
   readonly session: MobileDMCallSession | null;
   /** Hang-up owned by the DM call feature; screens call it instead of re-emitting signals. */
   readonly endCall: (() => Promise<void>) | null;
+  /**
+   * Answer owned by the DM call feature, exposed so the Android call-notification
+   * deep link can accept a ringing call without duplicating the join logic.
+   */
+  readonly answerCall: (() => Promise<void>) | null;
   clear(): void;
+  setAnswerCallHandler(handler: (() => Promise<void>) | null): void;
   setEndCallHandler(handler: (() => Promise<void>) | null): void;
   setSession(session: MobileDMCallSession | null): void;
   updateSession(update: (current: MobileDMCallSession) => MobileDMCallSession): void;
@@ -20,7 +26,9 @@ export type MobileDMCallStoreState = {
 export const useMobileDMCallStore = create<MobileDMCallStoreState>((set) => ({
   session: null,
   endCall: null,
+  answerCall: null,
   clear: () => set({ session: null }),
+  setAnswerCallHandler: (answerCall) => set({ answerCall }),
   setEndCallHandler: (endCall) => set({ endCall }),
   setSession: (session) => set({ session }),
   updateSession: (update) =>

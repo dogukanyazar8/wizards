@@ -364,7 +364,11 @@ for (const theme of [lightTheme, darkTheme]) {
 
       await fireEvent(view.getByTestId("mobile-message-actions-message-own-trigger"), "longPress");
       await fireEvent.press(view.getByLabelText(copy.messageReplyAction));
-      expect(onReplyMessage).toHaveBeenCalledWith({ content: "Own message", id: "message-own" });
+      expect(onReplyMessage).toHaveBeenCalledWith({
+        authorLabel: "Ada",
+        content: "Own message",
+        id: "message-own",
+      });
       await fireEvent(view.getByTestId("mobile-message-actions-message-own-trigger"), "longPress");
       await fireEvent.press(view.getByLabelText(copy.messageEditAction));
       expect(onEditMessage).toHaveBeenCalledWith({ content: "Own message", id: "message-own" });

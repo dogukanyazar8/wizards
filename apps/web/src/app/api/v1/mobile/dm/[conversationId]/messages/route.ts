@@ -74,6 +74,7 @@ export async function POST(request: Request, context: RouteContext) {
       attachments: body.attachments,
       content: body.content,
       conversationId,
+      forwardOfMessageId: body.forwardOfMessageId ?? null,
       io: getSocketServer(),
       replyToId: body.replyToId ?? null,
       threadParentId: body.threadParentId ?? null,

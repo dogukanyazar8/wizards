@@ -88,6 +88,7 @@ const messageInclude = {
     select: {
       emoji: true,
       userId: true,
+      createdAt: true,
       user: {
         select: {
           id: true,
@@ -148,10 +149,19 @@ function visibleMessageWhere(now: Date = new Date()): Prisma.MessageWhereInput {
   };
 }
 
+type ReactionUserEntry = {
+  id: string;
+  username: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  reactedAt?: string;
+};
+
 function groupReactions(
   reactions: Array<{
     emoji: string;
     userId: string;
+    createdAt?: Date;
     user?: {
       id: string;
       username: string;
@@ -164,15 +174,7 @@ function groupReactions(
     string,
     {
       userIds: Set<string>;
-      users: Map<
-        string,
-        {
-          id: string;
-          username: string;
-          displayName: string | null;
-          avatarUrl: string | null;
-        }
-      >;
+      users: Map<string, ReactionUserEntry>;
     }
   >();
   for (const reaction of reactions) {
@@ -182,7 +184,10 @@ function groupReactions(
     const entry = grouped.get(reaction.emoji)!;
     entry.userIds.add(reaction.userId);
     if (reaction.user) {
-      entry.users.set(reaction.userId, reaction.user);
+      entry.users.set(reaction.userId, {
+        ...reaction.user,
+        ...(reaction.createdAt ? { reactedAt: reaction.createdAt.toISOString() } : {}),
+      });
     }
   }
   return Array.from(grouped.entries()).map(([emoji, entry]) => ({
@@ -338,6 +343,7 @@ export function mapRawMessage(
     type: normalizeMessageType(message.type),
     mentionEveryone: message.mentionEveryone,
     threadParentId: message.threadParentId,
+    alsoSentToChannel: message.alsoSentToChannel,
     threadSummary: normalizeThreadSummary(threadSummary),
     isPinned: message.isPinned,
     pinnedAt: message.pinnedAt?.toISOString() ?? null,
@@ -346,6 +352,7 @@ export function mapRawMessage(
     attachments,
     replyTo,
     createdAt: message.createdAt.toISOString(),
+    forwardedAt: message.forwardedAt?.toISOString() ?? null,
     editedAt: message.editedAt?.toISOString() ?? null,
     deletedAt: message.deletedAt?.toISOString() ?? null,
     deletedById: message.deletedById,
@@ -362,9 +369,13 @@ export async function getChannelMessages(
   const queryArgs: Prisma.MessageFindManyArgs = {
     where: {
       channelId,
-      threadParentId: null,
       threadId: null,
-      ...visibleMessageWhere(),
+      // 8d: thread replies stay out of the channel stream unless their author
+      // ticked "also send to channel" while replying.
+      AND: [
+        { OR: [{ threadParentId: null }, { alsoSentToChannel: true }] },
+        visibleMessageWhere(),
+      ],
     },
     include: messageInclude,
     orderBy: { createdAt: "desc" as const },
@@ -614,12 +625,18 @@ export async function createMessage(
   replyToId?: string,
   attachments: UploadedAttachmentInput[] = [],
   threadParentId?: string,
-  options: { permissions?: bigint } = {},
+  options: {
+    alsoSendToChannel?: boolean;
+    forwardOfMessageId?: string | null;
+    permissions?: bigint;
+  } = {},
 ): Promise<ChatMessage> {
   return createTypedMessage({
     channelId,
     attachments,
     content,
+    ...(options.alsoSendToChannel ? { alsoSendToChannel: true } : {}),
+    ...(options.forwardOfMessageId ? { forwardOfMessageId: options.forwardOfMessageId } : {}),
     ...(options.permissions !== undefined ? { permissions: options.permissions } : {}),
     ...(threadParentId ? { threadParentId } : {}),
     type: "DEFAULT",
@@ -638,9 +655,11 @@ export async function createSystemMessage(args: {
 }
 
 async function createTypedMessage(args: {
+  alsoSendToChannel?: boolean;
   attachments?: UploadedAttachmentInput[];
   channelId: string;
   content: string;
+  forwardOfMessageId?: string | null;
   permissions?: bigint;
   replyToId?: string;
   threadParentId?: string;
@@ -696,6 +715,9 @@ async function createTypedMessage(args: {
         content,
         replyToId: args.replyToId ?? null,
         threadParentId: args.threadParentId ?? null,
+        // Only a reply that lives inside a thread can be mirrored to the channel.
+        alsoSentToChannel: Boolean(args.threadParentId && args.alsoSendToChannel),
+        forwardedAt: args.forwardOfMessageId ? new Date() : null,
         type: args.type,
         mentionEveryone,
       },
@@ -971,6 +993,7 @@ export async function setReaction(
     select: {
       emoji: true,
       userId: true,
+      createdAt: true,
       user: {
         select: {
           id: true,

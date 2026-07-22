@@ -32,8 +32,10 @@ import {
   MobileChannelLastMessagePreviewAuthorSchema,
   MobileChannelLastMessagePreviewSchema,
   MobileChannelMarkReadResponseSchema,
+  MobileChannelMessagePinResponseSchema,
   MobileChannelMessagesResponseSchema,
   MobileChannelMessagesStaleEventSchema,
+  MobileChannelPinnedMessagesResponseSchema,
   MobileChannelThreadMessagesResponseSchema,
   MobileChannelSendMessageRequestSchema,
   MobileChannelSendMessageResponseSchema,
@@ -590,6 +592,16 @@ describe("mobile schemas", () => {
           messages: "message-1",
           nextCursor: null,
         },
+      },
+      MobileChannelMessagePinResponseSchema: {
+        schema: MobileChannelMessagePinResponseSchema,
+        valid: { message: { ...chatMessage, isPinned: true } },
+        invalid: { message: null },
+      },
+      MobileChannelPinnedMessagesResponseSchema: {
+        schema: MobileChannelPinnedMessagesResponseSchema,
+        valid: { messages: [{ ...chatMessage, isPinned: true }] },
+        invalid: { messages: chatMessage },
       },
       MobileChannelThreadMessagesResponseSchema: {
         schema: MobileChannelThreadMessagesResponseSchema,

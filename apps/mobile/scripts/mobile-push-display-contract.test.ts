@@ -13,7 +13,7 @@ describe("mobile push display contract", () => {
   it("pins channel and category ids to the server contract", () => {
     assert.equal(MOBILE_PUSH_ANDROID_CHANNELS.default, "whispr-default");
     assert.equal(MOBILE_PUSH_ANDROID_CHANNELS.calls, "whispr-calls");
-    assert.equal(MOBILE_PUSH_INCOMING_CALL_CATEGORY, "incoming-call");
+    assert.equal(MOBILE_PUSH_INCOMING_CALL_CATEGORY, "incomingcall");
     assert.deepEqual(
       MOBILE_PUSH_INCOMING_CALL_ACTIONS.map((action) => action.identifier),
       ["answer", "decline"],

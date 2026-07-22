@@ -6,7 +6,6 @@ import {
   INITIAL_CHANNEL_MESSAGES_STATE,
   INITIAL_CHANNEL_SYNC_STATE,
   INITIAL_DM_MESSAGES_STATE,
-  INITIAL_DM_SEND_STATE,
   INITIAL_DM_SYNC_STATE,
   INITIAL_MESSAGE_SEARCH_STATE,
   INITIAL_WORKSPACE_SERVER_STATE,
@@ -26,11 +25,6 @@ describe("mobile screen state", () => {
       conversationId: null,
       error: null,
       payload: null,
-      status: "idle",
-    });
-    assert.deepEqual(INITIAL_DM_SEND_STATE, {
-      conversationId: null,
-      error: null,
       status: "idle",
     });
     assert.deepEqual(INITIAL_WORKSPACE_SERVER_STATE, {
@@ -58,7 +52,6 @@ describe("mobile screen state", () => {
     for (const state of [
       INITIAL_BOOTSTRAP_STATE,
       INITIAL_DM_MESSAGES_STATE,
-      INITIAL_DM_SEND_STATE,
       INITIAL_WORKSPACE_SERVER_STATE,
       INITIAL_CHANNEL_MESSAGES_STATE,
       INITIAL_MESSAGE_SEARCH_STATE,

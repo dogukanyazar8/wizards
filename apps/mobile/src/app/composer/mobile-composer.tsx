@@ -13,8 +13,6 @@ import {
   useRef,
   useState,
   type MobileBootstrapFeature,
-  type MobileChannelSendViewState,
-  type MobileDMSendViewState,
   type MobileMediaRuntimeState,
 } from "../mobile-root-screen-shared";
 import { PanResponder } from "react-native";
@@ -44,6 +42,7 @@ import { uploadMobileMessageAttachmentToUploadThing } from "../../media/mobile-m
 import { useMobileVoiceMessageRecorder } from "../../media/mobile-voice-message-recorder";
 
 export type MobileComposerIntent = {
+  readonly authorLabel?: string;
   readonly content: string;
   readonly messageId: string;
   readonly mode: "edit" | "reply";
@@ -63,8 +62,6 @@ export function DMComposer({
   onSendGif,
   placeholder = copy.dmComposerPlaceholder,
   sendActionLabel = copy.dmSendAction,
-  sendState,
-  sendingActionLabel = copy.dmSendingAction,
   variant = "default",
 }: {
   attachmentsFeature?: MobileBootstrapFeature | null;
@@ -80,8 +77,6 @@ export function DMComposer({
   onSendGif?: (gifId: string) => Promise<boolean>;
   placeholder?: string;
   sendActionLabel?: string;
-  sendState: MobileChannelSendViewState | MobileDMSendViewState;
-  sendingActionLabel?: string;
   variant?: "channel" | "default" | "dm";
 }) {
   const theme = useTheme();
@@ -115,7 +110,6 @@ export function DMComposer({
     content: trimmedDraft,
     selectedAsset,
   });
-  const isSending = sendState.status === "sending";
   const channelAttachments = channelAttachmentDrafts.map((draft) => draft.input);
   const hasCompletedAttachmentEditConflict = isEditing && channelAttachments.length > 0;
   const channelCanSend = trimmedDraft.length > 0 || channelAttachments.length > 0;
@@ -128,7 +122,6 @@ export function DMComposer({
   const dmMicIconStyle = useAnimatedStyle(() => ({ opacity: 1 - dmPrimaryProgress.value }));
   const dmSendIconStyle = useAnimatedStyle(() => ({ opacity: dmPrimaryProgress.value }));
   const isDisabled =
-    isSending ||
     hasCompletedAttachmentEditConflict ||
     (usesUploadedAttachments
       ? isChannelAttachmentUploading || !channelCanSend
@@ -179,25 +172,39 @@ export function DMComposer({
     return () => clearInterval(timer);
   }, [voiceMessageRecorder.isRecording]);
 
-  const handleSend = useCallback(async () => {
+  const handleSend = useCallback(() => {
     if (isDisabled) {
       return;
     }
 
-    const didSend = await onSend(
-      trimmedDraft,
-      usesUploadedAttachments && channelAttachments.length > 0 ? channelAttachments : undefined,
-    );
-    if (didSend) {
+    const content = trimmedDraft;
+    const attachments =
+      usesUploadedAttachments && channelAttachments.length > 0 ? channelAttachments : undefined;
+    const clearComposer = () => {
       setDraft("");
       setChannelAttachmentDrafts([]);
       setChannelAttachmentUploadError(null);
       onDraftChange?.("");
       onCancelIntent?.();
+    };
+
+    // Edits have no failed-message bubble to recover from, so the draft only
+    // clears once the server accepts them.
+    if (isEditing) {
+      void onSend(content, attachments).then((didSend) => {
+        if (didSend) {
+          clearComposer();
+        }
+      });
+      return;
     }
+
+    clearComposer();
+    void onSend(content, attachments);
   }, [
     channelAttachments,
     isDisabled,
+    isEditing,
     onCancelIntent,
     onDraftChange,
     onSend,
@@ -205,13 +212,24 @@ export function DMComposer({
     usesUploadedAttachments,
   ]);
 
+  // 8b active reply bar: soft card with a 3px accent stripe, reply icon,
+  // "<name> kişisine yanıt" title and a single-line quote.
   const intentBanner = intent ? (
-    <View style={styles.dmComposerAttachmentCard} testID={`mobile-message-${intent.mode}-preview`}>
-      <View style={styles.dmComposerAttachmentText}>
-        <Text style={styles.dmComposerAttachmentTitle} numberOfLines={1}>
-          {intent.mode === "edit" ? copy.messageEditingLabel : copy.messageReplyingToLabel}
+    <View style={styles.composerIntentBar} testID={`mobile-message-${intent.mode}-preview`}>
+      <Ionicons
+        name={intent.mode === "edit" ? "create-outline" : "arrow-undo-outline"}
+        size={15}
+        color={theme.accent.strong}
+      />
+      <View style={styles.composerIntentText}>
+        <Text style={styles.composerIntentTitle} numberOfLines={1}>
+          {intent.mode === "edit"
+            ? copy.messageEditingLabel
+            : intent.authorLabel
+              ? copy.messageReplyToUserTemplate.replace("{name}", intent.authorLabel)
+              : copy.messageReplyingToLabel}
         </Text>
-        <Text style={styles.dmComposerAttachmentMeta} numberOfLines={1}>
+        <Text style={styles.composerIntentQuote} numberOfLines={1}>
           {intent.content}
         </Text>
       </View>
@@ -219,14 +237,15 @@ export function DMComposer({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={copy.messageComposerCancelAction}
+          hitSlop={6}
           onPress={onCancelIntent}
           style={({ pressed }) => [
-            styles.dmComposerAttachmentClear,
+            styles.composerIntentClose,
             pressed && styles.actionButtonPressed,
           ]}
           testID="mobile-message-intent-cancel"
         >
-          <Icon name="close" size={16} tone="accent" />
+          <Ionicons name="close" size={15} color={theme.text.visualPlaceholder} />
         </Pressable>
       ) : null}
     </View>
@@ -328,6 +347,41 @@ export function DMComposer({
     }
   }, [uploadChannelAttachment, voiceMessageRecorder]);
 
+  // 8b press-and-hold voice flow: release stops the recording, uploads it and
+  // sends the voice message immediately; sub-second recordings are dropped.
+  const handleVoiceStopAndSend = useCallback(async () => {
+    if (!voiceMessageRecorder.isRecording) return;
+    try {
+      const picked = await voiceMessageRecorder.stop();
+      if (!picked) {
+        setChannelAttachmentUploadError(copy.composerVoiceTooShortNotice);
+        return;
+      }
+      if (!getAccessToken) {
+        setChannelAttachmentUploadError(copy.composerVoiceRecordFailed);
+        return;
+      }
+      setChannelAttachmentUploading(true);
+      const outcome = await executeMobileMessageAttachmentUpload({
+        dependencies: {
+          getAccessToken,
+          pickAttachment: async () => picked,
+          uploadAttachment: uploadMobileMessageAttachmentToUploadThing,
+        },
+      });
+      setChannelAttachmentUploading(false);
+      if (outcome.status === "ready") {
+        setChannelAttachmentUploadError(null);
+        void onSend("", [outcome.draft.input]);
+      } else if (outcome.status === "error") {
+        setChannelAttachmentUploadError(copy.composerVoiceRecordFailed);
+      }
+    } catch {
+      setChannelAttachmentUploading(false);
+      setChannelAttachmentUploadError(copy.composerVoiceRecordFailed);
+    }
+  }, [getAccessToken, onSend, voiceMessageRecorder]);
+
   const handleCancelVoiceRecord = useCallback(async () => {
     if (!voiceMessageRecorder.isRecording) return;
     try {
@@ -360,7 +414,6 @@ export function DMComposer({
   if (variant === "dm") {
     const hasSendableContent = dmHasSendableContent;
     const primaryActionUnavailable =
-      isSending ||
       isChannelAttachmentUploading ||
       voiceMessageRecorder.phase === "preparing" ||
       voiceMessageRecorder.phase === "stopping" ||
@@ -371,7 +424,21 @@ export function DMComposer({
         void handleSend();
         return;
       }
+      // Tap fallback for the mic: toggles recording so accessibility switch
+      // access still works; press-and-hold is handled by pressIn/pressOut.
+      if (voiceMessageRecorder.isRecording) {
+        void handleVoiceStopAndSend();
+      }
+    };
+    const handlePrimaryPressIn = () => {
+      if (primaryActionUnavailable || hasSendableContent || voiceMessageRecorder.isRecording) {
+        return;
+      }
       void handleVoiceRecord();
+    };
+    const handlePrimaryPressOut = () => {
+      if (hasSendableContent || !voiceMessageRecorder.isRecording) return;
+      void handleVoiceStopAndSend();
     };
     const primaryTestId = hasSendableContent
       ? "mobile-dm-send-button"
@@ -504,6 +571,8 @@ export function DMComposer({
             accessibilityState={{ disabled: primaryActionUnavailable }}
             disabled={primaryActionUnavailable}
             onPress={handlePrimaryAction}
+            onPressIn={handlePrimaryPressIn}
+            onPressOut={handlePrimaryPressOut}
             style={({ pressed }) => [
               styles.dmChatPrimaryButton,
               primaryActionUnavailable && styles.dmChatComposerControlDisabled,
@@ -533,9 +602,6 @@ export function DMComposer({
           >
             {channelAttachmentUploadError}
           </Text>
-        ) : null}
-        {sendState.status === "error" && sendState.error ? (
-          <Text style={styles.dmSendErrorText}>{sendState.error}</Text>
         ) : null}
         <BottomSheet
           accessibilityLabel={copy.dmChatAttachAction}
@@ -614,6 +680,13 @@ export function DMComposer({
   }
 
   if (variant === "channel") {
+    const isChannelVoiceUnavailable =
+      !getAccessToken ||
+      isChannelAttachmentUploading ||
+      isEditing ||
+      voiceMessageRecorder.phase === "preparing" ||
+      voiceMessageRecorder.phase === "stopping";
+
     return (
       <View style={[styles.dmComposer, styles.channelComposer]} testID="mobile-channel-composer">
         {intentBanner}
@@ -711,6 +784,27 @@ export function DMComposer({
             >
               <Ionicons name="happy-outline" size={20} color={theme.text.muted} />
             </Pressable>
+          </View>
+          {channelCanSend ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={sendActionLabel}
+              accessibilityState={{ disabled: isDisabled }}
+              disabled={isDisabled}
+              hitSlop={4}
+              onPress={() => void handleSend()}
+              style={({ pressed }) => [
+                styles.channelComposerSendButton,
+                isDisabled && styles.channelComposerSendButtonDisabled,
+                pressed && !isDisabled && styles.actionButtonPressed,
+              ]}
+              testID="mobile-channel-send-button"
+            >
+              <Ionicons name="paper-plane" size={20} color={theme.text.onPrimary} />
+            </Pressable>
+          ) : (
+            // 8c: with an empty draft the primary action is press-and-hold
+            // voice recording, matching the DM composer behaviour.
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={
@@ -718,62 +812,38 @@ export function DMComposer({
                   ? copy.composerVoiceStopAction
                   : copy.composerVoiceRecordAction
               }
-              accessibilityState={{
-                disabled:
-                  isChannelAttachmentUploading ||
-                  voiceMessageRecorder.phase === "preparing" ||
-                  voiceMessageRecorder.phase === "stopping",
+              accessibilityState={{ disabled: isChannelVoiceUnavailable }}
+              disabled={isChannelVoiceUnavailable}
+              hitSlop={4}
+              onPress={() => {
+                if (voiceMessageRecorder.isRecording) void handleVoiceStopAndSend();
               }}
-              disabled={
-                isChannelAttachmentUploading ||
-                voiceMessageRecorder.phase === "preparing" ||
-                voiceMessageRecorder.phase === "stopping"
-              }
-              hitSlop={6}
-              onPress={() => void handleVoiceRecord()}
-              style={[
-                styles.channelComposerVoiceButton,
-                (isChannelAttachmentUploading ||
-                  voiceMessageRecorder.phase === "preparing" ||
-                  voiceMessageRecorder.phase === "stopping") &&
-                  styles.channelComposerIconButtonUnavailable,
+              onPressIn={() => {
+                if (!voiceMessageRecorder.isRecording && !isChannelVoiceUnavailable) {
+                  void handleVoiceRecord();
+                }
+              }}
+              onPressOut={() => {
+                if (voiceMessageRecorder.isRecording) void handleVoiceStopAndSend();
+              }}
+              style={({ pressed }) => [
+                styles.channelComposerSendButton,
+                isChannelVoiceUnavailable && styles.channelComposerIconButtonUnavailable,
+                pressed && styles.actionButtonPressed,
               ]}
               testID="mobile-channel-voice-record-button"
             >
               <Ionicons
-                name={voiceMessageRecorder.isRecording ? "stop-circle-outline" : "mic-outline"}
+                name={voiceMessageRecorder.isRecording ? "stop" : "mic-outline"}
                 size={19}
-                color={voiceMessageRecorder.isRecording ? theme.accent.strong : theme.text.muted}
+                color={theme.text.onPrimary}
               />
             </Pressable>
-          </View>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={isSending ? sendingActionLabel : sendActionLabel}
-            accessibilityState={{ disabled: isDisabled }}
-            disabled={isDisabled}
-            hitSlop={4}
-            onPress={() => void handleSend()}
-            style={({ pressed }) => [
-              styles.channelComposerSendButton,
-              isDisabled && styles.channelComposerSendButtonDisabled,
-              pressed && !isDisabled && styles.actionButtonPressed,
-            ]}
-            testID="mobile-channel-send-button"
-          >
-            <Ionicons
-              name={isSending ? "hourglass-outline" : "paper-plane"}
-              size={20}
-              color={theme.text.onPrimary}
-            />
-          </Pressable>
+          )}
         </View>
 
         {sendBlockText ? (
           <Text style={styles.dmComposerAttachmentNotice}>{sendBlockText}</Text>
-        ) : null}
-        {sendState.status === "error" && sendState.error ? (
-          <Text style={styles.dmSendErrorText}>{sendState.error}</Text>
         ) : null}
         <BottomSheet
           accessibilityLabel={copy.composerAttachAction}
@@ -924,7 +994,7 @@ export function DMComposer({
       />
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={isSending ? sendingActionLabel : sendActionLabel}
+        accessibilityLabel={sendActionLabel}
         accessibilityState={{ disabled: isDisabled }}
         disabled={isDisabled}
         onPress={() => void handleSend()}
@@ -935,18 +1005,13 @@ export function DMComposer({
         ]}
         testID="mobile-dm-send-button"
       >
-        <Text style={styles.dmSendButtonText}>
-          {isSending ? sendingActionLabel : sendActionLabel}
-        </Text>
+        <Text style={styles.dmSendButtonText}>{sendActionLabel}</Text>
       </Pressable>
       {sendBlockText ? (
         <Text style={styles.dmComposerAttachmentNotice}>{sendBlockText}</Text>
       ) : null}
       {channelAttachmentUploadError ? (
         <Text style={styles.dmSendErrorText}>{channelAttachmentUploadError}</Text>
-      ) : null}
-      {sendState.status === "error" && sendState.error ? (
-        <Text style={styles.dmSendErrorText}>{sendState.error}</Text>
       ) : null}
       {onSendGif ? (
         <MobileGifPicker

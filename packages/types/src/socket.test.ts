@@ -1,3 +1,4 @@
+import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import * as socketSchemas from "./socket";
@@ -158,5 +159,27 @@ describe("socket schemas", () => {
       { ...conversation, lastMessage: createMessage({ reactions: "none" }) },
       ["lastMessage", "reactions"],
     );
+  });
+
+  it("DMMessagePayloadSchema accepts client deliveryStatus and rejects unknown values", () => {
+    assertAccepts(DMMessagePayloadSchema, createMessage());
+    const accepted = assertAccepts(
+      DMMessagePayloadSchema,
+      createMessage({ deliveryStatus: "failed" }),
+    );
+    assert.equal(accepted.deliveryStatus, "failed");
+    assertRejects(DMMessagePayloadSchema, createMessage({ deliveryStatus: "delivered" }), [
+      "deliveryStatus",
+    ]);
+  });
+
+  it("DMMessagePayloadSchema keeps the 8b forward marker optional", () => {
+    assertAccepts(DMMessagePayloadSchema, createMessage({ forwardedAt: null }));
+    const forwarded = assertAccepts(
+      DMMessagePayloadSchema,
+      createMessage({ forwardedAt: "2026-07-21T10:00:00.000Z" }),
+    );
+    assert.equal(forwarded.forwardedAt, "2026-07-21T10:00:00.000Z");
+    assertRejects(DMMessagePayloadSchema, createMessage({ forwardedAt: 12 }), ["forwardedAt"]);
   });
 });

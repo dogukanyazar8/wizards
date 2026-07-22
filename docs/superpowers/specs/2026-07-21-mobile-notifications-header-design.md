@@ -14,7 +14,10 @@ action. The user finds it crowded and tiring.
 Single-row header + filter segment, nothing else:
 
 - **Header row:** `Bildirimler` title (existing `notificationsTitle`, 26/800)
-  on the left; two 40px icon buttons on the right, both reusing the existing
+  with the mockup #1d subtitle `Bahsetmeler ve sunucu olayları` under it
+  (new copy key `notificationsSubtitle` tr+en, styled like `dmInboxDescription`:
+  muted 13/18 regular — follow-up user request 2026-07-21) on the left; two
+  40px icon buttons on the right, both reusing the existing
   `notificationsHeaderIconButton` surface (card bg, subtle border, radius 14):
   1. Mark all read — Ionicons `checkmark-done-outline`, accent color; keeps
      testID `mobile-notifications-mark-all-read` and disabled state

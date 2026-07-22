@@ -150,6 +150,17 @@ export interface MobileTheme {
     readonly text: string;
     readonly textMuted: string;
   };
+  /** 8a-8e message action surfaces: long-press overlay chrome + channel stream accents. */
+  readonly messageMenu: {
+    readonly addReactionBorder: string;
+    readonly reactionDetailScrim: string;
+    readonly rowHighlight: string;
+    readonly scrim: string;
+    readonly separator: string;
+    readonly shadow: string;
+    readonly unreadDivider: string;
+    readonly unreadDividerLine: string;
+  };
   readonly radii: typeof mobileRadii;
   readonly sizing: typeof mobileSizing;
   readonly spacing: typeof mobileSpacing;
@@ -383,6 +394,16 @@ export const lightTheme = deepFreeze({
     text: mobilePalette.neutral[50],
     textMuted: mobilePalette.neutral[300],
   },
+  messageMenu: {
+    addReactionBorder: "#C9CDE4",
+    reactionDetailScrim: "rgba(20,23,42,.4)",
+    rowHighlight: "#EEF0FE66",
+    scrim: "rgba(20,23,42,.44)",
+    separator: "#EEF0F7",
+    shadow: "#14172A",
+    unreadDivider: "#E5484D",
+    unreadDividerLine: "#E5484D55",
+  },
   radii: mobileRadii,
   sizing: mobileSizing,
   spacing: mobileSpacing,
@@ -563,6 +584,16 @@ export const darkTheme = deepFreeze({
     surfaceElevated: mobilePalette.neutral[900],
     text: mobilePalette.neutral[50],
     textMuted: mobilePalette.neutral[300],
+  },
+  messageMenu: {
+    addReactionBorder: redesignDark.border,
+    reactionDetailScrim: redesignDark.sheetOverlay,
+    rowHighlight: "#2A2D5566",
+    scrim: redesignDark.sheetOverlay,
+    separator: redesignDark.hairline,
+    shadow: "#000000",
+    unreadDivider: "#E5484D",
+    unreadDividerLine: "#E5484D55",
   },
   radii: mobileRadii,
   sizing: mobileSizing,

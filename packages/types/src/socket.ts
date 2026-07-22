@@ -46,6 +46,7 @@ export interface DMMessagePayload {
   replyToId: string | null;
   threadParentId: string | null;
   threadSummary?: MessageThreadSummary | undefined;
+  forwardedAt?: string | null | undefined;
   editedAt: string | null;
   deletedAt: string | null;
   deletedById: string | null;
@@ -54,6 +55,8 @@ export interface DMMessagePayload {
   attachments: DMMessageAttachmentPayload[];
   reactions: MessageReaction[];
   replyTo: DMMessagePayload | null;
+  /** Client-side optimistic state — the server never sends this field. */
+  deliveryStatus?: "sending" | "failed" | undefined;
 }
 
 export interface DMParticipantDTO extends DMPresence {
@@ -114,6 +117,7 @@ export const DMMessagePayloadSchema: z.ZodType<DMMessagePayload> = z.lazy(() =>
     replyToId: z.string().nullable(),
     threadParentId: z.string().nullable(),
     threadSummary: MessageThreadSummarySchema.optional(),
+    forwardedAt: z.string().nullable().optional(),
     editedAt: z.string().nullable(),
     deletedAt: z.string().nullable(),
     deletedById: z.string().nullable(),
@@ -122,6 +126,7 @@ export const DMMessagePayloadSchema: z.ZodType<DMMessagePayload> = z.lazy(() =>
     attachments: z.array(DMMessageAttachmentSchema),
     reactions: z.array(MessageReactionSchema),
     replyTo: DMMessagePayloadSchema.nullable(),
+    deliveryStatus: z.enum(["sending", "failed"]).optional(),
   }),
 );
 

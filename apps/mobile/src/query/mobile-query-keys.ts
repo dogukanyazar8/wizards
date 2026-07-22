@@ -59,6 +59,7 @@ export function createMobileQueryKeys(registry: MobileSearchKeyRegistry) {
     bootstrap: () => [...all, "bootstrap"] as const,
     channelMessagesRoot: () => [...all, "channel-messages"] as const,
     channelMessages: (channelId: string) => [...all, "channel-messages", channelId] as const,
+    channelPins: (channelId: string) => [...all, "channel-pins", channelId] as const,
     channelThread: (channelId: string, messageId: string) =>
       [...all, "channel-thread", channelId, messageId] as const,
     dmConversations: () => [...all, "dm-conversations"] as const,

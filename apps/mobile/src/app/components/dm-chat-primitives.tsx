@@ -1,15 +1,17 @@
-import { FlashList } from "@shopify/flash-list";
+import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import type { MobileDMMessagesResponse } from "@wizards/types";
-import * as Clipboard from "expo-clipboard";
-import React, { memo, useEffect, useMemo, useState } from "react";
-import { Alert, Linking, Pressable, Text, View } from "react-native";
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Linking, Pressable, Text, View } from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
+  runOnJS,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
   withDelay,
   withRepeat,
   withSequence,
+  withSpring,
   withTiming,
 } from "react-native-reanimated";
 
@@ -20,18 +22,23 @@ import {
   getMobileMessageBodyPreview,
 } from "../mobile-root-screen-shared";
 import { getMobileDisplayMessageDayKey } from "../mobile-display-model";
+import { useMobileHaptics } from "../providers/mobile-haptics-provider";
 import { useMobileLocaleRuntime } from "../providers/mobile-locale-provider";
 import { useTheme } from "../providers/mobile-theme-provider";
+import { MobileLinkPreviewCard } from "../../messages/mobile-link-preview-card";
+import { extractFirstHttpsUrl } from "../../messages/mobile-link-preview-client";
+import { formatMobileRelativeTime } from "../../locale/mobile-relative-time";
 import { formatMobileDateSeparator } from "../../locale/mobile-date-separator";
 import { AvatarMark } from "./ui-atoms";
-import { ContextMenu, Icon, type ContextMenuAction } from "./kit";
+import { Icon } from "./kit";
+import { MessageActionMenu } from "./message-action-menu";
 import {
   MessageAttachmentList,
-  MOBILE_MESSAGE_REACTION_EMOJIS,
   type MobileMessageActionTarget,
   type MobileMessageReactionToggleInput,
 } from "./message-primitives";
 import { MessageEmojiPicker } from "./message-emoji-picker";
+import { MessageReactionDetailSheet } from "./message-reaction-detail-sheet";
 import { useDMChatStyles } from "./dm-chat-primitives.styles";
 
 export type DMChatMessage = MobileDMMessagesResponse["messages"][number];
@@ -100,7 +107,7 @@ export function DMChatHeader({
   const styles = useDMChatStyles();
   const theme = useTheme();
   const { locale } = useMobileLocaleRuntime();
-  const lastSeenTime = lastSeenAt ? formatDMLastSeenRelativeTime(lastSeenAt, locale) : "";
+  const lastSeenTime = lastSeenAt ? formatMobileRelativeTime(lastSeenAt, locale) : "";
   const statusLabel = typing
     ? copy.dmChatTypingStatus
     : isOnline
@@ -226,140 +233,103 @@ function DMChatBody({ body, own }: { readonly body: string; readonly own: boolea
   );
 }
 
-function DMChatReactionPill({
+function DMChatReactionChips({
   currentUserId,
   message,
+  onLongPressReaction,
   onToggleReaction,
 }: {
   readonly currentUserId: string;
   readonly message: DMChatMessage;
+  /** 8e reaction-detail sheet hook-up point; intentionally optional until then. */
+  readonly onLongPressReaction?: (emoji: string) => void;
   readonly onToggleReaction?: (input: MobileMessageReactionToggleInput) => void;
 }) {
   const styles = useDMChatStyles();
+  const { selection } = useMobileHaptics();
   if (message.reactions.length === 0) return null;
   return (
     <View style={styles.reactionTargetRow} testID={`mobile-dm-message-reactions-${message.id}`}>
-      {message.reactions.map((reaction) => (
-        <Pressable
-          accessibilityRole={onToggleReaction ? "button" : undefined}
-          disabled={!onToggleReaction}
-          key={reaction.emoji}
-          onPress={() =>
-            onToggleReaction?.({
-              emoji: reaction.emoji,
-              messageId: message.id,
-              shouldReact: !reaction.userIds.includes(currentUserId),
-            })
-          }
-          style={styles.reactionButton}
-          testID={`mobile-message-reaction-${message.id}-${reaction.emoji}`}
-        >
-          <View
-            style={styles.reactionPill}
-            testID={`mobile-message-reaction-${message.id}-${reaction.emoji}-visual`}
+      {message.reactions.map((reaction) => {
+        const hasOwnReaction = reaction.userIds.includes(currentUserId);
+        return (
+          <Pressable
+            accessibilityRole={onToggleReaction ? "button" : undefined}
+            disabled={!onToggleReaction}
+            hitSlop={14}
+            key={reaction.emoji}
+            onPress={() => {
+              selection();
+              onToggleReaction?.({
+                emoji: reaction.emoji,
+                messageId: message.id,
+                shouldReact: !hasOwnReaction,
+              });
+            }}
+            {...(onLongPressReaction
+              ? { onLongPress: () => onLongPressReaction(reaction.emoji) }
+              : {})}
+            style={styles.reactionButton}
+            testID={`mobile-message-reaction-${message.id}-${reaction.emoji}`}
           >
-            <Text style={styles.reactionText}>
-              {reaction.emoji} {reaction.count}
-            </Text>
-          </View>
-        </Pressable>
-      ))}
+            <View
+              style={[styles.reactionPill, hasOwnReaction && styles.reactionPillOwnReaction]}
+              testID={`mobile-message-reaction-${message.id}-${reaction.emoji}-visual`}
+            >
+              <Text style={styles.reactionEmoji}>{reaction.emoji}</Text>
+              <Text style={[styles.reactionText, hasOwnReaction && styles.reactionTextOwnReaction]}>
+                {reaction.count}
+              </Text>
+            </View>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
 
-type DMLastSeenRelativeTimeUnit = "second" | "minute" | "hour" | "day" | "month" | "year";
-
-function formatDMLastSeenRelativeTimeFallback(
-  value: number,
-  unit: DMLastSeenRelativeTimeUnit,
-  locale: "en" | "tr",
-): string {
-  if (locale === "tr") {
-    if (value === 0) return "\u015fimdi";
-    if (value === 1 && unit === "day") return "d\u00fcn";
-    if (value === 1 && unit === "month") return "ge\u00e7en ay";
-    if (value === 1 && unit === "year") return "ge\u00e7en y\u0131l";
-
-    const unitLabels: Record<DMLastSeenRelativeTimeUnit, string> = {
-      second: "saniye",
-      minute: "dakika",
-      hour: "saat",
-      day: "g\u00fcn",
-      month: "ay",
-      year: "y\u0131l",
-    };
-    return `${value} ${unitLabels[unit]} \u00f6nce`;
-  }
-
-  if (value === 0) return "now";
-  if (value === 1 && unit === "day") return "yesterday";
-  if (value === 1 && unit === "month") return "last month";
-  if (value === 1 && unit === "year") return "last year";
-  return `${value} ${unit}${value === 1 ? "" : "s"} ago`;
-}
-
-export function formatDMLastSeenRelativeTime(
-  lastSeenAt: string,
-  locale: "en" | "tr",
-  now = Date.now(),
-): string {
-  const timestamp = Date.parse(lastSeenAt);
-  if (!Number.isFinite(timestamp)) return "";
-
-  const elapsedSeconds = Math.max(0, Math.floor((now - timestamp) / 1_000));
-  const elapsedMinutes = Math.floor(elapsedSeconds / 60);
-  const elapsedHours = Math.floor(elapsedMinutes / 60);
-  const elapsedDays = Math.floor(elapsedHours / 24);
-  const elapsedMonths = Math.floor(elapsedDays / 30);
-  const [value, unit]: readonly [number, DMLastSeenRelativeTimeUnit] =
-    elapsedSeconds < 60
-      ? [elapsedSeconds, "second"]
-      : elapsedMinutes < 60
-        ? [elapsedMinutes, "minute"]
-        : elapsedHours < 24
-          ? [elapsedHours, "hour"]
-          : elapsedDays < 30
-            ? [elapsedDays, "day"]
-            : elapsedMonths < 12
-              ? [elapsedMonths, "month"]
-              : [Math.floor(elapsedMonths / 12), "year"];
-
-  if (typeof Intl.RelativeTimeFormat !== "function") {
-    return formatDMLastSeenRelativeTimeFallback(value, unit, locale);
-  }
-
-  return new Intl.RelativeTimeFormat(locale === "tr" ? "tr-TR" : "en-US", {
-    numeric: "auto",
-  }).format(-value, unit);
-}
+export { formatMobileRelativeTime as formatDMLastSeenRelativeTime };
 
 export function DMChatMessageRow({
   currentUserId,
   isGroupedWithNext,
   isGroupedWithPrevious,
+  isHighlighted = false,
   isReactionMutationPending,
   message,
   onDeleteMessage,
+  onDiscardFailedMessage,
   onEditMessage,
+  onForwardMessage,
+  onOpenReply,
   onOpenThread,
   onReplyMessage,
+  onRetryFailedMessage,
   onToggleReaction,
   partnerLastReadAt,
 }: DMChatMessageGroupItem & {
   readonly currentUserId: string;
+  readonly isHighlighted?: boolean;
   readonly isReactionMutationPending: boolean;
   readonly onDeleteMessage?: (messageId: string) => void;
+  readonly onDiscardFailedMessage?: (messageId: string) => void;
   readonly onEditMessage?: (message: MobileMessageActionTarget) => void;
+  readonly onForwardMessage?: (message: MobileMessageActionTarget) => void;
+  readonly onOpenReply?: (messageId: string) => void;
   readonly onOpenThread?: (messageId: string) => void;
   readonly onReplyMessage?: (message: MobileMessageActionTarget) => void;
+  readonly onRetryFailedMessage?: (messageId: string) => void;
   readonly onToggleReaction?: (input: MobileMessageReactionToggleInput) => void;
   readonly partnerLastReadAt: string | null;
 }) {
   const styles = useDMChatStyles();
   const theme = useTheme();
+  const haptics = useMobileHaptics();
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
+  const [reactionDetailEmoji, setReactionDetailEmoji] = useState<string | null>(null);
+  const lastTapAtRef = useRef(0);
   const own = message.author.id === currentUserId;
+  const authorLabel = message.author.displayName ?? message.author.username;
   const body = getMobileMessageBodyPreview(message, {
     attachmentOnly: copy.dmAttachmentOnlyMessage,
     deleted: copy.dmDeletedMessage,
@@ -368,98 +338,74 @@ export function DMChatMessageRow({
     own &&
     partnerLastReadAt !== null &&
     Date.parse(partnerLastReadAt) >= Date.parse(message.createdAt);
-  const actions = useMemo<readonly ContextMenuAction[]>(
-    () => [
-      ...(message.content
-        ? [
-            {
-              id: "copy",
-              label: copy.messageCopyAction,
-              onPress: () => void Clipboard.setStringAsync(message.content),
-            },
-          ]
-        : []),
-      ...(onReplyMessage
-        ? [
-            {
-              id: "reply",
-              label: copy.messageReplyAction,
-              onPress: () => onReplyMessage({ content: message.content, id: message.id }),
-            },
-          ]
-        : []),
-      ...(own && onEditMessage
-        ? [
-            {
-              id: "edit",
-              label: copy.messageEditAction,
-              onPress: () => onEditMessage({ content: message.content, id: message.id }),
-            },
-          ]
-        : []),
-      ...(own && onDeleteMessage
-        ? [
-            {
-              destructive: true,
-              id: "delete",
-              label: copy.messageDeleteAction,
-              onPress: () =>
-                Alert.alert(copy.messageDeleteConfirmTitle, copy.messageDeleteConfirmDescription, [
-                  { style: "cancel", text: copy.messageDeleteCancelAction },
-                  {
-                    onPress: () => onDeleteMessage(message.id),
-                    style: "destructive",
-                    text: copy.messageDeleteAction,
-                  },
-                ]),
-            },
-          ]
-        : []),
-      ...(onOpenThread
-        ? [
-            {
-              id: "open-thread",
-              label: copy.messageThreadOpenAction,
-              onPress: () => onOpenThread(message.id),
-            },
-          ]
-        : []),
-      ...(onToggleReaction
-        ? [
-            {
-              id: "more-emoji",
-              label: copy.messageEmojiPickerAction,
-              onPress: () => setEmojiPickerOpen(true),
-            },
-            ...MOBILE_MESSAGE_REACTION_EMOJIS.map((emoji) => ({
-              id: `reaction-${emoji}`,
-              label: emoji,
-              onPress: () =>
-                onToggleReaction({
-                  emoji,
-                  messageId: message.id,
-                  shouldReact: !message.reactions.some(
-                    (reaction) =>
-                      reaction.emoji === emoji && reaction.userIds.includes(currentUserId),
-                  ),
-                }),
-            })),
-          ]
-        : []),
-    ],
-    [
-      currentUserId,
-      message,
-      onDeleteMessage,
-      onEditMessage,
-      onOpenThread,
-      onReplyMessage,
-      onToggleReaction,
-      own,
-    ],
+  const isFailed = message.deliveryStatus === "failed";
+  const isSendPending = message.deliveryStatus === "sending";
+  const isDeleted = message.deletedAt !== null;
+  const linkPreviewUrl = !isDeleted && !isFailed ? extractFirstHttpsUrl(message.content) : null;
+  const replyAuthorLabel = message.replyTo
+    ? message.replyTo.userId === currentUserId
+      ? copy.messageYouLabel
+      : (message.replyTo.author.displayName ?? message.replyTo.author.username)
+    : null;
+
+  // Instagram-style double tap toggles ❤️; single taps stay inert.
+  const handleBubblePress = useCallback(() => {
+    if (!onToggleReaction || isFailed || isDeleted) return;
+    const now = Date.now();
+    if (now - lastTapAtRef.current < 300) {
+      lastTapAtRef.current = 0;
+      haptics.selection();
+      onToggleReaction({
+        emoji: "❤️",
+        messageId: message.id,
+        shouldReact: !message.reactions.some(
+          (reaction) => reaction.emoji === "❤️" && reaction.userIds.includes(currentUserId),
+        ),
+      });
+      return;
+    }
+    lastTapAtRef.current = now;
+  }, [currentUserId, haptics, isDeleted, isFailed, message, onToggleReaction]);
+
+  // WhatsApp-style swipe-right starts a reply and springs back.
+  const swipeTranslateX = useSharedValue(0);
+  const swipeStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: swipeTranslateX.value }],
+  }));
+  const handleSwipeReply = useCallback(() => {
+    haptics.selection();
+    onReplyMessage?.({ authorLabel, content: message.content, id: message.id });
+  }, [authorLabel, haptics, message.content, message.id, onReplyMessage]);
+  const swipeReplyEnabled = Boolean(onReplyMessage) && !isFailed && !isDeleted;
+  const replyGesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .enabled(swipeReplyEnabled)
+        .activeOffsetX(24)
+        .failOffsetX(-12)
+        .failOffsetY([-14, 14])
+        .onUpdate((event) => {
+          "worklet";
+          swipeTranslateX.value = Math.min(72, Math.max(0, event.translationX));
+        })
+        .onEnd((event) => {
+          "worklet";
+          if (event.translationX >= 56) {
+            runOnJS(handleSwipeReply)();
+          }
+          swipeTranslateX.value = withSpring(0, { damping: 20, stiffness: 260 });
+        }),
+    [handleSwipeReply, swipeReplyEnabled, swipeTranslateX],
   );
+
   const row = (
-    <View style={[styles.messageRow, own && styles.messageRowOwn]}>
+    <View
+      style={[
+        styles.messageRow,
+        own && styles.messageRowOwn,
+        isHighlighted && styles.messageRowHighlighted,
+      ]}
+    >
       {!own ? (
         isGroupedWithPrevious ? (
           <View
@@ -484,24 +430,70 @@ export function DMChatMessageRow({
             styles.bubble,
             own ? styles.outgoingBubble : styles.incomingBubble,
             own && isGroupedWithPrevious && styles.outgoingBubbleContinuation,
+            isSendPending && styles.messageSendingDim,
           ]}
           testID={`mobile-dm-message-bubble-${message.id}`}
         >
-          {message.replyTo ? (
-            <View style={[styles.replyQuote, own && styles.replyQuoteOwn]}>
-              <Text
-                style={[styles.replyQuoteText, own && styles.replyQuoteTextOwn]}
-                numberOfLines={2}
-              >
-                {message.replyTo.content || copy.dmDeletedMessage}
+          {message.forwardedAt ? (
+            <View style={styles.forwardedRow} testID={`mobile-message-forwarded-${message.id}`}>
+              <Ionicons
+                name="arrow-redo-outline"
+                size={12}
+                color={own ? theme.text.onInverseMuted : theme.text.visualFaint}
+              />
+              <Text style={[styles.forwardedText, own && styles.replyQuoteTextOwn]}>
+                {copy.messageForwardedLabel}
               </Text>
             </View>
           ) : null}
+          {message.replyTo ? (
+            <Pressable
+              accessibilityLabel={copy.messageReplyJumpAction}
+              accessibilityRole={onOpenReply ? "button" : undefined}
+              disabled={!onOpenReply}
+              onPress={() => onOpenReply?.(message.replyTo!.id)}
+              style={[styles.replyQuote, own && styles.replyQuoteOwn]}
+              testID={`mobile-dm-reply-quote-${message.id}`}
+            >
+              <Text
+                numberOfLines={1}
+                style={[styles.replyQuoteAuthor, own && styles.replyQuoteAuthorOwn]}
+              >
+                {replyAuthorLabel}
+              </Text>
+              <Text
+                style={[styles.replyQuoteText, own && styles.replyQuoteTextOwn]}
+                numberOfLines={1}
+              >
+                {message.replyTo.content || copy.dmDeletedMessage}
+              </Text>
+            </Pressable>
+          ) : null}
           <DMChatBody body={body} own={own} />
-          <MessageAttachmentList attachments={message.attachments} />
-          <DMChatReactionPill
+          {linkPreviewUrl ? (
+            <MobileLinkPreviewCard messageId={message.id} url={linkPreviewUrl} />
+          ) : null}
+          <MessageAttachmentList attachments={message.attachments} own={own} />
+          {isFailed ? (
+            <View style={styles.messageFailedRow} testID={`mobile-message-failed-${message.id}`}>
+              <Icon name="alert-circle-outline" size={14} tone="danger" />
+              <Text style={styles.messageFailedText}>{copy.messageSendFailedLabel}</Text>
+              {onRetryFailedMessage ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={copy.messageRetrySendAction}
+                  onPress={() => onRetryFailedMessage(message.id)}
+                  testID={`mobile-message-retry-${message.id}`}
+                >
+                  <Text style={styles.messageFailedAction}>{copy.messageRetrySendAction}</Text>
+                </Pressable>
+              ) : null}
+            </View>
+          ) : null}
+          <DMChatReactionChips
             currentUserId={currentUserId}
             message={message}
+            onLongPressReaction={setReactionDetailEmoji}
             {...(onToggleReaction ? { onToggleReaction } : {})}
           />
         </View>
@@ -509,6 +501,11 @@ export function DMChatMessageRow({
           <View
             style={[styles.timeRow, message.reactions.length > 0 && styles.reactionTimeSpacing]}
           >
+            {message.editedAt ? (
+              <Text style={styles.editedText} testID={`mobile-dm-message-edited-${message.id}`}>
+                {copy.messageEditedLabel}
+              </Text>
+            ) : null}
             <Text style={styles.timeText}>{formatMobileDisplayTime(message.createdAt)}</Text>
             {own ? (
               <Ionicons
@@ -526,14 +523,59 @@ export function DMChatMessageRow({
 
   return (
     <>
-      <ContextMenu
-        accessibilityLabel={copy.messageReactionMenuLabel}
-        actions={actions}
+      <MessageActionMenu
+        authorAvatarUrl={message.author.avatarUrl}
+        authorId={message.author.id}
+        authorLabel={authorLabel}
+        currentUserId={currentUserId}
         disabled={isReactionMutationPending}
+        message={message}
+        {...(own && onDeleteMessage ? { onDelete: () => onDeleteMessage(message.id) } : {})}
+        {...(onDiscardFailedMessage
+          ? { onDiscardFailed: () => onDiscardFailedMessage(message.id) }
+          : {})}
+        {...(own && onEditMessage
+          ? { onEdit: () => onEditMessage({ content: message.content, id: message.id }) }
+          : {})}
+        {...(onForwardMessage
+          ? {
+              onForward: () =>
+                onForwardMessage({ authorLabel, content: message.content, id: message.id }),
+            }
+          : {})}
+        {...(onToggleReaction ? { onOpenEmojiPicker: () => setEmojiPickerOpen(true) } : {})}
+        onPress={handleBubblePress}
+        {...(onReplyMessage
+          ? {
+              onReply: () =>
+                onReplyMessage({ authorLabel, content: message.content, id: message.id }),
+            }
+          : {})}
+        {...(onRetryFailedMessage
+          ? { onRetryFailedSend: () => onRetryFailedMessage(message.id) }
+          : {})}
+        {...(onOpenThread ? { onStartThread: () => onOpenThread(message.id) } : {})}
+        {...(onToggleReaction ? { onToggleReaction } : {})}
+        own={own}
+        previewText={body}
+        scope="dm"
         testID={`mobile-message-actions-${message.id}`}
       >
-        {row}
-      </ContextMenu>
+        <GestureDetector gesture={replyGesture}>
+          <Animated.View style={swipeStyle}>{row}</Animated.View>
+        </GestureDetector>
+      </MessageActionMenu>
+      {reactionDetailEmoji !== null ? (
+        <MessageReactionDetailSheet
+          currentUserId={currentUserId}
+          initialEmoji={reactionDetailEmoji}
+          messageId={message.id}
+          onClose={() => setReactionDetailEmoji(null)}
+          open
+          reactions={message.reactions}
+          {...(onToggleReaction ? { onRemoveOwnReaction: onToggleReaction } : {})}
+        />
+      ) : null}
       {onToggleReaction ? (
         <MessageEmojiPicker
           isOpen={emojiPickerOpen}
@@ -560,10 +602,13 @@ export function DMChatMessageList({
   isReactionMutationPending = false,
   messages,
   onDeleteMessage,
+  onDiscardFailedMessage,
   onEditMessage,
+  onForwardMessage,
   onLoadMore,
   onOpenThread,
   onReplyMessage,
+  onRetryFailedMessage,
   onToggleReaction,
   partnerLastReadAt,
 }: {
@@ -571,15 +616,41 @@ export function DMChatMessageList({
   readonly isReactionMutationPending?: boolean;
   readonly messages: readonly DMChatMessage[];
   readonly onDeleteMessage?: (messageId: string) => void;
+  readonly onDiscardFailedMessage?: (messageId: string) => void;
   readonly onEditMessage?: (message: MobileMessageActionTarget) => void;
+  readonly onForwardMessage?: (message: MobileMessageActionTarget) => void;
   readonly onLoadMore?: () => void;
   readonly onOpenThread?: (messageId: string) => void;
   readonly onReplyMessage?: (message: MobileMessageActionTarget) => void;
+  readonly onRetryFailedMessage?: (messageId: string) => void;
   readonly onToggleReaction?: (input: MobileMessageReactionToggleInput) => void;
   readonly partnerLastReadAt: string | null;
 }) {
   const styles = useDMChatStyles();
   const grouped = useMemo(() => getDMChatMessageGroupModel(messages), [messages]);
+  const listRef = useRef<FlashListRef<DMChatMessageGroupItem> | null>(null);
+  const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
+
+  // Tapping a reply quote scrolls to the original message and flashes it (8b).
+  const handleOpenReply = useCallback(
+    (messageId: string) => {
+      const index = grouped.findIndex((item) => item.message.id === messageId);
+      if (index < 0) return;
+      listRef.current?.scrollToIndex({ animated: true, index, viewPosition: 0.5 });
+      setHighlightedMessageId(messageId);
+      if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+      highlightTimerRef.current = setTimeout(() => setHighlightedMessageId(null), 1_600);
+    },
+    [grouped],
+  );
+
+  useEffect(
+    () => () => {
+      if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+    },
+    [],
+  );
 
   return (
     <FlashList
@@ -593,6 +664,7 @@ export function DMChatMessageList({
       }}
       onStartReached={onLoadMore}
       onStartReachedThreshold={0.35}
+      ref={listRef}
       renderItem={({ item }) => (
         <View style={[styles.messageItem, item.isGroupedWithNext && styles.messageItemGrouped]}>
           {item.showDateSeparator ? (
@@ -601,12 +673,17 @@ export function DMChatMessageList({
           <MemoizedDMChatMessageRow
             {...item}
             currentUserId={currentUserId}
+            isHighlighted={item.message.id === highlightedMessageId}
             isReactionMutationPending={isReactionMutationPending}
+            onOpenReply={handleOpenReply}
             partnerLastReadAt={partnerLastReadAt}
             {...(onDeleteMessage ? { onDeleteMessage } : {})}
+            {...(onDiscardFailedMessage ? { onDiscardFailedMessage } : {})}
             {...(onEditMessage ? { onEditMessage } : {})}
+            {...(onForwardMessage ? { onForwardMessage } : {})}
             {...(onOpenThread ? { onOpenThread } : {})}
             {...(onReplyMessage ? { onReplyMessage } : {})}
+            {...(onRetryFailedMessage ? { onRetryFailedMessage } : {})}
             {...(onToggleReaction ? { onToggleReaction } : {})}
           />
         </View>

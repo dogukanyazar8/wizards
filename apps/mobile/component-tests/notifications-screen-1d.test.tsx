@@ -321,6 +321,12 @@ describe("1d notifications screen", () => {
     expect(view.getByTestId("mobile-notifications-open-settings")).toBeTruthy();
   });
 
+  it("shows the mockup #1d subtitle under the title", async () => {
+    const view = await renderScreen();
+
+    expect(view.getByText("Bahsetmeler ve sunucu olayları")).toBeTruthy();
+  });
+
   it("locks the 1d permission card and unread-card geometry to theme roles", () => {
     const styles = createNotificationsScreenStyles(lightTheme);
 

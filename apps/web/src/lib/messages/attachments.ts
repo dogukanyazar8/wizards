@@ -9,6 +9,7 @@ import { z } from "zod";
 import { ApiError } from "@/lib/api";
 import {
   getMessageAttachmentMaxBytes,
+  isMessageAudioContentType,
   isMessageImageContentType,
   isSupportedMessageAttachmentContentType,
   MESSAGE_ATTACHMENT_MAX_COUNT,
@@ -98,6 +99,12 @@ function normalizeDimension(value: number | null | undefined) {
     : undefined;
 }
 
+function normalizeDuration(value: number | null | undefined) {
+  return typeof value === "number" && Number.isFinite(value) && value > 0 && value <= 3600
+    ? value
+    : undefined;
+}
+
 export async function claimUploadedMessageAttachments(
   tx: AttachmentTransaction,
   userId: string,
@@ -123,6 +130,7 @@ export async function claimUploadedMessageAttachments(
       scanStatus: true,
       width: true,
       height: true,
+      duration: true,
     },
   });
 
@@ -162,6 +170,9 @@ export async function claimUploadedMessageAttachments(
             current && isMessageImageContentType(current.contentType)
               ? normalizeDimension(input.height) ?? current.height ?? null
               : null,
+          ...(current && isMessageAudioContentType(current.contentType)
+            ? { duration: normalizeDuration(input.duration) ?? current.duration ?? null }
+            : {}),
         },
       });
     }),

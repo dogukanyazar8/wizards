@@ -1,3 +1,4 @@
+import { mobileFailedSendRegistry } from "../query/mobile-failed-send-registry";
 import { mobileSearchKeyRegistry } from "../query/mobile-query-keys";
 import { useMobileActiveTargetStore } from "./mobile-active-target-store";
 import { useMobileComposerDraftStore } from "./mobile-composer-draft-store";
@@ -8,4 +9,5 @@ export function resetMobileSessionState(): void {
   useMobileComposerDraftStore.getState().reset();
   useMobileOverlayStore.getState().reset();
   mobileSearchKeyRegistry.clear();
+  mobileFailedSendRegistry.clear();
 }

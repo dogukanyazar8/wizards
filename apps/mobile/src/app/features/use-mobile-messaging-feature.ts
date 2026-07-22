@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import type { MobileWorkspaceChannelSummary, UploadedAttachmentInput } from "@wizards/types";
 import type { MobileApiClient } from "../../api/mobile-api-client";
 import type { MobileSessionUser } from "../../auth/session-types";
@@ -17,8 +17,15 @@ import {
 } from "../../query/mobile-dm-conversations-query";
 import {
   useMobileChannelMessagesQuery,
+  useMobileChannelPinsQuery,
   useMobileDMMessagesQuery,
 } from "../../query/mobile-message-queries";
+import {
+  getMobileChannelFailedSendScope,
+  getMobileDMFailedSendScope,
+  mobileFailedSendRegistry,
+  withMobileFailedSendOverlay,
+} from "../../query/mobile-failed-send-registry";
 import { useMobileMessageSearchQuery } from "../../query/mobile-message-search-query";
 import { loadMoreMobileInfinitePages } from "../../query/mobile-query-pages";
 import {
@@ -29,9 +36,11 @@ import {
   useMobileChannelMessageReactionMutation,
   useMobileDMMessageDeleteMutation,
   useMobileDMMessageEditMutation,
+  useMobileChannelMessagePinMutation,
   useMobileDMMessageMutation,
   useMobileDMMessageReactionMutation,
   useMobileDMReadMutation,
+  useMobileMessageForwardMutation,
   type MobileMessageReactionMutationVariables,
   type MobileMessageEditMutationVariables,
 } from "../../query/use-mobile-message-mutations";
@@ -57,14 +66,15 @@ import {
   toMobileSyncSnapshot,
   toMobileWorkspaceViewState,
 } from "../mobile-query-view-state";
-import type { MobileChannelSendViewState, MobileDMSendViewState } from "../mobile-screen-state";
 import { getVisibleMobileSyncHealth, type MobileSyncHealthDomain } from "../mobile-screen-sync";
 import { activeMobileCopy } from "../../locale/mobile-locale-preferences";
 import { createMobileGiphyAttachment } from "../../media/mobile-giphy-client";
 import { getMobileDMReadTarget } from "../../dm/mobile-dm-client";
+import type { MobileForwardSendInput } from "../components/message-forward-sheet";
 import { resolveMobileWorkspaceServerSelection } from "../../workspace/mobile-workspace-selection";
 
 const copy = activeMobileCopy;
+const EMPTY_PINNED_MESSAGES: readonly never[] = [];
 
 type MobileMessageSearchInput = {
   readonly conversationId: string;
@@ -176,13 +186,13 @@ export function useMobileMessagingFeature({
         status: "OFFLINE" as const,
       }
     : null;
-  const channelMessageMutation = useMobileChannelMessageMutation({
+  const channelMessageControls = useMobileChannelMessageMutation({
     author: currentUser,
     channelId: activeWorkspaceTextChannelId ?? "",
     client: apiClient,
   });
   const channelReadMutation = useMobileChannelReadMutation({ client: apiClient });
-  const dmMessageMutation = useMobileDMMessageMutation({
+  const dmMessageControls = useMobileDMMessageMutation({
     author: dmMessageAuthor,
     client: apiClient,
     conversationId: selectedDMConversationId ?? "",
@@ -214,18 +224,36 @@ export function useMobileMessagingFeature({
     client: apiClient,
     conversationId: selectedDMConversationId ?? "",
   });
+  const forwardMutation = useMobileMessageForwardMutation({ client: apiClient });
+  const { mutateAsync: forwardMessage } = forwardMutation;
+  const channelPinsQuery = useMobileChannelPinsQuery(
+    apiClient,
+    isSignedIn ? (activeWorkspaceTextChannelId ?? "") : "",
+  );
+  const channelPinMutation = useMobileChannelMessagePinMutation({
+    channelId: activeWorkspaceTextChannelId ?? "",
+    client: apiClient,
+  });
+  const { mutateAsync: mutateChannelPin } = channelPinMutation;
+  // 8c "YENİ" divider: the read endpoint reports the first unread message id
+  // for the channel being opened, captured once per open.
+  const [channelFirstUnreadMessageId, setChannelFirstUnreadMessageId] = useState<string | null>(
+    null,
+  );
   const {
-    isError: isChannelSendError,
-    isPending: isChannelSending,
-    mutateAsync: sendChannelMessage,
-    reset: resetChannelMessageMutation,
-  } = channelMessageMutation;
+    discardFailedMessage: discardFailedChannelMessage,
+    mutation: channelMessageMutation,
+    retryFailedMessage: retryFailedChannelMessage,
+  } = channelMessageControls;
   const {
-    isError: isDMSendError,
-    isPending: isDMSending,
-    mutateAsync: sendDMMessage,
-    reset: resetDMMessageMutation,
-  } = dmMessageMutation;
+    discardFailedMessage: discardFailedDMMessage,
+    mutation: dmMessageMutation,
+    retryFailedMessage: retryFailedDMMessage,
+  } = dmMessageControls;
+  const { mutate: sendChannelMessage } = channelMessageMutation;
+  const { mutate: sendDMMessage } = dmMessageMutation;
+  const resetChannelMessageMutation = channelMessageMutation.reset;
+  const resetDMMessageMutation = dmMessageMutation.reset;
   const { isPending: isChannelReactionPending, mutate: mutateChannelReaction } =
     channelReactionMutation;
   const { mutate: markChannelRead } = channelReadMutation;
@@ -251,32 +279,46 @@ export function useMobileMessagingFeature({
     selectedWorkspaceServerId,
     copy.workspaceLoadFailed,
   );
-  const channelMessagesState = toMobileChannelMessagesViewState(
-    channelMessagesQuery,
-    activeWorkspaceTextChannelId,
-    copy.workspaceChannelLoadFailed,
+  const channelFailedScope = getMobileChannelFailedSendScope(activeWorkspaceTextChannelId ?? "");
+  const dmFailedScope = getMobileDMFailedSendScope(selectedDMConversationId ?? "");
+  const channelFailedSends = useSyncExternalStore(mobileFailedSendRegistry.subscribe, () =>
+    mobileFailedSendRegistry.getEntries(channelFailedScope),
   );
-  const dmMessagesState = toMobileDMMessagesViewState(
-    dmMessagesQuery,
-    selectedDMConversationId,
-    copy.dmMessagesLoadFailed,
+  const dmFailedSends = useSyncExternalStore(mobileFailedSendRegistry.subscribe, () =>
+    mobileFailedSendRegistry.getEntries(dmFailedScope),
+  );
+  // Failed sends only live in the registry, so re-attach them after a refetch
+  // drops the optimistic rows. Channel scopes always hold ChatMessage entries
+  // and DM scopes always hold DMMessagePayload entries.
+  const channelMessagesState = useMemo(
+    () =>
+      withMobileFailedSendOverlay(
+        toMobileChannelMessagesViewState(
+          channelMessagesQuery,
+          activeWorkspaceTextChannelId,
+          copy.workspaceChannelLoadFailed,
+        ),
+        channelFailedSends,
+      ),
+    [activeWorkspaceTextChannelId, channelFailedSends, channelMessagesQuery],
+  );
+  const dmMessagesState = useMemo(
+    () =>
+      withMobileFailedSendOverlay(
+        toMobileDMMessagesViewState(
+          dmMessagesQuery,
+          selectedDMConversationId,
+          copy.dmMessagesLoadFailed,
+        ),
+        dmFailedSends,
+      ),
+    [dmFailedSends, dmMessagesQuery, selectedDMConversationId],
   );
   const messageSearchState = toMobileMessageSearchViewState(
     messageSearchQuery,
     messageSearchInput,
     copy.messageSearchFailed,
   );
-  const channelSendState: MobileChannelSendViewState = {
-    channelId: activeWorkspaceTextChannelId,
-    error: isChannelSendError ? copy.channelSendFailed : null,
-    status: isChannelSending ? "sending" : isChannelSendError ? "error" : "idle",
-  };
-  const dmSendState: MobileDMSendViewState = {
-    conversationId: selectedDMConversationId,
-    error: isDMSendError ? copy.dmSendFailed : null,
-    status: isDMSending ? "sending" : isDMSendError ? "error" : "idle",
-  };
-
   const latestDMMessageId = dmMessagesState.payload?.messages.at(-1)?.id ?? null;
   useMobileDMReadEffect({
     conversationId: selectedDMConversationId,
@@ -385,18 +427,14 @@ export function useMobileMessagingFeature({
         return false;
       }
 
-      try {
-        stopDMTyping(selectedDMConversationId);
-        await sendDMMessage({
-          content: trimmedContent,
-          ...(attachments.length > 0 ? { attachments: [...attachments] } : {}),
-          ...(intent?.replyToId ? { replyToId: intent.replyToId } : {}),
-          ...(intent?.threadParentId ? { threadParentId: intent.threadParentId } : {}),
-        });
-        return true;
-      } catch {
-        return false;
-      }
+      stopDMTyping(selectedDMConversationId);
+      sendDMMessage({
+        content: trimmedContent,
+        ...(attachments.length > 0 ? { attachments: [...attachments] } : {}),
+        ...(intent?.replyToId ? { replyToId: intent.replyToId } : {}),
+        ...(intent?.threadParentId ? { threadParentId: intent.threadParentId } : {}),
+      });
+      return true;
     },
     [isSignedIn, selectedDMConversationId, sendDMMessage, stopDMTyping],
   );
@@ -422,33 +460,60 @@ export function useMobileMessagingFeature({
       }
 
       stopChannelTyping(activeWorkspaceTextChannelId);
+      sendChannelMessage({
+        content: trimmedContent,
+        ...(attachments.length > 0 ? { attachments: [...attachments] } : {}),
+        ...(intent?.replyToId ? { replyToId: intent.replyToId } : {}),
+        ...(intent?.threadParentId ? { threadParentId: intent.threadParentId } : {}),
+      });
+      return true;
+    },
+    [activeWorkspaceTextChannelId, isSignedIn, sendChannelMessage, stopChannelTyping],
+  );
 
+  const handlePinMessage = useCallback(
+    async (messageId: string, shouldPin: boolean): Promise<boolean> => {
+      if (!isSignedIn || !activeWorkspaceTextChannelId) return false;
       try {
-        await sendChannelMessage({
-          content: trimmedContent,
-          ...(attachments.length > 0 ? { attachments: [...attachments] } : {}),
-          ...(intent?.replyToId ? { replyToId: intent.replyToId } : {}),
-          ...(intent?.threadParentId ? { threadParentId: intent.threadParentId } : {}),
+        await mutateChannelPin({ messageId, shouldPin });
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    [activeWorkspaceTextChannelId, isSignedIn, mutateChannelPin],
+  );
+
+  const handleForwardMessage = useCallback(
+    async (input: MobileForwardSendInput): Promise<boolean> => {
+      const content = input.content.trim();
+      if (!isSignedIn || content.length === 0) return false;
+      try {
+        await forwardMessage({
+          content,
+          forwardOfMessageId: input.forwardOfMessageId,
+          target: input.target,
         });
         return true;
       } catch {
         return false;
       }
     },
-    [activeWorkspaceTextChannelId, isSignedIn, sendChannelMessage, stopChannelTyping],
+    [forwardMessage, isSignedIn],
   );
 
   const handleSendDMGif = useCallback(
     async (gifId: string): Promise<boolean> => {
       if (!isSignedIn || !selectedDMConversationId) return false;
+      let attachment: Awaited<ReturnType<typeof createMobileGiphyAttachment>>;
       try {
-        const { input } = await createMobileGiphyAttachment(apiClient, gifId);
-        stopDMTyping(selectedDMConversationId);
-        await sendDMMessage({ attachments: [input], content: "" });
-        return true;
+        attachment = await createMobileGiphyAttachment(apiClient, gifId);
       } catch {
         return false;
       }
+      stopDMTyping(selectedDMConversationId);
+      sendDMMessage({ attachments: [attachment.input], content: "" });
+      return true;
     },
     [apiClient, isSignedIn, selectedDMConversationId, sendDMMessage, stopDMTyping],
   );
@@ -456,16 +521,40 @@ export function useMobileMessagingFeature({
   const handleSendChannelGif = useCallback(
     async (gifId: string): Promise<boolean> => {
       if (!isSignedIn || !activeWorkspaceTextChannelId) return false;
+      let attachment: Awaited<ReturnType<typeof createMobileGiphyAttachment>>;
       try {
-        const { input } = await createMobileGiphyAttachment(apiClient, gifId);
-        stopChannelTyping(activeWorkspaceTextChannelId);
-        await sendChannelMessage({ attachments: [input], content: "" });
-        return true;
+        attachment = await createMobileGiphyAttachment(apiClient, gifId);
       } catch {
         return false;
       }
+      stopChannelTyping(activeWorkspaceTextChannelId);
+      sendChannelMessage({ attachments: [attachment.input], content: "" });
+      return true;
     },
     [activeWorkspaceTextChannelId, apiClient, isSignedIn, sendChannelMessage, stopChannelTyping],
+  );
+
+  const handleRetryChannelMessage = useCallback(
+    (messageId: string) => {
+      if (!isSignedIn) return;
+      retryFailedChannelMessage(messageId);
+    },
+    [isSignedIn, retryFailedChannelMessage],
+  );
+  const handleDiscardChannelMessage = useCallback(
+    (messageId: string) => discardFailedChannelMessage(messageId),
+    [discardFailedChannelMessage],
+  );
+  const handleRetryDMMessage = useCallback(
+    (messageId: string) => {
+      if (!isSignedIn) return;
+      retryFailedDMMessage(messageId);
+    },
+    [isSignedIn, retryFailedDMMessage],
+  );
+  const handleDiscardDMMessage = useCallback(
+    (messageId: string) => discardFailedDMMessage(messageId),
+    [discardFailedDMMessage],
   );
 
   const handleToggleChannelMessageReaction = useCallback(
@@ -722,7 +811,17 @@ export function useMobileMessagingFeature({
       resetChannelMessageMutation();
       setActiveWorkspaceTextChannelId(channel.id);
       setActiveWorkspaceVoiceChannelId(null);
-      markChannelRead({ channelId: channel.id });
+      setChannelFirstUnreadMessageId(null);
+      markChannelRead(
+        { channelId: channel.id },
+        {
+          onSuccess: (response) => {
+            if (response.channelId === channel.id) {
+              setChannelFirstUnreadMessageId(response.firstUnreadMessageId);
+            }
+          },
+        },
+      );
       return false;
     },
     [
@@ -935,9 +1034,10 @@ export function useMobileMessagingFeature({
     bootstrapQuery,
     bootstrapState,
     bootstrapSyncState: toMobileSyncSnapshot(bootstrapQuery, "bootstrap"),
+    channelFirstUnreadMessageId,
     channelMessagesQuery,
     channelMessagesState,
-    channelSendState,
+    channelPinnedMessages: channelPinsQuery.data?.messages ?? EMPTY_PINNED_MESSAGES,
     channelSyncState: toMobileSyncSnapshot(channelMessagesQuery, "channel"),
     clearMessageSearch,
     currentTab,
@@ -955,15 +1055,18 @@ export function useMobileMessagingFeature({
       loadMoreMobileInfinitePages(channelMessagesQuery);
     },
     dmMessagesState,
-    dmSendState,
     dmSyncState: toMobileSyncSnapshot(dmMessagesQuery, "dm"),
     getSyncHealth,
     handleChannelDraftChange,
     handleDeleteChannelMessage,
     handleDeleteDMMessage,
+    handleDiscardChannelMessage,
+    handleDiscardDMMessage,
     handleDMDraftChange,
     handleEditChannelMessage,
     handleEditDMMessage,
+    handleForwardMessage,
+    handlePinMessage,
     handleCloseDMConversation,
     handleCloseWorkspaceChannel,
     handleCloseWorkspaceVoiceChannel,
@@ -973,6 +1076,8 @@ export function useMobileMessagingFeature({
     handleOpenWorkspaceChannel,
     handleOpenWorkspaceRoute,
     handleOpenWorkspaceServer,
+    handleRetryChannelMessage,
+    handleRetryDMMessage,
     handleSearchMessages,
     handleSendChannelMessage,
     handleSendChannelGif,

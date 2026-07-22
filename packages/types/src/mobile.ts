@@ -588,8 +588,10 @@ export const MobileDMMessagesThreadResponseSchema = z.object({
 
 const MobileSendMessageRequestSchema = z
   .object({
+    alsoSendToChannel: z.boolean().optional(),
     attachments: z.array(UploadedAttachmentInputSchema).max(5).default([]),
     content: z.string().max(MESSAGE_CONTENT_DEFAULT_LIMIT),
+    forwardOfMessageId: z.string().min(1).max(128).nullable().optional(),
     replyToId: z.string().min(1).max(128).nullable().optional(),
     threadParentId: z.string().min(1).max(128).nullable().optional(),
   })
@@ -699,6 +701,14 @@ export const MobileChannelThreadMessagesResponseSchema = z.object({
 
 export const MobileChannelSendMessageRequestSchema = MobileSendMessageRequestSchema;
 
+export const MobileChannelMessagePinResponseSchema = z.object({
+  message: ChatMessageSchema,
+});
+
+export const MobileChannelPinnedMessagesResponseSchema = z.object({
+  messages: z.array(ChatMessageSchema).max(50),
+});
+
 export const MobileChannelSendMessageResponseSchema = z.object({
   message: ChatMessageSchema,
 });
@@ -776,6 +786,12 @@ export type MobileChannelSendMessageResponse = z.infer<
   typeof MobileChannelSendMessageResponseSchema
 >;
 export type MobileChannelMarkReadResponse = z.infer<typeof MobileChannelMarkReadResponseSchema>;
+export type MobileChannelMessagePinResponse = z.infer<
+  typeof MobileChannelMessagePinResponseSchema
+>;
+export type MobileChannelPinnedMessagesResponse = z.infer<
+  typeof MobileChannelPinnedMessagesResponseSchema
+>;
 export type MobileServerUnreadUpdateEvent = z.infer<typeof MobileServerUnreadUpdateEventSchema>;
 export type MobileChannelMessagesStaleEvent = z.infer<typeof MobileChannelMessagesStaleEventSchema>;
 export type MobileAuthExchangeRequest = z.infer<typeof MobileAuthExchangeRequestSchema>;

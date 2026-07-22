@@ -1,3 +1,4 @@
+import { useCallback, useMemo } from "react";
 import {
   mutationOptions,
   useMutation,
@@ -14,6 +15,7 @@ import type {
   MobileChannelMessagesResponse,
   MobileChannelMarkReadResponse,
   MobileChannelSendMessageResponse,
+  MobileChannelThreadMessagesResponse,
   MobileDMMessagesResponse,
   MobileDMMarkReadResponse,
   MobileDMSendMessageResponse,
@@ -36,6 +38,7 @@ import {
 import {
   deleteMobileChannelMessage,
   sendMobileChannelMessage,
+  setMobileChannelMessagePin,
   setMobileChannelMessageReaction,
   markMobileChannelRead,
   updateMobileChannelMessage,
@@ -43,22 +46,34 @@ import {
 } from "../workspace/mobile-workspace-client";
 import {
   applyMobileOptimisticMessageReaction,
+  getNextMobileMessageReactions,
   insertOptimisticMobileMessage,
+  markMobileMessageFailed,
   replaceMobileMessage,
   replaceMobileMessageReactions,
   removeMobileMessage,
   softDeleteMobileMessage,
   updateMobileMessageContent,
 } from "./mobile-message-cache";
+import {
+  getMobileChannelFailedSendScope,
+  getMobileDMFailedSendScope,
+  mobileFailedSendRegistry,
+} from "./mobile-failed-send-registry";
 import { mobileQueryKeys } from "./mobile-query-keys";
 
 type MobileMessagePage<TMessage extends { readonly id: string }> = {
   readonly messages: readonly TMessage[];
 };
 
-type MobileOptimisticMutationContext<TData> = {
+type MobileSendableCacheMessage = {
+  readonly id: string;
+  readonly deliveryStatus?: "sending" | "failed" | undefined;
+};
+
+type MobileOptimisticMutationContext<TMessage> = {
   readonly clientId: string;
-  readonly previousData: TData | undefined;
+  readonly optimisticMessage: TMessage;
 };
 
 export type MobileMessageReactionMutationVariables = {
@@ -82,14 +97,18 @@ export type MobileMessageEditMutationVariables = MobileMessageDeleteMutationVari
 type MobileOptimisticMutationOptions<
   TVariables,
   TResponse,
-  TMessage extends { readonly id: string },
+  TMessage extends MobileSendableCacheMessage,
   TPage extends MobileMessagePage<TMessage>,
   TPageParam,
 > = {
   readonly createOptimisticMessage: (variables: TVariables, clientId: string) => TMessage;
   readonly getResponseMessage: (response: TResponse) => TMessage;
-  readonly invalidateKeys: readonly QueryKey[];
   readonly mutationFn: MutationFunction<TResponse, TVariables>;
+  readonly onSendFailed?: (
+    clientId: string,
+    variables: TVariables,
+    failedMessage: TMessage,
+  ) => void;
   readonly queryClient: QueryClient;
   readonly queryKey: QueryKey;
 };
@@ -160,37 +179,36 @@ function createMobileOptimisticMessageId(): string {
 export function createMobileOptimisticMutationOptions<
   TVariables,
   TResponse,
-  TMessage extends { readonly id: string },
+  TMessage extends MobileSendableCacheMessage,
   TPage extends MobileMessagePage<TMessage>,
   TPageParam = string | null,
 >(options: MobileOptimisticMutationOptions<TVariables, TResponse, TMessage, TPage, TPageParam>) {
   type TData = InfiniteData<TPage, TPageParam>;
-  type TContext = MobileOptimisticMutationContext<TData>;
+  type TContext = MobileOptimisticMutationContext<TMessage>;
 
   return mutationOptions<TResponse, Error, TVariables, TContext>({
     mutationFn: options.mutationFn,
-    onError: (_error, _variables, context) => {
-      if (context?.previousData) {
-        options.queryClient.setQueryData(options.queryKey, context.previousData);
+    onError: (_error, variables, context) => {
+      if (!context) {
+        return;
       }
+
+      options.queryClient.setQueryData<TData>(options.queryKey, (current) =>
+        markMobileMessageFailed(current, context.clientId),
+      );
+      options.onSendFailed?.(context.clientId, variables, {
+        ...context.optimisticMessage,
+        deliveryStatus: "failed",
+      });
     },
     onMutate: async (variables) => {
       await options.queryClient.cancelQueries({ queryKey: options.queryKey });
-      const previousData = options.queryClient.getQueryData<TData>(options.queryKey);
       const clientId = createMobileOptimisticMessageId();
       const optimisticMessage = options.createOptimisticMessage(variables, clientId);
       options.queryClient.setQueryData<TData>(options.queryKey, (current) =>
         insertOptimisticMobileMessage(current, optimisticMessage),
       );
-      return { clientId, previousData };
-    },
-    onSettled: async () => {
-      await Promise.all([
-        options.queryClient.invalidateQueries({ queryKey: options.queryKey }),
-        ...options.invalidateKeys.map((queryKey) =>
-          options.queryClient.invalidateQueries({ queryKey }),
-        ),
-      ]);
+      return { clientId, optimisticMessage };
     },
     onSuccess: (response, _variables, context) => {
       if (!context) {
@@ -324,6 +342,110 @@ export function createMobileOptimisticEditMutationOptions<
   });
 }
 
+export type MobileMessagePinMutationVariables = {
+  readonly messageId: string;
+  readonly shouldPin: boolean;
+};
+
+/** 8c pin/unpin with optimistic isPinned flip and pins-list refresh. */
+export function useMobileChannelMessagePinMutation(input: {
+  readonly channelId: string;
+  readonly client: MobileApiClient;
+}) {
+  const queryClient = useQueryClient();
+  const queryKey = useMemo(
+    () => mobileQueryKeys.channelMessages(input.channelId),
+    [input.channelId],
+  );
+  type TData = InfiniteData<MobileChannelMessagesResponse, string | null>;
+
+  return useMutation<
+    Awaited<ReturnType<typeof setMobileChannelMessagePin>>,
+    Error,
+    MobileMessagePinMutationVariables,
+    { readonly previousData: TData | undefined }
+  >({
+    mutationFn: (variables) =>
+      setMobileChannelMessagePin(input.client, {
+        channelId: input.channelId,
+        messageId: variables.messageId,
+        shouldPin: variables.shouldPin,
+      }),
+    onError: (_error, _variables, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(queryKey, context.previousData);
+      }
+    },
+    onMutate: async (variables) => {
+      await queryClient.cancelQueries({ queryKey });
+      const previousData = queryClient.getQueryData<TData>(queryKey);
+      queryClient.setQueryData<TData>(queryKey, (current) =>
+        current
+          ? {
+              ...current,
+              pages: current.pages.map((page) => ({
+                ...page,
+                messages: page.messages.map((message) =>
+                  message.id === variables.messageId
+                    ? {
+                        ...message,
+                        isPinned: variables.shouldPin,
+                        pinnedAt: variables.shouldPin ? new Date().toISOString() : null,
+                      }
+                    : message,
+                ),
+              })),
+            }
+          : current,
+      );
+      return { previousData };
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({
+        exact: true,
+        queryKey: mobileQueryKeys.channelPins(input.channelId),
+      });
+    },
+    onSuccess: (response, variables) => {
+      queryClient.setQueryData<TData>(queryKey, (current) =>
+        replaceMobileMessage(current, variables.messageId, response.message),
+      );
+    },
+  });
+}
+
+export type MobileMessageForwardMutationVariables = {
+  readonly content: string;
+  readonly forwardOfMessageId: string;
+  readonly target: { readonly id: string; readonly type: "channel" | "dm" };
+};
+
+/**
+ * 8b forward: a plain send into the chosen target conversation/channel. The
+ * origin is only marked via forwardOfMessageId, so no optimistic cache work —
+ * the target surface picks the message up through realtime/new-message flow.
+ */
+export function useMobileMessageForwardMutation(input: { readonly client: MobileApiClient }) {
+  return useMutation<
+    MobileChannelSendMessageResponse | MobileDMSendMessageResponse,
+    Error,
+    MobileMessageForwardMutationVariables
+  >({
+    mutationFn: async (variables) =>
+      variables.target.type === "dm"
+        ? sendMobileDMMessage(input.client, {
+            content: variables.content,
+            conversationId: variables.target.id,
+            forwardOfMessageId: variables.forwardOfMessageId,
+          })
+        : sendMobileChannelMessage(input.client, {
+            channelId: variables.target.id,
+            content: variables.content,
+            forwardOfMessageId: variables.forwardOfMessageId,
+          }),
+  });
+}
+
 type MobileChannelDraft = Omit<SendMobileChannelMessageInput, "channelId">;
 
 export function useMobileChannelMessageMutation(input: {
@@ -332,9 +454,13 @@ export function useMobileChannelMessageMutation(input: {
   readonly client: MobileApiClient;
 }) {
   const queryClient = useQueryClient();
-  const queryKey = mobileQueryKeys.channelMessages(input.channelId);
+  const queryKey = useMemo(
+    () => mobileQueryKeys.channelMessages(input.channelId),
+    [input.channelId],
+  );
+  const scope = useMemo(() => getMobileChannelFailedSendScope(input.channelId), [input.channelId]);
 
-  return useMutation(
+  const mutation = useMutation(
     createMobileOptimisticMutationOptions<
       MobileChannelDraft,
       MobileChannelSendMessageResponse,
@@ -362,13 +488,44 @@ export function useMobileChannelMessageMutation(input: {
         type: "DEFAULT",
       }),
       getResponseMessage: (response) => response.message,
-      invalidateKeys: [mobileQueryKeys.bootstrap()],
       mutationFn: (draft) =>
         sendMobileChannelMessage(input.client, { ...draft, channelId: input.channelId }),
+      onSendFailed: (clientId, draft, failedMessage) => {
+        mobileFailedSendRegistry.add(scope, { clientId, draft, message: failedMessage });
+      },
       queryClient,
       queryKey,
     }),
   );
+
+  const discardFailedMessage = useCallback(
+    (messageId: string) => {
+      mobileFailedSendRegistry.remove(scope, messageId);
+      queryClient.setQueryData<InfiniteData<MobileChannelMessagesResponse, string | null>>(
+        queryKey,
+        (current) => removeMobileMessage(current, messageId),
+      );
+    },
+    [queryClient, queryKey, scope],
+  );
+
+  const retryFailedMessage = useCallback(
+    (messageId: string): boolean => {
+      const entry = mobileFailedSendRegistry.remove(scope, messageId);
+      if (!entry) {
+        return false;
+      }
+      queryClient.setQueryData<InfiniteData<MobileChannelMessagesResponse, string | null>>(
+        queryKey,
+        (current) => removeMobileMessage(current, messageId),
+      );
+      mutation.mutate(entry.draft as MobileChannelDraft);
+      return true;
+    },
+    [mutation, queryClient, queryKey, scope],
+  );
+
+  return { discardFailedMessage, mutation, retryFailedMessage };
 }
 
 export function useMobileChannelReadMutation(input: { readonly client: MobileApiClient }) {
@@ -465,9 +622,16 @@ export function useMobileDMMessageMutation(input: {
   readonly conversationId: string;
 }) {
   const queryClient = useQueryClient();
-  const queryKey = mobileQueryKeys.dmMessages(input.conversationId);
+  const queryKey = useMemo(
+    () => mobileQueryKeys.dmMessages(input.conversationId),
+    [input.conversationId],
+  );
+  const scope = useMemo(
+    () => getMobileDMFailedSendScope(input.conversationId),
+    [input.conversationId],
+  );
 
-  return useMutation(
+  const mutation = useMutation(
     createMobileOptimisticMutationOptions<
       MobileDMDraft,
       MobileDMSendMessageResponse,
@@ -482,6 +646,7 @@ export function useMobileDMMessageMutation(input: {
         createdAt: new Date().toISOString(),
         deletedAt: null,
         deletedById: null,
+        deliveryStatus: "sending",
         editedAt: null,
         id: clientId,
         reactions: [],
@@ -491,13 +656,44 @@ export function useMobileDMMessageMutation(input: {
         userId: requireMobileMutationAuthor(input.author).id,
       }),
       getResponseMessage: (response) => response.message,
-      invalidateKeys: [mobileQueryKeys.bootstrap(), mobileQueryKeys.dmConversations()],
       mutationFn: (draft) =>
         sendMobileDMMessage(input.client, { ...draft, conversationId: input.conversationId }),
+      onSendFailed: (clientId, draft, failedMessage) => {
+        mobileFailedSendRegistry.add(scope, { clientId, draft, message: failedMessage });
+      },
       queryClient,
       queryKey,
     }),
   );
+
+  const discardFailedMessage = useCallback(
+    (messageId: string) => {
+      mobileFailedSendRegistry.remove(scope, messageId);
+      queryClient.setQueryData<InfiniteData<MobileDMMessagesResponse, string | null>>(
+        queryKey,
+        (current) => removeMobileMessage(current, messageId),
+      );
+    },
+    [queryClient, queryKey, scope],
+  );
+
+  const retryFailedMessage = useCallback(
+    (messageId: string): boolean => {
+      const entry = mobileFailedSendRegistry.remove(scope, messageId);
+      if (!entry) {
+        return false;
+      }
+      queryClient.setQueryData<InfiniteData<MobileDMMessagesResponse, string | null>>(
+        queryKey,
+        (current) => removeMobileMessage(current, messageId),
+      );
+      mutation.mutate(entry.draft as MobileDMDraft);
+      return true;
+    },
+    [mutation, queryClient, queryKey, scope],
+  );
+
+  return { discardFailedMessage, mutation, retryFailedMessage };
 }
 
 export function useMobileChannelMessageReactionMutation(input: {
@@ -525,6 +721,108 @@ export function useMobileChannelMessageReactionMutation(input: {
       queryKey,
     }),
   );
+}
+
+function updateMobileChannelThreadMessageReactions(
+  data: MobileChannelThreadMessagesResponse | undefined,
+  messageId: string,
+  update: (reactions: readonly MessageReaction[]) => readonly MessageReaction[],
+): MobileChannelThreadMessagesResponse | undefined {
+  if (!data) return data;
+  const updateMessage = (message: ChatMessage): ChatMessage =>
+    message.id === messageId ? { ...message, reactions: [...update(message.reactions)] } : message;
+  return {
+    ...data,
+    parent: updateMessage(data.parent),
+    messages: data.messages.map(updateMessage),
+  };
+}
+
+/** 8e thread reactions must update both the open thread and parent channel caches. */
+export function useMobileChannelThreadMessageReactionMutation(input: {
+  readonly author: MobileSessionUser | null;
+  readonly channelId: string;
+  readonly client: MobileApiClient;
+  readonly parentMessageId: string;
+}) {
+  const queryClient = useQueryClient();
+  const channelQueryKey = useMemo(
+    () => mobileQueryKeys.channelMessages(input.channelId),
+    [input.channelId],
+  );
+  const threadQueryKey = useMemo(
+    () => mobileQueryKeys.channelThread(input.channelId, input.parentMessageId),
+    [input.channelId, input.parentMessageId],
+  );
+  type ChannelData = InfiniteData<MobileChannelMessagesResponse, string | null>;
+  type Context = {
+    readonly previousChannel: ChannelData | undefined;
+    readonly previousThread: MobileChannelThreadMessagesResponse | undefined;
+  };
+
+  return useMutation<
+    MobileMessageReactionResponse,
+    Error,
+    MobileMessageReactionMutationVariables,
+    Context
+  >({
+    mutationFn: (variables) =>
+      setMobileChannelMessageReaction(input.client, {
+        ...variables,
+        channelId: input.channelId,
+      }),
+    onError: (_error, _variables, context) => {
+      if (!context) return;
+      if (context.previousChannel) queryClient.setQueryData(channelQueryKey, context.previousChannel);
+      if (context.previousThread) queryClient.setQueryData(threadQueryKey, context.previousThread);
+    },
+    onMutate: async (variables) => {
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: channelQueryKey }),
+        queryClient.cancelQueries({ queryKey: threadQueryKey }),
+      ]);
+      const previousChannel = queryClient.getQueryData<ChannelData>(channelQueryKey);
+      const previousThread =
+        queryClient.getQueryData<MobileChannelThreadMessagesResponse>(threadQueryKey);
+      const userId = requireMobileMutationAuthor(input.author).id;
+      queryClient.setQueryData<ChannelData>(channelQueryKey, (current) =>
+        applyMobileOptimisticMessageReaction(
+          current,
+          variables.messageId,
+          variables.emoji,
+          userId,
+          variables.shouldReact,
+        ),
+      );
+      queryClient.setQueryData<MobileChannelThreadMessagesResponse>(threadQueryKey, (current) =>
+        updateMobileChannelThreadMessageReactions(current, variables.messageId, (reactions) =>
+          getNextMobileMessageReactions(
+            reactions,
+            variables.emoji,
+            userId,
+            variables.shouldReact,
+          ),
+        ),
+      );
+      return { previousChannel, previousThread };
+    },
+    onSuccess: (response, variables) => {
+      queryClient.setQueryData<ChannelData>(channelQueryKey, (current) =>
+        replaceMobileMessageReactions(
+          current,
+          variables.messageId,
+          response.reactions,
+        ),
+      );
+      queryClient.setQueryData<MobileChannelThreadMessagesResponse>(threadQueryKey, (current) =>
+        updateMobileChannelThreadMessageReactions(
+          current,
+          variables.messageId,
+          () => response.reactions,
+        ),
+      );
+    },
+  });
 }
 
 export function useMobileDMMessageReactionMutation(input: {

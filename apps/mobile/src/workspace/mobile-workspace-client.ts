@@ -1,6 +1,8 @@
 import {
   MobileChannelMessagesResponseSchema,
   MobileChannelMarkReadResponseSchema,
+  MobileChannelMessagePinResponseSchema,
+  MobileChannelPinnedMessagesResponseSchema,
   MobileChannelThreadMessagesResponseSchema,
   MobileChannelSendMessageResponseSchema,
   MobileMessageDeleteResponseSchema,
@@ -8,6 +10,8 @@ import {
   MobileManagedWorkspaceServerDetailResponseSchema,
   type MobileChannelMessagesResponse,
   type MobileChannelMarkReadResponse,
+  type MobileChannelMessagePinResponse,
+  type MobileChannelPinnedMessagesResponse,
   type MobileChannelThreadMessagesResponse,
   type MobileChannelSendMessageRequest,
   type MobileChannelSendMessageResponse,
@@ -89,6 +93,17 @@ export function buildMobileChannelMessageReactionPath(input: {
   return `${buildMobileChannelMessagePath(input)}/reactions`;
 }
 
+export function buildMobileChannelMessagePinPath(input: {
+  channelId: string;
+  messageId: string;
+}): string {
+  return `${buildMobileChannelMessagePath(input)}/pin`;
+}
+
+export function buildMobileChannelPinnedMessagesPath(input: { channelId: string }): string {
+  return `/api/v1/mobile/channels/${encodeURIComponent(input.channelId)}/pins`;
+}
+
 export function buildMobileChannelMessageThreadPath(input: {
   channelId: string;
   cursor?: string | null;
@@ -105,7 +120,9 @@ export function buildMobileChannelMessageThreadPath(input: {
 export type SendMobileChannelMessageInput = {
   channelId: string;
   content: string;
+  alsoSendToChannel?: MobileChannelSendMessageRequest["alsoSendToChannel"];
   attachments?: MobileChannelSendMessageRequest["attachments"];
+  forwardOfMessageId?: MobileChannelSendMessageRequest["forwardOfMessageId"];
   replyToId?: MobileChannelSendMessageRequest["replyToId"];
   threadParentId?: MobileChannelSendMessageRequest["threadParentId"];
 };
@@ -124,6 +141,31 @@ export async function sendMobileChannelMessage(
   );
 
   return MobileChannelSendMessageResponseSchema.parse(payload);
+}
+
+export type SetMobileChannelMessagePinInput = {
+  channelId: string;
+  messageId: string;
+  shouldPin: boolean;
+};
+
+export async function setMobileChannelMessagePin(
+  client: MobileApiClient,
+  input: SetMobileChannelMessagePinInput,
+): Promise<MobileChannelMessagePinResponse> {
+  const payload = await client.requestJson<unknown>(buildMobileChannelMessagePinPath(input), {
+    method: input.shouldPin ? "POST" : "DELETE",
+  });
+
+  return MobileChannelMessagePinResponseSchema.parse(payload);
+}
+
+export async function fetchMobileChannelPinnedMessages(
+  client: MobileApiClient,
+  input: { channelId: string },
+): Promise<MobileChannelPinnedMessagesResponse> {
+  const payload = await client.requestJson<unknown>(buildMobileChannelPinnedMessagesPath(input));
+  return MobileChannelPinnedMessagesResponseSchema.parse(payload);
 }
 
 export type UpdateMobileChannelMessageInput = {

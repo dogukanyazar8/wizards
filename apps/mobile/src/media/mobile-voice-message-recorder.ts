@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   AudioModule,
   RecordingPresets,
@@ -16,6 +16,8 @@ import {
 
 const VOICE_MESSAGE_CONTENT_TYPE = "audio/mp4";
 const VOICE_MESSAGE_FILE_NAME = "voice-message.m4a";
+/** 8b: taps shorter than this are treated as accidental and discarded. */
+const VOICE_MESSAGE_MIN_DURATION_SECONDS = 1;
 const VOICE_MESSAGE_RECORDING_OPTIONS = {
   ...RecordingPresets.HIGH_QUALITY,
   directory: "cache" as const,
@@ -33,6 +35,7 @@ export function useMobileVoiceMessageRecorder(): MobileVoiceMessageRecorder {
   const recorder = useAudioRecorder(VOICE_MESSAGE_RECORDING_OPTIONS);
   const recorderState = useAudioRecorderState(recorder);
   const [phase, setPhase] = useState<MobileVoiceMessageRecorder["phase"]>("idle");
+  const recordingStartedAtRef = useRef<number | null>(null);
 
   const start = useCallback(async () => {
     if (phase === "preparing" || phase === "recording" || phase === "stopping") {
@@ -54,6 +57,7 @@ export function useMobileVoiceMessageRecorder(): MobileVoiceMessageRecorder {
       });
       await recorder.prepareToRecordAsync();
       recorder.record();
+      recordingStartedAtRef.current = Date.now();
       setPhase("recording");
       return "recording" as const;
     } catch {
@@ -69,6 +73,10 @@ export function useMobileVoiceMessageRecorder(): MobileVoiceMessageRecorder {
 
     setPhase("stopping");
     try {
+      const startedAt = recordingStartedAtRef.current;
+      recordingStartedAtRef.current = null;
+      const durationSeconds =
+        startedAt !== null ? Math.max(0, (Date.now() - startedAt) / 1_000) : 0;
       await recorder.stop();
       const uri = recorder.uri;
       if (!uri) {
@@ -76,6 +84,13 @@ export function useMobileVoiceMessageRecorder(): MobileVoiceMessageRecorder {
       }
 
       const recordingFile = new ExpoFile(uri);
+      if (durationSeconds < VOICE_MESSAGE_MIN_DURATION_SECONDS) {
+        if (recordingFile.exists) {
+          recordingFile.delete();
+        }
+        return null;
+      }
+
       const size = recordingFile.size;
       validateMobileMessageAttachment({
         contentType: VOICE_MESSAGE_CONTENT_TYPE,
@@ -85,6 +100,7 @@ export function useMobileVoiceMessageRecorder(): MobileVoiceMessageRecorder {
       });
 
       return {
+        durationSeconds: Math.round(durationSeconds * 10) / 10,
         file: {
           lastModified: Date.now(),
           name: VOICE_MESSAGE_FILE_NAME,
@@ -110,6 +126,7 @@ export function useMobileVoiceMessageRecorder(): MobileVoiceMessageRecorder {
 
     setPhase("stopping");
     try {
+      recordingStartedAtRef.current = null;
       await recorder.stop();
       const uri = recorder.uri;
       if (uri) {

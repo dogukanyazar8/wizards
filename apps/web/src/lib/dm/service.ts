@@ -97,6 +97,7 @@ type DMMessageNode = {
   content: string;
   replyToId: string | null;
   threadParentId: string | null;
+  forwardedAt: Date | null;
   editedAt: Date | null;
   deletedAt: Date | null;
   deletedById: string | null;
@@ -140,6 +141,7 @@ type RawDMConversation = Prisma.DMConversationGetPayload<{
 
 type DMReactionRow = {
   avatarUrl: string | null;
+  createdAt: Date | null;
   displayName: string | null;
   emoji: string;
   messageId: string;
@@ -193,6 +195,7 @@ function validateDMReactionEmoji(emoji: string) {
 function groupDMReactions(
   reactions: Array<{
     avatarUrl?: string | null;
+    createdAt?: Date | null;
     displayName?: string | null;
     emoji: string;
     userId: string;
@@ -210,6 +213,7 @@ function groupDMReactions(
           username: string;
           displayName: string | null;
           avatarUrl: string | null;
+          reactedAt?: string;
         }
       >;
     }
@@ -227,6 +231,7 @@ function groupDMReactions(
       username: reaction.username ?? reaction.userId,
       displayName: reaction.displayName ?? null,
       avatarUrl: reaction.avatarUrl ?? null,
+      ...(reaction.createdAt ? { reactedAt: reaction.createdAt.toISOString() } : {}),
     });
   }
 
@@ -330,6 +335,7 @@ async function getDMReactionMap(messageIds: string[]) {
       r."messageId",
       r."emoji",
       r."userId",
+      r."createdAt",
       u."username",
       u."displayName",
       u."avatarUrl"
@@ -399,6 +405,7 @@ function mapDMReply(
     replyToId: message.replyToId,
     threadParentId: message.threadParentId,
     threadSummary: threadSummaryByMessageId.get(message.id) ?? createEmptyThreadSummary(),
+    forwardedAt: message.forwardedAt?.toISOString() ?? null,
     editedAt: message.editedAt?.toISOString() ?? null,
     deletedAt: message.deletedAt?.toISOString() ?? null,
     deletedById: message.deletedById,
@@ -1401,6 +1408,7 @@ export async function setDMReaction(
       r."messageId",
       r."emoji",
       r."userId",
+      r."createdAt",
       u."username",
       u."displayName",
       u."avatarUrl"

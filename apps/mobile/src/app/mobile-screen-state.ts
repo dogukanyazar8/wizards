@@ -54,18 +54,6 @@ export type MobileDMMessagesViewState =
       status: "error";
     };
 
-export type MobileDMSendViewState = {
-  conversationId: string | null;
-  error: string | null;
-  status: "idle" | "sending" | "error";
-};
-
-export type MobileChannelSendViewState = {
-  channelId: string | null;
-  error: string | null;
-  status: "idle" | "sending" | "error";
-};
-
 export type MobileMessageSearchContext = {
   conversationId: string;
   scope: "channel" | "dm";
@@ -167,12 +155,6 @@ export const INITIAL_DM_MESSAGES_STATE: MobileDMMessagesViewState = Object.freez
   status: "idle",
 });
 
-export const INITIAL_DM_SEND_STATE: MobileDMSendViewState = Object.freeze({
-  conversationId: null,
-  error: null,
-  status: "idle",
-});
-
 export const INITIAL_WORKSPACE_SERVER_STATE: MobileWorkspaceServerViewState = Object.freeze({
   error: null,
   payload: null,
@@ -184,12 +166,6 @@ export const INITIAL_CHANNEL_MESSAGES_STATE: MobileChannelMessagesViewState = Ob
   channelId: null,
   error: null,
   payload: null,
-  status: "idle",
-});
-
-export const INITIAL_CHANNEL_SEND_STATE: MobileChannelSendViewState = Object.freeze({
-  channelId: null,
-  error: null,
   status: "idle",
 });
 

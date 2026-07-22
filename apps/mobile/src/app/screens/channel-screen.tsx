@@ -5,11 +5,11 @@ import {
   Text,
   View,
   copy,
+  formatMobileDisplayTime,
   getMobileChannelChatHeaderModel,
   getMobileChannelChatSearchVisibility,
   getMobileMessageListPerformanceConfig,
   getMobileMessageStreamItems,
-  INITIAL_CHANNEL_SEND_STATE,
   useCallback,
   useEffect,
   useMemo,
@@ -17,7 +17,6 @@ import {
   useState,
   type MobileBootstrapFeature,
   type MobileChannelMessagesViewState,
-  type MobileChannelSendViewState,
   type MobileMediaRuntimeState,
   type MobileMessageSearchViewState,
   type MobileMessageStreamItem,
@@ -25,10 +24,13 @@ import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from "../mobile-root-screen-shared";
-import type { UploadedAttachmentInput } from "@wizards/types";
+import type { ChatMessage, UploadedAttachmentInput } from "@wizards/types";
 import { FlashList, type FlashListRef } from "@shopify/flash-list";
+import { forwardRef, useImperativeHandle } from "react";
+import { Alert, ScrollView } from "react-native";
 import { DMComposer, type MobileComposerIntent } from "../composer/mobile-composer";
 import {
+  ChannelUnreadSeparator,
   MessageDateSeparator,
   MessageListSkeleton,
   MessageSearchPanel,
@@ -39,7 +41,12 @@ import {
   type MobileMessageActionTarget,
 } from "../components/message-primitives";
 import { StatusChip } from "../components/ui-atoms";
-import { Avatar, EmptyState } from "../components/kit";
+import { Avatar, BottomSheet, EmptyState } from "../components/kit";
+import {
+  MessageForwardSheet,
+  type MobileForwardSendInput,
+  type MobileForwardTarget,
+} from "../components/message-forward-sheet";
 import { useChannelScreenStyles } from "./channel-screen.styles";
 import { useTheme } from "../providers/mobile-theme-provider";
 import { mobileListLoadHandlers } from "../../performance/mobile-performance-metrics";
@@ -48,7 +55,10 @@ import type { MobileChannelTypingUser } from "../../realtime/mobile-typing-state
 export function MobileChannelChatScreen({
   attachmentsFeature,
   channel,
+  channelFirstUnreadMessageId = null,
+  channelPinnedMessages = [],
   currentUserId,
+  forwardTargets,
   isReactionMutationPending,
   mediaState,
   memberCount,
@@ -59,7 +69,9 @@ export function MobileChannelChatScreen({
   onClearMessageSearch,
   onClearSelectedMediaAsset,
   onDraftChange,
+  onForwardMessage,
   onLoadMore,
+  onPinMessage,
   onRefresh,
   onRequestDocumentPicker,
   onRequestPhotoLibraryPicker,
@@ -67,12 +79,13 @@ export function MobileChannelChatScreen({
   onSendMessage,
   onSendGif,
   onDeleteMessage,
+  onDiscardMessage,
   onEditMessage,
   onOpenThread,
   onOpenMembers,
+  onRetryMessage,
   onToggleMessageReaction,
   ownerUserId,
-  sendState,
   serverName,
   state,
   typingLabel,
@@ -81,6 +94,9 @@ export function MobileChannelChatScreen({
 }: {
   attachmentsFeature: MobileBootstrapFeature | null;
   channel: MobileWorkspaceChannelSummary;
+  channelFirstUnreadMessageId?: string | null;
+  channelPinnedMessages?: readonly ChatMessage[];
+  forwardTargets?: readonly MobileForwardTarget[];
   getAccessToken(): Promise<string | null>;
   currentUserId: string;
   isReactionMutationPending: boolean;
@@ -93,7 +109,9 @@ export function MobileChannelChatScreen({
   onClearMessageSearch(): void;
   onClearSelectedMediaAsset(): void;
   onDraftChange(content: string): void;
+  onForwardMessage?(input: MobileForwardSendInput): Promise<boolean>;
   onLoadMore?(): void;
+  onPinMessage?(messageId: string, shouldPin: boolean): Promise<boolean>;
   onRefresh(): void;
   onRequestDocumentPicker(): Promise<void>;
   onRequestPhotoLibraryPicker(): Promise<void>;
@@ -112,12 +130,13 @@ export function MobileChannelChatScreen({
   ): Promise<boolean>;
   onSendGif?(gifId: string): Promise<boolean>;
   onDeleteMessage(messageId: string): Promise<boolean>;
+  onDiscardMessage(messageId: string): void;
   onEditMessage(input: { content: string; messageId: string }): Promise<boolean>;
   onOpenThread?(messageId: string): void;
   onOpenMembers?(): void;
+  onRetryMessage(messageId: string): void;
   onToggleMessageReaction(input: { emoji: string; messageId: string; shouldReact: boolean }): void;
   ownerUserId: string | null;
-  sendState: MobileChannelSendViewState;
   serverName: string;
   state: MobileChannelMessagesViewState;
   typingLabel: string | null;
@@ -125,10 +144,30 @@ export function MobileChannelChatScreen({
 }) {
   const theme = useTheme();
   const styles = useChannelScreenStyles();
-  const channelSendState =
-    sendState.channelId === channel.id ? sendState : INITIAL_CHANNEL_SEND_STATE;
   const [isSearchPanelOpen, setSearchPanelOpen] = useState(false);
   const [composerIntent, setComposerIntent] = useState<MobileComposerIntent | null>(null);
+  const [forwardSource, setForwardSource] = useState<MobileMessageActionTarget | null>(null);
+  const [isPinsSheetOpen, setPinsSheetOpen] = useState(false);
+  const messageListRef = useRef<ChannelMessageListHandle | null>(null);
+  const latestPinnedMessage = channelPinnedMessages[0] ?? null;
+  const handleRequestForward = useCallback((message: MobileMessageActionTarget) => {
+    setForwardSource(message);
+  }, []);
+  const handleJumpToMessage = useCallback((messageId: string) => {
+    setPinsSheetOpen(false);
+    messageListRef.current?.scrollToMessage(messageId);
+  }, []);
+  const handlePinMessage = useCallback(
+    (messageId: string, shouldPin: boolean) => {
+      if (!onPinMessage) return;
+      void onPinMessage(messageId, shouldPin).then((didComplete) => {
+        if (!didComplete) {
+          Alert.alert(copy.messagePinFailedNotice);
+        }
+      });
+    },
+    [onPinMessage],
+  );
   const isChannelSearchContextActive = isMessageSearchStateForContext(
     messageSearchState,
     "channel",
@@ -190,7 +229,12 @@ export function MobileChannelChatScreen({
     searchVisibility.shouldRenderSearchPanel,
   ]);
   const handleReplyMessage = useCallback((message: MobileMessageActionTarget) => {
-    setComposerIntent({ content: message.content, messageId: message.id, mode: "reply" });
+    setComposerIntent({
+      ...(message.authorLabel ? { authorLabel: message.authorLabel } : {}),
+      content: message.content,
+      messageId: message.id,
+      mode: "reply",
+    });
   }, []);
   const handleEditMessage = useCallback((message: MobileMessageActionTarget) => {
     setComposerIntent({ content: message.content, messageId: message.id, mode: "edit" });
@@ -288,6 +332,47 @@ export function MobileChannelChatScreen({
           </Pressable>
         </View>
 
+        {latestPinnedMessage ? (
+          <View style={styles.pinnedBanner} testID="mobile-channel-pinned-banner">
+            <Ionicons name="pin-outline" size={15} color={theme.accent.strong} />
+            <Pressable
+              accessibilityLabel={copy.messagePinnedJumpAction}
+              accessibilityRole="button"
+              onPress={() => handleJumpToMessage(latestPinnedMessage.id)}
+              style={styles.pinnedBannerBody}
+              testID="mobile-channel-pinned-banner-jump"
+            >
+              <Text numberOfLines={1} style={styles.pinnedBannerTitle}>
+                {copy.messagePinnedBannerTitleTemplate.replace(
+                  "{name}",
+                  latestPinnedMessage.author.displayName ?? latestPinnedMessage.author.username,
+                )}
+              </Text>
+              <Text numberOfLines={1} style={styles.pinnedBannerContent}>
+                {latestPinnedMessage.content}
+              </Text>
+            </Pressable>
+            <Pressable
+              accessibilityLabel={copy.messagePinnedSheetTitle}
+              accessibilityRole="button"
+              onPress={() => setPinsSheetOpen(true)}
+              style={({ pressed }) => [
+                styles.pinnedBannerCountButton,
+                pressed && styles.actionButtonPressed,
+              ]}
+              testID="mobile-channel-pinned-banner-count"
+            >
+              <Text style={styles.pinnedBannerCount}>
+                {copy.messagePinnedCountTemplate.replace(
+                  "{count}",
+                  String(channelPinnedMessages.length),
+                )}
+              </Text>
+              <Ionicons name="chevron-forward" size={15} color={theme.accent.strong} />
+            </Pressable>
+          </View>
+        ) : null}
+
         {searchVisibility.shouldRenderSearchPanel ? (
           <MessageSearchPanel
             conversationId={channel.id}
@@ -300,17 +385,94 @@ export function MobileChannelChatScreen({
 
         <ChannelMessageList
           currentUserId={currentUserId}
+          firstUnreadMessageId={channelFirstUnreadMessageId}
           isReactionMutationPending={isReactionMutationPending}
           {...(onLoadMore ? { onLoadMore } : {})}
           onRefresh={onRefresh}
           onDeleteMessage={onDeleteMessage}
+          onDiscardMessage={onDiscardMessage}
           onEditMessage={handleEditMessage}
+          {...(onForwardMessage ? { onForwardMessage: handleRequestForward } : {})}
+          {...(onPinMessage ? { onPinMessage: handlePinMessage } : {})}
           onReplyMessage={handleReplyMessage}
+          onRetryMessage={onRetryMessage}
           onToggleMessageReaction={onToggleMessageReaction}
           ownerUserId={ownerUserId}
           {...(onOpenThread ? { onOpenThread } : {})}
+          ref={messageListRef}
           state={state}
         />
+        <BottomSheet
+          accessibilityLabel={copy.messagePinnedSheetTitle}
+          onClose={() => setPinsSheetOpen(false)}
+          open={isPinsSheetOpen}
+          snapPoint={520}
+          testID="mobile-channel-pins-sheet"
+        >
+          <Text style={styles.pinnedSheetTitle}>{copy.messagePinnedSheetTitle}</Text>
+          {channelPinnedMessages.length === 0 ? (
+            <Text style={styles.pinnedSheetEmptyText}>{copy.messagePinnedEmptyNotice}</Text>
+          ) : (
+            <ScrollView showsVerticalScrollIndicator={false} style={styles.pinnedSheetList}>
+              {channelPinnedMessages.map((pinnedMessage) => (
+                <Pressable
+                  accessibilityLabel={copy.messagePinnedJumpAction}
+                  accessibilityRole="button"
+                  key={pinnedMessage.id}
+                  onPress={() => handleJumpToMessage(pinnedMessage.id)}
+                  style={({ pressed }) => [
+                    styles.pinnedSheetRow,
+                    pressed && styles.pinnedSheetRowPressed,
+                  ]}
+                  testID={`mobile-channel-pinned-row-${pinnedMessage.id}`}
+                >
+                  <View style={styles.pinnedSheetRowBody}>
+                    <Text numberOfLines={1} style={styles.pinnedSheetRowAuthor}>
+                      {pinnedMessage.author.displayName ?? pinnedMessage.author.username}
+                    </Text>
+                    <Text numberOfLines={1} style={styles.pinnedSheetRowContent}>
+                      {pinnedMessage.content}
+                    </Text>
+                  </View>
+                  <Text style={styles.pinnedSheetRowTime}>
+                    {formatMobileDisplayTime(pinnedMessage.createdAt)}
+                  </Text>
+                  {onPinMessage ? (
+                    <Pressable
+                      accessibilityLabel={copy.messageUnpinAction}
+                      accessibilityRole="button"
+                      hitSlop={6}
+                      onPress={() => handlePinMessage(pinnedMessage.id, false)}
+                      style={({ pressed }) => [
+                        styles.pinnedSheetUnpinButton,
+                        pressed && styles.pinnedSheetRowPressed,
+                      ]}
+                      testID={`mobile-channel-pinned-unpin-${pinnedMessage.id}`}
+                    >
+                      <Ionicons name="close" size={16} color={theme.text.visualSecondary} />
+                    </Pressable>
+                  ) : null}
+                </Pressable>
+              ))}
+            </ScrollView>
+          )}
+        </BottomSheet>
+        {onForwardMessage ? (
+          <MessageForwardSheet
+            onClose={() => setForwardSource(null)}
+            onForward={async (target) =>
+              forwardSource
+                ? onForwardMessage({
+                    content: forwardSource.content,
+                    forwardOfMessageId: forwardSource.id,
+                    target,
+                  })
+                : false
+            }
+            open={forwardSource !== null}
+            targets={forwardTargets ?? []}
+          />
+        ) : null}
 
         {state.status === "ready" ? (
           <>
@@ -320,8 +482,6 @@ export function MobileChannelChatScreen({
               getAccessToken={getAccessToken}
               placeholder={copy.channelComposerPlaceholder}
               sendActionLabel={copy.channelSendAction}
-              sendState={channelSendState}
-              sendingActionLabel={copy.channelSendingAction}
               mediaState={mediaState}
               intent={composerIntent}
               onCancelIntent={() => setComposerIntent(null)}
@@ -339,31 +499,55 @@ export function MobileChannelChatScreen({
   );
 }
 
-export function ChannelMessageList({
-  currentUserId,
-  isReactionMutationPending = false,
-  onLoadMore,
-  onRefresh,
-  onDeleteMessage,
-  onEditMessage,
-  onReplyMessage,
-  onOpenThread,
-  onToggleMessageReaction,
-  ownerUserId,
-  state,
-}: {
-  currentUserId: string;
-  isReactionMutationPending?: boolean;
-  onLoadMore?(): void;
-  onRefresh(): void;
-  onDeleteMessage?(messageId: string): Promise<boolean>;
-  onEditMessage?(message: MobileMessageActionTarget): void;
-  onReplyMessage?(message: MobileMessageActionTarget): void;
-  onOpenThread?(messageId: string): void;
-  onToggleMessageReaction?(input: { emoji: string; messageId: string; shouldReact: boolean }): void;
-  ownerUserId: string | null;
-  state: MobileChannelMessagesViewState;
-}) {
+export type ChannelMessageListHandle = {
+  scrollToMessage(messageId: string): void;
+};
+
+export const ChannelMessageList = forwardRef<
+  ChannelMessageListHandle,
+  {
+    currentUserId: string;
+    firstUnreadMessageId?: string | null;
+    isReactionMutationPending?: boolean;
+    onLoadMore?(): void;
+    onRefresh(): void;
+    onDeleteMessage?(messageId: string): Promise<boolean>;
+    onDiscardMessage?(messageId: string): void;
+    onEditMessage?(message: MobileMessageActionTarget): void;
+    onForwardMessage?(message: MobileMessageActionTarget): void;
+    onPinMessage?(messageId: string, shouldPin: boolean): void;
+    onReplyMessage?(message: MobileMessageActionTarget): void;
+    onOpenThread?(messageId: string): void;
+    onRetryMessage?(messageId: string): void;
+    onToggleMessageReaction?(input: {
+      emoji: string;
+      messageId: string;
+      shouldReact: boolean;
+    }): void;
+    ownerUserId: string | null;
+    state: MobileChannelMessagesViewState;
+  }
+>(function ChannelMessageList(
+  {
+    currentUserId,
+    firstUnreadMessageId = null,
+    isReactionMutationPending = false,
+    onLoadMore,
+    onRefresh,
+    onDeleteMessage,
+    onDiscardMessage,
+    onEditMessage,
+    onForwardMessage,
+    onPinMessage,
+    onReplyMessage,
+    onOpenThread,
+    onRetryMessage,
+    onToggleMessageReaction,
+    ownerUserId,
+    state,
+  },
+  ref,
+) {
   const theme = useTheme();
   const styles = useChannelScreenStyles();
   const messages = useMemo(() => state.payload?.messages ?? [], [state.payload?.messages]);
@@ -372,6 +556,21 @@ export function ChannelMessageList({
     null,
   );
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+  // 8c: only one row shows the floating action bar; scroll dismisses it.
+  const [actionBarMessageId, setActionBarMessageId] = useState<string | null>(null);
+  const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
+  const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const highlightMessage = useCallback((messageId: string) => {
+    setHighlightedMessageId(messageId);
+    if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+    highlightTimerRef.current = setTimeout(() => setHighlightedMessageId(null), 1_600);
+  }, []);
+  useEffect(
+    () => () => {
+      if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+    },
+    [],
+  );
   const performanceConfig = useMemo(
     () => getMobileMessageListPerformanceConfig(messages.length),
     [messages.length],
@@ -392,17 +591,27 @@ export function ChannelMessageList({
     const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
     const distanceFromBottom = contentSize.height - (contentOffset.y + layoutMeasurement.height);
     setShowScrollToBottom(distanceFromBottom > 120);
+    setActionBarMessageId(null);
   }, []);
   const handleOpenReply = useCallback(
     (messageId: string) => {
       const index = streamItems.findIndex((item) => item.message.id === messageId);
       if (index >= 0) {
         listRef.current?.scrollToIndex({ animated: true, index, viewPosition: 0.5 });
+        highlightMessage(messageId);
         return;
       }
       onRefresh();
     },
-    [onRefresh, streamItems],
+    [highlightMessage, onRefresh, streamItems],
+  );
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      scrollToMessage: handleOpenReply,
+    }),
+    [handleOpenReply],
   );
 
   const renderItem = useCallback(
@@ -419,8 +628,13 @@ export function ChannelMessageList({
         {item.showDateSeparator ? (
           <MessageDateSeparator createdAt={item.message.createdAt} variant="channel" />
         ) : null}
+        {firstUnreadMessageId !== null && item.message.id === firstUnreadMessageId ? (
+          <ChannelUnreadSeparator />
+        ) : null}
         <MemoizedMessagePreviewRow
+          actionBarOpen={item.message.id === actionBarMessageId}
           currentUserId={currentUserId}
+          isHighlighted={item.message.id === highlightedMessageId}
           isReactionMutationPending={isReactionMutationPending}
           message={item.message}
           mode="channel"
@@ -429,23 +643,35 @@ export function ChannelMessageList({
           own={item.message.author.id === currentUserId}
           {...(onOpenThread ? { onOpenThread } : {})}
           onOpenReply={handleOpenReply}
+          onSetActionBar={setActionBarMessageId}
           {...(onDeleteMessage
             ? { onDeleteMessage: (messageId: string) => void onDeleteMessage(messageId) }
             : {})}
+          {...(onDiscardMessage ? { onDiscardFailedMessage: onDiscardMessage } : {})}
           {...(onEditMessage ? { onEditMessage } : {})}
+          {...(onForwardMessage ? { onForwardMessage } : {})}
+          {...(onPinMessage ? { onPinMessage } : {})}
           {...(onReplyMessage ? { onReplyMessage } : {})}
+          {...(onRetryMessage ? { onRetryFailedMessage: onRetryMessage } : {})}
           {...(onToggleMessageReaction ? { onToggleReaction: onToggleMessageReaction } : {})}
         />
       </View>
     ),
     [
+      actionBarMessageId,
       currentUserId,
+      firstUnreadMessageId,
       handleOpenReply,
+      highlightedMessageId,
       isReactionMutationPending,
       onDeleteMessage,
+      onDiscardMessage,
       onEditMessage,
+      onForwardMessage,
       onOpenThread,
+      onPinMessage,
       onReplyMessage,
+      onRetryMessage,
       onToggleMessageReaction,
       ownerUserId,
       styles,
@@ -533,7 +759,7 @@ export function ChannelMessageList({
       />
     </View>
   );
-}
+});
 
 export function ChannelScrollToBottomButton({
   onPress,
@@ -612,7 +838,6 @@ export function ChannelMessagesPreviewCard({
   onRequestDocumentPicker,
   onSearchMessages,
   onSendMessage,
-  sendState,
   state,
 }: {
   attachmentsFeature: MobileBootstrapFeature | null;
@@ -631,12 +856,9 @@ export function ChannelMessagesPreviewCard({
     scope: "channel";
   }): Promise<void>;
   onSendMessage(content: string): Promise<boolean>;
-  sendState: MobileChannelSendViewState;
   state: MobileChannelMessagesViewState;
 }) {
   const styles = useChannelScreenStyles();
-  const channelSendState =
-    sendState.channelId === channel.id ? sendState : INITIAL_CHANNEL_SEND_STATE;
 
   return (
     <View style={styles.dmPreviewCard}>
@@ -703,8 +925,6 @@ export function ChannelMessagesPreviewCard({
           attachmentsFeature={attachmentsFeature}
           placeholder={copy.channelComposerPlaceholder}
           sendActionLabel={copy.channelSendAction}
-          sendState={channelSendState}
-          sendingActionLabel={copy.channelSendingAction}
           mediaState={mediaState}
           onClearSelectedMediaAsset={onClearSelectedMediaAsset}
           onRequestDocumentPicker={onRequestDocumentPicker}

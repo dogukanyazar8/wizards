@@ -47,6 +47,7 @@ appId: team.whispr.mobile
     id: "mobile-message-actions-.*-trigger"
     containsChild:
       text: "Phase2 Maestro verified"
+- tapOn: "Diğer eylemler|More actions"
 - tapOn: "Düzenle|Edit"
 - assertVisible:
     id: "mobile-message-edit-preview"
@@ -63,7 +64,7 @@ appId: team.whispr.mobile
     id: "mobile-message-actions-.*-trigger"
     containsChild:
       text: "Phase2 edited verified"
-- tapOn: "Thread'i ac|Open thread"
+- tapOn: "Thread başlat|Start thread"
 - assertVisible:
     id: "mobile-message-thread-screen"
 - tapOn:
@@ -81,6 +82,7 @@ appId: team.whispr.mobile
     id: "mobile-message-actions-.*-trigger"
     containsChild:
       text: "Phase2 edited verified"
+- tapOn: "Diğer eylemler|More actions"
 - tapOn: "Sil|Delete"
 - tapOn: "Sil|Delete"
 - assertNotVisible:

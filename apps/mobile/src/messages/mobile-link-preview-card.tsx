@@ -7,22 +7,39 @@ import type { MobileTheme } from "../design/themes";
 import { mobileQueryKeys } from "../query/mobile-query-keys";
 import { fetchMobileLinkPreview } from "./mobile-link-preview-client";
 
+// 8b link preview card: flat soft surface, uppercase site row, tight typography.
 const createStyles = (theme: MobileTheme) => ({
   root: {
     backgroundColor: theme.surface.soft,
     borderColor: theme.border.subtle,
-    borderLeftColor: theme.accent.default,
-    borderLeftWidth: 3,
-    borderRadius: theme.radii.control,
+    borderRadius: 12,
     borderWidth: 1,
-    marginTop: 8,
+    marginTop: 7,
+    maxWidth: 230,
     overflow: "hidden" as const,
   },
-  body: { gap: 3, padding: 10 },
+  body: { gap: 2, paddingHorizontal: 11, paddingVertical: 9 },
   image: { height: 128, width: "100%" as const },
-  site: { ...theme.typography.caption, color: theme.accent.strong },
-  title: { ...theme.typography.bodyStrong, color: theme.text.primary },
-  description: { ...theme.typography.caption, color: theme.text.muted },
+  site: {
+    color: theme.text.visualFaint,
+    fontFamily: theme.typography.fontFamilyBold,
+    fontSize: 10.5,
+    letterSpacing: 0.84,
+    lineHeight: 14,
+    textTransform: "uppercase" as const,
+  },
+  title: {
+    color: theme.text.primary,
+    fontFamily: theme.typography.fontFamilyBold,
+    fontSize: 12.5,
+    lineHeight: 17,
+  },
+  description: {
+    color: theme.text.visualSecondary,
+    fontFamily: theme.typography.fontFamily,
+    fontSize: 11.5,
+    lineHeight: 16.1,
+  },
 });
 
 export function MobileLinkPreviewCard({ messageId, url }: { messageId: string; url: string }) {
@@ -60,7 +77,7 @@ export function MobileLinkPreviewCard({ messageId, url }: { messageId: string; u
           </Text>
         ) : null}
         {preview.description ? (
-          <Text numberOfLines={3} style={styles.description}>
+          <Text numberOfLines={2} style={styles.description}>
             {preview.description}
           </Text>
         ) : null}

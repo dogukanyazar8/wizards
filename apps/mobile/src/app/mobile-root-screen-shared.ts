@@ -136,13 +136,10 @@ export {
   summarizeMobileFeatureReadiness,
 } from "./mobile-settings-model";
 export type { MobileSettingsEvidenceItem } from "./mobile-settings-model";
-export { INITIAL_CHANNEL_SEND_STATE, INITIAL_DM_SEND_STATE } from "./mobile-screen-state";
 export type {
   MobileBootstrapViewState,
   MobileChannelMessagesViewState,
-  MobileChannelSendViewState,
   MobileDMMessagesViewState,
-  MobileDMSendViewState,
   MobileMessageSearchViewState,
   MobileWorkspaceServerViewState,
 } from "./mobile-screen-state";

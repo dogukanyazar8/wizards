@@ -125,7 +125,6 @@ function createChannelPreviewProps(
     onRetry: jest.fn(),
     onSearchMessages: jest.fn(async () => undefined),
     onSendMessage: jest.fn(async () => true),
-    sendState: { channelId: null, error: null, status: "idle" },
     state: { channelId: "channel-1", error: null, payload: null, status: "loading" },
     ...overrides,
   };
@@ -142,7 +141,6 @@ function createDmPreviewProps(overrides: Partial<DmPreviewProps> = {}): DmPrevie
     onRequestPhotoLibraryPicker: jest.fn(async () => undefined),
     onRetry: jest.fn(),
     onSendMessage: jest.fn(async () => true),
-    sendState: { conversationId: null, error: null, status: "idle" },
     state: { conversationId: "conversation-1", error: null, payload: null, status: "loading" },
     ...overrides,
   };

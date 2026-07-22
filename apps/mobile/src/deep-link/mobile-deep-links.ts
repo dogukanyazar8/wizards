@@ -10,6 +10,12 @@ export type MobileDeepLinkIntent =
       readonly type: "invite";
     }
   | {
+      readonly callType: "video" | "voice";
+      readonly conversationId: string;
+      readonly fromUserId: string;
+      readonly type: "dm-call-answer";
+    }
+  | {
       readonly path: string;
       readonly type: "route";
     };
@@ -141,6 +147,11 @@ export function parseMobileDeepLink(
     return { ok: false, reason: "invalid-invite-code" };
   }
 
+  const dmCallAnswer = parseDMCallAnswerIntent(path, parsedUrl.searchParams);
+  if (dmCallAnswer) {
+    return { intent: dmCallAnswer, ok: true };
+  }
+
   const routePath = normalizeSafeMobileRoutePath(`${path}${parsedUrl.search}`, null);
   if (routePath) {
     return {
@@ -224,6 +235,47 @@ function parseAuthHandoffIntent(
     token,
     type: "auth-handoff",
   };
+}
+
+/**
+ * Answer taps on the Android CallStyle notification arrive as
+ * `whispr://channels/@me/<conversationId>?call=answer&from=<userId>&type=voice`.
+ * Decline never reaches JS — the native broadcast receiver handles it. Anything
+ * malformed falls through to the plain DM route intent, so a bad link still
+ * opens the conversation instead of failing outright.
+ */
+function parseDMCallAnswerIntent(
+  path: string,
+  searchParams: URLSearchParams,
+): MobileDeepLinkIntent | null {
+  if (searchParams.get("call") !== "answer") {
+    return null;
+  }
+
+  const segments = path.split("/").filter(Boolean);
+  if (segments[0] !== "channels" || segments[1] !== "@me" || !segments[2]) {
+    return null;
+  }
+
+  const fromUserId = searchParams.get("from");
+  if (!fromUserId) {
+    return null;
+  }
+
+  return {
+    callType: searchParams.get("type") === "video" ? "video" : "voice",
+    conversationId: decodeSafeSegment(segments[2]),
+    fromUserId,
+    type: "dm-call-answer",
+  };
+}
+
+function decodeSafeSegment(segment: string): string {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return segment;
+  }
 }
 
 function parseInviteIntent(

@@ -1305,7 +1305,7 @@ export function Fixture({ cap }: { cap: number }) {
   it("routes standalone base-surface error text through dangerOnBase", () => {
     const sources = [
       join(process.cwd(), "src", "account", "mobile-two-factor-screen.tsx"),
-      join(process.cwd(), "src", "app", "screens", "message-thread-screen.tsx"),
+      join(process.cwd(), "src", "app", "screens", "message-thread-screen.styles.ts"),
       join(process.cwd(), "src", "app", "styles", "shared-styles.ts"),
       join(process.cwd(), "src", "social", "friends-hub.tsx"),
       join(process.cwd(), "src", "social", "mobile-profile-avatar-editor.tsx"),

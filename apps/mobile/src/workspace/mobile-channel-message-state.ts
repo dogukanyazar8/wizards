@@ -6,6 +6,7 @@ import {
   type MobileChannelMessagesResponse,
 } from "@wizards/types";
 import type { MobileChannelMessagesViewState } from "../app/mobile-screen-state";
+import { shouldRenderMobileMessageInChannelStream } from "../query/mobile-message-cache";
 import type { MobileRealtimeServerEventName } from "../realtime/mobile-realtime-contract";
 import { MOBILE_CHANNEL_MESSAGES_LIMIT } from "./mobile-workspace-client";
 
@@ -105,6 +106,13 @@ function upsertMessage(
   const existingIndex = state.payload.messages.findIndex(
     (currentMessage) => currentMessage.id === message.id,
   );
+
+  // 8d: a thread reply only belongs in the channel stream when its author
+  // ticked "also send to channel"; otherwise it lives in the thread alone.
+  if (existingIndex < 0 && !shouldRenderMobileMessageInChannelStream(message)) {
+    return { handled: false, state };
+  }
+
   const nextMessages =
     existingIndex >= 0
       ? state.payload.messages.map((currentMessage, index) =>

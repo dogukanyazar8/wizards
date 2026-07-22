@@ -11,7 +11,9 @@ export const MOBILE_PUSH_ANDROID_CHANNELS = {
   default: "whispr-default",
 } as const;
 
-export const MOBILE_PUSH_CATEGORY_INCOMING_CALL = "incoming-call";
+// No ":" or "-" allowed: expo-notifications category identifiers with those
+// characters are documented as unreliable.
+export const MOBILE_PUSH_CATEGORY_INCOMING_CALL = "incomingcall";
 
 interface MobilePushTokenReadStore {
   mobilePushToken: {

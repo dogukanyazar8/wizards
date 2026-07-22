@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { View } from "react-native";
-import { copy, useState } from "../mobile-root-screen-shared";
+import { copy, getMobileConversationTitle, useState } from "../mobile-root-screen-shared";
+import type { MobileForwardTarget } from "../components/message-forward-sheet";
 import { BootstrapStateNotice, MobileSyncHealthBanner } from "../components/ui-atoms";
 import { useDmScreenStyles } from "./dm-screen.styles";
 import { DMConversationScreen } from "./dm-conversation-screen";
@@ -38,7 +39,6 @@ export function MessagesScreen({
   dmConversationsHasNextPage,
   dmConversationsIsLoading,
   dmMessagesState,
-  dmSendState,
   dmTypingLabel,
   getAccessToken,
   isReactionMutationPending,
@@ -62,8 +62,11 @@ export function MessagesScreen({
   onLoadMoreConversations,
   onLoadMoreMessages,
   onDeleteMessage,
+  onDiscardMessage,
   onEditMessage,
+  onForwardMessage,
   onOpenThread,
+  onRetryMessage,
   onToggleMessageReaction,
   onOpenDetails,
   onStartVideoCall,
@@ -96,6 +99,15 @@ export function MessagesScreen({
     }
   };
   const swipeHandlers = useMobileDmSegmentSwipe(inboxSegment, setInboxSegment);
+  const forwardTargets = useMemo<readonly MobileForwardTarget[]>(
+    () =>
+      dmConversations.map((conversation) => ({
+        id: conversation.id,
+        label: getMobileConversationTitle(conversation, copy.directMessageFallback),
+        type: "dm" as const,
+      })),
+    [dmConversations],
+  );
   const hasConversations = dmConversations.length > 0;
   const shouldShowEmpty =
     bootstrapState.status === "ready" && !dmConversationsIsLoading && !hasConversations;
@@ -112,7 +124,6 @@ export function MessagesScreen({
         isReactionMutationPending={isReactionMutationPending}
         {...(isEndToEndEncrypted !== undefined ? { isEndToEndEncrypted } : {})}
         {...(lastSeenAt !== undefined ? { lastSeenAt } : {})}
-        sendState={dmSendState}
         typingLabel={dmTypingLabel}
         state={dmMessagesState}
         syncHealth={syncHealth}
@@ -128,8 +139,11 @@ export function MessagesScreen({
         onDraftChange={onDraftChange}
         {...(onLoadMoreMessages ? { onLoadMoreMessages } : {})}
         onDeleteMessage={onDeleteMessage}
+        onDiscardMessage={onDiscardMessage}
         onEditMessage={onEditMessage}
+        {...(onForwardMessage ? { forwardTargets, onForwardMessage } : {})}
         {...(onOpenThread ? { onOpenThread } : {})}
+        onRetryMessage={onRetryMessage}
         onToggleMessageReaction={onToggleMessageReaction}
         {...(onOpenDetails ? { onOpenDetails } : {})}
         {...(onStartVideoCall ? { onStartVideoCall } : {})}
@@ -166,7 +180,9 @@ export function MessagesScreen({
           ) : hasConversations ? (
             <DirectMessageListCard
               conversations={dmConversations}
-              currentUserId={bootstrapState.status === "ready" ? bootstrapState.payload.user.id : ""}
+              currentUserId={
+                bootstrapState.status === "ready" ? bootstrapState.payload.user.id : ""
+              }
               hasNextPage={dmConversationsHasNextPage}
               onlineFriends={onlineFriends}
               onAddFriend={() => setInboxSegment("requests")}

@@ -1,8 +1,11 @@
-import { infiniteQueryOptions, useInfiniteQuery } from "@tanstack/react-query";
+import { infiniteQueryOptions, useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import type { MobileChannelMessagesResponse, MobileDMMessagesResponse } from "@wizards/types";
 import type { MobileApiClient } from "../api/mobile-api-client";
 import { fetchMobileDMMessages } from "../dm/mobile-dm-client";
-import { fetchMobileChannelMessages } from "../workspace/mobile-workspace-client";
+import {
+  fetchMobileChannelMessages,
+  fetchMobileChannelPinnedMessages,
+} from "../workspace/mobile-workspace-client";
 import { mobileQueryKeys } from "./mobile-query-keys";
 
 export function getMobileChannelMessagesQueryOptions(client: MobileApiClient, channelId: string) {
@@ -33,4 +36,14 @@ export function getMobileDMMessagesQueryOptions(client: MobileApiClient, convers
 
 export function useMobileDMMessagesQuery(client: MobileApiClient, conversationId: string) {
   return useInfiniteQuery(getMobileDMMessagesQueryOptions(client, conversationId));
+}
+
+/** 8c pinned-message banner and pins sheet for the active text channel. */
+export function useMobileChannelPinsQuery(client: MobileApiClient, channelId: string) {
+  return useQuery({
+    enabled: channelId.length > 0,
+    queryFn: () => fetchMobileChannelPinnedMessages(client, { channelId }),
+    queryKey: mobileQueryKeys.channelPins(channelId),
+    staleTime: 30_000,
+  });
 }

@@ -1,0 +1,7 @@
+{
+  "name": "@wizards/ui",
+  "version": "0.8.15",
+  "private": true,
+  "types": ".cache/types/ds-entry.d.ts",
+  "description": "design-sync anchor package: makes .design-sync/ the PKG_DIR the converter resolves paths and the .d.ts tree from"
+}

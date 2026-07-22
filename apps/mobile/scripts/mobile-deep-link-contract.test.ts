@@ -120,6 +120,53 @@ describe("mobile deep link contract", () => {
     });
   });
 
+  it("parses Android call notification answer taps", () => {
+    assert.deepEqual(
+      parseMobileDeepLink("whispr://channels/@me/conv-1?call=answer&from=user-9&type=video", {
+        webUrl,
+      }),
+      {
+        intent: {
+          callType: "video",
+          conversationId: "conv-1",
+          fromUserId: "user-9",
+          type: "dm-call-answer",
+        },
+        ok: true,
+      },
+    );
+
+    // Missing or unknown call type falls back to voice.
+    assert.deepEqual(
+      parseMobileDeepLink("whispr://channels/@me/conv-1?call=answer&from=user-9", { webUrl }),
+      {
+        intent: {
+          callType: "voice",
+          conversationId: "conv-1",
+          fromUserId: "user-9",
+          type: "dm-call-answer",
+        },
+        ok: true,
+      },
+    );
+  });
+
+  it("falls back to the plain DM route when an answer link is incomplete", () => {
+    // No "from" and non-answer actions must still open the conversation.
+    assert.deepEqual(parseMobileDeepLink("whispr://channels/@me/conv-1?call=answer", { webUrl }), {
+      intent: { path: "/channels/@me/conv-1?call=answer", type: "route" },
+      ok: true,
+    });
+
+    assert.deepEqual(
+      parseMobileDeepLink("whispr://channels/@me/conv-1?call=bogus&from=user-9", { webUrl }),
+      {
+        intent: { path: "/channels/@me/conv-1?call=bogus&from=user-9", type: "route" },
+        ok: true,
+      },
+    );
+  });
+
   it("normalizes only safe in-app mobile route paths", () => {
     assert.equal(normalizeSafeMobileRoutePath("/channels/@me"), "/channels/@me");
     assert.equal(normalizeSafeMobileRoutePath("/settings?panel=voice"), "/settings?panel=voice");

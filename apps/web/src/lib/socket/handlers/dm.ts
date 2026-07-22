@@ -44,6 +44,8 @@ export async function sendDMCallPush(args: {
   conversationId: string;
   deps?: MobilePushSenderDeps;
   recipients: Array<{ locale: string | null; userId: string }>;
+  /** Lets the Android CallStyle notification expire itself when the ring times out. */
+  ringTtlMs: number;
   video: boolean;
 }) {
   await Promise.all(
@@ -61,6 +63,7 @@ export async function sendDMCallPush(args: {
             conversationId: args.conversationId,
             fromUserId: args.callerUserId,
             kind: "dm-call",
+            ringTtlMs: String(args.ringTtlMs),
           },
           priority: "high",
           title: args.callerName,
@@ -228,6 +231,7 @@ export function registerDMHandlers(
           locale: participant.user.locale ?? null,
           userId: participant.userId,
         })),
+        ringTtlMs: DM_CALL_RING_TTL_MS,
         video: data.video,
       }).catch(() => undefined);
     } catch (error) {

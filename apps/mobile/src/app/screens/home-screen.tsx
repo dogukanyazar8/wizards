@@ -14,7 +14,6 @@ import {
   type MobileBootstrapPayload,
   type MobileBootstrapViewState,
   type MobileChannelMessagesViewState,
-  type MobileChannelSendViewState,
   type MobileHomeQuickAction,
   type MobileLocale,
   type MobileMediaRuntimeState,
@@ -29,7 +28,7 @@ import {
   type MobileWorkspaceChannelSummary,
   type MobileWorkspaceServerViewState,
 } from "../mobile-root-screen-shared";
-import type { UploadedAttachmentInput } from "@wizards/types";
+import type { ChatMessage, UploadedAttachmentInput } from "@wizards/types";
 import { FlashList } from "@shopify/flash-list";
 import { ChannelMessagesPreviewCard } from "./channel-screen";
 import {
@@ -43,6 +42,7 @@ import {
 import { useHomeScreenStyles } from "./home-screen.styles";
 import { mobileListLoadHandlers } from "../../performance/mobile-performance-metrics";
 import { MobileWorkspaceBrowser } from "./workspace-browser";
+import type { MobileForwardSendInput } from "../components/message-forward-sheet";
 import type { MobileChannelTypingUser } from "../../realtime/mobile-typing-state";
 
 export { MobileWorkspaceBrowser } from "./workspace-browser";
@@ -53,8 +53,9 @@ export {
 
 export function OverviewScreen({
   bootstrapState,
+  channelFirstUnreadMessageId = null,
   channelMessagesState,
-  channelSendState,
+  channelPinnedMessages = [],
   channelTypingLabel,
   channelTypingUsers,
   isReactionMutationPending,
@@ -84,13 +85,18 @@ export function OverviewScreen({
   onSendChannelMessage,
   onSendChannelGif,
   onDeleteMessage,
+  onDiscardMessage,
   onEditMessage,
+  onForwardMessage,
   onOpenThread,
+  onPinMessage,
+  onRetryMessage,
   onToggleMessageReaction,
 }: {
   bootstrapState: MobileBootstrapViewState;
+  channelFirstUnreadMessageId?: string | null;
   channelMessagesState: MobileChannelMessagesViewState;
-  channelSendState: MobileChannelSendViewState;
+  channelPinnedMessages?: readonly ChatMessage[];
   channelTypingLabel: string | null;
   channelTypingUsers: readonly MobileChannelTypingUser[];
   isReactionMutationPending: boolean;
@@ -131,8 +137,12 @@ export function OverviewScreen({
   ): Promise<boolean>;
   onSendChannelGif?(gifId: string): Promise<boolean>;
   onDeleteMessage(messageId: string): Promise<boolean>;
+  onDiscardMessage(messageId: string): void;
   onEditMessage(input: { content: string; messageId: string }): Promise<boolean>;
+  onForwardMessage?(input: MobileForwardSendInput): Promise<boolean>;
   onOpenThread?(messageId: string): void;
+  onPinMessage?(messageId: string, shouldPin: boolean): Promise<boolean>;
+  onRetryMessage(messageId: string): void;
   onToggleMessageReaction(input: { emoji: string; messageId: string; shouldReact: boolean }): void;
 }) {
   const styles = useHomeScreenStyles();
@@ -149,8 +159,9 @@ export function OverviewScreen({
         <MobileWorkspaceBrowser
           attachmentsFeature={attachmentsFeature}
           bootstrapState={bootstrapState}
+          channelFirstUnreadMessageId={channelFirstUnreadMessageId}
           channelMessagesState={channelMessagesState}
-          channelSendState={channelSendState}
+          channelPinnedMessages={channelPinnedMessages}
           channelTypingLabel={channelTypingLabel}
           channelTypingUsers={channelTypingUsers}
           isReactionMutationPending={isReactionMutationPending}
@@ -178,8 +189,12 @@ export function OverviewScreen({
           onSendChannelMessage={onSendChannelMessage}
           {...(onSendChannelGif ? { onSendChannelGif } : {})}
           onDeleteMessage={onDeleteMessage}
+          onDiscardMessage={onDiscardMessage}
           onEditMessage={onEditMessage}
+          {...(onForwardMessage ? { onForwardMessage } : {})}
           {...(onOpenThread ? { onOpenThread } : {})}
+          {...(onPinMessage ? { onPinMessage } : {})}
+          onRetryMessage={onRetryMessage}
           onToggleMessageReaction={onToggleMessageReaction}
         />
       ) : null}
@@ -438,7 +453,6 @@ export function WorkspacePreviewCard({
   attachmentsFeature,
   bootstrapState,
   channelMessagesState,
-  channelSendState,
   mediaState,
   messageSearchFeature,
   messageSearchState,
@@ -458,7 +472,6 @@ export function WorkspacePreviewCard({
   attachmentsFeature: MobileBootstrapFeature | null;
   bootstrapState: MobileBootstrapViewState;
   channelMessagesState: MobileChannelMessagesViewState;
-  channelSendState: MobileChannelSendViewState;
   mediaState: MobileMediaRuntimeState;
   messageSearchFeature: MobileBootstrapFeature | null;
   messageSearchState: MobileMessageSearchViewState;
@@ -589,7 +602,6 @@ export function WorkspacePreviewCard({
               mediaState={mediaState}
               messageSearchFeature={messageSearchFeature}
               messageSearchState={messageSearchState}
-              sendState={channelSendState}
               state={channelMessagesState}
               onClearMessageSearch={onClearMessageSearch}
               onClearSelectedMediaAsset={onClearSelectedMediaAsset}

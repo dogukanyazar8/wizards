@@ -53,7 +53,10 @@ jest.mock("react-native-gesture-handler", () => {
     Gesture: {
       Pan: () => {
         const gesture = {
+          activeOffsetX: () => gesture,
           enabled: () => gesture,
+          failOffsetX: () => gesture,
+          failOffsetY: () => gesture,
           onEnd: () => gesture,
           onUpdate: () => gesture,
         };
@@ -218,7 +221,6 @@ function createScreenProps(
     onSearchMessages: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
     onSendMessage: jest.fn<() => Promise<boolean>>().mockResolvedValue(true),
     onToggleMessageReaction: jest.fn(),
-    sendState: { conversationId: "conversation-1", error: null, status: "idle" },
     state: {
       conversationId: "conversation-1",
       error: null,
@@ -272,10 +274,26 @@ describe("4a DM conversation redesign", () => {
       paddingHorizontal: 7,
       paddingVertical: 2,
     });
+    // 8b: chips overlap the bubble's bottom-left corner.
     expect(styles.reactionTargetRow).toMatchObject({
-      bottom: -22,
-      right: 10,
+      bottom: -12,
+      gap: 4,
+      left: 12,
     });
+    expect(styles.reactionPillOwnReaction).toMatchObject({
+      backgroundColor: theme.accent.soft,
+      borderColor: theme.accent.default,
+    });
+    expect(styles.replyQuote).toMatchObject({
+      backgroundColor: theme.accent.soft,
+      borderLeftColor: theme.accent.default,
+      borderLeftWidth: 3,
+      borderRadius: 10,
+      marginBottom: 7,
+      paddingHorizontal: 10,
+      paddingVertical: 7,
+    });
+    expect(styles.reactionTimeSpacing).toMatchObject({ marginTop: 10 });
   });
 
   it("groups only consecutive same-sender messages within sixty seconds", () => {
@@ -382,7 +400,6 @@ describe("4a DM conversation redesign", () => {
         attachmentsFeature={{ label: "Attachments", status: "available" }}
         getAccessToken={async () => "access-token"}
         onSend={onSend}
-        sendState={{ conversationId: "conversation-1", error: null, status: "idle" }}
         variant="dm"
       />,
     );
@@ -409,7 +426,6 @@ describe("4a DM conversation redesign", () => {
         }}
         getAccessToken={async () => "access-token"}
         onSend={jest.fn<() => Promise<boolean>>().mockResolvedValue(true)}
-        sendState={{ conversationId: "conversation-1", error: null, status: "idle" }}
         variant="dm"
       />,
     );
@@ -434,7 +450,6 @@ describe("4a DM conversation redesign", () => {
         getAccessToken={async () => "access-token"}
         intent={{ content: "existing", messageId: "message-1", mode: "edit" }}
         onSend={jest.fn<() => Promise<boolean>>().mockResolvedValue(true)}
-        sendState={{ conversationId: "conversation-1", error: null, status: "idle" }}
         variant="dm"
       />,
     );
@@ -482,7 +497,6 @@ describe("4a DM conversation redesign", () => {
         attachmentsFeature={{ label: "Attachments", status: "available" }}
         getAccessToken={async () => "access-token"}
         onSend={jest.fn<() => Promise<boolean>>().mockResolvedValue(true)}
-        sendState={{ conversationId: "conversation-1", error: null, status: "idle" }}
         variant="dm"
       />,
     );
@@ -542,7 +556,6 @@ describe("4a DM conversation redesign", () => {
               setEditing(false);
             }}
             onSend={editing ? onEditMutation : onNormalSend}
-            sendState={{ conversationId: "conversation-1", error: null, status: "idle" }}
             variant="dm"
           />
         </>
@@ -571,7 +584,6 @@ describe("4a DM conversation redesign", () => {
         attachmentsFeature={{ label: "Attachments", status: "available" }}
         getAccessToken={async () => "access-token"}
         onSend={jest.fn<() => Promise<boolean>>().mockResolvedValue(true)}
-        sendState={{ conversationId: "conversation-1", error: null, status: "idle" }}
         variant="dm"
       />,
     );
@@ -598,13 +610,17 @@ describe("4a DM conversation redesign", () => {
       />,
     );
     const reaction = reactionView.getByTestId("mobile-message-reaction-target-message-👍");
-    const reactionStyle = StyleSheet.flatten(reaction.props.style);
-    expect(reactionStyle.width ?? reactionStyle.minWidth ?? 0).toBeGreaterThanOrEqual(44);
-    expect(reactionStyle.height ?? reactionStyle.minHeight ?? 0).toBeGreaterThanOrEqual(44);
+    // 8b chips stay compact and overlap the bubble corner, so hit slop is what
+    // restores the 44px effective touch target around the ~21px pill.
+    const reactionHitSlop = reaction.props.hitSlop ?? 0;
     const reactionVisual = reactionView.getByTestId(
       "mobile-message-reaction-target-message-👍-visual",
     );
-    expect(StyleSheet.flatten(reactionVisual.props.style).minHeight).toBe(22);
+    const reactionVisualStyle = StyleSheet.flatten(reactionVisual.props.style);
+    expect(reactionVisualStyle.borderRadius).toBe(11);
+    expect(reactionVisualStyle.paddingHorizontal).toBe(7);
+    const pillHeight = 15 + 2 * (reactionVisualStyle.paddingVertical ?? 0) + 2;
+    expect(pillHeight + reactionHitSlop * 2).toBeGreaterThanOrEqual(44);
   });
 
   it("stops and uploads a completed voice recording only when capability is available", async () => {
@@ -627,17 +643,16 @@ describe("4a DM conversation redesign", () => {
         attachmentsFeature={{ label: "Attachments", status: "available" }}
         getAccessToken={async () => "access-token"}
         onSend={jest.fn<() => Promise<boolean>>().mockResolvedValue(true)}
-        sendState={{ conversationId: "conversation-1", error: null, status: "idle" }}
         variant="dm"
       />,
     );
 
     await fireEvent.press(view.getByTestId("mobile-dm-voice-record-button"));
+    // 8b: releasing/stopping a recording uploads it and sends immediately.
     await waitFor(() =>
       expect(uploadMobileMessageAttachmentToUploadThing).toHaveBeenCalledWith({
         accessToken: "access-token",
         picked,
-        signal: expect.any(AbortSignal),
       }),
     );
     mockVoiceRecorder.isRecording = false;
@@ -652,7 +667,6 @@ describe("4a DM conversation redesign", () => {
         attachmentsFeature={{ label: "Attachments", status: "available" }}
         getAccessToken={async () => "access-token"}
         onSend={jest.fn<() => Promise<boolean>>().mockResolvedValue(true)}
-        sendState={{ conversationId: "conversation-1", error: null, status: "idle" }}
         variant="dm"
       />,
     );
@@ -810,14 +824,18 @@ describe("4a DM conversation redesign", () => {
     await act(async () => {
       fireEvent(trigger, "longPress");
     });
+    expect(await view.findByTestId("mobile-message-actions-reaction-message-menu")).toBeTruthy();
     expect(
-      await view.findByTestId("mobile-message-actions-reaction-message-sheet-panel"),
+      view.getByTestId("mobile-message-actions-reaction-message-quick-bar"),
     ).toBeTruthy();
-    await fireEvent.press(view.getByLabelText("👍"));
+    await fireEvent.press(
+      view.getByLabelText(copy.messageReactionAddAction.replace("{emoji}", "👍")),
+    );
     expect(onToggleReaction).toHaveBeenCalledWith({
       emoji: "👍",
       messageId: "reaction-message",
       shouldReact: true,
     });
+    expect(view.queryByTestId("mobile-message-actions-reaction-message-menu")).toBeNull();
   });
 });

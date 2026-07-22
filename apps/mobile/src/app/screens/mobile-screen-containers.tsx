@@ -97,17 +97,9 @@ export function MessagesTabScreenContainer({
     navigation.getParent<NativeStackNavigationProp<MobileRootStackParamList>>();
 
   return (
+    // 8d: threads are channel-only, so the DM tab exposes no thread entry point.
     <MessagesScreen
       {...screenProps}
-      onOpenThread={(messageId) => {
-        if (screenProps.selectedConversationId && rootNavigation) {
-          rootNavigation.navigate("MessageThread", {
-            contextId: screenProps.selectedConversationId,
-            messageId,
-            scope: "dm",
-          });
-        }
-      }}
       onOpenConversation={(conversationId) => {
         screenProps.onOpenConversation(conversationId);
         rootNavigation?.navigate("DirectMessage", { conversationId });
@@ -390,7 +382,37 @@ export function MessageThreadStackScreenContainer({
   navigation,
   route,
 }: NativeStackScreenProps<MobileRootStackParamList, "MessageThread">) {
-  return <MobileMessageThreadScreen {...route.params} onBack={() => navigation.goBack()} />;
+  const screenProps = useMobileOverviewScreenProps();
+  const { contextId, messageId } = route.params;
+  const channelName = findMobileWorkspaceChannelName(screenProps.workspaceServerState, contextId);
+
+  return (
+    <MobileMessageThreadScreen
+      {...(channelName ? { channelName } : {})}
+      contextId={contextId}
+      messageId={messageId}
+      onBack={() => navigation.goBack()}
+      typingUsers={
+        screenProps.activeWorkspaceTextChannelId === contextId ? screenProps.channelTypingUsers : []
+      }
+    />
+  );
+}
+
+function findMobileWorkspaceChannelName(
+  serverState: ReturnType<typeof useMobileOverviewScreenProps>["workspaceServerState"],
+  channelId: string,
+): string | null {
+  const detail = serverState.status === "ready" ? serverState.payload.detail : null;
+  if (!detail) {
+    return null;
+  }
+
+  const channels = [
+    ...detail.categories.flatMap((category) => category.channels),
+    ...detail.ungroupedChannels,
+  ];
+  return channels.find((channel) => channel.id === channelId)?.name ?? null;
 }
 
 export function SettingsDetailScreenContainer({

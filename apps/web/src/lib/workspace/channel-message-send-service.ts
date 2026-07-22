@@ -216,9 +216,11 @@ async function emitChannelMessageFanout(args: {
 }
 
 export async function sendChannelMessage(args: {
+  alsoSendToChannel?: boolean;
   attachments?: UploadedAttachmentInput[];
   channelId: string;
   content: string;
+  forwardOfMessageId?: string | null;
   io?: AppSocketServer | null;
   replyToId?: string | null;
   threadParentId?: string | null;
@@ -260,7 +262,11 @@ export async function sendChannelMessage(args: {
     args.replyToId ?? undefined,
     attachmentInputs,
     args.threadParentId ?? undefined,
-    { permissions },
+    {
+      alsoSendToChannel: args.alsoSendToChannel === true,
+      forwardOfMessageId: args.forwardOfMessageId ?? null,
+      permissions,
+    },
   );
 
   let readUserIds = [args.userId];

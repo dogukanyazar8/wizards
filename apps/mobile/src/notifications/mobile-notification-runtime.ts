@@ -41,13 +41,9 @@ async function ensureNotificationChannelsAndCategories(): Promise<void> {
     vibrationPattern: [0, 160, 120, 160],
   });
 
-  await Notifications.setNotificationChannelAsync(MOBILE_PUSH_ANDROID_CHANNELS.calls, {
-    description: "Incoming voice and video call alerts.",
-    importance: Notifications.AndroidImportance.MAX,
-    lightColor: mobilePalette.violet[600],
-    name: "Whispr Calls",
-    vibrationPattern: [0, 400, 200, 400, 200, 400],
-  });
+  // The `whispr-calls` channel is deliberately not created here. The native call
+  // notifier owns it so it can use the system ringtone, which this API cannot
+  // express, and channel settings are frozen after whoever creates it first.
 }
 
 function getMobilePushPlatform() {
