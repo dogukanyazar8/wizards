@@ -43,6 +43,7 @@ test("format scripts use the changed-file ratchet and CI enforces it", () => {
   assert.match(prettierIgnore, /^pnpm-lock\.yaml$/m);
   assert.match(prettierIgnore, /^package-lock\.json$/m);
   assert.match(prettierIgnore, /^yarn\.lock$/m);
+  assert.match(prettierIgnore, /^graphify-out\/$/m);
 
   const workflow = readFileSync(join(root, ".github", "workflows", "ci.yml"), "utf8");
   assert.match(workflow, /- name: Format\r?\n(?:.|\r?\n)*?run: pnpm format/);

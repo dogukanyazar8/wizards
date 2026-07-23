@@ -4,6 +4,7 @@ node_modules
 .next
 dist
 coverage
+graphify-out/
 pnpm-lock.yaml
 package-lock.json
 yarn.lock
