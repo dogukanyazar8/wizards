@@ -70,6 +70,8 @@ jobs:
         uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Avoid root-owned or stale host /tmp files on self-hosted runners.
+          TMPDIR: ${{ runner.temp }}
 
       - name: Dependency audit
         run: pnpm audit --audit-level moderate
