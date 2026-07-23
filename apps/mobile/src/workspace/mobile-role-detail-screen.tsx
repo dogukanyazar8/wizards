@@ -5,7 +5,10 @@ import type { MobilePermissionKey } from "@wizards/types";
 
 import { useMobileAuth } from "../auth/mobile-auth-context";
 import { MobileLineIcon } from "../design/mobile-line-icons";
-import { mobileCopy } from "../locale/mobile-copy";
+import {
+  mobileRoleDetailCopy,
+  mobileRoleDetailPermissionLabels,
+} from "../locale/mobile-workspace-copy";
 import { useMobileLocaleRuntime } from "../app/providers/mobile-locale-provider";
 import { useTheme, useThemedStyles } from "../app/providers/mobile-theme-provider";
 import {
@@ -71,7 +74,7 @@ function initials(name: string): string {
 export function MobileRoleDetailScreen({ onBack, roleId, serverId }: MobileRoleDetailScreenProps) {
   const { apiClient } = useMobileAuth();
   const { locale } = useMobileLocaleRuntime();
-  const labels = mobileCopy[locale];
+  const labels = mobileRoleDetailCopy[locale];
   const theme = useTheme();
   const styles = useThemedStyles(createMobileRoleDetailStyles);
   const mutations = useMobileServerManagementMutations(apiClient);
@@ -145,7 +148,7 @@ export function MobileRoleDetailScreen({ onBack, roleId, serverId }: MobileRoleD
         serverId,
       });
     } catch {
-      setError(labels.serverRoleDetailError);
+      setError(labels.error);
     }
   };
 
@@ -157,7 +160,7 @@ export function MobileRoleDetailScreen({ onBack, roleId, serverId }: MobileRoleD
       setDeleteOpen(false);
       onBack();
     } catch {
-      setError(labels.serverRoleDetailError);
+      setError(labels.error);
       throw new Error("mobile-role-delete-failed");
     }
   };
@@ -180,7 +183,7 @@ export function MobileRoleDetailScreen({ onBack, roleId, serverId }: MobileRoleD
         serverId,
       });
     } catch {
-      setError(labels.serverRoleDetailError);
+      setError(labels.error);
     }
   };
 
@@ -189,7 +192,7 @@ export function MobileRoleDetailScreen({ onBack, roleId, serverId }: MobileRoleD
   const headerNode = (
     <View style={styles.header}>
       <Pressable
-        accessibilityLabel={labels.serverRoleDetailBack}
+        accessibilityLabel={labels.back}
         accessibilityRole="button"
         hitSlop={8}
         onPress={onBack}
@@ -205,12 +208,12 @@ export function MobileRoleDetailScreen({ onBack, roleId, serverId }: MobileRoleD
           numberOfLines={1}
           style={[styles.title, role ? { color: roleColor } : null]}
         >
-          {role ? role.name : labels.serverRoleDetailLoadingTitle}
+          {role ? role.name : labels.loadingTitle}
         </Text>
       </View>
       {editable ? (
         <Pressable
-          accessibilityLabel={labels.serverRoleDetailDelete}
+          accessibilityLabel={labels.delete}
           accessibilityRole="button"
           hitSlop={8}
           onPress={() => setDeleteOpen(true)}
@@ -244,16 +247,11 @@ export function MobileRoleDetailScreen({ onBack, roleId, serverId }: MobileRoleD
       <View style={styles.root} testID="mobile-role-detail-screen">
         {headerNode}
         <EmptyState
-          action={
-            <Button
-              label={labels.serverRoleDetailRetry}
-              onPress={() => void rolesQuery.refetch()}
-            />
-          }
-          description={labels.serverRoleDetailError}
+          action={<Button label={labels.retry} onPress={() => void rolesQuery.refetch()} />}
+          description={labels.error}
           style={styles.state}
           testID="mobile-role-detail-missing"
-          title={labels.serverRoleDetailMissingTitle}
+          title={labels.missingTitle}
         />
       </View>
     );
@@ -266,19 +264,19 @@ export function MobileRoleDetailScreen({ onBack, roleId, serverId }: MobileRoleD
 
         {!editable ? (
           <Text maxFontSizeMultiplier={2} style={styles.protectedNote}>
-            {labels.serverRoleDetailProtected}
+            {labels.protected}
           </Text>
         ) : null}
 
         {/* Name + colour */}
         <View style={styles.sectionLabel}>
           <Text maxFontSizeMultiplier={2} style={styles.sectionLabelText}>
-            {labels.serverRoleDetailName}
+            {labels.name}
           </Text>
         </View>
         <View style={[styles.card, styles.cardPadded]}>
           <TextInput
-            accessibilityLabel={labels.serverRoleDetailName}
+            accessibilityLabel={labels.name}
             editable={editable}
             maxLength={48}
             onChangeText={setName}
@@ -306,7 +304,7 @@ export function MobileRoleDetailScreen({ onBack, roleId, serverId }: MobileRoleD
         {/* Permission matrix */}
         <View style={styles.sectionLabel}>
           <Text maxFontSizeMultiplier={2} style={styles.sectionLabelText}>
-            {labels.serverRoleDetailPermissions}
+            {labels.permissions}
           </Text>
         </View>
         <View style={styles.card}>
@@ -317,11 +315,11 @@ export function MobileRoleDetailScreen({ onBack, roleId, serverId }: MobileRoleD
             >
               <View style={styles.rowBody}>
                 <Text maxFontSizeMultiplier={2} style={styles.rowTitle}>
-                  {labels.serverRoleDetailPermissionLabels[key]}
+                  {mobileRoleDetailPermissionLabels[locale][key]}
                 </Text>
               </View>
               <Toggle
-                accessibilityLabel={labels.serverRoleDetailPermissionLabels[key]}
+                accessibilityLabel={mobileRoleDetailPermissionLabels[locale][key]}
                 disabled={!editable || mutations.updateRole.isPending}
                 onValueChange={(next) => togglePermission(key, next)}
                 readOnly={!editable}
@@ -335,14 +333,14 @@ export function MobileRoleDetailScreen({ onBack, roleId, serverId }: MobileRoleD
         {/* Members in this role */}
         <View style={styles.sectionLabel}>
           <Text maxFontSizeMultiplier={2} style={styles.sectionLabelText}>
-            {labels.serverRoleDetailMembers}
+            {labels.members}
           </Text>
         </View>
         <View style={styles.card}>
           {members.length === 0 ? (
             <View style={styles.row}>
               <Text maxFontSizeMultiplier={2} style={styles.rowHint}>
-                {labels.serverRoleDetailMembersEmpty}
+                {labels.membersEmpty}
               </Text>
             </View>
           ) : (
@@ -397,7 +395,7 @@ export function MobileRoleDetailScreen({ onBack, roleId, serverId }: MobileRoleD
               busy={mutations.updateRole.isPending}
               disabled={!hasChanges || name.trim().length === 0}
               fullWidth
-              label={labels.serverRoleDetailSave}
+              label={labels.save}
               onPress={() => void save()}
               testID="mobile-role-detail-save"
             />
@@ -406,15 +404,15 @@ export function MobileRoleDetailScreen({ onBack, roleId, serverId }: MobileRoleD
       </ScrollView>
 
       <DestructiveConfirmationSheet
-        body={labels.serverRoleDetailDeleteBody}
+        body={labels.deleteBody}
         busy={mutations.deleteRole.isPending}
-        confirmLabel={labels.serverRoleDetailDelete}
+        confirmLabel={labels.delete}
         icon="trash-outline"
         onCancel={() => setDeleteOpen(false)}
         onConfirm={remove}
         open={deleteOpen}
         testID="mobile-role-detail-delete-confirm"
-        title={labels.serverRoleDetailDelete}
+        title={labels.delete}
       />
     </View>
   );

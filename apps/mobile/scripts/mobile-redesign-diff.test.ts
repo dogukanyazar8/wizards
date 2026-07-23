@@ -14,7 +14,10 @@ test("two-layer visual diff gate exists with pinned image dependencies", () => {
     devDependencies?: Record<string, string>;
     scripts?: Record<string, string>;
   };
-  assert.equal(packageJson.scripts?.["visual:diff"], "node --import tsx scripts/mobile-redesign-diff.ts");
+  assert.equal(
+    packageJson.scripts?.["visual:diff"],
+    "node --import tsx scripts/mobile-redesign-diff.ts",
+  );
   assert.equal(packageJson.devDependencies?.pixelmatch, "7.1.0");
   assert.equal(packageJson.devDependencies?.sharp, "0.35.3");
   assert.equal(packageJson.devDependencies?.["ssim.js"], "3.5.0");
@@ -82,7 +85,10 @@ test("two-layer gate separates flat, text, and declared shadow failures", async 
 
   assert.equal(result.passed, false);
   assert.ok(result.flat.mismatchRatio > 0.005);
-  assert.equal(result.flat.components.some((component) => component.width > 6), true);
+  assert.equal(
+    result.flat.components.some((component) => component.width > 6),
+    true,
+  );
   assert.equal(result.text.failures[0]?.id, "tab-label");
   assert.equal(result.shadows.failures[0]?.reason, "declared-parameters");
   assert.equal(existsSync(result.overlayPath), true);

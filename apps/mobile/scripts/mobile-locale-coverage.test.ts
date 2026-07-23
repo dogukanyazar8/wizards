@@ -14,7 +14,7 @@ import { mobileCopy } from "../src/locale/mobile-copy";
 
 /**
  * Nothing outside `src/locale` may keep its own locale table any more — every
- * screen resolves its copy from `mobileCopy[locale]`.
+ * screen resolves its copy from a centralized locale module.
  */
 const LOCALE_TABLE_OWNERS: readonly string[] = [];
 

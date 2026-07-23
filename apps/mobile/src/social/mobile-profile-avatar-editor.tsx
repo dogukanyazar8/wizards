@@ -6,7 +6,7 @@ import { Avatar, Button } from "../app/components/kit";
 import { useMobileLocaleRuntime } from "../app/providers/mobile-locale-provider";
 import { useThemedStyles } from "../app/providers/mobile-theme-provider";
 import type { MobileTheme } from "../design/themes";
-import { mobileCopy } from "../locale/mobile-copy";
+import { mobileProfileAvatarEditorCopy } from "../locale/mobile-profile-avatar-editor-copy";
 import { useMobileImageUpload } from "../media/use-mobile-image-upload";
 import { patchMobileProfileAvatarCaches } from "../query/mobile-profile-cache";
 import { mobileQueryKeys } from "../query/mobile-query-keys";
@@ -44,7 +44,7 @@ export function MobileProfileAvatarEditor({
   const [error, setError] = useState<string | null>(null);
   const [localPreviewUri, setLocalPreviewUri] = useState<string | null>(null);
   const [syncWarning, setSyncWarning] = useState<string | null>(null);
-  const copy = mobileCopy[locale];
+  const copy = mobileProfileAvatarEditorCopy[locale];
   const avatarUrl = canonicalAvatarUrl ?? localPreviewUri ?? user?.avatarUrl ?? null;
 
   const uploadAvatar = useCallback(async () => {
@@ -63,13 +63,13 @@ export function MobileProfileAvatarEditor({
 
     if (result.status === "error") {
       setLocalPreviewUri(null);
-      setError(copy.profileAvatarEditorFailed);
+      setError(copy.failed);
       return;
     }
 
     if (result.response.purpose !== "profile-avatar" || result.response.profile.id !== user.id) {
       setLocalPreviewUri(null);
-      setError(copy.profileAvatarEditorSyncFailed);
+      setError(copy.syncFailed);
       return;
     }
 
@@ -95,7 +95,7 @@ export function MobileProfileAvatarEditor({
     }
 
     if (!sessionReplaced) {
-      setSyncWarning(copy.profileAvatarEditorSyncing);
+      setSyncWarning(copy.syncing);
     }
 
     void queryClient.invalidateQueries({ exact: true, queryKey: mobileQueryKeys.bootstrap() });
@@ -106,9 +106,9 @@ export function MobileProfileAvatarEditor({
     queryClient,
     replaceSessionUser,
     selectAndUpload,
-    copy.profileAvatarEditorFailed,
-    copy.profileAvatarEditorSyncFailed,
-    copy.profileAvatarEditorSyncing,
+    copy.failed,
+    copy.syncFailed,
+    copy.syncing,
     user,
   ]);
 
@@ -123,15 +123,13 @@ export function MobileProfileAvatarEditor({
       <Button
         busy={isBusy}
         disabled={!user}
-        label={copy.profileAvatarEditorPicker}
+        label={copy.picker}
         onPress={() => void uploadAvatar()}
         testID="mobile-profile-avatar-picker"
         variant="secondary"
       />
       <Text style={styles.status} testID="mobile-profile-avatar-upload-status">
-        {isBusy
-          ? copy.profileAvatarEditorUploading
-          : (syncWarning ?? copy.profileAvatarEditorReady)}
+        {isBusy ? copy.uploading : (syncWarning ?? copy.ready)}
       </Text>
       {error ? (
         <Text style={styles.error} testID="mobile-profile-avatar-error">
@@ -142,7 +140,7 @@ export function MobileProfileAvatarEditor({
       {error ? (
         <Button
           disabled={isBusy}
-          label={copy.profileAvatarEditorRetry}
+          label={copy.retry}
           onPress={() => void uploadAvatar()}
           testID="mobile-profile-avatar-retry"
           variant="ghost"
