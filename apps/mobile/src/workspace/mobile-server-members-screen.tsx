@@ -29,6 +29,7 @@ import {
   type MobileServerMemberListRow,
 } from "./mobile-server-member-model";
 import { createMobileServerMembersStyles } from "./mobile-server-members-screen.styles";
+import { mobileCopy } from "../locale/mobile-copy";
 import { SheetHeader, useSheetPresentation } from "../app/components/kit";
 
 export interface MobileServerMembersScreenProps {
@@ -36,56 +37,11 @@ export interface MobileServerMembersScreenProps {
   onBack(): void;
 }
 
-const COPY = {
-  en: {
-    back: "Back",
-    close: "Close",
-    empty: "There are no members to show.",
-    error:
-      "Member changes could not be completed. Permissions may have changed; the list was refreshed.",
-    kick: "Kick member",
-    kickBody: "This removes the member from the server.",
-    loadMore: "Could not load more members. Try again.",
-    members: "Members",
-    offline: "Offline",
-    present: "Online",
-    retry: "Retry",
-    roles: "Roles",
-    rolesHint: "Tap a role to assign or remove it instantly.",
-    rolesUnavailable: "No assignable roles are available.",
-    status: {
-      DND: "Do not disturb",
-      IDLE: "Idle",
-      OFFLINE: "Offline",
-      ONLINE: "Online",
-    } as Record<string, string>,
-  },
-  tr: {
-    back: "Geri",
-    close: "Kapat",
-    empty: "Gösterilecek üye yok.",
-    error: "Üye değişiklikleri tamamlanamadı. Yetkiler değişmiş olabilir; liste yenilendi.",
-    kick: "Üyeyi çıkar",
-    kickBody: "Bu işlem üyeyi sunucudan çıkarır.",
-    loadMore: "Daha fazla üye yüklenemedi. Tekrar deneyin.",
-    members: "Üyeler",
-    offline: "Çevrimdışı",
-    present: "Çevrimiçi",
-    retry: "Tekrar dene",
-    roles: "Roller",
-    rolesHint: "Rolü anında atamak veya kaldırmak için dokun.",
-    rolesUnavailable: "Atanabilir rol bulunmuyor.",
-    status: {
-      DND: "Rahatsız etmeyin",
-      IDLE: "Boşta",
-      OFFLINE: "Çevrimdışı",
-      ONLINE: "Çevrimiçi",
-    } as Record<string, string>,
-  },
-} as const;
-
-function localizeStatus(status: string, labels: (typeof COPY)[keyof typeof COPY]): string {
-  return labels.status[status] ?? status;
+function localizeStatus(
+  status: string,
+  labels: (typeof mobileCopy)[keyof typeof mobileCopy],
+): string {
+  return labels.serverMembersStatus[status] ?? status;
 }
 
 function colorFromRole(color: number): string {
@@ -95,7 +51,7 @@ function colorFromRole(color: number): string {
 export function MobileServerMembersScreen({ onBack, serverId }: MobileServerMembersScreenProps) {
   const { apiClient } = useMobileAuth();
   const { locale } = useMobileLocaleRuntime();
-  const labels = COPY[locale];
+  const labels = mobileCopy[locale];
   const theme = useTheme();
   const styles = useThemedStyles(createMobileServerMembersStyles);
   const sheetPresentation = useSheetPresentation();
@@ -140,7 +96,7 @@ export function MobileServerMembersScreen({ onBack, serverId }: MobileServerMemb
         serverId,
       });
     } catch {
-      setError(labels.error);
+      setError(labels.serverMembersError);
       await refetchExactMembers();
       throw new Error("mobile-member-role-update-failed");
     }
@@ -155,7 +111,7 @@ export function MobileServerMembersScreen({ onBack, serverId }: MobileServerMemb
       await mutations.kickMember.mutateAsync({ memberId: pendingKick.id, serverId });
       setPendingKick(null);
     } catch {
-      setError(labels.error);
+      setError(labels.serverMembersError);
       await refetchExactMembers();
       throw new Error("mobile-member-kick-failed");
     }
@@ -164,7 +120,7 @@ export function MobileServerMembersScreen({ onBack, serverId }: MobileServerMemb
   const headerNode = (
     <View style={styles.header}>
       <Pressable
-        accessibilityLabel={labels.back}
+        accessibilityLabel={labels.serverMembersBack}
         accessibilityRole="button"
         hitSlop={8}
         onPress={onBack}
@@ -175,7 +131,7 @@ export function MobileServerMembersScreen({ onBack, serverId }: MobileServerMemb
       </Pressable>
       <View style={styles.headerBody}>
         <Text maxFontSizeMultiplier={2} numberOfLines={1} style={styles.title}>
-          {labels.members}
+          {labels.serverMembersMembers}
         </Text>
       </View>
     </View>
@@ -186,7 +142,7 @@ export function MobileServerMembersScreen({ onBack, serverId }: MobileServerMemb
       return (
         <View style={styles.sectionLabel}>
           <Text maxFontSizeMultiplier={2} style={styles.sectionLabelText}>
-            {item.id === "present" ? labels.present : labels.offline}
+            {item.id === "present" ? labels.serverMembersPresent : labels.serverMembersOffline}
           </Text>
         </View>
       );
@@ -211,27 +167,27 @@ export function MobileServerMembersScreen({ onBack, serverId }: MobileServerMemb
         <View style={styles.actions}>
           {member.actions.canManageRoles ? (
             <Pressable
-              accessibilityLabel={labels.roles}
+              accessibilityLabel={labels.serverMembersRoles}
               accessibilityRole="button"
               onPress={() => setExpandedMemberId(member.id)}
               style={({ pressed }) => [styles.rolesButton, pressed && styles.pressed]}
               testID={`mobile-member-${member.id}-roles`}
             >
               <Text maxFontSizeMultiplier={2} style={styles.rolesButtonText}>
-                {labels.roles}
+                {labels.serverMembersRoles}
               </Text>
             </Pressable>
           ) : null}
           {member.actions.canKick ? (
             <Pressable
-              accessibilityLabel={labels.kick}
+              accessibilityLabel={labels.serverMembersKick}
               accessibilityRole="button"
               onPress={() => setPendingKick(member)}
               style={({ pressed }) => [styles.kickButton, pressed && styles.pressed]}
               testID={`mobile-member-${member.id}-kick`}
             >
               <Text maxFontSizeMultiplier={2} style={styles.kickButtonText}>
-                {labels.kick}
+                {labels.serverMembersKick}
               </Text>
             </Pressable>
           ) : null}
@@ -245,7 +201,7 @@ export function MobileServerMembersScreen({ onBack, serverId }: MobileServerMemb
       <View style={styles.root} testID="mobile-server-members-screen">
         {headerNode}
         <View style={styles.sectionLabel}>
-          <Text style={styles.sectionLabelText}>{labels.present}</Text>
+          <Text style={styles.sectionLabelText}>{labels.serverMembersPresent}</Text>
         </View>
         <View testID="mobile-server-members-loading">
           {[0, 1, 2, 3].map((index) => (
@@ -264,11 +220,11 @@ export function MobileServerMembersScreen({ onBack, serverId }: MobileServerMemb
       <View style={styles.root} testID="mobile-server-members-screen">
         {headerNode}
         <Text accessibilityRole="alert" style={styles.error}>
-          {labels.error}
+          {labels.serverMembersError}
         </Text>
         <View style={styles.stateActions}>
-          <Button label={labels.retry} onPress={() => void members.refetch()} />
-          <Button label={labels.back} onPress={onBack} variant="ghost" />
+          <Button label={labels.serverMembersRetry} onPress={() => void members.refetch()} />
+          <Button label={labels.serverMembersBack} onPress={onBack} variant="ghost" />
         </View>
       </View>
     );
@@ -279,11 +235,11 @@ export function MobileServerMembersScreen({ onBack, serverId }: MobileServerMemb
       {headerNode}
       {rows.length === 0 ? (
         <EmptyState
-          description={labels.empty}
+          description={labels.serverMembersEmpty}
           icon="people-outline"
           style={styles.state}
           testID="mobile-server-members-empty"
-          title={labels.members}
+          title={labels.serverMembersMembers}
         />
       ) : (
         <FlashList
@@ -308,9 +264,13 @@ export function MobileServerMembersScreen({ onBack, serverId }: MobileServerMemb
             style={styles.error}
             testID="mobile-server-members-load-more-error"
           >
-            {labels.loadMore}
+            {labels.serverMembersLoadMore}
           </Text>
-          <Button label={labels.retry} onPress={() => void fetchNextPage()} variant="secondary" />
+          <Button
+            label={labels.serverMembersRetry}
+            onPress={() => void fetchNextPage()}
+            variant="secondary"
+          />
         </View>
       ) : null}
       {error ? (
@@ -319,7 +279,7 @@ export function MobileServerMembersScreen({ onBack, serverId }: MobileServerMemb
         </Text>
       ) : null}
       <BottomSheet
-        accessibilityLabel={labels.roles}
+        accessibilityLabel={labels.serverMembersRoles}
         onClose={() => setExpandedMemberId(null)}
         open={expandedMember !== null}
         presentation={sheetPresentation}
@@ -328,16 +288,16 @@ export function MobileServerMembersScreen({ onBack, serverId }: MobileServerMemb
       >
         <View style={styles.sheet}>
           <SheetHeader
-            closeAccessibilityLabel={labels.close}
+            closeAccessibilityLabel={labels.serverMembersClose}
             icon="shield-outline"
             onClose={() => setExpandedMemberId(null)}
-            subtitle={labels.rolesHint}
+            subtitle={labels.serverMembersRolesHint}
             testID="mobile-member-roles-header"
-            title={labels.roles}
+            title={labels.serverMembersRoles}
           />
           {roles.isLoading ? <ActivityIndicator /> : null}
           {!roles.isLoading && (roles.data?.roles.length ?? 0) === 0 ? (
-            <Text style={styles.sheetHint}>{labels.rolesUnavailable}</Text>
+            <Text style={styles.sheetHint}>{labels.serverMembersRolesUnavailable}</Text>
           ) : null}
           {expandedMember &&
             roles.data?.roles.map((role) => {
@@ -367,15 +327,15 @@ export function MobileServerMembersScreen({ onBack, serverId }: MobileServerMemb
         </View>
       </BottomSheet>
       <DestructiveConfirmationSheet
-        body={labels.kickBody}
+        body={labels.serverMembersKickBody}
         busy={mutations.kickMember.isPending}
-        confirmLabel={labels.kick}
+        confirmLabel={labels.serverMembersKick}
         icon="person-remove-outline"
         onCancel={() => setPendingKick(null)}
         onConfirm={kick}
         open={pendingKick !== null}
         testID="mobile-member-kick-confirm"
-        title={labels.kick}
+        title={labels.serverMembersKick}
       />
     </View>
   );

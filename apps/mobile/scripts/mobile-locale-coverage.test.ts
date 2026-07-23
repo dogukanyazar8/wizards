@@ -35,7 +35,7 @@ const JSX_TEXT = />\s*([A-Za-zÇĞİÖŞÜçğıöşü][^<>{}\n]{2,})\s*</g;
 const COPY_ATTRIBUTE = new RegExp(`\\b(${COPY_ATTRIBUTES.join("|")})\\s*=\\s*"([^"\\n]{3,})"`, "g");
 const TURKISH_LETTER = /[çğıöşüÇĞİÖŞÜ]/;
 /** A `tr:`/`en:` block whose first entry is a string is a copy table. */
-const LOCALE_TABLE = /\n\s+(?:tr|en):\s*\{\n\s+[A-Za-z_$][\w$]*:\s*["`]/;
+const LOCALE_TABLE = /\r?\n\s+(?:tr|en):\s*\{\r?\n\s+[A-Za-z_$][\w$]*:\s*["`]/;
 /** Brand and format names read the same in both languages. */
 const LANGUAGE_NEUTRAL = new Set(["Whispr", "GIF", "Whispr Mobil"]);
 

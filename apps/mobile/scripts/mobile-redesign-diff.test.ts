@@ -16,7 +16,7 @@ test("two-layer visual diff gate exists with pinned image dependencies", () => {
   };
   assert.equal(packageJson.scripts?.["visual:diff"], "node --import tsx scripts/mobile-redesign-diff.ts");
   assert.equal(packageJson.devDependencies?.pixelmatch, "7.1.0");
-  assert.equal(packageJson.devDependencies?.sharp, "0.34.5");
+  assert.equal(packageJson.devDependencies?.sharp, "0.35.3");
   assert.equal(packageJson.devDependencies?.["ssim.js"], "3.5.0");
 });
 

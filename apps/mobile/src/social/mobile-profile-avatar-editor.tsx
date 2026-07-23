@@ -6,31 +6,11 @@ import { Avatar, Button } from "../app/components/kit";
 import { useMobileLocaleRuntime } from "../app/providers/mobile-locale-provider";
 import { useThemedStyles } from "../app/providers/mobile-theme-provider";
 import type { MobileTheme } from "../design/themes";
+import { mobileCopy } from "../locale/mobile-copy";
 import { useMobileImageUpload } from "../media/use-mobile-image-upload";
 import { patchMobileProfileAvatarCaches } from "../query/mobile-profile-cache";
 import { mobileQueryKeys } from "../query/mobile-query-keys";
 import type { MobileSessionUser } from "../auth/session-types";
-
-const labels = {
-  en: {
-    picker: "Choose avatar",
-    ready: "Avatar ready.",
-    retry: "Retry avatar upload",
-    failed: "Avatar upload could not be completed.",
-    syncFailed: "Avatar could not be synchronized.",
-    syncing: "Avatar updated. It may take a moment to sync locally.",
-    uploading: "Uploading avatar...",
-  },
-  tr: {
-    picker: "Avatar seç",
-    ready: "Avatar hazır.",
-    retry: "Avatar yüklemeyi tekrar dene",
-    failed: "Avatar yüklemesi tamamlanamadı.",
-    syncFailed: "Avatar eşitlenemedi.",
-    syncing: "Avatar güncellendi. Yerel olarak eşitlenmesi biraz zaman alabilir.",
-    uploading: "Avatar yükleniyor...",
-  },
-} as const;
 
 const createStyles = (theme: MobileTheme) => ({
   root: { alignItems: "center" as const, gap: 10 },
@@ -64,7 +44,7 @@ export function MobileProfileAvatarEditor({
   const [error, setError] = useState<string | null>(null);
   const [localPreviewUri, setLocalPreviewUri] = useState<string | null>(null);
   const [syncWarning, setSyncWarning] = useState<string | null>(null);
-  const t = labels[locale];
+  const copy = mobileCopy[locale];
   const avatarUrl = canonicalAvatarUrl ?? localPreviewUri ?? user?.avatarUrl ?? null;
 
   const uploadAvatar = useCallback(async () => {
@@ -83,13 +63,13 @@ export function MobileProfileAvatarEditor({
 
     if (result.status === "error") {
       setLocalPreviewUri(null);
-      setError(t.failed);
+      setError(copy.profileAvatarEditorFailed);
       return;
     }
 
     if (result.response.purpose !== "profile-avatar" || result.response.profile.id !== user.id) {
       setLocalPreviewUri(null);
-      setError(t.syncFailed);
+      setError(copy.profileAvatarEditorSyncFailed);
       return;
     }
 
@@ -115,7 +95,7 @@ export function MobileProfileAvatarEditor({
     }
 
     if (!sessionReplaced) {
-      setSyncWarning(t.syncing);
+      setSyncWarning(copy.profileAvatarEditorSyncing);
     }
 
     void queryClient.invalidateQueries({ exact: true, queryKey: mobileQueryKeys.bootstrap() });
@@ -126,9 +106,9 @@ export function MobileProfileAvatarEditor({
     queryClient,
     replaceSessionUser,
     selectAndUpload,
-    t.failed,
-    t.syncFailed,
-    t.syncing,
+    copy.profileAvatarEditorFailed,
+    copy.profileAvatarEditorSyncFailed,
+    copy.profileAvatarEditorSyncing,
     user,
   ]);
 
@@ -143,13 +123,15 @@ export function MobileProfileAvatarEditor({
       <Button
         busy={isBusy}
         disabled={!user}
-        label={t.picker}
+        label={copy.profileAvatarEditorPicker}
         onPress={() => void uploadAvatar()}
         testID="mobile-profile-avatar-picker"
         variant="secondary"
       />
       <Text style={styles.status} testID="mobile-profile-avatar-upload-status">
-        {isBusy ? t.uploading : (syncWarning ?? t.ready)}
+        {isBusy
+          ? copy.profileAvatarEditorUploading
+          : (syncWarning ?? copy.profileAvatarEditorReady)}
       </Text>
       {error ? (
         <Text style={styles.error} testID="mobile-profile-avatar-error">
@@ -160,7 +142,7 @@ export function MobileProfileAvatarEditor({
       {error ? (
         <Button
           disabled={isBusy}
-          label={t.retry}
+          label={copy.profileAvatarEditorRetry}
           onPress={() => void uploadAvatar()}
           testID="mobile-profile-avatar-retry"
           variant="ghost"
