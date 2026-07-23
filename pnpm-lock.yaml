@@ -161,8 +161,8 @@ importers:
         specifier: ~56.0.4
         version: 56.0.4(expo@56.0.15)
       expo-localization:
-        specifier: ~56.0.6
-        version: 56.0.6(expo@56.0.15)(react@19.2.3)
+        specifier: ~57.0.1
+        version: 57.0.1(expo@56.0.15)(react@19.2.3)
       expo-navigation-bar:
         specifier: ~56.0.3
         version: 56.0.3(expo@56.0.15)(react-native@0.85.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/jest-preset@0.85.3(@babel/core@7.29.7(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1))(@react-native/metro-config@0.85.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.17)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1)
@@ -4648,8 +4648,8 @@ packages:
     peerDependencies:
       expo: '*'
 
-  expo-localization@56.0.6:
-    resolution: {integrity: sha512-zzBVoUFHCVNBywcxGsspoZeIXebihOo/AnmQYE4jMv8gHCSKlLNFT+ft+0+mWcZCMs9necvUs8S8TDonAu/xBA==}
+  expo-localization@57.0.1:
+    resolution: {integrity: sha512-8Ffl4UTbOsQeGT0v5fxMbyPHyPMPnhSPDFQJa8p9rjJrthFoAtNi+fL6Ssmrvf1/7dmPq1mVY52MEt0TMEfgjA==}
     peerDependencies:
       expo: '*'
       react: '*'
@@ -12474,7 +12474,7 @@ snapshots:
       expo: 56.0.15(ca4a52b0826c3320c89d5296275dff47)
       invariant: 2.2.4
 
-  expo-localization@56.0.6(expo@56.0.15)(react@19.2.3):
+  expo-localization@57.0.1(expo@56.0.15)(react@19.2.3):
     dependencies:
       expo: 56.0.15(ca4a52b0826c3320c89d5296275dff47)
       react: 19.2.3
