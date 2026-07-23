@@ -21,6 +21,7 @@ export function resolveMobileServerCapabilities(access: AccessContext): MobileSe
     canKickMembers: hasPermission(permissions, PermissionBits.KICK_MEMBERS),
     canManageChannels: hasPermission(permissions, PermissionBits.MANAGE_CHANNELS),
     canManageInvites: hasPermission(permissions, PermissionBits.MANAGE_INVITES),
+    canManageMessages: hasPermission(permissions, PermissionBits.MANAGE_MESSAGES),
     canManageRoles: hasPermission(permissions, PermissionBits.MANAGE_ROLES),
     canManageServer,
     canUploadServerIcon: canManageServer,

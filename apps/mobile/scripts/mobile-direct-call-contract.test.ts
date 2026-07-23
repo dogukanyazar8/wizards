@@ -97,6 +97,8 @@ describe("mobile direct-call contract", () => {
   });
 
   it("returns to the conversation when an outgoing call is not answered", () => {
-    assert.match(voiceRoomContainerSource, /navigation\.replace\("DirectMessage", \{ conversationId \}\)/);
+    // Popping rather than replacing: the conversation is usually already on the
+    // stack under the call, and replacing left a second copy of it behind.
+    assert.match(voiceRoomContainerSource, /navigation\.popTo\("DirectMessage", \{ conversationId \}\)/);
   });
 });

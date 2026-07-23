@@ -185,6 +185,17 @@ describe("mobile quality gate", () => {
       assert.equal(manualIds.has(id), true, `Missing Phase 5 manual check: ${id}`);
     }
 
+    const shieldCheck = MOBILE_MANUAL_QA_CHECKS.find(
+      (check) => check.id === "app-switcher-privacy-shield",
+    );
+    assert.ok(shieldCheck);
+    assert.match(shieldCheck.label, /opaque privacy shield before app-switcher capture/i);
+    assert.match(shieldCheck.label, /independently of optional biometric lock/i);
+    // The shield covers before capture and gets out of the way on resume; both
+    // halves are part of the contract, not just the covering one.
+    assert.match(shieldCheck.label, /uncovers on the first resumed frame/i);
+    assert.match(shieldCheck.label, /instead of showing a blank surface/i);
+
     const migrationPath = join(process.cwd(), "MIGRATION_PHASE_5.md");
     assert.equal(existsSync(migrationPath), true, "MIGRATION_PHASE_5.md must exist");
     const migration = readFileSync(migrationPath, "utf8");

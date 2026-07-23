@@ -15,7 +15,14 @@ import type { MobileSessionDiagnostics } from "../../auth/session-types";
 import { mobileCopy, type MobileLocale } from "../../locale/mobile-copy";
 import type { MobileAppLockAvailability } from "../../security/mobile-app-lock";
 import type { MobileDeviceIntegrityStatus } from "../../security/mobile-device-integrity";
-import { BottomSheet, Button, DestructiveConfirmationSheet, Toggle } from "../components/kit";
+import {
+  BottomSheet,
+  Button,
+  DestructiveConfirmationSheet,
+  SheetHeader,
+  Toggle,
+  useSheetPresentation,
+} from "../components/kit";
 import { useMobileHaptics } from "../providers/mobile-haptics-provider";
 import { useMobileLocaleRuntime } from "../providers/mobile-locale-provider";
 import { useTheme } from "../providers/mobile-theme-provider";
@@ -278,6 +285,7 @@ export function MobileSecuritySettingsScreen({
   const { locale } = useMobileLocaleRuntime();
   const copy = mobileCopy[locale];
   const { selection } = useMobileHaptics();
+  const sheetPresentation = useSheetPresentation();
   const { apiClient, deviceIntegrityStatus, status } = useMobileAuth();
   const accountQuery = useMobileAccountSettingsQuery(apiClient, status === "signed-in");
   const changePassword = useMobileChangePasswordMutation(apiClient);
@@ -571,12 +579,19 @@ export function MobileSecuritySettingsScreen({
         accessibilityLabel={copy.securitySettingsChangePassword}
         onClose={closePasswordSheet}
         open={passwordSheetOpen}
-        snapPoint={480}
+        presentation={sheetPresentation}
+        sizing="content"
         testID="mobile-security-password-sheet"
       >
         <View style={styles.sheet}>
-          <Text style={styles.sheetTitle}>{copy.securitySettingsChangePassword}</Text>
-          <Text style={styles.sheetSubtitle}>{copy.securitySettingsPasswordRule}</Text>
+          <SheetHeader
+            closeAccessibilityLabel={copy.sheetCloseAction}
+            icon="key-outline"
+            onClose={closePasswordSheet}
+            subtitle={copy.securitySettingsPasswordRule}
+            testID="mobile-security-password-header"
+            title={copy.securitySettingsChangePassword}
+          />
           <Text style={styles.inputLabel}>{copy.securitySettingsCurrentPassword}</Text>
           <TextInput
             accessibilityLabel={copy.securitySettingsCurrentPassword}
@@ -626,13 +641,13 @@ export function MobileSecuritySettingsScreen({
         body={copy.securitySettingsSignOutConfirmDescription}
         busy={false}
         confirmLabel={copy.securitySettingsSignOut}
+        icon="log-out-outline"
         onCancel={() => setSignOutSheetOpen(false)}
         onConfirm={() => {
           setSignOutSheetOpen(false);
           onSignOut();
         }}
         open={signOutSheetOpen}
-        snapPoint={260}
         testID="mobile-security-sign-out-sheet"
         title={copy.securitySettingsSignOutConfirmTitle}
       />

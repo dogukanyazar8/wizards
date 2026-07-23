@@ -181,7 +181,11 @@ function MobileBottomTabs({
 
   return (
     <BottomTabs.Navigator
-      backBehavior="history"
+      // Tab visits are not history. With "history" the back key walked every
+      // tab the user had touched before it ever reached the launcher, which is
+      // not what Discord/WhatsApp do: back collapses to the home tab, and from
+      // the home tab it leaves the app.
+      backBehavior="initialRoute"
       initialRouteName="overview"
       screenOptions={{
         freezeOnBlur: true,

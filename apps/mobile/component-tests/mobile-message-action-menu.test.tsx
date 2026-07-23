@@ -1,7 +1,7 @@
 import React from "react";
 import { describe, expect, it, jest } from "@jest/globals";
 import { act, fireEvent } from "@testing-library/react-native";
-import { Alert, StyleSheet, Text } from "react-native";
+import { StyleSheet, Text } from "react-native";
 import { Easing, withTiming } from "react-native-reanimated";
 
 import { MOBILE_OVERLAY_CLOSE_DURATION_MS } from "../src/app/components/kit/overlay-surface";
@@ -116,24 +116,51 @@ describe("8a message action menu", () => {
     expect(onEdit).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps forward and pin as coming-soon placeholders until 8b/8c wire them", async () => {
-    const alert = jest.spyOn(Alert, "alert").mockImplementation(() => undefined);
-    const view = await renderMenu({});
-    await openMenu(view);
+  it("only offers forward and pin once the surface actually wires them", async () => {
+    const unwired = await renderMenu({});
+    await openMenu(unwired);
+    expect(unwired.queryByLabelText(copy.messageForwardAction)).toBeNull();
+    expect(unwired.queryByLabelText(copy.messagePinAction)).toBeNull();
 
-    await fireEvent.press(view.getByLabelText(copy.messageForwardAction));
-    expect(alert).toHaveBeenLastCalledWith(
-      copy.messageFeatureComingSoonTitle,
-      copy.messageForwardComingSoonDescription,
-    );
+    const onForward = jest.fn();
+    const onPin = jest.fn();
+    const wired = await renderMenu({ canModerate: true, onForward, onPin });
+    await openMenu(wired);
+    await fireEvent.press(wired.getByLabelText(copy.messageForwardAction));
+    expect(onForward).toHaveBeenCalledTimes(1);
 
+    await openMenu(wired);
+    await fireEvent.press(wired.getByLabelText(copy.messagePinAction));
+    expect(onPin).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps pin out of DM scope and delete out of a member's reach", async () => {
+    const dmView = await renderMenu({ canModerate: true, onPin: jest.fn(), scope: "dm" });
+    await openMenu(dmView);
+    expect(dmView.queryByLabelText(copy.messagePinAction)).toBeNull();
+
+    const memberView = await renderMenu({ onDelete: jest.fn() });
+    await openMenu(memberView);
+    expect(memberView.queryByLabelText(copy.messageDeleteAction)).toBeNull();
+
+    const moderatorView = await renderMenu({ canModerate: true, onDelete: jest.fn() });
+    await openMenu(moderatorView);
+    expect(moderatorView.getByLabelText(copy.messageDeleteAction)).toBeTruthy();
+  });
+
+  it("adds the reaction roster row only for a message that carries reactions", async () => {
+    const onOpenReactionDetails = jest.fn();
+    const empty = await renderMenu({
+      message: { ...baseMessage, reactions: [] },
+      onOpenReactionDetails,
+    });
+    await openMenu(empty);
+    expect(empty.queryByLabelText(copy.messageReactionDetailsAction)).toBeNull();
+
+    const view = await renderMenu({ onOpenReactionDetails });
     await openMenu(view);
-    await fireEvent.press(view.getByLabelText(copy.messagePinAction));
-    expect(alert).toHaveBeenLastCalledWith(
-      copy.messageFeatureComingSoonTitle,
-      copy.messagePinComingSoonDescription,
-    );
-    alert.mockRestore();
+    await fireEvent.press(view.getByLabelText(copy.messageReactionDetailsAction));
+    expect(onOpenReactionDetails).toHaveBeenCalledTimes(1);
   });
 
   it("replaces the action list for failed sends and hides the quick reaction bar", async () => {

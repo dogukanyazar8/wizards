@@ -10,6 +10,7 @@ import {
   getMobileMessageStreamItems,
   memo,
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -36,9 +37,19 @@ import { getActiveMobileLocale } from "../../locale/mobile-locale-preferences";
 import { MobileLinkPreviewCard } from "../../messages/mobile-link-preview-card";
 import { extractFirstHttpsUrl } from "../../messages/mobile-link-preview-client";
 import { MessageImageLightbox } from "./message-image-lightbox";
+import {
+  MessageRowLongPressProvider,
+  useMessageRowLongPress,
+} from "./message-row-long-press-context";
 import { mobileListLoadHandlers } from "../../performance/mobile-performance-metrics";
 import { useMobileHaptics } from "../providers/mobile-haptics-provider";
 import { MessageReactionDetailSheet } from "./message-reaction-detail-sheet";
+import { useMobileMentionRegistry } from "../mobile-mention-registry";
+import {
+  hasMobileSelfMention,
+  normalizeMobileMentionUsername,
+  parseMobileMentionSegments,
+} from "../mobile-mention";
 
 const MOBILE_SEARCH_RESULT_RENDER_LIMIT = 6;
 const MESSAGE_LIST_SKELETON_ROWS = [
@@ -62,7 +73,17 @@ export type MobileMessageActionTarget = {
 
 function MessageBodyText({ body, channel }: { readonly body: string; readonly channel: boolean }) {
   const styles = useMessagePrimitiveStyles();
-  const segments = body.split(/(@[\p{L}\p{N}_.-]+|https:\/\/[^\s]+)/gu);
+  // 10a: inside a server the roster decides which `@handle` is a real mention —
+  // the same rule the backend applies before it creates a MENTION notification.
+  // Outside one (DM) there is no roster, so every valid handle stays styled.
+  const mentionRegistry = useMobileMentionRegistry();
+  const selfUsername = mentionRegistry?.selfUsername
+    ? normalizeMobileMentionUsername(mentionRegistry.selfUsername)
+    : null;
+  const segments = useMemo(
+    () => parseMobileMentionSegments(body, mentionRegistry?.usernames),
+    [body, mentionRegistry?.usernames],
+  );
 
   return (
     <Text
@@ -71,21 +92,23 @@ function MessageBodyText({ body, channel }: { readonly body: string; readonly ch
     >
       {segments.map((segment, index) => (
         <Text
-          key={`${index}:${segment}`}
+          key={`${index}:${segment.value}`}
           onPress={
-            segment.startsWith("https://")
-              ? () => void Linking.openURL(segment).catch(() => undefined)
+            segment.type === "link"
+              ? () => void Linking.openURL(segment.value).catch(() => undefined)
               : undefined
           }
           style={
-            segment.startsWith("https://")
+            segment.type === "link"
               ? styles.messageLink
-              : segment.startsWith("@")
-                ? styles.messageMention
+              : segment.type === "mention"
+                ? segment.username === selfUsername
+                  ? [styles.messageMention, styles.messageMentionSelf]
+                  : styles.messageMention
                 : undefined
           }
         >
-          {segment}
+          {segment.value}
         </Text>
       ))}
     </Text>
@@ -310,7 +333,7 @@ export type MobileRenderableMessage = ChatMessage | MobileDMMessagesResponse["me
 
 export type MobileRenderableAttachment = MobileRenderableMessage["attachments"][number];
 
-function formatMobileAttachmentSize(size: number): string {
+export function formatMobileAttachmentSize(size: number): string {
   if (!Number.isFinite(size) || size <= 0) {
     return "";
   }
@@ -368,12 +391,21 @@ export function MessageDateSeparator({
 
 export function MessageAttachmentList({
   attachments,
+  authorLabel,
   own = false,
+  timeLabel,
 }: {
   attachments: readonly MobileRenderableAttachment[];
+  /** Sender shown in the lightbox chrome. */
+  authorLabel?: string | undefined;
   own?: boolean;
+  /** Already-formatted send time shown under the sender. */
+  timeLabel?: string | undefined;
 }) {
   const styles = useMessagePrimitiveStyles();
+  // The row's long press belongs to the row, but the image card is the touch
+  // responder over its own area, so it hands the gesture back deliberately.
+  const rowLongPress = useMessageRowLongPress();
   const [lightboxUri, setLightboxUri] = useState<string | null>(null);
   if (attachments.length === 0) {
     return null;
@@ -388,30 +420,19 @@ export function MessageAttachmentList({
 
         const previewUri = getMobileAttachmentPreviewUri(attachment);
         const sizeLabel = formatMobileAttachmentSize(attachment.size);
+        const descriptionLabel = [attachment.filename, attachment.contentType, sizeLabel]
+          .filter(Boolean)
+          .join(", ");
 
-        const attachmentCard = (
-          <View
-            key={attachment.id}
-            accessible
-            accessibilityLabel={[attachment.filename, attachment.contentType, sizeLabel]
-              .filter(Boolean)
-              .join(", ")}
-            style={styles.messageAttachmentCard}
-          >
+        const cardContent = (
+          <>
             {previewUri ? (
-              <Pressable
-                accessibilityLabel={copy.messageLightboxOpenAction}
-                accessibilityRole="button"
-                onPress={() => setLightboxUri(attachment.url || previewUri)}
-                testID={`mobile-message-image-${attachment.id}`}
-              >
-                <MobileCachedImage
-                  accessibilityIgnoresInvertColors
-                  importantForAccessibility="no"
-                  source={{ uri: previewUri }}
-                  style={styles.messageAttachmentImage}
-                />
-              </Pressable>
+              <MobileCachedImage
+                accessibilityIgnoresInvertColors
+                importantForAccessibility="no"
+                source={{ uri: previewUri }}
+                style={styles.messageAttachmentImage}
+              />
             ) : (
               <View style={styles.messageAttachmentIcon}>
                 <Icon name="document-attach-outline" size={22} tone="accent" />
@@ -425,10 +446,40 @@ export function MessageAttachmentList({
                 {[attachment.contentType, sizeLabel].filter(Boolean).join(" - ")}
               </Text>
             </View>
+          </>
+        );
+
+        // An image card opens the viewer from anywhere on it — the thumbnail,
+        // the filename and the gap between them are one target.
+        if (previewUri) {
+          return (
+            <Pressable
+              accessibilityLabel={[copy.messageLightboxOpenAction, descriptionLabel].join(", ")}
+              accessibilityRole="button"
+              delayLongPress={350}
+              key={attachment.id}
+              onPress={() => setLightboxUri(attachment.url || previewUri)}
+              style={styles.messageAttachmentCard}
+              testID={`mobile-message-image-${attachment.id}`}
+              {...(rowLongPress ? { onLongPress: rowLongPress } : {})}
+            >
+              {cardContent}
+            </Pressable>
+          );
+        }
+
+        const attachmentCard = (
+          <View
+            key={attachment.id}
+            accessible
+            accessibilityLabel={descriptionLabel}
+            style={styles.messageAttachmentCard}
+          >
+            {cardContent}
           </View>
         );
 
-        if (!previewUri && attachment.url) {
+        if (attachment.url) {
           return (
             <Pressable
               accessibilityLabel={attachment.filename}
@@ -436,6 +487,7 @@ export function MessageAttachmentList({
               key={attachment.id}
               onPress={() => void Linking.openURL(attachment.url!).catch(() => undefined)}
               testID={`mobile-message-attachment-${attachment.id}`}
+              {...(rowLongPress ? { delayLongPress: 350, onLongPress: rowLongPress } : {})}
             >
               {attachmentCard}
             </Pressable>
@@ -445,8 +497,10 @@ export function MessageAttachmentList({
         return attachmentCard;
       })}
       <MessageImageLightbox
+        authorLabel={authorLabel}
         onClose={() => setLightboxUri(null)}
         open={lightboxUri !== null}
+        timeLabel={timeLabel}
         uri={lightboxUri}
       />
     </View>
@@ -606,12 +660,13 @@ export function MessageStream({
 }
 
 export function MessagePreviewRow({
-  actionBarOpen = false,
+  canModerate = false,
   currentUserId,
   channelGroupContinuation = false,
   isHighlighted = false,
   isServerOwner = false,
   isReactionMutationPending = false,
+  menuOpen = false,
   mode = "conversation",
   message,
   onOpenThread,
@@ -622,18 +677,22 @@ export function MessagePreviewRow({
   onForwardMessage,
   onPinMessage,
   onReplyMessage,
+  onRequestEmojiPicker,
+  onRequestReactionDetails,
   onRetryFailedMessage,
-  onSetActionBar,
+  onSetMenuMessage,
   onToggleReaction,
   own = false,
 }: {
-  /** 8c: the channel list owns which row shows the floating action bar. */
-  actionBarOpen?: boolean;
+  /** 10e: MANAGE_MESSAGES holder — unlocks pin and deleting other people's messages. */
+  canModerate?: boolean;
   currentUserId?: string;
   channelGroupContinuation?: boolean;
   isHighlighted?: boolean;
   isServerOwner?: boolean;
   isReactionMutationPending?: boolean;
+  /** 10e: the channel list owns which row has the action menu open (message-id keyed). */
+  menuOpen?: boolean;
   mode?: "channel" | "conversation";
   message: MobileRenderableMessage;
   onOpenThread?(messageId: string): void;
@@ -644,8 +703,11 @@ export function MessagePreviewRow({
   onForwardMessage?(message: MobileMessageActionTarget): void;
   onPinMessage?(messageId: string, shouldPin: boolean): void;
   onReplyMessage?(message: MobileMessageActionTarget): void;
+  /** Reaction overlays are list-owned for the same reason the menu is (10d). */
+  onRequestEmojiPicker?(messageId: string): void;
+  onRequestReactionDetails?(messageId: string, emoji: string): void;
   onRetryFailedMessage?(messageId: string): void;
-  onSetActionBar?(messageId: string | null): void;
+  onSetMenuMessage?(messageId: string | null): void;
   onToggleReaction?(input: MobileMessageReactionToggleInput): void;
   own?: boolean;
 }) {
@@ -654,8 +716,16 @@ export function MessagePreviewRow({
   const haptics = useMobileHaptics();
   const isChannelMode = mode === "channel";
   const [isEmojiPickerOpen, setEmojiPickerOpen] = useState(false);
-  const [isMoreMenuOpen, setMoreMenuOpen] = useState(false);
+  const [isLocalMenuOpen, setLocalMenuOpen] = useState(false);
   const [reactionDetailEmoji, setReactionDetailEmoji] = useState<string | null>(null);
+  // A row is recycled while its overlay is up, so a list that offers to own
+  // these takes them; a standalone row (thread screen, tests) keeps them local.
+  const openEmojiPicker = onRequestEmojiPicker
+    ? () => onRequestEmojiPicker(message.id)
+    : () => setEmojiPickerOpen(true);
+  const openReactionDetails = onRequestReactionDetails
+    ? (emoji: string) => onRequestReactionDetails(message.id, emoji)
+    : setReactionDetailEmoji;
   const authorLabel = message.author.displayName ?? message.author.username;
   const body = getMobileMessageBodyPreview(message, {
     attachmentOnly: copy.dmAttachmentOnlyMessage,
@@ -664,7 +734,24 @@ export function MessagePreviewRow({
   const previewUrl = extractFirstHttpsUrl(message.content);
   const isFailed = message.deliveryStatus === "failed";
   const isSendPending = message.deliveryStatus === "sending";
-  const isChannelBarOpen = isChannelMode && actionBarOpen;
+  // 10a: a channel row that names you gets the Discord-style soft fill and left
+  // stripe. Only inside a server surface, where a roster is available.
+  const mentionRegistry = useMobileMentionRegistry();
+  const mentionsViewer =
+    isChannelMode && hasMobileSelfMention(message.content, mentionRegistry?.selfUsername ?? null);
+  // The channel list keys the open menu by message id so realtime list updates
+  // cannot drop it; standalone rows (thread screen) fall back to local state.
+  const isMenuOpen = onSetMenuMessage ? menuOpen : isLocalMenuOpen;
+  const openMenu = () => {
+    onSetMenuMessage ? onSetMenuMessage(message.id) : setLocalMenuOpen(true);
+  };
+  const closeMenu = () => {
+    onSetMenuMessage ? onSetMenuMessage(null) : setLocalMenuOpen(false);
+  };
+  const longPressRow = () => {
+    haptics.impact();
+    openMenu();
+  };
   const [replyLinePrefix = "", replyLineSuffix = ""] =
     copy.messageReplyToUserTemplate.split("{name}");
   const threadSummary =
@@ -675,20 +762,6 @@ export function MessagePreviewRow({
         formatMobileRelativeTime(threadSummary.lastReplyAt, getActiveMobileLocale()),
       )
     : null;
-
-  const toggleQuickReaction = (emoji: string) => {
-    if (!onToggleReaction) return;
-    onToggleReaction({
-      emoji,
-      messageId: message.id,
-      shouldReact: !message.reactions.some(
-        (reaction) =>
-          reaction.emoji === emoji &&
-          currentUserId !== undefined &&
-          reaction.userIds.includes(currentUserId),
-      ),
-    });
-  };
 
   const content = (
     <View
@@ -805,7 +878,12 @@ export function MessagePreviewRow({
           {message.editedAt ? (
             <Text style={styles.dmMessageTime}>{copy.messageEditedLabel}</Text>
           ) : null}
-          <MessageAttachmentList attachments={message.attachments} own={!isChannelMode && own} />
+          <MessageAttachmentList
+            attachments={message.attachments}
+            authorLabel={authorLabel}
+            own={!isChannelMode && own}
+            timeLabel={formatMobileDisplayTime(message.createdAt)}
+          />
           {isFailed ? (
             <View style={styles.messageFailedRow} testID={`mobile-message-failed-${message.id}`}>
               <Icon name="alert-circle-outline" size={14} tone="danger" />
@@ -826,7 +904,7 @@ export function MessagePreviewRow({
             <MessageReactionList
               messageId={message.id}
               reactions={message.reactions}
-              onLongPressReaction={setReactionDetailEmoji}
+              onLongPressReaction={openReactionDetails}
               {...(currentUserId ? { currentUserId } : {})}
               {...(onToggleReaction ? { onToggleReaction } : {})}
             />
@@ -836,10 +914,10 @@ export function MessagePreviewRow({
           <MessageReactionList
             messageId={message.id}
             reactions={message.reactions}
-            onLongPressReaction={setReactionDetailEmoji}
+            onLongPressReaction={openReactionDetails}
             variant="channel"
             {...(currentUserId ? { currentUserId } : {})}
-            {...(onToggleReaction ? { onAddReaction: () => setEmojiPickerOpen(true) } : {})}
+            {...(onToggleReaction ? { onAddReaction: openEmojiPicker } : {})}
             {...(onToggleReaction ? { onToggleReaction } : {})}
           />
         ) : null}
@@ -850,7 +928,7 @@ export function MessagePreviewRow({
               onPress={() => onOpenThread(message.id)}
               style={({ pressed }) => [
                 styles.messageThreadCard,
-                pressed && styles.channelActionBarButtonPressed,
+                pressed && styles.messageRowCardPressed,
               ]}
               testID={`mobile-channel-message-thread-${message.id}`}
             >
@@ -905,7 +983,9 @@ export function MessagePreviewRow({
     </View>
   );
 
-  const emojiPicker = onToggleReaction ? (
+  // Only rendered when this row still owns the trigger; a list-owned row asks
+  // the list, which renders `MessageReactionOverlays` outside the recycler.
+  const emojiPicker = onToggleReaction && !onRequestEmojiPicker ? (
     <MessageEmojiPicker
       isOpen={isEmojiPickerOpen}
       onClose={() => setEmojiPickerOpen(false)}
@@ -923,7 +1003,9 @@ export function MessagePreviewRow({
       }
     />
   ) : null;
-  const reactionDetailSheet = currentUserId && reactionDetailEmoji !== null ? (
+  const reactionDetailSheet = currentUserId &&
+  !onRequestReactionDetails &&
+  reactionDetailEmoji !== null ? (
     <MessageReactionDetailSheet
       currentUserId={currentUserId}
       initialEmoji={reactionDetailEmoji}
@@ -936,160 +1018,50 @@ export function MessagePreviewRow({
   ) : null;
 
   if (isChannelMode) {
-    const quickReactionLabel = (emoji: string) => {
-      const reacted = message.reactions.some(
-        (reaction) =>
-          reaction.emoji === emoji &&
-          currentUserId !== undefined &&
-          reaction.userIds.includes(currentUserId),
-      );
-      return (
-        reacted ? copy.messageReactionRemoveAction : copy.messageReactionAddAction
-      ).replace("{emoji}", emoji);
-    };
-    const closeBarThen = (action: () => void) => {
-      haptics.selection();
-      onSetActionBar?.(null);
-      action();
-    };
-    const actionBarButtonStyle = ({ pressed }: { pressed: boolean }) => [
-      styles.channelActionBarButton,
-      pressed && styles.channelActionBarButtonPressed,
-    ];
-
     return (
       <>
         <Pressable
           accessibilityLabel={copy.messageReactionMenuLabel}
           accessibilityRole="button"
           accessibilityState={{ disabled: isReactionMutationPending }}
+          {...(mentionsViewer ? { accessibilityHint: copy.messageMentionsYouLabel } : {})}
           delayLongPress={350}
           disabled={isReactionMutationPending}
-          onLongPress={() => {
-            haptics.impact();
-            if (isFailed) {
-              setMoreMenuOpen(true);
-              return;
-            }
-            onSetActionBar?.(message.id);
-          }}
-          onPress={() => onSetActionBar?.(null)}
-          style={(isChannelBarOpen || isHighlighted) && styles.messagePreviewRowChannelActive}
+          onLongPress={longPressRow}
+          style={[
+            mentionsViewer && styles.messagePreviewRowChannelMention,
+            (isMenuOpen || isHighlighted) && styles.messagePreviewRowChannelActive,
+          ]}
           testID={`mobile-message-actions-${message.id}-trigger`}
         >
-          {isChannelBarOpen ? (
-            <View
-              style={styles.channelActionBar}
-              testID={`mobile-channel-action-bar-${message.id}`}
-            >
-              {onToggleReaction
-                ? (["👍", "❤️"] as const).map((emoji) => (
-                    <Pressable
-                      accessibilityLabel={quickReactionLabel(emoji)}
-                      accessibilityRole="button"
-                      hitSlop={6}
-                      key={emoji}
-                      onPress={() => closeBarThen(() => toggleQuickReaction(emoji))}
-                      style={actionBarButtonStyle}
-                      testID={`mobile-channel-action-react-${message.id}-${emoji}`}
-                    >
-                      <Text style={styles.channelActionBarEmoji}>{emoji}</Text>
-                    </Pressable>
-                  ))
-                : null}
-              {onToggleReaction ? (
-                <Pressable
-                  accessibilityLabel={copy.messageEmojiPickerAction}
-                  accessibilityRole="button"
-                  hitSlop={6}
-                  onPress={() => closeBarThen(() => setEmojiPickerOpen(true))}
-                  style={actionBarButtonStyle}
-                  testID={`mobile-channel-action-emoji-${message.id}`}
-                >
-                  <Ionicons name="happy-outline" size={16} color={theme.text.visualSecondary} />
-                </Pressable>
-              ) : null}
-              {onReplyMessage ? (
-                <Pressable
-                  accessibilityLabel={copy.messageReplyAction}
-                  accessibilityRole="button"
-                  hitSlop={6}
-                  onPress={() =>
-                    closeBarThen(() =>
-                      onReplyMessage({ authorLabel, content: message.content, id: message.id }),
-                    )
-                  }
-                  style={actionBarButtonStyle}
-                  testID={`mobile-channel-action-reply-${message.id}`}
-                >
-                  <Ionicons name="arrow-undo-outline" size={16} color={theme.text.visualSecondary} />
-                </Pressable>
-              ) : null}
-              {onOpenThread ? (
-                <Pressable
-                  accessibilityLabel={copy.messageThreadStartAction}
-                  accessibilityRole="button"
-                  hitSlop={6}
-                  onPress={() => closeBarThen(() => onOpenThread(message.id))}
-                  style={actionBarButtonStyle}
-                  testID={`mobile-channel-action-thread-${message.id}`}
-                >
-                  <Ionicons name="chatbubbles-outline" size={16} color={theme.text.visualSecondary} />
-                </Pressable>
-              ) : null}
-              <Pressable
-                accessibilityLabel={copy.messageMoreActionsAction}
-                accessibilityRole="button"
-                hitSlop={6}
-                onPress={() => closeBarThen(() => setMoreMenuOpen(true))}
-                style={actionBarButtonStyle}
-                testID={`mobile-channel-action-more-${message.id}`}
-              >
-                <Ionicons name="ellipsis-horizontal" size={16} color={theme.text.visualSecondary} />
-              </Pressable>
-            </View>
-          ) : null}
-          {content}
+          <MessageRowLongPressProvider onLongPress={longPressRow}>
+            {content}
+          </MessageRowLongPressProvider>
         </Pressable>
-        <MessageActionMenu
-          authorAvatarUrl={message.author.avatarUrl}
-          authorId={message.author.id}
-          authorLabel={authorLabel}
-          {...(currentUserId !== undefined ? { currentUserId } : {})}
-          message={message}
-          onClose={() => setMoreMenuOpen(false)}
-          {...(own && onDeleteMessage ? { onDelete: () => onDeleteMessage(message.id) } : {})}
-          {...(onDiscardFailedMessage
-            ? { onDiscardFailed: () => onDiscardFailedMessage(message.id) }
-            : {})}
-          {...(own && onEditMessage
-            ? { onEdit: () => onEditMessage({ content: message.content, id: message.id }) }
-            : {})}
-          {...(onForwardMessage
-            ? {
-                onForward: () =>
-                  onForwardMessage({ authorLabel, content: message.content, id: message.id }),
-              }
-            : {})}
-          {...(onPinMessage
-            ? {
-                onPin: () =>
-                  onPinMessage(
-                    message.id,
-                    !("isPinned" in message && message.isPinned === true),
-                  ),
-              }
-            : {})}
-          {...(onRetryFailedMessage
-            ? { onRetryFailedSend: () => onRetryFailedMessage(message.id) }
-            : {})}
-          open={isMoreMenuOpen}
-          own={own}
-          previewText={body}
-          scope="channel"
-          showQuickBar={false}
-          testID={`mobile-message-actions-${message.id}`}
-        />
+        {onSetMenuMessage ? null : (
+          <ChannelMessageActionMenu
+            canModerate={canModerate}
+            {...(currentUserId !== undefined ? { currentUserId } : {})}
+            message={message}
+            onClose={closeMenu}
+            onOpenEmojiPicker={openEmojiPicker}
+            onOpenReactionDetails={() => {
+              const emoji = message.reactions[0]?.emoji;
+              if (emoji !== undefined) openReactionDetails(emoji);
+            }}
+            open={isMenuOpen}
+            own={own}
+            {...(onDeleteMessage ? { onDeleteMessage } : {})}
+            {...(onDiscardFailedMessage ? { onDiscardFailedMessage } : {})}
+            {...(onEditMessage ? { onEditMessage } : {})}
+            {...(onForwardMessage ? { onForwardMessage } : {})}
+            {...(onOpenThread ? { onOpenThread } : {})}
+            {...(onPinMessage ? { onPinMessage } : {})}
+            {...(onReplyMessage ? { onReplyMessage } : {})}
+            {...(onRetryFailedMessage ? { onRetryFailedMessage } : {})}
+            {...(onToggleReaction ? { onToggleReaction } : {})}
+          />
+        )}
         {emojiPicker}
         {reactionDetailSheet}
       </>
@@ -1118,7 +1090,15 @@ export function MessagePreviewRow({
                 onForwardMessage({ authorLabel, content: message.content, id: message.id }),
             }
           : {})}
-        {...(onToggleReaction ? { onOpenEmojiPicker: () => setEmojiPickerOpen(true) } : {})}
+        {...(onToggleReaction ? { onOpenEmojiPicker: openEmojiPicker } : {})}
+        {...(currentUserId !== undefined && message.reactions.length > 0
+          ? {
+              onOpenReactionDetails: () => {
+                const emoji = message.reactions[0]?.emoji;
+                if (emoji !== undefined) openReactionDetails(emoji);
+              },
+            }
+          : {})}
         {...(onReplyMessage
           ? {
               onReply: () =>
@@ -1139,6 +1119,299 @@ export function MessagePreviewRow({
       </MessageActionMenu>
       {emojiPicker}
       {reactionDetailSheet}
+    </>
+  );
+}
+
+type ChannelMessageActionHandlers = {
+  onDeleteMessage?(messageId: string): void;
+  onDiscardFailedMessage?(messageId: string): void;
+  onEditMessage?(message: MobileMessageActionTarget): void;
+  onForwardMessage?(message: MobileMessageActionTarget): void;
+  onOpenThread?(messageId: string): void;
+  onPinMessage?(messageId: string, shouldPin: boolean): void;
+  onReplyMessage?(message: MobileMessageActionTarget): void;
+  onRetryFailedMessage?(messageId: string): void;
+  onToggleReaction?(input: MobileMessageReactionToggleInput): void;
+};
+
+/** The channel menu without its trigger: the row long-presses, this renders. */
+function ChannelMessageActionMenu({
+  canModerate = false,
+  currentUserId,
+  message,
+  onClose,
+  onDeleteMessage,
+  onDiscardFailedMessage,
+  onEditMessage,
+  onForwardMessage,
+  onOpenEmojiPicker,
+  onOpenReactionDetails,
+  onOpenThread,
+  onPinMessage,
+  onReplyMessage,
+  onRetryFailedMessage,
+  onToggleReaction,
+  open,
+  own,
+}: ChannelMessageActionHandlers & {
+  canModerate?: boolean;
+  currentUserId?: string;
+  message: MobileRenderableMessage;
+  onClose(): void;
+  onOpenEmojiPicker(): void;
+  onOpenReactionDetails(): void;
+  open: boolean;
+  own: boolean;
+}) {
+  const authorLabel = message.author.displayName ?? message.author.username;
+  const body = getMobileMessageBodyPreview(message, {
+    attachmentOnly: copy.dmAttachmentOnlyMessage,
+    deleted: copy.dmDeletedMessage,
+  });
+
+  return (
+    <MessageActionMenu
+      authorAvatarUrl={message.author.avatarUrl}
+      authorId={message.author.id}
+      authorLabel={authorLabel}
+      canModerate={canModerate}
+      {...(currentUserId !== undefined ? { currentUserId } : {})}
+      message={message}
+      onClose={onClose}
+      {...(onDeleteMessage ? { onDelete: () => onDeleteMessage(message.id) } : {})}
+      {...(onDiscardFailedMessage
+        ? { onDiscardFailed: () => onDiscardFailedMessage(message.id) }
+        : {})}
+      {...(onEditMessage
+        ? { onEdit: () => onEditMessage({ content: message.content, id: message.id }) }
+        : {})}
+      {...(onForwardMessage
+        ? {
+            onForward: () =>
+              onForwardMessage({ authorLabel, content: message.content, id: message.id }),
+          }
+        : {})}
+      {...(onToggleReaction ? { onOpenEmojiPicker } : {})}
+      {...(currentUserId !== undefined && message.reactions.length > 0
+        ? { onOpenReactionDetails }
+        : {})}
+      {...(onPinMessage
+        ? {
+            onPin: () =>
+              onPinMessage(message.id, !("isPinned" in message && message.isPinned === true)),
+          }
+        : {})}
+      {...(onReplyMessage
+        ? {
+            onReply: () =>
+              onReplyMessage({ authorLabel, content: message.content, id: message.id }),
+          }
+        : {})}
+      {...(onRetryFailedMessage
+        ? { onRetryFailedSend: () => onRetryFailedMessage(message.id) }
+        : {})}
+      {...(onOpenThread ? { onStartThread: () => onOpenThread(message.id) } : {})}
+      {...(onToggleReaction ? { onToggleReaction } : {})}
+      open={open}
+      own={own}
+      previewText={body}
+      scope="channel"
+      testID={`mobile-message-actions-${message.id}`}
+    />
+  );
+}
+
+/**
+ * 10d: the channel menu and the overlays it opens, rendered by the list instead
+ * of the row. FlashList unmounts a row once it leaves the render window — an
+ * autoscroll to a burst of incoming messages is enough — and an overlay owned by
+ * that row goes with it.
+ */
+export function ChannelMessageOverlays({
+  canModerate = false,
+  currentUserId,
+  message,
+  onClose,
+  open,
+  own,
+  ...handlers
+}: ChannelMessageActionHandlers & {
+  canModerate?: boolean;
+  currentUserId?: string;
+  message: MobileRenderableMessage;
+  onClose(): void;
+  open: boolean;
+  own: boolean;
+}) {
+  const [isEmojiPickerOpen, setEmojiPickerOpen] = useState(false);
+  const [reactionDetailEmoji, setReactionDetailEmoji] = useState<string | null>(null);
+  const { onToggleReaction } = handlers;
+
+  return (
+    <>
+      <ChannelMessageActionMenu
+        canModerate={canModerate}
+        {...(currentUserId !== undefined ? { currentUserId } : {})}
+        message={message}
+        onClose={onClose}
+        onOpenEmojiPicker={() => setEmojiPickerOpen(true)}
+        onOpenReactionDetails={() => setReactionDetailEmoji(message.reactions[0]?.emoji ?? null)}
+        open={open}
+        own={own}
+        {...handlers}
+      />
+      {onToggleReaction ? (
+        <MessageEmojiPicker
+          isOpen={isEmojiPickerOpen}
+          onClose={() => setEmojiPickerOpen(false)}
+          onSelect={(emoji) =>
+            onToggleReaction({
+              emoji,
+              messageId: message.id,
+              shouldReact: !message.reactions.some(
+                (reaction) =>
+                  reaction.emoji === emoji &&
+                  currentUserId !== undefined &&
+                  reaction.userIds.includes(currentUserId),
+              ),
+            })
+          }
+        />
+      ) : null}
+      {currentUserId !== undefined && reactionDetailEmoji !== null ? (
+        <MessageReactionDetailSheet
+          currentUserId={currentUserId}
+          initialEmoji={reactionDetailEmoji}
+          messageId={message.id}
+          onClose={() => setReactionDetailEmoji(null)}
+          open
+          reactions={message.reactions}
+          {...(onToggleReaction ? { onRemoveOwnReaction: onToggleReaction } : {})}
+        />
+      ) : null}
+    </>
+  );
+}
+
+/**
+ * Which message has a reaction overlay up, and which of the two it is. `open`
+ * stays false for one exit animation before the entry is dropped, the same way
+ * the action menu is tracked.
+ */
+export type MobileMessageReactionOverlayState = {
+  /** The reaction the detail sheet opens on; unused by the picker. */
+  readonly emoji: string | null;
+  readonly id: string;
+  readonly open: boolean;
+  readonly view: "details" | "picker";
+};
+
+/**
+ * List-level owner for the overlays a *row* can raise: the reaction chips'
+ * long-press detail sheet and the "+" chip's emoji picker.
+ *
+ * The action menu was moved out of the row in 10d because FlashList recycles a
+ * row the moment it leaves the render window and takes the row's overlays with
+ * it. These two have the same trigger surface and the same fix — a burst of
+ * incoming messages must not close the sheet the user is reading.
+ */
+export function useMobileMessageReactionOverlay<T extends { readonly id: string }>({
+  isScreenFocused,
+  messages,
+}: {
+  readonly isScreenFocused: boolean;
+  readonly messages: readonly T[];
+}) {
+  const [overlay, setOverlay] = useState<MobileMessageReactionOverlayState | null>(null);
+  const message = useMemo(
+    () => (overlay ? (messages.find((item) => item.id === overlay.id) ?? null) : null),
+    [messages, overlay],
+  );
+
+  // A deleted message takes its overlay with it; every other list update — a
+  // new message, a reaction, a refetch — leaves it alone.
+  useEffect(() => {
+    if (overlay !== null && message === null) {
+      setOverlay(null);
+    }
+  }, [message, overlay]);
+  // Leaving the screen closes it too.
+  useEffect(() => {
+    if (!isScreenFocused) {
+      setOverlay(null);
+    }
+  }, [isScreenFocused]);
+
+  const closeReactionOverlay = useCallback(
+    () => setOverlay((current) => (current ? { ...current, open: false } : null)),
+    [],
+  );
+  const requestEmojiPicker = useCallback(
+    (messageId: string) =>
+      setOverlay({ emoji: null, id: messageId, open: true, view: "picker" }),
+    [],
+  );
+  const requestReactionDetails = useCallback(
+    (messageId: string, emoji: string) =>
+      setOverlay({ emoji, id: messageId, open: true, view: "details" }),
+    [],
+  );
+
+  return {
+    closeReactionOverlay,
+    reactionOverlay: overlay,
+    reactionOverlayMessage: message,
+    requestEmojiPicker,
+    requestReactionDetails,
+  };
+}
+
+/** Renders whichever reaction overlay `useMobileMessageReactionOverlay` holds. */
+export function MessageReactionOverlays({
+  currentUserId,
+  message,
+  onClose,
+  onToggleReaction,
+  overlay,
+}: {
+  readonly currentUserId?: string;
+  readonly message: MobileRenderableMessage;
+  readonly onClose: () => void;
+  readonly onToggleReaction?: (input: MobileMessageReactionToggleInput) => void;
+  readonly overlay: MobileMessageReactionOverlayState;
+}) {
+  return (
+    <>
+      {onToggleReaction ? (
+        <MessageEmojiPicker
+          isOpen={overlay.open && overlay.view === "picker"}
+          onClose={onClose}
+          onSelect={(emoji) =>
+            onToggleReaction({
+              emoji,
+              messageId: message.id,
+              shouldReact: !message.reactions.some(
+                (reaction) =>
+                  reaction.emoji === emoji &&
+                  currentUserId !== undefined &&
+                  reaction.userIds.includes(currentUserId),
+              ),
+            })
+          }
+        />
+      ) : null}
+      {currentUserId !== undefined && overlay.view === "details" && overlay.emoji !== null ? (
+        <MessageReactionDetailSheet
+          currentUserId={currentUserId}
+          initialEmoji={overlay.emoji}
+          messageId={message.id}
+          onClose={onClose}
+          open={overlay.open}
+          reactions={message.reactions}
+          {...(onToggleReaction ? { onRemoveOwnReaction: onToggleReaction } : {})}
+        />
+      ) : null}
     </>
   );
 }

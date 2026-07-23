@@ -7,7 +7,16 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { getMobileAccountProfileCompletion } from "../account/mobile-account-settings-client";
 import { useMobileAccountSettingsQuery } from "../account/mobile-account-settings-query";
-import { BottomSheet, Button, Skeleton } from "../app/components/kit";
+import {
+  BottomSheet,
+  Button,
+  OptionSheet,
+  SheetHeader,
+  Skeleton,
+  useSheetPresentation,
+  type SheetIconName,
+  type SheetTone,
+} from "../app/components/kit";
 import { MobileCachedImage } from "../app/components/mobile-cached-image";
 import { useToast } from "../app/components/kit/toast";
 import { useMobileLocaleRuntime } from "../app/providers/mobile-locale-provider";
@@ -51,6 +60,32 @@ function getPresenceLabel(locale: MobileLocale, presence: string | null): string
   }
 }
 
+function getPresenceIcon(presence: MobileFriendPresenceStatus): SheetIconName {
+  switch (presence) {
+    case "ONLINE":
+      return "ellipse";
+    case "IDLE":
+      return "moon-outline";
+    case "DND":
+      return "remove-circle-outline";
+    default:
+      return "ellipse-outline";
+  }
+}
+
+function getPresenceTone(presence: MobileFriendPresenceStatus): SheetTone {
+  switch (presence) {
+    case "ONLINE":
+      return "success";
+    case "IDLE":
+      return "warning";
+    case "DND":
+      return "danger";
+    default:
+      return "neutral";
+  }
+}
+
 function getFieldLimit(field: ProfileEditorField): number {
   switch (field) {
     case "bio":
@@ -77,6 +112,7 @@ export function MobileProfileEditScreen({
   const copy = mobileCopy[locale];
   const styles = useMobileProfileEditStyles();
   const theme = useTheme();
+  const sheetPresentation = useSheetPresentation();
   const queryClient = useQueryClient();
   const { showToast } = useToast();
 
@@ -537,12 +573,19 @@ export function MobileProfileEditScreen({
         accessibilityLabel={editorTitle}
         onClose={() => setEditorField(null)}
         open={editorField !== null}
-        snapPoint={editorField === "bio" ? 420 : 320}
+        presentation={sheetPresentation}
+        sizing="content"
         testID="mobile-profile-edit-sheet"
       >
         <View style={styles.sheet}>
-          <Text style={styles.sheetTitle}>{editorTitle}</Text>
-          <Text style={styles.sheetHint}>{editorHint}</Text>
+          <SheetHeader
+            closeAccessibilityLabel={copy.sheetCloseAction}
+            icon="create-outline"
+            onClose={() => setEditorField(null)}
+            subtitle={editorHint}
+            testID="mobile-profile-edit-sheet-header"
+            title={editorTitle}
+          />
           <TextInput
             accessibilityLabel={editorTitle}
             autoCapitalize={editorField === "username" ? "none" : "sentences"}
@@ -581,48 +624,25 @@ export function MobileProfileEditScreen({
         </View>
       </BottomSheet>
 
-      <BottomSheet
-        accessibilityLabel={copy.profileEditPresence}
+      <OptionSheet<MobileFriendPresenceStatus>
+        closeAccessibilityLabel={copy.sheetCloseAction}
+        icon="ellipse"
         onClose={() => setPresenceSheetOpen(false)}
+        onSelect={(option) => void selectPresence(option)}
         open={isPresenceSheetOpen}
-        snapPoint={320}
-        testID="mobile-profile-edit-presence-sheet"
-      >
-        <View style={styles.sheet}>
-          <Text style={styles.sheetTitle}>{copy.profileEditPresence}</Text>
-          {PRESENCE_OPTIONS.map((option) => (
-            <Pressable
-              accessibilityLabel={getPresenceLabel(locale, option)}
-              accessibilityRole="button"
-              accessibilityState={{ selected: presence === option }}
-              key={option}
-              onPress={() => void selectPresence(option)}
-              style={({ pressed }) => [styles.presenceOption, pressed && styles.pressed]}
-              testID={`mobile-profile-edit-presence-${option.toLowerCase()}`}
-            >
-              <View
-                style={[
-                  styles.presenceDot,
-                  {
-                    backgroundColor:
-                      option === "ONLINE"
-                        ? theme.status.success
-                        : option === "IDLE"
-                          ? theme.status.warning
-                          : option === "DND"
-                            ? theme.status.danger
-                            : theme.text.soft,
-                  },
-                ]}
-              />
-              <Text style={styles.presenceLabel}>{getPresenceLabel(locale, option)}</Text>
-              {presence === option ? (
-                <Ionicons color={theme.accent.strong} name="checkmark" size={18} />
-              ) : null}
-            </Pressable>
-          ))}
-        </View>
-      </BottomSheet>
+        optionTestID={(option) => option.toLowerCase()}
+        options={PRESENCE_OPTIONS.map((option) => ({
+          icon: getPresenceIcon(option),
+          label: getPresenceLabel(locale, option),
+          tone: getPresenceTone(option),
+          value: option,
+        }))}
+        selectedValue={
+          PRESENCE_OPTIONS.find((option) => option === presence) ?? null
+        }
+        testID="mobile-profile-edit-presence"
+        title={copy.profileEditPresence}
+      />
     </ScrollView>
   );
 }

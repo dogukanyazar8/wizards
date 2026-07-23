@@ -121,20 +121,8 @@ export const createMobileNotificationSettingsStyles = (theme: MobileTheme) =>
       lineHeight: 17,
       minWidth: 0,
     },
-    sheet: { flex: 1, gap: 4, minWidth: 0 },
-    sheetTitle: {
-      color: theme.text.primary,
-      fontFamily: theme.typography.fontFamilyExtraBold,
-      fontSize: 18,
-    },
-    sheetSubtitle: {
-      color: theme.text.muted,
-      fontFamily: theme.typography.fontFamilyBold,
-      fontSize: 12.5,
-      lineHeight: 17,
-      marginBottom: 8,
-    },
-    sheetScroll: { flex: 1, minWidth: 0 },
+    /** Content-sized sheets own their height, so they must not claim the panel's flex. */
+    sheetContent: { gap: 14, minWidth: 0 },
     optionRow: {
       alignItems: "center",
       borderRadius: 16,

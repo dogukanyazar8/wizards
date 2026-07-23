@@ -15,6 +15,7 @@ export * from "./overlay-host";
 export * from "./overlay-registry";
 export * from "./overlay-scoped-contexts";
 export * from "./overlay-surface";
+export * from "./sheet-primitives";
 export * from "./skeleton";
 export * from "./toast";
 export * from "./toggle";

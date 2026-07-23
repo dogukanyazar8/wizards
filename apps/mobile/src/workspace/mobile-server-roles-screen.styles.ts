@@ -119,7 +119,6 @@ export const createMobileServerRolesStyles = (theme: MobileTheme) =>
 
     // Create-role sheet
     sheet: { gap: 14 },
-    sheetTitle: { ...theme.typography.title, color: theme.text.primary },
     sheetLabel: {
       color: theme.text.visualFaint,
       fontFamily: theme.typography.fontFamilyBold,

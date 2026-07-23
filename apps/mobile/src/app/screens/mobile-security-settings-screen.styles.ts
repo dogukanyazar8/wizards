@@ -193,18 +193,7 @@ export const createMobileSecuritySettingsStyles = (theme: MobileTheme) =>
       fontFamily: theme.typography.fontFamilyBold,
       fontSize: 11,
     },
-    sheet: { gap: 10, minWidth: 0 },
-    sheetTitle: {
-      color: theme.text.primary,
-      fontFamily: theme.typography.fontFamilyExtraBold,
-      fontSize: 18,
-    },
-    sheetSubtitle: {
-      color: theme.text.muted,
-      fontFamily: theme.typography.fontFamily,
-      fontSize: 12.5,
-      lineHeight: 17,
-    },
+    sheet: { gap: 12, minWidth: 0 },
     inputLabel: {
       color: theme.text.soft,
       fontFamily: theme.typography.fontFamilyBold,

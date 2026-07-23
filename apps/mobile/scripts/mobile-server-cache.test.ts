@@ -8,6 +8,7 @@ import type {
 
 import type { MobileApiClient } from "../src/api/mobile-api-client";
 import { mobileQueryKeys } from "../src/query/mobile-query-keys";
+import { getMobileWorkspaceQueryOptions } from "../src/query/mobile-workspace-query";
 import {
   confirmMobileServerIconPersisted,
   patchMobileServerIconCaches,
@@ -19,6 +20,7 @@ const capabilities = {
   canKickMembers: false,
   canManageChannels: false,
   canManageInvites: false,
+  canManageMessages: false,
   canManageRoles: false,
   canManageServer: true,
   canUploadServerIcon: true,
@@ -178,6 +180,55 @@ describe("mobile server icon cache", () => {
       }),
       false,
     );
+    assert.equal(requestedPaths.length, 1);
+  });
+
+  it("confirms the icon while a stale workspace refetch is still in flight", async () => {
+    const queryClient = new QueryClient();
+    const claimedIconUrl = "https://cdn.example.test/server-1-new.png";
+    const staleWorkspace = createWorkspace("server-1");
+    const claimedWorkspace = {
+      ...staleWorkspace,
+      detail: {
+        ...staleWorkspace.detail,
+        server: { ...staleWorkspace.detail.server, iconUrl: claimedIconUrl },
+      },
+    };
+
+    // Returning from the OS image picker refocuses the app, so TanStack starts a
+    // workspace refetch that left the device before the claim committed. It is still
+    // in flight when the upload finishes and it still carries the previous icon.
+    const staleRefetchClient = {
+      requestJson: async () => {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        return staleWorkspace;
+      },
+    } as unknown as MobileApiClient;
+    const staleRefetch = queryClient.fetchQuery({
+      ...getMobileWorkspaceQueryOptions(staleRefetchClient, "server-1"),
+      staleTime: 0,
+    });
+
+    patchMobileServerIconCaches({ iconUrl: claimedIconUrl, queryClient, serverId: "server-1" });
+
+    const requestedPaths: string[] = [];
+    const client = {
+      requestJson: async (path: string) => {
+        requestedPaths.push(path);
+        return claimedWorkspace;
+      },
+    } as unknown as MobileApiClient;
+
+    const confirmed = await confirmMobileServerIconPersisted({
+      client,
+      iconUrl: claimedIconUrl,
+      queryClient,
+      serverId: "server-1",
+    });
+
+    await staleRefetch;
+
+    assert.equal(confirmed, true);
     assert.equal(requestedPaths.length, 1);
   });
 

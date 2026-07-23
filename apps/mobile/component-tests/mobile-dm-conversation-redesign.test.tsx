@@ -68,12 +68,12 @@ jest.mock("react-native-gesture-handler", () => {
   };
 });
 
-jest.mock("../src/app/components/kit", () => {
+// Stubbed at the module the kit barrel and the sheet primitives both import, so
+// every sheet in the composer renders inline instead of behind a modal surface.
+jest.mock("../src/app/components/kit/bottom-sheet", () => {
   const ReactRuntime = require("react");
   const { View } = require("react-native");
-  const actual = jest.requireActual("../src/app/components/kit");
   return {
-    ...actual,
     BottomSheet: ({
       children,
       open,
@@ -408,7 +408,7 @@ describe("4a DM conversation redesign", () => {
     await fireEvent.changeText(view.getByTestId("mobile-dm-composer-input"), "Gerçek mesaj");
     expect(await view.findByTestId("mobile-dm-send-button")).toBeTruthy();
     await fireEvent.press(view.getByTestId("mobile-dm-send-button"));
-    expect(onSend).toHaveBeenCalledWith("Gerçek mesaj", undefined);
+    expect(onSend).toHaveBeenCalledWith("Gerçek mesaj", undefined, undefined);
 
     await fireEvent.press(view.getByTestId("mobile-dm-attach-button"));
     expect(view.getByTestId("mobile-dm-attachment-picker-panel")).toBeTruthy();

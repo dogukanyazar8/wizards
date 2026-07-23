@@ -158,8 +158,62 @@ test("voice room is a protected root route rather than a bottom tab", () => {
   assert.match(navigationRef, /getMobileVoiceRoomRouteContext/);
   assert.match(containers, /hardwareBackPress/);
   assert.match(containers, /isVoiceSessionActive/);
-  assert.match(containers, /onMinimize=\{minimizeVoiceRoom\}/);
+  assert.match(containers, /onMinimize=\{dismissVoiceRoomScreen\}/);
   assert.match(containers, /navigation\.navigate\("ChannelChat", \{ channelId: room\.channelId, serverId: room\.serverId \}\)/);
+});
+
+test("back navigation never stacks a duplicate of a screen that is already open", () => {
+  const containers = read("../src/app/screens/mobile-screen-containers.tsx");
+  const navigationRef = read("../src/navigation/mobile-navigation-ref.ts");
+  const navigator = read("../src/navigation/mobile-navigator.tsx");
+  const linking = read("../src/navigation/mobile-linking.ts");
+
+  // Tab visits are not back history: back collapses to the home tab, then exits.
+  assert.match(navigator, /backBehavior="initialRoute"/);
+  assert.doesNotMatch(navigator, /backBehavior="history"/);
+  // freezeOnBlur and lazy stay: the back fix is not allowed to cost the tab
+  // navigator its mount and render budget.
+  assert.match(navigator, /freezeOnBlur:\s*true/);
+  assert.match(navigator, /lazy:\s*true/);
+
+  // A cold-start deep link puts MainTabs under the detail screen, so back stays
+  // inside the app instead of quitting it.
+  assert.match(linking, /initialRouteName:\s*"MainTabs"/);
+  assert.match(linking, /initialRouteName:\s*"overview"/);
+
+  // Notification taps and deep links pop to an open instance instead of pushing
+  // a second one, and every intent in the union is actually routed.
+  assert.match(navigationRef, /const ROUTE_INTENT_OPTIONS = \{ pop: true \}/);
+  for (const routeName of [
+    "MainTabs",
+    "VoiceRoom",
+    "ChannelChat",
+    "DirectMessage",
+    "MessageThread",
+    "SettingsDetail",
+    "ServerRoles",
+    "ProfileEdit",
+    "BlockedUsers",
+  ]) {
+    assert.match(
+      navigationRef,
+      new RegExp(`case "${routeName}":`),
+      `${routeName} route intents must reach the navigator`,
+    );
+    assert.match(navigationRef, new RegExp(`navigate\\("${routeName}",[^)]*ROUTE_INTENT_OPTIONS\\)`));
+  }
+
+  // The voice room used to `replace` the tabs, which left a second MainTabs
+  // behind it; popping is what keeps one instance of each.
+  assert.doesNotMatch(containers, /navigation\.replace\(/);
+  assert.match(containers, /navigation\.canGoBack\(\)/);
+  assert.match(containers, /navigation\.popTo\("MainTabs", \{ screen: "overview" \}\)/);
+  assert.match(containers, /navigation\.popTo\("DirectMessage", \{ conversationId \}\)/);
+
+  // Reused param routes remount their subtree so nothing leaks across targets.
+  assert.match(containers, /key=\{`\$\{serverId\}:\$\{channelId\}`\}/);
+  assert.match(containers, /key=\{conversationId\}/);
+  assert.match(containers, /key=\{`\$\{contextId\}:\$\{messageId\}`\}/);
 });
 
 test("voice room navigation does not retain the legacy overview voice surface", () => {

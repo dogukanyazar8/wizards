@@ -1,4 +1,4 @@
-import type { UploadedAttachmentInput } from "@wizards/types";
+import type { MessageAttachment, UploadedAttachmentInput } from "@wizards/types";
 import {
   Pressable,
   Text,
@@ -39,6 +39,7 @@ export { formatDMLastSeenRelativeTime } from "../components/dm-chat-primitives";
 
 type DMSendIntent = {
   readonly attachments?: readonly UploadedAttachmentInput[];
+  readonly attachmentPreviews?: readonly MessageAttachment[];
   readonly replyToId?: string;
   readonly threadParentId?: string;
 };
@@ -247,11 +248,16 @@ export function DMConversationPreviewCard({
     setComposerIntent({ content: message.content, messageId: message.id, mode: "edit" });
   }, []);
   const handleComposerSend = useCallback(
-    (content: string, attachments?: readonly UploadedAttachmentInput[]) =>
+    (
+      content: string,
+      attachments?: readonly UploadedAttachmentInput[],
+      attachmentPreviews?: readonly MessageAttachment[],
+    ) =>
       composerIntent?.mode === "edit"
         ? onEditMessage({ content, messageId: composerIntent.messageId })
         : onSendMessage(content, {
             ...(attachments?.length ? { attachments } : {}),
+            ...(attachmentPreviews?.length ? { attachmentPreviews } : {}),
             ...(composerIntent ? { replyToId: composerIntent.messageId } : {}),
           }),
     [composerIntent, onEditMessage, onSendMessage],

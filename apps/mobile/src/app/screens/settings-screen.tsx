@@ -416,6 +416,7 @@ export function MobileProfileSettingsHub({
         body={profileCopy.profileHubSignOutBody}
         busy={false}
         confirmLabel={copy.signOutAction}
+        icon="log-out-outline"
         onCancel={() => setIsSignOutConfirmationOpen(false)}
         onConfirm={onSignOut}
         open={isSignOutConfirmationOpen}

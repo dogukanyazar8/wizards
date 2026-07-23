@@ -3,7 +3,13 @@ import { Text, TextInput, View } from "react-native";
 import type { MobileManagedWorkspaceServerDetailResponse } from "@wizards/types";
 
 import { useMobileAuth } from "../auth/mobile-auth-context";
-import { BottomSheet, Button, DestructiveConfirmationSheet } from "../app/components/kit";
+import {
+  BottomSheet,
+  Button,
+  DestructiveConfirmationSheet,
+  SheetHeader,
+  useSheetPresentation,
+} from "../app/components/kit";
 import { useMobileLocaleRuntime } from "../app/providers/mobile-locale-provider";
 import { useThemedStyles } from "../app/providers/mobile-theme-provider";
 import { useMobileServerManagementMutations } from "../query/use-mobile-server-management-mutations";
@@ -44,6 +50,7 @@ export function MobileWorkspaceEditorSheets({
   const { locale } = useMobileLocaleRuntime();
   const labels = mobileCopy[locale];
   const styles = useThemedStyles(createMobileServerManagementStyles);
+  const sheetPresentation = useSheetPresentation();
   const mutations = useMobileServerManagementMutations(apiClient);
   const [name, setName] = useState("");
   const [topic, setTopic] = useState("");
@@ -187,13 +194,20 @@ export function MobileWorkspaceEditorSheets({
         accessibilityLabel={isCategoryEditor ? labels.workspaceEditorCategory : labels.workspaceEditorChannel}
         onClose={onClose}
         open={isOpen}
-        snapPoint={560}
+        presentation={sheetPresentation}
+        sizing="content"
         testID={isCategoryEditor ? "mobile-category-editor-sheet" : "mobile-channel-editor-sheet"}
       >
         <View style={styles.sheet}>
-          <Text accessibilityRole="header" style={styles.sectionTitle}>
-            {isCategoryEditor ? labels.workspaceEditorCategory : labels.workspaceEditorChannel}
-          </Text>
+          <SheetHeader
+            closeAccessibilityLabel={labels.sheetCloseAction}
+            icon={isCategoryEditor ? "folder-outline" : "chatbubbles-outline"}
+            onClose={onClose}
+            testID="mobile-workspace-editor-header"
+            title={
+              isCategoryEditor ? labels.workspaceEditorCategory : labels.workspaceEditorChannel
+            }
+          />
           <TextInput
             accessibilityLabel={labels.workspaceEditorName}
             autoCapitalize="words"
@@ -277,6 +291,7 @@ export function MobileWorkspaceEditorSheets({
         body={labels.workspaceEditorCategoryDeleteBody}
         busy={mutations.deleteCategory.isPending}
         confirmLabel={labels.workspaceEditorDelete}
+        icon="trash-outline"
         onCancel={() => setDeleteCategory(null)}
         onConfirm={confirmDeleteCategory}
         open={deleteCategory !== null}

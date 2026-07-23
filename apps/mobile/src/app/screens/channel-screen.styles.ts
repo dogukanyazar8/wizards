@@ -200,12 +200,6 @@ export const createChannelScreenStyles = (theme: MobileTheme) => {
       lineHeight: 14,
       fontFamily: theme.typography.fontFamilyExtraBold,
     },
-    pinnedSheetTitle: {
-      color: theme.text.primary,
-      fontSize: 18,
-      lineHeight: 23,
-      fontFamily: theme.typography.fontFamilyExtraBold,
-    },
     pinnedSheetList: {
       marginTop: 8,
     },

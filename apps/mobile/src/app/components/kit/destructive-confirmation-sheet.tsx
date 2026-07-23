@@ -6,14 +6,16 @@ import { activeMobileCopy as copy } from "../../../locale/mobile-locale-preferen
 import { useThemedStyles } from "../../providers/mobile-theme-provider";
 import { BottomSheet } from "./bottom-sheet";
 import { Button } from "./button";
+import { SheetHeader, useSheetPresentation, type SheetIconName } from "./sheet-primitives";
 
 export interface DestructiveConfirmationSheetProps {
   body: string;
   busy: boolean;
   confirmLabel: string;
+  /** Overrides the default warning glyph when the action has a clearer symbol. */
+  icon?: SheetIconName;
   open: boolean;
   requiredText?: string;
-  snapPoint?: number;
   testID: string;
   title: string;
   onCancel(): void;
@@ -21,10 +23,15 @@ export interface DestructiveConfirmationSheetProps {
 }
 
 const createStyles = (theme: MobileTheme) => ({
-  actions: { gap: 10 },
-  body: { ...theme.typography.body, color: theme.text.muted },
-  error: { ...theme.typography.caption, color: theme.status.danger },
+  actions: { flexDirection: "row" as const, gap: 10 },
+  action: { flex: 1 },
+  body: { ...theme.typography.body, color: theme.text.secondary },
+  error: { ...theme.typography.caption, color: theme.status.dangerOnBase },
+  /** Kept mounted for the live region, but out of layout while it has nothing to say. */
+  feedbackHidden: { display: "none" as const },
+  feedback: { gap: 4 },
   input: {
+    ...theme.typography.body,
     backgroundColor: theme.surface.card,
     borderColor: theme.border.subtle,
     borderRadius: theme.radii.control,
@@ -33,24 +40,24 @@ const createStyles = (theme: MobileTheme) => ({
     minHeight: theme.sizing.minTouchTarget,
     paddingHorizontal: 14,
   },
-  root: { gap: 14, paddingBottom: 8 },
+  root: { gap: 14 },
   status: { ...theme.typography.caption, color: theme.text.muted },
-  title: { ...theme.typography.title, color: theme.text.primary },
 });
 
 export function DestructiveConfirmationSheet({
   body,
   busy,
   confirmLabel,
+  icon = "alert-circle-outline",
   onCancel,
   onConfirm,
   open,
   requiredText,
-  snapPoint,
   testID,
   title,
 }: DestructiveConfirmationSheetProps) {
   const styles = useThemedStyles(createStyles);
+  const presentation = useSheetPresentation();
   const pendingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -90,13 +97,12 @@ export function DestructiveConfirmationSheet({
       accessibilityLabel={title}
       onClose={onCancel}
       open={open}
-      {...(snapPoint !== undefined ? { snapPoint } : {})}
+      presentation={presentation}
+      sizing="content"
       testID={testID}
     >
       <View style={styles.root}>
-        <Text accessibilityRole="header" style={styles.title}>
-          {title}
-        </Text>
+        <SheetHeader icon={icon} testID={`${testID}-header`} title={title} tone="danger" />
         <Text style={styles.body}>{body}</Text>
         {requiredText !== undefined ? (
           <TextInput
@@ -110,30 +116,36 @@ export function DestructiveConfirmationSheet({
             value={value}
           />
         ) : null}
-        <Text accessibilityLiveRegion="polite" style={styles.status} testID={`${testID}-status`}>
-          {isBusy ? copy.confirmationWorking : ""}
-        </Text>
-        {error ? (
-          <Text accessibilityLiveRegion="polite" style={styles.error} testID={`${testID}-error`}>
-            {error}
+        <View style={isBusy || error ? styles.feedback : styles.feedbackHidden}>
+          <Text accessibilityLiveRegion="polite" style={styles.status} testID={`${testID}-status`}>
+            {isBusy ? copy.confirmationWorking : ""}
           </Text>
-        ) : null}
+          {error ? (
+            <Text accessibilityLiveRegion="polite" style={styles.error} testID={`${testID}-error`}>
+              {error}
+            </Text>
+          ) : null}
+        </View>
         <View style={styles.actions}>
-          <Button
-            disabled={isBusy}
-            label={copy.confirmationCancelAction}
-            onPress={onCancel}
-            testID={`${testID}-cancel`}
-            variant="secondary"
-          />
-          <Button
-            busy={isBusy}
-            disabled={!isRequiredTextValid}
-            label={confirmLabel}
-            onPress={() => void handleConfirm()}
-            testID={`${testID}-confirm`}
-            variant="danger"
-          />
+          <View style={styles.action}>
+            <Button
+              disabled={isBusy}
+              label={copy.confirmationCancelAction}
+              onPress={onCancel}
+              testID={`${testID}-cancel`}
+              variant="secondary"
+            />
+          </View>
+          <View style={styles.action}>
+            <Button
+              busy={isBusy}
+              disabled={!isRequiredTextValid}
+              label={confirmLabel}
+              onPress={() => void handleConfirm()}
+              testID={`${testID}-confirm`}
+              variant="danger"
+            />
+          </View>
         </View>
       </View>
     </BottomSheet>

@@ -241,6 +241,7 @@ export function MobileChannelSettingsScreen({
         body={labels.channelSettingsDeleteBody}
         busy={mutations.deleteChannel.isPending}
         confirmLabel={labels.channelSettingsDelete}
+        icon="trash-outline"
         onCancel={() => setDeleteOpen(false)}
         onConfirm={deleteChannel}
         open={deleteOpen}
@@ -251,6 +252,7 @@ export function MobileChannelSettingsScreen({
         body={labels.channelSettingsClearBody}
         busy={mutations.clearChannelHistory.isPending}
         confirmLabel={labels.channelSettingsClear}
+        icon="sparkles-outline"
         onCancel={() => setHistoryOpen(false)}
         onConfirm={clearHistory}
         open={historyOpen}

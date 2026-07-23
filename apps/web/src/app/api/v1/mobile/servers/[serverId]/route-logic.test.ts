@@ -24,6 +24,7 @@ const capabilities = {
   canKickMembers: false,
   canManageChannels: false,
   canManageInvites: false,
+  canManageMessages: false,
   canManageRoles: false,
   canManageServer: false,
   canUploadServerIcon: false,

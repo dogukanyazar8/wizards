@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   createMobileLinkingOptions,
   resolveMobileNavigationIntent,
+  resolveMobileRoutePathIntent,
 } from "../src/navigation/mobile-linking";
 
 const webUrl = "https://whispr.team";
@@ -44,6 +45,19 @@ describe("mobile linking configuration", () => {
         type: "route",
       },
     );
+  });
+
+  /**
+   * 10a: the backend writes `/channels/<serverId>/<channelId>` into the MENTION
+   * notification's `actionUrl`; tapping the row feeds that exact path to
+   * `resolveMobileRoutePathIntent`, so the channel has to open from it.
+   */
+  it("opens the channel behind a mention notification action URL", () => {
+    assert.deepEqual(resolveMobileRoutePathIntent("/channels/server-1/channel-1"), {
+      name: "ChannelChat",
+      params: { channelId: "channel-1", serverId: "server-1" },
+      type: "route",
+    });
   });
 
   it("rejects sensitive and unsupported route URLs", () => {
@@ -99,6 +113,15 @@ describe("mobile linking configuration", () => {
 
     assert.deepEqual(linking.prefixes, ["whispr://", webUrl]);
     assert.equal(await linking.getInitialURL?.(), "whispr://channels/server-1/channel-1");
+    // The cold-start stack is built from the path, so MainTabs has to be named
+    // as the initial route or back would quit the app from a linked detail
+    // screen instead of landing on the tabs.
+    assert.equal(linking.config?.initialRouteName, "MainTabs");
+    assert.equal(
+      (linking.config?.screens.MainTabs as { readonly initialRouteName?: string })
+        .initialRouteName,
+      "overview",
+    );
 
     const routedUrls: string[] = [];
     const unsubscribe = linking.subscribe?.((url) => routedUrls.push(url));

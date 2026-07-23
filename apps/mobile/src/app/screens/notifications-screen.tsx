@@ -321,13 +321,13 @@ export function NotificationsScreen({
         body={copy.notificationsClearConfirmDescription}
         busy={notificationMutations.clearAll.isPending}
         confirmLabel={copy.notificationsClearAll}
+        icon="trash-outline"
         onCancel={() => setClearConfirmOpen(false)}
         onConfirm={async () => {
           await notificationMutations.clearAll.mutateAsync();
           setClearConfirmOpen(false);
         }}
         open={isClearConfirmOpen}
-        snapPoint={260}
         testID="mobile-notifications-clear-sheet"
         title={copy.notificationsClearConfirmTitle}
       />

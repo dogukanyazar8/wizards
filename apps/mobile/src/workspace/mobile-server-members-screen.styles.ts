@@ -118,13 +118,7 @@ export const createMobileServerMembersStyles = (theme: MobileTheme) =>
       marginHorizontal: 24,
       marginTop: 8,
     },
-    sheet: { flex: 1, gap: 4, minWidth: 0 },
-    sheetTitle: {
-      color: theme.text.primary,
-      fontFamily: theme.typography.fontFamilyExtraBold,
-      fontSize: 18,
-      marginBottom: 6,
-    },
+    sheet: { gap: 10, minWidth: 0 },
     sheetHint: {
       color: theme.text.muted,
       fontFamily: theme.typography.fontFamily,

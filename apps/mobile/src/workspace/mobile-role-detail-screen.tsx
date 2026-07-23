@@ -465,10 +465,10 @@ export function MobileRoleDetailScreen({ onBack, roleId, serverId }: MobileRoleD
         body={labels.deleteBody}
         busy={mutations.deleteRole.isPending}
         confirmLabel={labels.delete}
+        icon="trash-outline"
         onCancel={() => setDeleteOpen(false)}
         onConfirm={remove}
         open={deleteOpen}
-        snapPoint={260}
         testID="mobile-role-detail-delete-confirm"
         title={labels.delete}
       />

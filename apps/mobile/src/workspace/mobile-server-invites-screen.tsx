@@ -255,6 +255,7 @@ export function MobileServerInvitesScreen({ onBack, serverId }: MobileServerInvi
         body={labels.serverInvitesDeleteBody}
         busy={mutations.deleteInvite.isPending}
         confirmLabel={labels.serverInvitesDelete}
+        icon="trash-outline"
         onCancel={() => setPendingDelete(null)}
         onConfirm={async () => {
           if (!pendingDelete) return;
@@ -268,7 +269,6 @@ export function MobileServerInvitesScreen({ onBack, serverId }: MobileServerInvi
           }
         }}
         open={pendingDelete !== null}
-        snapPoint={260}
         testID="mobile-server-invite-delete-confirm"
         title={labels.serverInvitesDeleteTitle}
       />

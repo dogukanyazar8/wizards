@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import type { MobileWorkspaceChannelSummary, UploadedAttachmentInput } from "@wizards/types";
+import type {
+  MessageAttachment,
+  MobileWorkspaceChannelSummary,
+  UploadedAttachmentInput,
+} from "@wizards/types";
 import type { MobileApiClient } from "../../api/mobile-api-client";
 import type { MobileSessionUser } from "../../auth/session-types";
 import { summarizeMobileBootstrap } from "../../bootstrap/mobile-bootstrap";
@@ -412,12 +416,14 @@ export function useMobileMessagingFeature({
       content: string,
       intent?: {
         readonly attachments?: readonly UploadedAttachmentInput[];
+        readonly attachmentPreviews?: readonly MessageAttachment[];
         readonly replyToId?: string;
         readonly threadParentId?: string;
       },
     ): Promise<boolean> => {
       const trimmedContent = content.trim();
       const attachments = intent?.attachments ?? [];
+      const attachmentPreviews = intent?.attachmentPreviews ?? [];
 
       if (
         !isSignedIn ||
@@ -431,6 +437,7 @@ export function useMobileMessagingFeature({
       sendDMMessage({
         content: trimmedContent,
         ...(attachments.length > 0 ? { attachments: [...attachments] } : {}),
+        ...(attachmentPreviews.length > 0 ? { attachmentPreviews } : {}),
         ...(intent?.replyToId ? { replyToId: intent.replyToId } : {}),
         ...(intent?.threadParentId ? { threadParentId: intent.threadParentId } : {}),
       });
@@ -444,12 +451,14 @@ export function useMobileMessagingFeature({
       content: string,
       intent?: {
         readonly attachments?: readonly UploadedAttachmentInput[];
+        readonly attachmentPreviews?: readonly MessageAttachment[];
         readonly replyToId?: string;
         readonly threadParentId?: string;
       },
     ): Promise<boolean> => {
       const trimmedContent = content.trim();
       const attachments = intent?.attachments ?? [];
+      const attachmentPreviews = intent?.attachmentPreviews ?? [];
 
       if (
         !isSignedIn ||
@@ -463,6 +472,7 @@ export function useMobileMessagingFeature({
       sendChannelMessage({
         content: trimmedContent,
         ...(attachments.length > 0 ? { attachments: [...attachments] } : {}),
+        ...(attachmentPreviews.length > 0 ? { attachmentPreviews } : {}),
         ...(intent?.replyToId ? { replyToId: intent.replyToId } : {}),
         ...(intent?.threadParentId ? { threadParentId: intent.threadParentId } : {}),
       });
@@ -512,7 +522,11 @@ export function useMobileMessagingFeature({
         return false;
       }
       stopDMTyping(selectedDMConversationId);
-      sendDMMessage({ attachments: [attachment.input], content: "" });
+      sendDMMessage({
+        attachmentPreviews: [attachment.attachment],
+        attachments: [attachment.input],
+        content: "",
+      });
       return true;
     },
     [apiClient, isSignedIn, selectedDMConversationId, sendDMMessage, stopDMTyping],
@@ -528,7 +542,11 @@ export function useMobileMessagingFeature({
         return false;
       }
       stopChannelTyping(activeWorkspaceTextChannelId);
-      sendChannelMessage({ attachments: [attachment.input], content: "" });
+      sendChannelMessage({
+        attachmentPreviews: [attachment.attachment],
+        attachments: [attachment.input],
+        content: "",
+      });
       return true;
     },
     [activeWorkspaceTextChannelId, apiClient, isSignedIn, sendChannelMessage, stopChannelTyping],

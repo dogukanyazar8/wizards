@@ -129,6 +129,7 @@ function createDetail(overrides: Record<string, boolean> = {}) {
       canKickMembers: true,
       canManageChannels: true,
       canManageInvites: true,
+      canManageMessages: true,
       canManageRoles: true,
       canManageServer: true,
       canUploadServerIcon: true,
@@ -385,6 +386,60 @@ describe("mobile server management", () => {
     expect(view.queryByTestId("mobile-server-icon-image")).toBeNull();
   });
 
+  it("keeps a confirmed icon on screen when a stale workspace refetch lands afterwards", async () => {
+    resetMocks();
+    // The real read-back publishes the verified detail into the workspace cache, so the
+    // query already agrees with the claimed icon by the time the pin is taken.
+    mockConfirmServerIconPersisted.mockImplementation(async () => {
+      const confirmed = createDetail();
+      mockWorkspaceQuery = {
+        data: {
+          detail: {
+            ...confirmed,
+            server: { ...confirmed.server, iconUrl: "https://cdn.example.com/icon.png" },
+          },
+        },
+        isError: false,
+        isLoading: false,
+      };
+      return true;
+    });
+    mockSelectAndUpload.mockImplementation(async (_target, onLocalPreview) => {
+      onLocalPreview("file:///temporary.png");
+      return {
+        response: {
+          claimId: "claim-1",
+          claimedAt: "2026-07-13T00:00:00.000Z",
+          purpose: "server-icon",
+          server: { iconUrl: "https://cdn.example.com/icon.png", id: "server-1" },
+        },
+        status: "claimed",
+      };
+    });
+    const view = await render(
+      <MobileServerSettingsScreen serverId="server-1" onBack={jest.fn()} onOpenMembers={jest.fn()} />,
+    );
+
+    await fireEvent.press(view.getByTestId("mobile-server-icon-picker"));
+    await waitFor(() =>
+      expect(view.getByTestId("mobile-server-icon-image").props.source.uri).toBe(
+        "https://cdn.example.com/icon.png",
+      ),
+    );
+
+    // Returning from the OS picker refocuses the app, so a workspace refetch that left the
+    // device before the claim committed can still resolve here and rewrite the cache with
+    // the pre-upload icon. Any later local state change re-reads that cache, which is how
+    // the stale response reaches the screen.
+    mockWorkspaceQuery = { data: { detail: createDetail() }, isError: false, isLoading: false };
+    await fireEvent.press(view.getByTestId("mobile-server-delete-open"));
+
+    expect(view.getByTestId("mobile-server-icon-image").props.source.uri).toBe(
+      "https://cdn.example.com/icon.png",
+    );
+    expect(view.queryByTestId("mobile-server-settings-error")).toBeNull();
+  });
+
   it("surfaces the failing upload hop instead of a generic error", async () => {
     resetMocks();
     mockSelectAndUpload.mockResolvedValue({
@@ -414,6 +469,7 @@ describe("mobile server management", () => {
           canKickMembers: false,
           canManageChannels: false,
           canManageInvites: false,
+          canManageMessages: false,
           canManageRoles: false,
           canManageServer: false,
           canUploadServerIcon: false,

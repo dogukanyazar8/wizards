@@ -24,25 +24,29 @@ import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from "../mobile-root-screen-shared";
-import type { ChatMessage, UploadedAttachmentInput } from "@wizards/types";
+import type { ChatMessage, MessageAttachment, UploadedAttachmentInput } from "@wizards/types";
 import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import { forwardRef, useImperativeHandle } from "react";
 import { Alert, ScrollView } from "react-native";
 import { DMComposer, type MobileComposerIntent } from "../composer/mobile-composer";
 import {
+  ChannelMessageOverlays,
   ChannelUnreadSeparator,
   MessageDateSeparator,
   MessageListSkeleton,
+  MessageReactionOverlays,
   MessageSearchPanel,
   MessageStream,
   MemoizedMessagePreviewRow,
   isMessageSearchStateForContext,
+  useMobileMessageReactionOverlay,
   type MobileRenderableMessage,
   type MobileMessageActionTarget,
 } from "../components/message-primitives";
 import { StatusChip } from "../components/ui-atoms";
-import { Avatar, BottomSheet, EmptyState } from "../components/kit";
-import { MobileChatKeyboardRegion } from "../mobile-chat-keyboard-region";
+import { Avatar, BottomSheet, EmptyState, SheetHeader } from "../components/kit";
+import { MobileChatKeyboardRegion, useMobileScreenFocus } from "../mobile-chat-keyboard-region";
+import type { MobileMentionCandidate } from "../mobile-mention";
 import {
   MessageForwardSheet,
   type MobileForwardSendInput,
@@ -55,6 +59,7 @@ import type { MobileChannelTypingUser } from "../../realtime/mobile-typing-state
 
 export function MobileChannelChatScreen({
   attachmentsFeature,
+  canModerate = false,
   channel,
   channelFirstUnreadMessageId = null,
   channelPinnedMessages = [],
@@ -63,6 +68,7 @@ export function MobileChannelChatScreen({
   isReactionMutationPending,
   mediaState,
   memberCount,
+  mentionCandidates,
   onlineMemberCount,
   messageSearchFeature,
   messageSearchState,
@@ -94,6 +100,8 @@ export function MobileChannelChatScreen({
   getAccessToken,
 }: {
   attachmentsFeature: MobileBootstrapFeature | null;
+  /** MANAGE_MESSAGES holder: may pin and delete other members' messages. */
+  canModerate?: boolean;
   channel: MobileWorkspaceChannelSummary;
   channelFirstUnreadMessageId?: string | null;
   channelPinnedMessages?: readonly ChatMessage[];
@@ -103,6 +111,8 @@ export function MobileChannelChatScreen({
   isReactionMutationPending: boolean;
   mediaState: MobileMediaRuntimeState;
   memberCount: number;
+  /** 10a server members the composer may offer for `@` autocomplete. */
+  mentionCandidates?: readonly MobileMentionCandidate[];
   onlineMemberCount: number;
   messageSearchFeature: MobileBootstrapFeature | null;
   messageSearchState: MobileMessageSearchViewState;
@@ -125,6 +135,7 @@ export function MobileChannelChatScreen({
     content: string,
     intent?: {
       readonly attachments?: readonly UploadedAttachmentInput[];
+      readonly attachmentPreviews?: readonly MessageAttachment[];
       readonly replyToId?: string;
       readonly threadParentId?: string;
     },
@@ -241,7 +252,11 @@ export function MobileChannelChatScreen({
     setComposerIntent({ content: message.content, messageId: message.id, mode: "edit" });
   }, []);
   const handleComposerSend = useCallback(
-    (content: string, attachments: readonly UploadedAttachmentInput[] = []) => {
+    (
+      content: string,
+      attachments: readonly UploadedAttachmentInput[] = [],
+      attachmentPreviews: readonly MessageAttachment[] = [],
+    ) => {
       if (composerIntent?.mode === "edit") {
         return attachments.length === 0
           ? onEditMessage({ content, messageId: composerIntent.messageId })
@@ -251,6 +266,7 @@ export function MobileChannelChatScreen({
       return onSendMessage(content, {
         ...(composerIntent ? { replyToId: composerIntent.messageId } : {}),
         ...(attachments.length > 0 ? { attachments } : {}),
+        ...(attachmentPreviews.length > 0 ? { attachmentPreviews } : {}),
       });
     },
     [composerIntent, onEditMessage, onSendMessage],
@@ -388,6 +404,7 @@ export function MobileChannelChatScreen({
 
         <MobileChatKeyboardRegion testID="mobile-channel-chat-keyboard-region">
           <ChannelMessageList
+            canModerate={canModerate}
             currentUserId={currentUserId}
             firstUnreadMessageId={channelFirstUnreadMessageId}
             isReactionMutationPending={isReactionMutationPending}
@@ -413,7 +430,13 @@ export function MobileChannelChatScreen({
             snapPoint={520}
             testID="mobile-channel-pins-sheet"
           >
-            <Text style={styles.pinnedSheetTitle}>{copy.messagePinnedSheetTitle}</Text>
+            <SheetHeader
+              closeAccessibilityLabel={copy.sheetCloseAction}
+              icon="pin-outline"
+              onClose={() => setPinsSheetOpen(false)}
+              testID="mobile-channel-pins-header"
+              title={copy.messagePinnedSheetTitle}
+            />
             {channelPinnedMessages.length === 0 ? (
               <Text style={styles.pinnedSheetEmptyText}>{copy.messagePinnedEmptyNotice}</Text>
             ) : (
@@ -488,6 +511,7 @@ export function MobileChannelChatScreen({
                 sendActionLabel={copy.channelSendAction}
                 mediaState={mediaState}
                 intent={composerIntent}
+                {...(mentionCandidates ? { mentionCandidates } : {})}
                 onCancelIntent={() => setComposerIntent(null)}
                 onClearSelectedMediaAsset={onClearSelectedMediaAsset}
                 onDraftChange={onDraftChange}
@@ -511,6 +535,7 @@ export type ChannelMessageListHandle = {
 export const ChannelMessageList = forwardRef<
   ChannelMessageListHandle,
   {
+    canModerate?: boolean;
     currentUserId: string;
     firstUnreadMessageId?: string | null;
     isReactionMutationPending?: boolean;
@@ -534,6 +559,7 @@ export const ChannelMessageList = forwardRef<
   }
 >(function ChannelMessageList(
   {
+    canModerate = false,
     currentUserId,
     firstUnreadMessageId = null,
     isReactionMutationPending = false,
@@ -561,8 +587,29 @@ export const ChannelMessageList = forwardRef<
     null,
   );
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
-  // 8c: only one row shows the floating action bar; scroll dismisses it.
-  const [actionBarMessageId, setActionBarMessageId] = useState<string | null>(null);
+  // 10e: long press opens the full action menu for exactly one row. The id lives
+  // here, not inside the recycled row, so realtime updates cannot drop it.
+  // 10d keeps the closed entry around for one exit animation before it goes.
+  const [menu, setMenu] = useState<{ readonly id: string; readonly open: boolean } | null>(null);
+  const handleSetMenuMessage = useCallback((messageId: string | null) => {
+    setMenu((current) =>
+      messageId === null
+        ? current
+          ? { ...current, open: false }
+          : null
+        : { id: messageId, open: true },
+    );
+  }, []);
+  const isScreenFocused = useMobileScreenFocus();
+  // The reaction chips and the "+" chip live on a recycled row, so the sheet
+  // and picker they open are owned here, next to the action menu.
+  const {
+    closeReactionOverlay,
+    reactionOverlay,
+    reactionOverlayMessage,
+    requestEmojiPicker,
+    requestReactionDetails,
+  } = useMobileMessageReactionOverlay({ isScreenFocused, messages });
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const highlightMessage = useCallback((messageId: string) => {
@@ -576,6 +623,23 @@ export const ChannelMessageList = forwardRef<
     },
     [],
   );
+  const menuMessage = useMemo(
+    () => (menu ? (messages.find((message) => message.id === menu.id) ?? null) : null),
+    [menu, messages],
+  );
+  // A deleted message takes its menu with it; every other list update — a new
+  // message, a reaction, a typing event, a refetch — leaves the open menu alone.
+  useEffect(() => {
+    if (menu !== null && menuMessage === null) {
+      setMenu(null);
+    }
+  }, [menu, menuMessage]);
+  // Leaving the screen (thread view, a call, settings) closes it too.
+  useEffect(() => {
+    if (!isScreenFocused) {
+      setMenu(null);
+    }
+  }, [isScreenFocused]);
   const performanceConfig = useMemo(
     () => getMobileMessageListPerformanceConfig(messages.length),
     [messages.length],
@@ -596,7 +660,6 @@ export const ChannelMessageList = forwardRef<
     const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
     const distanceFromBottom = contentSize.height - (contentOffset.y + layoutMeasurement.height);
     setShowScrollToBottom(distanceFromBottom > 120);
-    setActionBarMessageId(null);
   }, []);
   const handleOpenReply = useCallback(
     (messageId: string) => {
@@ -637,10 +700,11 @@ export const ChannelMessageList = forwardRef<
           <ChannelUnreadSeparator />
         ) : null}
         <MemoizedMessagePreviewRow
-          actionBarOpen={item.message.id === actionBarMessageId}
+          canModerate={canModerate}
           currentUserId={currentUserId}
           isHighlighted={item.message.id === highlightedMessageId}
           isReactionMutationPending={isReactionMutationPending}
+          menuOpen={menu?.open === true && menu.id === item.message.id}
           message={item.message}
           mode="channel"
           channelGroupContinuation={item.isGroupedWithPrevious}
@@ -648,7 +712,9 @@ export const ChannelMessageList = forwardRef<
           own={item.message.author.id === currentUserId}
           {...(onOpenThread ? { onOpenThread } : {})}
           onOpenReply={handleOpenReply}
-          onSetActionBar={setActionBarMessageId}
+          onRequestEmojiPicker={requestEmojiPicker}
+          onRequestReactionDetails={requestReactionDetails}
+          onSetMenuMessage={handleSetMenuMessage}
           {...(onDeleteMessage
             ? { onDeleteMessage: (messageId: string) => void onDeleteMessage(messageId) }
             : {})}
@@ -663,12 +729,16 @@ export const ChannelMessageList = forwardRef<
       </View>
     ),
     [
-      actionBarMessageId,
+      canModerate,
       currentUserId,
       firstUnreadMessageId,
       handleOpenReply,
       highlightedMessageId,
       isReactionMutationPending,
+      handleSetMenuMessage,
+      menu,
+      requestEmojiPicker,
+      requestReactionDetails,
       onDeleteMessage,
       onDiscardMessage,
       onEditMessage,
@@ -762,6 +832,38 @@ export const ChannelMessageList = forwardRef<
         onPress={() => scrollToLatestMessage(true)}
         visible={showScrollToBottom && streamItems.length > 0}
       />
+      {menuMessage ? (
+        <ChannelMessageOverlays
+          canModerate={canModerate}
+          currentUserId={currentUserId}
+          key={menuMessage.id}
+          message={menuMessage}
+          onClose={() => handleSetMenuMessage(null)}
+          open={menu?.open === true}
+          own={menuMessage.author.id === currentUserId}
+          {...(onDeleteMessage
+            ? { onDeleteMessage: (messageId: string) => void onDeleteMessage(messageId) }
+            : {})}
+          {...(onDiscardMessage ? { onDiscardFailedMessage: onDiscardMessage } : {})}
+          {...(onEditMessage ? { onEditMessage } : {})}
+          {...(onForwardMessage ? { onForwardMessage } : {})}
+          {...(onOpenThread ? { onOpenThread } : {})}
+          {...(onPinMessage ? { onPinMessage } : {})}
+          {...(onReplyMessage ? { onReplyMessage } : {})}
+          {...(onRetryMessage ? { onRetryFailedMessage: onRetryMessage } : {})}
+          {...(onToggleMessageReaction ? { onToggleReaction: onToggleMessageReaction } : {})}
+        />
+      ) : null}
+      {reactionOverlay && reactionOverlayMessage ? (
+        <MessageReactionOverlays
+          currentUserId={currentUserId}
+          key={reactionOverlay.id}
+          message={reactionOverlayMessage}
+          onClose={closeReactionOverlay}
+          overlay={reactionOverlay}
+          {...(onToggleMessageReaction ? { onToggleReaction: onToggleMessageReaction } : {})}
+        />
+      ) : null}
     </View>
   );
 });

@@ -146,6 +146,7 @@ function makeWorkspace(): MobileManagedWorkspaceServerDetailResponse {
         canKickMembers: true,
         canManageChannels: false,
         canManageInvites: true,
+        canManageMessages: true,
         canManageRoles: false,
         canManageServer: false,
         canUploadServerIcon: true,

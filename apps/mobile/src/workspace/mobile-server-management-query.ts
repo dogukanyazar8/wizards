@@ -35,8 +35,21 @@ export function getMobileServerMembersInfiniteQueryOptions(
   });
 }
 
-export function useMobileServerMembersInfiniteQuery(client: MobileApiClient, serverId: string) {
-  return useInfiniteQuery(getMobileServerMembersInfiniteQueryOptions(client, serverId));
+/**
+ * `overrides` are observer-level only (staleTime and friends): the mention
+ * roster reads the same cache entry as the members screen but does not want the
+ * screen's 15s freshness, because it walks several pages and a refetch replays
+ * every one of them.
+ */
+export function useMobileServerMembersInfiniteQuery(
+  client: MobileApiClient,
+  serverId: string,
+  overrides?: { readonly staleTime?: number },
+) {
+  return useInfiniteQuery({
+    ...getMobileServerMembersInfiniteQueryOptions(client, serverId),
+    ...overrides,
+  });
 }
 
 export function getMobileAssignableRolesQueryOptions(

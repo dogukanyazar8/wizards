@@ -22,6 +22,7 @@ import {
   getMobileMessageBodyPreview,
 } from "../mobile-root-screen-shared";
 import { getMobileDisplayMessageDayKey } from "../mobile-display-model";
+import { useMobileScreenFocus } from "../mobile-chat-keyboard-region";
 import { useMobileHaptics } from "../providers/mobile-haptics-provider";
 import { useMobileLocaleRuntime } from "../providers/mobile-locale-provider";
 import { useTheme } from "../providers/mobile-theme-provider";
@@ -31,9 +32,11 @@ import { formatMobileRelativeTime } from "../../locale/mobile-relative-time";
 import { formatMobileDateSeparator } from "../../locale/mobile-date-separator";
 import { AvatarMark } from "./ui-atoms";
 import { Icon } from "./kit";
-import { MessageActionMenu } from "./message-action-menu";
+import { MessageActionMenu, MessageActionMenuTrigger } from "./message-action-menu";
 import {
   MessageAttachmentList,
+  MessageReactionOverlays,
+  useMobileMessageReactionOverlay,
   type MobileMessageActionTarget,
   type MobileMessageReactionToggleInput,
 } from "./message-primitives";
@@ -296,6 +299,7 @@ export function DMChatMessageRow({
   isGroupedWithPrevious,
   isHighlighted = false,
   isReactionMutationPending,
+  menuOpen = false,
   message,
   onDeleteMessage,
   onDiscardFailedMessage,
@@ -304,13 +308,18 @@ export function DMChatMessageRow({
   onOpenReply,
   onOpenThread,
   onReplyMessage,
+  onRequestReactionDetails,
   onRetryFailedMessage,
+  onSetMenuMessage,
   onToggleReaction,
   partnerLastReadAt,
 }: DMChatMessageGroupItem & {
   readonly currentUserId: string;
   readonly isHighlighted?: boolean;
   readonly isReactionMutationPending: boolean;
+  /** 10d: the list owns which message has its menu open, keyed by message id. */
+  readonly menuOpen?: boolean;
+  readonly onSetMenuMessage?: (messageId: string | null) => void;
   readonly onDeleteMessage?: (messageId: string) => void;
   readonly onDiscardFailedMessage?: (messageId: string) => void;
   readonly onEditMessage?: (message: MobileMessageActionTarget) => void;
@@ -318,6 +327,8 @@ export function DMChatMessageRow({
   readonly onOpenReply?: (messageId: string) => void;
   readonly onOpenThread?: (messageId: string) => void;
   readonly onReplyMessage?: (message: MobileMessageActionTarget) => void;
+  /** 10d: the detail sheet a reaction chip opens is owned by the list. */
+  readonly onRequestReactionDetails?: (messageId: string, emoji: string) => void;
   readonly onRetryFailedMessage?: (messageId: string) => void;
   readonly onToggleReaction?: (input: MobileMessageReactionToggleInput) => void;
   readonly partnerLastReadAt: string | null;
@@ -327,6 +338,20 @@ export function DMChatMessageRow({
   const haptics = useMobileHaptics();
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [reactionDetailEmoji, setReactionDetailEmoji] = useState<string | null>(null);
+  const openReactionDetails = onRequestReactionDetails
+    ? (emoji: string) => onRequestReactionDetails(message.id, emoji)
+    : setReactionDetailEmoji;
+  // The list keys the open menu by message id so realtime list updates cannot
+  // drop it; a standalone row (tests, previews) falls back to local state.
+  const [isLocalMenuOpen, setLocalMenuOpen] = useState(false);
+  const isMenuControlled = onSetMenuMessage !== undefined;
+  const isMenuOpen = isMenuControlled ? menuOpen : isLocalMenuOpen;
+  const openMenu = () => {
+    isMenuControlled ? onSetMenuMessage(message.id) : setLocalMenuOpen(true);
+  };
+  const closeMenu = () => {
+    isMenuControlled ? onSetMenuMessage(null) : setLocalMenuOpen(false);
+  };
   const lastTapAtRef = useRef(0);
   const own = message.author.id === currentUserId;
   const authorLabel = message.author.displayName ?? message.author.username;
@@ -473,7 +498,12 @@ export function DMChatMessageRow({
           {linkPreviewUrl ? (
             <MobileLinkPreviewCard messageId={message.id} url={linkPreviewUrl} />
           ) : null}
-          <MessageAttachmentList attachments={message.attachments} own={own} />
+          <MessageAttachmentList
+            attachments={message.attachments}
+            authorLabel={authorLabel}
+            own={own}
+            timeLabel={formatMobileDisplayTime(message.createdAt)}
+          />
           {isFailed ? (
             <View style={styles.messageFailedRow} testID={`mobile-message-failed-${message.id}`}>
               <Icon name="alert-circle-outline" size={14} tone="danger" />
@@ -493,7 +523,7 @@ export function DMChatMessageRow({
           <DMChatReactionChips
             currentUserId={currentUserId}
             message={message}
-            onLongPressReaction={setReactionDetailEmoji}
+            onLongPressReaction={openReactionDetails}
             {...(onToggleReaction ? { onToggleReaction } : {})}
           />
         </View>
@@ -523,48 +553,188 @@ export function DMChatMessageRow({
 
   return (
     <>
-      <MessageActionMenu
-        authorAvatarUrl={message.author.avatarUrl}
-        authorId={message.author.id}
-        authorLabel={authorLabel}
-        currentUserId={currentUserId}
+      <MessageActionMenuTrigger
         disabled={isReactionMutationPending}
-        message={message}
-        {...(own && onDeleteMessage ? { onDelete: () => onDeleteMessage(message.id) } : {})}
-        {...(onDiscardFailedMessage
-          ? { onDiscardFailed: () => onDiscardFailedMessage(message.id) }
-          : {})}
-        {...(own && onEditMessage
-          ? { onEdit: () => onEditMessage({ content: message.content, id: message.id }) }
-          : {})}
-        {...(onForwardMessage
-          ? {
-              onForward: () =>
-                onForwardMessage({ authorLabel, content: message.content, id: message.id }),
-            }
-          : {})}
-        {...(onToggleReaction ? { onOpenEmojiPicker: () => setEmojiPickerOpen(true) } : {})}
+        onLongPress={openMenu}
         onPress={handleBubblePress}
-        {...(onReplyMessage
-          ? {
-              onReply: () =>
-                onReplyMessage({ authorLabel, content: message.content, id: message.id }),
-            }
-          : {})}
-        {...(onRetryFailedMessage
-          ? { onRetryFailedSend: () => onRetryFailedMessage(message.id) }
-          : {})}
-        {...(onOpenThread ? { onStartThread: () => onOpenThread(message.id) } : {})}
-        {...(onToggleReaction ? { onToggleReaction } : {})}
-        own={own}
-        previewText={body}
-        scope="dm"
-        testID={`mobile-message-actions-${message.id}`}
+        testID={`mobile-message-actions-${message.id}-trigger`}
       >
         <GestureDetector gesture={replyGesture}>
           <Animated.View style={swipeStyle}>{row}</Animated.View>
         </GestureDetector>
-      </MessageActionMenu>
+      </MessageActionMenuTrigger>
+      {isMenuControlled ? null : (
+        <DMChatMessageActionMenu
+          currentUserId={currentUserId}
+          message={message}
+          onClose={closeMenu}
+          onOpenEmojiPicker={() => setEmojiPickerOpen(true)}
+          onOpenReactionDetails={() => {
+            const emoji = message.reactions[0]?.emoji;
+            if (emoji !== undefined) openReactionDetails(emoji);
+          }}
+          open={isMenuOpen}
+          {...(onDeleteMessage ? { onDeleteMessage } : {})}
+          {...(onDiscardFailedMessage ? { onDiscardFailedMessage } : {})}
+          {...(onEditMessage ? { onEditMessage } : {})}
+          {...(onForwardMessage ? { onForwardMessage } : {})}
+          {...(onOpenThread ? { onOpenThread } : {})}
+          {...(onReplyMessage ? { onReplyMessage } : {})}
+          {...(onRetryFailedMessage ? { onRetryFailedMessage } : {})}
+          {...(onToggleReaction ? { onToggleReaction } : {})}
+        />
+      )}
+      {/* Both only exist while this row owns the trigger: a list-owned row
+          hands them to `MessageReactionOverlays`, outside the recycler. */}
+      {!onRequestReactionDetails && reactionDetailEmoji !== null ? (
+        <MessageReactionDetailSheet
+          currentUserId={currentUserId}
+          initialEmoji={reactionDetailEmoji}
+          messageId={message.id}
+          onClose={() => setReactionDetailEmoji(null)}
+          open
+          reactions={message.reactions}
+          {...(onToggleReaction ? { onRemoveOwnReaction: onToggleReaction } : {})}
+        />
+      ) : null}
+      {onToggleReaction && !isMenuControlled ? (
+        <MessageEmojiPicker
+          isOpen={emojiPickerOpen}
+          onClose={() => setEmojiPickerOpen(false)}
+          onSelect={(emoji) =>
+            onToggleReaction({
+              emoji,
+              messageId: message.id,
+              shouldReact: !message.reactions.some(
+                (reaction) => reaction.emoji === emoji && reaction.userIds.includes(currentUserId),
+              ),
+            })
+          }
+        />
+      ) : null}
+    </>
+  );
+}
+
+type DMChatMessageActionHandlers = {
+  readonly onDeleteMessage?: (messageId: string) => void;
+  readonly onDiscardFailedMessage?: (messageId: string) => void;
+  readonly onEditMessage?: (message: MobileMessageActionTarget) => void;
+  readonly onForwardMessage?: (message: MobileMessageActionTarget) => void;
+  readonly onOpenThread?: (messageId: string) => void;
+  readonly onReplyMessage?: (message: MobileMessageActionTarget) => void;
+  readonly onRetryFailedMessage?: (messageId: string) => void;
+  readonly onToggleReaction?: (input: MobileMessageReactionToggleInput) => void;
+};
+
+/** The menu itself, without a trigger: the row long-presses, this renders. */
+function DMChatMessageActionMenu({
+  currentUserId,
+  message,
+  onClose,
+  onDeleteMessage,
+  onDiscardFailedMessage,
+  onEditMessage,
+  onForwardMessage,
+  onOpenEmojiPicker,
+  onOpenReactionDetails,
+  onOpenThread,
+  onReplyMessage,
+  onRetryFailedMessage,
+  onToggleReaction,
+  open,
+}: DMChatMessageActionHandlers & {
+  readonly currentUserId: string;
+  readonly message: DMChatMessage;
+  readonly onClose: () => void;
+  readonly onOpenEmojiPicker: () => void;
+  readonly onOpenReactionDetails: () => void;
+  readonly open: boolean;
+}) {
+  const own = message.author.id === currentUserId;
+  const authorLabel = message.author.displayName ?? message.author.username;
+  const body = getMobileMessageBodyPreview(message, {
+    attachmentOnly: copy.dmAttachmentOnlyMessage,
+    deleted: copy.dmDeletedMessage,
+  });
+
+  return (
+    <MessageActionMenu
+      authorAvatarUrl={message.author.avatarUrl}
+      authorId={message.author.id}
+      authorLabel={authorLabel}
+      currentUserId={currentUserId}
+      message={message}
+      onClose={onClose}
+      {...(own && onDeleteMessage ? { onDelete: () => onDeleteMessage(message.id) } : {})}
+      {...(onDiscardFailedMessage
+        ? { onDiscardFailed: () => onDiscardFailedMessage(message.id) }
+        : {})}
+      {...(own && onEditMessage
+        ? { onEdit: () => onEditMessage({ content: message.content, id: message.id }) }
+        : {})}
+      {...(onForwardMessage
+        ? {
+            onForward: () =>
+              onForwardMessage({ authorLabel, content: message.content, id: message.id }),
+          }
+        : {})}
+      {...(onToggleReaction ? { onOpenEmojiPicker } : {})}
+      {...(message.reactions.length > 0 ? { onOpenReactionDetails } : {})}
+      {...(onReplyMessage
+        ? {
+            onReply: () =>
+              onReplyMessage({ authorLabel, content: message.content, id: message.id }),
+          }
+        : {})}
+      {...(onRetryFailedMessage
+        ? { onRetryFailedSend: () => onRetryFailedMessage(message.id) }
+        : {})}
+      {...(onOpenThread ? { onStartThread: () => onOpenThread(message.id) } : {})}
+      {...(onToggleReaction ? { onToggleReaction } : {})}
+      open={open}
+      own={own}
+      previewText={body}
+      scope="dm"
+      testID={`mobile-message-actions-${message.id}`}
+    />
+  );
+}
+
+/**
+ * 10d: every overlay a message row can open, rendered by the list instead of the
+ * row. FlashList unmounts a row once it leaves the render window — an autoscroll
+ * to a burst of incoming messages is enough — and an overlay owned by that row
+ * goes with it. Here the only thing that closes the menu is the user, a chosen
+ * action, or the message itself disappearing.
+ */
+function DMChatMessageOverlays({
+  currentUserId,
+  message,
+  onClose,
+  open,
+  ...handlers
+}: DMChatMessageActionHandlers & {
+  readonly currentUserId: string;
+  readonly message: DMChatMessage;
+  readonly onClose: () => void;
+  readonly open: boolean;
+}) {
+  const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
+  const [reactionDetailEmoji, setReactionDetailEmoji] = useState<string | null>(null);
+  const { onToggleReaction } = handlers;
+
+  return (
+    <>
+      <DMChatMessageActionMenu
+        currentUserId={currentUserId}
+        message={message}
+        onClose={onClose}
+        onOpenEmojiPicker={() => setEmojiPickerOpen(true)}
+        onOpenReactionDetails={() => setReactionDetailEmoji(message.reactions[0]?.emoji ?? null)}
+        open={open}
+        {...handlers}
+      />
       {reactionDetailEmoji !== null ? (
         <MessageReactionDetailSheet
           currentUserId={currentUserId}
@@ -631,6 +801,44 @@ export function DMChatMessageList({
   const listRef = useRef<FlashListRef<DMChatMessageGroupItem> | null>(null);
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
+  // 10d: which message owns the action menu, and whether it is still open. The
+  // closed entry stays so the menu can play its exit animation before it goes.
+  const [menu, setMenu] = useState<{ readonly id: string; readonly open: boolean } | null>(null);
+  const isScreenFocused = useMobileScreenFocus();
+  const handleSetMenuMessage = useCallback((messageId: string | null) => {
+    setMenu((current) =>
+      messageId === null
+        ? current
+          ? { ...current, open: false }
+          : null
+        : { id: messageId, open: true },
+    );
+  }, []);
+  const menuMessage = useMemo(
+    () => (menu ? (messages.find((message) => message.id === menu.id) ?? null) : null),
+    [menu, messages],
+  );
+  // A deleted message takes its menu with it; every other list update — a new
+  // message, a reaction, a read receipt, a refetch — leaves it open.
+  useEffect(() => {
+    if (menu !== null && menuMessage === null) {
+      setMenu(null);
+    }
+  }, [menu, menuMessage]);
+  // Leaving the screen (thread view, a call, settings) closes it too.
+  useEffect(() => {
+    if (!isScreenFocused) {
+      setMenu(null);
+    }
+  }, [isScreenFocused]);
+  // A reaction chip lives on a recycled row, so the sheet it long-presses open
+  // is owned here for the same reason the menu is.
+  const {
+    closeReactionOverlay,
+    reactionOverlay,
+    reactionOverlayMessage,
+    requestReactionDetails,
+  } = useMobileMessageReactionOverlay({ isScreenFocused, messages });
 
   // Tapping a reply quote scrolls to the original message and flashes it (8b).
   const handleOpenReply = useCallback(
@@ -653,45 +861,77 @@ export function DMChatMessageList({
   );
 
   return (
-    <FlashList
-      contentContainerStyle={styles.messageFlow}
-      data={grouped}
-      keyExtractor={(item) => item.message.id}
-      maintainVisibleContentPosition={{
-        animateAutoScrollToBottom: true,
-        autoscrollToBottomThreshold: 0.2,
-        startRenderingFromBottom: true,
-      }}
-      onStartReached={onLoadMore}
-      onStartReachedThreshold={0.35}
-      ref={listRef}
-      renderItem={({ item }) => (
-        <View style={[styles.messageItem, item.isGroupedWithNext && styles.messageItemGrouped]}>
-          {item.showDateSeparator ? (
-            <DMChatDateSeparator createdAt={item.message.createdAt} />
-          ) : null}
-          <MemoizedDMChatMessageRow
-            {...item}
-            currentUserId={currentUserId}
-            isHighlighted={item.message.id === highlightedMessageId}
-            isReactionMutationPending={isReactionMutationPending}
-            onOpenReply={handleOpenReply}
-            partnerLastReadAt={partnerLastReadAt}
-            {...(onDeleteMessage ? { onDeleteMessage } : {})}
-            {...(onDiscardFailedMessage ? { onDiscardFailedMessage } : {})}
-            {...(onEditMessage ? { onEditMessage } : {})}
-            {...(onForwardMessage ? { onForwardMessage } : {})}
-            {...(onOpenThread ? { onOpenThread } : {})}
-            {...(onReplyMessage ? { onReplyMessage } : {})}
-            {...(onRetryFailedMessage ? { onRetryFailedMessage } : {})}
-            {...(onToggleReaction ? { onToggleReaction } : {})}
-          />
-        </View>
-      )}
-      showsVerticalScrollIndicator={false}
-      style={styles.messageList}
-      testID="mobile-dm-message-list"
-    />
+    <>
+      <FlashList
+        contentContainerStyle={styles.messageFlow}
+        data={grouped}
+        keyExtractor={(item) => item.message.id}
+        maintainVisibleContentPosition={{
+          animateAutoScrollToBottom: true,
+          autoscrollToBottomThreshold: 0.2,
+          startRenderingFromBottom: true,
+        }}
+        onStartReached={onLoadMore}
+        onStartReachedThreshold={0.35}
+        ref={listRef}
+        renderItem={({ item }) => (
+          <View style={[styles.messageItem, item.isGroupedWithNext && styles.messageItemGrouped]}>
+            {item.showDateSeparator ? (
+              <DMChatDateSeparator createdAt={item.message.createdAt} />
+            ) : null}
+            <MemoizedDMChatMessageRow
+              {...item}
+              currentUserId={currentUserId}
+              isHighlighted={item.message.id === highlightedMessageId}
+              isReactionMutationPending={isReactionMutationPending}
+              menuOpen={menu?.open === true && menu.id === item.message.id}
+              onOpenReply={handleOpenReply}
+              onRequestReactionDetails={requestReactionDetails}
+              onSetMenuMessage={handleSetMenuMessage}
+              partnerLastReadAt={partnerLastReadAt}
+              {...(onDeleteMessage ? { onDeleteMessage } : {})}
+              {...(onDiscardFailedMessage ? { onDiscardFailedMessage } : {})}
+              {...(onEditMessage ? { onEditMessage } : {})}
+              {...(onForwardMessage ? { onForwardMessage } : {})}
+              {...(onOpenThread ? { onOpenThread } : {})}
+              {...(onReplyMessage ? { onReplyMessage } : {})}
+              {...(onRetryFailedMessage ? { onRetryFailedMessage } : {})}
+              {...(onToggleReaction ? { onToggleReaction } : {})}
+            />
+          </View>
+        )}
+        showsVerticalScrollIndicator={false}
+        style={styles.messageList}
+        testID="mobile-dm-message-list"
+      />
+      {menuMessage ? (
+        <DMChatMessageOverlays
+          currentUserId={currentUserId}
+          key={menuMessage.id}
+          message={menuMessage}
+          onClose={() => handleSetMenuMessage(null)}
+          open={menu?.open === true}
+          {...(onDeleteMessage ? { onDeleteMessage } : {})}
+          {...(onDiscardFailedMessage ? { onDiscardFailedMessage } : {})}
+          {...(onEditMessage ? { onEditMessage } : {})}
+          {...(onForwardMessage ? { onForwardMessage } : {})}
+          {...(onOpenThread ? { onOpenThread } : {})}
+          {...(onReplyMessage ? { onReplyMessage } : {})}
+          {...(onRetryFailedMessage ? { onRetryFailedMessage } : {})}
+          {...(onToggleReaction ? { onToggleReaction } : {})}
+        />
+      ) : null}
+      {reactionOverlay && reactionOverlayMessage ? (
+        <MessageReactionOverlays
+          currentUserId={currentUserId}
+          key={reactionOverlay.id}
+          message={reactionOverlayMessage}
+          onClose={closeReactionOverlay}
+          overlay={reactionOverlay}
+          {...(onToggleReaction ? { onToggleReaction } : {})}
+        />
+      ) : null}
+    </>
   );
 }
 

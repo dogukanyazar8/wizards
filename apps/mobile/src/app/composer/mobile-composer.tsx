@@ -15,16 +15,23 @@ import {
   type MobileBootstrapFeature,
   type MobileMediaRuntimeState,
 } from "../mobile-root-screen-shared";
-import { PanResponder } from "react-native";
+import {
+  PanResponder,
+  ScrollView,
+  type NativeSyntheticEvent,
+  type TextInputSelectionChangeEventData,
+} from "react-native";
 import Animated, {
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
-import type { UploadedAttachmentInput } from "@wizards/types";
+import type { MessageAttachment, UploadedAttachmentInput } from "@wizards/types";
 import { formatMobileMediaAssetMeta } from "../components/media-primitives";
-import { BottomSheet, Icon } from "../components/kit";
+import { formatMobileAttachmentSize } from "../components/message-primitives";
+import { MobileCachedImage } from "../components/mobile-cached-image";
+import { ActionSheet, Avatar, Icon } from "../components/kit";
 import { useMobileComposerStyles } from "./mobile-composer.styles";
 import { useTheme } from "../providers/mobile-theme-provider";
 import { MobileGifPicker } from "../../media/mobile-gif-picker";
@@ -37,9 +44,19 @@ import {
   pickMobileMessageAttachmentFromDocument,
   pickMobileMessageAttachmentFromPhotoLibrary,
 } from "../../media/mobile-message-attachment-picker";
-import { executeMobileMessageAttachmentUpload } from "../../media/mobile-message-attachment-upload-service";
+import {
+  executeMobileMessageAttachmentUpload,
+  type MobileMessageAttachmentUploadFailureCode,
+} from "../../media/mobile-message-attachment-upload-service";
 import { uploadMobileMessageAttachmentToUploadThing } from "../../media/mobile-message-attachment-upload";
 import { useMobileVoiceMessageRecorder } from "../../media/mobile-voice-message-recorder";
+import {
+  applyMobileMentionSelection,
+  filterMobileMentionCandidates,
+  resolveMobileCaretAfterChange,
+  resolveMobileMentionQuery,
+  type MobileMentionCandidate,
+} from "../mobile-mention";
 
 export type MobileComposerIntent = {
   readonly authorLabel?: string;
@@ -53,6 +70,7 @@ export function DMComposer({
   getAccessToken,
   mediaState,
   intent = null,
+  mentionCandidates,
   onCancelIntent,
   onClearSelectedMediaAsset,
   onDraftChange,
@@ -68,12 +86,25 @@ export function DMComposer({
   getAccessToken?: () => Promise<string | null>;
   mediaState?: MobileMediaRuntimeState;
   intent?: MobileComposerIntent | null;
+  /**
+   * 10a: server members the `@` autocomplete may offer. Only channel and thread
+   * composers pass it; a DM has no roster, so the panel never opens there.
+   */
+  mentionCandidates?: readonly MobileMentionCandidate[];
   onCancelIntent?: () => void;
   onClearSelectedMediaAsset?: () => void;
   onDraftChange?: (content: string) => void;
   onRequestDocumentPicker?: () => Promise<void>;
   onRequestPhotoLibraryPicker?: () => Promise<void>;
-  onSend(content: string, attachments?: readonly UploadedAttachmentInput[]): Promise<boolean>;
+  /**
+   * `attachmentPreviews` mirrors `attachments` with the uploaded metadata so the
+   * optimistic bubble can render its cards before the server echo lands.
+   */
+  onSend(
+    content: string,
+    attachments?: readonly UploadedAttachmentInput[],
+    attachmentPreviews?: readonly MessageAttachment[],
+  ): Promise<boolean>;
   onSendGif?: (gifId: string) => Promise<boolean>;
   placeholder?: string;
   sendActionLabel?: string;
@@ -94,10 +125,25 @@ export function DMComposer({
   const [voiceRecordingSeconds, setVoiceRecordingSeconds] = useState(0);
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [gifPickerOpen, setGifPickerOpen] = useState(false);
+  // 10a: the caret position drives `@` detection. `onChangeText` fires before
+  // `onSelectionChange`, so the caret is derived from the edit itself and the
+  // selection event only confirms it — a mid-text edit never reads the end of
+  // the draft for a frame.
+  const [caret, setCaret] = useState(0);
+  const draftRef = useRef("");
+  const caretRef = useRef(0);
+  const [pendingSelection, setPendingSelection] = useState<{
+    end: number;
+    start: number;
+  } | null>(null);
   const uploadAbortControllerRef = useRef<AbortController | null>(null);
   const isEditing = intent?.mode === "edit";
   const isEditingRef = useRef(isEditing);
   isEditingRef.current = isEditing;
+  // `onChangeText` needs the text and caret it is replacing, and it fires
+  // before the render that would give it fresh props.
+  draftRef.current = draft;
+  caretRef.current = caret;
   const trimmedDraft = draft.trim();
   const selectedAsset = mediaState?.selectedAsset ?? null;
   const isPickingDocument = mediaState?.status === "checking-document-picker";
@@ -180,8 +226,13 @@ export function DMComposer({
     const content = trimmedDraft;
     const attachments =
       usesUploadedAttachments && channelAttachments.length > 0 ? channelAttachments : undefined;
+    const attachmentPreviews = attachments
+      ? channelAttachmentDrafts.map((attachmentDraft) => attachmentDraft.attachment)
+      : undefined;
     const clearComposer = () => {
       setDraft("");
+      setCaret(0);
+      setPendingSelection(null);
       setChannelAttachmentDrafts([]);
       setChannelAttachmentUploadError(null);
       onDraftChange?.("");
@@ -191,7 +242,7 @@ export function DMComposer({
     // Edits have no failed-message bubble to recover from, so the draft only
     // clears once the server accepts them.
     if (isEditing) {
-      void onSend(content, attachments).then((didSend) => {
+      void onSend(content, attachments, attachmentPreviews).then((didSend) => {
         if (didSend) {
           clearComposer();
         }
@@ -200,8 +251,9 @@ export function DMComposer({
     }
 
     clearComposer();
-    void onSend(content, attachments);
+    void onSend(content, attachments, attachmentPreviews);
   }, [
+    channelAttachmentDrafts,
     channelAttachments,
     isDisabled,
     isEditing,
@@ -254,10 +306,97 @@ export function DMComposer({
   const handleDraftChange = useCallback(
     (content: string) => {
       setDraft(content);
+      setCaret(content.length);
       onDraftChange?.(content);
     },
     [onDraftChange],
   );
+
+  const handleSelectionChange = useCallback(
+    (event: NativeSyntheticEvent<TextInputSelectionChangeEventData>) => {
+      setCaret(event.nativeEvent.selection.end);
+      setPendingSelection(null);
+    },
+    [],
+  );
+
+  const activeMentionQuery = useMemo(() => {
+    if (!mentionCandidates || mentionCandidates.length === 0 || isEditing) {
+      return null;
+    }
+
+    return resolveMobileMentionQuery(draft, caret);
+  }, [caret, draft, isEditing, mentionCandidates]);
+  const mentionSuggestions = useMemo(
+    () =>
+      activeMentionQuery && mentionCandidates
+        ? filterMobileMentionCandidates(mentionCandidates, activeMentionQuery.query)
+        : [],
+    [activeMentionQuery, mentionCandidates],
+  );
+
+  const handleSelectMention = useCallback(
+    (username: string) => {
+      if (!activeMentionQuery) {
+        return;
+      }
+
+      const next = applyMobileMentionSelection(draft, activeMentionQuery, username);
+      setDraft(next.text);
+      setCaret(next.cursor);
+      setPendingSelection({ end: next.cursor, start: next.cursor });
+      onDraftChange?.(next.text);
+    },
+    [activeMentionQuery, draft, onDraftChange],
+  );
+
+  const mentionPanel =
+    mentionSuggestions.length > 0 ? (
+      <View
+        accessibilityLabel={copy.messageMentionSuggestionsLabel}
+        style={styles.mentionSuggestionPanel}
+        testID="mobile-composer-mention-suggestions"
+      >
+        <ScrollView
+          keyboardShouldPersistTaps="always"
+          showsVerticalScrollIndicator={false}
+          style={styles.mentionSuggestionList}
+        >
+          {mentionSuggestions.map((candidate) => (
+            <Pressable
+              accessibilityLabel={copy.messageMentionSuggestionActionTemplate.replace(
+                "{name}",
+                candidate.displayName,
+              )}
+              accessibilityRole="button"
+              key={candidate.userId}
+              onPress={() => handleSelectMention(candidate.username)}
+              style={({ pressed }) => [
+                styles.mentionSuggestionRow,
+                pressed && styles.actionButtonPressed,
+              ]}
+              testID={`mobile-composer-mention-suggestion-${candidate.username}`}
+            >
+              <Avatar
+                dimension={28}
+                identityId={candidate.userId}
+                imageUrl={candidate.avatarUrl}
+                label={candidate.displayName}
+                size="sm"
+              />
+              <View style={styles.mentionSuggestionText}>
+                <Text numberOfLines={1} style={styles.mentionSuggestionName}>
+                  {candidate.displayName}
+                </Text>
+                <Text numberOfLines={1} style={styles.mentionSuggestionHandle}>
+                  {`@${candidate.username}`}
+                </Text>
+              </View>
+            </Pressable>
+          ))}
+        </ScrollView>
+      </View>
+    ) : null;
 
   const uploadChannelAttachment = useCallback(
     async (pickAttachment: () => Promise<MobilePickedMessageAttachment | null>) => {
@@ -296,7 +435,7 @@ export function DMComposer({
       if (outcome.status === "ready" && !isEditingRef.current) {
         setChannelAttachmentDrafts((current) => [...current, outcome.draft]);
       } else if (outcome.status === "error") {
-        setChannelAttachmentUploadError(copy.composerAttachmentUploadFailed);
+        setChannelAttachmentUploadError(getAttachmentUploadFailureText(outcome.code));
       }
     },
     [
@@ -372,7 +511,7 @@ export function DMComposer({
       setChannelAttachmentUploading(false);
       if (outcome.status === "ready") {
         setChannelAttachmentUploadError(null);
-        void onSend("", [outcome.draft.input]);
+        void onSend("", [outcome.draft.input], [outcome.draft.attachment]);
       } else if (outcome.status === "error") {
         setChannelAttachmentUploadError(copy.composerVoiceRecordFailed);
       }
@@ -413,6 +552,14 @@ export function DMComposer({
 
   if (variant === "dm") {
     const hasSendableContent = dmHasSendableContent;
+    // Same gate as the channel composer: no session token means no upload
+    // endpoint, so the control fails closed instead of no-opping on tap.
+    const isDMAttachUnavailable =
+      isChannelAttachmentUploading ||
+      voiceMessageRecorder.isRecording ||
+      !isAttachmentCapabilityAvailable ||
+      !getAccessToken ||
+      isEditing;
     const primaryActionUnavailable =
       isChannelAttachmentUploading ||
       voiceMessageRecorder.phase === "preparing" ||
@@ -448,69 +595,38 @@ export function DMComposer({
       <View style={[styles.dmComposer, styles.dmChatComposer]} testID="mobile-dm-composer">
         {intentBanner}
         {channelAttachmentDrafts.map((attachmentDraft) => (
-          <View
+          <ComposerAttachmentDraftChip
+            draft={attachmentDraft}
             key={attachmentDraft.attachment.id}
-            style={styles.dmComposerAttachmentCard}
-            testID={`mobile-dm-attachment-draft-${attachmentDraft.attachment.id}`}
-          >
-            <View style={styles.dmComposerAttachmentText}>
-              <Text style={styles.dmComposerAttachmentTitle} numberOfLines={1}>
-                {attachmentDraft.attachment.filename}
-              </Text>
-              <Text style={styles.dmComposerAttachmentMeta} numberOfLines={1}>
-                {attachmentDraft.attachment.contentType} Â· {attachmentDraft.attachment.size} B
-              </Text>
-            </View>
-            <Pressable
-              accessibilityLabel={copy.composerAttachmentClearAction}
-              accessibilityRole="button"
-              hitSlop={14}
-              onPress={() =>
-                setChannelAttachmentDrafts((current) =>
-                  current.filter((item) => item.attachment.id !== attachmentDraft.attachment.id),
-                )
-              }
-              style={({ pressed }) => [
-                styles.dmComposerAttachmentClear,
-                pressed && styles.actionButtonPressed,
-              ]}
-              testID={`mobile-dm-attachment-clear-${attachmentDraft.attachment.id}`}
-            >
-              <Ionicons name="close" size={16} color={theme.accent.strong} />
-            </Pressable>
-          </View>
+            onRemove={() =>
+              setChannelAttachmentDrafts((current) =>
+                current.filter((item) => item.attachment.id !== attachmentDraft.attachment.id),
+              )
+            }
+            testIDPrefix="mobile-dm-attachment"
+          />
         ))}
+        {mentionPanel}
         <View style={styles.dmChatComposerRow}>
           <Pressable
             accessibilityLabel={copy.dmChatAttachAction}
             accessibilityHint={attachmentCapabilityHint}
             accessibilityRole="button"
-            accessibilityState={{
-              disabled:
-                isChannelAttachmentUploading ||
-                voiceMessageRecorder.isRecording ||
-                !isAttachmentCapabilityAvailable ||
-                isEditing,
-            }}
-            disabled={
-              isChannelAttachmentUploading ||
-              voiceMessageRecorder.isRecording ||
-              !isAttachmentCapabilityAvailable ||
-              isEditing
-            }
+            accessibilityState={{ disabled: isDMAttachUnavailable }}
+            disabled={isDMAttachUnavailable}
             onPress={() => setAttachmentPickerOpen(true)}
             style={({ pressed }) => [
               styles.dmChatComposerControl,
-              (isChannelAttachmentUploading ||
-                voiceMessageRecorder.isRecording ||
-                !isAttachmentCapabilityAvailable ||
-                isEditing) &&
-                styles.dmChatComposerControlDisabled,
+              isDMAttachUnavailable && styles.dmChatComposerControlDisabled,
               pressed && styles.actionButtonPressed,
             ]}
             testID="mobile-dm-attach-button"
           >
-            <Ionicons name="add" size={22} color={theme.text.muted} />
+            <Ionicons
+              name={isChannelAttachmentUploading ? "hourglass-outline" : "add"}
+              size={22}
+              color={theme.text.muted}
+            />
           </Pressable>
           <View style={styles.dmChatComposerInputShell}>
             {voiceMessageRecorder.isRecording ? (
@@ -540,8 +656,10 @@ export function DMComposer({
                 maxLength={2000}
                 multiline
                 onChangeText={handleDraftChange}
+                onSelectionChange={handleSelectionChange}
                 placeholder={placeholder}
                 placeholderTextColor={theme.text.visualPlaceholder}
+                {...(pendingSelection ? { selection: pendingSelection } : {})}
                 style={[styles.dmComposerInput, styles.dmChatComposerInput]}
                 testID="mobile-dm-composer-input"
                 value={draft}
@@ -603,66 +721,44 @@ export function DMComposer({
             {channelAttachmentUploadError}
           </Text>
         ) : null}
-        <BottomSheet
-          accessibilityLabel={copy.dmChatAttachAction}
+        <ActionSheet
+          actions={[
+            {
+              icon: "image-outline",
+              id: "photo",
+              label: copy.dmChatAttachPhotoAction,
+              onPress: () => void handleSelectPhoto(),
+              testID: "mobile-dm-photo-library-picker",
+              tone: "accent",
+            },
+            {
+              icon: "document-attach-outline",
+              id: "document",
+              label: copy.dmChatAttachFileAction,
+              onPress: () => void handleSelectDocument(),
+              testID: "mobile-dm-document-picker",
+              tone: "warning",
+            },
+            ...(onSendGif
+              ? [
+                  {
+                    icon: "film-outline" as const,
+                    id: "gif",
+                    label: copy.dmChatAttachGifAction,
+                    onPress: () => setGifPickerOpen(true),
+                    testID: "mobile-dm-gif-button",
+                    tone: "success" as const,
+                  },
+                ]
+              : []),
+          ]}
+          closeAccessibilityLabel={copy.sheetCloseAction}
+          icon="attach-outline"
           onClose={() => setAttachmentPickerOpen(false)}
           open={attachmentPickerOpen}
-          snapPoint={280}
           testID="mobile-dm-attachment-picker"
-        >
-          <View style={styles.channelComposerAttachmentPicker}>
-            <Text style={styles.channelComposerAttachmentPickerTitle}>
-              {copy.dmChatAttachAction}
-            </Text>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => void handleSelectPhoto()}
-              style={({ pressed }) => [
-                styles.channelComposerAttachmentPickerAction,
-                pressed && styles.actionButtonPressed,
-              ]}
-              testID="mobile-dm-photo-library-picker"
-            >
-              <Ionicons name="image-outline" size={20} color={theme.accent.strong} />
-              <Text style={styles.channelComposerAttachmentPickerActionText}>
-                {copy.dmChatAttachPhotoAction}
-              </Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => void handleSelectDocument()}
-              style={({ pressed }) => [
-                styles.channelComposerAttachmentPickerAction,
-                pressed && styles.actionButtonPressed,
-              ]}
-              testID="mobile-dm-document-picker"
-            >
-              <Ionicons name="document-attach-outline" size={20} color={theme.accent.strong} />
-              <Text style={styles.channelComposerAttachmentPickerActionText}>
-                {copy.dmChatAttachFileAction}
-              </Text>
-            </Pressable>
-            {onSendGif ? (
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => {
-                  setAttachmentPickerOpen(false);
-                  setGifPickerOpen(true);
-                }}
-                style={({ pressed }) => [
-                  styles.channelComposerAttachmentPickerAction,
-                  pressed && styles.actionButtonPressed,
-                ]}
-                testID="mobile-dm-gif-button"
-              >
-                <Text style={styles.channelComposerGifButtonText}>GIF</Text>
-                <Text style={styles.channelComposerAttachmentPickerActionText}>
-                  {copy.dmChatAttachGifAction}
-                </Text>
-              </Pressable>
-            ) : null}
-          </View>
-        </BottomSheet>
+          title={copy.dmChatAttachAction}
+        />
         <MessageEmojiPicker
           isOpen={emojiPickerOpen}
           onClose={() => setEmojiPickerOpen(false)}
@@ -690,41 +786,20 @@ export function DMComposer({
     return (
       <View style={[styles.dmComposer, styles.channelComposer]} testID="mobile-channel-composer">
         {intentBanner}
-        {channelAttachmentDrafts.map((draft) => (
-          <View
-            key={draft.attachment.id}
-            style={styles.dmComposerAttachmentCard}
-            testID={`mobile-channel-attachment-draft-${draft.attachment.id}`}
-          >
-            <View style={styles.dmComposerAttachmentText}>
-              <Text style={styles.dmComposerAttachmentTitle} numberOfLines={1}>
-                {draft.attachment.filename}
-              </Text>
-              <Text style={styles.dmComposerAttachmentMeta} numberOfLines={1}>
-                {draft.attachment.contentType} · {draft.attachment.size} B
-              </Text>
-            </View>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={copy.composerAttachmentClearAction}
-              onPress={() =>
-                setChannelAttachmentDrafts((current) =>
-                  current.filter(
-                    (currentDraft) => currentDraft.attachment.id !== draft.attachment.id,
-                  ),
-                )
-              }
-              style={({ pressed }) => [
-                styles.dmComposerAttachmentClear,
-                pressed && styles.actionButtonPressed,
-              ]}
-              testID={`mobile-channel-attachment-clear-${draft.attachment.id}`}
-            >
-              <Ionicons name="close" size={16} color={theme.accent.strong} />
-            </Pressable>
-          </View>
+        {channelAttachmentDrafts.map((attachmentDraft) => (
+          <ComposerAttachmentDraftChip
+            draft={attachmentDraft}
+            key={attachmentDraft.attachment.id}
+            onRemove={() =>
+              setChannelAttachmentDrafts((current) =>
+                current.filter((item) => item.attachment.id !== attachmentDraft.attachment.id),
+              )
+            }
+            testIDPrefix="mobile-channel-attachment"
+          />
         ))}
 
+        {mentionPanel}
         <View style={styles.channelComposerControlRow}>
           <Pressable
             accessibilityRole="button"
@@ -764,8 +839,10 @@ export function DMComposer({
               maxLength={2000}
               multiline
               onChangeText={handleDraftChange}
+              onSelectionChange={handleSelectionChange}
               placeholder={placeholder}
               placeholderTextColor={theme.text.soft}
+              {...(pendingSelection ? { selection: pendingSelection } : {})}
               style={[styles.dmComposerInput, styles.channelComposerInput]}
               testID="mobile-channel-composer-input"
               value={draft}
@@ -845,51 +922,34 @@ export function DMComposer({
         {sendBlockText ? (
           <Text style={styles.dmComposerAttachmentNotice}>{sendBlockText}</Text>
         ) : null}
-        <BottomSheet
-          accessibilityLabel={copy.composerAttachAction}
+        <ActionSheet
+          actions={[
+            {
+              disabled: !getAccessToken || isChannelAttachmentUploading,
+              icon: "document-attach-outline",
+              id: "document",
+              label: copy.composerAttachAction,
+              onPress: () => void handleSelectDocument(),
+              testID: "mobile-channel-document-picker",
+              tone: "warning",
+            },
+            {
+              disabled: !getAccessToken || isChannelAttachmentUploading,
+              icon: "image-outline",
+              id: "photo",
+              label: copy.composerPhotoLibraryAction,
+              onPress: () => void handleSelectPhoto(),
+              testID: "mobile-channel-photo-library-picker",
+              tone: "accent",
+            },
+          ]}
+          closeAccessibilityLabel={copy.sheetCloseAction}
+          icon="attach-outline"
           onClose={() => setAttachmentPickerOpen(false)}
           open={attachmentPickerOpen}
-          snapPoint={280}
           testID="mobile-channel-attachment-picker"
-        >
-          <View style={styles.channelComposerAttachmentPicker}>
-            <Text style={styles.channelComposerAttachmentPickerTitle}>
-              {copy.composerAttachAction}
-            </Text>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ disabled: !getAccessToken || isChannelAttachmentUploading }}
-              disabled={!getAccessToken || isChannelAttachmentUploading}
-              onPress={() => void handleSelectDocument()}
-              style={({ pressed }) => [
-                styles.channelComposerAttachmentPickerAction,
-                pressed && styles.actionButtonPressed,
-              ]}
-              testID="mobile-channel-document-picker"
-            >
-              <Ionicons name="document-attach-outline" size={20} color={theme.accent.strong} />
-              <Text style={styles.channelComposerAttachmentPickerActionText}>
-                {copy.composerAttachAction}
-              </Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ disabled: !getAccessToken || isChannelAttachmentUploading }}
-              disabled={!getAccessToken || isChannelAttachmentUploading}
-              onPress={() => void handleSelectPhoto()}
-              style={({ pressed }) => [
-                styles.channelComposerAttachmentPickerAction,
-                pressed && styles.actionButtonPressed,
-              ]}
-              testID="mobile-channel-photo-library-picker"
-            >
-              <Ionicons name="image-outline" size={20} color={theme.accent.strong} />
-              <Text style={styles.channelComposerAttachmentPickerActionText}>
-                {copy.composerPhotoLibraryAction}
-              </Text>
-            </Pressable>
-          </View>
-        </BottomSheet>
+          title={copy.composerAttachAction}
+        />
         <MessageEmojiPicker
           isOpen={emojiPickerOpen}
           onClose={() => setEmojiPickerOpen(false)}
@@ -1022,6 +1082,87 @@ export function DMComposer({
       ) : null}
     </View>
   );
+}
+
+/**
+ * One draft chip for both composer variants — image drafts get a thumbnail,
+ * everything else the document mark; only the testID prefix differs.
+ */
+function ComposerAttachmentDraftChip({
+  draft,
+  onRemove,
+  testIDPrefix,
+}: {
+  readonly draft: MobileMessageAttachmentDraft;
+  readonly onRemove: () => void;
+  readonly testIDPrefix: "mobile-channel-attachment" | "mobile-dm-attachment";
+}) {
+  const styles = useMobileComposerStyles();
+  const theme = useTheme();
+  const previewUri = draft.kind === "image" ? (draft.attachment.url ?? draft.localUri) : null;
+  const sizeLabel = formatMobileAttachmentSize(draft.attachment.size);
+
+  return (
+    <View
+      style={styles.dmComposerAttachmentCard}
+      testID={`${testIDPrefix}-draft-${draft.attachment.id}`}
+    >
+      {previewUri ? (
+        <MobileCachedImage
+          accessibilityIgnoresInvertColors
+          importantForAccessibility="no"
+          source={{ uri: previewUri }}
+          style={styles.dmComposerAttachmentThumbnail}
+          testID={`${testIDPrefix}-thumbnail-${draft.attachment.id}`}
+        />
+      ) : (
+        <View style={styles.dmComposerAttachmentIcon}>
+          <Icon name="document-attach-outline" size={18} tone="accent" />
+        </View>
+      )}
+      <View style={styles.dmComposerAttachmentText}>
+        <Text style={styles.dmComposerAttachmentTitle} numberOfLines={1}>
+          {draft.attachment.filename}
+        </Text>
+        <Text style={styles.dmComposerAttachmentMeta} numberOfLines={1}>
+          {[draft.attachment.contentType, sizeLabel].filter(Boolean).join(" · ")}
+        </Text>
+      </View>
+      <Pressable
+        accessibilityLabel={copy.composerAttachmentClearAction}
+        accessibilityRole="button"
+        hitSlop={14}
+        onPress={onRemove}
+        style={({ pressed }) => [
+          styles.dmComposerAttachmentClear,
+          pressed && styles.actionButtonPressed,
+        ]}
+        testID={`${testIDPrefix}-clear-${draft.attachment.id}`}
+      >
+        <Ionicons name="close" size={16} color={theme.accent.strong} />
+      </Pressable>
+    </View>
+  );
+}
+
+function getAttachmentUploadFailureText(code: MobileMessageAttachmentUploadFailureCode): string {
+  switch (code) {
+    case "selected-file-too-large":
+      return copy.composerAttachmentTooLarge;
+    case "unsupported-content-type":
+      return copy.composerAttachmentUnsupported;
+    case "missing-file-metadata":
+      return copy.composerAttachmentMetadataMissing;
+    case "invalid-local-uri":
+      return copy.composerAttachmentMetadataMissing;
+    case "missing-access-token":
+      return copy.composerAttachmentServerPending;
+    case "invalid-upload-completion":
+    case "upload-failed":
+      return copy.composerAttachmentUploadFailed;
+    default:
+      return copy.composerAttachmentUploadFailed;
+  }
 }
 
 function getAttachmentDraftBlockText(

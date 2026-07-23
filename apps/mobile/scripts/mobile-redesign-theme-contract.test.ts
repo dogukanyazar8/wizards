@@ -1298,7 +1298,10 @@ export function Fixture({ cap }: { cap: number }) {
 
     assert.match(homeStyles, /homePrimaryServerMeta: \{[\s\S]*?color: theme\.text\.onPrimary,/);
     assert.match(homeStyles, /homeSummaryCard: \{[\s\S]*?backgroundColor: theme\.accent\.action,/);
-    assert.match(lightbox, /close: \{[\s\S]*?backgroundColor: theme\.surface\.inverse,/);
+    // 10b: the close control is part of the viewer's own chrome now, so it reads
+    // from the lightbox role instead of the generic inverse surface.
+    assert.match(lightbox, /close: \{[\s\S]*?backgroundColor: theme\.lightbox\.control,/);
+    assert.match(lightbox, /shareAction: \{[\s\S]*?backgroundColor: theme\.lightbox\.control,/);
     assert.match(lightbox, /<Icon name="close" size=\{24\} tone="inverse" \/>/);
   });
 
@@ -1317,6 +1320,20 @@ export function Fixture({ cap }: { cap: number }) {
     }
   });
 
+  it("keeps the lightbox surface dark in both themes", () => {
+    // A photo viewer is always a dark room: the light theme must not lighten it.
+    assert.deepEqual(lightTheme.lightbox, darkTheme.lightbox);
+    assert.deepEqual(lightTheme.lightbox, {
+      backdrop: "#08080C",
+      chromeGradient: ["rgba(8,8,12,.74)", "rgba(8,8,12,0)"],
+      chromeGradientBottom: ["rgba(8,8,12,0)", "rgba(8,8,12,.74)"],
+      chromeText: "#FFFFFF",
+      chromeTextMuted: "rgba(255,255,255,.72)",
+      control: "rgba(255,255,255,.14)",
+      controlBorder: "rgba(255,255,255,.20)",
+    });
+  });
+
   it("keeps sheet and lightbox backdrops on the dedicated scrim role", () => {
     const bottomSheet = readFileSync(
       join(process.cwd(), "src", "app", "components", "kit", "bottom-sheet.styles.ts"),
@@ -1328,9 +1345,10 @@ export function Fixture({ cap }: { cap: number }) {
     );
 
     // Both surfaces now darken through the shared overlay backdrop, which fades
-    // with the open/close progress instead of snapping with the container.
+    // with the open/close progress instead of snapping with the container. The
+    // viewer takes the opaque lightbox role rather than the translucent scrim.
     assert.match(bottomSheet, /backdrop: \{[\s\S]*?backgroundColor: theme\.surface\.scrim,/);
-    assert.match(lightbox, /backdrop: \{[\s\S]*?backgroundColor: theme\.surface\.scrim,/);
+    assert.match(lightbox, /backdrop: \{[\s\S]*?backgroundColor: theme\.lightbox\.backdrop,/);
   });
 
   it("keeps auth and legacy white-foreground controls on audited contrast pairs", () => {

@@ -1,7 +1,7 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import * as Clipboard from "expo-clipboard";
 import { useLayoutEffect, useRef, useState, type ComponentProps, type ReactNode } from "react";
-import { Alert, Pressable, Text, View } from "react-native";
+import { Alert, Pressable, Text, View, type StyleProp, type ViewStyle } from "react-native";
 import Animated, {
   Extrapolation,
   interpolate,
@@ -26,6 +26,7 @@ import { useTheme } from "../providers/mobile-theme-provider";
 import { useMobileBottomSystemSpacing } from "../use-mobile-bottom-system-spacing";
 import { AvatarMark } from "./ui-atoms";
 import { useMessageActionMenuStyles } from "./message-action-menu.styles";
+import { MessageRowLongPressProvider } from "./message-row-long-press-context";
 import type { MobileMessageReactionToggleInput } from "./message-primitives";
 
 /** 8a quick-reaction bar order is part of the visual handoff contract. */
@@ -52,7 +53,9 @@ export interface MessageActionMenuProps {
   readonly authorAvatarUrl: string | null;
   readonly authorId: string;
   readonly authorLabel: string;
-  /** Long-press trigger content; omit for controlled usage (8c channel ⋯). */
+  /** 10e: MANAGE_MESSAGES holder — mirrors the web `canModerate` toolbar gate. */
+  readonly canModerate?: boolean;
+  /** Long-press trigger content; omit for controlled usage (10e channel long press). */
   readonly children?: ReactNode;
   readonly currentUserId?: string;
   readonly disabled?: boolean;
@@ -60,15 +63,16 @@ export interface MessageActionMenuProps {
   /** Controlled overlay visibility; leave undefined for the built-in trigger. */
   readonly open?: boolean;
   readonly onClose?: () => void;
-  /** 8c channel ⋯ card hides the quick reaction bar (the inline bar owns it). */
+  /** Failed sends and preview-only surfaces drop the quick reaction bar. */
   readonly showQuickBar?: boolean;
   readonly onDelete?: () => void;
   readonly onDiscardFailed?: () => void;
   readonly onEdit?: () => void;
-  /** Real forwarding lands with 8b; without a handler the row explains it is coming soon. */
   readonly onForward?: () => void;
   readonly onOpenEmojiPicker?: () => void;
-  /** Real pinning lands with 8c; without a handler the row explains it is coming soon. */
+  /** Reaction roster sheet; only meaningful once the message carries reactions. */
+  readonly onOpenReactionDetails?: () => void;
+  /** Channel-only pin/unpin; DM conversations have no pinned-message surface. */
   readonly onPin?: () => void;
   /** Plain tap on the row (e.g. double-tap ❤️ detection lives in the caller). */
   readonly onPress?: () => void;
@@ -90,10 +94,60 @@ type MessageActionMenuRow = {
   readonly onPress: () => void;
 };
 
+/**
+ * The long-press target of a message row. Split out of the menu itself so a list
+ * can keep the overlay outside its recycler: the row renders only this trigger,
+ * the list renders the menu for whichever message id is selected. A row that
+ * scrolls out of the render window then cannot take an open menu down with it.
+ */
+export function MessageActionMenuTrigger({
+  children,
+  disabled = false,
+  onLongPress,
+  onPress,
+  style,
+  testID,
+}: {
+  readonly children: ReactNode;
+  readonly disabled?: boolean;
+  readonly onLongPress: () => void;
+  readonly onPress?: (() => void) | undefined;
+  readonly style?: StyleProp<ViewStyle>;
+  readonly testID: string;
+}) {
+  const styles = useMessageActionMenuStyles();
+  const haptics = useMobileHaptics();
+  // Published to the row's descendants too: a nested press target (an image
+  // attachment card) owns the touch over its area and hands the long press back.
+  const longPressTrigger = () => {
+    haptics.impact();
+    onLongPress();
+  };
+
+  return (
+    <Pressable
+      accessibilityLabel={copy.messageReactionMenuLabel}
+      accessibilityRole="button"
+      accessibilityState={{ disabled }}
+      delayLongPress={350}
+      disabled={disabled}
+      onLongPress={longPressTrigger}
+      {...(onPress ? { onPress } : {})}
+      style={style ?? styles.trigger}
+      testID={testID}
+    >
+      <MessageRowLongPressProvider onLongPress={longPressTrigger}>
+        {children}
+      </MessageRowLongPressProvider>
+    </Pressable>
+  );
+}
+
 export function MessageActionMenu({
   authorAvatarUrl,
   authorId,
   authorLabel,
+  canModerate = false,
   children,
   currentUserId,
   disabled = false,
@@ -104,6 +158,7 @@ export function MessageActionMenu({
   onEdit,
   onForward,
   onOpenEmojiPicker,
+  onOpenReactionDetails,
   onPin,
   onPress,
   onReply,
@@ -132,7 +187,6 @@ export function MessageActionMenu({
     if (!isControlled) setInternalOpen(false);
     onClose?.();
   };
-
   const { phase, settleClosed } = useOverlayPhase(open);
   // The card grows into place and shrinks back out; the backdrop rides the same
   // progress so the blur never snaps on or off.
@@ -237,30 +291,39 @@ export function MessageActionMenu({
               } as const,
             ]
           : []),
-        {
-          icon: "arrow-redo-outline",
-          id: "forward",
-          label: copy.messageForwardAction,
-          onPress:
-            onForward ??
-            (() => {
-              Alert.alert(
-                copy.messageFeatureComingSoonTitle,
-                copy.messageForwardComingSoonDescription,
-              );
-            }),
-        } as const,
+        ...(onForward
+          ? [
+              {
+                icon: "arrow-redo-outline",
+                id: "forward",
+                label: copy.messageForwardAction,
+                onPress: onForward,
+              } as const,
+            ]
+          : []),
         ...(copyRow ? [copyRow] : []),
-        {
-          icon: "pin-outline",
-          id: "pin",
-          label: message.isPinned ? copy.messageUnpinAction : copy.messagePinAction,
-          onPress:
-            onPin ??
-            (() => {
-              Alert.alert(copy.messageFeatureComingSoonTitle, copy.messagePinComingSoonDescription);
-            }),
-        } as const,
+        // Pinning is a channel surface: DM conversations have no pinned list to
+        // pin into, and only MANAGE_MESSAGES holders may pin on the server.
+        ...(scope === "channel" && canModerate && onPin
+          ? [
+              {
+                icon: "pin-outline",
+                id: "pin",
+                label: message.isPinned ? copy.messageUnpinAction : copy.messagePinAction,
+                onPress: onPin,
+              } as const,
+            ]
+          : []),
+        ...(onOpenReactionDetails && message.reactions.length > 0
+          ? [
+              {
+                icon: "people-outline",
+                id: "reaction-details",
+                label: copy.messageReactionDetailsAction,
+                onPress: onOpenReactionDetails,
+              } as const,
+            ]
+          : []),
       ];
 
   const dangerRows: readonly MessageActionMenuRow[] = isFailed
@@ -275,7 +338,7 @@ export function MessageActionMenu({
           },
         ]
       : []
-    : own && onDelete
+    : (own || canModerate) && onDelete
       ? [
           {
             destructive: true,
@@ -324,22 +387,14 @@ export function MessageActionMenu({
   return (
     <>
       {children !== undefined ? (
-        <Pressable
-          accessibilityLabel={copy.messageReactionMenuLabel}
-          accessibilityRole="button"
-          accessibilityState={{ disabled }}
-          delayLongPress={350}
+        <MessageActionMenuTrigger
           disabled={disabled}
-          onLongPress={() => {
-            haptics.impact();
-            setInternalOpen(true);
-          }}
+          onLongPress={() => setInternalOpen(true)}
           {...(onPress ? { onPress } : {})}
-          style={styles.trigger}
           testID={`${testID}-trigger`}
         >
           {children}
-        </Pressable>
+        </MessageActionMenuTrigger>
       ) : null}
       {phase === "closed" ? null : (
         <OverlaySurface
@@ -440,6 +495,7 @@ export function MessageActionMenu({
               </View>
               {mainRows.length > 0 || dangerRows.length > 0 ? (
                 <View
+                  accessibilityLabel={copy.messageActionMenuLabel}
                   accessibilityRole="menu"
                   style={[
                     styles.actionCard,

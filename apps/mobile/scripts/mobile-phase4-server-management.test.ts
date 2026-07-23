@@ -46,6 +46,7 @@ const managedDetail = {
       canKickMembers: true,
       canManageChannels: true,
       canManageInvites: true,
+      canManageMessages: true,
       canManageRoles: true,
       canManageServer: true,
       canUploadServerIcon: true,

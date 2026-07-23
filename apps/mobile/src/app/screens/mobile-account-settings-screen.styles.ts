@@ -278,11 +278,13 @@ export const createMobileAccountSettingsStyles = (theme: MobileTheme) =>
       fontFamily: theme.typography.fontFamilyBold,
       fontSize: 13,
     },
-    sheet: { gap: 10, paddingBottom: 8 },
-    sheetTitle: {
-      color: theme.text.primary,
-      fontFamily: theme.typography.fontFamilyExtraBold,
-      fontSize: 18,
+    sheet: { gap: 14 },
+    sheetFields: { gap: 10 },
+    sheetField: { gap: 6 },
+    sheetFieldLabel: {
+      color: theme.text.muted,
+      fontFamily: theme.typography.fontFamilySemiBold,
+      fontSize: 12,
     },
     input: {
       backgroundColor: theme.surface.soft,
@@ -290,6 +292,8 @@ export const createMobileAccountSettingsStyles = (theme: MobileTheme) =>
       borderRadius: 14,
       borderWidth: 1,
       color: theme.text.primary,
+      fontFamily: theme.typography.fontFamily,
+      fontSize: 15,
       minHeight: theme.sizing.minTouchTarget,
       paddingHorizontal: 14,
     },

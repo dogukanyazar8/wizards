@@ -6,6 +6,7 @@ import {
   redesignAuthLight,
   redesignDark,
   redesignLight,
+  redesignLightbox,
 } from "./palette";
 import {
   mobileLayoutMetrics,
@@ -61,6 +62,23 @@ const darkThemeAccent = {
   strong: redesignDark.accentText,
   ownerBadge: redesignDark.ownerBadge,
   tabActive: redesignDark.accentText,
+} as const;
+
+/** Shared by both themes on purpose: a photo viewer is always a dark room. */
+const lightboxChrome = {
+  backdrop: redesignLightbox.backdrop,
+  chromeGradient: [
+    redesignLightbox.chromeGradientStrong,
+    redesignLightbox.chromeGradientFade,
+  ] as const,
+  chromeGradientBottom: [
+    redesignLightbox.chromeGradientFade,
+    redesignLightbox.chromeGradientStrong,
+  ] as const,
+  chromeText: redesignLightbox.chromeText,
+  chromeTextMuted: redesignLightbox.chromeTextMuted,
+  control: redesignLightbox.control,
+  controlBorder: redesignLightbox.controlBorder,
 } as const;
 
 export interface MobileTheme {
@@ -143,12 +161,32 @@ export interface MobileTheme {
   };
   /** Named non-scale layout measures used by semantic screen style trees. */
   readonly layout: typeof mobileLayoutMetrics;
+  /** 10b full-screen image viewer. Stays dark in both themes so the photo leads. */
+  readonly lightbox: {
+    readonly backdrop: string;
+    /** Top bar wash: opaque at the top edge, transparent where the photo starts. */
+    readonly chromeGradient: readonly [string, string];
+    /** Bottom bar wash: the same ramp, mirrored. */
+    readonly chromeGradientBottom: readonly [string, string];
+    readonly chromeText: string;
+    readonly chromeTextMuted: string;
+    readonly control: string;
+    readonly controlBorder: string;
+  };
   readonly media: {
     readonly border: string;
     readonly surface: string;
     readonly surfaceElevated: string;
     readonly text: string;
     readonly textMuted: string;
+  };
+  /** 10a `@username` mention chips and the row accent of a message that mentions you. */
+  readonly mention: {
+    readonly background: string;
+    readonly selfBackground: string;
+    readonly selfRowBackground: string;
+    readonly selfRowStripe: string;
+    readonly text: string;
   };
   /** 8a-8e message action surfaces: long-press overlay chrome + channel stream accents. */
   readonly messageMenu: {
@@ -387,12 +425,20 @@ export const lightTheme = deepFreeze({
     pressed: mobilePalette.overlay.pressedLight,
   },
   layout: mobileLayoutMetrics,
+  lightbox: lightboxChrome,
   media: {
     border: mobilePalette.neutral[700],
     surface: mobilePalette.neutral[950],
     surfaceElevated: mobilePalette.neutral[900],
     text: mobilePalette.neutral[50],
     textMuted: mobilePalette.neutral[300],
+  },
+  mention: {
+    background: redesignLight.lavender,
+    selfBackground: redesignLight.lavenderBorder,
+    selfRowBackground: "#EEF0FE99",
+    selfRowStripe: redesignLight.primary,
+    text: redesignLight.primaryStrong,
   },
   messageMenu: {
     addReactionBorder: "#C9CDE4",
@@ -578,12 +624,20 @@ export const darkTheme = deepFreeze({
     pressed: mobilePalette.overlay.pressedDark,
   },
   layout: mobileLayoutMetrics,
+  lightbox: lightboxChrome,
   media: {
     border: mobilePalette.neutral[700],
     surface: mobilePalette.neutral[950],
     surfaceElevated: mobilePalette.neutral[900],
     text: mobilePalette.neutral[50],
     textMuted: mobilePalette.neutral[300],
+  },
+  mention: {
+    background: redesignDark.selectedSurface,
+    selfBackground: redesignDark.selectedBorder,
+    selfRowBackground: "#2A2D5599",
+    selfRowStripe: redesignDark.primary,
+    text: redesignDark.accentText,
   },
   messageMenu: {
     addReactionBorder: redesignDark.border,

@@ -24,6 +24,8 @@ appId: team.whispr.mobile
     id: "mobile-message-actions-.*-trigger"
     containsChild:
       text: "Phase2 Maestro verified"
+- assertVisible:
+    id: "mobile-message-actions-.*-options"
 - tapOn: "Daha fazla emoji|More emoji"
 - assertVisible:
     id: "mobile-message-emoji-picker-panel"
@@ -47,7 +49,6 @@ appId: team.whispr.mobile
     id: "mobile-message-actions-.*-trigger"
     containsChild:
       text: "Phase2 Maestro verified"
-- tapOn: "Diğer eylemler|More actions"
 - tapOn: "Düzenle|Edit"
 - assertVisible:
     id: "mobile-message-edit-preview"
@@ -82,7 +83,6 @@ appId: team.whispr.mobile
     id: "mobile-message-actions-.*-trigger"
     containsChild:
       text: "Phase2 edited verified"
-- tapOn: "Diğer eylemler|More actions"
 - tapOn: "Sil|Delete"
 - tapOn: "Sil|Delete"
 - assertNotVisible:

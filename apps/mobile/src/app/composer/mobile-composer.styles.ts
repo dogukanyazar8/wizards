@@ -123,6 +123,40 @@ export const createMobileComposerStyles = (theme: MobileTheme) => {
       justifyContent: "center",
       borderRadius: 12,
     },
+    // 10a `@` autocomplete: a compact card stacked on top of the composer row.
+    // It lives inside the composer, so it rides the MobileChatKeyboardRegion
+    // transform with the input instead of floating over the message list.
+    mentionSuggestionPanel: {
+      minWidth: 0,
+      overflow: "hidden",
+      borderWidth: 1,
+      borderColor: theme.border.subtle,
+      borderRadius: 14,
+      backgroundColor: theme.surface.card,
+      marginBottom: 8,
+    },
+    mentionSuggestionList: { maxHeight: 196 },
+    mentionSuggestionRow: {
+      minWidth: 0,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+    },
+    mentionSuggestionText: { flex: 1, minWidth: 0, gap: 1 },
+    mentionSuggestionName: {
+      color: theme.text.primary,
+      fontSize: 13,
+      lineHeight: 17,
+      fontFamily: theme.typography.fontFamilyBold,
+    },
+    mentionSuggestionHandle: {
+      color: theme.mention.text,
+      fontSize: 11.5,
+      lineHeight: 15,
+      fontFamily: theme.typography.fontFamilyMedium,
+    },
     dmChatVoiceRecording: { flex: 1, minWidth: 0 },
     dmChatVoiceRecordingText: {
       color: theme.accent.strong,
@@ -159,11 +193,6 @@ export const createMobileComposerStyles = (theme: MobileTheme) => {
       backgroundColor: theme.surface.soft,
       paddingHorizontal: 9,
     },
-    channelComposerGifButtonText: {
-      color: theme.text.muted,
-      fontSize: 13,
-      fontFamily: theme.typography.fontFamilyExtraBold,
-    },
     channelComposerIconButton: {
       width: 44,
       height: 44,
@@ -179,31 +208,6 @@ export const createMobileComposerStyles = (theme: MobileTheme) => {
     },
     channelComposerIconButtonUnavailable: {
       opacity: 0.72,
-    },
-    channelComposerAttachmentPicker: {
-      gap: 10,
-      minWidth: 0,
-    },
-    channelComposerAttachmentPickerAction: {
-      minHeight: 48,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 10,
-      borderWidth: 1,
-      borderColor: theme.border.subtle,
-      borderRadius: 16,
-      backgroundColor: theme.surface.soft,
-      paddingHorizontal: 14,
-    },
-    channelComposerAttachmentPickerActionText: {
-      color: theme.text.primary,
-      fontSize: 14,
-      fontFamily: theme.typography.fontFamilyBold,
-    },
-    channelComposerAttachmentPickerTitle: {
-      color: theme.text.primary,
-      fontSize: 17,
-      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     channelComposerInput: {
       flex: 1,
@@ -307,6 +311,20 @@ export const createMobileComposerStyles = (theme: MobileTheme) => {
       justifyContent: "center",
       borderRadius: mobileRadii.pill,
       backgroundColor: theme.accent.soft,
+    },
+    dmComposerAttachmentIcon: {
+      width: 38,
+      height: 38,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: 12,
+      backgroundColor: theme.accent.soft,
+    },
+    dmComposerAttachmentThumbnail: {
+      width: 38,
+      height: 38,
+      borderRadius: 12,
+      backgroundColor: theme.surface.soft,
     },
     dmComposerAttachmentClearText: {
       color: theme.accent.strong,

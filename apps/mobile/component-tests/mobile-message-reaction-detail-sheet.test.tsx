@@ -251,6 +251,88 @@ describe("8e reaction detail sheet", () => {
     expect(view.getByText("Sen")).toBeTruthy();
   });
 
+  // 10d: a row that a list offers to own the overlays for must not open one
+  // itself — the row is recycled and would take the sheet with it.
+  it("hands a channel reaction long press to the list instead of opening it", async () => {
+    const onRequestReactionDetails = jest.fn();
+    const view = await render(
+      <MessagePreviewRow
+        currentUserId="user-1"
+        message={message}
+        mode="channel"
+        onRequestReactionDetails={onRequestReactionDetails}
+        onToggleReaction={jest.fn()}
+      />,
+    );
+
+    await fireEvent(view.getByTestId("mobile-message-reaction-message-1-🎉"), "longPress");
+
+    expect(onRequestReactionDetails).toHaveBeenCalledWith("message-1", "🎉");
+    expect(view.queryByTestId("mobile-message-reaction-detail-sheet-panel")).toBeNull();
+  });
+
+  it("hands the channel add-reaction chip to the list instead of opening it", async () => {
+    const onRequestEmojiPicker = jest.fn();
+    const view = await render(
+      <MessagePreviewRow
+        currentUserId="user-1"
+        message={message}
+        mode="channel"
+        onRequestEmojiPicker={onRequestEmojiPicker}
+        onToggleReaction={jest.fn()}
+      />,
+    );
+
+    await fireEvent.press(view.getByTestId("mobile-message-reaction-add-message-1"));
+
+    expect(onRequestEmojiPicker).toHaveBeenCalledWith("message-1");
+    expect(view.queryByTestId("mobile-message-emoji-picker-panel")).toBeNull();
+  });
+
+  it("hands a DM reaction long press to the list instead of opening it", async () => {
+    const onRequestReactionDetails = jest.fn();
+    const dmMessage = {
+      attachments: [],
+      author: {
+        avatarUrl: null,
+        customStatus: null,
+        displayName: "Ayşegül",
+        id: "user-2",
+        status: "ONLINE",
+        username: "aysegul_dev",
+      },
+      content: "DM tepkisi",
+      conversationId: "conversation-1",
+      createdAt: "2026-07-21T13:42:00.000Z",
+      deletedAt: null,
+      deletedById: null,
+      editedAt: null,
+      id: "dm-message-2",
+      reactions: message.reactions,
+      replyTo: null,
+      replyToId: null,
+      threadParentId: null,
+    } as DMChatMessage;
+    const view = await render(
+      <DMChatMessageRow
+        currentUserId="user-1"
+        isGroupedWithNext={false}
+        isGroupedWithPrevious={false}
+        isReactionMutationPending={false}
+        message={dmMessage}
+        onRequestReactionDetails={onRequestReactionDetails}
+        onToggleReaction={jest.fn()}
+        partnerLastReadAt={null}
+        showDateSeparator
+      />,
+    );
+
+    await fireEvent(view.getByTestId("mobile-message-reaction-dm-message-2-🎉"), "longPress");
+
+    expect(onRequestReactionDetails).toHaveBeenCalledWith("dm-message-2", "🎉");
+    expect(view.queryByTestId("mobile-message-reaction-detail-sheet-panel")).toBeNull();
+  });
+
   it("opens the same sheet from a thread reply reaction chip", async () => {
     const view = await render(
       <ThreadReplyRow

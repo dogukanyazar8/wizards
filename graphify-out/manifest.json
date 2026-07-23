@@ -195,8 +195,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/component-tests/jest.setup.ts": {
-    "mtime": 1784715247.5802069,
-    "ast_hash": "a030793e7326bec991a7b4f72467af8f",
+    "mtime": 1784790179.7723677,
+    "ast_hash": "a55efbb6c51a3a106a86a03bcec8bbad",
     "semantic_hash": ""
   },
   "apps/mobile/component-tests/mobile-account-settings-redesign.test.tsx": {
@@ -255,8 +255,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/component-tests/mobile-channel-chat-redesign.test.tsx": {
-    "mtime": 1784651184.805821,
-    "ast_hash": "519702abc2ada0c34ff7f394e65d1965",
+    "mtime": 1784784845.058631,
+    "ast_hash": "c46d8943696c500f918d174dfd1019a6",
     "semantic_hash": ""
   },
   "apps/mobile/component-tests/mobile-communication-theme.test.tsx": {
@@ -280,8 +280,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/component-tests/mobile-dm-conversation-redesign.test.tsx": {
-    "mtime": 1784648938.0289116,
-    "ast_hash": "89284a18035156f6df122f5b862d38c3",
+    "mtime": 1784784834.87418,
+    "ast_hash": "c29ebb5f716c5f165829ec28fb348b62",
     "semantic_hash": ""
   },
   "apps/mobile/component-tests/mobile-dm-inbox-redesign.test.tsx": {
@@ -305,8 +305,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/component-tests/mobile-kit-overlays.test.tsx": {
-    "mtime": 1784716987.5366025,
-    "ast_hash": "dce7cba6656ff30997f043b9742ef303",
+    "mtime": 1784784831.65194,
+    "ast_hash": "07f736937860a9839b5e1e04d99fbd31",
     "semantic_hash": ""
   },
   "apps/mobile/component-tests/mobile-line-icons.test.tsx": {
@@ -340,8 +340,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/component-tests/mobile-privacy-shield.test.tsx": {
-    "mtime": 1784201631.7420096,
-    "ast_hash": "e0168c8da414d6393cdeacd908da8eae",
+    "mtime": 1784784730.950719,
+    "ast_hash": "a263ddb8f8113b736e1189bfb6a89a78",
     "semantic_hash": ""
   },
   "apps/mobile/component-tests/mobile-profile-avatar-upload.test.tsx": {
@@ -380,8 +380,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/component-tests/mobile-server-management.test.tsx": {
-    "mtime": 1784557822.0020208,
-    "ast_hash": "76feaa8b9510215197255f6111ad66d8",
+    "mtime": 1784784435.4848583,
+    "ast_hash": "cccf0719043622d58a53143e745d0bce",
     "semantic_hash": ""
   },
   "apps/mobile/component-tests/mobile-theme-provider.test.tsx": {
@@ -550,8 +550,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-direct-call-contract.test.ts": {
-    "mtime": 1784532835.1471725,
-    "ast_hash": "4cc584d9341b96b076ccb9c4556b6084",
+    "mtime": 1784785261.9477499,
+    "ast_hash": "f2645a295566fb14a5d26b7b0d4df5d6",
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-display-model.test.ts": {
@@ -605,8 +605,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-linking-config.test.ts": {
-    "mtime": 1784388300.5772748,
-    "ast_hash": "9767ff1301cb0e1970d70d166a4ada56",
+    "mtime": 1784785418.9318645,
+    "ast_hash": "dd6293be74c0b2278c73f9e4b0a1b9de",
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-locale-preferences.test.ts": {
@@ -615,8 +615,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-maestro-testid-contract.test.ts": {
-    "mtime": 1784646405.6119843,
-    "ast_hash": "259b591fdc91e881a34d0183d0d97d5c",
+    "mtime": 1784784842.268148,
+    "ast_hash": "6785e055ea82d1a6b8bcda0d2917ea19",
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-media-claim-client.test.ts": {
@@ -635,8 +635,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-message-attachment-upload-service.test.ts": {
-    "mtime": 1784190528.9795227,
-    "ast_hash": "5671edfa30b26d64e4b0cdc5e16cf401",
+    "mtime": 1784784993.98169,
+    "ast_hash": "ad0d26ccb8b13424cf1111a47afb6936",
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-message-cache.test.ts": {
@@ -660,8 +660,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-navigation-contract.test.ts": {
-    "mtime": 1784715548.2487893,
-    "ast_hash": "209f60d64b23fc6e8ce86d5db2040ad2",
+    "mtime": 1784784830.3948562,
+    "ast_hash": "1e3086a2cabe737de7c085453f56c38d",
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-network-contract.test.ts": {
@@ -740,13 +740,13 @@
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-phase4-server-management.test.ts": {
-    "mtime": 1784385110.406862,
-    "ast_hash": "30f207d83dcd96c17c42ec305cca9b6d",
+    "mtime": 1784784435.4848583,
+    "ast_hash": "9aeef4ccbad34f4dff607f46e43859af",
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-privacy-shield-contract.test.ts": {
-    "mtime": 1783962240.224442,
-    "ast_hash": "ce37184951865be6454b72694de387a3",
+    "mtime": 1784784653.8856618,
+    "ast_hash": "25f9c4959a00b79862746cabd9e8d8aa",
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-production-readiness.test.ts": {
@@ -755,13 +755,13 @@
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-profile-cache.test.ts": {
-    "mtime": 1784610210.4251418,
-    "ast_hash": "fe8a0f2f2089c0db50857a896dac6f31",
+    "mtime": 1784784435.4863622,
+    "ast_hash": "2ae7bba5fb851136970ead27718de2f1",
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-quality-gate.test.ts": {
-    "mtime": 1783962805.6386235,
-    "ast_hash": "1807804c0094721eed9979cfade07ead",
+    "mtime": 1784784666.9182665,
+    "ast_hash": "953a92d15b68b5e005916f795fa6a619",
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-query-foundation.test.ts": {
@@ -770,13 +770,13 @@
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-query-view-state.test.ts": {
-    "mtime": 1783946658.2989702,
-    "ast_hash": "40a22d598976ffb0d3520df7ebe1b04a",
+    "mtime": 1784784435.4863622,
+    "ast_hash": "a21c4f670370418ae4971ca8433b9109",
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-realtime-cache.test.ts": {
-    "mtime": 1784547377.7458227,
-    "ast_hash": "de1c196ffa60b2abae0e6900dd81cdf6",
+    "mtime": 1784784435.487366,
+    "ast_hash": "1be0e7f19f370a8a80235ae4f8e14bad",
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-realtime-contract.test.ts": {
@@ -830,8 +830,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-redesign-theme-contract.test.ts": {
-    "mtime": 1784719611.5188272,
-    "ast_hash": "5bebc56a9b2ac315dc50a1706d2806ab",
+    "mtime": 1784784858.6413126,
+    "ast_hash": "2c4d1985a2b66f46244c1d2921b0250d",
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-redesign-visual-gate.ts": {
@@ -865,8 +865,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-screen-state.test.ts": {
-    "mtime": 1784622821.8706203,
-    "ast_hash": "16e99bdc9a7c73824c7eb0d89227cbc4",
+    "mtime": 1784784435.487366,
+    "ast_hash": "3c5b6c26c0daded28df0f8849d6ba31e",
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-screen-sync.test.ts": {
@@ -875,8 +875,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-server-cache.test.ts": {
-    "mtime": 1784557884.7967348,
-    "ast_hash": "ec978f53755ac83a8d1a13bfb692002c",
+    "mtime": 1784784435.488366,
+    "ast_hash": "54d67d310ac7665607fda61cc2900e80",
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-server-management-client.test.ts": {
@@ -980,8 +980,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-workspace-client.test.ts": {
-    "mtime": 1784355275.2971492,
-    "ast_hash": "4f68ee02564322d448a2ad05bdfa3463",
+    "mtime": 1784784435.489368,
+    "ast_hash": "87b6509a116373a27fb4408904b1756b",
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-workspace-selection.test.ts": {
@@ -1100,8 +1100,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/app/components/dm-chat-primitives.tsx": {
-    "mtime": 1784654583.632124,
-    "ast_hash": "5141f4e3b93acf7a8de898b7e99927bb",
+    "mtime": 1784789590.928824,
+    "ast_hash": "6c35c1d7db7bb3f0749cd47c8dfc9711",
     "semantic_hash": ""
   },
   "apps/mobile/src/app/components/media-primitives.styles.ts": {
@@ -1125,18 +1125,18 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/app/components/message-image-lightbox.tsx": {
-    "mtime": 1784719604.9124296,
-    "ast_hash": "0391d6c09d133be698892d6cf174a9d1",
+    "mtime": 1784790229.7553504,
+    "ast_hash": "d12c181bc39b88c68046b046746cfc73",
     "semantic_hash": ""
   },
   "apps/mobile/src/app/components/message-primitives.styles.ts": {
-    "mtime": 1784650203.79451,
-    "ast_hash": "fa53d8d3aa3d32ecc5243abd7bb336ee",
+    "mtime": 1784784838.2977147,
+    "ast_hash": "d41f09f9661cd582e70bffee98c52f37",
     "semantic_hash": ""
   },
   "apps/mobile/src/app/components/message-primitives.tsx": {
-    "mtime": 1784654583.6311183,
-    "ast_hash": "86a3bd7191b9beacb5812ce59eb8ac2c",
+    "mtime": 1784789456.9709504,
+    "ast_hash": "173970c6e87e653c3e0773cd9c9338ee",
     "semantic_hash": ""
   },
   "apps/mobile/src/app/components/mobile-app-lock-screen.styles.ts": {
@@ -1150,8 +1150,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/app/components/mobile-cached-image.tsx": {
-    "mtime": 1783634157.1628714,
-    "ast_hash": "c92e835fe8ba2231eaed4ec507fcc53e",
+    "mtime": 1784784619.9937,
+    "ast_hash": "61faf859dd953b9c1c4aec7a9e2509a1",
     "semantic_hash": ""
   },
   "apps/mobile/src/app/components/mobile-device-integrity-warning.styles.ts": {
@@ -1170,8 +1170,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/app/components/mobile-privacy-shield.tsx": {
-    "mtime": 1783962832.7046554,
-    "ast_hash": "25999cba7ff46ac27fc13a85433f3b83",
+    "mtime": 1784784617.965685,
+    "ast_hash": "c9c2bdd871afe405ab5e648ba171d398",
     "semantic_hash": ""
   },
   "apps/mobile/src/app/components/mobile-startup-performance-marker.tsx": {
@@ -1220,13 +1220,13 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/app/components/kit/context-menu.tsx": {
-    "mtime": 1784028407.1686077,
-    "ast_hash": "6f6867c3caafe5bc64599d04cd7b285c",
+    "mtime": 1784738914.798308,
+    "ast_hash": "9f984eeb94da5e17049c6a0755b79d45",
     "semantic_hash": ""
   },
   "apps/mobile/src/app/components/kit/destructive-confirmation-sheet.tsx": {
-    "mtime": 1784458943.1246684,
-    "ast_hash": "567ad60bfbc49fb37f98ae4364c6f198",
+    "mtime": 1784738780.099895,
+    "ast_hash": "534a4c447496e4f484bd91a6cdda04cc",
     "semantic_hash": ""
   },
   "apps/mobile/src/app/components/kit/divider.tsx": {
@@ -1250,8 +1250,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/app/components/kit/index.ts": {
-    "mtime": 1784719461.1336026,
-    "ast_hash": "84e29122a334121a645c600404069e1a",
+    "mtime": 1784738761.902271,
+    "ast_hash": "ef589cc1753572f9bb211ec0b8e0620f",
     "semantic_hash": ""
   },
   "apps/mobile/src/app/components/kit/list-row.tsx": {
@@ -1335,13 +1335,13 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/app/composer/mobile-composer.styles.ts": {
-    "mtime": 1784648214.6114154,
-    "ast_hash": "6329671fe44bb3df3c6ac7bb2700a06d",
+    "mtime": 1784784733.198574,
+    "ast_hash": "46af6e02c054901e76272558168a85c4",
     "semantic_hash": ""
   },
   "apps/mobile/src/app/composer/mobile-composer.tsx": {
-    "mtime": 1784650943.1514053,
-    "ast_hash": "8862ffa7c9dce08b9794fd32263ff4ed",
+    "mtime": 1784789162.4816163,
+    "ast_hash": "df44e7141cd690cfce10e57613314f99",
     "semantic_hash": ""
   },
   "apps/mobile/src/app/features/mobile-active-voice-room.ts": {
@@ -1365,8 +1365,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/app/features/use-mobile-messaging-feature.ts": {
-    "mtime": 1784650734.099472,
-    "ast_hash": "967060411fd9b8f92d70377b06ef667b",
+    "mtime": 1784784685.5513391,
+    "ast_hash": "2e1d851f3b126842aebb31aed3a446ff",
     "semantic_hash": ""
   },
   "apps/mobile/src/app/features/use-mobile-permission-summary.ts": {
@@ -1445,8 +1445,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/app/providers/mobile-query-provider.tsx": {
-    "mtime": 1784542897.2696738,
-    "ast_hash": "74b4ac40af4f6811fb758ed1ece955f6",
+    "mtime": 1784784635.7257123,
+    "ast_hash": "c3a09bd5478cb842dd31fd78e4d4c0c2",
     "semantic_hash": ""
   },
   "apps/mobile/src/app/providers/mobile-realtime-provider.tsx": {
@@ -1480,18 +1480,18 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/app/screens/channel-screen.styles.ts": {
-    "mtime": 1784650477.7559528,
-    "ast_hash": "80dc1f8dc33aaa06f0526f93605b58bb",
+    "mtime": 1784739926.38477,
+    "ast_hash": "63641a0b39b0f248614ade90d4b9184f",
     "semantic_hash": ""
   },
   "apps/mobile/src/app/screens/channel-screen.tsx": {
-    "mtime": 1784715489.717557,
-    "ast_hash": "4665fadb31dfb6c83d2726aa92d95e95",
+    "mtime": 1784789512.3609526,
+    "ast_hash": "e0ce3df3176a57027ef68b3dc38dda7b",
     "semantic_hash": ""
   },
   "apps/mobile/src/app/screens/dm-conversation-screen.tsx": {
-    "mtime": 1784715509.6643634,
-    "ast_hash": "b923c606dfd3418cb14b97ce42b00ce5",
+    "mtime": 1784784702.1964927,
+    "ast_hash": "52a65c911d5437745af970562d33123e",
     "semantic_hash": ""
   },
   "apps/mobile/src/app/screens/dm-inbox.tsx": {
@@ -1510,8 +1510,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/app/screens/dm-screen.types.ts": {
-    "mtime": 1784648494.9469652,
-    "ast_hash": "31cab09dc3dd15df96b91756d0baca55",
+    "mtime": 1784784725.6985154,
+    "ast_hash": "e599bd0d22bc65877ff9deb79524da00",
     "semantic_hash": ""
   },
   "apps/mobile/src/app/screens/home-screen.styles.ts": {
@@ -1525,18 +1525,18 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/app/screens/message-thread-screen.tsx": {
-    "mtime": 1784654583.632124,
-    "ast_hash": "d2362f47ff2e8d970eb4d32275ee9ec3",
+    "mtime": 1784785612.7424238,
+    "ast_hash": "77fea05049e795e5b1f96f65bd713da2",
     "semantic_hash": ""
   },
   "apps/mobile/src/app/screens/mobile-account-settings-screen.styles.ts": {
-    "mtime": 1784314708.8511906,
-    "ast_hash": "729473c050c9764bb5baba088350cdfa",
+    "mtime": 1784738903.3167956,
+    "ast_hash": "cbdb6f7f30b7d3c6459094feec052b21",
     "semantic_hash": ""
   },
   "apps/mobile/src/app/screens/mobile-account-settings-screen.tsx": {
-    "mtime": 1784611301.4968598,
-    "ast_hash": "0158fa5ac03612063d19ee9a2f3ae1ea",
+    "mtime": 1784739152.46322,
+    "ast_hash": "47abb148f91e2bcd619534ad5fbc1010",
     "semantic_hash": ""
   },
   "apps/mobile/src/app/screens/mobile-appearance-settings-screen.styles.ts": {
@@ -1550,8 +1550,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/app/screens/mobile-screen-containers.tsx": {
-    "mtime": 1784652103.2159586,
-    "ast_hash": "2f17ef592e2b5dbdab89b6bd3e9417e8",
+    "mtime": 1784785013.8638625,
+    "ast_hash": "9a73bdc668748ccdf8e70a581c108ee5",
     "semantic_hash": ""
   },
   "apps/mobile/src/app/screens/mobile-workspace-server-switcher-sheet.tsx": {
@@ -1570,8 +1570,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/app/screens/notifications-screen.tsx": {
-    "mtime": 1784717439.1147768,
-    "ast_hash": "6e48fd696289638777043db6ad56a9c9",
+    "mtime": 1784738787.9129708,
+    "ast_hash": "23b590239780970b71958185a927d466",
     "semantic_hash": ""
   },
   "apps/mobile/src/app/screens/settings-screen.styles.ts": {
@@ -1580,8 +1580,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/app/screens/settings-screen.tsx": {
-    "mtime": 1784718194.3157735,
-    "ast_hash": "0383f0192636fad91b1166be4c5e6c08",
+    "mtime": 1784738809.9059453,
+    "ast_hash": "a3267082e8ae17629457f71a31b5fd2e",
     "semantic_hash": ""
   },
   "apps/mobile/src/app/screens/voice-screen.styles.ts": {
@@ -1595,8 +1595,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/app/screens/workspace-browser.tsx": {
-    "mtime": 1784650857.6025858,
-    "ast_hash": "8ade73fa99c74718f0b51523d262e5a6",
+    "mtime": 1784785612.7644236,
+    "ast_hash": "7f82d0cf37dc0dbe5db90412695c0a71",
     "semantic_hash": ""
   },
   "apps/mobile/src/app/screens/workspace-channel-section-list.tsx": {
@@ -1780,13 +1780,13 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/design/palette.ts": {
-    "mtime": 1784611583.0245514,
-    "ast_hash": "537fd986299b74dd81931bf1e773a6c0",
+    "mtime": 1784784551.7442062,
+    "ast_hash": "4cb89a82d9bb4da8d9cbff64938e6570",
     "semantic_hash": ""
   },
   "apps/mobile/src/design/themes.ts": {
-    "mtime": 1784654801.6734633,
-    "ast_hash": "2505543e557800067326b301aa2051d7",
+    "mtime": 1784784599.5710328,
+    "ast_hash": "261f384e26a1eac6f6d4726b57fe7aa0",
     "semantic_hash": ""
   },
   "apps/mobile/src/dm/mobile-dm-client.ts": {
@@ -1830,8 +1830,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/locale/mobile-copy.ts": {
-    "mtime": 1784718382.4371738,
-    "ast_hash": "66b38a2d6585276b5de4a7b099eb1b0f",
+    "mtime": 1784784613.8484097,
+    "ast_hash": "d89a373d96c1e927e9f7fd08919dd066",
     "semantic_hash": ""
   },
   "apps/mobile/src/locale/mobile-date-separator.ts": {
@@ -1905,8 +1905,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/media/mobile-message-attachment-upload-service.ts": {
-    "mtime": 1784189517.4600337,
-    "ast_hash": "9b90507ff3237330874cda6be4939087",
+    "mtime": 1784784448.099733,
+    "ast_hash": "a7e09a3da8c6d680d25287fd74306c50",
     "semantic_hash": ""
   },
   "apps/mobile/src/media/mobile-message-attachment-upload.ts": {
@@ -1960,13 +1960,13 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/navigation/mobile-linking.ts": {
-    "mtime": 1784388356.156839,
-    "ast_hash": "d604d24d33ff5598fba8c010e996718f",
+    "mtime": 1784784709.4780767,
+    "ast_hash": "149829ad1da10c36c7388b1326839e6d",
     "semantic_hash": ""
   },
   "apps/mobile/src/navigation/mobile-navigation-ref.ts": {
-    "mtime": 1784032746.9885423,
-    "ast_hash": "699b12a3bf19d7eb09a096ba79795718",
+    "mtime": 1784784702.073421,
+    "ast_hash": "0501aa6a84cfca8d8eb4b84f5b7d0bb1",
     "semantic_hash": ""
   },
   "apps/mobile/src/navigation/mobile-navigation-types.ts": {
@@ -1980,8 +1980,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/navigation/mobile-navigator.tsx": {
-    "mtime": 1784458943.1443172,
-    "ast_hash": "675a8d80a539ee92b1c9e6230a996712",
+    "mtime": 1784784714.6733027,
+    "ast_hash": "78365097a613ea6779f769c0819e3311",
     "semantic_hash": ""
   },
   "apps/mobile/src/network/mobile-network-contract.ts": {
@@ -2040,8 +2040,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/quality/mobile-quality-gate.ts": {
-    "mtime": 1784103583.490381,
-    "ast_hash": "0cb117e936b2b3bbf06a79a78422bbdf",
+    "mtime": 1784784641.4556768,
+    "ast_hash": "8feea00c97f54dac310a07e3d3a85ea6",
     "semantic_hash": ""
   },
   "apps/mobile/src/query/mobile-bootstrap-query.ts": {
@@ -2100,8 +2100,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/query/mobile-server-cache.ts": {
-    "mtime": 1784557639.9368775,
-    "ast_hash": "d3cbfcfd93fd73b92c80fd5e9d9ae0a9",
+    "mtime": 1784741752.8039553,
+    "ast_hash": "b620372f04e9381185c5acf3d64f3b18",
     "semantic_hash": ""
   },
   "apps/mobile/src/query/mobile-voice-states-query.ts": {
@@ -2115,8 +2115,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/query/use-mobile-message-mutations.ts": {
-    "mtime": 1784654460.5089602,
-    "ast_hash": "d23bc667c5614e58b57d54be8e393e73",
+    "mtime": 1784784638.5484765,
+    "ast_hash": "20745e6c16525ec97a9dd9b1b71a35c8",
     "semantic_hash": ""
   },
   "apps/mobile/src/query/use-mobile-server-management-mutations.ts": {
@@ -2195,8 +2195,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/security/mobile-privacy-shield.ts": {
-    "mtime": 1783962311.9103496,
-    "ast_hash": "49f4e2f7de9f209ef7c5db7367a2cbe5",
+    "mtime": 1784784595.1618755,
+    "ast_hash": "55bf9d5a526e8545bb6dab358ff0b08f",
     "semantic_hash": ""
   },
   "apps/mobile/src/security/mobile-security-signal-logger.ts": {
@@ -2355,13 +2355,13 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/workspace/mobile-channel-settings-screen.tsx": {
-    "mtime": 1784718050.3924677,
-    "ast_hash": "d8cb1ca15e9a83d1c6889f11b5164ffa",
+    "mtime": 1784738806.5092108,
+    "ast_hash": "a7d2163fa21b2632b8681bba08594aaa",
     "semantic_hash": ""
   },
   "apps/mobile/src/workspace/mobile-server-create-join-sheet.tsx": {
-    "mtime": 1783962986.6180067,
-    "ast_hash": "e37063c6e92a2a106cc9139273224ebb",
+    "mtime": 1784739947.2564175,
+    "ast_hash": "7a01699bfead2ddd6e1f16e2cd1a8e6d",
     "semantic_hash": ""
   },
   "apps/mobile/src/workspace/mobile-server-management-client.ts": {
@@ -2370,8 +2370,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/workspace/mobile-server-management-query.ts": {
-    "mtime": 1784388356.1547928,
-    "ast_hash": "1e023a2e02974294537c19e7e6955b40",
+    "mtime": 1784789099.756222,
+    "ast_hash": "eee05141290f05a6f1e32e3c2800fb5d",
     "semantic_hash": ""
   },
   "apps/mobile/src/workspace/mobile-server-management.styles.ts": {
@@ -2385,13 +2385,13 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/workspace/mobile-server-members-screen.tsx": {
-    "mtime": 1784458943.149833,
-    "ast_hash": "0612d34e1c1eb57629298ae7aea63a00",
+    "mtime": 1784739357.1662974,
+    "ast_hash": "7bb20f4ac5b4e301d7af17ed02be4270",
     "semantic_hash": ""
   },
   "apps/mobile/src/workspace/mobile-server-settings-screen.tsx": {
-    "mtime": 1784718347.3309216,
-    "ast_hash": "93d5824cf786fa71ef81180b3b0d9f24",
+    "mtime": 1784742204.4227724,
+    "ast_hash": "d896e2715f4ae17c9bccb9db770aa3db",
     "semantic_hash": ""
   },
   "apps/mobile/src/workspace/mobile-workspace-client.ts": {
@@ -2400,8 +2400,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/workspace/mobile-workspace-editor-sheets.tsx": {
-    "mtime": 1784718050.394467,
-    "ast_hash": "604e3f8c7f168ce7a4e892d3c1600427",
+    "mtime": 1784739438.635692,
+    "ast_hash": "f41daa9a7010cbdd5cb501eb26d99747",
     "semantic_hash": ""
   },
   "apps/mobile/src/workspace/mobile-workspace-selection.ts": {
@@ -3485,8 +3485,8 @@
     "semantic_hash": ""
   },
   "apps/web/src/app/api/v1/mobile/servers/[serverId]/route-logic.test.ts": {
-    "mtime": 1784547297.7767222,
-    "ast_hash": "741207a7e66cb9e84a6e203d1adadd01",
+    "mtime": 1784784435.489368,
+    "ast_hash": "000d08677ac24ff66f9ef1d79375cc8c",
     "semantic_hash": ""
   },
   "apps/web/src/app/api/v1/mobile/servers/[serverId]/route-logic.ts": {
@@ -6080,8 +6080,8 @@
     "semantic_hash": ""
   },
   "apps/web/src/lib/workspace/message-notification-service.test.ts": {
-    "mtime": 1779082192.522392,
-    "ast_hash": "bbe74f4565a20249faa22adf20f5f88b",
+    "mtime": 1784785612.794475,
+    "ast_hash": "e0c238eba916d307e57e66881a9729d3",
     "semantic_hash": ""
   },
   "apps/web/src/lib/workspace/message-notification-service.ts": {
@@ -6105,13 +6105,13 @@
     "semantic_hash": ""
   },
   "apps/web/src/lib/workspace/mobile-capabilities.test.ts": {
-    "mtime": 1783936407.8608413,
-    "ast_hash": "f1cf9403233cc4e4506faf6bf72cabdb",
+    "mtime": 1784784421.6373353,
+    "ast_hash": "e0521f11ca627146ea2dd60570fd15a8",
     "semantic_hash": ""
   },
   "apps/web/src/lib/workspace/mobile-capabilities.ts": {
-    "mtime": 1783936302.2315261,
-    "ast_hash": "efebc668b56337266ae95409ddb7ef4c",
+    "mtime": 1784784410.9565725,
+    "ast_hash": "c4a50d7770b48a377bf0c965ced6c886",
     "semantic_hash": ""
   },
   "apps/web/src/lib/workspace/mobile-channel-message-preview.test.ts": {
@@ -6465,13 +6465,13 @@
     "semantic_hash": ""
   },
   "packages/types/src/mobile-workspace-management.test.ts": {
-    "mtime": 1784458943.15501,
-    "ast_hash": "ec6d823e5149ad9360eba1d940bc95a4",
+    "mtime": 1784784435.490368,
+    "ast_hash": "220138de8961794b61a117d78734f3d4",
     "semantic_hash": ""
   },
   "packages/types/src/mobile-workspace-management.ts": {
-    "mtime": 1784458943.1560085,
-    "ast_hash": "b4cccfec2a7a728dafebd7857f3a177c",
+    "mtime": 1784784406.3126223,
+    "ast_hash": "d26060137891d39ac5a2ac5a8901877e",
     "semantic_hash": ""
   },
   "packages/types/src/mobile.test.ts": {
@@ -7380,8 +7380,8 @@
     "semantic_hash": ""
   },
   ".maestro/phase2-messaging.yml": {
-    "mtime": 1784651263.8574443,
-    "ast_hash": "e79dd7e9cb6571d94d97d6c2e2afd970",
+    "mtime": 1784784833.5098202,
+    "ast_hash": "a019f5b0bce8035042a958c206e434e6",
     "semantic_hash": ""
   },
   ".maestro/phase3-social.yml": {
@@ -7410,18 +7410,18 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/workspace/mobile-server-settings-screen.styles.ts": {
-    "mtime": 1784385110.8610578,
-    "ast_hash": "d4f5d8ee69a286ce56a4efbb2699b744",
+    "mtime": 1784741868.109801,
+    "ast_hash": "18db3f4c2a39621e0e8eb5837c22e38c",
     "semantic_hash": ""
   },
   "apps/mobile/src/workspace/mobile-server-roles-screen.styles.ts": {
-    "mtime": 1784401682.6751819,
-    "ast_hash": "63bb6fb97930de58efb63e1ef3f9c071",
+    "mtime": 1784739922.0267253,
+    "ast_hash": "fe3235331a0ef8b161384cc7203a5ffe",
     "semantic_hash": ""
   },
   "apps/mobile/src/workspace/mobile-server-roles-screen.tsx": {
-    "mtime": 1784718080.4007826,
-    "ast_hash": "2a35fccb048c8c6e8ab0e22bf976b2c0",
+    "mtime": 1784739400.163453,
+    "ast_hash": "19fe9ef47fcaad070fe27c90fa2ba477",
     "semantic_hash": ""
   },
   "apps/web/src/app/api/v1/mobile/servers/[serverId]/roles/overview/route-logic.test.ts": {
@@ -7465,8 +7465,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/workspace/mobile-role-detail-screen.tsx": {
-    "mtime": 1784458943.1473162,
-    "ast_hash": "01c4c3c2863e27018a779ebbd63fe4ee",
+    "mtime": 1784738790.0571277,
+    "ast_hash": "ed8b2a98d48ded6b42231d0cfddb4d20",
     "semantic_hash": ""
   },
   "apps/mobile/component-tests/mobile-about-settings-screen.test.tsx": {
@@ -7535,13 +7535,13 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/app/screens/mobile-notification-settings-screen.styles.ts": {
-    "mtime": 1784458943.137298,
-    "ast_hash": "3f9bc8d127c721e9f0d947a89d68cfd3",
+    "mtime": 1784739910.4840958,
+    "ast_hash": "99c1bf220f110d89f95283268b7f6b3f",
     "semantic_hash": ""
   },
   "apps/mobile/src/app/screens/mobile-notification-settings-screen.tsx": {
-    "mtime": 1784458943.137298,
-    "ast_hash": "ac89a9746cf7150f57a34d915f63ff63",
+    "mtime": 1784739152.4771183,
+    "ast_hash": "df3624cdbaa44599ecbd54a9a77bfa91",
     "semantic_hash": ""
   },
   "apps/mobile/src/notifications/mobile-notification-preferences.ts": {
@@ -7555,13 +7555,13 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/workspace/mobile-server-invites-screen.tsx": {
-    "mtime": 1784718080.4097812,
-    "ast_hash": "19926fb2c74936a7a8133be5d76b94ee",
+    "mtime": 1784739008.1964173,
+    "ast_hash": "20a33da973e812ada7bfeb22e1ede65f",
     "semantic_hash": ""
   },
   "apps/mobile/src/workspace/mobile-server-members-screen.styles.ts": {
-    "mtime": 1784458943.149833,
-    "ast_hash": "44ddbb94bde7dc1f99d78c7df292f464",
+    "mtime": 1784739917.1959403,
+    "ast_hash": "16fbe68bccd0cc4f7886cd1843aedfa4",
     "semantic_hash": ""
   },
   "apps/web/src/app/api/v1/mobile/servers/[serverId]/invites/[inviteId]/route.ts": {
@@ -7740,13 +7740,13 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/app/screens/mobile-security-settings-screen.styles.ts": {
-    "mtime": 1784533300.7317102,
-    "ast_hash": "7cafcc69c46c502aa51211802f4d0fb2",
+    "mtime": 1784739912.8415027,
+    "ast_hash": "298b77075e0769c762fe8a2b103c0719",
     "semantic_hash": ""
   },
   "apps/mobile/src/app/screens/mobile-security-settings-screen.tsx": {
-    "mtime": 1784533499.176504,
-    "ast_hash": "a9323e826c9d2090242f20785360d5f4",
+    "mtime": 1784739458.8788426,
+    "ast_hash": "6c88d01a4756c560066dd5a627f3743b",
     "semantic_hash": ""
   },
   "apps/web/src/app/api/v1/mobile/account/password/route-logic.test.ts": {
@@ -7990,13 +7990,13 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/social/mobile-profile-edit-screen.styles.ts": {
-    "mtime": 1784558331.7107413,
-    "ast_hash": "3e0d1421d4651ddf87f6ac12ac6ef252",
+    "mtime": 1784739915.1936257,
+    "ast_hash": "a3989f50d3d166fbdfd31953aa570d60",
     "semantic_hash": ""
   },
   "apps/mobile/src/social/mobile-profile-edit-screen.tsx": {
-    "mtime": 1784611316.3364515,
-    "ast_hash": "3647a22bd50dd8f2ea4626f8fe66bbe9",
+    "mtime": 1784739480.1001103,
+    "ast_hash": "f908d197c849ac1a84ee9139b4b8e024",
     "semantic_hash": ""
   },
   "apps/mobile/component-tests/mobile-profile-identity-1f.test.tsx": {
@@ -8160,8 +8160,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/component-tests/mobile-channel-8c.test.tsx": {
-    "mtime": 1784651320.7299523,
-    "ast_hash": "e70426a01c9a8f70e730957654c30d32",
+    "mtime": 1784787548.0766249,
+    "ast_hash": "c2bb54cf351d1d6b8409d8cf1441e77c",
     "semantic_hash": ""
   },
   "apps/mobile/component-tests/mobile-dm-8b-enrichments.test.tsx": {
@@ -8170,8 +8170,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/component-tests/mobile-message-action-menu.test.tsx": {
-    "mtime": 1784717011.5047665,
-    "ast_hash": "a3cd3b5e295ca22048826f89bad03eda",
+    "mtime": 1784785295.302452,
+    "ast_hash": "900492ac063664c509684270b9dfef38",
     "semantic_hash": ""
   },
   "apps/mobile/component-tests/mobile-message-failed-state.test.tsx": {
@@ -8180,8 +8180,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/component-tests/mobile-message-reaction-detail-sheet.test.tsx": {
-    "mtime": 1784654692.7650223,
-    "ast_hash": "a2b25bef228d2a39a4fa8d214b00ad17",
+    "mtime": 1784789747.7092357,
+    "ast_hash": "7c45f62a92d95b418f774345c7e8bcda",
     "semantic_hash": ""
   },
   "apps/mobile/component-tests/mobile-thread-8d.test.tsx": {
@@ -8220,13 +8220,13 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/app/components/message-action-menu.tsx": {
-    "mtime": 1784719414.3963516,
-    "ast_hash": "332690b42704972847f333dba805475d",
+    "mtime": 1784787225.4040356,
+    "ast_hash": "63333833bc259e218a0ed50676b9efe7",
     "semantic_hash": ""
   },
   "apps/mobile/src/app/components/message-forward-sheet.tsx": {
-    "mtime": 1784648254.3073578,
-    "ast_hash": "c22a6451cf6989cf49f6fe75e78acbe6",
+    "mtime": 1784739940.4425735,
+    "ast_hash": "15dc47bac24cd0deda9adcd36017943a",
     "semantic_hash": ""
   },
   "apps/mobile/src/app/components/message-reaction-detail-sheet.styles.ts": {
@@ -8370,8 +8370,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/app/mobile-chat-keyboard-region.tsx": {
-    "mtime": 1784719456.867363,
-    "ast_hash": "805e00905e74f73560d73ab92b41ee12",
+    "mtime": 1784787266.2756765,
+    "ast_hash": "1c7398bb2a8e39557c905b80668d6b44",
     "semantic_hash": ""
   },
   "apps/mobile/src/app/providers/mobile-android-navigation-bar.ts": {
@@ -8392,6 +8392,111 @@
   "CLAUDE_PROMPTS_UX_9A_9D.md": {
     "mtime": 1784714532.2583008,
     "ast_hash": "f4eb0bd838f1a45b25726658b7b0d083",
+    "semantic_hash": ""
+  },
+  "apps/mobile/component-tests/mobile-back-navigation.test.tsx": {
+    "mtime": 1784785234.5777383,
+    "ast_hash": "a75f2baa7de97b5a06cd868fa88c7514",
+    "semantic_hash": ""
+  },
+  "apps/mobile/component-tests/mobile-dm-attachment-send-10c.test.tsx": {
+    "mtime": 1784792036.6919618,
+    "ast_hash": "bd5edb885af4c8cd000aa6bb30ba4d28",
+    "semantic_hash": ""
+  },
+  "apps/mobile/component-tests/mobile-dm-attachments-10c.test.tsx": {
+    "mtime": 1784784948.011686,
+    "ast_hash": "b119deac38d52e29b7e638ece235478e",
+    "semantic_hash": ""
+  },
+  "apps/mobile/component-tests/mobile-mention-10a.test.tsx": {
+    "mtime": 1784785612.7729363,
+    "ast_hash": "7caffb3b79511fc0d27082cb1e9be836",
+    "semantic_hash": ""
+  },
+  "apps/mobile/component-tests/mobile-message-image-lightbox.test.tsx": {
+    "mtime": 1784790212.7527704,
+    "ast_hash": "1bc3c0912360d25aa5f90002aa7deb16",
+    "semantic_hash": ""
+  },
+  "apps/mobile/component-tests/mobile-message-menu-lifecycle.test.tsx": {
+    "mtime": 1784789666.394441,
+    "ast_hash": "8e54ab3dbc1313073e005e3c247763c5",
+    "semantic_hash": ""
+  },
+  "apps/mobile/component-tests/mobile-message-menu-parity-10e.test.tsx": {
+    "mtime": 1784787711.612789,
+    "ast_hash": "f13422c51a9c91531425e0edc61a854c",
+    "semantic_hash": ""
+  },
+  "apps/mobile/scripts/mobile-mention.test.ts": {
+    "mtime": 1784789949.3229864,
+    "ast_hash": "2c06a143cfe62dfe6f46a2cd4f4ea78c",
+    "semantic_hash": ""
+  },
+  "apps/mobile/scripts/mobile-message-lightbox-geometry.test.ts": {
+    "mtime": 1784789997.3091798,
+    "ast_hash": "58b917d5b38abfed263a76a0b16f6143",
+    "semantic_hash": ""
+  },
+  "apps/mobile/scripts/mobile-optimistic-attachments.test.ts": {
+    "mtime": 1784784970.3969853,
+    "ast_hash": "5c06500c1a41bb8c0f4f81e337ed8b02",
+    "semantic_hash": ""
+  },
+  "apps/mobile/scripts/mobile-query-focus.test.ts": {
+    "mtime": 1784784659.5665867,
+    "ast_hash": "bd3d36ab9395447f1e3a791e54cf7572",
+    "semantic_hash": ""
+  },
+  "apps/mobile/src/app/components/kit/sheet-primitives.tsx": {
+    "mtime": 1784739092.4930313,
+    "ast_hash": "ae8d108403a7a6472786ac4e236e7931",
+    "semantic_hash": ""
+  },
+  "apps/mobile/src/app/components/message-image-lightbox.geometry.ts": {
+    "mtime": 1784789970.2147164,
+    "ast_hash": "fb45974b16a1436d3ea2296dc0ed1430",
+    "semantic_hash": ""
+  },
+  "apps/mobile/src/app/components/message-row-long-press-context.tsx": {
+    "mtime": 1784784624.0917914,
+    "ast_hash": "637daff70bd78f08cf86e309d7ba1fc1",
+    "semantic_hash": ""
+  },
+  "apps/mobile/src/app/mobile-mention-registry.tsx": {
+    "mtime": 1784789124.1994555,
+    "ast_hash": "e8fc55306313610c3478a15437b1190d",
+    "semantic_hash": ""
+  },
+  "apps/mobile/src/app/mobile-mention.ts": {
+    "mtime": 1784789088.8148775,
+    "ast_hash": "03719bae28c85164c59eed55b0d12409",
+    "semantic_hash": ""
+  },
+  "apps/mobile/src/query/mobile-optimistic-attachments.ts": {
+    "mtime": 1784784428.1007135,
+    "ast_hash": "47e556ceff212c5d54ef82c24ab542ff",
+    "semantic_hash": ""
+  },
+  "apps/mobile/src/query/mobile-query-focus.ts": {
+    "mtime": 1784784601.0201302,
+    "ast_hash": "acf03eba88a11523c3ec87167b93acdb",
+    "semantic_hash": ""
+  },
+  "CLAUDE_PROMPTS_CHAT_10A_10G.md": {
+    "mtime": 1784783978.5106761,
+    "ast_hash": "1032fe7750ae43dbd3dc06c4b98c1f8e",
+    "semantic_hash": ""
+  },
+  "README.md": {
+    "mtime": 1784740787.071272,
+    "ast_hash": "776b49935256fb0b36745efc3b1df65f",
+    "semantic_hash": ""
+  },
+  "docs/development/windows-onboarding.md": {
+    "mtime": 1784740982.3678324,
+    "ast_hash": "4054e88c7db894ca059a0ce03440585a",
     "semantic_hash": ""
   }
 }

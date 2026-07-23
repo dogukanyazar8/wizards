@@ -29,6 +29,7 @@ import {
   type MobileServerMemberListRow,
 } from "./mobile-server-member-model";
 import { createMobileServerMembersStyles } from "./mobile-server-members-screen.styles";
+import { SheetHeader, useSheetPresentation } from "../app/components/kit";
 
 export interface MobileServerMembersScreenProps {
   readonly serverId: string;
@@ -38,6 +39,7 @@ export interface MobileServerMembersScreenProps {
 const COPY = {
   en: {
     back: "Back",
+    close: "Close",
     empty: "There are no members to show.",
     error:
       "Member changes could not be completed. Permissions may have changed; the list was refreshed.",
@@ -60,6 +62,7 @@ const COPY = {
   },
   tr: {
     back: "Geri",
+    close: "Kapat",
     empty: "Gösterilecek üye yok.",
     error: "Üye değişiklikleri tamamlanamadı. Yetkiler değişmiş olabilir; liste yenilendi.",
     kick: "Üyeyi çıkar",
@@ -95,6 +98,7 @@ export function MobileServerMembersScreen({ onBack, serverId }: MobileServerMemb
   const labels = COPY[locale];
   const theme = useTheme();
   const styles = useThemedStyles(createMobileServerMembersStyles);
+  const sheetPresentation = useSheetPresentation();
   const queryClient = useQueryClient();
   const members = useMobileServerMembersInfiniteQuery(apiClient, serverId);
   const mutations = useMobileServerManagementMutations(apiClient);
@@ -318,14 +322,19 @@ export function MobileServerMembersScreen({ onBack, serverId }: MobileServerMemb
         accessibilityLabel={labels.roles}
         onClose={() => setExpandedMemberId(null)}
         open={expandedMember !== null}
-        snapPoint={440}
+        presentation={sheetPresentation}
+        sizing="content"
         testID="mobile-member-roles-sheet"
       >
         <View style={styles.sheet}>
-          <Text accessibilityRole="header" style={styles.sheetTitle}>
-            {labels.roles}
-          </Text>
-          <Text style={styles.sheetHint}>{labels.rolesHint}</Text>
+          <SheetHeader
+            closeAccessibilityLabel={labels.close}
+            icon="shield-outline"
+            onClose={() => setExpandedMemberId(null)}
+            subtitle={labels.rolesHint}
+            testID="mobile-member-roles-header"
+            title={labels.roles}
+          />
           {roles.isLoading ? <ActivityIndicator /> : null}
           {!roles.isLoading && (roles.data?.roles.length ?? 0) === 0 ? (
             <Text style={styles.sheetHint}>{labels.rolesUnavailable}</Text>
@@ -361,10 +370,10 @@ export function MobileServerMembersScreen({ onBack, serverId }: MobileServerMemb
         body={labels.kickBody}
         busy={mutations.kickMember.isPending}
         confirmLabel={labels.kick}
+        icon="person-remove-outline"
         onCancel={() => setPendingKick(null)}
         onConfirm={kick}
         open={pendingKick !== null}
-        snapPoint={260}
         testID="mobile-member-kick-confirm"
         title={labels.kick}
       />

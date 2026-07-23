@@ -3,6 +3,13 @@ import { useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 
 import { BottomSheet } from "../components/kit/bottom-sheet";
+import {
+  OptionSheet,
+  SheetHeader,
+  useSheetPresentation,
+  type SheetIconName,
+  type SheetTone,
+} from "../components/kit/sheet-primitives";
 import { Toggle } from "../components/kit/toggle";
 import { mobileCopy, type MobileLocale } from "../../locale/mobile-copy";
 import {
@@ -59,6 +66,43 @@ function getServerModeLabel(locale: MobileLocale, mode: MobileServerNotification
     case "mentions":
     default:
       return copy.notificationSettingsServerModeMentions;
+  }
+}
+
+function getServerModeHint(locale: MobileLocale, mode: MobileServerNotificationMode): string {
+  const copy = mobileCopy[locale];
+  switch (mode) {
+    case "all":
+      return copy.notificationSettingsServerModeAllHint;
+    case "none":
+      return copy.notificationSettingsServerModeNoneHint;
+    case "mentions":
+    default:
+      return copy.notificationSettingsServerModeMentionsHint;
+  }
+}
+
+function getServerModeIcon(mode: MobileServerNotificationMode): SheetIconName {
+  switch (mode) {
+    case "all":
+      return "notifications-outline";
+    case "none":
+      return "notifications-off-outline";
+    case "mentions":
+    default:
+      return "at-outline";
+  }
+}
+
+function getServerModeTone(mode: MobileServerNotificationMode): SheetTone {
+  switch (mode) {
+    case "all":
+      return "success";
+    case "none":
+      return "neutral";
+    case "mentions":
+    default:
+      return "accent";
   }
 }
 
@@ -165,6 +209,7 @@ export function MobileNotificationSettingsScreen({ onBack }: { onBack(): void })
   const copy = mobileCopy[locale];
   const { selection } = useMobileHaptics();
   const { preferences, updatePreferences } = useMobileNotificationPreferences();
+  const sheetPresentation = useSheetPresentation();
   const [serverSheetOpen, setServerSheetOpen] = useState(false);
   const [quietHoursSheetOpen, setQuietHoursSheetOpen] = useState(false);
   const [exceptionsSheetOpen, setExceptionsSheetOpen] = useState(false);
@@ -325,62 +370,45 @@ export function MobileNotificationSettingsScreen({ onBack }: { onBack(): void })
         </View>
       </ScrollView>
 
-      <BottomSheet
-        accessibilityLabel={copy.notificationSettingsServerMessages}
+      <OptionSheet
+        closeAccessibilityLabel={copy.sheetCloseAction}
+        icon="notifications-outline"
         onClose={() => setServerSheetOpen(false)}
+        onSelect={(mode) => {
+          updatePreferences({ serverMessages: mode });
+          setServerSheetOpen(false);
+        }}
         open={serverSheetOpen}
-        snapPoint={380}
-        testID="mobile-notification-server-sheet"
-      >
-        <View style={styles.sheet}>
-          <Text style={styles.sheetTitle}>{copy.notificationSettingsServerMessages}</Text>
-          <Text style={styles.sheetSubtitle}>
-            {copy.notificationSettingsServerModeSheetSubtitle}
-          </Text>
-          {MOBILE_SERVER_NOTIFICATION_MODES.map((mode) => {
-            const selected = preferences.serverMessages === mode;
-            return (
-              <Pressable
-                accessibilityLabel={getServerModeLabel(locale, mode)}
-                accessibilityRole="radio"
-                accessibilityState={{ checked: selected, selected }}
-                key={mode}
-                onPress={() => {
-                  selection();
-                  updatePreferences({ serverMessages: mode });
-                  setServerSheetOpen(false);
-                }}
-                style={({ pressed }) => [
-                  styles.optionRow,
-                  selected && styles.optionRowSelected,
-                  pressed && styles.pressed,
-                ]}
-                testID={`mobile-notification-server-mode-${mode}`}
-              >
-                <Text style={[styles.optionLabel, selected && styles.optionLabelSelected]}>
-                  {getServerModeLabel(locale, mode)}
-                </Text>
-                {selected ? (
-                  <Ionicons color={theme.accent.default} name="checkmark" size={20} />
-                ) : null}
-              </Pressable>
-            );
-          })}
-        </View>
-      </BottomSheet>
+        options={MOBILE_SERVER_NOTIFICATION_MODES.map((mode) => ({
+          description: getServerModeHint(locale, mode),
+          icon: getServerModeIcon(mode),
+          label: getServerModeLabel(locale, mode),
+          tone: getServerModeTone(mode),
+          value: mode,
+        }))}
+        selectedValue={preferences.serverMessages}
+        subtitle={copy.notificationSettingsServerModeSheetSubtitle}
+        testID="mobile-notification-server-mode"
+        title={copy.notificationSettingsServerMessages}
+      />
 
       <BottomSheet
         accessibilityLabel={copy.notificationSettingsQuietHours}
         onClose={() => setQuietHoursSheetOpen(false)}
         open={quietHoursSheetOpen}
-        snapPoint={420}
+        presentation={sheetPresentation}
+        sizing="content"
         testID="mobile-notification-quiet-hours-sheet"
       >
-        <View style={styles.sheet}>
-          <Text style={styles.sheetTitle}>{copy.notificationSettingsQuietHours}</Text>
-          <Text style={styles.sheetSubtitle}>
-            {copy.notificationSettingsQuietHoursSheetSubtitle}
-          </Text>
+        <View style={styles.sheetContent}>
+          <SheetHeader
+            closeAccessibilityLabel={copy.sheetCloseAction}
+            icon="moon-outline"
+            onClose={() => setQuietHoursSheetOpen(false)}
+            subtitle={copy.notificationSettingsQuietHoursSheetSubtitle}
+            testID="mobile-notification-quiet-hours-header"
+            title={copy.notificationSettingsQuietHours}
+          />
           <View style={styles.quietHoursColumns}>
             <QuietHoursColumn
               label={copy.notificationSettingsQuietHoursStart}
@@ -408,14 +436,19 @@ export function MobileNotificationSettingsScreen({ onBack }: { onBack(): void })
         accessibilityLabel={copy.notificationSettingsExceptions}
         onClose={() => setExceptionsSheetOpen(false)}
         open={exceptionsSheetOpen}
-        snapPoint={320}
+        presentation={sheetPresentation}
+        sizing="content"
         testID="mobile-notification-exceptions-sheet"
       >
-        <View style={styles.sheet}>
-          <Text style={styles.sheetTitle}>{copy.notificationSettingsExceptions}</Text>
-          <Text style={styles.sheetSubtitle}>
-            {copy.notificationSettingsExceptionsSheetSubtitle}
-          </Text>
+        <View style={styles.sheetContent}>
+          <SheetHeader
+            closeAccessibilityLabel={copy.sheetCloseAction}
+            icon="shield-checkmark-outline"
+            onClose={() => setExceptionsSheetOpen(false)}
+            subtitle={copy.notificationSettingsExceptionsSheetSubtitle}
+            testID="mobile-notification-exceptions-header"
+            title={copy.notificationSettingsExceptions}
+          />
           <View style={styles.card}>
             <NotificationToggleRow
               icon="call-outline"

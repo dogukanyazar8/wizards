@@ -8,8 +8,10 @@ import {
   BottomSheet,
   Button,
   DestructiveConfirmationSheet,
+  SheetHeader,
   Skeleton,
   Toggle,
+  useSheetPresentation,
 } from "../app/components/kit";
 import { MobileLineIcon } from "../design/mobile-line-icons";
 import { useMobileLocaleRuntime } from "../app/providers/mobile-locale-provider";
@@ -76,6 +78,7 @@ export function MobileServerSettingsScreen({
   const labels = mobileCopy[locale];
   const theme = useTheme();
   const styles = useThemedStyles(createMobileServerSettingsStyles);
+  const sheetPresentation = useSheetPresentation();
   const queryClient = useQueryClient();
 
   const workspace = useMobileWorkspaceQuery(apiClient, serverId);
@@ -104,6 +107,7 @@ export function MobileServerSettingsScreen({
   const [notice, setNotice] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [iconPreviewUri, setIconPreviewUri] = useState<string | null>(null);
+  const [canonicalIconUrl, setCanonicalIconUrl] = useState<string | null>(null);
   const [failedIconUri, setFailedIconUri] = useState<string | null>(null);
 
   useEffect(() => {
@@ -111,7 +115,7 @@ export function MobileServerSettingsScreen({
     setNotice(null);
   }, [locale]);
 
-  const shownIcon = iconPreviewUri ?? server?.iconUrl ?? null;
+  const shownIcon = canonicalIconUrl ?? iconPreviewUri ?? server?.iconUrl ?? null;
   const isIconBroken = shownIcon !== null && shownIcon === failedIconUri;
   const initials = useMemo(
     () => (server ? (server.shortName?.toUpperCase() ?? deriveInitials(server.name)) : ""),
@@ -176,6 +180,7 @@ export function MobileServerSettingsScreen({
     setError(null);
     setNotice(null);
     setFailedIconUri(null);
+    setCanonicalIconUrl(null);
     let outcome;
     try {
       outcome = await selectAndUpload(
@@ -220,6 +225,12 @@ export function MobileServerSettingsScreen({
       return;
     }
 
+    // Pin the confirmed icon locally, the way the profile editor pins an uploaded avatar.
+    // A workspace refetch that left the device before the claim committed can still land
+    // after this point and rewrite the cache with the previous icon, and a verified upload
+    // must not roll back on screen. The pin is dropped by the next upload attempt or when
+    // the screen unmounts, so a later icon change from elsewhere is not masked for long.
+    setCanonicalIconUrl(claimedIconUrl);
     void queryClient.invalidateQueries({ exact: true, queryKey: mobileQueryKeys.bootstrap() });
     setNotice(labels.serverSettingsSaved);
   };
@@ -427,6 +438,17 @@ export function MobileServerSettingsScreen({
                 {`${server.onlineMemberCount} ${labels.serverSettingsOnlineSuffix}`}
               </Text>
             </View>
+            {isUploadingIcon ? (
+              <Text
+                accessibilityLiveRegion="polite"
+                maxFontSizeMultiplier={2}
+                numberOfLines={1}
+                style={styles.iconStatus}
+                testID="mobile-server-icon-status"
+              >
+                {labels.serverSettingsIconUploading}
+              </Text>
+            ) : null}
           </View>
         </View>
 
@@ -692,17 +714,22 @@ export function MobileServerSettingsScreen({
         }
         onClose={() => setEditorField(null)}
         open={editorField !== null}
-        snapPoint={editorField === "description" ? 360 : 300}
+        presentation={sheetPresentation}
+        sizing="content"
         testID="mobile-server-field-editor"
       >
         <View style={styles.sheet}>
-          <Text maxFontSizeMultiplier={2} style={styles.sheetTitle}>
-            {editorField === "name"
-              ? labels.serverSettingsName
-              : editorField === "shortName"
-                ? labels.serverSettingsShortName
-                : labels.serverSettingsDescription}
-          </Text>
+          <SheetHeader
+            icon="create-outline"
+            testID="mobile-server-field-editor-header"
+            title={
+              editorField === "name"
+                ? labels.serverSettingsName
+                : editorField === "shortName"
+                  ? labels.serverSettingsShortName
+                  : labels.serverSettingsDescription
+            }
+          />
           <TextInput
             accessibilityLabel={
               editorField === "name"
@@ -745,6 +772,7 @@ export function MobileServerSettingsScreen({
         body={labels.serverSettingsDeleteBody}
         busy={mutations.deleteServer.isPending}
         confirmLabel={labels.serverSettingsDeleteServer}
+        icon="trash-outline"
         onCancel={() => setDeleteOpen(false)}
         onConfirm={deleteServer}
         open={deleteOpen}

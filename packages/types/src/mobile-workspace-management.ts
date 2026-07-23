@@ -87,6 +87,7 @@ export const MobileServerCapabilitiesSchema = z
     canKickMembers: z.boolean(),
     canManageChannels: z.boolean(),
     canManageInvites: z.boolean(),
+    canManageMessages: z.boolean(),
     canManageRoles: z.boolean(),
     canManageServer: z.boolean(),
     canUploadServerIcon: z.boolean(),

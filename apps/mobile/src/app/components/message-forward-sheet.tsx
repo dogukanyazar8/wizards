@@ -6,7 +6,7 @@ import type { MobileTheme } from "../../design/themes";
 import { activeMobileCopy as copy } from "../../locale/mobile-locale-preferences";
 import { useMobileHaptics } from "../providers/mobile-haptics-provider";
 import { useTheme, useThemedStyles } from "../providers/mobile-theme-provider";
-import { BottomSheet } from "./kit";
+import { BottomSheet, SheetHeader } from "./kit";
 
 export type MobileForwardTarget = {
   readonly id: string;
@@ -94,7 +94,13 @@ export function MessageForwardSheet({
       snapPoint={520}
       testID="mobile-message-forward-sheet"
     >
-      <Text style={styles.title}>{copy.messageForwardSheetTitle}</Text>
+      <SheetHeader
+        closeAccessibilityLabel={copy.sheetCloseAction}
+        icon="arrow-redo-outline"
+        onClose={onClose}
+        testID="mobile-message-forward-header"
+        title={copy.messageForwardSheetTitle}
+      />
       {didFail ? (
         <Text accessibilityLiveRegion="polite" style={styles.errorText}>
           {copy.messageForwardFailedNotice}
@@ -120,12 +126,6 @@ export function MessageForwardSheet({
 
 const createStyles = (theme: MobileTheme) =>
   StyleSheet.create({
-    title: {
-      color: theme.text.primary,
-      fontSize: 18,
-      lineHeight: 23,
-      fontFamily: theme.typography.fontFamilyExtraBold,
-    },
     errorText: {
       overflow: "hidden",
       borderRadius: theme.radii.control,

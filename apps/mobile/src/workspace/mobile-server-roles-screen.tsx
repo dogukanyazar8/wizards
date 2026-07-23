@@ -5,7 +5,15 @@ import { useMobileAuth } from "../auth/mobile-auth-context";
 import { MobileLineIcon } from "../design/mobile-line-icons";
 import { useMobileLocaleRuntime } from "../app/providers/mobile-locale-provider";
 import { useTheme, useThemedStyles } from "../app/providers/mobile-theme-provider";
-import { BottomSheet, Button, EmptyState, Skeleton, Toggle } from "../app/components/kit";
+import {
+  BottomSheet,
+  Button,
+  EmptyState,
+  SheetHeader,
+  Skeleton,
+  Toggle,
+  useSheetPresentation,
+} from "../app/components/kit";
 import { useMobileServerManagementMutations } from "../query/use-mobile-server-management-mutations";
 import { useMobileServerRoleOverviewQuery } from "./mobile-server-management-query";
 import { createMobileServerRolesStyles } from "./mobile-server-roles-screen.styles";
@@ -59,6 +67,7 @@ export function MobileServerRolesScreen({
   const labels = mobileCopy[locale];
   const theme = useTheme();
   const styles = useThemedStyles(createMobileServerRolesStyles);
+  const sheetPresentation = useSheetPresentation();
   const mutations = useMobileServerManagementMutations(apiClient);
   const rolesQuery = useMobileServerRoleOverviewQuery(apiClient, serverId, true);
   const roles = rolesQuery.data?.roles ?? [];
@@ -249,13 +258,16 @@ export function MobileServerRolesScreen({
         accessibilityLabel={labels.serverRolesCreateRole}
         onClose={() => setCreateOpen(false)}
         open={createOpen}
-        snapPoint={380}
+        presentation={sheetPresentation}
+        sizing="content"
         testID="mobile-server-role-create-sheet"
       >
         <View style={styles.sheet}>
-          <Text maxFontSizeMultiplier={2} style={styles.sheetTitle}>
-            {labels.serverRolesCreateRole}
-          </Text>
+          <SheetHeader
+            icon="shield-outline"
+            testID="mobile-server-role-create-header"
+            title={labels.serverRolesCreateRole}
+          />
           <View style={{ gap: 8 }}>
             <Text maxFontSizeMultiplier={2} style={styles.sheetLabel}>
               {labels.serverRolesNameLabel}

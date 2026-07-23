@@ -38,6 +38,10 @@ import { shareMobileInviteUrl } from "../../invite/mobile-invite-share";
 import { useMobileAuth } from "../../auth/mobile-auth-context";
 import { useMobileVoiceStatesQuery } from "../../query/mobile-voice-states-query";
 import { MobileChannelChatScreen } from "./channel-screen";
+import {
+  MobileMentionRegistryProvider,
+  useMobileServerMentionRegistry,
+} from "../mobile-mention-registry";
 import { AvatarMark } from "../components/ui-atoms";
 import { useTheme } from "../providers/mobile-theme-provider";
 import { useMobileWorkspaceLayoutPreference } from "../providers/mobile-workspace-layout-provider";
@@ -192,6 +196,15 @@ export function MobileWorkspaceBrowser({
   const activeChannelSurface = getMobileWorkspaceChannelSurface(activeTextChannel, {
     isExplicitlyOpened: activeTextChannel?.id === activeWorkspaceTextChannelId,
   });
+  // 10a: only an open channel needs the roster, so the members query stays idle
+  // on the server browser. It shares the members screen cache key.
+  const mentionRegistry = useMobileServerMentionRegistry({
+    apiClient,
+    currentUserId: bootstrapState.payload.user.id,
+    currentUsername: bootstrapState.payload.user.username,
+    enabled: activeChannelSurface === "channel-chat",
+    serverId: activeServerId,
+  });
   const channelSections = useMemo(() => {
     if (!workspacePayload) {
       return [];
@@ -239,6 +252,7 @@ export function MobileWorkspaceBrowser({
     serverState.status === "error";
   const isCompactWorkspaceLayout = workspaceLayout === "compact";
   const canManageInvites = workspacePayload?.detail.capabilities.canManageInvites === true;
+  const canManageMessages = workspacePayload?.detail.capabilities.canManageMessages === true;
   const canManageServer = workspacePayload?.detail.capabilities.canManageServer === true;
   // The detail payload no longer carries the member list. `ownerUserId` is the
   // authoritative field; the member scan stays as a fallback so a client running
@@ -284,51 +298,53 @@ export function MobileWorkspaceBrowser({
 
   if (activeChannelSurface === "channel-chat" && activeTextChannel) {
     return (
-      <MobileChannelChatScreen
-        attachmentsFeature={attachmentsFeature}
-        channel={activeTextChannel}
-        channelFirstUnreadMessageId={channelFirstUnreadMessageId}
-        channelPinnedMessages={channelPinnedMessages}
-        currentUserId={bootstrapState.payload.user.id}
-        getAccessToken={getAccessToken}
-        isReactionMutationPending={isReactionMutationPending}
-        mediaState={mediaState}
-        memberCount={activeMemberCount}
-        onlineMemberCount={activeOnlineMemberCount}
-        messageSearchFeature={messageSearchFeature}
-        messageSearchState={messageSearchState}
-        serverName={activeServerName}
-        state={channelMessagesState}
-        typingLabel={channelTypingLabel}
-        typingUsers={channelTypingUsers}
-        ownerUserId={ownerUserId}
-        onBack={onCloseWorkspaceChannel}
-        onClearMessageSearch={onClearMessageSearch}
-        onClearSelectedMediaAsset={onClearSelectedMediaAsset}
-        onDraftChange={onChannelDraftChange}
-        onLoadMore={onLoadMoreChannelMessages}
-        onRefresh={onRefreshChannel}
-        onRequestDocumentPicker={onRequestDocumentPicker}
-        onRequestPhotoLibraryPicker={onRequestPhotoLibraryPicker}
-        onSearchMessages={onSearchMessages}
-        onSendMessage={onSendChannelMessage}
-        {...(onSendChannelGif ? { onSendGif: onSendChannelGif } : {})}
-        onDeleteMessage={onDeleteMessage}
-        onDiscardMessage={onDiscardMessage}
-        onEditMessage={onEditMessage}
-        {...(onForwardMessage
-          ? { forwardTargets: forwardChannelTargets, onForwardMessage }
-          : {})}
-        {...(onOpenThread ? { onOpenThread } : {})}
-        {...(onPinMessage ? { onPinMessage } : {})}
-        onOpenMembers={() => {
-          if (activeServerId && mobileNavigationRef.isReady()) {
-            mobileNavigationRef.navigate("ServerMembers", { serverId: activeServerId });
-          }
-        }}
-        onRetryMessage={onRetryMessage}
-        onToggleMessageReaction={onToggleMessageReaction}
-      />
+      <MobileMentionRegistryProvider registry={mentionRegistry}>
+        <MobileChannelChatScreen
+          attachmentsFeature={attachmentsFeature}
+          channel={activeTextChannel}
+          canModerate={canManageMessages}
+          channelFirstUnreadMessageId={channelFirstUnreadMessageId}
+          channelPinnedMessages={channelPinnedMessages}
+          currentUserId={bootstrapState.payload.user.id}
+          getAccessToken={getAccessToken}
+          isReactionMutationPending={isReactionMutationPending}
+          mediaState={mediaState}
+          memberCount={activeMemberCount}
+          mentionCandidates={mentionRegistry.candidates}
+          onlineMemberCount={activeOnlineMemberCount}
+          messageSearchFeature={messageSearchFeature}
+          messageSearchState={messageSearchState}
+          serverName={activeServerName}
+          state={channelMessagesState}
+          typingLabel={channelTypingLabel}
+          typingUsers={channelTypingUsers}
+          ownerUserId={ownerUserId}
+          onBack={onCloseWorkspaceChannel}
+          onClearMessageSearch={onClearMessageSearch}
+          onClearSelectedMediaAsset={onClearSelectedMediaAsset}
+          onDraftChange={onChannelDraftChange}
+          onLoadMore={onLoadMoreChannelMessages}
+          onRefresh={onRefreshChannel}
+          onRequestDocumentPicker={onRequestDocumentPicker}
+          onRequestPhotoLibraryPicker={onRequestPhotoLibraryPicker}
+          onSearchMessages={onSearchMessages}
+          onSendMessage={onSendChannelMessage}
+          {...(onSendChannelGif ? { onSendGif: onSendChannelGif } : {})}
+          onDeleteMessage={onDeleteMessage}
+          onDiscardMessage={onDiscardMessage}
+          onEditMessage={onEditMessage}
+          {...(onForwardMessage ? { forwardTargets: forwardChannelTargets, onForwardMessage } : {})}
+          {...(onOpenThread ? { onOpenThread } : {})}
+          {...(onPinMessage ? { onPinMessage } : {})}
+          onOpenMembers={() => {
+            if (activeServerId && mobileNavigationRef.isReady()) {
+              mobileNavigationRef.navigate("ServerMembers", { serverId: activeServerId });
+            }
+          }}
+          onRetryMessage={onRetryMessage}
+          onToggleMessageReaction={onToggleMessageReaction}
+        />
+      </MobileMentionRegistryProvider>
     );
   }
 

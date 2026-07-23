@@ -1,4 +1,4 @@
-import type { UploadedAttachmentInput } from "@wizards/types";
+import type { MessageAttachment, UploadedAttachmentInput } from "@wizards/types";
 
 import type { MobileForwardSendInput } from "../components/message-forward-sheet";
 import type {
@@ -11,6 +11,7 @@ import type {
 
 export type MobileDMSendIntent = {
   readonly attachments?: readonly UploadedAttachmentInput[];
+  readonly attachmentPreviews?: readonly MessageAttachment[];
   readonly replyToId?: string;
   readonly threadParentId?: string;
 };

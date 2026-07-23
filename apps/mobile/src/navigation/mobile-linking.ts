@@ -68,8 +68,16 @@ export function createMobileLinkingOptions({
 
   return {
     config: {
+      // A cold-start deep link builds the whole stack from the path, so without
+      // an initial route the app would open with the detail screen alone and
+      // back would quit instead of landing on the tabs. Naming MainTabs here
+      // puts it underneath every detail route; because it is also the stack's
+      // first route, foreground links still resolve to a plain navigate and
+      // keep the state the user already had.
+      initialRouteName: "MainTabs",
       screens: {
         MainTabs: {
+          initialRouteName: "overview",
           screens: {
             messages: "channels/@me",
             notifications: "notifications",

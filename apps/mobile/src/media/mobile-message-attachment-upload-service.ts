@@ -1,13 +1,19 @@
 import {
   MobileMessageAttachmentUploadError,
   type MobileMessageAttachmentDraft,
+  type MobileMessageAttachmentUploadErrorCode,
   type MobilePickedMessageAttachment,
 } from "./mobile-message-attachment-contract";
+
+/** `upload-failed` covers transport/unknown errors that carry no contract code. */
+export type MobileMessageAttachmentUploadFailureCode =
+  | MobileMessageAttachmentUploadErrorCode
+  | "upload-failed";
 
 export type MobileMessageAttachmentUploadOutcome =
   | { readonly status: "cancelled" }
   | { readonly draft: MobileMessageAttachmentDraft; readonly status: "ready" }
-  | { readonly status: "error" };
+  | { readonly code: MobileMessageAttachmentUploadFailureCode; readonly status: "error" };
 
 export async function executeMobileMessageAttachmentUpload(input: {
   readonly dependencies: {
@@ -32,8 +38,11 @@ export async function executeMobileMessageAttachmentUpload(input: {
     }
 
     const accessToken = await input.dependencies.getAccessToken();
-    if (!accessToken || input.signal?.aborted) {
-      return { status: "error" };
+    if (!accessToken) {
+      return { code: "missing-access-token", status: "error" };
+    }
+    if (input.signal?.aborted) {
+      return { status: "cancelled" };
     }
 
     const draft = await input.dependencies.uploadAttachment({
@@ -48,7 +57,11 @@ export async function executeMobileMessageAttachmentUpload(input: {
       return { status: "cancelled" };
     }
 
-    return { status: "error" };
+    return {
+      code:
+        error instanceof MobileMessageAttachmentUploadError ? error.code : "upload-failed",
+      status: "error",
+    };
   }
 }
 

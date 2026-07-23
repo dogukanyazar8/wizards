@@ -4,6 +4,7 @@ import { fireEvent, waitFor } from "@testing-library/react-native";
 import type { ChatMessage } from "@wizards/types";
 
 import {
+  ChannelMessageOverlays,
   ChannelUnreadSeparator,
   MessagePreviewRow,
 } from "../src/app/components/message-primitives";
@@ -51,80 +52,95 @@ const channelSummary = {
 } as const;
 
 describe("8c channel stream redesign", () => {
-  it("opens the floating action bar on long press and toggles 👍 from it", async () => {
-    const onSetActionBar = jest.fn();
+  it("opens the full action menu in one long press and toggles 👍 from its quick bar", async () => {
+    const onSetMenuMessage = jest.fn();
     const onToggleReaction = jest.fn();
     const message = createChannelMessage("message-bar");
+    // 10d: the list, not the row, renders the menu — a recycled row cannot drop it.
     const view = await render(
-      <MessagePreviewRow
-        actionBarOpen
+      <ChannelMessageOverlays
         currentUserId="user-1"
         message={message}
-        mode="channel"
+        onClose={() => onSetMenuMessage(null)}
         onReplyMessage={jest.fn()}
-        onSetActionBar={onSetActionBar}
         onToggleReaction={onToggleReaction}
+        open
+        own={false}
       />,
     );
 
-    expect(view.getByTestId("mobile-channel-action-bar-message-bar")).toBeTruthy();
-    await fireEvent.press(view.getByTestId("mobile-channel-action-react-message-bar-👍"));
+    // 10e: no intermediate floating bar — the menu itself is the first surface.
+    expect(view.queryByTestId("mobile-channel-action-bar-message-bar")).toBeNull();
+    expect(view.getByTestId("mobile-message-actions-message-bar-options")).toBeTruthy();
+    await fireEvent.press(view.getByTestId("mobile-message-actions-message-bar-quick-👍"));
     expect(onToggleReaction).toHaveBeenCalledWith({
       emoji: "👍",
       messageId: "message-bar",
       shouldReact: true,
     });
-    expect(onSetActionBar).toHaveBeenCalledWith(null);
+    expect(onSetMenuMessage).toHaveBeenCalledWith(null);
 
     const closedView = await render(
       <MessagePreviewRow
         currentUserId="user-1"
         message={message}
         mode="channel"
-        onSetActionBar={onSetActionBar}
+        onSetMenuMessage={onSetMenuMessage}
         onToggleReaction={onToggleReaction}
       />,
     );
-    expect(closedView.queryByTestId("mobile-channel-action-bar-message-bar")).toBeNull();
+    expect(closedView.queryByTestId("mobile-message-actions-message-bar-options")).toBeNull();
     await fireEvent(
       closedView.getByTestId("mobile-message-actions-message-bar-trigger"),
       "longPress",
     );
-    expect(onSetActionBar).toHaveBeenCalledWith("message-bar");
+    expect(onSetMenuMessage).toHaveBeenCalledWith("message-bar");
   });
 
-  it("routes ⋯ to the action card where pin/unpin uses the message state", async () => {
+  it("keeps pin/unpin on the message state behind the moderation permission", async () => {
     const onPinMessage = jest.fn();
-    const view = await render(
-      <MessagePreviewRow
-        actionBarOpen
+    const memberView = await render(
+      <ChannelMessageOverlays
         currentUserId="user-1"
         message={createChannelMessage("message-pin")}
-        mode="channel"
+        onClose={jest.fn()}
         onPinMessage={onPinMessage}
-        onSetActionBar={jest.fn()}
+        open
+        own={false}
+      />,
+    );
+    expect(memberView.queryByLabelText(copy.messagePinAction)).toBeNull();
+
+    const view = await render(
+      <ChannelMessageOverlays
+        canModerate
+        currentUserId="user-1"
+        message={createChannelMessage("message-pin")}
+        onClose={jest.fn()}
+        onPinMessage={onPinMessage}
+        open
+        own={false}
       />,
     );
 
-    await fireEvent.press(view.getByTestId("mobile-channel-action-more-message-pin"));
     expect(view.getByTestId("mobile-message-actions-message-pin-options")).toBeTruthy();
     await fireEvent.press(view.getByLabelText(copy.messagePinAction));
     expect(onPinMessage).toHaveBeenCalledWith("message-pin", true);
 
     const pinnedView = await render(
-      <MessagePreviewRow
-        actionBarOpen
+      <ChannelMessageOverlays
+        canModerate
         currentUserId="user-1"
         message={createChannelMessage("message-unpin", {
           isPinned: true,
           pinnedAt: "2026-07-21T13:00:00.000Z",
         })}
-        mode="channel"
+        onClose={jest.fn()}
         onPinMessage={onPinMessage}
-        onSetActionBar={jest.fn()}
+        open
+        own={false}
       />,
     );
-    await fireEvent.press(pinnedView.getByTestId("mobile-channel-action-more-message-unpin"));
     await fireEvent.press(pinnedView.getByLabelText(copy.messageUnpinAction));
     expect(onPinMessage).toHaveBeenCalledWith("message-unpin", false);
   });

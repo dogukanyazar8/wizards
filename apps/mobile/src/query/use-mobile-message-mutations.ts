@@ -23,6 +23,7 @@ import type {
   MobileMessageReactionResponse,
   MobileBootstrapPayload,
   MobileManagedWorkspaceServerDetailResponse,
+  MessageAttachment,
   MessageReaction,
 } from "@wizards/types";
 import type { MobileApiClient } from "../api/mobile-api-client";
@@ -60,6 +61,10 @@ import {
   getMobileDMFailedSendScope,
   mobileFailedSendRegistry,
 } from "./mobile-failed-send-registry";
+import {
+  toMobileOptimisticChannelAttachments,
+  toMobileOptimisticDMAttachments,
+} from "./mobile-optimistic-attachments";
 import { mobileQueryKeys } from "./mobile-query-keys";
 
 type MobileMessagePage<TMessage extends { readonly id: string }> = {
@@ -446,7 +451,17 @@ export function useMobileMessageForwardMutation(input: { readonly client: Mobile
   });
 }
 
-type MobileChannelDraft = Omit<SendMobileChannelMessageInput, "channelId">;
+/**
+ * `attachmentPreviews` never reaches the API — it only feeds the optimistic
+ * bubble (and the failed bubble the retry registry keeps) with the uploaded
+ * attachment metadata the send request itself does not carry.
+ */
+type MobileOptimisticAttachmentDraft = {
+  readonly attachmentPreviews?: readonly MessageAttachment[];
+};
+
+type MobileChannelDraft = Omit<SendMobileChannelMessageInput, "channelId"> &
+  MobileOptimisticAttachmentDraft;
 
 export function useMobileChannelMessageMutation(input: {
   readonly author: MobileSessionUser | null;
@@ -468,7 +483,7 @@ export function useMobileChannelMessageMutation(input: {
       MobileChannelMessagesResponse
     >({
       createOptimisticMessage: (draft, clientId) => ({
-        attachments: [],
+        attachments: toMobileOptimisticChannelAttachments(draft.attachmentPreviews),
         author: {
           ...requireMobileMutationAuthor(input.author),
           displayName:
@@ -488,7 +503,7 @@ export function useMobileChannelMessageMutation(input: {
         type: "DEFAULT",
       }),
       getResponseMessage: (response) => response.message,
-      mutationFn: (draft) =>
+      mutationFn: ({ attachmentPreviews, ...draft }) =>
         sendMobileChannelMessage(input.client, { ...draft, channelId: input.channelId }),
       onSendFailed: (clientId, draft, failedMessage) => {
         mobileFailedSendRegistry.add(scope, { clientId, draft, message: failedMessage });
@@ -614,7 +629,8 @@ export function useMobileDMReadMutation(input: { readonly client: MobileApiClien
   });
 }
 
-type MobileDMDraft = Omit<SendMobileDMMessageInput, "conversationId">;
+type MobileDMDraft = Omit<SendMobileDMMessageInput, "conversationId"> &
+  MobileOptimisticAttachmentDraft;
 
 export function useMobileDMMessageMutation(input: {
   readonly author: DMMessageAuthorPayload | null;
@@ -639,7 +655,7 @@ export function useMobileDMMessageMutation(input: {
       MobileDMMessagesResponse
     >({
       createOptimisticMessage: (draft, clientId) => ({
-        attachments: [],
+        attachments: toMobileOptimisticDMAttachments(draft.attachmentPreviews),
         author: requireMobileMutationAuthor(input.author),
         content: draft.content,
         conversationId: input.conversationId,
@@ -656,7 +672,7 @@ export function useMobileDMMessageMutation(input: {
         userId: requireMobileMutationAuthor(input.author).id,
       }),
       getResponseMessage: (response) => response.message,
-      mutationFn: (draft) =>
+      mutationFn: ({ attachmentPreviews, ...draft }) =>
         sendMobileDMMessage(input.client, { ...draft, conversationId: input.conversationId }),
       onSendFailed: (clientId, draft, failedMessage) => {
         mobileFailedSendRegistry.add(scope, { clientId, draft, message: failedMessage });

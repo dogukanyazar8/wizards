@@ -3,7 +3,10 @@ import { describe, it } from "node:test";
 import {
   executeMobileMessageAttachmentUpload,
 } from "../src/media/mobile-message-attachment-upload-service";
-import { parseMobileMessageAttachmentUploadCompletion } from "../src/media/mobile-message-attachment-contract";
+import {
+  MobileMessageAttachmentUploadError,
+  parseMobileMessageAttachmentUploadCompletion,
+} from "../src/media/mobile-message-attachment-contract";
 import type { MobilePickedMessageAttachment } from "../src/media/mobile-message-attachment-contract";
 
 const picked: MobilePickedMessageAttachment = {
@@ -91,5 +94,42 @@ describe("mobile message attachment upload service", () => {
 
     assert.equal(outcome.status, "error");
     assert.equal(uploadCalled, false);
+    if (outcome.status === "error") {
+      assert.equal(outcome.code, "missing-access-token");
+    }
+  });
+
+  it("reports the contract failure code so the composer can explain the rejection", async () => {
+    const outcome = await executeMobileMessageAttachmentUpload({
+      dependencies: {
+        getAccessToken: async () => "mobile-access-token",
+        pickAttachment: async () => picked,
+        uploadAttachment: async () => {
+          throw new MobileMessageAttachmentUploadError("selected-file-too-large");
+        },
+      },
+    });
+
+    assert.equal(outcome.status, "error");
+    if (outcome.status === "error") {
+      assert.equal(outcome.code, "selected-file-too-large");
+    }
+  });
+
+  it("falls back to a generic failure code for transport errors", async () => {
+    const outcome = await executeMobileMessageAttachmentUpload({
+      dependencies: {
+        getAccessToken: async () => "mobile-access-token",
+        pickAttachment: async () => picked,
+        uploadAttachment: async () => {
+          throw new Error("network down");
+        },
+      },
+    });
+
+    assert.equal(outcome.status, "error");
+    if (outcome.status === "error") {
+      assert.equal(outcome.code, "upload-failed");
+    }
   });
 });

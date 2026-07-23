@@ -31,15 +31,25 @@ jest.mock("react-native-gesture-handler", () => {
   const ReactRuntime = require("react");
   const ReactNative = require("react-native");
 
+  const chainable = () => {
+    const gesture: Record<string, () => unknown> = {};
+    for (const method of [
+      "enabled",
+      "maxDuration",
+      "numberOfTaps",
+      "onEnd",
+      "onStart",
+      "onUpdate",
+    ]) {
+      gesture[method] = () => gesture;
+    }
+    return gesture;
+  };
+
   return {
     Gesture: {
-      Pinch: () => {
-        const gesture = {
-          onEnd: () => gesture,
-          onUpdate: () => gesture,
-        };
-        return gesture;
-      },
+      Exclusive: (...gestures: unknown[]) => gestures[0],
+      Pinch: chainable,
       Pan: () => {
         const gesture = {
           enabled: () => gesture,
@@ -47,6 +57,7 @@ jest.mock("react-native-gesture-handler", () => {
             mockGestureHandlers.end = handler;
             return gesture;
           },
+          onStart: () => gesture,
           onUpdate: (handler: typeof mockGestureHandlers.update) => {
             mockGestureHandlers.update = handler;
             return gesture;
@@ -54,14 +65,16 @@ jest.mock("react-native-gesture-handler", () => {
         };
         return gesture;
       },
+      Race: (...gestures: unknown[]) => gestures[0],
       Simultaneous: (...gestures: unknown[]) => gestures[0],
+      Tap: chainable,
     },
     GestureDetector: ({ children }: { children: React.ReactNode }) =>
       ReactRuntime.createElement(ReactNative.View, { testID: "mock-gesture-detector" }, children),
   };
 });
 
-import { BottomSheet, ContextMenu } from "../src/app/components/kit";
+import { ActionSheet, BottomSheet, ContextMenu, OptionSheet } from "../src/app/components/kit";
 import { MOBILE_OVERLAY_CLOSE_DURATION_MS } from "../src/app/components/kit/overlay-surface";
 import { MessageAttachmentList, MessagePreviewRow } from "../src/app/components/message-primitives";
 
@@ -344,6 +357,63 @@ for (const theme of [lightTheme, darkTheme]) {
 
       expect(onAction).toHaveBeenCalledTimes(1);
       expect(view.queryByTestId("message-menu-options")).toBeNull();
+    });
+
+    it("sizes an OptionSheet to its rows and reports the checked option back", async () => {
+      mockTheme = theme;
+      const onSelect = jest.fn();
+      const view = await render(
+        <OptionSheet
+          onClose={jest.fn()}
+          onSelect={onSelect}
+          open
+          options={[
+            { description: "Anyone on Whispr", icon: "globe-outline", label: "Everyone", value: "EVERYONE" },
+            { icon: "lock-closed-outline", label: "Nobody", tone: "neutral", value: "NOBODY" },
+          ]}
+          selectedValue="NOBODY"
+          subtitle="Who can see your profile"
+          testID="policy"
+          title="Profile visibility"
+        />,
+      );
+
+      // A content-sized panel never carries a fixed height, which is what kept
+      // the old fixed sheets taller than the rows they render.
+      expect(StyleSheet.flatten(view.getByTestId("policy-panel").props.style).height).toBeUndefined();
+      expect(view.getByTestId("policy-options").props.accessibilityRole).toBe("radiogroup");
+      expect(view.getByTestId("policy-NOBODY").props.accessibilityState.checked).toBe(true);
+      expect(view.getByTestId("policy-EVERYONE").props.accessibilityState.checked).toBe(false);
+      expect(view.getByLabelText("Everyone. Anyone on Whispr")).toBeTruthy();
+
+      await fireEvent.press(view.getByTestId("policy-EVERYONE"));
+      expect(onSelect).toHaveBeenCalledWith("EVERYONE");
+    });
+
+    it("dismisses an ActionSheet before running the action it was tapped for", async () => {
+      mockTheme = theme;
+      const order: string[] = [];
+      const onClose = jest.fn(() => order.push("close"));
+      const view = await render(
+        <ActionSheet
+          actions={[
+            {
+              icon: "image-outline",
+              id: "photo",
+              label: "Photo",
+              onPress: () => order.push("action"),
+            },
+          ]}
+          onClose={onClose}
+          open
+          testID="attach"
+          title="Attach"
+        />,
+      );
+
+      expect(view.getByTestId("attach-actions").props.accessibilityRole).toBe("menu");
+      await fireEvent.press(view.getByTestId("attach-photo"));
+      expect(order).toEqual(["close", "action"]);
     });
 
     it("opens a message reaction menu and toggles the selected emoji", async () => {

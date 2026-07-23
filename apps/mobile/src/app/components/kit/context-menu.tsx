@@ -5,6 +5,7 @@ import { useThemedStyles } from "../../providers/mobile-theme-provider";
 import type { MobileTheme } from "../../../design/themes";
 import { BottomSheet } from "./bottom-sheet";
 import { Icon } from "./icon";
+import { useSheetPresentation } from "./sheet-primitives";
 import { useMobileHaptics } from "../../providers/mobile-haptics-provider";
 
 export interface ContextMenuAction {
@@ -53,6 +54,7 @@ export function ContextMenu({
 }: ContextMenuProps) {
   const styles = useThemedStyles(createStyles);
   const haptics = useMobileHaptics();
+  const presentation = useSheetPresentation();
   const [open, setOpen] = useState(false);
 
   return (
@@ -77,7 +79,8 @@ export function ContextMenu({
         accessibilityLabel={accessibilityLabel}
         onClose={() => setOpen(false)}
         open={open}
-        snapPoint={Math.min(520, 100 + actions.length * 56)}
+        presentation={presentation}
+        sizing="content"
         testID={`${testID}-sheet`}
       >
         <View accessibilityRole="menu" style={styles.menu} testID={`${testID}-options`}>

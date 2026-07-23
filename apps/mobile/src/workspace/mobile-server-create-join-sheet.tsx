@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Image, Text, TextInput, View } from "react-native";
 
-import { BottomSheet, Button } from "../app/components/kit";
+import { BottomSheet, Button, SheetHeader, useSheetPresentation } from "../app/components/kit";
 import { useMobileLocaleRuntime } from "../app/providers/mobile-locale-provider";
 import { useTheme, useThemedStyles } from "../app/providers/mobile-theme-provider";
 import { getMobileRuntimeConfig } from "../config/environment";
@@ -29,7 +29,7 @@ type MobileServerSheetMode = "create" | "join";
 
 const createStyles = (theme: MobileTheme) => ({
   actions: { flexDirection: "row" as const, gap: 8 },
-  body: { flex: 1, gap: 12 },
+  body: { gap: 12 },
   error: { ...theme.typography.caption, color: theme.status.danger },
   input: {
     ...theme.typography.body,
@@ -46,8 +46,6 @@ const createStyles = (theme: MobileTheme) => ({
     height: 88,
     width: 88,
   },
-  subtitle: { ...theme.typography.body, color: theme.text.muted },
-  title: { ...theme.typography.title, color: theme.text.primary },
 });
 
 function isValidServerName(value: string): boolean {
@@ -68,6 +66,7 @@ export function MobileServerCreateJoinSheet({
   const { locale } = useMobileLocaleRuntime();
   const copy = mobileCopy[locale];
   const styles = useThemedStyles(createStyles);
+  const sheetPresentation = useSheetPresentation();
   const theme = useTheme();
   const [mode, setMode] = useState<MobileServerSheetMode>("create");
   const [name, setName] = useState("");
@@ -194,14 +193,19 @@ export function MobileServerCreateJoinSheet({
         accessibilityLabel={copy.workspaceServerIconAction}
         onClose={onClose}
         open={open}
-        snapPoint={460}
+        presentation={sheetPresentation}
+        sizing="content"
         testID="mobile-server-create-join-sheet"
       >
         <View style={styles.body}>
-          <Text accessibilityRole="header" style={styles.title}>
-            {copy.workspaceServerIconAction}
-          </Text>
-          <Text style={styles.subtitle}>{copy.workspaceServerIconDescription}</Text>
+          <SheetHeader
+            closeAccessibilityLabel={copy.sheetCloseAction}
+            icon="image-outline"
+            onClose={onClose}
+            subtitle={copy.workspaceServerIconDescription}
+            testID="mobile-server-create-icon-header"
+            title={copy.workspaceServerIconAction}
+          />
           {iconPreviewUri ? (
             <Image
               accessibilityLabel={copy.workspaceServerIconAction}
@@ -250,14 +254,19 @@ export function MobileServerCreateJoinSheet({
       accessibilityLabel={copy.workspaceAddServerAction}
       onClose={onClose}
       open={open}
-      snapPoint={460}
+      presentation={sheetPresentation}
+      sizing="content"
       testID="mobile-server-create-join-sheet"
     >
       <View style={styles.body}>
-        <Text accessibilityRole="header" style={styles.title}>
-          {copy.workspaceAddServerAction}
-        </Text>
-        <Text style={styles.subtitle}>{copy.workspaceServerCreateJoinDescription}</Text>
+        <SheetHeader
+          closeAccessibilityLabel={copy.sheetCloseAction}
+          icon="add-circle-outline"
+          onClose={onClose}
+          subtitle={copy.workspaceServerCreateJoinDescription}
+          testID="mobile-server-create-join-header"
+          title={copy.workspaceAddServerAction}
+        />
         <View style={styles.actions}>
           <Button
             accessibilityState={{ selected: mode === "create" }}

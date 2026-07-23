@@ -173,12 +173,8 @@ describe("1b channel chat redesign", () => {
       paddingHorizontal: 11,
       paddingVertical: 8,
     });
-    expect(messages.channelActionBar).toMatchObject({
-      borderRadius: 14,
-      paddingHorizontal: 6,
-      paddingVertical: 4,
-      right: 8,
-      top: -16,
+    expect(messages.messageRowCardPressed).toMatchObject({
+      backgroundColor: theme.surface.soft,
     });
     expect(messages.channelUnreadSeparatorLabel).toMatchObject({
       color: theme.messageMenu.unreadDivider,
@@ -330,7 +326,22 @@ describe("1b channel chat redesign", () => {
     expect(view.getByTestId(`mobile-channel-attachment-draft-${attachmentId}`)).toBeTruthy();
     await fireEvent.press(view.getByTestId("mobile-channel-send-button"));
     await waitFor(() => {
-      expect(onSend).toHaveBeenCalledWith("", [{ id: attachmentId }]);
+      // The uploaded metadata rides along so the optimistic bubble can render
+      // the card before the server echo lands.
+      expect(onSend).toHaveBeenCalledWith(
+        "",
+        [{ id: attachmentId }],
+        [
+          {
+            contentType: "image/png",
+            filename: "welcome.png",
+            id: attachmentId,
+            scanStatus: "PENDING",
+            size: 1024,
+            url: "https://ufs.example.test/welcome.png",
+          },
+        ],
+      );
     });
   });
 });

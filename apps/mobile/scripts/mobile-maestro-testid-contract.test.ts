@@ -213,6 +213,19 @@ describe("Phase 0 Maestro testID contract", () => {
     assert.ok(
       (phase2FlowSource.match(/id:\s*"mobile-message-actions-\.\*-trigger"/g)?.length ?? 0) >= 4,
     );
+    // 10e: one long press opens the whole menu — the flow no longer walks through
+    // a floating bar and a "More actions" overflow to reach edit/delete.
+    assert.match(
+      phase2FlowSource,
+      /longPressOn:[\s\S]{0,160}?assertVisible:\r?\n\s+id:\s*"mobile-message-actions-\.\*-options"/,
+    );
+    assert.doesNotMatch(phase2FlowSource, /More actions|Diğer eylemler/);
+    assert.ok(
+      readFileSync(
+        path.join(process.cwd(), "src/app/components/message-action-menu.tsx"),
+        "utf8",
+      ).includes("`${testID}-options`"),
+    );
     for (const message of ["Phase2 Maestro verified", "Phase2 edited verified"]) {
       assert.match(
         phase2FlowSource,

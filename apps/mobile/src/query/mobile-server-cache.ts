@@ -5,7 +5,7 @@ import type {
 } from "@wizards/types";
 
 import type { MobileApiClient } from "../api/mobile-api-client";
-import { getMobileWorkspaceQueryOptions } from "./mobile-workspace-query";
+import { fetchMobileWorkspaceServer } from "../workspace/mobile-workspace-client";
 import { mobileQueryKeys } from "./mobile-query-keys";
 
 function isCanonicalHttpsUrl(value: string): boolean {
@@ -76,10 +76,17 @@ export function patchMobileServerIconCaches(input: {
 }
 
 /**
- * Re-reads the server detail straight from the API (bypassing staleTime, which the
- * optimistic patch above just refreshed) and reports whether the claimed icon actually
- * survived on the backend. Without this read-back a failed persist is indistinguishable
- * from a working one on screen: the local preview keeps showing the picked image.
+ * Re-reads the server detail straight from the API and reports whether the claimed icon
+ * actually survived on the backend. Without this read-back a failed persist is
+ * indistinguishable from a working one on screen: the local preview keeps showing the
+ * picked image.
+ *
+ * The request deliberately bypasses `queryClient.fetchQuery`. TanStack dedupes by query
+ * key and hands back the promise of an already running fetch, and returning from the OS
+ * image picker refocuses the app, which starts a workspace refetch that left the device
+ * before the claim committed. Joining that request makes the read-back adopt a pre-upload
+ * response and report a stored icon as lost, which is exactly how a working upload ends
+ * up reverting on screen. A direct request always observes post-claim state.
  */
 export async function confirmMobileServerIconPersisted(input: {
   client: MobileApiClient;
@@ -88,10 +95,13 @@ export async function confirmMobileServerIconPersisted(input: {
   serverId: string;
 }): Promise<boolean> {
   try {
-    const refreshed = await input.queryClient.fetchQuery({
-      ...getMobileWorkspaceQueryOptions(input.client, input.serverId),
-      staleTime: 0,
+    const refreshed = await fetchMobileWorkspaceServer(input.client, {
+      serverId: input.serverId,
     });
+
+    // The verified read is newer than whatever the cache holds, including the optimistic
+    // patch above, so publish it either way.
+    input.queryClient.setQueryData(mobileQueryKeys.workspace(input.serverId), refreshed);
 
     return refreshed.detail.server.iconUrl === input.iconUrl;
   } catch {

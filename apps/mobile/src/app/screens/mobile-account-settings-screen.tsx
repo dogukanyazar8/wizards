@@ -30,7 +30,17 @@ import type { MobileSessionUser } from "../../auth/session-types";
 import { getMobileAvatarInitials } from "../../design/mobile-avatar-color";
 import { mobileCopy, type MobileLocale } from "../../locale/mobile-copy";
 import { useMobileSocialMutations } from "../../social/mobile-social-query";
-import { BottomSheet, Button, Skeleton } from "../components/kit";
+import {
+  BottomSheet,
+  Button,
+  OptionSheet,
+  SheetHeader,
+  Skeleton,
+  useSheetPresentation,
+  type SheetIconName,
+  type SheetOption,
+  type SheetTone,
+} from "../components/kit";
 import { MobileCachedImage } from "../components/mobile-cached-image";
 import { useToast } from "../components/kit/toast";
 import { useMobileLocaleRuntime } from "../providers/mobile-locale-provider";
@@ -99,6 +109,59 @@ function getPolicyLabel(locale: MobileLocale, value: string): string {
     default:
       return value;
   }
+}
+
+/** A policy name alone ("Ortak sunucular") does not say who that is; the hint does. */
+function getPolicyHint(locale: MobileLocale, value: string): string | undefined {
+  const copy = mobileCopy[locale];
+  switch (value) {
+    case "EVERYONE":
+      return copy.accountSettingsPolicyEveryoneHint;
+    case "FRIENDS":
+      return copy.accountSettingsPolicyFriendsHint;
+    case "MUTUAL_SERVERS":
+      return copy.accountSettingsPolicyMutualServersHint;
+    case "MUTUAL_FRIENDS":
+      return copy.accountSettingsPolicyMutualFriendsHint;
+    case "NOBODY":
+      return copy.accountSettingsPolicyNobodyHint;
+    default:
+      return undefined;
+  }
+}
+
+/** Reach widens from a locked padlock to an open globe, so the list reads at a glance. */
+function getPolicyVisual(value: string): { icon: SheetIconName; tone: SheetTone } {
+  switch (value) {
+    case "EVERYONE":
+      return { icon: "globe-outline", tone: "accent" };
+    case "FRIENDS":
+      return { icon: "people-outline", tone: "success" };
+    case "MUTUAL_SERVERS":
+      return { icon: "server-outline", tone: "accent" };
+    case "MUTUAL_FRIENDS":
+      return { icon: "people-circle-outline", tone: "warning" };
+    case "NOBODY":
+    default:
+      return { icon: "lock-closed-outline", tone: "neutral" };
+  }
+}
+
+function buildPolicyOptions(
+  locale: MobileLocale,
+  values: readonly string[],
+): readonly SheetOption<string>[] {
+  return values.map((value) => {
+    const hint = getPolicyHint(locale, value);
+    const visual = getPolicyVisual(value);
+    return {
+      ...(hint ? { description: hint } : {}),
+      icon: visual.icon,
+      label: getPolicyLabel(locale, value),
+      tone: visual.tone,
+      value,
+    };
+  });
 }
 
 function AccountHeader({ locale, onBack }: { locale: MobileLocale; onBack(): void }) {
@@ -451,20 +514,51 @@ export function MobileAccountSettingsView({
   });
   const profileName = user.displayName ?? user.username;
   const isOnline = presence === "ONLINE";
-  const policyOptions =
+  const policyValues =
     policySheet === "dm"
       ? DM_POLICIES
       : policySheet === "friendRequests"
         ? FRIEND_REQUEST_POLICIES
         : LOCAL_VISIBILITY_POLICIES;
-  const policyTitle =
+  const policyOptions = buildPolicyOptions(locale, policyValues);
+  const policyPresentation: {
+    icon: SheetIconName;
+    selected: string;
+    subtitle: string;
+    title: string;
+    tone: SheetTone;
+  } =
     policySheet === "dm"
-      ? copy.accountSettingsDmPermission
+      ? {
+          icon: "chatbubble-outline",
+          selected: settings.privacy.dmPermission,
+          subtitle: copy.accountSettingsDmPermissionHint,
+          title: copy.accountSettingsDmPermission,
+          tone: "accent",
+        }
       : policySheet === "friendRequests"
-        ? copy.accountSettingsFriendRequests
+        ? {
+            icon: "person-add-outline",
+            selected: settings.privacy.friendRequests,
+            subtitle: copy.accountSettingsFriendRequestsHint,
+            title: copy.accountSettingsFriendRequests,
+            tone: "warning",
+          }
         : policySheet === "presence"
-          ? copy.accountSettingsPresenceVisibility
-          : copy.accountSettingsProfileVisibility;
+          ? {
+              icon: "radio-button-on",
+              selected: localVisibility.presence,
+              subtitle: copy.accountSettingsPresenceVisibilityHint,
+              title: copy.accountSettingsPresenceVisibility,
+              tone: "success",
+            }
+          : {
+              icon: "eye-outline",
+              selected: localVisibility.profile,
+              subtitle: copy.accountSettingsProfileVisibilityHint,
+              title: copy.accountSettingsProfileVisibility,
+              tone: "accent",
+            };
 
   const selectPolicy = async (value: string) => {
     if (policySheet === "dm") {
@@ -665,63 +759,116 @@ export function MobileAccountSettingsView({
         />
       </View>
 
-      <BottomSheet
-        accessibilityLabel={policyTitle}
+      <OptionSheet
+        closeAccessibilityLabel={copy.sheetCloseAction}
+        disabled={privacyMutationPending}
+        icon={policyPresentation.icon}
         onClose={() => setPolicySheet(null)}
+        onSelect={(option) => void selectPolicy(option).catch(() => undefined)}
         open={policySheet !== null}
-        testID="mobile-account-policy-sheet"
-      >
-        <View style={styles.sheet}>
-          <Text style={styles.sheetTitle}>{policyTitle}</Text>
-          {policyOptions.map((option) => (
-            <Button
-              busy={privacyMutationPending}
-              key={option}
-              label={getPolicyLabel(locale, option)}
-              onPress={() => void selectPolicy(option).catch(() => undefined)}
-              testID={`mobile-account-policy-${policySheet}-${option}`}
-              variant="secondary"
-            />
-          ))}
-        </View>
-      </BottomSheet>
-      <BottomSheet
-        accessibilityLabel={copy.accountSettingsEditorTitle}
+        optionTestID={(option) => `${policySheet}-${option}`}
+        options={policyOptions}
+        selectedValue={policyPresentation.selected}
+        subtitle={policyPresentation.subtitle}
+        testID="mobile-account-policy"
+        title={policyPresentation.title}
+        tone={policyPresentation.tone}
+      />
+      <ProfileEditorSheet
+        busy={profileMutationPending}
+        displayName={displayName}
+        locale={locale}
+        onChangeDisplayName={setDisplayName}
+        onChangeUsername={setUsername}
         onClose={() => setProfileEditorOpen(false)}
+        onSave={() =>
+          void onUpdateProfile({ displayName: displayName.trim(), username: username.trim() })
+            .then(() => setProfileEditorOpen(false))
+            .catch(() => undefined)
+        }
         open={profileEditorOpen}
-        testID="mobile-account-profile-editor-sheet"
-      >
-        <View style={styles.sheet}>
-          <Text style={styles.sheetTitle}>{copy.accountSettingsEditorTitle}</Text>
-          <TextInput
-            accessibilityLabel={copy.accountSettingsDisplayName}
-            onChangeText={setDisplayName}
-            style={styles.input}
-            testID="mobile-account-profile-display-name-input"
-            value={displayName}
-          />
-          <TextInput
-            accessibilityLabel={copy.accountSettingsUsername}
-            autoCapitalize="none"
-            onChangeText={setUsername}
-            style={styles.input}
-            testID="mobile-account-profile-username-input"
-            value={username}
-          />
-          <Button
-            busy={profileMutationPending}
-            disabled={username.trim().length < 2 || !displayName.trim()}
-            label={copy.accountSettingsSave}
-            onPress={() =>
-              void onUpdateProfile({ displayName: displayName.trim(), username: username.trim() })
-                .then(() => setProfileEditorOpen(false))
-                .catch(() => undefined)
-            }
-            testID="mobile-account-profile-save"
-          />
-        </View>
-      </BottomSheet>
+        username={username}
+      />
     </ScrollView>
+  );
+}
+
+function ProfileEditorSheet({
+  busy,
+  displayName,
+  locale,
+  onChangeDisplayName,
+  onChangeUsername,
+  onClose,
+  onSave,
+  open,
+  username,
+}: {
+  busy: boolean;
+  displayName: string;
+  locale: MobileLocale;
+  onChangeDisplayName(value: string): void;
+  onChangeUsername(value: string): void;
+  onClose(): void;
+  onSave(): void;
+  open: boolean;
+  username: string;
+}) {
+  const copy = mobileCopy[locale];
+  const styles = useMobileAccountSettingsStyles();
+  const presentation = useSheetPresentation();
+
+  return (
+    <BottomSheet
+      accessibilityLabel={copy.accountSettingsEditorTitle}
+      onClose={onClose}
+      open={open}
+      presentation={presentation}
+      sizing="content"
+      testID="mobile-account-profile-editor-sheet"
+    >
+      <View style={styles.sheet}>
+        <SheetHeader
+          closeAccessibilityLabel={copy.sheetCloseAction}
+          icon="create-outline"
+          onClose={onClose}
+          subtitle={copy.accountSettingsEditorSubtitle}
+          testID="mobile-account-profile-editor-header"
+          title={copy.accountSettingsEditorTitle}
+        />
+        <View style={styles.sheetFields}>
+          <View style={styles.sheetField}>
+            <Text style={styles.sheetFieldLabel}>{copy.accountSettingsDisplayName}</Text>
+            <TextInput
+              accessibilityLabel={copy.accountSettingsDisplayName}
+              onChangeText={onChangeDisplayName}
+              style={styles.input}
+              testID="mobile-account-profile-display-name-input"
+              value={displayName}
+            />
+          </View>
+          <View style={styles.sheetField}>
+            <Text style={styles.sheetFieldLabel}>{copy.accountSettingsUsername}</Text>
+            <TextInput
+              accessibilityLabel={copy.accountSettingsUsername}
+              autoCapitalize="none"
+              onChangeText={onChangeUsername}
+              style={styles.input}
+              testID="mobile-account-profile-username-input"
+              value={username}
+            />
+          </View>
+        </View>
+        <Button
+          busy={busy}
+          disabled={username.trim().length < 2 || !displayName.trim()}
+          icon="checkmark"
+          label={copy.accountSettingsSave}
+          onPress={onSave}
+          testID="mobile-account-profile-save"
+        />
+      </View>
+    </BottomSheet>
   );
 }
 

@@ -379,7 +379,7 @@ export const MOBILE_MANUAL_QA_CHECKS: MobileManualQACheck[] = [
     area: "auth",
     id: "app-switcher-privacy-shield",
     label:
-      "Inactive and background AppState values cover DM and voice content with an opaque privacy shield before app-switcher capture, independently of optional biometric lock.",
+      "Inactive and background AppState values cover DM and voice content with an opaque privacy shield before app-switcher capture, independently of optional biometric lock; the shield uncovers on the first resumed frame with a bounded fade driven off the UI thread, so returning to the app restores content instead of showing a blank surface.",
     required: true,
     risk: "critical",
   },

@@ -212,13 +212,7 @@ export const createMobileProfileEditStyles = (theme: MobileTheme) =>
       marginTop: 14,
       padding: 16,
     },
-    sheet: { gap: 10, paddingBottom: 8 },
-    sheetTitle: {
-      color: theme.text.primary,
-      fontFamily: theme.typography.fontFamilyExtraBold,
-      fontSize: 18,
-    },
-    sheetHint: { color: theme.text.muted, fontFamily: theme.typography.fontFamily, fontSize: 12.5 },
+    sheet: { gap: 12 },
     input: {
       backgroundColor: theme.surface.soft,
       borderColor: theme.border.subtle,

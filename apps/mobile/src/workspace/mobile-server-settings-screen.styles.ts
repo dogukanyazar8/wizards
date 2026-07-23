@@ -105,6 +105,11 @@ export const createMobileServerSettingsStyles = (theme: MobileTheme) =>
       width: 3,
     },
     onlineDot: { backgroundColor: theme.status.success, borderRadius: 3.5, height: 7, width: 7 },
+    iconStatus: {
+      color: theme.text.muted,
+      fontFamily: theme.typography.fontFamily,
+      fontSize: 12.5,
+    },
 
     // Editable pills
     pillsRow: { flexDirection: "row", gap: 8 },
@@ -240,7 +245,6 @@ export const createMobileServerSettingsStyles = (theme: MobileTheme) =>
 
     // Editor sheet
     sheet: { gap: 12 },
-    sheetTitle: { ...theme.typography.title, color: theme.text.primary },
     input: {
       ...theme.typography.body,
       backgroundColor: theme.surface.soft,

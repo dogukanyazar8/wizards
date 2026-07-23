@@ -82,6 +82,7 @@ describe("mobile screen state", () => {
             canKickMembers: false,
             canManageChannels: true,
             canManageInvites: true,
+            canManageMessages: true,
             canManageRoles: false,
             canManageServer: true,
             canUploadServerIcon: true,

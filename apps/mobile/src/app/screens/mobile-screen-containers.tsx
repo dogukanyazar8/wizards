@@ -129,6 +129,19 @@ export function VoiceRoomStackScreenContainer({
     routeContext !== null &&
     (room.status === "idle" ||
       (hasMatchingMobileVoiceRoomRouteContext(room) && hasVoiceRoomContext(room)));
+  // Both `replace` and `navigate` ignore what is already below the room:
+  // replacing left a second MainTabs on the stack and navigating pushed one, so
+  // back after a minimise landed on the voice room again. Popping the room off
+  // is what keeps a single MainTabs and returns the user to the screen the call
+  // interrupted.
+  const dismissVoiceRoomScreen = useCallback(() => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+
+    navigation.popTo("MainTabs", { screen: "overview" });
+  }, [navigation]);
   const leaveVoiceRoom = useCallback(async () => {
     try {
       // A DM call hangs up through its own handler so the peer is told and the ring state
@@ -141,15 +154,12 @@ export function VoiceRoomStackScreenContainer({
       }
     } finally {
       clearMobileVoiceRoomRouteContext();
-      navigation.replace("MainTabs", { screen: "overview" });
+      dismissVoiceRoomScreen();
     }
-  }, [isDirectCall, navigation, screenProps]);
+  }, [dismissVoiceRoomScreen, isDirectCall, screenProps]);
   const leaveAndReturnToOverview = useCallback(() => {
     void leaveVoiceRoom();
   }, [leaveVoiceRoom]);
-  const minimizeVoiceRoom = useCallback(() => {
-    navigation.navigate("MainTabs", { screen: "overview" });
-  }, [navigation]);
   const cancelOutgoingCall = useCallback(() => {
     void (useMobileDMCallStore.getState().endCall?.() ?? Promise.resolve());
   }, []);
@@ -162,9 +172,9 @@ export function VoiceRoomStackScreenContainer({
   }, [navigation, room.channelId, room.serverId]);
   useEffect(() => {
     if (!hasRouteContext) {
-      navigation.replace("MainTabs", { screen: "overview" });
+      dismissVoiceRoomScreen();
     }
-  }, [hasRouteContext, navigation]);
+  }, [dismissVoiceRoomScreen, hasRouteContext]);
 
   // A declined, cancelled or peer-ended DM call clears the session. Land the user back in
   // the conversation the call belonged to instead of the empty channel room UI.
@@ -176,12 +186,20 @@ export function VoiceRoomStackScreenContainer({
     const conversationId = routeContext.conversationId;
     clearMobileVoiceRoomRouteContext();
     if (conversationId) {
-      navigation.replace("DirectMessage", { conversationId });
+      // The conversation is usually already on the stack under the call, so pop
+      // back onto it instead of stacking a second copy of the same DM.
+      navigation.popTo("DirectMessage", { conversationId });
       return;
     }
 
-    navigation.replace("MainTabs", { screen: "overview" });
-  }, [dmCallSession, navigation, routeContext?.conversationId, routeContext?.sessionMode]);
+    dismissVoiceRoomScreen();
+  }, [
+    dismissVoiceRoomScreen,
+    dmCallSession,
+    navigation,
+    routeContext?.conversationId,
+    routeContext?.sessionMode,
+  ]);
 
   useEffect(() => {
     if (room.status !== "leaving") {
@@ -190,17 +208,17 @@ export function VoiceRoomStackScreenContainer({
 
     const timeout = setTimeout(() => {
       clearMobileVoiceRoomRouteContext();
-      navigation.replace("MainTabs", { screen: "overview" });
+      dismissVoiceRoomScreen();
     }, MOBILE_VOICE_LEAVING_TIMEOUT_MS);
 
     return () => clearTimeout(timeout);
-  }, [navigation, room.status]);
+  }, [dismissVoiceRoomScreen, room.status]);
 
   useFocusEffect(
     useCallback(() => {
       const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
         if (isVoiceSessionActive(room.status)) {
-          minimizeVoiceRoom();
+          dismissVoiceRoomScreen();
           return true;
         }
 
@@ -213,7 +231,7 @@ export function VoiceRoomStackScreenContainer({
       });
 
       return () => subscription.remove();
-    }, [leaveAndReturnToOverview, minimizeVoiceRoom, room.status]),
+    }, [leaveAndReturnToOverview, dismissVoiceRoomScreen, room.status]),
   );
 
   if (!hasRouteContext) {
@@ -224,7 +242,7 @@ export function VoiceRoomStackScreenContainer({
     const outgoingProps = {
       calleeName: dmCallSession.title,
       onCancelCall: cancelOutgoingCall,
-      onMinimize: minimizeVoiceRoom,
+      onMinimize: dismissVoiceRoomScreen,
       onToggleVoiceMute: screenProps.onToggleVoiceMute,
       voiceRoomState: room,
       ...(screenProps.onFlipVoiceCamera
@@ -256,7 +274,7 @@ export function VoiceRoomStackScreenContainer({
           {...screenProps}
           callStartedAt={dmCallSession?.connectedAt ?? null}
           onLeaveVoiceChannel={leaveVoiceRoom}
-          onMinimize={minimizeVoiceRoom}
+          onMinimize={dismissVoiceRoomScreen}
           testID="mobile-direct-video-call-screen"
         />
       );
@@ -267,7 +285,7 @@ export function VoiceRoomStackScreenContainer({
         {...screenProps}
         callStartedAt={dmCallSession?.connectedAt ?? null}
         onLeaveVoiceChannel={leaveVoiceRoom}
-        onMinimize={minimizeVoiceRoom}
+        onMinimize={dismissVoiceRoomScreen}
         testID="mobile-direct-call-screen"
       />
     );
@@ -277,7 +295,7 @@ export function VoiceRoomStackScreenContainer({
     <VoiceScreen
       {...screenProps}
       onLeaveVoiceChannel={leaveVoiceRoom}
-      onMinimize={minimizeVoiceRoom}
+      onMinimize={dismissVoiceRoomScreen}
       onOpenChat={openVoiceRoomChat}
       testID="mobile-voice-room-screen"
     />
@@ -325,7 +343,14 @@ export function ChannelStackScreenContainer({
   );
 
   return (
+    // A notification or deep link for another channel reuses this screen rather
+    // than stacking a second one, so the subtree is keyed by the route params:
+    // scroll offset, search text and selection reset with the channel instead
+    // of bleeding into it, and the stack still never grows. Keeping one
+    // instance is why this is a key and not `getId` — a route per channel would
+    // hold every visited channel mounted.
     <OverviewScreen
+      key={`${serverId}:${channelId}`}
       {...screenProps}
       onOpenThread={(messageId) => {
         navigation.navigate("MessageThread", { contextId: channelId, messageId, scope: "channel" });
@@ -364,7 +389,11 @@ export function DirectMessageStackScreenContainer({
   );
 
   return (
+    // Same reuse rule as the channel screen: a conversation switch through an
+    // external intent remounts the subtree so no draft-adjacent local state
+    // follows the user into the next conversation.
     <MessagesScreen
+      key={conversationId}
       {...screenProps}
       onOpenDetails={() => navigation.navigate("DMDetails", { conversationId })}
       onOpenThread={(messageId) => {
@@ -388,10 +417,12 @@ export function MessageThreadStackScreenContainer({
 
   return (
     <MobileMessageThreadScreen
+      key={`${contextId}:${messageId}`}
       {...(channelName ? { channelName } : {})}
       contextId={contextId}
       messageId={messageId}
       onBack={() => navigation.goBack()}
+      serverId={findMobileWorkspaceServerId(screenProps.workspaceServerState)}
       typingUsers={
         screenProps.activeWorkspaceTextChannelId === contextId ? screenProps.channelTypingUsers : []
       }
@@ -413,6 +444,13 @@ function findMobileWorkspaceChannelName(
     ...detail.ungroupedChannels,
   ];
   return channels.find((channel) => channel.id === channelId)?.name ?? null;
+}
+
+/** 10a: the thread screen needs the owning server to resolve its mention roster. */
+function findMobileWorkspaceServerId(
+  serverState: ReturnType<typeof useMobileOverviewScreenProps>["workspaceServerState"],
+): string | null {
+  return serverState.status === "ready" ? serverState.payload.detail.server.id : null;
 }
 
 export function SettingsDetailScreenContainer({

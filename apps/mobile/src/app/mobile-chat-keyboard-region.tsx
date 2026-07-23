@@ -70,7 +70,7 @@ export function useMobileChatKeyboardOwnership(): boolean {
  * chat screen must release keyboard ownership so a screen pushed on top of it
  * (thread view, settings) gets the shell's padding behaviour back.
  */
-function useMobileScreenFocus(): boolean {
+export function useMobileScreenFocus(): boolean {
   const navigation = useContext(NavigationContext);
   const [isFocused, setFocused] = useState(() => navigation?.isFocused() ?? true);
 

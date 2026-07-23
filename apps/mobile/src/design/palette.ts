@@ -209,6 +209,21 @@ export const redesignDark = {
   sheetOverlay: "rgba(0,0,0,.55)",
 } as const;
 
+/**
+ * 10b full-screen image viewer. A photo viewer is judged against the photo, so
+ * the surface stays the same near-black in both themes — the light theme never
+ * lightens it, exactly like Instagram and Discord.
+ */
+export const redesignLightbox = {
+  backdrop: "#08080C",
+  chromeGradientFade: "rgba(8,8,12,0)",
+  chromeGradientStrong: "rgba(8,8,12,.74)",
+  chromeText: "#FFFFFF",
+  chromeTextMuted: "rgba(255,255,255,.72)",
+  control: "rgba(255,255,255,.14)",
+  controlBorder: "rgba(255,255,255,.20)",
+} as const;
+
 /** Derived from README_AUTH section 2 and HTML anchors #2a–#2d. */
 export const redesignAuthLight = {
   backgroundDot: "#4F46E5",

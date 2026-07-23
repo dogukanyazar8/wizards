@@ -590,5 +590,13 @@
   "588": "@wizards/types",
   "589": "zod",
   "590": "zustand",
-  "591": "react-native-screens"
+  "591": "react-native-screens",
+  "592": "8. Yerel altyapı ve veritabanı",
+  "593": "0. KAYNAKLAR VE ÇALIŞMA KURALLARI",
+  "594": "13. Windows desktop geliştirme",
+  "595": "14. Test ve kalite kapıları",
+  "596": "16. Railway web ve worker CD",
+  "597": "9. Web geliştirme",
+  "598": "expo-image-picker",
+  "599": "Whispr Mobil Chat + Medya + Navigasyon — Sıralı Prompt'lar (10a → 10g)"
 }

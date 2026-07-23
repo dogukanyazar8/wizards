@@ -23,9 +23,13 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
       fontFamily: theme.typography.fontFamilySemiBold,
     },
     messageMention: {
-      backgroundColor: theme.accent.soft,
-      color: theme.accent.strong,
+      backgroundColor: theme.mention.background,
+      color: theme.mention.text,
       fontFamily: theme.typography.fontFamilyExtraBold,
+    },
+    /** 10a: your own handle reads a shade stronger than everyone else's. */
+    messageMentionSelf: {
+      backgroundColor: theme.mention.selfBackground,
     },
     messageReplyQuote: {
       borderLeftColor: theme.accent.strong,
@@ -282,6 +286,18 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
       paddingHorizontal: 10,
       paddingVertical: 8,
     },
+    // 10a: a message that names you gets a soft fill plus a left stripe, bleeding
+    // past the stream padding the same way the long-press highlight does.
+    messagePreviewRowChannelMention: {
+      backgroundColor: theme.mention.selfRowBackground,
+      borderLeftColor: theme.mention.selfRowStripe,
+      borderLeftWidth: 3,
+      borderRadius: 8,
+      marginHorizontal: -10,
+      paddingLeft: 7,
+      paddingRight: 10,
+      paddingVertical: 4,
+    },
     messagePreviewTimeChannel: {
       color: theme.text.visualPlaceholder,
       fontSize: 10.5,
@@ -400,40 +416,10 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
       fontSize: 11,
       lineHeight: 14,
     },
-    // 8c floating action bar pinned to the highlighted row's top-right corner.
-    channelActionBar: {
-      position: "absolute",
-      top: -16,
-      right: 8,
-      zIndex: 10,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 2,
-      borderWidth: 1,
-      borderColor: theme.border.subtle,
-      borderRadius: 14,
-      backgroundColor: theme.surface.card,
-      paddingHorizontal: 6,
-      paddingVertical: 4,
-      shadowColor: theme.surface.inverse,
-      shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: theme.dark ? 0 : 0.12,
-      shadowRadius: 18,
-      elevation: theme.dark ? 0 : 8,
-    },
-    channelActionBarButton: {
-      width: 32,
-      height: 32,
-      borderRadius: 10,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    channelActionBarButtonPressed: {
+    // 10e replaced the 8c floating action bar with the full action menu; the
+    // pressed tint stays for the inline cards that survived it.
+    messageRowCardPressed: {
       backgroundColor: theme.surface.soft,
-    },
-    channelActionBarEmoji: {
-      fontSize: 15,
-      lineHeight: 20,
     },
     // 8c unread boundary divider.
     channelUnreadSeparator: {
