@@ -603,6 +603,23 @@ describe("mobile workspace management schemas", () => {
 
   it("keeps media responses purpose-discriminated and free of storage metadata", () => {
     assertAccepts(MobileMediaUploadIntentSchema, { purpose: "profile-avatar" });
+    assertAccepts(MobileMediaUploadIntentSchema, { purpose: "profile-banner" });
+    assertRejects(MobileMediaUploadIntentSchema, {
+      purpose: "profile-banner",
+      targetServerId: "server-1",
+    });
+    assertAccepts(MobileMediaClaimResponseSchema, {
+      banner: { bannerUrl: "https://cdn.example.com/banner.png", id: "user-1" },
+      claimId: "claim-1",
+      claimedAt: "2026-07-23T08:00:00.000Z",
+      purpose: "profile-banner",
+    });
+    assertRejects(MobileMediaClaimResponseSchema, {
+      banner: { bannerUrl: "http://cdn.example.com/banner.png", id: "user-1" },
+      claimId: "claim-1",
+      claimedAt: "2026-07-23T08:00:00.000Z",
+      purpose: "profile-banner",
+    });
     assertAccepts(MobileMediaUploadIntentSchema, {
       purpose: "server-icon",
       targetServerId: "server-1",

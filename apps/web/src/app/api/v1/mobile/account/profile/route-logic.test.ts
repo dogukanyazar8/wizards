@@ -14,7 +14,7 @@ describe("mobile profile route", () => {
         parseBody: parseJsonBody,
         updateProfile: async (userId, input) => {
           calls.push(`update:${userId}:${input.displayName}`);
-          return { avatarUrl: null, bio: null, customStatus: null, displayName: input.displayName ?? null, email: "a@b.co", emailVerified: true, id: userId, status: "ONLINE", twoFactorEnabled: false, username: "ada" };
+          return { avatarUrl: null, bannerColor: null, bannerUrl: null, bio: null, customStatus: null, customStatusEmoji: null, customStatusExpiresAt: null, displayName: input.displayName ?? null, email: "a@b.co", emailVerified: true, id: userId, pronouns: null, status: "ONLINE", twoFactorEnabled: false, username: "ada", usernameChangedAt: null };
         },
       },
     );
@@ -31,15 +31,21 @@ describe("mobile profile route", () => {
         parseBody: parseJsonBody,
         updateProfile: async (userId, input) => ({
           avatarUrl: null,
+          bannerColor: null,
+          bannerUrl: null,
           bio: input.bio ?? null,
           customStatus: input.customStatus ?? null,
+          customStatusEmoji: null,
+          customStatusExpiresAt: null,
           displayName: "Ada",
           email: "a@b.co",
           emailVerified: true,
           id: userId,
+          pronouns: null,
           status: "ONLINE" as const,
           twoFactorEnabled: false,
           username: "ada",
+          usernameChangedAt: null,
         }),
       },
     );
@@ -48,10 +54,16 @@ describe("mobile profile route", () => {
     assert.deepEqual(await response.json(), {
       user: {
         avatarUrl: null,
+        bannerColor: null,
+        bannerUrl: null,
         bio: "Building Whispr",
         customStatus: "focus",
+        customStatusEmoji: null,
+        customStatusExpiresAt: null,
         displayName: "Ada",
         id: "user-1",
+        nextUsernameChangeAt: null,
+        pronouns: null,
         status: "ONLINE",
         twoFactorEnabled: false,
         username: "ada",

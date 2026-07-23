@@ -24,11 +24,20 @@ export function MobileAppShell({ authStatus, children }: MobileAppShellProps) {
   );
 }
 
+/**
+ * The shell owns the top edge for every signed-in screen. A full-bleed header
+ * (11c banner) negates exactly this value to reach back under the status bar,
+ * so the formula lives here instead of being re-derived per screen.
+ */
+export function getMobileShellTopInset(safeAreaTop: number): number {
+  return Math.max(safeAreaTop - 10, 12);
+}
+
 function MobileAppShellSurface({ authStatus, children }: MobileAppShellProps) {
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createMobileAppShellStyles);
   const keyboard = useReanimatedKeyboardAnimation();
-  const topInset = Math.max(insets.top - 10, 12);
+  const topInset = getMobileShellTopInset(insets.top);
   const isSignedIn = authStatus === "signed-in";
   const contentContainerStyle = isSignedIn ? styles.contentSignedIn : styles.contentUnauthenticated;
   // The shell is the single owner of the bottom edge: signed-in screens clear the

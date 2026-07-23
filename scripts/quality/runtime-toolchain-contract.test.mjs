@@ -152,7 +152,7 @@ test("all GitHub Actions pnpm jobs consume packageManager as their version sourc
   assert.equal(setupPnpmSteps, 13, "unexpected pnpm/action-setup step count");
 });
 
-test("Node 22 remains a nightly native compatibility lane for one release", () => {
+test("Node 22 native compatibility runs only when hosted desktop checks are requested", () => {
   const workflow = readText(join(".github", "workflows", "ci.yml"));
   const compatibilityJob = readWorkflowJob(workflow, "node22-compatibility");
   const installRuntimeIndex = compatibilityJob.indexOf(
@@ -166,7 +166,10 @@ test("Node 22 remains a nightly native compatibility lane for one release", () =
     "- name: Verify Node.js native dependencies",
   );
 
-  assert.match(compatibilityJob, /^    if: github\.event_name == 'schedule'$/mu);
+  assert.match(
+    compatibilityJob,
+    /^    if: github\.event_name == 'workflow_dispatch' && inputs\.desktop_hosted$/mu,
+  );
   assert.match(compatibilityJob, /^          node-version-file: \.nvmrc$/mu);
   assert.match(compatibilityJob, /^          node-version: 22\.23\.1$/mu);
   assert.equal(

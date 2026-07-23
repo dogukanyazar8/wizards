@@ -18,6 +18,7 @@ import {
   type MobileDMMessagesResponse,
   type MobileFriendsOverviewResponse,
   type MobileManagedWorkspaceServerDetailResponse,
+  type MobileUserProfile,
   type MobileVoiceStatesResponse,
 } from "@wizards/types";
 import {
@@ -37,6 +38,7 @@ import {
   patchMobileRealtimeFriendsProfile,
   patchMobileRealtimeFriendsPresence,
   patchMobileRealtimeWorkspaceProfile,
+  patchMobileRealtimeUserProfilePresence,
   patchMobileRealtimeWorkspacePresence,
   patchMobileRealtimeWorkspaceServerUnread,
   removeMobileRealtimeBootstrapServer,
@@ -46,6 +48,7 @@ import {
   isMobileRealtimeChannelMessagePayloadEvent,
   isMobileRealtimeDMMessagePayloadEvent,
   isMobileRealtimeValidatedPayloadEvent,
+  isMobileRealtimeWorkspaceAffectingChannelEvent,
   MOBILE_REALTIME_REFRESH_DEBOUNCE_MS,
   type MobileRealtimeEventEnvelope,
   type MobileRealtimeRefreshSource,
@@ -237,6 +240,18 @@ export function createMobileRealtimeQueryBridge({
       return result.data;
     });
     void workspacePatched;
+
+    // An open profile card sits on its own cache entry keyed by user + server
+    // context, so the friends/workspace patches above never reach it. Patched
+    // in place rather than invalidated: the card is on screen while this fires.
+    for (const [queryKey] of queryClient.getQueriesData<MobileUserProfile>({
+      queryKey: mobileQueryKeys.userProfileRoot(),
+    })) {
+      queryClient.setQueryData<MobileUserProfile>(
+        queryKey,
+        (current) => patchMobileRealtimeUserProfilePresence(current, parsed.data).data,
+      );
+    }
   };
 
   const patchProfileCaches = (payload: unknown) => {
@@ -637,9 +652,12 @@ export function createMobileRealtimeQueryBridge({
   };
 
   const refreshWorkspaceImmediatelyForChannelEvent = (event: MobileRealtimeEventEnvelope) => {
+    // Reactions are deliberately excluded: they cannot move the channel preview
+    // or an unread count, and pulling the server-detail read on every emoji tap
+    // re-rendered the open message list under the reader's finger.
     if (
       event.eventName !== "channel:messages:stale" &&
-      !isMobileRealtimeChannelMessagePayloadEvent(event.eventName)
+      !isMobileRealtimeWorkspaceAffectingChannelEvent(event.eventName)
     ) {
       return false;
     }

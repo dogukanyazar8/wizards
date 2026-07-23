@@ -66,10 +66,19 @@ export function createMobileQueryKeys(registry: MobileSearchKeyRegistry) {
     dmMessagesRoot: () => [...all, "dm-messages"] as const,
     dmMessages: (conversationId: string) => [...all, "dm-messages", conversationId] as const,
     dmDetails: (conversationId: string) => [...all, "dm-details", conversationId] as const,
+    dmAttachmentsRoot: (conversationId: string) =>
+      [...all, "dm-attachments", conversationId] as const,
+    /** 11f keeps one cached page stack per gallery tab, so switching is instant. */
+    dmAttachments: (conversationId: string, tab: string) =>
+      [...all, "dm-attachments", conversationId, tab] as const,
     dmThread: (conversationId: string, messageId: string) =>
       [...all, "dm-thread", conversationId, messageId] as const,
     friends: () => [...all, "friends"] as const,
     profile: () => [...all, "profile"] as const,
+    userProfileRoot: () => [...all, "user-profile"] as const,
+    /** Server context changes the payload (role chips), so it is part of the key. */
+    userProfile: (userId: string, serverId?: string | undefined) =>
+      [...all, "user-profile", userId, serverId ?? null] as const,
     userSearchRoot: () => [...all, "user-search"] as const,
     userSearch: (term: string) => [...all, "user-search", term] as const,
     linkPreview: (messageId: string) => [...all, "link-preview", messageId] as const,

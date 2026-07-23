@@ -58,6 +58,7 @@ export function OverviewScreen({
   channelPinnedMessages = [],
   channelTypingLabel,
   channelTypingUsers,
+  canRenderChannelChat = false,
   isReactionMutationPending,
   locale,
   mediaState,
@@ -99,6 +100,8 @@ export function OverviewScreen({
   channelPinnedMessages?: readonly ChatMessage[];
   channelTypingLabel: string | null;
   channelTypingUsers: readonly MobileChannelTypingUser[];
+  /** Set only by the pushed ChannelChat route — see MobileWorkspaceBrowser. */
+  canRenderChannelChat?: boolean;
   isReactionMutationPending: boolean;
   locale: MobileLocale;
   mediaState: MobileMediaRuntimeState;
@@ -159,6 +162,7 @@ export function OverviewScreen({
         <MobileWorkspaceBrowser
           attachmentsFeature={attachmentsFeature}
           bootstrapState={bootstrapState}
+          canRenderChannelChat={canRenderChannelChat}
           channelFirstUnreadMessageId={channelFirstUnreadMessageId}
           channelMessagesState={channelMessagesState}
           channelPinnedMessages={channelPinnedMessages}

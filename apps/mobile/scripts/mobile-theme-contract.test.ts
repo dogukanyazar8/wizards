@@ -203,6 +203,41 @@ function assertThemeContrast(theme: MobileTheme): void {
     `${theme.id} media.text on media.surface`,
   );
 
+  // 11f gallery: the selected tab has to read as selected in both themes, and
+  // the duration badge sits over an arbitrary video frame, so it is measured
+  // against its own pill rather than the page.
+  assert.ok(
+    contrastRatio(theme.sharedMedia.tabActiveText, theme.sharedMedia.tabActiveSurface) >= 4.5,
+    `${theme.id} sharedMedia.tabActiveText on sharedMedia.tabActiveSurface`,
+  );
+  assert.ok(
+    contrastRatio(theme.sharedMedia.tabText, theme.sharedMedia.tabSurface) >= 4.5,
+    `${theme.id} sharedMedia.tabText on sharedMedia.tabSurface`,
+  );
+  // The fill alone cannot carry the selected state in the dark theme — ink is
+  // the dark card colour — so the chip separates by fill *and* border there.
+  // 1.2 is the floor at which the two fills stay distinguishable side by side.
+  assert.ok(
+    contrastRatio(theme.sharedMedia.tabActiveSurface, theme.surface.base) >= 1.2,
+    `${theme.id} sharedMedia.tabActiveSurface against surface.base`,
+  );
+  assert.ok(
+    contrastRatio(theme.sharedMedia.tabActiveSurface, theme.sharedMedia.tabSurface) >= 1.2,
+    `${theme.id} sharedMedia.tabActiveSurface against the resting chip`,
+  );
+  assert.ok(
+    contrastRatio(theme.sharedMedia.tabActiveBorder, theme.surface.base) >= 1.2,
+    `${theme.id} sharedMedia.tabActiveBorder against surface.base`,
+  );
+  assert.ok(
+    contrastRatio(
+      theme.sharedMedia.durationBadgeText,
+      theme.sharedMedia.durationBadge,
+      theme.sharedMedia.tileSurface,
+    ) >= 4.5,
+    `${theme.id} sharedMedia.durationBadgeText on the duration pill`,
+  );
+
   for (const surfaceName of ["soft", "elevated"] as const) {
     assert.ok(
       contrastRatio(theme.status.onStatus, theme.status.dangerSoft, theme.surface[surfaceName]) >=

@@ -44,7 +44,7 @@ import {
   type MobileMessageActionTarget,
 } from "../components/message-primitives";
 import { StatusChip } from "../components/ui-atoms";
-import { Avatar, BottomSheet, EmptyState, SheetHeader } from "../components/kit";
+import { Avatar, BottomSheet, EmptyState, SheetHeader, Skeleton } from "../components/kit";
 import { MobileChatKeyboardRegion, useMobileScreenFocus } from "../mobile-chat-keyboard-region";
 import type { MobileMentionCandidate } from "../mobile-mention";
 import {
@@ -528,6 +528,59 @@ export function MobileChannelChatScreen({
   );
 }
 
+/**
+ * What the pushed channel route shows while the server detail that names the
+ * channel is still resolving (cold start, deep link, notification tap). The
+ * header geometry matches the real one exactly, so the swap is a content
+ * change rather than a layout jump — the alternative was falling back to the
+ * server browser, which read as "the channel opened, then closed, then opened".
+ */
+export function ChannelChatBootSkeleton({
+  onBack,
+  title,
+}: {
+  onBack?(): void;
+  title?: string | undefined;
+}) {
+  const theme = useTheme();
+  const styles = useChannelScreenStyles();
+
+  return (
+    <View style={styles.mobileChannelChatKeyboard}>
+      <View style={styles.mobileChannelChatScreen} testID="mobile-channel-chat-boot-skeleton">
+        <View style={styles.mobileChannelChatHeader}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={copy.channelBackAction}
+            disabled={!onBack}
+            hitSlop={11}
+            onPress={onBack}
+            style={styles.mobileChannelChatBackButton}
+          >
+            <Ionicons name="chevron-back" size={20} color={theme.text.primary} />
+          </Pressable>
+          <View style={styles.mobileChannelChatHash}>
+            <Text style={styles.mobileChannelChatHashText}>#</Text>
+          </View>
+          <View style={styles.mobileChannelChatHeaderText}>
+            {title ? (
+              <Text style={styles.mobileChannelChatTitle} numberOfLines={1}>
+                {title}
+              </Text>
+            ) : (
+              <Skeleton borderRadius={6} height={15} width={140} />
+            )}
+            <Skeleton borderRadius={6} height={11} width={92} />
+          </View>
+        </View>
+        <View style={styles.mobileChannelChatBodyShell}>
+          <MessageListSkeleton />
+        </View>
+      </View>
+    </View>
+  );
+}
+
 export type ChannelMessageListHandle = {
   scrollToMessage(messageId: string): void;
 };
@@ -682,6 +735,9 @@ export const ChannelMessageList = forwardRef<
     [handleOpenReply],
   );
 
+  // Primitive, so opening a menu does not mint a new renderItem — a new
+  // renderItem identity re-renders every mounted cell in the list.
+  const openMenuMessageId = menu?.open === true ? menu.id : null;
   const renderItem = useCallback(
     ({ item }: { item: MobileMessageStreamItem<MobileRenderableMessage> }) => (
       <View
@@ -704,7 +760,7 @@ export const ChannelMessageList = forwardRef<
           currentUserId={currentUserId}
           isHighlighted={item.message.id === highlightedMessageId}
           isReactionMutationPending={isReactionMutationPending}
-          menuOpen={menu?.open === true && menu.id === item.message.id}
+          menuOpen={openMenuMessageId === item.message.id}
           message={item.message}
           mode="channel"
           channelGroupContinuation={item.isGroupedWithPrevious}
@@ -736,7 +792,7 @@ export const ChannelMessageList = forwardRef<
       highlightedMessageId,
       isReactionMutationPending,
       handleSetMenuMessage,
-      menu,
+      openMenuMessageId,
       requestEmojiPicker,
       requestReactionDetails,
       onDeleteMessage,

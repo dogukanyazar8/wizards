@@ -244,6 +244,37 @@ describe("mobile realtime query bridge", () => {
     assert.equal(queryClient.getQueryState(workspaceKey)?.isInvalidated, true);
   });
 
+  it("applies a channel reaction without touching the server-detail read", () => {
+    const queryClient = new QueryClient();
+    const fake = createFakeScheduler();
+    const bridge = createBridge(queryClient, fake.scheduler);
+    const key = mobileQueryKeys.channelMessages("channel-1");
+    const workspaceKey = mobileQueryKeys.workspace("server-1");
+    const initial: InfiniteData<MobileChannelMessagesResponse, string | null> = {
+      pageParams: [null],
+      pages: [makeChannelPage([makeMessage("message-1")])],
+    };
+    queryClient.setQueryData(key, initial);
+    queryClient.setQueryData(workspaceKey, makeWorkspaceWithLastMessage());
+
+    bridge.handleEvent(
+      createMobileRealtimeEventEnvelope("message:reaction_updated", {
+        channelId: "channel-1",
+        messageId: "message-1",
+        reactions: [{ count: 1, emoji: "🔥", userIds: ["user-2"] }],
+      }),
+    );
+
+    assert.deepEqual(
+      queryClient
+        .getQueryData<InfiniteData<MobileChannelMessagesResponse, string | null>>(key)
+        ?.pages[0]?.messages[0]?.reactions.map((reaction) => reaction.emoji),
+      ["🔥"],
+    );
+    assert.notEqual(queryClient.getQueryState(workspaceKey)?.isInvalidated, true);
+    assert.equal(fake.pendingCount(), 0);
+  });
+
   it("refreshes an inactive server immediately from its user-room stale event", () => {
     const queryClient = new QueryClient();
     const fake = createFakeScheduler();
@@ -601,6 +632,69 @@ describe("mobile realtime query bridge", () => {
     assert.equal(
       queryClient.getQueryState(mobileQueryKeys.workspaceMembers("server-1"))?.isInvalidated,
       false,
+    );
+  });
+
+  it("moves an open profile card's presence without refetching it", () => {
+    const queryClient = new QueryClient();
+    const fake = createFakeScheduler();
+    const bridge = createBridge(queryClient, fake.scheduler);
+    const cardKey = mobileQueryKeys.userProfile("user-2");
+    const serverCardKey = mobileQueryKeys.userProfile("user-2", "server-1");
+    const otherCardKey = mobileQueryKeys.userProfile("user-3");
+    const profile = (userId: string) => ({
+      presence: { customStatus: "Reviewing", customStatusEmoji: "👀", status: "ONLINE" },
+      user: { id: userId },
+    });
+    queryClient.setQueryData(cardKey, profile("user-2"));
+    queryClient.setQueryData(serverCardKey, profile("user-2"));
+    queryClient.setQueryData(otherCardKey, profile("user-3"));
+
+    bridge.handleEvent(
+      createMobileRealtimeEventEnvelope("presence:update", {
+        customStatus: "Heads down",
+        status: "DND",
+        userId: "user-2",
+      }),
+    );
+
+    // Both cached server contexts for the same person move together.
+    for (const key of [cardKey, serverCardKey]) {
+      assert.deepEqual(queryClient.getQueryData<ReturnType<typeof profile>>(key)?.presence, {
+        customStatus: "Heads down",
+        customStatusEmoji: "👀",
+        status: "DND",
+      });
+    }
+    assert.deepEqual(
+      queryClient.getQueryData<ReturnType<typeof profile>>(otherCardKey)?.presence,
+      profile("user-3").presence,
+    );
+  });
+
+  it("clears an open profile card's status message when the user goes offline", () => {
+    const queryClient = new QueryClient();
+    const fake = createFakeScheduler();
+    const bridge = createBridge(queryClient, fake.scheduler);
+    const cardKey = mobileQueryKeys.userProfile("user-2");
+    queryClient.setQueryData(cardKey, {
+      presence: { customStatus: "Reviewing", customStatusEmoji: "👀", status: "ONLINE" },
+      user: { id: "user-2" },
+    });
+
+    // "Görünmez" arrives as OFFLINE; the card must not keep showing the message
+    // the endpoint would have cropped on the next read.
+    bridge.handleEvent(
+      createMobileRealtimeEventEnvelope("presence:update", {
+        customStatus: "Reviewing",
+        status: "OFFLINE",
+        userId: "user-2",
+      }),
+    );
+
+    assert.deepEqual(
+      queryClient.getQueryData<{ presence: unknown }>(cardKey)?.presence,
+      { customStatus: null, customStatusEmoji: null, status: "OFFLINE" },
     );
   });
 

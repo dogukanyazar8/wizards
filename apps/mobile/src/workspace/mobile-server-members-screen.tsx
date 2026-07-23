@@ -15,6 +15,8 @@ import {
   Skeleton,
 } from "../app/components/kit";
 import { MobileLineIcon } from "../design/mobile-line-icons";
+import { activeMobileCopy } from "../locale/mobile-locale-preferences";
+import { useOpenMobileProfileCard } from "../social/profile-card";
 import { useMobileLocaleRuntime } from "../app/providers/mobile-locale-provider";
 import { useTheme, useThemedStyles } from "../app/providers/mobile-theme-provider";
 import { mobileQueryKeys } from "../query/mobile-query-keys";
@@ -35,6 +37,8 @@ import { SheetHeader, useSheetPresentation } from "../app/components/kit";
 export interface MobileServerMembersScreenProps {
   readonly serverId: string;
   onBack(): void;
+  /** 11c: a member row opens their full profile with this server as context. */
+  onOpenMemberProfile?(userId: string): void;
 }
 
 function localizeStatus(
@@ -48,7 +52,11 @@ function colorFromRole(color: number): string {
   return `#${color.toString(16).padStart(6, "0")}`;
 }
 
-export function MobileServerMembersScreen({ onBack, serverId }: MobileServerMembersScreenProps) {
+export function MobileServerMembersScreen({
+  onBack,
+  onOpenMemberProfile,
+  serverId,
+}: MobileServerMembersScreenProps) {
   const { apiClient } = useMobileAuth();
   const { locale } = useMobileLocaleRuntime();
   const labels = mobileServerMembersCopy[locale];
@@ -57,6 +65,7 @@ export function MobileServerMembersScreen({ onBack, serverId }: MobileServerMemb
   const sheetPresentation = useSheetPresentation();
   const queryClient = useQueryClient();
   const members = useMobileServerMembersInfiniteQuery(apiClient, serverId);
+  const openProfileCard = useOpenMobileProfileCard();
   const mutations = useMobileServerManagementMutations(apiClient);
   const [expandedMemberId, setExpandedMemberId] = useState<string | null>(null);
   const [pendingKick, setPendingKick] = useState<MobileServerMember | null>(null);
@@ -149,21 +158,47 @@ export function MobileServerMembersScreen({ onBack, serverId }: MobileServerMemb
     }
     const { member } = item;
     const display = member.displayName ?? member.username;
+    const openProfile = onOpenMemberProfile
+      ? () => onOpenMemberProfile(member.userId)
+      : undefined;
     return (
       <View style={styles.memberRow} testID={`mobile-server-member-${member.id}`}>
-        <Avatar
-          imageUrl={member.avatarUrl}
-          label={display}
-          {...(member.status === "OFFLINE" ? {} : { status: "active" as const })}
-        />
-        <View style={styles.rowBody}>
-          <Text maxFontSizeMultiplier={2} numberOfLines={1} style={styles.memberName}>
-            {display}
-          </Text>
-          <Text maxFontSizeMultiplier={2} numberOfLines={1} style={styles.memberMeta}>
-            {localizeStatus(member.status, labels)} · @{member.username}
-          </Text>
-        </View>
+        <Pressable
+          accessibilityLabel={display}
+          accessibilityRole="button"
+          disabled={!openProfile}
+          onPress={openProfile}
+          style={({ pressed }) => [styles.identityTrigger, pressed && styles.pressed]}
+          testID={`mobile-server-member-${member.id}-profile`}
+        >
+          {/* 11b: the avatar is the quick-card handle. The row keeps whatever
+              the container wired for the name/body press (full profile), so the
+              existing moderation affordances are untouched. */}
+          <Pressable
+            accessibilityLabel={activeMobileCopy.profileCardOpenActionTemplate.replace(
+              "{name}",
+              display,
+            )}
+            accessibilityRole="button"
+            hitSlop={4}
+            onPress={() => openProfileCard(member.userId, serverId)}
+            testID={`mobile-server-member-${member.id}-card`}
+          >
+            <Avatar
+              imageUrl={member.avatarUrl}
+              label={display}
+              {...(member.status === "OFFLINE" ? {} : { status: "active" as const })}
+            />
+          </Pressable>
+          <View style={styles.rowBody}>
+            <Text maxFontSizeMultiplier={2} numberOfLines={1} style={styles.memberName}>
+              {display}
+            </Text>
+            <Text maxFontSizeMultiplier={2} numberOfLines={1} style={styles.memberMeta}>
+              {localizeStatus(member.status, labels)} · @{member.username}
+            </Text>
+          </View>
+        </Pressable>
         <View style={styles.actions}>
           {member.actions.canManageRoles ? (
             <Pressable

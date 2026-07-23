@@ -32,6 +32,56 @@ test("bottom navigation exposes only primary native product surfaces", () => {
   assert.equal((MOBILE_TAB_IDS as readonly string[]).includes("voice"), false);
 });
 
+test("the 11f shared-media gallery is reachable from the profile page and the DM header", () => {
+  const containers = read("../src/app/screens/mobile-screen-containers.tsx");
+  const navigator = read("../src/navigation/mobile-navigator.tsx");
+  const routeTypes = read("../src/navigation/mobile-navigation-types.ts");
+  const gallery = read("../src/dm/mobile-shared-media-screen.tsx");
+  const details = read("../src/dm/mobile-dm-details-screen.tsx");
+
+  // The route exists with both params, and the screen is actually mounted.
+  assert.match(routeTypes, /SharedMedia: \{ readonly conversationId: string; readonly userId\?: string \}/);
+  assert.match(navigator, /<RootStack\.Screen name="SharedMedia">/);
+  assert.match(navigator, /SharedMediaScreenContainer/);
+
+  // 1c "see all" and the DM details summary both land on the same route.
+  assert.match(
+    containers,
+    /onOpenSharedMedia=\{\(\{ conversationId, userId: peerUserId \}\) =>\s*navigation\.navigate\("SharedMedia", \{ conversationId, userId: peerUserId \}\)/,
+  );
+  assert.match(
+    containers,
+    /onOpenSharedMedia=\{\(\) => navigation\.navigate\("SharedMedia", \{ conversationId \}\)/,
+  );
+  assert.match(details, /mobile-dm-details-shared-media-see-all/);
+
+  // Reused param route: a second conversation remounts instead of stacking.
+  assert.match(containers, /key=\{conversationId\}/);
+
+  // Test IDs the gallery is driven by, on the surfaces that own them.
+  for (const testId of [
+    "mobile-shared-media-screen",
+    "mobile-shared-media-back",
+    "mobile-shared-media-tabs",
+    "mobile-shared-media-list",
+    "mobile-shared-media-loading",
+    "mobile-shared-media-empty",
+    "mobile-shared-media-error",
+  ]) {
+    assert.match(gallery, new RegExp(`testID="${testId}"`), `${testId} must exist`);
+  }
+  for (const template of [
+    "mobile-shared-media-tab-",
+    "mobile-shared-media-tile-",
+    "mobile-shared-media-duration-",
+    "mobile-shared-media-file-",
+    "mobile-shared-media-link-",
+    "mobile-shared-media-month-",
+  ]) {
+    assert.ok(gallery.includes(template), `${template} must exist`);
+  }
+});
+
 test("mobile navigation state falls back to the home overview tab", () => {
   assert.deepEqual(createMobileNavigationState("not-a-tab"), {
     currentTab: DEFAULT_MOBILE_TAB_ID,

@@ -25,10 +25,15 @@ function isHttpsUrl(value: string) {
 
 const MobileHttpsUrlSchema = z.string().url().max(2048).refine(isHttpsUrl, "HTTPS URL required");
 
-export const MobileMediaUploadPurposeSchema = z.enum(["profile-avatar", "server-icon"]);
+export const MobileMediaUploadPurposeSchema = z.enum([
+  "profile-avatar",
+  "profile-banner",
+  "server-icon",
+]);
 export const MobileMediaUploadContentTypeSchema = z.enum(["image/jpeg", "image/png", "image/webp"]);
 export const MobileMediaUploadIntentSchema = z.discriminatedUnion("purpose", [
   z.object({ purpose: z.literal("profile-avatar") }).strict(),
+  z.object({ purpose: z.literal("profile-banner") }).strict(),
   z
     .object({
       purpose: z.literal("server-icon"),
@@ -63,6 +68,21 @@ export const MobileMediaClaimResponseSchema = z.discriminatedUnion("purpose", [
       claimedAt: z.string().datetime(),
       profile: MobileMediaClaimProfileSchema,
       purpose: z.literal("profile-avatar"),
+    })
+    .strict(),
+  z
+    .object({
+      // A banner claim only reports the stored banner; the rest of the profile is
+      // untouched, so the narrow shape keeps avatar-less accounts parseable.
+      banner: z
+        .object({
+          bannerUrl: MobileHttpsUrlSchema,
+          id: MobileResourceIdSchema,
+        })
+        .strict(),
+      claimId: MobileResourceIdSchema,
+      claimedAt: z.string().datetime(),
+      purpose: z.literal("profile-banner"),
     })
     .strict(),
   z
@@ -350,9 +370,7 @@ export const MobileServerRoleSchema = z
     position: z.number().int(),
   })
   .strict();
-export const MobileRoleMutationResponseSchema = z
-  .object({ role: MobileServerRoleSchema })
-  .strict();
+export const MobileRoleMutationResponseSchema = z.object({ role: MobileServerRoleSchema }).strict();
 export const MobileRoleCreateRequestSchema = z
   .object({
     color: MobileRoleColorSchema.optional(),

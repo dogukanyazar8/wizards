@@ -390,10 +390,20 @@ function shouldGroupMobileMessageStreamItems<
   return previousAuthorId !== null && previousAuthorId === getMobileMessageAuthorId(current);
 }
 
+/**
+ * `limit` is opt-in. The chat lists are virtualized, so bounding them here does
+ * not save rendering — it only throws loaded pages away. It used to default to
+ * MOBILE_RENDER_LIMITS.messages (60) against a page size of 30, so from the
+ * third page on every `onStartReached` fetch was discarded, the list never grew,
+ * the reader stayed pinned at the top, and the fetch fired again. That loop is
+ * what looked like the messages loading over and over. Non-virtualized preview
+ * surfaces still pass a limit explicitly.
+ */
 export function getMobileMessageStreamItems<
   T extends { readonly createdAt: string; readonly id: string },
->(messages: readonly T[], limit = MOBILE_RENDER_LIMITS.messages): MobileMessageStreamItem<T>[] {
-  const visibleMessages = getBoundedMobileList(messages, limit, "end");
+>(messages: readonly T[], limit?: number): MobileMessageStreamItem<T>[] {
+  const visibleMessages =
+    limit === undefined ? messages : getBoundedMobileList(messages, limit, "end");
 
   return visibleMessages.map((message, index) => {
     const dayKey = getMobileDisplayMessageDayKey(message.createdAt);

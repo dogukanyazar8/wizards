@@ -8,11 +8,16 @@ import {
   MobilePresenceResponseSchema,
   MobileProfileResponseSchema,
   MobileProfileUpdateSchema,
+  MobileUserProfileResponseSchema,
+  MobileUserReportResponseSchema,
   MobileUserSearchResponseSchema,
   type MobileFriendRelationship,
+  type MobileUserProfile,
+  type MobileUserReportReason,
   type MobileFriendsOverviewResponse,
   type MobileFriendPresenceStatus,
   type MobileProfileResponse,
+  type MobileProfileUpdate,
   type MobileUserSearchResponse,
   type MobileUserSearchResult,
 } from "@wizards/types";
@@ -22,8 +27,19 @@ import type { MobileApiClient } from "../api/mobile-api-client";
 export type MobileFriendsOverview = MobileFriendsOverviewResponse;
 export type MobileFriend = MobileFriendsOverview["friends"][number];
 export type MobileFriendRequest = MobileFriendsOverview["pending"]["incoming"][number];
-export type { MobileFriendPresenceStatus, MobileFriendRelationship, MobileUserSearchResult };
+export type {
+  MobileFriendPresenceStatus,
+  MobileFriendRelationship,
+  MobileUserProfile,
+  MobileUserReportReason,
+  MobileUserSearchResult,
+};
 export type MobileProfile = MobileProfileResponse["user"];
+export type { MobileProfileUpdate };
+export type MobileProfileBadgeName = MobileUserProfile["badges"][number];
+export type MobileProfileRoleBadge = NonNullable<
+  MobileUserProfile["serverContext"]
+>["roles"][number];
 
 export const MOBILE_USER_SEARCH_MIN_TERM_LENGTH = 2;
 
@@ -121,6 +137,32 @@ export async function unblockMobileFriend(client: MobileApiClient, userId: strin
   );
 }
 
+/** One read behind every profile surface: the quick card (11b) and the full page (11c). */
+export async function fetchMobileUserProfile(
+  client: MobileApiClient,
+  userId: string,
+  serverId?: string | undefined,
+): Promise<MobileUserProfile> {
+  const query = serverId ? `?${new URLSearchParams({ serverId }).toString()}` : "";
+  const response = MobileUserProfileResponseSchema.parse(
+    await client.requestJson(`/api/v1/mobile/users/${encodeId(userId)}/profile${query}`),
+  );
+  return response.profile;
+}
+
+export async function reportMobileUser(
+  client: MobileApiClient,
+  userId: string,
+  input: { details?: string | null; reason: MobileUserReportReason },
+) {
+  return MobileUserReportResponseSchema.parse(
+    await client.requestJson(`/api/v1/mobile/users/${encodeId(userId)}/report`, {
+      body: { details: input.details ?? null, reason: input.reason },
+      method: "POST",
+    }),
+  );
+}
+
 export async function updateMobilePresence(
   client: MobileApiClient,
   status: MobileFriendPresenceStatus,
@@ -133,15 +175,7 @@ export async function updateMobilePresence(
   );
 }
 
-export async function updateMobileProfile(
-  client: MobileApiClient,
-  input: {
-    bio?: string | null;
-    customStatus?: string | null;
-    displayName?: string | null;
-    username?: string;
-  },
-) {
+export async function updateMobileProfile(client: MobileApiClient, input: MobileProfileUpdate) {
   const body = MobileProfileUpdateSchema.parse(input);
   return MobileProfileResponseSchema.parse(
     await client.requestJson("/api/v1/mobile/account/profile", {

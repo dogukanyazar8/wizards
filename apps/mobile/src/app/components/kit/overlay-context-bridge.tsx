@@ -1,6 +1,7 @@
 import { NavigationContext } from "@react-navigation/native";
 import { createElement, useContext, type Context, type ReactNode } from "react";
 import { MobileChatKeyboardScopeContext } from "../../mobile-chat-keyboard-region";
+import { MobileProfileCardScopeContext } from "../../../social/profile-card/profile-card-scope";
 import { listMobileOverlayScopedContexts } from "./overlay-scoped-contexts";
 
 /**
@@ -14,6 +15,8 @@ import { listMobileOverlayScopedContexts } from "./overlay-scoped-contexts";
  *
  * - NavigationContext: provided per screen by react-navigation.
  * - MobileChatKeyboardScopeContext: provided by MobileAppShell.
+ * - MobileProfileCardScopeContext: provided by the channel/thread/member screens
+ *   so an avatar tapped inside a hosted sheet still opens with role chips (11b).
  *
  * Everything registered through `registerMobileOverlayScopedContext` must appear
  * here; the development guard below turns an omission into an error at the call
@@ -27,6 +30,10 @@ export const MOBILE_OVERLAY_BRIDGED_CONTEXTS: readonly {
   {
     context: MobileChatKeyboardScopeContext as unknown as Context<unknown>,
     name: "MobileChatKeyboardScope",
+  },
+  {
+    context: MobileProfileCardScopeContext as unknown as Context<unknown>,
+    name: "MobileProfileCardScope",
   },
 ]);
 

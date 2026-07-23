@@ -27,12 +27,39 @@ export type MobileQueryViewInput<TData> = {
   readonly isPending: boolean;
 };
 
+/**
+ * Every adapter below takes the narrowest slice of the query result it actually
+ * reads. `useQuery` hands back a fresh tracking proxy on every render, so a
+ * caller memoizing on the whole result object memoizes nothing — and each
+ * recompute here mints a new `messages` array, which is a new FlashList `data`
+ * identity and a full re-render of the open message list. Narrow inputs let the
+ * call sites depend on `data` and `isError` alone, which only move when the
+ * cache actually moves.
+ */
+export type MobileQueryDataInput<TData> = {
+  readonly data: TData | undefined;
+  readonly isError: boolean;
+};
+
+export type MobileQueryLoadInput<TData> = MobileQueryDataInput<TData> & {
+  readonly isFetching: boolean;
+  readonly isPending: boolean;
+};
+
+export type MobileQuerySyncInput = {
+  readonly dataUpdatedAt: number;
+  readonly errorUpdatedAt: number;
+  readonly failureCount: number;
+  readonly isError: boolean;
+  readonly isFetching: boolean;
+};
+
 type MobileInfiniteQueryData<TPage> = {
   readonly pages: readonly TPage[];
 };
 
 export function toMobileBootstrapViewState(
-  query: MobileQueryViewInput<MobileBootstrapPayload>,
+  query: MobileQueryLoadInput<MobileBootstrapPayload>,
   summarize: (payload: MobileBootstrapPayload) => MobileBootstrapSummary,
   errorMessage: string,
 ): MobileBootstrapViewState {
@@ -58,7 +85,7 @@ export function toMobileBootstrapViewState(
 }
 
 export function toMobileWorkspaceViewState(
-  query: MobileQueryViewInput<MobileManagedWorkspaceServerDetailResponse>,
+  query: MobileQueryDataInput<MobileManagedWorkspaceServerDetailResponse>,
   serverId: string | null,
   errorMessage: string,
 ): MobileWorkspaceServerViewState {
@@ -75,7 +102,7 @@ export function toMobileWorkspaceViewState(
 }
 
 export function toMobileChannelMessagesViewState(
-  query: MobileQueryViewInput<MobileInfiniteQueryData<MobileChannelMessagesResponse>>,
+  query: MobileQueryDataInput<MobileInfiniteQueryData<MobileChannelMessagesResponse>>,
   channelId: string | null,
   errorMessage: string,
 ): MobileChannelMessagesViewState {
@@ -98,7 +125,7 @@ export function toMobileChannelMessagesViewState(
 }
 
 export function toMobileDMMessagesViewState(
-  query: MobileQueryViewInput<MobileInfiniteQueryData<MobileDMMessagesResponse>>,
+  query: MobileQueryDataInput<MobileInfiniteQueryData<MobileDMMessagesResponse>>,
   conversationId: string | null,
   errorMessage: string,
 ): MobileDMMessagesViewState {
@@ -121,7 +148,7 @@ export function toMobileDMMessagesViewState(
 }
 
 export function toMobileMessageSearchViewState(
-  query: MobileQueryViewInput<MobileInfiniteQueryData<MessageSearchResponse>>,
+  query: MobileQueryDataInput<MobileInfiniteQueryData<MessageSearchResponse>>,
   input: {
     readonly conversationId: string;
     readonly query: string;
@@ -156,7 +183,7 @@ export function toMobileMessageSearchViewState(
 }
 
 export function toMobileSyncSnapshot(
-  query: MobileQueryViewInput<unknown>,
+  query: MobileQuerySyncInput,
   source: MobileSyncSource,
 ): MobileSyncSnapshot {
   const status = query.isFetching

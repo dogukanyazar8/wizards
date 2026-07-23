@@ -1,18 +1,21 @@
 import { ApiError } from "@/lib/api";
 import { getDmSharedAttachmentSummary } from "@/lib/dm/details";
 import {
+  countDirectMessageMediaAttachments,
   getDirectMessageConversationForUser,
   listDirectMessageMutualServers,
   listDMMessages,
 } from "@/lib/dm/service";
 
 export type MobileDMDetailsServiceDependencies = {
+  countMedia: typeof countDirectMessageMediaAttachments;
   getConversation: typeof getDirectMessageConversationForUser;
   listMessages: typeof listDMMessages;
   listMutualServers: typeof listDirectMessageMutualServers;
 };
 
 const defaultDependencies: MobileDMDetailsServiceDependencies = {
+  countMedia: countDirectMessageMediaAttachments,
   getConversation: getDirectMessageConversationForUser,
   listMessages: listDMMessages,
   listMutualServers: listDirectMessageMutualServers,
@@ -28,12 +31,14 @@ export async function getMobileDMDetails(
     throw new ApiError("Conversation participant not found", 404, "PARTICIPANT_NOT_FOUND");
   }
 
-  const [mutualServers, page] = await Promise.all([
+  const [mutualServers, page, mediaCount] = await Promise.all([
     dependencies.listMutualServers(input.userId, participant.userId, { limit: 12 }),
     dependencies.listMessages(input.userId, input.conversationId, input.cursor, input.limit),
+    dependencies.countMedia(input.conversationId),
   ]);
 
   return {
+    mediaCount,
     mutualServers,
     nextCursor: page.nextCursor,
     participant: {

@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import { useFocusEffect } from "@react-navigation/native";
+import { useQueryClient, type InfiniteData } from "@tanstack/react-query";
 import { BackHandler } from "react-native";
+import type { MobileDMConversationsResponse } from "@wizards/types";
 import type {
   NativeStackNavigationProp,
   NativeStackScreenProps,
@@ -26,6 +28,8 @@ import { NotificationsScreen } from "./notifications-screen";
 import { ProfileSettingsScreen } from "./settings-screen";
 import { BlockedUsersScreen } from "../../social/social-account-screens";
 import { MobileProfileEditScreen } from "../../social/mobile-profile-edit-screen";
+import { MobileUserProfileScreen } from "../../social/mobile-user-profile-screen";
+import { useOpenMobileProfileCard } from "../../social/profile-card";
 import { VoiceScreen } from "./voice-screen";
 import { MobileDirectCallScreen } from "./mobile-direct-call-screen";
 import { MobileDirectVideoCallScreen } from "./mobile-direct-video-call-screen";
@@ -36,6 +40,10 @@ import {
 import { useMobileDMCallStore } from "../../state/mobile-dm-call-store";
 import { MobileTwoFactorScreen } from "../../account/mobile-two-factor-screen";
 import { MobileDMDetailsScreen } from "../../dm/mobile-dm-details-screen";
+import { MobileSharedMediaScreen } from "../../dm/mobile-shared-media-screen";
+import { resolveMobileSharedMediaParticipantName } from "../../dm/mobile-shared-media-model";
+import { flattenMobileDMConversationPages } from "../../query/mobile-dm-conversations-query";
+import { mobileQueryKeys } from "../../query/mobile-query-keys";
 import { MobileServerSettingsScreen } from "../../workspace/mobile-server-settings-screen";
 import { MobileServerRolesScreen } from "../../workspace/mobile-server-roles-screen";
 import { MobileRoleDetailScreen } from "../../workspace/mobile-role-detail-screen";
@@ -71,18 +79,24 @@ export function OverviewTabScreenContainer({
         }
       }}
       onOpenWorkspaceChannel={async (channel) => {
+        // Push before the state work. The native stack starts its animation on
+        // the tap frame instead of queueing behind the read-marking and
+        // selection updates the open handler performs.
+        if (channel.type === "TEXT" && screenProps.selectedWorkspaceServerId && rootNavigation) {
+          rootNavigation.navigate("ChannelChat", {
+            channelId: channel.id,
+            serverId: screenProps.selectedWorkspaceServerId,
+          });
+          void screenProps.onOpenWorkspaceChannel(channel);
+          return false;
+        }
+
         const shouldOpenVoiceRoom = await screenProps.onOpenWorkspaceChannel(channel);
         if (channel.type === "VOICE" && shouldOpenVoiceRoom && rootNavigation) {
           rootNavigation.navigate("VoiceRoom");
           return true;
         }
 
-        if (channel.type === "TEXT" && screenProps.selectedWorkspaceServerId && rootNavigation) {
-          rootNavigation.navigate("ChannelChat", {
-            channelId: channel.id,
-            serverId: screenProps.selectedWorkspaceServerId,
-          });
-        }
         return false;
       }}
     />
@@ -101,8 +115,10 @@ export function MessagesTabScreenContainer({
     <MessagesScreen
       {...screenProps}
       onOpenConversation={(conversationId) => {
-        screenProps.onOpenConversation(conversationId);
+        // Push first, same reasoning as the channel row: the animation should
+        // not wait behind the selection state the open handler sets.
         rootNavigation?.navigate("DirectMessage", { conversationId });
+        screenProps.onOpenConversation(conversationId);
       }}
     />
   );
@@ -352,6 +368,7 @@ export function ChannelStackScreenContainer({
     <OverviewScreen
       key={`${serverId}:${channelId}`}
       {...screenProps}
+      canRenderChannelChat
       onOpenThread={(messageId) => {
         navigation.navigate("MessageThread", { contextId: channelId, messageId, scope: "channel" });
       }}
@@ -395,6 +412,7 @@ export function DirectMessageStackScreenContainer({
     <MessagesScreen
       key={conversationId}
       {...screenProps}
+      canRenderConversation
       onOpenDetails={() => navigation.navigate("DMDetails", { conversationId })}
       onOpenThread={(messageId) => {
         navigation.navigate("MessageThread", { contextId: conversationId, messageId, scope: "dm" });
@@ -470,10 +488,7 @@ export function ProfileEditScreenContainer({
   navigation,
 }: NativeStackScreenProps<MobileRootStackParamList, "ProfileEdit">) {
   return (
-    <MobileProfileEditScreen
-      onBack={() => navigation.goBack()}
-      onOpenBlockedUsers={() => navigation.navigate("BlockedUsers")}
-    />
+    <MobileProfileEditScreen onBack={() => navigation.goBack()} />
   );
 }
 
@@ -481,6 +496,44 @@ export function BlockedUsersScreenContainer({
   navigation,
 }: NativeStackScreenProps<MobileRootStackParamList, "BlockedUsers">) {
   return <BlockedUsersScreen onBack={() => navigation.goBack()} />;
+}
+
+export function UserProfileStackScreenContainer({
+  navigation,
+  route,
+}: NativeStackScreenProps<MobileRootStackParamList, "UserProfile">) {
+  const { serverId, userId } = route.params;
+  const { openWorkspaceRoute } = useMobileProductNavigationActions();
+  const openProfileCard = useOpenMobileProfileCard();
+
+  return (
+    // Same rule as the channel screen: a second profile reuses this route, so
+    // the subtree is keyed by the user instead of stacking one screen per visit.
+    <MobileUserProfileScreen
+      key={`${userId}:${serverId ?? ""}`}
+      onBack={() => navigation.goBack()}
+      onOpenConversation={(conversationId) =>
+        navigation.navigate("DirectMessage", { conversationId })
+      }
+      onOpenProfileEdit={() => navigation.navigate("ProfileEdit")}
+      // 11f owns the gallery screen; the page only knows which conversation and
+      // person it is about.
+      onOpenSharedMedia={({ conversationId, userId: peerUserId }) =>
+        navigation.navigate("SharedMedia", { conversationId, userId: peerUserId })
+      }
+      onOpenServer={(nextServerId) => {
+        openWorkspaceRoute(nextServerId, null);
+        // The workspace lives in the overview tab; popTo walks back to the tabs
+        // instead of stacking a second MainTabs above this screen (10g).
+        navigation.popTo("MainTabs", { screen: "overview" });
+      }}
+      // README 1c: a mutual friend opens as the quick card (11b), and its own
+      // "Profili görüntüle" is what pushes another page on top of this one.
+      onOpenUserProfile={(nextUserId) => openProfileCard(nextUserId, serverId)}
+      {...(serverId ? { serverId } : {})}
+      userId={userId}
+    />
+  );
 }
 
 export function SecurityScreenContainer({
@@ -493,12 +546,49 @@ export function DMDetailsScreenContainer({
   navigation,
   route,
 }: NativeStackScreenProps<MobileRootStackParamList, "DMDetails">) {
+  const { conversationId } = route.params;
   return (
     <MobileDMDetailsScreen
-      conversationId={route.params.conversationId}
+      conversationId={conversationId}
       onBack={() => navigation.goBack()}
+      onOpenSharedMedia={() => navigation.navigate("SharedMedia", { conversationId })}
     />
   );
+}
+
+export function SharedMediaScreenContainer({
+  navigation,
+  route,
+}: NativeStackScreenProps<MobileRootStackParamList, "SharedMedia">) {
+  const { conversationId, userId } = route.params;
+  const conversations = useMobileDMConversationsCache();
+
+  return (
+    <MobileSharedMediaScreen
+      // The gallery is reachable from both the DM header and a profile page, so
+      // a second conversation reuses this route: key the subtree by target.
+      key={conversationId}
+      conversationId={conversationId}
+      onBack={() => navigation.goBack()}
+      participantName={resolveMobileSharedMediaParticipantName(conversations, {
+        conversationId,
+        ...(userId ? { userId } : {}),
+      })}
+    />
+  );
+}
+
+/**
+ * The DM list the caller already came through. Reading the name from cache
+ * keeps the gallery header from costing a request the list has already paid.
+ */
+function useMobileDMConversationsCache() {
+  const queryClient = useQueryClient();
+  const cached = queryClient.getQueryData<
+    InfiniteData<MobileDMConversationsResponse, unknown> | undefined
+  >(mobileQueryKeys.dmConversations());
+
+  return useMemo(() => flattenMobileDMConversationPages(cached), [cached]);
 }
 
 export function ServerSettingsStackScreenContainer({
@@ -551,10 +641,12 @@ export function ServerMembersStackScreenContainer({
   navigation,
   route,
 }: NativeStackScreenProps<MobileRootStackParamList, "ServerMembers">) {
+  const { serverId } = route.params;
   return (
     <MobileServerMembersScreen
-      serverId={route.params.serverId}
+      serverId={serverId}
       onBack={() => navigation.goBack()}
+      onOpenMemberProfile={(userId) => navigation.navigate("UserProfile", { serverId, userId })}
     />
   );
 }

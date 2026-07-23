@@ -59,9 +59,12 @@ const createStyles = (theme: MobileTheme) => ({
 export function MobileDMDetailsScreen({
   conversationId,
   onBack,
+  onOpenSharedMedia,
 }: {
   conversationId: string;
   onBack(): void;
+  /** 11f gallery. The 30-item summary above stays exactly as it was. */
+  onOpenSharedMedia?(): void;
 }) {
   const { apiClient } = useMobileAuth();
   const { locale } = useMobileLocaleRuntime();
@@ -116,6 +119,14 @@ export function MobileDMDetailsScreen({
               testID="mobile-dm-details-back"
             />
             <Text style={styles.title}>{copy.dmDetailsConversationDetails}</Text>
+            {onOpenSharedMedia && attachments.length > 0 ? (
+              <Button
+                label={copy.sharedMediaSeeAllAction}
+                onPress={onOpenSharedMedia}
+                testID="mobile-dm-details-shared-media-see-all"
+                variant="secondary"
+              />
+            ) : null}
           </>
         }
         ListEmptyComponent={

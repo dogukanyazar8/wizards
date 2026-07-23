@@ -37,11 +37,12 @@ import { MobileServerCreateJoinSheet } from "../../workspace/mobile-server-creat
 import { shareMobileInviteUrl } from "../../invite/mobile-invite-share";
 import { useMobileAuth } from "../../auth/mobile-auth-context";
 import { useMobileVoiceStatesQuery } from "../../query/mobile-voice-states-query";
-import { MobileChannelChatScreen } from "./channel-screen";
+import { ChannelChatBootSkeleton, MobileChannelChatScreen } from "./channel-screen";
 import {
   MobileMentionRegistryProvider,
   useMobileServerMentionRegistry,
 } from "../mobile-mention-registry";
+import { MobileProfileCardScope } from "../../social/profile-card";
 import { AvatarMark } from "../components/ui-atoms";
 import { useTheme } from "../providers/mobile-theme-provider";
 import { useMobileWorkspaceLayoutPreference } from "../providers/mobile-workspace-layout-provider";
@@ -60,6 +61,7 @@ import type {
 export function MobileWorkspaceBrowser({
   attachmentsFeature,
   bootstrapState,
+  canRenderChannelChat = false,
   channelMessagesState,
   channelTypingLabel,
   channelTypingUsers,
@@ -99,6 +101,14 @@ export function MobileWorkspaceBrowser({
   channelPinnedMessages = [],
 }: {
   attachmentsFeature: MobileBootstrapFeature | null;
+  /**
+   * Only the pushed ChannelChat route may render the chat. The overview tab
+   * shares the same active-channel state, so without this gate both surfaces
+   * mounted the channel at once: the tab swapped to it on the tap frame, then
+   * the stack screen slid a second copy of it over the top. That double mount
+   * is what showed the messages for an instant before the channel "opened".
+   */
+  canRenderChannelChat?: boolean;
   channelFirstUnreadMessageId?: string | null;
   channelPinnedMessages?: readonly ChatMessage[];
   bootstrapState: MobileBootstrapViewState & {
@@ -296,8 +306,18 @@ export function MobileWorkspaceBrowser({
     }
   }, [activeServerId, serverManagement]);
 
-  if (activeChannelSurface === "channel-chat" && activeTextChannel) {
+  if (canRenderChannelChat && !(activeChannelSurface === "channel-chat" && activeTextChannel)) {
+    // The route is the channel, so never fall back to the server browser here:
+    // hold the chat frame until the detail read names the channel.
+    return <ChannelChatBootSkeleton onBack={onCloseWorkspaceChannel} />;
+  }
+
+  if (canRenderChannelChat && activeTextChannel) {
     return (
+      // 11b: everything opened from this channel — message avatars, the reaction
+      // sheet — gets the server as profile-card context, which is what makes the
+      // role chips appear.
+      <MobileProfileCardScope serverId={activeServerId ?? undefined}>
       <MobileMentionRegistryProvider registry={mentionRegistry}>
         <MobileChannelChatScreen
           attachmentsFeature={attachmentsFeature}
@@ -345,6 +365,7 @@ export function MobileWorkspaceBrowser({
           onToggleMessageReaction={onToggleMessageReaction}
         />
       </MobileMentionRegistryProvider>
+      </MobileProfileCardScope>
     );
   }
 

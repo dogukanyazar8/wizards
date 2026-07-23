@@ -59,6 +59,15 @@ export const createMobileServerMembersStyles = (theme: MobileTheme) =>
       paddingHorizontal: 12,
       paddingVertical: 10,
     },
+    /** Avatar + name open the 11c profile; the row's own actions stay outside it. */
+    identityTrigger: {
+      alignItems: "center",
+      flex: 1,
+      flexDirection: "row",
+      gap: 12,
+      minHeight: theme.sizing.minTouchTarget,
+      minWidth: 0,
+    },
     rowBody: { flex: 1, gap: 2, minWidth: 0 },
     memberName: {
       color: theme.text.primary,

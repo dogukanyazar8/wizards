@@ -83,6 +83,8 @@ export const API_RATE_LIMITS = {
   "mobile:dm:mark-read": { limit: 180, windowSeconds: 60 },
   "mobile:dm:conversations:list": { limit: 120, windowSeconds: 60 },
   "mobile:dm:details": { limit: 60, windowSeconds: 60 },
+  /** 11f gallery paging: one request per scroll page and per tab switch. */
+  "mobile:dm:attachments": { limit: 120, windowSeconds: 60 },
   "mobile:dm:create": { limit: 30, windowSeconds: 10 * 60 },
   "mobile:friends:block": { limit: 30, windowSeconds: 10 * 60 },
   "mobile:friends:list": { limit: 120, windowSeconds: 60 },
@@ -90,6 +92,11 @@ export const API_RATE_LIMITS = {
   "mobile:friends:request": { limit: 20, windowSeconds: 10 * 60 },
   "mobile:friends:request-action": { limit: 60, windowSeconds: 10 * 60 },
   "mobile:friends:search": { limit: 90, windowSeconds: 60 },
+  "mobile:users:profile": { limit: 120, windowSeconds: 60 },
+  /** 2b note saves: one per sheet dismissal, generous enough for edit-and-retry. */
+  "mobile:users:note": { limit: 60, windowSeconds: 60 },
+  /** Reports are a moderation write, so the window is deliberately narrow. */
+  "mobile:users:report": { limit: 5, windowSeconds: 10 * 60 },
   "mobile:giphy:search": { limit: 60, windowSeconds: 60 },
   "mobile:giphy:attachment": { limit: 60, windowSeconds: 60 },
   "mobile:link-preview": { limit: 30, windowSeconds: 60 },

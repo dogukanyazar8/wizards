@@ -56,7 +56,7 @@ const SENSITIVE_QUERY_PARAMS = new Set([
   "session",
   "token",
 ]);
-const SAFE_ROUTE_PREFIXES = ["/channels", "/settings", "/server", "/invite"] as const;
+const SAFE_ROUTE_PREFIXES = ["/channels", "/settings", "/server", "/invite", "/user"] as const;
 const URL_SCHEME_PATTERN = /^[a-zA-Z][a-zA-Z\d+.-]*:/;
 
 export function buildMobileWebSignInUrl(webUrl: string, callbackPath = "/channels/@me"): string {

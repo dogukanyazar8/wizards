@@ -4,7 +4,7 @@ import { copy, getMobileConversationTitle, useState } from "../mobile-root-scree
 import type { MobileForwardTarget } from "../components/message-forward-sheet";
 import { BootstrapStateNotice, MobileSyncHealthBanner } from "../components/ui-atoms";
 import { useDmScreenStyles } from "./dm-screen.styles";
-import { DMConversationScreen } from "./dm-conversation-screen";
+import { DMConversationBootSkeleton, DMConversationScreen } from "./dm-conversation-screen";
 import {
   DMInboxEmptyState,
   DMInboxHeader,
@@ -35,6 +35,7 @@ export {
 
 export function MessagesScreen({
   bootstrapState,
+  canRenderConversation = false,
   dmConversations,
   dmConversationsHasNextPage,
   dmConversationsIsLoading,
@@ -114,7 +115,13 @@ export function MessagesScreen({
   const attachmentsFeature =
     bootstrapState.status === "ready" ? bootstrapState.payload.features.attachments : null;
 
-  if (selectedConversation) {
+  if (canRenderConversation && !selectedConversation) {
+    // The route is the conversation, so hold a chat-shaped frame instead of
+    // dropping back to the inbox while the selection resolves.
+    return <DMConversationBootSkeleton />;
+  }
+
+  if (canRenderConversation && selectedConversation) {
     return (
       <DMConversationScreen
         attachmentsFeature={attachmentsFeature}

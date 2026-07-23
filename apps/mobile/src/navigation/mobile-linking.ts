@@ -89,6 +89,7 @@ export function createMobileLinkingOptions({
         DirectMessage: "channels/@me/:conversationId",
         ServerRoles: "server/:serverId/settings/roles",
         SettingsDetail: "settings/:section",
+        UserProfile: "user/:userId",
       },
     },
     filter: (url) => resolveMobileNavigationIntent(url, { webUrl })?.type === "route",
@@ -135,6 +136,21 @@ export function resolveMobileRoutePathIntent(path: string): MobileNavigationRout
   }
 
   const pathname = getPathname(path);
+  // `whispr://user/<id>` (11c). The optional `?serverId=` decides whether the
+  // page can show role chips, so it rides along as a route param.
+  const userProfileMatch = /^\/user\/([^/]+)$/.exec(pathname);
+  if (userProfileMatch?.[1]) {
+    const serverId = getSearchParam(path, "serverId");
+    return {
+      name: "UserProfile",
+      params: {
+        ...(serverId ? { serverId } : {}),
+        userId: decodePathSegment(userProfileMatch[1]),
+      },
+      type: "route",
+    };
+  }
+
   const serverRolesMatch = /^\/server\/([^/]+)\/settings\/roles$/.exec(pathname);
   if (serverRolesMatch?.[1]) {
     return {
@@ -176,6 +192,16 @@ function createMainTabsIntent(
 
 function getPathname(path: string): string {
   return path.split(/[?#]/, 1)[0] ?? "";
+}
+
+function getSearchParam(path: string, key: string): string | null {
+  const queryStart = path.indexOf("?");
+  if (queryStart < 0) {
+    return null;
+  }
+
+  const value = new URLSearchParams(path.slice(queryStart + 1).split("#", 1)[0]).get(key);
+  return value?.trim() ? value : null;
 }
 
 function decodePathSegment(segment: string): string {

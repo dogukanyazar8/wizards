@@ -1,6 +1,10 @@
 import { MobileProfileResponseSchema, MobileProfileUpdateSchema } from "@wizards/types";
 
-import { updateAccountProfile } from "@/lib/account/service";
+import {
+  getNextUsernameChangeAt,
+  resolveVisibleCustomStatus,
+  updateAccountProfile,
+} from "@/lib/account/service";
 import { enforceApiRateLimit, type ApiRateLimitAction } from "@/lib/api-rate-limit";
 import { jsonError, parseJsonBody } from "@/lib/api";
 import { requireMobileApiUserId } from "@/lib/auth/api";
@@ -32,10 +36,15 @@ export async function mobileProfileUpdateRoute(
       MobileProfileResponseSchema.parse({
         user: {
           avatarUrl: user.avatarUrl,
+          bannerColor: user.bannerColor,
+          bannerUrl: user.bannerUrl,
           bio: user.bio,
-          customStatus: user.customStatus,
+          ...resolveVisibleCustomStatus(user),
           displayName: user.displayName,
           id: user.id,
+          nextUsernameChangeAt:
+            getNextUsernameChangeAt(user.usernameChangedAt)?.toISOString() ?? null,
+          pronouns: user.pronouns,
           status: user.status,
           twoFactorEnabled: user.twoFactorEnabled,
           username: user.username,

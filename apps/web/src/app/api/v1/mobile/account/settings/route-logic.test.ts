@@ -12,10 +12,16 @@ import {
 
 const settingsRecord: MobileAccountSettingsRecord = {
   account: {
+    bannerColor: null,
+    bannerUrl: null,
     bio: null,
     customStatus: "focus",
+    customStatusEmoji: null,
+    customStatusExpiresAt: null,
     email: "dogukan@whispr.app",
     emailVerified: true,
+    nextUsernameChangeAt: null,
+    pronouns: null,
     twoFactorEnabled: true,
   },
   privacy: { dmPermission: "FRIENDS", friendRequests: "EVERYONE" },

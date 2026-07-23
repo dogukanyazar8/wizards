@@ -7,6 +7,8 @@ import {
   redesignDark,
   redesignLight,
   redesignLightbox,
+  redesignProfileDark,
+  redesignProfileLight,
 } from "./palette";
 import {
   mobileLayoutMetrics,
@@ -139,6 +141,7 @@ export interface MobileTheme {
   readonly dark: boolean;
   readonly elevation: {
     readonly authBrandMark: MobileThemeElevationStyle;
+    readonly profileCard: MobileThemeElevationStyle;
     readonly authPrimaryAction: MobileThemeElevationStyle;
     readonly bottomSheet: MobileThemeElevationStyle;
     readonly dangerAction: MobileThemeElevationStyle;
@@ -199,7 +202,102 @@ export interface MobileTheme {
     readonly unreadDivider: string;
     readonly unreadDividerLine: string;
   };
+  /**
+   * 11b quick profile card (handoff 1a/1b/1d, dark 1e). The card is its own
+   * surface family: a brand banner that ignores the theme, three fixed badge
+   * tints, and presence dots that need a warm idle and a hollow offline the
+   * semantic `status` group does not carry.
+   */
+  readonly profileCard: {
+    readonly badgeEarlyBorder: string;
+    readonly badgeEarlyIcon: string;
+    readonly badgeEarlySurface: string;
+    readonly badgeInviterBorder: string;
+    readonly badgeInviterIcon: string;
+    readonly badgeInviterSurface: string;
+    readonly badgeSupporterBorder: string;
+    readonly badgeSupporterIcon: string;
+    readonly badgeSupporterSurface: string;
+    readonly bannerControl: string;
+    /** The three-dot button while its menu is open (1b). */
+    readonly bannerControlActive: string;
+    readonly bannerControlText: string;
+    /** Brand banner fallback; identical in both themes by design. */
+    readonly bannerDefault: string;
+    /** Non-friends never see a personal banner, so they get this neutral fill. */
+    readonly bannerNeutral: string;
+    readonly cardBorder: string;
+    /** Drop-shadow colour; the full shadow lives in `elevation.profileCard`. */
+    readonly cardShadow: string;
+    readonly dashedBorder: string;
+    readonly menuBorder: string;
+    readonly menuIcon: string;
+    readonly menuSeparator: string;
+    readonly menuSurface: string;
+    readonly mutualAvatarRing: string;
+    readonly mutualBorder: string;
+    readonly mutualSurface: string;
+    readonly roleChipBorder: string;
+    readonly roleChipSurface: string;
+    readonly roleChipText: string;
+    readonly scrim: string;
+    readonly secondaryActionBorder: string;
+    readonly secondaryActionIcon: string;
+    readonly secondaryActionSurface: string;
+    readonly statusDnd: string;
+    readonly statusIdle: string;
+    readonly statusOffline: string;
+    readonly statusOnline: string;
+    readonly viewProfileBorder: string;
+    readonly viewProfileSurface: string;
+    readonly viewProfileText: string;
+  };
+  /**
+   * 11e profile sheets (handoff 2b note editor + 2c status picker). The status
+   * tiles need a warm/neutral pair the semantic `status` group does not carry —
+   * `idle` is a mood, not an alert, and the invisible ring is a disabled dot
+   * rather than muted text — so they live here instead of bending `status`.
+   */
+  readonly profileSheet: {
+    readonly check: string;
+    readonly description: string;
+    readonly divider: string;
+    readonly handle: string;
+    readonly hint: string;
+    readonly noteFieldBorder: string;
+    readonly noteFieldFocusBorder: string;
+    /** Outer glow drawn as a same-radius ring behind the focused field. */
+    readonly noteFieldFocusRing: string;
+    readonly noteFieldSurface: string;
+    readonly saveAction: string;
+    readonly saveActionDisabled: string;
+    readonly selectedBorder: string;
+    readonly selectedLabel: string;
+    readonly selectedSurface: string;
+    readonly statusDndIcon: string;
+    readonly statusDndSurface: string;
+    readonly statusIdleIcon: string;
+    readonly statusIdleSurface: string;
+    readonly statusInvisibleRing: string;
+    readonly statusInvisibleSurface: string;
+    readonly statusOnlineDot: string;
+    readonly statusOnlineSurface: string;
+  };
   readonly radii: typeof mobileRadii;
+  /** 11f shared-media gallery: segment chips, grid tiles and the video badge. */
+  readonly sharedMedia: {
+    /** Pill behind a video's duration; stays ink in both themes, over the photo. */
+    readonly durationBadge: string;
+    readonly durationBadgeText: string;
+    readonly tabActiveBorder: string;
+    readonly tabActiveSurface: string;
+    readonly tabActiveText: string;
+    readonly tabBorder: string;
+    readonly tabSurface: string;
+    readonly tabText: string;
+    /** Tile fill shown until a thumbnail loads, or when there is none. */
+    readonly tileSurface: string;
+  };
   readonly sizing: typeof mobileSizing;
   readonly spacing: typeof mobileSpacing;
   readonly status: {
@@ -366,6 +464,14 @@ export const lightTheme = deepFreeze({
       shadowOpacity: 0.32,
       shadowRadius: 24,
     },
+    /** Handoff 1a: `0 24px 60px rgba(20,23,42,.35)`. */
+    profileCard: {
+      elevation: 24,
+      shadowColor: redesignProfileLight.cardShadow,
+      shadowOffset: { height: 24, width: 0 },
+      shadowOpacity: 0.35,
+      shadowRadius: 60,
+    },
     bottomSheet: {
       elevation: 12,
       shadowColor: redesignLight.inkSurface,
@@ -450,7 +556,46 @@ export const lightTheme = deepFreeze({
     unreadDivider: "#E5484D",
     unreadDividerLine: "#E5484D55",
   },
+  profileCard: redesignProfileLight,
+  profileSheet: {
+    check: redesignLight.primary,
+    description: redesignLight.canonicalTextFaint,
+    divider: redesignLight.hairline,
+    handle: redesignLight.languageHandle,
+    hint: redesignLight.canonicalPlaceholder,
+    noteFieldBorder: redesignLight.border,
+    noteFieldFocusBorder: redesignLight.primary,
+    noteFieldFocusRing: redesignLight.noteFocusRing,
+    noteFieldSurface: redesignLight.bg,
+    saveAction: redesignLight.primary,
+    saveActionDisabled: redesignLight.canonicalPlaceholder,
+    selectedBorder: redesignLight.lavenderBorder,
+    selectedLabel: redesignLight.primaryStrong,
+    selectedSurface: redesignLight.lavender,
+    statusDndIcon: redesignLight.canonicalDanger,
+    statusDndSurface: redesignLight.dangerSurface,
+    statusIdleIcon: redesignLight.idleText,
+    statusIdleSurface: redesignLight.idleSurface,
+    statusInvisibleRing: redesignLight.canonicalTextFaint,
+    statusInvisibleSurface: redesignLight.hairline,
+    statusOnlineDot: redesignLight.success,
+    statusOnlineSurface: redesignLight.successSurface,
+  },
   radii: mobileRadii,
+  sharedMedia: {
+    durationBadge: "rgba(30,34,53,.75)",
+    durationBadgeText: mobilePalette.neutral.white,
+    // 2d draws the active chip as ink on the page background. The dark theme
+    // cannot repeat that — ink is the dark card colour — so it uses the same
+    // selected-surface pair the rest of the dark set uses for a chosen row.
+    tabActiveBorder: redesignLight.inkSurface,
+    tabActiveSurface: redesignLight.inkSurface,
+    tabActiveText: mobilePalette.neutral.white,
+    tabBorder: redesignLight.border,
+    tabSurface: redesignLight.card,
+    tabText: redesignLight.canonicalTextSecondary,
+    tileSurface: redesignLight.lavender,
+  },
   sizing: mobileSizing,
   spacing: mobileSpacing,
   status: {
@@ -576,6 +721,14 @@ export const darkTheme = deepFreeze({
     authPrimaryAction: {
       ...lightTheme.elevation.authPrimaryAction,
     },
+    /** Handoff 1e: `0 24px 60px rgba(0,0,0,.5)`. */
+    profileCard: {
+      elevation: 24,
+      shadowColor: redesignProfileDark.cardShadow,
+      shadowOffset: { height: 24, width: 0 },
+      shadowOpacity: 0.5,
+      shadowRadius: 60,
+    },
     bottomSheet: {
       elevation: 0,
       shadowColor: redesignDark.bg,
@@ -649,7 +802,43 @@ export const darkTheme = deepFreeze({
     unreadDivider: "#E5484D",
     unreadDividerLine: "#E5484D55",
   },
+  profileCard: redesignProfileDark,
+  profileSheet: {
+    check: redesignDark.accentText,
+    description: redesignDark.canonicalTextFaint,
+    divider: redesignDark.hairline,
+    handle: redesignDark.languageHandle,
+    hint: redesignDark.canonicalTextFaint,
+    noteFieldBorder: redesignDark.border,
+    noteFieldFocusBorder: redesignDark.primary,
+    noteFieldFocusRing: redesignDark.noteFocusRing,
+    noteFieldSurface: redesignDark.innerSurface,
+    saveAction: redesignDark.accentText,
+    saveActionDisabled: redesignDark.canonicalTextFaint,
+    selectedBorder: redesignDark.selectedBorder,
+    selectedLabel: redesignDark.accentText,
+    selectedSurface: redesignDark.selectedSurface,
+    statusDndIcon: redesignDark.dangerOnBase,
+    statusDndSurface: redesignDark.dangerSurface,
+    statusIdleIcon: redesignDark.idleText,
+    statusIdleSurface: redesignDark.idleSurface,
+    statusInvisibleRing: redesignDark.canonicalTextFaint,
+    statusInvisibleSurface: redesignDark.hairline,
+    statusOnlineDot: redesignDark.success,
+    statusOnlineSurface: redesignDark.successSurface,
+  },
   radii: mobileRadii,
+  sharedMedia: {
+    durationBadge: "rgba(30,34,53,.75)",
+    durationBadgeText: mobilePalette.neutral.white,
+    tabActiveBorder: redesignDark.selectedBorder,
+    tabActiveSurface: redesignDark.selectedSurface,
+    tabActiveText: mobilePalette.neutral.white,
+    tabBorder: redesignDark.border,
+    tabSurface: redesignDark.card,
+    tabText: redesignDark.textSecondary,
+    tileSurface: redesignDark.hairline,
+  },
   sizing: mobileSizing,
   spacing: mobileSpacing,
   status: {

@@ -52,6 +52,9 @@ export function navigateMobileRouteIntent(intent: MobileNavigationRouteIntent): 
     case "ServerRoles":
       mobileNavigationRef.navigate("ServerRoles", intent.params, ROUTE_INTENT_OPTIONS);
       break;
+    case "UserProfile":
+      mobileNavigationRef.navigate("UserProfile", intent.params, ROUTE_INTENT_OPTIONS);
+      break;
     case "ProfileEdit":
       mobileNavigationRef.navigate("ProfileEdit", undefined, ROUTE_INTENT_OPTIONS);
       break;

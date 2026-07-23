@@ -8,6 +8,16 @@ import {
 } from "../workspace/mobile-workspace-client";
 import { mobileQueryKeys } from "./mobile-query-keys";
 
+/**
+ * Message streams are socket-authoritative: the realtime bridge patches the
+ * cache for every send, edit, delete and reaction, and invalidates the stream
+ * when it cannot. The global 15s staleness therefore bought nothing and cost a
+ * refetch every time a channel was reopened — the reader watched a list they
+ * were already looking at reload. A reconnect still refetches, and pull-to-
+ * refresh is always available.
+ */
+export const MOBILE_MESSAGE_STREAM_STALE_TIME_MS = 120_000;
+
 export function getMobileChannelMessagesQueryOptions(client: MobileApiClient, channelId: string) {
   return infiniteQueryOptions({
     enabled: channelId.length > 0,
@@ -16,6 +26,7 @@ export function getMobileChannelMessagesQueryOptions(client: MobileApiClient, ch
     queryFn: ({ pageParam }) =>
       fetchMobileChannelMessages(client, { channelId, cursor: pageParam }),
     queryKey: mobileQueryKeys.channelMessages(channelId),
+    staleTime: MOBILE_MESSAGE_STREAM_STALE_TIME_MS,
   });
 }
 
@@ -31,6 +42,7 @@ export function getMobileDMMessagesQueryOptions(client: MobileApiClient, convers
     queryFn: ({ pageParam }) =>
       fetchMobileDMMessages(client, { conversationId, cursor: pageParam }),
     queryKey: mobileQueryKeys.dmMessages(conversationId),
+    staleTime: MOBILE_MESSAGE_STREAM_STALE_TIME_MS,
   });
 }
 

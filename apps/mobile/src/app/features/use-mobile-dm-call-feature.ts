@@ -17,6 +17,7 @@ import {
   openMobileVoiceRoom,
 } from "../../voice/mobile-voice-room-route-navigation";
 import { useMobileDMCallStore } from "../../state/mobile-dm-call-store";
+import { setMobileDirectCallStarter } from "./mobile-direct-call-bridge";
 import { shouldAlertMobileIncomingCall } from "../../notifications/mobile-notification-preferences";
 import { useMobileNotificationPreferences } from "../providers/mobile-notification-preferences-provider";
 import { useToast } from "../components/kit/toast";
@@ -257,6 +258,10 @@ export function useMobileDMCallFeature({
 
     return () => clearInterval(timer);
   }, [emitDMCallCancel, emitDMCallDecline, readSession, session, showToast, teardown]);
+
+  // Published so surfaces outside the product shell (11b profile card) ring
+  // through this same handshake rather than opening a parallel call path.
+  useEffect(() => setMobileDirectCallStarter(startCall), [startCall]);
 
   return {
     acceptCall,

@@ -27,9 +27,20 @@ export type MobileRootStackParamList = {
     readonly section: string;
   };
   ProfileEdit: undefined;
+  /** 11c full profile page; `serverId` is what turns the role chips on. */
+  UserProfile: {
+    readonly serverId?: string | undefined;
+    readonly userId: string;
+  };
   BlockedUsers: undefined;
   Security: undefined;
   DMDetails: { readonly conversationId: string };
+  /**
+   * 11f shared-media gallery. `userId` is the other participant, carried so a
+   * caller that already knows who it is (the 1c profile page) does not make the
+   * screen re-derive the name from the conversation.
+   */
+  SharedMedia: { readonly conversationId: string; readonly userId?: string };
   ServerSettings: { readonly serverId: string };
   ServerRoles: { readonly serverId: string };
   RoleDetail: { readonly roleId: string; readonly serverId: string };
@@ -72,6 +83,11 @@ export type MobileNavigationRouteIntent =
   | {
       readonly name: "ServerRoles";
       readonly params: MobileRootStackParamList["ServerRoles"];
+      readonly type: "route";
+    }
+  | {
+      readonly name: "UserProfile";
+      readonly params: MobileRootStackParamList["UserProfile"];
       readonly type: "route";
     }
   | { readonly name: "ProfileEdit"; readonly params: undefined; readonly type: "route" }

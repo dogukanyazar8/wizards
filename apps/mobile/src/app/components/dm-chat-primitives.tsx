@@ -31,6 +31,7 @@ import { extractFirstHttpsUrl } from "../../messages/mobile-link-preview-client"
 import { formatMobileRelativeTime } from "../../locale/mobile-relative-time";
 import { formatMobileDateSeparator } from "../../locale/mobile-date-separator";
 import { AvatarMark } from "./ui-atoms";
+import { useOpenMobileProfileCard } from "../../social/profile-card";
 import { Icon } from "./kit";
 import { MessageActionMenu, MessageActionMenuTrigger } from "./message-action-menu";
 import {
@@ -94,6 +95,7 @@ export function DMChatHeader({
   onOpenDetails,
   onStartVideoCall,
   onStartVoiceCall,
+  partnerUserId = null,
   title,
   typing,
 }: {
@@ -104,11 +106,14 @@ export function DMChatHeader({
   readonly onOpenDetails?: () => void;
   readonly onStartVideoCall?: () => void;
   readonly onStartVoiceCall?: () => void;
+  /** 11b: the other participant, so the header avatar can open their card. */
+  readonly partnerUserId?: string | null;
   readonly title: string;
   readonly typing: boolean;
 }) {
   const styles = useDMChatStyles();
   const theme = useTheme();
+  const openProfileCard = useOpenMobileProfileCard();
   const { locale } = useMobileLocaleRuntime();
   const lastSeenTime = lastSeenAt ? formatMobileRelativeTime(lastSeenAt, locale) : "";
   const statusLabel = typing
@@ -138,7 +143,17 @@ export function DMChatHeader({
         style={styles.headerIdentityButton}
         testID="mobile-dm-details-open"
       >
-        <View style={styles.headerAvatarShell}>
+        {/* 11b: the avatar opens the quick profile card; the rest of the identity
+            block keeps its existing "conversation details" press. */}
+        <Pressable
+          accessibilityLabel={copy.profileCardOpenActionTemplate.replace("{name}", title)}
+          accessibilityRole="button"
+          disabled={!partnerUserId}
+          hitSlop={4}
+          onPress={() => (partnerUserId ? openProfileCard(partnerUserId, undefined) : undefined)}
+          style={styles.headerAvatarShell}
+          testID="mobile-dm-header-profile-card"
+        >
           <AvatarMark
             avatarBorderRadius={16}
             avatarBorderWidth={0}
@@ -148,7 +163,7 @@ export function DMChatHeader({
             style={styles.headerAvatar}
           />
           {isOnline ? <View style={styles.onlineDot} testID="mobile-dm-online-dot" /> : null}
-        </View>
+        </Pressable>
         <View style={styles.headerText}>
           <Text numberOfLines={1} style={styles.headerTitle}>
             {title}
@@ -336,6 +351,7 @@ export function DMChatMessageRow({
   const styles = useDMChatStyles();
   const theme = useTheme();
   const haptics = useMobileHaptics();
+  const openMessageProfileCard = useOpenMobileProfileCard();
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [reactionDetailEmoji, setReactionDetailEmoji] = useState<string | null>(null);
   const openReactionDetails = onRequestReactionDetails
@@ -438,15 +454,26 @@ export function DMChatMessageRow({
             testID={`mobile-dm-message-avatar-spacer-${message.id}`}
           />
         ) : (
-          <AvatarMark
-            avatarBorderRadius={11}
-            avatarBorderWidth={0}
-            dimension={30}
-            identityId={message.author.id}
-            imageUrl={message.author.avatarUrl}
-            label={message.author.displayName ?? message.author.username}
-            style={styles.messageAvatar}
-          />
+          <Pressable
+            accessibilityLabel={copy.profileCardOpenActionTemplate.replace(
+              "{name}",
+              message.author.displayName ?? message.author.username,
+            )}
+            accessibilityRole="button"
+            hitSlop={4}
+            onPress={() => openMessageProfileCard(message.author.id)}
+            testID={`mobile-dm-message-author-avatar-${message.id}`}
+          >
+            <AvatarMark
+              avatarBorderRadius={11}
+              avatarBorderWidth={0}
+              dimension={30}
+              identityId={message.author.id}
+              imageUrl={message.author.avatarUrl}
+              label={message.author.displayName ?? message.author.username}
+              style={styles.messageAvatar}
+            />
+          </Pressable>
         )
       ) : null}
       <View style={[styles.messageContent, own && styles.messageContentOwn]}>
@@ -860,11 +887,63 @@ export function DMChatMessageList({
     [],
   );
 
+  // Primitive, so opening a menu does not mint a new renderItem.
+  const openMenuMessageId = menu?.open === true ? menu.id : null;
+  // Was an inline arrow: a fresh identity on every render, which re-rendered
+  // every mounted row of the conversation each time anything above this
+  // component moved.
+  const renderItem = useCallback(
+    ({ item }: { item: DMChatMessageGroupItem }) => (
+      <View style={[styles.messageItem, item.isGroupedWithNext && styles.messageItemGrouped]}>
+        {item.showDateSeparator ? <DMChatDateSeparator createdAt={item.message.createdAt} /> : null}
+        <MemoizedDMChatMessageRow
+          {...item}
+          currentUserId={currentUserId}
+          isHighlighted={item.message.id === highlightedMessageId}
+          isReactionMutationPending={isReactionMutationPending}
+          menuOpen={openMenuMessageId === item.message.id}
+          onOpenReply={handleOpenReply}
+          onRequestReactionDetails={requestReactionDetails}
+          onSetMenuMessage={handleSetMenuMessage}
+          partnerLastReadAt={partnerLastReadAt}
+          {...(onDeleteMessage ? { onDeleteMessage } : {})}
+          {...(onDiscardFailedMessage ? { onDiscardFailedMessage } : {})}
+          {...(onEditMessage ? { onEditMessage } : {})}
+          {...(onForwardMessage ? { onForwardMessage } : {})}
+          {...(onOpenThread ? { onOpenThread } : {})}
+          {...(onReplyMessage ? { onReplyMessage } : {})}
+          {...(onRetryFailedMessage ? { onRetryFailedMessage } : {})}
+          {...(onToggleReaction ? { onToggleReaction } : {})}
+        />
+      </View>
+    ),
+    [
+      currentUserId,
+      handleOpenReply,
+      handleSetMenuMessage,
+      highlightedMessageId,
+      isReactionMutationPending,
+      onDeleteMessage,
+      onDiscardFailedMessage,
+      onEditMessage,
+      onForwardMessage,
+      onOpenThread,
+      onReplyMessage,
+      onRetryFailedMessage,
+      onToggleReaction,
+      openMenuMessageId,
+      partnerLastReadAt,
+      requestReactionDetails,
+      styles,
+    ],
+  );
+
   return (
     <>
       <FlashList
         contentContainerStyle={styles.messageFlow}
         data={grouped}
+        drawDistance={700}
         keyExtractor={(item) => item.message.id}
         maintainVisibleContentPosition={{
           animateAutoScrollToBottom: true,
@@ -874,32 +953,7 @@ export function DMChatMessageList({
         onStartReached={onLoadMore}
         onStartReachedThreshold={0.35}
         ref={listRef}
-        renderItem={({ item }) => (
-          <View style={[styles.messageItem, item.isGroupedWithNext && styles.messageItemGrouped]}>
-            {item.showDateSeparator ? (
-              <DMChatDateSeparator createdAt={item.message.createdAt} />
-            ) : null}
-            <MemoizedDMChatMessageRow
-              {...item}
-              currentUserId={currentUserId}
-              isHighlighted={item.message.id === highlightedMessageId}
-              isReactionMutationPending={isReactionMutationPending}
-              menuOpen={menu?.open === true && menu.id === item.message.id}
-              onOpenReply={handleOpenReply}
-              onRequestReactionDetails={requestReactionDetails}
-              onSetMenuMessage={handleSetMenuMessage}
-              partnerLastReadAt={partnerLastReadAt}
-              {...(onDeleteMessage ? { onDeleteMessage } : {})}
-              {...(onDiscardFailedMessage ? { onDiscardFailedMessage } : {})}
-              {...(onEditMessage ? { onEditMessage } : {})}
-              {...(onForwardMessage ? { onForwardMessage } : {})}
-              {...(onOpenThread ? { onOpenThread } : {})}
-              {...(onReplyMessage ? { onReplyMessage } : {})}
-              {...(onRetryFailedMessage ? { onRetryFailedMessage } : {})}
-              {...(onToggleReaction ? { onToggleReaction } : {})}
-            />
-          </View>
-        )}
+        renderItem={renderItem}
         showsVerticalScrollIndicator={false}
         style={styles.messageList}
         testID="mobile-dm-message-list"

@@ -139,6 +139,7 @@ enum AttachmentScanStatus {
 
 enum MobileMediaUploadPurpose {
   PROFILE_AVATAR
+  PROFILE_BANNER
   SERVER_ICON
 }
 
@@ -156,6 +157,14 @@ enum NotificationLevel {
 }
 
 // Friend request status
+enum UserReportReason {
+  HARASSMENT
+  SPAM
+  INAPPROPRIATE
+  IMPERSONATION
+  OTHER
+}
+
 enum FriendStatus {
   PENDING
   ACCEPTED
@@ -239,6 +248,8 @@ model User {
   id                    String      @id @default(uuid())
   email                 String      @unique
   username              String      @unique
+  // Null until the first username change; drives the 30-day change cooldown.
+  usernameChangedAt     DateTime?
   displayName           String?
   passwordHash          String?
   avatarUrl             String?
@@ -315,6 +326,10 @@ model User {
   mediaUsageSessions      MediaUsageSession[]
   notificationCampaigns   NotificationCampaign[]    @relation("NotificationCampaignCreator")
   mobilePushTokens        MobilePushToken[]
+  reportsFiled            UserReport[]              @relation("UserReportReporter")
+  reportsReceived         UserReport[]              @relation("UserReportSubject")
+  notesWritten            UserNote[]                @relation("UserNoteAuthor")
+  notesAbout              UserNote[]                @relation("UserNoteSubject")
 
   @@index([email])
   @@index([username])
@@ -556,6 +571,41 @@ model TwoFactorRecoveryCode {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, usedAt])
+}
+
+// 11a "Bildir" flow. Write-only from the product surfaces; admin review tooling
+// is deliberately out of scope, so nothing reads these rows back yet.
+model UserReport {
+  id         String           @id @default(uuid())
+  reporterId String
+  subjectId  String
+  reason     UserReportReason
+  details    String?          @db.VarChar(500)
+  createdAt  DateTime         @default(now())
+
+  reporter User @relation("UserReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  subject  User @relation("UserReportSubject", fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@index([subjectId, createdAt])
+  @@index([reporterId, createdAt])
+}
+
+// 11e private note (handoff 2b). Readable and writable by its author only: the
+// subject is never told a note exists, so no query path may join from subjectId
+// alone. One note per (author, subject) pair — saving replaces, clearing deletes.
+model UserNote {
+  id        String   @id @default(uuid())
+  authorId  String
+  subjectId String
+  body      String   @db.VarChar(256)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  author  User @relation("UserNoteAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  subject User @relation("UserNoteSubject", fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([authorId, subjectId])
+  @@index([authorId])
 }
 
 model FriendRequest {

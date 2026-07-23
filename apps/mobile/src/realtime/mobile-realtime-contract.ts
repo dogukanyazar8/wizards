@@ -109,6 +109,21 @@ const CHANNEL_REFRESH_EVENTS = new Set<MobileRealtimeServerEventName>([
   "message:reaction_updated",
 ]);
 
+/**
+ * The subset of channel events that can move something the server-detail read
+ * owns: the channel's last-message preview and its unread/mention counts. A
+ * reaction changes neither, so it must never drag the heaviest read on the
+ * backend behind it — that refetch is what made the open message list jump
+ * every time someone tapped an emoji.
+ */
+const CHANNEL_WORKSPACE_REFRESH_EVENTS = new Set<MobileRealtimeServerEventName>([
+  "message:new",
+  "message:updated",
+  "message:deleted",
+  "message:removed",
+  "message:history_cleared",
+]);
+
 const DM_REFRESH_EVENTS = new Set<MobileRealtimeServerEventName>([
   "dm:conversation:updated",
   "dm:conversation:read",
@@ -308,6 +323,9 @@ export function getMobileRealtimeRefreshSources(
 
   if (CHANNEL_REFRESH_EVENTS.has(eventName)) {
     sources.add("channel");
+  }
+
+  if (CHANNEL_WORKSPACE_REFRESH_EVENTS.has(eventName)) {
     sources.add("workspace");
   }
 
@@ -348,6 +366,13 @@ export function isMobileRealtimeChannelMessagePayloadEvent(
   eventName: MobileRealtimeServerEventName,
 ): boolean {
   return CHANNEL_REFRESH_EVENTS.has(eventName);
+}
+
+/** True when the event can change what the server-detail read reports for a channel. */
+export function isMobileRealtimeWorkspaceAffectingChannelEvent(
+  eventName: MobileRealtimeServerEventName,
+): boolean {
+  return CHANNEL_WORKSPACE_REFRESH_EVENTS.has(eventName);
 }
 
 export function isMobileRealtimeDMMessagePayloadEvent(

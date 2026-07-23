@@ -22,12 +22,14 @@ import {
   BlockedUsersScreenContainer,
   SecurityScreenContainer,
   DMDetailsScreenContainer,
+  SharedMediaScreenContainer,
   ServerSettingsStackScreenContainer,
   ServerRolesStackScreenContainer,
   RoleDetailStackScreenContainer,
   ServerMembersStackScreenContainer,
   ServerInvitesStackScreenContainer,
   ChannelSettingsStackScreenContainer,
+  UserProfileStackScreenContainer,
 } from "../app/screens/mobile-screen-containers";
 import { useMobileVoiceScreenProps } from "../app/providers/mobile-product-screen-provider";
 import { FloatingNavigationChrome } from "./floating-navigation-chrome";
@@ -121,12 +123,18 @@ export function MobileNavigator({
           </RootStack.Screen>
           <RootStack.Screen name="SettingsDetail" component={SettingsDetailScreenContainer} />
           <RootStack.Screen name="ProfileEdit" component={ProfileEditScreenContainer} />
+          <RootStack.Screen name="UserProfile">
+            {(props) => <UserProfileStackScreenContainer {...props} />}
+          </RootStack.Screen>
           <RootStack.Screen name="BlockedUsers" component={BlockedUsersScreenContainer} />
           <RootStack.Screen name="Security">
             {(props) => <SecurityScreenContainer {...props} />}
           </RootStack.Screen>
           <RootStack.Screen name="DMDetails">
             {(props) => <DMDetailsScreenContainer {...props} />}
+          </RootStack.Screen>
+          <RootStack.Screen name="SharedMedia">
+            {(props) => <SharedMediaScreenContainer {...props} />}
           </RootStack.Screen>
           <RootStack.Screen name="ServerSettings">
             {(props) => <ServerSettingsStackScreenContainer {...props} />}

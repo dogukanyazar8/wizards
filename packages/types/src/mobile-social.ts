@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { MessageAttachmentSchema } from "./messages";
 import { DMConversationDTOSchema } from "./socket";
+import { RoleBadgeSchema } from "./workspace";
 
 const MobileBoundedIdSchema = z.string().trim().min(1).max(128);
 const MobileHttpsUrlSchema = z
@@ -104,9 +105,13 @@ export const MOBILE_USER_SEARCH_LIMIT = 20;
 
 export const MobileUserSearchQuerySchema = z
   .object({
-    limit: z.coerce.number().int().min(1).max(MOBILE_USER_SEARCH_LIMIT).optional().default(
-      MOBILE_USER_SEARCH_LIMIT,
-    ),
+    limit: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(MOBILE_USER_SEARCH_LIMIT)
+      .optional()
+      .default(MOBILE_USER_SEARCH_LIMIT),
     q: z.string().trim().min(2).max(32),
   })
   .strict();
@@ -128,11 +133,54 @@ export const MobilePresenceResponseSchema = z
   .object({ status: MobileFriendPresenceStatusSchema })
   .strict();
 
+/** Contract limits the 2a editor renders its counters and `maxLength` guards from. */
+export const MOBILE_PROFILE_BIO_MAX_LENGTH = 500;
+export const MOBILE_PROFILE_CUSTOM_STATUS_MAX_LENGTH = 128;
+export const MOBILE_PROFILE_CUSTOM_STATUS_EMOJI_MAX_LENGTH = 16;
+export const MOBILE_PROFILE_DISPLAY_NAME_MAX_LENGTH = 60;
+export const MOBILE_PROFILE_PRONOUNS_MAX_LENGTH = 40;
+/** 2a offers exactly these five banner swatches; stored values stay free-form hex. */
+export const MOBILE_PROFILE_BANNER_COLORS = [
+  "#4F46E5",
+  "#22A366",
+  "#C77A2B",
+  "#8A46C7",
+  "#1E2235",
+] as const;
+export const MOBILE_USERNAME_CHANGE_COOLDOWN_DAYS = 30;
+/** Server code a rejected username change carries, so the device can render the cooldown copy. */
+export const MOBILE_USERNAME_COOLDOWN_ERROR_CODE = "USERNAME_CHANGE_COOLDOWN";
+
+const MobileProfileBannerColorSchema = z
+  .string()
+  .trim()
+  .regex(/^#[0-9a-fA-F]{6}$/, "Hex color required");
+
 export const MobileProfileUpdateSchema = z
   .object({
-    bio: z.string().trim().max(500).nullable().optional(),
-    customStatus: z.string().trim().max(128).nullable().optional(),
-    displayName: z.string().trim().max(60).nullable().optional(),
+    bannerColor: MobileProfileBannerColorSchema.nullable().optional(),
+    bannerUrl: MobileHttpsUrlSchema.nullable().optional(),
+    bio: z.string().trim().max(MOBILE_PROFILE_BIO_MAX_LENGTH).nullable().optional(),
+    customStatus: z
+      .string()
+      .trim()
+      .max(MOBILE_PROFILE_CUSTOM_STATUS_MAX_LENGTH)
+      .nullable()
+      .optional(),
+    customStatusEmoji: z
+      .string()
+      .trim()
+      .max(MOBILE_PROFILE_CUSTOM_STATUS_EMOJI_MAX_LENGTH)
+      .nullable()
+      .optional(),
+    customStatusExpiresAt: z.string().datetime().nullable().optional(),
+    displayName: z
+      .string()
+      .trim()
+      .max(MOBILE_PROFILE_DISPLAY_NAME_MAX_LENGTH)
+      .nullable()
+      .optional(),
+    pronouns: z.string().trim().max(MOBILE_PROFILE_PRONOUNS_MAX_LENGTH).nullable().optional(),
     username: z
       .string()
       .trim()
@@ -142,25 +190,41 @@ export const MobileProfileUpdateSchema = z
       .optional(),
   })
   .strict()
-  .refine(
-    (value) =>
-      value.bio !== undefined ||
-      value.customStatus !== undefined ||
-      value.displayName !== undefined ||
-      value.username !== undefined,
-    { message: "At least one profile field is required" },
-  );
+  .refine((value) => Object.values(value).some((field) => field !== undefined), {
+    message: "At least one profile field is required",
+  });
+
+/**
+ * Profile fields added for the 2a editor. Every one is `.default(null)` so a device
+ * running ahead of an un-redeployed server still parses the older payload.
+ */
+const MobileProfileDecorationShape = {
+  bannerColor: MobileProfileBannerColorSchema.nullable().default(null),
+  bannerUrl: MobileHttpsUrlSchema.nullable().default(null),
+  customStatusEmoji: z
+    .string()
+    .max(MOBILE_PROFILE_CUSTOM_STATUS_EMOJI_MAX_LENGTH)
+    .nullable()
+    .default(null),
+  customStatusExpiresAt: z.string().datetime().nullable().default(null),
+  pronouns: z.string().max(MOBILE_PROFILE_PRONOUNS_MAX_LENGTH).nullable().default(null),
+} as const;
 
 export const MobileProfileUserSchema = MobileFriendUserSchema.extend({
-  customStatus: z.string().max(128).nullable(),
+  customStatus: z.string().max(MOBILE_PROFILE_CUSTOM_STATUS_MAX_LENGTH).nullable(),
   status: MobileFriendPresenceStatusSchema,
   twoFactorEnabled: z.boolean(),
 }).strict();
 export const MobileProfileResponseSchema = z
   .object({
-    // Only the signed-in user's own profile carries the bio; peer-facing payloads keep
-    // the narrower user shape. Defaulted so an un-redeployed server still parses.
-    user: MobileProfileUserSchema.extend({ bio: z.string().max(500).nullable().default(null) }),
+    // Only the signed-in user's own profile carries the bio, the 2a decoration fields and
+    // the username cooldown; peer-facing payloads keep the narrower user shape.
+    user: MobileProfileUserSchema.extend({
+      ...MobileProfileDecorationShape,
+      bio: z.string().max(MOBILE_PROFILE_BIO_MAX_LENGTH).nullable().default(null),
+      /** When the 30-day username cooldown lifts; null while a change is allowed. */
+      nextUsernameChangeAt: z.string().datetime().nullable().default(null),
+    }),
   })
   .strict();
 
@@ -231,10 +295,13 @@ export const MobileAccountSettingsResponseSchema = z
   .object({
     account: z
       .object({
+        ...MobileProfileDecorationShape,
         bio: z.string().max(1024).nullable(),
         customStatus: z.string().max(128).nullable(),
         email: z.string().email().max(254),
         emailVerified: z.boolean(),
+        /** Mirrors the profile payload so 2a can gate the username field on first paint. */
+        nextUsernameChangeAt: z.string().datetime().nullable().default(null),
         // Added after the UAT backend shipped; must default so an un-redeployed
         // server response still parses.
         twoFactorEnabled: z.boolean().default(false),
@@ -340,6 +407,12 @@ export const MobileDMSharedAttachmentSchema = z
   .strict();
 export const MobileDMDetailsResponseSchema = z
   .object({
+    /**
+     * Every photo and video in the conversation, not just the ones in
+     * `sharedAttachments` — that list is derived from the newest message page,
+     * so its length is a page artefact and the 1c header needs the real total.
+     */
+    mediaCount: z.number().int().nonnegative(),
     mutualServers: z.array(MobileDMMutualServerSchema).max(12),
     nextCursor: MobileBoundedIdSchema.nullable(),
     participant: MobileProfileUserSchema.omit({ twoFactorEnabled: true }),
@@ -350,6 +423,198 @@ export const MobileDMDetailsResponseSchema = z
       })
       .strict(),
   })
+  .strict();
+
+/**
+ * 11f shared-media gallery. The `details` summary above stays a fixed 30-item
+ * preview; this is the paged full history behind its "see all", split into the
+ * three tabs the gallery renders.
+ */
+export const MobileDMAttachmentsTabSchema = z.enum(["files", "links", "media"]);
+
+/**
+ * `limit` counts *messages*, not items, because the cursor is a message id — the
+ * same keyset the DM message list pages by. One message carries up to
+ * `MESSAGE_ATTACHMENT_MAX_COUNT` attachments, so a page yields between `limit`
+ * and `5 * limit` media/file items, and up to `10 * limit` links.
+ */
+export const MobileDMAttachmentsQuerySchema = z
+  .object({
+    cursor: MobileBoundedIdSchema.optional(),
+    limit: z.coerce.number().int().min(1).max(50).optional().default(30),
+    tab: MobileDMAttachmentsTabSchema.optional().default("media"),
+  })
+  .strict();
+
+const MobileDMAttachmentItemBaseShape = {
+  messageCreatedAt: z.string().datetime(),
+  messageId: MobileBoundedIdSchema,
+} as const;
+
+export const MobileDMAttachmentItemSchema = z.discriminatedUnion("kind", [
+  z
+    .object({
+      ...MobileDMAttachmentItemBaseShape,
+      attachment: MessageAttachmentSchema,
+      kind: z.literal("media"),
+    })
+    .strict(),
+  z
+    .object({
+      ...MobileDMAttachmentItemBaseShape,
+      attachment: MessageAttachmentSchema,
+      kind: z.literal("file"),
+    })
+    .strict(),
+  z
+    .object({
+      ...MobileDMAttachmentItemBaseShape,
+      /** `${messageId}:${indexInMessage}` — a message may carry several links. */
+      id: MobileBoundedIdSchema,
+      kind: z.literal("link"),
+      url: MobileHttpsUrlSchema,
+    })
+    .strict(),
+]);
+
+export const MobileDMAttachmentsResponseSchema = z
+  .object({
+    items: z.array(MobileDMAttachmentItemSchema).max(500),
+    nextCursor: MobileBoundedIdSchema.nullable(),
+    tab: MobileDMAttachmentsTabSchema,
+  })
+  .strict();
+
+/**
+ * Server-derived profile badges (11a). Deterministic from account facts, never
+ * stored: `earlyMember` from registeredAt, `supporter` from premiumType,
+ * `inviter` from at least one used invite.
+ */
+export const MobileProfileBadgeSchema = z.enum(["earlyMember", "supporter", "inviter"]);
+
+/**
+ * Role chips only exist when the card was opened from a server surface AND both
+ * the viewer and the subject are members there — the card renders no role
+ * section at all in a DM context.
+ */
+export const MobileUserProfileServerContextSchema = z
+  .object({
+    joinedAt: z.string().datetime().nullable(),
+    roles: z.array(RoleBadgeSchema).max(50),
+    serverId: MobileBoundedIdSchema,
+    serverName: z.string().min(1).max(100),
+  })
+  .strict();
+
+/**
+ * The card draws the status emoji beside the message (handoff 1a/2a), which the
+ * friends-list presence shape has no room for. Widened here rather than on
+ * `MobileFriendPresenceSchema` so the friends payload stays as narrow as it was.
+ * Defaulted so an un-redeployed server still parses.
+ */
+export const MobileUserProfilePresenceSchema = MobileFriendPresenceSchema.extend({
+  customStatusEmoji: z
+    .string()
+    .max(MOBILE_PROFILE_CUSTOM_STATUS_EMOJI_MAX_LENGTH)
+    .nullable()
+    .default(null),
+}).strict();
+
+export const MobileUserProfileMutualsSchema = z
+  .object({
+    /**
+     * Total shared servers, which can exceed `preview`: the 1c header reads
+     * "ORTAK SUNUCULAR — N" while the rows are the capped preview.
+     */
+    count: z.number().int().nonnegative(),
+    preview: z.array(MobileDMMutualServerSchema).max(12),
+  })
+  .strict();
+
+export const MobileUserProfileMutualFriendsSchema = z
+  .object({
+    count: z.number().int().nonnegative(),
+    preview: z.array(MobileFriendUserSchema).max(12),
+  })
+  .strict();
+
+/**
+ * One request feeds both the quick card (11b) and the full page (11c). Fields the
+ * viewer may not see are cropped server-side rather than hidden by the client.
+ */
+export const MobileUserProfileSchema = z
+  .object({
+    badges: z.array(MobileProfileBadgeSchema).max(8),
+    bannerColor: z.string().max(32).nullable(),
+    bannerUrl: z.string().url().max(2048).nullable(),
+    bio: z.string().max(500).nullable(),
+    /** The viewer blocked this user; the card falls back to its restricted view. */
+    blocked: z.boolean(),
+    /** This user blocked the viewer; identity only, everything else is cropped. */
+    blockedBy: z.boolean(),
+    mutualFriends: MobileUserProfileMutualFriendsSchema,
+    mutualServers: MobileUserProfileMutualsSchema,
+    /** Viewer-private note (11e writes it); always null for your own card. */
+    note: z.string().max(256).nullable(),
+    presence: MobileUserProfilePresenceSchema,
+    pronouns: z.string().max(40).nullable(),
+    registeredAt: z.string().datetime(),
+    relationship: MobileFriendRelationshipSchema,
+    /** True when the requested id is the signed-in user, which selects the 1d card. */
+    self: z.boolean(),
+    serverContext: MobileUserProfileServerContextSchema.nullable(),
+    user: MobileFriendUserSchema,
+  })
+  .strict();
+
+export const MobileUserProfileResponseSchema = z
+  .object({ profile: MobileUserProfileSchema })
+  .strict();
+
+export const MobileUserProfileQuerySchema = z
+  .object({ serverId: MobileBoundedIdSchema.optional() })
+  .strict();
+
+/** Handoff 2b counts against this exact limit ("49/256"); the column matches it. */
+export const MOBILE_USER_NOTE_MAX_LENGTH = 256;
+
+/**
+ * 11e note write. `null` (or a body that trims to empty) deletes the note — the
+ * 2b sheet has no separate delete affordance, clearing the field and saving is
+ * the delete, so the contract has to express "no note" rather than "empty note".
+ */
+export const MobileUserNoteUpdateSchema = z
+  .object({
+    body: z
+      .string()
+      .trim()
+      .max(MOBILE_USER_NOTE_MAX_LENGTH)
+      .nullable()
+      .transform((value) => (value === null || value.length === 0 ? null : value)),
+  })
+  .strict();
+
+export const MobileUserNoteResponseSchema = z
+  .object({ note: z.string().max(MOBILE_USER_NOTE_MAX_LENGTH).nullable() })
+  .strict();
+
+export const MobileUserReportReasonSchema = z.enum([
+  "harassment",
+  "spam",
+  "inappropriate",
+  "impersonation",
+  "other",
+]);
+
+export const MobileUserReportRequestSchema = z
+  .object({
+    details: z.string().trim().max(500).nullable().optional(),
+    reason: MobileUserReportReasonSchema,
+  })
+  .strict();
+
+export const MobileUserReportResponseSchema = z
+  .object({ reportId: MobileBoundedIdSchema })
   .strict();
 
 export type MobileFriendRequestCreate = z.infer<typeof MobileFriendRequestCreateSchema>;
@@ -381,3 +646,18 @@ export type MobilePasswordChangeRequest = z.infer<typeof MobilePasswordChangeReq
 export type MobilePasswordChangeResponse = z.infer<typeof MobilePasswordChangeResponseSchema>;
 export type MobileAccountSettingsResponse = z.infer<typeof MobileAccountSettingsResponseSchema>;
 export type MobileAccountSettingsUpdate = z.infer<typeof MobileAccountSettingsUpdateSchema>;
+export type MobileProfileBadge = z.infer<typeof MobileProfileBadgeSchema>;
+export type MobileUserProfile = z.infer<typeof MobileUserProfileSchema>;
+export type MobileUserProfileResponse = z.infer<typeof MobileUserProfileResponseSchema>;
+export type MobileUserProfileQuery = z.infer<typeof MobileUserProfileQuerySchema>;
+export type MobileUserProfileServerContext = z.infer<typeof MobileUserProfileServerContextSchema>;
+export type MobileUserProfilePresence = z.infer<typeof MobileUserProfilePresenceSchema>;
+export type MobileUserReportReason = z.infer<typeof MobileUserReportReasonSchema>;
+export type MobileUserReportRequest = z.infer<typeof MobileUserReportRequestSchema>;
+export type MobileUserReportResponse = z.infer<typeof MobileUserReportResponseSchema>;
+export type MobileUserNoteUpdate = z.infer<typeof MobileUserNoteUpdateSchema>;
+export type MobileUserNoteResponse = z.infer<typeof MobileUserNoteResponseSchema>;
+export type MobileDMAttachmentsTab = z.infer<typeof MobileDMAttachmentsTabSchema>;
+export type MobileDMAttachmentsQuery = z.infer<typeof MobileDMAttachmentsQuerySchema>;
+export type MobileDMAttachmentItem = z.infer<typeof MobileDMAttachmentItemSchema>;
+export type MobileDMAttachmentsResponse = z.infer<typeof MobileDMAttachmentsResponseSchema>;

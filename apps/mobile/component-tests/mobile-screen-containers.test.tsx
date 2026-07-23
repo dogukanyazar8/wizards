@@ -1,14 +1,28 @@
 import React from "react";
 import { fireEvent, render } from "@testing-library/react-native";
-import { describe, expect, it, jest } from "@jest/globals";
+import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
 let mockOverviewProps: Record<string, unknown> = {};
 let mockMessagesProps: Record<string, unknown> = {};
+const overviewRenderProps: Record<string, unknown>[] = [];
+const messagesRenderProps: Record<string, unknown>[] = [];
+
+// Only `useFocusEffect` is replaced: the stack containers run their route
+// wiring through it, and the rest of the module still has to be real because
+// mobile-navigation-ref builds a container ref at import time.
+jest.mock("@react-navigation/native", () => ({
+  ...(jest.requireActual("@react-navigation/native") as Record<string, unknown>),
+  useFocusEffect: (effect: () => void | (() => void)) => {
+    const React = require("react");
+    React.useEffect(effect, [effect]);
+  },
+}));
 
 jest.mock("../src/app/screens/home-screen", () => ({
   OverviewScreen: (props: Record<string, unknown>) => {
     const React = require("react");
     const { Pressable, Text } = require("react-native");
+    overviewRenderProps.push(props);
     return React.createElement(
       Pressable,
       {
@@ -27,6 +41,7 @@ jest.mock("../src/app/screens/dm-screen", () => ({
   MessagesScreen: (props: Record<string, unknown>) => {
     const React = require("react");
     const { Pressable, Text } = require("react-native");
+    messagesRenderProps.push(props);
     return React.createElement(
       Pressable,
       {
@@ -88,6 +103,8 @@ jest.mock("../src/app/providers/mobile-product-screen-provider", () => ({
 }));
 
 import {
+  ChannelStackScreenContainer,
+  DirectMessageStackScreenContainer,
   MessagesTabScreenContainer,
   OverviewTabScreenContainer,
   ChannelSettingsStackScreenContainer,
@@ -103,6 +120,47 @@ function createNavigation(parentNavigate: jest.Mock) {
 }
 
 describe("mobile screen navigation containers", () => {
+  beforeEach(() => {
+    overviewRenderProps.length = 0;
+    messagesRenderProps.length = 0;
+  });
+
+  // Both surfaces read the same active-channel / selected-conversation state, so
+  // if the tab renders the chat too, the reader sees it for a frame before the
+  // pushed route slides its own copy over the top.
+  it("lets only the pushed routes render the chat surfaces", async () => {
+    const onOpenWorkspaceChannel = jest.fn();
+    mockOverviewProps = {
+      onCloseWorkspaceChannel: jest.fn(),
+      onOpenWorkspaceChannel,
+      selectedWorkspaceServerId: "server-1",
+    };
+    mockMessagesProps = { onCloseConversation: jest.fn(), onOpenConversation: jest.fn() };
+    const navigation = createNavigation(jest.fn());
+
+    await render(<OverviewTabScreenContainer navigation={navigation as never} route={{} as never} />);
+    await render(<MessagesTabScreenContainer navigation={navigation as never} route={{} as never} />);
+
+    expect(overviewRenderProps.at(-1)?.canRenderChannelChat).toBeUndefined();
+    expect(messagesRenderProps.at(-1)?.canRenderConversation).toBeUndefined();
+
+    await render(
+      <ChannelStackScreenContainer
+        navigation={{ goBack: jest.fn(), navigate: jest.fn() } as never}
+        route={{ params: { channelId: "channel-1", serverId: "server-1" } } as never}
+      />,
+    );
+    await render(
+      <DirectMessageStackScreenContainer
+        navigation={{ goBack: jest.fn(), navigate: jest.fn() } as never}
+        route={{ params: { conversationId: "dm-1" } } as never}
+      />,
+    );
+
+    expect(overviewRenderProps.at(-1)?.canRenderChannelChat).toBe(true);
+    expect(messagesRenderProps.at(-1)?.canRenderConversation).toBe(true);
+  });
+
   it("pushes a selected text channel through the typed parent stack", async () => {
     const parentNavigate = jest.fn();
     const onOpenWorkspaceChannel = jest.fn();

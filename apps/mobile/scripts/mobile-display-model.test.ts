@@ -739,6 +739,18 @@ describe("mobile display model", () => {
     );
   });
 
+  it("renders every loaded message unless a preview surface asks for a bound", () => {
+    const loaded = Array.from({ length: 90 }, (_, index) => ({
+      ...message,
+      createdAt: `2026-06-30T09:${String(index % 60).padStart(2, "0")}:00.000Z`,
+      id: `message-${index}`,
+    }));
+
+    assert.equal(getMobileMessageStreamItems(loaded).length, 90);
+    assert.equal(getMobileMessageStreamItems(loaded, 10).length, 10);
+    assert.equal(getMobileMessageStreamItems(loaded, 10)[0]?.message.id, "message-80");
+  });
+
   it("marks only consecutive same-author channel messages for the compact 1b group layout", () => {
     const nextAuthorMessage: ChatMessage = {
       ...message,

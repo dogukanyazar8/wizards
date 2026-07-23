@@ -29,6 +29,10 @@ import {
   useMobileServerMentionRegistry,
 } from "../mobile-mention-registry";
 import { formatMobileDisplayTime } from "../mobile-root-screen-shared";
+import {
+  MobileProfileCardScope,
+  useOpenMobileProfileCard,
+} from "../../social/profile-card";
 import { useMobileHaptics } from "../providers/mobile-haptics-provider";
 import { useTheme } from "../providers/mobile-theme-provider";
 import { useMessageThreadStyles } from "./message-thread-screen.styles";
@@ -85,6 +89,7 @@ export function ThreadReplyRow({
 }) {
   const styles = useMessageThreadStyles();
   const { selection } = useMobileHaptics();
+  const openProfileCard = useOpenMobileProfileCard();
   const [isEmojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [reactionDetailEmoji, setReactionDetailEmoji] = useState<string | null>(null);
   const authorLabel = message.author.displayName ?? message.author.username;
@@ -136,15 +141,24 @@ export function ThreadReplyRow({
           style={[styles.replyRow, isSending && styles.replySending]}
           testID={`mobile-thread-reply-${message.id}`}
         >
-          <AvatarMark
-            avatarBorderRadius={12}
-            avatarBorderWidth={0}
-            dimension={34}
-            identityId={message.author.id}
-            imageUrl={message.author.avatarUrl}
-            label={authorLabel}
-            style={styles.replyAvatar}
-          />
+          {/* 11b: thread replies open the same card as channel rows. */}
+          <Pressable
+            accessibilityLabel={copy.profileCardOpenActionTemplate.replace("{name}", authorLabel)}
+            accessibilityRole="button"
+            hitSlop={4}
+            onPress={() => openProfileCard(message.author.id)}
+            testID={`mobile-thread-reply-avatar-${message.id}`}
+          >
+            <AvatarMark
+              avatarBorderRadius={12}
+              avatarBorderWidth={0}
+              dimension={34}
+              identityId={message.author.id}
+              imageUrl={message.author.avatarUrl}
+              label={authorLabel}
+              style={styles.replyAvatar}
+            />
+          </Pressable>
           <View style={styles.replyContent}>
             <View style={styles.replyHeader}>
               <Text numberOfLines={1} style={styles.replyAuthor}>
@@ -298,7 +312,8 @@ export function MobileMessageThreadScreen({
     .replace("{count}", String(replies.length));
 
   return (
-    <MobileMentionRegistryProvider registry={mentionRegistry}>
+    <MobileProfileCardScope serverId={serverId ?? undefined}>
+      <MobileMentionRegistryProvider registry={mentionRegistry}>
       <View style={styles.screen} testID="mobile-message-thread-screen">
         <View style={styles.header}>
           <View style={styles.headerText}>
@@ -425,6 +440,7 @@ export function MobileMessageThreadScreen({
           />
         </View>
       </View>
-    </MobileMentionRegistryProvider>
+      </MobileMentionRegistryProvider>
+    </MobileProfileCardScope>
   );
 }

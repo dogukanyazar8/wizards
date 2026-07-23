@@ -117,6 +117,7 @@ test("link preview parser accepts only the first HTTPS URL and sends it in a POS
 
 test("DM details client bounds pagination and safely encodes conversation identifiers", async () => {
   const response = {
+    mediaCount: 3,
     mutualServers: [],
     nextCursor: null,
     participant: {

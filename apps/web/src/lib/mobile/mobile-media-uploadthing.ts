@@ -2,6 +2,7 @@ import {
   MobileMediaUploadIntentSchema,
   type MobileMediaUploadCompletionResponse,
   type MobileMediaUploadIntent,
+  type MobileMediaUploadPurpose,
 } from "@wizards/types";
 import { UTApi, UploadThingError } from "uploadthing/server";
 
@@ -21,7 +22,7 @@ const MOBILE_MEDIA_UPLOAD_RATE_LIMIT_ACTION = "mobile:media:upload" as const;
 
 export type MobileUploadMetadata = {
   ownerId: string;
-  purpose: "profile-avatar" | "server-icon";
+  purpose: MobileMediaUploadPurpose;
   targetServerId: string | null;
 };
 
@@ -136,10 +137,11 @@ export async function authorizeMobileMediaUpload(
     // upload that can never be claimed.
     const intent = MobileMediaUploadIntentSchema.parse(input.intent);
 
-    if (intent.purpose === "profile-avatar") {
+    // Avatar and banner are owner-scoped, so neither needs a server permission check.
+    if (intent.purpose === "profile-avatar" || intent.purpose === "profile-banner") {
       return {
         ownerId,
-        purpose: "profile-avatar",
+        purpose: intent.purpose,
         targetServerId: null,
       };
     }

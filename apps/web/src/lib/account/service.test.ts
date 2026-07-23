@@ -8,8 +8,14 @@ const service = import("./service");
 
 const currentUser = {
   avatarUrl: null,
+  bannerColor: null,
+  bannerUrl: null,
   bio: null,
   customStatus: null,
+  customStatusEmoji: null,
+  customStatusExpiresAt: null,
+  pronouns: null,
+  usernameChangedAt: null,
   displayName: "Old Name",
   email: "dogukan@example.com",
   emailVerified: true,
@@ -26,6 +32,7 @@ function dependencies(overrides: Record<string, unknown> = {}) {
     findEmailConflict: async () => false,
     findUser: async () => currentUser,
     findUsernameConflict: async () => false,
+    ownsBannerUpload: async () => true,
     persistPresence: async (_userId: string, status: FriendPresenceStatus) => ({
       customStatus: null,
       status,
@@ -61,10 +68,15 @@ describe("account service", () => {
       "update",
       "user-1",
       {
+        bannerColor: currentUser.bannerColor,
+        bannerUrl: currentUser.bannerUrl,
         bio: currentUser.bio,
         customStatus: currentUser.customStatus,
+        customStatusEmoji: currentUser.customStatusEmoji,
+        customStatusExpiresAt: currentUser.customStatusExpiresAt,
         displayName: "Ada",
         email: currentUser.email,
+        pronouns: currentUser.pronouns,
         status: currentUser.status,
         username: currentUser.username,
       },
@@ -80,6 +92,125 @@ describe("account service", () => {
         username: "dogukan",
       },
     ]);
+  });
+
+  it("stamps the username change and blocks the next one for 30 days", async () => {
+    const { getNextUsernameChangeAt, updateAccountProfile } = await service;
+    const now = new Date("2026-07-23T12:00:00.000Z");
+    let persisted: Record<string, unknown> | null = null;
+
+    await updateAccountProfile(
+      "user-1",
+      { username: "ada" },
+      dependencies({
+        now: () => now,
+        updateUser: async (_userId: string, input: Record<string, unknown>) => {
+          persisted = input;
+          return { ...currentUser, ...input };
+        },
+      }),
+    );
+    assert.equal((persisted as unknown as { usernameChangedAt: Date }).usernameChangedAt, now);
+
+    const blockedUntil = getNextUsernameChangeAt(now, now);
+    assert.equal(blockedUntil?.toISOString(), "2026-08-22T12:00:00.000Z");
+    assert.equal(getNextUsernameChangeAt(now, new Date("2026-08-23T12:00:00.000Z")), null);
+    assert.equal(getNextUsernameChangeAt(null, now), null);
+
+    await assert.rejects(
+      () =>
+        updateAccountProfile(
+          "user-1",
+          { username: "ada_lovelace" },
+          dependencies({
+            findUser: async () => ({ ...currentUser, usernameChangedAt: now }),
+            now: () => new Date("2026-07-30T12:00:00.000Z"),
+            updateUser: async () => {
+              throw new Error("must not run");
+            },
+          }),
+        ),
+      (error: unknown) =>
+        error instanceof ApiError &&
+        error.status === 429 &&
+        error.code === "USERNAME_CHANGE_COOLDOWN",
+    );
+  });
+
+  it("takes a banner only from an upload this account owns", async () => {
+    const { updateAccountProfile } = await service;
+    const checked: string[] = [];
+
+    await assert.rejects(
+      () =>
+        updateAccountProfile(
+          "user-1",
+          { bannerUrl: "https://attacker.example/track.png" },
+          dependencies({
+            ownsBannerUpload: async (_userId: string, url: string) => {
+              checked.push(url);
+              return false;
+            },
+            updateUser: async () => {
+              throw new Error("must not run");
+            },
+          }),
+        ),
+      (error) =>
+        error instanceof ApiError && error.status === 400 && error.code === "BANNER_NOT_OWNED",
+    );
+    assert.deepEqual(checked, ["https://attacker.example/track.png"]);
+
+    const saved = await updateAccountProfile(
+      "user-1",
+      { bannerUrl: "https://cdn.whispr.test/banner.png" },
+      dependencies(),
+    );
+    assert.equal(saved.bannerUrl, "https://cdn.whispr.test/banner.png");
+
+    // Clearing the banner touches no upload row, so it never has to own one.
+    const cleared = await updateAccountProfile(
+      "user-1",
+      { bannerUrl: null },
+      dependencies({
+        ownsBannerUpload: async () => {
+          throw new Error("must not run");
+        },
+      }),
+    );
+    assert.equal(cleared.bannerUrl, null);
+  });
+
+  it("hides a custom status whose deadline has passed", async () => {
+    const { resolveVisibleCustomStatus } = await service;
+    const now = new Date("2026-07-23T12:00:00.000Z");
+
+    assert.deepEqual(
+      resolveVisibleCustomStatus(
+        {
+          customStatus: "Release",
+          customStatusEmoji: "🎧",
+          customStatusExpiresAt: new Date("2026-07-23T11:00:00.000Z"),
+        },
+        now,
+      ),
+      { customStatus: null, customStatusEmoji: null, customStatusExpiresAt: null },
+    );
+    assert.deepEqual(
+      resolveVisibleCustomStatus(
+        {
+          customStatus: "Release",
+          customStatusEmoji: "🎧",
+          customStatusExpiresAt: new Date("2026-07-23T16:00:00.000Z"),
+        },
+        now,
+      ),
+      {
+        customStatus: "Release",
+        customStatusEmoji: "🎧",
+        customStatusExpiresAt: "2026-07-23T16:00:00.000Z",
+      },
+    );
   });
 
   it("fails with stable conflict codes before persistence", async () => {
@@ -117,6 +248,26 @@ describe("account service", () => {
 
     assert.equal(result.status, "DND");
     assert.deepEqual(calls, [{ customStatus: null, status: "DND", userId: "user-1" }]);
+  });
+
+  it("fans out the invisible choice as a plain offline presence", async () => {
+    const { mapVisiblePresenceStatus, updateAccountPresence } = await service;
+    const broadcasts: unknown[] = [];
+
+    // "Görünmez" is written as OFFLINE — the contract has no INVISIBLE — so the
+    // fanout must carry OFFLINE and nothing that hints the account is live.
+    const result = await updateAccountPresence(
+      "user-1",
+      "OFFLINE",
+      dependencies({
+        broadcastPresence: async (presence: unknown) => broadcasts.push(presence),
+      }),
+    );
+
+    assert.equal(result.status, "OFFLINE");
+    assert.deepEqual(broadcasts, [{ customStatus: null, status: "OFFLINE", userId: "user-1" }]);
+    // A row still holding the legacy INVISIBLE value publishes the same way.
+    assert.equal(mapVisiblePresenceStatus("INVISIBLE"), "OFFLINE");
   });
 
   it("fails closed when account or presence persistence is unavailable", async () => {

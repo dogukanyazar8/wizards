@@ -287,6 +287,49 @@ describe("Phase 0 Maestro testID contract", () => {
     assert.ok(MOBILE_AUTOMATED_GATES.some((gate) => gate.id === "mobile-maestro-phase3-social"));
   });
 
+  it("binds the 11b quick profile card entry points to production test IDs", () => {
+    const contracts = {
+      "mobile-dm-header-profile-card": [
+        "src/app/components/dm-chat-primitives.tsx",
+        'testID="mobile-dm-header-profile-card"',
+      ],
+      "mobile-profile-card-shell": [
+        "src/social/profile-card/profile-card-overlay.tsx",
+        'testID="mobile-profile-card-shell"',
+      ],
+      "mobile-profile-card-backdrop": [
+        "src/app/components/kit/overlay-surface.tsx",
+        "`${testID}-backdrop`",
+      ],
+    } as const;
+
+    for (const [testId, [sourcePath, needle]] of Object.entries(contracts)) {
+      assert.match(phase3FlowSource, new RegExp(`id:\\s*"${testId}"`));
+      assert.ok(
+        readFileSync(path.join(process.cwd(), sourcePath), "utf8").includes(needle),
+        `${testId} is missing from ${sourcePath}`,
+      );
+    }
+
+    assert.match(phase3FlowSource, /artifacts\/mobile\/phase3\/closure\/dark-profile-card/);
+
+    // The five surfaces that open the card all go through the same opener hook,
+    // so a new entry point cannot quietly grow its own navigation.
+    const entryPoints = {
+      "src/app/components/dm-chat-primitives.tsx": "useOpenMobileProfileCard",
+      "src/app/components/message-primitives.tsx": "useOpenMobileProfileCard",
+      "src/app/components/message-reaction-detail-sheet.tsx": "useOpenMobileProfileCard",
+      "src/app/screens/message-thread-screen.tsx": "useOpenMobileProfileCard",
+      "src/workspace/mobile-server-members-screen.tsx": "useOpenMobileProfileCard",
+    } as const;
+    for (const [sourcePath, needle] of Object.entries(entryPoints)) {
+      assert.ok(
+        readFileSync(path.join(process.cwd(), sourcePath), "utf8").includes(needle),
+        `${sourcePath} must open the profile card through ${needle}`,
+      );
+    }
+  });
+
   it("binds the Phase 4 server-management flow to safe, contextual test IDs", () => {
     assert.ok(phase4FlowSource, ".maestro/phase4-server-management.yml must exist");
     assert.match(

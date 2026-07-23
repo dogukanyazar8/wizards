@@ -54,12 +54,15 @@ describe("mobile realtime contract", () => {
       "message:deleted",
       "message:removed",
       "message:history_cleared",
-      "message:reaction_updated",
     ] as const;
 
     for (const eventName of channelMessageEvents) {
       assert.deepEqual(getMobileRealtimeRefreshSources(eventName), ["channel", "workspace"]);
     }
+  });
+
+  it("keeps a reaction off the server-detail read", () => {
+    assert.deepEqual(getMobileRealtimeRefreshSources("message:reaction_updated"), ["channel"]);
   });
 
   it("accepts the user-room stale event that identifies an inactive server channel", () => {

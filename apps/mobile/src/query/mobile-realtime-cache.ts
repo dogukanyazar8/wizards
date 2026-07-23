@@ -4,6 +4,7 @@ import type {
   MobileManagedWorkspaceServerDetailResponse,
   MobilePresenceUpdateEvent,
   MobileServerUnreadUpdateEvent,
+  MobileUserProfile,
   MobileUserProfileUpdatedEvent,
 } from "@wizards/types";
 
@@ -133,6 +134,36 @@ export function patchMobileRealtimeBootstrapProfile(
   }
 
   return { data: { ...data, user: nextUser }, patched: true };
+}
+
+/**
+ * Keeps an open profile card (11b) and page (11c) live while presence moves.
+ *
+ * The event carries no status emoji, so the emoji is left alone while the user
+ * is reachable and dropped with the message when they go offline — the same
+ * pairing the profile endpoint applies, so a socket patch can never show a
+ * status line the next refetch would remove.
+ */
+export function patchMobileRealtimeUserProfilePresence(
+  data: MobileUserProfile | undefined,
+  event: MobilePresenceUpdateEvent,
+): MobileRealtimeCachePatch<MobileUserProfile> {
+  if (!data || data.user.id !== event.userId) {
+    return unchanged<MobileUserProfile>(data);
+  }
+
+  const customStatus = event.status === "OFFLINE" ? null : event.customStatus;
+  const nextPresence = {
+    customStatus,
+    customStatusEmoji: customStatus === null ? null : data.presence.customStatusEmoji,
+    status: event.status,
+  };
+  const same =
+    nextPresence.customStatus === data.presence.customStatus &&
+    nextPresence.customStatusEmoji === data.presence.customStatusEmoji &&
+    nextPresence.status === data.presence.status;
+
+  return same ? unchanged(data) : { data: { ...data, presence: nextPresence }, patched: true };
 }
 
 export function patchMobileRealtimeFriendsPresence(

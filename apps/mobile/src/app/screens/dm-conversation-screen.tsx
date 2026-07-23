@@ -141,6 +141,7 @@ export function DMConversationScreen({
           {...(onOpenDetails ? { onOpenDetails } : {})}
           {...(onStartVideoCall ? { onStartVideoCall } : {})}
           {...(onStartVoiceCall ? { onStartVoiceCall } : {})}
+          partnerUserId={responsePartner?.userId ?? summaryPartner?.id ?? null}
           title={title}
           typing={typingLabel !== null}
         />
@@ -173,6 +174,21 @@ export function DMConversationScreen({
           typingLabel={typingLabel}
         />
       </View>
+    </View>
+  );
+}
+
+/**
+ * What the pushed DirectMessage route shows while the selected conversation is
+ * still resolving (cold start, notification tap). Falling back to the inbox
+ * here read as the conversation opening, closing, then opening again.
+ */
+export function DMConversationBootSkeleton() {
+  const styles = useDMChatStyles();
+
+  return (
+    <View style={styles.root} testID="mobile-dm-boot-skeleton">
+      <MessageListSkeleton />
     </View>
   );
 }

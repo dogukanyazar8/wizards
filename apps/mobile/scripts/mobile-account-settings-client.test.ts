@@ -20,10 +20,16 @@ import {
 
 const accountSettings = {
   account: {
+    bannerColor: null,
+    bannerUrl: null,
     bio: "Building Whispr",
     customStatus: null,
+    customStatusEmoji: null,
+    customStatusExpiresAt: null,
     email: "ada@example.com",
     emailVerified: true,
+    nextUsernameChangeAt: null,
+    pronouns: null,
     twoFactorEnabled: false,
   },
   privacy: {

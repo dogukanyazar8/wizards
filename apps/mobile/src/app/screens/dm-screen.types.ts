@@ -18,6 +18,14 @@ export type MobileDMSendIntent = {
 
 export type MobileMessagesScreenProps = {
   bootstrapState: MobileBootstrapViewState;
+  /**
+   * Only the pushed DirectMessage route may render the conversation. The
+   * messages tab shares the same selection state, so without this gate the
+   * inbox swapped to the conversation on the tap frame and the stack screen
+   * then slid a second copy of it in — the conversation flashed before it
+   * "opened".
+   */
+  canRenderConversation?: boolean;
   dmConversations: readonly MobileDMConversationListItem[];
   dmConversationsHasNextPage: boolean;
   dmConversationsIsLoading: boolean;

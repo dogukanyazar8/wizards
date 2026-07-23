@@ -35,10 +35,16 @@ import { mobileQueryKeys } from "../src/query/mobile-query-keys";
 
 const accountSettings = {
   account: {
+    bannerColor: null,
+    bannerUrl: null,
     bio: "Shipping Whispr",
     customStatus: null,
+    customStatusEmoji: null,
+    customStatusExpiresAt: null,
     email: "ada@example.com",
     emailVerified: true,
+    nextUsernameChangeAt: null,
+    pronouns: null,
     twoFactorEnabled: false,
   },
   privacy: { dmPermission: "MUTUAL_SERVERS" as const, friendRequests: "MUTUAL_FRIENDS" as const },
@@ -160,10 +166,16 @@ describe("production mobile account settings integration", () => {
     const canonicalProfile = {
       user: {
         avatarUrl: null,
+        bannerColor: null,
+        bannerUrl: null,
         bio: null,
         customStatus: null,
+        customStatusEmoji: null,
+        customStatusExpiresAt: null,
         displayName: "Ada Byron",
         id: "user-1",
+        nextUsernameChangeAt: null,
+        pronouns: null,
         status: "ONLINE",
         twoFactorEnabled: false,
         username: "ada_byron",

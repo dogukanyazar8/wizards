@@ -8,6 +8,7 @@ import { useThemedStyles } from "../providers/mobile-theme-provider";
 import { BottomSheet } from "./kit/bottom-sheet";
 import { createMessageReactionDetailSheetStyles } from "./message-reaction-detail-sheet.styles";
 import { AvatarMark } from "./ui-atoms";
+import { useOpenMobileProfileCard } from "../../social/profile-card";
 
 export type MessageReactionDetailSheetProps = {
   readonly currentUserId: string;
@@ -33,6 +34,7 @@ export function MessageReactionDetailSheet({
   reactions,
 }: MessageReactionDetailSheetProps) {
   const styles = useThemedStyles(createMessageReactionDetailSheetStyles);
+  const openProfileCard = useOpenMobileProfileCard();
   const visibleReactions = useMemo(
     () => reactions.filter((reaction) => reaction.count > 0 && reaction.userIds.length > 0),
     [reactions],
@@ -170,13 +172,21 @@ export function MessageReactionDetailSheet({
               {row}
             </Pressable>
           ) : (
-            <View
+            // 11b: someone else's row opens their profile card. The own row keeps
+            // its "tap to remove" behaviour, which is why only this branch moves.
+            <Pressable
+              accessibilityLabel={copy.profileCardOpenActionTemplate.replace(
+                "{name}",
+                displayName,
+              )}
+              accessibilityRole="button"
               key={user.id}
+              onPress={() => openProfileCard(user.id)}
               style={styles.personRow}
               testID={`mobile-message-reaction-detail-user-${user.id}`}
             >
               {row}
-            </View>
+            </Pressable>
           );
         })}
       </ScrollView>

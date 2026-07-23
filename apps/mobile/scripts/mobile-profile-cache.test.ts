@@ -33,10 +33,16 @@ function profileFor(userId: string, avatarUrl: string | null): MobileProfileResp
   return {
     user: {
       avatarUrl,
+      bannerColor: null,
+      bannerUrl: null,
       bio: null,
       customStatus: null,
+      customStatusEmoji: null,
+      customStatusExpiresAt: null,
       displayName: "Ada Test",
       id: userId,
+      nextUsernameChangeAt: null,
+      pronouns: null,
       status: "ONLINE",
       twoFactorEnabled: false,
       username: "ada_test",

@@ -48,6 +48,33 @@ describe("mobile linking configuration", () => {
   });
 
   /**
+   * 11c: `whispr://user/<id>` opens the full profile page. The optional
+   * `serverId` rides along because it is what turns the role chips on.
+   */
+  it("resolves the user profile route with and without a server context", () => {
+    assert.deepEqual(resolveMobileNavigationIntent("whispr://user/user-2", { webUrl }), {
+      name: "UserProfile",
+      params: { userId: "user-2" },
+      type: "route",
+    });
+    assert.deepEqual(
+      resolveMobileNavigationIntent("whispr://user/user-2?serverId=server-1", { webUrl }),
+      {
+        name: "UserProfile",
+        params: { serverId: "server-1", userId: "user-2" },
+        type: "route",
+      },
+    );
+    assert.deepEqual(resolveMobileRoutePathIntent("/user/user-2"), {
+      name: "UserProfile",
+      params: { userId: "user-2" },
+      type: "route",
+    });
+    // A trailing segment is not a profile path and must not resolve.
+    assert.equal(resolveMobileNavigationIntent("whispr://user/user-2/edit", { webUrl }), null);
+  });
+
+  /**
    * 10a: the backend writes `/channels/<serverId>/<channelId>` into the MENTION
    * notification's `actionUrl`; tapping the row feeds that exact path to
    * `resolveMobileRoutePathIntent`, so the channel has to open from it.

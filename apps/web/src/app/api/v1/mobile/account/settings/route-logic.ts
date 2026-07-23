@@ -6,6 +6,7 @@ import {
 } from "@wizards/types";
 import { prisma } from "@wizards/db";
 
+import { getNextUsernameChangeAt, resolveVisibleCustomStatus } from "@/lib/account/service";
 import { enforceApiRateLimit, type ApiRateLimitAction } from "@/lib/api-rate-limit";
 import { ApiError, jsonError, parseJsonBody } from "@/lib/api";
 import { requireMobileApiUserId } from "@/lib/auth/api";
@@ -19,10 +20,16 @@ function withNoStore(response: Response) {
 
 export type MobileAccountSettingsRecord = {
   account: {
+    bannerColor: string | null;
+    bannerUrl: string | null;
     bio: string | null;
     customStatus: string | null;
+    customStatusEmoji: string | null;
+    customStatusExpiresAt: string | null;
     email: string;
     emailVerified: boolean;
+    nextUsernameChangeAt: string | null;
+    pronouns: string | null;
     twoFactorEnabled: boolean;
   };
   privacy: {
@@ -46,11 +53,17 @@ async function loadMobileAccountSettings(userId: string): Promise<MobileAccountS
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
+      bannerColor: true,
+      bannerUrl: true,
       bio: true,
       customStatus: true,
+      customStatusEmoji: true,
+      customStatusExpiresAt: true,
       email: true,
       emailVerified: true,
+      pronouns: true,
       twoFactorEnabled: true,
+      usernameChangedAt: true,
       settings: {
         select: {
           dmPolicy: true,
@@ -66,10 +79,14 @@ async function loadMobileAccountSettings(userId: string): Promise<MobileAccountS
 
   return {
     account: {
+      bannerColor: user.bannerColor,
+      bannerUrl: user.bannerUrl,
       bio: user.bio,
-      customStatus: user.customStatus,
+      ...resolveVisibleCustomStatus(user),
       email: user.email,
       emailVerified: user.emailVerified,
+      nextUsernameChangeAt: getNextUsernameChangeAt(user.usernameChangedAt)?.toISOString() ?? null,
+      pronouns: user.pronouns,
       twoFactorEnabled: user.twoFactorEnabled,
     },
     privacy: {

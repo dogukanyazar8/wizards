@@ -30,6 +30,66 @@ describe("mobile social and account schemas", () => {
     assert.equal(MobilePresenceUpdateSchema.safeParse({ status: "INVISIBLE" }).success, false);
   });
 
+  it("carries the 2a banner, status emoji and expiry fields with bounded shapes", async () => {
+    const {
+      MOBILE_PROFILE_BANNER_COLORS,
+      MOBILE_PROFILE_BIO_MAX_LENGTH,
+      MobileProfileResponseSchema,
+      MobileProfileUpdateSchema,
+    } = await schemas;
+
+    assert.deepEqual(
+      MobileProfileUpdateSchema.parse({
+        bannerColor: MOBILE_PROFILE_BANNER_COLORS[1],
+        bannerUrl: null,
+        customStatusEmoji: "🎧",
+        customStatusExpiresAt: "2026-07-23T18:00:00.000Z",
+        pronouns: "  o/onu  ",
+      }),
+      {
+        bannerColor: "#22A366",
+        bannerUrl: null,
+        customStatusEmoji: "🎧",
+        customStatusExpiresAt: "2026-07-23T18:00:00.000Z",
+        pronouns: "o/onu",
+      },
+    );
+    assert.equal(MOBILE_PROFILE_BIO_MAX_LENGTH, 500);
+    assert.equal(MobileProfileUpdateSchema.safeParse({ bannerColor: "indigo" }).success, false);
+    assert.equal(
+      MobileProfileUpdateSchema.safeParse({ bannerUrl: "http://cdn.example.com/b.png" }).success,
+      false,
+    );
+    assert.equal(
+      MobileProfileUpdateSchema.safeParse({ customStatusExpiresAt: "tomorrow" }).success,
+      false,
+    );
+    assert.equal(
+      MobileProfileUpdateSchema.safeParse({ bio: "x".repeat(MOBILE_PROFILE_BIO_MAX_LENGTH + 1) })
+        .success,
+      false,
+    );
+
+    // An un-redeployed server omits every new field; the device must still parse it.
+    const legacy = MobileProfileResponseSchema.parse({
+      user: {
+        avatarUrl: null,
+        customStatus: null,
+        displayName: "Ada",
+        id: "user-1",
+        status: "ONLINE",
+        twoFactorEnabled: false,
+        username: "ada",
+      },
+    });
+    assert.equal(legacy.user.bannerColor, null);
+    assert.equal(legacy.user.bannerUrl, null);
+    assert.equal(legacy.user.customStatusEmoji, null);
+    assert.equal(legacy.user.customStatusExpiresAt, null);
+    assert.equal(legacy.user.nextUsernameChangeAt, null);
+    assert.equal(legacy.user.pronouns, null);
+  });
+
   it("shapes the account settings contract around real privacy enums", async () => {
     const { MobileAccountSettingsResponseSchema, MobileAccountSettingsUpdateSchema } =
       await schemas;
@@ -300,6 +360,7 @@ describe("mobile social and account schemas", () => {
     });
     assert.equal(
       MobileDMDetailsResponseSchema.safeParse({
+        mediaCount: 12,
         mutualServers: [
           { iconUrl: null, id: "server-1", memberCount: 4, name: "UAT", shortName: "UA" },
         ],
@@ -309,6 +370,230 @@ describe("mobile social and account schemas", () => {
       }).success,
       true,
     );
+    // The preview list is a page artefact; the total has to be its own field.
+    assert.equal(
+      MobileDMDetailsResponseSchema.safeParse({
+        mutualServers: [],
+        nextCursor: null,
+        participant: { ...friendUser, customStatus: null, status: "ONLINE" },
+        sharedAttachments: { files: [], media: [] },
+      }).success,
+      false,
+    );
     assert.equal(MobileDMDetailsQuerySchema.safeParse({ limit: 101 }).success, false);
+  });
+
+  it("defaults the shared-media query to the media tab and bounds its page", async () => {
+    const { MobileDMAttachmentsQuerySchema } = await schemas;
+
+    assert.deepEqual(MobileDMAttachmentsQuerySchema.parse({}), { limit: 30, tab: "media" });
+    assert.deepEqual(MobileDMAttachmentsQuerySchema.parse({ cursor: "message-1", limit: "12", tab: "links" }), {
+      cursor: "message-1",
+      limit: 12,
+      tab: "links",
+    });
+    assert.equal(MobileDMAttachmentsQuerySchema.safeParse({ limit: 51 }).success, false);
+    assert.equal(MobileDMAttachmentsQuerySchema.safeParse({ tab: "voice" }).success, false);
+  });
+
+  it("keeps shared-media items on one discriminated kind and https link URLs", async () => {
+    const { MobileDMAttachmentsResponseSchema } = await schemas;
+    const attachment = {
+      contentType: "image/png",
+      duration: null,
+      filename: "shot.png",
+      height: 1200,
+      id: "attachment-1",
+      size: 4096,
+      thumbnailUrl: null,
+      url: "https://cdn.whispr.test/shot.png",
+      width: 900,
+    };
+
+    assert.equal(
+      MobileDMAttachmentsResponseSchema.safeParse({
+        items: [
+          {
+            attachment,
+            kind: "media",
+            messageCreatedAt: "2026-07-14T09:00:00.000Z",
+            messageId: "message-1",
+          },
+          {
+            id: "message-2:0",
+            kind: "link",
+            messageCreatedAt: "2026-07-13T09:00:00.000Z",
+            messageId: "message-2",
+            url: "https://whispr.test/changelog",
+          },
+        ],
+        nextCursor: "message-2",
+        tab: "media",
+      }).success,
+      true,
+    );
+
+    // A link item may not smuggle an attachment payload, and http is not https.
+    assert.equal(
+      MobileDMAttachmentsResponseSchema.safeParse({
+        items: [
+          {
+            attachment,
+            id: "message-2:0",
+            kind: "link",
+            messageCreatedAt: "2026-07-13T09:00:00.000Z",
+            messageId: "message-2",
+            url: "https://whispr.test/changelog",
+          },
+        ],
+        nextCursor: null,
+        tab: "links",
+      }).success,
+      false,
+    );
+    assert.equal(
+      MobileDMAttachmentsResponseSchema.safeParse({
+        items: [
+          {
+            id: "message-2:0",
+            kind: "link",
+            messageCreatedAt: "2026-07-13T09:00:00.000Z",
+            messageId: "message-2",
+            url: "http://whispr.test/changelog",
+          },
+        ],
+        nextCursor: null,
+        tab: "links",
+      }).success,
+      false,
+    );
+  });
+});
+
+describe("11e note contract", () => {
+  it("collapses an empty or whitespace body to the delete signal", async () => {
+    const { MobileUserNoteUpdateSchema } = await schemas;
+
+    assert.deepEqual(MobileUserNoteUpdateSchema.parse({ body: "  staging  " }), {
+      body: "staging",
+    });
+    assert.deepEqual(MobileUserNoteUpdateSchema.parse({ body: "   " }), { body: null });
+    assert.deepEqual(MobileUserNoteUpdateSchema.parse({ body: null }), { body: null });
+  });
+
+  it("refuses a note past the stored length and any extra field", async () => {
+    const { MOBILE_USER_NOTE_MAX_LENGTH, MobileUserNoteUpdateSchema } = await schemas;
+
+    assert.equal(
+      MobileUserNoteUpdateSchema.safeParse({
+        body: "x".repeat(MOBILE_USER_NOTE_MAX_LENGTH),
+      }).success,
+      true,
+    );
+    assert.equal(
+      MobileUserNoteUpdateSchema.safeParse({
+        body: "x".repeat(MOBILE_USER_NOTE_MAX_LENGTH + 1),
+      }).success,
+      false,
+    );
+    assert.equal(
+      MobileUserNoteUpdateSchema.safeParse({ authorId: "user-1", body: "hi" }).success,
+      false,
+    );
+  });
+
+  it("carries a nullable note back and rejects anything else", async () => {
+    const { MobileUserNoteResponseSchema } = await schemas;
+
+    assert.deepEqual(MobileUserNoteResponseSchema.parse({ note: null }), { note: null });
+    assert.deepEqual(MobileUserNoteResponseSchema.parse({ note: "staging" }), { note: "staging" });
+    assert.equal(MobileUserNoteResponseSchema.safeParse({ note: 42 }).success, false);
+  });
+});
+
+describe("mobile peer profile schemas", () => {
+  const profile = {
+    badges: ["earlyMember", "supporter"],
+    bannerColor: "#4F46E5",
+    bannerUrl: null,
+    bio: "UAT",
+    blocked: false,
+    blockedBy: false,
+    mutualFriends: { count: 1, preview: [friendUser] },
+    mutualServers: {
+      count: 1,
+      preview: [
+        { iconUrl: null, id: "server-1", memberCount: 128, name: "UAT ENV", shortName: "UE" },
+      ],
+    },
+    note: null,
+    presence: { customStatus: "Test", customStatusEmoji: "🧪", status: "ONLINE" },
+    pronouns: null,
+    registeredAt: "2025-04-02T09:00:00.000Z",
+    relationship: "friend",
+    self: false,
+    serverContext: {
+      joinedAt: "2026-01-04T10:00:00.000Z",
+      roles: [{ color: 5198053, id: "role-1", name: "Geliştirici" }],
+      serverId: "server-1",
+      serverName: "UAT ENV",
+    },
+    user: friendUser,
+  };
+
+  it("carries the whole quick card in one payload", async () => {
+    const { MobileUserProfileResponseSchema } = await schemas;
+
+    assert.deepEqual(MobileUserProfileResponseSchema.parse({ profile }), { profile });
+    // The status emoji arrived after the card shipped, so a server that does not
+    // send it yet still parses and reads as "no emoji".
+    assert.deepEqual(
+      MobileUserProfileResponseSchema.parse({
+        profile: { ...profile, presence: { customStatus: "Test", status: "ONLINE" } },
+      }).profile.presence,
+      { customStatus: "Test", customStatusEmoji: null, status: "ONLINE" },
+    );
+    // The DM context has no server, so the role block is absent rather than empty.
+    assert.equal(
+      MobileUserProfileResponseSchema.safeParse({
+        profile: { ...profile, serverContext: null },
+      }).success,
+      true,
+    );
+  });
+
+  it("fails closed on unknown fields, bad badges and loose presence", async () => {
+    const { MobileUserProfileSchema } = await schemas;
+
+    assert.equal(MobileUserProfileSchema.safeParse({ ...profile, extra: 1 }).success, false);
+    assert.equal(MobileUserProfileSchema.safeParse({ ...profile, badges: ["vip"] }).success, false);
+    assert.equal(
+      MobileUserProfileSchema.safeParse({
+        ...profile,
+        presence: { customStatus: null, status: "INVISIBLE" },
+      }).success,
+      false,
+    );
+    assert.equal(
+      MobileUserProfileSchema.safeParse({ ...profile, relationship: "acquaintance" }).success,
+      false,
+    );
+  });
+
+  it("keeps the server context query and the report body bounded", async () => {
+    const { MobileUserProfileQuerySchema, MobileUserReportRequestSchema } = await schemas;
+
+    assert.deepEqual(MobileUserProfileQuerySchema.parse({ serverId: "server-1" }), {
+      serverId: "server-1",
+    });
+    assert.deepEqual(MobileUserProfileQuerySchema.parse({}), {});
+    assert.equal(MobileUserProfileQuerySchema.safeParse({ userId: "user-2" }).success, false);
+
+    assert.deepEqual(MobileUserReportRequestSchema.parse({ reason: "spam" }), { reason: "spam" });
+    assert.equal(
+      MobileUserReportRequestSchema.safeParse({ details: "x".repeat(501), reason: "spam" }).success,
+      false,
+    );
+    assert.equal(MobileUserReportRequestSchema.safeParse({ reason: "because" }).success, false);
   });
 });

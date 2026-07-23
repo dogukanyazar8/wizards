@@ -101,6 +101,11 @@ const EXPECTED_RATE_LIMIT_ACTIONS = [
     routePath: "mobile/dm/[conversationId]/messages/search",
   },
   {
+    action: "mobile:dm:attachments",
+    method: "GET",
+    routePath: "mobile/dm/[conversationId]/attachments",
+  },
+  {
     action: "mobile:server:create",
     method: "POST",
     routePath: "mobile/servers",

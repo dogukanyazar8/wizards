@@ -20,9 +20,11 @@ import {
   cancelMobileFriendRequest,
   createMobileFriendRequest,
   fetchMobileFriends,
+  fetchMobileUserProfile,
   normalizeMobileUserSearchTerm,
   openMobileFriendDM,
   removeMobileFriend,
+  reportMobileUser,
   searchMobileUsers,
   unblockMobileFriend,
   updateMobilePresence,
@@ -31,6 +33,8 @@ import {
   type MobileFriend,
   type MobileFriendPresenceStatus,
   type MobileFriendsOverview,
+  type MobileProfileUpdate,
+  type MobileUserReportReason,
   type MobileUserSearchResult,
 } from "./mobile-social-client";
 
@@ -66,6 +70,28 @@ export function getMobileUserSearchQueryOptions(
 /** Live "add friend" search; the caller owns the debounce so keystrokes do not thrash the cache. */
 export function useMobileUserSearchQuery(client: MobileApiClient, term: string, enabled = true) {
   return useQuery(getMobileUserSearchQueryOptions(client, term, enabled));
+}
+
+export function getMobileUserProfileQueryOptions(
+  client: MobileApiClient,
+  input: { enabled?: boolean; serverId?: string | undefined; userId: string },
+) {
+  return queryOptions({
+    enabled: input.enabled ?? true,
+    queryFn: () => fetchMobileUserProfile(client, input.userId, input.serverId),
+    queryKey: mobileQueryKeys.userProfile(input.userId, input.serverId),
+    // The card re-opens constantly from message rows; a short window keeps the
+    // second open instant while still refetching on a real revisit.
+    staleTime: 30_000,
+  });
+}
+
+/** Backs the 11b quick card and the 11c full page from one cache entry. */
+export function useMobileUserProfileQuery(
+  client: MobileApiClient,
+  input: { enabled?: boolean; serverId?: string | undefined; userId: string },
+) {
+  return useQuery(getMobileUserProfileQueryOptions(client, input));
 }
 
 /** An accepted request starts with a placeholder presence until the refetch returns the live one. */
@@ -143,8 +169,13 @@ function snapshotMobileUserSearchRelation(
 
 export function useMobileSocialMutations(client: MobileApiClient) {
   const queryClient = useQueryClient();
+  // Every relationship write also moves the profile card's button set, so the
+  // two caches are refreshed together rather than left to drift.
   const refreshFriends = () =>
-    queryClient.invalidateQueries({ queryKey: mobileQueryKeys.friends() });
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: mobileQueryKeys.friends() }),
+      queryClient.invalidateQueries({ queryKey: mobileQueryKeys.userProfileRoot() }),
+    ]);
   const cancelFriendsQuery = () =>
     queryClient.cancelQueries({ queryKey: mobileQueryKeys.friends() });
 
@@ -261,6 +292,13 @@ export function useMobileSocialMutations(client: MobileApiClient) {
       mutationFn: (userId: string) => openMobileFriendDM(client, userId),
       onSuccess: () => queryClient.invalidateQueries({ queryKey: mobileQueryKeys.bootstrap() }),
     }),
+    reportUser: useMutation({
+      mutationFn: (input: {
+        details?: string | null;
+        reason: MobileUserReportReason;
+        userId: string;
+      }) => reportMobileUser(client, input.userId, input),
+    }),
     rejectRequest: useMutation({
       mutationFn: (input: { requestId: string; userId?: string }) =>
         actOnMobileFriendRequest(client, input.requestId, "reject"),
@@ -328,12 +366,7 @@ export function useMobileSocialMutations(client: MobileApiClient) {
       },
     }),
     updateProfile: useMutation({
-      mutationFn: (input: {
-        bio?: string | null;
-        customStatus?: string | null;
-        displayName?: string | null;
-        username?: string;
-      }) => updateMobileProfile(client, input),
+      mutationFn: (input: MobileProfileUpdate) => updateMobileProfile(client, input),
       onSuccess: async (profile) => {
         patchMobileProfileIdentityCaches({ profile, queryClient });
         await Promise.all([

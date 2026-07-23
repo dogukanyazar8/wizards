@@ -9,6 +9,7 @@ import {
   getMobileMessageBodyPreview,
   getMobileMessageStreamItems,
   memo,
+  MOBILE_RENDER_LIMITS,
   useCallback,
   useEffect,
   useMemo,
@@ -45,6 +46,7 @@ import { mobileListLoadHandlers } from "../../performance/mobile-performance-met
 import { useMobileHaptics } from "../providers/mobile-haptics-provider";
 import { MessageReactionDetailSheet } from "./message-reaction-detail-sheet";
 import { useMobileMentionRegistry } from "../mobile-mention-registry";
+import { useOpenMobileProfileCard } from "../../social/profile-card";
 import {
   hasMobileSelfMention,
   normalizeMobileMentionUsername,
@@ -612,7 +614,11 @@ export function MessageStream({
   onToggleReaction?(input: MobileMessageReactionToggleInput): void;
 }) {
   const styles = useMessagePrimitiveStyles();
-  const streamItems = useMemo(() => getMobileMessageStreamItems(messages), [messages]);
+  // Preview surface, not the live chat: bounded on purpose.
+  const streamItems = useMemo(
+    () => getMobileMessageStreamItems(messages, MOBILE_RENDER_LIMITS.messages),
+    [messages],
+  );
   const listRef = useRef<FlashListRef<(typeof streamItems)[number]> | null>(null);
   const handleOpenReply = useCallback(
     (messageId: string) => {
@@ -736,6 +742,7 @@ export function MessagePreviewRow({
   const isSendPending = message.deliveryStatus === "sending";
   // 10a: a channel row that names you gets the Discord-style soft fill and left
   // stripe. Only inside a server surface, where a roster is available.
+  const openProfileCard = useOpenMobileProfileCard();
   const mentionRegistry = useMobileMentionRegistry();
   const mentionsViewer =
     isChannelMode && hasMobileSelfMention(message.content, mentionRegistry?.selfUsername ?? null);
@@ -777,18 +784,29 @@ export function MessagePreviewRow({
           testID={`mobile-channel-message-avatar-spacer-${message.id}`}
         />
       ) : isChannelMode || !own ? (
-        <AvatarMark
-          {...(isChannelMode
-            ? { avatarBorderRadius: 14, avatarBorderWidth: 0, dimension: 38 }
-            : {})}
-          identityId={message.author.id}
-          label={authorLabel}
-          imageUrl={message.author.avatarUrl}
-          size={isChannelMode ? "regular" : "small"}
-          {...(!isChannelMode
-            ? { status: message.author.status === "ONLINE" ? "active" : "idle" }
-            : {})}
-        />
+        // 11b: the avatar becomes the profile-card handle. It is a separate
+        // pressable from the bubble, so the row's long-press message menu and
+        // the 8c flat layout are untouched.
+        <Pressable
+          accessibilityLabel={copy.profileCardOpenActionTemplate.replace("{name}", authorLabel)}
+          accessibilityRole="button"
+          hitSlop={4}
+          onPress={() => openProfileCard(message.author.id)}
+          testID={`mobile-message-author-avatar-${message.id}`}
+        >
+          <AvatarMark
+            {...(isChannelMode
+              ? { avatarBorderRadius: 14, avatarBorderWidth: 0, dimension: 38 }
+              : {})}
+            identityId={message.author.id}
+            label={authorLabel}
+            imageUrl={message.author.avatarUrl}
+            size={isChannelMode ? "regular" : "small"}
+            {...(!isChannelMode
+              ? { status: message.author.status === "ONLINE" ? "active" : "idle" }
+              : {})}
+          />
+        </Pressable>
       ) : null}
       <View style={isChannelMode ? styles.messagePreviewChannelContent : undefined}>
         {isChannelMode && message.replyTo ? (
@@ -820,8 +838,15 @@ export function MessagePreviewRow({
             style={[styles.dmMessageHeader, isChannelMode && styles.messagePreviewHeaderChannel]}
           >
             <Text
+              // Your own name in a channel still opens your card (1d); in a DM
+              // the label reads "Siz", which is not an identity to open.
+              accessibilityRole={isChannelMode || !own ? "button" : undefined}
+              onPress={
+                isChannelMode || !own ? () => openProfileCard(message.author.id) : undefined
+              }
               style={[styles.dmMessageAuthor, isChannelMode && styles.messagePreviewAuthorChannel]}
               numberOfLines={1}
+              testID={`mobile-message-author-name-${message.id}`}
             >
               {isChannelMode ? authorLabel : own ? copy.messageYouLabel : authorLabel}
             </Text>

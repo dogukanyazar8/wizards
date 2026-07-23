@@ -4,6 +4,8 @@ import {
   MobileMediaUploadCompletionResponseSchema,
   type MobileMediaClaimResponse,
   type MobileMediaUploadCompletionResponse,
+  // Aliased so it does not collide with the Prisma enum of the same name.
+  type MobileMediaUploadPurpose as MobileMediaUploadPublicPurpose,
 } from "@wizards/types";
 import { UTApi } from "uploadthing/server";
 
@@ -78,14 +80,32 @@ export type MobileMediaOpportunisticCleanupDependencies = {
   timeoutMs?: number;
 };
 
-function toDatabasePurpose(purpose: "profile-avatar" | "server-icon") {
-  return purpose === "profile-avatar"
-    ? MobileMediaUploadPurpose.PROFILE_AVATAR
-    : MobileMediaUploadPurpose.SERVER_ICON;
+/** Avatar and banner are both owner-scoped; only the server icon carries a target. */
+const OWNER_SCOPED_PURPOSES = new Set<MobileMediaUploadPurpose>([
+  MobileMediaUploadPurpose.PROFILE_AVATAR,
+  MobileMediaUploadPurpose.PROFILE_BANNER,
+]);
+
+function toDatabasePurpose(purpose: MobileMediaUploadPublicPurpose) {
+  switch (purpose) {
+    case "profile-avatar":
+      return MobileMediaUploadPurpose.PROFILE_AVATAR;
+    case "profile-banner":
+      return MobileMediaUploadPurpose.PROFILE_BANNER;
+    default:
+      return MobileMediaUploadPurpose.SERVER_ICON;
+  }
 }
 
-function toPublicPurpose(purpose: MobileMediaUploadPurpose) {
-  return purpose === MobileMediaUploadPurpose.PROFILE_AVATAR ? "profile-avatar" : "server-icon";
+function toPublicPurpose(purpose: MobileMediaUploadPurpose): MobileMediaUploadPublicPurpose {
+  switch (purpose) {
+    case MobileMediaUploadPurpose.PROFILE_AVATAR:
+      return "profile-avatar";
+    case MobileMediaUploadPurpose.PROFILE_BANNER:
+      return "profile-banner";
+    default:
+      return "server-icon";
+  }
 }
 
 function immutableUploadMatches(
@@ -103,7 +123,7 @@ function immutableUploadMatches(
   input: {
     image: VerifiedMobileImage;
     ownerId: string;
-    purpose: "profile-avatar" | "server-icon";
+    purpose: MobileMediaUploadPublicPurpose;
     targetServerId: string | null;
   },
 ) {
@@ -124,7 +144,7 @@ export async function recordVerifiedMobileMediaUpload(
   input: {
     image: VerifiedMobileImage;
     ownerId: string;
-    purpose: "profile-avatar" | "server-icon";
+    purpose: MobileMediaUploadPublicPurpose;
     targetServerId: string | null;
   },
   dependencies: MobileMediaRecordDependencies = defaultRecordDependencies,
@@ -136,7 +156,7 @@ export async function recordVerifiedMobileMediaUpload(
   // stale cache. Reject it at write time instead.
   if (
     (input.purpose === "server-icon" && !input.targetServerId) ||
-    (input.purpose === "profile-avatar" && input.targetServerId !== null)
+    (input.purpose !== "server-icon" && input.targetServerId !== null)
   ) {
     throw new ApiError("Upload target is invalid", 400, "UPLOAD_TARGET_INVALID");
   }
@@ -233,11 +253,9 @@ function hasValidPurposeTarget(upload: {
   purpose: MobileMediaUploadPurpose;
   targetServerId: string | null;
 }) {
-  return (
-    (upload.purpose === MobileMediaUploadPurpose.PROFILE_AVATAR &&
-      upload.targetServerId === null) ||
-    (upload.purpose === MobileMediaUploadPurpose.SERVER_ICON && upload.targetServerId !== null)
-  );
+  return OWNER_SCOPED_PURPOSES.has(upload.purpose)
+    ? upload.targetServerId === null
+    : upload.targetServerId !== null;
 }
 
 export async function claimMobileMediaUpload(
@@ -280,15 +298,18 @@ export async function claimMobileMediaUpload(
     }
 
     let previousUrl: string | null;
-    if (upload.purpose === MobileMediaUploadPurpose.PROFILE_AVATAR) {
+    if (OWNER_SCOPED_PURPOSES.has(upload.purpose)) {
       const currentProfile = await tx.user.findUnique({
         where: { id: userId },
-        select: { avatarUrl: true },
+        select: { avatarUrl: true, bannerUrl: true },
       });
       if (!currentProfile) {
         throw new ApiError("Account not found", 404, "USER_NOT_FOUND");
       }
-      previousUrl = currentProfile.avatarUrl;
+      previousUrl =
+        upload.purpose === MobileMediaUploadPurpose.PROFILE_AVATAR
+          ? currentProfile.avatarUrl
+          : currentProfile.bannerUrl;
     } else {
       const targetServerId = upload.targetServerId;
       if (!targetServerId) {
@@ -313,9 +334,7 @@ export async function claimMobileMediaUpload(
               claimedAt: { not: null },
               cleanupAfter: null,
               id: { not: upload.id },
-              ...(upload.purpose === MobileMediaUploadPurpose.PROFILE_AVATAR
-                ? { ownerId: userId }
-                : {}),
+              ...(OWNER_SCOPED_PURPOSES.has(upload.purpose) ? { ownerId: userId } : {}),
               purpose: upload.purpose,
               storageDeletedAt: null,
               targetServerId: upload.targetServerId,
@@ -400,6 +419,41 @@ export async function claimMobileMediaUpload(
       };
     }
 
+    if (upload.purpose === MobileMediaUploadPurpose.PROFILE_BANNER) {
+      const bannerUpdated = await tx.user.updateMany({
+        where: { bannerUrl: previousUrl, id: userId },
+        data: { bannerUrl: upload.url },
+      });
+      if (bannerUpdated.count !== 1) {
+        return claimUnavailable("claim-banner-write-race-lost");
+      }
+
+      const profile = await tx.user.findUnique({
+        where: { id: userId },
+        select: { bannerUrl: true, id: true },
+      });
+      if (!profile?.bannerUrl) {
+        return claimUnavailable("claim-profile-not-found");
+      }
+
+      if (superseded) {
+        await tx.mobileMediaUpload.updateMany({
+          data: { cleanupAfter: now },
+          where: { cleanupAfter: null, id: superseded.id, storageDeletedAt: null },
+        });
+      }
+
+      return {
+        kind: "banner" as const,
+        response: MobileMediaClaimResponseSchema.parse({
+          banner: { bannerUrl: profile.bannerUrl, id: profile.id },
+          claimId: upload.id,
+          claimedAt: now.toISOString(),
+          purpose: "profile-banner",
+        }),
+      };
+    }
+
     const targetServerId = upload.targetServerId;
     if (!targetServerId) {
       return claimUnavailable("claim-server-target-missing");
@@ -442,7 +496,7 @@ export async function claimMobileMediaUpload(
   await runInjectedOpportunisticCleanup(dependencies);
   if (committed.kind === "profile") {
     await dependencies.broadcastProfile(committed.broadcast);
-  } else {
+  } else if (committed.kind === "server") {
     await dependencies.broadcastServer(committed.serverId);
   }
 

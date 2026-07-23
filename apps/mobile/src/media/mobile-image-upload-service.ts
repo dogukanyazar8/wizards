@@ -114,9 +114,9 @@ function doesCompletionMatchTarget(
     return false;
   }
 
-  return target.purpose === "profile-avatar"
-    ? completion.targetServerId === null
-    : completion.targetServerId === target.targetServerId;
+  return target.purpose === "server-icon"
+    ? completion.targetServerId === target.targetServerId
+    : completion.targetServerId === null;
 }
 
 function doesClaimMatchCompletion(
@@ -128,9 +128,9 @@ function doesClaimMatchCompletion(
     return false;
   }
 
-  return target.purpose === "profile-avatar"
-    ? response.purpose === "profile-avatar"
-    : response.purpose === "server-icon" && response.server.id === target.targetServerId;
+  return target.purpose === "server-icon"
+    ? response.purpose === "server-icon" && response.server.id === target.targetServerId
+    : response.purpose === target.purpose;
 }
 
 function isAbortError(error: unknown) {

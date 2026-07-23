@@ -860,6 +860,26 @@ export async function listDirectMessageMutualServers(
   }));
 }
 
+/**
+ * Every photo and video ever shared in a conversation. The details payload only
+ * carries the newest page of messages, so the summary it derives cannot be
+ * counted — the 1c profile header ("PAYLAŞILAN MEDYA — N") needs the real total
+ * and this is one indexed count rather than a second history walk.
+ */
+export async function countDirectMessageMediaAttachments(
+  conversationId: string,
+): Promise<number> {
+  return prisma.attachment.count({
+    where: {
+      dmMessage: { conversationId, deletedAt: null },
+      OR: [
+        { contentType: { startsWith: "image/" } },
+        { contentType: { startsWith: "video/" } },
+      ],
+    },
+  });
+}
+
 export async function getDirectMessageConversationRealtimeViews(
   conversationId: string,
   userIds: string[],

@@ -7,6 +7,7 @@ import {
   toMobileMessageSearchViewState,
   toMobileSyncSnapshot,
   toMobileWorkspaceViewState,
+  type MobileQueryViewInput,
 } from "../src/app/mobile-query-view-state";
 
 const idleQuery = {
@@ -19,13 +20,24 @@ const idleQuery = {
   isPending: true,
 };
 
+/**
+ * The adapters take narrow slices of a query result, so a fresh object literal
+ * at the call site trips excess-property checking. Widening here keeps the
+ * fixtures readable and still exercises the real call shape.
+ */
+function asQueryInput<TData>(
+  overrides: Partial<MobileQueryViewInput<TData>>,
+): MobileQueryViewInput<TData> {
+  return { ...idleQuery, ...overrides } as MobileQueryViewInput<TData>;
+}
+
 describe("mobile query view-state adapters", () => {
   it("derives bootstrap readiness without a duplicate fetch state machine", () => {
     const payload = {
       home: { directMessages: { recent: [], unreadCount: 0 }, servers: { recent: [] } },
     };
     const state = toMobileBootstrapViewState(
-      { ...idleQuery, data: payload as never, dataUpdatedAt: 42, isPending: false },
+      asQueryInput({ data: payload as never, dataUpdatedAt: 42, isPending: false }),
       () => ({ directMessageCount: 0, serverCount: 0 }) as never,
       "failed",
     );
@@ -36,8 +48,7 @@ describe("mobile query view-state adapters", () => {
 
   it("flattens channel pages and keeps the newest duplicate", () => {
     const state = toMobileChannelMessagesViewState(
-      {
-        ...idleQuery,
+      asQueryInput({
         data: {
           pages: [
             { messages: [{ id: "2", content: "new" } as never] },
@@ -50,7 +61,7 @@ describe("mobile query view-state adapters", () => {
           ],
         } as unknown as never,
         isPending: false,
-      },
+      }),
       "channel-1",
       "failed",
     );
@@ -83,11 +94,11 @@ describe("mobile query view-state adapters", () => {
 
   it("maps query activity and failure into sync health", () => {
     assert.equal(
-      toMobileSyncSnapshot({ ...idleQuery, isFetching: true }, "workspace").status,
+      toMobileSyncSnapshot(asQueryInput({ isFetching: true }), "workspace").status,
       "syncing",
     );
     const failed = toMobileSyncSnapshot(
-      { ...idleQuery, errorUpdatedAt: 84, failureCount: 2, isError: true, isPending: false },
+      asQueryInput({ errorUpdatedAt: 84, failureCount: 2, isError: true, isPending: false }),
       "workspace",
     );
     assert.equal(failed.status, "error");
@@ -112,7 +123,7 @@ describe("mobile query view-state adapters", () => {
       },
     } as never;
     const state = toMobileWorkspaceViewState(
-      { ...idleQuery, data: payload, isPending: false },
+      asQueryInput({ data: payload, isPending: false }),
       "server-1",
       "failed",
     );

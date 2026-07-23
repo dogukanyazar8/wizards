@@ -43,39 +43,69 @@ const sessionUser = {
   username: "ada",
 };
 
-const accountSettings = {
-  account: {
-    bio: null,
-    customStatus: null,
-    email: "ada@example.com",
-    emailVerified: true,
-    twoFactorEnabled: false,
-  },
-  privacy: { dmPermission: "FRIENDS" as const, friendRequests: "EVERYONE" as const },
+const account = {
+  bannerColor: null,
+  bannerUrl: null,
+  bio: null,
+  customStatus: null,
+  customStatusEmoji: null,
+  customStatusExpiresAt: null,
+  email: "ada@example.com",
+  emailVerified: true,
+  nextUsernameChangeAt: null,
+  pronouns: null,
+  twoFactorEnabled: false,
 };
 
-function createQueryClient() {
+const savedProfile = {
+  avatarUrl: null,
+  bannerColor: null,
+  bannerUrl: null,
+  bio: null,
+  customStatus: null,
+  customStatusEmoji: null,
+  customStatusExpiresAt: null,
+  displayName: "Ada Lovelace",
+  id: "user-1",
+  nextUsernameChangeAt: null,
+  pronouns: null,
+  status: "DND" as const,
+  twoFactorEnabled: false,
+  username: "ada",
+};
+
+function accountSettings(overrides: Partial<typeof account> = {}) {
+  return {
+    account: { ...account, ...overrides },
+    privacy: { dmPermission: "FRIENDS" as const, friendRequests: "EVERYONE" as const },
+  };
+}
+
+function createQueryClient(settings = accountSettings()) {
   const queryClient = new QueryClient({
     defaultOptions: {
       mutations: { gcTime: Number.POSITIVE_INFINITY },
-      queries: { gcTime: Number.POSITIVE_INFINITY, retry: false, staleTime: Number.POSITIVE_INFINITY },
+      queries: {
+        gcTime: Number.POSITIVE_INFINITY,
+        retry: false,
+        staleTime: Number.POSITIVE_INFINITY,
+      },
     },
   });
-  queryClient.setQueryData(mobileQueryKeys.accountSettings(), accountSettings);
-  queryClient.setQueryData(mobileQueryKeys.bootstrap(), { user: { ...sessionUser, status: "DND" } });
+  queryClient.setQueryData(mobileQueryKeys.accountSettings(), settings);
+  queryClient.setQueryData(mobileQueryKeys.bootstrap(), {
+    user: { ...sessionUser, status: "DND" },
+  });
   return queryClient;
 }
 
-function renderScreen(queryClient: QueryClient, onOpenBlockedUsers = jest.fn()) {
+function renderScreen(queryClient: QueryClient) {
   return render(
     <QueryClientProvider client={queryClient}>
       <MobileThemeProvider>
         <MobileLocaleProvider>
           <ToastProvider>
-            <MobileProfileEditScreen
-              onBack={jest.fn()}
-              onOpenBlockedUsers={onOpenBlockedUsers}
-            />
+            <MobileProfileEditScreen onBack={jest.fn()} />
           </ToastProvider>
         </MobileLocaleProvider>
       </MobileThemeProvider>
@@ -92,78 +122,186 @@ function authenticatedApi(requestJson: jest.Mock) {
   });
 }
 
-describe("mobile profile edit screen", () => {
+function profilePatchApi(settings = accountSettings()) {
+  return jest.fn(async (path: string, request?: { body?: unknown; method?: string }) => {
+    if (path === "/api/v1/mobile/account/profile" && request?.method === "PATCH") {
+      return { user: { ...savedProfile, ...(request.body as Record<string, unknown>) } };
+    }
+    return settings;
+  });
+}
+
+describe("mobile profile edit screen (2a)", () => {
   beforeEach(() => {
     mockUseMobileAuth.mockReset();
     mockSelectAndUpload.mockReset();
   });
 
-  it("renders the real identity, presence, and about sections from server data", async () => {
-    authenticatedApi(jest.fn(async () => accountSettings));
+  it("renders the 2a preview, form, status and footer blocks", async () => {
+    authenticatedApi(jest.fn(async () => accountSettings()));
     const view = await renderScreen(createQueryClient());
 
-    expect(view.getByTestId("mobile-profile-edit-display-name-row")).toBeTruthy();
-    expect(view.getByTestId("mobile-profile-edit-username-row")).toBeTruthy();
-    expect(view.getByTestId("mobile-profile-edit-custom-status-row")).toBeTruthy();
-    expect(view.getByTestId("mobile-profile-edit-bio-row")).toBeTruthy();
-    expect(view.getByTestId("mobile-profile-edit-presence-pill").props.children).toBe(
-      "Rahatsız etmeyin",
-    );
-    expect(view.getByTestId("mobile-profile-edit-email-row")).toBeTruthy();
-  });
-
-  it("saves the bio through the profile mutation and reports the result", async () => {
-    const requestJson = jest.fn(async (path: string, request?: { body?: unknown; method?: string }) => {
-      if (path === "/api/v1/mobile/account/profile" && request?.method === "PATCH") {
-        return {
-          user: {
-            ...sessionUser,
-            bio: (request.body as { bio: string }).bio,
-            customStatus: null,
-            status: "DND",
-            twoFactorEnabled: false,
-          },
-        };
-      }
-      return accountSettings;
-    });
-    authenticatedApi(requestJson);
-    const view = await renderScreen(createQueryClient());
-
-    await fireEvent.press(view.getByTestId("mobile-profile-edit-bio-row"));
-    await fireEvent.changeText(view.getByTestId("mobile-profile-edit-input"), "  Building Whispr  ");
-    await fireEvent.press(view.getByTestId("mobile-profile-edit-save"));
-
-    await waitFor(() =>
-      expect(view.getByTestId("mobile-profile-edit-notice").props.children).toBe(
-        "Profil güncellendi.",
-      ),
-    );
-    expect(requestJson).toHaveBeenCalledWith(
-      "/api/v1/mobile/account/profile",
-      expect.objectContaining({ body: { bio: "Building Whispr" }, method: "PATCH" }),
+    expect(view.getByTestId("mobile-profile-edit-preview")).toBeTruthy();
+    expect(view.getByTestId("mobile-profile-edit-banner-colors")).toBeTruthy();
+    expect(view.getByTestId("mobile-profile-edit-display-name-input")).toBeTruthy();
+    expect(view.getByTestId("mobile-profile-edit-username-input")).toBeTruthy();
+    expect(view.getByTestId("mobile-profile-edit-bio-input")).toBeTruthy();
+    expect(view.getByTestId("mobile-profile-edit-status-input")).toBeTruthy();
+    expect(view.getByTestId("mobile-profile-edit-footer").props.children).toBe(
+      "Profilin tüm sunucularda aynı görünür",
     );
   });
 
-  it("rejects an invalid username before calling the API", async () => {
-    const requestJson = jest.fn(async () => accountSettings);
-    authenticatedApi(requestJson);
+  it("keeps Kaydet disabled until a field is dirty", async () => {
+    authenticatedApi(profilePatchApi());
     const view = await renderScreen(createQueryClient());
-
-    await fireEvent.press(view.getByTestId("mobile-profile-edit-username-row"));
-    await fireEvent.changeText(view.getByTestId("mobile-profile-edit-input"), "a b!");
 
     expect(view.getByTestId("mobile-profile-edit-save").props.accessibilityState.disabled).toBe(
       true,
     );
-    expect(requestJson).not.toHaveBeenCalledWith(
-      "/api/v1/mobile/account/profile",
-      expect.anything(),
+
+    await fireEvent.changeText(
+      view.getByTestId("mobile-profile-edit-display-name-input"),
+      "Ada L.",
+    );
+
+    expect(view.getByTestId("mobile-profile-edit-save").props.accessibilityState.disabled).toBe(
+      false,
     );
   });
 
-  it("surfaces the upload failure detail when the avatar cannot be stored", async () => {
-    authenticatedApi(jest.fn(async () => accountSettings));
+  it("sends every dirty field in a single PATCH", async () => {
+    const requestJson = profilePatchApi();
+    authenticatedApi(requestJson);
+    const view = await renderScreen(createQueryClient());
+
+    await fireEvent.changeText(
+      view.getByTestId("mobile-profile-edit-display-name-input"),
+      "  Ada L.  ",
+    );
+    await fireEvent.changeText(view.getByTestId("mobile-profile-edit-bio-input"), "Mobil ekip");
+    await fireEvent.press(view.getByTestId("mobile-profile-edit-banner-color-22a366"));
+    await fireEvent.press(view.getByTestId("mobile-profile-edit-save"));
+
+    await waitFor(() =>
+      expect(requestJson).toHaveBeenCalledWith(
+        "/api/v1/mobile/account/profile",
+        expect.objectContaining({
+          body: { bannerColor: "#22A366", bio: "Mobil ekip", displayName: "Ada L." },
+          method: "PATCH",
+        }),
+      ),
+    );
+    expect(
+      requestJson.mock.calls.filter(
+        ([path, request]) =>
+          path === "/api/v1/mobile/account/profile" &&
+          (request as { method?: string } | undefined)?.method === "PATCH",
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("counts the bio against the contract limit", async () => {
+    authenticatedApi(profilePatchApi());
+    const view = await renderScreen(createQueryClient());
+
+    await fireEvent.changeText(view.getByTestId("mobile-profile-edit-bio-input"), "Mobil ekip");
+
+    expect(view.getByTestId("mobile-profile-edit-bio-counter").props.children).toBe("10/500");
+  });
+
+  it("locks the username field while the 30-day cooldown is running", async () => {
+    const settings = accountSettings({ nextUsernameChangeAt: "2099-01-05T00:00:00.000Z" });
+    authenticatedApi(jest.fn(async () => settings));
+    const view = await renderScreen(createQueryClient(settings));
+
+    expect(view.getByTestId("mobile-profile-edit-username-input").props.editable).toBe(false);
+    expect(view.getByTestId("mobile-profile-edit-username-hint").props.children).toContain(
+      "değiştirebilirsin",
+    );
+  });
+
+  it("shows the cooldown rule under the username while a change is allowed", async () => {
+    authenticatedApi(profilePatchApi());
+    const view = await renderScreen(createQueryClient());
+
+    expect(view.getByTestId("mobile-profile-edit-username-hint").props.children).toBe(
+      "Kullanıcı adı 30 günde bir değiştirilebilir",
+    );
+  });
+
+  it("surfaces the server cooldown rejection under the username input", async () => {
+    const requestJson = jest.fn(async (path: string, request?: { method?: string }) => {
+      if (path === "/api/v1/mobile/account/profile" && request?.method === "PATCH") {
+        throw Object.assign(new Error("cooldown"), {
+          serverCode: "USERNAME_CHANGE_COOLDOWN",
+          status: 429,
+        });
+      }
+      return accountSettings();
+    });
+    authenticatedApi(requestJson);
+    const view = await renderScreen(createQueryClient());
+
+    await fireEvent.changeText(
+      view.getByTestId("mobile-profile-edit-username-input"),
+      "ada_lovelace",
+    );
+    await fireEvent.press(view.getByTestId("mobile-profile-edit-save"));
+
+    await waitFor(() =>
+      expect(view.getByTestId("mobile-profile-edit-username-error").props.children).toBe(
+        "Kullanıcı adı 30 günde bir değiştirilebilir.",
+      ),
+    );
+  });
+
+  it("disables the color swatches and offers removal while a banner image is set", async () => {
+    const settings = accountSettings({ bannerUrl: "https://cdn.test/banner.png" });
+    authenticatedApi(jest.fn(async () => settings));
+    const view = await renderScreen(createQueryClient(settings));
+
+    expect(view.getByTestId("mobile-profile-edit-banner-image")).toBeTruthy();
+    expect(view.getByTestId("mobile-profile-edit-banner-locked")).toBeTruthy();
+    expect(
+      view.getByTestId("mobile-profile-edit-banner-color-22a366").props.accessibilityState.disabled,
+    ).toBe(true);
+
+    await fireEvent.press(view.getByTestId("mobile-profile-edit-banner-remove"));
+
+    expect(view.queryByTestId("mobile-profile-edit-banner-image")).toBeNull();
+    expect(view.getByTestId("mobile-profile-edit-save").props.accessibilityState.disabled).toBe(
+      false,
+    );
+  });
+
+  it("uploads a banner through the profile-banner purpose and keeps the editor clean", async () => {
+    authenticatedApi(profilePatchApi());
+    mockSelectAndUpload.mockResolvedValue({
+      response: {
+        banner: { bannerUrl: "https://cdn.test/next.png", id: "user-1" },
+        claimId: "claim-1",
+        claimedAt: "2026-07-23T08:00:00.000Z",
+        purpose: "profile-banner",
+      },
+      status: "claimed",
+    });
+    const view = await renderScreen(createQueryClient());
+
+    await fireEvent.press(view.getByTestId("mobile-profile-edit-banner-picker"));
+
+    await waitFor(() => expect(view.getByTestId("mobile-profile-edit-banner-image")).toBeTruthy());
+    expect(mockSelectAndUpload).toHaveBeenCalledWith(
+      { purpose: "profile-banner" },
+      expect.any(Function),
+    );
+    expect(view.getByTestId("mobile-profile-edit-save").props.accessibilityState.disabled).toBe(
+      true,
+    );
+  });
+
+  it("keeps the avatar upload flow and its failure detail intact", async () => {
+    authenticatedApi(jest.fn(async () => accountSettings()));
     mockSelectAndUpload.mockResolvedValue({
       message: "The image upload could not be completed. (409 UPLOAD_CLAIM_UNAVAILABLE)",
       status: "error",
@@ -177,6 +315,35 @@ describe("mobile profile edit screen", () => {
         "The image upload could not be completed. (409 UPLOAD_CLAIM_UNAVAILABLE)",
       ),
     );
+    expect(mockSelectAndUpload).toHaveBeenCalledWith(
+      { purpose: "profile-avatar" },
+      expect.any(Function),
+    );
+  });
+
+  it("converts the picked duration into an absolute expiry on save", async () => {
+    const requestJson = profilePatchApi();
+    authenticatedApi(requestJson);
+    const view = await renderScreen(createQueryClient());
+
+    await fireEvent.changeText(
+      view.getByTestId("mobile-profile-edit-status-input"),
+      "Release notları",
+    );
+    await fireEvent.press(view.getByTestId("mobile-profile-edit-status-expiry-4h"));
+    await fireEvent.press(view.getByTestId("mobile-profile-edit-save"));
+
+    await waitFor(() => expect(requestJson).toHaveBeenCalled());
+    const patch = requestJson.mock.calls.find(
+      ([path, request]) =>
+        path === "/api/v1/mobile/account/profile" &&
+        (request as { method?: string } | undefined)?.method === "PATCH",
+    )?.[1] as { body: { customStatus: string; customStatusExpiresAt: string } };
+
+    expect(patch.body.customStatus).toBe("Release notları");
+    expect(Date.parse(patch.body.customStatusExpiresAt) - Date.now()).toBeGreaterThan(
+      3.9 * 60 * 60 * 1000,
+    );
   });
 
   it("changes presence through the presence sheet", async () => {
@@ -184,7 +351,7 @@ describe("mobile profile edit screen", () => {
       if (path === "/api/v1/mobile/account/presence" && request?.method === "PUT") {
         return { status: "ONLINE" };
       }
-      return accountSettings;
+      return accountSettings();
     });
     authenticatedApi(requestJson);
     const view = await renderScreen(createQueryClient());
