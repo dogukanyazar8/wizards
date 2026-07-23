@@ -137,8 +137,8 @@ importers:
         specifier: ~56.0.4
         version: 56.0.4(expo@56.0.15)
       expo-document-picker:
-        specifier: ~56.0.4
-        version: 56.0.4(expo@56.0.15)
+        specifier: ~57.0.1
+        version: 57.0.1(expo@56.0.15)
       expo-file-system:
         specifier: ~56.0.8
         version: 56.0.8(expo@56.0.15)(react-native@0.85.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/jest-preset@0.85.3(@babel/core@7.29.7(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1))(@react-native/metro-config@0.85.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.17)(react@19.2.3)(supports-color@8.1.1))
@@ -4580,8 +4580,8 @@ packages:
     peerDependencies:
       expo: '*'
 
-  expo-document-picker@56.0.4:
-    resolution: {integrity: sha512-75Apf74XNkYYohObIH19VZw42xpe0gmEnPccuzGXKVAzlvTYCfibSgW17F+6vt4paOfZEnAoZ1QFZM6dmaujRA==}
+  expo-document-picker@57.0.1:
+    resolution: {integrity: sha512-qBwM5oxDZ3I9kwFD3pUE1oK/WNv9artoEKO6UpqhQgNRr0XA1ALRVWYjkF4+ge9lUNDRehjTm/jenINkzqg84g==}
     peerDependencies:
       expo: '*'
 
@@ -12418,7 +12418,7 @@ snapshots:
       expo: 56.0.15(ca4a52b0826c3320c89d5296275dff47)
       ua-parser-js: 0.7.41
 
-  expo-document-picker@56.0.4(expo@56.0.15):
+  expo-document-picker@57.0.1(expo@56.0.15):
     dependencies:
       expo: 56.0.15(ca4a52b0826c3320c89d5296275dff47)
 
