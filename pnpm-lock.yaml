@@ -134,8 +134,8 @@ importers:
         specifier: ~56.0.22
         version: 56.0.22(expo@56.0.15)(react-native@0.85.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/jest-preset@0.85.3(@babel/core@7.29.7(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1))(@react-native/metro-config@0.85.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.17)(react@19.2.3)(supports-color@8.1.1))
       expo-device:
-        specifier: ~56.0.4
-        version: 56.0.4(expo@56.0.15)
+        specifier: ~57.0.1
+        version: 57.0.1(expo@56.0.15)
       expo-document-picker:
         specifier: ~56.0.4
         version: 56.0.4(expo@56.0.15)
@@ -4575,8 +4575,8 @@ packages:
       expo: '*'
       react-native: '*'
 
-  expo-device@56.0.4:
-    resolution: {integrity: sha512-ucVcGPkvBrl2QHuy7XcYex2Y6BETvJ6TREutZrwLGUDnlvbpKS8KfQoNZOpvkyo5Nmm9RrasYQ0CrXmBHho2mg==}
+  expo-device@57.0.1:
+    resolution: {integrity: sha512-jyEMDUticH+dhcL3GHa2aiifOvGXJsmb3oVT2R2q4i8bN7Bddy61+NkpMmuS2VAZrvoLQwf0TJJ/1vi1ukvutA==}
     peerDependencies:
       expo: '*'
 
@@ -12413,7 +12413,7 @@ snapshots:
       expo-dev-menu-interface: 56.0.1(expo@56.0.15)
       react-native: 0.85.3(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/jest-preset@0.85.3(@babel/core@7.29.7(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1))(@react-native/metro-config@0.85.3(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.17)(react@19.2.3)(supports-color@8.1.1)
 
-  expo-device@56.0.4(expo@56.0.15):
+  expo-device@57.0.1(expo@56.0.15):
     dependencies:
       expo: 56.0.15(ca4a52b0826c3320c89d5296275dff47)
       ua-parser-js: 0.7.41
