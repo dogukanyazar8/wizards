@@ -70,7 +70,7 @@
     "expo-notifications": "~56.0.20",
     "expo-secure-store": "~56.0.4",
     "expo-status-bar": "~56.0.4",
-    "expo-system-ui": "~56.0.5",
+    "expo-system-ui": "~57.0.1",
     "expo-updates": "~56.0.21",
     "expo-web-browser": "~56.0.5",
     "livekit-client": "^2.20.2",
