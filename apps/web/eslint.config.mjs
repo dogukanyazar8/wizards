@@ -11,13 +11,7 @@ const compat = new FlatCompat({
 
 const eslintConfig = [
   {
-    ignores: [
-      ".next/**",
-      "dist/**",
-      "node_modules/**",
-      "next-env.d.ts",
-      "tsconfig.tsbuildinfo",
-    ],
+    ignores: [".next/**", "dist/**", "node_modules/**", "next-env.d.ts", "tsconfig.tsbuildinfo"],
   },
   ...compat.extends("next/core-web-vitals", "next/typescript"),
   {
@@ -26,16 +20,16 @@ const eslintConfig = [
         "error",
         { prefer: "type-imports", fixStyle: "inline-type-imports" },
       ],
-      // React Compiler reports these diagnostics while safely skipping affected
-      // components. Keep them visible during the incremental migration instead
-      // of blocking every production build on the legacy surface.
-      "react-hooks/error-boundaries": "warn",
-      "react-hooks/incompatible-library": "warn",
-      "react-hooks/preserve-manual-memoization": "warn",
-      "react-hooks/purity": "warn",
-      "react-hooks/refs": "warn",
-      "react-hooks/set-state-in-effect": "warn",
-      "react-hooks/use-memo": "warn",
+      // React Compiler is not enabled for this application. Keep core Hook
+      // correctness rules active, but defer compiler-eligibility diagnostics
+      // until an explicit compiler migration owns their remediation.
+      "react-hooks/error-boundaries": "off",
+      "react-hooks/incompatible-library": "off",
+      "react-hooks/preserve-manual-memoization": "off",
+      "react-hooks/purity": "off",
+      "react-hooks/refs": "off",
+      "react-hooks/set-state-in-effect": "off",
+      "react-hooks/use-memo": "off",
       "no-console": ["warn", { allow: ["warn", "error", "info"] }],
     },
   },

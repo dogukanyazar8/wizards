@@ -1,29 +1,15 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type CSSProperties,
-  type ReactNode,
-} from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import {
   ConnectionQuality,
   ConnectionState,
   LocalVideoTrack,
-  RoomEvent,
-  type Participant,
   type RemoteVideoTrack,
   type Room,
 } from "livekit-client";
-import { useQuery } from "@tanstack/react-query";
-import type { WorkspaceMember } from "@wizards/types";
 import { useShallow } from "zustand/react/shallow";
 import {
-  AlertCircle,
-  Check,
   ChevronDown,
   Loader2,
   Maximize2,
@@ -32,10 +18,7 @@ import {
   MonitorUp,
   PhoneOff,
   RotateCcw,
-  Send,
   Settings2,
-  ShieldCheck,
-  ShieldOff,
   Users,
   Video,
   VideoOff,
@@ -45,21 +28,15 @@ import {
 import { Avatar } from "@/components/ui/avatar";
 import { useI18n } from "@/components/providers/locale-provider";
 import {
-  useVoiceParticipants,
-  useVoiceState,
   type NoiseFilterTier,
   type VoiceCameraStatus,
   type VoiceParticipantViewModel,
   type VoiceScreenShareViewModel,
 } from "@/components/providers/voice-provider";
 import { VoiceSettingsModal } from "@/components/voice/voice-settings-modal";
-import { getSocket } from "@/lib/socket/client";
-import type { VoiceInviteStatusPayload } from "@/lib/socket/events";
 import { SCREEN_SHARE_QUALITY_OPTIONS, type ScreenShareQualityId } from "@/lib/voice/screen-share";
-import { fetchWorkspaceServerMembers } from "@/lib/workspace/client";
 import { cn } from "@/lib/utils";
 import { useVoiceStore } from "@/store/voice-store";
-
 
 export type VoiceParticipantTileProps = {
   isScreenSharing: boolean;
@@ -85,7 +62,6 @@ export type RoomControlButtonProps = {
   testId?: string;
   title?: string;
 };
-
 
 export function isReconnectState(state: ConnectionState) {
   return state === ConnectionState.Reconnecting || state === ConnectionState.SignalReconnecting;
@@ -331,11 +307,7 @@ export function OutputStatusPill({ muted }: { muted: boolean }) {
           : "border-[hsl(var(--success)/0.20)] bg-[hsl(var(--success)/0.10)] text-[hsl(var(--success))]",
       )}
     >
-      {muted ? (
-        <VolumeX className="h-4 w-4" />
-      ) : (
-        <Volume2 className="h-4 w-4" />
-      )}
+      {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
       <span className="truncate">
         {muted ? t("voice.room.outputClosed") : t("voice.room.outputActive")}
       </span>
@@ -355,11 +327,7 @@ export function CameraStatusPill({ enabled }: { enabled: boolean }) {
           : "border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-soft)/0.52)] text-app-muted",
       )}
     >
-      {enabled ? (
-        <Video className="h-4 w-4" />
-      ) : (
-        <VideoOff className="h-4 w-4" />
-      )}
+      {enabled ? <Video className="h-4 w-4" /> : <VideoOff className="h-4 w-4" />}
       <span className="truncate">
         {enabled ? t("voice.room.cameraActive") : t("voice.room.cameraClosed")}
       </span>
@@ -367,7 +335,9 @@ export function CameraStatusPill({ enabled }: { enabled: boolean }) {
   );
 }
 
-export function getAvatarGlowStyle(participant: VoiceParticipantViewModel): CSSProperties | undefined {
+export function getAvatarGlowStyle(
+  participant: VoiceParticipantViewModel,
+): CSSProperties | undefined {
   if (participant.isMuted || !participant.isSpeaking) {
     return undefined;
   }
@@ -648,7 +618,6 @@ export function VoiceEmptyState() {
     </div>
   );
 }
-
 
 export function RoomControlButton({
   active = false,
@@ -1171,7 +1140,10 @@ export function ScreenShareStage({
   );
 }
 
-export function renderGridParticipants(room: Room | null, participants: VoiceParticipantViewModel[]) {
+export function renderGridParticipants(
+  room: Room | null,
+  participants: VoiceParticipantViewModel[],
+) {
   if (!room) {
     return participants;
   }

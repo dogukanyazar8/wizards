@@ -1,64 +1,33 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type CSSProperties,
-  type ReactNode,
-} from "react";
-import {
-  ConnectionQuality,
-  ConnectionState,
-  LocalVideoTrack,
-  RoomEvent,
-  type Participant,
-  type RemoteVideoTrack,
-  type Room,
-} from "livekit-client";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ConnectionQuality, RoomEvent, type Participant } from "livekit-client";
 import { useQuery } from "@tanstack/react-query";
 import type { WorkspaceMember } from "@wizards/types";
-import { useShallow } from "zustand/react/shallow";
 import {
   AlertCircle,
   Check,
-  ChevronDown,
   Loader2,
-  Maximize2,
   Mic,
   MicOff,
   MonitorUp,
-  PhoneOff,
-  RotateCcw,
   Send,
-  Settings2,
   ShieldCheck,
   ShieldOff,
-  Users,
   Video,
-  VideoOff,
-  Volume2,
-  VolumeX,
 } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { useI18n } from "@/components/providers/locale-provider";
 import {
   useVoiceParticipants,
   useVoiceState,
-  type NoiseFilterTier,
-  type VoiceCameraStatus,
   type VoiceParticipantViewModel,
   type VoiceScreenShareViewModel,
 } from "@/components/providers/voice-provider";
-import { VoiceSettingsModal } from "@/components/voice/voice-settings-modal";
 import { getSocket } from "@/lib/socket/client";
 import type { VoiceInviteStatusPayload } from "@/lib/socket/events";
-import { SCREEN_SHARE_QUALITY_OPTIONS, type ScreenShareQualityId } from "@/lib/voice/screen-share";
 import { fetchWorkspaceServerMembers } from "@/lib/workspace/client";
 import { cn } from "@/lib/utils";
-import { useVoiceStore } from "@/store/voice-store";
 import {
   ScreenShareStage,
   VOICE_SIGNAL_BAR_CLASSES,
@@ -76,12 +45,10 @@ import {
   type VoiceStageFocus,
 } from "@/components/voice/room/voice-room-primitives";
 
-
 type VoiceChannelViewProps = {
   channelId: string;
   serverId: string;
 };
-
 
 type VoiceInviteMember = WorkspaceMember & {
   inviteState?: "accepted" | "declined" | "error" | "idle" | "pending" | "waiting";
@@ -219,42 +186,42 @@ function VoiceParticipantsSidebar({
         </div>
 
         <div className="mt-4 border-t border-app-border pt-4">
-        <div className="mb-3 flex items-center justify-between gap-3 px-1">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-app-soft">
-            {t("voice.room.inviteMembersTitle")}
-          </p>
-          <span className="rounded-full border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.44)] px-2 py-0.5 text-[10px] font-bold text-app-muted">
-            {inviteMembers.length}
-          </span>
-        </div>
+          <div className="mb-3 flex items-center justify-between gap-3 px-1">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-app-soft">
+              {t("voice.room.inviteMembersTitle")}
+            </p>
+            <span className="rounded-full border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.44)] px-2 py-0.5 text-[10px] font-bold text-app-muted">
+              {inviteMembers.length}
+            </span>
+          </div>
 
-        {inviteError ? (
-          <div className="mb-3 flex items-center gap-2 rounded-2xl border border-[hsl(var(--danger)/0.18)] bg-[hsl(var(--danger)/0.08)] px-3 py-2 text-xs font-semibold text-[hsl(var(--danger))]">
-            <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-            <span>{inviteError}</span>
-          </div>
-        ) : null}
+          {inviteError ? (
+            <div className="mb-3 flex items-center gap-2 rounded-2xl border border-[hsl(var(--danger)/0.18)] bg-[hsl(var(--danger)/0.08)] px-3 py-2 text-xs font-semibold text-[hsl(var(--danger))]">
+              <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+              <span>{inviteError}</span>
+            </div>
+          ) : null}
 
-        {inviteMembers.length > 0 ? (
-          <div className="space-y-3">
-            <VoiceInviteMemberGroup
-              members={onlineMembers}
-              onSendInvite={onSendInvite}
-              pendingInviteUserIds={pendingInviteUserIds}
-              title={t("voice.room.onlineMembers")}
-            />
-            <VoiceInviteMemberGroup
-              members={offlineMembers}
-              onSendInvite={onSendInvite}
-              pendingInviteUserIds={pendingInviteUserIds}
-              title={t("voice.room.offlineMembers")}
-            />
-          </div>
-        ) : (
-          <div className="rounded-[24px] border border-dashed border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-soft)/0.28)] px-4 py-6 text-center text-sm font-medium text-app-muted">
-            {t("voice.room.noInviteMembers")}
-          </div>
-        )}
+          {inviteMembers.length > 0 ? (
+            <div className="space-y-3">
+              <VoiceInviteMemberGroup
+                members={onlineMembers}
+                onSendInvite={onSendInvite}
+                pendingInviteUserIds={pendingInviteUserIds}
+                title={t("voice.room.onlineMembers")}
+              />
+              <VoiceInviteMemberGroup
+                members={offlineMembers}
+                onSendInvite={onSendInvite}
+                pendingInviteUserIds={pendingInviteUserIds}
+                title={t("voice.room.offlineMembers")}
+              />
+            </div>
+          ) : (
+            <div className="rounded-[24px] border border-dashed border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-soft)/0.28)] px-4 py-6 text-center text-sm font-medium text-app-muted">
+              {t("voice.room.noInviteMembers")}
+            </div>
+          )}
         </div>
       </div>
     </aside>
@@ -362,8 +329,6 @@ function VoiceInviteMemberGroup({
   );
 }
 
-
-
 export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps) {
   const { t } = useI18n();
   const {
@@ -402,13 +367,11 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
   const [activeCameraParticipantId, setActiveCameraParticipantId] = useState<string | null>(null);
   const [stageFocus, setStageFocus] = useState<VoiceStageFocus>("screen");
   const [inviteError, setInviteError] = useState<string | null>(null);
-  const [inviteStates, setInviteStates] = useState<Record<string, VoiceInviteMember["inviteState"]>>(
-    {},
-  );
+  const [inviteStates, setInviteStates] = useState<
+    Record<string, VoiceInviteMember["inviteState"]>
+  >({});
   const [pendingInviteUserIds, setPendingInviteUserIds] = useState<Set<string>>(() => new Set());
-  const [localConnectionQuality, setLocalConnectionQuality] = useState(
-    ConnectionQuality.Unknown,
-  );
+  const [localConnectionQuality, setLocalConnectionQuality] = useState(ConnectionQuality.Unknown);
   const inviteStateResetTimersRef = useRef(new Map<string, number>());
   const joinChannelRef = useRef(joinChannel);
   const previousScreenShareCountRef = useRef(0);

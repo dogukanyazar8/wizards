@@ -42,3 +42,12 @@ overrides:
   "@opentelemetry/core": ^2.8.0
   "@opentelemetry/resources": ^2.8.0
   "@opentelemetry/sdk-trace-base": ^2.8.0
+
+minimumReleaseAgeExclude:
+  - "@turbo/darwin-64@2.10.6"
+  - "@turbo/darwin-arm64@2.10.6"
+  - "@turbo/linux-64@2.10.6"
+  - "@turbo/linux-arm64@2.10.6"
+  - "@turbo/windows-64@2.10.6"
+  - "@turbo/windows-arm64@2.10.6"
+  - turbo@2.10.6

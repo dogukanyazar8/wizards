@@ -13,7 +13,7 @@ const reactCompilerDiagnosticRules = [
   "react-hooks/use-memo",
 ];
 
-test("React Compiler diagnostics remain non-blocking while core Hook rules stay enforced", () => {
+test("React Compiler diagnostics stay disabled until a compiler rollout begins", () => {
   const source = readFileSync(
     fileURLToPath(new URL("../eslint.config.mjs", import.meta.url)),
     "utf8",
@@ -25,8 +25,8 @@ test("React Compiler diagnostics remain non-blocking while core Hook rules stay 
   for (const rule of reactCompilerDiagnosticRules) {
     assert.match(
       source,
-      new RegExp(`"${rule}": "warn"`),
-      `${rule} must not block a production build`,
+      new RegExp(`"${rule}": "off"`),
+      `${rule} must stay disabled until the compiler is enabled`,
     );
   }
   assert.doesNotMatch(source, /"react-hooks\/rules-of-hooks": "off"/u);

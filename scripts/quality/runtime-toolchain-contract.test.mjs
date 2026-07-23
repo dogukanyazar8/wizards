@@ -101,7 +101,7 @@ test("pnpm is pinned to the controlled package-manager release", () => {
 });
 
 test("Turbo is pinned to the reviewed toolchain release", () => {
-  assert.equal(readJson("package.json").devDependencies?.turbo, "2.10.5");
+  assert.equal(readJson("package.json").devDependencies?.turbo, "2.10.6");
 });
 
 test("stable typecheck generates Prisma before Turbo can replay cached tasks", () => {

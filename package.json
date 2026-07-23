@@ -33,7 +33,7 @@
   "devDependencies": {
     "@typescript/native": "catalog:",
     "prettier": "3.9.5",
-    "turbo": "2.10.5",
+    "turbo": "2.10.6",
     "typescript": "catalog:"
   }
 }

@@ -80,7 +80,11 @@ export function resolveMobileProfileRelationship(
   for (const row of rows) {
     if (row.status === "BLOCKED") {
       // A block row is directional: the sender is the one who blocked.
-      row.senderId === requesterId ? (blocked = true) : (blockedBy = true);
+      if (row.senderId === requesterId) {
+        blocked = true;
+      } else {
+        blockedBy = true;
+      }
     }
 
     const candidate: MobileFriendRelationship =
@@ -155,7 +159,9 @@ export function readProfilePresence(
 ): MobileUserProfile["presence"] {
   const status = mapStoredPresenceStatus(user.status);
   const customStatus =
-    status === "OFFLINE" ? null : readActiveCustomStatus(user.customStatus, user.customStatusExpiresAt, now);
+    status === "OFFLINE"
+      ? null
+      : readActiveCustomStatus(user.customStatus, user.customStatusExpiresAt, now);
 
   return {
     customStatus,
@@ -325,34 +331,28 @@ export async function getMobileUserProfile(
   }
 
   const isFriend = self || relationship === "friend";
-  const [
-    mutualServers,
-    mutualServerCount,
-    mutualFriends,
-    usedInviteCount,
-    serverContext,
-    note,
-  ] = await Promise.all([
-    dependencies.listMutualServers(input.requesterId, input.userId, {
-      limit: MUTUAL_PREVIEW_LIMIT,
-    }),
-    // The preview is capped at 12; the 1c header shows the real total, so it
-    // cannot be inferred from the preview length.
-    countMutualServers(input.requesterId, input.userId),
-    getMutualFriends(input.requesterId, input.userId),
-    prisma.serverInvite.count({ where: { createdById: input.userId, uses: { gt: 0 } } }),
-    input.serverId
-      ? getServerContext({
-          requesterId: input.requesterId,
-          serverId: input.serverId,
-          userId: input.userId,
-        })
-      : Promise.resolve(null),
-    // Your own card has nobody to keep a private note about, so it never asks.
-    self
-      ? Promise.resolve(null)
-      : dependencies.getNote({ authorId: input.requesterId, subjectId: input.userId }),
-  ]);
+  const [mutualServers, mutualServerCount, mutualFriends, usedInviteCount, serverContext, note] =
+    await Promise.all([
+      dependencies.listMutualServers(input.requesterId, input.userId, {
+        limit: MUTUAL_PREVIEW_LIMIT,
+      }),
+      // The preview is capped at 12; the 1c header shows the real total, so it
+      // cannot be inferred from the preview length.
+      countMutualServers(input.requesterId, input.userId),
+      getMutualFriends(input.requesterId, input.userId),
+      prisma.serverInvite.count({ where: { createdById: input.userId, uses: { gt: 0 } } }),
+      input.serverId
+        ? getServerContext({
+            requesterId: input.requesterId,
+            serverId: input.serverId,
+            userId: input.userId,
+          })
+        : Promise.resolve(null),
+      // Your own card has nobody to keep a private note about, so it never asks.
+      self
+        ? Promise.resolve(null)
+        : dependencies.getNote({ authorId: input.requesterId, subjectId: input.userId }),
+    ]);
 
   return {
     badges: deriveMobileProfileBadges({
