@@ -6,6 +6,7 @@ import type { ChatMessage } from "@wizards/types";
 
 import { MessagePreviewRow } from "../src/app/components/message-primitives";
 import { DMChatMessageRow, type DMChatMessage } from "../src/app/components/dm-chat-primitives";
+import { formatMobileDisplayTime } from "../src/app/mobile-root-screen-shared";
 import { createMessageReactionDetailSheetStyles } from "../src/app/components/message-reaction-detail-sheet.styles";
 import { lightTheme } from "../src/design/themes";
 import { ThreadReplyRow } from "../src/app/screens/message-thread-screen";
@@ -117,7 +118,11 @@ describe("8e reaction detail sheet", () => {
     await fireEvent(view.getByTestId("mobile-message-reaction-message-1-🎉"), "longPress");
 
     expect(view.getByText("Sen")).toBeTruthy();
-    expect(view.getByText("16:58 · kaldırmak için dokun")).toBeTruthy();
+    expect(
+      view.getByText(
+        `${formatMobileDisplayTime(message.reactions[0]!.users![1]!.reactedAt)} · kaldırmak için dokun`,
+      ),
+    ).toBeTruthy();
     expect(view.getByText("Ogi")).toBeTruthy();
 
     await fireEvent.press(view.getByTestId("mobile-message-reaction-detail-tab-🚀"));
