@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-
-import { buildContentSecurityPolicy, isMutatingApiRequestAllowed } from "./middleware";
+import {
+  buildContentSecurityPolicy,
+  getAuthRouteRedirectPath,
+  isMutatingApiRequestAllowed,
+} from "./middleware";
 
 describe("API CSRF guard", () => {
   const requestOrigin = "https://whispr.team";
@@ -85,5 +88,18 @@ describe("Content Security Policy", () => {
     assert.match(csp, /script-src[^;]*'strict-dynamic'/);
     assert.doesNotMatch(csp, /script-src[^;]*'unsafe-inline'/);
     assert.match(csp, /upgrade-insecure-requests/);
+  });
+});
+
+describe("auth middleware fail-closed contract", () => {
+  it("redirects protected routes when neither AUTH_SECRET nor NEXTAUTH_SECRET is configured", () => {
+    assert.equal(
+      getAuthRouteRedirectPath({
+        hasAuthSecret: false,
+        isAuthenticated: true,
+        pathname: "/channels",
+      }),
+      "/login",
+    );
   });
 });

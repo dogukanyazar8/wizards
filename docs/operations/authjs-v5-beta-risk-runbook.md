@@ -1,120 +1,75 @@
 # Auth.js v5 Beta Risk Runbook
 
-Last verified: 2026-07-09.
+Last verified: 2026-07-23.
 
 ## Current Decision
 
-Whispr stays on `next-auth@5.0.0-beta.31` for now. The version is pinned exactly in `apps/web/package.json` and must not be changed to a range such as `^5.0.0-beta.31` or `~5.0.0-beta.31`.
+Whispr pins `next-auth@5.0.0-beta.32` and `@auth/prisma-adapter@2.11.3` exactly in `apps/web/package.json`. Do not use semver ranges for either package.
 
-Registry evidence from 2026-07-09:
+Official release evidence:
 
-```bash
-npm view next-auth dist-tags
+- [next-auth@5.0.0-beta.32](https://github.com/nextauthjs/next-auth/releases/tag/next-auth%405.0.0-beta.32) upgrades to `@auth/core@0.41.3` and fixes malformed Bearer handling, provider-bound OAuth check cookies, NFKC email normalization, and fail-open session responses.
+- [@auth/prisma-adapter@2.11.3](https://github.com/nextauthjs/next-auth/releases/tag/%40auth%2Fprisma-adapter%402.11.3) lists only its `@auth/core` dependency update to `0.41.3`; no breaking change is announced.
+- `@auth/prisma-adapter@2.11.3` supports `@prisma/client` 5, so Whispr's `@prisma/client@5.22.0` remains compatible.
+
+Registry checks from this verification:
+
+```powershell
+pnpm.cmd view next-auth@5.0.0-beta.32 dependencies peerDependencies --json
+pnpm.cmd view @auth/prisma-adapter@2.11.3 dependencies peerDependencies --json
 ```
 
-Observed:
+Expected dependency alignment:
 
 ```text
-beta: 5.0.0-beta.31
-latest: 4.24.14
+next-auth@5.0.0-beta.32        @auth/core@0.41.3
+@auth/prisma-adapter@2.11.3    @auth/core@0.41.3
 ```
 
-```bash
-npm view next-auth versions
+There is no stable v5 target at this verification point. Stable v5 migration remains a separate approved change.
+
+## Rejected Alternatives
+
+v4 downgrade rejected: Whispr uses the v5 universal helpers, hardened Credentials flow, JWT revocation, and desktop OAuth handoff. Returning to v4 would be a separate rewrite, not rollback.
+
+Alternative auth library rejected: replacing Auth.js would replace OAuth account linking, session cookies, two-factor integration, and desktop/mobile handoff behavior outside this checkpoint.
+
+## Preserved Security Contracts
+
+- Middleware redirects `/channels` and `/settings` to `/login` when `AUTH_SECRET` and `NEXTAUTH_SECRET` are both absent, or session parsing fails.
+- Malformed `Authorization: Bearer ...` input must never produce a 500 response.
+- Credentials login retains login-proof, password, account-state, and two-factor checks.
+- Google requires `email_verified`; GitHub requires the matching verified primary email from GitHub.
+- JWT session revocation removes access after revocation.
+- Desktop OAuth handoff stays one-time and callback-path-bound.
+- Auth.js has only Credentials, Google, and GitHub providers. There is no Auth.js Email provider or magic-link login feature.
+
+## Required Verification
+
+```powershell
+corepack pnpm audit --audit-level moderate --json
+pnpm.cmd --filter @wizards/web exec node --import tsx --test src/lib/auth/next-auth-beta-contract.test.ts src/middleware.test.ts
+pnpm.cmd --filter @wizards/web e2e:api
+pnpm.cmd typecheck
+pnpm.cmd --filter @wizards/web build
+git diff --check
 ```
 
-Observed latest v5 entry:
+Pass conditions:
 
-```text
-5.0.0-beta.31
-```
+- Audit JSON reports `critical`, `high`, and `moderate` as zero.
+- Contract and middleware tests pass.
+- Auth API E2E executes credentials, two-factor, OAuth, revocation, malformed-Bearer, registration, and desktop-handoff coverage.
+- Typecheck, build, and whitespace checks pass.
 
-There is no stable 5.0.0 release in the registry at this verification point, so there is no stable v5 upgrade target.
+## Rollback
 
-## Why We Are Not Downgrading To v4
+No Prisma migration, native project, or CI change is part of this checkpoint. If a post-deploy regression is confirmed, revert the single checkpoint commit so `apps/web/package.json` and `pnpm-lock.yaml` roll back together; then re-run the required verification suite before redeploying. Do not manually edit a deployed lockfile or bypass Auth.js checks.
 
-Decision label: v4 downgrade rejected.
-
-`next-auth@4.24.14` is stable, but moving back to it would be a rewrite rather than a safe downgrade. Whispr's auth stack depends on the v5/Auth.js shape:
-
-- `apps/web/src/auth.ts` exports the v5 universal helpers used by app routes, middleware-adjacent code, and server components.
-- Credentials login uses a hardened `authorize()` path with login proofs and CR-07 two-factor verification.
-- Desktop OAuth handoff depends on the current credentials provider integration.
-- Session JWT callbacks include durable session revocation checks and profile hydration.
-- OAuth sign-in callbacks enforce verified Google and GitHub email behavior.
-
-The v4 handler-based API can be reconsidered only if v5 becomes unmaintained and a separate migration project is approved.
-
-## Why We Are Not Replacing Auth.js
-
-Decision label: alternative auth library rejected.
-
-An alternative auth library or custom auth implementation was considered and rejected for this task. It would require replacing credentials login, OAuth account linking, session cookies, JWT callbacks, desktop OAuth handoff, mobile handoff expectations, and two-factor integration. That is higher risk than staying pinned on the current beta with a regression safety net.
-
-## Stable v5.0.0 Migration Checklist
+## Stable v5 Migration Checklist
 
 When a stable 5.0.0 or newer v5 release appears:
 
-1. Re-run the registry checks:
-
-```bash
-npm view next-auth dist-tags
-npm view next-auth versions
-```
-
-2. Read the Auth.js release notes and changelog for:
-
-- provider callback signature changes
-- JWT encode/decode changes
-- cookie naming or security default changes
-- credentials provider behavior changes
-- Prisma adapter compatibility notes
-- OAuth account linking defaults
-
-3. Update only the exact `next-auth` pin. Do not use a semver range.
-
-4. Check whether `@auth/prisma-adapter` must also move, and keep that change in the same PR only if the release notes require it.
-
-5. Re-run the auth regression safety net before broad UI testing:
-
-```bash
-pnpm --filter @wizards/web test:coverage
-pnpm --filter @wizards/web typecheck
-pnpm --filter @wizards/web lint
-pnpm --filter @wizards/web e2e:api
-```
-
-6. In the E2E/API output, verify these scenarios still execute:
-
-- credentials login uses the real Auth.js callback
-- two-factor credentials login requires a valid second factor
-- session revocation invalidates an already issued Auth.js session
-- registration remains covered by the auth upgrade safety net
-- desktop OAuth handoff creates a one-time desktop claim URL when Redis is configured
-- Google OAuth remains tied to verified provider email
-
-7. Manually smoke the browser UI for:
-
-- `/login`
-- `/register`
-- Google OAuth start from web runtime
-- desktop OAuth start and complete from desktop runtime
-- settings security panel two-factor enable and disable
-
-8. Confirm `apps/web/src/auth.ts` still protects:
-
-- login proof requirement before credentials authorization
-- generic credential failure response for wrong password and missing or wrong 2FA
-- verified Google email requirement
-- desktop OAuth handoff token one-time consumption
-- JWT session revocation
-
-## Monitoring Reminder
-
-Set a recurring reminder outside the repo to check `nextauthjs/next-auth` releases and changelog for a stable v5 release. Suggested cadence: weekly until stable 5.0.0 exists, then immediately run this checklist.
-
-Suggested reminder text:
-
-```text
-Check nextauthjs/next-auth releases and npm dist-tags for stable Auth.js v5. If stable 5.0.0 exists, run docs/operations/authjs-v5-beta-risk-runbook.md.
-```
+1. Run `pnpm.cmd view next-auth dist-tags` and `pnpm.cmd view next-auth versions`.
+2. Review official Auth.js release notes for provider callbacks, JWT handling, cookies, Credentials behavior, Prisma adapter compatibility, and OAuth account-linking defaults.
+3. Keep the next-auth and adapter pins exact, update their lockfile chain together, then re-run this runbook.

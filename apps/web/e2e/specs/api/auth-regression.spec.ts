@@ -132,6 +132,17 @@ async function submitDuplicateRegistration(page: Page) {
 }
 
 test.describe("Auth.js upgrade regression safety net", () => {
+  test("malformed Bearer authorization header never returns a server error", async ({ request }) => {
+    const response = await request.get("/channels", {
+      headers: { authorization: "Bearer malformed" },
+      maxRedirects: 0,
+    });
+
+    expect(response.status()).toBeLessThan(500);
+    expect(response.status()).toBe(307);
+    expect(response.headers()["location"]).toContain("/login");
+  });
+
   test("credentials login uses the real Auth.js callback", async ({ request }) => {
     await resetE2EUserAuthState("alice");
 
@@ -141,7 +152,7 @@ test.describe("Auth.js upgrade regression safety net", () => {
     await expect.poll(() => getSessionEmail(request)).toBe(e2eUsers.alice.email);
   });
 
-  test("two-factor credentials login requires a valid second factor", async ({ request }) => {
+  test("two-factor credentials login rejects missing or incorrect second factor and accepts a valid one", async ({ request }) => {
     await resetE2EUserAuthState("alice");
     await enableE2EUserTwoFactor("alice");
 
@@ -149,6 +160,13 @@ test.describe("Auth.js upgrade regression safety net", () => {
       const missingFactorResponse = await submitCredentialsLogin(request, "alice");
 
       expect(missingFactorResponse.status()).toBeLessThan(500);
+      await expect.poll(() => getSessionEmail(request)).toBe(null);
+
+      const incorrectFactorResponse = await submitCredentialsLogin(request, "alice", {
+        twoFactorCode: "000000",
+      });
+
+      expect(incorrectFactorResponse.status()).toBeLessThan(500);
       await expect.poll(() => getSessionEmail(request)).toBe(null);
 
       const validFactorResponse = await submitCredentialsLogin(request, "alice", {
@@ -199,7 +217,7 @@ test.describe("Auth.js upgrade regression safety net", () => {
     expect(handoffUrl).not.toContain(e2eUsers.alice.email);
   });
 
-  test("Google OAuth remains tied to verified provider email", async () => {
+  test("Google and GitHub OAuth remain tied to verified provider email", async () => {
     await expect(
       canOAuthUserSignIn({
         account: { provider: "google" },
@@ -211,6 +229,24 @@ test.describe("Auth.js upgrade regression safety net", () => {
     await expect(
       canOAuthUserSignIn({
         account: { provider: "google" },
+        profile: { email: "alice@whispr.test" },
+        user: { email: "alice@whispr.test" },
+      }),
+    ).resolves.toBe(false);
+
+    await expect(
+      canOAuthUserSignIn({
+        account: { access_token: "github-access-token", provider: "github" },
+        fetchGitHubEmail: async () => "alice@whispr.test",
+        profile: { email: "alice@whispr.test" },
+        user: { email: "alice@whispr.test" },
+      }),
+    ).resolves.toBe(true);
+
+    await expect(
+      canOAuthUserSignIn({
+        account: { access_token: "github-access-token", provider: "github" },
+        fetchGitHubEmail: async () => "other@whispr.test",
         profile: { email: "alice@whispr.test" },
         user: { email: "alice@whispr.test" },
       }),

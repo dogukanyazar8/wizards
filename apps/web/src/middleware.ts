@@ -182,6 +182,26 @@ function isProtectedRoute(pathname: string): boolean {
   );
 }
 
+export function getAuthRouteRedirectPath({
+  hasAuthSecret,
+  isAuthenticated,
+  pathname,
+}: {
+  hasAuthSecret: boolean;
+  isAuthenticated: boolean;
+  pathname: string;
+}) {
+  if ((!hasAuthSecret || !isAuthenticated) && isProtectedRoute(pathname)) {
+    return "/login";
+  }
+
+  if (hasAuthSecret && isAuthenticated && REDIRECT_IF_AUTHENTICATED.has(pathname)) {
+    return "/channels";
+  }
+
+  return null;
+}
+
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
@@ -238,21 +258,18 @@ export async function middleware(request: NextRequest) {
       isAuthenticated = Boolean(token);
     }
   } catch {
-    // In development or if secret is not available, allow request through
+    // Token parsing failures remain unauthenticated; protected routes fail closed below.
     isAuthenticated = false;
   }
 
-  if (!isAuthenticated && isProtectedRoute(pathname)) {
+  const authRedirectPath = getAuthRouteRedirectPath({
+    hasAuthSecret: Boolean(secret),
+    isAuthenticated,
+    pathname,
+  });
+  if (authRedirectPath) {
     return attachSecurityHeaders(
-      NextResponse.redirect(new URL("/login", request.nextUrl.origin)),
-      cspHeader,
-      nonce,
-    );
-  }
-
-  if (isAuthenticated && REDIRECT_IF_AUTHENTICATED.has(pathname)) {
-    return attachSecurityHeaders(
-      NextResponse.redirect(new URL("/channels", request.nextUrl.origin)),
+      NextResponse.redirect(new URL(authRedirectPath, request.nextUrl.origin)),
       cspHeader,
       nonce,
     );

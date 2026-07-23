@@ -16,11 +16,23 @@ describe("next-auth beta dependency contract", () => {
       dependencies: Record<string, string>;
     };
 
-    assert.equal(packageJson.dependencies["next-auth"], "5.0.0-beta.31");
+    assert.equal(packageJson.dependencies["next-auth"], "5.0.0-beta.32");
     assert.doesNotMatch(packageJson.dependencies["next-auth"], /^[~^*><=]/);
+    assert.equal(packageJson.dependencies["@auth/prisma-adapter"], "2.11.3");
 
     const lockfile = readWorkspaceFile("pnpm-lock.yaml");
-    assert.match(lockfile, /next-auth@5\.0\.0-beta\.31:/);
+    assert.match(lockfile, /next-auth@5\.0\.0-beta\.32:/);
+    assert.match(lockfile, /@auth\/prisma-adapter@2\.11\.3['"]?:/);
+    assert.match(lockfile, /@auth\/core@0\.41\.3['"]?:/);
+  });
+
+  it("keeps the Auth.js provider surface to credentials and verified OAuth providers", () => {
+    const authSource = readWorkspaceFile("apps/web/src/auth.ts");
+
+    assert.match(authSource, /Credentials\(/);
+    assert.match(authSource, /GitHub\(/);
+    assert.match(authSource, /Google\(/);
+    assert.doesNotMatch(authSource, /next-auth\/providers\/email/);
   });
 
   it("keeps a deterministic auth regression E2E spec for future Auth.js upgrades", () => {
@@ -31,10 +43,11 @@ describe("next-auth beta dependency contract", () => {
     const spec = readFileSync(specPath, "utf8");
     for (const requiredScenario of [
       "credentials login uses the real Auth.js callback",
-      "two-factor credentials login requires a valid second factor",
+      "malformed Bearer authorization header never returns a server error",
+      "two-factor credentials login rejects missing or incorrect second factor and accepts a valid one",
       "session revocation invalidates an already issued Auth.js session",
       "desktop OAuth handoff creates a one-time desktop claim URL",
-      "Google OAuth remains tied to verified provider email",
+      "Google and GitHub OAuth remain tied to verified provider email",
       "registration remains covered by the auth upgrade safety net",
     ]) {
       assert.match(spec, new RegExp(requiredScenario.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
@@ -48,12 +61,15 @@ describe("next-auth beta dependency contract", () => {
 
     const runbook = readFileSync(runbookPath, "utf8");
     for (const requiredText of [
-      "npm view next-auth dist-tags",
-      "npm view next-auth versions",
-      "5.0.0-beta.31",
+      "pnpm.cmd view next-auth dist-tags",
+      "pnpm.cmd view next-auth versions",
+      "5.0.0-beta.32",
+      "@auth/prisma-adapter@2.11.3",
+      "@auth/core@0.41.3",
+      "github.com/nextauthjs/next-auth/releases/tag/next-auth%405.0.0-beta.32",
+      "pnpm audit --audit-level moderate --json",
       "stable 5.0.0",
-      "pnpm --filter @wizards/web test:coverage",
-      "pnpm --filter @wizards/web e2e:api",
+      "pnpm.cmd --filter @wizards/web e2e:api",
       "v4 downgrade",
       "alternative auth library",
     ]) {
