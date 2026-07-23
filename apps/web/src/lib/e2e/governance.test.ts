@@ -422,7 +422,9 @@ describe("Playwright E2E governance", () => {
       devDependencies: Record<string, string>;
       scripts: Record<string, string>;
     };
-    const mobilePackageJson = JSON.parse(readWorkspaceFile(join(workspaceRoot, "apps", "mobile", "package.json"))) as {
+    const mobilePackageJson = JSON.parse(
+      readWorkspaceFile(join(workspaceRoot, "apps", "mobile", "package.json")),
+    ) as {
       devDependencies: Record<string, string>;
     };
     const visualScript = packageJson.scripts["e2e:visual"] ?? "";
