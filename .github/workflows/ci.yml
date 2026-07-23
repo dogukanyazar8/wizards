@@ -35,7 +35,7 @@ permissions:
 jobs:
   verify:
     name: Verify
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, wizards-ci]
     timeout-minutes: 20
 
     steps:
@@ -112,7 +112,7 @@ jobs:
 
   typescript-native-shadow:
     name: TypeScript Compiler Compatibility
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, wizards-ci]
     timeout-minutes: 12
 
     steps:
@@ -213,7 +213,7 @@ jobs:
 
   e2e-smoke:
     name: Playwright E2E
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, wizards-ci]
     needs: verify
     timeout-minutes: 35
 
@@ -322,7 +322,7 @@ jobs:
 
   e2e-cross-browser:
     name: Playwright Firefox/WebKit Smoke
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, wizards-ci]
     needs: verify
     timeout-minutes: 35
 
@@ -418,7 +418,7 @@ jobs:
 
   e2e-a11y:
     name: Playwright Accessibility Scan
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, wizards-ci]
     needs: verify
     timeout-minutes: 35
 
@@ -514,7 +514,7 @@ jobs:
 
   e2e-visual:
     name: Playwright Visual Regression
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, wizards-ci]
     needs: verify
     continue-on-error: true
     timeout-minutes: 35
@@ -623,7 +623,7 @@ jobs:
             staged: false
           - os: macos-latest
             staged: false
-          - os: ubuntu-latest
+          - os: wizards-ci
             staged: false
 
     env:
