@@ -1312,7 +1312,8 @@ export const mobileCopy = {
     serverSettingsCancel: "İptal",
     serverSettingsChangeIcon: "Sunucu simgesini değiştir",
     serverSettingsContentPermissions: "İçerik izinleri",
-    serverSettingsDeleteBody: "Bu işlem sunucuyu ve mobilde görünen verilerini kalıcı olarak siler. Devam etmek için sunucu adını yazın.",
+    serverSettingsDeleteBody:
+      "Bu işlem sunucuyu ve mobilde görünen verilerini kalıcı olarak siler. Devam etmek için sunucu adını yazın.",
     serverSettingsDeleteServer: "Sunucuyu sil",
     serverSettingsDescription: "Açıklama",
     serverSettingsDescriptionEmpty: "Bir açıklama ekle",
@@ -1322,7 +1323,8 @@ export const mobileCopy = {
     serverSettingsGifSharing: "GIF paylaşımı",
     serverSettingsGifSharingHint: "Tüm üyeler gönderebilir",
     serverSettingsIconLoadFailed: "Sunucu simgesi depolamadan yüklenemedi.",
-    serverSettingsIconNotPersisted: "Yeni sunucu simgesi sunucuya kaydedilmedi. Lütfen yeniden deneyin.",
+    serverSettingsIconNotPersisted:
+      "Yeni sunucu simgesi sunucuya kaydedilmedi. Lütfen yeniden deneyin.",
     serverSettingsIconUploading: "Sunucu simgesi yükleniyor…",
     serverSettingsInvites: "Davetler",
     serverSettingsInvitesActive: "{count} aktif",
@@ -1380,9 +1382,11 @@ export const mobileCopy = {
     twoFactorDisableFailed: "2FA kapatılamadı. Şifreyi ve kodu kontrol edin.",
     twoFactorBack: "Geri",
     twoFactorSecurity: "Güvenlik",
-    twoFactorDescription: "Kimlik doğrulayıcı uygulamasıyla hesabınızı koruyun. Kurulum sırrı bu cihazda kaydedilmez.",
+    twoFactorDescription:
+      "Kimlik doğrulayıcı uygulamasıyla hesabınızı koruyun. Kurulum sırrı bu cihazda kaydedilmez.",
     twoFactorRecoveryCodes: "Kurtarma kodları",
-    twoFactorRecoveryCodesHint: "Bu kodları güvenli bir yerde saklayın. Bu ekrandan ayrılınca silinirler.",
+    twoFactorRecoveryCodesHint:
+      "Bu kodları güvenli bir yerde saklayın. Bu ekrandan ayrılınca silinirler.",
     twoFactorHideCodes: "Kodları gizle",
     twoFactorSetupTitle: "2FA kurulumu",
     twoFactorStartSetup: "Kurulumu başlat",
@@ -2731,7 +2735,8 @@ export const mobileCopy = {
     serverSettingsCancel: "Cancel",
     serverSettingsChangeIcon: "Change server icon",
     serverSettingsContentPermissions: "Content permissions",
-    serverSettingsDeleteBody: "This permanently deletes the server and its visible mobile data. Type the server name to continue.",
+    serverSettingsDeleteBody:
+      "This permanently deletes the server and its visible mobile data. Type the server name to continue.",
     serverSettingsDeleteServer: "Delete server",
     serverSettingsDescription: "Description",
     serverSettingsDescriptionEmpty: "Add a description",
@@ -2741,7 +2746,8 @@ export const mobileCopy = {
     serverSettingsGifSharing: "GIF sharing",
     serverSettingsGifSharingHint: "All members can send",
     serverSettingsIconLoadFailed: "The server icon could not be loaded from storage.",
-    serverSettingsIconNotPersisted: "The new server icon was not saved on the server. Please try again.",
+    serverSettingsIconNotPersisted:
+      "The new server icon was not saved on the server. Please try again.",
     serverSettingsIconUploading: "Uploading server icon…",
     serverSettingsInvites: "Invites",
     serverSettingsInvitesActive: "{count} active",
@@ -2794,14 +2800,18 @@ export const mobileCopy = {
     profileHubSignOutBody: "Are you sure you want to securely sign out?",
     profileHubSignOutTitle: "Sign out?",
     // src/account/mobile-two-factor-screen.tsx
-    twoFactorSetupFailed: "Setup could not start. Two-factor authentication may already be enabled.",
+    twoFactorSetupFailed:
+      "Setup could not start. Two-factor authentication may already be enabled.",
     twoFactorVerifyFailed: "The verification code could not be confirmed.",
-    twoFactorDisableFailed: "Two-factor authentication could not be disabled. Check the password and code.",
+    twoFactorDisableFailed:
+      "Two-factor authentication could not be disabled. Check the password and code.",
     twoFactorBack: "Back",
     twoFactorSecurity: "Security",
-    twoFactorDescription: "Protect your account with an authenticator app. Setup secrets are never stored on this device.",
+    twoFactorDescription:
+      "Protect your account with an authenticator app. Setup secrets are never stored on this device.",
     twoFactorRecoveryCodes: "Recovery codes",
-    twoFactorRecoveryCodesHint: "Store these codes securely. They are cleared when you leave this screen.",
+    twoFactorRecoveryCodesHint:
+      "Store these codes securely. They are cleared when you leave this screen.",
     twoFactorHideCodes: "Hide codes",
     twoFactorSetupTitle: "Set up 2FA",
     twoFactorStartSetup: "Start setup",
