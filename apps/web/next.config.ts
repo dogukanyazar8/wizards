@@ -20,10 +20,8 @@ function isProductionValue(value: string | undefined) {
   return value?.trim().toLowerCase() === "production";
 }
 
-const whisprVersion =
-  firstNonEmpty(process.env.WHISPR_VERSION, packageJson.version) ?? "0.0.0";
-const whisprBuildTime =
-  firstNonEmpty(process.env.WHISPR_BUILD_TIME) ?? new Date().toISOString();
+const whisprVersion = firstNonEmpty(process.env.WHISPR_VERSION, packageJson.version) ?? "0.0.0";
+const whisprBuildTime = firstNonEmpty(process.env.WHISPR_BUILD_TIME) ?? new Date().toISOString();
 const whisprCommitId = shortId(
   firstNonEmpty(
     process.env.RAILWAY_GIT_COMMIT_SHA,
@@ -32,14 +30,9 @@ const whisprCommitId = shortId(
   ),
 );
 const whisprDeployId = shortId(
-  firstNonEmpty(
-    process.env.RAILWAY_DEPLOYMENT_ID,
-    process.env.VERCEL_DEPLOYMENT_ID,
-  ),
+  firstNonEmpty(process.env.RAILWAY_DEPLOYMENT_ID, process.env.VERCEL_DEPLOYMENT_ID),
 );
-const whisprGeneratedBuildId = [whisprCommitId, whisprDeployId]
-  .filter(Boolean)
-  .join("-");
+const whisprGeneratedBuildId = [whisprCommitId, whisprDeployId].filter(Boolean).join("-");
 const whisprBuildId =
   firstNonEmpty(
     whisprGeneratedBuildId,
@@ -84,16 +77,15 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/(.*)",
-        headers:
-          isProductionDeployment
-            ? [
-                ...securityHeaders,
-                {
-                  key: "Strict-Transport-Security",
-                  value: "max-age=63072000; includeSubDomains; preload",
-                },
-              ]
-            : securityHeaders,
+        headers: isProductionDeployment
+          ? [
+              ...securityHeaders,
+              {
+                key: "Strict-Transport-Security",
+                value: "max-age=63072000; includeSubDomains; preload",
+              },
+            ]
+          : securityHeaders,
       },
     ];
   },
@@ -110,7 +102,11 @@ export default withSentryConfig(withBundleAnalyzer(nextConfig), {
   sentryUrl: process.env.SENTRY_URL || "https://de.sentry.io",
   silent: true,
   telemetry: false,
-  disableLogger: true,
+  webpack: {
+    treeshake: {
+      removeDebugLogging: true,
+    },
+  },
   tunnelRoute: "/monitoring",
   widenClientFileUpload: true,
   release: { name: whisprBuildId },

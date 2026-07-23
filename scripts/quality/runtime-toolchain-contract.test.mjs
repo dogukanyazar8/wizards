@@ -9,6 +9,20 @@ const expectedNodeVersion = "24.18.0";
 const expectedNodeRange = `>=${expectedNodeVersion} <25`;
 const expectedPackageManager = "pnpm@11.17.0";
 const expectedNodeTypes = "^24.13.3";
+const expectedNode24ActionPins = {
+  "actions/checkout": {
+    sha: "08c6903cd8c0fde910a37f88322edcfb5dd907a8",
+    tag: "v5.0.0",
+  },
+  "actions/setup-node": {
+    sha: "a0853c24544627f65ddf259abe73b1d18a591444",
+    tag: "v5.0.0",
+  },
+  "pnpm/action-setup": {
+    sha: "fc06bc1257f339d1d5d8b3a19a8cae5388b55320",
+    tag: "v5.0.0",
+  },
+};
 const expectedAllowedBuilds = {
   "@prisma/client": true,
   "@prisma/engines": true,
@@ -39,7 +53,7 @@ function readText(relativePath) {
 
 function readWorkflowJob(source, jobName) {
   const lineEnding = source.includes("\r\n") ? "\r\n" : "\n";
-  const lines = source.split(lineEnding);
+  const lines = source.split(/\r?\n/u);
   const headerIndex = lines.findIndex((line) => line === `  ${jobName}:`);
   assert.notEqual(headerIndex, -1, `missing workflow job: ${jobName}`);
 
@@ -150,6 +164,64 @@ test("all GitHub Actions pnpm jobs consume packageManager as their version sourc
   }
 
   assert.equal(setupPnpmSteps, 13, "unexpected pnpm/action-setup step count");
+});
+
+test("CI pins supported Node 24 action runtimes to reviewed releases", () => {
+  const workflow = readText(join(".github", "workflows", "ci.yml"));
+  const actionReferences = [
+    ...workflow.matchAll(
+      /^\s+uses:\s*(actions\/checkout|actions\/setup-node|pnpm\/action-setup)@([a-f0-9]{40})\s+#\s+(v\d+(?:\.\d+){0,2})\s*$/gmu,
+    ),
+  ];
+
+  assert.ok(actionReferences.length > 0, "CI must use reviewed JavaScript actions");
+
+  for (const [, action, sha, tag] of actionReferences) {
+    const expected = expectedNode24ActionPins[action];
+    assert.ok(expected, `unexpected action pin: ${action}`);
+    assert.equal(sha, expected.sha, `${action} must use its reviewed immutable SHA`);
+    assert.equal(tag, expected.tag, `${action} tag comment must match its immutable SHA`);
+  }
+
+  assert.deepEqual(
+    [...new Set(actionReferences.map(([, action]) => action))].sort(),
+    Object.keys(expectedNode24ActionPins).sort(),
+  );
+});
+
+test("setup-node v5 preserves the workflow's explicit pnpm cache policy", () => {
+  const lines = readText(join(".github", "workflows", "ci.yml")).split(/\r?\n/u);
+  let automaticCacheOptOuts = 0;
+
+  for (const [index, line] of lines.entries()) {
+    if (!/uses:\s*actions\/setup-node@/u.test(line)) {
+      continue;
+    }
+
+    const actionIndent = /^\s*/u.exec(line)?.[0].length ?? 0;
+    const actionInputLines = [];
+    for (const candidate of lines.slice(index + 1)) {
+      const candidateIndent = /^\s*/u.exec(candidate)?.[0].length ?? 0;
+      if (/^\s*-\s+/u.test(candidate) && candidateIndent < actionIndent) {
+        break;
+      }
+      actionInputLines.push(candidate);
+    }
+
+    const actionInputs = actionInputLines.join("\n");
+    if (/^\s+cache:\s+pnpm\s*$/mu.test(actionInputs)) {
+      continue;
+    }
+
+    assert.match(
+      actionInputs,
+      /^\s+package-manager-cache:\s+false\s*$/mu,
+      "setup-node v5 must not enable automatic pnpm cache where cache was previously off",
+    );
+    automaticCacheOptOuts += 1;
+  }
+
+  assert.equal(automaticCacheOptOuts, 8, "unexpected setup-node automatic-cache opt-out count");
 });
 
 test("Node 22 native compatibility runs only when hosted desktop checks are requested", () => {

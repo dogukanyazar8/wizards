@@ -150,6 +150,23 @@ describe("desktop release operations contract", () => {
     assert.match(desktopOpsJob, /\{"os":"macos-latest","staged":false\}/);
   });
 
+  it("documents the required manual CI evidence before release", async () => {
+    const releaseGuide = await readFile(path.join(desktopRoot, "RELEASE.md"), "utf8");
+
+    assert.match(releaseGuide, /## Required Manual CI Evidence Before Release/);
+    assert.match(releaseGuide, /`e2e_scope`: `full`/);
+    assert.match(releaseGuide, /`e2e_scope`: `smoke`/);
+    assert.match(releaseGuide, /`desktop_hosted`: `true`/);
+    assert.match(releaseGuide, /`playwright-report`/);
+    assert.match(releaseGuide, /`whispr-desktop-windows`/);
+    assert.match(releaseGuide, /Linux `desktop-ops`.*not Windows artifact evidence/i);
+    assert.match(releaseGuide, /schedule.*does not prove UAT runtime/i);
+    assert.match(
+      releaseGuide,
+      /does not add GitHub-hosted Windows or macOS capacity to default push CI/i,
+    );
+  });
+
   it("documents release rings, smoke gates, budgets, promotion rules, and safety rules", async () => {
     const [readme, releaseGuide, qaGuide] = await Promise.all([
       readFile(path.join(desktopRoot, "README.md"), "utf8"),
