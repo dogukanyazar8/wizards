@@ -1,5 +1,5 @@
 import type { MobileDMAttachmentsResponse, MobileDMAttachmentsTab } from "@wizards/types";
-import { Prisma, prisma } from "@wizards/db";
+import { prisma, type Prisma } from "@wizards/db";
 import { ApiError } from "@/lib/api";
 import { mapAttachmentsForViewer } from "@/lib/messages/attachment-visibility";
 import { dmAttachmentSelect, requireDMParticipant } from "@/lib/dm/service";
