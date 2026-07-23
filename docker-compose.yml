@@ -1,8 +1,6 @@
-version: "3.9"
-
 services:
   postgres:
-    image: postgres:16-alpine
+    image: postgres:18.4-alpine@sha256:9a8afca54e7861fd90fab5fdf4c42477a6b1cb7d293595148e674e0a3181de15
     container_name: wizards-postgres
     restart: unless-stopped
     environment:
@@ -12,10 +10,12 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      # PostgreSQL 18 image stores data under /var/lib/postgresql/18/docker.
+      # A new named volume prevents accidental reuse of a PostgreSQL 16 data directory.
+      - postgres18_data:/var/lib/postgresql
 
   redis:
-    image: redis:7-alpine
+    image: redis:8.8.0-alpine@sha256:9d317178eceac8454a2284a9e6df2466b93c745529947f0cd42a0fa9609d7005
     container_name: wizards-redis
     restart: unless-stopped
     ports:
@@ -24,7 +24,7 @@ services:
       - redis_data:/data
 
   clamav:
-    image: clamav/clamav:stable
+    image: clamav/clamav:1.5.2@sha256:1b6443c4a7b456baa1abfaf9796815f8d21e2fb558dbaed5b682fd4552d8b0c3
     container_name: wizards-clamav
     restart: unless-stopped
     ports:
@@ -33,7 +33,7 @@ services:
       - clamav_data:/var/lib/clamav
 
   livekit:
-    image: livekit/livekit-server:latest
+    image: livekit/livekit-server:v1.13.4@sha256:189f7c81b704a36642bc5c7e2d3e1ae83744627c11978a23a251bf19fbec64e0
     container_name: wizards-livekit
     restart: unless-stopped
     environment:
@@ -46,5 +46,5 @@ services:
 
 volumes:
   clamav_data:
-  postgres_data:
+  postgres18_data:
   redis_data:

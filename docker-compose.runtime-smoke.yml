@@ -1,0 +1,18 @@
+services:
+  postgres:
+    container_name: wizards-runtime-smoke-postgres
+    ports: !override
+      - "127.0.0.1:55432:5432"
+    volumes:
+      - runtime_smoke_postgres18_data:/var/lib/postgresql
+
+  redis:
+    container_name: wizards-runtime-smoke-redis
+    ports: !override
+      - "127.0.0.1:56379:6379"
+    volumes:
+      - runtime_smoke_redis8_data:/data
+
+volumes:
+  runtime_smoke_postgres18_data:
+  runtime_smoke_redis8_data:

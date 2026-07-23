@@ -25,16 +25,16 @@ Yerel başarı; remote CI, Railway deployment, EAS teslimi, Windows imzalama, up
 
 ## 2. Mimari ve portlar
 
-| Yüzey             | Yer                  | Süreç                                | Varsayılan port            |
-| ----------------- | -------------------- | ------------------------------------ | -------------------------- |
-| Web/API/Socket.IO | `apps/web`           | Next.js custom HTTP server           | `3000`                     |
-| Outbox worker     | `apps/web`           | Web içinde veya ayrı headless worker | Port açmaz                 |
-| PostgreSQL        | `docker-compose.yml` | `postgres:16-alpine`                 | `5432`                     |
-| Redis             | `docker-compose.yml` | `redis:7-alpine`                     | `6379`                     |
-| ClamAV            | `docker-compose.yml` | Attachment malware scanner           | `3310`                     |
-| LiveKit           | `docker-compose.yml` | Voice/video server                   | `7880`, `7881`, `7882/udp` |
-| Mobile Metro      | `apps/mobile`        | Expo dev server                      | `8081`                     |
-| Desktop           | `apps/desktop`       | Tauri 2 kabuğu                       | Ayrı backend yok           |
+| Yüzey             | Yer                  | Süreç                                 | Varsayılan port            |
+| ----------------- | -------------------- | ------------------------------------- | -------------------------- |
+| Web/API/Socket.IO | `apps/web`           | Next.js custom HTTP server            | `3000`                     |
+| Outbox worker     | `apps/web`           | Web içinde veya ayrı headless worker  | Port açmaz                 |
+| PostgreSQL        | `docker-compose.yml` | `postgres:18.4-alpine` (digest pinli) | `5432`                     |
+| Redis             | `docker-compose.yml` | `redis:8.8.0-alpine` (digest pinli)   | `6379`                     |
+| ClamAV            | `docker-compose.yml` | Attachment malware scanner            | `3310`                     |
+| LiveKit           | `docker-compose.yml` | Voice/video server                    | `7880`, `7881`, `7882/udp` |
+| Mobile Metro      | `apps/mobile`        | Expo dev server                       | `8081`                     |
+| Desktop           | `apps/desktop`       | Tauri 2 kabuğu                        | Ayrı backend yok           |
 
 Desktop mevcut web origin'ini yükler. Mobile aynı web API'lerini kullanır. PostgreSQL, Redis, auth ve provider secret'ları desktop veya mobile paketine gömülmez.
 
@@ -378,6 +378,8 @@ docker compose ps
 ```
 
 ClamAV ilk açılışta imza indirebilir; hazır olması PostgreSQL/Redis'ten uzun sürebilir.
+
+PostgreSQL 16 local volume'u varsa Compose'u açmadan önce [container runtime transition](../operations/container-runtime-transition.md) içindeki dump/restore yolunu uygulayın. Eski `postgres_data` volume'u PostgreSQL 18'e bağlanmaz.
 
 ### 8.2 Prisma
 
@@ -1182,7 +1184,7 @@ Bunlar onboarding'de gizlenmemelidir:
 3. Local E2E template DB adı ile CI DB adı farklıdır.
 4. Mobile `android` dizini ignored; UAT scripti fresh clone'da prebuild yapmaz.
 5. Kök `eas.json` ile `apps/mobile/eas.json` farklıdır; mobile için ikincisi kanoniktir.
-6. Docker Compose ClamAV `stable` ve LiveKit `latest` mutable tag kullanır; bit-for-bit reproducible değildir.
+6. PostgreSQL 18 major geçişi dump/restore ister; Redis 8'in lisans değişimi production onayı gerektirir.
 7. Desktop runner `.env` yüklemez.
 8. Mobile CI APK/Maestro çalıştırmaz.
 9. Nightly mobile visual job gerçek emulator capture yapmaz; committed evidence doğrular.
