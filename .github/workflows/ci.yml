@@ -13,6 +13,11 @@ on:
           - full
         required: true
         type: choice
+      desktop_hosted:
+        default: false
+        description: Run the Windows/macOS desktop matrix (consumes GitHub-hosted runner minutes)
+        required: true
+        type: boolean
   schedule:
     - cron: "17 2 * * *"
   pull_request:
@@ -156,7 +161,10 @@ jobs:
 
   node22-compatibility:
     name: Node 22 Native Compatibility
-    if: github.event_name == 'schedule'
+    # This job validates Windows-native dependencies and cannot run on the Linux
+    # self-hosted runner. Keep it explicit so scheduled CI never queues paid
+    # GitHub-hosted Windows capacity.
+    if: github.event_name == 'workflow_dispatch' && inputs.desktop_hosted
     runs-on: windows-latest
     timeout-minutes: 35
 
@@ -619,14 +627,9 @@ jobs:
 
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - os: windows-latest
-            staged: false
-          - os: macos-latest
-            staged: false
-          - os: wizards-ci
-            staged: false
+      # Automatic CI stays on the free self-hosted runner. The hosted Windows
+      # and macOS checks remain available through an explicit manual opt-in.
+      matrix: ${{ inputs.desktop_hosted && fromJSON('{"include":[{"os":"wizards-ci","staged":false},{"os":"windows-latest","staged":false},{"os":"macos-latest","staged":false}]}') || fromJSON('{"include":[{"os":"wizards-ci","staged":false}]}') }}
 
     env:
       TAURI_WEB_URL: https://whispr.team
@@ -661,6 +664,9 @@ jobs:
 
   desktop-build:
     name: Tauri Desktop Build
+    # A Windows artifact requires a Windows runner. Do not send automatic UAT
+    # runs to paid GitHub-hosted capacity while the workflow is self-hosted.
+    if: github.event_name == 'workflow_dispatch' && inputs.desktop_hosted
     runs-on: windows-latest
     needs:
       - verify
