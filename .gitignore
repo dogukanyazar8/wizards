@@ -38,6 +38,7 @@ apps/mobile/artifacts/
 
 # Local cross-platform verification evidence
 /artifacts/
+results.sarif
 !/artifacts/
 /artifacts/*
 !/artifacts/redesign/
