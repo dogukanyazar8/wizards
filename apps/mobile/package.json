@@ -103,7 +103,7 @@
     "jest-expo": "56.0.5",
     "pixelmatch": "7.1.0",
     "react-dom": "19.2.3",
-    "sharp": "0.34.5",
+    "sharp": "0.35.3",
     "ssim.js": "3.5.0",
     "test-renderer": "1.2.0",
     "tsx": "^4.22.4",
