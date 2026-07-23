@@ -419,7 +419,11 @@ describe("Playwright E2E governance", () => {
 
   it("keeps visual baselines deterministic and Docker-only", () => {
     const packageJson = JSON.parse(readWorkspaceFile(join(webRoot, "package.json"))) as {
+      devDependencies: Record<string, string>;
       scripts: Record<string, string>;
+    };
+    const mobilePackageJson = JSON.parse(readWorkspaceFile(join(workspaceRoot, "apps", "mobile", "package.json"))) as {
+      devDependencies: Record<string, string>;
     };
     const visualScript = packageJson.scripts["e2e:visual"] ?? "";
     const config = readWorkspaceFile(join(webRoot, "playwright.config.ts"));
@@ -430,6 +434,8 @@ describe("Playwright E2E governance", () => {
     assert.match(visualScript, /e2e:check-env/);
     assert.match(visualScript, /--project=chromium/);
     assert.match(visualScript, /e2e\/specs\/visual/);
+    assert.equal(packageJson.devDependencies["@playwright/test"], "^1.61.1");
+    assert.equal(mobilePackageJson.devDependencies["@playwright/test"], "1.61.1");
     assert.match(config, /toHaveScreenshot:\s*\{/);
     assert.match(config, /maxDiffPixelRatio:\s*0\.02/);
     assert.match(config, /animations:\s*"disabled"/);
@@ -439,7 +445,7 @@ describe("Playwright E2E governance", () => {
 
     const visualSpec = readWorkspaceFile(visualSpecPath);
     assert.equal(visualSpec.match(/\.toHaveScreenshot\(/g)?.length, 4);
-    assert.match(e2eReadme, /mcr\.microsoft\.com\/playwright:v1\.59\.1-noble/);
+    assert.match(e2eReadme, /mcr\.microsoft\.com\/playwright:v1\.61\.1-noble/);
     assert.match(e2eReadme, /baseline snapshots must only be updated inside Docker/i);
     assert.match(
       e2eReadme,

@@ -226,7 +226,7 @@ docker run --rm --network host \
   -e NEXTAUTH_SECRET=whispr-e2e-auth-secret-change-me-local-only \
   -e E2E_TEST_PASSWORD \
   -e NODE_ENV=test \
-  mcr.microsoft.com/playwright:v1.59.1-noble \
+  mcr.microsoft.com/playwright:v1.61.1-noble \
   bash -lc "corepack enable && pnpm db:generate && pnpm --filter @wizards/web e2e:visual --update-snapshots"
 ```
 
@@ -522,7 +522,7 @@ Trace, screenshots, and video are configured in `playwright.config.ts`:
 - Keep every Playwright entrypoint behind `pnpm run e2e:check-env`.
 - Prefer `expect.poll` for realtime state that arrives asynchronously.
 - Keep smoke tests fast.
-- Update visual baselines only with `mcr.microsoft.com/playwright:v1.59.1-noble`.
+- Update visual baselines only with `mcr.microsoft.com/playwright:v1.61.1-noble`.
 - Put expensive multi-user/media tests outside smoke unless they protect a critical regression.
 - Never add production secrets to tests, CI, or docs.
 - Keep the governance tests green before broadening E2E scope; they protect CI signal quality.
