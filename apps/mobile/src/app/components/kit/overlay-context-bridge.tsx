@@ -1,7 +1,9 @@
 import { NavigationContext } from "@react-navigation/native";
 import { createElement, useContext, type Context, type ReactNode } from "react";
 import { MobileChatKeyboardScopeContext } from "../../mobile-chat-keyboard-region";
-import { MobileProfileCardScopeContext } from "../../../social/profile-card/profile-card-scope";
+// The leaf context module, never the provider file: importing the provider pulls
+// the profile card — and every sheet it renders — back into this kit module.
+import { MobileProfileCardScopeContext } from "../../../social/profile-card/profile-card-scope-context";
 import { listMobileOverlayScopedContexts } from "./overlay-scoped-contexts";
 
 /**

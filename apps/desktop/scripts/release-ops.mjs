@@ -58,7 +58,8 @@ export const DESKTOP_REQUIRED_SMOKE_TESTS = Object.freeze([
     id: "shortcut-registration",
     label: "Shortcut registration",
     requiredOn: "windows",
-    description: "Register, trigger, and unregister desktop voice shortcuts without broad permissions.",
+    description:
+      "Register, trigger, and unregister desktop voice shortcuts without broad permissions.",
   },
   {
     id: "overlay-show-hide",
@@ -89,7 +90,8 @@ export const DESKTOP_RELEASE_PERFORMANCE_EVIDENCE = Object.freeze([
   {
     id: "updater-check-install",
     budget: "success",
-    description: "Verify update check, download, install, relaunch, and version reporting on the target ring.",
+    description:
+      "Verify update check, download, install, relaunch, and version reporting on the target ring.",
   },
   {
     id: "overlay-cpu",
@@ -119,7 +121,11 @@ export const DESKTOP_RELEASE_PROMOTION_RULES = Object.freeze([
   {
     ring: "canary",
     rollout: "small monitored production cohort",
-    entryCriteria: ["UAT evidence is attached", "rollback manifest is ready", "support owner is assigned"],
+    entryCriteria: [
+      "UAT evidence is attached",
+      "rollback manifest is ready",
+      "support owner is assigned",
+    ],
     exitCriteria: [
       "canary update health is clean",
       "crash and install failure signals stay within budget",
@@ -145,7 +151,8 @@ export const DESKTOP_RELEASE_SAFETY_RULES = Object.freeze([
   },
   {
     id: "signed-updater-only",
-    description: "Do not enable updater distribution without Ed25519 signatures and HTTPS manifests.",
+    description:
+      "Do not enable updater distribution without Ed25519 signatures and HTTPS manifests.",
   },
   {
     id: "no-native-game-hooks",
@@ -153,19 +160,23 @@ export const DESKTOP_RELEASE_SAFETY_RULES = Object.freeze([
   },
   {
     id: "no-hardware-encode-claims",
-    description: "Do not present hardware encode as guaranteed; WebRTC/WebView owns encoder choice.",
+    description:
+      "Do not present hardware encode as guaranteed; WebRTC/WebView owns encoder choice.",
   },
   {
     id: "no-desktop-secrets",
-    description: "Do not store tokens, session secrets, private keys, or server credentials in desktop code.",
+    description:
+      "Do not store tokens, session secrets, private keys, or server credentials in desktop code.",
   },
   {
     id: "no-fake-security-ui",
-    description: "Do not show privacy or security controls as active unless backend enforcement exists.",
+    description:
+      "Do not show privacy or security controls as active unless backend enforcement exists.",
   },
   {
     id: "overlay-voice-only",
-    description: "Do not send messages, DMs, emails, invite links, or private content to overlay windows.",
+    description:
+      "Do not send messages, DMs, emails, invite links, or private content to overlay windows.",
   },
 ]);
 
@@ -176,9 +187,7 @@ export function getDesktopVersionContract(projectRoot = repoRoot) {
   const tauriConfig = readJson(
     path.join(projectRoot, "apps", "desktop", "src-tauri", "tauri.conf.json"),
   );
-  const cargoToml = readText(
-    path.join(projectRoot, "apps", "desktop", "src-tauri", "Cargo.toml"),
-  );
+  const cargoToml = readText(path.join(projectRoot, "apps", "desktop", "src-tauri", "Cargo.toml"));
 
   const rootPackageVersion = String(rootPackage.version ?? "");
   const webPackageVersion = String(webPackage.version ?? "");
@@ -211,9 +220,9 @@ export function getDesktopReleaseOpsContract() {
     safetyRules: DESKTOP_RELEASE_SAFETY_RULES.map((rule) => ({ ...rule })),
     versionContract: getDesktopVersionContract(),
     platformMatrix: {
-      windows: "mandatory",
-      macos: "mandatory",
-      linux: "mandatory",
+      windows: "manual-hosted",
+      macos: "manual-hosted",
+      linux: "automatic",
     },
   };
 }
@@ -245,7 +254,10 @@ export function assertDesktopReleaseOpsContract(contract = getDesktopReleaseOpsC
 
   const evidenceIds = new Set(contract.performanceEvidence.map((item) => item.id));
   for (const requiredId of DESKTOP_RELEASE_PERFORMANCE_EVIDENCE.map((item) => item.id)) {
-    assertCondition(evidenceIds.has(requiredId), `Missing desktop performance evidence: ${requiredId}`);
+    assertCondition(
+      evidenceIds.has(requiredId),
+      `Missing desktop performance evidence: ${requiredId}`,
+    );
   }
 
   for (const item of contract.performanceEvidence) {
@@ -262,8 +274,14 @@ export function assertDesktopReleaseOpsContract(contract = getDesktopReleaseOpsC
   const promotionRings = contract.promotionRules.map((rule) => rule.ring);
   assertArrayEquals(promotionRings, ["uat", "canary", "stable"], "promotion rings");
   for (const rule of contract.promotionRules) {
-    assertCondition(rule.entryCriteria.length > 0, `Promotion rule ${rule.ring} needs entry criteria.`);
-    assertCondition(rule.exitCriteria.length > 0, `Promotion rule ${rule.ring} needs exit criteria.`);
+    assertCondition(
+      rule.entryCriteria.length > 0,
+      `Promotion rule ${rule.ring} needs entry criteria.`,
+    );
+    assertCondition(
+      rule.exitCriteria.length > 0,
+      `Promotion rule ${rule.ring} needs exit criteria.`,
+    );
     assertCondition(
       typeof rule.rollout === "string" && rule.rollout.length > 0,
       `Promotion rule ${rule.ring} needs a rollout description.`,
@@ -272,12 +290,24 @@ export function assertDesktopReleaseOpsContract(contract = getDesktopReleaseOpsC
 
   const safetyRuleIds = new Set(contract.safetyRules.map((rule) => rule.id));
   for (const requiredRule of DESKTOP_RELEASE_SAFETY_RULES.map((rule) => rule.id)) {
-    assertCondition(safetyRuleIds.has(requiredRule), `Missing desktop safety rule: ${requiredRule}`);
+    assertCondition(
+      safetyRuleIds.has(requiredRule),
+      `Missing desktop safety rule: ${requiredRule}`,
+    );
   }
 
-  assertCondition(contract.platformMatrix.windows === "mandatory", "Windows desktop CI must be mandatory.");
-  assertCondition(contract.platformMatrix.macos === "mandatory", "macOS desktop CI must be mandatory.");
-  assertCondition(contract.platformMatrix.linux === "mandatory", "Linux desktop CI must be mandatory.");
+  assertCondition(
+    contract.platformMatrix.windows === "manual-hosted",
+    "Windows desktop CI must require explicit hosted execution.",
+  );
+  assertCondition(
+    contract.platformMatrix.macos === "manual-hosted",
+    "macOS desktop CI must require explicit hosted execution.",
+  );
+  assertCondition(
+    contract.platformMatrix.linux === "automatic",
+    "Linux desktop CI must run automatically on the self-hosted runner.",
+  );
   assertDesktopVersionContract(contract.versionContract);
 
   return contract;
@@ -324,7 +354,10 @@ function assertArrayEquals(actual, expected, label) {
 
 function assertPositiveBudget(value, name, maxValue) {
   assertCondition(Number.isFinite(value) && value > 0, `${name} must be a positive number.`);
-  assertCondition(value <= maxValue, `${name} budget ${value} exceeds allowed maximum ${maxValue}.`);
+  assertCondition(
+    value <= maxValue,
+    `${name} budget ${value} exceeds allowed maximum ${maxValue}.`,
+  );
 }
 
 function assertSemverLike(value, label) {

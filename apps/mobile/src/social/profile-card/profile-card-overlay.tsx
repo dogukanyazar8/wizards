@@ -2,6 +2,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -91,10 +92,13 @@ function readReportReasons(): readonly { label: string; value: MobileUserReportR
 
 function ProfileCardOverlay({
   onClose,
+  onClosed,
   open,
   target,
 }: {
   onClose(): void;
+  /** Fired once the exit animation is done, so the provider can drop the target. */
+  onClosed(): void;
   readonly open: boolean;
   readonly target: MobileProfileCardTarget;
 }) {
@@ -123,7 +127,11 @@ function ProfileCardOverlay({
   const [statusPickerOpen, setStatusPickerOpen] = useState(false);
   const [customStatusOpen, setCustomStatusOpen] = useState(false);
   const reducedMotion = useReducedMotion();
-  const progress = useSharedValue(open ? 1 : 0);
+  // Always from zero: the overlay mounts per open, so seeding this from `open`
+  // would land the card on screen already finished and skip the entry motion.
+  // The layout effect below starts the animation in the same commit that
+  // registers the surface, so the first drawn frame is already animating.
+  const progress = useSharedValue(0);
   const { phase, settleClosed } = useOverlayPhase(open);
   const profileQuery = useMobileUserProfileQuery(apiClient, {
     enabled: status === "signed-in",
@@ -183,6 +191,14 @@ function ProfileCardOverlay({
       },
     );
   }, [phase, progress, reducedMotion, settleClosed]);
+
+  // The exit animation owns the unmount: the card is still on screen through
+  // "closing", and only the settled frame hands the target back.
+  useEffect(() => {
+    if (phase === "closed") {
+      onClosed();
+    }
+  }, [onClosed, phase]);
 
   const animatedBackdropStyle = useAnimatedStyle(() => ({ opacity: progress.value }), []);
   const animatedCardStyle = useAnimatedStyle(
@@ -381,6 +397,14 @@ function ProfileCardOverlay({
     // "İsteği yanıtla" button stays inert instead of opening a dead sheet.
     (profile?.relationship === "incoming" && incomingRequestId === null);
 
+  // Same gate every other overlay in the app applies. Without it the surface
+  // keeps its host entry after the card fades out, and that entry is a
+  // full-screen backdrop: the app still draws, but every touch lands on a
+  // transparent layer that only re-runs an already-finished dismissal.
+  if (phase === "closed") {
+    return null;
+  }
+
   return (
     <>
       <OverlaySurface
@@ -529,12 +553,25 @@ export function MobileProfileCardProvider({ children }: PropsWithChildren) {
     }),
     [],
   );
+  const handleClose = useCallback(() => setOpen(false), []);
+  /**
+   * A settled card is dropped entirely rather than parked at `open={false}`: the
+   * overlay unmounting is what releases its host layer, and it also ends the
+   * profile, friends and account subscriptions the card opened. The next touch
+   * re-mounts it against a warm cache.
+   */
+  const handleClosed = useCallback(() => setTarget(null), []);
 
   return (
     <ProfileCardContext.Provider value={controller}>
       {children}
       {target ? (
-        <ProfileCardOverlay onClose={() => setOpen(false)} open={open} target={target} />
+        <ProfileCardOverlay
+          onClose={handleClose}
+          onClosed={handleClosed}
+          open={open}
+          target={target}
+        />
       ) : null}
     </ProfileCardContext.Provider>
   );

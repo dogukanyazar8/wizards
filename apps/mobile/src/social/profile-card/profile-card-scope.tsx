@@ -1,22 +1,12 @@
-import { createContext, useCallback, useContext, type Context, type ReactNode } from "react";
+import { useCallback, type ReactNode } from "react";
 
-import { registerMobileOverlayScopedContext } from "../../app/components/kit/overlay-scoped-contexts";
 import { useMobileProfileCard } from "./profile-card-overlay";
+import {
+  MobileProfileCardScopeContext,
+  useMobileProfileCardScope,
+} from "./profile-card-scope-context";
 
-/**
- * The server a surface belongs to, so an avatar touch anywhere inside it opens
- * the card with role chips without every list in between forwarding a prop.
- * `undefined` outside a server surface — a DM has no roles to show.
- */
-export const MobileProfileCardScopeContext = createContext<string | undefined>(undefined);
-
-// The provider mounts below MobileOverlayHost (channel/thread/member screens),
-// so overlay children — the reaction detail sheet — only keep the scope because
-// the bridge carries it.
-registerMobileOverlayScopedContext({
-  context: MobileProfileCardScopeContext as unknown as Context<unknown>,
-  name: "MobileProfileCardScope",
-});
+export { MobileProfileCardScopeContext, useMobileProfileCardScope };
 
 export function MobileProfileCardScope({
   children,
@@ -30,10 +20,6 @@ export function MobileProfileCardScope({
       {children}
     </MobileProfileCardScopeContext.Provider>
   );
-}
-
-export function useMobileProfileCardScope(): string | undefined {
-  return useContext(MobileProfileCardScopeContext);
 }
 
 /**

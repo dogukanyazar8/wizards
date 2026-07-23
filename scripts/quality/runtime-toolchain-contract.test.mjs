@@ -200,6 +200,35 @@ test("Node 22 native compatibility runs only when hosted desktop checks are requ
   );
 });
 
+test("self-hosted CI uses the runner's persistent pnpm store instead of GitHub cache archives", () => {
+  const workflow = readText(join(".github", "workflows", "ci.yml"));
+  const selfHostedJobs = [
+    "verify",
+    "typescript-native-shadow",
+    "e2e-smoke",
+    "e2e-cross-browser",
+    "e2e-a11y",
+    "e2e-visual",
+    "desktop-ops",
+  ];
+
+  for (const jobName of selfHostedJobs) {
+    assert.doesNotMatch(
+      readWorkflowJob(workflow, jobName),
+      /^          cache: pnpm$/mu,
+      `${jobName} must use the persistent self-hosted pnpm store`,
+    );
+  }
+
+  for (const jobName of ["node22-compatibility", "desktop-build"]) {
+    assert.match(
+      readWorkflowJob(workflow, jobName),
+      /^          cache: pnpm$/mu,
+      `${jobName} must retain cache archives on GitHub-hosted runners`,
+    );
+  }
+});
+
 test("all GitHub Actions jobs consume the central Node runtime contract", () => {
   const workflowsDirectory = join(root, ".github", "workflows");
   const workflowNames = readdirSync(workflowsDirectory).filter((name) => /\.ya?ml$/u.test(name));

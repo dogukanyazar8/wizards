@@ -93,9 +93,7 @@ describe("desktop release operations contract", () => {
   it("keeps the release guide version aligned and command examples version-neutral", async () => {
     const contract = assertDesktopVersionContract(getDesktopVersionContract());
     const releaseGuide = await readFile(path.join(desktopRoot, "RELEASE.md"), "utf8");
-    const documentedVersionMatch = releaseGuide.match(
-      /The current desktop version is `([^`]+)`\./,
-    );
+    const documentedVersionMatch = releaseGuide.match(/The current desktop version is `([^`]+)`\./);
 
     assert.ok(documentedVersionMatch, "Expected an authoritative desktop version statement");
     assert.equal(documentedVersionMatch[1], contract.desktopPackageVersion);
@@ -126,14 +124,14 @@ describe("desktop release operations contract", () => {
     );
   });
 
-  it("keeps desktop operations CI mandatory on every runner", async () => {
+  it("keeps self-hosted desktop operations automatic and hosted validation manually gated", async () => {
     const contract = assertDesktopReleaseOpsContract(getDesktopReleaseOpsContract());
     const workflow = await readFile(path.join(repoRoot, ".github/workflows/ci.yml"), "utf8");
 
     assert.deepEqual(contract.platformMatrix, {
-      windows: "mandatory",
-      macos: "mandatory",
-      linux: "mandatory",
+      windows: "manual-hosted",
+      macos: "manual-hosted",
+      linux: "automatic",
     });
     const desktopOpsStart = workflow.indexOf("\n  desktop-ops:");
     const desktopBuildStart = workflow.indexOf("\n  desktop-build:");
@@ -142,10 +140,14 @@ describe("desktop release operations contract", () => {
     assert.notEqual(desktopOpsStart, -1);
     assert.notEqual(desktopBuildStart, -1);
     assert.doesNotMatch(desktopOpsJob, /continue-on-error:/);
-
-    for (const os of ["windows-latest", "macos-latest", "ubuntu-latest"]) {
-      assert.match(desktopOpsJob, new RegExp(`- os: ${os}\\r?\\n\\s+staged: false`));
-    }
+    assert.match(
+      workflow,
+      /^      desktop_hosted:\r?\n        default: false\r?\n        description: Run the Windows\/macOS desktop matrix \(consumes GitHub-hosted runner minutes\)\r?\n        required: true\r?\n        type: boolean$/mu,
+    );
+    assert.match(desktopOpsJob, /\{"os":"wizards-ci","staged":false\}/);
+    assert.match(desktopOpsJob, /inputs\.desktop_hosted && fromJSON/);
+    assert.match(desktopOpsJob, /\{"os":"windows-latest","staged":false\}/);
+    assert.match(desktopOpsJob, /\{"os":"macos-latest","staged":false\}/);
   });
 
   it("documents release rings, smoke gates, budgets, promotion rules, and safety rules", async () => {
