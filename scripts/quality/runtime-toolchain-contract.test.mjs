@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 const root = fileURLToPath(new URL("../..", import.meta.url));
 const expectedNodeVersion = "24.18.0";
 const expectedNodeRange = `>=${expectedNodeVersion} <25`;
-const expectedPackageManager = "pnpm@11.15.0";
+const expectedPackageManager = "pnpm@11.17.0";
 const expectedNodeTypes = "^24.13.3";
 const expectedAllowedBuilds = {
   "@prisma/client": true,
