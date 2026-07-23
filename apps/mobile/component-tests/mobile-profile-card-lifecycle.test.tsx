@@ -146,8 +146,7 @@ describe("profile card overlay lifecycle", () => {
     await waitFor(() => expect(mobileOverlayRegistry.getEntries()).toHaveLength(0));
     expect(view.queryByTestId("mobile-profile-card", anyElement)).toBeNull();
     expect(
-      view.getByTestId("mobile-overlay-content-scope", anyElement).props
-        .importantForAccessibility,
+      view.getByTestId("mobile-overlay-content-scope", anyElement).props.importantForAccessibility,
     ).toBe("auto");
     expect(view.getByTestId("mobile-overlay-host").props.pointerEvents).toBe("none");
   });

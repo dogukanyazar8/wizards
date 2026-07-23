@@ -79,8 +79,7 @@ export function MobileOverlayContextBridge({
   readonly values: readonly unknown[];
 }) {
   const bridged = MOBILE_OVERLAY_BRIDGED_CONTEXTS.reduceRight<ReactNode>(
-    (node, entry, index) =>
-      createElement(entry.context.Provider, { value: values[index] }, node),
+    (node, entry, index) => createElement(entry.context.Provider, { value: values[index] }, node),
     children,
   );
 

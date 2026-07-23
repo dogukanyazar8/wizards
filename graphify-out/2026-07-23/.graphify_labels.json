@@ -619,5 +619,8 @@
   "617": "react-hook-form",
   "618": "socket.io",
   "619": "@tauri-apps/plugin-notification",
-  "620": "@wizards/ui"
+  "620": "@wizards/ui",
+  "621": "react-dom",
+  "622": "@socket.io/redis-adapter",
+  "623": "zustand"
 }

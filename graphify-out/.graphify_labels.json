@@ -622,5 +622,6 @@
   "620": "@wizards/ui",
   "621": "react-dom",
   "622": "@socket.io/redis-adapter",
-  "623": "zustand"
+  "623": "zustand",
+  "624": "Task 5: Add category/channel CRUD and channel-history clearing"
 }

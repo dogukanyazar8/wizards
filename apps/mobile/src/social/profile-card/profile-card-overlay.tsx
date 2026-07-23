@@ -45,11 +45,7 @@ import {
 import { MobileStatusPickerSheet } from "../mobile-status-picker-sheet";
 import { MobileUserNoteSheet } from "../mobile-user-note-sheet";
 import { ProfileCardMenu, type ProfileCardMenuItem } from "./profile-card-menu";
-import {
-  ProfileCardErrorState,
-  ProfileCardSkeleton,
-  ProfileCardView,
-} from "./profile-card-view";
+import { ProfileCardErrorState, ProfileCardSkeleton, ProfileCardView } from "./profile-card-view";
 import { PROFILE_CARD_OPEN_DURATION_MS, useProfileCardStyles } from "./profile-card.styles";
 
 export interface MobileProfileCardTarget {
@@ -153,8 +149,8 @@ function ProfileCardOverlay({
       return null;
     }
     return (
-      friendsQuery.data?.pending.incoming.find((entry) => entry.sender.id === profile.user.id)?.id ??
-      null
+      friendsQuery.data?.pending.incoming.find((entry) => entry.sender.id === profile.user.id)
+        ?.id ?? null
     );
   }, [friendsQuery.data, profile]);
 
