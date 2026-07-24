@@ -3,7 +3,7 @@
 import { ChevronDown, Globe2, Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useI18n } from "@/components/providers/locale-provider";
 import {
   DEFAULT_WIZARDS_THEME,
@@ -16,6 +16,9 @@ import { cn } from "@/lib/utils";
 
 const AUTH_THEME_ROUTES = new Set(["/login", "/register"]);
 const LANGUAGE_OPTIONS: AppLocale[] = ["tr", "en"];
+const subscribeToHydration = () => () => {};
+const getClientHydrationSnapshot = () => true;
+const getServerHydrationSnapshot = () => false;
 
 function getThemeMode(themeId: WizardsThemeId) {
   return WIZARDS_THEMES.find((theme) => theme.id === themeId)?.mode ?? "light";
@@ -27,11 +30,11 @@ export function AuthThemePickerCorner() {
   const { resolvedTheme, setTheme, theme } = useTheme();
   const languageMenuRef = useRef<HTMLDivElement | null>(null);
   const [languageOpen, setLanguageOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useSyncExternalStore(
+    subscribeToHydration,
+    getClientHydrationSnapshot,
+    getServerHydrationSnapshot,
+  );
 
   useEffect(() => {
     if (!languageOpen) {

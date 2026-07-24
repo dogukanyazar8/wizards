@@ -85,9 +85,7 @@ function InviteAlreadyMemberCard({
         <h1 className="text-app-foreground mt-4 text-3xl font-semibold tracking-tight">
           {t("invite.already.title")}
         </h1>
-        <p className="text-app-muted mt-3 text-sm leading-7">
-          {t("invite.already.description")}
-        </p>
+        <p className="text-app-muted mt-3 text-sm leading-7">{t("invite.already.description")}</p>
         <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
           <Link
             className="inline-flex min-h-11 items-center justify-center rounded-2xl bg-[hsl(var(--primary))] px-5 py-2.5 text-sm font-semibold text-[hsl(var(--primary-foreground))] shadow-[0_18px_48px_hsl(var(--primary)/0.24)] transition hover:-translate-y-0.5 hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary)/0.5)] focus-visible:ring-offset-2 motion-reduce:hover:translate-y-0"
@@ -120,11 +118,7 @@ function shouldShowAlreadyMemberInvite(value: string | string[] | undefined) {
 }
 
 export default async function InvitePage({ params, searchParams }: InvitePageProps) {
-  const [session, routeParams, queryParams] = await Promise.all([
-    auth(),
-    params,
-    searchParams,
-  ]);
+  const [session, routeParams, queryParams] = await Promise.all([auth(), params, searchParams]);
   const { code } = routeParams;
   const { t } = await getServerTranslator(session?.user?.locale);
   const safeCode = normalizeInviteCodeForDesktop(code);
@@ -140,21 +134,23 @@ export default async function InvitePage({ params, searchParams }: InvitePagePro
     normalizeInviteJoinErrorReason(queryParams.error) ?? (safeCode ? null : "invalid");
 
   if (explicitErrorReason) {
-    return (
-      <InviteErrorCard message={getInviteErrorMessage(explicitErrorReason, t)} t={t} />
-    );
+    return <InviteErrorCard message={getInviteErrorMessage(explicitErrorReason, t)} t={t} />;
   }
 
   if (safeCode && shouldShowAlreadyMemberInvite(queryParams.already)) {
     let alreadyMember = false;
-    let destination: string;
+    let destination = "";
+    let errorReason: InviteJoinErrorReason | null = null;
     try {
       const result = await joinWorkspaceServerByInvite(session.user.id, safeCode);
       alreadyMember = result.alreadyMember;
       destination = getInviteDestination(result);
     } catch (error) {
-      const reason = getInviteJoinErrorReason(error);
-      return <InviteErrorCard message={getInviteErrorMessage(reason, t)} t={t} />;
+      errorReason = getInviteJoinErrorReason(error);
+    }
+
+    if (errorReason) {
+      return <InviteErrorCard message={getInviteErrorMessage(errorReason, t)} t={t} />;
     }
 
     if (alreadyMember) {
@@ -165,17 +161,23 @@ export default async function InvitePage({ params, searchParams }: InvitePagePro
   }
 
   if (isDesktopAutoAccept && safeCode) {
-    let destination: string;
+    let destination = "";
+    let alreadyMember = false;
+    let errorReason: InviteJoinErrorReason | null = null;
     try {
       const result = await joinWorkspaceServerByInvite(session.user.id, safeCode);
-      if (result.alreadyMember) {
-        return <InviteAlreadyMemberCard destination={getInviteDestination(result)} t={t} />;
-      }
-
+      alreadyMember = result.alreadyMember;
       destination = getInviteDestination(result);
     } catch (error) {
-      const reason = getInviteJoinErrorReason(error);
-      return <InviteErrorCard message={getInviteErrorMessage(reason, t)} t={t} />;
+      errorReason = getInviteJoinErrorReason(error);
+    }
+
+    if (errorReason) {
+      return <InviteErrorCard message={getInviteErrorMessage(errorReason, t)} t={t} />;
+    }
+
+    if (alreadyMember) {
+      return <InviteAlreadyMemberCard destination={destination} t={t} />;
     }
 
     redirect(destination);

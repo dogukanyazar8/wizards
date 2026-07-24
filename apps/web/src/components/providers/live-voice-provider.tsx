@@ -10,7 +10,7 @@ import {
   Track,
   type TrackProcessor,
 } from "livekit-client";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useShallow } from "zustand/react/shallow";
 import type { KrispNoiseFilterProcessor } from "@livekit/krisp-noise-filter";
@@ -120,7 +120,6 @@ import {
   createReconnectTimeoutController,
   registerRoomParticipantSyncListeners,
   syncLiveKitLocalParticipantProfile,
-  type ReconnectTimeoutController,
 } from "@/lib/voice/provider-lifecycle";
 import {
   mapVoiceScreenShareStateCache,
@@ -167,6 +166,8 @@ const IDLE_PUSH_TO_TALK_STATE: PushToTalkState = {
   startedAt: null,
 };
 
+const subscribeToRuntimeCapability = () => () => {};
+
 let krispModulePromise: Promise<typeof KrispNoiseFilterModule> | null = null;
 
 function loadKrispModule() {
@@ -181,12 +182,9 @@ function loadKrispModule() {
 export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
-  const isDesktopRuntime = useMemo(isWhisprDesktopRuntime, []);
-  const preferredKrispQuality = useMemo(getPreferredKrispQuality, []);
-  const fallbackKrispQuality = useMemo(
-    () => getFallbackKrispQuality(preferredKrispQuality),
-    [preferredKrispQuality],
-  );
+  const isDesktopRuntime = isWhisprDesktopRuntime();
+  const preferredKrispQuality = getPreferredKrispQuality();
+  const fallbackKrispQuality = getFallbackKrispQuality(preferredKrispQuality);
   const roomRef = useRef<Room | null>(null);
   const joinRequestRef = useRef<string | null>(null);
   const preparedMicrophoneAccessRef = useRef<boolean | null>(null);
@@ -198,13 +196,12 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
   const microphoneRecoveryRunnerRef = useRef<((targetRoom: Room) => Promise<boolean>) | null>(null);
   const microphoneIntentionalMuteRef = useRef(false);
   const remoteAudioLevelsRef = useRef(new Map<string, RemoteVoiceAudioLevel>());
-  const reconnectTimeoutControllerRef = useRef<ReconnectTimeoutController | null>(null);
-  reconnectTimeoutControllerRef.current ??= createReconnectTimeoutController<
-    ReturnType<typeof setTimeout>
-  >({
-    clearTimeout,
-    setTimeout,
-  });
+  const [reconnectTimeoutController] = useState(() =>
+    createReconnectTimeoutController<ReturnType<typeof setTimeout>>({
+      clearTimeout,
+      setTimeout,
+    }),
+  );
   const krispProcessorRef = useRef<KrispNoiseFilterProcessor | null>(null);
   const krispProcessorQualityRef = useRef<KrispProcessorQuality | null>(null);
   const lastEmittedScreenShareStateRef = useRef<boolean | null>(null);
@@ -216,9 +213,8 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
   const microphoneSettingsFailedMessageRef = useRef(t("voice.errors.microphoneSettingsFailed"));
   const pushToTalkReleaseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pushToTalkStateRef = useRef<PushToTalkState>(IDLE_PUSH_TO_TALK_STATE);
-  const supportsLiveKitCloudNoiseCancellationRef = useRef(
-    isLiveKitCloudUrl(NEXT_PUBLIC_LIVEKIT_URL),
-  );
+  const initialKrispAvailability = isLiveKitCloudUrl(NEXT_PUBLIC_LIVEKIT_URL);
+  const supportsLiveKitCloudNoiseCancellationRef = useRef(initialKrispAvailability);
   const [room, setRoom] = useState<Room | null>(null);
   const [participants, setParticipants] = useState<VoiceParticipantViewModel[]>([]);
   const [screenShares, setScreenShares] = useState<VoiceScreenShareViewModel[]>([]);
@@ -234,7 +230,11 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
   const [isApplyingScreenShareQuality, setIsApplyingScreenShareQuality] = useState(false);
   const [isKrispNoiseCancellationActive, setIsKrispNoiseCancellationActive] = useState(false);
   const [activeKrispQuality, setActiveKrispQuality] = useState<KrispProcessorQuality | null>(null);
-  const [isVoiceIsolationSupported, setIsVoiceIsolationSupported] = useState(false);
+  const isVoiceIsolationSupported = useSyncExternalStore(
+    subscribeToRuntimeCapability,
+    () => supportsMediaConstraint("voiceIsolation"),
+    () => false,
+  );
   const [isRecoveringKrispNoiseCancellation, setIsRecoveringKrispNoiseCancellation] =
     useState(false);
 
@@ -249,7 +249,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
     microphoneSettingsFailedMessageRef.current = t("voice.errors.microphoneSettingsFailed");
   }, [t]);
   const [krispAvailability, setKrispAvailability] = useState<KrispAvailability>(
-    supportsLiveKitCloudNoiseCancellationRef.current ? "checking" : "requires_livekit_cloud",
+    initialKrispAvailability ? "checking" : "requires_livekit_cloud",
   );
 
   const {
@@ -428,13 +428,9 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
     };
   }, [activeNoiseFilterTier, room]);
 
-  useEffect(() => {
-    setIsVoiceIsolationSupported(supportsMediaConstraint("voiceIsolation"));
-  }, []);
-
   const clearReconnectTimeout = useCallback(() => {
-    reconnectTimeoutControllerRef.current?.clear();
-  }, []);
+    reconnectTimeoutController.clear();
+  }, [reconnectTimeoutController]);
 
   const setConnectionWarning = useCallback((message: string) => {
     const previousWarning = connectionWarningMessageRef.current;
@@ -1932,7 +1928,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
         ) {
           clearReconnectTimeout();
           setConnectionWarning(t("voice.errors.connectionUnstable"));
-          reconnectTimeoutControllerRef.current?.schedule(() => {
+          reconnectTimeoutController.schedule(() => {
             setConnectionWarning(t("voice.errors.connectionStillReconnecting"));
           }, RECONNECT_TIMEOUT_MS);
           return;
@@ -2199,6 +2195,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       krispAvailability,
       leaveChannel,
       recordNoiseFilterTierResolved,
+      reconnectTimeoutController,
       resetKrispProcessor,
       requestMicrophonePermission,
       resolveNoiseFilterTierForPreferences,
@@ -2516,10 +2513,19 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       return;
     }
 
-    if (!useVoiceStore.getState().isMuted) {
-      void toggleMute();
-    }
-  }, [pushToTalkEnabled, room, toggleMute, voiceInputMode]);
+    microphoneIntentionalMuteRef.current = true;
+    void room.localParticipant
+      .setMicrophoneEnabled(false)
+      .then(() => {
+        appliedAudioPreferencesSignatureRef.current = null;
+        setIsKrispNoiseCancellationActive(false);
+        useVoiceStore.getState().setMuted(true);
+        syncParticipants(room);
+      })
+      .catch(() => {
+        microphoneIntentionalMuteRef.current = false;
+      });
+  }, [pushToTalkEnabled, room, syncParticipants, voiceInputMode]);
 
   useEffect(
     () => () => {

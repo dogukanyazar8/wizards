@@ -33,13 +33,11 @@ function applyLoginTheme(theme: LoginTheme) {
 }
 
 export function useLoginTheme() {
-  const [theme, setThemeState] = useState<LoginTheme>("dark");
+  const [theme, setThemeState] = useState<LoginTheme>(readStoredTheme);
 
   useEffect(() => {
-    const initialTheme = readStoredTheme();
-    setThemeState(initialTheme);
-    applyLoginTheme(initialTheme);
-  }, []);
+    applyLoginTheme(theme);
+  }, [theme]);
 
   const setTheme = useCallback((nextTheme: LoginTheme) => {
     setThemeState(nextTheme);

@@ -7,14 +7,12 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type KeyboardEvent,
 } from "react";
 import { useI18n } from "@/components/providers/locale-provider";
 import { useVoiceState } from "@/components/providers/voice-provider";
-import {
-  useAudioDevices,
-  type AudioDeviceOption,
-} from "@/hooks/use-audio-devices";
+import { useAudioDevices, type AudioDeviceOption } from "@/hooks/use-audio-devices";
 import {
   DEFAULT_COMMUNICATIONS_DEVICE_ID,
   resolveAudioDeviceFallback,
@@ -33,6 +31,8 @@ type AudioDeviceSelectProps = {
   variant?: "compact" | "panel";
 };
 
+const subscribeToHydration = () => () => {};
+
 function getFallbackLabel(
   device: AudioDeviceOption,
   index: number,
@@ -49,19 +49,11 @@ function getFallbackLabel(
   return t("voice.devices.outputFallback", { count: index + 1 });
 }
 
-function getDefaultDeviceLabel(
-  kind: "input" | "output",
-  t: (key: string) => string,
-) {
-  return kind === "input"
-    ? t("voice.devices.defaultInput")
-    : t("voice.devices.defaultOutput");
+function getDefaultDeviceLabel(kind: "input" | "output", t: (key: string) => string) {
+  return kind === "input" ? t("voice.devices.defaultInput") : t("voice.devices.defaultOutput");
 }
 
-function getCommunicationsDeviceLabel(
-  kind: "input" | "output",
-  t: (key: string) => string,
-) {
+function getCommunicationsDeviceLabel(kind: "input" | "output", t: (key: string) => string) {
   return kind === "input"
     ? t("voice.devices.communicationsInput")
     : t("voice.devices.communicationsOutput");
@@ -83,11 +75,7 @@ function withDefaultOption(
           : getFallbackLabel(device, index, t),
   }));
 
-  if (
-    normalizedDevices.some(
-      (device) => device.deviceId === DEFAULT_AUDIO_DEVICE_ID,
-    )
-  ) {
+  if (normalizedDevices.some((device) => device.deviceId === DEFAULT_AUDIO_DEVICE_ID)) {
     return normalizedDevices;
   }
 
@@ -112,8 +100,12 @@ export function AudioDeviceSelect({
   const overlayId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [isMounted, setIsMounted] = useState(false);
-  const [isOpen, setIsOpen] = useState(false);
+  const isMounted = useSyncExternalStore(
+    subscribeToHydration,
+    () => true,
+    () => false,
+  );
+  const [isOpenRequested, setIsOpenRequested] = useState(false);
   const { audioPreferences, setAudioPreference } = useVoiceState();
   const {
     inputDevices,
@@ -127,35 +119,20 @@ export function AudioDeviceSelect({
 
   const devices = kind === "input" ? inputDevices : outputDevices;
   const selectedDeviceId =
-    kind === "input"
-      ? audioPreferences.inputDeviceId
-      : audioPreferences.outputDeviceId;
-  const options = useMemo(
-    () => withDefaultOption(kind, devices, t),
-    [devices, kind, t],
-  );
+    kind === "input" ? audioPreferences.inputDeviceId : audioPreferences.outputDeviceId;
+  const options = useMemo(() => withDefaultOption(kind, devices, t), [devices, kind, t]);
   const selectedLabel =
     options.find((device) => device.deviceId === selectedDeviceId)?.label ??
     getDefaultDeviceLabel(kind, t);
   const isOutputUnsupported = kind === "output" && !supportsOutputSelection;
   const isDisabled =
-    !isMounted ||
-    !supportsDeviceEnumeration ||
-    isOutputUnsupported ||
-    options.length === 0;
+    !isMounted || !supportsDeviceEnumeration || isOutputUnsupported || options.length === 0;
+  const isOpen = isOpenRequested && !isDisabled;
   const Icon = kind === "input" ? Mic : Volume2;
-  const title =
-    kind === "input"
-      ? t("voice.devices.inputTitle")
-      : t("voice.devices.outputTitle");
-  const label =
-    kind === "input"
-      ? t("voice.devices.inputLabel")
-      : t("voice.devices.outputLabel");
+  const title = kind === "input" ? t("voice.devices.inputTitle") : t("voice.devices.outputTitle");
+  const label = kind === "input" ? t("voice.devices.inputLabel") : t("voice.devices.outputLabel");
   const description =
-    kind === "input"
-      ? t("voice.devices.inputDescription")
-      : t("voice.devices.outputDescription");
+    kind === "input" ? t("voice.devices.inputDescription") : t("voice.devices.outputDescription");
   const statusText = isOutputUnsupported
     ? t("voice.devices.outputUnsupported")
     : supportsDeviceEnumeration
@@ -165,10 +142,6 @@ export function AudioDeviceSelect({
     options.findIndex((device) => device.deviceId === selectedDeviceId),
     0,
   );
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
 
   useEffect(() => {
     const fallback = resolveAudioDeviceFallback({
@@ -188,18 +161,11 @@ export function AudioDeviceSelect({
   }, [devices, kind, selectedDeviceId, setAudioPreference]);
 
   useEffect(() => {
-    if (isOpen) {
-      setActiveIndex(selectedIndex);
-      announceOverlayOpen("compact-control-select", overlayId);
-    }
-  }, [isOpen, overlayId, selectedIndex]);
-
-  useEffect(() => {
     const handleOverlayOpen = (event: Event) => {
       const detail = getOverlayOpenDetail(event);
 
       if (detail?.group === "compact-control-select" && detail.id !== overlayId) {
-        setIsOpen(false);
+        setIsOpenRequested(false);
       }
     };
 
@@ -214,19 +180,13 @@ export function AudioDeviceSelect({
 
     const handlePointerDown = (event: PointerEvent) => {
       if (!rootRef.current?.contains(event.target as Node)) {
-        setIsOpen(false);
+        setIsOpenRequested(false);
       }
     };
 
     document.addEventListener("pointerdown", handlePointerDown);
     return () => document.removeEventListener("pointerdown", handlePointerDown);
   }, [isOpen]);
-
-  useEffect(() => {
-    if (isDisabled) {
-      setIsOpen(false);
-    }
-  }, [isDisabled]);
 
   const handleChange = (value: string) => {
     if (kind === "input") {
@@ -239,7 +199,22 @@ export function AudioDeviceSelect({
 
   const handleSelect = (value: string) => {
     handleChange(value);
-    setIsOpen(false);
+    setIsOpenRequested(false);
+  };
+
+  const openListbox = () => {
+    setActiveIndex(selectedIndex);
+    setIsOpenRequested(true);
+    announceOverlayOpen("compact-control-select", overlayId);
+  };
+
+  const toggleListbox = () => {
+    if (isOpen) {
+      setIsOpenRequested(false);
+      return;
+    }
+
+    openListbox();
   };
 
   const handleRefresh = () => {
@@ -259,7 +234,7 @@ export function AudioDeviceSelect({
         event.key === " "
       ) {
         event.preventDefault();
-        setIsOpen(true);
+        openListbox();
       }
 
       return;
@@ -267,7 +242,7 @@ export function AudioDeviceSelect({
 
     if (event.key === "Escape") {
       event.preventDefault();
-      setIsOpen(false);
+      setIsOpenRequested(false);
       return;
     }
 
@@ -309,9 +284,7 @@ export function AudioDeviceSelect({
             <Icon className="h-3.5 w-3.5" />
           </span>
           <div className="min-w-0">
-            <p className="truncate text-[13px] font-bold text-app-foreground">
-              {title}
-            </p>
+            <p className="truncate text-[13px] font-bold text-app-foreground">{title}</p>
             <p className="truncate text-[11px] font-medium text-app-muted">
               {isLoading ? t("voice.devices.loading") : selectedLabel}
             </p>
@@ -419,7 +392,7 @@ export function AudioDeviceSelect({
           )}
           disabled={isDisabled}
           data-testid={`audio-device-select-${kind}-trigger`}
-          onClick={() => setIsOpen((current) => !current)}
+          onClick={toggleListbox}
           title={selectedLabel}
           type="button"
         >
@@ -456,12 +429,8 @@ export function AudioDeviceSelect({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div className="min-w-0">
-              <p className="text-[13px] font-semibold text-app-foreground">
-                {title}
-              </p>
-              <p className="mt-0.5 text-xs leading-4 text-app-muted">
-                {description}
-              </p>
+              <p className="text-[13px] font-semibold text-app-foreground">{title}</p>
+              <p className="mt-0.5 text-xs leading-4 text-app-muted">{description}</p>
             </div>
             <button
               className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-soft)/0.42)] px-2.5 text-[11px] font-semibold text-app-soft transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-wait disabled:opacity-60"
@@ -488,7 +457,7 @@ export function AudioDeviceSelect({
               )}
               disabled={isDisabled}
               data-testid={`audio-device-select-${kind}-trigger`}
-              onClick={() => setIsOpen((current) => !current)}
+              onClick={toggleListbox}
               type="button"
             >
               <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-[hsl(var(--surface-soft)/0.72)] text-app-muted">

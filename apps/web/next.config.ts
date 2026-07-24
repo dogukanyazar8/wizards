@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 import bundleAnalyzer from "@next/bundle-analyzer";
 import { withSentryConfig } from "@sentry/nextjs";
 import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
 const packageJson = JSON.parse(
   readFileSync(new URL("./package.json", import.meta.url), "utf8"),
@@ -52,6 +53,7 @@ const isProductionDeployment =
 const withBundleAnalyzer = bundleAnalyzer({
   enabled: process.env.ANALYZE === "true",
 });
+const turbopackRoot = fileURLToPath(new URL("../..", import.meta.url));
 
 const securityHeaders = [
   { key: "X-Frame-Options", value: "DENY" },
@@ -71,8 +73,12 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_WHISPR_RELEASE_CHANNEL: whisprReleaseChannel,
     NEXT_PUBLIC_WHISPR_VERSION: whisprVersion,
   },
+  reactCompiler: true,
   reactStrictMode: true,
   transpilePackages: ["@wizards/ui", "@wizards/types", "@wizards/db"],
+  turbopack: {
+    root: turbopackRoot,
+  },
   async headers() {
     return [
       {

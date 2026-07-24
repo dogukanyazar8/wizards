@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, RefreshCw, Sparkles, X } from "lucide-react";
 import {
   WHISPR_BUILD_ID,
@@ -33,6 +33,13 @@ function formatBuildId(buildId: string) {
   return buildId.trim() || "unknown";
 }
 
+export function isUpdateDismissed(
+  latestBuildId: string | undefined,
+  dismissedBuildId: string | null,
+) {
+  return Boolean(latestBuildId && latestBuildId === dismissedBuildId);
+}
+
 function isTranslationKey(value: string) {
   return /^[a-z][a-z0-9]*(?:\.[a-zA-Z0-9_-]+)+$/.test(value);
 }
@@ -47,14 +54,18 @@ function translateUpdateText(
     return translated;
   }
 
-  return isTranslationKey(key) ? fallback ?? key : key;
+  return isTranslationKey(key) ? (fallback ?? key) : key;
 }
 
 export function AppUpdateNotifier() {
   const { t } = useI18n();
   const [latestVersion, setLatestVersion] = useState<WhisprVersionPayload | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
-  const [isDismissed, setIsDismissed] = useState(false);
+  const [dismissedBuildId, setDismissedBuildId] = useState<string | null>(() =>
+    typeof window === "undefined"
+      ? null
+      : window.localStorage.getItem(DISMISSED_UPDATE_STORAGE_KEY),
+  );
 
   const currentVersion = useMemo<WhisprVersionPayload>(
     () => ({
@@ -68,30 +79,22 @@ export function AppUpdateNotifier() {
     [],
   );
 
-  const checkForUpdates = useCallback(async () => {
-    try {
-      const payload = await fetchLatestVersion();
-      setLatestVersion(payload);
-    } catch {
-      // Update checks are best-effort and must never interrupt the app.
-    }
-  }, []);
-
   useEffect(() => {
-    const dismissedBuildId =
-      typeof window === "undefined"
-        ? null
-        : window.localStorage.getItem(DISMISSED_UPDATE_STORAGE_KEY);
+    let cancelled = false;
 
-    if (dismissedBuildId && latestVersion?.buildId === dismissedBuildId) {
-      setIsDismissed(true);
-    } else if (latestVersion?.buildId) {
-      setIsDismissed(false);
-    }
-  }, [latestVersion?.buildId]);
+    const checkForUpdates = () => {
+      void fetchLatestVersion()
+        .then((payload) => {
+          if (!cancelled) {
+            setLatestVersion(payload);
+          }
+        })
+        .catch(() => {
+          // Update checks are best-effort and must never interrupt the app.
+        });
+    };
 
-  useEffect(() => {
-    void checkForUpdates();
+    checkForUpdates();
     const interval = window.setInterval(() => {
       void checkForUpdates();
     }, CHECK_INTERVAL_MS);
@@ -105,14 +108,15 @@ export function AppUpdateNotifier() {
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
+      cancelled = true;
       window.clearInterval(interval);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [checkForUpdates]);
+  }, []);
 
   const hasUpdate =
-    Boolean(latestVersion?.buildId) &&
-    latestVersion?.buildId !== currentVersion.buildId;
+    Boolean(latestVersion?.buildId) && latestVersion?.buildId !== currentVersion.buildId;
+  const isDismissed = isUpdateDismissed(latestVersion?.buildId, dismissedBuildId);
 
   if (!hasUpdate || !latestVersion || isDismissed) {
     return null;
@@ -120,7 +124,7 @@ export function AppUpdateNotifier() {
 
   const dismissUpdate = () => {
     window.localStorage.setItem(DISMISSED_UPDATE_STORAGE_KEY, latestVersion.buildId);
-    setIsDismissed(true);
+    setDismissedBuildId(latestVersion.buildId);
   };
 
   const reloadApp = () => {

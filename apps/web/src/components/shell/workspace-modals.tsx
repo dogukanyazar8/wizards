@@ -36,7 +36,30 @@ type WorkspaceModalsProps = {
   uploadthingEnabled: boolean;
 };
 
-export function WorkspaceModals({
+export function WorkspaceModals(props: WorkspaceModalsProps) {
+  const { categoryModal, channelModal, inviteModal, serverModal } = useAppStore(
+    useShallow((state) => ({
+      categoryModal: state.categoryModal,
+      channelModal: state.channelModal,
+      inviteModal: state.inviteModal,
+      serverModal: state.serverModal,
+    })),
+  );
+  const modalKey = [
+    categoryModal.open
+      ? `${categoryModal.mode}:${categoryModal.categoryId ?? "new"}`
+      : "category-closed",
+    channelModal.open
+      ? `${channelModal.mode}:${channelModal.channelId ?? channelModal.categoryId ?? "new"}`
+      : "channel-closed",
+    inviteModal.open ? "invite-open" : "invite-closed",
+    serverModal.open ? serverModal.mode : "server-closed",
+  ].join("|");
+
+  return <WorkspaceModalsContent {...props} key={modalKey} />;
+}
+
+function WorkspaceModalsContent({
   activeServerDetail,
   onNavigate,
   uploadthingEnabled,
@@ -75,30 +98,45 @@ export function WorkspaceModals({
 
   const editingChannel =
     channelModal.mode === "edit" && activeServerDetail
-      ? [...activeServerDetail.ungroupedChannels, ...activeServerDetail.categories.flatMap((category) => category.channels)].find(
-          (channel) => channel.id === channelModal.channelId,
-        ) ?? null
+      ? ([
+          ...activeServerDetail.ungroupedChannels,
+          ...activeServerDetail.categories.flatMap((category) => category.channels),
+        ].find((channel) => channel.id === channelModal.channelId) ?? null)
       : null;
   const editingCategory =
     categoryModal.mode === "edit" && activeServerDetail
-      ? activeServerDetail.categories.find((category) => category.id === categoryModal.categoryId) ?? null
+      ? (activeServerDetail.categories.find(
+          (category) => category.id === categoryModal.categoryId,
+        ) ?? null)
       : null;
 
-  const [serverName, setServerName] = useState("");
-  const [serverShortName, setServerShortName] = useState("");
-  const [serverDescription, setServerDescription] = useState("");
-  const [serverIconUrl, setServerIconUrl] = useState<string | null>(null);
-  const [serverAllowGifs, setServerAllowGifs] = useState(true);
-  const [serverAllowFileUploads, setServerAllowFileUploads] = useState(true);
-  const [serverAllowMemberAdds, setServerAllowMemberAdds] = useState(true);
-  const [channelName, setChannelName] = useState("");
-  const [channelTopic, setChannelTopic] = useState("");
-  const [channelCategoryId, setChannelCategoryId] = useState<string | null>(null);
-  const [channelLocked, setChannelLocked] = useState(false);
-  const [channelPermissionPreset, setChannelPermissionPreset] =
-    useState<WorkspaceChannelPermissionPreset>("PUBLIC");
-  const [channelAllowedRoleIds, setChannelAllowedRoleIds] = useState<string[]>([]);
-  const [categoryName, setCategoryName] = useState("");
+  const initialServer = serverModal.mode === "edit" ? activeServerDetail?.server : null;
+  const [serverName, setServerName] = useState(() => initialServer?.name ?? "");
+  const [serverShortName, setServerShortName] = useState(() => initialServer?.shortName ?? "");
+  const [serverDescription, setServerDescription] = useState(
+    () => initialServer?.description ?? "",
+  );
+  const [serverIconUrl, setServerIconUrl] = useState<string | null>(
+    () => initialServer?.iconUrl ?? null,
+  );
+  const [serverAllowGifs, setServerAllowGifs] = useState(() => initialServer?.allowGifs ?? true);
+  const [serverAllowFileUploads, setServerAllowFileUploads] = useState(
+    () => initialServer?.allowFileUploads ?? true,
+  );
+  const [serverAllowMemberAdds, setServerAllowMemberAdds] = useState(
+    () => initialServer?.allowMemberAdds ?? true,
+  );
+  const [channelName, setChannelName] = useState(() => editingChannel?.name ?? "");
+  const [channelTopic, setChannelTopic] = useState(() => editingChannel?.topic ?? "");
+  const [channelCategoryId, setChannelCategoryId] = useState<string | null>(
+    () => editingChannel?.categoryId ?? channelModal.categoryId ?? null,
+  );
+  const [channelLocked, setChannelLocked] = useState(() => editingChannel?.locked ?? false);
+  const [channelPermissionOverride, setChannelPermissionOverride] = useState<{
+    allowedRoleIds: string[];
+    preset: WorkspaceChannelPermissionPreset;
+  } | null>(null);
+  const [categoryName, setCategoryName] = useState(() => editingCategory?.name ?? "");
   const [createdCategoryName, setCreatedCategoryName] = useState<string | null>(null);
   const [inviteHours, setInviteHours] = useState("24");
   const [inviteNeverExpires, setInviteNeverExpires] = useState(false);
@@ -113,8 +151,8 @@ export function WorkspaceModals({
   const channelPermissionsEnabled = Boolean(
     channelPermissionControlsEnabled &&
     channelModal.open &&
-      channelModal.mode === "edit" &&
-      channelModal.channelId,
+    channelModal.mode === "edit" &&
+    channelModal.channelId,
   );
   const channelPermissionQuery = useQuery({
     enabled: channelPermissionsEnabled,
@@ -123,101 +161,28 @@ export function WorkspaceModals({
       ? workspaceQueryKeys.channelPermissions(channelModal.channelId)
       : ["workspace", "channel", "idle", "permissions"],
   });
-
-  useEffect(() => {
-    if (!serverModal.open) {
-      return;
-    }
-
-    if (serverModal.mode === "edit" && activeServerDetail) {
-      setServerName(activeServerDetail.server.name);
-      setServerShortName(activeServerDetail.server.shortName ?? "");
-      setServerDescription(activeServerDetail.server.description ?? "");
-      setServerIconUrl(activeServerDetail.server.iconUrl ?? null);
-      setServerAllowGifs(activeServerDetail.server.allowGifs);
-      setServerAllowFileUploads(activeServerDetail.server.allowFileUploads);
-      setServerAllowMemberAdds(activeServerDetail.server.allowMemberAdds);
-      return;
-    }
-
-    setServerName("");
-    setServerShortName("");
-    setServerDescription("");
-    setServerIconUrl(null);
-    setServerAllowGifs(true);
-    setServerAllowFileUploads(true);
-    setServerAllowMemberAdds(true);
-  }, [
-    activeServerDetail?.server.allowFileUploads,
-    activeServerDetail?.server.allowGifs,
-    activeServerDetail?.server.allowMemberAdds,
-    activeServerDetail?.server.description,
-    activeServerDetail?.server.iconUrl,
-    activeServerDetail?.server.name,
-    activeServerDetail?.server.shortName,
-    activeServerDetail,
-    serverModal.mode,
-    serverModal.open,
-  ]);
-
-  useEffect(() => {
-    if (!channelModal.open) {
-      return;
-    }
-
-    setChannelName(editingChannel?.name ?? "");
-    setChannelTopic(editingChannel?.topic ?? "");
-    setChannelCategoryId(editingChannel?.categoryId ?? channelModal.categoryId ?? null);
-    setChannelLocked(editingChannel?.locked ?? false);
-    setChannelPermissionPreset(editingChannel?.locked ? "LOCKED_VISIBLE" : "PUBLIC");
-    setChannelAllowedRoleIds([]);
-  }, [
-    channelModal.categoryId,
-    channelModal.open,
-    editingChannel?.categoryId,
-    editingChannel?.locked,
-    editingChannel?.name,
-    editingChannel?.topic,
-  ]);
-
-  useEffect(() => {
-    if (!channelPermissionQuery.data) {
-      return;
-    }
-
-    setChannelPermissionPreset(channelPermissionQuery.data.preset);
-    setChannelAllowedRoleIds(channelPermissionQuery.data.allowedRoleIds);
-  }, [channelPermissionQuery.data]);
-
-  useEffect(() => {
-    if (!inviteModal.open) {
-      setInviteLink(null);
-      setInviteHours("24");
-      setInviteNeverExpires(false);
-      setInviteMaxUses("");
-      setInviteCopied(false);
-    }
-  }, [inviteModal.open]);
-
-  useEffect(() => {
-    if (!categoryModal.open) {
-      if (categoryCloseTimerRef.current) {
-        clearTimeout(categoryCloseTimerRef.current);
-        categoryCloseTimerRef.current = null;
-      }
-      setCategoryName("");
-      setCreatedCategoryName(null);
-      return;
-    }
-
-    if (categoryModal.mode === "edit") {
-      setCategoryName(editingCategory?.name ?? "");
-      return;
-    }
-
-    setCategoryName("");
-    setCreatedCategoryName(null);
-  }, [categoryModal.mode, categoryModal.open, editingCategory?.name]);
+  const channelPermissionPreset =
+    channelPermissionOverride?.preset ??
+    channelPermissionQuery.data?.preset ??
+    (editingChannel?.locked ? "LOCKED_VISIBLE" : "PUBLIC");
+  const channelAllowedRoleIds =
+    channelPermissionOverride?.allowedRoleIds ?? channelPermissionQuery.data?.allowedRoleIds ?? [];
+  const setChannelPermissionPreset = (preset: WorkspaceChannelPermissionPreset) => {
+    setChannelPermissionOverride((current) => ({
+      allowedRoleIds: current?.allowedRoleIds ?? channelPermissionQuery.data?.allowedRoleIds ?? [],
+      preset,
+    }));
+  };
+  const setChannelAllowedRoleIds = (nextValue: string[] | ((current: string[]) => string[])) => {
+    setChannelPermissionOverride((current) => {
+      const allowedRoleIds =
+        current?.allowedRoleIds ?? channelPermissionQuery.data?.allowedRoleIds ?? [];
+      return {
+        allowedRoleIds: typeof nextValue === "function" ? nextValue(allowedRoleIds) : nextValue,
+        preset: current?.preset ?? channelPermissionQuery.data?.preset ?? "PUBLIC",
+      };
+    });
+  };
 
   useEffect(() => {
     return () => {
@@ -269,7 +234,9 @@ export function WorkspaceModals({
         void queryClient.invalidateQueries({
           queryKey: workspaceQueryKeys.servers,
         });
-        onNavigate(result.channelId ? `/channels/${result.serverId}/${result.channelId}` : "/channels");
+        onNavigate(
+          result.channelId ? `/channels/${result.serverId}/${result.channelId}` : "/channels",
+        );
         return;
       }
 
@@ -362,11 +329,7 @@ export function WorkspaceModals({
       });
     },
     onMutate: async () => {
-      if (
-        !activeServerDetail ||
-        channelModal.mode !== "edit" ||
-        !channelModal.channelId
-      ) {
+      if (!activeServerDetail || channelModal.mode !== "edit" || !channelModal.channelId) {
         return { previousDetail: null };
       }
 
@@ -537,9 +500,7 @@ export function WorkspaceModals({
       >
         <form
           className="space-y-4"
-          data-testid={
-            serverModal.mode === "edit" ? "server-edit-form" : "server-create-form"
-          }
+          data-testid={serverModal.mode === "edit" ? "server-edit-form" : "server-create-form"}
           onSubmit={(event) => {
             event.preventDefault();
             serverMutation.mutate();
@@ -634,7 +595,12 @@ export function WorkspaceModals({
             </div>
           ) : null}
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <Button className="w-full sm:w-auto" onClick={closeServerModal} type="button" variant="outline">
+            <Button
+              className="w-full sm:w-auto"
+              onClick={closeServerModal}
+              type="button"
+              variant="outline"
+            >
               {t("common.cancel")}
             </Button>
             <Button
@@ -715,10 +681,19 @@ export function WorkspaceModals({
             </div>
           ) : null}
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <Button className="w-full sm:w-auto" onClick={closeCategoryModal} type="button" variant="outline">
+            <Button
+              className="w-full sm:w-auto"
+              onClick={closeCategoryModal}
+              type="button"
+              variant="outline"
+            >
               {t("common.cancel")}
             </Button>
-            <Button className="w-full sm:w-auto" disabled={categoryMutation.isPending || categoryName.trim().length < 1} type="submit">
+            <Button
+              className="w-full sm:w-auto"
+              disabled={categoryMutation.isPending || categoryName.trim().length < 1}
+              type="submit"
+            >
               {categoryMutation.isPending
                 ? categoryModal.mode === "edit"
                   ? t("workspace.modal.categorySaving")
@@ -798,28 +773,26 @@ export function WorkspaceModals({
                 </p>
               </div>
               <div className="grid gap-2 sm:grid-cols-2">
-                {(["PUBLIC", "LOCKED_VISIBLE", "PRIVATE", "ROLE_GATED"] as const).map(
-                  (preset) => (
-                    <button
-                      className={cn(
-                        "rounded-[20px] border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
-                        channelPermissionPreset === preset
-                          ? "border-[hsl(var(--primary)/0.42)] bg-[hsl(var(--primary)/0.12)] text-app-foreground"
-                          : "border-[hsl(var(--border)/0.64)] bg-[hsl(var(--surface-card)/0.54)] text-app-muted hover:text-app-foreground",
-                      )}
-                      key={preset}
-                      onClick={() => setChannelPermissionPreset(preset)}
-                      type="button"
-                    >
-                      <span className="block text-sm font-semibold">
-                        {t(`workspace.permissions.preset.${preset}`)}
-                      </span>
-                      <span className="mt-1 block text-xs leading-5">
-                        {t(`workspace.permissions.preset.${preset}.description`)}
-                      </span>
-                    </button>
-                  ),
-                )}
+                {(["PUBLIC", "LOCKED_VISIBLE", "PRIVATE", "ROLE_GATED"] as const).map((preset) => (
+                  <button
+                    className={cn(
+                      "rounded-[20px] border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                      channelPermissionPreset === preset
+                        ? "border-[hsl(var(--primary)/0.42)] bg-[hsl(var(--primary)/0.12)] text-app-foreground"
+                        : "border-[hsl(var(--border)/0.64)] bg-[hsl(var(--surface-card)/0.54)] text-app-muted hover:text-app-foreground",
+                    )}
+                    key={preset}
+                    onClick={() => setChannelPermissionPreset(preset)}
+                    type="button"
+                  >
+                    <span className="block text-sm font-semibold">
+                      {t(`workspace.permissions.preset.${preset}`)}
+                    </span>
+                    <span className="mt-1 block text-xs leading-5">
+                      {t(`workspace.permissions.preset.${preset}.description`)}
+                    </span>
+                  </button>
+                ))}
               </div>
               {channelPermissionPreset === "ROLE_GATED" ? (
                 <div className="mt-4 rounded-[20px] border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-card)/0.48)] p-3">
@@ -897,7 +870,12 @@ export function WorkspaceModals({
             </div>
           ) : null}
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <Button className="w-full sm:w-auto" onClick={closeChannelModal} type="button" variant="outline">
+            <Button
+              className="w-full sm:w-auto"
+              onClick={closeChannelModal}
+              type="button"
+              variant="outline"
+            >
               {t("common.cancel")}
             </Button>
             <Button
@@ -975,9 +953,7 @@ export function WorkspaceModals({
               <p className="text-app-success text-xs font-semibold uppercase tracking-[0.2em]">
                 {t("workspace.modal.inviteReady")}
               </p>
-              <p className="text-app-foreground mt-2 break-all text-sm font-medium">
-                {inviteLink}
-              </p>
+              <p className="text-app-foreground mt-2 break-all text-sm font-medium">{inviteLink}</p>
             </div>
           ) : null}
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
@@ -994,10 +970,20 @@ export function WorkspaceModals({
                 {inviteCopied ? t("common.linkCopied") : t("common.copyLink")}
               </Button>
             ) : null}
-            <Button className="w-full sm:w-auto" onClick={closeInviteModal} type="button" variant="outline">
+            <Button
+              className="w-full sm:w-auto"
+              onClick={closeInviteModal}
+              type="button"
+              variant="outline"
+            >
               {t("common.close")}
             </Button>
-            <Button className="w-full sm:w-auto" disabled={inviteMutation.isPending} onClick={() => inviteMutation.mutate()} type="button">
+            <Button
+              className="w-full sm:w-auto"
+              disabled={inviteMutation.isPending}
+              onClick={() => inviteMutation.mutate()}
+              type="button"
+            >
               {inviteMutation.isPending
                 ? t("workspace.modal.inviteGenerating")
                 : t("workspace.modal.inviteGenerate")}
@@ -1020,7 +1006,12 @@ export function WorkspaceModals({
         })}
       >
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <Button className="w-full sm:w-auto" onClick={closeDeleteChannelDialog} type="button" variant="outline">
+          <Button
+            className="w-full sm:w-auto"
+            onClick={closeDeleteChannelDialog}
+            type="button"
+            variant="outline"
+          >
             {t("common.cancel")}
           </Button>
           <Button
@@ -1053,7 +1044,12 @@ export function WorkspaceModals({
             value={serverDeleteConfirmation}
           />
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <Button className="w-full sm:w-auto" onClick={closeDeleteServerDialog} type="button" variant="outline">
+            <Button
+              className="w-full sm:w-auto"
+              onClick={closeDeleteServerDialog}
+              type="button"
+              variant="outline"
+            >
               {t("common.cancel")}
             </Button>
             <Button

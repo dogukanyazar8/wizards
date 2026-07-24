@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import {
   AlertCircle,
   Check,
@@ -13,10 +13,7 @@ import {
 import { useI18n } from "@/components/providers/locale-provider";
 import { useVoiceParticipants, useVoiceState } from "@/components/providers/voice-provider";
 import { isScreenShareSupported } from "@/lib/voice/media-capabilities";
-import {
-  SCREEN_SHARE_QUALITY_OPTIONS,
-  type ScreenShareQualityId,
-} from "@/lib/voice/screen-share";
+import { SCREEN_SHARE_QUALITY_OPTIONS, type ScreenShareQualityId } from "@/lib/voice/screen-share";
 import { cn } from "@/lib/utils";
 
 type ScreenShareStatusTone = "danger" | "muted" | "primary" | "success" | "warning";
@@ -27,6 +24,11 @@ type ScreenShareStatus = {
   labelKey: string;
   tone: ScreenShareStatusTone;
 };
+
+const subscribeToBrowserCapabilities = () => () => {};
+const getMountedSnapshot = () => true;
+const getServerMountedSnapshot = () => false;
+const getServerScreenShareSupportSnapshot = () => false;
 
 function getStatusToneClass(tone: ScreenShareStatusTone) {
   switch (tone) {
@@ -161,8 +163,16 @@ function FeaturePill({ children }: { children: string }) {
 
 export function ScreenSharePreferencesPanel() {
   const { t } = useI18n();
-  const [hasMounted, setHasMounted] = useState(false);
-  const [hasScreenShareSupport, setHasScreenShareSupport] = useState(false);
+  const hasMounted = useSyncExternalStore(
+    subscribeToBrowserCapabilities,
+    getMountedSnapshot,
+    getServerMountedSnapshot,
+  );
+  const hasScreenShareSupport = useSyncExternalStore(
+    subscribeToBrowserCapabilities,
+    isScreenShareSupported,
+    getServerScreenShareSupportSnapshot,
+  );
   const [isTogglingShare, setIsTogglingShare] = useState(false);
   const [pendingQualityId, setPendingQualityId] = useState<ScreenShareQualityId | null>(null);
   const {
@@ -176,11 +186,6 @@ export function ScreenSharePreferencesPanel() {
     toggleScreenShare,
   } = useVoiceState();
   const { screenShares } = useVoiceParticipants();
-
-  useEffect(() => {
-    setHasMounted(true);
-    setHasScreenShareSupport(isScreenShareSupported());
-  }, []);
 
   const localShare = screenShares.find((share) => share.isLocal) ?? null;
   const activeShareCount = Math.max(screenShares.length, isScreenSharing ? 1 : 0);
@@ -253,7 +258,9 @@ export function ScreenSharePreferencesPanel() {
           <div className="min-w-0 flex-1">
             <div className="flex flex-col gap-2.5 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
-                <p className="text-[13px] font-semibold text-app-foreground">{t(status.labelKey)}</p>
+                <p className="text-[13px] font-semibold text-app-foreground">
+                  {t(status.labelKey)}
+                </p>
                 <p className="mt-0.5 text-xs leading-4 text-app-muted">
                   {screenShareError ?? t(status.descriptionKey)}
                 </p>

@@ -4,10 +4,7 @@ import Script from "next/script";
 import { useEffect, useRef, useState } from "react";
 import { useI18n } from "@/components/providers/locale-provider";
 import type { TurnstileAction } from "@/lib/auth/turnstile";
-import {
-  E2E_TURNSTILE_TOKEN,
-  isE2ETurnstileBypassEnabled,
-} from "@/lib/auth/turnstile-e2e";
+import { E2E_TURNSTILE_TOKEN, isE2ETurnstileBypassEnabled } from "@/lib/auth/turnstile-e2e";
 
 type TurnstileWidgetProps = {
   action?: TurnstileAction;
@@ -81,16 +78,6 @@ export function TurnstileWidget({
       return;
     }
 
-    if (window.turnstile) {
-      setScriptReady(true);
-    }
-  }, [isE2EBypass]);
-
-  useEffect(() => {
-    if (isE2EBypass) {
-      return;
-    }
-
     if (!siteKey || !scriptReady || !containerRef.current || !window.turnstile) {
       return;
     }
@@ -130,10 +117,7 @@ export function TurnstileWidget({
 
   if (!siteKey) {
     return (
-      <div
-        className="auth-reference-turnstile-state is-error"
-        role="alert"
-      >
+      <div className="auth-reference-turnstile-state is-error" role="alert">
         {t("auth.turnstile.notConfigured")}
       </div>
     );
@@ -148,6 +132,7 @@ export function TurnstileWidget({
           onTokenChange("");
         }}
         onLoad={() => setScriptReady(true)}
+        onReady={() => setScriptReady(true)}
         src={TURNSTILE_SCRIPT_SRC}
         strategy="afterInteractive"
       />

@@ -7,10 +7,7 @@ import {
   recordAppStartupReadyMetric,
   type AppStartupResult,
 } from "@/lib/app-startup/performance";
-import {
-  getInitialShellSplashPhase,
-  markShellStartupSplashSeen,
-} from "@/lib/app-startup/session";
+import { getInitialShellSplashPhase, markShellStartupSplashSeen } from "@/lib/app-startup/session";
 import {
   getShellReadinessStatus,
   getShellSplashPhaseAfterMaxTimeout,
@@ -57,24 +54,22 @@ function recordStartupMetricOnce(
 export function useShellReadiness(input: ShellReadinessInput): ShellReadinessState {
   const isReady = isShellReady(input);
   const isReadyRef = useRef(isReady);
-  const initialPhaseRef = useRef<ShellReadinessPhase | null>(null);
-
-  if (initialPhaseRef.current === null) {
-    initialPhaseRef.current = getInitialShellSplashPhase();
-  }
-  isReadyRef.current = isReady;
-
-  const [phase, setPhase] = useState<ShellReadinessPhase>(initialPhaseRef.current);
-  const startupStartedAtRef = useRef(getNow());
+  const [initialPhase] = useState<ShellReadinessPhase>(getInitialShellSplashPhase);
+  const [phase, setPhase] = useState<ShellReadinessPhase>(initialPhase);
+  const [startupStartedAtMs] = useState(getNow);
   const readyMetricRecordedRef = useRef(false);
-  const shouldRecordStartupMetricRef = useRef(initialPhaseRef.current !== "dismissed");
-  const shownAtRef = useRef<number>(startupStartedAtRef.current);
+  const shouldRecordStartupMetricRef = useRef(initialPhase !== "dismissed");
+  const shownAtRef = useRef<number>(startupStartedAtMs);
 
   useEffect(() => {
-    if (initialPhaseRef.current !== "dismissed") {
+    isReadyRef.current = isReady;
+  }, [isReady]);
+
+  useEffect(() => {
+    if (initialPhase !== "dismissed") {
       markShellStartupSplashSeen();
     }
-  }, []);
+  }, [initialPhase]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -82,7 +77,7 @@ export function useShellReadiness(input: ShellReadinessInput): ShellReadinessSta
         recordStartupMetricOnce(
           readyMetricRecordedRef,
           shouldRecordStartupMetricRef,
-          startupStartedAtRef.current,
+          startupStartedAtMs,
           "timeout",
         );
       }
@@ -90,7 +85,7 @@ export function useShellReadiness(input: ShellReadinessInput): ShellReadinessSta
     }, SHELL_SPLASH_MAX_VISIBLE_MS);
 
     return () => window.clearTimeout(timeoutId);
-  }, []);
+  }, [startupStartedAtMs]);
 
   useEffect(() => {
     if (!isReady || phase !== "showing") {
@@ -131,10 +126,10 @@ export function useShellReadiness(input: ShellReadinessInput): ShellReadinessSta
     recordStartupMetricOnce(
       readyMetricRecordedRef,
       shouldRecordStartupMetricRef,
-      startupStartedAtRef.current,
+      startupStartedAtMs,
       "success",
     );
-  }, [isReady]);
+  }, [isReady, startupStartedAtMs]);
 
   return useMemo(
     () => ({

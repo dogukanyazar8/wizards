@@ -1,26 +1,29 @@
+import nextPlugin from "@next/eslint-plugin-next";
 import { defineConfig, globalIgnores } from "eslint/config";
-import nextVitals from "eslint-config-next/core-web-vitals";
-import nextTypeScript from "eslint-config-next/typescript";
+import reactHooksPlugin from "eslint-plugin-react-hooks";
+import tseslint from "typescript-eslint";
 
-const eslintConfig = defineConfig([
-  ...nextVitals,
-  ...nextTypeScript,
+const reactCompilerRules = Object.fromEntries(
+  Object.keys(reactHooksPlugin.configs.flat["recommended-latest"].rules).map((rule) => [
+    rule,
+    "error",
+  ]),
+);
+
+const eslintConfig = defineConfig(
+  ...tseslint.configs.recommended,
+  reactHooksPlugin.configs.flat["recommended-latest"],
   {
+    plugins: {
+      "@next/next": nextPlugin,
+    },
     rules: {
+      ...nextPlugin.configs["core-web-vitals"].rules,
+      ...reactCompilerRules,
       "@typescript-eslint/consistent-type-imports": [
         "error",
         { prefer: "type-imports", fixStyle: "inline-type-imports" },
       ],
-      // React Compiler is not enabled for this application. Keep core Hook
-      // correctness rules active, but defer compiler-eligibility diagnostics
-      // until an explicit compiler migration owns their remediation.
-      "react-hooks/error-boundaries": "off",
-      "react-hooks/incompatible-library": "off",
-      "react-hooks/preserve-manual-memoization": "off",
-      "react-hooks/purity": "off",
-      "react-hooks/refs": "off",
-      "react-hooks/set-state-in-effect": "off",
-      "react-hooks/use-memo": "off",
       "no-console": ["warn", { allow: ["warn", "error", "info"] }],
     },
   },
@@ -31,6 +34,6 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     "tsconfig.tsbuildinfo",
   ]),
-]);
+);
 
 export default eslintConfig;

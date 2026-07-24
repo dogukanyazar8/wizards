@@ -13,8 +13,8 @@ import {
   UserRound,
 } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useCallback, useState, useSyncExternalStore } from "react";
+import { useForm, useWatch } from "react-hook-form";
 import { LoginCard } from "@/components/auth/login-card";
 import { LoginPage } from "@/components/auth/login-page";
 import { RoleTabs, type LoginRole } from "@/components/auth/role-tabs";
@@ -72,6 +72,21 @@ function normalizeNameAsUsername(value: unknown) {
     .slice(0, 32);
 }
 
+const subscribeToLocation = () => () => {};
+
+function getSignInHref() {
+  if (typeof window === "undefined") {
+    return "/login";
+  }
+
+  const safeCallbackUrl = getSafeAuthRedirectPath(
+    new URLSearchParams(window.location.search).get("callbackUrl"),
+  );
+  return safeCallbackUrl === "/channels"
+    ? "/login"
+    : `/login?callbackUrl=${encodeURIComponent(safeCallbackUrl)}`;
+}
+
 export default function RegisterPage() {
   const { locale, t } = useI18n();
   const copy = REGISTER_COPY[locale];
@@ -84,13 +99,13 @@ export default function RegisterPage() {
   const [confirmPasswordVisible, setConfirmPasswordVisible] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [selectedRole, setSelectedRole] = useState<LoginRole>("business");
-  const [signInHref, setSignInHref] = useState("/login");
+  const signInHref = useSyncExternalStore(subscribeToLocation, getSignInHref, () => "/login");
 
   const {
     register,
     handleSubmit,
     setValue,
-    watch,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<RegisterInput>({
     resolver: zodResolver(RegisterSchema),
@@ -102,17 +117,7 @@ export default function RegisterPage() {
       turnstileToken: "",
     },
   });
-  const turnstileToken = watch("turnstileToken");
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const safeCallbackUrl = getSafeAuthRedirectPath(params.get("callbackUrl"));
-    setSignInHref(
-      safeCallbackUrl === "/channels"
-        ? "/login"
-        : `/login?callbackUrl=${encodeURIComponent(safeCallbackUrl)}`,
-    );
-  }, []);
+  const turnstileToken = useWatch({ control, name: "turnstileToken" });
 
   const handleTurnstileTokenChange = useCallback(
     (token: string) => {
@@ -396,7 +401,8 @@ export default function RegisterPage() {
         </form>
 
         <p className="modern-login-footer-link">
-          {t("auth.register.haveAccount")} <Link href={signInHref}>{t("auth.register.signIn")}</Link>
+          {t("auth.register.haveAccount")}{" "}
+          <Link href={signInHref}>{t("auth.register.signIn")}</Link>
         </p>
       </LoginCard>
     </LoginPage>

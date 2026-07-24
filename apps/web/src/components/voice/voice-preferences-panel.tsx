@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent } from "react";
 import {
   AlertTriangle,
   ChevronDown,
@@ -29,6 +29,9 @@ import {
 import { DESKTOP_GAME_OVERLAY_EXECUTABLE_NAMES } from "@/lib/desktop/game-overlay-process";
 import { isWhisprDesktopRuntime } from "@/lib/desktop/runtime";
 import { cn } from "@/lib/utils";
+
+const subscribeToRuntimeCapabilities = () => () => {};
+const getServerCapabilitySnapshot = () => false;
 import { supportsMediaConstraint } from "@/lib/voice/media-capabilities";
 import {
   ENHANCED_NOISE_FILTER_MODES,
@@ -183,7 +186,9 @@ export function VoicePreferenceToggleRow({
         <div className="min-w-0">
           <p className="text-[13px] font-semibold text-app-foreground">{label}</p>
           <p className="mt-0.5 text-xs leading-4 text-app-muted">{description}</p>
-          {helperText ? <p className="mt-1.5 text-[11px] leading-4 text-app-soft">{helperText}</p> : null}
+          {helperText ? (
+            <p className="mt-1.5 text-[11px] leading-4 text-app-soft">{helperText}</p>
+          ) : null}
         </div>
 
         <button
@@ -373,8 +378,16 @@ export function VoicePreferencesPanel({ mode = "all" }: { mode?: VoicePreference
   const [desktopSurfacePending, setDesktopSurfacePending] = useState<
     "hide" | "overlay" | "refresh" | "voice-mini" | null
   >(null);
-  const [isDesktopRuntime, setIsDesktopRuntime] = useState(false);
-  const [voiceIsolationSupported, setVoiceIsolationSupported] = useState(false);
+  const isDesktopRuntime = useSyncExternalStore(
+    subscribeToRuntimeCapabilities,
+    isWhisprDesktopRuntime,
+    getServerCapabilitySnapshot,
+  );
+  const voiceIsolationSupported = useSyncExternalStore(
+    subscribeToRuntimeCapabilities,
+    () => supportsMediaConstraint("voiceIsolation"),
+    getServerCapabilitySnapshot,
+  );
   const cleanVoiceFeedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const desktopSurfaceFeedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const {
@@ -514,11 +527,6 @@ export function VoicePreferencesPanel({ mode = "all" }: { mode?: VoicePreference
   };
 
   useEffect(() => {
-    setVoiceIsolationSupported(supportsMediaConstraint("voiceIsolation"));
-    setIsDesktopRuntime(isWhisprDesktopRuntime());
-  }, []);
-
-  useEffect(() => {
     void preloadVoiceProcessing().catch(() => undefined);
   }, [audioPreferences.enhancedNoiseFilterMode, krispEnabled, preloadVoiceProcessing]);
 
@@ -561,214 +569,218 @@ export function VoicePreferencesPanel({ mode = "all" }: { mode?: VoicePreference
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <span
-                  className={cn(
-                    "inline-flex w-fit items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em]",
-                    isApplyingAudioPreferences
-                      ? "border-[hsl(var(--warning)/0.28)] bg-[hsl(var(--warning)/0.1)] text-app-foreground"
-                      : "border-[hsl(var(--success)/0.28)] bg-[hsl(var(--success)/0.1)] text-app-foreground",
-                  )}
-                >
-                  <span className="h-1.5 w-1.5 rounded-full bg-current" />
-                  {isApplyingAudioPreferences
-                    ? t("voice.settings.badgeApplying")
-                    : t("voice.settings.badgeReady")}
-                </span>
-                <span
-                  className="inline-flex w-fit items-center gap-1.5 rounded-full border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.7)] px-2.5 py-0.5 text-[10px] font-semibold text-app-muted"
-                  data-testid="voice-noise-filter-tier"
-                  title={t("voice.settings.activeNoiseFilter")}
-                >
-                  <ShieldCheck className="h-3.5 w-3.5" />
-                  {noiseFilterTierLabel}
-                </span>
-              </div>
-            </div>
-
-            <div className="mt-3 grid gap-2 sm:grid-cols-3">
-              {[
-                t("voice.settings.cleanVoiceFeatureNoise"),
-                t("voice.settings.cleanVoiceFeatureEcho"),
-                t("voice.settings.cleanVoiceFeatureGain"),
-              ].map((feature) => (
-                <div
-                  className="rounded-xl border border-[hsl(var(--border)/0.54)] bg-[hsl(var(--surface-card)/0.52)] px-2.5 py-1.5 text-[11px] font-semibold text-app-muted"
-                  key={feature}
-                >
-                  {feature}
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-              <button
-                className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl border border-[hsl(var(--primary)/0.3)] bg-[hsl(var(--primary)/0.12)] px-3 py-1.5 text-xs font-semibold text-[hsl(var(--primary))] transition hover:bg-[hsl(var(--primary)/0.18)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-                data-testid="voice-clean-voice-profile"
-                onClick={applyCleanVoiceProfile}
-                type="button"
-              >
-                <Sparkles className="h-4 w-4" />
-                {t("voice.settings.applyCleanVoiceProfile")}
-              </button>
-              <button
-                className={cn(
-                  "inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
-                  shouldHighlightKrispRetry
-                    ? "border-[hsl(var(--warning)/0.38)] bg-[hsl(var(--warning)/0.1)] text-app-foreground hover:bg-[hsl(var(--warning)/0.16)]"
-                    : "border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.72)] text-app-foreground hover:border-[hsl(var(--primary)/0.28)] hover:bg-[hsl(var(--primary)/0.08)]",
-                )}
-                data-testid="voice-krisp-retry"
-                disabled={krispRetryDisabled}
-                onClick={() => void retryKrispNoiseCancellation()}
-                title={krispRetryUnavailableReason ?? t("voice.settings.retryKrisp")}
-                type="button"
-              >
-                {shouldHighlightKrispRetry && !isRecoveringKrispNoiseCancellation ? (
-                  <AlertTriangle className="h-4 w-4" />
-                ) : (
-                  <RotateCcw
-                    className={cn("h-4 w-4", isRecoveringKrispNoiseCancellation && "animate-spin")}
-                  />
-                )}
-                {isRecoveringKrispNoiseCancellation
-                  ? t("voice.settings.retryingKrisp")
-                  : t("voice.settings.retryKrisp")}
-              </button>
-            </div>
-            {cleanVoiceFeedbackVisible ? (
-              <p
-                className="mt-2.5 rounded-xl border border-[hsl(var(--success)/0.24)] bg-[hsl(var(--success)/0.1)] px-2.5 py-1.5 text-[11px] font-semibold leading-4 text-app-foreground"
-                data-testid="voice-clean-voice-feedback"
-              >
-                {t("voice.settings.cleanVoiceProfileApplied")}
-              </p>
-            ) : null}
-          </div>
-        </div>
-      </div>
-
-      <div className="grid gap-2.5 sm:grid-cols-2">
-        <AudioDeviceSelect kind="input" />
-        <AudioDeviceSelect kind="output" />
-      </div>
-
-      <details
-        className="group app-panel-soft rounded-[20px] border p-3"
-        data-testid="voice-advanced-controls"
-      >
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
-          <span className="flex min-w-0 items-center gap-2.5">
-            <span className="rounded-xl border border-[hsl(var(--border)/0.64)] bg-[hsl(var(--surface-card)/0.62)] p-2 text-app-muted">
-              <SlidersHorizontal className="h-4 w-4" />
-            </span>
-            <span className="min-w-0">
-              <span className="block text-[13px] font-semibold text-app-foreground">
-                {t("voice.settings.advancedTitle")}
-              </span>
-              <span className="mt-0.5 block text-xs leading-4 text-app-muted">
-                {t("voice.settings.advancedDescription")}
-              </span>
-            </span>
-          </span>
-          <ChevronDown className="h-4 w-4 shrink-0 text-app-muted transition group-open:rotate-180" />
-        </summary>
-
-        <div className="mt-3 grid gap-2.5">
-          <VoicePreferenceToggleRow
-            checked={audioPreferences.noiseSuppression}
-            description={t("voice.settings.noiseSuppressionDesc")}
-            label={t("voice.settings.noiseSuppression")}
-            onToggle={() =>
-              setAudioPreference("noiseSuppression", !audioPreferences.noiseSuppression)
-            }
-          />
-
-          <VoicePreferenceToggleRow
-            checked={voiceIsolationSupported && audioPreferences.voiceIsolation}
-            description={t("voice.settings.voiceIsolationDesc")}
-            disabled={!voiceIsolationSupported}
-            helperText={
-              voiceIsolationSupported ? null : t("voice.settings.voiceIsolationUnsupported")
-            }
-            label={t("voice.settings.voiceIsolation")}
-            onToggle={() => setAudioPreference("voiceIsolation", !audioPreferences.voiceIsolation)}
-          />
-
-          <VoicePreferenceToggleRow
-            checked={audioPreferences.echoCancellation}
-            description={t("voice.settings.echoCancellationDesc")}
-            label={t("voice.settings.echoCancellation")}
-            onToggle={() =>
-              setAudioPreference("echoCancellation", !audioPreferences.echoCancellation)
-            }
-          />
-
-          <VoicePreferenceToggleRow
-            checked={audioPreferences.autoGainControl}
-            description={t("voice.settings.autoGainControlDesc")}
-            label={t("voice.settings.autoGainControl")}
-            onToggle={() =>
-              setAudioPreference("autoGainControl", !audioPreferences.autoGainControl)
-            }
-          />
-
-          <VoicePreferenceToggleRow
-            checked={krispEnabled}
-            description={t("voice.settings.krispDesc")}
-            disabled={!krispAvailable && !krispEnabled}
-            helperText={resolveKrispHelperText(krispAvailability, t)}
-            label={t("voice.settings.krisp")}
-            onToggle={() => setAudioPreference("krispNoiseCancellation", !krispEnabled)}
-          />
-
-          {SHOW_NOISE_FILTER_EXPERIMENTS ? (
-            <div
-              className="app-panel-soft rounded-[18px] border p-2.5 sm:p-3"
-              data-testid="voice-noise-filter-mode"
-            >
-              <div className="flex flex-col gap-1">
-                <p className="text-[13px] font-semibold text-app-foreground">
-                  {t("voice.settings.noiseFilterMode")}
-                </p>
-                <p className="text-xs leading-4 text-app-muted">
-                  {t("voice.settings.noiseFilterModeDesc")}
-                </p>
-              </div>
-              <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                {ENHANCED_NOISE_FILTER_MODES.map((mode) => {
-                  const isActive = audioPreferences.enhancedNoiseFilterMode === mode;
-                  return (
-                    <button
-                      aria-pressed={isActive}
                       className={cn(
-                        "min-h-[4.25rem] rounded-xl border px-2.5 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
-                        isActive
-                          ? "border-[hsl(var(--primary)/0.38)] bg-[hsl(var(--primary)/0.12)] text-app-foreground"
-                          : "border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.54)] text-app-muted hover:border-[hsl(var(--primary)/0.24)] hover:bg-[hsl(var(--primary)/0.06)]",
+                        "inline-flex w-fit items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em]",
+                        isApplyingAudioPreferences
+                          ? "border-[hsl(var(--warning)/0.28)] bg-[hsl(var(--warning)/0.1)] text-app-foreground"
+                          : "border-[hsl(var(--success)/0.28)] bg-[hsl(var(--success)/0.1)] text-app-foreground",
                       )}
-                      key={mode}
-                      onClick={() =>
-                        setAudioPreference(
-                          "enhancedNoiseFilterMode",
-                          mode as EnhancedNoiseFilterMode,
-                        )
-                      }
-                      type="button"
                     >
-                      <span className="block text-[11px] font-semibold uppercase tracking-[0.1em]">
-                        {t(`voice.settings.noiseFilterMode.${mode}`)}
-                      </span>
-                      <span className="mt-1 block text-[11px] leading-4">
-                        {t(`voice.settings.noiseFilterMode.${mode}.desc`)}
-                      </span>
-                    </button>
-                  );
-                })}
+                      <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                      {isApplyingAudioPreferences
+                        ? t("voice.settings.badgeApplying")
+                        : t("voice.settings.badgeReady")}
+                    </span>
+                    <span
+                      className="inline-flex w-fit items-center gap-1.5 rounded-full border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.7)] px-2.5 py-0.5 text-[10px] font-semibold text-app-muted"
+                      data-testid="voice-noise-filter-tier"
+                      title={t("voice.settings.activeNoiseFilter")}
+                    >
+                      <ShieldCheck className="h-3.5 w-3.5" />
+                      {noiseFilterTierLabel}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                  {[
+                    t("voice.settings.cleanVoiceFeatureNoise"),
+                    t("voice.settings.cleanVoiceFeatureEcho"),
+                    t("voice.settings.cleanVoiceFeatureGain"),
+                  ].map((feature) => (
+                    <div
+                      className="rounded-xl border border-[hsl(var(--border)/0.54)] bg-[hsl(var(--surface-card)/0.52)] px-2.5 py-1.5 text-[11px] font-semibold text-app-muted"
+                      key={feature}
+                    >
+                      {feature}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                  <button
+                    className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl border border-[hsl(var(--primary)/0.3)] bg-[hsl(var(--primary)/0.12)] px-3 py-1.5 text-xs font-semibold text-[hsl(var(--primary))] transition hover:bg-[hsl(var(--primary)/0.18)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                    data-testid="voice-clean-voice-profile"
+                    onClick={applyCleanVoiceProfile}
+                    type="button"
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    {t("voice.settings.applyCleanVoiceProfile")}
+                  </button>
+                  <button
+                    className={cn(
+                      "inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                      shouldHighlightKrispRetry
+                        ? "border-[hsl(var(--warning)/0.38)] bg-[hsl(var(--warning)/0.1)] text-app-foreground hover:bg-[hsl(var(--warning)/0.16)]"
+                        : "border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.72)] text-app-foreground hover:border-[hsl(var(--primary)/0.28)] hover:bg-[hsl(var(--primary)/0.08)]",
+                    )}
+                    data-testid="voice-krisp-retry"
+                    disabled={krispRetryDisabled}
+                    onClick={() => void retryKrispNoiseCancellation()}
+                    title={krispRetryUnavailableReason ?? t("voice.settings.retryKrisp")}
+                    type="button"
+                  >
+                    {shouldHighlightKrispRetry && !isRecoveringKrispNoiseCancellation ? (
+                      <AlertTriangle className="h-4 w-4" />
+                    ) : (
+                      <RotateCcw
+                        className={cn(
+                          "h-4 w-4",
+                          isRecoveringKrispNoiseCancellation && "animate-spin",
+                        )}
+                      />
+                    )}
+                    {isRecoveringKrispNoiseCancellation
+                      ? t("voice.settings.retryingKrisp")
+                      : t("voice.settings.retryKrisp")}
+                  </button>
+                </div>
+                {cleanVoiceFeedbackVisible ? (
+                  <p
+                    className="mt-2.5 rounded-xl border border-[hsl(var(--success)/0.24)] bg-[hsl(var(--success)/0.1)] px-2.5 py-1.5 text-[11px] font-semibold leading-4 text-app-foreground"
+                    data-testid="voice-clean-voice-feedback"
+                  >
+                    {t("voice.settings.cleanVoiceProfileApplied")}
+                  </p>
+                ) : null}
               </div>
             </div>
-          ) : null}
-        </div>
-      </details>
+          </div>
 
+          <div className="grid gap-2.5 sm:grid-cols-2">
+            <AudioDeviceSelect kind="input" />
+            <AudioDeviceSelect kind="output" />
+          </div>
+
+          <details
+            className="group app-panel-soft rounded-[20px] border p-3"
+            data-testid="voice-advanced-controls"
+          >
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
+              <span className="flex min-w-0 items-center gap-2.5">
+                <span className="rounded-xl border border-[hsl(var(--border)/0.64)] bg-[hsl(var(--surface-card)/0.62)] p-2 text-app-muted">
+                  <SlidersHorizontal className="h-4 w-4" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-[13px] font-semibold text-app-foreground">
+                    {t("voice.settings.advancedTitle")}
+                  </span>
+                  <span className="mt-0.5 block text-xs leading-4 text-app-muted">
+                    {t("voice.settings.advancedDescription")}
+                  </span>
+                </span>
+              </span>
+              <ChevronDown className="h-4 w-4 shrink-0 text-app-muted transition group-open:rotate-180" />
+            </summary>
+
+            <div className="mt-3 grid gap-2.5">
+              <VoicePreferenceToggleRow
+                checked={audioPreferences.noiseSuppression}
+                description={t("voice.settings.noiseSuppressionDesc")}
+                label={t("voice.settings.noiseSuppression")}
+                onToggle={() =>
+                  setAudioPreference("noiseSuppression", !audioPreferences.noiseSuppression)
+                }
+              />
+
+              <VoicePreferenceToggleRow
+                checked={voiceIsolationSupported && audioPreferences.voiceIsolation}
+                description={t("voice.settings.voiceIsolationDesc")}
+                disabled={!voiceIsolationSupported}
+                helperText={
+                  voiceIsolationSupported ? null : t("voice.settings.voiceIsolationUnsupported")
+                }
+                label={t("voice.settings.voiceIsolation")}
+                onToggle={() =>
+                  setAudioPreference("voiceIsolation", !audioPreferences.voiceIsolation)
+                }
+              />
+
+              <VoicePreferenceToggleRow
+                checked={audioPreferences.echoCancellation}
+                description={t("voice.settings.echoCancellationDesc")}
+                label={t("voice.settings.echoCancellation")}
+                onToggle={() =>
+                  setAudioPreference("echoCancellation", !audioPreferences.echoCancellation)
+                }
+              />
+
+              <VoicePreferenceToggleRow
+                checked={audioPreferences.autoGainControl}
+                description={t("voice.settings.autoGainControlDesc")}
+                label={t("voice.settings.autoGainControl")}
+                onToggle={() =>
+                  setAudioPreference("autoGainControl", !audioPreferences.autoGainControl)
+                }
+              />
+
+              <VoicePreferenceToggleRow
+                checked={krispEnabled}
+                description={t("voice.settings.krispDesc")}
+                disabled={!krispAvailable && !krispEnabled}
+                helperText={resolveKrispHelperText(krispAvailability, t)}
+                label={t("voice.settings.krisp")}
+                onToggle={() => setAudioPreference("krispNoiseCancellation", !krispEnabled)}
+              />
+
+              {SHOW_NOISE_FILTER_EXPERIMENTS ? (
+                <div
+                  className="app-panel-soft rounded-[18px] border p-2.5 sm:p-3"
+                  data-testid="voice-noise-filter-mode"
+                >
+                  <div className="flex flex-col gap-1">
+                    <p className="text-[13px] font-semibold text-app-foreground">
+                      {t("voice.settings.noiseFilterMode")}
+                    </p>
+                    <p className="text-xs leading-4 text-app-muted">
+                      {t("voice.settings.noiseFilterModeDesc")}
+                    </p>
+                  </div>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                    {ENHANCED_NOISE_FILTER_MODES.map((mode) => {
+                      const isActive = audioPreferences.enhancedNoiseFilterMode === mode;
+                      return (
+                        <button
+                          aria-pressed={isActive}
+                          className={cn(
+                            "min-h-[4.25rem] rounded-xl border px-2.5 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                            isActive
+                              ? "border-[hsl(var(--primary)/0.38)] bg-[hsl(var(--primary)/0.12)] text-app-foreground"
+                              : "border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.54)] text-app-muted hover:border-[hsl(var(--primary)/0.24)] hover:bg-[hsl(var(--primary)/0.06)]",
+                          )}
+                          key={mode}
+                          onClick={() =>
+                            setAudioPreference(
+                              "enhancedNoiseFilterMode",
+                              mode as EnhancedNoiseFilterMode,
+                            )
+                          }
+                          type="button"
+                        >
+                          <span className="block text-[11px] font-semibold uppercase tracking-[0.1em]">
+                            {t(`voice.settings.noiseFilterMode.${mode}`)}
+                          </span>
+                          <span className="mt-1 block text-[11px] leading-4">
+                            {t(`voice.settings.noiseFilterMode.${mode}.desc`)}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          </details>
         </>
       ) : null}
 
@@ -841,8 +853,7 @@ export function VoicePreferencesPanel({ mode = "all" }: { mode?: VoicePreference
                   <span
                     className={cn(
                       "absolute left-1 h-5 w-5 rounded-full bg-white shadow-[0_5px_14px_hsl(var(--shadow-color)/0.14)] transition",
-                      desktopGameOverlayEnabled &&
-                        "translate-x-5 bg-[hsl(var(--primary))]",
+                      desktopGameOverlayEnabled && "translate-x-5 bg-[hsl(var(--primary))]",
                     )}
                   />
                 </button>
@@ -917,8 +928,7 @@ export function VoicePreferencesPanel({ mode = "all" }: { mode?: VoicePreference
                   <span
                     className={cn(
                       "absolute left-1 h-5 w-5 rounded-full bg-white shadow-[0_5px_14px_hsl(var(--shadow-color)/0.14)] transition",
-                      desktopGameOverlaySpeakingOnly &&
-                        "translate-x-5 bg-[hsl(var(--primary))]",
+                      desktopGameOverlaySpeakingOnly && "translate-x-5 bg-[hsl(var(--primary))]",
                     )}
                   />
                 </button>

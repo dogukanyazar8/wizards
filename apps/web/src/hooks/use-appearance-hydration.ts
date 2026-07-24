@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useState } from "react";
+import { useLayoutEffect } from "react";
 import {
   readStoredChannelSidebarWidth,
   readStoredNotificationAutoClose,
@@ -14,12 +14,11 @@ import { APP_UI_STORAGE_KEY, useAppStore } from "@/lib/store";
  * before paint, then marks the UI state as hydrated for route restoration.
  */
 export function useAppearanceHydration() {
-  const [hydrationDone, setHydrationDone] = useState(false);
+  const hydrationDone = useAppStore((state) => state.appearanceHydrated);
 
   useLayoutEffect(() => {
     const hasPersistedUiState =
-      typeof window !== "undefined" &&
-      window.localStorage.getItem(APP_UI_STORAGE_KEY) !== null;
+      typeof window !== "undefined" && window.localStorage.getItem(APP_UI_STORAGE_KEY) !== null;
 
     const patch: Partial<{
       appearanceHydrated: boolean;
@@ -56,7 +55,6 @@ export function useAppearanceHydration() {
     }
 
     useAppStore.setState(patch);
-    setHydrationDone(true);
   }, []);
 
   return hydrationDone;

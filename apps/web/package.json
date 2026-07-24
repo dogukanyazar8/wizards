@@ -29,7 +29,7 @@
     "e2e:ui": "pnpm run e2e:check-env && playwright test --project=chromium --ui",
     "e2e:visual": "pnpm run e2e:check-env && playwright test --project=chromium e2e/specs/visual",
     "e2e:web-server": "pnpm run build:server && pnpm start",
-    "lint": "eslint .",
+    "lint": "node --test scripts/eslint-config.test.mjs && eslint .",
     "maintenance:cleanup-reauth": "node ../../packages/db/scripts/ensure-prisma-client-runtime.mjs && tsx scripts/cleanup-account-reauth-challenges.ts",
     "test": "node scripts/run-node-tests.mjs",
     "test:coverage": "tsx scripts/run-coverage.ts",
@@ -92,8 +92,8 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.12.1",
-    "@eslint/eslintrc": "^3.3.1",
     "@next/bundle-analyzer": "16.2.11",
+    "@next/eslint-plugin-next": "16.2.11",
     "@playwright/test": "^1.61.1",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^24.13.3",
@@ -101,15 +101,16 @@
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",
     "autoprefixer": "^10.4.21",
+    "babel-plugin-react-compiler": "1.0.0",
     "c8": "10.1.3",
     "esbuild": "0.28.1",
-    "eslint": "^9.24.0",
-    "eslint-config-next": "^16.2.11",
+    "eslint": "^10.7.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "postcss": "8.5.22",
     "prettier": "3.9.6",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.22.4",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "typescript-eslint": "8.65.0"
   }
 }

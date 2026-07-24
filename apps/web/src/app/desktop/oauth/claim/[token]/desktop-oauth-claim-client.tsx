@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { ShieldCheck } from "lucide-react";
 
 import { AppStartupScreen } from "@/components/app/app-startup-screen";
@@ -23,25 +23,29 @@ interface DesktopOAuthClaimClientProps {
   token: string;
 }
 
+const subscribeToDesktopRuntime = () => () => {};
+const getServerDesktopRuntimeSnapshot = () => null;
+
 export function DesktopOAuthClaimClient({
   callbackUrl,
   labels,
   token,
 }: DesktopOAuthClaimClientProps) {
   const [error, setError] = useState<string | null>(null);
-  const [desktopRuntime, setDesktopRuntime] = useState<boolean | null>(null);
+  const desktopRuntime = useSyncExternalStore(
+    subscribeToDesktopRuntime,
+    isWhisprDesktopRuntime,
+    getServerDesktopRuntimeSnapshot,
+  );
   const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
-    const isDesktop = isWhisprDesktopRuntime();
-    setDesktopRuntime(isDesktop);
-
-    if (!isDesktop) {
+    if (!desktopRuntime) {
       return;
     }
 
     formRef.current?.requestSubmit();
-  }, []);
+  }, [desktopRuntime]);
 
   if (desktopRuntime !== false) {
     return (

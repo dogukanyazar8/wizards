@@ -17,8 +17,8 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { useCallback, useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useCallback, useState } from "react";
+import { useForm, useWatch } from "react-hook-form";
 import { AppStartupScreen } from "@/components/app/app-startup-screen";
 import { LoginCard } from "@/components/auth/login-card";
 import { LoginPage } from "@/components/auth/login-page";
@@ -156,15 +156,11 @@ export function LoginClient({ authError = null, callbackUrl }: LoginClientProps)
   const [showDesktopStartup, setShowDesktopStartup] = useState(false);
   const [showTwoFactorPrompt, setShowTwoFactorPrompt] = useState(false);
 
-  useEffect(() => {
-    setServerError(getAuthErrorMessage(authError));
-  }, [authError]);
-
   const {
     register,
     handleSubmit,
     setValue,
-    watch,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<LoginInput>({
     resolver: zodResolver(LoginSchema),
@@ -176,7 +172,7 @@ export function LoginClient({ authError = null, callbackUrl }: LoginClientProps)
       turnstileToken: "",
     },
   });
-  const turnstileToken = watch("turnstileToken");
+  const turnstileToken = useWatch({ control, name: "turnstileToken" });
 
   const handleTurnstileTokenChange = useCallback(
     (token: string) => {

@@ -27,10 +27,22 @@ interface DesktopOAuthStartClientProps {
 
 export function DesktopOAuthStartClient({ callbackUrl, labels }: DesktopOAuthStartClientProps) {
   const [failed, setFailed] = useState(false);
-  const [started, setStarted] = useState(false);
+  const [started, setStarted] = useState(true);
   const desktopCompleteCallbackUrl = useMemo(
     () => buildDesktopOAuthCompletePath(callbackUrl),
     [callbackUrl],
+  );
+
+  const beginGoogleSignIn = useCallback(
+    async () =>
+      signOut({ redirect: false }).then(() =>
+        signIn(
+          "google",
+          { callbackUrl: desktopCompleteCallbackUrl },
+          getDesktopOAuthGoogleAuthorizationParams(),
+        ),
+      ),
+    [desktopCompleteCallbackUrl],
   );
 
   const startGoogleSignIn = useCallback(async () => {
@@ -38,21 +50,26 @@ export function DesktopOAuthStartClient({ callbackUrl, labels }: DesktopOAuthSta
     setStarted(true);
 
     try {
-      await signOut({ redirect: false });
-      await signIn(
-        "google",
-        { callbackUrl: desktopCompleteCallbackUrl },
-        getDesktopOAuthGoogleAuthorizationParams(),
-      );
+      await beginGoogleSignIn();
     } catch {
       setStarted(false);
       setFailed(true);
     }
-  }, [desktopCompleteCallbackUrl]);
+  }, [beginGoogleSignIn]);
 
   useEffect(() => {
-    void startGoogleSignIn();
-  }, [startGoogleSignIn]);
+    let cancelled = false;
+    void beginGoogleSignIn().catch(() => {
+      if (!cancelled) {
+        setStarted(false);
+        setFailed(true);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [beginGoogleSignIn]);
 
   return (
     <main className="auth-canvas flex min-h-screen items-center justify-center px-5 py-10">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
 import { ConnectionQuality, RoomEvent, type Participant } from "livekit-client";
 import { useQuery } from "@tanstack/react-query";
 import type { WorkspaceMember } from "@wizards/types";
@@ -329,7 +329,44 @@ function VoiceInviteMemberGroup({
   );
 }
 
-export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps) {
+type ScreenShareStagePanelProps = Omit<
+  ComponentProps<typeof ScreenShareStage>,
+  "activeCameraParticipant" | "onSelectCameraParticipant" | "onSelectStageFocus" | "stageFocus"
+>;
+
+function ScreenShareStagePanel(props: ScreenShareStagePanelProps) {
+  const [selectedCameraParticipantId, setSelectedCameraParticipantId] = useState<string | null>(
+    null,
+  );
+  const [selectedStageFocus, setSelectedStageFocus] = useState<VoiceStageFocus>("screen");
+  const activeCameraParticipant =
+    props.cameraParticipants.find(
+      (participant) => participant.userId === selectedCameraParticipantId,
+    ) ??
+    props.cameraParticipants.find((participant) => participant.isLocal) ??
+    props.cameraParticipants[0] ??
+    null;
+  const stageFocus =
+    selectedStageFocus === "camera" && props.cameraParticipants.length === 0
+      ? "screen"
+      : selectedStageFocus;
+
+  return (
+    <ScreenShareStage
+      {...props}
+      activeCameraParticipant={activeCameraParticipant}
+      onSelectCameraParticipant={setSelectedCameraParticipantId}
+      onSelectStageFocus={setSelectedStageFocus}
+      stageFocus={stageFocus}
+    />
+  );
+}
+
+export function VoiceChannelView(props: VoiceChannelViewProps) {
+  return <VoiceChannelViewContent {...props} key={`${props.serverId}:${props.channelId}`} />;
+}
+
+function VoiceChannelViewContent({ channelId, serverId }: VoiceChannelViewProps) {
   const { t } = useI18n();
   const {
     activeChannelId,
@@ -363,18 +400,16 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
     toggleScreenShare,
   } = useVoiceState();
   const { participants, screenShares } = useVoiceParticipants();
-  const [hasRequestedJoin, setHasRequestedJoin] = useState(false);
-  const [activeCameraParticipantId, setActiveCameraParticipantId] = useState<string | null>(null);
-  const [stageFocus, setStageFocus] = useState<VoiceStageFocus>("screen");
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [inviteStates, setInviteStates] = useState<
     Record<string, VoiceInviteMember["inviteState"]>
   >({});
   const [pendingInviteUserIds, setPendingInviteUserIds] = useState<Set<string>>(() => new Set());
-  const [localConnectionQuality, setLocalConnectionQuality] = useState(ConnectionQuality.Unknown);
+  const [reportedConnectionQuality, setReportedConnectionQuality] = useState(
+    ConnectionQuality.Unknown,
+  );
   const inviteStateResetTimersRef = useRef(new Map<string, number>());
   const joinChannelRef = useRef(joinChannel);
-  const previousScreenShareCountRef = useRef(0);
   const serverMembersQuery = useQuery({
     enabled: Boolean(serverId),
     queryFn: () => fetchWorkspaceServerMembers(serverId, { limit: 100 }),
@@ -388,11 +423,8 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
 
   useEffect(() => {
     if (!room) {
-      setLocalConnectionQuality(ConnectionQuality.Unknown);
       return;
     }
-
-    setLocalConnectionQuality(room.localParticipant.connectionQuality ?? ConnectionQuality.Unknown);
 
     const handleConnectionQualityChanged = (
       quality: ConnectionQuality,
@@ -402,7 +434,7 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
         participant === room.localParticipant ||
         participant.identity === room.localParticipant.identity
       ) {
-        setLocalConnectionQuality(quality);
+        setReportedConnectionQuality(quality);
       }
     };
 
@@ -414,18 +446,9 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
   }, [room]);
 
   useEffect(() => {
-    setHasRequestedJoin(true);
     void joinChannelRef.current({ channelId, serverId }).catch(() => {
       // The provider exposes the error message for inline rendering.
     });
-  }, [channelId, serverId]);
-
-  useEffect(() => {
-    setInviteError(null);
-    setInviteStates({});
-    setPendingInviteUserIds(new Set());
-    inviteStateResetTimersRef.current.forEach((timer) => window.clearTimeout(timer));
-    inviteStateResetTimersRef.current.clear();
   }, [channelId, serverId]);
 
   useEffect(() => {
@@ -465,14 +488,13 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
       ),
     [orderedParticipants],
   );
-  const activeCameraParticipant = useMemo(
-    () =>
-      cameraParticipants.find((participant) => participant.userId === activeCameraParticipantId) ??
-      cameraParticipants.find((participant) => participant.isLocal) ??
-      cameraParticipants[0] ??
-      null,
-    [activeCameraParticipantId, cameraParticipants],
-  );
+  const localConnectionQuality = room
+    ? (room.localParticipant.connectionQuality ?? reportedConnectionQuality)
+    : ConnectionQuality.Unknown;
+  const screenShareSessionKey = screenShares
+    .map((screenShare) => screenShare.id)
+    .sort()
+    .join(":");
   const screenShareParticipantIds = useMemo(
     () => new Set(screenShares.map((share) => share.participantId)),
     [screenShares],
@@ -608,30 +630,7 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
     });
   };
 
-  useEffect(() => {
-    const previousCount = previousScreenShareCountRef.current;
-    if (screenShares.length > 0 && previousCount === 0) {
-      setStageFocus("screen");
-    }
-    previousScreenShareCountRef.current = screenShares.length;
-  }, [screenShares.length]);
-
-  useEffect(() => {
-    if (
-      activeCameraParticipantId &&
-      !cameraParticipants.some((participant) => participant.userId === activeCameraParticipantId)
-    ) {
-      setActiveCameraParticipantId(null);
-    }
-  }, [activeCameraParticipantId, cameraParticipants]);
-
-  useEffect(() => {
-    if (stageFocus === "camera" && cameraParticipants.length === 0) {
-      setStageFocus("screen");
-    }
-  }, [cameraParticipants.length, stageFocus]);
-
-  if ((!hasRequestedJoin || isJoining) && !errorMessage) {
+  if (isJoining && !errorMessage) {
     return (
       <div
         className="flex h-full items-center justify-center bg-transparent"
@@ -661,7 +660,6 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
           <button
             className="mt-5 rounded-2xl border border-[hsl(var(--primary)/0.32)] bg-[hsl(var(--primary)/0.14)] px-4 py-2 text-sm font-semibold text-app-foreground transition hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
             onClick={() => {
-              setHasRequestedJoin(true);
               void joinChannel({ channelId, serverId }).catch(() => {
                 // The provider exposes the error message for inline rendering.
               });
@@ -823,23 +821,20 @@ export function VoiceChannelView({ channelId, serverId }: VoiceChannelViewProps)
           <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_auto] gap-3 overflow-hidden xl:grid-cols-[minmax(0,1fr)_20rem] xl:grid-rows-1 xl:gap-4">
             <div className="h-full min-h-0 min-w-0 overflow-hidden">
               {screenShares.length > 0 ? (
-                <ScreenShareStage
-                  activeCameraParticipant={activeCameraParticipant}
+                <ScreenShareStagePanel
                   activeShare={activeScreenShare}
                   cameraParticipants={cameraParticipants}
                   isApplyingQuality={isApplyingScreenShareQuality}
-                  onSelectCameraParticipant={setActiveCameraParticipantId}
                   onSelectShare={setActiveScreenShareId}
-                  onSelectStageFocus={setStageFocus}
                   onSelectQuality={(qualityId) => {
                     void setScreenShareQuality(qualityId);
                   }}
                   onStopShare={() => {
                     void stopScreenShare();
                   }}
+                  key={screenShareSessionKey}
                   screenShares={screenShares}
                   selectedQuality={screenShareQuality}
-                  stageFocus={stageFocus}
                 />
               ) : participantCount > 0 ? (
                 <div

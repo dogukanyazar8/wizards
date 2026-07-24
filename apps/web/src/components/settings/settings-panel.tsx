@@ -1,6 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+  useTransition,
+  type ReactNode,
+} from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Accessibility,
@@ -96,9 +104,7 @@ const FEATURED_CONTRIBUTOR_NAME = "O\u011Fuz G\u00FC\u011F\u00FCmc\u00FCo\u011Fl
 
 const CameraPreferencesPanel = dynamic(
   () =>
-    import("@/components/voice/camera-preferences-panel").then(
-      (mod) => mod.CameraPreferencesPanel,
-    ),
+    import("@/components/voice/camera-preferences-panel").then((mod) => mod.CameraPreferencesPanel),
   { ssr: false },
 );
 const DesktopDiagnosticsPanel = dynamic(
@@ -123,7 +129,8 @@ const SettingsVoiceProviderBoundary = dynamic(
   { ssr: false },
 );
 const VoicePreferencesPanel = dynamic(
-  () => import("@/components/voice/voice-preferences-panel").then((mod) => mod.VoicePreferencesPanel),
+  () =>
+    import("@/components/voice/voice-preferences-panel").then((mod) => mod.VoicePreferencesPanel),
   { ssr: false },
 );
 
@@ -146,6 +153,16 @@ type SettingsPanelProps = {
 };
 
 type AccountField = "displayName" | "email" | "status" | "username";
+const subscribeToHydration = () => () => {};
+const subscribeToDesktopRuntime = () => () => {};
+
+function getBrowserTimeZone() {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Istanbul";
+  } catch {
+    return "Europe/Istanbul";
+  }
+}
 type DmPolicyValue = UserLayoutSettings["dmPolicy"];
 type FriendRequestPolicyValue = UserLayoutSettings["friendRequestPolicy"];
 
@@ -496,9 +513,7 @@ function AccountPageHeader({
       <h2 className="mt-1.5 text-xl font-extrabold tracking-tight text-app-foreground sm:text-2xl">
         {title}
       </h2>
-      <p className="mt-1.5 max-w-3xl text-xs leading-5 text-app-muted">
-        {description}
-      </p>
+      <p className="mt-1.5 max-w-3xl text-xs leading-5 text-app-muted">{description}</p>
     </section>
   );
 }
@@ -581,7 +596,9 @@ function ProfileSummaryCard({
                 {statusLabel}
               </Badge>
             </div>
-            <p className="mt-0.5 truncate text-xs font-semibold text-app-muted">@{account.username}</p>
+            <p className="mt-0.5 truncate text-xs font-semibold text-app-muted">
+              @{account.username}
+            </p>
             <p className="mt-1 break-words text-xs font-medium text-app-muted">{account.email}</p>
           </div>
         </div>
@@ -733,7 +750,9 @@ function SuggestionRow({
       aria-disabled={disabled || undefined}
       className={cn(
         "flex items-center gap-2 rounded-[15px] border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface)/0.72)] p-2 transition",
-        disabled ? "opacity-72" : "hover:border-[hsl(var(--primary)/0.28)] hover:bg-[hsl(var(--primary)/0.06)]",
+        disabled
+          ? "opacity-72"
+          : "hover:border-[hsl(var(--primary)/0.28)] hover:bg-[hsl(var(--primary)/0.06)]",
       )}
     >
       <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))]">
@@ -759,9 +778,10 @@ function SecurityCenterCard({
   t: (key: string, values?: Record<string, number | string>) => string;
 }) {
   const [isTwoFactorPending, startTwoFactorTransition] = useTransition();
-  const [setupMaterial, setSetupMaterial] = useState<
-    Extract<StartTwoFactorSetupActionResult, { success: true }> | null
-  >(null);
+  const [setupMaterial, setSetupMaterial] = useState<Extract<
+    StartTwoFactorSetupActionResult,
+    { success: true }
+  > | null>(null);
   const [setupCode, setSetupCode] = useState("");
   const [disablePassword, setDisablePassword] = useState("");
   const [disableCode, setDisableCode] = useState("");
@@ -1309,7 +1329,12 @@ function AccountPreferencesCard({
   );
 }
 
-export function SettingsPanel({
+export function SettingsPanel(props: SettingsPanelProps) {
+  const accountKey = `${props.initialAccount.username}:${props.initialAccount.displayName}:${props.initialAccount.status}`;
+  return <SettingsPanelContent {...props} key={accountKey} />;
+}
+
+function SettingsPanelContent({
   buildInfo,
   className,
   initialAccount,
@@ -1323,7 +1348,11 @@ export function SettingsPanel({
   const searchParams = useSearchParams();
   const routeSelection = resolveSettingsSelection(searchParams);
   const { panel, section } = selection ?? routeSelection;
-  const [clientReady, setClientReady] = useState(false);
+  const clientReady = useSyncExternalStore(
+    subscribeToHydration,
+    () => true,
+    () => false,
+  );
   const [isEditingAccount, setIsEditingAccount] = useState(false);
   const [accountState, setAccountState] = useState(initialAccount);
   const [accountDraft, setAccountDraft] = useState(initialAccount);
@@ -1332,9 +1361,13 @@ export function SettingsPanel({
     value: string;
   } | null>(null);
   const [iconFeedbackVisible, setIconFeedbackVisible] = useState(false);
-  const [isDesktopRuntime, setIsDesktopRuntime] = useState(false);
+  const isDesktopRuntime = useSyncExternalStore(
+    subscribeToDesktopRuntime,
+    isWhisprDesktopRuntime,
+    () => false,
+  );
   const [desktopAppInfo, setDesktopAppInfo] = useState<DesktopAppInfo | null>(null);
-  const [browserTimeZone, setBrowserTimeZone] = useState("Europe/Istanbul");
+  const browserTimeZone = getBrowserTimeZone();
   const [accountFieldErrors, setAccountFieldErrors] = useState<
     Partial<Record<AccountField, string>>
   >({});
@@ -1372,8 +1405,7 @@ export function SettingsPanel({
       desktopRichPresenceAudience: state.desktopRichPresenceAudience,
       desktopRichPresenceEnabled: state.desktopRichPresenceEnabled,
       desktopStreamerModeEnabled: state.desktopStreamerModeEnabled,
-      desktopStreamerModeProcessDetectionEnabled:
-        state.desktopStreamerModeProcessDetectionEnabled,
+      desktopStreamerModeProcessDetectionEnabled: state.desktopStreamerModeProcessDetectionEnabled,
       messageFont: state.messageFont,
       notificationAutoClose: state.notificationAutoClose,
       notificationLimit: state.notificationLimit,
@@ -1447,11 +1479,6 @@ export function SettingsPanel({
   );
 
   useEffect(() => {
-    setAccountState(initialAccount);
-    setAccountDraft(initialAccount);
-  }, [initialAccount]);
-
-  useEffect(() => {
     window.scrollTo({ left: 0, top: 0 });
 
     const settingsScrollRoot = document.querySelector<HTMLElement>("[data-settings-scroll-root]");
@@ -1459,13 +1486,9 @@ export function SettingsPanel({
   }, [panel, section]);
 
   useEffect(() => {
-    const isDesktop = isWhisprDesktopRuntime();
     let isActive = true;
 
-    setIsDesktopRuntime(isDesktop);
-
-    if (!isDesktop) {
-      setDesktopAppInfo(null);
+    if (!isDesktopRuntime) {
       return () => {
         isActive = false;
       };
@@ -1486,18 +1509,7 @@ export function SettingsPanel({
     return () => {
       isActive = false;
     };
-  }, []);
-
-  useEffect(() => {
-    try {
-      const nextTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      if (nextTimeZone) {
-        setBrowserTimeZone(nextTimeZone);
-      }
-    } catch {
-      setBrowserTimeZone("Europe/Istanbul");
-    }
-  }, []);
+  }, [isDesktopRuntime, t]);
 
   const settingsQuery = useQuery({
     queryFn: fetchLayoutSettings,
@@ -1584,10 +1596,6 @@ export function SettingsPanel({
     },
     [queryClient, setNotificationLimit, updateServerSettings],
   );
-
-  useEffect(() => {
-    setClientReady(true);
-  }, []);
 
   const handleNotificationAutoCloseChange = useCallback(
     (nextValue: boolean) => {
@@ -2116,7 +2124,6 @@ export function SettingsPanel({
             ) : null}
           </SettingCard>
         ) : null}
-
       </div>
     );
   };

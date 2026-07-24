@@ -107,7 +107,7 @@ function isDeviceUnavailable(error: unknown) {
 }
 
 function rotateCamera(current: VoiceCameraRotation, delta: -90 | 90): VoiceCameraRotation {
-  return (((current + delta + 360) % 360) || 0) as VoiceCameraRotation;
+  return ((current + delta + 360) % 360 || 0) as VoiceCameraRotation;
 }
 
 function getVideoTransform({
@@ -150,12 +150,6 @@ function CameraDeviceSelect({
     t("voice.camera.defaultDevice");
 
   useEffect(() => {
-    if (isOpen) {
-      setActiveIndex(selectedIndex);
-    }
-  }, [isOpen, selectedIndex]);
-
-  useEffect(() => {
     if (!isOpen || !rootRef.current) {
       return;
     }
@@ -175,6 +169,20 @@ function CameraDeviceSelect({
     setIsOpen(false);
   };
 
+  const openListbox = () => {
+    setActiveIndex(selectedIndex);
+    setIsOpen(true);
+  };
+
+  const toggleListbox = () => {
+    if (isOpen) {
+      setIsOpen(false);
+      return;
+    }
+
+    openListbox();
+  };
+
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (!isOpen) {
       if (
@@ -184,7 +192,7 @@ function CameraDeviceSelect({
         event.key === " "
       ) {
         event.preventDefault();
-        setIsOpen(true);
+        openListbox();
       }
 
       return;
@@ -218,7 +226,11 @@ function CameraDeviceSelect({
   };
 
   return (
-    <div className="app-panel-soft relative rounded-[18px] border p-3" onKeyDown={handleKeyDown} ref={rootRef}>
+    <div
+      className="app-panel-soft relative rounded-[18px] border p-3"
+      onKeyDown={handleKeyDown}
+      ref={rootRef}
+    >
       <div className="flex items-start justify-between gap-2.5">
         <div className="min-w-0">
           <p className="text-[13px] font-semibold text-app-foreground">
@@ -251,7 +263,7 @@ function CameraDeviceSelect({
               "border-[hsl(var(--primary)/0.34)] bg-[hsl(var(--primary)/0.1)] shadow-[0_18px_46px_hsl(var(--primary)/0.12)]",
           )}
           data-testid="camera-device-select-trigger"
-          onClick={() => setIsOpen((current) => !current)}
+          onClick={toggleListbox}
           type="button"
         >
           <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-[hsl(var(--surface-soft)/0.72)] text-app-muted">
@@ -398,11 +410,7 @@ export function CameraPreferencesPanel() {
   const [previewStatus, setPreviewStatus] = useState<CameraPreviewStatus>("idle");
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [previewStream, setPreviewStream] = useState<MediaStream | null>(null);
-  const {
-    cameraPreferences,
-    resetCameraPreferences,
-    setCameraPreference,
-  } = useVoiceStore(
+  const { cameraPreferences, resetCameraPreferences, setCameraPreference } = useVoiceStore(
     useShallow((state) => ({
       cameraPreferences: state.cameraPreferences,
       resetCameraPreferences: state.resetCameraPreferences,
@@ -431,7 +439,7 @@ export function CameraPreferencesPanel() {
   const previewDescription =
     previewStatus === "ready"
       ? t("voice.camera.previewReadyDescription", { device: selectedDeviceLabel })
-      : previewError ?? t("voice.camera.previewIdleDescription");
+      : (previewError ?? t("voice.camera.previewIdleDescription"));
   const foregroundVideoStyle = useMemo<CSSProperties>(
     () => ({
       transform: getVideoTransform({
@@ -470,50 +478,53 @@ export function CameraPreferencesPanel() {
     setPreviewError(null);
   }, [stopCurrentStream]);
 
-  const startPreview = useCallback(async () => {
-    if (!supportsPreview) {
-      setPreviewStatus("unsupported");
-      setPreviewError(t("voice.camera.previewUnsupported"));
-      return;
-    }
-
-    setPreviewStatus("starting");
-    setPreviewError(null);
-    stopCurrentStream();
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia(
-        buildCameraPreviewConstraints(cameraPreferences.deviceId),
-      );
-
-      if (!isMountedRef.current) {
-        for (const track of stream.getTracks()) {
-          track.stop();
-        }
+  const startPreview = useCallback(
+    async (deviceId = cameraPreferences.deviceId) => {
+      if (!supportsPreview) {
+        setPreviewStatus("unsupported");
+        setPreviewError(t("voice.camera.previewUnsupported"));
         return;
       }
 
-      previewStreamRef.current = stream;
-      setPreviewStream(stream);
-      setPreviewStatus("ready");
-      await refreshDevices();
-    } catch (error) {
-      const nextStatus: CameraPreviewStatus = isPermissionDenied(error)
-        ? "permission-denied"
-        : isDeviceUnavailable(error)
-          ? "device-unavailable"
-          : "error";
+      setPreviewStatus("starting");
+      setPreviewError(null);
+      stopCurrentStream();
 
-      setPreviewStatus(nextStatus);
-      setPreviewError(
-        nextStatus === "permission-denied"
-          ? t("voice.camera.previewDenied")
-          : nextStatus === "device-unavailable"
-            ? t("voice.camera.previewDeviceUnavailable")
-            : t("voice.camera.previewError"),
-      );
-    }
-  }, [cameraPreferences.deviceId, refreshDevices, stopCurrentStream, supportsPreview, t]);
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia(
+          buildCameraPreviewConstraints(deviceId),
+        );
+
+        if (!isMountedRef.current) {
+          for (const track of stream.getTracks()) {
+            track.stop();
+          }
+          return;
+        }
+
+        previewStreamRef.current = stream;
+        setPreviewStream(stream);
+        setPreviewStatus("ready");
+        await refreshDevices();
+      } catch (error) {
+        const nextStatus: CameraPreviewStatus = isPermissionDenied(error)
+          ? "permission-denied"
+          : isDeviceUnavailable(error)
+            ? "device-unavailable"
+            : "error";
+
+        setPreviewStatus(nextStatus);
+        setPreviewError(
+          nextStatus === "permission-denied"
+            ? t("voice.camera.previewDenied")
+            : nextStatus === "device-unavailable"
+              ? t("voice.camera.previewDeviceUnavailable")
+              : t("voice.camera.previewError"),
+        );
+      }
+    },
+    [cameraPreferences.deviceId, refreshDevices, stopCurrentStream, supportsPreview, t],
+  );
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -557,18 +568,6 @@ export function CameraPreferencesPanel() {
     }
   }, [cameraPreferences.deviceId, devices, setCameraPreference]);
 
-  useEffect(() => {
-    if (previewDeviceIdRef.current === cameraPreferences.deviceId) {
-      return;
-    }
-
-    previewDeviceIdRef.current = cameraPreferences.deviceId;
-
-    if (previewStatus === "ready") {
-      void startPreview();
-    }
-  }, [cameraPreferences.deviceId, previewStatus, startPreview]);
-
   const handlePreviewToggle = () => {
     if (isPreviewRunning) {
       stopPreview();
@@ -580,6 +579,19 @@ export function CameraPreferencesPanel() {
 
   const handleRefresh = () => {
     void requestCameraLabels();
+  };
+
+  const handleCameraDeviceSelect = (deviceId: string) => {
+    if (deviceId === cameraPreferences.deviceId) {
+      return;
+    }
+
+    previewDeviceIdRef.current = deviceId;
+    setCameraPreference("deviceId", deviceId);
+
+    if (previewStatus === "ready") {
+      void startPreview(deviceId);
+    }
   };
 
   return (
@@ -701,7 +713,7 @@ export function CameraPreferencesPanel() {
           devices={devices}
           isLoading={isLoading}
           onRefresh={handleRefresh}
-          onSelect={(deviceId) => setCameraPreference("deviceId", deviceId)}
+          onSelect={handleCameraDeviceSelect}
           selectedDeviceId={cameraPreferences.deviceId}
         />
 

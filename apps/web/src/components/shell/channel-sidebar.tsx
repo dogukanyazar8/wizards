@@ -308,34 +308,32 @@ export function UserProfileFooter({
   const socket = useSocket();
   const [isLoggingOut, startLogoutTransition] = useTransition();
   const [isUpdatingStatus, startStatusTransition] = useTransition();
-  const [status, setStatus] = useState<PresenceStatus>(user.status);
+  const [statusOverride, setStatusOverride] = useState<{
+    sourceStatus: PresenceStatus;
+    value: PresenceStatus;
+  } | null>(null);
   const [activeUserPopup, setActiveUserPopup] = useState<
     "notifications" | "quick" | "status" | null
   >(null);
-  const [isIdleTimeoutMenuOpen, setIsIdleTimeoutMenuOpen] = useState(false);
+  const [isIdleTimeoutMenuRequested, setIsIdleTimeoutMenuRequested] = useState(false);
   const userBarRef = useRef<HTMLDivElement | null>(null);
   const { idleTimeoutMinutes, setIdleTimeoutMinutes } = usePresenceIdleTimeoutPreference();
   const { isDeafened, isMuted, leaveChannel, toggleDeafen, toggleMute } = useVoiceState();
   const isNotificationPopupOpen = activeUserPopup === "notifications";
   const isQuickMenuOpen = activeUserPopup === "quick";
   const isStatusMenuOpen = activeUserPopup === "status";
+  const status = statusOverride?.sourceStatus === user.status ? statusOverride.value : user.status;
+  const isIdleTimeoutMenuOpen = isIdleTimeoutMenuRequested && isQuickMenuOpen;
 
   const closeUserPopups = useCallback(() => {
-    setIsIdleTimeoutMenuOpen(false);
+    setIsIdleTimeoutMenuRequested(false);
     setActiveUserPopup(null);
   }, []);
 
-  const toggleUserPopup = useCallback(
-    (popup: "notifications" | "quick" | "status") => {
-      setIsIdleTimeoutMenuOpen(false);
-      setActiveUserPopup((current) => (current === popup ? null : popup));
-    },
-    [],
-  );
-
-  useEffect(() => {
-    setStatus(user.status);
-  }, [user.status]);
+  const toggleUserPopup = useCallback((popup: "notifications" | "quick" | "status") => {
+    setIsIdleTimeoutMenuRequested(false);
+    setActiveUserPopup((current) => (current === popup ? null : popup));
+  }, []);
 
   const handleLogout = () => {
     startLogoutTransition(async () => {
@@ -348,32 +346,26 @@ export function UserProfileFooter({
   const handleStatusChange = (nextStatus: PresenceStatus) => {
     closeUserPopups();
     const previousStatus = status;
-    setStatus(nextStatus);
+    setStatusOverride({ sourceStatus: user.status, value: nextStatus });
     onStatusChange(nextStatus);
     startStatusTransition(async () => {
       const result = await updatePresenceStatusAction(nextStatus);
 
       if (!result.success || !result.status) {
-        setStatus(previousStatus);
+        setStatusOverride({ sourceStatus: user.status, value: previousStatus });
         onStatusChange(previousStatus);
         return;
       }
 
-      setStatus(result.status);
+      setStatusOverride({ sourceStatus: user.status, value: result.status });
       onStatusChange(result.status);
     });
   };
 
   const handleIdleTimeoutSelect = (minutes: number) => {
     setIdleTimeoutMinutes(minutes);
-    setIsIdleTimeoutMenuOpen(false);
+    setIsIdleTimeoutMenuRequested(false);
   };
-
-  useEffect(() => {
-    if (!isQuickMenuOpen) {
-      setIsIdleTimeoutMenuOpen(false);
-    }
-  }, [isQuickMenuOpen]);
 
   useEffect(() => {
     if (!isQuickMenuOpen && !isStatusMenuOpen && !isIdleTimeoutMenuOpen) {
@@ -388,19 +380,15 @@ export function UserProfileFooter({
         return;
       }
 
-      if (
-        userBarRef.current &&
-        target instanceof Node &&
-        !userBarRef.current.contains(target)
-      ) {
-        setIsIdleTimeoutMenuOpen(false);
+      if (userBarRef.current && target instanceof Node && !userBarRef.current.contains(target)) {
+        setIsIdleTimeoutMenuRequested(false);
         setActiveUserPopup(null);
       }
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setIsIdleTimeoutMenuOpen(false);
+        setIsIdleTimeoutMenuRequested(false);
         setActiveUserPopup(null);
       }
     };
@@ -531,9 +519,7 @@ export function UserProfileFooter({
             }}
             type="button"
           >
-            <Volume2
-              className={cn("h-4 w-4", isDeafened && "text-[hsl(var(--danger))]")}
-            />
+            <Volume2 className={cn("h-4 w-4", isDeafened && "text-[hsl(var(--danger))]")} />
           </button>
 
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[hsl(var(--surface-soft)/0.36)] transition hover:bg-[hsl(var(--surface-soft)/0.68)]">
@@ -541,7 +527,7 @@ export function UserProfileFooter({
               className="h-8 w-8 rounded-full hover:bg-transparent"
               onOpenChange={(nextOpen) => {
                 if (nextOpen) {
-                  setIsIdleTimeoutMenuOpen(false);
+                  setIsIdleTimeoutMenuRequested(false);
                   setActiveUserPopup("notifications");
                   return;
                 }
@@ -605,7 +591,7 @@ export function UserProfileFooter({
                   )}
                   id="user-presence-idle-timeout"
                   onClick={() =>
-                    setIsIdleTimeoutMenuOpen((open) => {
+                    setIsIdleTimeoutMenuRequested((open) => {
                       const nextOpen = !open;
 
                       if (nextOpen) {
@@ -616,19 +602,15 @@ export function UserProfileFooter({
                     })
                   }
                   onKeyDown={(event) => {
-                    if (
-                      event.key === "ArrowDown" ||
-                      event.key === "Enter" ||
-                      event.key === " "
-                    ) {
+                    if (event.key === "ArrowDown" || event.key === "Enter" || event.key === " ") {
                       event.preventDefault();
                       announceOverlayOpen("compact-control-select", "idle-duration");
-                      setIsIdleTimeoutMenuOpen(true);
+                      setIsIdleTimeoutMenuRequested(true);
                       return;
                     }
 
                     if (event.key === "Escape") {
-                      setIsIdleTimeoutMenuOpen(false);
+                      setIsIdleTimeoutMenuRequested(false);
                     }
                   }}
                   title={t("shell.user.idleAfterTitle")}
@@ -1250,10 +1232,7 @@ export function ChannelSidebar({
   const openChannelGroupPosition = hasOpenChannelGroup
     ? Math.min(
         visibleCategories.length,
-        Math.max(
-          0,
-          openChannelGroupPositions[detail.server.id] ?? visibleCategories.length,
-        ),
+        Math.max(0, openChannelGroupPositions[detail.server.id] ?? visibleCategories.length),
       )
     : visibleCategories.length;
   const displayGroups: SidebarDisplayGroup[] = visibleCategories.map((category) => ({

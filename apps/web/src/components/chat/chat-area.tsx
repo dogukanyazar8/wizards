@@ -158,7 +158,11 @@ function getFloatingPanelPosition(anchor: HTMLElement | null): FloatingPanelPosi
   return { left, top, width };
 }
 
-export function ChatArea({
+export function ChatArea(props: ChatAreaProps) {
+  return <ChatAreaContent {...props} key={`${props.mode}:${props.conversationId}`} />;
+}
+
+function ChatAreaContent({
   conversationId,
   mode,
   allowFileUploads = true,
@@ -217,8 +221,7 @@ export function ChatArea({
   const { endCall, startCall } = useDMCallActions();
   const callSession = useDMCallStore((state) => state.session);
   const isCallMinimized = useDMCallStore((state) => state.isMinimized);
-  const activeCallSession =
-    callSession?.conversationId === conversationId ? callSession : null;
+  const activeCallSession = callSession?.conversationId === conversationId ? callSession : null;
   const showCallView = Boolean(activeCallSession) && !isCallMinimized;
   const startDirectCall = (video: boolean) => {
     if (!directMessageParticipant) {
@@ -246,14 +249,20 @@ export function ChatArea({
     content: string;
   } | null>(null);
   const [selectedThread, setSelectedThread] = useState<ChatMessage | null>(null);
-  const [showPinnedMessages, setShowPinnedMessages] = useState(false);
-  const [showSearch, setShowSearch] = useState(false);
-  const [showMembersDrawer, setShowMembersDrawer] = useState(false);
+  const [isPinnedMessagesRequested, setIsPinnedMessagesRequested] = useState(false);
+  const [isSearchManuallyOpen, setIsSearchManuallyOpen] = useState(false);
+  const [dismissedSearchRequestId, setDismissedSearchRequestId] = useState(0);
+  const [isMembersDrawerRequested, setIsMembersDrawerRequested] = useState(false);
   const [showNotificationMenu, setShowNotificationMenu] = useState(false);
   const [notificationMenuPosition, setNotificationMenuPosition] =
     useState<FloatingPanelPosition | null>(null);
+  const visibleNotificationMenuPosition = showNotificationMenu ? notificationMenuPosition : null;
   const channelTitle = channelName?.trim() || conversationId;
   const channelDescription = channelTopic?.trim() || null;
+  const showSearch =
+    isSearchManuallyOpen ||
+    (mode === "dm" && directMessageSearchRequestId > dismissedSearchRequestId);
+  const showMembersDrawer = isMembersDrawerRequested && responsiveLayout.shouldMountInfoDrawer;
   const shouldShowInfoDrawer =
     showMembersDrawer &&
     mode === "channel" &&
@@ -262,25 +271,20 @@ export function ChatArea({
   useBodyScrollLock(shouldShowInfoDrawer);
 
   const queryKey = useMemo(() => getMessagesQueryKey(mode, conversationId), [conversationId, mode]);
-  const handleReply = useCallback((id: string, authorName: string, content: string) => {
+  const handleReply = (id: string, authorName: string, content: string) => {
     setReplyTo({ id, authorName, content });
-  }, []);
+  };
 
-  useEffect(() => {
-    setSelectedThread(null);
-    setShowPinnedMessages(false);
-    setShowSearch(false);
-    setShowMembersDrawer(false);
-    setShowNotificationMenu(false);
-  }, [conversationId, mode]);
+  const openSearch = () => {
+    setIsSearchManuallyOpen(true);
+  };
 
-  useEffect(() => {
-    if (mode !== "dm" || directMessageSearchRequestId <= 0) {
-      return;
+  const closeSearch = () => {
+    setIsSearchManuallyOpen(false);
+    if (mode === "dm") {
+      setDismissedSearchRequestId((current) => Math.max(current, directMessageSearchRequestId));
     }
-
-    setShowSearch(true);
-  }, [directMessageSearchRequestId, mode]);
+  };
 
   const updateNotificationMenuPosition = useCallback(() => {
     setNotificationMenuPosition(getFloatingPanelPosition(notificationButtonRef.current));
@@ -288,7 +292,6 @@ export function ChatArea({
 
   useEffect(() => {
     if (!showNotificationMenu) {
-      setNotificationMenuPosition(null);
       return;
     }
 
@@ -326,19 +329,13 @@ export function ChatArea({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
-        setShowMembersDrawer(false);
+        setIsMembersDrawerRequested(false);
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [shouldShowInfoDrawer]);
-
-  useEffect(() => {
-    if (showMembersDrawer && !responsiveLayout.shouldMountInfoDrawer) {
-      setShowMembersDrawer(false);
-    }
-  }, [responsiveLayout.shouldMountInfoDrawer, showMembersDrawer]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -358,7 +355,7 @@ export function ChatArea({
       }
 
       event.preventDefault();
-      setShowSearch(true);
+      setIsSearchManuallyOpen(true);
     };
 
     window.addEventListener("keydown", handleKeyDown);
@@ -560,73 +557,60 @@ export function ChatArea({
     };
   }, [conversationId, currentUserId, mode, socket]);
 
-  const handleSend = useCallback(
-    async (
-      content: string,
-      replyToId?: string,
-      attachments: UploadedAttachmentInput[] = [],
-      optimisticAttachments: MessageAttachment[] = [],
-    ) => {
-      const tempId = `optimistic-${Date.now()}`;
-      const payload: PendingMessagePayload = {
-        attachments,
-        content,
-        optimisticAttachments,
-        replyTo,
-        replyToId,
-        tempId,
-      };
-      pendingMessagesRef.current.set(tempId, payload);
-      pendingOrderRef.current = [...pendingOrderRef.current, tempId].slice(-20);
-
-      await queryClient.cancelQueries({ exact: true, queryKey });
-
-      queryClient.setQueryData<MessagePages>(queryKey, (current) =>
-        appendMessage(
-          current,
-          buildOptimisticMessage({
-            content,
-            conversationId,
-            currentUserDisplayName,
-            currentUserId,
-            currentUserUsername,
-            replyTo,
-            tempId,
-            attachments: optimisticAttachments,
-          }),
-        ),
-      );
-
-      if (mode === "channel") {
-        socket.emit("message:send", {
-          channelId: conversationId,
-          content,
-          attachments,
-          ...(replyToId ? { replyToId } : {}),
-        });
-      } else {
-        socket.emit("dm:message:send", {
-          conversationId,
-          content,
-          attachments,
-          ...(replyToId ? { replyToId } : {}),
-        });
-      }
-
-      setReplyTo(null);
-    },
-    [
-      conversationId,
-      currentUserDisplayName,
-      currentUserId,
-      currentUserUsername,
-      mode,
-      queryClient,
-      queryKey,
+  const handleSend = async (
+    content: string,
+    replyToId?: string,
+    attachments: UploadedAttachmentInput[] = [],
+    optimisticAttachments: MessageAttachment[] = [],
+  ) => {
+    const tempId = `optimistic-${Date.now()}`;
+    const payload: PendingMessagePayload = {
+      attachments,
+      content,
+      optimisticAttachments,
       replyTo,
-      socket,
-    ],
-  );
+      replyToId,
+      tempId,
+    };
+    pendingMessagesRef.current.set(tempId, payload);
+    pendingOrderRef.current = [...pendingOrderRef.current, tempId].slice(-20);
+
+    await queryClient.cancelQueries({ exact: true, queryKey });
+
+    queryClient.setQueryData<MessagePages>(queryKey, (current) =>
+      appendMessage(
+        current,
+        buildOptimisticMessage({
+          content,
+          conversationId,
+          currentUserDisplayName,
+          currentUserId,
+          currentUserUsername,
+          replyTo,
+          tempId,
+          attachments: optimisticAttachments,
+        }),
+      ),
+    );
+
+    if (mode === "channel") {
+      socket.emit("message:send", {
+        channelId: conversationId,
+        content,
+        attachments,
+        ...(replyToId ? { replyToId } : {}),
+      });
+    } else {
+      socket.emit("dm:message:send", {
+        conversationId,
+        content,
+        attachments,
+        ...(replyToId ? { replyToId } : {}),
+      });
+    }
+
+    setReplyTo(null);
+  };
 
   const retryOptimisticMessage = useCallback(
     (messageId: string) => {
@@ -662,15 +646,10 @@ export function ChatArea({
     mode === "channel" && (channelReadOnly || (channelLocked && !canModerate));
   const pinnedMessages = (pinnedMessagesQuery.data ?? []).filter((message) => !message.deletedAt);
   const hasPinnedMessages = mode === "channel" && pinnedMessages.length > 0;
+  const showPinnedMessages = isPinnedMessagesRequested && hasPinnedMessages;
   const notificationLevel = notificationSettingsQuery.data?.level ?? "all";
   const NotificationIcon =
     notificationLevel === "muted" ? BellOff : notificationLevel === "mentions" ? AtSign : Bell;
-
-  useEffect(() => {
-    if (pinnedMessages.length === 0) {
-      setShowPinnedMessages(false);
-    }
-  }, [pinnedMessages.length]);
 
   const jumpToMessage = useCallback((messageId: string) => {
     const url = new URL(window.location.href);
@@ -688,7 +667,7 @@ export function ChatArea({
     }
   }, []);
 
-  const closeThreadPanel = useCallback(() => {
+  const closeThreadPanel = () => {
     setSelectedThread(null);
 
     window.requestAnimationFrame(() => {
@@ -697,15 +676,15 @@ export function ChatArea({
       );
       mainComposerInput?.focus({ preventScroll: true });
     });
-  }, []);
+  };
 
-  const openInfoDrawer = useCallback(() => {
+  const openInfoDrawer = () => {
     setMobileSidebarOpen(false);
-    setShowPinnedMessages(false);
-    setShowSearch(false);
+    setIsPinnedMessagesRequested(false);
+    closeSearch();
     setShowNotificationMenu(false);
-    setShowMembersDrawer(true);
-  }, [setMobileSidebarOpen]);
+    setIsMembersDrawerRequested(true);
+  };
 
   const messageConversationContent = (
     <>
@@ -776,7 +755,7 @@ export function ChatArea({
 
   return (
     <div className="relative flex h-full min-h-0 flex-col bg-transparent">
-      {showNotificationMenu && notificationMenuPosition && typeof document !== "undefined"
+      {showNotificationMenu && visibleNotificationMenuPosition && typeof document !== "undefined"
         ? createPortal(
             <div
               className="fixed inset-0 z-[1000]"
@@ -789,9 +768,9 @@ export function ChatArea({
                 onPointerDown={(event) => event.stopPropagation()}
                 role="menu"
                 style={{
-                  left: notificationMenuPosition.left,
-                  top: notificationMenuPosition.top,
-                  width: notificationMenuPosition.width,
+                  left: visibleNotificationMenuPosition.left,
+                  top: visibleNotificationMenuPosition.top,
+                  width: visibleNotificationMenuPosition.width,
                 }}
               >
                 {(["all", "mentions", "muted"] as const).map((level) => {
@@ -832,7 +811,7 @@ export function ChatArea({
               <div
                 className="absolute inset-0 bg-[hsl(var(--backdrop)/0.5)] backdrop-blur-sm"
                 data-testid="mobile-info-drawer-backdrop"
-                onClick={() => setShowMembersDrawer(false)}
+                onClick={() => setIsMembersDrawerRequested(false)}
                 role="presentation"
               />
               <div
@@ -845,7 +824,7 @@ export function ChatArea({
               >
                 <ServerMemberPanel
                   detail={serverMembersQuery.data}
-                  onClose={() => setShowMembersDrawer(false)}
+                  onClose={() => setIsMembersDrawerRequested(false)}
                   variant="drawer"
                 />
               </div>
@@ -856,7 +835,7 @@ export function ChatArea({
       {mode === "dm" && directMessageParticipant ? (
         <DmConversationHeader
           onOpenDetails={onOpenDirectMessageDetails}
-          onOpenSearch={() => setShowSearch(true)}
+          onOpenSearch={openSearch}
           callDisabled={Boolean(callSession)}
           onStartVideoCall={() => startDirectCall(true)}
           onStartVoiceCall={() => startDirectCall(false)}
@@ -869,9 +848,9 @@ export function ChatArea({
               anchorRef={searchButtonRef}
               conversationId={conversationId}
               mode={mode}
-              onClose={() => setShowSearch(false)}
+              onClose={closeSearch}
               onJumpToMessage={(messageId) => {
-                setShowSearch(false);
+                closeSearch();
                 jumpToMessage(messageId);
               }}
             />
@@ -912,7 +891,7 @@ export function ChatArea({
                     aria-label={t("chat.pins.title", { count: pinnedMessages.length })}
                     className="inline-flex min-h-10 min-w-10 items-center justify-center gap-2 rounded-2xl px-2 py-1.5 text-xs font-bold text-app-foreground transition hover:bg-[hsl(var(--surface-card)/0.66)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] sm:px-3"
                     data-testid="channel-pins-toggle"
-                    onClick={() => setShowPinnedMessages((current) => !current)}
+                    onClick={() => setIsPinnedMessagesRequested((current) => !current)}
                     type="button"
                   >
                     <Pin className="h-3.5 w-3.5" />
@@ -934,7 +913,7 @@ export function ChatArea({
                         <button
                           aria-label={t("common.close")}
                           className="rounded-full p-1 text-app-muted transition hover:bg-app-surface-soft hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-                          onClick={() => setShowPinnedMessages(false)}
+                          onClick={() => setIsPinnedMessagesRequested(false)}
                           type="button"
                         >
                           <X className="h-4 w-4" />
@@ -946,7 +925,7 @@ export function ChatArea({
                             className="grid w-full min-w-0 grid-cols-[2rem_minmax(0,1fr)] gap-3 rounded-[20px] border border-[hsl(var(--border)/0.56)] bg-[hsl(var(--surface-card))] px-3 py-2.5 text-left shadow-[0_12px_28px_hsl(var(--shadow-color)/0.07)] transition hover:border-[hsl(var(--primary)/0.34)] hover:bg-[hsl(var(--surface-soft)/0.62)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
                             key={message.id}
                             onClick={() => {
-                              setShowPinnedMessages(false);
+                              setIsPinnedMessagesRequested(false);
                               jumpToMessage(message.id);
                             }}
                             type="button"
@@ -1008,7 +987,7 @@ export function ChatArea({
                 aria-label={t("chat.search.open")}
                 className="inline-flex min-h-10 min-w-10 items-center justify-center gap-2 rounded-2xl px-2 py-1.5 text-xs font-bold text-app-foreground transition hover:bg-[hsl(var(--surface-card)/0.66)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] sm:px-3"
                 data-testid="message-search-open"
-                onClick={() => setShowSearch(true)}
+                onClick={openSearch}
                 ref={searchButtonRef}
                 type="button"
               >
@@ -1023,7 +1002,7 @@ export function ChatArea({
               anchorRef={searchButtonRef}
               conversationId={conversationId}
               mode={mode}
-              onClose={() => setShowSearch(false)}
+              onClose={closeSearch}
               onJumpToMessage={jumpToMessage}
             />
           ) : null}
@@ -1040,7 +1019,7 @@ export function ChatArea({
                     aria-expanded={showPinnedMessages}
                     className="inline-flex h-8 max-w-full items-center gap-1.5 rounded-full border border-[hsl(var(--primary)/0.18)] bg-[hsl(var(--surface-card)/0.24)] px-2.5 text-[11px] font-bold text-[hsl(var(--primary))] shadow-[0_8px_18px_hsl(var(--primary)/0.06)] backdrop-blur-md transition hover:border-[hsl(var(--primary)/0.28)] hover:bg-[hsl(var(--primary)/0.10)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
                     data-testid="channel-pins-toggle"
-                    onClick={() => setShowPinnedMessages((current) => !current)}
+                    onClick={() => setIsPinnedMessagesRequested((current) => !current)}
                     type="button"
                   >
                     <Pin className="h-3 w-3" />
@@ -1060,7 +1039,7 @@ export function ChatArea({
                         <button
                           aria-label={t("common.close")}
                           className="rounded-full p-1 text-app-muted transition hover:bg-app-surface-soft hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-                          onClick={() => setShowPinnedMessages(false)}
+                          onClick={() => setIsPinnedMessagesRequested(false)}
                           type="button"
                         >
                           <X className="h-4 w-4" />
@@ -1072,7 +1051,7 @@ export function ChatArea({
                             className="grid w-full min-w-0 grid-cols-[2rem_minmax(0,1fr)] gap-3 rounded-[20px] border border-[hsl(var(--border)/0.56)] bg-[hsl(var(--surface-card))] px-3 py-2.5 text-left shadow-[0_12px_28px_hsl(var(--shadow-color)/0.07)] transition hover:border-[hsl(var(--primary)/0.34)] hover:bg-[hsl(var(--surface-soft)/0.62)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
                             key={message.id}
                             onClick={() => {
-                              setShowPinnedMessages(false);
+                              setIsPinnedMessagesRequested(false);
                               jumpToMessage(message.id);
                             }}
                             type="button"
@@ -1108,7 +1087,7 @@ export function ChatArea({
                 aria-label={t("chat.search.open")}
                 className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl px-3 py-1.5 text-xs font-bold text-app-foreground transition hover:bg-[hsl(var(--surface-card)/0.55)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] md:min-h-9"
                 data-testid="message-search-open"
-                onClick={() => setShowSearch(true)}
+                onClick={openSearch}
                 ref={searchButtonRef}
                 type="button"
               >
@@ -1126,7 +1105,7 @@ export function ChatArea({
               anchorRef={searchButtonRef}
               conversationId={conversationId}
               mode={mode}
-              onClose={() => setShowSearch(false)}
+              onClose={closeSearch}
               onJumpToMessage={jumpToMessage}
             />
           ) : null}

@@ -570,9 +570,9 @@ export function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) 
     return !getE2EFlag(E2E_MICROPHONE_DENIED_KEY);
   }, []);
 
-  useEffect(() => {
-    setParticipants((current) =>
-      current.map((participant) =>
+  const participantViews = useMemo(
+    () =>
+      participants.map((participant) =>
         participant.isLocal
           ? {
               ...participant,
@@ -582,9 +582,11 @@ export function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) 
             }
           : participant,
       ),
-    );
-    setScreenShares((current) =>
-      current.map((share) =>
+    [currentUser.avatarUrl, currentUser.displayName, currentUser.username, participants],
+  );
+  const screenShareViews = useMemo(
+    () =>
+      screenShares.map((share) =>
         share.isLocal
           ? {
               ...share,
@@ -594,8 +596,8 @@ export function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) 
             }
           : share,
       ),
-    );
-  }, [currentUser.avatarUrl, currentUser.displayName, currentUser.username]);
+    [currentUser.avatarUrl, currentUser.displayName, currentUser.username, screenShares],
+  );
 
   useEffect(() => {
     const socket = getSocket();
@@ -629,7 +631,7 @@ export function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) 
         return;
       }
 
-      const participant = participants.find((entry) => entry.userId === data.userId);
+      const participant = participantViews.find((entry) => entry.userId === data.userId);
       if (!participant) {
         return;
       }
@@ -663,7 +665,7 @@ export function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) 
       socket.off("voice:state:update", handleVoiceStateUpdate);
       socket.off("voice:screenshare:update", handleVoiceScreenShareUpdate);
     };
-  }, [currentUser.id, participants, syncParticipantsFromState]);
+  }, [currentUser.id, participantViews, syncParticipantsFromState]);
 
   useEffect(() => {
     const runPageExitCleanup = async () => {
@@ -812,10 +814,10 @@ export function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) 
 
   const voiceParticipantsValue = useMemo<VoiceParticipantsContextValue>(
     () => ({
-      participants,
-      screenShares,
+      participants: participantViews,
+      screenShares: screenShareViews,
     }),
-    [participants, screenShares],
+    [participantViews, screenShareViews],
   );
 
   return (

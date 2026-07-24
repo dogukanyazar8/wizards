@@ -181,10 +181,14 @@ export function DesktopDiagnosticsPanel() {
   const desktopGameOverlayEnabled = useVoiceStore((state) => state.desktopGameOverlayEnabled);
   const desktopGameOverlaySize = useVoiceStore((state) => state.desktopGameOverlaySize);
   const setDesktopGameOverlayEnabled = useVoiceStore((state) => state.setDesktopGameOverlayEnabled);
-  const [isDesktop, setIsDesktop] = useState(false);
-  const [origin, setOrigin] = useState("unknown");
-  const [isOnline, setIsOnline] = useState(true);
-  const [socketConnected, setSocketConnected] = useState(false);
+  const [isDesktop] = useState(isWhisprDesktopRuntime);
+  const [origin] = useState(() =>
+    typeof window === "undefined" ? "unknown" : window.location.origin,
+  );
+  const [isOnline, setIsOnline] = useState(() =>
+    typeof navigator === "undefined" ? true : navigator.onLine,
+  );
+  const [socketConnected, setSocketConnected] = useState(() => socket.connected);
   const [notificationPermission, setNotificationPermission] = useState("unknown");
   const [autostartEnabled, setAutostartEnabled] = useState(false);
   const [autostartPending, setAutostartPending] = useState(false);
@@ -197,18 +201,14 @@ export function DesktopDiagnosticsPanel() {
   );
   const [companionSurfacesError, setCompanionSurfacesError] = useState<string | null>(null);
   const [companionSurfacesPending, setCompanionSurfacesPending] = useState(false);
-  const [voiceShortcutStatus, setVoiceShortcutStatus] =
-    useState<DesktopVoiceShortcutStatus | null>(null);
+  const [voiceShortcutStatus, setVoiceShortcutStatus] = useState<DesktopVoiceShortcutStatus | null>(
+    null,
+  );
   const [diagnosticsExportPending, setDiagnosticsExportPending] = useState(false);
   const [diagnosticsExportError, setDiagnosticsExportError] = useState<string | null>(null);
   const [diagnosticsExportSuccess, setDiagnosticsExportSuccess] = useState<string | null>(null);
 
   useEffect(() => {
-    setIsDesktop(isWhisprDesktopRuntime());
-    setOrigin(window.location.origin);
-    setIsOnline(navigator.onLine);
-    setSocketConnected(socket.connected);
-
     const syncOnlineState = () => setIsOnline(navigator.onLine);
     const syncSocketState = () => setSocketConnected(socket.connected);
 

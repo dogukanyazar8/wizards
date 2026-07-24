@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, UserPlus, Users } from "lucide-react";
 import React, { type CSSProperties } from "react";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useSyncExternalStore } from "react";
 import type { WorkspaceServerDetail, WorkspaceServerSummary } from "@wizards/types";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { Button } from "@wizards/ui";
@@ -62,6 +62,7 @@ type WizardsShellProps = {
 };
 
 const DM_NAVIGATION_SIDEBAR_WIDTH = "clamp(19rem, 20vw, 23rem)";
+const subscribeToDesktopRuntime = () => () => {};
 
 function findActiveChannel(
   serverId: string | null,
@@ -452,8 +453,27 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
   const [addMemberSuccess, setAddMemberSuccess] = React.useState<string | null>(null);
   const [currentUserSnapshot, setCurrentUserSnapshot] = React.useState(currentUser);
   const [currentUserStatus, setCurrentUserStatus] = React.useState(currentUser.status);
-  const [isDesktopRuntime, setIsDesktopRuntime] = React.useState(false);
-  const [socketConnected, setSocketConnected] = React.useState(socket.connected);
+  const isDesktopRuntime = useSyncExternalStore(
+    subscribeToDesktopRuntime,
+    isWhisprDesktopRuntime,
+    () => false,
+  );
+  const subscribeToSocketConnection = React.useCallback(
+    (onStoreChange: () => void) => {
+      socket.on("connect", onStoreChange);
+      socket.on("disconnect", onStoreChange);
+      return () => {
+        socket.off("connect", onStoreChange);
+        socket.off("disconnect", onStoreChange);
+      };
+    },
+    [socket],
+  );
+  const socketConnected = useSyncExternalStore(
+    subscribeToSocketConnection,
+    () => socket.connected,
+    () => false,
+  );
   const [leaveServerCandidate, setLeaveServerCandidate] =
     React.useState<WorkspaceServerSummary | null>(null);
   const [settingsOverlayOpen, setSettingsOverlayOpen] = React.useState(false);
@@ -539,29 +559,6 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
     socket,
     status: currentUserStatus,
   });
-
-  useEffect(() => {
-    setIsDesktopRuntime(isWhisprDesktopRuntime());
-  }, []);
-
-  useEffect(() => {
-    const handleConnect = () => setSocketConnected(true);
-    const handleDisconnect = () => setSocketConnected(false);
-
-    setSocketConnected(socket.connected);
-    socket.on("connect", handleConnect);
-    socket.on("disconnect", handleDisconnect);
-
-    return () => {
-      socket.off("connect", handleConnect);
-      socket.off("disconnect", handleDisconnect);
-    };
-  }, [socket]);
-
-  useEffect(() => {
-    setCurrentUserSnapshot(currentUser);
-    setCurrentUserStatus(currentUser.status);
-  }, [currentUser]);
 
   useEffect(() => {
     if (layoutSettings) {
@@ -1376,7 +1373,9 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
         >
           {children}
         </MainChannelPanel>
-        {responsiveLayout.shouldMountDesktopSupportPanel && activeServerId && serverDetailQuery.data ? (
+        {responsiveLayout.shouldMountDesktopSupportPanel &&
+        activeServerId &&
+        serverDetailQuery.data ? (
           <ServerMemberPanel detail={serverDetailQuery.data} />
         ) : null}
       </div>

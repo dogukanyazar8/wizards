@@ -117,12 +117,7 @@ export function buildContentSecurityPolicy(
       "https://challenges.cloudflare.com",
       "wss://*.livekit.cloud",
       ...(isDevelopment
-        ? [
-            "http://localhost:*",
-            "http://127.0.0.1:*",
-            "ws://localhost:*",
-            "ws://127.0.0.1:*",
-          ]
+        ? ["http://localhost:*", "http://127.0.0.1:*", "ws://localhost:*", "ws://127.0.0.1:*"]
         : []),
     ]),
     "default-src": ["'self'"],
@@ -140,17 +135,13 @@ export function buildContentSecurityPolicy(
       "https://*.uploadthing.com",
       "https://avatars.githubusercontent.com",
     ],
-    "media-src": [
-      "'self'",
-      "blob:",
-      "data:",
-      "https://*.ufs.sh",
-      "https://*.uploadthing.com",
-    ],
+    "media-src": ["'self'", "blob:", "data:", "https://*.ufs.sh", "https://*.uploadthing.com"],
     "object-src": ["'none'"],
     "script-src": unique([
       "'self'",
-      ...(isDevelopment ? ["'unsafe-inline'", "'unsafe-eval'"] : [`'nonce-${nonce}'`, "'strict-dynamic'"]),
+      ...(isDevelopment
+        ? ["'unsafe-inline'", "'unsafe-eval'"]
+        : [`'nonce-${nonce}'`, "'strict-dynamic'"]),
       // LiveKit Krisp uses a WASM-backed blob AudioWorklet/Worker for local noise filtering.
       // Keep this scoped to script execution primitives instead of broadly relaxing the policy.
       "'wasm-unsafe-eval'",
@@ -202,7 +193,7 @@ export function getAuthRouteRedirectPath({
   return null;
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
   const nonce = createNonce();

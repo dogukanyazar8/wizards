@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { Copy, Minus, Square, X } from "lucide-react";
 import type { Window as TauriWindow } from "@tauri-apps/api/window";
 import { DesktopNativeUpdateNotifier } from "@/components/desktop/desktop-native-update-notifier";
@@ -17,6 +17,7 @@ import { clearDesktopTransientAuthSession } from "@/lib/desktop/session";
 import { cn } from "@/lib/utils";
 
 type WindowAction = (window: TauriWindow) => Promise<void>;
+const subscribeToDesktopRuntime = () => () => {};
 
 async function runWindowAction(action: WindowAction) {
   try {
@@ -68,15 +69,16 @@ function ChromeButton({
 
 export function DesktopWindowChrome() {
   const pathname = usePathname();
-  const [isDesktop, setIsDesktop] = useState(false);
+  const isDesktop = useSyncExternalStore(
+    subscribeToDesktopRuntime,
+    isWhisprDesktopRuntime,
+    () => false,
+  );
   const [isWindowMaximized, setIsWindowMaximized] = useState(false);
   const isChromeLessDesktopRoute = isChromeLessDesktopPathname(pathname);
 
   useEffect(() => {
-    const desktop = isWhisprDesktopRuntime();
-    setIsDesktop(desktop);
-
-    if (!desktop || isChromeLessDesktopRoute) {
+    if (!isDesktop || isChromeLessDesktopRoute) {
       document.documentElement.classList.remove("whispr-desktop-chrome");
       return;
     }
@@ -85,11 +87,10 @@ export function DesktopWindowChrome() {
     return () => {
       document.documentElement.classList.remove("whispr-desktop-chrome");
     };
-  }, [isChromeLessDesktopRoute]);
+  }, [isChromeLessDesktopRoute, isDesktop]);
 
   useEffect(() => {
     if (!isDesktop || isChromeLessDesktopRoute) {
-      setIsWindowMaximized(false);
       return;
     }
 
@@ -166,10 +167,7 @@ export function DesktopWindowChrome() {
     };
   }, [isDesktop]);
 
-  if (
-    !isDesktop ||
-    isChromeLessDesktopRoute
-  ) {
+  if (!isDesktop || isChromeLessDesktopRoute) {
     return null;
   }
 

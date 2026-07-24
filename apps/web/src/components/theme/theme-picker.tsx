@@ -2,7 +2,7 @@
 
 import { Check } from "lucide-react";
 import { useTheme } from "next-themes";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState, useSyncExternalStore, useTransition } from "react";
 import { useI18n } from "@/components/providers/locale-provider";
 import { updateThemePreferenceAction } from "@/lib/appearance/actions";
 import {
@@ -32,12 +32,9 @@ type ThemeSwatchButtonProps = {
   variant: "advanced-compact" | "card" | "simple-compact";
 };
 
-function ThemeSwatchButton({
-  onSelect,
-  selected,
-  theme,
-  variant,
-}: ThemeSwatchButtonProps) {
+const subscribeToHydration = () => () => {};
+
+function ThemeSwatchButton({ onSelect, selected, theme, variant }: ThemeSwatchButtonProps) {
   const { t } = useI18n();
   const background = getThemePreviewBackground(theme.preview);
   const isLight = theme.id === "theme-light";
@@ -128,12 +125,8 @@ function ThemeSwatchButton({
         ) : null}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="text-app-foreground block text-xs font-semibold">
-          {label}
-        </span>
-        <span className="text-app-muted mt-0.5 block text-[11px] leading-4">
-          {description}
-        </span>
+        <span className="text-app-foreground block text-xs font-semibold">{label}</span>
+        <span className="text-app-muted mt-0.5 block text-[11px] leading-4">{description}</span>
       </span>
     </button>
   );
@@ -147,22 +140,21 @@ export function ThemePicker({
   const { t } = useI18n();
   const { resolvedTheme, setTheme, theme } = useTheme();
   const [activeTab, setActiveTab] = useState<WizardsThemeCategory>("simple");
-  const [mounted, setMounted] = useState(false);
-  const [optimisticTheme, setOptimisticTheme] = useState<WizardsThemeId | null>(
-    null,
+  const mounted = useSyncExternalStore(
+    subscribeToHydration,
+    () => true,
+    () => false,
   );
+  const [optimisticTheme, setOptimisticTheme] = useState<WizardsThemeId | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [savedTheme, setSavedTheme] = useState<WizardsThemeId | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
   const providerThemeId = mounted
     ? normalizeWizardsThemeId(theme ?? resolvedTheme)
     : DEFAULT_WIZARDS_THEME;
-  const activeThemeId = optimisticTheme ?? providerThemeId;
+  const activeThemeId =
+    optimisticTheme && optimisticTheme !== providerThemeId ? optimisticTheme : providerThemeId;
 
   const applyTheme = (themeId: WizardsThemeId) => {
     const nextTheme = applyWizardsThemeToDocument(themeId);
@@ -188,14 +180,6 @@ export function ThemePicker({
   };
 
   useEffect(() => {
-    if (!optimisticTheme || optimisticTheme !== providerThemeId) {
-      return;
-    }
-
-    setOptimisticTheme(null);
-  }, [optimisticTheme, providerThemeId]);
-
-  useEffect(() => {
     if (!savedTheme || savedTheme !== activeThemeId) {
       return;
     }
@@ -205,8 +189,7 @@ export function ThemePicker({
   }, [activeThemeId, savedTheme]);
 
   if (variant === "compact") {
-    const activeThemes =
-      activeTab === "simple" ? SIMPLE_WIZARDS_THEMES : ADVANCED_WIZARDS_THEMES;
+    const activeThemes = activeTab === "simple" ? SIMPLE_WIZARDS_THEMES : ADVANCED_WIZARDS_THEMES;
 
     return (
       <div
@@ -285,9 +268,7 @@ export function ThemePicker({
             ) : savedTheme ? (
               <span className="text-app-success font-medium">{t("themes.status.saved")}</span>
             ) : null}
-            {saveError ? (
-              <p className="text-app-danger mt-1 max-w-40">{t(saveError)}</p>
-            ) : null}
+            {saveError ? <p className="text-app-danger mt-1 max-w-40">{t(saveError)}</p> : null}
           </div>
         </div>
 

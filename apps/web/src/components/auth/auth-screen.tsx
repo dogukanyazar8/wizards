@@ -22,14 +22,12 @@ import {
   useEffect,
   useRef,
   useState,
+  useSyncExternalStore,
   type ButtonHTMLAttributes,
   type InputHTMLAttributes,
   type ReactNode,
 } from "react";
-import {
-  AudienceSelector,
-  type AudienceSelectorValue,
-} from "@/components/auth/audience-selector";
+import { AudienceSelector, type AudienceSelectorValue } from "@/components/auth/audience-selector";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { useI18n } from "@/components/providers/locale-provider";
 import {
@@ -79,6 +77,9 @@ const AUDIENCE_ICON_CLASS: Record<AudienceTone, string> = {
 
 const HERO_COPY_COUNT = 4;
 const HERO_COPY_INTERVAL_MS = 5600;
+const subscribeToHydration = () => () => {};
+const getClientHydrationSnapshot = () => true;
+const getServerHydrationSnapshot = () => false;
 
 function getThemeMode(themeId: WizardsThemeId) {
   return WIZARDS_THEMES.find((theme) => theme.id === themeId)?.mode ?? "light";
@@ -96,11 +97,11 @@ export function ThemeLanguageControls() {
   const { resolvedTheme, setTheme, theme } = useTheme();
   const languageMenuRef = useRef<HTMLDivElement | null>(null);
   const [languageOpen, setLanguageOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useSyncExternalStore(
+    subscribeToHydration,
+    getClientHydrationSnapshot,
+    getServerHydrationSnapshot,
+  );
 
   useEffect(() => {
     if (!languageOpen) {
@@ -218,9 +219,7 @@ export function ProfileCards() {
 function BetaNotice({ variant }: { variant: BetaNoticeVariant }) {
   const { t } = useI18n();
   const isCompact = variant === "compact";
-  const titleKey = isCompact
-    ? "auth.layout.beta.compactTitle"
-    : "auth.layout.beta.heroTitle";
+  const titleKey = isCompact ? "auth.layout.beta.compactTitle" : "auth.layout.beta.heroTitle";
   const descriptionKey = isCompact
     ? "auth.layout.beta.compactDescription"
     : "auth.layout.beta.heroDescription";

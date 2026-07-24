@@ -2,7 +2,7 @@
 
 /* eslint-disable @next/next/no-img-element */
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Download, ExternalLink, FileImage, RotateCcw, ZoomIn, ZoomOut } from "lucide-react";
 import type { MessageAttachment } from "@wizards/types";
 import { Modal } from "@/components/ui/modal";
@@ -79,6 +79,10 @@ function getAttachmentDownloadUrl(attachmentId: string) {
 }
 
 export function ImageLightbox({ image, onClose }: ImageLightboxProps) {
+  return <ImageLightboxContent image={image} key={image?.id ?? "empty"} onClose={onClose} />;
+}
+
+function ImageLightboxContent({ image, onClose }: ImageLightboxProps) {
   const { t } = useI18n();
   const [zoom, setZoom] = useState(1);
   const [isPanning, setIsPanning] = useState(false);
@@ -87,13 +91,6 @@ export function ImageLightbox({ image, onClose }: ImageLightboxProps) {
   const stageRef = useRef<HTMLDivElement | null>(null);
   const panStartRef = useRef<PanStart | null>(null);
   const isGif = image ? isMessageGifContentType(image.contentType) : false;
-
-  useEffect(() => {
-    setZoom(1);
-    setPanOffset({ x: 0, y: 0 });
-    setIsPanning(false);
-    panStartRef.current = null;
-  }, [image?.id]);
 
   const attachmentKind = image
     ? isGif

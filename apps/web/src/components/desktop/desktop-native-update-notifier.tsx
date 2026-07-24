@@ -291,7 +291,7 @@ export function DesktopNativeUpdateNotifier() {
             ? "border-rose-300/70 bg-rose-50 text-rose-700 hover:bg-rose-100"
             : isVerified
               ? "border-emerald-300/70 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-            : "border-[hsl(var(--primary)/0.24)] bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))] shadow-[0_8px_22px_hsl(var(--primary)/0.08)] hover:border-[hsl(var(--primary)/0.42)] hover:bg-[hsl(var(--primary)/0.14)]",
+              : "border-[hsl(var(--primary)/0.24)] bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))] shadow-[0_8px_22px_hsl(var(--primary)/0.08)] hover:border-[hsl(var(--primary)/0.42)] hover:bg-[hsl(var(--primary)/0.14)]",
         )}
         onClick={() => {
           setPanelOpen((open) => !open);
@@ -340,7 +340,7 @@ export function DesktopNativeUpdateNotifier() {
                   ? "border-rose-200 bg-rose-50 text-rose-600"
                   : isVerified
                     ? "border-emerald-200 bg-emerald-50 text-emerald-600"
-                  : "border-[hsl(var(--primary)/0.2)] bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))]",
+                    : "border-[hsl(var(--primary)/0.2)] bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))]",
               )}
             >
               {isError ? (
@@ -396,7 +396,9 @@ export function DesktopNativeUpdateNotifier() {
                 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[hsl(var(--primary))]"
               />
               <span>
-                {t(isVerified ? "desktop.update.successSecurityNote" : "desktop.update.securityNote")}
+                {t(
+                  isVerified ? "desktop.update.successSecurityNote" : "desktop.update.securityNote",
+                )}
               </span>
             </div>
 
@@ -440,7 +442,7 @@ export function DesktopNativeUpdateNotifier() {
               <div className="mt-3 flex items-center gap-2">
                 <button
                   className="inline-flex min-h-9 flex-1 items-center justify-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-3 text-[11px] font-black text-white shadow-[0_12px_28px_hsl(var(--primary)/0.2)] transition hover:bg-[hsl(var(--primary)/0.92)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-65"
-                  disabled={isBusy || isChecking || !updateRef.current}
+                  disabled={isBusy || isChecking || status !== "ready"}
                   onClick={installUpdate}
                   type="button"
                 >

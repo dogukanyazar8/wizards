@@ -56,9 +56,7 @@ import type {
 type FriendsTabId = "online" | "all" | "pending" | "add" | "blocked";
 
 type ConfirmState =
-  | { friend: FriendDto; type: "block" }
-  | { friend: FriendDto; type: "remove" }
-  | null;
+  { friend: FriendDto; type: "block" } | { friend: FriendDto; type: "remove" } | null;
 
 const EMPTY_PENDING: PendingFriendsResponse = {
   incoming: [],
@@ -145,11 +143,11 @@ function FriendsMetricCard({
   const toneClass = metricToneClasses[tone];
 
   return (
-    <div
-      className="relative min-h-[6.4rem] overflow-hidden border-b border-[hsl(var(--border)/0.58)] px-3.5 py-3.5 last:border-b-0 sm:border-b-0 sm:border-r sm:px-4 sm:py-4 sm:last:border-r-0"
-    >
+    <div className="relative min-h-[6.4rem] overflow-hidden border-b border-[hsl(var(--border)/0.58)] px-3.5 py-3.5 last:border-b-0 sm:border-b-0 sm:border-r sm:px-4 sm:py-4 sm:last:border-r-0">
       <div className="relative flex min-w-0 items-start gap-3">
-        <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] ${toneClass.icon}`}>
+        <span
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] ${toneClass.icon}`}
+        >
           <Icon className="h-[18px] w-[18px]" />
         </span>
         <div className="min-w-0 flex-1">
@@ -264,7 +262,9 @@ function FriendsEmptyState({
       ) : (
         <EmptyChatIllustration />
       )}
-      <h2 className={`text-app-foreground font-semibold ${compact ? "mt-3 text-base" : "mt-4 text-lg"}`}>
+      <h2
+        className={`text-app-foreground font-semibold ${compact ? "mt-3 text-base" : "mt-4 text-lg"}`}
+      >
         {title}
       </h2>
       <p className={`text-app-muted mt-2 max-w-md text-sm ${compact ? "leading-5" : "leading-6"}`}>
@@ -288,7 +288,10 @@ function FriendsListSkeleton() {
   return (
     <div className="space-y-3">
       {Array.from({ length: 4 }).map((_, index) => (
-        <div className="app-panel flex items-center justify-between rounded-[24px] border p-3 sm:rounded-[28px] sm:p-4" key={index}>
+        <div
+          className="app-panel flex items-center justify-between rounded-[24px] border p-3 sm:rounded-[28px] sm:p-4"
+          key={index}
+        >
           <div className="flex items-center gap-4">
             <Skeleton className="h-12 w-12 rounded-full" />
             <div className="space-y-2">
@@ -304,13 +307,7 @@ function FriendsListSkeleton() {
   );
 }
 
-function SectionHeading({
-  badge,
-  title,
-}: {
-  badge?: number;
-  title: string;
-}) {
+function SectionHeading({ badge, title }: { badge?: number; title: string }) {
   return (
     <div className="flex items-center justify-between gap-3">
       <h2 className="text-app-foreground text-sm font-semibold uppercase tracking-[0.2em]">
@@ -394,9 +391,7 @@ function ConfirmDialog({
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[hsl(var(--danger)/0.22)] bg-[hsl(var(--danger)/0.1)] text-app-danger">
             <UserMinus className="h-5 w-5" />
           </div>
-          <p className="text-sm leading-6 text-app-muted">
-            {safetyDescription}
-          </p>
+          <p className="text-sm leading-6 text-app-muted">{safetyDescription}</p>
         </div>
       </div>
       <div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
@@ -451,7 +446,9 @@ function PendingRequestRow({
           <p className="text-app-muted truncate text-sm">@{counterpart.username}</p>
         </div>
       </div>
-      <div className="flex shrink-0 items-center justify-end gap-2 sm:justify-start">{actionSlot}</div>
+      <div className="flex shrink-0 items-center justify-end gap-2 sm:justify-start">
+        {actionSlot}
+      </div>
     </div>
   );
 }
@@ -465,7 +462,7 @@ export function FriendsView({ currentUserId }: { currentUserId: string }) {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handledDmIntentRef = useRef<string | null>(null);
-  const [activeTab, setActiveTab] = useState<FriendsTabId>("online");
+  const [manualActiveTab, setManualActiveTab] = useState<FriendsTabId>("online");
   const [confirmState, setConfirmState] = useState<ConfirmState>(null);
   const [feedback, setFeedback] = useState<{
     message: string;
@@ -487,7 +484,7 @@ export function FriendsView({ currentUserId }: { currentUserId: string }) {
   });
 
   const blockedQuery = useQuery({
-    enabled: activeTab === "blocked",
+    enabled: manualActiveTab === "blocked" || searchParams.get("dmTab") === "blocked",
     queryFn: fetchBlockedFriends,
     queryKey: friendsQueryKeys.blocked,
     staleTime: 30_000,
@@ -530,26 +527,23 @@ export function FriendsView({ currentUserId }: { currentUserId: string }) {
   const blockedUsers = blockedQuery.data ?? EMPTY_BLOCKED_USERS;
   const incomingCount = pending.incoming.length;
   const normalizedUsername = username.trim();
-  const canSendRequest =
-    normalizedUsername.length >= 2 &&
-    debouncedUsername === normalizedUsername;
+  const requestedTab = searchParams.get("dmTab");
+  const activeTab = isFriendsTabId(requestedTab) ? requestedTab : manualActiveTab;
+  const setActiveTab = useCallback(
+    (nextTab: FriendsTabId) => {
+      setManualActiveTab(nextTab);
+      if (isFriendsTabId(requestedTab)) {
+        router.replace("/channels/@me", { scroll: false });
+      }
+    },
+    [requestedTab, router],
+  );
+  const canSendRequest = normalizedUsername.length >= 2 && debouncedUsername === normalizedUsername;
 
   const onlineFriends = useMemo(
     () => friends.filter((friend) => friend.status === "ONLINE" || friend.status === "IDLE"),
     [friends],
   );
-  const selectNewChatTab = useCallback(() => {
-    setActiveTab(friends.length > 0 ? "all" : "add");
-  }, [friends.length]);
-
-  useEffect(() => {
-    const requestedTab = searchParams.get("dmTab");
-
-    if (isFriendsTabId(requestedTab)) {
-      setActiveTab(requestedTab);
-    }
-  }, [searchParams]);
-
   useEffect(() => {
     const dmAction = searchParams.get("dmAction");
 
@@ -564,9 +558,9 @@ export function FriendsView({ currentUserId }: { currentUserId: string }) {
     }
 
     handledDmIntentRef.current = intentKey;
-    selectNewChatTab();
-    router.replace("/channels/@me", { scroll: false });
-  }, [friendsQuery.isLoading, router, searchParams, selectNewChatTab]);
+    const targetTab = friends.length > 0 ? "all" : "add";
+    router.replace(`/channels/@me?dmTab=${targetTab}`, { scroll: false });
+  }, [friends.length, friendsQuery.isLoading, router, searchParams]);
 
   const sortedFriends = useMemo(
     () =>
@@ -741,8 +735,9 @@ export function FriendsView({ currentUserId }: { currentUserId: string }) {
       });
     },
     onSuccess: (conversation) => {
-      queryClient.setQueryData<DMConversationsInfiniteData | undefined>(dmQueryKeys.list, (current) =>
-        upsertDMConversationPageData(current, conversation),
+      queryClient.setQueryData<DMConversationsInfiniteData | undefined>(
+        dmQueryKeys.list,
+        (current) => upsertDMConversationPageData(current, conversation),
       );
       router.push(`/channels/@me/${conversation.id}`);
     },
@@ -829,43 +824,46 @@ export function FriendsView({ currentUserId }: { currentUserId: string }) {
 
           <div className="app-panel mt-2.5 rounded-[18px] border px-2.5 py-2.5 shadow-[0_10px_26px_hsl(var(--shadow-color)/0.035)]">
             <div className="flex min-w-0 flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex min-w-0 flex-wrap gap-2 pb-1 sm:flex-nowrap sm:overflow-x-auto" role="tablist">
-              <FriendsTabButton
-                active={activeTab === "online"}
-                icon={Users}
-                label={t("friends.tabs.online")}
-                onClick={() => setActiveTab("online")}
-                testId="friends-tab-online"
-              />
-              <FriendsTabButton
-                active={activeTab === "all"}
-                icon={Users}
-                label={t("friends.tabs.all")}
-                onClick={() => setActiveTab("all")}
-                testId="friends-tab-all"
-              />
-              <FriendsTabButton
-                active={activeTab === "pending"}
-                badge={incomingCount}
-                icon={Clock3}
-                label={t("friends.tabs.pending")}
-                onClick={() => setActiveTab("pending")}
-                testId="friends-tab-pending"
-              />
-              <FriendsTabButton
-                active={activeTab === "add"}
-                icon={UserPlus}
-                label={t("friends.tabs.addFriend")}
-                onClick={() => setActiveTab("add")}
-                testId="friends-tab-add"
-              />
-              <FriendsTabButton
-                active={activeTab === "blocked"}
-                icon={Ban}
-                label={t("friends.tabs.blocked")}
-                onClick={() => setActiveTab("blocked")}
-                testId="friends-tab-blocked"
-              />
+              <div
+                className="flex min-w-0 flex-wrap gap-2 pb-1 sm:flex-nowrap sm:overflow-x-auto"
+                role="tablist"
+              >
+                <FriendsTabButton
+                  active={activeTab === "online"}
+                  icon={Users}
+                  label={t("friends.tabs.online")}
+                  onClick={() => setActiveTab("online")}
+                  testId="friends-tab-online"
+                />
+                <FriendsTabButton
+                  active={activeTab === "all"}
+                  icon={Users}
+                  label={t("friends.tabs.all")}
+                  onClick={() => setActiveTab("all")}
+                  testId="friends-tab-all"
+                />
+                <FriendsTabButton
+                  active={activeTab === "pending"}
+                  badge={incomingCount}
+                  icon={Clock3}
+                  label={t("friends.tabs.pending")}
+                  onClick={() => setActiveTab("pending")}
+                  testId="friends-tab-pending"
+                />
+                <FriendsTabButton
+                  active={activeTab === "add"}
+                  icon={UserPlus}
+                  label={t("friends.tabs.addFriend")}
+                  onClick={() => setActiveTab("add")}
+                  testId="friends-tab-add"
+                />
+                <FriendsTabButton
+                  active={activeTab === "blocked"}
+                  icon={Ban}
+                  label={t("friends.tabs.blocked")}
+                  onClick={() => setActiveTab("blocked")}
+                  testId="friends-tab-blocked"
+                />
               </div>
               <div className="flex shrink-0 items-center gap-2 text-xs font-bold text-app-muted">
                 <span className="hidden uppercase tracking-[0.18em] sm:inline">
@@ -883,256 +881,267 @@ export function FriendsView({ currentUserId }: { currentUserId: string }) {
         <div className="min-h-0 flex-1 px-2.5 pb-2.5 pt-0 sm:px-3 sm:pb-3 md:px-4 md:pb-4">
           <div className="app-panel flex h-full min-h-[22rem] flex-col overflow-hidden rounded-[18px] border shadow-[0_16px_44px_hsl(var(--shadow-color)/0.04)]">
             <div className="min-h-0 flex-1 overflow-y-auto p-2.5 sm:p-3 md:p-4">
-          {activeTab === "online" ? (
-            friendsQuery.isLoading ? (
-              <FriendsListSkeleton />
-            ) : friends.length === 0 ? (
-              <FriendsEmptyState
-                actionLabel={t("friends.tabs.addFriend")}
-                description={t("friends.empty.noFriends")}
-                onAction={() => setActiveTab("add")}
-                title={t("friends.tabs.online")}
-              />
-            ) : onlineFriends.length === 0 ? (
-              <FriendsEmptyState
-                actionLabel={t("friends.actions.startChat")}
-                description={t("friends.empty.noOnline")}
-                onAction={() => setActiveTab("all")}
-                title={t("friends.tabs.online")}
-              />
-            ) : (
-              <div className="space-y-3">
-                {onlineFriends.map((friend) => (
-                  <FriendCard
-                    currentUserId={currentUserId}
-                    friend={friend}
-                    key={friend.id}
-                    onBlock={(nextFriend) => setConfirmState({ friend: nextFriend, type: "block" })}
-                    onMessage={(nextFriend) => openDirectMessageMutation.mutate(nextFriend.id)}
-                    onRemove={(nextFriend) => setConfirmState({ friend: nextFriend, type: "remove" })}
+              {activeTab === "online" ? (
+                friendsQuery.isLoading ? (
+                  <FriendsListSkeleton />
+                ) : friends.length === 0 ? (
+                  <FriendsEmptyState
+                    actionLabel={t("friends.tabs.addFriend")}
+                    description={t("friends.empty.noFriends")}
+                    onAction={() => setActiveTab("add")}
+                    title={t("friends.tabs.online")}
                   />
-                ))}
-              </div>
-            )
-          ) : null}
-
-          {activeTab === "all" ? (
-            friendsQuery.isLoading ? (
-              <FriendsListSkeleton />
-            ) : friends.length === 0 ? (
-              <FriendsEmptyState
-                actionLabel={t("friends.tabs.addFriend")}
-                description={t("friends.empty.noFriends")}
-                onAction={() => setActiveTab("add")}
-                title={t("friends.tabs.all")}
-              />
-            ) : (
-              <div className="space-y-3">
-                {sortedFriends.map((friend) => (
-                  <FriendCard
-                    currentUserId={currentUserId}
-                    friend={friend}
-                    key={friend.id}
-                    onBlock={(nextFriend) => setConfirmState({ friend: nextFriend, type: "block" })}
-                    onMessage={(nextFriend) => openDirectMessageMutation.mutate(nextFriend.id)}
-                    onRemove={(nextFriend) => setConfirmState({ friend: nextFriend, type: "remove" })}
+                ) : onlineFriends.length === 0 ? (
+                  <FriendsEmptyState
+                    actionLabel={t("friends.actions.startChat")}
+                    description={t("friends.empty.noOnline")}
+                    onAction={() => setActiveTab("all")}
+                    title={t("friends.tabs.online")}
                   />
-                ))}
-              </div>
-            )
-          ) : null}
-
-          {activeTab === "pending" ? (
-            pendingQuery.isLoading ? (
-              <FriendsListSkeleton />
-            ) : (
-              <div className="grid gap-4 sm:gap-6 xl:grid-cols-2">
-                <section className="space-y-2 sm:space-y-3">
-                  <SectionHeading badge={incomingCount} title={t("friends.pending.incomingTitle")} />
-                  {pending.incoming.length === 0 ? (
-                    <FriendsEmptyState
-                      compact
-                      description={t("friends.empty.incoming")}
-                      title={t("friends.pending.incomingTitle")}
-                    />
-                  ) : (
-                    pending.incoming.map((request) => (
-                      <PendingRequestRow
-                        actionSlot={
-                          <>
-                            <button
-                              aria-label={t("friends.actions.accept")}
-                              className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[hsl(var(--success))] text-white transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--success)/0.45)]"
-                              data-testid={`friend-request-accept-${request.sender.username}`}
-                              onClick={() =>
-                                requestActionMutation.mutate({
-                                  action: "accept",
-                                  requestId: request.id,
-                                })
-                              }
-                              type="button"
-                            >
-                              <Check className="h-4 w-4" />
-                            </button>
-                            <button
-                              aria-label={t("friends.actions.decline")}
-                              className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[hsl(var(--danger))] text-[hsl(var(--danger-foreground))] transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.45)]"
-                              data-testid={`friend-request-decline-${request.sender.username}`}
-                              onClick={() =>
-                                requestActionMutation.mutate({
-                                  action: "decline",
-                                  requestId: request.id,
-                                })
-                              }
-                              type="button"
-                            >
-                              <X className="h-4 w-4" />
-                            </button>
-                          </>
+                ) : (
+                  <div className="space-y-3">
+                    {onlineFriends.map((friend) => (
+                      <FriendCard
+                        currentUserId={currentUserId}
+                        friend={friend}
+                        key={friend.id}
+                        onBlock={(nextFriend) =>
+                          setConfirmState({ friend: nextFriend, type: "block" })
                         }
-                        key={request.id}
-                        request={request}
-                        type="incoming"
+                        onMessage={(nextFriend) => openDirectMessageMutation.mutate(nextFriend.id)}
+                        onRemove={(nextFriend) =>
+                          setConfirmState({ friend: nextFriend, type: "remove" })
+                        }
                       />
-                    ))
-                  )}
-                </section>
+                    ))}
+                  </div>
+                )
+              ) : null}
 
-                <section className="space-y-2 sm:space-y-3">
-                  <SectionHeading title={t("friends.pending.outgoingTitle")} />
-                  {pending.outgoing.length === 0 ? (
-                    <FriendsEmptyState
-                      compact
-                      description={t("friends.empty.outgoing")}
-                      title={t("friends.pending.outgoingTitle")}
+              {activeTab === "all" ? (
+                friendsQuery.isLoading ? (
+                  <FriendsListSkeleton />
+                ) : friends.length === 0 ? (
+                  <FriendsEmptyState
+                    actionLabel={t("friends.tabs.addFriend")}
+                    description={t("friends.empty.noFriends")}
+                    onAction={() => setActiveTab("add")}
+                    title={t("friends.tabs.all")}
+                  />
+                ) : (
+                  <div className="space-y-3">
+                    {sortedFriends.map((friend) => (
+                      <FriendCard
+                        currentUserId={currentUserId}
+                        friend={friend}
+                        key={friend.id}
+                        onBlock={(nextFriend) =>
+                          setConfirmState({ friend: nextFriend, type: "block" })
+                        }
+                        onMessage={(nextFriend) => openDirectMessageMutation.mutate(nextFriend.id)}
+                        onRemove={(nextFriend) =>
+                          setConfirmState({ friend: nextFriend, type: "remove" })
+                        }
+                      />
+                    ))}
+                  </div>
+                )
+              ) : null}
+
+              {activeTab === "pending" ? (
+                pendingQuery.isLoading ? (
+                  <FriendsListSkeleton />
+                ) : (
+                  <div className="grid gap-4 sm:gap-6 xl:grid-cols-2">
+                    <section className="space-y-2 sm:space-y-3">
+                      <SectionHeading
+                        badge={incomingCount}
+                        title={t("friends.pending.incomingTitle")}
+                      />
+                      {pending.incoming.length === 0 ? (
+                        <FriendsEmptyState
+                          compact
+                          description={t("friends.empty.incoming")}
+                          title={t("friends.pending.incomingTitle")}
+                        />
+                      ) : (
+                        pending.incoming.map((request) => (
+                          <PendingRequestRow
+                            actionSlot={
+                              <>
+                                <button
+                                  aria-label={t("friends.actions.accept")}
+                                  className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[hsl(var(--success))] text-white transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--success)/0.45)]"
+                                  data-testid={`friend-request-accept-${request.sender.username}`}
+                                  onClick={() =>
+                                    requestActionMutation.mutate({
+                                      action: "accept",
+                                      requestId: request.id,
+                                    })
+                                  }
+                                  type="button"
+                                >
+                                  <Check className="h-4 w-4" />
+                                </button>
+                                <button
+                                  aria-label={t("friends.actions.decline")}
+                                  className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[hsl(var(--danger))] text-[hsl(var(--danger-foreground))] transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.45)]"
+                                  data-testid={`friend-request-decline-${request.sender.username}`}
+                                  onClick={() =>
+                                    requestActionMutation.mutate({
+                                      action: "decline",
+                                      requestId: request.id,
+                                    })
+                                  }
+                                  type="button"
+                                >
+                                  <X className="h-4 w-4" />
+                                </button>
+                              </>
+                            }
+                            key={request.id}
+                            request={request}
+                            type="incoming"
+                          />
+                        ))
+                      )}
+                    </section>
+
+                    <section className="space-y-2 sm:space-y-3">
+                      <SectionHeading title={t("friends.pending.outgoingTitle")} />
+                      {pending.outgoing.length === 0 ? (
+                        <FriendsEmptyState
+                          compact
+                          description={t("friends.empty.outgoing")}
+                          title={t("friends.pending.outgoingTitle")}
+                        />
+                      ) : (
+                        pending.outgoing.map((request) => (
+                          <PendingRequestRow
+                            actionSlot={
+                              <button
+                                className="min-h-11 rounded-2xl border border-[hsl(var(--border)/0.82)] px-4 py-2 text-sm font-medium text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.62)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                                onClick={() => cancelRequestMutation.mutate(request.id)}
+                                type="button"
+                              >
+                                {t("friends.actions.cancel")}
+                              </button>
+                            }
+                            key={request.id}
+                            request={request}
+                            type="outgoing"
+                          />
+                        ))
+                      )}
+                    </section>
+                  </div>
+                )
+              ) : null}
+
+              {activeTab === "add" ? (
+                <div className="app-panel max-w-3xl rounded-[28px] border p-4 sm:p-6 md:rounded-[32px] md:p-8">
+                  <div className="flex items-start gap-3 sm:gap-4">
+                    <div className="app-panel-soft flex h-14 w-14 items-center justify-center rounded-[22px] border">
+                      <UserPlus className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <h2 className="text-app-foreground text-xl font-semibold">
+                        {t("friends.addFriend.title")}
+                      </h2>
+                      <p className="text-app-muted mt-2 text-sm leading-6">
+                        {t("friends.addFriend.description")}
+                      </p>
+                    </div>
+                  </div>
+
+                  <label
+                    className="mt-6 block text-sm font-medium text-app-foreground"
+                    htmlFor="friend-username"
+                  >
+                    {t("friends.addFriend.inputLabel")}
+                  </label>
+
+                  <form
+                    className="mt-3 flex flex-col gap-3 sm:flex-row"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+
+                      if (canSendRequest) {
+                        sendRequestMutation.mutate(normalizedUsername);
+                      }
+                    }}
+                  >
+                    <Input
+                      autoComplete="off"
+                      data-testid="friend-username-input"
+                      id="friend-username"
+                      onChange={(event) => handleUsernameChange(event.target.value)}
+                      placeholder={t("friends.addFriend.placeholder")}
+                      value={username}
                     />
-                  ) : (
-                    pending.outgoing.map((request) => (
-                      <PendingRequestRow
-                        actionSlot={
+                    <button
+                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-[hsl(var(--primary))] px-5 text-sm font-semibold text-[hsl(var(--primary-foreground))] transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary)/0.45)] disabled:opacity-60"
+                      data-testid="send-friend-request-button"
+                      disabled={!canSendRequest || sendRequestMutation.isPending}
+                      type="submit"
+                    >
+                      {sendRequestMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <SendHorizontal className="h-4 w-4" />
+                      )}
+                      {t("friends.actions.sendRequest")}
+                    </button>
+                  </form>
+                </div>
+              ) : null}
+
+              {activeTab === "blocked" ? (
+                blockedQuery.isLoading ? (
+                  <FriendsListSkeleton />
+                ) : blockedUsers.length === 0 ? (
+                  <FriendsEmptyState
+                    description={t("friends.empty.blocked")}
+                    title={t("friends.tabs.blocked")}
+                  />
+                ) : (
+                  <div className="space-y-3">
+                    {blockedUsers.map((user) => {
+                      const displayName = user.displayName ?? user.username;
+
+                      return (
+                        <div
+                          className="app-panel flex flex-col gap-3 rounded-[24px] border p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:rounded-[28px] sm:p-4"
+                          key={user.id}
+                        >
+                          <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+                            <Avatar
+                              alt={displayName}
+                              className="h-11 w-11 shrink-0 text-sm sm:h-12 sm:w-12"
+                              fallback={displayName}
+                              src={user.avatarUrl}
+                            />
+                            <div className="min-w-0">
+                              <p className="text-app-foreground truncate text-sm font-semibold">
+                                {displayName}
+                              </p>
+                              <p className="text-app-muted truncate text-sm">@{user.username}</p>
+                            </div>
+                          </div>
                           <button
-                            className="min-h-11 rounded-2xl border border-[hsl(var(--border)/0.82)] px-4 py-2 text-sm font-medium text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.62)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-                            onClick={() => cancelRequestMutation.mutate(request.id)}
+                            className="min-h-11 rounded-2xl border border-[hsl(var(--border)/0.82)] px-4 py-2 text-sm font-medium text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.62)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:opacity-60"
+                            disabled={unblockFriendMutation.isPending}
+                            onClick={() => unblockFriendMutation.mutate(user.id)}
                             type="button"
                           >
-                            {t("friends.actions.cancel")}
+                            {t("friends.actions.unblock")}
                           </button>
-                        }
-                        key={request.id}
-                        request={request}
-                        type="outgoing"
-                      />
-                    ))
-                  )}
-                </section>
-              </div>
-            )
-          ) : null}
-
-          {activeTab === "add" ? (
-            <div className="app-panel max-w-3xl rounded-[28px] border p-4 sm:p-6 md:rounded-[32px] md:p-8">
-              <div className="flex items-start gap-3 sm:gap-4">
-                <div className="app-panel-soft flex h-14 w-14 items-center justify-center rounded-[22px] border">
-                  <UserPlus className="h-6 w-6" />
-                </div>
-                <div>
-                  <h2 className="text-app-foreground text-xl font-semibold">
-                    {t("friends.addFriend.title")}
-                  </h2>
-                  <p className="text-app-muted mt-2 text-sm leading-6">
-                    {t("friends.addFriend.description")}
-                  </p>
-                </div>
-              </div>
-
-              <label
-                className="mt-6 block text-sm font-medium text-app-foreground"
-                htmlFor="friend-username"
-              >
-                {t("friends.addFriend.inputLabel")}
-              </label>
-
-              <form
-                className="mt-3 flex flex-col gap-3 sm:flex-row"
-                onSubmit={(event) => {
-                  event.preventDefault();
-
-                  if (canSendRequest) {
-                    sendRequestMutation.mutate(normalizedUsername);
-                  }
-                }}
-              >
-                <Input
-                  autoComplete="off"
-                  data-testid="friend-username-input"
-                  id="friend-username"
-                  onChange={(event) => handleUsernameChange(event.target.value)}
-                  placeholder={t("friends.addFriend.placeholder")}
-                  value={username}
-                />
-                <button
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-[hsl(var(--primary))] px-5 text-sm font-semibold text-[hsl(var(--primary-foreground))] transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary)/0.45)] disabled:opacity-60"
-                  data-testid="send-friend-request-button"
-                  disabled={!canSendRequest || sendRequestMutation.isPending}
-                  type="submit"
-                >
-                  {sendRequestMutation.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <SendHorizontal className="h-4 w-4" />
-                  )}
-                  {t("friends.actions.sendRequest")}
-                </button>
-              </form>
-            </div>
-          ) : null}
-
-          {activeTab === "blocked" ? (
-            blockedQuery.isLoading ? (
-              <FriendsListSkeleton />
-            ) : blockedUsers.length === 0 ? (
-              <FriendsEmptyState
-                description={t("friends.empty.blocked")}
-                title={t("friends.tabs.blocked")}
-              />
-            ) : (
-              <div className="space-y-3">
-                {blockedUsers.map((user) => {
-                  const displayName = user.displayName ?? user.username;
-
-                  return (
-                    <div
-                      className="app-panel flex flex-col gap-3 rounded-[24px] border p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:rounded-[28px] sm:p-4"
-                      key={user.id}
-                    >
-                      <div className="flex min-w-0 items-center gap-3 sm:gap-4">
-                        <Avatar
-                          alt={displayName}
-                          className="h-11 w-11 shrink-0 text-sm sm:h-12 sm:w-12"
-                          fallback={displayName}
-                          src={user.avatarUrl}
-                        />
-                        <div className="min-w-0">
-                          <p className="text-app-foreground truncate text-sm font-semibold">
-                            {displayName}
-                          </p>
-                          <p className="text-app-muted truncate text-sm">@{user.username}</p>
                         </div>
-                      </div>
-                      <button
-                        className="min-h-11 rounded-2xl border border-[hsl(var(--border)/0.82)] px-4 py-2 text-sm font-medium text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.62)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:opacity-60"
-                        disabled={unblockFriendMutation.isPending}
-                        onClick={() => unblockFriendMutation.mutate(user.id)}
-                        type="button"
-                      >
-                        {t("friends.actions.unblock")}
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            )
-          ) : null}
+                      );
+                    })}
+                  </div>
+                )
+              ) : null}
             </div>
           </div>
         </div>

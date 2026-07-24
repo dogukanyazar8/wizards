@@ -18,34 +18,49 @@ interface MobileOAuthStartClientProps {
 
 export function MobileOAuthStartClient({ callbackUrl, provider }: MobileOAuthStartClientProps) {
   const [failed, setFailed] = useState(false);
-  const [started, setStarted] = useState(false);
+  const [started, setStarted] = useState(true);
   const mobileCompleteCallbackUrl = useMemo(
     () => buildMobileOAuthCompletePath(callbackUrl),
     [callbackUrl],
   );
+
+  const beginProviderSignIn = useCallback(async () => {
+    // Sign the browser session out first so the account chooser always shows;
+    // the mobile app never inherits a stale web session this way.
+    return signOut({ redirect: false }).then(() =>
+      signIn(
+        provider,
+        { callbackUrl: mobileCompleteCallbackUrl },
+        getMobileOAuthGoogleAuthorizationParams(),
+      ),
+    );
+  }, [mobileCompleteCallbackUrl, provider]);
 
   const startProviderSignIn = useCallback(async () => {
     setFailed(false);
     setStarted(true);
 
     try {
-      // Sign the browser session out first so the account chooser always shows;
-      // the mobile app never inherits a stale web session this way.
-      await signOut({ redirect: false });
-      await signIn(
-        provider,
-        { callbackUrl: mobileCompleteCallbackUrl },
-        getMobileOAuthGoogleAuthorizationParams(),
-      );
+      await beginProviderSignIn();
     } catch {
       setStarted(false);
       setFailed(true);
     }
-  }, [mobileCompleteCallbackUrl, provider]);
+  }, [beginProviderSignIn]);
 
   useEffect(() => {
-    void startProviderSignIn();
-  }, [startProviderSignIn]);
+    let cancelled = false;
+    void beginProviderSignIn().catch(() => {
+      if (!cancelled) {
+        setStarted(false);
+        setFailed(true);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [beginProviderSignIn]);
 
   return (
     <main className="auth-canvas flex min-h-screen items-center justify-center px-5 py-10">

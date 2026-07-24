@@ -14,14 +14,8 @@ type VoiceInviteEntry = VoiceInvitePayload & {
   errorMessage?: string | undefined;
 };
 
-function getInviteErrorMessage(
-  t: ReturnType<typeof useI18n>["t"],
-  error: VoiceInviteErrorPayload,
-) {
-  if (
-    error.code === "VOICE_INVITE_FORBIDDEN" ||
-    error.code === "VOICE_INVITE_TARGET_FORBIDDEN"
-  ) {
+function getInviteErrorMessage(t: ReturnType<typeof useI18n>["t"], error: VoiceInviteErrorPayload) {
+  if (error.code === "VOICE_INVITE_FORBIDDEN" || error.code === "VOICE_INVITE_TARGET_FORBIDDEN") {
     return t("voice.invite.permissionDenied");
   }
   if (error.code === "VOICE_INVITE_TARGET_OFFLINE") {
@@ -34,6 +28,10 @@ function getInviteErrorMessage(
     return t("voice.invite.expired");
   }
   return t("voice.invite.unavailable");
+}
+
+function isInviteActive(expiresAt: string) {
+  return Date.parse(expiresAt) > Date.now();
 }
 
 export function VoiceInviteToasts() {
@@ -107,7 +105,7 @@ export function VoiceInviteToasts() {
   }
 
   const dismissInvite = (invite: VoiceInviteEntry, options: { notifyDeclined?: boolean } = {}) => {
-    if (options.notifyDeclined !== false && Date.parse(invite.expiresAt) > Date.now()) {
+    if (options.notifyDeclined !== false && isInviteActive(invite.expiresAt)) {
       getSocket().emit("voice:invite:decline", {
         channelId: invite.channelId,
         inviteId: invite.id,
@@ -119,7 +117,7 @@ export function VoiceInviteToasts() {
   };
 
   const acceptInvite = (invite: VoiceInviteEntry) => {
-    if (Date.parse(invite.expiresAt) <= Date.now()) {
+    if (!isInviteActive(invite.expiresAt)) {
       setInvites((current) =>
         current.map((entry) =>
           entry.id === invite.id

@@ -49,11 +49,7 @@ export function NotificationBell({
   const router = useRouter();
   const socket = useSocket();
   const queryClient = useQueryClient();
-  const {
-    notificationAutoClose,
-    notificationLimit,
-    notificationPopupTimeoutSeconds,
-  } = useAppStore(
+  const { notificationAutoClose, notificationLimit, notificationPopupTimeoutSeconds } = useAppStore(
     useShallow((state) => ({
       notificationAutoClose: state.notificationAutoClose,
       notificationLimit: state.notificationLimit,
@@ -65,7 +61,6 @@ export function NotificationBell({
   const popoverRef = useRef<HTMLDivElement>(null);
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [dropdownPos, setDropdownPos] = useState<{
     bottom: number;
     left: number;
@@ -96,6 +91,15 @@ export function NotificationBell({
     queryKey: notificationsQueryKeys.list(popupNotificationLimit),
     staleTime: 30_000,
   });
+  const unreadCount = unreadQuery.data ?? 0;
+  const updateUnreadCount = useCallback(
+    (update: (current: number) => number) => {
+      queryClient.setQueryData<number>(notificationsQueryKeys.unreadCount, (current) =>
+        Math.max(0, update(current ?? 0)),
+      );
+    },
+    [queryClient],
+  );
 
   const syncNotificationQueries = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: notificationsQueryKeys.unreadCount });
@@ -138,12 +142,12 @@ export function NotificationBell({
       );
 
       if (removedUnreadCount > 0) {
-        setUnreadCount((current) => Math.max(0, current - removedUnreadCount));
+        updateUnreadCount((current) => current - removedUnreadCount);
       }
 
       syncNotificationQueries();
     },
-    [popupNotificationLimit, queryClient, syncNotificationQueries],
+    [popupNotificationLimit, queryClient, syncNotificationQueries, updateUnreadCount],
   );
 
   useEffect(() => {
@@ -157,10 +161,6 @@ export function NotificationBell({
   }, []);
 
   useEffect(() => {
-    setUnreadCount(unreadQuery.data ?? 0);
-  }, [unreadQuery.data]);
-
-  useEffect(() => {
     if (typeof document === "undefined") {
       return;
     }
@@ -168,9 +168,7 @@ export function NotificationBell({
     baseTitleRef.current ??= document.title.replace(/^\(\d+\+?\)\s*/, "") || "Whispr";
     const baseTitle = baseTitleRef.current;
     document.title =
-      unreadCount > 0
-        ? `(${unreadCount > 99 ? "99+" : unreadCount}) ${baseTitle}`
-        : baseTitle;
+      unreadCount > 0 ? `(${unreadCount > 99 ? "99+" : unreadCount}) ${baseTitle}` : baseTitle;
 
     return () => {
       document.title = baseTitle;
@@ -179,7 +177,7 @@ export function NotificationBell({
 
   useEffect(() => {
     const handleIncomingNotification = () => {
-      setUnreadCount((current) => current + 1);
+      updateUnreadCount((current) => current + 1);
       syncNotificationQueries();
     };
 
@@ -194,7 +192,7 @@ export function NotificationBell({
       socket.off("notification:new", handleIncomingNotification);
       socket.off("friends:updated", handleFriendsUpdated);
     };
-  }, [socket, syncNotificationQueries]);
+  }, [socket, syncNotificationQueries, updateUnreadCount]);
 
   useEffect(() => {
     if (!open) {
@@ -242,11 +240,11 @@ export function NotificationBell({
     mutationFn: markAllNotificationsRead,
     onMutate: () => {
       const previousCount = unreadCount;
-      setUnreadCount(0);
+      updateUnreadCount(() => 0);
       return { previousCount };
     },
     onError: (_error, _variables, context) => {
-      setUnreadCount(context?.previousCount ?? 0);
+      updateUnreadCount(() => context?.previousCount ?? 0);
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: notificationsQueryKeys.unreadCount });
@@ -260,11 +258,11 @@ export function NotificationBell({
     mutationFn: deleteAllNotifications,
     onMutate: () => {
       const previousCount = unreadCount;
-      setUnreadCount(0);
+      updateUnreadCount(() => 0);
       return { previousCount };
     },
     onError: (_error, _variables, context) => {
-      setUnreadCount(context?.previousCount ?? 0);
+      updateUnreadCount(() => context?.previousCount ?? 0);
     },
     onSuccess: async () => {
       setPopoverOpen(false);
@@ -312,7 +310,9 @@ export function NotificationBell({
     const anchorElement =
       userBarAnchor ??
       controlsRoot ??
-      sidebarRoot?.querySelector<HTMLElement>("[data-notification-popup-anchor='controls-border']") ??
+      sidebarRoot?.querySelector<HTMLElement>(
+        "[data-notification-popup-anchor='controls-border']",
+      ) ??
       sidebarRoot?.querySelector<HTMLElement>("[data-notification-popup-anchor='voice']") ??
       sidebarRoot?.querySelector<HTMLElement>("[data-notification-popup-anchor='user']");
     const userBarRect = anchorElement?.getBoundingClientRect() ?? rect;
@@ -332,7 +332,7 @@ export function NotificationBell({
   const handleReadAndNavigate = async (notification: NotificationDTO) => {
     if (!notification.readAt) {
       await markNotificationRead(notification.id);
-      setUnreadCount((current) => Math.max(0, current - 1));
+      updateUnreadCount((current) => current - 1);
       void queryClient.invalidateQueries({ queryKey: notificationsQueryKeys.unreadCount });
       void queryClient.invalidateQueries({
         queryKey: notificationsQueryKeys.list(popupNotificationLimit),
@@ -434,7 +434,10 @@ export function NotificationBell({
                     {listQuery.isLoading ? (
                       <div className="space-y-2">
                         {Array.from({ length: 4 }).map((_, index) => (
-                          <div className="rounded-[18px] bg-[hsl(var(--surface-card)/0.5)] p-2.5" key={index}>
+                          <div
+                            className="rounded-[18px] bg-[hsl(var(--surface-card)/0.5)] p-2.5"
+                            key={index}
+                          >
                             <div className="flex items-center gap-2.5">
                               <div className="h-8 w-8 animate-pulse rounded-full bg-[hsl(var(--surface-soft))]" />
                               <div className="min-w-0 flex-1 space-y-1.5">

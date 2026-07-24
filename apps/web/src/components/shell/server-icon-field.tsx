@@ -21,17 +21,22 @@ export function ServerIconField({
 }: ServerIconFieldProps) {
   const { t } = useI18n();
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const [localPreview, setLocalPreview] = useState<string | null>(value ?? null);
+  const [localPreview, setLocalPreview] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
-    setLocalPreview(value ?? null);
-  }, [value]);
+    if (!localPreview?.startsWith("blob:")) {
+      return;
+    }
+
+    return () => URL.revokeObjectURL(localPreview);
+  }, [localPreview]);
 
   const { isUploading, startUpload } = useUploadThing("serverIconUploader", {
     onClientUploadComplete: (result) => {
       const nextUrl = result[0]?.serverData?.url ?? result[0]?.url ?? null;
+      setLocalPreview(null);
       setProgress(100);
       onChange(nextUrl);
       setUploadError(null);
@@ -52,17 +57,17 @@ export function ServerIconField({
           alt={`${label} icon`}
           className="h-16 w-16 rounded-[22px]"
           fallback={label.slice(0, 2).toUpperCase()}
-          src={localPreview}
+          src={localPreview ?? value ?? null}
         />
 
         <div className="min-w-0 flex-1">
-          <p className="text-app-foreground text-sm font-semibold">{t("workspace.modal.serverIcon")}</p>
+          <p className="text-app-foreground text-sm font-semibold">
+            {t("workspace.modal.serverIcon")}
+          </p>
           <p className="text-app-muted mt-1 text-xs leading-5">
             {t("workspace.modal.serverIconDescription")}
           </p>
-          {uploadError ? (
-            <p className="text-app-danger mt-2 text-xs">{uploadError}</p>
-          ) : null}
+          {uploadError ? <p className="text-app-danger mt-2 text-xs">{uploadError}</p> : null}
           {!uploadthingEnabled ? (
             <p className="text-app-warning mt-2 text-xs">
               {t("workspace.modal.serverIconUploadsDisabled")}
@@ -96,7 +101,6 @@ export function ServerIconField({
             }
 
             await startUpload([file]);
-            window.setTimeout(() => URL.revokeObjectURL(previewUrl), 2_000);
           }}
           ref={inputRef}
           type="file"
@@ -108,7 +112,11 @@ export function ServerIconField({
           onClick={() => inputRef.current?.click()}
           type="button"
         >
-          {isUploading ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
+          {isUploading ? (
+            <LoaderCircle className="h-4 w-4 animate-spin" />
+          ) : (
+            <ImagePlus className="h-4 w-4" />
+          )}
           {t("workspace.modal.serverIconChoose")}
         </button>
 

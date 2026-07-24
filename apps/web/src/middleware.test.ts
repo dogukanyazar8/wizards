@@ -4,7 +4,7 @@ import {
   buildContentSecurityPolicy,
   getAuthRouteRedirectPath,
   isMutatingApiRequestAllowed,
-} from "./middleware";
+} from "./proxy";
 
 describe("API CSRF guard", () => {
   const requestOrigin = "https://whispr.team";

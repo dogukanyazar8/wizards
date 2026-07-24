@@ -22,7 +22,11 @@ interface MessageListProps {
   onThread: (message: ChatMessage) => void;
 }
 
-export function MessageList({
+export function MessageList(props: MessageListProps) {
+  return <MessageListContent {...props} key={`${props.mode}:${props.conversationId}`} />;
+}
+
+function MessageListContent({
   conversationId,
   mode,
   currentUserId,
@@ -35,10 +39,7 @@ export function MessageList({
 }: MessageListProps) {
   const { locale, t } = useI18n();
   const socket = useSocket();
-  const { data, error, fetchNextPage, hasNextPage, isLoading } = useMessages(
-    mode,
-    conversationId,
-  );
+  const { data, error, fetchNextPage, hasNextPage, isLoading } = useMessages(mode, conversationId);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const observerRef = useRef<HTMLDivElement>(null);
@@ -64,42 +65,45 @@ export function MessageList({
     setShowScrollButton(false);
   }, []);
 
-  const scheduleScrollToBottom = useCallback((options: { completeInitial?: boolean } = {}) => {
-    if (scrollFrameRef.current !== null) {
-      window.cancelAnimationFrame(scrollFrameRef.current);
-    }
+  const scheduleScrollToBottom = useCallback(
+    (options: { completeInitial?: boolean } = {}) => {
+      if (scrollFrameRef.current !== null) {
+        window.cancelAnimationFrame(scrollFrameRef.current);
+      }
 
-    for (const timeoutId of scrollTimeoutRefs.current) {
-      window.clearTimeout(timeoutId);
-    }
-    scrollTimeoutRefs.current = [];
+      for (const timeoutId of scrollTimeoutRefs.current) {
+        window.clearTimeout(timeoutId);
+      }
+      scrollTimeoutRefs.current = [];
 
-    const run = (remainingFrames: number) => {
-      scrollFrameRef.current = window.requestAnimationFrame(() => {
-        forceScrollToBottom();
+      const run = (remainingFrames: number) => {
+        scrollFrameRef.current = window.requestAnimationFrame(() => {
+          forceScrollToBottom();
 
-        if (remainingFrames > 0) {
-          run(remainingFrames - 1);
-          return;
-        }
+          if (remainingFrames > 0) {
+            run(remainingFrames - 1);
+            return;
+          }
 
-        scrollFrameRef.current = null;
-      });
-    };
+          scrollFrameRef.current = null;
+        });
+      };
 
-    run(4);
+      run(4);
 
-    for (const delay of [50, 150, 350, 700]) {
-      const timeoutId = window.setTimeout(() => {
-        forceScrollToBottom();
+      for (const delay of [50, 150, 350, 700]) {
+        const timeoutId = window.setTimeout(() => {
+          forceScrollToBottom();
 
-        if (options.completeInitial && delay === 700) {
-          initialScrollCompleteRef.current = true;
-        }
-      }, delay);
-      scrollTimeoutRefs.current.push(timeoutId);
-    }
-  }, [forceScrollToBottom]);
+          if (options.completeInitial && delay === 700) {
+            initialScrollCompleteRef.current = true;
+          }
+        }, delay);
+        scrollTimeoutRefs.current.push(timeoutId);
+      }
+    },
+    [forceScrollToBottom],
+  );
 
   useEffect(
     () => () => {
@@ -146,16 +150,6 @@ export function MessageList({
     };
   }, []);
 
-  useEffect(() => {
-    hasScrolledInitialRef.current = false;
-    initialScrollCompleteRef.current = false;
-    lastNewestMessageIdRef.current = null;
-    lastNewestMessageActivityRef.current = null;
-    lastHighlightedMessageIdRef.current = null;
-    setShowScrollButton(false);
-    setUnreadJumpDismissed(false);
-  }, [conversationId, mode]);
-
   const scrollToMessage = useCallback((messageId: string) => {
     window.requestAnimationFrame(() => {
       const target = document.querySelector(`[data-message-id="${messageId}"]`);
@@ -201,7 +195,6 @@ export function MessageList({
       lastNewestMessageIdRef.current = null;
       hasScrolledInitialRef.current = false;
       initialScrollCompleteRef.current = true;
-      setShowScrollButton(false);
       return;
     }
 
@@ -212,8 +205,7 @@ export function MessageList({
       newestMessageActivity !== null &&
       newestMessageActivity !== lastNewestMessageActivityRef.current;
     const hasTargetMessage =
-      Boolean(targetMessageId) &&
-      allMessages.some((message) => message.id === targetMessageId);
+      Boolean(targetMessageId) && allMessages.some((message) => message.id === targetMessageId);
 
     lastNewestMessageIdRef.current = newestMessageId;
     lastNewestMessageActivityRef.current = newestMessageActivity;
@@ -268,19 +260,15 @@ export function MessageList({
     forceScrollToBottom();
   }, [forceScrollToBottom]);
 
-  const allMessages = useMemo(
-    () =>
-      (data?.pages ? [...data.pages].reverse().flatMap((page) => page.messages) : []).filter(
-        (message) => {
-          if (!message.deletedAt || !message.placeholderExpiresAt) {
-            return true;
-          }
+  const allMessages = (
+    data?.pages ? [...data.pages].reverse().flatMap((page) => page.messages) : []
+  ).filter((message) => {
+    if (!message.deletedAt || !message.placeholderExpiresAt) {
+      return true;
+    }
 
-          return Date.parse(message.placeholderExpiresAt) > deletedNoticeNow;
-        },
-      ),
-    [data?.pages, deletedNoticeNow],
-  );
+    return Date.parse(message.placeholderExpiresAt) > deletedNoticeNow;
+  });
 
   useEffect(() => {
     const nextExpiry = allMessages
@@ -318,8 +306,7 @@ export function MessageList({
           previousMessage.type === "DEFAULT" &&
           previousMessage.author.id === message.author.id &&
           Math.abs(
-            new Date(message.createdAt).getTime() -
-              new Date(previousMessage.createdAt).getTime(),
+            new Date(message.createdAt).getTime() - new Date(previousMessage.createdAt).getTime(),
           ) < MESSAGE_GROUP_WINDOW_MS;
         return { isGrouped, message, showDateSeparator };
       }),

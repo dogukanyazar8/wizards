@@ -41,7 +41,7 @@ function toCameraDeviceOption(device: MediaDeviceInfo): CameraDeviceOption | nul
 
 export function useCameraDevices(): CameraDevicesState {
   const [devices, setDevices] = useState<CameraDeviceOption[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(canEnumerateDevices);
   const supportsDeviceEnumeration = canEnumerateDevices();
   const supportsPreview = canPreviewCamera();
 
@@ -91,14 +91,39 @@ export function useCameraDevices(): CameraDevicesState {
   }, [refreshDevices]);
 
   useEffect(() => {
-    void refreshDevices();
-
     if (!canEnumerateDevices()) {
       return;
     }
 
+    let cancelled = false;
+    void navigator.mediaDevices
+      .enumerateDevices()
+      .then((mediaDevices) => {
+        if (!cancelled) {
+          setDevices(
+            mediaDevices.flatMap((device) => {
+              const option = toCameraDeviceOption(device);
+              return option ? [option] : [];
+            }),
+          );
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setDevices([]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      });
+
     navigator.mediaDevices.addEventListener("devicechange", refreshDevices);
-    return () => navigator.mediaDevices.removeEventListener("devicechange", refreshDevices);
+    return () => {
+      cancelled = true;
+      navigator.mediaDevices.removeEventListener("devicechange", refreshDevices);
+    };
   }, [refreshDevices]);
 
   return {

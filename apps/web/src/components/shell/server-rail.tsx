@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { MouseEvent } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
@@ -15,6 +15,7 @@ import { ServerIcon } from "@/components/shell/server-icon";
 import { COMPACT_SERVER_RAIL_ICON_SIZE, COMPACT_SERVER_RAIL_TOUCH_SIZE } from "@/lib/appearance";
 
 const SERVER_RAIL_ORDER_STORAGE_KEY = "wizards.serverRail.order.v1";
+const SERVER_RAIL_ORDER_CHANGE_EVENT = "wizards:server-rail-order-change";
 
 type ServerRailProps = {
   activeServerId: string | null;
@@ -66,20 +67,13 @@ function getServerRailOrderStorageKey(userId: string) {
   return `${SERVER_RAIL_ORDER_STORAGE_KEY}:${userId}`;
 }
 
-function readStoredServerOrder(storageKey: string) {
-  if (typeof window === "undefined") {
-    return [];
-  }
-
-  return parseStoredServerOrder(window.localStorage.getItem(storageKey));
-}
-
 function writeStoredServerOrder(storageKey: string, order: string[]) {
   if (typeof window === "undefined") {
     return;
   }
 
   window.localStorage.setItem(storageKey, JSON.stringify(order));
+  window.dispatchEvent(new CustomEvent(SERVER_RAIL_ORDER_CHANGE_EVENT, { detail: storageKey }));
 }
 
 function clearStoredServerOrder(storageKey: string) {
@@ -88,6 +82,27 @@ function clearStoredServerOrder(storageKey: string) {
   }
 
   window.localStorage.removeItem(storageKey);
+  window.dispatchEvent(new CustomEvent(SERVER_RAIL_ORDER_CHANGE_EVENT, { detail: storageKey }));
+}
+
+function subscribeToStoredServerOrder(storageKey: string, onStoreChange: () => void) {
+  const handleStorageChange = (event: StorageEvent) => {
+    if (event.key === storageKey && event.storageArea === window.localStorage) {
+      onStoreChange();
+    }
+  };
+  const handleLocalChange = (event: Event) => {
+    if (event instanceof CustomEvent && event.detail === storageKey) {
+      onStoreChange();
+    }
+  };
+
+  window.addEventListener("storage", handleStorageChange);
+  window.addEventListener(SERVER_RAIL_ORDER_CHANGE_EVENT, handleLocalChange);
+  return () => {
+    window.removeEventListener("storage", handleStorageChange);
+    window.removeEventListener(SERVER_RAIL_ORDER_CHANGE_EVENT, handleLocalChange);
+  };
 }
 
 function mergeServerOrder(order: string[], servers: WorkspaceServerSummary[]) {
@@ -133,15 +148,23 @@ export function ServerRail({
     x: 0,
     y: 0,
   });
-  const [serverOrder, setServerOrder] = useState<string[]>([]);
   const orderStorageKey = useMemo(
     () => getServerRailOrderStorageKey(currentUserId),
     [currentUserId],
   );
-
-  useEffect(() => {
-    setServerOrder(readStoredServerOrder(orderStorageKey));
-  }, [orderStorageKey]);
+  const subscribeToOrder = useCallback(
+    (onStoreChange: () => void) => subscribeToStoredServerOrder(orderStorageKey, onStoreChange),
+    [orderStorageKey],
+  );
+  const storedServerOrder = useSyncExternalStore(
+    subscribeToOrder,
+    () => window.localStorage.getItem(orderStorageKey) ?? "",
+    () => "",
+  );
+  const serverOrder = useMemo(
+    () => parseStoredServerOrder(storedServerOrder || null),
+    [storedServerOrder],
+  );
 
   useEffect(() => {
     if (loading || serverOrder.length === 0) {
@@ -153,7 +176,6 @@ export function ServerRail({
       return;
     }
 
-    setServerOrder(normalizedOrder);
     writeStoredServerOrder(orderStorageKey, normalizedOrder);
   }, [loading, orderStorageKey, serverOrder, servers]);
 
@@ -174,14 +196,12 @@ export function ServerRail({
   const persistServerOrder = useCallback(
     (nextOrder: string[]) => {
       const normalizedOrder = mergeServerOrder(nextOrder, servers);
-      setServerOrder(normalizedOrder);
       writeStoredServerOrder(orderStorageKey, normalizedOrder);
     },
     [orderStorageKey, servers],
   );
 
   const resetServerOrder = useCallback(() => {
-    setServerOrder([]);
     clearStoredServerOrder(orderStorageKey);
   }, [orderStorageKey]);
 
@@ -213,9 +233,7 @@ export function ServerRail({
     setDmTooltipPos({ top: rect.top + rect.height / 2, left: rect.right + 12 });
   };
   const dmTooltipHint =
-    dmUnreadCount > 0
-      ? t("shell.channelItem.unreadCount", { count: dmUnreadCount })
-      : undefined;
+    dmUnreadCount > 0 ? t("shell.channelItem.unreadCount", { count: dmUnreadCount }) : undefined;
 
   if (loading) {
     return (

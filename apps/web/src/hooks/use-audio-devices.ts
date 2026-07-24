@@ -26,10 +26,7 @@ function canEnumerateDevices() {
 }
 
 function canSelectAudioOutput() {
-  return (
-    typeof HTMLMediaElement !== "undefined" &&
-    "setSinkId" in HTMLMediaElement.prototype
-  );
+  return typeof HTMLMediaElement !== "undefined" && "setSinkId" in HTMLMediaElement.prototype;
 }
 
 function toAudioDeviceOption(device: MediaDeviceInfo): AudioDeviceOption | null {
@@ -52,7 +49,7 @@ function toAudioDeviceOption(device: MediaDeviceInfo): AudioDeviceOption | null 
 export function useAudioDevices(): AudioDevicesState {
   const [inputDevices, setInputDevices] = useState<AudioDeviceOption[]>([]);
   const [outputDevices, setOutputDevices] = useState<AudioDeviceOption[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(canEnumerateDevices);
   const supportsDeviceEnumeration = canEnumerateDevices();
   const supportsOutputSelection = canSelectAudioOutput();
 
@@ -101,14 +98,42 @@ export function useAudioDevices(): AudioDevicesState {
   }, [refreshDevices]);
 
   useEffect(() => {
-    void refreshDevices();
-
     if (!canEnumerateDevices()) {
       return;
     }
 
+    let cancelled = false;
+    void navigator.mediaDevices
+      .enumerateDevices()
+      .then((devices) => {
+        if (cancelled) {
+          return;
+        }
+
+        const audioDevices = devices.flatMap((device) => {
+          const option = toAudioDeviceOption(device);
+          return option ? [option] : [];
+        });
+        setInputDevices(audioDevices.filter((device) => device.kind === "audioinput"));
+        setOutputDevices(audioDevices.filter((device) => device.kind === "audiooutput"));
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setInputDevices([]);
+          setOutputDevices([]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      });
+
     navigator.mediaDevices.addEventListener("devicechange", refreshDevices);
-    return () => navigator.mediaDevices.removeEventListener("devicechange", refreshDevices);
+    return () => {
+      cancelled = true;
+      navigator.mediaDevices.removeEventListener("devicechange", refreshDevices);
+    };
   }, [refreshDevices]);
 
   return {

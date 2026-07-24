@@ -164,7 +164,7 @@ function ComposerButton({
         "group/composer-button inline-flex h-11 min-h-11 min-w-11 shrink-0 items-center justify-center gap-2 rounded-2xl border text-sm font-bold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.48)] focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-55 motion-safe:transition-transform",
         variant === "primary"
           ? "border-[hsl(var(--primary)/0.34)] bg-[linear-gradient(135deg,hsl(var(--primary)/0.92),hsl(var(--primary))_52%,hsl(var(--ambient-1)/0.88))] text-white shadow-[0_16px_34px_hsl(var(--primary)/0.24),inset_0_1px_0_rgba(255,255,255,0.3)] hover:shadow-[0_20px_44px_hsl(var(--primary)/0.32),inset_0_1px_0_rgba(255,255,255,0.35)] motion-safe:hover:scale-[1.025]"
-        : variant === "ghost"
+          : variant === "ghost"
             ? "border-transparent bg-transparent text-app-muted hover:bg-[hsl(var(--surface-soft)/0.64)] hover:text-app-foreground"
             : "border-transparent bg-[hsl(var(--surface-soft)/0.34)] text-app-muted hover:bg-[hsl(var(--primary)/0.08)] hover:text-[hsl(var(--primary))]",
         active &&
@@ -283,7 +283,10 @@ export function ChatComposer({
   const [isComposing, setIsComposing] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const [selectionIndex, setSelectionIndex] = useState(0);
-  const [activeMentionIndex, setActiveMentionIndex] = useState(0);
+  const [mentionSelection, setMentionSelection] = useState({
+    index: 0,
+    query: null as string | null,
+  });
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -332,6 +335,12 @@ export function ChatComposer({
       })
       .slice(0, 6);
   }, [activeMention, mentionMembers, mode]);
+  const activeMentionIndex =
+    mentionSelection.query === activeMention?.query ? mentionSelection.index : 0;
+  const emojiPickerOpen = showEmojiPicker && !disabled;
+  const gifPickerOpen = showGifPicker && allowGifs && !disabled;
+  const actionSheetOpen = isActionSheetOpen && !disabled;
+  const composerFocused = isFocused && !disabled;
 
   const formatButtonLabelClass = isThreadComposer ? "sr-only" : "hidden sm:inline";
   const compactToolButtonClass = cn(
@@ -527,7 +536,7 @@ export function ChatComposer({
     const nextCursor = activeMention.start + mentionText.length;
 
     setContent(nextContent);
-    setActiveMentionIndex(0);
+    setMentionSelection({ index: 0, query: null });
     setSelectionIndex(nextCursor);
 
     window.requestAnimationFrame(() => {
@@ -893,15 +902,19 @@ export function ChatComposer({
     if (mentionSuggestions.length > 0) {
       if (event.key === "ArrowDown") {
         event.preventDefault();
-        setActiveMentionIndex((current) => (current + 1) % mentionSuggestions.length);
+        setMentionSelection({
+          index: (activeMentionIndex + 1) % mentionSuggestions.length,
+          query: activeMention?.query ?? null,
+        });
         return;
       }
 
       if (event.key === "ArrowUp") {
         event.preventDefault();
-        setActiveMentionIndex(
-          (current) => (current - 1 + mentionSuggestions.length) % mentionSuggestions.length,
-        );
+        setMentionSelection({
+          index: (activeMentionIndex - 1 + mentionSuggestions.length) % mentionSuggestions.length,
+          query: activeMention?.query ?? null,
+        });
         return;
       }
 
@@ -928,10 +941,6 @@ export function ChatComposer({
   };
 
   useEffect(() => {
-    setActiveMentionIndex(0);
-  }, [activeMention?.query]);
-
-  useEffect(() => {
     const previewUrls = previewUrlsRef.current;
     return () => {
       clearTimeout(typingTimeoutRef.current);
@@ -942,23 +951,13 @@ export function ChatComposer({
   }, [stopTyping]);
 
   useEffect(() => {
-    if (!allowGifs) {
-      setShowGifPicker(false);
-    }
-  }, [allowGifs]);
-
-  useEffect(() => {
     if (disabled) {
-      setShowEmojiPicker(false);
-      setShowGifPicker(false);
-      setIsActionSheetOpen(false);
-      setIsFocused(false);
       stopTyping();
     }
   }, [disabled, stopTyping]);
 
   useEffect(() => {
-    if (!isActionSheetOpen) {
+    if (!actionSheetOpen) {
       return;
     }
 
@@ -971,7 +970,7 @@ export function ChatComposer({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isActionSheetOpen]);
+  }, [actionSheetOpen]);
 
   useEffect(() => {
     if (!autoFocus || disabled) {
@@ -1111,7 +1110,7 @@ export function ChatComposer({
       <div
         className={cn(
           "relative border border-[hsl(var(--border)/0.44)] bg-[hsl(var(--surface-card)/0.94)] shadow-[0_10px_30px_hsl(var(--shadow-color)/0.055),inset_0_1px_0_hsl(var(--background)/0.5)] transition-colors duration-150",
-          isFocused &&
+          composerFocused &&
             "border-[hsl(var(--primary)/0.38)] shadow-[0_14px_38px_hsl(var(--primary)/0.095),inset_0_1px_0_hsl(var(--background)/0.62)]",
           isThreadComposer ? "rounded-[18px] p-2" : "rounded-[20px] p-2 md:rounded-[22px] md:p-3",
         )}
@@ -1229,7 +1228,7 @@ export function ChatComposer({
         ) : null}
 
         <div className="relative z-40">
-          {showEmojiPicker ? (
+          {emojiPickerOpen ? (
             <EmojiPicker
               onSelect={(emoji) => {
                 setContent((current) => current + emoji);
@@ -1239,7 +1238,7 @@ export function ChatComposer({
               onClose={() => setShowEmojiPicker(false)}
             />
           ) : null}
-          {showGifPicker && allowGifs && !disabled ? (
+          {gifPickerOpen ? (
             <GifPicker onClose={() => setShowGifPicker(false)} onSelect={handleGifSelect} />
           ) : null}
         </div>
@@ -1464,9 +1463,11 @@ export function ChatComposer({
                 />
 
                 <ComposerButton
-                  aria-expanded={isActionSheetOpen}
+                  aria-expanded={actionSheetOpen}
                   className={cn(
-                    isThreadComposer ? "h-10 min-h-10 min-w-10 rounded-xl" : "h-10 w-10 md:h-11 md:w-11",
+                    isThreadComposer
+                      ? "h-10 min-h-10 min-w-10 rounded-xl"
+                      : "h-10 w-10 md:h-11 md:w-11",
                   )}
                   data-testid="message-file-button"
                   disabled={disabled || !allowFileUploads}
@@ -1606,7 +1607,9 @@ export function ChatComposer({
 
                 <ComposerButton
                   className={cn(
-                    isThreadComposer ? "h-10 min-h-10 min-w-10 rounded-xl" : "h-10 w-10 md:h-11 md:w-11",
+                    isThreadComposer
+                      ? "h-10 min-h-10 min-w-10 rounded-xl"
+                      : "h-10 w-10 md:h-11 md:w-11",
                   )}
                   disabled={disabled || !onStartVoiceMessage}
                   icon={Mic}
@@ -1641,7 +1644,7 @@ export function ChatComposer({
 
             <ComposerActionSheet
               onClose={() => setIsActionSheetOpen(false)}
-              open={isActionSheetOpen}
+              open={actionSheetOpen}
               title={composerActionsTitle}
             >
               <button

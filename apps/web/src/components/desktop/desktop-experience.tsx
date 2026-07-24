@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useShallow } from "zustand/react/shallow";
@@ -41,10 +41,7 @@ import {
 } from "@/lib/desktop/game-overlay-state";
 import { resolveDesktopGameOverlayProcessGate } from "@/lib/desktop/game-overlay-process";
 import { recordDesktopPerformanceMetric } from "@/lib/desktop/performance";
-import {
-  canPublishDesktopRichPresence,
-  resolveDesktopStreamerMode,
-} from "@/lib/desktop/privacy";
+import { canPublishDesktopRichPresence, resolveDesktopStreamerMode } from "@/lib/desktop/privacy";
 import { buildVoiceMiniSnapshot } from "@/lib/desktop/voice-mini";
 import { useAppStore } from "@/lib/store";
 import { useVoiceStore } from "@/store/voice-store";
@@ -55,6 +52,7 @@ type BadgeNavigator = Navigator & {
   clearAppBadge?: () => Promise<void>;
   setAppBadge?: (count?: number) => Promise<void>;
 };
+const subscribeToDesktopRuntime = () => () => {};
 
 const DESKTOP_NOTIFICATION_TYPES = new Set<NotificationSocketPayload["type"]>([
   "DM",
@@ -78,7 +76,8 @@ const DESKTOP_SHORTCUT_COMMANDS = new Set<WhisprDesktopCommandDetail["command"]>
   "voice-shortcut-push-to-talk-start",
   "voice-shortcut-push-to-talk-stop",
 ]);
-type DesktopCompanionSurfaceHideReason = "before-close" | "focus" | "offline" | "resume" | "unmount";
+type DesktopCompanionSurfaceHideReason =
+  "before-close" | "focus" | "offline" | "resume" | "unmount";
 
 function isEditableTarget(target: EventTarget | null) {
   if (!(target instanceof HTMLElement)) {
@@ -349,12 +348,23 @@ export function DesktopExperience() {
       voiceInputMode: state.voiceInputMode,
     })),
   );
-  const [isDesktop, setIsDesktop] = useState(false);
+  const isDesktop = useSyncExternalStore(
+    subscribeToDesktopRuntime,
+    isWhisprDesktopRuntime,
+    () => false,
+  );
   const [isMainWindowFocused, setIsMainWindowFocused] = useState(true);
   const [desktopCompanionSurfacesGateOpen, setDesktopCompanionSurfacesGateOpen] = useState(false);
-  const [foregroundProcessName, setForegroundProcessName] = useState<string | null>(null);
-  const [gameOverlayState, setGameOverlayState] =
-    useState<DesktopGameOverlayState>("hidden");
+  const [detectedForegroundProcessName, setDetectedForegroundProcessName] = useState<string | null>(
+    null,
+  );
+  const processDetectionEnabled =
+    desktopGameOverlayProcessDetectionEnabled || desktopStreamerModeProcessDetectionEnabled;
+  const foregroundProcessName =
+    isDesktop && processDetectionEnabled && !isMainWindowFocused
+      ? detectedForegroundProcessName
+      : null;
+  const [gameOverlayState, setGameOverlayState] = useState<DesktopGameOverlayState>("hidden");
   const [isOnline, setIsOnline] = useState(true);
   const [socketConnected, setSocketConnected] = useState(false);
   const runtimeMetricRecordedRef = useRef(false);
@@ -398,11 +408,7 @@ export function DesktopExperience() {
         manualEnabled: desktopStreamerModeEnabled,
         processDetectionEnabled: desktopStreamerModeProcessDetectionEnabled,
       }),
-    [
-      desktopStreamerModeEnabled,
-      desktopStreamerModeProcessDetectionEnabled,
-      foregroundProcessName,
-    ],
+    [desktopStreamerModeEnabled, desktopStreamerModeProcessDetectionEnabled, foregroundProcessName],
   );
   const effectiveDesktopStreamerModeEnabled = desktopStreamerMode.active;
   const desktopRichPresenceCanPublish = canPublishDesktopRichPresence({
@@ -640,10 +646,6 @@ export function DesktopExperience() {
   );
 
   useEffect(() => {
-    setIsDesktop(isWhisprDesktopRuntime());
-  }, []);
-
-  useEffect(() => {
     if (!isDesktop) {
       return;
     }
@@ -653,6 +655,9 @@ export function DesktopExperience() {
 
     const setMainWindowFocusedSafely = (focused: boolean) => {
       if (!cancelled) {
+        if (focused) {
+          setDesktopCompanionSurfacesGateOpen(false);
+        }
         setIsMainWindowFocused((current) => (current === focused ? current : focused));
       }
     };
@@ -708,7 +713,6 @@ export function DesktopExperience() {
 
   useEffect(() => {
     if (!isDesktop || isMainWindowFocused) {
-      setDesktopCompanionSurfacesGateOpen(false);
       return;
     }
 
@@ -722,11 +726,7 @@ export function DesktopExperience() {
   }, [isDesktop, isMainWindowFocused]);
 
   useEffect(() => {
-    const processDetectionEnabled =
-      desktopGameOverlayProcessDetectionEnabled || desktopStreamerModeProcessDetectionEnabled;
-
     if (!isDesktop || !processDetectionEnabled || isMainWindowFocused) {
-      setForegroundProcessName(null);
       return;
     }
 
@@ -735,12 +735,12 @@ export function DesktopExperience() {
       void getDesktopForegroundProcessName()
         .then((processName) => {
           if (!cancelled) {
-            setForegroundProcessName(processName);
+            setDetectedForegroundProcessName(processName);
           }
         })
         .catch(() => {
           if (!cancelled) {
-            setForegroundProcessName(null);
+            setDetectedForegroundProcessName(null);
           }
         });
     };
@@ -755,12 +755,7 @@ export function DesktopExperience() {
       cancelled = true;
       window.clearInterval(intervalId);
     };
-  }, [
-    desktopGameOverlayProcessDetectionEnabled,
-    desktopStreamerModeProcessDetectionEnabled,
-    isDesktop,
-    isMainWindowFocused,
-  ]);
+  }, [isDesktop, isMainWindowFocused, processDetectionEnabled]);
 
   useEffect(() => {
     if (!isDesktop || runtimeMetricRecordedRef.current) {

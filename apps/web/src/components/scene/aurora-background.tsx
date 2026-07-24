@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
 import type { CSSProperties } from "react";
 
 const PARTICLE_COLORS = ["#818CF8", "#C084FC", "#34D399", "#38BDF8", "#F472B6"];
@@ -21,9 +20,9 @@ function createParticles() {
   });
 }
 
-export function AuroraBackground() {
-  const particles = useMemo(createParticles, []);
+const PARTICLES = createParticles();
 
+export function AuroraBackground() {
   return (
     <div className="modern-login-scene" aria-hidden="true">
       <div className="modern-login-aurora">
@@ -35,7 +34,7 @@ export function AuroraBackground() {
       </div>
       <div className="modern-login-dot-grid" />
       <div className="modern-login-particles">
-        {particles.map((particle, index) => (
+        {PARTICLES.map((particle, index) => (
           <span
             className="modern-login-particle"
             key={index}

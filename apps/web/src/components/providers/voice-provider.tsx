@@ -25,30 +25,65 @@ type VoiceAccountUpdatedEventPayload = Partial<Omit<UserProfileUpdatedPayload, "
   id?: string;
 };
 
+type VoiceProfileUpdate = {
+  avatarUrl?: string | null;
+  displayName?: string | null;
+  username: string;
+};
+
 function isE2EVoiceMockEnabled() {
   return process.env.NEXT_PUBLIC_E2E_TEST_MODE === "true" && process.env.NODE_ENV !== "production";
 }
 
-function mergeCurrentUserProfile(
+export function mergeVoiceCurrentUserProfile(
   currentUser: VoiceProviderProps["currentUser"],
-  profile: Pick<UserProfileUpdatedPayload, "avatarUrl" | "displayName" | "username">,
+  profile: VoiceProfileUpdate,
 ): VoiceProviderProps["currentUser"] {
   const username = profile.username?.trim() || currentUser.username;
 
   return {
     ...currentUser,
-    avatarUrl: profile.avatarUrl ?? null,
-    displayName: profile.displayName?.trim() || username,
+    ...(profile.avatarUrl === undefined ? {} : { avatarUrl: profile.avatarUrl }),
+    displayName:
+      profile.displayName === undefined
+        ? currentUser.displayName
+        : profile.displayName?.trim() || username,
     username,
   };
 }
 
-function useVoiceCurrentUserSnapshot(currentUser: VoiceProviderProps["currentUser"]) {
-  const [snapshot, setSnapshot] = useState(currentUser);
+function mergeProfileUpdate(
+  current: VoiceProfileUpdate | undefined,
+  update: VoiceProfileUpdate,
+): VoiceProfileUpdate {
+  return {
+    ...current,
+    ...update,
+    username: update.username,
+  };
+}
 
-  useEffect(() => {
-    setSnapshot(currentUser);
-  }, [currentUser]);
+function toVoiceProfileUpdate(input: {
+  avatarUrl?: string | null;
+  displayName?: string | null;
+  username: string;
+}): VoiceProfileUpdate {
+  return {
+    ...(input.avatarUrl === undefined ? {} : { avatarUrl: input.avatarUrl }),
+    ...(input.displayName === undefined ? {} : { displayName: input.displayName }),
+    username: input.username,
+  };
+}
+
+function useVoiceCurrentUserSnapshot(currentUser: VoiceProviderProps["currentUser"]) {
+  const [profileUpdate, setProfileUpdate] = useState<{
+    profile: VoiceProfileUpdate;
+    userId: string;
+  } | null>(null);
+  const snapshot =
+    profileUpdate?.userId === currentUser.id
+      ? mergeVoiceCurrentUserProfile(currentUser, profileUpdate.profile)
+      : currentUser;
 
   useEffect(() => {
     const applyProfileUpdate = (profile: UserProfileUpdatedPayload) => {
@@ -56,7 +91,12 @@ function useVoiceCurrentUserSnapshot(currentUser: VoiceProviderProps["currentUse
         return;
       }
 
-      setSnapshot((current) => mergeCurrentUserProfile(current, profile));
+      const update = toVoiceProfileUpdate(profile);
+      setProfileUpdate((current) => ({
+        profile:
+          current?.userId === currentUser.id ? mergeProfileUpdate(current.profile, update) : update,
+        userId: currentUser.id,
+      }));
     };
 
     const handleAccountUpdated = (event: Event) => {
@@ -70,13 +110,16 @@ function useVoiceCurrentUserSnapshot(currentUser: VoiceProviderProps["currentUse
         return;
       }
 
-      setSnapshot((current) =>
-        mergeCurrentUserProfile(current, {
-          avatarUrl: detail.avatarUrl ?? null,
-          displayName: detail.displayName ?? null,
-          username,
-        }),
-      );
+      const update = toVoiceProfileUpdate({
+        ...(detail.avatarUrl === undefined ? {} : { avatarUrl: detail.avatarUrl }),
+        ...(detail.displayName === undefined ? {} : { displayName: detail.displayName }),
+        username,
+      });
+      setProfileUpdate((current) => ({
+        profile:
+          current?.userId === currentUser.id ? mergeProfileUpdate(current.profile, update) : update,
+        userId: currentUser.id,
+      }));
     };
 
     const socket = getSocket();

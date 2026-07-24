@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
@@ -27,7 +27,11 @@ interface DMConversationPageProps {
   uploadthingEnabled: boolean;
 }
 
-export function DMConversationPage({
+export function DMConversationPage(props: DMConversationPageProps) {
+  return <DMConversationPageContent {...props} key={props.conversationId} />;
+}
+
+function DMConversationPageContent({
   conversationId,
   currentUserDisplayName,
   currentUserId,
@@ -40,7 +44,7 @@ export function DMConversationPage({
   const redirectedRef = useRef(false);
   const markedAsReadRef = useRef<string | null>(null);
   const responsiveLayout = useResponsiveLayout();
-  const [detailsDrawerOpen, setDetailsDrawerOpen] = useState(false);
+  const [isDetailsDrawerRequested, setIsDetailsDrawerRequested] = useState(false);
   const [searchRequestId, setSearchRequestId] = useState(0);
   const { conversations, isLoading, markAsRead } = useDMConversations(currentUserId, {
     autoMarkActiveAsRead: true,
@@ -60,8 +64,7 @@ export function DMConversationPage({
   const activeConversation = conversation ?? conversationQuery.data ?? null;
 
   const otherParticipant = useMemo(
-    () =>
-      activeConversation ? findOtherParticipant(activeConversation, currentUserId) : null,
+    () => (activeConversation ? findOtherParticipant(activeConversation, currentUserId) : null),
     [activeConversation, currentUserId],
   );
 
@@ -79,9 +82,8 @@ export function DMConversationPage({
       return;
     }
 
-    queryClient.setQueryData<DMConversationsInfiniteData | undefined>(
-      dmQueryKeys.list,
-      (current) => upsertDMConversationPageData(current, conversationQuery.data),
+    queryClient.setQueryData<DMConversationsInfiniteData | undefined>(dmQueryKeys.list, (current) =>
+      upsertDMConversationPageData(current, conversationQuery.data),
     );
   }, [conversationQuery.data, queryClient]);
 
@@ -94,24 +96,14 @@ export function DMConversationPage({
     void markAsRead(activeConversation.id);
   }, [activeConversation, markAsRead]);
 
-  const shouldShowDetailsDrawer =
-    detailsDrawerOpen && responsiveLayout.shouldMountInfoDrawer && Boolean(otherParticipant);
+  const detailsDrawerOpen = isDetailsDrawerRequested && responsiveLayout.shouldMountInfoDrawer;
+  const shouldShowDetailsDrawer = detailsDrawerOpen && Boolean(otherParticipant);
   useBodyScrollLock(shouldShowDetailsDrawer);
 
-  const openSearchFromDetails = useCallback(() => {
+  const openSearchFromDetails = () => {
     setSearchRequestId((current) => current + 1);
-    setDetailsDrawerOpen(false);
-  }, []);
-
-  useEffect(() => {
-    setDetailsDrawerOpen(false);
-  }, [conversationId]);
-
-  useEffect(() => {
-    if (detailsDrawerOpen && !responsiveLayout.shouldMountInfoDrawer) {
-      setDetailsDrawerOpen(false);
-    }
-  }, [detailsDrawerOpen, responsiveLayout.shouldMountInfoDrawer]);
+    setIsDetailsDrawerRequested(false);
+  };
 
   useEffect(() => {
     if (!shouldShowDetailsDrawer) {
@@ -121,7 +113,7 @@ export function DMConversationPage({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
-        setDetailsDrawerOpen(false);
+        setIsDetailsDrawerRequested(false);
       }
     };
 
@@ -149,7 +141,7 @@ export function DMConversationPage({
               <div
                 className="absolute inset-0 bg-[hsl(var(--backdrop)/0.5)] backdrop-blur-sm"
                 data-testid="dm-details-drawer-backdrop"
-                onClick={() => setDetailsDrawerOpen(false)}
+                onClick={() => setIsDetailsDrawerRequested(false)}
                 role="presentation"
               />
               <div
@@ -162,7 +154,7 @@ export function DMConversationPage({
               >
                 <DmDetailsPanel
                   conversation={activeConversation}
-                  onClose={() => setDetailsDrawerOpen(false)}
+                  onClose={() => setIsDetailsDrawerRequested(false)}
                   onOpenSearch={openSearchFromDetails}
                   participant={otherParticipant}
                   variant="drawer"
@@ -184,7 +176,9 @@ export function DMConversationPage({
           directMessageParticipant={otherParticipant}
           directMessageSearchRequestId={searchRequestId}
           onOpenDirectMessageDetails={
-            responsiveLayout.shouldMountInfoDrawer ? () => setDetailsDrawerOpen(true) : undefined
+            responsiveLayout.shouldMountInfoDrawer
+              ? () => setIsDetailsDrawerRequested(true)
+              : undefined
           }
           uploadthingEnabled={uploadthingEnabled}
         />
