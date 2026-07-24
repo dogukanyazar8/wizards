@@ -21,14 +21,14 @@
     "format": "node ../../scripts/quality/prettier-changed.mjs --scope packages/db"
   },
   "dependencies": {
-    "@prisma/client": "^5.22.0",
+    "@prisma/client": "^6.19.2",
     "bcryptjs": "^2.4.3"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^24.13.3",
     "prettier": "3.9.6",
-    "prisma": "^5.22.0",
+    "prisma": "^6.19.2",
     "ts-node": "^10.9.2",
     "typescript": "catalog:"
   }

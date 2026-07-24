@@ -107,7 +107,7 @@ describe("MobileWorkspaceServerSwitcherSheet", () => {
     expect(panel.maxHeight).toBe("78%");
     expect(panel).toMatchObject({
       backgroundColor: lightTheme.surface.card,
-      borderTopLeftRadius: 36,
+      borderTopLeftRadius: 28,
       borderWidth: 0,
     });
   });

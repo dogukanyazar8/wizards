@@ -7,6 +7,7 @@ import {
   View,
   copy,
   filterMobileWorkspaceChannelSections,
+  formatMobileUnreadCount,
   getBoundedMobileList,
   getMobileWorkspaceChannelSections,
   getMobileWorkspaceChannelSurface,
@@ -14,6 +15,7 @@ import {
   getVisibleMobileWorkspaceChannelSections,
   MOBILE_RENDER_LIMITS,
   useCallback,
+  useEffect,
   useMemo,
   useState,
   type MobileBootstrapFeature,
@@ -34,6 +36,10 @@ import {
 import type { ChatMessage, UploadedAttachmentInput } from "@wizards/types";
 import { useMobileServerManagementFeature } from "../features/use-mobile-server-management-feature";
 import { MobileServerCreateJoinSheet } from "../../workspace/mobile-server-create-join-sheet";
+import {
+  MobileWorkspaceCreateSheets,
+  type MobileWorkspaceCreateState,
+} from "../../workspace/mobile-workspace-create-sheets";
 import { shareMobileInviteUrl } from "../../invite/mobile-invite-share";
 import { useMobileAuth } from "../../auth/mobile-auth-context";
 import { useMobileVoiceStatesQuery } from "../../query/mobile-voice-states-query";
@@ -49,6 +55,16 @@ import { useMobileWorkspaceLayoutPreference } from "../providers/mobile-workspac
 import { useHomeScreenStyles } from "./home-screen.styles";
 import { WorkspaceChannelSectionList } from "./workspace-channel-section-list";
 import { MobileWorkspaceServerSwitcherSheet } from "./mobile-workspace-server-switcher-sheet";
+import { useMobileCollapsedSections } from "../providers/use-mobile-collapsed-sections";
+import { useInfiniteQuery } from "@tanstack/react-query";
+import {
+  buildMobileCollapsedSectionKey,
+  getMobileMissedNotifications,
+  getMobileOtherServersUnreadTotal,
+  getMobileServerBadge,
+  getMobileVoiceParticipantTotal,
+} from "../mobile-sunucular-model";
+import { getMobileNotificationsQueryOptions } from "../../notifications/mobile-notification-query";
 import { EmptyState, Skeleton } from "../components/kit";
 import { MobileLineIcon } from "../../design/mobile-line-icons";
 import { mobileNavigationRef } from "../../navigation/mobile-navigation-ref";
@@ -167,9 +183,12 @@ export function MobileWorkspaceBrowser({
   const { layout: workspaceLayout } = useMobileWorkspaceLayoutPreference();
   const { apiClient, getAccessToken } = useMobileAuth();
   const [channelQuery, setChannelQuery] = useState("");
-  const [collapsedSectionIds, setCollapsedSectionIds] = useState<Record<string, boolean>>({});
+  const { collapsedSections, toggleSection: toggleCollapsedSection } = useMobileCollapsedSections();
   const [inviteShareError, setInviteShareError] = useState<string | null>(null);
   const [isServerSwitcherOpen, setServerSwitcherOpen] = useState(false);
+  const [createState, setCreateState] = useState<MobileWorkspaceCreateState>(null);
+  const [pendingCreatedChannelId, setPendingCreatedChannelId] = useState<string | null>(null);
+  const [isChannelSearchOpen, setChannelSearchOpen] = useState(false);
   const serverManagement = useMobileServerManagementFeature({
     client: apiClient,
     onOpenServer,
@@ -193,6 +212,17 @@ export function MobileWorkspaceBrowser({
   const activeServerIconUrl = activeServer?.iconUrl ?? activeServerSummary?.iconUrl ?? null;
   const voiceStatesQuery = useMobileVoiceStatesQuery(apiClient, activeServerId ?? "");
   const voiceStates = voiceStatesQuery.data?.states ?? [];
+  const voiceParticipantTotal = getMobileVoiceParticipantTotal(voiceStates);
+  const otherServersUnreadTotal = getMobileOtherServersUnreadTotal(servers, activeServerId);
+  // "Kaçırdıkların" for the 1c sheet: only fetched while the switcher is open.
+  const missedNotificationsQuery = useInfiniteQuery({
+    ...getMobileNotificationsQueryOptions(apiClient),
+    enabled: isServerSwitcherOpen,
+  });
+  const missedNotifications = getMobileMissedNotifications(
+    missedNotificationsQuery.data?.pages.flatMap((page) => page.notifications) ?? [],
+    { limit: 3 },
+  );
   const activeMemberCount = activeServer?.memberCount ?? activeServerSummary?.memberCount ?? 0;
   const activeOnlineMemberCount = activeServer?.onlineMemberCount ?? 0;
   const activeChannelCount =
@@ -244,14 +274,14 @@ export function MobileWorkspaceBrowser({
     const collapsedMap = Object.fromEntries(
       channelSections.map((section) => [
         section.id,
-        isSearchingChannels
+        isSearchingChannels || !activeServerId
           ? false
-          : collapsedSectionIds[`${activeServerId}:${section.id}`] === true,
+          : collapsedSections[buildMobileCollapsedSectionKey(activeServerId, section.id)] === true,
       ]),
     );
 
     return getVisibleMobileWorkspaceChannelSections(channelSections, collapsedMap);
-  }, [activeServerId, channelSections, collapsedSectionIds, isSearchingChannels]);
+  }, [activeServerId, channelSections, collapsedSections, isSearchingChannels]);
   const isActiveServerLoading =
     activeServerId !== null &&
     serverState.serverId === activeServerId &&
@@ -264,6 +294,7 @@ export function MobileWorkspaceBrowser({
   const canManageInvites = workspacePayload?.detail.capabilities.canManageInvites === true;
   const canManageMessages = workspacePayload?.detail.capabilities.canManageMessages === true;
   const canManageServer = workspacePayload?.detail.capabilities.canManageServer === true;
+  const canManageChannels = workspacePayload?.detail.capabilities.canManageChannels === true;
   // The detail payload no longer carries the member list. `ownerUserId` is the
   // authoritative field; the member scan stays as a fallback so a client running
   // against an older API keeps resolving the owner.
@@ -284,13 +315,9 @@ export function MobileWorkspaceBrowser({
         return;
       }
 
-      const sectionKey = `${activeServerId}:${sectionId}`;
-      setCollapsedSectionIds((current) => ({
-        ...current,
-        [sectionKey]: current[sectionKey] !== true,
-      }));
+      toggleCollapsedSection(buildMobileCollapsedSectionKey(activeServerId, sectionId));
     },
-    [activeServerId, isSearchingChannels],
+    [activeServerId, isSearchingChannels, toggleCollapsedSection],
   );
   const handleInviteShare = useCallback(async () => {
     if (!activeServerId) {
@@ -306,6 +333,22 @@ export function MobileWorkspaceBrowser({
     }
   }, [activeServerId, serverManagement]);
 
+  // 1e: once the created channel lands in the refreshed workspace payload, open
+  // it (text → chat, voice → room) so the form's success flow ends on the channel.
+  useEffect(() => {
+    if (!pendingCreatedChannelId || !workspacePayload) {
+      return;
+    }
+
+    const createdChannel = getMobileWorkspaceChannels(workspacePayload.detail).find(
+      (channel) => channel.id === pendingCreatedChannelId,
+    );
+    if (createdChannel) {
+      setPendingCreatedChannelId(null);
+      onOpenChannel(createdChannel);
+    }
+  }, [onOpenChannel, pendingCreatedChannelId, workspacePayload]);
+
   if (canRenderChannelChat && !(activeChannelSurface === "channel-chat" && activeTextChannel)) {
     // The route is the channel, so never fall back to the server browser here:
     // hold the chat frame until the detail read names the channel.
@@ -318,53 +361,55 @@ export function MobileWorkspaceBrowser({
       // sheet — gets the server as profile-card context, which is what makes the
       // role chips appear.
       <MobileProfileCardScope serverId={activeServerId ?? undefined}>
-      <MobileMentionRegistryProvider registry={mentionRegistry}>
-        <MobileChannelChatScreen
-          attachmentsFeature={attachmentsFeature}
-          channel={activeTextChannel}
-          canModerate={canManageMessages}
-          channelFirstUnreadMessageId={channelFirstUnreadMessageId}
-          channelPinnedMessages={channelPinnedMessages}
-          currentUserId={bootstrapState.payload.user.id}
-          getAccessToken={getAccessToken}
-          isReactionMutationPending={isReactionMutationPending}
-          mediaState={mediaState}
-          memberCount={activeMemberCount}
-          mentionCandidates={mentionRegistry.candidates}
-          onlineMemberCount={activeOnlineMemberCount}
-          messageSearchFeature={messageSearchFeature}
-          messageSearchState={messageSearchState}
-          serverName={activeServerName}
-          state={channelMessagesState}
-          typingLabel={channelTypingLabel}
-          typingUsers={channelTypingUsers}
-          ownerUserId={ownerUserId}
-          onBack={onCloseWorkspaceChannel}
-          onClearMessageSearch={onClearMessageSearch}
-          onClearSelectedMediaAsset={onClearSelectedMediaAsset}
-          onDraftChange={onChannelDraftChange}
-          onLoadMore={onLoadMoreChannelMessages}
-          onRefresh={onRefreshChannel}
-          onRequestDocumentPicker={onRequestDocumentPicker}
-          onRequestPhotoLibraryPicker={onRequestPhotoLibraryPicker}
-          onSearchMessages={onSearchMessages}
-          onSendMessage={onSendChannelMessage}
-          {...(onSendChannelGif ? { onSendGif: onSendChannelGif } : {})}
-          onDeleteMessage={onDeleteMessage}
-          onDiscardMessage={onDiscardMessage}
-          onEditMessage={onEditMessage}
-          {...(onForwardMessage ? { forwardTargets: forwardChannelTargets, onForwardMessage } : {})}
-          {...(onOpenThread ? { onOpenThread } : {})}
-          {...(onPinMessage ? { onPinMessage } : {})}
-          onOpenMembers={() => {
-            if (activeServerId && mobileNavigationRef.isReady()) {
-              mobileNavigationRef.navigate("ServerMembers", { serverId: activeServerId });
-            }
-          }}
-          onRetryMessage={onRetryMessage}
-          onToggleMessageReaction={onToggleMessageReaction}
-        />
-      </MobileMentionRegistryProvider>
+        <MobileMentionRegistryProvider registry={mentionRegistry}>
+          <MobileChannelChatScreen
+            attachmentsFeature={attachmentsFeature}
+            channel={activeTextChannel}
+            canModerate={canManageMessages}
+            channelFirstUnreadMessageId={channelFirstUnreadMessageId}
+            channelPinnedMessages={channelPinnedMessages}
+            currentUserId={bootstrapState.payload.user.id}
+            getAccessToken={getAccessToken}
+            isReactionMutationPending={isReactionMutationPending}
+            mediaState={mediaState}
+            memberCount={activeMemberCount}
+            mentionCandidates={mentionRegistry.candidates}
+            onlineMemberCount={activeOnlineMemberCount}
+            messageSearchFeature={messageSearchFeature}
+            messageSearchState={messageSearchState}
+            serverName={activeServerName}
+            state={channelMessagesState}
+            typingLabel={channelTypingLabel}
+            typingUsers={channelTypingUsers}
+            ownerUserId={ownerUserId}
+            onBack={onCloseWorkspaceChannel}
+            onClearMessageSearch={onClearMessageSearch}
+            onClearSelectedMediaAsset={onClearSelectedMediaAsset}
+            onDraftChange={onChannelDraftChange}
+            onLoadMore={onLoadMoreChannelMessages}
+            onRefresh={onRefreshChannel}
+            onRequestDocumentPicker={onRequestDocumentPicker}
+            onRequestPhotoLibraryPicker={onRequestPhotoLibraryPicker}
+            onSearchMessages={onSearchMessages}
+            onSendMessage={onSendChannelMessage}
+            {...(onSendChannelGif ? { onSendGif: onSendChannelGif } : {})}
+            onDeleteMessage={onDeleteMessage}
+            onDiscardMessage={onDiscardMessage}
+            onEditMessage={onEditMessage}
+            {...(onForwardMessage
+              ? { forwardTargets: forwardChannelTargets, onForwardMessage }
+              : {})}
+            {...(onOpenThread ? { onOpenThread } : {})}
+            {...(onPinMessage ? { onPinMessage } : {})}
+            onOpenMembers={() => {
+              if (activeServerId && mobileNavigationRef.isReady()) {
+                mobileNavigationRef.navigate("ServerMembers", { serverId: activeServerId });
+              }
+            }}
+            onRetryMessage={onRetryMessage}
+            onToggleMessageReaction={onToggleMessageReaction}
+          />
+        </MobileMentionRegistryProvider>
       </MobileProfileCardScope>
     );
   }
@@ -381,7 +426,7 @@ export function MobileWorkspaceBrowser({
           <View style={styles.mobileServerRailList}>
             {servers.map((server) => {
               const isActive = server.id === activeServerId;
-              const unreadCount = server.unreadCount;
+              const badge = getMobileServerBadge(server);
 
               return (
                 <Pressable
@@ -403,8 +448,12 @@ export function MobileWorkspaceBrowser({
                     label={server.shortName ?? server.name}
                     size="regular"
                   />
-                  {unreadCount > 0 ? (
-                    <Text style={styles.mobileServerRailBadge}>{Math.min(unreadCount, 99)}</Text>
+                  {badge.kind === "mention" ? (
+                    <Text style={styles.mobileServerRailBadge}>
+                      {formatMobileUnreadCount(badge.count)}
+                    </Text>
+                  ) : badge.kind === "unread" ? (
+                    <View style={styles.mobileServerRailUnreadDot} />
                   ) : null}
                 </Pressable>
               );
@@ -452,23 +501,50 @@ export function MobileWorkspaceBrowser({
                 testID="mobile-workspace-server-switcher-open"
               >
                 {isCompactWorkspaceLayout ? (
-                  <AvatarMark
-                    avatarBorderRadius={15}
-                    avatarBorderWidth={0}
-                    fallbackTextStyle={styles.mobileWorkspaceHeaderAvatarFallback}
-                    imageUrl={activeServerIconUrl}
-                    label={activeServerShortName}
-                    size="regular"
-                  />
+                  <View style={styles.mobileWorkspaceHeaderAvatarWrap}>
+                    <AvatarMark
+                      avatarBorderRadius={15}
+                      avatarBorderWidth={0}
+                      fallbackTextStyle={styles.mobileWorkspaceHeaderAvatarFallback}
+                      imageUrl={activeServerIconUrl}
+                      label={activeServerShortName}
+                      size="regular"
+                    />
+                    {otherServersUnreadTotal > 0 ? (
+                      <Text style={styles.mobileWorkspaceHeaderAvatarBadge}>
+                        {formatMobileUnreadCount(otherServersUnreadTotal)}
+                      </Text>
+                    ) : null}
+                  </View>
                 ) : null}
                 <View style={styles.mobileWorkspaceHeaderText}>
                   <Text style={styles.mobileWorkspaceTitle} numberOfLines={1}>
                     {activeServerName}
                   </Text>
-                  <Text style={styles.mobileWorkspaceMeta} numberOfLines={1}>
-                    {activeMemberCount} {copy.membersSuffix} · {activeChannelCount}{" "}
-                    {copy.channelsSuffix}
-                  </Text>
+                  <View style={styles.mobileWorkspaceMetaRow}>
+                    <Text style={styles.mobileWorkspaceMeta}>
+                      {activeMemberCount} {copy.membersSuffix}
+                    </Text>
+                    {!isCompactWorkspaceLayout ? (
+                      <>
+                        <Text style={styles.mobileWorkspaceMetaSep}>·</Text>
+                        <Text style={styles.mobileWorkspaceMeta}>
+                          {activeChannelCount} {copy.channelsSuffix}
+                        </Text>
+                      </>
+                    ) : null}
+                    {voiceParticipantTotal > 0 ? (
+                      <>
+                        <Text style={styles.mobileWorkspaceMetaSep}>·</Text>
+                        <View style={styles.mobileWorkspaceVoiceMeta}>
+                          <View style={styles.mobileWorkspaceVoiceMetaDot} />
+                          <Text style={styles.mobileWorkspaceVoiceMetaText}>
+                            {voiceParticipantTotal} {copy.workspaceInVoiceSuffix}
+                          </Text>
+                        </View>
+                      </>
+                    ) : null}
+                  </View>
                 </View>
                 {isActiveServerLoading ? (
                   <ActivityIndicator color={theme.accent.strong} size="small" />
@@ -480,6 +556,26 @@ export function MobileWorkspaceBrowser({
                   />
                 )}
               </Pressable>
+              {!isCompactWorkspaceLayout ? (
+                <Pressable
+                  accessibilityLabel={copy.workspaceChannelSearchPlaceholder}
+                  accessibilityRole="button"
+                  onPress={() => {
+                    const next = !isChannelSearchOpen;
+                    setChannelSearchOpen(next);
+                    if (!next) {
+                      setChannelQuery("");
+                    }
+                  }}
+                  style={({ pressed }) => [
+                    styles.mobileWorkspaceCompactAddButton,
+                    pressed && styles.compactListRowPressed,
+                  ]}
+                  testID="mobile-workspace-search-toggle"
+                >
+                  <MobileLineIcon color={theme.accent.default} name="search" size={20} />
+                </Pressable>
+              ) : null}
               {canManageInvites ? (
                 <Pressable
                   accessibilityLabel={copy.workspaceServerInviteShareAction}
@@ -495,7 +591,9 @@ export function MobileWorkspaceBrowser({
                   <MobileLineIcon color={theme.accent.default} name="invite-user" size={20} />
                 </Pressable>
               ) : null}
-              {activeServerId && (canManageServer || canManageInvites) ? (
+              {isCompactWorkspaceLayout &&
+              activeServerId &&
+              (canManageServer || canManageInvites) ? (
                 <Pressable
                   accessibilityLabel={copy.workspaceServerSettingsAction}
                   accessibilityRole="button"
@@ -511,6 +609,20 @@ export function MobileWorkspaceBrowser({
                   testID={`mobile-server-settings-open-${activeServerId}`}
                 >
                   <Ionicons name="settings-outline" size={20} color={theme.accent.default} />
+                </Pressable>
+              ) : null}
+              {!isCompactWorkspaceLayout && canManageChannels ? (
+                <Pressable
+                  accessibilityLabel={copy.workspaceCreateMenuTitle}
+                  accessibilityRole="button"
+                  onPress={() => setCreateState({ categoryId: null, kind: "menu" })}
+                  style={({ pressed }) => [
+                    styles.mobileWorkspaceCreateButton,
+                    pressed && styles.compactListRowPressed,
+                  ]}
+                  testID="mobile-workspace-create-open"
+                >
+                  <Ionicons name="add" size={20} color={theme.text.onPrimary} />
                 </Pressable>
               ) : null}
             </View>
@@ -532,36 +644,31 @@ export function MobileWorkspaceBrowser({
               </Text>
             ) : null}
 
-            <View
-              style={[
-                styles.mobileWorkspaceSearchRow,
-                isCompactWorkspaceLayout && styles.mobileWorkspaceSearchRowCompact,
-              ]}
-            >
-              <View style={styles.mobileWorkspaceSearchBox}>
-                <MobileLineIcon color={theme.text.visualPlaceholder} name="search" size={18} />
-                <TextInput
-                  accessibilityLabel={
-                    isCompactWorkspaceLayout
-                      ? copy.workspaceChannelSearchPlaceholder
-                      : copy.workspaceSearchPlaceholder
-                  }
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  clearButtonMode="while-editing"
-                  onChangeText={setChannelQuery}
-                  placeholder={
-                    isCompactWorkspaceLayout
-                      ? copy.workspaceChannelSearchPlaceholder
-                      : copy.workspaceSearchPlaceholder
-                  }
-                  placeholderTextColor={theme.text.visualPlaceholder}
-                  returnKeyType="search"
-                  style={styles.mobileWorkspaceSearchInput}
-                  value={channelQuery}
-                />
+            {isCompactWorkspaceLayout || isChannelSearchOpen || channelQuery.trim().length > 0 ? (
+              <View
+                style={[
+                  styles.mobileWorkspaceSearchRow,
+                  isCompactWorkspaceLayout && styles.mobileWorkspaceSearchRowCompact,
+                ]}
+              >
+                <View style={styles.mobileWorkspaceSearchBox}>
+                  <MobileLineIcon color={theme.text.visualPlaceholder} name="search" size={18} />
+                  <TextInput
+                    accessibilityLabel={copy.workspaceChannelSearchPlaceholder}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    autoFocus={!isCompactWorkspaceLayout && isChannelSearchOpen}
+                    clearButtonMode="while-editing"
+                    onChangeText={setChannelQuery}
+                    placeholder={copy.workspaceChannelSearchPlaceholder}
+                    placeholderTextColor={theme.text.visualPlaceholder}
+                    returnKeyType="search"
+                    style={styles.mobileWorkspaceSearchInput}
+                    value={channelQuery}
+                  />
+                </View>
               </View>
-            </View>
+            ) : null}
 
             {isActiveServerError ? (
               <View style={styles.dmErrorRow}>
@@ -592,8 +699,15 @@ export function MobileWorkspaceBrowser({
                   selectedChannelId={selectedChannelId}
                   voiceStates={voiceStates}
                   isCollapseDisabled={isSearchingChannels}
+                  canCreateChannels={canManageChannels}
                   onOpenChannel={onOpenChannel}
                   onToggleSection={handleToggleSection}
+                  onCreateInSection={(sectionId) =>
+                    setCreateState({
+                      categoryId: sectionId === "ungrouped" ? null : sectionId,
+                      kind: "menu",
+                    })
+                  }
                 />
                 {channelQuery.trim().length > 0 && channelSections.length === 0 ? (
                   <Text style={styles.contractDescription}>
@@ -607,6 +721,20 @@ export function MobileWorkspaceBrowser({
             ) : null}
           </>
         )}
+        {isCompactWorkspaceLayout && canManageChannels && servers.length > 0 ? (
+          <Pressable
+            accessibilityLabel={copy.workspaceCreateMenuTitle}
+            accessibilityRole="button"
+            onPress={() => setCreateState({ categoryId: null, kind: "menu" })}
+            style={({ pressed }) => [
+              styles.mobileWorkspaceFab,
+              pressed && styles.compactListRowPressed,
+            ]}
+            testID="mobile-workspace-create-fab"
+          >
+            <Ionicons name="add" size={26} color={theme.text.onPrimary} />
+          </Pressable>
+        ) : null}
       </View>
       <MobileServerCreateJoinSheet
         busy={serverManagement.busy}
@@ -621,11 +749,25 @@ export function MobileWorkspaceBrowser({
       />
       <MobileWorkspaceServerSwitcherSheet
         activeServerId={activeServerId}
+        missedNotifications={missedNotifications}
         onClose={() => setServerSwitcherOpen(false)}
         onOpenCreateJoin={serverManagement.openCreateJoinSheet}
         onOpenServer={handleServerPress}
+        onSeeAllMissed={() => {
+          if (mobileNavigationRef.isReady()) {
+            mobileNavigationRef.navigate("MainTabs", { screen: "notifications" });
+          }
+        }}
         open={isServerSwitcherOpen}
         servers={servers}
+      />
+      <MobileWorkspaceCreateSheets
+        detail={workspacePayload?.detail ?? null}
+        onChangeState={setCreateState}
+        onChannelCreated={setPendingCreatedChannelId}
+        serverId={activeServerId}
+        serverName={activeServerName}
+        state={createState}
       />
     </View>
   );

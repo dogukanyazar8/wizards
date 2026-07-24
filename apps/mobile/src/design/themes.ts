@@ -186,6 +186,8 @@ export interface MobileTheme {
   /** 10a `@username` mention chips and the row accent of a message that mentions you. */
   readonly mention: {
     readonly background: string;
+    /** 1a/1c mention count-badge surface (rail @n, switcher @n, channel @n). */
+    readonly badge: string;
     readonly selfBackground: string;
     readonly selfRowBackground: string;
     readonly selfRowStripe: string;
@@ -325,6 +327,9 @@ export interface MobileTheme {
     readonly visualText: string;
     /** Accessible success foreground for audited text contexts. */
     readonly successText: string;
+    /** Exact handoff amber for compact create-option icons (1d category). */
+    readonly visualWarning: string;
+    readonly visualWarningSoft: string;
     readonly warning: string;
     readonly warningSoft: string;
   };
@@ -541,6 +546,7 @@ export const lightTheme = deepFreeze({
   },
   mention: {
     background: redesignLight.lavender,
+    badge: redesignLight.canonicalMentionBadge,
     selfBackground: redesignLight.lavenderBorder,
     selfRowBackground: "#EEF0FE99",
     selfRowStripe: redesignLight.primary,
@@ -613,6 +619,8 @@ export const lightTheme = deepFreeze({
     successSoft: redesignLight.successSurface,
     visualText: redesignLight.canonicalSuccessText,
     successText: redesignLight.successText,
+    visualWarning: redesignLight.canonicalWarning,
+    visualWarningSoft: redesignLight.canonicalWarningSurface,
     warning: mobilePalette.status.warning,
     warningSoft: mobilePalette.status.warningSoft,
   },
@@ -787,6 +795,7 @@ export const darkTheme = deepFreeze({
   },
   mention: {
     background: redesignDark.selectedSurface,
+    badge: redesignDark.canonicalMentionBadge,
     selfBackground: redesignDark.selectedBorder,
     selfRowBackground: "#2A2D5599",
     selfRowStripe: redesignDark.primary,
@@ -856,6 +865,8 @@ export const darkTheme = deepFreeze({
     successSoft: redesignDark.successSurface,
     visualText: redesignDark.success,
     successText: redesignDark.success,
+    visualWarning: redesignDark.warning,
+    visualWarningSoft: redesignDark.warningSurface,
     warning: redesignDark.warning,
     warningSoft: redesignDark.warningSurface,
   },

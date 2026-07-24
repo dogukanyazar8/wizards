@@ -79,7 +79,7 @@ describe("1a compact servers redesign", () => {
     expect(styles.mobileWorkspaceVoicePresenceText).toMatchObject({
       color: canonical.successText,
       fontFamily: theme.typography.fontFamilySemiBold,
-      fontSize: 12,
+      fontSize: 11,
       includeFontPadding: false,
       lineHeight: 15,
     });
@@ -155,8 +155,8 @@ describe("1a compact servers redesign", () => {
     });
     expect(styles.mobileWorkspaceSectionList).toMatchObject({ paddingTop: 14 });
     expect(styles.mobileServerRailBadge).toMatchObject({
-      backgroundColor: theme.status.dangerAction,
-      borderColor: theme.surface.card,
+      backgroundColor: theme.mention.badge,
+      borderColor: theme.surface.base,
       borderRadius: 999,
       borderWidth: 2,
       fontSize: 9.5,
@@ -378,12 +378,14 @@ describe("1a compact servers redesign", () => {
     expect(channelSections).toContain("size={16}");
   });
 
-  it("renders each rail badge from that server's live unread count", () => {
+  it("renders each rail badge from that server's live unread and mention counts", () => {
     const workspaceBrowser = readFileSync(
       resolve(__dirname, "../src/app/screens/workspace-browser.tsx"),
       "utf8",
     );
 
-    expect(workspaceBrowser).toContain("const unreadCount = server.unreadCount;");
+    // A mention shows the red count badge; a plain unread shows the primary dot.
+    expect(workspaceBrowser).toContain("const badge = getMobileServerBadge(server);");
+    expect(workspaceBrowser).toContain("styles.mobileServerRailUnreadDot");
   });
 });

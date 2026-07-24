@@ -237,7 +237,7 @@ describe("mobile performance surfaces", () => {
     );
 
     expect(channelView.getByTestId("mobile-voice-state-voice-1")).toBeTruthy();
-    expect(channelView.getByText("1 kişi konuşuyor")).toBeTruthy();
+    expect(channelView.getByText("Canlı · 1 kişi")).toBeTruthy();
     expect(mockExpoImageRender).toHaveBeenCalledWith(
       expect.objectContaining({ source: { uri: "https://cdn.whispr.team/ada.png" } }),
     );

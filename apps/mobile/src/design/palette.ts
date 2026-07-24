@@ -134,7 +134,12 @@ export const redesignLight = {
   successSurface: "#E8F8EE",
   canonicalSuccessTextDeep: "#1B8A55",
   successText: "#187A4C",
+  /** 1d category create-option icon: exact handoff amber pair (folder on peach). */
+  canonicalWarning: "#D97706",
+  canonicalWarningSurface: "#FEF0E8",
   canonicalDanger: "#E05252",
+  /** 1a/1c mention count badge (rail @n, switcher @n, channel @n). Exact handoff red. */
+  canonicalMentionBadge: "#E5484D",
   danger: "#C94343",
   dangerOnBase: "#C84343",
   dangerSurface: "#FCE9E9",
@@ -198,6 +203,8 @@ export const redesignDark = {
   selectedBorder: "#3B3F73",
   ownerBadge: "#3A2E1B",
   canonicalDanger: "#E05252",
+  /** 1a/1c mention count badge; the saturated handoff red reads on both themes. */
+  canonicalMentionBadge: "#E5484D",
   danger: "#E45A5A",
   dangerAction: "#C94343",
   dangerOnBase: "#E45A5A",

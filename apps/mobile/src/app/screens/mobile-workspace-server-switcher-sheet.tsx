@@ -1,3 +1,4 @@
+import type { MobileNotificationItem } from "@wizards/types";
 import {
   Pressable,
   ScrollView,
@@ -5,6 +6,7 @@ import {
   View,
   Ionicons,
   copy,
+  formatMobileDisplayTime,
   formatMobileUnreadCount,
   type MobileBootstrapPayload,
 } from "../mobile-root-screen-shared";
@@ -12,26 +14,40 @@ import { AvatarMark } from "../components/ui-atoms";
 import { BottomSheet } from "../components/kit";
 import { useTheme, useThemedStyles } from "../providers/mobile-theme-provider";
 import type { MobileTheme } from "../../design/themes";
+import { MobileLineIcon } from "../../design/mobile-line-icons";
+import { getMobileServerBadge } from "../mobile-sunucular-model";
 
 type MobileServerSummary = MobileBootstrapPayload["home"]["servers"]["recent"][number];
 
 export function MobileWorkspaceServerSwitcherSheet({
   activeServerId,
+  missedNotifications = [],
   onClose,
   onOpenCreateJoin,
   onOpenServer,
+  onSeeAllMissed,
   open,
   servers,
 }: {
   activeServerId: string | null;
+  // "Kaçırdıkların": already merged/sorted/bounded by the browser, which owns the
+  // notifications query context; the sheet stays presentational and testable.
+  missedNotifications?: readonly MobileNotificationItem[];
   onClose(): void;
   onOpenCreateJoin(): void;
   onOpenServer(serverId: string): void;
+  onSeeAllMissed?(): void;
   open: boolean;
   servers: readonly MobileServerSummary[];
 }) {
   const styles = useThemedStyles(createMobileWorkspaceServerSwitcherSheetStyles);
   const theme = useTheme();
+  const missed = missedNotifications;
+
+  const goToNotifications = () => {
+    onClose();
+    onSeeAllMissed?.();
+  };
 
   return (
     <BottomSheet
@@ -43,7 +59,6 @@ export function MobileWorkspaceServerSwitcherSheet({
         handleStyle: styles.handle,
         panelStyle: styles.panel,
       }}
-      // The list decides how tall the sheet is, up to the cap in `panel`.
       sizing="content"
       testID="mobile-server-switcher-sheet"
     >
@@ -73,7 +88,13 @@ export function MobileWorkspaceServerSwitcherSheet({
         >
           {servers.map((server) => {
             const selected = server.id === activeServerId;
-            const unreadCount = Math.min(server.unreadCount, 99);
+            const badge = getMobileServerBadge(server);
+            const isMention = !selected && badge.kind === "mention";
+            const subtitle = selected
+              ? `${server.memberCount} ${copy.membersSuffix} · ${server.channelCount} ${copy.channelsSuffix} · ${copy.workspaceSwitcherCurrentServerLabel}`
+              : isMention
+                ? copy.workspaceSwitcherMentions.replace("{count}", String(badge.count))
+                : `${server.memberCount} ${copy.membersSuffix} · ${server.channelCount} ${copy.channelsSuffix}`;
 
             return (
               <Pressable
@@ -93,8 +114,8 @@ export function MobileWorkspaceServerSwitcherSheet({
                 testID={`mobile-server-switcher-option-${server.id}`}
               >
                 <AvatarMark
-                  avatarBorderRadius={18}
-                  dimension={52}
+                  avatarBorderRadius={16}
+                  dimension={46}
                   fallbackTextStyle={styles.serverAvatarFallback}
                   imageUrl={server.iconUrl}
                   label={server.shortName ?? server.name}
@@ -107,17 +128,25 @@ export function MobileWorkspaceServerSwitcherSheet({
                   >
                     {server.name}
                   </Text>
-                  <Text style={styles.serverMeta} numberOfLines={1}>
-                    {server.memberCount} {copy.membersSuffix} · {server.channelCount}{" "}
-                    {copy.channelsSuffix}
+                  <Text
+                    style={[styles.serverMeta, isMention && styles.serverMetaMention]}
+                    numberOfLines={1}
+                  >
+                    {subtitle}
                   </Text>
                 </View>
                 {selected ? (
                   <Ionicons name="checkmark" size={20} color={theme.accent.strong} />
-                ) : unreadCount > 0 ? (
+                ) : badge.kind === "mention" ? (
+                  <View style={styles.mentionBadge}>
+                    <Text style={styles.mentionBadgeText}>
+                      @{formatMobileUnreadCount(badge.count)}
+                    </Text>
+                  </View>
+                ) : badge.kind === "unread" ? (
                   <View style={styles.unreadBadge}>
                     <Text style={styles.unreadBadgeText}>
-                      {formatMobileUnreadCount(unreadCount)}
+                      {formatMobileUnreadCount(badge.count)}
                     </Text>
                   </View>
                 ) : null}
@@ -138,12 +167,81 @@ export function MobileWorkspaceServerSwitcherSheet({
               <Ionicons name="add" size={21} color={theme.text.muted} />
             </View>
             <View style={styles.serverText}>
-              <Text style={styles.newServerTitle}>{copy.workspaceServerSwitcherNewServerTitle}</Text>
+              <Text style={styles.newServerTitle}>
+                {copy.workspaceServerSwitcherNewServerTitle}
+              </Text>
               <Text style={styles.newServerMeta}>
                 {copy.workspaceServerSwitcherNewServerDescription}
               </Text>
             </View>
           </Pressable>
+
+          {missed.length > 0 ? (
+            <View style={styles.missedSection}>
+              <View style={styles.missedHeader}>
+                <Text style={styles.missedTitle}>{copy.workspaceMissedTitle}</Text>
+                <View style={styles.missedDivider} />
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={goToNotifications}
+                  style={({ pressed }) => [pressed && styles.pressed]}
+                  testID="mobile-server-switcher-missed-all"
+                >
+                  <Text style={styles.missedSeeAll}>{copy.workspaceMissedSeeAllAction}</Text>
+                </Pressable>
+              </View>
+              {missed.map((item) => {
+                const contextParts = [
+                  item.server?.name,
+                  item.channel ? `#${item.channel.name}` : null,
+                ].filter((part): part is string => Boolean(part));
+                const context = contextParts.join(" · ");
+                const subtitle = item.messageQuote?.preview
+                  ? `${context}${context ? " — " : ""}"${item.messageQuote.preview}"`
+                  : context;
+                const isVoiceStart = item.eventKind === "voice-room-started";
+
+                return (
+                  <Pressable
+                    key={item.id}
+                    accessibilityRole="button"
+                    onPress={goToNotifications}
+                    style={({ pressed }) => [styles.missedCard, pressed && styles.pressed]}
+                    testID={`mobile-server-switcher-missed-${item.id}`}
+                  >
+                    {isVoiceStart || !item.actor ? (
+                      <View style={styles.missedIcon}>
+                        <MobileLineIcon
+                          color={theme.status.visualText}
+                          name={isVoiceStart ? "speaker" : "bell"}
+                          size={16}
+                        />
+                      </View>
+                    ) : (
+                      <AvatarMark
+                        avatarBorderRadius={12}
+                        dimension={34}
+                        imageUrl={item.actor.avatarUrl}
+                        label={item.actor.displayName ?? item.actor.username}
+                        size="small"
+                      />
+                    )}
+                    <View style={styles.serverText}>
+                      <Text style={styles.missedCardTitle} numberOfLines={1}>
+                        {item.body}
+                      </Text>
+                      {subtitle ? (
+                        <Text style={styles.missedCardSubtitle} numberOfLines={1}>
+                          {subtitle}
+                        </Text>
+                      ) : null}
+                    </View>
+                    <Text style={styles.missedTime}>{formatMobileDisplayTime(item.createdAt)}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : null}
         </ScrollView>
       </>
     </BottomSheet>
@@ -180,6 +278,73 @@ export const createMobileWorkspaceServerSwitcherSheetStyles = (theme: MobileThem
     paddingHorizontal: 4,
   },
   list: { gap: 6, paddingBottom: 4 },
+  mentionBadge: {
+    alignItems: "center" as const,
+    backgroundColor: theme.mention.badge,
+    borderRadius: theme.radii.pill,
+    justifyContent: "center" as const,
+    minHeight: 22,
+    minWidth: 22,
+    paddingHorizontal: 8,
+  },
+  mentionBadgeText: {
+    color: theme.text.onPrimary,
+    fontFamily: theme.typography.fontFamilyExtraBold,
+    fontSize: 11,
+  },
+  missedCard: {
+    alignItems: "center" as const,
+    backgroundColor: theme.surface.base,
+    borderRadius: 15,
+    flexDirection: "row" as const,
+    gap: 12,
+    minHeight: 56,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  missedCardSubtitle: {
+    color: theme.text.visualSecondary,
+    fontFamily: theme.typography.fontFamily,
+    fontSize: 11,
+  },
+  missedCardTitle: {
+    color: theme.text.primary,
+    fontFamily: theme.typography.fontFamilyBold,
+    fontSize: 12.5,
+  },
+  missedDivider: { backgroundColor: theme.border.subtle, flex: 1, height: 1 },
+  missedHeader: {
+    alignItems: "center" as const,
+    flexDirection: "row" as const,
+    gap: 10,
+    paddingHorizontal: 4,
+  },
+  missedIcon: {
+    alignItems: "center" as const,
+    backgroundColor: theme.status.successSoft,
+    borderRadius: 12,
+    height: 34,
+    justifyContent: "center" as const,
+    width: 34,
+  },
+  missedSeeAll: {
+    color: theme.accent.strong,
+    fontFamily: theme.typography.fontFamilyExtraBold,
+    fontSize: 12.5,
+  },
+  missedSection: { gap: 8, marginTop: 12 },
+  missedTime: {
+    color: theme.text.visualPlaceholder,
+    fontFamily: theme.typography.fontFamilySemiBold,
+    fontSize: 11,
+  },
+  missedTitle: {
+    color: theme.text.visualFaint,
+    fontFamily: theme.typography.fontFamilyExtraBold,
+    fontSize: 10.5,
+    letterSpacing: 1,
+    textTransform: "uppercase" as const,
+  },
   newServerIcon: {
     alignItems: "center" as const,
     backgroundColor: theme.surface.soft,
@@ -212,8 +377,8 @@ export const createMobileWorkspaceServerSwitcherSheetStyles = (theme: MobileThem
   },
   panel: {
     backgroundColor: theme.surface.card,
-    borderTopLeftRadius: 36,
-    borderTopRightRadius: 36,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     borderWidth: 0,
     maxHeight: "78%" as const,
   },
@@ -226,6 +391,10 @@ export const createMobileWorkspaceServerSwitcherSheetStyles = (theme: MobileThem
     color: theme.text.muted,
     fontFamily: theme.typography.fontFamily,
     fontSize: 12.5,
+  },
+  serverMetaMention: {
+    color: theme.mention.badge,
+    fontFamily: theme.typography.fontFamilySemiBold,
   },
   serverName: {
     color: theme.text.primary,
@@ -259,7 +428,7 @@ export const createMobileWorkspaceServerSwitcherSheetStyles = (theme: MobileThem
   unreadBadge: {
     alignItems: "center" as const,
     backgroundColor: theme.accent.action,
-    borderRadius: 11,
+    borderRadius: theme.radii.pill,
     justifyContent: "center" as const,
     minHeight: 22,
     minWidth: 22,
