@@ -14,13 +14,37 @@
 const fs = require("node:fs");
 const path = require("node:path");
 
-const { withAndroidManifest, withDangerousMod } = require("expo/config-plugins");
+const {
+  withAndroidManifest,
+  withAppBuildGradle,
+  withDangerousMod,
+} = require("expo/config-plugins");
 
 const FULL_SCREEN_INTENT_PERMISSION = "android.permission.USE_FULL_SCREEN_INTENT";
 const CALLS_SUBPACKAGE = "calls";
 const MESSAGING_SERVICE_CLASS = "WhisprMessagingService";
 const ACTION_RECEIVER_CLASS = "WhisprCallActionReceiver";
 const FIREBASE_MESSAGING_EVENT = "com.google.firebase.MESSAGING_EVENT";
+// Keep this aligned with expo-notifications/android/build.gradle. Expo declares it
+// as `implementation`, so a service in the app module cannot see its superclass
+// unless the app declares the dependency too.
+const FIREBASE_MESSAGING_DEPENDENCY = "com.google.firebase:firebase-messaging:25.0.1";
+
+function ensureFirebaseMessagingDependency(appBuildGradle) {
+  if (appBuildGradle.includes(FIREBASE_MESSAGING_DEPENDENCY)) {
+    return appBuildGradle;
+  }
+
+  const dependencyBlock = /^dependencies\s*\{/m;
+  if (!dependencyBlock.test(appBuildGradle)) {
+    throw new Error("Generated app build.gradle is missing the dependencies block.");
+  }
+
+  return appBuildGradle.replace(
+    dependencyBlock,
+    (match) => `${match}\n    implementation("${FIREBASE_MESSAGING_DEPENDENCY}")`,
+  );
+}
 
 function ensureUsesPermission(androidManifest, permissionName) {
   const permissions = androidManifest.manifest["uses-permission"] ?? [];
@@ -127,6 +151,16 @@ function withWhisprCallNotificationsManifest(config) {
   });
 }
 
+function withWhisprCallNotificationsGradle(config) {
+  return withAppBuildGradle(config, (configWithGradle) => {
+    configWithGradle.modResults.contents = ensureFirebaseMessagingDependency(
+      configWithGradle.modResults.contents,
+    );
+
+    return configWithGradle;
+  });
+}
+
 function withWhisprCallNotificationSources(config) {
   return withDangerousMod(config, [
     "android",
@@ -158,11 +192,15 @@ function withWhisprCallNotificationSources(config) {
 }
 
 function withWhisprCallNotifications(config) {
-  return withWhisprCallNotificationSources(withWhisprCallNotificationsManifest(config));
+  return withWhisprCallNotificationSources(
+    withWhisprCallNotificationsGradle(withWhisprCallNotificationsManifest(config)),
+  );
 }
 
 module.exports = withWhisprCallNotifications;
+module.exports.FIREBASE_MESSAGING_DEPENDENCY = FIREBASE_MESSAGING_DEPENDENCY;
 module.exports.ensureActionReceiver = ensureActionReceiver;
+module.exports.ensureFirebaseMessagingDependency = ensureFirebaseMessagingDependency;
 module.exports.ensureMainActivityCallFlags = ensureMainActivityCallFlags;
 module.exports.ensureMessagingService = ensureMessagingService;
 module.exports.ensureUsesPermission = ensureUsesPermission;
