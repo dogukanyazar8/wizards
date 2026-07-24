@@ -33,3 +33,14 @@ test("React Compiler diagnostics stay disabled until a compiler rollout begins",
   assert.doesNotMatch(source, /"react-hooks\/exhaustive-deps": "off"/u);
   assert.equal(packageJson.devDependencies["eslint-plugin-react-hooks"], "^7.1.1");
 });
+
+test("Next 16 uses native flat ESLint configs", () => {
+  const source = readFileSync(
+    fileURLToPath(new URL("../eslint.config.mjs", import.meta.url)),
+    "utf8",
+  );
+
+  assert.match(source, /from "eslint-config-next\/core-web-vitals"/u);
+  assert.match(source, /from "eslint-config-next\/typescript"/u);
+  assert.doesNotMatch(source, /FlatCompat/u);
+});
