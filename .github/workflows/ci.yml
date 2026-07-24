@@ -64,11 +64,7 @@ jobs:
         run: pnpm db:generate
 
       - name: Check E2E password guard
-        run: |
-          if grep -RE 'E2E_TEST_PASSWORD[[:space:]]*(\?\?|\|\|)|WhisprE2E!2026' apps/web/src apps/web/e2e; then
-            echo "::error::Hardcoded E2E password fallback found"
-            exit 1
-          fi
+        run: node scripts/quality/e2e-password-guard.mjs
 
       - name: Secret scan
         uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2

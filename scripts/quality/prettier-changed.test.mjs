@@ -101,6 +101,77 @@ test("collector combines committed, staged, unstaged, and untracked changes", as
   assert.deepEqual(filterFilesByScope(files, "nested"), ["nested/untracked.ts"]);
 });
 
+test("staged mode reads only index content and skips deleted, binary, and unsupported files", async (t) => {
+  const fixture = mkdtempSync(join(tmpdir(), "whispr-format-staged-"));
+  t.after(() => rmSync(fixture, { force: true, recursive: true }));
+
+  runGit(fixture, ["init", "--quiet"]);
+  runGit(fixture, ["config", "core.autocrlf", "false"]);
+  runGit(fixture, ["config", "user.email", "quality@whispr.invalid"]);
+  runGit(fixture, ["config", "user.name", "Whispr Quality"]);
+  writeFileSync(join(fixture, "prettier.config.cjs"), 'module.exports = { endOfLine: "auto" };\n');
+  writeFileSync(join(fixture, "deleted.ts"), "export const deleted = true;\n");
+  runGit(fixture, ["add", "."]);
+  runGit(fixture, ["commit", "--quiet", "-m", "baseline"]);
+
+  writeFileSync(join(fixture, "index-formatted.ts"), "export const indexFormatted = true;\n");
+  runGit(fixture, ["add", "index-formatted.ts"]);
+  writeFileSync(join(fixture, "index-formatted.ts"), "export const indexFormatted=true\n");
+
+  writeFileSync(join(fixture, "index-unformatted.ts"), "export const indexUnformatted=true\n");
+  runGit(fixture, ["add", "index-unformatted.ts"]);
+  writeFileSync(join(fixture, "index-unformatted.ts"), "export const indexUnformatted = true;\n");
+
+  runGit(fixture, ["rm", "--quiet", "deleted.ts"]);
+  writeFileSync(join(fixture, "binary.ts"), Buffer.from([0, 1, 2, 3]));
+  writeFileSync(join(fixture, "unsupported.rs"), "fn main() {}\n");
+  runGit(fixture, ["add", "binary.ts", "unsupported.rs"]);
+
+  const { checkStagedFiles, collectStagedFiles } = await import(pathToFileURL(checkerPath).href);
+  const files = collectStagedFiles({ root: fixture });
+  const result = await checkStagedFiles({ files, root: fixture });
+
+  assert.deepEqual(files, [
+    "binary.ts",
+    "index-formatted.ts",
+    "index-unformatted.ts",
+    "unsupported.rs",
+  ]);
+  assert.deepEqual(result.checked, ["index-formatted.ts", "index-unformatted.ts"]);
+  assert.deepEqual(result.unformatted, ["index-unformatted.ts"]);
+  assert.deepEqual(result.skipped, ["binary.ts", "unsupported.rs"]);
+});
+
+test("staged mode resolves Prettier configuration and ignore rules from the index", async (t) => {
+  const fixture = mkdtempSync(join(tmpdir(), "whispr-format-staged-config-"));
+  t.after(() => rmSync(fixture, { force: true, recursive: true }));
+
+  runGit(fixture, ["init", "--quiet"]);
+  runGit(fixture, ["config", "core.autocrlf", "false"]);
+  runGit(fixture, ["config", "user.email", "quality@whispr.invalid"]);
+  runGit(fixture, ["config", "user.name", "Whispr Quality"]);
+  writeFileSync(join(fixture, "prettier.config.cjs"), "module.exports = { semi: true };\n");
+  writeFileSync(join(fixture, ".prettierignore"), "\n");
+  runGit(fixture, ["add", "."]);
+  runGit(fixture, ["commit", "--quiet", "-m", "baseline"]);
+
+  writeFileSync(join(fixture, "staged.ts"), "export const staged=true\n");
+  writeFileSync(join(fixture, "config-sensitive.ts"), "export const configSensitive = true;\n");
+  runGit(fixture, ["add", "staged.ts", "config-sensitive.ts"]);
+
+  writeFileSync(join(fixture, ".prettierignore"), "staged.ts\n");
+  writeFileSync(join(fixture, "prettier.config.cjs"), "module.exports = { semi: false };\n");
+
+  const { checkStagedFiles, collectStagedFiles } = await import(pathToFileURL(checkerPath).href);
+  const result = await checkStagedFiles({
+    files: collectStagedFiles({ root: fixture }),
+    root: fixture,
+  });
+
+  assert.deepEqual(result.checked, ["config-sensitive.ts", "staged.ts"]);
+  assert.deepEqual(result.unformatted, ["staged.ts"]);
+});
+
 test("CI fallback uses the previous commit when the event has no base SHA", async (t) => {
   const fixture = mkdtempSync(join(tmpdir(), "whispr-format-ci-base-"));
   t.after(() => rmSync(fixture, { force: true, recursive: true }));

@@ -1,0 +1,185 @@
+{
+  "schemaVersion": 1,
+  "profiles": {
+    "Fast": {
+      "description": "Validate staged whitespace, toolchain contracts, and staged index formatting.",
+      "estimatedImpact": "No build, database, emulator, or network mutation.",
+      "preconditions": [
+        { "type": "repository" },
+        { "type": "nodeModules" },
+        { "type": "executable", "name": "git" },
+        { "type": "executable", "name": "pnpm" },
+        { "type": "executable", "name": "node" }
+      ],
+      "steps": [
+        {
+          "id": "fast-index-diff",
+          "executable": "git",
+          "arguments": ["diff", "--cached", "--check"]
+        },
+        { "id": "fast-toolchain", "executable": "pnpm", "arguments": ["test:toolchain"] },
+        {
+          "id": "fast-staged-prettier",
+          "executable": "node",
+          "arguments": ["scripts/quality/prettier-changed.mjs", "--staged"]
+        }
+      ]
+    },
+    "Standard": {
+      "description": "Run root lint, typecheck, changed-file formatting, and tests.",
+      "estimatedImpact": "May generate Prisma client artifacts but does not migrate, reset, deploy, or start services.",
+      "preconditions": [
+        { "type": "repository" },
+        { "type": "nodeModules" },
+        { "type": "executable", "name": "pnpm" }
+      ],
+      "steps": [
+        { "id": "standard-lint", "executable": "pnpm", "arguments": ["lint"] },
+        { "id": "standard-typecheck", "executable": "pnpm", "arguments": ["typecheck"] },
+        { "id": "standard-format", "executable": "pnpm", "arguments": ["format"] },
+        { "id": "standard-tests", "executable": "pnpm", "arguments": ["test"] }
+      ]
+    },
+    "CI": {
+      "description": "Run only the existing root CI aggregate boundary.",
+      "estimatedImpact": "Runs the repository CI aggregate; it is not a GitHub Actions replica.",
+      "preconditions": [
+        { "type": "repository" },
+        { "type": "nodeModules" },
+        { "type": "executable", "name": "pnpm" }
+      ],
+      "steps": [{ "id": "ci-aggregate", "executable": "pnpm", "arguments": ["ci"] }]
+    },
+    "Mobile": {
+      "description": "Run existing mobile environment, test, quality, and release checks without creating an APK.",
+      "estimatedImpact": "Does not run Expo prebuild, Gradle, Metro, or an Android build.",
+      "preconditions": [
+        { "type": "repository" },
+        { "type": "nodeModules" },
+        { "type": "path", "path": "apps/mobile/package.json" },
+        { "type": "executable", "name": "pnpm" }
+      ],
+      "steps": [
+        {
+          "id": "mobile-validate-env",
+          "executable": "pnpm",
+          "arguments": ["--filter", "@wizards/mobile", "validate:env"]
+        },
+        {
+          "id": "mobile-tests",
+          "executable": "pnpm",
+          "arguments": ["--filter", "@wizards/mobile", "test"]
+        },
+        {
+          "id": "mobile-component-tests",
+          "executable": "pnpm",
+          "arguments": ["--filter", "@wizards/mobile", "test:components"]
+        },
+        {
+          "id": "mobile-release-check",
+          "executable": "pnpm",
+          "arguments": ["--filter", "@wizards/mobile", "release:check"]
+        },
+        {
+          "id": "mobile-quality-check",
+          "executable": "pnpm",
+          "arguments": ["--filter", "@wizards/mobile", "quality:check"]
+        }
+      ]
+    },
+    "MobileRelease": {
+      "description": "Delegate a build-only release APK to the canonical Android UAT script.",
+      "estimatedImpact": "Builds a release APK in the canonical managed UAT root; it may perform canonical managed dependency recovery, but does not install to a device or start Metro.",
+      "preconditions": [
+        { "type": "repository" },
+        { "type": "path", "path": "apps/mobile/scripts/build-android-uat.ps1" },
+        { "type": "executable", "name": "powershell" }
+      ],
+      "steps": [
+        {
+          "id": "android-uat-release",
+          "executable": "powershell",
+          "arguments": [
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            "apps/mobile/scripts/build-android-uat.ps1",
+            "-BuildType",
+            "release",
+            "-SkipInstall",
+            "-SkipUninstall",
+            "-NoStartMetro"
+          ]
+        }
+      ]
+    },
+    "Security": {
+      "description": "Run the platform-independent E2E password fallback guard.",
+      "estimatedImpact": "Read-only source scan; no service, database, or deployment action.",
+      "preconditions": [
+        { "type": "repository" },
+        { "type": "path", "path": "scripts/quality/e2e-password-guard.mjs" },
+        { "type": "executable", "name": "node" }
+      ],
+      "steps": [
+        {
+          "id": "security-e2e-password-guard",
+          "executable": "node",
+          "arguments": ["scripts/quality/e2e-password-guard.mjs"]
+        }
+      ]
+    },
+    "E2ESmoke": {
+      "description": "Run the existing smoke E2E entrypoint against already-running local dependencies.",
+      "estimatedImpact": "Read-only TCP prerequisite checks, then E2E test execution; it never starts services or resets data.",
+      "preconditions": [
+        { "type": "repository" },
+        { "type": "nodeModules" },
+        { "type": "executable", "name": "pnpm" },
+        { "type": "environment", "name": "E2E_TEST_PASSWORD" },
+        {
+          "type": "loopbackTcpEnvironment",
+          "name": "E2E_DATABASE_URL",
+          "fallbackName": "DATABASE_URL"
+        },
+        { "type": "loopbackTcpEnvironment", "name": "REDIS_URL" }
+      ],
+      "steps": [{ "id": "e2e-smoke", "executable": "pnpm", "arguments": ["e2e:smoke"] }]
+    },
+    "E2EApi": {
+      "description": "Run the existing API E2E entrypoint against already-running local dependencies.",
+      "estimatedImpact": "Read-only TCP prerequisite checks, then E2E test execution; it never starts services or resets data.",
+      "preconditions": [
+        { "type": "repository" },
+        { "type": "nodeModules" },
+        { "type": "executable", "name": "pnpm" },
+        { "type": "environment", "name": "E2E_TEST_PASSWORD" },
+        {
+          "type": "loopbackTcpEnvironment",
+          "name": "E2E_DATABASE_URL",
+          "fallbackName": "DATABASE_URL"
+        },
+        { "type": "loopbackTcpEnvironment", "name": "REDIS_URL" }
+      ],
+      "steps": [{ "id": "e2e-api", "executable": "pnpm", "arguments": ["e2e:api"] }]
+    },
+    "E2ERealtime": {
+      "description": "Run the existing realtime E2E entrypoint against already-running local dependencies.",
+      "estimatedImpact": "Read-only TCP prerequisite checks, then E2E test execution; it never starts services or resets data.",
+      "preconditions": [
+        { "type": "repository" },
+        { "type": "nodeModules" },
+        { "type": "executable", "name": "pnpm" },
+        { "type": "environment", "name": "E2E_TEST_PASSWORD" },
+        {
+          "type": "loopbackTcpEnvironment",
+          "name": "E2E_DATABASE_URL",
+          "fallbackName": "DATABASE_URL"
+        },
+        { "type": "loopbackTcpEnvironment", "name": "REDIS_URL" }
+      ],
+      "steps": [{ "id": "e2e-realtime", "executable": "pnpm", "arguments": ["e2e:realtime"] }]
+    }
+  }
+}

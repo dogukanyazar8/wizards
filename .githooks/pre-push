@@ -1,0 +1,6 @@
+#!/bin/sh
+set -eu
+
+repo_root=$(git rev-parse --show-toplevel)
+cd "$repo_root"
+exec powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$repo_root/scripts/quality/Invoke-LocalGate.ps1" -Profile Fast

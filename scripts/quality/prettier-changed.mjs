@@ -1,5 +1,14 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, statSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import * as prettier from "prettier";
@@ -10,11 +19,11 @@ function normalizePath(path) {
   return path.replaceAll("\\", "/").replace(/^\.\//, "");
 }
 
-function runGit(root, args, { allowFailure = false } = {}) {
+function runGit(root, args, { allowFailure = false, encoding = "utf8" } = {}) {
   try {
     return execFileSync("git", args, {
       cwd: root,
-      encoding: "utf8",
+      encoding,
       stdio: ["ignore", "pipe", allowFailure ? "ignore" : "pipe"],
     });
   } catch (error) {
@@ -115,6 +124,59 @@ export function collectChangedFiles({ base, root = repositoryRoot } = {}) {
     .sort();
 }
 
+export function collectStagedFiles({ root = repositoryRoot } = {}) {
+  return parseNullDelimited(
+    runGit(root, ["diff", "--cached", "--name-only", "--diff-filter=ACMR", "-z"]),
+  );
+}
+
+const stagedPrettierConfigNames = new Set([
+  ".editorconfig",
+  ".prettierignore",
+  ".prettierrc",
+  ".prettierrc.cjs",
+  ".prettierrc.js",
+  ".prettierrc.json",
+  "package.json",
+  "prettier.config.cjs",
+  "prettier.config.js",
+]);
+
+function collectStagedPrettierConfigFiles(root) {
+  return parseNullDelimited(runGit(root, ["ls-files", "--cached", "-z"])).filter((path) =>
+    stagedPrettierConfigNames.has(path.split("/").at(-1)),
+  );
+}
+
+function copyStagedFileToSnapshot({ root, snapshotRoot, path }) {
+  const source = runGit(root, ["show", `:${path}`], { allowFailure: true, encoding: "buffer" });
+  if (source === null) {
+    return;
+  }
+
+  const destination = resolve(snapshotRoot, path);
+  const snapshotRelative = relative(snapshotRoot, destination);
+  if (
+    snapshotRelative === "" ||
+    snapshotRelative.startsWith("..") ||
+    isAbsolute(snapshotRelative)
+  ) {
+    throw new Error(`Staged path escapes the formatter snapshot: ${path}`);
+  }
+
+  mkdirSync(dirname(destination), { recursive: true });
+  writeFileSync(destination, source);
+}
+
+function createStagedPrettierSnapshot({ files, root }) {
+  const snapshotRoot = mkdtempSync(join(tmpdir(), "whispr-prettier-index-"));
+  const snapshotFiles = new Set([...files, ...collectStagedPrettierConfigFiles(root)]);
+  for (const path of snapshotFiles) {
+    copyStagedFileToSnapshot({ root, snapshotRoot, path });
+  }
+  return snapshotRoot;
+}
+
 export function filterFilesByScope(files, scope) {
   if (!scope) {
     return [...files];
@@ -124,10 +186,11 @@ export function filterFilesByScope(files, scope) {
   return files.filter((path) => path === normalizedScope || path.startsWith(`${normalizedScope}/`));
 }
 
-export async function checkFiles({ files, root = repositoryRoot } = {}) {
+async function checkSources({ files, readSource, root = repositoryRoot } = {}) {
   const ignorePath = join(root, ".prettierignore");
   const checked = [];
   const unformatted = [];
+  const skipped = [];
 
   for (const path of [...new Set(files)].sort()) {
     const absolutePath = resolve(root, path);
@@ -136,30 +199,58 @@ export async function checkFiles({ files, root = repositoryRoot } = {}) {
       withNodeModules: false,
     });
     if (fileInfo.ignored || !fileInfo.inferredParser) {
+      skipped.push(normalizePath(relative(root, absolutePath)));
       continue;
     }
 
     const normalizedPath = normalizePath(relative(root, absolutePath));
-    const source = readFileSync(absolutePath, "utf8");
+    const source = readSource(path, absolutePath);
+    const sourceBuffer = Buffer.isBuffer(source) ? source : Buffer.from(source, "utf8");
+    if (sourceBuffer.includes(0)) {
+      skipped.push(normalizedPath);
+      continue;
+    }
+    const sourceText = sourceBuffer.toString("utf8");
     const config = (await prettier.resolveConfig(absolutePath, { editorconfig: true })) ?? {};
-    const formatted = await prettier.format(source, {
+    const formatted = await prettier.format(sourceText, {
       ...config,
       filepath: absolutePath,
     });
 
     checked.push(normalizedPath);
-    if (source !== formatted) {
+    if (sourceText !== formatted) {
       unformatted.push(normalizedPath);
     }
   }
 
-  return { checked, unformatted };
+  return { checked, skipped, unformatted };
+}
+
+export async function checkFiles({ files, root = repositoryRoot } = {}) {
+  return checkSources({
+    files,
+    root,
+    readSource: (_path, absolutePath) => readFileSync(absolutePath),
+  });
+}
+
+export async function checkStagedFiles({ files, root = repositoryRoot } = {}) {
+  const snapshotRoot = createStagedPrettierSnapshot({ files, root });
+  try {
+    return await checkFiles({ files, root: snapshotRoot });
+  } finally {
+    rmSync(snapshotRoot, { force: true, recursive: true });
+  }
 }
 
 function parseArguments(args) {
   const options = {};
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index];
+    if (argument === "--staged") {
+      options.staged = true;
+      continue;
+    }
     if (argument !== "--base" && argument !== "--scope") {
       throw new Error(`Unknown argument: ${argument}`);
     }
@@ -171,16 +262,23 @@ function parseArguments(args) {
     options[argument.slice(2)] = value;
     index += 1;
   }
+  if (options.staged && (options.base || options.scope)) {
+    throw new Error("--staged cannot be combined with --base or --scope");
+  }
   return options;
 }
 
 async function main() {
   const options = parseArguments(process.argv.slice(2));
-  const base = resolveBaseRef({ base: options.base });
-  const changedFiles = collectChangedFiles({ base });
-  const scopedFiles = filterFilesByScope(changedFiles, options.scope);
-  const result = await checkFiles({ files: scopedFiles });
-  const baseLabel = base ? base.slice(0, 12) : "working tree";
+  const base = options.staged ? null : resolveBaseRef({ base: options.base });
+  const changedFiles = options.staged ? collectStagedFiles() : collectChangedFiles({ base });
+  const scopedFiles = options.staged
+    ? changedFiles
+    : filterFilesByScope(changedFiles, options.scope);
+  const result = options.staged
+    ? await checkStagedFiles({ files: scopedFiles })
+    : await checkFiles({ files: scopedFiles });
+  const baseLabel = options.staged ? "Git index" : base ? base.slice(0, 12) : "working tree";
 
   if (result.unformatted.length > 0) {
     console.error(

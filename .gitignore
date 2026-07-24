@@ -23,6 +23,7 @@ blob-report
 # Local assistant and QA artifacts
 .codex/
 **/.codex/
+.playwright-cli/
 
 # Graphify local cache; keep the main graphify-out reports tracked separately.
 graphify-out/cache/
