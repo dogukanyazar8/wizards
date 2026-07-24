@@ -66,3 +66,13 @@ test("Next enables its native React Compiler integration", () => {
   assert.match(source, /reactCompiler:\s*true/u);
   assert.doesNotMatch(source, /babel-plugin-react-compiler/u);
 });
+
+test("screen-share stage state survives share membership changes", () => {
+  const source = readFileSync(
+    fileURLToPath(new URL("../src/components/voice/voice-channel-view.tsx", import.meta.url)),
+    "utf8",
+  );
+
+  assert.doesNotMatch(source, /screenShareSessionKey/u);
+  assert.doesNotMatch(source, /key=\{screenShareSessionKey\}/u);
+});

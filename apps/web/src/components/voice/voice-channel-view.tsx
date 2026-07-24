@@ -491,10 +491,6 @@ function VoiceChannelViewContent({ channelId, serverId }: VoiceChannelViewProps)
   const localConnectionQuality = room
     ? (room.localParticipant.connectionQuality ?? reportedConnectionQuality)
     : ConnectionQuality.Unknown;
-  const screenShareSessionKey = screenShares
-    .map((screenShare) => screenShare.id)
-    .sort()
-    .join(":");
   const screenShareParticipantIds = useMemo(
     () => new Set(screenShares.map((share) => share.participantId)),
     [screenShares],
@@ -832,7 +828,6 @@ function VoiceChannelViewContent({ channelId, serverId }: VoiceChannelViewProps)
                   onStopShare={() => {
                     void stopScreenShare();
                   }}
-                  key={screenShareSessionKey}
                   screenShares={screenShares}
                   selectedQuality={screenShareQuality}
                 />
