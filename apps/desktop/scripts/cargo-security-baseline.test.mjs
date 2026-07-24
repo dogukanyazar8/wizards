@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, it } from "node:test";
@@ -25,4 +25,33 @@ describe("desktop Cargo security baseline", () => {
       "Cargo.lock must not reintroduce the RustSec-vulnerable rustls-webpki 0.102.8 package",
     );
   });
+
+  it("keeps the affected GLib iterator unavailable to Whispr application code", async () => {
+    const [manifest, sourceFiles] = await Promise.all([
+      readFile(path.join(tauriDirectory, "Cargo.toml"), "utf8"),
+      listRustSources(),
+    ]);
+    const sources = await Promise.all(sourceFiles.map((sourceFile) => readFile(sourceFile, "utf8")));
+
+    assert.doesNotMatch(
+      manifest,
+      /(?:^\s*(?:glib(?:-sys)?|gtk)\s*=|package\s*=\s*"(?:glib(?:-sys)?|gtk)")/m,
+      "Whispr must not make the GTK3/GLib chain a direct dependency",
+    );
+    assert.doesNotMatch(
+      sources.join("\n"),
+      /\bVariantStrIter\b/,
+      "Whispr must not call the RustSec-affected GLib iterator API",
+    );
+  });
 });
+
+async function listRustSources() {
+  const sourceDirectory = path.join(tauriDirectory, "src");
+  const entries = await readdir(sourceDirectory, { recursive: true });
+  const nestedSources = entries
+    .filter((entry) => entry.endsWith(".rs"))
+    .map((entry) => path.join(sourceDirectory, entry));
+
+  return [path.join(tauriDirectory, "build.rs"), ...nestedSources];
+}
