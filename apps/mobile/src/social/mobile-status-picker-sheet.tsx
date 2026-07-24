@@ -69,8 +69,12 @@ export interface MobileStatusPickerSheetProps {
   readonly customStatus: string | null;
   readonly customStatusEmoji: string | null;
   readonly onClose: () => void;
-  /** Opens the status-message editor; the picker closes first so one sheet is up at a time. */
-  readonly onOpenCustomStatus: () => void;
+  /**
+   * Opens the status-message editor; the picker closes first so one sheet is up at a
+   * time. Omitted by hosts that edit the status message inline (the 2a profile editor),
+   * which hides the row entirely rather than offering a second way in.
+   */
+  readonly onOpenCustomStatus?: (() => void) | undefined;
   readonly open: boolean;
   readonly presence: MobileFriendPresenceStatus | null;
 }
@@ -164,7 +168,10 @@ export function MobileStatusPickerSheet({
                 testID={`${MOBILE_STATUS_PICKER_SHEET_TEST_ID}-${option.toLowerCase()}`}
               >
                 <View
-                  style={[styles.statusTile, { backgroundColor: getStatusTileColor(theme, option) }]}
+                  style={[
+                    styles.statusTile,
+                    { backgroundColor: getStatusTileColor(theme, option) },
+                  ]}
                 >
                   {option === "ONLINE" ? (
                     <View
@@ -223,44 +230,43 @@ export function MobileStatusPickerSheet({
           </Text>
         ) : null}
 
-        <View style={styles.statusDivider}>
-          <Pressable
-            accessibilityLabel={
-              customStatusPreview
-                ? `${copy.profileCustomStatusEditAction}. ${customStatusPreview}`
-                : copy.profileCustomStatusAction
-            }
-            accessibilityRole="button"
-            onPress={() => {
-              onClose();
-              onOpenCustomStatus();
-            }}
-            style={({ pressed }) => [styles.statusRow, pressed && styles.statusRowPressed]}
-            testID={`${MOBILE_STATUS_PICKER_SHEET_TEST_ID}-custom-status`}
-          >
-            <View
-              style={[
-                styles.statusTile,
-                { backgroundColor: theme.profileSheet.selectedSurface },
-              ]}
+        {onOpenCustomStatus ? (
+          <View style={styles.statusDivider}>
+            <Pressable
+              accessibilityLabel={
+                customStatusPreview
+                  ? `${copy.profileCustomStatusEditAction}. ${customStatusPreview}`
+                  : copy.profileCustomStatusAction
+              }
+              accessibilityRole="button"
+              onPress={() => {
+                onClose();
+                onOpenCustomStatus();
+              }}
+              style={({ pressed }) => [styles.statusRow, pressed && styles.statusRowPressed]}
+              testID={`${MOBILE_STATUS_PICKER_SHEET_TEST_ID}-custom-status`}
             >
-              <MobileLineIcon color={theme.profileSheet.check} name="edit" size={15} />
-            </View>
-            <View style={styles.statusText}>
-              <Text numberOfLines={1} style={styles.statusLabel}>
-                {customStatusPreview
-                  ? copy.profileCustomStatusEditAction
-                  : copy.profileCustomStatusAction}
-              </Text>
-              {customStatusPreview ? (
-                <Text numberOfLines={1} style={styles.statusDescription}>
-                  {customStatusPreview}
+              <View
+                style={[styles.statusTile, { backgroundColor: theme.profileSheet.selectedSurface }]}
+              >
+                <MobileLineIcon color={theme.profileSheet.check} name="edit" size={15} />
+              </View>
+              <View style={styles.statusText}>
+                <Text numberOfLines={1} style={styles.statusLabel}>
+                  {customStatusPreview
+                    ? copy.profileCustomStatusEditAction
+                    : copy.profileCustomStatusAction}
                 </Text>
-              ) : null}
-            </View>
-            <MobileLineIcon color={theme.control.chevron} name="chevron-right" size={16} />
-          </Pressable>
-        </View>
+                {customStatusPreview ? (
+                  <Text numberOfLines={1} style={styles.statusDescription}>
+                    {customStatusPreview}
+                  </Text>
+                ) : null}
+              </View>
+              <MobileLineIcon color={theme.control.chevron} name="chevron-right" size={16} />
+            </Pressable>
+          </View>
+        ) : null}
       </View>
     </BottomSheet>
   );

@@ -18,6 +18,8 @@ const NOW = new Date("2026-07-23T12:00:00.000Z");
 
 const baseline: MobileProfileEditBaseline = {
   bannerColor: null,
+  bannerOffsetX: null,
+  bannerOffsetY: null,
   bannerUrl: null,
   bio: null,
   customStatus: null,
@@ -37,6 +39,8 @@ describe("mobile profile edit draft state", () => {
 
     assert.deepEqual(draft, {
       bannerColor: null,
+      bannerOffsetX: null,
+      bannerOffsetY: null,
       bannerUrl: null,
       bio: "",
       customStatus: "",
@@ -118,6 +122,41 @@ describe("mobile profile edit draft state", () => {
         now: NOW,
       }),
       { customStatus: null, customStatusEmoji: null, customStatusExpiresAt: null },
+    );
+  });
+
+  it("carries the stored banner focal point into the draft", () => {
+    const positioned: MobileProfileEditBaseline = {
+      ...baseline,
+      bannerOffsetX: 0.25,
+      bannerOffsetY: 0.8,
+      bannerUrl: "https://cdn.test/b.png",
+    };
+    const draft = createMobileProfileEditDraft(positioned, NOW);
+
+    assert.equal(draft.bannerOffsetX, 0.25);
+    assert.equal(draft.bannerOffsetY, 0.8);
+    assert.equal(isMobileProfileEditDirty({ baseline: positioned, draft, now: NOW }), false);
+  });
+
+  it("sends only the moved banner focal axis", () => {
+    const positioned: MobileProfileEditBaseline = {
+      ...baseline,
+      bannerOffsetX: 0.5,
+      bannerOffsetY: 0.5,
+      bannerUrl: "https://cdn.test/b.png",
+    };
+
+    assert.deepEqual(
+      buildMobileProfileEditPatch({
+        baseline: positioned,
+        draft: {
+          ...createMobileProfileEditDraft(positioned, NOW),
+          bannerOffsetY: 0.82,
+        },
+        now: NOW,
+      }),
+      { bannerOffsetY: 0.82 },
     );
   });
 

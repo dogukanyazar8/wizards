@@ -59,7 +59,6 @@ describe("mobile locale preferences", () => {
       "../src/app/screens/dm-conversation-screen.tsx",
       "../src/app/screens/dm-screen.tsx",
       "../src/app/screens/settings-screen.tsx",
-      "../src/dm/mobile-dm-details-screen.tsx",
       "../src/media/mobile-gif-picker.tsx",
       "../src/social/friends-hub.tsx",
       "../src/social/mobile-profile-avatar-editor.tsx",
@@ -126,10 +125,7 @@ describe("mobile locale preferences", () => {
 
   it("uses the first supported device language and safely falls back to Turkish", () => {
     assert.equal(
-      resolveMobileLocaleFromDeviceLocales([
-        { languageCode: "de" },
-        { languageCode: "en" },
-      ]),
+      resolveMobileLocaleFromDeviceLocales([{ languageCode: "de" }, { languageCode: "en" }]),
       "en",
     );
     assert.equal(resolveMobileLocaleFromDeviceLocales([{ languageCode: "de" }]), "tr");

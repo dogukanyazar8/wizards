@@ -36,6 +36,8 @@ import { mobileQueryKeys } from "../src/query/mobile-query-keys";
 const accountSettings = {
   account: {
     bannerColor: null,
+    bannerOffsetX: null,
+    bannerOffsetY: null,
     bannerUrl: null,
     bio: "Shipping Whispr",
     customStatus: null,
@@ -167,6 +169,8 @@ describe("production mobile account settings integration", () => {
       user: {
         avatarUrl: null,
         bannerColor: null,
+        bannerOffsetX: null,
+        bannerOffsetY: null,
         bannerUrl: null,
         bio: null,
         customStatus: null,
@@ -300,9 +304,7 @@ describe("production mobile account settings integration", () => {
 
     await fireEvent.press(await view.findByTestId("mobile-account-email-verify"));
 
-    expect(
-      await view.findByText("Doğrulama e-postası gönderilemedi. Tekrar dene."),
-    ).toBeTruthy();
+    expect(await view.findByText("Doğrulama e-postası gönderilemedi. Tekrar dene.")).toBeTruthy();
     expect(view.queryByText("verification transport failure")).toBeNull();
   });
 

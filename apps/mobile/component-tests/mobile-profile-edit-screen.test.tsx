@@ -137,7 +137,7 @@ describe("mobile profile edit screen (2a)", () => {
     mockSelectAndUpload.mockReset();
   });
 
-  it("renders the 2a preview, form, status and footer blocks", async () => {
+  it("renders the 2a preview, form and status blocks without the server footer note", async () => {
     authenticatedApi(jest.fn(async () => accountSettings()));
     const view = await renderScreen(createQueryClient());
 
@@ -147,9 +147,7 @@ describe("mobile profile edit screen (2a)", () => {
     expect(view.getByTestId("mobile-profile-edit-username-input")).toBeTruthy();
     expect(view.getByTestId("mobile-profile-edit-bio-input")).toBeTruthy();
     expect(view.getByTestId("mobile-profile-edit-status-input")).toBeTruthy();
-    expect(view.getByTestId("mobile-profile-edit-footer").props.children).toBe(
-      "Profilin tüm sunucularda aynı görünür",
-    );
+    expect(view.queryByTestId("mobile-profile-edit-footer")).toBeNull();
   });
 
   it("keeps Kaydet disabled until a field is dirty", async () => {
@@ -262,6 +260,7 @@ describe("mobile profile edit screen (2a)", () => {
     const view = await renderScreen(createQueryClient(settings));
 
     expect(view.getByTestId("mobile-profile-edit-banner-image")).toBeTruthy();
+    expect(view.getByTestId("mobile-profile-edit-banner-reposition-hint")).toBeTruthy();
     expect(view.getByTestId("mobile-profile-edit-banner-locked")).toBeTruthy();
     expect(
       view.getByTestId("mobile-profile-edit-banner-color-22a366").props.accessibilityState.disabled,
@@ -357,7 +356,7 @@ describe("mobile profile edit screen (2a)", () => {
     const view = await renderScreen(createQueryClient());
 
     await fireEvent.press(view.getByTestId("mobile-profile-edit-presence-row"));
-    await fireEvent.press(view.getByTestId("mobile-profile-edit-presence-online"));
+    await fireEvent.press(view.getByTestId("mobile-profile-status-sheet-online"));
 
     await waitFor(() =>
       expect(requestJson).toHaveBeenCalledWith(

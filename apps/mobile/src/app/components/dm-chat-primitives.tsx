@@ -32,6 +32,7 @@ import { formatMobileRelativeTime } from "../../locale/mobile-relative-time";
 import { formatMobileDateSeparator } from "../../locale/mobile-date-separator";
 import { AvatarMark } from "./ui-atoms";
 import { useOpenMobileProfileCard } from "../../social/profile-card";
+import { mobileNavigationRef } from "../../navigation/mobile-navigation-ref";
 import { Icon } from "./kit";
 import { MessageActionMenu, MessageActionMenuTrigger } from "./message-action-menu";
 import {
@@ -92,7 +93,6 @@ export function DMChatHeader({
   isOnline,
   lastSeenAt = null,
   onBack,
-  onOpenDetails,
   onStartVideoCall,
   onStartVoiceCall,
   partnerUserId = null,
@@ -103,10 +103,12 @@ export function DMChatHeader({
   readonly isOnline: boolean;
   readonly lastSeenAt?: string | null;
   readonly onBack: () => void;
-  readonly onOpenDetails?: () => void;
   readonly onStartVideoCall?: () => void;
   readonly onStartVoiceCall?: () => void;
-  /** 11b: the other participant, so the header avatar can open their card. */
+  /**
+   * The other participant. The avatar opens their quick card; the name block
+   * opens their full profile page.
+   */
   readonly partnerUserId?: string | null;
   readonly title: string;
   readonly typing: boolean;
@@ -115,6 +117,13 @@ export function DMChatHeader({
   const theme = useTheme();
   const openProfileCard = useOpenMobileProfileCard();
   const { locale } = useMobileLocaleRuntime();
+  // The name/status block pushes the full 11c profile page. Mirrors the quick
+  // card's own "view profile" jump, so the whole header reaches the same route.
+  const openFullProfile = useCallback(() => {
+    if (partnerUserId && mobileNavigationRef.isReady()) {
+      mobileNavigationRef.navigate("UserProfile", { userId: partnerUserId });
+    }
+  }, [partnerUserId]);
   const lastSeenTime = lastSeenAt ? formatMobileRelativeTime(lastSeenAt, locale) : "";
   const statusLabel = typing
     ? copy.dmChatTypingStatus
@@ -136,15 +145,9 @@ export function DMChatHeader({
       >
         <Ionicons name="chevron-back" size={19} color={theme.text.primary} />
       </Pressable>
-      <Pressable
-        accessibilityRole={onOpenDetails ? "button" : undefined}
-        disabled={!onOpenDetails}
-        onPress={onOpenDetails}
-        style={styles.headerIdentityButton}
-        testID="mobile-dm-details-open"
-      >
-        {/* 11b: the avatar opens the quick profile card; the rest of the identity
-            block keeps its existing "conversation details" press. */}
+      <View style={styles.headerIdentityButton} testID="mobile-dm-header-identity">
+        {/* The avatar opens the quick profile card; the name block opens the
+            full profile page. */}
         <Pressable
           accessibilityLabel={copy.profileCardOpenActionTemplate.replace("{name}", title)}
           accessibilityRole="button"
@@ -164,7 +167,14 @@ export function DMChatHeader({
           />
           {isOnline ? <View style={styles.onlineDot} testID="mobile-dm-online-dot" /> : null}
         </Pressable>
-        <View style={styles.headerText}>
+        <Pressable
+          accessibilityLabel={copy.profileCardViewProfileAction}
+          accessibilityRole="button"
+          disabled={!partnerUserId}
+          onPress={openFullProfile}
+          style={styles.headerText}
+          testID="mobile-dm-header-open-profile"
+        >
           <Text numberOfLines={1} style={styles.headerTitle}>
             {title}
           </Text>
@@ -174,8 +184,8 @@ export function DMChatHeader({
           >
             {statusLabel}
           </Text>
-        </View>
-      </Pressable>
+        </Pressable>
+      </View>
       <View style={styles.callActions}>
         <Pressable
           accessibilityLabel={copy.dmChatVoiceCallAction}
@@ -860,12 +870,8 @@ export function DMChatMessageList({
   }, [isScreenFocused]);
   // A reaction chip lives on a recycled row, so the sheet it long-presses open
   // is owned here for the same reason the menu is.
-  const {
-    closeReactionOverlay,
-    reactionOverlay,
-    reactionOverlayMessage,
-    requestReactionDetails,
-  } = useMobileMessageReactionOverlay({ isScreenFocused, messages });
+  const { closeReactionOverlay, reactionOverlay, reactionOverlayMessage, requestReactionDetails } =
+    useMobileMessageReactionOverlay({ isScreenFocused, messages });
 
   // Tapping a reply quote scrolls to the original message and flashes it (8b).
   const handleOpenReply = useCallback(

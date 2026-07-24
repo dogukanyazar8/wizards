@@ -142,7 +142,7 @@ export type {
   MobileMessageSearchViewState,
   MobileWorkspaceServerViewState,
 } from "./mobile-screen-state";
-export type { MobileVoiceInviteOverlayEntry } from "./overlays/mobile-voice-invite-overlay";
+export type { MobileVoiceInviteOverlayEntry } from "./overlays/mobile-incoming-request-model";
 
 export const copy = activeMobileCopy;
 export const runtimeConfig = getMobileRuntimeConfig();

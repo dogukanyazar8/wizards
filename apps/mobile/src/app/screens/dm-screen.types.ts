@@ -49,7 +49,6 @@ export type MobileMessagesScreenProps = {
   onLoadMoreConversations(): void;
   onLoadMoreMessages?(): void;
   onOpenConversation(conversationId: string): void;
-  onOpenDetails?(): void;
   onOpenThread?(messageId: string): void;
   onRefreshBootstrap(): void;
   onRefreshConversation(): void;

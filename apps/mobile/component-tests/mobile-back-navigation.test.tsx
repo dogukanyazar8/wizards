@@ -82,7 +82,6 @@ jest.mock(
       ProfileEditScreenContainer: plainScreen("mobile-profile-edit-screen"),
       BlockedUsersScreenContainer: plainScreen("mobile-blocked-users-screen"),
       SecurityScreenContainer: plainScreen("mobile-security-screen"),
-      DMDetailsScreenContainer: plainScreen("mobile-dm-details-screen"),
       ServerSettingsStackScreenContainer: plainScreen("mobile-server-settings-stack-screen"),
       ServerRolesStackScreenContainer: plainScreen("mobile-server-roles-stack-screen"),
       RoleDetailStackScreenContainer: plainScreen("mobile-role-detail-stack-screen"),

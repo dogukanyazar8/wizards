@@ -3,6 +3,7 @@ import { Pressable, Text, View } from "react-native";
 
 import { Avatar, Skeleton } from "../../app/components/kit";
 import { MobileCachedImage } from "../../app/components/mobile-cached-image";
+import { mobileBannerContentPosition } from "../mobile-banner-offset";
 import { useTheme, useThemedStyles } from "../../app/providers/mobile-theme-provider";
 import { getMobileAvatarTint } from "../../design/mobile-avatar-color";
 import { MobileLineIcon, type MobileLineIconName } from "../../design/mobile-line-icons";
@@ -119,6 +120,8 @@ export function getMobileProfilePresenceLabel(
 
 export function ProfilePageBanner({
   bannerColor,
+  bannerOffsetX,
+  bannerOffsetY,
   bannerUrl,
   copy,
   menuOpen,
@@ -128,6 +131,8 @@ export function ProfilePageBanner({
   styles,
 }: {
   readonly bannerColor: string;
+  readonly bannerOffsetX: number | null;
+  readonly bannerOffsetY: number | null;
   readonly bannerUrl: string | null;
   readonly copy: MobileProfileCopy;
   readonly menuOpen: boolean;
@@ -146,6 +151,7 @@ export function ProfilePageBanner({
       {bannerUrl ? (
         <MobileCachedImage
           accessibilityIgnoresInvertColors
+          contentPosition={mobileBannerContentPosition(bannerOffsetX, bannerOffsetY)}
           importantForAccessibility="no"
           source={{ uri: bannerUrl }}
           style={styles.bannerImage}
@@ -157,17 +163,10 @@ export function ProfilePageBanner({
           accessibilityRole="button"
           hitSlop={styles.bannerControlHitSlop}
           onPress={onBack}
-          style={({ pressed }) => [
-            styles.bannerControl,
-            pressed && styles.bannerControlActive,
-          ]}
+          style={({ pressed }) => [styles.bannerControl, pressed && styles.bannerControlActive]}
           testID="mobile-user-profile-back"
         >
-          <MobileLineIcon
-            color={theme.profileCard.bannerControlText}
-            name="back-arrow"
-            size={18}
-          />
+          <MobileLineIcon color={theme.profileCard.bannerControlText} name="back-arrow" size={18} />
         </Pressable>
         <Pressable
           accessibilityLabel={copy.profilePageMoreAction}
@@ -277,7 +276,11 @@ export function ProfileIdentityCard({
             { backgroundColor: getMobileProfilePresenceColor(theme, profile.presence.status) },
           ]}
         />
-        <Text numberOfLines={1} style={styles.identityStatusLabel} testID="mobile-user-profile-status">
+        <Text
+          numberOfLines={1}
+          style={styles.identityStatusLabel}
+          testID="mobile-user-profile-status"
+        >
           {statusLine}
         </Text>
       </View>
@@ -329,10 +332,7 @@ export function ProfileSectionCard({
   readonly testID: string;
 }) {
   return (
-    <View
-      style={[styles.sectionCard, listBottom && styles.sectionCardListBottom]}
-      testID={testID}
-    >
+    <View style={[styles.sectionCard, listBottom && styles.sectionCardListBottom]} testID={testID}>
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionLabel}>{heading}</Text>
         {action && onAction ? (
@@ -377,11 +377,7 @@ export function ProfileAboutCard({
       {about.bio ? <Text style={styles.aboutBio}>{about.bio}</Text> : null}
       <View style={[about.bio ? styles.aboutDivider : styles.aboutMetaRowSpaced]}>
         <View style={styles.aboutMetaRow}>
-          <MobileLineIcon
-            color={theme.text.visualFaint}
-            name="calendar"
-            size={METRICS.metaGlyph}
-          />
+          <MobileLineIcon color={theme.text.visualFaint} name="calendar" size={METRICS.metaGlyph} />
           <Text style={styles.aboutMetaLabel} testID="mobile-user-profile-registered-at">
             {whisprJoin}
           </Text>
@@ -389,11 +385,7 @@ export function ProfileAboutCard({
       </View>
       {serverJoin ? (
         <View style={[styles.aboutMetaRow, styles.aboutMetaRowSpaced]}>
-          <MobileLineIcon
-            color={theme.text.visualFaint}
-            name="servers"
-            size={METRICS.metaGlyph}
-          />
+          <MobileLineIcon color={theme.text.visualFaint} name="servers" size={METRICS.metaGlyph} />
           <Text style={styles.aboutMetaLabel} testID="mobile-user-profile-server-joined-at">
             {serverJoin}
           </Text>
@@ -455,7 +447,8 @@ export function ProfileMutualServersCard({
   const rows = expanded
     ? sections.mutualServers.rows
     : sections.mutualServers.rows.slice(0, MOBILE_PROFILE_MUTUAL_SERVER_COLLAPSED_LIMIT);
-  const canExpand = sections.mutualServers.rows.length > MOBILE_PROFILE_MUTUAL_SERVER_COLLAPSED_LIMIT;
+  const canExpand =
+    sections.mutualServers.rows.length > MOBILE_PROFILE_MUTUAL_SERVER_COLLAPSED_LIMIT;
 
   return (
     <ProfileSectionCard
@@ -556,7 +549,10 @@ export function ProfileMutualFriendsCard({
 }) {
   const theme = useTheme();
   const { copy, styles } = chrome;
-  const visible = sections.mutualFriends.preview.slice(0, MOBILE_PROFILE_MUTUAL_FRIEND_AVATAR_LIMIT);
+  const visible = sections.mutualFriends.preview.slice(
+    0,
+    MOBILE_PROFILE_MUTUAL_FRIEND_AVATAR_LIMIT,
+  );
   const overflow = getMobileProfileMutualFriendsOverflow(
     sections.mutualFriends,
     MOBILE_PROFILE_MUTUAL_FRIEND_AVATAR_LIMIT,
@@ -624,49 +620,49 @@ export function ProfileMutualFriendsCard({
           })}
         </View>
       ) : (
-      <View style={styles.mutualFriendsRow}>
-        <View style={styles.mutualFriendsStack}>
-          {visible.map((friend, index) => (
-            <Pressable
-              accessibilityLabel={friend.displayName?.trim() || friend.username}
-              accessibilityRole="button"
-              key={friend.id}
-              onPress={() => onOpenFriend(friend.id)}
-              style={index > 0 ? styles.mutualFriendAvatarStacked : undefined}
-              testID={`mobile-user-profile-mutual-friend-${friend.id}`}
-            >
-              <Avatar
-                avatarBorderColor={theme.surface.card}
-                avatarBorderRadius={METRICS.mutualAvatarRadius}
-                avatarBorderWidth={METRICS.mutualAvatarBorder}
-                dimension={METRICS.mutualAvatar}
-                fallbackTextStyle={styles.mutualFriendInitials}
-                identityId={friend.id}
-                imageUrl={friend.avatarUrl}
-                label={friend.displayName?.trim() || friend.username}
-                style={styles.mutualFriendAvatar}
-              />
-            </Pressable>
-          ))}
-          {overflow > 0 ? (
-            <View
-              style={[
-                styles.mutualFriendAvatar,
-                styles.mutualFriendOverflow,
-                visible.length > 0 ? styles.mutualFriendAvatarStacked : undefined,
-              ]}
-              testID="mobile-user-profile-mutual-friend-overflow"
-            >
-              <Text style={[styles.mutualFriendInitials, styles.mutualFriendOverflowLabel]}>
-                +{overflow}
-              </Text>
-            </View>
-          ) : null}
+        <View style={styles.mutualFriendsRow}>
+          <View style={styles.mutualFriendsStack}>
+            {visible.map((friend, index) => (
+              <Pressable
+                accessibilityLabel={friend.displayName?.trim() || friend.username}
+                accessibilityRole="button"
+                key={friend.id}
+                onPress={() => onOpenFriend(friend.id)}
+                style={index > 0 ? styles.mutualFriendAvatarStacked : undefined}
+                testID={`mobile-user-profile-mutual-friend-${friend.id}`}
+              >
+                <Avatar
+                  avatarBorderColor={theme.surface.card}
+                  avatarBorderRadius={METRICS.mutualAvatarRadius}
+                  avatarBorderWidth={METRICS.mutualAvatarBorder}
+                  dimension={METRICS.mutualAvatar}
+                  fallbackTextStyle={styles.mutualFriendInitials}
+                  identityId={friend.id}
+                  imageUrl={friend.avatarUrl}
+                  label={friend.displayName?.trim() || friend.username}
+                  style={styles.mutualFriendAvatar}
+                />
+              </Pressable>
+            ))}
+            {overflow > 0 ? (
+              <View
+                style={[
+                  styles.mutualFriendAvatar,
+                  styles.mutualFriendOverflow,
+                  visible.length > 0 ? styles.mutualFriendAvatarStacked : undefined,
+                ]}
+                testID="mobile-user-profile-mutual-friend-overflow"
+              >
+                <Text style={[styles.mutualFriendInitials, styles.mutualFriendOverflowLabel]}>
+                  +{overflow}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+          <Text numberOfLines={2} style={styles.mutualFriendsSummary}>
+            {formatMobileProfileMutualFriendsSummary(sections.mutualFriends, copy)}
+          </Text>
         </View>
-        <Text numberOfLines={2} style={styles.mutualFriendsSummary}>
-          {formatMobileProfileMutualFriendsSummary(sections.mutualFriends, copy)}
-        </Text>
-      </View>
       )}
     </ProfileSectionCard>
   );
@@ -738,9 +734,7 @@ export function ProfileSharedMediaCard({
               {item.isVideo ? (
                 <View style={styles.mediaVideoGlyph}>
                   <MobileLineIcon
-                    color={
-                      item.uri ? theme.text.onPrimary : theme.profileCard.secondaryActionIcon
-                    }
+                    color={item.uri ? theme.text.onPrimary : theme.profileCard.secondaryActionIcon}
                     name="play-circle"
                     size={26}
                   />

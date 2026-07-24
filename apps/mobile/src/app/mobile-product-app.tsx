@@ -19,8 +19,7 @@ import { useMobileProductLinks } from "./features/use-mobile-product-links";
 import { useMobileDMCallFeature } from "./features/use-mobile-dm-call-feature";
 import { useMobileVoiceInviteFeature } from "./features/use-mobile-voice-invite-feature";
 import { useMobileTypingLabels } from "./features/use-mobile-typing-labels";
-import { MobileIncomingCallOverlay } from "./overlays/mobile-incoming-call-overlay";
-import { MobileVoiceInviteOverlay } from "./overlays/mobile-voice-invite-overlay";
+import { MobileIncomingRequestSheet } from "./overlays/mobile-incoming-request-sheet";
 import { useMobileLocaleRuntime } from "./providers/mobile-locale-provider";
 import { useMobileMediaRuntime } from "./providers/mobile-media-provider";
 import { useMobileNotificationRuntime } from "./providers/mobile-notification-provider";
@@ -493,15 +492,13 @@ export function MobileProductApp({
                           directMessageUnreadCount={directMessageUnreadCount}
                           onTabChange={setCurrentTab}
                         />
-                        <MobileVoiceInviteOverlay
-                          invites={voiceInviteEntries}
-                          onAccept={handleAcceptVoiceInvite}
-                          onDecline={handleDeclineVoiceInvite}
-                        />
-                        <MobileIncomingCallOverlay
+                        <MobileIncomingRequestSheet
                           call={incomingDMCall}
-                          onAccept={() => void handleAcceptDMCall()}
-                          onDecline={() => void handleDeclineDMCall()}
+                          invites={voiceInviteEntries}
+                          onAcceptCall={() => void handleAcceptDMCall()}
+                          onAcceptInvite={handleAcceptVoiceInvite}
+                          onDeclineCall={() => void handleDeclineDMCall()}
+                          onDeclineInvite={handleDeclineVoiceInvite}
                           vibrationEnabled={incomingCallAlertsEnabled}
                         />
                       </>

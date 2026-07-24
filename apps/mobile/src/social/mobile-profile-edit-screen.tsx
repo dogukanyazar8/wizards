@@ -11,7 +11,7 @@ import {
 } from "@wizards/types";
 
 import { useMobileAccountSettingsQuery } from "../account/mobile-account-settings-query";
-import { OptionSheet, Skeleton, type SheetIconName, type SheetTone } from "../app/components/kit";
+import { Skeleton } from "../app/components/kit";
 import { MessageEmojiPicker } from "../app/components/message-emoji-picker";
 import { MobileCachedImage } from "../app/components/mobile-cached-image";
 import { useToast } from "../app/components/kit/toast";
@@ -24,10 +24,15 @@ import { MobileLineIcon } from "../design/mobile-line-icons";
 import { mobileCopy, type MobileLocale } from "../locale/mobile-copy";
 import { useMobileImageUpload } from "../media/use-mobile-image-upload";
 import { useMobileBootstrapQuery } from "../query/mobile-bootstrap-query";
-import { patchMobileProfileAvatarCaches } from "../query/mobile-profile-cache";
+import {
+  patchMobileProfileAvatarCaches,
+  patchMobileProfileBannerCaches,
+} from "../query/mobile-profile-cache";
 import { mobileQueryKeys } from "../query/mobile-query-keys";
-import type { MobileFriendPresenceStatus } from "./mobile-social-client";
+import { MobileProfileBannerField } from "./mobile-profile-banner-field";
 import { useMobileSocialMutations } from "./mobile-social-query";
+import { MobileStatusPickerSheet } from "./mobile-status-picker-sheet";
+import { toMobilePresenceStatusOrNull } from "./mobile-status-picker-model";
 import {
   buildMobileProfileEditPatch,
   createMobileProfileEditDraft,
@@ -41,12 +46,6 @@ import {
 } from "./mobile-profile-status-expiry";
 import { useMobileProfileEditStyles } from "./mobile-profile-edit-screen.styles";
 
-const PRESENCE_OPTIONS: readonly MobileFriendPresenceStatus[] = [
-  "ONLINE",
-  "IDLE",
-  "DND",
-  "OFFLINE",
-];
 const USERNAME_PATTERN = /^[a-zA-Z0-9_]{2,32}$/;
 /** README: the banner keeps the brand indigo in both themes. */
 const DEFAULT_BANNER_COLOR = MOBILE_PROFILE_BANNER_COLORS[0];
@@ -64,32 +63,6 @@ function getPresenceLabel(locale: MobileLocale, presence: string | null): string
       return copy.profileEditPresenceDnd;
     default:
       return copy.profileEditPresenceOffline;
-  }
-}
-
-function getPresenceIcon(presence: MobileFriendPresenceStatus): SheetIconName {
-  switch (presence) {
-    case "ONLINE":
-      return "ellipse";
-    case "IDLE":
-      return "moon-outline";
-    case "DND":
-      return "remove-circle-outline";
-    default:
-      return "ellipse-outline";
-  }
-}
-
-function getPresenceTone(presence: MobileFriendPresenceStatus): SheetTone {
-  switch (presence) {
-    case "ONLINE":
-      return "success";
-    case "IDLE":
-      return "warning";
-    case "DND":
-      return "danger";
-    default:
-      return "neutral";
   }
 }
 
@@ -148,6 +121,8 @@ function toBaseline(
 ): MobileProfileEditBaseline {
   return {
     bannerColor: account?.bannerColor ?? null,
+    bannerOffsetX: account?.bannerOffsetX ?? null,
+    bannerOffsetY: account?.bannerOffsetY ?? null,
     bannerUrl: account?.bannerUrl ?? null,
     bio: account?.bio ?? null,
     customStatus: account?.customStatus ?? null,
@@ -312,8 +287,25 @@ export function MobileProfileEditScreen({ onBack }: { onBack(): void }) {
       }
 
       const nextBannerUrl = result.response.banner.bannerUrl;
-      patchAccountCache({ bannerUrl: nextBannerUrl });
-      applyServerProfile({ ...baseline, bannerUrl: nextBannerUrl });
+      // The upload swaps the image and clears the old focal point server-side, so a
+      // fresh banner starts centred everywhere it is drawn.
+      patchAccountCache({ bannerOffsetX: null, bannerOffsetY: null, bannerUrl: nextBannerUrl });
+      applyServerProfile({
+        ...baseline,
+        bannerOffsetX: null,
+        bannerOffsetY: null,
+        bannerUrl: nextBannerUrl,
+      });
+      patchMobileProfileBannerCaches({
+        banner: {
+          bannerColor: baseline.bannerColor,
+          bannerOffsetX: null,
+          bannerOffsetY: null,
+          bannerUrl: nextBannerUrl,
+        },
+        queryClient,
+        userId: user.id,
+      });
       showToast({ message: copy.profileEditSaved, tone: "success" });
       return;
     }
@@ -377,6 +369,8 @@ export function MobileProfileEditScreen({ onBack }: { onBack(): void }) {
     const saved = response.user;
     patchAccountCache({
       bannerColor: saved.bannerColor,
+      bannerOffsetX: saved.bannerOffsetX,
+      bannerOffsetY: saved.bannerOffsetY,
       bannerUrl: saved.bannerUrl,
       bio: saved.bio,
       customStatus: saved.customStatus,
@@ -387,6 +381,8 @@ export function MobileProfileEditScreen({ onBack }: { onBack(): void }) {
     setUser(saved);
     applyServerProfile({
       bannerColor: saved.bannerColor,
+      bannerOffsetX: saved.bannerOffsetX,
+      bannerOffsetY: saved.bannerOffsetY,
       bannerUrl: saved.bannerUrl,
       bio: saved.bio,
       customStatus: saved.customStatus,
@@ -394,6 +390,18 @@ export function MobileProfileEditScreen({ onBack }: { onBack(): void }) {
       customStatusExpiresAt: saved.customStatusExpiresAt,
       displayName: saved.displayName,
       username: saved.username,
+    });
+    // The card and full page read the banner from the userProfile cache the editor
+    // otherwise never touches, so a saved reposition shows the moment you go back.
+    patchMobileProfileBannerCaches({
+      banner: {
+        bannerColor: saved.bannerColor,
+        bannerOffsetX: saved.bannerOffsetX,
+        bannerOffsetY: saved.bannerOffsetY,
+        bannerUrl: saved.bannerUrl,
+      },
+      queryClient,
+      userId: saved.id,
     });
     showToast({ message: copy.profileEditSaved, tone: "success" });
 
@@ -407,17 +415,6 @@ export function MobileProfileEditScreen({ onBack }: { onBack(): void }) {
       if (!sessionReplaced) {
         showToast({ message: copy.accountSettingsSessionRefreshWarning, tone: "warning" });
       }
-    }
-  };
-
-  const selectPresence = async (next: MobileFriendPresenceStatus) => {
-    setError(null);
-    try {
-      await mutations.updatePresence.mutateAsync(next);
-    } catch {
-      setError(copy.profileEditUpdateError);
-    } finally {
-      setPresenceSheetOpen(false);
     }
   };
 
@@ -466,40 +463,26 @@ export function MobileProfileEditScreen({ onBack }: { onBack(): void }) {
       ) : null}
 
       <View style={styles.card} testID="mobile-profile-edit-preview">
-        <View style={[styles.banner, { backgroundColor: bannerColor }]}>
-          {bannerUrl ? (
-            <MobileCachedImage
-              accessibilityIgnoresInvertColors
-              importantForAccessibility="no"
-              source={{ uri: bannerUrl }}
-              style={styles.bannerImage}
-              testID="mobile-profile-edit-banner-image"
-            />
-          ) : null}
-          {isBannerImageActive ? (
-            <Pressable
-              accessibilityLabel={copy.profileEditBannerRemove}
-              accessibilityRole="button"
-              onPress={() => setDraft((current) => ({ ...current, bannerUrl: null }))}
-              style={({ pressed }) => [styles.bannerRemove, pressed && styles.pressed]}
-              testID="mobile-profile-edit-banner-remove"
-            >
-              <MobileLineIcon color={theme.text.onInverse} name="close" size={13} />
-              <Text style={styles.bannerRemoveLabel}>{copy.profileEditBannerRemoveShort}</Text>
-            </Pressable>
-          ) : null}
-          <Pressable
-            accessibilityLabel={copy.profileEditBannerAction}
-            accessibilityRole="button"
-            accessibilityState={{ busy: uploadingTarget === "banner" }}
-            hitSlop={8}
-            onPress={() => void uploadImage("banner")}
-            style={({ pressed }) => [styles.bannerAction, pressed && styles.pressed]}
-            testID="mobile-profile-edit-banner-picker"
-          >
-            <MobileLineIcon color={theme.text.onInverse} name="camera" size={16} />
-          </Pressable>
-        </View>
+        <MobileProfileBannerField
+          bannerColor={bannerColor}
+          bannerUrl={bannerUrl}
+          busy={uploadingTarget === "banner"}
+          locale={locale}
+          offsetX={draft.bannerOffsetX}
+          offsetY={draft.bannerOffsetY}
+          onOffsetChange={(x, y) =>
+            setDraft((current) => ({ ...current, bannerOffsetX: x, bannerOffsetY: y }))
+          }
+          onPick={() => void uploadImage("banner")}
+          onRemove={() =>
+            setDraft((current) => ({
+              ...current,
+              bannerOffsetX: null,
+              bannerOffsetY: null,
+              bannerUrl: null,
+            }))
+          }
+        />
 
         <View style={styles.previewBody}>
           <View style={styles.avatarWrap}>
@@ -753,13 +736,6 @@ export function MobileProfileEditScreen({ onBack }: { onBack(): void }) {
         </View>
       </View>
 
-      <View style={styles.footer}>
-        <MobileLineIcon color={theme.text.placeholder} name="info" size={12} />
-        <Text style={styles.footerLabel} testID="mobile-profile-edit-footer">
-          {copy.profileEditFooterNote}
-        </Text>
-      </View>
-
       <MessageEmojiPicker
         isOpen={isEmojiPickerOpen}
         onClose={() => setEmojiPickerOpen(false)}
@@ -769,22 +745,13 @@ export function MobileProfileEditScreen({ onBack }: { onBack(): void }) {
         }}
       />
 
-      <OptionSheet<MobileFriendPresenceStatus>
-        closeAccessibilityLabel={copy.sheetCloseAction}
-        icon="ellipse"
+      <MobileStatusPickerSheet
+        client={apiClient}
+        customStatus={draft.customStatus.trim() || null}
+        customStatusEmoji={draft.customStatusEmoji}
         onClose={() => setPresenceSheetOpen(false)}
-        onSelect={(option) => void selectPresence(option)}
         open={isPresenceSheetOpen}
-        optionTestID={(option) => option.toLowerCase()}
-        options={PRESENCE_OPTIONS.map((option) => ({
-          icon: getPresenceIcon(option),
-          label: getPresenceLabel(locale, option),
-          tone: getPresenceTone(option),
-          value: option,
-        }))}
-        selectedValue={PRESENCE_OPTIONS.find((option) => option === presence) ?? null}
-        testID="mobile-profile-edit-presence"
-        title={copy.profileEditPresence}
+        presence={toMobilePresenceStatusOrNull(presence)}
       />
     </ScrollView>
   );

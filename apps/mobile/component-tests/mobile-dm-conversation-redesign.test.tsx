@@ -22,6 +22,22 @@ const mockVoiceRecorder = {
   stop: jest.fn(),
 };
 
+const mockNavigate = jest.fn();
+
+jest.mock("../src/navigation/mobile-navigation-ref", () => {
+  const actual = jest.requireActual<typeof import("../src/navigation/mobile-navigation-ref")>(
+    "../src/navigation/mobile-navigation-ref",
+  );
+  return {
+    ...actual,
+    mobileNavigationRef: {
+      ...actual.mobileNavigationRef,
+      isReady: () => true,
+      navigate: (...args: unknown[]) => mockNavigate(...args),
+    },
+  };
+});
+
 jest.mock("../src/media/mobile-message-attachment-picker", () => ({
   pickMobileMessageAttachmentFromDocument: jest.fn(),
   pickMobileMessageAttachmentFromPhotoLibrary: jest.fn(),
@@ -391,6 +407,42 @@ describe("4a DM conversation redesign", () => {
     expect(onBack).toHaveBeenCalledTimes(1);
     expect(onStartVoiceCall).toHaveBeenCalledTimes(1);
     expect(onStartVideoCall).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens the partner's full profile page from the header name block", async () => {
+    mockNavigate.mockClear();
+    const view = await render(
+      <DMChatHeader
+        avatarUrl={null}
+        isOnline={false}
+        onBack={jest.fn()}
+        partnerUserId="partner"
+        title="ogi_uat"
+        typing={false}
+      />,
+    );
+
+    const nameBlock = view.getByTestId("mobile-dm-header-open-profile");
+    expect(nameBlock.props.accessibilityLabel).toBe(copy.profileCardViewProfileAction);
+    await fireEvent.press(nameBlock);
+    expect(mockNavigate).toHaveBeenCalledWith("UserProfile", { userId: "partner" });
+  });
+
+  it("keeps the header name block inert until the partner is known", async () => {
+    mockNavigate.mockClear();
+    const view = await render(
+      <DMChatHeader
+        avatarUrl={null}
+        isOnline={false}
+        onBack={jest.fn()}
+        partnerUserId={null}
+        title="ogi_uat"
+        typing={false}
+      />,
+    );
+
+    await fireEvent.press(view.getByTestId("mobile-dm-header-open-profile"));
+    expect(mockNavigate).not.toHaveBeenCalled();
   });
 
   it("morphs the DM primary action from mic to send and keeps attachment and emoji controls live", async () => {
@@ -825,9 +877,7 @@ describe("4a DM conversation redesign", () => {
       fireEvent(trigger, "longPress");
     });
     expect(await view.findByTestId("mobile-message-actions-reaction-message-menu")).toBeTruthy();
-    expect(
-      view.getByTestId("mobile-message-actions-reaction-message-quick-bar"),
-    ).toBeTruthy();
+    expect(view.getByTestId("mobile-message-actions-reaction-message-quick-bar")).toBeTruthy();
     await fireEvent.press(
       view.getByLabelText(copy.messageReactionAddAction.replace("{emoji}", "👍")),
     );

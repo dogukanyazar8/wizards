@@ -6,11 +6,13 @@ import type {
   MobileFriendsOverviewResponse,
   MobileManagedWorkspaceServerDetailResponse,
   MobileProfileResponse,
+  MobileUserProfileResponse,
 } from "@wizards/types";
 
 import { mobileQueryKeys } from "../src/query/mobile-query-keys";
 import {
   patchMobileProfileAvatarCaches,
+  patchMobileProfileBannerCaches,
   patchMobileProfileIdentityCaches,
   patchMobileProfilePresenceCaches,
   restoreMobileProfilePresenceCaches,
@@ -34,6 +36,8 @@ function profileFor(userId: string, avatarUrl: string | null): MobileProfileResp
     user: {
       avatarUrl,
       bannerColor: null,
+      bannerOffsetX: null,
+      bannerOffsetY: null,
       bannerUrl: null,
       bio: null,
       customStatus: null,
@@ -156,6 +160,88 @@ function workspaceFor(
     },
   } as unknown as MobileManagedWorkspaceServerDetailResponse;
 }
+
+function userProfileFor(
+  userId: string,
+  self: boolean,
+  banner: {
+    bannerColor: string | null;
+    bannerOffsetX: number | null;
+    bannerOffsetY: number | null;
+    bannerUrl: string | null;
+  },
+): MobileUserProfileResponse {
+  return {
+    profile: {
+      badges: [],
+      bannerColor: banner.bannerColor,
+      bannerOffsetX: banner.bannerOffsetX,
+      bannerOffsetY: banner.bannerOffsetY,
+      bannerUrl: banner.bannerUrl,
+      bio: null,
+      blocked: false,
+      blockedBy: false,
+      mutualFriends: { count: 0, preview: [] },
+      mutualServers: { count: 0, preview: [] },
+      note: null,
+      presence: { customStatus: null, customStatusEmoji: null, status: "ONLINE" },
+      pronouns: null,
+      registeredAt: "2026-01-01T00:00:00.000Z",
+      relationship: self ? "none" : "friend",
+      self,
+      serverContext: null,
+      user: {
+        avatarUrl: null,
+        displayName: "Ada Test",
+        id: userId,
+        username: self ? "ada_test" : "other_test",
+      },
+    },
+  } as MobileUserProfileResponse;
+}
+
+describe("mobile profile banner cache contract", () => {
+  it("patches every self user-profile entry and leaves peers untouched", () => {
+    const queryClient = new QueryClient();
+    const centred = {
+      bannerColor: "#4F46E5",
+      bannerOffsetX: null,
+      bannerOffsetY: null,
+      bannerUrl: null,
+    };
+    const selfDm = userProfileFor("user-1", true, centred);
+    const selfServer = userProfileFor("user-1", true, centred);
+    const peer = userProfileFor("user-other", false, centred);
+
+    queryClient.setQueryData(mobileQueryKeys.userProfile("user-1"), selfDm);
+    queryClient.setQueryData(mobileQueryKeys.userProfile("user-1", "server-1"), selfServer);
+    queryClient.setQueryData(mobileQueryKeys.userProfile("user-other"), peer);
+
+    patchMobileProfileBannerCaches({
+      banner: {
+        bannerColor: "#22A366",
+        bannerOffsetX: 0.3,
+        bannerOffsetY: 0.7,
+        bannerUrl: "https://cdn.whispr.team/banner.webp",
+      },
+      queryClient,
+      userId: "user-1",
+    });
+
+    for (const key of [
+      mobileQueryKeys.userProfile("user-1"),
+      mobileQueryKeys.userProfile("user-1", "server-1"),
+    ]) {
+      const patched = queryClient.getQueryData<MobileUserProfileResponse>(key)!;
+      assert.equal(patched.profile.bannerUrl, "https://cdn.whispr.team/banner.webp");
+      assert.equal(patched.profile.bannerColor, "#22A366");
+      assert.equal(patched.profile.bannerOffsetX, 0.3);
+      assert.equal(patched.profile.bannerOffsetY, 0.7);
+    }
+
+    assert.equal(queryClient.getQueryData(mobileQueryKeys.userProfile("user-other")), peer);
+  });
+});
 
 describe("mobile profile avatar cache contract", () => {
   it("patches canonical profile identity through profile, bootstrap and friends caches", () => {

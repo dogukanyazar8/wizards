@@ -45,14 +45,14 @@ appId: team.whispr.mobile
       id: "mobile-dm-chat-screen"
     timeout: 30000
 - tapOn:
-    id: "mobile-dm-details-open"
+    id: "mobile-dm-header-open-profile"
 - assertVisible:
-    id: "mobile-dm-details-screen"
+    id: "mobile-user-profile-screen"
 - extendedWaitUntil:
     visible:
-      id: "mobile-dm-details-participant"
+      id: "mobile-user-profile-identity"
     timeout: 30000
-- takeScreenshot: "artifacts/mobile/phase3/closure/light-dm-details"
+- takeScreenshot: "artifacts/mobile/phase3/closure/light-user-profile"
 - pressKey: BACK
 - tapOn:
     id: "mobile-dm-gif-button"
@@ -94,14 +94,14 @@ appId: team.whispr.mobile
       id: "mobile-dm-chat-screen"
     timeout: 30000
 - tapOn:
-    id: "mobile-dm-details-open"
+    id: "mobile-dm-header-open-profile"
 - assertVisible:
-    id: "mobile-dm-details-screen"
+    id: "mobile-user-profile-screen"
 - extendedWaitUntil:
     visible:
-      id: "mobile-dm-details-participant"
+      id: "mobile-user-profile-identity"
     timeout: 30000
-- takeScreenshot: "artifacts/mobile/phase3/closure/dark-dm-details"
+- takeScreenshot: "artifacts/mobile/phase3/closure/dark-user-profile"
 # 11b quick profile card: the DM header avatar opens it, the overlay dismisses it.
 - pressKey: BACK
 - extendedWaitUntil:

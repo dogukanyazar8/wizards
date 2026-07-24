@@ -34,7 +34,6 @@ export type MobileRootStackParamList = {
   };
   BlockedUsers: undefined;
   Security: undefined;
-  DMDetails: { readonly conversationId: string };
   /**
    * 11f shared-media gallery. `userId` is the other participant, carried so a
    * caller that already knows who it is (the 1c profile page) does not make the

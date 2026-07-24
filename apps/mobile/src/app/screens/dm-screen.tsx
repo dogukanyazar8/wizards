@@ -69,7 +69,6 @@ export function MessagesScreen({
   onOpenThread,
   onRetryMessage,
   onToggleMessageReaction,
-  onOpenDetails,
   onStartVideoCall,
   onStartVoiceCall,
 }: MobileMessagesScreenProps) {
@@ -152,7 +151,6 @@ export function MessagesScreen({
         {...(onOpenThread ? { onOpenThread } : {})}
         onRetryMessage={onRetryMessage}
         onToggleMessageReaction={onToggleMessageReaction}
-        {...(onOpenDetails ? { onOpenDetails } : {})}
         {...(onStartVideoCall ? { onStartVideoCall } : {})}
         {...(onStartVoiceCall ? { onStartVoiceCall } : {})}
       />

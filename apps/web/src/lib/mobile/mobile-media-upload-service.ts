@@ -420,9 +420,11 @@ export async function claimMobileMediaUpload(
     }
 
     if (upload.purpose === MobileMediaUploadPurpose.PROFILE_BANNER) {
+      // A fresh image starts centred: the previous banner's focal point would frame
+      // a different picture, so the reposition offsets are cleared with the swap.
       const bannerUpdated = await tx.user.updateMany({
         where: { bannerUrl: previousUrl, id: userId },
-        data: { bannerUrl: upload.url },
+        data: { bannerOffsetX: null, bannerOffsetY: null, bannerUrl: upload.url },
       });
       if (bannerUpdated.count !== 1) {
         return claimUnavailable("claim-banner-write-race-lost");

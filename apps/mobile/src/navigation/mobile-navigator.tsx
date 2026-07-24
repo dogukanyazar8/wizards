@@ -21,7 +21,6 @@ import {
   ProfileEditScreenContainer,
   BlockedUsersScreenContainer,
   SecurityScreenContainer,
-  DMDetailsScreenContainer,
   SharedMediaScreenContainer,
   ServerSettingsStackScreenContainer,
   ServerRolesStackScreenContainer,
@@ -129,9 +128,6 @@ export function MobileNavigator({
           <RootStack.Screen name="BlockedUsers" component={BlockedUsersScreenContainer} />
           <RootStack.Screen name="Security">
             {(props) => <SecurityScreenContainer {...props} />}
-          </RootStack.Screen>
-          <RootStack.Screen name="DMDetails">
-            {(props) => <DMDetailsScreenContainer {...props} />}
           </RootStack.Screen>
           <RootStack.Screen name="SharedMedia">
             {(props) => <SharedMediaScreenContainer {...props} />}

@@ -48,7 +48,7 @@ describe("mobile root boundary", () => {
       ["screens", "settings-screen.tsx"],
       ["screens", "notifications-screen.tsx"],
       ["screens", "auth", "mobile-auth-screen-containers.tsx"],
-      ["overlays", "mobile-voice-invite-overlay.tsx"],
+      ["overlays", "mobile-incoming-request-sheet.tsx"],
       ["composer", "mobile-composer.tsx"],
     ]) {
       assert.equal(existsSync(join(appRoot, ...path)), true, path.join("/") + " should exist");

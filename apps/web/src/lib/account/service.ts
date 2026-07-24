@@ -13,6 +13,8 @@ import { getSocketServer } from "@/lib/socket/runtime";
 const accountUserSelect = {
   avatarUrl: true,
   bannerColor: true,
+  bannerOffsetX: true,
+  bannerOffsetY: true,
   bannerUrl: true,
   bio: true,
   customStatus: true,
@@ -32,6 +34,8 @@ const accountUserSelect = {
 export type AccountProfileRecord = {
   avatarUrl: string | null;
   bannerColor: string | null;
+  bannerOffsetX: number | null;
+  bannerOffsetY: number | null;
   bannerUrl: string | null;
   bio: string | null;
   customStatus: string | null;
@@ -50,6 +54,8 @@ export type AccountProfileRecord = {
 
 export type AccountProfileUpdate = {
   bannerColor?: string | null | undefined;
+  bannerOffsetX?: number | null | undefined;
+  bannerOffsetY?: number | null | undefined;
   bannerUrl?: string | null | undefined;
   bio?: string | null | undefined;
   customStatus?: string | null | undefined;
@@ -65,6 +71,8 @@ export type AccountProfileUpdate = {
 type PersistedAccountProfile = Pick<
   AccountProfileRecord,
   | "bannerColor"
+  | "bannerOffsetX"
+  | "bannerOffsetY"
   | "bannerUrl"
   | "bio"
   | "customStatus"
@@ -272,10 +280,19 @@ export async function updateAccountProfile(
     throw new ApiError("Banner image is not an upload you own", 400, "BANNER_NOT_OWNED");
   }
 
+  // A focal point only means something over an image; when the banner is cleared the
+  // offsets are dropped with it so a future banner starts centred, never inheriting a
+  // previous image's framing.
+  const persistedBannerUrl = input.bannerUrl === undefined ? currentUser.bannerUrl : nextBannerUrl;
+  const resolveOffset = (next: number | null | undefined, current: number | null): number | null =>
+    persistedBannerUrl === null ? null : next === undefined ? current : next;
+
   const nextProfile: PersistedAccountProfile = {
     bannerColor:
       input.bannerColor === undefined ? currentUser.bannerColor : input.bannerColor?.trim() || null,
-    bannerUrl: input.bannerUrl === undefined ? currentUser.bannerUrl : nextBannerUrl,
+    bannerOffsetX: resolveOffset(input.bannerOffsetX, currentUser.bannerOffsetX),
+    bannerOffsetY: resolveOffset(input.bannerOffsetY, currentUser.bannerOffsetY),
+    bannerUrl: persistedBannerUrl,
     // Free-text profile fields collapse to null when cleared so an empty string never
     // becomes a "set" value that clients must special-case.
     bio: input.bio === undefined ? currentUser.bio : input.bio?.trim() || null,

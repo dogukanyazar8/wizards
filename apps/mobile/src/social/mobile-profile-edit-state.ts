@@ -9,6 +9,9 @@ import {
 /** Server-side values the editor diffs against; the shape the 2a screen loads. */
 export type MobileProfileEditBaseline = {
   readonly bannerColor: string | null;
+  /** Normalized banner focal point (0..1); null means centred, never repositioned. */
+  readonly bannerOffsetX: number | null;
+  readonly bannerOffsetY: number | null;
   readonly bannerUrl: string | null;
   readonly bio: string | null;
   readonly customStatus: string | null;
@@ -20,6 +23,8 @@ export type MobileProfileEditBaseline = {
 
 export type MobileProfileEditDraft = {
   readonly bannerColor: string | null;
+  readonly bannerOffsetX: number | null;
+  readonly bannerOffsetY: number | null;
   readonly bannerUrl: string | null;
   readonly bio: string;
   readonly customStatus: string;
@@ -36,6 +41,8 @@ export function createMobileProfileEditDraft(
 ): MobileProfileEditDraft {
   return {
     bannerColor: baseline.bannerColor,
+    bannerOffsetX: baseline.bannerOffsetX,
+    bannerOffsetY: baseline.bannerOffsetY,
     bannerUrl: baseline.bannerUrl,
     bio: baseline.bio ?? "",
     customStatus: baseline.customStatus ?? "",
@@ -81,6 +88,14 @@ export function buildMobileProfileEditPatch(input: {
 
   if (draft.bannerUrl !== baseline.bannerUrl) {
     patch.bannerUrl = draft.bannerUrl;
+  }
+
+  if (draft.bannerOffsetX !== baseline.bannerOffsetX) {
+    patch.bannerOffsetX = draft.bannerOffsetX;
+  }
+
+  if (draft.bannerOffsetY !== baseline.bannerOffsetY) {
+    patch.bannerOffsetY = draft.bannerOffsetY;
   }
 
   const customStatus = draft.customStatus.trim();

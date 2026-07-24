@@ -250,15 +250,15 @@ describe("Phase 0 Maestro testID contract", () => {
     assert.doesNotMatch(phase3FlowSource, /WHISPR_MOBILE_E2E_CONVERSATION_ID/);
     assert.match(
       phase3FlowSource,
-      /id:\s*"mobile-dm-details-screen"[\s\S]*?id:\s*"mobile-dm-details-participant"[\s\S]*?light-dm-details/,
+      /id:\s*"mobile-user-profile-screen"[\s\S]*?id:\s*"mobile-user-profile-identity"[\s\S]*?light-user-profile/,
     );
     assert.match(
       phase3FlowSource,
       /id:\s*"mobile-gif-picker-panel"[\s\S]*?id:\s*"mobile-gif-image-loaded-\.\*"[\s\S]*?light-gif-picker/,
     );
     const contracts = {
-      "mobile-dm-details-open": "src/app/components/dm-chat-primitives.tsx",
-      "mobile-dm-details-screen": "src/dm/mobile-dm-details-screen.tsx",
+      "mobile-dm-header-open-profile": "src/app/components/dm-chat-primitives.tsx",
+      "mobile-user-profile-screen": "src/social/mobile-user-profile-screen.tsx",
       "mobile-dm-gif-button": "src/app/composer/mobile-composer.tsx",
       "mobile-gif-picker-panel": "src/media/mobile-gif-picker.tsx",
       "mobile-settings-open-2fa": "src/app/screens/mobile-security-settings-screen.tsx",
@@ -277,10 +277,10 @@ describe("Phase 0 Maestro testID contract", () => {
       /mobile-2fa-(?:setup-start|qr|manual-key|confirm|recovery-codes)/,
     );
     for (const screenshot of [
-      "light-dm-details",
+      "light-user-profile",
       "light-gif-picker",
       "light-security",
-      "dark-dm-details",
+      "dark-user-profile",
     ]) {
       assert.match(phase3FlowSource, new RegExp(`artifacts/mobile/phase3/closure/${screenshot}`));
     }

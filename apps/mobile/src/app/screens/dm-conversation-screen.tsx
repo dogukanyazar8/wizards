@@ -62,7 +62,6 @@ export function DMConversationScreen({
   onEditMessage,
   onForwardMessage,
   onLoadMoreMessages,
-  onOpenDetails,
   onOpenThread,
   onRefreshConversation,
   onRefreshVisibleData,
@@ -98,7 +97,6 @@ export function DMConversationScreen({
   onEditMessage(input: { content: string; messageId: string }): Promise<boolean>;
   onForwardMessage?(input: MobileForwardSendInput): Promise<boolean>;
   onLoadMoreMessages?: () => void;
-  onOpenDetails?(): void;
   onOpenThread?(messageId: string): void;
   onRefreshConversation(): void;
   onRefreshVisibleData(): void;
@@ -138,7 +136,6 @@ export function DMConversationScreen({
           isOnline={isOnline}
           lastSeenAt={resolvedLastSeenAt}
           onBack={onBack}
-          {...(onOpenDetails ? { onOpenDetails } : {})}
           {...(onStartVideoCall ? { onStartVideoCall } : {})}
           {...(onStartVoiceCall ? { onStartVoiceCall } : {})}
           partnerUserId={responsePartner?.userId ?? summaryPartner?.id ?? null}

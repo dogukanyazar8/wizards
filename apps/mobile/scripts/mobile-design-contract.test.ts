@@ -260,11 +260,11 @@ describe("mobile design contract", () => {
     assert.match(screenSource, /channelComposerControlRow/);
     assert.match(screenSource, /testID="mobile-channel-attachment-picker"/);
     assert.match(screenSource, /useMobileVoiceMessageRecorder/);
+    assert.match(screenSource, /!onOpenMembers\s*&&\s*styles\.mobileChannelChatIconButtonDisabled/);
     assert.match(
       screenSource,
-      /!onOpenMembers\s*&&\s*styles\.mobileChannelChatIconButtonDisabled/,
+      /<Ionicons name="person-outline" size=\{17\} color=\{theme\.text\.muted\} \/>/,
     );
-    assert.match(screenSource, /<Ionicons name="person-outline" size=\{17\} color=\{theme\.text\.muted\} \/>/);
     assert.match(screenSource, /messagePreviewBubbleChannel/);
   });
 
@@ -456,12 +456,19 @@ describe("mobile design contract", () => {
     assert.match(containerSource, /testID="mobile-voice-room-screen"/);
     assert.match(voiceScreenSource, /testID="mobile-voice-minimize"/);
     assert.match(voiceScreenSource, /testID="mobile-voice-audio-output"/);
-    assert.match(voiceScreenSource, /testID="mobile-voice-chat"/);
     assert.match(voiceScreenSource, /testID="mobile-voice-leave"/);
+    // #camera-stage: instant connection + noise-suppression badges, paginated media stage.
+    assert.match(voiceScreenSource, /testID="mobile-voice-noise-badge"/);
+    assert.match(voiceScreenSource, /testID="mobile-voice-stage"/);
+    // The crowded header chat + kebab and the mic-permission footnote were removed.
+    assert.doesNotMatch(voiceScreenSource, /testID="mobile-voice-chat"/);
+    assert.doesNotMatch(voiceScreenSource, /testID="mobile-voice-settings"/);
+    assert.doesNotMatch(voiceScreenSource, /voiceRoomPermissionFootnote/);
     assert.doesNotMatch(voiceScreenSource, /onRequestVoicePermission\(\)/);
     assert.doesNotMatch(modelSource, /\b(dummy|fake|mock)\b/i);
     assert.match(modelSource, /participants: room\.participants/);
     assert.match(voiceStylesSource, /activeVoiceRoomParticipantCard:[\s\S]*borderRadius: 28/);
+    assert.match(voiceStylesSource, /activeVoiceRoomStageTile:[\s\S]*borderRadius: 24/);
     assert.match(voiceStylesSource, /activeVoiceRoomControl:[\s\S]*width: 54/);
     assert.match(voiceStylesSource, /activeVoiceRoomControl:[\s\S]*height: 54/);
     assert.match(voiceStylesSource, /activeVoiceRoomMutedBadge:[\s\S]*width: 26/);

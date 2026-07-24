@@ -23,6 +23,8 @@ function createProfile(overrides: Partial<MobileUserProfile> = {}): MobileUserPr
   return {
     badges: ["earlyMember"],
     bannerColor: null,
+    bannerOffsetX: null,
+    bannerOffsetY: null,
     bannerUrl: null,
     bio: null,
     blocked: false,

@@ -4,7 +4,7 @@ import { createMediaPrimitiveStyles } from "../src/app/components/media-primitiv
 import { createMessagePrimitiveStyles } from "../src/app/components/message-primitives.styles";
 import { createUiAtomStyles } from "../src/app/components/ui-atoms.styles";
 import { createMobileComposerStyles } from "../src/app/composer/mobile-composer.styles";
-import { createMobileVoiceInviteOverlayStyles } from "../src/app/overlays/mobile-voice-invite-overlay.styles";
+import { createMobileIncomingRequestSheetStyles } from "../src/app/overlays/mobile-incoming-request-sheet.styles";
 import { createChannelScreenStyles } from "../src/app/screens/channel-screen.styles";
 import { createDmScreenStyles } from "../src/app/screens/dm-screen.styles";
 import { createHomeScreenStyles } from "../src/app/screens/home-screen.styles";
@@ -55,9 +55,7 @@ describe("mobile communication semantic themes", () => {
     expect(createMobileComposerStyles(theme).channelComposerInputShell.backgroundColor).toBe(
       theme.surface.card,
     );
-    expect(
-      createMobileVoiceInviteOverlayStyles(theme).mobileVoiceInviteOverlayCard.backgroundColor,
-    ).toBe(theme.surface.elevated);
+    expect(createMobileIncomingRequestSheetStyles(theme).subtitle.color).toBe(theme.text.secondary);
     expect(createUiAtomStyles(theme).actionButton.backgroundColor).toBe(theme.surface.card);
     expect(createMediaPrimitiveStyles(theme).mediaRuntimeStatusPill.backgroundColor).toBe(
       theme.surface.soft,

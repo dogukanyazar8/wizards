@@ -132,8 +132,92 @@ describe("mobile voice component rendering", () => {
     expect(view.getByTestId("mobile-voice-participant-muted-muted-badge")).toBeTruthy();
     expect(view.getByTestId("mobile-voice-mute-toggle")).toBeTruthy();
     expect(view.getByTestId("mobile-voice-audio-output")).toBeTruthy();
-    expect(view.getByTestId("mobile-voice-chat")).toBeTruthy();
     expect(view.getByTestId("mobile-voice-leave")).toBeTruthy();
+    expect(view.getByTestId("mobile-voice-noise-badge")).toBeTruthy();
+    expect(view.queryByTestId("mobile-voice-chat")).toBeNull();
+    expect(view.queryByTestId("mobile-voice-settings")).toBeNull();
+    expect(view.queryByText(copy.voiceRoomPermissionFootnote)).toBeNull();
+  });
+
+  it("reflects the noise-suppression state in the header badge", async () => {
+    const on = await render(<VoiceScreen {...createVoiceScreenProps()} />);
+    expect(on.getByLabelText(copy.voiceRoomNoiseOnAccessibility)).toBeTruthy();
+
+    const off = await render(
+      <VoiceScreen
+        {...createVoiceScreenProps({
+          voiceRoomState: createConnectedVoiceRoom({
+            noiseSuppressionEnabled: false,
+            participants: [createParticipant({ isSelf: true, userId: "self", username: "me" })],
+          }),
+        })}
+      />,
+    );
+    expect(off.getByLabelText(copy.voiceRoomNoiseOffAccessibility)).toBeTruthy();
+  });
+
+  it("lays out camera publishers as stage tiles and sends mic-only members to the rail", async () => {
+    const trackRef = {
+      participant: {},
+      publication: {},
+      source: "camera",
+    } as MobileVoiceRoomParticipant["cameraTrackRef"];
+    const view = await render(
+      <VoiceScreen
+        {...createVoiceScreenProps({
+          voiceRoomState: createConnectedVoiceRoom({
+            participants: [
+              createParticipant({
+                cameraTrackRef: trackRef,
+                isCameraEnabled: true,
+                isSelf: true,
+                joinedAt: 1,
+                userId: "self",
+                username: "me",
+              }),
+              createParticipant({ joinedAt: 2, userId: "listener", username: "ada" }),
+            ],
+          }),
+        })}
+      />,
+    );
+
+    expect(view.getByTestId("mobile-voice-stage")).toBeTruthy();
+    expect(view.getByTestId("mobile-voice-participant-self")).toBeTruthy();
+    expect(view.getByTestId("mobile-voice-participant-self-flip")).toBeTruthy();
+    expect(view.getByTestId("mobile-livekit-video-track")).toBeTruthy();
+    expect(view.getByTestId("mobile-voice-rail-listener")).toBeTruthy();
+  });
+
+  it("promotes a screen share to a stage tile that opens the fullscreen viewer", async () => {
+    const trackRef = {
+      participant: {},
+      publication: {},
+      source: "screen_share",
+    } as MobileScreenShareTrackReference;
+    const view = await render(
+      <VoiceScreen
+        {...createVoiceScreenProps({
+          voiceRoomState: createConnectedVoiceRoom({
+            participants: [
+              createParticipant({
+                isScreenSharing: true,
+                isSelf: true,
+                joinedAt: 1,
+                screenShareTrackRef: trackRef,
+                userId: "self",
+                username: "me",
+              }),
+            ],
+          }),
+        })}
+      />,
+    );
+
+    const tile = view.getByTestId("mobile-voice-participant-self-screen");
+    expect(tile).toBeTruthy();
+    await fireEvent.press(tile);
+    expect(view.getByTestId("mobile-voice-screen-share-fullscreen")).toBeTruthy();
   });
 
   it("shows the real DM title for a direct call without a server", async () => {
@@ -166,7 +250,6 @@ describe("mobile voice component rendering", () => {
   it("minimizes and routes the active-room controls through their existing actions", async () => {
     const onLeaveVoiceChannel = jest.fn(async () => undefined);
     const onMinimize = jest.fn();
-    const onOpenChat = jest.fn();
     const onSelectVoiceAudioOutput = jest.fn(async () => undefined);
     const onToggleVoiceMute = jest.fn(async () => undefined);
     const view = await render(
@@ -174,7 +257,6 @@ describe("mobile voice component rendering", () => {
         {...createVoiceScreenProps({
           onLeaveVoiceChannel,
           onMinimize,
-          onOpenChat,
           onSelectVoiceAudioOutput,
           onToggleVoiceMute,
         })}
@@ -184,13 +266,11 @@ describe("mobile voice component rendering", () => {
     await fireEvent.press(view.getByTestId("mobile-voice-minimize"));
     await fireEvent.press(view.getByTestId("mobile-voice-mute-toggle"));
     await fireEvent.press(view.getByTestId("mobile-voice-audio-output"));
-    await fireEvent.press(view.getByTestId("mobile-voice-chat"));
     await fireEvent.press(view.getByTestId("mobile-voice-leave"));
 
     expect(onMinimize).toHaveBeenCalledTimes(1);
     expect(onToggleVoiceMute).toHaveBeenCalledTimes(1);
     expect(onSelectVoiceAudioOutput).toHaveBeenCalledWith("speaker");
-    expect(onOpenChat).toHaveBeenCalledTimes(1);
     expect(onLeaveVoiceChannel).toHaveBeenCalledTimes(1);
   });
 
@@ -411,7 +491,9 @@ describe("mobile voice component rendering", () => {
         }}
       >
         <MobileScreenShareViewer
-          participants={[createParticipant({ isScreenSharing: true, screenShareTrackRef: trackRef })]}
+          participants={[
+            createParticipant({ isScreenSharing: true, screenShareTrackRef: trackRef }),
+          ]}
         />
       </SafeAreaProvider>,
     );

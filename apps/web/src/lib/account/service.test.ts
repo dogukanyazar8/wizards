@@ -9,6 +9,8 @@ const service = import("./service");
 const currentUser = {
   avatarUrl: null,
   bannerColor: null,
+  bannerOffsetX: null,
+  bannerOffsetY: null,
   bannerUrl: null,
   bio: null,
   customStatus: null,
@@ -69,6 +71,8 @@ describe("account service", () => {
       "user-1",
       {
         bannerColor: currentUser.bannerColor,
+        bannerOffsetX: currentUser.bannerOffsetX,
+        bannerOffsetY: currentUser.bannerOffsetY,
         bannerUrl: currentUser.bannerUrl,
         bio: currentUser.bio,
         customStatus: currentUser.customStatus,
@@ -273,12 +277,24 @@ describe("account service", () => {
   it("fails closed when account or presence persistence is unavailable", async () => {
     const { updateAccountPresence, updateAccountProfile } = await service;
     await assert.rejects(
-      () => updateAccountProfile("missing", { displayName: "Ada" }, dependencies({ findUser: async () => null })),
-      (error) => error instanceof ApiError && error.status === 404 && error.code === "USER_NOT_FOUND",
+      () =>
+        updateAccountProfile(
+          "missing",
+          { displayName: "Ada" },
+          dependencies({ findUser: async () => null }),
+        ),
+      (error) =>
+        error instanceof ApiError && error.status === 404 && error.code === "USER_NOT_FOUND",
     );
     await assert.rejects(
-      () => updateAccountPresence("user-1", "ONLINE", dependencies({ persistPresence: async () => null })),
-      (error) => error instanceof ApiError && error.status === 503 && error.code === "PRESENCE_UNAVAILABLE",
+      () =>
+        updateAccountPresence(
+          "user-1",
+          "ONLINE",
+          dependencies({ persistPresence: async () => null }),
+        ),
+      (error) =>
+        error instanceof ApiError && error.status === 503 && error.code === "PRESENCE_UNAVAILABLE",
     );
   });
 });

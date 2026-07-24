@@ -5,6 +5,7 @@ import type {
   MobileFriendsOverviewResponse,
   MobileManagedWorkspaceServerDetailResponse,
   MobileProfileResponse,
+  MobileUserProfileResponse,
 } from "@wizards/types";
 
 import { mobileQueryKeys } from "./mobile-query-keys";
@@ -314,6 +315,48 @@ export function patchMobileProfileAvatarCaches(input: {
       queryKey: mobileQueryKeys.workspaceRoot(),
     },
     (current) => patchWorkspace(current, userId, avatarUrl),
+  );
+}
+
+export interface MobileProfileBannerFields {
+  readonly bannerColor: string | null;
+  readonly bannerOffsetX: number | null;
+  readonly bannerOffsetY: number | null;
+  readonly bannerUrl: string | null;
+}
+
+/**
+ * The profile card and full page both read the banner from the `userProfile` cache,
+ * which the 2a editor never touched — so a saved banner stayed stale until the next
+ * cold fetch. This patches every self entry (one per server context the card was
+ * opened from) in place, so back-navigation shows the new banner immediately.
+ */
+export function patchMobileProfileBannerCaches(input: {
+  banner: MobileProfileBannerFields;
+  queryClient: QueryClient;
+  userId: string;
+}): void {
+  const { banner, queryClient, userId } = input;
+
+  queryClient.setQueriesData<MobileUserProfileResponse>(
+    { queryKey: mobileQueryKeys.userProfileRoot() },
+    (current) => {
+      if (!current || current.profile.user.id !== userId) {
+        return current;
+      }
+
+      const { profile } = current;
+      if (
+        profile.bannerColor === banner.bannerColor &&
+        profile.bannerUrl === banner.bannerUrl &&
+        profile.bannerOffsetX === banner.bannerOffsetX &&
+        profile.bannerOffsetY === banner.bannerOffsetY
+      ) {
+        return current;
+      }
+
+      return { ...current, profile: { ...profile, ...banner } };
+    },
   );
 }
 

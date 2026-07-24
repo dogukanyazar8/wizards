@@ -57,6 +57,7 @@ import {
   MOBILE_VOICE_LEVEL_CHANGE_THRESHOLD,
   MOBILE_VOICE_LEVEL_INTERVAL_MS,
 } from "./mobile-voice-lifecycle-contract";
+import { shouldSuspendVoiceMediaOnAppStateChange } from "./mobile-voice-background-media";
 import {
   createInitialMobilePushToTalkState,
   createMobilePushToTalkController,
@@ -231,6 +232,9 @@ function mapLiveKitParticipantToRoomParticipant(
     isScreenSharing: Boolean(screenSharePublication?.isSubscribed || screenSharePublication),
     isSelf,
     isSpeaking: participant.isSpeaking,
+    // LiveKit stamps a join time on every participant; it anchors stable stage
+    // order so a tile never jumps pages just because its owner started speaking.
+    joinedAt: participant.joinedAt instanceof Date ? participant.joinedAt.getTime() : undefined,
     userId,
     username: isSelf ? currentUser.username : userId,
   };
@@ -340,6 +344,10 @@ export function useMobileVoiceRoom({
   const voiceDevicePreferencesRef = useRef(voiceDevicePreferences);
   const isIntentionalLeaveRef = useRef(false);
   const intentionallyDisconnectedRoomsRef = useRef<WeakSet<Room>>(new WeakSet());
+  // >0 while a user-initiated capture dialog (screen-share consent, camera
+  // permission, iOS broadcast picker) is up. A counter, not a flag, so an
+  // overlapping camera+screen flow cannot end the guard early.
+  const captureConsentDepthRef = useRef(0);
 
   const startSessionGeneration = useCallback(() => {
     sessionGenerationRef.current = advanceMobileVoiceSessionGeneration(
@@ -353,6 +361,14 @@ export function useMobileVoiceRoom({
       isCurrentMobileVoiceSessionGeneration(generation, sessionGenerationRef.current),
     [],
   );
+
+  const beginCaptureConsentGuard = useCallback(() => {
+    captureConsentDepthRef.current += 1;
+  }, []);
+
+  const endCaptureConsentGuard = useCallback(() => {
+    captureConsentDepthRef.current = Math.max(0, captureConsentDepthRef.current - 1);
+  }, []);
 
   useEffect(() => {
     currentUserRef.current = currentUser;
@@ -1269,6 +1285,12 @@ export function useMobileVoiceRoom({
     }
 
     const nextEnabled = !isLocalParticipantScreenSharing(room);
+    // Enabling raises the MediaProjection / broadcast-picker consent dialog, which
+    // backgrounds the app. Guard so that transient background does not tear down a
+    // camera the user is publishing alongside the screen share.
+    if (nextEnabled) {
+      beginCaptureConsentGuard();
+    }
     setRoomState((current) => ({
       ...current,
       errorMessage: null,
@@ -1302,8 +1324,18 @@ export function useMobileVoiceRoom({
         selfScreenShareEnabled: false,
         updatedAt: Date.now(),
       }));
+    } finally {
+      if (nextEnabled) {
+        endCaptureConsentGuard();
+      }
     }
-  }, [roomState.status, sendScreenShareHeartbeat, updateParticipantsFromRoom]);
+  }, [
+    beginCaptureConsentGuard,
+    endCaptureConsentGuard,
+    roomState.status,
+    sendScreenShareHeartbeat,
+    updateParticipantsFromRoom,
+  ]);
 
   const selectAudioInput = useCallback(
     async (rawDeviceId: string) => {
@@ -1529,6 +1561,18 @@ export function useMobileVoiceRoom({
           .finally(updateParticipantsFromRoom);
       }
 
+      // A capture-consent dialog backgrounds the app while its system UI is up;
+      // stopping media then would kill the stream the user is starting. Only a
+      // real background (no consent in flight) suspends camera and screen share.
+      if (
+        !shouldSuspendVoiceMediaOnAppStateChange({
+          nextAppState: nextState,
+          captureConsentInProgress: captureConsentDepthRef.current > 0,
+        })
+      ) {
+        return;
+      }
+
       if (room.localParticipant.isCameraEnabled) {
         void room.localParticipant
           .setCameraEnabled(false)
@@ -1604,7 +1648,9 @@ export function useMobileVoiceRoom({
   );
 
   return {
+    beginCaptureConsentGuard,
     beginPushToTalk,
+    endCaptureConsentGuard,
     endPushToTalk,
     flipCamera,
     joinVoiceChannel,

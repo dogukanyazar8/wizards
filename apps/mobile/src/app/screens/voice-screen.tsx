@@ -46,7 +46,14 @@ import { useVoiceScreenStyles } from "./voice-screen.styles";
 import { useVoiceRoomTheme } from "../providers/mobile-theme-provider";
 import { useMobileBottomSystemSpacing } from "../use-mobile-bottom-system-spacing";
 import { MobileVoiceCameraGrid } from "../../voice/mobile-camera-grid";
-import { MobileVoiceSettingsSheet } from "../../voice/mobile-voice-settings-sheet";
+import {
+  buildMobileVoiceStageTiles,
+  getMobileVoiceStageMode,
+  getMobileVoiceStageTileLayout,
+  paginateMobileVoiceStageTiles,
+  selectMobileVoiceStageAudience,
+  type MobileVoiceStageTile,
+} from "../../voice/mobile-voice-stage";
 import { BottomSheet } from "../components/kit/bottom-sheet";
 import {
   MOBILE_OVERLAY_CLOSE_DURATION_MS,
@@ -61,7 +68,6 @@ export function VoiceScreen({
   onLeaveVoiceChannel,
   onToggleVoiceMute,
   onMinimize = () => undefined,
-  onOpenChat = () => undefined,
   onSendInvite = () => undefined,
   inviteCandidates = [],
   inviteSendStates = {},
@@ -69,10 +75,6 @@ export function VoiceScreen({
   onToggleVoiceCamera = async () => undefined,
   onToggleVoiceScreenShare = async () => undefined,
   onFlipVoiceCamera = async () => undefined,
-  onRefreshVoiceDevices = async () => undefined,
-  onSelectVoiceAudioInput = async () => undefined,
-  onSelectVoiceAudioOutputDevice = async () => undefined,
-  onSelectVoiceNoiseSuppression = async () => undefined,
   serverName = null,
   testID = "mobile-voice-screen",
 }: {
@@ -100,7 +102,6 @@ export function VoiceScreen({
   const { selection } = useMobileHaptics();
   const [now, setNow] = useState(() => Date.now());
   const [inviteSheetVisible, setInviteSheetVisible] = useState(false);
-  const [settingsSheetVisible, setSettingsSheetVisible] = useState(false);
   const model = getMobileActiveVoiceRoomModel(voiceRoomState, serverName, now);
 
   useEffect(() => {
@@ -136,13 +137,10 @@ export function VoiceScreen({
     selection();
     setInviteSheetVisible(true);
   };
-  const screenShareParticipant = model.participants.find(
-    (participant) => participant.isScreenSharing && participant.screenShareTrackRef,
-  );
   const screenShareBusy =
     voiceRoomState.screenShareStatus === "starting" ||
     voiceRoomState.screenShareStatus === "stopping";
-  const canOpenSettings = model.connectionStatus === "connected";
+  const stageMode = getMobileVoiceStageMode(model.participants);
 
   return (
     <View style={styles.activeVoiceRoomScreen} testID={testID}>
@@ -172,50 +170,20 @@ export function VoiceScreen({
               {model.channelName ?? ""}
             </Text>
           </View>
-          <Text numberOfLines={1} style={styles.activeVoiceRoomSubtitle}>
-            {[model.serverName, model.durationLabel].filter(Boolean).join(" · ")}
-          </Text>
+          {model.serverName || model.durationLabel ? (
+            <Text numberOfLines={1} style={styles.activeVoiceRoomSubtitle}>
+              {[model.serverName, model.durationLabel].filter(Boolean).join(" · ")}
+            </Text>
+          ) : null}
         </View>
-        <Pressable
-          accessibilityLabel={copy.voiceRoomOpenChatAction}
-          accessibilityRole="button"
-          onPress={onOpenChat}
-          style={({ pressed }) => [
-            styles.activeVoiceRoomBackButton,
-            pressed && styles.actionButtonPressed,
-          ]}
-          testID="mobile-voice-chat"
-        >
-          <Ionicons
-            color={theme.dark ? theme.text.inverse : theme.text.primary}
-            name="chatbubble-outline"
-            size={20}
-          />
-        </Pressable>
-        <Pressable
-          accessibilityLabel={copy.voiceSettingsAction}
-          accessibilityRole="button"
-          accessibilityState={{ disabled: !canOpenSettings }}
-          disabled={!canOpenSettings}
-          onPress={() => setSettingsSheetVisible(true)}
-          style={({ pressed }) => [
-            styles.activeVoiceRoomBackButton,
-            !canOpenSettings && styles.activeVoiceRoomControlDisabled,
-            pressed && canOpenSettings && styles.actionButtonPressed,
-          ]}
-          testID="mobile-voice-settings"
-        >
-          <Ionicons
-            color={theme.dark ? theme.text.inverse : theme.text.primary}
-            name="ellipsis-horizontal"
-            size={20}
-          />
-        </Pressable>
-        <View style={styles.activeVoiceRoomConnectionChip}>
-          <View style={styles.activeVoiceRoomConnectionDot} />
-          <Text style={styles.activeVoiceRoomConnectionLabel}>
-            {getActiveVoiceRoomConnectionLabel(model.connectionStatus)}
-          </Text>
+        <View style={styles.activeVoiceRoomHeaderBadges}>
+          <View style={styles.activeVoiceRoomConnectionChip}>
+            <View style={styles.activeVoiceRoomConnectionDot} />
+            <Text style={styles.activeVoiceRoomConnectionLabel}>
+              {getActiveVoiceRoomConnectionLabel(model.connectionStatus)}
+            </Text>
+          </View>
+          <VoiceNoiseSuppressionBadge active={voiceRoomState.noiseSuppressionEnabled} />
         </View>
       </View>
 
@@ -225,48 +193,40 @@ export function VoiceScreen({
         </Text>
       ) : null}
 
-      {screenShareParticipant ? (
-        <View style={styles.activeVoiceRoomScreenShareTile} testID="mobile-voice-screen-share-tile">
-          <VideoTrack
-            objectFit="contain"
-            style={styles.activeVoiceRoomScreenShareVideo}
-            trackRef={screenShareParticipant.screenShareTrackRef!}
-          />
-          <View style={styles.activeVoiceRoomScreenShareChip}>
-            <Ionicons color={theme.status.successOnInverse} name="tv-outline" size={13} />
-            <Text numberOfLines={1} style={styles.activeVoiceRoomScreenShareChipText}>
-              {getScreenShareViewerTitle(screenShareParticipant)}
-            </Text>
-          </View>
+      {stageMode === "video" ? (
+        <ActiveVoiceRoomStage
+          onFlipCamera={handleFlipCamera}
+          onOpenInvite={handleOpenInvite}
+          participants={model.participants}
+        />
+      ) : (
+        <View style={styles.activeVoiceRoomParticipantGrid}>
+          {model.participants.map((participant) => (
+            <ActiveVoiceRoomParticipantCard
+              key={participant.userId}
+              participant={participant}
+              onFlipCamera={handleFlipCamera}
+            />
+          ))}
+          <Pressable
+            accessibilityLabel={copy.voiceRoomInviteFriends}
+            accessibilityRole="button"
+            onPress={handleOpenInvite}
+            style={({ pressed }) => [
+              styles.activeVoiceRoomInviteCard,
+              pressed && styles.actionButtonPressed,
+            ]}
+            testID="mobile-voice-invite"
+          >
+            <Ionicons
+              color={theme.dark ? theme.text.onInverseMuted : theme.text.secondary}
+              name="person-add-outline"
+              size={18}
+            />
+            <Text style={styles.activeVoiceRoomInviteLabel}>{copy.voiceRoomInviteFriends}</Text>
+          </Pressable>
         </View>
-      ) : null}
-
-      <View style={styles.activeVoiceRoomParticipantGrid}>
-        {model.participants.map((participant) => (
-          <ActiveVoiceRoomParticipantCard
-            key={participant.userId}
-            participant={participant}
-            onFlipCamera={handleFlipCamera}
-          />
-        ))}
-        <Pressable
-          accessibilityLabel={copy.voiceRoomInviteFriends}
-          accessibilityRole="button"
-          onPress={handleOpenInvite}
-          style={({ pressed }) => [
-            styles.activeVoiceRoomInviteCard,
-            pressed && styles.actionButtonPressed,
-          ]}
-          testID="mobile-voice-invite"
-        >
-          <Ionicons
-            color={theme.dark ? theme.text.onInverseMuted : theme.text.secondary}
-            name="person-add-outline"
-            size={18}
-          />
-          <Text style={styles.activeVoiceRoomInviteLabel}>{copy.voiceRoomInviteFriends}</Text>
-        </Pressable>
-      </View>
+      )}
 
       <View style={styles.activeVoiceRoomControls}>
         <ActiveVoiceRoomControl
@@ -316,9 +276,6 @@ export function VoiceScreen({
           testID="mobile-voice-leave"
         />
       </View>
-      <Text style={styles.activeVoiceRoomPermissionFootnote}>
-        {copy.voiceRoomPermissionFootnote}
-      </Text>
 
       <MobileVoiceInviteSheet
         candidates={inviteCandidates}
@@ -327,20 +284,400 @@ export function VoiceScreen({
         open={inviteSheetVisible}
         sendStates={inviteSendStates}
       />
-      <MobileVoiceSettingsSheet
-        audioInputs={voiceRoomState.availableAudioInputs}
-        audioOutputs={voiceRoomState.availableAudioOutputs}
-        noiseSuppressionEnabled={voiceRoomState.noiseSuppressionEnabled}
-        onClose={() => setSettingsSheetVisible(false)}
-        onRefresh={onRefreshVoiceDevices}
-        onSelectAudioInput={onSelectVoiceAudioInput}
-        onSelectAudioOutput={onSelectVoiceAudioOutputDevice}
-        onSelectNoiseSuppression={onSelectVoiceNoiseSuppression}
-        open={settingsSheetVisible}
-        selectedAudioInputId={voiceRoomState.selectedAudioInputId}
-        selectedAudioOutputId={voiceRoomState.selectedAudioOutputId}
-      />
     </View>
+  );
+}
+
+function VoiceNoiseSuppressionBadge({ active }: { active: boolean }) {
+  const styles = useVoiceScreenStyles();
+  const theme = useVoiceRoomTheme();
+  return (
+    <View
+      accessibilityRole="text"
+      accessibilityLabel={
+        active ? copy.voiceRoomNoiseOnAccessibility : copy.voiceRoomNoiseOffAccessibility
+      }
+      style={[styles.activeVoiceRoomNoiseChip, active && styles.activeVoiceRoomNoiseChipActive]}
+      testID="mobile-voice-noise-badge"
+    >
+      <Ionicons
+        color={active ? theme.status.successOnInverse : theme.text.muted}
+        name={active ? "sparkles" : "sparkles-outline"}
+        size={12}
+      />
+      <Text
+        style={[
+          styles.activeVoiceRoomNoiseChipText,
+          active && styles.activeVoiceRoomNoiseChipTextActive,
+        ]}
+        numberOfLines={1}
+      >
+        {copy.voiceRoomNoiseBadge}
+      </Text>
+    </View>
+  );
+}
+
+/**
+ * The media stage: every live camera and screen share becomes a tile, four to a
+ * page in a layout scaled to the count. Extra tiles slide onto swipeable pages in
+ * join order; mic-only members ride the compact rail beneath.
+ */
+function ActiveVoiceRoomStage({
+  onFlipCamera,
+  onOpenInvite,
+  participants,
+}: {
+  onFlipCamera(): void;
+  onOpenInvite(): void;
+  participants: readonly MobileVoiceRoomParticipant[];
+}) {
+  const styles = useVoiceScreenStyles();
+  const [pageIndex, setPageIndex] = useState(0);
+  const [pagerWidth, setPagerWidth] = useState(0);
+  const tiles = useMemo(() => buildMobileVoiceStageTiles(participants), [participants]);
+  const pages = useMemo(() => paginateMobileVoiceStageTiles(tiles), [tiles]);
+  const audience = useMemo(() => selectMobileVoiceStageAudience(participants), [participants]);
+  const pageCount = Math.max(1, pages.length);
+  const activeIndex = Math.min(pageIndex, pageCount - 1);
+
+  useEffect(() => {
+    if (pageIndex > pageCount - 1) {
+      setPageIndex(pageCount - 1);
+    }
+  }, [pageCount, pageIndex]);
+
+  return (
+    <View style={styles.activeVoiceRoomStage} testID="mobile-voice-stage">
+      <View
+        style={styles.activeVoiceRoomStagePager}
+        onLayout={(event) => setPagerWidth(event.nativeEvent.layout.width)}
+      >
+        <ScrollView
+          horizontal
+          pagingEnabled
+          scrollEnabled={pageCount > 1}
+          showsHorizontalScrollIndicator={false}
+          onMomentumScrollEnd={(event) => {
+            if (pagerWidth > 0) {
+              setPageIndex(Math.round(event.nativeEvent.contentOffset.x / pagerWidth));
+            }
+          }}
+        >
+          {pages.map((pageTiles, index) => (
+            <View
+              key={pageTiles[0]?.key ?? index}
+              style={[
+                styles.activeVoiceRoomStagePage,
+                pagerWidth > 0 ? { width: pagerWidth } : null,
+              ]}
+              testID={`mobile-voice-stage-page-${index}`}
+            >
+              <ActiveVoiceRoomStagePageGrid
+                isActive={index === activeIndex}
+                onFlipCamera={onFlipCamera}
+                tiles={pageTiles}
+              />
+            </View>
+          ))}
+        </ScrollView>
+      </View>
+      {pageCount > 1 ? (
+        <View style={styles.activeVoiceRoomStageDots} testID="mobile-voice-stage-dots">
+          {pages.map((pageTiles, index) => (
+            <View
+              key={pageTiles[0]?.key ?? index}
+              style={[
+                styles.activeVoiceRoomStageDot,
+                index === activeIndex && styles.activeVoiceRoomStageDotActive,
+              ]}
+            />
+          ))}
+        </View>
+      ) : null}
+      <VoiceStageAudienceRail onOpenInvite={onOpenInvite} participants={audience} />
+    </View>
+  );
+}
+
+function ActiveVoiceRoomStagePageGrid({
+  isActive,
+  onFlipCamera,
+  tiles,
+}: {
+  isActive: boolean;
+  onFlipCamera(): void;
+  tiles: readonly MobileVoiceStageTile[];
+}) {
+  const styles = useVoiceScreenStyles();
+  const layout = getMobileVoiceStageTileLayout(tiles.length);
+  const rows: MobileVoiceStageTile[][] = [];
+  let cursor = 0;
+  for (const count of layout.rows) {
+    rows.push(tiles.slice(cursor, cursor + count));
+    cursor += count;
+  }
+
+  return (
+    <View style={styles.activeVoiceRoomStageGrid}>
+      {rows.map((rowTiles, rowIndex) => (
+        <View key={rowTiles[0]?.key ?? rowIndex} style={styles.activeVoiceRoomStageRow}>
+          {rowTiles.map((tile) => (
+            <VoiceStageTile
+              key={tile.key}
+              isActive={isActive}
+              onFlipCamera={onFlipCamera}
+              tile={tile}
+            />
+          ))}
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function VoiceStageTile({
+  isActive,
+  onFlipCamera,
+  tile,
+}: {
+  isActive: boolean;
+  onFlipCamera(): void;
+  tile: MobileVoiceStageTile;
+}) {
+  const styles = useVoiceScreenStyles();
+  const theme = useVoiceRoomTheme();
+  const [expanded, setExpanded] = useState(false);
+  const { kind, participant } = tile;
+  const isScreen = kind === "screen";
+  const name = getVoiceParticipantName(participant);
+  const isSpeaking = participant.isSpeaking && !participant.isMuted;
+  const trackRef = isScreen ? participant.screenShareTrackRef : participant.cameraTrackRef;
+  // Only the visible page decodes video; off-page tiles hold an avatar so a large
+  // room never pays for streams the user cannot see.
+  const showVideo = isActive && Boolean(trackRef);
+
+  const surface = showVideo ? (
+    <VideoTrack
+      objectFit={isScreen ? "contain" : "cover"}
+      style={styles.activeVoiceRoomStageVideo}
+      trackRef={trackRef!}
+    />
+  ) : (
+    <View style={styles.activeVoiceRoomStageTilePlaceholder}>
+      {isScreen ? (
+        <Ionicons color={theme.media.textMuted} name="tv-outline" size={26} />
+      ) : (
+        <Avatar
+          accessibilityLabel={name}
+          avatarBorderColor="transparent"
+          avatarBorderRadius={22}
+          avatarBorderWidth={0}
+          dimension={64}
+          fallbackTextStyle={styles.activeVoiceRoomAvatarFallback}
+          identityId={participant.userId}
+          imageUrl={participant.avatarUrl}
+          label={name}
+        />
+      )}
+      <Text numberOfLines={1} style={styles.activeVoiceRoomStageTilePlaceholderName}>
+        {name}
+      </Text>
+    </View>
+  );
+
+  const overlay = (
+    <>
+      {participant.isSelf && !isScreen ? (
+        <Pressable
+          accessibilityLabel={copy.voiceCameraFlipAction}
+          accessibilityRole="button"
+          onPress={onFlipCamera}
+          style={({ pressed }) => [
+            styles.activeVoiceRoomVideoFlip,
+            pressed && styles.actionButtonPressed,
+          ]}
+          testID={`mobile-voice-participant-${participant.userId}-flip`}
+        >
+          <Ionicons color={theme.text.onInverse} name="camera-reverse-outline" size={18} />
+        </Pressable>
+      ) : null}
+      <View style={styles.activeVoiceRoomVideoNameChip}>
+        {participant.isMuted && !isScreen ? (
+          <Ionicons color={theme.text.onInverse} name="mic-off" size={12} />
+        ) : (
+          <View
+            style={[
+              styles.activeVoiceRoomVideoStatusDot,
+              isSpeaking && styles.activeVoiceRoomVideoStatusDotSpeaking,
+            ]}
+          />
+        )}
+        <Text numberOfLines={1} style={styles.activeVoiceRoomVideoName}>
+          {name}
+        </Text>
+        {isScreen ? (
+          <Text style={styles.activeVoiceRoomStageTagText}>{copy.voiceRoomStageScreenTag}</Text>
+        ) : null}
+      </View>
+    </>
+  );
+
+  const testID = `mobile-voice-participant-${participant.userId}${isScreen ? "-screen" : ""}`;
+
+  if (isScreen) {
+    return (
+      <Pressable
+        accessibilityLabel={getScreenShareViewerTitle(participant)}
+        accessibilityRole="button"
+        accessibilityState={{ disabled: !trackRef }}
+        disabled={!trackRef}
+        onPress={() => setExpanded(true)}
+        style={({ pressed }) => [
+          styles.activeVoiceRoomStageTile,
+          pressed && Boolean(trackRef) && styles.actionButtonPressed,
+        ]}
+        testID={testID}
+      >
+        {surface}
+        {overlay}
+        <VoiceStageScreenFullscreen
+          onClose={() => setExpanded(false)}
+          open={expanded && Boolean(trackRef)}
+          participant={participant}
+        />
+      </Pressable>
+    );
+  }
+
+  return (
+    <View
+      style={[
+        styles.activeVoiceRoomStageTile,
+        isSpeaking && styles.activeVoiceRoomStageTileSpeaking,
+      ]}
+      testID={testID}
+    >
+      {surface}
+      {overlay}
+    </View>
+  );
+}
+
+function VoiceStageAudienceRail({
+  onOpenInvite,
+  participants,
+}: {
+  onOpenInvite(): void;
+  participants: readonly MobileVoiceRoomParticipant[];
+}) {
+  const styles = useVoiceScreenStyles();
+  const theme = useVoiceRoomTheme();
+  return (
+    <View style={styles.activeVoiceRoomRail}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.activeVoiceRoomRailContent}
+      >
+        {participants.map((participant) => {
+          const name = getVoiceParticipantName(participant);
+          return (
+            <View
+              key={participant.userId}
+              style={styles.activeVoiceRoomRailItem}
+              testID={`mobile-voice-rail-${participant.userId}`}
+            >
+              <AvatarMark
+                imageUrl={participant.avatarUrl}
+                label={name}
+                size="regular"
+                status={participant.isSpeaking && !participant.isMuted ? "active" : "idle"}
+              />
+              <Text numberOfLines={1} style={styles.activeVoiceRoomRailName}>
+                {name}
+              </Text>
+            </View>
+          );
+        })}
+        <Pressable
+          accessibilityLabel={copy.voiceRoomInviteFriends}
+          accessibilityRole="button"
+          onPress={onOpenInvite}
+          style={({ pressed }) => [
+            styles.activeVoiceRoomRailInvite,
+            pressed && styles.actionButtonPressed,
+          ]}
+          testID="mobile-voice-invite"
+        >
+          <Ionicons
+            color={theme.dark ? theme.text.onInverseMuted : theme.text.secondary}
+            name="person-add-outline"
+            size={18}
+          />
+        </Pressable>
+      </ScrollView>
+    </View>
+  );
+}
+
+function VoiceStageScreenFullscreen({
+  onClose,
+  open,
+  participant,
+}: {
+  onClose(): void;
+  open: boolean;
+  participant: MobileVoiceRoomParticipant;
+}) {
+  const theme = useVoiceRoomTheme();
+  const styles = useVoiceScreenStyles();
+  const bottomSystemInset = useMobileBottomSystemSpacing(12);
+  const title = getScreenShareViewerTitle(participant);
+
+  return (
+    <ScreenShareFullscreenOverlay onClose={onClose} open={open}>
+      <View
+        style={[styles.mobileVoiceScreenShareFullscreen, { paddingBottom: bottomSystemInset }]}
+        testID="mobile-voice-screen-share-fullscreen"
+      >
+        <View style={styles.mobileVoiceScreenShareFullscreenHeader}>
+          <View style={styles.mobileVoiceScreenShareFullscreenText}>
+            <Text style={styles.mobileVoiceScreenShareFullscreenEyebrow}>
+              {copy.voiceScreenShareViewerLabel}
+            </Text>
+            <Text style={styles.mobileVoiceScreenShareFullscreenTitle} numberOfLines={1}>
+              {title}
+            </Text>
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={copy.voiceScreenShareCloseViewerAction}
+            onPress={onClose}
+            style={({ pressed }) => [
+              styles.mobileVoiceScreenShareFullscreenClose,
+              pressed && styles.actionButtonPressed,
+            ]}
+          >
+            <Ionicons name="close" size={22} color={theme.media.text} />
+          </Pressable>
+        </View>
+        <ScrollView
+          bounces={false}
+          centerContent
+          contentContainerStyle={styles.mobileVoiceScreenShareFullscreenScrollContent}
+          maximumZoomScale={3}
+          minimumZoomScale={1}
+          showsHorizontalScrollIndicator={false}
+          showsVerticalScrollIndicator={false}
+          style={styles.mobileVoiceScreenShareFullscreenScroll}
+        >
+          <View style={styles.mobileVoiceScreenShareFullscreenFrame}>
+            <ScreenShareVideoSurface participant={participant} variant="fullscreen" />
+          </View>
+        </ScrollView>
+      </View>
+    </ScreenShareFullscreenOverlay>
   );
 }
 

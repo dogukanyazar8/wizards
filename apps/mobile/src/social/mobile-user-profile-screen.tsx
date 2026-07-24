@@ -71,8 +71,7 @@ export interface MobileUserProfileScreenProps {
   readonly onOpenNoteEditor?: ((input: { userId: string }) => void) | undefined;
   /** 11f media gallery (2d). Without it the media card keeps its 3-tile preview only. */
   readonly onOpenSharedMedia?:
-    | ((input: { conversationId: string; userId: string }) => void)
-    | undefined;
+    ((input: { conversationId: string; userId: string }) => void) | undefined;
   readonly serverId?: string | undefined;
   readonly userId: string;
 }
@@ -178,8 +177,8 @@ export function MobileUserProfileScreen({
       return null;
     }
     return (
-      friendsQuery.data?.pending.incoming.find((entry) => entry.sender.id === profile.user.id)?.id ??
-      null
+      friendsQuery.data?.pending.incoming.find((entry) => entry.sender.id === profile.user.id)
+        ?.id ?? null
     );
   }, [friendsQuery.data, profile]);
 
@@ -291,6 +290,8 @@ export function MobileUserProfileScreen({
         <View style={{ marginTop: -shellTopInset }}>
           <ProfilePageBanner
             bannerColor={bannerColor}
+            bannerOffsetX={profile?.bannerOffsetX ?? null}
+            bannerOffsetY={profile?.bannerOffsetY ?? null}
             bannerUrl={profile?.bannerUrl ?? null}
             copy={copy}
             menuOpen={menuOpen}
@@ -351,7 +352,9 @@ export function MobileUserProfileScreen({
               <View style={styles.sectionCard} testID="mobile-user-profile-restricted">
                 <Text style={styles.sectionLabel}>{copy.profilePageAboutHeading}</Text>
                 <Text style={styles.restrictedLabel}>
-                  {profile.blockedBy ? copy.profilePageBlockedByNotice : copy.profilePageBlockedNotice}
+                  {profile.blockedBy
+                    ? copy.profilePageBlockedByNotice
+                    : copy.profilePageBlockedNotice}
                 </Text>
               </View>
             ) : null}
@@ -361,7 +364,11 @@ export function MobileUserProfileScreen({
             ) : null}
 
             {sections.note.visible ? (
-              <ProfileNoteCard chrome={chrome} note={sections.note.value} onPress={openNoteEditor} />
+              <ProfileNoteCard
+                chrome={chrome}
+                note={sections.note.value}
+                onPress={openNoteEditor}
+              />
             ) : null}
 
             {sections.mutualServers.visible ? (
@@ -408,11 +415,7 @@ export function MobileUserProfileScreen({
       </ScrollView>
 
       {menuOpen && menuActions.length > 0 ? (
-        <ProfilePageMenu
-          chrome={chrome}
-          items={menuActions}
-          onDismiss={() => setMenuOpen(false)}
-        />
+        <ProfilePageMenu chrome={chrome} items={menuActions} onDismiss={() => setMenuOpen(false)} />
       ) : null}
 
       <DestructiveConfirmationSheet
@@ -547,11 +550,7 @@ function ProfileActionRow({
           style={({ pressed }) => [styles.actionSecondary, pressed && styles.actionPressed]}
           testID="mobile-user-profile-voice-call"
         >
-          <MobileLineIcon
-            color={theme.profileCard.secondaryActionIcon}
-            name="phone"
-            size={17}
-          />
+          <MobileLineIcon color={theme.profileCard.secondaryActionIcon} name="phone" size={17} />
         </Pressable>
         <Pressable
           accessibilityLabel={copy.profilePageVideoCallAction}
@@ -560,11 +559,7 @@ function ProfileActionRow({
           style={({ pressed }) => [styles.actionSecondary, pressed && styles.actionPressed]}
           testID="mobile-user-profile-video-call"
         >
-          <MobileLineIcon
-            color={theme.profileCard.secondaryActionIcon}
-            name="video"
-            size={17}
-          />
+          <MobileLineIcon color={theme.profileCard.secondaryActionIcon} name="video" size={17} />
         </Pressable>
       </View>
     );

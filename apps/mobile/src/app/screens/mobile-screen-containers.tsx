@@ -39,7 +39,6 @@ import {
 } from "./mobile-outgoing-call-screen";
 import { useMobileDMCallStore } from "../../state/mobile-dm-call-store";
 import { MobileTwoFactorScreen } from "../../account/mobile-two-factor-screen";
-import { MobileDMDetailsScreen } from "../../dm/mobile-dm-details-screen";
 import { MobileSharedMediaScreen } from "../../dm/mobile-shared-media-screen";
 import { resolveMobileSharedMediaParticipantName } from "../../dm/mobile-shared-media-model";
 import { flattenMobileDMConversationPages } from "../../query/mobile-dm-conversations-query";
@@ -413,7 +412,6 @@ export function DirectMessageStackScreenContainer({
       key={conversationId}
       {...screenProps}
       canRenderConversation
-      onOpenDetails={() => navigation.navigate("DMDetails", { conversationId })}
       onOpenThread={(messageId) => {
         navigation.navigate("MessageThread", { contextId: conversationId, messageId, scope: "dm" });
       }}
@@ -487,9 +485,7 @@ export function SettingsDetailScreenContainer({
 export function ProfileEditScreenContainer({
   navigation,
 }: NativeStackScreenProps<MobileRootStackParamList, "ProfileEdit">) {
-  return (
-    <MobileProfileEditScreen onBack={() => navigation.goBack()} />
-  );
+  return <MobileProfileEditScreen onBack={() => navigation.goBack()} />;
 }
 
 export function BlockedUsersScreenContainer({
@@ -540,20 +536,6 @@ export function SecurityScreenContainer({
   navigation,
 }: NativeStackScreenProps<MobileRootStackParamList, "Security">) {
   return <MobileTwoFactorScreen onBack={() => navigation.goBack()} />;
-}
-
-export function DMDetailsScreenContainer({
-  navigation,
-  route,
-}: NativeStackScreenProps<MobileRootStackParamList, "DMDetails">) {
-  const { conversationId } = route.params;
-  return (
-    <MobileDMDetailsScreen
-      conversationId={conversationId}
-      onBack={() => navigation.goBack()}
-      onOpenSharedMedia={() => navigation.navigate("SharedMedia", { conversationId })}
-    />
-  );
 }
 
 export function SharedMediaScreenContainer({

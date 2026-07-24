@@ -122,6 +122,24 @@ export const createMobileProfileEditStyles = (theme: MobileTheme) =>
       fontSize: 11.5,
       includeFontPadding: false,
     },
+    bannerRepositionHint: {
+      alignItems: "center",
+      backgroundColor: theme.surface.inverseControl,
+      borderRadius: 10,
+      bottom: 12,
+      flexDirection: "row",
+      gap: 4,
+      left: 12,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      position: "absolute",
+    },
+    bannerRepositionHintLabel: {
+      color: theme.text.onInverse,
+      fontFamily: theme.typography.fontFamilyBold,
+      fontSize: 10.5,
+      includeFontPadding: false,
+    },
 
     previewBody: { marginTop: -34, paddingBottom: 14, paddingHorizontal: 18 },
     avatarWrap: { position: "relative", width: MOBILE_PROFILE_EDIT_METRICS.avatar },
@@ -318,20 +336,6 @@ export const createMobileProfileEditStyles = (theme: MobileTheme) =>
       flex: 1,
       fontFamily: theme.typography.fontFamilySemiBold,
       fontSize: 13.5,
-    },
-
-    footer: {
-      alignItems: "center",
-      flexDirection: "row",
-      gap: 6,
-      justifyContent: "center",
-      marginTop: 14,
-      paddingHorizontal: 24,
-    },
-    footerLabel: {
-      color: theme.text.placeholder,
-      fontFamily: theme.typography.fontFamilySemiBold,
-      fontSize: 11,
     },
 
     feedbackWrap: { marginHorizontal: 20, marginTop: 12 },

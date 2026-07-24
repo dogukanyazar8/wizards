@@ -156,9 +156,18 @@ const MobileProfileBannerColorSchema = z
   .trim()
   .regex(/^#[0-9a-fA-F]{6}$/, "Hex color required");
 
+/**
+ * Normalized banner focal point (CSS `object-position`): 0 is the left/top edge, 1
+ * the right/bottom, 0.5 the centre. Stored per axis so "move up/down/left/right"
+ * survives a re-open and renders identically on the card and the full page.
+ */
+const MobileBannerOffsetSchema = z.number().min(0).max(1);
+
 export const MobileProfileUpdateSchema = z
   .object({
     bannerColor: MobileProfileBannerColorSchema.nullable().optional(),
+    bannerOffsetX: MobileBannerOffsetSchema.nullable().optional(),
+    bannerOffsetY: MobileBannerOffsetSchema.nullable().optional(),
     bannerUrl: MobileHttpsUrlSchema.nullable().optional(),
     bio: z.string().trim().max(MOBILE_PROFILE_BIO_MAX_LENGTH).nullable().optional(),
     customStatus: z
@@ -200,6 +209,8 @@ export const MobileProfileUpdateSchema = z
  */
 const MobileProfileDecorationShape = {
   bannerColor: MobileProfileBannerColorSchema.nullable().default(null),
+  bannerOffsetX: MobileBannerOffsetSchema.nullable().default(null),
+  bannerOffsetY: MobileBannerOffsetSchema.nullable().default(null),
   bannerUrl: MobileHttpsUrlSchema.nullable().default(null),
   customStatusEmoji: z
     .string()
@@ -546,6 +557,8 @@ export const MobileUserProfileSchema = z
   .object({
     badges: z.array(MobileProfileBadgeSchema).max(8),
     bannerColor: z.string().max(32).nullable(),
+    bannerOffsetX: MobileBannerOffsetSchema.nullable().default(null),
+    bannerOffsetY: MobileBannerOffsetSchema.nullable().default(null),
     bannerUrl: z.string().url().max(2048).nullable(),
     bio: z.string().max(500).nullable(),
     /** The viewer blocked this user; the card falls back to its restricted view. */

@@ -37,6 +37,8 @@ export async function mobileProfileUpdateRoute(
         user: {
           avatarUrl: user.avatarUrl,
           bannerColor: user.bannerColor,
+          bannerOffsetX: user.bannerOffsetX,
+          bannerOffsetY: user.bannerOffsetY,
           bannerUrl: user.bannerUrl,
           bio: user.bio,
           ...resolveVisibleCustomStatus(user),

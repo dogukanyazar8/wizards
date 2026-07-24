@@ -11,6 +11,19 @@ export const MOBILE_STATUS_PICKER_OPTIONS = ["ONLINE", "IDLE", "DND", "INVISIBLE
 
 export type MobileStatusPickerOption = (typeof MOBILE_STATUS_PICKER_OPTIONS)[number];
 
+const MOBILE_PRESENCE_STATUSES = ["ONLINE", "IDLE", "DND", "OFFLINE"] as const;
+
+/**
+ * Narrows a loose wire status to the presence union. The bootstrap payload types
+ * `status` as a free string (forward-compatibility), so the 2a editor has to prove
+ * it is a real presence value before handing it to the status sheet.
+ */
+export function toMobilePresenceStatusOrNull(
+  value: string | null | undefined,
+): MobileFriendPresenceStatus | null {
+  return MOBILE_PRESENCE_STATUSES.find((status) => status === value) ?? null;
+}
+
 export function toMobilePresenceStatus(
   option: MobileStatusPickerOption,
 ): MobileFriendPresenceStatus {

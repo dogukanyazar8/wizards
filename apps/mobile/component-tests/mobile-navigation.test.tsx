@@ -116,8 +116,6 @@ jest.mock(
         React.createElement(View, { testID: "mobile-blocked-users-screen" }),
       SecurityScreenContainer: () =>
         React.createElement(View, { testID: "mobile-security-screen" }),
-      DMDetailsScreenContainer: () =>
-        React.createElement(View, { testID: "mobile-dm-details-screen" }),
       ServerSettingsStackScreenContainer: stackScreen(
         "mobile-server-settings-stack-screen",
         "mobile-test-server-settings-back",

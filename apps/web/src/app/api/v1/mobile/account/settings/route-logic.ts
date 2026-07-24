@@ -21,6 +21,8 @@ function withNoStore(response: Response) {
 export type MobileAccountSettingsRecord = {
   account: {
     bannerColor: string | null;
+    bannerOffsetX: number | null;
+    bannerOffsetY: number | null;
     bannerUrl: string | null;
     bio: string | null;
     customStatus: string | null;
@@ -54,6 +56,8 @@ async function loadMobileAccountSettings(userId: string): Promise<MobileAccountS
     where: { id: userId },
     select: {
       bannerColor: true,
+      bannerOffsetX: true,
+      bannerOffsetY: true,
       bannerUrl: true,
       bio: true,
       customStatus: true,
@@ -80,6 +84,8 @@ async function loadMobileAccountSettings(userId: string): Promise<MobileAccountS
   return {
     account: {
       bannerColor: user.bannerColor,
+      bannerOffsetX: user.bannerOffsetX,
+      bannerOffsetY: user.bannerOffsetY,
       bannerUrl: user.bannerUrl,
       bio: user.bio,
       ...resolveVisibleCustomStatus(user),

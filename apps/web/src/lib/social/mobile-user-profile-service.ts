@@ -23,6 +23,8 @@ const MUTUAL_PREVIEW_LIMIT = 12;
 const profileUserSelect = {
   avatarUrl: true,
   bannerColor: true,
+  bannerOffsetX: true,
+  bannerOffsetY: true,
   bannerUrl: true,
   bio: true,
   customStatus: true,
@@ -313,6 +315,8 @@ export async function getMobileUserProfile(
     return {
       badges: [],
       bannerColor: null,
+      bannerOffsetX: null,
+      bannerOffsetY: null,
       bannerUrl: null,
       bio: null,
       blocked,
@@ -363,6 +367,8 @@ export async function getMobileUserProfile(
     // README 1b: a personal banner is a friends-only detail; everyone else gets
     // the neutral fallback the client draws from tokens.
     bannerColor: isFriend ? user.bannerColor : null,
+    bannerOffsetX: isFriend ? user.bannerOffsetX : null,
+    bannerOffsetY: isFriend ? user.bannerOffsetY : null,
     bannerUrl: isFriend ? user.bannerUrl : null,
     bio: user.bio,
     blocked: false,

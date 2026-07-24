@@ -41,6 +41,8 @@ describe("mobile social and account schemas", () => {
     assert.deepEqual(
       MobileProfileUpdateSchema.parse({
         bannerColor: MOBILE_PROFILE_BANNER_COLORS[1],
+        bannerOffsetX: 0.25,
+        bannerOffsetY: 0.75,
         bannerUrl: null,
         customStatusEmoji: "🎧",
         customStatusExpiresAt: "2026-07-23T18:00:00.000Z",
@@ -48,6 +50,8 @@ describe("mobile social and account schemas", () => {
       }),
       {
         bannerColor: "#22A366",
+        bannerOffsetX: 0.25,
+        bannerOffsetY: 0.75,
         bannerUrl: null,
         customStatusEmoji: "🎧",
         customStatusExpiresAt: "2026-07-23T18:00:00.000Z",
@@ -56,6 +60,8 @@ describe("mobile social and account schemas", () => {
     );
     assert.equal(MOBILE_PROFILE_BIO_MAX_LENGTH, 500);
     assert.equal(MobileProfileUpdateSchema.safeParse({ bannerColor: "indigo" }).success, false);
+    assert.equal(MobileProfileUpdateSchema.safeParse({ bannerOffsetX: -0.01 }).success, false);
+    assert.equal(MobileProfileUpdateSchema.safeParse({ bannerOffsetY: 1.01 }).success, false);
     assert.equal(
       MobileProfileUpdateSchema.safeParse({ bannerUrl: "http://cdn.example.com/b.png" }).success,
       false,
@@ -83,6 +89,8 @@ describe("mobile social and account schemas", () => {
       },
     });
     assert.equal(legacy.user.bannerColor, null);
+    assert.equal(legacy.user.bannerOffsetX, null);
+    assert.equal(legacy.user.bannerOffsetY, null);
     assert.equal(legacy.user.bannerUrl, null);
     assert.equal(legacy.user.customStatusEmoji, null);
     assert.equal(legacy.user.customStatusExpiresAt, null);
@@ -387,11 +395,14 @@ describe("mobile social and account schemas", () => {
     const { MobileDMAttachmentsQuerySchema } = await schemas;
 
     assert.deepEqual(MobileDMAttachmentsQuerySchema.parse({}), { limit: 30, tab: "media" });
-    assert.deepEqual(MobileDMAttachmentsQuerySchema.parse({ cursor: "message-1", limit: "12", tab: "links" }), {
-      cursor: "message-1",
-      limit: 12,
-      tab: "links",
-    });
+    assert.deepEqual(
+      MobileDMAttachmentsQuerySchema.parse({ cursor: "message-1", limit: "12", tab: "links" }),
+      {
+        cursor: "message-1",
+        limit: 12,
+        tab: "links",
+      },
+    );
     assert.equal(MobileDMAttachmentsQuerySchema.safeParse({ limit: 51 }).success, false);
     assert.equal(MobileDMAttachmentsQuerySchema.safeParse({ tab: "voice" }).success, false);
   });
@@ -515,6 +526,8 @@ describe("mobile peer profile schemas", () => {
   const profile = {
     badges: ["earlyMember", "supporter"],
     bannerColor: "#4F46E5",
+    bannerOffsetX: null,
+    bannerOffsetY: null,
     bannerUrl: null,
     bio: "UAT",
     blocked: false,

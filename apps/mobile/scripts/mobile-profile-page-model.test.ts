@@ -22,6 +22,8 @@ function createProfile(overrides: Partial<MobileUserProfile> = {}): MobileUserPr
   return {
     badges: ["earlyMember"],
     bannerColor: null,
+    bannerOffsetX: null,
+    bannerOffsetY: null,
     bannerUrl: null,
     bio: "Frontend geliştirici",
     blocked: false,
@@ -54,10 +56,7 @@ function createServer(id: string, overrides: Record<string, unknown> = {}) {
 describe("mobile profile page model", () => {
   it("selects the page variant from the relationship, self flag and block state", () => {
     assert.equal(getMobileProfilePageVariant(createProfile()), "friend");
-    assert.equal(
-      getMobileProfilePageVariant(createProfile({ relationship: "none" })),
-      "peer",
-    );
+    assert.equal(getMobileProfilePageVariant(createProfile({ relationship: "none" })), "peer");
     assert.equal(getMobileProfilePageVariant(createProfile({ self: true })), "self");
     assert.equal(
       getMobileProfilePageVariant(createProfile({ blocked: true, relationship: "blocked" })),
@@ -241,7 +240,11 @@ describe("mobile profile page model", () => {
 
   it("finds an existing 1:1 conversation and never invents one", () => {
     const conversations = [
-      { id: "group-1", participants: [{ id: "user-2" }, { id: "user-9" }], type: "GROUP_DM" as const },
+      {
+        id: "group-1",
+        participants: [{ id: "user-2" }, { id: "user-9" }],
+        type: "GROUP_DM" as const,
+      },
       { id: "dm-1", participants: [{ id: "user-1" }, { id: "user-2" }], type: "DM" as const },
     ];
 

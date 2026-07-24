@@ -256,6 +256,8 @@ model User {
   avatarHash            String?
   bannerUrl             String?
   bannerColor           String?
+  bannerOffsetX         Float?
+  bannerOffsetY         Float?
   bio                   String?     @db.VarChar(500)
   pronouns              String?
   status                UserStatus  @default(OFFLINE)

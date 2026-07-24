@@ -22,13 +22,7 @@ export type MobileVoiceRoomConnectionStatus =
   | "reconnecting";
 
 export type MobileVoiceScreenShareStatus =
-  | "error"
-  | "off"
-  | "on"
-  | "permission-denied"
-  | "starting"
-  | "stopping"
-  | "unsupported";
+  "error" | "off" | "on" | "permission-denied" | "starting" | "stopping" | "unsupported";
 export type MobileVoiceAudioOutputMode = "default" | "speaker";
 export type MobileVoiceSessionMode = "channel" | "direct";
 export type MobileVoiceInviteStatus = "accepted" | "declined" | "failed" | "sending" | "sent";
@@ -102,6 +96,8 @@ export interface MobileVoiceRoomParticipant {
   readonly isScreenSharing: boolean;
   readonly isSelf: boolean;
   readonly isSpeaking: boolean;
+  /** Room join time (ms). Drives stable, speaking-independent stage order. */
+  readonly joinedAt?: number | undefined;
   readonly screenShareTrackRef?: MobileVoiceTrackReference;
   readonly userId: string;
   readonly username: string;
@@ -518,6 +514,9 @@ export function mergeMobileVoiceRoomParticipants(
       avatarUrl: participant.avatarUrl ?? previous?.avatarUrl ?? null,
       displayName: participant.displayName ?? previous?.displayName ?? null,
       username: preferResolvedVoiceUsername(participant, previous),
+      // The LiveKit join time only arrives on the LiveKit snapshot; a server sync
+      // omits it, so the previously learned value must survive the merge.
+      joinedAt: participant.joinedAt ?? previous?.joinedAt,
       isCameraEnabled: participant.isCameraEnabled,
       isMuted: participant.isMuted,
       isScreenSharing: participant.isScreenSharing,

@@ -21,6 +21,8 @@ import {
 const accountSettings = {
   account: {
     bannerColor: null,
+    bannerOffsetX: null,
+    bannerOffsetY: null,
     bannerUrl: null,
     bio: "Building Whispr",
     customStatus: null,

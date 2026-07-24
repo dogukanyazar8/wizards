@@ -1,9 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it, mock } from "node:test";
 import { ApiError, parseJsonBody } from "@/lib/api";
-import {
-  MobileAccountSettingsUpdateSchema,
-} from "@wizards/types";
+import { MobileAccountSettingsUpdateSchema } from "@wizards/types";
 import {
   mobileAccountSettingsGetRoute,
   mobileAccountSettingsUpdateRoute,
@@ -13,6 +11,8 @@ import {
 const settingsRecord: MobileAccountSettingsRecord = {
   account: {
     bannerColor: null,
+    bannerOffsetX: null,
+    bannerOffsetY: null,
     bannerUrl: null,
     bio: null,
     customStatus: "focus",

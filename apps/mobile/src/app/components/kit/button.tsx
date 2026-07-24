@@ -6,7 +6,7 @@ import type { MobileTheme } from "../../../design/themes";
 import { Icon } from "./icon";
 import { useMobileHaptics } from "../../providers/mobile-haptics-provider";
 
-export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
+export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "success";
 
 export interface ButtonProps extends Omit<PressableProps, "children" | "style"> {
   readonly busy?: boolean;
@@ -45,6 +45,10 @@ const createStyles = (theme: MobileTheme) => ({
     backgroundColor: theme.status.dangerAction,
     borderColor: theme.status.dangerAction,
   },
+  success: {
+    backgroundColor: theme.status.success,
+    borderColor: theme.status.success,
+  },
   disabled: {
     backgroundColor: theme.surface.soft,
     borderColor: theme.border.subtle,
@@ -81,7 +85,7 @@ export function Button({
   const haptics = useMobileHaptics();
   const styles = useThemedStyles(createStyles);
   const isDisabled = disabled === true || busy;
-  const usesColorFill = variant === "primary" || variant === "danger";
+  const usesColorFill = variant === "primary" || variant === "danger" || variant === "success";
   const spinnerColor = usesColorFill ? theme.text.onPrimary : theme.accent.default;
 
   return (

@@ -98,13 +98,20 @@ export function MobileVoiceProvider({ children }: PropsWithChildren) {
   }, [voiceRoom.requestMicrophonePermission]);
 
   const toggleCamera = useCallback(async () => {
-    if (!voiceRoom.roomState.selfCameraEnabled && !mediaState.hasCameraPermission) {
-      const permission = await requestCameraPermission();
-      if (!permission.hasCameraPermission) {
-        return;
+    // The camera-permission dialog backgrounds the app; guard so it cannot tear
+    // down an in-progress screen share while the user turns their camera on.
+    voiceRoom.beginCaptureConsentGuard();
+    try {
+      if (!voiceRoom.roomState.selfCameraEnabled && !mediaState.hasCameraPermission) {
+        const permission = await requestCameraPermission();
+        if (!permission.hasCameraPermission) {
+          return;
+        }
       }
+      await voiceRoom.toggleCamera();
+    } finally {
+      voiceRoom.endCaptureConsentGuard();
     }
-    await voiceRoom.toggleCamera();
   }, [mediaState.hasCameraPermission, requestCameraPermission, voiceRoom]);
 
   const value = useMemo(

@@ -2,6 +2,7 @@ import { Pressable, Text, View } from "react-native";
 
 import { Avatar } from "../../app/components/kit/avatar";
 import { MobileCachedImage } from "../../app/components/mobile-cached-image";
+import { mobileBannerContentPosition } from "../mobile-banner-offset";
 import { useTheme } from "../../app/providers/mobile-theme-provider";
 import { MobileLineIcon, type MobileLineIconName } from "../../design/mobile-line-icons";
 import { activeMobileCopy as copy } from "../../locale/mobile-locale-preferences";
@@ -105,6 +106,10 @@ function ProfileCardBanner({
       {bannerUrl ? (
         <MobileCachedImage
           accessibilityIgnoresInvertColors
+          contentPosition={mobileBannerContentPosition(
+            profile?.bannerOffsetX,
+            profile?.bannerOffsetY,
+          )}
           importantForAccessibility="no"
           source={{ uri: bannerUrl }}
           style={styles.bannerImage}
@@ -239,11 +244,7 @@ export function ProfileCardView({
             style={styles.bannerEditChip}
             testID="mobile-profile-card-edit-chip"
           >
-            <MobileLineIcon
-              color={theme.profileCard.bannerControlText}
-              name="edit"
-              size={13}
-            />
+            <MobileLineIcon color={theme.profileCard.bannerControlText} name="edit" size={13} />
             <Text style={styles.bannerEditLabel}>{copy.profileCardEditAction}</Text>
           </Pressable>
         ) : onOpenMenu ? (

@@ -32,28 +32,25 @@ test("bottom navigation exposes only primary native product surfaces", () => {
   assert.equal((MOBILE_TAB_IDS as readonly string[]).includes("voice"), false);
 });
 
-test("the 11f shared-media gallery is reachable from the profile page and the DM header", () => {
+test("the 11f shared-media gallery is reachable from the profile page", () => {
   const containers = read("../src/app/screens/mobile-screen-containers.tsx");
   const navigator = read("../src/navigation/mobile-navigator.tsx");
   const routeTypes = read("../src/navigation/mobile-navigation-types.ts");
   const gallery = read("../src/dm/mobile-shared-media-screen.tsx");
-  const details = read("../src/dm/mobile-dm-details-screen.tsx");
 
   // The route exists with both params, and the screen is actually mounted.
-  assert.match(routeTypes, /SharedMedia: \{ readonly conversationId: string; readonly userId\?: string \}/);
+  assert.match(
+    routeTypes,
+    /SharedMedia: \{ readonly conversationId: string; readonly userId\?: string \}/,
+  );
   assert.match(navigator, /<RootStack\.Screen name="SharedMedia">/);
   assert.match(navigator, /SharedMediaScreenContainer/);
 
-  // 1c "see all" and the DM details summary both land on the same route.
+  // 1c "see all" lands on the shared-media route with the participant carried.
   assert.match(
     containers,
     /onOpenSharedMedia=\{\(\{ conversationId, userId: peerUserId \}\) =>\s*navigation\.navigate\("SharedMedia", \{ conversationId, userId: peerUserId \}\)/,
   );
-  assert.match(
-    containers,
-    /onOpenSharedMedia=\{\(\) => navigation\.navigate\("SharedMedia", \{ conversationId \}\)/,
-  );
-  assert.match(details, /mobile-dm-details-shared-media-see-all/);
 
   // Reused param route: a second conversation remounts instead of stacking.
   assert.match(containers, /key=\{conversationId\}/);
@@ -209,7 +206,10 @@ test("voice room is a protected root route rather than a bottom tab", () => {
   assert.match(containers, /hardwareBackPress/);
   assert.match(containers, /isVoiceSessionActive/);
   assert.match(containers, /onMinimize=\{dismissVoiceRoomScreen\}/);
-  assert.match(containers, /navigation\.navigate\("ChannelChat", \{ channelId: room\.channelId, serverId: room\.serverId \}\)/);
+  assert.match(
+    containers,
+    /navigation\.navigate\("ChannelChat", \{ channelId: room\.channelId, serverId: room\.serverId \}\)/,
+  );
 });
 
 test("back navigation never stacks a duplicate of a screen that is already open", () => {
@@ -250,7 +250,10 @@ test("back navigation never stacks a duplicate of a screen that is already open"
       new RegExp(`case "${routeName}":`),
       `${routeName} route intents must reach the navigator`,
     );
-    assert.match(navigationRef, new RegExp(`navigate\\("${routeName}",[^)]*ROUTE_INTENT_OPTIONS\\)`));
+    assert.match(
+      navigationRef,
+      new RegExp(`navigate\\("${routeName}",[^)]*ROUTE_INTENT_OPTIONS\\)`),
+    );
   }
 
   // The voice room used to `replace` the tabs, which left a second MainTabs
@@ -347,10 +350,7 @@ test("edge-to-edge tab bar uses canonical styling and typed DM unread state", ()
   assert.match(bottomTabBar, /borderTopWidth:\s*1/);
   assert.match(bottomTabBar, /theme\.border\.tabBarTop/);
   assert.match(bottomTabBar, /theme\.accent\.tabActive/);
-  assert.match(
-    bottomTabBar,
-    /mobileNavigationMetrics\.tabBarPaddingBottom \+ bottomSafeAreaInset/,
-  );
+  assert.match(bottomTabBar, /mobileNavigationMetrics\.tabBarPaddingBottom \+ bottomSafeAreaInset/);
   assert.match(bottomTabBar, /theme\.surface\.card/);
   assert.match(bottomTabBar, /theme\.elevation\.tabBar/);
   assert.match(bottomTabBar, /mobile-bottom-tab-unread-dot/);

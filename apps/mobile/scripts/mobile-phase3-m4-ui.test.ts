@@ -38,11 +38,8 @@ test("link previews never fetch arbitrary message URLs from the device", () => {
   assert.doesNotMatch(card, /linkPreview\(url\)/);
 });
 
-test("DM details and settings information architecture expose stable automation IDs", () => {
-  const details = read("dm", "mobile-dm-details-screen.tsx");
+test("settings information architecture exposes stable automation IDs", () => {
   const settings = read("app", "screens", "settings-screen.tsx");
-  assert.match(details, /FlashList/);
-  assert.match(details, /mobile-dm-details-participant/);
   for (const id of [
     "account",
     "security",

@@ -187,6 +187,29 @@ describe("mobile voice room contract", () => {
     );
   });
 
+  it("keeps a known join time when a later snapshot omits it", () => {
+    const withJoin = mergeMobileVoiceRoomParticipants(
+      [],
+      [createParticipant({ userId: "a", joinedAt: 123 })],
+    );
+    assert.equal(withJoin[0]?.joinedAt, 123);
+
+    // A server voice-state sync never carries the LiveKit join time, so a merge
+    // that let its undefined win would forget the stage order every few seconds.
+    const afterSync = mergeMobileVoiceRoomParticipants(withJoin, [
+      createParticipant({ userId: "a", joinedAt: undefined }),
+    ]);
+    assert.equal(afterSync[0]?.joinedAt, 123);
+  });
+
+  it("adopts an incoming join time when it becomes known", () => {
+    const seeded = mergeMobileVoiceRoomParticipants(
+      [createParticipant({ userId: "a" })],
+      [createParticipant({ userId: "a", joinedAt: 456 })],
+    );
+    assert.equal(seeded[0]?.joinedAt, 456);
+  });
+
   it("builds invite candidates only from real online server members outside the active room", () => {
     const members: MobileVoiceInviteMember[] = [
       {
