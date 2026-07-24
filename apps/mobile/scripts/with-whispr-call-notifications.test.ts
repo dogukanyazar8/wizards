@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { describe, it } from "node:test";
 
 const require = createRequire(import.meta.url);
 const plugin = require("../plugins/withWhisprCallNotifications.js") as {
+  FIREBASE_MESSAGING_DEPENDENCY: string;
   ensureActionReceiver(manifest: AndroidManifest, name: string): void;
+  ensureFirebaseMessagingDependency(appBuildGradle: string): string;
   ensureMainActivityCallFlags(manifest: AndroidManifest): void;
   ensureMessagingService(manifest: AndroidManifest, name: string): void;
   ensureUsesPermission(manifest: AndroidManifest, permission: string): void;
@@ -68,10 +71,7 @@ describe("withWhisprCallNotifications manifest transforms", () => {
 
     const filters = service["intent-filter"] as Array<{ action: ManifestNode[] }>;
     assert.equal(filters.length, 1);
-    assert.equal(
-      filters[0]!.action[0]?.$?.["android:name"],
-      "com.google.firebase.MESSAGING_EVENT",
-    );
+    assert.equal(filters[0]!.action[0]?.$?.["android:name"], "com.google.firebase.MESSAGING_EVENT");
   });
 
   it("registers the decline receiver and keeps it unexported", () => {
@@ -101,6 +101,39 @@ describe("withWhisprCallNotifications manifest transforms", () => {
   it("fails loudly when MainActivity is missing", () => {
     const manifest: AndroidManifest = { manifest: { application: [{}] } };
     assert.throws(() => plugin.ensureMainActivityCallFlags(manifest), /MainActivity/);
+  });
+});
+
+describe("withWhisprCallNotifications Gradle transforms", () => {
+  it("adds Firebase Messaging directly to the app classpath exactly once", () => {
+    const appBuildGradle = `dependencies {
+  implementation("com.facebook.react:react-android")
+}`;
+
+    const once = plugin.ensureFirebaseMessagingDependency(appBuildGradle);
+    const twice = plugin.ensureFirebaseMessagingDependency(once);
+
+    assert.match(once, /implementation\("com\.google\.firebase:firebase-messaging:25\.0\.1"\)/);
+    assert.equal(twice.match(/com\.google\.firebase:firebase-messaging/g)?.length, 1);
+  });
+
+  it("keeps the direct dependency aligned with Expo Notifications", () => {
+    const expoNotificationsBuildGradle = readFileSync(
+      new URL("../node_modules/expo-notifications/android/build.gradle", import.meta.url),
+      "utf8",
+    );
+    const expoDependency = expoNotificationsBuildGradle.match(
+      /com\.google\.firebase:firebase-messaging:([\d.]+)/,
+    )?.[0];
+
+    assert.equal(plugin.FIREBASE_MESSAGING_DEPENDENCY, expoDependency);
+  });
+
+  it("fails loudly if the generated app Gradle file has no dependencies block", () => {
+    assert.throws(
+      () => plugin.ensureFirebaseMessagingDependency('apply plugin: "com.android.application"'),
+      /dependencies block/,
+    );
   });
 });
 

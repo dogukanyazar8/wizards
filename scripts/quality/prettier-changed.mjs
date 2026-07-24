@@ -14,15 +14,34 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import * as prettier from "prettier";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
+const gitLocalEnvironmentVariables = execFileSync("git", ["rev-parse", "--local-env-vars"], {
+  cwd: repositoryRoot,
+  encoding: "utf8",
+})
+  .trim()
+  .split(/\r?\n/)
+  .filter(Boolean);
 
 function normalizePath(path) {
   return path.replaceAll("\\", "/").replace(/^\.\//, "");
+}
+
+function gitEnvironment(root) {
+  const environment = { ...process.env };
+
+  for (const variable of gitLocalEnvironmentVariables) {
+    delete environment[variable];
+  }
+
+  environment.GIT_WORK_TREE = root;
+  return environment;
 }
 
 function runGit(root, args, { allowFailure = false, encoding = "utf8" } = {}) {
   try {
     return execFileSync("git", args, {
       cwd: root,
+      env: gitEnvironment(root),
       encoding,
       stdio: ["ignore", "pipe", allowFailure ? "ignore" : "pipe"],
     });

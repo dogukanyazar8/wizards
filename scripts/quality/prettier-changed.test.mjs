@@ -8,14 +8,56 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const checkerPath = join(root, "scripts", "quality", "prettier-changed.mjs");
+const gitLocalEnvironmentVariables = execFileSync("git", ["rev-parse", "--local-env-vars"], {
+  cwd: root,
+  encoding: "utf8",
+})
+  .trim()
+  .split(/\r?\n/)
+  .filter(Boolean);
 
 function readJson(path) {
   return JSON.parse(readFileSync(join(root, path), "utf8"));
 }
 
 function runGit(repository, args) {
-  return execFileSync("git", args, { cwd: repository, encoding: "utf8" }).trim();
+  const environment = { ...process.env };
+
+  for (const variable of gitLocalEnvironmentVariables) {
+    delete environment[variable];
+  }
+
+  return execFileSync("git", args, { cwd: repository, encoding: "utf8", env: environment }).trim();
 }
+
+test("fixture Git commands ignore hook-owned Git metadata", async (t) => {
+  const fixture = mkdtempSync(join(tmpdir(), "whispr-format-hook-git-"));
+  const inheritedGitDirectory = execFileSync("git", ["rev-parse", "--absolute-git-dir"], {
+    cwd: root,
+    encoding: "utf8",
+  }).trim();
+  const previousGitDirectory = process.env.GIT_DIR;
+
+  t.after(() => {
+    if (previousGitDirectory === undefined) {
+      delete process.env.GIT_DIR;
+    } else {
+      process.env.GIT_DIR = previousGitDirectory;
+    }
+    rmSync(fixture, { force: true, recursive: true });
+  });
+
+  process.env.GIT_DIR = inheritedGitDirectory;
+  runGit(fixture, ["init", "--quiet"]);
+  runGit(fixture, ["config", "core.autocrlf", "false"]);
+  writeFileSync(join(fixture, "fixture.ts"), "export const fixture = true;\n");
+  runGit(fixture, ["add", "fixture.ts"]);
+
+  const { collectStagedFiles } = await import(pathToFileURL(checkerPath).href);
+
+  assert.equal(runGit(fixture, ["rev-parse", "--is-inside-work-tree"]), "true");
+  assert.deepEqual(collectStagedFiles({ root: fixture }), ["fixture.ts"]);
+});
 
 test("format scripts use the changed-file ratchet and CI enforces it", () => {
   const rootManifest = readJson("package.json");
