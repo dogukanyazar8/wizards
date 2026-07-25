@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "profiles": {
     "Fast": {
-      "description": "Validate staged whitespace, toolchain contracts, and staged index formatting.",
+      "description": "Validate staged whitespace, toolchain contracts, and staged index formatting and lint.",
       "estimatedImpact": "No build, database, emulator, or network mutation.",
       "preconditions": [
         { "type": "repository" },
@@ -22,6 +22,11 @@
           "id": "fast-staged-prettier",
           "executable": "node",
           "arguments": ["scripts/quality/prettier-changed.mjs", "--staged"]
+        },
+        {
+          "id": "fast-staged-eslint",
+          "executable": "node",
+          "arguments": ["scripts/quality/staged-eslint.mjs"]
         }
       ]
     },

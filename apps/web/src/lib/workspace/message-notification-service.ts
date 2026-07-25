@@ -177,22 +177,27 @@ export async function createChannelMentionNotifications(args: {
     const locale = normalizeAppLocale(member.user.locale);
 
     return {
-      actionUrl: `/channels/${args.serverId}/${args.channelId}`,
-      // The row body stays the plain sentence: the feed renders the message
-      // itself underneath it as a styled quote, so repeating it here would print
-      // the same text twice. The push, which has no second line, gets the
-      // combined form below.
-      body: translate(locale, "chat.mentions.notifyBody", {
-        channel: args.channelName,
-        name: args.senderName,
-      }),
-      dedupeKey: `channel-mention:${args.messageId}:${member.userId}`,
-      metadata: {
-        channelId: args.channelId,
-        ...(mentionPreview ? { messagePreview: mentionPreview } : {}),
-        messageId: args.messageId,
-        senderId: args.senderId,
-        serverId: args.serverId,
+      notification: {
+        actionUrl: `/channels/${args.serverId}/${args.channelId}`,
+        // The row body stays the plain sentence: the feed renders the message
+        // itself underneath it as a styled quote, so repeating it here would print
+        // the same text twice. The push, which has no second line, gets the
+        // combined form below.
+        body: translate(locale, "chat.mentions.notifyBody", {
+          channel: args.channelName,
+          name: args.senderName,
+        }),
+        dedupeKey: `channel-mention:${args.messageId}:${member.userId}`,
+        metadata: {
+          channelId: args.channelId,
+          ...(mentionPreview ? { messagePreview: mentionPreview } : {}),
+          messageId: args.messageId,
+          senderId: args.senderId,
+          serverId: args.serverId,
+        },
+        title: translate(locale, "chat.mentions.notifyTitle"),
+        type: "MENTION" as const,
+        userId: member.userId,
       },
       pushBody: mentionPreview
         ? translate(locale, "chat.mentions.notifyBodyWithMessage", {
@@ -204,9 +209,6 @@ export async function createChannelMentionNotifications(args: {
             channel: args.channelName,
             name: args.senderName,
           }),
-      title: translate(locale, "chat.mentions.notifyTitle"),
-      type: "MENTION" as const,
-      userId: member.userId,
     };
   });
 
@@ -248,8 +250,7 @@ export async function createChannelMentionNotifications(args: {
     );
 
     return tx.notification.createManyAndReturn({
-      // `pushBody` is a transport-only field, never a Notification column.
-      data: notificationData.map(({ pushBody: _pushBody, ...row }) => row),
+      data: notificationData.map((row) => row.notification),
       skipDuplicates: true,
     });
   });
@@ -279,7 +280,7 @@ export async function createChannelMentionNotifications(args: {
   // The push has a single line, so it carries the combined "who + where + what"
   // form instead of the feed's headline.
   const pushBodyByUserId = new Map(
-    notificationData.map((row) => [row.userId, row.pushBody] as const),
+    notificationData.map((row) => [row.notification.userId, row.pushBody] as const),
   );
   void sendMobilePushForNotifications(
     notifications.map((notification) => ({

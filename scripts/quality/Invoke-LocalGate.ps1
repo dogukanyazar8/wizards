@@ -128,6 +128,7 @@ $stepRegistry = @{
   "fast-index-diff" = @{ executable = "git"; arguments = @("diff", "--cached", "--check") }
   "fast-toolchain" = @{ executable = "pnpm"; arguments = @("test:toolchain") }
   "fast-staged-prettier" = @{ executable = "node"; arguments = @("scripts/quality/prettier-changed.mjs", "--staged") }
+  "fast-staged-eslint" = @{ executable = "node"; arguments = @("scripts/quality/staged-eslint.mjs") }
   "standard-lint" = @{ executable = "pnpm"; arguments = @("lint") }
   "standard-typecheck" = @{ executable = "pnpm"; arguments = @("typecheck") }
   "standard-format" = @{ executable = "pnpm"; arguments = @("format") }

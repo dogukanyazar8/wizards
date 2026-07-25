@@ -46,6 +46,25 @@ test("React Compiler diagnostics are loaded as errors by the flat config", async
   assert.equal(config.rules["no-undef"]?.[0], 0);
 });
 
+test("unused-value conventions are explicit for intentional omissions", async () => {
+  const eslint = new ESLint({
+    cwd: fileURLToPath(new URL("..", import.meta.url)),
+  });
+  const config = await eslint.calculateConfigForFile("src/components/chat/message-list.tsx");
+
+  assert.deepEqual(config.rules["@typescript-eslint/no-unused-vars"], [
+    2,
+    {
+      args: "after-used",
+      argsIgnorePattern: "^_",
+      caughtErrors: "all",
+      caughtErrorsIgnorePattern: "^_",
+      ignoreRestSiblings: true,
+      varsIgnorePattern: "^_",
+    },
+  ]);
+});
+
 test("Next 16 uses direct ESLint 10 flat config dependencies", () => {
   const source = readFileSync(
     fileURLToPath(new URL("../eslint.config.mjs", import.meta.url)),

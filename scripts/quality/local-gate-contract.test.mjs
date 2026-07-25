@@ -55,6 +55,7 @@ test("local quality profiles are declarative, complete, and shell-free", () => {
       ["git", ["diff", "--cached", "--check"]],
       ["pnpm", ["test:toolchain"]],
       ["node", ["scripts/quality/prettier-changed.mjs", "--staged"]],
+      ["node", ["scripts/quality/staged-eslint.mjs"]],
     ],
   );
   assert.deepEqual(
@@ -104,6 +105,7 @@ test("local gate runner, hook installer, hooks, and CI share the safe contracts"
     /\$pnpm = @\(Get-Command "pnpm\.cmd" -CommandType Application -ErrorAction SilentlyContinue\)\[0\]/u,
   );
   assert.match(runner, /\$previousNativeErrorAction = \$ErrorActionPreference/u);
+  assert.match(runner, /fast-staged-eslint/u);
   assert.match(runner, /\[ValidateSet\("Text", "Json"\)\]/u);
   assert.match(runner, /\[switch\]\$AllowMobileRelease/u);
   assert.match(runner, /\$Profile -eq "MobileRelease" -and -not \$AllowMobileRelease/u);

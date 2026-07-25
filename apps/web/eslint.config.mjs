@@ -24,6 +24,17 @@ const eslintConfig = defineConfig(
         "error",
         { prefer: "type-imports", fixStyle: "inline-type-imports" },
       ],
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          args: "after-used",
+          argsIgnorePattern: "^_",
+          caughtErrors: "all",
+          caughtErrorsIgnorePattern: "^_",
+          ignoreRestSiblings: true,
+          varsIgnorePattern: "^_",
+        },
+      ],
       "no-console": ["warn", { allow: ["warn", "error", "info"] }],
     },
   },

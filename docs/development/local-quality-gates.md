@@ -20,7 +20,7 @@ The runner resolves `pnpm.cmd` first on Windows. If it is unavailable, it resolv
 
 | Profile         | Commands                                                                                                                  | Purpose and prerequisites                                                                                                                                                       |
 | --------------- | ------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Fast`          | `git diff --cached --check`; `pnpm test:toolchain`; `node scripts/quality/prettier-changed.mjs --staged`                  | Commit-safe staged validation. The formatter reads Git index blobs, not working-tree files.                                                                                     |
+| `Fast`          | `git diff --cached --check`; `pnpm test:toolchain`; staged Prettier; `node scripts/quality/staged-eslint.mjs`             | Commit-safe staged validation. Prettier and web ESLint read Git index content, not working-tree files.                                                                          |
 | `Standard`      | `pnpm lint`; `pnpm typecheck`; `pnpm format`; `pnpm test`                                                                 | Normal local quality pass from existing root scripts. `typecheck` may generate Prisma client artifacts; it does not migrate or reset a database.                                |
 | `CI`            | `pnpm ci`                                                                                                                 | Existing root aggregate only. It is not a replica of GitHub Actions.                                                                                                            |
 | `Mobile`        | Existing mobile `validate:env`, `test`, `test:components`, `release:check`, and `quality:check` scripts                   | Mobile source checks only; no Expo prebuild, Gradle, Metro, or APK generation.                                                                                                  |
@@ -43,15 +43,14 @@ Every profile step reports `PASS`, `FAIL`, `SKIP`, or `BLOCKED`, together with i
 - `BLOCKED`: a required file, executable, secret-presence check, or local service check failed before the affected command started.
 - `SKIP`: no command ran because this was a plan or an earlier step failed.
 
-Measured in this worktree on 2026-07-24, without clearing caches:
+Measured in this worktree on 2026-07-26, without clearing caches:
 
-| Profile                   | Evidence                                                                                                      | Duration class            |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------- | ------------------------- |
-| `Fast`                    | `git diff --cached --check` 27 ms; `test:toolchain` 2144 ms; staged Prettier 315 ms; 2486 ms summed gate time | Measured fast.            |
-| `Standard` cold           | `lint` stopped with exit 2 after 3033 ms                                                                      | Full measurement blocked. |
-| `Standard` immediate warm | `lint` stopped with exit 2 after 3064 ms                                                                      | Full measurement blocked. |
+| Profile    | Evidence                                                                                                                            | Duration class |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------------- | -------------- |
+| `Fast`     | `git diff --cached --check` 26 ms; `test:toolchain` 5062 ms; staged Prettier 768 ms; staged ESLint 203 ms; 6059 ms summed gate time | Measured fast. |
+| `Standard` | `lint` 11688 ms; `typecheck` 4915 ms; `format` 2934 ms; `test` 18905 ms; 38442 ms summed gate time                                  | Measured pass. |
 
-The Standard failure is current web lint infrastructure, not a local-gate wrapper failure: ESLint 10.7.0 loading `eslint-plugin-react@7.37.5` fails `react/display-name` because `contextOrFilename.getFilename` is absent. Until that dependency/config compatibility issue is resolved and Standard is measured end-to-end, `pre-push` intentionally uses `Fast`; this is not a claim that Standard would be slow.
+`Fast` is a staged index guard, not a smaller substitute for `Standard`: it lint-checks staged web files with the staged flat config, but it does not typecheck or run the complete test suite.
 
 ## Hooks
 
@@ -67,13 +66,13 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\quality\Instal
 
 The installer only uses `git config --worktree core.hooksPath .githooks`. It refuses to change a non-`.githooks` active or worktree-specific hook path, and never falls back to `--local`. It also refuses to enable `extensions.worktreeConfig`: enabling that shared repository setting requires separate, explicit repository-owner approval.
 
-`pre-commit` runs `Fast`. `pre-push` currently also runs `Fast` because the required Standard cold/warm measurement is blocked by the existing web lint failure. Both hooks locate the repository root with Git, invoke Windows PowerShell using quoted paths, and return the gate exit code, so a gate failure blocks the commit or push. They never build an APK, run full E2E, reset a database, deploy, or operate an emulator.
+`pre-commit` and `pre-push` run `Fast`. Both hooks locate the repository root with Git, invoke Windows PowerShell using quoted paths, and return the gate exit code, so a gate failure blocks the commit or push. They never build an APK, run full E2E, reset a database, deploy, or operate an emulator.
 
 ## Recommended use
 
 - Daily edits: `Fast`.
 - Commit: opt in to hooks; `pre-commit` runs `Fast` on staged content.
-- Push: opt in to hooks; `pre-push` runs `Fast`. Run `Standard` explicitly after the current lint compatibility failure is resolved.
+- Push: opt in to hooks; `pre-push` runs `Fast`. Run `Standard` when broader lint, typecheck, format, and test evidence is required.
 - Pull request: run local `Fast`/`Standard` as available, then rely on remote GitHub Actions for CI-only lanes.
 - Mobile source work: run `Mobile` before requesting mobile UAT.
 - Android release APK: explicitly run `MobileRelease` with `-AllowMobileRelease`; then install/test on a real device separately.
