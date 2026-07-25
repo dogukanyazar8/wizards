@@ -27,3 +27,13 @@ test("production build receives a temporary adapter-safe URL without changing ru
     /DATABASE_URL:\s*process\.env\.DATABASE_URL\s*\?\?\s*"postgresql:\/\/prisma:prisma@127\.0\.0\.1:5432\/wizards_build"/,
   );
 });
+
+test("externalized Prisma server runtime dependencies belong to the web package", () => {
+  const packageJson = JSON.parse(
+    readFileSync(new URL("../../package.json", import.meta.url), "utf8"),
+  );
+
+  assert.equal(packageJson.dependencies["@prisma/adapter-pg"], "7.9.0");
+  assert.equal(packageJson.dependencies["@prisma/client"], "7.9.0");
+  assert.equal(packageJson.dependencies.pg, "^8.22.0");
+});

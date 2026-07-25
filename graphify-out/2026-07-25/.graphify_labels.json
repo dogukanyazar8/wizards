@@ -607,8 +607,6 @@
   "605": "@livekit/react-native",
   "606": "zod",
   "607": "react-native-screens",
-  "608": "@react-native-async-storage/async-storage",
-  "609": "@expo/vector-icons",
   "610": "mobile-user-profile-service.test.ts",
   "611": "livekit-client",
   "612": "react-native-gesture-handler",
