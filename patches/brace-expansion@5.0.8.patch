@@ -1,0 +1,15 @@
+diff --git a/dist/commonjs/index.js b/dist/commonjs/index.js
+index be9df86be09c7655787a65c55ae6da01858894c3..e95ec01a834ffb2bcb3a52db52e3213bb3a4c9e3 100644
+--- a/dist/commonjs/index.js
++++ b/dist/commonjs/index.js
+@@ -260,4 +260,10 @@ function expand_(str, max, maxLength, isTop) {
+     }
+     return acc;
+ }
++// Preserve the callable CommonJS contract used by minimatch 3 and 9 while
++// retaining the named exports consumed by newer callers.
++module.exports = expand;
++module.exports.expand = expand;
++module.exports.EXPANSION_MAX = exports.EXPANSION_MAX;
++module.exports.EXPANSION_MAX_LENGTH = exports.EXPANSION_MAX_LENGTH;
+ //# sourceMappingURL=index.js.map

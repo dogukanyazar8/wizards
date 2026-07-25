@@ -24,3 +24,19 @@ test("declaration comparison classifies missing, extra, and changed output", () 
     success: false,
   });
 });
+
+test("declaration comparison ignores compiler-formatted Prisma generator output", () => {
+  const stable = new Map([
+    ["generated/prisma/enums.d.ts", 'export declare const Status: "OPEN";\n'],
+    ["index.d.ts", "export type PublicApi = string;\n"],
+  ]);
+  const native = new Map([
+    ["generated/prisma/enums.d.ts", "export declare const Status: 'OPEN';\n"],
+    ["index.d.ts", "export type PublicApi = string;\n"],
+  ]);
+
+  assert.deepEqual(
+    compareDeclarationMaps(stable, native, { ignoredPathPrefixes: ["generated/prisma/"] }),
+    { changed: [], extra: [], missing: [], success: true },
+  );
+});

@@ -7,7 +7,11 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const packages = Object.freeze([
-  { name: "db", tsconfig: "packages/db/tsconfig.json" },
+  {
+    name: "db",
+    tsconfig: "packages/db/tsconfig.json",
+    ignoredPathPrefixes: ["generated/prisma/"],
+  },
   { name: "types", tsconfig: "packages/types/tsconfig.json" },
   { name: "ui", tsconfig: "packages/ui/tsconfig.json" },
 ]);
@@ -17,9 +21,10 @@ export function normalizeDeclaration(text) {
   return text.replaceAll("\r\n", "\n");
 }
 
-export function compareDeclarationMaps(stable, native) {
-  const stablePaths = [...stable.keys()].sort();
-  const nativePaths = [...native.keys()].sort();
+export function compareDeclarationMaps(stable, native, { ignoredPathPrefixes = [] } = {}) {
+  const includePath = (path) => !ignoredPathPrefixes.some((prefix) => path.startsWith(prefix));
+  const stablePaths = [...stable.keys()].filter(includePath).sort();
+  const nativePaths = [...native.keys()].filter(includePath).sort();
   const missing = stablePaths.filter((path) => !native.has(path));
   const extra = nativePaths.filter((path) => !stable.has(path));
   const changed = stablePaths.filter(
@@ -93,7 +98,13 @@ export function runDeclarationParity() {
 
       results.push({
         name: project.name,
-        ...compareDeclarationMaps(declarationMap(stableDirectory), declarationMap(nativeDirectory)),
+        ...compareDeclarationMaps(
+          declarationMap(stableDirectory),
+          declarationMap(nativeDirectory),
+          {
+            ignoredPathPrefixes: project.ignoredPathPrefixes,
+          },
+        ),
       });
     }
   } finally {
