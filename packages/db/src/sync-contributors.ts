@@ -1,5 +1,5 @@
-import { prisma } from "./index.js";
-import { CONTRIBUTOR_NAMES, CORRUPTED_CONTRIBUTOR_NAMES } from "./contributors.js";
+import { prisma } from "./index";
+import { CONTRIBUTOR_NAMES, CORRUPTED_CONTRIBUTOR_NAMES } from "./contributors";
 
 async function syncContributors() {
   await prisma.contributor.deleteMany({
@@ -24,7 +24,9 @@ async function syncContributors() {
   });
 
   console.log(`Synced ${CONTRIBUTOR_NAMES.length} contributor records.`);
-  console.log(contributors.map((contributor: { name: string }) => `- ${contributor.name}`).join("\n"));
+  console.log(
+    contributors.map((contributor: { name: string }) => `- ${contributor.name}`).join("\n"),
+  );
 }
 
 syncContributors()

@@ -43,6 +43,10 @@ docker compose up -d postgres redis
 $env:DATABASE_URL = "postgresql://wizards:wizards@localhost:5432/wizards"
 corepack pnpm --filter @wizards/db db:generate
 corepack pnpm --filter @wizards/db db:migrate:deploy
+
+# Demo data is explicit; migrate and reset do not run seed.
+$env:SEED_DEMO_PASSWORD = node -e "process.stdout.write(require('node:crypto').randomBytes(24).toString('base64url'))"
+corepack pnpm --filter @wizards/db db:seed
 corepack pnpm --filter @wizards/web dev
 ```
 
@@ -65,6 +69,7 @@ Başarı sinyalleri:
 - [Web E2E rehberi](apps/web/e2e/README.md)
 - [TypeScript toolchain](docs/operations/typescript-toolchain.md)
 - [Observability](docs/operations/observability.md)
+- [Prisma 7 deployment](docs/operations/prisma-7-deployment.md)
 - [Outbox worker](docs/operations/outbox-worker-monitoring.md)
 
 ## Güvenlik

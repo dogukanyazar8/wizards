@@ -1,9 +1,7 @@
-import { PrismaClient, type ChannelType } from "@prisma/client";
 import bcrypt from "bcryptjs";
-import { CONTRIBUTOR_NAMES, CORRUPTED_CONTRIBUTOR_NAMES } from "./contributors.js";
-
-const prisma = new PrismaClient();
-const DEFAULT_SEED_PASSWORD = "password123";
+import { CONTRIBUTOR_NAMES, CORRUPTED_CONTRIBUTOR_NAMES } from "./contributors";
+import { prisma, type ChannelType } from "./index";
+import { readDemoSeedOptions } from "./seed-options";
 
 function assertSeedIsAllowed() {
   if (process.env.NODE_ENV === "production" && process.env.ALLOW_PRODUCTION_SEED !== "true") {
@@ -194,12 +192,7 @@ async function repairContributorData() {
   await prisma.contributor.deleteMany({
     where: {
       name: {
-        in: [
-          "Muhammet Y?ld?z",
-          "Muhammet YÄ±ldÄ±z",
-          "O?uz G???mc?o?lu",
-          "OÄŸuz GÃ¼ÄŸÃ¼mcÃ¼oÄŸlu",
-        ],
+        in: ["Muhammet Y?ld?z", "Muhammet YÄ±ldÄ±z", "O?uz G???mc?o?lu", "OÄŸuz GÃ¼ÄŸÃ¼mcÃ¼oÄŸlu"],
       },
     },
   });
@@ -208,7 +201,7 @@ async function repairContributorData() {
 async function main() {
   assertSeedIsAllowed();
 
-  const seedPassword = process.env.SEED_DEMO_PASSWORD ?? DEFAULT_SEED_PASSWORD;
+  const { password: seedPassword } = readDemoSeedOptions();
   const passwordHash = await bcrypt.hash(seedPassword, 12);
 
   const demoUser = await ensureUser({
@@ -308,10 +301,6 @@ async function main() {
   await Promise.all(CONTRIBUTOR_NAMES.map((name) => ensureContributor(name)));
 
   console.log("Seed complete");
-  if (process.env.NODE_ENV !== "production") {
-    console.log(`Demo user: demo@whispr.team / ${seedPassword}`);
-    console.log(`Test user: test@whispr.team / ${seedPassword}`);
-  }
 }
 
 main()

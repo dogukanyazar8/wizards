@@ -1,7 +1,8 @@
-import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
+import { createPrismaClient } from "./client-factory";
+import type { PrismaClient } from "./index";
 
 export const UAT_TEST_USERS_CONFIRMATION = "create-five-uat-test-users";
 
@@ -86,7 +87,7 @@ export async function seedUatTestUsers({
 
 async function main() {
   const options = readUatTestUsersSeedOptions();
-  const prisma = new PrismaClient();
+  const prisma = createPrismaClient();
 
   try {
     await seedUatTestUsers({ ...options, prisma });

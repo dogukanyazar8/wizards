@@ -122,6 +122,31 @@ test("stable typecheck generates Prisma before Turbo can replay cached tasks", (
   assert.equal(readJson("package.json").scripts?.typecheck, "pnpm db:generate && turbo typecheck");
 });
 
+test("Prisma 7 uses the ESM client, generated import boundary, and explicit seeds", () => {
+  const dbPackage = readJson("packages/db/package.json");
+  const webPackage = readJson("apps/web/package.json");
+  const schema = readText("packages/db/prisma/schema.prisma");
+  const config = readText("packages/db/prisma.config.ts");
+  const turbo = readJson("turbo.json");
+
+  assert.equal(dbPackage.type, "module");
+  assert.equal(dbPackage.dependencies["@prisma/client"], "7.9.0");
+  assert.equal(dbPackage.dependencies["@prisma/adapter-pg"], "7.9.0");
+  assert.equal(dbPackage.scripts["db:seed"], "prisma db seed");
+  assert.equal(dbPackage.scripts["db:migrate:status"], "prisma migrate status");
+  assert.equal(dbPackage.scripts["prisma:ensure-runtime"], undefined);
+  assert.match(schema, /provider\s*=\s*"prisma-client"/);
+  assert.match(schema, /output\s*=\s*"\.\.\/src\/generated\/prisma"/);
+  assert.doesNotMatch(schema, /^\s*url\s*=/m);
+  assert.match(config, /path:\s*"prisma\/rebaseline-migrations"/);
+  assert.match(config, /seed:\s*"tsx src\/seed\.ts"/);
+  assert.deepEqual(turbo.tasks["db:generate"].outputs, ["packages/db/src/generated/prisma/**"]);
+
+  for (const script of Object.values(webPackage.scripts)) {
+    assert.doesNotMatch(script, /ensure-prisma-client-runtime/);
+  }
+});
+
 test("pnpm 11 build scripts are fail-closed behind an exact allowlist", () => {
   const workspaceSource = readText("pnpm-workspace.yaml");
 

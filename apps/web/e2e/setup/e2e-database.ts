@@ -1,6 +1,6 @@
 import bcrypt from "bcryptjs";
 import Redis from "ioredis";
-import { ChannelType, PrismaClient, UserStatus } from "@wizards/db";
+import { ChannelType, createPrismaClient, type PrismaClient, UserStatus } from "@wizards/db/client";
 import {
   assertSafeE2EDatabaseUrl,
   assertSafeE2ERedisUrl,
@@ -75,11 +75,7 @@ export function createE2EPrismaClient(): PrismaClient {
   const databaseUrl = getE2EDatabaseUrl();
   assertSafeE2EDatabase(databaseUrl);
 
-  return new PrismaClient({
-    datasources: {
-      db: { url: databaseUrl },
-    },
-  });
+  return createPrismaClient({ connectionString: databaseUrl });
 }
 
 export async function resetE2EData(prisma: PrismaClient): Promise<void> {
@@ -107,7 +103,9 @@ export async function resetE2EData(prisma: PrismaClient): Promise<void> {
       where: {
         OR: [
           existingUserIds.length > 0 ? { userId: { in: existingUserIds } } : { id: "__never__" },
-          existingServerIds.length > 0 ? { serverId: { in: existingServerIds } } : { id: "__never__" },
+          existingServerIds.length > 0
+            ? { serverId: { in: existingServerIds } }
+            : { id: "__never__" },
         ],
       },
     }),

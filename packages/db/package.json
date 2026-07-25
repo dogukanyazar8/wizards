@@ -6,30 +6,40 @@
   "main": "src/index.ts",
   "types": "src/index.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./browser": "./src/browser.ts",
+    "./client": "./src/client.ts"
   },
   "scripts": {
-    "db:generate": "prisma generate",
+    "db:generate": "node scripts/prisma-generate.mjs",
     "db:migrate:deploy": "prisma migrate deploy",
-    "prisma:ensure-runtime": "node ./scripts/ensure-prisma-client-runtime.mjs",
-    "db:seed": "node --loader ts-node/esm src/seed.ts",
-    "contributors:sync": "node --loader ts-node/esm src/sync-contributors.ts",
-    "build": "prisma generate && node ../../scripts/quality/typescript-project-runner.mjs --project=db --mode=build",
+    "db:migrate:status": "prisma migrate status",
+    "db:migrate:reset": "prisma migrate reset --force --skip-seed",
+    "db:seed": "prisma db seed",
+    "db:verify:prisma7-disposable": "node scripts/verify-prisma7-disposable.mjs",
+    "db:rebaseline:uat": "node scripts/rebaseline-uat-migration-history.mjs",
+    "test": "tsx --test src/prisma.test.ts src/seed-options.test.ts src/seed-uat-test-users.test.ts && node --test scripts/prisma7-contract.test.mjs scripts/verify-prisma7-disposable.test.mjs scripts/rebaseline-uat-migration-history.test.mjs",
+    "contributors:sync": "tsx src/sync-contributors.ts",
+    "build": "pnpm db:generate && node ../../scripts/quality/typescript-project-runner.mjs --project=db --mode=build",
     "dev": "echo db package ready",
-    "lint": "prisma generate && node ../../scripts/quality/typescript-project-runner.mjs --project=db --mode=check",
-    "typecheck": "prisma generate && node ../../scripts/quality/typescript-project-runner.mjs --project=db --mode=check",
+    "lint": "pnpm db:generate && node ../../scripts/quality/typescript-project-runner.mjs --project=db --mode=check",
+    "typecheck": "pnpm db:generate && node ../../scripts/quality/typescript-project-runner.mjs --project=db --mode=check",
     "format": "node ../../scripts/quality/prettier-changed.mjs --scope packages/db"
   },
   "dependencies": {
-    "@prisma/client": "^6.19.2",
-    "bcryptjs": "^2.4.3"
+    "@prisma/adapter-pg": "7.9.0",
+    "@prisma/client": "7.9.0",
+    "bcryptjs": "^2.4.3",
+    "pg": "^8.22.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^24.13.3",
+    "@types/pg": "^8.15.6",
+    "dotenv": "^17.2.3",
     "prettier": "3.9.6",
-    "prisma": "^6.19.2",
-    "ts-node": "^10.9.2",
+    "prisma": "7.9.0",
+    "tsx": "^4.22.4",
     "typescript": "catalog:"
   }
 }

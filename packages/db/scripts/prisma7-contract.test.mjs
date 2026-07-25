@@ -1,0 +1,47 @@
+import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { test } from "node:test";
+import { resolve } from "node:path";
+
+const packageRoot = resolve(import.meta.dirname, "..");
+const read = (relativePath) => readFileSync(resolve(packageRoot, relativePath), "utf8");
+
+test("uses Prisma 7 ESM generation, central CLI configuration, and explicit seed", () => {
+  const schema = read("prisma/schema.prisma");
+  const config = read("prisma.config.ts");
+  const packageJson = JSON.parse(read("package.json"));
+
+  assert.match(schema, /provider\s*=\s*"prisma-client"/);
+  assert.match(schema, /output\s*=\s*"\.\.\/src\/generated\/prisma"/);
+  assert.doesNotMatch(schema, /^\s*url\s*=/m);
+  assert.match(config, /path:\s*"prisma\/rebaseline-migrations"/);
+  assert.match(config, /seed:\s*"tsx src\/seed\.ts"/);
+  assert.equal(packageJson.scripts["db:seed"], "prisma db seed");
+  assert.equal(packageJson.scripts["prisma:ensure-runtime"], undefined);
+});
+
+test("contains a replayable current-state baseline with raw PostgreSQL objects", () => {
+  const baseline = read(
+    "prisma/rebaseline-migrations/20260725000000_uat_schema_baseline/migration.sql",
+  );
+
+  assert.match(baseline, /GENERATED ALWAYS AS \(to_tsvector/);
+  assert.doesNotMatch(baseline, /\\'/);
+  assert.match(baseline, /message_content_search_idx/);
+  assert.match(baseline, /MobileMediaUpload_purpose_target_check/);
+  assert.equal(
+    createHash("sha256").update(baseline).digest("hex"),
+    "2c2f7a362e52f38d7a4bb74844e3f84479b987717d0310677f9b40fa9a9b22f3",
+  );
+});
+
+test("exposes Prisma enums to browser code without exporting the Node adapter", () => {
+  const packageJson = JSON.parse(read("package.json"));
+  const browser = read("src/browser.ts");
+
+  assert.equal(packageJson.exports["./browser"], "./src/browser.ts");
+  assert.match(browser, /from "\.\/generated\/prisma\/browser"/);
+  assert.doesNotMatch(browser, /from "[^\"]*(?:adapter-pg|client-factory)[^\"]*"/);
+  assert.doesNotMatch(browser, /new PrismaClient/);
+});

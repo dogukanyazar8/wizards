@@ -31,6 +31,13 @@ function collectTestFiles(directory) {
 }
 
 const testFiles = collectTestFiles(srcRoot).map(toCliPath);
+const testEnvironment = {
+  ...process.env,
+  // PrismaPg validates its direct connection string during module import. pg
+  // pools connect lazily, so this only keeps isolated unit tests importable.
+  DATABASE_URL:
+    process.env.DATABASE_URL ?? "postgresql://prisma:prisma@127.0.0.1:5432/wizards_unit_tests",
+};
 
 if (testFiles.length === 0) {
   console.error("No test files found under apps/web/src.");
@@ -42,7 +49,7 @@ const result = spawnSync(
   ["--import", "tsx", "--test", "--test-force-exit", ...process.argv.slice(2), ...testFiles],
   {
     cwd: webRoot,
-    env: process.env,
+    env: testEnvironment,
     stdio: "inherit",
   },
 );

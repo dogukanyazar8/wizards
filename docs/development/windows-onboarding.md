@@ -513,7 +513,7 @@ $env:E2E_TEST_PASSWORD = node -e "process.stdout.write(require('node:crypto').ra
 E2E DB yalnız test verisi içermelidir. Aşağıdaki `db push` komutu shared veya production DB için değildir:
 
 ```powershell
-corepack pnpm --filter @wizards/db exec prisma db push --schema prisma/schema.prisma --skip-generate
+corepack pnpm --filter @wizards/db db:migrate:deploy
 corepack pnpm --filter @wizards/web exec playwright install chromium
 corepack pnpm --filter @wizards/web e2e:check-env
 corepack pnpm --filter @wizards/web e2e:seed

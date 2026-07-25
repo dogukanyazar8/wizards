@@ -287,8 +287,8 @@ jobs:
       - name: Generate Prisma Client
         run: pnpm db:generate
 
-      - name: Sync E2E database schema
-        run: pnpm --filter @wizards/db exec prisma db push --schema prisma/schema.prisma --skip-generate
+      - name: Apply E2E migration history
+        run: pnpm --filter @wizards/db db:migrate:deploy
 
       - name: Validate Playwright E2E environment
         run: pnpm --filter @wizards/web e2e:check-env
@@ -395,8 +395,8 @@ jobs:
       - name: Generate Prisma Client
         run: pnpm db:generate
 
-      - name: Sync E2E database schema
-        run: pnpm --filter @wizards/db exec prisma db push --schema prisma/schema.prisma --skip-generate
+      - name: Apply E2E migration history
+        run: pnpm --filter @wizards/db db:migrate:deploy
 
       - name: Validate Playwright E2E environment
         run: pnpm --filter @wizards/web e2e:check-env
@@ -490,8 +490,8 @@ jobs:
       - name: Generate Prisma Client
         run: pnpm db:generate
 
-      - name: Sync E2E database schema
-        run: pnpm --filter @wizards/db exec prisma db push --schema prisma/schema.prisma --skip-generate
+      - name: Apply E2E migration history
+        run: pnpm --filter @wizards/db db:migrate:deploy
 
       - name: Validate Playwright E2E environment
         run: pnpm --filter @wizards/web e2e:check-env
@@ -586,8 +586,8 @@ jobs:
       - name: Generate Prisma Client
         run: pnpm db:generate
 
-      - name: Sync E2E database schema
-        run: pnpm --filter @wizards/db exec prisma db push --schema prisma/schema.prisma --skip-generate
+      - name: Apply E2E migration history
+        run: pnpm --filter @wizards/db db:migrate:deploy
 
       - name: Validate Playwright E2E environment
         run: pnpm --filter @wizards/web e2e:check-env

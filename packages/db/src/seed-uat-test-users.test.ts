@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { PrismaClient } from "@prisma/client";
+import type { PrismaClient } from "./index";
 
 import {
   readUatTestUsersSeedOptions,
   seedUatTestUsers,
   UAT_TEST_USERS,
   UAT_TEST_USERS_CONFIRMATION,
-} from "./seed-uat-test-users.js";
+} from "./seed-uat-test-users";
 
 type UpsertCall = {
   create: Record<string, unknown>;

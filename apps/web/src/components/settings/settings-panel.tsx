@@ -42,7 +42,7 @@ import {
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
-import { UserStatus } from "@wizards/db";
+import { UserStatus } from "@wizards/db/browser";
 import { Button } from "@wizards/ui";
 import { useShallow } from "zustand/react/shallow";
 import type { UserLayoutSettings } from "@/app/api/v1/users/me/settings/route";

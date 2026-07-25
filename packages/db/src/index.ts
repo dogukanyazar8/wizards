@@ -1,18 +1,8 @@
-import { PrismaClient } from "@prisma/client";
-
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
-};
-
-export const prisma: PrismaClient =
-  globalForPrisma.prisma ??
-  new PrismaClient({
-    log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
-  });
-
-if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = prisma;
-}
+export { createPrismaClient } from "./client-factory";
+export { prisma } from "./prisma";
+export { readPrismaPoolOptions } from "./pool-options";
+export type { PrismaClientFactoryOptions } from "./client-factory";
+export type { PrismaPoolOptions } from "./pool-options";
 
 export {
   ChannelType,
@@ -24,7 +14,7 @@ export {
   Prisma,
   PrismaClient,
   UserStatus,
-} from "@prisma/client";
+} from "./generated/prisma/client";
 export type {
   AdminRole,
   AnalyticsClientType,
@@ -35,4 +25,4 @@ export type {
   NotificationCampaignStatus,
   NotificationType,
   User,
-} from "@prisma/client";
+} from "./generated/prisma/client";

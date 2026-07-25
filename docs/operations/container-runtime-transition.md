@@ -37,7 +37,8 @@ docker compose @compose exec -T redis redis-cli GET runtime-smoke
 
 $env:DATABASE_URL = "postgresql://wizards:wizards@127.0.0.1:55432/wizards"
 pnpm.cmd --filter @wizards/db db:migrate:deploy
-pnpm.cmd --filter @wizards/db exec prisma migrate status --schema prisma/schema.prisma
+$env:SEED_DEMO_PASSWORD = node -e "process.stdout.write(require('node:crypto').randomBytes(24).toString('base64url'))"
+pnpm.cmd --filter @wizards/db db:migrate:status
 pnpm.cmd --filter @wizards/db db:seed
 
 $dump = Join-Path $env:TEMP "wizards-runtime-smoke.dump"
@@ -62,9 +63,9 @@ pnpm.cmd --filter @wizards/web e2e:api
 
 Do not point these commands at production. Before a planned production change, take and independently verify a logical PostgreSQL 16 dump. Provision PostgreSQL 18 with a new empty volume, restore that dump, run Prisma migration status, application smoke, and the approved production health checks.
 
-### Existing migration gate
+### Prisma migration gate
 
-On a fresh disposable database, the current migration chain fails at `20260422000000_add_fulltext_search_indexes` with `P3018` / `42P01` because `Message` is not created by any earlier checked-in migration. The same failure reproduces on PostgreSQL 16.14 and 18.4, so it is not a PostgreSQL 18 regression. Repair the missing baseline in a separate migration-history checkpoint before a production transition. `prisma db push` was used only to test the current schema against disposable runtimes; never use it as a production migration workaround.
+Prisma 7 uses the byte-stable `20260725000000_uat_schema_baseline` migration for clean databases. Verify it with `db:migrate:status` after `db:migrate:deploy`. Do not use `prisma db push` as a migration or recovery shortcut; it bypasses migration history. The complete deployment, seed, rollback, and UAT rebaseline procedure is in [Prisma 7 deployment](prisma-7-deployment.md).
 
 Rollback is a configuration revert plus restore of the pre-upgrade logical dump into a new PostgreSQL 16.14 volume using `postgres:16.14-alpine@sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777`. Never attach a PostgreSQL 18 data directory to PostgreSQL 16. Redis rollback requires preserving the pre-change Redis volume or snapshot and returning to the previous pinned Redis image.
 
