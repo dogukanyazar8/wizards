@@ -52,7 +52,8 @@ describe("Railway deployment contract", () => {
       },
       {
         healthcheckPath: "/ready",
-        preDeployCommand: "pnpm --filter @wizards/db db:migrate:deploy",
+        preDeployCommand:
+          "pnpm --filter @wizards/db db:recover:uat-history && pnpm --filter @wizards/db db:migrate:deploy",
         startCommand: "WHISPR_OUTBOX_WORKER=false pnpm --filter @wizards/web start",
       },
     );
