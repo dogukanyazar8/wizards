@@ -1,4 +1,5 @@
-import type { MobileNotificationItem } from "@wizards/types";
+import type { MobileNotificationItem, MobileWorkspaceChannelSummary } from "@wizards/types";
+import { parseMobileMentionSegments, type MobileMentionSegment } from "./mobile-mention";
 
 /**
  * Pure logic for the Sunucular (servers) redesign: rail/switcher badge
@@ -131,6 +132,78 @@ export function getMobileServerCreateAccess(
   capabilities: { readonly canManageChannels: boolean } | null | undefined,
 ): boolean {
   return capabilities?.canManageChannels === true;
+}
+
+/**
+ * 1a/1b channel-row tone. The open channel always reads as active; otherwise the
+ * badge priority (mention > unread > read) also drives the row's typography and
+ * preview colour, so name weight and badge can never disagree.
+ */
+export type MobileChannelRowTone = "active" | "mention" | "read" | "unread";
+
+export function getMobileChannelRowTone(
+  channel: Pick<MobileWorkspaceChannelSummary, "mentionCount" | "unreadCount">,
+  isSelected: boolean,
+): MobileChannelRowTone {
+  if (isSelected) {
+    return "active";
+  }
+
+  const badge = getMobileServerBadge(channel);
+  return badge.kind === "mention" ? "mention" : badge.kind === "unread" ? "unread" : "read";
+}
+
+export interface MobileChannelRowPreview {
+  /** Author label rendered before the body ("DY: …"). */
+  readonly author: string;
+  /** Body split into runs so a `@handle` can render in primary like the design. */
+  readonly segments: readonly MobileMentionSegment[];
+}
+
+/**
+ * Last-message preview for a text row. Voice rows show live presence instead, so
+ * they never carry a preview.
+ */
+export function getMobileChannelRowPreview(
+  channel: Pick<MobileWorkspaceChannelSummary, "lastMessage" | "type">,
+): MobileChannelRowPreview | null {
+  if (channel.type !== "TEXT" || !channel.lastMessage) {
+    return null;
+  }
+
+  const { author, text } = channel.lastMessage;
+  return {
+    author: author.displayName ?? author.username,
+    segments: parseMobileMentionSegments(text),
+  };
+}
+
+/** Names stay readable up to this many people; beyond it the row shows a count. */
+const MOBILE_VOICE_ROW_NAME_LIMIT = 3;
+
+export type MobileVoiceRowPresence =
+  | { readonly count: number; readonly kind: "count" }
+  | { readonly kind: "names"; readonly names: readonly string[] };
+
+/**
+ * Live voice row subtitle source: the rail (1a) pairs a people count with stacked
+ * avatars, the compact row (1b) spells the names out instead.
+ */
+export function getMobileVoiceRowPresence(
+  participants: readonly {
+    readonly displayName: string | null;
+    readonly username: string;
+  }[],
+  layout: "compact" | "rail",
+): MobileVoiceRowPresence {
+  if (layout === "rail" || participants.length > MOBILE_VOICE_ROW_NAME_LIMIT) {
+    return { count: participants.length, kind: "count" };
+  }
+
+  return {
+    kind: "names",
+    names: participants.map((participant) => participant.displayName ?? participant.username),
+  };
 }
 
 /** "N seste": people currently across every voice channel in the server. */

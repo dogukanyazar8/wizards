@@ -1,13 +1,16 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import type { MobileNotificationItem } from "@wizards/types";
+import type { MobileNotificationItem, MobileWorkspaceChannelSummary } from "@wizards/types";
 import {
   buildMobileCollapsedSectionKey,
+  getMobileChannelRowPreview,
+  getMobileChannelRowTone,
   getMobileMissedNotifications,
   getMobileOtherServersUnreadTotal,
   getMobileServerBadge,
   getMobileServerCreateAccess,
   getMobileVoiceParticipantTotal,
+  getMobileVoiceRowPresence,
   hasMobileChannelNameCollision,
   parseMobileCollapsedSections,
   serializeMobileCollapsedSections,
@@ -15,6 +18,26 @@ import {
   slugifyMobileChannelNameInput,
   toggleMobileCollapsedSection,
 } from "../src/app/mobile-sunucular-model";
+
+function channel(
+  overrides: Partial<MobileWorkspaceChannelSummary> = {},
+): MobileWorkspaceChannelSummary {
+  return {
+    categoryId: "category-lobby",
+    categoryName: "Lobby",
+    id: "channel-1",
+    lastMessage: null,
+    locked: false,
+    mentionCount: 0,
+    name: "development",
+    position: 0,
+    readOnly: false,
+    topic: null,
+    type: "TEXT",
+    unreadCount: 0,
+    ...overrides,
+  } as MobileWorkspaceChannelSummary;
+}
 
 describe("getMobileServerBadge", () => {
   it("prefers a mention badge over unread", () => {
@@ -175,6 +198,91 @@ describe("getMobileVoiceParticipantTotal", () => {
       ]),
       3,
     );
+  });
+});
+
+describe("getMobileChannelRowTone", () => {
+  it("treats the open channel as active whatever its counters say", () => {
+    assert.equal(
+      getMobileChannelRowTone(channel({ mentionCount: 4, unreadCount: 9 }), true),
+      "active",
+    );
+  });
+
+  it("ranks mention over unread and unread over read", () => {
+    assert.equal(
+      getMobileChannelRowTone(channel({ mentionCount: 1, unreadCount: 3 }), false),
+      "mention",
+    );
+    assert.equal(getMobileChannelRowTone(channel({ unreadCount: 3 }), false), "unread");
+    assert.equal(getMobileChannelRowTone(channel(), false), "read");
+  });
+});
+
+describe("getMobileChannelRowPreview", () => {
+  const lastMessage = {
+    author: { displayName: "DY", id: "user-dy", username: "dogukanyazar" },
+    createdAt: "2026-07-16T10:41:00.000Z",
+    id: "message-1",
+    text: "@dogukanyazar build hazır mı?",
+  };
+
+  it("splits the preview into the author label and mention-aware segments", () => {
+    assert.deepEqual(getMobileChannelRowPreview(channel({ lastMessage })), {
+      author: "DY",
+      segments: [
+        { type: "mention", username: "dogukanyazar", value: "@dogukanyazar" },
+        { type: "text", value: " build hazır mı?" },
+      ],
+    });
+  });
+
+  it("falls back to the username when the author has no display name", () => {
+    const preview = getMobileChannelRowPreview(
+      channel({
+        lastMessage: {
+          ...lastMessage,
+          author: { ...lastMessage.author, displayName: null },
+          text: "megadeth",
+        },
+      }),
+    );
+
+    assert.equal(preview?.author, "dogukanyazar");
+    assert.deepEqual(preview?.segments, [{ type: "text", value: "megadeth" }]);
+  });
+
+  it("has no preview for voice channels or channels without a message", () => {
+    assert.equal(getMobileChannelRowPreview(channel({ lastMessage, type: "VOICE" })), null);
+    assert.equal(getMobileChannelRowPreview(channel()), null);
+  });
+});
+
+describe("getMobileVoiceRowPresence", () => {
+  const participants = [
+    { displayName: "Ayşegül", userId: "user-1", username: "aysegul_dev" },
+    { displayName: null, userId: "user-2", username: "dogukanyazar" },
+  ];
+
+  it("counts people for the rail row (1a)", () => {
+    assert.deepEqual(getMobileVoiceRowPresence(participants, "rail"), { count: 2, kind: "count" });
+  });
+
+  it("names people for the compact row (1b)", () => {
+    assert.deepEqual(getMobileVoiceRowPresence(participants, "compact"), {
+      kind: "names",
+      names: ["Ayşegül", "dogukanyazar"],
+    });
+  });
+
+  it("falls back to the count when a room is too crowded to name", () => {
+    const crowded = [
+      ...participants,
+      { displayName: null, userId: "user-3", username: "c" },
+      { displayName: null, userId: "user-4", username: "d" },
+    ];
+
+    assert.deepEqual(getMobileVoiceRowPresence(crowded, "compact"), { count: 4, kind: "count" });
   });
 });
 

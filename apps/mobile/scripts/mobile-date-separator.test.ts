@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { formatMobileDateSeparator } from "../src/locale/mobile-date-separator";
+import {
+  formatMobileChannelRowTimestamp,
+  formatMobileDateSeparator,
+} from "../src/locale/mobile-date-separator";
 import { getMobileIntlLocale } from "../src/locale/mobile-locale-preferences";
 
 describe("mobile date separator", () => {
@@ -27,5 +30,39 @@ describe("mobile date separator", () => {
 
   it("fails closed for invalid dates", () => {
     assert.equal(formatMobileDateSeparator("not-a-date", "tr", now), "");
+  });
+});
+
+describe("channel row timestamp", () => {
+  const now = new Date("2026-07-16T12:00:00.000Z");
+
+  it("shows the clock time for today (1a/1b right column)", () => {
+    assert.match(
+      formatMobileChannelRowTimestamp("2026-07-16T10:59:00.000Z", "tr", now),
+      /^\d\d:\d\d$/,
+    );
+  });
+
+  it("shows the relative day label for yesterday", () => {
+    assert.equal(formatMobileChannelRowTimestamp("2026-07-15T10:00:00.000Z", "tr", now), "Dün");
+    assert.equal(
+      formatMobileChannelRowTimestamp("2026-07-15T10:00:00.000Z", "en", now),
+      "Yesterday",
+    );
+  });
+
+  it("falls back to the calendar date for older messages", () => {
+    assert.equal(
+      formatMobileChannelRowTimestamp("2026-05-18T12:00:00.000Z", "tr", now),
+      "18 Mayıs",
+    );
+    assert.equal(
+      formatMobileChannelRowTimestamp("2025-05-18T12:00:00.000Z", "tr", now),
+      "18 Mayıs 2025",
+    );
+  });
+
+  it("fails closed for invalid dates", () => {
+    assert.equal(formatMobileChannelRowTimestamp("not-a-date", "tr", now), "");
   });
 });

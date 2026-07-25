@@ -25,9 +25,52 @@ jest.mock("../src/app/components/kit/bottom-sheet", () => {
 });
 
 import { MobileServerCreateJoinSheet } from "../src/workspace/mobile-server-create-join-sheet";
+import { createMobileCreateSheetStyles } from "../src/workspace/mobile-create-sheet-kit";
+import { darkTheme, lightTheme } from "../src/design/themes";
 import { renderWithMobileTheme as render } from "./render-with-mobile-theme";
 
 describe("mobile server create/join sheet", () => {
+  it.each([
+    ["light", lightTheme],
+    ["dark", darkTheme],
+  ] as const)("keeps the %s create-sheet handoff geometry", (_scheme, theme) => {
+    const styles = createMobileCreateSheetStyles(theme);
+
+    expect(styles.title).toMatchObject({
+      color: theme.text.primary,
+      fontFamily: theme.typography.fontFamilyExtraBold,
+      fontSize: 19,
+    });
+    expect(styles.optionCard).toMatchObject({
+      backgroundColor: theme.surface.base,
+      borderColor: theme.border.subtle,
+      borderRadius: 18,
+      borderWidth: 1,
+      padding: 14,
+    });
+    expect(styles.optionIcon).toMatchObject({ borderRadius: 16, height: 46, width: 46 });
+    expect(styles.fieldLabel).toMatchObject({
+      color: theme.text.visualFaint,
+      fontFamily: theme.typography.fontFamilyBold,
+      fontSize: 10.5,
+      letterSpacing: 1,
+      textTransform: "uppercase",
+    });
+    expect(styles.field).toMatchObject({
+      backgroundColor: theme.surface.base,
+      borderRadius: 14,
+      borderWidth: 1.5,
+    });
+    expect(styles.fieldFocus.borderColor).toBe(theme.accent.default);
+    expect(styles.fieldError.borderColor).toBe(theme.status.danger);
+    expect(styles.primaryCta).toMatchObject({
+      backgroundColor: theme.accent.action,
+      borderRadius: 16,
+      marginTop: 16,
+      padding: 14,
+    });
+  });
+
   it("validates input, prevents duplicate submits, and selects a created server", async () => {
     let resolveCreate: ((value: { serverId: string }) => void) | null = null;
     const onCreate = jest.fn(
@@ -48,6 +91,11 @@ describe("mobile server create/join sheet", () => {
         open
       />,
     );
+
+    expect(view.getByTestId("mobile-server-add-menu-title")).toBeTruthy();
+    expect(view.queryByTestId("mobile-server-create-form")).toBeNull();
+    await fireEvent.press(view.getByTestId("mobile-server-mode-create"));
+    expect(view.getByTestId("mobile-server-create-form")).toBeTruthy();
 
     await fireEvent.press(view.getByTestId("mobile-server-create-submit"));
     expect(onCreate).not.toHaveBeenCalled();
@@ -79,6 +127,7 @@ describe("mobile server create/join sheet", () => {
     );
 
     await fireEvent.press(view.getByTestId("mobile-server-mode-join"));
+    expect(view.getByTestId("mobile-server-join-form")).toBeTruthy();
     await fireEvent.changeText(
       view.getByTestId("mobile-server-join-input"),
       "whispr://invite/Join_Me-42?mobile=1",
@@ -140,12 +189,18 @@ describe("mobile server create/join sheet", () => {
       />,
     );
 
+    await fireEvent.press(view.getByTestId("mobile-server-mode-create"));
     await fireEvent.changeText(view.getByTestId("mobile-server-create-name"), "Icon server");
     await fireEvent.press(view.getByTestId("mobile-server-create-submit"));
     await waitFor(() => expect(onServerReady).toHaveBeenCalledWith("server-3"));
     await fireEvent.press(view.getByTestId("mobile-server-create-icon"));
 
     await waitFor(() => expect(view.getByTestId("mobile-server-create-icon-preview")).toBeTruthy());
+    await waitFor(() =>
+      expect(
+        view.getByTestId("mobile-server-create-finish").props.accessibilityState.disabled,
+      ).toBe(true),
+    );
     expect(onUploadServerIcon).toHaveBeenCalledWith("server-3", expect.any(Function));
     expect(onCreate).toHaveBeenCalledTimes(1);
 

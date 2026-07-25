@@ -14,10 +14,20 @@ import {
 } from "../mobile-root-screen-shared";
 import { AvatarMark } from "../components/ui-atoms";
 import { useTheme } from "../providers/mobile-theme-provider";
+import { useMobileLocaleRuntime } from "../providers/mobile-locale-provider";
 import type { MobileWorkspaceLayout } from "../providers/mobile-workspace-layout-provider";
 import { MobileLineIcon } from "../../design/mobile-line-icons";
+import { formatMobileChannelRowTimestamp } from "../../locale/mobile-date-separator";
+import {
+  getMobileChannelRowPreview,
+  getMobileChannelRowTone,
+  getMobileVoiceRowPresence,
+} from "../mobile-sunucular-model";
 import { useHomeScreenStyles } from "./home-screen.styles";
 import { mobileListLoadHandlers } from "../../performance/mobile-performance-metrics";
+
+/** Stacked avatars on the live voice row; more people than this read as a count. */
+const VOICE_ROW_AVATAR_LIMIT = 3;
 
 export function WorkspaceChannelSectionList({
   canCreateChannels = false,
@@ -101,6 +111,7 @@ export function WorkspaceChannelSectionList({
               accessibilityRole="button"
               accessibilityState={{ disabled: isCollapseDisabled, expanded: !section.isCollapsed }}
               disabled={isCollapseDisabled}
+              hitSlop={12}
               onPress={() => onToggleSection(section.id)}
               style={({ pressed }) => [
                 styles.mobileWorkspaceSectionHeaderToggle,
@@ -110,7 +121,7 @@ export function WorkspaceChannelSectionList({
               <MobileLineIcon
                 color={theme.text.visualFaint}
                 name={section.isCollapsed ? "chevron-right" : "chevron-down"}
-                size={12}
+                size={11}
               />
               <Text
                 style={
@@ -126,6 +137,7 @@ export function WorkspaceChannelSectionList({
               <Pressable
                 accessibilityLabel={copy.workspaceCreateMenuTitle}
                 accessibilityRole="button"
+                hitSlop={11}
                 onPress={() => onCreateInSection?.(section.id)}
                 style={({ pressed }) => [
                   styles.mobileWorkspaceSectionAddButton,
@@ -161,13 +173,21 @@ export const WorkspaceChannelCompactRow = memo(function WorkspaceChannelCompactR
 }) {
   const styles = useHomeScreenStyles();
   const theme = useTheme();
+  const { locale } = useMobileLocaleRuntime();
   const isRailLayout = layout === "rail";
   const priority = getMobileChannelPriority(channel);
+  const tone = getMobileChannelRowTone(channel, isSelected);
   const participants = channel.type === "VOICE" ? (voiceState?.participants ?? []) : [];
 
-  // Live voice channel: a bordered card with the live count, stacked participant
+  // Live voice channel: a bordered card with the live presence, stacked participant
   // avatars and a green Katıl pill that connects straight to the room.
   if (channel.type === "VOICE" && participants.length > 0) {
+    const presence = getMobileVoiceRowPresence(participants, layout);
+    const presenceLabel =
+      presence.kind === "count"
+        ? `${presence.count} ${copy.workspacePeopleSuffix}`
+        : presence.names.join(", ");
+
     return (
       <Pressable
         accessibilityLabel={`${copy.openWorkspaceChannelAction}: ${channel.name}, ${participants.length} ${copy.voiceParticipantsSpeaking}`}
@@ -180,43 +200,75 @@ export const WorkspaceChannelCompactRow = memo(function WorkspaceChannelCompactR
         ]}
         testID="mobile-workspace-channel-voice"
       >
-        <View style={styles.mobileWorkspaceLiveIcon} testID={`mobile-voice-state-${channel.id}`}>
-          <MobileLineIcon color={theme.status.visualText} name="speaker" size={16} />
+        <View
+          style={[
+            isRailLayout
+              ? styles.mobileWorkspaceChannelIconRail
+              : styles.mobileWorkspaceChannelIcon,
+            styles.mobileWorkspaceChannelIconVoice,
+          ]}
+          testID={`mobile-voice-state-${channel.id}`}
+        >
+          <MobileLineIcon
+            color={theme.status.visualText}
+            name="speaker"
+            size={isRailLayout ? 14 : 15}
+          />
         </View>
         <View style={styles.mobileWorkspaceLiveText}>
-          <Text style={styles.mobileWorkspaceLiveName} numberOfLines={1}>
+          <Text
+            style={[
+              styles.mobileWorkspaceLiveName,
+              isRailLayout && styles.mobileWorkspaceLiveNameRail,
+            ]}
+            numberOfLines={1}
+          >
             {channel.name}
           </Text>
           <Text style={styles.mobileWorkspaceVoicePresenceText} numberOfLines={1}>
-            {copy.workspaceLiveLabel} · {participants.length} {copy.workspacePeopleSuffix}
+            {copy.workspaceLiveLabel} · {presenceLabel}
           </Text>
         </View>
-        <View style={styles.mobileWorkspaceVoiceAvatars}>
-          {participants.slice(0, 2).map((participant, index) => (
-            <AvatarMark
-              avatarBorderColor={theme.surface.card}
-              avatarBorderRadius={11}
-              avatarBorderWidth={2}
-              dimension={22}
-              imageUrl={participant.avatarUrl}
-              key={participant.userId}
-              label={participant.displayName ?? participant.username}
-              size="small"
-              style={index === 0 ? undefined : { marginLeft: -7 }}
-            />
-          ))}
-        </View>
-        <View style={styles.mobileWorkspaceJoinPill}>
+        {presence.kind === "count" ? (
+          <View style={styles.mobileWorkspaceVoiceAvatars}>
+            {participants.slice(0, VOICE_ROW_AVATAR_LIMIT).map((participant, index) => (
+              <AvatarMark
+                avatarBorderColor={theme.surface.card}
+                avatarBorderRadius={11}
+                avatarBorderWidth={2}
+                dimension={22}
+                imageUrl={participant.avatarUrl}
+                key={participant.userId}
+                label={participant.displayName ?? participant.username}
+                size="small"
+                style={index === 0 ? undefined : { marginLeft: -7 }}
+              />
+            ))}
+          </View>
+        ) : null}
+        <Pressable
+          accessibilityLabel={`${copy.workspaceJoinVoiceAction}: ${channel.name}`}
+          accessibilityRole="button"
+          hitSlop={12}
+          // Opening a voice channel already connects and pushes the room, so the
+          // pill is the same action with a direct label.
+          onPress={() => onOpenChannel(channel)}
+          style={({ pressed }) => [
+            styles.mobileWorkspaceJoinPill,
+            pressed && styles.compactListRowPressed,
+          ]}
+          testID={`mobile-workspace-voice-join-${channel.id}`}
+        >
           <Text style={styles.mobileWorkspaceJoinPillText}>{copy.workspaceJoinVoiceAction}</Text>
-        </View>
+        </Pressable>
       </Pressable>
     );
   }
 
-  const lastMessagePreview =
-    channel.type === "TEXT" && channel.lastMessage
-      ? `${channel.lastMessage.author.displayName ?? channel.lastMessage.author.username}: ${channel.lastMessage.text}`
-      : null;
+  const preview = getMobileChannelRowPreview(channel);
+  const timestamp = channel.lastMessage
+    ? formatMobileChannelRowTimestamp(channel.lastMessage.createdAt, locale)
+    : "";
 
   return (
     <Pressable
@@ -234,64 +286,95 @@ export const WorkspaceChannelCompactRow = memo(function WorkspaceChannelCompactR
       ]}
       testID={`mobile-workspace-channel-${channel.type.toLowerCase()}`}
     >
-      {isRailLayout ? (
-        channel.type === "TEXT" ? (
+      <View
+        style={[
+          isRailLayout ? styles.mobileWorkspaceChannelIconRail : styles.mobileWorkspaceChannelIcon,
+          channel.type === "TEXT" && isSelected && styles.mobileWorkspaceChannelIconSelected,
+          channel.type === "VOICE" && styles.mobileWorkspaceChannelIconVoice,
+        ]}
+        testID={channel.type === "TEXT" ? "mobile-workspace-text-channel-icon" : undefined}
+      >
+        {channel.type === "TEXT" ? (
           <Text
             style={[
-              styles.mobileWorkspaceChannelHashRail,
-              isSelected && styles.mobileWorkspaceChannelHashRailActive,
+              isRailLayout
+                ? styles.mobileWorkspaceChannelHashRail
+                : styles.mobileWorkspaceChannelHash,
+              (tone === "mention" || tone === "unread") && styles.mobileWorkspaceChannelHashStrong,
+              isSelected &&
+                (isRailLayout
+                  ? styles.mobileWorkspaceChannelHashRailActive
+                  : styles.mobileWorkspaceChannelHashActive),
             ]}
             testID="mobile-workspace-text-channel-hash"
           >
             #
           </Text>
         ) : (
-          <MobileLineIcon color={theme.status.visualText} name="speaker" size={16} />
-        )
-      ) : (
-        <View
-          style={[
-            styles.mobileWorkspaceChannelIcon,
-            channel.type === "TEXT" && isSelected && styles.mobileWorkspaceChannelIconSelected,
-            channel.type === "VOICE" && styles.mobileWorkspaceChannelIconVoice,
-          ]}
-          testID={channel.type === "TEXT" ? "mobile-workspace-text-channel-icon" : undefined}
-        >
-          {channel.type === "TEXT" ? (
-            <Text
-              style={[
-                styles.mobileWorkspaceChannelHash,
-                isSelected && styles.mobileWorkspaceChannelHashActive,
-              ]}
-              testID="mobile-workspace-text-channel-hash"
-            >
-              #
-            </Text>
-          ) : (
-            <MobileLineIcon color={theme.status.visualText} name="speaker" size={17} />
-          )}
-        </View>
-      )}
+          <MobileLineIcon
+            color={theme.status.visualText}
+            name="speaker"
+            size={isRailLayout ? 14 : 15}
+          />
+        )}
+      </View>
       <View
         style={
           isRailLayout ? styles.mobileWorkspaceChannelTextRail : styles.mobileWorkspaceChannelText
         }
       >
-        <View style={styles.compactListTitleRow}>
+        <Text
+          numberOfLines={1}
+          style={[
+            isRailLayout
+              ? styles.mobileWorkspaceChannelNameRail
+              : styles.mobileWorkspaceChannelName,
+            (tone === "mention" || tone === "unread") && styles.mobileWorkspaceChannelNameStrong,
+            tone === "read" && styles.mobileWorkspaceChannelNameMuted,
+            isSelected &&
+              (isRailLayout
+                ? styles.mobileWorkspaceChannelNameRailActive
+                : styles.mobileWorkspaceChannelNameActive),
+          ]}
+        >
+          {channel.name}
+        </Text>
+        {preview ? (
           <Text
             numberOfLines={1}
             style={[
-              isRailLayout
-                ? styles.mobileWorkspaceChannelNameRail
-                : styles.mobileWorkspaceChannelName,
-              isSelected &&
-                (isRailLayout
-                  ? styles.mobileWorkspaceChannelNameRailActive
-                  : styles.mobileWorkspaceChannelNameActive),
+              styles.mobileWorkspaceChannelMeta,
+              tone === "mention" && styles.mobileWorkspaceChannelMetaStrong,
+              tone === "read" && styles.mobileWorkspaceChannelMetaFaint,
             ]}
+            testID="mobile-workspace-channel-preview"
           >
-            {channel.name}
+            {`${preview.author}: `}
+            {preview.segments.map((segment, index) =>
+              segment.type === "mention" ? (
+                <Text
+                  key={`${segment.type}-${index}`}
+                  style={styles.mobileWorkspaceChannelMetaMentionToken}
+                >
+                  {segment.value}
+                </Text>
+              ) : (
+                segment.value
+              ),
+            )}
           </Text>
+        ) : null}
+      </View>
+      {timestamp || priority.hasMentions || priority.hasUnread ? (
+        <View style={styles.mobileWorkspaceChannelTrailing}>
+          {timestamp ? (
+            <Text
+              style={styles.mobileWorkspaceChannelTimestamp}
+              testID="mobile-workspace-channel-time"
+            >
+              {timestamp}
+            </Text>
+          ) : null}
           {priority.hasMentions ? (
             <Text style={styles.mobileWorkspaceChannelMentionBadge}>
               @{formatMobileUnreadCount(channel.mentionCount)}
@@ -302,12 +385,7 @@ export const WorkspaceChannelCompactRow = memo(function WorkspaceChannelCompactR
             </Text>
           ) : null}
         </View>
-        {!isRailLayout && lastMessagePreview ? (
-          <Text style={styles.mobileWorkspaceChannelMeta} numberOfLines={1}>
-            {lastMessagePreview}
-          </Text>
-        ) : null}
-      </View>
+      ) : null}
       {priority.isLocked || priority.isReadOnly ? (
         <Ionicons
           color={theme.text.soft}

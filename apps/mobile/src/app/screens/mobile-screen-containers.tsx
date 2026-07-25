@@ -12,6 +12,7 @@ import type {
   MobileBottomTabParamList,
   MobileRootStackParamList,
 } from "../../navigation/mobile-navigation-types";
+import { useMobileAuth } from "../../auth/mobile-auth-context";
 import { useMobileActiveTargetStore } from "../../state/mobile-active-target-store";
 import {
   useMobileMessagesScreenProps,
@@ -544,6 +545,7 @@ export function SharedMediaScreenContainer({
 }: NativeStackScreenProps<MobileRootStackParamList, "SharedMedia">) {
   const { conversationId, userId } = route.params;
   const conversations = useMobileDMConversationsCache();
+  const { session } = useMobileAuth();
 
   return (
     <MobileSharedMediaScreen
@@ -552,8 +554,12 @@ export function SharedMediaScreenContainer({
       key={conversationId}
       conversationId={conversationId}
       onBack={() => navigation.goBack()}
+      // The DM header opens this route with no `userId`, and the cached
+      // conversation lists the viewer first: without the viewer's own id the
+      // subtitle names the viewer instead of the person the gallery is about.
       participantName={resolveMobileSharedMediaParticipantName(conversations, {
         conversationId,
+        ...(session?.user.id ? { currentUserId: session.user.id } : {}),
         ...(userId ? { userId } : {}),
       })}
     />

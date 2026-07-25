@@ -213,7 +213,10 @@ describe("mobile performance surfaces", () => {
 
   it("renders live voice participant avatars and count from the server voice-state cache", async () => {
     const channelView = await render(
+      // The rail (1a) is the layout that pairs the people count with stacked
+      // avatars; the compact row (1b) spells the names out instead.
       <WorkspaceChannelSectionList
+        {...({ layout: "rail" } as never)}
         isCollapseDisabled={false}
         onOpenChannel={jest.fn()}
         onToggleSection={jest.fn()}

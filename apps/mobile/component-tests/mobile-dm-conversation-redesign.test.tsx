@@ -1,6 +1,6 @@
 import React from "react";
 import { describe, expect, it, jest } from "@jest/globals";
-import { act, fireEvent, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, waitFor, within } from "@testing-library/react-native";
 import { Pressable, StyleSheet } from "react-native";
 import type { MobileDMMessagesResponse } from "@wizards/types";
 
@@ -310,6 +310,24 @@ describe("4a DM conversation redesign", () => {
       paddingVertical: 7,
     });
     expect(styles.reactionTimeSpacing).toMatchObject({ marginTop: 10 });
+  });
+
+  it("keeps the viewer's own photo out of the header when the partner has no avatar", async () => {
+    const props = createScreenProps({
+      conversation: {
+        ...conversation,
+        participants: [
+          { ...conversation.participants[0], avatarUrl: "https://cdn.whispr.team/self.png" },
+          conversation.participants[1],
+        ],
+      } as typeof conversation,
+    });
+    const view = await render(<DMConversationScreen {...props} />);
+    const header = within(view.getByTestId("mobile-dm-header-profile-card"));
+
+    // Fallback initials render only when no image is shown, and they belong to
+    // the partner — the viewer's own avatar must never fill this slot.
+    expect(header.getByText("PA")).toBeTruthy();
   });
 
   it("groups only consecutive same-sender messages within sixty seconds", () => {

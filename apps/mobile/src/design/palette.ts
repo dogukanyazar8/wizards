@@ -145,6 +145,8 @@ export const redesignLight = {
   dangerSurface: "#FCE9E9",
   pendingBadge: "#E0527E",
   controlChevron: "#B7BCD6",
+  /** Handoff `dashed` token: "add" affordances drawn with a dashed outline (1a rail +, 1c new-server row, 1e "+ Yeni" chip). */
+  controlDashedBorder: "#C9CDE4",
   controlSeparatorDot: "#C6CADE",
   inkSurface: "#1E2235",
   voiceRoomControl: "#FFFFFF",
@@ -211,6 +213,8 @@ export const redesignDark = {
   dangerSurface: "rgba(224,82,82,.14)",
   pendingBadge: "#E0527E",
   controlChevron: "#5B608C",
+  /** Dark twin of the handoff `dashed` token. */
+  controlDashedBorder: "#3B3F73",
   controlSeparatorDot: "#3B3F73",
   success: "#34D399",
   successSurface: "rgba(52,211,153,.12)",

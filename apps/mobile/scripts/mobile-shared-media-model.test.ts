@@ -54,7 +54,10 @@ describe("mobile shared media model", () => {
     );
 
     assert.deepEqual(
-      rows.map((row) => [row.kind, row.kind === "grid" ? row.cells.length : row.kind === "month" ? row.label : null]),
+      rows.map((row) => [
+        row.kind,
+        row.kind === "grid" ? row.cells.length : row.kind === "month" ? row.label : null,
+      ]),
       [
         ["month", "2026-07"],
         ["grid", 3],
@@ -260,11 +263,55 @@ describe("mobile shared media model", () => {
       null,
     );
     assert.equal(
-      resolveMobileSharedMediaParticipantName(
-        [{ id: "dm-2", name: "Tasarım", participants: [] }],
-        { conversationId: "dm-2" },
-      ),
+      resolveMobileSharedMediaParticipantName([{ id: "dm-2", name: "Tasarım", participants: [] }], {
+        conversationId: "dm-2",
+      }),
       "Tasarım",
+    );
+  });
+
+  it("names the counterpart, not the viewer, when the route carries no user", () => {
+    // Conversation payloads list the viewer too, ordered joinedAt asc, so the
+    // viewer is usually participants[0] on a DM the viewer started.
+    const conversations = [
+      {
+        id: "dm-1",
+        name: null,
+        participants: [
+          { displayName: "Ben", id: "user-1", username: "viewer" },
+          { displayName: "Ayşegül", id: "user-2", username: "aysegul_dev" },
+        ],
+      },
+      {
+        id: "dm-self",
+        name: null,
+        participants: [{ displayName: "Ben", id: "user-1", username: "viewer" }],
+      },
+    ];
+
+    assert.equal(
+      resolveMobileSharedMediaParticipantName(conversations, {
+        conversationId: "dm-1",
+        currentUserId: "user-1",
+      }),
+      "Ayşegül",
+    );
+    // Note-to-self: nobody else is left, so the viewer stays the subject.
+    assert.equal(
+      resolveMobileSharedMediaParticipantName(conversations, {
+        conversationId: "dm-self",
+        currentUserId: "user-1",
+      }),
+      "Ben",
+    );
+    // An explicit route param still wins, even when it names the viewer.
+    assert.equal(
+      resolveMobileSharedMediaParticipantName(conversations, {
+        conversationId: "dm-1",
+        currentUserId: "user-1",
+        userId: "user-1",
+      }),
+      "Ben",
     );
   });
 

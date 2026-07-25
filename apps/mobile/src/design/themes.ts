@@ -123,6 +123,8 @@ export interface MobileTheme {
   /** Settings/list-row control chrome: disclosure chevrons, separator dots, toggle track. */
   readonly control: {
     readonly chevron: string;
+    /** Dashed outline on "add" affordances (1a rail +, 1c new-server row). */
+    readonly dashedBorder: string;
     readonly separatorDot: string;
     readonly trackOff: string;
     readonly trackThumb: string;
@@ -449,6 +451,7 @@ export const lightTheme = deepFreeze({
   },
   control: {
     chevron: redesignLight.controlChevron,
+    dashedBorder: redesignLight.controlDashedBorder,
     separatorDot: redesignLight.controlSeparatorDot,
     trackOff: redesignLight.languageHandle,
     trackThumb: mobilePalette.neutral.white,
@@ -717,6 +720,7 @@ export const darkTheme = deepFreeze({
   },
   control: {
     chevron: redesignDark.controlChevron,
+    dashedBorder: redesignDark.controlDashedBorder,
     separatorDot: redesignDark.controlSeparatorDot,
     trackOff: redesignDark.languageHandle,
     trackThumb: mobilePalette.neutral.white,

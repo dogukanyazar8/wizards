@@ -2,6 +2,7 @@ import {
   ActivityIndicator,
   Ionicons,
   Pressable,
+  ScrollView,
   Text,
   TextInput,
   View,
@@ -414,6 +415,46 @@ export function MobileWorkspaceBrowser({
     );
   }
 
+  // "N üye · N kanal · ● N seste" from live data. 1a hangs it under the title as
+  // its own row (the header buttons would otherwise crush it); 1b nests it in the
+  // server pill and drops the channel count, exactly like the handoff.
+  const serverMeta = (
+    <View
+      style={[
+        styles.mobileWorkspaceMetaRow,
+        !isCompactWorkspaceLayout && styles.mobileWorkspaceMetaRowRail,
+      ]}
+    >
+      <Text
+        style={[
+          styles.mobileWorkspaceMeta,
+          isCompactWorkspaceLayout && styles.mobileWorkspaceMetaCompact,
+        ]}
+      >
+        {activeMemberCount} {copy.membersSuffix}
+      </Text>
+      {!isCompactWorkspaceLayout ? (
+        <>
+          <Text style={styles.mobileWorkspaceMetaSep}>·</Text>
+          <Text style={styles.mobileWorkspaceMeta}>
+            {activeChannelCount} {copy.channelsSuffix}
+          </Text>
+        </>
+      ) : null}
+      {voiceParticipantTotal > 0 ? (
+        <>
+          <Text style={styles.mobileWorkspaceMetaSep}>·</Text>
+          <View style={styles.mobileWorkspaceVoiceMeta}>
+            <View style={styles.mobileWorkspaceVoiceMetaDot} />
+            <Text style={styles.mobileWorkspaceVoiceMetaText}>
+              {voiceParticipantTotal} {copy.workspaceInVoiceSuffix}
+            </Text>
+          </View>
+        </>
+      ) : null}
+    </View>
+  );
+
   return (
     <View
       style={[
@@ -423,7 +464,14 @@ export function MobileWorkspaceBrowser({
     >
       {!isCompactWorkspaceLayout ? (
         <View style={styles.mobileServerRail}>
-          <View style={styles.mobileServerRailList}>
+          {/* The rail holds up to MOBILE_RENDER_LIMITS.servers entries, so it
+              scrolls vertically with the dashed add (+) trailing the last server
+              instead of being clipped off-screen. */}
+          <ScrollView
+            contentContainerStyle={styles.mobileServerRailList}
+            showsVerticalScrollIndicator={false}
+            style={styles.mobileServerRailScroll}
+          >
             {servers.map((server) => {
               const isActive = server.id === activeServerId;
               const badge = getMobileServerBadge(server);
@@ -442,33 +490,37 @@ export function MobileWorkspaceBrowser({
                   ]}
                 >
                   {isActive ? <View style={styles.mobileServerRailActiveIndicator} /> : null}
-                  <AvatarMark
-                    avatarBorderRadius={16}
-                    imageUrl={server.iconUrl}
-                    label={server.shortName ?? server.name}
-                    size="regular"
-                  />
-                  {badge.kind === "mention" ? (
-                    <Text style={styles.mobileServerRailBadge}>
-                      {formatMobileUnreadCount(badge.count)}
-                    </Text>
-                  ) : badge.kind === "unread" ? (
-                    <View style={styles.mobileServerRailUnreadDot} />
-                  ) : null}
+                  <View style={styles.mobileServerRailAvatarWrap}>
+                    <AvatarMark
+                      avatarBorderRadius={16}
+                      avatarBorderWidth={0}
+                      dimension={44}
+                      imageUrl={server.iconUrl}
+                      label={server.shortName ?? server.name}
+                      size="regular"
+                    />
+                    {badge.kind === "mention" ? (
+                      <Text style={styles.mobileServerRailBadge}>
+                        {formatMobileUnreadCount(badge.count)}
+                      </Text>
+                    ) : badge.kind === "unread" ? (
+                      <View style={styles.mobileServerRailUnreadDot} />
+                    ) : null}
+                  </View>
                 </Pressable>
               );
             })}
-          </View>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={copy.workspaceAddServerAction}
-            accessibilityState={{ disabled: false }}
-            onPress={serverManagement.openCreateJoinSheet}
-            style={styles.mobileServerRailAddButton}
-            testID="mobile-server-add-open"
-          >
-            <Ionicons name="add" size={22} color={theme.accent.strong} />
-          </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={copy.workspaceAddServerAction}
+              accessibilityState={{ disabled: false }}
+              onPress={serverManagement.openCreateJoinSheet}
+              style={styles.mobileServerRailAddButton}
+              testID="mobile-server-add-open"
+            >
+              <Ionicons name="add" size={16} color={theme.text.visualSecondary} />
+            </Pressable>
+          </ScrollView>
         </View>
       ) : null}
 
@@ -494,7 +546,9 @@ export function MobileWorkspaceBrowser({
                 accessibilityRole="button"
                 onPress={() => setServerSwitcherOpen(true)}
                 style={({ pressed }) => [
-                  styles.mobileWorkspaceHeader,
+                  isCompactWorkspaceLayout
+                    ? styles.mobileWorkspaceHeader
+                    : styles.mobileWorkspaceHeaderRail,
                   isCompactWorkspaceLayout && styles.mobileWorkspaceHeaderCompact,
                   pressed && styles.compactListRowPressed,
                 ]}
@@ -503,8 +557,9 @@ export function MobileWorkspaceBrowser({
                 {isCompactWorkspaceLayout ? (
                   <View style={styles.mobileWorkspaceHeaderAvatarWrap}>
                     <AvatarMark
-                      avatarBorderRadius={15}
+                      avatarBorderRadius={14}
                       avatarBorderWidth={0}
+                      dimension={38}
                       fallbackTextStyle={styles.mobileWorkspaceHeaderAvatarFallback}
                       imageUrl={activeServerIconUrl}
                       label={activeServerShortName}
@@ -517,42 +572,29 @@ export function MobileWorkspaceBrowser({
                     ) : null}
                   </View>
                 ) : null}
-                <View style={styles.mobileWorkspaceHeaderText}>
+                {isCompactWorkspaceLayout ? (
+                  // 1b: the pill stacks name over meta; 1a puts meta on its own row.
+                  <View style={styles.mobileWorkspaceHeaderText}>
+                    <Text
+                      style={[styles.mobileWorkspaceTitle, styles.mobileWorkspaceTitleCompact]}
+                      numberOfLines={1}
+                    >
+                      {activeServerName}
+                    </Text>
+                    {serverMeta}
+                  </View>
+                ) : (
                   <Text style={styles.mobileWorkspaceTitle} numberOfLines={1}>
                     {activeServerName}
                   </Text>
-                  <View style={styles.mobileWorkspaceMetaRow}>
-                    <Text style={styles.mobileWorkspaceMeta}>
-                      {activeMemberCount} {copy.membersSuffix}
-                    </Text>
-                    {!isCompactWorkspaceLayout ? (
-                      <>
-                        <Text style={styles.mobileWorkspaceMetaSep}>·</Text>
-                        <Text style={styles.mobileWorkspaceMeta}>
-                          {activeChannelCount} {copy.channelsSuffix}
-                        </Text>
-                      </>
-                    ) : null}
-                    {voiceParticipantTotal > 0 ? (
-                      <>
-                        <Text style={styles.mobileWorkspaceMetaSep}>·</Text>
-                        <View style={styles.mobileWorkspaceVoiceMeta}>
-                          <View style={styles.mobileWorkspaceVoiceMetaDot} />
-                          <Text style={styles.mobileWorkspaceVoiceMetaText}>
-                            {voiceParticipantTotal} {copy.workspaceInVoiceSuffix}
-                          </Text>
-                        </View>
-                      </>
-                    ) : null}
-                  </View>
-                </View>
+                )}
                 {isActiveServerLoading ? (
                   <ActivityIndicator color={theme.accent.strong} size="small" />
                 ) : (
                   <MobileLineIcon
                     color={theme.text.visualSecondary}
                     name="chevron-down"
-                    size={20}
+                    size={isCompactWorkspaceLayout ? 18 : 16}
                   />
                 )}
               </Pressable>
@@ -560,6 +602,7 @@ export function MobileWorkspaceBrowser({
                 <Pressable
                   accessibilityLabel={copy.workspaceChannelSearchPlaceholder}
                   accessibilityRole="button"
+                  hitSlop={6}
                   onPress={() => {
                     const next = !isChannelSearchOpen;
                     setChannelSearchOpen(next);
@@ -568,12 +611,12 @@ export function MobileWorkspaceBrowser({
                     }
                   }}
                   style={({ pressed }) => [
-                    styles.mobileWorkspaceCompactAddButton,
+                    styles.mobileWorkspaceHeaderIconButton,
                     pressed && styles.compactListRowPressed,
                   ]}
                   testID="mobile-workspace-search-toggle"
                 >
-                  <MobileLineIcon color={theme.accent.default} name="search" size={20} />
+                  <MobileLineIcon color={theme.accent.default} name="search" size={16} />
                 </Pressable>
               ) : null}
               {canManageInvites ? (
@@ -581,14 +624,21 @@ export function MobileWorkspaceBrowser({
                   accessibilityLabel={copy.workspaceServerInviteShareAction}
                   accessibilityRole="button"
                   disabled={serverManagement.busy}
+                  hitSlop={6}
                   onPress={() => void handleInviteShare()}
                   style={({ pressed }) => [
-                    styles.mobileWorkspaceCompactAddButton,
+                    isCompactWorkspaceLayout
+                      ? styles.mobileWorkspaceCompactAddButton
+                      : styles.mobileWorkspaceHeaderIconButton,
                     pressed && styles.compactListRowPressed,
                   ]}
                   testID={`mobile-server-invite-share-${activeServerId}`}
                 >
-                  <MobileLineIcon color={theme.accent.default} name="invite-user" size={20} />
+                  <MobileLineIcon
+                    color={theme.accent.default}
+                    name="invite-user"
+                    size={isCompactWorkspaceLayout ? 18 : 16}
+                  />
                 </Pressable>
               ) : null}
               {isCompactWorkspaceLayout &&
@@ -608,13 +658,14 @@ export function MobileWorkspaceBrowser({
                   ]}
                   testID={`mobile-server-settings-open-${activeServerId}`}
                 >
-                  <Ionicons name="settings-outline" size={20} color={theme.accent.default} />
+                  <Ionicons name="settings-outline" size={18} color={theme.accent.default} />
                 </Pressable>
               ) : null}
               {!isCompactWorkspaceLayout && canManageChannels ? (
                 <Pressable
                   accessibilityLabel={copy.workspaceCreateMenuTitle}
                   accessibilityRole="button"
+                  hitSlop={6}
                   onPress={() => setCreateState({ categoryId: null, kind: "menu" })}
                   style={({ pressed }) => [
                     styles.mobileWorkspaceCreateButton,
@@ -622,10 +673,11 @@ export function MobileWorkspaceBrowser({
                   ]}
                   testID="mobile-workspace-create-open"
                 >
-                  <Ionicons name="add" size={20} color={theme.text.onPrimary} />
+                  <Ionicons name="add" size={17} color={theme.text.onPrimary} />
                 </Pressable>
               ) : null}
             </View>
+            {!isCompactWorkspaceLayout ? serverMeta : null}
             {isActiveServerLoading ? (
               <View style={styles.mobileWorkspaceSearchRow} testID="mobile-workspace-loading">
                 <Skeleton height={48} />

@@ -147,12 +147,58 @@ describe("1c DM inbox redesign", () => {
     );
   });
 
+  it("shows the counterpart identity on a direct row and never the viewer's own avatar", async () => {
+    const directConversation = {
+      ...groupConversation,
+      id: "dm-2",
+      name: "ogi_uat",
+      participantCount: 2,
+      participants: [
+        {
+          avatarUrl: "https://cdn.whispr.team/self.png",
+          displayName: null,
+          id: "user-self",
+          status: "ONLINE",
+          username: "dogukanyazar",
+        },
+        {
+          avatarUrl: null,
+          displayName: null,
+          id: "user-ogi",
+          status: "OFFLINE",
+          username: "ogi_uat",
+        },
+      ],
+      type: "DM",
+      unreadCount: 0,
+    } as typeof groupConversation;
+
+    const view = await render(
+      <DirectMessageConversationCard
+        conversation={directConversation}
+        currentUserId="user-self"
+        onOpenConversation={jest.fn()}
+        selected={false}
+      />,
+    );
+
+    // Initials render only when the row falls back, and the row must fall back
+    // to the counterpart instead of borrowing the viewer's photo.
+    expect(view.getByText("OG")).toBeTruthy();
+  });
+
   it("paints the online strip ring and dot with the per-status presence colour", async () => {
     const view = await render(
       <DMOnlineStrip
         friends={[
           { avatarUrl: null, displayName: null, id: "f-dnd", status: "DND", username: "dnd_user" },
-          { avatarUrl: null, displayName: null, id: "f-idle", status: "IDLE", username: "idle_user" },
+          {
+            avatarUrl: null,
+            displayName: null,
+            id: "f-idle",
+            status: "IDLE",
+            username: "idle_user",
+          },
         ]}
         onAddFriend={jest.fn()}
         onOpenFriendDM={jest.fn()}

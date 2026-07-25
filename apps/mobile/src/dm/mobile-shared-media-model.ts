@@ -1,4 +1,8 @@
-import type { MessageAttachment, MobileDMAttachmentItem, MobileDMAttachmentsTab } from "@wizards/types";
+import type {
+  MessageAttachment,
+  MobileDMAttachmentItem,
+  MobileDMAttachmentsTab,
+} from "@wizards/types";
 
 /**
  * 11f shared-media gallery view model. The screen renders a FlashList of
@@ -168,9 +172,7 @@ export function collectMobileSharedMediaViewerSources(
     }
 
     const uri = item.attachment.url ?? resolveMobileSharedMediaThumbnail(item.attachment);
-    return uri === null
-      ? []
-      : [{ createdAt: item.messageCreatedAt, id: item.attachment.id, uri }];
+    return uri === null ? [] : [{ createdAt: item.messageCreatedAt, id: item.attachment.id, uri }];
   });
 }
 
@@ -204,10 +206,21 @@ export type MobileSharedMediaParticipantSource = {
  * DM conversation cache the caller came through, so it is read from there
  * rather than costing a second request; a cold cache degrades to a name-less
  * subtitle instead of blocking the list.
+ *
+ * The DM header opens this route without a `userId`, and every conversation
+ * payload lists the viewer too (joinedAt asc, so usually first) — reading
+ * `participants[0]` therefore subtitled the gallery with the viewer's own name.
+ * `currentUserId` drops the viewer from the candidates, exactly like
+ * `getMobileConversationCounterparts`; a conversation with nobody else left
+ * keeps the viewer so a note-to-self still has a name.
  */
 export function resolveMobileSharedMediaParticipantName(
   conversations: readonly MobileSharedMediaParticipantSource[],
-  input: { readonly conversationId: string; readonly userId?: string | undefined },
+  input: {
+    readonly conversationId: string;
+    readonly currentUserId?: string | undefined;
+    readonly userId?: string | undefined;
+  },
 ): string | null {
   const conversation = conversations.find((entry) => entry.id === input.conversationId);
   if (!conversation) {
@@ -216,13 +229,25 @@ export function resolveMobileSharedMediaParticipantName(
 
   const participant = input.userId
     ? conversation.participants.find((entry) => entry.id === input.userId)
-    : conversation.participants[0];
+    : getMobileSharedMediaCounterparts(conversation, input.currentUserId)[0];
 
   if (participant) {
     return participant.displayName ?? participant.username;
   }
 
   return conversation.name;
+}
+
+function getMobileSharedMediaCounterparts(
+  conversation: MobileSharedMediaParticipantSource,
+  currentUserId?: string,
+): MobileSharedMediaParticipantSource["participants"] {
+  if (!currentUserId) {
+    return conversation.participants;
+  }
+
+  const counterparts = conversation.participants.filter((entry) => entry.id !== currentUserId);
+  return counterparts.length > 0 ? counterparts : conversation.participants;
 }
 
 /** `whispr.test` — the host is the only "title" a link row can show for free. */

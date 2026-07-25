@@ -169,11 +169,33 @@ export function getMobilePresenceTone(status: string | null | undefined): Mobile
   }
 }
 
+/**
+ * Every conversation payload lists the viewer too (joinedAt asc, so usually
+ * first). A counterpart surface that reads `participants[0]` therefore shows
+ * the viewer's own name or photo whenever the other side has none, which is
+ * why the caller passes its `currentUserId`. A conversation with nobody but
+ * the viewer keeps the viewer, so a note-to-self still has an identity.
+ */
+function getMobileConversationCounterparts(
+  conversation: MobileConversationSummary,
+  currentUserId?: string,
+): MobileConversationSummary["participants"] {
+  if (!currentUserId) {
+    return conversation.participants;
+  }
+
+  const counterparts = conversation.participants.filter(
+    (participant) => participant.id !== currentUserId,
+  );
+  return counterparts.length > 0 ? counterparts : conversation.participants;
+}
+
 export function getMobileConversationTitle(
   conversation: MobileConversationSummary,
   fallback: string,
+  currentUserId?: string,
 ): string {
-  const participantNames = conversation.participants
+  const participantNames = getMobileConversationCounterparts(conversation, currentUserId)
     .map((participant) => participant.displayName ?? participant.username)
     .filter(Boolean);
 
@@ -184,8 +206,15 @@ export function getMobileConversationTitle(
 
 export function getMobileConversationAvatarUrl(
   conversation: MobileConversationSummary,
+  currentUserId?: string,
 ): string | null {
-  return conversation.iconUrl ?? conversation.participants[0]?.avatarUrl ?? null;
+  return (
+    conversation.iconUrl ??
+    getMobileConversationCounterparts(conversation, currentUserId).find(
+      (participant) => participant.avatarUrl,
+    )?.avatarUrl ??
+    null
+  );
 }
 
 export function getMobileConversationActiveCount(conversation: MobileConversationSummary): number {
@@ -269,7 +298,13 @@ export function getMobileHomeQuickActions(
           ? `${unreadConversation.unreadCount} ${labels.unreadSuffix}`
           : labels.latestDirectMessage,
       targetId: unreadConversation.id,
-      title: getMobileConversationTitle(unreadConversation, labels.directMessageFallback),
+      // Bootstrap sends the raw conversation row, so a DM has no server-resolved
+      // name here and the title has to skip the viewer itself.
+      title: getMobileConversationTitle(
+        unreadConversation,
+        labels.directMessageFallback,
+        payload.user.id,
+      ),
     });
   }
 
@@ -305,8 +340,9 @@ export function getMobileHomeQuickActions(
 export function getMobileConversationInitialsLabel(
   conversation: MobileConversationSummary,
   fallback: string,
+  currentUserId?: string,
 ): string {
-  return getMobileConversationTitle(conversation, fallback);
+  return getMobileConversationTitle(conversation, fallback, currentUserId);
 }
 
 export function getMobileMessageBodyPreview(
@@ -507,11 +543,15 @@ export function getMobileVoiceChannelScreenModel(
     listeningParticipants,
     memberCountLabel: String(Math.max(0, options.memberCount)),
     participantCountLabel: String(allParticipants.length),
-    qualityLabel: isConnected ? localized.voiceRoomQualityConnected : localized.voiceRoomQualityPreparing,
+    qualityLabel: isConnected
+      ? localized.voiceRoomQualityConnected
+      : localized.voiceRoomQualityPreparing,
     serverName: options.serverName,
     serverShortName: options.serverShortName,
     shouldSplitParticipantsBySpeakingState: false,
-    signalLabel: isConnected ? localized.voiceRoomSignalActive : localized.voiceRoomSignalConnecting,
+    signalLabel: isConnected
+      ? localized.voiceRoomSignalActive
+      : localized.voiceRoomSignalConnecting,
     speakingParticipants,
     title: localized.voiceRoomLiveTitle,
   };

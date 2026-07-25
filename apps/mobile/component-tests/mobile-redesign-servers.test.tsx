@@ -2,6 +2,7 @@ import React from "react";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, jest } from "@jest/globals";
+import { fireEvent } from "@testing-library/react-native";
 import type { MobileWorkspaceChannelSummary } from "@wizards/types";
 import { createMobileAppShellStyles } from "../src/app/mobile-app-shell";
 import { createHomeScreenStyles } from "../src/app/screens/home-screen.styles";
@@ -29,42 +30,98 @@ describe("1a compact servers redesign", () => {
           successText: redesignLight.canonicalSuccessText,
         };
 
+    // 1b server pill.
     expect(styles.mobileWorkspaceHeader).toMatchObject({
-      borderRadius: 22,
+      borderRadius: 18,
       elevation: theme.elevation.headerCard.elevation,
-      gap: 12,
-      minHeight: 64,
-      paddingHorizontal: 14,
-      paddingVertical: 10,
+      gap: 10,
+      minHeight: 54,
+      paddingLeft: 8,
+      paddingRight: 12,
+      paddingVertical: 8,
       shadowRadius: theme.elevation.headerCard.shadowRadius,
     });
-    expect(styles.mobileWorkspaceChannelIcon).toMatchObject({
-      borderRadius: 12,
+    // 1a keeps the title bare on the screen background — no card, no padding.
+    expect(styles.mobileWorkspaceHeaderRail).toMatchObject({
+      flex: 1,
+      flexDirection: "row",
+      gap: 7,
+      minHeight: 44,
+    });
+    expect(styles.mobileWorkspaceHeaderRail).not.toHaveProperty("backgroundColor");
+    expect(styles.mobileWorkspaceHeaderIconButton).toMatchObject({
+      borderRadius: 13,
       height: 36,
       width: 36,
     });
+    expect(styles.mobileWorkspaceCompactAddButton).toMatchObject({
+      borderRadius: 15,
+      height: 42,
+      width: 42,
+    });
+    expect(styles.mobileWorkspaceCreateButton).toMatchObject({
+      borderRadius: 13,
+      height: 36,
+      width: 36,
+    });
+    expect(styles.mobileWorkspaceChannelIcon).toMatchObject({
+      borderRadius: 11,
+      height: 32,
+      width: 32,
+    });
+    expect(styles.mobileWorkspaceChannelIconRail).toMatchObject({
+      borderRadius: 10,
+      height: 30,
+      width: 30,
+    });
     expect(styles.mobileWorkspaceChannelRow).toMatchObject({
-      borderRadius: 16,
-      gap: 12,
-      minHeight: 58,
-      paddingHorizontal: 12,
-      paddingVertical: 11,
+      borderRadius: 14,
+      gap: 10,
+      minHeight: 50,
+      paddingHorizontal: 10,
+      paddingVertical: 9,
+    });
+    expect(styles.mobileWorkspaceChannelRowRail).toMatchObject({
+      borderRadius: 14,
+      gap: 10,
+      minHeight: 46,
+      paddingHorizontal: 10,
+      paddingVertical: 8,
     });
     expect(styles.mobileWorkspaceChannelName).toMatchObject({
       fontFamily: theme.typography.fontFamilySemiBold,
-      fontSize: 15,
+      fontSize: 14.5,
       includeFontPadding: false,
       lineHeight: 18,
     });
     expect(styles.mobileWorkspaceChannelNameActive).toMatchObject({
-      fontFamily: theme.typography.fontFamilyBold,
+      fontFamily: theme.typography.fontFamilyExtraBold,
+    });
+    expect(styles.mobileWorkspaceChannelNameStrong).toMatchObject({
+      color: theme.text.primary,
+      fontFamily: theme.typography.fontFamilyExtraBold,
+    });
+    expect(styles.mobileWorkspaceChannelNameMuted).toMatchObject({
+      color: canonical.secondary,
+      fontFamily: theme.typography.fontFamilySemiBold,
     });
     expect(styles.mobileWorkspaceChannelMeta).toMatchObject({
       color: canonical.secondary,
       fontFamily: theme.typography.fontFamily,
-      fontSize: 12,
+      fontSize: 11.5,
       includeFontPadding: false,
       lineHeight: 15,
+    });
+    expect(styles.mobileWorkspaceChannelMetaMentionToken).toMatchObject({
+      color: theme.accent.default,
+      fontFamily: theme.typography.fontFamilyBold,
+    });
+    expect(styles.mobileWorkspaceChannelTimestamp).toMatchObject({
+      color: theme.text.visualPlaceholder,
+      fontFamily: theme.typography.fontFamilySemiBold,
+      fontSize: 10.5,
+      includeFontPadding: false,
+      lineHeight: 14,
     });
     expect(styles.mobileWorkspaceChannelHash).toMatchObject({
       color: canonical.faint,
@@ -85,33 +142,35 @@ describe("1a compact servers redesign", () => {
     });
     expect(styles.mobileWorkspaceTitle).toMatchObject({
       fontFamily: theme.typography.fontFamilyExtraBold,
-      fontSize: 17,
+      fontSize: 18,
       includeFontPadding: false,
-      lineHeight: 22,
+      lineHeight: 24,
     });
+    // Category labels: 10.5px extra-bold with the handoff's .12em tracking.
     expect(styles.mobileWorkspaceSectionTitle).toMatchObject({
       color: canonical.faint,
-      fontFamily: theme.typography.fontFamilyBold,
-      fontSize: 11.5,
+      fontFamily: theme.typography.fontFamilyExtraBold,
+      fontSize: 10.5,
       includeFontPadding: false,
+      letterSpacing: 1.26,
       lineHeight: 14,
     });
     expect(styles.mobileWorkspaceSectionTitleRail).toMatchObject({
       color: canonical.faint,
-      fontFamily: theme.typography.fontFamilyBold,
-      fontSize: 11,
+      fontFamily: theme.typography.fontFamilyExtraBold,
+      fontSize: 10.5,
       includeFontPadding: false,
-      letterSpacing: 1.32,
+      letterSpacing: 1.26,
       lineHeight: 14,
     });
     expect(styles.mobileWorkspaceChannelNameRail).toMatchObject({
       fontFamily: theme.typography.fontFamilySemiBold,
-      fontSize: 14.5,
+      fontSize: 14,
       includeFontPadding: false,
       lineHeight: 18,
     });
     expect(styles.mobileWorkspaceChannelNameRailActive).toMatchObject({
-      fontFamily: theme.typography.fontFamilyBold,
+      fontFamily: theme.typography.fontFamilyExtraBold,
     });
     expect(styles.mobileWorkspaceChannelHashRail).toMatchObject({
       fontFamily: theme.typography.fontFamilyExtraBold,
@@ -121,46 +180,70 @@ describe("1a compact servers redesign", () => {
     });
     expect(styles.mobileWorkspaceMeta).toMatchObject({
       color: canonical.secondary,
-      fontFamily: theme.typography.fontFamily,
-      fontSize: 12.5,
+      fontFamily: theme.typography.fontFamilySemiBold,
+      fontSize: 11.5,
       includeFontPadding: false,
-      lineHeight: 16,
+      lineHeight: 15,
     });
+    expect(styles.mobileWorkspaceTitleCompact).toMatchObject({ fontSize: 15 });
     expect(styles.mobileWorkspaceSearchBox).toMatchObject({
-      minHeight: 42,
-      paddingHorizontal: 16,
+      borderRadius: 15,
+      minHeight: 44,
+      paddingHorizontal: 14,
     });
     expect(styles.mobileWorkspaceSearchInput).toMatchObject({
       color: theme.text.primary,
       fontFamily: theme.typography.fontFamily,
-      fontSize: 14.5,
+      fontSize: 13.5,
       includeFontPadding: false,
-      lineHeight: 20,
+      lineHeight: 18,
     });
+    // Row badges: 18px pills, mention red outranks unread primary.
     expect(styles.mobileWorkspaceUnreadDot).toMatchObject({
-      fontFamily: theme.typography.fontFamilyBold,
-      fontSize: 11,
+      backgroundColor: theme.accent.action,
+      fontFamily: theme.typography.fontFamilyExtraBold,
+      fontSize: 10,
       includeFontPadding: false,
-      lineHeight: 22,
+      lineHeight: 18,
+      minWidth: 18,
     });
-    expect(styles.channelMentionBadge).toMatchObject({
-      fontFamily: theme.typography.fontFamilyBold,
-      fontSize: 11,
+    expect(styles.mobileWorkspaceChannelMentionBadge).toMatchObject({
+      backgroundColor: theme.mention.badge,
+      fontFamily: theme.typography.fontFamilyExtraBold,
+      fontSize: 10,
       includeFontPadding: false,
-      lineHeight: 22,
+      lineHeight: 18,
+      minWidth: 18,
     });
     expect(styles.mobileWorkspaceSectionHeader).toMatchObject({
       paddingBottom: 4,
       paddingTop: 8,
     });
-    expect(styles.mobileWorkspaceSectionList).toMatchObject({ paddingTop: 14 });
+    expect(styles.mobileWorkspaceSectionList).toMatchObject({ gap: 2 });
+    expect(styles.mobileServerRail).toMatchObject({ width: 66 });
+    // The rail scrolls, so a member of many servers can still reach the add (+).
+    expect(styles.mobileServerRailScroll).toMatchObject({ flex: 1, width: 66 });
+    // 44px avatar inside a 52px slot: the active ring is a 2px bg gap + 2px primary.
+    expect(styles.mobileServerRailItem).toMatchObject({ height: 52, width: 52 });
+    expect(styles.mobileServerRailItemActive).toMatchObject({
+      backgroundColor: theme.surface.base,
+      borderColor: theme.accent.default,
+      borderWidth: 2,
+    });
+    expect(styles.mobileServerRailAvatarWrap).toMatchObject({ height: 44, width: 44 });
+    expect(styles.mobileServerRailAddButton).toMatchObject({
+      borderColor: theme.control.dashedBorder,
+      borderStyle: "dashed",
+      height: 44,
+      width: 44,
+    });
     expect(styles.mobileServerRailBadge).toMatchObject({
       backgroundColor: theme.mention.badge,
       borderColor: theme.surface.base,
       borderRadius: 999,
       borderWidth: 2,
       fontSize: 9.5,
-      minWidth: 18,
+      minWidth: 17,
     });
 
     expect(createMobileAppShellStyles(theme).shellSignedIn).toEqual({
@@ -298,7 +381,7 @@ describe("1a compact servers redesign", () => {
     );
   });
 
-  it("renders the 1h rail variant as the handoff's compact channel row", async () => {
+  it("renders the 1a rail row with the same icon box, preview and timestamp as 1b", async () => {
     const channel = {
       categoryId: "category-lobby",
       categoryName: "Lobby",
@@ -312,7 +395,7 @@ describe("1a compact servers redesign", () => {
         },
         createdAt: "2026-07-16T10:00:00.000Z",
         id: "message-1",
-        text: "This preview must not render in 1h",
+        text: "Rail rows carry the preview too",
       },
       locked: false,
       mentionCount: 0,
@@ -334,8 +417,13 @@ describe("1a compact servers redesign", () => {
       />,
     );
 
-    expect(view.queryByTestId("mobile-workspace-text-channel-icon")).toBeNull();
-    expect(view.queryByText("Ada: This preview must not render in 1h")).toBeNull();
+    expect(view.getByTestId("mobile-workspace-text-channel-icon").props.style).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ borderRadius: 10, height: 30, width: 30 }),
+      ]),
+    );
+    expect(view.getByTestId("mobile-workspace-channel-preview")).toBeTruthy();
+    expect(view.getByTestId("mobile-workspace-channel-time").props.children).toBeTruthy();
     expect(view.getByTestId("mobile-workspace-text-channel-hash").props.style).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -351,19 +439,141 @@ describe("1a compact servers redesign", () => {
       expect.arrayContaining([
         expect.objectContaining({
           fontFamily: lightTheme.typography.fontFamilySemiBold,
-          fontSize: 14.5,
+          fontSize: 14,
           includeFontPadding: false,
           lineHeight: 18,
         }),
         expect.objectContaining({
           color: lightTheme.accent.strong,
-          fontFamily: lightTheme.typography.fontFamilyBold,
+          fontFamily: lightTheme.typography.fontFamilyExtraBold,
         }),
       ]),
     );
   });
 
-  it("uses the handoff's custom invite and 16px category-chevron icons", () => {
+  it("highlights the @mention inside a preview and keeps a read row faint", async () => {
+    const mentioned = {
+      categoryId: "category-paycore",
+      categoryName: "Paycore",
+      id: "channel-development",
+      lastMessage: {
+        author: { avatarUrl: null, displayName: "DY", id: "user-dy", username: "dogukanyazar" },
+        createdAt: "2026-07-16T10:41:00.000Z",
+        id: "message-2",
+        text: "@dogukanyazar build hazır mı?",
+      },
+      locked: false,
+      mentionCount: 1,
+      name: "development",
+      position: 0,
+      readOnly: false,
+      topic: null,
+      type: "TEXT",
+      unreadCount: 1,
+    } as MobileWorkspaceChannelSummary;
+
+    const view = await render(
+      <WorkspaceChannelCompactRow
+        channel={mentioned}
+        isSelected={false}
+        onOpenChannel={jest.fn()}
+        voiceState={null}
+      />,
+    );
+
+    expect(view.getByText("@dogukanyazar").props.style).toEqual(
+      expect.objectContaining({
+        color: lightTheme.accent.default,
+        fontFamily: lightTheme.typography.fontFamilyBold,
+      }),
+    );
+    expect(view.getByText("@1")).toBeTruthy();
+    expect(view.getByText("development").props.style).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          color: lightTheme.text.primary,
+          fontFamily: lightTheme.typography.fontFamilyExtraBold,
+        }),
+      ]),
+    );
+
+    const read = await render(
+      <WorkspaceChannelCompactRow
+        channel={{ ...mentioned, mentionCount: 0, name: "test", unreadCount: 0 }}
+        isSelected={false}
+        onOpenChannel={jest.fn()}
+        voiceState={null}
+      />,
+    );
+
+    expect(read.getByText("test").props.style).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          color: redesignLight.canonicalTextSecondary,
+          fontFamily: lightTheme.typography.fontFamilySemiBold,
+        }),
+      ]),
+    );
+    expect(read.getByTestId("mobile-workspace-channel-preview").props.style).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ color: redesignLight.canonicalPlaceholder }),
+      ]),
+    );
+  });
+
+  it("connects straight to the room from the live voice row's Katıl pill", async () => {
+    const voiceChannel = {
+      categoryId: "category-lobby",
+      categoryName: "Lobby",
+      id: "channel-live",
+      lastMessage: null,
+      locked: false,
+      mentionCount: 0,
+      name: "live-room",
+      position: 0,
+      readOnly: false,
+      topic: null,
+      type: "VOICE",
+      unreadCount: 0,
+    } as MobileWorkspaceChannelSummary;
+    const onOpenChannel = jest.fn();
+
+    const view = await render(
+      <WorkspaceChannelCompactRow
+        channel={voiceChannel}
+        isSelected={false}
+        onOpenChannel={onOpenChannel}
+        voiceState={
+          {
+            channelId: "channel-live",
+            participants: [
+              {
+                avatarUrl: null,
+                displayName: "Ayşegül",
+                muted: false,
+                userId: "user-1",
+                username: "aysegul_dev",
+              },
+              {
+                avatarUrl: null,
+                displayName: null,
+                muted: false,
+                userId: "user-2",
+                username: "dogukanyazar",
+              },
+            ],
+          } as never
+        }
+      />,
+    );
+
+    // 1b spells the participants out; 1a shows a count with stacked avatars.
+    expect(view.getByText("Canlı · Ayşegül, dogukanyazar")).toBeTruthy();
+    await fireEvent.press(view.getByTestId("mobile-workspace-voice-join-channel-live"));
+    expect(onOpenChannel).toHaveBeenCalledWith(voiceChannel);
+  });
+
+  it("uses the handoff's custom invite icon and 11px category chevron", () => {
     const workspaceBrowser = readFileSync(
       resolve(__dirname, "../src/app/screens/workspace-browser.tsx"),
       "utf8",
@@ -375,7 +585,7 @@ describe("1a compact servers redesign", () => {
 
     expect(workspaceBrowser).toContain('name="invite-user"');
     expect(workspaceBrowser).toContain("color={theme.accent.default}");
-    expect(channelSections).toContain("size={16}");
+    expect(channelSections).toContain("size={11}");
   });
 
   it("renders each rail badge from that server's live unread and mention counts", () => {

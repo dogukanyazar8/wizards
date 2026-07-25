@@ -112,7 +112,7 @@ export function DMConversationScreen({
   const styles = useDMChatStyles();
   const title =
     state.payload?.conversation.name ??
-    getMobileConversationTitle(conversation, copy.directMessageFallback);
+    getMobileConversationTitle(conversation, copy.directMessageFallback, currentUserId);
   const responsePartner = state.payload?.conversation.participants.find(
     (participant) => participant.userId !== currentUserId,
   );
@@ -122,7 +122,7 @@ export function DMConversationScreen({
   const avatarUrl =
     responsePartner?.avatarUrl ??
     summaryPartner?.avatarUrl ??
-    getMobileConversationAvatarUrl(conversation);
+    getMobileConversationAvatarUrl(conversation, currentUserId);
   const isOnline = (responsePartner?.status ?? summaryPartner?.status) === "ONLINE";
   // Presence has no dedicated last-seen field; the conversation's real
   // last-activity timestamp is the closest honest signal for the 4a status line.
@@ -284,8 +284,9 @@ export function DMConversationPreviewCard({
   );
   const title =
     responseConversation?.name ??
-    getMobileConversationTitle(conversation, copy.directMessageFallback);
-  const avatarUrl = partner?.avatarUrl ?? getMobileConversationAvatarUrl(conversation);
+    getMobileConversationTitle(conversation, copy.directMessageFallback, currentUserId);
+  const avatarUrl =
+    partner?.avatarUrl ?? getMobileConversationAvatarUrl(conversation, currentUserId);
   const partnerId =
     partner?.userId ??
     conversation.participants.find((item) => item.id !== currentUserId)?.id ??

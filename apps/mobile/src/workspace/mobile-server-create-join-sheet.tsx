@@ -1,7 +1,8 @@
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useEffect, useRef, useState } from "react";
-import { Image, Text, TextInput, View } from "react-native";
+import { Image, Pressable, Text, View } from "react-native";
 
-import { BottomSheet, Button, SheetHeader, useSheetPresentation } from "../app/components/kit";
+import { BottomSheet, useSheetPresentation } from "../app/components/kit";
 import { useMobileLocaleRuntime } from "../app/providers/mobile-locale-provider";
 import { useTheme, useThemedStyles } from "../app/providers/mobile-theme-provider";
 import { getMobileRuntimeConfig } from "../config/environment";
@@ -9,6 +10,16 @@ import type { MobileTheme } from "../design/themes";
 import { parseMobileInviteCode } from "../invite/mobile-invite-share";
 import { mobileCopy } from "../locale/mobile-copy";
 import type { MobileImageUploadOutcome } from "../media/mobile-image-upload-service";
+import {
+  createMobileCreateSheetStyles,
+  MobileCreateSheetCancelButton,
+  MobileCreateSheetField,
+  MobileCreateSheetFooterHint,
+  MobileCreateSheetFormHeader,
+  MobileCreateSheetOptionCard,
+  MobileCreateSheetPrimaryCta,
+  MobileCreateSheetTitleBlock,
+} from "./mobile-create-sheet-kit";
 
 export interface MobileServerCreateJoinSheetProps {
   busy: boolean;
@@ -25,26 +36,43 @@ export interface MobileServerCreateJoinSheetProps {
   serverIconTargetId?: string | null;
 }
 
-type MobileServerSheetMode = "create" | "join";
+/**
+ * The add-server flow mirrors 1d→1e: the sheet opens on a branch menu, and each
+ * branch gets its own single-purpose form. The icon step stays a third screen
+ * because the upload needs the id the create call returns.
+ */
+type MobileServerSheetStep = "create" | "join" | "menu";
 
 const createStyles = (theme: MobileTheme) => ({
-  actions: { flexDirection: "row" as const, gap: 8 },
-  body: { gap: 12 },
-  error: { ...theme.typography.caption, color: theme.status.danger },
-  input: {
-    ...theme.typography.body,
-    backgroundColor: theme.surface.soft,
-    borderColor: theme.border.default,
-    borderRadius: theme.radii.control,
-    borderWidth: 1,
-    color: theme.text.primary,
-    minHeight: theme.sizing.minTouchTarget,
-    paddingHorizontal: 12,
+  sheet: { gap: 0 },
+  iconTarget: {
+    alignItems: "center" as const,
+    alignSelf: "center" as const,
+    backgroundColor: theme.surface.base,
+    borderColor: theme.control.separatorDot,
+    borderRadius: 30,
+    borderStyle: "dashed" as const,
+    borderWidth: 1.5,
+    height: 96,
+    justifyContent: "center" as const,
+    marginTop: 6,
+    overflow: "hidden" as const,
+    width: 96,
   },
-  iconPreview: {
-    borderRadius: theme.radii.card,
-    height: 88,
-    width: 88,
+  iconTargetFilled: { borderStyle: "solid" as const, borderColor: theme.accent.default },
+  iconPreview: { height: "100%" as const, width: "100%" as const },
+  iconHint: {
+    color: theme.text.visualPlaceholder,
+    fontSize: 11.5,
+    marginTop: 8,
+    textAlign: "center" as const,
+  },
+  iconError: {
+    color: theme.status.dangerOnBase,
+    fontFamily: theme.typography.fontFamilySemiBold,
+    fontSize: 11.5,
+    marginTop: 8,
+    textAlign: "center" as const,
   },
 });
 
@@ -66,9 +94,10 @@ export function MobileServerCreateJoinSheet({
   const { locale } = useMobileLocaleRuntime();
   const copy = mobileCopy[locale];
   const styles = useThemedStyles(createStyles);
+  const kitStyles = useThemedStyles(createMobileCreateSheetStyles);
   const sheetPresentation = useSheetPresentation();
   const theme = useTheme();
-  const [mode, setMode] = useState<MobileServerSheetMode>("create");
+  const [step, setStep] = useState<MobileServerSheetStep>("menu");
   const [name, setName] = useState("");
   const [inviteInput, setInviteInput] = useState("");
   const [localError, setLocalError] = useState<string | null>(null);
@@ -87,7 +116,7 @@ export function MobileServerCreateJoinSheet({
     submittingRef.current = false;
     setInviteInput("");
     setLocalError(null);
-    setMode("create");
+    setStep("menu");
     setName("");
     setReadyServerId(null);
     setIconPreviewUri(null);
@@ -95,9 +124,9 @@ export function MobileServerCreateJoinSheet({
     setSubmitting(false);
   }, [open]);
 
-  const setSheetMode = (nextMode: MobileServerSheetMode) => {
+  const goToStep = (nextStep: MobileServerSheetStep) => {
     setLocalError(null);
-    setMode(nextMode);
+    setStep(nextStep);
   };
 
   const markServerReady = (serverId: string) => {
@@ -187,6 +216,8 @@ export function MobileServerCreateJoinSheet({
 
   const isBusy = busy || submitting;
 
+  // Icon step: the create call already returned an id, so this screen replaces
+  // the form instead of stacking a second sheet over it.
   if (activeIconServerId) {
     return (
       <BottomSheet
@@ -197,8 +228,8 @@ export function MobileServerCreateJoinSheet({
         sizing="content"
         testID="mobile-server-create-join-sheet"
       >
-        <View style={styles.body}>
-          <SheetHeader
+        <View style={styles.sheet}>
+          <MobileCreateSheetFormHeader
             closeAccessibilityLabel={copy.sheetCloseAction}
             icon="image-outline"
             onClose={onClose}
@@ -206,43 +237,60 @@ export function MobileServerCreateJoinSheet({
             testID="mobile-server-create-icon-header"
             title={copy.workspaceServerIconAction}
           />
-          {iconPreviewUri ? (
-            <Image
-              accessibilityLabel={copy.workspaceServerIconAction}
-              source={{ uri: iconPreviewUri }}
-              style={styles.iconPreview}
-              testID="mobile-server-create-icon-preview"
-            />
-          ) : null}
+          <Pressable
+            accessibilityLabel={copy.workspaceServerIconAction}
+            accessibilityRole="button"
+            disabled={isBusy}
+            onPress={() => void uploadServerIcon()}
+            style={({ pressed }) => [
+              styles.iconTarget,
+              iconPreviewUri && styles.iconTargetFilled,
+              pressed && !isBusy && kitStyles.pressed,
+            ]}
+            testID="mobile-server-create-icon-target"
+          >
+            {iconPreviewUri ? (
+              <Image
+                accessibilityLabel={copy.workspaceServerIconAction}
+                source={{ uri: iconPreviewUri }}
+                style={styles.iconPreview}
+                testID="mobile-server-create-icon-preview"
+              />
+            ) : (
+              <Ionicons color={theme.text.visualPlaceholder} name="camera-outline" size={26} />
+            )}
+          </Pressable>
           {iconError ? (
-            <Text accessibilityRole="alert" style={styles.error} testID="mobile-server-create-icon-error">
+            <Text
+              accessibilityRole="alert"
+              style={styles.iconError}
+              testID="mobile-server-create-icon-error"
+            >
               {iconError}
             </Text>
-          ) : null}
-          <Button
+          ) : (
+            <Text style={styles.iconHint}>{copy.workspaceServerIconHint}</Text>
+          )}
+          <MobileCreateSheetPrimaryCta
             busy={isBusy}
-            fullWidth
+            icon="image-outline"
             label={copy.workspaceServerIconAction}
             onPress={() => void uploadServerIcon()}
             testID="mobile-server-create-icon"
           />
           {iconError ? (
-            <Button
+            <MobileCreateSheetCancelButton
               disabled={isBusy}
-              fullWidth
               label={copy.retryAction}
               onPress={() => void uploadServerIcon()}
               testID="mobile-server-create-icon-retry"
-              variant="secondary"
             />
           ) : null}
-          <Button
+          <MobileCreateSheetCancelButton
             disabled={isBusy}
-            fullWidth
             label={copy.workspaceServerIconFinishAction}
             onPress={onClose}
             testID="mobile-server-create-finish"
-            variant="ghost"
           />
         </View>
       </BottomSheet>
@@ -258,94 +306,105 @@ export function MobileServerCreateJoinSheet({
       sizing="content"
       testID="mobile-server-create-join-sheet"
     >
-      <View style={styles.body}>
-        <SheetHeader
-          closeAccessibilityLabel={copy.sheetCloseAction}
-          icon="add-circle-outline"
-          onClose={onClose}
-          subtitle={copy.workspaceServerCreateJoinDescription}
-          testID="mobile-server-create-join-header"
-          title={copy.workspaceAddServerAction}
-        />
-        <View style={styles.actions}>
-          <Button
-            accessibilityState={{ selected: mode === "create" }}
-            fullWidth
-            label={copy.workspaceServerCreateAction}
-            onPress={() => setSheetMode("create")}
-            testID="mobile-server-mode-create"
-            variant={mode === "create" ? "primary" : "secondary"}
-          />
-          <Button
-            accessibilityState={{ selected: mode === "join" }}
-            fullWidth
-            label={copy.workspaceServerJoinAction}
-            onPress={() => setSheetMode("join")}
-            testID="mobile-server-mode-join"
-            variant={mode === "join" ? "primary" : "secondary"}
-          />
-        </View>
-        {mode === "create" ? (
+      <View style={styles.sheet}>
+        {step === "menu" ? (
           <>
-            <TextInput
+            <MobileCreateSheetTitleBlock
+              subtitle={copy.workspaceServerCreateJoinDescription}
+              testID="mobile-server-add-menu-title"
+              title={copy.workspaceAddServerAction}
+            />
+            <View style={kitStyles.optionColumn}>
+              <MobileCreateSheetOptionCard
+                description={copy.workspaceServerCreateOptionDescription}
+                icon={<Ionicons color={theme.accent.default} name="add" size={20} />}
+                iconSurface={theme.accent.soft}
+                onPress={() => goToStep("create")}
+                testID="mobile-server-mode-create"
+                title={copy.workspaceServerCreateAction}
+              />
+              <MobileCreateSheetOptionCard
+                description={copy.workspaceServerJoinOptionDescription}
+                icon={<Ionicons color={theme.status.visualText} name="link-outline" size={19} />}
+                iconSurface={theme.status.successSoft}
+                onPress={() => goToStep("join")}
+                testID="mobile-server-mode-join"
+                title={copy.workspaceServerJoinAction}
+              />
+            </View>
+            <MobileCreateSheetCancelButton
+              label={copy.workspaceCreateMenuCancel}
+              onPress={onClose}
+              testID="mobile-server-add-menu-cancel"
+            />
+          </>
+        ) : step === "create" ? (
+          <>
+            <MobileCreateSheetFormHeader
+              closeAccessibilityLabel={copy.sheetCloseAction}
+              icon="add"
+              onClose={() => goToStep("menu")}
+              subtitle={copy.workspaceServerCreateOptionDescription}
+              testID="mobile-server-create-form"
+              title={copy.workspaceServerCreateAction}
+            />
+            <MobileCreateSheetField
               accessibilityLabel={copy.workspaceServerNameLabel}
               autoCapitalize="words"
               autoCorrect
+              error={visibleError}
+              errorTestID="mobile-server-create-error"
+              hint={copy.workspaceServerNameHint}
+              icon="people-outline"
+              label={copy.workspaceServerNameLabel}
               maxLength={64}
               onChangeText={setName}
               placeholder={copy.workspaceServerNamePlaceholder}
-              placeholderTextColor={theme.text.soft}
-              style={styles.input}
               testID="mobile-server-create-name"
               value={name}
             />
-            {visibleError ? (
-              <Text
-                accessibilityRole="alert"
-                style={styles.error}
-                testID="mobile-server-create-error"
-              >
-                {visibleError}
-              </Text>
-            ) : null}
-            <Button
+            <MobileCreateSheetPrimaryCta
               busy={isBusy}
-              fullWidth
+              icon="add"
               label={copy.workspaceServerCreateAction}
               onPress={() => void submitCreate()}
               testID="mobile-server-create-submit"
             />
+            <MobileCreateSheetFooterHint text={copy.workspaceServerCreateFooter} />
           </>
         ) : (
           <>
-            <TextInput
+            <MobileCreateSheetFormHeader
+              closeAccessibilityLabel={copy.sheetCloseAction}
+              icon="link-outline"
+              iconColor={theme.status.visualText}
+              iconSurface={theme.status.successSoft}
+              onClose={() => goToStep("menu")}
+              subtitle={copy.workspaceServerJoinOptionDescription}
+              testID="mobile-server-join-form"
+              title={copy.workspaceServerJoinAction}
+            />
+            <MobileCreateSheetField
               accessibilityLabel={copy.workspaceServerInviteLabel}
-              autoCapitalize="none"
-              autoCorrect={false}
+              error={visibleError}
+              errorTestID="mobile-server-join-error"
+              hint={copy.workspaceServerInviteHint}
+              icon="link-outline"
+              label={copy.workspaceServerInviteLabel}
               maxLength={2048}
               onChangeText={setInviteInput}
               placeholder={copy.workspaceServerInvitePlaceholder}
-              placeholderTextColor={theme.text.soft}
-              style={styles.input}
               testID="mobile-server-join-input"
               value={inviteInput}
             />
-            {visibleError ? (
-              <Text
-                accessibilityRole="alert"
-                style={styles.error}
-                testID="mobile-server-join-error"
-              >
-                {visibleError}
-              </Text>
-            ) : null}
-            <Button
+            <MobileCreateSheetPrimaryCta
               busy={isBusy}
-              fullWidth
+              icon="enter-outline"
               label={copy.workspaceServerJoinAction}
               onPress={() => void submitJoin()}
               testID="mobile-server-join-submit"
             />
+            <MobileCreateSheetFooterHint text={copy.workspaceServerJoinFooter} />
           </>
         )}
       </View>

@@ -19,6 +19,7 @@ import {
   getMobileChannelChatHeaderModel,
   getMobileConversationActiveCount,
   getMobileConversationAvatarUrl,
+  getMobileConversationInitialsLabel,
   getMobileConversationSearchText,
   getMobileConversationTitle,
   getMobileHomeQuickActions,
@@ -391,6 +392,92 @@ describe("mobile display model", () => {
     assert.equal(getMobileConversationActiveCount(conversation), 2);
     assert.equal(isMobilePresenceActive("DND"), true);
     assert.equal(isMobilePresenceActive("OFFLINE"), false);
+  });
+
+  it("never shows the viewer's own identity in a counterpart conversation slot", () => {
+    // The API returns every participant, the viewer first (joinedAt asc), so an
+    // avatar-less counterpart used to fall through to the viewer's own photo.
+    const directConversation: Conversation = {
+      ...conversation,
+      id: "conversation-dm",
+      participantCount: 2,
+      participants: [
+        {
+          avatarUrl: "https://cdn.whispr.team/self.png",
+          displayName: null,
+          id: "user-self",
+          status: "ONLINE",
+          username: "dogukanyazar",
+        },
+        {
+          avatarUrl: null,
+          displayName: null,
+          id: "user-ogi",
+          status: "OFFLINE",
+          username: "ogi_uat",
+        },
+      ],
+      type: "DM",
+    };
+
+    assert.equal(getMobileConversationAvatarUrl(directConversation, "user-self"), null);
+    assert.equal(
+      getMobileConversationTitle(directConversation, "Direct message", "user-self"),
+      "ogi_uat",
+    );
+    assert.equal(
+      getMobileConversationInitialsLabel(directConversation, "Direct message", "user-self"),
+      "ogi_uat",
+    );
+
+    const withCounterpartAvatar: Conversation = {
+      ...directConversation,
+      participants: [
+        directConversation.participants[0]!,
+        { ...directConversation.participants[1]!, avatarUrl: "https://cdn.whispr.team/ogi.png" },
+      ],
+    };
+
+    assert.equal(
+      getMobileConversationAvatarUrl(withCounterpartAvatar, "user-self"),
+      "https://cdn.whispr.team/ogi.png",
+    );
+  });
+
+  it("keeps the viewer's own avatar when the viewer is the only participant", () => {
+    const selfConversation: Conversation = {
+      ...conversation,
+      id: "conversation-self",
+      participantCount: 1,
+      participants: [
+        {
+          avatarUrl: "https://cdn.whispr.team/self.png",
+          displayName: "Me",
+          id: "user-self",
+          status: "ONLINE",
+          username: "dogukanyazar",
+        },
+      ],
+      type: "DM",
+    };
+
+    assert.equal(
+      getMobileConversationAvatarUrl(selfConversation, "user-self"),
+      "https://cdn.whispr.team/self.png",
+    );
+    assert.equal(getMobileConversationTitle(selfConversation, "Direct message", "user-self"), "Me");
+  });
+
+  it("keeps the group icon ahead of every participant avatar", () => {
+    const groupConversation: Conversation = {
+      ...conversation,
+      iconUrl: "https://cdn.whispr.team/group.png",
+    };
+
+    assert.equal(
+      getMobileConversationAvatarUrl(groupConversation, "user-2"),
+      "https://cdn.whispr.team/group.png",
+    );
   });
 
   it("filters conversation inbox using only real unread and group conversation data", () => {

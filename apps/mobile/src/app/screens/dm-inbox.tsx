@@ -340,7 +340,7 @@ export const DirectMessageConversationCard = memo(function DirectMessageConversa
 }) {
   const theme = useTheme();
   const styles = useDmScreenStyles();
-  const title = getMobileConversationTitle(conversation, copy.directMessageFallback);
+  const title = getMobileConversationTitle(conversation, copy.directMessageFallback, currentUserId);
   const presenceStatus = getMobileConversationPresenceStatus(
     conversation,
     currentUserId,
@@ -378,8 +378,12 @@ export const DirectMessageConversationCard = memo(function DirectMessageConversa
           avatarBorderRadius={18}
           dimension={50}
           identityId={conversation.id}
-          label={getMobileConversationInitialsLabel(conversation, copy.directMessageFallback)}
-          imageUrl={getMobileConversationAvatarUrl(conversation)}
+          label={getMobileConversationInitialsLabel(
+            conversation,
+            copy.directMessageFallback,
+            currentUserId,
+          )}
+          imageUrl={getMobileConversationAvatarUrl(conversation, currentUserId)}
           style={styles.dmConversationAvatar}
         />
         {isGroupConversation ? (
