@@ -6505,13 +6505,13 @@
     "semantic_hash": ""
   },
   "scripts/quality/typescript-declaration-parity.mjs": {
-    "mtime": 1784910694.6034663,
-    "ast_hash": "37201f62f7043fff96b8b6501f792991",
+    "mtime": 1784964438.1243157,
+    "ast_hash": "095ed44a808412ac78b8ce742d6fb8a0",
     "semantic_hash": ""
   },
   "scripts/quality/typescript-declaration-parity.test.mjs": {
-    "mtime": 1784910694.6044664,
-    "ast_hash": "780613b5885d36cf45ccb7ae86727a3e",
+    "mtime": 1784964266.008182,
+    "ast_hash": "ee2850370e5d08f2a0f5605dc36c06b3",
     "semantic_hash": ""
   },
   "scripts/quality/typescript-toolchain-contract.test.mjs": {
@@ -6530,8 +6530,8 @@
     "semantic_hash": ""
   },
   "pnpm-workspace.yaml": {
-    "mtime": 1784910694.5954654,
-    "ast_hash": "949453c967ba1cec0a0bdae77e6248dc",
+    "mtime": 1784964755.4510262,
+    "ast_hash": "c40072d96918233f5b3260ed8c54bce7",
     "semantic_hash": ""
   },
   "apps/desktop/GAME_OVERLAY.md": {
@@ -7245,7 +7245,7 @@
     "semantic_hash": ""
   },
   "package.json": {
-    "mtime": 1784910694.5404663,
+    "mtime": 1784964344.5500133,
     "ast_hash": "386dc6a5154f9f50fd7e11ac67f8aa89",
     "semantic_hash": ""
   },
