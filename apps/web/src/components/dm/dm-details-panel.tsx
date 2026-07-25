@@ -18,18 +18,9 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { DMConversationDTO, DMParticipantDTO } from "@wizards/types";
 import { Avatar } from "@/components/ui/avatar";
 import { useI18n } from "@/components/providers/locale-provider";
-import {
-  getDmStatusDotClass,
-  getDmStatusKey,
-} from "@/components/dm/dm-conversation";
-import {
-  type DmSharedAttachment,
-  getDmSharedAttachmentSummary,
-} from "@/lib/dm/details";
-import {
-  dmQueryKeys,
-  fetchDMMutualServers,
-} from "@/lib/dm/client";
+import { getDmStatusDotClass, getDmStatusKey } from "@/components/dm/dm-conversation";
+import { type DmSharedAttachment, getDmSharedAttachmentSummary } from "@/lib/dm/details";
+import { dmQueryKeys, fetchDMMutualServers } from "@/lib/dm/client";
 import type { DMMutualServerSummary } from "@/lib/dm/types";
 import { getMessagesQueryKey, type MessagePages } from "@/hooks/use-messages";
 import {
@@ -74,10 +65,7 @@ function useCachedDmMessages(conversationId: string) {
 
   const pages = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
-  return useMemo(
-    () => pages?.pages.flatMap((page) => page.messages) ?? [],
-    [pages],
-  );
+  return useMemo(() => pages?.pages.flatMap((page) => page.messages) ?? [], [pages]);
 }
 
 function formatAttachmentSize(size: number) {
@@ -129,7 +117,8 @@ export function DmDetailsPanel({
       className={cn(
         "flex h-full min-h-0 flex-col overflow-hidden bg-[hsl(var(--background)/0.88)] text-app-foreground backdrop-blur-xl",
         variant === "panel" && "border-l border-[hsl(var(--border)/0.42)]",
-        variant === "drawer" && "h-full rounded-l-[30px] border-l border-[hsl(var(--border)/0.54)] shadow-[0_28px_74px_hsl(var(--shadow-color)/0.18)]",
+        variant === "drawer" &&
+          "h-full rounded-l-[30px] border-l border-[hsl(var(--border)/0.54)] shadow-[0_28px_74px_hsl(var(--shadow-color)/0.18)]",
         className,
       )}
       data-testid="dm-details-panel"
@@ -144,7 +133,7 @@ export function DmDetailsPanel({
           {onClose ? (
             <button
               aria-label={t("dm.details.close")}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-2xl text-app-muted transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-2xl text-app-muted transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
               onClick={onClose}
               type="button"
             >
@@ -176,7 +165,8 @@ export function DmProfileCard({
   participant: DMParticipantDTO;
 }) {
   const { t } = useI18n();
-  const displayName = participant.displayName ?? participant.username ?? t("dm.sidebar.unknownUser");
+  const displayName =
+    participant.displayName ?? participant.username ?? t("dm.sidebar.unknownUser");
   const handle = participant.username ? `@${participant.username}` : null;
   const statusLabel = participant.customStatus ?? t(getDmStatusKey(participant.status));
 
@@ -215,7 +205,7 @@ export function DmProfileCard({
 
       <div className="mt-3 grid grid-cols-3 gap-1.5">
         <button
-          className="flex min-h-12 flex-col items-center justify-center gap-1 rounded-[16px] bg-[hsl(var(--surface-card)/0.68)] text-xs font-black text-app-muted transition hover:bg-[hsl(var(--surface-card)/0.9)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-55"
+          className="flex min-h-12 flex-col items-center justify-center gap-1 rounded-[16px] bg-[hsl(var(--surface-card)/0.68)] text-xs font-black text-app-muted transition hover:bg-[hsl(var(--surface-card)/0.9)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-55"
           disabled
           title={t("dm.details.comingSoon")}
           type="button"
@@ -224,7 +214,7 @@ export function DmProfileCard({
           {t("dm.details.profileAction")}
         </button>
         <button
-          className="flex min-h-12 flex-col items-center justify-center gap-1 rounded-[16px] bg-[hsl(var(--surface-card)/0.68)] text-xs font-black text-app-muted transition hover:bg-[hsl(var(--surface-card)/0.9)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-55"
+          className="flex min-h-12 flex-col items-center justify-center gap-1 rounded-[16px] bg-[hsl(var(--surface-card)/0.68)] text-xs font-black text-app-muted transition hover:bg-[hsl(var(--surface-card)/0.9)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-55"
           disabled={!onOpenSearch}
           onClick={onOpenSearch}
           type="button"
@@ -233,7 +223,7 @@ export function DmProfileCard({
           {t("dm.details.searchAction")}
         </button>
         <button
-          className="flex min-h-12 flex-col items-center justify-center gap-1 rounded-[16px] bg-[hsl(var(--surface-card)/0.68)] text-xs font-black text-app-muted transition hover:bg-[hsl(var(--surface-card)/0.9)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-55"
+          className="flex min-h-12 flex-col items-center justify-center gap-1 rounded-[16px] bg-[hsl(var(--surface-card)/0.68)] text-xs font-black text-app-muted transition hover:bg-[hsl(var(--surface-card)/0.9)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-55"
           disabled
           title={t("dm.details.comingSoon")}
           type="button"
@@ -274,10 +264,7 @@ export function DmMutualServers({
       {isLoading ? (
         <div className="space-y-1">
           {Array.from({ length: 2 }).map((_, index) => (
-            <div
-              className="flex items-center gap-2 rounded-[16px] px-2 py-1.5"
-              key={index}
-            >
+            <div className="flex items-center gap-2 rounded-[16px] px-2 py-1.5" key={index}>
               <span className="h-8 w-8 animate-pulse rounded-[14px] bg-[hsl(var(--surface-soft)/0.62)]" />
               <span className="h-3.5 flex-1 animate-pulse rounded-full bg-[hsl(var(--surface-soft)/0.62)]" />
             </div>
@@ -307,19 +294,16 @@ export function DmMutualServers({
           ))}
         </div>
       ) : (
-        <EmptyPanelMessage icon={<ShieldCheck className="h-4 w-4" />} text={t("dm.details.noMutualServers")} />
+        <EmptyPanelMessage
+          icon={<ShieldCheck className="h-4 w-4" />}
+          text={t("dm.details.noMutualServers")}
+        />
       )}
     </section>
   );
 }
 
-export function DmSharedMedia({
-  items,
-  locale,
-}: {
-  items: DmSharedAttachment[];
-  locale: string;
-}) {
+export function DmSharedMedia({ items, locale }: { items: DmSharedAttachment[]; locale: string }) {
   const { t } = useI18n();
 
   return (
@@ -332,19 +316,16 @@ export function DmSharedMedia({
           ))}
         </div>
       ) : (
-        <EmptyPanelMessage icon={<ImageIcon className="h-4 w-4" />} text={t("dm.details.noSharedMedia")} />
+        <EmptyPanelMessage
+          icon={<ImageIcon className="h-4 w-4" />}
+          text={t("dm.details.noSharedMedia")}
+        />
       )}
     </section>
   );
 }
 
-export function DmSharedFiles({
-  items,
-  locale,
-}: {
-  items: DmSharedAttachment[];
-  locale: string;
-}) {
+export function DmSharedFiles({ items, locale }: { items: DmSharedAttachment[]; locale: string }) {
   const { t } = useI18n();
 
   return (
@@ -357,7 +338,10 @@ export function DmSharedFiles({
           ))}
         </div>
       ) : (
-        <EmptyPanelMessage icon={<FileText className="h-4 w-4" />} text={t("dm.details.noSharedFiles")} />
+        <EmptyPanelMessage
+          icon={<FileText className="h-4 w-4" />}
+          text={t("dm.details.noSharedFiles")}
+        />
       )}
     </section>
   );
@@ -378,7 +362,7 @@ export function DmConversationShortcuts({
     <section className="space-y-1.5">
       <PanelTitle title={t("dm.details.shortcuts")} />
       <button
-        className="flex w-full items-center gap-2.5 rounded-[17px] bg-[hsl(var(--surface-soft)/0.48)] px-2.5 py-2 text-left text-sm font-bold text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.74)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+        className="flex w-full items-center gap-2.5 rounded-[17px] bg-[hsl(var(--surface-soft)/0.48)] px-2.5 py-2 text-left text-sm font-bold text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.74)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
         onClick={onOpenSearch}
         type="button"
       >
@@ -391,22 +375,12 @@ export function DmConversationShortcuts({
   );
 }
 
-function PanelTitle({
-  description,
-  title,
-}: {
-  description?: string;
-  title: string;
-}) {
+function PanelTitle({ description, title }: { description?: string; title: string }) {
   return (
     <div>
-      <h3 className="text-[11px] font-black uppercase tracking-[0.18em] text-app-soft">
-        {title}
-      </h3>
+      <h3 className="text-[11px] font-black uppercase tracking-[0.18em] text-app-soft">{title}</h3>
       {description ? (
-        <p className="mt-0.5 text-[10.5px] font-semibold leading-4 text-app-muted">
-          {description}
-        </p>
+        <p className="mt-0.5 text-[10.5px] font-semibold leading-4 text-app-muted">{description}</p>
       ) : null}
     </div>
   );
@@ -437,7 +411,7 @@ function SharedMediaTile({ item, locale }: { item: DmSharedAttachment; locale: s
   return (
     <a
       aria-label={label}
-      className="group relative block aspect-square overflow-hidden rounded-[15px] bg-[hsl(var(--surface-soft)/0.58)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+      className="group relative block aspect-square overflow-hidden rounded-[15px] bg-[hsl(var(--surface-soft)/0.58)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
       href={attachment.url}
       rel="noreferrer"
       target="_blank"
@@ -475,7 +449,7 @@ function SharedFileRow({ item, locale }: { item: DmSharedAttachment; locale: str
 
   return (
     <a
-      className="flex min-w-0 items-center gap-2 rounded-[17px] bg-[hsl(var(--surface-soft)/0.42)] px-2.5 py-2 text-left transition hover:bg-[hsl(var(--surface-soft)/0.68)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+      className="flex min-w-0 items-center gap-2 rounded-[17px] bg-[hsl(var(--surface-soft)/0.42)] px-2.5 py-2 text-left transition hover:bg-[hsl(var(--surface-soft)/0.68)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
       download={attachment.filename}
       href={attachment.url}
       rel="noreferrer"

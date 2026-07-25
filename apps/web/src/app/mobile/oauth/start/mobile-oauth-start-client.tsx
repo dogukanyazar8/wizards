@@ -84,7 +84,7 @@ export function MobileOAuthStartClient({ callbackUrl, provider }: MobileOAuthSta
         ) : null}
 
         <button
-          className="mt-7 inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-[hsl(var(--primary))] px-5 py-3 text-sm font-semibold text-[hsl(var(--primary-foreground))] shadow-[0_18px_48px_hsl(var(--primary)/0.28)] transition hover:-translate-y-0.5 hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary)/0.5)] focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-70 motion-reduce:hover:translate-y-0"
+          className="mt-7 inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-[hsl(var(--primary))] px-5 py-3 text-sm font-semibold text-[hsl(var(--primary-foreground))] shadow-[0_18px_48px_hsl(var(--primary)/0.28)] transition hover:-translate-y-0.5 hover:opacity-95 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary)/0.5)] focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-70 motion-reduce:hover:translate-y-0"
           disabled={started && !failed}
           onClick={() => void startProviderSignIn()}
           type="button"

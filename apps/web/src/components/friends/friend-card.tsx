@@ -109,7 +109,7 @@ export function FriendCard({
 
       <button
         aria-label={t("friends.actions.openMenu", { name: displayName })}
-        className="app-panel-soft text-app-muted flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border transition hover:text-[hsl(var(--foreground))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+        className="app-panel-soft text-app-muted flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border transition hover:text-[hsl(var(--foreground))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
         onClick={(event) => {
           event.stopPropagation();
           const rect = event.currentTarget.getBoundingClientRect();

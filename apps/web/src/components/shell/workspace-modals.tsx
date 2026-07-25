@@ -776,7 +776,7 @@ function WorkspaceModalsContent({
                 {(["PUBLIC", "LOCKED_VISIBLE", "PRIVATE", "ROLE_GATED"] as const).map((preset) => (
                   <button
                     className={cn(
-                      "rounded-[20px] border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                      "rounded-[20px] border p-3 text-left transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
                       channelPermissionPreset === preset
                         ? "border-[hsl(var(--primary)/0.42)] bg-[hsl(var(--primary)/0.12)] text-app-foreground"
                         : "border-[hsl(var(--border)/0.64)] bg-[hsl(var(--surface-card)/0.54)] text-app-muted hover:text-app-foreground",
@@ -808,7 +808,7 @@ function WorkspaceModalsContent({
                         return (
                           <button
                             className={cn(
-                              "rounded-2xl border px-3 py-2 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                              "rounded-2xl border px-3 py-2 text-xs font-semibold transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
                               selected
                                 ? "border-[hsl(var(--primary)/0.42)] bg-[hsl(var(--primary)/0.13)] text-app-foreground"
                                 : "border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.62)] text-app-muted hover:text-app-foreground",
@@ -856,7 +856,7 @@ function WorkspaceModalsContent({
                 {t("workspace.modal.channelCategory")}
               </label>
               <select
-                className="h-11 w-full rounded-2xl border border-[hsl(var(--border)/0.82)] bg-[hsl(var(--surface-soft)/0.55)] px-4 text-sm text-[hsl(var(--foreground))] outline-none transition focus:border-[hsl(var(--ring)/0.55)] focus:ring-4 focus:ring-[hsl(var(--ring)/0.12)]"
+                className="h-11 w-full rounded-2xl border border-[hsl(var(--border)/0.82)] bg-[hsl(var(--surface-soft)/0.55)] px-4 text-sm text-[hsl(var(--foreground))] outline-hidden transition focus:border-[hsl(var(--ring)/0.55)] focus:ring-4 focus:ring-[hsl(var(--ring)/0.12)]"
                 onChange={(event) => setChannelCategoryId(event.target.value || null)}
                 value={channelCategoryId ?? ""}
               >

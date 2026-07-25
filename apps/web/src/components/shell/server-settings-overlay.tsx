@@ -547,7 +547,7 @@ function ServerSettingsOverlayContent({
           <nav className="mt-4 flex gap-2 overflow-x-auto pb-1 md:mt-8 md:block md:space-y-1 md:overflow-visible md:pb-0">
             {tabs.map((item) => (
               <button
-                className={`flex min-h-11 shrink-0 items-center justify-between gap-2 rounded-2xl px-4 py-3 text-left text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] md:w-full ${
+                className={`flex min-h-11 shrink-0 items-center justify-between gap-2 rounded-2xl px-4 py-3 text-left text-sm transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] md:w-full ${
                   tab === item.id
                     ? "bg-[hsl(var(--primary)/0.16)] text-[hsl(var(--foreground))]"
                     : "text-app-muted hover:bg-[hsl(var(--surface-soft)/0.52)] hover:text-[hsl(var(--foreground))]"
@@ -596,7 +596,7 @@ function ServerSettingsOverlayContent({
               </div>
               <button
                 aria-label={t("serverSettings.closeOverlay")}
-                className="app-panel-soft text-app-muted min-h-11 min-w-11 rounded-2xl border p-3 transition hover:opacity-90 hover:text-[hsl(var(--foreground))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                className="app-panel-soft text-app-muted min-h-11 min-w-11 rounded-2xl border p-3 transition hover:opacity-90 hover:text-[hsl(var(--foreground))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
                 data-testid="server-settings-close-button"
                 onClick={closeServerSettings}
                 type="button"
@@ -755,7 +755,7 @@ function ServerSettingsOverlayContent({
                         {t("workspace.messages.deletedNoticeTitle")}
                       </label>
                       <select
-                        className="h-12 w-full rounded-2xl border border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface-card)/0.9)] px-3 text-sm font-semibold text-app-foreground shadow-[0_14px_34px_hsl(var(--shadow-color)/0.08)] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.5)]"
+                        className="h-12 w-full rounded-2xl border border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface-card)/0.9)] px-3 text-sm font-semibold text-app-foreground shadow-[0_14px_34px_hsl(var(--shadow-color)/0.08)] transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.5)]"
                         id="server-deleted-message-notice"
                         onChange={(event) =>
                           setDeletedMessageNoticeMinutes(Number(event.target.value))
@@ -883,7 +883,7 @@ function ServerSettingsOverlayContent({
                     </div>
                     <div className="app-panel-soft flex shrink-0 items-center gap-3 rounded-[22px] border px-4 py-3">
                       <span
-                        className="h-9 w-9 rounded-2xl border border-white/40 shadow-sm"
+                        className="h-9 w-9 rounded-2xl border border-white/40 shadow-xs"
                         style={{
                           backgroundColor: `#${roleColor.toString(16).padStart(6, "0")}`,
                         }}
@@ -922,7 +922,7 @@ function ServerSettingsOverlayContent({
                           {ROLE_COLOR_OPTIONS.map((color) => (
                             <button
                               aria-label={`#${color.toString(16).padStart(6, "0")}`}
-                              className={`h-10 w-10 rounded-2xl border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] ${
+                              className={`h-10 w-10 rounded-2xl border transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] ${
                                 roleColor === color
                                   ? "border-[hsl(var(--foreground)/0.72)] ring-4 ring-[hsl(var(--ring)/0.16)]"
                                   : "border-[hsl(var(--border)/0.68)]"
@@ -1027,7 +1027,7 @@ function ServerSettingsOverlayContent({
 
                                 return (
                                   <button
-                                    className={`rounded-2xl border px-3 py-2 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-45 ${
+                                    className={`rounded-2xl border px-3 py-2 text-xs font-semibold transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-45 ${
                                       selected
                                         ? "border-[hsl(var(--primary)/0.42)] bg-[hsl(var(--primary)/0.13)] text-app-foreground"
                                         : "border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.62)] text-app-muted hover:text-app-foreground"
@@ -1272,7 +1272,7 @@ function ServerSettingsOverlayContent({
 
                                   return (
                                     <button
-                                      className={`rounded-2xl border px-3 py-2 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-45 ${
+                                      className={`rounded-2xl border px-3 py-2 text-xs font-semibold transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-45 ${
                                         selected
                                           ? "border-[hsl(var(--primary)/0.42)] bg-[hsl(var(--primary)/0.13)] text-app-foreground"
                                           : "border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.62)] text-app-muted hover:text-app-foreground"
@@ -1306,7 +1306,7 @@ function ServerSettingsOverlayContent({
 
                           {detail.server.isOwner && member.accessLevel !== "OWNER" ? (
                             <button
-                              className="app-danger inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border px-3 py-2 text-sm transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.45)] xl:w-auto"
+                              className="app-danger inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border px-3 py-2 text-sm transition hover:opacity-90 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.45)] xl:w-auto"
                               disabled={kickMemberMutation.isPending}
                               onClick={() => kickMemberMutation.mutate(member.id)}
                               type="button"
@@ -1368,7 +1368,7 @@ function ServerSettingsOverlayContent({
                       </div>
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                         <button
-                          className="app-panel-soft text-app-foreground inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border px-3 py-2 text-sm transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                          className="app-panel-soft text-app-foreground inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border px-3 py-2 text-sm transition hover:opacity-90 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
                           onClick={async () => {
                             await navigator.clipboard.writeText(
                               `${window.location.origin}/invite/${invite.code}`,
@@ -1380,7 +1380,7 @@ function ServerSettingsOverlayContent({
                           {t("serverSettings.copy")}
                         </button>
                         <button
-                          className="app-danger inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border px-3 py-2 text-sm transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.45)]"
+                          className="app-danger inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border px-3 py-2 text-sm transition hover:opacity-90 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.45)]"
                           disabled={revokeInviteMutation.isPending}
                           onClick={() => revokeInviteMutation.mutate(invite.id)}
                           type="button"

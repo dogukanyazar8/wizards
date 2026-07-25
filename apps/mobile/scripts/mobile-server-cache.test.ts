@@ -77,6 +77,10 @@ function createBootstrap(): MobileBootstrapPayload {
     },
     user: {
       avatarUrl: null,
+      bannerColor: null,
+      bannerOffsetX: null,
+      bannerOffsetY: null,
+      bannerUrl: null,
       displayName: "Alice",
       id: "user-1",
       locale: "en",

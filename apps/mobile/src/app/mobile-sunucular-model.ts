@@ -117,11 +117,19 @@ export function getMobileMissedNotifications(
 ): MobileNotificationItem[] {
   const limit = options?.limit ?? 3;
 
-  return notifications
-    .filter((item) => item.type === "MENTION" || item.eventKind === "voice-room-started")
-    .slice()
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-    .slice(0, Math.max(0, limit));
+  return (
+    notifications
+      // "Kaçırdıkların" means unread. A mention the user already opened from the
+      // notifications tab is not missed any more, so it must not come back on the
+      // servers screen.
+      .filter(
+        (item) =>
+          !item.read && (item.type === "MENTION" || item.eventKind === "voice-room-started"),
+      )
+      .slice()
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .slice(0, Math.max(0, limit))
+  );
 }
 
 /**

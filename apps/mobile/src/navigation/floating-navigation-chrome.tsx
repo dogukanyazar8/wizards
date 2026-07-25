@@ -26,6 +26,7 @@ const copy = activeMobileCopy;
 export function FloatingNavigationChrome({
   directMessageUnreadCount = 0,
   insets: systemBarInsets,
+  notificationUnreadCount = 0,
   onBeginPushToTalk,
   onEndPushToTalk,
   onLeaveVoiceChannel,
@@ -38,6 +39,7 @@ export function FloatingNavigationChrome({
   ...tabBarProps
 }: BottomTabBarProps & {
   readonly directMessageUnreadCount?: number;
+  readonly notificationUnreadCount?: number;
   readonly onBeginPushToTalk: () => Promise<void>;
   readonly onEndPushToTalk: () => void;
   readonly onLeaveVoiceChannel: () => Promise<void>;
@@ -91,6 +93,7 @@ export function FloatingNavigationChrome({
             {...tabBarProps}
             bottomSafeAreaInset={bottomInset}
             directMessageUnreadCount={directMessageUnreadCount}
+            notificationUnreadCount={notificationUnreadCount}
           />
         </>
       )}

@@ -161,7 +161,7 @@ function ComposerButton({
     <button
       aria-label={label}
       className={cn(
-        "group/composer-button inline-flex h-11 min-h-11 min-w-11 shrink-0 items-center justify-center gap-2 rounded-2xl border text-sm font-bold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.48)] focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-55 motion-safe:transition-transform",
+        "group/composer-button inline-flex h-11 min-h-11 min-w-11 shrink-0 items-center justify-center gap-2 rounded-2xl border text-sm font-bold transition-colors duration-150 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.48)] focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-55 motion-safe:transition-transform",
         variant === "primary"
           ? "border-[hsl(var(--primary)/0.34)] bg-[linear-gradient(135deg,hsl(var(--primary)/0.92),hsl(var(--primary))_52%,hsl(var(--ambient-1)/0.88))] text-white shadow-[0_16px_34px_hsl(var(--primary)/0.24),inset_0_1px_0_rgba(255,255,255,0.3)] hover:shadow-[0_20px_44px_hsl(var(--primary)/0.32),inset_0_1px_0_rgba(255,255,255,0.35)] motion-safe:hover:scale-[1.025]"
           : variant === "ghost"
@@ -203,7 +203,7 @@ function ComposerActionSheet({
     <div className="fixed inset-0 z-[80] md:hidden">
       <button
         aria-label={title}
-        className="absolute inset-0 cursor-default bg-[hsl(var(--backdrop)/0.38)] backdrop-blur-sm"
+        className="absolute inset-0 cursor-default bg-[hsl(var(--backdrop)/0.38)] backdrop-blur-xs"
         onClick={onClose}
         type="button"
       />
@@ -212,7 +212,7 @@ function ComposerActionSheet({
           <p className="text-xs font-black uppercase tracking-[0.16em] text-app-soft">{title}</p>
           <button
             aria-label={title}
-            className="rounded-full p-2 text-app-muted transition hover:bg-app-surface-soft hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
+            className="rounded-full p-2 text-app-muted transition hover:bg-app-surface-soft hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
             onClick={onClose}
             type="button"
           >
@@ -239,7 +239,7 @@ const AutoResizeTextarea = forwardRef<HTMLTextAreaElement, AutoResizeTextareaPro
       <textarea
         ref={ref}
         className={cn(
-          "message-font-scope max-h-[32dvh] min-h-11 w-full resize-none overflow-y-auto border-0 bg-transparent px-2 py-2 text-[15px] leading-6 text-app-foreground shadow-none placeholder-app-muted focus-visible:outline-none focus-visible:ring-0 md:max-h-40 md:px-3 md:py-2.5",
+          "message-font-scope max-h-[32dvh] min-h-11 w-full resize-none overflow-y-auto border-0 bg-transparent px-2 py-2 text-[15px] leading-6 text-app-foreground shadow-none placeholder-app-muted focus-visible:outline-hidden focus-visible:ring-0 md:max-h-40 md:px-3 md:py-2.5",
           formattingOpen ? "rounded-b-[22px] rounded-t-none" : "rounded-[22px]",
           isThreadComposer ? "max-h-[8.5rem]" : "",
           className,
@@ -344,11 +344,11 @@ export function ChatComposer({
 
   const formatButtonLabelClass = isThreadComposer ? "sr-only" : "hidden sm:inline";
   const compactToolButtonClass = cn(
-    "inline-flex items-center justify-center gap-1.5 rounded-[14px] border border-transparent bg-[hsl(var(--surface-soft)/0.3)] text-[12.5px] font-semibold text-app-muted transition hover:bg-[hsl(var(--primary)/0.08)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.44)] disabled:cursor-not-allowed disabled:opacity-55",
+    "inline-flex items-center justify-center gap-1.5 rounded-[14px] border border-transparent bg-[hsl(var(--surface-soft)/0.3)] text-[12.5px] font-semibold text-app-muted transition hover:bg-[hsl(var(--primary)/0.08)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.44)] disabled:cursor-not-allowed disabled:opacity-55",
     isThreadComposer ? "h-9 w-9 px-0" : "min-h-8 px-2.5 py-1.5 md:min-h-0",
   );
   const formattingActionButtonClass =
-    "inline-flex min-h-8 items-center justify-center gap-1.5 rounded-[13px] border border-transparent bg-[hsl(var(--surface-soft)/0.3)] px-2.5 py-1.5 text-[12.5px] font-bold text-app-muted transition hover:bg-[hsl(var(--primary)/0.07)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.4)] disabled:cursor-not-allowed disabled:opacity-50";
+    "inline-flex min-h-8 items-center justify-center gap-1.5 rounded-[13px] border border-transparent bg-[hsl(var(--surface-soft)/0.3)] px-2.5 py-1.5 text-[12.5px] font-bold text-app-muted transition hover:bg-[hsl(var(--primary)/0.07)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.4)] disabled:cursor-not-allowed disabled:opacity-50";
   const composerHint = t("chat.input.sendHint");
   const composerActionsTitle = t("chat.input.actions");
 
@@ -1011,18 +1011,18 @@ export function ChatComposer({
       className="hidden min-w-0 items-center gap-2 whitespace-nowrap text-[11px] font-semibold text-app-muted xl:inline-flex"
     >
       <span className="inline-flex items-center gap-1.5 rounded-full border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.48)] px-2.5 py-1.5 shadow-[inset_0_1px_0_hsl(var(--background)/0.55)]">
-        <kbd className="rounded-md border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.94)] px-1.5 py-0.5 font-sans text-[10px] font-black leading-none text-app-foreground shadow-sm">
+        <kbd className="rounded-md border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.94)] px-1.5 py-0.5 font-sans text-[10px] font-black leading-none text-app-foreground shadow-xs">
           Enter
         </kbd>
         <span>{t("chat.input.enterToSend")}</span>
       </span>
       <span className="h-1 w-1 rounded-full bg-[hsl(var(--border))]" aria-hidden="true" />
       <span className="inline-flex items-center gap-1.5 rounded-full border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.48)] px-2.5 py-1.5 shadow-[inset_0_1px_0_hsl(var(--background)/0.55)]">
-        <kbd className="rounded-md border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.94)] px-1.5 py-0.5 font-sans text-[10px] font-black leading-none text-app-foreground shadow-sm">
+        <kbd className="rounded-md border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.94)] px-1.5 py-0.5 font-sans text-[10px] font-black leading-none text-app-foreground shadow-xs">
           Shift
         </kbd>
         <span className="text-app-soft">+</span>
-        <kbd className="rounded-md border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.94)] px-1.5 py-0.5 font-sans text-[10px] font-black leading-none text-app-foreground shadow-sm">
+        <kbd className="rounded-md border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.94)] px-1.5 py-0.5 font-sans text-[10px] font-black leading-none text-app-foreground shadow-xs">
           Enter
         </kbd>
         <span>{t("chat.input.shiftEnterNewLine")}</span>
@@ -1088,7 +1088,7 @@ export function ChatComposer({
   };
 
   const actionSheetButtonClass =
-    "flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-2xl border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.94)] px-1.5 py-2 text-center text-[10px] font-bold leading-tight text-app-muted shadow-[0_8px_18px_hsl(var(--shadow-color)/0.045)] transition hover:border-[hsl(var(--primary)/0.26)] hover:bg-[hsl(var(--primary)/0.08)] hover:text-[hsl(var(--primary))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] disabled:cursor-not-allowed disabled:opacity-55";
+    "flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-2xl border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.94)] px-1.5 py-2 text-center text-[10px] font-bold leading-tight text-app-muted shadow-[0_8px_18px_hsl(var(--shadow-color)/0.045)] transition hover:border-[hsl(var(--primary)/0.26)] hover:bg-[hsl(var(--primary)/0.08)] hover:text-[hsl(var(--primary))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] disabled:cursor-not-allowed disabled:opacity-55";
 
   return (
     <div
@@ -1163,7 +1163,7 @@ export function ChatComposer({
                   />
                 ) : (
                   <div className="flex h-full flex-col justify-between p-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[hsl(var(--border)/0.65)] bg-white/68 text-app-soft shadow-sm">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[hsl(var(--border)/0.65)] bg-white/68 text-app-soft shadow-xs">
                       <FileText className="h-5 w-5" />
                     </div>
                     <div className="space-y-1">
@@ -1176,41 +1176,41 @@ export function ChatComposer({
                     </div>
                   </div>
                 )}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-black/12 opacity-80" />
+                <div className="absolute inset-0 bg-linear-to-t from-black/45 via-transparent to-black/12 opacity-80" />
                 {draft.kind === "file" ? (
-                  <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full border border-white/50 bg-white/86 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-700 shadow-sm backdrop-blur">
+                  <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full border border-white/50 bg-white/86 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-700 shadow-xs backdrop-blur">
                     <Paperclip className="h-3 w-3" />
                     {t("chat.attachments.file")}
                   </span>
                 ) : null}
                 {draft.kind === "video" ? (
-                  <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full border border-white/50 bg-white/86 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-700 shadow-sm backdrop-blur">
+                  <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full border border-white/50 bg-white/86 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-700 shadow-xs backdrop-blur">
                     <Video className="h-3 w-3" />
                     {t("chat.attachments.video")}
                   </span>
                 ) : null}
                 {isMessageGifContentType(draft.contentType) ? (
-                  <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full border border-white/50 bg-white/86 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-700 shadow-sm backdrop-blur">
+                  <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full border border-white/50 bg-white/86 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-700 shadow-xs backdrop-blur">
                     <ImageIcon className="h-3 w-3" />
                     {t("chat.attachments.gif")}
                   </span>
                 ) : null}
                 {draft.status === "uploading" ? (
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="inline-flex items-center gap-2 rounded-full bg-white/88 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm">
+                    <span className="inline-flex items-center gap-2 rounded-full bg-white/88 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-xs">
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       {t("chat.attachments.uploadingAttachment")}
                     </span>
                   </div>
                 ) : null}
                 {draft.status === "error" ? (
-                  <div className="absolute inset-x-2 bottom-2 rounded-full bg-[hsl(var(--danger)/0.92)] px-2 py-1 text-center text-[10px] font-semibold text-white shadow-sm">
+                  <div className="absolute inset-x-2 bottom-2 rounded-full bg-[hsl(var(--danger)/0.92)] px-2 py-1 text-center text-[10px] font-semibold text-white shadow-xs">
                     {draft.error ?? t("chat.attachments.uploadFailed")}
                   </div>
                 ) : null}
                 <button
                   aria-label={t("chat.attachments.removeAttachment")}
-                  className="absolute right-2 top-2 rounded-full border border-white/50 bg-white/88 p-1.5 text-slate-700 opacity-100 shadow-sm transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                  className="absolute right-2 top-2 rounded-full border border-white/50 bg-white/88 p-1.5 text-slate-700 opacity-100 shadow-xs transition hover:bg-white focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white"
                   onClick={() => removeAttachmentDraft(draft.localId)}
                   type="button"
                 >

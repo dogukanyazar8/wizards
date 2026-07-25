@@ -20,6 +20,17 @@ import {
 
 export type MobileThemeId = "dark" | "light";
 
+/**
+ * Controls that float on a user-supplied image cannot inherit a theme surface:
+ * the backdrop is the user's photo, which may be pure white in one banner and
+ * black in the next. These two values are therefore identical in both themes —
+ * dark enough to carry white text over a white image, translucent enough to let
+ * the photo read through, with a light hairline so the chip still separates from
+ * a dark image.
+ */
+const MOBILE_IMAGE_SCRIM_SURFACE = "rgba(14,16,26,.62)";
+const MOBILE_IMAGE_SCRIM_BORDER = "rgba(255,255,255,.26)";
+
 export interface MobileThemeElevationStyle {
   readonly elevation: number;
   readonly shadowColor: string;
@@ -134,6 +145,12 @@ export interface MobileTheme {
     readonly focus: string;
     /** Translucent external focus ring for auth text fields. */
     readonly focusRing: string;
+    /**
+     * Hairline for controls that sit on user-supplied imagery. Pairs with
+     * `surface.imageScrim`; theme-independent because the backdrop is a photo,
+     * not an app surface.
+     */
+    readonly imageScrim: string;
     /** Surface-matched ring for non-text controls layered on a card. */
     readonly onSurfaceRing: string;
     readonly subtle: string;
@@ -341,6 +358,12 @@ export interface MobileTheme {
     readonly elevated: string;
     readonly inverse: string;
     readonly inverseControl: string;
+    /**
+     * Opaque-enough chip backdrop for controls layered on user imagery. A 12%
+     * white wash (`inverseControl`) vanishes on a bright banner and takes its
+     * white label with it, so overlay controls use this instead.
+     */
+    readonly imageScrim: string;
     readonly overlay: string;
     readonly rail: string;
     readonly scrim: string;
@@ -445,6 +468,7 @@ export const lightTheme = deepFreeze({
     default: redesignLight.hairline,
     focus: redesignLight.primary,
     focusRing: redesignLight.focusRing,
+    imageScrim: MOBILE_IMAGE_SCRIM_BORDER,
     onSurfaceRing: mobilePalette.neutral.white,
     subtle: redesignLight.border,
     tabBarTop: redesignLight.tabBarBorder,
@@ -633,6 +657,7 @@ export const lightTheme = deepFreeze({
     elevated: redesignLight.card,
     inverse: redesignLight.inkSurface,
     inverseControl: "rgba(255,255,255,.12)",
+    imageScrim: MOBILE_IMAGE_SCRIM_SURFACE,
     overlay: mobilePalette.neutral[100],
     rail: redesignLight.lavender,
     scrim: redesignDark.sheetOverlay,
@@ -714,6 +739,7 @@ export const darkTheme = deepFreeze({
     default: redesignDark.hairline,
     focus: redesignDark.primary,
     focusRing: redesignDark.focusRing,
+    imageScrim: MOBILE_IMAGE_SCRIM_BORDER,
     onSurfaceRing: redesignDark.card,
     subtle: redesignDark.border,
     tabBarTop: redesignDark.border,
@@ -880,6 +906,7 @@ export const darkTheme = deepFreeze({
     elevated: redesignDark.card,
     inverse: redesignLight.inkSurface,
     inverseControl: "rgba(255,255,255,.12)",
+    imageScrim: MOBILE_IMAGE_SCRIM_SURFACE,
     overlay: redesignDark.hairline,
     rail: redesignDark.card,
     scrim: redesignDark.sheetOverlay,

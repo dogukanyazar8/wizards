@@ -5,10 +5,7 @@ import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import { GripVertical } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
-import {
-  COMPACT_SERVER_RAIL_ICON_SIZE,
-  COMPACT_SERVER_RAIL_TOUCH_SIZE,
-} from "@/lib/appearance";
+import { COMPACT_SERVER_RAIL_ICON_SIZE, COMPACT_SERVER_RAIL_TOUCH_SIZE } from "@/lib/appearance";
 import { cn } from "@/lib/utils";
 
 type ServerIconProps = {
@@ -76,7 +73,7 @@ export function ServerIcon({
         aria-current={active ? "page" : undefined}
         aria-label={label}
         className={cn(
-          "group relative outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.7)] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--background)/0.72)]",
+          "group relative outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.7)] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--background)/0.72)]",
           !showLabel &&
             cn(
               "mx-auto flex items-center justify-center rounded-[16px] transition-all duration-150",
@@ -120,7 +117,7 @@ export function ServerIcon({
             "transition-all duration-200",
             active
               ? cn(
-                showLabel ? "rounded-[15px]" : "rounded-[14px]",
+                  showLabel ? "rounded-[15px]" : "rounded-[14px]",
                   "border-[hsl(var(--primary)/0.56)] bg-[hsl(var(--primary)/0.17)] shadow-[0_0_0_3px_hsl(var(--primary)/0.12)] ring-2 ring-[hsl(var(--primary)/0.34)]",
                 )
               : cn(
@@ -152,9 +149,7 @@ export function ServerIcon({
             aria-hidden="true"
             className={cn(
               "pointer-events-none absolute inline-flex min-w-[1.35rem] items-center justify-center whitespace-nowrap rounded-full border border-[hsl(var(--background)/0.5)] bg-[linear-gradient(135deg,hsl(var(--primary)),hsl(var(--ambient-1)))] px-1.5 py-0.5 text-[9px] font-black leading-none text-[hsl(var(--primary-foreground))] shadow-[0_8px_20px_hsl(var(--primary)/0.28)]",
-              showLabel
-                ? "left-8 top-7"
-                : "bottom-0 right-0 translate-x-[24%] translate-y-[18%]",
+              showLabel ? "left-8 top-7" : "bottom-0 right-0 translate-x-[24%] translate-y-[18%]",
             )}
             data-testid={testId ? `${testId}-mention-badge` : undefined}
           >
@@ -165,9 +160,7 @@ export function ServerIcon({
             aria-hidden="true"
             className={cn(
               "pointer-events-none absolute inline-flex min-w-[1.05rem] items-center justify-center whitespace-nowrap rounded-full border border-[hsl(var(--background)/0.42)] bg-[hsl(var(--danger)/0.92)] px-1 py-0.5 text-[9px] font-bold leading-none text-white shadow-[0_7px_16px_hsl(var(--danger)/0.24)]",
-              showLabel
-                ? "left-8 top-7"
-                : "bottom-0 right-0 translate-x-[24%] translate-y-[18%]",
+              showLabel ? "left-8 top-7" : "bottom-0 right-0 translate-x-[24%] translate-y-[18%]",
             )}
             data-testid={testId ? `${testId}-unread-badge` : undefined}
           >

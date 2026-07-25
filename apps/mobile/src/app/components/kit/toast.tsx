@@ -8,9 +8,10 @@ import {
   useState,
   type PropsWithChildren,
 } from "react";
-import { Text, View } from "react-native";
-import { useThemedStyles } from "../../providers/mobile-theme-provider";
+import { Animated, Easing, Text, View } from "react-native";
+import { useTheme, useThemedStyles } from "../../providers/mobile-theme-provider";
 import type { MobileTheme } from "../../../design/themes";
+import { MobileLineIcon, type MobileLineIconName } from "../../../design/mobile-line-icons";
 import { activeMobileCopy as copy } from "../../../locale/mobile-locale-preferences";
 import { useMobileBottomSystemSpacing } from "../../use-mobile-bottom-system-spacing";
 import { IconButton } from "./icon-button";
@@ -38,6 +39,32 @@ interface ToastRuntime {
 const MAX_TOAST_QUEUE = 3;
 const ToastContext = createContext<ToastRuntime | null>(null);
 
+const TOAST_TONE_ICONS: Record<ToastTone, MobileLineIconName> = {
+  danger: "alert-circle",
+  info: "info",
+  success: "check",
+  warning: "alert-circle",
+};
+
+/**
+ * Tone reads from a filled glyph tile, not from the card border. A 1px coloured
+ * outline was the whole visual language of the old toast and it disappeared
+ * against the elevated surface; a tinted tile carries the same meaning at a
+ * glance and leaves the card itself neutral.
+ */
+function getToastToneColors(theme: MobileTheme, tone: ToastTone) {
+  switch (tone) {
+    case "success":
+      return { icon: theme.status.successText, tile: theme.status.successSoft };
+    case "danger":
+      return { icon: theme.status.dangerOnBase, tile: theme.status.dangerSoft };
+    case "warning":
+      return { icon: theme.status.warning, tile: theme.status.warningSoft };
+    default:
+      return { icon: theme.status.info, tile: theme.status.infoSoft };
+  }
+}
+
 const createStyles = (theme: MobileTheme) => ({
   viewport: {
     bottom: 24,
@@ -50,23 +77,35 @@ const createStyles = (theme: MobileTheme) => ({
     alignItems: "center" as const,
     alignSelf: "center" as const,
     backgroundColor: theme.surface.elevated,
-    borderColor: theme.border.default,
-    borderRadius: theme.radii.control,
+    borderColor: theme.border.subtle,
+    borderRadius: 20,
     borderWidth: 1,
     flexDirection: "row" as const,
-    gap: theme.spacing.row,
+    gap: 12,
     maxWidth: 520,
-    minHeight: 56,
-    paddingHorizontal: theme.spacing.section,
-    paddingVertical: 8,
+    minHeight: 60,
+    paddingLeft: 12,
+    paddingRight: 8,
+    paddingVertical: 10,
     width: "100%" as const,
     ...theme.elevation.tabBar,
   },
-  danger: { borderColor: theme.status.danger },
-  info: { borderColor: theme.status.info },
-  success: { borderColor: theme.status.success },
-  warning: { borderColor: theme.status.warning },
-  message: { ...theme.typography.bodyStrong, color: theme.text.primary, flex: 1 },
+  toneTile: {
+    alignItems: "center" as const,
+    borderRadius: 13,
+    height: 36,
+    justifyContent: "center" as const,
+    width: 36,
+  },
+  message: {
+    color: theme.text.primary,
+    flex: 1,
+    fontFamily: theme.typography.fontFamilyBold,
+    fontSize: 13.5,
+    includeFontPadding: false,
+    lineHeight: 18,
+    minWidth: 0,
+  },
 });
 
 function clampToastDuration(duration: number | undefined): number {
@@ -79,6 +118,7 @@ function clampToastDuration(duration: number | undefined): number {
 
 export function ToastProvider({ children }: PropsWithChildren) {
   const styles = useThemedStyles(createStyles);
+  const theme = useTheme();
   const toastBottom = useMobileBottomSystemSpacing(24);
   const [queue, setQueue] = useState<readonly ToastEntry[]>([]);
   const nextId = useRef(1);
@@ -115,6 +155,8 @@ export function ToastProvider({ children }: PropsWithChildren) {
     [dismissToast, showToast],
   );
 
+  const tone = getToastToneColors(theme, currentToast?.tone ?? "info");
+
   return (
     <ToastContext.Provider value={runtime}>
       {children}
@@ -124,27 +166,74 @@ export function ToastProvider({ children }: PropsWithChildren) {
           style={[styles.viewport, { bottom: toastBottom }]}
           testID="mobile-toast-viewport"
         >
-          <View
-            accessibilityLiveRegion="polite"
-            accessibilityRole="alert"
-            style={[styles.toast, styles[currentToast.tone]]}
-            testID="mobile-toast"
-          >
-            <Text maxFontSizeMultiplier={2} numberOfLines={3} style={styles.message}>
-              {currentToast.message}
-            </Text>
-            <IconButton
-              accessibilityLabel={copy.dismissNotificationAction}
-              icon="close"
-              onPress={() => dismissToast(currentToast.id)}
-              size="sm"
-              testID="mobile-toast-dismiss"
-              tone="muted"
-            />
-          </View>
+          <ToastCard key={currentToast.id}>
+            <View
+              accessibilityLiveRegion="polite"
+              accessibilityRole="alert"
+              style={styles.toast}
+              testID="mobile-toast"
+            >
+              <View
+                style={[styles.toneTile, { backgroundColor: tone.tile }]}
+                testID={`mobile-toast-tone-${currentToast.tone}`}
+              >
+                <MobileLineIcon
+                  color={tone.icon}
+                  name={TOAST_TONE_ICONS[currentToast.tone]}
+                  size={18}
+                  strokeWidth={2.4}
+                />
+              </View>
+              <Text maxFontSizeMultiplier={2} numberOfLines={3} style={styles.message}>
+                {currentToast.message}
+              </Text>
+              <IconButton
+                accessibilityLabel={copy.dismissNotificationAction}
+                icon="close"
+                onPress={() => dismissToast(currentToast.id)}
+                size="sm"
+                testID="mobile-toast-dismiss"
+                tone="muted"
+              />
+            </View>
+          </ToastCard>
         </View>
       ) : null}
     </ToastContext.Provider>
+  );
+}
+
+/**
+ * The toast used to pop in with no transition at all, which is what made a
+ * routine "Profil güncellendi" read as an error dialog. Keyed per entry so a
+ * second toast replays the rise instead of swapping text in place.
+ */
+function ToastCard({ children }: PropsWithChildren) {
+  const progress = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const animation = Animated.timing(progress, {
+      duration: 220,
+      easing: Easing.out(Easing.cubic),
+      toValue: 1,
+      useNativeDriver: true,
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [progress]);
+
+  return (
+    <Animated.View
+      style={{
+        opacity: progress,
+        transform: [
+          { translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) },
+          { scale: progress.interpolate({ inputRange: [0, 1], outputRange: [0.96, 1] }) },
+        ],
+      }}
+    >
+      {children}
+    </Animated.View>
   );
 }
 

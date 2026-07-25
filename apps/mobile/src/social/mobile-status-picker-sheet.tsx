@@ -79,6 +79,16 @@ export interface MobileStatusPickerSheetProps {
   readonly presence: MobileFriendPresenceStatus | null;
 }
 
+export interface MobileStatusPickerSheetViewProps extends Omit<
+  MobileStatusPickerSheetProps,
+  "client"
+> {
+  /** Shown once a write failed, so the host owns retry semantics. */
+  readonly failed: boolean;
+  readonly onSelect: (option: MobileStatusPickerOption) => void;
+  readonly pending: boolean;
+}
+
 /**
  * Handoff 2c. Picking a status writes presence immediately and closes — there is
  * no confirm step, because the row that was tapped is the confirmation, and the
@@ -93,19 +103,9 @@ export function MobileStatusPickerSheet({
   open,
   presence,
 }: MobileStatusPickerSheetProps) {
-  const { locale } = useMobileLocaleRuntime();
-  const copy = mobileCopy[locale];
-  const styles = useMobileProfileSheetStyles();
-  const theme = useTheme();
   const haptics = useMobileHaptics();
-  const presentation = useSheetPresentation();
   const { updatePresence } = useMobileSocialMutations(client);
   const [failed, setFailed] = useState(false);
-
-  const selected = toMobileStatusPickerOption(presence);
-  const customStatusPreview = customStatus
-    ? `${customStatusEmoji ? `${customStatusEmoji} ` : ""}${customStatus}`
-    : null;
 
   const select = (option: MobileStatusPickerOption) => {
     if (updatePresence.isPending) {
@@ -121,6 +121,48 @@ export function MobileStatusPickerSheet({
       onSuccess: () => onClose(),
     });
   };
+
+  return (
+    <MobileStatusPickerSheetView
+      customStatus={customStatus}
+      customStatusEmoji={customStatusEmoji}
+      failed={failed}
+      onClose={onClose}
+      onOpenCustomStatus={onOpenCustomStatus}
+      onSelect={select}
+      open={open}
+      pending={updatePresence.isPending}
+      presence={presence}
+    />
+  );
+}
+
+/**
+ * The 2c presentation with no write path of its own, so a host that already owns
+ * the presence mutation (the profile hub, which is handed an authenticated action
+ * from the product shell) renders the same sheet instead of a stack of buttons.
+ */
+export function MobileStatusPickerSheetView({
+  customStatus,
+  customStatusEmoji,
+  failed,
+  onClose,
+  onOpenCustomStatus,
+  onSelect,
+  open,
+  pending,
+  presence,
+}: MobileStatusPickerSheetViewProps) {
+  const { locale } = useMobileLocaleRuntime();
+  const copy = mobileCopy[locale];
+  const styles = useMobileProfileSheetStyles();
+  const theme = useTheme();
+  const presentation = useSheetPresentation();
+
+  const selected = toMobileStatusPickerOption(presence);
+  const customStatusPreview = customStatus
+    ? `${customStatusEmoji ? `${customStatusEmoji} ` : ""}${customStatus}`
+    : null;
 
   return (
     <BottomSheet
@@ -156,14 +198,14 @@ export function MobileStatusPickerSheet({
                 accessibilityLabel={description ? `${label}. ${description}` : label}
                 accessibilityRole="radio"
                 accessibilityState={{ checked: isSelected, selected: isSelected }}
-                disabled={updatePresence.isPending}
+                disabled={pending}
                 key={option}
-                onPress={() => select(option)}
+                onPress={() => onSelect(option)}
                 style={({ pressed }) => [
                   styles.statusRow,
                   isSelected && styles.statusRowSelected,
-                  updatePresence.isPending && styles.statusRowDisabled,
-                  pressed && !updatePresence.isPending && styles.statusRowPressed,
+                  pending && styles.statusRowDisabled,
+                  pressed && !pending && styles.statusRowPressed,
                 ]}
                 testID={`${MOBILE_STATUS_PICKER_SHEET_TEST_ID}-${option.toLowerCase()}`}
               >

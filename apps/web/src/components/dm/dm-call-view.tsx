@@ -111,7 +111,7 @@ export function DmCallView({
       <header className="flex shrink-0 items-center gap-3">
         <button
           aria-label={t("dm.call.minimize")}
-          className="inline-flex h-9 w-9 items-center justify-center rounded-2xl text-app-muted transition hover:bg-[hsl(var(--surface-soft)/0.58)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-2xl text-app-muted transition hover:bg-[hsl(var(--surface-soft)/0.58)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
           data-testid="dm-call-minimize"
           onClick={() => setMinimized(true)}
           title={t("dm.call.minimize")}
@@ -144,7 +144,7 @@ export function DmCallView({
         </div>
         {session.status === "ringing-out" ? (
           <button
-            className="inline-flex items-center gap-2 rounded-2xl border border-[hsl(var(--danger)/0.28)] bg-[hsl(var(--danger)/0.1)] px-3 py-2 text-xs font-semibold text-[hsl(var(--danger))] transition hover:bg-[hsl(var(--danger)/0.14)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+            className="inline-flex items-center gap-2 rounded-2xl border border-[hsl(var(--danger)/0.28)] bg-[hsl(var(--danger)/0.1)] px-3 py-2 text-xs font-semibold text-[hsl(var(--danger))] transition hover:bg-[hsl(var(--danger)/0.14)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
             data-testid="dm-call-cancel"
             onClick={() => void onLeave()}
             type="button"

@@ -1,5 +1,5 @@
 import type { Prisma } from "@wizards/db";
-import type { NotificationSocketPayload } from "./events";
+import type { NotificationSocketContext, NotificationSocketPayload } from "./events";
 
 export type NotificationRecord = {
   id: string;
@@ -26,7 +26,10 @@ function isRecord(value: Prisma.JsonValue | null): value is Prisma.JsonObject {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
-export function serializeNotification(notification: NotificationRecord): NotificationSocketPayload {
+export function serializeNotification(
+  notification: NotificationRecord,
+  context: NotificationSocketContext = {},
+): NotificationSocketPayload {
   return {
     id: notification.id,
     userId: notification.userId,
@@ -39,5 +42,10 @@ export function serializeNotification(notification: NotificationRecord): Notific
     actionUrl: notification.actionUrl,
     metadata: isRecord(notification.metadata) ? notification.metadata : null,
     createdAt: notification.createdAt.toISOString(),
+    // Only spread what the caller actually knows: an absent key and a null value
+    // mean different things to a client deciding whether to trust the event.
+    ...(context.actor === undefined ? {} : { actor: context.actor }),
+    ...(context.channel === undefined ? {} : { channel: context.channel }),
+    ...(context.server === undefined ? {} : { server: context.server }),
   };
 }

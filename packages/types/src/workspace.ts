@@ -184,7 +184,7 @@ export const WorkspaceServerDetailSchema = z.object({
   memberPage: WorkspaceMemberPageSchema,
   members: z.array(WorkspaceMemberSchema),
   roles: z.array(WorkspaceRoleSchema),
-  ungroupedChannels: z.array(WorkspaceChannelSchema),
+  ungroupedChannels: z.array(WorkspaceChannelSchema, { error: "Expected array" }),
 });
 
 export const WorkspaceServersResponseSchema = z.object({
@@ -368,8 +368,8 @@ export type WorkspacePermissionKey = z.infer<typeof WorkspacePermissionKeySchema
 export type WorkspaceRole = z.infer<typeof WorkspaceRoleSchema>;
 export type WorkspaceServerDetail = z.infer<typeof WorkspaceServerDetailSchema>;
 export type WorkspaceServerSummary = z.infer<typeof WorkspaceServerSummarySchema>;
-export type CreateServerInput = z.infer<typeof CreateServerSchema>;
-export type UpdateServerInput = z.infer<typeof UpdateServerSchema>;
+export type CreateServerInput = z.input<typeof CreateServerSchema>;
+export type UpdateServerInput = z.input<typeof UpdateServerSchema>;
 export type DeleteServerInput = z.infer<typeof DeleteServerSchema>;
 export type CreateCategoryInput = z.infer<typeof CreateCategorySchema>;
 export type UpdateCategoryInput = z.infer<typeof UpdateCategorySchema>;

@@ -267,7 +267,7 @@ export function ServerRail({
           ref={dmBtnRef}
           aria-current={!activeServerId ? "page" : undefined}
           aria-label={t("shell.serverRail.directMessages")}
-          className="group relative mx-auto flex h-11 w-11 items-center justify-center rounded-full outline-none transition-all duration-150 focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.7)] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--background)/0.72)]"
+          className="group relative mx-auto flex h-11 w-11 items-center justify-center rounded-full outline-hidden transition-all duration-150 focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.7)] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--background)/0.72)]"
           data-testid="server-rail-dm"
           onBlur={() => setDmTooltipPos(null)}
           onClick={() => onNavigate("/channels/@me")}
@@ -388,7 +388,7 @@ export function ServerRail({
             <motion.button
               ref={addBtnRef}
               aria-label={t("shell.serverRail.createServer")}
-              className="group relative mx-auto flex shrink-0 items-center justify-center rounded-[18px] text-left text-[hsl(var(--primary))] outline-none transition hover:bg-[hsl(var(--primary)/0.1)] focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--background)/0.72)]"
+              className="group relative mx-auto flex shrink-0 items-center justify-center rounded-[18px] text-left text-[hsl(var(--primary))] outline-hidden transition hover:bg-[hsl(var(--primary)/0.1)] focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--background)/0.72)]"
               onBlur={() => setAddTooltipPos(null)}
               onClick={onOpenCreateServer}
               onFocus={showAddTooltip}
@@ -493,7 +493,7 @@ export function MobileDrawerTrigger({ onClick }: { onClick: () => void }) {
   return (
     <button
       aria-label={t("shell.mobile.openWorkspaceNavigation")}
-      className="app-panel-soft text-app-foreground inline-flex h-11 w-11 items-center justify-center rounded-2xl border transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] md:hidden"
+      className="app-panel-soft text-app-foreground inline-flex h-11 w-11 items-center justify-center rounded-2xl border transition hover:opacity-90 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] md:hidden"
       data-testid="mobile-workspace-drawer-button"
       onClick={onClick}
       type="button"

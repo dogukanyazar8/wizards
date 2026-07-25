@@ -8,10 +8,7 @@ import { Button } from "@wizards/ui";
 import { useI18n } from "@/components/providers/locale-provider";
 import { SettingsPanel } from "@/components/settings/settings-panel";
 import { SettingsSidebar } from "@/components/settings/settings-sidebar";
-import {
-  fetchSettingsBootstrap,
-  settingsQueryKeys,
-} from "@/lib/settings/client";
+import { fetchSettingsBootstrap, settingsQueryKeys } from "@/lib/settings/client";
 import type { SettingsSelection } from "@/lib/settings/navigation";
 
 type InAppSettingsOverlayProps = {
@@ -78,7 +75,7 @@ export function InAppSettingsOverlay({ onClose, open }: InAppSettingsOverlayProp
           >
             <button
               aria-label={t("common.close")}
-              className="absolute right-3 top-3 z-20 grid h-9 w-9 place-items-center rounded-xl border border-[hsl(var(--border)/0.56)] bg-[hsl(var(--surface)/0.88)] text-app-muted shadow-[0_10px_24px_hsl(var(--shadow-color)/0.07)] transition hover:bg-[hsl(var(--surface-soft)/0.9)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+              className="absolute right-3 top-3 z-20 grid h-9 w-9 place-items-center rounded-xl border border-[hsl(var(--border)/0.56)] bg-[hsl(var(--surface)/0.88)] text-app-muted shadow-[0_10px_24px_hsl(var(--shadow-color)/0.07)] transition hover:bg-[hsl(var(--surface-soft)/0.9)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
               data-testid="in-app-settings-close"
               onClick={onClose}
               type="button"

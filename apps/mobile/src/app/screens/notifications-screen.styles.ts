@@ -7,11 +7,17 @@ export const createNotificationsScreenStyles = (theme: MobileTheme) => {
   const mobileRadii = theme.radii;
   const mobileSizing = theme.sizing;
   const notificationsScreenStyles = {
+    // A notification is a headline, not body copy: the regular weight read as
+    // washed out next to the avatar and badge.
     notificationFeedBody: {
       color: theme.text.primary,
-      fontFamily: theme.typography.fontFamily,
+      fontFamily: theme.typography.fontFamilySemiBold,
       fontSize: 14,
       lineHeight: 20,
+    },
+    notificationFeedBodyUnread: {
+      color: theme.text.primary,
+      fontFamily: theme.typography.fontFamilyBold,
     },
     notificationFeedIcon: {
       alignItems: "center" as const,
@@ -26,12 +32,12 @@ export const createNotificationsScreenStyles = (theme: MobileTheme) => {
     },
     notificationFeedMeta: {
       color: theme.text.soft,
-      fontFamily: theme.typography.fontFamily,
+      fontFamily: theme.typography.fontFamilySemiBold,
       fontSize: 11.5,
     },
     notificationFeedQuote: {
       color: theme.text.muted,
-      fontFamily: theme.typography.fontFamily,
+      fontFamily: theme.typography.fontFamilySemiBold,
       fontSize: 12.5,
     },
     notificationFeedRow: {
@@ -221,20 +227,28 @@ export const createNotificationsScreenStyles = (theme: MobileTheme) => {
     notificationsHeaderActions: {
       alignItems: "center" as const,
       flexDirection: "row" as const,
-      gap: 8,
+      gap: 6,
     },
+    // Three controls share this row now (okundu say · ayarlar · tümünü temizle),
+    // so the buttons trade 4px each to keep the title on one line.
     notificationsHeaderIconButton: {
       alignItems: "center" as const,
       backgroundColor: theme.surface.card,
       borderColor: theme.border.subtle,
-      borderRadius: 14,
+      borderRadius: 13,
       borderWidth: 1,
-      height: 40,
+      height: 36,
       justifyContent: "center" as const,
-      width: 40,
+      width: 36,
     },
     notificationsHeaderIconButtonDisabled: {
       opacity: theme.layout.opacity.notificationMarkAllReadDisabled,
+    },
+    // "Tümünü temizle" sits beside the settings control now, so it needs the
+    // destructive tint the old footer pill carried.
+    notificationsHeaderDangerButton: {
+      backgroundColor: theme.status.dangerSoft,
+      borderColor: theme.status.dangerSoft,
     },
     notificationsSegmentTrack: {
       backgroundColor: theme.surface.rail,
@@ -317,28 +331,6 @@ export const createNotificationsScreenStyles = (theme: MobileTheme) => {
       color: theme.text.muted,
       fontFamily: theme.typography.fontFamilyBold,
       fontSize: 12.5,
-    },
-    notificationsFooterActions: {
-      alignItems: "center" as const,
-      paddingBottom: 8,
-      paddingTop: 14,
-    },
-    notificationsClearAction: {
-      alignItems: "center" as const,
-      borderColor: theme.status.dangerSoft,
-      backgroundColor: theme.status.dangerSoft,
-      borderRadius: 999,
-      borderWidth: 1,
-      flexDirection: "row" as const,
-      gap: 8,
-      justifyContent: "center" as const,
-      minHeight: 40,
-      paddingHorizontal: 18,
-    },
-    notificationsClearActionText: {
-      color: theme.status.danger,
-      fontFamily: theme.typography.fontFamilyBold,
-      fontSize: 13,
     },
     notificationsSectionTitle: {
       color: theme.text.soft,

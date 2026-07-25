@@ -1,5 +1,4 @@
 import {
-  ActivityIndicator,
   Pressable,
   Text,
   View,
@@ -107,52 +106,43 @@ export function MobileSyncHealthBanner({
   health: MobileSyncHealthSummary;
   onRetry(): void;
 }) {
-  const theme = useTheme();
   const styles = useUiAtomStyles();
-  if (health.status === "healthy") {
+
+  // Background refreshes are silent on every screen. A running refetch is not
+  // news — announcing it made routine polling look like an incident and pushed
+  // the content down each time it appeared. Only a refresh that actually failed
+  // is worth a word, because otherwise stale or empty content has no explanation
+  // and no way back.
+  if (health.status !== "error") {
     return null;
   }
-
-  const isError = health.status === "error";
 
   return (
     <View
       accessibilityLiveRegion="polite"
-      style={[styles.syncHealthBanner, isError && styles.syncHealthBannerError]}
+      style={[styles.syncHealthBanner, styles.syncHealthBannerError]}
+      testID="mobile-sync-health-banner"
     >
-      <View
-        style={[
-          styles.syncHealthIcon,
-          isError ? styles.syncHealthIconError : styles.syncHealthIconRefreshing,
-        ]}
-      >
-        {isError ? (
-          <Text style={styles.syncHealthIconText}>!</Text>
-        ) : (
-          <ActivityIndicator color={theme.accent.strong} size="small" />
-        )}
+      <View style={[styles.syncHealthIcon, styles.syncHealthIconError]}>
+        <Text style={styles.syncHealthIconText}>!</Text>
       </View>
       <View style={styles.syncHealthText}>
-        <Text style={styles.syncHealthTitle}>
-          {isError ? copy.syncHealthErrorTitle : copy.syncHealthRefreshingTitle}
-        </Text>
+        <Text style={styles.syncHealthTitle}>{copy.syncHealthErrorTitle}</Text>
         <Text style={styles.syncHealthDescription} numberOfLines={2}>
-          {isError ? copy.syncHealthErrorDescription : copy.syncHealthRefreshingDescription}
+          {copy.syncHealthErrorDescription}
         </Text>
       </View>
-      {isError ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={copy.retryAction}
-          onPress={onRetry}
-          style={({ pressed }) => [
-            styles.syncHealthRetryButton,
-            pressed && styles.actionButtonPressed,
-          ]}
-        >
-          <Text style={styles.syncHealthRetryText}>{copy.retryAction}</Text>
-        </Pressable>
-      ) : null}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={copy.retryAction}
+        onPress={onRetry}
+        style={({ pressed }) => [
+          styles.syncHealthRetryButton,
+          pressed && styles.actionButtonPressed,
+        ]}
+      >
+        <Text style={styles.syncHealthRetryText}>{copy.retryAction}</Text>
+      </Pressable>
     </View>
   );
 }

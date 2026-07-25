@@ -3,6 +3,7 @@ import { prisma } from "@wizards/db";
 import { normalizeAppLocale, translate } from "@/lib/locale";
 import { isMessageGifContentType, isMessageImageContentType } from "@/lib/messages/attachments";
 import { sendMobilePushForNotifications } from "@/lib/mobile/push-sender";
+import { loadNotificationActor } from "@/lib/notifications/socket-context";
 import { serializeNotification, type NotificationRecord } from "@/lib/socket/notification-payload";
 import type { AppSocketServer } from "@/lib/socket/runtime";
 
@@ -84,10 +85,18 @@ export async function createDMMessageNotifications(args: {
     skipDuplicates: true,
   });
 
+  // A DM notification is drawn around the sender's avatar, so the event carries
+  // them and the mobile feed needs no follow-up fetch to render the row. Only
+  // worth a read when there is a socket to emit on.
+  const actor = args.io && notifications.length ? await loadNotificationActor(args.senderId) : null;
+
   for (const notification of notifications) {
     args.io
       ?.to(`user:${notification.userId}`)
-      .emit("notification:new", serializeNotification(notification as NotificationRecord));
+      .emit(
+        "notification:new",
+        serializeNotification(notification as NotificationRecord, { actor }),
+      );
   }
 
   void sendMobilePushForNotifications(

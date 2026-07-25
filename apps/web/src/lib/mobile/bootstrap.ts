@@ -12,6 +12,10 @@ import { normalizeAppLocale, type AppLocale } from "@/lib/locale";
 
 export type MobileBootstrapUser = {
   avatarUrl: string | null;
+  bannerColor?: string | null;
+  bannerOffsetX?: number | null;
+  bannerOffsetY?: number | null;
+  bannerUrl?: string | null;
   displayName: string | null;
   id: string;
   locale: string | null;
@@ -104,6 +108,12 @@ export function getMobileBootstrapPayload({
     home,
     user: {
       avatarUrl: user.avatarUrl,
+      bannerColor: user.bannerColor ?? null,
+      // A stored focal point is meaningless without the image it was measured
+      // against, so a colour-only banner reports no offset.
+      bannerOffsetX: user.bannerUrl ? (user.bannerOffsetX ?? null) : null,
+      bannerOffsetY: user.bannerUrl ? (user.bannerOffsetY ?? null) : null,
+      bannerUrl: user.bannerUrl ?? null,
       displayName: user.displayName,
       id: user.id,
       locale,

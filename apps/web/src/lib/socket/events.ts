@@ -7,7 +7,27 @@ import type {
 } from "@wizards/types";
 import type { FriendPresenceUpdateDto } from "@/lib/friends/types";
 
-export interface NotificationSocketPayload {
+/**
+ * The names and avatars behind a notification live on other tables, so a client
+ * that only had the row still needed a round trip before it could draw the item.
+ * Emitters that already hold the actor, channel or server pass them here and the
+ * mobile feed renders straight from the event; everything is optional so an
+ * emitter with nothing extra to say stays exactly as it was.
+ */
+export interface NotificationSocketActor {
+  avatarUrl: string | null;
+  displayName: string | null;
+  id: string;
+  username: string;
+}
+
+export interface NotificationSocketContext {
+  actor?: NotificationSocketActor | null;
+  channel?: { id: string; name: string } | null;
+  server?: { id: string; name: string } | null;
+}
+
+export interface NotificationSocketPayload extends NotificationSocketContext {
   id: string;
   userId: string;
   type:

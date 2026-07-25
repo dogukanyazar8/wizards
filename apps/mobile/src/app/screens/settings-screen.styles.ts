@@ -333,6 +333,11 @@ export const createSettingsScreenStyles = (theme: MobileTheme) => {
     mobileProfileIdentityBanner: {
       backgroundColor: theme.accent.default,
       height: 72,
+      overflow: "hidden" as const,
+    },
+    mobileProfileIdentityBannerImage: {
+      height: "100%" as const,
+      width: "100%" as const,
     },
     mobileProfileIdentityBody: {
       gap: 8,
@@ -449,10 +454,6 @@ export const createSettingsScreenStyles = (theme: MobileTheme) => {
       color: theme.status.danger,
       fontFamily: theme.typography.fontFamilyBold,
       fontSize: 12,
-    },
-    mobileProfilePresenceSheet: {
-      gap: 10,
-      paddingBottom: 8,
     },
     mobileProfileStateCard: {
       backgroundColor: theme.surface.card,

@@ -442,7 +442,7 @@ export function UserProfileFooter({
               aria-expanded={isStatusMenuOpen}
               aria-haspopup="listbox"
               aria-label={t("shell.user.status")}
-              className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-transparent p-0 text-left text-[10.5px] font-semibold text-app-muted transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] disabled:cursor-wait disabled:opacity-70"
+              className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-transparent p-0 text-left text-[10.5px] font-semibold text-app-muted transition hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] disabled:cursor-wait disabled:opacity-70"
               disabled={isUpdatingStatus}
               onClick={() => toggleUserPopup("status")}
               title={t("shell.user.statusTitle")}
@@ -467,7 +467,7 @@ export function UserProfileFooter({
                     <button
                       aria-selected={selected}
                       className={cn(
-                        "flex w-full items-center gap-2 rounded-[14px] px-2.5 py-1.5 text-left text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]",
+                        "flex w-full items-center gap-2 rounded-[14px] px-2.5 py-1.5 text-left text-xs font-semibold transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]",
                         selected
                           ? "bg-[hsl(var(--primary)/0.12)] text-[hsl(var(--primary))]"
                           : "text-app-muted hover:bg-[hsl(var(--surface-soft)/0.58)] hover:text-app-foreground",
@@ -493,7 +493,7 @@ export function UserProfileFooter({
           <button
             aria-label={t("shell.user.toggleMute")}
             className={cn(
-              "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[hsl(var(--surface-soft)/0.36)] text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.68)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+              "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[hsl(var(--surface-soft)/0.36)] text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.68)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
               isMuted
                 ? "bg-[hsl(var(--danger)/0.1)] text-[hsl(var(--danger))]"
                 : "text-app-foreground",
@@ -509,7 +509,7 @@ export function UserProfileFooter({
           <button
             aria-label={t("shell.user.toggleDeafen")}
             className={cn(
-              "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[hsl(var(--surface-soft)/0.36)] text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.68)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+              "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[hsl(var(--surface-soft)/0.36)] text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.68)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
               isDeafened
                 ? "bg-[hsl(var(--danger)/0.1)] text-[hsl(var(--danger))]"
                 : "text-app-foreground",
@@ -541,7 +541,7 @@ export function UserProfileFooter({
           <button
             aria-label={t("shell.user.appearanceSettings")}
             className={cn(
-              "inline-flex h-8 w-8 items-center justify-center rounded-full bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))] transition hover:bg-[hsl(var(--primary)/0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+              "inline-flex h-8 w-8 items-center justify-center rounded-full bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--primary))] transition hover:bg-[hsl(var(--primary)/0.16)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
               isQuickMenuOpen && "bg-[hsl(var(--primary)/0.18)]",
             )}
             data-testid="user-settings-button"
@@ -585,7 +585,7 @@ export function UserProfileFooter({
                   aria-expanded={isIdleTimeoutMenuOpen}
                   aria-haspopup="listbox"
                   className={cn(
-                    "flex h-8 w-full min-w-0 items-center justify-between gap-2 rounded-[14px] border border-[hsl(var(--border)/0.48)] bg-[hsl(var(--surface-soft)/0.34)] px-2.5 text-left text-[11px] font-bold text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.68)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]",
+                    "flex h-8 w-full min-w-0 items-center justify-between gap-2 rounded-[14px] border border-[hsl(var(--border)/0.48)] bg-[hsl(var(--surface-soft)/0.34)] px-2.5 text-left text-[11px] font-bold text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.68)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]",
                     isIdleTimeoutMenuOpen &&
                       "border-[hsl(var(--primary)/0.32)] bg-[hsl(var(--primary)/0.1)] shadow-[0_10px_28px_hsl(var(--primary)/0.1)]",
                   )}
@@ -640,7 +640,7 @@ export function UserProfileFooter({
                         <button
                           aria-selected={selected}
                           className={cn(
-                            "flex h-8 w-full items-center justify-between gap-2 rounded-[12px] px-2 text-left text-[11px] font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]",
+                            "flex h-8 w-full items-center justify-between gap-2 rounded-[12px] px-2 text-left text-[11px] font-bold transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]",
                             selected
                               ? "bg-[hsl(var(--primary)/0.13)] text-[hsl(var(--primary))]"
                               : "text-app-muted hover:bg-[hsl(var(--surface-soft)/0.62)] hover:text-app-foreground",
@@ -707,7 +707,7 @@ export function UserProfileFooter({
             <div className="my-3 h-px bg-[hsl(var(--border)/0.42)]" />
 
             <button
-              className="grid w-full grid-cols-[2rem_minmax(0,1fr)] items-center gap-2 rounded-[16px] px-1 py-1 text-left transition hover:bg-[hsl(var(--surface-soft)/0.44)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
+              className="grid w-full grid-cols-[2rem_minmax(0,1fr)] items-center gap-2 rounded-[16px] px-1 py-1 text-left transition hover:bg-[hsl(var(--surface-soft)/0.44)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
               data-testid="user-appearance-settings-button"
               onClick={() => {
                 closeUserPopups();
@@ -730,7 +730,7 @@ export function UserProfileFooter({
 
             <button
               aria-label={t("shell.user.logout")}
-              className="mt-1.5 grid w-full grid-cols-[2rem_minmax(0,1fr)] items-center gap-2 rounded-[16px] px-1 py-1 text-left transition hover:bg-[hsl(var(--danger)/0.07)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.38)] disabled:cursor-not-allowed disabled:opacity-60"
+              className="mt-1.5 grid w-full grid-cols-[2rem_minmax(0,1fr)] items-center gap-2 rounded-[16px] px-1 py-1 text-left transition hover:bg-[hsl(var(--danger)/0.07)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.38)] disabled:cursor-not-allowed disabled:opacity-60"
               data-testid="user-logout-button"
               disabled={isLoggingOut}
               onClick={handleLogout}
@@ -1115,7 +1115,7 @@ export function ChannelSidebar({
       </div>
       <button
         aria-pressed={showCategoryMoveControls}
-        className="flex w-full items-center gap-2.5 rounded-2xl border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.32)] p-2.5 text-left transition hover:bg-[hsl(var(--surface-soft)/0.56)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
+        className="flex w-full items-center gap-2.5 rounded-2xl border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-soft)/0.32)] p-2.5 text-left transition hover:bg-[hsl(var(--surface-soft)/0.56)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
         onClick={() => setShowCategoryMoveControls(!showCategoryMoveControls)}
         type="button"
       >
@@ -1330,7 +1330,7 @@ export function ChannelSidebar({
             <button
               aria-label={t("shell.channelSidebar.dragCategory", { name: label })}
               className={cn(
-                "text-app-soft inline-flex h-6 w-5 shrink-0 items-center justify-center rounded-lg transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                "text-app-soft inline-flex h-6 w-5 shrink-0 items-center justify-center rounded-lg transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
                 categorySortable.isDragging && "cursor-grabbing text-app-foreground",
               )}
               type="button"
@@ -1347,7 +1347,7 @@ export function ChannelSidebar({
             >
               <button
                 aria-label={t("shell.channelSidebar.moveSectionUp", { name: label })}
-                className="inline-flex h-6 w-6 items-center justify-center rounded-lg text-app-soft transition hover:bg-[hsl(var(--surface-soft)/0.74)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-35"
+                className="inline-flex h-6 w-6 items-center justify-center rounded-lg text-app-soft transition hover:bg-[hsl(var(--surface-soft)/0.74)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-35"
                 disabled={!canMoveGroupUp || categoryReorderMutation.isPending}
                 onClick={(event) => {
                   event.stopPropagation();
@@ -1360,7 +1360,7 @@ export function ChannelSidebar({
               </button>
               <button
                 aria-label={t("shell.channelSidebar.moveSectionDown", { name: label })}
-                className="inline-flex h-6 w-6 items-center justify-center rounded-lg text-app-soft transition hover:bg-[hsl(var(--surface-soft)/0.74)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-35"
+                className="inline-flex h-6 w-6 items-center justify-center rounded-lg text-app-soft transition hover:bg-[hsl(var(--surface-soft)/0.74)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-35"
                 disabled={!canMoveGroupDown || categoryReorderMutation.isPending}
                 onClick={(event) => {
                   event.stopPropagation();
@@ -1392,7 +1392,7 @@ export function ChannelSidebar({
           {canManage && categoryId ? (
             <button
               aria-label={t("shell.channelSidebar.categoryActions")}
-              className="text-app-soft inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-xl border border-transparent opacity-0 transition hover:border-[hsl(var(--border)/0.58)] hover:bg-[hsl(var(--surface-soft)/0.68)] hover:text-app-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] group-hover/category:opacity-100"
+              className="text-app-soft inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-xl border border-transparent opacity-0 transition hover:border-[hsl(var(--border)/0.58)] hover:bg-[hsl(var(--surface-soft)/0.68)] hover:text-app-foreground focus-visible:opacity-100 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] group-hover/category:opacity-100"
               onClick={(event) => {
                 event.stopPropagation();
                 const rect = event.currentTarget.getBoundingClientRect();
@@ -1486,7 +1486,7 @@ export function ChannelSidebar({
       <div className="space-y-2 border-b border-[hsl(var(--border)/0.36)] px-2.5 py-2.5">
         <button
           aria-label={`Open ${detail.server.name} menu`}
-          className="flex min-h-[3.35rem] w-full min-w-0 items-center justify-between gap-2.5 rounded-[18px] bg-[linear-gradient(135deg,hsl(var(--surface-card)/0.54),hsl(var(--primary)/0.06))] px-2.5 py-2 text-left transition hover:bg-[hsl(var(--surface-card)/0.72)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+          className="flex min-h-[3.35rem] w-full min-w-0 items-center justify-between gap-2.5 rounded-[18px] bg-[linear-gradient(135deg,hsl(var(--surface-card)/0.54),hsl(var(--primary)/0.06))] px-2.5 py-2 text-left transition hover:bg-[hsl(var(--surface-card)/0.72)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
           data-sidebar-interactive="true"
           onClick={(event) => {
             const rect = event.currentTarget.getBoundingClientRect();
@@ -1517,7 +1517,7 @@ export function ChannelSidebar({
           <span className="sr-only">{t("shell.channelSidebar.searchLabel")}</span>
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-app-soft" />
           <input
-            className="h-10 w-full rounded-[16px] border border-[hsl(var(--border)/0.42)] bg-[hsl(var(--surface-card)/0.5)] pl-8 pr-16 text-[13px] font-medium text-app-foreground outline-none transition placeholder:text-app-soft hover:border-[hsl(var(--primary)/0.22)] focus:border-[hsl(var(--primary)/0.42)] focus:ring-2 focus:ring-[hsl(var(--ring)/0.18)]"
+            className="h-10 w-full rounded-[16px] border border-[hsl(var(--border)/0.42)] bg-[hsl(var(--surface-card)/0.5)] pl-8 pr-16 text-[13px] font-medium text-app-foreground outline-hidden transition placeholder:text-app-soft hover:border-[hsl(var(--primary)/0.22)] focus:border-[hsl(var(--primary)/0.42)] focus:ring-2 focus:ring-[hsl(var(--ring)/0.18)]"
             onChange={(event) => setChannelSearchQuery(event.target.value)}
             placeholder={t("shell.channelSidebar.searchPlaceholder")}
             type="search"
@@ -1533,7 +1533,7 @@ export function ChannelSidebar({
             data-sidebar-interactive="true"
           >
             <button
-              className="inline-flex h-8 min-w-0 items-center justify-center gap-0.5 rounded-[13px] bg-[hsl(var(--surface-soft)/0.22)] px-1 text-[10.5px] font-semibold text-app-muted transition hover:bg-[hsl(var(--primary)/0.08)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+              className="inline-flex h-8 min-w-0 items-center justify-center gap-0.5 rounded-[13px] bg-[hsl(var(--surface-soft)/0.22)] px-1 text-[10.5px] font-semibold text-app-muted transition hover:bg-[hsl(var(--primary)/0.08)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
               onClick={() =>
                 openChannelModal({
                   mode: "create",
@@ -1547,7 +1547,7 @@ export function ChannelSidebar({
               <span className="min-w-0 truncate">{t("shell.channelSidebar.addTextChannel")}</span>
             </button>
             <button
-              className="inline-flex h-8 min-w-0 items-center justify-center gap-0.5 rounded-[13px] bg-[hsl(var(--surface-soft)/0.22)] px-1 text-[10.5px] font-semibold text-app-muted transition hover:bg-[hsl(var(--primary)/0.08)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+              className="inline-flex h-8 min-w-0 items-center justify-center gap-0.5 rounded-[13px] bg-[hsl(var(--surface-soft)/0.22)] px-1 text-[10.5px] font-semibold text-app-muted transition hover:bg-[hsl(var(--primary)/0.08)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
               onClick={() =>
                 openChannelModal({
                   mode: "create",
@@ -1561,7 +1561,7 @@ export function ChannelSidebar({
               <span className="min-w-0 truncate">{t("shell.channelSidebar.addVoiceChannel")}</span>
             </button>
             <button
-              className="inline-flex h-8 min-w-0 items-center justify-center gap-0.5 rounded-[13px] bg-[hsl(var(--surface-soft)/0.22)] px-1 text-[10.5px] font-semibold text-app-muted transition hover:bg-[hsl(var(--primary)/0.08)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+              className="inline-flex h-8 min-w-0 items-center justify-center gap-0.5 rounded-[13px] bg-[hsl(var(--surface-soft)/0.22)] px-1 text-[10.5px] font-semibold text-app-muted transition hover:bg-[hsl(var(--primary)/0.08)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
               onClick={() => openInviteModal(detail.server.id)}
               type="button"
             >

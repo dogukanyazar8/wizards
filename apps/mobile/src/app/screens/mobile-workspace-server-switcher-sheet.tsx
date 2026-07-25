@@ -136,7 +136,14 @@ export function MobileWorkspaceServerSwitcherSheet({
                   </Text>
                 </View>
                 {selected ? (
-                  <Ionicons name="checkmark" size={20} color={theme.accent.strong} />
+                  // 1c: the active ring reads as a deliberate mark, so the tick keeps
+                  // a heavier stroke than the default line-icon weight.
+                  <MobileLineIcon
+                    color={theme.accent.strong}
+                    name="check"
+                    size={18}
+                    strokeWidth={2.8}
+                  />
                 ) : badge.kind === "mention" ? (
                   <View style={styles.mentionBadge}>
                     <Text style={styles.mentionBadgeText}>
@@ -252,11 +259,11 @@ export const createMobileWorkspaceServerSwitcherSheetStyles = (theme: MobileThem
   createJoinAction: {
     alignItems: "center" as const,
     backgroundColor: theme.accent.soft,
-    borderRadius: 12,
+    borderRadius: 13,
     flexDirection: "row" as const,
     gap: 6,
     paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingVertical: 9,
   },
   createJoinActionText: {
     color: theme.accent.strong,
@@ -269,38 +276,39 @@ export const createMobileWorkspaceServerSwitcherSheetStyles = (theme: MobileThem
     height: 5,
     width: 44,
   },
-  handleArea: { paddingBottom: 18, paddingTop: 12 },
+  // 1c keeps the grabber tight so the sheet spends its height on rows, not chrome.
+  handleArea: { paddingBottom: 6, paddingTop: 10 },
   header: {
     alignItems: "center" as const,
     flexDirection: "row" as const,
     justifyContent: "space-between" as const,
-    paddingBottom: 14,
+    paddingBottom: 12,
     paddingHorizontal: 4,
+    paddingTop: 4,
   },
-  list: { gap: 6, paddingBottom: 4 },
+  list: { paddingBottom: 4 },
   mentionBadge: {
     alignItems: "center" as const,
     backgroundColor: theme.mention.badge,
     borderRadius: theme.radii.pill,
     justifyContent: "center" as const,
-    minHeight: 22,
-    minWidth: 22,
-    paddingHorizontal: 8,
+    minHeight: 20,
+    minWidth: 20,
+    paddingHorizontal: 6,
   },
   mentionBadgeText: {
     color: theme.text.onPrimary,
     fontFamily: theme.typography.fontFamilyExtraBold,
-    fontSize: 11,
+    fontSize: 10.5,
   },
   missedCard: {
     alignItems: "center" as const,
     backgroundColor: theme.surface.base,
     borderRadius: 15,
     flexDirection: "row" as const,
-    gap: 12,
-    minHeight: 56,
+    gap: 10,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 8,
   },
   missedCardSubtitle: {
     color: theme.text.visualSecondary,
@@ -332,7 +340,7 @@ export const createMobileWorkspaceServerSwitcherSheetStyles = (theme: MobileThem
     fontFamily: theme.typography.fontFamilyExtraBold,
     fontSize: 12.5,
   },
-  missedSection: { gap: 8, marginTop: 12 },
+  missedSection: { gap: 6, marginTop: 10 },
   missedTime: {
     color: theme.text.visualPlaceholder,
     fontFamily: theme.typography.fontFamilySemiBold,
@@ -348,27 +356,27 @@ export const createMobileWorkspaceServerSwitcherSheetStyles = (theme: MobileThem
   newServerIcon: {
     alignItems: "center" as const,
     backgroundColor: theme.surface.soft,
-    borderRadius: 18,
-    height: 52,
+    borderRadius: 16,
+    height: 46,
     justifyContent: "center" as const,
-    width: 52,
+    width: 46,
   },
   newServerMeta: {
     color: theme.text.soft,
     fontFamily: theme.typography.fontFamily,
-    fontSize: 12.5,
+    fontSize: 11.5,
   },
   newServerRow: {
     alignItems: "center" as const,
     borderColor: theme.border.subtle,
-    borderRadius: 20,
+    borderRadius: 18,
     borderStyle: "dashed" as const,
     borderWidth: 1.5,
     flexDirection: "row" as const,
-    gap: 14,
-    minHeight: 76,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    gap: 12,
+    marginTop: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
   newServerTitle: {
     color: theme.text.muted,
@@ -384,13 +392,13 @@ export const createMobileWorkspaceServerSwitcherSheetStyles = (theme: MobileThem
   },
   pressed: { opacity: 0.78 },
   serverAvatarFallback: {
-    fontSize: 16,
-    lineHeight: 20,
+    fontSize: 15,
+    lineHeight: 19,
   },
   serverMeta: {
     color: theme.text.muted,
     fontFamily: theme.typography.fontFamily,
-    fontSize: 12.5,
+    fontSize: 11.5,
   },
   serverMetaMention: {
     color: theme.mention.badge,
@@ -399,7 +407,7 @@ export const createMobileWorkspaceServerSwitcherSheetStyles = (theme: MobileThem
   serverName: {
     color: theme.text.primary,
     fontFamily: theme.typography.fontFamilyBold,
-    fontSize: 15.5,
+    fontSize: 15,
   },
   serverNameSelected: {
     color: theme.accent.strong,
@@ -407,17 +415,18 @@ export const createMobileWorkspaceServerSwitcherSheetStyles = (theme: MobileThem
   },
   serverRow: {
     alignItems: "center" as const,
-    borderRadius: 20,
+    borderRadius: 18,
     flexDirection: "row" as const,
-    gap: 14,
-    minHeight: 76,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    gap: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
+  // 1c draws the active ring in the accent itself; border.focus was too pale to
+  // read as "you are here" next to the tick.
   serverRowSelected: {
     backgroundColor: theme.accent.soft,
-    borderColor: theme.border.focus,
-    borderWidth: 1,
+    borderColor: theme.accent.strong,
+    borderWidth: 1.5,
   },
   serverText: { flex: 1, gap: 1, minWidth: 0 },
   title: {
@@ -430,13 +439,13 @@ export const createMobileWorkspaceServerSwitcherSheetStyles = (theme: MobileThem
     backgroundColor: theme.accent.action,
     borderRadius: theme.radii.pill,
     justifyContent: "center" as const,
-    minHeight: 22,
-    minWidth: 22,
+    minHeight: 20,
+    minWidth: 20,
     paddingHorizontal: 6,
   },
   unreadBadgeText: {
     color: theme.text.onPrimary,
-    fontFamily: theme.typography.fontFamilyBold,
-    fontSize: 11,
+    fontFamily: theme.typography.fontFamilyExtraBold,
+    fontSize: 10.5,
   },
 });

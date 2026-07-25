@@ -156,7 +156,7 @@ export function AppUpdateNotifier() {
           </div>
           <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
             <button
-              className="inline-flex min-h-10 items-center gap-2 rounded-2xl border border-[hsl(var(--border)/0.78)] bg-[hsl(var(--surface-soft)/0.64)] px-3 text-sm font-bold text-app-foreground transition hover:border-[hsl(var(--primary)/0.45)] hover:bg-[hsl(var(--primary)/0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+              className="inline-flex min-h-10 items-center gap-2 rounded-2xl border border-[hsl(var(--border)/0.78)] bg-[hsl(var(--surface-soft)/0.64)] px-3 text-sm font-bold text-app-foreground transition hover:border-[hsl(var(--primary)/0.45)] hover:bg-[hsl(var(--primary)/0.08)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
               onClick={() => setIsExpanded((value) => !value)}
               type="button"
             >
@@ -167,7 +167,7 @@ export function AppUpdateNotifier() {
               />
             </button>
             <button
-              className="inline-flex min-h-10 items-center gap-2 rounded-2xl border border-[hsl(var(--primary)/0.42)] bg-[linear-gradient(135deg,hsl(var(--surface-card)/0.98),hsl(var(--surface-soft)/0.9))] px-3.5 text-sm font-black text-app-foreground shadow-[0_16px_38px_hsl(var(--primary)/0.18),inset_0_1px_0_hsl(var(--background)/0.42)] transition hover:translate-y-[-1px] hover:border-[hsl(var(--primary)/0.62)] hover:bg-[linear-gradient(135deg,hsl(var(--primary)/0.14),hsl(var(--surface-card)/0.96))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+              className="inline-flex min-h-10 items-center gap-2 rounded-2xl border border-[hsl(var(--primary)/0.42)] bg-[linear-gradient(135deg,hsl(var(--surface-card)/0.98),hsl(var(--surface-soft)/0.9))] px-3.5 text-sm font-black text-app-foreground shadow-[0_16px_38px_hsl(var(--primary)/0.18),inset_0_1px_0_hsl(var(--background)/0.42)] transition hover:translate-y-[-1px] hover:border-[hsl(var(--primary)/0.62)] hover:bg-[linear-gradient(135deg,hsl(var(--primary)/0.14),hsl(var(--surface-card)/0.96))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
               onClick={reloadApp}
               type="button"
             >
@@ -177,7 +177,7 @@ export function AppUpdateNotifier() {
               <span>{t("app.update.refresh")}</span>
             </button>
             <button
-              className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-transparent text-app-muted transition hover:border-[hsl(var(--border)/0.78)] hover:bg-[hsl(var(--surface-soft)/0.58)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-transparent text-app-muted transition hover:border-[hsl(var(--border)/0.78)] hover:bg-[hsl(var(--surface-soft)/0.58)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
               onClick={dismissUpdate}
               type="button"
               aria-label={t("app.update.later")}

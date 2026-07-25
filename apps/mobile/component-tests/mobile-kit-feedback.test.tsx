@@ -39,6 +39,20 @@ function ToastHarness() {
       >
         <Text>Second</Text>
       </Pressable>
+      <Pressable
+        onPress={() =>
+          showToast({ duration: 5_000, message: "Profil güncellendi.", tone: "success" })
+        }
+        testID="show-success-toast"
+      >
+        <Text>Success</Text>
+      </Pressable>
+      <Pressable
+        onPress={() => showToast({ duration: 5_000, message: "Boom", tone: "danger" })}
+        testID="show-danger-toast"
+      >
+        <Text>Danger</Text>
+      </Pressable>
     </>
   );
 }
@@ -106,6 +120,35 @@ for (const theme of [lightTheme, darkTheme]) {
       clearTimerSpy.mockClear();
       await view.unmount();
       expect(clearTimerSpy).toHaveBeenCalled();
+    });
+
+    it("carries toast meaning on a tinted glyph tile instead of a hairline border", async () => {
+      mockTheme = theme;
+      jest.useFakeTimers();
+      const view = await render(
+        <ToastProvider>
+          <ToastHarness />
+        </ToastProvider>,
+      );
+
+      await fireEvent.press(view.getByTestId("show-success-toast"));
+
+      expect(view.getByText("Profil güncellendi.")).toBeTruthy();
+      expect(
+        StyleSheet.flatten(view.getByTestId("mobile-toast-tone-success").props.style),
+      ).toMatchObject({ backgroundColor: theme.status.successSoft });
+      // The card itself stays neutral; the old toast only ever said "success" via
+      // a 1px border that vanished on the elevated surface.
+      expect(StyleSheet.flatten(view.getByTestId("mobile-toast").props.style).borderColor).toBe(
+        theme.border.subtle,
+      );
+
+      await fireEvent.press(view.getByTestId("mobile-toast-dismiss"));
+      await fireEvent.press(view.getByTestId("show-danger-toast"));
+
+      expect(
+        StyleSheet.flatten(view.getByTestId("mobile-toast-tone-danger").props.style),
+      ).toMatchObject({ backgroundColor: theme.status.dangerSoft });
     });
 
     it("keeps toast controls above a three-button Android navigation bar", async () => {

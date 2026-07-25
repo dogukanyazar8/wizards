@@ -122,7 +122,9 @@ export function MobileChannelSettingsScreen({
     try {
       const response = await mutations.clearChannelHistory.mutateAsync({ channelId });
       setHistoryOpen(false);
-      setHistoryNotice(labels.channelSettingsHistoryDeleted.replace("{count}", String(response.deletedCount)));
+      setHistoryNotice(
+        labels.channelSettingsHistoryDeleted.replace("{count}", String(response.deletedCount)),
+      );
     } catch {
       setError(labels.channelSettingsError);
       throw new Error("mobile-channel-history-clear-failed");
@@ -160,8 +162,9 @@ export function MobileChannelSettingsScreen({
   const canClearHistory = detail.capabilities.canClearHistory && channel.type === "TEXT";
   const categoryName =
     categoryId === null
-      ? "No category"
-      : (detail.categories.find((item) => item.id === categoryId)?.name ?? "No category");
+      ? labels.workspaceChannelNoCategoryLabel
+      : (detail.categories.find((item) => item.id === categoryId)?.name ??
+        labels.workspaceChannelNoCategoryLabel);
   const invalidInput = normalizeName(name) === null || normalizeTopic(topic) === null;
 
   return (

@@ -2,11 +2,7 @@
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { MessageSquareText, X } from "lucide-react";
-import type {
-  ChatMessage,
-  UploadedAttachmentInput,
-  WorkspaceServerDetail,
-} from "@wizards/types";
+import type { ChatMessage, UploadedAttachmentInput, WorkspaceServerDetail } from "@wizards/types";
 import { MessageInput } from "./message-input";
 import { MessageItem } from "./message-item";
 import { useI18n } from "@/components/providers/locale-provider";
@@ -70,13 +66,15 @@ export function ThreadPanel({
   const messages = useMemo(() => {
     const seen = new Set<string>();
     return (
-      data?.pages.flatMap((page) => page.messages).filter((message) => {
-        if (seen.has(message.id)) {
-          return false;
-        }
-        seen.add(message.id);
-        return true;
-      }) ?? []
+      data?.pages
+        .flatMap((page) => page.messages)
+        .filter((message) => {
+          if (seen.has(message.id)) {
+            return false;
+          }
+          seen.add(message.id);
+          return true;
+        }) ?? []
     );
   }, [data]);
 
@@ -93,11 +91,7 @@ export function ThreadPanel({
   );
 
   const handleSend = useCallback(
-    async (
-      content: string,
-      replyToId?: string,
-      attachments: UploadedAttachmentInput[] = [],
-    ) => {
+    async (content: string, replyToId?: string, attachments: UploadedAttachmentInput[] = []) => {
       if (mode === "channel") {
         socket.emit("message:send", {
           attachments,
@@ -181,7 +175,7 @@ export function ThreadPanel({
           </div>
           <button
             aria-label={t("common.close")}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-app-border bg-app-surface-soft text-app-muted transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-app-border bg-app-surface-soft text-app-muted transition hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
             onClick={onClose}
             type="button"
           >
@@ -189,102 +183,101 @@ export function ThreadPanel({
           </button>
         </div>
 
-      <div className="flex-1 overflow-y-auto px-2 py-2.5">
-        <div className="mb-2 rounded-[22px] border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-soft)/0.38)] px-1 py-2">
-          <p className="mb-1.5 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-app-soft">
-            {t("chat.thread.parentMessage")}
-          </p>
-          <MessageItem
-            canModerate={canModerate}
-            currentUserId={currentUserId}
-            isGrouped={false}
-            message={parentForThread}
-            mode={mode}
-            onReact={handleReact}
-            onRemoveOptimistic={() => undefined}
-            onReply={handleReply}
-            onRetry={() => undefined}
-            onThread={() => undefined}
-          />
+        <div className="flex-1 overflow-y-auto px-2 py-2.5">
+          <div className="mb-2 rounded-[22px] border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-soft)/0.38)] px-1 py-2">
+            <p className="mb-1.5 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-app-soft">
+              {t("chat.thread.parentMessage")}
+            </p>
+            <MessageItem
+              canModerate={canModerate}
+              currentUserId={currentUserId}
+              isGrouped={false}
+              message={parentForThread}
+              mode={mode}
+              onReact={handleReact}
+              onRemoveOptimistic={() => undefined}
+              onReply={handleReply}
+              onRetry={() => undefined}
+              onThread={() => undefined}
+            />
+          </div>
+
+          {hasNextPage ? (
+            <div className="mb-2 flex justify-center">
+              <button
+                className="rounded-full border border-app-border bg-app-surface-soft px-3 py-1.5 text-xs font-semibold text-app-muted transition hover:text-app-foreground disabled:opacity-60"
+                disabled={isFetchingNextPage}
+                onClick={() => {
+                  void fetchNextPage();
+                }}
+                type="button"
+              >
+                {isFetchingNextPage ? t("chat.thread.loading") : t("chat.thread.loadOlder")}
+              </button>
+            </div>
+          ) : null}
+
+          {isLoading ? (
+            <p className="px-4 py-5 text-sm text-app-muted">{t("chat.thread.loading")}</p>
+          ) : error ? (
+            <p className="px-4 py-5 text-sm text-app-danger">{t("chat.thread.loadFailed")}</p>
+          ) : messages.length === 0 ? (
+            <div className="mx-2 rounded-[22px] border border-dashed border-app-border bg-app-surface-soft px-4 py-6 text-center">
+              <p className="text-sm font-semibold text-app-foreground">
+                {t("chat.thread.emptyTitle")}
+              </p>
+              <p className="mt-1 text-xs text-app-muted">{t("chat.thread.emptyDescription")}</p>
+            </div>
+          ) : (
+            <div className="space-y-0">
+              {messages.map((message, index) => {
+                const previous = messages[index - 1];
+                const isGrouped =
+                  Boolean(previous) &&
+                  previous?.author.id === message.author.id &&
+                  Math.abs(
+                    new Date(message.createdAt).getTime() - new Date(previous.createdAt).getTime(),
+                  ) < MESSAGE_GROUP_WINDOW_MS;
+
+                return (
+                  <MessageItem
+                    canModerate={canModerate}
+                    currentUserId={currentUserId}
+                    isGrouped={isGrouped}
+                    key={message.id}
+                    message={message}
+                    mode={mode}
+                    onReact={handleReact}
+                    onRemoveOptimistic={() => undefined}
+                    onReply={handleReply}
+                    onRetry={() => undefined}
+                    onThread={() => undefined}
+                  />
+                );
+              })}
+            </div>
+          )}
         </div>
 
-        {hasNextPage ? (
-          <div className="mb-2 flex justify-center">
-            <button
-              className="rounded-full border border-app-border bg-app-surface-soft px-3 py-1.5 text-xs font-semibold text-app-muted transition hover:text-app-foreground disabled:opacity-60"
-              disabled={isFetchingNextPage}
-              onClick={() => {
-                void fetchNextPage();
-              }}
-              type="button"
-            >
-              {isFetchingNextPage ? t("chat.thread.loading") : t("chat.thread.loadOlder")}
-            </button>
-          </div>
-        ) : null}
-
-        {isLoading ? (
-          <p className="px-4 py-5 text-sm text-app-muted">{t("chat.thread.loading")}</p>
-        ) : error ? (
-          <p className="px-4 py-5 text-sm text-app-danger">{t("chat.thread.loadFailed")}</p>
-        ) : messages.length === 0 ? (
-          <div className="mx-2 rounded-[22px] border border-dashed border-app-border bg-app-surface-soft px-4 py-6 text-center">
-            <p className="text-sm font-semibold text-app-foreground">
-              {t("chat.thread.emptyTitle")}
-            </p>
-            <p className="mt-1 text-xs text-app-muted">{t("chat.thread.emptyDescription")}</p>
-          </div>
-        ) : (
-          <div className="space-y-0">
-            {messages.map((message, index) => {
-              const previous = messages[index - 1];
-              const isGrouped =
-                Boolean(previous) &&
-                previous?.author.id === message.author.id &&
-                Math.abs(
-                  new Date(message.createdAt).getTime() -
-                    new Date(previous.createdAt).getTime(),
-                ) < MESSAGE_GROUP_WINDOW_MS;
-
-              return (
-                <MessageItem
-                  canModerate={canModerate}
-                  currentUserId={currentUserId}
-                  isGrouped={isGrouped}
-                  key={message.id}
-                  message={message}
-                  mode={mode}
-                  onReact={handleReact}
-                  onRemoveOptimistic={() => undefined}
-                  onReply={handleReply}
-                  onRetry={() => undefined}
-                  onThread={() => undefined}
-                />
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      <div className="border-t border-app-border bg-[hsl(var(--surface-card)/0.9)]">
-        <MessageInput
-          autoFocus
-          allowFileUploads={allowFileUploads}
-          allowGifs={allowGifs}
-          conversationId={conversationId}
-          disabled={disabled}
-          disabledReason={disabledReason}
-          maxLength={messageCharacterLimit}
-          mentionMembers={mode === "channel" ? mentionMembers : []}
-          mode={mode}
-          onCancelReply={() => setReplyTo(null)}
-          onSend={handleSend}
-          replyTo={replyTo}
-          uploadthingEnabled={uploadthingEnabled}
-          variant="thread"
-        />
-      </div>
-    </aside>
+        <div className="border-t border-app-border bg-[hsl(var(--surface-card)/0.9)]">
+          <MessageInput
+            autoFocus
+            allowFileUploads={allowFileUploads}
+            allowGifs={allowGifs}
+            conversationId={conversationId}
+            disabled={disabled}
+            disabledReason={disabledReason}
+            maxLength={messageCharacterLimit}
+            mentionMembers={mode === "channel" ? mentionMembers : []}
+            mode={mode}
+            onCancelReply={() => setReplyTo(null)}
+            onSend={handleSend}
+            replyTo={replyTo}
+            uploadthingEnabled={uploadthingEnabled}
+            variant="thread"
+          />
+        </div>
+      </aside>
     </div>
   );
 }

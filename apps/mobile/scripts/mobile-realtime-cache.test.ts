@@ -70,6 +70,10 @@ function makeBootstrap(): MobileBootstrapPayload {
     },
     user: {
       avatarUrl: null,
+      bannerColor: null,
+      bannerOffsetX: null,
+      bannerOffsetY: null,
+      bannerUrl: null,
       displayName: "Ada",
       id: "user-1",
       locale: "en",

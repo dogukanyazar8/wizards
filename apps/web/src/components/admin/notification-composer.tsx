@@ -9,17 +9,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
 type SegmentType =
-  | "ALL_USERS"
-  | "ONLINE_USERS"
-  | "RECENTLY_ACTIVE"
-  | "CLIENT_TYPE"
-  | "COUNTRY"
-  | "USER_IDS";
+  "ALL_USERS" | "ONLINE_USERS" | "RECENTLY_ACTIVE" | "CLIENT_TYPE" | "COUNTRY" | "USER_IDS";
 
 type RequestState =
-  | { tone: "danger"; message: string }
-  | { tone: "success"; message: string }
-  | null;
+  { tone: "danger"; message: string } | { tone: "success"; message: string } | null;
 
 type NotificationComposerProps = {
   canSend: boolean;
@@ -189,7 +182,7 @@ export function NotificationComposer({ canSend }: NotificationComposerProps) {
             value={title}
           />
           <select
-            className="app-input h-11 w-full rounded-2xl border px-4 text-sm outline-none"
+            className="app-input h-11 w-full rounded-2xl border px-4 text-sm outline-hidden"
             disabled={!canSend}
             onChange={(event) => setSegmentType(event.target.value as SegmentType)}
             value={segmentType}
@@ -240,7 +233,7 @@ export function NotificationComposer({ canSend }: NotificationComposerProps) {
 
         {segmentType === "CLIENT_TYPE" ? (
           <select
-            className="app-input h-11 w-full rounded-2xl border px-4 text-sm outline-none"
+            className="app-input h-11 w-full rounded-2xl border px-4 text-sm outline-hidden"
             disabled={!canSend}
             onChange={(event) => setClientType(event.target.value as "WEB" | "DESKTOP" | "MOBILE")}
             value={clientType}

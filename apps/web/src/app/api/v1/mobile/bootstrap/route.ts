@@ -32,6 +32,10 @@ export async function GET(request: Request) {
           where: { id: userId },
           select: {
             avatarUrl: true,
+            bannerColor: true,
+            bannerOffsetX: true,
+            bannerOffsetY: true,
+            bannerUrl: true,
             displayName: true,
             id: true,
             locale: true,
@@ -184,9 +188,17 @@ export async function GET(request: Request) {
       },
     };
 
-    return Response.json(getMobileBootstrapPayload({ home, user }), {
-      headers: timing.headers({ "Cache-Control": "no-store, no-cache, must-revalidate" }),
-    });
+    return Response.json(
+      getMobileBootstrapPayload({
+        home,
+        user: {
+          ...user,
+          avatarUrl: normalizeMobileImageUrl(user.avatarUrl),
+          bannerUrl: normalizeMobileImageUrl(user.bannerUrl),
+        },
+      }),
+      { headers: timing.headers({ "Cache-Control": "no-store, no-cache, must-revalidate" }) },
+    );
   } catch (error) {
     return jsonError(error);
   }

@@ -1,5 +1,4 @@
-import { type ZodSchema } from "zod";
-import { ZodError } from "zod";
+import { type output, type ZodType, ZodError } from "zod";
 import { logError } from "@/lib/logger";
 
 const MAX_JSON_BODY_BYTES = 1_048_576;
@@ -16,6 +15,37 @@ export class ApiError extends Error {
   }
 }
 
+function publicZodErrorMessage(error: ZodError) {
+  const issue = error.issues[0];
+
+  if (issue?.code === "invalid_type") {
+    const match = /^Invalid input: expected (.+), received (.+)$/.exec(issue.message);
+    if (match) {
+      const [, expected, received] = match;
+      return received === "undefined" ? "Required" : `Expected ${expected}, received ${received}`;
+    }
+  }
+
+  if (
+    issue?.code === "too_small" &&
+    issue.origin === "string" &&
+    issue.inclusive &&
+    issue.message === `Too small: expected string to have >=${issue.minimum} characters`
+  ) {
+    return `String must contain at least ${issue.minimum} character(s)`;
+  }
+
+  if (
+    issue?.code === "invalid_format" &&
+    issue.format === "uuid" &&
+    issue.message === "Invalid UUID"
+  ) {
+    return "Invalid uuid";
+  }
+
+  return issue?.message ?? "Invalid request body";
+}
+
 export function jsonError(error: unknown) {
   if (error instanceof ApiError) {
     return Response.json(
@@ -25,10 +55,7 @@ export function jsonError(error: unknown) {
   }
 
   if (error instanceof ZodError) {
-    return Response.json(
-      { error: error.issues[0]?.message ?? "Invalid request body" },
-      { status: 400 },
-    );
+    return Response.json({ error: publicZodErrorMessage(error) }, { status: 400 });
   }
 
   logError("[api] Unhandled error", error);
@@ -36,11 +63,7 @@ export function jsonError(error: unknown) {
 }
 
 function hasJsonContentType(request: Request) {
-  const mediaType = request.headers
-    .get("content-type")
-    ?.split(";")[0]
-    ?.trim()
-    .toLowerCase();
+  const mediaType = request.headers.get("content-type")?.split(";")[0]?.trim().toLowerCase();
 
   return mediaType === JSON_CONTENT_TYPE;
 }
@@ -102,10 +125,10 @@ async function readJsonBodyWithLimit(request: Request) {
   }
 }
 
-export async function parseJsonBody<TSchema extends ZodSchema>(
+export async function parseJsonBody<TSchema extends ZodType>(
   request: Request,
   schema: TSchema,
-): Promise<ReturnType<TSchema["parse"]>> {
+): Promise<output<TSchema>> {
   const body = await readJsonBodyWithLimit(request);
   return schema.parse(body);
 }

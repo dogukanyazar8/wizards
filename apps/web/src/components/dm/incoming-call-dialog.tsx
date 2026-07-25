@@ -74,7 +74,7 @@ export function IncomingDMCallDialog({
 
           <div className="flex justify-end gap-2">
             <button
-              className="inline-flex items-center gap-2 rounded-2xl border border-[hsl(var(--danger)/0.28)] bg-[hsl(var(--danger)/0.1)] px-4 py-2 text-sm font-semibold text-[hsl(var(--danger))] transition hover:bg-[hsl(var(--danger)/0.14)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+              className="inline-flex items-center gap-2 rounded-2xl border border-[hsl(var(--danger)/0.28)] bg-[hsl(var(--danger)/0.1)] px-4 py-2 text-sm font-semibold text-[hsl(var(--danger))] transition hover:bg-[hsl(var(--danger)/0.14)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
               data-testid="dm-call-decline"
               onClick={() => void onDecline()}
               type="button"
@@ -83,7 +83,7 @@ export function IncomingDMCallDialog({
               {t("dm.call.decline")}
             </button>
             <button
-              className="inline-flex items-center gap-2 rounded-2xl border border-[hsl(var(--success)/0.32)] bg-[hsl(var(--success)/0.14)] px-4 py-2 text-sm font-semibold text-[hsl(var(--success))] transition hover:bg-[hsl(var(--success)/0.18)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+              className="inline-flex items-center gap-2 rounded-2xl border border-[hsl(var(--success)/0.32)] bg-[hsl(var(--success)/0.14)] px-4 py-2 text-sm font-semibold text-[hsl(var(--success))] transition hover:bg-[hsl(var(--success)/0.18)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
               data-testid="dm-call-accept"
               onClick={() => void onAccept()}
               type="button"

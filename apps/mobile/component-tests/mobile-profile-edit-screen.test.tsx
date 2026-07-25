@@ -31,6 +31,8 @@ jest.mock("../src/app/components/kit/bottom-sheet", () => {
 });
 
 import { MobileProfileEditScreen } from "../src/social/mobile-profile-edit-screen";
+import { createMobileProfileEditStyles } from "../src/social/mobile-profile-edit-screen.styles";
+import { darkTheme, lightTheme } from "../src/design/themes";
 import { ToastProvider } from "../src/app/components/kit/toast";
 import { MobileLocaleProvider } from "../src/app/providers/mobile-locale-provider";
 import { MobileThemeProvider } from "../src/app/providers/mobile-theme-provider";
@@ -272,6 +274,70 @@ describe("mobile profile edit screen (2a)", () => {
     expect(view.getByTestId("mobile-profile-edit-save").props.accessibilityState.disabled).toBe(
       false,
     );
+  });
+
+  it("arms an explicit reposition mode instead of always fighting the page scroll", async () => {
+    const settings = accountSettings({ bannerUrl: "https://cdn.test/banner.png" });
+    authenticatedApi(jest.fn(async () => settings));
+    const view = await renderScreen(createQueryClient(settings));
+
+    const screen = view.getByTestId("mobile-profile-edit-screen");
+    expect(screen.props.scrollEnabled).toBe(true);
+    expect(view.queryByTestId("mobile-profile-edit-banner-grid")).toBeNull();
+
+    await fireEvent.press(view.getByTestId("mobile-profile-edit-banner-reposition-hint"));
+
+    // In reposition mode the page stops scrolling, the thirds grid appears and
+    // the destructive banner controls step out of the way.
+    expect(view.getByTestId("mobile-profile-edit-screen").props.scrollEnabled).toBe(false);
+    expect(view.getByTestId("mobile-profile-edit-banner-grid")).toBeTruthy();
+    expect(view.queryByTestId("mobile-profile-edit-banner-remove")).toBeNull();
+    expect(view.queryByTestId("mobile-profile-edit-banner-picker")).toBeNull();
+
+    await fireEvent.press(view.getByTestId("mobile-profile-edit-banner-reposition-done"));
+
+    expect(view.getByTestId("mobile-profile-edit-screen").props.scrollEnabled).toBe(true);
+    expect(view.queryByTestId("mobile-profile-edit-banner-grid")).toBeNull();
+    expect(view.getByTestId("mobile-profile-edit-banner-picker")).toBeTruthy();
+  });
+
+  it("recenters the banner from the reposition bar and makes that saveable", async () => {
+    const settings = accountSettings({
+      bannerOffsetX: 0.2,
+      bannerOffsetY: 0.9,
+      bannerUrl: "https://cdn.test/banner.png",
+    });
+    authenticatedApi(jest.fn(async () => settings));
+    const view = await renderScreen(createQueryClient(settings));
+
+    await fireEvent.press(view.getByTestId("mobile-profile-edit-banner-reposition-hint"));
+    await fireEvent.press(view.getByTestId("mobile-profile-edit-banner-reposition-reset"));
+
+    expect(view.getByTestId("mobile-profile-edit-banner-image").props.contentPosition).toEqual({
+      left: "50%",
+      top: "50%",
+    });
+    expect(view.getByTestId("mobile-profile-edit-save").props.accessibilityState.disabled).toBe(
+      false,
+    );
+  });
+
+  it("keeps every banner overlay control on the image scrim so a white banner still shows them", () => {
+    const styles = createMobileProfileEditStyles(lightTheme);
+
+    for (const style of [
+      styles.bannerAction,
+      styles.bannerRemove,
+      styles.bannerRepositionHint,
+      styles.bannerRepositionInstruction,
+      styles.bannerRepositionAction,
+    ]) {
+      expect(style).toMatchObject({
+        backgroundColor: lightTheme.surface.imageScrim,
+        borderColor: lightTheme.border.imageScrim,
+      });
+    }
+    expect(lightTheme.surface.imageScrim).toBe(darkTheme.surface.imageScrim);
   });
 
   it("uploads a banner through the profile-banner purpose and keeps the editor clean", async () => {

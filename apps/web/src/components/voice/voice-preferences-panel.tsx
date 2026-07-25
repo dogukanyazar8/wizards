@@ -194,7 +194,7 @@ export function VoicePreferenceToggleRow({
         <button
           aria-checked={checked}
           className={cn(
-            "relative mt-0.5 inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+            "relative mt-0.5 inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
             checked
               ? "border-[hsl(var(--primary)/0.45)] bg-[hsl(var(--primary)/0.18)]"
               : "border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.56)]",
@@ -320,7 +320,7 @@ function DesktopShortcutInputRow({
       </span>
       <input
         aria-label={label}
-        className="min-h-9 rounded-xl border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.88)] px-2.5 text-xs font-semibold text-app-foreground outline-none transition placeholder:text-app-soft focus:border-[hsl(var(--primary)/0.45)] focus:ring-2 focus:ring-[hsl(var(--ring)/0.18)]"
+        className="min-h-9 rounded-xl border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.88)] px-2.5 text-xs font-semibold text-app-foreground outline-hidden transition placeholder:text-app-soft focus:border-[hsl(var(--primary)/0.45)] focus:ring-2 focus:ring-[hsl(var(--ring)/0.18)]"
         onChange={(event) => onChange(event.target.value)}
         onKeyDown={(event) => {
           const shortcut = formatShortcutFromKeyboardEvent(event);
@@ -355,7 +355,7 @@ function VoiceInputModeButton({
     <button
       aria-pressed={active}
       className={cn(
-        "min-h-[4.25rem] rounded-xl border px-2.5 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+        "min-h-[4.25rem] rounded-xl border px-2.5 py-2 text-left transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
         active
           ? "border-[hsl(var(--primary)/0.38)] bg-[hsl(var(--primary)/0.12)] text-app-foreground"
           : "border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.54)] text-app-muted hover:border-[hsl(var(--primary)/0.24)] hover:bg-[hsl(var(--primary)/0.06)]",
@@ -609,7 +609,7 @@ export function VoicePreferencesPanel({ mode = "all" }: { mode?: VoicePreference
 
                 <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                   <button
-                    className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl border border-[hsl(var(--primary)/0.3)] bg-[hsl(var(--primary)/0.12)] px-3 py-1.5 text-xs font-semibold text-[hsl(var(--primary))] transition hover:bg-[hsl(var(--primary)/0.18)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                    className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl border border-[hsl(var(--primary)/0.3)] bg-[hsl(var(--primary)/0.12)] px-3 py-1.5 text-xs font-semibold text-[hsl(var(--primary))] transition hover:bg-[hsl(var(--primary)/0.18)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
                     data-testid="voice-clean-voice-profile"
                     onClick={applyCleanVoiceProfile}
                     type="button"
@@ -619,7 +619,7 @@ export function VoicePreferencesPanel({ mode = "all" }: { mode?: VoicePreference
                   </button>
                   <button
                     className={cn(
-                      "inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                      "inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
                       shouldHighlightKrispRetry
                         ? "border-[hsl(var(--warning)/0.38)] bg-[hsl(var(--warning)/0.1)] text-app-foreground hover:bg-[hsl(var(--warning)/0.16)]"
                         : "border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.72)] text-app-foreground hover:border-[hsl(var(--primary)/0.28)] hover:bg-[hsl(var(--primary)/0.08)]",
@@ -753,7 +753,7 @@ export function VoicePreferencesPanel({ mode = "all" }: { mode?: VoicePreference
                         <button
                           aria-pressed={isActive}
                           className={cn(
-                            "min-h-[4.25rem] rounded-xl border px-2.5 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                            "min-h-[4.25rem] rounded-xl border px-2.5 py-2 text-left transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
                             isActive
                               ? "border-[hsl(var(--primary)/0.38)] bg-[hsl(var(--primary)/0.12)] text-app-foreground"
                               : "border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card)/0.54)] text-app-muted hover:border-[hsl(var(--primary)/0.24)] hover:bg-[hsl(var(--primary)/0.06)]",
@@ -841,7 +841,7 @@ export function VoicePreferencesPanel({ mode = "all" }: { mode?: VoicePreference
                 <button
                   aria-checked={desktopGameOverlayEnabled}
                   className={cn(
-                    "relative mt-0.5 inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                    "relative mt-0.5 inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
                     desktopGameOverlayEnabled
                       ? "border-[hsl(var(--primary)/0.45)] bg-[hsl(var(--primary)/0.18)]"
                       : "border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.56)]",
@@ -867,7 +867,7 @@ export function VoicePreferencesPanel({ mode = "all" }: { mode?: VoicePreference
                     {DESKTOP_GAME_OVERLAY_ANCHORS.map((anchor) => (
                       <button
                         className={cn(
-                          "min-h-9 rounded-xl border px-2.5 text-[11px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.48)]",
+                          "min-h-9 rounded-xl border px-2.5 text-[11px] font-semibold transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.48)]",
                           desktopGameOverlayAnchor === anchor
                             ? "border-[hsl(var(--primary)/0.5)] bg-[hsl(var(--primary)/0.14)] text-[hsl(var(--primary))]"
                             : "border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.7)] text-app-muted hover:border-[hsl(var(--primary)/0.34)] hover:bg-[hsl(var(--primary)/0.07)]",
@@ -889,7 +889,7 @@ export function VoicePreferencesPanel({ mode = "all" }: { mode?: VoicePreference
                     {DESKTOP_GAME_OVERLAY_SIZES.map((size) => (
                       <button
                         className={cn(
-                          "min-h-9 rounded-xl border px-2.5 text-[11px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.48)]",
+                          "min-h-9 rounded-xl border px-2.5 text-[11px] font-semibold transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.48)]",
                           desktopGameOverlaySize === size
                             ? "border-[hsl(var(--primary)/0.5)] bg-[hsl(var(--primary)/0.14)] text-[hsl(var(--primary))]"
                             : "border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.7)] text-app-muted hover:border-[hsl(var(--primary)/0.34)] hover:bg-[hsl(var(--primary)/0.07)]",
@@ -916,7 +916,7 @@ export function VoicePreferencesPanel({ mode = "all" }: { mode?: VoicePreference
                 <button
                   aria-checked={desktopGameOverlaySpeakingOnly}
                   className={cn(
-                    "relative mt-0.5 inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                    "relative mt-0.5 inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
                     desktopGameOverlaySpeakingOnly
                       ? "border-[hsl(var(--primary)/0.45)] bg-[hsl(var(--primary)/0.18)]"
                       : "border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.56)]",
@@ -945,7 +945,7 @@ export function VoicePreferencesPanel({ mode = "all" }: { mode?: VoicePreference
                 <button
                   aria-checked={desktopGameOverlayProcessDetectionEnabled}
                   className={cn(
-                    "relative mt-0.5 inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                    "relative mt-0.5 inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
                     desktopGameOverlayProcessDetectionEnabled
                       ? "border-[hsl(var(--primary)/0.45)] bg-[hsl(var(--primary)/0.18)]"
                       : "border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.56)]",
@@ -1009,7 +1009,7 @@ export function VoicePreferencesPanel({ mode = "all" }: { mode?: VoicePreference
                         <button
                           aria-checked={preference.enabled}
                           className={cn(
-                            "inline-flex min-h-8 items-center justify-center rounded-lg border px-2 text-[10px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.48)] disabled:cursor-not-allowed disabled:opacity-55",
+                            "inline-flex min-h-8 items-center justify-center rounded-lg border px-2 text-[10px] font-semibold transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.48)] disabled:cursor-not-allowed disabled:opacity-55",
                             preference.enabled
                               ? "border-[hsl(var(--primary)/0.46)] bg-[hsl(var(--primary)/0.13)] text-[hsl(var(--primary))]"
                               : "border-[hsl(var(--border)/0.6)] bg-[hsl(var(--surface-soft)/0.54)] text-app-muted",
@@ -1031,7 +1031,7 @@ export function VoicePreferencesPanel({ mode = "all" }: { mode?: VoicePreference
 
                         <select
                           aria-label={`${gameLabel} ${t("voice.settings.desktopOverlayPosition")}`}
-                          className="min-h-8 rounded-lg border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-card)/0.72)] px-2 text-[10px] font-semibold text-app-muted outline-none transition focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.48)] disabled:cursor-not-allowed disabled:opacity-55"
+                          className="min-h-8 rounded-lg border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-card)/0.72)] px-2 text-[10px] font-semibold text-app-muted outline-hidden transition focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.48)] disabled:cursor-not-allowed disabled:opacity-55"
                           disabled={!desktopGameOverlayProcessDetectionEnabled}
                           onChange={(event) =>
                             setDesktopGameOverlayGamePreference(executableName, {
@@ -1050,7 +1050,7 @@ export function VoicePreferencesPanel({ mode = "all" }: { mode?: VoicePreference
 
                         <select
                           aria-label={`${gameLabel} ${t("voice.settings.desktopOverlaySize")}`}
-                          className="min-h-8 rounded-lg border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-card)/0.72)] px-2 text-[10px] font-semibold text-app-muted outline-none transition focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.48)] disabled:cursor-not-allowed disabled:opacity-55"
+                          className="min-h-8 rounded-lg border border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-card)/0.72)] px-2 text-[10px] font-semibold text-app-muted outline-hidden transition focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.48)] disabled:cursor-not-allowed disabled:opacity-55"
                           disabled={!desktopGameOverlayProcessDetectionEnabled}
                           onChange={(event) =>
                             setDesktopGameOverlayGamePreference(executableName, {
@@ -1070,7 +1070,7 @@ export function VoicePreferencesPanel({ mode = "all" }: { mode?: VoicePreference
                         <button
                           aria-checked={preference.speakingOnly}
                           className={cn(
-                            "inline-flex min-h-8 items-center justify-center rounded-lg border px-2 text-[10px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.48)] disabled:cursor-not-allowed disabled:opacity-55",
+                            "inline-flex min-h-8 items-center justify-center rounded-lg border px-2 text-[10px] font-semibold transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.48)] disabled:cursor-not-allowed disabled:opacity-55",
                             preference.speakingOnly
                               ? "border-[hsl(var(--success)/0.42)] bg-[hsl(var(--success)/0.12)] text-[hsl(var(--success))]"
                               : "border-[hsl(var(--border)/0.6)] bg-[hsl(var(--surface-soft)/0.54)] text-app-muted",
@@ -1095,7 +1095,7 @@ export function VoicePreferencesPanel({ mode = "all" }: { mode?: VoicePreference
               <div className="mt-3 grid gap-1.5 sm:grid-cols-2 xl:grid-cols-4">
                 <button
                   className={cn(
-                    "inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl border border-[hsl(var(--border)/0.64)] bg-[hsl(var(--surface-card)/0.68)] px-2.5 text-[11px] font-semibold text-app-foreground transition hover:border-[hsl(var(--primary)/0.38)] hover:bg-[hsl(var(--primary)/0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.48)] disabled:cursor-not-allowed disabled:opacity-55",
+                    "inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl border border-[hsl(var(--border)/0.64)] bg-[hsl(var(--surface-card)/0.68)] px-2.5 text-[11px] font-semibold text-app-foreground transition hover:border-[hsl(var(--primary)/0.38)] hover:bg-[hsl(var(--primary)/0.08)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.48)] disabled:cursor-not-allowed disabled:opacity-55",
                     desktopSurfacePending === "overlay" && "text-[hsl(var(--primary))]",
                   )}
                   disabled={!isDesktopRuntime || desktopSurfacePending !== null}
@@ -1113,7 +1113,7 @@ export function VoicePreferencesPanel({ mode = "all" }: { mode?: VoicePreference
                 </button>
                 <button
                   className={cn(
-                    "inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl border border-[hsl(var(--border)/0.64)] bg-[hsl(var(--surface-card)/0.68)] px-2.5 text-[11px] font-semibold text-app-foreground transition hover:border-[hsl(var(--primary)/0.38)] hover:bg-[hsl(var(--primary)/0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.48)] disabled:cursor-not-allowed disabled:opacity-55",
+                    "inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl border border-[hsl(var(--border)/0.64)] bg-[hsl(var(--surface-card)/0.68)] px-2.5 text-[11px] font-semibold text-app-foreground transition hover:border-[hsl(var(--primary)/0.38)] hover:bg-[hsl(var(--primary)/0.08)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.48)] disabled:cursor-not-allowed disabled:opacity-55",
                     desktopSurfacePending === "voice-mini" && "text-[hsl(var(--primary))]",
                   )}
                   disabled={!isDesktopRuntime || desktopSurfacePending !== null}
@@ -1129,7 +1129,7 @@ export function VoicePreferencesPanel({ mode = "all" }: { mode?: VoicePreference
                 </button>
                 <button
                   className={cn(
-                    "inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl border border-[hsl(var(--border)/0.64)] bg-[hsl(var(--surface-card)/0.68)] px-2.5 text-[11px] font-semibold text-app-foreground transition hover:border-[hsl(var(--primary)/0.38)] hover:bg-[hsl(var(--primary)/0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.48)] disabled:cursor-not-allowed disabled:opacity-55",
+                    "inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl border border-[hsl(var(--border)/0.64)] bg-[hsl(var(--surface-card)/0.68)] px-2.5 text-[11px] font-semibold text-app-foreground transition hover:border-[hsl(var(--primary)/0.38)] hover:bg-[hsl(var(--primary)/0.08)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.48)] disabled:cursor-not-allowed disabled:opacity-55",
                     desktopSurfacePending === "refresh" && "text-[hsl(var(--primary))]",
                   )}
                   disabled={!isDesktopRuntime || desktopSurfacePending !== null}
@@ -1150,7 +1150,7 @@ export function VoicePreferencesPanel({ mode = "all" }: { mode?: VoicePreference
                 </button>
                 <button
                   className={cn(
-                    "inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl border border-[hsl(var(--warning)/0.28)] bg-[hsl(var(--warning)/0.08)] px-2.5 text-[11px] font-semibold text-app-foreground transition hover:border-[hsl(var(--warning)/0.46)] hover:bg-[hsl(var(--warning)/0.14)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.48)] disabled:cursor-not-allowed disabled:opacity-55",
+                    "inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl border border-[hsl(var(--warning)/0.28)] bg-[hsl(var(--warning)/0.08)] px-2.5 text-[11px] font-semibold text-app-foreground transition hover:border-[hsl(var(--warning)/0.46)] hover:bg-[hsl(var(--warning)/0.14)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.48)] disabled:cursor-not-allowed disabled:opacity-55",
                     desktopSurfacePending === "hide" && "text-[hsl(var(--warning))]",
                   )}
                   disabled={!isDesktopRuntime || desktopSurfacePending !== null}

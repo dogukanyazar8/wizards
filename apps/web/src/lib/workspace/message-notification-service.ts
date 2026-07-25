@@ -2,6 +2,10 @@ import { prisma } from "@wizards/db";
 
 import { normalizeAppLocale, translate } from "@/lib/locale";
 import { sendMobilePushForNotifications } from "@/lib/mobile/push-sender";
+import {
+  loadNotificationActor,
+  loadNotificationServerName,
+} from "@/lib/notifications/socket-context";
 import { serializeNotification, type NotificationRecord } from "@/lib/socket/notification-payload";
 import type { AppSocketServer } from "@/lib/socket/runtime";
 import { filterUserIdsByChannelPermission } from "@/lib/workspace/permission-service";
@@ -22,6 +26,29 @@ export function extractMentionUsernames(content: string) {
   }
 
   return Array.from(mentions);
+}
+
+const MENTION_PREVIEW_MAX_LENGTH = 90;
+
+/**
+ * One-line summary of the message the mention came from. "Ada seni etiketledi"
+ * alone never says what for, so the notification (and the push that carries the
+ * same body) leads with the message itself. Mention tokens are stripped because
+ * "@dogukan" is the one word the reader already knows.
+ */
+export function buildMentionPreview(content: string): string | null {
+  const preview = content
+    .replace(/(^|[\s([{])@([a-zA-Z0-9_.-]{2,32})/g, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (preview.length === 0) {
+    return null;
+  }
+
+  return preview.length > MENTION_PREVIEW_MAX_LENGTH
+    ? `${preview.slice(0, MENTION_PREVIEW_MAX_LENGTH - 1).trimEnd()}…`
+    : preview;
 }
 
 export async function createChannelMentionNotifications(args: {
@@ -145,11 +172,16 @@ export async function createChannelMentionNotifications(args: {
     return;
   }
 
+  const mentionPreview = buildMentionPreview(args.content);
   const notificationData = mentionRecipients.map((member) => {
     const locale = normalizeAppLocale(member.user.locale);
 
     return {
       actionUrl: `/channels/${args.serverId}/${args.channelId}`,
+      // The row body stays the plain sentence: the feed renders the message
+      // itself underneath it as a styled quote, so repeating it here would print
+      // the same text twice. The push, which has no second line, gets the
+      // combined form below.
       body: translate(locale, "chat.mentions.notifyBody", {
         channel: args.channelName,
         name: args.senderName,
@@ -157,10 +189,21 @@ export async function createChannelMentionNotifications(args: {
       dedupeKey: `channel-mention:${args.messageId}:${member.userId}`,
       metadata: {
         channelId: args.channelId,
+        ...(mentionPreview ? { messagePreview: mentionPreview } : {}),
         messageId: args.messageId,
         senderId: args.senderId,
         serverId: args.serverId,
       },
+      pushBody: mentionPreview
+        ? translate(locale, "chat.mentions.notifyBodyWithMessage", {
+            channel: args.channelName,
+            name: args.senderName,
+            preview: mentionPreview,
+          })
+        : translate(locale, "chat.mentions.notifyBody", {
+            channel: args.channelName,
+            name: args.senderName,
+          }),
       title: translate(locale, "chat.mentions.notifyTitle"),
       type: "MENTION" as const,
       userId: member.userId,
@@ -205,22 +248,43 @@ export async function createChannelMentionNotifications(args: {
     );
 
     return tx.notification.createManyAndReturn({
-      data: notificationData,
+      // `pushBody` is a transport-only field, never a Notification column.
+      data: notificationData.map(({ pushBody: _pushBody, ...row }) => row),
       skipDuplicates: true,
     });
   });
 
+  // Resolved once for the whole fan-out so every recipient's event can be drawn
+  // without a follow-up fetch, and only when there is a socket to emit on.
+  const [actor, server] =
+    args.io && notifications.length
+      ? await Promise.all([
+          loadNotificationActor(args.senderId),
+          loadNotificationServerName(args.serverId),
+        ])
+      : [null, null];
+
   for (const notification of notifications) {
-    args.io
-      ?.to(`user:${notification.userId}`)
-      .emit("notification:new", serializeNotification(notification as NotificationRecord));
+    args.io?.to(`user:${notification.userId}`).emit(
+      "notification:new",
+      serializeNotification(notification as NotificationRecord, {
+        actor,
+        channel: { id: args.channelId, name: args.channelName },
+        server,
+      }),
+    );
     void emitServerUnreadUpdateToUser(notification.userId, args.serverId).catch(() => undefined);
   }
 
+  // The push has a single line, so it carries the combined "who + where + what"
+  // form instead of the feed's headline.
+  const pushBodyByUserId = new Map(
+    notificationData.map((row) => [row.userId, row.pushBody] as const),
+  );
   void sendMobilePushForNotifications(
     notifications.map((notification) => ({
       actionUrl: notification.actionUrl,
-      body: notification.body,
+      body: pushBodyByUserId.get(notification.userId) ?? notification.body,
       id: notification.id,
       title: notification.title,
       type: notification.type,
@@ -295,10 +359,23 @@ export async function createChannelThreadReplyNotification(args: {
     skipDuplicates: true,
   });
 
+  const [threadActor, threadServer] =
+    args.io && notifications.length
+      ? await Promise.all([
+          loadNotificationActor(args.senderId),
+          loadNotificationServerName(args.serverId),
+        ])
+      : [null, null];
+
   for (const notification of notifications) {
-    args.io
-      ?.to(`user:${parent.userId}`)
-      .emit("notification:new", serializeNotification(notification as NotificationRecord));
+    args.io?.to(`user:${parent.userId}`).emit(
+      "notification:new",
+      serializeNotification(notification as NotificationRecord, {
+        actor: threadActor,
+        channel: { id: args.channelId, name: args.channelName },
+        server: threadServer,
+      }),
+    );
   }
 
   void sendMobilePushForNotifications(

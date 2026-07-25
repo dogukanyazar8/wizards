@@ -44,7 +44,7 @@ function ThemeSwatchButton({ onSelect, selected, theme, variant }: ThemeSwatchBu
   if (variant === "simple-compact") {
     return (
       <button
-        className="group flex flex-col items-center gap-1 text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+        className="group flex flex-col items-center gap-1 text-center focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
         data-selected={selected ? "true" : "false"}
         data-testid={`theme-option-${theme.id}`}
         onClick={() => onSelect(theme.id)}
@@ -77,7 +77,7 @@ function ThemeSwatchButton({ onSelect, selected, theme, variant }: ThemeSwatchBu
       <button
         aria-label={label}
         className={cn(
-          "relative h-7 w-7 rounded-full border transition duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+          "relative h-7 w-7 rounded-full border transition duration-150 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
           selected
             ? "border-[hsl(var(--primary))] shadow-[0_0_0_4px_hsl(var(--primary)/0.18)]"
             : "border-[hsl(var(--border)/0.72)] hover:border-[hsl(var(--primary)/0.45)]",
@@ -101,7 +101,7 @@ function ThemeSwatchButton({ onSelect, selected, theme, variant }: ThemeSwatchBu
   return (
     <button
       className={cn(
-        "group app-panel flex items-center gap-2.5 rounded-[15px] border p-2.5 text-left transition duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+        "group app-panel flex items-center gap-2.5 rounded-[15px] border p-2.5 text-left transition duration-150 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
         selected
           ? "border-[hsl(var(--primary)/0.55)] shadow-[0_0_0_3px_hsl(var(--primary)/0.14)]"
           : "hover:border-[hsl(var(--primary)/0.35)] hover:bg-[hsl(var(--surface-soft)/0.44)]",

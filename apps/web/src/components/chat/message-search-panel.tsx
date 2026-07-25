@@ -266,7 +266,7 @@ export function MessageSearchPanel({
           </div>
           <button
             aria-label={t("common.close")}
-            className="rounded-full p-2 text-app-muted transition hover:bg-app-surface-soft hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+            className="rounded-full p-2 text-app-muted transition hover:bg-app-surface-soft hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
             onClick={onClose}
             type="button"
           >
@@ -277,7 +277,7 @@ export function MessageSearchPanel({
         <div className="mb-3 grid grid-cols-2 gap-1 rounded-2xl border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-soft)/0.48)] p-1">
           {(["basic", "advanced"] as const).map((modeKey) => (
             <button
-              className={`rounded-xl px-3 py-2 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] ${
+              className={`rounded-xl px-3 py-2 text-xs font-bold transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] ${
                 searchMode === modeKey
                   ? "bg-[hsl(var(--surface-card))] text-app-foreground shadow-[0_10px_24px_hsl(var(--shadow-color)/0.1)]"
                   : "text-app-muted hover:bg-app-surface-soft hover:text-app-foreground"
@@ -295,7 +295,7 @@ export function MessageSearchPanel({
           <Search className="h-4 w-4 shrink-0 text-app-soft" />
           <input
             autoFocus
-            className="min-w-0 flex-1 bg-transparent text-sm font-medium text-app-foreground outline-none placeholder:text-app-soft"
+            className="min-w-0 flex-1 bg-transparent text-sm font-medium text-app-foreground outline-hidden placeholder:text-app-soft"
             data-testid="message-search-input"
             onChange={(event) => setQuery(event.target.value)}
             placeholder={t("chat.search.placeholder")}
@@ -310,7 +310,7 @@ export function MessageSearchPanel({
                 {t("chat.search.author")}
               </span>
               <input
-                className="h-10 w-full rounded-2xl border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card))] px-3 text-xs font-semibold text-app-foreground outline-none placeholder:text-app-soft focus:border-[hsl(var(--ring)/0.62)] focus:ring-2 focus:ring-[hsl(var(--ring)/0.18)]"
+                className="h-10 w-full rounded-2xl border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card))] px-3 text-xs font-semibold text-app-foreground outline-hidden placeholder:text-app-soft focus:border-[hsl(var(--ring)/0.62)] focus:ring-2 focus:ring-[hsl(var(--ring)/0.18)]"
                 onChange={(event) => setAuthor(event.target.value)}
                 placeholder={t("chat.search.authorPlaceholder")}
                 value={author}
@@ -322,7 +322,7 @@ export function MessageSearchPanel({
                   {t("chat.search.from")}
                 </span>
                 <input
-                  className="h-10 w-full rounded-2xl border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card))] px-3 text-xs font-semibold text-app-foreground outline-none focus:border-[hsl(var(--ring)/0.62)] focus:ring-2 focus:ring-[hsl(var(--ring)/0.18)]"
+                  className="h-10 w-full rounded-2xl border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card))] px-3 text-xs font-semibold text-app-foreground outline-hidden focus:border-[hsl(var(--ring)/0.62)] focus:ring-2 focus:ring-[hsl(var(--ring)/0.18)]"
                   onChange={(event) => setFromDate(event.target.value)}
                   type="datetime-local"
                   value={fromDate}
@@ -333,7 +333,7 @@ export function MessageSearchPanel({
                   {t("chat.search.to")}
                 </span>
                 <input
-                  className="h-10 w-full rounded-2xl border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card))] px-3 text-xs font-semibold text-app-foreground outline-none focus:border-[hsl(var(--ring)/0.62)] focus:ring-2 focus:ring-[hsl(var(--ring)/0.18)]"
+                  className="h-10 w-full rounded-2xl border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-card))] px-3 text-xs font-semibold text-app-foreground outline-hidden focus:border-[hsl(var(--ring)/0.62)] focus:ring-2 focus:ring-[hsl(var(--ring)/0.18)]"
                   onChange={(event) => setToDate(event.target.value)}
                   type="datetime-local"
                   value={toDate}
@@ -383,7 +383,7 @@ export function MessageSearchPanel({
           <div className="space-y-1">
             {visibleResults.map((result) => (
               <button
-                className="group flex w-full min-w-0 items-start gap-3 rounded-[22px] px-3 py-2.5 text-left transition hover:bg-app-surface-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
+                className="group flex w-full min-w-0 items-start gap-3 rounded-[22px] px-3 py-2.5 text-left transition hover:bg-app-surface-soft focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
                 key={result.id}
                 onClick={() => {
                   onJumpToMessage(result.messageId);
@@ -417,7 +417,7 @@ export function MessageSearchPanel({
 
         {visibleNextCursor ? (
           <button
-            className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface-soft)/0.45)] px-4 py-2.5 text-sm font-bold text-app-foreground transition hover:bg-app-surface-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] disabled:cursor-wait disabled:opacity-70"
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface-soft)/0.45)] px-4 py-2.5 text-sm font-bold text-app-foreground transition hover:bg-app-surface-soft focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] disabled:cursor-wait disabled:opacity-70"
             disabled={isLoadingMore}
             onClick={loadMore}
             type="button"

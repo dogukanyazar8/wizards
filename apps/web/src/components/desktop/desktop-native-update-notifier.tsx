@@ -286,7 +286,7 @@ export function DesktopNativeUpdateNotifier() {
         aria-expanded={panelOpen}
         aria-haspopup="dialog"
         className={cn(
-          "group inline-flex h-7 max-w-[190px] items-center gap-1.5 rounded-xl border px-2.5 text-[11px] font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+          "group inline-flex h-7 max-w-[190px] items-center gap-1.5 rounded-xl border px-2.5 text-[11px] font-black transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
           isError
             ? "border-rose-300/70 bg-rose-50 text-rose-700 hover:bg-rose-100"
             : isVerified
@@ -362,7 +362,7 @@ export function DesktopNativeUpdateNotifier() {
             </div>
             <button
               aria-label={t(isVerified ? "common.close" : "desktop.update.closePanel")}
-              className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-app-muted transition hover:bg-[hsl(var(--surface-soft)/0.78)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+              className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-app-muted transition hover:bg-[hsl(var(--surface-soft)/0.78)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
               onClick={isVerified ? clearNotice : closePanel}
               title={t(isVerified ? "common.close" : "desktop.update.closePanel")}
               type="button"
@@ -432,7 +432,7 @@ export function DesktopNativeUpdateNotifier() {
 
             {isVerified ? (
               <button
-                className="mt-3 inline-flex min-h-9 w-full items-center justify-center rounded-xl bg-emerald-600 px-3 text-[11px] font-black text-white shadow-[0_12px_28px_rgba(16,185,129,0.2)] transition hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+                className="mt-3 inline-flex min-h-9 w-full items-center justify-center rounded-xl bg-emerald-600 px-3 text-[11px] font-black text-white shadow-[0_12px_28px_rgba(16,185,129,0.2)] transition hover:bg-emerald-700 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-emerald-300"
                 onClick={clearNotice}
                 type="button"
               >
@@ -441,7 +441,7 @@ export function DesktopNativeUpdateNotifier() {
             ) : (
               <div className="mt-3 flex items-center gap-2">
                 <button
-                  className="inline-flex min-h-9 flex-1 items-center justify-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-3 text-[11px] font-black text-white shadow-[0_12px_28px_hsl(var(--primary)/0.2)] transition hover:bg-[hsl(var(--primary)/0.92)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-65"
+                  className="inline-flex min-h-9 flex-1 items-center justify-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-3 text-[11px] font-black text-white shadow-[0_12px_28px_hsl(var(--primary)/0.2)] transition hover:bg-[hsl(var(--primary)/0.92)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-65"
                   disabled={isBusy || isChecking || status !== "ready"}
                   onClick={installUpdate}
                   type="button"
@@ -455,7 +455,7 @@ export function DesktopNativeUpdateNotifier() {
                 </button>
                 <button
                   aria-label={t("desktop.update.checkAgain")}
-                  className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-[hsl(var(--border)/0.72)] text-app-muted transition hover:bg-[hsl(var(--surface-soft)/0.76)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-65"
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-[hsl(var(--border)/0.72)] text-app-muted transition hover:bg-[hsl(var(--surface-soft)/0.76)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-65"
                   disabled={isBusy || isChecking}
                   onClick={() => {
                     void checkForUpdate({ reveal: true });

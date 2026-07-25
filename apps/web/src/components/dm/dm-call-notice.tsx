@@ -56,7 +56,7 @@ export function DmCallNoticeBanner({
       <p className="max-w-[18rem] text-sm font-semibold text-app-foreground">{message}</p>
       <button
         aria-label={t("common.close")}
-        className="inline-flex h-7 w-7 items-center justify-center rounded-full text-app-muted transition hover:bg-[hsl(var(--surface-soft)/0.6)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+        className="inline-flex h-7 w-7 items-center justify-center rounded-full text-app-muted transition hover:bg-[hsl(var(--surface-soft)/0.6)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
         data-testid="dm-call-notice-dismiss"
         onClick={onDismiss}
         type="button"

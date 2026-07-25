@@ -778,7 +778,7 @@ function ChatAreaContent({
 
                   return (
                     <button
-                      className="flex w-full items-center gap-3 rounded-2xl px-3 py-2 text-left text-sm font-semibold text-app-foreground transition hover:bg-app-surface-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] disabled:cursor-wait disabled:opacity-70"
+                      className="flex w-full items-center gap-3 rounded-2xl px-3 py-2 text-left text-sm font-semibold text-app-foreground transition hover:bg-app-surface-soft focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] disabled:cursor-wait disabled:opacity-70"
                       disabled={notificationSettingsMutation.isPending}
                       key={level}
                       onClick={() => {
@@ -809,7 +809,7 @@ function ChatAreaContent({
         ? createPortal(
             <div className="fixed inset-0 z-[90] xl:hidden" data-testid="mobile-info-drawer-root">
               <div
-                className="absolute inset-0 bg-[hsl(var(--backdrop)/0.5)] backdrop-blur-sm"
+                className="absolute inset-0 bg-[hsl(var(--backdrop)/0.5)] backdrop-blur-xs"
                 data-testid="mobile-info-drawer-backdrop"
                 onClick={() => setIsMembersDrawerRequested(false)}
                 role="presentation"
@@ -889,7 +889,7 @@ function ChatAreaContent({
                   <button
                     aria-expanded={showPinnedMessages}
                     aria-label={t("chat.pins.title", { count: pinnedMessages.length })}
-                    className="inline-flex min-h-10 min-w-10 items-center justify-center gap-2 rounded-2xl px-2 py-1.5 text-xs font-bold text-app-foreground transition hover:bg-[hsl(var(--surface-card)/0.66)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] sm:px-3"
+                    className="inline-flex min-h-10 min-w-10 items-center justify-center gap-2 rounded-2xl px-2 py-1.5 text-xs font-bold text-app-foreground transition hover:bg-[hsl(var(--surface-card)/0.66)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] sm:px-3"
                     data-testid="channel-pins-toggle"
                     onClick={() => setIsPinnedMessagesRequested((current) => !current)}
                     type="button"
@@ -912,7 +912,7 @@ function ChatAreaContent({
                         </p>
                         <button
                           aria-label={t("common.close")}
-                          className="rounded-full p-1 text-app-muted transition hover:bg-app-surface-soft hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                          className="rounded-full p-1 text-app-muted transition hover:bg-app-surface-soft hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
                           onClick={() => setIsPinnedMessagesRequested(false)}
                           type="button"
                         >
@@ -922,7 +922,7 @@ function ChatAreaContent({
                       <div className="space-y-2">
                         {pinnedMessages.map((message) => (
                           <button
-                            className="grid w-full min-w-0 grid-cols-[2rem_minmax(0,1fr)] gap-3 rounded-[20px] border border-[hsl(var(--border)/0.56)] bg-[hsl(var(--surface-card))] px-3 py-2.5 text-left shadow-[0_12px_28px_hsl(var(--shadow-color)/0.07)] transition hover:border-[hsl(var(--primary)/0.34)] hover:bg-[hsl(var(--surface-soft)/0.62)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
+                            className="grid w-full min-w-0 grid-cols-[2rem_minmax(0,1fr)] gap-3 rounded-[20px] border border-[hsl(var(--border)/0.56)] bg-[hsl(var(--surface-card))] px-3 py-2.5 text-left shadow-[0_12px_28px_hsl(var(--shadow-color)/0.07)] transition hover:border-[hsl(var(--primary)/0.34)] hover:bg-[hsl(var(--surface-soft)/0.62)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
                             key={message.id}
                             onClick={() => {
                               setIsPinnedMessagesRequested(false);
@@ -959,7 +959,7 @@ function ChatAreaContent({
                   aria-expanded={showNotificationMenu}
                   aria-haspopup="menu"
                   aria-label={t("chat.notifications.openSettings")}
-                  className="inline-flex min-h-10 min-w-10 items-center justify-center gap-2 rounded-2xl px-2 py-1.5 text-xs font-bold text-app-foreground transition hover:bg-[hsl(var(--surface-card)/0.66)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] sm:px-3"
+                  className="inline-flex min-h-10 min-w-10 items-center justify-center gap-2 rounded-2xl px-2 py-1.5 text-xs font-bold text-app-foreground transition hover:bg-[hsl(var(--surface-card)/0.66)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] sm:px-3"
                   data-testid="channel-notification-settings-open"
                   onClick={() => setShowNotificationMenu((current) => !current)}
                   ref={notificationButtonRef}
@@ -974,7 +974,7 @@ function ChatAreaContent({
               <button
                 aria-expanded={showMembersDrawer}
                 aria-label={t("shell.channelSidebar.memberView")}
-                className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-2xl px-2 py-1.5 text-app-foreground transition hover:bg-[hsl(var(--surface-card)/0.66)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] disabled:cursor-wait disabled:opacity-60 sm:px-3 xl:hidden"
+                className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-2xl px-2 py-1.5 text-app-foreground transition hover:bg-[hsl(var(--surface-card)/0.66)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] disabled:cursor-wait disabled:opacity-60 sm:px-3 xl:hidden"
                 data-testid="members-drawer-open"
                 disabled={!serverMembersQuery.data}
                 onClick={openInfoDrawer}
@@ -985,7 +985,7 @@ function ChatAreaContent({
               <button
                 aria-expanded={showSearch}
                 aria-label={t("chat.search.open")}
-                className="inline-flex min-h-10 min-w-10 items-center justify-center gap-2 rounded-2xl px-2 py-1.5 text-xs font-bold text-app-foreground transition hover:bg-[hsl(var(--surface-card)/0.66)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] sm:px-3"
+                className="inline-flex min-h-10 min-w-10 items-center justify-center gap-2 rounded-2xl px-2 py-1.5 text-xs font-bold text-app-foreground transition hover:bg-[hsl(var(--surface-card)/0.66)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] sm:px-3"
                 data-testid="message-search-open"
                 onClick={openSearch}
                 ref={searchButtonRef}
@@ -1017,7 +1017,7 @@ function ChatAreaContent({
                 <>
                   <button
                     aria-expanded={showPinnedMessages}
-                    className="inline-flex h-8 max-w-full items-center gap-1.5 rounded-full border border-[hsl(var(--primary)/0.18)] bg-[hsl(var(--surface-card)/0.24)] px-2.5 text-[11px] font-bold text-[hsl(var(--primary))] shadow-[0_8px_18px_hsl(var(--primary)/0.06)] backdrop-blur-md transition hover:border-[hsl(var(--primary)/0.28)] hover:bg-[hsl(var(--primary)/0.10)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                    className="inline-flex h-8 max-w-full items-center gap-1.5 rounded-full border border-[hsl(var(--primary)/0.18)] bg-[hsl(var(--surface-card)/0.24)] px-2.5 text-[11px] font-bold text-[hsl(var(--primary))] shadow-[0_8px_18px_hsl(var(--primary)/0.06)] backdrop-blur-md transition hover:border-[hsl(var(--primary)/0.28)] hover:bg-[hsl(var(--primary)/0.10)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
                     data-testid="channel-pins-toggle"
                     onClick={() => setIsPinnedMessagesRequested((current) => !current)}
                     type="button"
@@ -1038,7 +1038,7 @@ function ChatAreaContent({
                         </p>
                         <button
                           aria-label={t("common.close")}
-                          className="rounded-full p-1 text-app-muted transition hover:bg-app-surface-soft hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                          className="rounded-full p-1 text-app-muted transition hover:bg-app-surface-soft hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
                           onClick={() => setIsPinnedMessagesRequested(false)}
                           type="button"
                         >
@@ -1048,7 +1048,7 @@ function ChatAreaContent({
                       <div className="space-y-2">
                         {pinnedMessages.map((message) => (
                           <button
-                            className="grid w-full min-w-0 grid-cols-[2rem_minmax(0,1fr)] gap-3 rounded-[20px] border border-[hsl(var(--border)/0.56)] bg-[hsl(var(--surface-card))] px-3 py-2.5 text-left shadow-[0_12px_28px_hsl(var(--shadow-color)/0.07)] transition hover:border-[hsl(var(--primary)/0.34)] hover:bg-[hsl(var(--surface-soft)/0.62)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
+                            className="grid w-full min-w-0 grid-cols-[2rem_minmax(0,1fr)] gap-3 rounded-[20px] border border-[hsl(var(--border)/0.56)] bg-[hsl(var(--surface-card))] px-3 py-2.5 text-left shadow-[0_12px_28px_hsl(var(--shadow-color)/0.07)] transition hover:border-[hsl(var(--primary)/0.34)] hover:bg-[hsl(var(--surface-soft)/0.62)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
                             key={message.id}
                             onClick={() => {
                               setIsPinnedMessagesRequested(false);
@@ -1085,7 +1085,7 @@ function ChatAreaContent({
               <button
                 aria-expanded={showSearch}
                 aria-label={t("chat.search.open")}
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl px-3 py-1.5 text-xs font-bold text-app-foreground transition hover:bg-[hsl(var(--surface-card)/0.55)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] md:min-h-9"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl px-3 py-1.5 text-xs font-bold text-app-foreground transition hover:bg-[hsl(var(--surface-card)/0.55)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)] md:min-h-9"
                 data-testid="message-search-open"
                 onClick={openSearch}
                 ref={searchButtonRef}

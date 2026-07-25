@@ -232,6 +232,10 @@ const bootstrapPayload: MobileBootstrapPayload = {
   },
   user: {
     avatarUrl: null,
+    bannerColor: null,
+    bannerOffsetX: null,
+    bannerOffsetY: null,
+    bannerUrl: null,
     displayName: "Mobile User",
     id: "user-1",
     locale: "tr",
@@ -754,6 +758,42 @@ describe("mobile display model", () => {
         section.channels.map((channel) => channel.id),
       ]),
       [["Lobby", ["voice-1", "text-2"]]],
+    );
+  });
+
+  it("keeps a freshly created empty category as its own section", () => {
+    const detail = {
+      ...workspaceDetail,
+      categories: [
+        ...workspaceDetail.categories,
+        { channels: [], id: "category-empty", name: "Duyurular", position: 1 },
+      ],
+    };
+
+    const sections = getMobileWorkspaceChannelSections(detail, { ungrouped: "Other" });
+
+    // Dropping it here is what made "kategori oluştur" look like a no-op: the
+    // category existed on the server but never reached the channel list.
+    assert.deepEqual(
+      sections.map((section) => [section.id, section.channels.length]),
+      [
+        ["ungrouped", 1],
+        ["category-1", 2],
+        ["category-empty", 0],
+      ],
+    );
+
+    // Search still hides it unless the category name itself matches.
+    assert.deepEqual(
+      filterMobileWorkspaceChannelSections(sections, "alert").map((section) => section.id),
+      ["category-1"],
+    );
+    assert.deepEqual(
+      filterMobileWorkspaceChannelSections(sections, "duyuru").map((section) => [
+        section.id,
+        section.channels.length,
+      ]),
+      [["category-empty", 0]],
     );
   });
 

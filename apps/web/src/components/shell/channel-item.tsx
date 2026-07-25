@@ -76,7 +76,7 @@ export function ChannelItem({
             { name },
           )}
           className={cn(
-            "flex min-h-9 min-w-0 flex-1 items-center gap-1 rounded-[14px] px-1.5 py-0.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.6)] md:min-h-8",
+            "flex min-h-9 min-w-0 flex-1 items-center gap-1 rounded-[14px] px-1.5 py-0.5 text-left outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.6)] md:min-h-8",
             isLocked && "cursor-not-allowed",
           )}
           disabled={isLocked}

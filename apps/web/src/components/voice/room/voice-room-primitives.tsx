@@ -504,7 +504,7 @@ export function VoiceParticipantTile({
       {cameraTrack ? (
         <div className="relative my-3 min-h-0 flex-1 overflow-hidden rounded-[24px] border border-[hsl(var(--border)/0.58)] bg-black">
           <ParticipantCameraVideo isLocal={participant.isLocal} track={cameraTrack} />
-          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/72 via-black/34 to-transparent p-3 text-left text-white">
+          <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/72 via-black/34 to-transparent p-3 text-left text-white">
             <p className="truncate text-base font-semibold sm:text-lg">{displayName}</p>
             <p className="mt-1 truncate text-sm font-medium text-white/72">
               @{participant.username}
@@ -571,7 +571,7 @@ export function VoiceParticipantTile({
               </span>
               <button
                 aria-label={t("voice.grid.resetVolume")}
-                className="flex h-7 w-7 items-center justify-center rounded-full border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-soft)/0.52)] text-app-muted transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                className="flex h-7 w-7 items-center justify-center rounded-full border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-soft)/0.52)] text-app-muted transition hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
                 onClick={onResetVolume}
                 type="button"
               >
@@ -636,7 +636,7 @@ export function RoomControlButton({
     <button
       aria-label={ariaLabel}
       className={cn(
-        "group flex min-w-0 flex-col items-center gap-1 rounded-[18px] border px-1.5 py-2 text-[11px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:min-w-[4.75rem] sm:rounded-[22px] sm:px-3 sm:text-xs",
+        "group flex min-w-0 flex-col items-center gap-1 rounded-[18px] border px-1.5 py-2 text-[11px] font-semibold transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:min-w-[4.75rem] sm:rounded-[22px] sm:px-3 sm:text-xs",
         destructive
           ? "border-[hsl(var(--danger)/0.30)] bg-[hsl(var(--danger)/0.12)] text-[hsl(var(--danger))] hover:bg-[hsl(var(--danger)/0.18)] focus-visible:ring-[hsl(var(--danger)/0.45)]"
           : active
@@ -857,7 +857,7 @@ export function ScreenShareStage({
             >
               <button
                 className={cn(
-                  "inline-flex min-h-9 items-center justify-center gap-2 rounded-xl px-3 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                  "inline-flex min-h-9 items-center justify-center gap-2 rounded-xl px-3 text-xs font-semibold transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
                   primaryFocus === "screen"
                     ? "bg-[hsl(var(--surface-card))] text-app-foreground shadow-[0_10px_28px_hsl(var(--shadow-color)/0.08)]"
                     : "text-app-muted hover:text-app-foreground",
@@ -871,7 +871,7 @@ export function ScreenShareStage({
               </button>
               <button
                 className={cn(
-                  "inline-flex min-h-9 items-center justify-center gap-2 rounded-xl px-3 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                  "inline-flex min-h-9 items-center justify-center gap-2 rounded-xl px-3 text-xs font-semibold transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
                   primaryFocus === "camera"
                     ? "bg-[hsl(var(--surface-card))] text-app-foreground shadow-[0_10px_28px_hsl(var(--shadow-color)/0.08)]"
                     : "text-app-muted hover:text-app-foreground",
@@ -888,7 +888,7 @@ export function ScreenShareStage({
             </div>
             {activeShare?.isLocal ? (
               <button
-                className="min-h-10 w-full rounded-2xl border border-[hsl(var(--danger)/0.28)] bg-[hsl(var(--danger)/0.12)] px-4 py-2 text-sm font-semibold text-[hsl(var(--danger))] transition hover:bg-[hsl(var(--danger)/0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:w-auto"
+                className="min-h-10 w-full rounded-2xl border border-[hsl(var(--danger)/0.28)] bg-[hsl(var(--danger)/0.12)] px-4 py-2 text-sm font-semibold text-[hsl(var(--danger))] transition hover:bg-[hsl(var(--danger)/0.16)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:w-auto"
                 onClick={onStopShare}
                 type="button"
               >
@@ -915,7 +915,7 @@ export function ScreenShareStage({
                 isLocal={activeCameraParticipant.isLocal}
                 track={activeCameraTrack}
               />
-              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/76 via-black/36 to-transparent p-4 text-white">
+              <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/76 via-black/36 to-transparent p-4 text-white">
                 <span className="inline-flex items-center gap-2 rounded-full border border-white/18 bg-black/34 px-3 py-1 text-xs font-semibold backdrop-blur-xl">
                   <Video className="h-3.5 w-3.5" />
                   {t("voice.screenShare.primaryCamera")}
@@ -946,7 +946,7 @@ export function ScreenShareStage({
 
           {primaryFocus === "screen" && activeCameraParticipant && activeCameraTrack ? (
             <button
-              className="absolute bottom-3 right-3 z-10 w-[min(12rem,54vw)] overflow-hidden rounded-[18px] border border-white/22 bg-black shadow-[0_18px_60px_rgba(0,0,0,0.28)] transition hover:scale-[1.01] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 sm:bottom-4 sm:right-4 sm:w-[min(14rem,46vw)] sm:rounded-[22px]"
+              className="absolute bottom-3 right-3 z-10 w-[min(12rem,54vw)] overflow-hidden rounded-[18px] border border-white/22 bg-black shadow-[0_18px_60px_rgba(0,0,0,0.28)] transition hover:scale-[1.01] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white/70 sm:bottom-4 sm:right-4 sm:w-[min(14rem,46vw)] sm:rounded-[22px]"
               data-testid="voice-stage-camera-pip"
               onClick={() => onSelectStageFocus("camera")}
               type="button"
@@ -961,7 +961,7 @@ export function ScreenShareStage({
                   track={activeCameraTrack}
                 />
               </div>
-              <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/72 to-transparent px-3 py-2 text-left text-xs font-semibold text-white">
+              <span className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/72 to-transparent px-3 py-2 text-left text-xs font-semibold text-white">
                 {activeCameraName}
               </span>
             </button>
@@ -969,7 +969,7 @@ export function ScreenShareStage({
 
           {primaryFocus === "camera" && activeShare ? (
             <button
-              className="absolute bottom-3 right-3 z-10 w-[min(12rem,54vw)] overflow-hidden rounded-[18px] border border-white/22 bg-black shadow-[0_18px_60px_rgba(0,0,0,0.28)] transition hover:scale-[1.01] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 sm:bottom-4 sm:right-4 sm:w-[min(15rem,50vw)] sm:rounded-[22px]"
+              className="absolute bottom-3 right-3 z-10 w-[min(12rem,54vw)] overflow-hidden rounded-[18px] border border-white/22 bg-black shadow-[0_18px_60px_rgba(0,0,0,0.28)] transition hover:scale-[1.01] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white/70 sm:bottom-4 sm:right-4 sm:w-[min(15rem,50vw)] sm:rounded-[22px]"
               data-testid="voice-stage-screen-pip"
               onClick={() => onSelectStageFocus("screen")}
               type="button"
@@ -1009,7 +1009,7 @@ export function ScreenShareStage({
             return (
               <button
                 className={cn(
-                  "flex min-h-12 w-full items-center gap-3 rounded-2xl border px-3 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                  "flex min-h-12 w-full items-center gap-3 rounded-2xl border px-3 py-2 text-left transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
                   isActive
                     ? "border-[hsl(var(--primary)/0.38)] bg-[hsl(var(--primary)/0.14)]"
                     : "border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.42)] hover:bg-[hsl(var(--surface-soft)/0.72)]",
@@ -1050,7 +1050,7 @@ export function ScreenShareStage({
                 return (
                   <button
                     className={cn(
-                      "flex min-h-11 w-full items-center gap-3 rounded-2xl border px-3 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                      "flex min-h-11 w-full items-center gap-3 rounded-2xl border px-3 py-2 text-left transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
                       isActive
                         ? "border-[hsl(var(--success)/0.38)] bg-[hsl(var(--success)/0.12)]"
                         : "border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.42)] hover:bg-[hsl(var(--surface-soft)/0.72)]",
@@ -1099,7 +1099,7 @@ export function ScreenShareStage({
             </div>
             <div className="relative">
               <select
-                className="min-h-11 w-full appearance-none rounded-2xl border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.58)] px-3 py-2 pr-9 text-sm font-semibold text-app-foreground transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-60"
+                className="min-h-11 w-full appearance-none rounded-2xl border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.58)] px-3 py-2 pr-9 text-sm font-semibold text-app-foreground transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-60"
                 data-testid="screen-share-quality-select"
                 disabled={isApplyingQuality}
                 id="screen-share-quality-select"

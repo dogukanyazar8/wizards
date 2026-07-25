@@ -23,11 +23,7 @@ import ReactMarkdown, { defaultUrlTransform } from "react-markdown";
 import type { Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useQueryClient } from "@tanstack/react-query";
-import {
-  getMessagesQueryKey,
-  type MessageMode,
-  type MessagePages,
-} from "@/hooks/use-messages";
+import { getMessagesQueryKey, type MessageMode, type MessagePages } from "@/hooks/use-messages";
 import { Avatar } from "@/components/ui/avatar";
 import { Modal } from "@/components/ui/modal";
 import { UserProfilePopover } from "@/components/shared/user-profile-popover";
@@ -149,12 +145,10 @@ function CodeBlock({
   return (
     <div className="my-1.5 overflow-hidden rounded-md border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.58)] shadow-[0_10px_24px_hsl(var(--shadow-color)/0.05)]">
       <div className="flex items-center justify-between gap-3 border-b border-[hsl(var(--border)/0.55)] px-3 py-2">
-        <span className="min-w-0 truncate text-xs font-semibold text-app-muted">
-          {language}
-        </span>
+        <span className="min-w-0 truncate text-xs font-semibold text-app-muted">{language}</span>
         <button
           aria-label={copied ? "Kopyalandı" : "Kodu kopyala"}
-          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-[hsl(var(--border)/0.65)] bg-[hsl(var(--surface-card)/0.72)] text-app-muted transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
+          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-[hsl(var(--border)/0.65)] bg-[hsl(var(--surface-card)/0.72)] text-app-muted transition hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
           onClick={async () => {
             try {
               await navigator.clipboard.writeText(rawCode);
@@ -188,10 +182,7 @@ function clampPollDuration(minutes: number) {
     return defaultPollDurationMinutes;
   }
 
-  return Math.min(
-    maxPollDurationMinutes,
-    Math.max(minPollDurationMinutes, Math.round(minutes)),
-  );
+  return Math.min(maxPollDurationMinutes, Math.max(minPollDurationMinutes, Math.round(minutes)));
 }
 
 function parsePollDuration(value: string | undefined) {
@@ -231,9 +222,7 @@ function parsePollBlock(content: string): ParsedPoll | null {
     return null;
   }
 
-  const titleMatch = lines[pollStartIndex]
-    ?.trim()
-    .match(/^\*\*(?:Poll|Anket):\*\*\s*(.+)$/i);
+  const titleMatch = lines[pollStartIndex]?.trim().match(/^\*\*(?:Poll|Anket):\*\*\s*(.+)$/i);
 
   if (!titleMatch) {
     return null;
@@ -265,8 +254,7 @@ function parsePollBlock(content: string): ParsedPoll | null {
     }
 
     const optionMatch =
-      trimmed.match(/^[-*]\s+(?:\[[ xX]\]\s*)?(.+)$/) ??
-      trimmed.match(/^\d+[.)]\s+(.+)$/);
+      trimmed.match(/^[-*]\s+(?:\[[ xX]\]\s*)?(.+)$/) ?? trimmed.match(/^\d+[.)]\s+(.+)$/);
 
     if (optionMatch) {
       const option = optionMatch[1]?.trim();
@@ -285,7 +273,10 @@ function parsePollBlock(content: string): ParsedPoll | null {
   }
 
   const before = lines.slice(0, pollStartIndex).join("\n").trim();
-  const after = lines.slice(pollEndIndex + 1).join("\n").trim();
+  const after = lines
+    .slice(pollEndIndex + 1)
+    .join("\n")
+    .trim();
   const contentWithoutPoll = [before, after].filter(Boolean).join("\n\n");
 
   return {
@@ -535,7 +526,7 @@ function PollCard({
             <button
               aria-label={t("chat.poll.voteAria", { option })}
               className={cn(
-                "group/poll relative flex w-full items-center gap-2 overflow-hidden rounded-xl border px-2.5 py-1.5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]",
+                "group/poll relative flex w-full items-center gap-2 overflow-hidden rounded-xl border px-2.5 py-1.5 text-left transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]",
                 isSelected
                   ? "border-[hsl(var(--primary)/0.36)] bg-[hsl(var(--primary)/0.11)] text-app-foreground"
                   : "border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-overlay)/0.44)] text-app-muted hover:border-[hsl(var(--primary)/0.28)] hover:bg-[hsl(var(--primary)/0.07)] hover:text-app-foreground",
@@ -561,7 +552,7 @@ function PollCard({
               >
                 {isSelected ? <CheckCircle2 className="h-3.5 w-3.5" /> : index + 1}
               </span>
-                  <span className="relative z-10 min-w-0 flex-1 truncate text-[13px] font-semibold">
+              <span className="relative z-10 min-w-0 flex-1 truncate text-[13px] font-semibold">
                 {option}
               </span>
               <span className="relative z-10 shrink-0 text-xs font-bold text-app-soft">
@@ -573,7 +564,11 @@ function PollCard({
       </div>
 
       <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] font-semibold text-app-soft">
-        <span>{totalVotes > 0 ? t("chat.poll.voteCount", { count: totalVotes }) : t("chat.poll.noVotes")}</span>
+        <span>
+          {totalVotes > 0
+            ? t("chat.poll.voteCount", { count: totalVotes })
+            : t("chat.poll.noVotes")}
+        </span>
         {selectedIndex >= 0 ? (
           <span className="inline-flex items-center gap-1 rounded-full bg-[hsl(var(--primary)/0.09)] px-2 py-0.5 text-[hsl(var(--primary))]">
             <CheckCircle2 className="h-3.5 w-3.5" />
@@ -595,7 +590,7 @@ function formatReactionSummary(
     .map((user) =>
       user.id === currentUserId
         ? t("chat.message.reactionYou")
-        : user.displayName ?? user.username,
+        : (user.displayName ?? user.username),
     )
     .filter((name) => name.trim().length > 0);
 
@@ -861,7 +856,7 @@ export const MessageItem = React.memo(
             {canRemoveDeletedPlaceholder ? (
               <button
                 aria-label={t("chat.message.removeDeletedPlaceholderAria")}
-                className="inline-flex items-center gap-1 rounded-full border border-[hsl(var(--danger)/0.18)] bg-[hsl(var(--danger)/0.07)] px-2 py-0.5 text-[11px] font-semibold not-italic text-[hsl(var(--danger))] opacity-0 transition hover:bg-[hsl(var(--danger)/0.12)] focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.28)] group-hover:opacity-100"
+                className="inline-flex items-center gap-1 rounded-full border border-[hsl(var(--danger)/0.18)] bg-[hsl(var(--danger)/0.07)] px-2 py-0.5 text-[11px] font-semibold not-italic text-[hsl(var(--danger))] opacity-0 transition hover:bg-[hsl(var(--danger)/0.12)] focus-visible:opacity-100 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.28)] group-hover:opacity-100"
                 data-testid="message-remove-deleted-placeholder"
                 onClick={() => setDeleteDialogOpen(true)}
                 type="button"
@@ -990,9 +985,7 @@ export const MessageItem = React.memo(
               )}
             </div>
 
-            <div
-              className="relative min-w-0 pr-9 md:pr-0"
-            >
+            <div className="relative min-w-0 pr-9 md:pr-0">
               {!isGrouped && (
                 <div className="flex min-w-0 items-center gap-1.5 pr-2 leading-5">
                   <span className="min-w-0 truncate text-[15px] font-bold text-app-foreground">
@@ -1012,30 +1005,32 @@ export const MessageItem = React.memo(
               )}
 
               {message.replyTo && !isEditing && (
-                  <button
-                    aria-label={t("chat.message.replyPreviewAria", {
-                      author: message.replyTo.authorName,
-                    })}
-                    className="mb-1 flex max-w-full items-center gap-1.5 rounded-l-none rounded-r-md border-l-2 border-[hsl(var(--primary)/0.4)] bg-[hsl(var(--surface-soft)/0.6)] px-2 py-1 text-left transition hover:bg-[hsl(var(--primary)/0.09)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
-                    onClick={() => {
-                      const target = document.querySelector(`[data-message-id="${message.replyTo?.id}"]`);
-                      if (target instanceof HTMLElement) {
-                        target.scrollIntoView({ behavior: "smooth", block: "center" });
-                        target.dataset.jumpHighlight = "true";
-                        window.setTimeout(() => {
-                          delete target.dataset.jumpHighlight;
-                        }, 1400);
-                      }
-                    }}
-                    type="button"
-                  >
+                <button
+                  aria-label={t("chat.message.replyPreviewAria", {
+                    author: message.replyTo.authorName,
+                  })}
+                  className="mb-1 flex max-w-full items-center gap-1.5 rounded-l-none rounded-r-md border-l-2 border-[hsl(var(--primary)/0.4)] bg-[hsl(var(--surface-soft)/0.6)] px-2 py-1 text-left transition hover:bg-[hsl(var(--primary)/0.09)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
+                  onClick={() => {
+                    const target = document.querySelector(
+                      `[data-message-id="${message.replyTo?.id}"]`,
+                    );
+                    if (target instanceof HTMLElement) {
+                      target.scrollIntoView({ behavior: "smooth", block: "center" });
+                      target.dataset.jumpHighlight = "true";
+                      window.setTimeout(() => {
+                        delete target.dataset.jumpHighlight;
+                      }, 1400);
+                    }
+                  }}
+                  type="button"
+                >
                   <span className="max-w-[9rem] shrink-0 truncate text-xs font-semibold text-[hsl(var(--primary))]">
                     {message.replyTo.authorName}
                   </span>
                   <p className="message-font-scope min-w-0 flex-1 truncate text-xs text-app-muted">
                     {message.replyTo.content}
                   </p>
-                  </button>
+                </button>
               )}
 
               {isEditing ? (
@@ -1046,9 +1041,7 @@ export const MessageItem = React.memo(
                 />
               ) : hasRenderableMessageBody ? (
                 <div className="message-font-scope max-w-full break-words text-sm leading-relaxed text-app-foreground [overflow-wrap:anywhere]">
-                  <div
-                    className="relative inline-block max-w-full align-top md:max-w-[calc(100%-10rem)] 2xl:max-w-[76rem] [&_a]:text-[hsl(var(--primary))] [&_code]:break-words [&_pre]:max-w-full [&_pre]:overflow-x-auto"
-                  >
+                  <div className="relative inline-block max-w-full align-top md:max-w-[calc(100%-10rem)] 2xl:max-w-[76rem] [&_a]:text-[hsl(var(--primary))] [&_code]:break-words [&_pre]:max-w-full [&_pre]:overflow-x-auto">
                     {markdownContent.trim().length > 0 ? (
                       <ReactMarkdown
                         components={markdownComponents}
@@ -1071,7 +1064,6 @@ export const MessageItem = React.memo(
                         {t("chat.message.edited")}
                       </span>
                     ) : null}
-
                   </div>
                 </div>
               ) : null}
@@ -1094,7 +1086,7 @@ export const MessageItem = React.memo(
                     <CornerDownRight className="h-4 w-4" />
                   </span>
                   <button
-                    className="inline-flex min-w-0 max-w-full items-center gap-2 rounded-2xl border border-[hsl(var(--primary)/0.18)] bg-[hsl(var(--surface-soft)/0.54)] px-2.5 py-1.5 text-xs font-semibold text-[hsl(var(--primary))] shadow-[0_10px_24px_hsl(var(--shadow-color)/0.05)] transition hover:border-[hsl(var(--primary)/0.34)] hover:bg-[hsl(var(--primary)/0.1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.5)]"
+                    className="inline-flex min-w-0 max-w-full items-center gap-2 rounded-2xl border border-[hsl(var(--primary)/0.18)] bg-[hsl(var(--surface-soft)/0.54)] px-2.5 py-1.5 text-xs font-semibold text-[hsl(var(--primary))] shadow-[0_10px_24px_hsl(var(--shadow-color)/0.05)] transition hover:border-[hsl(var(--primary)/0.34)] hover:bg-[hsl(var(--primary)/0.1)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.5)]"
                     data-testid="message-thread-preview"
                     onClick={() => onThread(message)}
                     type="button"
@@ -1146,13 +1138,13 @@ export const MessageItem = React.memo(
                   {isFailed ? <AlertCircle className="h-3.5 w-3.5" /> : null}
                   <span>
                     {isFailed
-                      ? message.errorMessage ?? t("chat.message.sendFailed")
+                      ? (message.errorMessage ?? t("chat.message.sendFailed"))
                       : t("chat.message.sending")}
                   </span>
                   {isFailed ? (
                     <>
                       <button
-                        className="inline-flex items-center gap-1 rounded-full bg-white/65 px-2 py-1 text-[hsl(var(--danger))] transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.35)]"
+                        className="inline-flex items-center gap-1 rounded-full bg-white/65 px-2 py-1 text-[hsl(var(--danger))] transition hover:bg-white focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.35)]"
                         data-testid="message-retry"
                         onClick={() => onRetry(message.id)}
                         type="button"
@@ -1161,7 +1153,7 @@ export const MessageItem = React.memo(
                         {t("chat.message.retry")}
                       </button>
                       <button
-                        className="inline-flex items-center gap-1 rounded-full bg-white/65 px-2 py-1 text-app-muted transition hover:bg-white hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.35)]"
+                        className="inline-flex items-center gap-1 rounded-full bg-white/65 px-2 py-1 text-app-muted transition hover:bg-white hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.35)]"
                         data-testid="message-remove-failed"
                         onClick={() => onRemoveOptimistic(message.id)}
                         type="button"
@@ -1180,33 +1172,30 @@ export const MessageItem = React.memo(
                     const reactionSummary = formatReactionSummary(reaction, currentUserId, t);
 
                     return (
-                    <span
-                      className="group/reaction relative inline-flex"
-                      key={reaction.emoji}
-                    >
-                      <button
-                      aria-label={t("chat.message.reactionAria", {
-                        count: reaction.count,
-                        emoji: reaction.emoji,
-                      })}
-                      title={reactionSummary}
-                      className={cn(
-                        "inline-flex min-h-6 items-center gap-1 rounded-full border px-2 py-0.5 text-xs leading-5 transition",
-                        reaction.userIds.includes(currentUserId)
-                          ? "border-[hsl(var(--primary)/0.6)] bg-[hsl(var(--primary)/0.1)] text-app-foreground"
-                          : "border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.62)] text-app-muted hover:bg-[hsl(var(--surface-soft)/0.82)] hover:text-app-foreground",
-                      )}
-                      data-emoji={reaction.emoji}
-                      data-testid="message-reaction"
-                      onClick={() => onReact(message.id, reaction.emoji)}
-                      type="button"
-                    >
-                      {reaction.emoji} {reaction.count}
-                      </button>
-                      <span className="pointer-events-none absolute bottom-[calc(100%+0.35rem)] left-1/2 z-30 hidden max-w-[18rem] -translate-x-1/2 truncate whitespace-nowrap rounded-xl border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card))] px-2.5 py-1.5 text-[11px] font-semibold text-app-foreground shadow-[0_14px_34px_hsl(var(--shadow-color)/0.18)] group-focus-within/reaction:block group-hover/reaction:block">
-                        {reactionSummary}
+                      <span className="group/reaction relative inline-flex" key={reaction.emoji}>
+                        <button
+                          aria-label={t("chat.message.reactionAria", {
+                            count: reaction.count,
+                            emoji: reaction.emoji,
+                          })}
+                          title={reactionSummary}
+                          className={cn(
+                            "inline-flex min-h-6 items-center gap-1 rounded-full border px-2 py-0.5 text-xs leading-5 transition",
+                            reaction.userIds.includes(currentUserId)
+                              ? "border-[hsl(var(--primary)/0.6)] bg-[hsl(var(--primary)/0.1)] text-app-foreground"
+                              : "border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.62)] text-app-muted hover:bg-[hsl(var(--surface-soft)/0.82)] hover:text-app-foreground",
+                          )}
+                          data-emoji={reaction.emoji}
+                          data-testid="message-reaction"
+                          onClick={() => onReact(message.id, reaction.emoji)}
+                          type="button"
+                        >
+                          {reaction.emoji} {reaction.count}
+                        </button>
+                        <span className="pointer-events-none absolute bottom-[calc(100%+0.35rem)] left-1/2 z-30 hidden max-w-[18rem] -translate-x-1/2 truncate whitespace-nowrap rounded-xl border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card))] px-2.5 py-1.5 text-[11px] font-semibold text-app-foreground shadow-[0_14px_34px_hsl(var(--shadow-color)/0.18)] group-focus-within/reaction:block group-hover/reaction:block">
+                          {reactionSummary}
+                        </span>
                       </span>
-                    </span>
                     );
                   })}
                 </div>
@@ -1216,7 +1205,7 @@ export const MessageItem = React.memo(
                 <button
                   aria-expanded={actionsOpen}
                   aria-label={t("chat.message.moreActions")}
-                  className="app-panel-soft absolute right-0 top-0 z-10 flex h-9 w-9 items-center justify-center rounded-full border text-app-muted shadow-[0_10px_24px_hsl(var(--shadow-color)/0.1)] transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] md:hidden"
+                  className="app-panel-soft absolute right-0 top-0 z-10 flex h-9 w-9 items-center justify-center rounded-full border text-app-muted shadow-[0_10px_24px_hsl(var(--shadow-color)/0.1)] transition hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] md:hidden"
                   data-testid="message-mobile-actions"
                   onClick={(event) => {
                     event.stopPropagation();
@@ -1265,7 +1254,6 @@ export const MessageItem = React.memo(
                   />
                 </div>
               ) : null}
-
             </div>
           </div>
         </div>

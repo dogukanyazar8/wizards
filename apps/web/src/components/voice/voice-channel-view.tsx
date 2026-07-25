@@ -285,7 +285,7 @@ function VoiceInviteMemberGroup({
               <button
                 aria-label={t("voice.room.inviteAction")}
                 className={cn(
-                  "inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-full border px-3 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-60",
+                  "inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-full border px-3 text-xs font-bold transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-60",
                   inviteState === "accepted"
                     ? "border-[hsl(var(--success)/0.24)] bg-[hsl(var(--success)/0.10)] text-[hsl(var(--success))]"
                     : inviteState === "declined" || inviteState === "error"
@@ -654,7 +654,7 @@ function VoiceChannelViewContent({ channelId, serverId }: VoiceChannelViewProps)
           </p>
           <p className="mt-2 text-sm text-app-muted">{t("voice.view.disconnectedDescription")}</p>
           <button
-            className="mt-5 rounded-2xl border border-[hsl(var(--primary)/0.32)] bg-[hsl(var(--primary)/0.14)] px-4 py-2 text-sm font-semibold text-app-foreground transition hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+            className="mt-5 rounded-2xl border border-[hsl(var(--primary)/0.32)] bg-[hsl(var(--primary)/0.14)] px-4 py-2 text-sm font-semibold text-app-foreground transition hover:opacity-95 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
             onClick={() => {
               void joinChannel({ channelId, serverId }).catch(() => {
                 // The provider exposes the error message for inline rendering.
@@ -711,7 +711,7 @@ function VoiceChannelViewContent({ channelId, serverId }: VoiceChannelViewProps)
       data-testid="voice-channel-view"
     >
       {showReconnectOverlay ? (
-        <div className="absolute inset-0 z-30 flex items-center justify-center bg-[hsl(var(--background)/0.75)] backdrop-blur-sm">
+        <div className="absolute inset-0 z-30 flex items-center justify-center bg-[hsl(var(--background)/0.75)] backdrop-blur-xs">
           <div className="app-panel rounded-[28px] border px-6 py-5 text-center shadow-[0_18px_50px_hsl(var(--shadow-color)/0.14)]">
             <Loader2 className="mx-auto h-7 w-7 animate-spin text-app-muted" />
             <p className="mt-3 text-sm font-semibold text-app-foreground">

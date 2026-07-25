@@ -420,7 +420,7 @@ export function DesktopDiagnosticsPanel() {
 
   return (
     <div className="space-y-3">
-      <div className="rounded-[22px] border border-indigo-100 bg-gradient-to-br from-white via-indigo-50/70 to-sky-50/80 p-4 text-sm text-slate-600 shadow-[0_14px_38px_rgba(99,102,241,0.1)]">
+      <div className="rounded-[22px] border border-indigo-100 bg-linear-to-br from-white via-indigo-50/70 to-sky-50/80 p-4 text-sm text-slate-600 shadow-[0_14px_38px_rgba(99,102,241,0.1)]">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-indigo-500">
@@ -462,7 +462,7 @@ export function DesktopDiagnosticsPanel() {
             ) : null}
           </div>
           <button
-            className="inline-flex min-h-9 items-center rounded-full border border-indigo-200 bg-indigo-600 px-3 text-xs font-semibold text-white shadow-[0_12px_28px_rgba(99,102,241,0.22)] transition hover:bg-indigo-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex min-h-9 items-center rounded-full border border-indigo-200 bg-indigo-600 px-3 text-xs font-semibold text-white shadow-[0_12px_28px_rgba(99,102,241,0.22)] transition hover:bg-indigo-500 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-indigo-300 disabled:cursor-not-allowed disabled:opacity-60"
             disabled={!isDesktop || diagnosticsExportPending}
             onClick={() => void downloadDiagnosticsBundle()}
             type="button"
@@ -731,7 +731,7 @@ export function DesktopDiagnosticsPanel() {
           </div>
           <button
             aria-checked={autostartEnabled}
-            className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60 ${
+            className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-indigo-400/60 ${
               autostartEnabled ? "border-indigo-300 bg-indigo-100" : "border-slate-200 bg-slate-100"
             } ${autostartPending || !isDesktop ? "cursor-not-allowed opacity-60" : ""}`}
             disabled={autostartPending || !isDesktop}
@@ -760,7 +760,7 @@ export function DesktopDiagnosticsPanel() {
           </div>
           <button
             aria-checked={desktopStreamerModeEnabled}
-            className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60 ${
+            className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-indigo-400/60 ${
               desktopStreamerModeEnabled
                 ? "border-indigo-300 bg-indigo-100"
                 : "border-slate-200 bg-slate-100"

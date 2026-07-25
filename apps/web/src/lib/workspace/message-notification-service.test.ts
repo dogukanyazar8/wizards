@@ -4,6 +4,7 @@ import { ChannelType, prisma } from "@wizards/db";
 
 import { PermissionBits } from "./permissions";
 import {
+  buildMentionPreview,
   createChannelMentionNotifications,
   extractMentionUsernames,
 } from "./message-notification-service";
@@ -23,6 +24,22 @@ describe("workspace message notification service", () => {
 
   it("keeps reserved mass mention names out of username notifications", () => {
     assert.deepEqual(extractMentionUsernames("@everyone please ask @Ada or @here"), ["ada"]);
+  });
+
+  it("builds a mention preview without the mention tokens or stray whitespace", () => {
+    assert.equal(
+      buildMentionPreview("hey @Ada   can you\nlook at this?"),
+      "hey can you look at this?",
+    );
+    assert.equal(buildMentionPreview("@Ada"), null);
+    assert.equal(buildMentionPreview("   "), null);
+  });
+
+  it("ellipsizes a long mention preview instead of pushing a wall of text", () => {
+    const preview = buildMentionPreview(`@Ada ${"release notes ".repeat(20)}`);
+
+    assert.equal(preview?.length, 90);
+    assert.equal(preview?.endsWith("…"), true);
   });
 
   /**
@@ -168,8 +185,15 @@ describe("workspace message notification service", () => {
       assert.equal(notificationData[0]?.userId, "user-ada");
       assert.equal(notificationData[0]?.dedupeKey, "channel-mention:message-1:user-ada");
       assert.equal(notificationData[0]?.actionUrl, "/channels/server-1/channel-1");
+      // The row keeps the plain headline; the message text rides in metadata so
+      // the feed can render it as its own quote line instead of repeating it.
+      assert.equal(notificationData[0]?.body, "Bora mentioned you in #general.");
+      // `pushBody` is transport-only and must never reach the Notification row.
+      assert.equal("pushBody" in (notificationData[0] ?? {}), false);
       assert.deepEqual(notificationData[0]?.metadata, {
         channelId: "channel-1",
+        // The feed renders this under the headline as a styled quote.
+        messagePreview: "hey can you look at this?",
         messageId: "message-1",
         senderId: "user-bora",
         serverId: "server-1",

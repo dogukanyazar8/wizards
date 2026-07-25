@@ -292,7 +292,7 @@ export function AudioDeviceSelect({
         </div>
         <button
           aria-label={t("voice.devices.refresh")}
-          className="grid h-7 w-7 shrink-0 place-items-center rounded-xl border border-[hsl(var(--border)/0.46)] bg-[hsl(var(--surface-soft)/0.42)] text-app-muted transition hover:bg-[hsl(var(--surface-soft)/0.74)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-wait disabled:opacity-60"
+          className="grid h-7 w-7 shrink-0 place-items-center rounded-xl border border-[hsl(var(--border)/0.46)] bg-[hsl(var(--surface-soft)/0.42)] text-app-muted transition hover:bg-[hsl(var(--surface-soft)/0.74)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-wait disabled:opacity-60"
           disabled={isLoading}
           data-testid={`audio-device-select-${kind}-menu-refresh`}
           onClick={handleRefresh}
@@ -317,7 +317,7 @@ export function AudioDeviceSelect({
             <button
               aria-selected={isSelected}
               className={cn(
-                "group/device-option flex w-full items-center gap-2 rounded-xl px-2 py-1.5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.5)]",
+                "group/device-option flex w-full items-center gap-2 rounded-xl px-2 py-1.5 text-left transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.5)]",
                 isSelected
                   ? "bg-[hsl(var(--primary)/0.13)] text-app-foreground"
                   : "text-app-muted hover:bg-[hsl(var(--surface-soft)/0.64)] hover:text-app-foreground",
@@ -385,7 +385,7 @@ export function AudioDeviceSelect({
           aria-haspopup="listbox"
           aria-label={label}
           className={cn(
-            "group/device flex min-h-8 w-full min-w-0 items-center gap-2 rounded-[14px] border border-[hsl(var(--border)/0.48)] bg-[hsl(var(--surface-soft)/0.34)] px-2.5 py-1.5 text-app-muted transition hover:bg-[hsl(var(--surface-soft)/0.68)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+            "group/device flex min-h-8 w-full min-w-0 items-center gap-2 rounded-[14px] border border-[hsl(var(--border)/0.48)] bg-[hsl(var(--surface-soft)/0.34)] px-2.5 py-1.5 text-app-muted transition hover:bg-[hsl(var(--surface-soft)/0.68)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
             isOpen &&
               "border-[hsl(var(--primary)/0.32)] bg-[hsl(var(--primary)/0.1)] text-app-foreground shadow-[0_10px_28px_hsl(var(--primary)/0.1)]",
             isDisabled && "cursor-not-allowed opacity-60",
@@ -433,7 +433,7 @@ export function AudioDeviceSelect({
               <p className="mt-0.5 text-xs leading-4 text-app-muted">{description}</p>
             </div>
             <button
-              className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-soft)/0.42)] px-2.5 text-[11px] font-semibold text-app-soft transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-wait disabled:opacity-60"
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-soft)/0.42)] px-2.5 text-[11px] font-semibold text-app-soft transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-wait disabled:opacity-60"
               disabled={isLoading}
               data-testid={`audio-device-select-${kind}-refresh`}
               onClick={handleRefresh}
@@ -451,7 +451,7 @@ export function AudioDeviceSelect({
               aria-haspopup="listbox"
               aria-label={label}
               className={cn(
-                "flex min-h-10 w-full items-center gap-2.5 rounded-xl border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.68)] px-2.5 text-left text-xs font-semibold text-app-foreground transition hover:bg-[hsl(var(--surface-card)/0.88)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-60",
+                "flex min-h-10 w-full items-center gap-2.5 rounded-xl border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.68)] px-2.5 text-left text-xs font-semibold text-app-foreground transition hover:bg-[hsl(var(--surface-card)/0.88)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-60",
                 isOpen &&
                   "border-[hsl(var(--primary)/0.34)] bg-[hsl(var(--primary)/0.09)] shadow-[0_18px_46px_hsl(var(--primary)/0.12)]",
               )}

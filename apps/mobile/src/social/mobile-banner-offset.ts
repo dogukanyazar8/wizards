@@ -9,6 +9,25 @@
 /** Centre of the frame: the default when a profile has never been repositioned. */
 export const MOBILE_BANNER_FOCAL_CENTER = 0.5;
 
+/**
+ * Minimum finger travel that spans the whole 0..1 focal range. The edit preview
+ * is only 88px tall, so mapping the drag straight onto the frame made a single
+ * pixel worth more than 1% of the image and the banner jumped under the thumb.
+ * Short axes borrow this longer virtual travel; axes already wider than it keep
+ * their natural 1:1 feel.
+ */
+export const MOBILE_BANNER_DRAG_TRAVEL = 240;
+
+/**
+ * Focal point after dragging `translation` px along an axis whose on-screen
+ * extent is `extent` px. Dragging down reveals the upper part of the image, so
+ * the translation is subtracted.
+ */
+export function nextMobileBannerFocal(start: number, translation: number, extent: number): number {
+  const travel = Math.max(extent || MOBILE_BANNER_DRAG_TRAVEL, MOBILE_BANNER_DRAG_TRAVEL);
+  return clampMobileBannerFocal(start - translation / travel);
+}
+
 /** Keeps a raw drag value inside the frame; a non-finite value falls back to centre. */
 export function clampMobileBannerFocal(value: number): number {
   if (!Number.isFinite(value)) {

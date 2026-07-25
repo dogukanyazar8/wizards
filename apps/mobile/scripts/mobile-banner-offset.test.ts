@@ -2,9 +2,11 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
+  MOBILE_BANNER_DRAG_TRAVEL,
   MOBILE_BANNER_FOCAL_CENTER,
   clampMobileBannerFocal,
   mobileBannerContentPosition,
+  nextMobileBannerFocal,
 } from "../src/social/mobile-banner-offset";
 
 describe("mobile banner focal point", () => {
@@ -35,5 +37,23 @@ describe("mobile banner focal point", () => {
     assert.equal(clampMobileBannerFocal(1.4), 1);
     assert.equal(clampMobileBannerFocal(0.42), 0.42);
     assert.equal(clampMobileBannerFocal(Number.NaN), MOBILE_BANNER_FOCAL_CENTER);
+  });
+
+  it("spreads a short axis over the longer virtual travel so the drag stays fine", () => {
+    // The 88px-tall edit preview must not map one finger-pixel to 1.1% of the image.
+    assert.equal(nextMobileBannerFocal(0.5, -MOBILE_BANNER_DRAG_TRAVEL / 2, 88), 1);
+    assert.equal(nextMobileBannerFocal(0.5, -24, 88), 0.6);
+    assert.equal(nextMobileBannerFocal(0.5, 24, 88), 0.4);
+  });
+
+  it("keeps the natural 1:1 feel on an axis already wider than the travel", () => {
+    assert.equal(nextMobileBannerFocal(0.5, -180, 360), 1);
+    assert.equal(nextMobileBannerFocal(0.5, -90, 360), 0.75);
+  });
+
+  it("clamps the drag at the frame edges and survives an unmeasured axis", () => {
+    assert.equal(nextMobileBannerFocal(0.9, -1000, 88), 1);
+    assert.equal(nextMobileBannerFocal(0.1, 1000, 88), 0);
+    assert.equal(nextMobileBannerFocal(0.5, -MOBILE_BANNER_DRAG_TRAVEL / 2, 0), 1);
   });
 });

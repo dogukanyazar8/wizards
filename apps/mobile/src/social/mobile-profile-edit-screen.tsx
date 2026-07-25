@@ -153,6 +153,7 @@ export function MobileProfileEditScreen({ onBack }: { onBack(): void }) {
   const [bannerPreviewUri, setBannerPreviewUri] = useState<string | null>(null);
   const [uploadingTarget, setUploadingTarget] = useState<"avatar" | "banner" | null>(null);
   const [isPresenceSheetOpen, setPresenceSheetOpen] = useState(false);
+  const [isBannerRepositioning, setBannerRepositioning] = useState(false);
   const [isEmojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [usernameError, setUsernameError] = useState<string | null>(null);
@@ -438,6 +439,9 @@ export function MobileProfileEditScreen({ onBack }: { onBack(): void }) {
     <ScrollView
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
+      // While the banner is being repositioned the page must not scroll, or the
+      // ScrollView claims the same vertical pan and the drag never lands.
+      scrollEnabled={!isBannerRepositioning}
       showsVerticalScrollIndicator={false}
       style={styles.root}
       testID="mobile-profile-edit-screen"
@@ -482,6 +486,7 @@ export function MobileProfileEditScreen({ onBack }: { onBack(): void }) {
               bannerUrl: null,
             }))
           }
+          onRepositionActiveChange={setBannerRepositioning}
         />
 
         <View style={styles.previewBody}>

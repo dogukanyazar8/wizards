@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent } from "@testing-library/react-native";
+import { fireEvent, within } from "@testing-library/react-native";
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import type { MobileNotificationItem } from "@wizards/types";
 import { createNotificationsScreenStyles } from "../src/app/screens/notifications-screen.styles";
@@ -20,6 +20,9 @@ const mockAcceptRequest = jest.fn();
 const mockRejectRequest = jest.fn();
 const mockRequestedFilters: string[] = [];
 let mockNotifications: readonly MobileNotificationItem[] = [];
+// What the unfiltered "all" feed holds, which can differ from the tab on screen.
+// `null` means "same as the visible feed", the ordinary case.
+let mockAllFeedNotifications: readonly MobileNotificationItem[] | null = null;
 let mockQueryState = { isError: false, isLoading: false, isRefetching: false };
 
 jest.mock("react-native-gesture-handler", () => {
@@ -46,6 +49,8 @@ jest.mock("../src/auth/mobile-auth-context", () => ({
 }));
 
 jest.mock("../src/notifications/mobile-notification-query", () => ({
+  // Mirrors the real hook: it reads the unfiltered feed, never the active tab.
+  useMobileHasAnyNotification: () => (mockAllFeedNotifications ?? mockNotifications).length > 0,
   useMobileNotificationMutations: () => ({
     clearAll: { isPending: false, mutate: mockClearAll, mutateAsync: mockClearAll },
     markAllRead: { isPending: false, mutate: mockMarkAllRead },
@@ -136,6 +141,7 @@ describe("1d notifications screen", () => {
     jest.useFakeTimers().setSystemTime(new Date("2026-07-16T12:00:00.000Z"));
     jest.clearAllMocks();
     mockNotifications = [];
+    mockAllFeedNotifications = null;
     mockQueryState = { isError: false, isLoading: false, isRefetching: false };
   });
 
@@ -244,18 +250,23 @@ describe("1d notifications screen", () => {
     expect(view.getByText("Henüz gösterilecek bildirim yok.")).toBeTruthy();
   });
 
-  it("surfaces query failure and reconnecting state through the existing sync retry boundary", async () => {
+  it("surfaces a failed load but never announces a background refresh", async () => {
     mockQueryState = { isError: true, isLoading: false, isRefetching: false };
     const failed = await renderScreen({
       syncHealth: { failedSources: [], failureCount: 0, isRefreshing: false, status: "healthy" },
     });
     expect(failed.getByTestId("mobile-notifications-sync-status")).toBeTruthy();
+    expect(failed.getByTestId("mobile-sync-health-banner")).toBeTruthy();
 
+    // A running refetch is silent: no banner, and the pull indicator stays down
+    // because the user did not pull.
     mockQueryState = { isError: false, isLoading: false, isRefetching: true };
-    const reconnecting = await renderScreen({
+    const refreshing = await renderScreen({
       syncHealth: { failedSources: [], failureCount: 0, isRefreshing: true, status: "healthy" },
     });
-    expect(reconnecting.getByTestId("mobile-notifications-sync-status")).toBeTruthy();
+    expect(refreshing.queryByTestId("mobile-notifications-sync-status")).toBeNull();
+    expect(refreshing.queryByTestId("mobile-sync-health-banner")).toBeNull();
+    expect(refreshing.getByTestId("mobile-notifications-feed").props.refreshing).toBe(false);
   });
 
   it("reports the real unread total on the segment badge and requests the matching filter", async () => {
@@ -290,6 +301,65 @@ describe("1d notifications screen", () => {
 
     await fireEvent.press(view.getByTestId("mobile-notifications-clear-sheet-confirm"));
     expect(mockClearAll).toHaveBeenCalledTimes(1);
+  });
+
+  it("takes tümünü temizle's enabled state from the account, not the visible tab", async () => {
+    // Empty account seen through a filtered tab: the button must stay dead.
+    mockNotifications = [];
+    mockAllFeedNotifications = [];
+    const emptyAccount = await renderScreen();
+    await fireEvent.press(emptyAccount.getByTestId("mobile-notifications-filter-mentions"));
+    expect(
+      emptyAccount.getByTestId("mobile-notifications-clear-all").props.accessibilityState,
+    ).toMatchObject({ disabled: true });
+    await fireEvent.press(emptyAccount.getByTestId("mobile-notifications-clear-all"));
+    expect(emptyAccount.queryByTestId("mobile-notifications-clear-sheet-confirm")).toBeNull();
+
+    // Account with notifications, tab that happens to show none: still clearable.
+    mockNotifications = [];
+    mockAllFeedNotifications = [mention];
+    const filteredView = await renderScreen();
+    await fireEvent.press(filteredView.getByTestId("mobile-notifications-filter-mentions"));
+    expect(
+      filteredView.getByTestId("mobile-notifications-clear-all").props.accessibilityState,
+    ).toMatchObject({ disabled: false });
+  });
+
+  it("keeps tümünü temizle in the header row and disables it on an empty feed", async () => {
+    const empty = await renderScreen();
+    const disabled = empty.getByTestId("mobile-notifications-clear-all");
+    expect(disabled.props.accessibilityState).toMatchObject({ disabled: true });
+    await fireEvent.press(disabled);
+    expect(empty.queryByTestId("mobile-notifications-clear-sheet-confirm")).toBeNull();
+
+    mockNotifications = [mention];
+    const filled = await renderScreen();
+    expect(
+      filled.getByTestId("mobile-notifications-clear-all").props.accessibilityState,
+    ).toMatchObject({ disabled: false });
+    expect(filled.getByTestId("mobile-notifications-open-settings")).toBeTruthy();
+    expect(filled.getByTestId("mobile-notifications-mark-all-read")).toBeTruthy();
+  });
+
+  it("holds the transient banners inside the list so a filter switch never shifts the feed", async () => {
+    mockQueryState = { isError: true, isLoading: false, isRefetching: false };
+    mockNotifications = [mention];
+    const view = await renderScreen({
+      syncHealth: { failedSources: [], failureCount: 0, isRefreshing: false, status: "healthy" },
+    });
+
+    // The banner has to scroll with the feed. Above the list it re-flowed the
+    // whole screen on every refetch, which is the downward drift between tabs.
+    const feed = within(view.getByTestId("mobile-notifications-feed"));
+    expect(feed.getByTestId("mobile-notifications-sync-status")).toBeTruthy();
+    expect(feed.queryByTestId("mobile-notifications-filter-tabs")).toBeNull();
+  });
+
+  it("keeps the permission card inside the feed instead of above it", async () => {
+    const view = await renderScreen();
+
+    const feed = within(view.getByTestId("mobile-notifications-feed"));
+    expect(feed.getByTestId("mobile-notifications-request-permission")).toBeTruthy();
   });
 
   it("answers a friend request inline and marks it read", async () => {

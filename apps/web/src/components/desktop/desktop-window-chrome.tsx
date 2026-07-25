@@ -55,7 +55,7 @@ function ChromeButton({
     <button
       aria-label={ariaLabel}
       className={cn(
-        "inline-flex h-7 w-9 items-center justify-center rounded-lg text-app-muted transition-colors duration-150 hover:bg-[hsl(var(--surface-soft)/0.78)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.48)]",
+        "inline-flex h-7 w-9 items-center justify-center rounded-lg text-app-muted transition-colors duration-150 hover:bg-[hsl(var(--surface-soft)/0.78)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.48)]",
         className,
       )}
       onClick={onClick}

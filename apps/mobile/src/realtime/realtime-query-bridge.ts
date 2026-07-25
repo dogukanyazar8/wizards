@@ -5,6 +5,7 @@ import {
   MOBILE_NOTIFICATION_FILTERS,
   MobileChannelMessagesStaleEventSchema,
   MobileDMReadUpdatedEventSchema,
+  MobileNotificationNewEventSchema,
   MobilePresenceUpdateEventSchema,
   MobileServerUnreadUpdateEventSchema,
   MobileServerMembershipAddedEventSchema,
@@ -55,6 +56,7 @@ import {
 } from "./mobile-realtime-contract";
 import type { MobileRealtimeActiveTargets } from "./mobile-realtime-state";
 import { applyMobileRealtimeChannelMessageEvent } from "../workspace/mobile-channel-message-state";
+import { applyMobileRealtimeNotificationEvent } from "../notifications/mobile-notification-realtime";
 
 type MobileChannelMessagesInfiniteData = InfiniteData<MobileChannelMessagesResponse, string | null>;
 type MobileDMMessagesInfiniteData = InfiniteData<MobileDMMessagesResponse, string | null>;
@@ -171,6 +173,13 @@ export function createMobileRealtimeQueryBridge({
       return;
     }
 
+    if (source === "notification-badge") {
+      // The feeds were already written from the event; only the servers screen's
+      // own unread/mention numbers still have to come from the server.
+      scheduleInvalidations(source, [mobileQueryKeys.bootstrap()]);
+      return;
+    }
+
     if (source === "workspace") {
       const eventServerId = event?.serverId;
       const serverId = eventServerId ?? targets.serverId;
@@ -202,6 +211,24 @@ export function createMobileRealtimeQueryBridge({
       mobileQueryKeys.dmConversations(),
       ...(matchesTarget ? [mobileQueryKeys.dmMessages(targetConversationId)] : []),
     ]);
+  };
+
+  /**
+   * Writes the notification straight into the cached feeds. The debounce and the
+   * three refetches it used to trigger are the whole in-app latency of a
+   * notification, so an event that carries its actor and channel skips them.
+   */
+  const applyNotificationEvent = (event: MobileRealtimeEventEnvelope): boolean => {
+    if (event.eventName !== "notification:new") {
+      return false;
+    }
+
+    const parsed = MobileNotificationNewEventSchema.safeParse(event.payload);
+    if (!parsed.success) {
+      return false;
+    }
+
+    return applyMobileRealtimeNotificationEvent({ event: parsed.data, queryClient });
   };
 
   const patchPresenceCaches = (payload: unknown) => {
@@ -700,6 +727,7 @@ export function createMobileRealtimeQueryBridge({
       const workspaceChannelPreviewPatched = patchWorkspaceChannelLastMessageFromEvent(event);
       const channelEventHandled = applyActiveChannelEvent(event);
       const dmEventHandled = applyActiveDMEvent(event);
+      const notificationApplied = applyNotificationEvent(event);
       const workspaceRefreshedImmediately = refreshWorkspaceImmediatelyForChannelEvent(event);
       for (const source of event.refreshSources) {
         if (source === "channel" && (channelEventHandled || workspaceChannelPreviewPatched)) {
@@ -709,6 +737,11 @@ export function createMobileRealtimeQueryBridge({
           continue;
         }
         if (source === "workspace" && workspaceRefreshedImmediately) {
+          continue;
+        }
+        // The feeds are already up to date; the servers screen's counters are not.
+        if (source === "notification" && notificationApplied) {
+          scheduleSource("notification-badge", event);
           continue;
         }
         scheduleSource(source, event);

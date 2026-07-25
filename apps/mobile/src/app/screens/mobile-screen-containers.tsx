@@ -28,6 +28,7 @@ import { OverviewScreen } from "./home-screen";
 import { NotificationsScreen } from "./notifications-screen";
 import { ProfileSettingsScreen } from "./settings-screen";
 import { BlockedUsersScreen } from "../../social/social-account-screens";
+import { MobileLegalDocumentScreen } from "../../legal/mobile-legal-document-screen";
 import { MobileProfileEditScreen } from "../../social/mobile-profile-edit-screen";
 import { MobileUserProfileScreen } from "../../social/mobile-user-profile-screen";
 import { useOpenMobileProfileCard } from "../../social/profile-card";
@@ -493,6 +494,18 @@ export function BlockedUsersScreenContainer({
   navigation,
 }: NativeStackScreenProps<MobileRootStackParamList, "BlockedUsers">) {
   return <BlockedUsersScreen onBack={() => navigation.goBack()} />;
+}
+
+export function LegalDocumentScreenContainer({
+  navigation,
+  route,
+}: NativeStackScreenProps<MobileRootStackParamList, "LegalDocument">) {
+  return (
+    <MobileLegalDocumentScreen
+      documentId={route.params.documentId}
+      onBack={() => navigation.goBack()}
+    />
+  );
 }
 
 export function UserProfileStackScreenContainer({

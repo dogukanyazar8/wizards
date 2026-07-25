@@ -338,9 +338,20 @@ describe("mobile design contract", () => {
     assert.match(profileSettingsSource, /onOpenWebSignIn=\{onOpenWebSignIn\}/);
     assert.match(profileSettingsSource, /onOpenWebRegister=\{onOpenWebRegister\}/);
     assert.match(profileSettingsSource, /SettingsSupportLegalCard/);
-    assert.match(profileSettingsSource, /onOpenPrivacyPolicy=\{onOpenPrivacyPolicy\}/);
-    assert.match(profileSettingsSource, /onOpenTerms=\{onOpenTerms\}/);
-    assert.match(profileSettingsSource, /onOpenCookies=\{onOpenCookies\}/);
+    // Legal texts open in-app now instead of handing off to the browser, so the
+    // card is wired to the LegalDocument route rather than to the web-open props.
+    assert.match(
+      profileSettingsSource,
+      /onOpenPrivacyPolicy=\{\(\) => openMobileLegalDocument\("privacy"\)\}/,
+    );
+    assert.match(
+      profileSettingsSource,
+      /onOpenTerms=\{\(\) => openMobileLegalDocument\("terms"\)\}/,
+    );
+    assert.match(
+      profileSettingsSource,
+      /onOpenCookies=\{\(\) => openMobileLegalDocument\("cookies"\)\}/,
+    );
     assert.match(profileSettingsSource, /onOpenSupport=\{onOpenSupport\}/);
     assert.match(profileSettingsSource, /SettingsNativePermissionCard/);
     assert.match(profileSettingsSource, /mediaState=\{mediaState\}/);

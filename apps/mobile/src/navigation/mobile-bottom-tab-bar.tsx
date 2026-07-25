@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { Pressable, Text, View, type TextStyle, type ViewStyle } from "react-native";
 import { useMobileHaptics } from "../app/providers/mobile-haptics-provider";
+import { formatMobileUnreadCount } from "../app/mobile-display-model";
 import { useTheme, useThemedStyles } from "../app/providers/mobile-theme-provider";
 import { redesignLight } from "../design/palette";
 import { mobileNavigationMetrics } from "../design/tokens";
@@ -36,10 +37,12 @@ export function MobileBottomTabBar({
   bottomSafeAreaInset,
   directMessageUnreadCount = 0,
   navigation,
+  notificationUnreadCount = 0,
   state,
 }: Omit<BottomTabBarProps, "insets"> & {
   readonly bottomSafeAreaInset: number;
   readonly directMessageUnreadCount?: number;
+  readonly notificationUnreadCount?: number;
 }) {
   const { selection } = useMobileHaptics();
   const styles = useThemedStyles(createMobileBottomTabBarStyles);
@@ -70,6 +73,9 @@ export function MobileBottomTabBar({
         const tabId = route.name;
         const isActive = state.index === index;
         const showUnreadDot = tabId === "messages" && directMessageUnreadCount > 0;
+        // 1a/1b: notifications is the one tab that carries a counted badge — a bare
+        // dot cannot say how many servers/DMs are waiting.
+        const notificationBadgeCount = tabId === "notifications" ? notificationUnreadCount : 0;
 
         return (
           <Pressable
@@ -92,15 +98,26 @@ export function MobileBottomTabBar({
             }}
             style={({ pressed }) => [styles.navButton, pressed && styles.navButtonPressed]}
           >
-            <MobileTabIcon
-              icon={tabIcons[tabId]}
-              isActive={isActive}
-            />
+            <MobileTabIcon icon={tabIcons[tabId]} isActive={isActive} />
             <Text style={[styles.navLabel, isActive && styles.navLabelActive]}>
               {getMobileTabLabel(tabId)}
             </Text>
             {showUnreadDot ? (
               <View style={styles.navUnreadDot} testID="mobile-bottom-tab-unread-dot" />
+            ) : null}
+            {notificationBadgeCount > 0 ? (
+              <View
+                accessibilityLabel={copy.notificationsUnreadBadgeLabel.replace(
+                  "{count}",
+                  String(notificationBadgeCount),
+                )}
+                style={styles.navNotificationBadge}
+                testID="mobile-bottom-tab-notification-badge"
+              >
+                <Text style={styles.navNotificationBadgeText} numberOfLines={1}>
+                  {formatMobileUnreadCount(notificationBadgeCount)}
+                </Text>
+              </View>
             ) : null}
           </Pressable>
         );
@@ -183,5 +200,27 @@ export const createMobileBottomTabBarStyles = (theme: MobileTheme) =>
       borderWidth: 2,
       borderColor: theme.border.onSurfaceRing,
       backgroundColor: redesignLight.canonicalDanger,
+    },
+    // 1a/1b anchors the counter just right of the icon centre so a widening
+    // "99+" grows outwards instead of drifting off the glyph.
+    navNotificationBadge: {
+      position: "absolute",
+      top: 2,
+      left: "50%",
+      marginLeft: 3,
+      minWidth: 16,
+      height: 16,
+      borderRadius: theme.radii.pill,
+      paddingHorizontal: 4,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: redesignLight.canonicalDanger,
+    },
+    navNotificationBadgeText: {
+      color: theme.text.onPrimary,
+      fontFamily: theme.typography.fontFamilyExtraBold,
+      fontSize: 9,
+      includeFontPadding: false,
+      lineHeight: 12,
     },
   }) satisfies Record<string, TextStyle | ViewStyle>;

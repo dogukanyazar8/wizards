@@ -100,7 +100,7 @@ export function useMobileServerManagementFeature({
       });
 
       if (!persisted) {
-        return { message: "The server icon could not be synchronized.", status: "error" };
+        return { message: copy.workspaceServerIconSyncFailed, status: "error" };
       }
 
       void queryClient.invalidateQueries({ exact: true, queryKey: mobileQueryKeys.bootstrap() });

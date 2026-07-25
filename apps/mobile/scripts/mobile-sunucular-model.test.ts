@@ -174,6 +174,27 @@ describe("getMobileMissedNotifications", () => {
       ["m", "v"],
     );
   });
+
+  it("drops anything already read, because that is no longer missed", () => {
+    const readMention = make("m-read", "2026-07-24T15:00:00.000Z", {
+      read: true,
+      readAt: "2026-07-24T15:01:00.000Z",
+      type: "MENTION",
+    });
+    const readVoice = make("v-read", "2026-07-24T15:02:00.000Z", {
+      eventKind: "voice-room-started",
+      read: true,
+      readAt: "2026-07-24T15:03:00.000Z",
+    });
+
+    const result = getMobileMissedNotifications([readMention, readVoice, mention, voiceStart]);
+
+    assert.deepEqual(
+      result.map((item) => item.id),
+      ["m", "v"],
+    );
+    assert.deepEqual(getMobileMissedNotifications([readMention, readVoice]), []);
+  });
 });
 
 describe("getMobileServerCreateAccess", () => {

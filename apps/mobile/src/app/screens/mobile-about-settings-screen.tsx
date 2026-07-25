@@ -58,6 +58,7 @@ function AboutLegalRow({
 export function MobileAboutSettingsScreen({
   appVersion,
   onBack,
+  onOpenCookies,
   onOpenFeedback,
   onOpenPrivacy,
   onOpenTerms,
@@ -66,6 +67,7 @@ export function MobileAboutSettingsScreen({
 }: {
   appVersion: string;
   onBack(): void;
+  onOpenCookies(): void;
   onOpenFeedback(): void;
   onOpenPrivacy(): void;
   onOpenTerms(): void;
@@ -173,6 +175,11 @@ export function MobileAboutSettingsScreen({
           label={copy.aboutSettingsPrivacy}
           onPress={onOpenPrivacy}
           testID="mobile-about-privacy"
+        />
+        <AboutLegalRow
+          label={copy.aboutSettingsCookies}
+          onPress={onOpenCookies}
+          testID="mobile-about-cookies"
         />
         <AboutLegalRow
           disabled

@@ -104,11 +104,7 @@ const messages: Array<{ date?: string; message?: ChatMessage }> = [
       author: "Oğuz Güğümcüoğlu",
       avatar: "OĞ",
       avatarClassName: "bg-zinc-200 text-zinc-700",
-      content: [
-        { value: "Merhaba ekip! 👋\n" },
-        { value: "Test\n" },
-        { value: "Test" },
-      ],
+      content: [{ value: "Merhaba ekip! 👋\n" }, { value: "Test\n" }, { value: "Test" }],
       id: "m1",
       time: "21:59",
     },
@@ -181,10 +177,7 @@ const messages: Array<{ date?: string; message?: ChatMessage }> = [
       author: "CodeX",
       avatar: "CX",
       avatarClassName: "bg-[linear-gradient(135deg,#ffb000,#ff7a1a)] text-white",
-      content: [
-        { value: "gelirim kanka! " },
-        { kind: "mention", value: "@ogoose" },
-      ],
+      content: [{ value: "gelirim kanka! " }, { kind: "mention", value: "@ogoose" }],
       id: "m8",
       time: "11:13",
     },
@@ -322,7 +315,7 @@ function IconButton({
     <button
       aria-label={label}
       className={cn(
-        "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[#E7EAF3] bg-white text-[#697089] shadow-[0_10px_30px_rgba(37,42,70,0.06)] transition hover:-translate-y-0.5 hover:border-[#dcdff0] hover:text-[#151827] focus:outline-none focus:ring-2 focus:ring-[#7C6DFF]/30",
+        "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[#E7EAF3] bg-white text-[#697089] shadow-[0_10px_30px_rgba(37,42,70,0.06)] transition hover:-translate-y-0.5 hover:border-[#dcdff0] hover:text-[#151827] focus:outline-hidden focus:ring-2 focus:ring-[#7C6DFF]/30",
         className,
       )}
       data-testid={testId}
@@ -386,7 +379,7 @@ function ServerRail() {
     >
       <button
         aria-label="Whispr"
-        className="mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-xl font-black text-[#6C5CE7] shadow-[0_16px_36px_rgba(75,71,120,0.12)] focus:outline-none focus:ring-2 focus:ring-[#7C6DFF]/30"
+        className="mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-xl font-black text-[#6C5CE7] shadow-[0_16px_36px_rgba(75,71,120,0.12)] focus:outline-hidden focus:ring-2 focus:ring-[#7C6DFF]/30"
         type="button"
       >
         W
@@ -397,7 +390,7 @@ function ServerRail() {
           <button
             aria-label={item.label}
             className={cn(
-              "group relative flex h-12 w-12 items-center justify-center rounded-2xl border border-[#E7EAF3] bg-white text-sm font-bold text-[#151827] shadow-[0_12px_28px_rgba(37,42,70,0.07)] transition hover:-translate-y-0.5 hover:border-[#dcdff0] focus:outline-none focus:ring-2 focus:ring-[#7C6DFF]/30",
+              "group relative flex h-12 w-12 items-center justify-center rounded-2xl border border-[#E7EAF3] bg-white text-sm font-bold text-[#151827] shadow-[0_12px_28px_rgba(37,42,70,0.07)] transition hover:-translate-y-0.5 hover:border-[#dcdff0] focus:outline-hidden focus:ring-2 focus:ring-[#7C6DFF]/30",
               item.active &&
                 "border-[#7C6DFF]/50 shadow-[0_18px_42px_rgba(108,92,231,0.22)] ring-2 ring-[#7C6DFF]/15",
               item.accent,
@@ -413,7 +406,7 @@ function ServerRail() {
         ))}
         <button
           aria-label="Sunucu ekle"
-          className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[#E7EAF3] bg-white text-[#697089] shadow-[0_12px_28px_rgba(37,42,70,0.07)] transition hover:-translate-y-0.5 hover:text-[#6C5CE7] focus:outline-none focus:ring-2 focus:ring-[#7C6DFF]/30"
+          className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[#E7EAF3] bg-white text-[#697089] shadow-[0_12px_28px_rgba(37,42,70,0.07)] transition hover:-translate-y-0.5 hover:text-[#6C5CE7] focus:outline-hidden focus:ring-2 focus:ring-[#7C6DFF]/30"
           type="button"
         >
           <Plus className="h-5 w-5" />
@@ -437,7 +430,7 @@ function SearchBox({ compact = false }: { compact?: boolean }) {
     >
       <Search className="h-4 w-4 shrink-0" />
       <input
-        className="min-w-0 flex-1 bg-transparent text-sm font-medium text-[#151827] outline-none placeholder:text-[#9AA1B5]"
+        className="min-w-0 flex-1 bg-transparent text-sm font-medium text-[#151827] outline-hidden placeholder:text-[#9AA1B5]"
         placeholder="Ara"
       />
       <span className="hidden items-center gap-1 rounded-lg border border-[#E7EAF3] bg-[#F7F8FC] px-2 py-1 text-[11px] font-bold text-[#697089] md:flex">
@@ -474,7 +467,11 @@ function ChannelSidebar({ className, onClose }: { className?: string; onClose?: 
               <SlidersHorizontal className="h-4 w-4" />
             </IconButton>
             {onClose ? (
-              <IconButton className="h-10 w-10 rounded-xl lg:hidden" label="Menüyü kapat" onClick={onClose}>
+              <IconButton
+                className="h-10 w-10 rounded-xl lg:hidden"
+                label="Menüyü kapat"
+                onClick={onClose}
+              >
                 <X className="h-4 w-4" />
               </IconButton>
             ) : null}
@@ -493,7 +490,7 @@ function ChannelSidebar({ className, onClose }: { className?: string; onClose?: 
             { icon: Users, label: "Üyeler" },
           ].map((item) => (
             <button
-              className="flex h-10 w-full items-center gap-3 rounded-xl px-3 text-sm font-semibold text-[#697089] transition hover:bg-[#F7F8FC] hover:text-[#151827] focus:outline-none focus:ring-2 focus:ring-[#7C6DFF]/20"
+              className="flex h-10 w-full items-center gap-3 rounded-xl px-3 text-sm font-semibold text-[#697089] transition hover:bg-[#F7F8FC] hover:text-[#151827] focus:outline-hidden focus:ring-2 focus:ring-[#7C6DFF]/20"
               key={item.label}
               type="button"
             >
@@ -508,7 +505,7 @@ function ChannelSidebar({ className, onClose }: { className?: string; onClose?: 
           {textChannels.map((channel) => (
             <button
               className={cn(
-                "flex h-11 w-full items-center gap-3 rounded-2xl px-3 text-sm font-semibold text-[#697089] transition hover:bg-[#F7F8FC] hover:text-[#151827] focus:outline-none focus:ring-2 focus:ring-[#7C6DFF]/20",
+                "flex h-11 w-full items-center gap-3 rounded-2xl px-3 text-sm font-semibold text-[#697089] transition hover:bg-[#F7F8FC] hover:text-[#151827] focus:outline-hidden focus:ring-2 focus:ring-[#7C6DFF]/20",
                 channel.active &&
                   "bg-[linear-gradient(135deg,#F0EDFF,#F8F6FF)] text-[#6C5CE7] shadow-[0_12px_28px_rgba(108,92,231,0.12)]",
               )}
@@ -531,7 +528,7 @@ function ChannelSidebar({ className, onClose }: { className?: string; onClose?: 
         <div className="mt-2 space-y-1">
           {voiceChannels.map((channel) => (
             <button
-              className="flex h-10 w-full items-center gap-3 rounded-xl px-3 text-sm font-semibold text-[#697089] transition hover:bg-[#F7F8FC] hover:text-[#151827] focus:outline-none focus:ring-2 focus:ring-[#7C6DFF]/20"
+              className="flex h-10 w-full items-center gap-3 rounded-xl px-3 text-sm font-semibold text-[#697089] transition hover:bg-[#F7F8FC] hover:text-[#151827] focus:outline-hidden focus:ring-2 focus:ring-[#7C6DFF]/20"
               key={channel.name}
               type="button"
             >
@@ -570,7 +567,7 @@ function UserCard() {
           {[Mic, Headphones, Settings].map((Icon, index) => (
             <button
               aria-label={`Kullanıcı aksiyonu ${index + 1}`}
-              className="flex h-8 w-8 items-center justify-center rounded-xl transition hover:bg-[#F0EDFF] hover:text-[#6C5CE7] focus:outline-none focus:ring-2 focus:ring-[#7C6DFF]/20"
+              className="flex h-8 w-8 items-center justify-center rounded-xl transition hover:bg-[#F0EDFF] hover:text-[#6C5CE7] focus:outline-hidden focus:ring-2 focus:ring-[#7C6DFF]/20"
               key={index}
               type="button"
             >
@@ -630,7 +627,12 @@ function ChatHeader({
       <div className="hidden w-[min(22vw,280px)] xl:block">
         <SearchBox compact />
       </div>
-      <IconButton className="xl:hidden" label="Ara" onClick={onOpenSearch} testId="whispr-search-button">
+      <IconButton
+        className="xl:hidden"
+        label="Ara"
+        onClick={onOpenSearch}
+        testId="whispr-search-button"
+      >
         <Search className="h-5 w-5" />
       </IconButton>
       <IconButton
@@ -643,7 +645,7 @@ function ChatHeader({
       </IconButton>
       <button
         aria-label="Yeni mesaj"
-        className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#6C5CE7,#8F7DFF)] text-white shadow-[0_16px_36px_rgba(108,92,231,0.28)] transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-[#7C6DFF]/30 md:flex"
+        className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#6C5CE7,#8F7DFF)] text-white shadow-[0_16px_36px_rgba(108,92,231,0.28)] transition hover:-translate-y-0.5 focus:outline-hidden focus:ring-2 focus:ring-[#7C6DFF]/30 md:flex"
         type="button"
       >
         <PenLine className="h-5 w-5" />
@@ -664,7 +666,13 @@ function DateSeparator({ label }: { label: string }) {
   );
 }
 
-function MessageItem({ message, showActions = false }: { message: ChatMessage; showActions?: boolean }) {
+function MessageItem({
+  message,
+  showActions = false,
+}: {
+  message: ChatMessage;
+  showActions?: boolean;
+}) {
   return (
     <article className="group relative flex gap-3 rounded-2xl px-2 py-1.5 transition hover:bg-[#F7F8FC]/90 sm:px-3">
       <AvatarToken
@@ -718,7 +726,7 @@ function MessageItem({ message, showActions = false }: { message: ChatMessage; s
         {[Reply, Smile, Bookmark, MoreHorizontal].map((Icon, index) => (
           <button
             aria-label={`Mesaj aksiyonu ${index + 1}`}
-            className="flex h-8 w-8 items-center justify-center rounded-xl transition hover:bg-[#F0EDFF] hover:text-[#6C5CE7] focus:outline-none focus:ring-2 focus:ring-[#7C6DFF]/20"
+            className="flex h-8 w-8 items-center justify-center rounded-xl transition hover:bg-[#F0EDFF] hover:text-[#6C5CE7] focus:outline-hidden focus:ring-2 focus:ring-[#7C6DFF]/20"
             key={index}
             type="button"
           >
@@ -777,13 +785,13 @@ function ChatComposer() {
         <div className="flex items-center gap-3">
           <button
             aria-label="Dosya ekle"
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#F0EDFF] text-[#6C5CE7] transition hover:bg-[#E7E0FF] focus:outline-none focus:ring-2 focus:ring-[#7C6DFF]/30"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#F0EDFF] text-[#6C5CE7] transition hover:bg-[#E7E0FF] focus:outline-hidden focus:ring-2 focus:ring-[#7C6DFF]/30"
             type="button"
           >
             <Plus className="h-5 w-5" />
           </button>
           <textarea
-            className="max-h-28 min-h-11 flex-1 resize-none bg-transparent py-3 text-sm font-semibold text-[#151827] outline-none placeholder:text-[#9AA1B5]"
+            className="max-h-28 min-h-11 flex-1 resize-none bg-transparent py-3 text-sm font-semibold text-[#151827] outline-hidden placeholder:text-[#9AA1B5]"
             placeholder="# genel kanalına mesaj gönder..."
             rows={1}
           />
@@ -792,7 +800,7 @@ function ChatComposer() {
           </IconButton>
           <button
             aria-label="Gönder"
-            className="flex h-11 w-12 shrink-0 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#6C5CE7,#8F7DFF)] text-white shadow-[0_16px_36px_rgba(108,92,231,0.28)] transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-[#7C6DFF]/30"
+            className="flex h-11 w-12 shrink-0 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#6C5CE7,#8F7DFF)] text-white shadow-[0_16px_36px_rgba(108,92,231,0.28)] transition hover:-translate-y-0.5 focus:outline-hidden focus:ring-2 focus:ring-[#7C6DFF]/30"
             type="button"
           >
             <SendHorizontal className="h-5 w-5" />
@@ -802,7 +810,7 @@ function ChatComposer() {
           {toolbar.map((item) => (
             <button
               aria-label={item.label}
-              className="flex h-9 min-w-9 shrink-0 items-center justify-center rounded-xl border border-[#E7EAF3] bg-[#FBFCFF] px-3 text-xs font-bold text-[#697089] transition hover:bg-[#F0EDFF] hover:text-[#6C5CE7] focus:outline-none focus:ring-2 focus:ring-[#7C6DFF]/20"
+              className="flex h-9 min-w-9 shrink-0 items-center justify-center rounded-xl border border-[#E7EAF3] bg-[#FBFCFF] px-3 text-xs font-bold text-[#697089] transition hover:bg-[#F0EDFF] hover:text-[#6C5CE7] focus:outline-hidden focus:ring-2 focus:ring-[#7C6DFF]/20"
               key={item.label}
               type="button"
             >
@@ -846,7 +854,7 @@ function ChatPanel({
 function MemberItem({ member }: { member: Member }) {
   return (
     <button
-      className="flex w-full items-center gap-3 rounded-2xl px-2 py-2 text-left transition hover:bg-[#F7F8FC] focus:outline-none focus:ring-2 focus:ring-[#7C6DFF]/20"
+      className="flex w-full items-center gap-3 rounded-2xl px-2 py-2 text-left transition hover:bg-[#F7F8FC] focus:outline-hidden focus:ring-2 focus:ring-[#7C6DFF]/20"
       type="button"
     >
       <AvatarToken
@@ -858,7 +866,9 @@ function MemberItem({ member }: { member: Member }) {
       <div className="min-w-0 flex-1">
         <p className="flex min-w-0 items-center gap-1 truncate text-sm font-bold text-[#151827]">
           <span className="truncate">{member.name}</span>
-          {member.owner ? <Crown className="h-3.5 w-3.5 shrink-0 fill-[#F59E0B] text-[#F59E0B]" /> : null}
+          {member.owner ? (
+            <Crown className="h-3.5 w-3.5 shrink-0 fill-[#F59E0B] text-[#F59E0B]" />
+          ) : null}
         </p>
         <p className="truncate text-xs font-semibold text-[#697089]">{member.handle}</p>
       </div>
@@ -954,7 +964,7 @@ function MembersSidebar({ className, onClose }: { className?: string; onClose?: 
           </div>
         </div>
         <button
-          className="flex h-14 w-full items-center justify-center gap-3 rounded-3xl border border-[#E7EAF3] bg-white text-sm font-bold text-[#6C5CE7] shadow-[0_16px_36px_rgba(37,42,70,0.05)] transition hover:border-[#CFC8FF] hover:bg-[#F8F6FF] focus:outline-none focus:ring-2 focus:ring-[#7C6DFF]/20"
+          className="flex h-14 w-full items-center justify-center gap-3 rounded-3xl border border-[#E7EAF3] bg-white text-sm font-bold text-[#6C5CE7] shadow-[0_16px_36px_rgba(37,42,70,0.05)] transition hover:border-[#CFC8FF] hover:bg-[#F8F6FF] focus:outline-hidden focus:ring-2 focus:ring-[#7C6DFF]/20"
           type="button"
         >
           <UserPlus className="h-5 w-5" />
@@ -1003,7 +1013,7 @@ function Drawer({
     <div className={cn("fixed inset-0 z-50", hiddenAboveClass)} data-testid={testId}>
       <button
         aria-label="Paneli kapat"
-        className="absolute inset-0 bg-[#151827]/35 backdrop-blur-sm"
+        className="absolute inset-0 bg-[#151827]/35 backdrop-blur-xs"
         data-testid={`${testId}-overlay`}
         onClick={onClose}
         type="button"
@@ -1074,7 +1084,12 @@ export function WhisprChatPreview() {
         </div>
       </div>
 
-      <Drawer onClose={closeDrawers.channels} open={isChannelSidebarOpen} side="left" testId="whispr-channel-drawer">
+      <Drawer
+        onClose={closeDrawers.channels}
+        open={isChannelSidebarOpen}
+        side="left"
+        testId="whispr-channel-drawer"
+      >
         <ChannelSidebar onClose={closeDrawers.channels} />
       </Drawer>
       <Drawer

@@ -41,10 +41,7 @@ export const RegisterSchema = z
       .min(2, "validation.username.min")
       .max(32, "validation.username.max")
       .regex(/^[a-zA-Z0-9_]+$/, "validation.username.pattern"),
-    password: z
-      .string()
-      .min(8, "validation.password.min")
-      .max(100, "validation.password.max"),
+    password: z.string().min(8, "validation.password.min").max(100, "validation.password.max"),
     confirmPassword: z.string(),
     turnstileToken: TurnstileTokenSchema,
   })
@@ -59,10 +56,7 @@ export const ForgotPasswordSchema = z.object({
 
 export const ResetPasswordSchema = z
   .object({
-    password: z
-      .string()
-      .min(8, "validation.password.min")
-      .max(100, "validation.password.max"),
+    password: z.string().min(8, "validation.password.min").max(100, "validation.password.max"),
     confirmPassword: z.string(),
     token: z.string().min(1, "auth.passwordReset.invalidToken"),
   })
@@ -72,6 +66,7 @@ export const ResetPasswordSchema = z
   });
 
 export type LoginInput = z.infer<typeof LoginSchema>;
+export type LoginFormInput = z.input<typeof LoginSchema>;
 export type LoginCredentialsInput = z.infer<typeof LoginCredentialsSchema>;
 export type RegisterInput = z.infer<typeof RegisterSchema>;
 export type ForgotPasswordInput = z.infer<typeof ForgotPasswordSchema>;

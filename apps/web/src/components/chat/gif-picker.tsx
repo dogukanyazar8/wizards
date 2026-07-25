@@ -127,9 +127,7 @@ export function GifPicker({ onClose, onSelect }: GifPickerProps) {
       } catch (requestError) {
         if (!controller.signal.aborted) {
           setError(
-            requestError instanceof Error
-              ? requestError.message
-              : t("chat.gifs.loadFailed"),
+            requestError instanceof Error ? requestError.message : t("chat.gifs.loadFailed"),
           );
           setGifs([]);
         }
@@ -158,9 +156,7 @@ export function GifPicker({ onClose, onSelect }: GifPickerProps) {
       onSelect(payload);
       onClose();
     } catch (requestError) {
-      setError(
-        requestError instanceof Error ? requestError.message : t("chat.gifs.selectFailed"),
-      );
+      setError(requestError instanceof Error ? requestError.message : t("chat.gifs.selectFailed"));
     } finally {
       setSelectedGifId(null);
     }
@@ -179,7 +175,7 @@ export function GifPicker({ onClose, onSelect }: GifPickerProps) {
         </div>
         <button
           aria-label={t("common.close")}
-          className="rounded-full border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-soft)/0.55)] p-2 text-app-muted transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+          className="rounded-full border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-soft)/0.55)] p-2 text-app-muted transition hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
           onClick={onClose}
           type="button"
         >
@@ -190,7 +186,7 @@ export function GifPicker({ onClose, onSelect }: GifPickerProps) {
       <label className="mb-2.5 flex items-center gap-2 rounded-2xl border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-soft)/0.42)] px-3 py-2">
         <Search className="h-4 w-4 text-app-soft" />
         <input
-          className="min-w-0 flex-1 bg-transparent text-sm text-app-foreground placeholder-app-muted outline-none"
+          className="min-w-0 flex-1 bg-transparent text-sm text-app-foreground placeholder-app-muted outline-hidden"
           data-testid="gif-search-input"
           maxLength={50}
           onChange={(event) => setQuery(event.target.value)}
@@ -215,7 +211,7 @@ export function GifPicker({ onClose, onSelect }: GifPickerProps) {
             {gifs.map((gif) => (
               <button
                 aria-label={t("chat.gifs.selectGif", { title: gif.title })}
-                className="group/gif relative aspect-square overflow-hidden rounded-[18px] border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-soft)/0.45)] transition hover:-translate-y-0.5 hover:border-[hsl(var(--primary)/0.42)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                className="group/gif relative aspect-square overflow-hidden rounded-[18px] border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-soft)/0.45)] transition hover:-translate-y-0.5 hover:border-[hsl(var(--primary)/0.42)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
                 data-gif-id={gif.id}
                 data-testid="gif-option"
                 disabled={Boolean(selectedGifId)}
@@ -229,7 +225,7 @@ export function GifPicker({ onClose, onSelect }: GifPickerProps) {
                   loading="lazy"
                   src={gif.previewUrl}
                 />
-                <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full border border-white/50 bg-white/84 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-700 shadow-sm">
+                <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full border border-white/50 bg-white/84 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-700 shadow-xs">
                   <Sparkles className="h-3 w-3" />
                   GIF
                 </span>

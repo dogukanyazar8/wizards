@@ -293,7 +293,7 @@ function ToggleRow({
         <button
           aria-checked={checked}
           className={cn(
-            "relative mt-0.5 inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+            "relative mt-0.5 inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
             checked
               ? "border-[hsl(var(--primary)/0.45)] bg-[hsl(var(--primary)/0.18)]"
               : "border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.56)]",
@@ -357,7 +357,7 @@ function SoundVolumeRow({
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <button
-            className="min-h-9 rounded-xl border border-[hsl(var(--border)/0.78)] px-2.5 py-1.5 text-xs font-semibold text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.46)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:opacity-50"
+            className="min-h-9 rounded-xl border border-[hsl(var(--border)/0.78)] px-2.5 py-1.5 text-xs font-semibold text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.46)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:opacity-50"
             disabled={!checked || volume === 0}
             onClick={onPreview}
             type="button"
@@ -368,7 +368,7 @@ function SoundVolumeRow({
             aria-label={label}
             aria-checked={checked}
             className={cn(
-              "relative inline-flex h-7 w-12 items-center rounded-full border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+              "relative inline-flex h-7 w-12 items-center rounded-full border transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
               checked
                 ? "border-[hsl(var(--primary)/0.45)] bg-[hsl(var(--primary)/0.18)]"
                 : "border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.56)]",
@@ -397,7 +397,7 @@ function SoundVolumeRow({
             {profileLabel}
           </label>
           <select
-            className="app-panel mt-1.5 w-full rounded-xl border px-3 py-2 text-xs text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+            className="app-panel mt-1.5 w-full rounded-xl border px-3 py-2 text-xs text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
             disabled={!checked}
             id={testId ? `${testId}-profile` : undefined}
             data-testid={testId ? `${testId}-profile` : undefined}
@@ -621,7 +621,7 @@ function ProfileSummaryCard({
             action={
               <button
                 aria-label={t("settings.account.copy.username")}
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-app-soft transition hover:bg-[hsl(var(--primary)/0.1)] hover:text-[hsl(var(--primary))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-app-soft transition hover:bg-[hsl(var(--primary)/0.1)] hover:text-[hsl(var(--primary))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
                 onClick={() => copyAccountValue(account.username)}
                 type="button"
               >
@@ -635,7 +635,7 @@ function ProfileSummaryCard({
             action={
               <button
                 aria-label={t("settings.account.copy.email")}
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-app-soft transition hover:bg-[hsl(var(--primary)/0.1)] hover:text-[hsl(var(--primary))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-app-soft transition hover:bg-[hsl(var(--primary)/0.1)] hover:text-[hsl(var(--primary))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
                 onClick={() => copyAccountValue(account.email)}
                 type="button"
               >
@@ -681,7 +681,7 @@ function ProfileSummaryCard({
             {t("settings.account.completion.description")}
           </p>
           <button
-            className="inline-flex min-h-9 items-center justify-center rounded-xl border border-[hsl(var(--primary)/0.24)] bg-[hsl(var(--primary)/0.1)] px-3 text-xs font-black text-[hsl(var(--primary-text-emphasis,var(--primary)))] transition hover:bg-[hsl(var(--primary)/0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+            className="inline-flex min-h-9 items-center justify-center rounded-xl border border-[hsl(var(--primary)/0.24)] bg-[hsl(var(--primary)/0.1)] px-3 text-xs font-black text-[hsl(var(--primary-text-emphasis,var(--primary)))] transition hover:bg-[hsl(var(--primary)/0.16)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
             onClick={onEdit}
             type="button"
           >
@@ -983,7 +983,7 @@ function SecurityCenterCard({
                 </p>
               </div>
               <button
-                className="inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-lg px-2 text-xs font-bold text-[hsl(var(--primary))] transition hover:bg-[hsl(var(--primary)/0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                className="inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-lg px-2 text-xs font-bold text-[hsl(var(--primary))] transition hover:bg-[hsl(var(--primary)/0.08)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
                 onClick={copyRecoveryCodes}
                 type="button"
               >
@@ -1029,7 +1029,7 @@ function SecurityCenterCard({
                 </label>
                 <div className="flex flex-col gap-2 sm:flex-row">
                   <input
-                    className="min-h-10 flex-1 rounded-xl border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface)/0.84)] px-3 text-sm font-semibold text-app-foreground outline-none transition focus:border-[hsl(var(--primary)/0.45)] focus:ring-2 focus:ring-[hsl(var(--primary)/0.16)]"
+                    className="min-h-10 flex-1 rounded-xl border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface)/0.84)] px-3 text-sm font-semibold text-app-foreground outline-hidden transition focus:border-[hsl(var(--primary)/0.45)] focus:ring-2 focus:ring-[hsl(var(--primary)/0.16)]"
                     id="two-factor-code"
                     inputMode="numeric"
                     onChange={(event) => setSetupCode(event.target.value)}
@@ -1038,7 +1038,7 @@ function SecurityCenterCard({
                     value={setupCode}
                   />
                   <button
-                    className="inline-flex min-h-10 items-center justify-center rounded-xl bg-[hsl(var(--primary))] px-3 text-xs font-black text-[hsl(var(--primary-foreground))] transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-60"
+                    className="inline-flex min-h-10 items-center justify-center rounded-xl bg-[hsl(var(--primary))] px-3 text-xs font-black text-[hsl(var(--primary-foreground))] transition hover:opacity-90 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-60"
                     disabled={isTwoFactorPending}
                     onClick={confirmTwoFactor}
                     type="button"
@@ -1050,7 +1050,7 @@ function SecurityCenterCard({
             </div>
           ) : (
             <button
-              className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-3 text-xs font-black text-[hsl(var(--primary-foreground))] transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-3 text-xs font-black text-[hsl(var(--primary-foreground))] transition hover:opacity-90 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-60"
               disabled={isTwoFactorPending}
               onClick={beginTwoFactorSetup}
               type="button"
@@ -1066,14 +1066,14 @@ function SecurityCenterCard({
             </p>
             <div className="grid gap-2 sm:grid-cols-2">
               <input
-                className="min-h-10 rounded-xl border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface)/0.84)] px-3 text-sm font-semibold text-app-foreground outline-none transition focus:border-[hsl(var(--primary)/0.45)] focus:ring-2 focus:ring-[hsl(var(--primary)/0.16)]"
+                className="min-h-10 rounded-xl border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface)/0.84)] px-3 text-sm font-semibold text-app-foreground outline-hidden transition focus:border-[hsl(var(--primary)/0.45)] focus:ring-2 focus:ring-[hsl(var(--primary)/0.16)]"
                 onChange={(event) => setDisablePassword(event.target.value)}
                 placeholder={t("settings.account.twoFactor.passwordPlaceholder")}
                 type="password"
                 value={disablePassword}
               />
               <input
-                className="min-h-10 rounded-xl border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface)/0.84)] px-3 text-sm font-semibold text-app-foreground outline-none transition focus:border-[hsl(var(--primary)/0.45)] focus:ring-2 focus:ring-[hsl(var(--primary)/0.16)]"
+                className="min-h-10 rounded-xl border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface)/0.84)] px-3 text-sm font-semibold text-app-foreground outline-hidden transition focus:border-[hsl(var(--primary)/0.45)] focus:ring-2 focus:ring-[hsl(var(--primary)/0.16)]"
                 onChange={(event) => setDisableCode(event.target.value)}
                 placeholder={t("settings.account.twoFactor.codeOrRecoveryPlaceholder")}
                 type="text"
@@ -1081,7 +1081,7 @@ function SecurityCenterCard({
               />
             </div>
             <button
-              className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-rose-500/30 px-3 text-xs font-black text-rose-600 transition hover:bg-rose-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/30 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-rose-500/30 px-3 text-xs font-black text-rose-600 transition hover:bg-rose-500/10 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-rose-500/30 disabled:cursor-not-allowed disabled:opacity-60"
               disabled={isTwoFactorPending}
               onClick={disableCurrentTwoFactor}
               type="button"
@@ -1133,7 +1133,7 @@ function AccountPreferenceRow({
   if (onClick) {
     return (
       <button
-        className="flex w-full items-center gap-2 rounded-[15px] border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface)/0.72)] p-2 text-left transition hover:border-[hsl(var(--primary)/0.28)] hover:bg-[hsl(var(--primary)/0.06)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+        className="flex w-full items-center gap-2 rounded-[15px] border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface)/0.72)] p-2 text-left transition hover:border-[hsl(var(--primary)/0.28)] hover:bg-[hsl(var(--primary)/0.06)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
         onClick={onClick}
         type="button"
       >
@@ -1179,7 +1179,7 @@ function AccountPreferenceSelectRow<TValue extends string>({
       </span>
       <select
         aria-label={title}
-        className="min-h-9 w-full rounded-lg border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface)/0.9)] px-2.5 text-xs font-bold text-app-foreground transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-60 sm:w-[12rem]"
+        className="min-h-9 w-full rounded-lg border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface)/0.9)] px-2.5 text-xs font-bold text-app-foreground transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-60 sm:w-[12rem]"
         disabled={disabled}
         onChange={(event) => onChange(event.target.value as TValue)}
         value={value}
@@ -1735,7 +1735,7 @@ function SettingsPanelContent({
               {t("settings.account.fields.displayName")}
             </span>
             <input
-              className="w-full rounded-lg border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.88)] px-2.5 py-2 text-xs font-semibold text-app-foreground transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+              className="w-full rounded-lg border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.88)] px-2.5 py-2 text-xs font-semibold text-app-foreground transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
               onChange={(event) => handleAccountDraftChange("displayName", event.target.value)}
               type="text"
               value={accountDraft.displayName ?? ""}
@@ -1752,7 +1752,7 @@ function SettingsPanelContent({
               {t("common.username")}
             </span>
             <input
-              className="w-full rounded-lg border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.88)] px-2.5 py-2 text-xs font-semibold text-app-foreground transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+              className="w-full rounded-lg border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.88)] px-2.5 py-2 text-xs font-semibold text-app-foreground transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
               onChange={(event) => handleAccountDraftChange("username", event.target.value)}
               type="text"
               value={accountDraft.username}
@@ -1769,7 +1769,7 @@ function SettingsPanelContent({
               {t("common.email")}
             </span>
             <input
-              className="w-full rounded-lg border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.88)] px-2.5 py-2 text-xs font-semibold text-app-foreground transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+              className="w-full rounded-lg border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.88)] px-2.5 py-2 text-xs font-semibold text-app-foreground transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
               onChange={(event) => handleAccountDraftChange("email", event.target.value)}
               type="email"
               value={accountDraft.email}
@@ -1786,7 +1786,7 @@ function SettingsPanelContent({
               {t("settings.account.fields.status")}
             </span>
             <select
-              className="w-full rounded-lg border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.88)] px-2.5 py-2 text-xs font-semibold text-app-foreground transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+              className="w-full rounded-lg border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.88)] px-2.5 py-2 text-xs font-semibold text-app-foreground transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
               onChange={(event) =>
                 handleAccountDraftChange("status", event.target.value as UserStatus)
               }
@@ -2075,7 +2075,7 @@ function SettingsPanelContent({
                   <button
                     aria-pressed={selected}
                     className={cn(
-                      "group min-w-0 rounded-[18px] border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                      "group min-w-0 rounded-[18px] border p-3 text-left transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
                       selected
                         ? "border-[hsl(var(--primary)/0.55)] bg-[hsl(var(--primary)/0.12)] shadow-[0_18px_42px_hsl(var(--shadow-color)/0.1)]"
                         : "border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.28)] hover:border-[hsl(var(--primary)/0.34)] hover:bg-[hsl(var(--surface-soft)/0.48)]",
@@ -2143,7 +2143,7 @@ function SettingsPanelContent({
             <button
               aria-pressed={isSelected}
               className={cn(
-                "group min-h-28 rounded-[18px] border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                "group min-h-28 rounded-[18px] border p-3 text-left transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
                 isSelected
                   ? "border-[hsl(var(--primary)/0.48)] bg-[hsl(var(--primary)/0.12)] shadow-[0_18px_42px_hsl(var(--primary)/0.12)]"
                   : "border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface-soft)/0.28)] hover:-translate-y-0.5 hover:border-[hsl(var(--primary)/0.28)] hover:bg-[hsl(var(--surface-card)/0.72)]",

@@ -182,7 +182,7 @@ export function VoiceInviteToasts() {
                   </div>
                   <button
                     aria-label={t("voice.invite.dismiss")}
-                    className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-app-muted transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                    className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-app-muted transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
                     onClick={() => dismissInvite(invite)}
                     type="button"
                   >
@@ -200,7 +200,7 @@ export function VoiceInviteToasts() {
                 <div className="mt-3 flex items-center gap-2">
                   <button
                     className={cn(
-                      "inline-flex min-h-9 flex-1 items-center justify-center gap-2 rounded-full border px-3 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                      "inline-flex min-h-9 flex-1 items-center justify-center gap-2 rounded-full border px-3 text-xs font-bold transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
                       "border-[hsl(var(--primary)/0.34)] bg-[hsl(var(--primary)/0.14)] text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/0.20)]",
                     )}
                     disabled={invite.accepting}
@@ -215,7 +215,7 @@ export function VoiceInviteToasts() {
                     {t("voice.invite.accept")}
                   </button>
                   <button
-                    className="inline-flex min-h-9 flex-1 items-center justify-center rounded-full border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-soft)/0.48)] px-3 text-xs font-bold text-app-muted transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                    className="inline-flex min-h-9 flex-1 items-center justify-center rounded-full border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-soft)/0.48)] px-3 text-xs font-bold text-app-muted transition hover:bg-[hsl(var(--surface-soft)/0.72)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
                     onClick={() => dismissInvite(invite)}
                     type="button"
                   >

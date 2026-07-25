@@ -88,7 +88,7 @@ function InviteAlreadyMemberCard({
         <p className="text-app-muted mt-3 text-sm leading-7">{t("invite.already.description")}</p>
         <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
           <Link
-            className="inline-flex min-h-11 items-center justify-center rounded-2xl bg-[hsl(var(--primary))] px-5 py-2.5 text-sm font-semibold text-[hsl(var(--primary-foreground))] shadow-[0_18px_48px_hsl(var(--primary)/0.24)] transition hover:-translate-y-0.5 hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary)/0.5)] focus-visible:ring-offset-2 motion-reduce:hover:translate-y-0"
+            className="inline-flex min-h-11 items-center justify-center rounded-2xl bg-[hsl(var(--primary))] px-5 py-2.5 text-sm font-semibold text-[hsl(var(--primary-foreground))] shadow-[0_18px_48px_hsl(var(--primary)/0.24)] transition hover:-translate-y-0.5 hover:opacity-95 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary)/0.5)] focus-visible:ring-offset-2 motion-reduce:hover:translate-y-0"
             href={destination}
           >
             {t("invite.already.openServer")}

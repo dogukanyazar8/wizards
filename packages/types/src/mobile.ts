@@ -10,12 +10,10 @@ import {
 import { DMConversationDTOSchema, DMMessagePayloadSchema } from "./socket";
 import { WorkspaceChannelSchema, WorkspaceMemberSchema } from "./workspace";
 
-export const MobileBootstrapFeatureStatusSchema = z.enum([
-  "available",
-  "disabled",
-  "requires-native-permission",
-  "requires-server-contract",
-]);
+export const MobileBootstrapFeatureStatusSchema = z.enum(
+  ["available", "disabled", "requires-native-permission", "requires-server-contract"],
+  { error: "Invalid enum value" },
+);
 
 export const MobileBootstrapFeatureSchema = z.object({
   label: z.string().min(1).max(80),
@@ -59,7 +57,7 @@ export const MobileSessionUserSchema = z.object({
   avatarUrl: z.string().url().nullable(),
   displayName: z.string().min(1).max(120).nullable(),
   id: z.string().min(1),
-  username: z.string().min(1).max(80),
+  username: z.string().min(1, { error: "String must contain at least 1 character" }).max(80),
 });
 
 export const MobileSessionTokensSchema = z.object({
@@ -68,7 +66,7 @@ export const MobileSessionTokensSchema = z.object({
   issuedAt: z.number().finite(),
   refreshToken: z.string().min(16).max(8192).regex(/^\S+$/).nullable(),
   scopes: z.array(z.string().min(1).max(80)).max(50),
-  tokenType: z.literal("Bearer"),
+  tokenType: z.literal("Bearer", { error: "Invalid literal value" }),
 });
 
 export const MobileSessionSnapshotSchema = z.object({
@@ -287,6 +285,61 @@ export const MobileNotificationsResponseSchema = z.object({
   unreadCount: z.number().int().min(0).max(9_999).default(0),
 });
 
+/**
+ * Legal documents are authored once as plain text and served to every surface.
+ * The mobile app renders the parsed blocks with its own typography instead of
+ * embedding a web view, so the text can be corrected without an app release.
+ */
+export const MOBILE_LEGAL_DOCUMENT_IDS = ["cookies", "privacy", "terms"] as const;
+
+export const MobileLegalDocumentIdSchema = z.enum(MOBILE_LEGAL_DOCUMENT_IDS);
+
+export const MobileLegalDocumentParamsSchema = z
+  .object({ legalDocument: MobileLegalDocumentIdSchema })
+  .strict();
+
+export const MobileLegalDocumentBlockSchema = z.object({
+  kind: z.enum(["bullet", "heading", "meta", "paragraph", "subheading"]),
+  text: z.string().min(1).max(4_000),
+});
+
+export const MobileLegalDocumentResponseSchema = z.object({
+  badge: z.string().min(1).max(160),
+  blocks: z.array(MobileLegalDocumentBlockSchema).max(1_000),
+  description: z.string().min(1).max(400),
+  id: MobileLegalDocumentIdSchema,
+  lastUpdated: z.string().min(1).max(40).nullable(),
+  title: z.string().min(1).max(160),
+});
+
+/**
+ * The `notification:new` socket event. It carries the notification row plus the
+ * names and avatars the feed needs, so an open app renders the item from the
+ * event itself instead of invalidating and refetching three filtered feeds.
+ * Every enrichment is optional: an emitter that cannot resolve the actor still
+ * produces a valid event, and the client falls back to a refresh for those.
+ */
+export const MobileNotificationNewEventSchema = z.object({
+  actionUrl: z.string().max(512).nullable().default(null),
+  actor: MobileNotificationActorSchema.nullable().optional(),
+  body: z.string().min(1).max(2_000),
+  channel: z
+    .object({ id: z.string().min(1).max(128), name: z.string().min(1).max(120) })
+    .nullable()
+    .optional(),
+  createdAt: z.string().datetime(),
+  id: z.string().min(1).max(128),
+  metadata: z.record(z.string(), z.unknown()).nullable().default(null),
+  read: z.boolean().default(false),
+  readAt: z.string().datetime().nullable().default(null),
+  server: z
+    .object({ id: z.string().min(1).max(128), name: z.string().min(1).max(120) })
+    .nullable()
+    .optional(),
+  type: MobileNotificationTypeSchema,
+  userId: z.string().min(1).max(128),
+});
+
 export const MobileNotificationIdParamsSchema = z
   .object({
     id: z.string().uuid(),
@@ -501,6 +554,13 @@ export const MobileBootstrapPayloadSchema = z.object({
   }),
   user: z.object({
     avatarUrl: z.string().url().nullable(),
+    // The profile hub renders the viewer's own banner from bootstrap, the same
+    // payload it already takes the avatar and name from. Defaulted so a client
+    // running against an un-redeployed server still parses.
+    bannerColor: z.string().min(1).max(32).nullable().default(null),
+    bannerOffsetX: z.number().min(0).max(1).nullable().default(null),
+    bannerOffsetY: z.number().min(0).max(1).nullable().default(null),
+    bannerUrl: z.string().url().nullable().default(null),
     displayName: z.string().min(1).max(120).nullable(),
     id: z.string().min(1),
     locale: z.enum(["tr", "en"]).nullable(),
@@ -679,7 +739,9 @@ export const MobileWorkspaceServerDetailSchema = z.object({
     unreadCount: z.number().int().nonnegative(),
     visibleChannelCount: z.number().int().nonnegative(),
   }),
-  ungroupedChannels: z.array(MobileWorkspaceChannelSummarySchema).max(80),
+  ungroupedChannels: z
+    .array(MobileWorkspaceChannelSummarySchema, { error: "Expected array" })
+    .max(80),
 });
 
 export const MobileWorkspaceServerDetailResponseSchema = z.object({
@@ -786,9 +848,7 @@ export type MobileChannelSendMessageResponse = z.infer<
   typeof MobileChannelSendMessageResponseSchema
 >;
 export type MobileChannelMarkReadResponse = z.infer<typeof MobileChannelMarkReadResponseSchema>;
-export type MobileChannelMessagePinResponse = z.infer<
-  typeof MobileChannelMessagePinResponseSchema
->;
+export type MobileChannelMessagePinResponse = z.infer<typeof MobileChannelMessagePinResponseSchema>;
 export type MobileChannelPinnedMessagesResponse = z.infer<
   typeof MobileChannelPinnedMessagesResponseSchema
 >;
@@ -823,10 +883,14 @@ export type MobilePushRegistrationResponse = z.infer<typeof MobilePushRegistrati
 export type MobilePushRegistrationRevokeResponse = z.infer<
   typeof MobilePushRegistrationRevokeResponseSchema
 >;
+export type MobileLegalDocumentId = z.infer<typeof MobileLegalDocumentIdSchema>;
+export type MobileLegalDocumentBlock = z.infer<typeof MobileLegalDocumentBlockSchema>;
+export type MobileLegalDocumentResponse = z.infer<typeof MobileLegalDocumentResponseSchema>;
 export type MobileNotificationType = z.infer<typeof MobileNotificationTypeSchema>;
 export type MobileNotificationEventKind = z.infer<typeof MobileNotificationEventKindSchema>;
 export type MobileNotificationFilter = z.infer<typeof MobileNotificationFilterSchema>;
 export type MobileNotificationItem = z.infer<typeof MobileNotificationItemSchema>;
+export type MobileNotificationNewEvent = z.infer<typeof MobileNotificationNewEventSchema>;
 export type MobileNotificationsQuery = z.infer<typeof MobileNotificationsQuerySchema>;
 export type MobileNotificationsResponse = z.infer<typeof MobileNotificationsResponseSchema>;
 export type MobileNotificationMutationResponse = z.infer<

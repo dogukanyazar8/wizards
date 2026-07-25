@@ -43,16 +43,66 @@ export function useMobileNotificationsQuery(
   return useInfiniteQuery(getMobileNotificationsQueryOptions(client, filter));
 }
 
+/**
+ * The unread total only ever comes from the newest page: the server recounts it
+ * on every request, so later pages carry a staler copy of the same number.
+ */
+export function getMobileNotificationUnreadCount(
+  data: InfiniteData<MobileNotificationsResponse> | undefined,
+): number {
+  return data?.pages[0]?.unreadCount ?? 0;
+}
+
+/**
+ * Feeds the bottom-tab badge. It shares the unfiltered feed's query key with the
+ * notifications screen, so one fetch serves both and the realtime bridge's
+ * notification invalidation moves the badge without any extra wiring.
+ */
+export function useMobileNotificationUnreadCount(
+  client: MobileApiClient,
+  enabled: boolean,
+): number {
+  const query = useInfiniteQuery({
+    ...getMobileNotificationsQueryOptions(client, "all"),
+    enabled,
+  });
+
+  return getMobileNotificationUnreadCount(query.data);
+}
+
+/**
+ * Whether the account holds any notification at all, read from the unfiltered
+ * feed rather than whichever tab is on screen. Global actions ("tümünü temizle")
+ * must not take their enabled state from a filtered view: an empty mentions tab
+ * is not an empty account, and an empty account is not an empty mentions tab.
+ */
+export function useMobileHasAnyNotification(client: MobileApiClient): boolean {
+  const query = useInfiniteQuery(getMobileNotificationsQueryOptions(client, "all"));
+
+  return (query.data?.pages[0]?.notifications.length ?? 0) > 0;
+}
+
 type MobileNotificationMutationOptionsInput = {
   client: MobileApiClient;
   queryClient: QueryClient;
 };
 
-/** Every filtered feed hangs off the notifications root, so one prefix invalidation covers them all. */
+/**
+ * Every filtered feed hangs off the notifications root, so one prefix
+ * invalidation covers them all.
+ *
+ * Bootstrap and the workspace details go with it: reading or clearing a mention
+ * now retires the matching `ChannelReadState.mentionCount` server-side, so the
+ * servers screen, the switcher sheet and the channel row are all holding numbers
+ * that just changed. Both are prefix invalidations — every cached server has to
+ * catch up, not only the one on screen.
+ */
 function invalidateMobileNotifications(queryClient: QueryClient) {
-  return queryClient.invalidateQueries({
-    queryKey: mobileQueryKeys.notificationsRoot(),
-  });
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: mobileQueryKeys.notificationsRoot() }),
+    queryClient.invalidateQueries({ exact: true, queryKey: mobileQueryKeys.bootstrap() }),
+    queryClient.invalidateQueries({ queryKey: mobileQueryKeys.workspaceRoot() }),
+  ]);
 }
 
 export function createMobileNotificationMarkReadMutationOptions({

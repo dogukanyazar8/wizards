@@ -219,7 +219,7 @@ function ImageLightboxContent({ image, onClose }: ImageLightboxProps) {
             <div className="flex flex-wrap items-center gap-2">
               <button
                 aria-label={t("chat.attachments.zoomOut")}
-                className="app-panel-soft flex h-11 w-11 items-center justify-center rounded-full border text-app-muted transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-10 sm:w-10"
+                className="app-panel-soft flex h-11 w-11 items-center justify-center rounded-full border text-app-muted transition hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-10 sm:w-10"
                 data-testid="image-lightbox-zoom-out"
                 onClick={() => updateZoom(-BUTTON_ZOOM_STEP)}
                 type="button"
@@ -228,7 +228,7 @@ function ImageLightboxContent({ image, onClose }: ImageLightboxProps) {
               </button>
               <button
                 aria-label={t("chat.attachments.resetZoom")}
-                className="app-panel-soft flex h-11 min-w-11 items-center justify-center rounded-full border px-3 text-xs font-semibold text-app-muted transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-10"
+                className="app-panel-soft flex h-11 min-w-11 items-center justify-center rounded-full border px-3 text-xs font-semibold text-app-muted transition hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-10"
                 data-testid="image-lightbox-reset-zoom"
                 onClick={resetView}
                 type="button"
@@ -238,7 +238,7 @@ function ImageLightboxContent({ image, onClose }: ImageLightboxProps) {
               </button>
               <button
                 aria-label={t("chat.attachments.zoomIn")}
-                className="app-panel-soft flex h-11 w-11 items-center justify-center rounded-full border text-app-muted transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-10 sm:w-10"
+                className="app-panel-soft flex h-11 w-11 items-center justify-center rounded-full border text-app-muted transition hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-10 sm:w-10"
                 data-testid="image-lightbox-zoom-in"
                 onClick={() => updateZoom(BUTTON_ZOOM_STEP)}
                 type="button"
@@ -249,7 +249,7 @@ function ImageLightboxContent({ image, onClose }: ImageLightboxProps) {
                 aria-label={t("chat.attachments.downloadImage", {
                   filename: image.filename,
                 })}
-                className="app-panel-soft flex h-11 items-center justify-center gap-2 rounded-full border px-3 text-xs font-semibold text-app-muted transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-wait disabled:opacity-60 sm:h-10"
+                className="app-panel-soft flex h-11 items-center justify-center gap-2 rounded-full border px-3 text-xs font-semibold text-app-muted transition hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-wait disabled:opacity-60 sm:h-10"
                 data-testid="image-lightbox-download"
                 disabled={isDownloading}
                 onClick={downloadImage}
@@ -260,7 +260,7 @@ function ImageLightboxContent({ image, onClose }: ImageLightboxProps) {
               </button>
               <a
                 aria-label={t("chat.attachments.openOriginal")}
-                className="app-panel-soft flex h-11 items-center justify-center gap-2 rounded-full border px-3 text-xs font-semibold text-app-muted transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-10"
+                className="app-panel-soft flex h-11 items-center justify-center gap-2 rounded-full border px-3 text-xs font-semibold text-app-muted transition hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-10"
                 data-testid="image-lightbox-open-original"
                 href={image.url}
                 rel="noopener noreferrer"
@@ -357,7 +357,7 @@ function ImageLightboxContent({ image, onClose }: ImageLightboxProps) {
             </div>
             {!isGif ? (
               <div className="pointer-events-none absolute inset-x-4 bottom-4 flex justify-center">
-                <span className="rounded-full border border-white/54 bg-white/82 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-600 shadow-sm backdrop-blur">
+                <span className="rounded-full border border-white/54 bg-white/82 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-600 shadow-xs backdrop-blur">
                   {attachmentKind}
                 </span>
               </div>

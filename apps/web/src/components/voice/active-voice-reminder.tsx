@@ -15,10 +15,7 @@ import {
 import type { WorkspaceServerDetail } from "@wizards/types";
 import { usePathname, useRouter } from "next/navigation";
 import { useI18n } from "@/components/providers/locale-provider";
-import {
-  useVoiceParticipants,
-  useVoiceState,
-} from "@/components/providers/voice-provider";
+import { useVoiceParticipants, useVoiceState } from "@/components/providers/voice-provider";
 import { cn } from "@/lib/utils";
 import { fetchWorkspaceServer, workspaceQueryKeys } from "@/lib/workspace/client";
 
@@ -215,7 +212,7 @@ export function ActiveVoiceReminder() {
 
         <div className="grid w-full shrink-0 grid-cols-2 gap-2 sm:ml-auto sm:flex sm:w-auto">
           <button
-            className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-2xl border border-[hsl(var(--primary)/0.3)] bg-[hsl(var(--primary)/0.12)] px-3 text-sm font-bold text-[hsl(var(--primary))] transition hover:bg-[hsl(var(--primary)/0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:flex-none"
+            className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-2xl border border-[hsl(var(--primary)/0.3)] bg-[hsl(var(--primary)/0.12)] px-3 text-sm font-bold text-[hsl(var(--primary))] transition hover:bg-[hsl(var(--primary)/0.16)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:flex-none"
             data-testid="active-voice-reminder-return"
             onClick={() => router.push(returnHref)}
             type="button"
@@ -225,7 +222,7 @@ export function ActiveVoiceReminder() {
           </button>
           <button
             className={cn(
-              "inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-2xl border border-[hsl(var(--danger)/0.28)] bg-[hsl(var(--danger)/0.1)] px-3 text-sm font-bold text-[hsl(var(--danger))] transition hover:bg-[hsl(var(--danger)/0.14)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-wait disabled:opacity-65 sm:flex-none",
+              "inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-2xl border border-[hsl(var(--danger)/0.28)] bg-[hsl(var(--danger)/0.1)] px-3 text-sm font-bold text-[hsl(var(--danger))] transition hover:bg-[hsl(var(--danger)/0.14)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-wait disabled:opacity-65 sm:flex-none",
               isLeaving && "cursor-wait",
             )}
             data-testid="active-voice-reminder-leave"

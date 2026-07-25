@@ -201,7 +201,7 @@ function FriendsTabButton({
   return (
     <button
       aria-selected={active}
-      className={`inline-flex min-h-10 shrink-0 items-center gap-2 rounded-[13px] border px-3.5 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] ${
+      className={`inline-flex min-h-10 shrink-0 items-center gap-2 rounded-[13px] border px-3.5 py-2 text-sm font-semibold transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] ${
         active
           ? "border-transparent bg-[hsl(var(--primary)/0.14)] text-[hsl(var(--primary))] shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.08)]"
           : "border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.7)] text-app-muted hover:border-[hsl(var(--primary)/0.22)] hover:bg-[hsl(var(--surface-card)/0.92)] hover:text-app-foreground"
@@ -272,7 +272,7 @@ function FriendsEmptyState({
       </p>
       {actionLabel && onAction ? (
         <button
-          className="mt-5 inline-flex min-h-10 items-center justify-center gap-2 rounded-[13px] bg-[hsl(var(--primary))] px-4 text-sm font-bold text-[hsl(var(--primary-foreground))] shadow-[0_14px_28px_hsl(var(--primary)/0.18)] transition hover:bg-[hsl(var(--primary)/0.92)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+          className="mt-5 inline-flex min-h-10 items-center justify-center gap-2 rounded-[13px] bg-[hsl(var(--primary))] px-4 text-sm font-bold text-[hsl(var(--primary-foreground))] shadow-[0_14px_28px_hsl(var(--primary)/0.18)] transition hover:bg-[hsl(var(--primary)/0.92)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
           onClick={onAction}
           type="button"
         >
@@ -396,7 +396,7 @@ function ConfirmDialog({
       </div>
       <div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
         <button
-          className="min-h-11 rounded-2xl border border-[hsl(var(--border)/0.82)] px-4 py-2 text-sm font-medium text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.62)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:opacity-60"
+          className="min-h-11 rounded-2xl border border-[hsl(var(--border)/0.82)] px-4 py-2 text-sm font-medium text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.62)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:opacity-60"
           disabled={busy}
           onClick={onClose}
           type="button"
@@ -404,7 +404,7 @@ function ConfirmDialog({
           {t("common.cancel")}
         </button>
         <button
-          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-[hsl(var(--danger))] px-4 py-2 text-sm font-semibold text-[hsl(var(--danger-foreground))] shadow-[0_16px_34px_hsl(var(--danger)/0.18)] transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.45)] disabled:opacity-60"
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-[hsl(var(--danger))] px-4 py-2 text-sm font-semibold text-[hsl(var(--danger-foreground))] shadow-[0_16px_34px_hsl(var(--danger)/0.18)] transition hover:opacity-90 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.45)] disabled:opacity-60"
           disabled={busy}
           onClick={onConfirm}
           type="button"
@@ -813,7 +813,7 @@ export function FriendsView({ currentUserId }: { currentUserId: string }) {
             </div>
             <button
               aria-label={t("friends.actions.refresh")}
-              className="absolute right-2.5 top-2.5 flex h-9 w-9 items-center justify-center rounded-[12px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.82)] text-app-muted shadow-[0_10px_22px_hsl(var(--shadow-color)/0.045)] transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:opacity-60"
+              className="absolute right-2.5 top-2.5 flex h-9 w-9 items-center justify-center rounded-[12px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.82)] text-app-muted shadow-[0_10px_22px_hsl(var(--shadow-color)/0.045)] transition hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:opacity-60"
               disabled={isRefreshing}
               onClick={refreshDashboardData}
               type="button"
@@ -971,7 +971,7 @@ export function FriendsView({ currentUserId }: { currentUserId: string }) {
                               <>
                                 <button
                                   aria-label={t("friends.actions.accept")}
-                                  className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[hsl(var(--success))] text-white transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--success)/0.45)]"
+                                  className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[hsl(var(--success))] text-white transition hover:opacity-90 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--success)/0.45)]"
                                   data-testid={`friend-request-accept-${request.sender.username}`}
                                   onClick={() =>
                                     requestActionMutation.mutate({
@@ -985,7 +985,7 @@ export function FriendsView({ currentUserId }: { currentUserId: string }) {
                                 </button>
                                 <button
                                   aria-label={t("friends.actions.decline")}
-                                  className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[hsl(var(--danger))] text-[hsl(var(--danger-foreground))] transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.45)]"
+                                  className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[hsl(var(--danger))] text-[hsl(var(--danger-foreground))] transition hover:opacity-90 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.45)]"
                                   data-testid={`friend-request-decline-${request.sender.username}`}
                                   onClick={() =>
                                     requestActionMutation.mutate({
@@ -1020,7 +1020,7 @@ export function FriendsView({ currentUserId }: { currentUserId: string }) {
                           <PendingRequestRow
                             actionSlot={
                               <button
-                                className="min-h-11 rounded-2xl border border-[hsl(var(--border)/0.82)] px-4 py-2 text-sm font-medium text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.62)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                                className="min-h-11 rounded-2xl border border-[hsl(var(--border)/0.82)] px-4 py-2 text-sm font-medium text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.62)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
                                 onClick={() => cancelRequestMutation.mutate(request.id)}
                                 type="button"
                               >
@@ -1080,7 +1080,7 @@ export function FriendsView({ currentUserId }: { currentUserId: string }) {
                       value={username}
                     />
                     <button
-                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-[hsl(var(--primary))] px-5 text-sm font-semibold text-[hsl(var(--primary-foreground))] transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary)/0.45)] disabled:opacity-60"
+                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-[hsl(var(--primary))] px-5 text-sm font-semibold text-[hsl(var(--primary-foreground))] transition hover:opacity-90 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary)/0.45)] disabled:opacity-60"
                       data-testid="send-friend-request-button"
                       disabled={!canSendRequest || sendRequestMutation.isPending}
                       type="submit"
@@ -1129,7 +1129,7 @@ export function FriendsView({ currentUserId }: { currentUserId: string }) {
                             </div>
                           </div>
                           <button
-                            className="min-h-11 rounded-2xl border border-[hsl(var(--border)/0.82)] px-4 py-2 text-sm font-medium text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.62)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:opacity-60"
+                            className="min-h-11 rounded-2xl border border-[hsl(var(--border)/0.82)] px-4 py-2 text-sm font-medium text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.62)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:opacity-60"
                             disabled={unblockFriendMutation.isPending}
                             onClick={() => unblockFriendMutation.mutate(user.id)}
                             type="button"

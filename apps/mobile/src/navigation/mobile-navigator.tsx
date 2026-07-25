@@ -20,6 +20,7 @@ import {
   VoiceRoomStackScreenContainer,
   ProfileEditScreenContainer,
   BlockedUsersScreenContainer,
+  LegalDocumentScreenContainer,
   SecurityScreenContainer,
   SharedMediaScreenContainer,
   ServerSettingsStackScreenContainer,
@@ -43,11 +44,13 @@ const BottomTabs = createBottomTabNavigator<MobileBottomTabParamList>();
 
 interface MobileNavigatorProps {
   readonly directMessageUnreadCount?: number;
+  readonly notificationUnreadCount?: number;
   readonly onTabChange?: (tab: MobileTabId) => void;
 }
 
 export function MobileNavigator({
   directMessageUnreadCount = 0,
+  notificationUnreadCount = 0,
   onTabChange,
 }: MobileNavigatorProps) {
   const { status } = useMobileAuth();
@@ -106,7 +109,12 @@ export function MobileNavigator({
       {status === "signed-in" ? (
         <RootStack.Navigator screenOptions={rootStackOptions}>
           <RootStack.Screen name="MainTabs">
-            {() => <MobileBottomTabs directMessageUnreadCount={directMessageUnreadCount} />}
+            {() => (
+              <MobileBottomTabs
+                directMessageUnreadCount={directMessageUnreadCount}
+                notificationUnreadCount={notificationUnreadCount}
+              />
+            )}
           </RootStack.Screen>
           <RootStack.Screen name="VoiceRoom">
             {(props) => <VoiceRoomStackScreenContainer {...props} />}
@@ -126,6 +134,9 @@ export function MobileNavigator({
             {(props) => <UserProfileStackScreenContainer {...props} />}
           </RootStack.Screen>
           <RootStack.Screen name="BlockedUsers" component={BlockedUsersScreenContainer} />
+          <RootStack.Screen name="LegalDocument">
+            {(props) => <LegalDocumentScreenContainer {...props} />}
+          </RootStack.Screen>
           <RootStack.Screen name="Security">
             {(props) => <SecurityScreenContainer {...props} />}
           </RootStack.Screen>
@@ -160,8 +171,10 @@ export function MobileNavigator({
 
 function MobileBottomTabs({
   directMessageUnreadCount,
+  notificationUnreadCount,
 }: {
   readonly directMessageUnreadCount: number;
+  readonly notificationUnreadCount: number;
 }) {
   const {
     bootstrapState,
@@ -201,6 +214,7 @@ function MobileBottomTabs({
         <FloatingNavigationChrome
           {...props}
           directMessageUnreadCount={directMessageUnreadCount}
+          notificationUnreadCount={notificationUnreadCount}
           onBeginPushToTalk={onBeginVoicePushToTalk}
           onEndPushToTalk={onEndVoicePushToTalk}
           onLeaveVoiceChannel={onLeaveVoiceChannel}

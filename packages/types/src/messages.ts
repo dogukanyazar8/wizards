@@ -8,7 +8,7 @@ export const MessageAuthorSchema = z.object({
   username: z.string(),
   displayName: z.string(),
   avatarUrl: z.string().nullable(),
-  status: z.enum(["ONLINE", "IDLE", "DND", "OFFLINE"]).optional(),
+  status: z.enum(["ONLINE", "IDLE", "DND", "OFFLINE"], { error: "Invalid enum value" }).optional(),
   customStatus: z.string().nullable().optional(),
 });
 
@@ -87,8 +87,8 @@ export const ChatMessageSchema = z.object({
   isPinned: z.boolean().optional(),
   pinnedAt: z.string().datetime().nullable().optional(),
   pinnedById: z.string().nullable().optional(),
-  reactions: z.array(MessageReactionSchema).default([]),
-  attachments: z.array(MessageAttachmentSchema).default([]),
+  reactions: z.array(MessageReactionSchema, { error: "Expected array" }).default([]),
+  attachments: z.array(MessageAttachmentSchema, { error: "Expected array" }).default([]),
   replyTo: ReplyToSchema.nullable().optional(),
   createdAt: z.string().datetime(),
   deliveryStatus: z.enum(["sending", "failed"]).optional(),

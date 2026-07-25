@@ -344,7 +344,7 @@ export function AdminManagementPanel({ canModerate }: AdminManagementPanelProps)
               />
             </label>
             <select
-              className="app-input h-11 rounded-2xl border px-4 text-sm outline-none"
+              className="app-input h-11 rounded-2xl border px-4 text-sm outline-hidden"
               onChange={(event) => setUserStatus(event.target.value)}
               value={userStatus}
             >
@@ -356,7 +356,7 @@ export function AdminManagementPanel({ canModerate }: AdminManagementPanelProps)
               <option value="INVISIBLE">Invisible</option>
             </select>
             <select
-              className="app-input h-11 rounded-2xl border px-4 text-sm outline-none"
+              className="app-input h-11 rounded-2xl border px-4 text-sm outline-hidden"
               onChange={(event) => setUserBanned(event.target.value)}
               value={userBanned}
             >

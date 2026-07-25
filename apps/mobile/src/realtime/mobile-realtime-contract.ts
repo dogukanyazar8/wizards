@@ -41,18 +41,15 @@ export const MOBILE_REALTIME_SERVER_EVENTS = [
 export type MobileRealtimeServerEventName = (typeof MOBILE_REALTIME_SERVER_EVENTS)[number];
 
 export type MobileRealtimeConnectionStatus =
-  | "background"
-  | "connected"
-  | "connecting"
-  | "disconnected"
-  | "error"
-  | "idle";
+  "background" | "connected" | "connecting" | "disconnected" | "error" | "idle";
 
 export type MobileRealtimeRefreshSource =
   | "bootstrap"
   | "channel"
   | "dm"
   | "notification"
+  /** Feeds already written from the event; only the server counters need a read. */
+  | "notification-badge"
   | "presence"
   | "workspace";
 
@@ -355,7 +352,7 @@ export function getMobileRealtimeRefreshSources(
 export function getMobileRealtimeRefreshTimerSource(
   source: MobileRealtimeRefreshSource,
 ): MobileRealtimeRefreshTimerSource {
-  if (source === "notification") {
+  if (source === "notification" || source === "notification-badge") {
     return "bootstrap";
   }
 
@@ -434,11 +431,11 @@ export function validateMobileRealtimeContract(): string[] {
     const sources = getMobileRealtimeRefreshSources(eventName);
     const isLocalOnlyEvent =
       eventName === "dm:call:incoming" ||
-    eventName === "dm:call:accepted" ||
-    eventName === "dm:call:declined" ||
-    eventName === "dm:call:cancelled" ||
-    eventName === "dm:call:ended" ||
-    eventName === "voice:audio-level:update" ||
+      eventName === "dm:call:accepted" ||
+      eventName === "dm:call:declined" ||
+      eventName === "dm:call:cancelled" ||
+      eventName === "dm:call:ended" ||
+      eventName === "voice:audio-level:update" ||
       eventName === "voice:invite:accepted" ||
       eventName === "voice:invite:error" ||
       eventName === "voice:invite:received" ||

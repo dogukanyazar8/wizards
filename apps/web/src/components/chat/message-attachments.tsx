@@ -75,9 +75,7 @@ export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
   );
   const imageAttachments = useMemo(
     () =>
-      visibleAttachments.filter((attachment) =>
-        isMessageImageContentType(attachment.contentType),
-      ),
+      visibleAttachments.filter((attachment) => isMessageImageContentType(attachment.contentType)),
     [visibleAttachments],
   );
   const fileAttachments = useMemo(
@@ -91,9 +89,7 @@ export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
   );
   const videoAttachments = useMemo(
     () =>
-      visibleAttachments.filter((attachment) =>
-        isMessageVideoContentType(attachment.contentType),
-      ),
+      visibleAttachments.filter((attachment) => isMessageVideoContentType(attachment.contentType)),
     [visibleAttachments],
   );
 
@@ -111,8 +107,10 @@ export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
                 filename: attachment.filename,
               })}
               className={cn(
-                "group/image relative overflow-hidden rounded-[18px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.38)] shadow-[0_12px_26px_hsl(var(--shadow-color)/0.06)] transition hover:-translate-y-0.5 hover:border-[hsl(var(--primary)/0.42)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
-                imageAttachments.length === 1 ? "inline-flex w-full max-w-full p-1" : "aspect-square",
+                "group/image relative overflow-hidden rounded-[18px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.38)] shadow-[0_12px_26px_hsl(var(--shadow-color)/0.06)] transition hover:-translate-y-0.5 hover:border-[hsl(var(--primary)/0.42)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                imageAttachments.length === 1
+                  ? "inline-flex w-full max-w-full p-1"
+                  : "aspect-square",
               )}
               data-content-type={attachment.contentType}
               data-filename={attachment.filename}
@@ -172,7 +170,7 @@ export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
                   <span className="truncate">{attachment.filename}</span>
                 </span>
                 <a
-                  className="shrink-0 rounded-full border border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface-soft)/0.55)] px-2.5 py-1 text-[11px] font-semibold text-app-soft transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                  className="shrink-0 rounded-full border border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface-soft)/0.55)] px-2.5 py-1 text-[11px] font-semibold text-app-soft transition hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
                   href={attachment.url}
                   rel="noreferrer"
                   target="_blank"
@@ -192,7 +190,7 @@ export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
               aria-label={t("chat.attachments.openFile", {
                 filename: attachment.filename,
               })}
-              className="group/file flex min-w-0 items-center gap-3 rounded-[18px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.34)] px-3 py-2 text-left shadow-[0_12px_26px_hsl(var(--shadow-color)/0.05)] transition hover:-translate-y-0.5 hover:border-[hsl(var(--primary)/0.42)] hover:bg-[hsl(var(--surface-card)/0.82)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+              className="group/file flex min-w-0 items-center gap-3 rounded-[18px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.34)] px-3 py-2 text-left shadow-[0_12px_26px_hsl(var(--shadow-color)/0.05)] transition hover:-translate-y-0.5 hover:border-[hsl(var(--primary)/0.42)] hover:bg-[hsl(var(--surface-card)/0.82)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
               download={attachment.filename}
               data-content-type={attachment.contentType}
               data-filename={attachment.filename}
@@ -202,7 +200,7 @@ export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
               rel="noreferrer"
               target="_blank"
             >
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[hsl(var(--border)/0.7)] bg-white/72 text-app-soft shadow-sm">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[hsl(var(--border)/0.7)] bg-white/72 text-app-soft shadow-xs">
                 <FileText className="h-4 w-4" />
               </span>
               <span className="min-w-0 flex-1">
@@ -234,7 +232,7 @@ export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
               data-testid="message-attachment-unavailable"
               key={attachment.id}
             >
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[hsl(var(--border)/0.7)] bg-white/72 text-app-soft shadow-sm">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[hsl(var(--border)/0.7)] bg-white/72 text-app-soft shadow-xs">
                 <FileText className="h-4 w-4" />
               </span>
               <span className="min-w-0 flex-1">

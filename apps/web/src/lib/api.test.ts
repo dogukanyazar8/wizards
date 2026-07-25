@@ -9,6 +9,10 @@ const TestSchema = z.object({
   name: z.string(),
 });
 
+const CustomRequiredMessageSchema = z.object({
+  name: z.string({ error: "validation.name.required" }),
+});
+
 function jsonRequest(headers: HeadersInit = {}) {
   return new Request("https://whispr.team/api/v1/test", {
     body: JSON.stringify({ name: "Whispr" }),
@@ -73,6 +77,41 @@ describe("jsonError", () => {
     assert.equal(response.status, 400);
     assert.deepEqual(await response.json(), {
       error: "Required",
+    });
+  });
+
+  it("preserves an explicit safe Zod validation message", async () => {
+    const parseResult = CustomRequiredMessageSchema.safeParse({});
+    assert.equal(parseResult.success, false);
+
+    const response = jsonError(parseResult.error);
+
+    assert.equal(response.status, 400);
+    assert.deepEqual(await response.json(), {
+      error: "validation.name.required",
+    });
+  });
+
+  it("preserves legacy public messages for Zod default validation errors", async () => {
+    const arrayResult = z.array(z.string()).safeParse("not-an-array");
+    const minimumResult = z.string().min(1).safeParse("");
+    const uuidResult = z.string().uuid().safeParse("not-a-uuid");
+    assert.equal(arrayResult.success, false);
+    assert.equal(minimumResult.success, false);
+    assert.equal(uuidResult.success, false);
+
+    const arrayResponse = jsonError(arrayResult.error);
+    const minimumResponse = jsonError(minimumResult.error);
+    const uuidResponse = jsonError(uuidResult.error);
+
+    assert.deepEqual(await arrayResponse.json(), {
+      error: "Expected array, received string",
+    });
+    assert.deepEqual(await minimumResponse.json(), {
+      error: "String must contain at least 1 character(s)",
+    });
+    assert.deepEqual(await uuidResponse.json(), {
+      error: "Invalid uuid",
     });
   });
 

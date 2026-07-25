@@ -351,7 +351,7 @@ export function NotificationBell({
         ref={buttonRef}
         aria-label={t("notifications.bell.title")}
         className={cn(
-          "relative inline-flex h-10 w-10 items-center justify-center rounded-xl text-[hsl(var(--foreground)/0.7)] transition hover:bg-[hsl(var(--surface-soft)/0.42)] hover:text-[hsl(var(--foreground))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]",
+          "relative inline-flex h-10 w-10 items-center justify-center rounded-xl text-[hsl(var(--foreground)/0.7)] transition hover:bg-[hsl(var(--surface-soft)/0.42)] hover:text-[hsl(var(--foreground))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]",
           className,
         )}
         data-testid="notification-bell-button"
@@ -418,7 +418,7 @@ export function NotificationBell({
                       </div>
                       {unreadCount > 0 ? (
                         <button
-                          className="inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-full border border-[hsl(var(--primary)/0.28)] bg-[hsl(var(--primary))] px-2.5 text-[11px] font-semibold text-[hsl(var(--primary-foreground))] shadow-[0_10px_20px_hsl(var(--primary)/0.18)] transition hover:brightness-[1.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:opacity-50"
+                          className="inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-full border border-[hsl(var(--primary)/0.28)] bg-[hsl(var(--primary))] px-2.5 text-[11px] font-semibold text-[hsl(var(--primary-foreground))] shadow-[0_10px_20px_hsl(var(--primary)/0.18)] transition hover:brightness-[1.03] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:opacity-50"
                           disabled={markAllMutation.isPending}
                           onClick={() => markAllMutation.mutate()}
                           type="button"
@@ -480,7 +480,7 @@ export function NotificationBell({
                     <div className="border-t border-[hsl(var(--border)/0.58)] bg-[hsl(var(--surface-card)/0.78)] px-2.5 py-2.5">
                       <div className="flex items-center gap-2">
                         <button
-                          className="min-h-9 flex-1 rounded-xl border border-[hsl(var(--border)/0.68)] px-3 text-xs font-semibold text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.46)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                          className="min-h-9 flex-1 rounded-xl border border-[hsl(var(--border)/0.68)] px-3 text-xs font-semibold text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.46)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
                           onClick={() => {
                             closePopover();
                             router.push("/channels/@me");
@@ -490,7 +490,7 @@ export function NotificationBell({
                           {t("notifications.bell.seeAll")}
                         </button>
                         <button
-                          className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl border border-[hsl(var(--danger)/0.24)] bg-[hsl(var(--danger)/0.1)] px-2.5 text-xs font-semibold text-[hsl(var(--danger))] transition hover:bg-[hsl(var(--danger)/0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.45)] disabled:opacity-50"
+                          className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl border border-[hsl(var(--danger)/0.24)] bg-[hsl(var(--danger)/0.1)] px-2.5 text-xs font-semibold text-[hsl(var(--danger))] transition hover:bg-[hsl(var(--danger)/0.16)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.45)] disabled:opacity-50"
                           disabled={clearAllMutation.isPending}
                           onClick={() => clearAllMutation.mutate()}
                           type="button"
@@ -555,7 +555,7 @@ function NotificationItem({
       data-testid="notification-item"
     >
       <button
-        className="w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+        className="w-full text-left focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
         onClick={handleClick}
         type="button"
       >
@@ -645,7 +645,7 @@ function FriendRequestActions({
   return (
     <div className="flex gap-2">
       <button
-        className="min-h-8 flex-1 rounded-xl bg-[hsl(var(--primary))] px-2.5 text-[11px] font-semibold text-[hsl(var(--primary-foreground))] transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:opacity-50"
+        className="min-h-8 flex-1 rounded-xl bg-[hsl(var(--primary))] px-2.5 text-[11px] font-semibold text-[hsl(var(--primary-foreground))] transition hover:opacity-90 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:opacity-50"
         disabled={acceptMutation.isPending || declineMutation.isPending}
         onClick={() => acceptMutation.mutate()}
         type="button"
@@ -653,7 +653,7 @@ function FriendRequestActions({
         {t("notifications.actions.accept")}
       </button>
       <button
-        className="min-h-8 flex-1 rounded-xl border border-[hsl(var(--border)/0.66)] px-2.5 text-[11px] font-semibold text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.46)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:opacity-50"
+        className="min-h-8 flex-1 rounded-xl border border-[hsl(var(--border)/0.66)] px-2.5 text-[11px] font-semibold text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.46)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:opacity-50"
         disabled={acceptMutation.isPending || declineMutation.isPending}
         onClick={() => declineMutation.mutate()}
         type="button"

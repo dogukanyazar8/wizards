@@ -1,4 +1,5 @@
 import React, { type ComponentProps } from "react";
+import { StyleSheet } from "react-native";
 import { fireEvent } from "@testing-library/react-native";
 import { describe, expect, it, jest } from "@jest/globals";
 
@@ -17,6 +18,17 @@ const mockMobileAccountSettingsScreen = jest.fn(
 jest.mock("../src/app/screens/mobile-account-settings-screen", () => ({
   MobileAccountSettingsScreen: (props: { onBack(): void; presence: string | null }) =>
     mockMobileAccountSettingsScreen(props),
+}));
+
+const mockNavigate = jest.fn();
+
+jest.mock("../src/navigation/mobile-navigation-ref", () => ({
+  mobileNavigationRef: {
+    goBack: jest.fn(),
+    isReady: () => true,
+    navigate: (...args: unknown[]) => mockNavigate(...args),
+  },
+  navigateMobileRouteIntent: jest.fn(),
 }));
 
 jest.mock("../src/app/components/kit/bottom-sheet", () => {
@@ -123,7 +135,9 @@ function createPermissionReadiness(
   }));
 }
 
-function createReadyBootstrapState(): MobileBootstrapViewState {
+function createReadyBootstrapState(
+  userOverrides: Record<string, unknown> = {},
+): MobileBootstrapViewState {
   return {
     error: null,
     payload: {
@@ -133,11 +147,16 @@ function createReadyBootstrapState(): MobileBootstrapViewState {
       },
       user: {
         avatarUrl: null,
+        bannerColor: null,
+        bannerOffsetX: null,
+        bannerOffsetY: null,
+        bannerUrl: null,
         displayName: "Ada Test",
         id: "user-1",
         locale: "tr",
         status: "ONLINE",
         username: "ada_test",
+        ...userOverrides,
       },
     } as never,
     status: "ready",
@@ -226,9 +245,84 @@ describe("mobile profile settings screen", () => {
     );
 
     await fireEvent.press(view.getByTestId("mobile-profile-presence-open"));
-    await fireEvent.press(view.getByTestId("mobile-profile-presence-dnd"));
+    await fireEvent.press(view.getByTestId("mobile-profile-status-sheet-dnd"));
 
     expect(onUpdatePresence).toHaveBeenCalledWith("DND");
+  });
+
+  it("draws the saved banner on the identity card at its stored focal point", async () => {
+    const view = await render(
+      <ProfileSettingsScreen
+        {...createProfileSettingsScreenProps({
+          bootstrapState: createReadyBootstrapState({
+            bannerColor: "#22A366",
+            bannerOffsetX: 0.25,
+            bannerOffsetY: 0.8,
+            bannerUrl: "https://cdn.test/banner.png",
+          }),
+          socialActionsEnabled: true,
+        })}
+      />,
+    );
+
+    const image = view.getByTestId("mobile-profile-identity-banner-image");
+    expect(image.props.source).toMatchObject({ uri: "https://cdn.test/banner.png" });
+    // Same focal mapping as the editor preview, the card and the full page.
+    expect(image.props.contentPosition).toEqual({ left: "25%", top: "80%" });
+  });
+
+  it("falls back to the chosen banner colour when no banner image is set", async () => {
+    const view = await render(
+      <ProfileSettingsScreen
+        {...createProfileSettingsScreenProps({
+          bootstrapState: createReadyBootstrapState({ bannerColor: "#22A366" }),
+          socialActionsEnabled: true,
+        })}
+      />,
+    );
+
+    expect(view.queryByTestId("mobile-profile-identity-banner-image")).toBeNull();
+    expect(
+      StyleSheet.flatten(view.getByTestId("mobile-profile-identity-banner").props.style),
+    ).toMatchObject({ backgroundColor: "#22A366" });
+  });
+
+  it("opens the shared 2c status picker instead of the old button stack", async () => {
+    const view = await render(
+      <ProfileSettingsScreen
+        {...createProfileSettingsScreenProps({
+          bootstrapState: createReadyBootstrapState(),
+          onUpdatePresence: jest.fn(async () => undefined),
+          socialActionsEnabled: true,
+        })}
+      />,
+    );
+
+    await fireEvent.press(view.getByTestId("mobile-profile-presence-open"));
+
+    const options = view.getByTestId("mobile-profile-status-sheet-options");
+    expect(options.props.accessibilityRole).toBe("radiogroup");
+    // Görünmez, not OFFLINE: the hub now speaks the same four rows as the editor.
+    expect(view.getByTestId("mobile-profile-status-sheet-invisible")).toBeTruthy();
+    expect(view.queryByTestId("mobile-profile-presence-offline")).toBeNull();
+  });
+
+  it("marks the live presence row as the checked option", async () => {
+    const view = await render(
+      <ProfileSettingsScreen
+        {...createProfileSettingsScreenProps({
+          bootstrapState: createReadyBootstrapState(),
+          onUpdatePresence: jest.fn(async () => undefined),
+          socialActionsEnabled: true,
+        })}
+      />,
+    );
+
+    await fireEvent.press(view.getByTestId("mobile-profile-presence-open"));
+
+    expect(
+      view.getByTestId("mobile-profile-status-sheet-online").props.accessibilityState,
+    ).toMatchObject({ checked: true });
   });
 
   it("signs out from the rendered signed-in session action", async () => {
@@ -356,17 +450,27 @@ describe("mobile profile settings screen", () => {
     expect(terminalView.getAllByText(copy.settingsBlockedLabel).length).toBeGreaterThan(0);
   });
 
-  it("opens support and privacy destinations from their real actions", async () => {
+  it("opens support on the web and the legal texts inside the app", async () => {
     const onOpenPrivacyPolicy = jest.fn();
     const onOpenSupport = jest.fn();
     const props = createProfileSettingsScreenProps({ onOpenPrivacyPolicy, onOpenSupport });
     const view = await render(<ProfileSettingsScreen {...props} />);
 
     await fireEvent.press(view.getByLabelText(copy.settingsSupportAction));
-    await fireEvent.press(view.getByLabelText(copy.settingsPrivacyPolicyAction));
-
     expect(onOpenSupport).toHaveBeenCalledTimes(1);
-    expect(onOpenPrivacyPolicy).toHaveBeenCalledTimes(1);
+
+    // Legal documents no longer eject to the browser: they route to the in-app
+    // reader, which renders the same server-served text.
+    await fireEvent.press(view.getByLabelText(copy.settingsPrivacyPolicyAction));
+    await fireEvent.press(view.getByLabelText(copy.settingsTermsAction));
+    await fireEvent.press(view.getByLabelText(copy.settingsCookiesAction));
+
+    expect(onOpenPrivacyPolicy).not.toHaveBeenCalled();
+    expect(mockNavigate.mock.calls).toEqual([
+      ["LegalDocument", { documentId: "privacy" }],
+      ["LegalDocument", { documentId: "terms" }],
+      ["LegalDocument", { documentId: "cookies" }],
+    ]);
   });
 
   it("switches from ready health data to bootstrap and sync error notices", async () => {

@@ -13,7 +13,11 @@ import {
   WorkspaceMemberSchema,
 } from "./workspace";
 
-const MobileResourceIdSchema = z.string().trim().min(1).max(128);
+const MobileResourceIdSchema = z
+  .string()
+  .trim()
+  .min(1, { error: "String must contain at least 1 character" })
+  .max(128);
 
 function isHttpsUrl(value: string) {
   try {
@@ -437,7 +441,7 @@ export type MobileServerRoleParams = z.infer<typeof MobileServerRoleParamsSchema
 export type MobileManagedWorkspaceServerDetailResponse = z.infer<
   typeof MobileManagedWorkspaceServerDetailResponseSchema
 >;
-export type MobileServerCreateRequest = z.infer<typeof MobileServerCreateRequestSchema>;
+export type MobileServerCreateRequest = z.input<typeof MobileServerCreateRequestSchema>;
 export type MobileServerCreateResponse = z.infer<typeof MobileServerCreateResponseSchema>;
 export type MobileServerJoinRequest = z.infer<typeof MobileServerJoinRequestSchema>;
 export type MobileServerJoinResponse = z.infer<typeof MobileServerJoinResponseSchema>;

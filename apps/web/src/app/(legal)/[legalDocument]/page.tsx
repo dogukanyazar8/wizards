@@ -1,34 +1,14 @@
-import { readFile } from "node:fs/promises";
-import path from "node:path";
 import { ArrowLeft, CalendarDays, FileText, Mail, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-const LEGAL_DOCUMENTS = {
-  cookies: {
-    badge: "Çerez ve tercih yönetimi",
-    description:
-      "Whispr’in oturum, güvenlik, tercih ve performans amaçlı kullandığı teknolojiler.",
-    fileName: "cookies.txt",
-    title: "Çerez Politikası",
-  },
-  privacy: {
-    badge: "Kişisel veri güvenliği",
-    description:
-      "Whispr’de kişisel verilerin nasıl işlendiğini, saklandığını ve korunduğunu açıklar.",
-    fileName: "privacy.txt",
-    title: "Gizlilik Politikası",
-  },
-  terms: {
-    badge: "Hizmet kullanım koşulları",
-    description:
-      "Whispr’i kullanırken geçerli olan hesap, hizmet ve topluluk kurallarını açıklar.",
-    fileName: "terms.txt",
-    title: "Kullanım Şartları",
-  },
-} as const;
-
-type LegalDocumentId = keyof typeof LEGAL_DOCUMENTS;
+import {
+  LEGAL_DOCUMENTS,
+  getLegalDocumentLastUpdated,
+  getLegalLineKind,
+  isLegalDocumentId,
+  readLegalDocumentText,
+} from "@/lib/legal/legal-documents";
 
 type LegalDocumentPageProps = {
   params: Promise<{
@@ -36,50 +16,9 @@ type LegalDocumentPageProps = {
   }>;
 };
 
-function isLegalDocumentId(value: string): value is LegalDocumentId {
-  return Object.prototype.hasOwnProperty.call(LEGAL_DOCUMENTS, value);
-}
-
-async function readLegalDocument(documentId: LegalDocumentId) {
-  const documentPath = path.join(
-    process.cwd(),
-    "public",
-    "legal",
-    LEGAL_DOCUMENTS[documentId].fileName,
-  );
-
-  return readFile(documentPath, "utf8");
-}
-
-function getLineKind(line: string) {
-  const trimmed = line.trim();
-
-  if (!trimmed) {
-    return "spacer";
-  }
-
-  if (/^\d+\.\d+\./.test(trimmed)) {
-    return "subheading";
-  }
-
-  if (/^\d+\./.test(trimmed)) {
-    return "heading";
-  }
-
-  if (trimmed.startsWith("- ")) {
-    return "bullet";
-  }
-
-  if (/^(Son Güncelleme Tarihi|Proje \/ Hizmet|Planlanan Ticari Unvan|İletişim):/.test(trimmed)) {
-    return "meta";
-  }
-
-  return "paragraph";
-}
-
 function renderLegalLine(line: string, index: number) {
   const trimmed = line.trim();
-  const kind = getLineKind(line);
+  const kind = getLegalLineKind(line);
 
   if (kind === "spacer") {
     return <div className="legal-reference-spacer" key={`line-${index}`} aria-hidden="true" />;
@@ -139,12 +78,10 @@ export default async function LegalDocumentPage({ params }: LegalDocumentPagePro
   }
 
   const documentConfig = LEGAL_DOCUMENTS[legalDocument];
-  const documentText = await readLegalDocument(legalDocument);
+  const documentText = await readLegalDocumentText(legalDocument);
   const documentLines = documentText.split(/\r?\n/);
   const contentLines = documentLines.slice(1);
-  const lastUpdated =
-    documentLines.find((line) => line.startsWith("Son Güncelleme Tarihi:"))?.split(":")[1]?.trim() ??
-    "08.05.2026";
+  const lastUpdated = getLegalDocumentLastUpdated(documentLines) ?? "08.05.2026";
 
   return (
     <main className="legal-reference-page">

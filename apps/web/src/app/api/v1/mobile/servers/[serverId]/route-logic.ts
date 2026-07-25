@@ -139,8 +139,8 @@ function toMobileWorkspaceServerDetail(
   let hasMoreChannels =
     serviceHasMoreChannels || detail.categories.length > MOBILE_SERVER_CATEGORY_LIMIT;
   let remainingChannelSlots = MOBILE_SERVER_CHANNEL_LIMIT;
-  const categories = detail.categories
-    .slice(0, MOBILE_SERVER_CATEGORY_LIMIT)
+  const sourceCategories = detail.categories.slice(0, MOBILE_SERVER_CATEGORY_LIMIT);
+  const categories = sourceCategories
     .map((category) => {
       const categoryLimit = Math.min(
         MOBILE_SERVER_CATEGORY_CHANNEL_LIMIT,
@@ -161,7 +161,13 @@ function toMobileWorkspaceServerDetail(
         position: category.position,
       };
     })
-    .filter((category) => category.channels.length > 0);
+    // Same rule as the service: only a category the mobile budget emptied is
+    // dropped. One that has no channels at all is a real, addressable category
+    // and the client needs it to render (and to file new channels under).
+    .filter(
+      (category, index) =>
+        category.channels.length > 0 || sourceCategories[index]?.channels.length === 0,
+    );
 
   const ungroupedChannels =
     remainingChannelSlots > 0

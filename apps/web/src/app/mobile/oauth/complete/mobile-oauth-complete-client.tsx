@@ -86,7 +86,7 @@ export function MobileOAuthCompleteClient({
         </p>
 
         <a
-          className="mt-7 inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-[hsl(var(--primary))] px-5 py-3 text-sm font-semibold text-[hsl(var(--primary-foreground))] shadow-[0_18px_48px_hsl(var(--primary)/0.28)] transition hover:-translate-y-0.5 hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary)/0.5)] focus-visible:ring-offset-2 motion-reduce:hover:translate-y-0"
+          className="mt-7 inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-[hsl(var(--primary))] px-5 py-3 text-sm font-semibold text-[hsl(var(--primary-foreground))] shadow-[0_18px_48px_hsl(var(--primary)/0.28)] transition hover:-translate-y-0.5 hover:opacity-95 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary)/0.5)] focus-visible:ring-offset-2 motion-reduce:hover:translate-y-0"
           href={appHandoffUrl}
           onClick={() => {
             setOpenRequested(true);
@@ -106,7 +106,7 @@ export function MobileOAuthCompleteClient({
             </p>
             {closeBlocked ? (
               <button
-                className="mt-3 inline-flex min-h-9 items-center justify-center rounded-xl border border-[hsl(var(--primary)/0.24)] bg-[hsl(var(--background)/0.74)] px-3 text-xs font-bold text-[hsl(var(--primary))] transition hover:bg-[hsl(var(--primary)/0.1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary)/0.45)]"
+                className="mt-3 inline-flex min-h-9 items-center justify-center rounded-xl border border-[hsl(var(--primary)/0.24)] bg-[hsl(var(--background)/0.74)] px-3 text-xs font-bold text-[hsl(var(--primary))] transition hover:bg-[hsl(var(--primary)/0.1)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary)/0.45)]"
                 onClick={tryCloseBrowserTab}
                 type="button"
               >

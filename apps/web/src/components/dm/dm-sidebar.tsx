@@ -170,7 +170,7 @@ function DmFilterTabs({
           aria-selected={activeFilter === option.id}
           aria-disabled={option.disabled ? "true" : undefined}
           className={cn(
-            "inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.5)]",
+            "inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.5)]",
             activeFilter === option.id
               ? "border-[hsl(var(--primary)/0.32)] bg-[hsl(var(--primary)/0.13)] text-[hsl(var(--primary))]"
               : option.disabled
@@ -244,7 +244,7 @@ function DmEmptyState({
       <p className="mt-1 max-w-[15rem] text-xs leading-5 text-app-muted">{description}</p>
       {actionLabel && onAction ? (
         <button
-          className="mt-4 inline-flex min-h-9 items-center justify-center rounded-full border border-[hsl(var(--primary)/0.28)] bg-[hsl(var(--primary)/0.1)] px-3 text-xs font-semibold text-[hsl(var(--primary))] transition hover:bg-[hsl(var(--primary)/0.14)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.5)]"
+          className="mt-4 inline-flex min-h-9 items-center justify-center rounded-full border border-[hsl(var(--primary)/0.28)] bg-[hsl(var(--primary)/0.1)] px-3 text-xs font-semibold text-[hsl(var(--primary))] transition hover:bg-[hsl(var(--primary)/0.14)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.5)]"
           onClick={onAction}
           type="button"
         >
@@ -266,18 +266,14 @@ function DmRequestsSummary({
 }) {
   if (incomingRequests.length === 0) {
     return (
-      <DmEmptyState
-        description={text.emptyRequests}
-        icon={UserRoundPlus}
-        title={text.requests}
-      />
+      <DmEmptyState description={text.emptyRequests} icon={UserRoundPlus} title={text.requests} />
     );
   }
 
   return (
     <div className="space-y-2" data-testid="dm-requests-summary">
       <button
-        className="flex w-full items-center gap-3 rounded-[20px] bg-[hsl(var(--primary)/0.1)] px-3 py-3 text-left transition hover:bg-[hsl(var(--primary)/0.14)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.5)]"
+        className="flex w-full items-center gap-3 rounded-[20px] bg-[hsl(var(--primary)/0.1)] px-3 py-3 text-left transition hover:bg-[hsl(var(--primary)/0.14)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.5)]"
         onClick={onOpenFriends}
         type="button"
       >
@@ -298,7 +294,7 @@ function DmRequestsSummary({
 
         return (
           <button
-            className="flex w-full items-center gap-3 rounded-[18px] px-2.5 py-2 text-left transition hover:bg-[hsl(var(--surface-soft)/0.42)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
+            className="flex w-full items-center gap-3 rounded-[18px] px-2.5 py-2 text-left transition hover:bg-[hsl(var(--surface-soft)/0.42)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
             key={request.id}
             onClick={onOpenFriends}
             type="button"
@@ -362,7 +358,7 @@ function DmConversationItem({
       <button
         aria-current={item.isActive ? "page" : undefined}
         className={cn(
-          "relative flex min-h-16 w-full items-center gap-2.5 rounded-[18px] px-2 py-2 pr-9 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.5)]",
+          "relative flex min-h-16 w-full items-center gap-2.5 rounded-[18px] px-2 py-2 pr-9 text-left transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.5)]",
           item.isActive
             ? "bg-[linear-gradient(135deg,hsl(var(--primary)/0.16),hsl(var(--surface-soft)/0.28))] text-app-foreground shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.16)]"
             : "text-app-muted hover:bg-[hsl(var(--surface-soft)/0.42)] hover:text-app-foreground",
@@ -429,7 +425,7 @@ function DmConversationItem({
       <button
         aria-haspopup="menu"
         aria-label={text.moreActions(item.displayName)}
-        className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-[12px] bg-[hsl(var(--surface-card)/0.94)] text-app-muted opacity-100 shadow-[0_10px_24px_hsl(var(--shadow-color)/0.1)] transition hover:bg-[hsl(var(--surface-card))] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.5)] disabled:cursor-not-allowed disabled:opacity-50 md:opacity-0 md:focus-visible:opacity-100 md:group-hover:opacity-100"
+        className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-[12px] bg-[hsl(var(--surface-card)/0.94)] text-app-muted opacity-100 shadow-[0_10px_24px_hsl(var(--shadow-color)/0.1)] transition hover:bg-[hsl(var(--surface-card))] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.5)] disabled:cursor-not-allowed disabled:opacity-50 md:opacity-0 md:focus-visible:opacity-100 md:group-hover:opacity-100"
         disabled={isHidingConversation}
         onClick={(event) => {
           event.stopPropagation();
@@ -534,7 +530,7 @@ function DmConversationList({
       ))}
       {hasNextPage ? (
         <button
-          className="mt-3 flex min-h-10 w-full items-center justify-center gap-2 rounded-[16px] bg-[hsl(var(--surface-soft)/0.38)] px-3 text-xs font-semibold text-app-muted transition hover:bg-[hsl(var(--surface-soft)/0.62)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.5)] disabled:cursor-not-allowed disabled:opacity-60"
+          className="mt-3 flex min-h-10 w-full items-center justify-center gap-2 rounded-[16px] bg-[hsl(var(--surface-soft)/0.38)] px-3 text-xs font-semibold text-app-muted transition hover:bg-[hsl(var(--surface-soft)/0.62)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.5)] disabled:cursor-not-allowed disabled:opacity-60"
           disabled={isFetchingNextPage}
           onClick={onLoadMore}
           type="button"
@@ -586,7 +582,7 @@ function DmQuickStart({
   return (
     <div className="shrink-0 border-t border-[hsl(var(--border)/0.34)] px-1 pb-2 pt-2.5 sm:px-1.5">
       <button
-        className="flex min-h-11 w-full items-center gap-2.5 rounded-[17px] bg-[hsl(var(--surface-card)/0.72)] px-2.5 py-2 text-left text-sm font-bold text-app-foreground shadow-[0_12px_28px_hsl(var(--shadow-color)/0.05)] transition hover:bg-[hsl(var(--surface-card)/0.92)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+        className="flex min-h-11 w-full items-center gap-2.5 rounded-[17px] bg-[hsl(var(--surface-card)/0.72)] px-2.5 py-2 text-left text-sm font-bold text-app-foreground shadow-[0_12px_28px_hsl(var(--shadow-color)/0.05)] transition hover:bg-[hsl(var(--surface-card)/0.92)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
         data-testid="dm-quick-start"
         onClick={onStartNewChat}
         onMouseEnter={() => onPrefetch?.(href)}
@@ -652,7 +648,7 @@ export function DmSidebar({
           </div>
           <button
             aria-label={text.friends}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] bg-[hsl(var(--surface-soft)/0.5)] text-app-muted transition hover:bg-[hsl(var(--surface-soft)/0.76)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.5)]"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] bg-[hsl(var(--surface-soft)/0.5)] text-app-muted transition hover:bg-[hsl(var(--surface-soft)/0.76)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.5)]"
             onClick={() => onNavigate("/channels/@me")}
             onMouseEnter={() => onPrefetch?.("/channels/@me")}
             type="button"
@@ -668,7 +664,7 @@ export function DmSidebar({
             value={searchQuery}
           />
           <button
-            className="flex min-h-10 w-full items-center justify-center gap-2 rounded-[16px] border border-[hsl(var(--primary)/0.24)] bg-[hsl(var(--primary))] px-3.5 text-sm font-bold text-[hsl(var(--primary-foreground))] shadow-[0_14px_30px_hsl(var(--primary)/0.2),inset_0_1px_0_hsl(var(--background)/0.24)] transition hover:bg-[hsl(var(--primary)/0.92)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+            className="flex min-h-10 w-full items-center justify-center gap-2 rounded-[16px] border border-[hsl(var(--primary)/0.24)] bg-[hsl(var(--primary))] px-3.5 text-sm font-bold text-[hsl(var(--primary-foreground))] shadow-[0_14px_30px_hsl(var(--primary)/0.2),inset_0_1px_0_hsl(var(--background)/0.24)] transition hover:bg-[hsl(var(--primary)/0.92)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
             data-testid="dm-new-chat-button"
             onClick={onStartNewChat}
             onMouseEnter={() => onPrefetch?.("/channels/@me?dmAction=new")}
@@ -714,7 +710,9 @@ export function DmSidebar({
               onSetConversationMuted={onSetConversationMuted}
               text={text}
             />
-            {activeFilter === "all" && !hasSearch ? <DmBotNotificationsPreview text={text} /> : null}
+            {activeFilter === "all" && !hasSearch ? (
+              <DmBotNotificationsPreview text={text} />
+            ) : null}
           </>
         ) : (
           <DmEmptyState

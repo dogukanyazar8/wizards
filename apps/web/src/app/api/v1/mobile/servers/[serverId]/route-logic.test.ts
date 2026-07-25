@@ -264,6 +264,64 @@ describe("mobile server detail route logic", () => {
     assert.equal(body.detail.ungroupedChannels[0]?.lastMessage?.text, "Canonical preview text");
   });
 
+  it("returns a category with no channels but drops one the mobile budget emptied", async () => {
+    const { mobileServerDetailRoute } = await routes;
+    const channels = Array.from({ length: 40 }, (_, index) => ({
+      canAccess: true,
+      categoryId: "category-full",
+      id: `channel-${index}`,
+      locked: false,
+      mentionCount: 0,
+      name: `channel-${index}`,
+      position: index,
+      readOnly: false,
+      topic: null,
+      type: "TEXT" as const,
+      unreadCount: 0,
+    }));
+    const boundedDetail = {
+      ...mobileProjection,
+      categories: [
+        { channels, id: "category-full", name: "Full", position: 0 },
+        // Beyond the channel budget: this one has channels but none survive, so
+        // showing an empty header would be a lie.
+        {
+          channels: [{ ...channels[0]!, categoryId: "category-spill", id: "channel-spill" }],
+          id: "category-spill",
+          name: "Spill",
+          position: 1,
+        },
+        // Genuinely empty — a category someone just created.
+        { channels: [], id: "category-empty", name: "Duyurular", position: 2 },
+      ],
+      ungroupedChannels: [],
+    } satisfies WorkspaceServerDetail;
+
+    const response = await mobileServerDetailRoute(
+      request("GET"),
+      context({ serverId: "server-1" }),
+      dependencies({
+        getServerDetailWithAccess: async () => ({
+          access,
+          detail: boundedDetail,
+          hasMoreChannels: false,
+        }),
+      }),
+    );
+    const body = (await response.json()) as {
+      detail: { categories: Array<{ channels: unknown[]; id: string }> };
+    };
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(
+      body.detail.categories.map((category) => [category.id, category.channels.length]),
+      [
+        ["category-full", 40],
+        ["category-empty", 0],
+      ],
+    );
+  });
+
   it("caps each category at 40 channels and treats the 41st row as a conservative sentinel", async () => {
     const { mobileServerDetailRoute } = await routes;
 

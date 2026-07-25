@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  type CSSProperties,
-  type Ref,
-  useEffect,
-  useId,
-  useRef,
-  useState,
-} from "react";
+import { type CSSProperties, type Ref, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   Copy,
@@ -127,10 +120,7 @@ export function MessageToolbar({
     const handlePointerDown = (event: PointerEvent) => {
       const target = event.target as Node;
 
-      if (
-        reactionRootRef.current?.contains(target) ||
-        reactionMenuRef.current?.contains(target)
-      ) {
+      if (reactionRootRef.current?.contains(target) || reactionMenuRef.current?.contains(target)) {
         return;
       }
 
@@ -186,7 +176,7 @@ export function MessageToolbar({
               <button
                 key={emoji}
                 aria-label={t("chat.message.reactWith", { emoji })}
-                className="flex h-11 w-11 items-center justify-center rounded-full text-lg transition hover:bg-app-surface-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] md:h-auto md:w-auto md:px-2 md:py-1 md:text-base"
+                className="flex h-11 w-11 items-center justify-center rounded-full text-lg transition hover:bg-app-surface-soft focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] md:h-auto md:w-auto md:px-2 md:py-1 md:text-base"
                 data-emoji={emoji}
                 data-testid="reaction-option"
                 onClick={() => {
@@ -206,7 +196,7 @@ export function MessageToolbar({
 
   if (variant === "hover") {
     const hoverButtonClassName =
-      "flex h-7 w-7 items-center justify-center rounded-md text-app-muted transition hover:bg-app-surface-soft hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]";
+      "flex h-7 w-7 items-center justify-center rounded-md text-app-muted transition hover:bg-app-surface-soft hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]";
 
     return (
       <div
@@ -292,7 +282,7 @@ export function MessageToolbar({
           <button
             onClick={() => setShowReactionMenu((current) => !current)}
             title={t("chat.message.react")}
-            className="flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-app-surface-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-auto sm:w-auto sm:rounded sm:p-1"
+            className="flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-app-surface-soft focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-auto sm:w-auto sm:rounded sm:p-1"
             aria-expanded={showReactionMenu}
             aria-haspopup="menu"
             aria-label={t("chat.message.addReaction")}
@@ -311,7 +301,7 @@ export function MessageToolbar({
         <button
           onClick={onThread}
           title={t("chat.thread.open")}
-          className="flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-app-surface-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-auto sm:w-auto sm:rounded sm:p-1"
+          className="flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-app-surface-soft focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-auto sm:w-auto sm:rounded sm:p-1"
           aria-label={t("chat.thread.open")}
           data-testid="message-action-thread"
           type="button"
@@ -323,7 +313,7 @@ export function MessageToolbar({
       <button
         onClick={onReply}
         title={t("chat.message.reply")}
-        className="flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-app-surface-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-auto sm:w-auto sm:rounded sm:p-1"
+        className="flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-app-surface-soft focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-auto sm:w-auto sm:rounded sm:p-1"
         aria-label={t("chat.message.replyAria")}
         data-testid="message-action-reply"
         type="button"
@@ -335,7 +325,7 @@ export function MessageToolbar({
         <button
           onClick={onCopyLink}
           title={t("chat.message.copyLink")}
-          className="flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-app-surface-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-auto sm:w-auto sm:rounded sm:p-1"
+          className="flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-app-surface-soft focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-auto sm:w-auto sm:rounded sm:p-1"
           aria-label={t("chat.message.copyLink")}
           data-testid="message-action-copy-link"
           type="button"
@@ -348,7 +338,7 @@ export function MessageToolbar({
         <button
           onClick={onCopyRawText}
           title={t("chat.message.copyRawText")}
-          className="flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-app-surface-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-auto sm:w-auto sm:rounded sm:p-1"
+          className="flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-app-surface-soft focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-auto sm:w-auto sm:rounded sm:p-1"
           aria-label={t("chat.message.copyRawText")}
           data-testid="message-action-copy-raw"
           type="button"
@@ -361,7 +351,7 @@ export function MessageToolbar({
         <button
           onClick={onPin}
           title={isPinned ? t("chat.message.unpin") : t("chat.message.pin")}
-          className="flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-app-surface-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-auto sm:w-auto sm:rounded sm:p-1"
+          className="flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-app-surface-soft focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-auto sm:w-auto sm:rounded sm:p-1"
           aria-label={isPinned ? t("chat.message.unpin") : t("chat.message.pin")}
           data-testid={isPinned ? "message-action-unpin" : "message-action-pin"}
           type="button"
@@ -378,7 +368,7 @@ export function MessageToolbar({
         <button
           onClick={onEdit}
           title={t("chat.message.edit")}
-          className="flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-app-surface-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-auto sm:w-auto sm:rounded sm:p-1"
+          className="flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-app-surface-soft focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:h-auto sm:w-auto sm:rounded sm:p-1"
           aria-label={t("chat.message.editAria")}
           data-testid="message-action-edit"
           type="button"
@@ -391,7 +381,7 @@ export function MessageToolbar({
         <button
           onClick={onDelete}
           title={t("chat.message.delete")}
-          className="flex h-9 w-9 items-center justify-center rounded-full text-app-danger transition hover:bg-[hsl(var(--danger)/0.14)] hover:text-app-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.45)] sm:h-auto sm:w-auto sm:rounded sm:p-1"
+          className="flex h-9 w-9 items-center justify-center rounded-full text-app-danger transition hover:bg-[hsl(var(--danger)/0.14)] hover:text-app-danger focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.45)] sm:h-auto sm:w-auto sm:rounded sm:p-1"
           aria-label={t("chat.message.deleteAria")}
           data-testid="message-action-delete"
           type="button"

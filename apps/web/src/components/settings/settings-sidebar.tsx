@@ -90,7 +90,7 @@ function SettingsSearch() {
       <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-app-soft transition group-focus-within:text-[hsl(var(--primary))]" />
       <input
         aria-label={t("settings.search.placeholder")}
-        className="h-9 w-full rounded-[13px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface)/0.9)] pl-9 pr-12 text-xs font-medium text-app-foreground shadow-[inset_0_1px_0_hsl(var(--surface-highlight)/0.5)] outline-none transition placeholder:text-app-soft focus:border-[hsl(var(--primary)/0.45)] focus:ring-4 focus:ring-[hsl(var(--primary)/0.12)]"
+        className="h-9 w-full rounded-[13px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface)/0.9)] pl-9 pr-12 text-xs font-medium text-app-foreground shadow-[inset_0_1px_0_hsl(var(--surface-highlight)/0.5)] outline-hidden transition placeholder:text-app-soft focus:border-[hsl(var(--primary)/0.45)] focus:ring-4 focus:ring-[hsl(var(--primary)/0.12)]"
         id={searchId}
         placeholder={t("settings.search.placeholder")}
         type="search"
@@ -121,7 +121,7 @@ function SettingsNavItem({
     <button
       aria-current={active ? "page" : undefined}
       className={cn(
-        "group relative flex min-h-9 w-full items-center gap-2 overflow-hidden rounded-lg px-2.5 py-1.5 text-left text-[13px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--surface))]",
+        "group relative flex min-h-9 w-full items-center gap-2 overflow-hidden rounded-lg px-2.5 py-1.5 text-left text-[13px] font-semibold transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--surface))]",
         active
           ? "bg-[linear-gradient(90deg,hsl(var(--primary)/0.16),hsl(var(--primary)/0.08))] text-[hsl(var(--primary))] shadow-[0_16px_35px_hsl(var(--primary)/0.12)]"
           : nested
@@ -179,7 +179,7 @@ function SettingsSection({
         aria-controls={contentId}
         aria-expanded={expanded}
         className={cn(
-          "group flex min-h-8 w-full items-center gap-2 rounded-lg px-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--surface))]",
+          "group flex min-h-8 w-full items-center gap-2 rounded-lg px-2 text-left transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--surface))]",
           active
             ? "bg-[hsl(var(--primary)/0.08)] text-[hsl(var(--primary))]"
             : expanded
@@ -433,13 +433,13 @@ export function SettingsSidebar({
       ? voiceItems
       : section === "desktop"
         ? desktopItems
-      : section === "appearance"
-        ? appearanceItems
-        : section === "notifications"
-          ? notificationItems
-          : section === "about"
-            ? aboutItems
-            : [];
+        : section === "appearance"
+          ? appearanceItems
+          : section === "notifications"
+            ? notificationItems
+            : section === "about"
+              ? aboutItems
+              : [];
 
   return (
     <>
@@ -450,7 +450,7 @@ export function SettingsSidebar({
         <SettingsCard className="w-full min-w-0 max-w-full overflow-hidden p-2">
           <div className="flex items-center justify-between gap-3">
             {renderBackToChannels(
-              "inline-flex min-h-10 items-center gap-2 rounded-xl border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface)/0.86)] px-3 text-xs font-bold text-app-foreground shadow-[0_8px_22px_hsl(var(--shadow-color)/0.05)] transition hover:bg-[hsl(var(--surface-soft)/0.82)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+              "inline-flex min-h-10 items-center gap-2 rounded-xl border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface)/0.86)] px-3 text-xs font-bold text-app-foreground shadow-[0_8px_22px_hsl(var(--shadow-color)/0.05)] transition hover:bg-[hsl(var(--surface-soft)/0.82)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
             )}
             <p className="text-app-soft text-[11px] font-bold uppercase tracking-[0.22em]">
               {t("common.settings")}
@@ -482,7 +482,7 @@ export function SettingsSidebar({
                 <button
                   aria-current={isActive ? "page" : undefined}
                   className={cn(
-                    "inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-xl border px-2.5 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                    "inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-xl border px-2.5 text-xs font-bold transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
                     isActive
                       ? "border-[hsl(var(--primary)/0.36)] bg-[hsl(var(--primary)/0.13)] text-[hsl(var(--primary))] shadow-[inset_0_-2px_0_hsl(var(--primary)/0.42)]"
                       : "border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface)/0.72)] text-app-muted hover:text-app-foreground",
@@ -512,7 +512,7 @@ export function SettingsSidebar({
                   <button
                     aria-current={isActive ? "page" : undefined}
                     className={cn(
-                      "inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-xl border px-2.5 text-[11px] font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                      "inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-xl border px-2.5 text-[11px] font-bold transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
                       isActive
                         ? "border-[hsl(var(--primary)/0.34)] bg-[hsl(var(--primary)/0.12)] text-[hsl(var(--primary))] shadow-[inset_0_-2px_0_hsl(var(--primary)/0.4)]"
                         : "border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface)/0.68)] text-app-muted hover:text-app-foreground",
@@ -534,7 +534,7 @@ export function SettingsSidebar({
 
       <aside
         className={cn(
-            "hidden overflow-hidden rounded-[22px] border border-[hsl(var(--border)/0.66)] bg-[linear-gradient(180deg,hsl(var(--surface)/0.96),hsl(var(--surface-soft)/0.58))] p-2.5 shadow-[0_14px_40px_hsl(var(--shadow-color)/0.06)] backdrop-blur-xl lg:flex lg:flex-col",
+          "hidden overflow-hidden rounded-[22px] border border-[hsl(var(--border)/0.66)] bg-[linear-gradient(180deg,hsl(var(--surface)/0.96),hsl(var(--surface-soft)/0.58))] p-2.5 shadow-[0_14px_40px_hsl(var(--shadow-color)/0.06)] backdrop-blur-xl lg:flex lg:flex-col",
           mode === "dialog"
             ? "h-full min-h-0"
             : "h-[calc(100dvh-2rem)] min-h-[600px] lg:sticky lg:top-4",
@@ -553,7 +553,7 @@ export function SettingsSidebar({
         </div>
 
         {renderBackToChannels(
-          "mt-3 inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface)/0.82)] px-3 text-xs font-bold text-app-foreground shadow-[0_10px_24px_hsl(var(--shadow-color)/0.05)] transition hover:bg-[hsl(var(--surface-soft)/0.82)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+          "mt-3 inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface)/0.82)] px-3 text-xs font-bold text-app-foreground shadow-[0_10px_24px_hsl(var(--shadow-color)/0.05)] transition hover:bg-[hsl(var(--surface-soft)/0.82)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
         )}
 
         <div className="mt-3">
@@ -569,7 +569,7 @@ export function SettingsSidebar({
 
         <nav
           aria-label={t("settings.title")}
-        className="settings-scrollbar mt-3 min-h-0 flex-1 space-y-3 overflow-y-auto pr-1"
+          className="settings-scrollbar mt-3 min-h-0 flex-1 space-y-3 overflow-y-auto pr-1"
         >
           <SettingsSection
             active={section === "account" && openGroups.account}

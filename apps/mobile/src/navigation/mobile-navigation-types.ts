@@ -1,4 +1,5 @@
 import type { NavigatorScreenParams } from "@react-navigation/native";
+import type { MobileLegalDocumentId } from "@wizards/types";
 import type { MobileDeepLinkIntent } from "../deep-link/mobile-deep-links";
 
 export type MobileBottomTabParamList = {
@@ -33,6 +34,8 @@ export type MobileRootStackParamList = {
     readonly userId: string;
   };
   BlockedUsers: undefined;
+  /** In-app reader for the same legal texts the web serves. */
+  LegalDocument: { readonly documentId: MobileLegalDocumentId };
   Security: undefined;
   /**
    * 11f shared-media gallery. `userId` is the other participant, carried so a

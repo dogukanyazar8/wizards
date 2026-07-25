@@ -180,8 +180,9 @@ export function MobileWorkspaceEditorSheets({
 
   const currentCategoryName =
     categoryId === null
-      ? "No category"
-      : (detail.categories.find((item) => item.id === categoryId)?.name ?? "No category");
+      ? labels.workspaceChannelNoCategoryLabel
+      : (detail.categories.find((item) => item.id === categoryId)?.name ??
+        labels.workspaceChannelNoCategoryLabel);
   const isPending =
     mutations.createCategory.isPending ||
     mutations.updateCategory.isPending ||
@@ -191,7 +192,9 @@ export function MobileWorkspaceEditorSheets({
   return (
     <>
       <BottomSheet
-        accessibilityLabel={isCategoryEditor ? labels.workspaceEditorCategory : labels.workspaceEditorChannel}
+        accessibilityLabel={
+          isCategoryEditor ? labels.workspaceEditorCategory : labels.workspaceEditorChannel
+        }
         onClose={onClose}
         open={isOpen}
         presentation={sheetPresentation}

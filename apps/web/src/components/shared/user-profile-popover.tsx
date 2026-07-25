@@ -207,18 +207,19 @@ export function UserProfilePopover({
         role="button"
         tabIndex={0}
         data-testid={testId}
-        className="cursor-pointer rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+        className="cursor-pointer rounded-full focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
       >
         {children}
       </div>
 
-      {open && popoverPos &&
+      {open &&
+        popoverPos &&
         createPortal(
           <>
             {isMobileViewport ? (
               <motion.div
                 animate={{ opacity: 1 }}
-                className="fixed inset-0 z-[90] bg-[hsl(var(--background)/0.58)] backdrop-blur-sm"
+                className="fixed inset-0 z-[90] bg-[hsl(var(--background)/0.58)] backdrop-blur-xs"
                 exit={{ opacity: 0 }}
                 initial={{ opacity: 0 }}
                 onClick={() => setOpen(false)}
@@ -237,88 +238,84 @@ export function UserProfilePopover({
                 ? {}
                 : { style: { left: `${popoverPos.x}px`, top: `${popoverPos.y}px` } })}
               initial={
-                isMobileViewport
-                  ? { opacity: 0, y: 28 }
-                  : { opacity: 0, scale: 0.95, y: -8 }
+                isMobileViewport ? { opacity: 0, y: 28 } : { opacity: 0, scale: 0.95, y: -8 }
               }
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={
-                isMobileViewport
-                  ? { opacity: 0, y: 28 }
-                  : { opacity: 0, scale: 0.95, y: -8 }
-              }
+              exit={isMobileViewport ? { opacity: 0, y: 28 } : { opacity: 0, scale: 0.95, y: -8 }}
               transition={{ duration: 0.15 }}
             >
-            <button
-              aria-label={t("common.close")}
-              className="absolute right-3 top-3 z-10 rounded-full border border-[hsl(var(--border)/0.55)] bg-[hsl(var(--surface-overlay)/0.84)] p-2 text-app-muted backdrop-blur transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-              onClick={() => setOpen(false)}
-              type="button"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
+              <button
+                aria-label={t("common.close")}
+                className="absolute right-3 top-3 z-10 rounded-full border border-[hsl(var(--border)/0.55)] bg-[hsl(var(--surface-overlay)/0.84)] p-2 text-app-muted backdrop-blur transition hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                onClick={() => setOpen(false)}
+                type="button"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
 
-            <div
-              className="h-24 w-full bg-[linear-gradient(135deg,hsl(var(--primary)/0.28),hsl(var(--ambient-2)/0.2),hsl(var(--surface-soft)/0.6))]"
-              style={{
-                backgroundColor: profileQuery.data?.bannerColor ?? undefined,
-                backgroundImage: profileQuery.data?.bannerUrl
-                  ? `url(${profileQuery.data.bannerUrl})`
-                  : undefined,
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-              }}
-            />
+              <div
+                className="h-24 w-full bg-[linear-gradient(135deg,hsl(var(--primary)/0.28),hsl(var(--ambient-2)/0.2),hsl(var(--surface-soft)/0.6))]"
+                style={{
+                  backgroundColor: profileQuery.data?.bannerColor ?? undefined,
+                  backgroundImage: profileQuery.data?.bannerUrl
+                    ? `url(${profileQuery.data.bannerUrl})`
+                    : undefined,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                }}
+              />
 
-            <div className="relative px-4 pb-4">
-              <div className="-mt-11 mb-3">
-                <Avatar
-                  src={profileQuery.data?.avatarUrl}
-                  alt={profileQuery.data?.displayName || "User"}
-                  className="h-20 w-20 border-4 border-[hsl(var(--surface-card))]"
-                  fallback={(profileQuery.data?.displayName ?? "?")[0] ?? "?"}
-                />
-              </div>
-
-              <div className="mb-4">
-                <h3 className="text-lg font-semibold text-app-foreground">
-                  {profileQuery.data?.displayName || "Unknown"}
-                </h3>
-                <p className="text-sm text-app-muted">
-                  @{profileQuery.data?.username || "unknown"}
-                </p>
-                {profileQuery.data?.customStatus && (
-                  <p className="mt-2 rounded-2xl border border-[hsl(var(--border)/0.65)] bg-[hsl(var(--surface-soft)/0.42)] px-3 py-2 text-xs text-app-muted">
-                    {profileQuery.data.customStatus}
-                  </p>
-                )}
-                {profileQuery.data?.bio && (
-                  <p className="mt-2 text-sm leading-6 text-app-muted">
-                    {profileQuery.data.bio}
-                  </p>
-                )}
-              </div>
-
-              <div className="app-panel-soft space-y-1 rounded-[20px] border px-3 py-3 text-xs text-app-muted">
-                <div>
-                  {t("profile.memberSince", {
-                    date: new Date(profileQuery.data?.createdAt ?? 0).toLocaleDateString(),
-                  })}
+              <div className="relative px-4 pb-4">
+                <div className="-mt-11 mb-3">
+                  <Avatar
+                    src={profileQuery.data?.avatarUrl}
+                    alt={profileQuery.data?.displayName || "User"}
+                    className="h-20 w-20 border-4 border-[hsl(var(--surface-card))]"
+                    fallback={(profileQuery.data?.displayName ?? "?")[0] ?? "?"}
+                  />
                 </div>
-                {serverId && profileQuery.data?.serverNickname && (
+
+                <div className="mb-4">
+                  <h3 className="text-lg font-semibold text-app-foreground">
+                    {profileQuery.data?.displayName || "Unknown"}
+                  </h3>
+                  <p className="text-sm text-app-muted">
+                    @{profileQuery.data?.username || "unknown"}
+                  </p>
+                  {profileQuery.data?.customStatus && (
+                    <p className="mt-2 rounded-2xl border border-[hsl(var(--border)/0.65)] bg-[hsl(var(--surface-soft)/0.42)] px-3 py-2 text-xs text-app-muted">
+                      {profileQuery.data.customStatus}
+                    </p>
+                  )}
+                  {profileQuery.data?.bio && (
+                    <p className="mt-2 text-sm leading-6 text-app-muted">{profileQuery.data.bio}</p>
+                  )}
+                </div>
+
+                <div className="app-panel-soft space-y-1 rounded-[20px] border px-3 py-3 text-xs text-app-muted">
                   <div>
-                    {t("profile.serverNickname")}: {profileQuery.data.serverNickname}
+                    {t("profile.memberSince", {
+                      date: new Date(profileQuery.data?.createdAt ?? 0).toLocaleDateString(),
+                    })}
                   </div>
+                  {serverId && profileQuery.data?.serverNickname && (
+                    <div>
+                      {t("profile.serverNickname")}: {profileQuery.data.serverNickname}
+                    </div>
+                  )}
+                </div>
+
+                {!isSelf && (
+                  <ActionButtons
+                    state={relationshipState}
+                    userId={userId}
+                    onSetBlockedByThem={setBlockedByThem}
+                  />
+                )}
+                {isSelf && (
+                  <div className="mt-4 text-center text-sm text-app-muted">This is you</div>
                 )}
               </div>
-
-              {!isSelf && <ActionButtons state={relationshipState} userId={userId} onSetBlockedByThem={setBlockedByThem} />}
-              {isSelf && (
-                <div className="mt-4 text-center text-sm text-app-muted">
-                  This is you
-                </div>
-              )}
-            </div>
             </motion.div>
           </>,
           document.body,
@@ -352,9 +349,7 @@ function ActionButtons({
 
   if (state === "blocked_by_them") {
     return (
-      <div className="mt-4 text-center text-sm text-app-muted">
-        {t("profile.blockedByThem")}
-      </div>
+      <div className="mt-4 text-center text-sm text-app-muted">{t("profile.blockedByThem")}</div>
     );
   }
 
@@ -394,9 +389,7 @@ function ActionButtons({
         </>
       )}
 
-      {state === "blocked_by_me" && (
-        <UnblockButton userId={userId} />
-      )}
+      {state === "blocked_by_me" && <UnblockButton userId={userId} />}
     </div>
   );
 }
@@ -418,10 +411,13 @@ function AddFriendButton({
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: friendsQueryKeys.pending });
       const prev = queryClient.getQueryData(friendsQueryKeys.pending);
-      queryClient.setQueryData(friendsQueryKeys.pending, (old: PendingFriendsResponse | undefined) => ({
-        ...old,
-        outgoing: [...(old?.outgoing || []), { id: "temp", receiverId: userId }],
-      }));
+      queryClient.setQueryData(
+        friendsQueryKeys.pending,
+        (old: PendingFriendsResponse | undefined) => ({
+          ...old,
+          outgoing: [...(old?.outgoing || []), { id: "temp", receiverId: userId }],
+        }),
+      );
       return { prev };
     },
     onError: (error: Error, _, ctx) => {
@@ -454,10 +450,13 @@ function CancelRequestButton({ requestId }: { requestId: string }) {
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: friendsQueryKeys.pending });
       const prev = queryClient.getQueryData(friendsQueryKeys.pending);
-      queryClient.setQueryData(friendsQueryKeys.pending, (old: PendingFriendsResponse | undefined) => ({
-        ...old,
-        outgoing: old?.outgoing?.filter((r) => r.id !== requestId) || [],
-      }));
+      queryClient.setQueryData(
+        friendsQueryKeys.pending,
+        (old: PendingFriendsResponse | undefined) => ({
+          ...old,
+          outgoing: old?.outgoing?.filter((r) => r.id !== requestId) || [],
+        }),
+      );
       return { prev };
     },
     onError: (_, __, ctx) => {

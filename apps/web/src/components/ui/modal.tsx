@@ -140,7 +140,7 @@ export function Modal({
 
               <button
                 aria-label={closeLabel}
-                className="app-panel-soft text-app-muted flex min-h-11 min-w-11 items-center justify-center rounded-full border p-2 transition hover:opacity-90 hover:text-[hsl(var(--foreground))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:min-h-0 sm:min-w-0"
+                className="app-panel-soft text-app-muted flex min-h-11 min-w-11 items-center justify-center rounded-full border p-2 transition hover:opacity-90 hover:text-[hsl(var(--foreground))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:min-h-0 sm:min-w-0"
                 onClick={onClose}
                 type="button"
               >

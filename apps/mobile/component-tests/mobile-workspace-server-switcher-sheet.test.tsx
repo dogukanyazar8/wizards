@@ -3,7 +3,10 @@ import { StyleSheet } from "react-native";
 import { fireEvent } from "@testing-library/react-native";
 import { describe, expect, it, jest } from "@jest/globals";
 
-import { MobileWorkspaceServerSwitcherSheet } from "../src/app/screens/mobile-workspace-server-switcher-sheet";
+import {
+  createMobileWorkspaceServerSwitcherSheetStyles,
+  MobileWorkspaceServerSwitcherSheet,
+} from "../src/app/screens/mobile-workspace-server-switcher-sheet";
 import { lightTheme } from "../src/design/themes";
 import { renderWithMobileTheme as render } from "./render-with-mobile-theme";
 
@@ -85,6 +88,27 @@ describe("MobileWorkspaceServerSwitcherSheet", () => {
     ).toMatchObject({
       paddingBottom: lightTheme.spacing.page + 48,
     });
+  });
+
+  it("scales the 1c rows down and marks the active server with a heavy accent ring", async () => {
+    const styles = createMobileWorkspaceServerSwitcherSheetStyles(lightTheme);
+
+    expect(styles.serverRow).toMatchObject({
+      borderRadius: 18,
+      gap: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+    });
+    expect(styles.serverRow).not.toHaveProperty("minHeight");
+    expect(styles.serverRowSelected).toMatchObject({
+      borderColor: lightTheme.accent.strong,
+      borderWidth: 1.5,
+    });
+    expect(styles.serverName).toMatchObject({ fontSize: 15 });
+    expect(styles.serverMeta).toMatchObject({ fontSize: 11.5 });
+    expect(styles.unreadBadge).toMatchObject({ minHeight: 20, minWidth: 20 });
+    expect(styles.newServerRow).not.toHaveProperty("minHeight");
+    expect(styles.newServerIcon).toMatchObject({ borderRadius: 16, height: 46, width: 46 });
   });
 
   it("sizes the panel from its content and caps it before the sheet fills the screen", async () => {

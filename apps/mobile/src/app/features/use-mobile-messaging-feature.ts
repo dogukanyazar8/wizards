@@ -48,6 +48,7 @@ import {
   type MobileMessageReactionMutationVariables,
   type MobileMessageEditMutationVariables,
 } from "../../query/use-mobile-message-mutations";
+import { useMobileNotificationUnreadCount } from "../../notifications/mobile-notification-query";
 import { useMobileWorkspaceQuery } from "../../query/mobile-workspace-query";
 import { useMobileWorkspacePrefetch } from "../../query/mobile-workspace-prefetch";
 import { useMobileQueryClient } from "../providers/mobile-query-provider";
@@ -74,6 +75,8 @@ import {
 import { getVisibleMobileSyncHealth, type MobileSyncHealthDomain } from "../mobile-screen-sync";
 import type { MobileSyncSnapshot, MobileSyncSource } from "../../sync/mobile-sync-contract";
 import { activeMobileCopy } from "../../locale/mobile-locale-preferences";
+import { useMobileAccountLocaleSync } from "../../locale/use-mobile-account-locale-sync";
+import { useMobileLocaleRuntime } from "../providers/mobile-locale-provider";
 import { createMobileGiphyAttachment } from "../../media/mobile-giphy-client";
 import { getMobileDMReadTarget } from "../../dm/mobile-dm-client";
 import type { MobileForwardSendInput } from "../components/message-forward-sheet";
@@ -193,6 +196,7 @@ export function useMobileMessagingFeature({
   const [messageSearchInput, setMessageSearchInput] = useState<MobileMessageSearchInput>(
     INITIAL_MESSAGE_SEARCH_INPUT,
   );
+  const { locale: runtimeLocale } = useMobileLocaleRuntime();
   const bootstrapQuery = useMobileBootstrapQuery(apiClient, isSignedIn);
   const dmConversationsQuery = useMobileDMConversationsQuery(apiClient, isSignedIn);
   const workspaceQuery = useMobileWorkspaceQuery(apiClient, selectedWorkspaceServerId ?? "");
@@ -335,6 +339,19 @@ export function useMobileMessagingFeature({
     [dmConversationsQuery.data],
   );
   const directMessageUnreadCount = getMobileDMUnreadCount(dmConversationsQuery.data);
+  // Bottom-tab notification badge. Shares the unfiltered feed key with the
+  // notifications screen, so the realtime notification invalidation already
+  // keeps the count live without a second endpoint.
+  const notificationUnreadCount = useMobileNotificationUnreadCount(apiClient, isSignedIn);
+  // Mention bodies and pushes are translated server-side from `User.locale`, so
+  // the account has to follow the app's language or a Turkish app keeps getting
+  // English notifications.
+  useMobileAccountLocaleSync({
+    accountLocale: bootstrapQuery.data?.user.locale ?? null,
+    client: apiClient,
+    isSignedIn,
+    locale: runtimeLocale,
+  });
   const workspaceServerState = useMemo(
     () =>
       toMobileWorkspaceViewState(
@@ -1192,6 +1209,7 @@ export function useMobileMessagingFeature({
     loadMoreDMConversations,
     loadMoreDMMessages,
     loadMoreChannelMessages,
+    notificationUnreadCount,
     dmMessagesState,
     dmSyncState,
     getSyncHealth,

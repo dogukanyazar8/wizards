@@ -358,6 +358,28 @@ export function patchMobileProfileBannerCaches(input: {
       return { ...current, profile: { ...profile, ...banner } };
     },
   );
+
+  // The profile hub draws its identity card from bootstrap, not from
+  // `userProfile`, so without this the saved banner only appeared after the next
+  // cold bootstrap fetch — which is what "banner does not show on the profile
+  // screen" looked like.
+  queryClient.setQueryData<MobileBootstrapPayload>(mobileQueryKeys.bootstrap(), (current) => {
+    if (!current || current.user.id !== userId) {
+      return current;
+    }
+
+    const { user } = current;
+    if (
+      user.bannerColor === banner.bannerColor &&
+      user.bannerUrl === banner.bannerUrl &&
+      user.bannerOffsetX === banner.bannerOffsetX &&
+      user.bannerOffsetY === banner.bannerOffsetY
+    ) {
+      return current;
+    }
+
+    return { ...current, user: { ...user, ...banner } };
+  });
 }
 
 export function patchMobileProfileIdentityCaches(input: {

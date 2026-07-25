@@ -1,14 +1,6 @@
 "use client";
 
-import {
-  ImagePlus,
-  LoaderCircle,
-  Move,
-  RotateCcw,
-  Trash2,
-  Upload,
-  ZoomIn,
-} from "lucide-react";
+import { ImagePlus, LoaderCircle, Move, RotateCcw, Trash2, Upload, ZoomIn } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -365,9 +357,7 @@ export function ProfileAvatarField({
       closeCropModal();
     } catch (saveError) {
       setError(
-        saveError instanceof Error
-          ? saveError.message
-          : t("settings.account.avatar.errors.save"),
+        saveError instanceof Error ? saveError.message : t("settings.account.avatar.errors.save"),
       );
     } finally {
       setIsSaving(false);
@@ -391,9 +381,7 @@ export function ProfileAvatarField({
       publishAccountUpdate(result.user);
     } catch (clearError) {
       setError(
-        clearError instanceof Error
-          ? clearError.message
-          : t("settings.account.avatar.errors.save"),
+        clearError instanceof Error ? clearError.message : t("settings.account.avatar.errors.save"),
       );
     } finally {
       setIsSaving(false);
@@ -450,18 +438,22 @@ export function ProfileAvatarField({
         />
 
         <button
-          className="inline-flex min-h-9 w-full items-center justify-center gap-2 rounded-xl border border-[hsl(var(--primary)/0.28)] bg-[hsl(var(--primary)/0.12)] px-3 text-xs font-semibold text-[hsl(var(--primary-text-emphasis,var(--primary)))] transition hover:bg-[hsl(var(--primary)/0.18)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex min-h-9 w-full items-center justify-center gap-2 rounded-xl border border-[hsl(var(--primary)/0.28)] bg-[hsl(var(--primary)/0.12)] px-3 text-xs font-semibold text-[hsl(var(--primary-text-emphasis,var(--primary)))] transition hover:bg-[hsl(var(--primary)/0.18)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-60"
           data-testid="profile-avatar-choose"
           disabled={isBusy || !uploadthingEnabled}
           onClick={() => inputRef.current?.click()}
           type="button"
         >
-          {isBusy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
+          {isBusy ? (
+            <LoaderCircle className="h-4 w-4 animate-spin" />
+          ) : (
+            <ImagePlus className="h-4 w-4" />
+          )}
           {t("settings.account.avatar.choose")}
         </button>
 
         <button
-          className="inline-flex min-h-9 w-full items-center justify-center gap-2 rounded-xl border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.58)] px-3 text-xs font-semibold text-app-muted transition hover:bg-[hsl(var(--surface-card)/0.86)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-55"
+          className="inline-flex min-h-9 w-full items-center justify-center gap-2 rounded-xl border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.58)] px-3 text-xs font-semibold text-app-muted transition hover:bg-[hsl(var(--surface-card)/0.86)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-55"
           data-testid="profile-avatar-clear"
           disabled={isBusy || !account.avatarUrl}
           onClick={() => {
@@ -540,7 +532,7 @@ export function ProfileAvatarField({
                 </div>
 
                 <button
-                  className="inline-flex min-h-9 w-full items-center justify-center gap-2 rounded-xl border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.58)] px-3 text-xs font-semibold text-app-muted transition hover:bg-[hsl(var(--surface-card)/0.86)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-55"
+                  className="inline-flex min-h-9 w-full items-center justify-center gap-2 rounded-xl border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.58)] px-3 text-xs font-semibold text-app-muted transition hover:bg-[hsl(var(--surface-card)/0.86)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-55"
                   disabled={isBusy}
                   onClick={() =>
                     setCropDraft((current) =>
@@ -579,7 +571,7 @@ export function ProfileAvatarField({
 
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <button
-                className="inline-flex min-h-9 items-center justify-center rounded-xl border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.54)] px-4 text-xs font-semibold text-app-muted transition hover:bg-[hsl(var(--surface-card)/0.86)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                className="inline-flex min-h-9 items-center justify-center rounded-xl border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.54)] px-4 text-xs font-semibold text-app-muted transition hover:bg-[hsl(var(--surface-card)/0.86)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
                 disabled={isBusy}
                 onClick={closeCropModal}
                 type="button"
@@ -587,7 +579,7 @@ export function ProfileAvatarField({
                 {t("common.cancel")}
               </button>
               <button
-                className="inline-flex min-h-9 items-center justify-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-4 text-xs font-semibold text-white shadow-[0_14px_30px_hsl(var(--primary)/0.2)] transition hover:bg-[hsl(var(--primary)/0.9)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-wait disabled:opacity-70"
+                className="inline-flex min-h-9 items-center justify-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-4 text-xs font-semibold text-white shadow-[0_14px_30px_hsl(var(--primary)/0.2)] transition hover:bg-[hsl(var(--primary)/0.9)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-wait disabled:opacity-70"
                 data-testid="profile-avatar-save-crop"
                 disabled={isBusy}
                 onClick={() => {
@@ -595,7 +587,11 @@ export function ProfileAvatarField({
                 }}
                 type="button"
               >
-                {isBusy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                {isBusy ? (
+                  <LoaderCircle className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Upload className="h-4 w-4" />
+                )}
                 {isBusy
                   ? t("settings.account.avatar.uploading", { progress })
                   : t("settings.account.avatar.save")}

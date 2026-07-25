@@ -66,7 +66,7 @@ export function ContextMenu({ children, onClose, open, position }: ContextMenuPr
           {isMobileViewport ? (
             <motion.div
               animate={{ opacity: 1 }}
-              className="fixed inset-0 z-[89] bg-[hsl(var(--background)/0.48)] backdrop-blur-sm"
+              className="fixed inset-0 z-[89] bg-[hsl(var(--background)/0.48)] backdrop-blur-xs"
               exit={{ opacity: 0 }}
               initial={{ opacity: 0 }}
             />
@@ -120,7 +120,7 @@ export function ContextMenuItem({
   return (
     <button
       className={cn(
-        "text-app-foreground flex w-full items-center rounded-xl px-3 py-2 text-left text-sm transition hover:bg-[hsl(var(--surface-soft)/0.72)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+        "text-app-foreground flex w-full items-center rounded-xl px-3 py-2 text-left text-sm transition hover:bg-[hsl(var(--surface-soft)/0.72)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
         "min-h-11 md:min-h-0",
         "disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-transparent",
         destructive &&

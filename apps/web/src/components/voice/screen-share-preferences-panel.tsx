@@ -267,7 +267,7 @@ export function ScreenSharePreferencesPanel() {
               </div>
               <button
                 className={cn(
-                  "inline-flex min-h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                  "inline-flex min-h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
                   isScreenSharing
                     ? "border-[hsl(var(--danger)/0.28)] bg-[hsl(var(--danger)/0.10)] text-[hsl(var(--danger))] hover:bg-[hsl(var(--danger)/0.14)]"
                     : "border-[hsl(var(--primary)/0.32)] bg-[hsl(var(--primary)/0.12)] text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/0.18)]",
@@ -335,7 +335,7 @@ export function ScreenSharePreferencesPanel() {
               <button
                 aria-pressed={isSelected}
                 className={cn(
-                  "min-h-[5.75rem] rounded-[16px] border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                  "min-h-[5.75rem] rounded-[16px] border p-3 text-left transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
                   isSelected
                     ? "border-[hsl(var(--primary)/0.42)] bg-[hsl(var(--primary)/0.12)] shadow-[0_16px_36px_hsl(var(--primary)/0.10)]"
                     : "border-[hsl(var(--border)/0.68)] bg-[hsl(var(--background)/0.58)] hover:border-[hsl(var(--primary)/0.30)] hover:bg-[hsl(var(--primary)/0.06)]",

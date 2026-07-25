@@ -24,13 +24,7 @@ interface DesktopInvitePromptProps {
   labels: DesktopInvitePromptLabels;
 }
 
-function InviteFeature({
-  children,
-  icon,
-}: {
-  children: ReactNode;
-  icon: ReactNode;
-}) {
+function InviteFeature({ children, icon }: { children: ReactNode; icon: ReactNode }) {
   return (
     <li className="app-panel-soft flex items-start gap-3 rounded-2xl border px-4 py-3 text-left text-sm leading-6 text-app-muted">
       <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[hsl(var(--primary)/0.12)] text-[hsl(var(--primary))]">
@@ -67,7 +61,7 @@ export function DesktopInvitePrompt({
         <div className="mt-7 grid gap-3 sm:grid-cols-2">
           {desktopInviteUrl ? (
             <a
-              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-[hsl(var(--primary))] px-5 py-3 text-sm font-semibold text-[hsl(var(--primary-foreground))] shadow-[0_18px_48px_hsl(var(--primary)/0.28)] transition hover:-translate-y-0.5 hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary)/0.5)] focus-visible:ring-offset-2 motion-reduce:hover:translate-y-0"
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-[hsl(var(--primary))] px-5 py-3 text-sm font-semibold text-[hsl(var(--primary-foreground))] shadow-[0_18px_48px_hsl(var(--primary)/0.28)] transition hover:-translate-y-0.5 hover:opacity-95 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary)/0.5)] focus-visible:ring-offset-2 motion-reduce:hover:translate-y-0"
               href={desktopInviteUrl}
               onClick={() => setDesktopOpenRequested(true)}
             >
@@ -78,7 +72,7 @@ export function DesktopInvitePrompt({
 
           <form action={acceptAction}>
             <button
-              className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[hsl(var(--border)/0.72)] bg-white/78 px-5 py-3 text-sm font-semibold text-app-foreground transition hover:bg-[hsl(var(--surface-muted)/0.7)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary)/0.4)] focus-visible:ring-offset-2"
+              className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[hsl(var(--border)/0.72)] bg-white/78 px-5 py-3 text-sm font-semibold text-app-foreground transition hover:bg-[hsl(var(--surface-muted)/0.7)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary)/0.4)] focus-visible:ring-offset-2"
               type="submit"
             >
               {labels.browserAction}

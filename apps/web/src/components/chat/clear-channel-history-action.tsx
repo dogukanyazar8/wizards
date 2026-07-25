@@ -7,15 +7,8 @@ import { Button } from "@wizards/ui";
 import { useI18n } from "@/components/providers/locale-provider";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
-import {
-  clearChannelMessagesRequest,
-  workspaceQueryKeys,
-} from "@/lib/workspace/client";
-import {
-  getMessagesQueryKey,
-  resetMessagePages,
-  type MessagePages,
-} from "@/hooks/use-messages";
+import { clearChannelMessagesRequest, workspaceQueryKeys } from "@/lib/workspace/client";
+import { getMessagesQueryKey, resetMessagePages, type MessagePages } from "@/hooks/use-messages";
 
 type ClearChannelHistoryActionProps = {
   channelId: string;
@@ -32,15 +25,9 @@ export function ClearChannelHistoryAction({
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [confirmationValue, setConfirmationValue] = useState("");
-  const expectedConfirmationValue = useMemo(
-    () => `#${channelName}`,
-    [channelName],
-  );
+  const expectedConfirmationValue = useMemo(() => `#${channelName}`, [channelName]);
 
-  const queryKey = useMemo(
-    () => getMessagesQueryKey("channel", channelId),
-    [channelId],
-  );
+  const queryKey = useMemo(() => getMessagesQueryKey("channel", channelId), [channelId]);
   const confirmationMatches = confirmationValue === expectedConfirmationValue;
 
   const mutation = useMutation<
@@ -55,8 +42,7 @@ export function ClearChannelHistoryAction({
         queryKey,
       });
 
-      const previousMessages =
-        queryClient.getQueryData<MessagePages>(queryKey);
+      const previousMessages = queryClient.getQueryData<MessagePages>(queryKey);
 
       queryClient.setQueryData<MessagePages>(queryKey, resetMessagePages());
 
@@ -106,7 +92,7 @@ export function ClearChannelHistoryAction({
   return (
     <>
       <button
-        className="inline-flex items-center gap-2 rounded-2xl border border-[hsl(var(--danger)/0.22)] bg-[hsl(var(--danger)/0.08)] px-3 py-2 text-xs font-semibold text-[hsl(var(--danger))] transition hover:bg-[hsl(var(--danger)/0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.28)]"
+        className="inline-flex items-center gap-2 rounded-2xl border border-[hsl(var(--danger)/0.22)] bg-[hsl(var(--danger)/0.08)] px-3 py-2 text-xs font-semibold text-[hsl(var(--danger))] transition hover:bg-[hsl(var(--danger)/0.12)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--danger)/0.28)]"
         onClick={openModal}
         type="button"
       >

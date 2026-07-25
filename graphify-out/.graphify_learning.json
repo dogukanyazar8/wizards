@@ -1,0 +1,22 @@
+{
+  "generated_at": "2026-07-25T08:49:41.080924+00:00",
+  "nodes": {
+    "apps_mobile_src_navigation_mobile_bottom_tab_bar_tabicons": {
+      "code_fingerprint": "e191b4650f577a0f4032a82a666e753aaf8f6a406c2786cdeac54ef1f5e3fbf0",
+      "label": "tabIcons",
+      "last": "2026-07-25T08:48:17.083241+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-25T08:48:17.083241+00:00",
+          "outcome": "useful",
+          "q": "Mobil uygulamada navigation bar için hangi ikon paketini kullanıyoruz?"
+        }
+      ],
+      "score": 0.999977538,
+      "source_file": "apps/mobile/src/navigation/mobile-bottom-tab-bar.tsx",
+      "status": "tentative",
+      "uses": 1
+    }
+  },
+  "version": 1
+}

@@ -68,12 +68,17 @@ import { MobileLanguageSettingsScreen } from "./mobile-language-settings-screen"
 import { MobileNotificationSettingsScreen } from "./mobile-notification-settings-screen";
 import { MobileSecuritySettingsScreen } from "./mobile-security-settings-screen";
 import { SocialAccountQuickActions } from "../../social/social-account-screens";
-import { BottomSheet, Button, DestructiveConfirmationSheet, Skeleton } from "../components/kit";
+import { Button, DestructiveConfirmationSheet, Skeleton } from "../components/kit";
 import { Avatar } from "../components/kit/avatar";
 import { mobileNavigationRef } from "../../navigation/mobile-navigation-ref";
 import { useMobileHaptics } from "../providers/mobile-haptics-provider";
 import { useMobileWorkspaceLayoutPreference } from "../providers/mobile-workspace-layout-provider";
 import type { MobileFriendPresenceStatus } from "../../social/mobile-social-client";
+import type { MobileLegalDocumentId } from "@wizards/types";
+import { MobileCachedImage } from "../components/mobile-cached-image";
+import { mobileBannerContentPosition } from "../../social/mobile-banner-offset";
+import { MobileStatusPickerSheetView } from "../../social/mobile-status-picker-sheet";
+import { toMobilePresenceStatus } from "../../social/mobile-status-picker-model";
 
 const MOBILE_PROFILE_PRESENCE_STATUSES: readonly MobileFriendPresenceStatus[] = [
   "ONLINE",
@@ -81,6 +86,12 @@ const MOBILE_PROFILE_PRESENCE_STATUSES: readonly MobileFriendPresenceStatus[] = 
   "DND",
   "OFFLINE",
 ];
+
+function openMobileLegalDocument(documentId: MobileLegalDocumentId): void {
+  if (mobileNavigationRef.isReady()) {
+    mobileNavigationRef.navigate("LegalDocument", { documentId });
+  }
+}
 
 function getMobileProfilePresenceStatus(value: string | null): MobileFriendPresenceStatus | null {
   return MOBILE_PROFILE_PRESENCE_STATUSES.includes(value as MobileFriendPresenceStatus)
@@ -175,7 +186,9 @@ export function MobileProfileSettingsHub({
   const [isPresencePickerOpen, setIsPresencePickerOpen] = useState(false);
   const [isSignOutConfirmationOpen, setIsSignOutConfirmationOpen] = useState(false);
   const [isUpdatingPresence, setIsUpdatingPresence] = useState(false);
-  const [optimisticPresence, setOptimisticPresence] = useState<MobileFriendPresenceStatus | null>(null);
+  const [optimisticPresence, setOptimisticPresence] = useState<MobileFriendPresenceStatus | null>(
+    null,
+  );
   const [presenceError, setPresenceError] = useState<string | null>(null);
   const profileCopy = mobileCopy[locale];
   const isSecureSessionActive = sessionDiagnostics.hasSession && !sessionDiagnostics.isExpired;
@@ -190,7 +203,8 @@ export function MobileProfileSettingsHub({
         : copy.settingsThemeSystemValue;
   const localeLabel =
     locale === "tr" ? copy.settingsLanguageTurkishValue : copy.settingsLanguageEnglishValue;
-  const visiblePresence = optimisticPresence ?? getMobileProfilePresenceStatus(user?.status ?? null);
+  const visiblePresence =
+    optimisticPresence ?? getMobileProfilePresenceStatus(user?.status ?? null);
   const selectPresence = async (nextPresence: MobileFriendPresenceStatus) => {
     if (!onUpdatePresence || isUpdatingPresence) {
       return;
@@ -222,15 +236,32 @@ export function MobileProfileSettingsHub({
         {bootstrapState.status === "error" ? (
           <View style={styles.mobileProfileStateCard} testID="mobile-settings-profile-error">
             <Text style={styles.mobileProfileStateText}>{profileCopy.profileHubError}</Text>
-            <Button label={copy.retryAction} onPress={onRefreshBootstrap} testID="mobile-settings-profile-retry" />
+            <Button
+              label={copy.retryAction}
+              onPress={onRefreshBootstrap}
+              testID="mobile-settings-profile-retry"
+            />
           </View>
         ) : (
           <View style={styles.mobileProfileStateCard} testID="mobile-settings-profile-loading">
-            <Skeleton borderRadius={24} height={72} testID="mobile-settings-profile-loading-banner" />
-            <Skeleton borderRadius={26} height={76} testID="mobile-settings-profile-loading-avatar" width={76} />
+            <Skeleton
+              borderRadius={24}
+              height={72}
+              testID="mobile-settings-profile-loading-banner"
+            />
+            <Skeleton
+              borderRadius={26}
+              height={76}
+              testID="mobile-settings-profile-loading-avatar"
+              width={76}
+            />
             <Skeleton height={20} testID="mobile-settings-profile-loading-name" width="54%" />
             <Skeleton height={16} testID="mobile-settings-profile-loading-handle" width="38%" />
-            <Skeleton borderRadius={14} height={44} testID="mobile-settings-profile-loading-status" />
+            <Skeleton
+              borderRadius={14}
+              height={44}
+              testID="mobile-settings-profile-loading-status"
+            />
           </View>
         )}
       </ScrollView>
@@ -245,7 +276,24 @@ export function MobileProfileSettingsHub({
     >
       <Text style={styles.mobileProfileHubTitle}>{copy.tabProfile}</Text>
       <View style={styles.mobileProfileIdentityCard} testID="mobile-profile-identity-card">
-        <View style={styles.mobileProfileIdentityBanner} />
+        <View
+          style={[
+            styles.mobileProfileIdentityBanner,
+            user?.bannerColor ? { backgroundColor: user.bannerColor } : null,
+          ]}
+          testID="mobile-profile-identity-banner"
+        >
+          {user?.bannerUrl ? (
+            <MobileCachedImage
+              accessibilityIgnoresInvertColors
+              contentPosition={mobileBannerContentPosition(user.bannerOffsetX, user.bannerOffsetY)}
+              importantForAccessibility="no"
+              source={{ uri: user.bannerUrl }}
+              style={styles.mobileProfileIdentityBannerImage}
+              testID="mobile-profile-identity-banner-image"
+            />
+          ) : null}
+        </View>
         <View style={styles.mobileProfileIdentityBody}>
           <View style={styles.mobileProfileIdentityTopRow}>
             <View style={styles.mobileProfileAvatarRing}>
@@ -314,7 +362,10 @@ export function MobileProfileSettingsHub({
             accessibilityState={{ disabled: !onUpdatePresence || isUpdatingPresence }}
             disabled={!onUpdatePresence || isUpdatingPresence}
             onPress={() => setIsPresencePickerOpen(true)}
-            style={({ pressed }) => [styles.mobileProfileStatusRow, pressed && styles.actionButtonPressed]}
+            style={({ pressed }) => [
+              styles.mobileProfileStatusRow,
+              pressed && styles.actionButtonPressed,
+            ]}
             testID="mobile-profile-presence-open"
           >
             <View
@@ -332,10 +383,14 @@ export function MobileProfileSettingsHub({
                 },
               ]}
             />
-            <Text style={styles.mobileProfileStatusText}>{getMobileProfilePresenceLabel(locale, visiblePresence)}</Text>
+            <Text style={styles.mobileProfileStatusText}>
+              {getMobileProfilePresenceLabel(locale, visiblePresence)}
+            </Text>
             <Ionicons name="chevron-down" size={16} color={theme.text.soft} />
           </Pressable>
-          {presenceError ? <Text style={styles.mobileProfileStatusError}>{presenceError}</Text> : null}
+          {presenceError ? (
+            <Text style={styles.mobileProfileStatusError}>{presenceError}</Text>
+          ) : null}
         </View>
       </View>
 
@@ -351,7 +406,11 @@ export function MobileProfileSettingsHub({
           iconTone="success"
           label={profileCopy.profileHubSecurity}
           onPress={() => navigateToMobileSettingsDetail("security")}
-          value={isSecureSessionActive ? profileCopy.profileHubSecurityActive : profileCopy.profileHubSecurityActionRequired}
+          value={
+            isSecureSessionActive
+              ? profileCopy.profileHubSecurityActive
+              : profileCopy.profileHubSecurityActionRequired
+          }
           valueTone={isSecureSessionActive ? "success" : "default"}
         />
         <MobileProfileHubRow
@@ -393,25 +452,16 @@ export function MobileProfileSettingsHub({
           showChevron={false}
         />
       </View>
-      <BottomSheet
-        accessibilityLabel={copy.profilePresenceAction}
+      <MobileStatusPickerSheetView
+        customStatus={null}
+        customStatusEmoji={null}
+        failed={presenceError !== null}
         onClose={() => setIsPresencePickerOpen(false)}
+        onSelect={(option) => void selectPresence(toMobilePresenceStatus(option))}
         open={isPresencePickerOpen}
-        testID="mobile-profile-presence-sheet"
-      >
-        <View style={styles.mobileProfilePresenceSheet}>
-          {MOBILE_PROFILE_PRESENCE_STATUSES.map((presence) => (
-            <Button
-              busy={isUpdatingPresence}
-              key={presence}
-              label={getMobileProfilePresenceLabel(locale, presence)}
-              onPress={() => void selectPresence(presence)}
-              testID={`mobile-profile-presence-${presence.toLowerCase()}`}
-              variant="secondary"
-            />
-          ))}
-        </View>
-      </BottomSheet>
+        pending={isUpdatingPresence}
+        presence={visiblePresence}
+      />
       <DestructiveConfirmationSheet
         body={profileCopy.profileHubSignOutBody}
         busy={false}
@@ -464,7 +514,10 @@ function MobileProfileHubRow({
       accessibilityLabel={label}
       accessibilityRole="button"
       onPress={onPress}
-      style={({ pressed }) => [styles.mobileProfileSettingsRow, pressed && styles.actionButtonPressed]}
+      style={({ pressed }) => [
+        styles.mobileProfileSettingsRow,
+        pressed && styles.actionButtonPressed,
+      ]}
     >
       <View
         style={[
@@ -477,7 +530,12 @@ function MobileProfileHubRow({
       >
         <Ionicons name={icon} size={17} color={iconColor} />
       </View>
-      <Text style={[styles.mobileProfileSettingsRowLabel, danger && styles.mobileProfileSettingsRowLabelDanger]}>
+      <Text
+        style={[
+          styles.mobileProfileSettingsRowLabel,
+          danger && styles.mobileProfileSettingsRowLabelDanger,
+        ]}
+      >
         {label}
       </Text>
       {value ? (
@@ -2211,9 +2269,12 @@ export function ProfileSettingsScreen({
       <MobileAboutSettingsScreen
         appVersion={appVersion}
         onBack={onBack ?? (() => mobileNavigationRef.isReady() && mobileNavigationRef.goBack())}
+        // Legal texts open in-app now; they are the same server-rendered document
+        // the web shows, so there is no reason to eject the user to a browser.
+        onOpenCookies={() => openMobileLegalDocument("cookies")}
         onOpenFeedback={onOpenSupport}
-        onOpenPrivacy={onOpenPrivacyPolicy}
-        onOpenTerms={onOpenTerms}
+        onOpenPrivacy={() => openMobileLegalDocument("privacy")}
+        onOpenTerms={() => openMobileLegalDocument("terms")}
         releaseChannel={releaseChannel}
         serviceOnline={bootstrapState.status === "ready"}
       />
@@ -2262,10 +2323,10 @@ export function ProfileSettingsScreen({
           onSignOut={onSignOut}
         />
         <SettingsSupportLegalCard
-          onOpenCookies={onOpenCookies}
-          onOpenPrivacyPolicy={onOpenPrivacyPolicy}
+          onOpenCookies={() => openMobileLegalDocument("cookies")}
+          onOpenPrivacyPolicy={() => openMobileLegalDocument("privacy")}
           onOpenSupport={onOpenSupport}
-          onOpenTerms={onOpenTerms}
+          onOpenTerms={() => openMobileLegalDocument("terms")}
         />
         <SettingsPreferenceSection
           description={copy.settingsAppearanceDescription}

@@ -626,11 +626,10 @@ export function getMobileWorkspaceChannelSections(
     });
   }
 
+  // An empty category is still a section. Skipping it made a freshly created
+  // category invisible on mobile, which read as "creating a category does
+  // nothing" — the header is also the entry point for adding the first channel.
   for (const category of detail.categories) {
-    if (category.channels.length === 0) {
-      continue;
-    }
-
     sections.push({
       channels: category.channels,
       id: category.id,
@@ -654,25 +653,31 @@ export function filterMobileWorkspaceChannelSections(
     }));
   }
 
-  return sections
-    .map((section) => {
-      const sectionMatches = section.name.toLowerCase().includes(normalizedQuery);
-      const channels = sectionMatches
-        ? section.channels
-        : section.channels.filter((channel) =>
-            [channel.name, channel.topic, channel.categoryName, channel.type]
-              .filter(Boolean)
-              .join(" ")
-              .toLowerCase()
-              .includes(normalizedQuery),
-          );
+  return (
+    sections
+      .map((section) => {
+        const sectionMatches = section.name.toLowerCase().includes(normalizedQuery);
+        const channels = sectionMatches
+          ? section.channels
+          : section.channels.filter((channel) =>
+              [channel.name, channel.topic, channel.categoryName, channel.type]
+                .filter(Boolean)
+                .join(" ")
+                .toLowerCase()
+                .includes(normalizedQuery),
+            );
 
-      return {
-        ...section,
-        channels: [...channels],
-      };
-    })
-    .filter((section) => section.channels.length > 0);
+        return {
+          ...section,
+          channels: [...channels],
+          matchesName: sectionMatches,
+        };
+      })
+      // Search still drops sections nothing matched in, but a category whose own
+      // name matches survives even with no channels under it.
+      .filter((section) => section.channels.length > 0 || section.matchesName)
+      .map(({ matchesName: _matchesName, ...section }) => section)
+  );
 }
 
 export function getVisibleMobileWorkspaceChannelSections(

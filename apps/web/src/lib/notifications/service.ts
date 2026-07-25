@@ -2,6 +2,7 @@ import { prisma } from "@wizards/db";
 import type { NotificationType, Prisma } from "@wizards/db";
 import type { MobileNotificationsQuery, MobileNotificationsResponse } from "@wizards/types";
 import { ApiError } from "@/lib/api";
+import { emitServerUnreadUpdateToUser } from "@/lib/workspace/unread-service";
 import type { NotificationDTO } from "./types";
 
 type NotificationRow = Prisma.NotificationGetPayload<{
@@ -188,17 +189,21 @@ export async function listMobileNotifications(
       const channelId = getNotificationMetadataString(notificationMetadata, "channelId");
       const serverId =
         getNotificationMetadataString(notificationMetadata, "serverId") ??
-        (channelId ? channelMap.get(channelId)?.serverId ?? null : null);
+        (channelId ? (channelMap.get(channelId)?.serverId ?? null) : null);
       const messageId = getNotificationMetadataString(notificationMetadata, "messageId");
-      const preview = getNotificationMetadataString(notificationMetadata, "threadReplyPreview", 240);
+      // `messagePreview` is the mention's own text; `threadReplyPreview` predates
+      // it and still backs thread replies, so both feed the same quote line.
+      const preview =
+        getNotificationMetadataString(notificationMetadata, "messagePreview", 240) ??
+        getNotificationMetadataString(notificationMetadata, "threadReplyPreview", 240);
       const eventKind = getMobileNotificationEventKind(notificationMetadata);
       const friendRequestId = getNotificationMetadataString(
         notificationMetadata,
         "friendRequestId",
       );
-      const actor = senderId ? userMap.get(senderId) ?? null : null;
-      const channel = channelId ? channelMap.get(channelId) ?? null : null;
-      const server = serverId ? serverMap.get(serverId) ?? null : null;
+      const actor = senderId ? (userMap.get(senderId) ?? null) : null;
+      const channel = channelId ? (channelMap.get(channelId) ?? null) : null;
+      const server = serverId ? (serverMap.get(serverId) ?? null) : null;
 
       return {
         actionUrl: notification.actionUrl,
@@ -301,8 +306,83 @@ export async function getUnreadCount(userId: string): Promise<number> {
   return count;
 }
 
+function getNotificationChannelScope(
+  metadata: Prisma.JsonValue | null,
+): { channelId: string; serverId: string | null } | null {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return null;
+  }
+
+  const record = metadata as Record<string, unknown>;
+  const channelId = typeof record.channelId === "string" ? record.channelId : null;
+  if (!channelId) {
+    return null;
+  }
+
+  return {
+    channelId,
+    serverId: typeof record.serverId === "string" ? record.serverId : null,
+  };
+}
+
+/**
+ * A mention lives in two places: the notification row and the channel's mention
+ * badge. Reading it in the notification feed has to retire both, otherwise the
+ * servers screen, the switcher sheet and the channel row keep the badge for a
+ * mention the user has already dealt with. `gt: 0` keeps the counter from ever
+ * going negative when the same row is marked read twice.
+ */
+async function releaseChannelMention(
+  userId: string,
+  scope: { channelId: string; serverId: string | null },
+): Promise<void> {
+  await prisma.channelReadState.updateMany({
+    where: { channelId: scope.channelId, mentionCount: { gt: 0 }, userId },
+    data: { mentionCount: { decrement: 1 } },
+  });
+
+  if (scope.serverId) {
+    void emitServerUnreadUpdateToUser(userId, scope.serverId).catch(() => undefined);
+  }
+}
+
+/** Clears every mention badge the user owns, for the bulk read/clear actions. */
+async function releaseAllChannelMentions(userId: string): Promise<void> {
+  const affected = await prisma.channelReadState.findMany({
+    where: { mentionCount: { gt: 0 }, userId },
+    select: { channel: { select: { serverId: true } } },
+  });
+
+  if (affected.length === 0) {
+    return;
+  }
+
+  await prisma.channelReadState.updateMany({
+    where: { mentionCount: { gt: 0 }, userId },
+    data: { mentionCount: 0 },
+  });
+
+  const serverIds = new Set(
+    affected
+      .map((state) => state.channel?.serverId)
+      .filter((serverId): serverId is string => Boolean(serverId)),
+  );
+  for (const serverId of serverIds) {
+    void emitServerUnreadUpdateToUser(userId, serverId).catch(() => undefined);
+  }
+}
+
 export async function markRead(userId: string, notificationId: string): Promise<void> {
-  const result = await prisma.notification.updateMany({
+  const notification = await prisma.notification.findFirst({
+    where: { id: notificationId, userId },
+    select: { metadata: true, read: true, type: true },
+  });
+
+  if (!notification) {
+    throw new ApiError("Notification not found", 404);
+  }
+
+  await prisma.notification.updateMany({
     where: {
       id: notificationId,
       userId,
@@ -313,14 +393,22 @@ export async function markRead(userId: string, notificationId: string): Promise<
     },
   });
 
-  if (result.count === 0) {
-    throw new ApiError("Notification not found", 404);
+  // Only the first read retires the badge; re-reading an already-read row must
+  // not decrement a counter it already paid for.
+  if (notification.type !== "MENTION" || notification.read) {
+    return;
+  }
+
+  const scope = getNotificationChannelScope(notification.metadata);
+  if (scope) {
+    await releaseChannelMention(userId, scope);
   }
 }
 
 /** Mirrors the web "clear all" action: drops the user's whole notification feed. */
 export async function clearNotifications(userId: string): Promise<void> {
   await prisma.notification.deleteMany({ where: { userId } });
+  await releaseAllChannelMentions(userId);
 }
 
 export async function markAllRead(userId: string): Promise<void> {
@@ -334,6 +422,7 @@ export async function markAllRead(userId: string): Promise<void> {
       readAt: new Date(),
     },
   });
+  await releaseAllChannelMentions(userId);
 }
 
 export async function serializeNotificationToDTO(

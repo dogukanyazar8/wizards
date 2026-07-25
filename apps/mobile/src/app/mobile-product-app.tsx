@@ -42,6 +42,7 @@ export function MobileProductApp({
 }: {
   readonly Navigator: ComponentType<{
     readonly directMessageUnreadCount?: number;
+    readonly notificationUnreadCount?: number;
     readonly onTabChange?: (tab: MobileTabId) => void;
   }>;
 }) {
@@ -110,6 +111,7 @@ export function MobileProductApp({
     loadMoreChannelMessages,
     loadMoreDMConversations,
     loadMoreDMMessages,
+    notificationUnreadCount,
     dmMessagesState,
     getSyncHealth,
     handleChannelDraftChange,
@@ -490,6 +492,7 @@ export function MobileProductApp({
                         />
                         <Navigator
                           directMessageUnreadCount={directMessageUnreadCount}
+                          notificationUnreadCount={notificationUnreadCount}
                           onTabChange={setCurrentTab}
                         />
                         <MobileIncomingRequestSheet

@@ -616,7 +616,12 @@ async function loadMobileWorkspaceServerDetail(access: AccessContext): Promise<{
         .slice(0, MOBILE_SERVER_DETAIL_CHANNEL_PER_CATEGORY_LIMIT)
         .map((channel) => withVisibleChannelAccess(access, channel))
         .filter((channel): channel is ChannelRecord => channel !== null),
-    }));
+      hasChannels: category.channels.length > 0,
+    }))
+    // A category whose channels are all hidden from this viewer stays hidden, but
+    // a genuinely empty one is real and must be returned — it is the only way a
+    // manager ever sees the category they just created.
+    .filter((category) => category.channels.length > 0 || !category.hasChannels);
   const visibleUngroupedRows = server.channels
     .slice(0, MOBILE_SERVER_DETAIL_CHANNEL_LIMIT)
     .map((channel) => withVisibleChannelAccess(access, channel))

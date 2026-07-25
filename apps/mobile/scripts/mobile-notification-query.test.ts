@@ -22,21 +22,33 @@ test("notification feed query uses the bounded notifications key and opaque curs
   assert.deepEqual(options.queryKey, mobileQueryKeys.notifications());
   assert.equal(options.initialPageParam, null);
   assert.equal(
-    options.getNextPageParam?.({ nextCursor: "next", notifications: [], unreadCount: 0 }, [], null, []),
+    options.getNextPageParam?.(
+      { nextCursor: "next", notifications: [], unreadCount: 0 },
+      [],
+      null,
+      [],
+    ),
     "next",
   );
   assert.equal(
-    options.getNextPageParam?.({ nextCursor: null, notifications: [], unreadCount: 0 }, [], null, []),
+    options.getNextPageParam?.(
+      { nextCursor: null, notifications: [], unreadCount: 0 },
+      [],
+      null,
+      [],
+    ),
     undefined,
   );
 });
 
-test("confirmed notification read mutations invalidate only the notification feed cache", async () => {
+test("notification read mutations retire the mention badge caches too", async () => {
   const queryClient = new QueryClient();
   const notificationKey = mobileQueryKeys.notifications();
   const bootstrapKey = mobileQueryKeys.bootstrap();
+  const workspaceKey = mobileQueryKeys.workspace("server-1");
   queryClient.setQueryData(notificationKey, { pages: [] });
   queryClient.setQueryData(bootstrapKey, { ready: true });
+  queryClient.setQueryData(workspaceKey, { ready: true });
   const client: MobileApiClient = {
     async requestJson<TResponse>() {
       return { success: true } as TResponse;
@@ -47,13 +59,20 @@ test("confirmed notification read mutations invalidate only the notification fee
   const all = createMobileNotificationMarkAllReadMutationOptions({ client, queryClient });
   await one.mutationFn("00000000-0000-4000-8000-000000000001");
   await one.onSuccess!();
+  // Reading a mention clears `ChannelReadState.mentionCount` server-side, so the
+  // servers screen (bootstrap) and every cached server detail must refetch.
   assert.equal(queryClient.getQueryState(notificationKey)?.isInvalidated, true);
-  assert.equal(queryClient.getQueryState(bootstrapKey)?.isInvalidated, false);
+  assert.equal(queryClient.getQueryState(bootstrapKey)?.isInvalidated, true);
+  assert.equal(queryClient.getQueryState(workspaceKey)?.isInvalidated, true);
 
-  queryClient.getQueryCache().find({ queryKey: notificationKey, exact: true })?.setState({
-    isInvalidated: false,
-  });
+  for (const key of [notificationKey, bootstrapKey, workspaceKey]) {
+    queryClient.getQueryCache().find({ queryKey: key, exact: true })?.setState({
+      isInvalidated: false,
+    });
+  }
   await all.mutationFn();
   await all.onSuccess!();
   assert.equal(queryClient.getQueryState(notificationKey)?.isInvalidated, true);
+  assert.equal(queryClient.getQueryState(bootstrapKey)?.isInvalidated, true);
+  assert.equal(queryClient.getQueryState(workspaceKey)?.isInvalidated, true);
 });

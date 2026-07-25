@@ -1,14 +1,14 @@
 import assert from "node:assert/strict";
 
-import type { ZodTypeAny } from "zod";
+import type { output, ZodType } from "zod";
 
 export type SchemaBehaviorCase = {
   invalid: unknown;
-  schema: ZodTypeAny;
+  schema: ZodType;
   valid: unknown;
 };
 
-function isSchemaExport(value: unknown): value is ZodTypeAny {
+function isSchemaExport(value: unknown): value is ZodType {
   return (
     typeof value === "object" &&
     value !== null &&
@@ -17,14 +17,17 @@ function isSchemaExport(value: unknown): value is ZodTypeAny {
   );
 }
 
-export function assertAccepts(schema: ZodTypeAny, value: unknown) {
+export function assertAccepts<TSchema extends ZodType>(
+  schema: TSchema,
+  value: unknown,
+): output<TSchema> {
   const result = schema.safeParse(value);
-  assert.equal(result.success, true, result.success ? undefined : result.error.message);
-  return result.success ? result.data : undefined;
+  assert.ok(result.success, result.success ? undefined : result.error.message);
+  return result.data;
 }
 
 export function assertRejects(
-  schema: ZodTypeAny,
+  schema: ZodType,
   value: unknown,
   expectedPath?: Array<number | string>,
 ) {

@@ -372,7 +372,7 @@ function MessageListContent({
       {initialUnreadMessageId && !unreadJumpDismissed ? (
         <div className="sticky top-3 z-20 mb-3 flex justify-center">
           <button
-            className="inline-flex items-center gap-2 rounded-full border border-[hsl(var(--primary)/0.28)] bg-[hsl(var(--primary)/0.12)] px-4 py-2 text-xs font-bold text-[hsl(var(--primary))] shadow-[0_14px_34px_hsl(var(--primary)/0.12)] backdrop-blur-xl transition hover:bg-[hsl(var(--primary)/0.18)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+            className="inline-flex items-center gap-2 rounded-full border border-[hsl(var(--primary)/0.28)] bg-[hsl(var(--primary)/0.12)] px-4 py-2 text-xs font-bold text-[hsl(var(--primary))] shadow-[0_14px_34px_hsl(var(--primary)/0.12)] backdrop-blur-xl transition hover:bg-[hsl(var(--primary)/0.18)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
             data-testid="jump-to-unread-button"
             onClick={() => {
               setUnreadJumpDismissed(true);
@@ -446,7 +446,7 @@ function MessageListContent({
       {showScrollButton ? (
         <button
           onClick={scrollToBottom}
-          className="sticky bottom-4 ml-auto flex rounded-full bg-[hsl(var(--primary))] p-2 text-[hsl(var(--primary-foreground))] shadow-lg transition hover:bg-[hsl(var(--primary)/0.9)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+          className="sticky bottom-4 ml-auto flex rounded-full bg-[hsl(var(--primary))] p-2 text-[hsl(var(--primary-foreground))] shadow-lg transition hover:bg-[hsl(var(--primary)/0.9)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
           aria-label={t("chat.list.scrollToLatest")}
           type="button"
         >

@@ -139,7 +139,7 @@ function DMConversationPageContent({
         ? createPortal(
             <div className="fixed inset-0 z-[90] xl:hidden" data-testid="dm-details-drawer-root">
               <div
-                className="absolute inset-0 bg-[hsl(var(--backdrop)/0.5)] backdrop-blur-sm"
+                className="absolute inset-0 bg-[hsl(var(--backdrop)/0.5)] backdrop-blur-xs"
                 data-testid="dm-details-drawer-backdrop"
                 onClick={() => setIsDetailsDrawerRequested(false)}
                 role="presentation"

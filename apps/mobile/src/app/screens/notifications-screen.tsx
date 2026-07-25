@@ -41,6 +41,7 @@ import { mobileNavigationRef } from "../../navigation/mobile-navigation-ref";
 import { useMobileAuth } from "../../auth/mobile-auth-context";
 import { useMobileSocialMutations } from "../../social/mobile-social-query";
 import {
+  useMobileHasAnyNotification,
   useMobileNotificationMutations,
   useMobileNotificationsQuery,
 } from "../../notifications/mobile-notification-query";
@@ -102,12 +103,14 @@ export function NotificationsScreen({
   const { apiClient } = useMobileAuth();
   const [filter, setFilter] = useState<MobileNotificationFilter>("all");
   const [isClearConfirmOpen, setClearConfirmOpen] = useState(false);
+  const [isPullRefreshing, setPullRefreshing] = useState(false);
   const notificationsQuery = useMobileNotificationsQuery(apiClient, filter);
   const notificationMutations = useMobileNotificationMutations(apiClient);
   const socialMutations = useMobileSocialMutations(apiClient);
   const notifications = notificationsQuery.data?.pages.flatMap((page) => page.notifications) ?? [];
   const notificationGroups = groupMobileNotificationsByDay(notifications, new Date(), locale);
   const unreadCount = notificationsQuery.data?.pages[0]?.unreadCount ?? 0;
+  // A running refetch is never surfaced — only a feed that failed to load is.
   const visibleSyncHealth: MobileSyncHealthSummary = notificationsQuery.isError
     ? {
         ...syncHealth,
@@ -115,99 +118,22 @@ export function NotificationsScreen({
         isRefreshing: false,
         status: "error",
       }
-    : syncHealth.isRefreshing || notificationsQuery.isRefetching
-      ? { ...syncHealth, isRefreshing: true, status: "refreshing" }
-      : syncHealth;
+    : syncHealth;
   const canRequestPermission = shouldOfferMobileNotificationPermission(notificationState);
 
   const markAllDisabled = unreadCount === 0 || notificationMutations.markAllRead.isPending;
-
-  return (
-    <View style={styles.notificationsScreen} testID="mobile-notifications-screen">
-      <View style={styles.notificationsHeader}>
-        <View style={styles.notificationsHeaderText}>
-          <Text style={styles.notificationsTitle}>{copy.notificationsTitle}</Text>
-          <Text style={styles.notificationsSubtitle}>{copy.notificationsSubtitle}</Text>
-        </View>
-        <View style={styles.notificationsHeaderActions}>
-          <Pressable
-            accessibilityLabel={copy.notificationsMarkAllRead}
-            accessibilityRole="button"
-            accessibilityState={{ disabled: markAllDisabled }}
-            disabled={markAllDisabled}
-            onPress={() => notificationMutations.markAllRead.mutate()}
-            style={({ pressed }) => [
-              styles.notificationsHeaderIconButton,
-              markAllDisabled && styles.notificationsHeaderIconButtonDisabled,
-              pressed && !markAllDisabled && styles.actionButtonPressed,
-            ]}
-            testID="mobile-notifications-mark-all-read"
-          >
-            <Ionicons
-              color={markAllDisabled ? theme.text.muted : theme.accent.strong}
-              name="checkmark-done-outline"
-              size={19}
-            />
-          </Pressable>
-          <Pressable
-            accessibilityLabel={copy.notificationsOpenSettings}
-            accessibilityRole="button"
-            onPress={() => {
-              if (mobileNavigationRef.isReady()) {
-                mobileNavigationRef.navigate("SettingsDetail", { section: "notifications" });
-              }
-            }}
-            style={({ pressed }) => [
-              styles.notificationsHeaderIconButton,
-              pressed && styles.actionButtonPressed,
-            ]}
-            testID="mobile-notifications-open-settings"
-          >
-            <Ionicons color={theme.text.primary} name="options-outline" size={18} />
-          </Pressable>
-        </View>
-      </View>
-      <View
-        accessibilityRole="tablist"
-        style={styles.notificationsSegmentTrack}
-        testID="mobile-notifications-filter-tabs"
-      >
-        {MOBILE_NOTIFICATION_FILTERS.map((option) => {
-          const isActive = option === filter;
-
-          return (
-            <Pressable
-              accessibilityLabel={getNotificationFilterLabel(option)}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: isActive }}
-              key={option}
-              onPress={() => setFilter(option)}
-              style={[styles.notificationsSegmentItem, isActive && styles.notificationsSegmentItemActive]}
-              testID={`mobile-notifications-filter-${option}`}
-            >
-              <Text
-                numberOfLines={1}
-                style={[
-                  styles.notificationsSegmentLabel,
-                  isActive && styles.notificationsSegmentLabelActive,
-                ]}
-              >
-                {getNotificationFilterLabel(option)}
-              </Text>
-              {option === "unread" && unreadCount > 0 ? (
-                <View
-                  style={styles.notificationsSegmentBadge}
-                  testID="mobile-notifications-unread-badge"
-                >
-                  <Text style={styles.notificationsSegmentBadgeText}>
-                    {unreadCount > 99 ? "99+" : unreadCount}
-                  </Text>
-                </View>
-              ) : null}
-            </Pressable>
-          );
-        })}
-      </View>
+  // Clearing is global, so its enabled state has to come from the unfiltered feed:
+  // an empty "Bahsetmeler" tab says nothing about the account, and gating on the
+  // active filter left the button live on an account with zero notifications.
+  // Same query key as the "all" tab and the tab-bar badge, so this costs no fetch.
+  const hasAnyNotification = useMobileHasAnyNotification(apiClient);
+  const clearAllDisabled = notificationMutations.clearAll.isPending || !hasAnyNotification;
+  // Everything transient (bootstrap notice, permission card, sync banner) rides
+  // inside the list header. Above the list they re-flowed the whole screen every
+  // time a filter switch re-fetched, which is the downward drift between the
+  // Tümü / Okunmamış / Bahsetmeler tabs.
+  const listHeader = (
+    <>
       {bootstrapState.status === "ready" ? null : (
         <BootstrapStateNotice state={bootstrapState} onRetry={onRefreshBootstrap} />
       )}
@@ -251,6 +177,122 @@ export function NotificationsScreen({
           />
         </View>
       ) : null}
+    </>
+  );
+
+  return (
+    <View style={styles.notificationsScreen} testID="mobile-notifications-screen">
+      <View style={styles.notificationsHeader}>
+        <View style={styles.notificationsHeaderText}>
+          <Text style={styles.notificationsTitle} numberOfLines={1}>
+            {copy.notificationsTitle}
+          </Text>
+          <Text style={styles.notificationsSubtitle} numberOfLines={1}>
+            {copy.notificationsSubtitle}
+          </Text>
+        </View>
+        <View style={styles.notificationsHeaderActions}>
+          <Pressable
+            accessibilityLabel={copy.notificationsMarkAllRead}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: markAllDisabled }}
+            disabled={markAllDisabled}
+            onPress={() => notificationMutations.markAllRead.mutate()}
+            style={({ pressed }) => [
+              styles.notificationsHeaderIconButton,
+              markAllDisabled && styles.notificationsHeaderIconButtonDisabled,
+              pressed && !markAllDisabled && styles.actionButtonPressed,
+            ]}
+            testID="mobile-notifications-mark-all-read"
+          >
+            <Ionicons
+              color={markAllDisabled ? theme.text.muted : theme.accent.strong}
+              name="checkmark-done-outline"
+              size={19}
+            />
+          </Pressable>
+          <Pressable
+            accessibilityLabel={copy.notificationsOpenSettings}
+            accessibilityRole="button"
+            onPress={() => {
+              if (mobileNavigationRef.isReady()) {
+                mobileNavigationRef.navigate("SettingsDetail", { section: "notifications" });
+              }
+            }}
+            style={({ pressed }) => [
+              styles.notificationsHeaderIconButton,
+              pressed && styles.actionButtonPressed,
+            ]}
+            testID="mobile-notifications-open-settings"
+          >
+            <Ionicons color={theme.text.primary} name="options-outline" size={18} />
+          </Pressable>
+          <Pressable
+            accessibilityLabel={copy.notificationsClearAll}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: clearAllDisabled }}
+            disabled={clearAllDisabled}
+            onPress={() => setClearConfirmOpen(true)}
+            style={({ pressed }) => [
+              styles.notificationsHeaderIconButton,
+              styles.notificationsHeaderDangerButton,
+              clearAllDisabled && styles.notificationsHeaderIconButtonDisabled,
+              pressed && !clearAllDisabled && styles.actionButtonPressed,
+            ]}
+            testID="mobile-notifications-clear-all"
+          >
+            <Ionicons
+              color={clearAllDisabled ? theme.text.muted : theme.status.danger}
+              name="trash-outline"
+              size={18}
+            />
+          </Pressable>
+        </View>
+      </View>
+      <View
+        accessibilityRole="tablist"
+        style={styles.notificationsSegmentTrack}
+        testID="mobile-notifications-filter-tabs"
+      >
+        {MOBILE_NOTIFICATION_FILTERS.map((option) => {
+          const isActive = option === filter;
+
+          return (
+            <Pressable
+              accessibilityLabel={getNotificationFilterLabel(option)}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: isActive }}
+              key={option}
+              onPress={() => setFilter(option)}
+              style={[
+                styles.notificationsSegmentItem,
+                isActive && styles.notificationsSegmentItemActive,
+              ]}
+              testID={`mobile-notifications-filter-${option}`}
+            >
+              <Text
+                numberOfLines={1}
+                style={[
+                  styles.notificationsSegmentLabel,
+                  isActive && styles.notificationsSegmentLabelActive,
+                ]}
+              >
+                {getNotificationFilterLabel(option)}
+              </Text>
+              {option === "unread" && unreadCount > 0 ? (
+                <View
+                  style={styles.notificationsSegmentBadge}
+                  testID="mobile-notifications-unread-badge"
+                >
+                  <Text style={styles.notificationsSegmentBadgeText}>
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </Text>
+                </View>
+              ) : null}
+            </Pressable>
+          );
+        })}
+      </View>
       <FlatList
         contentContainerStyle={styles.notificationsList}
         data={notificationGroups}
@@ -262,35 +304,21 @@ export function NotificationsScreen({
             <EmptyState tone="accent" label={getNotificationEmptyLabel(filter)} />
           )
         }
-        ListFooterComponent={
-          notifications.length > 0 ? (
-            <View style={styles.notificationsFooterActions}>
-              <Pressable
-                accessibilityLabel={copy.notificationsClearAll}
-                accessibilityRole="button"
-                accessibilityState={{ disabled: notificationMutations.clearAll.isPending }}
-                disabled={notificationMutations.clearAll.isPending}
-                onPress={() => setClearConfirmOpen(true)}
-                style={({ pressed }) => [
-                  styles.notificationsClearAction,
-                  pressed && styles.actionButtonPressed,
-                ]}
-                testID="mobile-notifications-clear-all"
-              >
-                <Ionicons color={theme.status.danger} name="trash-outline" size={15} />
-                <Text style={styles.notificationsClearActionText}>{copy.notificationsClearAll}</Text>
-              </Pressable>
-            </View>
-          ) : null
-        }
+        ListHeaderComponent={listHeader}
         onEndReached={() => {
           if (notificationsQuery.hasNextPage && !notificationsQuery.isFetchingNextPage) {
             void notificationsQuery.fetchNextPage();
           }
         }}
         onEndReachedThreshold={0.5}
-        onRefresh={() => void notificationsQuery.refetch()}
-        refreshing={notificationsQuery.isRefetching}
+        // Bound to the pull gesture, not to `isRefetching`: a realtime-driven
+        // background refetch must not spin the pull-to-refresh indicator, which
+        // is the other way this screen used to announce itself.
+        onRefresh={() => {
+          setPullRefreshing(true);
+          void notificationsQuery.refetch().finally(() => setPullRefreshing(false));
+        }}
+        refreshing={isPullRefreshing}
         renderItem={({ item: group }) => (
           <View>
             <Text style={styles.notificationsSectionTitle}>{group.label}</Text>
@@ -316,6 +344,7 @@ export function NotificationsScreen({
         )}
         showsVerticalScrollIndicator={false}
         style={styles.notificationsListViewport}
+        testID="mobile-notifications-feed"
       />
       <DestructiveConfirmationSheet
         body={copy.notificationsClearConfirmDescription}
@@ -408,7 +437,9 @@ function MobileNotificationFeedRow({
             presentation.kind === "voice" && styles.notificationFeedIconVoice,
           ]}
           testID={
-            presentation.kind === "voice" ? `mobile-notification-voice-icon-${notification.id}` : undefined
+            presentation.kind === "voice"
+              ? `mobile-notification-voice-icon-${notification.id}`
+              : undefined
           }
         >
           <Ionicons
@@ -419,7 +450,13 @@ function MobileNotificationFeedRow({
         </View>
       )}
       <View style={styles.notificationFeedText}>
-        <Text style={styles.notificationFeedBody} numberOfLines={2}>
+        <Text
+          style={[
+            styles.notificationFeedBody,
+            !notification.read && styles.notificationFeedBodyUnread,
+          ]}
+          numberOfLines={2}
+        >
           {notification.body}
         </Text>
         {notification.messageQuote?.preview ? (
@@ -512,7 +549,10 @@ function NotificationsLoadingSkeleton() {
   const styles = useNotificationsScreenStyles();
 
   return (
-    <View style={styles.notificationsLoadingSkeleton} testID="mobile-notifications-loading-skeleton">
+    <View
+      style={styles.notificationsLoadingSkeleton}
+      testID="mobile-notifications-loading-skeleton"
+    >
       {[0, 1, 2].map((index) => (
         <View key={index} style={styles.notificationSkeletonRow}>
           <Skeleton borderRadius={16} height={44} width={44} />

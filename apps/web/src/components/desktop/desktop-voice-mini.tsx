@@ -64,7 +64,7 @@ function VoiceMiniAction({
     <button
       aria-label={ariaLabel}
       className={cn(
-        "grid size-8 place-items-center rounded-xl border text-slate-600 transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60",
+        "grid size-8 place-items-center rounded-xl border text-slate-600 transition hover:-translate-y-0.5 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-indigo-400/60",
         active
           ? "border-indigo-200 bg-indigo-50 text-indigo-600"
           : "border-slate-200/80 bg-white/78 hover:bg-indigo-50 hover:text-indigo-600",
@@ -84,9 +84,7 @@ export function DesktopVoiceMini() {
 
   useEffect(() => {
     const handleSnapshot = (event: Event) => {
-      const nextSnapshot = parseVoiceMiniSnapshot(
-        (event as CustomEvent<unknown>).detail,
-      );
+      const nextSnapshot = parseVoiceMiniSnapshot((event as CustomEvent<unknown>).detail);
 
       if (nextSnapshot) {
         setSnapshot(nextSnapshot);

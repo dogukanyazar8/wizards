@@ -113,7 +113,9 @@ describe("mobile realtime state", () => {
           voiceChannelId: null,
         },
       }),
-      ["bootstrap", "workspace", "channel"],
+      // The notification feed is always backfilled: the socket is down in the
+      // background, so anything that landed while away arrived only as a push.
+      ["bootstrap", "notification", "workspace", "channel"],
     );
   });
 

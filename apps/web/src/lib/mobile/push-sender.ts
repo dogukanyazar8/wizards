@@ -258,7 +258,12 @@ export async function sendMobilePushForNotifications(
           notificationId: notification.id,
           type: notification.type,
         },
-        priority: "default" as const,
+        // FCM maps Expo's "default" to *normal* priority, which Android is free
+        // to hold until the next Doze maintenance window — minutes late, and the
+        // HIGH importance of the `whispr-default` channel cannot override it
+        // because the message never reaches the device in the first place. A
+        // mention or DM is user-visible and time-critical, so it ships high.
+        priority: "high" as const,
         sound: "default" as const,
         title: notification.title,
         to: token,

@@ -394,7 +394,7 @@ function MobileShellControls({
       <div className="flex items-center md:hidden">
         <button
           aria-label={t("common.back")}
-          className="app-panel-soft text-app-foreground inline-flex h-11 w-11 items-center justify-center rounded-2xl border transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
+          className="app-panel-soft text-app-foreground inline-flex h-11 w-11 items-center justify-center rounded-2xl border transition hover:opacity-90 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
           data-testid="mobile-shell-back-button"
           onClick={onBack}
           type="button"
@@ -1305,7 +1305,7 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
             initial={{ opacity: 0 }}
           >
             <div
-              className="absolute inset-0 bg-[hsl(var(--backdrop)/0.52)] backdrop-blur-sm"
+              className="absolute inset-0 bg-[hsl(var(--backdrop)/0.52)] backdrop-blur-xs"
               data-testid="mobile-workspace-drawer-backdrop"
               onClick={() => setMobileSidebarOpen(false)}
             />

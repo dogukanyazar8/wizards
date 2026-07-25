@@ -495,6 +495,76 @@ describe("workspace service characterization", { concurrency: false }, () => {
     });
   });
 
+  it("keeps a genuinely empty mobile category but hides one the viewer cannot see into", async () => {
+    await withPatchedEnvironment(async (restores) => {
+      patchMethod(prisma.serverBan, "findUnique", async () => null, restores);
+      patchMethod(
+        prisma.serverMember,
+        "findFirst",
+        async () =>
+          accessMembership({
+            ownerId: "owner",
+            permissions: PermissionBits.VIEW_CHANNEL | PermissionBits.SEND_MESSAGES,
+            userId: "manager",
+          }),
+        restores,
+      );
+      patchMethod(
+        prisma.server,
+        "findUnique",
+        async () => ({
+          _count: { members: 0 },
+          categories: [
+            {
+              channels: [
+                {
+                  categoryId: "category-hidden",
+                  id: "hidden-1",
+                  locked: false,
+                  name: "hidden-1",
+                  permissionOverrides: [
+                    {
+                      allow: 0n,
+                      deny: PermissionBits.VIEW_CHANNEL,
+                      targetId: "manager",
+                      targetType: "USER",
+                    },
+                  ],
+                  position: 0,
+                  topic: null,
+                  type: ChannelType.TEXT,
+                },
+              ],
+              id: "category-hidden",
+              name: "Hidden",
+              position: 0,
+            },
+            { channels: [], id: "category-empty", name: "Duyurular", position: 1 },
+          ],
+          channels: [],
+          description: null,
+          iconUrl: null,
+          id: "server-1",
+          members: [],
+          name: "Guild",
+          ownerId: "owner",
+          shortName: null,
+        }),
+        restores,
+      );
+      patchMethod(prisma, "$queryRaw", async () => [], restores);
+
+      const result = await getMobileWorkspaceServerDetailWithAccess("manager", "server-1");
+
+      // A category emptied by permissions must not leak; one that is simply
+      // empty has to survive, or a newly created category is invisible on mobile.
+      assert.deepEqual(
+        result.detail.categories.map((category) => [category.id, category.channels.length]),
+        [["category-empty", 0]],
+      );
+    });
+  });
+
   it("turns raw mobile category and channel sentinels into a bounded has-more projection", async () => {
     await withPatchedEnvironment(async (restores) => {
       const channelRow = (id: string, position: number, categoryId: string | null) => ({

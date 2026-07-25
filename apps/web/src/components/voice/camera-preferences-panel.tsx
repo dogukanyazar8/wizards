@@ -242,7 +242,7 @@ function CameraDeviceSelect({
         </div>
         <button
           aria-label={t("voice.camera.refresh")}
-          className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-[hsl(var(--border)/0.64)] bg-[hsl(var(--surface-card)/0.62)] text-app-muted transition hover:bg-[hsl(var(--surface-card)/0.9)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-wait disabled:opacity-60"
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-[hsl(var(--border)/0.64)] bg-[hsl(var(--surface-card)/0.62)] text-app-muted transition hover:bg-[hsl(var(--surface-card)/0.9)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-wait disabled:opacity-60"
           disabled={isLoading}
           onClick={onRefresh}
           type="button"
@@ -258,7 +258,7 @@ function CameraDeviceSelect({
           aria-haspopup="listbox"
           aria-label={t("voice.camera.deviceLabel")}
           className={cn(
-            "flex min-h-10 w-full items-center gap-2.5 rounded-xl border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.68)] px-2.5 text-left text-xs font-semibold text-app-foreground transition hover:bg-[hsl(var(--surface-card)/0.9)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+            "flex min-h-10 w-full items-center gap-2.5 rounded-xl border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-card)/0.68)] px-2.5 text-left text-xs font-semibold text-app-foreground transition hover:bg-[hsl(var(--surface-card)/0.9)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
             isOpen &&
               "border-[hsl(var(--primary)/0.34)] bg-[hsl(var(--primary)/0.1)] shadow-[0_18px_46px_hsl(var(--primary)/0.12)]",
           )}
@@ -300,7 +300,7 @@ function CameraDeviceSelect({
                   <button
                     aria-selected={isSelected}
                     className={cn(
-                      "group/camera-option flex w-full items-center gap-2 rounded-xl px-2 py-1.5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.5)]",
+                      "group/camera-option flex w-full items-center gap-2 rounded-xl px-2 py-1.5 text-left transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.5)]",
                       isSelected
                         ? "bg-[hsl(var(--primary)/0.13)] text-app-foreground"
                         : "text-app-muted hover:bg-[hsl(var(--surface-soft)/0.64)] hover:text-app-foreground",
@@ -374,7 +374,7 @@ function CameraOptionButton({
     <button
       aria-pressed={active}
       className={cn(
-        "group/camera-control flex min-h-[5.25rem] flex-col items-start justify-between rounded-[18px] border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+        "group/camera-control flex min-h-[5.25rem] flex-col items-start justify-between rounded-[18px] border p-3 text-left transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
         active
           ? "border-[hsl(var(--primary)/0.38)] bg-[hsl(var(--primary)/0.12)] shadow-[0_18px_46px_hsl(var(--primary)/0.12)]"
           : "border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.54)] hover:-translate-y-0.5 hover:border-[hsl(var(--primary)/0.26)] hover:bg-[hsl(var(--surface-card)/0.82)]",
@@ -675,7 +675,7 @@ export function CameraPreferencesPanel() {
             <div className="grid gap-2.5">
               <button
                 className={cn(
-                  "inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border px-3 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                  "inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border px-3 text-xs font-semibold transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
                   isPreviewRunning
                     ? "border-[hsl(var(--danger)/0.34)] bg-[hsl(var(--danger)/0.1)] text-app-danger hover:bg-[hsl(var(--danger)/0.15)]"
                     : "border-[hsl(var(--primary)/0.34)] bg-[hsl(var(--primary)/0.13)] text-[hsl(var(--primary))] hover:-translate-y-0.5 hover:bg-[hsl(var(--primary)/0.18)]",
@@ -769,7 +769,7 @@ export function CameraPreferencesPanel() {
         </div>
 
         <button
-          className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.64)] px-3 text-xs font-semibold text-app-foreground transition hover:border-[hsl(var(--primary)/0.28)] hover:bg-[hsl(var(--primary)/0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+          className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.64)] px-3 text-xs font-semibold text-app-foreground transition hover:border-[hsl(var(--primary)/0.28)] hover:bg-[hsl(var(--primary)/0.08)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
           onClick={resetCameraPreferences}
           type="button"
         >

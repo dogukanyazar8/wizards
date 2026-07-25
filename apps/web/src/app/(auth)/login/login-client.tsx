@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { LoginSchema, type LoginInput } from "@wizards/types";
+import { LoginSchema, type LoginFormInput, type LoginInput } from "@wizards/types";
 import {
   ArrowRight,
   ExternalLink,
@@ -77,7 +77,7 @@ function DesktopOAuthPendingDialog({ onCancel, onRetry }: DesktopOAuthPendingDia
       <section className="relative w-full max-w-[420px] overflow-hidden rounded-[28px] border border-[hsl(var(--border)/0.75)] bg-[linear-gradient(145deg,hsl(var(--background))_0%,hsl(var(--card))_58%,hsl(var(--primary)/0.08)_100%)] p-6 text-center shadow-[0_28px_90px_hsl(var(--shadow-color)/0.18)]">
         <button
           aria-label={t("common.close")}
-          className="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-2xl text-[hsl(var(--muted-foreground))] transition hover:bg-[hsl(var(--muted)/0.72)] hover:text-[hsl(var(--foreground))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary)/0.45)]"
+          className="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-2xl text-[hsl(var(--muted-foreground))] transition hover:bg-[hsl(var(--muted)/0.72)] hover:text-[hsl(var(--foreground))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary)/0.45)]"
           onClick={onCancel}
           type="button"
         >
@@ -122,7 +122,7 @@ function DesktopOAuthPendingDialog({ onCancel, onRetry }: DesktopOAuthPendingDia
 
         <div className="mt-6 grid gap-3 sm:grid-cols-[1fr_auto]">
           <button
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-[hsl(var(--primary))] px-4 py-2.5 text-sm font-bold text-[hsl(var(--primary-foreground))] shadow-[0_16px_38px_hsl(var(--primary)/0.22)] transition hover:-translate-y-0.5 hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary)/0.45)] motion-reduce:hover:translate-y-0"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-[hsl(var(--primary))] px-4 py-2.5 text-sm font-bold text-[hsl(var(--primary-foreground))] shadow-[0_16px_38px_hsl(var(--primary)/0.22)] transition hover:-translate-y-0.5 hover:opacity-95 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary)/0.45)] motion-reduce:hover:translate-y-0"
             onClick={onRetry}
             type="button"
           >
@@ -130,7 +130,7 @@ function DesktopOAuthPendingDialog({ onCancel, onRetry }: DesktopOAuthPendingDia
             {t("auth.desktopOAuth.pendingRetry")}
           </button>
           <button
-            className="inline-flex min-h-11 items-center justify-center rounded-2xl border border-[hsl(var(--border)/0.75)] bg-[hsl(var(--background)/0.72)] px-4 py-2.5 text-sm font-bold text-[hsl(var(--muted-foreground))] transition hover:bg-[hsl(var(--muted)/0.72)] hover:text-[hsl(var(--foreground))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary)/0.35)]"
+            className="inline-flex min-h-11 items-center justify-center rounded-2xl border border-[hsl(var(--border)/0.75)] bg-[hsl(var(--background)/0.72)] px-4 py-2.5 text-sm font-bold text-[hsl(var(--muted-foreground))] transition hover:bg-[hsl(var(--muted)/0.72)] hover:text-[hsl(var(--foreground))] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary)/0.35)]"
             onClick={onCancel}
             type="button"
           >
@@ -162,7 +162,7 @@ export function LoginClient({ authError = null, callbackUrl }: LoginClientProps)
     setValue,
     control,
     formState: { errors, isSubmitting },
-  } = useForm<LoginInput>({
+  } = useForm<LoginFormInput, undefined, LoginInput>({
     resolver: zodResolver(LoginSchema),
     defaultValues: {
       email: "",
@@ -362,7 +362,7 @@ export function LoginClient({ authError = null, callbackUrl }: LoginClientProps)
             </div>
           ) : (
             <button
-              className="inline-flex min-h-9 items-center gap-2 self-start rounded-xl px-2.5 text-xs font-bold text-[hsl(var(--primary))] transition hover:bg-[hsl(var(--primary)/0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary)/0.35)]"
+              className="inline-flex min-h-9 items-center gap-2 self-start rounded-xl px-2.5 text-xs font-bold text-[hsl(var(--primary))] transition hover:bg-[hsl(var(--primary)/0.08)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary)/0.35)]"
               onClick={() => setShowTwoFactorPrompt(true)}
               type="button"
             >

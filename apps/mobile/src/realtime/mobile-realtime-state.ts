@@ -168,7 +168,10 @@ export function getMobileRealtimeForegroundBackfillSources(input: {
     return [];
   }
 
-  const sources: MobileRealtimeRefreshSource[] = ["bootstrap"];
+  // "notification" belongs in every backfill: the socket is torn down in the
+  // background, so anything that arrived while the app was away exists only as a
+  // push and the feed would otherwise sit stale until its own staleTime expired.
+  const sources: MobileRealtimeRefreshSource[] = ["bootstrap", "notification"];
 
   if (input.targets.conversationId) {
     sources.push("dm");

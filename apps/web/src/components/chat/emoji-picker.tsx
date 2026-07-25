@@ -83,7 +83,7 @@ export function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
         </div>
         <button
           aria-label={t("common.close")}
-          className="rounded-full border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-soft)/0.55)] p-2 text-app-muted transition hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+          className="rounded-full border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-soft)/0.55)] p-2 text-app-muted transition hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
           data-testid="emoji-picker-close"
           onClick={onClose}
           type="button"

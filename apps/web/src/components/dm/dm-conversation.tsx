@@ -63,7 +63,8 @@ export function DmConversationHeader({
   searchOpen,
 }: DmConversationHeaderProps) {
   const { t } = useI18n();
-  const displayName = participant.displayName ?? participant.username ?? t("dm.sidebar.unknownUser");
+  const displayName =
+    participant.displayName ?? participant.username ?? t("dm.sidebar.unknownUser");
   const statusLabel = participant.customStatus ?? t(getDmStatusKey(participant.status));
   const handle = participant.username ? `@${participant.username}` : null;
 
@@ -100,7 +101,10 @@ export function DmConversationHeader({
               <span className="inline-flex min-w-0 items-center gap-1.5">
                 <span
                   aria-hidden="true"
-                  className={cn("h-1.5 w-1.5 shrink-0 rounded-full", getDmStatusDotClass(participant.status))}
+                  className={cn(
+                    "h-1.5 w-1.5 shrink-0 rounded-full",
+                    getDmStatusDotClass(participant.status),
+                  )}
                 />
                 <span className="truncate">{statusLabel}</span>
               </span>
@@ -145,7 +149,7 @@ export function DmConversationToolbar({
 }: DmConversationToolbarProps) {
   const { t } = useI18n();
   const buttonClass =
-    "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-app-muted transition hover:bg-[hsl(var(--surface-soft)/0.58)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-60 md:h-9 md:w-9";
+    "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-app-muted transition hover:bg-[hsl(var(--surface-soft)/0.58)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-not-allowed disabled:opacity-60 md:h-9 md:w-9";
 
   return (
     <div className="inline-flex shrink-0 items-center gap-1 rounded-[18px] bg-[hsl(var(--surface-soft)/0.34)] p-1">

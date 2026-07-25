@@ -374,7 +374,7 @@ function MemberRow({
     return (
       <div
         aria-label={memberTitle}
-        className="group/member relative mx-auto flex h-12 w-12 items-center justify-center rounded-[20px] transition hover:bg-[hsl(var(--surface-soft)/0.42)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
+        className="group/member relative mx-auto flex h-12 w-12 items-center justify-center rounded-[20px] transition hover:bg-[hsl(var(--surface-soft)/0.42)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.45)]"
         data-testid={`server-member-${member.username}`}
         title={memberTitle}
       >
@@ -673,7 +673,7 @@ function QuickAccessCard({
           const Icon = action.icon;
           return (
             <button
-              className="group/action flex min-h-11 w-full items-center gap-3 rounded-[18px] px-2.5 py-2 text-left transition hover:bg-[hsl(var(--surface-soft)/0.44)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+              className="group/action flex min-h-11 w-full items-center gap-3 rounded-[18px] px-2.5 py-2 text-left transition hover:bg-[hsl(var(--surface-soft)/0.44)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
               key={action.label}
               onClick={action.onClick}
               type="button"
@@ -734,7 +734,7 @@ function DesktopDownloadCard({
 
       <a
         aria-label={ctaLabel}
-        className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-[18px] bg-[hsl(var(--primary))] px-3 py-2 text-sm font-bold text-[hsl(var(--primary-foreground))] shadow-[0_14px_32px_hsl(var(--primary)/0.18)] transition hover:translate-y-[-1px] hover:bg-[hsl(var(--primary)/0.92)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.6)] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--surface-card))] motion-reduce:transform-none"
+        className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-[18px] bg-[hsl(var(--primary))] px-3 py-2 text-sm font-bold text-[hsl(var(--primary-foreground))] shadow-[0_14px_32px_hsl(var(--primary)/0.18)] transition hover:translate-y-[-1px] hover:bg-[hsl(var(--primary)/0.92)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.6)] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--surface-card))] motion-reduce:transform-none"
         href={downloadUrl}
         rel="noopener noreferrer"
         target="_blank"
@@ -911,7 +911,7 @@ export function ServerMemberPanel({
         <div className="mb-3 flex items-center justify-end">
           <button
             aria-label={t("common.close")}
-            className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[hsl(var(--surface-soft)/0.42)] text-app-muted transition hover:bg-[hsl(var(--surface-soft)/0.68)] hover:text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+            className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[hsl(var(--surface-soft)/0.42)] text-app-muted transition hover:bg-[hsl(var(--surface-soft)/0.68)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
             onClick={onClose}
             type="button"
           >

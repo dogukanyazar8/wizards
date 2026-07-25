@@ -37,13 +37,7 @@ async function fetchPreview(url: string) {
   };
 }
 
-export function LinkPreviewCard({
-  className,
-  content,
-}: {
-  className?: string;
-  content: string;
-}) {
+export function LinkPreviewCard({ className, content }: { className?: string; content: string }) {
   const { t } = useI18n();
   const previewUrl = useMemo(() => extractFirstUrl(content), [content]);
   const query = useQuery({
@@ -81,7 +75,7 @@ export function LinkPreviewCard({
   return (
     <a
       className={cn(
-        "mt-1.5 grid w-full max-w-[34rem] overflow-hidden rounded-[20px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.78)] text-left shadow-[0_14px_30px_hsl(var(--shadow-color)/0.07)] transition hover:-translate-y-0.5 hover:border-[hsl(var(--primary)/0.42)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:grid-cols-[minmax(0,1fr)_8rem]",
+        "mt-1.5 grid w-full max-w-[34rem] overflow-hidden rounded-[20px] border border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-card)/0.78)] text-left shadow-[0_14px_30px_hsl(var(--shadow-color)/0.07)] transition hover:-translate-y-0.5 hover:border-[hsl(var(--primary)/0.42)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] sm:grid-cols-[minmax(0,1fr)_8rem]",
         className,
       )}
       data-testid="message-link-preview"
