@@ -31,6 +31,27 @@ confirmation-gated, validates the target database plus every historical name
 and checksum, and is idempotent once this baseline record exists. It is not a
 normal deployment command.
 
+### Interrupted historical replay recovery
+
+An older application image can only replay the retired historical directory if
+it is deployed after the UAT rebaseline. The repository's pre-deploy contract
+therefore runs `db:recover:uat-history` before `db:migrate:deploy`. It is a
+no-op unless both UAT-only variables are set for one recovery deployment:
+
+```text
+PRISMA_UAT_HISTORY_RECOVERY_CONFIRM=recover-interrupted-uat-migration-history-20260725
+PRISMA_UAT_HISTORY_RECOVERY_EXPECTED_DATABASE=railway
+```
+
+With that explicit confirmation, the command takes an exclusive lock on
+`_prisma_migrations` and accepts only the known interrupted state: one valid
+Prisma 7 baseline record followed by a checksum-matching prefix of the retired
+history whose final record is failed. It replaces only migration metadata with
+the same baseline record and runs `prisma migrate status`; it never executes
+DDL, reset, `db push`, or seed. Any other state fails closed. Remove both
+variables immediately after the successful recovery deployment and redeploy
+once without them to prove the normal migration path.
+
 ## Normal UAT and production deployment
 
 Run the migration step once, before starting the new web process. The Railway
