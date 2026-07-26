@@ -18,7 +18,7 @@ const invite = {
   uses: 2,
 } satisfies WorkspaceInvite;
 
-function request(method: "GET" | "POST", body?: unknown) {
+function request(method: "GET" | "POST" | "PUT", body?: unknown) {
   return new Request("https://whispr.test/api/v1/mobile/servers/server-1/invites", {
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     headers: { "Content-Type": "application/json" },
@@ -35,14 +35,47 @@ function context(params: Record<string, string>, onRead: () => void = () => unde
   };
 }
 
+const inviteSheetUser = {
+  avatarUrl: null,
+  displayName: "Ayşegül",
+  id: "user-2",
+  username: "aysegul_dev",
+};
+
+const pendingInvite = {
+  createdAt: "2026-07-13T09:00:00.000Z",
+  id: "invite-2",
+  user: inviteSheetUser,
+};
+
+const inviteSheet = {
+  friends: [
+    {
+      ...inviteSheetUser,
+      isMember: false,
+      lastSeenAt: "2026-07-13T06:00:00.000Z",
+      pendingInviteId: "invite-2",
+      status: "ONLINE" as const,
+    },
+  ],
+  linkInvite: { ...invite, shareUrl: "https://whispr.test/invite/INVITE_1" },
+  pendingInvites: [pendingInvite],
+};
+
+const QR_DATA_URL = "data:image/png;base64,iVBORw0KGgo=";
+
 function dependencies(overrides: Record<string, unknown> = {}) {
   return {
     authenticate: async () => "user-1",
+    buildQrCode: async () => QR_DATA_URL,
     buildShareUrl: (code: string) => `https://whispr.test/invite/${encodeURIComponent(code)}`,
     createInvite: async () => invite,
+    createTargetedInvite: async () => pendingInvite,
     enforceRateLimit: async () => undefined,
+    getInviteSheet: async () => inviteSheet,
     listInvites: async () => [invite],
     parseBody: parseJsonBody,
+    replaceLinkInvite: async () => invite,
     revokeInvite: async () => undefined,
     ...overrides,
   };
@@ -395,5 +428,235 @@ describe("mobile server invite route logic", () => {
 
     assert.equal(response.status >= 400, true);
     assert.equal(revokeCalled, false);
+  });
+});
+
+describe("mobile invite sheet route logic", () => {
+  it("GET returns the link, friends and pending invites in one uncached read", async () => {
+    const { mobileServerInviteSheetRoute } = await routes;
+    const calls: string[] = [];
+    const response = await mobileServerInviteSheetRoute(
+      request("GET"),
+      context({ serverId: "server-1" }, () => calls.push("params")),
+      dependencies({
+        authenticate: async () => {
+          calls.push("auth");
+          return "user-1";
+        },
+        enforceRateLimit: async (userId: string, action: string) => {
+          calls.push(`rate:${userId}:${action}`);
+        },
+        getInviteSheet: async (userId: string, serverId: string) => {
+          calls.push(`sheet:${userId}:${serverId}`);
+          return inviteSheet;
+        },
+      }),
+    );
+
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("Cache-Control"), "no-store, no-cache, must-revalidate");
+    assert.deepEqual(await response.json(), inviteSheet);
+    assert.deepEqual(calls, [
+      "auth",
+      "rate:user-1:mobile:server:invites:sheet",
+      "params",
+      "sheet:user-1:server-1",
+    ]);
+  });
+
+  it("GET rejects a malformed server id before reading the sheet", async () => {
+    const { mobileServerInviteSheetRoute } = await routes;
+    let sheetCalled = false;
+    const response = await mobileServerInviteSheetRoute(
+      request("GET"),
+      context({ serverId: "" }),
+      dependencies({
+        getInviteSheet: async () => {
+          sheetCalled = true;
+          return inviteSheet;
+        },
+      }),
+    );
+
+    assert.equal(response.status >= 400, true);
+    assert.equal(sheetCalled, false);
+  });
+
+  it("GET surfaces a permission failure instead of an empty sheet", async () => {
+    const { mobileServerInviteSheetRoute } = await routes;
+    const response = await mobileServerInviteSheetRoute(
+      request("GET"),
+      context({ serverId: "server-1" }),
+      dependencies({
+        getInviteSheet: async () => {
+          throw new ApiError("Missing permission", 403, "FORBIDDEN");
+        },
+      }),
+    );
+
+    assert.equal(response.status, 403);
+  });
+
+  it("PUT replaces the shared link with the requested lifetime", async () => {
+    const { mobileServerInviteLinkUpdateRoute } = await routes;
+    const calls: Array<{ input: unknown; serverId: string; userId: string }> = [];
+    let rateLimitAction: string | null = null;
+    const response = await mobileServerInviteLinkUpdateRoute(
+      request("PUT", { expiresInHours: 24, maxUses: 10 }),
+      context({ serverId: "server-1" }),
+      dependencies({
+        enforceRateLimit: async (_userId: string, action: string) => {
+          rateLimitAction = action;
+        },
+        replaceLinkInvite: async (userId: string, serverId: string, input: unknown) => {
+          calls.push({ input, serverId, userId });
+          return invite;
+        },
+      }),
+    );
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), {
+      invite: {
+        channelId: invite.channelId,
+        createdAt: invite.createdAt,
+        createdByDisplayName: invite.createdByDisplayName,
+        expiresAt: invite.expiresAt,
+        id: invite.id,
+        maxUses: invite.maxUses,
+        shareUrl: "https://whispr.test/invite/INVITE_1",
+        uses: invite.uses,
+      },
+    });
+    assert.equal(rateLimitAction, "mobile:server:invites:create");
+    assert.deepEqual(calls, [
+      { input: { expiresInHours: 24, maxUses: 10 }, serverId: "server-1", userId: "user-1" },
+    ]);
+  });
+
+  it("PUT rejects a lifetime outside the sheet's options", async () => {
+    const { mobileServerInviteLinkUpdateRoute } = await routes;
+    let replaceCalled = false;
+    const response = await mobileServerInviteLinkUpdateRoute(
+      request("PUT", { expiresInHours: 5000, maxUses: null }),
+      context({ serverId: "server-1" }),
+      dependencies({
+        replaceLinkInvite: async () => {
+          replaceCalled = true;
+          return invite;
+        },
+      }),
+    );
+
+    assert.equal(response.status >= 400, true);
+    assert.equal(replaceCalled, false);
+  });
+
+  it("POST targeted creates a single-seat invite for the named user", async () => {
+    const { mobileServerTargetedInviteCreateRoute } = await routes;
+    const calls: Array<{ serverId: string; targetUserId: string; userId: string }> = [];
+    let rateLimitAction: string | null = null;
+    const response = await mobileServerTargetedInviteCreateRoute(
+      request("POST", { userId: "user-2" }),
+      context({ serverId: "server-1" }),
+      dependencies({
+        createTargetedInvite: async (userId: string, serverId: string, targetUserId: string) => {
+          calls.push({ serverId, targetUserId, userId });
+          return pendingInvite;
+        },
+        enforceRateLimit: async (_userId: string, action: string) => {
+          rateLimitAction = action;
+        },
+      }),
+    );
+
+    assert.equal(response.status, 201);
+    assert.deepEqual(await response.json(), { invite: pendingInvite });
+    assert.equal(rateLimitAction, "mobile:server:invites:target");
+    assert.deepEqual(calls, [{ serverId: "server-1", targetUserId: "user-2", userId: "user-1" }]);
+  });
+
+  it("POST targeted rejects an unknown body key and a missing user", async () => {
+    const { mobileServerTargetedInviteCreateRoute } = await routes;
+    let createCalled = false;
+    const deps = dependencies({
+      createTargetedInvite: async () => {
+        createCalled = true;
+        return pendingInvite;
+      },
+    });
+
+    const extraKey = await mobileServerTargetedInviteCreateRoute(
+      request("POST", { serverId: "server-1", userId: "user-2" }),
+      context({ serverId: "server-1" }),
+      deps,
+    );
+    const missingUser = await mobileServerTargetedInviteCreateRoute(
+      request("POST", {}),
+      context({ serverId: "server-1" }),
+      deps,
+    );
+
+    assert.equal(extraKey.status >= 400, true);
+    assert.equal(missingUser.status >= 400, true);
+    assert.equal(createCalled, false);
+  });
+
+  it("POST targeted surfaces the already-pending conflict verbatim", async () => {
+    const { mobileServerTargetedInviteCreateRoute } = await routes;
+    const response = await mobileServerTargetedInviteCreateRoute(
+      request("POST", { userId: "user-2" }),
+      context({ serverId: "server-1" }),
+      dependencies({
+        createTargetedInvite: async () => {
+          throw new ApiError(
+            "This user already has a pending invite",
+            409,
+            "INVITE_ALREADY_PENDING",
+          );
+        },
+      }),
+    );
+
+    assert.equal(response.status, 409);
+    assert.deepEqual(await response.json(), {
+      code: "INVITE_ALREADY_PENDING",
+      error: "This user already has a pending invite",
+    });
+  });
+
+  it("GET qr returns a PNG data URL for the named invite", async () => {
+    const { mobileServerInviteQrRoute } = await routes;
+    const calls: Array<{ inviteId: string; serverId: string; userId: string }> = [];
+    let rateLimitAction: string | null = null;
+    const response = await mobileServerInviteQrRoute(
+      request("GET"),
+      context({ inviteId: "invite-1", serverId: "server-1" }),
+      dependencies({
+        buildQrCode: async (userId: string, serverId: string, inviteId: string) => {
+          calls.push({ inviteId, serverId, userId });
+          return QR_DATA_URL;
+        },
+        enforceRateLimit: async (_userId: string, action: string) => {
+          rateLimitAction = action;
+        },
+      }),
+    );
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { qrCodeDataUrl: QR_DATA_URL });
+    assert.equal(rateLimitAction, "mobile:server:invites:qr");
+    assert.deepEqual(calls, [{ inviteId: "invite-1", serverId: "server-1", userId: "user-1" }]);
+  });
+
+  it("GET qr refuses to pass a non-PNG payload through the contract", async () => {
+    const { mobileServerInviteQrRoute } = await routes;
+    const response = await mobileServerInviteQrRoute(
+      request("GET"),
+      context({ inviteId: "invite-1", serverId: "server-1" }),
+      dependencies({ buildQrCode: async () => "https://whispr.test/qr.png" }),
+    );
+
+    assert.equal(response.status >= 400, true);
   });
 });

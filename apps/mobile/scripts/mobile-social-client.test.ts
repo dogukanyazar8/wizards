@@ -8,12 +8,23 @@ const social = import("../src/social/mobile-social-client");
 const user = { avatarUrl: null, displayName: "Ada", id: "user-2", username: "ada" };
 const overview = {
   blocked: [],
-  friends: [{ ...user, customStatus: null, presence: { customStatus: null, status: "ONLINE" }, status: "ONLINE" }],
+  friends: [
+    {
+      ...user,
+      customStatus: null,
+      lastSeenAt: null,
+      presence: { customStatus: null, status: "ONLINE" },
+      status: "ONLINE",
+    },
+  ],
   pending: { incoming: [], outgoing: [] },
 };
 
 function client(handler: (path: string, options?: unknown) => unknown): MobileApiClient {
-  return { requestJson: async <TResponse>(path: string, options?: unknown) => handler(path, options) as TResponse };
+  return {
+    requestJson: async <TResponse>(path: string, options?: unknown) =>
+      handler(path, options) as TResponse,
+  };
 }
 
 describe("mobile social client", () => {
@@ -29,7 +40,19 @@ describe("mobile social client", () => {
     const api = client((path, options) => {
       calls.push([path, options]);
       if (path.includes("blocks")) return { blocked: user };
-      if (path.includes("requests")) return { request: { createdAt: new Date().toISOString(), id: "r-1", receiver: user, receiverId: user.id, sender: { ...user, id: "user-1", username: "dogukan" }, senderId: "user-1", status: "PENDING", updatedAt: new Date().toISOString() } };
+      if (path.includes("requests"))
+        return {
+          request: {
+            createdAt: new Date().toISOString(),
+            id: "r-1",
+            receiver: user,
+            receiverId: user.id,
+            sender: { ...user, id: "user-1", username: "dogukan" },
+            senderId: "user-1",
+            status: "PENDING",
+            updatedAt: new Date().toISOString(),
+          },
+        };
       return { success: true };
     });
     await createMobileFriendRequest(api, " ada ");
@@ -45,7 +68,9 @@ describe("mobile social client", () => {
     const calls: Array<[string, unknown]> = [];
     const api = client((path, options) => {
       calls.push([path, options]);
-      return path.endsWith("presence") ? { status: "DND" } : { user: { ...user, customStatus: null, status: "DND", twoFactorEnabled: false } };
+      return path.endsWith("presence")
+        ? { status: "DND" }
+        : { user: { ...user, customStatus: null, status: "DND", twoFactorEnabled: false } };
     });
     await updateMobilePresence(api, "DND");
     await updateMobileProfile(api, { displayName: " Ada " });
@@ -55,8 +80,33 @@ describe("mobile social client", () => {
   it("opens a friend DM through the bounded mobile endpoint", async () => {
     const { openMobileFriendDM } = await social;
     const calls: unknown[] = [];
-    const conversation = { id: "dm-1", lastMessage: null, lastMessageAt: new Date().toISOString(), name: null, participants: [{ avatarUrl: null, customStatus: null, displayName: "Ada", muted: false, presence: { customStatus: null, status: "ONLINE" }, status: "ONLINE", unreadCount: 0, userId: "user-2", username: "ada" }], type: "DM" };
-    const result = await openMobileFriendDM(client((path, options) => { calls.push([path, options]); return { conversation }; }), "user-2");
+    const conversation = {
+      id: "dm-1",
+      lastMessage: null,
+      lastMessageAt: new Date().toISOString(),
+      name: null,
+      participants: [
+        {
+          avatarUrl: null,
+          customStatus: null,
+          displayName: "Ada",
+          muted: false,
+          presence: { customStatus: null, status: "ONLINE" },
+          status: "ONLINE",
+          unreadCount: 0,
+          userId: "user-2",
+          username: "ada",
+        },
+      ],
+      type: "DM",
+    };
+    const result = await openMobileFriendDM(
+      client((path, options) => {
+        calls.push([path, options]);
+        return { conversation };
+      }),
+      "user-2",
+    );
     assert.equal(result.conversation.id, "dm-1");
     assert.equal((calls[0] as [string])[0], "/api/v1/mobile/dm");
   });

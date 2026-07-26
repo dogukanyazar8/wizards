@@ -389,4 +389,22 @@ describe("mobile Phase 4 server management", () => {
     assert.match(source, /mobileQueryKeys\.channelMessages/);
     assert.match(source, /removeQueries\(/);
   });
+
+  // The entry used to be gated on the compact layout, which left the default rail layout
+  // with no way into server settings at all.
+  it("offers the server settings entry in both the rail and the compact workspace layouts", () => {
+    const source = read("../src/app/screens/workspace-browser.tsx");
+    const entry = source.slice(
+      source.indexOf("copy.workspaceServerSettingsAction") - 400,
+      source.indexOf("mobile-server-settings-open-") + 120,
+    );
+
+    assert.match(entry, /activeServerId && \(canManageServer \|\| canManageInvites\)/);
+    assert.doesNotMatch(entry, /isCompactWorkspaceLayout &&\s*\r?\n?\s*activeServerId/);
+    // Layout only picks the chrome, never whether the control exists.
+    assert.match(
+      entry,
+      /isCompactWorkspaceLayout\s*\r?\n?\s*\?\s*styles\.mobileWorkspaceCompactAddButton\s*\r?\n?\s*:\s*styles\.mobileWorkspaceHeaderIconButton/,
+    );
+  });
 });

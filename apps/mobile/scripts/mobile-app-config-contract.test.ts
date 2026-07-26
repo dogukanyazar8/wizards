@@ -53,6 +53,8 @@ describe("mobile app config contract", () => {
     assert.equal(config.ios?.bundleIdentifier, WHISPR_MOBILE_APP_IDENTITY.iosBundleIdentifier);
     assert.deepEqual(config.android?.permissions, getWhisprMobileAndroidPermissions());
     assert.deepEqual(config.ios?.infoPlist, getWhisprMobileIosInfoPlistUsageDescriptions());
+    assert.ok(config.plugins?.includes("./plugins/withWebRtc"));
+    assert.equal(config.plugins?.includes("@config-plugins/react-native-webrtc"), false);
     assert.ok(config.plugins?.includes("./plugins/withScreenShare"));
     assert.ok(config.android?.permissions?.includes("FOREGROUND_SERVICE_MEDIA_PROJECTION"));
     assert.ok(config.android?.permissions?.includes("USE_BIOMETRIC"));

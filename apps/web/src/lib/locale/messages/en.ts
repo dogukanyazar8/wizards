@@ -2258,6 +2258,8 @@ export const EN_MESSAGES = {
   "workspace.notification.memberAdded.body": "{actor} added you to {server}.",
   "workspace.notification.rolesAssigned.title": "Role updated in {server}",
   "workspace.notification.rolesAssigned.body": "You were granted {roles} in {server}.",
+  "workspace.notification.serverInvite.title": "Server invite",
+  "workspace.notification.serverInvite.body": "{name} invited you to {server}.",
   "workspace.modal.saveChanges": "Save Changes",
   "workspace.modal.createServer": "Create Server",
   "workspace.modal.addMemberTitle": "Add User",

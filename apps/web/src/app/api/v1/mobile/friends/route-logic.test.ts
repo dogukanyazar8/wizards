@@ -17,7 +17,21 @@ const pendingRequest = {
   status: "PENDING" as const,
   updatedAt: "2026-07-11T10:00:00.000Z",
 };
-const searchResult = { ...ada, relationship: "none" as const, requestId: null };
+const searchResult = {
+  ...ada,
+  isMember: false,
+  mutualServerCount: 0,
+  pendingInviteId: null,
+  relationship: "none" as const,
+  requestId: null,
+};
+const adaAsFriend = {
+  ...ada,
+  customStatus: null,
+  lastSeenAt: "2026-07-11T09:00:00.000Z",
+  presence: { customStatus: null, status: "ONLINE" as const },
+  status: "ONLINE" as const,
+};
 
 function jsonRequest(path: string, method: string, body?: unknown) {
   return new Request(`https://whispr.test${path}`, {
@@ -46,14 +60,7 @@ function dependencies(overrides: Record<string, unknown> = {}) {
     cancelFriendRequest: async () => undefined,
     enforceRateLimit: async () => undefined,
     listBlockedUsers: async () => [ada],
-    listFriends: async () => [
-      {
-        ...ada,
-        customStatus: null,
-        presence: { customStatus: null, status: "ONLINE" as const },
-        status: "ONLINE" as const,
-      },
-    ],
+    listFriends: async () => [adaAsFriend],
     listPendingFriendRequests: async () => ({ incoming: [pendingRequest], outgoing: [] }),
     parseBody: parseJsonBody,
     removeFriend: async () => undefined,
@@ -83,14 +90,7 @@ describe("mobile friends route logic", () => {
         },
         listFriends: async (userId: string) => {
           calls.push(`friends:${userId}`);
-          return [
-            {
-              ...ada,
-              customStatus: null,
-              presence: { customStatus: null, status: "ONLINE" as const },
-              status: "ONLINE" as const,
-            },
-          ];
+          return [adaAsFriend];
         },
         listPendingFriendRequests: async (userId: string) => {
           calls.push(`pending:${userId}`);
@@ -102,14 +102,7 @@ describe("mobile friends route logic", () => {
     assert.equal(response.status, 200);
     assert.deepEqual(await response.json(), {
       blocked: [ada],
-      friends: [
-        {
-          ...ada,
-          customStatus: null,
-          presence: { customStatus: null, status: "ONLINE" },
-          status: "ONLINE",
-        },
-      ],
+      friends: [adaAsFriend],
       pending: { incoming: [pendingRequest], outgoing: [] },
     });
     assert.equal(calls[0], "auth");
@@ -217,9 +210,19 @@ describe("mobile friends route logic", () => {
     const calls: string[] = [];
     const deps = dependencies({
       enforceRateLimit: async (_userId: string, action: string) => calls.push(action),
-      searchUsers: async (userId: string, term: string, limit: number) => {
-        calls.push(`search:${userId}:${term}:${limit}`);
-        return [searchResult, { ...dogukan, relationship: "outgoing", requestId: "request-1" }];
+      searchUsers: async (userId: string, term: string, limit: number, serverId?: string) => {
+        calls.push(`search:${userId}:${term}:${limit}:${serverId ?? "-"}`);
+        return [
+          searchResult,
+          {
+            ...dogukan,
+            isMember: false,
+            mutualServerCount: 0,
+            pendingInviteId: null,
+            relationship: "outgoing" as const,
+            requestId: "request-1",
+          },
+        ];
       },
     });
 
@@ -240,21 +243,37 @@ describe("mobile friends route logic", () => {
       dependencies(),
     );
 
+    // Invite sheet 2b scopes the same search to one server; global search does not.
+    const scoped = await mobileFriendUserSearchRoute(
+      new Request("https://whispr.test/api/v1/mobile/friends/search?q=ada&serverId=server-1"),
+      deps,
+    );
+
     assert.equal(response.status, 200);
     assert.deepEqual(await response.json(), {
       results: [
         searchResult,
-        { ...dogukan, relationship: "outgoing", requestId: "request-1" },
+        {
+          ...dogukan,
+          isMember: false,
+          mutualServerCount: 0,
+          pendingInviteId: null,
+          relationship: "outgoing",
+          requestId: "request-1",
+        },
       ],
     });
     assert.equal(defaultLimit.status, 200);
+    assert.equal(scoped.status, 200);
     assert.equal(tooShort.status, 400);
     assert.equal(overLimit.status, 400);
     assert.deepEqual(calls, [
       "mobile:friends:search",
-      "search:user-1:ada:5",
+      "search:user-1:ada:5:-",
       "mobile:friends:search",
-      "search:user-1:ad:20",
+      "search:user-1:ad:20:-",
+      "mobile:friends:search",
+      "search:user-1:ada:20:server-1",
     ]);
   });
 

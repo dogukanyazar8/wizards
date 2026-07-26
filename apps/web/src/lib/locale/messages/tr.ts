@@ -2257,6 +2257,8 @@ export const TR_MESSAGES = {
   "workspace.notification.memberAdded.body": "{actor} seni {server} sunucusuna ekledi.",
   "workspace.notification.rolesAssigned.title": "{server} içinde rolün güncellendi",
   "workspace.notification.rolesAssigned.body": "{server} içinde sana {roles} rolü verildi.",
+  "workspace.notification.serverInvite.title": "Sunucu daveti",
+  "workspace.notification.serverInvite.body": "{name} seni {server} sunucusuna davet etti.",
   "workspace.modal.saveChanges": "Değişiklikleri Kaydet",
   "workspace.modal.createServer": "Sunucu Oluştur",
   "workspace.modal.addMemberTitle": "Kullanıcı Ekle",

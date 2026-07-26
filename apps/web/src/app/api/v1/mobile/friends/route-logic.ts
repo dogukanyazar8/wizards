@@ -92,8 +92,10 @@ export async function mobileFriendUserSearchRoute(
     const input = MobileUserSearchQuerySchema.parse({
       limit: searchParams.get("limit") ?? undefined,
       q: searchParams.get("q") ?? "",
+      // Invite sheet 2b scopes the same search to one server; global search omits it.
+      serverId: searchParams.get("serverId") ?? undefined,
     });
-    const results = await dependencies.searchUsers(userId, input.q, input.limit);
+    const results = await dependencies.searchUsers(userId, input.q, input.limit, input.serverId);
     return Response.json(MobileUserSearchResponseSchema.parse({ results }));
   } catch (error) {
     return jsonError(error);

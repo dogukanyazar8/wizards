@@ -1,7 +1,16 @@
-import React, { type ComponentProps } from "react";
+import React, { type ComponentProps, type ReactElement } from "react";
 import { StyleSheet } from "react-native";
-import { fireEvent } from "@testing-library/react-native";
-import { describe, expect, it, jest } from "@jest/globals";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { fireEvent, waitFor } from "@testing-library/react-native";
+import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+
+const mockUseMobileAuth = jest.fn();
+
+// The status card under the banner is connected, so the hub now needs an authenticated
+// client and a query cache the same way the product shell hands it one.
+jest.mock("../src/auth/mobile-auth-context", () => ({
+  useMobileAuth: () => mockUseMobileAuth(),
+}));
 
 const mockMobileAccountSettingsScreen = jest.fn(
   ({ onBack, presence }: { onBack(): void; presence: string | null }) => {
@@ -61,8 +70,51 @@ import {
   type MobilePermissionReadiness,
   type MobilePermissionStatus,
 } from "../src/permissions/mobile-permission-contract";
+import { ToastProvider } from "../src/app/components/kit/toast";
+import { mobileQueryKeys } from "../src/query/mobile-query-keys";
 import type { MobileSyncHealthSummary } from "../src/sync/mobile-sync-contract";
-import { renderWithMobileTheme as render } from "./render-with-mobile-theme";
+import { renderWithMobileTheme } from "./render-with-mobile-theme";
+
+const ACCOUNT_SETTINGS = {
+  account: {
+    bannerColor: null,
+    bannerUrl: null,
+    bio: null,
+    customStatus: null,
+    customStatusEmoji: null,
+    customStatusExpiresAt: null,
+    email: "ada@example.com",
+    emailVerified: true,
+    nextUsernameChangeAt: null,
+    pronouns: null,
+    twoFactorEnabled: false,
+  },
+  privacy: { dmPermission: "FRIENDS" as const, friendRequests: "EVERYONE" as const },
+};
+
+function createSeededQueryClient() {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+      queries: {
+        gcTime: Number.POSITIVE_INFINITY,
+        retry: false,
+        staleTime: Number.POSITIVE_INFINITY,
+      },
+    },
+  });
+  queryClient.setQueryData(mobileQueryKeys.accountSettings(), ACCOUNT_SETTINGS);
+  return queryClient;
+}
+
+function render(ui: ReactElement) {
+  const queryClient = createSeededQueryClient();
+  return renderWithMobileTheme(
+    <QueryClientProvider client={queryClient}>
+      <ToastProvider>{ui}</ToastProvider>
+    </QueryClientProvider>,
+  );
+}
 
 const copy = activeMobileCopy;
 const englishLocaleLabel = MOBILE_LOCALE_OPTIONS.find((option) => option.id === "en")!.label;
@@ -168,6 +220,16 @@ function createReadyBootstrapState(
 }
 
 describe("mobile profile settings screen", () => {
+  beforeEach(() => {
+    mockUseMobileAuth.mockReset();
+    mockUseMobileAuth.mockReturnValue({
+      apiClient: { requestJson: jest.fn(async () => ACCOUNT_SETTINGS) },
+      replaceSessionUser: jest.fn(async () => true),
+      session: { user: { id: "user-1", username: "ada_test" } },
+      status: "signed-in",
+    });
+  });
+
   it("delegates the account section to the connected screen with live presence and back action", async () => {
     const onBack = jest.fn();
     const view = await render(
@@ -250,6 +312,45 @@ describe("mobile profile settings screen", () => {
     expect(onUpdatePresence).toHaveBeenCalledWith("DND");
   });
 
+  it("confirms a presence change with the same profile-updated toast as the editor", async () => {
+    const view = await render(
+      <ProfileSettingsScreen
+        {...createProfileSettingsScreenProps({
+          bootstrapState: createReadyBootstrapState(),
+          onUpdatePresence: jest.fn(async () => undefined),
+          socialActionsEnabled: true,
+        })}
+      />,
+    );
+
+    await fireEvent.press(view.getByTestId("mobile-profile-presence-open"));
+    await fireEvent.press(view.getByTestId("mobile-profile-status-sheet-dnd"));
+
+    await waitFor(() => expect(view.getByTestId("mobile-toast")).toBeTruthy());
+    expect(view.getByText(copy.profileEditSaved)).toBeTruthy();
+    expect(view.getByTestId("mobile-toast-tone-success")).toBeTruthy();
+  });
+
+  it("does not confirm a presence change the server rejected", async () => {
+    const view = await render(
+      <ProfileSettingsScreen
+        {...createProfileSettingsScreenProps({
+          bootstrapState: createReadyBootstrapState(),
+          onUpdatePresence: jest.fn(async () => {
+            throw new Error("boom");
+          }),
+          socialActionsEnabled: true,
+        })}
+      />,
+    );
+
+    await fireEvent.press(view.getByTestId("mobile-profile-presence-open"));
+    await fireEvent.press(view.getByTestId("mobile-profile-status-sheet-dnd"));
+
+    await waitFor(() => expect(view.getByText(copy.profileHubPresenceError)).toBeTruthy());
+    expect(view.queryByTestId("mobile-toast")).toBeNull();
+  });
+
   it("draws the saved banner on the identity card at its stored focal point", async () => {
     const view = await render(
       <ProfileSettingsScreen
@@ -269,6 +370,49 @@ describe("mobile profile settings screen", () => {
     expect(image.props.source).toMatchObject({ uri: "https://cdn.test/banner.png" });
     // Same focal mapping as the editor preview, the card and the full page.
     expect(image.props.contentPosition).toEqual({ left: "25%", top: "80%" });
+  });
+
+  // The identity card is the banner now: no body strip under it, no presence chip inside it.
+  it("fills the whole identity card with the banner and parks the edit chip on it", async () => {
+    const view = await render(
+      <ProfileSettingsScreen
+        {...createProfileSettingsScreenProps({
+          bootstrapState: createReadyBootstrapState({
+            bannerUrl: "https://cdn.test/banner.png",
+          }),
+          onUpdatePresence: jest.fn(async () => undefined),
+          socialActionsEnabled: true,
+        })}
+      />,
+    );
+
+    const card = StyleSheet.flatten(
+      view.getByTestId("mobile-profile-identity-card").props.style,
+    ) as { height?: number };
+    const bannerImage = StyleSheet.flatten(
+      view.getByTestId("mobile-profile-identity-banner-image").props.style,
+    ) as { position?: string };
+
+    expect(card.height).toBeGreaterThan(0);
+    // Absolutely filled, not a fixed strip above a body.
+    expect(bannerImage.position).toBe("absolute");
+    expect(view.getByTestId("mobile-profile-edit")).toBeTruthy();
+  });
+
+  it("moves the status message and the presence row below the banner", async () => {
+    const view = await render(
+      <ProfileSettingsScreen
+        {...createProfileSettingsScreenProps({
+          bootstrapState: createReadyBootstrapState(),
+          onUpdatePresence: jest.fn(async () => undefined),
+          socialActionsEnabled: true,
+        })}
+      />,
+    );
+
+    expect(view.getByTestId("mobile-profile-status-card")).toBeTruthy();
+    expect(view.getByTestId("mobile-profile-status-input")).toBeTruthy();
+    expect(view.getByTestId("mobile-profile-presence-open")).toBeTruthy();
   });
 
   it("falls back to the chosen banner colour when no banner image is set", async () => {

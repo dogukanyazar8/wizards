@@ -80,6 +80,8 @@ export async function searchMobileUsers(
   client: MobileApiClient,
   query: string,
   limit = MOBILE_USER_SEARCH_LIMIT,
+  /** Invite sheet 2b scopes the search to one server for its membership context. */
+  serverId?: string,
 ): Promise<MobileUserSearchResponse> {
   const term = normalizeMobileUserSearchTerm(query);
   if (term.length < MOBILE_USER_SEARCH_MIN_TERM_LENGTH) {
@@ -87,6 +89,10 @@ export async function searchMobileUsers(
   }
 
   const params = new URLSearchParams({ limit: String(limit), q: term });
+  if (serverId) {
+    params.set("serverId", serverId);
+  }
+
   return MobileUserSearchResponseSchema.parse(
     await client.requestJson(`/api/v1/mobile/friends/search?${params.toString()}`),
   );
@@ -106,10 +112,9 @@ export async function actOnMobileFriendRequest(
   action: "accept" | "reject",
 ) {
   return MobileFriendRequestActionResponseSchema.parse(
-    await client.requestJson(
-      `/api/v1/mobile/friends/requests/${encodeId(requestId)}/${action}`,
-      { method: "POST" },
-    ),
+    await client.requestJson(`/api/v1/mobile/friends/requests/${encodeId(requestId)}/${action}`, {
+      method: "POST",
+    }),
   );
 }
 

@@ -1,5 +1,6 @@
 import { prisma } from "@wizards/db";
 import { getRedis } from "@/lib/redis";
+import { resolveLastSeenAtByUserId } from "@/lib/friends/last-seen";
 import { readPresenceMap } from "@/lib/presence";
 import type {
   FriendDto,
@@ -88,14 +89,17 @@ export async function listFriends(userId: string): Promise<FriendDto[]> {
   const friends = friendships.map((friendship) =>
     friendship.senderId === userId ? friendship.receiver : friendship.sender,
   );
-  const presenceByUserId = await readPresenceMap(
-    getRedis(),
-    friends.map((friend) => ({
-      customStatus: friend.customStatus,
-      status: "OFFLINE",
-      userId: friend.id,
-    })),
-  );
+  const [presenceByUserId, lastSeenByUserId] = await Promise.all([
+    readPresenceMap(
+      getRedis(),
+      friends.map((friend) => ({
+        customStatus: friend.customStatus,
+        status: "OFFLINE",
+        userId: friend.id,
+      })),
+    ),
+    resolveLastSeenAtByUserId(friends.map((friend) => friend.id)),
+  ]);
 
   return friends.map((friend) => {
     const presence = presenceByUserId.get(friend.id) ?? {
@@ -104,6 +108,7 @@ export async function listFriends(userId: string): Promise<FriendDto[]> {
     };
 
     return {
+      lastSeenAt: lastSeenByUserId.get(friend.id) ?? null,
       id: friend.id,
       username: friend.username,
       displayName: friend.displayName,

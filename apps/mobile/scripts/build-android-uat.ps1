@@ -723,11 +723,17 @@ function Test-WhisprUatPnpmLayout {
 
   $tsxLink = Get-Item -Force -LiteralPath $tsxLinkPath
   $tsxTargets = @($tsxLink.Target | Where-Object { $_ })
-  if ($tsxLink.LinkType -ne "Junction" -or $tsxTargets.Count -ne 1) {
+  if ($tsxLink.LinkType -notin @("Junction", "SymbolicLink") -or $tsxTargets.Count -ne 1) {
     return $false
   }
 
-  $tsxTarget = [System.IO.Path]::GetFullPath([string]$tsxTargets[0]).TrimEnd("\\")
+  $tsxLinkParent = Split-Path -Parent $tsxLinkPath
+  $tsxTargetValue = [string]$tsxTargets[0]
+  if ([System.IO.Path]::IsPathRooted($tsxTargetValue)) {
+    $tsxTarget = [System.IO.Path]::GetFullPath($tsxTargetValue).TrimEnd("\\")
+  } else {
+    $tsxTarget = [System.IO.Path]::GetFullPath((Join-Path $tsxLinkParent $tsxTargetValue)).TrimEnd("\\")
+  }
   if (-not $tsxTarget.StartsWith("$normalizedExpectedVirtualStoreDir\", [System.StringComparison]::OrdinalIgnoreCase)) {
     return $false
   }
@@ -957,20 +963,15 @@ if (-not $SkipSync -and -not $sourceEqualsBuild) {
   New-Item -ItemType Directory -Force -Path $resolvedBuildRoot | Out-Null
   Invoke-RobocopyChecked -From $resolvedSourceRoot -To $resolvedBuildRoot
 } elseif ($sourceEqualsBuild) {
-  Write-Step "Source and build root are the same; skipping sync"
+  throw "BuildRoot must differ from SourceRoot. Expo prebuild may only regenerate native files inside the managed UAT build root."
 } else {
   Write-Step "Skipping workspace sync"
 }
 
 $mobileRoot = Join-Path $resolvedBuildRoot "apps\mobile"
-$androidRoot = Join-Path $mobileRoot "android"
-$gradlew = Join-Path $androidRoot "gradlew.bat"
 $gradleBuildTask = if ($BuildType -eq "release") { "app:assembleRelease" } else { "app:assembleDebug" }
-$apkPath = Join-Path $androidRoot "app\build\outputs\apk\$BuildType\app-$BuildType.apk"
 
 Resolve-ExistingPath $mobileRoot "Mobile root" | Out-Null
-Resolve-ExistingPath $androidRoot "Android root" | Out-Null
-Resolve-ExistingPath $gradlew "Gradle wrapper" | Out-Null
 Resolve-ExistingPath $JavaHome "JavaHome" | Out-Null
 Resolve-ExistingPath $AndroidHome "AndroidHome" | Out-Null
 
@@ -1048,10 +1049,19 @@ Write-Host "Metro development server port: $metroPort"
 
 Write-Step "Preparing package manager and Android SDK config"
 Ensure-ProjectNpmrc -Root $resolvedBuildRoot -StoreDir $pnpmStoreDir -VirtualStoreDir $pnpmVirtualStoreDir -VirtualStoreMaxLength $PnpmVirtualStoreMaxLength
-Ensure-AndroidLocalProperties -MobileRoot $mobileRoot -SdkRoot $AndroidHome
 Invoke-PnpmInstallWithRecovery -WorkingDirectory $resolvedBuildRoot -ResolvedBuildHome $resolvedBuildHome -PhysicalWorkspaceRoot $physicalWorkspaceRoot -PhysicalStoreDir $physicalPnpmStoreDir -PhysicalVirtualStoreDir $physicalPnpmVirtualStoreDir -PnpmVirtualStoreMaxLength $PnpmVirtualStoreMaxLength
 Invoke-CommandChecked -Command "corepack" -Arguments @("pnpm", "--filter", "@wizards/mobile", "validate:env") -WorkingDirectory $resolvedBuildRoot
 Assert-ExpoReleaseBundlePrerequisites -WorkingDirectory $mobileRoot -BuildType $BuildType
+
+Write-Step "Regenerating managed Android project with Expo prebuild"
+Invoke-CommandChecked -Command "corepack" -Arguments @("pnpm", "exec", "expo", "prebuild", "--platform", "android", "--clean") -WorkingDirectory $mobileRoot
+
+$androidRoot = Join-Path $mobileRoot "android"
+$gradlew = Join-Path $androidRoot "gradlew.bat"
+$apkPath = Join-Path $androidRoot "app\build\outputs\apk\$BuildType\app-$BuildType.apk"
+Resolve-ExistingPath $androidRoot "Generated Android root" | Out-Null
+Resolve-ExistingPath $gradlew "Generated Gradle wrapper" | Out-Null
+Ensure-AndroidLocalProperties -MobileRoot $mobileRoot -SdkRoot $AndroidHome
 Stop-GradleDaemons -GradleWrapperPath $gradlew -WorkingDirectory $androidRoot
 
 if ($CleanAndroidCaches) {

@@ -12,7 +12,18 @@ import {
   MobileRoleCreateRequestSchema,
   MobileRoleMutationResponseSchema,
   MobileRoleUpdateRequestSchema,
+  MOBILE_INVITE_SHEET_DEFAULT_EXPIRES_IN_HOURS,
+  MOBILE_INVITE_SHEET_EXPIRY_OPTIONS,
+  MOBILE_INVITE_SHEET_MAX_USES_OPTIONS,
+  MOBILE_TARGETED_INVITE_MAX_USES,
+  MobileServerInviteLinkUpdateRequestSchema,
   MobileServerInviteParamsSchema,
+  MobileServerInviteQrResponseSchema,
+  MobileServerInviteSheetFriendSchema,
+  MobileServerInviteSheetResponseSchema,
+  MobileServerPendingInviteSchema,
+  MobileServerTargetedInviteCreateRequestSchema,
+  MobileServerTargetedInviteCreateResponseSchema,
   MobileServerRoleParamsSchema,
   MobileServerRoleSchema,
   MobileCategoryCreateRequestSchema,
@@ -102,6 +113,24 @@ const invite = {
   maxUses: null,
   shareUrl: "https://whispr.example/invite/safe_code-1",
   uses: 0,
+};
+const inviteSheetUser = {
+  avatarUrl: null,
+  displayName: "Ayşegül",
+  id: "user-1",
+  username: "aysegul_dev",
+};
+const inviteSheetFriend = {
+  ...inviteSheetUser,
+  isMember: false,
+  lastSeenAt: "2026-07-13T06:00:00.000Z",
+  pendingInviteId: null,
+  status: "ONLINE" as const,
+};
+const pendingInvite = {
+  createdAt: "2026-07-13T08:00:00.000Z",
+  id: "invite-2",
+  user: inviteSheetUser,
 };
 const member = {
   accessLevel: "MEMBER" as const,
@@ -377,6 +406,45 @@ describe("mobile workspace management schemas", () => {
         valid: { invites: [invite] },
         invalid: { invites: "invite-1" },
       },
+      MobileServerInviteSheetFriendSchema: {
+        schema: MobileServerInviteSheetFriendSchema,
+        valid: inviteSheetFriend,
+        invalid: { ...inviteSheetFriend, status: "AWAY" },
+      },
+      MobileServerPendingInviteSchema: {
+        schema: MobileServerPendingInviteSchema,
+        valid: pendingInvite,
+        invalid: { ...pendingInvite, createdAt: "yesterday" },
+      },
+      MobileServerInviteSheetResponseSchema: {
+        schema: MobileServerInviteSheetResponseSchema,
+        valid: {
+          friends: [inviteSheetFriend],
+          linkInvite: invite,
+          pendingInvites: [pendingInvite],
+        },
+        invalid: { friends: [inviteSheetFriend], pendingInvites: [pendingInvite] },
+      },
+      MobileServerTargetedInviteCreateRequestSchema: {
+        schema: MobileServerTargetedInviteCreateRequestSchema,
+        valid: { userId: resourceId },
+        invalid: { userId: resourceId, serverId: resourceId },
+      },
+      MobileServerTargetedInviteCreateResponseSchema: {
+        schema: MobileServerTargetedInviteCreateResponseSchema,
+        valid: { invite: pendingInvite },
+        invalid: { invite: { ...pendingInvite, user: null } },
+      },
+      MobileServerInviteLinkUpdateRequestSchema: {
+        schema: MobileServerInviteLinkUpdateRequestSchema,
+        valid: { expiresInHours: 168, maxUses: null },
+        invalid: { expiresInHours: 721, maxUses: null },
+      },
+      MobileServerInviteQrResponseSchema: {
+        schema: MobileServerInviteQrResponseSchema,
+        valid: { qrCodeDataUrl: "data:image/png;base64,iVBORw0KGgo=" },
+        invalid: { qrCodeDataUrl: "https://whispr.example/qr.png" },
+      },
       MobileServerJoinRequestSchema: {
         schema: MobileServerJoinRequestSchema,
         valid: { inviteCode: "safe_code-1" },
@@ -599,6 +667,51 @@ describe("mobile workspace management schemas", () => {
       shareUrl: "http://whispr.example/invite/code",
     });
     assertRejects(MobileServerInviteSchema, { ...invite, code: "secret-code" });
+  });
+
+  it("carries the whole 2a/2b invite sheet in one payload without leaking codes", () => {
+    assertAccepts(MobileServerInviteSheetResponseSchema, {
+      friends: [inviteSheetFriend],
+      linkInvite: null,
+      pendingInvites: [],
+    });
+    // A pending targeted invite is what makes "Gönderildi" survive a re-open.
+    assertAccepts(MobileServerInviteSheetFriendSchema, {
+      ...inviteSheetFriend,
+      pendingInviteId: "invite-2",
+    });
+    assertAccepts(MobileServerInviteSheetFriendSchema, {
+      ...inviteSheetFriend,
+      isMember: true,
+      lastSeenAt: null,
+    });
+    assertRejects(MobileServerInviteSheetFriendSchema, { ...inviteSheetFriend, code: "secret" });
+    assertRejects(MobileServerPendingInviteSchema, { ...pendingInvite, code: "secret" });
+    assertRejects(MobileServerInviteSheetResponseSchema, {
+      friends: [inviteSheetFriend],
+      linkInvite: { ...invite, shareUrl: "http://whispr.example/invite/code" },
+      pendingInvites: [],
+    });
+  });
+
+  it("bounds the invite-sheet edit options to the durations and caps the sheet offers", () => {
+    assert.deepEqual(MOBILE_INVITE_SHEET_EXPIRY_OPTIONS, [1, 24, 168, null]);
+    assert.deepEqual(MOBILE_INVITE_SHEET_MAX_USES_OPTIONS, [1, 10, 50, null]);
+    assert.equal(MOBILE_INVITE_SHEET_DEFAULT_EXPIRES_IN_HOURS, 168);
+    assert.equal(MOBILE_TARGETED_INVITE_MAX_USES, 1);
+
+    for (const expiresInHours of MOBILE_INVITE_SHEET_EXPIRY_OPTIONS) {
+      for (const maxUses of MOBILE_INVITE_SHEET_MAX_USES_OPTIONS) {
+        assertAccepts(MobileServerInviteLinkUpdateRequestSchema, { expiresInHours, maxUses });
+      }
+    }
+    assertRejects(MobileServerInviteLinkUpdateRequestSchema, { expiresInHours: 0, maxUses: null });
+    assertRejects(MobileServerInviteLinkUpdateRequestSchema, { expiresInHours: null, maxUses: 0 });
+    assertRejects(MobileServerInviteLinkUpdateRequestSchema, {
+      expiresInHours: null,
+      maxUses: 1001,
+    });
+    assertRejects(MobileServerInviteLinkUpdateRequestSchema, { expiresInHours: null });
   });
 
   it("keeps media responses purpose-discriminated and free of storage metadata", () => {

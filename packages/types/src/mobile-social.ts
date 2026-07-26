@@ -39,6 +39,11 @@ export const MobileFriendPresenceSchema = z
 
 export const MobileFriendSchema = MobileFriendUserSchema.extend({
   customStatus: z.string().max(128).nullable(),
+  /**
+   * Drives the invite sheet's "2 sa önce görüldü" line. Added after the UAT
+   * backend shipped, so it defaults rather than making an older payload fail.
+   */
+  lastSeenAt: z.string().datetime().nullable().default(null),
   presence: MobileFriendPresenceSchema,
   status: MobileFriendPresenceStatusSchema,
 }).strict();
@@ -113,10 +118,20 @@ export const MobileUserSearchQuerySchema = z
       .optional()
       .default(MOBILE_USER_SEARCH_LIMIT),
     q: z.string().trim().min(2).max(32),
+    /**
+     * Invite-sheet 2b passes the server it is inviting into, which fills the
+     * server-context fields below. Global search omits it and is unchanged.
+     */
+    serverId: MobileBoundedIdSchema.optional(),
   })
   .strict();
 
 export const MobileUserSearchResultSchema = MobileFriendUserSchema.extend({
+  /** Server-context fields: only meaningful when the query carried a `serverId`. */
+  isMember: z.boolean().default(false),
+  mutualServerCount: z.number().int().nonnegative().default(0),
+  /** Targeted invite already waiting for this user on that server, if any. */
+  pendingInviteId: MobileBoundedIdSchema.nullable().default(null),
   relationship: MobileFriendRelationshipSchema,
   /** Pending request id for incoming/outgoing rows, so a row can accept or cancel directly. */
   requestId: MobileBoundedIdSchema.nullable(),

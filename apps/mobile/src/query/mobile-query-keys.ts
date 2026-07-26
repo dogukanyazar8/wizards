@@ -102,6 +102,9 @@ export function createMobileQueryKeys(registry: MobileSearchKeyRegistry) {
     workspaceRoleOverview: (serverId: string) =>
       [...all, "workspace", serverId, "role-overview"] as const,
     workspaceInvites: (serverId: string) => [...all, "workspace", serverId, "invites"] as const,
+    /** 2a/2b sheet payload: link, friends and pending targeted invites together. */
+    workspaceInviteSheet: (serverId: string) =>
+      [...all, "workspace", serverId, "invite-sheet"] as const,
   };
 }
 

@@ -205,6 +205,10 @@ export const mobileLayoutMetrics = {
     profileIdentityAvatarInnerRadius: 22,
     profileIdentityAvatarOverlap: -34,
     profileIdentityAvatarRingBorder: 4,
+    // The identity card is the banner: the photo fills the whole block and the
+    // avatar/name/edit chip sit on top of it, so the card needs a real height of
+    // its own instead of growing out of a body that no longer exists.
+    profileIdentityCardHeight: 212,
     profileIdentityEditActionRadius: 12,
     profileIdentityPresenceDot: 18,
     profileIdentityPresenceDotBorder: 3,

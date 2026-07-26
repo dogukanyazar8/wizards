@@ -1,3 +1,4 @@
+import type { MobileNetworkStatus } from "../network/mobile-network-contract";
 import type {
   MobileRealtimeConnectionSnapshot,
   MobileRealtimeEventEnvelope,
@@ -5,6 +6,7 @@ import type {
   MobileRealtimeVisibility,
 } from "./mobile-realtime-contract";
 import {
+  MOBILE_REALTIME_RECONNECT_POLICY,
   isMobileRealtimeChannelMessagePayloadEvent,
   isMobileRealtimeDMMessagePayloadEvent,
 } from "./mobile-realtime-contract";
@@ -186,6 +188,83 @@ export function getMobileRealtimeForegroundBackfillSources(input: {
   }
 
   return sources;
+}
+
+/**
+ * Socket errors the retry loop cannot fix. The server rejects the handshake with
+ * `new Error("Unauthorized")` (and "Missing AUTH_SECRET"), and the client raises
+ * "missing_token" itself, so retrying only burns the budget silently.
+ */
+const MOBILE_REALTIME_FATAL_ERROR_CODES = ["unauthorized", "missing_token", "missing auth_secret"];
+
+export type MobileRealtimeBannerState = "failed" | "hidden" | "reconnecting";
+
+function isFatalMobileRealtimeErrorCode(code: string | null): boolean {
+  if (code === null) {
+    return false;
+  }
+
+  const normalized = code.toLowerCase();
+  return MOBILE_REALTIME_FATAL_ERROR_CODES.some((fatal) => normalized.includes(fatal));
+}
+
+/**
+ * Whether the live connection is worth a word on screen.
+ *
+ * The socket dropping is only news when the user can still act on the stale
+ * feed: signed in, foreground, and with a network the OS believes works. The
+ * first connect stays silent because the startup and bootstrap notices already
+ * own that moment — this banner exists for the case where the app looks healthy
+ * but new messages have stopped arriving.
+ */
+export function getMobileRealtimeBannerState(input: {
+  authStatus: string;
+  networkStatus: MobileNetworkStatus;
+  realtime: MobileRealtimeConnectionSnapshot;
+}): MobileRealtimeBannerState {
+  if (input.authStatus !== "signed-in") {
+    return "hidden";
+  }
+
+  // Offline has its own banner. Two bars saying the same outage is noise.
+  if (input.networkStatus === "offline" || input.realtime.visibility === "background") {
+    return "hidden";
+  }
+
+  switch (input.realtime.status) {
+    case "connecting":
+      return input.realtime.connectedAt === null ? "hidden" : "reconnecting";
+    case "disconnected":
+      return "reconnecting";
+    case "error":
+      return isFatalMobileRealtimeErrorCode(input.realtime.lastErrorCode) ||
+        input.realtime.reconnectAttempt >= MOBILE_REALTIME_RECONNECT_POLICY.maxAttempts
+        ? "failed"
+        : "reconnecting";
+    default:
+      return "hidden";
+  }
+}
+
+/**
+ * Whether a connect attempt should be forced right now.
+ *
+ * socket.io stops retrying after `maxAttempts`, and a handshake rejected during
+ * an outage lands there fast — which used to leave the app permanently deaf with
+ * only a banner button to save it. The OS reporting a working network again is
+ * new information the socket's own backoff never sees, so it is worth one fresh
+ * attempt. "unknown" is not enough: that is the state the OS reports when it has
+ * not decided yet, and connecting into it just burns the budget again.
+ */
+export function shouldForceMobileRealtimeReconnect(input: {
+  networkStatus: MobileNetworkStatus;
+  realtime: MobileRealtimeConnectionSnapshot;
+}): boolean {
+  if (input.networkStatus !== "online") {
+    return false;
+  }
+
+  return input.realtime.status === "disconnected" || input.realtime.status === "error";
 }
 
 export function summarizeMobileRealtimeConnection(state: MobileRealtimeConnectionSnapshot) {

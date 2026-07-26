@@ -1,4 +1,4 @@
-import { useEffect, useState, type PropsWithChildren } from "react";
+import { createContext, useContext, useEffect, useState, type PropsWithChildren } from "react";
 import NetInfo from "@react-native-community/netinfo";
 import { onlineManager } from "@tanstack/react-query";
 import { AppState, View } from "react-native";
@@ -12,8 +12,23 @@ import {
   setMobileNetworkStatusSnapshot,
   subscribeMobileOfflineMutationAttempt,
 } from "../../network/mobile-network-events";
-import { MobileOfflineBanner } from "../components/mobile-offline-banner";
 import { useToast } from "../components/kit/toast";
+
+/**
+ * Read-only view of the network status. The module-level
+ * snapshot in `mobile-network-events` stays the source for non-React callers
+ * (the API client); surfaces that have to re-render when connectivity flips —
+ * MobileConnectivityBanner, which merges network and socket state into one bar —
+ * read this instead.
+ *
+ * Defaults to "unknown" rather than throwing so a component can be rendered in
+ * isolation without standing the provider up.
+ */
+const MobileNetworkStatusContext = createContext<MobileNetworkStatus>("unknown");
+
+export function useMobileNetworkStatus(): MobileNetworkStatus {
+  return useContext(MobileNetworkStatusContext);
+}
 
 export function MobileNetworkProvider({ children }: PropsWithChildren) {
   const [status, setStatus] = useState<MobileNetworkStatus>("unknown");
@@ -53,9 +68,11 @@ export function MobileNetworkProvider({ children }: PropsWithChildren) {
   }, [showToast]);
 
   return (
-    <View style={{ flex: 1 }}>
-      {status === "offline" ? <MobileOfflineBanner /> : null}
-      {children}
-    </View>
+    <MobileNetworkStatusContext.Provider value={status}>
+      {/* The offline bar itself lives in MobileConnectivityBanner, below the
+          realtime provider, so network and socket state cannot render two
+          competing bars. */}
+      <View style={{ flex: 1 }}>{children}</View>
+    </MobileNetworkStatusContext.Provider>
   );
 }

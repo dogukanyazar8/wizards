@@ -20,6 +20,8 @@ export interface FriendPresenceDto {
 export interface FriendDto extends FriendUserDto {
   status: FriendPresenceStatus;
   customStatus: string | null;
+  /** ISO timestamp behind the mobile invite sheet's "n sa önce görüldü" line. */
+  lastSeenAt: string | null;
   presence: FriendPresenceDto;
 }
 
@@ -44,6 +46,13 @@ export type FriendRelationship = "none" | "friend" | "incoming" | "outgoing" | "
 export interface FriendSearchResultDto extends FriendUserDto {
   relationship: FriendRelationship;
   requestId: string | null;
+  /**
+   * Server context, filled only when the search names a server (mobile invite
+   * sheet 2b). A global search leaves them at their neutral values.
+   */
+  isMember: boolean;
+  mutualServerCount: number;
+  pendingInviteId: string | null;
 }
 
 export interface BlockStatus {
@@ -80,6 +89,7 @@ export const FriendPresenceSchema = z.object({
 export const FriendSchema = FriendUserSchema.extend({
   status: FriendPresenceStatusSchema,
   customStatus: z.string().nullable(),
+  lastSeenAt: z.string().nullable(),
   presence: FriendPresenceSchema,
 });
 

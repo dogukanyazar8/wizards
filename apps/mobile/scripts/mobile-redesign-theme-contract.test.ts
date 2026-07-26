@@ -1214,7 +1214,7 @@ export function Fixture({ cap }: { cap: number }) {
 
   it("uses onStatus for text placed on semantic status surfaces", () => {
     const offlineBanner = readFileSync(
-      join(process.cwd(), "src", "app", "components", "mobile-offline-banner.tsx"),
+      join(process.cwd(), "src", "app", "components", "mobile-connectivity-banner.tsx"),
       "utf8",
     );
     const badge = readFileSync(

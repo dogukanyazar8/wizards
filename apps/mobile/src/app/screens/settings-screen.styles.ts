@@ -288,12 +288,13 @@ export const createSettingsScreenStyles = (theme: MobileTheme) => {
       width: theme.layout.fixed.profileIdentityPresenceDot,
     },
     mobileProfileDisplayName: {
-      color: theme.text.primary,
+      color: theme.text.onInverse,
       fontFamily: theme.typography.fontFamilyExtraBold,
       fontSize: 19,
     },
-    // The pressable keeps a full touch target while the visual stays the compact 1f chip,
-    // bottom-aligned with the avatar instead of floating up next to the banner.
+    // The pressable keeps a full touch target while the visual stays the compact 1f chip.
+    // It now sits in the bottom-right corner of the banner, so the chip wears the image
+    // scrim instead of the card surface — the banner can be any photo underneath it.
     mobileProfileEditAction: {
       alignItems: "flex-end",
       justifyContent: "flex-end",
@@ -302,8 +303,8 @@ export const createSettingsScreenStyles = (theme: MobileTheme) => {
     },
     mobileProfileEditActionVisual: {
       alignItems: "center",
-      backgroundColor: theme.surface.soft,
-      borderColor: theme.border.subtle,
+      backgroundColor: theme.surface.imageScrim,
+      borderColor: theme.border.imageScrim,
       borderRadius: theme.layout.fixed.profileIdentityEditActionRadius,
       borderWidth: 1,
       flexDirection: "row",
@@ -312,7 +313,7 @@ export const createSettingsScreenStyles = (theme: MobileTheme) => {
       paddingVertical: 8,
     },
     mobileProfileEditActionText: {
-      color: theme.text.muted,
+      color: theme.text.onInverse,
       fontFamily: theme.typography.fontFamilyBold,
       fontSize: 12.5,
     },
@@ -330,35 +331,59 @@ export const createSettingsScreenStyles = (theme: MobileTheme) => {
       lineHeight: 31,
       paddingHorizontal: 4,
     },
+    // The banner is the whole card now, not a strip above a body.
     mobileProfileIdentityBanner: {
       backgroundColor: theme.accent.default,
-      height: 72,
+      flex: 1,
       overflow: "hidden" as const,
     },
     mobileProfileIdentityBannerImage: {
-      height: "100%" as const,
-      width: "100%" as const,
-    },
-    mobileProfileIdentityBody: {
-      gap: 8,
-      marginTop: theme.layout.fixed.profileIdentityAvatarOverlap,
-      paddingBottom: 14,
-      paddingHorizontal: 20,
+      bottom: 0,
+      left: 0,
+      position: "absolute" as const,
+      right: 0,
+      top: 0,
     },
     mobileProfileIdentityCard: {
       backgroundColor: theme.surface.card,
       borderColor: theme.border.subtle,
       borderRadius: 24,
       borderWidth: 1,
+      height: theme.layout.fixed.profileIdentityCardHeight,
       overflow: "hidden",
     },
-    mobileProfileIdentityText: {
-      gap: 1,
-    },
-    mobileProfileIdentityTopRow: {
+    // Identity and the edit chip ride the bottom edge of the photo: name on the left,
+    // action on the right, both above the scrim so a bright banner stays readable.
+    mobileProfileIdentityOverlay: {
       alignItems: "flex-end",
+      bottom: 0,
       flexDirection: "row",
+      gap: 12,
       justifyContent: "space-between",
+      left: 0,
+      padding: 16,
+      position: "absolute",
+      right: 0,
+    },
+    mobileProfileIdentityPerson: {
+      alignItems: "center",
+      flexDirection: "row",
+      flexShrink: 1,
+      gap: 12,
+      minWidth: 0,
+    },
+    // No full-width wash over the photo: only the name block and the edit chip carry the
+    // image scrim, so the banner itself stays fully visible top to bottom.
+    mobileProfileIdentityText: {
+      backgroundColor: theme.surface.imageScrim,
+      borderColor: theme.border.imageScrim,
+      borderRadius: theme.layout.fixed.profileIdentityEditActionRadius,
+      borderWidth: 1,
+      flexShrink: 1,
+      gap: 1,
+      minWidth: 0,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
     },
     mobileProfileRowIcon: {
       alignItems: "center",
@@ -424,37 +449,6 @@ export const createSettingsScreenStyles = (theme: MobileTheme) => {
       paddingHorizontal: 10,
       paddingVertical: 5,
     },
-    mobileProfileStatusDot: {
-      backgroundColor: theme.status.success,
-      borderRadius: 5,
-      height: 9,
-      width: 9,
-    },
-    // 1f status control: 10/14 padding, radius 14, 9px dot. The 44px floor stays for the
-    // touch target and is invisible next to the 40px content height.
-    mobileProfileStatusRow: {
-      alignItems: "center",
-      backgroundColor: theme.surface.soft,
-      borderColor: theme.border.subtle,
-      borderRadius: mobileRadii.control,
-      borderWidth: 1,
-      flexDirection: "row",
-      gap: 8,
-      minHeight: mobileSizing.minTouchTarget,
-      paddingHorizontal: 14,
-      paddingVertical: 10,
-    },
-    mobileProfileStatusText: {
-      color: theme.text.primary,
-      flex: 1,
-      fontFamily: theme.typography.fontFamilySemiBold,
-      fontSize: 13.5,
-    },
-    mobileProfileStatusError: {
-      color: theme.status.danger,
-      fontFamily: theme.typography.fontFamilyBold,
-      fontSize: 12,
-    },
     mobileProfileStateCard: {
       backgroundColor: theme.surface.card,
       borderColor: theme.border.subtle,
@@ -470,7 +464,7 @@ export const createSettingsScreenStyles = (theme: MobileTheme) => {
       lineHeight: 20,
     },
     mobileProfileUsername: {
-      color: theme.text.muted,
+      color: theme.text.onInverseMuted,
       fontFamily: theme.typography.fontFamily,
       fontSize: 13,
     },

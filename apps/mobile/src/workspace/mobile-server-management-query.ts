@@ -12,6 +12,7 @@ import { mobileQueryKeys } from "../query/mobile-query-keys";
 import {
   fetchMobileAssignableRoles,
   fetchMobileServerRoleOverview,
+  fetchMobileServerInviteSheet,
   fetchMobileServerInvites,
   fetchMobileServerMembers,
 } from "./mobile-server-management-client";
@@ -110,4 +111,28 @@ export function useMobileServerInvitesQuery(
   enabled: boolean,
 ) {
   return useQuery(getMobileServerInvitesQueryOptions(client, serverId, enabled));
+}
+
+export function getMobileServerInviteSheetQueryOptions(
+  client: MobileApiClient,
+  serverId: string,
+  enabled: boolean,
+) {
+  return queryOptions({
+    enabled: enabled && serverId.length > 0,
+    queryFn: () => fetchMobileServerInviteSheet(client, { serverId }),
+    queryKey: mobileQueryKeys.workspaceInviteSheet(serverId),
+    // Presence and pending invites move while the sheet is open, so it always
+    // refetches on mount rather than painting a cached list.
+    staleTime: 0,
+  });
+}
+
+/** Backs both tabs of the 2a/2b invite sheet from one cache entry. */
+export function useMobileServerInviteSheetQuery(
+  client: MobileApiClient,
+  serverId: string,
+  enabled: boolean,
+) {
+  return useQuery(getMobileServerInviteSheetQueryOptions(client, serverId, enabled));
 }

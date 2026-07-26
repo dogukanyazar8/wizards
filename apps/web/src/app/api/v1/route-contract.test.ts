@@ -146,6 +146,27 @@ const EXPECTED_RATE_LIMIT_ACTIONS = [
     routePath: "mobile/servers/[serverId]/invites/[inviteId]",
   },
   {
+    action: "mobile:server:invites:sheet",
+    method: "GET",
+    routePath: "mobile/servers/[serverId]/invites/sheet",
+  },
+  {
+    // "Düzenle" mints a replacement link, so it shares the create budget.
+    action: "mobile:server:invites:create",
+    method: "PUT",
+    routePath: "mobile/servers/[serverId]/invites/sheet",
+  },
+  {
+    action: "mobile:server:invites:target",
+    method: "POST",
+    routePath: "mobile/servers/[serverId]/invites/targeted",
+  },
+  {
+    action: "mobile:server:invites:qr",
+    method: "GET",
+    routePath: "mobile/servers/[serverId]/invites/[inviteId]/qr",
+  },
+  {
     action: "mobile:server:categories:create",
     method: "POST",
     routePath: "mobile/servers/[serverId]/categories",
@@ -1396,7 +1417,7 @@ describe("API v1 route contract", () => {
       )
       .sort();
 
-    assert.equal(expectedM1Mappings.length, 24);
+    assert.equal(expectedM1Mappings.length, 28);
     assert.deepEqual(actualM1Mappings, expectedM1Mappings);
   });
 

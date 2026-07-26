@@ -21,6 +21,7 @@ jest.mock("../src/app/use-mobile-bottom-system-spacing", () => ({
 }));
 
 import { Skeleton, ToastProvider, useToast } from "../src/app/components/kit";
+import { activeMobileCopy } from "../src/locale/mobile-locale-preferences";
 
 function ToastHarness() {
   const { showToast } = useToast();
@@ -149,6 +150,30 @@ for (const theme of [lightTheme, darkTheme]) {
       expect(
         StyleSheet.flatten(view.getByTestId("mobile-toast-tone-danger").props.style),
       ).toMatchObject({ backgroundColor: theme.status.dangerSoft });
+    });
+
+    // A close button made a routine confirmation look like it wanted an answer.
+    it("retires on its own timer and a tap on the card, with no close button", async () => {
+      mockTheme = theme;
+      jest.useFakeTimers();
+      const view = await render(
+        <ToastProvider>
+          <ToastHarness />
+        </ToastProvider>,
+      );
+
+      await fireEvent.press(view.getByTestId("show-success-toast"));
+
+      expect(view.getByTestId("mobile-toast-timer")).toBeTruthy();
+      // The old dismiss control was a labelled icon button; the label is a hint now.
+      expect(view.queryByLabelText(activeMobileCopy.dismissNotificationAction)).toBeNull();
+      expect(view.getByTestId("mobile-toast-dismiss").props.accessibilityHint).toBe(
+        activeMobileCopy.dismissNotificationAction,
+      );
+
+      // The whole card is the tap target.
+      await fireEvent.press(view.getByTestId("mobile-toast-dismiss"));
+      expect(view.queryByText("Profil güncellendi.")).toBeNull();
     });
 
     it("keeps toast controls above a three-button Android navigation bar", async () => {

@@ -25,10 +25,12 @@ import {
 import { createMobileRealtimeQueryBridge } from "../../realtime/realtime-query-bridge";
 import {
   createInitialMobileRealtimeSnapshot,
+  getMobileRealtimeBannerState,
   getMobileRealtimeForegroundBackfillSources,
   getMobileRealtimeVisibilityFromAppState,
   mobileRealtimeReducer,
   shouldConnectMobileRealtime,
+  shouldForceMobileRealtimeReconnect,
 } from "../../realtime/mobile-realtime-state";
 import {
   createInitialMobileChannelTypingState,
@@ -39,6 +41,9 @@ import {
 import { purgeMobileQueryCache } from "../../query/mobile-query-persistence";
 import { resetMobileSessionState } from "../../state/reset-mobile-session-state";
 import { useMobileActiveTargetStore } from "../../state/mobile-active-target-store";
+import { MobileConnectivityBanner } from "../components/mobile-connectivity-banner";
+import { getMobileConnectivityHealth } from "../mobile-connectivity-presentation";
+import { useMobileNetworkStatus } from "./mobile-network-provider";
 import { useMobileQueryClient } from "./mobile-query-provider";
 
 const MOBILE_CHANNEL_TYPING_STOP_DELAY_MS = 3_000;
@@ -58,6 +63,7 @@ interface MobileRealtimeRuntime {
   emitVoiceInviteAccept(input: { channelId: string; inviteId: string; serverId: string }): void;
   emitVoiceInviteDecline(input: { channelId: string; inviteId: string; serverId: string }): void;
   emitVoiceInviteSend(input: { channelId: string; serverId: string; targetUserId: string }): void;
+  reconnect(): void;
   stopChannelTyping(channelId: string): void;
   stopDMTyping(conversationId: string): void;
   subscribe(listener: MobileRealtimeEventListener): () => void;
@@ -70,6 +76,9 @@ const MobileRealtimeRuntimeContext = createContext<MobileRealtimeRuntime | null>
 export function MobileRealtimeProvider({ children }: PropsWithChildren) {
   const { apiClient, getAccessToken, session, status } = useMobileAuth();
   const queryClient = useMobileQueryClient();
+  const networkStatus = useMobileNetworkStatus();
+  /** Bumped by the banner's manual retry; the connect effect below keys on it. */
+  const [reconnectNonce, setReconnectNonce] = useState(0);
   const clientRef = useRef<MobileRealtimeClient | null>(null);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   const listenersRef = useRef(new Set<MobileRealtimeEventListener>());
@@ -316,7 +325,15 @@ export function MobileRealtimeProvider({ children }: PropsWithChildren) {
     // and keying on `session?.user.id` (not the whole session) avoids reconnecting
     // on token refreshes that keep the same user.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bridge, connection.visibility, getAccessToken, handleEvent, session?.user.id, status]);
+  }, [
+    bridge,
+    connection.visibility,
+    getAccessToken,
+    handleEvent,
+    reconnectNonce,
+    session?.user.id,
+    status,
+  ]);
 
   const channelId = useMobileActiveTargetStore((state) => state.channelId);
   const conversationId = useMobileActiveTargetStore((state) => state.conversationId);
@@ -387,6 +404,31 @@ export function MobileRealtimeProvider({ children }: PropsWithChildren) {
     };
   }, []);
 
+  // Tearing the socket down and standing a fresh one up is the only reconnect
+  // socket.io offers once its own retry budget is spent, and the connect effect
+  // already owns that lifecycle — so the retry re-runs the effect.
+  const reconnect = useCallback(() => {
+    setReconnectNonce((current) => current + 1);
+  }, []);
+
+  // The OS says the network works again, but socket.io stopped retrying — the
+  // one case its own backoff can never recover from. `connectionRef` is read
+  // instead of `connection` so a status transition alone cannot re-trigger this.
+  useEffect(() => {
+    if (shouldForceMobileRealtimeReconnect({ networkStatus, realtime: connectionRef.current })) {
+      reconnect();
+    }
+  }, [networkStatus, reconnect]);
+
+  const connectivityHealth = getMobileConnectivityHealth({
+    authStatus: status,
+    networkStatus,
+    realtime: connection,
+  });
+  const connectivityCanRetry =
+    getMobileRealtimeBannerState({ authStatus: status, networkStatus, realtime: connection }) ===
+    "failed";
+
   const value = useMemo<MobileRealtimeRuntime>(
     () => ({
       connection,
@@ -399,6 +441,7 @@ export function MobileRealtimeProvider({ children }: PropsWithChildren) {
       emitVoiceInviteAccept: (input) => clientRef.current?.emitVoiceInviteAccept(input),
       emitVoiceInviteDecline: (input) => clientRef.current?.emitVoiceInviteDecline(input),
       emitVoiceInviteSend: (input) => clientRef.current?.emitVoiceInviteSend(input),
+      reconnect,
       stopChannelTyping,
       stopDMTyping,
       subscribe,
@@ -409,6 +452,7 @@ export function MobileRealtimeProvider({ children }: PropsWithChildren) {
     [
       connection,
       dmTyping,
+      reconnect,
       stopChannelTyping,
       stopDMTyping,
       subscribe,
@@ -420,6 +464,11 @@ export function MobileRealtimeProvider({ children }: PropsWithChildren) {
 
   return (
     <MobileRealtimeRuntimeContext.Provider value={value}>
+      <MobileConnectivityBanner
+        canRetry={connectivityCanRetry}
+        health={connectivityHealth}
+        onReconnect={reconnect}
+      />
       {children}
     </MobileRealtimeRuntimeContext.Provider>
   );

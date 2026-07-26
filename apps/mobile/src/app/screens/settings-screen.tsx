@@ -69,6 +69,7 @@ import { MobileNotificationSettingsScreen } from "./mobile-notification-settings
 import { MobileSecuritySettingsScreen } from "./mobile-security-settings-screen";
 import { SocialAccountQuickActions } from "../../social/social-account-screens";
 import { Button, DestructiveConfirmationSheet, Skeleton } from "../components/kit";
+import { useToast } from "../components/kit/toast";
 import { Avatar } from "../components/kit/avatar";
 import { mobileNavigationRef } from "../../navigation/mobile-navigation-ref";
 import { useMobileHaptics } from "../providers/mobile-haptics-provider";
@@ -77,6 +78,7 @@ import type { MobileFriendPresenceStatus } from "../../social/mobile-social-clie
 import type { MobileLegalDocumentId } from "@wizards/types";
 import { MobileCachedImage } from "../components/mobile-cached-image";
 import { mobileBannerContentPosition } from "../../social/mobile-banner-offset";
+import { MobileProfileStatusCard } from "../../social/mobile-profile-status-card";
 import { MobileStatusPickerSheetView } from "../../social/mobile-status-picker-sheet";
 import { toMobilePresenceStatus } from "../../social/mobile-status-picker-model";
 
@@ -97,25 +99,6 @@ function getMobileProfilePresenceStatus(value: string | null): MobileFriendPrese
   return MOBILE_PROFILE_PRESENCE_STATUSES.includes(value as MobileFriendPresenceStatus)
     ? (value as MobileFriendPresenceStatus)
     : null;
-}
-
-function getMobileProfilePresenceLabel(
-  locale: MobileLocale,
-  presence: MobileFriendPresenceStatus | null,
-): string {
-  const labels = mobileCopy[locale];
-  switch (presence) {
-    case "ONLINE":
-      return labels.profileHubOnline;
-    case "IDLE":
-      return labels.profileHubIdle;
-    case "DND":
-      return labels.profileHubDnd;
-    case "OFFLINE":
-      return labels.profileHubOffline;
-    default:
-      return labels.profileHubPresenceUnavailable;
-  }
 }
 
 function getMobilePermissionLabel(intentId: MobilePermissionIntentId): string {
@@ -183,6 +166,7 @@ export function MobileProfileSettingsHub({
 }) {
   const styles = useSettingsScreenStyles();
   const theme = useTheme();
+  const { showToast } = useToast();
   const [isPresencePickerOpen, setIsPresencePickerOpen] = useState(false);
   const [isSignOutConfirmationOpen, setIsSignOutConfirmationOpen] = useState(false);
   const [isUpdatingPresence, setIsUpdatingPresence] = useState(false);
@@ -217,6 +201,7 @@ export function MobileProfileSettingsHub({
     try {
       await onUpdatePresence(nextPresence);
       setIsPresencePickerOpen(false);
+      showToast({ message: profileCopy.profileEditSaved, tone: "success" });
     } catch {
       setOptimisticPresence(previousPresence);
       setPresenceError(profileCopy.profileHubPresenceError);
@@ -293,36 +278,44 @@ export function MobileProfileSettingsHub({
               testID="mobile-profile-identity-banner-image"
             />
           ) : null}
-        </View>
-        <View style={styles.mobileProfileIdentityBody}>
-          <View style={styles.mobileProfileIdentityTopRow}>
-            <View style={styles.mobileProfileAvatarRing}>
-              <Avatar
-                avatarBorderRadius={theme.layout.fixed.profileIdentityAvatarInnerRadius}
-                avatarBorderWidth={0}
-                dimension={theme.layout.fixed.profileIdentityAvatarInner}
-                fallbackTextStyle={styles.mobileProfileAvatarInitials}
-                fallbackTint={{ bg: theme.accent.soft, fg: theme.accent.strong }}
-                identityId={user?.id}
-                imageUrl={user?.avatarUrl ?? null}
-                label={displayName}
-              />
-              <View
-                style={[
-                  styles.mobileProfileAvatarPresence,
-                  {
-                    backgroundColor:
-                      visiblePresence === "ONLINE"
-                        ? theme.status.success
-                        : visiblePresence === "IDLE"
-                          ? theme.status.warning
-                          : visiblePresence === "DND"
-                            ? theme.status.danger
-                            : theme.text.soft,
-                  },
-                ]}
-                testID="mobile-profile-avatar-presence"
-              />
+          <View style={styles.mobileProfileIdentityOverlay}>
+            <View style={styles.mobileProfileIdentityPerson}>
+              <View style={styles.mobileProfileAvatarRing}>
+                <Avatar
+                  avatarBorderRadius={theme.layout.fixed.profileIdentityAvatarInnerRadius}
+                  avatarBorderWidth={0}
+                  dimension={theme.layout.fixed.profileIdentityAvatarInner}
+                  fallbackTextStyle={styles.mobileProfileAvatarInitials}
+                  fallbackTint={{ bg: theme.accent.soft, fg: theme.accent.strong }}
+                  identityId={user?.id}
+                  imageUrl={user?.avatarUrl ?? null}
+                  label={displayName}
+                />
+                <View
+                  style={[
+                    styles.mobileProfileAvatarPresence,
+                    {
+                      backgroundColor:
+                        visiblePresence === "ONLINE"
+                          ? theme.status.success
+                          : visiblePresence === "IDLE"
+                            ? theme.status.warning
+                            : visiblePresence === "DND"
+                              ? theme.status.danger
+                              : theme.text.soft,
+                    },
+                  ]}
+                  testID="mobile-profile-avatar-presence"
+                />
+              </View>
+              <View style={styles.mobileProfileIdentityText}>
+                <Text style={styles.mobileProfileDisplayName} numberOfLines={1}>
+                  {displayName}
+                </Text>
+                <Text style={styles.mobileProfileUsername} numberOfLines={1}>
+                  {username}
+                </Text>
+              </View>
             </View>
             <Pressable
               accessibilityLabel={copy.messageEditAction}
@@ -342,57 +335,22 @@ export function MobileProfileSettingsHub({
                     pressed && styles.actionButtonPressed,
                   ]}
                 >
-                  <Ionicons name="pencil-outline" size={13} color={theme.text.muted} />
+                  <Ionicons name="pencil-outline" size={13} color={theme.text.onInverse} />
                   <Text style={styles.mobileProfileEditActionText}>{copy.messageEditAction}</Text>
                 </View>
               )}
             </Pressable>
           </View>
-          <View style={styles.mobileProfileIdentityText}>
-            <Text style={styles.mobileProfileDisplayName} numberOfLines={1}>
-              {displayName}
-            </Text>
-            <Text style={styles.mobileProfileUsername} numberOfLines={1}>
-              {username}
-            </Text>
-          </View>
-          <Pressable
-            accessibilityLabel={copy.profilePresenceAction}
-            accessibilityRole="button"
-            accessibilityState={{ disabled: !onUpdatePresence || isUpdatingPresence }}
-            disabled={!onUpdatePresence || isUpdatingPresence}
-            onPress={() => setIsPresencePickerOpen(true)}
-            style={({ pressed }) => [
-              styles.mobileProfileStatusRow,
-              pressed && styles.actionButtonPressed,
-            ]}
-            testID="mobile-profile-presence-open"
-          >
-            <View
-              style={[
-                styles.mobileProfileStatusDot,
-                {
-                  backgroundColor:
-                    visiblePresence === "ONLINE"
-                      ? theme.status.success
-                      : visiblePresence === "IDLE"
-                        ? theme.status.warning
-                        : visiblePresence === "DND"
-                          ? theme.status.danger
-                          : theme.text.soft,
-                },
-              ]}
-            />
-            <Text style={styles.mobileProfileStatusText}>
-              {getMobileProfilePresenceLabel(locale, visiblePresence)}
-            </Text>
-            <Ionicons name="chevron-down" size={16} color={theme.text.soft} />
-          </Pressable>
-          {presenceError ? (
-            <Text style={styles.mobileProfileStatusError}>{presenceError}</Text>
-          ) : null}
         </View>
       </View>
+
+      <MobileProfileStatusCard
+        locale={locale}
+        onOpenPresencePicker={() => setIsPresencePickerOpen(true)}
+        presence={visiblePresence}
+        presenceDisabled={!onUpdatePresence || isUpdatingPresence}
+        presenceError={presenceError}
+      />
 
       <View style={styles.mobileProfileSettingsCard}>
         <MobileProfileHubRow

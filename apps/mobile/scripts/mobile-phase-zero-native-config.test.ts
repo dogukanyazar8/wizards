@@ -16,7 +16,7 @@ function requiredPackageScript(name: string): string {
   return script;
 }
 
-test("phase zero dependencies and SDK 56 native configuration stay aligned", () => {
+test("SDK 57 native dependencies and configuration stay aligned", () => {
   for (const dependency of [
     "@babel/runtime",
     "@react-navigation/native",
@@ -29,10 +29,19 @@ test("phase zero dependencies and SDK 56 native configuration stay aligned", () 
     "react-native-reanimated",
     "react-native-worklets",
     "@shopify/flash-list",
+    "expo-asset",
     "expo-image",
   ]) {
     assert.ok(packageJson.dependencies[dependency], `Missing ${dependency}`);
   }
+
+  assert.match(packageJson.dependencies.expo ?? "", /^(?:\^|~)57\./);
+  assert.match(packageJson.dependencies["react-native"] ?? "", /^0\.86\./);
+  assert.match(packageJson.dependencies["react-native-gesture-handler"] ?? "", /^~2\.32\./);
+  assert.match(packageJson.dependencies["react-native-reanimated"] ?? "", /^4\.5\./);
+  assert.match(packageJson.dependencies["react-native-worklets"] ?? "", /^0\.10\./);
+  assert.match(packageJson.dependencies["@sentry/react-native"] ?? "", /^(?:\^|~)8\./);
+  assert.equal(packageJson.dependencies["@config-plugins/react-native-webrtc"], undefined);
 
   const appConfig = readFileSync(join(root, "app.config.js"), "utf8");
   const appSource = readFileSync(join(root, "App.tsx"), "utf8");
@@ -52,6 +61,8 @@ test("phase zero dependencies and SDK 56 native configuration stay aligned", () 
   const manifestPath = join(root, "android", "app", "src", "main", "AndroidManifest.xml");
 
   assert.match(appConfig, /["']expo-image["']/);
+  assert.match(appConfig, /["']\.\/plugins\/withWebRtc["']/);
+  assert.doesNotMatch(appConfig, /["']@config-plugins\/react-native-webrtc["']/);
   assert.match(appConfig, /predictiveBackGestureEnabled:\s*true/);
   assert.match(appSource, /GestureHandlerRootView/);
   assert.doesNotMatch(babelSource, /react-native-(reanimated|worklets)\/plugin/);
@@ -87,10 +98,7 @@ test("build-only Android APK scripts do not require or mutate a connected device
   );
   assert.match(buildScript, /"react-native-reanimated"/);
   assert.match(buildScript, /Join-Path \$androidDir "\.cxx"/);
-  assert.match(
-    buildScript,
-    /\[string\]\$BuildHome\s*=\s*"C:\\wm"/,
-  );
+  assert.match(buildScript, /\[string\]\$BuildHome\s*=\s*"C:\\wm"/);
   assert.match(
     buildScript,
     /\[string\]\$ManagedBuildRoot\s*=\s*"C:\\whispr_dev\\whispr_uat\\whispr_mobile"/,
@@ -110,6 +118,12 @@ test("build-only Android APK scripts do not require or mutate a connected device
     /Test-WhisprUatPnpmLayout -WorkingDirectory \$WorkingDirectory -ExpectedVirtualStoreDir \$PhysicalVirtualStoreDir -ExpectedVirtualStoreMaxLength \$PnpmVirtualStoreMaxLength/,
   );
   assert.match(buildScript, /apps\\mobile\\node_modules\\tsx/);
+  assert.match(buildScript, /\$tsxLink\.LinkType -notin @\("Junction", "SymbolicLink"\)/);
+  assert.match(buildScript, /\$tsxLinkParent = Split-Path -Parent \$tsxLinkPath/);
+  assert.match(
+    buildScript,
+    /\[System\.IO\.Path\]::GetFullPath\(\(Join-Path \$tsxLinkParent \$tsxTargetValue\)\)/,
+  );
   assert.match(buildScript, /Join-Path \$tsxTarget "package\.json"/);
   assert.match(buildScript, /function Use-WhisprMobileUatBuildMutex/);
   assert.match(buildScript, /"store-dir"\s*=\s*\$StoreDir/);
@@ -121,23 +135,31 @@ test("build-only Android APK scripts do not require or mutate a connected device
   assert.match(buildScript, /\$env:GRADLE_USER_HOME\s*=\s*\$gradleUserHome/);
   assert.match(buildScript, /"--force",\s*"--frozen-lockfile"/);
   assert.match(buildScript, /\$env:CI\s*=\s*"true"/);
+  assert.match(buildScript, /"prebuild",\s*"--platform",\s*"android",\s*"--clean"/);
+  assert.match(
+    buildScript,
+    /Invoke-PnpmInstallWithRecovery[\s\S]*?Invoke-CommandChecked -Command "corepack" -Arguments @\("pnpm", "exec", "expo", "prebuild", "--platform", "android", "--clean"\) -WorkingDirectory \$mobileRoot/,
+  );
 });
 
 test("release bundling declares and validates the Expo Babel preset directly", () => {
   const babelSource = readFileSync(join(root, "babel.config.js"), "utf8");
   const buildScript = readFileSync(join(root, "scripts", "build-android-uat.ps1"), "utf8");
 
-  assert.equal(packageJson.devDependencies["babel-preset-expo"], "~56.0.17");
+  assert.match(packageJson.devDependencies["babel-preset-expo"] ?? "", /^~57\./);
   assert.match(babelSource, /presets:\s*\["babel-preset-expo"\]/);
   assert.match(buildScript, /function Assert-ExpoReleaseBundlePrerequisites/);
   assert.match(buildScript, /require\.resolve\('babel-preset-expo'\)/);
-  assert.match(buildScript, /Assert-ExpoReleaseBundlePrerequisites -WorkingDirectory \$mobileRoot -BuildType \$BuildType/);
+  assert.match(
+    buildScript,
+    /Assert-ExpoReleaseBundlePrerequisites -WorkingDirectory \$mobileRoot -BuildType \$BuildType/,
+  );
 });
 
 test("release source-map upload declares and validates the Sentry CLI directly", () => {
   const buildScript = readFileSync(join(root, "scripts", "build-android-uat.ps1"), "utf8");
 
-  assert.equal(packageJson.dependencies["@sentry/cli"], "2.58.4");
+  assert.equal(packageJson.dependencies["@sentry/cli"], "3.6.1");
   assert.match(buildScript, /require\.resolve\('@sentry\/cli\/package\.json'\)/);
   assert.match(buildScript, /@sentry\\cli\\bin\\sentry-cli/);
 });
@@ -147,13 +169,19 @@ test("local UAT releases skip Sentry source-map upload only when no auth token i
 
   assert.match(buildScript, /\$BuildType -eq "release" -and -not \$env:SENTRY_AUTH_TOKEN/);
   assert.match(buildScript, /\$env:SENTRY_DISABLE_AUTO_UPLOAD\s*=\s*"true"/);
-  assert.match(buildScript, /SENTRY_AUTH_TOKEN is not set; skipping Sentry source-map upload for this local UAT release build\./);
+  assert.match(
+    buildScript,
+    /SENTRY_AUTH_TOKEN is not set; skipping Sentry source-map upload for this local UAT release build\./,
+  );
 });
 
 test("native cache recovery resolves pnpm's truncated virtual-store directories by package contents", () => {
   const buildScript = readFileSync(join(root, "scripts", "build-android-uat.ps1"), "utf8");
 
-  assert.match(buildScript, /\$physicalPnpmVirtualStoreDir\s*=\s*Join-Path \$resolvedBuildHome "p"/);
+  assert.match(
+    buildScript,
+    /\$physicalPnpmVirtualStoreDir\s*=\s*Join-Path \$resolvedBuildHome "p"/,
+  );
   assert.match(buildScript, /\$pnpmVirtualStoreDir\s*=\s*Join-Path \$resolvedBuildHome "p"/);
   assert.doesNotMatch(buildScript, /-Filter "\$packageName\*"/);
   assert.match(

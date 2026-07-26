@@ -41,7 +41,7 @@ import {
   MobileWorkspaceCreateSheets,
   type MobileWorkspaceCreateState,
 } from "../../workspace/mobile-workspace-create-sheets";
-import { shareMobileInviteUrl } from "../../invite/mobile-invite-share";
+import { MobileInviteSheet } from "../../invite/mobile-invite-sheet";
 import { useMobileAuth } from "../../auth/mobile-auth-context";
 import { useMobileVoiceStatesQuery } from "../../query/mobile-voice-states-query";
 import { ChannelChatBootSkeleton, MobileChannelChatScreen } from "./channel-screen";
@@ -185,7 +185,7 @@ export function MobileWorkspaceBrowser({
   const { apiClient, getAccessToken } = useMobileAuth();
   const [channelQuery, setChannelQuery] = useState("");
   const { collapsedSections, toggleSection: toggleCollapsedSection } = useMobileCollapsedSections();
-  const [inviteShareError, setInviteShareError] = useState<string | null>(null);
+  const [isInviteSheetOpen, setInviteSheetOpen] = useState(false);
   const [isServerSwitcherOpen, setServerSwitcherOpen] = useState(false);
   const [createState, setCreateState] = useState<MobileWorkspaceCreateState>(null);
   const [pendingCreatedChannelId, setPendingCreatedChannelId] = useState<string | null>(null);
@@ -320,19 +320,16 @@ export function MobileWorkspaceBrowser({
     },
     [activeServerId, isSearchingChannels, toggleCollapsedSection],
   );
-  const handleInviteShare = useCallback(async () => {
+  // 2a/2b: the header invite icon (1a) and the compact header button (1b) now
+  // open the "Davet et" sheet. Sharing the link directly moved inside it, so
+  // the entry points no longer mint an invite on tap.
+  const handleOpenInviteSheet = useCallback(() => {
     if (!activeServerId) {
       return;
     }
 
-    setInviteShareError(null);
-    try {
-      const response = await serverManagement.createInvite(activeServerId);
-      await shareMobileInviteUrl(response.invite.shareUrl);
-    } catch {
-      setInviteShareError(copy.workspaceServerInviteShareFailed);
-    }
-  }, [activeServerId, serverManagement]);
+    setInviteSheetOpen(true);
+  }, [activeServerId]);
 
   // 1e: once the created channel lands in the refreshed workspace payload, open
   // it (text → chat, voice → room) so the form's success flow ends on the channel.
@@ -621,11 +618,10 @@ export function MobileWorkspaceBrowser({
               ) : null}
               {canManageInvites ? (
                 <Pressable
-                  accessibilityLabel={copy.workspaceServerInviteShareAction}
+                  accessibilityLabel={copy.inviteSheetTitle}
                   accessibilityRole="button"
-                  disabled={serverManagement.busy}
                   hitSlop={6}
-                  onPress={() => void handleInviteShare()}
+                  onPress={handleOpenInviteSheet}
                   style={({ pressed }) => [
                     isCompactWorkspaceLayout
                       ? styles.mobileWorkspaceCompactAddButton
@@ -641,24 +637,31 @@ export function MobileWorkspaceBrowser({
                   />
                 </Pressable>
               ) : null}
-              {isCompactWorkspaceLayout &&
-              activeServerId &&
-              (canManageServer || canManageInvites) ? (
+              {/* 1a (rail) and 1b (compact) both need the settings entry — it used to be
+                  gated on the compact layout, so the default rail layout had no way in. */}
+              {activeServerId && (canManageServer || canManageInvites) ? (
                 <Pressable
                   accessibilityLabel={copy.workspaceServerSettingsAction}
                   accessibilityRole="button"
+                  hitSlop={6}
                   onPress={() => {
                     if (mobileNavigationRef.isReady()) {
                       mobileNavigationRef.navigate("ServerSettings", { serverId: activeServerId });
                     }
                   }}
                   style={({ pressed }) => [
-                    styles.mobileWorkspaceCompactAddButton,
+                    isCompactWorkspaceLayout
+                      ? styles.mobileWorkspaceCompactAddButton
+                      : styles.mobileWorkspaceHeaderIconButton,
                     pressed && styles.compactListRowPressed,
                   ]}
                   testID={`mobile-server-settings-open-${activeServerId}`}
                 >
-                  <Ionicons name="settings-outline" size={18} color={theme.accent.default} />
+                  <Ionicons
+                    name="settings-outline"
+                    size={isCompactWorkspaceLayout ? 18 : 16}
+                    color={theme.accent.default}
+                  />
                 </Pressable>
               ) : null}
               {!isCompactWorkspaceLayout && canManageChannels ? (
@@ -684,16 +687,6 @@ export function MobileWorkspaceBrowser({
                 <Skeleton height={48} />
                 <Skeleton height={48} />
               </View>
-            ) : null}
-
-            {inviteShareError ? (
-              <Text
-                accessibilityRole="alert"
-                style={styles.errorText}
-                testID="mobile-server-invite-share-error"
-              >
-                {inviteShareError}
-              </Text>
             ) : null}
 
             {isCompactWorkspaceLayout || isChannelSearchOpen || channelQuery.trim().length > 0 ? (
@@ -820,6 +813,19 @@ export function MobileWorkspaceBrowser({
         serverId={activeServerId}
         serverName={activeServerName}
         state={createState}
+      />
+      <MobileInviteSheet
+        canManageServer={canManageServer}
+        onClose={() => setInviteSheetOpen(false)}
+        onOpenInviteManagement={() => {
+          setInviteSheetOpen(false);
+          if (activeServerId && mobileNavigationRef.isReady()) {
+            mobileNavigationRef.navigate("ServerInvites", { serverId: activeServerId });
+          }
+        }}
+        open={isInviteSheetOpen && canManageInvites}
+        serverId={activeServerId}
+        serverName={activeServerName}
       />
     </View>
   );

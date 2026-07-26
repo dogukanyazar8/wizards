@@ -1,25 +1,25 @@
-# Desktop Linux GTK3 RustSec risk record
+# Desktop Linux GTK3 / GLib RustSec risk record
 
 ## Scope and status
 
-This is a tracked Linux-only transitive dependency risk, not a `cargo audit` exception. No advisory is ignored or suppressed.
+This record tracks the transitive GTK3 / GLib risk in the Linux Tauri graph. It is not a `cargo audit` exception: no advisory is ignored, suppressed, or allow-listed.
 
-| Item | Verified state |
-| --- | --- |
-| RustSec CVEs | `0` |
-| Yanked crates | `0` |
-| Unsound advisory | `RUSTSEC-2024-0429` for `glib 0.18.5` |
-| GTK3 unmaintained advisories | Present through the same Linux-only Tauri/Wry chain |
-| Upstream tracker | [tauri-apps/wry#1769](https://github.com/tauri-apps/wry/issues/1769), open |
-| Desktop owner | Desktop release maintainer |
+Evidence was refreshed on 2026-07-26 with `cargo-audit 0.22.1`, Cargo 1.95.0, and advisory-db commit `29638ff054fdbb83d2844240f7ef7e576cb52629` (updated 2026-07-25).
 
-RustSec marks `glib::VariantStrIter` unsound below `glib 0.20.0`. The fix is available upstream in the GLib binding, but it cannot be selected independently while current Tauri/Wry Linux support resolves GTK3 bindings on the `glib 0.18` line. See [RUSTSEC-2024-0429](https://rustsec.org/advisories/RUSTSEC-2024-0429.html) and the [open Wry tracker](https://github.com/tauri-apps/wry/issues/1769).
+| Finding class           | Current result                          | Scope and decision                                                                                                                 |
+| ----------------------- | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| RustSec vulnerabilities | `0`                                     | No CVE/vulnerability finding in `cargo audit --json`. A new finding is a release blocker.                                          |
+| Yanked crates           | `0`                                     | `warnings.yanked` is absent from current audit JSON. A newly yanked package is a release blocker until assessed.                   |
+| Unsound                 | `1`: `RUSTSEC-2024-0429`, `glib 0.18.5` | Linux-only GTK3 / WebKitGTK chain; tracked below.                                                                                  |
+| Unmaintained            | `16` informational warnings             | Ten GTK3 bindings, one GTK3 macro dependency, and five separate Tauri `urlpattern` Unicode dependencies; all remain visible below. |
 
-The current supported Tauri Linux WebView backend is WebKitGTK and requires GTK. Wry documents that dependency explicitly; removing the GTK3 chain, the Tauri tray feature, or Linux support is therefore not a mitigation. [Wry platform requirements](https://github.com/tauri-apps/wry#linux) and [Tauri v2.11.5](https://github.com/tauri-apps/tauri/releases/tag/tauri-v2.11.5) are the vendor sources used for this decision.
+RustSec classifies `glib::VariantStrIter` as unsound for `glib >=0.15.0, <0.20.0`; `glib 0.18.5` is therefore affected and `>=0.20.0` is patched. Its affected APIs are `last`, `next`, `next_back`, `nth`, and `nth_back`. The failure mode can be undefined behavior and a null-pointer crash when the iterator is exercised; it is not evidence of a remotely exploitable Whispr vulnerability. [RUSTSEC-2024-0429](https://rustsec.org/advisories/RUSTSEC-2024-0429.html)
 
-## Proven dependency paths
+## Proven dependency and platform boundaries
 
-`cargo tree --target x86_64-unknown-linux-gnu -i glib` currently proves both required paths:
+`Cargo.toml` has no direct `glib`, `glib-sys`, or `gtk` dependency. The locked, current stable Tauri line is `tauri 2.11.5`, `tauri-runtime-wry 2.11.4`, `wry 0.55.1`, `webkit2gtk 2.0.2`, `gtk 0.18.2`, and `glib 0.18.5`.
+
+`cargo tree --target x86_64-unknown-linux-gnu -i glib` proves both Linux paths:
 
 ```text
 whispr-desktop
@@ -38,41 +38,45 @@ whispr-desktop
   -> glib 0.18.5
 ```
 
-`cargo tree --target x86_64-pc-windows-msvc -i glib` prints no dependency. Windows uses WebView2, not this GTK3 chain.
+`cargo tree --target x86_64-pc-windows-msvc -i glib` has no result. Tauri renders with WebKitGTK on Linux and WebView2 on Windows, so this `glib` finding is not in the current Windows target graph. [Tauri process model](https://v2.tauri.app/concept/process-model/)
 
-Whispr has no direct `glib`, `glib-sys`, or `gtk` dependency and has no `VariantStrIter` reference. `apps/desktop/scripts/cargo-security-baseline.test.mjs` enforces both facts, so the affected API is not callable from Whispr application code. This does not claim that an upstream Linux WebKitGTK implementation can never exercise the transitive code; that remains the upstream risk.
+Whispr does not call `VariantStrIter`: the source has no reference and `apps/desktop/scripts/cargo-security-baseline.test.mjs` enforces both that fact and the absence of direct GLib/GTK dependencies. This narrows direct application callability only. It does not prove that the Linux WebKitGTK/Tauri stack cannot exercise the affected transitive API.
 
-## Mitigation and release condition
+## Complete informational-warning classification
 
-- Keep Tauri's supported Linux WebKitGTK/tray configuration unchanged; do not use a local `Cargo.patch`, audit ignore, runtime-permission relaxation, or platform disablement.
-- Update only when a Tauri/Wry vendor release resolves the Linux graph to `glib >=0.20.0` (or removes the GTK3 path) and `cargo audit --json` reports no `unsound` warning and no GTK3-chain unmaintained warning.
-- At that release, run the verification commands below plus a native Linux desktop launch and tray smoke before closing this record. The open Wry issue is tracking evidence, not a commitment: it currently has no assignee or milestone. Recheck it at every Tauri/Wry release and no later than 2026-10-23.
-- A newly introduced vulnerability, yanked crate, or additional unsound advisory is a release blocker; do not treat this record as blanket approval.
+The ten GTK3 binding advisories are `RUSTSEC-2024-0411` through `RUSTSEC-2024-0420`: `atk`, `atk-sys`, `gdk`, `gdk-sys`, `gdkwayland-sys`, `gdkx11`, `gdkx11-sys`, `gtk`, `gtk-sys`, and `gtk3-macros`. They are on the Linux path above. `RUSTSEC-2024-0370` for `proc-macro-error 1.0.4` is its GTK3 macro build-dependency path, not a separate direct Whispr API.
+
+The remaining five warnings are not GTK3/GLib findings and must not be hidden by this record: `RUSTSEC-2025-0075`, `-0080`, `-0081`, `-0098`, and `-0100` cover the `unic-* 0.9.0` family. `cargo tree` traces them through `urlpattern 0.3.0` and `tauri-utils 2.9.3` in Tauri build and runtime dependencies for both Windows and Linux target trees. They are informational maintenance signals, not vulnerability findings; they need separate upstream assessment if an advisory changes or a Tauri release resolves them.
+
+Unmaintained and unsound are distinct RustSec categories. Neither status is a blanket release approval, exploit claim, or suppression. The release workflow preserves raw audit output plus a redacted summary; vulnerability findings fail the workflow, while informational warnings remain release evidence.
+
+## Current upstream decision
+
+`Cargo.toml` intentionally permits Tauri major version 2, but its lockfile already resolves the current stable vendor releases: `cargo info tauri` reports `2.11.5` and `cargo info wry` reports `0.55.1`. The official Tauri release index reports the same Tauri and Wry releases. [Tauri ecosystem releases](https://v2.tauri.app/release/)
+
+`cargo info glib@0.18.5` reports newer GLib bindings, but they cannot be selected independently without changing the Tauri/Wry GTK3 graph. Wry tracker [#1769](https://github.com/tauri-apps/wry/issues/1769) remains open, unassigned, and without a milestone as of 2026-07-26. Therefore no safe upstream Cargo update exists for this risk, and this checkpoint deliberately changes neither `Cargo.toml` nor `Cargo.lock`.
+
+Do not add a direct GLib override, `[patch]`, audit ignore, feature removal, runtime-permission relaxation, or platform disablement. Do not begin a Tauri 3 or GTK4 migration from this finding alone. Current Tauri Linux development requires WebKitGTK and GTK-related system dependencies; a backend migration needs a measured Linux product requirement and a separately approved compatibility plan. [Tauri Linux prerequisites](https://v2.tauri.app/start/prerequisites/)
+
+## CI, monitoring, and re-evaluation
+
+Dependabot checks Cargo in `/apps/desktop/src-tauri` weekly against `uat`. Automatic `desktop-ops` runs only release-operation/script/config checks on the self-hosted Linux runner. Windows `cargo check` and signed Tauri package builds run only when the manually dispatched `desktop_hosted` option is enabled. No workflow currently proves a native Linux Tauri build, launch, tray smoke, or this GLib path at runtime.
+
+Before accepting any future upstream resolution, require all of the following: lockfile diff review, `cargo audit --json` with no `unsound` warning for this chain, Windows desktop build evidence, and a Linux CI job that compiles the affected target and performs native launch plus tray smoke. The test/build evidence must come from the candidate lockfile, not a prior successful CI run.
+
+Re-evaluate immediately when any of these occur: a Tauri or Wry release, a change to Wry #1769, a new Cargo advisory/yank, a direct GLib/GTK or `VariantStrIter` reference, or a decision to ship/support Linux desktop. Re-evaluate at least by 2026-10-26 even without a trigger. A vulnerability, yanked crate, or new directly callable unsound advisory is a release blocker.
 
 ## Verification commands
 
 ```powershell
 Set-Location apps/desktop/src-tauri
 cargo audit --json
-cargo tree --target all -i glib
-cargo tree --target x86_64-pc-windows-msvc -i glib
 cargo tree --target x86_64-unknown-linux-gnu -i glib
-cargo metadata --no-deps --format-version 1
+cargo tree --target x86_64-pc-windows-msvc -i glib
+cargo test --locked
+cargo check --locked --target x86_64-pc-windows-msvc
 
 Set-Location ../..
 pnpm.cmd --filter @wizards/desktop exec node --test scripts/cargo-security-baseline.test.mjs
 pnpm.cmd --filter @wizards/desktop test
 ```
-
-## This checkpoint's compatible update and rollback
-
-`open` is updated from `5.3.4` to `5.4.0`. Its official release fixes launcher option and shell-injection handling; Whispr already passes only parsed, allow-listed external URL schemes to `open::that`. The existing Rust test keeps that URL policy covered. [open v5.4.0 release notes](https://github.com/Byron/open-rs/releases/tag/v5.4.0)
-
-If this patch causes a desktop regression, restore only the dependency resolution with:
-
-```powershell
-Set-Location apps/desktop/src-tauri
-cargo update -p open --precise 5.3.4
-```
-
-Keep this risk record and the callability test after that rollback; the GTK3/GLib condition predates the `open` update.

@@ -88,12 +88,14 @@ function friendsFor(userId: string, avatarUrl: string | null): MobileFriendsOver
       {
         ...user,
         customStatus: null,
+        lastSeenAt: null,
         presence: { customStatus: null, status: "ONLINE" },
         status: "ONLINE",
       },
       {
         ...other,
         customStatus: null,
+        lastSeenAt: null,
         presence: { customStatus: null, status: "OFFLINE" },
         status: "OFFLINE",
       },

@@ -7,7 +7,12 @@ import { mobileCopy } from "../../locale/mobile-copy";
 import { useMobileHaptics } from "../providers/mobile-haptics-provider";
 import { useMobileLocaleRuntime } from "../providers/mobile-locale-provider";
 import { useTheme } from "../providers/mobile-theme-provider";
-import { useMobileAboutSettingsStyles } from "./mobile-about-settings-screen.styles";
+import { AuthWelcomeBrandMark } from "./auth/auth-welcome-brand-mark";
+import {
+  ABOUT_APP_LOGO_RADIUS,
+  ABOUT_APP_LOGO_SIZE,
+  useMobileAboutSettingsStyles,
+} from "./mobile-about-settings-screen.styles";
 
 type AboutUpdateStatus = "checking" | "downloading" | "idle" | "up-to-date";
 
@@ -138,8 +143,21 @@ export function MobileAboutSettingsScreen({
       </View>
 
       <View style={styles.appCard}>
-        <View style={styles.appIcon}>
-          <Ionicons color={theme.text.onPrimary} name="chatbubble" size={34} />
+        {/*
+          Same animated waveform mark the auth screens render, so the app logo is
+          one component everywhere. It pauses itself while its navigation screen is
+          blurred and draws no SVG blur filter, so it stays on the GPU render path.
+        */}
+        <View
+          accessibilityLabel={copy.aboutSettingsAppName}
+          accessibilityRole="image"
+          style={styles.appIcon}
+        >
+          <AuthWelcomeBrandMark
+            cornerRadius={ABOUT_APP_LOGO_RADIUS}
+            size={ABOUT_APP_LOGO_SIZE}
+            testID="mobile-about-app-logo"
+          />
         </View>
         <View style={styles.appIdentity}>
           <Text style={styles.appName}>{copy.aboutSettingsAppName}</Text>

@@ -309,10 +309,58 @@ describe("mobile social and account schemas", () => {
     );
 
     assert.deepEqual(
+      MobileUserSearchQuerySchema.parse({ q: "ada", serverId: "server-1" }),
+      { limit: MOBILE_USER_SEARCH_LIMIT, q: "ada", serverId: "server-1" },
+      "invite-sheet 2b scopes the same search to one server",
+    );
+
+    // Server-context fields default, so a global search response from an
+    // un-redeployed server still parses into the widened result shape.
+    assert.deepEqual(
       MobileUserSearchResponseSchema.parse({
         results: [{ ...friendUser, relationship: "outgoing", requestId: "request-1" }],
       }),
-      { results: [{ ...friendUser, relationship: "outgoing", requestId: "request-1" }] },
+      {
+        results: [
+          {
+            ...friendUser,
+            isMember: false,
+            mutualServerCount: 0,
+            pendingInviteId: null,
+            relationship: "outgoing",
+            requestId: "request-1",
+          },
+        ],
+      },
+    );
+    assert.deepEqual(
+      MobileUserSearchResponseSchema.parse({
+        results: [
+          {
+            ...friendUser,
+            isMember: true,
+            mutualServerCount: 2,
+            pendingInviteId: "invite-1",
+            relationship: "friend",
+            requestId: null,
+          },
+        ],
+      }).results[0],
+      {
+        ...friendUser,
+        isMember: true,
+        mutualServerCount: 2,
+        pendingInviteId: "invite-1",
+        relationship: "friend",
+        requestId: null,
+      },
+    );
+    assert.equal(
+      MobileUserSearchResponseSchema.safeParse({
+        results: [{ ...friendUser, mutualServerCount: -1, relationship: "none", requestId: null }],
+      }).success,
+      false,
+      "a negative mutual-server count is rejected",
     );
     assert.equal(
       MobileUserSearchResponseSchema.safeParse({

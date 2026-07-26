@@ -23,8 +23,13 @@ import {
   MobileServerIdParamsSchema,
   MobileServerInviteCreateRequestSchema,
   MobileServerInviteCreateResponseSchema,
+  MobileServerInviteLinkUpdateRequestSchema,
   MobileServerInviteParamsSchema,
+  MobileServerInviteQrResponseSchema,
+  MobileServerInviteSheetResponseSchema,
   MobileServerInvitesResponseSchema,
+  MobileServerTargetedInviteCreateRequestSchema,
+  MobileServerTargetedInviteCreateResponseSchema,
   MobileServerJoinRequestSchema,
   MobileServerJoinResponseSchema,
   MobileServerMemberParamsSchema,
@@ -43,6 +48,9 @@ import {
   type MobileServerCreateResponse,
   type MobileServerInviteCreateRequest,
   type MobileServerInviteCreateResponse,
+  type MobileServerInviteQrResponse,
+  type MobileServerInviteSheetResponse,
+  type MobileServerTargetedInviteCreateResponse,
   type MobileRoleMutationResponse,
   type MobilePermissionKey,
   type MobileServerInvitesResponse,
@@ -71,6 +79,21 @@ export function buildMobileServerInvitePath(input: { inviteId: string; serverId:
   return `${buildMobileServerInviteCreatePath({ serverId: input.serverId })}/${encodeURIComponent(
     input.inviteId,
   )}`;
+}
+
+export function buildMobileServerInviteSheetPath(input: { serverId: string }): string {
+  return `${buildMobileServerInviteCreatePath(input)}/sheet`;
+}
+
+export function buildMobileServerTargetedInvitePath(input: { serverId: string }): string {
+  return `${buildMobileServerInviteCreatePath(input)}/targeted`;
+}
+
+export function buildMobileServerInviteQrPath(input: {
+  inviteId: string;
+  serverId: string;
+}): string {
+  return `${buildMobileServerInvitePath(input)}/qr`;
 }
 
 export function buildMobileServerPath(input: { serverId: string }): string {
@@ -190,6 +213,58 @@ export async function deleteMobileServerInvite(
 ): Promise<void> {
   const params = MobileServerInviteParamsSchema.parse(input);
   await client.requestJson<unknown>(buildMobileServerInvitePath(params), { method: "DELETE" });
+}
+
+/** 2a/2b — link card, friends and pending targeted invites in one read. */
+export async function fetchMobileServerInviteSheet(
+  client: MobileApiClient,
+  input: { serverId: string },
+): Promise<MobileServerInviteSheetResponse> {
+  const params = MobileServerIdParamsSchema.parse(input);
+  const payload = await client.requestJson<unknown>(buildMobileServerInviteSheetPath(params));
+  return MobileServerInviteSheetResponseSchema.parse(payload);
+}
+
+/** 2a "Düzenle" — replaces the shared link with one carrying the new limits. */
+export async function updateMobileServerLinkInvite(
+  client: MobileApiClient,
+  input: { expiresInHours: number | null; maxUses: number | null; serverId: string },
+): Promise<MobileServerInviteCreateResponse> {
+  const params = MobileServerIdParamsSchema.parse({ serverId: input.serverId });
+  const body = MobileServerInviteLinkUpdateRequestSchema.parse({
+    expiresInHours: input.expiresInHours,
+    maxUses: input.maxUses,
+  });
+  const payload = await client.requestJson<unknown>(buildMobileServerInviteSheetPath(params), {
+    body,
+    method: "PUT",
+  });
+
+  return MobileServerInviteCreateResponseSchema.parse(payload);
+}
+
+/** 2a/2b "Davet et" on a person — reserves one seat for that account. */
+export async function createMobileTargetedServerInvite(
+  client: MobileApiClient,
+  input: { serverId: string; userId: string },
+): Promise<MobileServerTargetedInviteCreateResponse> {
+  const params = MobileServerIdParamsSchema.parse({ serverId: input.serverId });
+  const body = MobileServerTargetedInviteCreateRequestSchema.parse({ userId: input.userId });
+  const payload = await client.requestJson<unknown>(buildMobileServerTargetedInvitePath(params), {
+    body,
+    method: "POST",
+  });
+
+  return MobileServerTargetedInviteCreateResponseSchema.parse(payload);
+}
+
+export async function fetchMobileServerInviteQrCode(
+  client: MobileApiClient,
+  input: { inviteId: string; serverId: string },
+): Promise<MobileServerInviteQrResponse> {
+  const params = MobileServerInviteParamsSchema.parse(input);
+  const payload = await client.requestJson<unknown>(buildMobileServerInviteQrPath(params));
+  return MobileServerInviteQrResponseSchema.parse(payload);
 }
 
 export type UpdateMobileServerInput = {

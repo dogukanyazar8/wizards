@@ -139,7 +139,11 @@ export function MobileProfileBannerField({
   }, []);
 
   const surface = (
-    <View onLayout={onLayout} style={[styles.banner, { backgroundColor: bannerColor }]}>
+    <View
+      onLayout={onLayout}
+      style={[styles.banner, hasImage && styles.bannerFull, { backgroundColor: bannerColor }]}
+      testID="mobile-profile-edit-banner"
+    >
       {hasImage ? (
         <MobileCachedImage
           accessibilityIgnoresInvertColors

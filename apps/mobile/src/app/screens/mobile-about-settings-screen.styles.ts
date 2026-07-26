@@ -1,7 +1,13 @@
 import type { TextStyle, ViewStyle } from "react-native";
 
+import { mobileBrandPalette } from "../../design/palette";
 import type { MobileTheme } from "../../design/themes";
 import { useThemedStyles } from "../providers/mobile-theme-provider";
+
+/** Rendered edge length of the animated brand mark on the about identity card. */
+export const ABOUT_APP_LOGO_SIZE = 76;
+/** Corner radius kept proportional to the auth card (13/52 of the edge). */
+export const ABOUT_APP_LOGO_RADIUS = 19;
 
 export const createMobileAboutSettingsStyles = (theme: MobileTheme) =>
   ({
@@ -49,12 +55,15 @@ export const createMobileAboutSettingsStyles = (theme: MobileTheme) =>
     },
     appIcon: {
       alignItems: "center",
-      backgroundColor: theme.accent.default,
-      borderRadius: 26,
-      height: 76,
+      // The animated mark paints its own gradient card; the matching solid colour
+      // keeps the Android elevation shadow anchored to an opaque, same-hue outline.
+      backgroundColor: mobileBrandPalette.whisprWave.indigo,
+      borderRadius: ABOUT_APP_LOGO_RADIUS,
+      height: ABOUT_APP_LOGO_SIZE,
       justifyContent: "center",
-      width: 76,
+      width: ABOUT_APP_LOGO_SIZE,
       ...theme.elevation.primaryAction,
+      shadowColor: mobileBrandPalette.whisprWave.indigo,
     },
     appIdentity: { alignItems: "center", gap: 2 },
     appName: {
@@ -162,5 +171,4 @@ export const createMobileAboutSettingsStyles = (theme: MobileTheme) =>
     },
   }) satisfies Record<string, TextStyle | ViewStyle>;
 
-export const useMobileAboutSettingsStyles = () =>
-  useThemedStyles(createMobileAboutSettingsStyles);
+export const useMobileAboutSettingsStyles = () => useThemedStyles(createMobileAboutSettingsStyles);

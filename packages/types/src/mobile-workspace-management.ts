@@ -247,6 +247,91 @@ export const MobileServerInviteParamsSchema = z
   .object({ inviteId: MobileResourceIdSchema, serverId: MobileResourceIdSchema })
   .strict();
 
+/**
+ * Handoff 2a/2b — the "Davet et" sheet. It paints a link card, a friends list
+ * and the pending targeted invites at once, so all three come from one read
+ * instead of three staggered ones. The link/friend rows carry the server
+ * context (`isMember`, `pendingInviteId`) that the standalone friends and
+ * invites endpoints have no notion of.
+ */
+export const MOBILE_INVITE_SHEET_DEFAULT_EXPIRES_IN_HOURS = 24 * 7;
+/** The four "Düzenle" durations, in hours; `null` is the "süresiz" option. */
+export const MOBILE_INVITE_SHEET_EXPIRY_OPTIONS = [1, 24, 24 * 7, null] as const;
+/** The four "Düzenle" usage caps; `null` is the "sınırsız" option. */
+export const MOBILE_INVITE_SHEET_MAX_USES_OPTIONS = [1, 10, 50, null] as const;
+/** A targeted invite is single-use by construction: one person, one seat. */
+export const MOBILE_TARGETED_INVITE_MAX_USES = 1;
+
+const MobileInviteSheetUserSchema = z
+  .object({
+    avatarUrl: z.string().url().max(2048).nullable(),
+    displayName: z.string().max(60).nullable(),
+    id: MobileResourceIdSchema,
+    username: z.string().min(2).max(32),
+  })
+  .strict();
+
+export const MobileServerInviteSheetFriendSchema = MobileInviteSheetUserSchema.extend({
+  /** Already in the server, so the row renders the passive "Üye" pill. */
+  isMember: z.boolean(),
+  /** Feeds "n sa önce görüldü"; null when the account has never been seen. */
+  lastSeenAt: z.string().datetime().nullable(),
+  /**
+   * Set when a targeted invite is still waiting, which is what makes the
+   * "Gönderildi" state survive a sheet close/re-open instead of living in
+   * local component state.
+   */
+  pendingInviteId: MobileResourceIdSchema.nullable(),
+  status: z.enum(["ONLINE", "IDLE", "DND", "OFFLINE"]),
+}).strict();
+
+export const MobileServerPendingInviteSchema = z
+  .object({
+    createdAt: z.string().datetime(),
+    id: MobileResourceIdSchema,
+    user: MobileInviteSheetUserSchema,
+  })
+  .strict();
+
+export const MobileServerInviteSheetResponseSchema = z
+  .object({
+    friends: z.array(MobileServerInviteSheetFriendSchema).max(200),
+    /**
+     * The reusable, untargeted link the card shows. Null when the server has
+     * no live one left; the sheet then creates the 7-day default on open.
+     */
+    linkInvite: MobileServerInviteSchema.nullable(),
+    pendingInvites: z.array(MobileServerPendingInviteSchema).max(100),
+  })
+  .strict();
+
+export const MobileServerTargetedInviteCreateRequestSchema = z
+  .object({ userId: MobileResourceIdSchema })
+  .strict();
+export const MobileServerTargetedInviteCreateResponseSchema = z
+  .object({ invite: MobileServerPendingInviteSchema })
+  .strict();
+
+/**
+ * "Düzenle": an invite row is immutable, so the edit mints a replacement and
+ * revokes the old link in one call. Admin-only, unlike plain invite creation.
+ */
+export const MobileServerInviteLinkUpdateRequestSchema = z
+  .object({
+    expiresInHours: z.number().int().min(1).max(720).nullable(),
+    maxUses: z.number().int().min(1).max(1000).nullable(),
+  })
+  .strict();
+
+export const MobileServerInviteQrResponseSchema = z
+  .object({
+    qrCodeDataUrl: z
+      .string()
+      .max(262_144)
+      .regex(/^data:image\/png;base64,[A-Za-z0-9+/=]+$/),
+  })
+  .strict();
+
 export const MobileCategoryCreateRequestSchema = CreateCategorySchema.strict();
 const MobileCategoryReferenceSchema = z.object({ id: MobileResourceIdSchema }).strict();
 export const MobileCategoryCreateResponseSchema = z
@@ -454,6 +539,19 @@ export type MobileServerInviteCreateResponse = z.infer<
 >;
 export type MobileServerInvitesResponse = z.infer<typeof MobileServerInvitesResponseSchema>;
 export type MobileServerInviteParams = z.infer<typeof MobileServerInviteParamsSchema>;
+export type MobileServerInviteSheetFriend = z.infer<typeof MobileServerInviteSheetFriendSchema>;
+export type MobileServerPendingInvite = z.infer<typeof MobileServerPendingInviteSchema>;
+export type MobileServerInviteSheetResponse = z.infer<typeof MobileServerInviteSheetResponseSchema>;
+export type MobileServerTargetedInviteCreateRequest = z.infer<
+  typeof MobileServerTargetedInviteCreateRequestSchema
+>;
+export type MobileServerTargetedInviteCreateResponse = z.infer<
+  typeof MobileServerTargetedInviteCreateResponseSchema
+>;
+export type MobileServerInviteLinkUpdateRequest = z.infer<
+  typeof MobileServerInviteLinkUpdateRequestSchema
+>;
+export type MobileServerInviteQrResponse = z.infer<typeof MobileServerInviteQrResponseSchema>;
 export type MobileCategoryCreateRequest = z.infer<typeof MobileCategoryCreateRequestSchema>;
 export type MobileCategoryCreateResponse = z.infer<typeof MobileCategoryCreateResponseSchema>;
 export type MobileCategoryUpdateRequest = z.infer<typeof MobileCategoryUpdateRequestSchema>;

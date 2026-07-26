@@ -91,7 +91,12 @@ export const createMobileProfileEditStyles = (theme: MobileTheme) =>
     },
 
     banner: { height: MOBILE_PROFILE_EDIT_METRICS.banner, position: "relative", width: "100%" },
-    bannerImage: { height: MOBILE_PROFILE_EDIT_METRICS.banner, width: "100%" },
+    // Once a photo is in, the preview takes the profile card's exact box. Both surfaces are
+    // page-width minus the same 20px gutters, so the crop you position here is pixel-for-pixel
+    // the crop the profile screen draws. The short 88px box stays for the colour-only state,
+    // where a 212px slab of flat colour would just be dead space.
+    bannerFull: { height: theme.layout.fixed.profileIdentityCardHeight },
+    bannerImage: { bottom: 0, left: 0, position: "absolute", right: 0, top: 0 },
     // Every chip that floats on the banner uses the image scrim, never the 12%
     // white wash: the banner can be a white photo, and a white-on-white control
     // is simply not there.

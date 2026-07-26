@@ -14,6 +14,8 @@ import { getSocketServer } from "@/lib/socket/runtime";
 import { logError } from "@/lib/logger";
 import { readPresenceMap } from "@/lib/presence";
 import { canSendFriendRequest } from "@/lib/privacy-policy";
+import { resolveLastSeenAtByUserId } from "@/lib/friends/last-seen";
+import { isLiveInvite } from "@/lib/workspace/invite-selection";
 import type {
   BlockStatus,
   FriendDto,
@@ -182,10 +184,7 @@ function emitFriendsUpdated(userIds: Iterable<string>, reason: FriendsUpdatedRea
   }
 }
 
-async function clearFriendRequestNotifications(
-  requestId: string,
-  userIds: string[],
-) {
+async function clearFriendRequestNotifications(requestId: string, userIds: string[]) {
   if (userIds.length === 0) {
     return;
   }
@@ -276,9 +275,7 @@ export function mapStoredPresenceStatus(status: string | null | undefined): Frie
   return "OFFLINE";
 }
 
-export async function getUserPresenceBroadcast(
-  userId: string,
-): Promise<FriendPresenceUpdateDto> {
+export async function getUserPresenceBroadcast(userId: string): Promise<FriendPresenceUpdateDto> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
@@ -414,14 +411,17 @@ export async function listFriends(userId: string): Promise<FriendDto[]> {
   const friends = friendships.map((friendship) =>
     friendship.senderId === userId ? friendship.receiver : friendship.sender,
   );
-  const presenceByUserId = await readPresenceMap(
-    getRedis(),
-    friends.map((friend) => ({
-      customStatus: friend.customStatus,
-      status: "OFFLINE",
-      userId: friend.id,
-    })),
-  );
+  const [presenceByUserId, lastSeenByUserId] = await Promise.all([
+    readPresenceMap(
+      getRedis(),
+      friends.map((friend) => ({
+        customStatus: friend.customStatus,
+        status: "OFFLINE",
+        userId: friend.id,
+      })),
+    ),
+    resolveLastSeenAtByUserId(friends.map((friend) => friend.id)),
+  ]);
 
   return friends.map((friend) => {
     const presence = presenceByUserId.get(friend.id) ?? {
@@ -436,6 +436,7 @@ export async function listFriends(userId: string): Promise<FriendDto[]> {
       avatarUrl: friend.avatarUrl,
       status: presence.status,
       customStatus: presence.customStatus,
+      lastSeenAt: lastSeenByUserId.get(friend.id) ?? null,
       presence,
     };
   });
@@ -497,10 +498,91 @@ function toFriendRelationship(
   return "none";
 }
 
+/** Neutral server context, used by every global (server-less) search result. */
+const EMPTY_SERVER_CONTEXT = {
+  isMember: false,
+  mutualServerCount: 0,
+  pendingInviteId: null,
+} as const;
+
+type UserSearchServerContext = {
+  isMember: boolean;
+  mutualServerCount: number;
+  pendingInviteId: string | null;
+};
+
+/**
+ * Invite-sheet 2b needs three server-relative facts per row that the global
+ * search has no notion of: whether the user is already in the server, how many
+ * servers they share with the viewer, and whether a targeted invite is already
+ * waiting. Only reached when the caller names a server.
+ */
+async function loadUserSearchServerContext(
+  viewerUserId: string,
+  serverId: string,
+  candidateUserIds: readonly string[],
+): Promise<Map<string, UserSearchServerContext>> {
+  const userIds = [...candidateUserIds];
+  const [memberships, viewerServerIds, pendingInvites] = await Promise.all([
+    prisma.serverMember.findMany({
+      where: { serverId, userId: { in: userIds } },
+      select: { userId: true },
+    }),
+    prisma.serverMember.findMany({
+      where: { userId: viewerUserId },
+      select: { serverId: true },
+    }),
+    prisma.serverInvite.findMany({
+      where: { serverId, targetUserId: { in: userIds } },
+      select: { expiresAt: true, id: true, maxUses: true, targetUserId: true, uses: true },
+      orderBy: { createdAt: "desc" },
+    }),
+  ]);
+
+  const viewerServerIdList = viewerServerIds.map((row) => row.serverId);
+  const mutualRows =
+    viewerServerIdList.length === 0
+      ? []
+      : await prisma.serverMember.findMany({
+          where: { serverId: { in: viewerServerIdList }, userId: { in: userIds } },
+          select: { userId: true },
+        });
+
+  const memberUserIds = new Set(memberships.map((row) => row.userId));
+  const mutualCountByUserId = new Map<string, number>();
+  for (const row of mutualRows) {
+    mutualCountByUserId.set(row.userId, (mutualCountByUserId.get(row.userId) ?? 0) + 1);
+  }
+
+  const now = Date.now();
+  const pendingInviteIdByUserId = new Map<string, string>();
+  for (const invite of pendingInvites) {
+    if (!invite.targetUserId || pendingInviteIdByUserId.has(invite.targetUserId)) {
+      continue;
+    }
+    if (!isLiveInvite(invite, now)) {
+      continue;
+    }
+    pendingInviteIdByUserId.set(invite.targetUserId, invite.id);
+  }
+
+  return new Map(
+    userIds.map((id) => [
+      id,
+      {
+        isMember: memberUserIds.has(id),
+        mutualServerCount: mutualCountByUserId.get(id) ?? 0,
+        pendingInviteId: pendingInviteIdByUserId.get(id) ?? null,
+      },
+    ]),
+  );
+}
+
 export async function searchUsers(
   userId: string,
   query: string,
   limit = USER_SEARCH_RESULT_LIMIT,
+  serverId?: string,
 ): Promise<FriendSearchResultDto[]> {
   const term = normalizeUserSearchTerm(query);
   if (term.length < USER_SEARCH_MIN_TERM_LENGTH) {
@@ -562,11 +644,20 @@ export async function searchUsers(
     });
   }
 
+  const serverContextByUserId = serverId
+    ? await loadUserSearchServerContext(
+        userId,
+        serverId,
+        users.map((user) => user.id),
+      )
+    : null;
+
   return users
     .map((user) => {
       const relation = relationByUserId.get(user.id);
       return {
         ...toFriendUserDto(user),
+        ...(serverContextByUserId?.get(user.id) ?? EMPTY_SERVER_CONTEXT),
         relationship: relation?.relationship ?? ("none" as const),
         requestId: relation?.requestId ?? null,
       };
@@ -823,9 +914,7 @@ export async function blockUser(userId: string, blockedUserId: string): Promise<
 
   if (incomingRequests.length > 0) {
     await Promise.all(
-      incomingRequests.map((request) =>
-        clearFriendRequestNotifications(request.id, [userId]),
-      ),
+      incomingRequests.map((request) => clearFriendRequestNotifications(request.id, [userId])),
     );
   }
 

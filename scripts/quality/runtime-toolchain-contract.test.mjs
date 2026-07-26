@@ -26,7 +26,7 @@ const expectedNode24ActionPins = {
 const expectedAllowedBuilds = {
   "@prisma/client": true,
   "@prisma/engines": true,
-  "@sentry/cli@2.58.4 || 2.58.6": true,
+  "@sentry/cli": true,
   esbuild: true,
   "msgpackr-extract": true,
   prisma: true,

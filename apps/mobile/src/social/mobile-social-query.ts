@@ -57,19 +57,28 @@ export function getMobileUserSearchQueryOptions(
   client: MobileApiClient,
   term: string,
   enabled = true,
+  /** Invite sheet 2b scopes results to one server, which widens the payload. */
+  serverId?: string,
 ) {
   const normalized = normalizeMobileUserSearchTerm(term);
   return queryOptions({
     enabled: enabled && normalized.length >= MOBILE_USER_SEARCH_MIN_TERM_LENGTH,
-    queryFn: () => searchMobileUsers(client, normalized),
-    queryKey: mobileQueryKeys.userSearch(normalized),
+    queryFn: () => searchMobileUsers(client, normalized, undefined, serverId),
+    // Server context changes the payload, so a scoped search never reuses the
+    // global cache entry for the same term.
+    queryKey: mobileQueryKeys.userSearch(serverId ? `${normalized}@${serverId}` : normalized),
     staleTime: 15_000,
   });
 }
 
 /** Live "add friend" search; the caller owns the debounce so keystrokes do not thrash the cache. */
-export function useMobileUserSearchQuery(client: MobileApiClient, term: string, enabled = true) {
-  return useQuery(getMobileUserSearchQueryOptions(client, term, enabled));
+export function useMobileUserSearchQuery(
+  client: MobileApiClient,
+  term: string,
+  enabled = true,
+  serverId?: string,
+) {
+  return useQuery(getMobileUserSearchQueryOptions(client, term, enabled, serverId));
 }
 
 export function getMobileUserProfileQueryOptions(
@@ -106,6 +115,7 @@ function toOptimisticFriend(user: {
     customStatus: null,
     displayName: user.displayName,
     id: user.id,
+    lastSeenAt: null,
     presence: { customStatus: null, status: "OFFLINE" },
     status: "OFFLINE",
     username: user.username,

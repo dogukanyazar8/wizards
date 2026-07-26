@@ -411,6 +411,11 @@ export function createMobileRealtimeQueryBridge({
         exact: true,
         queryKey: mobileQueryKeys.workspaceRoleOverview(parsed.data.serverId),
       });
+      // A joined member clears their pending invite row in the 2a/2b sheet.
+      void queryClient.invalidateQueries({
+        exact: true,
+        queryKey: mobileQueryKeys.workspaceInviteSheet(parsed.data.serverId),
+      });
       scheduleSource("workspace", {
         ...event,
         serverId: parsed.data.serverId,
@@ -427,6 +432,11 @@ export function createMobileRealtimeQueryBridge({
       void queryClient.invalidateQueries({
         exact: true,
         queryKey: mobileQueryKeys.workspaceRoleOverview(parsed.data.serverId),
+      });
+      // A joined member clears their pending invite row in the 2a/2b sheet.
+      void queryClient.invalidateQueries({
+        exact: true,
+        queryKey: mobileQueryKeys.workspaceInviteSheet(parsed.data.serverId),
       });
       scheduleSource("workspace", {
         ...event,

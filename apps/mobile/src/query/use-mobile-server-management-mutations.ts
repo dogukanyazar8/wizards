@@ -3,6 +3,7 @@ import type {
   MobileManagedWorkspaceServerDetailResponse,
   MobileServerCreateRequest,
   MobileServerInviteCreateRequest,
+  MobileServerInviteSheetResponse,
   MobileServerInvitesResponse,
   MobileServerJoinRequest,
   MobileServerMembersResponse,
@@ -18,6 +19,8 @@ import {
   createMobileRole,
   createMobileServer,
   createMobileServerInvite,
+  createMobileTargetedServerInvite,
+  updateMobileServerLinkInvite,
   deleteMobileServerInvite,
   deleteMobileCategory,
   deleteMobileChannel,
@@ -34,6 +37,13 @@ import {
   type UpdateMobileRoleInput,
   type UpdateMobileServerInput,
 } from "../workspace/mobile-server-management-client";
+
+/**
+ * Placeholder id an optimistically sent invite carries until the server hands
+ * back the real one. It only has to be non-null — the row reads "sent" from the
+ * presence of an id, never from its value.
+ */
+const OPTIMISTIC_INVITE_ID = "optimistic-invite";
 
 export function useMobileServerManagementMutations(client: MobileApiClient) {
   const queryClient = useQueryClient();
@@ -57,10 +67,31 @@ export function useMobileServerManagementMutations(client: MobileApiClient) {
       queryKey: mobileQueryKeys.workspaceMembers(serverId),
     });
   const invalidateInvites = (serverId: string) =>
-    queryClient.invalidateQueries({
-      exact: true,
-      queryKey: mobileQueryKeys.workspaceInvites(serverId),
-    });
+    Promise.all([
+      queryClient.invalidateQueries({
+        exact: true,
+        queryKey: mobileQueryKeys.workspaceInvites(serverId),
+      }),
+      queryClient.invalidateQueries({
+        exact: true,
+        queryKey: mobileQueryKeys.workspaceInviteSheet(serverId),
+      }),
+    ]);
+  /**
+   * Both invite-sheet writes move the same cached rows, so they share one
+   * patcher instead of each re-deriving the shape.
+   */
+  const patchInviteSheet = (
+    serverId: string,
+    update: (current: MobileServerInviteSheetResponse) => MobileServerInviteSheetResponse,
+  ) => {
+    const queryKey = mobileQueryKeys.workspaceInviteSheet(serverId);
+    const previous = queryClient.getQueryData<MobileServerInviteSheetResponse>(queryKey);
+    if (previous) {
+      queryClient.setQueryData<MobileServerInviteSheetResponse>(queryKey, update(previous));
+    }
+    return { previous, queryKey };
+  };
   const invalidateRoles = (serverId: string) =>
     Promise.all([
       queryClient.invalidateQueries({
@@ -102,6 +133,76 @@ export function useMobileServerManagementMutations(client: MobileApiClient) {
     createInvite: useMutation({
       mutationFn: (input: { request?: MobileServerInviteCreateRequest; serverId: string }) =>
         createMobileServerInvite(client, input.serverId, input.request ?? {}),
+      // The 2a card reads its link from the sheet payload, so a fresh invite has
+      // to land there rather than only in the mutation result.
+      onSuccess: (response, input) => {
+        patchInviteSheet(input.serverId, (current) => ({
+          ...current,
+          linkInvite: response.invite,
+        }));
+      },
+      onSettled: (_response, _error, input) => {
+        void invalidateInvites(input.serverId).catch(() => undefined);
+      },
+    }),
+    updateLinkInvite: useMutation({
+      mutationFn: (input: {
+        expiresInHours: number | null;
+        maxUses: number | null;
+        serverId: string;
+      }) => updateMobileServerLinkInvite(client, input),
+      onSuccess: (response, input) => {
+        patchInviteSheet(input.serverId, (current) => ({
+          ...current,
+          linkInvite: response.invite,
+        }));
+      },
+      onSettled: (_response, _error, input) => {
+        void invalidateInvites(input.serverId).catch(() => undefined);
+      },
+    }),
+    createTargetedInvite: useMutation({
+      mutationFn: (input: { serverId: string; userId: string }) =>
+        createMobileTargetedServerInvite(client, input),
+      // 2a/2b flip the row to "Gönderildi" on tap; a failure rolls the whole
+      // sheet back so the row cannot claim an invite that never landed.
+      onMutate: async (input) => {
+        const queryKey = mobileQueryKeys.workspaceInviteSheet(input.serverId);
+        await queryClient.cancelQueries({ exact: true, queryKey });
+        return patchInviteSheet(input.serverId, (current) => ({
+          ...current,
+          friends: current.friends.map((friend) =>
+            friend.id === input.userId
+              ? { ...friend, pendingInviteId: OPTIMISTIC_INVITE_ID }
+              : friend,
+          ),
+        }));
+      },
+      onError: (_error, _input, context) => {
+        if (context?.previous) {
+          queryClient.setQueryData(context.queryKey, context.previous);
+        }
+      },
+      onSuccess: (response, input) => {
+        patchInviteSheet(input.serverId, (current) => ({
+          ...current,
+          friends: current.friends.map((friend) =>
+            friend.id === input.userId
+              ? { ...friend, pendingInviteId: response.invite.id }
+              : friend,
+          ),
+          pendingInvites: [
+            response.invite,
+            ...current.pendingInvites.filter((invite) => invite.id !== response.invite.id),
+          ],
+        }));
+      },
+      onSettled: (_response, _error, input) => {
+        void invalidateInvites(input.serverId).catch(() => undefined);
+        void queryClient
+          .invalidateQueries({ queryKey: mobileQueryKeys.userSearchRoot() })
+          .catch(() => undefined);
+      },
     }),
     deleteInvite: useMutation({
       mutationFn: (input: { inviteId: string; serverId: string }) =>
@@ -110,7 +211,11 @@ export function useMobileServerManagementMutations(client: MobileApiClient) {
       // moment the user confirms, then reconcile with the server on settle.
       onMutate: async (input) => {
         const queryKey = mobileQueryKeys.workspaceInvites(input.serverId);
-        await queryClient.cancelQueries({ exact: true, queryKey });
+        const sheetKey = mobileQueryKeys.workspaceInviteSheet(input.serverId);
+        await Promise.all([
+          queryClient.cancelQueries({ exact: true, queryKey }),
+          queryClient.cancelQueries({ exact: true, queryKey: sheetKey }),
+        ]);
         const previous = queryClient.getQueryData<MobileServerInvitesResponse>(queryKey);
         if (previous) {
           queryClient.setQueryData<MobileServerInvitesResponse>(queryKey, {
@@ -118,15 +223,32 @@ export function useMobileServerManagementMutations(client: MobileApiClient) {
             invites: previous.invites.filter((invite) => invite.id !== input.inviteId),
           });
         }
-        return { previous, queryKey };
+        // "Geri al" on a 2b pending row: the row leaves and the matching friend
+        // returns to "Davet et" in the same frame.
+        const sheet = patchInviteSheet(input.serverId, (current) => ({
+          ...current,
+          friends: current.friends.map((friend) =>
+            friend.pendingInviteId === input.inviteId
+              ? { ...friend, pendingInviteId: null }
+              : friend,
+          ),
+          pendingInvites: current.pendingInvites.filter((invite) => invite.id !== input.inviteId),
+        }));
+        return { previous, previousSheet: sheet.previous, queryKey, sheetKey };
       },
       onError: (_error, _input, context) => {
         if (context?.previous) {
           queryClient.setQueryData(context.queryKey, context.previous);
         }
+        if (context?.previousSheet) {
+          queryClient.setQueryData(context.sheetKey, context.previousSheet);
+        }
       },
       onSettled: (_response, _error, input) => {
         void invalidateInvites(input.serverId).catch(() => undefined);
+        void queryClient
+          .invalidateQueries({ queryKey: mobileQueryKeys.userSearchRoot() })
+          .catch(() => undefined);
       },
     }),
     createServer: useMutation({

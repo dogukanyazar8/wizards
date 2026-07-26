@@ -4,7 +4,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   MOBILE_PROFILE_BANNER_COLORS,
   MOBILE_PROFILE_BIO_MAX_LENGTH,
-  MOBILE_PROFILE_CUSTOM_STATUS_MAX_LENGTH,
   MOBILE_PROFILE_DISPLAY_NAME_MAX_LENGTH,
   MOBILE_USERNAME_COOLDOWN_ERROR_CODE,
   type MobileAccountSettingsResponse,
@@ -12,7 +11,6 @@ import {
 
 import { useMobileAccountSettingsQuery } from "../account/mobile-account-settings-query";
 import { Skeleton } from "../app/components/kit";
-import { MessageEmojiPicker } from "../app/components/message-emoji-picker";
 import { MobileCachedImage } from "../app/components/mobile-cached-image";
 import { useToast } from "../app/components/kit/toast";
 import { useMobileLocaleRuntime } from "../app/providers/mobile-locale-provider";
@@ -23,7 +21,6 @@ import { getMobileAvatarInitials } from "../design/mobile-avatar-color";
 import { MobileLineIcon } from "../design/mobile-line-icons";
 import { mobileCopy, type MobileLocale } from "../locale/mobile-copy";
 import { useMobileImageUpload } from "../media/use-mobile-image-upload";
-import { useMobileBootstrapQuery } from "../query/mobile-bootstrap-query";
 import {
   patchMobileProfileAvatarCaches,
   patchMobileProfileBannerCaches,
@@ -31,19 +28,12 @@ import {
 import { mobileQueryKeys } from "../query/mobile-query-keys";
 import { MobileProfileBannerField } from "./mobile-profile-banner-field";
 import { useMobileSocialMutations } from "./mobile-social-query";
-import { MobileStatusPickerSheet } from "./mobile-status-picker-sheet";
-import { toMobilePresenceStatusOrNull } from "./mobile-status-picker-model";
 import {
   buildMobileProfileEditPatch,
   createMobileProfileEditDraft,
   type MobileProfileEditBaseline,
   type MobileProfileEditDraft,
 } from "./mobile-profile-edit-state";
-import {
-  describeMobileStatusExpiry,
-  MOBILE_STATUS_EXPIRY_CHOICES,
-  type MobileStatusExpiryChoice,
-} from "./mobile-profile-status-expiry";
 import { useMobileProfileEditStyles } from "./mobile-profile-edit-screen.styles";
 
 const USERNAME_PATTERN = /^[a-zA-Z0-9_]{2,32}$/;
@@ -51,69 +41,6 @@ const USERNAME_PATTERN = /^[a-zA-Z0-9_]{2,32}$/;
 const DEFAULT_BANNER_COLOR = MOBILE_PROFILE_BANNER_COLORS[0];
 
 type MobileAccountProfile = MobileAccountSettingsResponse["account"];
-
-function getPresenceLabel(locale: MobileLocale, presence: string | null): string {
-  const copy = mobileCopy[locale];
-  switch (presence) {
-    case "ONLINE":
-      return copy.profileEditPresenceOnline;
-    case "IDLE":
-      return copy.profileEditPresenceIdle;
-    case "DND":
-      return copy.profileEditPresenceDnd;
-    default:
-      return copy.profileEditPresenceOffline;
-  }
-}
-
-function getExpiryChoiceLabel(locale: MobileLocale, choice: MobileStatusExpiryChoice): string {
-  const copy = mobileCopy[locale];
-  switch (choice) {
-    case "30m":
-      return copy.profileEditStatusExpiry30Minutes;
-    case "1h":
-      return copy.profileEditStatusExpiry1Hour;
-    case "4h":
-      return copy.profileEditStatusExpiry4Hours;
-    case "today":
-      return copy.profileEditStatusExpiryToday;
-    default:
-      return copy.profileEditStatusExpiryNeverOption;
-  }
-}
-
-/** "{süre} sonra otomatik temizlenir" for a live deadline, or the permanent copy. */
-function getExpiryNotice(input: {
-  choice: MobileStatusExpiryChoice;
-  expiresAt: string | null;
-  locale: MobileLocale;
-  now: Date;
-}): string {
-  const copy = mobileCopy[input.locale];
-  const description =
-    input.choice === "never"
-      ? ({ kind: "none" } as const)
-      : describeMobileStatusExpiry(input.expiresAt, input.now);
-
-  if (description.kind === "none" || description.kind === "expired") {
-    const preview = getExpiryChoiceLabel(input.locale, input.choice);
-    return input.choice === "never"
-      ? copy.profileEditStatusExpiryNever
-      : copy.profileEditStatusExpiryNotice.replace("{duration}", preview);
-  }
-
-  const template =
-    description.kind === "minutes"
-      ? copy.profileEditStatusExpiryMinutes
-      : description.kind === "hours"
-        ? copy.profileEditStatusExpiryHours
-        : copy.profileEditStatusExpiryDays;
-
-  return copy.profileEditStatusExpiryNotice.replace(
-    "{duration}",
-    template.replace("{count}", String(description.count)),
-  );
-}
 
 function toBaseline(
   account: MobileAccountProfile | null,
@@ -144,7 +71,6 @@ export function MobileProfileEditScreen({ onBack }: { onBack(): void }) {
 
   const isSignedIn = status === "signed-in";
   const accountQuery = useMobileAccountSettingsQuery(apiClient, isSignedIn);
-  const bootstrapQuery = useMobileBootstrapQuery(apiClient, isSignedIn);
   const mutations = useMobileSocialMutations(apiClient);
   const { isBusy: isUploadBusy, selectAndUpload } = useMobileImageUpload();
 
@@ -152,14 +78,11 @@ export function MobileProfileEditScreen({ onBack }: { onBack(): void }) {
   const [avatarPreviewUri, setAvatarPreviewUri] = useState<string | null>(null);
   const [bannerPreviewUri, setBannerPreviewUri] = useState<string | null>(null);
   const [uploadingTarget, setUploadingTarget] = useState<"avatar" | "banner" | null>(null);
-  const [isPresenceSheetOpen, setPresenceSheetOpen] = useState(false);
   const [isBannerRepositioning, setBannerRepositioning] = useState(false);
-  const [isEmojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [usernameError, setUsernameError] = useState<string | null>(null);
 
   const account = accountQuery.data?.account ?? null;
-  const presence = bootstrapQuery.data?.user.status ?? null;
   const serverBaseline = useMemo(() => toBaseline(account, user), [account, user]);
   const [baseline, setBaseline] = useState<MobileProfileEditBaseline>(serverBaseline);
   const [draft, setDraft] = useState<MobileProfileEditDraft>(() =>
@@ -419,22 +342,6 @@ export function MobileProfileEditScreen({ onBack }: { onBack(): void }) {
     }
   };
 
-  const presenceColor =
-    presence === "ONLINE"
-      ? theme.status.success
-      : presence === "IDLE"
-        ? theme.status.warning
-        : presence === "DND"
-          ? theme.status.danger
-          : theme.text.soft;
-  const statusText = draft.customStatus.trim();
-  const expiryNotice = getExpiryNotice({
-    choice: draft.statusExpiry,
-    expiresAt: baseline.customStatusExpiresAt,
-    locale,
-    now: new Date(),
-  });
-
   return (
     <ScrollView
       contentContainerStyle={styles.content}
@@ -642,122 +549,6 @@ export function MobileProfileEditScreen({ onBack }: { onBack(): void }) {
           </View>
         </View>
       </View>
-
-      <View style={styles.formCard} testID="mobile-profile-edit-status">
-        <View style={styles.field}>
-          <Text style={styles.fieldLabel}>{copy.profileEditStatusLabel}</Text>
-          <View style={styles.inputRow}>
-            <Pressable
-              accessibilityLabel={copy.profileEditStatusEmojiAction}
-              accessibilityRole="button"
-              onPress={() => setEmojiPickerOpen(true)}
-              style={({ pressed }) => [styles.statusEmojiButton, pressed && styles.pressed]}
-              testID="mobile-profile-edit-status-emoji"
-            >
-              {draft.customStatusEmoji ? (
-                <Text style={styles.statusEmoji}>{draft.customStatusEmoji}</Text>
-              ) : (
-                <MobileLineIcon color={theme.text.placeholder} name="emoji" size={16} />
-              )}
-            </Pressable>
-            <TextInput
-              accessibilityLabel={copy.profileEditCustomStatus}
-              maxLength={MOBILE_PROFILE_CUSTOM_STATUS_MAX_LENGTH}
-              onChangeText={(value) => setDraft((current) => ({ ...current, customStatus: value }))}
-              placeholder={copy.profileEditStatusPlaceholder}
-              placeholderTextColor={theme.text.placeholder}
-              style={styles.inputInline}
-              testID="mobile-profile-edit-status-input"
-              value={draft.customStatus}
-            />
-            {statusText || draft.customStatusEmoji ? (
-              <Pressable
-                accessibilityLabel={copy.profileEditStatusClearAction}
-                accessibilityRole="button"
-                onPress={() =>
-                  setDraft((current) => ({
-                    ...current,
-                    customStatus: "",
-                    customStatusEmoji: null,
-                    statusExpiry: "never",
-                  }))
-                }
-                style={({ pressed }) => [styles.statusClear, pressed && styles.pressed]}
-                testID="mobile-profile-edit-status-clear"
-              >
-                <MobileLineIcon color={theme.text.placeholder} name="close" size={14} />
-              </Pressable>
-            ) : null}
-          </View>
-          <View
-            accessibilityLabel={copy.profileEditStatusExpiryAction}
-            accessibilityRole="radiogroup"
-            style={styles.expiryRow}
-          >
-            {MOBILE_STATUS_EXPIRY_CHOICES.map((choice) => {
-              const isSelected = draft.statusExpiry === choice;
-              return (
-                <Pressable
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: isSelected }}
-                  key={choice}
-                  onPress={() => setDraft((current) => ({ ...current, statusExpiry: choice }))}
-                  style={({ pressed }) => [
-                    styles.expiryChip,
-                    isSelected && styles.expiryChipSelected,
-                    pressed && styles.pressed,
-                  ]}
-                  testID={`mobile-profile-edit-status-expiry-${choice}`}
-                >
-                  <Text
-                    style={[styles.expiryChipLabel, isSelected && styles.expiryChipLabelSelected]}
-                  >
-                    {getExpiryChoiceLabel(locale, choice)}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-          <Text style={styles.fieldHint} testID="mobile-profile-edit-status-expiry-notice">
-            {expiryNotice}
-          </Text>
-        </View>
-
-        <View style={styles.field}>
-          <Text style={styles.fieldLabel}>{copy.profileEditPresence}</Text>
-          <Pressable
-            accessibilityLabel={`${copy.profileEditPresence}: ${getPresenceLabel(locale, presence)}`}
-            accessibilityRole="button"
-            onPress={() => setPresenceSheetOpen(true)}
-            style={({ pressed }) => [styles.presenceRow, pressed && styles.pressed]}
-            testID="mobile-profile-edit-presence-row"
-          >
-            <View style={[styles.presenceDot, { backgroundColor: presenceColor }]} />
-            <Text numberOfLines={1} style={styles.presenceLabel}>
-              {getPresenceLabel(locale, presence)}
-            </Text>
-            <MobileLineIcon color={theme.control.chevron} name="chevron-down" size={16} />
-          </Pressable>
-        </View>
-      </View>
-
-      <MessageEmojiPicker
-        isOpen={isEmojiPickerOpen}
-        onClose={() => setEmojiPickerOpen(false)}
-        onSelect={(emoji) => {
-          setDraft((current) => ({ ...current, customStatusEmoji: emoji }));
-          setEmojiPickerOpen(false);
-        }}
-      />
-
-      <MobileStatusPickerSheet
-        client={apiClient}
-        customStatus={draft.customStatus.trim() || null}
-        customStatusEmoji={draft.customStatusEmoji}
-        onClose={() => setPresenceSheetOpen(false)}
-        open={isPresenceSheetOpen}
-        presence={toMobilePresenceStatusOrNull(presence)}
-      />
     </ScrollView>
   );
 }

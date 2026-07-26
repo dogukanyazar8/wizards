@@ -13,7 +13,9 @@ jest.mock("expo-updates", () => ({
 import { activeMobileCopy as copy } from "../src/locale/mobile-locale-preferences";
 import { MobileAboutSettingsScreen } from "../src/app/screens/mobile-about-settings-screen";
 
-function createProps(overrides: Partial<React.ComponentProps<typeof MobileAboutSettingsScreen>> = {}) {
+function createProps(
+  overrides: Partial<React.ComponentProps<typeof MobileAboutSettingsScreen>> = {},
+) {
   return {
     appVersion: "0.8.15",
     onBack: () => undefined,
@@ -39,18 +41,34 @@ describe("5i about settings screen", () => {
     expect(view.getByText(copy.aboutSettingsServiceOperational)).toBeTruthy();
   });
 
+  it("shows the animated auth waveform brand mark as the app logo", async () => {
+    const view = await render(<MobileAboutSettingsScreen {...createProps()} />);
+
+    expect(
+      view.getByTestId("mobile-about-app-logo", { includeHiddenElements: true }).props,
+    ).toMatchObject({ height: 76, width: 76 });
+    // Canonical five-bar waveform geometry, same source of truth as the auth screens.
+    expect(
+      view.getByTestId("mobile-about-app-logo-animated-bar-3", { includeHiddenElements: true })
+        .props,
+    ).toMatchObject({ height: 34, rx: 1.5, width: 3, x: 24.5, y: 9 });
+    expect(
+      view.getByTestId("mobile-about-app-logo-animated-bar-5", { includeHiddenElements: true }),
+    ).toBeTruthy();
+  });
+
   it("marks unbacked open-source licenses as coming soon and non-interactive", async () => {
     const view = await render(<MobileAboutSettingsScreen {...createProps()} />);
 
     const licenses = view.getByTestId("mobile-about-licenses");
-    expect(licenses.props.accessibilityState).toEqual(
-      expect.objectContaining({ disabled: true }),
-    );
+    expect(licenses.props.accessibilityState).toEqual(expect.objectContaining({ disabled: true }));
     expect(view.getByText(copy.aboutSettingsSoon)).toBeTruthy();
   });
 
   it("shows the offline service status when disconnected", async () => {
-    const view = await render(<MobileAboutSettingsScreen {...createProps({ serviceOnline: false })} />);
+    const view = await render(
+      <MobileAboutSettingsScreen {...createProps({ serviceOnline: false })} />,
+    );
 
     expect(view.getByText(copy.aboutSettingsServiceOffline)).toBeTruthy();
   });

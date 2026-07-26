@@ -30,8 +30,13 @@ jest.mock("../src/app/components/kit/bottom-sheet", () => {
   };
 });
 
+import { StyleSheet } from "react-native";
+
 import { MobileProfileEditScreen } from "../src/social/mobile-profile-edit-screen";
-import { createMobileProfileEditStyles } from "../src/social/mobile-profile-edit-screen.styles";
+import {
+  createMobileProfileEditStyles,
+  MOBILE_PROFILE_EDIT_METRICS,
+} from "../src/social/mobile-profile-edit-screen.styles";
 import { darkTheme, lightTheme } from "../src/design/themes";
 import { ToastProvider } from "../src/app/components/kit/toast";
 import { MobileLocaleProvider } from "../src/app/providers/mobile-locale-provider";
@@ -139,7 +144,7 @@ describe("mobile profile edit screen (2a)", () => {
     mockSelectAndUpload.mockReset();
   });
 
-  it("renders the 2a preview, form and status blocks without the server footer note", async () => {
+  it("renders the 2a preview and form blocks without the server footer note", async () => {
     authenticatedApi(jest.fn(async () => accountSettings()));
     const view = await renderScreen(createQueryClient());
 
@@ -148,8 +153,18 @@ describe("mobile profile edit screen (2a)", () => {
     expect(view.getByTestId("mobile-profile-edit-display-name-input")).toBeTruthy();
     expect(view.getByTestId("mobile-profile-edit-username-input")).toBeTruthy();
     expect(view.getByTestId("mobile-profile-edit-bio-input")).toBeTruthy();
-    expect(view.getByTestId("mobile-profile-edit-status-input")).toBeTruthy();
     expect(view.queryByTestId("mobile-profile-edit-footer")).toBeNull();
+  });
+
+  // The status message and the online status moved to the profile hub, under the banner.
+  it("no longer owns the status message or the presence row", async () => {
+    authenticatedApi(jest.fn(async () => accountSettings()));
+    const view = await renderScreen(createQueryClient());
+
+    expect(view.queryByTestId("mobile-profile-edit-status")).toBeNull();
+    expect(view.queryByTestId("mobile-profile-edit-status-input")).toBeNull();
+    expect(view.queryByTestId("mobile-profile-edit-status-expiry-4h")).toBeNull();
+    expect(view.queryByTestId("mobile-profile-edit-presence-row")).toBeNull();
   });
 
   it("keeps Kaydet disabled until a field is dirty", async () => {
@@ -254,6 +269,31 @@ describe("mobile profile edit screen (2a)", () => {
         "Kullanıcı adı 30 günde bir değiştirilebilir.",
       ),
     );
+  });
+
+  // Same width, same height as the profile card, so the crop positioned here is the crop
+  // the profile screen draws — no more guessing from an 88px letterbox.
+  it("previews a picked banner in the profile card's own box", async () => {
+    const settings = accountSettings({ bannerUrl: "https://cdn.test/banner.png" });
+    authenticatedApi(jest.fn(async () => settings));
+    const view = await renderScreen(createQueryClient(settings));
+
+    expect(
+      StyleSheet.flatten(view.getByTestId("mobile-profile-edit-banner").props.style),
+    ).toMatchObject({ height: lightTheme.layout.fixed.profileIdentityCardHeight });
+    // The image fills that box instead of carrying a height of its own.
+    expect(
+      StyleSheet.flatten(view.getByTestId("mobile-profile-edit-banner-image").props.style).position,
+    ).toBe("absolute");
+  });
+
+  it("keeps the compact box while the banner is only a colour", async () => {
+    authenticatedApi(jest.fn(async () => accountSettings()));
+    const view = await renderScreen(createQueryClient());
+
+    expect(
+      StyleSheet.flatten(view.getByTestId("mobile-profile-edit-banner").props.style),
+    ).toMatchObject({ height: MOBILE_PROFILE_EDIT_METRICS.banner });
   });
 
   it("disables the color swatches and offers removal while a banner image is set", async () => {
@@ -383,52 +423,6 @@ describe("mobile profile edit screen (2a)", () => {
     expect(mockSelectAndUpload).toHaveBeenCalledWith(
       { purpose: "profile-avatar" },
       expect.any(Function),
-    );
-  });
-
-  it("converts the picked duration into an absolute expiry on save", async () => {
-    const requestJson = profilePatchApi();
-    authenticatedApi(requestJson);
-    const view = await renderScreen(createQueryClient());
-
-    await fireEvent.changeText(
-      view.getByTestId("mobile-profile-edit-status-input"),
-      "Release notları",
-    );
-    await fireEvent.press(view.getByTestId("mobile-profile-edit-status-expiry-4h"));
-    await fireEvent.press(view.getByTestId("mobile-profile-edit-save"));
-
-    await waitFor(() => expect(requestJson).toHaveBeenCalled());
-    const patch = requestJson.mock.calls.find(
-      ([path, request]) =>
-        path === "/api/v1/mobile/account/profile" &&
-        (request as { method?: string } | undefined)?.method === "PATCH",
-    )?.[1] as { body: { customStatus: string; customStatusExpiresAt: string } };
-
-    expect(patch.body.customStatus).toBe("Release notları");
-    expect(Date.parse(patch.body.customStatusExpiresAt) - Date.now()).toBeGreaterThan(
-      3.9 * 60 * 60 * 1000,
-    );
-  });
-
-  it("changes presence through the presence sheet", async () => {
-    const requestJson = jest.fn(async (path: string, request?: { method?: string }) => {
-      if (path === "/api/v1/mobile/account/presence" && request?.method === "PUT") {
-        return { status: "ONLINE" };
-      }
-      return accountSettings();
-    });
-    authenticatedApi(requestJson);
-    const view = await renderScreen(createQueryClient());
-
-    await fireEvent.press(view.getByTestId("mobile-profile-edit-presence-row"));
-    await fireEvent.press(view.getByTestId("mobile-profile-status-sheet-online"));
-
-    await waitFor(() =>
-      expect(requestJson).toHaveBeenCalledWith(
-        "/api/v1/mobile/account/presence",
-        expect.objectContaining({ body: { status: "ONLINE" }, method: "PUT" }),
-      ),
     );
   });
 });

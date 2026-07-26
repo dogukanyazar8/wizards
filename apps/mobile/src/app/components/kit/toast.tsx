@@ -8,13 +8,12 @@ import {
   useState,
   type PropsWithChildren,
 } from "react";
-import { Animated, Easing, Text, View } from "react-native";
+import { Animated, Easing, Pressable, Text, View } from "react-native";
 import { useTheme, useThemedStyles } from "../../providers/mobile-theme-provider";
 import type { MobileTheme } from "../../../design/themes";
 import { MobileLineIcon, type MobileLineIconName } from "../../../design/mobile-line-icons";
 import { activeMobileCopy as copy } from "../../../locale/mobile-locale-preferences";
 import { useMobileBottomSystemSpacing } from "../../use-mobile-bottom-system-spacing";
-import { IconButton } from "./icon-button";
 
 export type ToastTone = "danger" | "info" | "success" | "warning";
 
@@ -65,6 +64,8 @@ function getToastToneColors(theme: MobileTheme, tone: ToastTone) {
   }
 }
 
+const TOAST_ENTER_MS = 220;
+
 const createStyles = (theme: MobileTheme) => ({
   viewport: {
     bottom: 24,
@@ -73,6 +74,9 @@ const createStyles = (theme: MobileTheme) => ({
     right: theme.spacing.page,
     zIndex: 100,
   },
+  // No dismiss button: a close affordance turns a routine confirmation into something
+  // that looks like it needs an answer. The card auto-retires, shows how long is left on
+  // a hairline, and a tap anywhere sends it away early.
   toast: {
     alignItems: "center" as const,
     alignSelf: "center" as const,
@@ -83,13 +87,15 @@ const createStyles = (theme: MobileTheme) => ({
     flexDirection: "row" as const,
     gap: 12,
     maxWidth: 520,
-    minHeight: 60,
-    paddingLeft: 12,
-    paddingRight: 8,
+    minHeight: 56,
+    overflow: "hidden" as const,
+    paddingHorizontal: 12,
     paddingVertical: 10,
     width: "100%" as const,
     ...theme.elevation.tabBar,
   },
+  toastPressed: { opacity: 0.9 },
+  pressTarget: { alignSelf: "center" as const, maxWidth: 520, width: "100%" as const },
   toneTile: {
     alignItems: "center" as const,
     borderRadius: 13,
@@ -105,6 +111,17 @@ const createStyles = (theme: MobileTheme) => ({
     includeFontPadding: false,
     lineHeight: 18,
     minWidth: 0,
+  },
+  timerTrack: {
+    bottom: 0,
+    height: 2,
+    left: 0,
+    position: "absolute" as const,
+    right: 0,
+  },
+  timerFill: {
+    height: 2,
+    width: "100%" as const,
   },
 });
 
@@ -167,39 +184,93 @@ export function ToastProvider({ children }: PropsWithChildren) {
           testID="mobile-toast-viewport"
         >
           <ToastCard key={currentToast.id}>
-            <View
-              accessibilityLiveRegion="polite"
-              accessibilityRole="alert"
-              style={styles.toast}
-              testID="mobile-toast"
+            <Pressable
+              accessibilityHint={copy.dismissNotificationAction}
+              onPress={() => dismissToast(currentToast.id)}
+              style={styles.pressTarget}
+              testID="mobile-toast-dismiss"
             >
-              <View
-                style={[styles.toneTile, { backgroundColor: tone.tile }]}
-                testID={`mobile-toast-tone-${currentToast.tone}`}
-              >
-                <MobileLineIcon
-                  color={tone.icon}
-                  name={TOAST_TONE_ICONS[currentToast.tone]}
-                  size={18}
-                  strokeWidth={2.4}
-                />
-              </View>
-              <Text maxFontSizeMultiplier={2} numberOfLines={3} style={styles.message}>
-                {currentToast.message}
-              </Text>
-              <IconButton
-                accessibilityLabel={copy.dismissNotificationAction}
-                icon="close"
-                onPress={() => dismissToast(currentToast.id)}
-                size="sm"
-                testID="mobile-toast-dismiss"
-                tone="muted"
-              />
-            </View>
+              {({ pressed }) => (
+                <View
+                  accessibilityLiveRegion="polite"
+                  accessibilityRole="alert"
+                  style={[styles.toast, pressed && styles.toastPressed]}
+                  testID="mobile-toast"
+                >
+                  <View
+                    style={[styles.toneTile, { backgroundColor: tone.tile }]}
+                    testID={`mobile-toast-tone-${currentToast.tone}`}
+                  >
+                    <MobileLineIcon
+                      color={tone.icon}
+                      name={TOAST_TONE_ICONS[currentToast.tone]}
+                      size={18}
+                      strokeWidth={2.4}
+                    />
+                  </View>
+                  <Text maxFontSizeMultiplier={2} numberOfLines={3} style={styles.message}>
+                    {currentToast.message}
+                  </Text>
+                  <ToastTimerBar
+                    color={tone.icon}
+                    duration={currentToast.duration}
+                    style={styles.timerTrack}
+                    fillStyle={styles.timerFill}
+                  />
+                </View>
+              )}
+            </Pressable>
           </ToastCard>
         </View>
       ) : null}
     </ToastContext.Provider>
+  );
+}
+
+/**
+ * A 2px hairline that drains over the toast's own lifetime. It replaces the close
+ * button: the reason a dismiss control felt necessary was that the card gave no sign
+ * it was temporary, and a countdown says that without asking for a decision.
+ */
+function ToastTimerBar({
+  color,
+  duration,
+  fillStyle,
+  style,
+}: {
+  readonly color: string;
+  readonly duration: number;
+  readonly fillStyle: object;
+  readonly style: object;
+}) {
+  const progress = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    progress.setValue(1);
+    // Width interpolation cannot run on the native driver, which is fine for a
+    // single 2px bar and keeps the bar honest about the real remaining time.
+    const animation = Animated.timing(progress, {
+      duration,
+      easing: Easing.linear,
+      toValue: 0,
+      useNativeDriver: false,
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [duration, progress]);
+
+  return (
+    <View pointerEvents="none" style={style} testID="mobile-toast-timer">
+      <Animated.View
+        style={[
+          fillStyle,
+          {
+            backgroundColor: color,
+            width: progress.interpolate({ inputRange: [0, 1], outputRange: ["0%", "100%"] }),
+          },
+        ]}
+      />
+    </View>
   );
 }
 
@@ -213,7 +284,7 @@ function ToastCard({ children }: PropsWithChildren) {
 
   useEffect(() => {
     const animation = Animated.timing(progress, {
-      duration: 220,
+      duration: TOAST_ENTER_MS,
       easing: Easing.out(Easing.cubic),
       toValue: 1,
       useNativeDriver: true,

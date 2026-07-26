@@ -119,6 +119,7 @@ import { useMobileMediaRuntime } from "../src/app/providers/mobile-media-provide
 import { useMobileNotificationRuntime } from "../src/app/providers/mobile-notification-provider";
 import { MobileQueryProvider } from "../src/app/providers/mobile-query-provider";
 import { useMobileRealtimeRuntime } from "../src/app/providers/mobile-realtime-provider";
+import { MobileThemeProvider } from "../src/app/providers/mobile-theme-provider";
 import { useMobileVoiceRuntime } from "../src/app/providers/mobile-voice-provider";
 import { activeMobileCopy } from "../src/locale/mobile-locale-preferences";
 
@@ -146,9 +147,11 @@ describe("mobile app providers", () => {
   it("provides initial lifecycle state without requesting native permissions", async () => {
     const view = await render(
       <MobileQueryProvider>
-        <MobileAppProviders>
-          <ProviderConsumer />
-        </MobileAppProviders>
+        <MobileThemeProvider>
+          <MobileAppProviders>
+            <ProviderConsumer />
+          </MobileAppProviders>
+        </MobileThemeProvider>
       </MobileQueryProvider>,
     );
 
@@ -161,9 +164,12 @@ describe("mobile app providers", () => {
 
     expect(mockRequestNotifications).not.toHaveBeenCalled();
     await waitFor(() => expect(mockSyncNotifications).toHaveBeenCalled());
-    expect(mockSyncNotifications).toHaveBeenCalledWith(null, expect.objectContaining({
-      status: "not-requested",
-    }));
+    expect(mockSyncNotifications).toHaveBeenCalledWith(
+      null,
+      expect.objectContaining({
+        status: "not-requested",
+      }),
+    );
     expect(mockRequestCamera).not.toHaveBeenCalled();
     expect(mockRequestDocument).not.toHaveBeenCalled();
     expect(mockRequestPhotoPicker).not.toHaveBeenCalled();
@@ -188,9 +194,11 @@ describe("mobile app providers", () => {
 
     await render(
       <MobileQueryProvider>
-        <MobileAppProviders>
-          <ProviderConsumer />
-        </MobileAppProviders>
+        <MobileThemeProvider>
+          <MobileAppProviders>
+            <ProviderConsumer />
+          </MobileAppProviders>
+        </MobileThemeProvider>
       </MobileQueryProvider>,
     );
 
