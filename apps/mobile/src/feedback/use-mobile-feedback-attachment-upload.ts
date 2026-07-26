@@ -1,83 +1,92 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 import { useMobileAuth } from "../auth/mobile-auth-context";
 import { pickMobileImage } from "../media/mobile-image-picker";
-import { MOBILE_UPLOAD_MESSAGES } from "../media/mobile-image-upload-service";
 import { uploadMobileImageToUploadThing } from "../media/mobile-uploadthing-client";
-import type { MobileFeedbackAttachmentDraft } from "./mobile-feedback-model";
-
-export type MobileFeedbackAttachmentUploadOutcome =
-  | { readonly attachment: MobileFeedbackAttachmentDraft; readonly status: "uploaded" }
-  | { readonly message: string; readonly status: "error" }
-  | { readonly status: "cancelled" };
+import {
+  classifyMobileFeedbackUploadFailure,
+  type MobileFeedbackUploadFailureReason,
+} from "./mobile-feedback-model";
 
 /**
- * The profile upload hook uploads *and* claims, because an avatar is live the
- * moment it lands. A feedback screenshot is not: it belongs to a form the user
- * may still abandon, so this stops at the claim id and lets the submission
- * consume it. An unclaimed upload expires and is swept by the same cleanup that
- * already collects abandoned avatars.
+ * A stalled upload used to hold the form hostage: the card showed a spinner with
+ * no close button and no clock, so a request that never answered spun forever.
+ * The tile now gives up and offers a retry instead.
+ */
+export const MOBILE_FEEDBACK_UPLOAD_TIMEOUT_MS = 45_000;
+
+export type MobileFeedbackPickedImage = {
+  readonly file: File;
+  readonly localUri: string;
+};
+
+export type MobileFeedbackUploadResult =
+  | { readonly claimId: string; readonly status: "uploaded" }
+  | { readonly reason: MobileFeedbackUploadFailureReason; readonly status: "failed" };
+
+/**
+ * Picking and uploading are two steps, deliberately.
+ *
+ * The screen shows the chosen image the moment the picker returns and lets the
+ * upload finish underneath it — the same shape the profile avatar flow already
+ * used. Doing both in one call meant nothing appeared until the round trip was
+ * over, which is exactly what an upload that never answered looked like.
  */
 export function useMobileFeedbackAttachmentUpload(): {
-  isUploading: boolean;
-  pickAndUpload(): Promise<MobileFeedbackAttachmentUploadOutcome>;
+  pickImage(): Promise<MobileFeedbackPickedImage | null>;
+  uploadImage(file: File): Promise<MobileFeedbackUploadResult>;
 } {
   const { getAccessToken } = useMobileAuth();
-  const [isUploading, setUploading] = useState(false);
-  const activeRef = useRef<AbortController | null>(null);
-  const isMountedRef = useRef(false);
+  const controllersRef = useRef(new Set<AbortController>());
 
   useEffect(() => {
-    isMountedRef.current = true;
+    const controllers = controllersRef.current;
 
     return () => {
-      isMountedRef.current = false;
-      activeRef.current?.abort();
+      for (const controller of controllers) {
+        controller.abort();
+      }
+      controllers.clear();
     };
   }, []);
 
-  const pickAndUpload = useCallback(async (): Promise<MobileFeedbackAttachmentUploadOutcome> => {
-    if (activeRef.current) {
-      return { message: MOBILE_UPLOAD_MESSAGES.busy, status: "error" };
-    }
+  const pickImage = useCallback(async (): Promise<MobileFeedbackPickedImage | null> => {
+    const picked = await pickMobileImage();
+    return picked ? { file: picked.file, localUri: picked.localUri } : null;
+  }, []);
 
-    const controller = new AbortController();
-    activeRef.current = controller;
-    setUploading(true);
+  const uploadImage = useCallback(
+    async (file: File): Promise<MobileFeedbackUploadResult> => {
+      const controller = new AbortController();
+      controllersRef.current.add(controller);
+      const timeout = setTimeout(() => controller.abort(), MOBILE_FEEDBACK_UPLOAD_TIMEOUT_MS);
 
-    try {
-      const picked = await pickMobileImage();
-      if (!picked || controller.signal.aborted) {
-        return { status: "cancelled" };
-      }
-
-      const accessToken = await getAccessToken();
-      if (!accessToken) {
-        return { message: MOBILE_UPLOAD_MESSAGES.signedOut, status: "error" };
-      }
-
-      const completion = await uploadMobileImageToUploadThing({
-        accessToken,
-        file: picked.file,
-        signal: controller.signal,
-        target: { purpose: "feedback-attachment" },
-      });
-
-      return {
-        attachment: { claimId: completion.claimId, localUri: picked.localUri },
-        status: "uploaded",
-      };
-    } catch {
-      return { message: MOBILE_UPLOAD_MESSAGES.failed, status: "error" };
-    } finally {
-      if (activeRef.current === controller) {
-        activeRef.current = null;
-        if (isMountedRef.current) {
-          setUploading(false);
+      try {
+        const accessToken = await getAccessToken();
+        if (!accessToken) {
+          return { reason: "signed-out", status: "failed" };
         }
-      }
-    }
-  }, [getAccessToken]);
 
-  return { isUploading, pickAndUpload };
+        const completion = await uploadMobileImageToUploadThing({
+          accessToken,
+          file,
+          signal: controller.signal,
+          target: { purpose: "feedback-attachment" },
+        });
+
+        return { claimId: completion.claimId, status: "uploaded" };
+      } catch (error) {
+        return {
+          reason: classifyMobileFeedbackUploadFailure(error, controller.signal.aborted),
+          status: "failed",
+        };
+      } finally {
+        clearTimeout(timeout);
+        controllersRef.current.delete(controller);
+      }
+    },
+    [getAccessToken],
+  );
+
+  return { pickImage, uploadImage };
 }

@@ -201,6 +201,27 @@ const createStyles = (theme: MobileTheme) => ({
     width: 56,
   },
   attachmentImage: { height: "100%" as const, width: "100%" as const },
+  /** Sits over the thumbnail so the picked image is never hidden by its own upload. */
+  attachmentVeil: {
+    alignItems: "center" as const,
+    backgroundColor: theme.surface.imageScrim,
+    bottom: 0,
+    gap: 2,
+    justifyContent: "center" as const,
+    left: 0,
+    position: "absolute" as const,
+    right: 0,
+    top: 0,
+  },
+  attachmentVeilFailed: { backgroundColor: theme.status.dangerOnBase },
+  attachmentVeilLabel: {
+    color: theme.text.onInverse,
+    fontFamily: theme.typography.fontFamilyExtraBold,
+    fontSize: 8.5,
+    includeFontPadding: false,
+    lineHeight: 11,
+    textAlign: "center" as const,
+  },
   attachmentRemove: {
     alignItems: "center" as const,
     backgroundColor: theme.surface.imageScrim,

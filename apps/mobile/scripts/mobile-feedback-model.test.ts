@@ -11,11 +11,16 @@ import {
   addMobileFeedbackAttachment,
   canAddMobileFeedbackAttachment,
   canSubmitMobileFeedback,
+  classifyMobileFeedbackUploadFailure,
+  collectMobileFeedbackAttachmentClaimIds,
+  countMobileFeedbackAttachmentsInFlight,
+  createMobileFeedbackAttachmentDraft,
   formatMobileFeedbackCounter,
   formatMobileFeedbackRelativeTime,
   isMobileFeedbackDiagnosticsDefaultOn,
   removeMobileFeedbackAttachment,
   resolveMobileFeedbackDiagnostics,
+  settleMobileFeedbackAttachment,
   toggleMobileRoadmapVote,
 } from "../src/feedback/mobile-feedback-model";
 
@@ -26,7 +31,7 @@ const labels = {
   minutesAgo: "{count} dk önce",
 };
 
-const attachment = (claimId: string) => ({ claimId, localUri: `file:///${claimId}.png` });
+const draft = (id: string) => createMobileFeedbackAttachmentDraft(id, `file:///${id}.png`);
 
 test("diagnostics default on only where a report is useless without it", () => {
   assert.equal(isMobileFeedbackDiagnosticsDefaultOn("BUG"), true);
@@ -59,31 +64,128 @@ test("changing topic re-applies the default until the user touches the toggle", 
   );
 });
 
-test("screenshots stop at three and never duplicate a claim", () => {
-  let attachments = addMobileFeedbackAttachment([], attachment("a"));
-  attachments = addMobileFeedbackAttachment(attachments, attachment("b"));
-  attachments = addMobileFeedbackAttachment(attachments, attachment("c"));
+test("a picked screenshot is on the list before its upload starts", () => {
+  const [added] = addMobileFeedbackAttachment([], draft("a"));
+
+  // The tile is drawn from the local uri, so the thumbnail is visible while the
+  // bytes are still going out.
+  assert.deepEqual(added, {
+    claimId: null,
+    id: "a",
+    localUri: "file:///a.png",
+    status: "uploading",
+  });
+});
+
+test("screenshots stop at three and never duplicate a tile", () => {
+  let attachments = addMobileFeedbackAttachment([], draft("a"));
+  attachments = addMobileFeedbackAttachment(attachments, draft("b"));
+  attachments = addMobileFeedbackAttachment(attachments, draft("c"));
 
   assert.equal(attachments.length, MOBILE_FEEDBACK_ATTACHMENT_MAX_COUNT);
   assert.equal(canAddMobileFeedbackAttachment(attachments), false);
 
-  const overflowed = addMobileFeedbackAttachment(attachments, attachment("d"));
+  const overflowed = addMobileFeedbackAttachment(attachments, draft("d"));
   assert.equal(overflowed, attachments);
 
   const duplicated = addMobileFeedbackAttachment(
     removeMobileFeedbackAttachment(attachments, "c"),
-    attachment("a"),
+    draft("a"),
   );
   assert.deepEqual(
-    duplicated.map((entry) => entry.claimId),
+    duplicated.map((entry) => entry.id),
     ["a", "b"],
   );
 });
 
 test("removing an unknown screenshot leaves the list identical", () => {
-  const attachments = addMobileFeedbackAttachment([], attachment("a"));
+  const attachments = addMobileFeedbackAttachment([], draft("a"));
   assert.equal(removeMobileFeedbackAttachment(attachments, "zz"), attachments);
   assert.deepEqual(removeMobileFeedbackAttachment(attachments, "a"), []);
+});
+
+test("an upload settles its own tile and leaves the others alone", () => {
+  const attachments = addMobileFeedbackAttachment(
+    addMobileFeedbackAttachment([], draft("a")),
+    draft("b"),
+  );
+
+  const settled = settleMobileFeedbackAttachment(attachments, "a", "upload-1");
+  assert.deepEqual(
+    settled.map((entry) => [entry.id, entry.status, entry.claimId]),
+    [
+      ["a", "ready", "upload-1"],
+      ["b", "uploading", null],
+    ],
+  );
+
+  const failed = settleMobileFeedbackAttachment(settled, "b", null);
+  assert.deepEqual(
+    failed.map((entry) => [entry.id, entry.status, entry.claimId]),
+    [
+      ["a", "ready", "upload-1"],
+      ["b", "failed", null],
+    ],
+  );
+});
+
+// A tile the user removed mid-upload must stay gone when the response lands.
+test("a late upload result cannot resurrect a removed tile", () => {
+  const attachments = addMobileFeedbackAttachment([], draft("a"));
+  const removed = removeMobileFeedbackAttachment(attachments, "a");
+
+  assert.equal(settleMobileFeedbackAttachment(removed, "a", "upload-1"), removed);
+});
+
+test("only uploaded tiles are submitted, and an in-flight one blocks Gönder", () => {
+  let attachments = addMobileFeedbackAttachment([], draft("a"));
+  attachments = addMobileFeedbackAttachment(attachments, draft("b"));
+  attachments = addMobileFeedbackAttachment(attachments, draft("c"));
+
+  assert.equal(countMobileFeedbackAttachmentsInFlight(attachments), 3);
+  assert.equal(
+    canSubmitMobileFeedback({ attachments, isSubmitting: false, message: "merhaba" }),
+    false,
+  );
+
+  attachments = settleMobileFeedbackAttachment(attachments, "a", "upload-1");
+  attachments = settleMobileFeedbackAttachment(attachments, "b", null);
+  attachments = settleMobileFeedbackAttachment(attachments, "c", "upload-3");
+
+  assert.equal(countMobileFeedbackAttachmentsInFlight(attachments), 0);
+  // The failed tile is left behind rather than sent as a broken claim.
+  assert.deepEqual(collectMobileFeedbackAttachmentClaimIds(attachments), ["upload-1", "upload-3"]);
+  assert.equal(
+    canSubmitMobileFeedback({ attachments, isSubmitting: false, message: "merhaba" }),
+    true,
+  );
+});
+
+test("an upload failure is classified so the tile can say what went wrong", () => {
+  // A stalled upload the timeout aborted is not the same as a rejected one, and
+  // one opaque message for both is what made this impossible to diagnose.
+  assert.equal(classifyMobileFeedbackUploadFailure(new Error("boom"), true), "timeout");
+  assert.equal(
+    classifyMobileFeedbackUploadFailure(
+      Object.assign(new Error("x"), { name: "AbortError" }),
+      false,
+    ),
+    "timeout",
+  );
+  assert.equal(
+    classifyMobileFeedbackUploadFailure(new Error("Network request failed"), false),
+    "network",
+  );
+  assert.equal(classifyMobileFeedbackUploadFailure(new Error("Unauthorized"), false), "rejected");
+  assert.equal(
+    classifyMobileFeedbackUploadFailure(
+      new Error("Too many uploads. Please try again shortly."),
+      false,
+    ),
+    "rejected",
+  );
+  assert.equal(classifyMobileFeedbackUploadFailure(new Error("boom"), false), "unknown");
+  assert.equal(classifyMobileFeedbackUploadFailure("not an error", false), "unknown");
 });
 
 test("the counter reads exactly as the card renders it", () => {

@@ -42,9 +42,26 @@ export const MOBILE_FEEDBACK_TOPIC_ICONS: Readonly<Record<FeedbackTopic, MobileL
   VOICE: "speaker",
 };
 
+export type MobileFeedbackAttachmentStatus = "failed" | "ready" | "uploading";
+
 export interface MobileFeedbackAttachmentDraft {
-  readonly claimId: string;
+  /** The server claim id; `null` until the upload actually lands. */
+  readonly claimId: string | null;
+  /**
+   * Local identity, assigned the moment the picker returns. The tile is drawn
+   * from this before any byte leaves the device, which is what makes the
+   * thumbnail appear immediately instead of after the round trip.
+   */
+  readonly id: string;
   readonly localUri: string;
+  readonly status: MobileFeedbackAttachmentStatus;
+}
+
+export function createMobileFeedbackAttachmentDraft(
+  id: string,
+  localUri: string,
+): MobileFeedbackAttachmentDraft {
+  return { claimId: null, id, localUri, status: "uploading" };
 }
 
 /**
@@ -76,7 +93,7 @@ export function addMobileFeedbackAttachment(
 ): readonly MobileFeedbackAttachmentDraft[] {
   if (
     attachments.length >= MOBILE_FEEDBACK_ATTACHMENT_MAX_COUNT ||
-    attachments.some((attachment) => attachment.claimId === next.claimId)
+    attachments.some((attachment) => attachment.id === next.id)
   ) {
     return attachments;
   }
@@ -86,10 +103,46 @@ export function addMobileFeedbackAttachment(
 
 export function removeMobileFeedbackAttachment(
   attachments: readonly MobileFeedbackAttachmentDraft[],
-  claimId: string,
+  id: string,
 ): readonly MobileFeedbackAttachmentDraft[] {
-  const next = attachments.filter((attachment) => attachment.claimId !== claimId);
+  const next = attachments.filter((attachment) => attachment.id !== id);
   return next.length === attachments.length ? attachments : next;
+}
+
+/**
+ * Resolves one tile in place: a claim id makes it ready, `null` marks it failed.
+ * A tile the user removed mid-upload stays removed — the late result must not
+ * resurrect it.
+ */
+export function settleMobileFeedbackAttachment(
+  attachments: readonly MobileFeedbackAttachmentDraft[],
+  id: string,
+  claimId: string | null,
+): readonly MobileFeedbackAttachmentDraft[] {
+  if (!attachments.some((attachment) => attachment.id === id)) {
+    return attachments;
+  }
+
+  return attachments.map((attachment) =>
+    attachment.id === id
+      ? { ...attachment, claimId, status: claimId === null ? "failed" : "ready" }
+      : attachment,
+  );
+}
+
+/** Only uploaded tiles can be submitted; a failed one is simply left behind. */
+export function collectMobileFeedbackAttachmentClaimIds(
+  attachments: readonly MobileFeedbackAttachmentDraft[],
+): string[] {
+  return attachments.flatMap((attachment) =>
+    attachment.status === "ready" && attachment.claimId !== null ? [attachment.claimId] : [],
+  );
+}
+
+export function countMobileFeedbackAttachmentsInFlight(
+  attachments: readonly MobileFeedbackAttachmentDraft[],
+): number {
+  return attachments.filter((attachment) => attachment.status === "uploading").length;
 }
 
 export function canAddMobileFeedbackAttachment(
@@ -106,12 +159,21 @@ export function formatMobileFeedbackCounter(
   return `${Math.max(0, Math.trunc(length))} / ${max}`;
 }
 
-/** Gönder is inert while the message is blank; whitespace is not a message. */
+/**
+ * Gönder is inert while the message is blank — whitespace is not a message — and
+ * while a screenshot is still uploading, because submitting then would silently
+ * drop the image the user is watching upload.
+ */
 export function canSubmitMobileFeedback(input: {
+  readonly attachments?: readonly MobileFeedbackAttachmentDraft[];
   readonly isSubmitting: boolean;
   readonly message: string;
 }): boolean {
-  return !input.isSubmitting && input.message.trim().length > 0;
+  return (
+    !input.isSubmitting &&
+    input.message.trim().length > 0 &&
+    countMobileFeedbackAttachmentsInFlight(input.attachments ?? []) === 0
+  );
 }
 
 export interface MobileFeedbackRelativeTimeLabels {
@@ -152,6 +214,43 @@ export function formatMobileFeedbackRelativeTime(
   }
 
   return labels.daysAgo.replace("{count}", String(Math.floor(hours / 24)));
+}
+
+export type MobileFeedbackUploadFailureReason =
+  "network" | "rejected" | "signed-out" | "timeout" | "unknown";
+
+const UPLOAD_NETWORK_MESSAGE =
+  /network request failed|timed? ?out|econnreset|enotfound|failed to fetch|offline/i;
+const UPLOAD_REJECTED_MESSAGE = /unauthorized|not allowed|too many|could not be verified|413|415/i;
+
+/**
+ * Turns an upload failure into something the tile can actually say.
+ *
+ * The first version reported one opaque "could not be completed" for every
+ * cause, which is why a stalled upload was indistinguishable from a rejected
+ * one — and why the only way to tell them apart was to guess.
+ */
+export function classifyMobileFeedbackUploadFailure(
+  error: unknown,
+  wasAborted: boolean,
+): MobileFeedbackUploadFailureReason {
+  if (wasAborted) {
+    return "timeout";
+  }
+  if (!(error instanceof Error)) {
+    return "unknown";
+  }
+  if (error.name === "AbortError") {
+    return "timeout";
+  }
+  if (UPLOAD_NETWORK_MESSAGE.test(error.message)) {
+    return "network";
+  }
+  if (UPLOAD_REJECTED_MESSAGE.test(error.message)) {
+    return "rejected";
+  }
+
+  return "unknown";
 }
 
 export type MobileFeedbackDiagnosticsRowId =

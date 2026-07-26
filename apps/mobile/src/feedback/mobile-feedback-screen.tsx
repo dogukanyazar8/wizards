@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { Image, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import type { FeedbackRating, FeedbackTopic, MobileFeedbackSubmitResponse } from "@wizards/types";
 
@@ -8,7 +8,10 @@ import { useTheme } from "../app/providers/mobile-theme-provider";
 import { useMobileAuth } from "../auth/mobile-auth-context";
 import { MobileLineIcon } from "../design/mobile-line-icons";
 import { mobileCopy } from "../locale/mobile-copy";
-import { useMobileFeedbackAttachmentUpload } from "./use-mobile-feedback-attachment-upload";
+import {
+  useMobileFeedbackAttachmentUpload,
+  type MobileFeedbackPickedImage,
+} from "./use-mobile-feedback-attachment-upload";
 import { submitMobileFeedback } from "./mobile-feedback-client";
 import { buildMobileFeedbackDiagnostics } from "./mobile-feedback-diagnostics";
 import { MobileFeedbackDiagnosticsSheet } from "./mobile-feedback-diagnostics-sheet";
@@ -21,10 +24,14 @@ import {
   addMobileFeedbackAttachment,
   canAddMobileFeedbackAttachment,
   canSubmitMobileFeedback,
+  collectMobileFeedbackAttachmentClaimIds,
+  createMobileFeedbackAttachmentDraft,
   formatMobileFeedbackCounter,
   removeMobileFeedbackAttachment,
   resolveMobileFeedbackDiagnostics,
+  settleMobileFeedbackAttachment,
   type MobileFeedbackAttachmentDraft,
+  type MobileFeedbackUploadFailureReason,
 } from "./mobile-feedback-model";
 import { useMobileFeedbackStyles } from "./mobile-feedback-screen.styles";
 
@@ -48,6 +55,24 @@ function getRatingLabel(copy: FeedbackCopy, rating: FeedbackRating): string {
       return copy.feedbackRatingGreat;
     default:
       return copy.feedbackRatingOkay;
+  }
+}
+
+function getUploadFailureLabel(
+  copy: FeedbackCopy,
+  reason: MobileFeedbackUploadFailureReason,
+): string {
+  switch (reason) {
+    case "network":
+      return copy.feedbackUploadFailedNetwork;
+    case "rejected":
+      return copy.feedbackUploadFailedRejected;
+    case "signed-out":
+      return copy.feedbackUploadFailedSignedOut;
+    case "timeout":
+      return copy.feedbackUploadFailedTimeout;
+    default:
+      return copy.feedbackUploadFailedUnknown;
   }
 }
 
@@ -85,7 +110,7 @@ export function MobileFeedbackScreen({
   const copy = mobileCopy[locale];
   const { apiClient } = useMobileAuth();
   const { showToast } = useToast();
-  const { isUploading, pickAndUpload } = useMobileFeedbackAttachmentUpload();
+  const { pickImage, uploadImage } = useMobileFeedbackAttachmentUpload();
 
   const [rating, setRating] = useState<FeedbackRating>("GOOD");
   const [topic, setTopic] = useState<FeedbackTopic>("SUGGESTION");
@@ -96,8 +121,14 @@ export function MobileFeedbackScreen({
   const [isDiagnosticsSheetOpen, setDiagnosticsSheetOpen] = useState(false);
   const [isMessageFocused, setMessageFocused] = useState(false);
   const [isSubmitting, setSubmitting] = useState(false);
+  const nextAttachmentId = useRef(1);
+  /**
+   * The picked file, kept beside the draft so "Tekrar dene" can re-upload the
+   * same bytes without sending the user back to the gallery.
+   */
+  const attachmentFilesRef = useRef(new Map<string, File>());
 
-  const canSubmit = canSubmitMobileFeedback({ isSubmitting, message });
+  const canSubmit = canSubmitMobileFeedback({ attachments, isSubmitting, message });
   const counter = useMemo(() => formatMobileFeedbackCounter(message.length), [message.length]);
 
   const selectTopic = useCallback(
@@ -119,43 +150,83 @@ export function MobileFeedbackScreen({
     setDiagnosticsEnabled(next);
   }, []);
 
-  const addAttachment = useCallback(async () => {
-    if (!canAddMobileFeedbackAttachment(attachments) || isUploading) {
-      return;
-    }
+  /**
+   * Uploads one already-picked file and settles its tile. Kept separate from the
+   * picker so "Tekrar dene" on a failed tile is the same code path as the first
+   * attempt, and so several tiles can be in flight at once.
+   */
+  const runUpload = useCallback(
+    async (draftId: string, file: File) => {
+      const result = await uploadImage(file);
 
-    const upload = showToast({
-      subtitle: copy.toastMediaUploadingSubtitle,
-      title: copy.feedbackAttachmentUploadingTitle,
-      variant: "loading",
-    });
-    const result = await pickAndUpload();
+      if (result.status === "uploaded") {
+        setAttachments((current) =>
+          settleMobileFeedbackAttachment(current, draftId, result.claimId),
+        );
+        return;
+      }
 
-    if (result.status === "cancelled") {
-      upload.dismiss();
-      return;
-    }
-
-    if (result.status === "error") {
-      upload.resolve({
-        subtitle: result.message,
+      setAttachments((current) => settleMobileFeedbackAttachment(current, draftId, null));
+      showToast({
+        subtitle: getUploadFailureLabel(copy, result.reason),
         title: copy.feedbackAttachmentFailedTitle,
         variant: "error",
       });
+    },
+    [copy, showToast, uploadImage],
+  );
+
+  const addAttachment = useCallback(async () => {
+    if (!canAddMobileFeedbackAttachment(attachments)) {
       return;
     }
 
-    setAttachments((current) => addMobileFeedbackAttachment(current, result.attachment));
-    upload.dismiss();
-  }, [
-    attachments,
-    copy.feedbackAttachmentFailedTitle,
-    copy.feedbackAttachmentUploadingTitle,
-    copy.toastMediaUploadingSubtitle,
-    isUploading,
-    pickAndUpload,
-    showToast,
-  ]);
+    let picked: MobileFeedbackPickedImage | null;
+    try {
+      // The picker runs before any toast: a full-screen gallery with a
+      // "yükleniyor" card behind it announced an upload that had not started.
+      picked = await pickImage();
+    } catch {
+      showToast({ title: copy.feedbackAttachmentFailedTitle, variant: "error" });
+      return;
+    }
+
+    if (!picked) {
+      return;
+    }
+
+    // The thumbnail is on screen from here on, whatever the network does.
+    const draftId = `attachment-${nextAttachmentId.current}`;
+    nextAttachmentId.current += 1;
+    const chosen = picked;
+    attachmentFilesRef.current.set(draftId, chosen.file);
+    setAttachments((current) =>
+      addMobileFeedbackAttachment(
+        current,
+        createMobileFeedbackAttachmentDraft(draftId, chosen.localUri),
+      ),
+    );
+    void runUpload(draftId, chosen.file);
+  }, [attachments, copy.feedbackAttachmentFailedTitle, pickImage, runUpload, showToast]);
+
+  const retryAttachment = useCallback(
+    (draft: MobileFeedbackAttachmentDraft) => {
+      const file = attachmentFilesRef.current.get(draft.id);
+      if (!file || draft.status !== "failed") {
+        return;
+      }
+
+      setAttachments((current) =>
+        current.map((attachment) =>
+          attachment.id === draft.id
+            ? { ...attachment, claimId: null, status: "uploading" as const }
+            : attachment,
+        ),
+      );
+      void runUpload(draft.id, file);
+    },
+    [runUpload],
+  );
 
   const submit = useCallback(async () => {
     if (!canSubmit) {
@@ -171,7 +242,7 @@ export function MobileFeedbackScreen({
 
     try {
       const response = await submitMobileFeedback(apiClient, {
-        attachmentClaimIds: attachments.map((attachment) => attachment.claimId),
+        attachmentClaimIds: collectMobileFeedbackAttachmentClaimIds(attachments),
         diagnostics: diagnosticsEnabled
           ? buildMobileFeedbackDiagnostics({ appVersion, locale, theme: theme.id })
           : null,
@@ -334,23 +405,50 @@ export function MobileFeedbackScreen({
           </View>
           <View style={styles.attachmentRow}>
             {attachments.map((attachment) => (
-              <View key={attachment.claimId} style={styles.attachmentTile}>
+              <View key={attachment.id} style={styles.attachmentTile}>
                 <Image
                   accessibilityIgnoresInvertColors
                   source={{ uri: attachment.localUri }}
                   style={styles.attachmentImage}
                 />
+                {/* The thumbnail is always visible; the veil only says what the
+                    upload is doing on top of it. */}
+                {attachment.status === "uploading" ? (
+                  <View
+                    style={styles.attachmentVeil}
+                    testID={`mobile-feedback-attachment-uploading-${attachment.id}`}
+                  >
+                    <MobileLineIcon color={theme.text.onInverse} name="loader-arc" size={16} />
+                  </View>
+                ) : null}
+                {attachment.status === "failed" ? (
+                  <Pressable
+                    accessibilityLabel={copy.feedbackAttachmentRetry}
+                    accessibilityRole="button"
+                    onPress={() => retryAttachment(attachment)}
+                    style={({ pressed }) => [
+                      styles.attachmentVeil,
+                      styles.attachmentVeilFailed,
+                      pressed && styles.pressed,
+                    ]}
+                    testID={`mobile-feedback-attachment-retry-${attachment.id}`}
+                  >
+                    <MobileLineIcon color={theme.text.onInverse} name="alert-triangle" size={15} />
+                    <Text style={styles.attachmentVeilLabel}>{copy.feedbackAttachmentRetry}</Text>
+                  </Pressable>
+                ) : null}
                 <Pressable
                   accessibilityLabel={copy.feedbackAttachmentRemove}
                   accessibilityRole="button"
                   hitSlop={12}
-                  onPress={() =>
+                  onPress={() => {
+                    attachmentFilesRef.current.delete(attachment.id);
                     setAttachments((current) =>
-                      removeMobileFeedbackAttachment(current, attachment.claimId),
-                    )
-                  }
+                      removeMobileFeedbackAttachment(current, attachment.id),
+                    );
+                  }}
                   style={({ pressed }) => [styles.attachmentRemove, pressed && styles.pressed]}
-                  testID={`mobile-feedback-attachment-remove-${attachment.claimId}`}
+                  testID={`mobile-feedback-attachment-remove-${attachment.id}`}
                 >
                   <MobileLineIcon
                     color={theme.text.onInverse}
@@ -365,7 +463,6 @@ export function MobileFeedbackScreen({
               <Pressable
                 accessibilityLabel={copy.feedbackAttachmentAdd}
                 accessibilityRole="button"
-                disabled={isUploading}
                 hitSlop={8}
                 onPress={() => void addAttachment()}
                 style={({ pressed }) => [styles.attachmentAdd, pressed && styles.pressed]}
