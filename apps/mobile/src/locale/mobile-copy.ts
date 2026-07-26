@@ -408,6 +408,7 @@ export const mobileCopy = {
     toastUndoAction: "Geri al",
     // 4a/4b geri bildirim
     feedbackTitle: "Geri bildirim",
+    feedbackHubAction: "Geri bildirim gönder",
     feedbackSubtitle: "Whispr'ı birlikte geliştirelim",
     feedbackRatingTitle: "Whispr deneyimin nasıl?",
     feedbackRatingHint: "Genel memnuniyetini işaretle",
@@ -770,7 +771,6 @@ export const mobileCopy = {
     aboutSettingsServiceStatus: "Servis durumu",
     aboutSettingsServiceOperational: "Sorunsuz",
     aboutSettingsServiceOffline: "Bağlantı yok",
-    aboutSettingsFeedback: "Geri bildirim gönder",
     openSourceLicensesBadge: "Bu sürümle gelen paketler",
     openSourceLicensesDescription:
       "Whispr'ı ayakta tutan açık kaynak paketler ve lisansları. Buradaki her satır, uygulamanın bu sürümüyle birlikte gelen bir bağımlılıktır.",
@@ -2264,6 +2264,7 @@ export const mobileCopy = {
     toastRetryAction: "Try again",
     toastUndoAction: "Undo",
     feedbackTitle: "Feedback",
+    feedbackHubAction: "Send feedback",
     feedbackSubtitle: "Let's build Whispr together",
     feedbackRatingTitle: "How is your Whispr experience?",
     feedbackRatingHint: "Mark your overall satisfaction",
@@ -2627,7 +2628,6 @@ export const mobileCopy = {
     aboutSettingsServiceStatus: "Service status",
     aboutSettingsServiceOperational: "Operational",
     aboutSettingsServiceOffline: "No connection",
-    aboutSettingsFeedback: "Send feedback",
     openSourceLicensesBadge: "Shipped in this build",
     openSourceLicensesDescription:
       "The open source packages Whispr runs on, together with their licenses. Every row here is a dependency that ships with this version of the app.",

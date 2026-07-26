@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { test } from "node:test";
 import { resolve } from "node:path";
 
 const packageRoot = resolve(import.meta.dirname, "..");
 const read = (relativePath) => readFileSync(resolve(packageRoot, relativePath), "utf8");
+const BASELINE_MIGRATION = "20260725000000_uat_schema_baseline";
 
 test("uses Prisma 7 ESM generation, central CLI configuration, and explicit seed", () => {
   const schema = read("prisma/schema.prisma");
@@ -19,6 +20,40 @@ test("uses Prisma 7 ESM generation, central CLI configuration, and explicit seed
   assert.match(config, /seed:\s*"tsx src\/seed\.ts"/);
   assert.equal(packageJson.scripts["db:seed"], "prisma db seed");
   assert.equal(packageJson.scripts["prisma:ensure-runtime"], undefined);
+});
+
+/**
+ * `prisma.config.ts` moved the migrations path to `prisma/rebaseline-migrations`
+ * when UAT was squashed, but `prisma/migrations` is still on disk as the frozen
+ * pre-baseline archive. A new migration written into the archive is silently
+ * never applied — the schema typechecks, the tests pass, and the table simply
+ * does not exist at runtime. That is exactly how the feedback tables shipped
+ * missing, so the two directories are now checked against each other.
+ */
+test("every post-baseline migration lives on the path Prisma actually reads", () => {
+  const config = read("prisma.config.ts");
+  const [, configuredPath] = /path:\s*"([^"]+)"/.exec(config) ?? [];
+  assert.equal(configuredPath, "prisma/rebaseline-migrations");
+
+  const archived = readdirSync(resolve(packageRoot, "prisma/migrations"), {
+    withFileTypes: true,
+  })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .sort();
+  const live = readdirSync(resolve(packageRoot, configuredPath), { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .sort();
+
+  assert.ok(live.includes(BASELINE_MIGRATION), "the baseline must stay on the live path");
+  // The archive is frozen at the rebaseline point: nothing newer belongs there.
+  const strandedNewerThanBaseline = archived.filter((name) => name > BASELINE_MIGRATION);
+  assert.deepEqual(
+    strandedNewerThanBaseline,
+    [],
+    `migrations newer than the baseline must live in ${configuredPath}, not prisma/migrations`,
+  );
 });
 
 test("contains a replayable current-state baseline with raw PostgreSQL objects", () => {

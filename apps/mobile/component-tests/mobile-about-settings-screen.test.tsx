@@ -20,7 +20,6 @@ function createProps(
   return {
     appVersion: "0.8.15",
     onBack: () => undefined,
-    onOpenFeedback: () => undefined,
     onOpenLicenses: () => undefined,
     onOpenPrivacy: () => undefined,
     onOpenTerms: () => undefined,
@@ -39,7 +38,6 @@ describe("5i about settings screen", () => {
     expect(view.getByText("0.8.15 · uat")).toBeTruthy();
     expect(view.getByText(copy.aboutSettingsTerms)).toBeTruthy();
     expect(view.getByText(copy.aboutSettingsPrivacy)).toBeTruthy();
-    expect(view.getByText(copy.aboutSettingsFeedback)).toBeTruthy();
     expect(view.getByText(copy.aboutSettingsServiceOperational)).toBeTruthy();
   });
 
@@ -84,18 +82,21 @@ describe("5i about settings screen", () => {
     expect(view.getByText(copy.aboutSettingsServiceOffline)).toBeTruthy();
   });
 
-  it("routes legal and feedback rows to their handlers", async () => {
+  it("routes legal rows to their handlers and offers no feedback entry", async () => {
     const onOpenTerms = jest.fn();
-    const onOpenFeedback = jest.fn();
+    const onOpenLicenses = jest.fn();
     const view = await render(
-      <MobileAboutSettingsScreen {...createProps({ onOpenFeedback, onOpenTerms })} />,
+      <MobileAboutSettingsScreen {...createProps({ onOpenLicenses, onOpenTerms })} />,
     );
 
     await fireEvent.press(view.getByTestId("mobile-about-terms"));
-    await fireEvent.press(view.getByTestId("mobile-about-feedback"));
+    await fireEvent.press(view.getByTestId("mobile-about-licenses"));
 
     expect(onOpenTerms).toHaveBeenCalledTimes(1);
-    expect(onOpenFeedback).toHaveBeenCalledTimes(1);
+    expect(onOpenLicenses).toHaveBeenCalledTimes(1);
+    // Feedback is reached from the profile hub only; a second entry point into
+    // the same form is what made the two read as different features.
+    expect(view.queryByTestId("mobile-about-feedback")).toBeNull();
   });
 
   it("reports the current version when update checks are unavailable", async () => {

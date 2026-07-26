@@ -5801,8 +5801,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "arc",
-      "community": 403,
-      "community_name": "details.test.ts",
+      "community": 231,
+      "community_name": "auth-regression.spec.ts",
       "norm_label": "arc"
     },
     {
@@ -5812,8 +5812,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "mutex",
-      "community": 403,
-      "community_name": "details.test.ts",
+      "community": 231,
+      "community_name": "auth-regression.spec.ts",
       "norm_label": "mutex"
     },
     {
@@ -5834,8 +5834,8 @@
       "source_location": "L197",
       "_origin": "ast",
       "id": "apps_desktop_src_tauri_src_lib_desktopclosebehaviorstate",
-      "community": 403,
-      "community_name": "details.test.ts",
+      "community": 231,
+      "community_name": "auth-regression.spec.ts",
       "norm_label": "desktopclosebehaviorstate"
     },
     {
@@ -6483,8 +6483,8 @@
       "source_location": "L940",
       "_origin": "ast",
       "id": "apps_desktop_src_tauri_src_lib_get_desktop_quit_on_close_enabled",
-      "community": 403,
-      "community_name": "details.test.ts",
+      "community": 231,
+      "community_name": "auth-regression.spec.ts",
       "norm_label": "get_desktop_quit_on_close_enabled()"
     },
     {
@@ -6494,8 +6494,8 @@
       "source_location": "L950",
       "_origin": "ast",
       "id": "apps_desktop_src_tauri_src_lib_set_desktop_quit_on_close_enabled",
-      "community": 403,
-      "community_name": "details.test.ts",
+      "community": 231,
+      "community_name": "auth-regression.spec.ts",
       "norm_label": "set_desktop_quit_on_close_enabled()"
     },
     {
@@ -7110,8 +7110,8 @@
       "source_location": "L2062",
       "_origin": "ast",
       "id": "apps_desktop_src_tauri_src_lib_set_desktop_quit_on_close",
-      "community": 403,
-      "community_name": "details.test.ts",
+      "community": 231,
+      "community_name": "auth-regression.spec.ts",
       "norm_label": "set_desktop_quit_on_close()"
     },
     {
@@ -7121,8 +7121,8 @@
       "source_location": "L2068",
       "_origin": "ast",
       "id": "apps_desktop_src_tauri_src_lib_is_desktop_quit_on_close_enabled",
-      "community": 403,
-      "community_name": "details.test.ts",
+      "community": 231,
+      "community_name": "auth-regression.spec.ts",
       "norm_label": "is_desktop_quit_on_close_enabled()"
     },
     {
@@ -7869,8 +7869,8 @@
       "source_location": "L3645",
       "_origin": "ast",
       "id": "apps_desktop_src_tauri_src_lib_sync_oauth_navigation_state",
-      "community": 403,
-      "community_name": "details.test.ts",
+      "community": 231,
+      "community_name": "auth-regression.spec.ts",
       "norm_label": "sync_oauth_navigation_state()"
     },
     {
@@ -7880,8 +7880,8 @@
       "source_location": "L3664",
       "_origin": "ast",
       "id": "apps_desktop_src_tauri_src_lib_is_allowed_oauth_navigation",
-      "community": 403,
-      "community_name": "details.test.ts",
+      "community": 231,
+      "community_name": "auth-regression.spec.ts",
       "norm_label": "is_allowed_oauth_navigation()"
     },
     {
@@ -7891,8 +7891,8 @@
       "source_location": "L3675",
       "_origin": "ast",
       "id": "apps_desktop_src_tauri_src_lib_is_oauth_navigation_active",
-      "community": 403,
-      "community_name": "details.test.ts",
+      "community": 231,
+      "community_name": "auth-regression.spec.ts",
       "norm_label": "is_oauth_navigation_active()"
     },
     {
@@ -7902,8 +7902,8 @@
       "source_location": "L3682",
       "_origin": "ast",
       "id": "apps_desktop_src_tauri_src_lib_set_oauth_navigation_active",
-      "community": 403,
-      "community_name": "details.test.ts",
+      "community": 231,
+      "community_name": "auth-regression.spec.ts",
       "norm_label": "set_oauth_navigation_active()"
     },
     {
@@ -10817,8 +10817,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_mobile_component_tests_mobile_dm_8b_enrichments_test",
-      "community": 79,
-      "community_name": "voice-mini.ts",
+      "community": 27,
+      "community_name": "Community 27",
       "norm_label": "mobile-dm-8b-enrichments.test.tsx"
     },
     {
@@ -10828,8 +10828,8 @@
       "source_location": "L26",
       "_origin": "ast",
       "id": "apps_mobile_component_tests_mobile_dm_8b_enrichments_test_dmmessage",
-      "community": 79,
-      "community_name": "voice-mini.ts",
+      "community": 27,
+      "community_name": "Community 27",
       "norm_label": "dmmessage"
     },
     {
@@ -10839,8 +10839,8 @@
       "source_location": "L28",
       "_origin": "ast",
       "id": "apps_mobile_component_tests_mobile_dm_8b_enrichments_test_createmessage",
-      "community": 79,
-      "community_name": "voice-mini.ts",
+      "community": 27,
+      "community_name": "Community 27",
       "norm_label": "createmessage()"
     },
     {
@@ -10850,8 +10850,8 @@
       "source_location": "L55",
       "_origin": "ast",
       "id": "apps_mobile_component_tests_mobile_dm_8b_enrichments_test_renderrow",
-      "community": 79,
-      "community_name": "voice-mini.ts",
+      "community": 27,
+      "community_name": "Community 27",
       "norm_label": "renderrow()"
     },
     {
@@ -10861,8 +10861,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_mobile_component_tests_mobile_dm_attachment_send_10c_test",
-      "community": 81,
-      "community_name": "mobile-voice-room-route-context.ts",
+      "community": 26,
+      "community_name": "Community 26",
       "norm_label": "mobile-dm-attachment-send-10c.test.tsx"
     },
     {
@@ -10872,8 +10872,8 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "apps_mobile_component_tests_mobile_dm_attachment_send_10c_test_author",
-      "community": 81,
-      "community_name": "mobile-voice-room-route-context.ts",
+      "community": 26,
+      "community_name": "Community 26",
       "norm_label": "author"
     },
     {
@@ -10883,8 +10883,8 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "apps_mobile_component_tests_mobile_dm_attachment_send_10c_test_uploadedattachment",
-      "community": 81,
-      "community_name": "mobile-voice-room-route-context.ts",
+      "community": 26,
+      "community_name": "Community 26",
       "norm_label": "uploadedattachment"
     },
     {
@@ -10894,8 +10894,8 @@
       "source_location": "L33",
       "_origin": "ast",
       "id": "apps_mobile_component_tests_mobile_dm_attachment_send_10c_test_emptypage",
-      "community": 81,
-      "community_name": "mobile-voice-room-route-context.ts",
+      "community": 26,
+      "community_name": "Community 26",
       "norm_label": "emptypage"
     },
     {
@@ -10905,8 +10905,8 @@
       "source_location": "L47",
       "_origin": "ast",
       "id": "apps_mobile_component_tests_mobile_dm_attachment_send_10c_test_emptyservermessage",
-      "community": 81,
-      "community_name": "mobile-voice-room-route-context.ts",
+      "community": 26,
+      "community_name": "Community 26",
       "norm_label": "emptyservermessage"
     },
     {
@@ -10916,8 +10916,8 @@
       "source_location": "L64",
       "_origin": "ast",
       "id": "apps_mobile_component_tests_mobile_dm_attachment_send_10c_test_createclient",
-      "community": 81,
-      "community_name": "mobile-voice-room-route-context.ts",
+      "community": 26,
+      "community_name": "Community 26",
       "norm_label": "createclient()"
     },
     {
@@ -10927,8 +10927,8 @@
       "source_location": "L69",
       "_origin": "ast",
       "id": "apps_mobile_component_tests_mobile_dm_attachment_send_10c_test_renderedqueryclients",
-      "community": 81,
-      "community_name": "mobile-voice-room-route-context.ts",
+      "community": 26,
+      "community_name": "Community 26",
       "norm_label": "renderedqueryclients"
     },
     {
@@ -10938,8 +10938,8 @@
       "source_location": "L71",
       "_origin": "ast",
       "id": "apps_mobile_component_tests_mobile_dm_attachment_send_10c_test_rendersendhook",
-      "community": 81,
-      "community_name": "mobile-voice-room-route-context.ts",
+      "community": 26,
+      "community_name": "Community 26",
       "norm_label": "rendersendhook()"
     },
     {
@@ -10949,8 +10949,8 @@
       "source_location": "L95",
       "_origin": "ast",
       "id": "apps_mobile_component_tests_mobile_dm_attachment_send_10c_test_readmessages",
-      "community": 81,
-      "community_name": "mobile-voice-room-route-context.ts",
+      "community": 26,
+      "community_name": "Community 26",
       "norm_label": "readmessages()"
     },
     {
@@ -11331,7 +11331,7 @@
       "label": "renderSubmitted()",
       "file_type": "code",
       "source_file": "apps/mobile/component-tests/mobile-feedback-screens-4a-4b.test.tsx",
-      "source_location": "L333",
+      "source_location": "L329",
       "_origin": "ast",
       "id": "apps_mobile_component_tests_mobile_feedback_screens_4a_4b_test_rendersubmitted",
       "community": 419,
@@ -12038,8 +12038,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_mobile_component_tests_mobile_message_action_menu_test",
-      "community": 27,
-      "community_name": "Community 27",
+      "community": 79,
+      "community_name": "voice-mini.ts",
       "norm_label": "mobile-message-action-menu.test.tsx"
     },
     {
@@ -12049,8 +12049,8 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "apps_mobile_component_tests_mobile_message_action_menu_test_mockbottomsystemspacing",
-      "community": 27,
-      "community_name": "Community 27",
+      "community": 79,
+      "community_name": "voice-mini.ts",
       "norm_label": "mockbottomsystemspacing"
     },
     {
@@ -12060,8 +12060,8 @@
       "source_location": "L26",
       "_origin": "ast",
       "id": "apps_mobile_component_tests_mobile_message_action_menu_test_basemessage",
-      "community": 27,
-      "community_name": "Community 27",
+      "community": 79,
+      "community_name": "voice-mini.ts",
       "norm_label": "basemessage"
     },
     {
@@ -12071,8 +12071,8 @@
       "source_location": "L32",
       "_origin": "ast",
       "id": "apps_mobile_component_tests_mobile_message_action_menu_test_rendermenu",
-      "community": 27,
-      "community_name": "Community 27",
+      "community": 79,
+      "community_name": "voice-mini.ts",
       "norm_label": "rendermenu()"
     },
     {
@@ -12082,8 +12082,8 @@
       "source_location": "L51",
       "_origin": "ast",
       "id": "apps_mobile_component_tests_mobile_message_action_menu_test_openmenu",
-      "community": 27,
-      "community_name": "Community 27",
+      "community": 79,
+      "community_name": "voice-mini.ts",
       "norm_label": "openmenu()"
     },
     {
@@ -14172,8 +14172,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_mobile_component_tests_mobile_thread_8d_test",
-      "community": 14,
-      "community_name": "Community 14",
+      "community": 81,
+      "community_name": "mobile-voice-room-route-context.ts",
       "norm_label": "mobile-thread-8d.test.tsx"
     },
     {
@@ -14183,8 +14183,8 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "apps_mobile_component_tests_mobile_thread_8d_test_mockrequestjson",
-      "community": 14,
-      "community_name": "Community 14",
+      "community": 81,
+      "community_name": "mobile-voice-room-route-context.ts",
       "norm_label": "mockrequestjson"
     },
     {
@@ -14194,8 +14194,8 @@
       "source_location": "L32",
       "_origin": "ast",
       "id": "apps_mobile_component_tests_mobile_thread_8d_test_createmessage",
-      "community": 14,
-      "community_name": "Community 14",
+      "community": 81,
+      "community_name": "mobile-voice-room-route-context.ts",
       "norm_label": "createmessage()"
     },
     {
@@ -14205,8 +14205,8 @@
       "source_location": "L55",
       "_origin": "ast",
       "id": "apps_mobile_component_tests_mobile_thread_8d_test_createthreadpayload",
-      "community": 14,
-      "community_name": "Community 14",
+      "community": 81,
+      "community_name": "mobile-voice-room-route-context.ts",
       "norm_label": "createthreadpayload()"
     },
     {
@@ -20189,8 +20189,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_mobile_scripts_mobile_message_search_client_test",
-      "community": 231,
-      "community_name": "auth-regression.spec.ts",
+      "community": 122,
+      "community_name": "useI18n",
       "norm_label": "mobile-message-search-client.test.ts"
     },
     {
@@ -20200,8 +20200,8 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "apps_mobile_scripts_mobile_message_search_client_test_validsearchresponse",
-      "community": 231,
-      "community_name": "auth-regression.spec.ts",
+      "community": 122,
+      "community_name": "useI18n",
       "norm_label": "validsearchresponse"
     },
     {
@@ -20211,8 +20211,8 @@
       "source_location": "L100",
       "_origin": "ast",
       "id": "apps_mobile_scripts_mobile_message_search_client_test_requestjson",
-      "community": 231,
-      "community_name": "auth-regression.spec.ts",
+      "community": 122,
+      "community_name": "useI18n",
       "norm_label": "requestjson()"
     },
     {
@@ -20431,8 +20431,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_mobile_scripts_mobile_notification_realtime_test",
-      "community": 430,
-      "community_name": "class-variance-authority",
+      "community": 154,
+      "community_name": "route-logic.ts",
       "norm_label": "mobile-notification-realtime.test.ts"
     },
     {
@@ -20442,8 +20442,8 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "apps_mobile_scripts_mobile_notification_realtime_test_actor",
-      "community": 430,
-      "community_name": "class-variance-authority",
+      "community": 154,
+      "community_name": "route-logic.ts",
       "norm_label": "actor"
     },
     {
@@ -20453,8 +20453,8 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "apps_mobile_scripts_mobile_notification_realtime_test_mentionevent",
-      "community": 430,
-      "community_name": "class-variance-authority",
+      "community": 154,
+      "community_name": "route-logic.ts",
       "norm_label": "mentionevent()"
     },
     {
@@ -20464,8 +20464,8 @@
       "source_location": "L38",
       "_origin": "ast",
       "id": "apps_mobile_scripts_mobile_notification_realtime_test_seed",
-      "community": 430,
-      "community_name": "class-variance-authority",
+      "community": 154,
+      "community_name": "route-logic.ts",
       "norm_label": "seed()"
     },
     {
@@ -20475,8 +20475,8 @@
       "source_location": "L54",
       "_origin": "ast",
       "id": "apps_mobile_scripts_mobile_notification_realtime_test_read",
-      "community": 430,
-      "community_name": "class-variance-authority",
+      "community": 154,
+      "community_name": "route-logic.ts",
       "norm_label": "read()"
     },
     {
@@ -21476,8 +21476,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_mobile_scripts_mobile_realtime_contract_test",
-      "community": 6,
-      "community_name": "Community 6",
+      "community": 103,
+      "community_name": "app-version.ts",
       "norm_label": "mobile-realtime-contract.test.ts"
     },
     {
@@ -47590,8 +47590,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_mobile_src_notifications_mobile_notification_realtime",
-      "community": 430,
-      "community_name": "class-variance-authority",
+      "community": 154,
+      "community_name": "route-logic.ts",
       "norm_label": "mobile-notification-realtime.ts"
     },
     {
@@ -47601,8 +47601,8 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "apps_mobile_src_notifications_mobile_notification_realtime_getmetadatastring",
-      "community": 430,
-      "community_name": "class-variance-authority",
+      "community": 154,
+      "community_name": "route-logic.ts",
       "norm_label": "getmetadatastring()"
     },
     {
@@ -47612,8 +47612,8 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "apps_mobile_src_notifications_mobile_notification_realtime_geteventkind",
-      "community": 430,
-      "community_name": "class-variance-authority",
+      "community": 154,
+      "community_name": "route-logic.ts",
       "norm_label": "geteventkind()"
     },
     {
@@ -47623,8 +47623,8 @@
       "source_location": "L46",
       "_origin": "ast",
       "id": "apps_mobile_src_notifications_mobile_notification_realtime_tomobilenotificationitem",
-      "community": 430,
-      "community_name": "class-variance-authority",
+      "community": 154,
+      "community_name": "route-logic.ts",
       "norm_label": "tomobilenotificationitem()"
     },
     {
@@ -47634,8 +47634,8 @@
       "source_location": "L83",
       "_origin": "ast",
       "id": "apps_mobile_src_notifications_mobile_notification_realtime_canapplymobilenotificationevent",
-      "community": 430,
-      "community_name": "class-variance-authority",
+      "community": 154,
+      "community_name": "route-logic.ts",
       "norm_label": "canapplymobilenotificationevent()"
     },
     {
@@ -47645,8 +47645,8 @@
       "source_location": "L94",
       "_origin": "ast",
       "id": "apps_mobile_src_notifications_mobile_notification_realtime_matchesfilter",
-      "community": 430,
-      "community_name": "class-variance-authority",
+      "community": 154,
+      "community_name": "route-logic.ts",
       "norm_label": "matchesfilter()"
     },
     {
@@ -47656,8 +47656,8 @@
       "source_location": "L106",
       "_origin": "ast",
       "id": "apps_mobile_src_notifications_mobile_notification_realtime_prependnotification",
-      "community": 430,
-      "community_name": "class-variance-authority",
+      "community": 154,
+      "community_name": "route-logic.ts",
       "norm_label": "prependnotification()"
     },
     {
@@ -47667,8 +47667,8 @@
       "source_location": "L153",
       "_origin": "ast",
       "id": "apps_mobile_src_notifications_mobile_notification_realtime_applymobilerealtimenotificationevent",
-      "community": 430,
-      "community_name": "class-variance-authority",
+      "community": 154,
+      "community_name": "route-logic.ts",
       "norm_label": "applymobilerealtimenotificationevent()"
     },
     {
@@ -48811,8 +48811,8 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "apps_mobile_src_query_mobile_failed_send_registry_mobilefailedsendregistry",
-      "community": 81,
-      "community_name": "mobile-voice-room-route-context.ts",
+      "community": 26,
+      "community_name": "Community 26",
       "norm_label": "mobilefailedsendregistry"
     },
     {
@@ -49053,8 +49053,8 @@
       "source_location": "L231",
       "_origin": "ast",
       "id": "apps_mobile_src_query_mobile_message_cache_getnextmobilemessagereactions",
-      "community": 81,
-      "community_name": "mobile-voice-room-route-context.ts",
+      "community": 14,
+      "community_name": "Community 14",
       "norm_label": "getnextmobilemessagereactions()"
     },
     {
@@ -49064,8 +49064,8 @@
       "source_location": "L268",
       "_origin": "ast",
       "id": "apps_mobile_src_query_mobile_message_cache_applymobileoptimisticmessagereaction",
-      "community": 81,
-      "community_name": "mobile-voice-room-route-context.ts",
+      "community": 14,
+      "community_name": "Community 14",
       "norm_label": "applymobileoptimisticmessagereaction()"
     },
     {
@@ -49196,8 +49196,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_mobile_src_query_mobile_message_search_query",
-      "community": 231,
-      "community_name": "auth-regression.spec.ts",
+      "community": 122,
+      "community_name": "useI18n",
       "norm_label": "mobile-message-search-query.ts"
     },
     {
@@ -49207,8 +49207,8 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "apps_mobile_src_query_mobile_message_search_query_ismobilemessagesearchenabled",
-      "community": 231,
-      "community_name": "auth-regression.spec.ts",
+      "community": 122,
+      "community_name": "useI18n",
       "norm_label": "ismobilemessagesearchenabled()"
     },
     {
@@ -49218,8 +49218,8 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "apps_mobile_src_query_mobile_message_search_query_getmobilemessagesearchqueryoptions",
-      "community": 231,
-      "community_name": "auth-regression.spec.ts",
+      "community": 122,
+      "community_name": "useI18n",
       "norm_label": "getmobilemessagesearchqueryoptions()"
     },
     {
@@ -49229,8 +49229,8 @@
       "source_location": "L34",
       "_origin": "ast",
       "id": "apps_mobile_src_query_mobile_message_search_query_usemobilemessagesearchquery",
-      "community": 231,
-      "community_name": "auth-regression.spec.ts",
+      "community": 122,
+      "community_name": "useI18n",
       "norm_label": "usemobilemessagesearchquery()"
     },
     {
@@ -50406,8 +50406,8 @@
       "source_location": "L172",
       "_origin": "ast",
       "id": "apps_mobile_src_query_use_mobile_message_mutations_requiremobilemutationauthor",
-      "community": 81,
-      "community_name": "mobile-voice-room-route-context.ts",
+      "community": 14,
+      "community_name": "Community 14",
       "norm_label": "requiremobilemutationauthor()"
     },
     {
@@ -50439,8 +50439,8 @@
       "source_location": "L231",
       "_origin": "ast",
       "id": "apps_mobile_src_query_use_mobile_message_mutations_createmobileoptimisticreactionmutationoptions",
-      "community": 81,
-      "community_name": "mobile-voice-room-route-context.ts",
+      "community": 14,
+      "community_name": "Community 14",
       "norm_label": "createmobileoptimisticreactionmutationoptions()"
     },
     {
@@ -50582,8 +50582,8 @@
       "source_location": "L635",
       "_origin": "ast",
       "id": "apps_mobile_src_query_use_mobile_message_mutations_usemobiledmmessagemutation",
-      "community": 81,
-      "community_name": "mobile-voice-room-route-context.ts",
+      "community": 26,
+      "community_name": "Community 26",
       "norm_label": "usemobiledmmessagemutation()"
     },
     {
@@ -50593,8 +50593,8 @@
       "source_location": "L715",
       "_origin": "ast",
       "id": "apps_mobile_src_query_use_mobile_message_mutations_usemobilechannelmessagereactionmutation",
-      "community": 81,
-      "community_name": "mobile-voice-room-route-context.ts",
+      "community": 14,
+      "community_name": "Community 14",
       "norm_label": "usemobilechannelmessagereactionmutation()"
     },
     {
@@ -50604,8 +50604,8 @@
       "source_location": "L742",
       "_origin": "ast",
       "id": "apps_mobile_src_query_use_mobile_message_mutations_updatemobilechannelthreadmessagereactions",
-      "community": 81,
-      "community_name": "mobile-voice-room-route-context.ts",
+      "community": 14,
+      "community_name": "Community 14",
       "norm_label": "updatemobilechannelthreadmessagereactions()"
     },
     {
@@ -50615,8 +50615,8 @@
       "source_location": "L758",
       "_origin": "ast",
       "id": "apps_mobile_src_query_use_mobile_message_mutations_usemobilechannelthreadmessagereactionmutation",
-      "community": 81,
-      "community_name": "mobile-voice-room-route-context.ts",
+      "community": 14,
+      "community_name": "Community 14",
       "norm_label": "usemobilechannelthreadmessagereactionmutation()"
     },
     {
@@ -50626,8 +50626,8 @@
       "source_location": "L844",
       "_origin": "ast",
       "id": "apps_mobile_src_query_use_mobile_message_mutations_usemobiledmmessagereactionmutation",
-      "community": 81,
-      "community_name": "mobile-voice-room-route-context.ts",
+      "community": 14,
+      "community_name": "Community 14",
       "norm_label": "usemobiledmmessagereactionmutation()"
     },
     {
@@ -50824,8 +50824,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_mobile_src_realtime_mobile_realtime_client",
-      "community": 6,
-      "community_name": "Community 6",
+      "community": 103,
+      "community_name": "app-version.ts",
       "norm_label": "mobile-realtime-client.ts"
     },
     {
@@ -50835,8 +50835,8 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "apps_mobile_src_realtime_mobile_realtime_client_mobilerealtimeclienttargets",
-      "community": 6,
-      "community_name": "Community 6",
+      "community": 103,
+      "community_name": "app-version.ts",
       "norm_label": "mobilerealtimeclienttargets"
     },
     {
@@ -50846,8 +50846,8 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "apps_mobile_src_realtime_mobile_realtime_client_mobilerealtimeclient",
-      "community": 6,
-      "community_name": "Community 6",
+      "community": 103,
+      "community_name": "app-version.ts",
       "norm_label": "mobilerealtimeclient"
     },
     {
@@ -50857,8 +50857,8 @@
       "source_location": "L35",
       "_origin": "ast",
       "id": "apps_mobile_src_realtime_mobile_realtime_client_mobilerealtimeclientoptions",
-      "community": 6,
-      "community_name": "Community 6",
+      "community": 103,
+      "community_name": "app-version.ts",
       "norm_label": "mobilerealtimeclientoptions"
     },
     {
@@ -50868,8 +50868,8 @@
       "source_location": "L45",
       "_origin": "ast",
       "id": "apps_mobile_src_realtime_mobile_realtime_client_mutablesocketauth",
-      "community": 6,
-      "community_name": "Community 6",
+      "community": 103,
+      "community_name": "app-version.ts",
       "norm_label": "mutablesocketauth"
     },
     {
@@ -50879,8 +50879,8 @@
       "source_location": "L49",
       "_origin": "ast",
       "id": "apps_mobile_src_realtime_mobile_realtime_client_resolvesocketauthtoken",
-      "community": 6,
-      "community_name": "Community 6",
+      "community": 103,
+      "community_name": "app-version.ts",
       "norm_label": "resolvesocketauthtoken()"
     },
     {
@@ -50890,8 +50890,8 @@
       "source_location": "L56",
       "_origin": "ast",
       "id": "apps_mobile_src_realtime_mobile_realtime_client_getmobilevoicestateswatchpayload",
-      "community": 6,
-      "community_name": "Community 6",
+      "community": 103,
+      "community_name": "app-version.ts",
       "norm_label": "getmobilevoicestateswatchpayload()"
     },
     {
@@ -50901,8 +50901,8 @@
       "source_location": "L60",
       "_origin": "ast",
       "id": "apps_mobile_src_realtime_mobile_realtime_client_createmobilerealtimeclient",
-      "community": 6,
-      "community_name": "Community 6",
+      "community": 103,
+      "community_name": "app-version.ts",
       "norm_label": "createmobilerealtimeclient()"
     },
     {
@@ -50912,8 +50912,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_mobile_src_realtime_mobile_realtime_contract",
-      "community": 6,
-      "community_name": "Community 6",
+      "community": 103,
+      "community_name": "app-version.ts",
       "norm_label": "mobile-realtime-contract.ts"
     },
     {
@@ -50923,8 +50923,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_mobile_src_realtime_mobile_realtime_contract_mobile_realtime_server_events",
-      "community": 6,
-      "community_name": "Community 6",
+      "community": 103,
+      "community_name": "app-version.ts",
       "norm_label": "mobile_realtime_server_events"
     },
     {
@@ -50934,8 +50934,8 @@
       "source_location": "L41",
       "_origin": "ast",
       "id": "apps_mobile_src_realtime_mobile_realtime_contract_mobilerealtimeservereventname",
-      "community": 6,
-      "community_name": "Community 6",
+      "community": 103,
+      "community_name": "app-version.ts",
       "norm_label": "mobilerealtimeservereventname"
     },
     {
@@ -50945,8 +50945,8 @@
       "source_location": "L43",
       "_origin": "ast",
       "id": "apps_mobile_src_realtime_mobile_realtime_contract_mobilerealtimeconnectionstatus",
-      "community": 6,
-      "community_name": "Community 6",
+      "community": 103,
+      "community_name": "app-version.ts",
       "norm_label": "mobilerealtimeconnectionstatus"
     },
     {
@@ -50956,8 +50956,8 @@
       "source_location": "L46",
       "_origin": "ast",
       "id": "apps_mobile_src_realtime_mobile_realtime_contract_mobilerealtimerefreshsource",
-      "community": 6,
-      "community_name": "Community 6",
+      "community": 103,
+      "community_name": "app-version.ts",
       "norm_label": "mobilerealtimerefreshsource"
     },
     {
@@ -50967,8 +50967,8 @@
       "source_location": "L58",
       "_origin": "ast",
       "id": "apps_mobile_src_realtime_mobile_realtime_contract_mobile_realtime_refresh_timer_sources",
-      "community": 6,
-      "community_name": "Community 6",
+      "community": 103,
+      "community_name": "app-version.ts",
       "norm_label": "mobile_realtime_refresh_timer_sources"
     },
     {
@@ -50978,8 +50978,8 @@
       "source_location": "L66",
       "_origin": "ast",
       "id": "apps_mobile_src_realtime_mobile_realtime_contract_mobilerealtimerefreshtimersource",
-      "community": 6,
-      "community_name": "Community 6",
+      "community": 103,
+      "community_name": "app-version.ts",
       "norm_label": "mobilerealtimerefreshtimersource"
     },
     {
@@ -50989,8 +50989,8 @@
       "source_location": "L69",
       "_origin": "ast",
       "id": "apps_mobile_src_realtime_mobile_realtime_contract_mobilerealtimevisibility",
-      "community": 6,
-      "community_name": "Community 6",
+      "community": 103,
+      "community_name": "app-version.ts",
       "norm_label": "mobilerealtimevisibility"
     },
     {
@@ -51033,8 +51033,8 @@
       "source_location": "L100",
       "_origin": "ast",
       "id": "apps_mobile_src_realtime_mobile_realtime_contract_channel_refresh_events",
-      "community": 6,
-      "community_name": "Community 6",
+      "community": 103,
+      "community_name": "app-version.ts",
       "norm_label": "channel_refresh_events"
     },
     {
@@ -51044,8 +51044,8 @@
       "source_location": "L116",
       "_origin": "ast",
       "id": "apps_mobile_src_realtime_mobile_realtime_contract_channel_workspace_refresh_events",
-      "community": 6,
-      "community_name": "Community 6",
+      "community": 103,
+      "community_name": "app-version.ts",
       "norm_label": "channel_workspace_refresh_events"
     },
     {
@@ -51055,8 +51055,8 @@
       "source_location": "L124",
       "_origin": "ast",
       "id": "apps_mobile_src_realtime_mobile_realtime_contract_dm_refresh_events",
-      "community": 6,
-      "community_name": "Community 6",
+      "community": 103,
+      "community_name": "app-version.ts",
       "norm_label": "dm_refresh_events"
     },
     {
@@ -51066,8 +51066,8 @@
       "source_location": "L134",
       "_origin": "ast",
       "id": "apps_mobile_src_realtime_mobile_realtime_contract_workspace_refresh_events",
-      "community": 6,
-      "community_name": "Community 6",
+      "community": 103,
+      "community_name": "app-version.ts",
       "norm_label": "workspace_refresh_events"
     },
     {
@@ -51077,8 +51077,8 @@
       "source_location": "L143",
       "_origin": "ast",
       "id": "apps_mobile_src_realtime_mobile_realtime_contract_bootstrap_refresh_events",
-      "community": 6,
-      "community_name": "Community 6",
+      "community": 103,
+      "community_name": "app-version.ts",
       "norm_label": "bootstrap_refresh_events"
     },
     {
@@ -51088,8 +51088,8 @@
       "source_location": "L148",
       "_origin": "ast",
       "id": "apps_mobile_src_realtime_mobile_realtime_contract_social_refresh_events",
-      "community": 6,
-      "community_name": "Community 6",
+      "community": 103,
+      "community_name": "app-version.ts",
       "norm_label": "social_refresh_events"
     },
     {
@@ -51099,8 +51099,8 @@
       "source_location": "L154",
       "_origin": "ast",
       "id": "apps_mobile_src_realtime_mobile_realtime_contract_mobilevalidatedrealtimepayload",
-      "community": 6,
-      "community_name": "Community 6",
+      "community": 103,
+      "community_name": "app-version.ts",
       "norm_label": "mobilevalidatedrealtimepayload"
     },
     {
@@ -51110,8 +51110,8 @@
       "source_location": "L161",
       "_origin": "ast",
       "id": "apps_mobile_src_realtime_mobile_realtime_contract_mobilerealtimepayloadparser",
-      "community": 6,
-      "community_name": "Community 6",
+      "community": 103,
+      "community_name": "app-version.ts",
       "norm_label": "mobilerealtimepayloadparser"
     },
     {
@@ -51132,8 +51132,8 @@
       "source_location": "L271",
       "_origin": "ast",
       "id": "apps_mobile_src_realtime_mobile_realtime_contract_mobilevalidatedrealtimeeventname",
-      "community": 6,
-      "community_name": "Community 6",
+      "community": 103,
+      "community_name": "app-version.ts",
       "norm_label": "mobilevalidatedrealtimeeventname"
     },
     {
@@ -51143,8 +51143,8 @@
       "source_location": "L273",
       "_origin": "ast",
       "id": "apps_mobile_src_realtime_mobile_realtime_contract_ismobilerealtimeservereventname",
-      "community": 6,
-      "community_name": "Community 6",
+      "community": 103,
+      "community_name": "app-version.ts",
       "norm_label": "ismobilerealtimeservereventname()"
     },
     {
@@ -51154,8 +51154,8 @@
       "source_location": "L279",
       "_origin": "ast",
       "id": "apps_mobile_src_realtime_mobile_realtime_contract_ismobilerealtimevalidatedpayloadevent",
-      "community": 6,
-      "community_name": "Community 6",
+      "community": 103,
+      "community_name": "app-version.ts",
       "norm_label": "ismobilerealtimevalidatedpayloadevent()"
     },
     {
@@ -51165,8 +51165,8 @@
       "source_location": "L285",
       "_origin": "ast",
       "id": "apps_mobile_src_realtime_mobile_realtime_contract_getstringproperty",
-      "community": 6,
-      "community_name": "Community 6",
+      "community": 103,
+      "community_name": "app-version.ts",
       "norm_label": "getstringproperty()"
     },
     {
@@ -51176,8 +51176,8 @@
       "source_location": "L294",
       "_origin": "ast",
       "id": "apps_mobile_src_realtime_mobile_realtime_contract_getmobilerealtimerefreshsources",
-      "community": 6,
-      "community_name": "Community 6",
+      "community": 103,
+      "community_name": "app-version.ts",
       "norm_label": "getmobilerealtimerefreshsources()"
     },
     {
@@ -51198,8 +51198,8 @@
       "source_location": "L362",
       "_origin": "ast",
       "id": "apps_mobile_src_realtime_mobile_realtime_contract_ismobilerealtimechannelmessagepayloadevent",
-      "community": 6,
-      "community_name": "Community 6",
+      "community": 103,
+      "community_name": "app-version.ts",
       "norm_label": "ismobilerealtimechannelmessagepayloadevent()"
     },
     {
@@ -51231,8 +51231,8 @@
       "source_location": "L381",
       "_origin": "ast",
       "id": "apps_mobile_src_realtime_mobile_realtime_contract_createmobilerealtimeeventenvelope",
-      "community": 6,
-      "community_name": "Community 6",
+      "community": 103,
+      "community_name": "app-version.ts",
       "norm_label": "createmobilerealtimeeventenvelope()"
     },
     {
@@ -51242,8 +51242,8 @@
       "source_location": "L418",
       "_origin": "ast",
       "id": "apps_mobile_src_realtime_mobile_realtime_contract_validatemobilerealtimecontract",
-      "community": 6,
-      "community_name": "Community 6",
+      "community": 103,
+      "community_name": "app-version.ts",
       "norm_label": "validatemobilerealtimecontract()"
     },
     {
@@ -51616,8 +51616,8 @@
       "source_location": "L69",
       "_origin": "ast",
       "id": "apps_mobile_src_realtime_realtime_query_bridge_mobilerealtimequerybridge",
-      "community": 6,
-      "community_name": "Community 6",
+      "community": 103,
+      "community_name": "app-version.ts",
       "norm_label": "mobilerealtimequerybridge"
     },
     {
@@ -51627,8 +51627,8 @@
       "source_location": "L70",
       "_origin": "ast",
       "id": "apps_mobile_src_realtime_realtime_query_bridge_mobilerealtimequerybridge_backfill",
-      "community": 6,
-      "community_name": "Community 6",
+      "community": 103,
+      "community_name": "app-version.ts",
       "norm_label": ".backfill()"
     },
     {
@@ -51638,8 +51638,8 @@
       "source_location": "L71",
       "_origin": "ast",
       "id": "apps_mobile_src_realtime_realtime_query_bridge_mobilerealtimequerybridge_cancelpending",
-      "community": 6,
-      "community_name": "Community 6",
+      "community": 103,
+      "community_name": "app-version.ts",
       "norm_label": ".cancelpending()"
     },
     {
@@ -51649,8 +51649,8 @@
       "source_location": "L72",
       "_origin": "ast",
       "id": "apps_mobile_src_realtime_realtime_query_bridge_mobilerealtimequerybridge_dispose",
-      "community": 6,
-      "community_name": "Community 6",
+      "community": 103,
+      "community_name": "app-version.ts",
       "norm_label": ".dispose()"
     },
     {
@@ -51660,8 +51660,8 @@
       "source_location": "L73",
       "_origin": "ast",
       "id": "apps_mobile_src_realtime_realtime_query_bridge_mobilerealtimequerybridge_handleevent",
-      "community": 6,
-      "community_name": "Community 6",
+      "community": 103,
+      "community_name": "app-version.ts",
       "norm_label": ".handleevent()"
     },
     {
@@ -52243,8 +52243,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_mobile_src_search_mobile_message_search_client",
-      "community": 231,
-      "community_name": "auth-regression.spec.ts",
+      "community": 122,
+      "community_name": "useI18n",
       "norm_label": "mobile-message-search-client.ts"
     },
     {
@@ -52265,8 +52265,8 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "apps_mobile_src_search_mobile_message_search_client_mobilemessagesearchinput",
-      "community": 231,
-      "community_name": "auth-regression.spec.ts",
+      "community": 122,
+      "community_name": "useI18n",
       "norm_label": "mobilemessagesearchinput"
     },
     {
@@ -52276,8 +52276,8 @@
       "source_location": "L26",
       "_origin": "ast",
       "id": "apps_mobile_src_search_mobile_message_search_client_normalizesearchtext",
-      "community": 231,
-      "community_name": "auth-regression.spec.ts",
+      "community": 122,
+      "community_name": "useI18n",
       "norm_label": "normalizesearchtext()"
     },
     {
@@ -52287,8 +52287,8 @@
       "source_location": "L30",
       "_origin": "ast",
       "id": "apps_mobile_src_search_mobile_message_search_client_normalizesearchlimit",
-      "community": 231,
-      "community_name": "auth-regression.spec.ts",
+      "community": 122,
+      "community_name": "useI18n",
       "norm_label": "normalizesearchlimit()"
     },
     {
@@ -52298,8 +52298,8 @@
       "source_location": "L41",
       "_origin": "ast",
       "id": "apps_mobile_src_search_mobile_message_search_client_appendoptionalsearchparam",
-      "community": 231,
-      "community_name": "auth-regression.spec.ts",
+      "community": 122,
+      "community_name": "useI18n",
       "norm_label": "appendoptionalsearchparam()"
     },
     {
@@ -52309,8 +52309,8 @@
       "source_location": "L53",
       "_origin": "ast",
       "id": "apps_mobile_src_search_mobile_message_search_client_buildmobilemessagesearchpath",
-      "community": 231,
-      "community_name": "auth-regression.spec.ts",
+      "community": 122,
+      "community_name": "useI18n",
       "norm_label": "buildmobilemessagesearchpath()"
     },
     {
@@ -52320,8 +52320,8 @@
       "source_location": "L96",
       "_origin": "ast",
       "id": "apps_mobile_src_search_mobile_message_search_client_searchmobilemessages",
-      "community": 231,
-      "community_name": "auth-regression.spec.ts",
+      "community": 122,
+      "community_name": "useI18n",
       "norm_label": "searchmobilemessages()"
     },
     {
@@ -52331,8 +52331,8 @@
       "source_location": "L104",
       "_origin": "ast",
       "id": "apps_mobile_src_search_mobile_message_search_client_validatemobilemessagesearchcontract",
-      "community": 231,
-      "community_name": "auth-regression.spec.ts",
+      "community": 122,
+      "community_name": "useI18n",
       "norm_label": "validatemobilemessagesearchcontract()"
     },
     {
@@ -56390,8 +56390,8 @@
       "source_location": "L36",
       "_origin": "ast",
       "id": "apps_mobile_src_voice_mobile_voice_client_fetchmobilevoicestates",
-      "community": 103,
-      "community_name": "app-version.ts",
+      "community": 0,
+      "community_name": "Community 0",
       "norm_label": "fetchmobilevoicestates()"
     },
     {
@@ -63529,8 +63529,8 @@
       "source_location": "L45",
       "_origin": "ast",
       "id": "apps_web_package_dependencies_auth_prisma_adapter",
-      "community": 85,
-      "community_name": "dependencies",
+      "community": 430,
+      "community_name": "class-variance-authority",
       "norm_label": "@auth/prisma-adapter"
     },
     {
@@ -63540,8 +63540,8 @@
       "source_location": "L45",
       "_origin": "ast",
       "id": "auth_prisma_adapter",
-      "community": 85,
-      "community_name": "dependencies",
+      "community": 430,
+      "community_name": "class-variance-authority",
       "norm_label": "@auth/prisma-adapter"
     },
     {
@@ -63837,8 +63837,8 @@
       "source_location": "L59",
       "_origin": "ast",
       "id": "apps_web_package_dependencies_socket_io_redis_adapter",
-      "community": 519,
-      "community_name": "react-native-reanimated",
+      "community": 85,
+      "community_name": "dependencies",
       "norm_label": "@socket.io/redis-adapter"
     },
     {
@@ -63848,8 +63848,8 @@
       "source_location": "L59",
       "_origin": "ast",
       "id": "socket_io_redis_adapter",
-      "community": 519,
-      "community_name": "react-native-reanimated",
+      "community": 85,
+      "community_name": "dependencies",
       "norm_label": "@socket.io/redis-adapter"
     },
     {
@@ -67335,8 +67335,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_admin_feedback_route_logic_test",
-      "community": 21,
-      "community_name": "Community 21",
+      "community": 217,
+      "community_name": "route-logic.ts",
       "norm_label": "route-logic.test.ts"
     },
     {
@@ -67346,8 +67346,8 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_admin_feedback_route_logic_test_routes",
-      "community": 21,
-      "community_name": "Community 21",
+      "community": 217,
+      "community_name": "route-logic.ts",
       "norm_label": "routes"
     },
     {
@@ -67357,8 +67357,8 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_admin_feedback_route_logic_test_admin",
-      "community": 21,
-      "community_name": "Community 21",
+      "community": 217,
+      "community_name": "route-logic.ts",
       "norm_label": "admin"
     },
     {
@@ -67368,8 +67368,8 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_admin_feedback_route_logic_test_listitem",
-      "community": 21,
-      "community_name": "Community 21",
+      "community": 217,
+      "community_name": "route-logic.ts",
       "norm_label": "listitem"
     },
     {
@@ -67379,8 +67379,8 @@
       "source_location": "L29",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_admin_feedback_route_logic_test_detail",
-      "community": 21,
-      "community_name": "Community 21",
+      "community": 217,
+      "community_name": "route-logic.ts",
       "norm_label": "detail"
     },
     {
@@ -67390,8 +67390,8 @@
       "source_location": "L52",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_admin_feedback_route_logic_test_roadmapitem",
-      "community": 21,
-      "community_name": "Community 21",
+      "community": 217,
+      "community_name": "route-logic.ts",
       "norm_label": "roadmapitem"
     },
     {
@@ -67401,8 +67401,8 @@
       "source_location": "L64",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_admin_feedback_route_logic_test_request",
-      "community": 21,
-      "community_name": "Community 21",
+      "community": 217,
+      "community_name": "route-logic.ts",
       "norm_label": "request()"
     },
     {
@@ -67412,8 +67412,8 @@
       "source_location": "L72",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_admin_feedback_route_logic_test_context",
-      "community": 21,
-      "community_name": "Community 21",
+      "community": 217,
+      "community_name": "route-logic.ts",
       "norm_label": "context()"
     },
     {
@@ -67423,8 +67423,8 @@
       "source_location": "L76",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_admin_feedback_route_logic_test_dependencies",
-      "community": 21,
-      "community_name": "Community 21",
+      "community": 217,
+      "community_name": "route-logic.ts",
       "norm_label": "dependencies"
     },
     {
@@ -67995,8 +67995,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_auth_reauth_email_confirm_route",
-      "community": 233,
-      "community_name": "service.test.ts",
+      "community": 105,
+      "community_name": "privacy-service.ts",
       "norm_label": "route.ts"
     },
     {
@@ -68006,8 +68006,8 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_auth_reauth_email_confirm_route_emailreauthconfirmbodyschema",
-      "community": 233,
-      "community_name": "service.test.ts",
+      "community": 105,
+      "community_name": "privacy-service.ts",
       "norm_label": "emailreauthconfirmbodyschema"
     },
     {
@@ -68017,8 +68017,8 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_auth_reauth_email_confirm_route_post",
-      "community": 233,
-      "community_name": "service.test.ts",
+      "community": 105,
+      "community_name": "privacy-service.ts",
       "norm_label": "post()"
     },
     {
@@ -68424,8 +68424,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_channels_channelid_route",
-      "community": 233,
-      "community_name": "service.test.ts",
+      "community": 260,
+      "community_name": "route-logic.ts",
       "norm_label": "route.ts"
     },
     {
@@ -68435,8 +68435,8 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_channels_channelid_route_routecontext",
-      "community": 233,
-      "community_name": "service.test.ts",
+      "community": 260,
+      "community_name": "route-logic.ts",
       "norm_label": "routecontext"
     },
     {
@@ -68446,8 +68446,8 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_channels_channelid_route_patch",
-      "community": 233,
-      "community_name": "service.test.ts",
+      "community": 260,
+      "community_name": "route-logic.ts",
       "norm_label": "patch()"
     },
     {
@@ -68457,8 +68457,8 @@
       "source_location": "L30",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_channels_channelid_route_delete",
-      "community": 233,
-      "community_name": "service.test.ts",
+      "community": 260,
+      "community_name": "route-logic.ts",
       "norm_label": "delete()"
     },
     {
@@ -68545,8 +68545,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_dm_conversationid_messages_route",
-      "community": 111,
-      "community_name": "MobileApiClient",
+      "community": 233,
+      "community_name": "service.test.ts",
       "norm_label": "route.ts"
     },
     {
@@ -68556,8 +68556,8 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_dm_conversationid_messages_route_routecontext",
-      "community": 111,
-      "community_name": "MobileApiClient",
+      "community": 233,
+      "community_name": "service.test.ts",
       "norm_label": "routecontext"
     },
     {
@@ -68567,8 +68567,8 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_dm_conversationid_messages_route_get",
-      "community": 111,
-      "community_name": "MobileApiClient",
+      "community": 233,
+      "community_name": "service.test.ts",
       "norm_label": "get()"
     },
     {
@@ -69612,8 +69612,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_account_presence_route_logic_test",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 376,
+      "community_name": "Whispr Mobile Redesign \u2014 Faz 1 Kapan\u0131\u015f Do\u011frulamas\u0131",
       "norm_label": "route-logic.test.ts"
     },
     {
@@ -69623,8 +69623,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_account_presence_route_logic",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 376,
+      "community_name": "Whispr Mobile Redesign \u2014 Faz 1 Kapan\u0131\u015f Do\u011frulamas\u0131",
       "norm_label": "route-logic.ts"
     },
     {
@@ -69634,8 +69634,8 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_account_presence_route_logic_mobilepresenceroutedependencies",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 376,
+      "community_name": "Whispr Mobile Redesign \u2014 Faz 1 Kapan\u0131\u015f Do\u011frulamas\u0131",
       "norm_label": "mobilepresenceroutedependencies"
     },
     {
@@ -69645,8 +69645,8 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_account_presence_route_logic_defaultdependencies",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 376,
+      "community_name": "Whispr Mobile Redesign \u2014 Faz 1 Kapan\u0131\u015f Do\u011frulamas\u0131",
       "norm_label": "defaultdependencies"
     },
     {
@@ -69656,8 +69656,8 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_account_presence_route_logic_mobilepresenceupdateroute",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 376,
+      "community_name": "Whispr Mobile Redesign \u2014 Faz 1 Kapan\u0131\u015f Do\u011frulamas\u0131",
       "norm_label": "mobilepresenceupdateroute()"
     },
     {
@@ -69667,8 +69667,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_account_presence_route",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 376,
+      "community_name": "Whispr Mobile Redesign \u2014 Faz 1 Kapan\u0131\u015f Do\u011frulamas\u0131",
       "norm_label": "route.ts"
     },
     {
@@ -69678,8 +69678,8 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_account_presence_route_put",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 376,
+      "community_name": "Whispr Mobile Redesign \u2014 Faz 1 Kapan\u0131\u015f Do\u011frulamas\u0131",
       "norm_label": "put()"
     },
     {
@@ -70140,8 +70140,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_auth_exchange_route",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "route.ts"
     },
     {
@@ -70151,8 +70151,8 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_auth_exchange_route_post",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "post()"
     },
     {
@@ -70162,8 +70162,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_auth_forgot_password_route",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "route.ts"
     },
     {
@@ -70173,8 +70173,8 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_auth_forgot_password_route_post",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "post()"
     },
     {
@@ -70184,8 +70184,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_auth_google_route_logic_test",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "route-logic.test.ts"
     },
     {
@@ -70195,8 +70195,8 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_auth_google_route_logic_test_session",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "session"
     },
     {
@@ -70206,8 +70206,8 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_auth_google_route_logic_test_createdependencies",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "createdependencies()"
     },
     {
@@ -70217,8 +70217,8 @@
       "source_location": "L42",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_auth_google_route_logic_test_createrequest",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "createrequest()"
     },
     {
@@ -70228,8 +70228,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_auth_google_route_logic",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "route-logic.ts"
     },
     {
@@ -70239,8 +70239,8 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_auth_google_route_logic_mobilegoogleloginroutedependencies",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "mobilegoogleloginroutedependencies"
     },
     {
@@ -70250,8 +70250,8 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_auth_google_route_logic_defaultmobilegoogleloginroutedependencies",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "defaultmobilegoogleloginroutedependencies"
     },
     {
@@ -70261,8 +70261,8 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_auth_google_route_logic_mobilegoogleloginroute",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "mobilegoogleloginroute()"
     },
     {
@@ -70272,8 +70272,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_auth_google_route",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "route.ts"
     },
     {
@@ -70283,8 +70283,8 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_auth_google_route_post",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "post()"
     },
     {
@@ -70294,8 +70294,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_auth_login_route_logic_test",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "route-logic.test.ts"
     },
     {
@@ -70305,8 +70305,8 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_auth_login_route_logic_test_createdependencies",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "createdependencies()"
     },
     {
@@ -70316,8 +70316,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_auth_login_route_logic",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "route-logic.ts"
     },
     {
@@ -70327,8 +70327,8 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_auth_login_route_logic_mobilepasswordloginroutedependencies",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "mobilepasswordloginroutedependencies"
     },
     {
@@ -70338,8 +70338,8 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_auth_login_route_logic_defaultmobilepasswordloginroutedependencies",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "defaultmobilepasswordloginroutedependencies"
     },
     {
@@ -70349,8 +70349,8 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_auth_login_route_logic_mobilepasswordloginroute",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "mobilepasswordloginroute()"
     },
     {
@@ -70360,8 +70360,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_auth_login_route",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "route.ts"
     },
     {
@@ -70371,8 +70371,8 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_auth_login_route_post",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "post()"
     },
     {
@@ -70382,8 +70382,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_auth_rate_limit_test",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "rate-limit.test.ts"
     },
     {
@@ -70393,8 +70393,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_auth_rate_limit",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "rate-limit.ts"
     },
     {
@@ -70404,8 +70404,8 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_auth_rate_limit_getmobileauthrequestip",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "getmobileauthrequestip()"
     },
     {
@@ -70415,8 +70415,8 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_auth_rate_limit_getclientratelimitkey",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "getclientratelimitkey()"
     },
     {
@@ -70426,8 +70426,8 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_auth_rate_limit_enforcemobileauthratelimit",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "enforcemobileauthratelimit()"
     },
     {
@@ -70437,8 +70437,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_auth_refresh_route",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "route.ts"
     },
     {
@@ -70448,8 +70448,8 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_auth_refresh_route_post",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "post()"
     },
     {
@@ -70459,8 +70459,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_auth_register_route_logic_test",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "route-logic.test.ts"
     },
     {
@@ -70470,8 +70470,8 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_auth_register_route_logic_test_createdependencies",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "createdependencies()"
     },
     {
@@ -70481,8 +70481,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_auth_register_route_logic",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "route-logic.ts"
     },
     {
@@ -70492,8 +70492,8 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_auth_register_route_logic_mobilepasswordregisterroutedependencies",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "mobilepasswordregisterroutedependencies"
     },
     {
@@ -70503,8 +70503,8 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_auth_register_route_logic_defaultmobilepasswordregisterroutedependencies",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "defaultmobilepasswordregisterroutedependencies"
     },
     {
@@ -70514,8 +70514,8 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_auth_register_route_logic_mobilepasswordregisterroute",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "mobilepasswordregisterroute()"
     },
     {
@@ -70525,8 +70525,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_auth_register_route",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "route.ts"
     },
     {
@@ -70536,8 +70536,8 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_auth_register_route_post",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "post()"
     },
     {
@@ -70547,8 +70547,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_auth_revoke_route",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "route.ts"
     },
     {
@@ -70558,8 +70558,8 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_auth_revoke_route_post",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "post()"
     },
     {
@@ -70569,8 +70569,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_auth_verification_email_route",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "route.ts"
     },
     {
@@ -70580,8 +70580,8 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_auth_verification_email_route_post",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "post()"
     },
     {
@@ -71966,8 +71966,8 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_dm_conversationid_messages_route_routecontext",
-      "community": 346,
-      "community_name": ".next/**",
+      "community": 3,
+      "community_name": "Community 3",
       "norm_label": "routecontext"
     },
     {
@@ -73539,8 +73539,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_link_preview_route_logic",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "route-logic.ts"
     },
     {
@@ -73550,8 +73550,8 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_link_preview_route_logic_mobilelinkpreviewroutedependencies",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "mobilelinkpreviewroutedependencies"
     },
     {
@@ -73561,8 +73561,8 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_link_preview_route_logic_defaultdependencies",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "defaultdependencies"
     },
     {
@@ -73572,8 +73572,8 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_link_preview_route_logic_mobilelinkpreviewroute",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "mobilelinkpreviewroute()"
     },
     {
@@ -73583,8 +73583,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_link_preview_route",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "route.ts"
     },
     {
@@ -73594,8 +73594,8 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_link_preview_route_post",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "post()"
     },
     {
@@ -74848,8 +74848,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_members_memberid_roles_route_logic_test",
-      "community": 258,
-      "community_name": "mobile-voice-lifecycle-contract.ts",
+      "community": 217,
+      "community_name": "route-logic.ts",
       "norm_label": "route-logic.test.ts"
     },
     {
@@ -74859,8 +74859,8 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_members_memberid_roles_route_logic_test_request",
-      "community": 258,
-      "community_name": "mobile-voice-lifecycle-contract.ts",
+      "community": 217,
+      "community_name": "route-logic.ts",
       "norm_label": "request()"
     },
     {
@@ -74870,8 +74870,8 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_members_memberid_roles_route_logic_test_context",
-      "community": 258,
-      "community_name": "mobile-voice-lifecycle-contract.ts",
+      "community": 217,
+      "community_name": "route-logic.ts",
       "norm_label": "context()"
     },
     {
@@ -74881,8 +74881,8 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_members_memberid_roles_route_logic_test_dependencies",
-      "community": 258,
-      "community_name": "mobile-voice-lifecycle-contract.ts",
+      "community": 217,
+      "community_name": "route-logic.ts",
       "norm_label": "dependencies"
     },
     {
@@ -75508,8 +75508,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_roles_route_logic_test",
-      "community": 258,
-      "community_name": "mobile-voice-lifecycle-contract.ts",
+      "community": 217,
+      "community_name": "route-logic.ts",
       "norm_label": "route-logic.test.ts"
     },
     {
@@ -75519,8 +75519,8 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_roles_route_logic_test_routes",
-      "community": 258,
-      "community_name": "mobile-voice-lifecycle-contract.ts",
+      "community": 217,
+      "community_name": "route-logic.ts",
       "norm_label": "routes"
     },
     {
@@ -75530,8 +75530,8 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_roles_route_logic_test_request",
-      "community": 258,
-      "community_name": "mobile-voice-lifecycle-contract.ts",
+      "community": 217,
+      "community_name": "route-logic.ts",
       "norm_label": "request()"
     },
     {
@@ -75541,8 +75541,8 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_roles_route_logic_test_context",
-      "community": 258,
-      "community_name": "mobile-voice-lifecycle-contract.ts",
+      "community": 217,
+      "community_name": "route-logic.ts",
       "norm_label": "context()"
     },
     {
@@ -75552,8 +75552,8 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_roles_route_logic_test_dependencies",
-      "community": 258,
-      "community_name": "mobile-voice-lifecycle-contract.ts",
+      "community": 217,
+      "community_name": "route-logic.ts",
       "norm_label": "dependencies()"
     },
     {
@@ -75684,8 +75684,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_route_logic_test",
-      "community": 129,
-      "community_name": "audio-device-select.tsx",
+      "community": 217,
+      "community_name": "route-logic.ts",
       "norm_label": "route-logic.test.ts"
     },
     {
@@ -75695,8 +75695,8 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_route_logic_test_routes",
-      "community": 129,
-      "community_name": "audio-device-select.tsx",
+      "community": 217,
+      "community_name": "route-logic.ts",
       "norm_label": "routes"
     },
     {
@@ -75706,8 +75706,8 @@
       "source_location": "L76",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_route_logic_test_mobileprojection",
-      "community": 129,
-      "community_name": "audio-device-select.tsx",
+      "community": 217,
+      "community_name": "route-logic.ts",
       "norm_label": "mobileprojection"
     },
     {
@@ -75717,8 +75717,8 @@
       "source_location": "L81",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_route_logic_test_mobiledetail",
-      "community": 129,
-      "community_name": "audio-device-select.tsx",
+      "community": 217,
+      "community_name": "route-logic.ts",
       "norm_label": "mobiledetail"
     },
     {
@@ -75728,8 +75728,8 @@
       "source_location": "L119",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_route_logic_test_request",
-      "community": 129,
-      "community_name": "audio-device-select.tsx",
+      "community": 217,
+      "community_name": "route-logic.ts",
       "norm_label": "request()"
     },
     {
@@ -75739,8 +75739,8 @@
       "source_location": "L127",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_route_logic_test_context",
-      "community": 129,
-      "community_name": "audio-device-select.tsx",
+      "community": 217,
+      "community_name": "route-logic.ts",
       "norm_label": "context()"
     },
     {
@@ -75750,8 +75750,8 @@
       "source_location": "L136",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_route_logic_test_dependencies",
-      "community": 129,
-      "community_name": "audio-device-select.tsx",
+      "community": 217,
+      "community_name": "route-logic.ts",
       "norm_label": "dependencies()"
     },
     {
@@ -76311,8 +76311,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_users_userid_note_route",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "route.ts"
     },
     {
@@ -76322,8 +76322,8 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_users_userid_note_route_put",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "put()"
     },
     {
@@ -76333,8 +76333,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_users_userid_profile_route",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "route.ts"
     },
     {
@@ -76344,8 +76344,8 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_users_userid_profile_route_get",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "get()"
     },
     {
@@ -76355,8 +76355,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_users_userid_report_route",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "route.ts"
     },
     {
@@ -76366,8 +76366,8 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_users_userid_report_route_post",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "post()"
     },
     {
@@ -76377,8 +76377,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_users_userid_route_logic",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "route-logic.ts"
     },
     {
@@ -76388,8 +76388,8 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_users_userid_route_logic_mobileuserroutecontext",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "mobileuserroutecontext"
     },
     {
@@ -76399,8 +76399,8 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_users_userid_route_logic_mobileuserroutedependencies",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "mobileuserroutedependencies"
     },
     {
@@ -76410,8 +76410,8 @@
       "source_location": "L32",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_users_userid_route_logic_defaultdependencies",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "defaultdependencies"
     },
     {
@@ -76421,8 +76421,8 @@
       "source_location": "L42",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_users_userid_route_logic_report_reasons",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "report_reasons"
     },
     {
@@ -76432,8 +76432,8 @@
       "source_location": "L53",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_users_userid_route_logic_mobileuserprofileroute",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "mobileuserprofileroute()"
     },
     {
@@ -76443,8 +76443,8 @@
       "source_location": "L85",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_users_userid_route_logic_mobileusernoteroute",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "mobileusernoteroute()"
     },
     {
@@ -76454,8 +76454,8 @@
       "source_location": "L106",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_users_userid_route_logic_mobileuserreportroute",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "mobileuserreportroute()"
     },
     {
@@ -88741,8 +88741,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_components_voice_camera_preferences_panel",
-      "community": 154,
-      "community_name": "route-logic.ts",
+      "community": 49,
+      "community_name": "Community 49",
       "norm_label": "camera-preferences-panel.tsx"
     },
     {
@@ -88752,8 +88752,8 @@
       "source_location": "L36",
       "_origin": "ast",
       "id": "apps_web_src_components_voice_camera_preferences_panel_camerapreviewstatus",
-      "community": 154,
-      "community_name": "route-logic.ts",
+      "community": 49,
+      "community_name": "Community 49",
       "norm_label": "camerapreviewstatus"
     },
     {
@@ -88763,8 +88763,8 @@
       "source_location": "L45",
       "_origin": "ast",
       "id": "apps_web_src_components_voice_camera_preferences_panel_getfallbackcameralabel",
-      "community": 154,
-      "community_name": "route-logic.ts",
+      "community": 49,
+      "community_name": "Community 49",
       "norm_label": "getfallbackcameralabel()"
     },
     {
@@ -88774,8 +88774,8 @@
       "source_location": "L53",
       "_origin": "ast",
       "id": "apps_web_src_components_voice_camera_preferences_panel_withdefaultcameraoption",
-      "community": 154,
-      "community_name": "route-logic.ts",
+      "community": 49,
+      "community_name": "Community 49",
       "norm_label": "withdefaultcameraoption()"
     },
     {
@@ -88785,8 +88785,8 @@
       "source_location": "L80",
       "_origin": "ast",
       "id": "apps_web_src_components_voice_camera_preferences_panel_buildcamerapreviewconstraints",
-      "community": 154,
-      "community_name": "route-logic.ts",
+      "community": 49,
+      "community_name": "Community 49",
       "norm_label": "buildcamerapreviewconstraints()"
     },
     {
@@ -88796,8 +88796,8 @@
       "source_location": "L98",
       "_origin": "ast",
       "id": "apps_web_src_components_voice_camera_preferences_panel_ispermissiondenied",
-      "community": 154,
-      "community_name": "route-logic.ts",
+      "community": 49,
+      "community_name": "Community 49",
       "norm_label": "ispermissiondenied()"
     },
     {
@@ -88807,8 +88807,8 @@
       "source_location": "L102",
       "_origin": "ast",
       "id": "apps_web_src_components_voice_camera_preferences_panel_isdeviceunavailable",
-      "community": 154,
-      "community_name": "route-logic.ts",
+      "community": 49,
+      "community_name": "Community 49",
       "norm_label": "isdeviceunavailable()"
     },
     {
@@ -88818,8 +88818,8 @@
       "source_location": "L109",
       "_origin": "ast",
       "id": "apps_web_src_components_voice_camera_preferences_panel_rotatecamera",
-      "community": 154,
-      "community_name": "route-logic.ts",
+      "community": 49,
+      "community_name": "Community 49",
       "norm_label": "rotatecamera()"
     },
     {
@@ -88829,8 +88829,8 @@
       "source_location": "L113",
       "_origin": "ast",
       "id": "apps_web_src_components_voice_camera_preferences_panel_getvideotransform",
-      "community": 154,
-      "community_name": "route-logic.ts",
+      "community": 49,
+      "community_name": "Community 49",
       "norm_label": "getvideotransform()"
     },
     {
@@ -88840,8 +88840,8 @@
       "source_location": "L125",
       "_origin": "ast",
       "id": "apps_web_src_components_voice_camera_preferences_panel_cameradeviceselect",
-      "community": 154,
-      "community_name": "route-logic.ts",
+      "community": 49,
+      "community_name": "Community 49",
       "norm_label": "cameradeviceselect()"
     },
     {
@@ -88851,8 +88851,8 @@
       "source_location": "L358",
       "_origin": "ast",
       "id": "apps_web_src_components_voice_camera_preferences_panel_cameraoptionbutton",
-      "community": 154,
-      "community_name": "route-logic.ts",
+      "community": 49,
+      "community_name": "Community 49",
       "norm_label": "cameraoptionbutton()"
     },
     {
@@ -88862,8 +88862,8 @@
       "source_location": "L403",
       "_origin": "ast",
       "id": "apps_web_src_components_voice_camera_preferences_panel_camerapreferencespanel",
-      "community": 154,
-      "community_name": "route-logic.ts",
+      "community": 49,
+      "community_name": "Community 49",
       "norm_label": "camerapreferencespanel()"
     },
     {
@@ -89203,8 +89203,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_components_voice_screen_share_preferences_panel",
-      "community": 136,
-      "community_name": "route-logic.ts",
+      "community": 16,
+      "community_name": "Community 16",
       "norm_label": "screen-share-preferences-panel.tsx"
     },
     {
@@ -89214,8 +89214,8 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "apps_web_src_components_voice_screen_share_preferences_panel_screensharestatustone",
-      "community": 136,
-      "community_name": "route-logic.ts",
+      "community": 16,
+      "community_name": "Community 16",
       "norm_label": "screensharestatustone"
     },
     {
@@ -89225,8 +89225,8 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "apps_web_src_components_voice_screen_share_preferences_panel_screensharestatus",
-      "community": 136,
-      "community_name": "route-logic.ts",
+      "community": 16,
+      "community_name": "Community 16",
       "norm_label": "screensharestatus"
     },
     {
@@ -89236,8 +89236,8 @@
       "source_location": "L28",
       "_origin": "ast",
       "id": "apps_web_src_components_voice_screen_share_preferences_panel_subscribetobrowsercapabilities",
-      "community": 136,
-      "community_name": "route-logic.ts",
+      "community": 16,
+      "community_name": "Community 16",
       "norm_label": "subscribetobrowsercapabilities()"
     },
     {
@@ -89247,8 +89247,8 @@
       "source_location": "L29",
       "_origin": "ast",
       "id": "apps_web_src_components_voice_screen_share_preferences_panel_getmountedsnapshot",
-      "community": 136,
-      "community_name": "route-logic.ts",
+      "community": 16,
+      "community_name": "Community 16",
       "norm_label": "getmountedsnapshot()"
     },
     {
@@ -89258,8 +89258,8 @@
       "source_location": "L30",
       "_origin": "ast",
       "id": "apps_web_src_components_voice_screen_share_preferences_panel_getservermountedsnapshot",
-      "community": 136,
-      "community_name": "route-logic.ts",
+      "community": 16,
+      "community_name": "Community 16",
       "norm_label": "getservermountedsnapshot()"
     },
     {
@@ -89269,8 +89269,8 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "apps_web_src_components_voice_screen_share_preferences_panel_getserverscreensharesupportsnapshot",
-      "community": 136,
-      "community_name": "route-logic.ts",
+      "community": 16,
+      "community_name": "Community 16",
       "norm_label": "getserverscreensharesupportsnapshot()"
     },
     {
@@ -89280,8 +89280,8 @@
       "source_location": "L33",
       "_origin": "ast",
       "id": "apps_web_src_components_voice_screen_share_preferences_panel_getstatustoneclass",
-      "community": 136,
-      "community_name": "route-logic.ts",
+      "community": 16,
+      "community_name": "Community 16",
       "norm_label": "getstatustoneclass()"
     },
     {
@@ -89291,8 +89291,8 @@
       "source_location": "L49",
       "_origin": "ast",
       "id": "apps_web_src_components_voice_screen_share_preferences_panel_resolvescreensharestatus",
-      "community": 136,
-      "community_name": "route-logic.ts",
+      "community": 16,
+      "community_name": "Community 16",
       "norm_label": "resolvescreensharestatus()"
     },
     {
@@ -89302,8 +89302,8 @@
       "source_location": "L126",
       "_origin": "ast",
       "id": "apps_web_src_components_voice_screen_share_preferences_panel_statusicon",
-      "community": 136,
-      "community_name": "route-logic.ts",
+      "community": 16,
+      "community_name": "Community 16",
       "norm_label": "statusicon()"
     },
     {
@@ -89313,8 +89313,8 @@
       "source_location": "L146",
       "_origin": "ast",
       "id": "apps_web_src_components_voice_screen_share_preferences_panel_inlinemetric",
-      "community": 136,
-      "community_name": "route-logic.ts",
+      "community": 16,
+      "community_name": "Community 16",
       "norm_label": "inlinemetric()"
     },
     {
@@ -89324,8 +89324,8 @@
       "source_location": "L155",
       "_origin": "ast",
       "id": "apps_web_src_components_voice_screen_share_preferences_panel_featurepill",
-      "community": 136,
-      "community_name": "route-logic.ts",
+      "community": 16,
+      "community_name": "Community 16",
       "norm_label": "featurepill()"
     },
     {
@@ -89335,8 +89335,8 @@
       "source_location": "L164",
       "_origin": "ast",
       "id": "apps_web_src_components_voice_screen_share_preferences_panel_screensharepreferencespanel",
-      "community": 136,
-      "community_name": "route-logic.ts",
+      "community": 16,
+      "community_name": "Community 16",
       "norm_label": "screensharepreferencespanel()"
     },
     {
@@ -89907,8 +89907,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_hooks_use_camera_devices",
-      "community": 154,
-      "community_name": "route-logic.ts",
+      "community": 49,
+      "community_name": "Community 49",
       "norm_label": "use-camera-devices.ts"
     },
     {
@@ -89918,8 +89918,8 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "apps_web_src_hooks_use_camera_devices_cameradeviceoption",
-      "community": 154,
-      "community_name": "route-logic.ts",
+      "community": 49,
+      "community_name": "Community 49",
       "norm_label": "cameradeviceoption"
     },
     {
@@ -89929,8 +89929,8 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "apps_web_src_hooks_use_camera_devices_cameradevicesstate",
-      "community": 154,
-      "community_name": "route-logic.ts",
+      "community": 49,
+      "community_name": "Community 49",
       "norm_label": "cameradevicesstate"
     },
     {
@@ -89940,8 +89940,8 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "apps_web_src_hooks_use_camera_devices_canenumeratedevices",
-      "community": 154,
-      "community_name": "route-logic.ts",
+      "community": 49,
+      "community_name": "Community 49",
       "norm_label": "canenumeratedevices()"
     },
     {
@@ -89951,8 +89951,8 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "apps_web_src_hooks_use_camera_devices_canpreviewcamera",
-      "community": 154,
-      "community_name": "route-logic.ts",
+      "community": 49,
+      "community_name": "Community 49",
       "norm_label": "canpreviewcamera()"
     },
     {
@@ -89962,8 +89962,8 @@
       "source_location": "L29",
       "_origin": "ast",
       "id": "apps_web_src_hooks_use_camera_devices_tocameradeviceoption",
-      "community": 154,
-      "community_name": "route-logic.ts",
+      "community": 49,
+      "community_name": "Community 49",
       "norm_label": "tocameradeviceoption()"
     },
     {
@@ -89973,8 +89973,8 @@
       "source_location": "L42",
       "_origin": "ast",
       "id": "apps_web_src_hooks_use_camera_devices_usecameradevices",
-      "community": 154,
-      "community_name": "route-logic.ts",
+      "community": 49,
+      "community_name": "Community 49",
       "norm_label": "usecameradevices()"
     },
     {
@@ -92877,8 +92877,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_lib_api_rate_limit_test",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "api-rate-limit.test.ts"
     },
     {
@@ -92888,8 +92888,8 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "apps_web_src_lib_api_rate_limit_test_fakeredis",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "fakeredis"
     },
     {
@@ -92899,8 +92899,8 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "apps_web_src_lib_api_rate_limit_test_m1_mobile_rate_limits",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "m1_mobile_rate_limits"
     },
     {
@@ -92910,8 +92910,8 @@
       "source_location": "L45",
       "_origin": "ast",
       "id": "apps_web_src_lib_api_rate_limit_test_fakeratelimitdependencies",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "fakeratelimitdependencies()"
     },
     {
@@ -92921,8 +92921,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_lib_api_rate_limit",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "api-rate-limit.ts"
     },
     {
@@ -92932,8 +92932,8 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "apps_web_src_lib_api_rate_limit_api_rate_limits",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "api_rate_limits"
     },
     {
@@ -92943,8 +92943,8 @@
       "source_location": "L172",
       "_origin": "ast",
       "id": "apps_web_src_lib_api_rate_limit_apiratelimitaction",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "apiratelimitaction"
     },
     {
@@ -92954,8 +92954,8 @@
       "source_location": "L174",
       "_origin": "ast",
       "id": "apps_web_src_lib_api_rate_limit_getapiratelimitconfig",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "getapiratelimitconfig()"
     },
     {
@@ -92976,8 +92976,8 @@
       "source_location": "L184",
       "_origin": "ast",
       "id": "apps_web_src_lib_api_rate_limit_defaultapiratelimitdependencies",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "defaultapiratelimitdependencies"
     },
     {
@@ -93097,8 +93097,8 @@
       "source_location": "L65",
       "_origin": "ast",
       "id": "apps_web_src_lib_api_hasjsoncontenttype",
-      "community": 376,
-      "community_name": "Whispr Mobile Redesign \u2014 Faz 1 Kapan\u0131\u015f Do\u011frulamas\u0131",
+      "community": 217,
+      "community_name": "route-logic.ts",
       "norm_label": "hasjsoncontenttype()"
     },
     {
@@ -93108,8 +93108,8 @@
       "source_location": "L71",
       "_origin": "ast",
       "id": "apps_web_src_lib_api_readjsonbodywithlimit",
-      "community": 376,
-      "community_name": "Whispr Mobile Redesign \u2014 Faz 1 Kapan\u0131\u015f Do\u011frulamas\u0131",
+      "community": 217,
+      "community_name": "route-logic.ts",
       "norm_label": "readjsonbodywithlimit()"
     },
     {
@@ -97002,8 +97002,8 @@
       "source_location": "L364",
       "_origin": "ast",
       "id": "apps_web_src_lib_auth_reauth_email_confirmaccountdeletionreauthemail",
-      "community": 233,
-      "community_name": "service.test.ts",
+      "community": 105,
+      "community_name": "privacy-service.ts",
       "norm_label": "confirmaccountdeletionreauthemail()"
     },
     {
@@ -108629,8 +108629,8 @@
       "source_location": "L161",
       "_origin": "ast",
       "id": "apps_web_src_lib_mobile_auth_mobilenativeautherror",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "mobilenativeautherror"
     },
     {
@@ -108640,8 +108640,8 @@
       "source_location": "L162",
       "_origin": "ast",
       "id": "apps_web_src_lib_mobile_auth_mobilenativeautherror_constructor",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": ".constructor()"
     },
     {
@@ -109091,8 +109091,8 @@
       "source_location": "L978",
       "_origin": "ast",
       "id": "apps_web_src_lib_mobile_auth_requestmobilepasswordreset",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "requestmobilepasswordreset()"
     },
     {
@@ -112600,8 +112600,8 @@
       "source_location": "L34",
       "_origin": "ast",
       "id": "apps_web_src_lib_server_timing_createservertiming",
-      "community": 111,
-      "community_name": "MobileApiClient",
+      "community": 3,
+      "community_name": "Community 3",
       "norm_label": "createservertiming()"
     },
     {
@@ -112875,8 +112875,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_lib_social_mobile_user_note_service",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "mobile-user-note-service.ts"
     },
     {
@@ -112886,8 +112886,8 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "apps_web_src_lib_social_mobile_user_note_service_mobileusernotescope",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "mobileusernotescope"
     },
     {
@@ -112897,8 +112897,8 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "apps_web_src_lib_social_mobile_user_note_service_assertsubjectexists",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "assertsubjectexists()"
     },
     {
@@ -112908,8 +112908,8 @@
       "source_location": "L29",
       "_origin": "ast",
       "id": "apps_web_src_lib_social_mobile_user_note_service_getmobileusernote",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "getmobileusernote()"
     },
     {
@@ -112919,8 +112919,8 @@
       "source_location": "L43",
       "_origin": "ast",
       "id": "apps_web_src_lib_social_mobile_user_note_service_getmobileusernotes",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "getmobileusernotes()"
     },
     {
@@ -112930,8 +112930,8 @@
       "source_location": "L67",
       "_origin": "ast",
       "id": "apps_web_src_lib_social_mobile_user_note_service_savemobileusernote",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "savemobileusernote()"
     },
     {
@@ -112941,8 +112941,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_lib_social_mobile_user_profile_route_test",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "mobile-user-profile-route.test.ts"
     },
     {
@@ -112952,8 +112952,8 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "apps_web_src_lib_social_mobile_user_profile_route_test_createprofile",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "createprofile()"
     },
     {
@@ -112963,8 +112963,8 @@
       "source_location": "L50",
       "_origin": "ast",
       "id": "apps_web_src_lib_social_mobile_user_profile_route_test_basedependencies",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "basedependencies"
     },
     {
@@ -113172,8 +113172,8 @@
       "source_location": "L391",
       "_origin": "ast",
       "id": "apps_web_src_lib_social_mobile_user_profile_service_createmobileuserreport",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "createmobileuserreport()"
     },
     {
@@ -116923,8 +116923,8 @@
       "source_location": "L30",
       "_origin": "ast",
       "id": "apps_web_src_lib_voice_media_capabilities_isscreensharesupported",
-      "community": 136,
-      "community_name": "route-logic.ts",
+      "community": 16,
+      "community_name": "Community 16",
       "norm_label": "isscreensharesupported()"
     },
     {
@@ -118353,8 +118353,8 @@
       "source_location": "L36",
       "_origin": "ast",
       "id": "apps_web_src_lib_voice_screen_share_screen_share_quality_options",
-      "community": 136,
-      "community_name": "route-logic.ts",
+      "community": 16,
+      "community_name": "Community 16",
       "norm_label": "screen_share_quality_options"
     },
     {
@@ -119574,8 +119574,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_lib_workspace_access_context_test",
-      "community": 376,
-      "community_name": "Whispr Mobile Redesign \u2014 Faz 1 Kapan\u0131\u015f Do\u011frulamas\u0131",
+      "community": 217,
+      "community_name": "route-logic.ts",
       "norm_label": "access-context.test.ts"
     },
     {
@@ -119585,8 +119585,8 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "apps_web_src_lib_workspace_access_context_test_restore",
-      "community": 376,
-      "community_name": "Whispr Mobile Redesign \u2014 Faz 1 Kapan\u0131\u015f Do\u011frulamas\u0131",
+      "community": 217,
+      "community_name": "route-logic.ts",
       "norm_label": "restore"
     },
     {
@@ -119596,8 +119596,8 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "apps_web_src_lib_workspace_access_context_test_unknownrecord",
-      "community": 376,
-      "community_name": "Whispr Mobile Redesign \u2014 Faz 1 Kapan\u0131\u015f Do\u011frulamas\u0131",
+      "community": 217,
+      "community_name": "route-logic.ts",
       "norm_label": "unknownrecord"
     },
     {
@@ -119607,8 +119607,8 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "apps_web_src_lib_workspace_access_context_test_patchmethod",
-      "community": 376,
-      "community_name": "Whispr Mobile Redesign \u2014 Faz 1 Kapan\u0131\u015f Do\u011frulamas\u0131",
+      "community": 217,
+      "community_name": "route-logic.ts",
       "norm_label": "patchmethod()"
     },
     {
@@ -119618,8 +119618,8 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "apps_web_src_lib_workspace_access_context_test_membership",
-      "community": 376,
-      "community_name": "Whispr Mobile Redesign \u2014 Faz 1 Kapan\u0131\u015f Do\u011frulamas\u0131",
+      "community": 217,
+      "community_name": "route-logic.ts",
       "norm_label": "membership()"
     },
     {
@@ -119629,8 +119629,8 @@
       "source_location": "L51",
       "_origin": "ast",
       "id": "apps_web_src_lib_workspace_access_context_test_createclient",
-      "community": 376,
-      "community_name": "Whispr Mobile Redesign \u2014 Faz 1 Kapan\u0131\u015f Do\u011frulamas\u0131",
+      "community": 217,
+      "community_name": "route-logic.ts",
       "norm_label": "createclient()"
     },
     {
@@ -120003,8 +120003,8 @@
       "source_location": "L307",
       "_origin": "ast",
       "id": "apps_web_src_lib_workspace_channel_service_deleteworkspacechannel",
-      "community": 233,
-      "community_name": "service.test.ts",
+      "community": 260,
+      "community_name": "route-logic.ts",
       "norm_label": "deleteworkspacechannel()"
     },
     {
@@ -121488,8 +121488,8 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "apps_web_src_lib_workspace_mobile_capabilities_test_access",
-      "community": 129,
-      "community_name": "audio-device-select.tsx",
+      "community": 217,
+      "community_name": "route-logic.ts",
       "norm_label": "access()"
     },
     {
@@ -124997,8 +124997,8 @@
       "source_location": "L78",
       "_origin": "ast",
       "id": "apps_web_src_store_voice_store_voicecamerarotation",
-      "community": 154,
-      "community_name": "route-logic.ts",
+      "community": 49,
+      "community_name": "Community 49",
       "norm_label": "voicecamerarotation"
     },
     {
@@ -129705,8 +129705,8 @@
       "source_location": "L98",
       "_origin": "ast",
       "id": "packages_types_src_mobile_social_mobilefrienduserparamsschema",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "mobilefrienduserparamsschema"
     },
     {
@@ -130299,8 +130299,8 @@
       "source_location": "L602",
       "_origin": "ast",
       "id": "packages_types_src_mobile_social_mobileuserprofilequeryschema",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "mobileuserprofilequeryschema"
     },
     {
@@ -131927,8 +131927,8 @@
       "source_location": "L527",
       "_origin": "ast",
       "id": "packages_types_src_mobile_workspace_management_mobileservercapabilities",
-      "community": 129,
-      "community_name": "audio-device-select.tsx",
+      "community": 217,
+      "community_name": "route-logic.ts",
       "norm_label": "mobileservercapabilities"
     },
     {
@@ -133016,8 +133016,8 @@
       "source_location": "L107",
       "_origin": "ast",
       "id": "packages_types_src_mobile_mobileauthpasswordloginrequestschema",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "mobileauthpasswordloginrequestschema"
     },
     {
@@ -133060,8 +133060,8 @@
       "source_location": "L135",
       "_origin": "ast",
       "id": "packages_types_src_mobile_mobileauthregisterrequestschema",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "mobileauthregisterrequestschema"
     },
     {
@@ -133203,8 +133203,8 @@
       "source_location": "L223",
       "_origin": "ast",
       "id": "packages_types_src_mobile_mobilenotificationeventkindschema",
-      "community": 430,
-      "community_name": "class-variance-authority",
+      "community": 154,
+      "community_name": "route-logic.ts",
       "norm_label": "mobilenotificationeventkindschema"
     },
     {
@@ -133445,8 +133445,8 @@
       "source_location": "L399",
       "_origin": "ast",
       "id": "packages_types_src_mobile_mobilevoicestatesresponseschema",
-      "community": 103,
-      "community_name": "app-version.ts",
+      "community": 0,
+      "community_name": "Community 0",
       "norm_label": "mobilevoicestatesresponseschema"
     },
     {
@@ -133995,8 +133995,8 @@
       "source_location": "L811",
       "_origin": "ast",
       "id": "packages_types_src_mobile_mobilebootstrapserversummary",
-      "community": 0,
-      "community_name": "Community 0",
+      "community": 243,
+      "community_name": "privacy-service.test.ts",
       "norm_label": "mobilebootstrapserversummary"
     },
     {
@@ -134325,8 +134325,8 @@
       "source_location": "L851",
       "_origin": "ast",
       "id": "packages_types_src_mobile_mobilechannelthreadmessagesresponse",
-      "community": 14,
-      "community_name": "Community 14",
+      "community": 81,
+      "community_name": "mobile-voice-room-route-context.ts",
       "norm_label": "mobilechannelthreadmessagesresponse"
     },
     {
@@ -134468,8 +134468,8 @@
       "source_location": "L870",
       "_origin": "ast",
       "id": "packages_types_src_mobile_mobileauthpasswordloginrequest",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "mobileauthpasswordloginrequest"
     },
     {
@@ -134490,8 +134490,8 @@
       "source_location": "L872",
       "_origin": "ast",
       "id": "packages_types_src_mobile_mobileauthgoogleloginrequest",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "mobileauthgoogleloginrequest"
     },
     {
@@ -134512,8 +134512,8 @@
       "source_location": "L874",
       "_origin": "ast",
       "id": "packages_types_src_mobile_mobileauthregisterrequest",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 129,
+      "community_name": "audio-device-select.tsx",
       "norm_label": "mobileauthregisterrequest"
     },
     {
@@ -134688,8 +134688,8 @@
       "source_location": "L898",
       "_origin": "ast",
       "id": "packages_types_src_mobile_mobilenotificationeventkind",
-      "community": 430,
-      "community_name": "class-variance-authority",
+      "community": 154,
+      "community_name": "route-logic.ts",
       "norm_label": "mobilenotificationeventkind"
     },
     {
@@ -134699,8 +134699,8 @@
       "source_location": "L899",
       "_origin": "ast",
       "id": "packages_types_src_mobile_mobilenotificationfilter",
-      "community": 430,
-      "community_name": "class-variance-authority",
+      "community": 154,
+      "community_name": "route-logic.ts",
       "norm_label": "mobilenotificationfilter"
     },
     {
@@ -134721,8 +134721,8 @@
       "source_location": "L901",
       "_origin": "ast",
       "id": "packages_types_src_mobile_mobilenotificationnewevent",
-      "community": 430,
-      "community_name": "class-variance-authority",
+      "community": 154,
+      "community_name": "route-logic.ts",
       "norm_label": "mobilenotificationnewevent"
     },
     {
@@ -151176,9 +151176,9 @@
       "file_type": "code",
       "source_file": "apps/mobile/scripts/mobile-message-search-client.test.ts",
       "source_location": "L98",
-      "community": 231,
+      "community": 122,
       "norm_label": "requests",
-      "community_name": "auth-regression.spec.ts",
+      "community_name": "useI18n",
       "id": "apps_mobile_scripts_mobile_message_search_client_test_requests"
     },
     {
@@ -151186,9 +151186,9 @@
       "file_type": "code",
       "source_file": "apps/mobile/scripts/mobile-message-search-client.test.ts",
       "source_location": "L99",
-      "community": 231,
+      "community": 122,
       "norm_label": "client",
-      "community_name": "auth-regression.spec.ts",
+      "community_name": "useI18n",
       "id": "apps_mobile_scripts_mobile_message_search_client_test_client"
     },
     {
@@ -152636,9 +152636,9 @@
       "file_type": "code",
       "source_file": "apps/mobile/scripts/mobile-realtime-contract.test.ts",
       "source_location": "L51",
-      "community": 6,
+      "community": 103,
       "norm_label": "channelmessageevents",
-      "community_name": "Community 6",
+      "community_name": "app-version.ts",
       "id": "apps_mobile_scripts_mobile_realtime_contract_test_channelmessageevents"
     },
     {
@@ -152646,9 +152646,9 @@
       "file_type": "code",
       "source_file": "apps/mobile/scripts/mobile-realtime-contract.test.ts",
       "source_location": "L66",
-      "community": 6,
+      "community": 103,
       "norm_label": "event",
-      "community_name": "Community 6",
+      "community_name": "app-version.ts",
       "id": "apps_mobile_scripts_mobile_realtime_contract_test_event"
     },
     {
@@ -152656,9 +152656,9 @@
       "file_type": "code",
       "source_file": "apps/mobile/scripts/mobile-realtime-contract.test.ts",
       "source_location": "L87",
-      "community": 6,
+      "community": 103,
       "norm_label": "membership",
-      "community_name": "Community 6",
+      "community_name": "app-version.ts",
       "id": "apps_mobile_scripts_mobile_realtime_contract_test_membership"
     },
     {
@@ -152666,9 +152666,9 @@
       "file_type": "code",
       "source_file": "apps/mobile/scripts/mobile-realtime-contract.test.ts",
       "source_location": "L95",
-      "community": 6,
+      "community": 103,
       "norm_label": "history",
-      "community_name": "Community 6",
+      "community_name": "app-version.ts",
       "id": "apps_mobile_scripts_mobile_realtime_contract_test_history"
     },
     {
@@ -152676,9 +152676,9 @@
       "file_type": "code",
       "source_file": "apps/mobile/scripts/mobile-realtime-contract.test.ts",
       "source_location": "L103",
-      "community": 6,
+      "community": 103,
       "norm_label": "presence",
-      "community_name": "Community 6",
+      "community_name": "app-version.ts",
       "id": "apps_mobile_scripts_mobile_realtime_contract_test_presence"
     },
     {
@@ -152686,9 +152686,9 @@
       "file_type": "code",
       "source_file": "apps/mobile/scripts/mobile-realtime-contract.test.ts",
       "source_location": "L114",
-      "community": 6,
+      "community": 103,
       "norm_label": "profile",
-      "community_name": "Community 6",
+      "community_name": "app-version.ts",
       "id": "apps_mobile_scripts_mobile_realtime_contract_test_profile"
     },
     {
@@ -152696,9 +152696,9 @@
       "file_type": "code",
       "source_file": "apps/mobile/scripts/mobile-realtime-contract.test.ts",
       "source_location": "L135",
-      "community": 6,
+      "community": 103,
       "norm_label": "voicestate",
-      "community_name": "Community 6",
+      "community_name": "app-version.ts",
       "id": "apps_mobile_scripts_mobile_realtime_contract_test_voicestate"
     },
     {
@@ -152706,9 +152706,9 @@
       "file_type": "code",
       "source_file": "apps/mobile/scripts/mobile-realtime-contract.test.ts",
       "source_location": "L174",
-      "community": 6,
+      "community": 103,
       "norm_label": "malformed",
-      "community_name": "Community 6",
+      "community_name": "app-version.ts",
       "id": "apps_mobile_scripts_mobile_realtime_contract_test_malformed"
     },
     {
@@ -152716,9 +152716,9 @@
       "file_type": "code",
       "source_file": "apps/mobile/scripts/mobile-realtime-contract.test.ts",
       "source_location": "L275",
-      "community": 6,
+      "community": 103,
       "norm_label": "payload",
-      "community_name": "Community 6",
+      "community_name": "app-version.ts",
       "id": "apps_mobile_scripts_mobile_realtime_contract_test_payload"
     },
     {
@@ -155096,9 +155096,9 @@
       "file_type": "code",
       "source_file": "apps/mobile/src/realtime/mobile-realtime-contract.ts",
       "source_location": "L148",
-      "community": 6,
+      "community": 103,
       "norm_label": "parsed",
-      "community_name": "Community 6",
+      "community_name": "app-version.ts",
       "id": "apps_mobile_src_realtime_mobile_realtime_contract_parsed"
     },
     {
@@ -156216,9 +156216,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/auth/reauth/email-confirm/route.ts",
       "source_location": "L1",
-      "community": 233,
+      "community": 105,
       "norm_label": "route.ts",
-      "community_name": "service.test.ts",
+      "community_name": "privacy-service.ts",
       "id": "apps_web_src_app_api_v1_auth_reauth_email_confirm_route_ts"
     },
     {
@@ -156226,9 +156226,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/channels/[channelId]/route.ts",
       "source_location": "L1",
-      "community": 233,
+      "community": 260,
       "norm_label": "route.ts",
-      "community_name": "service.test.ts",
+      "community_name": "route-logic.ts",
       "id": "apps_web_src_app_api_v1_channels_channelid_route_ts"
     },
     {
@@ -156266,9 +156266,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/channels/[channelId]/messages/[messageId]/thread/route.ts",
       "source_location": "L1",
-      "community": 233,
+      "community": 3,
       "norm_label": "route.ts",
-      "community_name": "service.test.ts",
+      "community_name": "Community 3",
       "id": "apps_web_src_app_api_v1_channels_channelid_messages_messageid_thread_route_ts"
     },
     {
@@ -156386,9 +156386,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/dm/[conversationId]/messages/route.ts",
       "source_location": "L1",
-      "community": 233,
+      "community": 3,
       "norm_label": "route.ts",
-      "community_name": "service.test.ts",
+      "community_name": "Community 3",
       "id": "apps_web_src_app_api_v1_dm_conversationid_messages_route_ts"
     },
     {
@@ -156586,9 +156586,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/account/presence/route-logic.test.ts",
       "source_location": "L1",
-      "community": 217,
+      "community": 376,
       "norm_label": "route-logic.test.ts",
-      "community_name": "route-logic.ts",
+      "community_name": "Whispr Mobile Redesign \u2014 Faz 1 Kapan\u0131\u015f Do\u011frulamas\u0131",
       "id": "apps_web_src_app_api_v1_mobile_account_presence_route_logic_test_ts"
     },
     {
@@ -156596,9 +156596,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/account/presence/route-logic.test.ts",
       "source_location": "L8",
-      "community": 217,
+      "community": 376,
       "norm_label": "calls",
-      "community_name": "route-logic.ts",
+      "community_name": "Whispr Mobile Redesign \u2014 Faz 1 Kapan\u0131\u015f Do\u011frulamas\u0131",
       "id": "apps_web_src_app_api_v1_mobile_account_presence_route_logic_test_calls"
     },
     {
@@ -156606,9 +156606,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/account/presence/route-logic.ts",
       "source_location": "L1",
-      "community": 217,
+      "community": 376,
       "norm_label": "route-logic.ts",
-      "community_name": "route-logic.ts",
+      "community_name": "Whispr Mobile Redesign \u2014 Faz 1 Kapan\u0131\u015f Do\u011frulamas\u0131",
       "id": "apps_web_src_app_api_v1_mobile_account_presence_route_logic_ts"
     },
     {
@@ -156616,9 +156616,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/account/presence/route.ts",
       "source_location": "L1",
-      "community": 217,
+      "community": 376,
       "norm_label": "route.ts",
-      "community_name": "route-logic.ts",
+      "community_name": "Whispr Mobile Redesign \u2014 Faz 1 Kapan\u0131\u015f Do\u011frulamas\u0131",
       "id": "apps_web_src_app_api_v1_mobile_account_presence_route_ts"
     },
     {
@@ -156786,9 +156786,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/auth/rate-limit.test.ts",
       "source_location": "L1",
-      "community": 217,
+      "community": 129,
       "norm_label": "rate-limit.test.ts",
-      "community_name": "route-logic.ts",
+      "community_name": "audio-device-select.tsx",
       "id": "apps_web_src_app_api_v1_mobile_auth_rate_limit_test_ts"
     },
     {
@@ -156796,9 +156796,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/auth/rate-limit.test.ts",
       "source_location": "L8",
-      "community": 217,
+      "community": 129,
       "norm_label": "request",
-      "community_name": "route-logic.ts",
+      "community_name": "audio-device-select.tsx",
       "id": "apps_web_src_app_api_v1_mobile_auth_rate_limit_test_request"
     },
     {
@@ -156806,9 +156806,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/auth/rate-limit.ts",
       "source_location": "L1",
-      "community": 217,
+      "community": 129,
       "norm_label": "rate-limit.ts",
-      "community_name": "route-logic.ts",
+      "community_name": "audio-device-select.tsx",
       "id": "apps_web_src_app_api_v1_mobile_auth_rate_limit_ts"
     },
     {
@@ -156816,9 +156816,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/auth/exchange/route.ts",
       "source_location": "L1",
-      "community": 217,
+      "community": 129,
       "norm_label": "route.ts",
-      "community_name": "route-logic.ts",
+      "community_name": "audio-device-select.tsx",
       "id": "apps_web_src_app_api_v1_mobile_auth_exchange_route_ts"
     },
     {
@@ -156826,9 +156826,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/auth/forgot-password/route.ts",
       "source_location": "L1",
-      "community": 217,
+      "community": 129,
       "norm_label": "route.ts",
-      "community_name": "route-logic.ts",
+      "community_name": "audio-device-select.tsx",
       "id": "apps_web_src_app_api_v1_mobile_auth_forgot_password_route_ts"
     },
     {
@@ -156836,9 +156836,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/auth/login/route-logic.test.ts",
       "source_location": "L1",
-      "community": 217,
+      "community": 129,
       "norm_label": "route-logic.test.ts",
-      "community_name": "route-logic.ts",
+      "community_name": "audio-device-select.tsx",
       "id": "apps_web_src_app_api_v1_mobile_auth_login_route_logic_test_ts"
     },
     {
@@ -156846,9 +156846,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/auth/login/route-logic.test.ts",
       "source_location": "L29",
-      "community": 217,
+      "community": 129,
       "norm_label": "calls",
-      "community_name": "route-logic.ts",
+      "community_name": "audio-device-select.tsx",
       "id": "apps_web_src_app_api_v1_mobile_auth_login_route_logic_test_calls"
     },
     {
@@ -156856,9 +156856,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/auth/login/route-logic.ts",
       "source_location": "L1",
-      "community": 217,
+      "community": 129,
       "norm_label": "route-logic.ts",
-      "community_name": "route-logic.ts",
+      "community_name": "audio-device-select.tsx",
       "id": "apps_web_src_app_api_v1_mobile_auth_login_route_logic_ts"
     },
     {
@@ -156866,9 +156866,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/auth/login/route.ts",
       "source_location": "L1",
-      "community": 217,
+      "community": 129,
       "norm_label": "route.ts",
-      "community_name": "route-logic.ts",
+      "community_name": "audio-device-select.tsx",
       "id": "apps_web_src_app_api_v1_mobile_auth_login_route_ts"
     },
     {
@@ -156876,9 +156876,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/auth/refresh/route.ts",
       "source_location": "L1",
-      "community": 217,
+      "community": 129,
       "norm_label": "route.ts",
-      "community_name": "route-logic.ts",
+      "community_name": "audio-device-select.tsx",
       "id": "apps_web_src_app_api_v1_mobile_auth_refresh_route_ts"
     },
     {
@@ -156886,9 +156886,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/auth/register/route-logic.test.ts",
       "source_location": "L1",
-      "community": 217,
+      "community": 129,
       "norm_label": "route-logic.test.ts",
-      "community_name": "route-logic.ts",
+      "community_name": "audio-device-select.tsx",
       "id": "apps_web_src_app_api_v1_mobile_auth_register_route_logic_test_ts"
     },
     {
@@ -156896,9 +156896,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/auth/register/route-logic.test.ts",
       "source_location": "L34",
-      "community": 217,
+      "community": 129,
       "norm_label": "calls",
-      "community_name": "route-logic.ts",
+      "community_name": "audio-device-select.tsx",
       "id": "apps_web_src_app_api_v1_mobile_auth_register_route_logic_test_calls"
     },
     {
@@ -156906,9 +156906,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/auth/register/route-logic.ts",
       "source_location": "L1",
-      "community": 217,
+      "community": 129,
       "norm_label": "route-logic.ts",
-      "community_name": "route-logic.ts",
+      "community_name": "audio-device-select.tsx",
       "id": "apps_web_src_app_api_v1_mobile_auth_register_route_logic_ts"
     },
     {
@@ -156916,9 +156916,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/auth/register/route.ts",
       "source_location": "L1",
-      "community": 217,
+      "community": 129,
       "norm_label": "route.ts",
-      "community_name": "route-logic.ts",
+      "community_name": "audio-device-select.tsx",
       "id": "apps_web_src_app_api_v1_mobile_auth_register_route_ts"
     },
     {
@@ -156926,9 +156926,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/auth/revoke/route.ts",
       "source_location": "L1",
-      "community": 217,
+      "community": 129,
       "norm_label": "route.ts",
-      "community_name": "route-logic.ts",
+      "community_name": "audio-device-select.tsx",
       "id": "apps_web_src_app_api_v1_mobile_auth_revoke_route_ts"
     },
     {
@@ -156936,9 +156936,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/auth/verification-email/route.ts",
       "source_location": "L1",
-      "community": 217,
+      "community": 129,
       "norm_label": "route.ts",
-      "community_name": "route-logic.ts",
+      "community_name": "audio-device-select.tsx",
       "id": "apps_web_src_app_api_v1_mobile_auth_verification_email_route_ts"
     },
     {
@@ -157506,9 +157506,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/link-preview/route-logic.ts",
       "source_location": "L1",
-      "community": 217,
+      "community": 129,
       "norm_label": "route-logic.ts",
-      "community_name": "route-logic.ts",
+      "community_name": "audio-device-select.tsx",
       "id": "apps_web_src_app_api_v1_mobile_link_preview_route_logic_ts"
     },
     {
@@ -157516,9 +157516,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/link-preview/route.ts",
       "source_location": "L1",
-      "community": 217,
+      "community": 129,
       "norm_label": "route.ts",
-      "community_name": "route-logic.ts",
+      "community_name": "audio-device-select.tsx",
       "id": "apps_web_src_app_api_v1_mobile_link_preview_route_ts"
     },
     {
@@ -157696,9 +157696,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/servers/[serverId]/route-logic.test.ts",
       "source_location": "L1",
-      "community": 129,
+      "community": 217,
       "norm_label": "route-logic.test.ts",
-      "community_name": "audio-device-select.tsx",
+      "community_name": "route-logic.ts",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_route_logic_test_ts"
     },
     {
@@ -157706,9 +157706,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/servers/[serverId]/route-logic.test.ts",
       "source_location": "L148",
-      "community": 129,
+      "community": 217,
       "norm_label": "calls",
-      "community_name": "audio-device-select.tsx",
+      "community_name": "route-logic.ts",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_route_logic_test_calls"
     },
     {
@@ -157716,9 +157716,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/servers/[serverId]/route-logic.test.ts",
       "source_location": "L189",
-      "community": 129,
+      "community": 217,
       "norm_label": "parsebody()",
-      "community_name": "audio-device-select.tsx",
+      "community_name": "route-logic.ts",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_route_logic_test_parsebody"
     },
     {
@@ -157726,9 +157726,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/servers/[serverId]/route-logic.test.ts",
       "source_location": "L239",
-      "community": 129,
+      "community": 217,
       "norm_label": "previewdetail",
-      "community_name": "audio-device-select.tsx",
+      "community_name": "route-logic.ts",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_route_logic_test_previewdetail"
     },
     {
@@ -157736,9 +157736,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/servers/[serverId]/route-logic.test.ts",
       "source_location": "L261",
-      "community": 129,
+      "community": 217,
       "norm_label": "body",
-      "community_name": "audio-device-select.tsx",
+      "community_name": "route-logic.ts",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_route_logic_test_body"
     },
     {
@@ -157746,9 +157746,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/servers/[serverId]/route-logic.test.ts",
       "source_location": "L272",
-      "community": 129,
+      "community": 217,
       "norm_label": "channels",
-      "community_name": "audio-device-select.tsx",
+      "community_name": "route-logic.ts",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_route_logic_test_channels"
     },
     {
@@ -157756,9 +157756,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/servers/[serverId]/route-logic.test.ts",
       "source_location": "L329",
-      "community": 129,
+      "community": 217,
       "norm_label": "firstcategorychannels",
-      "community_name": "audio-device-select.tsx",
+      "community_name": "route-logic.ts",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_route_logic_test_firstcategorychannels"
     },
     {
@@ -157766,9 +157766,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/servers/[serverId]/route-logic.test.ts",
       "source_location": "L342",
-      "community": 129,
+      "community": 217,
       "norm_label": "secondcategorychannels",
-      "community_name": "audio-device-select.tsx",
+      "community_name": "route-logic.ts",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_route_logic_test_secondcategorychannels"
     },
     {
@@ -157776,9 +157776,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/servers/[serverId]/route-logic.test.ts",
       "source_location": "L485",
-      "community": 129,
+      "community": 217,
       "norm_label": "invalidparams",
-      "community_name": "audio-device-select.tsx",
+      "community_name": "route-logic.ts",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_route_logic_test_invalidparams"
     },
     {
@@ -157786,9 +157786,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/servers/[serverId]/route-logic.test.ts",
       "source_location": "L489",
-      "community": 129,
+      "community": 217,
       "norm_label": "deps",
-      "community_name": "audio-device-select.tsx",
+      "community_name": "route-logic.ts",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_route_logic_test_deps"
     },
     {
@@ -157796,9 +157796,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/servers/[serverId]/route-logic.test.ts",
       "source_location": "L571",
-      "community": 129,
+      "community": 217,
       "norm_label": "invaliddetail",
-      "community_name": "audio-device-select.tsx",
+      "community_name": "route-logic.ts",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_route_logic_test_invaliddetail"
     },
     {
@@ -158306,9 +158306,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/servers/[serverId]/members/[memberId]/roles/route-logic.test.ts",
       "source_location": "L1",
-      "community": 258,
+      "community": 217,
       "norm_label": "route-logic.test.ts",
-      "community_name": "mobile-voice-lifecycle-contract.ts",
+      "community_name": "route-logic.ts",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_members_memberid_roles_route_logic_test_ts"
     },
     {
@@ -158316,9 +158316,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/servers/[serverId]/roles/route-logic.test.ts",
       "source_location": "L35",
-      "community": 258,
+      "community": 217,
       "norm_label": "calls",
-      "community_name": "mobile-voice-lifecycle-contract.ts",
+      "community_name": "route-logic.ts",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_roles_route_logic_test_calls"
     },
     {
@@ -158326,9 +158326,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/servers/[serverId]/members/[memberId]/roles/route-logic.test.ts",
       "source_location": "L40",
-      "community": 258,
+      "community": 217,
       "norm_label": "parsebody()",
-      "community_name": "mobile-voice-lifecycle-contract.ts",
+      "community_name": "route-logic.ts",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_members_memberid_roles_route_logic_test_parsebody"
     },
     {
@@ -158336,9 +158336,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/servers/[serverId]/members/[memberId]/roles/route-logic.test.ts",
       "source_location": "L76",
-      "community": 258,
+      "community": 217,
       "norm_label": "delegatedroleids",
-      "community_name": "mobile-voice-lifecycle-contract.ts",
+      "community_name": "route-logic.ts",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_members_memberid_roles_route_logic_test_delegatedroleids"
     },
     {
@@ -158346,9 +158346,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/servers/[serverId]/members/[memberId]/roles/route-logic.test.ts",
       "source_location": "L109",
-      "community": 258,
+      "community": 217,
       "norm_label": "cases",
-      "community_name": "mobile-voice-lifecycle-contract.ts",
+      "community_name": "route-logic.ts",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_members_memberid_roles_route_logic_test_cases"
     },
     {
@@ -158356,9 +158356,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/servers/[serverId]/members/[memberId]/roles/route-logic.test.ts",
       "source_location": "L120",
-      "community": 258,
+      "community": 217,
       "norm_label": "trackedparsebody()",
-      "community_name": "mobile-voice-lifecycle-contract.ts",
+      "community_name": "route-logic.ts",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_members_memberid_roles_route_logic_test_trackedparsebody"
     },
     {
@@ -158366,9 +158366,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/servers/[serverId]/members/[memberId]/roles/route-logic.test.ts",
       "source_location": "L143",
-      "community": 258,
+      "community": 217,
       "norm_label": "roleids26",
-      "community_name": "mobile-voice-lifecycle-contract.ts",
+      "community_name": "route-logic.ts",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_members_memberid_roles_route_logic_test_roleids26"
     },
     {
@@ -158376,9 +158376,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/servers/[serverId]/members/[memberId]/roles/route-logic.test.ts",
       "source_location": "L178",
-      "community": 258,
+      "community": 217,
       "norm_label": "laterdependencies",
-      "community_name": "mobile-voice-lifecycle-contract.ts",
+      "community_name": "route-logic.ts",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_members_memberid_roles_route_logic_test_laterdependencies"
     },
     {
@@ -158406,9 +158406,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/servers/[serverId]/roles/route-logic.test.ts",
       "source_location": "L1",
-      "community": 258,
+      "community": 217,
       "norm_label": "route-logic.test.ts",
-      "community_name": "mobile-voice-lifecycle-contract.ts",
+      "community_name": "route-logic.ts",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_roles_route_logic_test_ts"
     },
     {
@@ -159166,9 +159166,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/lib/api-rate-limit.test.ts",
       "source_location": "L84",
-      "community": 217,
+      "community": 129,
       "norm_label": "requiredactions",
-      "community_name": "route-logic.ts",
+      "community_name": "audio-device-select.tsx",
       "id": "apps_web_src_lib_api_rate_limit_test_requiredactions"
     },
     {
@@ -159176,9 +159176,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/lib/api-rate-limit.test.ts",
       "source_location": "L143",
-      "community": 217,
+      "community": 129,
       "norm_label": "expectedactions",
-      "community_name": "route-logic.ts",
+      "community_name": "audio-device-select.tsx",
       "id": "apps_web_src_lib_api_rate_limit_test_expectedactions"
     },
     {
@@ -159186,9 +159186,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/lib/api-rate-limit.test.ts",
       "source_location": "L144",
-      "community": 217,
+      "community": 129,
       "norm_label": "actualactions",
-      "community_name": "route-logic.ts",
+      "community_name": "audio-device-select.tsx",
       "id": "apps_web_src_lib_api_rate_limit_test_actualactions"
     },
     {
@@ -159196,9 +159196,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/lib/api-rate-limit.test.ts",
       "source_location": "L213",
-      "community": 217,
+      "community": 129,
       "norm_label": "{ calls, dependencies }",
-      "community_name": "route-logic.ts",
+      "community_name": "audio-device-select.tsx",
       "id": "apps_web_src_lib_api_rate_limit_test_calls_dependencies"
     },
     {
@@ -159206,9 +159206,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/lib/api-rate-limit.test.ts",
       "source_location": "L227",
-      "community": 217,
+      "community": 129,
       "norm_label": "{ dependencies }",
-      "community_name": "route-logic.ts",
+      "community_name": "audio-device-select.tsx",
       "id": "apps_web_src_lib_api_rate_limit_test_dependencies"
     },
     {
@@ -159216,9 +159216,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/lib/api-rate-limit.test.ts",
       "source_location": "L236",
-      "community": 217,
+      "community": 129,
       "norm_label": "logerrors",
-      "community_name": "route-logic.ts",
+      "community_name": "audio-device-select.tsx",
       "id": "apps_web_src_lib_api_rate_limit_test_logerrors"
     },
     {
@@ -159226,9 +159226,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/lib/api-rate-limit.test.ts",
       "source_location": "L237",
-      "community": 217,
+      "community": 129,
       "norm_label": "unavailable",
-      "community_name": "route-logic.ts",
+      "community_name": "audio-device-select.tsx",
       "id": "apps_web_src_lib_api_rate_limit_test_unavailable"
     },
     {
@@ -163466,9 +163466,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/lib/workspace/access-context.test.ts",
       "source_location": "L83",
-      "community": 376,
+      "community": 217,
       "norm_label": "{ client, operations }",
-      "community_name": "Whispr Mobile Redesign \u2014 Faz 1 Kapan\u0131\u015f Do\u011frulamas\u0131",
+      "community_name": "route-logic.ts",
       "id": "apps_web_src_lib_workspace_access_context_test_client_operations"
     },
     {
@@ -163476,9 +163476,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/lib/workspace/access-context.test.ts",
       "source_location": "L99",
-      "community": 376,
+      "community": 217,
       "norm_label": "{ client }",
-      "community_name": "Whispr Mobile Redesign \u2014 Faz 1 Kapan\u0131\u015f Do\u011frulamas\u0131",
+      "community_name": "route-logic.ts",
       "id": "apps_web_src_lib_workspace_access_context_test_client"
     },
     {
@@ -163486,9 +163486,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/lib/workspace/access-context.test.ts",
       "source_location": "L122",
-      "community": 376,
+      "community": 217,
       "norm_label": "restores",
-      "community_name": "Whispr Mobile Redesign \u2014 Faz 1 Kapan\u0131\u015f Do\u011frulamas\u0131",
+      "community_name": "route-logic.ts",
       "id": "apps_web_src_lib_workspace_access_context_test_restores"
     },
     {
@@ -163496,9 +163496,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/lib/workspace/access-context.test.ts",
       "source_location": "L123",
-      "community": 376,
+      "community": 217,
       "norm_label": "operations",
-      "community_name": "Whispr Mobile Redesign \u2014 Faz 1 Kapan\u0131\u015f Do\u011frulamas\u0131",
+      "community_name": "route-logic.ts",
       "id": "apps_web_src_lib_workspace_access_context_test_operations"
     },
     {
@@ -171156,9 +171156,9 @@
       "file_type": "document",
       "source_file": "docs/superpowers/plans/2026-07-13-mobile-phase4-m3-management-closure.md",
       "source_location": "L770",
-      "community": 571,
+      "community": 403,
       "norm_label": "task 10: add and execute the deterministic phase 4 maestro uat flow",
-      "community_name": "MemoryRedis",
+      "community_name": "details.test.ts",
       "id": "docs_superpowers_plans_2026_07_13_mobile_phase4_m3_management_closure_task_10_add_and_execute_the_deterministic_phase_4_maestro_uat_flow"
     },
     {
@@ -171166,9 +171166,9 @@
       "file_type": "document",
       "source_file": "docs/superpowers/plans/2026-07-13-mobile-phase4-m3-management-closure.md",
       "source_location": "L781",
-      "community": 571,
+      "community": 403,
       "norm_label": "code:text (artifacts/mobile/phase4/closure/light-server-management)",
-      "community_name": "MemoryRedis",
+      "community_name": "details.test.ts",
       "id": "docs_superpowers_plans_2026_07_13_mobile_phase4_m3_management_closure_codeblock_36"
     },
     {
@@ -171176,9 +171176,9 @@
       "file_type": "document",
       "source_file": "docs/superpowers/plans/2026-07-13-mobile-phase4-m3-management-closure.md",
       "source_location": "L816",
-      "community": 571,
+      "community": 403,
       "norm_label": "code:powershell (adb shell mkdir -p /sdcard/pictures/whisprphase4)",
-      "community_name": "MemoryRedis",
+      "community_name": "details.test.ts",
       "id": "docs_superpowers_plans_2026_07_13_mobile_phase4_m3_management_closure_codeblock_38"
     },
     {
@@ -210551,7 +210551,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "apps/mobile/component-tests/mobile-feedback-screens-4a-4b.test.tsx",
-      "source_location": "L333",
+      "source_location": "L329",
       "weight": 1.0,
       "_origin": "ast",
       "source": "apps_mobile_component_tests_mobile_feedback_screens_4a_4b_test",
@@ -210754,7 +210754,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "apps/mobile/component-tests/mobile-feedback-screens-4a-4b.test.tsx",
-      "source_location": "L334",
+      "source_location": "L330",
       "weight": 1.0,
       "_origin": "ast",
       "source": "apps_mobile_component_tests_mobile_feedback_screens_4a_4b_test_rendersubmitted",
@@ -290751,7 +290751,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "apps/mobile/src/app/screens/mobile-about-settings-screen.tsx",
-      "source_location": "L91",
+      "source_location": "L89",
       "weight": 1.0,
       "_origin": "ast",
       "source": "apps_mobile_src_app_screens_mobile_about_settings_screen_mobileaboutsettingsscreen",
@@ -291013,7 +291013,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "apps/mobile/src/app/screens/mobile-about-settings-screen.tsx",
-      "source_location": "L85",
+      "source_location": "L83",
       "weight": 1.0,
       "_origin": "ast",
       "source": "apps_mobile_src_app_screens_mobile_about_settings_screen_mobileaboutsettingsscreen",
@@ -292231,7 +292231,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "apps/mobile/src/app/screens/mobile-about-settings-screen.tsx",
-      "source_location": "L83",
+      "source_location": "L81",
       "weight": 1.0,
       "_origin": "ast",
       "source": "apps_mobile_src_app_screens_mobile_about_settings_screen_mobileaboutsettingsscreen",
@@ -298547,7 +298547,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "apps/mobile/src/app/screens/mobile-about-settings-screen.tsx",
-      "source_location": "L81",
+      "source_location": "L79",
       "weight": 1.0,
       "_origin": "ast",
       "source": "apps_mobile_src_app_screens_mobile_about_settings_screen_mobileaboutsettingsscreen",
@@ -308182,7 +308182,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "apps/mobile/src/app/screens/mobile-about-settings-screen.tsx",
-      "source_location": "L82",
+      "source_location": "L80",
       "weight": 1.0,
       "_origin": "ast",
       "source": "apps_mobile_src_app_screens_mobile_about_settings_screen_mobileaboutsettingsscreen",
@@ -677511,5 +677511,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "c67951517754900c66054636ca75157290ab8b47"
+  "built_at_commit": "ed31eb37b04ea3466952a90ca1804f821af98a40"
 }

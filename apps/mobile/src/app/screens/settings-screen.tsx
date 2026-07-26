@@ -409,7 +409,7 @@ export function MobileProfileSettingsHub({
         <MobileProfileHubRow
           icon="chatbubble-ellipses-outline"
           iconTone="accent"
-          label={profileCopy.feedbackTitle}
+          label={profileCopy.feedbackHubAction}
           onPress={openMobileFeedback}
         />
         <MobileProfileHubRow
@@ -2248,7 +2248,6 @@ export function ProfileSettingsScreen({
         // Legal texts open in-app now; they are the same server-rendered document
         // the web shows, so there is no reason to eject the user to a browser.
         onOpenCookies={() => openMobileLegalDocument("cookies")}
-        onOpenFeedback={onOpenSupport}
         onOpenLicenses={openMobileOpenSourceLicenses}
         onOpenPrivacy={() => openMobileLegalDocument("privacy")}
         onOpenTerms={() => openMobileLegalDocument("terms")}

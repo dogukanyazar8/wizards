@@ -61,7 +61,6 @@ export function MobileAboutSettingsScreen({
   appVersion,
   onBack,
   onOpenCookies,
-  onOpenFeedback,
   onOpenLicenses,
   onOpenPrivacy,
   onOpenTerms,
@@ -71,7 +70,6 @@ export function MobileAboutSettingsScreen({
   appVersion: string;
   onBack(): void;
   onOpenCookies(): void;
-  onOpenFeedback(): void;
   onOpenLicenses(): void;
   onOpenPrivacy(): void;
   onOpenTerms(): void;
@@ -214,7 +212,10 @@ export function MobileAboutSettingsScreen({
 
       <Text style={styles.sectionHeading}>{copy.aboutSettingsSupportHeading}</Text>
       <View style={styles.card}>
-        <View style={[styles.row, styles.rowDivider]} testID="mobile-about-service-status">
+        {/* Feedback lives on the profile hub only. Two entry points into the
+            same 4a form meant the same action was offered twice, one level
+            apart, with no way to tell them apart. */}
+        <View style={styles.row} testID="mobile-about-service-status">
           <Text style={styles.rowLabel}>{copy.aboutSettingsServiceStatus}</Text>
           <View style={[styles.statusBadge, !serviceOnline && styles.statusBadgeOffline]}>
             <View style={[styles.statusDot, !serviceOnline && styles.statusDotOffline]} />
@@ -225,12 +226,6 @@ export function MobileAboutSettingsScreen({
             </Text>
           </View>
         </View>
-        <AboutLegalRow
-          isLast
-          label={copy.aboutSettingsFeedback}
-          onPress={onOpenFeedback}
-          testID="mobile-about-feedback"
-        />
       </View>
     </ScrollView>
   );
