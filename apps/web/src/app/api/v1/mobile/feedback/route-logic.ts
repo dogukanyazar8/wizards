@@ -10,6 +10,7 @@ import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import { requireMobileApiUserId } from "@/lib/auth/api";
 import {
   getMobileFeedbackDetail,
+  listMobileFeedback,
   listMobileRoadmap,
   setMobileRoadmapVote,
   submitMobileFeedback,
@@ -17,6 +18,7 @@ import {
 
 type MobileFeedbackRateLimitAction =
   | "mobile:feedback:detail"
+  | "mobile:feedback:list"
   | "mobile:feedback:roadmap"
   | "mobile:feedback:submit"
   | "mobile:feedback:vote";
@@ -29,6 +31,7 @@ export type MobileFeedbackRouteDependencies = {
   authenticate(request: Request): Promise<string>;
   enforceRateLimit(userId: string, action: MobileFeedbackRateLimitAction): Promise<void>;
   getDetail: typeof getMobileFeedbackDetail;
+  listOwnFeedback: typeof listMobileFeedback;
   listRoadmap: typeof listMobileRoadmap;
   parseBody: typeof parseJsonBody;
   setVote: typeof setMobileRoadmapVote;
@@ -39,6 +42,7 @@ const defaultDependencies: MobileFeedbackRouteDependencies = {
   authenticate: (request) => requireMobileApiUserId(request),
   enforceRateLimit: enforceApiRateLimit,
   getDetail: getMobileFeedbackDetail,
+  listOwnFeedback: listMobileFeedback,
   listRoadmap: listMobileRoadmap,
   parseBody: (request, schema) => parseJsonBody(request, schema),
   setVote: setMobileRoadmapVote,
@@ -77,6 +81,21 @@ export async function mobileFeedbackDetailRoute(
     await dependencies.enforceRateLimit(userId, "mobile:feedback:detail");
     const { feedbackId } = MobileFeedbackIdParamsSchema.parse(await context.params);
     const payload = await dependencies.getDetail(userId, feedbackId);
+
+    return Response.json(payload, { headers: NO_STORE_HEADERS });
+  } catch (error) {
+    return jsonError(error);
+  }
+}
+
+export async function mobileFeedbackListRoute(
+  request: Request,
+  dependencies: MobileFeedbackRouteDependencies = defaultDependencies,
+) {
+  try {
+    const userId = await dependencies.authenticate(request);
+    await dependencies.enforceRateLimit(userId, "mobile:feedback:list");
+    const payload = await dependencies.listOwnFeedback(userId);
 
     return Response.json(payload, { headers: NO_STORE_HEADERS });
   } catch (error) {

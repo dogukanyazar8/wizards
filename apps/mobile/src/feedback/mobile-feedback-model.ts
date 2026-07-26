@@ -5,9 +5,11 @@ import {
   type FeedbackStatus,
   type FeedbackTopic,
   type MobileFeedbackDiagnostics,
+  type MobileRoadmapItem,
 } from "@wizards/types";
 
 import type { MobileLineIconName } from "../design/mobile-line-icons";
+import type { MobileUploadStage } from "../media/mobile-upload-watchdog";
 
 export { MOBILE_FEEDBACK_ATTACHMENT_MAX_COUNT, MOBILE_FEEDBACK_MESSAGE_MAX_LENGTH };
 
@@ -54,6 +56,12 @@ export interface MobileFeedbackAttachmentDraft {
    */
   readonly id: string;
   readonly localUri: string;
+  /**
+   * 0 to 1. A spinner cannot tell a slow upload from a dead one — which is
+   * exactly the confusion a stalled screenshot upload caused — so the tile
+   * shows how far the bytes have actually got.
+   */
+  readonly progress: number;
   readonly status: MobileFeedbackAttachmentStatus;
 }
 
@@ -61,7 +69,7 @@ export function createMobileFeedbackAttachmentDraft(
   id: string,
   localUri: string,
 ): MobileFeedbackAttachmentDraft {
-  return { claimId: null, id, localUri, status: "uploading" };
+  return { claimId: null, id, localUri, progress: 0, status: "uploading" };
 }
 
 /**
@@ -101,6 +109,43 @@ export function addMobileFeedbackAttachment(
   return [...attachments, next];
 }
 
+/**
+ * Adds a whole gallery selection at once, keeping the cap and the no-duplicates
+ * rule the single-image path already enforced.
+ */
+export function addMobileFeedbackAttachments(
+  attachments: readonly MobileFeedbackAttachmentDraft[],
+  next: readonly MobileFeedbackAttachmentDraft[],
+): readonly MobileFeedbackAttachmentDraft[] {
+  return next.reduce(addMobileFeedbackAttachment, attachments);
+}
+
+/**
+ * How many images the picker may still return. Telling the gallery the limit is
+ * what keeps a fourth pick from being silently discarded after the user made it.
+ */
+export function countMobileFeedbackAttachmentSlots(
+  attachments: readonly MobileFeedbackAttachmentDraft[],
+): number {
+  return Math.max(0, MOBILE_FEEDBACK_ATTACHMENT_MAX_COUNT - attachments.length);
+}
+
+/** Progress reports arrive from the transport; unknown tiles and junk values are absorbed. */
+export function setMobileFeedbackAttachmentProgress(
+  attachments: readonly MobileFeedbackAttachmentDraft[],
+  id: string,
+  progress: number,
+): readonly MobileFeedbackAttachmentDraft[] {
+  if (!attachments.some((attachment) => attachment.id === id)) {
+    return attachments;
+  }
+
+  const clamped = Number.isFinite(progress) ? Math.min(1, Math.max(0, progress)) : 0;
+  return attachments.map((attachment) =>
+    attachment.id === id ? { ...attachment, progress: clamped } : attachment,
+  );
+}
+
 export function removeMobileFeedbackAttachment(
   attachments: readonly MobileFeedbackAttachmentDraft[],
   id: string,
@@ -125,7 +170,12 @@ export function settleMobileFeedbackAttachment(
 
   return attachments.map((attachment) =>
     attachment.id === id
-      ? { ...attachment, claimId, status: claimId === null ? "failed" : "ready" }
+      ? {
+          ...attachment,
+          claimId,
+          progress: claimId === null ? 0 : 1,
+          status: claimId === null ? "failed" : "ready",
+        }
       : attachment,
   );
 }
@@ -217,7 +267,41 @@ export function formatMobileFeedbackRelativeTime(
 }
 
 export type MobileFeedbackUploadFailureReason =
-  "network" | "rejected" | "signed-out" | "timeout" | "unknown";
+  | "network"
+  | "permission"
+  | "rejected"
+  | "signed-out"
+  | "stalled"
+  | "timeout"
+  | "too-large"
+  | "unknown"
+  | "unreadable"
+  | "unsupported-type";
+
+/**
+ * Picker failures are a different family from upload failures: nothing has left
+ * the device yet, and the user can fix every one of them by choosing another
+ * image — provided the tile says which one it was.
+ */
+export function classifyMobileFeedbackPickerFailure(
+  error: unknown,
+): MobileFeedbackUploadFailureReason {
+  const code = error && typeof error === "object" && "code" in error ? String(error.code) : "";
+
+  switch (code) {
+    case "photo-library-permission-denied":
+      return "permission";
+    case "selected-file-too-large":
+      return "too-large";
+    case "unable-to-read-selected-file":
+    case "unknown-image-size":
+      return "unreadable";
+    case "unsupported-image-content-type":
+      return "unsupported-type";
+    default:
+      return "unknown";
+  }
+}
 
 const UPLOAD_NETWORK_MESSAGE =
   /network request failed|timed? ?out|econnreset|enotfound|failed to fetch|offline/i;
@@ -229,13 +313,19 @@ const UPLOAD_REJECTED_MESSAGE = /unauthorized|not allowed|too many|could not be 
  * The first version reported one opaque "could not be completed" for every
  * cause, which is why a stalled upload was indistinguishable from a rejected
  * one — and why the only way to tell them apart was to guess.
+ *
+ * `abortedStage` is the stage the watchdog gave up in, or `null` when the
+ * attempt was not aborted. It separates the two waits that used to share one
+ * message: bytes that stopped moving ("stalled") and a server that never
+ * answered after the last byte ("timeout"). The user can retry the first on a
+ * better connection; the second is ours to fix.
  */
 export function classifyMobileFeedbackUploadFailure(
   error: unknown,
-  wasAborted: boolean,
+  abortedStage: MobileUploadStage | null,
 ): MobileFeedbackUploadFailureReason {
-  if (wasAborted) {
-    return "timeout";
+  if (abortedStage) {
+    return abortedStage === "finalizing" ? "timeout" : "stalled";
   }
   if (!(error instanceof Error)) {
     return "unknown";
@@ -339,6 +429,55 @@ export const MOBILE_FEEDBACK_DIAGNOSTICS_EXCLUSIONS = [
   readonly icon: MobileLineIconName;
   readonly id: MobileFeedbackDiagnosticsExclusionId;
 }[];
+
+/**
+ * The chip row, in the order an item actually walks: it is reviewed, then
+ * queued, then built, then shipped. Sorting these alphabetically would put
+ * "Yayınlandı" between "Planlandı" and "Değerlendiriliyor" and lose the one
+ * thing the row is trying to say.
+ */
+export const MOBILE_ROADMAP_STATUS_FILTERS = [
+  "ALL",
+  "REVIEWING",
+  "PLANNED",
+  "IN_PROGRESS",
+  "SHIPPED",
+] as const;
+
+export type MobileRoadmapStatusFilter = (typeof MOBILE_ROADMAP_STATUS_FILTERS)[number];
+
+export type MobileRoadmapStatusCounts = Readonly<Record<MobileRoadmapStatusFilter, number>>;
+
+/**
+ * Counts every chip, including the empty ones. A chip that disappears when its
+ * last item moves on would reshuffle the row under the user's thumb, so zeros
+ * are counted rather than omitted.
+ */
+export function countMobileRoadmapByStatus(
+  items: readonly MobileRoadmapItem[],
+): MobileRoadmapStatusCounts {
+  const counts: Record<MobileRoadmapStatusFilter, number> = {
+    ALL: items.length,
+    IN_PROGRESS: 0,
+    PLANNED: 0,
+    REVIEWING: 0,
+    SHIPPED: 0,
+  };
+
+  for (const item of items) {
+    counts[item.status] += 1;
+  }
+
+  return counts;
+}
+
+/** "Tümü" is the server's ranking untouched; a status chip is that ranking, filtered. */
+export function filterMobileRoadmapItems(
+  items: readonly MobileRoadmapItem[],
+  filter: MobileRoadmapStatusFilter,
+): readonly MobileRoadmapItem[] {
+  return filter === "ALL" ? items : items.filter((item) => item.status === filter);
+}
 
 export interface MobileRoadmapVoteState {
   readonly voteCount: number;

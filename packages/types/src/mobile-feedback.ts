@@ -15,6 +15,13 @@ export const MOBILE_FEEDBACK_MESSAGE_MAX_LENGTH = 1_000;
 export const MOBILE_FEEDBACK_ATTACHMENT_MAX_COUNT = 3;
 export const MOBILE_ROADMAP_PREVIEW_COUNT = 3;
 export const ADMIN_FEEDBACK_PAGE_SIZE = 20;
+/** One line of a report, shared by the admin console row and the mobile list row. */
+export const FEEDBACK_PREVIEW_MAX_LENGTH = 200;
+/**
+ * "Bildirdiklerim" is a history, not a feed: a hundred rows is far past what
+ * anyone scrolls, so the tab loads once and never paginates.
+ */
+export const MOBILE_FEEDBACK_LIST_MAX_COUNT = 100;
 
 export const FeedbackRatingSchema = z.enum(["BAD", "OKAY", "GOOD", "GREAT"]);
 export const FeedbackTopicSchema = z.enum(["SUGGESTION", "BUG", "VOICE", "PERFORMANCE", "OTHER"]);
@@ -97,9 +104,36 @@ export const MobileRoadmapItemSchema = z
     isOwnSuggestion: z.boolean(),
     status: FeedbackStatusSchema,
     title: z.string().min(1).max(120),
+    /**
+     * Last edit of any kind, which is what the row's "3 gün önce güncellendi"
+     * claims — not a status-change date, because the item has no such column.
+     */
+    updatedAt: z.string().datetime(),
     voteCount: z.number().int().nonnegative(),
     votedByViewer: z.boolean(),
   })
+  .strict();
+
+/**
+ * One row of "Bildirdiklerim". Deliberately thinner than the summary the
+ * tracking screen reads: a list row shows a number, a status and a line of the
+ * message, so it must not carry the diagnostics blob or the attachments.
+ */
+export const MobileFeedbackListItemSchema = z
+  .object({
+    createdAt: z.string().datetime(),
+    id: FeedbackIdSchema,
+    preview: z.string().min(1).max(FEEDBACK_PREVIEW_MAX_LENGTH),
+    publicNumber: z.number().int().positive(),
+    rating: FeedbackRatingSchema,
+    status: FeedbackStatusSchema,
+    statusChangedAt: z.string().datetime().nullable(),
+    topic: FeedbackTopicSchema,
+  })
+  .strict();
+
+export const MobileFeedbackListResponseSchema = z
+  .object({ items: z.array(MobileFeedbackListItemSchema).max(MOBILE_FEEDBACK_LIST_MAX_COUNT) })
   .strict();
 
 export const MobileFeedbackSubmitResponseSchema = z
@@ -138,6 +172,8 @@ export type MobileFeedbackSubmitRequest = z.infer<typeof MobileFeedbackSubmitReq
 export type MobileFeedbackSummary = z.infer<typeof MobileFeedbackSummarySchema>;
 export type MobileFeedbackAttachment = z.infer<typeof MobileFeedbackAttachmentSchema>;
 export type MobileRoadmapItem = z.infer<typeof MobileRoadmapItemSchema>;
+export type MobileFeedbackListItem = z.infer<typeof MobileFeedbackListItemSchema>;
+export type MobileFeedbackListResponse = z.infer<typeof MobileFeedbackListResponseSchema>;
 export type MobileFeedbackSubmitResponse = z.infer<typeof MobileFeedbackSubmitResponseSchema>;
 export type MobileFeedbackDetailResponse = z.infer<typeof MobileFeedbackDetailResponseSchema>;
 export type MobileRoadmapListResponse = z.infer<typeof MobileRoadmapListResponseSchema>;
@@ -160,7 +196,7 @@ export const AdminFeedbackListItemSchema = z
     createdAt: z.string().datetime(),
     id: FeedbackIdSchema,
     /** Trimmed for the row; the detail view carries the whole message. */
-    preview: z.string().max(200),
+    preview: z.string().max(FEEDBACK_PREVIEW_MAX_LENGTH),
     publicNumber: z.number().int().positive(),
     rating: FeedbackRatingSchema,
     roadmapItemId: FeedbackIdSchema.nullable(),

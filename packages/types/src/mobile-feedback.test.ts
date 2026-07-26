@@ -9,7 +9,11 @@ import {
   AdminRoadmapUpdateRequestSchema,
   MOBILE_FEEDBACK_ATTACHMENT_MAX_COUNT,
   MOBILE_FEEDBACK_MESSAGE_MAX_LENGTH,
+  FEEDBACK_PREVIEW_MAX_LENGTH,
+  MOBILE_FEEDBACK_LIST_MAX_COUNT,
   MobileFeedbackDiagnosticsSchema,
+  MobileFeedbackListItemSchema,
+  MobileFeedbackListResponseSchema,
   MobileFeedbackSubmitRequestSchema,
   MobileRoadmapItemSchema,
   MobileRoadmapVoteRequestSchema,
@@ -87,18 +91,52 @@ describe("mobile feedback contracts", () => {
   });
 
   it("carries the roadmap flags the 4b card renders", () => {
-    const item = assertAccepts(MobileRoadmapItemSchema, {
+    const roadmapItem = {
       description: null,
       id: "item-1",
       isOwnSuggestion: true,
       status: "IN_PROGRESS",
       title: "Sunucu içi arama",
+      updatedAt: "2026-07-24T09:00:00.000Z",
       voteCount: 128,
       votedByViewer: true,
-    });
+    };
+    const item = assertAccepts(MobileRoadmapItemSchema, roadmapItem);
 
     assert.equal(item.isOwnSuggestion, true);
     assert.equal(item.voteCount, 128);
+    // The row says "3 gün önce güncellendi"; without the timestamp it cannot.
+    assert.equal(item.updatedAt, "2026-07-24T09:00:00.000Z");
+    assertRejects(MobileRoadmapItemSchema, { ...roadmapItem, updatedAt: undefined });
+  });
+
+  it("lists the viewer's own reports as previews, never whole messages", () => {
+    const listItem = {
+      createdAt: "2026-07-20T08:00:00.000Z",
+      id: "feedback-1",
+      preview: "Sesli kanalda mikrofon simgesi geç güncelleniyor.",
+      publicNumber: 1284,
+      rating: "OKAY",
+      status: "PLANNED",
+      statusChangedAt: "2026-07-24T09:00:00.000Z",
+      topic: "BUG",
+    };
+    const parsed = assertAccepts(MobileFeedbackListItemSchema, listItem);
+
+    assert.equal(parsed.publicNumber, 1284);
+    // A status that never moved is legitimate; a still-REVIEWING row has no date.
+    assertAccepts(MobileFeedbackListItemSchema, { ...listItem, statusChangedAt: null });
+    // Diagnostics and attachments belong to the detail view, not to a list row.
+    assertRejects(MobileFeedbackListItemSchema, { ...listItem, diagnostics: null });
+    assertRejects(MobileFeedbackListItemSchema, {
+      ...listItem,
+      preview: "a".repeat(FEEDBACK_PREVIEW_MAX_LENGTH + 1),
+    });
+
+    assertAccepts(MobileFeedbackListResponseSchema, { items: [listItem] });
+    assertRejects(MobileFeedbackListResponseSchema, {
+      items: Array.from({ length: MOBILE_FEEDBACK_LIST_MAX_COUNT + 1 }, () => listItem),
+    });
   });
 
   it("votes by end state, not by delta", () => {

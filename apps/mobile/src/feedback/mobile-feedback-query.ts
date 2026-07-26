@@ -10,6 +10,7 @@ import type { MobileApiClient } from "../api/mobile-api-client";
 import { mobileQueryKeys } from "../query/mobile-query-keys";
 import {
   fetchMobileFeedback,
+  fetchMobileFeedbackList,
   fetchMobileRoadmap,
   setMobileRoadmapVote,
 } from "./mobile-feedback-client";
@@ -24,6 +25,14 @@ export function useMobileFeedbackQuery(
     enabled: enabled && feedbackId !== null,
     queryFn: () => fetchMobileFeedback(client, feedbackId ?? ""),
     queryKey: mobileQueryKeys.feedback(feedbackId ?? ""),
+  });
+}
+
+export function useMobileFeedbackListQuery(client: MobileApiClient, enabled: boolean) {
+  return useQuery({
+    enabled,
+    queryFn: () => fetchMobileFeedbackList(client),
+    queryKey: mobileQueryKeys.myFeedback(),
   });
 }
 

@@ -75,6 +75,12 @@ export function createMobileQueryKeys(registry: MobileSearchKeyRegistry) {
       [...all, "dm-thread", conversationId, messageId] as const,
     feedbackRoot: () => [...all, "feedback"] as const,
     feedback: (feedbackId: string) => [...all, "feedback", feedbackId] as const,
+    /**
+     * Deliberately outside the `feedback` prefix: an optimistic roadmap vote
+     * walks every key under `feedbackRoot()` and reads each hit as a detail
+     * response, so the report list must not live where that walk can reach it.
+     */
+    myFeedback: () => [...all, "my-feedback"] as const,
     roadmap: () => [...all, "roadmap"] as const,
     friends: () => [...all, "friends"] as const,
     profile: () => [...all, "profile"] as const,

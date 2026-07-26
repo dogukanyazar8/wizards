@@ -109,6 +109,7 @@ export const API_RATE_LIMITS = {
   "mobile:media:upload": { limit: 10, windowSeconds: 5 * 60 },
   "mobile:message:search": { limit: 40, windowSeconds: 60 },
   "mobile:feedback:detail": { limit: 60, windowSeconds: 60 },
+  "mobile:feedback:list": { limit: 60, windowSeconds: 60 },
   "mobile:feedback:roadmap": { limit: 60, windowSeconds: 60 },
   // Submitting is deliberately tight: it writes a durable record and pings the
   // product team, so a stuck retry loop must not become a flood.

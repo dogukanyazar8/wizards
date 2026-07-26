@@ -1,11 +1,18 @@
 import { Pressable, Text, View } from "react-native";
-import type { FeedbackStatus, MobileRoadmapItem } from "@wizards/types";
+import {
+  formatFeedbackPublicNumber,
+  type FeedbackStatus,
+  type FeedbackTopic,
+  type MobileFeedbackListItem,
+  type MobileRoadmapItem,
+} from "@wizards/types";
 
 import { useMobileLocaleRuntime } from "../app/providers/mobile-locale-provider";
 import { useTheme } from "../app/providers/mobile-theme-provider";
 import { MobileLineIcon } from "../design/mobile-line-icons";
 import type { MobileTheme } from "../design/themes";
 import { mobileCopy } from "../locale/mobile-copy";
+import { formatMobileFeedbackRelativeTime } from "./mobile-feedback-model";
 import type { MobileFeedbackStyles } from "./mobile-feedback-screen.styles";
 
 type FeedbackCopy = (typeof mobileCopy)[keyof typeof mobileCopy];
@@ -71,11 +78,18 @@ export function MobileFeedbackStatusChip({
 }
 
 export function MobileRoadmapRow({
+  detailed = false,
   isFirst,
   item,
   onToggleVote,
   styles,
 }: {
+  /**
+   * The roadmap screen has a whole page to spend, so it shows the description
+   * and when the item last moved. The 4b receipt card gets the compact row: it
+   * is three lines under a thank-you, not a reading surface.
+   */
+  readonly detailed?: boolean;
   readonly isFirst: boolean;
   readonly item: MobileRoadmapItem;
   onToggleVote(item: MobileRoadmapItem): void;
@@ -90,18 +104,55 @@ export function MobileRoadmapRow({
     : statusLabel;
 
   return (
-    <View style={[styles.roadmapRow, !isFirst && styles.roadmapRowDivided]}>
+    <View
+      style={[
+        styles.roadmapRow,
+        detailed && styles.roadmapRowDetailed,
+        !isFirst && styles.roadmapRowDivided,
+      ]}
+    >
       <View style={styles.roadmapRowText}>
-        <Text numberOfLines={1} style={styles.roadmapTitle}>
+        <Text numberOfLines={detailed ? 2 : 1} style={styles.roadmapTitle}>
           {item.title}
         </Text>
-        <Text
-          numberOfLines={1}
-          style={styles.roadmapMeta}
-          testID={`mobile-roadmap-meta-${item.id}`}
-        >
-          {meta}
-        </Text>
+        {detailed ? (
+          <>
+            {item.description === null ? null : (
+              <Text numberOfLines={2} style={styles.roadmapDescription}>
+                {item.description}
+              </Text>
+            )}
+            <View style={styles.roadmapStatusRow}>
+              <MobileFeedbackStatusChip
+                status={item.status}
+                styles={styles}
+                testID={`mobile-roadmap-status-${item.id}`}
+              />
+              {item.isOwnSuggestion ? (
+                <Text style={styles.roadmapMeta}>{copy.feedbackRoadmapOwnSuggestion}</Text>
+              ) : null}
+              <Text style={styles.roadmapUpdated} testID={`mobile-roadmap-updated-${item.id}`}>
+                {copy.roadmapUpdatedAgo.replace(
+                  "{time}",
+                  formatMobileFeedbackRelativeTime(item.updatedAt, new Date(), {
+                    daysAgo: copy.feedbackDaysAgo,
+                    hoursAgo: copy.feedbackHoursAgo,
+                    justNow: copy.feedbackJustNow,
+                    minutesAgo: copy.feedbackMinutesAgo,
+                  }),
+                )}
+              </Text>
+            </View>
+          </>
+        ) : (
+          <Text
+            numberOfLines={1}
+            style={styles.roadmapMeta}
+            testID={`mobile-roadmap-meta-${item.id}`}
+          >
+            {meta}
+          </Text>
+        )}
       </View>
       <Pressable
         accessibilityLabel={
@@ -128,5 +179,72 @@ export function MobileRoadmapRow({
         </Text>
       </Pressable>
     </View>
+  );
+}
+
+export function getMobileFeedbackTopicLabel(copy: FeedbackCopy, topic: FeedbackTopic): string {
+  switch (topic) {
+    case "BUG":
+      return copy.feedbackTopicBug;
+    case "PERFORMANCE":
+      return copy.feedbackTopicPerformance;
+    case "SUGGESTION":
+      return copy.feedbackTopicSuggestion;
+    case "VOICE":
+      return copy.feedbackTopicVoice;
+    default:
+      return copy.feedbackTopicOther;
+  }
+}
+
+/**
+ * One row of "Bildirdiklerim". The tracking number leads because that is what a
+ * FEEDBACK notification says, so the row the user is hunting for is the one
+ * whose number they were shown.
+ */
+export function MobileMyFeedbackRow({
+  item,
+  onPress,
+  styles,
+}: {
+  readonly item: MobileFeedbackListItem;
+  onPress(feedbackId: string): void;
+  readonly styles: MobileFeedbackStyles;
+}) {
+  const { locale } = useMobileLocaleRuntime();
+  const copy = mobileCopy[locale];
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={() => onPress(item.id)}
+      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+      testID={`mobile-my-feedback-row-${item.id}`}
+    >
+      <View style={styles.myFeedbackHeader}>
+        <Text style={styles.myFeedbackNumber}>{formatFeedbackPublicNumber(item.publicNumber)}</Text>
+        <Text numberOfLines={1} style={styles.myFeedbackTopic}>
+          {getMobileFeedbackTopicLabel(copy, item.topic)}
+        </Text>
+      </View>
+      <Text numberOfLines={2} style={styles.myFeedbackPreview}>
+        {item.preview}
+      </Text>
+      <View style={styles.statusRow}>
+        <MobileFeedbackStatusChip
+          status={item.status}
+          styles={styles}
+          testID={`mobile-my-feedback-status-${item.id}`}
+        />
+        <Text style={styles.statusTime}>
+          {formatMobileFeedbackRelativeTime(item.statusChangedAt ?? item.createdAt, new Date(), {
+            daysAgo: copy.feedbackDaysAgo,
+            hoursAgo: copy.feedbackHoursAgo,
+            justNow: copy.feedbackJustNow,
+            minutesAgo: copy.feedbackMinutesAgo,
+          })}
+        </Text>
+      </View>
+    </Pressable>
   );
 }

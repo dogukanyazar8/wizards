@@ -156,6 +156,9 @@ importers:
       expo-image:
         specifier: ~57.0.1
         version: 57.0.1(expo@57.0.8)(react-native-web@0.21.2(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-native@0.86.0(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/jest-preset@0.86.0(@babel/core@7.29.7(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1))(@react-native/metro-config@0.86.0(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.17)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)
+      expo-image-manipulator:
+        specifier: ~57.0.6
+        version: 57.0.6(expo@57.0.8)
       expo-image-picker:
         specifier: ~57.0.6
         version: 57.0.6(expo@57.0.8)
@@ -4861,6 +4864,11 @@ packages:
 
   expo-image-loader@57.0.1:
     resolution: {integrity: sha512-uhrZKLT/cTl2mXyR28kPpVkS5O+PK9N1QA/07IFM4f5T4g0lTW1JHT3NEWwEEsGFldPmVX4j7LwUVVZxE+woug==}
+    peerDependencies:
+      expo: '*'
+
+  expo-image-manipulator@57.0.6:
+    resolution: {integrity: sha512-9eg0nTC0LRwnPgLajs27FoZvlvj1uSmn9dtADzR9RmnrsGLn345llMqm29IbN+WSbdHJF7E3GlengThLdKAQLg==}
     peerDependencies:
       expo: '*'
 
@@ -12978,6 +12986,11 @@ snapshots:
   expo-image-loader@57.0.1(expo@57.0.8):
     dependencies:
       expo: 57.0.8(089c240f89af0aa1fd00ac25f0d320f9)
+
+  expo-image-manipulator@57.0.6(expo@57.0.8):
+    dependencies:
+      expo: 57.0.8(089c240f89af0aa1fd00ac25f0d320f9)
+      expo-image-loader: 57.0.1(expo@57.0.8)
 
   expo-image-picker@57.0.6(expo@57.0.8):
     dependencies:

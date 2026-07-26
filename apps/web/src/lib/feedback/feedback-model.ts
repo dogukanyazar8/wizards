@@ -1,6 +1,10 @@
-import type { FeedbackStatus, MobileRoadmapItem } from "@wizards/types";
+import {
+  FEEDBACK_PREVIEW_MAX_LENGTH,
+  type FeedbackStatus,
+  type MobileRoadmapItem,
+} from "@wizards/types";
 
-export const FEEDBACK_PREVIEW_MAX_LENGTH = 200;
+export { FEEDBACK_PREVIEW_MAX_LENGTH };
 
 /**
  * Order for the roadmap: most-wanted first, then the curated position, then

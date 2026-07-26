@@ -6,8 +6,13 @@ import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals
 import type { MobileFeedbackSubmitRequest, MobileFeedbackSubmitResponse } from "@wizards/types";
 
 const mockSubmit = jest.fn<(...args: unknown[]) => Promise<MobileFeedbackSubmitResponse>>();
-const mockPickImage = jest.fn<() => Promise<unknown>>();
-const mockUploadImage = jest.fn<(file: unknown) => Promise<unknown>>();
+const mockPickImages = jest.fn<(limit: number) => Promise<unknown>>();
+const mockUploadImage = jest.fn<(file: unknown, options?: unknown) => Promise<unknown>>();
+
+const pickedBatch = (...names: string[]) => ({
+  failures: [],
+  picked: names.map((name) => ({ file: { name }, localUri: `file:///${name}` })),
+});
 const mockSetVote = jest.fn<(...args: unknown[]) => Promise<unknown>>();
 const mockBuildDiagnostics = jest.fn(() => ({
   appVersion: "1.4.0",
@@ -36,8 +41,8 @@ jest.mock("../src/feedback/mobile-feedback-client", () => ({
 
 jest.mock("../src/feedback/use-mobile-feedback-attachment-upload", () => ({
   useMobileFeedbackAttachmentUpload: () => ({
-    pickImage: () => mockPickImage(),
-    uploadImage: (file: unknown) => mockUploadImage(file),
+    pickImages: (limit: number) => mockPickImages(limit),
+    uploadImage: (file: unknown, options?: unknown) => mockUploadImage(file, options),
   }),
 }));
 
@@ -74,6 +79,7 @@ const submitted: MobileFeedbackSubmitResponse = {
       isOwnSuggestion: false,
       status: "IN_PROGRESS",
       title: "Sunucu içi arama",
+      updatedAt: "2026-07-26T09:00:00.000Z",
       voteCount: 128,
       votedByViewer: false,
     },
@@ -83,11 +89,14 @@ const submitted: MobileFeedbackSubmitResponse = {
       isOwnSuggestion: true,
       status: "REVIEWING",
       title: "Sunucu bazlı sessize alma",
+      updatedAt: "2026-07-26T09:00:00.000Z",
       voteCount: 1,
       votedByViewer: false,
     },
   ],
 };
+
+const openRoadmap = jest.fn();
 
 async function renderFlow() {
   const client = new QueryClient({
@@ -102,7 +111,7 @@ async function renderFlow() {
             <MobileFeedbackFlowScreen
               appVersion="1.4.0"
               onClose={jest.fn()}
-              onOpenRoadmap={jest.fn()}
+              onOpenRoadmap={openRoadmap}
             />
           </ToastProvider>
         </MobileLocaleProvider>
@@ -118,7 +127,7 @@ function flatten(style: unknown): Record<string, unknown> {
 beforeEach(() => {
   jest.clearAllMocks();
   mockSubmit.mockResolvedValue(submitted);
-  mockPickImage.mockResolvedValue(null);
+  mockPickImages.mockResolvedValue({ failures: [], picked: [] });
 });
 
 afterEach(async () => {
@@ -139,6 +148,17 @@ describe("4a feedback form", () => {
     expect(view.getByText(copy.feedbackDiagnosticsTitle)).toBeTruthy();
     expect(view.getByText(copy.feedbackPrivacyNote)).toBeTruthy();
     expect(view.getByTestId("mobile-feedback-counter").props.children).toBe("0 / 1000");
+  });
+
+  // The roadmap used to be reachable only after sending something, which meant
+  // reading it required first writing a report.
+  it("opens the community roadmap from the header, before anything is sent", async () => {
+    const view = await renderFlow();
+
+    await fireEvent.press(view.getByTestId("mobile-feedback-roadmap-open"));
+
+    expect(openRoadmap).toHaveBeenCalledTimes(1);
+    expect(mockSubmit).not.toHaveBeenCalled();
   });
 
   it("keeps Gönder inert until the message says something", async () => {
@@ -247,7 +267,7 @@ describe("4a feedback form", () => {
 
   it("shows the thumbnail the moment it is picked, before the upload lands", async () => {
     let resolveUpload: ((value: unknown) => void) | null = null;
-    mockPickImage.mockResolvedValue({ file: { name: "a.png" }, localUri: "file:///a.png" });
+    mockPickImages.mockResolvedValue(pickedBatch("a.png"));
     mockUploadImage.mockImplementation(
       () =>
         new Promise((resolve) => {
@@ -282,9 +302,9 @@ describe("4a feedback form", () => {
 
   it("stops at three screenshots and can drop one again", async () => {
     let uploadId = 0;
-    mockPickImage.mockImplementation(async () => {
+    mockPickImages.mockImplementation(async () => {
       uploadId += 1;
-      return { file: { name: `${uploadId}.png` }, localUri: `file:///${uploadId}.png` };
+      return pickedBatch(`${uploadId}.png`);
     });
     mockUploadImage.mockImplementation(async () => ({
       claimId: `upload-${uploadId}`,
@@ -307,8 +327,121 @@ describe("4a feedback form", () => {
     expect(view.getByTestId("mobile-feedback-attachment-add")).toBeTruthy();
   });
 
+  it("adds every image from one gallery visit and uploads them side by side", async () => {
+    mockPickImages.mockResolvedValue(pickedBatch("one.png", "two.png", "three.png"));
+    mockUploadImage.mockImplementation(async (file) => ({
+      claimId: `upload-${(file as { name: string }).name}`,
+      status: "uploaded",
+    }));
+
+    const view = await renderFlow();
+    await fireEvent.press(view.getByTestId("mobile-feedback-attachment-add"));
+
+    await waitFor(() =>
+      expect(view.getByTestId("mobile-feedback-attachment-remove-attachment-3")).toBeTruthy(),
+    );
+    // One visit, three tiles, three uploads — and the gallery was told it could
+    // return three.
+    expect(mockPickImages).toHaveBeenCalledTimes(1);
+    expect(mockPickImages).toHaveBeenCalledWith(3);
+    expect(mockUploadImage).toHaveBeenCalledTimes(3);
+
+    await fireEvent.changeText(view.getByTestId("mobile-feedback-message"), "Üç ekran görüntüsü");
+    await fireEvent.press(view.getByTestId("mobile-feedback-submit"));
+    await waitFor(() => expect(mockSubmit).toHaveBeenCalledTimes(1));
+    expect(
+      (mockSubmit.mock.calls[0]?.[1] as MobileFeedbackSubmitRequest).attachmentClaimIds,
+    ).toEqual(["upload-one.png", "upload-two.png", "upload-three.png"]);
+  });
+
+  it("asks the gallery only for the slots that are still free", async () => {
+    mockPickImages.mockResolvedValueOnce(pickedBatch("one.png", "two.png"));
+    mockUploadImage.mockImplementation(async () => ({ claimId: "upload-1", status: "uploaded" }));
+
+    const view = await renderFlow();
+    await fireEvent.press(view.getByTestId("mobile-feedback-attachment-add"));
+    await waitFor(() =>
+      expect(view.getByTestId("mobile-feedback-attachment-remove-attachment-2")).toBeTruthy(),
+    );
+
+    mockPickImages.mockResolvedValueOnce(pickedBatch("three.png"));
+    await fireEvent.press(view.getByTestId("mobile-feedback-attachment-add"));
+
+    expect(mockPickImages.mock.calls.map((call) => call[0])).toEqual([3, 1]);
+  });
+
+  /**
+   * A rejected image used to take the whole selection with it, which read as a
+   * broken picker rather than as one screenshot the upload could not describe.
+   */
+  it("keeps the usable images when one of them is refused", async () => {
+    mockPickImages.mockResolvedValue({
+      failures: ["unsupported-image-content-type"],
+      picked: [{ file: { name: "ok.png" }, localUri: "file:///ok.png" }],
+    });
+    mockUploadImage.mockResolvedValue({ claimId: "upload-1", status: "uploaded" });
+
+    const view = await renderFlow();
+    await fireEvent.press(view.getByTestId("mobile-feedback-attachment-add"));
+
+    await waitFor(() =>
+      expect(view.getByTestId("mobile-feedback-attachment-remove-attachment-1")).toBeTruthy(),
+    );
+    expect(view.getByText(copy.feedbackUploadFailedUnsupported)).toBeTruthy();
+    expect(mockUploadImage).toHaveBeenCalledTimes(1);
+  });
+
+  // A spinner that never moves is what made a slow upload look like a dead one.
+  it("shows how far the bytes have got while the upload is in flight", async () => {
+    let report: ((progress: number) => void) | null = null;
+    mockPickImages.mockResolvedValue(pickedBatch("a.png"));
+    mockUploadImage.mockImplementation(
+      (_file, options) =>
+        new Promise(() => {
+          report = (options as { onProgress?: (progress: number) => void } | undefined)?.onProgress
+            ? (options as { onProgress: (progress: number) => void }).onProgress
+            : null;
+        }),
+    );
+
+    const view = await renderFlow();
+    await fireEvent.press(view.getByTestId("mobile-feedback-attachment-add"));
+
+    await waitFor(() =>
+      expect(view.getByTestId("mobile-feedback-attachment-uploading-attachment-1")).toBeTruthy(),
+    );
+    // Nothing has moved yet, so the tile stays a plain spinner.
+    expect(view.queryByTestId("mobile-feedback-attachment-progress-attachment-1")).toBeNull();
+
+    await act(async () => {
+      report?.(0.42);
+    });
+
+    await waitFor(() =>
+      expect(
+        view.getByTestId("mobile-feedback-attachment-progress-attachment-1").props.children,
+      ).toBe("%42"),
+    );
+  });
+
+  it("names a stalled transfer and a slow server as different failures", async () => {
+    mockPickImages.mockResolvedValue(pickedBatch("a.png"));
+    mockUploadImage.mockResolvedValueOnce({ reason: "stalled", status: "failed" });
+
+    const view = await renderFlow();
+    await fireEvent.press(view.getByTestId("mobile-feedback-attachment-add"));
+
+    await waitFor(() => expect(view.getByText(copy.feedbackUploadFailedStalled)).toBeTruthy());
+    await fireEvent.press(view.getByTestId("mobile-toast-dismiss"));
+
+    mockUploadImage.mockResolvedValueOnce({ reason: "timeout", status: "failed" });
+    await fireEvent.press(view.getByTestId("mobile-feedback-attachment-retry-attachment-1"));
+
+    await waitFor(() => expect(view.getByText(copy.feedbackUploadFailedTimeout)).toBeTruthy());
+  });
+
   it("offers a retry on a failed upload and sends only what uploaded", async () => {
-    mockPickImage.mockResolvedValue({ file: { name: "a.png" }, localUri: "file:///a.png" });
+    mockPickImages.mockResolvedValue(pickedBatch("a.png"));
     mockUploadImage.mockResolvedValueOnce({ message: "boom", status: "failed" });
 
     const view = await renderFlow();
@@ -331,7 +464,7 @@ describe("4a feedback form", () => {
       expect(view.queryByTestId("mobile-feedback-attachment-retry-attachment-1")).toBeNull(),
     );
     // The retry re-sent the same file: the picker was opened exactly once.
-    expect(mockPickImage).toHaveBeenCalledTimes(1);
+    expect(mockPickImages).toHaveBeenCalledTimes(1);
     expect(mockUploadImage).toHaveBeenCalledTimes(2);
 
     await fireEvent.press(view.getByTestId("mobile-feedback-submit"));

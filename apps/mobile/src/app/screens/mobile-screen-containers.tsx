@@ -610,7 +610,16 @@ export function FeedbackSubmittedScreenContainer({
 export function RoadmapScreenContainer({
   navigation,
 }: NativeStackScreenProps<MobileRootStackParamList, "Roadmap">) {
-  return <MobileRoadmapScreen onBack={() => navigation.goBack()} />;
+  return (
+    <MobileRoadmapScreen
+      onBack={() => navigation.goBack()}
+      onOpenFeedback={(feedbackId) => navigation.navigate("FeedbackSubmitted", { feedbackId })}
+      // `navigate` rather than `push`: the roadmap is usually opened from the
+      // form, and an empty "Bildirdiklerim" should return to that form rather
+      // than stack a second copy of it behind this screen.
+      onStartFeedback={() => navigation.navigate("Feedback")}
+    />
+  );
 }
 
 export function SharedMediaScreenContainer({

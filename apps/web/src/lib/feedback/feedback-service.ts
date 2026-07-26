@@ -5,9 +5,11 @@ import {
   AdminFeedbackListResponseSchema,
   AdminRoadmapItemResponseSchema,
   AdminRoadmapListResponseSchema,
+  MOBILE_FEEDBACK_LIST_MAX_COUNT,
   MOBILE_ROADMAP_PREVIEW_COUNT,
   MobileFeedbackDetailResponseSchema,
   MobileFeedbackDiagnosticsSchema,
+  MobileFeedbackListResponseSchema,
   MobileFeedbackSubmitResponseSchema,
   MobileRoadmapListResponseSchema,
   MobileRoadmapVoteResponseSchema,
@@ -22,6 +24,7 @@ import {
   type FeedbackStatus,
   type FeedbackTopic,
   type MobileFeedbackDetailResponse,
+  type MobileFeedbackListResponse,
   type MobileFeedbackSubmitRequest,
   type MobileFeedbackSubmitResponse,
   type MobileRoadmapItem,
@@ -76,6 +79,7 @@ type RoadmapRow = {
   position: number;
   status: FeedbackStatus;
   title: string;
+  updatedAt: Date;
 };
 
 function toFeedbackSummary(row: FeedbackSummaryRow) {
@@ -108,6 +112,7 @@ function toMobileRoadmapItem(
     isOwnSuggestion: viewer.ownItemIds.has(row.id),
     status: row.status,
     title: row.title,
+    updatedAt: row.updatedAt.toISOString(),
     voteCount: row._count.votes,
     votedByViewer: viewer.votedItemIds.has(row.id),
   };
@@ -134,6 +139,7 @@ async function readMobileRoadmap(
         position: true,
         status: true,
         title: true,
+        updatedAt: true,
       },
       take: 200,
     }),
@@ -242,6 +248,46 @@ export async function getMobileFeedbackDetail(
   return MobileFeedbackDetailResponseSchema.parse({
     feedback: toFeedbackSummary(feedback),
     roadmap: resolveMobileRoadmapPreview(roadmap, MOBILE_ROADMAP_PREVIEW_COUNT),
+  });
+}
+
+/**
+ * The "Bildirdiklerim" tab: the viewer's own reports, newest first, one line of
+ * message each. The whole message, the diagnostics blob and the screenshots stay
+ * behind the detail route — a list row does not need them and shipping them
+ * would make a hundred-row response carry a hundred diagnostics payloads.
+ */
+export async function listMobileFeedback(
+  userId: string,
+  client: typeof prisma = prisma,
+): Promise<MobileFeedbackListResponse> {
+  const rows = await client.feedback.findMany({
+    orderBy: { createdAt: "desc" },
+    select: {
+      createdAt: true,
+      id: true,
+      message: true,
+      publicNumber: true,
+      rating: true,
+      status: true,
+      statusChangedAt: true,
+      topic: true,
+    },
+    take: MOBILE_FEEDBACK_LIST_MAX_COUNT,
+    where: { userId },
+  });
+
+  return MobileFeedbackListResponseSchema.parse({
+    items: rows.map((row) => ({
+      createdAt: row.createdAt.toISOString(),
+      id: row.id,
+      preview: buildFeedbackPreview(row.message),
+      publicNumber: row.publicNumber,
+      rating: row.rating,
+      status: row.status,
+      statusChangedAt: row.statusChangedAt?.toISOString() ?? null,
+      topic: row.topic,
+    })),
   });
 }
 

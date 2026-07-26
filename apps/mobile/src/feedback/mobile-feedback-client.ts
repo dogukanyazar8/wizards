@@ -1,9 +1,11 @@
 import {
   MobileFeedbackDetailResponseSchema,
+  MobileFeedbackListResponseSchema,
   MobileFeedbackSubmitResponseSchema,
   MobileRoadmapListResponseSchema,
   MobileRoadmapVoteResponseSchema,
   type MobileFeedbackDetailResponse,
+  type MobileFeedbackListResponse,
   type MobileFeedbackSubmitRequest,
   type MobileFeedbackSubmitResponse,
   type MobileRoadmapListResponse,
@@ -27,6 +29,15 @@ export async function fetchMobileFeedback(
 ): Promise<MobileFeedbackDetailResponse> {
   return MobileFeedbackDetailResponseSchema.parse(
     await client.requestJson(`/api/v1/mobile/feedback/${encodeURIComponent(feedbackId)}`),
+  );
+}
+
+/** The "Bildirdiklerim" tab: the viewer's own reports, newest first. */
+export async function fetchMobileFeedbackList(
+  client: MobileApiClient,
+): Promise<MobileFeedbackListResponse> {
+  return MobileFeedbackListResponseSchema.parse(
+    await client.requestJson("/api/v1/mobile/feedback"),
   );
 }
 

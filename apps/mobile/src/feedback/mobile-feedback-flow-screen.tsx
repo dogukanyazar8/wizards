@@ -25,7 +25,12 @@ export function MobileFeedbackFlowScreen({
 
   if (submission === null) {
     return (
-      <MobileFeedbackScreen appVersion={appVersion} onBack={onClose} onSubmitted={setSubmission} />
+      <MobileFeedbackScreen
+        appVersion={appVersion}
+        onBack={onClose}
+        onOpenRoadmap={onOpenRoadmap}
+        onSubmitted={setSubmission}
+      />
     );
   }
 

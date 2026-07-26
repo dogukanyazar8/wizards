@@ -8,27 +8,28 @@ import { useTheme } from "../app/providers/mobile-theme-provider";
 import { useMobileAuth } from "../auth/mobile-auth-context";
 import { MobileLineIcon } from "../design/mobile-line-icons";
 import { mobileCopy } from "../locale/mobile-copy";
-import {
-  useMobileFeedbackAttachmentUpload,
-  type MobileFeedbackPickedImage,
-} from "./use-mobile-feedback-attachment-upload";
+import { useMobileFeedbackAttachmentUpload } from "./use-mobile-feedback-attachment-upload";
 import { submitMobileFeedback } from "./mobile-feedback-client";
 import { buildMobileFeedbackDiagnostics } from "./mobile-feedback-diagnostics";
 import { MobileFeedbackDiagnosticsSheet } from "./mobile-feedback-diagnostics-sheet";
+import { getMobileFeedbackTopicLabel } from "./mobile-feedback-roadmap-card";
 import {
   MOBILE_FEEDBACK_MESSAGE_MAX_LENGTH,
   MOBILE_FEEDBACK_RATINGS,
   MOBILE_FEEDBACK_RATING_ICONS,
   MOBILE_FEEDBACK_TOPICS,
   MOBILE_FEEDBACK_TOPIC_ICONS,
-  addMobileFeedbackAttachment,
+  addMobileFeedbackAttachments,
   canAddMobileFeedbackAttachment,
   canSubmitMobileFeedback,
+  classifyMobileFeedbackPickerFailure,
   collectMobileFeedbackAttachmentClaimIds,
+  countMobileFeedbackAttachmentSlots,
   createMobileFeedbackAttachmentDraft,
   formatMobileFeedbackCounter,
   removeMobileFeedbackAttachment,
   resolveMobileFeedbackDiagnostics,
+  setMobileFeedbackAttachmentProgress,
   settleMobileFeedbackAttachment,
   type MobileFeedbackAttachmentDraft,
   type MobileFeedbackUploadFailureReason,
@@ -40,6 +41,7 @@ export const MOBILE_FEEDBACK_SCREEN_TEST_ID = "mobile-feedback-screen";
 export interface MobileFeedbackScreenProps {
   readonly appVersion: string;
   onBack(): void;
+  onOpenRoadmap(): void;
   onSubmitted(response: MobileFeedbackSubmitResponse): void;
 }
 
@@ -65,29 +67,24 @@ function getUploadFailureLabel(
   switch (reason) {
     case "network":
       return copy.feedbackUploadFailedNetwork;
+    case "permission":
+      return copy.feedbackUploadFailedPermission;
+    case "too-large":
+      return copy.feedbackUploadFailedTooLarge;
+    case "unreadable":
+      return copy.feedbackUploadFailedUnreadable;
+    case "unsupported-type":
+      return copy.feedbackUploadFailedUnsupported;
     case "rejected":
       return copy.feedbackUploadFailedRejected;
     case "signed-out":
       return copy.feedbackUploadFailedSignedOut;
+    case "stalled":
+      return copy.feedbackUploadFailedStalled;
     case "timeout":
       return copy.feedbackUploadFailedTimeout;
     default:
       return copy.feedbackUploadFailedUnknown;
-  }
-}
-
-export function getMobileFeedbackTopicLabel(copy: FeedbackCopy, topic: FeedbackTopic): string {
-  switch (topic) {
-    case "BUG":
-      return copy.feedbackTopicBug;
-    case "PERFORMANCE":
-      return copy.feedbackTopicPerformance;
-    case "SUGGESTION":
-      return copy.feedbackTopicSuggestion;
-    case "VOICE":
-      return copy.feedbackTopicVoice;
-    default:
-      return copy.feedbackTopicOther;
   }
 }
 
@@ -102,6 +99,7 @@ export function getMobileFeedbackTopicLabel(copy: FeedbackCopy, topic: FeedbackT
 export function MobileFeedbackScreen({
   appVersion,
   onBack,
+  onOpenRoadmap,
   onSubmitted,
 }: MobileFeedbackScreenProps) {
   const styles = useMobileFeedbackStyles();
@@ -110,7 +108,7 @@ export function MobileFeedbackScreen({
   const copy = mobileCopy[locale];
   const { apiClient } = useMobileAuth();
   const { showToast } = useToast();
-  const { pickImage, uploadImage } = useMobileFeedbackAttachmentUpload();
+  const { pickImages, uploadImage } = useMobileFeedbackAttachmentUpload();
 
   const [rating, setRating] = useState<FeedbackRating>("GOOD");
   const [topic, setTopic] = useState<FeedbackTopic>("SUGGESTION");
@@ -157,7 +155,12 @@ export function MobileFeedbackScreen({
    */
   const runUpload = useCallback(
     async (draftId: string, file: File) => {
-      const result = await uploadImage(file);
+      const result = await uploadImage(file, {
+        onProgress: (progress) =>
+          setAttachments((current) =>
+            setMobileFeedbackAttachmentProgress(current, draftId, progress),
+          ),
+      });
 
       if (result.status === "uploaded") {
         setAttachments((current) =>
@@ -177,37 +180,62 @@ export function MobileFeedbackScreen({
   );
 
   const addAttachment = useCallback(async () => {
-    if (!canAddMobileFeedbackAttachment(attachments)) {
+    const slots = countMobileFeedbackAttachmentSlots(attachments);
+    if (slots === 0) {
       return;
     }
 
-    let picked: MobileFeedbackPickedImage | null;
+    let result: Awaited<ReturnType<typeof pickImages>>;
     try {
       // The picker runs before any toast: a full-screen gallery with a
       // "yükleniyor" card behind it announced an upload that had not started.
-      picked = await pickImage();
-    } catch {
-      showToast({ title: copy.feedbackAttachmentFailedTitle, variant: "error" });
+      // It is told how many slots are free, so the gallery itself stops the
+      // user at the cap rather than the form dropping a picked image later.
+      result = await pickImages(slots);
+    } catch (error) {
+      showToast({
+        subtitle: getUploadFailureLabel(copy, classifyMobileFeedbackPickerFailure(error)),
+        title: copy.feedbackAttachmentFailedTitle,
+        variant: "error",
+      });
       return;
     }
 
-    if (!picked) {
+    // One unusable image never costs the user the rest of the selection: the
+    // ones that survived are added, and each distinct refusal is named once.
+    for (const reason of new Set(
+      result.failures.map((code) => classifyMobileFeedbackPickerFailure({ code })),
+    )) {
+      showToast({
+        subtitle: getUploadFailureLabel(copy, reason),
+        title: copy.feedbackAttachmentFailedTitle,
+        variant: "error",
+      });
+    }
+
+    if (result.picked.length === 0) {
       return;
     }
 
-    // The thumbnail is on screen from here on, whatever the network does.
-    const draftId = `attachment-${nextAttachmentId.current}`;
-    nextAttachmentId.current += 1;
-    const chosen = picked;
-    attachmentFilesRef.current.set(draftId, chosen.file);
+    // The thumbnails are on screen from here on, whatever the network does.
+    const started = result.picked.map((image) => {
+      const draftId = `attachment-${nextAttachmentId.current}`;
+      nextAttachmentId.current += 1;
+      attachmentFilesRef.current.set(draftId, image.file);
+      return { draft: createMobileFeedbackAttachmentDraft(draftId, image.localUri), image };
+    });
+
     setAttachments((current) =>
-      addMobileFeedbackAttachment(
+      addMobileFeedbackAttachments(
         current,
-        createMobileFeedbackAttachmentDraft(draftId, chosen.localUri),
+        started.map((entry) => entry.draft),
       ),
     );
-    void runUpload(draftId, chosen.file);
-  }, [attachments, copy.feedbackAttachmentFailedTitle, pickImage, runUpload, showToast]);
+
+    for (const entry of started) {
+      void runUpload(entry.draft.id, entry.image.file);
+    }
+  }, [attachments, copy, pickImages, runUpload, showToast]);
 
   const retryAttachment = useCallback(
     (draft: MobileFeedbackAttachmentDraft) => {
@@ -304,6 +332,17 @@ export function MobileFeedbackScreen({
             {copy.feedbackSubtitle}
           </Text>
         </View>
+        <Pressable
+          accessibilityLabel={copy.roadmapTitle}
+          accessibilityRole="button"
+          hitSlop={8}
+          onPress={onOpenRoadmap}
+          style={({ pressed }) => [styles.headerAction, pressed && styles.pressed]}
+          testID="mobile-feedback-roadmap-open"
+        >
+          <MobileLineIcon color={theme.accent.default} name="activity" size={13} />
+          <Text style={styles.headerActionLabel}>{copy.roadmapOpenAction}</Text>
+        </Pressable>
       </View>
 
       <ScrollView
@@ -419,6 +458,19 @@ export function MobileFeedbackScreen({
                     testID={`mobile-feedback-attachment-uploading-${attachment.id}`}
                   >
                     <MobileLineIcon color={theme.text.onInverse} name="loader-arc" size={16} />
+                    {/* A bare spinner cannot say whether the upload is slow or
+                        dead. The percentage can. */}
+                    {attachment.progress > 0 ? (
+                      <Text
+                        style={styles.attachmentVeilLabel}
+                        testID={`mobile-feedback-attachment-progress-${attachment.id}`}
+                      >
+                        {copy.feedbackAttachmentProgress.replace(
+                          "{percent}",
+                          String(Math.round(attachment.progress * 100)),
+                        )}
+                      </Text>
+                    ) : null}
                   </View>
                 ) : null}
                 {attachment.status === "failed" ? (

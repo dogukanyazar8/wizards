@@ -1810,8 +1810,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/locale/mobile-copy.ts": {
-    "mtime": 1785087850.3047147,
-    "ast_hash": "80a9efe54108a30d5be3950f767dca9b",
+    "mtime": 1785092409.4105296,
+    "ast_hash": "9480b26b9451565a6f851d3b3ad71dbb",
     "semantic_hash": ""
   },
   "apps/mobile/src/locale/mobile-date-separator.ts": {
@@ -9375,13 +9375,13 @@
     "semantic_hash": ""
   },
   "apps/mobile/component-tests/mobile-feedback-screens-4a-4b.test.tsx": {
-    "mtime": 1785086800.86195,
-    "ast_hash": "97ca4c01a94bc9b6405934a0f417b08b",
+    "mtime": 1785092439.5359478,
+    "ast_hash": "8b31afe3be8379d3482c1ce6e0b71729",
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-feedback-model.test.ts": {
-    "mtime": 1785086723.1345623,
-    "ast_hash": "4bc6d1064746d00023307e8dadbdb036",
+    "mtime": 1785092439.5546284,
+    "ast_hash": "0427dee0d875a632d6e53a9e8df5afdd",
     "semantic_hash": ""
   },
   "apps/mobile/src/feedback/mobile-fault-log.ts": {
@@ -9410,8 +9410,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/feedback/mobile-feedback-model.ts": {
-    "mtime": 1785086761.7897568,
-    "ast_hash": "49f324e9b22520781a0de8ad2816d513",
+    "mtime": 1785092439.5780234,
+    "ast_hash": "78b0c1ad9d26d1efe726b61d0bb1d37b",
     "semantic_hash": ""
   },
   "apps/mobile/src/feedback/mobile-feedback-query.ts": {
@@ -9425,13 +9425,13 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/feedback/mobile-feedback-screen.styles.ts": {
-    "mtime": 1785084564.360172,
-    "ast_hash": "6925596af370e9f5bb790209369f233a",
+    "mtime": 1785092262.5518005,
+    "ast_hash": "f8f022e008414a3d09d788cd75daea83",
     "semantic_hash": ""
   },
   "apps/mobile/src/feedback/mobile-feedback-screen.tsx": {
-    "mtime": 1785086691.1431763,
-    "ast_hash": "6da522a385474193eefb8b65a11a2861",
+    "mtime": 1785092409.4115376,
+    "ast_hash": "3ef7bcb61c2c72e04e42bdac07f1dcf3",
     "semantic_hash": ""
   },
   "apps/mobile/src/feedback/mobile-feedback-submitted-screen.tsx": {
@@ -9445,8 +9445,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/feedback/use-mobile-feedback-attachment-upload.ts": {
-    "mtime": 1785084641.1297927,
-    "ast_hash": "ff328375f357a78b47e84f94ede22623",
+    "mtime": 1785092393.0921926,
+    "ast_hash": "247ac8ddf44f30f72550f08b4ed5e77f",
     "semantic_hash": ""
   },
   "apps/web/src/app/api/v1/admin/feedback/[feedbackId]/route.ts": {

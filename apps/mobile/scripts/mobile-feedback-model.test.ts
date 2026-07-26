@@ -1,16 +1,22 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import type { FeedbackStatus, MobileRoadmapItem } from "@wizards/types";
 
 import {
   MOBILE_FEEDBACK_ATTACHMENT_MAX_COUNT,
+  MOBILE_ROADMAP_STATUS_FILTERS,
+  countMobileRoadmapByStatus,
+  filterMobileRoadmapItems,
   MOBILE_FEEDBACK_DIAGNOSTICS_EXCLUSIONS,
   buildMobileFeedbackDiagnosticsRows,
   MOBILE_FEEDBACK_RATING_ICONS,
   MOBILE_FEEDBACK_TOPICS,
   MOBILE_FEEDBACK_TOPIC_ICONS,
   addMobileFeedbackAttachment,
+  addMobileFeedbackAttachments,
   canAddMobileFeedbackAttachment,
   canSubmitMobileFeedback,
+  classifyMobileFeedbackPickerFailure,
   classifyMobileFeedbackUploadFailure,
   collectMobileFeedbackAttachmentClaimIds,
   countMobileFeedbackAttachmentsInFlight,
@@ -18,9 +24,11 @@ import {
   formatMobileFeedbackCounter,
   formatMobileFeedbackRelativeTime,
   isMobileFeedbackDiagnosticsDefaultOn,
+  countMobileFeedbackAttachmentSlots,
   removeMobileFeedbackAttachment,
   resolveMobileFeedbackDiagnostics,
   settleMobileFeedbackAttachment,
+  setMobileFeedbackAttachmentProgress,
   toggleMobileRoadmapVote,
 } from "../src/feedback/mobile-feedback-model";
 
@@ -73,6 +81,7 @@ test("a picked screenshot is on the list before its upload starts", () => {
     claimId: null,
     id: "a",
     localUri: "file:///a.png",
+    progress: 0,
     status: "uploading",
   });
 });
@@ -161,31 +170,44 @@ test("only uploaded tiles are submitted, and an in-flight one blocks Gönder", (
   );
 });
 
+test("a picker failure names the fixable cause instead of one blank error", () => {
+  const pick = (code: string) => classifyMobileFeedbackPickerFailure({ code });
+
+  assert.equal(pick("photo-library-permission-denied"), "permission");
+  assert.equal(pick("selected-file-too-large"), "too-large");
+  // The size the picker could not establish is why an upload used to hang.
+  assert.equal(pick("unknown-image-size"), "unreadable");
+  assert.equal(pick("unable-to-read-selected-file"), "unreadable");
+  assert.equal(pick("unsupported-image-content-type"), "unsupported-type");
+  assert.equal(pick("something-else"), "unknown");
+  assert.equal(classifyMobileFeedbackPickerFailure(new Error("boom")), "unknown");
+});
+
 test("an upload failure is classified so the tile can say what went wrong", () => {
   // A stalled upload the timeout aborted is not the same as a rejected one, and
   // one opaque message for both is what made this impossible to diagnose.
-  assert.equal(classifyMobileFeedbackUploadFailure(new Error("boom"), true), "timeout");
+  assert.equal(classifyMobileFeedbackUploadFailure(new Error("boom"), "finalizing"), "timeout");
   assert.equal(
     classifyMobileFeedbackUploadFailure(
       Object.assign(new Error("x"), { name: "AbortError" }),
-      false,
+      null,
     ),
     "timeout",
   );
   assert.equal(
-    classifyMobileFeedbackUploadFailure(new Error("Network request failed"), false),
+    classifyMobileFeedbackUploadFailure(new Error("Network request failed"), null),
     "network",
   );
-  assert.equal(classifyMobileFeedbackUploadFailure(new Error("Unauthorized"), false), "rejected");
+  assert.equal(classifyMobileFeedbackUploadFailure(new Error("Unauthorized"), null), "rejected");
   assert.equal(
     classifyMobileFeedbackUploadFailure(
       new Error("Too many uploads. Please try again shortly."),
-      false,
+      null,
     ),
     "rejected",
   );
-  assert.equal(classifyMobileFeedbackUploadFailure(new Error("boom"), false), "unknown");
-  assert.equal(classifyMobileFeedbackUploadFailure("not an error", false), "unknown");
+  assert.equal(classifyMobileFeedbackUploadFailure(new Error("boom"), null), "unknown");
+  assert.equal(classifyMobileFeedbackUploadFailure("not an error", null), "unknown");
 });
 
 test("the counter reads exactly as the card renders it", () => {
@@ -346,4 +368,137 @@ test("every topic and rating names a glyph from the shared line set", () => {
     GREAT: "face-great",
     OKAY: "face-okay",
   });
+});
+
+test("one gallery visit fills every free slot and stops at the cap", () => {
+  const added = addMobileFeedbackAttachments(
+    [],
+    [draft("attachment-1"), draft("attachment-2"), draft("attachment-3"), draft("attachment-4")],
+  );
+
+  assert.deepEqual(
+    added.map((attachment) => attachment.id),
+    ["attachment-1", "attachment-2", "attachment-3"],
+  );
+  assert.equal(added.length, MOBILE_FEEDBACK_ATTACHMENT_MAX_COUNT);
+});
+
+test("a batch lands beside what is already there, ignoring ids it already holds", () => {
+  const existing = addMobileFeedbackAttachment([], draft("attachment-1"));
+  const added = addMobileFeedbackAttachments(existing, [
+    draft("attachment-1"),
+    draft("attachment-2"),
+  ]);
+
+  assert.deepEqual(
+    added.map((attachment) => attachment.id),
+    ["attachment-1", "attachment-2"],
+  );
+});
+
+// The picker is told how many images it may accept, so the user never chooses
+// four screenshots only to watch one disappear.
+test("the free slot count is what the picker is allowed to return", () => {
+  assert.equal(countMobileFeedbackAttachmentSlots([]), MOBILE_FEEDBACK_ATTACHMENT_MAX_COUNT);
+  assert.equal(countMobileFeedbackAttachmentSlots([draft("attachment-1")]), 2);
+  assert.equal(
+    countMobileFeedbackAttachmentSlots([draft("a"), draft("b"), draft("c"), draft("d")]),
+    0,
+  );
+});
+
+test("progress rides on the tile that is uploading and nowhere else", () => {
+  const attachments = addMobileFeedbackAttachments(
+    [],
+    [draft("attachment-1"), draft("attachment-2")],
+  );
+
+  const updated = setMobileFeedbackAttachmentProgress(attachments, "attachment-1", 0.42);
+  assert.equal(updated[0]?.progress, 0.42);
+  assert.equal(updated[1]?.progress, 0);
+
+  // Out-of-range and unknown-tile reports are absorbed rather than trusted.
+  assert.equal(setMobileFeedbackAttachmentProgress(updated, "attachment-1", 4)[0]?.progress, 1);
+  assert.equal(setMobileFeedbackAttachmentProgress(updated, "attachment-1", -1)[0]?.progress, 0);
+  assert.equal(setMobileFeedbackAttachmentProgress(updated, "missing", 0.5), updated);
+});
+
+test("a settled tile keeps no stale progress behind its result", () => {
+  const attachments = setMobileFeedbackAttachmentProgress(
+    addMobileFeedbackAttachments([], [draft("attachment-1")]),
+    "attachment-1",
+    0.8,
+  );
+
+  assert.equal(
+    settleMobileFeedbackAttachment(attachments, "attachment-1", "claim-1")[0]?.progress,
+    1,
+  );
+  assert.equal(settleMobileFeedbackAttachment(attachments, "attachment-1", null)[0]?.progress, 0);
+});
+
+// A transfer that never moved and a server that never answered are different
+// failures, and the tile is the only place the user can learn which one it was.
+test("an upload killed before its last byte reads as stalled, not as a timeout", () => {
+  assert.equal(classifyMobileFeedbackUploadFailure(new Error("x"), "transferring"), "stalled");
+  assert.equal(classifyMobileFeedbackUploadFailure(new Error("x"), "preparing"), "stalled");
+  assert.equal(classifyMobileFeedbackUploadFailure(new Error("x"), "finalizing"), "timeout");
+});
+
+const roadmapItem = (
+  id: string,
+  status: FeedbackStatus,
+  overrides: Partial<MobileRoadmapItem> = {},
+): MobileRoadmapItem => ({
+  description: null,
+  id,
+  isOwnSuggestion: false,
+  status,
+  title: id,
+  updatedAt: "2026-07-26T10:00:00.000Z",
+  voteCount: 0,
+  votedByViewer: false,
+  ...overrides,
+});
+
+// The chips read as the pipeline the item actually walks, not alphabetically.
+test("the roadmap filters run in the order an item moves through them", () => {
+  assert.deepEqual(MOBILE_ROADMAP_STATUS_FILTERS, [
+    "ALL",
+    "REVIEWING",
+    "PLANNED",
+    "IN_PROGRESS",
+    "SHIPPED",
+  ]);
+});
+
+test("every chip carries its own count and Tümü carries the total", () => {
+  const counts = countMobileRoadmapByStatus([
+    roadmapItem("a", "PLANNED"),
+    roadmapItem("b", "PLANNED"),
+    roadmapItem("c", "SHIPPED"),
+  ]);
+
+  assert.equal(counts.ALL, 3);
+  assert.equal(counts.PLANNED, 2);
+  assert.equal(counts.SHIPPED, 1);
+  // A chip with nothing behind it still renders — a missing zero would make the
+  // row jump around as items move between statuses.
+  assert.equal(counts.REVIEWING, 0);
+  assert.equal(counts.IN_PROGRESS, 0);
+});
+
+test("Tümü keeps the server's ranking and a status chip keeps its subset in that ranking", () => {
+  const items = [
+    roadmapItem("top", "SHIPPED"),
+    roadmapItem("mid", "PLANNED"),
+    roadmapItem("low", "PLANNED"),
+  ];
+
+  assert.equal(filterMobileRoadmapItems(items, "ALL"), items);
+  assert.deepEqual(
+    filterMobileRoadmapItems(items, "PLANNED").map((item) => item.id),
+    ["mid", "low"],
+  );
+  assert.deepEqual(filterMobileRoadmapItems(items, "REVIEWING"), []);
 });

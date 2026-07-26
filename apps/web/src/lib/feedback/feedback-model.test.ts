@@ -16,6 +16,7 @@ function item(overrides: Partial<MobileRoadmapItem> & { id: string }): MobileRoa
     isOwnSuggestion: false,
     status: "REVIEWING",
     title: overrides.id,
+    updatedAt: "2026-07-26T10:00:00.000Z",
     voteCount: 0,
     votedByViewer: false,
     ...overrides,

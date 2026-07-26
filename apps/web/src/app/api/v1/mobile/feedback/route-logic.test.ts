@@ -24,8 +24,20 @@ const roadmapItem = {
   isOwnSuggestion: false,
   status: "PLANNED" as const,
   title: "Sesli mesajlar",
+  updatedAt: "2026-07-24T09:00:00.000Z",
   voteCount: 96,
   votedByViewer: false,
+};
+
+const listItem = {
+  createdAt: "2026-07-26T10:00:00.000Z",
+  id: "feedback-1",
+  preview: "Sunucu seçiciye arama eklenirse harika olur.",
+  publicNumber: 1284,
+  rating: "GOOD" as const,
+  status: "REVIEWING" as const,
+  statusChangedAt: null,
+  topic: "SUGGESTION" as const,
 };
 
 const submission = {
@@ -53,6 +65,7 @@ function dependencies(overrides: Record<string, unknown> = {}) {
     authenticate: async () => "user-1",
     enforceRateLimit: async () => undefined,
     getDetail: async () => ({ feedback, roadmap: [roadmapItem] }),
+    listOwnFeedback: async () => ({ items: [listItem] }),
     listRoadmap: async () => ({ items: [roadmapItem] }),
     parseBody: parseJsonBody,
     setVote: async () => ({ item: { ...roadmapItem, voteCount: 97, votedByViewer: true } }),
@@ -154,6 +167,41 @@ describe("mobile feedback routes", () => {
     assert.deepEqual(await response.json(), { items: [roadmapItem] });
   });
 
+  it("lists only the viewer's own reports for the Bildirdiklerim tab", async () => {
+    const { mobileFeedbackListRoute } = await routes;
+    const seen: string[] = [];
+    const response = await mobileFeedbackListRoute(
+      request("GET"),
+      dependencies({
+        listOwnFeedback: async (userId: string) => {
+          seen.push(userId);
+          return { items: [listItem] };
+        },
+      }),
+    );
+
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("Cache-Control"), "no-store, no-cache, must-revalidate");
+    assert.deepEqual(await response.json(), { items: [listItem] });
+    assert.deepEqual(seen, ["user-1"]);
+  });
+
+  it("rate limits the report list under its own action", async () => {
+    const { mobileFeedbackListRoute } = await routes;
+    const actions: string[] = [];
+    const response = await mobileFeedbackListRoute(
+      request("GET"),
+      dependencies({
+        enforceRateLimit: async (_userId: string, action: string) => {
+          actions.push(action);
+        },
+      }),
+    );
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(actions, ["mobile:feedback:list"]);
+  });
+
   it("votes by desired end state so a retried tap cannot double-count", async () => {
     const { mobileRoadmapVoteRoute } = await routes;
     const seen: unknown[] = [];
@@ -184,7 +232,8 @@ describe("mobile feedback routes", () => {
   });
 
   it("requires a session on every route", async () => {
-    const { mobileFeedbackSubmitRoute, mobileRoadmapListRoute } = await routes;
+    const { mobileFeedbackListRoute, mobileFeedbackSubmitRoute, mobileRoadmapListRoute } =
+      await routes;
     const unauthenticated = dependencies({
       authenticate: async () => {
         throw new ApiError("Unauthorized", 401, "UNAUTHORIZED");
@@ -196,5 +245,6 @@ describe("mobile feedback routes", () => {
       401,
     );
     assert.equal((await mobileRoadmapListRoute(request("GET"), unauthenticated)).status, 401);
+    assert.equal((await mobileFeedbackListRoute(request("GET"), unauthenticated)).status, 401);
   });
 });
