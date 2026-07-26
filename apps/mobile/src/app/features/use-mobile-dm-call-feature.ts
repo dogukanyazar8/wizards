@@ -212,8 +212,8 @@ export function useMobileDMCallFeature({
           // Only the caller is told the call was refused; the callee already knows.
           if (event.eventName === "dm:call:declined" && current?.status === "ringing-out") {
             showToast({
-              message: copy.directCallDeclinedNotice.replace("{name}", current.title),
-              tone: "warning",
+              title: copy.directCallDeclinedNotice.replace("{name}", current.title),
+              variant: "warning",
             });
           }
           void teardown({ leaveRoom: !wasRingingIn });
@@ -240,8 +240,8 @@ export function useMobileDMCallFeature({
       if (current.status === "ringing-out") {
         emitDMCallCancel({ conversationId: current.conversationId });
         showToast({
-          message: copy.directCallUnansweredNotice.replace("{name}", current.title),
-          tone: "warning",
+          title: copy.directCallUnansweredNotice.replace("{name}", current.title),
+          variant: "warning",
         });
         void teardown({ leaveRoom: true });
         return;

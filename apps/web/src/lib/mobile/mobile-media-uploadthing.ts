@@ -137,8 +137,13 @@ export async function authorizeMobileMediaUpload(
     // upload that can never be claimed.
     const intent = MobileMediaUploadIntentSchema.parse(input.intent);
 
-    // Avatar and banner are owner-scoped, so neither needs a server permission check.
-    if (intent.purpose === "profile-avatar" || intent.purpose === "profile-banner") {
+    // Avatar, banner and feedback screenshots are owner-scoped, so none of them
+    // needs a server permission check.
+    if (
+      intent.purpose === "feedback-attachment" ||
+      intent.purpose === "profile-avatar" ||
+      intent.purpose === "profile-banner"
+    ) {
       return {
         ownerId,
         purpose: intent.purpose,

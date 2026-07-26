@@ -198,7 +198,7 @@ export function MobileInviteSheet({
       })
       .catch(() => {
         autoCreateServerIdRef.current = null;
-        showToast({ message: labels.inviteSheetLinkUnavailable, tone: "danger" });
+        showToast({ title: labels.inviteSheetLinkUnavailable, variant: "error" });
       });
   }, [
     createInvite,
@@ -229,10 +229,13 @@ export function MobileInviteSheet({
         clearTimeout(copyTimerRef.current);
       }
       copyTimerRef.current = setTimeout(() => setCopied(false), MOBILE_INVITE_COPY_FEEDBACK_MS);
+      // The button's own "Kopyalandı ✓" only reads if the eye is still on the
+      // button; the toast is what confirms it when the thumb has moved on.
+      showToast({ title: labels.toastInviteLinkCopiedTitle, variant: "success" });
     } catch {
-      showToast({ message: labels.inviteSheetCopyFailed, tone: "danger" });
+      showToast({ title: labels.inviteSheetCopyFailed, variant: "error" });
     }
-  }, [labels.inviteSheetCopyFailed, linkInvite, showToast]);
+  }, [labels.inviteSheetCopyFailed, labels.toastInviteLinkCopiedTitle, linkInvite, showToast]);
 
   const handleShare = useCallback(async () => {
     if (!linkInvite) {
@@ -242,7 +245,7 @@ export function MobileInviteSheet({
     try {
       await shareMobileInviteUrl(linkInvite.shareUrl);
     } catch {
-      showToast({ message: labels.inviteSheetShareFailed, tone: "danger" });
+      showToast({ title: labels.inviteSheetShareFailed, variant: "error" });
     }
   }, [labels.inviteSheetShareFailed, linkInvite, showToast]);
 
@@ -260,7 +263,7 @@ export function MobileInviteSheet({
       setQrDataUrl(response.qrCodeDataUrl);
     } catch {
       setOverlay("none");
-      showToast({ message: labels.inviteSheetQrFailed, tone: "danger" });
+      showToast({ title: labels.inviteSheetQrFailed, variant: "error" });
     }
   }, [apiClient, labels.inviteSheetQrFailed, linkInvite, serverId, showToast]);
 
@@ -287,7 +290,7 @@ export function MobileInviteSheet({
       });
       setOverlay("none");
     } catch {
-      showToast({ message: labels.inviteSheetEditFailed, tone: "danger" });
+      showToast({ title: labels.inviteSheetEditFailed, variant: "error" });
     }
   }, [
     draftExpiresInHours,
@@ -306,11 +309,18 @@ export function MobileInviteSheet({
 
       try {
         await mutations.createTargetedInvite.mutateAsync({ serverId, userId });
+        showToast({ title: labels.toastInviteSentTitle, variant: "success" });
       } catch {
-        showToast({ message: labels.inviteSheetInviteFailed, tone: "danger" });
+        showToast({ title: labels.inviteSheetInviteFailed, variant: "error" });
       }
     },
-    [labels.inviteSheetInviteFailed, mutations.createTargetedInvite, serverId, showToast],
+    [
+      labels.inviteSheetInviteFailed,
+      labels.toastInviteSentTitle,
+      mutations.createTargetedInvite,
+      serverId,
+      showToast,
+    ],
   );
 
   const handleRevokeInvite = useCallback(
@@ -322,7 +332,7 @@ export function MobileInviteSheet({
       try {
         await mutations.deleteInvite.mutateAsync({ inviteId, serverId });
       } catch {
-        showToast({ message: labels.inviteSheetRevokeFailed, tone: "danger" });
+        showToast({ title: labels.inviteSheetRevokeFailed, variant: "error" });
       }
     },
     [labels.inviteSheetRevokeFailed, mutations.deleteInvite, serverId, showToast],

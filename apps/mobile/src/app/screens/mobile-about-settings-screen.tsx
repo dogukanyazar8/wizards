@@ -3,6 +3,8 @@ import { useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import * as Updates from "expo-updates";
 
+import { MOBILE_OPEN_SOURCE_LICENSE_GROUPS } from "../../legal/mobile-open-source-license-manifest";
+import { summarizeMobileOpenSourceLicenses } from "../../legal/mobile-open-source-licenses-model";
 import { mobileCopy } from "../../locale/mobile-copy";
 import { useMobileHaptics } from "../providers/mobile-haptics-provider";
 import { useMobileLocaleRuntime } from "../providers/mobile-locale-provider";
@@ -16,46 +18,41 @@ import {
 
 type AboutUpdateStatus = "checking" | "downloading" | "idle" | "up-to-date";
 
+/** The manifest is static, so its totals are resolved once at module load. */
+const openSourceLicenseSummary = summarizeMobileOpenSourceLicenses(
+  MOBILE_OPEN_SOURCE_LICENSE_GROUPS,
+);
+
 function AboutLegalRow({
-  disabled = false,
   isLast = false,
   label,
   onPress,
-  soonLabel,
   testID,
+  value,
 }: {
-  disabled?: boolean;
   isLast?: boolean;
   label: string;
   onPress?: () => void;
-  soonLabel?: string;
   testID: string;
+  value?: string;
 }) {
   const theme = useTheme();
   const styles = useMobileAboutSettingsStyles();
   return (
     <Pressable
-      accessibilityLabel={label}
+      accessibilityLabel={value ? `${label}, ${value}` : label}
       accessibilityRole="button"
-      accessibilityState={{ disabled }}
-      disabled={disabled}
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.row,
-        !isLast && styles.rowDivider,
-        disabled && styles.rowDisabled,
-        pressed && !disabled && styles.pressed,
-      ]}
+      style={({ pressed }) => [styles.row, !isLast && styles.rowDivider, pressed && styles.pressed]}
       testID={testID}
     >
       <Text style={styles.rowLabel}>{label}</Text>
-      {soonLabel ? (
-        <View style={styles.soonBadge}>
-          <Text style={styles.soonBadgeText}>{soonLabel}</Text>
-        </View>
-      ) : (
-        <Ionicons color={theme.text.soft} name="chevron-forward" size={16} />
-      )}
+      {value ? (
+        <Text numberOfLines={1} style={styles.rowValue}>
+          {value}
+        </Text>
+      ) : null}
+      <Ionicons color={theme.text.soft} name="chevron-forward" size={16} />
     </Pressable>
   );
 }
@@ -65,6 +62,7 @@ export function MobileAboutSettingsScreen({
   onBack,
   onOpenCookies,
   onOpenFeedback,
+  onOpenLicenses,
   onOpenPrivacy,
   onOpenTerms,
   releaseChannel,
@@ -74,6 +72,7 @@ export function MobileAboutSettingsScreen({
   onBack(): void;
   onOpenCookies(): void;
   onOpenFeedback(): void;
+  onOpenLicenses(): void;
   onOpenPrivacy(): void;
   onOpenTerms(): void;
   releaseChannel: string;
@@ -200,11 +199,16 @@ export function MobileAboutSettingsScreen({
           testID="mobile-about-cookies"
         />
         <AboutLegalRow
-          disabled
           isLast
           label={copy.aboutSettingsLicenses}
-          soonLabel={copy.aboutSettingsSoon}
+          onPress={onOpenLicenses}
           testID="mobile-about-licenses"
+          // The count is generated from the lockfile, so the row cannot promise
+          // a number the licenses screen then contradicts.
+          value={copy.openSourceLicensesPackageCount.replace(
+            "{count}",
+            String(openSourceLicenseSummary.packageCount),
+          )}
         />
       </View>
 

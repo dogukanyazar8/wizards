@@ -126,12 +126,18 @@ export const createMobileAboutSettingsStyles = (theme: MobileTheme) =>
       paddingVertical: 11,
     },
     rowDivider: { borderBottomColor: theme.border.subtle, borderBottomWidth: 1 },
-    rowDisabled: { opacity: 0.55 },
     rowLabel: {
       color: theme.text.primary,
       flex: 1,
       fontFamily: theme.typography.fontFamilyBold,
       fontSize: 14.5,
+      minWidth: 0,
+    },
+    rowValue: {
+      color: theme.text.soft,
+      flexShrink: 1,
+      fontFamily: theme.typography.fontFamilySemiBold,
+      fontSize: 12.5,
       minWidth: 0,
     },
     statusBadge: {
@@ -157,18 +163,6 @@ export const createMobileAboutSettingsStyles = (theme: MobileTheme) =>
       fontSize: 11.5,
     },
     statusTextOffline: { color: theme.status.danger },
-    soonBadge: {
-      backgroundColor: theme.surface.soft,
-      borderRadius: 999,
-      overflow: "hidden",
-      paddingHorizontal: 9,
-      paddingVertical: 3,
-    },
-    soonBadgeText: {
-      color: theme.text.soft,
-      fontFamily: theme.typography.fontFamilyBold,
-      fontSize: 11,
-    },
   }) satisfies Record<string, TextStyle | ViewStyle>;
 
 export const useMobileAboutSettingsStyles = () => useThemedStyles(createMobileAboutSettingsStyles);

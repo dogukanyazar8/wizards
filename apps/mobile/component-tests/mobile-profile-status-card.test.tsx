@@ -215,7 +215,7 @@ describe("mobile profile status card", () => {
 
     await waitFor(() => expect(view.getByTestId("mobile-toast")).toBeTruthy());
     expect(view.getByText("Profil güncellendi.")).toBeTruthy();
-    expect(view.getByTestId("mobile-toast-tone-success")).toBeTruthy();
+    expect(view.getByTestId("mobile-toast-variant-success")).toBeTruthy();
   });
 
   it("stays quiet when the save fails", async () => {

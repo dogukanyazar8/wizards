@@ -16,6 +16,7 @@ export * from "./auth";
 export * from "./workspace";
 export * from "./messages";
 export * from "./mobile";
+export * from "./mobile-feedback";
 export * from "./mobile-workspace-management";
 export * from "./mobile-social";
 export * from "./socket";

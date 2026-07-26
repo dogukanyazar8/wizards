@@ -16,6 +16,7 @@ export type MobilePickedImage = {
 };
 
 export type MobileImageUploadTarget =
+  | { purpose: "feedback-attachment" }
   | { purpose: "profile-avatar" }
   | { purpose: "profile-banner" }
   | { purpose: "server-icon"; targetServerId: string };

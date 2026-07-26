@@ -31,6 +31,7 @@ export interface NotificationSocketPayload extends NotificationSocketContext {
   id: string;
   userId: string;
   type:
+    | "FEEDBACK"
     | "MENTION"
     | "FRIEND_REQUEST"
     | "FRIEND_ACCEPTED"

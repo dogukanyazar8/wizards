@@ -15,7 +15,15 @@ type WorkspaceNotificationRecord = {
   read: boolean;
   readAt: Date | null;
   title: string;
-  type: "MENTION" | "FRIEND_REQUEST" | "FRIEND_ACCEPTED" | "DM" | "SERVER_INVITE" | "SYSTEM" | "MODERATION";
+  type:
+    | "FEEDBACK"
+    | "MENTION"
+    | "FRIEND_REQUEST"
+    | "FRIEND_ACCEPTED"
+    | "DM"
+    | "SERVER_INVITE"
+    | "SYSTEM"
+    | "MODERATION";
   userId: string;
 };
 

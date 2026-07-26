@@ -210,6 +210,7 @@ export const MobilePushRegistrationRevokeResponseSchema = z.object({
 });
 
 export const MobileNotificationTypeSchema = z.enum([
+  "FEEDBACK",
   "FRIEND_REQUEST",
   "FRIEND_ACCEPTED",
   "DM",

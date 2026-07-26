@@ -29,11 +29,13 @@ export default function App() {
       <SafeAreaProvider>
         {/* Tracks the IME per frame. Android runs edge-to-edge, so the window is
             never resized for the keyboard and every avoiding surface below reads
-            its height from here. Expo SDK 56 makes both system bars translucent
-            (without shipping react-native-edge-to-edge, so the library cannot
-            auto-detect it); the provider must be told, or the reported keyboard
-            height is offset by the bar heights on pre-Android-15 devices. */}
-        <KeyboardProvider navigationBarTranslucent statusBarTranslucent>
+            its height from here. The translucency hints used to be passed here
+            because the provider could not detect edge-to-edge without
+            react-native-edge-to-edge on disk. It can now: RN 0.86 publishes
+            `isEdgeToEdge` on the DeviceInfo constants and Expo SDK 57 turns that
+            flag on, so `KeyboardProvider` already forces both hints on for
+            itself. Passing them only earns a dev-only warning. */}
+        <KeyboardProvider>
           <MobileBootstrapErrorBoundary>
             <MobileQueryProvider>
               <MobileThemeProvider>

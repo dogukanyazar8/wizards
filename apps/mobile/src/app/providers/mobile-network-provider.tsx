@@ -56,7 +56,7 @@ export function MobileNetworkProvider({ children }: PropsWithChildren) {
       }
     });
     const unsubscribeAttempts = subscribeMobileOfflineMutationAttempt(() => {
-      showToast({ message: copy.offlineMutationMessage, tone: "warning" });
+      showToast({ title: copy.offlineMutationMessage, variant: "warning" });
     });
     return () => {
       unsubscribeAttempts();

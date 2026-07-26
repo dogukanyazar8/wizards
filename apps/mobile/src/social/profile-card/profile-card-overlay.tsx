@@ -266,8 +266,8 @@ function ProfileCardOverlay({
     haptics.impact();
     setBlockOpen(false);
     showToast({
-      message: copy.profileCardBlockedToastTemplate.replace("{name}", displayName),
-      tone: "success",
+      title: copy.profileCardBlockedToastTemplate.replace("{name}", displayName),
+      variant: "success",
     });
     onClose();
   }, [displayName, haptics, mutations.blockFriend, onClose, showToast, target.userId]);
@@ -277,7 +277,7 @@ function ProfileCardOverlay({
       setReportOpen(false);
       void (async () => {
         await mutations.reportUser.mutateAsync({ reason, userId: target.userId });
-        showToast({ message: copy.profileCardReportedToast, tone: "success" });
+        showToast({ title: copy.profileCardReportedToast, variant: "success" });
         onClose();
       })();
     },
@@ -307,8 +307,8 @@ function ProfileCardOverlay({
       });
       haptics.impact();
       showToast({
-        message: copy.profileCardRequestAcceptedToastTemplate.replace("{name}", displayName),
-        tone: "success",
+        title: copy.profileCardRequestAcceptedToastTemplate.replace("{name}", displayName),
+        variant: "success",
       });
     })();
   }, [displayName, haptics, incomingRequestId, mutations.acceptRequest, profile, showToast]);
@@ -324,7 +324,7 @@ function ProfileCardOverlay({
         requestId: incomingRequestId,
         userId: profile.user.id,
       });
-      showToast({ message: copy.profileCardRequestRejectedToast, tone: "success" });
+      showToast({ title: copy.profileCardRequestRejectedToast, variant: "success" });
       onClose();
     })();
   }, [incomingRequestId, mutations.rejectRequest, onClose, profile, showToast]);

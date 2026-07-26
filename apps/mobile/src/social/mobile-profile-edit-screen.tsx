@@ -188,6 +188,14 @@ export function MobileProfileEditScreen({ onBack }: { onBack(): void }) {
     setError(null);
     setUploadingTarget(target);
     const setPreview = target === "avatar" ? setAvatarPreviewUri : setBannerPreviewUri;
+    // Handoff 3b loading variant: one card that stays put for the whole upload
+    // and then turns into its own result, rather than a spinner here and an
+    // unrelated toast when it lands.
+    const upload = showToast({
+      subtitle: copy.toastMediaUploadingSubtitle,
+      title: target === "avatar" ? copy.toastPhotoUploadingTitle : copy.toastBannerUploadingTitle,
+      variant: "loading",
+    });
     const result = await selectAndUpload(
       { purpose: target === "avatar" ? "profile-avatar" : "profile-banner" },
       setPreview,
@@ -196,17 +204,28 @@ export function MobileProfileEditScreen({ onBack }: { onBack(): void }) {
     setPreview(null);
 
     if (result.status === "cancelled") {
+      upload.dismiss();
       return;
     }
 
     if (result.status === "error") {
       setError(result.message);
+      upload.resolve({
+        subtitle: result.message,
+        title: copy.toastMediaUploadFailedTitle,
+        variant: "error",
+      });
       return;
     }
 
     if (target === "banner") {
       if (result.response.purpose !== "profile-banner" || result.response.banner.id !== user.id) {
         setError(copy.profileEditAvatarNotPersisted);
+        upload.resolve({
+          subtitle: copy.profileEditAvatarNotPersisted,
+          title: copy.toastMediaUploadFailedTitle,
+          variant: "error",
+        });
         return;
       }
 
@@ -230,12 +249,21 @@ export function MobileProfileEditScreen({ onBack }: { onBack(): void }) {
         queryClient,
         userId: user.id,
       });
-      showToast({ message: copy.profileEditSaved, tone: "success" });
+      upload.resolve({
+        subtitle: copy.toastProfileUpdatedSubtitle,
+        title: copy.toastProfileUpdatedTitle,
+        variant: "success",
+      });
       return;
     }
 
     if (result.response.purpose !== "profile-avatar" || result.response.profile.id !== user.id) {
       setError(copy.profileEditAvatarNotPersisted);
+      upload.resolve({
+        subtitle: copy.profileEditAvatarNotPersisted,
+        title: copy.toastMediaUploadFailedTitle,
+        variant: "error",
+      });
       return;
     }
 
@@ -246,7 +274,11 @@ export function MobileProfileEditScreen({ onBack }: { onBack(): void }) {
       userId: profile.id,
     });
     setUser((current) => (current ? { ...current, avatarUrl: profile.avatarUrl } : current));
-    showToast({ message: copy.profileEditSaved, tone: "success" });
+    upload.resolve({
+      subtitle: copy.toastProfileUpdatedSubtitle,
+      title: copy.toastProfileUpdatedTitle,
+      variant: "success",
+    });
 
     let sessionReplaced = false;
     try {
@@ -260,7 +292,7 @@ export function MobileProfileEditScreen({ onBack }: { onBack(): void }) {
       sessionReplaced = false;
     }
     if (!sessionReplaced) {
-      showToast({ message: copy.accountSettingsSessionRefreshWarning, tone: "warning" });
+      showToast({ title: copy.accountSettingsSessionRefreshWarning, variant: "warning" });
     }
 
     void queryClient.invalidateQueries({ exact: true, queryKey: mobileQueryKeys.bootstrap() });
@@ -327,7 +359,11 @@ export function MobileProfileEditScreen({ onBack }: { onBack(): void }) {
       queryClient,
       userId: saved.id,
     });
-    showToast({ message: copy.profileEditSaved, tone: "success" });
+    showToast({
+      subtitle: copy.toastProfileUpdatedSubtitle,
+      title: copy.toastProfileUpdatedTitle,
+      variant: "success",
+    });
 
     if (patch.displayName !== undefined || patch.username !== undefined) {
       let sessionReplaced = false;
@@ -337,7 +373,7 @@ export function MobileProfileEditScreen({ onBack }: { onBack(): void }) {
         sessionReplaced = false;
       }
       if (!sessionReplaced) {
-        showToast({ message: copy.accountSettingsSessionRefreshWarning, tone: "warning" });
+        showToast({ title: copy.accountSettingsSessionRefreshWarning, variant: "warning" });
       }
     }
   };

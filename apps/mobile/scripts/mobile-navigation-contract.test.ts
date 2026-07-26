@@ -79,6 +79,38 @@ test("the 11f shared-media gallery is reachable from the profile page", () => {
   }
 });
 
+test("the 4a/4b feedback flow is one destination reachable from the profile hub", () => {
+  const containers = read("../src/app/screens/mobile-screen-containers.tsx");
+  const linking = read("../src/navigation/mobile-linking.ts");
+  const navigator = read("../src/navigation/mobile-navigator.tsx");
+  const routeTypes = read("../src/navigation/mobile-navigation-types.ts");
+  const settings = read("../src/app/screens/settings-screen.tsx");
+
+  // The post-send receipt is the second state of `Feedback`, not a route of its
+  // own, so Back from it always means "leave feedback" rather than "reopen a
+  // form I already submitted".
+  assert.match(routeTypes, /Feedback: undefined/);
+  assert.match(routeTypes, /FeedbackSubmitted: \{ readonly feedbackId: string \}/);
+  assert.match(routeTypes, /Roadmap: undefined/);
+  for (const routeName of ["Feedback", "FeedbackSubmitted", "Roadmap"]) {
+    assert.match(navigator, new RegExp(`<RootStack\\.Screen name="${routeName}">`));
+  }
+  for (const containerName of [
+    "FeedbackScreenContainer",
+    "FeedbackSubmittedScreenContainer",
+    "RoadmapScreenContainer",
+  ]) {
+    assert.match(containers, new RegExp(`export function ${containerName}`));
+  }
+
+  // Entry point: the profile settings list.
+  assert.match(settings, /mobileNavigationRef\.navigate\("Feedback"\)/);
+
+  // A FEEDBACK notification opens that record's tracking view, not the list.
+  assert.match(linking, /\^\\\/feedback\\\/\(\[\^\/\]\+\)\$/);
+  assert.match(linking, /name: "FeedbackSubmitted"/);
+});
+
 test("mobile navigation state falls back to the home overview tab", () => {
   assert.deepEqual(createMobileNavigationState("not-a-tab"), {
     currentTab: DEFAULT_MOBILE_TAB_ID,
@@ -304,11 +336,12 @@ test("keyboard ownership is split between the shell and chat keyboard regions", 
   const region = read("../src/app/mobile-chat-keyboard-region.tsx");
   const authBackground = read("../src/app/components/kit/auth/auth-screen-background.tsx");
 
-  // Expo runs Android edge-to-edge without shipping react-native-edge-to-edge,
-  // so the provider cannot auto-detect it: both translucency hints must be set
-  // or the measured keyboard height is offset by the system-bar heights.
-  assert.match(app, /<KeyboardProvider[\s\S]{0,120}?\bnavigationBarTranslucent\b/);
-  assert.match(app, /<KeyboardProvider[\s\S]{0,120}?\bstatusBarTranslucent\b/);
+  // Edge-to-edge is auto-detected now: RN publishes `isEdgeToEdge` on the
+  // DeviceInfo constants and Expo turns the flag on, so `KeyboardProvider`
+  // forces both translucency hints on itself. Passing them explicitly is dead
+  // weight that only produces a dev-only "values are ignored" warning.
+  assert.doesNotMatch(app, /<KeyboardProvider[^>]*\bnavigationBarTranslucent\b/);
+  assert.doesNotMatch(app, /<KeyboardProvider[^>]*\bstatusBarTranslucent\b/);
   // The shell keeps padding top-anchored screens (auth forms, settings,
   // threads) clear of the keyboard and reserves the system bottom inset once
   // for everyone.

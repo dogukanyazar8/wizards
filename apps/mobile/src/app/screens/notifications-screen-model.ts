@@ -5,6 +5,7 @@ import { getMobileIntlLocale } from "../../locale/mobile-locale-preferences";
 
 export type MobileNotificationPresentationKind =
   | "direct-message"
+  | "feedback"
   | "friend"
   | "mention"
   | "moderation"
@@ -77,6 +78,8 @@ export function getMobileNotificationPresentation(
   }
 
   switch (notification.type) {
+    case "FEEDBACK":
+      return { canJoinVoice: false, icon: "chatbubble-ellipses-outline", kind: "feedback" };
     case "DM":
       return { canJoinVoice: false, icon: "chatbubble-ellipses-outline", kind: "direct-message" };
     case "FRIEND_ACCEPTED":

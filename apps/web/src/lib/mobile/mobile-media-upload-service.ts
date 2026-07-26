@@ -80,14 +80,27 @@ export type MobileMediaOpportunisticCleanupDependencies = {
   timeoutMs?: number;
 };
 
-/** Avatar and banner are both owner-scoped; only the server icon carries a target. */
+/**
+ * Avatar, banner and feedback screenshots all belong to the uploader; only the
+ * server icon carries a target.
+ */
 const OWNER_SCOPED_PURPOSES = new Set<MobileMediaUploadPurpose>([
+  MobileMediaUploadPurpose.FEEDBACK_ATTACHMENT,
   MobileMediaUploadPurpose.PROFILE_AVATAR,
   MobileMediaUploadPurpose.PROFILE_BANNER,
 ]);
 
+/**
+ * 4a screenshots never reach `claimMobileMediaUpload`: that route's whole job is
+ * to swap a profile or server image, and a feedback screenshot replaces nothing.
+ * The submission claims them itself, in its own transaction.
+ */
+const FEEDBACK_CLAIM_PURPOSE = MobileMediaUploadPurpose.FEEDBACK_ATTACHMENT;
+
 function toDatabasePurpose(purpose: MobileMediaUploadPublicPurpose) {
   switch (purpose) {
+    case "feedback-attachment":
+      return MobileMediaUploadPurpose.FEEDBACK_ATTACHMENT;
     case "profile-avatar":
       return MobileMediaUploadPurpose.PROFILE_AVATAR;
     case "profile-banner":
@@ -99,6 +112,8 @@ function toDatabasePurpose(purpose: MobileMediaUploadPublicPurpose) {
 
 function toPublicPurpose(purpose: MobileMediaUploadPurpose): MobileMediaUploadPublicPurpose {
   switch (purpose) {
+    case MobileMediaUploadPurpose.FEEDBACK_ATTACHMENT:
+      return "feedback-attachment";
     case MobileMediaUploadPurpose.PROFILE_AVATAR:
       return "profile-avatar";
     case MobileMediaUploadPurpose.PROFILE_BANNER:
@@ -244,6 +259,11 @@ function describeUnclaimableUpload(
   }
   if (!hasValidPurposeTarget(upload)) {
     return "claim-purpose-target-invalid";
+  }
+  // A feedback screenshot has no image to replace. Left unguarded it would fall
+  // through the owner-scoped branch and overwrite the user's banner.
+  if (upload.purpose === FEEDBACK_CLAIM_PURPOSE) {
+    return "claim-purpose-not-claimable-here";
   }
 
   return null;
@@ -503,6 +523,101 @@ export async function claimMobileMediaUpload(
   }
 
   return committed.response;
+}
+
+export type MobileFeedbackAttachmentClaim = {
+  contentType: string;
+  height: number;
+  sizeBytes: number;
+  uploadId: string;
+  url: string;
+  width: number;
+};
+
+export type MobileFeedbackAttachmentClaimClient = {
+  mobileMediaUpload: Pick<typeof prisma.mobileMediaUpload, "findUnique" | "updateMany">;
+};
+
+/**
+ * Claims 4a screenshots inside the caller's own transaction, so a submission
+ * either stores its message *and* its images or neither. It reuses the same
+ * invariants the profile claim enforces — owner, unclaimed, unexpired, cleanup
+ * lease intact — because those are what keep an upload id from being replayed;
+ * it just has no image to swap at the end.
+ */
+export async function claimMobileFeedbackAttachmentUploads(
+  client: MobileFeedbackAttachmentClaimClient,
+  input: { claimIds: readonly string[]; now: Date; userId: string },
+): Promise<MobileFeedbackAttachmentClaim[]> {
+  const claims: MobileFeedbackAttachmentClaim[] = [];
+  const seen = new Set<string>();
+
+  for (const claimId of input.claimIds) {
+    // The same id twice would otherwise claim once and silently drop the rest.
+    if (seen.has(claimId)) {
+      uploadClaimUnavailable();
+    }
+    seen.add(claimId);
+
+    const upload = await client.mobileMediaUpload.findUnique({
+      where: { id: claimId },
+      select: {
+        claimedAt: true,
+        cleanupAfter: true,
+        contentType: true,
+        expiresAt: true,
+        height: true,
+        id: true,
+        ownerId: true,
+        purpose: true,
+        sizeBytes: true,
+        storageDeletedAt: true,
+        targetServerId: true,
+        url: true,
+        width: true,
+      },
+    });
+
+    if (
+      !upload ||
+      upload.purpose !== FEEDBACK_CLAIM_PURPOSE ||
+      upload.ownerId !== input.userId ||
+      upload.claimedAt !== null ||
+      upload.cleanupAfter === null ||
+      upload.cleanupAfter.getTime() !== upload.expiresAt.getTime() ||
+      upload.storageDeletedAt !== null ||
+      upload.expiresAt <= input.now ||
+      upload.targetServerId !== null
+    ) {
+      uploadClaimUnavailable();
+    }
+
+    const claimed = await client.mobileMediaUpload.updateMany({
+      data: { claimedAt: input.now, cleanupAfter: null },
+      where: {
+        claimedAt: null,
+        cleanupAfter: upload.cleanupAfter,
+        expiresAt: { gt: input.now },
+        id: upload.id,
+        ownerId: input.userId,
+        storageDeletedAt: null,
+      },
+    });
+    if (claimed.count !== 1) {
+      uploadClaimUnavailable();
+    }
+
+    claims.push({
+      contentType: upload.contentType,
+      height: upload.height,
+      sizeBytes: upload.sizeBytes,
+      uploadId: upload.id,
+      url: upload.url,
+      width: upload.width,
+    });
+  }
+
+  return claims;
 }
 
 function boundedCleanupLimit(limit: number | undefined) {

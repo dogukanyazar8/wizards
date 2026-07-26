@@ -151,6 +151,18 @@ export function resolveMobileRoutePathIntent(path: string): MobileNavigationRout
     };
   }
 
+  // `/feedback/<id>` — where a FEEDBACK notification lands. It opens the
+  // tracking view for that record rather than the notifications list, so the
+  // status the title announced is the first thing on screen.
+  const feedbackMatch = /^\/feedback\/([^/]+)$/.exec(pathname);
+  if (feedbackMatch?.[1]) {
+    return {
+      name: "FeedbackSubmitted",
+      params: { feedbackId: decodePathSegment(feedbackMatch[1]) },
+      type: "route",
+    };
+  }
+
   const serverRolesMatch = /^\/server\/([^/]+)\/settings\/roles$/.exec(pathname);
   if (serverRolesMatch?.[1]) {
     return {

@@ -30,12 +30,16 @@ function isHttpsUrl(value: string) {
 const MobileHttpsUrlSchema = z.string().url().max(2048).refine(isHttpsUrl, "HTTPS URL required");
 
 export const MobileMediaUploadPurposeSchema = z.enum([
+  "feedback-attachment",
   "profile-avatar",
   "profile-banner",
   "server-icon",
 ]);
 export const MobileMediaUploadContentTypeSchema = z.enum(["image/jpeg", "image/png", "image/webp"]);
 export const MobileMediaUploadIntentSchema = z.discriminatedUnion("purpose", [
+  // 4a screenshots: owner-scoped like the profile purposes, and consumed by the
+  // feedback submission instead of the generic claim route.
+  z.object({ purpose: z.literal("feedback-attachment") }).strict(),
   z.object({ purpose: z.literal("profile-avatar") }).strict(),
   z.object({ purpose: z.literal("profile-banner") }).strict(),
   z

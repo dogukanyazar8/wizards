@@ -29,6 +29,11 @@ import { NotificationsScreen } from "./notifications-screen";
 import { ProfileSettingsScreen } from "./settings-screen";
 import { BlockedUsersScreen } from "../../social/social-account-screens";
 import { MobileLegalDocumentScreen } from "../../legal/mobile-legal-document-screen";
+import { MobileOpenSourceLicensesScreen } from "../../legal/mobile-open-source-licenses-screen";
+import { MobileFeedbackFlowScreen } from "../../feedback/mobile-feedback-flow-screen";
+import { MobileFeedbackSubmittedScreen } from "../../feedback/mobile-feedback-submitted-screen";
+import { MobileRoadmapScreen } from "../../feedback/mobile-roadmap-screen";
+import { mobilePackageJson } from "../mobile-root-screen-shared";
 import { MobileProfileEditScreen } from "../../social/mobile-profile-edit-screen";
 import { MobileUserProfileScreen } from "../../social/mobile-user-profile-screen";
 import { useOpenMobileProfileCard } from "../../social/profile-card";
@@ -546,10 +551,66 @@ export function UserProfileStackScreenContainer({
   );
 }
 
+export function OpenSourceLicensesScreenContainer({
+  navigation,
+}: NativeStackScreenProps<MobileRootStackParamList, "OpenSourceLicenses">) {
+  return (
+    // The manifest is generated from this package's own dependency closure, so
+    // the version stamped on it is the package version — not whatever the
+    // server reports for the account's release channel.
+    <MobileOpenSourceLicensesScreen
+      appVersion={mobilePackageJson.version}
+      onBack={() => navigation.goBack()}
+    />
+  );
+}
+
 export function SecurityScreenContainer({
   navigation,
 }: NativeStackScreenProps<MobileRootStackParamList, "Security">) {
   return <MobileTwoFactorScreen onBack={() => navigation.goBack()} />;
+}
+
+export function FeedbackScreenContainer({
+  navigation,
+}: NativeStackScreenProps<MobileRootStackParamList, "Feedback">) {
+  return (
+    <MobileFeedbackFlowScreen
+      appVersion={mobilePackageJson.version}
+      onClose={() => navigation.goBack()}
+      onOpenRoadmap={() => navigation.navigate("Roadmap")}
+    />
+  );
+}
+
+/** The tracking view a FEEDBACK notification opens; it reads live status. */
+export function FeedbackSubmittedScreenContainer({
+  navigation,
+  route,
+}: NativeStackScreenProps<MobileRootStackParamList, "FeedbackSubmitted">) {
+  const feedbackId = route.params?.feedbackId;
+
+  return (
+    <MobileFeedbackSubmittedScreen
+      {...(feedbackId ? { feedbackId } : {})}
+      // A notification tap can be the first screen of a cold start, so there is
+      // not always something behind this one to go back to.
+      key={feedbackId ?? "feedback-tracking"}
+      onBack={() =>
+        navigation.canGoBack()
+          ? navigation.goBack()
+          : navigation.popTo("MainTabs", { screen: "settings" })
+      }
+      onOpenRoadmap={() => navigation.navigate("Roadmap")}
+      onStartNewFeedback={() => navigation.navigate("Feedback")}
+    />
+  );
+}
+
+export function RoadmapScreenContainer({
+  navigation,
+}: NativeStackScreenProps<MobileRootStackParamList, "Roadmap">) {
+  return <MobileRoadmapScreen onBack={() => navigation.goBack()} />;
 }
 
 export function SharedMediaScreenContainer({

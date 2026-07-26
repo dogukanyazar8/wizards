@@ -1,17 +1,14 @@
 import { useEffect, useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 
-import { BottomSheet, useSheetPresentation } from "../app/components/kit";
+import { BottomSheet, useSheetPresentation, useToast } from "../app/components/kit";
 import { useTheme } from "../app/providers/mobile-theme-provider";
 import { useMobileLocaleRuntime } from "../app/providers/mobile-locale-provider";
 import type { MobileApiClient } from "../api/mobile-api-client";
 import { MobileLineIcon } from "../design/mobile-line-icons";
 import { mobileCopy } from "../locale/mobile-copy";
 import { useMobileProfileSheetStyles } from "./mobile-profile-sheets.styles";
-import {
-  MOBILE_USER_NOTE_MAX_LENGTH,
-  normalizeMobileUserNote,
-} from "./mobile-user-note-client";
+import { MOBILE_USER_NOTE_MAX_LENGTH, normalizeMobileUserNote } from "./mobile-user-note-client";
 import { useMobileUserNoteMutation } from "./mobile-user-note-query";
 
 export const MOBILE_USER_NOTE_SHEET_TEST_ID = "mobile-profile-note-sheet";
@@ -49,6 +46,7 @@ export function MobileUserNoteSheet({
   const styles = useMobileProfileSheetStyles();
   const theme = useTheme();
   const presentation = useSheetPresentation();
+  const { showToast } = useToast();
   const saveNote = useMobileUserNoteMutation(client);
 
   const [draft, setDraft] = useState(note ?? "");
@@ -70,6 +68,11 @@ export function MobileUserNoteSheet({
   const canSave = isChanged && !saveNote.isPending;
   const title = copy.profileNoteSheetTitleFor.replace("{user}", username);
 
+  // Clearing the field is how a note is deleted — there is no separate delete
+  // control — so an emptied save is the one that gets the undo offer.
+  const isDeletion =
+    normalizeMobileUserNote(draft) === "" && normalizeMobileUserNote(storedNote) !== "";
+
   const submit = () => {
     if (!canSave) {
       return;
@@ -78,7 +81,23 @@ export function MobileUserNoteSheet({
     setFailed(false);
     saveNote.mutate(
       { body: draft, userId },
-      { onError: () => setFailed(true), onSuccess: () => onClose() },
+      {
+        onError: () => setFailed(true),
+        onSuccess: () => {
+          onClose();
+          if (isDeletion) {
+            showToast({
+              action: {
+                label: copy.toastUndoAction,
+                onPress: () => saveNote.mutate({ body: storedNote, userId }),
+              },
+              subtitle: copy.toastNoteDeletedSubtitle.replace("{user}", username),
+              title: copy.toastNoteDeletedTitle,
+              variant: "action",
+            });
+          }
+        },
+      },
     );
   };
 
@@ -138,10 +157,7 @@ export function MobileUserNoteSheet({
               testID={`${MOBILE_USER_NOTE_SHEET_TEST_ID}-input`}
               value={draft}
             />
-            <Text
-              style={styles.noteCounter}
-              testID={`${MOBILE_USER_NOTE_SHEET_TEST_ID}-counter`}
-            >
+            <Text style={styles.noteCounter} testID={`${MOBILE_USER_NOTE_SHEET_TEST_ID}-counter`}>
               {`${draft.length}/${MOBILE_USER_NOTE_MAX_LENGTH}`}
             </Text>
           </View>

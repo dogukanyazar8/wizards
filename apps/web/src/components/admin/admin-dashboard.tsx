@@ -12,6 +12,7 @@ import {
   HardDrive,
   Hash,
   LayoutDashboard,
+  MessageSquareHeart,
   MessageSquareText,
   MonitorSmartphone,
   Radio,
@@ -23,6 +24,7 @@ import {
   Video,
 } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
+import { AdminFeedbackPanel } from "@/components/admin/admin-feedback-panel";
 import { AdminManagementPanel } from "@/components/admin/admin-management-panel";
 import { NotificationComposer } from "@/components/admin/notification-composer";
 import type { AdminAccessUser } from "@/lib/admin/access";
@@ -49,6 +51,7 @@ const NAV_ITEMS = [
   { href: "#activity", icon: Activity, label: "Activity" },
   { href: "#servers", icon: Server, label: "Servers" },
   { href: "#management", icon: ShieldCheck, label: "Operations" },
+  { href: "#feedback", icon: MessageSquareHeart, label: "Feedback" },
   { href: "#notifications", icon: BellRing, label: "Notifications" },
   { href: "#audit", icon: ShieldCheck, label: "Audit" },
 ] as const;
@@ -345,6 +348,10 @@ export function AdminDashboard({ admin, dashboard }: AdminDashboardProps) {
   const canSendCampaigns = admin.role === "OWNER" || admin.role === "ADMIN";
   const canModerateUsers =
     admin.role === "OWNER" || admin.role === "ADMIN" || admin.role === "MODERATOR";
+  // Mirrors the roles the feedback API accepts for writes. Hiding the controls
+  // is cosmetic — the route is what actually refuses a read-only role.
+  const canManageFeedback =
+    admin.role === "OWNER" || admin.role === "ADMIN" || admin.role === "SUPPORT";
   const totalPeriodMessages = dashboard.usageSeries.reduce(
     (total, day) => total + day.messageCount,
     0,
@@ -637,6 +644,8 @@ export function AdminDashboard({ admin, dashboard }: AdminDashboardProps) {
         </section>
 
         <AdminManagementPanel canModerate={canModerateUsers} />
+
+        <AdminFeedbackPanel canManage={canManageFeedback} />
 
         <section
           className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.85fr)]"

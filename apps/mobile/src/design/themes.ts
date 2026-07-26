@@ -9,6 +9,8 @@ import {
   redesignLightbox,
   redesignProfileDark,
   redesignProfileLight,
+  redesignToastDark,
+  redesignToastLight,
 } from "./palette";
 import {
   mobileLayoutMetrics,
@@ -45,6 +47,84 @@ export interface MobileThemeElevationStyle {
 export interface MobileAvatarTint {
   readonly bg: string;
   readonly fg: string;
+}
+
+/**
+ * One toast variant's three coloured surfaces (handoff 3b/3c). The card, title
+ * and subtitle never change with the variant — colour only reaches the glyph
+ * tile, the action button and the countdown fill.
+ */
+export interface MobileToastVariantPalette {
+  readonly actionSurface: string;
+  readonly actionText: string;
+  /** Only the action/undo tile is outlined; every other tile is a flat tint. */
+  readonly iconBorder: string | null;
+  readonly iconColor: string;
+  readonly iconSurface: string;
+  readonly timer: string;
+}
+
+export type MobileToastVariantId = "action" | "error" | "info" | "loading" | "success" | "warning";
+
+export type MobileToastVariantPalettes = Readonly<
+  Record<MobileToastVariantId, MobileToastVariantPalette>
+>;
+
+function createToastVariantPalettes(
+  tokens: typeof redesignToastLight | typeof redesignToastDark,
+): MobileToastVariantPalettes {
+  return {
+    // "Geri al" is the one action the handoff fills: undo is the primary move,
+    // not a tinted afterthought, so it carries the brand button instead.
+    action: {
+      actionSurface: tokens.actionEmphasisSurface,
+      actionText: tokens.actionEmphasisText,
+      iconBorder: tokens.neutralBorder,
+      iconColor: tokens.neutralIcon,
+      iconSurface: tokens.neutralSurface,
+      timer: tokens.neutralTimer,
+    },
+    error: {
+      actionSurface: tokens.errorSurface,
+      actionText: tokens.errorIcon,
+      iconBorder: null,
+      iconColor: tokens.errorIcon,
+      iconSurface: tokens.errorSurface,
+      timer: tokens.errorIcon,
+    },
+    info: {
+      actionSurface: tokens.infoSurface,
+      actionText: tokens.infoIcon,
+      iconBorder: null,
+      iconColor: tokens.infoIcon,
+      iconSurface: tokens.infoSurface,
+      timer: tokens.infoIcon,
+    },
+    loading: {
+      actionSurface: tokens.infoSurface,
+      actionText: tokens.infoIcon,
+      iconBorder: null,
+      iconColor: tokens.infoIcon,
+      iconSurface: tokens.infoSurface,
+      timer: tokens.infoIcon,
+    },
+    success: {
+      actionSurface: tokens.successSurface,
+      actionText: tokens.successIcon,
+      iconBorder: null,
+      iconColor: tokens.successIcon,
+      iconSurface: tokens.successSurface,
+      timer: tokens.successIcon,
+    },
+    warning: {
+      actionSurface: tokens.warningSurface,
+      actionText: tokens.warningIcon,
+      iconBorder: null,
+      iconColor: tokens.warningIcon,
+      iconSurface: tokens.warningSurface,
+      timer: tokens.warningIcon,
+    },
+  };
 }
 
 export type MobileAvatarTints = readonly [MobileAvatarTint, ...MobileAvatarTint[]];
@@ -168,6 +248,7 @@ export interface MobileTheme {
     readonly miniVoiceBar: MobileThemeElevationStyle;
     readonly primaryAction: MobileThemeElevationStyle;
     readonly tabBar: MobileThemeElevationStyle;
+    readonly toast: MobileThemeElevationStyle;
   };
   readonly gradients: {
     readonly appBackground: readonly [string, string];
@@ -389,6 +470,20 @@ export interface MobileTheme {
     readonly androidNavigationBar: string;
     readonly statusBar: "dark" | "light";
   };
+  /**
+   * 3a-3c toast standard. Pinned literally in both themes because the handoff
+   * gives the toast its own card colour; the component reads these and never
+   * branches on `theme.dark` itself.
+   */
+  readonly toast: {
+    readonly card: string;
+    readonly cardBorder: string;
+    readonly closeIcon: string;
+    readonly subtitle: string;
+    readonly timerTrack: string;
+    readonly title: string;
+    readonly variants: MobileToastVariantPalettes;
+  };
   readonly text: {
     /** Reference-critical date-divider color; do not use for normal body text. */
     readonly dateSeparator: string;
@@ -546,6 +641,14 @@ export const lightTheme = deepFreeze({
       shadowOpacity: 0.06,
       shadowRadius: 22,
     },
+    /** Handoff 3b: `0 16px 40px rgba(30,34,53,.16)` (the 2px companion cannot stack in RN). */
+    toast: {
+      elevation: 16,
+      shadowColor: redesignLight.inkSurface,
+      shadowOffset: { height: 16, width: 0 },
+      shadowOpacity: 0.16,
+      shadowRadius: 40,
+    },
   },
   gradients: {
     appBackground: [redesignLight.bg, redesignLight.lavender],
@@ -675,6 +778,15 @@ export const lightTheme = deepFreeze({
     androidNavigationBar: redesignLight.bg,
     statusBar: "dark",
   },
+  toast: {
+    card: redesignToastLight.card,
+    cardBorder: redesignToastLight.cardBorder,
+    closeIcon: redesignToastLight.closeIcon,
+    subtitle: redesignToastLight.subtitle,
+    timerTrack: redesignToastLight.timerTrack,
+    title: redesignToastLight.title,
+    variants: createToastVariantPalettes(redesignToastLight),
+  },
   text: {
     dateSeparator: redesignLight.canonicalTextFaint,
     inverse: mobilePalette.neutral.white,
@@ -801,6 +913,14 @@ export const darkTheme = deepFreeze({
       shadowOpacity: 0.4,
       shadowRadius: 22,
     },
+    /** Handoff 3c: `0 16px 40px rgba(0,0,0,.45)`. */
+    toast: {
+      elevation: 16,
+      shadowColor: "#000000",
+      shadowOffset: { height: 16, width: 0 },
+      shadowOpacity: 0.45,
+      shadowRadius: 40,
+    },
   },
   gradients: {
     appBackground: [redesignDark.bg, redesignDark.card],
@@ -923,6 +1043,15 @@ export const darkTheme = deepFreeze({
   systemBars: {
     androidNavigationBar: redesignDark.bg,
     statusBar: "light",
+  },
+  toast: {
+    card: redesignToastDark.card,
+    cardBorder: redesignToastDark.cardBorder,
+    closeIcon: redesignToastDark.closeIcon,
+    subtitle: redesignToastDark.subtitle,
+    timerTrack: redesignToastDark.timerTrack,
+    title: redesignToastDark.title,
+    variants: createToastVariantPalettes(redesignToastDark),
   },
   text: {
     dateSeparator: redesignDark.canonicalTextFaint,

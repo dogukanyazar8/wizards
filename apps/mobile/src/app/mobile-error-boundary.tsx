@@ -27,6 +27,7 @@ import {
   createMobileBoundaryFaultReference,
   type MobileBoundaryFaultKind,
 } from "./mobile-error-boundary-model";
+import { recordMobileFault } from "../feedback/mobile-fault-log";
 import { useThemedStyles } from "./providers/mobile-theme-provider";
 import { useMobileBottomSystemSpacing } from "./use-mobile-bottom-system-spacing";
 
@@ -92,6 +93,9 @@ class MobileErrorBoundaryCore extends Component<
 
   componentDidCatch(error: unknown, errorInfo: ErrorInfo) {
     reportMobileBoundaryError(error, errorInfo.componentStack);
+    // Feeds the 4a diagnostics trail: kind and reference only, the same two
+    // values this screen is already allowed to show.
+    recordMobileFault(error);
 
     if (process.env.NODE_ENV === "production") {
       return;

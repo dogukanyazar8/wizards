@@ -159,6 +159,58 @@ export const redesignLight = {
 } as const;
 
 /**
+ * Handoff 3b/3c toast standard. The toast is the one surface the handoff pins
+ * exactly in both themes — its card is white on light and `#1E2235` on dark,
+ * neither of which is the app's own card colour — so the two variant tables are
+ * literal rather than derived from `redesignLight`/`redesignDark`.
+ */
+export const redesignToastLight = {
+  actionEmphasisSurface: "#4F46E5",
+  actionEmphasisText: "#FFFFFF",
+  card: "#FFFFFF",
+  cardBorder: "#E7E9F4",
+  closeIcon: "#9AA0BC",
+  errorIcon: "#E5484D",
+  errorSurface: "#FDEBEC",
+  infoIcon: "#4F46E5",
+  infoSurface: "#EEF0FE",
+  neutralBorder: "#E7E9F4",
+  neutralIcon: "#6B7194",
+  neutralSurface: "#F6F7FB",
+  neutralTimer: "#4F46E5",
+  subtitle: "#6B7194",
+  successIcon: "#22A366",
+  successSurface: "#E7F6EE",
+  timerTrack: "#EDEFF7",
+  title: "#1E2235",
+  warningIcon: "#D97706",
+  warningSurface: "#FEF0E8",
+} as const;
+
+export const redesignToastDark = {
+  actionEmphasisSurface: "#4F46E5",
+  actionEmphasisText: "#FFFFFF",
+  card: "#1E2235",
+  cardBorder: "#2E3452",
+  closeIcon: "#6B7194",
+  errorIcon: "#F27074",
+  errorSurface: "rgba(229,72,77,.16)",
+  infoIcon: "#8B85F0",
+  infoSurface: "rgba(79,70,229,.22)",
+  neutralBorder: "#2E3452",
+  neutralIcon: "#8A90B0",
+  neutralSurface: "#262B45",
+  neutralTimer: "#8B85F0",
+  subtitle: "#8A90B0",
+  successIcon: "#3DCB84",
+  successSurface: "rgba(34,163,102,.16)",
+  timerTrack: "#2E3452",
+  title: "#EDEFF7",
+  warningIcon: "#F0A44B",
+  warningSurface: "rgba(217,119,6,.18)",
+} as const;
+
+/**
  * Handoff 4c theme/layout preview artwork. These miniatures depict the other
  * theme, so they stay literal in both themes instead of following the active
  * surface tokens.

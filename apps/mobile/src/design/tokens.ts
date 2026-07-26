@@ -209,6 +209,9 @@ export const mobileLayoutMetrics = {
     // avatar/name/edit chip sit on top of it, so the card needs a real height of
     // its own instead of growing out of a body that no longer exists.
     profileIdentityCardHeight: 212,
+    // Inset of the edit chip from the banner's top-right corner. Smaller than the 16px the
+    // identity block sits on so the 44px touch target, not the chip, lines up with the edge.
+    profileIdentityEditActionInset: 10,
     profileIdentityEditActionRadius: 12,
     profileIdentityPresenceDot: 18,
     profileIdentityPresenceDotBorder: 3,

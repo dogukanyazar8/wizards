@@ -34,8 +34,20 @@ export type MobileRootStackParamList = {
     readonly userId: string;
   };
   BlockedUsers: undefined;
+  /** 4a product feedback form. */
+  Feedback: undefined;
+  /**
+   * 4b as a standalone destination: the tracking view a FEEDBACK notification
+   * opens. The post-send receipt is not a route — it is the second state of
+   * `Feedback`, so Back always means "leave feedback".
+   */
+  FeedbackSubmitted: { readonly feedbackId: string };
+  /** 4b "Tümünü gör" — the whole community roadmap. */
+  Roadmap: undefined;
   /** In-app reader for the same legal texts the web serves. */
   LegalDocument: { readonly documentId: MobileLegalDocumentId };
+  /** Attribution list for the open-source packages bundled in this build. */
+  OpenSourceLicenses: undefined;
   Security: undefined;
   /**
    * 11f shared-media gallery. `userId` is the other participant, carried so a
@@ -93,6 +105,11 @@ export type MobileNavigationRouteIntent =
       readonly type: "route";
     }
   | { readonly name: "ProfileEdit"; readonly params: undefined; readonly type: "route" }
+  | {
+      readonly name: "FeedbackSubmitted";
+      readonly params: MobileRootStackParamList["FeedbackSubmitted"];
+      readonly type: "route";
+    }
   | { readonly name: "BlockedUsers"; readonly params: undefined; readonly type: "route" };
 
 export type MobileNavigationCommandIntent = Exclude<

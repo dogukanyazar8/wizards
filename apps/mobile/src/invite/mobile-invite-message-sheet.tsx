@@ -61,10 +61,10 @@ export function MobileInviteMessageSheet({
     setSendingId(conversationId);
     try {
       await sendMobileDMMessage(apiClient, { content: shareUrl, conversationId });
-      showToast({ message: labels.inviteSheetMessageSent, tone: "success" });
+      showToast({ title: labels.inviteSheetMessageSent, variant: "success" });
       onClose();
     } catch {
-      showToast({ message: labels.inviteSheetMessageFailed, tone: "danger" });
+      showToast({ title: labels.inviteSheetMessageFailed, variant: "error" });
     } finally {
       setSendingId(null);
     }

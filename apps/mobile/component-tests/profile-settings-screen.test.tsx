@@ -328,7 +328,7 @@ describe("mobile profile settings screen", () => {
 
     await waitFor(() => expect(view.getByTestId("mobile-toast")).toBeTruthy());
     expect(view.getByText(copy.profileEditSaved)).toBeTruthy();
-    expect(view.getByTestId("mobile-toast-tone-success")).toBeTruthy();
+    expect(view.getByTestId("mobile-toast-variant-success")).toBeTruthy();
   });
 
   it("does not confirm a presence change the server rejected", async () => {

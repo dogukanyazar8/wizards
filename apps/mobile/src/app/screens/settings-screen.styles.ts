@@ -291,15 +291,22 @@ export const createSettingsScreenStyles = (theme: MobileTheme) => {
       color: theme.text.onInverse,
       fontFamily: theme.typography.fontFamilyExtraBold,
       fontSize: 19,
+      includeFontPadding: false,
+      lineHeight: 24,
     },
     // The pressable keeps a full touch target while the visual stays the compact 1f chip.
-    // It now sits in the bottom-right corner of the banner, so the chip wears the image
-    // scrim instead of the card surface — the banner can be any photo underneath it.
+    // It is pinned to the banner's top-right corner rather than sharing the bottom row with
+    // the identity block: the name and handle then own the full card width instead of being
+    // truncated by whatever the chip's label happens to measure. It wears the image scrim,
+    // so the banner can be any photo underneath it.
     mobileProfileEditAction: {
       alignItems: "flex-end",
-      justifyContent: "flex-end",
+      justifyContent: "center",
       minHeight: mobileSizing.minTouchTarget,
       minWidth: mobileSizing.minTouchTarget,
+      position: "absolute",
+      right: theme.layout.fixed.profileIdentityEditActionInset,
+      top: theme.layout.fixed.profileIdentityEditActionInset,
     },
     mobileProfileEditActionVisual: {
       alignItems: "center",
@@ -352,14 +359,13 @@ export const createSettingsScreenStyles = (theme: MobileTheme) => {
       height: theme.layout.fixed.profileIdentityCardHeight,
       overflow: "hidden",
     },
-    // Identity and the edit chip ride the bottom edge of the photo: name on the left,
-    // action on the right, both above the scrim so a bright banner stays readable.
+    // The identity rides the bottom edge of the photo and nothing shares the row with it —
+    // the edit chip sits in the opposite corner up top, so the name block can run the full
+    // width of the card before it ever has to truncate.
     mobileProfileIdentityOverlay: {
       alignItems: "flex-end",
       bottom: 0,
       flexDirection: "row",
-      gap: 12,
-      justifyContent: "space-between",
       left: 0,
       padding: 16,
       position: "absolute",
@@ -367,8 +373,8 @@ export const createSettingsScreenStyles = (theme: MobileTheme) => {
     },
     mobileProfileIdentityPerson: {
       alignItems: "center",
+      flex: 1,
       flexDirection: "row",
-      flexShrink: 1,
       gap: 12,
       minWidth: 0,
     },
@@ -467,6 +473,8 @@ export const createSettingsScreenStyles = (theme: MobileTheme) => {
       color: theme.text.onInverseMuted,
       fontFamily: theme.typography.fontFamily,
       fontSize: 13,
+      includeFontPadding: false,
+      lineHeight: 17,
     },
     settingsFootnote: {
       color: theme.text.soft,

@@ -663,7 +663,10 @@ export function MobileAccountSettingsView({
               <Pressable
                 accessibilityLabel={copy.accountSettingsEmailVerifyAction}
                 accessibilityRole="button"
-                accessibilityState={{ busy: isVerificationSending, disabled: isVerificationSending }}
+                accessibilityState={{
+                  busy: isVerificationSending,
+                  disabled: isVerificationSending,
+                }}
                 disabled={isVerificationSending}
                 onPress={() => void onVerifyEmail(settings.account.email)}
                 style={({ pressed }) => [styles.verifyActionTarget, pressed && styles.pressed]}
@@ -900,7 +903,7 @@ export function MobileAccountSettingsScreen({
     let mounted = true;
     readMobileAccountVisibilityPreferences(AsyncStorage)
       .then((value) => mounted && setLocalVisibility(value))
-      .catch(() => showToast({ message: copy.accountSettingsLoadError, tone: "danger" }));
+      .catch(() => showToast({ title: copy.accountSettingsLoadError, variant: "error" }));
     return () => {
       mounted = false;
     };
@@ -920,7 +923,7 @@ export function MobileAccountSettingsScreen({
         value,
       });
     } catch (error) {
-      showToast({ message: copy.accountSettingsUpdateError, tone: "danger" });
+      showToast({ title: copy.accountSettingsUpdateError, variant: "error" });
       throw error;
     }
   };
@@ -929,7 +932,7 @@ export function MobileAccountSettingsScreen({
     try {
       await privacyMutation.mutateAsync(input);
     } catch (error) {
-      showToast({ message: copy.accountSettingsUpdateError, tone: "danger" });
+      showToast({ title: copy.accountSettingsUpdateError, variant: "error" });
       throw error;
     }
   };
@@ -939,7 +942,7 @@ export function MobileAccountSettingsScreen({
     try {
       response = await profileMutations.updateProfile.mutateAsync(input);
     } catch (error) {
-      showToast({ message: copy.accountSettingsUpdateError, tone: "danger" });
+      showToast({ title: copy.accountSettingsUpdateError, variant: "error" });
       throw error;
     }
 
@@ -952,8 +955,8 @@ export function MobileAccountSettingsScreen({
     }
     if (!sessionReplaced) {
       showToast({
-        message: copy.accountSettingsSessionRefreshWarning,
-        tone: "warning",
+        title: copy.accountSettingsSessionRefreshWarning,
+        variant: "warning",
       });
     }
   };
@@ -961,9 +964,9 @@ export function MobileAccountSettingsScreen({
   const copyUsername = async (username: string) => {
     try {
       await Clipboard.setStringAsync(`@${username}`);
-      showToast({ message: copy.accountSettingsCopySuccess, tone: "success" });
+      showToast({ title: copy.accountSettingsCopySuccess, variant: "success" });
     } catch (error) {
-      showToast({ message: copy.accountSettingsCopyError, tone: "danger" });
+      showToast({ title: copy.accountSettingsCopyError, variant: "error" });
       throw error;
     }
   };
@@ -976,9 +979,9 @@ export function MobileAccountSettingsScreen({
     setVerificationSending(true);
     try {
       await requestMobileVerificationEmail(apiClient, { email, locale });
-      showToast({ message: copy.accountSettingsEmailVerifySent, tone: "success" });
+      showToast({ title: copy.accountSettingsEmailVerifySent, variant: "success" });
     } catch {
-      showToast({ message: copy.accountSettingsEmailVerifyFailed, tone: "danger" });
+      showToast({ title: copy.accountSettingsEmailVerifyFailed, variant: "error" });
     } finally {
       setVerificationSending(false);
     }

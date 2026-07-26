@@ -21,6 +21,10 @@ import {
   ProfileEditScreenContainer,
   BlockedUsersScreenContainer,
   LegalDocumentScreenContainer,
+  OpenSourceLicensesScreenContainer,
+  FeedbackScreenContainer,
+  FeedbackSubmittedScreenContainer,
+  RoadmapScreenContainer,
   SecurityScreenContainer,
   SharedMediaScreenContainer,
   ServerSettingsStackScreenContainer,
@@ -136,6 +140,18 @@ export function MobileNavigator({
           <RootStack.Screen name="BlockedUsers" component={BlockedUsersScreenContainer} />
           <RootStack.Screen name="LegalDocument">
             {(props) => <LegalDocumentScreenContainer {...props} />}
+          </RootStack.Screen>
+          <RootStack.Screen name="OpenSourceLicenses">
+            {(props) => <OpenSourceLicensesScreenContainer {...props} />}
+          </RootStack.Screen>
+          <RootStack.Screen name="Feedback">
+            {(props) => <FeedbackScreenContainer {...props} />}
+          </RootStack.Screen>
+          <RootStack.Screen name="FeedbackSubmitted">
+            {(props) => <FeedbackSubmittedScreenContainer {...props} />}
+          </RootStack.Screen>
+          <RootStack.Screen name="Roadmap">
+            {(props) => <RoadmapScreenContainer {...props} />}
           </RootStack.Screen>
           <RootStack.Screen name="Security">
             {(props) => <SecurityScreenContainer {...props} />}

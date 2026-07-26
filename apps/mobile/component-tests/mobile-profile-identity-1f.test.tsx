@@ -37,20 +37,40 @@ describe("1f profile identity card", () => {
     expect(styles.mobileProfileAvatarPresence.right).toBe(-2);
   });
 
-  it("keeps the edit chip compact and parks it in the banner's bottom-right corner", () => {
+  it("keeps the edit chip compact and parks it in the banner's top-right corner", () => {
+    expect(styles.mobileProfileEditAction.position).toBe("absolute");
+    expect(styles.mobileProfileEditAction.top).toBe(
+      lightTheme.layout.fixed.profileIdentityEditActionInset,
+    );
+    expect(styles.mobileProfileEditAction.right).toBe(
+      lightTheme.layout.fixed.profileIdentityEditActionInset,
+    );
+    expect(styles.mobileProfileEditAction.bottom).toBeUndefined();
     expect(styles.mobileProfileEditAction.alignItems).toBe("flex-end");
-    expect(styles.mobileProfileEditAction.justifyContent).toBe("flex-end");
     expect(styles.mobileProfileEditAction.minHeight).toBe(lightTheme.sizing.minTouchTarget);
     expect(styles.mobileProfileEditActionVisual.borderRadius).toBe(12);
     expect(styles.mobileProfileEditActionVisual.paddingHorizontal).toBe(12);
     expect(styles.mobileProfileEditActionVisual.paddingVertical).toBe(8);
     expect(styles.mobileProfileEditActionText.fontSize).toBe(12.5);
-    // Bottom-right of the banner, opposite the identity block.
+  });
+
+  // The name used to share the bottom row with the edit chip and lost whatever width the
+  // chip's label took, which truncated ordinary display names on a 375pt screen.
+  it("gives the identity block the full banner width now the chip has left the row", () => {
     expect(styles.mobileProfileIdentityOverlay.position).toBe("absolute");
     expect(styles.mobileProfileIdentityOverlay.bottom).toBe(0);
+    expect(styles.mobileProfileIdentityOverlay.left).toBe(0);
     expect(styles.mobileProfileIdentityOverlay.right).toBe(0);
     expect(styles.mobileProfileIdentityOverlay.alignItems).toBe("flex-end");
-    expect(styles.mobileProfileIdentityOverlay.justifyContent).toBe("space-between");
+    expect(styles.mobileProfileIdentityOverlay.justifyContent).toBeUndefined();
+    expect(styles.mobileProfileIdentityPerson.flex).toBe(1);
+    expect(styles.mobileProfileIdentityPerson.minWidth).toBe(0);
+    // The scrim pill still hugs its text — it shrinks, it does not stretch.
+    expect(styles.mobileProfileIdentityText.flexShrink).toBe(1);
+    expect(styles.mobileProfileIdentityText.flex).toBeUndefined();
+    // Both lines carry an explicit line box so the extra-bold name never clips.
+    expect(styles.mobileProfileDisplayName.lineHeight).toBe(24);
+    expect(styles.mobileProfileUsername.lineHeight).toBe(17);
   });
 
   // The photo is never washed over: only the name block and the edit chip carry the scrim.

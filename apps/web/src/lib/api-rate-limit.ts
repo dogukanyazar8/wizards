@@ -8,6 +8,10 @@ export const API_RATE_LIMITS = {
   "admin:campaign:preview": { limit: 60, windowSeconds: 60 },
   "admin:campaign:send": { limit: 6, windowSeconds: 60 },
   "admin:dashboard": { limit: 120, windowSeconds: 60 },
+  "admin:feedback:list": { limit: 120, windowSeconds: 60 },
+  "admin:feedback:read": { limit: 120, windowSeconds: 60 },
+  "admin:feedback:update": { limit: 40, windowSeconds: 60 },
+  "admin:roadmap:update": { limit: 40, windowSeconds: 60 },
   "admin:report:export": { limit: 20, windowSeconds: 60 },
   "admin:server:list": { limit: 120, windowSeconds: 60 },
   "admin:user:list": { limit: 120, windowSeconds: 60 },
@@ -104,6 +108,12 @@ export const API_RATE_LIMITS = {
   "mobile:media:claim": { limit: 20, windowSeconds: 5 * 60 },
   "mobile:media:upload": { limit: 10, windowSeconds: 5 * 60 },
   "mobile:message:search": { limit: 40, windowSeconds: 60 },
+  "mobile:feedback:detail": { limit: 60, windowSeconds: 60 },
+  "mobile:feedback:roadmap": { limit: 60, windowSeconds: 60 },
+  // Submitting is deliberately tight: it writes a durable record and pings the
+  // product team, so a stuck retry loop must not become a flood.
+  "mobile:feedback:submit": { limit: 5, windowSeconds: 10 * 60 },
+  "mobile:feedback:vote": { limit: 60, windowSeconds: 60 },
   "mobile:notifications:register": { limit: 20, windowSeconds: 60 * 60 },
   "mobile:notifications:clear": { limit: 20, windowSeconds: 60 },
   "mobile:notifications:list": { limit: 120, windowSeconds: 60 },

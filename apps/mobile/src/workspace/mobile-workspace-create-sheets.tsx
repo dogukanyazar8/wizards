@@ -5,7 +5,7 @@ import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import type { MobileManagedWorkspaceServerDetailResponse } from "@wizards/types";
 
 import { useMobileAuth } from "../auth/mobile-auth-context";
-import { BottomSheet, Toggle, useSheetPresentation } from "../app/components/kit";
+import { BottomSheet, Toggle, useSheetPresentation, useToast } from "../app/components/kit";
 import { MobileLineIcon } from "../design/mobile-line-icons";
 import { useMobileLocaleRuntime } from "../app/providers/mobile-locale-provider";
 import { useTheme, useThemedStyles } from "../app/providers/mobile-theme-provider";
@@ -57,6 +57,7 @@ export function MobileWorkspaceCreateSheets({
   const styles = useThemedStyles(createStyles);
   const theme = useTheme();
   const presentation = useSheetPresentation();
+  const { showToast } = useToast();
   const { locale } = useMobileLocaleRuntime();
   const labels = mobileCopy[locale];
   const { apiClient } = useMobileAuth();
@@ -161,8 +162,20 @@ export function MobileWorkspaceCreateSheets({
       });
       onChannelCreated(created.channel.id);
       onChangeState(null);
+      showToast({
+        title: labels.toastChannelCreatedTitle.replace("{name}", finalChannelName),
+        variant: "success",
+      });
     } catch {
       setChannelError(labels.workspaceEditorError);
+      // The sheet stays open with the form intact, so "Tekrar dene" resubmits
+      // exactly what the user already typed instead of reopening the flow.
+      showToast({
+        action: { label: labels.toastRetryAction, onPress: () => void submitChannel() },
+        subtitle: labels.workspaceEditorError,
+        title: labels.toastChannelCreateFailedTitle,
+        variant: "error",
+      });
     } finally {
       setSubmitting(false);
     }

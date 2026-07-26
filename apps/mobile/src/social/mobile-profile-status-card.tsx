@@ -221,7 +221,7 @@ export function MobileProfileStatusCard({
     appliedSignatureRef.current = JSON.stringify(saved);
     // Same confirmation the 2a editor gives: the hub writes the same profile PATCH, so it
     // should not be the one surface where a save lands silently.
-    showToast({ message: copy.profileEditSaved, tone: "success" });
+    showToast({ title: copy.profileEditSaved, variant: "success" });
   };
 
   if (accountQuery.isLoading && !account) {

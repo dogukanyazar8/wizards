@@ -44,6 +44,7 @@ jest.mock("../src/app/features/mobile-direct-call-bridge", () => ({
 import { MobileUserProfileScreen } from "../src/social/mobile-user-profile-screen";
 import { MobileLocaleProvider } from "../src/app/providers/mobile-locale-provider";
 import { MobileThemeProvider } from "../src/app/providers/mobile-theme-provider";
+import { ToastProvider } from "../src/app/components/kit/toast";
 import { darkTheme, lightTheme } from "../src/design/themes";
 
 const baseProfile = {
@@ -94,16 +95,18 @@ async function renderScreen(
     <QueryClientProvider client={client}>
       <MobileThemeProvider>
         <MobileLocaleProvider>
-          <MobileUserProfileScreen
-            onBack={jest.fn()}
-            onOpenConversation={jest.fn()}
-            onOpenProfileEdit={jest.fn()}
-            onOpenServer={jest.fn()}
-            onOpenUserProfile={jest.fn()}
-            serverId="server-1"
-            userId="user-2"
-            {...overrides}
-          />
+          <ToastProvider>
+            <MobileUserProfileScreen
+              onBack={jest.fn()}
+              onOpenConversation={jest.fn()}
+              onOpenProfileEdit={jest.fn()}
+              onOpenServer={jest.fn()}
+              onOpenUserProfile={jest.fn()}
+              serverId="server-1"
+              userId="user-2"
+              {...overrides}
+            />
+          </ToastProvider>
         </MobileLocaleProvider>
       </MobileThemeProvider>
     </QueryClientProvider>,
@@ -190,7 +193,9 @@ describe("11c full profile page", () => {
     expect(screen.getByText("ogi_uat, mkaya, elifay ve 2 kişi daha")).toBeTruthy();
     expect(screen.getByTestId("mobile-user-profile-mutual-friend-overflow")).toBeTruthy();
 
-    await waitFor(() => expect(screen.getByTestId("mobile-user-profile-media-attachment-1")).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByTestId("mobile-user-profile-media-attachment-1")).toBeTruthy(),
+    );
     expect(screen.getByText("PAYLAŞILAN MEDYA — 1")).toBeTruthy();
   });
 
@@ -209,7 +214,9 @@ describe("11c full profile page", () => {
   it("opens the existing lightbox from a media tile", async () => {
     const screen = await renderScreen();
 
-    await waitFor(() => expect(screen.getByTestId("mobile-user-profile-media-attachment-1")).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByTestId("mobile-user-profile-media-attachment-1")).toBeTruthy(),
+    );
     await fireEvent.press(screen.getByTestId("mobile-user-profile-media-attachment-1"));
 
     await waitFor(() => expect(screen.getByTestId("mobile-message-image-lightbox")).toBeTruthy());
@@ -259,9 +266,7 @@ describe("11c full profile page", () => {
     expect(screen.queryByTestId("mobile-user-profile-roles")).toBeNull();
     // ABOUT survives an empty bio because the join dates still belong there.
     expect(screen.getByTestId("mobile-user-profile-about")).toBeTruthy();
-    await waitFor(() =>
-      expect(screen.getByTestId("mobile-user-profile-media-empty")).toBeTruthy(),
-    );
+    await waitFor(() => expect(screen.getByTestId("mobile-user-profile-media-empty")).toBeTruthy());
   });
 
   it("drops a blocked profile to the restricted page with an unblock action", async () => {

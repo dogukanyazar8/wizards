@@ -1,10 +1,14 @@
 export const MOBILE_LINE_ICON_NAMES = [
+  "activity",
   "alert-circle",
+  "alert-triangle",
+  "arrow-up",
   "audit-log",
   "back-arrow",
   "bell",
   "block",
   "bolt",
+  "bug",
   "calendar",
   "camera",
   "chat-bubble",
@@ -17,16 +21,23 @@ export const MOBILE_LINE_ICON_NAMES = [
   "edit",
   "emoji",
   "external-link",
+  "face-bad",
+  "face-good",
+  "face-great",
+  "face-okay",
   "file",
   "flag",
   "grip",
   "headphones",
+  "image",
   "info",
   "invite-user",
   "leave",
+  "loader-arc",
   "log-out",
   "lock",
   "members",
+  "message-square",
   "mic",
   "mic-off",
   "minus-circle",
@@ -39,9 +50,11 @@ export const MOBILE_LINE_ICON_NAMES = [
   "search",
   "send",
   "servers",
+  "settings",
   "shield",
   "speaker",
   "star",
+  "trash",
   "video",
 ] as const;
 
@@ -72,9 +85,7 @@ export interface MobileLineIconRectDefinition {
 }
 
 export type MobileLineIconChildDefinition =
-  | MobileLineIconCircleDefinition
-  | MobileLineIconPathDefinition
-  | MobileLineIconRectDefinition;
+  MobileLineIconCircleDefinition | MobileLineIconPathDefinition | MobileLineIconRectDefinition;
 
 export interface MobileLineIconStrokeDefinition {
   readonly children: readonly MobileLineIconChildDefinition[];
@@ -90,8 +101,7 @@ export interface MobileLineIconFillDefinition {
 }
 
 export type MobileLineIconDefinition =
-  | MobileLineIconFillDefinition
-  | MobileLineIconStrokeDefinition;
+  MobileLineIconFillDefinition | MobileLineIconStrokeDefinition;
 
 export const MOBILE_LINE_ICON_DEFINITIONS = {
   "back-arrow": {
@@ -396,7 +406,10 @@ export const MOBILE_LINE_ICON_DEFINITIONS = {
     strokeLinecap: "round",
     strokeLinejoin: "round",
     children: [
-      { type: "path", d: "M6 3h3l1.5 4.5L8 9.5a12 12 0 0 0 6.5 6.5l2-2.5L21 15v3a2 2 0 0 1-2 2A16 16 0 0 1 4 5a2 2 0 0 1 2-2Z" },
+      {
+        type: "path",
+        d: "M6 3h3l1.5 4.5L8 9.5a12 12 0 0 0 6.5 6.5l2-2.5L21 15v3a2 2 0 0 1-2 2A16 16 0 0 1 4 5a2 2 0 0 1 2-2Z",
+      },
     ],
   },
   star: {
@@ -405,7 +418,10 @@ export const MOBILE_LINE_ICON_DEFINITIONS = {
     strokeLinecap: "round",
     strokeLinejoin: "round",
     children: [
-      { type: "path", d: "M12 3.5l2.5 5.2 5.7.7-4.2 3.9 1.1 5.6-5.1-2.8-5.1 2.8 1.1-5.6L3.8 9.4l5.7-.7z" },
+      {
+        type: "path",
+        d: "M12 3.5l2.5 5.2 5.7.7-4.2 3.9 1.1 5.6-5.1-2.8-5.1 2.8 1.1-5.6L3.8 9.4l5.7-.7z",
+      },
     ],
   },
   video: {
@@ -471,6 +487,131 @@ export const MOBILE_LINE_ICON_DEFINITIONS = {
     children: [
       { type: "circle", cx: 12, cy: 12, r: 8.5 },
       { type: "path", d: "M10.3 8.6l6 3.4-6 3.4z" },
+    ],
+  },
+  // Handoff 3b/3c toast glyphs. success/info/action reuse `check`, `info` and
+  // `trash`; only the warning triangle and the loading arc are new shapes.
+  "alert-triangle": {
+    mode: "stroke",
+    defaultStrokeWidth: 2.2,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    children: [
+      { type: "path", d: "M12 4L2.5 20h19z" },
+      { type: "path", d: "M12 10v4M12 17h.01", strokeWidth: 2.6 },
+    ],
+  },
+  trash: {
+    mode: "stroke",
+    defaultStrokeWidth: 2,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    children: [
+      { type: "path", d: "M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6.5 7l1 13h9l1-13" },
+    ],
+  },
+  /** Three-quarter arc; the toast spins the whole glyph rather than animating a dash. */
+  "loader-arc": {
+    mode: "stroke",
+    defaultStrokeWidth: 2.4,
+    strokeLinecap: "round",
+    children: [{ type: "path", d: "M12 3.5a8.5 8.5 0 1 0 8.5 8.5" }],
+  },
+  // Handoff 4a/4b feedback glyphs.
+  activity: {
+    mode: "stroke",
+    defaultStrokeWidth: 2,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    children: [{ type: "path", d: "M22 12h-4l-3 8-6-16-3 8H2" }],
+  },
+  "arrow-up": {
+    mode: "stroke",
+    defaultStrokeWidth: 2.6,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    children: [{ type: "path", d: "M12 19V5M6 11l6-6 6 6" }],
+  },
+  bug: {
+    mode: "stroke",
+    defaultStrokeWidth: 2,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    children: [
+      { type: "circle", cx: 12, cy: 13, r: 6 },
+      { type: "path", d: "M9 3h6M12 7v-4M17.5 8.5L19 7" },
+    ],
+  },
+  image: {
+    mode: "stroke",
+    defaultStrokeWidth: 1.8,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    children: [
+      { type: "rect", x: 3, y: 5, width: 18, height: 14, rx: 3 },
+      { type: "circle", cx: 9, cy: 10, r: 1.8 },
+      { type: "path", d: "M4 17l5-4 3 2 4-3 4 3.5" },
+    ],
+  },
+  "message-square": {
+    mode: "stroke",
+    defaultStrokeWidth: 2,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    children: [{ type: "path", d: "M4 4h16v12H8l-4 4z" }],
+  },
+  settings: {
+    mode: "stroke",
+    defaultStrokeWidth: 2,
+    strokeLinecap: "round",
+    children: [
+      { type: "circle", cx: 12, cy: 12, r: 3 },
+      {
+        type: "path",
+        d: "M12 5V3M12 21v-2M5 12H3M21 12h-2M6.4 6.4L5 5M19 19l-1.4-1.4M17.6 6.4L19 5M5 19l1.4-1.4",
+      },
+    ],
+  },
+  // 4a satisfaction faces. Drawn, not typed: an emoji character renders with the
+  // platform's own colour font, which cannot follow the selected/unselected tint.
+  "face-bad": {
+    mode: "stroke",
+    defaultStrokeWidth: 1.8,
+    strokeLinecap: "round",
+    children: [
+      { type: "circle", cx: 12, cy: 12, r: 9 },
+      { type: "path", d: "M15.5 14.7c-1 1.2-2.2 1.8-3.5 1.8s-2.5-.6-3.5-1.8" },
+      { type: "path", d: "M9 10h.01M15 10h.01", strokeWidth: 2.6 },
+    ],
+  },
+  "face-okay": {
+    mode: "stroke",
+    defaultStrokeWidth: 1.8,
+    strokeLinecap: "round",
+    children: [
+      { type: "circle", cx: 12, cy: 12, r: 9 },
+      { type: "path", d: "M8.5 15.5h7" },
+      { type: "path", d: "M9 10h.01M15 10h.01", strokeWidth: 2.6 },
+    ],
+  },
+  "face-good": {
+    mode: "stroke",
+    defaultStrokeWidth: 1.9,
+    strokeLinecap: "round",
+    children: [
+      { type: "circle", cx: 12, cy: 12, r: 9 },
+      { type: "path", d: "M8.5 14c1 1.2 2.2 1.8 3.5 1.8s2.5-.6 3.5-1.8" },
+      { type: "path", d: "M9 10h.01M15 10h.01", strokeWidth: 2.6 },
+    ],
+  },
+  "face-great": {
+    mode: "stroke",
+    defaultStrokeWidth: 1.8,
+    strokeLinecap: "round",
+    children: [
+      { type: "circle", cx: 12, cy: 12, r: 9 },
+      { type: "path", d: "M8 13.5c1.2 1.8 2.6 2.7 4 2.7s2.8-.9 4-2.7" },
+      { type: "path", d: "M8.6 9.6l1.8 1-1.8 1M15.4 9.6l-1.8 1 1.8 1" },
     ],
   },
 } as const satisfies Record<MobileLineIconName, MobileLineIconDefinition>;

@@ -11,6 +11,7 @@ jest.mock("expo-updates", () => ({
 }));
 
 import { activeMobileCopy as copy } from "../src/locale/mobile-locale-preferences";
+import { MOBILE_OPEN_SOURCE_LICENSE_GROUPS } from "../src/legal/mobile-open-source-license-manifest";
 import { MobileAboutSettingsScreen } from "../src/app/screens/mobile-about-settings-screen";
 
 function createProps(
@@ -20,6 +21,7 @@ function createProps(
     appVersion: "0.8.15",
     onBack: () => undefined,
     onOpenFeedback: () => undefined,
+    onOpenLicenses: () => undefined,
     onOpenPrivacy: () => undefined,
     onOpenTerms: () => undefined,
     releaseChannel: "uat",
@@ -57,12 +59,21 @@ describe("5i about settings screen", () => {
     ).toBeTruthy();
   });
 
-  it("marks unbacked open-source licenses as coming soon and non-interactive", async () => {
-    const view = await render(<MobileAboutSettingsScreen {...createProps()} />);
+  it("opens the open-source licenses screen and previews the generated package count", async () => {
+    const onOpenLicenses = jest.fn();
+    const view = await render(<MobileAboutSettingsScreen {...createProps({ onOpenLicenses })} />);
 
-    const licenses = view.getByTestId("mobile-about-licenses");
-    expect(licenses.props.accessibilityState).toEqual(expect.objectContaining({ disabled: true }));
-    expect(view.getByText(copy.aboutSettingsSoon)).toBeTruthy();
+    const packageCount = MOBILE_OPEN_SOURCE_LICENSE_GROUPS.reduce(
+      (total, group) => total + group.packages.length,
+      0,
+    );
+    expect(
+      view.getByText(copy.openSourceLicensesPackageCount.replace("{count}", String(packageCount))),
+    ).toBeTruthy();
+
+    await fireEvent.press(view.getByTestId("mobile-about-licenses"));
+
+    expect(onOpenLicenses).toHaveBeenCalledTimes(1);
   });
 
   it("shows the offline service status when disconnected", async () => {

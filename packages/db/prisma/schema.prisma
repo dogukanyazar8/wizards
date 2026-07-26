@@ -45,6 +45,34 @@ enum NotificationType {
   SERVER_INVITE
   SYSTEM
   MODERATION
+  // Feedback status changes. Its own type rather than SYSTEM so the mobile tap
+  // handler can route to the tracking view without sniffing metadata, and so a
+  // user can mute product updates without losing security notices.
+  FEEDBACK
+}
+
+enum FeedbackRating {
+  BAD
+  OKAY
+  GOOD
+  GREAT
+}
+
+enum FeedbackTopic {
+  SUGGESTION
+  BUG
+  VOICE
+  PERFORMANCE
+  OTHER
+}
+
+/// Shared by Feedback and RoadmapItem: a linked pair always reads the same
+/// status, so the roadmap row and the submitter's tracking card cannot disagree.
+enum FeedbackStatus {
+  REVIEWING
+  PLANNED
+  IN_PROGRESS
+  SHIPPED
 }
 
 // Server verification levels
@@ -140,6 +168,9 @@ enum MobileMediaUploadPurpose {
   PROFILE_AVATAR
   PROFILE_BANNER
   SERVER_ICON
+  // 4a screenshots. Owner-scoped like the profile purposes; claimed by the
+  // feedback submission rather than by the generic profile claim route.
+  FEEDBACK_ATTACHMENT
 }
 
 // Sticker animation preferences
@@ -331,6 +362,8 @@ model User {
   reportsReceived         UserReport[]              @relation("UserReportSubject")
   notesWritten            UserNote[]                @relation("UserNoteAuthor")
   notesAbout              UserNote[]                @relation("UserNoteSubject")
+  feedback                Feedback[]
+  roadmapVotes            RoadmapVote[]
 
   @@index([email])
   @@index([username])
@@ -607,6 +640,87 @@ model UserNote {
 
   @@unique([authorId, subjectId])
   @@index([authorId])
+}
+
+/// Handoff 4a/4b product feedback. `publicNumber` is a serial the UI renders as
+/// `WSP-{n}`: the submitter quotes it, support searches it, and it stays short
+/// and stable in a way a uuid never could.
+model Feedback {
+  id            String         @id @default(uuid())
+  publicNumber  Int            @unique @default(autoincrement())
+  userId        String
+  rating        FeedbackRating
+  topic         FeedbackTopic
+  message       String         @db.VarChar(1000)
+  /// Snapshot of exactly what the "Neler gönderilir?" sheet listed, stored as
+  /// sent so a later contract change cannot rewrite what the user agreed to.
+  diagnostics   Json?
+  status        FeedbackStatus @default(REVIEWING)
+  roadmapItemId String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  statusChangedAt DateTime?
+
+  user        User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roadmapItem RoadmapItem?         @relation(fields: [roadmapItemId], references: [id], onDelete: SetNull)
+  attachments FeedbackAttachment[]
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@index([topic, createdAt])
+  @@index([roadmapItemId])
+}
+
+/// One screenshot on a feedback item. The row is written from a claimed
+/// `MobileMediaUpload`, so the upload lifecycle (verify, claim, cleanup) stays
+/// in the one service that already owns it.
+model FeedbackAttachment {
+  id          String   @id @default(uuid())
+  feedbackId  String
+  uploadId    String   @unique
+  url         String
+  contentType String
+  width       Int
+  height      Int
+  sizeBytes   Int
+  createdAt   DateTime @default(now())
+
+  feedback Feedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+
+  @@index([feedbackId])
+}
+
+/// A public roadmap entry the community votes on. Feedback items link into one,
+/// which is how "senin önerin" knows a row came from the viewer.
+model RoadmapItem {
+  id          String         @id @default(uuid())
+  title       String         @db.VarChar(120)
+  description String?        @db.VarChar(500)
+  status      FeedbackStatus @default(REVIEWING)
+  /// Ascending display order; ties fall back to newest first.
+  position    Int            @default(0)
+  featured    Boolean        @default(false)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  feedback Feedback[]
+  votes    RoadmapVote[]
+
+  @@index([status, position])
+  @@index([featured, position])
+}
+
+model RoadmapVote {
+  id            String   @id @default(uuid())
+  roadmapItemId String
+  userId        String
+  createdAt     DateTime @default(now())
+
+  roadmapItem RoadmapItem @relation(fields: [roadmapItemId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([roadmapItemId, userId])
+  @@index([userId])
 }
 
 model FriendRequest {

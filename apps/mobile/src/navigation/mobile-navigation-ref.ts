@@ -58,6 +58,9 @@ export function navigateMobileRouteIntent(intent: MobileNavigationRouteIntent): 
     case "ProfileEdit":
       mobileNavigationRef.navigate("ProfileEdit", undefined, ROUTE_INTENT_OPTIONS);
       break;
+    case "FeedbackSubmitted":
+      mobileNavigationRef.navigate("FeedbackSubmitted", intent.params, ROUTE_INTENT_OPTIONS);
+      break;
     case "BlockedUsers":
       mobileNavigationRef.navigate("BlockedUsers", undefined, ROUTE_INTENT_OPTIONS);
       break;

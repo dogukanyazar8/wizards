@@ -25,6 +25,7 @@
     "ios": "expo run:ios",
     "lint": "node ../../scripts/quality/typescript-project-runner.mjs --project=mobile --mode=check",
     "google:doctor": "node --import tsx scripts/google-signin-doctor.ts",
+    "licenses:generate": "node --import tsx scripts/generate-mobile-open-source-licenses.ts",
     "quality:check": "node --import tsx scripts/validate-mobile-quality.ts",
     "release:check": "node --import tsx scripts/validate-mobile-release.ts",
     "release:evidence": "node --import tsx scripts/write-mobile-release-evidence.ts",

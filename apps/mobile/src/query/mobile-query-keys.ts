@@ -73,6 +73,9 @@ export function createMobileQueryKeys(registry: MobileSearchKeyRegistry) {
       [...all, "dm-attachments", conversationId, tab] as const,
     dmThread: (conversationId: string, messageId: string) =>
       [...all, "dm-thread", conversationId, messageId] as const,
+    feedbackRoot: () => [...all, "feedback"] as const,
+    feedback: (feedbackId: string) => [...all, "feedback", feedbackId] as const,
+    roadmap: () => [...all, "roadmap"] as const,
     friends: () => [...all, "friends"] as const,
     profile: () => [...all, "profile"] as const,
     userProfileRoot: () => [...all, "user-profile"] as const,

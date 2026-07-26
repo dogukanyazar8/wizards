@@ -95,6 +95,18 @@ function openMobileLegalDocument(documentId: MobileLegalDocumentId): void {
   }
 }
 
+function openMobileOpenSourceLicenses(): void {
+  if (mobileNavigationRef.isReady()) {
+    mobileNavigationRef.navigate("OpenSourceLicenses");
+  }
+}
+
+function openMobileFeedback(): void {
+  if (mobileNavigationRef.isReady()) {
+    mobileNavigationRef.navigate("Feedback");
+  }
+}
+
 function getMobileProfilePresenceStatus(value: string | null): MobileFriendPresenceStatus | null {
   return MOBILE_PROFILE_PRESENCE_STATUSES.includes(value as MobileFriendPresenceStatus)
     ? (value as MobileFriendPresenceStatus)
@@ -201,7 +213,7 @@ export function MobileProfileSettingsHub({
     try {
       await onUpdatePresence(nextPresence);
       setIsPresencePickerOpen(false);
-      showToast({ message: profileCopy.profileEditSaved, tone: "success" });
+      showToast({ title: profileCopy.profileEditSaved, variant: "success" });
     } catch {
       setOptimisticPresence(previousPresence);
       setPresenceError(profileCopy.profileHubPresenceError);
@@ -278,6 +290,29 @@ export function MobileProfileSettingsHub({
               testID="mobile-profile-identity-banner-image"
             />
           ) : null}
+          <Pressable
+            accessibilityLabel={copy.messageEditAction}
+            accessibilityRole="button"
+            onPress={() => {
+              if (mobileNavigationRef.isReady()) {
+                mobileNavigationRef.navigate("ProfileEdit");
+              }
+            }}
+            style={styles.mobileProfileEditAction}
+            testID="mobile-profile-edit"
+          >
+            {({ pressed }) => (
+              <View
+                style={[
+                  styles.mobileProfileEditActionVisual,
+                  pressed && styles.actionButtonPressed,
+                ]}
+              >
+                <Ionicons name="pencil-outline" size={13} color={theme.text.onInverse} />
+                <Text style={styles.mobileProfileEditActionText}>{copy.messageEditAction}</Text>
+              </View>
+            )}
+          </Pressable>
           <View style={styles.mobileProfileIdentityOverlay}>
             <View style={styles.mobileProfileIdentityPerson}>
               <View style={styles.mobileProfileAvatarRing}>
@@ -317,29 +352,6 @@ export function MobileProfileSettingsHub({
                 </Text>
               </View>
             </View>
-            <Pressable
-              accessibilityLabel={copy.messageEditAction}
-              accessibilityRole="button"
-              onPress={() => {
-                if (mobileNavigationRef.isReady()) {
-                  mobileNavigationRef.navigate("ProfileEdit");
-                }
-              }}
-              style={styles.mobileProfileEditAction}
-              testID="mobile-profile-edit"
-            >
-              {({ pressed }) => (
-                <View
-                  style={[
-                    styles.mobileProfileEditActionVisual,
-                    pressed && styles.actionButtonPressed,
-                  ]}
-                >
-                  <Ionicons name="pencil-outline" size={13} color={theme.text.onInverse} />
-                  <Text style={styles.mobileProfileEditActionText}>{copy.messageEditAction}</Text>
-                </View>
-              )}
-            </Pressable>
           </View>
         </View>
       </View>
@@ -394,6 +406,12 @@ export function MobileProfileSettingsHub({
       </View>
 
       <View style={styles.mobileProfileSettingsCard}>
+        <MobileProfileHubRow
+          icon="chatbubble-ellipses-outline"
+          iconTone="accent"
+          label={profileCopy.feedbackTitle}
+          onPress={openMobileFeedback}
+        />
         <MobileProfileHubRow
           icon="information-circle-outline"
           iconTone="neutral"
@@ -2231,6 +2249,7 @@ export function ProfileSettingsScreen({
         // the web shows, so there is no reason to eject the user to a browser.
         onOpenCookies={() => openMobileLegalDocument("cookies")}
         onOpenFeedback={onOpenSupport}
+        onOpenLicenses={openMobileOpenSourceLicenses}
         onOpenPrivacy={() => openMobileLegalDocument("privacy")}
         onOpenTerms={() => openMobileLegalDocument("terms")}
         releaseChannel={releaseChannel}

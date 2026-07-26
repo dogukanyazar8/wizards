@@ -358,7 +358,8 @@ export function FriendsHub({
     if (serverCode === "NOT_FOUND") return t.friendsRequestUserNotFound;
     if (serverCode === "ALREADY_FRIENDS") return t.friendsRequestAlreadyFriends;
     if (serverCode === "ALREADY_PENDING") return t.friendsRequestAlreadyPending;
-    if (serverCode === "BLOCKED" || serverCode === "FRIEND_REQUEST_POLICY") return t.friendsRequestBlocked;
+    if (serverCode === "BLOCKED" || serverCode === "FRIEND_REQUEST_POLICY")
+      return t.friendsRequestBlocked;
     return t.friendsRequestFailed;
   };
 
@@ -368,9 +369,9 @@ export function FriendsHub({
         userId: result.id,
         username: result.username,
       });
-      showToast({ message: t.friendsRequestSent, tone: "success" });
+      showToast({ title: t.friendsRequestSent, variant: "success" });
     } catch (error) {
-      showToast({ message: resolveRequestErrorCopy(error), tone: "danger" });
+      showToast({ title: resolveRequestErrorCopy(error), variant: "error" });
     }
   };
 
@@ -379,9 +380,9 @@ export function FriendsHub({
       await mutations.cancelRequest.mutateAsync(
         userId === undefined ? { requestId } : { requestId, userId },
       );
-      showToast({ message: t.friendsRequestCanceled, tone: "info" });
+      showToast({ title: t.friendsRequestCanceled, variant: "info" });
     } catch (error) {
-      showToast({ message: resolveRequestErrorCopy(error), tone: "danger" });
+      showToast({ title: resolveRequestErrorCopy(error), variant: "error" });
     }
   };
 
@@ -506,7 +507,11 @@ export function FriendsHub({
           accessibilityState={{ disabled: !result.requestId }}
           disabled={!result.requestId}
           onPress={() => void cancelRequest(result.requestId ?? "", result.id)}
-          style={[styles.rowPill, styles.rowPillOutline, !result.requestId && styles.rowPillDisabled]}
+          style={[
+            styles.rowPill,
+            styles.rowPillOutline,
+            !result.requestId && styles.rowPillDisabled,
+          ]}
           testID={`mobile-friend-search-cancel-${result.id}`}
         >
           <Text style={styles.rowPillOutlineText}>{t.friendsCancelRequest}</Text>
@@ -527,7 +532,11 @@ export function FriendsHub({
               userId: result.id,
             })
           }
-          style={[styles.rowPill, styles.rowPillFilled, !result.requestId && styles.rowPillDisabled]}
+          style={[
+            styles.rowPill,
+            styles.rowPillFilled,
+            !result.requestId && styles.rowPillDisabled,
+          ]}
           testID={`mobile-friend-search-accept-${result.id}`}
         >
           <Text style={styles.rowPillFilledText}>{t.friendsAccept}</Text>
@@ -701,7 +710,9 @@ export function FriendsHub({
 
       {!query.isLoading && !query.isError && activeSegment !== "requests" ? (
         <>
-          <Text style={styles.sectionHeading}>{`${t.friendsOnline} — ${onlineFriends.length}`}</Text>
+          <Text
+            style={styles.sectionHeading}
+          >{`${t.friendsOnline} — ${onlineFriends.length}`}</Text>
           {onlineFriends.length > 0 ? (
             <View style={styles.sectionCard}>
               {onlineFriends.map((friend, index) =>
@@ -709,7 +720,9 @@ export function FriendsHub({
               )}
             </View>
           ) : null}
-          <Text style={styles.sectionHeading}>{`${t.friendsOffline} — ${offlineFriends.length}`}</Text>
+          <Text
+            style={styles.sectionHeading}
+          >{`${t.friendsOffline} — ${offlineFriends.length}`}</Text>
           {offlineFriends.length > 0 ? (
             <View style={[styles.sectionCard, styles.offlineCard]}>
               {offlineFriends.map((friend, index) =>
@@ -878,7 +891,9 @@ export function FriendsHub({
 
           {outgoing.length > 0 ? (
             <>
-              <Text style={styles.sectionHeading}>{`${t.friendsOutgoing} — ${outgoing.length}`}</Text>
+              <Text
+                style={styles.sectionHeading}
+              >{`${t.friendsOutgoing} — ${outgoing.length}`}</Text>
               <View style={styles.sectionCard}>
                 {outgoing.map((request, index) =>
                   renderPendingRow(
@@ -914,7 +929,11 @@ export function FriendsHub({
                 <Text
                   style={styles.collapseHeaderText}
                 >{`${t.friendsBlocked} — ${blocked.length}`}</Text>
-                <Icon name={blockedExpanded ? "chevron-up" : "chevron-down"} size={18} tone="muted" />
+                <Icon
+                  name={blockedExpanded ? "chevron-up" : "chevron-down"}
+                  size={18}
+                  tone="muted"
+                />
               </Pressable>
               {blockedExpanded ? (
                 <View style={styles.sectionCard} testID="mobile-friend-blocked-list">

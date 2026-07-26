@@ -38,6 +38,7 @@ jest.mock("../src/app/providers/mobile-haptics-provider", () => ({
 import { lightTheme, darkTheme } from "../src/design/themes";
 import { createMobileProfileSheetStyles } from "../src/social/mobile-profile-sheets.styles";
 import { MobileStatusPickerSheet } from "../src/social/mobile-status-picker-sheet";
+import { ToastProvider } from "../src/app/components/kit/toast";
 import { MobileUserNoteSheet } from "../src/social/mobile-user-note-sheet";
 import { MOBILE_USER_NOTE_MAX_LENGTH } from "../src/social/mobile-user-note-client";
 
@@ -52,7 +53,11 @@ function renderWithQuery(ui: React.ReactElement) {
   const queryClient = new QueryClient({
     defaultOptions: { mutations: { retry: false }, queries: { retry: false } },
   });
-  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <ToastProvider>{ui}</ToastProvider>
+    </QueryClientProvider>,
+  );
 }
 
 async function renderNoteSheet(
