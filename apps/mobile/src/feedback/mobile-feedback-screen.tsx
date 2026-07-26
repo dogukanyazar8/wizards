@@ -428,6 +428,7 @@ export function MobileFeedbackScreen({
       </ScrollView>
 
       <MobileFeedbackDiagnosticsSheet
+        appVersion={appVersion}
         onClose={() => setDiagnosticsSheetOpen(false)}
         open={isDiagnosticsSheetOpen}
       />

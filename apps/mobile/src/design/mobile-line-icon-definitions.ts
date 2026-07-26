@@ -26,6 +26,7 @@ export const MOBILE_LINE_ICON_NAMES = [
   "face-great",
   "face-okay",
   "file",
+  "globe",
   "flag",
   "grip",
   "headphones",
@@ -551,6 +552,20 @@ export const MOBILE_LINE_ICON_DEFINITIONS = {
       { type: "rect", x: 3, y: 5, width: 18, height: 14, rx: 3 },
       { type: "circle", cx: 9, cy: 10, r: 1.8 },
       { type: "path", d: "M4 17l5-4 3 2 4-3 4 3.5" },
+    ],
+  },
+  globe: {
+    mode: "stroke",
+    defaultStrokeWidth: 1.9,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    children: [
+      { type: "circle", cx: 12, cy: 12, r: 8.5 },
+      { type: "path", d: "M3.5 12h17" },
+      {
+        type: "path",
+        d: "M12 3.5c2.2 2.4 3.3 5.3 3.3 8.5s-1.1 6.1-3.3 8.5c-2.2-2.4-3.3-5.3-3.3-8.5s1.1-6.1 3.3-8.5z",
+      },
     ],
   },
   "message-square": {

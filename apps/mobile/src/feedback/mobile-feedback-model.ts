@@ -4,6 +4,7 @@ import {
   type FeedbackRating,
   type FeedbackStatus,
   type FeedbackTopic,
+  type MobileFeedbackDiagnostics,
 } from "@wizards/types";
 
 import type { MobileLineIconName } from "../design/mobile-line-icons";
@@ -152,6 +153,93 @@ export function formatMobileFeedbackRelativeTime(
 
   return labels.daysAgo.replace("{count}", String(Math.floor(hours / 24)));
 }
+
+export type MobileFeedbackDiagnosticsRowId =
+  "appVersion" | "device" | "faults" | "locale" | "os" | "theme";
+
+export interface MobileFeedbackDiagnosticsRow {
+  readonly icon: MobileLineIconName;
+  readonly id: MobileFeedbackDiagnosticsRowId;
+  readonly label: string;
+  /** The value that would actually be sent, already formatted for reading. */
+  readonly value: string;
+}
+
+export interface MobileFeedbackDiagnosticsRowLabels {
+  readonly appVersion: string;
+  readonly device: string;
+  readonly faults: string;
+  readonly faultsCount: string;
+  readonly faultsNone: string;
+  readonly locale: string;
+  readonly localeNames: Readonly<Record<string, string>>;
+  readonly os: string;
+  readonly theme: string;
+  readonly themeNames: { readonly dark: string; readonly light: string };
+  readonly unknown: string;
+}
+
+const DIAGNOSTICS_ROW_ICONS: Readonly<Record<MobileFeedbackDiagnosticsRowId, MobileLineIconName>> =
+  {
+    appVersion: "info",
+    device: "phone",
+    faults: "alert-triangle",
+    locale: "globe",
+    os: "settings",
+    theme: "moon",
+  };
+
+/**
+ * The "Neler gönderilir?" rows, built from the payload the form would actually
+ * send rather than from a hand-kept list.
+ *
+ * That is the whole point of the sheet: a static list is a promise, and a
+ * promise drifts the first time the diagnostics contract grows a field. Reading
+ * the real object means the sheet cannot be out of date, and the user sees
+ * their own device rather than an abstract label.
+ */
+export function buildMobileFeedbackDiagnosticsRows(
+  diagnostics: MobileFeedbackDiagnostics,
+  labels: MobileFeedbackDiagnosticsRowLabels,
+): readonly MobileFeedbackDiagnosticsRow[] {
+  const osValue = [diagnostics.osName, diagnostics.osVersion].filter(Boolean).join(" ").trim();
+  const faultCount = diagnostics.recentFaults.length;
+
+  const values: Readonly<Record<MobileFeedbackDiagnosticsRowId, string>> = {
+    appVersion: diagnostics.appVersion,
+    device: diagnostics.deviceModel ?? labels.unknown,
+    faults:
+      faultCount === 0
+        ? labels.faultsNone
+        : labels.faultsCount.replace("{count}", String(faultCount)),
+    locale: labels.localeNames[diagnostics.locale] ?? diagnostics.locale,
+    os: osValue.length > 0 ? osValue : labels.unknown,
+    theme: labels.themeNames[diagnostics.theme],
+  };
+
+  return (["appVersion", "device", "os", "locale", "theme", "faults"] as const).map((id) => ({
+    icon: DIAGNOSTICS_ROW_ICONS[id],
+    id,
+    label: labels[id],
+    value: values[id],
+  }));
+}
+
+export type MobileFeedbackDiagnosticsExclusionId = "identity" | "messages" | "session";
+
+/**
+ * What the payload deliberately leaves out. Saying so is half the reason the
+ * sheet exists — "cihaz modeli, sürüm ve hata kayıtları" answers what is taken,
+ * not what is safe.
+ */
+export const MOBILE_FEEDBACK_DIAGNOSTICS_EXCLUSIONS = [
+  { icon: "message-square", id: "messages" },
+  { icon: "profile", id: "identity" },
+  { icon: "lock", id: "session" },
+] as const satisfies readonly {
+  readonly icon: MobileLineIconName;
+  readonly id: MobileFeedbackDiagnosticsExclusionId;
+}[];
 
 export interface MobileRoadmapVoteState {
   readonly voteCount: number;

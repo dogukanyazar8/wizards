@@ -3,6 +3,8 @@ import test from "node:test";
 
 import {
   MOBILE_FEEDBACK_ATTACHMENT_MAX_COUNT,
+  MOBILE_FEEDBACK_DIAGNOSTICS_EXCLUSIONS,
+  buildMobileFeedbackDiagnosticsRows,
   MOBILE_FEEDBACK_RATING_ICONS,
   MOBILE_FEEDBACK_TOPICS,
   MOBILE_FEEDBACK_TOPIC_ICONS,
@@ -137,6 +139,94 @@ test("the upvote toggle moves the count in both directions and never goes negati
     voteCount: 0,
     votedByViewer: false,
   });
+});
+
+const diagnosticsLabels = {
+  appVersion: "Uygulama sürümü",
+  device: "Cihaz modeli",
+  faults: "Son hata kayıtları",
+  faultsCount: "{count} kayıt · tür ve referans kodu",
+  faultsNone: "Kayıt yok",
+  locale: "Uygulama dili",
+  localeNames: { en: "İngilizce", tr: "Türkçe" },
+  os: "İşletim sistemi",
+  theme: "Tema",
+  themeNames: { dark: "Karanlık tema", light: "Açık tema" },
+  unknown: "Bilinmiyor",
+};
+
+const diagnosticsPayload = {
+  appVersion: "1.4.0",
+  deviceModel: "Pixel 8",
+  locale: "tr",
+  osName: "Android",
+  osVersion: "15",
+  recentFaults: [
+    { at: "2026-07-26T10:00:00.000Z", kind: "network" as const, reference: "WB-N-1A2B3C" },
+    { at: "2026-07-26T09:00:00.000Z", kind: "render" as const, reference: "WB-R-1A2B00" },
+  ],
+  theme: "light" as const,
+};
+
+test("the consent sheet reads its rows off the payload that would actually be sent", () => {
+  const rows = buildMobileFeedbackDiagnosticsRows(diagnosticsPayload, diagnosticsLabels);
+
+  // Order is the reading order of the sheet, and every row shows a real value.
+  assert.deepEqual(
+    rows.map((row) => [row.id, row.value]),
+    [
+      ["appVersion", "1.4.0"],
+      ["device", "Pixel 8"],
+      ["os", "Android 15"],
+      ["locale", "Türkçe"],
+      ["theme", "Açık tema"],
+      ["faults", "2 kayıt · tür ve referans kodu"],
+    ],
+  );
+  assert.deepEqual(
+    rows.map((row) => row.icon),
+    ["info", "phone", "settings", "globe", "moon", "alert-triangle"],
+  );
+});
+
+test("a device that reports nothing says so instead of printing an empty row", () => {
+  const rows = buildMobileFeedbackDiagnosticsRows(
+    {
+      ...diagnosticsPayload,
+      deviceModel: null,
+      locale: "de",
+      osName: null,
+      osVersion: null,
+      recentFaults: [],
+      theme: "dark",
+    },
+    diagnosticsLabels,
+  );
+  const value = (id: string) => rows.find((row) => row.id === id)?.value;
+
+  assert.equal(value("device"), "Bilinmiyor");
+  assert.equal(value("os"), "Bilinmiyor");
+  assert.equal(value("faults"), "Kayıt yok");
+  assert.equal(value("theme"), "Karanlık tema");
+  // An unmapped locale falls back to its own tag rather than to a blank cell.
+  assert.equal(value("locale"), "de");
+});
+
+test("a half-known OS still reads as one string", () => {
+  const rows = buildMobileFeedbackDiagnosticsRows(
+    { ...diagnosticsPayload, osVersion: null },
+    diagnosticsLabels,
+  );
+
+  assert.equal(rows.find((row) => row.id === "os")?.value, "Android");
+});
+
+test("the sheet names what is deliberately left out", () => {
+  assert.deepEqual(MOBILE_FEEDBACK_DIAGNOSTICS_EXCLUSIONS, [
+    { icon: "message-square", id: "messages" },
+    { icon: "profile", id: "identity" },
+    { icon: "lock", id: "session" },
+  ]);
 });
 
 test("every topic and rating names a glyph from the shared line set", () => {

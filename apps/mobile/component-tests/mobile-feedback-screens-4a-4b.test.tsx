@@ -193,7 +193,7 @@ describe("4a feedback form", () => {
     ).toBe(true);
   });
 
-  it("opens the sheet that lists exactly what diagnostics sends", async () => {
+  it("shows this device's real values in the consent sheet, not a written list", async () => {
     const view = await renderFlow();
 
     await fireEvent.press(view.getByTestId("mobile-feedback-diagnostics-link"));
@@ -209,7 +209,38 @@ describe("4a feedback form", () => {
     ]) {
       expect(view.getByText(field)).toBeTruthy();
     }
+
+    // The rows come from the payload the form would send, so they carry the
+    // reporter's own device rather than an abstract label.
+    expect(view.getByText("Pixel 8")).toBeTruthy();
+    expect(view.getByText("Android 15")).toBeTruthy();
+    expect(view.getByText("1.4.0")).toBeTruthy();
+    expect(view.getByText(copy.feedbackDiagnosticsThemeLight)).toBeTruthy();
+    expect(view.getByText(copy.feedbackDiagnosticsFaultsNone)).toBeTruthy();
+    expect(mockBuildDiagnostics).toHaveBeenCalledWith({
+      appVersion: "1.4.0",
+      locale: "tr",
+      theme: lightTheme.id,
+    });
+  });
+
+  it("says what the payload deliberately leaves out", async () => {
+    const view = await renderFlow();
+
+    await fireEvent.press(view.getByTestId("mobile-feedback-diagnostics-link"));
+
+    await waitFor(() => expect(view.getByText(copy.feedbackDiagnosticsExcludedLabel)).toBeTruthy());
+    for (const exclusion of [
+      copy.feedbackDiagnosticsExcludedMessages,
+      copy.feedbackDiagnosticsExcludedIdentity,
+      copy.feedbackDiagnosticsExcludedSession,
+    ]) {
+      expect(view.getByText(exclusion)).toBeTruthy();
+    }
     expect(view.getByText(copy.feedbackDiagnosticsSheetNote)).toBeTruthy();
+
+    await fireEvent.press(view.getByTestId("mobile-feedback-diagnostics-sheet-close"));
+    await waitFor(() => expect(view.queryByText(copy.feedbackDiagnosticsExcludedLabel)).toBeNull());
   });
 
   it("stops at three screenshots and can drop one again", async () => {
@@ -255,6 +286,8 @@ describe("4a feedback form", () => {
       rating: "GREAT",
       topic: "SUGGESTION",
     });
+    // Nothing about the device was even read: the builder only runs when the
+    // consent sheet is open or the toggle is on.
     expect(mockBuildDiagnostics).not.toHaveBeenCalled();
 
     await waitFor(() => expect(view.getByTestId("mobile-feedback-submitted-screen")).toBeTruthy());
