@@ -908,7 +908,7 @@ function InviteShortcut({
       testID={testID}
     >
       <View style={[styles.shortcutIcon, { backgroundColor: iconSurface }]}>
-        <Ionicons color={iconColor} name={iconName} size={16} />
+        <Ionicons color={iconColor} name={iconName} size={14} />
       </View>
       <Text style={styles.shortcutLabel}>{label}</Text>
     </Pressable>

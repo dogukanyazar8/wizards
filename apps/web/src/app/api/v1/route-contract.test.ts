@@ -35,6 +35,8 @@ const BODYLESS_MUTATING_METHOD_PATHS = new Set([
   "DELETE friends/block/[userId]",
   "POST friends/block/[userId]",
   "DELETE friends/request/[id]",
+  // The invite code is the whole request; a decline carries no body.
+  "POST mobile/invites/[code]/decline",
   "DELETE mobile/channels/[channelId]/history",
   "DELETE mobile/channels/[channelId]/messages/[messageId]",
   "DELETE mobile/channels/[channelId]/messages/[messageId]/pin",

@@ -74,8 +74,31 @@ describe("mobile notification realtime cache", () => {
       read: false,
       readAt: null,
       server: { id: "server-1", name: "Whispr" },
+      serverInviteCode: null,
       type: "MENTION",
     });
+  });
+
+  it("carries a pushed server invite's code so the row can answer immediately", () => {
+    const invited = toMobileNotificationItem(
+      mentionEvent({
+        metadata: { inviteCode: "safe_code-1", serverId: "server-1" },
+        type: "SERVER_INVITE",
+      }),
+    );
+    assert.equal(invited.serverInviteCode, "safe_code-1");
+
+    // The code only means something on a SERVER_INVITE row.
+    const mention = toMobileNotificationItem(
+      mentionEvent({ metadata: { inviteCode: "safe_code-1" }, type: "MENTION" }),
+    );
+    assert.equal(mention.serverInviteCode, null);
+
+    // A SERVER_INVITE with no code offers nothing to accept or decline.
+    const codeless = toMobileNotificationItem(
+      mentionEvent({ metadata: { serverId: "server-1" }, type: "SERVER_INVITE" }),
+    );
+    assert.equal(codeless.serverInviteCode, null);
   });
 
   it("falls back to the thread preview and keeps a friend-request id only on its own type", () => {

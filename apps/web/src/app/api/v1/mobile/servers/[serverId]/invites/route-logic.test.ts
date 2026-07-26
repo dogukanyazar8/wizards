@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 import type { WorkspaceInvite } from "@wizards/types";
 
 import { ApiError, parseJsonBody } from "@/lib/api";
+import { toMobileServerInvite } from "@/lib/workspace/invite-selection";
 
 const routes = import("./route-logic");
 
@@ -58,7 +59,12 @@ const inviteSheet = {
       status: "ONLINE" as const,
     },
   ],
-  linkInvite: { ...invite, shareUrl: "https://whispr.test/invite/INVITE_1" },
+  // Projected, not spread: a stored invite carries `code`, which the strict
+  // contract rejects — the same slip that broke the sheet on UAT.
+  linkInvite: toMobileServerInvite(
+    invite,
+    (code) => `https://whispr.test/invite/${encodeURIComponent(code)}`,
+  ),
   pendingInvites: [pendingInvite],
 };
 

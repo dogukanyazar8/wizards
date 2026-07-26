@@ -21,7 +21,11 @@ import {
   getAccessContext,
 } from "@/lib/workspace/access-context";
 import { generateInviteCode } from "@/lib/workspace/invite-code";
-import { isLiveInvite, selectActiveLinkInvite } from "@/lib/workspace/invite-selection";
+import {
+  isLiveInvite,
+  selectActiveLinkInvite,
+  toMobileServerInvite,
+} from "@/lib/workspace/invite-selection";
 import { getMessageById } from "@/lib/workspace/message-service";
 import { invalidateMemberPermissionCache } from "@/lib/workspace/permission-cache";
 import {
@@ -322,11 +326,10 @@ export async function getMobileServerInviteSheet(
       status: friend.status,
       username: friend.username,
     })),
+    // Projected, never spread: the stored row carries `code`, which the strict
+    // mobile contract rejects and a device must never receive.
     linkInvite: linkInvite
-      ? {
-          ...mapInvites([linkInvite])[0]!,
-          shareUrl: buildMobileInviteShareUrl(linkInvite.code),
-        }
+      ? toMobileServerInvite(mapInvites([linkInvite])[0]!, buildMobileInviteShareUrl)
       : null,
     pendingInvites,
   };
@@ -516,6 +519,64 @@ async function notifyTargetedServerInvite(input: {
   ]).catch(() => undefined);
 }
 
+/**
+ * A targeted invite's notification is its only entry point, so once the invite
+ * is answered the row has to go — otherwise it keeps offering accept/decline on
+ * an invite that no longer exists. Mirrors how a friend request clears its own.
+ */
+async function clearTargetedInviteNotifications(code: string, userId: string) {
+  await prisma.notification.deleteMany({
+    where: {
+      metadata: { path: ["inviteCode"], equals: code },
+      type: "SERVER_INVITE",
+      userId,
+    },
+  });
+}
+
+/**
+ * Tells the inviter their pending row is gone. Scoped to that one user rather
+ * than the whole server room: nobody else's view changed. Reuses the settings
+ * event the device already maps onto an invite-sheet refresh instead of minting
+ * a realtime event for a single row.
+ */
+function notifyInviterOfInviteChange(inviterUserId: string, serverId: string) {
+  getSocketServer()?.to(`user:${inviterUserId}`).emit("server:settings:updated", { serverId });
+}
+
+/**
+ * Recipient declines a targeted invite.
+ *
+ * Declining deletes the invite rather than marking it: the schema has no
+ * declined state, and the design shows no "reddedildi" row — a declined invite
+ * simply stops existing, which also leaves the inviter free to try again.
+ */
+export async function declineTargetedServerInvite(
+  userId: string,
+  code: string,
+): Promise<{ serverId: string }> {
+  const invite = await prisma.serverInvite.findUnique({
+    where: { code },
+    select: { createdById: true, id: true, serverId: true, targetUserId: true },
+  });
+
+  if (!invite || invite.targetUserId === null) {
+    throw new ApiError("Invite not found", 404);
+  }
+
+  // Only the addressee may decline; anyone else holding the code is a stranger
+  // to this invite and must not be able to burn it.
+  if (invite.targetUserId !== userId) {
+    throw new ApiError("This invite was sent to someone else", 403, "INVITE_NOT_FOR_USER");
+  }
+
+  await prisma.serverInvite.deleteMany({ where: { id: invite.id } });
+  await clearTargetedInviteNotifications(code, userId);
+  notifyInviterOfInviteChange(invite.createdById, invite.serverId);
+
+  return { serverId: invite.serverId };
+}
+
 /** QR view for the link card, generated the same way the 2FA setup QR is. */
 export async function buildMobileServerInviteQrCode(
   userId: string,
@@ -548,6 +609,7 @@ export async function joinWorkspaceServerByInvite(userId: string, code: string) 
     },
     select: {
       channelId: true,
+      createdById: true,
       expiresAt: true,
       id: true,
       maxUses: true,
@@ -777,6 +839,14 @@ export async function joinWorkspaceServerByInvite(userId: string, code: string) 
       })
     )?.id ??
     null;
+
+  // An accepted targeted invite is answered, so its notification stops offering
+  // accept/decline and the inviter's pending row clears — the same two effects a
+  // decline has, reached from the other side.
+  if (inviteTargetUserId !== null) {
+    await clearTargetedInviteNotifications(code, userId);
+    notifyInviterOfInviteChange(invite.createdById, invite.server.id);
+  }
 
   return {
     alreadyMember: Boolean(existingMember),

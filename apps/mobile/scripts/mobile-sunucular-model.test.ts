@@ -145,6 +145,7 @@ describe("getMobileMissedNotifications", () => {
     read: false,
     readAt: null,
     server: null,
+    serverInviteCode: null,
     type: "SYSTEM",
     ...overrides,
   });

@@ -21,8 +21,10 @@ import {
   MobileServerCreateResponseSchema,
   MobileServerDeleteRequestSchema,
   MobileServerIdParamsSchema,
+  MobileServerInviteCodeParamsSchema,
   MobileServerInviteCreateRequestSchema,
   MobileServerInviteCreateResponseSchema,
+  MobileServerInviteDeclineResponseSchema,
   MobileServerInviteLinkUpdateRequestSchema,
   MobileServerInviteParamsSchema,
   MobileServerInviteQrResponseSchema,
@@ -48,6 +50,7 @@ import {
   type MobileServerCreateResponse,
   type MobileServerInviteCreateRequest,
   type MobileServerInviteCreateResponse,
+  type MobileServerInviteDeclineResponse,
   type MobileServerInviteQrResponse,
   type MobileServerInviteSheetResponse,
   type MobileServerTargetedInviteCreateResponse,
@@ -256,6 +259,26 @@ export async function createMobileTargetedServerInvite(
   });
 
   return MobileServerTargetedInviteCreateResponseSchema.parse(payload);
+}
+
+export function buildMobileInviteDeclinePath(input: { code: string }): string {
+  return `/api/v1/mobile/invites/${encodeURIComponent(input.code)}/decline`;
+}
+
+/**
+ * Recipient-side decline. Addressed by code, not invite id: the recipient is
+ * not a member yet, so no server-scoped route is reachable for them.
+ */
+export async function declineMobileServerInvite(
+  client: MobileApiClient,
+  input: { code: string },
+): Promise<MobileServerInviteDeclineResponse> {
+  const params = MobileServerInviteCodeParamsSchema.parse(input);
+  const payload = await client.requestJson<unknown>(buildMobileInviteDeclinePath(params), {
+    method: "POST",
+  });
+
+  return MobileServerInviteDeclineResponseSchema.parse(payload);
 }
 
 export async function fetchMobileServerInviteQrCode(

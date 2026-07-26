@@ -16,6 +16,8 @@ import {
   MOBILE_INVITE_SHEET_EXPIRY_OPTIONS,
   MOBILE_INVITE_SHEET_MAX_USES_OPTIONS,
   MOBILE_TARGETED_INVITE_MAX_USES,
+  MobileServerInviteCodeParamsSchema,
+  MobileServerInviteDeclineResponseSchema,
   MobileServerInviteLinkUpdateRequestSchema,
   MobileServerInviteParamsSchema,
   MobileServerInviteQrResponseSchema,
@@ -445,6 +447,16 @@ describe("mobile workspace management schemas", () => {
         valid: { qrCodeDataUrl: "data:image/png;base64,iVBORw0KGgo=" },
         invalid: { qrCodeDataUrl: "https://whispr.example/qr.png" },
       },
+      MobileServerInviteCodeParamsSchema: {
+        schema: MobileServerInviteCodeParamsSchema,
+        valid: { code: "safe_code-1" },
+        invalid: { code: "not a code" },
+      },
+      MobileServerInviteDeclineResponseSchema: {
+        schema: MobileServerInviteDeclineResponseSchema,
+        valid: { serverId: resourceId, success: true },
+        invalid: { serverId: resourceId, success: false },
+      },
       MobileServerJoinRequestSchema: {
         schema: MobileServerJoinRequestSchema,
         valid: { inviteCode: "safe_code-1" },
@@ -692,6 +704,27 @@ describe("mobile workspace management schemas", () => {
       linkInvite: { ...invite, shareUrl: "http://whispr.example/invite/code" },
       pendingInvites: [],
     });
+  });
+
+  it("addresses a decline by redemption code, never by an id the recipient cannot know", () => {
+    assertAccepts(MobileServerInviteCodeParamsSchema, { code: "  safe_code-1  " });
+    assert.equal(
+      MobileServerInviteCodeParamsSchema.parse({ code: " safe_code-1 " }).code,
+      "safe_code-1",
+    );
+    // Path traversal and separators must never reach the invite lookup.
+    assertRejects(MobileServerInviteCodeParamsSchema, { code: "../admin" });
+    assertRejects(MobileServerInviteCodeParamsSchema, { code: "code/with/slash" });
+    assertRejects(MobileServerInviteCodeParamsSchema, { code: "" });
+    assertRejects(MobileServerInviteCodeParamsSchema, { code: "a".repeat(97) });
+    assertRejects(MobileServerInviteCodeParamsSchema, { code: "ok", serverId: "server-1" });
+
+    // The decline reports the server so the device can drop its cached rows.
+    assertAccepts(MobileServerInviteDeclineResponseSchema, {
+      serverId: "server-1",
+      success: true,
+    });
+    assertRejects(MobileServerInviteDeclineResponseSchema, { success: true });
   });
 
   it("bounds the invite-sheet edit options to the durations and caps the sheet offers", () => {

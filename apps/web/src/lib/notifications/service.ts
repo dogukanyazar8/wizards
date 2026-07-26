@@ -2,6 +2,7 @@ import { prisma } from "@wizards/db";
 import type { NotificationType, Prisma } from "@wizards/db";
 import type { MobileNotificationsQuery, MobileNotificationsResponse } from "@wizards/types";
 import { ApiError } from "@/lib/api";
+import { isLiveInvite } from "@/lib/workspace/invite-selection";
 import { emitServerUnreadUpdateToUser } from "@/lib/workspace/unread-service";
 import type { NotificationDTO } from "./types";
 
@@ -177,6 +178,24 @@ export async function listMobileNotifications(
   const userMap = new Map(users.map((user) => [user.id, user]));
   const serverMap = new Map(servers.map((server) => [server.id, server]));
 
+  // A SERVER_INVITE row only offers accept/decline while its invite is still
+  // redeemable by this user, so the codes are checked against the live rows
+  // rather than trusted from the notification's own metadata.
+  const inviteCodes = metadata
+    .map((value) => getNotificationMetadataString(value, "inviteCode", 96))
+    .filter((code): code is string => code !== null);
+  const openInvites =
+    inviteCodes.length === 0
+      ? []
+      : await prisma.serverInvite.findMany({
+          select: { code: true, expiresAt: true, maxUses: true, uses: true },
+          where: { code: { in: inviteCodes }, targetUserId: userId },
+        });
+  const now = Date.now();
+  const openInviteCodes = new Set(
+    openInvites.filter((invite) => isLiveInvite(invite, now)).map((invite) => invite.code),
+  );
+
   return {
     nextCursor:
       hasNextPage && notifications.length > 0
@@ -201,6 +220,7 @@ export async function listMobileNotifications(
         notificationMetadata,
         "friendRequestId",
       );
+      const inviteCode = getNotificationMetadataString(notificationMetadata, "inviteCode", 96);
       const actor = senderId ? (userMap.get(senderId) ?? null) : null;
       const channel = channelId ? (channelMap.get(channelId) ?? null) : null;
       const server = serverId ? (serverMap.get(serverId) ?? null) : null;
@@ -225,6 +245,10 @@ export async function listMobileNotifications(
         read: notification.read,
         readAt: notification.readAt?.toISOString() ?? null,
         server: server ? { id: server.id, name: server.name } : null,
+        serverInviteCode:
+          notification.type === "SERVER_INVITE" && inviteCode && openInviteCodes.has(inviteCode)
+            ? inviteCode
+            : null,
         type: notification.type as VisibleNotificationType,
       };
     }),

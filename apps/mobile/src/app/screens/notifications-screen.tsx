@@ -40,6 +40,7 @@ import { useMobileLocaleRuntime } from "../providers/mobile-locale-provider";
 import { mobileNavigationRef } from "../../navigation/mobile-navigation-ref";
 import { useMobileAuth } from "../../auth/mobile-auth-context";
 import { useMobileSocialMutations } from "../../social/mobile-social-query";
+import { useMobileServerManagementMutations } from "../../query/use-mobile-server-management-mutations";
 import {
   useMobileHasAnyNotification,
   useMobileNotificationMutations,
@@ -107,6 +108,8 @@ export function NotificationsScreen({
   const notificationsQuery = useMobileNotificationsQuery(apiClient, filter);
   const notificationMutations = useMobileNotificationMutations(apiClient);
   const socialMutations = useMobileSocialMutations(apiClient);
+  // Targeted server invites are answered from their notification row.
+  const serverMutations = useMobileServerManagementMutations(apiClient);
   const notifications = notificationsQuery.data?.pages.flatMap((page) => page.notifications) ?? [];
   const notificationGroups = groupMobileNotificationsByDay(notifications, new Date(), locale);
   const unreadCount = notificationsQuery.data?.pages[0]?.unreadCount ?? 0;
@@ -332,12 +335,17 @@ export function NotificationsScreen({
                 onAcceptFriendRequest={(requestId) =>
                   socialMutations.acceptRequest.mutate({ requestId })
                 }
+                onAcceptServerInvite={(code) => serverMutations.acceptInvite.mutate({ code })}
                 onDeclineFriendRequest={(requestId) =>
                   socialMutations.rejectRequest.mutate({ requestId })
                 }
+                onDeclineServerInvite={(code) => serverMutations.declineInvite.mutate({ code })}
                 onJoinVoiceNotification={onJoinVoiceNotification}
                 onMarkRead={() => notificationMutations.markRead.mutate(notification.id)}
                 onOpenNotification={onOpenNotification}
+                serverInvitePending={
+                  serverMutations.acceptInvite.isPending || serverMutations.declineInvite.isPending
+                }
               />
             ))}
           </View>
@@ -368,18 +376,24 @@ function MobileNotificationFeedRow({
   friendRequestPending,
   notification,
   onAcceptFriendRequest,
+  onAcceptServerInvite,
   onDeclineFriendRequest,
+  onDeclineServerInvite,
   onJoinVoiceNotification,
   onMarkRead,
   onOpenNotification,
+  serverInvitePending,
 }: {
   friendRequestPending: boolean;
   notification: MobileNotificationItem;
   onAcceptFriendRequest(requestId: string): void;
+  onAcceptServerInvite(code: string): void;
   onDeclineFriendRequest(requestId: string): void;
+  onDeclineServerInvite(code: string): void;
   onJoinVoiceNotification(notification: MobileNotificationItem): Promise<void>;
   onMarkRead(): void;
   onOpenNotification(actionUrl: string): void;
+  serverInvitePending: boolean;
 }) {
   const styles = useNotificationsScreenStyles();
   const theme = useTheme();
@@ -468,6 +482,54 @@ function MobileNotificationFeedRow({
           {metadata ? `${metadata} · ` : ""}
           {formatMobileDisplayTime(notification.createdAt)}
         </Text>
+        {notification.serverInviteCode ? (
+          // A targeted server invite is answered from here: its notification is
+          // the recipient's only handle on it.
+          <View style={styles.notificationFriendActions}>
+            <Pressable
+              accessibilityLabel={copy.notificationsAcceptServerInvite}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: serverInvitePending }}
+              disabled={serverInvitePending}
+              onPress={() => {
+                if (!notification.read) {
+                  onMarkRead();
+                }
+                onAcceptServerInvite(notification.serverInviteCode!);
+              }}
+              style={({ pressed }) => [
+                styles.notificationFriendAcceptAction,
+                pressed && styles.actionButtonPressed,
+              ]}
+              testID={`mobile-notification-invite-accept-${notification.id}`}
+            >
+              <Text style={styles.notificationFriendAcceptActionText}>
+                {copy.notificationsAcceptServerInvite}
+              </Text>
+            </Pressable>
+            <Pressable
+              accessibilityLabel={copy.notificationsDeclineServerInvite}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: serverInvitePending }}
+              disabled={serverInvitePending}
+              onPress={() => {
+                if (!notification.read) {
+                  onMarkRead();
+                }
+                onDeclineServerInvite(notification.serverInviteCode!);
+              }}
+              style={({ pressed }) => [
+                styles.notificationFriendDeclineAction,
+                pressed && styles.actionButtonPressed,
+              ]}
+              testID={`mobile-notification-invite-decline-${notification.id}`}
+            >
+              <Text style={styles.notificationFriendDeclineActionText}>
+                {copy.notificationsDeclineServerInvite}
+              </Text>
+            </Pressable>
+          </View>
+        ) : null}
         {notification.friendRequestId ? (
           <View style={styles.notificationFriendActions}>
             <Pressable

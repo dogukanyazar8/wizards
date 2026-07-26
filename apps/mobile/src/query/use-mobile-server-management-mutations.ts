@@ -1,6 +1,12 @@
-import { useMutation, useQueryClient, type InfiniteData } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQueryClient,
+  type InfiniteData,
+  type QueryClient,
+} from "@tanstack/react-query";
 import type {
   MobileManagedWorkspaceServerDetailResponse,
+  MobileNotificationsResponse,
   MobileServerCreateRequest,
   MobileServerInviteCreateRequest,
   MobileServerInviteSheetResponse,
@@ -11,9 +17,11 @@ import type {
 } from "@wizards/types";
 
 import type { MobileApiClient } from "../api/mobile-api-client";
+import { removeMobileNotificationsByInviteCode } from "../notifications/mobile-notification-invite-model";
 import { mobileQueryKeys } from "./mobile-query-keys";
 import {
   clearMobileChannelHistory,
+  declineMobileServerInvite,
   createMobileCategory,
   createMobileChannel,
   createMobileRole,
@@ -44,6 +52,41 @@ import {
  * presence of an id, never from its value.
  */
 const OPTIMISTIC_INVITE_ID = "optimistic-invite";
+
+type NotificationPages = InfiniteData<MobileNotificationsResponse>;
+type NotificationSnapshot = readonly (readonly [readonly unknown[], NotificationPages])[];
+
+/**
+ * Retires an answered invite row from every cached notification filter at once,
+ * returning what was there so a failed decline can put it straight back.
+ */
+function dropAnsweredInviteNotifications(
+  queryClient: QueryClient,
+  code: string,
+): NotificationSnapshot {
+  const snapshot = queryClient
+    .getQueriesData<NotificationPages>({ queryKey: mobileQueryKeys.notificationsRoot() })
+    .filter((entry): entry is [readonly unknown[], NotificationPages] => Boolean(entry[1]));
+
+  queryClient.setQueriesData<NotificationPages>(
+    { queryKey: mobileQueryKeys.notificationsRoot() },
+    (current) =>
+      current
+        ? { ...current, pages: removeMobileNotificationsByInviteCode(current.pages, code) }
+        : current,
+  );
+
+  return snapshot;
+}
+
+function restoreNotificationSnapshots(
+  queryClient: QueryClient,
+  snapshot: NotificationSnapshot | undefined,
+) {
+  for (const [queryKey, pages] of snapshot ?? []) {
+    queryClient.setQueryData(queryKey, pages);
+  }
+}
 
 export function useMobileServerManagementMutations(client: MobileApiClient) {
   const queryClient = useQueryClient();
@@ -159,6 +202,42 @@ export function useMobileServerManagementMutations(client: MobileApiClient) {
       },
       onSettled: (_response, _error, input) => {
         void invalidateInvites(input.serverId).catch(() => undefined);
+      },
+    }),
+    /**
+     * Recipient declines a targeted invite from its notification. The row is
+     * dropped optimistically so the feed answers on tap, and restored if the
+     * write fails — the invite is still live in that case.
+     */
+    declineInvite: useMutation({
+      mutationFn: (input: { code: string }) => declineMobileServerInvite(client, input),
+      onMutate: async (input) => {
+        await queryClient.cancelQueries({ queryKey: mobileQueryKeys.notificationsRoot() });
+        return dropAnsweredInviteNotifications(queryClient, input.code);
+      },
+      onError: (_error, _input, context) => {
+        restoreNotificationSnapshots(queryClient, context);
+      },
+      onSettled: (response, _error, _input) => {
+        void queryClient
+          .invalidateQueries({ queryKey: mobileQueryKeys.notificationsRoot() })
+          .catch(() => undefined);
+        if (response) {
+          void invalidateInvites(response.serverId).catch(() => undefined);
+        }
+      },
+    }),
+    /** Accepting from a notification joins, then retires the answered row. */
+    acceptInvite: useMutation({
+      mutationFn: (input: { code: string }) => joinMobileServer(client, { inviteCode: input.code }),
+      onSuccess: (response, input) => {
+        dropAnsweredInviteNotifications(queryClient, input.code);
+        void invalidateServer(response.server.id).catch(() => undefined);
+      },
+      onSettled: () => {
+        void queryClient
+          .invalidateQueries({ queryKey: mobileQueryKeys.notificationsRoot() })
+          .catch(() => undefined);
       },
     }),
     createTargetedInvite: useMutation({

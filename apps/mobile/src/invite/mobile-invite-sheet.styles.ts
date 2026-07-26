@@ -141,29 +141,36 @@ export const createMobileInviteSheetStyles = (theme: MobileTheme) => ({
     fontSize: 11.5,
   },
 
-  shortcutRow: { flexDirection: "row" as const, gap: 10, marginTop: 14 },
+  /**
+   * Tighter than the 2a handoff on purpose: at the handoff's 38px icon and
+   * 12px padding the three tiles ate a whole band of the sheet before the
+   * friends list even started. Trimmed to a 30px icon and 8px padding, which
+   * still leaves the tile ~54px tall — comfortably over the 44px target.
+   */
+  shortcutRow: { flexDirection: "row" as const, gap: 8, marginTop: 12 },
   shortcut: {
     alignItems: "center" as const,
     backgroundColor: theme.surface.base,
     borderColor: theme.border.subtle,
-    borderRadius: 16,
+    borderRadius: 14,
     borderWidth: 1,
     flex: 1,
-    gap: 6,
+    gap: 5,
+    minHeight: 44,
     paddingHorizontal: 6,
-    paddingVertical: 12,
+    paddingVertical: 8,
   },
   shortcutIcon: {
     alignItems: "center" as const,
-    borderRadius: 14,
-    height: 38,
+    borderRadius: 11,
+    height: 30,
     justifyContent: "center" as const,
-    width: 38,
+    width: 30,
   },
   shortcutLabel: {
     color: theme.text.primary,
     fontFamily: theme.typography.fontFamilyBold,
-    fontSize: 11.5,
+    fontSize: 11,
   },
 
   sectionHeader: {

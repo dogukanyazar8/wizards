@@ -34,6 +34,9 @@ import { useMobileLocaleRuntime } from "../../app/providers/mobile-locale-provid
 import { useMobileAccountSettingsQuery } from "../../account/mobile-account-settings-query";
 import { useMobileAuth } from "../../auth/mobile-auth-context";
 import { activeMobileCopy as copy } from "../../locale/mobile-locale-preferences";
+import { mobileCopy } from "../../locale/mobile-copy";
+
+type MobileCopy = (typeof mobileCopy)[keyof typeof mobileCopy];
 import { mobileNavigationRef } from "../../navigation/mobile-navigation-ref";
 import { MobileCustomStatusSheet } from "../mobile-custom-status-sheet";
 import type { MobileUserReportReason } from "../mobile-social-client";
@@ -72,17 +75,20 @@ export function useMobileProfileCard(): MobileProfileCardController {
 }
 
 /**
- * Built per render rather than hoisted: `copy` is a proxy that resolves each
- * access against the live locale, so a module-level literal would pin the
- * reason labels to whatever language the bundle booted in.
+ * Takes the locale's dictionary rather than reading the `copy` proxy, which
+ * resolves per access and is therefore invisible to the hook dependency
+ * checker. Passing the dictionary in makes "these labels change with the
+ * language" a real, tracked dependency instead of a commented-out one.
  */
-function readReportReasons(): readonly { label: string; value: MobileUserReportReason }[] {
+function readReportReasons(
+  labels: MobileCopy,
+): readonly { label: string; value: MobileUserReportReason }[] {
   return [
-    { label: copy.profileCardReportReasonHarassment, value: "harassment" },
-    { label: copy.profileCardReportReasonSpam, value: "spam" },
-    { label: copy.profileCardReportReasonInappropriate, value: "inappropriate" },
-    { label: copy.profileCardReportReasonImpersonation, value: "impersonation" },
-    { label: copy.profileCardReportReasonOther, value: "other" },
+    { label: labels.profileCardReportReasonHarassment, value: "harassment" },
+    { label: labels.profileCardReportReasonSpam, value: "spam" },
+    { label: labels.profileCardReportReasonInappropriate, value: "inappropriate" },
+    { label: labels.profileCardReportReasonImpersonation, value: "impersonation" },
+    { label: labels.profileCardReportReasonOther, value: "other" },
   ];
 }
 
@@ -104,8 +110,11 @@ function ProfileCardOverlay({
   const { apiClient, session, status } = useMobileAuth();
   // The card reads its strings off the `activeMobileCopy` proxy, which is live
   // per access but only repaints what re-renders. Subscribing to the runtime is
-  // what makes a language switch reach a card that is already mounted.
+  // what makes a language switch reach a card that is already mounted; the
+  // memoised label lists take `labels` so the language is a tracked dependency
+  // rather than an invisible one behind the proxy.
   const { locale } = useMobileLocaleRuntime();
+  const labels = mobileCopy[locale];
   const mutations = useMobileSocialMutations(apiClient);
   // Only your own card offers the status sheets, and only they need the emoji —
   // the peer profile payload carries the status text but not its emoji.
@@ -349,7 +358,7 @@ function ProfileCardOverlay({
       {
         icon: "edit",
         id: "note",
-        label: profile?.note ? copy.profileNoteEditAction : copy.profileNoteAddAction,
+        label: profile?.note ? labels.profileNoteEditAction : labels.profileNoteAddAction,
         onPress: () => {
           setMenuOpen(false);
           setNoteOpen(true);
@@ -359,7 +368,7 @@ function ProfileCardOverlay({
         destructive: true,
         icon: "block",
         id: "block",
-        label: copy.profileCardMenuBlock,
+        label: labels.profileCardMenuBlock,
         onPress: () => {
           setMenuOpen(false);
           setBlockOpen(true);
@@ -369,19 +378,20 @@ function ProfileCardOverlay({
         destructive: true,
         icon: "flag",
         id: "report",
-        label: copy.profileCardMenuReport,
+        label: labels.profileCardMenuReport,
         onPress: () => {
           setMenuOpen(false);
           setReportOpen(true);
         },
       },
     ],
-    // `locale` is a repaint dependency, not a value one: the labels come off the
-    // copy proxy and have to be re-read when the language changes.
-    [locale, profile?.note],
+    // `labels` carries the locale: it is a new reference per language, so a
+    // switch rebuilds these rows without the dependency having to be asserted
+    // in a comment.
+    [labels, profile?.note],
   );
 
-  const reportReasons = useMemo(() => readReportReasons(), [locale]);
+  const reportReasons = useMemo(() => readReportReasons(labels), [labels]);
 
   const isBusy =
     mutations.openDM.isPending ||

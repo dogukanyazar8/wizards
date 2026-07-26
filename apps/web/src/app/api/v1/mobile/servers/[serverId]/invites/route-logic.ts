@@ -9,7 +9,6 @@ import {
   MobileServerInvitesResponseSchema,
   MobileServerTargetedInviteCreateRequestSchema,
   MobileServerTargetedInviteCreateResponseSchema,
-  type WorkspaceInvite,
 } from "@wizards/types";
 
 import { jsonError, parseJsonBody } from "@/lib/api";
@@ -25,6 +24,7 @@ import {
   replaceMobileServerLinkInvite,
   revokeWorkspaceInvite,
 } from "@/lib/workspace/invite-service";
+import { toMobileServerInvite } from "@/lib/workspace/invite-selection";
 
 type MobileServerInviteRateLimitAction =
   | "mobile:server:invites:create"
@@ -84,7 +84,7 @@ export async function mobileServerInvitesListRoute(
 
     return Response.json(
       MobileServerInvitesResponseSchema.parse({
-        invites: invites.map((invite) => toMobileInvite(invite, dependencies.buildShareUrl)),
+        invites: invites.map((invite) => toMobileServerInvite(invite, dependencies.buildShareUrl)),
       }),
       { headers: NO_STORE_HEADERS },
     );
@@ -128,7 +128,7 @@ export async function mobileServerInviteLinkUpdateRoute(
 
     return Response.json(
       MobileServerInviteCreateResponseSchema.parse({
-        invite: toMobileInvite(invite, dependencies.buildShareUrl),
+        invite: toMobileServerInvite(invite, dependencies.buildShareUrl),
       }),
       { headers: NO_STORE_HEADERS },
     );
@@ -195,7 +195,7 @@ export async function mobileServerInviteCreateRoute(
 
     return Response.json(
       MobileServerInviteCreateResponseSchema.parse({
-        invite: toMobileInvite(invite, dependencies.buildShareUrl),
+        invite: toMobileServerInvite(invite, dependencies.buildShareUrl),
       }),
       { status: 201 },
     );
@@ -219,17 +219,4 @@ export async function mobileServerInviteRevokeRoute(
   } catch (error) {
     return jsonError(error);
   }
-}
-
-function toMobileInvite(invite: WorkspaceInvite, buildShareUrl: (code: string) => string) {
-  return {
-    channelId: invite.channelId,
-    createdAt: invite.createdAt,
-    createdByDisplayName: invite.createdByDisplayName,
-    expiresAt: invite.expiresAt,
-    id: invite.id,
-    maxUses: invite.maxUses,
-    shareUrl: buildShareUrl(invite.code),
-    uses: invite.uses,
-  };
 }

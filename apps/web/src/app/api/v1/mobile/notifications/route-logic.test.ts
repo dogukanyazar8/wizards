@@ -18,6 +18,7 @@ const notification = {
   read: false,
   readAt: null,
   server: { id: "server-1", name: "Whispr" },
+  serverInviteCode: null,
   type: "MENTION" as const,
 };
 
@@ -85,9 +86,12 @@ describe("mobile notifications route logic", () => {
     });
 
     const one = await mobileNotificationMarkReadRoute(
-      new Request("https://whispr.test/api/v1/mobile/notifications/00000000-0000-4000-8000-000000000001/read", {
-        method: "PATCH",
-      }),
+      new Request(
+        "https://whispr.test/api/v1/mobile/notifications/00000000-0000-4000-8000-000000000001/read",
+        {
+          method: "PATCH",
+        },
+      ),
       context({ id: notification.id }),
       deps,
     );
@@ -168,7 +172,9 @@ describe("mobile notifications route logic", () => {
       }),
     );
     const malformed = await mobileNotificationMarkReadRoute(
-      new Request("https://whispr.test/api/v1/mobile/notifications/not-a-uuid/read", { method: "PATCH" }),
+      new Request("https://whispr.test/api/v1/mobile/notifications/not-a-uuid/read", {
+        method: "PATCH",
+      }),
       context({ id: "not-a-uuid" }),
       dependencies({
         markRead: async () => {

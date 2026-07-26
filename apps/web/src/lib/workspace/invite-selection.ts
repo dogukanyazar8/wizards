@@ -1,8 +1,10 @@
+import type { MobileServerInvite, WorkspaceInvite } from "@wizards/types";
+
 /**
- * Pure invite-liveness rules shared by the mobile invite sheet (handoff 2a/2b),
- * the targeted-invite writes and the search's server context. Kept free of
- * Prisma so the rule that decides "is this invite still usable?" is stated once
- * and tested directly instead of being re-derived at each call site.
+ * Pure invite-liveness and projection rules shared by the mobile invite sheet
+ * (handoff 2a/2b), the targeted-invite writes and the search's server context.
+ * Kept free of Prisma so "is this invite still usable?" and "what may a device
+ * see of it?" are each stated once and tested directly.
  */
 
 export interface InviteLifetimeFields {
@@ -46,4 +48,28 @@ export function selectActiveLinkInvite<TInvite extends LinkInviteCandidate>(
   }
 
   return selected;
+}
+
+/**
+ * Projects a stored invite into the shape a device may see.
+ *
+ * The raw `WorkspaceInvite` carries `code`, and the mobile contract is
+ * `.strict()` without it — spreading the stored row into a response is both a
+ * secret leak and a parse failure. Every mobile invite response goes through
+ * this one projection so neither can happen at a single call site.
+ */
+export function toMobileServerInvite(
+  invite: WorkspaceInvite,
+  buildShareUrl: (code: string) => string,
+): MobileServerInvite {
+  return {
+    channelId: invite.channelId,
+    createdAt: invite.createdAt,
+    createdByDisplayName: invite.createdByDisplayName,
+    expiresAt: invite.expiresAt,
+    id: invite.id,
+    maxUses: invite.maxUses,
+    shareUrl: buildShareUrl(invite.code),
+    uses: invite.uses,
+  };
 }

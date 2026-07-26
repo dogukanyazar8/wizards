@@ -97,6 +97,7 @@ export const API_RATE_LIMITS = {
   "mobile:users:note": { limit: 60, windowSeconds: 60 },
   /** Reports are a moderation write, so the window is deliberately narrow. */
   "mobile:users:report": { limit: 5, windowSeconds: 10 * 60 },
+  "mobile:invite:decline": { limit: 30, windowSeconds: 10 * 60 },
   "mobile:giphy:search": { limit: 60, windowSeconds: 60 },
   "mobile:giphy:attachment": { limit: 60, windowSeconds: 60 },
   "mobile:link-preview": { limit: 30, windowSeconds: 60 },

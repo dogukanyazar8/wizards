@@ -82,6 +82,16 @@ jest.mock("../src/social/mobile-social-query", () => ({
   }),
 }));
 
+// Server-invite rows answer through this hook; stubbed here so the screen does
+// not need a QueryClientProvider. Its own behaviour is covered by
+// mobile-notification-server-invite.test.tsx.
+jest.mock("../src/query/use-mobile-server-management-mutations", () => ({
+  useMobileServerManagementMutations: () => ({
+    acceptInvite: { isPending: false, mutate: jest.fn() },
+    declineInvite: { isPending: false, mutate: jest.fn() },
+  }),
+}));
+
 import { NotificationsScreen } from "../src/app/screens/notifications-screen";
 
 const mention: MobileNotificationItem = {

@@ -279,20 +279,31 @@ describe("mobile server detail route logic", () => {
       type: "TEXT" as const,
       unreadCount: 0,
     }));
+    // The aggregate budget is 80, so it takes two full categories to exhaust it
+    // before a third can be emptied by it. (This fixture used to hold a single
+    // 40-channel category, which stopped exercising the rule when the aggregate
+    // limit moved from 40 to 80 — the assertion below passed vacuously.)
+    const secondChannels = channels.map((channel, index) => ({
+      ...channel,
+      categoryId: "category-second",
+      id: `second-${index}`,
+      name: `second-${index}`,
+    }));
     const boundedDetail = {
       ...mobileProjection,
       categories: [
         { channels, id: "category-full", name: "Full", position: 0 },
+        { channels: secondChannels, id: "category-second", name: "Second", position: 1 },
         // Beyond the channel budget: this one has channels but none survive, so
         // showing an empty header would be a lie.
         {
           channels: [{ ...channels[0]!, categoryId: "category-spill", id: "channel-spill" }],
           id: "category-spill",
           name: "Spill",
-          position: 1,
+          position: 2,
         },
         // Genuinely empty — a category someone just created.
-        { channels: [], id: "category-empty", name: "Duyurular", position: 2 },
+        { channels: [], id: "category-empty", name: "Duyurular", position: 3 },
       ],
       ungroupedChannels: [],
     } satisfies WorkspaceServerDetail;
@@ -317,6 +328,7 @@ describe("mobile server detail route logic", () => {
       body.detail.categories.map((category) => [category.id, category.channels.length]),
       [
         ["category-full", 40],
+        ["category-second", 40],
         ["category-empty", 0],
       ],
     );
@@ -489,7 +501,17 @@ describe("mobile server detail route logic", () => {
     };
 
     assert.equal(response.status, 200);
-    assert.deepEqual(body.detail.categories, []);
+    // Channel-less categories are kept: they are real, addressable headers a
+    // member just created and files new channels under. (This used to assert an
+    // empty list, from before that drop was recognised as the bug that made
+    // "kategori oluştur" look like a no-op.)
+    assert.equal(body.detail.categories.length, 20);
+    assert.deepEqual(
+      body.detail.categories.map((category) => (category as { channels: unknown[] }).channels),
+      Array.from({ length: 20 }, () => []),
+    );
+    // The sentinel itself is the subject here: it travels as a flag, never as a
+    // 21st row.
     assert.equal(body.detail.hasMoreChannels, true);
     assert.equal(body.detail.server.visibleChannelCount, 2);
     assert.equal(body.detail.server.defaultChannelId, "text-1");

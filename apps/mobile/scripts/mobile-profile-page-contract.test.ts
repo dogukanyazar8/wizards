@@ -44,13 +44,19 @@ const PROFILE_PAGE_TEST_IDS = [
 
 describe("11c profile page contract", () => {
   it("registers the UserProfile route through types, navigator, intents and containers", () => {
-    assert.match(navigationTypesSource, /UserProfile: \{\s*readonly serverId\?: string \| undefined;/);
+    assert.match(
+      navigationTypesSource,
+      /UserProfile: \{\s*readonly serverId\?: string \| undefined;/,
+    );
     assert.match(navigationTypesSource, /readonly name: "UserProfile"/);
     assert.match(navigatorSource, /<RootStack\.Screen name="UserProfile">/);
     assert.match(navigatorSource, /UserProfileStackScreenContainer/);
     assert.match(navigationRefSource, /case "UserProfile":/);
     // Out-of-stack entry points must not stack a duplicate route (10g).
-    assert.match(navigationRefSource, /navigate\("UserProfile", intent\.params, ROUTE_INTENT_OPTIONS\)/);
+    assert.match(
+      navigationRefSource,
+      /navigate\("UserProfile", intent\.params, ROUTE_INTENT_OPTIONS\)/,
+    );
     assert.match(containersSource, /export function UserProfileStackScreenContainer/);
     // A mutual friend opens as the 11b card, which is what pushes the next page.
     assert.match(containersSource, /openProfileCard\(nextUserId, serverId\)/);
@@ -186,7 +192,11 @@ describe("11b card and 11c page parity", () => {
     assert.doesNotMatch(profileCardViewSource, /^const STATUS_LABELS = \{/m);
     assert.match(profileCardViewSource, /const statusLabels = readStatusLabels\(\);/);
     assert.doesNotMatch(profileCardOverlaySource, /^const REPORT_REASONS/m);
-    assert.match(profileCardOverlaySource, /readReportReasons\(\)/);
+    // Built per render from the active locale's table, which the memo also
+    // depends on — so the language is a tracked dependency, not a commented one.
+    assert.match(profileCardOverlaySource, /readReportReasons\(labels\)/);
+    assert.match(profileCardOverlaySource, /const labels = mobileCopy\[locale\];/);
+    assert.doesNotMatch(profileCardOverlaySource, /useMemo\([^)]*\), \[locale\]\)/);
     // Subscribing to the runtime is what re-renders a card that stays mounted.
     assert.match(profileCardOverlaySource, /const \{ locale \} = useMobileLocaleRuntime\(\);/);
   });
@@ -227,7 +237,10 @@ describe("11b card and 11c page parity", () => {
     assert.match(screenSource, /formatMobileMediaDuration/);
     assert.match(sectionsSource, /mobile-user-profile-media-duration-\$\{item\.id\}/);
     // The heading counts the conversation, not the page the strip was cut from.
-    assert.match(screenSource, /totalCount=\{mediaQuery\.data\?\.mediaCount \?\? mediaItems\.length\}/);
+    assert.match(
+      screenSource,
+      /totalCount=\{mediaQuery\.data\?\.mediaCount \?\? mediaItems\.length\}/,
+    );
   });
 
   it("puts a see-all behind the mutual friends card, like the mutual servers card", () => {

@@ -323,6 +323,24 @@ export const MobileServerInviteLinkUpdateRequestSchema = z
   })
   .strict();
 
+/**
+ * Recipient-side decline. Addressed by redemption code rather than invite id
+ * because the recipient is not a member of that server yet, so they can reach
+ * no server-scoped route — the code in their notification is all they hold.
+ */
+export const MobileServerInviteCodeParamsSchema = z
+  .object({
+    code: z
+      .string()
+      .trim()
+      .regex(/^[A-Za-z0-9_-]{1,96}$/),
+  })
+  .strict();
+
+export const MobileServerInviteDeclineResponseSchema = z
+  .object({ serverId: MobileResourceIdSchema, success: z.literal(true) })
+  .strict();
+
 export const MobileServerInviteQrResponseSchema = z
   .object({
     qrCodeDataUrl: z
@@ -552,6 +570,10 @@ export type MobileServerInviteLinkUpdateRequest = z.infer<
   typeof MobileServerInviteLinkUpdateRequestSchema
 >;
 export type MobileServerInviteQrResponse = z.infer<typeof MobileServerInviteQrResponseSchema>;
+export type MobileServerInviteCodeParams = z.infer<typeof MobileServerInviteCodeParamsSchema>;
+export type MobileServerInviteDeclineResponse = z.infer<
+  typeof MobileServerInviteDeclineResponseSchema
+>;
 export type MobileCategoryCreateRequest = z.infer<typeof MobileCategoryCreateRequestSchema>;
 export type MobileCategoryCreateResponse = z.infer<typeof MobileCategoryCreateResponseSchema>;
 export type MobileCategoryUpdateRequest = z.infer<typeof MobileCategoryUpdateRequestSchema>;

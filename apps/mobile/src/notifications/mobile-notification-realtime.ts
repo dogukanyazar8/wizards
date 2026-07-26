@@ -11,6 +11,8 @@ import {
 import { mobileQueryKeys } from "../query/mobile-query-keys";
 
 const PREVIEW_MAX_LENGTH = 240;
+/** Matches the invite-code bound in the notification contract. */
+const INVITE_CODE_MAX_LENGTH = 96;
 
 function getMetadataString(
   metadata: Record<string, unknown> | null,
@@ -50,6 +52,9 @@ export function toMobileNotificationItem(
     getMetadataString(metadata, "messagePreview", PREVIEW_MAX_LENGTH) ??
     getMetadataString(metadata, "threadReplyPreview", PREVIEW_MAX_LENGTH);
   const friendRequestId = getMetadataString(metadata, "friendRequestId");
+  // A pushed invite is live by construction — it was created moments ago — so
+  // the row can offer accept/decline without waiting for the list refetch.
+  const inviteCode = getMetadataString(metadata, "inviteCode", INVITE_CODE_MAX_LENGTH);
 
   return {
     actionUrl: event.actionUrl,
@@ -64,6 +69,7 @@ export function toMobileNotificationItem(
     read: event.read,
     readAt: event.readAt,
     server: event.server ?? null,
+    serverInviteCode: event.type === "SERVER_INVITE" ? inviteCode : null,
     type: event.type,
   };
 }

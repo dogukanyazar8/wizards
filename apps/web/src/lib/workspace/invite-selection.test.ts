@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { isLiveInvite, selectActiveLinkInvite } from "./invite-selection";
+import { MobileServerInviteSchema, type WorkspaceInvite } from "@wizards/types";
+
+import { isLiveInvite, selectActiveLinkInvite, toMobileServerInvite } from "./invite-selection";
 
 const NOW = Date.parse("2026-07-26T12:00:00.000Z");
 
@@ -86,5 +88,60 @@ describe("active link invite selection", () => {
   it("keeps a live invite that still has seats left", () => {
     const usable = invite({ maxUses: 10, uses: 9 });
     assert.equal(selectActiveLinkInvite([usable], NOW), usable);
+  });
+});
+
+describe("mobile invite projection", () => {
+  const stored: WorkspaceInvite = {
+    channelId: "channel-1",
+    code: "SECRET42",
+    createdAt: "2026-07-26T10:00:00.000Z",
+    createdByDisplayName: "Doğukan",
+    expiresAt: null,
+    id: "invite-1",
+    maxUses: null,
+    uses: 0,
+  };
+
+  const buildShareUrl = (code: string) =>
+    `https://wizardsweb-uat.up.railway.app/invite/${encodeURIComponent(code)}`;
+
+  it("never lets the raw invite code reach a device", () => {
+    const projected = toMobileServerInvite(stored, buildShareUrl);
+
+    assert.equal("code" in projected, false);
+    assert.equal(
+      JSON.stringify(projected).includes(stored.code),
+      // The code only survives inside the share URL, which is its public form.
+      true,
+    );
+    assert.equal(projected.shareUrl, "https://wizardsweb-uat.up.railway.app/invite/SECRET42");
+  });
+
+  it("produces a payload the strict mobile contract accepts", () => {
+    // Spreading the stored row instead would fail here: `code` is an unknown key.
+    assert.equal(
+      MobileServerInviteSchema.safeParse(toMobileServerInvite(stored, buildShareUrl)).success,
+      true,
+    );
+    assert.equal(
+      MobileServerInviteSchema.safeParse({ ...stored, shareUrl: buildShareUrl(stored.code) })
+        .success,
+      false,
+      "the raw stored shape must stay rejected, which is the regression this guards",
+    );
+  });
+
+  it("carries the stored lifetime through untouched", () => {
+    const limited = toMobileServerInvite(
+      { ...stored, expiresAt: "2026-08-02T10:00:00.000Z", maxUses: 10, uses: 3 },
+      buildShareUrl,
+    );
+
+    assert.equal(limited.expiresAt, "2026-08-02T10:00:00.000Z");
+    assert.equal(limited.maxUses, 10);
+    assert.equal(limited.uses, 3);
+    assert.equal(limited.channelId, "channel-1");
+    assert.equal(limited.createdByDisplayName, "Doğukan");
   });
 });

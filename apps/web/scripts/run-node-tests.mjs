@@ -3,12 +3,14 @@ import { readdirSync, statSync } from "node:fs";
 import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { escapeTestGlobPath } from "./test-glob-path.mjs";
+
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const webRoot = join(scriptDir, "..");
 const srcRoot = join(webRoot, "src");
 
 function toCliPath(path) {
-  return relative(webRoot, path).split(sep).join("/");
+  return escapeTestGlobPath(relative(webRoot, path).split(sep).join("/"));
 }
 
 function collectTestFiles(directory) {

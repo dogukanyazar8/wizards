@@ -263,6 +263,13 @@ export const MobileNotificationItemSchema = z.object({
   read: z.boolean(),
   readAt: z.string().datetime().nullable(),
   server: MobileNotificationContextSchema.nullable(),
+  /**
+   * Redemption code of a still-open targeted server invite, which is what turns
+   * a SERVER_INVITE row into an accept/decline pair. Null once the invite is
+   * spent, revoked or expired, so a stale row offers no actions. Defaulted for
+   * an un-redeployed server.
+   */
+  serverInviteCode: z.string().min(1).max(96).nullable().default(null),
   type: MobileNotificationTypeSchema,
 });
 
