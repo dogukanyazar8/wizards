@@ -38,6 +38,7 @@ const snapshot = {
   participants: [participant],
   privacyMode: "standard" as const,
   updatedAt: "2026-07-09T12:00:00.000Z",
+  version: 1 as const,
 };
 
 describe("voice mini schemas", () => {

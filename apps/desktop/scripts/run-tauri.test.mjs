@@ -159,6 +159,25 @@ describe("desktop Tauri config generation", () => {
     );
   });
 
+  it("allows no-bundle only for unsigned native build signals", async () => {
+    await execFileAsync(
+      process.execPath,
+      [runTauriScript, "build", "--", "--no-bundle", "--write-config-only"],
+      {
+        cwd: desktopRoot,
+        env: testDesktopEnv(),
+      },
+    );
+
+    await assert.rejects(
+      execFileAsync(process.execPath, [runTauriScript, "dev", "--no-bundle"], {
+        cwd: desktopRoot,
+        env: testDesktopEnv(),
+      }),
+      /--no-bundle is only supported for production builds/,
+    );
+  });
+
   it("enables signed updater configuration only with explicit HTTPS manifest settings", async () => {
     const productionUrl = "https://uat.whispr.team";
     const updateEndpoint = "https://updates.whispr.team/desktop/uat/latest.json";
@@ -199,10 +218,7 @@ describe("desktop Tauri config generation", () => {
       "Bypass",
       "-File",
     ]);
-    assert.match(
-      generatedConfig.bundle.windows.signCommand.args[4],
-      /sign-windows-artifact\.ps1$/,
-    );
+    assert.match(generatedConfig.bundle.windows.signCommand.args[4], /sign-windows-artifact\.ps1$/);
     assert.equal(generatedConfig.bundle.windows.signCommand.args[5], "%1");
     assert.deepEqual(generatedConfig.plugins.updater, {
       endpoints: [updateEndpoint],
@@ -216,8 +232,12 @@ describe("desktop Tauri config generation", () => {
     assert.ok(mainCapability.permissions.includes("process:allow-restart"));
     assert.ok(mainCapability.permissions.includes("allow-record-desktop-update-failure"));
     assert.ok(!mainCapability.permissions.includes("process:allow-exit"));
-    assert.ok(!voiceMiniCapability.permissions.some((permission) => permission.startsWith("updater:")));
-    assert.ok(!voiceMiniCapability.permissions.some((permission) => permission.startsWith("process:")));
+    assert.ok(
+      !voiceMiniCapability.permissions.some((permission) => permission.startsWith("updater:")),
+    );
+    assert.ok(
+      !voiceMiniCapability.permissions.some((permission) => permission.startsWith("process:")),
+    );
     assert.deepEqual(gameOverlayCapability.permissions, []);
     assertOnlyProductionRemoteUrls(generatedConfig, productionUrl);
     assert.doesNotMatch(JSON.stringify(generatedConfig), /http:\/\/localhost|whispr\.invalid/);
@@ -279,7 +299,9 @@ describe("desktop Tauri config generation", () => {
       "The game overlay capability must stay empty unless a dedicated security review widens it.",
     );
     assert.ok(
-      !generatedVoiceMiniCapability.permissions.some((permission) => permission.startsWith("allow-")),
+      !generatedVoiceMiniCapability.permissions.some((permission) =>
+        permission.startsWith("allow-"),
+      ),
       "The voice mini capability must not be granted custom app commands.",
     );
     assert.ok(

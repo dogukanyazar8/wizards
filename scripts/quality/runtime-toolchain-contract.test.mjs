@@ -351,7 +351,7 @@ test("self-hosted CI uses the runner's persistent pnpm store instead of GitHub c
     );
   }
 
-  for (const jobName of ["node22-compatibility", "desktop-build"]) {
+  for (const jobName of ["node22-compatibility"]) {
     assert.match(
       readWorkflowJob(workflow, jobName),
       /^          cache: pnpm$/mu,

@@ -138,7 +138,6 @@ interface AppState extends PersistedRouteState {
   inviteModal: InviteModalState;
   mainPanelWidth: number;
   memberPanelCollapsed: boolean;
-  desktopCloseToTrayEnabled: boolean;
   desktopNotificationPreviews: boolean;
   desktopRichPresenceAudience: DesktopRichPresenceAudience;
   desktopRichPresenceEnabled: boolean;
@@ -200,7 +199,6 @@ interface AppState extends PersistedRouteState {
   setAppearanceHydrated: (hydrated: boolean) => void;
   setAppIconId: (iconId: AppIconId) => void;
   setChannelSidebarWidth: (width: number) => void;
-  setDesktopCloseToTrayEnabled: (enabled: boolean) => void;
   setDesktopNotificationPreviews: (enabled: boolean) => void;
   setDesktopRichPresenceAudience: (audience: DesktopRichPresenceAudience) => void;
   setDesktopRichPresenceEnabled: (enabled: boolean) => void;
@@ -231,7 +229,6 @@ type PersistedAppState = Pick<
   | "appIconId"
   | "channelSidebarWidth"
   | "collapsedCategories"
-  | "desktopCloseToTrayEnabled"
   | "desktopNotificationPreviews"
   | "desktopRichPresenceAudience"
   | "desktopRichPresenceEnabled"
@@ -288,7 +285,6 @@ function createInitialState(): Omit<
   | "setAppearanceHydrated"
   | "setAppIconId"
   | "setChannelSidebarWidth"
-  | "setDesktopCloseToTrayEnabled"
   | "setDesktopNotificationPreviews"
   | "setDesktopRichPresenceAudience"
   | "setDesktopRichPresenceEnabled"
@@ -342,7 +338,6 @@ function createInitialState(): Omit<
     lastChannelByServerId: {},
     mainPanelWidth: DEFAULT_MAIN_PANEL_WIDTH,
     memberPanelCollapsed: false,
-    desktopCloseToTrayEnabled: true,
     desktopNotificationPreviews: false,
     desktopRichPresenceAudience: DEFAULT_DESKTOP_RICH_PRESENCE_AUDIENCE,
     desktopRichPresenceEnabled: false,
@@ -439,8 +434,6 @@ function sanitizePersistedState(value: unknown): Partial<PersistedAppState> {
     ),
     collapsedCategories: sanitizeBooleanRecord(value.collapsedCategories),
     lastChannelByServerId: sanitizeStringRecord(value.lastChannelByServerId),
-    desktopCloseToTrayEnabled:
-      typeof value.desktopCloseToTrayEnabled === "boolean" ? value.desktopCloseToTrayEnabled : true,
     desktopNotificationPreviews:
       typeof value.desktopNotificationPreviews === "boolean"
         ? value.desktopNotificationPreviews
@@ -745,10 +738,6 @@ export const useAppStore = create<AppState>()(
             channelSidebarWidth: nextWidth,
           };
         }),
-      setDesktopCloseToTrayEnabled: (enabled) =>
-        set({
-          desktopCloseToTrayEnabled: enabled,
-        }),
       setDesktopNotificationPreviews: (enabled) =>
         set({
           desktopNotificationPreviews: enabled,
@@ -1020,16 +1009,6 @@ export const useAppStore = create<AppState>()(
           };
         }
 
-        if (version < 10) {
-          nextPersistedState = {
-            ...nextPersistedState,
-            desktopCloseToTrayEnabled:
-              typeof nextPersistedState.desktopCloseToTrayEnabled === "boolean"
-                ? nextPersistedState.desktopCloseToTrayEnabled
-                : true,
-          };
-        }
-
         if (
           version < 12 &&
           typeof nextPersistedState.channelSidebarWidth === "number" &&
@@ -1068,7 +1047,6 @@ export const useAppStore = create<AppState>()(
         appIconId: state.appIconId,
         channelSidebarWidth: state.channelSidebarWidth,
         collapsedCategories: state.collapsedCategories,
-        desktopCloseToTrayEnabled: state.desktopCloseToTrayEnabled,
         desktopNotificationPreviews: state.desktopNotificationPreviews,
         desktopRichPresenceAudience: state.desktopRichPresenceAudience,
         desktopRichPresenceEnabled: state.desktopRichPresenceEnabled,

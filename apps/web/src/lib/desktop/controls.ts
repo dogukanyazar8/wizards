@@ -9,10 +9,7 @@ import type {
 } from "@wizards/types";
 
 export type DesktopVoiceShortcutAction =
-  | "hideGameOverlay"
-  | "pushToTalk"
-  | "toggleDeafen"
-  | "toggleMute";
+  "hideGameOverlay" | "pushToTalk" | "toggleDeafen" | "toggleMute";
 
 export interface DesktopVoiceShortcutRegistration {
   action: DesktopVoiceShortcutAction;
@@ -30,6 +27,11 @@ export interface DesktopVoiceShortcutConfig {
   shortcutsEnabled: boolean;
   toggleDeafen?: string | null;
   toggleMute?: string | null;
+}
+
+interface DesktopCompanionSnapshotPublishResultV1 {
+  delivered: boolean;
+  version: 1;
 }
 
 export type DesktopVoiceMiniCommand = "leaveVoice" | "toggleDeafen" | "toggleMute";
@@ -209,6 +211,7 @@ function buildDesktopOverlayTestSnapshot(
     ],
     overlay: overlayPreferences,
     updatedAt: new Date().toISOString(),
+    version: 1,
   };
 }
 
@@ -273,38 +276,6 @@ export async function configureDesktopVoiceShortcuts(
   });
 }
 
-export async function getDesktopAutostartEnabled() {
-  if (!isWhisprDesktopRuntime()) {
-    return false;
-  }
-
-  return invokeDesktopCommand<boolean>("get_desktop_autostart_enabled");
-}
-
-export async function setDesktopAutostartEnabled(enabled: boolean) {
-  if (!isWhisprDesktopRuntime()) {
-    return false;
-  }
-
-  return invokeDesktopCommand<boolean>("set_desktop_autostart_enabled", { enabled });
-}
-
-export async function getDesktopQuitOnCloseEnabled() {
-  if (!isWhisprDesktopRuntime()) {
-    return false;
-  }
-
-  return invokeDesktopCommand<boolean>("get_desktop_quit_on_close_enabled");
-}
-
-export async function setDesktopQuitOnCloseEnabled(enabled: boolean) {
-  if (!isWhisprDesktopRuntime()) {
-    return false;
-  }
-
-  return invokeDesktopCommand<boolean>("set_desktop_quit_on_close_enabled", { enabled });
-}
-
 export async function getDesktopPlatformCapabilities() {
   if (!isWhisprDesktopRuntime()) {
     return null;
@@ -365,9 +336,12 @@ export async function refreshDesktopCompanionSurfaces() {
     return null;
   }
 
-  return invokeDesktopCommand<DesktopCompanionSurfacesStatus>("refresh_desktop_companion_surfaces", {
-    layout: null,
-  });
+  return invokeDesktopCommand<DesktopCompanionSurfacesStatus>(
+    "refresh_desktop_companion_surfaces",
+    {
+      layout: null,
+    },
+  );
 }
 
 export async function refreshDesktopCompanionSurfacesWithLayout(layout: DesktopGameOverlayLayout) {
@@ -375,9 +349,12 @@ export async function refreshDesktopCompanionSurfacesWithLayout(layout: DesktopG
     return null;
   }
 
-  return invokeDesktopCommand<DesktopCompanionSurfacesStatus>("refresh_desktop_companion_surfaces", {
-    layout,
-  });
+  return invokeDesktopCommand<DesktopCompanionSurfacesStatus>(
+    "refresh_desktop_companion_surfaces",
+    {
+      layout,
+    },
+  );
 }
 
 export async function repairDesktopGameOverlaySurface(
@@ -439,7 +416,11 @@ export async function publishDesktopVoiceMiniSnapshot(snapshot: VoiceMiniSnapsho
     return false;
   }
 
-  return invokeDesktopCommand<boolean>("publish_desktop_voice_mini_snapshot", { snapshot });
+  const result = await invokeDesktopCommand<DesktopCompanionSnapshotPublishResultV1>(
+    "publish_desktop_voice_mini_snapshot",
+    { snapshot },
+  );
+  return result.version === 1 && result.delivered;
 }
 
 export async function publishDesktopGameOverlaySnapshot(snapshot: VoiceMiniSnapshot) {
@@ -447,7 +428,11 @@ export async function publishDesktopGameOverlaySnapshot(snapshot: VoiceMiniSnaps
     return false;
   }
 
-  return invokeDesktopCommand<boolean>("publish_desktop_game_overlay_snapshot", { snapshot });
+  const result = await invokeDesktopCommand<DesktopCompanionSnapshotPublishResultV1>(
+    "publish_desktop_game_overlay_snapshot",
+    { snapshot },
+  );
+  return result.version === 1 && result.delivered;
 }
 
 export async function testDesktopGameOverlaySurface(overlayPreferences?: VoiceOverlayPreferences) {

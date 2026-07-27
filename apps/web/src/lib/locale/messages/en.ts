@@ -1405,6 +1405,8 @@ export const EN_MESSAGES = {
     "Inspect the Tauri shell, socket connection, notification permission, and active voice lifecycle without changing your session.",
   "settings.desktop.webOnlyNote":
     "These controls are available only in the Whispr desktop app. Browser sessions keep them disabled.",
+  "settings.desktop.nativeTrayControlNote":
+    "Close behavior is controlled from the native Whispr tray menu on this device.",
   "settings.voice.audio.title": "Audio",
   "settings.voice.camera.badge": "Live preview",
   "settings.voice.camera.title": "Camera",
@@ -1662,6 +1664,8 @@ export const EN_MESSAGES = {
   "desktop.diagnostics.autostart.label": "Launch Whispr at startup",
   "desktop.diagnostics.autostart.detail":
     "Opt in to start Whispr automatically when this computer signs in. The setting is stored by the operating system and can be turned off here anytime.",
+  "desktop.diagnostics.autostart.nativeTray":
+    "Manage launch at startup from the native Whispr tray menu.",
   "desktop.diagnostics.autostart.error":
     "Whispr could not update the operating system startup setting.",
   "desktop.diagnostics.streamerMode.label": "Streamer mode",

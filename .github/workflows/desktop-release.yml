@@ -715,12 +715,24 @@ jobs:
             exit 1
           fi
 
-      - name: Install AWS CLI for R2 upload
+      - name: Verify preinstalled AWS CLI v2 for R2 upload
         if: needs.release-contract.outputs.publish_r2 == 'true'
         shell: bash
         run: |
-          python -m pip install --user awscli
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          set -euo pipefail
+
+          if ! command -v aws >/dev/null 2>&1; then
+            echo "::error::The protected R2 publishing runner must provide AWS CLI v2."
+            exit 1
+          fi
+
+          version="$(aws --version 2>&1)"
+          if [[ "$version" != aws-cli/2.* ]]; then
+            echo "::error::Expected preinstalled AWS CLI v2, got: $version"
+            exit 1
+          fi
+
+          printf '%s\n' "AWS CLI: $version" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Publish updater artifacts to Cloudflare R2
         if: needs.release-contract.outputs.publish_r2 == 'true'

@@ -9,12 +9,10 @@ fn main() {
         "configure_desktop_voice_shortcuts",
         "export_desktop_diagnostics_bundle",
         "get_desktop_app_info",
-        "get_desktop_autostart_enabled",
         "get_desktop_companion_surfaces_status",
         "get_desktop_foreground_process_name",
         "get_desktop_main_window_focused",
         "get_desktop_platform_capabilities",
-        "get_desktop_quit_on_close_enabled",
         "get_desktop_voice_shortcut_status",
         "promote_desktop_main_window",
         "publish_desktop_game_overlay_snapshot",
@@ -22,9 +20,7 @@ fn main() {
         "record_desktop_update_failure",
         "refresh_desktop_companion_surfaces",
         "set_desktop_activity_status",
-        "set_desktop_autostart_enabled",
         "set_desktop_game_overlay_visible",
-        "set_desktop_quit_on_close_enabled",
         "set_desktop_voice_mini_visible",
     ];
 

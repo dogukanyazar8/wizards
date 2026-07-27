@@ -53,6 +53,11 @@ test("automatic Linux Desktop Ops runs its cargo audit step with Bash", () => {
     cargoAudit,
     /^            cargo install cargo-audit --version "\$CARGO_AUDIT_VERSION" --locked --force$/mu,
   );
+  assert.match(
+    cargoAudit,
+    /^          cargo metadata --locked --format-version 1 --no-deps > \/dev\/null$/mu,
+  );
+  assert.match(cargoAudit, /^          cargo audit --file Cargo\.lock$/mu);
   assert.doesNotMatch(cargoAudit, /Get-Command|\$env:|\$LASTEXITCODE/u);
 });
 

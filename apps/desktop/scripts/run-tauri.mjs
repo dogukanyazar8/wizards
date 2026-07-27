@@ -14,12 +14,23 @@ const defaultProductionWebUrl = "https://whispr.team";
 const updaterReleaseRings = new Set(DESKTOP_RELEASE_RINGS);
 
 const command = process.argv[2];
-const extraArgs = process.argv.slice(3);
+const rawExtraArgs = process.argv.slice(3);
+const extraArgs = rawExtraArgs[0] === "--" ? rawExtraArgs.slice(1) : rawExtraArgs;
 const writeConfigOnly = extraArgs.includes("--write-config-only");
-const unknownArgs = extraArgs.filter((arg) => arg !== "--write-config-only");
+const noBundle = extraArgs.includes("--no-bundle");
+const unknownArgs = extraArgs.filter(
+  (arg) => arg !== "--write-config-only" && arg !== "--no-bundle",
+);
 
 if (!["dev", "build"].includes(command) || unknownArgs.length > 0) {
-  console.error("Usage: node ./scripts/run-tauri.mjs <dev|build> [--write-config-only]");
+  console.error(
+    "Usage: node ./scripts/run-tauri.mjs <dev|build> [--no-bundle] [--write-config-only]",
+  );
+  process.exit(1);
+}
+
+if (noBundle && command !== "build") {
+  console.error("--no-bundle is only supported for production builds.");
   process.exit(1);
 }
 
@@ -50,12 +61,10 @@ const appCommandPermissions = [
   "allow-configure-desktop-voice-shortcuts",
   "allow-export-desktop-diagnostics-bundle",
   "allow-get-desktop-app-info",
-  "allow-get-desktop-autostart-enabled",
   "allow-get-desktop-companion-surfaces-status",
   "allow-get-desktop-foreground-process-name",
   "allow-get-desktop-main-window-focused",
   "allow-get-desktop-platform-capabilities",
-  "allow-get-desktop-quit-on-close-enabled",
   "allow-get-desktop-voice-shortcut-status",
   "allow-promote-desktop-main-window",
   "allow-publish-desktop-game-overlay-snapshot",
@@ -63,19 +72,13 @@ const appCommandPermissions = [
   "allow-record-desktop-update-failure",
   "allow-refresh-desktop-companion-surfaces",
   "allow-set-desktop-activity-status",
-  "allow-set-desktop-autostart-enabled",
   "allow-set-desktop-game-overlay-visible",
-  "allow-set-desktop-quit-on-close-enabled",
   "allow-set-desktop-voice-mini-visible",
 ];
 const nativeUxPermissions = [
   ...appCommandPermissions,
   ...(updaterConfig.enabled
-    ? [
-        "updater:allow-check",
-        "updater:allow-download-and-install",
-        "process:allow-restart",
-      ]
+    ? ["updater:allow-check", "updater:allow-download-and-install", "process:allow-restart"]
     : []),
   "notification:allow-is-permission-granted",
   "notification:allow-notify",
@@ -194,7 +197,9 @@ console.log(`[Whispr Desktop] generated config: ${generatedConfigPath}`);
 console.log(`[Whispr Desktop] allowed web origins: ${capabilityUrls.join(", ")}`);
 console.log(`[Whispr Desktop] native permissions: ${nativeUxPermissions.join(", ")}`);
 console.log(`[Whispr Desktop] voice mini permissions: ${voiceMiniPermissions.join(", ")}`);
-console.log(`[Whispr Desktop] game overlay permissions: ${gameOverlayPermissions.join(", ") || "(none)"}`);
+console.log(
+  `[Whispr Desktop] game overlay permissions: ${gameOverlayPermissions.join(", ") || "(none)"}`,
+);
 console.log(
   `[Whispr Desktop] updater: ${
     updaterConfig.enabled
@@ -212,7 +217,13 @@ if (writeConfigOnly) {
 
 const child = spawn(
   process.execPath,
-  [require.resolve("@tauri-apps/cli/tauri.js"), command, "--config", generatedConfigPath],
+  [
+    require.resolve("@tauri-apps/cli/tauri.js"),
+    command,
+    "--config",
+    generatedConfigPath,
+    ...(noBundle ? ["--no-bundle"] : []),
+  ],
   {
     cwd: desktopRoot,
     env: tauriEnv,
@@ -264,7 +275,9 @@ function resolveUpdaterConfig(mode) {
   }
 
   if (!windowsSigningConfig.enabled) {
-    console.error("WHISPR_DESKTOP_WINDOWS_SIGNING_ENABLED=true is required when desktop updater is enabled.");
+    console.error(
+      "WHISPR_DESKTOP_WINDOWS_SIGNING_ENABLED=true is required when desktop updater is enabled.",
+    );
     process.exit(1);
   }
 
