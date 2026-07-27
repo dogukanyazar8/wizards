@@ -193,6 +193,8 @@ export function MobileRoadmapScreen({
             contentContainerStyle={styles.filterRow}
             horizontal
             showsHorizontalScrollIndicator={false}
+            style={styles.filterScroll}
+            testID="mobile-roadmap-filter-row"
           >
             {MOBILE_ROADMAP_STATUS_FILTERS.map((option) => (
               <Pressable

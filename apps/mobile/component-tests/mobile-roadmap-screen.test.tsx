@@ -1,4 +1,5 @@
 import React from "react";
+import { StyleSheet } from "react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, waitFor } from "@testing-library/react-native";
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
@@ -168,6 +169,20 @@ describe("community roadmap", () => {
     // than a zero.
     expect(view.getByTestId("mobile-roadmap-filter-count-SHIPPED").props.children).toBe(1);
     expect(view.getByTestId("mobile-roadmap-filter-dot-PLANNED")).toBeTruthy();
+  });
+
+  it("keeps the status filter row the height of its chips", async () => {
+    const { view } = await renderRoadmap();
+
+    // A horizontal ScrollView inside a flex column takes the free vertical space
+    // and, because its content container stretches, hands that whole height to
+    // every chip — which is how a 7px pill became a column the length of the
+    // screen on device.
+    const row = view.getByTestId("mobile-roadmap-filter-row");
+    expect(StyleSheet.flatten(row.props.style)).toMatchObject({ flexGrow: 0 });
+    expect(StyleSheet.flatten(row.props.contentContainerStyle)).toMatchObject({
+      alignItems: "center",
+    });
   });
 
   it("narrows the list to the chosen status and back again", async () => {

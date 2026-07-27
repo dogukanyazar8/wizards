@@ -13696,7 +13696,7 @@
       "label": "mockFetchRoadmap",
       "file_type": "code",
       "source_file": "apps/mobile/component-tests/mobile-roadmap-screen.test.tsx",
-      "source_location": "L11",
+      "source_location": "L12",
       "_origin": "ast",
       "id": "apps_mobile_component_tests_mobile_roadmap_screen_test_mockfetchroadmap",
       "community": 292,
@@ -13707,7 +13707,7 @@
       "label": "mockFetchFeedbackList",
       "file_type": "code",
       "source_file": "apps/mobile/component-tests/mobile-roadmap-screen.test.tsx",
-      "source_location": "L12",
+      "source_location": "L13",
       "_origin": "ast",
       "id": "apps_mobile_component_tests_mobile_roadmap_screen_test_mockfetchfeedbacklist",
       "community": 292,
@@ -13718,7 +13718,7 @@
       "label": "mockSetVote",
       "file_type": "code",
       "source_file": "apps/mobile/component-tests/mobile-roadmap-screen.test.tsx",
-      "source_location": "L13",
+      "source_location": "L14",
       "_origin": "ast",
       "id": "apps_mobile_component_tests_mobile_roadmap_screen_test_mocksetvote",
       "community": 292,
@@ -13729,7 +13729,7 @@
       "label": "roadmapItem()",
       "file_type": "code",
       "source_file": "apps/mobile/component-tests/mobile-roadmap-screen.test.tsx",
-      "source_location": "L68",
+      "source_location": "L69",
       "_origin": "ast",
       "id": "apps_mobile_component_tests_mobile_roadmap_screen_test_roadmapitem",
       "community": 292,
@@ -13740,7 +13740,7 @@
       "label": "roadmap",
       "file_type": "code",
       "source_file": "apps/mobile/component-tests/mobile-roadmap-screen.test.tsx",
-      "source_location": "L84",
+      "source_location": "L85",
       "_origin": "ast",
       "id": "apps_mobile_component_tests_mobile_roadmap_screen_test_roadmap",
       "community": 292,
@@ -13751,7 +13751,7 @@
       "label": "feedbackList",
       "file_type": "code",
       "source_file": "apps/mobile/component-tests/mobile-roadmap-screen.test.tsx",
-      "source_location": "L99",
+      "source_location": "L100",
       "_origin": "ast",
       "id": "apps_mobile_component_tests_mobile_roadmap_screen_test_feedbacklist",
       "community": 292,
@@ -13762,7 +13762,7 @@
       "label": "renderRoadmap()",
       "file_type": "code",
       "source_file": "apps/mobile/component-tests/mobile-roadmap-screen.test.tsx",
-      "source_location": "L115",
+      "source_location": "L116",
       "_origin": "ast",
       "id": "apps_mobile_component_tests_mobile_roadmap_screen_test_renderroadmap",
       "community": 292,
@@ -15976,8 +15976,8 @@
       "source_location": "L62",
       "_origin": "ast",
       "id": "apps_mobile_package_dependencies_expo",
-      "community": 664,
-      "community_name": "expo",
+      "community": 117,
+      "community_name": "dependencies",
       "norm_label": "expo"
     },
     {
@@ -15987,8 +15987,8 @@
       "source_location": "L62",
       "_origin": "ast",
       "id": "expo",
-      "community": 664,
-      "community_name": "expo",
+      "community": 117,
+      "community_name": "dependencies",
       "norm_label": "expo"
     },
     {
@@ -16328,8 +16328,8 @@
       "source_location": "L78",
       "_origin": "ast",
       "id": "apps_mobile_package_dependencies_expo_localization",
-      "community": 117,
-      "community_name": "dependencies",
+      "community": 648,
+      "community_name": "@expo/vector-icons",
       "norm_label": "expo-localization"
     },
     {
@@ -16339,8 +16339,8 @@
       "source_location": "L78",
       "_origin": "ast",
       "id": "expo_localization",
-      "community": 117,
-      "community_name": "dependencies",
+      "community": 648,
+      "community_name": "@expo/vector-icons",
       "norm_label": "expo-localization"
     },
     {
@@ -19683,8 +19683,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_mobile_scripts_mobile_image_picker_batch_test",
-      "community": 227,
-      "community_name": "mobile-message-search-client.ts",
+      "community": 219,
+      "community_name": "TestRedisClient",
       "norm_label": "mobile-image-picker-batch.test.ts"
     },
     {
@@ -19694,8 +19694,8 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "apps_mobile_scripts_mobile_image_picker_batch_test_urifile",
-      "community": 227,
-      "community_name": "mobile-message-search-client.ts",
+      "community": 219,
+      "community_name": "TestRedisClient",
       "norm_label": "urifile"
     },
     {
@@ -19705,8 +19705,8 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "apps_mobile_scripts_mobile_image_picker_batch_test_asurifile",
-      "community": 227,
-      "community_name": "mobile-message-search-client.ts",
+      "community": 219,
+      "community_name": "TestRedisClient",
       "norm_label": "asurifile()"
     },
     {
@@ -19716,8 +19716,8 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "apps_mobile_scripts_mobile_image_picker_batch_test_assetoverrides",
-      "community": 227,
-      "community_name": "mobile-message-search-client.ts",
+      "community": 219,
+      "community_name": "TestRedisClient",
       "norm_label": "assetoverrides"
     },
     {
@@ -19738,8 +19738,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_mobile_scripts_mobile_image_picker_size_test",
-      "community": 227,
-      "community_name": "mobile-message-search-client.ts",
+      "community": 219,
+      "community_name": "TestRedisClient",
       "norm_label": "mobile-image-picker-size.test.ts"
     },
     {
@@ -19749,8 +19749,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_mobile_scripts_mobile_image_upload_contract_test",
-      "community": 227,
-      "community_name": "mobile-message-search-client.ts",
+      "community": 219,
+      "community_name": "TestRedisClient",
       "norm_label": "mobile-image-upload-contract.test.ts"
     },
     {
@@ -43077,7 +43077,7 @@
       "label": "useMobileFeedbackStyles()",
       "file_type": "code",
       "source_file": "apps/mobile/src/feedback/mobile-feedback-screen.styles.ts",
-      "source_location": "L861",
+      "source_location": "L874",
       "_origin": "ast",
       "id": "apps_mobile_src_feedback_mobile_feedback_screen_styles_usemobilefeedbackstyles",
       "community": 292,
@@ -43088,7 +43088,7 @@
       "label": "MobileFeedbackStyles",
       "file_type": "code",
       "source_file": "apps/mobile/src/feedback/mobile-feedback-screen.styles.ts",
-      "source_location": "L865",
+      "source_location": "L878",
       "_origin": "ast",
       "id": "apps_mobile_src_feedback_mobile_feedback_screen_styles_mobilefeedbackstyles",
       "community": 602,
@@ -45071,8 +45071,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_mobile_src_media_expo_mobile_media_modules",
-      "community": 342,
-      "community_name": "lucide-react",
+      "community": 227,
+      "community_name": "mobile-message-search-client.ts",
       "norm_label": "expo-mobile-media-modules.ts"
     },
     {
@@ -45654,8 +45654,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_mobile_src_media_mobile_image_upload_contract",
-      "community": 227,
-      "community_name": "mobile-message-search-client.ts",
+      "community": 219,
+      "community_name": "TestRedisClient",
       "norm_label": "mobile-image-upload-contract.ts"
     },
     {
@@ -45665,8 +45665,8 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "apps_mobile_src_media_mobile_image_upload_contract_mobile_image_content_types",
-      "community": 227,
-      "community_name": "mobile-message-search-client.ts",
+      "community": 219,
+      "community_name": "TestRedisClient",
       "norm_label": "mobile_image_content_types"
     },
     {
@@ -45676,8 +45676,8 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "apps_mobile_src_media_mobile_image_upload_contract_mobile_local_image_uri_schemes",
-      "community": 227,
-      "community_name": "mobile-message-search-client.ts",
+      "community": 219,
+      "community_name": "TestRedisClient",
       "norm_label": "mobile_local_image_uri_schemes"
     },
     {
@@ -45698,8 +45698,8 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "apps_mobile_src_media_mobile_image_upload_contract_mobilepickerasset",
-      "community": 227,
-      "community_name": "mobile-message-search-client.ts",
+      "community": 219,
+      "community_name": "TestRedisClient",
       "norm_label": "mobilepickerasset"
     },
     {
@@ -45720,8 +45720,8 @@
       "source_location": "L40",
       "_origin": "ast",
       "id": "apps_mobile_src_media_mobile_image_upload_contract_mobile_image_file_names",
-      "community": 227,
-      "community_name": "mobile-message-search-client.ts",
+      "community": 219,
+      "community_name": "TestRedisClient",
       "norm_label": "mobile_image_file_names"
     },
     {
@@ -45753,8 +45753,8 @@
       "source_location": "L63",
       "_origin": "ast",
       "id": "apps_mobile_src_media_mobile_image_upload_contract_mobileimageuploaderror",
-      "community": 227,
-      "community_name": "mobile-message-search-client.ts",
+      "community": 219,
+      "community_name": "TestRedisClient",
       "norm_label": "mobileimageuploaderror"
     },
     {
@@ -45764,8 +45764,8 @@
       "source_location": "L66",
       "_origin": "ast",
       "id": "apps_mobile_src_media_mobile_image_upload_contract_mobileimageuploaderror_constructor",
-      "community": 227,
-      "community_name": "mobile-message-search-client.ts",
+      "community": 219,
+      "community_name": "TestRedisClient",
       "norm_label": ".constructor()"
     },
     {
@@ -45786,8 +45786,8 @@
       "source_location": "L99",
       "_origin": "ast",
       "id": "apps_mobile_src_media_mobile_image_upload_contract_resolvemobilepickedimagesize",
-      "community": 227,
-      "community_name": "mobile-message-search-client.ts",
+      "community": 219,
+      "community_name": "TestRedisClient",
       "norm_label": "resolvemobilepickedimagesize()"
     },
     {
@@ -45797,8 +45797,8 @@
       "source_location": "L111",
       "_origin": "ast",
       "id": "apps_mobile_src_media_mobile_image_upload_contract_isusableimagesize",
-      "community": 227,
-      "community_name": "mobile-message-search-client.ts",
+      "community": 219,
+      "community_name": "TestRedisClient",
       "norm_label": "isusableimagesize()"
     },
     {
@@ -45808,8 +45808,8 @@
       "source_location": "L115",
       "_origin": "ast",
       "id": "apps_mobile_src_media_mobile_image_upload_contract_validatemobilepickedimageasset",
-      "community": 227,
-      "community_name": "mobile-message-search-client.ts",
+      "community": 219,
+      "community_name": "TestRedisClient",
       "norm_label": "validatemobilepickedimageasset()"
     },
     {
@@ -45819,8 +45819,8 @@
       "source_location": "L148",
       "_origin": "ast",
       "id": "apps_mobile_src_media_mobile_image_upload_contract_tomobilepickedimagebatch",
-      "community": 227,
-      "community_name": "mobile-message-search-client.ts",
+      "community": 219,
+      "community_name": "TestRedisClient",
       "norm_label": "tomobilepickedimagebatch()"
     },
     {
@@ -45830,8 +45830,8 @@
       "source_location": "L188",
       "_origin": "ast",
       "id": "apps_mobile_src_media_mobile_image_upload_contract_parsemobileuploadcompletion",
-      "community": 227,
-      "community_name": "mobile-message-search-client.ts",
+      "community": 219,
+      "community_name": "TestRedisClient",
       "norm_label": "parsemobileuploadcompletion()"
     },
     {
@@ -45841,8 +45841,8 @@
       "source_location": "L207",
       "_origin": "ast",
       "id": "apps_mobile_src_media_mobile_image_upload_contract_isknownimagesizeabovelimit",
-      "community": 227,
-      "community_name": "mobile-message-search-client.ts",
+      "community": 219,
+      "community_name": "TestRedisClient",
       "norm_label": "isknownimagesizeabovelimit()"
     },
     {
@@ -45852,8 +45852,8 @@
       "source_location": "L215",
       "_origin": "ast",
       "id": "apps_mobile_src_media_mobile_image_upload_contract_isvolatilemobilelocalimageuri",
-      "community": 227,
-      "community_name": "mobile-message-search-client.ts",
+      "community": 219,
+      "community_name": "TestRedisClient",
       "norm_label": "isvolatilemobilelocalimageuri()"
     },
     {
@@ -46853,8 +46853,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_mobile_src_media_mobile_uploadthing_client",
-      "community": 227,
-      "community_name": "mobile-message-search-client.ts",
+      "community": 219,
+      "community_name": "TestRedisClient",
       "norm_label": "mobile-uploadthing-client.ts"
     },
     {
@@ -46864,8 +46864,8 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "apps_mobile_src_media_mobile_uploadthing_client_mobilemediauploadrouter",
-      "community": 227,
-      "community_name": "mobile-message-search-client.ts",
+      "community": 219,
+      "community_name": "TestRedisClient",
       "norm_label": "mobilemediauploadrouter"
     },
     {
@@ -46875,8 +46875,8 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "apps_mobile_src_media_mobile_uploadthing_client_createuploadthinghelpers",
-      "community": 227,
-      "community_name": "mobile-message-search-client.ts",
+      "community": 219,
+      "community_name": "TestRedisClient",
       "norm_label": "createuploadthinghelpers()"
     },
     {
@@ -46886,8 +46886,8 @@
       "source_location": "L28",
       "_origin": "ast",
       "id": "apps_mobile_src_media_mobile_uploadthing_client_uploadmobileimagetouploadthing",
-      "community": 227,
-      "community_name": "mobile-message-search-client.ts",
+      "community": 219,
+      "community_name": "TestRedisClient",
       "norm_label": "uploadmobileimagetouploadthing()"
     },
     {
@@ -64640,8 +64640,8 @@
       "source_location": "L45",
       "_origin": "ast",
       "id": "apps_web_package_dependencies_auth_prisma_adapter",
-      "community": 656,
-      "community_name": "@auth/prisma-adapter",
+      "community": 85,
+      "community_name": "dependencies",
       "norm_label": "@auth/prisma-adapter"
     },
     {
@@ -64651,8 +64651,8 @@
       "source_location": "L45",
       "_origin": "ast",
       "id": "auth_prisma_adapter",
-      "community": 656,
-      "community_name": "@auth/prisma-adapter",
+      "community": 85,
+      "community_name": "dependencies",
       "norm_label": "@auth/prisma-adapter"
     },
     {
@@ -65212,8 +65212,8 @@
       "source_location": "L71",
       "_origin": "ast",
       "id": "apps_web_package_dependencies_clsx",
-      "community": 85,
-      "community_name": "dependencies",
+      "community": 656,
+      "community_name": "@auth/prisma-adapter",
       "norm_label": "clsx"
     },
     {
@@ -65223,8 +65223,8 @@
       "source_location": "L71",
       "_origin": "ast",
       "id": "apps_web_package_json_clsx",
-      "community": 85,
-      "community_name": "dependencies",
+      "community": 656,
+      "community_name": "@auth/prisma-adapter",
       "norm_label": "clsx"
     },
     {
@@ -68457,8 +68457,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_admin_feedback_route_logic_test",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 21,
+      "community_name": "Community 21",
       "norm_label": "route-logic.test.ts"
     },
     {
@@ -68468,8 +68468,8 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_admin_feedback_route_logic_test_routes",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 21,
+      "community_name": "Community 21",
       "norm_label": "routes"
     },
     {
@@ -68479,8 +68479,8 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_admin_feedback_route_logic_test_admin",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 21,
+      "community_name": "Community 21",
       "norm_label": "admin"
     },
     {
@@ -68490,8 +68490,8 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_admin_feedback_route_logic_test_listitem",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 21,
+      "community_name": "Community 21",
       "norm_label": "listitem"
     },
     {
@@ -68501,8 +68501,8 @@
       "source_location": "L29",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_admin_feedback_route_logic_test_detail",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 21,
+      "community_name": "Community 21",
       "norm_label": "detail"
     },
     {
@@ -68512,8 +68512,8 @@
       "source_location": "L52",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_admin_feedback_route_logic_test_roadmapitem",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 21,
+      "community_name": "Community 21",
       "norm_label": "roadmapitem"
     },
     {
@@ -68523,8 +68523,8 @@
       "source_location": "L65",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_admin_feedback_route_logic_test_request",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 21,
+      "community_name": "Community 21",
       "norm_label": "request()"
     },
     {
@@ -68534,8 +68534,8 @@
       "source_location": "L73",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_admin_feedback_route_logic_test_context",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 21,
+      "community_name": "Community 21",
       "norm_label": "context()"
     },
     {
@@ -68545,8 +68545,8 @@
       "source_location": "L77",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_admin_feedback_route_logic_test_dependencies",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 21,
+      "community_name": "Community 21",
       "norm_label": "dependencies"
     },
     {
@@ -70074,8 +70074,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_dynamic_route_behavior_test",
-      "community": 173,
-      "community_name": "route-logic.ts",
+      "community": 505,
+      "community_name": "lint",
       "norm_label": "dynamic-route-behavior.test.ts"
     },
     {
@@ -70470,8 +70470,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_account_locale_route_logic_test",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 600,
+      "community_name": "service.test.ts",
       "norm_label": "route-logic.test.ts"
     },
     {
@@ -70481,8 +70481,8 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_account_locale_route_logic_test_localerequest",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 600,
+      "community_name": "service.test.ts",
       "norm_label": "localerequest()"
     },
     {
@@ -70492,8 +70492,8 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_account_locale_route_logic_test_createdependencies",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 146,
+      "community_name": "email-verification.ts",
       "norm_label": "createdependencies()"
     },
     {
@@ -70503,8 +70503,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_account_locale_route_logic",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 600,
+      "community_name": "service.test.ts",
       "norm_label": "route-logic.ts"
     },
     {
@@ -70514,8 +70514,8 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_account_locale_route_logic_mobilelocaleroutedependencies",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 600,
+      "community_name": "service.test.ts",
       "norm_label": "mobilelocaleroutedependencies"
     },
     {
@@ -70525,8 +70525,8 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_account_locale_route_logic_defaultdependencies",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 600,
+      "community_name": "service.test.ts",
       "norm_label": "defaultdependencies"
     },
     {
@@ -70536,8 +70536,8 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_account_locale_route_logic_mobileaccountlocaleupdateroute",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 600,
+      "community_name": "service.test.ts",
       "norm_label": "mobileaccountlocaleupdateroute()"
     },
     {
@@ -70547,8 +70547,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_account_locale_route",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 600,
+      "community_name": "service.test.ts",
       "norm_label": "route.ts"
     },
     {
@@ -70558,8 +70558,8 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_account_locale_route_patch",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 600,
+      "community_name": "service.test.ts",
       "norm_label": "patch()"
     },
     {
@@ -70602,8 +70602,8 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_account_password_route_logic_test_createdependencies",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 146,
+      "community_name": "email-verification.ts",
       "norm_label": "createdependencies()"
     },
     {
@@ -70734,8 +70734,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_account_presence_route_logic_test",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 600,
+      "community_name": "service.test.ts",
       "norm_label": "route-logic.test.ts"
     },
     {
@@ -70745,8 +70745,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_account_presence_route_logic",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 600,
+      "community_name": "service.test.ts",
       "norm_label": "route-logic.ts"
     },
     {
@@ -70756,8 +70756,8 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_account_presence_route_logic_mobilepresenceroutedependencies",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 600,
+      "community_name": "service.test.ts",
       "norm_label": "mobilepresenceroutedependencies"
     },
     {
@@ -70767,8 +70767,8 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_account_presence_route_logic_defaultdependencies",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 600,
+      "community_name": "service.test.ts",
       "norm_label": "defaultdependencies"
     },
     {
@@ -70778,8 +70778,8 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_account_presence_route_logic_mobilepresenceupdateroute",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 600,
+      "community_name": "service.test.ts",
       "norm_label": "mobilepresenceupdateroute()"
     },
     {
@@ -70789,8 +70789,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_account_presence_route",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 600,
+      "community_name": "service.test.ts",
       "norm_label": "route.ts"
     },
     {
@@ -70800,8 +70800,8 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_account_presence_route_put",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 600,
+      "community_name": "service.test.ts",
       "norm_label": "put()"
     },
     {
@@ -71097,8 +71097,8 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_account_two_factor_route_logic_test_request",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 146,
+      "community_name": "email-verification.ts",
       "norm_label": "request()"
     },
     {
@@ -76003,7 +76003,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_members_memberid_roles_route_logic_test",
-      "community": 217,
+      "community": 173,
       "community_name": "route-logic.ts",
       "norm_label": "route-logic.test.ts"
     },
@@ -76014,7 +76014,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_members_memberid_roles_route_logic_test_request",
-      "community": 217,
+      "community": 173,
       "community_name": "route-logic.ts",
       "norm_label": "request()"
     },
@@ -76025,7 +76025,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_members_memberid_roles_route_logic_test_context",
-      "community": 217,
+      "community": 173,
       "community_name": "route-logic.ts",
       "norm_label": "context()"
     },
@@ -76036,7 +76036,7 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_members_memberid_roles_route_logic_test_dependencies",
-      "community": 217,
+      "community": 173,
       "community_name": "route-logic.ts",
       "norm_label": "dependencies"
     },
@@ -76135,8 +76135,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_members_memberid_route_logic_test",
-      "community": 505,
-      "community_name": "lint",
+      "community": 173,
+      "community_name": "route-logic.ts",
       "norm_label": "route-logic.test.ts"
     },
     {
@@ -76146,8 +76146,8 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_members_memberid_route_logic_test_request",
-      "community": 505,
-      "community_name": "lint",
+      "community": 173,
+      "community_name": "route-logic.ts",
       "norm_label": "request()"
     },
     {
@@ -76157,8 +76157,8 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_members_memberid_route_logic_test_context",
-      "community": 505,
-      "community_name": "lint",
+      "community": 173,
+      "community_name": "route-logic.ts",
       "norm_label": "context()"
     },
     {
@@ -76168,8 +76168,8 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_members_memberid_route_logic_test_dependencies",
-      "community": 505,
-      "community_name": "lint",
+      "community": 173,
+      "community_name": "route-logic.ts",
       "norm_label": "dependencies"
     },
     {
@@ -76179,8 +76179,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_members_memberid_route_logic",
-      "community": 505,
-      "community_name": "lint",
+      "community": 173,
+      "community_name": "route-logic.ts",
       "norm_label": "route-logic.ts"
     },
     {
@@ -76190,8 +76190,8 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_members_memberid_route_logic_mobileservermemberkickratelimitaction",
-      "community": 505,
-      "community_name": "lint",
+      "community": 173,
+      "community_name": "route-logic.ts",
       "norm_label": "mobileservermemberkickratelimitaction"
     },
     {
@@ -76201,8 +76201,8 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_members_memberid_route_logic_mobileservermemberkickroutecontext",
-      "community": 505,
-      "community_name": "lint",
+      "community": 173,
+      "community_name": "route-logic.ts",
       "norm_label": "mobileservermemberkickroutecontext"
     },
     {
@@ -76212,8 +76212,8 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_members_memberid_route_logic_mobileservermemberkickroutedependencies",
-      "community": 505,
-      "community_name": "lint",
+      "community": 173,
+      "community_name": "route-logic.ts",
       "norm_label": "mobileservermemberkickroutedependencies"
     },
     {
@@ -76223,8 +76223,8 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_members_memberid_route_logic_defaultdependencies",
-      "community": 505,
-      "community_name": "lint",
+      "community": 173,
+      "community_name": "route-logic.ts",
       "norm_label": "defaultdependencies"
     },
     {
@@ -76234,8 +76234,8 @@
       "source_location": "L29",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_members_memberid_route_logic_mobileservermemberkickroute",
-      "community": 505,
-      "community_name": "lint",
+      "community": 173,
+      "community_name": "route-logic.ts",
       "norm_label": "mobileservermemberkickroute()"
     },
     {
@@ -76245,8 +76245,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_members_memberid_route",
-      "community": 505,
-      "community_name": "lint",
+      "community": 173,
+      "community_name": "route-logic.ts",
       "norm_label": "route.ts"
     },
     {
@@ -76256,8 +76256,8 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_members_memberid_route_delete",
-      "community": 505,
-      "community_name": "lint",
+      "community": 173,
+      "community_name": "route-logic.ts",
       "norm_label": "delete()"
     },
     {
@@ -77257,8 +77257,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_servers_route_logic",
-      "community": 371,
-      "community_name": "use-responsive-layout.ts",
+      "community": 598,
+      "community_name": "expo-notifications",
       "norm_label": "route-logic.ts"
     },
     {
@@ -77268,8 +77268,8 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_servers_route_logic_mobileservercreateratelimitaction",
-      "community": 371,
-      "community_name": "use-responsive-layout.ts",
+      "community": 598,
+      "community_name": "expo-notifications",
       "norm_label": "mobileservercreateratelimitaction"
     },
     {
@@ -77279,8 +77279,8 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_servers_route_logic_mobileservercreateroutedependencies",
-      "community": 371,
-      "community_name": "use-responsive-layout.ts",
+      "community": 598,
+      "community_name": "expo-notifications",
       "norm_label": "mobileservercreateroutedependencies"
     },
     {
@@ -77290,8 +77290,8 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_servers_route_logic_defaultdependencies",
-      "community": 371,
-      "community_name": "use-responsive-layout.ts",
+      "community": 598,
+      "community_name": "expo-notifications",
       "norm_label": "defaultdependencies"
     },
     {
@@ -77301,8 +77301,8 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_servers_route_logic_mobileservercreateroute",
-      "community": 371,
-      "community_name": "use-responsive-layout.ts",
+      "community": 598,
+      "community_name": "expo-notifications",
       "norm_label": "mobileservercreateroute()"
     },
     {
@@ -77312,8 +77312,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_servers_route",
-      "community": 371,
-      "community_name": "use-responsive-layout.ts",
+      "community": 598,
+      "community_name": "expo-notifications",
       "norm_label": "route.ts"
     },
     {
@@ -77323,8 +77323,8 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_mobile_servers_route_post",
-      "community": 371,
-      "community_name": "use-responsive-layout.ts",
+      "community": 598,
+      "community_name": "expo-notifications",
       "norm_label": "post()"
     },
     {
@@ -78797,8 +78797,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_servers_serverid_members_memberid_roles_route_logic",
-      "community": 173,
-      "community_name": "route-logic.ts",
+      "community": 505,
+      "community_name": "lint",
       "norm_label": "route-logic.ts"
     },
     {
@@ -78808,8 +78808,8 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_servers_serverid_members_memberid_roles_route_logic_routecontext",
-      "community": 173,
-      "community_name": "route-logic.ts",
+      "community": 505,
+      "community_name": "lint",
       "norm_label": "routecontext"
     },
     {
@@ -78819,8 +78819,8 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_servers_serverid_members_memberid_roles_route_logic_servermemberrolesroutedependencies",
-      "community": 173,
-      "community_name": "route-logic.ts",
+      "community": 505,
+      "community_name": "lint",
       "norm_label": "servermemberrolesroutedependencies"
     },
     {
@@ -78830,8 +78830,8 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_servers_serverid_members_memberid_roles_route_logic_defaultservermemberrolesroutedependencies",
-      "community": 173,
-      "community_name": "route-logic.ts",
+      "community": 505,
+      "community_name": "lint",
       "norm_label": "defaultservermemberrolesroutedependencies"
     },
     {
@@ -78841,8 +78841,8 @@
       "source_location": "L35",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_servers_serverid_members_memberid_roles_route_logic_patchservermemberrolesroute",
-      "community": 173,
-      "community_name": "route-logic.ts",
+      "community": 505,
+      "community_name": "lint",
       "norm_label": "patchservermemberrolesroute()"
     },
     {
@@ -78852,8 +78852,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_servers_serverid_members_memberid_roles_route_test",
-      "community": 173,
-      "community_name": "route-logic.ts",
+      "community": 505,
+      "community_name": "lint",
       "norm_label": "route.test.ts"
     },
     {
@@ -78863,8 +78863,8 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_servers_serverid_members_memberid_roles_route_test_jsonrequest",
-      "community": 173,
-      "community_name": "route-logic.ts",
+      "community": 505,
+      "community_name": "lint",
       "norm_label": "jsonrequest()"
     },
     {
@@ -78874,8 +78874,8 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_servers_serverid_members_memberid_roles_route_test_context",
-      "community": 173,
-      "community_name": "route-logic.ts",
+      "community": 505,
+      "community_name": "lint",
       "norm_label": "context()"
     },
     {
@@ -78885,8 +78885,8 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_servers_serverid_members_memberid_roles_route_test_routedependencies",
-      "community": 173,
-      "community_name": "route-logic.ts",
+      "community": 505,
+      "community_name": "lint",
       "norm_label": "routedependencies()"
     },
     {
@@ -78896,8 +78896,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_servers_serverid_members_memberid_roles_route",
-      "community": 173,
-      "community_name": "route-logic.ts",
+      "community": 505,
+      "community_name": "lint",
       "norm_label": "route.ts"
     },
     {
@@ -78907,8 +78907,8 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_servers_serverid_members_memberid_roles_route_routecontext",
-      "community": 173,
-      "community_name": "route-logic.ts",
+      "community": 505,
+      "community_name": "lint",
       "norm_label": "routecontext"
     },
     {
@@ -78918,8 +78918,8 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_servers_serverid_members_memberid_roles_route_patch",
-      "community": 173,
-      "community_name": "route-logic.ts",
+      "community": 505,
+      "community_name": "lint",
       "norm_label": "patch()"
     },
     {
@@ -78951,8 +78951,8 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_servers_serverid_members_memberid_route_delete",
-      "community": 505,
-      "community_name": "lint",
+      "community": 173,
+      "community_name": "route-logic.ts",
       "norm_label": "delete()"
     },
     {
@@ -79204,8 +79204,8 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_servers_route_post",
-      "community": 371,
-      "community_name": "use-responsive-layout.ts",
+      "community": 598,
+      "community_name": "expo-notifications",
       "norm_label": "post()"
     },
     {
@@ -79424,8 +79424,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_voice_state_route_logic",
-      "community": 15,
-      "community_name": "Community 15",
+      "community": 217,
+      "community_name": "route-logic.ts",
       "norm_label": "route-logic.ts"
     },
     {
@@ -79435,8 +79435,8 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_voice_state_route_logic_voicestateroutedependencies",
-      "community": 15,
-      "community_name": "Community 15",
+      "community": 217,
+      "community_name": "route-logic.ts",
       "norm_label": "voicestateroutedependencies"
     },
     {
@@ -79446,8 +79446,8 @@
       "source_location": "L29",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_voice_state_route_logic_voicestatepostroutedependencies",
-      "community": 15,
-      "community_name": "Community 15",
+      "community": 217,
+      "community_name": "route-logic.ts",
       "norm_label": "voicestatepostroutedependencies"
     },
     {
@@ -79457,8 +79457,8 @@
       "source_location": "L30",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_voice_state_route_logic_voicestatedeleteroutedependencies",
-      "community": 15,
-      "community_name": "Community 15",
+      "community": 217,
+      "community_name": "route-logic.ts",
       "norm_label": "voicestatedeleteroutedependencies"
     },
     {
@@ -79468,8 +79468,8 @@
       "source_location": "L32",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_voice_state_route_logic_defaultvoicestateroutedependencies",
-      "community": 15,
-      "community_name": "Community 15",
+      "community": 217,
+      "community_name": "route-logic.ts",
       "norm_label": "defaultvoicestateroutedependencies"
     },
     {
@@ -79479,8 +79479,8 @@
       "source_location": "L47",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_voice_state_route_logic_postvoicestateroute",
-      "community": 15,
-      "community_name": "Community 15",
+      "community": 217,
+      "community_name": "route-logic.ts",
       "norm_label": "postvoicestateroute()"
     },
     {
@@ -79490,8 +79490,8 @@
       "source_location": "L90",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_voice_state_route_logic_deletevoicestateroute",
-      "community": 15,
-      "community_name": "Community 15",
+      "community": 217,
+      "community_name": "route-logic.ts",
       "norm_label": "deletevoicestateroute()"
     },
     {
@@ -79501,8 +79501,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_voice_state_route_test",
-      "community": 15,
-      "community_name": "Community 15",
+      "community": 217,
+      "community_name": "route-logic.ts",
       "norm_label": "route.test.ts"
     },
     {
@@ -79512,8 +79512,8 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_voice_state_route_test_jsonrequest",
-      "community": 15,
-      "community_name": "Community 15",
+      "community": 217,
+      "community_name": "route-logic.ts",
       "norm_label": "jsonrequest()"
     },
     {
@@ -79523,8 +79523,8 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_voice_state_route_test_deleterequest",
-      "community": 15,
-      "community_name": "Community 15",
+      "community": 217,
+      "community_name": "route-logic.ts",
       "norm_label": "deleterequest()"
     },
     {
@@ -79534,8 +79534,8 @@
       "source_location": "L28",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_voice_state_route_test_validbody",
-      "community": 15,
-      "community_name": "Community 15",
+      "community": 217,
+      "community_name": "route-logic.ts",
       "norm_label": "validbody()"
     },
     {
@@ -79545,8 +79545,8 @@
       "source_location": "L36",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_voice_state_route_test_routedependencies",
-      "community": 15,
-      "community_name": "Community 15",
+      "community": 217,
+      "community_name": "route-logic.ts",
       "norm_label": "routedependencies()"
     },
     {
@@ -79556,8 +79556,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_voice_state_route",
-      "community": 15,
-      "community_name": "Community 15",
+      "community": 217,
+      "community_name": "route-logic.ts",
       "norm_label": "route.ts"
     },
     {
@@ -79567,8 +79567,8 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_voice_state_route_post",
-      "community": 15,
-      "community_name": "Community 15",
+      "community": 217,
+      "community_name": "route-logic.ts",
       "norm_label": "post()"
     },
     {
@@ -79578,8 +79578,8 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "apps_web_src_app_api_v1_voice_state_route_delete",
-      "community": 15,
-      "community_name": "Community 15",
+      "community": 217,
+      "community_name": "route-logic.ts",
       "norm_label": "delete()"
     },
     {
@@ -94032,8 +94032,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_lib_api_rate_limit_test",
-      "community": 600,
-      "community_name": "service.test.ts",
+      "community": 371,
+      "community_name": "use-responsive-layout.ts",
       "norm_label": "api-rate-limit.test.ts"
     },
     {
@@ -94043,8 +94043,8 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "apps_web_src_lib_api_rate_limit_test_fakeredis",
-      "community": 600,
-      "community_name": "service.test.ts",
+      "community": 371,
+      "community_name": "use-responsive-layout.ts",
       "norm_label": "fakeredis"
     },
     {
@@ -94054,8 +94054,8 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "apps_web_src_lib_api_rate_limit_test_m1_mobile_rate_limits",
-      "community": 600,
-      "community_name": "service.test.ts",
+      "community": 371,
+      "community_name": "use-responsive-layout.ts",
       "norm_label": "m1_mobile_rate_limits"
     },
     {
@@ -94065,8 +94065,8 @@
       "source_location": "L45",
       "_origin": "ast",
       "id": "apps_web_src_lib_api_rate_limit_test_fakeratelimitdependencies",
-      "community": 600,
-      "community_name": "service.test.ts",
+      "community": 371,
+      "community_name": "use-responsive-layout.ts",
       "norm_label": "fakeratelimitdependencies()"
     },
     {
@@ -94087,8 +94087,8 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "apps_web_src_lib_api_rate_limit_api_rate_limits",
-      "community": 600,
-      "community_name": "service.test.ts",
+      "community": 371,
+      "community_name": "use-responsive-layout.ts",
       "norm_label": "api_rate_limits"
     },
     {
@@ -94197,8 +94197,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_lib_api",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 600,
+      "community_name": "service.test.ts",
       "norm_label": "api.ts"
     },
     {
@@ -94230,8 +94230,8 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "apps_web_src_lib_api_publiczoderrormessage",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 600,
+      "community_name": "service.test.ts",
       "norm_label": "publiczoderrormessage()"
     },
     {
@@ -94252,8 +94252,8 @@
       "source_location": "L65",
       "_origin": "ast",
       "id": "apps_web_src_lib_api_hasjsoncontenttype",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 600,
+      "community_name": "service.test.ts",
       "norm_label": "hasjsoncontenttype()"
     },
     {
@@ -94263,8 +94263,8 @@
       "source_location": "L71",
       "_origin": "ast",
       "id": "apps_web_src_lib_api_readjsonbodywithlimit",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 600,
+      "community_name": "service.test.ts",
       "norm_label": "readjsonbodywithlimit()"
     },
     {
@@ -105241,8 +105241,8 @@
       "source_location": "L199",
       "_origin": "ast",
       "id": "apps_web_src_lib_env_assertoutboxworkerenvironment",
-      "community": 123,
-      "community_name": "participant-mapping.ts",
+      "community": 194,
+      "community_name": "mobile-notification-lifecycle-contract.ts",
       "norm_label": "assertoutboxworkerenvironment()"
     },
     {
@@ -120828,8 +120828,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_web_src_lib_workspace_access_context_test",
-      "community": 13,
-      "community_name": "Community 13",
+      "community": 260,
+      "community_name": "route-logic.ts",
       "norm_label": "access-context.test.ts"
     },
     {
@@ -120839,8 +120839,8 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "apps_web_src_lib_workspace_access_context_test_restore",
-      "community": 13,
-      "community_name": "Community 13",
+      "community": 260,
+      "community_name": "route-logic.ts",
       "norm_label": "restore"
     },
     {
@@ -120850,8 +120850,8 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "apps_web_src_lib_workspace_access_context_test_unknownrecord",
-      "community": 13,
-      "community_name": "Community 13",
+      "community": 260,
+      "community_name": "route-logic.ts",
       "norm_label": "unknownrecord"
     },
     {
@@ -120861,8 +120861,8 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "apps_web_src_lib_workspace_access_context_test_patchmethod",
-      "community": 13,
-      "community_name": "Community 13",
+      "community": 260,
+      "community_name": "route-logic.ts",
       "norm_label": "patchmethod()"
     },
     {
@@ -120872,8 +120872,8 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "apps_web_src_lib_workspace_access_context_test_membership",
-      "community": 13,
-      "community_name": "Community 13",
+      "community": 260,
+      "community_name": "route-logic.ts",
       "norm_label": "membership()"
     },
     {
@@ -120883,8 +120883,8 @@
       "source_location": "L51",
       "_origin": "ast",
       "id": "apps_web_src_lib_workspace_access_context_test_createclient",
-      "community": 13,
-      "community_name": "Community 13",
+      "community": 260,
+      "community_name": "route-logic.ts",
       "norm_label": "createclient()"
     },
     {
@@ -128363,8 +128363,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "packages_db_scripts_verify_prisma7_disposable",
-      "community": 648,
-      "community_name": "@expo/vector-icons",
+      "community": 461,
+      "community_name": "describeFile",
       "norm_label": "verify-prisma7-disposable.mjs"
     },
     {
@@ -128374,8 +128374,8 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "packages_db_scripts_verify_prisma7_disposable_packageroot",
-      "community": 648,
-      "community_name": "@expo/vector-icons",
+      "community": 461,
+      "community_name": "describeFile",
       "norm_label": "packageroot"
     },
     {
@@ -128385,8 +128385,8 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "packages_db_scripts_verify_prisma7_disposable_loopbackhosts",
-      "community": 648,
-      "community_name": "@expo/vector-icons",
+      "community": 461,
+      "community_name": "describeFile",
       "norm_label": "loopbackhosts"
     },
     {
@@ -128396,8 +128396,8 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "packages_db_scripts_verify_prisma7_disposable_executable",
-      "community": 648,
-      "community_name": "@expo/vector-icons",
+      "community": 461,
+      "community_name": "describeFile",
       "norm_label": "executable()"
     },
     {
@@ -128407,8 +128407,8 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "packages_db_scripts_verify_prisma7_disposable_quoteidentifier",
-      "community": 648,
-      "community_name": "@expo/vector-icons",
+      "community": 461,
+      "community_name": "describeFile",
       "norm_label": "quoteidentifier()"
     },
     {
@@ -128418,8 +128418,8 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "packages_db_scripts_verify_prisma7_disposable_assertdisposabledatabaseurl",
-      "community": 648,
-      "community_name": "@expo/vector-icons",
+      "community": 461,
+      "community_name": "describeFile",
       "norm_label": "assertdisposabledatabaseurl()"
     },
     {
@@ -128429,8 +128429,8 @@
       "source_location": "L44",
       "_origin": "ast",
       "id": "packages_db_scripts_verify_prisma7_disposable_assertverificationenvironment",
-      "community": 648,
-      "community_name": "@expo/vector-icons",
+      "community": 461,
+      "community_name": "describeFile",
       "norm_label": "assertverificationenvironment()"
     },
     {
@@ -128451,8 +128451,8 @@
       "source_location": "L73",
       "_origin": "ast",
       "id": "packages_db_scripts_verify_prisma7_disposable_adminurl",
-      "community": 648,
-      "community_name": "@expo/vector-icons",
+      "community": 461,
+      "community_name": "describeFile",
       "norm_label": "adminurl()"
     },
     {
@@ -128462,8 +128462,8 @@
       "source_location": "L79",
       "_origin": "ast",
       "id": "packages_db_scripts_verify_prisma7_disposable_recreatedatabase",
-      "community": 648,
-      "community_name": "@expo/vector-icons",
+      "community": 461,
+      "community_name": "describeFile",
       "norm_label": "recreatedatabase()"
     },
     {
@@ -128473,8 +128473,8 @@
       "source_location": "L94",
       "_origin": "ast",
       "id": "packages_db_scripts_verify_prisma7_disposable_dropdatabase",
-      "community": 648,
-      "community_name": "@expo/vector-icons",
+      "community": 461,
+      "community_name": "describeFile",
       "norm_label": "dropdatabase()"
     },
     {
@@ -128484,8 +128484,8 @@
       "source_location": "L108",
       "_origin": "ast",
       "id": "packages_db_scripts_verify_prisma7_disposable_verifydisposabledatabase",
-      "community": 648,
-      "community_name": "@expo/vector-icons",
+      "community": 461,
+      "community_name": "describeFile",
       "norm_label": "verifydisposabledatabase()"
     },
     {
@@ -128495,8 +128495,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "packages_db_scripts_verify_prisma7_disposable_test",
-      "community": 648,
-      "community_name": "@expo/vector-icons",
+      "community": 461,
+      "community_name": "describeFile",
       "norm_label": "verify-prisma7-disposable.test.mjs"
     },
     {
@@ -131245,8 +131245,8 @@
       "source_location": "L301",
       "_origin": "ast",
       "id": "packages_types_src_mobile_social_mobilelocaleupdaterequestschema",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 600,
+      "community_name": "service.test.ts",
       "norm_label": "mobilelocaleupdaterequestschema"
     },
     {
@@ -131256,8 +131256,8 @@
       "source_location": "L304",
       "_origin": "ast",
       "id": "packages_types_src_mobile_social_mobilelocaleupdateresponseschema",
-      "community": 217,
-      "community_name": "route-logic.ts",
+      "community": 600,
+      "community_name": "service.test.ts",
       "norm_label": "mobilelocaleupdateresponseschema"
     },
     {
@@ -132345,8 +132345,8 @@
       "source_location": "L39",
       "_origin": "ast",
       "id": "packages_types_src_mobile_workspace_management_mobilemediauploadintentschema",
-      "community": 227,
-      "community_name": "mobile-message-search-client.ts",
+      "community": 219,
+      "community_name": "TestRedisClient",
       "norm_label": "mobilemediauploadintentschema"
     },
     {
@@ -132356,8 +132356,8 @@
       "source_location": "L52",
       "_origin": "ast",
       "id": "packages_types_src_mobile_workspace_management_mobilemediauploadcompletionresponseschema",
-      "community": 227,
-      "community_name": "mobile-message-search-client.ts",
+      "community": 219,
+      "community_name": "TestRedisClient",
       "norm_label": "mobilemediauploadcompletionresponseschema"
     },
     {
@@ -132576,8 +132576,8 @@
       "source_location": "L196",
       "_origin": "ast",
       "id": "packages_types_src_mobile_workspace_management_mobileservercreateresponseschema",
-      "community": 371,
-      "community_name": "use-responsive-layout.ts",
+      "community": 598,
+      "community_name": "expo-notifications",
       "norm_label": "mobileservercreateresponseschema"
     },
     {
@@ -153796,9 +153796,9 @@
       "file_type": "code",
       "source_file": "apps/mobile/scripts/mobile-image-upload-contract.test.ts",
       "source_location": "L97",
-      "community": 227,
+      "community": 219,
       "norm_label": "completion",
-      "community_name": "mobile-message-search-client.ts",
+      "community_name": "TestRedisClient",
       "id": "apps_mobile_scripts_mobile_image_upload_contract_test_completion"
     },
     {
@@ -159886,9 +159886,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/account/presence/route-logic.test.ts",
       "source_location": "L1",
-      "community": 217,
+      "community": 600,
       "norm_label": "route-logic.test.ts",
-      "community_name": "route-logic.ts",
+      "community_name": "service.test.ts",
       "id": "apps_web_src_app_api_v1_mobile_account_presence_route_logic_test_ts"
     },
     {
@@ -159896,9 +159896,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/account/presence/route-logic.test.ts",
       "source_location": "L8",
-      "community": 217,
+      "community": 600,
       "norm_label": "calls",
-      "community_name": "route-logic.ts",
+      "community_name": "service.test.ts",
       "id": "apps_web_src_app_api_v1_mobile_account_presence_route_logic_test_calls"
     },
     {
@@ -159906,9 +159906,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/account/presence/route-logic.ts",
       "source_location": "L1",
-      "community": 217,
+      "community": 600,
       "norm_label": "route-logic.ts",
-      "community_name": "route-logic.ts",
+      "community_name": "service.test.ts",
       "id": "apps_web_src_app_api_v1_mobile_account_presence_route_logic_ts"
     },
     {
@@ -159916,9 +159916,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/account/presence/route.ts",
       "source_location": "L1",
-      "community": 217,
+      "community": 600,
       "norm_label": "route.ts",
-      "community_name": "route-logic.ts",
+      "community_name": "service.test.ts",
       "id": "apps_web_src_app_api_v1_mobile_account_presence_route_ts"
     },
     {
@@ -160926,9 +160926,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/servers/route-logic.ts",
       "source_location": "L1",
-      "community": 371,
+      "community": 598,
       "norm_label": "route-logic.ts",
-      "community_name": "use-responsive-layout.ts",
+      "community_name": "expo-notifications",
       "id": "apps_web_src_app_api_v1_mobile_servers_route_logic_ts"
     },
     {
@@ -160936,9 +160936,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/servers/route.ts",
       "source_location": "L1",
-      "community": 371,
+      "community": 598,
       "norm_label": "route.ts",
-      "community_name": "use-responsive-layout.ts",
+      "community_name": "expo-notifications",
       "id": "apps_web_src_app_api_v1_mobile_servers_route_ts"
     },
     {
@@ -161546,9 +161546,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/servers/[serverId]/members/[memberId]/route-logic.test.ts",
       "source_location": "L1",
-      "community": 505,
+      "community": 173,
       "norm_label": "route-logic.test.ts",
-      "community_name": "lint",
+      "community_name": "route-logic.ts",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_members_memberid_route_logic_test_ts"
     },
     {
@@ -161556,9 +161556,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/servers/[serverId]/members/[memberId]/route-logic.test.ts",
       "source_location": "L36",
-      "community": 505,
+      "community": 173,
       "norm_label": "calls",
-      "community_name": "lint",
+      "community_name": "route-logic.ts",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_members_memberid_route_logic_test_calls"
     },
     {
@@ -161566,9 +161566,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/servers/[serverId]/members/[memberId]/route-logic.test.ts",
       "source_location": "L91",
-      "community": 505,
+      "community": 173,
       "norm_label": "routecontext",
-      "community_name": "lint",
+      "community_name": "route-logic.ts",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_members_memberid_route_logic_test_routecontext"
     },
     {
@@ -161576,9 +161576,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/servers/[serverId]/members/[memberId]/route-logic.test.ts",
       "source_location": "L139",
-      "community": 505,
+      "community": 173,
       "norm_label": "denials",
-      "community_name": "lint",
+      "community_name": "route-logic.ts",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_members_memberid_route_logic_test_denials"
     },
     {
@@ -161586,9 +161586,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/servers/[serverId]/members/[memberId]/route-logic.ts",
       "source_location": "L1",
-      "community": 505,
+      "community": 173,
       "norm_label": "route-logic.ts",
-      "community_name": "lint",
+      "community_name": "route-logic.ts",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_members_memberid_route_logic_ts"
     },
     {
@@ -161596,9 +161596,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/servers/[serverId]/members/[memberId]/route.ts",
       "source_location": "L1",
-      "community": 505,
+      "community": 173,
       "norm_label": "route.ts",
-      "community_name": "lint",
+      "community_name": "route-logic.ts",
       "id": "apps_web_src_app_api_v1_mobile_servers_serverid_members_memberid_route_ts"
     },
     {
@@ -161796,9 +161796,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/mobile/voice/state/route.ts",
       "source_location": "L1",
-      "community": 15,
+      "community": 217,
       "norm_label": "route.ts",
-      "community_name": "Community 15",
+      "community_name": "route-logic.ts",
       "id": "apps_web_src_app_api_v1_mobile_voice_state_route_ts"
     },
     {
@@ -162046,9 +162046,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/servers/[serverId]/members/[memberId]/roles/route-logic.ts",
       "source_location": "L1",
-      "community": 173,
+      "community": 505,
       "norm_label": "route-logic.ts",
-      "community_name": "route-logic.ts",
+      "community_name": "lint",
       "id": "apps_web_src_app_api_v1_servers_serverid_members_memberid_roles_route_logic_ts"
     },
     {
@@ -162056,9 +162056,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/servers/[serverId]/members/[memberId]/roles/route.test.ts",
       "source_location": "L1",
-      "community": 173,
+      "community": 505,
       "norm_label": "route.test.ts",
-      "community_name": "route-logic.ts",
+      "community_name": "lint",
       "id": "apps_web_src_app_api_v1_servers_serverid_members_memberid_roles_route_test_ts"
     },
     {
@@ -162066,9 +162066,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/servers/[serverId]/members/[memberId]/roles/route.test.ts",
       "source_location": "L37",
-      "community": 173,
+      "community": 505,
       "norm_label": "calls",
-      "community_name": "route-logic.ts",
+      "community_name": "lint",
       "id": "apps_web_src_app_api_v1_servers_serverid_members_memberid_roles_route_test_calls"
     },
     {
@@ -162076,9 +162076,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/servers/[serverId]/members/[memberId]/roles/route.ts",
       "source_location": "L1",
-      "community": 173,
+      "community": 505,
       "norm_label": "route.ts",
-      "community_name": "route-logic.ts",
+      "community_name": "lint",
       "id": "apps_web_src_app_api_v1_servers_serverid_members_memberid_roles_route_ts"
     },
     {
@@ -162156,9 +162156,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/voice/state/route-logic.ts",
       "source_location": "L1",
-      "community": 15,
+      "community": 217,
       "norm_label": "route-logic.ts",
-      "community_name": "Community 15",
+      "community_name": "route-logic.ts",
       "id": "apps_web_src_app_api_v1_voice_state_route_logic_ts"
     },
     {
@@ -162166,9 +162166,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/voice/state/route.test.ts",
       "source_location": "L1",
-      "community": 15,
+      "community": 217,
       "norm_label": "route.test.ts",
-      "community_name": "Community 15",
+      "community_name": "route-logic.ts",
       "id": "apps_web_src_app_api_v1_voice_state_route_test_ts"
     },
     {
@@ -162176,9 +162176,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/voice/state/route.test.ts",
       "source_location": "L76",
-      "community": 15,
+      "community": 217,
       "norm_label": "calls",
-      "community_name": "Community 15",
+      "community_name": "route-logic.ts",
       "id": "apps_web_src_app_api_v1_voice_state_route_test_calls"
     },
     {
@@ -162186,9 +162186,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/app/api/v1/voice/state/route.ts",
       "source_location": "L1",
-      "community": 15,
+      "community": 217,
       "norm_label": "route.ts",
-      "community_name": "Community 15",
+      "community_name": "route-logic.ts",
       "id": "apps_web_src_app_api_v1_voice_state_route_ts"
     },
     {
@@ -162466,9 +162466,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/lib/api-rate-limit.test.ts",
       "source_location": "L84",
-      "community": 600,
+      "community": 371,
       "norm_label": "requiredactions",
-      "community_name": "service.test.ts",
+      "community_name": "use-responsive-layout.ts",
       "id": "apps_web_src_lib_api_rate_limit_test_requiredactions"
     },
     {
@@ -162476,9 +162476,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/lib/api-rate-limit.test.ts",
       "source_location": "L143",
-      "community": 600,
+      "community": 371,
       "norm_label": "expectedactions",
-      "community_name": "service.test.ts",
+      "community_name": "use-responsive-layout.ts",
       "id": "apps_web_src_lib_api_rate_limit_test_expectedactions"
     },
     {
@@ -162486,9 +162486,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/lib/api-rate-limit.test.ts",
       "source_location": "L144",
-      "community": 600,
+      "community": 371,
       "norm_label": "actualactions",
-      "community_name": "service.test.ts",
+      "community_name": "use-responsive-layout.ts",
       "id": "apps_web_src_lib_api_rate_limit_test_actualactions"
     },
     {
@@ -162496,9 +162496,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/lib/api-rate-limit.test.ts",
       "source_location": "L213",
-      "community": 600,
+      "community": 371,
       "norm_label": "{ calls, dependencies }",
-      "community_name": "service.test.ts",
+      "community_name": "use-responsive-layout.ts",
       "id": "apps_web_src_lib_api_rate_limit_test_calls_dependencies"
     },
     {
@@ -162506,9 +162506,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/lib/api-rate-limit.test.ts",
       "source_location": "L227",
-      "community": 600,
+      "community": 371,
       "norm_label": "{ dependencies }",
-      "community_name": "service.test.ts",
+      "community_name": "use-responsive-layout.ts",
       "id": "apps_web_src_lib_api_rate_limit_test_dependencies"
     },
     {
@@ -162516,9 +162516,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/lib/api-rate-limit.test.ts",
       "source_location": "L236",
-      "community": 600,
+      "community": 371,
       "norm_label": "logerrors",
-      "community_name": "service.test.ts",
+      "community_name": "use-responsive-layout.ts",
       "id": "apps_web_src_lib_api_rate_limit_test_logerrors"
     },
     {
@@ -162526,9 +162526,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/lib/api-rate-limit.test.ts",
       "source_location": "L237",
-      "community": 600,
+      "community": 371,
       "norm_label": "unavailable",
-      "community_name": "service.test.ts",
+      "community_name": "use-responsive-layout.ts",
       "id": "apps_web_src_lib_api_rate_limit_test_unavailable"
     },
     {
@@ -166766,9 +166766,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/lib/workspace/access-context.test.ts",
       "source_location": "L83",
-      "community": 13,
+      "community": 260,
       "norm_label": "{ client, operations }",
-      "community_name": "Community 13",
+      "community_name": "route-logic.ts",
       "id": "apps_web_src_lib_workspace_access_context_test_client_operations"
     },
     {
@@ -166776,9 +166776,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/lib/workspace/access-context.test.ts",
       "source_location": "L99",
-      "community": 13,
+      "community": 260,
       "norm_label": "{ client }",
-      "community_name": "Community 13",
+      "community_name": "route-logic.ts",
       "id": "apps_web_src_lib_workspace_access_context_test_client"
     },
     {
@@ -166786,9 +166786,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/lib/workspace/access-context.test.ts",
       "source_location": "L122",
-      "community": 13,
+      "community": 260,
       "norm_label": "restores",
-      "community_name": "Community 13",
+      "community_name": "route-logic.ts",
       "id": "apps_web_src_lib_workspace_access_context_test_restores"
     },
     {
@@ -166796,9 +166796,9 @@
       "file_type": "code",
       "source_file": "apps/web/src/lib/workspace/access-context.test.ts",
       "source_location": "L123",
-      "community": 13,
+      "community": 260,
       "norm_label": "operations",
-      "community_name": "Community 13",
+      "community_name": "route-logic.ts",
       "id": "apps_web_src_lib_workspace_access_context_test_operations"
     },
     {
@@ -176376,9 +176376,9 @@
       "file_type": "document",
       "source_file": "docs/superpowers/plans/2026-07-15-whispr-mobile-auth-redesign.md",
       "source_location": "L147",
-      "community": 384,
+      "community": 303,
       "norm_label": "task a1: auth semalar\u0131n\u0131 genislet",
-      "community_name": "Task A3: Mobil login/register'da Turnstile do\u011frulamas\u0131",
+      "community_name": "Task 16: A\u00e7\u0131k tema g\u00f6rsel gate'i (2a-2d)",
       "id": "docs_superpowers_plans_2026_07_15_whispr_mobile_auth_redesign_task_a1_auth_emalar_n_geni_let"
     },
     {
@@ -176386,9 +176386,9 @@
       "file_type": "document",
       "source_file": "docs/superpowers/plans/2026-07-15-whispr-mobile-auth-redesign.md",
       "source_location": "L158",
-      "community": 384,
+      "community": 303,
       "norm_label": "code:ts (assert.equal()",
-      "community_name": "Task A3: Mobil login/register'da Turnstile do\u011frulamas\u0131",
+      "community_name": "Task 16: A\u00e7\u0131k tema g\u00f6rsel gate'i (2a-2d)",
       "id": "docs_superpowers_plans_2026_07_15_whispr_mobile_auth_redesign_codeblock_1"
     },
     {
@@ -176406,9 +176406,9 @@
       "file_type": "document",
       "source_file": "docs/superpowers/plans/2026-07-15-whispr-mobile-auth-redesign.md",
       "source_location": "L192",
-      "community": 384,
+      "community": 303,
       "norm_label": "code:ts (export const mobileauthpasswordloginrequestschema = z.object)",
-      "community_name": "Task A3: Mobil login/register'da Turnstile do\u011frulamas\u0131",
+      "community_name": "Task 16: A\u00e7\u0131k tema g\u00f6rsel gate'i (2a-2d)",
       "id": "docs_superpowers_plans_2026_07_15_whispr_mobile_auth_redesign_codeblock_3"
     },
     {
@@ -176496,9 +176496,9 @@
       "file_type": "document",
       "source_file": "docs/superpowers/plans/2026-07-15-whispr-mobile-auth-redesign.md",
       "source_location": "L374",
-      "community": 598,
+      "community": 384,
       "norm_label": "task a4: s\u0131f\u0131rlama ttl'i, sosyal saglay\u0131c\u0131 konfigi ve mobil istemci gecisi",
-      "community_name": "expo-notifications",
+      "community_name": "Task A3: Mobil login/register'da Turnstile do\u011frulamas\u0131",
       "id": "docs_superpowers_plans_2026_07_15_whispr_mobile_auth_redesign_task_a4_s_f_rlama_ttl_i_sosyal_sa_lay_c_konfigi_ve_mobil_istemci_ge_i_i"
     },
     {
@@ -176506,9 +176506,9 @@
       "file_type": "document",
       "source_file": "docs/superpowers/plans/2026-07-15-whispr-mobile-auth-redesign.md",
       "source_location": "L390",
-      "community": 598,
+      "community": 384,
       "norm_label": "code:ts (import { password_reset_token_expiry_minutes } from \"@/lib/a)",
-      "community_name": "expo-notifications",
+      "community_name": "Task A3: Mobil login/register'da Turnstile do\u011frulamas\u0131",
       "id": "docs_superpowers_plans_2026_07_15_whispr_mobile_auth_redesign_codeblock_14"
     },
     {
@@ -176516,9 +176516,9 @@
       "file_type": "document",
       "source_file": "docs/superpowers/plans/2026-07-15-whispr-mobile-auth-redesign.md",
       "source_location": "L405",
-      "community": 598,
+      "community": 384,
       "norm_label": "code:ts (export type mobileauthsocialproviderid = \"google\";)",
-      "community_name": "expo-notifications",
+      "community_name": "Task A3: Mobil login/register'da Turnstile do\u011frulamas\u0131",
       "id": "docs_superpowers_plans_2026_07_15_whispr_mobile_auth_redesign_codeblock_15"
     },
     {
@@ -176526,9 +176526,9 @@
       "file_type": "document",
       "source_file": "docs/superpowers/plans/2026-07-15-whispr-mobile-auth-redesign.md",
       "source_location": "L436",
-      "community": 598,
+      "community": 384,
       "norm_label": "code:tsx (import { mobileapierror } from \"../api/mobile-api-client\";)",
-      "community_name": "expo-notifications",
+      "community_name": "Task A3: Mobil login/register'da Turnstile do\u011frulamas\u0131",
       "id": "docs_superpowers_plans_2026_07_15_whispr_mobile_auth_redesign_codeblock_16"
     },
     {
@@ -176536,9 +176536,9 @@
       "file_type": "document",
       "source_file": "docs/superpowers/plans/2026-07-15-whispr-mobile-auth-redesign.md",
       "source_location": "L473",
-      "community": 598,
+      "community": 384,
       "norm_label": "code:powershell (corepack pnpm --filter @wizards/web test)",
-      "community_name": "expo-notifications",
+      "community_name": "Task A3: Mobil login/register'da Turnstile do\u011frulamas\u0131",
       "id": "docs_superpowers_plans_2026_07_15_whispr_mobile_auth_redesign_codeblock_17"
     },
     {
@@ -221932,7 +221932,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "apps/mobile/component-tests/mobile-roadmap-screen.test.tsx",
-      "source_location": "L99",
+      "source_location": "L100",
       "weight": 1.0,
       "_origin": "ast",
       "source": "apps_mobile_component_tests_mobile_roadmap_screen_test",
@@ -221943,7 +221943,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "apps/mobile/component-tests/mobile-roadmap-screen.test.tsx",
-      "source_location": "L12",
+      "source_location": "L13",
       "weight": 1.0,
       "_origin": "ast",
       "source": "apps_mobile_component_tests_mobile_roadmap_screen_test",
@@ -221954,7 +221954,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "apps/mobile/component-tests/mobile-roadmap-screen.test.tsx",
-      "source_location": "L11",
+      "source_location": "L12",
       "weight": 1.0,
       "_origin": "ast",
       "source": "apps_mobile_component_tests_mobile_roadmap_screen_test",
@@ -221965,7 +221965,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "apps/mobile/component-tests/mobile-roadmap-screen.test.tsx",
-      "source_location": "L13",
+      "source_location": "L14",
       "weight": 1.0,
       "_origin": "ast",
       "source": "apps_mobile_component_tests_mobile_roadmap_screen_test",
@@ -221976,7 +221976,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "apps/mobile/component-tests/mobile-roadmap-screen.test.tsx",
-      "source_location": "L115",
+      "source_location": "L116",
       "weight": 1.0,
       "_origin": "ast",
       "source": "apps_mobile_component_tests_mobile_roadmap_screen_test",
@@ -221987,7 +221987,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "apps/mobile/component-tests/mobile-roadmap-screen.test.tsx",
-      "source_location": "L84",
+      "source_location": "L85",
       "weight": 1.0,
       "_origin": "ast",
       "source": "apps_mobile_component_tests_mobile_roadmap_screen_test",
@@ -221998,7 +221998,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "apps/mobile/component-tests/mobile-roadmap-screen.test.tsx",
-      "source_location": "L68",
+      "source_location": "L69",
       "weight": 1.0,
       "_origin": "ast",
       "source": "apps_mobile_component_tests_mobile_roadmap_screen_test",
@@ -222010,7 +222010,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "apps/mobile/component-tests/mobile-roadmap-screen.test.tsx",
-      "source_location": "L60",
+      "source_location": "L61",
       "weight": 1.0,
       "_origin": "ast",
       "source": "apps_mobile_component_tests_mobile_roadmap_screen_test",
@@ -222022,7 +222022,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "apps/mobile/component-tests/mobile-roadmap-screen.test.tsx",
-      "source_location": "L60",
+      "source_location": "L61",
       "weight": 1.0,
       "_origin": "ast",
       "source": "apps_mobile_component_tests_mobile_roadmap_screen_test",
@@ -222034,7 +222034,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "apps/mobile/component-tests/mobile-roadmap-screen.test.tsx",
-      "source_location": "L61",
+      "source_location": "L62",
       "weight": 1.0,
       "_origin": "ast",
       "source": "apps_mobile_component_tests_mobile_roadmap_screen_test",
@@ -222046,7 +222046,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "apps/mobile/component-tests/mobile-roadmap-screen.test.tsx",
-      "source_location": "L61",
+      "source_location": "L62",
       "weight": 1.0,
       "_origin": "ast",
       "source": "apps_mobile_component_tests_mobile_roadmap_screen_test",
@@ -222058,7 +222058,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "apps/mobile/component-tests/mobile-roadmap-screen.test.tsx",
-      "source_location": "L62",
+      "source_location": "L63",
       "weight": 1.0,
       "_origin": "ast",
       "source": "apps_mobile_component_tests_mobile_roadmap_screen_test",
@@ -222070,7 +222070,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "apps/mobile/component-tests/mobile-roadmap-screen.test.tsx",
-      "source_location": "L62",
+      "source_location": "L63",
       "weight": 1.0,
       "_origin": "ast",
       "source": "apps_mobile_component_tests_mobile_roadmap_screen_test",
@@ -222082,7 +222082,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "apps/mobile/component-tests/mobile-roadmap-screen.test.tsx",
-      "source_location": "L63",
+      "source_location": "L64",
       "weight": 1.0,
       "_origin": "ast",
       "source": "apps_mobile_component_tests_mobile_roadmap_screen_test",
@@ -222094,7 +222094,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "apps/mobile/component-tests/mobile-roadmap-screen.test.tsx",
-      "source_location": "L63",
+      "source_location": "L64",
       "weight": 1.0,
       "_origin": "ast",
       "source": "apps_mobile_component_tests_mobile_roadmap_screen_test",
@@ -222106,7 +222106,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "apps/mobile/component-tests/mobile-roadmap-screen.test.tsx",
-      "source_location": "L64",
+      "source_location": "L65",
       "weight": 1.0,
       "_origin": "ast",
       "source": "apps_mobile_component_tests_mobile_roadmap_screen_test",
@@ -222118,7 +222118,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "apps/mobile/component-tests/mobile-roadmap-screen.test.tsx",
-      "source_location": "L64",
+      "source_location": "L65",
       "weight": 1.0,
       "_origin": "ast",
       "source": "apps_mobile_component_tests_mobile_roadmap_screen_test",
@@ -222130,7 +222130,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "apps/mobile/component-tests/mobile-roadmap-screen.test.tsx",
-      "source_location": "L5",
+      "source_location": "L6",
       "weight": 1.0,
       "_origin": "ast",
       "source": "apps_mobile_component_tests_mobile_roadmap_screen_test",
@@ -222142,7 +222142,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "apps/mobile/component-tests/mobile-roadmap-screen.test.tsx",
-      "source_location": "L5",
+      "source_location": "L6",
       "weight": 1.0,
       "_origin": "ast",
       "source": "apps_mobile_component_tests_mobile_roadmap_screen_test",
@@ -222154,7 +222154,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "apps/mobile/component-tests/mobile-roadmap-screen.test.tsx",
-      "source_location": "L5",
+      "source_location": "L6",
       "weight": 1.0,
       "_origin": "ast",
       "source": "apps_mobile_component_tests_mobile_roadmap_screen_test",
@@ -222166,7 +222166,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "apps/mobile/component-tests/mobile-roadmap-screen.test.tsx",
-      "source_location": "L5",
+      "source_location": "L6",
       "weight": 1.0,
       "_origin": "ast",
       "source": "apps_mobile_component_tests_mobile_roadmap_screen_test",
@@ -305130,7 +305130,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "apps/mobile/src/feedback/mobile-feedback-screen.styles.ts",
-      "source_location": "L862",
+      "source_location": "L875",
       "weight": 1.0,
       "_origin": "ast",
       "source": "apps_mobile_src_feedback_mobile_feedback_screen_styles_usemobilefeedbackstyles",
@@ -338123,7 +338123,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "apps/mobile/src/feedback/mobile-feedback-screen.styles.ts",
-      "source_location": "L865",
+      "source_location": "L878",
       "weight": 1.0,
       "_origin": "ast",
       "source": "apps_mobile_src_feedback_mobile_feedback_screen_styles",
@@ -338134,7 +338134,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "apps/mobile/src/feedback/mobile-feedback-screen.styles.ts",
-      "source_location": "L861",
+      "source_location": "L874",
       "weight": 1.0,
       "_origin": "ast",
       "source": "apps_mobile_src_feedback_mobile_feedback_screen_styles",
@@ -338170,7 +338170,7 @@
       "context": "argument",
       "confidence": "INFERRED",
       "source_file": "apps/mobile/src/feedback/mobile-feedback-screen.styles.ts",
-      "source_location": "L862",
+      "source_location": "L875",
       "weight": 1.0,
       "_origin": "ast",
       "source": "apps_mobile_src_feedback_mobile_feedback_screen_styles_usemobilefeedbackstyles",
@@ -338799,7 +338799,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "apps/mobile/src/feedback/mobile-roadmap-screen.tsx",
-      "source_location": "L220",
+      "source_location": "L222",
       "weight": 1.0,
       "_origin": "ast",
       "source": "apps_mobile_src_feedback_mobile_roadmap_screen_mobileroadmapscreen",
@@ -338811,7 +338811,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "apps/mobile/src/feedback/mobile-roadmap-screen.tsx",
-      "source_location": "L214",
+      "source_location": "L216",
       "weight": 1.0,
       "_origin": "ast",
       "source": "apps_mobile_src_feedback_mobile_roadmap_screen_mobileroadmapscreen",
@@ -686282,5 +686282,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "38509fff51f74bed16f2f6db6363714189d4c9ad"
+  "built_at_commit": "901f700cce436bbcda40ec57479dcd4488aca2e3"
 }

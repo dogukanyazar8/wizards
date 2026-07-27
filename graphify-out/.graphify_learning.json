@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-26T16:30:40.340730+00:00",
+  "generated_at": "2026-07-27T05:17:52.241434+00:00",
   "nodes": {
     "apps_mobile_src_navigation_mobile_bottom_tab_bar_tabicons": {
       "code_fingerprint": "c1a84fcee33f5d81380e4e36738416218eb6cd8910a5f38fe2abb7f60393ed7b",
@@ -12,8 +12,40 @@
           "q": "Mobil uygulamada navigation bar için hangi ikon paketini kullanıyoruz?"
         }
       ],
-      "score": 0.969937202,
+      "score": 0.958070701,
       "source_file": "apps/mobile/src/navigation/mobile-bottom-tab-bar.tsx",
+      "status": "tentative",
+      "uses": 1
+    },
+    "apps_mobile_src_query_mobile_query_cache_policy": {
+      "code_fingerprint": "ea363a12e580dc1e41c7bfcaf7b506f78b917c36ff4fd53a04e8b0e026c3e3a0",
+      "label": "mobile-query-cache-policy.ts",
+      "last": "2026-07-26T16:33:22.483411+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-26T16:33:22.483411+00:00",
+          "outcome": "useful",
+          "q": "Mobil açılışında modern splash, yüklemeler ve performans kontrolleri nasıl tasarlanmalı?"
+        }
+      ],
+      "score": 0.987808531,
+      "source_file": "apps/mobile/src/query/mobile-query-cache-policy.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "packages_types_src_mobile_mobilebootstrappayload": {
+      "code_fingerprint": "4691cded5a3bccbe41bb3479b51d855538e015ef848d1525161660cf74044aa2",
+      "label": "MobileBootstrapPayload",
+      "last": "2026-07-26T16:33:22.483411+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-26T16:33:22.483411+00:00",
+          "outcome": "useful",
+          "q": "Mobil açılışında modern splash, yüklemeler ve performans kontrolleri nasıl tasarlanmalı?"
+        }
+      ],
+      "score": 0.987808531,
+      "source_file": "packages/types/src/mobile.ts",
       "status": "tentative",
       "uses": 1
     }

@@ -650,14 +650,17 @@
   "648": "@expo/vector-icons",
   "649": "@socket.io/redis-adapter",
   "650": "route-logic.test.ts",
+  "651": "page.tsx",
   "652": "react-native-gesture-handler",
+  "653": "0. KAYNAKLAR VE ÇALIŞMA KURALLARI",
+  "654": "@react-native-async-storage/async-storage",
   "655": "@tanstack/react-query",
+  "656": "@auth/prisma-adapter",
   "658": "date-fns",
   "664": "expo",
   "666": "expo-blur",
   "667": "expo-device",
   "670": "expo-local-authentication",
-  "671": "expo-localization",
   "672": "expo-notifications",
   "673": "expo-secure-store",
   "680": "@react-native-google-signin/google-signin",
@@ -666,6 +669,5 @@
   "684": "@sentry/react-native",
   "685": "@shopify/flash-list",
   "686": "@tanstack/query-async-storage-persister",
-  "688": "uploadthing",
-  "689": "clsx"
+  "688": "uploadthing"
 }

@@ -635,7 +635,20 @@ const createStyles = (theme: MobileTheme) => ({
     color: theme.accent.strong,
     fontFamily: theme.typography.fontFamilyExtraBold,
   },
-  filterRow: { gap: 7, marginTop: 12, paddingBottom: 12, paddingLeft: 16, paddingRight: 16 },
+  /**
+   * The band is exactly as tall as one chip. Without `flexGrow: 0` the
+   * horizontal ScrollView claims the column's free height, and a stretching
+   * content container then passes that height straight down to every chip.
+   */
+  filterScroll: { flexGrow: 0, flexShrink: 0 },
+  filterRow: {
+    alignItems: "center" as const,
+    gap: 7,
+    marginTop: 12,
+    paddingBottom: 12,
+    paddingLeft: 16,
+    paddingRight: 16,
+  },
   filterChip: {
     alignItems: "center" as const,
     backgroundColor: theme.surface.card,

@@ -657,7 +657,6 @@
   "655": "@tanstack/react-query",
   "656": "@auth/prisma-adapter",
   "658": "date-fns",
-  "664": "expo",
   "666": "expo-blur",
   "667": "expo-device",
   "670": "expo-local-authentication",

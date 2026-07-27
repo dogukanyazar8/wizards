@@ -7,6 +7,8 @@ import { resolve } from "node:path";
 const packageRoot = resolve(import.meta.dirname, "..");
 const read = (relativePath) => readFileSync(resolve(packageRoot, relativePath), "utf8");
 const BASELINE_MIGRATION = "20260725000000_uat_schema_baseline";
+const FEEDBACK_ATTACHMENT_MIGRATION =
+  "20260727130000_allow_feedback_attachment_uploads/migration.sql";
 
 test("uses Prisma 7 ESM generation, central CLI configuration, and explicit seed", () => {
   const schema = read("prisma/schema.prisma");
@@ -69,6 +71,17 @@ test("contains a replayable current-state baseline with raw PostgreSQL objects",
     createHash("sha256").update(baseline).digest("hex"),
     "2c2f7a362e52f38d7a4bb74844e3f84479b987717d0310677f9b40fa9a9b22f3",
   );
+});
+
+test("allows feedback attachments only as owner-scoped mobile uploads", () => {
+  const migration = read(`prisma/rebaseline-migrations/${FEEDBACK_ATTACHMENT_MIGRATION}`);
+
+  assert.match(migration, /DROP CONSTRAINT "MobileMediaUpload_purpose_target_check";/);
+  assert.match(
+    migration,
+    /"purpose" IN \('PROFILE_AVATAR', 'PROFILE_BANNER', 'FEEDBACK_ATTACHMENT'\)\s*AND "targetServerId" IS NULL/,
+  );
+  assert.match(migration, /"purpose" = 'SERVER_ICON'\s*AND "targetServerId" IS NOT NULL/);
 });
 
 test("exposes Prisma enums to browser code without exporting the Node adapter", () => {
