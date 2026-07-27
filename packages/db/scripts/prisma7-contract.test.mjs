@@ -9,6 +9,7 @@ const read = (relativePath) => readFileSync(resolve(packageRoot, relativePath), 
 const BASELINE_MIGRATION = "20260725000000_uat_schema_baseline";
 const FEEDBACK_ATTACHMENT_MIGRATION =
   "20260727130000_allow_feedback_attachment_uploads/migration.sql";
+const TELEMETRY_PLATFORM_DIMS_MIGRATION = "20260727150000_telemetry_platform_dims/migration.sql";
 
 test("uses Prisma 7 ESM generation, central CLI configuration, and explicit seed", () => {
   const schema = read("prisma/schema.prisma");
@@ -82,6 +83,13 @@ test("allows feedback attachments only as owner-scoped mobile uploads", () => {
     /"purpose" IN \('PROFILE_AVATAR', 'PROFILE_BANNER', 'FEEDBACK_ATTACHMENT'\)\s*AND "targetServerId" IS NULL/,
   );
   assert.match(migration, /"purpose" = 'SERVER_ICON'\s*AND "targetServerId" IS NOT NULL/);
+});
+
+test("replaces the baseline UserDailyMetric unique index by index kind", () => {
+  const migration = read(`prisma/rebaseline-migrations/${TELEMETRY_PLATFORM_DIMS_MIGRATION}`);
+
+  assert.match(migration, /^DROP INDEX "UserDailyMetric_date_userId_key";$/m);
+  assert.doesNotMatch(migration, /DROP CONSTRAINT "UserDailyMetric_date_userId_key"/);
 });
 
 test("exposes Prisma enums to browser code without exporting the Node adapter", () => {

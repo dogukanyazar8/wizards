@@ -114,7 +114,8 @@ jobs:
 
   semgrep:
     name: Semgrep CE SAST
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, linux, x64, wizards-ci]
+    if: github.event_name != 'pull_request'
     timeout-minutes: 15
     permissions:
       contents: read
@@ -706,14 +707,21 @@ jobs:
           components: rustfmt, clippy
 
       - name: Audit Rust dependencies
+        # Automatic Desktop Ops runs on the Linux self-hosted runner. Keep this
+        # shell POSIX-compatible; hosted Windows validation uses pwsh.
         shell: bash
         working-directory: apps/desktop/src-tauri
         env:
           CARGO_AUDIT_VERSION: 0.22.1
         run: |
-          current_version="$(cargo audit --version 2>/dev/null | awk '{print $NF}' || true)"
+          expected_version="cargo-audit $CARGO_AUDIT_VERSION"
+          current_version=""
 
-          if [[ "$current_version" != "$CARGO_AUDIT_VERSION" ]]; then
+          if command -v cargo-audit >/dev/null 2>&1; then
+            current_version="$(cargo audit --version)"
+          fi
+
+          if [ "$current_version" != "$expected_version" ]; then
             cargo install cargo-audit --version "$CARGO_AUDIT_VERSION" --locked --force
           fi
 
