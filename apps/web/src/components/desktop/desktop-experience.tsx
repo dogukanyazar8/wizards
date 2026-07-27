@@ -18,9 +18,12 @@ import {
 } from "@/lib/desktop/runtime";
 import {
   configureDesktopVoiceShortcuts,
+  getDesktopAdminConsoleOpen,
   getDesktopForegroundProcessName,
   hideDesktopGameOverlaySurface,
   getDesktopMainWindowFocused,
+  publishDesktopAdminCaseCount,
+  setDesktopAdminConsoleVisible,
   publishDesktopGameOverlaySnapshot,
   publishDesktopVoiceMiniSnapshot,
   repairDesktopGameOverlaySurface,
@@ -70,6 +73,7 @@ const DESKTOP_RESUME_CHECK_INTERVAL_MS = 10_000;
 const DESKTOP_RESUME_GAP_MS = 45_000;
 const DESKTOP_SHORTCUT_COMMANDS = new Set<WhisprDesktopCommandDetail["command"]>([
   "hide-game-overlay",
+  "toggle-admin-console",
   "toggle-deafen",
   "toggle-mute",
   "voice-shortcut-push-to-talk-start",
@@ -321,6 +325,7 @@ export function DesktopExperience() {
     desktopGameOverlayProcessDetectionEnabled,
     desktopGameOverlaySize,
     desktopGameOverlaySpeakingOnly,
+    adminConsoleShortcut,
     gameOverlayPanicShortcut,
     desktopVoiceMiniEnabled,
     pushToTalkShortcut,
@@ -337,6 +342,7 @@ export function DesktopExperience() {
       desktopGameOverlayProcessDetectionEnabled: state.desktopGameOverlayProcessDetectionEnabled,
       desktopGameOverlaySize: state.desktopGameOverlaySize,
       desktopGameOverlaySpeakingOnly: state.desktopGameOverlaySpeakingOnly,
+      adminConsoleShortcut: state.adminConsoleShortcut,
       gameOverlayPanicShortcut: state.gameOverlayPanicShortcut,
       desktopVoiceMiniEnabled: state.desktopVoiceMiniEnabled,
       pushToTalkShortcut: state.pushToTalkShortcut,
@@ -966,6 +972,7 @@ export function DesktopExperience() {
           ? pushToTalkShortcut
           : null,
       shortcutsEnabled: desktopGlobalShortcutsEnabled,
+      toggleAdminConsole: desktopGlobalShortcutsEnabled ? adminConsoleShortcut : null,
       toggleDeafen: desktopGlobalShortcutsEnabled ? toggleDeafenShortcut : null,
       toggleMute: desktopGlobalShortcutsEnabled ? toggleMuteShortcut : null,
     })
@@ -982,6 +989,7 @@ export function DesktopExperience() {
         });
       });
   }, [
+    adminConsoleShortcut,
     desktopGameOverlayEnabled,
     desktopGlobalShortcutsEnabled,
     gameOverlayPanicShortcut,
@@ -1248,6 +1256,13 @@ export function DesktopExperience() {
         case "leave-voice":
           void leaveChannel();
           break;
+        case "toggle-admin-console":
+          // The window is the native side's state, so the shortcut asks what is
+          // open before deciding which way to toggle.
+          void getDesktopAdminConsoleOpen()
+            .then((open) => setDesktopAdminConsoleVisible(!open))
+            .catch(() => undefined);
+          break;
         case "toggle-deafen":
           void toggleDeafen();
           break;
@@ -1374,12 +1389,21 @@ export function DesktopExperience() {
       void queryClient.invalidateQueries({ queryKey: notificationsQueryKeys.root });
     };
 
+    // F9: the tray badge. The server counts the open cases and says so; this
+    // hands the number to the native side untouched. Only admins who may read
+    // the queue are in the room the event is sent to.
+    const handleOpenCaseCount = ({ count }: { count: number }) => {
+      void publishDesktopAdminCaseCount(count).catch(() => undefined);
+    };
+    socket.on("admin:open-case-count", handleOpenCaseCount);
+
     socket.on("notification:new", handleNotification);
     socket.on("friends:updated", handleFriendsUpdated);
 
     return () => {
       socket.off("notification:new", handleNotification);
       socket.off("friends:updated", handleFriendsUpdated);
+      socket.off("admin:open-case-count", handleOpenCaseCount);
     };
   }, [
     desktopNotificationPreviews,

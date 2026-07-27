@@ -1,6 +1,10 @@
 import type { Prisma, PrismaClient } from "@wizards/db";
 import { prisma } from "@wizards/db";
 import { ApiError } from "@/lib/api";
+import {
+  alertModerationCaseInBackground,
+  type ModerationAlertCase,
+} from "@/lib/moderation/case-alert-service";
 
 const MOBILE_QUEUE_LIMIT = 20;
 const PREVIEW_LENGTH = 200;
@@ -106,10 +110,21 @@ export async function getMobileAdminCase(caseId: string, client: MobileCaseStore
 export async function escalateMobileAdminCase(
   args: { adminUserId: string; caseId: string; note?: string | undefined },
   client: MobileCaseStore = prisma,
+  // The alert is a side effect of escalation, not part of it: it runs detached
+  // so a push provider outage cannot fail the decision the moderator just made.
+  onEscalated: (moderationCase: ModerationAlertCase) => void = (moderationCase) =>
+    alertModerationCaseInBackground({ moderationCase }),
 ) {
   const moderationCase = await client.moderationCase.findUnique({
     where: { id: args.caseId },
-    select: { id: true, priority: true },
+    select: {
+      id: true,
+      openedAt: true,
+      priority: true,
+      publicNumber: true,
+      status: true,
+      subjectHandle: true,
+    },
   });
 
   if (!moderationCase) {
@@ -131,6 +146,15 @@ export async function escalateMobileAdminCase(
         surface: "mobile",
       } as Prisma.InputJsonValue,
     },
+  });
+
+  onEscalated({
+    id: moderationCase.id,
+    openedAt: moderationCase.openedAt,
+    priority: "URGENT",
+    publicNumber: moderationCase.publicNumber,
+    status: moderationCase.status,
+    subjectHandle: moderationCase.subjectHandle,
   });
 
   return { caseId: args.caseId, priority: "URGENT" as const };

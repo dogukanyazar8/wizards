@@ -9,7 +9,7 @@ import type {
 } from "@wizards/types";
 
 export type DesktopVoiceShortcutAction =
-  "hideGameOverlay" | "pushToTalk" | "toggleDeafen" | "toggleMute";
+  "hideGameOverlay" | "pushToTalk" | "toggleAdminConsole" | "toggleDeafen" | "toggleMute";
 
 export interface DesktopVoiceShortcutRegistration {
   action: DesktopVoiceShortcutAction;
@@ -25,6 +25,8 @@ export interface DesktopVoiceShortcutConfig {
   hideGameOverlay?: string | null;
   pushToTalk?: string | null;
   shortcutsEnabled: boolean;
+  /** F9: opens or closes the detached moderation console. */
+  toggleAdminConsole?: string | null;
   toggleDeafen?: string | null;
   toggleMute?: string | null;
 }
@@ -395,6 +397,45 @@ export async function setDesktopVoiceMiniVisible(visible: boolean) {
   }
 
   return invokeDesktopCommand<boolean>("set_desktop_voice_mini_visible", { visible });
+}
+
+/**
+ * F8: the detached moderation console. The main window is the only caller the
+ * native side accepts, which is also why the console cannot close or re-open
+ * itself from the page it renders.
+ */
+export async function setDesktopAdminConsoleVisible(visible: boolean) {
+  if (!isWhisprDesktopRuntime()) {
+    return false;
+  }
+
+  return invokeDesktopCommand<boolean>("set_desktop_admin_console_visible", { visible });
+}
+
+/**
+ * F9: the tray badge. The count is the server's — it arrives on the main
+ * window's socket as `admin:open-case-count` and is handed to the native side
+ * unchanged, which is why the desktop never queries the database itself.
+ */
+export async function publishDesktopAdminCaseCount(count: number) {
+  if (!isWhisprDesktopRuntime()) {
+    return false;
+  }
+
+  if (!Number.isInteger(count) || count < 0) {
+    return false;
+  }
+
+  await invokeDesktopCommand<number>("publish_desktop_admin_case_count", { count });
+  return true;
+}
+
+export async function getDesktopAdminConsoleOpen() {
+  if (!isWhisprDesktopRuntime()) {
+    return false;
+  }
+
+  return invokeDesktopCommand<boolean>("get_desktop_admin_console_open");
 }
 
 export async function setDesktopGameOverlayVisible(

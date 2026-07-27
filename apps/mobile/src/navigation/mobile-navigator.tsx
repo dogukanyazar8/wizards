@@ -34,6 +34,8 @@ import {
   ServerInvitesStackScreenContainer,
   ChannelSettingsStackScreenContainer,
   UserProfileStackScreenContainer,
+  AdminIncidentsScreenContainer,
+  AdminIncidentDetailScreenContainer,
 } from "../app/screens/mobile-screen-containers";
 import { useMobileVoiceScreenProps } from "../app/providers/mobile-product-screen-provider";
 import { FloatingNavigationChrome } from "./floating-navigation-chrome";
@@ -176,6 +178,12 @@ export function MobileNavigator({
           </RootStack.Screen>
           <RootStack.Screen name="ChannelSettings">
             {(props) => <ChannelSettingsStackScreenContainer {...props} />}
+          </RootStack.Screen>
+          <RootStack.Screen name="AdminIncidents">
+            {(props) => <AdminIncidentsScreenContainer {...props} />}
+          </RootStack.Screen>
+          <RootStack.Screen name="AdminIncidentDetail">
+            {(props) => <AdminIncidentDetailScreenContainer {...props} />}
           </RootStack.Screen>
         </RootStack.Navigator>
       ) : (

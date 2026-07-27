@@ -4,6 +4,7 @@ import { cleanupMobileMediaUploads as cleanupMobileMediaUploadsService } from "@
 import { cleanupOutboxJobs, drainOutboxJobs } from "@/lib/outbox/service";
 import { rollUpClientHealthEvents as rollUpClientHealthEventsService } from "@/lib/telemetry/client-health-rollup";
 import { purgeExpiredEvidence as purgeExpiredEvidenceService } from "@/lib/moderation/evidence-service";
+import { sweepModerationCaseAlerts as sweepModerationCaseAlertsService } from "@/lib/moderation/case-alert-service";
 
 const DEFAULT_OUTBOX_WORKER_BATCH_SIZE = 25;
 const DEFAULT_OUTBOX_WORKER_INTERVAL_MS = 5_000;
@@ -22,6 +23,7 @@ type StartOutboxWorkerOptions = {
   intervalMs?: number;
   purgeExpiredEvidence?: typeof purgeExpiredEvidenceService;
   rollUpClientHealthEvents?: typeof rollUpClientHealthEventsService;
+  sweepModerationCaseAlerts?: typeof sweepModerationCaseAlertsService;
   keepAlive?: boolean;
   runImmediately?: boolean;
   workerId?: string;
@@ -46,6 +48,7 @@ export function startOutboxWorker({
   purgeExpiredEvidence = purgeExpiredEvidenceService,
   rollUpClientHealthEvents = rollUpClientHealthEventsService,
   runImmediately = true,
+  sweepModerationCaseAlerts = sweepModerationCaseAlertsService,
   workerId: configuredWorkerId,
 }: StartOutboxWorkerOptions = {}) {
   if (workerTimer || process.env.WHISPR_OUTBOX_WORKER === "false") {
@@ -79,6 +82,9 @@ export function startOutboxWorker({
         await cleanupMobileMediaUploads({ now: cleanupNow });
         await rollUpClientHealthEvents({ now: cleanupNow });
         await purgeExpiredEvidence({ now: cleanupNow });
+        // "Open for more than a day" only becomes a notification if something
+        // periodic looks; this hourly block is the only scheduler the app has.
+        await sweepModerationCaseAlerts({ now: cleanupNow });
       })
       .catch((error) => {
         logError("[outbox] Worker drain failed", error);

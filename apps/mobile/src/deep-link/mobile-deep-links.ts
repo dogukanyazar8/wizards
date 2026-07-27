@@ -56,7 +56,21 @@ const SENSITIVE_QUERY_PARAMS = new Set([
   "session",
   "token",
 ]);
-const SAFE_ROUTE_PREFIXES = ["/channels", "/settings", "/server", "/invite", "/user"] as const;
+/**
+ * `/admin` is on the list so a MODERATION notification's action URL can reach
+ * navigation at all; it is not an authorization decision. Every admin endpoint
+ * behind the screen re-checks the capability on the server, and a non-admin who
+ * follows the link lands on the queue's "yetkin yok" state instead of a screen
+ * that was never routed.
+ */
+const SAFE_ROUTE_PREFIXES = [
+  "/admin",
+  "/channels",
+  "/settings",
+  "/server",
+  "/invite",
+  "/user",
+] as const;
 const URL_SCHEME_PATTERN = /^[a-zA-Z][a-zA-Z\d+.-]*:/;
 
 export function buildMobileWebSignInUrl(webUrl: string, callbackPath = "/channels/@me"): string {

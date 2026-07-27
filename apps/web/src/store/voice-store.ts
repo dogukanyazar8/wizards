@@ -32,6 +32,8 @@ export const DEFAULT_CAMERA_DEVICE_ID = DEFAULT_AUDIO_DEVICE_ID;
 export const VOICE_PREFERENCES_STORAGE_KEY = "wizards-voice";
 export const DEFAULT_PUSH_TO_TALK_HANGOVER_MS = 200;
 export const DEFAULT_GAME_OVERLAY_PANIC_SHORTCUT = "CmdOrCtrl+Shift+O";
+/** F9: detaches the moderation console from wherever the moderator is. */
+export const DEFAULT_ADMIN_CONSOLE_SHORTCUT = "CmdOrCtrl+Shift+J";
 export const DEFAULT_PUSH_TO_TALK_SHORTCUT = "Alt+V";
 export const DEFAULT_TOGGLE_DEAFEN_SHORTCUT = "CmdOrCtrl+Shift+D";
 export const DEFAULT_TOGGLE_MUTE_SHORTCUT = "CmdOrCtrl+Shift+M";
@@ -237,9 +239,7 @@ export function sanitizeUniqueDesktopVoiceShortcut(
   otherShortcuts: string[],
   currentValue: string,
 ) {
-  const unavailableShortcuts = new Set(
-    otherShortcuts.map(normalizeDesktopShortcutForComparison),
-  );
+  const unavailableShortcuts = new Set(otherShortcuts.map(normalizeDesktopShortcutForComparison));
   const sanitized = sanitizeDesktopVoiceShortcut(value, fallback);
   if (!unavailableShortcuts.has(normalizeDesktopShortcutForComparison(sanitized))) {
     return sanitized;
@@ -277,8 +277,15 @@ function sanitizeDesktopVoiceShortcutSet(value: Partial<PersistedVoiceStoreState
     [toggleMuteShortcut, toggleDeafenShortcut, pushToTalkShortcut],
     DEFAULT_GAME_OVERLAY_PANIC_SHORTCUT,
   );
+  const adminConsoleShortcut = sanitizeUniqueDesktopVoiceShortcut(
+    value.adminConsoleShortcut,
+    DEFAULT_ADMIN_CONSOLE_SHORTCUT,
+    [toggleMuteShortcut, toggleDeafenShortcut, pushToTalkShortcut, gameOverlayPanicShortcut],
+    DEFAULT_ADMIN_CONSOLE_SHORTCUT,
+  );
 
   return {
+    adminConsoleShortcut,
     gameOverlayPanicShortcut,
     pushToTalkShortcut,
     toggleDeafenShortcut,
@@ -298,6 +305,7 @@ export function sanitizePushToTalkHangoverMs(value: unknown) {
 }
 
 type PersistedVoiceStoreState = {
+  adminConsoleShortcut: string;
   audioProcessingVersion: number;
   audioPreferences: VoiceAudioPreferences;
   cameraPreferences: VoiceCameraPreferences;
@@ -344,6 +352,7 @@ interface VoiceStoreState extends PersistedVoiceStoreState {
   serverId: string | null;
   sessionId: string | null;
   sessionMode: "channel" | "direct" | null;
+  adminConsoleShortcut: string;
   gameOverlayPanicShortcut: string;
   pushToTalkHangoverMs: number;
   pushToTalkShortcut: string;
@@ -379,6 +388,7 @@ interface VoiceStoreState extends PersistedVoiceStoreState {
   setDesktopGameOverlaySize: (size: VoiceOverlaySize) => void;
   setDesktopGameOverlaySpeakingOnly: (speakingOnly: boolean) => void;
   setDesktopVoiceMiniEnabled: (enabled: boolean) => void;
+  setAdminConsoleShortcut: (shortcut: string) => void;
   setGameOverlayPanicShortcut: (shortcut: string) => void;
   setPushToTalkHangoverMs: (hangoverMs: number) => void;
   setPushToTalkShortcut: (shortcut: string) => void;
@@ -436,6 +446,7 @@ export const useVoiceStore = create<VoiceStoreState>()(
       desktopGameOverlaySize: DEFAULT_DESKTOP_GAME_OVERLAY_SIZE,
       desktopGameOverlaySpeakingOnly: DEFAULT_DESKTOP_GAME_OVERLAY_SPEAKING_ONLY,
       desktopVoiceMiniEnabled: false,
+      adminConsoleShortcut: DEFAULT_ADMIN_CONSOLE_SHORTCUT,
       gameOverlayPanicShortcut: DEFAULT_GAME_OVERLAY_PANIC_SHORTCUT,
       isDeafened: false,
       hasConfiguredKrispPreference: false,
@@ -567,6 +578,20 @@ export const useVoiceStore = create<VoiceStoreState>()(
         set({
           desktopVoiceMiniEnabled: enabled,
         }),
+      setAdminConsoleShortcut: (shortcut) =>
+        set((state) => ({
+          adminConsoleShortcut: sanitizeUniqueDesktopVoiceShortcut(
+            shortcut,
+            DEFAULT_ADMIN_CONSOLE_SHORTCUT,
+            [
+              state.gameOverlayPanicShortcut,
+              state.pushToTalkShortcut,
+              state.toggleDeafenShortcut,
+              state.toggleMuteShortcut,
+            ],
+            state.adminConsoleShortcut,
+          ),
+        })),
       setGameOverlayPanicShortcut: (shortcut) =>
         set((state) => ({
           gameOverlayPanicShortcut: sanitizeUniqueDesktopVoiceShortcut(
@@ -709,6 +734,7 @@ export const useVoiceStore = create<VoiceStoreState>()(
           ),
           desktopGameOverlaySpeakingOnly: persistedState.desktopGameOverlaySpeakingOnly === true,
           desktopVoiceMiniEnabled: persistedState.desktopVoiceMiniEnabled === true,
+          adminConsoleShortcut: desktopShortcuts.adminConsoleShortcut,
           gameOverlayPanicShortcut: desktopShortcuts.gameOverlayPanicShortcut,
           participantVolumes: sanitizeParticipantVolumes(persistedState.participantVolumes),
           pushToTalkHangoverMs: sanitizePushToTalkHangoverMs(persistedState.pushToTalkHangoverMs),
@@ -732,6 +758,7 @@ export const useVoiceStore = create<VoiceStoreState>()(
         desktopGameOverlaySize: state.desktopGameOverlaySize,
         desktopGameOverlaySpeakingOnly: state.desktopGameOverlaySpeakingOnly,
         desktopVoiceMiniEnabled: state.desktopVoiceMiniEnabled,
+        adminConsoleShortcut: state.adminConsoleShortcut,
         gameOverlayPanicShortcut: state.gameOverlayPanicShortcut,
         hasConfiguredKrispPreference: state.hasConfiguredKrispPreference,
         participantVolumes: state.participantVolumes,

@@ -891,6 +891,9 @@ export const TR_MESSAGES = {
   "voice.settings.gameOverlayPanicShortcut": "Overlay gizleme kısayolu",
   "voice.settings.gameOverlayPanicShortcutDesc":
     "Varsayılan: CmdOrCtrl+Shift+O. Sistem tepsisi menüsünden de kullanılabilir.",
+  "voice.settings.adminConsoleShortcut": "Moderasyon konsolu kısayolu",
+  "voice.settings.adminConsoleShortcutDesc":
+    "Varsayılan: CmdOrCtrl+Shift+J. Ayrılmış moderasyon konsolunu açar veya kapatır.",
   "voice.settings.pushToTalkHangover": "Bırakma tamponu",
   "voice.settings.pushToTalkHangoverDesc":
     "Son hecenin kesilmemesi için tuş bırakıldıktan sonra mikrofonu kısa süre açık tutar.",

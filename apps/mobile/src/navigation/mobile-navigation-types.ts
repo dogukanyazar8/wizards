@@ -61,6 +61,13 @@ export type MobileRootStackParamList = {
   ServerMembers: { readonly serverId: string };
   ServerInvites: { readonly serverId: string };
   ChannelSettings: { readonly channelId: string; readonly serverId: string };
+  /**
+   * F7 mobile moderation triage. Root stack routes rather than a tab: the queue
+   * is a destination an admin walks into and backs out of, not a fifth place the
+   * app always shows.
+   */
+  AdminIncidents: undefined;
+  AdminIncidentDetail: { readonly caseId: string };
 };
 
 export type MobileNavigationRouteIntent =
@@ -110,7 +117,13 @@ export type MobileNavigationRouteIntent =
       readonly params: MobileRootStackParamList["FeedbackSubmitted"];
       readonly type: "route";
     }
-  | { readonly name: "BlockedUsers"; readonly params: undefined; readonly type: "route" };
+  | { readonly name: "BlockedUsers"; readonly params: undefined; readonly type: "route" }
+  | { readonly name: "AdminIncidents"; readonly params: undefined; readonly type: "route" }
+  | {
+      readonly name: "AdminIncidentDetail";
+      readonly params: MobileRootStackParamList["AdminIncidentDetail"];
+      readonly type: "route";
+    };
 
 export type MobileNavigationCommandIntent = Exclude<
   MobileDeepLinkIntent,

@@ -71,7 +71,19 @@ describe("outbox worker lifecycle", () => {
         return 0;
       },
       intervalMs: 60_000,
+      purgeExpiredEvidence: async () => {
+        operations.push("purge.evidence");
+        return { casesPurged: 0, evidenceDeleted: 0 };
+      },
+      rollUpClientHealthEvents: async () => {
+        operations.push("rollup.health");
+        return { deleted: 0, summarized: 0 };
+      },
       runImmediately: true,
+      sweepModerationCaseAlerts: async () => {
+        operations.push("sweep.moderation-alerts");
+        return { alertedCases: 0, notified: 0 };
+      },
       workerId: "test-worker-media",
     });
 
@@ -96,6 +108,10 @@ describe("outbox worker lifecycle", () => {
       "cleanup.reauth",
       "cleanup.media.start",
       "cleanup.media.end",
+      "rollup.health",
+      "purge.evidence",
+      // The only periodic hook the app has, so the stale-case alert rides it.
+      "sweep.moderation-alerts",
     ]);
   });
 });

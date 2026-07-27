@@ -416,6 +416,7 @@ export function VoicePreferencesPanel({ mode = "all" }: { mode?: VoicePreference
     (state) => state.desktopGameOverlaySpeakingOnly,
   );
   const gameOverlayPanicShortcut = useVoiceStore((state) => state.gameOverlayPanicShortcut);
+  const adminConsoleShortcut = useVoiceStore((state) => state.adminConsoleShortcut);
   const desktopVoiceMiniEnabled = useVoiceStore((state) => state.desktopVoiceMiniEnabled);
   const pushToTalkHangoverMs = useVoiceStore((state) => state.pushToTalkHangoverMs);
   const pushToTalkShortcut = useVoiceStore((state) => state.pushToTalkShortcut);
@@ -439,6 +440,7 @@ export function VoicePreferencesPanel({ mode = "all" }: { mode?: VoicePreference
   );
   const setDesktopVoiceMiniEnabled = useVoiceStore((state) => state.setDesktopVoiceMiniEnabled);
   const setGameOverlayPanicShortcut = useVoiceStore((state) => state.setGameOverlayPanicShortcut);
+  const setAdminConsoleShortcut = useVoiceStore((state) => state.setAdminConsoleShortcut);
   const setPushToTalkHangoverMs = useVoiceStore((state) => state.setPushToTalkHangoverMs);
   const setPushToTalkShortcut = useVoiceStore((state) => state.setPushToTalkShortcut);
   const setToggleDeafenShortcut = useVoiceStore((state) => state.setToggleDeafenShortcut);
@@ -1228,6 +1230,12 @@ export function VoicePreferencesPanel({ mode = "all" }: { mode?: VoicePreference
                 label={t("voice.settings.gameOverlayPanicShortcut")}
                 onChange={setGameOverlayPanicShortcut}
                 value={gameOverlayPanicShortcut}
+              />
+              <DesktopShortcutInputRow
+                description={t("voice.settings.adminConsoleShortcutDesc")}
+                label={t("voice.settings.adminConsoleShortcut")}
+                onChange={setAdminConsoleShortcut}
+                value={adminConsoleShortcut}
               />
             </div>
 

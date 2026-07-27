@@ -162,6 +162,13 @@ export interface ClientToServerEvents {
 }
 
 export interface ServerToClientEvents {
+  /**
+   * F9 tray badge. The server counts open moderation cases and says so; the
+   * desktop tray only renders the number it is given. Sent to the rooms of
+   * admins who may read the queue, so a count is never a side channel that
+   * tells a non-admin how much moderation work exists.
+   */
+  "admin:open-case-count": (data: { count: number }) => void;
   "friends:updated": (data: {
     reason:
       | "blocked"

@@ -892,6 +892,9 @@ export const EN_MESSAGES = {
   "voice.settings.gameOverlayPanicShortcut": "Hide overlay shortcut",
   "voice.settings.gameOverlayPanicShortcutDesc":
     "Default: CmdOrCtrl+Shift+O. Also available from the tray menu.",
+  "voice.settings.adminConsoleShortcut": "Moderation console shortcut",
+  "voice.settings.adminConsoleShortcutDesc":
+    "Default: CmdOrCtrl+Shift+J. Opens or closes the detached moderation console.",
   "voice.settings.pushToTalkHangover": "Release cushion",
   "voice.settings.pushToTalkHangoverDesc":
     "Keeps the mic open briefly after key release so the last syllable is not cut off.",

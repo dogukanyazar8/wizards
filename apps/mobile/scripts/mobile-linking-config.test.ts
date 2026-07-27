@@ -87,12 +87,47 @@ describe("mobile linking configuration", () => {
     });
   });
 
+  /**
+   * F7: the moderation deep link has to clear all four stops — the safe-path
+   * allowlist in the parser, the intent resolver, the linking config and the
+   * route intent union. Dropping any one of them makes the link fail silently.
+   */
+  it("resolves the moderation queue and case routes", () => {
+    assert.deepEqual(resolveMobileNavigationIntent("whispr://admin/case/case-1", { webUrl }), {
+      name: "AdminIncidentDetail",
+      params: { caseId: "case-1" },
+      type: "route",
+    });
+    assert.deepEqual(resolveMobileNavigationIntent("whispr://admin/cases", { webUrl }), {
+      name: "AdminIncidents",
+      params: undefined,
+      type: "route",
+    });
+    // The MODERATION notification writes the web console's own path into
+    // `actionUrl`; tapping that row has to land on the same case file.
+    assert.deepEqual(resolveMobileRoutePathIntent("/admin/moderation/case-1"), {
+      name: "AdminIncidentDetail",
+      params: { caseId: "case-1" },
+      type: "route",
+    });
+    assert.deepEqual(resolveMobileRoutePathIntent("/admin/moderation"), {
+      name: "AdminIncidents",
+      params: undefined,
+      type: "route",
+    });
+  });
+
   it("rejects sensitive and unsupported route URLs", () => {
     assert.equal(
       resolveMobileNavigationIntent("whispr://channels/@me?token=secret", { webUrl }),
       null,
     );
+    // `/admin` is a routable prefix now, but the bare path is still not a screen.
     assert.equal(resolveMobileNavigationIntent("whispr://admin", { webUrl }), null);
+    assert.equal(
+      resolveMobileNavigationIntent("whispr://admin/case/case-1/evidence", { webUrl }),
+      null,
+    );
     assert.equal(resolveMobileNavigationIntent("whispr://voice", { webUrl }), null);
   });
 
@@ -145,10 +180,13 @@ describe("mobile linking configuration", () => {
     // screen instead of landing on the tabs.
     assert.equal(linking.config?.initialRouteName, "MainTabs");
     assert.equal(
-      (linking.config?.screens.MainTabs as { readonly initialRouteName?: string })
-        .initialRouteName,
+      (linking.config?.screens.MainTabs as { readonly initialRouteName?: string }).initialRouteName,
       "overview",
     );
+    // Stop three: without the path in `config.screens` a cold-start link would
+    // resolve to an intent React Navigation then cannot build a stack for.
+    assert.equal(linking.config?.screens.AdminIncidentDetail, "admin/case/:caseId");
+    assert.equal(linking.config?.screens.AdminIncidents, "admin/cases");
 
     const routedUrls: string[] = [];
     const unsubscribe = linking.subscribe?.((url) => routedUrls.push(url));

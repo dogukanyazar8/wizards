@@ -15,6 +15,7 @@ import {
   isMobileAccessSessionActive,
   verifyMobileAccessToken,
 } from "@/lib/mobile/auth";
+import { sendOpenModerationCaseCountToUser } from "@/lib/moderation/case-count-broadcast";
 import { getRedisOp, getRedisRate } from "@/lib/redis";
 import { createHandlerContext } from "@/lib/socket/context";
 import { registerSocketHandlers } from "@/lib/socket/handlers";
@@ -477,6 +478,12 @@ export function initSocketServer(httpServer: HTTPServer) {
         logError("[socket] Server room join error", error);
       }
     })();
+    // F9: a desktop that just started has no badge until something changes, so
+    // the first count is sent on connect. Non-admins get nothing — the helper
+    // resolves the recipient list from the same capability map the routes use.
+    void sendOpenModerationCaseCountToUser(userId, socket).catch((error) => {
+      logError("[socket] Open case count sync error", error);
+    });
     const handlerRegistration = registerSocketHandlers(ctx);
 
     socket.on("disconnect", async () => {

@@ -107,6 +107,12 @@ function openMobileFeedback(): void {
   }
 }
 
+function openMobileAdminQueue(): void {
+  if (mobileNavigationRef.isReady()) {
+    mobileNavigationRef.navigate("AdminIncidents");
+  }
+}
+
 function getMobileProfilePresenceStatus(value: string | null): MobileFriendPresenceStatus | null {
   return MOBILE_PROFILE_PRESENCE_STATUSES.includes(value as MobileFriendPresenceStatus)
     ? (value as MobileFriendPresenceStatus)
@@ -406,6 +412,17 @@ export function MobileProfileSettingsHub({
       </View>
 
       <View style={styles.mobileProfileSettingsCard}>
+        {/* F7: `isAdmin` decides whether the row is drawn, nothing else. Every
+            endpoint behind the queue re-checks the capability on the server, so
+            a stale or forged flag buys a screen that answers 403. */}
+        {bootstrapState.status === "ready" && bootstrapState.payload.isAdmin ? (
+          <MobileProfileHubRow
+            icon="shield-half-outline"
+            iconTone="danger"
+            label={profileCopy.adminHubRow}
+            onPress={openMobileAdminQueue}
+          />
+        ) : null}
         <MobileProfileHubRow
           icon="megaphone-outline"
           iconTone="accent"

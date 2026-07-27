@@ -33,6 +33,8 @@ import { MobileOpenSourceLicensesScreen } from "../../legal/mobile-open-source-l
 import { MobileFeedbackFlowScreen } from "../../feedback/mobile-feedback-flow-screen";
 import { MobileFeedbackSubmittedScreen } from "../../feedback/mobile-feedback-submitted-screen";
 import { MobileRoadmapScreen } from "../../feedback/mobile-roadmap-screen";
+import { MobileAdminCasesScreen } from "../../admin/mobile-admin-cases-screen";
+import { MobileAdminCaseDetailScreen } from "../../admin/mobile-admin-case-detail-screen";
 import { mobilePackageJson } from "../mobile-root-screen-shared";
 import { MobileProfileEditScreen } from "../../social/mobile-profile-edit-screen";
 import { MobileUserProfileScreen } from "../../social/mobile-user-profile-screen";
@@ -618,6 +620,42 @@ export function RoadmapScreenContainer({
       // form, and an empty "Bildirdiklerim" should return to that form rather
       // than stack a second copy of it behind this screen.
       onStartFeedback={() => navigation.navigate("Feedback")}
+    />
+  );
+}
+
+export function AdminIncidentsScreenContainer({
+  navigation,
+}: NativeStackScreenProps<MobileRootStackParamList, "AdminIncidents">) {
+  return (
+    <MobileAdminCasesScreen
+      onBack={() =>
+        navigation.canGoBack()
+          ? navigation.goBack()
+          : navigation.popTo("MainTabs", { screen: "settings" })
+      }
+      onOpenCase={(caseId) => navigation.navigate("AdminIncidentDetail", { caseId })}
+    />
+  );
+}
+
+/**
+ * A MODERATION notification can be the first screen of a cold start, so this
+ * one never assumes there is a queue behind it to go back to.
+ */
+export function AdminIncidentDetailScreenContainer({
+  navigation,
+  route,
+}: NativeStackScreenProps<MobileRootStackParamList, "AdminIncidentDetail">) {
+  const { caseId } = route.params;
+
+  return (
+    <MobileAdminCaseDetailScreen
+      caseId={caseId}
+      key={caseId}
+      onBack={() =>
+        navigation.canGoBack() ? navigation.goBack() : navigation.popTo("AdminIncidents")
+      }
     />
   );
 }

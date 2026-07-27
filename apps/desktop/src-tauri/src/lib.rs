@@ -95,6 +95,15 @@ const DESKTOP_VOICE_MINI_PATH: &str = "/desktop/voice-mini";
 const DESKTOP_VOICE_MINI_WINDOW_LABEL: &str = "voice-mini";
 const DESKTOP_VOICE_MINI_WIDTH: f64 = 344.0;
 const DESKTOP_VOICE_MINI_HEIGHT: f64 = 112.0;
+/// F8 detached moderation console. There is no desktop frontend for it: the
+/// window loads the same admin route the browser does and asks it for the dense
+/// `?surface=console` presentation.
+const DESKTOP_ADMIN_CONSOLE_PATH: &str = "/admin/moderation?surface=console";
+const DESKTOP_ADMIN_CONSOLE_WINDOW_LABEL: &str = "admin-console";
+const DESKTOP_ADMIN_CONSOLE_WIDTH: f64 = 1_040.0;
+const DESKTOP_ADMIN_CONSOLE_HEIGHT: f64 = 760.0;
+const DESKTOP_ADMIN_CONSOLE_MIN_WIDTH: f64 = 720.0;
+const DESKTOP_ADMIN_CONSOLE_MIN_HEIGHT: f64 = 520.0;
 const DESKTOP_MAIN_WINDOW_WIDTH: f64 = 1920.0;
 const DESKTOP_MAIN_WINDOW_HEIGHT: f64 = 1080.0;
 const DESKTOP_MIN_WINDOW_WIDTH: f64 = 960.0;
@@ -106,7 +115,7 @@ const DESKTOP_MAIN_WINDOW_STATE_FILENAME: &str = ".window-state.json";
 const DESKTOP_NATIVE_SETTINGS_FILENAME: &str = ".native-settings.json";
 const DESKTOP_PLUGIN_WINDOW_STATE_FILENAME: &str = ".tauri-window-state.json";
 const DESKTOP_TRAY_ID: &str = "whispr-main";
-const MAX_DESKTOP_SHORTCUTS: usize = 4;
+const MAX_DESKTOP_SHORTCUTS: usize = 5;
 const MAX_DESKTOP_SHORTCUT_LENGTH: usize = 64;
 const MAX_DESKTOP_GAME_OVERLAY_SNAPSHOT_BYTES: usize = 16_384;
 const MAX_DESKTOP_VOICE_MINI_SNAPSHOT_BYTES: usize = 16_384;
@@ -206,6 +215,44 @@ struct DesktopCloseBehaviorState {
 #[serde(default)]
 struct DesktopNativeSettings {
     quit_on_close: bool,
+}
+
+/// F9 tray badge. Both halves of the tooltip live here so the activity status
+/// and the moderation count can each change without erasing the other.
+///
+/// The count itself is never computed on this side: the web app receives
+/// `admin:open-case-count` over its socket and publishes the number it was
+/// given. A desktop build that counted for itself would eventually disagree
+/// with the server about what "open" means and put a wrong badge on the tray.
+#[derive(Clone, Default)]
+struct DesktopTrayBadgeState {
+    activity: Arc<Mutex<DesktopActivityStatus>>,
+    open_case_count: Arc<Mutex<u32>>,
+}
+
+impl DesktopTrayBadgeState {
+    fn activity(&self) -> DesktopActivityStatus {
+        self.activity
+            .lock()
+            .map(|activity| *activity)
+            .unwrap_or_default()
+    }
+
+    fn set_activity(&self, status: DesktopActivityStatus) {
+        if let Ok(mut activity) = self.activity.lock() {
+            *activity = status;
+        }
+    }
+
+    fn open_case_count(&self) -> u32 {
+        self.open_case_count.lock().map(|count| *count).unwrap_or(0)
+    }
+
+    fn set_open_case_count(&self, next: u32) {
+        if let Ok(mut count) = self.open_case_count.lock() {
+            *count = next;
+        }
+    }
 }
 
 #[derive(Clone, Default)]
@@ -363,8 +410,9 @@ impl DesktopSavedWindowState {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 enum DesktopActivityStatus {
+    #[default]
     Idle,
     Offline,
     Reconnecting,
@@ -487,6 +535,7 @@ impl DesktopGameOverlayLayout {
 enum DesktopVoiceShortcutAction {
     HideGameOverlay,
     PushToTalk,
+    ToggleAdminConsole,
     ToggleDeafen,
     ToggleMute,
 }
@@ -495,17 +544,25 @@ impl DesktopVoiceShortcutAction {
     fn command(self, is_pressed: bool) -> Option<&'static str> {
         match (self, is_pressed) {
             (Self::HideGameOverlay, true) => Some("hide-game-overlay"),
+            (Self::ToggleAdminConsole, true) => Some("toggle-admin-console"),
             (Self::ToggleMute, true) => Some("toggle-mute"),
             (Self::ToggleDeafen, true) => Some("toggle-deafen"),
             (Self::PushToTalk, true) => Some("voice-shortcut-push-to-talk-start"),
             (Self::PushToTalk, false) => Some("voice-shortcut-push-to-talk-stop"),
-            (Self::HideGameOverlay | Self::ToggleMute | Self::ToggleDeafen, false) => None,
+            (
+                Self::HideGameOverlay
+                | Self::ToggleAdminConsole
+                | Self::ToggleMute
+                | Self::ToggleDeafen,
+                false,
+            ) => None,
         }
     }
 
     fn label(self) -> &'static str {
         match self {
             Self::HideGameOverlay => "hideGameOverlay",
+            Self::ToggleAdminConsole => "toggleAdminConsole",
             Self::PushToTalk => "pushToTalk",
             Self::ToggleDeafen => "toggleDeafen",
             Self::ToggleMute => "toggleMute",
@@ -532,6 +589,9 @@ struct DesktopVoiceShortcutConfig {
     hide_game_overlay: Option<String>,
     shortcuts_enabled: bool,
     push_to_talk: Option<String>,
+    /// F9: detaching the moderation console rides the same registry the voice
+    /// shortcuts use, so one screen configures every global key.
+    toggle_admin_console: Option<String>,
     toggle_deafen: Option<String>,
     toggle_mute: Option<String>,
 }
@@ -615,6 +675,7 @@ pub fn run() {
         .manage(DesktopCloseBehaviorState::default())
         .manage(DesktopCompanionSurfaceState::default())
         .manage(DesktopNativeLogState::default())
+        .manage(DesktopTrayBadgeState::default())
         .manage(DesktopWindowPromotionState::default())
         .manage(voice_shortcut_registry)
         .invoke_handler(tauri::generate_handler![
@@ -624,6 +685,7 @@ pub fn run() {
             get_desktop_app_info,
             get_desktop_foreground_process_name,
             get_desktop_main_window_focused,
+            get_desktop_admin_console_open,
             get_desktop_companion_surfaces_status,
             get_desktop_platform_capabilities,
             get_desktop_voice_shortcut_status,
@@ -632,9 +694,11 @@ pub fn run() {
             record_desktop_update_failure,
             refresh_desktop_companion_surfaces,
             set_desktop_activity_status,
+            set_desktop_admin_console_visible,
             set_desktop_game_overlay_visible,
             set_desktop_voice_mini_visible,
-            promote_desktop_main_window
+            promote_desktop_main_window,
+            publish_desktop_admin_case_count
         ])
         .setup(move |app| {
             let app_url = configured_app_url();
@@ -1030,6 +1094,7 @@ fn refresh_desktop_companion_surfaces(
 fn set_desktop_activity_status(
     window: WebviewWindow,
     app: AppHandle,
+    badge_state: tauri::State<'_, DesktopTrayBadgeState>,
     status: Option<String>,
 ) -> Result<bool, String> {
     assert_desktop_main_command_window(&window)?;
@@ -1042,12 +1107,55 @@ fn set_desktop_activity_status(
             .map_err(|error| format!("Unable to update desktop window activity: {error}"))?;
     }
 
-    if let Some(tray) = app.tray_by_id(DESKTOP_TRAY_ID) {
-        tray.set_tooltip(Some(status.tray_tooltip()))
-            .map_err(|error| format!("Unable to update desktop tray activity: {error}"))?;
-    }
+    badge_state.set_activity(status);
+    apply_desktop_tray_tooltip(&app, badge_state.inner())
+        .map_err(|error| format!("Unable to update desktop tray activity: {error}"))?;
 
     Ok(true)
+}
+
+/// F9: the count arrives from the server through the main window's socket and
+/// is rendered as-is. Only the main window may publish it, so a companion
+/// window cannot invent a badge.
+#[tauri::command]
+fn publish_desktop_admin_case_count(
+    window: WebviewWindow,
+    app: AppHandle,
+    badge_state: tauri::State<'_, DesktopTrayBadgeState>,
+    count: u32,
+) -> Result<u32, String> {
+    assert_desktop_main_command_window(&window)?;
+
+    badge_state.set_open_case_count(count);
+    apply_desktop_tray_tooltip(&app, badge_state.inner())
+        .map_err(|error| format!("Unable to update desktop tray moderation badge: {error}"))?;
+
+    Ok(count)
+}
+
+fn compose_desktop_tray_tooltip(base: &str, open_case_count: u32) -> String {
+    match open_case_count {
+        0 => base.to_string(),
+        1 => format!("{base} - 1 open case"),
+        count => format!("{base} - {count} open cases"),
+    }
+}
+
+fn apply_desktop_tray_tooltip(
+    app: &AppHandle,
+    badge_state: &DesktopTrayBadgeState,
+) -> Result<(), String> {
+    let tooltip = compose_desktop_tray_tooltip(
+        badge_state.activity().tray_tooltip(),
+        badge_state.open_case_count(),
+    );
+
+    if let Some(tray) = app.tray_by_id(DESKTOP_TRAY_ID) {
+        tray.set_tooltip(Some(tooltip))
+            .map_err(|error| error.to_string())?;
+    }
+
+    Ok(())
 }
 
 #[tauri::command]
@@ -1119,6 +1227,36 @@ fn set_desktop_voice_mini_visible(
     );
 
     Ok(visible)
+}
+
+/// Opening and closing the console is a main-window decision. The console
+/// itself cannot call this — `assert_desktop_main_command_window` refuses every
+/// label but `main`, which is also what keeps it from closing or re-opening
+/// itself from a page that was loaded over the network.
+#[tauri::command]
+fn set_desktop_admin_console_visible(
+    window: WebviewWindow,
+    app: AppHandle,
+    visible: bool,
+) -> Result<bool, String> {
+    assert_desktop_main_command_window(&window)?;
+
+    if visible {
+        show_or_create_desktop_admin_console_window(&app)?;
+    } else {
+        close_desktop_admin_console_window(&app)?;
+    }
+
+    Ok(visible)
+}
+
+#[tauri::command]
+fn get_desktop_admin_console_open(window: WebviewWindow, app: AppHandle) -> Result<bool, String> {
+    assert_desktop_main_command_window(&window)?;
+
+    Ok(app
+        .get_webview_window(DESKTOP_ADMIN_CONSOLE_WINDOW_LABEL)
+        .is_some())
 }
 
 #[tauri::command]
@@ -1670,6 +1808,11 @@ fn configure_desktop_voice_shortcuts_impl(
         &mut next_entries,
         DesktopVoiceShortcutAction::HideGameOverlay,
         config.hide_game_overlay.as_deref(),
+    )?;
+    push_desktop_voice_shortcut_entry(
+        &mut next_entries,
+        DesktopVoiceShortcutAction::ToggleAdminConsole,
+        config.toggle_admin_console.as_deref(),
     )?;
 
     if next_entries.len() > MAX_DESKTOP_SHORTCUTS {
@@ -3377,6 +3520,67 @@ fn show_or_create_desktop_voice_mini_window(app: &tauri::AppHandle) -> Result<()
     .map_err(|error| format!("Unable to create desktop voice mini window: {error}"))
 }
 
+/// The console is a plain second window on the same web app — decorated,
+/// resizable and taskbar-visible, unlike the floating voice mini. It carries no
+/// capability permissions, so the main window stays the only caller of native
+/// desktop commands even while this one is focused.
+fn show_or_create_desktop_admin_console_window(app: &tauri::AppHandle) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window(DESKTOP_ADMIN_CONSOLE_WINDOW_LABEL) {
+        window
+            .show()
+            .map_err(|error| format!("Unable to show desktop admin console window: {error}"))?;
+        let _ = window.unminimize();
+        let _ = window.set_focus();
+        return Ok(());
+    }
+
+    let app_url = desktop_app_url_with_path(DESKTOP_ADMIN_CONSOLE_PATH);
+    let allowed_origin = configured_app_origin_url();
+    let webview_data_directory = resolve_webview_data_directory_for_handle(app)
+        .map_err(|error| format!("Unable to prepare desktop admin console webview data: {error}"))?;
+
+    WebviewWindowBuilder::new(
+        app,
+        DESKTOP_ADMIN_CONSOLE_WINDOW_LABEL,
+        WebviewUrl::External(app_url),
+    )
+    .title("Whispr Moderation")
+    .inner_size(DESKTOP_ADMIN_CONSOLE_WIDTH, DESKTOP_ADMIN_CONSOLE_HEIGHT)
+    .min_inner_size(
+        DESKTOP_ADMIN_CONSOLE_MIN_WIDTH,
+        DESKTOP_ADMIN_CONSOLE_MIN_HEIGHT,
+    )
+    .resizable(true)
+    .center()
+    .data_directory(webview_data_directory)
+    .initialization_script(desktop_init_script(false, desktop_release_ring().as_str()))
+    .on_navigation(move |url| {
+        if is_same_origin(url, &allowed_origin) {
+            return true;
+        }
+
+        open_external_url(url);
+        false
+    })
+    .on_new_window(|url, _features| {
+        open_external_url(&url);
+        NewWindowResponse::Deny
+    })
+    .build()
+    .map(|_| ())
+    .map_err(|error| format!("Unable to create desktop admin console window: {error}"))
+}
+
+fn close_desktop_admin_console_window(app: &tauri::AppHandle) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window(DESKTOP_ADMIN_CONSOLE_WINDOW_LABEL) {
+        window
+            .close()
+            .map_err(|error| format!("Unable to close desktop admin console window: {error}"))?;
+    }
+
+    Ok(())
+}
+
 fn hide_desktop_voice_mini_window(app: &tauri::AppHandle) -> Result<(), String> {
     if let Some(window) = app.get_webview_window(DESKTOP_VOICE_MINI_WINDOW_LABEL) {
         window
@@ -3805,6 +4009,90 @@ mod tests {
         assert!(!is_authorized_desktop_command_window_label("game-overlay"));
         assert!(!is_authorized_desktop_command_window_label("settings"));
         assert!(!is_authorized_desktop_command_window_label(""));
+        // F test 7: the moderation console is a second window on the same web
+        // app, not a second privileged shell. The allowlist is not widened for
+        // it — that is the whole point of the check.
+        assert!(!is_authorized_desktop_command_window_label(
+            DESKTOP_ADMIN_CONSOLE_WINDOW_LABEL
+        ));
+    }
+
+    /// F test 8: the tray renders the number it is handed. There is no counting
+    /// path on this side to disagree with the server's idea of "open".
+    #[test]
+    fn desktop_tray_badge_only_renders_the_count_it_is_given() {
+        assert_eq!(
+            compose_desktop_tray_tooltip("Whispr Desktop", 0),
+            "Whispr Desktop"
+        );
+        assert_eq!(
+            compose_desktop_tray_tooltip("Whispr Desktop", 1),
+            "Whispr Desktop - 1 open case"
+        );
+        assert_eq!(
+            compose_desktop_tray_tooltip("Whispr Desktop - In voice", 12),
+            "Whispr Desktop - In voice - 12 open cases"
+        );
+
+        let badge_state = DesktopTrayBadgeState::default();
+        assert_eq!(badge_state.open_case_count(), 0);
+        badge_state.set_open_case_count(7);
+        badge_state.set_activity(DesktopActivityStatus::Offline);
+        assert_eq!(
+            compose_desktop_tray_tooltip(
+                badge_state.activity().tray_tooltip(),
+                badge_state.open_case_count()
+            ),
+            "Whispr Desktop - Offline - 7 open cases"
+        );
+        // The activity half and the moderation half are independent: changing
+        // one must not silently clear the other.
+        badge_state.set_activity(DesktopActivityStatus::Idle);
+        assert_eq!(badge_state.open_case_count(), 7);
+    }
+
+    #[test]
+    fn desktop_console_shortcut_dispatches_only_on_key_press() {
+        assert_eq!(
+            DesktopVoiceShortcutAction::ToggleAdminConsole.command(true),
+            Some("toggle-admin-console")
+        );
+        assert_eq!(
+            DesktopVoiceShortcutAction::ToggleAdminConsole.command(false),
+            None
+        );
+        assert_eq!(
+            DesktopVoiceShortcutAction::ToggleAdminConsole.label(),
+            "toggleAdminConsole"
+        );
+    }
+
+    #[test]
+    fn desktop_admin_console_loads_the_web_route_in_console_surface() {
+        let url = desktop_app_url_with_path(DESKTOP_ADMIN_CONSOLE_PATH);
+
+        // No desktop-only frontend: the console is the existing admin route
+        // asked for its dense presentation.
+        assert_eq!(url.path(), "/admin/moderation");
+        assert_eq!(url.query(), Some("surface=console"));
+    }
+
+    #[test]
+    fn desktop_admin_console_capability_grants_no_permissions() {
+        let capability: serde_json::Value =
+            serde_json::from_str(include_str!("../capabilities/admin-console.json")).unwrap();
+
+        assert_eq!(capability["identifier"], "admin-console");
+        assert_eq!(
+            capability["windows"],
+            serde_json::json!([DESKTOP_ADMIN_CONSOLE_WINDOW_LABEL])
+        );
+        assert_eq!(capability["permissions"], serde_json::json!([]));
+        // A window that loads a remote URL only renders at all if the origin is
+        // on its own allowlist, so it has to carry the same one voice-mini does.
+        let voice_mini: serde_json::Value =
+            serde_json::from_str(include_str!("../capabilities/voice-mini.json")).unwrap();
+        assert_eq!(capability["remote"]["urls"], voice_mini["remote"]["urls"]);
     }
 
     #[test]

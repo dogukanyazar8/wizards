@@ -34,6 +34,7 @@ export type WhisprDesktopCommand =
   | "hide-game-overlay"
   | "refresh-game-overlay"
   | "leave-voice"
+  | "toggle-admin-console"
   | "voice-shortcut-push-to-talk-start"
   | "voice-shortcut-push-to-talk-stop"
   | "toggle-deafen"

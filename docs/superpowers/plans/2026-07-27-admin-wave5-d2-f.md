@@ -94,23 +94,23 @@ export async function requireMobileAdminCapability(
 
 **Files:** Modify `apps/mobile/src/navigation/mobile-navigation-types.ts` (+`AdminIncidents`, `AdminIncidentDetail: { caseId }` kök yığın rotaları — MainTabs sekmesi DEĞİL); Modify `apps/mobile/src/navigation/mobile-linking.ts` (+`whispr://admin/case/:caseId`); Create `apps/mobile/src/admin/` — `mobile-admin-cases-screen.tsx`, `mobile-admin-case-detail-screen.tsx`, query/mutation hook'ları, `.styles.ts`; ayarlar ekranına admin satırı (bootstrap `isAdmin` bayrağıyla görünür); push: vaka `URGENT` veya 24s+ `OPEN` → admin üyelerine `NotificationType.MODERATION`, `dedupeKey: \`modcase:{caseId}:alert:{yyyymmdd}\`` (F test 5 — 24 saatte tek)
 
-- [ ] Mobil tasarım: **mobil uygulamanın kendi dili** (G §9 — web paneli kopyalanmaz); dikey akış, yan panel yok; üç aksiyon düğmesi.
-- [ ] Çevrimdışı: son önbellek gösterilir, aksiyon düğmeleri devre dışı, istek atılmaz (F test 6 — kuyruk YOK).
-- [ ] Derin bağlantı testi: yetkisizde güvenli ekrana düşer (F test 4).
-- [ ] Mobil typecheck + jest/node testleri (RNTL await gotcha). Checkpoint.
+- [x] Mobil tasarım: **mobil uygulamanın kendi dili** (G §9 — web paneli kopyalanmaz); dikey akış, yan panel yok; üç aksiyon düğmesi.
+- [x] Çevrimdışı: son önbellek gösterilir, aksiyon düğmeleri devre dışı, istek atılmaz (F test 6 — kuyruk YOK).
+- [x] Derin bağlantı testi: yetkisizde güvenli ekrana düşer (F test 4).
+- [x] Mobil typecheck + jest/node testleri (RNTL await gotcha). Checkpoint.
 
 ### Task 8: Desktop konsol penceresi
 
 **Files:** Create `apps/desktop/src-tauri/capabilities/admin-console.json` (`voice-mini.json` şablonundan; pencere `admin-console`); Modify `apps/desktop/src-tauri/tauri.conf.json` (`security.capabilities` + `"admin-console"`); Modify `apps/desktop/src-tauri/src/lib.rs` — konsol aç/kapa komutu (`desktop_app_url_with_path("/admin/moderation?surface=console")`, `WebviewWindowBuilder` `voice-mini` deseni `:3227` referans), `is_authorized_desktop_command_window_label:751` genişletmesi — konsol yalnızca kendi komutlarını çağırır (F test 7); Web: `?surface=console` → sol nav gizli + yoğun satır (layout query param okuma, G test 9 muadili F test 9); web admin arayüzünde "Konsolu ayır" düğmesi (yalnızca desktop'ta görünür — mevcut desktop experience köprüsü)
 
-- [ ] Rust testleri mevcut desen (`cargo test` — apps/desktop scripts release testlerine dokunma); pencere komut yetki testi.
-- [ ] Checkpoint.
+- [x] Rust testleri mevcut desen (`cargo test` — apps/desktop scripts release testlerine dokunma); pencere komut yetki testi.
+- [x] Checkpoint.
 
 ### Task 9: Tepsi rozeti + kapanış
 
 **Files:** Modify `lib.rs` tepsi ipucu (`tray_tooltip:387` bölgesi) — açık vaka sayısı **sunucudan** socket olayıyla (`admin:open-case-count` — web tarafı D1 sayısını yayınlar; desktop yalnızca gösterir, hesaplamaz — F test 8); global kısayol: mevcut `allow-configure-desktop-voice-shortcuts` deseniyle yapılandırılabilir konsol kısayolu
 
-- [ ] Dalga kapanışı: web+db+types+mobile typecheck/test, desktop `pnpm --filter` testleri, `graphify update .`, uçtan uca kanıt raporu (F bitti kanıtı: URGENT vaka → telefonda bildirim → dokun → detay → Üstlen → web'de anında görünür).
+- [x] Dalga kapanışı: web+db+types+mobile typecheck/test, desktop `pnpm --filter` testleri, `graphify update .`, uçtan uca kanıt raporu (F bitti kanıtı: URGENT vaka → telefonda bildirim → dokun → detay → Üstlen → web'de anında görünür).
 
 ## D2 + F5-F6 uygulama notları
 

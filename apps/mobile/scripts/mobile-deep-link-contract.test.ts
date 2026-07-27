@@ -171,7 +171,15 @@ describe("mobile deep link contract", () => {
     assert.equal(normalizeSafeMobileRoutePath("/channels/@me"), "/channels/@me");
     assert.equal(normalizeSafeMobileRoutePath("/settings?panel=voice"), "/settings?panel=voice");
     assert.equal(normalizeSafeMobileRoutePath("https://evil.example/channels"), "/channels");
-    assert.equal(normalizeSafeMobileRoutePath("/admin"), "/channels");
+    // F7 put `/admin` on the routable list so a MODERATION notification can open
+    // the case file. It stays an allowlist decision only: the screen and every
+    // endpoint under it still ask the server whether this account may look.
+    assert.equal(
+      normalizeSafeMobileRoutePath("/admin/moderation/case-1"),
+      "/admin/moderation/case-1",
+    );
+    assert.equal(normalizeSafeMobileRoutePath("/administration"), "/channels");
+    assert.equal(normalizeSafeMobileRoutePath("/desktop/voice-mini"), "/channels");
     assert.equal(normalizeSafeMobileRoutePath("/channels?refresh_token=secret"), "/channels");
   });
 });

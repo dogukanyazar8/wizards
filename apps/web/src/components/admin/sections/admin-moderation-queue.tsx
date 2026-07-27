@@ -12,6 +12,7 @@ import {
   AdminCaseDismissButton,
 } from "@/components/admin/sections/admin-case-actions";
 import { AdminManagementPagination } from "@/components/admin/sections/admin-management-pagination";
+import { AdminConsoleDetachButton } from "@/components/admin/shell/admin-console-detach-button";
 import type {
   getModerationQueueStats,
   listModerationCases,
@@ -101,7 +102,11 @@ export function AdminModerationQueue({
 }) {
   return (
     <section className="space-y-5">
-      <AdminPageHeader subtitle="Kullanıcı bildirimlerinden açılan vakalar" title="Moderasyon" />
+      <AdminPageHeader
+        actions={<AdminConsoleDetachButton />}
+        subtitle="Kullanıcı bildirimlerinden açılan vakalar"
+        title="Moderasyon"
+      />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <AdminMiniStat label="Bekleyen" tone="danger" value={formatAdminInt(stats.openCount)} />

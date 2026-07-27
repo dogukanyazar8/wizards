@@ -85,6 +85,8 @@ export function createMobileLinkingOptions({
             settings: "settings",
           },
         },
+        AdminIncidents: "admin/cases",
+        AdminIncidentDetail: "admin/case/:caseId",
         ChannelChat: "channels/:serverId/:channelId",
         DirectMessage: "channels/@me/:conversationId",
         ServerRoles: "server/:serverId/settings/roles",
@@ -161,6 +163,23 @@ export function resolveMobileRoutePathIntent(path: string): MobileNavigationRout
       params: { feedbackId: decodePathSegment(feedbackMatch[1]) },
       type: "route",
     };
+  }
+
+  // F7 moderation triage. Two shapes reach the same screen on purpose:
+  // `whispr://admin/case/<id>` is the deep link the spec names, and
+  // `/admin/moderation/<id>` is the `actionUrl` the MODERATION notification
+  // carries — the same path the web console uses, so one row works on both.
+  const adminCaseMatch = /^\/admin\/(?:case|moderation)\/([^/]+)$/.exec(pathname);
+  if (adminCaseMatch?.[1]) {
+    return {
+      name: "AdminIncidentDetail",
+      params: { caseId: decodePathSegment(adminCaseMatch[1]) },
+      type: "route",
+    };
+  }
+
+  if (pathname === "/admin/cases" || pathname === "/admin/moderation") {
+    return { name: "AdminIncidents", params: undefined, type: "route" };
   }
 
   const serverRolesMatch = /^\/server\/([^/]+)\/settings\/roles$/.exec(pathname);

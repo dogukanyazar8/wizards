@@ -4,6 +4,7 @@ import { ApiError } from "@/lib/api";
 import { setAdminUserBanState } from "@/lib/admin/management";
 import { writeAdminAuditLog } from "@/lib/admin/access";
 import { EVIDENCE_RETENTION_DAYS } from "@/lib/moderation/evidence-service";
+import { broadcastOpenModerationCaseCountInBackground } from "@/lib/moderation/case-count-broadcast";
 
 export type ModerationCaseActionKind = "ban" | "dismiss" | "warn";
 
@@ -41,6 +42,12 @@ export type ModerationCaseActionDependencies = {
   }): Promise<unknown>;
   findCase(caseId: string): Promise<ModerationCaseRow | null>;
   listReporterIds(caseId: string): Promise<string[]>;
+  /**
+   * Called after the queue length changes so the tray badge and the nav count
+   * follow a decision instead of waiting for the next page load. Optional
+   * because a unit harness has no socket server to talk to.
+   */
+  onQueueChanged?(): void;
   resolveCase(args: {
     caseId: string;
     evidencePurgeAt: Date;
@@ -91,6 +98,7 @@ export function normalizeCaseResolution(resolution: string) {
 }
 
 const defaultDependencies: ModerationCaseActionDependencies = {
+  onQueueChanged: () => broadcastOpenModerationCaseCountInBackground(),
   banUser: (args) =>
     setAdminUserBanState({
       adminUserId: args.adminUserId,
@@ -207,6 +215,9 @@ export async function claimModerationCase(
     targetId: args.caseId,
     targetType: "ModerationCase",
   });
+  // Claiming takes the case out of "nobody picked this up", which is exactly
+  // what the tray badge and the nav count show.
+  dependencies.onQueueChanged?.();
 
   return { caseId: args.caseId, claimed: true };
 }
@@ -379,6 +390,8 @@ export async function applyModerationCaseAction(
     targetId: args.caseId,
     targetType: "ModerationCase",
   });
+
+  dependencies.onQueueChanged?.();
 
   const reporterIds = await dependencies.listReporterIds(args.caseId);
 

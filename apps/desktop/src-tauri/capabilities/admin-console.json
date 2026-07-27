@@ -1,0 +1,19 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "admin-console",
+  "description": "Whispr's detached moderation console window loads the existing admin route and receives no app commands: every decision it renders is made by the web surface against the server, and the main window remains the only caller of native desktop commands.",
+  "windows": ["admin-console"],
+  "remote": {
+    "urls": [
+      "https://whispr.team",
+      "https://whispr.team/*",
+      "https://whispr.invalid",
+      "https://whispr.invalid/*",
+      "http://localhost:3000",
+      "http://localhost:3000/*",
+      "http://127.0.0.1:3000",
+      "http://127.0.0.1:3000/*"
+    ]
+  },
+  "permissions": []
+}
