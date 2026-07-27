@@ -3,7 +3,7 @@ import { Prisma, prisma } from "@wizards/db";
 import { ApiError } from "@/lib/api";
 import { getSocketServer } from "@/lib/socket/runtime";
 import type { NotificationSocketPayload } from "@/lib/socket/events";
-import { writeAdminAuditLog } from "@/lib/admin/access";
+import { writeAdminAuditLog } from "@/lib/admin/audit-log";
 import {
   freezeCampaignRecipients,
   type CampaignDeliveryCounts,

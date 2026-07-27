@@ -31,4 +31,14 @@ describe("outbox worker railway contract", () => {
     assert.doesNotMatch(workerConfig, /preDeployCommand/);
     assert.doesNotMatch(workerConfig, /healthcheckPath/);
   });
+
+  it("keeps campaign delivery out of the web-session dependency graph", () => {
+    const campaignService = readRepoFile("apps/web/src/lib/admin/notification-campaigns.ts");
+    const auditLog = readRepoFile("apps/web/src/lib/admin/audit-log.ts");
+
+    assert.match(campaignService, /from "@\/lib\/admin\/audit-log"/);
+    assert.doesNotMatch(campaignService, /from "@\/lib\/admin\/access"/);
+    assert.doesNotMatch(auditLog, /from "@\/auth"/);
+    assert.doesNotMatch(auditLog, /from "next-auth"/);
+  });
 });

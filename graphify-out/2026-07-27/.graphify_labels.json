@@ -741,20 +741,7 @@
   "739": "react-native-screens",
   "740": "CASE_STALE_AFTER_MS",
   "741": "@react-navigation/bottom-tabs",
-  "742": "@sentry/cli",
   "743": "COHORT_WINDOW_MS",
   "744": "@shopify/flash-list",
-  "745": "socket.io-client",
-  "746": "@tanstack/query-async-storage-persister",
-  "747": "uploadthing",
-  "748": "class-variance-authority",
-  "749": "@emoji-mart/data",
-  "750": "framer-motion",
-  "751": "@prisma/adapter-pg",
-  "752": "react",
-  "753": "react-markdown",
-  "754": "@uploadthing/react",
-  "755": "@wizards/db",
-  "756": "zustand",
-  "757": "describeFile"
+  "747": "uploadthing"
 }
