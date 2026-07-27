@@ -705,21 +705,23 @@ jobs:
           toolchain: stable
 
       - name: Audit Rust dependencies
-        shell: pwsh
+        # Automatic Desktop Ops runs on the Linux self-hosted runner. Keep this
+        # shell POSIX-compatible; Windows-only desktop-build validation uses pwsh.
+        shell: bash
         working-directory: apps/desktop/src-tauri
         env:
           CARGO_AUDIT_VERSION: 0.22.1
         run: |
-          $expectedVersion = "cargo-audit $env:CARGO_AUDIT_VERSION"
-          $currentVersion = ""
+          expected_version="cargo-audit $CARGO_AUDIT_VERSION"
+          current_version=""
 
-          if (Get-Command cargo-audit -ErrorAction SilentlyContinue) {
-            $currentVersion = (cargo audit --version).Trim()
-          }
+          if command -v cargo-audit >/dev/null 2>&1; then
+            current_version="$(cargo audit --version)"
+          fi
 
-          if ($currentVersion -ne $expectedVersion) {
-            cargo install cargo-audit --version $env:CARGO_AUDIT_VERSION --locked --force
-          }
+          if [ "$current_version" != "$expected_version" ]; then
+            cargo install cargo-audit --version "$CARGO_AUDIT_VERSION" --locked --force
+          fi
 
           cargo audit
 
