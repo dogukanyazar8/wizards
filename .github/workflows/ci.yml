@@ -114,7 +114,8 @@ jobs:
 
   semgrep:
     name: Semgrep CE SAST
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, linux, x64, wizards-ci]
+    if: github.event_name != 'pull_request'
     timeout-minutes: 15
     permissions:
       contents: read

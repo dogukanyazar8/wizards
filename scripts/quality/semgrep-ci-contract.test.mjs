@@ -43,7 +43,7 @@ function readIndentedBlock(source, header, indent) {
   return blockLines.join("\n");
 }
 
-test("Semgrep CE is an immutable, least-privilege job in the primary CI workflow", () => {
+test("Semgrep CE is immutable, least-privilege, and trusted-runner-only", () => {
   const workflow = readFileSync(workflowPath, "utf8");
   const semgrepJob = readWorkflowJob(workflow, "semgrep");
   const permissions = readIndentedBlock(semgrepJob, "permissions", 4);
@@ -51,7 +51,8 @@ test("Semgrep CE is an immutable, least-privilege job in the primary CI workflow
 
   assert.match(workflow, /^  pull_request:\s*$/mu);
   assert.match(readIndentedBlock(workflow, "push", 2), /^      - uat$/mu);
-  assert.match(semgrepJob, /^    runs-on: ubuntu-24\.04$/mu);
+  assert.match(semgrepJob, /^    runs-on: \[self-hosted, linux, x64, wizards-ci\]$/mu);
+  assert.match(semgrepJob, /^    if: github\.event_name != 'pull_request'$/mu);
   assert.match(permissions, /^      contents: read$/mu);
   assert.doesNotMatch(permissions, /^\s+(?:pull-requests|security-events|actions):/mu);
   assert.deepEqual(
