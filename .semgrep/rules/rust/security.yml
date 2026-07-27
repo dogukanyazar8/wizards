@@ -1,0 +1,18 @@
+rules:
+  - id: rust.security.no-shell-command-string
+    message: Shell command strings are injection-prone. Invoke a fixed executable with structured arguments.
+    languages: [rust]
+    severity: ERROR
+    metadata:
+      category: security
+      confidence: HIGH
+      cwe: "CWE-78: Improper Neutralization of Special Elements used in an OS Command"
+      owasp: "A03:2021 - Injection"
+    patterns:
+      - pattern: std::process::Command::new($SHELL).arg($FLAG).arg(...)
+      - metavariable-regex:
+          metavariable: $SHELL
+          regex: ^[\"'](?:sh|bash|cmd|powershell|pwsh)[\"']$
+      - metavariable-regex:
+          metavariable: $FLAG
+          regex: ^[\"'](?:-c|/C|-Command)[\"']$

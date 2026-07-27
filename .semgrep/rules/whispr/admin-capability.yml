@@ -1,0 +1,16 @@
+rules:
+  - id: whispr.admin.require-capability
+    message: Use requireAdminCapability so every Whispr admin entry point declares its exact role boundary.
+    languages: [javascript, typescript]
+    severity: ERROR
+    metadata:
+      category: security
+      confidence: HIGH
+      cwe: "CWE-862: Missing Authorization"
+      owasp: "A01:2021 - Broken Access Control"
+      source-contract: apps/web/src/lib/admin/capabilities.ts
+    paths:
+      exclude:
+        - apps/web/src/lib/admin/access.ts
+        - apps/web/src/lib/admin/capabilities.ts
+    pattern: import { ..., requireAdminUser, ... } from "@/lib/admin/access";

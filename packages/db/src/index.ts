@@ -23,8 +23,12 @@ export type {
   AttachmentScanStatus,
   CampaignDeliveryStatus,
   CampaignSkipReason,
+  ModerationCasePriority,
+  ModerationCaseStatus,
+  ModerationEventKind,
   FriendRequest,
   NotificationCampaignStatus,
   NotificationType,
   User,
+  UserReportReason,
 } from "./generated/prisma/client";

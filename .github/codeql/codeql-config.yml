@@ -1,8 +1,0 @@
-name: Whispr CodeQL
-
-queries:
-  - uses: security-extended
-
-paths-ignore:
-  - graphify-out/**
-  - packages/db/src/generated/**

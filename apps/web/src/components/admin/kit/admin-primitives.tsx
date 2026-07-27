@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from "react";
+import React, { type CSSProperties, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { getAdminAvatarGradient, getAdminAvatarInitials } from "./avatar-gradients";
 
@@ -271,16 +271,25 @@ export function AdminAvatarSquare({
   name,
   seed,
   size = 32,
+  variant = "default",
 }: {
   avatarUrl?: string | null;
   name: string;
   seed: string;
   size?: number;
+  variant?: "default" | "system";
 }) {
   const style: CSSProperties = {
     height: size,
     width: size,
-    ...(avatarUrl ? {} : { backgroundImage: getAdminAvatarGradient(seed) }),
+    ...(avatarUrl
+      ? {}
+      : {
+          backgroundImage:
+            variant === "system"
+              ? "linear-gradient(135deg, hsl(var(--surface-soft)), hsl(var(--text-soft)))"
+              : getAdminAvatarGradient(seed),
+        }),
   };
 
   return (
@@ -288,7 +297,7 @@ export function AdminAvatarSquare({
       className="text-white inline-flex shrink-0 items-center justify-center overflow-hidden rounded-[10px] bg-cover bg-center text-[11.5px] font-bold"
       style={avatarUrl ? { ...style, backgroundImage: `url(${avatarUrl})` } : style}
     >
-      {avatarUrl ? null : getAdminAvatarInitials(name)}
+      {avatarUrl ? null : variant === "system" ? "S" : getAdminAvatarInitials(name)}
     </span>
   );
 }

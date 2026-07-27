@@ -9,6 +9,10 @@ import { ApiError } from "@/lib/api";
 import { listDirectMessageMutualServers } from "@/lib/dm/service";
 import { mapStoredPresenceStatus } from "@/lib/friends/service";
 import { getMobileUserNote } from "@/lib/social/mobile-user-note-service";
+import {
+  attachReportToCaseInTransaction,
+  type ModerationCaseStore,
+} from "@/lib/moderation/case-service";
 
 /**
  * Accounts registered before this instant carry the "early member" badge. Kept
@@ -398,23 +402,31 @@ export async function createMobileUserReport(input: {
     throw new ApiError("Cannot report yourself", 400, "SELF_REPORT");
   }
 
-  const subject = await prisma.user.findUnique({
-    select: { id: true },
-    where: { id: input.subjectId },
-  });
-  if (!subject) {
-    throw new ApiError("User not found", 404, "USER_NOT_FOUND");
-  }
+  return prisma.$transaction(async (transaction) => {
+    const subject = await transaction.user.findUnique({
+      select: { id: true },
+      where: { id: input.subjectId },
+    });
+    if (!subject) {
+      throw new ApiError("User not found", 404, "USER_NOT_FOUND");
+    }
 
-  const report = await prisma.userReport.create({
-    data: {
-      details: input.details,
+    const report = await transaction.userReport.create({
+      data: {
+        details: input.details,
+        reason: input.reason,
+        reporterId: input.reporterId,
+        subjectId: input.subjectId,
+      },
+      select: { id: true },
+    });
+
+    await attachReportToCaseInTransaction(transaction as unknown as ModerationCaseStore, {
+      id: report.id,
       reason: input.reason,
-      reporterId: input.reporterId,
       subjectId: input.subjectId,
-    },
-    select: { id: true },
-  });
+    });
 
-  return { reportId: report.id };
+    return { reportId: report.id };
+  });
 }

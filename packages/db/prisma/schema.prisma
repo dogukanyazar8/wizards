@@ -209,6 +209,32 @@ enum UserReportReason {
   OTHER
 }
 
+enum ModerationCaseStatus {
+  OPEN
+  IN_REVIEW
+  ACTIONED
+  DISMISSED
+  APPEALED
+  CLOSED
+}
+
+enum ModerationCasePriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum ModerationEventKind {
+  REPORT_ADDED
+  NOTE
+  STATUS_CHANGED
+  ASSIGNED
+  ACTION_TAKEN
+  APPEAL_OPENED
+  APPEAL_RESOLVED
+}
+
 enum FriendStatus {
   PENDING
   ACCEPTED
@@ -376,6 +402,9 @@ model User {
   mobilePushTokens        MobilePushToken[]
   reportsFiled            UserReport[]              @relation("UserReportReporter")
   reportsReceived         UserReport[]              @relation("UserReportSubject")
+  moderationCasesAsSubject ModerationCase[]         @relation("ModerationCaseSubject")
+  moderationCasesAsAssignee ModerationCase[]        @relation("ModerationCaseAssignee")
+  moderationEvents        ModerationCaseEvent[]     @relation("ModerationCaseEventActor")
   notesWritten            UserNote[]                @relation("UserNoteAuthor")
   notesAbout              UserNote[]                @relation("UserNoteSubject")
   feedback                Feedback[]
@@ -637,21 +666,86 @@ model TwoFactorRecoveryCode {
   @@index([userId, usedAt])
 }
 
-// 11a "Bildir" flow. Write-only from the product surfaces; admin review tooling
-// is deliberately out of scope, so nothing reads these rows back yet.
+// 11a "Bildir" flow. Profile reports are grouped into moderation cases; content
+// evidence is deliberately deferred to D2 because the report contract has no source id.
 model UserReport {
   id         String           @id @default(uuid())
   reporterId String
   subjectId  String
   reason     UserReportReason
   details    String?          @db.VarChar(500)
+  caseId     String?
   createdAt  DateTime         @default(now())
 
   reporter User @relation("UserReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
   subject  User @relation("UserReportSubject", fields: [subjectId], references: [id], onDelete: Cascade)
+  case     ModerationCase? @relation(fields: [caseId], references: [id], onDelete: SetNull)
+  evidence ModerationEvidence[]
 
   @@index([subjectId, createdAt])
   @@index([reporterId, createdAt])
+  @@index([caseId])
+}
+
+model ModerationCase {
+  id              String                 @id @default(uuid())
+  publicNumber    Int                    @unique @default(autoincrement())
+  subjectId       String?
+  subjectHandle   String                 @db.VarChar(64)
+  status          ModerationCaseStatus   @default(OPEN)
+  priority        ModerationCasePriority @default(NORMAL)
+  assigneeId      String?
+  reportCount     Int                    @default(0)
+  summary         String?                @db.VarChar(280)
+  resolution      String?                @db.VarChar(1000)
+  openedAt        DateTime               @default(now())
+  firstSeenAt     DateTime?
+  resolvedAt      DateTime?
+  evidencePurgeAt DateTime?
+  updatedAt       DateTime               @updatedAt
+
+  subject  User?                  @relation("ModerationCaseSubject", fields: [subjectId], references: [id], onDelete: SetNull)
+  assignee User?                  @relation("ModerationCaseAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  reports  UserReport[]
+  events   ModerationCaseEvent[]
+  evidence ModerationEvidence[]
+
+  @@index([status, priority, openedAt])
+  @@index([assigneeId, status])
+  @@index([subjectId, status])
+  @@index([evidencePurgeAt])
+}
+
+model ModerationCaseEvent {
+  id        String              @id @default(uuid())
+  caseId    String
+  actorId   String?
+  kind      ModerationEventKind
+  body      String?             @db.VarChar(1000)
+  metadata  Json?
+  createdAt DateTime            @default(now())
+
+  case  ModerationCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  actor User?          @relation("ModerationCaseEventActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([caseId, createdAt])
+}
+
+model ModerationEvidence {
+  id           String   @id @default(uuid())
+  caseId       String
+  reportId     String?
+  messageId    String?
+  dmMessageId  String?
+  attachmentId String?
+  snapshot     Json
+  capturedAt   DateTime @default(now())
+
+  case   ModerationCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  report UserReport?    @relation(fields: [reportId], references: [id], onDelete: SetNull)
+
+  @@index([caseId, capturedAt])
+  @@index([reportId])
 }
 
 // 11e private note (handoff 2b). Readable and writable by its author only: the

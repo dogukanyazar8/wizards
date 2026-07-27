@@ -10,9 +10,9 @@ type RouteContext = {
   }>;
 };
 
-const UpdateAdminUserSchema = z.object({
+export const UpdateAdminUserSchema = z.object({
   isBanned: z.boolean(),
-  reason: z.string().trim().max(500).optional().nullable(),
+  reason: z.string().trim().min(1).max(500),
 });
 
 export async function PATCH(request: Request, context: RouteContext) {
@@ -26,7 +26,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       adminUserId: admin.id,
       banned: input.isBanned,
       headers: request.headers,
-      reason: input.reason ?? null,
+      reason: input.reason,
       targetUserId: userId,
     });
 

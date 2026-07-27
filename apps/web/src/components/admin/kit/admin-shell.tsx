@@ -12,11 +12,13 @@ import {
   Users,
   type LucideIcon,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import {
   getVisibleAdminNavGroups,
   type AdminNavItem,
 } from "@/components/admin/shell/admin-nav-items";
+import { AdminNavSearch } from "@/components/admin/shell/admin-nav-search";
+import { AdminShellNavLink } from "@/components/admin/shell/admin-shell-nav-link";
+import { AdminThemePicker } from "@/components/admin/shell/admin-theme-picker";
 import { AdminAvatarSquare, AdminPill, AdminPulseDot } from "./admin-primitives";
 
 const NAV_ICONS: Record<AdminNavItem["icon"], LucideIcon> = {
@@ -49,13 +51,11 @@ export type AdminShellUser = {
  * and every module inherits them from here rather than restating a layout.
  */
 export function AdminShell({
-  activeKey,
   admin,
   badges = {},
   children,
   topBarActions,
 }: {
-  activeKey: string;
   admin: AdminShellUser;
   /** Real counts only: a zero badge is not rendered at all. */
   badges?: Partial<Record<string, number>>;
@@ -63,6 +63,9 @@ export function AdminShell({
   topBarActions?: ReactNode;
 }) {
   const groups = getVisibleAdminNavGroups(admin.role);
+  const navSearchItems = groups.flatMap((group) =>
+    group.items.map((item) => ({ href: item.href, key: item.key, label: item.label })),
+  );
 
   return (
     <div className="flex h-dvh min-h-0 w-full overflow-hidden bg-[hsl(var(--background))]">
@@ -93,25 +96,15 @@ export function AdminShell({
                 {group.items.map((item) => {
                   const Icon = NAV_ICONS[item.icon];
                   const badge = badges[item.key];
-                  const isActive = item.key === activeKey;
 
                   return (
                     <li key={item.key}>
-                      <Link
-                        aria-current={isActive ? "page" : undefined}
-                        className={cn(
-                          "flex items-center gap-2.5 rounded-[12px] px-3 py-[9px] text-[13.5px] font-semibold transition-colors",
-                          isActive
-                            ? "bg-[hsl(var(--primary)/0.12)] text-[hsl(var(--primary))]"
-                            : "text-[hsl(var(--text-secondary))] hover:bg-[hsl(var(--surface-soft))]",
-                        )}
-                        href={item.href}
-                      >
+                      <AdminShellNavLink href={item.href}>
                         <Icon className="shrink-0" size={17} strokeWidth={2} />
                         <span className="min-w-0 flex-1 truncate">{item.label}</span>
                         {badge && badge > 0 ? <AdminPill tone="danger">{badge}</AdminPill> : null}
                         {item.key === "activity" ? <AdminPulseDot /> : null}
-                      </Link>
+                      </AdminShellNavLink>
                     </li>
                   );
                 })}
@@ -146,7 +139,11 @@ export function AdminShell({
           data-testid="admin-topbar"
           style={{ height: 62 }}
         >
-          {topBarActions}
+          <AdminNavSearch items={navSearchItems} />
+          <div className="ml-auto flex items-center gap-2">
+            <AdminThemePicker />
+            {topBarActions}
+          </div>
         </header>
 
         <main className="min-h-0 flex-1 overflow-y-auto px-4 pt-[26px] pb-10 sm:px-7">

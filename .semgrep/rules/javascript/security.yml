@@ -1,0 +1,129 @@
+rules:
+  - id: javascript.security.no-dynamic-code
+    message: Dynamic code evaluation can turn untrusted data into code. Use explicit parsing.
+    languages: [javascript, typescript]
+    severity: ERROR
+    metadata:
+      category: security
+      confidence: HIGH
+      cwe: "CWE-95: Improper Neutralization of Directives in Dynamically Evaluated Code"
+      owasp: "A03:2021 - Injection"
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: new Function(...)
+
+  - id: javascript.security.no-child-process-shell
+    message: Shell command execution is injection-prone. Use execFile/spawn with fixed executable and arguments.
+    languages: [javascript, typescript]
+    severity: ERROR
+    metadata:
+      category: security
+      confidence: HIGH
+      cwe: "CWE-78: Improper Neutralization of Special Elements used in an OS Command"
+      owasp: "A03:2021 - Injection"
+    pattern-either:
+      - patterns:
+          - pattern-inside: |
+              import { ..., exec, ... } from "node:child_process";
+              ...
+          - pattern: exec(...)
+      - patterns:
+          - pattern-inside: |
+              import { ..., exec, ... } from "child_process";
+              ...
+          - pattern: exec(...)
+      - pattern: require("node:child_process").exec(...)
+      - pattern: require("child_process").exec(...)
+
+  - id: typescript.security.no-unsafe-prisma-raw
+    message: Unsafe Prisma raw-query APIs can enable SQL injection. Use tagged-template parameterization.
+    languages: [javascript, typescript]
+    severity: ERROR
+    metadata:
+      category: security
+      confidence: HIGH
+      cwe: "CWE-89: Improper Neutralization of Special Elements used in an SQL Command"
+      owasp: "A03:2021 - Injection"
+    pattern-either:
+      - pattern: $CLIENT.$queryRawUnsafe(...)
+      - pattern: $CLIENT.$executeRawUnsafe(...)
+      - pattern: Prisma.raw(...)
+
+  - id: javascript.security.no-weak-digest
+    message: MD5 and SHA-1 are collision-prone digests. Use SHA-256 or stronger.
+    languages: [javascript, typescript]
+    severity: ERROR
+    metadata:
+      category: security
+      confidence: HIGH
+      cwe: "CWE-328: Use of Weak Hash"
+      owasp: "A02:2021 - Cryptographic Failures"
+    patterns:
+      - pattern-either:
+          - pattern: createHash($ALGORITHM)
+          - pattern: $CRYPTO.createHash($ALGORITHM)
+      - metavariable-regex:
+          metavariable: $ALGORITHM
+          regex: ^[\"'](?:md5|sha1)[\"']$
+
+  - id: typescript.react.security.no-dangerously-set-inner-html
+    message: Raw HTML bypasses React escaping and can enable XSS. Render structured content instead.
+    languages: [javascript, typescript]
+    severity: ERROR
+    metadata:
+      category: security
+      confidence: HIGH
+      cwe: "CWE-79: Improper Neutralization of Input During Web Page Generation"
+      owasp: "A03:2021 - Injection"
+    pattern: "<$ELEMENT dangerouslySetInnerHTML={{ __html: $HTML }} ... />"
+
+  - id: javascript.node.security.no-disabled-tls-verification
+    message: TLS certificate verification must remain enabled.
+    languages: [javascript, typescript]
+    severity: ERROR
+    metadata:
+      category: security
+      confidence: HIGH
+      cwe: "CWE-295: Improper Certificate Validation"
+      owasp: "A07:2021 - Identification and Authentication Failures"
+    pattern: "{ ..., rejectUnauthorized: false, ... }"
+
+  - id: typescript.next.security.no-request-url-fetch
+    message: Request-controlled URLs must not reach fetch directly. Apply the shared outbound URL and IP policy first.
+    languages: [javascript, typescript]
+    severity: ERROR
+    mode: taint
+    metadata:
+      category: security
+      confidence: HIGH
+      cwe: "CWE-918: Server-Side Request Forgery"
+      owasp: "A10:2021 - Server-Side Request Forgery"
+    pattern-sources:
+      - pattern: new URL($REQUEST.url).searchParams.get(...)
+      - pattern: $REQUEST.nextUrl.searchParams.get(...)
+    pattern-sinks:
+      - pattern: fetch($URL, ...)
+
+  - id: typescript.node.security.no-request-path-filesystem
+    message: Request-controlled paths must not reach filesystem APIs without canonical containment validation.
+    languages: [javascript, typescript]
+    severity: ERROR
+    mode: taint
+    metadata:
+      category: security
+      confidence: HIGH
+      cwe: "CWE-22: Improper Limitation of a Pathname to a Restricted Directory"
+      owasp: "A01:2021 - Broken Access Control"
+    pattern-sources:
+      - pattern: new URL($REQUEST.url).searchParams.get(...)
+      - pattern: $REQUEST.nextUrl.searchParams.get(...)
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: readFile($PATH, ...)
+              - pattern: readFileSync($PATH, ...)
+              - pattern: createReadStream($PATH, ...)
+              - pattern: writeFile($PATH, ...)
+              - pattern: writeFileSync($PATH, ...)
+              - pattern: createWriteStream($PATH, ...)
+          - focus-metavariable: $PATH

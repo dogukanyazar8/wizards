@@ -1,0 +1,39 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+import test from "node:test";
+import { fileURLToPath } from "node:url";
+
+const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
+const workspaceRoot = path.resolve(scriptDirectory, "../../..");
+
+test("automatic desktop CI runs locked, version-pinned cargo audit", async () => {
+  const workflow = await readFile(
+    path.join(workspaceRoot, ".github", "workflows", "ci.yml"),
+    "utf8",
+  );
+  const desktopOpsStart = workflow.indexOf("\n  desktop-ops:");
+  const desktopBuildStart = workflow.indexOf("\n  desktop-build:");
+
+  assert.notEqual(desktopOpsStart, -1);
+  assert.notEqual(desktopBuildStart, -1);
+
+  const desktopOps = workflow.slice(desktopOpsStart, desktopBuildStart);
+  const desktopOpsConfiguration = desktopOps.slice(0, desktopOps.indexOf("    steps:"));
+
+  assert.match(desktopOps, /^    needs: verify$/m);
+  assert.match(desktopOpsConfiguration, /\{"include":\[\{"os":"wizards-ci","staged":false\}\]\}/);
+  assert.doesNotMatch(desktopOpsConfiguration, /^    if:/m);
+  assert.match(
+    desktopOps,
+    /uses: dtolnay\/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable/,
+  );
+  assert.match(desktopOps, /working-directory: apps\/desktop\/src-tauri/);
+  assert.match(desktopOps, /CARGO_AUDIT_VERSION: 0\.22\.1/);
+  assert.match(
+    desktopOps,
+    /cargo install cargo-audit --version \$env:CARGO_AUDIT_VERSION --locked --force/,
+  );
+  assert.match(desktopOps, /^          cargo audit$/m);
+  assert.doesNotMatch(desktopOps, /continue-on-error:/);
+});

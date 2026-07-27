@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { readPrismaPoolOptions } from "./pool-options";
@@ -26,6 +26,21 @@ const telemetryMigration = readFileSync(
   ),
   "utf8",
 );
+const moderationMigrationPath = fileURLToPath(
+  new URL(
+    "../prisma/rebaseline-migrations/20260727160000_moderation_cases/migration.sql",
+    import.meta.url,
+  ),
+);
+const moderationMigration = existsSync(moderationMigrationPath)
+  ? readFileSync(moderationMigrationPath, "utf8")
+  : "";
+const moderationBackfillPath = fileURLToPath(
+  new URL("../scripts/backfill-moderation-cases.mjs", import.meta.url),
+);
+const moderationBackfill = existsSync(moderationBackfillPath)
+  ? readFileSync(moderationBackfillPath, "utf8")
+  : "";
 
 test("uses deliberate Prisma 7 PostgreSQL adapter pool defaults", () => {
   assert.deepEqual(
@@ -133,6 +148,53 @@ test("the telemetry migration widens the daily metric key without losing rows", 
   // Backfilling or deleting rows here would be data loss; the widened key is
   // safe precisely because every existing (date, userId) pair is already unique.
   assert.doesNotMatch(telemetryMigration, /\bDELETE\b|\bTRUNCATE\b|\bDROP TABLE\b/u);
+});
+
+test("moderation cases retain their history when subjects or operators are deleted", () => {
+  const user = schema.match(/model User \{[\s\S]*?\n\}/u)?.[0];
+  const moderationCase = schema.match(/model ModerationCase \{[\s\S]*?\n\}/u)?.[0];
+  const event = schema.match(/model ModerationCaseEvent \{[\s\S]*?\n\}/u)?.[0];
+
+  assert.ok(user, "User model is missing");
+  assert.ok(moderationCase, "ModerationCase model is missing");
+  assert.ok(event, "ModerationCaseEvent model is missing");
+
+  assert.match(user, /moderationCasesAsSubject\s+ModerationCase\[\]/u);
+  assert.match(user, /moderationCasesAsAssignee\s+ModerationCase\[\]/u);
+  assert.match(user, /moderationEvents\s+ModerationCaseEvent\[\]/u);
+  assert.match(moderationCase, /subjectId\s+String\?/u);
+  assert.match(moderationCase, /subjectHandle\s+String\s+@db\.VarChar\(64\)/u);
+  assert.match(
+    moderationCase,
+    /subject\s+User\?\s+@relation\("ModerationCaseSubject", fields: \[subjectId\], references: \[id\], onDelete: SetNull\)/u,
+  );
+  assert.match(
+    moderationCase,
+    /assignee\s+User\?\s+@relation\("ModerationCaseAssignee", fields: \[assigneeId\], references: \[id\], onDelete: SetNull\)/u,
+  );
+  assert.match(
+    event,
+    /actor\s+User\?\s+@relation\("ModerationCaseEventActor", fields: \[actorId\], references: \[id\], onDelete: SetNull\)/u,
+  );
+
+  assert.ok(existsSync(moderationMigrationPath), "moderation migration is missing");
+  assert.match(
+    moderationMigration,
+    /FOREIGN KEY \("subjectId"\) REFERENCES "User"\("id"\) ON DELETE SET NULL/u,
+  );
+  assert.match(
+    moderationMigration,
+    /FOREIGN KEY \("actorId"\) REFERENCES "User"\("id"\) ON DELETE SET NULL/u,
+  );
+});
+
+test("moderation backfill is confirmed, idempotent, and preserves the first report time", () => {
+  assert.ok(existsSync(moderationBackfillPath), "moderation backfill script is missing");
+  assert.match(moderationBackfill, /MODERATION_BACKFILL_CONFIRM.*backfill-moderation-cases/u);
+  assert.match(moderationBackfill, /where:\s*\{\s*caseId:\s*null\s*\}/u);
+  assert.match(moderationBackfill, /openedAt:\s*reports\[0\]\.createdAt/u);
+  assert.match(moderationBackfill, /data:\s*\{\s*caseId:\s*createdCase\.id\s*\}/u);
+  assert.match(moderationBackfill, /metadata:\s*\{\s*backfilled:\s*true\s*\}/u);
 });
 
 test("rejects missing, unsupported, and out-of-range connection settings", () => {
