@@ -20,11 +20,6 @@ test.describe("visual regression", () => {
       window.localStorage.setItem("wizards.locale", "en");
       window.localStorage.setItem("wizards-theme", "theme-dark");
       document.cookie = "wizards.locale=en; path=/; max-age=31536000; samesite=lax";
-      document.documentElement.lang = "en";
-      document.documentElement.classList.remove("theme-light", "theme-dark");
-      document.documentElement.classList.add("theme-dark");
-      document.documentElement.dataset.theme = "dark";
-      document.documentElement.style.colorScheme = "dark";
     });
   });
 
