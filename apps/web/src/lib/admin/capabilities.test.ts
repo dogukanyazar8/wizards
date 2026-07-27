@@ -24,10 +24,13 @@ describe("admin capability map", () => {
     const sensitive = [
       "audit.read",
       "campaign.approve",
+      "case.action",
+      "case.read",
       "campaign.create",
       "campaign.read",
       "campaign.send",
       "export.activity",
+      "flag.write",
       "user.ban",
       "user.read",
     ] as const;

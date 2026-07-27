@@ -12,10 +12,11 @@ type SentRequest = { body: string; url: string };
 
 function createDeps(options: {
   responses?: Array<{ body?: unknown; status?: number }>;
-  tokens: Array<{ token: string; userId: string }>;
+  tokens: Array<{ platform?: string; token: string; userId: string }>;
 }) {
   const requests: SentRequest[] = [];
   const deletedTokens: string[][] = [];
+  const pushAttempts: unknown[] = [];
   let call = 0;
 
   const deps: MobilePushSenderDeps = {
@@ -25,7 +26,14 @@ function createDeps(options: {
           deletedTokens.push(where.token.in);
           return { count: where.token.in.length };
         },
-        findMany: async () => options.tokens,
+        findMany: async () =>
+          options.tokens.map((entry) => ({ platform: entry.platform ?? "android", ...entry })),
+      },
+      pushDeliveryAttempt: {
+        createMany: async ({ data }: { data: unknown[] }) => {
+          pushAttempts.push(...data);
+          return { count: data.length };
+        },
       },
     },
     fetchFn: (async (url: string, init: { body: string }) => {
@@ -46,7 +54,7 @@ function createDeps(options: {
     sleep: async () => undefined,
   };
 
-  return { deletedTokens, deps, requests };
+  return { deletedTokens, deps, pushAttempts, requests };
 }
 
 describe("sendMobilePushToUsers", () => {
@@ -218,5 +226,97 @@ describe("sendMobilePushForNotifications", () => {
     assert.equal(requests.length, 0);
     assert.deepEqual(emptyInput, { prunedTokens: 0, sentMessages: 0 });
     assert.deepEqual(noTokens, { prunedTokens: 0, sentMessages: 0 });
+  });
+});
+
+describe("push ticket telemetry", () => {
+  it("records one accepted attempt per message with the device platform", async () => {
+    const { deps, pushAttempts } = createDeps({
+      responses: [{ body: { data: [{ id: "ticket-1", status: "ok" }] } }],
+      tokens: [{ platform: "ios", token: "ExpoPushToken[a]", userId: "u1" }],
+    });
+
+    await sendMobilePushToUsers(
+      {
+        androidChannelId: MOBILE_PUSH_ANDROID_CHANNELS.default,
+        body: "b",
+        data: { kind: "notification" },
+        title: "t",
+        userIds: ["u1"],
+      },
+      deps,
+    );
+
+    assert.deepEqual(pushAttempts, [
+      {
+        errorCode: null,
+        notificationId: null,
+        platform: "ios",
+        stage: "TICKET",
+        success: true,
+        ticketId: "ticket-1",
+        userId: "u1",
+      },
+    ]);
+  });
+
+  it("records the Expo error code and still prunes the dead token", async () => {
+    const { deletedTokens, deps, pushAttempts } = createDeps({
+      responses: [
+        {
+          body: {
+            data: [{ details: { error: "DeviceNotRegistered" }, status: "error" }],
+          },
+        },
+      ],
+      tokens: [{ platform: "android", token: "ExpoPushToken[dead]", userId: "u1" }],
+    });
+
+    await sendMobilePushToUsers(
+      {
+        androidChannelId: MOBILE_PUSH_ANDROID_CHANNELS.default,
+        body: "b",
+        data: { kind: "notification" },
+        title: "t",
+        userIds: ["u1"],
+      },
+      deps,
+    );
+
+    assert.deepEqual(pushAttempts, [
+      {
+        errorCode: "DeviceNotRegistered",
+        notificationId: null,
+        platform: "android",
+        stage: "TICKET",
+        success: false,
+        ticketId: null,
+        userId: "u1",
+      },
+    ]);
+    assert.deepEqual(deletedTokens, [["ExpoPushToken[dead]"]]);
+  });
+
+  it("keeps the notification id so a receipt can be matched back to the row", async () => {
+    const { deps, pushAttempts } = createDeps({
+      responses: [{ body: { data: [{ id: "ticket-9", status: "ok" }] } }],
+      tokens: [{ platform: "android", token: "ExpoPushToken[a]", userId: "u1" }],
+    });
+
+    await sendMobilePushForNotifications(
+      [
+        {
+          actionUrl: null,
+          body: "b",
+          id: "notification-1",
+          title: "t",
+          type: "MENTION",
+          userId: "u1",
+        },
+      ],
+      deps,
+    );
+
+    assert.equal((pushAttempts[0] as { notificationId: string }).notificationId, "notification-1");
   });
 });

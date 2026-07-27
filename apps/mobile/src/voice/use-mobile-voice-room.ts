@@ -81,6 +81,14 @@ import {
   toMobileVoiceOutputOptions,
   type MobileVoiceDevicePreferences,
 } from "./mobile-voice-device-contract";
+import { hasMobileVoiceAudioRouteInputChanged } from "./mobile-voice-audio-route";
+
+/**
+ * How often a connected room re-reads the platform's output list. Plugging a
+ * headset in or pulling it out is not an event the app can subscribe to, so the
+ * dock icon and status badges catch up on the next tick.
+ */
+const MOBILE_VOICE_AUDIO_ROUTE_SYNC_INTERVAL_MS = 4_000;
 
 type JoinVoiceChannelInput = {
   channelId: string;
@@ -567,6 +575,51 @@ export function useMobileVoiceRoom({
     },
     [commitVoiceDevicePreferences, isCurrentSessionGeneration],
   );
+
+  /**
+   * Read-only route sync. `enumerateVoiceDevices` re-applies the stored device
+   * selection as a side effect, so polling it would fight whatever the OS just
+   * did; this path reads the list, nothing more, and the diff guard keeps a
+   * quiet tick from producing a render.
+   */
+  const syncVoiceAudioRoute = useCallback(async () => {
+    const generation = sessionGenerationRef.current;
+    const rawOutputs = await AudioSession.getAudioOutputs().catch(() => null);
+    if (!rawOutputs || !isCurrentSessionGeneration(generation)) {
+      return;
+    }
+
+    const availableAudioOutputs = toMobileVoiceOutputOptions(rawOutputs);
+    const preferredOutputId = voiceDevicePreferencesRef.current.audioOutputId;
+    const selectedAudioOutputId = availableAudioOutputs.some(({ id }) => id === preferredOutputId)
+      ? preferredOutputId
+      : null;
+
+    setRoomState((current) => {
+      if (
+        !hasMobileVoiceAudioRouteInputChanged(
+          {
+            availableAudioOutputs: current.availableAudioOutputs,
+            selectedAudioOutputId: current.selectedAudioOutputId,
+          },
+          { availableAudioOutputs, selectedAudioOutputId },
+        )
+      ) {
+        return current;
+      }
+
+      return {
+        ...current,
+        availableAudioOutputs,
+        selectedAudioOutputId,
+        selfAudioOutput:
+          selectedAudioOutputId === "speaker" || selectedAudioOutputId === "force_speaker"
+            ? "speaker"
+            : "default",
+        updatedAt: Date.now(),
+      };
+    });
+  }, [isCurrentSessionGeneration]);
 
   const refreshVoiceDevices = useCallback(async () => {
     const room = roomRef.current;
@@ -1542,6 +1595,29 @@ export function useMobileVoiceRoom({
       .catch(() => undefined)
       .finally(updateParticipantsFromRoom);
   }, [pushToTalkController, roomState.status, updateParticipantsFromRoom, voiceInputMode]);
+
+  useEffect(() => {
+    if (roomState.status !== "connected") {
+      return;
+    }
+
+    void syncVoiceAudioRoute();
+    const interval = setInterval(() => {
+      void syncVoiceAudioRoute();
+    }, MOBILE_VOICE_AUDIO_ROUTE_SYNC_INTERVAL_MS);
+    // Returning from Settings or from a Bluetooth pairing sheet is the other
+    // moment the route commonly changed while the app was not looking.
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      if (nextState === "active") {
+        void syncVoiceAudioRoute();
+      }
+    });
+
+    return () => {
+      clearInterval(interval);
+      subscription.remove();
+    };
+  }, [roomState.status, syncVoiceAudioRoute]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextState) => {

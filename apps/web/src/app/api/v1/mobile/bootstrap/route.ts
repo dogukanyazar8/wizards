@@ -7,6 +7,8 @@ import {
   getServerUnreadAndMentionCounts,
 } from "@/lib/workspace/unread-service";
 import { getMobileBootstrapPayload, type MobileBootstrapHomeSummary } from "@/lib/mobile/bootstrap";
+import { evaluateFlagsForUser } from "@/lib/feature-flags/service";
+import { getAnalyticsClientInfo } from "@/lib/analytics/client-info";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -188,8 +190,14 @@ export async function GET(request: Request) {
       },
     };
 
+    const flags = await evaluateFlagsForUser({
+      clientType: getAnalyticsClientInfo(request.headers).clientType,
+      userId,
+    });
+
     return Response.json(
       getMobileBootstrapPayload({
+        flags,
         home,
         user: {
           ...user,

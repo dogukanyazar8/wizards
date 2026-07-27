@@ -96,6 +96,28 @@ describe("mobile voice lifecycle contract", () => {
     assert.match(hookSource, /toMobileVoiceOutputOptions/);
   });
 
+  it("polls the live audio route read-only and tears its timer down", () => {
+    const hookSource = readFileSync(
+      resolve(__dirname, "../src/voice/use-mobile-voice-room.ts"),
+      "utf8",
+    );
+
+    assert.match(hookSource, /MOBILE_VOICE_AUDIO_ROUTE_SYNC_INTERVAL_MS = 4_000/);
+    assert.match(hookSource, /hasMobileVoiceAudioRouteInputChanged/);
+    assert.match(hookSource, /clearInterval\(interval\);\s*subscription\.remove\(\);/);
+
+    // The sync path only reads: applying a selection here would fight whatever
+    // the OS did when the headset was plugged in or pulled out.
+    const syncStart = hookSource.indexOf("const syncVoiceAudioRoute");
+    const syncEnd = hookSource.indexOf("const refreshVoiceDevices");
+    assert.ok(syncStart > 0 && syncEnd > syncStart);
+    const syncSource = hookSource.slice(syncStart, syncEnd);
+    assert.match(syncSource, /AudioSession\.getAudioOutputs\(\)/);
+    assert.doesNotMatch(syncSource, /switchActiveDevice/);
+    assert.doesNotMatch(syncSource, /AudioSession\.selectAudioOutput/);
+    assert.doesNotMatch(syncSource, /commitVoiceDevicePreferences/);
+  });
+
   it("summarizes lifecycle readiness without leaking endpoint or token material", () => {
     const summary = summarizeMobileVoiceLifecycleMatrix();
 

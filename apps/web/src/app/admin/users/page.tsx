@@ -1,6 +1,7 @@
 import type { UserStatus } from "@wizards/db";
 import { AdminUsers, type AdminUsersFilters } from "@/components/admin/sections/admin-users";
-import { adminRoleHasCapability, requireAdminCapability } from "@/lib/admin/capabilities";
+import { adminRoleHasCapability } from "@/lib/admin/capabilities";
+import { requireAdminModule } from "@/lib/admin/module-access";
 import { listAdminUsers, parseAdminBoolean } from "@/lib/admin/management";
 
 const USER_STATUSES = new Set<UserStatus>(["ONLINE", "IDLE", "DND", "OFFLINE", "INVISIBLE"]);
@@ -25,7 +26,7 @@ export default async function AdminUsersPage({ searchParams }: AdminUsersPagePro
       : {}),
   };
   const [admin, result] = await Promise.all([
-    requireAdminCapability("user.read"),
+    requireAdminModule("user.read"),
     listAdminUsers({
       banned: parseAdminBoolean(filters.banned ?? null),
       ...(params?.page ? { page: params.page } : {}),

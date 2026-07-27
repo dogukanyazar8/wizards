@@ -409,6 +409,9 @@ model User {
   notesAbout              UserNote[]                @relation("UserNoteSubject")
   feedback                Feedback[]
   roadmapVotes            RoadmapVote[]
+  clientHealthEvents      ClientHealthEvent[]       @relation("ClientHealthEventUser")
+  featureFlagUpdates      FeatureFlag[]             @relation("FeatureFlagUpdatedBy")
+  pushDeliveryAttempts    PushDeliveryAttempt[]     @relation("PushDeliveryAttemptUser")
 
   @@index([email])
   @@index([username])
@@ -1441,6 +1444,7 @@ model NotificationCampaign {
   approvedBy    User?              @relation("NotificationCampaignApprover", fields: [approvedById], references: [id], onDelete: SetNull)
   notifications Notification[]
   deliveries    CampaignDelivery[]
+  pushAttempts  PushDeliveryAttempt[] @relation("PushDeliveryAttemptCampaign")
 
   @@index([status, createdAt])
   @@index([createdById])
@@ -1576,4 +1580,95 @@ model ScheduledEvent {
 
   @@index([serverId])
   @@index([scheduledStartAt])
+}
+
+enum ClientHealthKind {
+  STARTUP
+  SCREEN_LOAD
+  CRASH
+  ERROR
+  API_LATENCY
+}
+
+/// Raw client health signals. Kept apart from `UserDailyMetric` because the
+/// shape, the volume and the retention are all different: these arrive in
+/// bursts and are rolled up into `ClientHealthDailySummary` after 30 days.
+model ClientHealthEvent {
+  id         String              @id @default(uuid())
+  userId     String?
+  clientType AnalyticsClientType @default(UNKNOWN)
+  appVersion String?             @db.VarChar(32)
+  os         String?             @db.VarChar(32)
+  kind       ClientHealthKind
+  surface    String?             @db.VarChar(64)
+  valueMs    Int?
+  context    Json?
+  createdAt  DateTime            @default(now())
+
+  user User? @relation("ClientHealthEventUser", fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([kind, createdAt])
+  @@index([clientType, kind, createdAt])
+  @@index([appVersion, kind, createdAt])
+}
+
+/// What survives the 30-day rollup: counts and latency percentiles per day,
+/// platform, version and kind.
+model ClientHealthDailySummary {
+  id         String              @id @default(uuid())
+  date       DateTime            @db.Date
+  clientType AnalyticsClientType @default(UNKNOWN)
+  /// Empty string when the client did not report one: a NULL here would make
+  /// every rollup row distinct under the unique index and duplicate the summary.
+  appVersion String              @default("") @db.VarChar(32)
+  kind       ClientHealthKind
+  count      Int                 @default(0)
+  p50Ms      Int?
+  p95Ms      Int?
+  createdAt  DateTime            @default(now())
+
+  @@unique([date, clientType, appVersion, kind])
+  @@index([date, kind])
+}
+
+model FeatureFlag {
+  key            String                @id @db.VarChar(64)
+  description    String?               @db.VarChar(280)
+  enabled        Boolean               @default(false)
+  /// Empty means every platform. Otherwise only the listed ones.
+  clientTypes    AnalyticsClientType[]
+  /// 0-100. Stable per user through a hash of the key and the user id.
+  rolloutPercent Int                   @default(100)
+  updatedById    String?
+  updatedAt      DateTime              @updatedAt
+  createdAt      DateTime              @default(now())
+
+  updatedBy User? @relation("FeatureFlagUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+}
+
+enum PushAttemptStage {
+  TICKET
+  RECEIPT
+}
+
+model PushDeliveryAttempt {
+  id             String           @id @default(uuid())
+  userId         String?
+  campaignId     String?
+  notificationId String?
+  platform       String           @db.VarChar(16)
+  stage          PushAttemptStage @default(TICKET)
+  /// Expo ticket id; a receipt lookup is matched through it.
+  ticketId       String?          @db.VarChar(64)
+  success        Boolean
+  errorCode      String?          @db.VarChar(64)
+  createdAt      DateTime         @default(now())
+
+  user     User?                 @relation("PushDeliveryAttemptUser", fields: [userId], references: [id], onDelete: SetNull)
+  campaign NotificationCampaign? @relation("PushDeliveryAttemptCampaign", fields: [campaignId], references: [id], onDelete: SetNull)
+
+  @@index([campaignId, success])
+  @@index([platform, stage, createdAt])
+  @@index([errorCode, createdAt])
+  @@index([ticketId])
 }

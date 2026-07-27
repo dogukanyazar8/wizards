@@ -21,6 +21,7 @@ export type {
   AnalyticsDeviceType,
   AnalyticsMediaKind,
   AttachmentScanStatus,
+  ClientHealthKind,
   CampaignDeliveryStatus,
   CampaignSkipReason,
   ModerationCasePriority,
@@ -29,6 +30,7 @@ export type {
   FriendRequest,
   NotificationCampaignStatus,
   NotificationType,
+  PushAttemptStage,
   User,
   UserReportReason,
 } from "./generated/prisma/client";

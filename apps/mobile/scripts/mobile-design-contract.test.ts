@@ -488,9 +488,21 @@ describe("mobile design contract", () => {
     assert.match(voiceScreenSource, /testID="mobile-voice-minimize"/);
     assert.match(voiceScreenSource, /testID="mobile-voice-audio-output"/);
     assert.match(voiceScreenSource, /testID="mobile-voice-leave"/);
-    // #camera-stage: instant connection + noise-suppression badges, paginated media stage.
-    assert.match(voiceScreenSource, /testID="mobile-voice-noise-badge"/);
+    assert.match(voiceScreenSource, /testID="mobile-voice-invite"/);
     assert.match(voiceScreenSource, /testID="mobile-voice-stage"/);
+    // 5a: the scattered header badges became one session strip carrying a real
+    // noise-suppression switch, so the read-only badge is gone.
+    assert.match(voiceScreenSource, /testID="mobile-voice-session-strip"/);
+    assert.match(voiceScreenSource, /testID="mobile-voice-noise-toggle"/);
+    assert.doesNotMatch(voiceScreenSource, /testID="mobile-voice-noise-badge"/);
+    // The session clock runs on a live connection only, and releases its timer.
+    assert.match(voiceScreenSource, /shouldTickMobileVoiceRoomDuration/);
+    assert.match(
+      voiceScreenSource,
+      /if \(!durationRunning\)[\s\S]*setInterval[\s\S]*return \(\) => clearInterval\(interval\);/,
+    );
+    // Exactly one invite surface in the header, whatever the stage mode is.
+    assert.equal(voiceScreenSource.match(/testID="mobile-voice-invite"/g)?.length, 1);
     // The crowded header chat + kebab and the mic-permission footnote were removed.
     assert.doesNotMatch(voiceScreenSource, /testID="mobile-voice-chat"/);
     assert.doesNotMatch(voiceScreenSource, /testID="mobile-voice-settings"/);
@@ -500,8 +512,23 @@ describe("mobile design contract", () => {
     assert.match(modelSource, /participants: room\.participants/);
     assert.match(voiceStylesSource, /activeVoiceRoomParticipantCard:[\s\S]*borderRadius: 28/);
     assert.match(voiceStylesSource, /activeVoiceRoomStageTile:[\s\S]*borderRadius: 24/);
-    assert.match(voiceStylesSource, /activeVoiceRoomControl:[\s\S]*width: 54/);
-    assert.match(voiceStylesSource, /activeVoiceRoomControl:[\s\S]*height: 54/);
-    assert.match(voiceStylesSource, /activeVoiceRoomMutedBadge:[\s\S]*width: 26/);
+    // 5a dock: four 48pt circles plus a 52pt leave button, spaced apart.
+    assert.match(voiceStylesSource, /activeVoiceRoomControl:[\s\S]*width: 48/);
+    assert.match(voiceStylesSource, /activeVoiceRoomControl:[\s\S]*height: 48/);
+    assert.match(voiceStylesSource, /activeVoiceRoomControlDanger:[\s\S]*width: 52/);
+    assert.match(
+      voiceStylesSource,
+      /activeVoiceRoomControls:[\s\S]*justifyContent: "space-between"/,
+    );
+    // 5a header + strip + solo card geometry.
+    assert.match(voiceStylesSource, /activeVoiceRoomBackButton:[\s\S]*width: 36/);
+    assert.match(voiceStylesSource, /activeVoiceRoomBackButton:[\s\S]*borderRadius: 13/);
+    assert.match(voiceStylesSource, /activeVoiceRoomSessionStrip:[\s\S]*borderRadius: 16/);
+    assert.match(voiceStylesSource, /activeVoiceRoomNoiseToggle:[\s\S]*width: 36/);
+    assert.match(voiceStylesSource, /activeVoiceRoomNoiseToggle:[\s\S]*height: 21/);
+    assert.match(voiceStylesSource, /activeVoiceRoomSoloCard:[\s\S]*borderRadius: 28/);
+    assert.match(voiceStylesSource, /activeVoiceRoomStatusBadge:[\s\S]*width: 30/);
+    // Every colour in the room comes from the dedicated voice-room token group.
+    assert.doesNotMatch(voiceStylesSource, /#[0-9a-fA-F]{3,8}\b/);
   });
 });

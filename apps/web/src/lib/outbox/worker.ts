@@ -2,6 +2,7 @@ import { logError } from "@/lib/logger";
 import { cleanupAccountReauthChallenges } from "@/lib/auth/reauth-cleanup";
 import { cleanupMobileMediaUploads as cleanupMobileMediaUploadsService } from "@/lib/mobile/mobile-media-upload-service";
 import { cleanupOutboxJobs, drainOutboxJobs } from "@/lib/outbox/service";
+import { rollUpClientHealthEvents as rollUpClientHealthEventsService } from "@/lib/telemetry/client-health-rollup";
 
 const DEFAULT_OUTBOX_WORKER_BATCH_SIZE = 25;
 const DEFAULT_OUTBOX_WORKER_INTERVAL_MS = 5_000;
@@ -18,6 +19,7 @@ type StartOutboxWorkerOptions = {
   cleanupReauthChallenges?: typeof cleanupAccountReauthChallenges;
   drainJobs?: typeof drainOutboxJobs;
   intervalMs?: number;
+  rollUpClientHealthEvents?: typeof rollUpClientHealthEventsService;
   keepAlive?: boolean;
   runImmediately?: boolean;
   workerId?: string;
@@ -39,6 +41,7 @@ export function startOutboxWorker({
   drainJobs = drainOutboxJobs,
   intervalMs,
   keepAlive = false,
+  rollUpClientHealthEvents = rollUpClientHealthEventsService,
   runImmediately = true,
   workerId: configuredWorkerId,
 }: StartOutboxWorkerOptions = {}) {
@@ -71,6 +74,7 @@ export function startOutboxWorker({
         await cleanupJobs(cleanupNow);
         await cleanupReauthChallenges({ now: cleanupNow });
         await cleanupMobileMediaUploads({ now: cleanupNow });
+        await rollUpClientHealthEvents({ now: cleanupNow });
       })
       .catch((error) => {
         logError("[outbox] Worker drain failed", error);

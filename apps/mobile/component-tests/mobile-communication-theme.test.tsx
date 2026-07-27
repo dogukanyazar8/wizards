@@ -127,7 +127,7 @@ describe("mobile communication semantic themes", () => {
     expect(composerStyles.dmSendErrorText.color).toBe(theme.status.onStatus);
   });
 
-  it("keeps the 1e active voice room on its canonical light and dark theme surfaces", () => {
+  it("keeps the 5a/5b active voice room on its canonical light and dark theme surfaces", () => {
     const light = createVoiceScreenStyles(lightTheme);
     const dark = createVoiceScreenStyles(darkTheme);
 
@@ -138,9 +138,25 @@ describe("mobile communication semantic themes", () => {
       borderRadius: 28,
       borderWidth: 1,
     });
-    expect(dark.activeVoiceRoomScreen.backgroundColor).toBe("#1E2235");
-    expect(dark.activeVoiceRoomParticipantCard.backgroundColor).toBe("rgba(255,255,255,.05)");
-    expect(dark.activeVoiceRoomControl.backgroundColor).toBe("rgba(255,255,255,.1)");
-    expect(dark.activeVoiceRoomControlDanger.backgroundColor).toBe("#E05252");
+    expect(light.activeVoiceRoomControl.backgroundColor).toBe("#F6F7FB");
+    expect(light.activeVoiceRoomSessionStrip).toMatchObject({
+      backgroundColor: "#FFFFFF",
+      borderColor: "#E7E9F4",
+    });
+    // 5b rewrote the dark set: an opaque screen and card pair replaced the old
+    // translucent white washes.
+    expect(dark.activeVoiceRoomScreen.backgroundColor).toBe("#14172A");
+    expect(dark.activeVoiceRoomParticipantCard).toMatchObject({
+      backgroundColor: "#1E2235",
+      borderColor: "#2E3452",
+    });
+    expect(dark.activeVoiceRoomControl.backgroundColor).toBe("#262B45");
+    expect(dark.activeVoiceRoomControlDanger.backgroundColor).toBe("#E5484D");
+    expect(dark.activeVoiceRoomDock.borderTopColor).toBe("#262B45");
+    // The layout is theme-independent: only the colours move between 5a and 5b.
+    expect(light.activeVoiceRoomControl.width).toBe(dark.activeVoiceRoomControl.width);
+    expect(light.activeVoiceRoomSessionStrip.borderRadius).toBe(
+      dark.activeVoiceRoomSessionStrip.borderRadius,
+    );
   });
 });

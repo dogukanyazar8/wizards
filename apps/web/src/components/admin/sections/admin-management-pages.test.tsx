@@ -103,7 +103,7 @@ describe("admin management pages", () => {
     assert.equal(getAdminBanReasonError("Spam"), null);
   });
 
-  it("renders servers with activity, verification and public-state badges without invented fields", () => {
+  it("renders servers with activity, discovery and public-state badges without invented fields", () => {
     const markup = renderToStaticMarkup(
       <AdminServers
         filters={{ query: "whispr" }}
@@ -112,12 +112,14 @@ describe("admin management pages", () => {
       />,
     );
 
-    for (const label of ["Sunucular", "24s aktif", "Doğrulanmış", "Herkese açık", "Whispr HQ"]) {
+    for (const label of ["Sunucular", "24s aktif", "Keşfedilebilir", "Herkese açık", "Whispr HQ"]) {
       assert.match(markup, new RegExp(label, "u"));
     }
 
     assert.doesNotMatch(markup, /Büyüme/u);
     assert.doesNotMatch(markup, /Ortak/u);
+    // The schema has no verification flag, so the panel must not claim one.
+    assert.doesNotMatch(markup, /Doğrulanmış/u);
     assert.match(markup, /\/admin\/servers\?query=whispr&amp;page=3/u);
   });
 });

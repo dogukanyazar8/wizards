@@ -10,6 +10,7 @@
     "dev": "turbo dev",
     "dev:clear-auth-rate-limits": "pnpm --filter @wizards/web dev:clear-auth-rate-limits",
     "build": "turbo build",
+    "actionlint": "node scripts/quality/actionlint.mjs",
     "ci": "pnpm audit --audit-level moderate && pnpm test:toolchain && pnpm format && pnpm lint && pnpm typecheck && pnpm typecheck:main:ci && pnpm typecheck:compat && pnpm typecheck:declarations && pnpm test:coverage && pnpm build",
     "e2e": "turbo e2e --filter @wizards/web",
     "e2e:api": "turbo e2e:api --filter @wizards/web",

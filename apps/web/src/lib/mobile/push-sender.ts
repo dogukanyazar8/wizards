@@ -19,11 +19,28 @@ interface MobilePushTokenReadStore {
   mobilePushToken: {
     deleteMany(args: { where: { token: { in: string[] } } }): Promise<{ count: number }>;
     findMany(args: {
-      select: { token: true; userId: true };
+      select: { platform: true; token: true; userId: true };
       where: { userId: { in: string[] } };
-    }): Promise<Array<{ token: string; userId: string }>>;
+    }): Promise<Array<{ platform: string; token: string; userId: string }>>;
+  };
+  pushDeliveryAttempt: {
+    createMany(args: { data: PushDeliveryAttemptRow[] }): Promise<{ count: number }>;
   };
 }
+
+/**
+ * One row per message per Expo ticket. It records what Expo accepted, not what
+ * the phone showed: the receipt stage is a separate lookup keyed by ticketId.
+ */
+type PushDeliveryAttemptRow = {
+  errorCode: string | null;
+  notificationId: string | null;
+  platform: string;
+  stage: "TICKET";
+  success: boolean;
+  ticketId: string | null;
+  userId: string | null;
+};
 
 export interface MobilePushSenderDeps {
   db?: MobilePushTokenReadStore;
@@ -58,6 +75,7 @@ export interface MobilePushNotificationRow {
 
 type ExpoPushTicket = {
   details?: { error?: string };
+  id?: string;
   message?: string;
   status: "error" | "ok";
 };
@@ -104,14 +122,14 @@ function chunk<T>(items: T[], size: number): T[][] {
 async function findTokensByUserIds(
   db: MobilePushTokenReadStore,
   userIds: string[],
-): Promise<Array<{ token: string; userId: string }>> {
+): Promise<Array<{ platform: string; token: string; userId: string }>> {
   const uniqueUserIds = Array.from(new Set(userIds));
   if (uniqueUserIds.length === 0) {
     return [];
   }
 
   return db.mobilePushToken.findMany({
-    select: { token: true, userId: true },
+    select: { platform: true, token: true, userId: true },
     where: { userId: { in: uniqueUserIds } },
   });
 }
@@ -149,10 +167,12 @@ async function postExpoPushBatch(
 
 async function dispatchExpoPushMessages(
   messages: ExpoPushMessage[],
-  { db, fetchFn, sleep }: ResolvedMobilePushSenderDeps,
+  { db, fetchFn, logError, sleep }: ResolvedMobilePushSenderDeps,
+  owners: Map<string, { platform: string; userId: string }>,
 ): Promise<MobilePushSendResult> {
   let sentMessages = 0;
   const deadTokens: string[] = [];
+  const attempts: PushDeliveryAttemptRow[] = [];
 
   for (const batch of chunk(messages, EXPO_PUSH_BATCH_SIZE)) {
     const tickets = await postExpoPushBatch(batch, fetchFn, sleep);
@@ -162,13 +182,37 @@ async function dispatchExpoPushMessages(
 
     sentMessages += batch.length;
     tickets.forEach((ticket, index) => {
+      const message = batch[index];
+
+      if (!message) {
+        return;
+      }
+
+      const owner = owners.get(message.to);
+
+      attempts.push({
+        errorCode: ticket?.status === "error" ? (ticket.details?.error ?? "unknown") : null,
+        notificationId: message.data.notificationId ?? null,
+        platform: owner?.platform ?? "unknown",
+        stage: "TICKET",
+        success: ticket?.status === "ok",
+        ticketId: ticket?.id ?? null,
+        userId: owner?.userId ?? null,
+      });
+
       if (ticket?.status === "error" && ticket.details?.error === "DeviceNotRegistered") {
-        const message = batch[index];
-        if (message) {
-          deadTokens.push(message.to);
-        }
+        deadTokens.push(message.to);
       }
     });
+  }
+
+  if (attempts.length > 0) {
+    try {
+      await db.pushDeliveryAttempt.createMany({ data: attempts });
+    } catch (error) {
+      // Telemetry must never fail a send.
+      logError("mobile_push_attempt_log", error);
+    }
   }
 
   let prunedTokens = 0;
@@ -199,6 +243,9 @@ export async function sendMobilePushToUsers(
       return { prunedTokens: 0, sentMessages: 0 };
     }
 
+    const owners = new Map(
+      tokens.map(({ platform, token, userId }) => [token, { platform, userId }]),
+    );
     const messages: ExpoPushMessage[] = tokens.map(({ token }) => ({
       body: input.body,
       ...(input.categoryId ? { categoryId: input.categoryId } : {}),
@@ -210,7 +257,7 @@ export async function sendMobilePushToUsers(
       to: token,
     }));
 
-    return await dispatchExpoPushMessages(messages, resolved);
+    return await dispatchExpoPushMessages(messages, resolved, owners);
   } catch (error) {
     resolved.logError("mobile_push_send", error);
     return { prunedTokens: 0, sentMessages: 0 };
@@ -241,6 +288,9 @@ export async function sendMobilePushForNotifications(
       return { prunedTokens: 0, sentMessages: 0 };
     }
 
+    const owners = new Map(
+      tokens.map(({ platform, token, userId }) => [token, { platform, userId }]),
+    );
     const tokensByUserId = new Map<string, string[]>();
     for (const { token, userId } of tokens) {
       const list = tokensByUserId.get(userId) ?? [];
@@ -270,7 +320,7 @@ export async function sendMobilePushForNotifications(
       })),
     );
 
-    return await dispatchExpoPushMessages(messages, resolved);
+    return await dispatchExpoPushMessages(messages, resolved, owners);
   } catch (error) {
     resolved.logError("mobile_push_send", error);
     return { prunedTokens: 0, sentMessages: 0 };

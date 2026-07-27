@@ -3,7 +3,7 @@ import Link from "next/link";
 
 type AdminManagementPaginationProps = {
   page: number;
-  pathname: "/admin/servers" | "/admin/users";
+  pathname: "/admin/moderation" | "/admin/servers" | "/admin/users";
   search: Record<string, string | undefined>;
   total: number;
   totalPages: number;

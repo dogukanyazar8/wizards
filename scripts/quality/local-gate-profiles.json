@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "profiles": {
     "Fast": {
-      "description": "Validate staged whitespace, toolchain contracts, and staged index formatting and lint.",
+      "description": "Validate staged whitespace, GitHub Actions workflows, toolchain contracts, and staged index formatting and lint.",
       "estimatedImpact": "No build, database, emulator, or network mutation.",
       "preconditions": [
         { "type": "repository" },
@@ -17,6 +17,7 @@
           "executable": "git",
           "arguments": ["diff", "--cached", "--check"]
         },
+        { "id": "fast-actionlint", "executable": "pnpm", "arguments": ["actionlint"] },
         { "id": "fast-toolchain", "executable": "pnpm", "arguments": ["test:toolchain"] },
         {
           "id": "fast-staged-prettier",

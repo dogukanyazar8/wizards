@@ -1,6 +1,6 @@
 import type { ImageStyle, TextStyle, ViewStyle } from "react-native";
 import type { MobileTheme } from "../../design/themes";
-import { useVoiceRoomThemedStyles } from "../providers/mobile-theme-provider";
+import { useThemedStyles, useVoiceRoomThemedStyles } from "../providers/mobile-theme-provider";
 import { createSharedStyles } from "../styles/shared-styles";
 
 export const createVoiceScreenStyles = (theme: MobileTheme) => {
@@ -19,68 +19,56 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
       borderRadius: 34,
     },
     activeVoiceRoomAvatarRingSpeaking: {
-      backgroundColor: theme.status.successSoft,
-      borderColor: theme.status.successOnInverse,
-      borderWidth: 6,
+      borderColor: theme.voiceRoom.success,
+      borderWidth: 3,
     },
+    /** 5a header: a compact card chip, not a bare 44pt hit box. */
     activeVoiceRoomBackButton: {
-      width: 44,
-      height: 44,
-      alignItems: "center",
-      justifyContent: "center",
-      borderRadius: 16,
-    },
-    activeVoiceRoomConnectionChip: {
-      minHeight: 31,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 6,
-      borderRadius: 12,
-      backgroundColor: theme.status.successSoft,
-      paddingHorizontal: 12,
-      paddingVertical: 7,
-    },
-    activeVoiceRoomConnectionDot: {
-      width: 7,
-      height: 7,
-      borderRadius: mobileRadii.pill,
-      backgroundColor: theme.status.successOnInverse,
-    },
-    activeVoiceRoomConnectionLabel: {
-      color: theme.status.successOnInverse,
-      fontSize: 12,
-      fontFamily: theme.typography.fontFamilyExtraBold,
-    },
-    activeVoiceRoomControl: {
-      width: 54,
-      height: 54,
+      width: 36,
+      height: 36,
       alignItems: "center",
       justifyContent: "center",
       borderWidth: 1,
-      borderColor: theme.surface.voiceRoomControlBorder,
-      borderRadius: 20,
-      backgroundColor: theme.surface.voiceRoomControl,
+      borderColor: theme.voiceRoom.border,
+      borderRadius: 13,
+      backgroundColor: theme.voiceRoom.card,
+    },
+    activeVoiceRoomControl: {
+      width: 48,
+      height: 48,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1,
+      borderColor: theme.voiceRoom.controlBorder,
+      borderRadius: mobileRadii.pill,
+      backgroundColor: theme.voiceRoom.control,
     },
     activeVoiceRoomControlDanger: {
-      borderColor: theme.status.dangerOnInverse,
-      backgroundColor: theme.status.dangerOnInverse,
+      width: 52,
+      height: 52,
+      borderColor: theme.voiceRoom.danger,
+      backgroundColor: theme.voiceRoom.danger,
       elevation: 8,
-      shadowColor: theme.status.dangerOnInverse,
+      shadowColor: theme.voiceRoom.danger,
       shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.4,
-      shadowRadius: 20,
+      shadowOpacity: 0.38,
+      shadowRadius: 18,
     },
     activeVoiceRoomControlDisabled: {
       opacity: 0.48,
     },
+    /** Muted microphone: the one control that changes fill rather than icon tint. */
+    activeVoiceRoomControlMuted: {
+      borderColor: theme.voiceRoom.dangerSoft,
+      backgroundColor: theme.voiceRoom.dangerSoft,
+    },
     activeVoiceRoomControlSelected: {
-      borderColor: theme.status.successOnInverse,
+      borderColor: theme.voiceRoom.success,
     },
     activeVoiceRoomControls: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      gap: 10,
     },
     /**
      * The media controls sit in their own bottom bar, edge to edge and pinned
@@ -88,86 +76,66 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
      */
     activeVoiceRoomDock: {
       borderTopWidth: 1,
-      borderTopColor: theme.border.tabBarTop,
-      backgroundColor: theme.surface.elevated,
-      paddingHorizontal: 20,
-      paddingTop: 12,
-      ...theme.elevation.tabBar,
+      borderTopColor: theme.voiceRoom.dockBorder,
+      backgroundColor: theme.voiceRoom.card,
+      paddingHorizontal: 24,
+      paddingTop: 14,
     },
     activeVoiceRoomError: {
-      color: theme.status.dangerOnInverse,
+      marginTop: 8,
+      color: theme.voiceRoom.danger,
       fontSize: 12,
       lineHeight: 17,
       fontFamily: theme.typography.fontFamilyBold,
-      paddingHorizontal: 24,
-    },
-    // #5g screen-share tile: green-bordered live surface with a source chip.
-    activeVoiceRoomScreenShareTile: {
-      backgroundColor: theme.media.surface,
-      borderColor: theme.status.successOnInverse,
-      borderRadius: theme.radii.cardLarge,
-      borderWidth: 2,
-      height: 246,
-      marginHorizontal: 20,
-      marginTop: 10,
-      overflow: "hidden",
-      position: "relative",
-    },
-    activeVoiceRoomScreenShareVideo: { height: "100%", width: "100%" },
-    activeVoiceRoomScreenShareChip: {
-      alignItems: "center",
-      backgroundColor: theme.surface.scrim,
-      borderRadius: 11,
-      bottom: 12,
-      flexDirection: "row",
-      gap: 7,
-      left: 12,
-      maxWidth: "80%",
-      paddingHorizontal: 11,
-      paddingVertical: 6,
-      position: "absolute",
-    },
-    activeVoiceRoomScreenShareChipText: {
-      color: theme.text.onInverse,
-      fontFamily: theme.typography.fontFamilyBold,
-      fontSize: 11.5,
+      paddingHorizontal: 20,
     },
     activeVoiceRoomHeader: {
-      minHeight: 70,
       flexDirection: "row",
       alignItems: "center",
       gap: 12,
-      paddingHorizontal: 24,
-      paddingTop: 14,
-      paddingBottom: 6,
+      paddingHorizontal: 20,
+      paddingTop: 8,
     },
     activeVoiceRoomHeaderText: {
       flex: 1,
       minWidth: 0,
     },
-    /** The dashed invite row became this header button; the room needed the space. */
+    /**
+     * The scattered invite icon, connection chip and noise badge collapsed into
+     * this one pill; the state they carried moved to the session strip below.
+     */
     activeVoiceRoomInviteButton: {
-      width: 36,
-      height: 36,
+      flexDirection: "row",
       alignItems: "center",
-      justifyContent: "center",
+      gap: 7,
       borderWidth: 1,
-      borderColor: theme.surface.voiceRoomInviteBorder,
-      borderRadius: 14,
-      backgroundColor: theme.surface.voiceRoomInvite,
+      borderColor: theme.voiceRoom.border,
+      borderRadius: 13,
+      backgroundColor: theme.voiceRoom.card,
+      paddingHorizontal: 14,
+      paddingVertical: 9,
     },
-    activeVoiceRoomMutedBadge: {
+    activeVoiceRoomInviteButtonText: {
+      color: theme.voiceRoom.accent,
+      fontSize: 12.5,
+      fontFamily: theme.typography.fontFamilyBold,
+    },
+    /**
+     * One badge carries every participant state: muted, speaking, or the real
+     * audio route of the signed-in member.
+     */
+    activeVoiceRoomStatusBadge: {
       position: "absolute",
-      right: -4,
-      bottom: -4,
-      width: 26,
-      height: 26,
+      right: -5,
+      bottom: -5,
+      width: 30,
+      height: 30,
       alignItems: "center",
       justifyContent: "center",
       borderWidth: 3,
-      borderColor: theme.surface.voiceRoom,
-      borderRadius: 10,
-      backgroundColor: theme.status.dangerOnInverse,
+      borderColor: theme.voiceRoom.card,
+      borderRadius: mobileRadii.pill,
+      backgroundColor: theme.voiceRoom.screen,
     },
     activeVoiceRoomParticipantCard: {
       flexGrow: 1,
@@ -177,15 +145,15 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
       gap: 12,
       minHeight: 196,
       borderWidth: 1,
-      borderColor: theme.dark ? "transparent" : theme.border.subtle,
+      borderColor: theme.voiceRoom.border,
       borderRadius: 28,
-      backgroundColor: theme.surface.voiceRoomParticipant,
+      backgroundColor: theme.voiceRoom.card,
       paddingHorizontal: 12,
       paddingVertical: 32,
     },
     activeVoiceRoomParticipantCardSpeaking: {
       borderWidth: 2,
-      borderColor: theme.status.successOnInverse,
+      borderColor: theme.voiceRoom.success,
     },
     // #5g camera tile: participant card turns into a live video surface when a
     // camera (mobile, web or desktop) is publishing.
@@ -255,37 +223,16 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
     },
     activeVoiceRoomShareBadge: {
       position: "absolute",
-      left: -4,
-      bottom: -4,
-      width: 26,
-      height: 26,
+      left: -5,
+      bottom: -5,
+      width: 30,
+      height: 30,
       alignItems: "center",
       justifyContent: "center",
       borderWidth: 3,
-      borderColor: theme.surface.voiceRoom,
-      borderRadius: 10,
-      backgroundColor: theme.status.success,
-    },
-    mobileVoiceInviteSheet: {
-      flex: 1,
-      minWidth: 0,
-      gap: 4,
-    },
-    mobileVoiceInviteSheetTitle: {
-      color: theme.text.primary,
-      fontSize: 18,
-      fontFamily: theme.typography.fontFamilyExtraBold,
-    },
-    mobileVoiceInviteSheetSubtitle: {
-      marginBottom: 8,
-      color: theme.text.muted,
-      fontSize: 12.5,
-      lineHeight: 17,
-      fontFamily: theme.typography.fontFamilyBold,
-    },
-    mobileVoiceInviteSheetScroll: {
-      flex: 1,
-      minWidth: 0,
+      borderColor: theme.voiceRoom.card,
+      borderRadius: mobileRadii.pill,
+      backgroundColor: theme.voiceRoom.screen,
     },
     // #audience-grid: tiles are measured to fit, so the box only ever scrolls
     // once the room outgrows the readable minimum tile size.
@@ -313,57 +260,202 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
       gap: 12,
     },
     activeVoiceRoomParticipantName: {
-      color: theme.dark ? theme.text.inverse : theme.text.primary,
+      color: theme.voiceRoom.text,
       fontSize: 15,
-      fontFamily: theme.typography.fontFamilyBold,
+      fontFamily: theme.typography.fontFamilyExtraBold,
       textAlign: "center",
     },
     activeVoiceRoomParticipantStatus: {
-      color: theme.dark ? theme.text.onInverseMuted : theme.text.visualSecondary,
+      color: theme.voiceRoom.textSecondary,
       fontSize: 11.5,
-      fontFamily: theme.typography.fontFamilyBold,
+      fontFamily: theme.typography.fontFamilySemiBold,
       textAlign: "center",
     },
     activeVoiceRoomParticipantStatusSpeaking: {
-      color: theme.status.successOnInverse,
+      color: theme.voiceRoom.success,
     },
     activeVoiceRoomParticipantText: {
       alignItems: "center",
       gap: 2,
       minWidth: 0,
     },
-    activeVoiceRoomPermissionFootnote: {
-      color: theme.dark ? theme.text.onInverseMuted : theme.text.visualSecondary,
-      fontSize: 12,
-      fontFamily: theme.typography.fontFamily,
-      textAlign: "center",
-      paddingHorizontal: 24,
-      paddingTop: 4,
-      paddingBottom: 28,
-    },
     activeVoiceRoomScreen: {
       flex: 1,
       minWidth: 0,
-      backgroundColor: theme.surface.voiceRoom,
+      backgroundColor: theme.voiceRoom.screen,
     },
     activeVoiceRoomSubtitle: {
       marginTop: 1,
-      color: theme.dark ? theme.text.onInverseMuted : theme.text.visualSecondary,
-      fontSize: 12.5,
-      fontFamily: theme.typography.fontFamily,
+      color: theme.voiceRoom.textSecondary,
+      fontSize: 11.5,
+      fontFamily: theme.typography.fontFamilySemiBold,
     },
     activeVoiceRoomTitle: {
       flex: 1,
       minWidth: 0,
-      color: theme.dark ? theme.text.inverse : theme.text.primary,
-      fontSize: 17,
+      color: theme.voiceRoom.text,
+      fontSize: 18,
       fontFamily: theme.typography.fontFamilyExtraBold,
     },
     activeVoiceRoomTitleRow: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 8,
+      gap: 7,
       minWidth: 0,
+    },
+    /**
+     * 5a session strip: connection, elapsed time and the noise toggle on one
+     * line, so the header above it carries nothing but identity and invite.
+     */
+    activeVoiceRoomSessionStrip: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      marginTop: 12,
+      marginHorizontal: 20,
+      borderWidth: 1,
+      borderColor: theme.voiceRoom.border,
+      borderRadius: 16,
+      backgroundColor: theme.voiceRoom.card,
+      paddingHorizontal: 14,
+      paddingVertical: 11,
+    },
+    activeVoiceRoomSessionStatus: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+    },
+    activeVoiceRoomSessionDotHalo: {
+      width: 14,
+      height: 14,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: mobileRadii.pill,
+      backgroundColor: theme.voiceRoom.successHalo,
+    },
+    activeVoiceRoomSessionDotHaloWarning: {
+      backgroundColor: "transparent",
+    },
+    activeVoiceRoomSessionDot: {
+      width: 8,
+      height: 8,
+      borderRadius: mobileRadii.pill,
+      backgroundColor: theme.voiceRoom.success,
+    },
+    activeVoiceRoomSessionDotWarning: {
+      backgroundColor: theme.voiceRoom.warning,
+    },
+    activeVoiceRoomSessionDotDanger: {
+      backgroundColor: theme.voiceRoom.danger,
+    },
+    activeVoiceRoomSessionLabel: {
+      color: theme.voiceRoom.success,
+      fontSize: 12.5,
+      fontFamily: theme.typography.fontFamilyExtraBold,
+    },
+    activeVoiceRoomSessionLabelWarning: {
+      color: theme.voiceRoom.warning,
+    },
+    activeVoiceRoomSessionLabelDanger: {
+      color: theme.voiceRoom.danger,
+    },
+    activeVoiceRoomSessionDuration: {
+      color: theme.voiceRoom.textFaint,
+      fontSize: 12,
+      fontFamily: theme.typography.fontFamilyBold,
+    },
+    activeVoiceRoomSessionSpacer: {
+      flex: 1,
+    },
+    activeVoiceRoomSessionNoise: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+    },
+    activeVoiceRoomSessionNoiseLabel: {
+      color: theme.voiceRoom.text,
+      fontSize: 12.5,
+      fontFamily: theme.typography.fontFamilyBold,
+    },
+    activeVoiceRoomNoiseToggle: {
+      width: 36,
+      height: 21,
+      borderRadius: 11,
+      backgroundColor: theme.voiceRoom.toggleTrackOff,
+    },
+    activeVoiceRoomNoiseToggleOn: {
+      backgroundColor: theme.voiceRoom.success,
+    },
+    activeVoiceRoomNoiseToggleKnob: {
+      position: "absolute",
+      top: 2.5,
+      left: 2.5,
+      width: 16,
+      height: 16,
+      borderRadius: mobileRadii.pill,
+      backgroundColor: theme.voiceRoom.toggleKnob,
+      elevation: 2,
+      shadowColor: theme.voiceRoom.text,
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.2,
+      shadowRadius: 3,
+    },
+    /** Solo room: one full-width card, exactly as the handoff draws it. */
+    activeVoiceRoomSolo: {
+      flex: 1,
+      minWidth: 0,
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: 20,
+    },
+    activeVoiceRoomSoloCard: {
+      width: "100%",
+      alignItems: "center",
+      gap: 5,
+      borderWidth: 1,
+      borderColor: theme.voiceRoom.border,
+      borderRadius: 28,
+      backgroundColor: theme.voiceRoom.card,
+      paddingHorizontal: 20,
+      paddingVertical: 46,
+    },
+    activeVoiceRoomSoloAvatar: {
+      width: 96,
+      height: 96,
+      marginBottom: 12,
+    },
+    activeVoiceRoomSoloAvatarRing: {
+      position: "absolute",
+      top: -6,
+      right: -6,
+      bottom: -6,
+      left: -6,
+      borderWidth: 3,
+      borderColor: theme.voiceRoom.success,
+      borderRadius: 40,
+    },
+    activeVoiceRoomSoloAvatarFallback: {
+      color: theme.voiceRoom.avatarText,
+      fontSize: 30,
+      lineHeight: 38,
+      fontFamily: theme.typography.fontFamilyExtraBold,
+    },
+    activeVoiceRoomSoloName: {
+      maxWidth: "100%",
+      color: theme.voiceRoom.text,
+      fontSize: 17,
+      fontFamily: theme.typography.fontFamilyExtraBold,
+      textAlign: "center",
+    },
+    activeVoiceRoomSoloStatus: {
+      maxWidth: "100%",
+      color: theme.voiceRoom.textSecondary,
+      fontSize: 12.5,
+      fontFamily: theme.typography.fontFamilySemiBold,
+      textAlign: "center",
+    },
+    activeVoiceRoomSoloStatusSpeaking: {
+      color: theme.voiceRoom.success,
     },
     mobileChannelChatDot: {
       color: theme.status.successText,
@@ -798,64 +890,6 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
       fontFamily: theme.typography.fontFamilyExtraBold,
       textAlign: "right",
     },
-    mobileVoiceInviteButton: {
-      minHeight: 34,
-      minWidth: 78,
-      alignItems: "center",
-      justifyContent: "center",
-      borderRadius: mobileRadii.pill,
-      backgroundColor: theme.accent.action,
-      paddingHorizontal: 12,
-    },
-    mobileVoiceInviteButtonDisabled: {
-      backgroundColor: theme.accent.soft,
-    },
-    mobileVoiceInviteButtonText: {
-      color: theme.text.onPrimary,
-      fontSize: 11,
-      fontFamily: theme.typography.fontFamilyExtraBold,
-    },
-    mobileVoiceInviteButtonTextDisabled: {
-      color: theme.accent.strong,
-    },
-    mobileVoiceInviteCandidateList: {
-      gap: 7,
-      minWidth: 0,
-    },
-    mobileVoiceInviteCandidateRow: {
-      minHeight: 56,
-      minWidth: 0,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 9,
-      borderWidth: 1,
-      borderColor: theme.border.subtle,
-      borderRadius: 18,
-      backgroundColor: theme.surface.soft,
-      paddingHorizontal: 10,
-      paddingVertical: 8,
-    },
-    mobileVoiceInviteCandidateSubtitle: {
-      marginTop: 1,
-      color: theme.text.muted,
-      fontSize: 11,
-      fontFamily: theme.typography.fontFamilyBold,
-    },
-    mobileVoiceInviteCandidateText: {
-      flex: 1,
-      minWidth: 0,
-    },
-    mobileVoiceInviteCandidateTitle: {
-      color: theme.text.primary,
-      fontSize: 13,
-      fontFamily: theme.typography.fontFamilyExtraBold,
-    },
-    mobileVoiceInviteEmpty: {
-      color: theme.text.muted,
-      fontSize: 12,
-      fontFamily: theme.typography.fontFamilyExtraBold,
-      lineHeight: 17,
-    },
     mobileVoiceLevelBar: {
       width: 4,
       borderRadius: mobileRadii.pill,
@@ -971,40 +1005,6 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
       lineHeight: 17,
       fontFamily: theme.typography.fontFamilyExtraBold,
     },
-    activeVoiceRoomHeaderBadges: {
-      alignItems: "flex-end",
-      gap: 6,
-    },
-    activeVoiceRoomHeaderActions: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 8,
-    },
-    activeVoiceRoomNoiseChip: {
-      minHeight: 26,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 5,
-      borderRadius: 11,
-      borderWidth: 1,
-      borderColor: theme.border.subtle,
-      backgroundColor: theme.surface.soft,
-      paddingHorizontal: 9,
-      paddingVertical: 5,
-    },
-    activeVoiceRoomNoiseChipActive: {
-      borderColor: theme.status.successOnInverse,
-      backgroundColor: theme.status.successSoft,
-    },
-    activeVoiceRoomNoiseChipText: {
-      color: theme.text.muted,
-      fontSize: 11,
-      fontFamily: theme.typography.fontFamilyExtraBold,
-      letterSpacing: 0.2,
-    },
-    activeVoiceRoomNoiseChipTextActive: {
-      color: theme.status.successOnInverse,
-    },
     // #camera-stage: paginated media surface, four tiles per screen.
     activeVoiceRoomStage: {
       flex: 1,
@@ -1037,13 +1037,13 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
       overflow: "hidden",
       position: "relative",
       borderWidth: 1,
-      borderColor: theme.dark ? "transparent" : theme.border.subtle,
+      borderColor: theme.voiceRoom.border,
       borderRadius: 24,
       backgroundColor: theme.media.surface,
     },
     activeVoiceRoomStageTileSpeaking: {
       borderWidth: 2,
-      borderColor: theme.status.successOnInverse,
+      borderColor: theme.voiceRoom.success,
     },
     activeVoiceRoomStageVideo: {
       height: "100%",
@@ -1054,18 +1054,18 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
       alignItems: "center",
       justifyContent: "center",
       gap: 10,
-      backgroundColor: theme.surface.voiceRoomParticipant,
+      backgroundColor: theme.voiceRoom.card,
       padding: 12,
     },
     activeVoiceRoomStageTilePlaceholderName: {
       maxWidth: "90%",
-      color: theme.dark ? theme.text.inverse : theme.text.primary,
+      color: theme.voiceRoom.text,
       fontSize: 13,
       fontFamily: theme.typography.fontFamilyBold,
       textAlign: "center",
     },
     activeVoiceRoomStageTagText: {
-      color: theme.status.successOnInverse,
+      color: theme.voiceRoom.success,
       fontSize: 10,
       fontFamily: theme.typography.fontFamilyExtraBold,
       letterSpacing: 1,
@@ -1081,11 +1081,11 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
       width: 7,
       height: 7,
       borderRadius: mobileRadii.pill,
-      backgroundColor: theme.border.default,
+      backgroundColor: theme.voiceRoom.border,
     },
     activeVoiceRoomStageDotActive: {
       width: 18,
-      backgroundColor: theme.accent.strong,
+      backgroundColor: theme.voiceRoom.accent,
     },
     activeVoiceRoomRail: {
       minHeight: 62,
@@ -1104,7 +1104,7 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
     },
     activeVoiceRoomRailName: {
       maxWidth: 58,
-      color: theme.dark ? theme.text.onInverseMuted : theme.text.visualSecondary,
+      color: theme.voiceRoom.textSecondary,
       fontSize: 10.5,
       fontFamily: theme.typography.fontFamilyBold,
       textAlign: "center",
@@ -1114,3 +1114,100 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
 };
 
 export const useVoiceScreenStyles = () => useVoiceRoomThemedStyles(createVoiceScreenStyles);
+
+/**
+ * The invite sheet is a normal app sheet that happens to open from the room, so
+ * it reads the app theme the `BottomSheet` chrome around it already uses — not
+ * the room's own light/dark preference.
+ */
+export const createVoiceInviteSheetStyles = (theme: MobileTheme) =>
+  ({
+    root: {
+      minWidth: 0,
+      gap: 14,
+    },
+    /** About five rows; past that the list scrolls instead of eating the screen. */
+    scroll: {
+      maxHeight: 288,
+      minWidth: 0,
+    },
+    list: {
+      gap: 6,
+      paddingBottom: 2,
+    },
+    row: {
+      minHeight: theme.sizing.minTouchTarget,
+      minWidth: 0,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: theme.spacing.row,
+      borderWidth: 1,
+      borderColor: theme.border.subtle,
+      borderRadius: theme.radii.row,
+      backgroundColor: theme.surface.card,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+    },
+    rowPressed: {
+      opacity: 0.72,
+    },
+    rowDisabled: {
+      opacity: 0.72,
+    },
+    rowText: {
+      flex: 1,
+      minWidth: 0,
+      gap: 1,
+    },
+    rowTitle: {
+      ...theme.typography.bodyStrong,
+      color: theme.text.primary,
+    },
+    rowSubtitle: {
+      ...theme.typography.caption,
+      color: theme.text.muted,
+    },
+    rowSubtitleError: {
+      color: theme.status.dangerOnBase,
+    },
+    action: {
+      minHeight: 28,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 5,
+      borderWidth: 1,
+      borderColor: "transparent",
+      borderRadius: theme.radii.pill,
+      paddingHorizontal: 10,
+    },
+    actionFilled: {
+      borderColor: theme.accent.action,
+      backgroundColor: theme.accent.action,
+    },
+    actionText: {
+      color: theme.text.onPrimary,
+      fontSize: 11.5,
+      fontFamily: theme.typography.fontFamilyExtraBold,
+    },
+    empty: {
+      minWidth: 0,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      borderWidth: 1,
+      borderColor: theme.border.subtle,
+      borderRadius: theme.radii.row,
+      backgroundColor: theme.surface.soft,
+      paddingHorizontal: 12,
+      paddingVertical: 14,
+    },
+    emptyText: {
+      ...theme.typography.caption,
+      flex: 1,
+      minWidth: 0,
+      color: theme.text.muted,
+    },
+  }) satisfies Record<string, ImageStyle | TextStyle | ViewStyle>;
+
+export const useVoiceInviteSheetStyles = () => useThemedStyles(createVoiceInviteSheetStyles);

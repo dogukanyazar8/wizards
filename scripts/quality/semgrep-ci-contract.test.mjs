@@ -53,8 +53,13 @@ test("Semgrep CE is immutable, least-privilege, and trusted-runner-only", () => 
   assert.match(readIndentedBlock(workflow, "push", 2), /^      - uat$/mu);
   assert.match(semgrepJob, /^    runs-on: \[self-hosted, linux, x64, wizards-ci\]$/mu);
   assert.match(semgrepJob, /^    if: github\.event_name != 'pull_request'$/mu);
-  assert.match(permissions, /^      contents: read$/mu);
-  assert.doesNotMatch(permissions, /^\s+(?:pull-requests|security-events|actions):/mu);
+  assert.deepEqual(
+    permissions
+      .split(/\r?\n/u)
+      .map((line) => line.trim())
+      .filter(Boolean),
+    ["contents: read"],
+  );
   assert.deepEqual(
     actionReferences.map(([, reference, comment]) => `${reference} # ${comment}`),
     [expectedCheckoutPin],

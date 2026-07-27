@@ -21,6 +21,8 @@ const UNAUTHENTICATED_ROUTE_PATHS = new Set([
 ]);
 
 const BODYLESS_MUTATING_METHOD_PATHS = new Set([
+  // Claiming a case only records who opened it; the session is the payload.
+  "POST admin/moderation/cases/[caseId]/claim",
   // The approver is the session; the decision itself carries no payload.
   "POST admin/notification-campaigns/[campaignId]/approve",
   "POST admin/notification-campaigns/[campaignId]/send",

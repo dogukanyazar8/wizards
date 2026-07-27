@@ -113,12 +113,10 @@ function cachedSnapshotLoader<T>(
   };
 }
 
+// Only the modules that read a snapshot get a cached entry point. The users and
+// notifications modules query their own lists, so their loaders exist for the
+// combined payload alone.
 export const getAdminActivitySnapshot = cachedSnapshotLoader("activity", loadAdminActivitySnapshot);
 export const getAdminAuditSnapshot = cachedSnapshotLoader("audit", loadAdminAuditSnapshot);
-export const getAdminNotificationsSnapshot = cachedSnapshotLoader(
-  "notifications",
-  loadAdminNotificationsSnapshot,
-);
 export const getAdminOverviewSnapshot = cachedSnapshotLoader("overview", loadAdminOverviewSnapshot);
 export const getAdminServersSnapshot = cachedSnapshotLoader("servers", loadAdminServersSnapshot);
-export const getAdminUsersSnapshot = cachedSnapshotLoader("users", loadAdminUsersSnapshot);

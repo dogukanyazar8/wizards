@@ -1,5 +1,5 @@
 import { AdminAudit, type AdminAuditFilter } from "@/components/admin/sections/admin-audit";
-import { requireAdminCapability } from "@/lib/admin/capabilities";
+import { requireAdminModule } from "@/lib/admin/module-access";
 import { getAdminAuditSnapshot } from "@/lib/admin/snapshots";
 
 type AdminAuditPageProps = {
@@ -14,7 +14,7 @@ export default async function AdminAuditPage({ searchParams }: AdminAuditPagePro
   const params = await searchParams;
   const filter = normalizeAuditFilter(params?.filter);
   const [, snapshot] = await Promise.all([
-    requireAdminCapability("audit.read"),
+    requireAdminModule("audit.read"),
     getAdminAuditSnapshot(),
   ]);
 

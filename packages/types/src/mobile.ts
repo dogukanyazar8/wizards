@@ -549,6 +549,12 @@ export const MobileBootstrapPayloadSchema = z.object({
     pushNotifications: MobileBootstrapFeatureSchema,
     voice: MobileBootstrapFeatureSchema,
   }),
+  /**
+   * Server-evaluated feature flags. `features` above is the static capability
+   * catalogue; this map is the per-person rollout answer and may change between
+   * two bootstraps for the same build.
+   */
+  flags: z.record(z.string(), z.boolean()).default({}),
   home: z.object({
     directMessages: z.object({
       recent: z.array(MobileBootstrapDMConversationSummarySchema).max(5),

@@ -6,13 +6,20 @@ import type { MobilePushSenderDeps } from "@/lib/mobile/push-sender";
 import { sendDMCallPush } from "./dm";
 
 function createDeps(tokens: Array<{ token: string; userId: string }>) {
+  const pushAttempts: unknown[] = [];
   const requests: string[] = [];
 
   const deps: MobilePushSenderDeps = {
     db: {
       mobilePushToken: {
         deleteMany: async () => ({ count: 0 }),
-        findMany: async () => tokens,
+        findMany: async () => tokens.map((entry) => ({ platform: "android", ...entry })),
+      },
+      pushDeliveryAttempt: {
+        createMany: async ({ data }: { data: unknown[] }) => {
+          pushAttempts.push(...data);
+          return { count: data.length };
+        },
       },
     },
     fetchFn: (async (_url: string, init: { body: string }) => {

@@ -23,6 +23,11 @@ const expectedNode24ActionPins = {
     tag: "v5.0.0",
   },
 };
+const expectedActionlint = {
+  archive: "actionlint_1.7.12_linux_amd64.tar.gz",
+  sha256: "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8",
+  version: "1.7.12",
+};
 const expectedAllowedBuilds = {
   "@prisma/client": true,
   "@prisma/engines": true,
@@ -112,6 +117,10 @@ test("Node type definitions match the runtime major", () => {
 
 test("pnpm is pinned to the controlled package-manager release", () => {
   assert.equal(readJson("package.json").packageManager, expectedPackageManager);
+});
+
+test("actionlint uses the repository's checksum-verified command", () => {
+  assert.equal(readJson("package.json").scripts?.actionlint, "node scripts/quality/actionlint.mjs");
 });
 
 test("Turbo is pinned to the reviewed toolchain release", () => {
@@ -212,6 +221,31 @@ test("CI pins supported Node 24 action runtimes to reviewed releases", () => {
     [...new Set(actionReferences.map(([, action]) => action))].sort(),
     Object.keys(expectedNode24ActionPins).sort(),
   );
+});
+
+test("actionlint CI job is checksum-verified, fail-closed, and least-privilege", () => {
+  const workflow = readText(join(".github", "workflows", "ci.yml"));
+  const actionlintJob = readWorkflowJob(workflow, "actionlint");
+
+  assert.match(actionlintJob, /^    name: actionlint$/mu);
+  assert.match(actionlintJob, /^    permissions:\r?\n      contents: read$/mu);
+  assert.match(
+    actionlintJob,
+    /^        uses: actions\/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5\.0\.0$/mu,
+  );
+  assert.match(actionlintJob, new RegExp(`actionlintVersion=${expectedActionlint.version}`, "u"));
+  assert.match(actionlintJob, new RegExp(`archive=${expectedActionlint.archive}`, "u"));
+  assert.match(actionlintJob, new RegExp(`expectedSha256=${expectedActionlint.sha256}`, "u"));
+  assert.match(
+    actionlintJob,
+    new RegExp(
+      `https://github\\.com/rhysd/actionlint/releases/download/v${expectedActionlint.version}/${expectedActionlint.archive}`,
+      "u",
+    ),
+  );
+  assert.match(actionlintJob, /sha256sum --check --status/u);
+  assert.match(actionlintJob, /-shellcheck= -pyflakes= \.github\/workflows\/\*\.yml/u);
+  assert.doesNotMatch(actionlintJob, /(?:GITHUB_TOKEN|github\.token|secrets\.)/u);
 });
 
 test("setup-node v5 preserves the workflow's explicit pnpm cache policy", () => {

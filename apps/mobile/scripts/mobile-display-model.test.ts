@@ -207,6 +207,7 @@ const bootstrapPayload: MobileBootstrapPayload = {
       status: "requires-server-contract",
     },
   },
+  flags: {},
   home: {
     directMessages: {
       recent: [conversation],

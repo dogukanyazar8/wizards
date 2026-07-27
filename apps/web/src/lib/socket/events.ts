@@ -265,6 +265,12 @@ export interface ServerToClientEvents {
   "user:profile:updated": (data: UserProfileUpdatedPayload) => void;
   "typing:update": (data: { channelId: string; users: string[] }) => void;
   "notification:new": (notification: NotificationSocketPayload) => void;
+  /**
+   * A flag changed while people were connected. The payload carries only the
+   * key: every client re-reads its own answer, because a rollout percentage
+   * resolves differently per person.
+   */
+  "feature-flags:changed": (data: { key: string }) => void;
   "voice:state:update": (data: {
     channelId: string;
     serverId: string;

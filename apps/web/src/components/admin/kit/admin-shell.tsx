@@ -6,9 +6,12 @@ import {
   ArrowLeft,
   Flag,
   Gauge,
+  HeartPulse,
   Megaphone,
   Scroll,
   Server,
+  ShieldAlert,
+  ToggleRight,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -25,9 +28,12 @@ const NAV_ICONS: Record<AdminNavItem["icon"], LucideIcon> = {
   activity: Activity,
   flag: Flag,
   gauge: Gauge,
+  pulse: HeartPulse,
   megaphone: Megaphone,
   scroll: Scroll,
   server: Server,
+  shield: ShieldAlert,
+  toggle: ToggleRight,
   users: Users,
 };
 
@@ -103,7 +109,8 @@ export function AdminShell({
                         <Icon className="shrink-0" size={17} strokeWidth={2} />
                         <span className="min-w-0 flex-1 truncate">{item.label}</span>
                         {badge && badge > 0 ? <AdminPill tone="danger">{badge}</AdminPill> : null}
-                        {item.key === "activity" ? <AdminPulseDot /> : null}
+                        {item.comingSoon ? <AdminPill>Yakında</AdminPill> : null}
+                        {item.live ? <AdminPulseDot /> : null}
                       </AdminShellNavLink>
                     </li>
                   );

@@ -1,6 +1,7 @@
 import { AdminAnchorShim } from "@/components/admin/shell/admin-anchor-shim";
 import { AdminOverview } from "@/components/admin/sections/admin-overview";
-import { adminRoleHasCapability, requireAdminCapability } from "@/lib/admin/capabilities";
+import { adminRoleHasCapability } from "@/lib/admin/capabilities";
+import { requireAdminModule } from "@/lib/admin/module-access";
 import {
   getAdminActivitySnapshot,
   getAdminOverviewSnapshot,
@@ -18,7 +19,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const params = await searchParams;
   const days = normalizeDashboardDays(params?.days);
   const [admin, activity, overview, servers] = await Promise.all([
-    requireAdminCapability("dashboard.read"),
+    requireAdminModule("dashboard.read"),
     getAdminActivitySnapshot(days),
     getAdminOverviewSnapshot(days),
     getAdminServersSnapshot(days),

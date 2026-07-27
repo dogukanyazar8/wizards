@@ -1,5 +1,5 @@
 import { AdminServers, type AdminServersFilters } from "@/components/admin/sections/admin-servers";
-import { requireAdminCapability } from "@/lib/admin/capabilities";
+import { requireAdminModule } from "@/lib/admin/module-access";
 import { listAdminServers } from "@/lib/admin/management";
 import { getAdminServersSnapshot } from "@/lib/admin/snapshots";
 
@@ -12,7 +12,7 @@ export default async function AdminServersPage({ searchParams }: AdminServersPag
   const query = params?.query?.slice(0, 120);
   const filters: AdminServersFilters = query ? { query } : {};
   const [, result, snapshot] = await Promise.all([
-    requireAdminCapability("server.read"),
+    requireAdminModule("server.read"),
     listAdminServers({
       ...(params?.page ? { page: params.page } : {}),
       ...(filters.query ? { query: filters.query } : {}),

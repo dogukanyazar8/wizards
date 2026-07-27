@@ -60,7 +60,7 @@ Do not add a direct GLib override, `[patch]`, audit ignore, feature removal, run
 
 ## CI, monitoring, and re-evaluation
 
-Dependabot checks Cargo in `/apps/desktop/src-tauri` weekly against `uat`. Automatic `desktop-ops` runs only release-operation/script/config checks on the self-hosted Linux runner. Windows `cargo check` and signed Tauri package builds run only when the manually dispatched `desktop_hosted` option is enabled. No workflow currently proves a native Linux Tauri build, launch, tray smoke, or this GLib path at runtime.
+Dependabot checks Cargo in `/apps/desktop/src-tauri` weekly against `uat`. Automatic `desktop-ops` runs locked `cargo audit` and `cargo clippy --locked --all-targets -- -D warnings` on the self-hosted Linux runner, then release-operation/script/config checks. This compiles Rust code and test targets but does not prove a native Linux Tauri bundle, launch, tray smoke, or this GLib path at runtime. Windows `cargo check` and signed Tauri package builds run only when the manually dispatched `desktop_hosted` option is enabled.
 
 Before accepting any future upstream resolution, require all of the following: lockfile diff review, `cargo audit --json` with no `unsound` warning for this chain, Windows desktop build evidence, and a Linux CI job that compiles the affected target and performs native launch plus tray smoke. The test/build evidence must come from the candidate lockfile, not a prior successful CI run.
 
@@ -71,12 +71,14 @@ Re-evaluate immediately when any of these occur: a Tauri or Wry release, a chang
 ```powershell
 Set-Location apps/desktop/src-tauri
 cargo audit --json
+cargo clippy --locked --all-targets -- -D warnings
 cargo tree --target x86_64-unknown-linux-gnu -i glib
 cargo tree --target x86_64-pc-windows-msvc -i glib
 cargo test --locked
 cargo check --locked --target x86_64-pc-windows-msvc
 
 Set-Location ../..
+pnpm.cmd --filter @wizards/desktop lint:rust
 pnpm.cmd --filter @wizards/desktop exec node --test scripts/cargo-security-baseline.test.mjs
 pnpm.cmd --filter @wizards/desktop test
 ```

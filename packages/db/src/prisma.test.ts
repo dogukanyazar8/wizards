@@ -41,6 +41,49 @@ const moderationBackfillPath = fileURLToPath(
 const moderationBackfill = existsSync(moderationBackfillPath)
   ? readFileSync(moderationBackfillPath, "utf8")
   : "";
+const healthMigrationPath = fileURLToPath(
+  new URL(
+    "../prisma/rebaseline-migrations/20260727170000_client_health_flags_push/migration.sql",
+    import.meta.url,
+  ),
+);
+const healthMigration = existsSync(healthMigrationPath)
+  ? readFileSync(healthMigrationPath, "utf8")
+  : "";
+
+test("client health, feature flags and push attempts land as additive tables", () => {
+  for (const model of [
+    "model ClientHealthEvent",
+    "model ClientHealthDailySummary",
+    "model FeatureFlag",
+    "model PushDeliveryAttempt",
+  ]) {
+    assert.ok(schema.includes(model), `${model} is missing from the schema`);
+  }
+
+  // A rollup row is one per day, platform, version and kind; without the unique
+  // key the daily job would append duplicates instead of updating.
+  assert.match(
+    schema,
+    /@@unique\(\[date, clientType, appVersion, kind\]\)/u,
+    "the health summary needs its rollup key",
+  );
+  assert.match(schema, /clientHealthEvents\s+ClientHealthEvent\[\]/u);
+  assert.match(schema, /featureFlagUpdates\s+FeatureFlag\[\]/u);
+  assert.match(schema, /pushDeliveryAttempts\s+PushDeliveryAttempt\[\]/u);
+
+  assert.ok(existsSync(healthMigrationPath), "the health migration is missing");
+  assert.match(healthMigration, /CREATE TABLE "ClientHealthEvent"/u);
+  assert.match(healthMigration, /CREATE TABLE "FeatureFlag"/u);
+  assert.match(healthMigration, /CREATE TABLE "PushDeliveryAttempt"/u);
+  assert.match(
+    healthMigration,
+    /CREATE UNIQUE INDEX "ClientHealthDailySummary_date_clientType_appVersion_kind_key"/u,
+  );
+  // Deleting a person must not delete the platform history their events prove.
+  assert.match(healthMigration, /"ClientHealthEvent_userId_fkey".*ON DELETE SET NULL/su);
+  assert.doesNotMatch(healthMigration, /DROP TABLE|DROP COLUMN/u);
+});
 
 test("uses deliberate Prisma 7 PostgreSQL adapter pool defaults", () => {
   assert.deepEqual(
@@ -131,7 +174,10 @@ test("sessions record their version and whether the client identified itself", (
 });
 
 test("the telemetry migration widens the daily metric key without losing rows", () => {
-  assert.match(telemetryMigration, /DROP CONSTRAINT "UserDailyMetric_date_userId_key"/u);
+  // Prisma writes `@@unique` as a plain unique index, so the widening drops an
+  // index; `DROP CONSTRAINT` would fail against a database built from the
+  // baseline migration.
+  assert.match(telemetryMigration, /DROP INDEX "UserDailyMetric_date_userId_key"/u);
   assert.match(
     telemetryMigration,
     /CREATE UNIQUE INDEX "UserDailyMetric_date_userId_clientType_key"/u,

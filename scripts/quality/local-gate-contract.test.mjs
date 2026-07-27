@@ -53,6 +53,7 @@ test("local quality profiles are declarative, complete, and shell-free", () => {
     profiles.profiles.Fast.steps.map((step) => [step.executable, step.arguments]),
     [
       ["git", ["diff", "--cached", "--check"]],
+      ["pnpm", ["actionlint"]],
       ["pnpm", ["test:toolchain"]],
       ["node", ["scripts/quality/prettier-changed.mjs", "--staged"]],
       ["node", ["scripts/quality/staged-eslint.mjs"]],
@@ -106,6 +107,7 @@ test("local gate runner, hook installer, hooks, and CI share the safe contracts"
   );
   assert.match(runner, /\$previousNativeErrorAction = \$ErrorActionPreference/u);
   assert.match(runner, /fast-staged-eslint/u);
+  assert.match(runner, /fast-actionlint/u);
   assert.match(runner, /\[ValidateSet\("Text", "Json"\)\]/u);
   assert.match(runner, /\[switch\]\$AllowMobileRelease/u);
   assert.match(runner, /\$Profile -eq "MobileRelease" -and -not \$AllowMobileRelease/u);

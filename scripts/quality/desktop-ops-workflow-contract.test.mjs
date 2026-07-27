@@ -55,3 +55,19 @@ test("automatic Linux Desktop Ops runs its cargo audit step with Bash", () => {
   );
   assert.doesNotMatch(cargoAudit, /Get-Command|\$env:|\$LASTEXITCODE/u);
 });
+
+test("automatic Linux Desktop Ops runs fail-closed Clippy through the local command", () => {
+  const workflow = readFileSync(workflowPath, "utf8");
+  const desktopManifest = JSON.parse(
+    readFileSync(join(root, "apps", "desktop", "package.json"), "utf8"),
+  );
+  const desktopOps = readWorkflowJob(workflow, "desktop-ops");
+  const clippy = readWorkflowStep(desktopOps, "Lint Rust with Clippy");
+
+  assert.equal(
+    desktopManifest.scripts?.["lint:rust"],
+    "cargo clippy --manifest-path ./src-tauri/Cargo.toml --locked --all-targets -- -D warnings",
+  );
+  assert.match(clippy, /^        run: pnpm --filter @wizards\/desktop lint:rust$/mu);
+  assert.doesNotMatch(clippy, /continue-on-error|(?:-A|--cap-lints)\s+warnings/u);
+});

@@ -32,7 +32,7 @@ test("automatic desktop CI runs locked, version-pinned cargo audit", async () =>
   assert.match(desktopOps, /CARGO_AUDIT_VERSION: 0\.22\.1/);
   assert.match(
     desktopOps,
-    /cargo install cargo-audit --version \$env:CARGO_AUDIT_VERSION --locked --force/,
+    /cargo install cargo-audit --version "\$CARGO_AUDIT_VERSION" --locked --force/,
   );
   assert.match(desktopOps, /^          cargo audit$/m);
   assert.doesNotMatch(desktopOps, /continue-on-error:/);

@@ -10,6 +10,7 @@
     "dev": "node ./scripts/run-tauri.mjs dev",
     "build:desktop": "node ./scripts/run-tauri.mjs build",
     "build:desktop:config": "node ./scripts/run-tauri.mjs build --write-config-only",
+    "lint:rust": "cargo clippy --manifest-path ./src-tauri/Cargo.toml --locked --all-targets -- -D warnings",
     "release:audit": "node ./scripts/release-audit.mjs",
     "release:artifacts": "node ./scripts/desktop-release-artifacts.mjs",
     "release:cargo-audit-summary": "node ./scripts/cargo-audit-summary.mjs",

@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { getMobileActiveVoiceRoomModel } from "../src/app/screens/active-voice-room-model";
+import {
+  getMobileActiveVoiceRoomModel,
+  shouldTickMobileVoiceRoomDuration,
+} from "../src/app/screens/active-voice-room-model";
 import {
   createInitialMobileVoiceRoomState,
   type MobileVoiceRoomParticipant,
@@ -70,6 +73,23 @@ describe("mobile active voice room model", () => {
       assert.equal(model.durationLabel, null);
       assert.equal(model.serverName, null);
       assert.deepEqual(model.participants, []);
+    }
+  });
+
+  it("runs the session clock only while the room is connected", () => {
+    assert.equal(shouldTickMobileVoiceRoomDuration("connected"), true);
+    // 5a session strip: a dropped connection freezes the elapsed time on its last
+    // value instead of counting through the reconnect.
+    for (const status of [
+      "checking-permission",
+      "connecting",
+      "error",
+      "idle",
+      "leaving",
+      "permission-denied",
+      "reconnecting",
+    ] as const) {
+      assert.equal(shouldTickMobileVoiceRoomDuration(status), false);
     }
   });
 });

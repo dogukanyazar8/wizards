@@ -110,7 +110,11 @@ export function AdminServers({
                   {formatAdminInt(server.messageCount)}
                 </span>,
                 <div className="flex flex-wrap gap-1" key="status">
-                  {server.discoverable ? <AdminPill tone="success">Doğrulanmış</AdminPill> : null}
+                  {/* The schema has no verification flag; `discoverable` only
+                      means the server is listed in discovery. */}
+                  {server.discoverable ? (
+                    <AdminPill tone="success">Keşfedilebilir</AdminPill>
+                  ) : null}
                   {server.isPublic ? <AdminPill tone="primary">Herkese açık</AdminPill> : null}
                   {!server.discoverable && !server.isPublic ? <AdminPill>Özel</AdminPill> : null}
                 </div>,

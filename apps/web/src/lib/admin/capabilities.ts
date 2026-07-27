@@ -13,8 +13,15 @@ export const ADMIN_CAPABILITIES = {
   "campaign.create": ["OWNER", "ADMIN"],
   "campaign.read": ["OWNER", "ADMIN"],
   "campaign.send": ["OWNER", "ADMIN"],
+  // Reading a case exposes reporter identities; acting on one bans accounts.
+  "case.action": ["OWNER", "ADMIN", "MODERATOR"],
+  "case.read": ["OWNER", "ADMIN", "SUPPORT", "MODERATOR"],
   "dashboard.read": ["OWNER", "ADMIN", "SUPPORT", "ANALYST", "MODERATOR"],
   "export.activity": ["OWNER", "ADMIN"],
+  // A kill switch changes what everyone sees; only the top two roles hold it.
+  "flag.write": ["OWNER", "ADMIN"],
+  // Client health is aggregate; every admin role may look at it.
+  "health.read": ["OWNER", "ADMIN", "SUPPORT", "ANALYST", "MODERATOR"],
   "feedback.read": ["OWNER", "ADMIN", "SUPPORT", "ANALYST", "MODERATOR"],
   "feedback.write": ["OWNER", "ADMIN", "SUPPORT"],
   "server.read": ["OWNER", "ADMIN", "SUPPORT", "MODERATOR"],

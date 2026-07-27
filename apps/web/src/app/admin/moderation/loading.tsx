@@ -1,0 +1,5 @@
+import { AdminRouteLoading } from "@/components/admin/shell/admin-route-loading";
+
+export default function AdminModerationLoading() {
+  return <AdminRouteLoading />;
+}

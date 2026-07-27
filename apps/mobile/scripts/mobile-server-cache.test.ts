@@ -45,6 +45,7 @@ function createBootstrap(): MobileBootstrapPayload {
       pushNotifications: { label: "Push", status: "available" },
       voice: { label: "Voice", status: "available" },
     },
+    flags: {},
     home: {
       directMessages: { recent: [], totalCount: 0, unreadCount: 0 },
       servers: {

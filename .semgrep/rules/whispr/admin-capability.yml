@@ -11,6 +11,6 @@ rules:
       source-contract: apps/web/src/lib/admin/capabilities.ts
     paths:
       exclude:
-        - apps/web/src/lib/admin/access.ts
-        - apps/web/src/lib/admin/capabilities.ts
+        - "**/src/lib/admin/access.ts"
+        - "**/src/lib/admin/capabilities.ts"
     pattern: import { ..., requireAdminUser, ... } from "@/lib/admin/access";

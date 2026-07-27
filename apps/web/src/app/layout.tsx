@@ -13,6 +13,7 @@ import "./globals.css";
 import { auth } from "@/auth";
 import { DesktopContextMenuGuard } from "@/components/desktop/desktop-context-menu-guard";
 import { DesktopWindowChrome } from "@/components/desktop/desktop-window-chrome";
+import { WebHealthReporter } from "@/components/app/web-health-reporter";
 import { AppIconProvider } from "@/components/providers/app-icon-provider";
 import { LocaleProvider } from "@/components/providers/locale-provider";
 import { MessageFontSync } from "@/components/providers/message-font-sync";
@@ -100,6 +101,7 @@ export default async function RootLayout({
             <AppIconProvider>
               <QueryProvider>
                 <MessageFontSync />
+                <WebHealthReporter />
                 <DesktopContextMenuGuard />
                 <DesktopWindowChrome />
                 {children}

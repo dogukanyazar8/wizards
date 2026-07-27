@@ -2,7 +2,11 @@
 
 import { AdminCard, AdminPageHeader } from "@/components/admin/kit/admin-primitives";
 
-export default function AdminOverviewError({
+/**
+ * Shared by every admin segment, so the copy stays module-independent: naming a
+ * single module here mislabels the failure on the other five routes.
+ */
+export default function AdminModuleError({
   error: _error,
   reset,
 }: {
@@ -11,7 +15,7 @@ export default function AdminOverviewError({
 }) {
   return (
     <section className="space-y-5">
-      <AdminPageHeader subtitle="Özet verisi yüklenemedi." title="Genel Bakış" />
+      <AdminPageHeader subtitle="Bu modül yüklenemedi." title="Yönetim Konsolu" />
       <AdminCard>
         <p className="text-app-muted text-sm">Lütfen yeniden deneyin.</p>
         <button

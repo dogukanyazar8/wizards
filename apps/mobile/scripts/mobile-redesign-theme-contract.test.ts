@@ -1366,6 +1366,56 @@ export function Fixture({ cap }: { cap: number }) {
     });
   });
 
+  it("pins the 5a/5b voice room surface stack in both themes", () => {
+    assert.deepEqual(lightTheme.voiceRoom, {
+      accent: "#4F46E5",
+      avatarSurface: "#EEF0FE",
+      avatarText: "#4F46E5",
+      border: "#E7E9F4",
+      card: "#FFFFFF",
+      control: "#F6F7FB",
+      controlBorder: "#E7E9F4",
+      danger: "#E5484D",
+      dangerSoft: "#FDEBEC",
+      dockBorder: "#E7E9F4",
+      screen: "#F6F7FB",
+      success: "#22A366",
+      successHalo: "rgba(34,163,102,.18)",
+      text: "#1E2235",
+      textFaint: "#8A90B0",
+      textSecondary: "#6B7194",
+      toggleKnob: "#FFFFFF",
+      toggleTrackOff: "#E7E9F4",
+      warning: "#D97706",
+    });
+    assert.deepEqual(darkTheme.voiceRoom, {
+      accent: "#A8A2F5",
+      avatarSurface: "rgba(110,102,240,.16)",
+      avatarText: "#A8A2F5",
+      border: "#2E3452",
+      card: "#1E2235",
+      control: "#262B45",
+      controlBorder: "#2E3452",
+      danger: "#E5484D",
+      dangerSoft: "rgba(229,72,77,.16)",
+      dockBorder: "#262B45",
+      screen: "#14172A",
+      success: "#2FBF7B",
+      successHalo: "rgba(47,191,123,.18)",
+      text: "#EDEFF7",
+      textFaint: "#6B7194",
+      textSecondary: "#9AA0BC",
+      toggleKnob: "#FFFFFF",
+      toggleTrackOff: "#2E3452",
+      warning: "#F0A44B",
+    });
+    // The redesign is layout-identical across themes: every role exists in both.
+    assert.deepEqual(Object.keys(lightTheme.voiceRoom), Object.keys(darkTheme.voiceRoom));
+    // The older shared voiceRoom surfaces still dress the direct-call screens.
+    assert.equal(lightTheme.surface.voiceRoomControl, "#FFFFFF");
+    assert.equal(darkTheme.surface.voiceRoomControl, "rgba(255,255,255,.1)");
+  });
+
   it("keeps sheet and lightbox backdrops on the dedicated scrim role", () => {
     const bottomSheet = readFileSync(
       join(process.cwd(), "src", "app", "components", "kit", "bottom-sheet.styles.ts"),

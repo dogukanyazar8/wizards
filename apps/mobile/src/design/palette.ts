@@ -213,6 +213,58 @@ export const redesignToastDark = {
 } as const;
 
 /**
+ * Handoff 5a/5b voice room. Like the toast, the room pins its own values in both
+ * themes: the dark screen sits on `#14172A` with `#1E2235` cards, neither of
+ * which is the app's own base/card pair, so the two tables stay literal. The
+ * older `voiceRoom*` entries above still serve the direct-call screens and are
+ * deliberately left alone.
+ */
+export const redesignVoiceRoomLight = {
+  accent: "#4F46E5",
+  avatarSurface: "#EEF0FE",
+  avatarText: "#4F46E5",
+  border: "#E7E9F4",
+  card: "#FFFFFF",
+  control: "#F6F7FB",
+  controlBorder: "#E7E9F4",
+  danger: "#E5484D",
+  dangerSoft: "#FDEBEC",
+  dockBorder: "#E7E9F4",
+  screen: "#F6F7FB",
+  success: "#22A366",
+  successHalo: "rgba(34,163,102,.18)",
+  text: "#1E2235",
+  textFaint: "#8A90B0",
+  textSecondary: "#6B7194",
+  toggleKnob: "#FFFFFF",
+  toggleTrackOff: "#E7E9F4",
+  warning: "#D97706",
+} as const;
+
+export const redesignVoiceRoomDark = {
+  accent: "#A8A2F5",
+  avatarSurface: "rgba(110,102,240,.16)",
+  avatarText: "#A8A2F5",
+  border: "#2E3452",
+  card: "#1E2235",
+  control: "#262B45",
+  controlBorder: "#2E3452",
+  danger: "#E5484D",
+  dangerSoft: "rgba(229,72,77,.16)",
+  dockBorder: "#262B45",
+  screen: "#14172A",
+  success: "#2FBF7B",
+  successHalo: "rgba(47,191,123,.18)",
+  text: "#EDEFF7",
+  textFaint: "#6B7194",
+  textSecondary: "#9AA0BC",
+  toggleKnob: "#FFFFFF",
+  toggleTrackOff: "#2E3452",
+  /** The handoff amber reads too dim on `#1E2235`; this is the toast's dark twin. */
+  warning: "#F0A44B",
+} as const;
+
+/**
  * Handoff 4c theme/layout preview artwork. These miniatures depict the other
  * theme, so they stay literal in both themes instead of following the active
  * surface tokens.

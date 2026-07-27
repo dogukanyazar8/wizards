@@ -1,5 +1,6 @@
 import type { PropsWithChildren } from "react";
 import { MobileDeepLinkProvider } from "./mobile-deep-link-provider";
+import { MobileHealthReporterBridge } from "./mobile-health-reporter-bridge";
 import { MobileLocaleProvider } from "./mobile-locale-provider";
 import { MobileMediaProvider } from "./mobile-media-provider";
 import { MobileNotificationProvider } from "./mobile-notification-provider";
@@ -18,6 +19,7 @@ export function MobileAppProviders({ children }: PropsWithChildren) {
           <MobileVoiceProvider>
             <MobileRealtimeProvider>
               <MobilePushResponseBridge />
+              <MobileHealthReporterBridge />
               <MobileWorkspaceLayoutProvider>
                 <MobileNotificationPreferencesProvider>
                   {/* 11b: one card for the whole app, mounted above the shell so

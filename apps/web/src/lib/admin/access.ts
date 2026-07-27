@@ -1,7 +1,7 @@
 import { Prisma, type AdminRole, prisma } from "@wizards/db";
 import { auth } from "@/auth";
 import { ApiError } from "@/lib/api";
-import { hashAnalyticsValue } from "@/lib/analytics/client-info";
+import { getAnalyticsClientInfo } from "@/lib/analytics/client-info";
 import { assertActiveApiUser } from "@/lib/auth/access";
 
 export type AdminAccessUser = {
@@ -178,7 +178,7 @@ export async function requireAdminUser(
   };
 }
 
-export async function writeAdminAuditLog(args: {
+export type AdminAuditLogInput = {
   action: string;
   adminUserId?: string | null;
   headers?: Headers | Record<string, string | string[] | undefined> | null;
@@ -186,28 +186,35 @@ export async function writeAdminAuditLog(args: {
   reason?: string | null;
   targetId?: string | null;
   targetType?: string | null;
-}) {
-  const userAgent =
-    args.headers && "get" in args.headers && typeof args.headers.get === "function"
-      ? args.headers.get("user-agent")
-      : args.headers && !("get" in args.headers)
-        ? (args.headers["user-agent"] as string | undefined)
-        : null;
+};
 
+/**
+ * The caller fingerprint comes from the analytics reader so audit rows carry the
+ * same hashed address the session tables do — the admin console shows a prefix
+ * of `ipHash`, and a raw address never enters the trail.
+ */
+export function buildAdminAuditLogEntry(args: AdminAuditLogInput) {
+  const clientInfo = getAnalyticsClientInfo(args.headers ?? null);
+
+  return {
+    action: args.action,
+    adminUserId: args.adminUserId ?? null,
+    ...(args.metadata !== undefined
+      ? {
+          metadata:
+            args.metadata === null ? Prisma.JsonNull : (args.metadata as Prisma.InputJsonValue),
+        }
+      : {}),
+    ipHash: clientInfo.ipHash,
+    reason: args.reason ?? null,
+    targetId: args.targetId ?? null,
+    targetType: args.targetType ?? null,
+    userAgentHash: clientInfo.userAgentHash,
+  };
+}
+
+export async function writeAdminAuditLog(args: AdminAuditLogInput) {
   await prisma.adminAuditLog.create({
-    data: {
-      action: args.action,
-      adminUserId: args.adminUserId ?? null,
-      ...(args.metadata !== undefined
-        ? {
-            metadata:
-              args.metadata === null ? Prisma.JsonNull : (args.metadata as Prisma.InputJsonValue),
-          }
-        : {}),
-      reason: args.reason ?? null,
-      targetId: args.targetId ?? null,
-      targetType: args.targetType ?? null,
-      userAgentHash: hashAnalyticsValue(userAgent),
-    },
+    data: buildAdminAuditLogEntry(args),
   });
 }

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 const LEGACY_ADMIN_HASH_ROUTES: Readonly<Record<string, string>> = {
   "#activity": "/admin/activity",
   "#audit": "/admin/audit",
+  "#notifications": "/admin/notifications",
   "#overview": "/admin",
   "#servers": "/admin/servers",
   "#users": "/admin/users",

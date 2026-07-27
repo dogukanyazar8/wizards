@@ -21,6 +21,12 @@ const ROUTE_CAPABILITY_PINS: ReadonlyArray<{ capability: AdminCapability; file: 
   { capability: "campaign.read", file: "notification-campaigns/route.ts" },
   { capability: "campaign.approve", file: "notification-campaigns/[campaignId]/approve/route.ts" },
   { capability: "campaign.send", file: "notification-campaigns/[campaignId]/send/route.ts" },
+  { capability: "flag.write", file: "flags/route.ts" },
+  { capability: "flag.write", file: "flags/[key]/route.ts" },
+  { capability: "case.read", file: "moderation/cases/route.ts" },
+  { capability: "case.read", file: "moderation/cases/[caseId]/route.ts" },
+  { capability: "case.action", file: "moderation/cases/[caseId]/claim/route.ts" },
+  { capability: "case.action", file: "moderation/cases/[caseId]/action/route.ts" },
 ];
 
 function collectRouteFiles(directory: string): string[] {

@@ -112,6 +112,44 @@ jobs:
       - name: Build
         run: pnpm build
 
+  actionlint:
+    name: actionlint
+    runs-on: [self-hosted, linux, x64, wizards-ci]
+    timeout-minutes: 5
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Download checksum-verified actionlint
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          actionlintVersion=1.7.12
+          archive=actionlint_1.7.12_linux_amd64.tar.gz
+          expectedSha256=8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+          archivePath="$RUNNER_TEMP/$archive"
+          actionlintDirectory="$RUNNER_TEMP/actionlint"
+
+          curl --fail --location --silent --show-error \
+            "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz" \
+            --output "$archivePath"
+          printf '%s  %s\n' "$expectedSha256" "$archivePath" | sha256sum --check --status
+          mkdir --parents "$actionlintDirectory"
+          tar --extract --file "$archivePath" --directory "$actionlintDirectory"
+          "$actionlintDirectory/actionlint" -version
+
+      - name: Lint GitHub Actions workflows
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/actionlint/actionlint" \
+            -config-file .github/actionlint.yaml \
+            -shellcheck= -pyflakes= .github/workflows/*.yml
+
   semgrep:
     name: Semgrep CE SAST
     runs-on: [self-hosted, linux, x64, wizards-ci]
@@ -727,6 +765,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Lint Rust with Clippy
+        run: pnpm --filter @wizards/desktop lint:rust
 
       - name: Validate desktop release operations contract
         run: pnpm --filter @wizards/desktop release:ops

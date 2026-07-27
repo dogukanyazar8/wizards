@@ -126,6 +126,7 @@ function Resolve-LocalGateExecutable {
 
 $stepRegistry = @{
   "fast-index-diff" = @{ executable = "git"; arguments = @("diff", "--cached", "--check") }
+  "fast-actionlint" = @{ executable = "pnpm"; arguments = @("actionlint") }
   "fast-toolchain" = @{ executable = "pnpm"; arguments = @("test:toolchain") }
   "fast-staged-prettier" = @{ executable = "node"; arguments = @("scripts/quality/prettier-changed.mjs", "--staged") }
   "fast-staged-eslint" = @{ executable = "node"; arguments = @("scripts/quality/staged-eslint.mjs") }

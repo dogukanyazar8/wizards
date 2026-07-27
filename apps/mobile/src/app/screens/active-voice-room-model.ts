@@ -32,7 +32,19 @@ export function getMobileActiveVoiceRoomModel(
   };
 }
 
-export function formatMobileVoiceRoomDuration(connectedAt: number | null, now: number): string | null {
+/**
+ * The 5a session strip counts only a live session. While the room reconnects the
+ * elapsed time holds its last value, so the strip never implies the call kept
+ * running through the gap.
+ */
+export function shouldTickMobileVoiceRoomDuration(status: MobileVoiceRoomState["status"]): boolean {
+  return status === "connected";
+}
+
+export function formatMobileVoiceRoomDuration(
+  connectedAt: number | null,
+  now: number,
+): string | null {
   if (typeof connectedAt !== "number" || !Number.isFinite(connectedAt) || !Number.isFinite(now)) {
     return null;
   }

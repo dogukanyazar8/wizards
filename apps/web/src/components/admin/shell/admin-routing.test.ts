@@ -4,26 +4,45 @@ import { join } from "node:path";
 import { describe, it } from "node:test";
 import type { AdminRole } from "@wizards/db";
 import { redirectLegacyAdminHash } from "./admin-anchor-shim";
-import { getVisibleAdminNavGroups } from "./admin-nav-items";
+import { ADMIN_NAV_GROUPS, getVisibleAdminNavGroups } from "./admin-nav-items";
 import { isAdminNavPathActive } from "./admin-shell-nav-link";
 
 const adminAppRoot = join(process.cwd(), "src", "app", "admin");
 
 const expectedNavKeys: Record<AdminRole, string[]> = {
-  ADMIN: ["overview", "users", "servers", "audit", "activity", "notifications", "feedback"],
-  ANALYST: ["overview", "activity", "feedback"],
-  MODERATOR: ["overview", "users", "servers", "activity", "feedback"],
-  OWNER: ["overview", "users", "servers", "audit", "activity", "notifications", "feedback"],
-  SUPPORT: ["overview", "users", "servers", "activity", "feedback"],
+  ADMIN: [
+    "overview",
+    "users",
+    "servers",
+    "moderation",
+    "audit",
+    "activity",
+    "health",
+    "notifications",
+    "flags",
+    "feedback",
+  ],
+  ANALYST: ["overview", "activity", "health", "feedback"],
+  MODERATOR: ["overview", "users", "servers", "moderation", "activity", "health", "feedback"],
+  OWNER: [
+    "overview",
+    "users",
+    "servers",
+    "moderation",
+    "audit",
+    "activity",
+    "health",
+    "notifications",
+    "flags",
+    "feedback",
+  ],
+  SUPPORT: ["overview", "users", "servers", "moderation", "activity", "health", "feedback"],
 };
 
-const pageCapabilityPins = [
-  { capability: "dashboard.read", file: "page.tsx" },
-  { capability: "user.read", file: "users/page.tsx" },
-  { capability: "server.read", file: "servers/page.tsx" },
-  { capability: "dashboard.read", file: "activity/page.tsx" },
-  { capability: "audit.read", file: "audit/page.tsx" },
-] as const;
+/** `/admin` is the segment root; every other module is one segment below it. */
+function toSegmentFile(href: string, file: string) {
+  return href === "/admin" ? file : `${href.slice("/admin/".length)}/${file}`;
+}
 
 describe("admin route shell", () => {
   it("derives each role's visible modules from capabilities", () => {
@@ -38,15 +57,44 @@ describe("admin route shell", () => {
     }
   });
 
-  it("pins each admin page to its own server-side capability", () => {
-    for (const { capability, file } of pageCapabilityPins) {
-      const pagePath = join(adminAppRoot, file);
+  it("gives every module in the rail a page that guards its own capability", () => {
+    const items = ADMIN_NAV_GROUPS.flatMap((group) => group.items);
 
-      assert.ok(existsSync(pagePath), `${file} is missing`);
+    assert.ok(items.length > 0, "the rail cannot be empty");
+
+    for (const item of items) {
+      const pageFile = toSegmentFile(item.href, "page.tsx");
+      const pagePath = join(adminAppRoot, pageFile);
+
+      assert.ok(
+        existsSync(pagePath),
+        `${item.href} is published in the rail but ${pageFile} does not exist`,
+      );
       assert.match(
         readFileSync(pagePath, "utf8"),
-        new RegExp(`requireAdminCapability\\("${capability.replace(".", "\\.")}"\\)`, "u"),
-        `${file} must require ${capability}`,
+        new RegExp(`requireAdminModule\\("${item.capability.replace(".", "\\.")}"\\)`, "u"),
+        `${pageFile} must guard ${item.capability} through requireAdminModule`,
+      );
+      assert.ok(
+        existsSync(join(adminAppRoot, toSegmentFile(item.href, "loading.tsx"))),
+        `${item.href} needs a loading state so the shell keeps its cards`,
+      );
+    }
+  });
+
+  it("keeps the rail honest about which modules already render data", () => {
+    for (const item of ADMIN_NAV_GROUPS.flatMap((group) => group.items)) {
+      const source = readFileSync(join(adminAppRoot, toSegmentFile(item.href, "page.tsx")), "utf8");
+      const isPlaceholder = source.includes("AdminModulePlaceholder");
+
+      assert.equal(
+        item.comingSoon === true,
+        isPlaceholder,
+        `${item.href} advertises a different state in the rail than its page renders`,
+      );
+      assert.ok(
+        !(item.live === true && isPlaceholder),
+        `${item.href} shows a live pulse over a placeholder`,
       );
     }
   });

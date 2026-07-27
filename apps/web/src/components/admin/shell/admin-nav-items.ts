@@ -3,9 +3,23 @@ import { adminRoleHasCapability, type AdminCapability } from "@/lib/admin/capabi
 
 export type AdminNavItem = {
   capability: AdminCapability;
+  /** The route exists but still renders a placeholder — say so in the rail. */
+  comingSoon?: boolean;
   href: string;
+  /** Reserved for modules whose page really does stream live data. */
+  live?: boolean;
   /** Matches the icon set already bundled with the app (lucide). */
-  icon: "gauge" | "users" | "server" | "activity" | "scroll" | "megaphone" | "flag";
+  icon:
+    | "gauge"
+    | "users"
+    | "server"
+    | "activity"
+    | "scroll"
+    | "megaphone"
+    | "flag"
+    | "shield"
+    | "pulse"
+    | "toggle";
   key: string;
   label: string;
 };
@@ -50,6 +64,13 @@ export const ADMIN_NAV_GROUPS: readonly AdminNavGroup[] = [
   {
     items: [
       {
+        capability: "case.read",
+        href: "/admin/moderation",
+        icon: "shield",
+        key: "moderation",
+        label: "Moderasyon",
+      },
+      {
         capability: "audit.read",
         href: "/admin/audit",
         icon: "scroll",
@@ -63,10 +84,18 @@ export const ADMIN_NAV_GROUPS: readonly AdminNavGroup[] = [
     items: [
       {
         capability: "dashboard.read",
+        comingSoon: true,
         href: "/admin/activity",
         icon: "activity",
         key: "activity",
         label: "Aktivite",
+      },
+      {
+        capability: "health.read",
+        href: "/admin/health",
+        icon: "pulse",
+        key: "health",
+        label: "Platform Sağlığı",
       },
       {
         capability: "campaign.read",
@@ -74,6 +103,13 @@ export const ADMIN_NAV_GROUPS: readonly AdminNavGroup[] = [
         icon: "megaphone",
         key: "notifications",
         label: "Bildirimler",
+      },
+      {
+        capability: "flag.write",
+        href: "/admin/flags",
+        icon: "toggle",
+        key: "flags",
+        label: "Özellik Bayrakları",
       },
       {
         capability: "feedback.read",

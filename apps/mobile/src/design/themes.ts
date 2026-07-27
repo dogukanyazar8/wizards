@@ -11,6 +11,8 @@ import {
   redesignProfileLight,
   redesignToastDark,
   redesignToastLight,
+  redesignVoiceRoomDark,
+  redesignVoiceRoomLight,
 } from "./palette";
 import {
   mobileLayoutMetrics,
@@ -512,6 +514,36 @@ export interface MobileTheme {
     readonly soft: string;
   };
   readonly typography: typeof mobileTypography;
+  /**
+   * 5a/5b active voice room. The room owns its own surface stack in both themes,
+   * so it reads this group instead of `surface`/`text`/`status` — those still
+   * dress the direct-call screens, which the redesign leaves alone.
+   */
+  readonly voiceRoom: {
+    readonly accent: string;
+    readonly avatarSurface: string;
+    readonly avatarText: string;
+    readonly border: string;
+    readonly card: string;
+    readonly control: string;
+    readonly controlBorder: string;
+    readonly danger: string;
+    /** Mute state fill behind the microphone control. */
+    readonly dangerSoft: string;
+    /** The dock hairline runs a shade darker than a card border on dark. */
+    readonly dockBorder: string;
+    readonly screen: string;
+    readonly success: string;
+    /** Halo ring around the connected dot. */
+    readonly successHalo: string;
+    readonly text: string;
+    readonly textFaint: string;
+    readonly textSecondary: string;
+    readonly toggleKnob: string;
+    readonly toggleTrackOff: string;
+    /** Reconnecting amber. */
+    readonly warning: string;
+  };
 }
 
 function deepFreeze<T>(value: T): T {
@@ -813,6 +845,7 @@ export const lightTheme = deepFreeze({
     soft: redesignLight.textFaint,
   },
   typography: mobileTypography,
+  voiceRoom: redesignVoiceRoomLight,
 } satisfies MobileTheme);
 
 export const darkTheme = deepFreeze({
@@ -1081,4 +1114,5 @@ export const darkTheme = deepFreeze({
     soft: redesignDark.textFaint,
   },
   typography: mobileTypography,
+  voiceRoom: redesignVoiceRoomDark,
 } satisfies MobileTheme);

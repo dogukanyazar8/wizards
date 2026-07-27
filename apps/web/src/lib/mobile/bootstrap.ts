@@ -36,6 +36,7 @@ export type MobileBootstrapHomeSummary = {
 };
 
 export type GetMobileBootstrapPayloadInput = {
+  flags?: Record<string, boolean>;
   home?: MobileBootstrapHomeSummary;
   now?: Date;
   user: MobileBootstrapUser;
@@ -54,6 +55,7 @@ export const EMPTY_MOBILE_BOOTSTRAP_HOME: MobileBootstrapHomeSummary = {
 };
 
 export function getMobileBootstrapPayload({
+  flags = {},
   home = EMPTY_MOBILE_BOOTSTRAP_HOME,
   now = new Date(),
   user,
@@ -105,6 +107,7 @@ export function getMobileBootstrapPayload({
         status: "requires-native-permission",
       },
     },
+    flags,
     home,
     user: {
       avatarUrl: user.avatarUrl,
