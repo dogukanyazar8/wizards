@@ -5,14 +5,12 @@ import { useSocket } from "@/hooks/use-socket";
 import {
   exportDesktopDiagnosticsBundle,
   getDesktopCompanionSurfacesStatus,
-  getDesktopAutostartEnabled,
   getDesktopPlatformCapabilities,
   getDesktopVoiceShortcutStatus,
   hideDesktopGameOverlaySurface,
   repairDesktopGameOverlaySurface,
   refreshDesktopCompanionSurfaces,
   resolveDesktopGameOverlayHealth,
-  setDesktopAutostartEnabled,
   type DesktopCompanionSurfacesStatus,
   type DesktopPlatformCapabilities,
   type DesktopPlatformFeature,
@@ -190,9 +188,6 @@ export function DesktopDiagnosticsPanel() {
   );
   const [socketConnected, setSocketConnected] = useState(() => socket.connected);
   const [notificationPermission, setNotificationPermission] = useState("unknown");
-  const [autostartEnabled, setAutostartEnabled] = useState(false);
-  const [autostartPending, setAutostartPending] = useState(false);
-  const [autostartError, setAutostartError] = useState<string | null>(null);
   const [platformCapabilities, setPlatformCapabilities] =
     useState<DesktopPlatformCapabilities | null>(null);
   const [platformCapabilitiesError, setPlatformCapabilitiesError] = useState<string | null>(null);
@@ -220,15 +215,6 @@ export function DesktopDiagnosticsPanel() {
 
     void readNotificationPermission().then(setNotificationPermission);
     if (isWhisprDesktopRuntime()) {
-      void getDesktopAutostartEnabled()
-        .then((enabled) => {
-          setAutostartEnabled(enabled);
-          setAutostartError(null);
-        })
-        .catch(() => {
-          setAutostartError(t("desktop.diagnostics.autostart.error"));
-        });
-
       const capabilitiesStartedAt = performance.now();
       void getDesktopPlatformCapabilities()
         .then((capabilities) => {
@@ -274,24 +260,6 @@ export function DesktopDiagnosticsPanel() {
       socket.off("disconnect", syncSocketState);
     };
   }, [socket, t]);
-
-  const toggleAutostart = async () => {
-    if (!isDesktop || autostartPending) {
-      return;
-    }
-
-    const nextEnabled = !autostartEnabled;
-    setAutostartPending(true);
-    setAutostartError(null);
-    try {
-      const enabled = await setDesktopAutostartEnabled(nextEnabled);
-      setAutostartEnabled(enabled);
-    } catch {
-      setAutostartError(t("desktop.diagnostics.autostart.error"));
-    } finally {
-      setAutostartPending(false);
-    }
-  };
 
   const refreshCompanionSurfaces = async () => {
     if (!isDesktop || companionSurfacesPending) {
@@ -725,26 +693,10 @@ export function DesktopDiagnosticsPanel() {
             <p className="mt-1.5 text-xs leading-4 text-slate-500">
               {t("desktop.diagnostics.autostart.detail")}
             </p>
-            {autostartError ? (
-              <p className="mt-2 text-xs font-semibold text-amber-700">{autostartError}</p>
-            ) : null}
           </div>
-          <button
-            aria-checked={autostartEnabled}
-            className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-indigo-400/60 ${
-              autostartEnabled ? "border-indigo-300 bg-indigo-100" : "border-slate-200 bg-slate-100"
-            } ${autostartPending || !isDesktop ? "cursor-not-allowed opacity-60" : ""}`}
-            disabled={autostartPending || !isDesktop}
-            onClick={() => void toggleAutostart()}
-            role="switch"
-            type="button"
-          >
-            <span
-              className={`absolute left-1 h-5 w-5 rounded-full bg-white shadow-[0_6px_16px_rgba(15,23,42,0.14)] transition ${
-                autostartEnabled ? "translate-x-5 bg-indigo-500" : ""
-              }`}
-            />
-          </button>
+          <p className="max-w-48 text-right text-xs leading-4 text-slate-500">
+            {t("desktop.diagnostics.autostart.nativeTray")}
+          </p>
         </div>
       </div>
 

@@ -1405,6 +1405,8 @@ export const TR_MESSAGES = {
     "Oturumunu değiştirmeden Tauri kabuğunu, socket bağlantısını, bildirim iznini ve aktif ses yaşam döngüsünü incele.",
   "settings.desktop.webOnlyNote":
     "Bu kontroller yalnızca Whispr masaüstü uygulamasında kullanılabilir. Tarayıcı oturumlarında devre dışı kalır.",
+  "settings.desktop.nativeTrayControlNote":
+    "Kapanış davranışı bu cihazda yerel Whispr tray menüsünden yönetilir.",
   "settings.voice.audio.title": "Ses",
   "settings.voice.camera.badge": "Canlı önizleme",
   "settings.voice.camera.title": "Kamera",
@@ -1663,6 +1665,8 @@ export const TR_MESSAGES = {
   "desktop.diagnostics.autostart.label": "Whispr bilgisayarla açılsın",
   "desktop.diagnostics.autostart.detail":
     "Bu bilgisayarda oturum açıldığında Whispr'in otomatik başlamasını isteğe bağlı aç. Ayar işletim sistemi tarafından saklanır ve buradan her zaman kapatılabilir.",
+  "desktop.diagnostics.autostart.nativeTray":
+    "Başlangıçta açılmayı yerel Whispr tray menüsünden yönetin.",
   "desktop.diagnostics.autostart.error": "Whispr işletim sistemi başlangıç ayarını güncelleyemedi.",
   "desktop.diagnostics.streamerMode.label": "Yayıncı modu",
   "desktop.diagnostics.streamerMode.detail":

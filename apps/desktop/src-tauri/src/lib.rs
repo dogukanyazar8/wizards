@@ -9,15 +9,18 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
+use crate::ipc::{DesktopCompanionSnapshotPublishResultV1, DesktopCompanionSnapshotV1};
 use serde::{Deserialize, Serialize};
 use tauri::{
-    menu::{Menu, MenuItem, PredefinedMenuItem},
+    menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     webview::{NewWindowResponse, PageLoadEvent, WebviewWindow},
     AppHandle, LogicalSize, Manager, PhysicalPosition, PhysicalSize, WebviewUrl,
     WebviewWindowBuilder, WindowEvent,
 };
 use url::Url;
+
+mod ipc;
 
 #[cfg(windows)]
 use std::path::Path;
@@ -100,6 +103,7 @@ const DESKTOP_SPLASH_WINDOW_WIDTH: f64 = 432.0;
 const DESKTOP_SPLASH_WINDOW_HEIGHT: f64 = 292.0;
 const DESKTOP_BEFORE_CLOSE_TIMEOUT_MS: u64 = 3_000;
 const DESKTOP_MAIN_WINDOW_STATE_FILENAME: &str = ".window-state.json";
+const DESKTOP_NATIVE_SETTINGS_FILENAME: &str = ".native-settings.json";
 const DESKTOP_PLUGIN_WINDOW_STATE_FILENAME: &str = ".tauri-window-state.json";
 const DESKTOP_TRAY_ID: &str = "whispr-main";
 const MAX_DESKTOP_SHORTCUTS: usize = 4;
@@ -196,6 +200,12 @@ struct DesktopWindowPromotionState {
 #[derive(Clone, Default)]
 struct DesktopCloseBehaviorState {
     quit_on_close: Arc<Mutex<bool>>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[serde(default)]
+struct DesktopNativeSettings {
+    quit_on_close: bool,
 }
 
 #[derive(Clone, Default)]
@@ -612,8 +622,6 @@ pub fn run() {
             configure_desktop_voice_shortcuts,
             export_desktop_diagnostics_bundle,
             get_desktop_app_info,
-            get_desktop_quit_on_close_enabled,
-            get_desktop_autostart_enabled,
             get_desktop_foreground_process_name,
             get_desktop_main_window_focused,
             get_desktop_companion_surfaces_status,
@@ -626,9 +634,7 @@ pub fn run() {
             set_desktop_activity_status,
             set_desktop_game_overlay_visible,
             set_desktop_voice_mini_visible,
-            promote_desktop_main_window,
-            set_desktop_quit_on_close_enabled,
-            set_desktop_autostart_enabled
+            promote_desktop_main_window
         ])
         .setup(move |app| {
             let app_url = configured_app_url();
@@ -641,6 +647,7 @@ pub fn run() {
             let promotion_state = app.state::<DesktopWindowPromotionState>().inner().clone();
             let native_log_state = app.state::<DesktopNativeLogState>().inner().clone();
             let webview_data_directory = resolve_webview_data_directory(app)?;
+            let native_settings = read_desktop_native_settings(app.handle());
             install_desktop_panic_hook(app.handle().clone(), native_log_state);
             record_desktop_native_log(
                 app.handle(),
@@ -649,11 +656,13 @@ pub fn run() {
                 "Desktop shell setup started.",
             );
             set_desktop_window_promoted(&promotion_state, app_url.path() != DESKTOP_START_PATH);
+            set_desktop_quit_on_close(&close_behavior_state, native_settings.quit_on_close);
 
             setup_tray(
                 app,
                 &app_name,
                 close_coordinator.clone(),
+                close_behavior_state.clone(),
                 promotion_state.clone(),
             )?;
 
@@ -885,80 +894,6 @@ fn record_desktop_update_failure(
 }
 
 #[tauri::command]
-fn get_desktop_autostart_enabled(window: WebviewWindow, app: AppHandle) -> Result<bool, String> {
-    assert_desktop_main_command_window(&window)?;
-
-    #[cfg(any(target_os = "macos", windows, target_os = "linux"))]
-    {
-        use tauri_plugin_autostart::ManagerExt;
-        app.autolaunch()
-            .is_enabled()
-            .map_err(|error| format!("Unable to read desktop startup setting: {error}"))
-    }
-
-    #[cfg(not(any(target_os = "macos", windows, target_os = "linux")))]
-    {
-        let _ = app;
-        Ok(false)
-    }
-}
-
-#[tauri::command]
-fn set_desktop_autostart_enabled(
-    window: WebviewWindow,
-    app: AppHandle,
-    enabled: bool,
-) -> Result<bool, String> {
-    assert_desktop_main_command_window(&window)?;
-
-    #[cfg(any(target_os = "macos", windows, target_os = "linux"))]
-    {
-        use tauri_plugin_autostart::ManagerExt;
-        let autolaunch = app.autolaunch();
-        if enabled {
-            autolaunch
-                .enable()
-                .map_err(|error| format!("Unable to enable desktop startup: {error}"))?;
-        } else {
-            autolaunch
-                .disable()
-                .map_err(|error| format!("Unable to disable desktop startup: {error}"))?;
-        }
-        autolaunch
-            .is_enabled()
-            .map_err(|error| format!("Unable to verify desktop startup setting: {error}"))
-    }
-
-    #[cfg(not(any(target_os = "macos", windows, target_os = "linux")))]
-    {
-        let _ = app;
-        Ok(false)
-    }
-}
-
-#[tauri::command]
-fn get_desktop_quit_on_close_enabled(
-    window: WebviewWindow,
-    close_behavior: tauri::State<'_, DesktopCloseBehaviorState>,
-) -> Result<bool, String> {
-    assert_desktop_main_command_window(&window)?;
-
-    Ok(is_desktop_quit_on_close_enabled(close_behavior.inner()))
-}
-
-#[tauri::command]
-fn set_desktop_quit_on_close_enabled(
-    window: WebviewWindow,
-    close_behavior: tauri::State<'_, DesktopCloseBehaviorState>,
-    enabled: bool,
-) -> Result<bool, String> {
-    assert_desktop_main_command_window(&window)?;
-
-    set_desktop_quit_on_close(close_behavior.inner(), enabled);
-    Ok(enabled)
-}
-
-#[tauri::command]
 fn get_desktop_platform_capabilities(
     window: WebviewWindow,
 ) -> Result<DesktopPlatformCapabilities, String> {
@@ -1147,8 +1082,8 @@ fn set_desktop_game_overlay_visible(
 fn publish_desktop_game_overlay_snapshot(
     window: WebviewWindow,
     app: AppHandle,
-    snapshot: serde_json::Value,
-) -> Result<bool, String> {
+    snapshot: DesktopCompanionSnapshotV1,
+) -> Result<DesktopCompanionSnapshotPublishResultV1, String> {
     assert_desktop_main_command_window(&window)?;
 
     publish_desktop_snapshot_to_window(
@@ -1157,7 +1092,6 @@ fn publish_desktop_game_overlay_snapshot(
         "whispr:desktop-game-overlay-snapshot",
         snapshot,
         MAX_DESKTOP_GAME_OVERLAY_SNAPSHOT_BYTES,
-        "game overlay",
     )
 }
 
@@ -1191,8 +1125,8 @@ fn set_desktop_voice_mini_visible(
 fn publish_desktop_voice_mini_snapshot(
     window: WebviewWindow,
     app: AppHandle,
-    snapshot: serde_json::Value,
-) -> Result<bool, String> {
+    snapshot: DesktopCompanionSnapshotV1,
+) -> Result<DesktopCompanionSnapshotPublishResultV1, String> {
     assert_desktop_main_command_window(&window)?;
 
     publish_desktop_snapshot_to_window(
@@ -1201,7 +1135,6 @@ fn publish_desktop_voice_mini_snapshot(
         "whispr:desktop-voice-mini-snapshot",
         snapshot,
         MAX_DESKTOP_VOICE_MINI_SNAPSHOT_BYTES,
-        "voice mini",
     )
 }
 
@@ -1209,31 +1142,30 @@ fn publish_desktop_snapshot_to_window(
     app: &AppHandle,
     window_label: &str,
     event_name: &str,
-    snapshot: serde_json::Value,
+    snapshot: DesktopCompanionSnapshotV1,
     max_bytes: usize,
-    description: &str,
-) -> Result<bool, String> {
+) -> Result<DesktopCompanionSnapshotPublishResultV1, String> {
     let Some(window) = app.get_webview_window(window_label) else {
-        return Ok(false);
+        return Ok(DesktopCompanionSnapshotPublishResultV1::new(false));
     };
 
     let snapshot_json = serde_json::to_string(&snapshot)
-        .map_err(|error| format!("Unable to serialize desktop {description} snapshot: {error}"))?;
+        .map_err(|_| "Desktop companion snapshot could not be published.".to_string())?;
 
     if snapshot_json.len() > max_bytes {
-        return Err(format!("Desktop {description} snapshot is too large."));
+        return Err("Desktop companion snapshot is too large.".to_string());
     }
 
     let event_json = serde_json::to_string(event_name)
-        .map_err(|error| format!("Unable to serialize desktop {description} event: {error}"))?;
+        .map_err(|_| "Desktop companion snapshot could not be published.".to_string())?;
     let script = format!(
         "window.dispatchEvent(new CustomEvent({event_json}, {{ detail: {snapshot_json} }}));"
     );
     window
         .eval(&script)
-        .map_err(|error| format!("Unable to publish desktop {description} snapshot: {error}"))?;
+        .map_err(|_| "Desktop companion snapshot could not be published.".to_string())?;
 
-    Ok(true)
+    Ok(DesktopCompanionSnapshotPublishResultV1::new(true))
 }
 
 fn schedule_desktop_companion_surface_task<F>(
@@ -2073,6 +2005,92 @@ fn is_desktop_quit_on_close_enabled(close_behavior: &DesktopCloseBehaviorState) 
         .unwrap_or(false)
 }
 
+fn read_desktop_native_settings<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+) -> DesktopNativeSettings {
+    std::fs::read(desktop_native_settings_path(app))
+        .ok()
+        .and_then(|raw| serde_json::from_slice(&raw).ok())
+        .unwrap_or_default()
+}
+
+fn save_desktop_native_settings<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    settings: &DesktopNativeSettings,
+) -> Result<(), String> {
+    let settings_path = desktop_native_settings_path(app);
+    if let Some(parent) = settings_path.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|error| format!("Unable to save desktop settings: {error}"))?;
+    }
+
+    let serialized = serde_json::to_vec_pretty(settings)
+        .map_err(|error| format!("Unable to serialize desktop settings: {error}"))?;
+    std::fs::write(settings_path, serialized)
+        .map_err(|error| format!("Unable to save desktop settings: {error}"))
+}
+
+fn desktop_native_settings_path<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> PathBuf {
+    app.path()
+        .app_config_dir()
+        .unwrap_or_else(|_| std::env::temp_dir())
+        .join(DESKTOP_NATIVE_SETTINGS_FILENAME)
+}
+
+fn set_desktop_quit_on_close_from_native_menu(
+    app: &AppHandle,
+    close_behavior: &DesktopCloseBehaviorState,
+    enabled: bool,
+) -> Result<bool, String> {
+    save_desktop_native_settings(
+        app,
+        &DesktopNativeSettings {
+            quit_on_close: enabled,
+        },
+    )?;
+    set_desktop_quit_on_close(close_behavior, enabled);
+    Ok(enabled)
+}
+
+#[cfg(any(target_os = "macos", windows, target_os = "linux"))]
+fn is_desktop_autostart_enabled(app: &AppHandle) -> Result<bool, String> {
+    use tauri_plugin_autostart::ManagerExt;
+
+    app.autolaunch()
+        .is_enabled()
+        .map_err(|error| format!("Unable to read desktop startup setting: {error}"))
+}
+
+#[cfg(not(any(target_os = "macos", windows, target_os = "linux")))]
+fn is_desktop_autostart_enabled(_app: &AppHandle) -> Result<bool, String> {
+    Ok(false)
+}
+
+#[cfg(any(target_os = "macos", windows, target_os = "linux"))]
+fn set_desktop_autostart_from_native_menu(app: &AppHandle, enabled: bool) -> Result<bool, String> {
+    use tauri_plugin_autostart::ManagerExt;
+
+    let autolaunch = app.autolaunch();
+    if enabled {
+        autolaunch
+            .enable()
+            .map_err(|error| format!("Unable to enable desktop startup: {error}"))?;
+    } else {
+        autolaunch
+            .disable()
+            .map_err(|error| format!("Unable to disable desktop startup: {error}"))?;
+    }
+    is_desktop_autostart_enabled(app)
+}
+
+#[cfg(not(any(target_os = "macos", windows, target_os = "linux")))]
+fn set_desktop_autostart_from_native_menu(
+    _app: &AppHandle,
+    _enabled: bool,
+) -> Result<bool, String> {
+    Ok(false)
+}
+
 fn save_desktop_main_window_state(app: &AppHandle, promotion_state: &DesktopWindowPromotionState) {
     if !is_desktop_window_promoted(promotion_state) {
         return;
@@ -2298,6 +2316,7 @@ fn setup_tray(
     app: &mut tauri::App,
     app_name: &str,
     close_coordinator: DesktopCloseCoordinator,
+    close_behavior: DesktopCloseBehaviorState,
     promotion_state: DesktopWindowPromotionState,
 ) -> tauri::Result<()> {
     let show_item = MenuItem::with_id(app, "show", format!("Show {app_name}"), true, None::<&str>)?;
@@ -2307,6 +2326,22 @@ fn setup_tray(
         "diagnostics",
         "Desktop Diagnostics",
         true,
+        None::<&str>,
+    )?;
+    let autostart_item = CheckMenuItem::with_id(
+        app,
+        "autostart",
+        "Launch at startup",
+        true,
+        is_desktop_autostart_enabled(app.handle()).unwrap_or(false),
+        None::<&str>,
+    )?;
+    let quit_on_close_item = CheckMenuItem::with_id(
+        app,
+        "quit_on_close",
+        "Quit when main window closes",
+        true,
+        is_desktop_quit_on_close_enabled(&close_behavior),
         None::<&str>,
     )?;
     let hide_overlay_item = MenuItem::with_id(
@@ -2341,6 +2376,8 @@ fn setup_tray(
             &show_item,
             &settings_item,
             &diagnostics_item,
+            &autostart_item,
+            &quit_on_close_item,
             &command_separator,
             &hide_overlay_item,
             &refresh_overlay_item,
@@ -2353,6 +2390,9 @@ fn setup_tray(
     )?;
 
     let promotion_state_for_menu = promotion_state.clone();
+    let close_behavior_for_menu = close_behavior.clone();
+    let autostart_item_for_menu = autostart_item.clone();
+    let quit_on_close_item_for_menu = quit_on_close_item.clone();
     let mut tray_builder = TrayIconBuilder::with_id(DESKTOP_TRAY_ID)
         .tooltip(format!("{app_name} Desktop"))
         .menu(&menu)
@@ -2361,6 +2401,52 @@ fn setup_tray(
             "show" => show_main_window(app),
             "settings" => dispatch_desktop_command(app, "open-settings", None),
             "diagnostics" => dispatch_desktop_command(app, "open-desktop-diagnostics", None),
+            "autostart" => match is_desktop_autostart_enabled(app) {
+                Ok(current) => match set_desktop_autostart_from_native_menu(app, !current) {
+                    Ok(enabled) => {
+                        let _ = autostart_item_for_menu.set_checked(enabled);
+                    }
+                    Err(_) => {
+                        let _ = autostart_item_for_menu.set_checked(current);
+                        record_desktop_native_log(
+                            app,
+                            "error",
+                            "native_autostart",
+                            "Native launch-at-startup setting was not updated.",
+                        );
+                    }
+                },
+                Err(_) => {
+                    let _ = autostart_item_for_menu.set_checked(false);
+                    record_desktop_native_log(
+                        app,
+                        "error",
+                        "native_autostart",
+                        "Native launch-at-startup state could not be read.",
+                    );
+                }
+            },
+            "quit_on_close" => {
+                let current = is_desktop_quit_on_close_enabled(&close_behavior_for_menu);
+                match set_desktop_quit_on_close_from_native_menu(
+                    app,
+                    &close_behavior_for_menu,
+                    !current,
+                ) {
+                    Ok(enabled) => {
+                        let _ = quit_on_close_item_for_menu.set_checked(enabled);
+                    }
+                    Err(_) => {
+                        let _ = quit_on_close_item_for_menu.set_checked(current);
+                        record_desktop_native_log(
+                            app,
+                            "error",
+                            "native_close_behavior",
+                            "Native close behavior setting was not updated.",
+                        );
+                    }
+                }
+            }
             "hide_game_overlay" => {
                 let _ = hide_desktop_game_overlay_window(app);
                 dispatch_desktop_command_without_focus(app, "hide-game-overlay", None);
@@ -3719,6 +3805,68 @@ mod tests {
         assert!(!is_authorized_desktop_command_window_label("game-overlay"));
         assert!(!is_authorized_desktop_command_window_label("settings"));
         assert!(!is_authorized_desktop_command_window_label(""));
+    }
+
+    #[test]
+    fn desktop_native_settings_keep_close_behavior_local_and_typed() {
+        let settings = serde_json::from_str::<DesktopNativeSettings>(
+            r#"{"quit_on_close":true,"unexpected_remote_field":"ignored"}"#,
+        )
+        .unwrap();
+
+        assert!(settings.quit_on_close);
+        assert!(!DesktopNativeSettings::default().quit_on_close);
+    }
+
+    #[test]
+    fn desktop_companion_snapshot_requires_the_v1_typed_contract() {
+        let valid = serde_json::json!({
+            "active": true,
+            "connection": { "quality": "good", "rttMs": null },
+            "participants": [],
+            "updatedAt": "2026-07-27T10:30:00.000Z",
+            "version": 1
+        });
+        let invalid = serde_json::json!({
+            "active": true,
+            "connection": { "quality": "good", "rttMs": null },
+            "participants": serde_json::Value::Array(
+                (0..13)
+                    .map(|index| serde_json::json!({
+                        "audioLevel": 0.5,
+                        "avatarUrl": null,
+                        "displayName": "Whispr",
+                        "isDeafened": false,
+                        "isLocal": index == 0,
+                        "isMuted": false,
+                        "isSpeaking": false,
+                        "userId": format!("user-{index}")
+                    }))
+                    .collect(),
+            ),
+            "updatedAt": "2026-07-27T10:30:00.000Z",
+            "version": 1
+        });
+        let unknown_field = serde_json::json!({
+            "active": true,
+            "connection": { "quality": "good", "rttMs": null },
+            "participants": [],
+            "unexpected": true,
+            "updatedAt": "2026-07-27T10:30:00.000Z",
+            "version": 1
+        });
+        let unsupported_version = serde_json::json!({
+            "active": true,
+            "connection": { "quality": "good", "rttMs": null },
+            "participants": [],
+            "updatedAt": "2026-07-27T10:30:00.000Z",
+            "version": 2
+        });
+
+        assert!(serde_json::from_value::<DesktopCompanionSnapshotV1>(valid).is_ok());
+        assert!(serde_json::from_value::<DesktopCompanionSnapshotV1>(invalid).is_err());
+        assert!(serde_json::from_value::<DesktopCompanionSnapshotV1>(unknown_field).is_err());
+        assert!(serde_json::from_value::<DesktopCompanionSnapshotV1>(unsupported_version).is_err());
     }
 
     #[test]

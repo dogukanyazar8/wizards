@@ -144,7 +144,7 @@ The older "missing admin sections" snapshot is not the current failure evidence:
 
 ## P01 CI, security, release, and measurement record
 
-**Status: ENV BLOCKED.** Source/local gates pass. Latest `origin/uat` is merged by `787b2af3`; P02 has not begun. Candidate-specific measurement and complete candidate smoke remain blocked by existing user-managed processes, not a synthetic pass.
+**Status: ENV BLOCKED.** Source/local gates pass. Latest `origin/uat` is merged by `787b2af3`; P02 is in progress. Candidate-specific measurement and complete candidate smoke remain blocked by existing user-managed processes, not a synthetic pass.
 
 ### Source and local gates — PASS
 
@@ -201,20 +201,41 @@ Candidate manual checklist after user exits Whispr from tray: launch candidate; 
 
 Rollback: revert focused P01 source commits. Do not restore non-protected signing secrets or bypass exact-lock audit checks.
 
+## P02 trust-boundary record
+
+**Status: IN PROGRESS.** The first bounded slice reduces the remote `main` custom-command capability set from 21 to 17. P02 is not PASS until privileged updater, diagnostics-export, and shortcut-mutation groups have trusted local counterparts.
+
+### Completed source/local slice
+
+- Remote `main` no longer receives read or write commands for autostart or close behavior. The generated build contract, checked-in capability, Rust command manifest, and web controls all remove the four permissions.
+- Native tray check items now own **Launch at startup** and **Quit when main window closes**. The close behavior persists in `.native-settings.json`; a tray action is a local user gesture. The remote settings/diagnostics pages now direct users to this trusted surface.
+- Voice-mini and game-overlay snapshots now enter Rust as `DesktopCompanionSnapshotV1`, with a v1 response, bounded typed fields, 12-participant ceiling, allowed URL schemes, timestamp shape, and unknown-field rejection. Legacy snapshots without `version` map to v1 during the temporary remote-web rollout window; explicit unsupported versions fail closed.
+- `voice-mini` remains drag-only and `game-overlay` remains `permissions: []`.
+
+### Current gates
+
+- PASS: desktop trusted-control contract, desktop script suite, Rust fmt, Rust clippy, Rust unit tests, shared voice-mini schema tests, focused web lint.
+- ENV BLOCKED: broad web typecheck has existing generated-Prisma and unrelated UAT/admin errors; no P02 source error was reported.
+- NOT RUN: signed updater/release flow, remote hosted builds, candidate-specific runtime smoke/measurement remain outside this source slice or blocked by existing user-managed processes.
+
+### Remaining P02 gate
+
+Build trusted local counterparts for updater, diagnostics export, shortcut configuration, permissions onboarding, and recovery UI; then remove their remote capabilities one group at a time. Do not mark P02 PASS before those mutations require a native/local user gesture.
+
 ## Phase checklist
 
-| Phase | Scope                                                              | Status                                                    |
-| ----- | ------------------------------------------------------------------ | --------------------------------------------------------- |
-| P00   | Baseline, source inventory, trust boundary, scope lock             | PASS after this document-only commit                      |
-| P01   | CI/security/release gates and executable measurement evidence      | ENV BLOCKED: source/local PASS; candidate runtime blocked |
-| P02   | Trusted local control plane and incremental IPC boundary reduction | Blocked on P01 acceptance                                 |
-| P03   | Windows native media spike and measured selection                  | Blocked on P02 acceptance and research decision           |
-| P04   | Windows native UX                                                  | Blocked on prior phases                                   |
-| P05   | Bundled local renderer and shared core strangler migration         | Blocked on prior phases                                   |
-| P06   | macOS/Linux parity                                                 | Blocked on Windows evidence                               |
-| P07   | Collaboration parity                                               | Blocked on foundation gates                               |
-| P08   | Scale, observability, accessibility                                | Blocked on foundation gates                               |
-| P09   | UAT acceptance                                                     | Blocked on all preceding gates and external CI baseline   |
+| Phase | Scope                                                              | Status                                                     |
+| ----- | ------------------------------------------------------------------ | ---------------------------------------------------------- |
+| P00   | Baseline, source inventory, trust boundary, scope lock             | PASS after this document-only commit                       |
+| P01   | CI/security/release gates and executable measurement evidence      | ENV BLOCKED: source/local PASS; candidate runtime blocked  |
+| P02   | Trusted local control plane and incremental IPC boundary reduction | IN PROGRESS: autostart/close group local; companion IPC v1 |
+| P03   | Windows native media spike and measured selection                  | Blocked on P02 acceptance and research decision            |
+| P04   | Windows native UX                                                  | Blocked on prior phases                                    |
+| P05   | Bundled local renderer and shared core strangler migration         | Blocked on prior phases                                    |
+| P06   | macOS/Linux parity                                                 | Blocked on Windows evidence                                |
+| P07   | Collaboration parity                                               | Blocked on foundation gates                                |
+| P08   | Scale, observability, accessibility                                | Blocked on foundation gates                                |
+| P09   | UAT acceptance                                                     | Blocked on all preceding gates and external CI baseline    |
 
 ## Risks
 

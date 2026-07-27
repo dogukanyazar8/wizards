@@ -1375,7 +1375,6 @@ function SettingsPanelContent({
   const {
     applyPersistedSettings,
     appIconId,
-    desktopCloseToTrayEnabled,
     desktopNotificationPreviews,
     desktopRichPresenceAudience,
     desktopRichPresenceEnabled,
@@ -1386,7 +1385,6 @@ function SettingsPanelContent({
     notificationLimit,
     notificationPopupTimeoutSeconds,
     setAppIconId,
-    setDesktopCloseToTrayEnabled,
     setDesktopNotificationPreviews,
     setDesktopRichPresenceAudience,
     setDesktopRichPresenceEnabled,
@@ -1400,7 +1398,6 @@ function SettingsPanelContent({
     useShallow((state) => ({
       applyPersistedSettings: state.applyPersistedSettings,
       appIconId: state.appIconId,
-      desktopCloseToTrayEnabled: state.desktopCloseToTrayEnabled,
       desktopNotificationPreviews: state.desktopNotificationPreviews,
       desktopRichPresenceAudience: state.desktopRichPresenceAudience,
       desktopRichPresenceEnabled: state.desktopRichPresenceEnabled,
@@ -1411,7 +1408,6 @@ function SettingsPanelContent({
       notificationLimit: state.notificationLimit,
       notificationPopupTimeoutSeconds: state.notificationPopupTimeoutSeconds,
       setAppIconId: state.setAppIconId,
-      setDesktopCloseToTrayEnabled: state.setDesktopCloseToTrayEnabled,
       setDesktopNotificationPreviews: state.setDesktopNotificationPreviews,
       setDesktopRichPresenceAudience: state.setDesktopRichPresenceAudience,
       setDesktopRichPresenceEnabled: state.setDesktopRichPresenceEnabled,
@@ -1964,14 +1960,11 @@ function SettingsPanelContent({
                   {t("settings.desktop.webOnlyNote")}
                 </p>
               ) : null}
-              <ToggleRow
-                checked={desktopCloseToTrayEnabled}
-                description={t("settings.notifications.closeToTray.description")}
-                disabled={!isDesktopRuntime}
-                label={t("settings.notifications.closeToTray.title")}
-                onChange={setDesktopCloseToTrayEnabled}
-                testId="settings-desktop-close-to-tray"
-              />
+              {isDesktopRuntime ? (
+                <p className="rounded-[16px] border border-[hsl(var(--border)/0.62)] bg-[hsl(var(--surface-soft)/0.24)] px-3 py-2 text-xs leading-5 text-app-muted">
+                  {t("settings.desktop.nativeTrayControlNote")}
+                </p>
+              ) : null}
               <ToggleRow
                 checked={desktopStreamerModeEnabled}
                 description={t("settings.notifications.streamerMode.description")}

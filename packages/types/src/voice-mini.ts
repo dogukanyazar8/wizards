@@ -58,6 +58,7 @@ export const VoiceMiniSnapshotSchema = z.object({
   participants: z.array(VoiceMiniParticipantSchema).max(12),
   privacyMode: VoiceMiniSnapshotPrivacyModeSchema.optional(),
   updatedAt: z.string().datetime(),
+  version: z.literal(1).default(1),
 });
 
 export type VoiceMiniSnapshot = z.infer<typeof VoiceMiniSnapshotSchema>;

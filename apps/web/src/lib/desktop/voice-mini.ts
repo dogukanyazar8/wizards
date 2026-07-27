@@ -150,5 +150,6 @@ export function buildVoiceMiniSnapshot(input: VoiceMiniSnapshotInput): VoiceMini
     participants,
     privacyMode,
     updatedAt: new Date().toISOString(),
+    version: 1,
   });
 }

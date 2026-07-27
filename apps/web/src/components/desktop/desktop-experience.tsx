@@ -27,7 +27,6 @@ import {
   refreshDesktopCompanionSurfacesWithLayout,
   resolveDesktopGameOverlayHealth,
   setDesktopActivityStatus,
-  setDesktopQuitOnCloseEnabled,
   setDesktopVoiceMiniVisible,
   WHISPR_DESKTOP_VOICE_MINI_COMMAND_CHANNEL,
   type DesktopVoiceMiniCommand,
@@ -305,7 +304,6 @@ export function DesktopExperience() {
   } = useVoiceConnection();
   const { t } = useI18n();
   const desktopNotificationPreviews = useAppStore((state) => state.desktopNotificationPreviews);
-  const desktopCloseToTrayEnabled = useAppStore((state) => state.desktopCloseToTrayEnabled);
   const desktopRichPresenceAudience = useAppStore((state) => state.desktopRichPresenceAudience);
   const desktopRichPresenceEnabled = useAppStore((state) => state.desktopRichPresenceEnabled);
   const desktopStreamerModeProcessDetectionEnabled = useAppStore(
@@ -810,14 +808,6 @@ export function DesktopExperience() {
       };
     }
   }, [activeChannelId, connectionState, isDesktop]);
-
-  useEffect(() => {
-    if (!isDesktop) {
-      return;
-    }
-
-    void setDesktopQuitOnCloseEnabled(!desktopCloseToTrayEnabled).catch(() => undefined);
-  }, [desktopCloseToTrayEnabled, isDesktop]);
 
   useEffect(() => {
     if (!isDesktop) {
