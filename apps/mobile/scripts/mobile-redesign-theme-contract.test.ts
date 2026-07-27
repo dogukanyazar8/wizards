@@ -680,6 +680,7 @@ export function Fixture({ cap }: { cap: number }) {
       languageRadio: "#C9CDE4",
       lavender: "#EEF0FE",
       lavenderBorder: "#DFE2FC",
+      plannedSurface: "#F0F1F7",
       ownerBadge: "#FFF3D6",
       success: "#22C55E",
       canonicalSuccessText: "#22A366",
@@ -731,6 +732,7 @@ export function Fixture({ cap }: { cap: number }) {
       accentText: "#A5A8F5",
       selectedSurface: "#2A2D55",
       selectedBorder: "#3B3F73",
+      plannedSurface: "rgba(138,144,176,.16)",
       ownerBadge: "#3A2E1B",
       canonicalDanger: "#E05252",
       canonicalMentionBadge: "#E5484D",
@@ -954,6 +956,7 @@ export function Fixture({ cap }: { cap: number }) {
     assert.deepEqual(lightTheme.surface, {
       base: "#F6F7FB",
       card: "#FFFFFF",
+      chipSelected: "#1E2235",
       elevated: "#FFFFFF",
       inverse: "#1E2235",
       inverseControl: "rgba(255,255,255,.12)",
@@ -974,6 +977,7 @@ export function Fixture({ cap }: { cap: number }) {
     assert.deepEqual(darkTheme.surface, {
       base: "#131529",
       card: "#1C1F3A",
+      chipSelected: "#2A2D55",
       elevated: "#1C1F3A",
       inverse: "#1E2235",
       inverseControl: "rgba(255,255,255,.12)",
@@ -991,6 +995,11 @@ export function Fixture({ cap }: { cap: number }) {
       voiceRoomVideo: "#12141F",
       voiceRoomVideoGlass: "rgba(18,20,31,.6)",
     });
+    // A selected chip has to be legible as selected. The handoff ink does that on
+    // white and nothing at all on a dark card, so the two themes are allowed to
+    // disagree about the colour but never about it differing from the card.
+    assert.notEqual(lightTheme.surface.chipSelected, lightTheme.surface.card);
+    assert.notEqual(darkTheme.surface.chipSelected, darkTheme.surface.card);
 
     assert.deepEqual(lightTheme.text, {
       dateSeparator: "#8A90B0",
@@ -1032,6 +1041,7 @@ export function Fixture({ cap }: { cap: number }) {
       info: "#2563EB",
       infoSoft: "#EFF6FF",
       onStatus: "#1E2235",
+      plannedSoft: "#F0F1F7",
       pendingBadge: "#E0527E",
       success: "#22C55E",
       successOnInverse: "#34D399",
@@ -1052,6 +1062,7 @@ export function Fixture({ cap }: { cap: number }) {
       info: "#60A5FA",
       infoSoft: "#172554",
       onStatus: "#ECEEFA",
+      plannedSoft: "rgba(138,144,176,.16)",
       pendingBadge: "#E0527E",
       success: "#34D399",
       successOnInverse: "#34D399",

@@ -310,6 +310,7 @@ export const EN_MESSAGES = {
   "admin.feedback.roadmap.title": "Community roadmap",
   "admin.feedback.roadmap.description": "What the mobile app shows under “Topluluk yol haritası”.",
   "admin.feedback.roadmap.newTitle": "New item title",
+  "admin.feedback.roadmap.versionLabel": "Version label",
   "admin.feedback.roadmap.newDescription": "Optional description",
   "admin.feedback.roadmap.create": "Add item",
   "admin.feedback.roadmap.votes": "{count} votes",

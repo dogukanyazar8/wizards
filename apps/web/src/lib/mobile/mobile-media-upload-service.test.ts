@@ -243,9 +243,7 @@ function createClaimHarness(options: ClaimHarnessOptions = {}) {
 
               operations.push(`tx.upload.schedule:${args.where.id}`);
               if (options.priorCleanupLeaseBeforeSchedule && !priorCleanupLeaseApplied) {
-                const leased = working.uploads.find(
-                  (candidate) => candidate.id === args.where.id,
-                );
+                const leased = working.uploads.find((candidate) => candidate.id === args.where.id);
                 if (leased) {
                   leased.cleanupAfter = new Date("2026-07-13T09:10:00.000Z");
                   operations.push("concurrent.prior-cleanup.lease");
@@ -477,9 +475,7 @@ function createConcurrentProfileClaimsHarness() {
             );
           },
           async findUnique(args: { where: { id: string } }) {
-            return (
-              working.uploads.find((candidate) => candidate.id === args.where.id) ?? null
-            );
+            return working.uploads.find((candidate) => candidate.id === args.where.id) ?? null;
           },
           async updateMany(args: {
             data: { claimedAt?: Date; cleanupAfter?: Date | null };
@@ -847,7 +843,12 @@ describe("mobile media upload service", { concurrency: false }, () => {
       }
     });
 
-    it("awaits opportunistic cleanup at the authenticated upload boundary", async () => {
+    /**
+     * Cleanup still runs at the authenticated boundary, but the caller is the
+     * phone waiting on its upload — housekeeping for objects nobody is waiting
+     * on must not hold that response open.
+     */
+    it("starts opportunistic cleanup without holding the upload response", async () => {
       const { dependencies } = createRecordHarness();
       let cleanupStarted = false;
       let releaseCleanup: (() => void) | undefined;
@@ -870,17 +871,11 @@ describe("mobile media upload service", { concurrency: false }, () => {
         } as never,
       );
 
-      await Promise.resolve();
+      const response = await run;
       assert.equal(cleanupStarted, true);
-      let settled = false;
-      void run.then(() => {
-        settled = true;
-      });
-      await Promise.resolve();
-      assert.equal(settled, false);
+      assert.equal(response.purpose, "profile-avatar");
 
       releaseCleanup?.();
-      await run;
     });
 
     it("does not fail an authorized upload when opportunistic cleanup rejects", async () => {
@@ -1037,12 +1032,18 @@ describe("mobile media upload service", { concurrency: false }, () => {
       assert.ok(winner?.status === "fulfilled");
       const winnerId = winner.value.claimId;
       const loserId = winnerId === "claim-a" ? "claim-b" : "claim-a";
-      assert.equal(state.uploads.find((upload) => upload.id === winnerId)?.claimedAt?.getTime(), now.getTime());
+      assert.equal(
+        state.uploads.find((upload) => upload.id === winnerId)?.claimedAt?.getTime(),
+        now.getTime(),
+      );
       assert.equal(state.uploads.find((upload) => upload.id === loserId)?.claimedAt, null);
 
       await claimMobileMediaUpload("user-1", { claimId: loserId }, dependencies as never);
 
-      assert.equal(state.uploads.find((upload) => upload.id === loserId)?.claimedAt?.getTime(), now.getTime());
+      assert.equal(
+        state.uploads.find((upload) => upload.id === loserId)?.claimedAt?.getTime(),
+        now.getTime(),
+      );
       assert.equal(
         state.uploads.find((upload) => upload.id === winnerId)?.cleanupAfter?.getTime(),
         now.getTime(),
@@ -1245,7 +1246,9 @@ describe("mobile media upload service", { concurrency: false }, () => {
 
           assert.ok(operations.includes("concurrent.prior-cleanup.lease"));
           assert.equal(
-            state.uploads.find((upload) => upload.id === testCase.prior.id)?.cleanupAfter?.getTime(),
+            state.uploads
+              .find((upload) => upload.id === testCase.prior.id)
+              ?.cleanupAfter?.getTime(),
             leaseUntil.getTime(),
           );
         });

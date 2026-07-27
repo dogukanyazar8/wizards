@@ -210,7 +210,9 @@ export async function recordVerifiedMobileMediaUpload(
     purpose: toPublicPurpose(upload.purpose),
     targetServerId: upload.targetServerId,
   });
-  await runInjectedOpportunisticCleanup(dependencies);
+  // Not awaited: the phone is blocked on this response, and cleanup is work for
+  // objects nobody is waiting on.
+  void runInjectedOpportunisticCleanup(dependencies);
   return response;
 }
 
@@ -515,7 +517,7 @@ export async function claimMobileMediaUpload(
     };
   });
 
-  await runInjectedOpportunisticCleanup(dependencies);
+  void runInjectedOpportunisticCleanup(dependencies);
   if (committed.kind === "profile") {
     await dependencies.broadcastProfile(committed.broadcast);
   } else if (committed.kind === "server") {

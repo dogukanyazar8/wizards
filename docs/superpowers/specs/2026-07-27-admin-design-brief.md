@@ -1,5 +1,10 @@
 # Whispr Admin Paneli — Tasarım Brief'i
 
+> **GEÇERSİZ (2026-07-27):** Tasarım üretildi ve teslim alındı —
+> `design_handoff/design_handoff_admin_panel/`. Görsel otorite artık
+> [G spec'i](2026-07-27-admin-design-handoff-implementation.md). Bu brief'in
+> §8 veri kuralları G §4'te yaşıyor; belge tarihsel referans olarak duruyor.
+
 **Tarih:** 2026-07-27
 **Kime:** görsel tasarımı üretecek tasarım aracı / tasarımcı
 **Neden var:** bu belge olmadan üretilen tasarım, jenerik bir admin dashboard

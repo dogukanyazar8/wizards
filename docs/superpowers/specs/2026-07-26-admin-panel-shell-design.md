@@ -274,6 +274,12 @@ düzeltme bir kere yapılır ve altıncı yeni rotada yeniden bozulur.
 
 ### 6. Tasarım tokenları
 
+> **Güncelleme (2026-07-27):** görsel kaynak artık
+> `design_handoff/design_handoff_admin_panel/` — kabuk, kit ve ölçüler
+> [G spec'inden](2026-07-27-admin-design-handoff-implementation.md) gelir.
+> Aşağıdaki yoğunluk token'ları yaklaşımı G'nin README ölçüleriyle
+> değiştirildi; bu bölüm tarihsel gerekçe olarak duruyor.
+
 **Yoğunluk ölçeği.** Renk paylaşılır, boşluk paylaşılmaz:
 
 ```css

@@ -38,21 +38,31 @@ eklendi.
 
 ## Alt projeler ve fazlar
 
-| Faz    | Spec                                                                | Kapsam                                                                                | Bağımlılık            |
-| ------ | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------- | --------------------- |
-| **B1** | [Panel kabuğu §5](2026-07-26-admin-panel-shell-design.md)           | Merkezi API capability politikası, `requireAdminCapability`, kapsama sözleşme testi   | yok                   |
-| **E1** | [Kampanya §E1](2026-07-26-admin-campaigns-product-voice-design.md)  | `CampaignDelivery`, dondurulmuş alıcı listesi, idempotent yeniden deneme, onay akışı  | B1                    |
-| **A**  | [Telemetri omurgası](2026-07-26-admin-telemetry-backbone-design.md) | Ölçüm (adım 0), platform + `appVersion` boyutu, `ClientAttribution`, kesim politikası | yok                   |
-| **B2** | [Panel kabuğu §1-3](2026-07-26-admin-panel-shell-design.md)         | Gerçek rotalar, snapshot bölünmesi, sol navigasyon, anchor shim                       | B1                    |
-| **D1** | [Moderasyon §D1](2026-07-26-admin-moderation-design.md)             | Profil-raporu kuyruğu, vaka modeli, üstlenme, aksiyon, audit `ipHash` düzeltmesi      | B1, B2                |
-| **C1** | [Sağlık §C1](2026-07-26-admin-platform-health-analytics-design.md)  | İstemci sağlık olayları: ingest + ekran                                               | B2                    |
-| **C2** | [Sağlık §C2](2026-07-26-admin-platform-health-analytics-design.md)  | Feature flag + kill-switch                                                            | B2                    |
-| **C3** | [Sağlık §C3](2026-07-26-admin-platform-health-analytics-design.md)  | Push telemetrisi (Expo ticket)                                                        | yok                   |
-| **C4** | [Sağlık §C4](2026-07-26-admin-platform-health-analytics-design.md)  | Platform serileri, kohort, kısıtlı funnel                                             | A, B2                 |
-| **E2** | [Kampanya §E2](2026-07-26-admin-campaigns-product-voice-design.md)  | Zamanlama, teslimat raporu                                                            | E1                    |
-| **E3** | [Kampanya §E3](2026-07-26-admin-campaigns-product-voice-design.md)  | Geri bildirim kümeleme, sürüm ilişkisi                                                | B2                    |
-| **D2** | [Moderasyon §D2](2026-07-26-admin-moderation-design.md)             | Rapor sözleşmesi genişletmesi, delil snapshot'ı, itiraz                               | D1 + istemci deploy'u |
-| **F**  | [Desktop + mobil](2026-07-26-admin-desktop-mobile-design.md)        | `requireMobileAdminCapability`, desktop konsol penceresi, mobil vaka refakatçisi      | B1, D1                |
+| Faz    | Spec                                                                                                                 | Kapsam                                                                                                                                                  | Bağımlılık                |
+| ------ | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| **B1** | [Panel kabuğu §5](2026-07-26-admin-panel-shell-design.md)                                                            | Merkezi API capability politikası, `requireAdminCapability`, kapsama sözleşme testi                                                                     | yok                       |
+| **E1** | [Kampanya §E1](2026-07-26-admin-campaigns-product-voice-design.md)                                                   | `CampaignDelivery`, dondurulmuş alıcı listesi, idempotent yeniden deneme, onay akışı                                                                    | B1                        |
+| **A**  | [Telemetri omurgası](2026-07-26-admin-telemetry-backbone-design.md)                                                  | Ölçüm (adım 0), platform + `appVersion` boyutu, `ClientAttribution`, kesim politikası                                                                   | yok                       |
+| **B2** | [Panel kabuğu §1-3](2026-07-26-admin-panel-shell-design.md) + [G](2026-07-27-admin-design-handoff-implementation.md) | Gerçek rotalar, snapshot bölünmesi, **handoff kabuğu + ortak UI kiti**, Genel Bakış/Kullanıcılar/Sunucular/Audit modülleri, anchor shim                 | B1                        |
+| **D1** | [Moderasyon §D1](2026-07-26-admin-moderation-design.md)                                                              | Profil-raporu kuyruğu, vaka modeli, üstlenme, aksiyon, audit `ipHash` düzeltmesi                                                                        | B1, B2                    |
+| **C1** | [Sağlık §C1](2026-07-26-admin-platform-health-analytics-design.md)                                                   | İstemci sağlık olayları: ingest + ekran                                                                                                                 | B2                        |
+| **C2** | [Sağlık §C2](2026-07-26-admin-platform-health-analytics-design.md)                                                   | Feature flag + kill-switch                                                                                                                              | B2                        |
+| **C3** | [Sağlık §C3](2026-07-26-admin-platform-health-analytics-design.md)                                                   | Push telemetrisi (Expo ticket)                                                                                                                          | yok                       |
+| **C4** | [Sağlık §C4](2026-07-26-admin-platform-health-analytics-design.md)                                                   | Platform serileri, kohort, kısıtlı funnel                                                                                                               | A, B2                     |
+| **E2** | [Kampanya §E2](2026-07-26-admin-campaigns-product-voice-design.md)                                                   | Zamanlama, teslimat raporu                                                                                                                              | E1                        |
+| **E3** | [Kampanya §E3](2026-07-26-admin-campaigns-product-voice-design.md)                                                   | Geri bildirim kümeleme, sürüm ilişkisi                                                                                                                  | B2                        |
+| **D2** | [Moderasyon §D2](2026-07-26-admin-moderation-design.md)                                                              | Rapor sözleşmesi genişletmesi, delil snapshot'ı, itiraz                                                                                                 | D1 + istemci deploy'u     |
+| **F**  | [Desktop + mobil](2026-07-26-admin-desktop-mobile-design.md)                                                         | `requireMobileAdminCapability`, desktop konsol penceresi, mobil vaka refakatçisi                                                                        | B1, D1                    |
+| **G**  | [Design handoff uygulaması](2026-07-27-admin-design-handoff-implementation.md)                                       | Faz değil, bağlayıcı tasarım otoritesi: `design_handoff/design_handoff_admin_panel/` kaynağı, modül→faz haritası, çelişki kararları, ortak kit ölçüleri | UI üreten her fazı bağlar |
+
+## Görsel tasarım kaynağı
+
+Panelin görsel dili `design_handoff/design_handoff_admin_panel/` altındaki
+hifi tasarımdan **birebir** gelir (`Whispr Admin.dc.html` tam kaynak,
+`README.md` yazılı spesifikasyon, standalone HTML önizleme). İçerik A-F
+spec'lerine uyarlanır; her çelişkinin kararı [G spec'inde](2026-07-27-admin-design-handoff-implementation.md).
+Kural: görselde handoff kazanır, veri/davranışta spec kazanır.
+`2026-07-27-admin-design-brief.md` bu handoff'la geçersizleşti.
 
 ## Sıralama
 
@@ -84,6 +94,10 @@ iskeletine oturur. B2 geç kalırsa her faz kendi kabuğunu uydurur.
 
 ## Alt projeler arası bağlayıcı kararlar
 
+- **Tasarım otoritesi handoff** (G). UI üreten her faz ekranını G'nin
+  modül haritasından alır; ortak kit B2'de bir kez inşa edilir, faz başına
+  varyant üretilmez. Sabit renk yasağı (avatar gradient'leri hariç) test
+  altında.
 - **Tek capability haritası** (`lib/admin/capabilities.ts`, B1). Navigasyon
   görünürlüğü, sayfa koruması, web API yetkisi ve mobil API yetkisi aynı
   haritadan türer. Ayrı liste tutulmaz.

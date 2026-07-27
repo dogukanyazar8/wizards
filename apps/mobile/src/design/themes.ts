@@ -416,6 +416,8 @@ export interface MobileTheme {
     readonly infoSoft: string;
     /** Primary foreground for semantic status bands. */
     readonly onStatus: string;
+    /** Neutral status-chip surface for planned roadmap work. */
+    readonly plannedSoft: string;
     /** Canonical pending friend-request pill accent (6A/6B "İstekler" badge). */
     readonly pendingBadge: string;
     /** Canonical success accent for icons, borders and decorative controls. */
@@ -436,6 +438,12 @@ export interface MobileTheme {
   readonly surface: {
     readonly base: string;
     readonly card: string;
+    /**
+     * Selected filter-chip backdrop (4c status row). Light is the handoff ink,
+     * but ink on a dark theme lands within a hair of `card` and the chip stops
+     * looking selected at all, so dark gets the raised accent surface instead.
+     */
+    readonly chipSelected: string;
     readonly elevated: string;
     readonly inverse: string;
     readonly inverseControl: string;
@@ -743,6 +751,7 @@ export const lightTheme = deepFreeze({
     info: mobilePalette.status.info,
     infoSoft: mobilePalette.status.infoSoft,
     onStatus: redesignLight.text,
+    plannedSoft: redesignLight.plannedSurface,
     pendingBadge: redesignLight.pendingBadge,
     success: redesignLight.success,
     successOnInverse: redesignDark.success,
@@ -757,6 +766,7 @@ export const lightTheme = deepFreeze({
   surface: {
     base: redesignLight.bg,
     card: redesignLight.card,
+    chipSelected: redesignLight.inkSurface,
     elevated: redesignLight.card,
     inverse: redesignLight.inkSurface,
     inverseControl: "rgba(255,255,255,.12)",
@@ -1009,6 +1019,7 @@ export const darkTheme = deepFreeze({
     info: mobilePalette.status.infoDark,
     infoSoft: mobilePalette.status.infoSoftDark,
     onStatus: redesignDark.text,
+    plannedSoft: redesignDark.plannedSurface,
     pendingBadge: redesignDark.pendingBadge,
     success: redesignDark.success,
     successOnInverse: redesignDark.success,
@@ -1023,6 +1034,7 @@ export const darkTheme = deepFreeze({
   surface: {
     base: redesignDark.bg,
     card: redesignDark.card,
+    chipSelected: redesignDark.selectedSurface,
     elevated: redesignDark.card,
     inverse: redesignLight.inkSurface,
     inverseControl: "rgba(255,255,255,.12)",

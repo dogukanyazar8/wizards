@@ -3,6 +3,8 @@ import { describe, it } from "node:test";
 import sharp from "sharp";
 import { ApiError } from "@/lib/api";
 import {
+  MOBILE_IMAGE_FETCH_TIMEOUT_MS,
+  isTransientMobileImageVerificationFailure,
   type MobileImageVerifierDependencies,
   verifyMobileUploadedImage,
 } from "./mobile-media-verifier";
@@ -149,7 +151,70 @@ describe("verifyMobileUploadedImage", () => {
     assert.equal(fetchCalls, 0);
   });
 
-  it("disables redirects and applies the five-second timeout", async () => {
+  /**
+   * The upload the client is waiting on is finished by this callback, so a
+   * source that is merely slow or briefly unreachable must be reported as
+   * temporary. Reporting it as invalid made the caller delete the object, which
+   * turned one slow fetch into a permanently failing retry.
+   */
+  it("separates a source that is temporarily unavailable from one that is invalid", async () => {
+    const png = await createPng(1, 1);
+    const transientCases: MobileImageVerifierDependencies[] = [
+      {
+        createTimeoutSignal: () => TEST_SIGNAL,
+        fetch: async () => {
+          throw Object.assign(new Error("aborted"), { name: "TimeoutError" });
+        },
+      },
+      {
+        createTimeoutSignal: () => TEST_SIGNAL,
+        fetch: async () => createChunkedResponse([png], { status: 503 }).response,
+      },
+      {
+        createTimeoutSignal: () => TEST_SIGNAL,
+        fetch: async () =>
+          new Response(
+            new ReadableStream<Uint8Array>({
+              pull() {
+                throw new Error("connection reset");
+              },
+            }),
+            { status: 200 },
+          ),
+      },
+    ];
+
+    for (const dependencies of transientCases) {
+      await assert.rejects(
+        verifyMobileUploadedImage(createInput(png), dependencies),
+        (error: unknown) => {
+          assert.ok(error instanceof ApiError);
+          assert.equal(error.code, "UPLOAD_SOURCE_UNAVAILABLE");
+          assert.equal(error.status, 503);
+          assert.equal(isTransientMobileImageVerificationFailure(error), true);
+          return true;
+        },
+      );
+    }
+
+    // A structurally wrong source stays a permanent rejection.
+    const { response } = createChunkedResponse([png]);
+    await expectApiError(
+      verifyMobileUploadedImage(
+        createInput(png, { url: `https://cdn.example.com/f/${STORAGE_KEY}` }),
+        createDependencies(response),
+      ),
+      "UPLOAD_SOURCE_INVALID",
+    );
+    assert.equal(
+      isTransientMobileImageVerificationFailure(
+        new ApiError("bad image", 422, "UPLOAD_IMAGE_INVALID"),
+      ),
+      false,
+    );
+  });
+
+  it("disables redirects and gives the source a bounded budget", async () => {
     const png = await createPng(1, 1);
     const { response } = createChunkedResponse([png]);
     let requestedUrl: string | URL | Request | undefined;
@@ -171,7 +236,10 @@ describe("verifyMobileUploadedImage", () => {
     assert.equal(requestedUrl, `https://utfs.io/f/${STORAGE_KEY}`);
     assert.equal(requestInit?.redirect, "error");
     assert.equal(requestInit?.signal, TEST_SIGNAL);
-    assert.equal(timeoutMs, 5_000);
+    assert.equal(timeoutMs, MOBILE_IMAGE_FETCH_TIMEOUT_MS);
+    // The budget covers the body stream too, so it has to fit a 4 MB image on a
+    // slow hop, not just the response headers.
+    assert.ok(MOBILE_IMAGE_FETCH_TIMEOUT_MS >= 15_000);
   });
 
   it("rejects an oversized callback or Content-Length before reading the response", async () => {

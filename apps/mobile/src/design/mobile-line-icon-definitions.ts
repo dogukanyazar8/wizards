@@ -48,6 +48,8 @@ export const MOBILE_LINE_ICON_NAMES = [
   "play-circle",
   "plus",
   "profile",
+  "roadmap-community",
+  "roadmap-feedback",
   "search",
   "send",
   "servers",
@@ -344,6 +346,26 @@ export const MOBILE_LINE_ICON_DEFINITIONS = {
         d: "M3 20c1-3.5 11-3.5 12 0M16.5 5.7a3.2 3.2 0 0 1 0 5.6M18 14.5c2 .7 3 1.9 3.5 3.5",
       },
     ],
+  },
+  // 4c/4d roadmap tabs. Paths copied verbatim from the handoff SVGs.
+  "roadmap-community": {
+    mode: "stroke",
+    defaultStrokeWidth: 2,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    children: [
+      { type: "circle", cx: 9, cy: 8, r: 3 },
+      { type: "path", d: "M3.5 19c.6-2.8 2.7-4.2 5.5-4.2s4.9 1.4 5.5 4.2" },
+      { type: "circle", cx: 17, cy: 9, r: 2.4 },
+      { type: "path", d: "M16 14.6c2.4.2 4 1.5 4.5 3.9" },
+    ],
+  },
+  "roadmap-feedback": {
+    mode: "stroke",
+    defaultStrokeWidth: 2,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    children: [{ type: "path", d: "M4 4h16v12H8l-4 4z" }],
   },
   shield: {
     mode: "stroke",

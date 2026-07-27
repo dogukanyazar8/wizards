@@ -1,7 +1,9 @@
 import {
-  compressMobileImageToLimit,
-  needsMobileImageCompression,
+  optimizeMobileImageForUpload,
   resolveMobileImageResizeSize,
+  toMobileImageMimeType,
+  type MobileImageEncodeFormat,
+  type MobileImageOptimizationLimits,
 } from "./mobile-image-compression";
 import {
   MobileImageUploadError,
@@ -31,13 +33,16 @@ function measureMobileImageSize(uri: string): number | null {
   }
 }
 
-/**
- * One re-encode pass, on the device. The result is always JPEG: it is the only
- * format of the three where dropping quality actually buys bytes, and a 4 MB+
- * screenshot is virtually always a PNG.
- */
-async function compressMobileImageOnDevice(input: {
+const ENCODE_FORMAT_KEYS = {
+  jpeg: "JPEG",
+  png: "PNG",
+  webp: "WEBP",
+} as const satisfies Record<MobileImageEncodeFormat, "JPEG" | "PNG" | "WEBP">;
+
+/** One re-encode pass, on the device, in the format the plan asked for. */
+export async function encodeMobileImageOnDevice(input: {
   readonly compress: number;
+  readonly format: MobileImageEncodeFormat;
   readonly height: number | null;
   readonly maxEdge: number;
   readonly uri: string;
@@ -53,32 +58,43 @@ async function compressMobileImageOnDevice(input: {
 
   const image = await context.renderAsync();
   try {
-    const saved = await image.saveAsync({ compress: input.compress, format: SaveFormat.JPEG });
+    const saved = await image.saveAsync({
+      compress: input.compress,
+      format: SaveFormat[ENCODE_FORMAT_KEYS[input.format]],
+    });
     return saved.uri;
   } finally {
-    // Three passes over a full-resolution bitmap is a lot of native memory to
-    // leave to the garbage collector's timing.
+    // A full-resolution bitmap per pass is a lot of native memory to leave to
+    // the garbage collector's timing.
     image.release();
   }
 }
 
 /**
- * Brings one picked asset within the upload limit.
+ * Prepares one picked asset for upload.
  *
- * An image that already fits is handed on untouched — re-encoding it would cost
- * quality for nothing. One that cannot be shrunk enough is handed on as it is
- * and refused by validation, which is a message the user can act on rather than
- * an upload the service would reject.
+ * Most images are shrunk here rather than sent at camera resolution: the bytes
+ * that never leave the phone are the ones that cost nothing to upload, nothing
+ * to verify and nothing to wait for. An image that is already small is handed
+ * on untouched, and one that cannot be shrunk under the limit is handed on as
+ * it is so validation can refuse it with a message the user can act on.
  */
-async function prepareMobileImageAsset(asset: {
-  readonly fileSize?: number | null | undefined;
-  readonly height?: number | null | undefined;
-  readonly mimeType?: string | null | undefined;
-  readonly uri: string;
-  readonly width?: number | null | undefined;
-}): Promise<MobilePickerAsset> {
+export async function prepareMobileImageAsset(
+  asset: {
+    readonly fileSize?: number | null | undefined;
+    readonly height?: number | null | undefined;
+    readonly mimeType?: string | null | undefined;
+    readonly uri: string;
+    readonly width?: number | null | undefined;
+  },
+  dependencies: {
+    encode: typeof encodeMobileImageOnDevice;
+    measure: (uri: string) => number | null;
+  } = { encode: encodeMobileImageOnDevice, measure: measureMobileImageSize },
+  limits: MobileImageOptimizationLimits = {},
+): Promise<MobilePickerAsset> {
   const sizeBytes = resolveMobilePickedImageSize(asset.fileSize, () =>
-    measureMobileImageSize(asset.uri),
+    dependencies.measure(asset.uri),
   );
   const original: MobilePickerAsset = {
     fileSize: sizeBytes,
@@ -86,32 +102,34 @@ async function prepareMobileImageAsset(asset: {
     uri: asset.uri,
   };
 
-  if (!needsMobileImageCompression(sizeBytes)) {
-    return original;
-  }
-
   const height = asset.height ?? null;
   const width = asset.width ?? null;
-  const compressed = await compressMobileImageToLimit(
-    { height, sizeBytes, uri: asset.uri, width },
+  const optimized = await optimizeMobileImageForUpload(
+    { height, mimeType: asset.mimeType, sizeBytes, uri: asset.uri, width },
     {
-      compress: (step) =>
-        compressMobileImageOnDevice({
-          compress: step.compress,
+      encode: (pass) =>
+        dependencies.encode({
+          compress: pass.compress,
+          format: pass.format,
           height,
-          maxEdge: step.maxEdge,
-          uri: step.uri,
+          maxEdge: pass.maxEdge,
+          uri: pass.uri,
           width,
         }),
-      measure: measureMobileImageSize,
+      measure: dependencies.measure,
     },
+    limits,
   );
 
-  if (!compressed) {
+  if (!optimized) {
     return original;
   }
 
-  return { fileSize: compressed.sizeBytes, mimeType: "image/jpeg", uri: compressed.uri };
+  return {
+    fileSize: optimized.sizeBytes,
+    mimeType: toMobileImageMimeType(optimized.format),
+    uri: optimized.uri,
+  };
 }
 
 async function launchMobileImageLibrary(limit: number) {

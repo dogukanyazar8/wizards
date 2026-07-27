@@ -98,6 +98,7 @@ describe("mobile feedback contracts", () => {
       status: "IN_PROGRESS",
       title: "Sunucu içi arama",
       updatedAt: "2026-07-24T09:00:00.000Z",
+      versionLabel: null,
       voteCount: 128,
       votedByViewer: true,
     };
@@ -110,6 +111,40 @@ describe("mobile feedback contracts", () => {
     assertRejects(MobileRoadmapItemSchema, { ...roadmapItem, updatedAt: undefined });
   });
 
+  it("carries an optional bounded version label through roadmap contracts", () => {
+    const roadmapItem = {
+      description: null,
+      id: "item-versioned",
+      isOwnSuggestion: false,
+      status: "IN_PROGRESS",
+      title: "Sunucu içi arama",
+      updatedAt: "2026-07-24T09:00:00.000Z",
+      versionLabel: "v1.9",
+      voteCount: 128,
+      votedByViewer: false,
+    };
+
+    assert.equal(assertAccepts(MobileRoadmapItemSchema, roadmapItem).versionLabel, "v1.9");
+    assert.equal(
+      assertAccepts(MobileRoadmapItemSchema, { ...roadmapItem, versionLabel: null }).versionLabel,
+      null,
+    );
+    assertRejects(MobileRoadmapItemSchema, { ...roadmapItem, versionLabel: "v".repeat(25) });
+
+    assert.equal(
+      assertAccepts(AdminRoadmapCreateRequestSchema, {
+        title: "Sunucu içi arama",
+        versionLabel: "  v1.9  ",
+      }).versionLabel,
+      "v1.9",
+    );
+    assertAccepts(AdminRoadmapUpdateRequestSchema, { versionLabel: null });
+    assertRejects(AdminRoadmapCreateRequestSchema, {
+      title: "Sunucu içi arama",
+      versionLabel: " ",
+    });
+  });
+
   it("lists the viewer's own reports as previews, never whole messages", () => {
     const listItem = {
       createdAt: "2026-07-20T08:00:00.000Z",
@@ -120,12 +155,18 @@ describe("mobile feedback contracts", () => {
       status: "PLANNED",
       statusChangedAt: "2026-07-24T09:00:00.000Z",
       topic: "BUG",
+      versionLabel: null,
     };
     const parsed = assertAccepts(MobileFeedbackListItemSchema, listItem);
 
     assert.equal(parsed.publicNumber, 1284);
     // A status that never moved is legitimate; a still-REVIEWING row has no date.
     assertAccepts(MobileFeedbackListItemSchema, { ...listItem, statusChangedAt: null });
+    assert.equal(
+      assertAccepts(MobileFeedbackListItemSchema, { ...listItem, versionLabel: "v1.8.4" })
+        .versionLabel,
+      "v1.8.4",
+    );
     // Diagnostics and attachments belong to the detail view, not to a list row.
     assertRejects(MobileFeedbackListItemSchema, { ...listItem, diagnostics: null });
     assertRejects(MobileFeedbackListItemSchema, {

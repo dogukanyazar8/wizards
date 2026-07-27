@@ -12,7 +12,11 @@ import { useTheme } from "../app/providers/mobile-theme-provider";
 import { MobileLineIcon } from "../design/mobile-line-icons";
 import type { MobileTheme } from "../design/themes";
 import { mobileCopy } from "../locale/mobile-copy";
-import { formatMobileFeedbackRelativeTime } from "./mobile-feedback-model";
+import {
+  MOBILE_FEEDBACK_TOPIC_ICONS,
+  formatMobileFeedbackShortTime,
+  formatMobileFeedbackVersionLabel,
+} from "./mobile-feedback-model";
 import type { MobileFeedbackStyles } from "./mobile-feedback-screen.styles";
 
 type FeedbackCopy = (typeof mobileCopy)[keyof typeof mobileCopy];
@@ -43,7 +47,7 @@ export function getMobileFeedbackStatusTone(
     case "IN_PROGRESS":
       return { surface: theme.accent.soft, text: theme.accent.strong };
     case "PLANNED":
-      return { surface: theme.surface.base, text: theme.text.visualSecondary };
+      return { surface: theme.status.plannedSoft, text: theme.text.visualSecondary };
     case "SHIPPED":
       return { surface: theme.status.successSoft, text: theme.status.successText };
     default:
@@ -52,10 +56,12 @@ export function getMobileFeedbackStatusTone(
 }
 
 export function MobileFeedbackStatusChip({
+  compact = false,
   status,
   styles,
   testID,
 }: {
+  readonly compact?: boolean;
   readonly status: FeedbackStatus;
   readonly styles: MobileFeedbackStyles;
   readonly testID?: string;
@@ -66,11 +72,25 @@ export function MobileFeedbackStatusChip({
 
   return (
     <View
-      style={[styles.statusChip, { backgroundColor: tone.surface }]}
+      style={[
+        compact ? styles.roadmapStatusChip : styles.statusChip,
+        { backgroundColor: tone.surface },
+      ]}
       {...(testID === undefined ? {} : { testID })}
     >
-      <View style={[styles.statusDot, { backgroundColor: tone.text }]} />
-      <Text style={[styles.statusLabel, { color: tone.text }]}>
+      {status === "SHIPPED" ? (
+        <MobileLineIcon color={tone.text} name="check" size={compact ? 9 : 11} strokeWidth={3.4} />
+      ) : (
+        <View
+          style={[
+            compact ? styles.roadmapStatusDot : styles.statusDot,
+            { backgroundColor: tone.text },
+          ]}
+        />
+      )}
+      <Text
+        style={[compact ? styles.roadmapStatusLabel : styles.statusLabel, { color: tone.text }]}
+      >
         {getMobileFeedbackStatusLabel(mobileCopy[locale], status)}
       </Text>
     </View>
@@ -99,9 +119,22 @@ export function MobileRoadmapRow({
   const { locale } = useMobileLocaleRuntime();
   const copy = mobileCopy[locale];
   const statusLabel = getMobileFeedbackStatusLabel(copy, item.status);
+  const versionNote = detailed
+    ? formatMobileFeedbackVersionLabel({
+        labels: {
+          arrived: copy.feedbackVersionArrived,
+          fixed: copy.feedbackVersionFixed,
+          target: copy.feedbackVersionTarget,
+        },
+        status: item.status,
+        topic: "SUGGESTION",
+        versionLabel: item.versionLabel,
+      })
+    : null;
   const meta = item.isOwnSuggestion
     ? `${statusLabel} · ${copy.feedbackRoadmapOwnSuggestion}`
     : statusLabel;
+  const voteDisabled = detailed && item.status === "SHIPPED";
 
   return (
     <View
@@ -112,8 +145,14 @@ export function MobileRoadmapRow({
       ]}
     >
       <View style={styles.roadmapRowText}>
-        <Text numberOfLines={detailed ? 2 : 1} style={styles.roadmapTitle}>
+        <Text
+          numberOfLines={detailed ? 2 : 1}
+          style={detailed ? styles.roadmapDetailedTitle : styles.roadmapTitle}
+        >
           {item.title}
+          {detailed && item.isOwnSuggestion ? (
+            <Text style={styles.roadmapOwnSuggestion}> · {copy.feedbackRoadmapOwnSuggestion}</Text>
+          ) : null}
         </Text>
         {detailed ? (
           <>
@@ -124,24 +163,14 @@ export function MobileRoadmapRow({
             )}
             <View style={styles.roadmapStatusRow}>
               <MobileFeedbackStatusChip
+                compact
                 status={item.status}
                 styles={styles}
                 testID={`mobile-roadmap-status-${item.id}`}
               />
-              {item.isOwnSuggestion ? (
-                <Text style={styles.roadmapMeta}>{copy.feedbackRoadmapOwnSuggestion}</Text>
-              ) : null}
-              <Text style={styles.roadmapUpdated} testID={`mobile-roadmap-updated-${item.id}`}>
-                {copy.roadmapUpdatedAgo.replace(
-                  "{time}",
-                  formatMobileFeedbackRelativeTime(item.updatedAt, new Date(), {
-                    daysAgo: copy.feedbackDaysAgo,
-                    hoursAgo: copy.feedbackHoursAgo,
-                    justNow: copy.feedbackJustNow,
-                    minutesAgo: copy.feedbackMinutesAgo,
-                  }),
-                )}
-              </Text>
+              {versionNote === null ? null : (
+                <Text style={styles.roadmapVersionNote}>{versionNote}</Text>
+              )}
             </View>
           </>
         ) : (
@@ -155,26 +184,33 @@ export function MobileRoadmapRow({
         )}
       </View>
       <Pressable
+        disabled={voteDisabled}
         accessibilityLabel={
           item.votedByViewer ? copy.feedbackUpvoteRemoveAction : copy.feedbackUpvoteAction
         }
         accessibilityRole="button"
-        accessibilityState={{ selected: item.votedByViewer }}
+        accessibilityState={{ disabled: voteDisabled, selected: item.votedByViewer }}
         hitSlop={8}
         onPress={() => onToggleVote(item)}
         style={({ pressed }) => [
-          styles.voteButton,
+          detailed ? styles.roadmapVoteButton : styles.voteButton,
           item.votedByViewer && styles.voteButtonActive,
-          pressed && styles.pressed,
+          pressed && !voteDisabled && styles.pressed,
         ]}
         testID={`mobile-roadmap-vote-${item.id}`}
       >
         <MobileLineIcon
           color={item.votedByViewer ? theme.accent.default : theme.text.visualSecondary}
           name="arrow-up"
-          size={11}
+          size={detailed ? 13 : 11}
+          {...(detailed ? { strokeWidth: 2.6 } : {})}
         />
-        <Text style={[styles.voteCount, item.votedByViewer && styles.voteCountActive]}>
+        <Text
+          style={[
+            detailed ? styles.roadmapVoteCount : styles.voteCount,
+            item.votedByViewer && styles.voteCountActive,
+          ]}
+        >
           {item.voteCount}
         </Text>
       </Pressable>
@@ -211,39 +247,76 @@ export function MobileMyFeedbackRow({
   onPress(feedbackId: string): void;
   readonly styles: MobileFeedbackStyles;
 }) {
+  const theme = useTheme();
   const { locale } = useMobileLocaleRuntime();
   const copy = mobileCopy[locale];
+  const versionNote = formatMobileFeedbackVersionLabel({
+    labels: {
+      arrived: copy.feedbackVersionArrived,
+      fixed: copy.feedbackVersionFixed,
+      target: copy.feedbackVersionTarget,
+    },
+    status: item.status,
+    topic: item.topic,
+    versionLabel: item.versionLabel,
+  });
 
   return (
     <Pressable
       accessibilityRole="button"
       onPress={() => onPress(item.id)}
-      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+      style={({ pressed }) => [styles.myFeedbackCard, pressed && styles.pressed]}
       testID={`mobile-my-feedback-row-${item.id}`}
     >
       <View style={styles.myFeedbackHeader}>
         <Text style={styles.myFeedbackNumber}>{formatFeedbackPublicNumber(item.publicNumber)}</Text>
-        <Text numberOfLines={1} style={styles.myFeedbackTopic}>
-          {getMobileFeedbackTopicLabel(copy, item.topic)}
+        <Text style={styles.myFeedbackSeparator}>·</Text>
+        <View style={styles.myFeedbackTopicGroup}>
+          <MobileLineIcon
+            color={theme.text.visualSecondary}
+            name={MOBILE_FEEDBACK_TOPIC_ICONS[item.topic]}
+            size={11}
+            strokeWidth={2.2}
+          />
+          <Text numberOfLines={1} style={styles.myFeedbackTopic}>
+            {getMobileFeedbackTopicLabel(copy, item.topic)}
+          </Text>
+        </View>
+        <View style={styles.myFeedbackHeaderSpacer} />
+        <Text style={styles.myFeedbackTime} testID={`mobile-my-feedback-time-${item.id}`}>
+          {formatMobileFeedbackShortTime(item.createdAt, new Date(), {
+            days: copy.feedbackShortDays,
+            hours: copy.feedbackShortHours,
+            justNow: copy.feedbackShortJustNow,
+            minutes: copy.feedbackShortMinutes,
+            weeks: copy.feedbackShortWeeks,
+          })}
         </Text>
       </View>
-      <Text numberOfLines={2} style={styles.myFeedbackPreview}>
+      <Text
+        numberOfLines={1}
+        style={styles.myFeedbackPreview}
+        testID={`mobile-my-feedback-preview-${item.id}`}
+      >
         {item.preview}
       </Text>
-      <View style={styles.statusRow}>
+      <View style={styles.myFeedbackStatusRow}>
         <MobileFeedbackStatusChip
+          compact
           status={item.status}
           styles={styles}
           testID={`mobile-my-feedback-status-${item.id}`}
         />
-        <Text style={styles.statusTime}>
-          {formatMobileFeedbackRelativeTime(item.statusChangedAt ?? item.createdAt, new Date(), {
-            daysAgo: copy.feedbackDaysAgo,
-            hoursAgo: copy.feedbackHoursAgo,
-            justNow: copy.feedbackJustNow,
-            minutesAgo: copy.feedbackMinutesAgo,
-          })}
-        </Text>
+        {versionNote === null ? null : <Text style={styles.roadmapVersionNote}>{versionNote}</Text>}
+        <View style={styles.myFeedbackStatusSpacer} />
+        <View testID={`mobile-my-feedback-chevron-${item.id}`}>
+          <MobileLineIcon
+            color={theme.text.visualPlaceholder}
+            name="chevron-right"
+            size={13}
+            strokeWidth={2.3}
+          />
+        </View>
       </View>
     </Pressable>
   );

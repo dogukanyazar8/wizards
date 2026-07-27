@@ -110,6 +110,7 @@ export function AdminFeedbackPanel({ canManage }: AdminFeedbackPanelProps) {
   const [detailBusy, setDetailBusy] = useState(false);
   const [roadmap, setRoadmap] = useState<AdminRoadmapItem[]>([]);
   const [newRoadmapTitle, setNewRoadmapTitle] = useState("");
+  const [newRoadmapVersionLabel, setNewRoadmapVersionLabel] = useState("");
   const [roadmapBusy, setRoadmapBusy] = useState(false);
 
   const dateFormatter = useMemo(
@@ -256,11 +257,15 @@ export function AdminFeedbackPanel({ canManage }: AdminFeedbackPanelProps) {
     setRoadmapBusy(true);
     try {
       const payload = await fetchJson<AdminRoadmapItemResponse>("/api/v1/admin/feedback/roadmap", {
-        body: JSON.stringify({ title }),
+        body: JSON.stringify({
+          title,
+          versionLabel: newRoadmapVersionLabel.trim() || null,
+        }),
         method: "POST",
       });
       setRoadmap((current) => [payload.item, ...current]);
       setNewRoadmapTitle("");
+      setNewRoadmapVersionLabel("");
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : null);
     } finally {
@@ -446,22 +451,32 @@ export function AdminFeedbackPanel({ canManage }: AdminFeedbackPanelProps) {
         <p className="text-app-muted mt-1 text-sm">{t("admin.feedback.roadmap.description")}</p>
 
         {canManage ? (
-          <div className="mt-4 flex gap-2">
+          <>
+            <div className="mt-4 flex gap-2">
+              <Input
+                aria-label={t("admin.feedback.roadmap.newTitle")}
+                onChange={(event) => setNewRoadmapTitle(event.target.value)}
+                placeholder={t("admin.feedback.roadmap.newTitle")}
+                value={newRoadmapTitle}
+              />
+              <Button
+                aria-label={t("admin.feedback.roadmap.create")}
+                disabled={roadmapBusy || newRoadmapTitle.trim().length === 0}
+                onClick={() => void createRoadmapItem()}
+                size="sm"
+              >
+                <Plus aria-hidden className="h-4 w-4" />
+              </Button>
+            </div>
             <Input
-              aria-label={t("admin.feedback.roadmap.newTitle")}
-              onChange={(event) => setNewRoadmapTitle(event.target.value)}
-              placeholder={t("admin.feedback.roadmap.newTitle")}
-              value={newRoadmapTitle}
+              aria-label={t("admin.feedback.roadmap.versionLabel")}
+              className="mt-2"
+              maxLength={24}
+              onChange={(event) => setNewRoadmapVersionLabel(event.target.value)}
+              placeholder={t("admin.feedback.roadmap.versionLabel")}
+              value={newRoadmapVersionLabel}
             />
-            <Button
-              aria-label={t("admin.feedback.roadmap.create")}
-              disabled={roadmapBusy || newRoadmapTitle.trim().length === 0}
-              onClick={() => void createRoadmapItem()}
-              size="sm"
-            >
-              <Plus aria-hidden className="h-4 w-4" />
-            </Button>
-          </div>
+          </>
         ) : null}
 
         <div className="mt-4 space-y-3">
@@ -486,23 +501,38 @@ export function AdminFeedbackPanel({ canManage }: AdminFeedbackPanelProps) {
                   {item.featured ? <span>{t("admin.feedback.roadmap.featured")}</span> : null}
                 </div>
                 {canManage ? (
-                  <select
-                    aria-label={`${item.title} — ${t("admin.feedback.detail.statusAction")}`}
-                    className="app-panel mt-3 h-9 w-full rounded-xl border px-3 text-sm text-app-foreground"
-                    disabled={roadmapBusy}
-                    onChange={(event) =>
-                      void updateRoadmapItem(item, {
-                        status: event.target.value as FeedbackStatus,
-                      })
-                    }
-                    value={item.status}
-                  >
-                    {FEEDBACK_STATUSES.map((option) => (
-                      <option key={option} value={option}>
-                        {t(STATUS_MESSAGE_KEYS[option])}
-                      </option>
-                    ))}
-                  </select>
+                  <>
+                    <Input
+                      aria-label={`${item.title} — ${t("admin.feedback.roadmap.versionLabel")}`}
+                      className="mt-3"
+                      defaultValue={item.versionLabel ?? ""}
+                      disabled={roadmapBusy}
+                      maxLength={24}
+                      onBlur={(event) => {
+                        const versionLabel = event.target.value.trim() || null;
+                        if (versionLabel !== item.versionLabel) {
+                          void updateRoadmapItem(item, { versionLabel });
+                        }
+                      }}
+                    />
+                    <select
+                      aria-label={`${item.title} — ${t("admin.feedback.detail.statusAction")}`}
+                      className="app-panel mt-3 h-9 w-full rounded-xl border px-3 text-sm text-app-foreground"
+                      disabled={roadmapBusy}
+                      onChange={(event) =>
+                        void updateRoadmapItem(item, {
+                          status: event.target.value as FeedbackStatus,
+                        })
+                      }
+                      value={item.status}
+                    >
+                      {FEEDBACK_STATUSES.map((option) => (
+                        <option key={option} value={option}>
+                          {t(STATUS_MESSAGE_KEYS[option])}
+                        </option>
+                      ))}
+                    </select>
+                  </>
                 ) : null}
               </div>
             ))

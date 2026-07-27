@@ -128,6 +128,8 @@ export const redesignLight = {
   languageRadio: "#C9CDE4",
   lavender: "#EEF0FE",
   lavenderBorder: "#DFE2FC",
+  /** 4c/4d neutral status-chip surface for planned work. */
+  plannedSurface: "#F0F1F7",
   ownerBadge: "#FFF3D6",
   success: "#22C55E",
   canonicalSuccessText: "#22A366",
@@ -255,6 +257,8 @@ export const redesignDark = {
   accentText: "#A5A8F5",
   selectedSurface: "#2A2D55",
   selectedBorder: "#3B3F73",
+  /** Dark counterpart of the neutral planned-work status chip. */
+  plannedSurface: "rgba(138,144,176,.16)",
   ownerBadge: "#3A2E1B",
   canonicalDanger: "#E05252",
   /** 1a/1c mention count badge; the saturated handoff red reads on both themes. */

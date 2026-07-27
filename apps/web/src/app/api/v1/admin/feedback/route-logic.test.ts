@@ -58,6 +58,7 @@ const roadmapItem = {
   position: 0,
   status: "PLANNED" as const,
   title: "Sesli mesajlar",
+  versionLabel: null,
   voteCount: 96,
 };
 

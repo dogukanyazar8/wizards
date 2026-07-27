@@ -696,6 +696,7 @@ model RoadmapItem {
   id          String         @id @default(uuid())
   title       String         @db.VarChar(120)
   description String?        @db.VarChar(500)
+  versionLabel String?       @db.VarChar(24)
   status      FeedbackStatus @default(REVIEWING)
   /// Ascending display order; ties fall back to newest first.
   position    Int            @default(0)

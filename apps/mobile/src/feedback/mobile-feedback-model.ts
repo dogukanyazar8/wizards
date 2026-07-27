@@ -233,6 +233,14 @@ export interface MobileFeedbackRelativeTimeLabels {
   readonly minutesAgo: string;
 }
 
+export interface MobileFeedbackShortTimeLabels {
+  readonly days: string;
+  readonly hours: string;
+  readonly justNow: string;
+  readonly minutes: string;
+  readonly weeks: string;
+}
+
 /**
  * "şimdi gönderildi" for the first minute, then coarse buckets. A submission
  * receipt is read seconds after it is created and then, days later, from a
@@ -264,6 +272,38 @@ export function formatMobileFeedbackRelativeTime(
   }
 
   return labels.daysAgo.replace("{count}", String(Math.floor(hours / 24)));
+}
+
+/** Compact list-row time: `şimdi`, `3 gün`, `2 hf`; never a negative value. */
+export function formatMobileFeedbackShortTime(
+  isoTimestamp: string,
+  now: Date,
+  labels: MobileFeedbackShortTimeLabels,
+): string {
+  const timestamp = new Date(isoTimestamp).getTime();
+  if (!Number.isFinite(timestamp)) {
+    return labels.justNow;
+  }
+
+  const elapsedSeconds = Math.max(0, Math.floor((now.getTime() - timestamp) / 1_000));
+  if (elapsedSeconds < 60) {
+    return labels.justNow;
+  }
+
+  const minutes = Math.floor(elapsedSeconds / 60);
+  if (minutes < 60) {
+    return labels.minutes.replace("{count}", String(minutes));
+  }
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) {
+    return labels.hours.replace("{count}", String(hours));
+  }
+
+  const days = Math.floor(hours / 24);
+  return days < 7
+    ? labels.days.replace("{count}", String(days))
+    : labels.weeks.replace("{count}", String(Math.floor(days / 7)));
 }
 
 export type MobileFeedbackUploadFailureReason =
@@ -448,6 +488,38 @@ export type MobileRoadmapStatusFilter = (typeof MOBILE_ROADMAP_STATUS_FILTERS)[n
 
 export type MobileRoadmapStatusCounts = Readonly<Record<MobileRoadmapStatusFilter, number>>;
 
+const MOBILE_ROADMAP_STATUS_PRIORITY: Readonly<Record<FeedbackStatus, number>> = {
+  IN_PROGRESS: 0,
+  PLANNED: 1,
+  REVIEWING: 2,
+  SHIPPED: 3,
+};
+
+/** Presentation order is intentionally independent of the compact 4b preview. */
+export function sortMobileRoadmapItems(
+  items: readonly MobileRoadmapItem[],
+): readonly MobileRoadmapItem[] {
+  return items.slice().sort((left, right) => {
+    const statusOrder =
+      MOBILE_ROADMAP_STATUS_PRIORITY[left.status] - MOBILE_ROADMAP_STATUS_PRIORITY[right.status];
+    if (statusOrder !== 0) {
+      return statusOrder;
+    }
+
+    const voteOrder = right.voteCount - left.voteCount;
+    if (voteOrder !== 0) {
+      return voteOrder;
+    }
+
+    const updatedOrder = new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime();
+    if (Number.isFinite(updatedOrder) && updatedOrder !== 0) {
+      return updatedOrder;
+    }
+
+    return left.id.localeCompare(right.id);
+  });
+}
+
 /**
  * Counts every chip, including the empty ones. A chip that disappears when its
  * last item moves on would reshuffle the row under the user's thumb, so zeros
@@ -477,6 +549,33 @@ export function filterMobileRoadmapItems(
   filter: MobileRoadmapStatusFilter,
 ): readonly MobileRoadmapItem[] {
   return filter === "ALL" ? items : items.filter((item) => item.status === filter);
+}
+
+export interface MobileFeedbackVersionLabelLabels {
+  readonly arrived: string;
+  readonly fixed: string;
+  readonly target: string;
+}
+
+/** Turns the stored bare version into the status- and topic-aware UI note. */
+export function formatMobileFeedbackVersionLabel(input: {
+  readonly labels: MobileFeedbackVersionLabelLabels;
+  readonly status: FeedbackStatus;
+  readonly topic: FeedbackTopic;
+  readonly versionLabel: string | null;
+}): string | null {
+  if (input.versionLabel === null) {
+    return null;
+  }
+
+  const template =
+    input.status !== "SHIPPED"
+      ? input.labels.target
+      : input.topic === "BUG" || input.topic === "PERFORMANCE"
+        ? input.labels.fixed
+        : input.labels.arrived;
+
+  return template.replace("{version}", input.versionLabel);
 }
 
 export interface MobileRoadmapVoteState {

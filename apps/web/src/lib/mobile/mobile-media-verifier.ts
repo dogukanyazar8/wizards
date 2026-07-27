@@ -5,7 +5,15 @@ import { ApiError } from "@/lib/api";
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
 const MAX_IMAGE_EDGE = 4_096;
 const MAX_IMAGE_PIXELS = 16_000_000;
-const FETCH_TIMEOUT_MS = 5_000;
+
+/**
+ * Covers the whole read, headers *and* body: the signal stays armed while the
+ * response streams. Five seconds could not fit a 4 MB image over a slow hop
+ * between this server and the storage host, and the upload the phone is waiting
+ * on is finished by this call — so the budget that was too tight showed up on
+ * the device as an upload that never answered.
+ */
+export const MOBILE_IMAGE_FETCH_TIMEOUT_MS = 20_000;
 
 const SHARP_OPTIONS = {
   failOn: "error",
@@ -41,6 +49,20 @@ const defaultDependencies: MobileImageVerifierDependencies = {
 
 function uploadSourceInvalid(status = 400) {
   return new ApiError("Upload source is invalid", status, "UPLOAD_SOURCE_INVALID");
+}
+
+/**
+ * The object is fine as far as anyone here can tell — this server just could not
+ * read it right now. It is a separate failure from "invalid" because the caller
+ * must not delete the stored object over it: the upload callback is retried, and
+ * deleting turns one slow read into a retry that can never succeed.
+ */
+function uploadSourceUnavailable() {
+  return new ApiError("Upload source is temporarily unavailable", 503, "UPLOAD_SOURCE_UNAVAILABLE");
+}
+
+export function isTransientMobileImageVerificationFailure(error: unknown): boolean {
+  return error instanceof ApiError && error.code === "UPLOAD_SOURCE_UNAVAILABLE";
 }
 
 function uploadTooLarge() {
@@ -148,7 +170,7 @@ async function readBoundedBody(body: ReadableStream<Uint8Array>) {
       throw error;
     }
     await cancelReader(reader);
-    throw uploadSourceInvalid(502);
+    throw uploadSourceUnavailable();
   } finally {
     reader.releaseLock();
   }
@@ -204,14 +226,14 @@ export async function verifyMobileUploadedImage(
   try {
     response = await dependencies.fetch(input.url, {
       redirect: "error",
-      signal: dependencies.createTimeoutSignal(FETCH_TIMEOUT_MS),
+      signal: dependencies.createTimeoutSignal(MOBILE_IMAGE_FETCH_TIMEOUT_MS),
     });
   } catch {
-    throw uploadSourceInvalid(502);
+    throw uploadSourceUnavailable();
   }
 
   if (!response.ok || !response.body) {
-    throw uploadSourceInvalid(502);
+    throw uploadSourceUnavailable();
   }
 
   const contentLengthValue = response.headers.get("content-length");

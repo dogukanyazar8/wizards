@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { FeedbackStatus, MobileRoadmapItem } from "@wizards/types";
+import type { FeedbackStatus, FeedbackTopic, MobileRoadmapItem } from "@wizards/types";
 
 import {
   MOBILE_FEEDBACK_ATTACHMENT_MAX_COUNT,
@@ -31,6 +31,7 @@ import {
   setMobileFeedbackAttachmentProgress,
   toggleMobileRoadmapVote,
 } from "../src/feedback/mobile-feedback-model";
+import * as mobileFeedbackModel from "../src/feedback/mobile-feedback-model";
 
 const labels = {
   daysAgo: "{count} gün önce",
@@ -38,6 +39,12 @@ const labels = {
   justNow: "şimdi gönderildi",
   minutesAgo: "{count} dk önce",
 };
+
+function requiredModelFunction<T extends (...args: never[]) => unknown>(name: string): T {
+  const value = Reflect.get(mobileFeedbackModel, name);
+  assert.equal(typeof value, "function", `${name} must be exported`);
+  return value as T;
+}
 
 const draft = (id: string) => createMobileFeedbackAttachmentDraft(id, `file:///${id}.png`);
 
@@ -456,6 +463,7 @@ const roadmapItem = (
   status,
   title: id,
   updatedAt: "2026-07-26T10:00:00.000Z",
+  versionLabel: null,
   voteCount: 0,
   votedByViewer: false,
   ...overrides,
@@ -501,4 +509,129 @@ test("Tümü keeps the server's ranking and a status chip keeps its subset in th
     ["mid", "low"],
   );
   assert.deepEqual(filterMobileRoadmapItems(items, "REVIEWING"), []);
+});
+
+test("roadmap sorting puts delivery state first, then votes, then most recently edited", () => {
+  const sortMobileRoadmapItems =
+    requiredModelFunction<(items: readonly MobileRoadmapItem[]) => readonly MobileRoadmapItem[]>(
+      "sortMobileRoadmapItems",
+    );
+  const items = [
+    roadmapItem("shipped", "SHIPPED", { voteCount: 500 }),
+    roadmapItem("reviewing", "REVIEWING", { voteCount: 999 }),
+    roadmapItem("planned-older", "PLANNED", {
+      updatedAt: "2026-07-23T10:00:00.000Z",
+      voteCount: 20,
+    }),
+    roadmapItem("planned-newer", "PLANNED", {
+      updatedAt: "2026-07-24T10:00:00.000Z",
+      voteCount: 20,
+    }),
+    roadmapItem("building", "IN_PROGRESS", { voteCount: 1 }),
+  ];
+
+  const sorted = sortMobileRoadmapItems(items);
+
+  assert.notEqual(sorted, items);
+  assert.deepEqual(
+    sorted.map((item) => item.id),
+    ["building", "planned-newer", "planned-older", "reviewing", "shipped"],
+  );
+});
+
+test("short feedback time keeps the roadmap row compact from seconds through weeks", () => {
+  const formatMobileFeedbackShortTime = requiredModelFunction<
+    (
+      isoTimestamp: string,
+      now: Date,
+      labels: {
+        readonly days: string;
+        readonly hours: string;
+        readonly justNow: string;
+        readonly minutes: string;
+        readonly weeks: string;
+      },
+    ) => string
+  >("formatMobileFeedbackShortTime");
+  const now = new Date("2026-07-26T12:00:00.000Z");
+  const shortLabels = {
+    days: "{count} gün",
+    hours: "{count} sa",
+    justNow: "şimdi",
+    minutes: "{count} dk",
+    weeks: "{count} hf",
+  };
+
+  assert.equal(
+    formatMobileFeedbackShortTime("2026-07-26T11:59:30.000Z", now, shortLabels),
+    "şimdi",
+  );
+  assert.equal(
+    formatMobileFeedbackShortTime("2026-07-26T11:45:00.000Z", now, shortLabels),
+    "15 dk",
+  );
+  assert.equal(formatMobileFeedbackShortTime("2026-07-26T09:00:00.000Z", now, shortLabels), "3 sa");
+  assert.equal(
+    formatMobileFeedbackShortTime("2026-07-23T12:00:00.000Z", now, shortLabels),
+    "3 gün",
+  );
+  assert.equal(formatMobileFeedbackShortTime("2026-07-12T12:00:00.000Z", now, shortLabels), "2 hf");
+  assert.equal(formatMobileFeedbackShortTime("not-a-date", now, shortLabels), "şimdi");
+});
+
+test("version notes use target, delivered, and bug-fix language from item state", () => {
+  const formatMobileFeedbackVersionLabel = requiredModelFunction<
+    (input: {
+      readonly labels: {
+        readonly arrived: string;
+        readonly fixed: string;
+        readonly target: string;
+      };
+      readonly status: FeedbackStatus;
+      readonly topic: FeedbackTopic;
+      readonly versionLabel: string | null;
+    }) => string | null
+  >("formatMobileFeedbackVersionLabel");
+  const labels = {
+    arrived: "{version}'de geldi",
+    fixed: "{version}'de düzeltildi",
+    target: "{version} hedefi",
+  };
+
+  assert.equal(
+    formatMobileFeedbackVersionLabel({
+      labels,
+      status: "IN_PROGRESS",
+      topic: "SUGGESTION",
+      versionLabel: "v1.9",
+    }),
+    "v1.9 hedefi",
+  );
+  assert.equal(
+    formatMobileFeedbackVersionLabel({
+      labels,
+      status: "SHIPPED",
+      topic: "BUG",
+      versionLabel: "v1.8.2",
+    }),
+    "v1.8.2'de düzeltildi",
+  );
+  assert.equal(
+    formatMobileFeedbackVersionLabel({
+      labels,
+      status: "SHIPPED",
+      topic: "VOICE",
+      versionLabel: "v1.8",
+    }),
+    "v1.8'de geldi",
+  );
+  assert.equal(
+    formatMobileFeedbackVersionLabel({
+      labels,
+      status: "SHIPPED",
+      topic: "PERFORMANCE",
+      versionLabel: null,
+    }),
+    null,
+  );
 });

@@ -80,6 +80,7 @@ type RoadmapRow = {
   status: FeedbackStatus;
   title: string;
   updatedAt: Date;
+  versionLabel: string | null;
 };
 
 function toFeedbackSummary(row: FeedbackSummaryRow) {
@@ -113,6 +114,7 @@ function toMobileRoadmapItem(
     status: row.status,
     title: row.title,
     updatedAt: row.updatedAt.toISOString(),
+    versionLabel: row.versionLabel,
     voteCount: row._count.votes,
     votedByViewer: viewer.votedItemIds.has(row.id),
   };
@@ -140,6 +142,7 @@ async function readMobileRoadmap(
         status: true,
         title: true,
         updatedAt: true,
+        versionLabel: true,
       },
       take: 200,
     }),
@@ -269,6 +272,7 @@ export async function listMobileFeedback(
       message: true,
       publicNumber: true,
       rating: true,
+      roadmapItem: { select: { versionLabel: true } },
       status: true,
       statusChangedAt: true,
       topic: true,
@@ -287,6 +291,7 @@ export async function listMobileFeedback(
       status: row.status,
       statusChangedAt: row.statusChangedAt?.toISOString() ?? null,
       topic: row.topic,
+      versionLabel: row.roadmapItem?.versionLabel ?? null,
     })),
   });
 }
@@ -605,6 +610,7 @@ const adminRoadmapSelect = {
   position: true,
   status: true,
   title: true,
+  versionLabel: true,
 } satisfies Prisma.RoadmapItemSelect;
 
 type AdminRoadmapRow = Prisma.RoadmapItemGetPayload<{ select: typeof adminRoadmapSelect }>;
@@ -619,6 +625,7 @@ function toAdminRoadmapItem(row: AdminRoadmapRow) {
     position: row.position,
     status: row.status,
     title: row.title,
+    versionLabel: row.versionLabel,
     voteCount: row._count.votes,
   };
 }
@@ -646,6 +653,7 @@ export async function createAdminRoadmapItem(
       position: input.position ?? 0,
       status: input.status ?? "REVIEWING",
       title: input.title,
+      versionLabel: input.versionLabel ?? null,
     },
     select: adminRoadmapSelect,
   });
@@ -673,6 +681,7 @@ export async function updateAdminRoadmapItem(
       ...(input.position === undefined ? {} : { position: input.position }),
       ...(input.status === undefined ? {} : { status: input.status }),
       ...(input.title === undefined ? {} : { title: input.title }),
+      ...(input.versionLabel === undefined ? {} : { versionLabel: input.versionLabel }),
     },
     select: adminRoadmapSelect,
     where: { id: roadmapItemId },

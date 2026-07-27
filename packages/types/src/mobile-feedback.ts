@@ -104,6 +104,8 @@ export const MobileRoadmapItemSchema = z
     isOwnSuggestion: z.boolean(),
     status: FeedbackStatusSchema,
     title: z.string().min(1).max(120),
+    /** Bare release label, for example `v1.9`; presentation is client-owned. */
+    versionLabel: z.string().min(1).max(24).nullable(),
     /**
      * Last edit of any kind, which is what the row's "3 gün önce güncellendi"
      * claims — not a status-change date, because the item has no such column.
@@ -129,6 +131,8 @@ export const MobileFeedbackListItemSchema = z
     status: FeedbackStatusSchema,
     statusChangedAt: z.string().datetime().nullable(),
     topic: FeedbackTopicSchema,
+    /** Inherited from a linked roadmap item, when one exists. */
+    versionLabel: z.string().min(1).max(24).nullable(),
   })
   .strict();
 
@@ -262,6 +266,7 @@ export const AdminRoadmapItemSchema = z
     position: z.number().int(),
     status: FeedbackStatusSchema,
     title: z.string().min(1).max(120),
+    versionLabel: z.string().min(1).max(24).nullable(),
     voteCount: z.number().int().nonnegative(),
   })
   .strict();
@@ -279,6 +284,7 @@ export const AdminRoadmapCreateRequestSchema = z
     position: z.number().int().min(0).max(9_999).optional(),
     status: FeedbackStatusSchema.optional(),
     title: z.string().trim().min(1).max(120),
+    versionLabel: z.string().trim().min(1).max(24).nullable().optional(),
   })
   .strict();
 
@@ -289,6 +295,7 @@ export const AdminRoadmapUpdateRequestSchema = z
     position: z.number().int().min(0).max(9_999).optional(),
     status: FeedbackStatusSchema.optional(),
     title: z.string().trim().min(1).max(120).optional(),
+    versionLabel: z.string().trim().min(1).max(24).nullable().optional(),
   })
   .strict()
   .refine((value) => Object.keys(value).length > 0, "At least one field must change");

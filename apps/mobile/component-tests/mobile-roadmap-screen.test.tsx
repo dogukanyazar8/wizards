@@ -12,6 +12,35 @@ const mockFetchRoadmap = jest.fn<() => Promise<MobileRoadmapListResponse>>();
 const mockFetchFeedbackList = jest.fn<() => Promise<MobileFeedbackListResponse>>();
 const mockSetVote = jest.fn<(...args: unknown[]) => Promise<unknown>>();
 
+jest.mock("@shopify/flash-list", () => ({
+  FlashList: ({
+    data,
+    ListEmptyComponent,
+    ListFooterComponent,
+    renderItem,
+    testID,
+  }: {
+    readonly data: readonly unknown[];
+    readonly ListEmptyComponent?: React.ReactNode;
+    readonly ListFooterComponent?: React.ReactNode;
+    readonly renderItem: (input: { readonly item: unknown }) => React.ReactNode;
+    readonly testID?: string;
+  }) => {
+    const React = require("react");
+    const { View } = require("react-native");
+    return React.createElement(
+      View,
+      { testID },
+      data.length === 0
+        ? ListEmptyComponent
+        : data.map((item, index) =>
+            React.createElement(React.Fragment, { key: index }, renderItem({ item })),
+          ),
+      ListFooterComponent,
+    );
+  },
+}));
+
 jest.mock("../src/auth/mobile-auth-context", () => ({
   useMobileAuth: () => ({
     apiClient: {},
@@ -46,6 +75,7 @@ const roadmapItem = (
   status: "PLANNED",
   title: id,
   updatedAt: "2026-07-26T10:00:00.000Z",
+  versionLabel: null,
   voteCount: 4,
   votedByViewer: false,
   ...overrides,
@@ -57,10 +87,12 @@ const roadmap: MobileRoadmapListResponse = {
       description: "Sunucu içinde mesaj ve kanal araması.",
       status: "IN_PROGRESS",
       title: "Sunucu içi arama",
+      versionLabel: "v1.9",
       voteCount: 128,
     }),
     roadmapItem("item-2", { status: "PLANNED", title: "Sesli mesajlar" }),
     roadmapItem("item-3", { status: "PLANNED", title: "Zamanlanmış etkinlikler" }),
+    roadmapItem("item-4", { status: "SHIPPED", title: "Özel emoji yükleme", versionLabel: "v1.8" }),
   ],
 };
 
@@ -75,6 +107,7 @@ const feedbackList: MobileFeedbackListResponse = {
       status: "PLANNED",
       statusChangedAt: "2026-07-24T09:00:00.000Z",
       topic: "BUG",
+      versionLabel: "v1.8.4",
     },
   ],
 };
@@ -128,12 +161,13 @@ describe("community roadmap", () => {
     const { view } = await renderRoadmap();
 
     await waitFor(() => expect(view.getByText("Sunucu içi arama")).toBeTruthy());
-    expect(view.getByTestId("mobile-roadmap-filter-count-ALL").props.children).toBe(3);
+    expect(view.getByTestId("mobile-roadmap-filter-count-ALL").props.children).toBe(4);
     expect(view.getByTestId("mobile-roadmap-filter-count-PLANNED").props.children).toBe(2);
     expect(view.getByTestId("mobile-roadmap-filter-count-IN_PROGRESS").props.children).toBe(1);
     // An empty chip still renders; a row that reshuffles as items move is worse
     // than a zero.
-    expect(view.getByTestId("mobile-roadmap-filter-count-SHIPPED").props.children).toBe(0);
+    expect(view.getByTestId("mobile-roadmap-filter-count-SHIPPED").props.children).toBe(1);
+    expect(view.getByTestId("mobile-roadmap-filter-dot-PLANNED")).toBeTruthy();
   });
 
   it("narrows the list to the chosen status and back again", async () => {
@@ -153,19 +187,30 @@ describe("community roadmap", () => {
     const { view } = await renderRoadmap();
 
     await waitFor(() => expect(view.getByText("Sunucu içi arama")).toBeTruthy());
-    await fireEvent.press(view.getByTestId("mobile-roadmap-filter-SHIPPED"));
+    await fireEvent.press(view.getByTestId("mobile-roadmap-filter-REVIEWING"));
 
     await waitFor(() => expect(view.getByText(copy.roadmapFilterEmpty)).toBeTruthy());
     expect(view.queryByText(copy.roadmapEmptyTitle)).toBeNull();
   });
 
-  it("shows the item's description and when it last moved", async () => {
+  it("shows the item's description without leaking a generic edit timestamp", async () => {
     const { view } = await renderRoadmap();
 
     await waitFor(() =>
       expect(view.getByText("Sunucu içinde mesaj ve kanal araması.")).toBeTruthy(),
     );
-    expect(view.getByTestId("mobile-roadmap-updated-item-1")).toBeTruthy();
+    expect(view.queryByTestId("mobile-roadmap-updated-item-1")).toBeNull();
+    expect(view.getByText("v1.9 hedefi")).toBeTruthy();
+  });
+
+  it("keeps a shipped roadmap vote visibly disabled", async () => {
+    const { view } = await renderRoadmap();
+
+    await waitFor(() => expect(view.getByText("Özel emoji yükleme")).toBeTruthy());
+    expect(view.getByTestId("mobile-roadmap-vote-item-4").props.accessibilityState).toMatchObject({
+      disabled: true,
+      selected: false,
+    });
   });
 });
 
@@ -180,14 +225,34 @@ describe("my reports tab", () => {
     expect(props.onOpenFeedback).toHaveBeenCalledWith("feedback-1");
   });
 
-  it("does not fetch the report list until the tab is opened", async () => {
+  it("loads the report list on mount so its tab count is available immediately", async () => {
     const { view } = await renderRoadmap();
 
     await waitFor(() => expect(mockFetchRoadmap).toHaveBeenCalled());
-    expect(mockFetchFeedbackList).not.toHaveBeenCalled();
+    await waitFor(() => expect(mockFetchFeedbackList).toHaveBeenCalledTimes(1));
+    expect(view.getByTestId("mobile-roadmap-tab-badge").props.children).toBe(1);
 
     await fireEvent.press(view.getByTestId("mobile-roadmap-tab-mine"));
-    await waitFor(() => expect(mockFetchFeedbackList).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(view.getByText("WSP-1284")).toBeTruthy());
+  });
+
+  it("draws each report as a compact tracking row and keeps a new-feedback footer", async () => {
+    const { props, view } = await renderRoadmap();
+
+    await fireEvent.press(view.getByTestId("mobile-roadmap-tab-mine"));
+    await waitFor(() =>
+      expect(view.getByTestId("mobile-my-feedback-preview-feedback-1")).toBeTruthy(),
+    );
+
+    expect(view.getByTestId("mobile-my-feedback-preview-feedback-1").props.numberOfLines).toBe(1);
+    expect(view.getByTestId("mobile-my-feedback-time-feedback-1").props.children).not.toContain(
+      "önce",
+    );
+    expect(view.getByText("v1.8.4 hedefi")).toBeTruthy();
+    expect(view.getByTestId("mobile-my-feedback-chevron-feedback-1")).toBeTruthy();
+
+    await fireEvent.press(view.getByTestId("mobile-my-feedback-start-footer"));
+    expect(props.onStartFeedback).toHaveBeenCalledTimes(1);
   });
 
   it("sends a user with no reports back to the form", async () => {

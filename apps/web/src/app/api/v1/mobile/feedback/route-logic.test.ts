@@ -25,6 +25,7 @@ const roadmapItem = {
   status: "PLANNED" as const,
   title: "Sesli mesajlar",
   updatedAt: "2026-07-24T09:00:00.000Z",
+  versionLabel: null,
   voteCount: 96,
   votedByViewer: false,
 };
@@ -38,6 +39,7 @@ const listItem = {
   status: "REVIEWING" as const,
   statusChangedAt: null,
   topic: "SUGGESTION" as const,
+  versionLabel: null,
 };
 
 const submission = {

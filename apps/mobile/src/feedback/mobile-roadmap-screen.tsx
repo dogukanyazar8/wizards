@@ -8,12 +8,14 @@ import { useMobileLocaleRuntime } from "../app/providers/mobile-locale-provider"
 import { useTheme } from "../app/providers/mobile-theme-provider";
 import { useMobileAuth } from "../auth/mobile-auth-context";
 import { MobileLineIcon } from "../design/mobile-line-icons";
+import type { MobileTheme } from "../design/themes";
 import { mobileCopy } from "../locale/mobile-copy";
 import { MobileMyFeedbackRow, MobileRoadmapRow } from "./mobile-feedback-roadmap-card";
 import {
   MOBILE_ROADMAP_STATUS_FILTERS,
   countMobileRoadmapByStatus,
   filterMobileRoadmapItems,
+  sortMobileRoadmapItems,
   type MobileRoadmapStatusFilter,
 } from "./mobile-feedback-model";
 import {
@@ -40,6 +42,19 @@ function getFilterLabel(copy: FeedbackCopy, filter: MobileRoadmapStatusFilter): 
       return copy.feedbackStatusShipped;
     default:
       return copy.roadmapFilterAll;
+  }
+}
+
+function getFilterDotColor(theme: MobileTheme, filter: Exclude<MobileRoadmapStatusFilter, "ALL">) {
+  switch (filter) {
+    case "IN_PROGRESS":
+      return theme.accent.strong;
+    case "PLANNED":
+      return theme.text.visualSecondary;
+    case "REVIEWING":
+      return theme.status.visualWarning;
+    case "SHIPPED":
+      return theme.status.visualText;
   }
 }
 
@@ -76,13 +91,20 @@ export function MobileRoadmapScreen({
   const [filter, setFilter] = useState<MobileRoadmapStatusFilter>("ALL");
 
   const roadmapQuery = useMobileRoadmapQuery(apiClient, true);
-  // The second tab costs a request, so it is not paid for until it is opened.
-  const feedbackListQuery = useMobileFeedbackListQuery(apiClient, tab === "mine");
+  const feedbackListQuery = useMobileFeedbackListQuery(apiClient, true);
   const voteMutation = useMobileRoadmapVoteMutation(apiClient);
 
-  const items = useMemo(() => roadmapQuery.data?.items ?? [], [roadmapQuery.data]);
+  const items = useMemo(
+    () => sortMobileRoadmapItems(roadmapQuery.data?.items ?? []),
+    [roadmapQuery.data?.items],
+  );
   const counts = useMemo(() => countMobileRoadmapByStatus(items), [items]);
   const visibleItems = useMemo(() => filterMobileRoadmapItems(items, filter), [filter, items]);
+  const feedbackItems = feedbackListQuery.data?.items ?? [];
+  const feedbackBadgeCount =
+    feedbackListQuery.isPending || feedbackListQuery.isError || feedbackItems.length === 0
+      ? null
+      : feedbackItems.length;
 
   const toggleVote = useCallback(
     (item: MobileRoadmapItem) => {
@@ -96,7 +118,7 @@ export function MobileRoadmapScreen({
 
   const renderRoadmapItem = useCallback(
     ({ item }: { item: MobileRoadmapItem }) => (
-      <View style={styles.cardCompact}>
+      <View style={styles.roadmapCard}>
         <MobileRoadmapRow detailed isFirst item={item} onToggleVote={toggleVote} styles={styles} />
       </View>
     ),
@@ -112,23 +134,23 @@ export function MobileRoadmapScreen({
 
   return (
     <View style={styles.root} testID={MOBILE_ROADMAP_SCREEN_TEST_ID}>
-      <View style={styles.header}>
+      <View style={styles.roadmapScreenHeader}>
         <Pressable
           accessibilityLabel={copy.backAction}
           accessibilityRole="button"
           hitSlop={10}
           onPress={onBack}
-          style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
+          style={({ pressed }) => [styles.roadmapScreenBackButton, pressed && styles.pressed]}
           testID="mobile-roadmap-back"
         >
           <MobileLineIcon color={theme.text.primary} name="back-arrow" size={15} />
         </Pressable>
-        <View style={styles.headerText}>
-          <Text numberOfLines={1} style={styles.headerTitle}>
-            {copy.roadmapTitle}
+        <View style={styles.roadmapScreenHeaderText}>
+          <Text numberOfLines={1} style={styles.roadmapScreenHeaderTitle}>
+            {copy.roadmapScreenTitle}
           </Text>
-          <Text numberOfLines={1} style={styles.headerSubtitle}>
-            {copy.roadmapSubtitle}
+          <Text numberOfLines={1} style={styles.roadmapScreenHeaderSubtitle}>
+            {copy.roadmapScreenSubtitle}
           </Text>
         </View>
       </View>
@@ -143,12 +165,24 @@ export function MobileRoadmapScreen({
             style={[styles.segment, tab === value && styles.segmentActive]}
             testID={`mobile-roadmap-tab-${value}`}
           >
+            <MobileLineIcon
+              color={tab === value ? theme.accent.strong : theme.text.visualSecondary}
+              name={value === "community" ? "roadmap-community" : "roadmap-feedback"}
+              size={14}
+            />
             <Text
               numberOfLines={1}
               style={[styles.segmentText, tab === value && styles.segmentTextActive]}
             >
               {value === "community" ? copy.roadmapTabCommunity : copy.roadmapTabMine}
             </Text>
+            {value === "mine" && feedbackBadgeCount !== null ? (
+              <View style={styles.segmentBadge}>
+                <Text style={styles.segmentBadgeLabel} testID="mobile-roadmap-tab-badge">
+                  {feedbackBadgeCount}
+                </Text>
+              </View>
+            ) : null}
           </Pressable>
         ))}
       </View>
@@ -173,6 +207,15 @@ export function MobileRoadmapScreen({
                 ]}
                 testID={`mobile-roadmap-filter-${option}`}
               >
+                {option === "ALL" ? null : (
+                  <View
+                    style={[
+                      styles.filterStatusDot,
+                      { backgroundColor: getFilterDotColor(theme, option) },
+                    ]}
+                    testID={`mobile-roadmap-filter-dot-${option}`}
+                  />
+                )}
                 <Text style={[styles.filterLabel, filter === option && styles.filterLabelSelected]}>
                   {getFilterLabel(copy, option)}
                 </Text>
@@ -187,20 +230,20 @@ export function MobileRoadmapScreen({
           </ScrollView>
 
           {roadmapQuery.isPending ? (
-            <View style={styles.content} testID="mobile-roadmap-loading">
+            <View style={styles.roadmapScreenContent} testID="mobile-roadmap-loading">
               <View style={styles.card}>
                 <Skeleton height={44} />
               </View>
             </View>
           ) : roadmapQuery.isError ? (
-            <View style={styles.content}>
+            <View style={styles.roadmapScreenContent}>
               <View style={styles.stateCard} testID="mobile-roadmap-error">
                 <Text style={styles.stateText}>{copy.roadmapLoadError}</Text>
               </View>
             </View>
           ) : (
             <FlashList
-              contentContainerStyle={styles.content}
+              contentContainerStyle={styles.roadmapScreenContent}
               data={visibleItems}
               // One row shape, so recycling never has to switch layouts.
               getItemType={() => "roadmap-item"}
@@ -229,25 +272,43 @@ export function MobileRoadmapScreen({
           )}
         </>
       ) : feedbackListQuery.isPending ? (
-        <View style={styles.content} testID="mobile-my-feedback-loading">
+        <View style={styles.roadmapScreenContent} testID="mobile-my-feedback-loading">
           <View style={styles.card}>
             <Skeleton height={64} />
           </View>
         </View>
       ) : feedbackListQuery.isError ? (
-        <View style={styles.content}>
+        <View style={styles.roadmapScreenContent}>
           <View style={styles.stateCard} testID="mobile-my-feedback-error">
             <Text style={styles.stateText}>{copy.myFeedbackLoadError}</Text>
           </View>
         </View>
       ) : (
         <FlashList
-          contentContainerStyle={styles.content}
-          data={feedbackListQuery.data?.items ?? []}
+          contentContainerStyle={styles.roadmapScreenContent}
+          data={feedbackItems}
           getItemType={() => "my-feedback-item"}
           keyExtractor={(item) => item.id}
+          ListFooterComponent={
+            feedbackItems.length === 0 ? null : (
+              <Pressable
+                accessibilityRole="button"
+                onPress={onStartFeedback}
+                style={({ pressed }) => [styles.myFeedbackFooterAction, pressed && styles.pressed]}
+                testID="mobile-my-feedback-start-footer"
+              >
+                <MobileLineIcon
+                  color={theme.text.visualSecondary}
+                  name="plus"
+                  size={13}
+                  strokeWidth={2.4}
+                />
+                <Text style={styles.myFeedbackFooterLabel}>{copy.feedbackNewAction}</Text>
+              </Pressable>
+            )
+          }
           ListEmptyComponent={
-            <View style={styles.content} testID="mobile-my-feedback-empty">
+            <View style={styles.roadmapScreenContent} testID="mobile-my-feedback-empty">
               <EmptyState
                 description={copy.myFeedbackEmptyDescription}
                 icon="chatbubble-ellipses-outline"

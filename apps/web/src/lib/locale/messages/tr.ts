@@ -309,6 +309,7 @@ export const TR_MESSAGES = {
   "admin.feedback.roadmap.description":
     "Mobil uygulamanın “Topluluk yol haritası” altında gösterdiği liste.",
   "admin.feedback.roadmap.newTitle": "Yeni madde başlığı",
+  "admin.feedback.roadmap.versionLabel": "Sürüm etiketi",
   "admin.feedback.roadmap.newDescription": "İsteğe bağlı açıklama",
   "admin.feedback.roadmap.create": "Madde ekle",
   "admin.feedback.roadmap.votes": "{count} oy",

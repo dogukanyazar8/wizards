@@ -70,6 +70,7 @@ function completionDependencies(
 ): MobileMediaUploadCompletionDependencies {
   return {
     deleteFiles: async () => ({ deletedCount: 1, success: true }),
+    isTransientVerificationFailure: () => false,
     logWarning: () => undefined,
     recordVerifiedUpload: async () => ({
       claimId: "claim-1",
@@ -95,7 +96,7 @@ function assertBoundedUploadThingError(
 }
 
 describe("authorizeMobileMediaUpload", () => {
-  it("authenticates and rate-limits before awaited cleanup", async () => {
+  it("authenticates and rate-limits before starting cleanup, and does not wait for it", async () => {
     const events: string[] = [];
     let releaseCleanup: (() => void) | undefined;
     const cleanupBlocked = new Promise<void>((resolve) => {
@@ -125,17 +126,16 @@ describe("authorizeMobileMediaUpload", () => {
       }),
     );
 
-    await new Promise<void>((resolve) => setImmediate(resolve));
-    assert.deepEqual(events, ["authenticate", "rate-limit", "cleanup"]);
-    assert.ok(releaseCleanup);
-    releaseCleanup();
-
+    // The upload is authorized while cleanup is still blocked: a second of
+    // housekeeping must not be charged to every presign.
     assert.deepEqual(await authorization, {
       ownerId: "user-1",
       purpose: "profile-avatar",
       targetServerId: null,
     });
     assert.deepEqual(events, ["authenticate", "rate-limit", "cleanup"]);
+    assert.ok(releaseCleanup);
+    releaseCleanup();
   });
 
   it("requires current MANAGE_SERVER access for a server icon", async () => {
@@ -226,7 +226,7 @@ describe("authorizeMobileMediaUpload", () => {
     );
   });
 
-  it("turns cleanup rejection into an awaited redacted best-effort result", async () => {
+  it("turns cleanup rejection into a redacted best-effort result", async () => {
     const events: string[] = [];
     const warnings: Array<{ detail: unknown; scope: string }> = [];
     const rawFailure = "provider-key-1 failed with upstream-secret";
@@ -251,6 +251,8 @@ describe("authorizeMobileMediaUpload", () => {
     );
 
     assert.equal(result.ownerId, "user-1");
+    // Cleanup no longer holds the response, so let its rejection land first.
+    await new Promise<void>((resolve) => setImmediate(resolve));
     assert.deepEqual(events, ["rate-limit", "cleanup", "warning"]);
     assert.equal(warnings.length, 1);
     assert.equal(JSON.stringify(warnings).includes(rawFailure), false);
@@ -302,6 +304,38 @@ describe("completeMobileMediaUpload", () => {
       purpose: "profile-avatar",
       targetServerId: null,
     });
+  });
+
+  /**
+   * UploadThing retries this callback, so deleting the object over a read that
+   * merely timed out guaranteed every retry failed on a missing object — the
+   * upload reached 100% on the phone and then never answered.
+   */
+  it("keeps the stored object when verification failed only temporarily", async () => {
+    let deleteCalls = 0;
+
+    await assert.rejects(
+      () =>
+        completeMobileMediaUpload(
+          { file, metadata },
+          completionDependencies({
+            deleteFiles: async () => {
+              deleteCalls += 1;
+              return { deletedCount: 1, success: true };
+            },
+            isTransientVerificationFailure: () => true,
+            recordVerifiedUpload: async () => {
+              assert.fail("a failed verification must not persist a claim");
+            },
+            verifyUploadedImage: async () => {
+              throw new ApiError("source unavailable", 503, "UPLOAD_SOURCE_UNAVAILABLE");
+            },
+          }),
+        ),
+      (error) => assertBoundedUploadThingError(error, [file.key]),
+    );
+
+    assert.equal(deleteCalls, 0);
   });
 
   it("best-effort deletes only the exact provider key after verification failure", async () => {

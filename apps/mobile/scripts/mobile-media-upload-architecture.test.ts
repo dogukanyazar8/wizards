@@ -37,11 +37,12 @@ describe("mobile media upload architecture", () => {
     assert.match(moduleSource, /require\("expo-image-manipulator"\)/);
     assert.doesNotMatch(pickerSource, /from "expo-image-manipulator"/);
     assert.equal(packageJson.dependencies?.["expo-image-manipulator"], "~57.0.6");
-    // Oversized screenshots are re-encoded rather than refused, and only those:
-    // an image that already fits must not lose quality for nothing.
-    assert.match(pickerSource, /needsMobileImageCompression\(sizeBytes\)/);
-    assert.match(pickerSource, /compressMobileImageToLimit\(/);
-    assert.match(pickerSource, /format:\s*SaveFormat\.JPEG/);
+    // Images are shrunk before they are uploaded, in the format the plan chose,
+    // and an image that is already small is left byte-for-byte alone.
+    assert.match(pickerSource, /optimizeMobileImageForUpload\(/);
+    assert.match(pickerSource, /format:\s*SaveFormat\[ENCODE_FORMAT_KEYS\[input\.format\]\]/);
+    // Chat photos take the same trip rather than sending camera originals.
+    assert.match(readSource("mobile-message-attachment-picker.ts"), /prepareMobileImageAsset\(/);
     assert.doesNotMatch(pickerSource, /fetch\(asset\.uri\)/);
     assert.doesNotMatch(contractSource, /fetch\(asset\.uri\)/);
     assert.match(contractSource, /uri:\s*asset\.uri/);

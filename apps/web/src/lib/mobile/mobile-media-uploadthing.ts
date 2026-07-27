@@ -14,7 +14,10 @@ import {
   recordVerifiedMobileMediaUpload,
   runOpportunisticMobileMediaCleanup,
 } from "@/lib/mobile/mobile-media-upload-service";
-import { verifyMobileUploadedImage } from "@/lib/mobile/mobile-media-verifier";
+import {
+  isTransientMobileImageVerificationFailure,
+  verifyMobileUploadedImage,
+} from "@/lib/mobile/mobile-media-verifier";
 import { ensureServerPermission, getAccessContext } from "@/lib/workspace/access-context";
 import { PermissionBits } from "@/lib/workspace/permissions";
 
@@ -58,6 +61,7 @@ export type MobileMediaUploadCompletionDependencies = {
   deleteFiles: (
     keys: string[],
   ) => Promise<{ readonly deletedCount: number; readonly success: boolean }>;
+  isTransientVerificationFailure: (error: unknown) => boolean;
   logWarning: typeof logWarning;
   recordVerifiedUpload: typeof recordVerifiedMobileMediaUpload;
   verifyUploadedImage: typeof verifyMobileUploadedImage;
@@ -67,6 +71,7 @@ const defaultCompletionDependencies: MobileMediaUploadCompletionDependencies = {
   async deleteFiles(keys) {
     return await new UTApi().deleteFiles(keys);
   },
+  isTransientVerificationFailure: isTransientMobileImageVerificationFailure,
   logWarning,
   recordVerifiedUpload: recordVerifiedMobileMediaUpload,
   verifyUploadedImage: verifyMobileUploadedImage,
@@ -129,7 +134,10 @@ export async function authorizeMobileMediaUpload(
 
   try {
     await dependencies.enforceRateLimit(ownerId, MOBILE_MEDIA_UPLOAD_RATE_LIMIT_ACTION);
-    await runBestEffortAuthenticatedCleanup(dependencies);
+    // Deliberately not awaited. Cleanup is housekeeping for objects nobody is
+    // waiting on, and it used to spend up to a second of every presign — time
+    // the phone spends staring at a picked image that has not started uploading.
+    void runBestEffortAuthenticatedCleanup(dependencies);
 
     // Re-validate the client-supplied intent here. A server-icon intent that reaches this
     // point without a target id would make the Prisma membership lookup drop its filter
@@ -197,12 +205,20 @@ export async function completeMobileMediaUpload(
       type: input.file.type,
       url: input.file.ufsUrl,
     });
-  } catch {
-    await deleteUploadBestEffort(
-      input.file.key,
-      "[mobile-media-upload] rejected object deletion failed",
-      dependencies,
-    );
+  } catch (error) {
+    // A source this server merely could not read right now is left in place.
+    // The upload callback is retried, and deleting the object here made every
+    // later attempt fail on an object that no longer exists — one slow read
+    // became a permanent failure, and on the device an upload that hit 100% and
+    // then never answered.
+    if (!dependencies.isTransientVerificationFailure(error)) {
+      await deleteUploadBestEffort(
+        input.file.key,
+        "[mobile-media-upload] rejected object deletion failed",
+        dependencies,
+      );
+    }
+
     throw new UploadThingError("Uploaded image could not be verified");
   }
 
