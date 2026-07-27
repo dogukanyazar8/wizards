@@ -142,20 +142,57 @@ The older "missing admin sections" snapshot is not the current failure evidence:
 | Real Windows Tauri build / native smoke / device media / signed updater                         | NOT RUN                                                                       |
 | Full UAT integration CI                                                                         | BLOCKED by current non-desktop runner and migration failures                  |
 
+## P01 CI, security, release, and measurement record
+
+**Status: ENV BLOCKED.** The source gates and local unsigned Windows binary build are verified, but a remote CI run, protected release evidence, complete native smoke, and complete performance evidence cannot be claimed without a push/dispatch and release environment access.
+
+### Delivered source gates
+
+- Existing Semgrep CE SAST remains unchanged: immutable image digest, read-only mount, `--strict`, and `--error`. CodeQL was not added or deleted.
+- `desktop-ops` now uses portable `bash` for its version-pinned `cargo-audit 0.22.1` install/check, verifies `Cargo.lock` through `cargo metadata --locked`, and audits that exact lockfile with `cargo audit --file Cargo.lock`. The pinned `cargo-audit` CLI does not implement a `--locked` flag; this is the equivalent fail-closed lockfile boundary, not a relaxed audit.
+- Automatic Linux `desktop-ops` now runs `cargo fmt -- --check`, `cargo clippy --locked --all-targets -- -D warnings`, `cargo test --locked`, and an unsigned `tauri build --no-bundle` signal. Manual `desktop_hosted=true` retains the same Windows/macOS quality matrix.
+- New path-filtered `.github/workflows/desktop-native-build.yml` runs unsigned Windows and macOS `tauri build --no-bundle` signals when desktop, lockfile, runtime, or workflow inputs change. It has `contents: read`, SHA-pinned actions, no environment, no secrets, updater disabled, Windows signing disabled, and no artifact publishing. The Windows lane checks for `whispr-desktop.exe`.
+- The old non-protected CI `desktop-build` job, including Tauri private-key and Windows certificate inputs, was removed. `desktop-release.yml` remains the only signing surface and retains its `desktop-<ring>` protected environment, Ed25519 updater, HTTPS feed, ring, and release evidence contracts.
+- Protected R2 publication now verifies a preinstalled AWS CLI v2 and fails closed when it is absent or unexpected; the credential-bearing job no longer installs an unpinned `awscli` package through `pip`.
+
+### Local P01 evidence
+
+| Command / evidence                                                                                     | Result                                                                                                                                                              |
+| ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `corepack pnpm --filter @wizards/desktop test`                                                         | PASS; 93 tests, including CI, signing-surface, no-bundle forwarding, and measurement-artifact contracts                                                             |
+| `cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml -- --check`                               | PASS                                                                                                                                                                |
+| `cargo clippy --locked --manifest-path apps/desktop/src-tauri/Cargo.toml --all-targets -- -D warnings` | PASS                                                                                                                                                                |
+| `cargo test --locked --manifest-path apps/desktop/src-tauri/Cargo.toml`                                | PASS; 9 Rust tests                                                                                                                                                  |
+| `corepack pnpm --filter @wizards/desktop build:desktop -- --no-bundle`                                 | PASS; local Windows `whispr-desktop.exe`, 10,608,128 bytes                                                                                                          |
+| `cargo metadata --locked` then `cargo audit --file Cargo.lock`                                         | PASS for vulnerabilities; 17 visible informational warnings, no suppression added                                                                                   |
+| `artifacts/desktop-performance/p01-preflight-atomic-final.json`                                        | Actual `measure:windows` `-NoLaunch` artifact: temp-written, flushed, contract-validated, then no-clobber renamed; no application launched and no metric was scored |
+
+The new local `measure:windows` harness accepts an explicit `.exe` and writes only a new direct `.json` file under `artifacts/desktop-performance`; it refuses an existing output and `-WhatIf` writes nothing. It writes to a unique temporary file, flushes it, invokes the Node contract validator, and only then uses a same-volume no-clobber rename. Any scored process-family memory result requires at least one 60-second idle sample per iteration, records every sample, and uses the worst sample. It fail-closes before launch when any WebView2 process already exists, because shared renderer memory cannot otherwise be attributed. For a launched process family, it preserves each CIM creation-time snapshot and verifies live PID plus start time before attribution or process cleanup. It never injects input, toggles overlay state, performs updater network/install/relaunch actions, or records command lines, paths, URLs, user names, tokens, or secrets. Without a trusted interactive-ready/shortcut acknowledgement bridge, cold/warm startup, overlay CPU, shortcut latency, and updater check/install/relaunch are intentionally `NOT_RUN`, never synthetic `PASS`.
+
+### P01 blockers and rollback
+
+- **Remote CI / macOS signal:** NOT RUN. No push, PR, or workflow dispatch was authorized. Local source contracts do not prove GitHub-hosted Windows/macOS execution.
+- **Native smoke:** NOT RUN. Only a `-NoLaunch` harness preflight was authorized; no main-window, tray, deep-link, single-instance, shortcut, companion-window, or updater smoke result is claimed.
+- **SBOM/provenance:** NOT RUN. The release flow has hashes, audit summaries, and redacted evidence, but no verified attestation/SBOM integration was added. Adding permissions, a hosted attestation path, or a new SBOM tool needs a separately authorized release-side decision and live CI validation.
+- **AWS CLI patch reproducibility:** ENV BLOCKED. The protected job removes the unpinned network install and logs the preinstalled AWS CLI v2 it actually used, but the hosted runner supplies the patch version. A checksum-pinned installer or dedicated release image would be a separate release-side decision.
+- **Full UAT integration:** remains BLOCKED by the P00 remote runner/E2E baseline and the current `origin/uat` divergence; no merge or rebase was performed in this worktree.
+
+Rollback is one focused P01 commit: remove the path-filtered workflow and revert the added Linux quality steps while keeping `desktop-release.yml` as the sole signing path. Do not restore non-protected signing secrets as a rollback shortcut.
+
 ## Phase checklist
 
-| Phase | Scope                                                              | Status                                                  |
-| ----- | ------------------------------------------------------------------ | ------------------------------------------------------- |
-| P00   | Baseline, source inventory, trust boundary, scope lock             | PASS after this document-only commit                    |
-| P01   | CI/security/release gates and executable measurement evidence      | Pending user authorization                              |
-| P02   | Trusted local control plane and incremental IPC boundary reduction | Blocked on P01 acceptance                               |
-| P03   | Windows native media spike and measured selection                  | Blocked on P02 acceptance and research decision         |
-| P04   | Windows native UX                                                  | Blocked on prior phases                                 |
-| P05   | Bundled local renderer and shared core strangler migration         | Blocked on prior phases                                 |
-| P06   | macOS/Linux parity                                                 | Blocked on Windows evidence                             |
-| P07   | Collaboration parity                                               | Blocked on foundation gates                             |
-| P08   | Scale, observability, accessibility                                | Blocked on foundation gates                             |
-| P09   | UAT acceptance                                                     | Blocked on all preceding gates and external CI baseline |
+| Phase | Scope                                                              | Status                                                          |
+| ----- | ------------------------------------------------------------------ | --------------------------------------------------------------- |
+| P00   | Baseline, source inventory, trust boundary, scope lock             | PASS after this document-only commit                            |
+| P01   | CI/security/release gates and executable measurement evidence      | ENV BLOCKED: source/local gates delivered; live evidence absent |
+| P02   | Trusted local control plane and incremental IPC boundary reduction | Blocked on P01 acceptance                                       |
+| P03   | Windows native media spike and measured selection                  | Blocked on P02 acceptance and research decision                 |
+| P04   | Windows native UX                                                  | Blocked on prior phases                                         |
+| P05   | Bundled local renderer and shared core strangler migration         | Blocked on prior phases                                         |
+| P06   | macOS/Linux parity                                                 | Blocked on Windows evidence                                     |
+| P07   | Collaboration parity                                               | Blocked on foundation gates                                     |
+| P08   | Scale, observability, accessibility                                | Blocked on foundation gates                                     |
+| P09   | UAT acceptance                                                     | Blocked on all preceding gates and external CI baseline         |
 
 ## Risks
 
@@ -164,7 +201,7 @@ The older "missing admin sections" snapshot is not the current failure evidence:
 3. **Medium — IPC typing.** Companion snapshots cross Rust as `serde_json::Value` with a 16 KiB cap; child renderer Zod parsing is fail-closed, but the native boundary is not typed/versioned.
 4. **Medium — privacy/reliability.** Foreground process basename can reach remote main content; companion visibility commands queue asynchronous work yet return success before the work completes.
 5. **Medium — audit/platform debt.** Cargo audit has 17 informational warnings, including a `glib` unsoundness advisory on Linux dependency paths. No vulnerability was reported; no suppression was added.
-6. **Medium — UAT evidence gap.** Current CI does not automatically prove Windows binary, Rust formatting/lint/test, native smoke, performance, signed updater, or device media.
+6. **Medium — UAT evidence gap.** Source now schedules Rust quality gates and path-filtered unsigned Windows/macOS native builds, but no live hosted execution, native smoke, complete performance sample, signed updater, SBOM/provenance, or device-media evidence exists.
 
 ## Rollback
 
@@ -172,4 +209,4 @@ P00 is documentation-only. Revert its single document commit to remove the phase
 
 ## Next phase gate
 
-Do not begin P01 without explicit user instruction. P01's smallest evidence-driven slice is: preserve existing Semgrep and release contracts; add missing automatic locked Rust quality gates and Windows build signal without touching release secrets; then add a local Windows measurement harness before making any performance gate blocking. It must first resolve the existing runner `pwsh` assumption or use a shell available on the configured runner, and must not mask the independent E2E migration failure.
+Do not begin P02. P01 needs an authorized remote run of the new path-filtered workflow, a clean safe local process-family measurement run, protected release/SBOM-provenance evidence, and the independent UAT CI baseline repaired before its full acceptance gate can be re-evaluated. The P02 remote-renderer trust-boundary change remains blocked behind that evidence.

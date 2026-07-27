@@ -220,9 +220,9 @@ export function getDesktopReleaseOpsContract() {
     safetyRules: DESKTOP_RELEASE_SAFETY_RULES.map((rule) => ({ ...rule })),
     versionContract: getDesktopVersionContract(),
     platformMatrix: {
-      windows: "manual-hosted",
-      macos: "manual-hosted",
-      linux: "automatic",
+      windows: "automatic-path-filtered",
+      macos: "automatic-path-filtered",
+      linux: "automatic-self-hosted",
     },
   };
 }
@@ -297,15 +297,15 @@ export function assertDesktopReleaseOpsContract(contract = getDesktopReleaseOpsC
   }
 
   assertCondition(
-    contract.platformMatrix.windows === "manual-hosted",
-    "Windows desktop CI must require explicit hosted execution.",
+    contract.platformMatrix.windows === "automatic-path-filtered",
+    "Windows desktop CI must use an automatic path-filtered native build signal.",
   );
   assertCondition(
-    contract.platformMatrix.macos === "manual-hosted",
-    "macOS desktop CI must require explicit hosted execution.",
+    contract.platformMatrix.macos === "automatic-path-filtered",
+    "macOS desktop CI must use an automatic path-filtered native build signal.",
   );
   assertCondition(
-    contract.platformMatrix.linux === "automatic",
+    contract.platformMatrix.linux === "automatic-self-hosted",
     "Linux desktop CI must run automatically on the self-hosted runner.",
   );
   assertDesktopVersionContract(contract.versionContract);

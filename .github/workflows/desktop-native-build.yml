@@ -1,0 +1,91 @@
+name: Desktop Native Build
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "apps/desktop/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - ".nvmrc"
+      - ".github/workflows/desktop-native-build.yml"
+  push:
+    branches:
+      - main
+      - staging
+      - uat
+    paths:
+      - "apps/desktop/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - ".nvmrc"
+      - ".github/workflows/desktop-native-build.yml"
+
+concurrency:
+  group: desktop-native-build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  native-build:
+    name: Unsigned native build (${{ matrix.platform }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: Windows
+          - os: macos-latest
+            platform: macOS
+
+    env:
+      TAURI_WEB_URL: https://whispr.team
+      TURBO_TELEMETRY_DISABLED: "1"
+      WHISPR_DESKTOP_RELEASE_RING: uat
+      WHISPR_DESKTOP_UPDATER_ENABLED: "false"
+      WHISPR_DESKTOP_WINDOWS_SIGNING_ENABLED: "false"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+        with:
+          toolchain: stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
+        with:
+          workspaces: apps/desktop/src-tauri
+          cache-on-failure: true
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build unsigned Tauri binary
+        run: pnpm --filter @wizards/desktop build:desktop -- --no-bundle
+
+      - name: Verify Windows executable
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          $artifact = Get-ChildItem -LiteralPath "apps/desktop/src-tauri/target/release" -Filter "whispr-desktop.exe" -File -ErrorAction SilentlyContinue
+          if ($null -eq $artifact) {
+            throw "Unsigned Tauri build did not produce whispr-desktop.exe."
+          }

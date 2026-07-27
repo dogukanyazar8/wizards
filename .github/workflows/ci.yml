@@ -675,8 +675,9 @@ jobs:
 
     strategy:
       fail-fast: false
-      # Automatic CI stays on the free self-hosted runner. The hosted Windows
-      # and macOS checks remain available through an explicit manual opt-in.
+      # Automatic CI uses the free Linux self-hosted runner. The optional manual
+      # matrix adds matching Windows/macOS desktop-ops checks; the path-filtered
+      # desktop-native-build workflow owns automatic hosted native build signals.
       matrix: ${{ inputs.desktop_hosted && fromJSON('{"include":[{"os":"wizards-ci","staged":false},{"os":"windows-latest","staged":false},{"os":"macos-latest","staged":false}]}') || fromJSON('{"include":[{"os":"wizards-ci","staged":false}]}') }}
 
     env:
@@ -702,25 +703,34 @@ jobs:
         uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
         with:
           toolchain: stable
+          components: rustfmt, clippy
 
       - name: Audit Rust dependencies
-        shell: pwsh
+        shell: bash
         working-directory: apps/desktop/src-tauri
         env:
           CARGO_AUDIT_VERSION: 0.22.1
         run: |
-          $expectedVersion = "cargo-audit $env:CARGO_AUDIT_VERSION"
-          $currentVersion = ""
+          current_version="$(cargo audit --version 2>/dev/null | awk '{print $NF}' || true)"
 
-          if (Get-Command cargo-audit -ErrorAction SilentlyContinue) {
-            $currentVersion = (cargo audit --version).Trim()
-          }
+          if [[ "$current_version" != "$CARGO_AUDIT_VERSION" ]]; then
+            cargo install cargo-audit --version "$CARGO_AUDIT_VERSION" --locked --force
+          fi
 
-          if ($currentVersion -ne $expectedVersion) {
-            cargo install cargo-audit --version $env:CARGO_AUDIT_VERSION --locked --force
-          }
+          cargo metadata --locked --format-version 1 --no-deps > /dev/null
+          cargo audit --file Cargo.lock
 
-          cargo audit
+      - name: Check Rust formatting
+        working-directory: apps/desktop/src-tauri
+        run: cargo fmt -- --check
+
+      - name: Lint Rust
+        working-directory: apps/desktop/src-tauri
+        run: cargo clippy --locked --all-targets -- -D warnings
+
+      - name: Test Rust
+        working-directory: apps/desktop/src-tauri
+        run: cargo test --locked
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -734,159 +744,5 @@ jobs:
       - name: Generate desktop production config
         run: pnpm --filter @wizards/desktop build:desktop:config
 
-  desktop-build:
-    name: Tauri Desktop Build
-    # A Windows artifact requires a Windows runner. Do not send automatic UAT
-    # runs to paid GitHub-hosted capacity while the workflow is self-hosted.
-    if: github.event_name == 'workflow_dispatch' && inputs.desktop_hosted
-    runs-on: windows-latest
-    needs:
-      - verify
-      - desktop-ops
-    timeout-minutes: 45
-
-    env:
-      TAURI_WEB_URL: https://whispr.team
-      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-      TURBO_TELEMETRY_DISABLED: "1"
-      WHISPR_DESKTOP_SENTRY_DSN: ${{ vars.WHISPR_DESKTOP_SENTRY_DSN }}
-      WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
-      WINDOWS_CERTIFICATE_PFX_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_PFX_BASE64 }}
-      WHISPR_DESKTOP_RELEASE_RING: ${{ vars.WHISPR_DESKTOP_RELEASE_RING || 'uat' }}
-      WHISPR_DESKTOP_UPDATER_ENABLED: ${{ vars.WHISPR_DESKTOP_UPDATER_ENABLED || 'false' }}
-      WHISPR_DESKTOP_UPDATER_ENDPOINTS: ${{ vars.WHISPR_DESKTOP_UPDATER_ENDPOINTS }}
-      WHISPR_DESKTOP_UPDATER_PUBLIC_KEY: ${{ vars.WHISPR_DESKTOP_UPDATER_PUBLIC_KEY }}
-      WHISPR_DESKTOP_WINDOWS_SIGNING_ENABLED: ${{ (startsWith(github.ref, 'refs/tags/') || vars.WHISPR_DESKTOP_UPDATER_ENABLED == 'true') && 'true' || 'false' }}
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
-
-      - name: Setup Node.js
-        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
-        with:
-          toolchain: stable
-
-      - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
-        with:
-          workspaces: apps/desktop/src-tauri
-          cache-on-failure: true
-
-      - name: Require code signing secrets for release tags
-        if: startsWith(github.ref, 'refs/tags/')
-        shell: pwsh
-        run: |
-          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_PFX_BASE64) -or [string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_PASSWORD)) {
-            Write-Error "Release desktop builds require WINDOWS_CERTIFICATE_PFX_BASE64 and WINDOWS_CERTIFICATE_PASSWORD secrets before publishing."
-            exit 1
-          }
-
-      - name: Require updater signing configuration when enabled
-        if: env.WHISPR_DESKTOP_UPDATER_ENABLED == 'true'
-        shell: pwsh
-        run: |
-          $missing = @()
-          if ([string]::IsNullOrWhiteSpace($env:WHISPR_DESKTOP_UPDATER_ENDPOINTS)) { $missing += "WHISPR_DESKTOP_UPDATER_ENDPOINTS" }
-          if ([string]::IsNullOrWhiteSpace($env:WHISPR_DESKTOP_UPDATER_PUBLIC_KEY)) { $missing += "WHISPR_DESKTOP_UPDATER_PUBLIC_KEY" }
-          if ([string]::IsNullOrWhiteSpace($env:TAURI_SIGNING_PRIVATE_KEY)) { $missing += "TAURI_SIGNING_PRIVATE_KEY" }
-          if ([string]::IsNullOrWhiteSpace($env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD)) { $missing += "TAURI_SIGNING_PRIVATE_KEY_PASSWORD" }
-          if ($env:WHISPR_DESKTOP_WINDOWS_SIGNING_ENABLED -ne "true") { $missing += "WHISPR_DESKTOP_WINDOWS_SIGNING_ENABLED" }
-          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_PFX_BASE64)) { $missing += "WINDOWS_CERTIFICATE_PFX_BASE64" }
-          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_PASSWORD)) { $missing += "WINDOWS_CERTIFICATE_PASSWORD" }
-
-          if ($missing.Count -gt 0) {
-            Write-Error "Desktop updater is enabled but required signed-release configuration is missing: $($missing -join ', ')."
-            exit 1
-          }
-
-      - name: Audit Rust dependencies
-        shell: pwsh
-        working-directory: apps/desktop/src-tauri
-        env:
-          CARGO_AUDIT_VERSION: 0.22.1
-        run: |
-          $expectedVersion = "cargo-audit $env:CARGO_AUDIT_VERSION"
-          $currentVersion = ""
-
-          if (Get-Command cargo-audit -ErrorAction SilentlyContinue) {
-            $currentVersion = (cargo audit --version).Trim()
-          }
-
-          if ($currentVersion -ne $expectedVersion) {
-            cargo install cargo-audit --version $env:CARGO_AUDIT_VERSION --locked --force
-          }
-
-          cargo audit
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Generate desktop production config
-        run: pnpm --filter @wizards/desktop build:desktop:config
-
-      - name: Build desktop app
-        run: pnpm --filter @wizards/desktop build:desktop
-
-      - name: Sign desktop release artifacts
-        if: startsWith(github.ref, 'refs/tags/') && env.WHISPR_DESKTOP_UPDATER_ENABLED != 'true'
-        shell: pwsh
-        run: |
-          $certificatePath = Join-Path $env:RUNNER_TEMP "whispr-codesign.pfx"
-          try {
-            [IO.File]::WriteAllBytes($certificatePath, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE_PFX_BASE64))
-
-            $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter signtool.exe |
-              Where-Object { $_.FullName -match "\\x64\\signtool.exe$" } |
-              Sort-Object FullName -Descending |
-              Select-Object -First 1
-
-            if (-not $signtool) {
-              throw "signtool.exe was not found on the Windows runner."
-            }
-
-            $artifacts = @(
-              Get-ChildItem "apps\desktop\src-tauri\target\release" -Filter "*.exe" -File -ErrorAction SilentlyContinue
-              Get-ChildItem "apps\desktop\src-tauri\target\release\bundle" -Include "*.exe", "*.msi" -Recurse -File -ErrorAction SilentlyContinue
-            )
-
-            if ($artifacts.Count -eq 0) {
-              throw "No desktop artifacts were found to sign."
-            }
-
-            foreach ($artifact in $artifacts) {
-              & $signtool.FullName sign /f $certificatePath /p $env:WINDOWS_CERTIFICATE_PASSWORD /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 $artifact.FullName
-              if ($LASTEXITCODE -ne 0) {
-                throw "signtool failed for $($artifact.FullName) with exit code $LASTEXITCODE."
-              }
-            }
-          } finally {
-            if (Test-Path $certificatePath) {
-              Remove-Item $certificatePath -Force
-            }
-          }
-
-      - name: Upload desktop artifacts
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          if-no-files-found: error
-          name: whispr-desktop-windows
-          path: |
-            apps/desktop/src-tauri/target/release/*.exe
-            apps/desktop/src-tauri/target/release/bundle/**/*.exe
-            apps/desktop/src-tauri/target/release/bundle/**/*.msi
-            apps/desktop/src-tauri/target/release/bundle/**/*.sig
-            apps/desktop/src-tauri/target/release/bundle/**/*.zip
-            apps/desktop/src-tauri/target/release/bundle/**/*.json
-          retention-days: 14
+      - name: Build unsigned desktop native signal
+        run: pnpm --filter @wizards/desktop build:desktop -- --no-bundle

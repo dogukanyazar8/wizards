@@ -124,21 +124,24 @@ describe("desktop release operations contract", () => {
     );
   });
 
-  it("keeps self-hosted desktop operations automatic and hosted validation manually gated", async () => {
+  it("keeps unsigned native build signals automatic and release signing protected", async () => {
     const contract = assertDesktopReleaseOpsContract(getDesktopReleaseOpsContract());
     const workflow = await readFile(path.join(repoRoot, ".github/workflows/ci.yml"), "utf8");
 
     assert.deepEqual(contract.platformMatrix, {
-      windows: "manual-hosted",
-      macos: "manual-hosted",
-      linux: "automatic",
+      windows: "automatic-path-filtered",
+      macos: "automatic-path-filtered",
+      linux: "automatic-self-hosted",
     });
     const desktopOpsStart = workflow.indexOf("\n  desktop-ops:");
     const desktopBuildStart = workflow.indexOf("\n  desktop-build:");
-    const desktopOpsJob = workflow.slice(desktopOpsStart, desktopBuildStart);
+    const desktopOpsJob = workflow.slice(
+      desktopOpsStart,
+      desktopBuildStart === -1 ? workflow.length : desktopBuildStart,
+    );
 
     assert.notEqual(desktopOpsStart, -1);
-    assert.notEqual(desktopBuildStart, -1);
+    assert.equal(desktopBuildStart, -1);
     assert.doesNotMatch(desktopOpsJob, /continue-on-error:/);
     assert.match(
       workflow,
@@ -158,10 +161,12 @@ describe("desktop release operations contract", () => {
     assert.match(releaseGuide, /`e2e_scope`: `smoke`/);
     assert.match(releaseGuide, /`desktop_hosted`: `true`/);
     assert.match(releaseGuide, /`playwright-report`/);
-    assert.match(releaseGuide, /`whispr-desktop-windows`/);
-    assert.match(releaseGuide, /Linux `desktop-ops`.*not Windows artifact evidence/i);
+    assert.match(releaseGuide, /`desktop-native-build\.yml`/);
+    assert.match(releaseGuide, /path-filtered.*Windows.*macOS.*unsigned/i);
+    assert.match(releaseGuide, /Desktop Release.*protected environment/i);
+    assert.match(releaseGuide, /Linux `desktop-ops`.*not Windows release artifact evidence/i);
     assert.match(releaseGuide, /schedule.*does not prove UAT runtime/i);
-    assert.match(
+    assert.doesNotMatch(
       releaseGuide,
       /does not add GitHub-hosted Windows or macOS capacity to default push CI/i,
     );
