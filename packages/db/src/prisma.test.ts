@@ -131,7 +131,8 @@ test("sessions record their version and whether the client identified itself", (
 });
 
 test("the telemetry migration widens the daily metric key without losing rows", () => {
-  assert.match(telemetryMigration, /DROP CONSTRAINT "UserDailyMetric_date_userId_key"/u);
+  assert.match(telemetryMigration, /DROP INDEX "UserDailyMetric_date_userId_key"/u);
+  assert.doesNotMatch(telemetryMigration, /DROP CONSTRAINT "UserDailyMetric_date_userId_key"/u);
   assert.match(
     telemetryMigration,
     /CREATE UNIQUE INDEX "UserDailyMetric_date_userId_clientType_key"/u,
