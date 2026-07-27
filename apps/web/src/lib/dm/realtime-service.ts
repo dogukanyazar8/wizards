@@ -2,6 +2,7 @@ import type { UploadedAttachmentInput } from "@wizards/types";
 
 import { prisma } from "@wizards/db";
 
+import { UNKNOWN_ATTRIBUTION, type ClientAttribution } from "@/lib/analytics/client-attribution";
 import { claimUploadedMessageAttachments } from "@/lib/messages/attachments";
 import { enqueueMessageCreatedAnalyticsJob } from "@/lib/outbox/service";
 
@@ -13,6 +14,8 @@ export type DMRealtimeParticipant = {
 
 export async function createRealtimeDMMessage(args: {
   attachmentInputs: UploadedAttachmentInput[];
+  /** Socket senders carry it on `socket.data`; REST senders read the headers. */
+  attribution?: ClientAttribution;
   content: string;
   conversationId: string;
   forwardOfMessageId?: string | null;
@@ -54,6 +57,7 @@ export async function createRealtimeDMMessage(args: {
 
     await enqueueMessageCreatedAnalyticsJob(tx, {
       attachmentCount: message.attachments.length,
+      attribution: args.attribution ?? UNKNOWN_ATTRIBUTION,
       idempotencyKey: `analytics:dm-message:${createdMessage.id}`,
       isDm: true,
       uploadedBytes,

@@ -1,12 +1,12 @@
 import type { NextRequest } from "next/server";
 import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import { jsonError } from "@/lib/api";
-import { requireAdminUser } from "@/lib/admin/access";
+import { requireAdminCapability } from "@/lib/admin/capabilities";
 import { exportAdminActivityCsv } from "@/lib/admin/management";
 
 export async function GET(request: NextRequest) {
   try {
-    const admin = await requireAdminUser();
+    const admin = await requireAdminCapability("export.activity");
     await enforceApiRateLimit(admin.id, "admin:report:export");
 
     const url = new URL(request.url);

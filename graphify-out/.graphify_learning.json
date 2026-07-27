@@ -1,6 +1,22 @@
 {
-  "generated_at": "2026-07-27T05:17:52.241434+00:00",
+  "generated_at": "2026-07-27T07:35:27.747787+00:00",
   "nodes": {
+    "apps_mobile_src_app_providers_mobile_theme_provider": {
+      "code_fingerprint": "bd446c31ab2919eb145388b5df84e5ae6350dc9ac93f69ec6d189c3788591551",
+      "label": "mobile-theme-provider.tsx",
+      "last": "2026-07-27T06:29:17.529452+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-27T06:29:17.529452+00:00",
+          "outcome": "useful",
+          "q": "Whispr mobile splash görsel dili Discord Slack Teams Zoom gibi olmalı; kaç ekran ve hangi mesajlar?"
+        }
+      ],
+      "score": 0.998938856,
+      "source_file": "apps/mobile/src/app/providers/mobile-theme-provider.tsx",
+      "status": "tentative",
+      "uses": 1
+    },
     "apps_mobile_src_navigation_mobile_bottom_tab_bar_tabicons": {
       "code_fingerprint": "c1a84fcee33f5d81380e4e36738416218eb6cd8910a5f38fe2abb7f60393ed7b",
       "label": "tabIcons",
@@ -12,7 +28,7 @@
           "q": "Mobil uygulamada navigation bar için hangi ikon paketini kullanıyoruz?"
         }
       ],
-      "score": 0.958070701,
+      "score": 0.95595793,
       "source_file": "apps/mobile/src/navigation/mobile-bottom-tab-bar.tsx",
       "status": "tentative",
       "uses": 1
@@ -28,7 +44,7 @@
           "q": "Mobil açılışında modern splash, yüklemeler ve performans kontrolleri nasıl tasarlanmalı?"
         }
       ],
-      "score": 0.987808531,
+      "score": 0.985630182,
       "source_file": "apps/mobile/src/query/mobile-query-cache-policy.ts",
       "status": "tentative",
       "uses": 1
@@ -44,7 +60,7 @@
           "q": "Mobil açılışında modern splash, yüklemeler ve performans kontrolleri nasıl tasarlanmalı?"
         }
       ],
-      "score": 0.987808531,
+      "score": 0.985630182,
       "source_file": "packages/types/src/mobile.ts",
       "status": "tentative",
       "uses": 1

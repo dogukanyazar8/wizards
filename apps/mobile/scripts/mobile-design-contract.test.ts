@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { mobileRadii, mobileSizing, mobileSpacing, mobileTypography } from "../src/design/tokens";
 import { darkTheme, lightTheme } from "../src/design/themes";
+import { mobileCopy } from "../src/locale/mobile-copy";
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 
@@ -404,6 +405,25 @@ describe("mobile design contract", () => {
     assert.doesNotMatch(profileSettingsSource, /showDiagnostics|onToggleDiagnostics/);
     assert.match(profileSettingsSource, /resolvedSection === "developer"/);
     assert.match(profileSettingsSource, /"mobile-settings-developer"/);
+  });
+
+  it("keeps the profile hub feedback entry on the megaphone glyph and the short label", () => {
+    const screenSource = readMobileScreenImplementationSource();
+    const hubSource = extractFunctionSource(
+      screenSource,
+      "MobileProfileSettingsHub",
+      "MobileProfileHubRow",
+    );
+
+    // The generic chat bubble read as "message someone" next to the DM surfaces;
+    // the megaphone is the feedback affordance and stays in the hub's Ionicons set.
+    assert.match(
+      hubSource,
+      /icon="megaphone-outline"\s+iconTone="accent"\s+label=\{profileCopy\.feedbackHubAction\}/,
+    );
+    assert.doesNotMatch(hubSource, /chatbubble-ellipses-outline/);
+    assert.equal(mobileCopy.tr.feedbackHubAction, "Geri bildirim");
+    assert.equal(mobileCopy.en.feedbackHubAction, "Feedback");
   });
 
   it("keeps the bottom navigation on the canonical edge-to-edge contract", () => {

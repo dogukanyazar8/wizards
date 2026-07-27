@@ -8,12 +8,9 @@ import {
 import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import { jsonError, parseJsonBody } from "@/lib/api";
 import { requireMobileApiSession } from "@/lib/auth/api";
+import { readRequestAttribution } from "@/lib/analytics/client-attribution";
 import { logError } from "@/lib/logger";
-import {
-  clearVoiceState,
-  emitVoiceStateUpdate,
-  upsertVoiceState,
-} from "@/lib/voice/service";
+import { clearVoiceState, emitVoiceStateUpdate, upsertVoiceState } from "@/lib/voice/service";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -28,7 +25,11 @@ export async function POST(request: Request) {
     await enforceApiRateLimit(session.userId, "mobile:voice:state");
 
     const input = await parseJsonBody(request, MobileVoiceStateUpsertRequestSchema);
-    const state = await upsertVoiceState(session.userId, input);
+    const state = await upsertVoiceState(
+      session.userId,
+      input,
+      readRequestAttribution(request.headers),
+    );
     const response = MobileVoiceStateMutationResponseSchema.parse(state);
 
     void emitVoiceStateUpdate({

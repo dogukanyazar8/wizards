@@ -15,6 +15,7 @@ import {
   claimUploadedMessageAttachments,
   normalizeMessageContentForSend,
 } from "@/lib/messages/attachments";
+import { UNKNOWN_ATTRIBUTION, type ClientAttribution } from "@/lib/analytics/client-attribution";
 import { mapAttachmentsForViewer } from "@/lib/messages/attachment-visibility";
 import { enqueueMessageCreatedAnalyticsJob } from "@/lib/outbox/service";
 import { requireChannelPermissionForUser } from "@/lib/workspace/permission-service";
@@ -372,10 +373,7 @@ export async function getChannelMessages(
       threadId: null,
       // 8d: thread replies stay out of the channel stream unless their author
       // ticked "also send to channel" while replying.
-      AND: [
-        { OR: [{ threadParentId: null }, { alsoSentToChannel: true }] },
-        visibleMessageWhere(),
-      ],
+      AND: [{ OR: [{ threadParentId: null }, { alsoSentToChannel: true }] }, visibleMessageWhere()],
     },
     include: messageInclude,
     orderBy: { createdAt: "desc" as const },
@@ -627,6 +625,7 @@ export async function createMessage(
   threadParentId?: string,
   options: {
     alsoSendToChannel?: boolean;
+    attribution?: ClientAttribution;
     forwardOfMessageId?: string | null;
     permissions?: bigint;
   } = {},
@@ -635,6 +634,7 @@ export async function createMessage(
     channelId,
     attachments,
     content,
+    ...(options.attribution ? { attribution: options.attribution } : {}),
     ...(options.alsoSendToChannel ? { alsoSendToChannel: true } : {}),
     ...(options.forwardOfMessageId ? { forwardOfMessageId: options.forwardOfMessageId } : {}),
     ...(options.permissions !== undefined ? { permissions: options.permissions } : {}),
@@ -657,6 +657,8 @@ export async function createSystemMessage(args: {
 async function createTypedMessage(args: {
   alsoSendToChannel?: boolean;
   attachments?: UploadedAttachmentInput[];
+  /** Only DEFAULT messages write analytics; system messages have no client. */
+  attribution?: ClientAttribution;
   channelId: string;
   content: string;
   forwardOfMessageId?: string | null;
@@ -741,6 +743,7 @@ async function createTypedMessage(args: {
     if (args.type === "DEFAULT") {
       await enqueueMessageCreatedAnalyticsJob(tx, {
         attachmentCount,
+        attribution: args.attribution ?? UNKNOWN_ATTRIBUTION,
         idempotencyKey: `analytics:channel-message:${createdMessage.id}`,
         uploadedBytes,
         userId: args.userId,
@@ -842,8 +845,7 @@ export async function editMessage(
 }
 
 export type DeleteMessageResult =
-  | { status: "deleted"; placeholderExpiresAt: string | null }
-  | { status: "removed" };
+  { status: "deleted"; placeholderExpiresAt: string | null } | { status: "removed" };
 
 export async function deleteMessage(
   messageId: string,

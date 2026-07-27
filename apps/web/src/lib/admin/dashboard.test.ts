@@ -2,9 +2,39 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   buildDailyMetricSeries,
+  foldUnverifiedClientBreakdown,
   getDashboardDateRange,
   normalizeDashboardDays,
 } from "@/lib/admin/dashboard";
+
+describe("platform breakdown cutoff", () => {
+  it("counts a guessed WEB session as UNKNOWN instead of as web traffic", () => {
+    const breakdown = foldUnverifiedClientBreakdown([
+      { _count: { _all: 40 }, attributionVerified: false, clientType: "WEB" },
+      { _count: { _all: 10 }, attributionVerified: true, clientType: "WEB" },
+      { _count: { _all: 25 }, attributionVerified: true, clientType: "MOBILE" },
+      { _count: { _all: 3 }, attributionVerified: false, clientType: "MOBILE" },
+    ]);
+
+    assert.deepEqual(breakdown, [
+      { count: 43, label: "UNKNOWN" },
+      { count: 25, label: "MOBILE" },
+      { count: 10, label: "WEB" },
+    ]);
+  });
+
+  it("keeps UNKNOWN as its own series rather than folding it into WEB", () => {
+    const breakdown = foldUnverifiedClientBreakdown([
+      { _count: { _all: 5 }, attributionVerified: true, clientType: "UNKNOWN" },
+      { _count: { _all: 7 }, attributionVerified: true, clientType: "WEB" },
+    ]);
+
+    assert.deepEqual(breakdown, [
+      { count: 7, label: "WEB" },
+      { count: 5, label: "UNKNOWN" },
+    ]);
+  });
+});
 
 describe("admin dashboard helpers", () => {
   it("normalizes dashboard windows to the supported range", () => {

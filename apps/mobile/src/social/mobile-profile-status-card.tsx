@@ -21,7 +21,6 @@ import {
   type MobileProfileEditDraft,
 } from "./mobile-profile-edit-state";
 import {
-  describeMobileStatusExpiry,
   MOBILE_STATUS_EXPIRY_CHOICES,
   type MobileStatusExpiryChoice,
 } from "./mobile-profile-status-expiry";
@@ -70,47 +69,6 @@ function getExpiryChoiceLabel(locale: MobileLocale, choice: MobileStatusExpiryCh
     default:
       return copy.profileEditStatusExpiryNeverOption;
   }
-}
-
-/** "{süre} sonra otomatik temizlenir" for a live deadline, or the permanent copy. */
-function getExpiryNotice(input: {
-  choice: MobileStatusExpiryChoice;
-  expiresAt: string | null;
-  locale: MobileLocale;
-  now: Date;
-}): string {
-  const copy = mobileCopy[input.locale];
-  const description =
-    input.choice === "never"
-      ? ({ kind: "none" } as const)
-      : describeMobileStatusExpiry(input.expiresAt, input.now);
-
-  if (description.kind === "none" || description.kind === "expired") {
-    if (input.choice === "never") {
-      return copy.profileEditStatusExpiryNever;
-    }
-
-    // "Bugün" names a moment, not a duration, so it cannot ride the "{duration} sonra"
-    // template the way "4 saat" does.
-    if (input.choice === "today") {
-      return copy.profileEditStatusExpiryTodayNotice;
-    }
-
-    const preview = getExpiryChoiceLabel(input.locale, input.choice);
-    return copy.profileEditStatusExpiryNotice.replace("{duration}", preview);
-  }
-
-  const template =
-    description.kind === "minutes"
-      ? copy.profileEditStatusExpiryMinutes
-      : description.kind === "hours"
-        ? copy.profileEditStatusExpiryHours
-        : copy.profileEditStatusExpiryDays;
-
-  return copy.profileEditStatusExpiryNotice.replace(
-    "{duration}",
-    template.replace("{count}", String(description.count)),
-  );
 }
 
 /** OFFLINE reads as "Görünmez"/"Invisible" here, the same four rows the picker sheet shows. */
@@ -194,12 +152,6 @@ export function MobileProfileStatusCard({
   const isDirty = Object.keys(patch).length > 0;
   const canSave = isDirty && !mutations.updateProfile.isPending;
   const statusText = draft.customStatus.trim();
-  const expiryNotice = getExpiryNotice({
-    choice: draft.statusExpiry,
-    expiresAt: baseline.customStatusExpiresAt,
-    locale,
-    now: new Date(),
-  });
 
   const save = async () => {
     if (!canSave) {
@@ -325,9 +277,6 @@ export function MobileProfileStatusCard({
           </Text>
           <MobileLineIcon color={theme.control.chevron} name="chevron-down" size={16} />
         </Pressable>
-        <Text style={styles.fieldHint} testID="mobile-profile-status-expiry-notice">
-          {expiryNotice}
-        </Text>
         {error ? (
           <Text
             accessibilityRole="alert"

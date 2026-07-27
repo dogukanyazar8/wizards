@@ -38,6 +38,27 @@ const eslintConfig = defineConfig(
       "no-console": ["warn", { allow: ["warn", "error", "info"] }],
     },
   },
+  {
+    // `requireAdminUser()` defaults to "any admin role", so forgetting the role
+    // filter silently opens a route to every role. Capabilities are the only
+    // supported entry point outside the admin authorization module itself.
+    files: ["src/**"],
+    ignores: ["src/lib/admin/**"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              importNames: ["requireAdminUser"],
+              message: "Use requireAdminCapability from @/lib/admin/capabilities instead.",
+              name: "@/lib/admin/access",
+            },
+          ],
+        },
+      ],
+    },
+  },
   globalIgnores([
     ".next/**",
     "dist/**",

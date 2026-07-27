@@ -5906,3 +5906,26 @@ h4 {
     }
   }
 }
+
+/* Admin console: the "live now" indicator from the design handoff. */
+@keyframes wpulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(0.82);
+  }
+}
+
+.admin-pulse-dot {
+  animation: wpulse 2.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-pulse-dot {
+    animation: none;
+  }
+}

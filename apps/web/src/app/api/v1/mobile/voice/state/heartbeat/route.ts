@@ -6,6 +6,7 @@ import {
 import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import { jsonError, parseJsonBody } from "@/lib/api";
 import { requireMobileApiSession } from "@/lib/auth/api";
+import { readRequestAttribution } from "@/lib/analytics/client-attribution";
 import { heartbeatVoiceState } from "@/lib/voice/service";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +18,11 @@ export async function PATCH(request: Request) {
     await enforceApiRateLimit(session.userId, "mobile:voice:heartbeat");
 
     const input = await parseJsonBody(request, MobileVoiceHeartbeatRequestSchema);
-    const state = await heartbeatVoiceState(session.userId, input);
+    const state = await heartbeatVoiceState(
+      session.userId,
+      input,
+      readRequestAttribution(request.headers),
+    );
     const response = MobileVoiceHeartbeatResponseSchema.parse({
       channelId: state.channelId,
       serverId: state.serverId,

@@ -4,6 +4,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { getRedisRate } from "@/lib/redis";
 
 export const API_RATE_LIMITS = {
+  "admin:campaign:approve": { limit: 20, windowSeconds: 60 },
   "admin:campaign:create": { limit: 12, windowSeconds: 60 },
   "admin:campaign:preview": { limit: 60, windowSeconds: 60 },
   "admin:campaign:send": { limit: 6, windowSeconds: 60 },

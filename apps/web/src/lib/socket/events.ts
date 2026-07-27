@@ -5,6 +5,7 @@ import type {
   MessageReaction,
   UploadedAttachmentInput,
 } from "@wizards/types";
+import type { ClientAttribution } from "@/lib/analytics/client-attribution";
 import type { FriendPresenceUpdateDto } from "@/lib/friends/types";
 
 /**
@@ -323,6 +324,12 @@ export interface SocketData {
   username: string;
   displayName: string;
   appSessionKey?: string;
+  /**
+   * Resolved once at handshake. Voice sessions cannot join back to `AppSession`
+   * (`VoiceState.sessionId` is a different key), so media metrics read the
+   * client from here instead.
+   */
+  clientAttribution?: ClientAttribution;
   presenceCustomStatus: string | null;
   presenceStatus: FriendPresenceUpdateDto["status"];
   typingChannels: Set<string>;

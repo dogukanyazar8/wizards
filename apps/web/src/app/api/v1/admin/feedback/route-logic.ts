@@ -1,4 +1,3 @@
-import type { AdminRole } from "@wizards/db";
 import {
   AdminFeedbackUpdateRequestSchema,
   AdminRoadmapCreateRequestSchema,
@@ -12,7 +11,8 @@ import {
 
 import { jsonError, parseJsonBody } from "@/lib/api";
 import { enforceApiRateLimit } from "@/lib/api-rate-limit";
-import { requireAdminUser, writeAdminAuditLog, type AdminAccessUser } from "@/lib/admin/access";
+import { writeAdminAuditLog, type AdminAccessUser } from "@/lib/admin/access";
+import { requireAdminCapability } from "@/lib/admin/capabilities";
 import {
   createAdminRoadmapItem,
   getAdminFeedbackDetail,
@@ -22,15 +22,6 @@ import {
   updateAdminRoadmapItem,
   type AdminFeedbackListFilters,
 } from "@/lib/feedback/feedback-service";
-
-/**
- * Reading feedback is a support job; changing a status or editing the public
- * roadmap is a product decision that reaches every user, so it stays with the
- * roles that already own destructive operations. `ANALYST` is read-only here
- * for the same reason it is read-only on the dashboard.
- */
-const FEEDBACK_READ_ROLES: AdminRole[] = ["OWNER", "ADMIN", "SUPPORT", "ANALYST", "MODERATOR"];
-const FEEDBACK_WRITE_ROLES: AdminRole[] = ["OWNER", "ADMIN", "SUPPORT"];
 
 type AdminFeedbackRateLimitAction =
   "admin:feedback:list" | "admin:feedback:read" | "admin:feedback:update" | "admin:roadmap:update";
@@ -54,8 +45,11 @@ export type AdminFeedbackRouteDependencies = {
 };
 
 const defaultDependencies: AdminFeedbackRouteDependencies = {
-  authenticateRead: () => requireAdminUser({ roles: FEEDBACK_READ_ROLES }),
-  authenticateWrite: () => requireAdminUser({ roles: FEEDBACK_WRITE_ROLES }),
+  // Reading feedback is a support job; changing a status or editing the public
+  // roadmap is a product decision that reaches every user, so the write side
+  // stays with the roles that already own destructive operations.
+  authenticateRead: () => requireAdminCapability("feedback.read"),
+  authenticateWrite: () => requireAdminCapability("feedback.write"),
   createRoadmapItem: createAdminRoadmapItem,
   enforceRateLimit: enforceApiRateLimit,
   getDetail: getAdminFeedbackDetail,

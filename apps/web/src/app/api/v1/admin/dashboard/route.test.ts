@@ -9,6 +9,12 @@ function request(days = "30") {
 
 function routeDependencies(overrides: Partial<Parameters<typeof getAdminDashboardRoute>[1]> = {}) {
   return {
+    authenticate: async () => ({
+      email: "admin@whispr.test",
+      id: "admin-1",
+      role: "OWNER" as const,
+      username: "admin",
+    }),
     enforceApiRateLimit: async () => undefined,
     getAdminDashboardSnapshot: async (days: number) => ({
       generatedAt: "2026-07-09T00:00:00.000Z",
@@ -21,12 +27,6 @@ function routeDependencies(overrides: Partial<Parameters<typeof getAdminDashboar
       return Response.json({ error: "Internal server error" }, { status: 500 });
     },
     normalizeDashboardDays: () => 14,
-    requireAdminUser: async () => ({
-      email: "admin@whispr.test",
-      id: "admin-1",
-      role: "OWNER" as const,
-      username: "admin",
-    }),
     ...overrides,
   };
 }
@@ -55,7 +55,7 @@ describe("admin dashboard API route", () => {
           calls.push(`normalize:${value}`);
           return 90;
         },
-        requireAdminUser: async () => {
+        authenticate: async () => {
           calls.push("auth");
           return {
             email: "admin@whispr.test",
@@ -86,7 +86,7 @@ describe("admin dashboard API route", () => {
     const response = await getAdminDashboardRoute(
       request(),
       routeDependencies({
-        requireAdminUser: async () => {
+        authenticate: async () => {
           throw new ApiError("Admin access required", 403, "ADMIN_ACCESS_REQUIRED");
         },
       }),

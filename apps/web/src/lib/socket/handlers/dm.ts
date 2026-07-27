@@ -1,6 +1,7 @@
 import { prisma } from "@wizards/db";
 
 import { ApiError } from "@/lib/api";
+import { UNKNOWN_ATTRIBUTION } from "@/lib/analytics/client-attribution";
 import { assertUnblockedDMParticipants } from "@/lib/dm/blocking";
 import { isDMParticipant } from "@/lib/dm/participant-service";
 import { sendDirectMessage } from "@/lib/dm/message-send-service";
@@ -331,6 +332,7 @@ export function registerDMHandlers(
       try {
         await sendDirectMessage({
           attachments: data.attachments,
+          attribution: socket.data.clientAttribution ?? UNKNOWN_ATTRIBUTION,
           content: data.content,
           conversationId: data.conversationId,
           io,

@@ -7,6 +7,7 @@ import {
   logAnalyticsError,
   startMediaUsageSession,
 } from "@/lib/analytics/service";
+import type { ClientAttribution } from "@/lib/analytics/client-attribution";
 import { getLiveKitRoomServiceClient } from "@/lib/livekit/server";
 import { logError } from "@/lib/logger";
 import { getRedis } from "@/lib/redis";
@@ -835,6 +836,7 @@ export async function acquireVoiceJoinLocks(
 export async function upsertVoiceState(
   userId: string,
   input: UpsertVoiceStateBody,
+  attribution: ClientAttribution,
 ): Promise<VoiceStateMutationResponse> {
   await maybeCleanupStaleVoiceStates();
   const channel = await requireVoiceMembership(userId, input);
@@ -898,6 +900,7 @@ export async function upsertVoiceState(
 
   if (shouldStartVoiceUsageSession) {
     void startMediaUsageSession({
+      attribution,
       channelId: channel.id,
       kind: "VOICE",
       serverId: channel.serverId!,
@@ -960,7 +963,11 @@ export async function clearVoiceState(
   return existingState;
 }
 
-export async function heartbeatVoiceState(userId: string, input: HeartbeatVoiceStateBody | string) {
+export async function heartbeatVoiceState(
+  userId: string,
+  input: HeartbeatVoiceStateBody | string,
+  attribution: ClientAttribution,
+) {
   await maybeCleanupStaleVoiceStates();
   const sessionId = typeof input === "string" ? input : input.sessionId;
 
@@ -985,14 +992,24 @@ export async function heartbeatVoiceState(userId: string, input: HeartbeatVoiceS
   });
 
   if (typeof input !== "string" && input.selfVideo !== undefined) {
-    const action = input.selfVideo ? startMediaUsageSession : endMediaUsageSession;
-    await action({
-      channelId: existingState.channelId,
-      kind: "CAMERA",
-      serverId: existingState.serverId,
-      sessionId,
-      userId,
-    }).catch((error) => {
+    // Opening a media session records the client; closing one reads it back off
+    // the row, so only the start side carries attribution.
+    const toggleCamera = input.selfVideo
+      ? startMediaUsageSession({
+          attribution,
+          channelId: existingState.channelId,
+          kind: "CAMERA",
+          serverId: existingState.serverId,
+          sessionId,
+          userId,
+        })
+      : endMediaUsageSession({
+          kind: "CAMERA",
+          sessionId,
+          userId,
+        });
+
+    await toggleCamera.catch((error) => {
       logAnalyticsError("voice camera heartbeat", error);
     });
   }
@@ -1003,7 +1020,6 @@ export async function heartbeatVoiceState(userId: string, input: HeartbeatVoiceS
   if (selfScreenShare !== undefined) {
     const redis = getRedis();
     const screenShareKey = getVoiceScreenShareStateKey(existingState.channelId, userId);
-    const action = selfScreenShare ? startMediaUsageSession : endMediaUsageSession;
 
     if (selfScreenShare) {
       await redis
@@ -1013,13 +1029,22 @@ export async function heartbeatVoiceState(userId: string, input: HeartbeatVoiceS
       await redis.del(screenShareKey).catch(() => undefined);
     }
 
-    await action({
-      channelId: existingState.channelId,
-      kind: "SCREEN_SHARE",
-      serverId: existingState.serverId,
-      sessionId,
-      userId,
-    }).catch((error) => {
+    const toggleScreenShare = selfScreenShare
+      ? startMediaUsageSession({
+          attribution,
+          channelId: existingState.channelId,
+          kind: "SCREEN_SHARE",
+          serverId: existingState.serverId,
+          sessionId,
+          userId,
+        })
+      : endMediaUsageSession({
+          kind: "SCREEN_SHARE",
+          sessionId,
+          userId,
+        });
+
+    await toggleScreenShare.catch((error) => {
       logAnalyticsError("voice screen-share heartbeat", error);
     });
 

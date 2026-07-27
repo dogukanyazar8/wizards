@@ -1,6 +1,9 @@
 import { createHash } from "node:crypto";
 
 export type AnalyticsClientInfo = {
+  appVersion: string | null;
+  /** True when `x-whispr-client` declared the platform instead of UA guessing. */
+  attributionVerified: boolean;
   browser: string | null;
   clientType: "WEB" | "DESKTOP" | "MOBILE" | "UNKNOWN";
   countryCode: string | null;
@@ -9,6 +12,9 @@ export type AnalyticsClientInfo = {
   os: string | null;
   userAgentHash: string | null;
 };
+
+/** Free text from a client is never stored: only a plain version string passes. */
+const APP_VERSION_PATTERN = /^[0-9A-Za-z.\-+]{1,32}$/;
 
 type HeaderRecord = Record<string, string | string[] | undefined>;
 
@@ -134,12 +140,18 @@ function detectDeviceType(userAgent: string): AnalyticsClientInfo["deviceType"] 
   return userAgent ? "DESKTOP" : "UNKNOWN";
 }
 
+function readDeclaredClient(headers: HeaderSource | null | undefined) {
+  const value = readHeader(headers, "x-whispr-client")?.trim().toLowerCase();
+
+  return value === "web" || value === "desktop" || value === "mobile" ? value : null;
+}
+
 function detectClientType(
   headers: HeaderSource | null | undefined,
   userAgent: string,
   deviceType: AnalyticsClientInfo["deviceType"],
 ): AnalyticsClientInfo["clientType"] {
-  const explicitClient = readHeader(headers, "x-whispr-client")?.trim().toLowerCase();
+  const explicitClient = readDeclaredClient(headers);
 
   if (explicitClient === "desktop" || /WhisprDesktop|Tauri|Wry/i.test(userAgent)) {
     return "DESKTOP";
@@ -160,7 +172,15 @@ function detectClientType(
   return userAgent ? "WEB" : "UNKNOWN";
 }
 
-export function getAnalyticsClientInfo(headers: HeaderSource | null | undefined): AnalyticsClientInfo {
+function detectAppVersion(headers: HeaderSource | null | undefined) {
+  const value = readHeader(headers, "x-whispr-client-version")?.trim();
+
+  return value && APP_VERSION_PATTERN.test(value) ? value : null;
+}
+
+export function getAnalyticsClientInfo(
+  headers: HeaderSource | null | undefined,
+): AnalyticsClientInfo {
   const userAgent = readHeader(headers, "user-agent") ?? "";
   const deviceType = detectDeviceType(userAgent);
   const countryCode = normalizeCountryCode(
@@ -171,6 +191,8 @@ export function getAnalyticsClientInfo(headers: HeaderSource | null | undefined)
   );
 
   return {
+    appVersion: detectAppVersion(headers),
+    attributionVerified: readDeclaredClient(headers) !== null,
     browser: detectBrowser(userAgent),
     clientType: detectClientType(headers, userAgent, deviceType),
     countryCode,

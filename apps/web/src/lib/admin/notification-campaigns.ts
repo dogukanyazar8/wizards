@@ -1,9 +1,13 @@
-import type { NotificationCampaignStatus, NotificationType, Prisma } from "@wizards/db";
-import { prisma } from "@wizards/db";
+import type { NotificationCampaignStatus, NotificationType } from "@wizards/db";
+import { Prisma, prisma } from "@wizards/db";
 import { ApiError } from "@/lib/api";
 import { getSocketServer } from "@/lib/socket/runtime";
 import type { NotificationSocketPayload } from "@/lib/socket/events";
 import { writeAdminAuditLog } from "@/lib/admin/access";
+import {
+  freezeCampaignRecipients,
+  type CampaignDeliveryCounts,
+} from "@/lib/admin/campaign-delivery";
 
 export type CampaignSegment =
   | { type: "ALL_USERS" }
@@ -37,6 +41,78 @@ type NotificationRow = {
 };
 
 const CAMPAIGN_BATCH_SIZE = 500;
+
+/** Above this audience a campaign needs a second pair of eyes before it goes out. */
+export const CAMPAIGN_APPROVAL_THRESHOLD = 1000;
+
+const DELIVERY_ERROR_MAX_LENGTH = 280;
+
+const SENDABLE_CAMPAIGN_STATUSES = new Set<NotificationCampaignStatus>([
+  "DRAFT",
+  "FAILED",
+  "PENDING_APPROVAL",
+]);
+
+export type CampaignSendableCampaign = {
+  actionUrl: string | null;
+  approvedAt: Date | null;
+  body: string;
+  id: string;
+  imageUrl: string | null;
+  status: NotificationCampaignStatus;
+  title: string;
+  type: NotificationType;
+};
+
+export type CampaignNotificationInput = {
+  actionUrl: string | null;
+  body: string;
+  campaignId: string;
+  dedupeKey: string;
+  imageUrl: string | null;
+  metadata: Record<string, unknown>;
+  title: string;
+  type: NotificationType;
+  userId: string;
+};
+
+export type CampaignSendDependencies = {
+  completeCampaign(
+    campaignId: string,
+    data: {
+      completedAt: Date;
+      failedCount: number;
+      sentCount: number;
+      status: NotificationCampaignStatus;
+    },
+  ): Promise<unknown>;
+  countDeliveries(campaignId: string): Promise<CampaignDeliveryCounts>;
+  createNotification(input: CampaignNotificationInput): Promise<NotificationRow>;
+  emitNotification(notification: NotificationRow): void;
+  findCampaign(campaignId: string): Promise<CampaignSendableCampaign | null>;
+  freezeRecipients(campaignId: string, now: Date): Promise<CampaignDeliveryCounts>;
+  listPendingUserIds(campaignId: string, take: number): Promise<string[]>;
+  markCampaignApprovalRequired(campaignId: string): Promise<void>;
+  markCampaignSending(campaignId: string, startedAt: Date): Promise<void>;
+  markDeliveryFailed(campaignId: string, userId: string, error: string): Promise<void>;
+  markDeliverySent(campaignId: string, userId: string, sentAt: Date): Promise<void>;
+  requeueFailedDeliveries(campaignId: string): Promise<void>;
+  writeAuditLog: typeof writeAdminAuditLog;
+};
+
+export function buildCampaignDedupeKey(campaignId: string, userId: string) {
+  return `campaign:${campaignId}:${userId}`;
+}
+
+function isUniqueConstraintError(error: unknown) {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
+}
+
+function describeDeliveryError(error: unknown) {
+  const message = error instanceof Error ? error.message : "Unknown delivery error";
+
+  return message.slice(0, DELIVERY_ERROR_MAX_LENGTH);
+}
 
 function validateCampaignCopy(input: CreateCampaignInput) {
   const title = input.title.trim();
@@ -75,7 +151,7 @@ export function normalizeCampaignSegment(segment: CampaignSegment): CampaignSegm
   }
 }
 
-async function getCampaignRecipientIds(segment: CampaignSegment) {
+export async function getCampaignRecipientIds(segment: CampaignSegment) {
   switch (segment.type) {
     case "ALL_USERS": {
       const users = await prisma.user.findMany({
@@ -174,31 +250,130 @@ function serializeNotification(notification: NotificationRow): NotificationSocke
   };
 }
 
-export async function createNotificationCampaign(adminUserId: string, input: CreateCampaignInput) {
+export type CampaignCreateDependencies = {
+  countRecipients(segment: CampaignSegment): Promise<number>;
+  createCampaign(data: {
+    actionUrl: string | null;
+    body: string;
+    createdById: string;
+    imageUrl: string | null;
+    segment: CampaignSegment;
+    status: NotificationCampaignStatus;
+    title: string;
+    type: NotificationType;
+  }): Promise<{ id: string; status: NotificationCampaignStatus }>;
+  writeAuditLog: typeof writeAdminAuditLog;
+};
+
+const defaultCampaignCreateDependencies: CampaignCreateDependencies = {
+  countRecipients: async (segment) => (await getCampaignRecipientIds(segment)).length,
+  createCampaign: (data) =>
+    prisma.notificationCampaign.create({
+      data: {
+        ...data,
+        segment: data.segment as unknown as Prisma.InputJsonValue,
+      },
+    }),
+  writeAuditLog: writeAdminAuditLog,
+};
+
+export async function createNotificationCampaign(
+  adminUserId: string,
+  input: CreateCampaignInput,
+  dependencies: CampaignCreateDependencies = defaultCampaignCreateDependencies,
+) {
   const copy = validateCampaignCopy(input);
   const segment = normalizeCampaignSegment(input.segment);
+  const recipientCount = await dependencies.countRecipients(segment);
 
-  const campaign = await prisma.notificationCampaign.create({
-    data: {
-      actionUrl: input.actionUrl ?? null,
-      body: copy.body,
-      createdById: adminUserId,
-      imageUrl: input.imageUrl ?? null,
-      segment: segment as unknown as Prisma.InputJsonValue,
-      title: copy.title,
-      type: input.type ?? "SYSTEM",
-    },
+  // The threshold follows the audience, not the segment type: hand-picking 5000
+  // user ids reaches as many people as broadcasting to everybody.
+  const status: NotificationCampaignStatus =
+    recipientCount > CAMPAIGN_APPROVAL_THRESHOLD ? "PENDING_APPROVAL" : "DRAFT";
+
+  const campaign = await dependencies.createCampaign({
+    actionUrl: input.actionUrl ?? null,
+    body: copy.body,
+    createdById: adminUserId,
+    imageUrl: input.imageUrl ?? null,
+    segment,
+    status,
+    title: copy.title,
+    type: input.type ?? "SYSTEM",
   });
 
-  await writeAdminAuditLog({
+  await dependencies.writeAuditLog({
     action: "notification_campaign.create",
     adminUserId,
-    metadata: { segment },
+    metadata: { recipientCount, segment, status },
     targetId: campaign.id,
     targetType: "NotificationCampaign",
   });
 
   return campaign;
+}
+
+export type CampaignApproveDependencies = {
+  approve(campaignId: string, data: { approvedAt: Date; approvedById: string }): Promise<unknown>;
+  findCampaign(campaignId: string): Promise<{
+    approvedAt: Date | null;
+    createdById: string | null;
+    id: string;
+    status: NotificationCampaignStatus;
+  } | null>;
+  writeAuditLog: typeof writeAdminAuditLog;
+};
+
+const defaultCampaignApproveDependencies: CampaignApproveDependencies = {
+  approve: (campaignId, data) =>
+    prisma.notificationCampaign.update({ where: { id: campaignId }, data }),
+  findCampaign: (campaignId) =>
+    prisma.notificationCampaign.findUnique({
+      where: { id: campaignId },
+      select: { approvedAt: true, createdById: true, id: true, status: true },
+    }),
+  writeAuditLog: writeAdminAuditLog,
+};
+
+/** The second pair of eyes an oversized campaign needs; never the author's own. */
+export async function approveNotificationCampaign(
+  adminUserId: string,
+  campaignId: string,
+  dependencies: CampaignApproveDependencies = defaultCampaignApproveDependencies,
+) {
+  const campaign = await dependencies.findCampaign(campaignId);
+
+  if (!campaign) {
+    throw new ApiError("Notification campaign not found", 404, "NOT_FOUND");
+  }
+
+  if (campaign.status !== "PENDING_APPROVAL") {
+    throw new ApiError("Notification campaign is not waiting for approval.", 409);
+  }
+
+  if (campaign.approvedAt) {
+    throw new ApiError("Notification campaign is already approved.", 409);
+  }
+
+  if (campaign.createdById === adminUserId) {
+    throw new ApiError("A campaign cannot be approved by the admin who created it.", 400);
+  }
+
+  const approvedAt = new Date();
+  const approved = await dependencies.approve(campaignId, {
+    approvedAt,
+    approvedById: adminUserId,
+  });
+
+  await dependencies.writeAuditLog({
+    action: "notification_campaign.approve",
+    adminUserId,
+    metadata: { createdById: campaign.createdById },
+    targetId: campaignId,
+    targetType: "NotificationCampaign",
+  });
+
+  return approved;
 }
 
 export async function previewNotificationCampaignRecipients(segment: CampaignSegment) {
@@ -239,85 +414,223 @@ export async function listNotificationCampaigns(limit = 20) {
   });
 }
 
-export async function sendNotificationCampaign(args: { adminUserId: string; campaignId: string }) {
-  const campaign = await prisma.notificationCampaign.findUnique({
-    where: { id: args.campaignId },
-  });
+const defaultCampaignSendDependencies: CampaignSendDependencies = {
+  completeCampaign: (campaignId, data) =>
+    prisma.notificationCampaign.update({ where: { id: campaignId }, data }),
+  countDeliveries: async (campaignId) => {
+    const grouped = await prisma.campaignDelivery.groupBy({
+      by: ["status"],
+      where: { campaignId },
+      _count: { _all: true },
+    });
+
+    const read = (status: "FAILED" | "PENDING" | "SENT" | "SKIPPED") =>
+      grouped.find((row) => row.status === status)?._count._all ?? 0;
+
+    return {
+      failed: read("FAILED"),
+      pending: read("PENDING"),
+      sent: read("SENT"),
+      skipped: read("SKIPPED"),
+    };
+  },
+  createNotification: (input) =>
+    prisma.notification.create({
+      data: {
+        actionUrl: input.actionUrl,
+        body: input.body,
+        campaignId: input.campaignId,
+        dedupeKey: input.dedupeKey,
+        imageUrl: input.imageUrl,
+        metadata: input.metadata as Prisma.InputJsonValue,
+        title: input.title,
+        type: input.type,
+        userId: input.userId,
+      },
+    }),
+  emitNotification: (notification) => {
+    getSocketServer()
+      ?.to(`user:${notification.userId}`)
+      .emit("notification:new", serializeNotification(notification));
+  },
+  findCampaign: (campaignId) =>
+    prisma.notificationCampaign.findUnique({
+      where: { id: campaignId },
+      select: {
+        actionUrl: true,
+        approvedAt: true,
+        body: true,
+        id: true,
+        imageUrl: true,
+        status: true,
+        title: true,
+        type: true,
+      },
+    }),
+  freezeRecipients: (campaignId, now) => freezeCampaignRecipients(campaignId, { now }),
+  listPendingUserIds: async (campaignId, take) => {
+    const rows = await prisma.campaignDelivery.findMany({
+      where: { campaignId, status: "PENDING" },
+      orderBy: { createdAt: "asc" },
+      take,
+      select: { userId: true },
+    });
+
+    return rows.map((row) => row.userId);
+  },
+  markCampaignApprovalRequired: async (campaignId) => {
+    await prisma.notificationCampaign.update({
+      where: { id: campaignId },
+      data: { status: "PENDING_APPROVAL" satisfies NotificationCampaignStatus },
+    });
+  },
+  markCampaignSending: async (campaignId, startedAt) => {
+    await prisma.notificationCampaign.update({
+      where: { id: campaignId },
+      data: { startedAt, status: "SENDING" satisfies NotificationCampaignStatus },
+    });
+  },
+  markDeliveryFailed: async (campaignId, userId, error) => {
+    await prisma.campaignDelivery.update({
+      where: { campaignId_userId: { campaignId, userId } },
+      data: { error, status: "FAILED" },
+    });
+  },
+  markDeliverySent: async (campaignId, userId, sentAt) => {
+    await prisma.campaignDelivery.update({
+      where: { campaignId_userId: { campaignId, userId } },
+      data: { error: null, sentAt, status: "SENT" },
+    });
+  },
+  requeueFailedDeliveries: async (campaignId) => {
+    await prisma.campaignDelivery.updateMany({
+      where: { campaignId, status: "FAILED" },
+      data: { error: null, status: "PENDING" },
+    });
+  },
+  writeAuditLog: writeAdminAuditLog,
+};
+
+/**
+ * Delivery is driven by the frozen `CampaignDelivery` ledger: the loop only ever
+ * consumes `PENDING` rows, so retrying a failed campaign resumes where it broke
+ * instead of notifying everybody a second time.
+ */
+export async function sendNotificationCampaign(
+  args: { adminUserId: string; campaignId: string },
+  dependencies: CampaignSendDependencies = defaultCampaignSendDependencies,
+) {
+  const campaign = await dependencies.findCampaign(args.campaignId);
 
   if (!campaign) {
     throw new ApiError("Notification campaign not found", 404, "NOT_FOUND");
   }
 
-  if (campaign.status !== "DRAFT" && campaign.status !== "FAILED") {
+  if (
+    !SENDABLE_CAMPAIGN_STATUSES.has(campaign.status) ||
+    (campaign.status === "PENDING_APPROVAL" && !campaign.approvedAt)
+  ) {
     throw new ApiError("Notification campaign cannot be sent in its current state.", 409);
   }
 
-  const segment = normalizeCampaignSegment(
-    (campaign.segment as CampaignSegment | null) ?? { type: "ALL_USERS" },
-  );
-  const recipientIds = await getCampaignRecipientIds(segment);
+  const now = new Date();
+  const frozen = await dependencies.freezeRecipients(args.campaignId, now);
+  const audienceSize = frozen.failed + frozen.pending + frozen.sent + frozen.skipped;
 
-  await prisma.notificationCampaign.update({
-    where: { id: campaign.id },
-    data: {
-      failedCount: 0,
-      sentCount: 0,
-      startedAt: new Date(),
-      status: "SENDING" satisfies NotificationCampaignStatus,
-    },
-  });
-
-  let sentCount = 0;
-  const io = getSocketServer();
-
-  for (let index = 0; index < recipientIds.length; index += CAMPAIGN_BATCH_SIZE) {
-    const batch = recipientIds.slice(index, index + CAMPAIGN_BATCH_SIZE);
-    const notifications = await prisma.$transaction(
-      batch.map((userId) =>
-        prisma.notification.create({
-          data: {
-            actionUrl: campaign.actionUrl,
-            body: campaign.body,
-            campaignId: campaign.id,
-            imageUrl: campaign.imageUrl,
-            metadata: {
-              campaignId: campaign.id,
-              senderId: args.adminUserId,
-              system: true,
-            },
-            title: campaign.title,
-            type: campaign.type,
-            userId,
-          },
-        }),
-      ),
+  if (audienceSize > CAMPAIGN_APPROVAL_THRESHOLD && !campaign.approvedAt) {
+    // A draft can grow between creation and its actual send. Persisting the
+    // gate keeps the frozen delivery ledger recoverable by the approver rather
+    // than leaving a DRAFT that no route can approve.
+    await dependencies.markCampaignApprovalRequired(args.campaignId);
+    await dependencies.writeAuditLog({
+      action: "notification_campaign.approval_required",
+      adminUserId: args.adminUserId,
+      metadata: { audienceSize },
+      targetId: campaign.id,
+      targetType: "NotificationCampaign",
+    });
+    throw new ApiError(
+      "Notification campaign needs a second approval before it can be sent.",
+      409,
+      "APPROVAL_REQUIRED",
     );
+  }
 
-    sentCount += notifications.length;
+  // A retry picks the broken rows back up; delivered and frequency-capped rows
+  // keep their state, which is what stops the second notification.
+  await dependencies.requeueFailedDeliveries(args.campaignId);
+  await dependencies.markCampaignSending(args.campaignId, now);
 
-    for (const notification of notifications) {
-      io?.to(`user:${notification.userId}`).emit(
-        "notification:new",
-        serializeNotification(notification),
-      );
+  const processed = new Set<string>();
+
+  for (;;) {
+    const batch = (
+      await dependencies.listPendingUserIds(args.campaignId, CAMPAIGN_BATCH_SIZE)
+    ).filter((userId) => !processed.has(userId));
+
+    if (batch.length === 0) {
+      break;
+    }
+
+    for (const userId of batch) {
+      processed.add(userId);
+
+      try {
+        const notification = await dependencies.createNotification({
+          actionUrl: campaign.actionUrl,
+          body: campaign.body,
+          campaignId: campaign.id,
+          dedupeKey: buildCampaignDedupeKey(campaign.id, userId),
+          imageUrl: campaign.imageUrl,
+          metadata: {
+            campaignId: campaign.id,
+            senderId: args.adminUserId,
+            system: true,
+          },
+          title: campaign.title,
+          type: campaign.type,
+          userId,
+        });
+
+        await dependencies.markDeliverySent(args.campaignId, userId, new Date());
+        dependencies.emitNotification(notification);
+      } catch (error) {
+        if (isUniqueConstraintError(error)) {
+          // The dedupe key already exists, so this person was served by an
+          // earlier run: count the row as delivered instead of sending again.
+          await dependencies.markDeliverySent(args.campaignId, userId, new Date());
+          continue;
+        }
+
+        await dependencies.markDeliveryFailed(
+          args.campaignId,
+          userId,
+          describeDeliveryError(error),
+        );
+      }
     }
   }
 
-  const status: NotificationCampaignStatus = sentCount === recipientIds.length ? "SENT" : "FAILED";
-  const updated = await prisma.notificationCampaign.update({
-    where: { id: campaign.id },
-    data: {
-      completedAt: new Date(),
-      failedCount: Math.max(0, recipientIds.length - sentCount),
-      sentCount,
-      status,
-    },
+  const counts = await dependencies.countDeliveries(args.campaignId);
+  const status: NotificationCampaignStatus =
+    counts.failed > 0 || counts.pending > 0 ? "FAILED" : "SENT";
+
+  const updated = await dependencies.completeCampaign(args.campaignId, {
+    completedAt: new Date(),
+    failedCount: counts.failed,
+    sentCount: counts.sent,
+    status,
   });
 
-  await writeAdminAuditLog({
+  await dependencies.writeAuditLog({
     action: "notification_campaign.send",
     adminUserId: args.adminUserId,
-    metadata: { recipientCount: recipientIds.length, sentCount },
+    metadata: {
+      failed: counts.failed,
+      pending: counts.pending,
+      sent: counts.sent,
+      skipped: counts.skipped,
+    },
     targetId: campaign.id,
     targetType: "NotificationCampaign",
   });

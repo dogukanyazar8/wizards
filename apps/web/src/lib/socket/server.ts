@@ -7,6 +7,8 @@ import {
   logAnalyticsError,
   startAppSession,
 } from "@/lib/analytics/service";
+import { getAnalyticsClientInfo } from "@/lib/analytics/client-info";
+import { resolveVerifiedAttribution } from "@/lib/analytics/client-attribution";
 import { logError } from "@/lib/logger";
 import {
   getBearerTokenFromHeaderValue,
@@ -18,10 +20,7 @@ import { createHandlerContext } from "@/lib/socket/context";
 import { registerSocketHandlers } from "@/lib/socket/handlers";
 import { markPresenceSocketActive } from "@/lib/socket/presence-helpers";
 import { createSocketServerWithRedisAdapter } from "@/lib/socket/redis-adapter";
-import {
-  readCachedServerRoomIds,
-  writeCachedServerRoomIds,
-} from "@/lib/socket/server-room-cache";
+import { readCachedServerRoomIds, writeCachedServerRoomIds } from "@/lib/socket/server-room-cache";
 import { setSocketServer } from "@/lib/socket/runtime";
 import type { SocketData } from "./events";
 
@@ -96,6 +95,25 @@ function getStringProperty(value: unknown, key: string) {
 
   const trimmed = property.trim();
   return trimmed.length > 0 && !/\s/.test(trimmed) ? trimmed : null;
+}
+
+/**
+ * Native clients can set real handshake headers; browsers cannot on a WebSocket
+ * upgrade, so they declare themselves in the auth payload. Headers win when both
+ * are present.
+ */
+export function mergeHandshakeAttribution(
+  headers: Record<string, string | string[] | undefined>,
+  auth: unknown,
+): Record<string, string | string[] | undefined> {
+  const client = getStringProperty(auth, "client");
+  const clientVersion = getStringProperty(auth, "clientVersion");
+
+  return {
+    ...(client ? { "x-whispr-client": client } : {}),
+    ...(clientVersion ? { "x-whispr-client-version": clientVersion } : {}),
+    ...headers,
+  };
 }
 
 export function getSocketMobileBearerToken(input: {
@@ -418,9 +436,20 @@ export function initSocketServer(httpServer: HTTPServer) {
     const ctx = createHandlerContext({ io, rateRedis, redis, socket });
     const userId = ctx.userId;
     const appSessionKey = `socket:${socket.id}`;
+    const clientInfo = getAnalyticsClientInfo(
+      mergeHandshakeAttribution(socket.handshake.headers, socket.handshake.auth),
+    );
     socket.data.appSessionKey = appSessionKey;
+    // Metric tables have no `attributionVerified` column, so an unverified
+    // guess has to be recorded as UNKNOWN here or it becomes indistinguishable
+    // from a client that really declared itself.
+    socket.data.clientAttribution = resolveVerifiedAttribution({
+      appVersion: clientInfo.appVersion,
+      attributionVerified: clientInfo.attributionVerified,
+      clientType: clientInfo.clientType,
+    });
     void startAppSession({
-      headers: socket.handshake.headers,
+      clientInfo,
       sessionKey: appSessionKey,
       socketId: socket.id,
       userId,

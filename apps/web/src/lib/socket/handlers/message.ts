@@ -1,6 +1,7 @@
 import { ChannelType, prisma } from "@wizards/db";
 
 import { ApiError } from "@/lib/api";
+import { UNKNOWN_ATTRIBUTION } from "@/lib/analytics/client-attribution";
 import { logError } from "@/lib/logger";
 import {
   isMessageGifContentType,
@@ -212,7 +213,11 @@ export function registerMessageHandlers(
         data.replyToId,
         attachmentInputs,
         data.threadParentId,
-        { alsoSendToChannel: data.alsoSendToChannel === true, permissions },
+        {
+          alsoSendToChannel: data.alsoSendToChannel === true,
+          attribution: socket.data.clientAttribution ?? UNKNOWN_ATTRIBUTION,
+          permissions,
+        },
       );
       const messageCreatedAt = new Date(message.createdAt);
       const fanoutStartedAt = Date.now();

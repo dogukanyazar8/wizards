@@ -1,6 +1,7 @@
 import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import { jsonError, parseJsonBody } from "@/lib/api";
 import { requireApiUserId } from "@/lib/auth/api";
+import { readRequestAttribution } from "@/lib/analytics/client-attribution";
 import { logError } from "@/lib/logger";
 import {
   getVoicePerformanceDurationMs,
@@ -21,6 +22,7 @@ export type VoiceStateRouteDependencies = {
   jsonError: typeof jsonError;
   logError: typeof logError;
   parseJsonBody: typeof parseJsonBody;
+  readRequestAttribution: typeof readRequestAttribution;
   recordVoicePerformanceMetric: typeof recordVoicePerformanceMetric;
   requireApiUserId: typeof requireApiUserId;
   upsertVoiceState: typeof upsertVoiceState;
@@ -39,6 +41,7 @@ const defaultVoiceStateRouteDependencies: VoiceStateRouteDependencies = {
   jsonError,
   logError,
   parseJsonBody,
+  readRequestAttribution,
   recordVoicePerformanceMetric,
   requireApiUserId,
   upsertVoiceState,
@@ -54,17 +57,23 @@ export async function postVoiceStateRoute(
     const userId = await dependencies.requireApiUserId();
     await dependencies.enforceApiRateLimit(userId, "voice:state");
     const input = await dependencies.parseJsonBody(request, UpsertVoiceStateBodySchema);
-    const state = await dependencies.upsertVoiceState(userId, input);
-
-    void dependencies.emitVoiceStateUpdate({
-      action: "join",
-      channelId: state.channelId,
-      participants: state.participants,
-      serverId: state.serverId,
+    const state = await dependencies.upsertVoiceState(
       userId,
-    }).catch((error) => {
-      dependencies.logError("[voice] Voice state join emit failed in background", error);
-    });
+      input,
+      dependencies.readRequestAttribution(request.headers),
+    );
+
+    void dependencies
+      .emitVoiceStateUpdate({
+        action: "join",
+        channelId: state.channelId,
+        participants: state.participants,
+        serverId: state.serverId,
+        userId,
+      })
+      .catch((error) => {
+        dependencies.logError("[voice] Voice state join emit failed in background", error);
+      });
 
     dependencies.recordVoicePerformanceMetric({
       durationMs: dependencies.getVoicePerformanceDurationMs(startedAt),
@@ -102,14 +111,16 @@ export async function deleteVoiceStateRoute(
     });
 
     if (existingState) {
-      void dependencies.emitVoiceStateUpdate({
-        action: "leave",
-        channelId: existingState.channelId,
-        serverId: existingState.serverId,
-        userId,
-      }).catch((error) => {
-        dependencies.logError("[voice] Voice state leave emit failed in background", error);
-      });
+      void dependencies
+        .emitVoiceStateUpdate({
+          action: "leave",
+          channelId: existingState.channelId,
+          serverId: existingState.serverId,
+          userId,
+        })
+        .catch((error) => {
+          dependencies.logError("[voice] Voice state leave emit failed in background", error);
+        });
     }
 
     dependencies.recordVoicePerformanceMetric({

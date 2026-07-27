@@ -3,20 +3,14 @@ import type { UploadedAttachmentInput } from "@wizards/types";
 import { prisma } from "@wizards/db";
 
 import { ApiError } from "@/lib/api";
+import type { ClientAttribution } from "@/lib/analytics/client-attribution";
 import { assertUnblockedDMParticipants } from "@/lib/dm/blocking";
-import {
-  dmNotificationUserSelect,
-  getDMDisplayName,
-  mapDMMessagePayload,
-} from "@/lib/dm/service";
+import { dmNotificationUserSelect, getDMDisplayName, mapDMMessagePayload } from "@/lib/dm/service";
 import {
   createRealtimeDMMessage,
   getDMConversationRealtimeUpdates,
 } from "@/lib/dm/realtime-service";
-import {
-  getDMAttachmentLabelKey,
-  getDMConversationPreview,
-} from "@/lib/dm/notification-service";
+import { getDMAttachmentLabelKey, getDMConversationPreview } from "@/lib/dm/notification-service";
 import { logError } from "@/lib/logger";
 import {
   normalizeMessageContentForSend,
@@ -27,6 +21,7 @@ import type { AppSocketServer } from "@/lib/socket/runtime";
 
 export type SendDirectMessageInput = {
   attachments?: unknown;
+  attribution?: ClientAttribution;
   content: string;
   conversationId: string;
   forwardOfMessageId?: string | null;
@@ -130,6 +125,7 @@ export async function sendDirectMessage(input: SendDirectMessageInput) {
 
   const createdMessage = await createRealtimeDMMessage({
     attachmentInputs,
+    ...(input.attribution ? { attribution: input.attribution } : {}),
     content,
     conversationId: input.conversationId,
     forwardOfMessageId: input.forwardOfMessageId ?? null,
@@ -139,24 +135,16 @@ export async function sendDirectMessage(input: SendDirectMessageInput) {
     userId: input.userId,
   });
 
-  const messagePayload = mapDMMessagePayload(
-    createdMessage,
-    undefined,
-    undefined,
-    input.userId,
-  );
+  const messagePayload = mapDMMessagePayload(createdMessage, undefined, undefined, input.userId);
 
   if (input.io) {
     for (const participant of participants) {
-      input.io.to(`user:${participant.userId}`).emit(
-        "dm:message:new",
-        mapDMMessagePayload(
-          createdMessage,
-          undefined,
-          undefined,
-          participant.userId,
-        ),
-      );
+      input.io
+        .to(`user:${participant.userId}`)
+        .emit(
+          "dm:message:new",
+          mapDMMessagePayload(createdMessage, undefined, undefined, participant.userId),
+        );
     }
   }
 

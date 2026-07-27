@@ -65,6 +65,43 @@ kaydediliyor. Panelin platform kırılımı eksik değil, hatalı.
 > yanlışlarsa yalnızca `detectClientType`'ın hangi dalının çalıştığı değişir —
 > platform boyutunun eksikliği (problem 1) ölçümden bağımsız olarak geçerli.
 
+#### Adım 0 sonucu (2026-07-27, W2 uygulaması)
+
+Ölçüm scripti: `packages/db/scripts/audit-appsession-clienttype.mjs`
+(`node --import tsx --env-file=.env scripts/audit-appsession-clienttype.mjs`,
+`packages/db` dizininden; salt okunur).
+
+**Yerel geliştirme veritabanı sonucu — kanıt üretmedi:**
+
+```
+AppSession rows: 0 total, 0 in the last 7 days
+clientType x deviceType (window): (no rows in window)
+last 20 distinct os/browser pairs: (no rows in window)
+sessions whose os/browser looks mobile: 0
+```
+
+Yerel DB `db push` yönetimli ve oturum verisi taşımıyor. **Canlı UAT
+veritabanında script koşulmadı** (bağlantı dizesi bu oturumda yok) ve gerçek
+cihazdan UA dizesi toplanmadı. Ölçüm bu yüzden **açık kalan tek adım**; deploy
+öncesi UAT'de koşulmalı.
+
+**Kod tarafından kesin doğrulanan (ölçümün yerini tutmaz, ama çıkarımın iki
+öncülünü kanıtlar):**
+
+| İddia                                               | Kanıt                                                                                                                                    | Sonuç         |
+| --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| Hiçbir istemci `x-whispr-client` göndermiyor        | Repo taraması: başlık yalnızca `client-info.ts:142` (okuyan) ve `client-info.test.ts:34` (test) içinde geçiyor; gönderen üretim kodu yok | ✅ doğrulandı |
+| Mobil REST istemcisi UA'yı ayarlamıyor              | `apps/mobile/src/api/mobile-api-client.ts:137-152` yalnızca `Accept` / `Authorization` / `Content-Type` yazıyor                          | ✅ doğrulandı |
+| Mobil socket başlık göndermiyor                     | `apps/mobile/src/realtime/mobile-realtime-client.ts:134` `io(...)` çağrısında `extraHeaders` yok                                         | ✅ doğrulandı |
+| Başlıksız istekte `detectClientType` `WEB` döndürür | `client-info.ts:156-160` — UA'da `Mobi\|Android\|iPhone\|iPod` yoksa `deviceType=DESKTOP`, dönüş `WEB`                                   | ✅ doğrulandı |
+| RN varsayılan UA'sı bu deseni içermiyor             | ölçülmedi (cihaz gerekiyor)                                                                                                              | ⚠️ açık       |
+
+Yani zincirin son halkası dışında her şey doğrulandı: başlık yok, UA
+ayarlanmıyor, başlıksız yol `WEB` yazıyor. Çıkarım yanlışlanırsa (RN UA'sı
+`Android` içeriyorsa) sonuç `MOBILE` olur ve yalnızca `detectClientType`
+beklentisi değişir — tasarımın geri kalanı (platform boyutunun `UserDailyMetric`'te
+hiç olmaması, `attributionVerified` kesimi, açık başlık sözleşmesi) etkilenmez.
+
 **3. `appVersion` hiçbir tabloda yok.** Sürüm kırılımı sıfırdan.
 Başlık deseni yarım hazır: `apps/web/src/components/app/app-update-notifier.tsx:21`
 zaten `x-whispr-client-build: WHISPR_BUILD_ID` gönderiyor, sunucu okumuyor.

@@ -7,6 +7,7 @@ import { Button } from "@wizards/ui";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { formatAdminInt } from "@/components/admin/format/admin-format";
 
 type SegmentType =
   "ALL_USERS" | "ONLINE_USERS" | "RECENTLY_ACTIVE" | "CLIENT_TYPE" | "COUNTRY" | "USER_IDS";
@@ -57,6 +58,7 @@ export function NotificationComposer({ canSend }: NotificationComposerProps) {
   const [state, setState] = useState<RequestState>(null);
   const [previewing, setPreviewing] = useState(false);
   const [sending, setSending] = useState(false);
+  const [awaitingApproval, setAwaitingApproval] = useState(false);
 
   const segment = useMemo(() => {
     switch (segmentType) {
@@ -83,6 +85,13 @@ export function NotificationComposer({ canSend }: NotificationComposerProps) {
 
   const disabled = !canSend || sending || previewing;
 
+  // A campaign over the approval threshold is created but not sent: a second
+  // admin has to approve it, so the composer stops offering to send this draft.
+  const editDraft = (apply: () => void) => {
+    setAwaitingApproval(false);
+    apply();
+  };
+
   const preview = async () => {
     if (!canSend) {
       return;
@@ -98,7 +107,7 @@ export function NotificationComposer({ canSend }: NotificationComposerProps) {
       );
       setRecipientCount(payload.recipientCount);
       setState({
-        message: `${payload.recipientCount.toLocaleString()} recipient matched.`,
+        message: `${formatAdminInt(payload.recipientCount)} recipient matched.`,
         tone: "success",
       });
     } catch (error) {
@@ -121,7 +130,7 @@ export function NotificationComposer({ canSend }: NotificationComposerProps) {
 
     try {
       const payload = await requestJson<{
-        campaign: { sentCount?: number; title?: string };
+        campaign: { sentCount?: number; status?: string; title?: string };
       }>("/api/v1/admin/notification-campaigns", {
         actionUrl,
         body,
@@ -132,13 +141,24 @@ export function NotificationComposer({ canSend }: NotificationComposerProps) {
         type: "SYSTEM",
       });
 
+      if (payload.campaign.status === "PENDING_APPROVAL") {
+        setAwaitingApproval(true);
+        setState({
+          message: "This audience needs a second admin to approve the campaign before it is sent.",
+          tone: "danger",
+        });
+        router.refresh();
+        return;
+      }
+
       setTitle("");
       setBody("");
       setActionUrl("");
       setImageUrl("");
+      setAwaitingApproval(false);
       setRecipientCount(payload.campaign.sentCount ?? null);
       setState({
-        message: `${(payload.campaign.sentCount ?? 0).toLocaleString()} notification sent.`,
+        message: `${formatAdminInt(payload.campaign.sentCount ?? 0)} notification sent.`,
         tone: "success",
       });
       router.refresh();
@@ -168,7 +188,7 @@ export function NotificationComposer({ canSend }: NotificationComposerProps) {
         </div>
         <span className="app-panel-soft inline-flex items-center gap-2 rounded-2xl border px-3 py-2 text-sm text-app-muted">
           <Users className="h-4 w-4" />
-          {recipientCount === null ? "No preview" : `${recipientCount.toLocaleString()} users`}
+          {recipientCount === null ? "No preview" : `${formatAdminInt(recipientCount)} users`}
         </span>
       </div>
 
@@ -177,14 +197,14 @@ export function NotificationComposer({ canSend }: NotificationComposerProps) {
           <Input
             disabled={!canSend}
             maxLength={140}
-            onChange={(event) => setTitle(event.target.value)}
+            onChange={(event) => editDraft(() => setTitle(event.target.value))}
             placeholder="Title"
             value={title}
           />
           <select
             className="app-input h-11 w-full rounded-2xl border px-4 text-sm outline-hidden"
             disabled={!canSend}
-            onChange={(event) => setSegmentType(event.target.value as SegmentType)}
+            onChange={(event) => editDraft(() => setSegmentType(event.target.value as SegmentType))}
             value={segmentType}
           >
             <option value="ALL_USERS">All users</option>
@@ -199,7 +219,7 @@ export function NotificationComposer({ canSend }: NotificationComposerProps) {
         <Textarea
           disabled={!canSend}
           maxLength={800}
-          onChange={(event) => setBody(event.target.value)}
+          onChange={(event) => editDraft(() => setBody(event.target.value))}
           placeholder="Message"
           value={body}
         />
@@ -287,13 +307,17 @@ export function NotificationComposer({ canSend }: NotificationComposerProps) {
           )}
           Preview
         </Button>
-        <Button disabled={disabled || !title.trim() || !body.trim()} onClick={send} type="button">
+        <Button
+          disabled={disabled || awaitingApproval || !title.trim() || !body.trim()}
+          onClick={send}
+          type="button"
+        >
           {sending ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           ) : (
             <Send className="mr-2 h-4 w-4" />
           )}
-          Send now
+          {awaitingApproval ? "Awaiting approval" : "Send now"}
         </Button>
       </div>
     </section>

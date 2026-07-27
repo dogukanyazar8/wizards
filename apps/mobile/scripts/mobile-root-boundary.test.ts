@@ -84,7 +84,9 @@ describe("mobile root boundary", () => {
 
   it("keeps voice room participants in one mobile section", () => {
     const source = readFileSync(join(appRoot, "screens", "voice-screen.tsx"), "utf8");
-    assert.match(source, /model\.participants\.map/);
+    // One list feeds the room, audio grid and media stage alike; the screen never
+    // splits it into speaking / listening sections.
+    assert.match(source, /participants=\{model\.participants\}/);
     assert.doesNotMatch(source, /participants=\{model\.(speaking|listening)Participants\}/);
   });
 });

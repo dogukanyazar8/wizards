@@ -300,6 +300,70 @@ describe("mobile voice component rendering", () => {
     expect(onSendInvite).toHaveBeenCalledWith("grace");
   });
 
+  it("keeps a single header invite action and a pinned control dock in audio mode", async () => {
+    const view = await render(<VoiceScreen {...createVoiceScreenProps()} />);
+
+    expect(view.getByTestId("mobile-voice-dock")).toBeTruthy();
+    expect(view.getByTestId("mobile-voice-audience")).toBeTruthy();
+    // One button, in the header: the full-width dashed invite row is gone.
+    expect(view.getByTestId("mobile-voice-invite")).toBeTruthy();
+    expect(view.queryByText(copy.voiceRoomInviteFriends)).toBeNull();
+  });
+
+  it("keeps the same header invite action in video mode instead of a rail duplicate", async () => {
+    const trackRef = {
+      participant: {},
+      publication: {},
+      source: "camera",
+    } as MobileVoiceRoomParticipant["cameraTrackRef"];
+    const view = await render(
+      <VoiceScreen
+        {...createVoiceScreenProps({
+          voiceRoomState: createConnectedVoiceRoom({
+            participants: [
+              createParticipant({
+                cameraTrackRef: trackRef,
+                isCameraEnabled: true,
+                isSelf: true,
+                joinedAt: 1,
+                userId: "self",
+                username: "me",
+              }),
+              createParticipant({ joinedAt: 2, userId: "listener", username: "ada" }),
+            ],
+          }),
+        })}
+      />,
+    );
+
+    expect(view.getByTestId("mobile-voice-invite")).toBeTruthy();
+    expect(view.getByTestId("mobile-voice-dock")).toBeTruthy();
+    expect(view.getByTestId("mobile-voice-rail-listener")).toBeTruthy();
+  });
+
+  it("lays a crowded audio room out in balanced rows with every member on screen", async () => {
+    const participants = ["self", "b", "c", "d", "e", "f", "g"].map((userId, index) =>
+      createParticipant({
+        isSelf: index === 0,
+        joinedAt: index,
+        userId,
+        username: userId,
+      }),
+    );
+    const view = await render(
+      <VoiceScreen
+        {...createVoiceScreenProps({
+          voiceRoomState: createConnectedVoiceRoom({ participants }),
+        })}
+      />,
+    );
+
+    for (const participant of participants) {
+      expect(view.getByTestId(`mobile-voice-participant-${participant.userId}`)).toBeTruthy();
+    }
+    expect(view.getAllByTestId(/^mobile-voice-audience-row-/)).toHaveLength(3);
+  });
+
   it("renders bounded camera tracks and exposes the camera flip action", async () => {
     const trackRef = {
       participant: {},

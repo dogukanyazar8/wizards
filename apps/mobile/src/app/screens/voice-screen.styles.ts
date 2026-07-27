@@ -79,16 +79,20 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
     activeVoiceRoomControls: {
       flexDirection: "row",
       alignItems: "center",
-      justifyContent: "center",
-      gap: 12,
-      marginHorizontal: 20,
-      marginTop: 6,
-      marginBottom: 10,
-      padding: 12,
-      borderWidth: 1,
-      borderColor: theme.surface.voiceRoomControlBorder,
-      borderRadius: 28,
-      backgroundColor: theme.surface.soft,
+      justifyContent: "space-between",
+      gap: 10,
+    },
+    /**
+     * The media controls sit in their own bottom bar, edge to edge and pinned
+     * like the app's navigation bar, so a full room can never scroll them away.
+     */
+    activeVoiceRoomDock: {
+      borderTopWidth: 1,
+      borderTopColor: theme.border.tabBarTop,
+      backgroundColor: theme.surface.elevated,
+      paddingHorizontal: 20,
+      paddingTop: 12,
+      ...theme.elevation.tabBar,
     },
     activeVoiceRoomError: {
       color: theme.status.dangerOnInverse,
@@ -141,23 +145,16 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
       flex: 1,
       minWidth: 0,
     },
-    activeVoiceRoomInviteCard: {
-      flexBasis: "100%",
-      flexDirection: "row",
+    /** The dashed invite row became this header button; the room needed the space. */
+    activeVoiceRoomInviteButton: {
+      width: 36,
+      height: 36,
       alignItems: "center",
       justifyContent: "center",
-      gap: 10,
       borderWidth: 1,
-      borderStyle: "dashed",
       borderColor: theme.surface.voiceRoomInviteBorder,
-      borderRadius: 22,
+      borderRadius: 14,
       backgroundColor: theme.surface.voiceRoomInvite,
-      padding: 18,
-    },
-    activeVoiceRoomInviteLabel: {
-      color: theme.dark ? theme.text.onInverseMuted : theme.text.visualSecondary,
-      fontSize: 13.5,
-      fontFamily: theme.typography.fontFamilyBold,
     },
     activeVoiceRoomMutedBadge: {
       position: "absolute",
@@ -290,14 +287,30 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
       flex: 1,
       minWidth: 0,
     },
-    activeVoiceRoomParticipantGrid: {
+    // #audience-grid: tiles are measured to fit, so the box only ever scrolls
+    // once the room outgrows the readable minimum tile size.
+    activeVoiceRoomAudience: {
       flex: 1,
+      minWidth: 0,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+    },
+    activeVoiceRoomAudienceScroll: {
+      flex: 1,
+      minWidth: 0,
+    },
+    activeVoiceRoomAudienceContent: {
+      gap: 12,
+    },
+    activeVoiceRoomAudienceContentFitted: {
+      flexGrow: 1,
+      justifyContent: "center",
+    },
+    activeVoiceRoomAudienceRow: {
       flexDirection: "row",
-      flexWrap: "wrap",
-      alignContent: "center",
-      gap: 14,
-      paddingHorizontal: 24,
-      paddingVertical: 20,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 12,
     },
     activeVoiceRoomParticipantName: {
       color: theme.dark ? theme.text.inverse : theme.text.primary,
@@ -962,6 +975,11 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
       alignItems: "flex-end",
       gap: 6,
     },
+    activeVoiceRoomHeaderActions: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+    },
     activeVoiceRoomNoiseChip: {
       minHeight: 26,
       flexDirection: "row",
@@ -1090,17 +1108,6 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
       fontSize: 10.5,
       fontFamily: theme.typography.fontFamilyBold,
       textAlign: "center",
-    },
-    activeVoiceRoomRailInvite: {
-      width: 46,
-      height: 46,
-      alignItems: "center",
-      justifyContent: "center",
-      borderWidth: 1,
-      borderStyle: "dashed",
-      borderColor: theme.surface.voiceRoomInviteBorder,
-      borderRadius: 18,
-      backgroundColor: theme.surface.voiceRoomInvite,
     },
     ...createSharedStyles(theme),
   } satisfies Record<string, ImageStyle | TextStyle | ViewStyle>;

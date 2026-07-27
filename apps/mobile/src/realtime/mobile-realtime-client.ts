@@ -1,4 +1,5 @@
 import { io, type Socket } from "socket.io-client";
+import { MOBILE_CLIENT_HEADERS } from "../api/mobile-client-headers";
 import {
   createMobileRealtimeEventEnvelope,
   MOBILE_REALTIME_RECONNECT_POLICY,
@@ -133,6 +134,9 @@ export function createMobileRealtimeClient(
 
     socket = io(options.socketUrl, {
       autoConnect: false,
+      // `startAppSession` runs off the socket handshake, so REST headers alone
+      // would leave every session unattributed.
+      extraHeaders: { ...MOBILE_CLIENT_HEADERS },
       reconnection: true,
       reconnectionAttempts: MOBILE_REALTIME_RECONNECT_POLICY.maxAttempts,
       reconnectionDelay: MOBILE_REALTIME_RECONNECT_POLICY.initialDelayMs,

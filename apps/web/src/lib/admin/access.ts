@@ -23,6 +23,22 @@ function isAllowedRole(role: AdminRole, roles: AdminRole[] | undefined) {
   return !roles || roles.includes(role);
 }
 
+/**
+ * The role gate every admin entry point ends up in. Exported so the capability
+ * contract tests can prove a role/capability pair really produces the shared
+ * 403 envelope instead of asserting on a copy of the rule.
+ */
+export function ensureAdminRoleAllowed(
+  role: AdminRole | null | undefined,
+  roles: AdminRole[] | undefined,
+): AdminRole {
+  if (!role || !isAllowedRole(role, roles)) {
+    throw new ApiError("Admin access required", 403, "ADMIN_ACCESS_REQUIRED");
+  }
+
+  return role;
+}
+
 function normalizeEnvValue(value: string | undefined) {
   return value?.trim().toLowerCase() ?? "";
 }
@@ -152,10 +168,7 @@ export async function requireAdminUser(
 
   assertActiveApiUser(user);
 
-  const role = await getOrCreateBootstrapRole(user);
-  if (!role || !isAllowedRole(role, options.roles)) {
-    throw new ApiError("Admin access required", 403, "ADMIN_ACCESS_REQUIRED");
-  }
+  const role = ensureAdminRoleAllowed(await getOrCreateBootstrapRole(user), options.roles);
 
   return {
     email: user.email,

@@ -2,6 +2,7 @@ import { ChannelType } from "@wizards/db";
 
 import { ApiError } from "@/lib/api";
 import { logAnalyticsError, setVoiceScreenShareUsage } from "@/lib/analytics/service";
+import { UNKNOWN_ATTRIBUTION } from "@/lib/analytics/client-attribution";
 import type { HandlerContext } from "@/lib/socket/context";
 import { createSocketErrorEmitter, createVoiceInviteErrorEmitter } from "@/lib/socket/errors";
 import {
@@ -19,7 +20,11 @@ import {
   SocketVoiceScreenSharePayloadSchema,
   SocketVoiceStatesWatchPayloadSchema,
 } from "@/lib/socket/schemas";
-import { createVoiceInvite, getVoiceInviteKey, parseStoredVoiceInvite } from "@/lib/voice/invite-service";
+import {
+  createVoiceInvite,
+  getVoiceInviteKey,
+  parseStoredVoiceInvite,
+} from "@/lib/voice/invite-service";
 import { emitVoiceScreenShareUpdate } from "@/lib/voice/service";
 import {
   getVoiceScreenShareStateKey,
@@ -82,11 +87,7 @@ export function registerVoiceHandlers(ctx: HandlerContext): SocketHandlerRegistr
 
       await joinVoiceStateViewerRoomsForServer(socket, data.serverId, visibleVoiceChannelIds);
     } catch (error) {
-      emitSocketError(
-        "VOICE_STATE_WATCH_ERROR",
-        "Unable to watch voice state updates.",
-        error,
-      );
+      emitSocketError("VOICE_STATE_WATCH_ERROR", "Unable to watch voice state updates.", error);
     }
   });
 
@@ -268,6 +269,7 @@ export function registerVoiceHandlers(ctx: HandlerContext): SocketHandlerRegistr
       }
 
       void setVoiceScreenShareUsage({
+        attribution: socket.data.clientAttribution ?? UNKNOWN_ATTRIBUTION,
         channelId: data.channelId,
         isScreenSharing: data.isScreenSharing,
         serverId: data.serverId,

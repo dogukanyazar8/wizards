@@ -59,6 +59,7 @@ function routeDependencies(
     jsonError,
     logError: () => undefined,
     parseJsonBody,
+    readRequestAttribution: () => ({ appVersion: null, clientType: "UNKNOWN" as const }),
     recordVoicePerformanceMetric: () => undefined,
     requireApiUserId: async () => "user-1",
     upsertVoiceState: async () => ({
@@ -79,7 +80,9 @@ describe("voice state API route", () => {
       jsonRequest(validBody()),
       routeDependencies({
         emitVoiceStateUpdate: async (payload) => {
-          calls.push(`emit:${payload.action}:${payload.serverId}:${payload.channelId}:${payload.userId}`);
+          calls.push(
+            `emit:${payload.action}:${payload.serverId}:${payload.channelId}:${payload.userId}`,
+          );
         },
         enforceApiRateLimit: async (userId, action) => {
           calls.push(`rate:${userId}:${action}`);
@@ -182,7 +185,9 @@ describe("voice state API route", () => {
           };
         },
         emitVoiceStateUpdate: async (payload) => {
-          calls.push(`emit:${payload.action}:${payload.serverId}:${payload.channelId}:${payload.userId}`);
+          calls.push(
+            `emit:${payload.action}:${payload.serverId}:${payload.channelId}:${payload.userId}`,
+          );
         },
         enforceApiRateLimit: async (userId, action) => {
           calls.push(`rate:${userId}:${action}`);

@@ -258,16 +258,64 @@ export const createHomeScreenStyles = (theme: MobileTheme) => {
       flex: 1,
       width: 66,
     },
+    // 1a rail create/join entry. The dashed outline is the design system's "create"
+    // marker (shared with the 1c new-server row), but it now sits on the accent tint
+    // instead of a bare card so the tile reads as an action next to the avatars.
     mobileServerRailAddButton: {
       width: 44,
       height: 44,
       alignItems: "center",
       justifyContent: "center",
       borderStyle: "dashed",
-      borderWidth: 1.5,
-      borderColor: theme.control.dashedBorder,
+      borderWidth: 2,
+      borderColor: theme.accent.default,
       borderRadius: 16,
-      backgroundColor: theme.surface.card,
+      backgroundColor: theme.accent.soft,
+    },
+    // Gradient layer that fades in while the tile is pressed. It sits over the border
+    // box (hence the negative inset and the +2 radius) so the pressed state is one
+    // solid squircle instead of a gradient with a dashed outline stitched around it.
+    mobileServerRailAddFill: {
+      position: "absolute",
+      top: -2,
+      right: -2,
+      bottom: -2,
+      left: -2,
+      borderRadius: 18,
+      overflow: "hidden",
+    },
+    mobileServerRailAddFillGradient: {
+      flex: 1,
+    },
+    mobileServerRailAddIcon: {
+      position: "absolute",
+      top: 0,
+      right: 0,
+      bottom: 0,
+      left: 0,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    // Attention wave behind the tile while the member has no servers yet.
+    mobileServerRailAddPulse: {
+      position: "absolute",
+      width: 44,
+      height: 44,
+      borderRadius: 16,
+      backgroundColor: theme.accent.default,
+    },
+    // Same 52px slot the server avatars use, so the (+) stays optically centred.
+    mobileServerRailAddSlot: {
+      width: 52,
+      height: 52,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    // Pinned action zone under the scrolling server list.
+    mobileServerRailFooter: {
+      alignItems: "center",
+      gap: 10,
+      paddingTop: 8,
     },
     mobileServerRailBadge: {
       position: "absolute",
@@ -299,8 +347,13 @@ export const createHomeScreenStyles = (theme: MobileTheme) => {
       borderColor: theme.surface.base,
       backgroundColor: theme.accent.default,
     },
+    // Splits the rail into "servers you are in" and the create/join action, so the (+)
+    // stops reading as one more (empty) server.
     mobileServerRailDivider: {
-      display: "none",
+      width: 24,
+      height: 1.5,
+      borderRadius: mobileRadii.pill,
+      backgroundColor: theme.border.subtle,
     },
     // 1a rail: the 44px avatar sits inside a 52px ring slot so the active server
     // can draw the handoff's "2px screen-bg gap + 2px primary ring" without
@@ -630,22 +683,47 @@ export const createHomeScreenStyles = (theme: MobileTheme) => {
       justifyContent: "center",
       width: 36,
     },
-    // 1b compact: floating create (+) button, 18px above the tab bar.
+    // 1b compact: floating create (+) button, 18px above the tab bar and pulled a touch
+    // off the panel's right padding so it never grazes the screen edge.
+    mobileWorkspaceFabAnchor: {
+      position: "absolute",
+      bottom: 18,
+      right: 6,
+    },
+    // Same design logic as the rail (+): gradient fill plus a 2px accent outline that
+    // holds the button apart from whatever scrolls underneath it.
     mobileWorkspaceFab: {
       alignItems: "center",
       backgroundColor: theme.accent.action,
+      borderColor: theme.accent.soft,
       borderRadius: 20,
-      bottom: 18,
+      borderWidth: 2,
       elevation: 8,
       height: 54,
       justifyContent: "center",
-      position: "absolute",
-      right: 0,
       shadowColor: theme.accent.action,
       shadowOffset: { width: 0, height: 10 },
       shadowOpacity: 0.42,
       shadowRadius: 24,
       width: 54,
+    },
+    mobileWorkspaceFabFill: {
+      position: "absolute",
+      top: 0,
+      right: 0,
+      bottom: 0,
+      left: 0,
+      borderRadius: 18,
+      overflow: "hidden",
+    },
+    mobileWorkspaceFabIcon: {
+      position: "absolute",
+      top: 0,
+      right: 0,
+      bottom: 0,
+      left: 0,
+      alignItems: "center",
+      justifyContent: "center",
     },
     // 1a/1b category header: chevron toggle row + admin (+) button that opens 1d.
     mobileWorkspaceSectionHeaderToggle: {

@@ -231,11 +231,36 @@ describe("1a compact servers redesign", () => {
       borderWidth: 2,
     });
     expect(styles.mobileServerRailAvatarWrap).toMatchObject({ height: 44, width: 44 });
+    // The (+) keeps the dashed "create" marker and the 44px avatar footprint, but sits
+    // on the accent tint inside a 52px slot so it lines up with the server avatars.
     expect(styles.mobileServerRailAddButton).toMatchObject({
-      borderColor: theme.control.dashedBorder,
+      backgroundColor: theme.accent.soft,
+      borderColor: theme.accent.default,
       borderStyle: "dashed",
+      borderWidth: 2,
       height: 44,
       width: 44,
+    });
+    expect(styles.mobileServerRailAddSlot).toMatchObject({ height: 52, width: 52 });
+    // The action zone is pinned under the scroller, split off by a hairline divider.
+    expect(styles.mobileServerRailFooter).toMatchObject({ alignItems: "center", gap: 10 });
+    expect(styles.mobileServerRailDivider).toMatchObject({
+      backgroundColor: theme.border.subtle,
+      height: 1.5,
+      width: 24,
+    });
+    // 1b floating (+): same accent outline as the rail tile, held off the screen edge.
+    expect(styles.mobileWorkspaceFab).toMatchObject({
+      borderColor: theme.accent.soft,
+      borderRadius: 20,
+      borderWidth: 2,
+      height: 54,
+      width: 54,
+    });
+    expect(styles.mobileWorkspaceFabAnchor).toMatchObject({
+      bottom: 18,
+      position: "absolute",
+      right: 6,
     });
     expect(styles.mobileServerRailBadge).toMatchObject({
       backgroundColor: theme.mention.badge,

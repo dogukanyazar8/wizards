@@ -2,7 +2,7 @@ import type { UserStatus } from "@wizards/db";
 import type { NextRequest } from "next/server";
 import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import { jsonError } from "@/lib/api";
-import { requireAdminUser } from "@/lib/admin/access";
+import { requireAdminCapability } from "@/lib/admin/capabilities";
 import { listAdminUsers, parseAdminBoolean } from "@/lib/admin/management";
 
 const USER_STATUSES = new Set<UserStatus>(["ONLINE", "IDLE", "DND", "OFFLINE", "INVISIBLE"]);
@@ -17,7 +17,7 @@ function parseStatus(value: string | null) {
 
 export async function GET(request: NextRequest) {
   try {
-    const admin = await requireAdminUser();
+    const admin = await requireAdminCapability("user.read");
     await enforceApiRateLimit(admin.id, "admin:user:list");
 
     const url = new URL(request.url);

@@ -55,6 +55,10 @@ import { useTheme } from "../providers/mobile-theme-provider";
 import { useMobileWorkspaceLayoutPreference } from "../providers/mobile-workspace-layout-provider";
 import { useHomeScreenStyles } from "./home-screen.styles";
 import { WorkspaceChannelSectionList } from "./workspace-channel-section-list";
+import {
+  MobileServerRailAddButton,
+  MobileWorkspaceCreateFab,
+} from "./workspace-add-action-buttons";
 import { MobileWorkspaceServerSwitcherSheet } from "./mobile-workspace-server-switcher-sheet";
 import { useMobileCollapsedSections } from "../providers/use-mobile-collapsed-sections";
 import { useInfiniteQuery } from "@tanstack/react-query";
@@ -461,9 +465,10 @@ export function MobileWorkspaceBrowser({
     >
       {!isCompactWorkspaceLayout ? (
         <View style={styles.mobileServerRail}>
-          {/* The rail holds up to MOBILE_RENDER_LIMITS.servers entries, so it
-              scrolls vertically with the dashed add (+) trailing the last server
-              instead of being clipped off-screen. */}
+          {/* The rail holds up to MOBILE_RENDER_LIMITS.servers entries, so the list
+              scrolls vertically. The add (+) used to trail the last server inside that
+              scroller, which pushed it off-screen for members of many servers; it now
+              sits in a pinned footer below a divider and stays one tap away. */}
           <ScrollView
             contentContainerStyle={styles.mobileServerRailList}
             showsVerticalScrollIndicator={false}
@@ -507,17 +512,16 @@ export function MobileWorkspaceBrowser({
                 </Pressable>
               );
             })}
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={copy.workspaceAddServerAction}
-              accessibilityState={{ disabled: false }}
-              onPress={serverManagement.openCreateJoinSheet}
-              style={styles.mobileServerRailAddButton}
-              testID="mobile-server-add-open"
-            >
-              <Ionicons name="add" size={16} color={theme.text.visualSecondary} />
-            </Pressable>
           </ScrollView>
+          <View style={styles.mobileServerRailFooter}>
+            {servers.length > 0 ? <View style={styles.mobileServerRailDivider} /> : null}
+            <MobileServerRailAddButton
+              accessibilityLabel={copy.workspaceAddServerAction}
+              highlighted={servers.length === 0}
+              onPress={serverManagement.openCreateJoinSheet}
+              testID="mobile-server-add-open"
+            />
+          </View>
         </View>
       ) : null}
 
@@ -767,18 +771,11 @@ export function MobileWorkspaceBrowser({
           </>
         )}
         {isCompactWorkspaceLayout && canManageChannels && servers.length > 0 ? (
-          <Pressable
+          <MobileWorkspaceCreateFab
             accessibilityLabel={copy.workspaceCreateMenuTitle}
-            accessibilityRole="button"
             onPress={() => setCreateState({ categoryId: null, kind: "menu" })}
-            style={({ pressed }) => [
-              styles.mobileWorkspaceFab,
-              pressed && styles.compactListRowPressed,
-            ]}
             testID="mobile-workspace-create-fab"
-          >
-            <Ionicons name="add" size={26} color={theme.text.onPrimary} />
-          </Pressable>
+          />
         ) : null}
       </View>
       <MobileServerCreateJoinSheet

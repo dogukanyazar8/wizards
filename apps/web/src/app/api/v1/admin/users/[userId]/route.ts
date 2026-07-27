@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import { jsonError, parseJsonBody } from "@/lib/api";
-import { requireAdminUser } from "@/lib/admin/access";
+import { requireAdminCapability } from "@/lib/admin/capabilities";
 import { setAdminUserBanState } from "@/lib/admin/management";
 
 type RouteContext = {
@@ -17,7 +17,7 @@ const UpdateAdminUserSchema = z.object({
 
 export async function PATCH(request: Request, context: RouteContext) {
   try {
-    const admin = await requireAdminUser({ roles: ["OWNER", "ADMIN", "MODERATOR"] });
+    const admin = await requireAdminCapability("user.ban");
     await enforceApiRateLimit(admin.id, "admin:user:update");
 
     const input = await parseJsonBody(request, UpdateAdminUserSchema);

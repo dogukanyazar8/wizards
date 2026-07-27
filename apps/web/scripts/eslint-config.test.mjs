@@ -86,6 +86,28 @@ test("Next enables its native React Compiler integration", () => {
   assert.doesNotMatch(source, /babel-plugin-react-compiler/u);
 });
 
+test("admin authorization may only enter through capabilities outside lib/admin", async () => {
+  const eslint = new ESLint({
+    cwd: fileURLToPath(new URL("..", import.meta.url)),
+  });
+
+  const routeConfig = await eslint.calculateConfigForFile("src/app/api/v1/admin/users/route.ts");
+  const [severity, options] = routeConfig.rules["no-restricted-imports"];
+
+  assert.equal(severity, 2);
+  assert.deepEqual(options.paths, [
+    {
+      importNames: ["requireAdminUser"],
+      message: "Use requireAdminCapability from @/lib/admin/capabilities instead.",
+      name: "@/lib/admin/access",
+    },
+  ]);
+
+  const accessConfig = await eslint.calculateConfigForFile("src/lib/admin/capabilities.ts");
+
+  assert.equal(accessConfig.rules["no-restricted-imports"]?.[0] ?? 0, 0);
+});
+
 test("screen-share stage state survives share membership changes", () => {
   const source = readFileSync(
     fileURLToPath(new URL("../src/components/voice/voice-channel-view.tsx", import.meta.url)),

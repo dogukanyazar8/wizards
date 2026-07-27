@@ -1,22 +1,23 @@
 import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import { jsonError } from "@/lib/api";
-import { requireAdminUser } from "@/lib/admin/access";
+import { type AdminAccessUser } from "@/lib/admin/access";
+import { requireAdminCapability } from "@/lib/admin/capabilities";
 import { getAdminDashboardSnapshot, normalizeDashboardDays } from "@/lib/admin/dashboard";
 
 export type AdminDashboardRouteDependencies = {
+  authenticate: () => Promise<AdminAccessUser>;
   enforceApiRateLimit: typeof enforceApiRateLimit;
   getAdminDashboardSnapshot: (days: number) => Promise<unknown>;
   jsonError: typeof jsonError;
   normalizeDashboardDays: typeof normalizeDashboardDays;
-  requireAdminUser: typeof requireAdminUser;
 };
 
 const defaultAdminDashboardRouteDependencies: AdminDashboardRouteDependencies = {
+  authenticate: () => requireAdminCapability("dashboard.read"),
   enforceApiRateLimit,
   getAdminDashboardSnapshot,
   jsonError,
   normalizeDashboardDays,
-  requireAdminUser,
 };
 
 export async function getAdminDashboardRoute(
@@ -24,7 +25,7 @@ export async function getAdminDashboardRoute(
   dependencies: AdminDashboardRouteDependencies = defaultAdminDashboardRouteDependencies,
 ) {
   try {
-    const admin = await dependencies.requireAdminUser();
+    const admin = await dependencies.authenticate();
     await dependencies.enforceApiRateLimit(admin.id, "admin:dashboard");
 
     const url = new URL(request.url);

@@ -3,6 +3,7 @@ import { Prisma, prisma } from "@wizards/db";
 import { z } from "zod";
 
 import { recordMessageCreated } from "@/lib/analytics/service";
+import type { ClientAttribution } from "@/lib/analytics/client-attribution";
 import { processAttachmentScanJob } from "@/lib/attachments/scanner";
 import { createDMMessageNotifications } from "@/lib/dm/notification-service";
 import { logError } from "@/lib/logger";
@@ -73,8 +74,12 @@ type OutboxDrainLogPayload = {
   type: "outbox_drain";
 };
 
-const MessageCreatedAnalyticsPayloadSchema = z.object({
+export const MessageCreatedAnalyticsPayloadSchema = z.object({
+  // Defaults, not required fields: jobs already queued when this deploys must
+  // keep parsing. They simply land in the UNKNOWN bucket.
+  appVersion: z.string().max(32).optional(),
   attachmentCount: z.number().int().min(0).default(0),
+  clientType: z.enum(["WEB", "DESKTOP", "MOBILE", "UNKNOWN"]).default("UNKNOWN"),
   isDm: z.boolean().default(false),
   uploadedBytes: z.string().regex(/^\d+$/).default("0"),
   userId: z.string().min(1),
@@ -210,6 +215,7 @@ export async function enqueueMessageCreatedAnalyticsJob(
   client: OutboxClient,
   args: {
     attachmentCount?: number;
+    attribution: ClientAttribution;
     idempotencyKey: string;
     isDm?: boolean;
     uploadedBytes?: bigint | number;
@@ -219,7 +225,9 @@ export async function enqueueMessageCreatedAnalyticsJob(
   await enqueueOutboxJob(client, {
     idempotencyKey: args.idempotencyKey,
     payload: toJsonValue({
+      ...(args.attribution.appVersion === null ? {} : { appVersion: args.attribution.appVersion }),
       attachmentCount: args.attachmentCount ?? 0,
+      clientType: args.attribution.clientType,
       isDm: args.isDm ?? false,
       uploadedBytes: String(args.uploadedBytes ?? 0),
       userId: args.userId,
@@ -380,6 +388,7 @@ async function processMessageCreatedAnalytics(job: ClaimedOutboxJob) {
         uploadedBytes: BigInt(payload.uploadedBytes),
         userId: payload.userId,
       },
+      { appVersion: payload.appVersion ?? null, clientType: payload.clientType },
       tx,
     );
     await tx.outboxJob.update({

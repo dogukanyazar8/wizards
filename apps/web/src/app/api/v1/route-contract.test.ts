@@ -21,6 +21,8 @@ const UNAUTHENTICATED_ROUTE_PATHS = new Set([
 ]);
 
 const BODYLESS_MUTATING_METHOD_PATHS = new Set([
+  // The approver is the session; the decision itself carries no payload.
+  "POST admin/notification-campaigns/[campaignId]/approve",
   "POST admin/notification-campaigns/[campaignId]/send",
   "POST auth/desktop-session",
   "DELETE channels/[channelId]",
@@ -71,7 +73,7 @@ const BODYLESS_MUTATING_METHOD_PATHS = new Set([
 ]);
 
 const AUTH_GUARD_CALL_PATTERN =
-  /\b(?:requireApiUserId|requireMobileApiUserId|requireMobileApiSession|requireAdminUser|authorizeMobileApiRequest)\s*\(/;
+  /\b(?:requireApiUserId|requireMobileApiUserId|requireMobileApiSession|requireAdminUser|requireAdminCapability|authorizeMobileApiRequest)\s*\(/;
 const HTTP_METHODS = ["GET", "POST", "PATCH", "PUT", "DELETE"] as const;
 const MUTATING_METHODS = new Set(["POST", "PATCH", "PUT", "DELETE"]);
 const RAW_REQUEST_BODY_CALL_PATTERN = /\b(?:request|req)\.(?:json|text|formData)\s*\(/;

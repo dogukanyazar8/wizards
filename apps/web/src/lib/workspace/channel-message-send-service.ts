@@ -2,6 +2,7 @@ import { ChannelType, prisma } from "@wizards/db";
 import type { ChatMessage, UploadedAttachmentInput } from "@wizards/types";
 
 import { ApiError } from "@/lib/api";
+import type { ClientAttribution } from "@/lib/analytics/client-attribution";
 import { logError } from "@/lib/logger";
 import {
   isMessageGifContentType,
@@ -97,22 +98,14 @@ async function assertChannelAttachmentsAllowed(args: {
     !mediaSettings.allowFileUploads &&
     attachments.some((attachment) => !isMessageGifContentType(attachment.contentType))
   ) {
-    throw new ApiError(
-      "File uploads are disabled for this server.",
-      403,
-      "FILE_UPLOADS_DISABLED",
-    );
+    throw new ApiError("File uploads are disabled for this server.", 403, "FILE_UPLOADS_DISABLED");
   }
 
   if (
     !hasPermission(args.permissions, PermissionBits.ATTACH_FILES) &&
     attachments.some((attachment) => !isMessageGifContentType(attachment.contentType))
   ) {
-    throw new ApiError(
-      "You cannot attach files in this channel.",
-      403,
-      "ATTACHMENTS_FORBIDDEN",
-    );
+    throw new ApiError("You cannot attach files in this channel.", 403, "ATTACHMENTS_FORBIDDEN");
   }
 }
 
@@ -138,29 +131,24 @@ async function emitChannelMessageFanout(args: {
     PermissionBits.VIEW_CHANNEL,
   );
   const permissionFilterDurationMs = Date.now() - permissionFilterStartedAt;
-  const {
-    activeChannelViewerUserIds,
-    permittedUnreadUserIds,
-    readUserIds,
-    unreadUpdateUserIds,
-  } = deriveChannelMessageFanoutTargets({
-    activeChannelViewerCandidateUserIds,
-    activeServerMemberUserIds,
-    permittedActiveUserIds,
-    senderId: args.senderId,
-  });
+  const { activeChannelViewerUserIds, permittedUnreadUserIds, readUserIds, unreadUpdateUserIds } =
+    deriveChannelMessageFanoutTargets({
+      activeChannelViewerCandidateUserIds,
+      activeServerMemberUserIds,
+      permittedActiveUserIds,
+      senderId: args.senderId,
+    });
 
   const directEmitStartedAt = Date.now();
   if (unreadUpdateUserIds.length > 0) {
-    args.io.to(unreadUpdateUserIds.map((memberUserId) => `user:${memberUserId}`)).emit(
-      "channel:messages:stale",
-      {
+    args.io
+      .to(unreadUpdateUserIds.map((memberUserId) => `user:${memberUserId}`))
+      .emit("channel:messages:stale", {
         channelId: args.channelId,
         lastMessage: toMobileChannelMessagePreview(args.message),
         latestMessageId: args.message.id,
         serverId: args.serverId,
-      },
-    );
+      });
   }
 
   if (activeChannelViewerUserIds.length > 0) {
@@ -172,17 +160,15 @@ async function emitChannelMessageFanout(args: {
     );
 
     if (senderViewerIds.length > 0) {
-      args.io.to(senderViewerIds.map((viewerUserId) => `user:${viewerUserId}`)).emit(
-        "message:new",
-        args.message,
-      );
+      args.io
+        .to(senderViewerIds.map((viewerUserId) => `user:${viewerUserId}`))
+        .emit("message:new", args.message);
     }
 
     if (otherViewerIds.length > 0) {
-      args.io.to(otherViewerIds.map((viewerUserId) => `user:${viewerUserId}`)).emit(
-        "message:new",
-        redactMessageAttachmentUrlsForViewer(args.message, null),
-      );
+      args.io
+        .to(otherViewerIds.map((viewerUserId) => `user:${viewerUserId}`))
+        .emit("message:new", redactMessageAttachmentUrlsForViewer(args.message, null));
     }
   }
   const directEmitDurationMs = Date.now() - directEmitStartedAt;
@@ -218,6 +204,7 @@ async function emitChannelMessageFanout(args: {
 export async function sendChannelMessage(args: {
   alsoSendToChannel?: boolean;
   attachments?: UploadedAttachmentInput[];
+  attribution?: ClientAttribution;
   channelId: string;
   content: string;
   forwardOfMessageId?: string | null;
@@ -264,6 +251,7 @@ export async function sendChannelMessage(args: {
     args.threadParentId ?? undefined,
     {
       alsoSendToChannel: args.alsoSendToChannel === true,
+      ...(args.attribution ? { attribution: args.attribution } : {}),
       forwardOfMessageId: args.forwardOfMessageId ?? null,
       permissions,
     },

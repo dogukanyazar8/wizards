@@ -1,6 +1,6 @@
 import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import { jsonError, parseJsonBody } from "@/lib/api";
-import { requireAdminUser } from "@/lib/admin/access";
+import { requireAdminCapability } from "@/lib/admin/capabilities";
 import {
   createNotificationCampaign,
   listNotificationCampaigns,
@@ -13,7 +13,7 @@ import {
 
 export async function GET() {
   try {
-    await requireAdminUser();
+    await requireAdminCapability("campaign.read");
     const campaigns = await listNotificationCampaigns();
 
     return Response.json({ campaigns });
@@ -24,13 +24,15 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const admin = await requireAdminUser({ roles: ["OWNER", "ADMIN"] });
+    const admin = await requireAdminCapability("campaign.create");
     await enforceApiRateLimit(admin.id, "admin:campaign:create");
 
     const input = await parseJsonBody(request, NotificationCampaignCreateRequestSchema);
     const campaign = await createNotificationCampaign(admin.id, toCreateCampaignInput(input));
 
-    if (!input.sendNow) {
+    // An oversized audience parks in PENDING_APPROVAL: the composer surfaces
+    // the gate instead of the send failing behind a 409.
+    if (!input.sendNow || campaign.status === "PENDING_APPROVAL") {
       return Response.json({ campaign }, { status: 201 });
     }
 

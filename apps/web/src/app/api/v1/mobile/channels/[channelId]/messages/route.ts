@@ -14,6 +14,7 @@ import {
   checkChannelMessageRateLimit,
   shouldLogRateLimitUnavailable,
 } from "@/lib/socket/rate-limits";
+import { readRequestAttribution } from "@/lib/analytics/client-attribution";
 import { getSocketServer } from "@/lib/socket/runtime";
 import { sendChannelMessage } from "@/lib/workspace/channel-message-send-service";
 import { getChannelMessages } from "@/lib/workspace/message-service";
@@ -121,6 +122,7 @@ export async function POST(request: Request, context: RouteContext) {
     const message = await sendChannelMessage({
       alsoSendToChannel: body.alsoSendToChannel === true,
       attachments: body.attachments,
+      attribution: readRequestAttribution(request.headers),
       channelId,
       content: body.content,
       forwardOfMessageId: body.forwardOfMessageId ?? null,

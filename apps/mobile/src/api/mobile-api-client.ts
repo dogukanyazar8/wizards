@@ -8,6 +8,7 @@ import {
   getMobileNetworkStatusSnapshot,
 } from "../network/mobile-network-events";
 import { recordMobileRequestLatency } from "../performance/mobile-request-metrics";
+import { MOBILE_CLIENT_HEADERS } from "./mobile-client-headers";
 
 export class MobileApiError extends Error {
   readonly apiPath: string | null;
@@ -136,6 +137,10 @@ export function createMobileApiClient(options: MobileApiClientOptions): MobileAp
         const { body: requestBody, ...initWithoutBody } = requestOptions;
         const headers = new Headers(requestOptions.headers);
         headers.set("Accept", "application/json");
+
+        for (const [name, value] of Object.entries(MOBILE_CLIENT_HEADERS)) {
+          headers.set(name, value);
+        }
 
         const accessToken = await resolveAccessToken(options.getAccessToken);
         if (accessToken) {

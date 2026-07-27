@@ -10,6 +10,7 @@ import { DMConversationParamsSchema } from "@/lib/dm/types";
 import { logError } from "@/lib/logger";
 import { getRedisRate } from "@/lib/redis";
 import { checkDMMessageRateLimits, shouldLogRateLimitUnavailable } from "@/lib/socket/rate-limits";
+import { readRequestAttribution } from "@/lib/analytics/client-attribution";
 import { getSocketServer } from "@/lib/socket/runtime";
 import { mobileDMMessagesGetRoute, type MobileDMMessagesRouteContext } from "./get-route-logic";
 
@@ -72,6 +73,7 @@ export async function POST(request: Request, context: RouteContext) {
 
     const message = await sendDirectMessage({
       attachments: body.attachments,
+      attribution: readRequestAttribution(request.headers),
       content: body.content,
       conversationId,
       forwardOfMessageId: body.forwardOfMessageId ?? null,

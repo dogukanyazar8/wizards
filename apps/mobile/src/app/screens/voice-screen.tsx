@@ -54,6 +54,12 @@ import {
   selectMobileVoiceStageAudience,
   type MobileVoiceStageTile,
 } from "../../voice/mobile-voice-stage";
+import {
+  MOBILE_VOICE_AUDIENCE_GRID_GAP,
+  getMobileVoiceAudienceGridLayout,
+  sliceMobileVoiceAudienceRows,
+  type MobileVoiceAudienceGridLayout,
+} from "../../voice/mobile-voice-audience-grid";
 import { BottomSheet } from "../components/kit/bottom-sheet";
 import {
   MOBILE_OVERLAY_CLOSE_DURATION_MS,
@@ -103,6 +109,9 @@ export function VoiceScreen({
   const [now, setNow] = useState(() => Date.now());
   const [inviteSheetVisible, setInviteSheetVisible] = useState(false);
   const model = getMobileActiveVoiceRoomModel(voiceRoomState, serverName, now);
+  // The dock is the last row of the screen, so it carries the Android system-bar
+  // reservation itself the way the app's bottom navigation bar does.
+  const dockBottomInset = useMobileBottomSystemSpacing(12);
 
   useEffect(() => {
     if (!model.canMinimize) {
@@ -177,11 +186,29 @@ export function VoiceScreen({
           ) : null}
         </View>
         <View style={styles.activeVoiceRoomHeaderBadges}>
-          <View style={styles.activeVoiceRoomConnectionChip}>
-            <View style={styles.activeVoiceRoomConnectionDot} />
-            <Text style={styles.activeVoiceRoomConnectionLabel}>
-              {getActiveVoiceRoomConnectionLabel(model.connectionStatus)}
-            </Text>
+          <View style={styles.activeVoiceRoomHeaderActions}>
+            <Pressable
+              accessibilityLabel={copy.voiceRoomInviteFriends}
+              accessibilityRole="button"
+              onPress={handleOpenInvite}
+              style={({ pressed }) => [
+                styles.activeVoiceRoomInviteButton,
+                pressed && styles.actionButtonPressed,
+              ]}
+              testID="mobile-voice-invite"
+            >
+              <Ionicons
+                color={theme.dark ? theme.text.onInverseMuted : theme.text.secondary}
+                name="person-add-outline"
+                size={17}
+              />
+            </Pressable>
+            <View style={styles.activeVoiceRoomConnectionChip}>
+              <View style={styles.activeVoiceRoomConnectionDot} />
+              <Text style={styles.activeVoiceRoomConnectionLabel}>
+                {getActiveVoiceRoomConnectionLabel(model.connectionStatus)}
+              </Text>
+            </View>
           </View>
           <VoiceNoiseSuppressionBadge active={voiceRoomState.noiseSuppressionEnabled} />
         </View>
@@ -194,87 +221,70 @@ export function VoiceScreen({
       ) : null}
 
       {stageMode === "video" ? (
-        <ActiveVoiceRoomStage
+        <ActiveVoiceRoomStage onFlipCamera={handleFlipCamera} participants={model.participants} />
+      ) : (
+        <ActiveVoiceRoomAudience
           onFlipCamera={handleFlipCamera}
-          onOpenInvite={handleOpenInvite}
           participants={model.participants}
         />
-      ) : (
-        <View style={styles.activeVoiceRoomParticipantGrid}>
-          {model.participants.map((participant) => (
-            <ActiveVoiceRoomParticipantCard
-              key={participant.userId}
-              participant={participant}
-              onFlipCamera={handleFlipCamera}
-            />
-          ))}
-          <Pressable
-            accessibilityLabel={copy.voiceRoomInviteFriends}
-            accessibilityRole="button"
-            onPress={handleOpenInvite}
-            style={({ pressed }) => [
-              styles.activeVoiceRoomInviteCard,
-              pressed && styles.actionButtonPressed,
-            ]}
-            testID="mobile-voice-invite"
-          >
-            <Ionicons
-              color={theme.dark ? theme.text.onInverseMuted : theme.text.secondary}
-              name="person-add-outline"
-              size={18}
-            />
-            <Text style={styles.activeVoiceRoomInviteLabel}>{copy.voiceRoomInviteFriends}</Text>
-          </Pressable>
-        </View>
       )}
 
-      <View style={styles.activeVoiceRoomControls}>
-        <ActiveVoiceRoomControl
-          disabled={!model.canToggleMute}
-          icon={voiceRoomState.selfMuted ? "mic-off-outline" : "mic-outline"}
-          label={voiceRoomState.selfMuted ? copy.voiceUnmuteAction : copy.voiceMuteAction}
-          onPress={handleMute}
-          testID="mobile-voice-mute-toggle"
-        />
-        <ActiveVoiceRoomControl
-          icon={
-            voiceRoomState.selfAudioOutput === "speaker" ? "volume-high-outline" : "headset-outline"
-          }
-          label={copy.voiceRoomAudioOutputAction}
-          onPress={handleAudioOutput}
-          selected={voiceRoomState.selfAudioOutput === "speaker"}
-          testID="mobile-voice-audio-output"
-        />
-        <ActiveVoiceRoomControl
-          disabled={!model.canToggleMute}
-          icon={voiceRoomState.selfCameraEnabled ? "videocam-outline" : "videocam-off-outline"}
-          label={
-            voiceRoomState.selfCameraEnabled ? copy.voiceCameraOffAction : copy.voiceCameraOnAction
-          }
-          onPress={handleCamera}
-          selected={voiceRoomState.selfCameraEnabled}
-          testID="mobile-voice-camera"
-        />
-        <ActiveVoiceRoomControl
-          disabled={!model.canToggleMute || screenShareBusy}
-          icon="tv-outline"
-          label={
-            voiceRoomState.selfScreenShareEnabled
-              ? copy.voiceScreenShareStopShortAction
-              : copy.voiceScreenShareAction
-          }
-          onPress={handleScreenShare}
-          selected={voiceRoomState.selfScreenShareEnabled}
-          testID="mobile-voice-screen-share"
-        />
-        <ActiveVoiceRoomControl
-          danger
-          disabled={!model.canLeave}
-          icon="call-outline"
-          label={copy.voiceLeaveAction}
-          onPress={handleLeave}
-          testID="mobile-voice-leave"
-        />
+      <View
+        style={[styles.activeVoiceRoomDock, { paddingBottom: dockBottomInset }]}
+        testID="mobile-voice-dock"
+      >
+        <View style={styles.activeVoiceRoomControls}>
+          <ActiveVoiceRoomControl
+            disabled={!model.canToggleMute}
+            icon={voiceRoomState.selfMuted ? "mic-off-outline" : "mic-outline"}
+            label={voiceRoomState.selfMuted ? copy.voiceUnmuteAction : copy.voiceMuteAction}
+            onPress={handleMute}
+            testID="mobile-voice-mute-toggle"
+          />
+          <ActiveVoiceRoomControl
+            icon={
+              voiceRoomState.selfAudioOutput === "speaker"
+                ? "volume-high-outline"
+                : "headset-outline"
+            }
+            label={copy.voiceRoomAudioOutputAction}
+            onPress={handleAudioOutput}
+            selected={voiceRoomState.selfAudioOutput === "speaker"}
+            testID="mobile-voice-audio-output"
+          />
+          <ActiveVoiceRoomControl
+            disabled={!model.canToggleMute}
+            icon={voiceRoomState.selfCameraEnabled ? "videocam-outline" : "videocam-off-outline"}
+            label={
+              voiceRoomState.selfCameraEnabled
+                ? copy.voiceCameraOffAction
+                : copy.voiceCameraOnAction
+            }
+            onPress={handleCamera}
+            selected={voiceRoomState.selfCameraEnabled}
+            testID="mobile-voice-camera"
+          />
+          <ActiveVoiceRoomControl
+            disabled={!model.canToggleMute || screenShareBusy}
+            icon="tv-outline"
+            label={
+              voiceRoomState.selfScreenShareEnabled
+                ? copy.voiceScreenShareStopShortAction
+                : copy.voiceScreenShareAction
+            }
+            onPress={handleScreenShare}
+            selected={voiceRoomState.selfScreenShareEnabled}
+            testID="mobile-voice-screen-share"
+          />
+          <ActiveVoiceRoomControl
+            danger
+            disabled={!model.canLeave}
+            icon="call-outline"
+            label={copy.voiceLeaveAction}
+            onPress={handleLeave}
+            testID="mobile-voice-leave"
+          />
+        </View>
       </View>
 
       <MobileVoiceInviteSheet
@@ -319,17 +329,83 @@ function VoiceNoiseSuppressionBadge({ active }: { active: boolean }) {
 }
 
 /**
+ * The audio-only room. Tiles are sized from the measured box and the head count
+ * instead of wrapping, so a full room never pushes the header or the control
+ * dock off screen. Past the readable minimum the grid scrolls rather than
+ * shrinking further.
+ */
+function ActiveVoiceRoomAudience({
+  onFlipCamera,
+  participants,
+}: {
+  onFlipCamera(): void;
+  participants: readonly MobileVoiceRoomParticipant[];
+}) {
+  const styles = useVoiceScreenStyles();
+  const [box, setBox] = useState({ height: 0, width: 0 });
+  const layout = useMemo(
+    () =>
+      getMobileVoiceAudienceGridLayout({
+        count: participants.length,
+        gap: MOBILE_VOICE_AUDIENCE_GRID_GAP,
+        height: box.height,
+        width: box.width,
+      }),
+    [box.height, box.width, participants.length],
+  );
+  const rows = useMemo(
+    () => sliceMobileVoiceAudienceRows(participants, layout.rowCounts),
+    [layout.rowCounts, participants],
+  );
+
+  return (
+    <View style={styles.activeVoiceRoomAudience} testID="mobile-voice-audience">
+      <ScrollView
+        contentContainerStyle={[
+          styles.activeVoiceRoomAudienceContent,
+          !layout.scrollable && styles.activeVoiceRoomAudienceContentFitted,
+        ]}
+        onLayout={(event) => {
+          const { height, width } = event.nativeEvent.layout;
+          setBox((current) =>
+            current.height === height && current.width === width ? current : { height, width },
+          );
+        }}
+        scrollEnabled={layout.scrollable}
+        showsVerticalScrollIndicator={false}
+        style={styles.activeVoiceRoomAudienceScroll}
+      >
+        {rows.map((rowParticipants, index) => (
+          <View
+            key={rowParticipants[0]?.userId ?? index}
+            style={styles.activeVoiceRoomAudienceRow}
+            testID={`mobile-voice-audience-row-${index}`}
+          >
+            {rowParticipants.map((participant) => (
+              <ActiveVoiceRoomParticipantCard
+                key={participant.userId}
+                layout={layout}
+                onFlipCamera={onFlipCamera}
+                participant={participant}
+              />
+            ))}
+          </View>
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
+
+/**
  * The media stage: every live camera and screen share becomes a tile, four to a
  * page in a layout scaled to the count. Extra tiles slide onto swipeable pages in
  * join order; mic-only members ride the compact rail beneath.
  */
 function ActiveVoiceRoomStage({
   onFlipCamera,
-  onOpenInvite,
   participants,
 }: {
   onFlipCamera(): void;
-  onOpenInvite(): void;
   participants: readonly MobileVoiceRoomParticipant[];
 }) {
   const styles = useVoiceScreenStyles();
@@ -395,7 +471,7 @@ function ActiveVoiceRoomStage({
           ))}
         </View>
       ) : null}
-      <VoiceStageAudienceRail onOpenInvite={onOpenInvite} participants={audience} />
+      <VoiceStageAudienceRail participants={audience} />
     </View>
   );
 }
@@ -565,14 +641,11 @@ function VoiceStageTile({
 }
 
 function VoiceStageAudienceRail({
-  onOpenInvite,
   participants,
 }: {
-  onOpenInvite(): void;
   participants: readonly MobileVoiceRoomParticipant[];
 }) {
   const styles = useVoiceScreenStyles();
-  const theme = useVoiceRoomTheme();
   return (
     <View style={styles.activeVoiceRoomRail}>
       <ScrollView
@@ -600,22 +673,6 @@ function VoiceStageAudienceRail({
             </View>
           );
         })}
-        <Pressable
-          accessibilityLabel={copy.voiceRoomInviteFriends}
-          accessibilityRole="button"
-          onPress={onOpenInvite}
-          style={({ pressed }) => [
-            styles.activeVoiceRoomRailInvite,
-            pressed && styles.actionButtonPressed,
-          ]}
-          testID="mobile-voice-invite"
-        >
-          <Ionicons
-            color={theme.dark ? theme.text.onInverseMuted : theme.text.secondary}
-            name="person-add-outline"
-            size={18}
-          />
-        </Pressable>
       </ScrollView>
     </View>
   );
@@ -742,9 +799,11 @@ function getActiveVoiceRoomConnectionLabel(status: MobileVoiceRoomState["status"
 }
 
 function ActiveVoiceRoomParticipantCard({
+  layout,
   participant,
   onFlipCamera,
 }: {
+  layout: MobileVoiceAudienceGridLayout;
   participant: MobileVoiceRoomParticipant;
   onFlipCamera(): void;
 }) {
@@ -753,6 +812,27 @@ function ActiveVoiceRoomParticipantCard({
   const name = getVoiceParticipantName(participant);
   const isSpeaking = participant.isSpeaking && !participant.isMuted;
   const showCamera = participant.isCameraEnabled && Boolean(participant.cameraTrackRef);
+  // Before the first layout pass the card keeps its flexible fallback sizing.
+  const tileSizeStyle = layout.measured
+    ? {
+        flexBasis: layout.tileWidth,
+        flexGrow: 0,
+        height: layout.tileHeight,
+        minHeight: 0,
+        width: layout.tileWidth,
+      }
+    : null;
+  const tileContentStyle = layout.measured
+    ? { gap: layout.contentGap, paddingHorizontal: 8, paddingVertical: 10 }
+    : null;
+  const ringSize = layout.avatarSize + (layout.avatarSize >= 56 ? 12 : 8);
+  const ringStyle = layout.measured
+    ? {
+        borderRadius: Math.round(ringSize * 0.36),
+        height: ringSize,
+        width: ringSize,
+      }
+    : null;
 
   if (showCamera) {
     return (
@@ -760,6 +840,7 @@ function ActiveVoiceRoomParticipantCard({
         style={[
           styles.activeVoiceRoomParticipantCard,
           styles.activeVoiceRoomVideoCard,
+          tileSizeStyle,
           isSpeaking && styles.activeVoiceRoomParticipantCardSpeaking,
         ]}
         testID={`mobile-voice-participant-${participant.userId}`}
@@ -809,10 +890,22 @@ function ActiveVoiceRoomParticipantCard({
     );
   }
 
+  const badgeStyle = layout.measured
+    ? {
+        borderRadius: Math.round(layout.badgeSize * 0.38),
+        borderWidth: layout.badgeSize >= 26 ? 3 : 2,
+        height: layout.badgeSize,
+        width: layout.badgeSize,
+      }
+    : null;
+  const badgeIconSize = layout.measured ? Math.round(layout.badgeSize * 0.5) : 13;
+
   return (
     <View
       style={[
         styles.activeVoiceRoomParticipantCard,
+        tileSizeStyle,
+        tileContentStyle,
         isSpeaking && styles.activeVoiceRoomParticipantCardSpeaking,
       ]}
       testID={`mobile-voice-participant-${participant.userId}`}
@@ -820,53 +913,76 @@ function ActiveVoiceRoomParticipantCard({
       <View
         style={[
           styles.activeVoiceRoomAvatarRing,
+          ringStyle,
           isSpeaking && styles.activeVoiceRoomAvatarRingSpeaking,
+          isSpeaking && layout.measured && { borderWidth: layout.avatarSize >= 56 ? 6 : 4 },
         ]}
       >
         <Avatar
           accessibilityLabel={name}
           avatarBorderColor="transparent"
-          avatarBorderRadius={28}
+          avatarBorderRadius={Math.round(layout.avatarSize * 0.34)}
           avatarBorderWidth={0}
-          dimension={80}
-          fallbackTextStyle={styles.activeVoiceRoomAvatarFallback}
+          dimension={layout.avatarSize}
+          fallbackTextStyle={
+            layout.measured
+              ? {
+                  ...styles.activeVoiceRoomAvatarFallback,
+                  fontSize: Math.round(layout.avatarSize * 0.34),
+                  lineHeight: Math.round(layout.avatarSize * 0.4),
+                }
+              : styles.activeVoiceRoomAvatarFallback
+          }
           identityId={participant.userId}
           imageUrl={participant.avatarUrl}
           label={name}
         />
         {participant.isMuted ? (
           <View
-            style={styles.activeVoiceRoomMutedBadge}
+            style={[styles.activeVoiceRoomMutedBadge, badgeStyle]}
             testID={`mobile-voice-participant-${participant.userId}-muted-badge`}
           >
-            <Ionicons color={theme.text.inverse} name="mic-off" size={13} />
+            <Ionicons color={theme.text.inverse} name="mic-off" size={badgeIconSize} />
           </View>
         ) : null}
         {participant.isScreenSharing ? (
           <View
-            style={styles.activeVoiceRoomShareBadge}
+            style={[styles.activeVoiceRoomShareBadge, badgeStyle]}
             testID={`mobile-voice-participant-${participant.userId}-share-badge`}
           >
-            <Ionicons color={theme.status.successOnInverse} name="tv-outline" size={13} />
+            <Ionicons
+              color={theme.status.successOnInverse}
+              name="tv-outline"
+              size={badgeIconSize}
+            />
           </View>
         ) : null}
       </View>
       <View style={styles.activeVoiceRoomParticipantText}>
-        <Text numberOfLines={1} style={styles.activeVoiceRoomParticipantName}>
-          {name}
-        </Text>
         <Text
+          numberOfLines={1}
           style={[
-            styles.activeVoiceRoomParticipantStatus,
-            isSpeaking && styles.activeVoiceRoomParticipantStatusSpeaking,
+            styles.activeVoiceRoomParticipantName,
+            layout.measured && { fontSize: layout.nameFontSize },
           ]}
         >
-          {participant.isMuted
-            ? copy.voiceRoomMutedParticipant
-            : isSpeaking
-              ? copy.voiceRoomSpeaking
-              : copy.voiceRoomListening}
+          {name}
         </Text>
+        {layout.showStatus ? (
+          <Text
+            numberOfLines={1}
+            style={[
+              styles.activeVoiceRoomParticipantStatus,
+              isSpeaking && styles.activeVoiceRoomParticipantStatusSpeaking,
+            ]}
+          >
+            {participant.isMuted
+              ? copy.voiceRoomMutedParticipant
+              : isSpeaking
+                ? copy.voiceRoomSpeaking
+                : copy.voiceRoomListening}
+          </Text>
+        ) : null}
       </View>
     </View>
   );

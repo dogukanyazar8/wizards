@@ -2,6 +2,10 @@ import type { AnalyticsMediaKind, Prisma } from "@wizards/db";
 import { prisma } from "@wizards/db";
 import { logError } from "@/lib/logger";
 import { getAnalyticsClientInfo, type AnalyticsClientInfo } from "@/lib/analytics/client-info";
+import {
+  resolveVerifiedAttribution,
+  type ClientAttribution,
+} from "@/lib/analytics/client-attribution";
 
 type MetricIncrements = {
   appSeconds?: number;
@@ -77,9 +81,15 @@ export function splitIntervalByUtcDay(startedAt: Date, endedAt: Date) {
   return ranges;
 }
 
+/**
+ * The attribution parameter is deliberately required. A default would let a new
+ * metric writer record UNKNOWN without anybody noticing; a caller that really
+ * has no client passes `UNKNOWN_ATTRIBUTION` and says so in the code.
+ */
 export async function incrementUserDailyMetric(
   userId: string,
   increments: MetricIncrements,
+  attribution: ClientAttribution,
   date = new Date(),
   client: AnalyticsMetricClient = prisma,
 ) {
@@ -88,14 +98,17 @@ export async function incrementUserDailyMetric(
 
   await client.userDailyMetric.upsert({
     where: {
-      date_userId: {
+      date_userId_clientType: {
+        clientType: attribution.clientType,
         date: metricDate,
         userId,
       },
     },
     create: {
       appSeconds: positiveInt(increments.appSeconds),
+      appVersion: attribution.appVersion,
       cameraSeconds: positiveInt(increments.cameraSeconds),
+      clientType: attribution.clientType,
       date: metricDate,
       dmMessageCount: positiveInt(increments.dmMessageCount),
       fileUploadCount: positiveInt(increments.fileUploadCount),
@@ -108,6 +121,9 @@ export async function incrementUserDailyMetric(
     },
     update: {
       appSeconds: { increment: positiveInt(increments.appSeconds) },
+      // "Last version seen that day" — but a client that stopped reporting its
+      // version must not wipe a version we already know.
+      ...(attribution.appVersion === null ? {} : { appVersion: attribution.appVersion }),
       cameraSeconds: { increment: positiveInt(increments.cameraSeconds) },
       dmMessageCount: { increment: positiveInt(increments.dmMessageCount) },
       fileUploadCount: { increment: positiveInt(increments.fileUploadCount) },
@@ -120,15 +136,22 @@ export async function incrementUserDailyMetric(
   });
 }
 
-async function incrementMetricAcrossInterval(
+export async function incrementMetricAcrossInterval(
   userId: string,
   startedAt: Date,
   endedAt: Date,
   field: keyof MetricIncrements,
+  attribution: ClientAttribution,
   client: AnalyticsMetricClient = prisma,
 ) {
   for (const segment of splitIntervalByUtcDay(startedAt, endedAt)) {
-    await incrementUserDailyMetric(userId, { [field]: segment.seconds }, segment.date, client);
+    await incrementUserDailyMetric(
+      userId,
+      { [field]: segment.seconds },
+      attribution,
+      segment.date,
+      client,
+    );
   }
 }
 
@@ -161,6 +184,8 @@ export async function startAppSession(args: {
 
   await prisma.appSession.create({
     data: {
+      appVersion: clientInfo.appVersion,
+      attributionVerified: clientInfo.attributionVerified,
       browser: clientInfo.browser,
       clientType: clientInfo.clientType,
       countryCode: clientInfo.countryCode,
@@ -176,7 +201,16 @@ export async function startAppSession(args: {
     },
   });
 
-  await incrementUserDailyMetric(args.userId, { sessionCount: 1 }, startedAt);
+  await incrementUserDailyMetric(
+    args.userId,
+    { sessionCount: 1 },
+    resolveVerifiedAttribution({
+      appVersion: clientInfo.appVersion,
+      attributionVerified: clientInfo.attributionVerified,
+      clientType: clientInfo.clientType,
+    }),
+    startedAt,
+  );
 }
 
 export async function heartbeatAppSession(sessionKey: string, seenAt = new Date()) {
@@ -209,6 +243,9 @@ export async function endAppSession(
   const session = await prisma.appSession.findUnique({
     where: { sessionKey },
     select: {
+      appVersion: true,
+      attributionVerified: true,
+      clientType: true,
       endedAt: true,
       startedAt: true,
       userId: true,
@@ -231,7 +268,13 @@ export async function endAppSession(
     },
   });
 
-  await incrementMetricAcrossInterval(session.userId, session.startedAt, endedAt, "appSeconds");
+  await incrementMetricAcrossInterval(
+    session.userId,
+    session.startedAt,
+    endedAt,
+    "appSeconds",
+    resolveVerifiedAttribution(session),
+  );
 }
 
 export async function recordMessageCreated(
@@ -241,6 +284,7 @@ export async function recordMessageCreated(
     uploadedBytes?: bigint | number;
     userId: string;
   },
+  attribution: ClientAttribution,
   client: AnalyticsMetricClient = prisma,
 ) {
   await incrementUserDailyMetric(
@@ -251,12 +295,14 @@ export async function recordMessageCreated(
       messageCount: args.isDm ? 0 : 1,
       uploadedBytes: args.uploadedBytes ?? 0,
     },
+    attribution,
     new Date(),
     client,
   );
 }
 
 export async function startMediaUsageSession(args: {
+  attribution: ClientAttribution;
   channelId?: string | null;
   kind: AnalyticsMediaKind;
   serverId?: string | null;
@@ -288,6 +334,9 @@ export async function startMediaUsageSession(args: {
   await prisma.mediaUsageSession.create({
     data: {
       channelId: args.channelId ?? null,
+      // Voice has no join path back to AppSession, so the row carries its own
+      // client and the daily metric reads it back on close.
+      clientType: args.attribution.clientType,
       kind: args.kind,
       serverId: args.serverId ?? null,
       sessionId: args.sessionId,
@@ -312,6 +361,7 @@ export async function endMediaUsageSession(args: {
     },
     orderBy: { startedAt: "desc" },
     select: {
+      clientType: true,
       id: true,
       startedAt: true,
     },
@@ -337,6 +387,7 @@ export async function endMediaUsageSession(args: {
     session.startedAt,
     endedAt,
     MEDIA_METRIC_FIELD[args.kind],
+    { appVersion: null, clientType: session.clientType },
   );
 }
 
@@ -352,6 +403,7 @@ export async function endAllMediaUsageSessionsForVoiceSession(
       userId,
     },
     select: {
+      clientType: true,
       id: true,
       kind: true,
       startedAt: true,
@@ -372,11 +424,13 @@ export async function endAllMediaUsageSessionsForVoiceSession(
       session.startedAt,
       endedAt,
       MEDIA_METRIC_FIELD[session.kind],
+      { appVersion: null, clientType: session.clientType },
     );
   }
 }
 
 export async function setVoiceScreenShareUsage(args: {
+  attribution: ClientAttribution;
   channelId: string;
   isScreenSharing: boolean;
   serverId: string;
@@ -397,6 +451,7 @@ export async function setVoiceScreenShareUsage(args: {
 
   if (args.isScreenSharing) {
     await startMediaUsageSession({
+      attribution: args.attribution,
       channelId: state.channelId,
       kind: "SCREEN_SHARE",
       serverId: state.serverId,

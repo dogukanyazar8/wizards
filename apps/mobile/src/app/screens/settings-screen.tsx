@@ -407,7 +407,7 @@ export function MobileProfileSettingsHub({
 
       <View style={styles.mobileProfileSettingsCard}>
         <MobileProfileHubRow
-          icon="chatbubble-ellipses-outline"
+          icon="megaphone-outline"
           iconTone="accent"
           label={profileCopy.feedbackHubAction}
           onPress={openMobileFeedback}

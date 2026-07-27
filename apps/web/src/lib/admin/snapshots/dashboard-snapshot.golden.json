@@ -1,0 +1,465 @@
+{
+  "activeMedia": {
+    "camera": 3,
+    "screenShare": 1,
+    "voice": 6
+  },
+  "activeSessions": [
+    {
+      "browser": "Chrome",
+      "clientType": "WEB",
+      "countryCode": "TR",
+      "deviceType": "DESKTOP",
+      "durationSeconds": 900,
+      "id": "session-1",
+      "lastSeenAt": "2026-05-12T18:29:00.000Z",
+      "os": "Windows",
+      "startedAt": "2026-05-12T18:14:00.000Z",
+      "user": {
+        "avatarUrl": "https://cdn.test/avatar-1.png",
+        "displayName": "Ada",
+        "email": "ada@test.dev",
+        "id": "user-1",
+        "status": "ONLINE",
+        "username": "ada"
+      }
+    },
+    {
+      "browser": null,
+      "clientType": "MOBILE",
+      "countryCode": null,
+      "deviceType": "MOBILE",
+      "durationSeconds": 120,
+      "id": "session-2",
+      "lastSeenAt": "2026-05-12T18:28:30.000Z",
+      "os": "iOS",
+      "startedAt": "2026-05-12T18:26:30.000Z",
+      "user": {
+        "avatarUrl": null,
+        "displayName": "bora",
+        "email": "bora@test.dev",
+        "id": "user-2",
+        "status": "IDLE",
+        "username": "bora"
+      }
+    }
+  ],
+  "breakdowns": {
+    "browsers": [
+      {
+        "count": 40,
+        "label": "Chrome"
+      },
+      {
+        "count": 2,
+        "label": "Unknown"
+      }
+    ],
+    "channels": [
+      {
+        "count": 30,
+        "label": "TEXT"
+      },
+      {
+        "count": 9,
+        "label": "VOICE"
+      }
+    ],
+    "clients": [
+      {
+        "count": 40,
+        "label": "UNKNOWN"
+      },
+      {
+        "count": 25,
+        "label": "MOBILE"
+      },
+      {
+        "count": 10,
+        "label": "WEB"
+      }
+    ],
+    "countries": [
+      {
+        "count": 50,
+        "label": "TR"
+      },
+      {
+        "count": 5,
+        "label": "Unknown"
+      }
+    ],
+    "devices": [
+      {
+        "count": 45,
+        "label": "MOBILE"
+      },
+      {
+        "count": 30,
+        "label": "DESKTOP"
+      }
+    ],
+    "operatingSystems": [
+      {
+        "count": 30,
+        "label": "Windows"
+      },
+      {
+        "count": 12,
+        "label": "iOS"
+      }
+    ],
+    "statuses": [
+      {
+        "count": 40,
+        "label": "OFFLINE"
+      },
+      {
+        "count": 5,
+        "label": "ONLINE"
+      },
+      {
+        "count": 3,
+        "label": "INVISIBLE"
+      },
+      {
+        "count": 2,
+        "label": "IDLE"
+      },
+      {
+        "count": 1,
+        "label": "DND"
+      }
+    ]
+  },
+  "campaigns": [
+    {
+      "body": "Sürüm notları yayında.",
+      "completedAt": "2026-05-12T12:05:00.000Z",
+      "createdAt": "2026-05-12T12:00:00.000Z",
+      "creator": {
+        "displayName": "Ada",
+        "id": "user-1",
+        "username": "ada"
+      },
+      "failedCount": 1,
+      "id": "campaign-1",
+      "segment": "Active in 14d",
+      "sentCount": 42,
+      "startedAt": "2026-05-12T12:01:00.000Z",
+      "status": "COMPLETED",
+      "title": "Sürüm duyurusu",
+      "type": "SYSTEM"
+    },
+    {
+      "body": "Bakım penceresi.",
+      "completedAt": null,
+      "createdAt": "2026-05-11T12:00:00.000Z",
+      "creator": null,
+      "failedCount": 0,
+      "id": "campaign-2",
+      "segment": "All users",
+      "sentCount": 0,
+      "startedAt": null,
+      "status": "DRAFT",
+      "title": "Bakım",
+      "type": "SYSTEM"
+    }
+  ],
+  "generatedAt": "2026-05-12T18:30:00.000Z",
+  "range": {
+    "days": 7,
+    "end": "2026-05-13T00:00:00.000Z",
+    "start": "2026-05-06T00:00:00.000Z"
+  },
+  "recentAuditLogs": [
+    {
+      "action": "user.ban",
+      "actor": {
+        "displayName": "Ada",
+        "id": "user-1",
+        "username": "ada"
+      },
+      "createdAt": "2026-05-12T15:00:00.000Z",
+      "id": "audit-1",
+      "targetId": "user-2",
+      "targetType": "USER"
+    },
+    {
+      "action": "system.cleanup",
+      "actor": null,
+      "createdAt": "2026-05-12T14:00:00.000Z",
+      "id": "audit-2",
+      "targetId": null,
+      "targetType": "SYSTEM"
+    }
+  ],
+  "recentMessages": [
+    {
+      "author": {
+        "avatarUrl": "https://cdn.test/avatar-1.png",
+        "displayName": "Ada",
+        "id": "user-1",
+        "username": "ada"
+      },
+      "channel": {
+        "id": "channel-1",
+        "name": "genel"
+      },
+      "content": "merhaba dünya",
+      "createdAt": "2026-05-12T18:00:00.000Z",
+      "id": "message-1",
+      "server": {
+        "id": "server-1",
+        "name": "Whispr HQ"
+      },
+      "type": "TEXT"
+    },
+    {
+      "author": {
+        "avatarUrl": null,
+        "displayName": "bora",
+        "id": "user-2",
+        "username": "bora"
+      },
+      "channel": {
+        "id": "channel-3",
+        "name": "dm-benzeri"
+      },
+      "content": "SYSTEM",
+      "createdAt": "2026-05-12T17:00:00.000Z",
+      "id": "message-2",
+      "server": null,
+      "type": "SYSTEM"
+    }
+  ],
+  "serverHealth": {
+    "activeServers": 7,
+    "publicServers": 12,
+    "textChannels": 30,
+    "totalChannels": 39,
+    "totalServers": 40,
+    "voiceChannels": 9
+  },
+  "topChannels": [
+    {
+      "id": "channel-1",
+      "messageCount": 400,
+      "name": "genel",
+      "server": {
+        "id": "server-1",
+        "name": "Whispr HQ"
+      },
+      "type": "TEXT"
+    },
+    {
+      "id": "channel-2",
+      "messageCount": 60,
+      "name": "duyuru",
+      "server": null,
+      "type": "TEXT"
+    }
+  ],
+  "topServers": [
+    {
+      "channelCount": 4,
+      "createdAt": "2026-02-01T10:00:00.000Z",
+      "iconUrl": "https://cdn.test/server-1.png",
+      "id": "server-1",
+      "isPublic": true,
+      "memberCount": 120,
+      "messageCount": 425,
+      "name": "Whispr HQ",
+      "voiceChannelCount": 1
+    },
+    {
+      "channelCount": 2,
+      "createdAt": "2026-03-15T10:00:00.000Z",
+      "iconUrl": null,
+      "id": "server-2",
+      "isPublic": false,
+      "memberCount": 40,
+      "messageCount": 60,
+      "name": "Kapalı Devre",
+      "voiceChannelCount": 0
+    }
+  ],
+  "topUsers": [
+    {
+      "avatarUrl": "https://cdn.test/avatar-1.png",
+      "displayName": "Ada",
+      "email": "ada@test.dev",
+      "id": "user-1",
+      "metrics": {
+        "appSeconds": 240,
+        "cameraSeconds": 60,
+        "dmMessageCount": 3,
+        "fileUploadCount": 4,
+        "messageCount": 9,
+        "screenShareSeconds": 15,
+        "sessionCount": 3,
+        "uploadedBytes": 512,
+        "voiceSeconds": 120
+      },
+      "score": 1200,
+      "status": "ONLINE",
+      "username": "ada"
+    },
+    {
+      "avatarUrl": null,
+      "displayName": "bora",
+      "email": "bora@test.dev",
+      "id": "user-2",
+      "metrics": {
+        "appSeconds": 120,
+        "cameraSeconds": 0,
+        "dmMessageCount": 1,
+        "fileUploadCount": 2,
+        "messageCount": 4,
+        "screenShareSeconds": 0,
+        "sessionCount": 1,
+        "uploadedBytes": 256,
+        "voiceSeconds": 60
+      },
+      "score": 510,
+      "status": "IDLE",
+      "username": "bora"
+    }
+  ],
+  "totals": {
+    "appSeconds": 360,
+    "attachmentCount": 320,
+    "bannedUsers": 12,
+    "cameraSeconds": 60,
+    "directMessages": 800,
+    "fileUploadCount": 6,
+    "offlineUsers": 898,
+    "onlineUsers": 2,
+    "registeredUsers": 1204,
+    "screenShareSeconds": 15,
+    "sessionCount": 4,
+    "statusCounts": {
+      "dnd": 1,
+      "idle": 2,
+      "invisible": 3,
+      "offline": 40,
+      "online": 5
+    },
+    "totalMessages": 5800,
+    "uploadedBytes": 768,
+    "verifiedUsers": 900,
+    "voiceSeconds": 180
+  },
+  "trends": {
+    "appSeconds": 300,
+    "files": 500,
+    "messages": 113,
+    "sessions": 100,
+    "voiceSeconds": 500
+  },
+  "usageSeries": [
+    {
+      "appSeconds": 240,
+      "cameraSeconds": 60,
+      "date": "2026-05-06",
+      "fileUploadCount": 4,
+      "messageCount": 12,
+      "screenShareSeconds": 15,
+      "sessionCount": 3,
+      "uploadedBytes": 512,
+      "voiceSeconds": 120
+    },
+    {
+      "appSeconds": 0,
+      "cameraSeconds": 0,
+      "date": "2026-05-07",
+      "fileUploadCount": 0,
+      "messageCount": 0,
+      "screenShareSeconds": 0,
+      "sessionCount": 0,
+      "uploadedBytes": 0,
+      "voiceSeconds": 0
+    },
+    {
+      "appSeconds": 0,
+      "cameraSeconds": 0,
+      "date": "2026-05-08",
+      "fileUploadCount": 0,
+      "messageCount": 0,
+      "screenShareSeconds": 0,
+      "sessionCount": 0,
+      "uploadedBytes": 0,
+      "voiceSeconds": 0
+    },
+    {
+      "appSeconds": 0,
+      "cameraSeconds": 0,
+      "date": "2026-05-09",
+      "fileUploadCount": 0,
+      "messageCount": 0,
+      "screenShareSeconds": 0,
+      "sessionCount": 0,
+      "uploadedBytes": 0,
+      "voiceSeconds": 0
+    },
+    {
+      "appSeconds": 0,
+      "cameraSeconds": 0,
+      "date": "2026-05-10",
+      "fileUploadCount": 0,
+      "messageCount": 0,
+      "screenShareSeconds": 0,
+      "sessionCount": 0,
+      "uploadedBytes": 0,
+      "voiceSeconds": 0
+    },
+    {
+      "appSeconds": 120,
+      "cameraSeconds": 0,
+      "date": "2026-05-11",
+      "fileUploadCount": 2,
+      "messageCount": 5,
+      "screenShareSeconds": 0,
+      "sessionCount": 1,
+      "uploadedBytes": 256,
+      "voiceSeconds": 60
+    },
+    {
+      "appSeconds": 0,
+      "cameraSeconds": 0,
+      "date": "2026-05-12",
+      "fileUploadCount": 0,
+      "messageCount": 0,
+      "screenShareSeconds": 0,
+      "sessionCount": 0,
+      "uploadedBytes": 0,
+      "voiceSeconds": 0
+    }
+  ],
+  "users": {
+    "latest": [
+      {
+        "avatarUrl": "https://cdn.test/avatar-3.png",
+        "createdAt": "2026-05-12T09:00:00.000Z",
+        "displayName": "Cem",
+        "email": "cem@test.dev",
+        "emailVerified": false,
+        "id": "user-3",
+        "isBanned": false,
+        "status": "OFFLINE",
+        "username": "cem"
+      },
+      {
+        "avatarUrl": null,
+        "createdAt": "2026-05-11T09:00:00.000Z",
+        "displayName": "bora",
+        "email": "bora@test.dev",
+        "emailVerified": true,
+        "id": "user-2",
+        "isBanned": true,
+        "status": "IDLE",
+        "username": "bora"
+      }
+    ]
+  }
+}

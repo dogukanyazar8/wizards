@@ -1,12 +1,47 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { getAnalyticsClientInfo } from "@/lib/analytics/client-info";
 import {
   getSocketMobileBearerToken,
   joinServerRoomsForUser,
   listServerRoomIdsForUser,
   listServerRoomIdsPage,
+  mergeHandshakeAttribution,
   SOCKET_SERVER_ROOM_JOIN_BATCH_SIZE,
 } from "./server";
+
+describe("socket handshake attribution", () => {
+  it("accepts the auth payload a browser has to use instead of headers", () => {
+    const info = getAnalyticsClientInfo(
+      mergeHandshakeAttribution(
+        { "user-agent": "Mozilla/5.0 (Windows NT 10.0) Chrome/124.0" },
+        { client: "desktop", clientVersion: "2026.07.27" },
+      ),
+    );
+
+    assert.equal(info.clientType, "DESKTOP");
+    assert.equal(info.appVersion, "2026.07.27");
+    assert.equal(info.attributionVerified, true);
+  });
+
+  it("lets a real header win over the auth payload", () => {
+    const merged = mergeHandshakeAttribution(
+      { "x-whispr-client": "mobile", "x-whispr-client-version": "0.8.15" },
+      { client: "web", clientVersion: "2026.07.27" },
+    );
+
+    assert.equal(getAnalyticsClientInfo(merged).clientType, "MOBILE");
+    assert.equal(getAnalyticsClientInfo(merged).appVersion, "0.8.15");
+  });
+
+  it("stays unverified when the client says nothing", () => {
+    const info = getAnalyticsClientInfo(
+      mergeHandshakeAttribution({ "user-agent": "okhttp/4.12.0" }, undefined),
+    );
+
+    assert.equal(info.attributionVerified, false);
+  });
+});
 
 class MemoryServerRoomRedis {
   status = "ready";

@@ -21,6 +21,8 @@ export type {
   AnalyticsDeviceType,
   AnalyticsMediaKind,
   AttachmentScanStatus,
+  CampaignDeliveryStatus,
+  CampaignSkipReason,
   FriendRequest,
   NotificationCampaignStatus,
   NotificationType,

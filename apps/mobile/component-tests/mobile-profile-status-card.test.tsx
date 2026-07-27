@@ -131,14 +131,14 @@ describe("mobile profile status card", () => {
     mockUseMobileAuth.mockReset();
   });
 
-  it("renders the status message field, the auto-clear menu and the presence row", async () => {
+  it("renders the status message field and auto-clear menu without helper text", async () => {
     authenticatedApi(profilePatchApi());
     const view = await renderCard(createQueryClient());
 
     expect(view.getByTestId("mobile-profile-status-card")).toBeTruthy();
     expect(view.getByTestId("mobile-profile-status-input")).toBeTruthy();
     expect(view.getByTestId("mobile-profile-status-expiry-open")).toBeTruthy();
-    expect(view.getByTestId("mobile-profile-status-expiry-notice")).toBeTruthy();
+    expect(view.queryByTestId("mobile-profile-status-expiry-notice")).toBeNull();
     expect(view.getByTestId("mobile-profile-presence-open")).toBeTruthy();
     // The five durations live behind the menu now, not in a chip row.
     expect(view.queryByTestId("mobile-profile-status-expiry-4h")).toBeNull();
@@ -156,18 +156,6 @@ describe("mobile profile status card", () => {
     expect(
       view.getByTestId("mobile-profile-status-expiry-open").props.accessibilityValue,
     ).toMatchObject({ text: "1 saat" });
-  });
-
-  it("names the moment for Bugün instead of pasting it into the duration template", async () => {
-    authenticatedApi(profilePatchApi());
-    const view = await renderCard(createQueryClient());
-
-    await fireEvent.press(view.getByTestId("mobile-profile-status-expiry-open"));
-    await fireEvent.press(view.getByTestId("mobile-profile-status-expiry-today"));
-
-    expect(view.getByTestId("mobile-profile-status-expiry-notice").props.children).toBe(
-      "Bugün gün sonunda otomatik temizlenir",
-    );
   });
 
   // The hub has no header chip, so the card grows one only once the draft moved.

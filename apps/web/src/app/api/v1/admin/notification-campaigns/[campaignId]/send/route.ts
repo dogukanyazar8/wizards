@@ -1,6 +1,6 @@
 import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import { jsonError } from "@/lib/api";
-import { requireAdminUser } from "@/lib/admin/access";
+import { requireAdminCapability } from "@/lib/admin/capabilities";
 import { sendNotificationCampaign } from "@/lib/admin/notification-campaigns";
 
 type RouteContext = {
@@ -11,7 +11,7 @@ type RouteContext = {
 
 export async function POST(_: Request, context: RouteContext) {
   try {
-    const admin = await requireAdminUser({ roles: ["OWNER", "ADMIN"] });
+    const admin = await requireAdminCapability("campaign.send");
     await enforceApiRateLimit(admin.id, "admin:campaign:send");
 
     const { campaignId } = await context.params;

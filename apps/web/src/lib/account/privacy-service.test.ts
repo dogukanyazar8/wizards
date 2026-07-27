@@ -53,13 +53,17 @@ describe("account privacy service", { concurrency: false }, () => {
       },
       notifications: [],
       analytics: {
-        appSessions: [],
-        dailyMetrics: [{ uploadedBytes: 123n }],
-        mediaUsageSessions: [],
+        appSessions: [{ appVersion: "0.8.15", attributionVerified: true, clientType: "MOBILE" }],
+        dailyMetrics: [{ appVersion: "0.8.15", clientType: "MOBILE", uploadedBytes: 123n }],
+        mediaUsageSessions: [{ clientType: "MOBILE" }],
       },
     });
 
     assert.match(payload, /"uploadedBytes": "123"/);
+    // The platform dimensions are not PII, so the export carries them verbatim.
+    assert.match(payload, /"clientType": "MOBILE"/);
+    assert.match(payload, /"appVersion": "0\.8\.15"/);
+    assert.match(payload, /"attributionVerified": true/);
   });
 
   it("extracts UploadThing file keys from supported storage URLs", () => {
