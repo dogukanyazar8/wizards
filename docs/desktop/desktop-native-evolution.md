@@ -144,55 +144,77 @@ The older "missing admin sections" snapshot is not the current failure evidence:
 
 ## P01 CI, security, release, and measurement record
 
-**Status: ENV BLOCKED.** The source gates and local unsigned Windows binary build are verified, but a remote CI run, protected release evidence, complete native smoke, and complete performance evidence cannot be claimed without a push/dispatch and release environment access.
+**Status: ENV BLOCKED.** Source/local gates pass. Latest `origin/uat` is merged by `787b2af3`; P02 has not begun. Candidate-specific measurement and complete candidate smoke remain blocked by existing user-managed processes, not a synthetic pass.
 
-### Delivered source gates
+### Source and local gates — PASS
 
-- Existing Semgrep CE SAST remains unchanged: immutable image digest, read-only mount, `--strict`, and `--error`. CodeQL was not added or deleted.
-- `desktop-ops` now uses portable `bash` for its version-pinned `cargo-audit 0.22.1` install/check, verifies `Cargo.lock` through `cargo metadata --locked`, and audits that exact lockfile with `cargo audit --file Cargo.lock`. The pinned `cargo-audit` CLI does not implement a `--locked` flag; this is the equivalent fail-closed lockfile boundary, not a relaxed audit.
-- Automatic Linux `desktop-ops` now runs `cargo fmt -- --check`, `cargo clippy --locked --all-targets -- -D warnings`, `cargo test --locked`, and an unsigned `tauri build --no-bundle` signal. Manual `desktop_hosted=true` retains the same Windows/macOS quality matrix.
-- New path-filtered `.github/workflows/desktop-native-build.yml` runs unsigned Windows and macOS `tauri build --no-bundle` signals when desktop, lockfile, runtime, or workflow inputs change. It has `contents: read`, SHA-pinned actions, no environment, no secrets, updater disabled, Windows signing disabled, and no artifact publishing. The Windows lane checks for `whispr-desktop.exe`.
-- The old non-protected CI `desktop-build` job, including Tauri private-key and Windows certificate inputs, was removed. `desktop-release.yml` remains the only signing surface and retains its `desktop-<ring>` protected environment, Ed25519 updater, HTTPS feed, ring, and release evidence contracts.
-- Protected R2 publication now verifies a preinstalled AWS CLI v2 and fails closed when it is absent or unexpected; the credential-bearing job no longer installs an unpinned `awscli` package through `pip`.
+- `origin/uat` through `40b8df2f` is integrated without rebase, reset, stash, or clean. Only `.github/workflows/ci.yml` conflicted.
+- Linux self-hosted `desktop-ops` uses Bash. Windows hosted `desktop-native-build` uses PowerShell. Both require `cargo-audit 0.22.1`, validate `Cargo.lock` with `cargo metadata --locked`, then audit exact `Cargo.lock` with `cargo audit --file Cargo.lock`. `cargo-audit 0.22.1` has no `--locked`; this remains fail-closed lockfile validation.
+- `cargo-audit-ci-contract.test.mjs` verifies both platform contracts. `desktop-ops-workflow-contract.test.mjs` verifies Linux Bash exact-lock behavior.
+- Semgrep CE, protected signing, updater protection, and no-bundle contracts remain unchanged. No signing secret moved into non-protected CI.
 
 ### Local P01 evidence
 
-| Command / evidence                                                                                     | Result                                                                                                                                                              |
-| ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `corepack pnpm --filter @wizards/desktop test`                                                         | PASS; 93 tests, including CI, signing-surface, no-bundle forwarding, and measurement-artifact contracts                                                             |
-| `cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml -- --check`                               | PASS                                                                                                                                                                |
-| `cargo clippy --locked --manifest-path apps/desktop/src-tauri/Cargo.toml --all-targets -- -D warnings` | PASS                                                                                                                                                                |
-| `cargo test --locked --manifest-path apps/desktop/src-tauri/Cargo.toml`                                | PASS; 9 Rust tests                                                                                                                                                  |
-| `corepack pnpm --filter @wizards/desktop build:desktop -- --no-bundle`                                 | PASS; local Windows `whispr-desktop.exe`, 10,608,128 bytes                                                                                                          |
-| `cargo metadata --locked` then `cargo audit --file Cargo.lock`                                         | PASS for vulnerabilities; 17 visible informational warnings, no suppression added                                                                                   |
-| `artifacts/desktop-performance/p01-preflight-atomic-final.json`                                        | Actual `measure:windows` `-NoLaunch` artifact: temp-written, flushed, contract-validated, then no-clobber renamed; no application launched and no metric was scored |
+| Command / evidence                                                     | Result                                                                                       |
+| ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `corepack pnpm --filter @wizards/desktop test`                         | PASS; 94 tests                                                                               |
+| `corepack pnpm test:toolchain`                                         | PASS; 47 tests                                                                               |
+| `cargo fmt --all -- --check`                                           | PASS                                                                                         |
+| `cargo clippy --workspace --all-targets -- -D warnings`                | PASS                                                                                         |
+| `cargo test --workspace`                                               | PASS; 9 Rust tests                                                                           |
+| `corepack pnpm --filter @wizards/desktop build:desktop -- --no-bundle` | PASS; fresh unsigned Windows candidate                                                       |
+| `corepack pnpm --filter @wizards/desktop release:ops`                  | PASS; observational contract only                                                            |
+| `corepack pnpm audit --audit-level moderate`                           | PASS; no known vulnerabilities                                                               |
+| `cargo metadata --locked` then `cargo audit --file Cargo.lock`         | PASS for vulnerabilities; 17 informational warnings, no suppression                          |
+| `artifacts/desktop-performance/p01-rerun-20260727.json`                | Real `measure:windows` run, no `-NoLaunch`; artifact validation PASS; metrics not fabricated |
 
-The new local `measure:windows` harness accepts an explicit `.exe` and writes only a new direct `.json` file under `artifacts/desktop-performance`; it refuses an existing output and `-WhatIf` writes nothing. It writes to a unique temporary file, flushes it, invokes the Node contract validator, and only then uses a same-volume no-clobber rename. Any scored process-family memory result requires at least one 60-second idle sample per iteration, records every sample, and uses the worst sample. It fail-closes before launch when any WebView2 process already exists, because shared renderer memory cannot otherwise be attributed. For a launched process family, it preserves each CIM creation-time snapshot and verifies live PID plus start time before attribution or process cleanup. It never injects input, toggles overlay state, performs updater network/install/relaunch actions, or records command lines, paths, URLs, user names, tokens, or secrets. Without a trusted interactive-ready/shortcut acknowledgement bridge, cold/warm startup, overlay CPU, shortcut latency, and updater check/install/relaunch are intentionally `NOT_RUN`, never synthetic `PASS`.
+### Real Windows measurement — ENV BLOCKED
+
+`measure:windows` ran without `-NoLaunch` against fresh candidate and wrote ignored local evidence at `artifacts/desktop-performance/p01-rerun-20260727.json`. Artifact contract validation passed. It correctly refused memory scoring: Whispr stayed alive in tray. Windows Search also continually owns WebView2 processes. Neither process family was killed.
+
+`process-family-memory` is `ENV_BLOCKED`. Cold/warm startup, overlay CPU, shortcut latency, updater install/relaunch are `NOT_RUN`. No metric gained `PASS` without complete attributable candidate family.
+
+### Native smoke — partial, candidate blocked
+
+- Installed Whispr: **MANUAL PASS** launch, main window, close-to-tray. Closing window retained process in tray; earlier window-list-only observation was corrected.
+- Candidate: **ENV BLOCKED.** Starting candidate while tray instance exists invokes single-instance handling; no attributable candidate process begins. Running Whispr was not terminated.
+- Restore, candidate single-instance, safe deep link, shortcut register/unregister, voice-mini, game-overlay show/hide: **NOT RUN** on candidate.
+- Updater disabled: **PASS** build-config level. Unsigned build reported `updater: disabled`. No update check, install, restart, signed release, protected dispatch ran.
+
+Candidate manual checklist after user exits Whispr from tray: launch candidate; confirm main window; close then restore tray; launch candidate again and confirm one family; invoke only safe internal deep link; register/trigger/unregister voice shortcut; show/hide voice-mini and game overlay; confirm updater disabled. Record `MANUAL PASS`, `FAIL`, or `ENV BLOCKED`.
+
+### Remote gates — NOT RUN on feature ref
+
+- `origin/uat` Verify, Semgrep, E2E, accessibility, visual, cross-browser were reported passing before merge.
+- Feature-ref Desktop Ops, hosted Windows, hosted macOS: **NOT RUN**. No push, PR, deploy, workflow dispatch authorized.
+
+### Release-only gates — NOT RUN
+
+- Local SBOM: no safe existing generator installed. No dependency/tool added. Adding one needs approval for impact, maintenance, license, pinning.
+- Protected signed-release attestation/provenance remains P09 release-only. Signed release, AWS CLI patch pin, UAT deploy, production, protected dispatch did not run; none blocks P02.
 
 ### P01 blockers and rollback
 
-- **Remote CI / macOS signal:** NOT RUN. No push, PR, or workflow dispatch was authorized. Local source contracts do not prove GitHub-hosted Windows/macOS execution.
-- **Native smoke:** NOT RUN. Only a `-NoLaunch` harness preflight was authorized; no main-window, tray, deep-link, single-instance, shortcut, companion-window, or updater smoke result is claimed.
-- **SBOM/provenance:** NOT RUN. The release flow has hashes, audit summaries, and redacted evidence, but no verified attestation/SBOM integration was added. Adding permissions, a hosted attestation path, or a new SBOM tool needs a separately authorized release-side decision and live CI validation.
-- **AWS CLI patch reproducibility:** ENV BLOCKED. The protected job removes the unpinned network install and logs the preinstalled AWS CLI v2 it actually used, but the hosted runner supplies the patch version. A checksum-pinned installer or dedicated release image would be a separate release-side decision.
-- **Full UAT integration:** remains BLOCKED by the P00 remote runner/E2E baseline and the current `origin/uat` divergence; no merge or rebase was performed in this worktree.
+- Candidate measurement/native smoke: **ENV BLOCKED** until user exits tray Whispr. Windows Search WebView2 remains separate attribution boundary; not killed.
+- Remote Windows/macOS: **NOT RUN**. Separately acceptable for P02 until explicitly authorized.
+- SBOM/provenance: **NOT RUN**. Not P02 prerequisite.
 
-Rollback is one focused P01 commit: remove the path-filtered workflow and revert the added Linux quality steps while keeping `desktop-release.yml` as the sole signing path. Do not restore non-protected signing secrets as a rollback shortcut.
+Rollback: revert focused P01 source commits. Do not restore non-protected signing secrets or bypass exact-lock audit checks.
 
 ## Phase checklist
 
-| Phase | Scope                                                              | Status                                                          |
-| ----- | ------------------------------------------------------------------ | --------------------------------------------------------------- |
-| P00   | Baseline, source inventory, trust boundary, scope lock             | PASS after this document-only commit                            |
-| P01   | CI/security/release gates and executable measurement evidence      | ENV BLOCKED: source/local gates delivered; live evidence absent |
-| P02   | Trusted local control plane and incremental IPC boundary reduction | Blocked on P01 acceptance                                       |
-| P03   | Windows native media spike and measured selection                  | Blocked on P02 acceptance and research decision                 |
-| P04   | Windows native UX                                                  | Blocked on prior phases                                         |
-| P05   | Bundled local renderer and shared core strangler migration         | Blocked on prior phases                                         |
-| P06   | macOS/Linux parity                                                 | Blocked on Windows evidence                                     |
-| P07   | Collaboration parity                                               | Blocked on foundation gates                                     |
-| P08   | Scale, observability, accessibility                                | Blocked on foundation gates                                     |
-| P09   | UAT acceptance                                                     | Blocked on all preceding gates and external CI baseline         |
+| Phase | Scope                                                              | Status                                                    |
+| ----- | ------------------------------------------------------------------ | --------------------------------------------------------- |
+| P00   | Baseline, source inventory, trust boundary, scope lock             | PASS after this document-only commit                      |
+| P01   | CI/security/release gates and executable measurement evidence      | ENV BLOCKED: source/local PASS; candidate runtime blocked |
+| P02   | Trusted local control plane and incremental IPC boundary reduction | Blocked on P01 acceptance                                 |
+| P03   | Windows native media spike and measured selection                  | Blocked on P02 acceptance and research decision           |
+| P04   | Windows native UX                                                  | Blocked on prior phases                                   |
+| P05   | Bundled local renderer and shared core strangler migration         | Blocked on prior phases                                   |
+| P06   | macOS/Linux parity                                                 | Blocked on Windows evidence                               |
+| P07   | Collaboration parity                                               | Blocked on foundation gates                               |
+| P08   | Scale, observability, accessibility                                | Blocked on foundation gates                               |
+| P09   | UAT acceptance                                                     | Blocked on all preceding gates and external CI baseline   |
 
 ## Risks
 
@@ -201,7 +223,7 @@ Rollback is one focused P01 commit: remove the path-filtered workflow and revert
 3. **Medium — IPC typing.** Companion snapshots cross Rust as `serde_json::Value` with a 16 KiB cap; child renderer Zod parsing is fail-closed, but the native boundary is not typed/versioned.
 4. **Medium — privacy/reliability.** Foreground process basename can reach remote main content; companion visibility commands queue asynchronous work yet return success before the work completes.
 5. **Medium — audit/platform debt.** Cargo audit has 17 informational warnings, including a `glib` unsoundness advisory on Linux dependency paths. No vulnerability was reported; no suppression was added.
-6. **Medium — UAT evidence gap.** Source now schedules Rust quality gates and path-filtered unsigned Windows/macOS native builds, but no live hosted execution, native smoke, complete performance sample, signed updater, SBOM/provenance, or device-media evidence exists.
+6. **Medium — UAT evidence gap.** Source/local gates pass. Hosted Windows/macOS, candidate measurement, candidate smoke, signed updater, SBOM/provenance, and device-media remain distinct states.
 
 ## Rollback
 
@@ -209,4 +231,4 @@ P00 is documentation-only. Revert its single document commit to remove the phase
 
 ## Next phase gate
 
-Do not begin P02. P01 needs an authorized remote run of the new path-filtered workflow, a clean safe local process-family measurement run, protected release/SBOM-provenance evidence, and the independent UAT CI baseline repaired before its full acceptance gate can be re-evaluated. The P02 remote-renderer trust-boundary change remains blocked behind that evidence.
+Do not begin P02. P02 gate needs latest `origin/uat` integrated, desktop contract regression closed, real candidate measurement, candidate smoke complete or exact environmental blocker. Hosted Windows/macOS may remain `NOT RUN` until later authorization. Signed release, protected provenance, AWS CLI patch pin are not P02 prerequisites.

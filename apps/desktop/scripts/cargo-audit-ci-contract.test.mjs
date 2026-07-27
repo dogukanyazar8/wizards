@@ -7,6 +7,23 @@ import { fileURLToPath } from "node:url";
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 const workspaceRoot = path.resolve(scriptDirectory, "../../..");
 
+function readWorkflowStep(source, stepName) {
+  const lines = source.split(/\r?\n/u);
+  const start = lines.findIndex((line) => line === `      - name: ${stepName}`);
+
+  assert.notEqual(start, -1, `Expected workflow step: ${stepName}`);
+
+  const stepLines = [lines[start]];
+  for (const line of lines.slice(start + 1)) {
+    if (line.startsWith("      - name: ")) {
+      break;
+    }
+    stepLines.push(line);
+  }
+
+  return stepLines.join("\n");
+}
+
 test("automatic desktop CI runs portable locked Rust quality gates", async () => {
   const workflow = await readFile(
     path.join(workspaceRoot, ".github", "workflows", "ci.yml"),
@@ -51,4 +68,26 @@ test("automatic desktop CI runs portable locked Rust quality gates", async () =>
     /^        run: pnpm --filter @wizards\/desktop build:desktop -- --no-bundle$/m,
   );
   assert.doesNotMatch(desktopOps, /continue-on-error:/);
+});
+
+test("Windows hosted native build audits the exact lockfile in PowerShell", async () => {
+  const workflow = await readFile(
+    path.join(workspaceRoot, ".github", "workflows", "desktop-native-build.yml"),
+    "utf8",
+  );
+  const cargoAudit = readWorkflowStep(workflow, "Audit Rust dependencies");
+
+  assert.match(cargoAudit, /^        if: matrix\.os == 'windows-latest'$/m);
+  assert.match(cargoAudit, /^        shell: pwsh$/m);
+  assert.match(cargoAudit, /^          CARGO_AUDIT_VERSION: 0\.22\.1$/m);
+  assert.match(cargoAudit, /Get-Command cargo-audit/);
+  assert.match(
+    cargoAudit,
+    /cargo install cargo-audit --version \$env:CARGO_AUDIT_VERSION --locked --force/,
+  );
+  assert.match(
+    cargoAudit,
+    /^          cargo metadata --locked --format-version 1 --no-deps \| Out-Null$/m,
+  );
+  assert.match(cargoAudit, /^          cargo audit --file Cargo\.lock$/m);
 });

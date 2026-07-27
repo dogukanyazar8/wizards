@@ -69,6 +69,27 @@ jobs:
         with:
           toolchain: stable
 
+      - name: Audit Rust dependencies
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        working-directory: apps/desktop/src-tauri
+        env:
+          CARGO_AUDIT_VERSION: 0.22.1
+        run: |
+          $expectedVersion = "cargo-audit $env:CARGO_AUDIT_VERSION"
+          $currentVersion = ""
+
+          if (Get-Command cargo-audit -ErrorAction SilentlyContinue) {
+            $currentVersion = (cargo audit --version).Trim()
+          }
+
+          if ($currentVersion -ne $expectedVersion) {
+            cargo install cargo-audit --version $env:CARGO_AUDIT_VERSION --locked --force
+          }
+
+          cargo metadata --locked --format-version 1 --no-deps | Out-Null
+          cargo audit --file Cargo.lock
+
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
         with:
