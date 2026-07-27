@@ -1,4 +1,6 @@
+import { prisma } from "@wizards/db";
 import { enforceApiRateLimit } from "@/lib/api-rate-limit";
+import { enqueueCampaignSendJob } from "@/lib/outbox/service";
 import { jsonError, parseJsonBody } from "@/lib/api";
 import { requireAdminCapability } from "@/lib/admin/capabilities";
 import {
@@ -29,6 +31,21 @@ export async function POST(request: Request) {
 
     const input = await parseJsonBody(request, NotificationCampaignCreateRequestSchema);
     const campaign = await createNotificationCampaign(admin.id, toCreateCampaignInput(input));
+
+    // A booked campaign never sends inline: the outbox drain picks it up when
+    // `availableAt` arrives, and freezes the audience at that moment.
+    if (input.scheduledAt && campaign.status !== "PENDING_APPROVAL") {
+      await enqueueCampaignSendJob(prisma, {
+        adminUserId: admin.id,
+        campaignId: campaign.id,
+        scheduledAt: input.scheduledAt,
+      });
+
+      return Response.json(
+        { campaign, scheduledAt: input.scheduledAt.toISOString() },
+        { status: 201 },
+      );
+    }
 
     // An oversized audience parks in PENDING_APPROVAL: the composer surfaces
     // the gate instead of the send failing behind a 409.

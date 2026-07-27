@@ -46,15 +46,22 @@ export const NotificationCampaignPreviewRequestSchema = z.object({
   segment: CampaignSegmentSchema,
 });
 
-export const NotificationCampaignCreateRequestSchema = z.object({
-  actionUrl: optionalTrimmedString(2048),
-  body: z.string().trim().min(1).max(800),
-  imageUrl: optionalTrimmedString(2048),
-  segment: CampaignSegmentSchema,
-  sendNow: z.boolean().default(false),
-  title: z.string().trim().min(1).max(140),
-  type: z.enum(["SYSTEM", "MODERATION"]).default("SYSTEM"),
-});
+export const NotificationCampaignCreateRequestSchema = z
+  .object({
+    actionUrl: optionalTrimmedString(2048),
+    body: z.string().trim().min(1).max(800),
+    imageUrl: optionalTrimmedString(2048),
+    /** Booked for later; the outbox drain owns the actual send. */
+    scheduledAt: z.coerce.date().optional(),
+    segment: CampaignSegmentSchema,
+    sendNow: z.boolean().default(false),
+    title: z.string().trim().min(1).max(140),
+    type: z.enum(["SYSTEM", "MODERATION"]).default("SYSTEM"),
+  })
+  .refine((value) => !(value.sendNow && value.scheduledAt), {
+    message: "A campaign is either sent now or scheduled, never both.",
+    path: ["scheduledAt"],
+  });
 
 export function toCreateCampaignInput(
   input: z.infer<typeof NotificationCampaignCreateRequestSchema>,

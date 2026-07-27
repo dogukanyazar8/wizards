@@ -9,6 +9,8 @@ import {
 import { formatAdminInt } from "@/components/admin/format/admin-format";
 import {
   AdminCaseActionMenu,
+  AdminCaseAppealForm,
+  AdminCaseDeleteMessageButton,
   AdminCaseNoteForm,
 } from "@/components/admin/sections/admin-case-actions";
 import type { getModerationCaseFile } from "@/lib/moderation/case-queries";
@@ -110,6 +112,53 @@ export function AdminCaseFile({
             </ol>
           </AdminCard>
 
+          <AdminCard>
+            <AdminCardHeader
+              subtitle="Rapor anında alınan kopya; kaynak silinse de burada kalır."
+              title="Delil"
+            />
+            {caseFile.evidence.length === 0 ? (
+              <p className="text-app-muted mt-3 text-[13px]">Bu vakada delil yok.</p>
+            ) : (
+              <ul className="mt-3 space-y-3">
+                {caseFile.evidence.map((entry) => (
+                  <li
+                    className="rounded-[12px] border border-[hsl(var(--border)/0.6)] p-3"
+                    key={entry.id}
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <AdminPill tone="primary">
+                        {entry.snapshot?.source === "dm" ? "Direkt mesaj" : "Kanal"}
+                      </AdminPill>
+                      {entry.snapshot?.scope ? (
+                        <span className="text-app-muted text-[12px]">{entry.snapshot.scope}</span>
+                      ) : null}
+                      {entry.sourceDeleted ? (
+                        <AdminPill tone="danger">kaynak silinmiş</AdminPill>
+                      ) : null}
+                      <span className="text-app-soft text-[11.5px]">
+                        {formatDateTime(entry.snapshot?.sentAt ?? entry.capturedAt)}
+                      </span>
+                    </div>
+                    <p className="text-app-foreground mt-2 text-[13px] whitespace-pre-line">
+                      {entry.snapshot?.content || "(boş mesaj)"}
+                    </p>
+                    {entry.snapshot?.authorHandle ? (
+                      <p className="text-app-muted mt-1 text-[11.5px]">
+                        @{entry.snapshot.authorHandle}
+                      </p>
+                    ) : null}
+                    {canAct && entry.messageId && !entry.sourceDeleted ? (
+                      <div className="mt-2">
+                        <AdminCaseDeleteMessageButton caseId={caseFile.id} evidenceId={entry.id} />
+                      </div>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </AdminCard>
+
           {canAct ? (
             <AdminCard>
               <AdminCardHeader title="Not ekle" />
@@ -165,7 +214,19 @@ export function AdminCaseFile({
             </div>
           </AdminCard>
 
-          {canAct && !resolved ? (
+          {canAct && caseFile.status === "APPEALED" ? (
+            <AdminCard>
+              <AdminCardHeader
+                subtitle="Kabul vakayı reddedilmiş sayar, ret kararı geri getirir."
+                title="İtiraz"
+              />
+              <div className="mt-3">
+                <AdminCaseAppealForm caseId={caseFile.id} />
+              </div>
+            </AdminCard>
+          ) : null}
+
+          {canAct && !resolved && caseFile.status !== "APPEALED" ? (
             <AdminCard>
               <AdminCardHeader title="Karar" />
               <div className="mt-3">

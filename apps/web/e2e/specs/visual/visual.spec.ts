@@ -7,12 +7,27 @@ import {
   gotoTextChannelRoute,
   openSettingsFromUserQuickMenu,
 } from "../../helpers/navigation";
+import { resetAndSeedE2EData } from "../../setup/e2e-database";
 
 test.use({ locale: "en-US", timezoneId: "UTC" });
 
 test.describe.configure({ timeout: resolveE2ETimeoutPolicy().screenTestTimeoutMs });
 
 test.describe("visual regression", () => {
+  test.beforeEach(async ({ page }) => {
+    await resetAndSeedE2EData();
+    await page.addInitScript(() => {
+      window.localStorage.setItem("wizards.locale", "en");
+      window.localStorage.setItem("wizards-theme", "theme-dark");
+      document.cookie = "wizards.locale=en; path=/; max-age=31536000; samesite=lax";
+      document.documentElement.lang = "en";
+      document.documentElement.classList.remove("theme-light", "theme-dark");
+      document.documentElement.classList.add("theme-dark");
+      document.documentElement.dataset.theme = "dark";
+      document.documentElement.style.colorScheme = "dark";
+    });
+  });
+
   test("login screen", async ({ page }) => {
     await gotoAppRoute(page, "/login", { readyTestId: "login-form" });
 

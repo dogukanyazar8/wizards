@@ -3,6 +3,7 @@ import { cleanupAccountReauthChallenges } from "@/lib/auth/reauth-cleanup";
 import { cleanupMobileMediaUploads as cleanupMobileMediaUploadsService } from "@/lib/mobile/mobile-media-upload-service";
 import { cleanupOutboxJobs, drainOutboxJobs } from "@/lib/outbox/service";
 import { rollUpClientHealthEvents as rollUpClientHealthEventsService } from "@/lib/telemetry/client-health-rollup";
+import { purgeExpiredEvidence as purgeExpiredEvidenceService } from "@/lib/moderation/evidence-service";
 
 const DEFAULT_OUTBOX_WORKER_BATCH_SIZE = 25;
 const DEFAULT_OUTBOX_WORKER_INTERVAL_MS = 5_000;
@@ -19,6 +20,7 @@ type StartOutboxWorkerOptions = {
   cleanupReauthChallenges?: typeof cleanupAccountReauthChallenges;
   drainJobs?: typeof drainOutboxJobs;
   intervalMs?: number;
+  purgeExpiredEvidence?: typeof purgeExpiredEvidenceService;
   rollUpClientHealthEvents?: typeof rollUpClientHealthEventsService;
   keepAlive?: boolean;
   runImmediately?: boolean;
@@ -41,6 +43,7 @@ export function startOutboxWorker({
   drainJobs = drainOutboxJobs,
   intervalMs,
   keepAlive = false,
+  purgeExpiredEvidence = purgeExpiredEvidenceService,
   rollUpClientHealthEvents = rollUpClientHealthEventsService,
   runImmediately = true,
   workerId: configuredWorkerId,
@@ -75,6 +78,7 @@ export function startOutboxWorker({
         await cleanupReauthChallenges({ now: cleanupNow });
         await cleanupMobileMediaUploads({ now: cleanupNow });
         await rollUpClientHealthEvents({ now: cleanupNow });
+        await purgeExpiredEvidence({ now: cleanupNow });
       })
       .catch((error) => {
         logError("[outbox] Worker drain failed", error);

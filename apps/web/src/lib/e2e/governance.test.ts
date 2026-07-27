@@ -447,6 +447,13 @@ describe("Playwright E2E governance", () => {
 
     const visualSpec = readWorkspaceFile(visualSpecPath);
     assert.equal(visualSpec.match(/\.toHaveScreenshot\(/g)?.length, 4);
+    assert.match(visualSpec, /resetAndSeedE2EData/);
+    assert.match(
+      visualSpec,
+      /test\.beforeEach\(async \(\{ page \}\) => \{[\s\S]*resetAndSeedE2EData\(\)/,
+    );
+    assert.match(visualSpec, /wizards\.locale/);
+    assert.match(visualSpec, /wizards-theme/);
     assert.match(e2eReadme, /mcr\.microsoft\.com\/playwright:v1\.61\.1-noble/);
     assert.match(e2eReadme, /baseline snapshots must only be updated inside Docker/i);
     assert.match(
@@ -459,7 +466,7 @@ describe("Playwright E2E governance", () => {
     assert.doesNotMatch(gitignore, /\*-linux\.png/);
   });
 
-  it("runs visual regression in an isolated staged CI job", () => {
+  it("runs visual regression in an isolated, mandatory CI job", () => {
     const workflow = readWorkspaceFile(join(workspaceRoot, ".github", "workflows", "ci.yml"));
     const smokeStart = workflow.indexOf("\n  e2e-smoke:");
     const crossBrowserStart = workflow.indexOf("\n  e2e-cross-browser:");
@@ -485,8 +492,18 @@ describe("Playwright E2E governance", () => {
     assert.equal(visualRuntime.replaceAll("\r\n", "\n"), smokeRuntime.replaceAll("\r\n", "\n"));
     assert.match(visualJob, /name:\s*Playwright Visual Regression/);
     assert.match(visualJob, /needs:\s*verify/);
-    assert.match(visualJob, /continue-on-error:\s*true/);
+    assert.doesNotMatch(visualJob, /continue-on-error:/);
     assert.match(visualJob, /playwright install --with-deps chromium/);
     assert.match(visualJob, /@wizards\/web e2e:visual/);
+  });
+
+  it("keeps the two-factor QR test selector locale-independent", () => {
+    const settingsSpec = readWorkspaceFile(join(e2eSpecsRoot, "settings", "settings.spec.ts"));
+    const settingsPanel = readWorkspaceFile(
+      join(webRoot, "src", "components", "settings", "settings-panel.tsx"),
+    );
+
+    assert.match(settingsSpec, /getByTestId\("two-factor-setup-qr-code"\)/);
+    assert.match(settingsPanel, /data-testid="two-factor-setup-qr-code"/);
   });
 });

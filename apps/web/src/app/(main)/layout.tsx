@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { redirect } from "next/navigation";
 import { getCurrentUserForSession, requireAuth } from "@/lib/auth/utils";
 import { LocaleSessionSync } from "@/components/locale/locale-session-sync";
 import { ThemeSessionSync } from "@/components/theme/theme-session-sync";
@@ -20,6 +21,13 @@ function getVisibleStatus(status: string | null | undefined) {
 export default async function MainLayout({ children }: { children: ReactNode }) {
   const session = await requireAuth();
   const user = await getCurrentUserForSession(session);
+
+  // A suspended account keeps exactly one destination: the page that explains
+  // the decision and takes an appeal.
+  if (user?.isBanned) {
+    redirect("/suspended");
+  }
+
   const displayName =
     user?.displayName ??
     session.user.displayName ??

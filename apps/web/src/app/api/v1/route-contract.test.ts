@@ -21,6 +21,8 @@ const UNAUTHENTICATED_ROUTE_PATHS = new Set([
 ]);
 
 const BODYLESS_MUTATING_METHOD_PATHS = new Set([
+  // Recomputing clusters reads the feedback table; there is nothing to send.
+  "POST admin/feedback/clusters",
   // Claiming a case only records who opened it; the session is the payload.
   "POST admin/moderation/cases/[caseId]/claim",
   // The approver is the session; the decision itself carries no payload.
@@ -61,6 +63,7 @@ const BODYLESS_MUTATING_METHOD_PATHS = new Set([
   "DELETE mobile/servers/[serverId]/members/[memberId]",
   "DELETE mobile/servers/[serverId]/roles/[roleId]",
   "POST mobile/account/two-factor/setup",
+  "POST mobile/admin/cases/[caseId]/claim",
   "POST mobile/friends/requests/[id]/accept",
   "POST mobile/friends/requests/[id]/reject",
   "PUT mobile/friends/blocks/[userId]",
@@ -75,7 +78,7 @@ const BODYLESS_MUTATING_METHOD_PATHS = new Set([
 ]);
 
 const AUTH_GUARD_CALL_PATTERN =
-  /\b(?:requireApiUserId|requireMobileApiUserId|requireMobileApiSession|requireAdminUser|requireAdminCapability|authorizeMobileApiRequest)\s*\(/;
+  /\b(?:requireApiUserId|requireBannedApiUserId|requireMobileApiUserId|requireMobileApiSession|requireAdminUser|requireAdminCapability|requireMobileAdminCapability|authorizeMobileApiRequest)\s*\(/;
 const HTTP_METHODS = ["GET", "POST", "PATCH", "PUT", "DELETE"] as const;
 const MUTATING_METHODS = new Set(["POST", "PATCH", "PUT", "DELETE"]);
 const RAW_REQUEST_BODY_CALL_PATTERN = /\b(?:request|req)\.(?:json|text|formData)\s*\(/;

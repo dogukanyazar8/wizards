@@ -4,7 +4,8 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 const LEGACY_ADMIN_HASH_ROUTES: Readonly<Record<string, string>> = {
-  "#activity": "/admin/activity",
+  // The activity placeholder was dropped; its numbers live in analytics now.
+  "#activity": "/admin/analytics",
   "#audit": "/admin/audit",
   "#notifications": "/admin/notifications",
   "#overview": "/admin",

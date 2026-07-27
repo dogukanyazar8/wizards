@@ -4,10 +4,12 @@ import type { AdminRole } from "@wizards/db";
 import {
   Activity,
   ArrowLeft,
+  BarChart3,
   Flag,
   Gauge,
   HeartPulse,
   Megaphone,
+  Mic,
   Scroll,
   Server,
   ShieldAlert,
@@ -26,10 +28,12 @@ import { AdminAvatarSquare, AdminPill, AdminPulseDot } from "./admin-primitives"
 
 const NAV_ICONS: Record<AdminNavItem["icon"], LucideIcon> = {
   activity: Activity,
+  chart: BarChart3,
   flag: Flag,
   gauge: Gauge,
   pulse: HeartPulse,
   megaphone: Megaphone,
+  mic: Mic,
   scroll: Scroll,
   server: Server,
   shield: ShieldAlert,

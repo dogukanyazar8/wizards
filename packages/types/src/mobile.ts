@@ -549,6 +549,8 @@ export const MobileBootstrapPayloadSchema = z.object({
     pushNotifications: MobileBootstrapFeatureSchema,
     voice: MobileBootstrapFeatureSchema,
   }),
+  /** True when this account may open the mobile moderation queue. */
+  isAdmin: z.boolean().default(false),
   /**
    * Server-evaluated feature flags. `features` above is the static capability
    * catalogue; this map is the per-person rollout answer and may change between

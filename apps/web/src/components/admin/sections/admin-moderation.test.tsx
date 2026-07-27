@@ -104,8 +104,27 @@ describe("moderation queue", () => {
   });
 });
 
+const EVIDENCE = [
+  {
+    capturedAt: "2026-07-27T11:05:00.000Z",
+    dmMessageId: null,
+    id: "evidence-1",
+    messageId: "message-1",
+    snapshot: {
+      attachments: [],
+      authorHandle: "bora",
+      content: "taciz içeren mesaj",
+      scope: "#genel",
+      sentAt: "2026-07-27T11:00:00.000Z",
+      source: "channel",
+    },
+    sourceDeleted: false,
+  },
+];
+
 const caseFile = {
   assignee: { displayName: "Ada", id: "admin-1", username: "ada" },
+  evidence: EVIDENCE,
   firstSeenAt: "2026-07-27T11:20:00.000Z",
   id: "case-1",
   openedAt: "2026-07-27T11:00:00.000Z",
@@ -153,9 +172,9 @@ describe("moderation case file", () => {
       assert.match(markup, new RegExp(label, "u"));
     }
 
-    // Evidence cards belong to D2; the D1 file must not promise them.
-    assert.doesNotMatch(markup, /Delil/u);
-    assert.doesNotMatch(markup, /Mesaj sil/u);
+    // D2 added the evidence card; the timeline itself still carries no evidence
+    // entries, so the two stay separate sections.
+    assert.match(markup, /Zaman çizelgesi/u);
   });
 
   it("marks a deleted subject instead of showing empty account facts", () => {
@@ -187,5 +206,42 @@ describe("moderation case file", () => {
 
     assert.match(markup, /Uyarı verildi\./u);
     assert.doesNotMatch(markup, /Karar<\/p>/u);
+  });
+});
+
+describe("case file evidence", () => {
+  it("shows the captured snapshot with its scope", () => {
+    const markup = renderToStaticMarkup(<AdminCaseFile canAct caseFile={caseFile} now={NOW} />);
+
+    assert.match(markup, /Delil/u);
+    assert.match(markup, /taciz içeren mesaj/u);
+    assert.match(markup, /#genel/u);
+    assert.match(markup, /Mesaj sil/u);
+  });
+
+  it("keeps the snapshot after the source message is gone", () => {
+    const markup = renderToStaticMarkup(
+      <AdminCaseFile
+        canAct
+        caseFile={{
+          ...caseFile,
+          evidence: [{ ...EVIDENCE[0]!, sourceDeleted: true }],
+        }}
+        now={NOW}
+      />,
+    );
+
+    assert.match(markup, /kaynak silinmiş/u);
+    assert.match(markup, /taciz içeren mesaj/u);
+    // Nothing left to delete once the source is gone.
+    assert.doesNotMatch(markup, /Mesaj sil/u);
+  });
+
+  it("says so when a case carries no evidence", () => {
+    const markup = renderToStaticMarkup(
+      <AdminCaseFile canAct caseFile={{ ...caseFile, evidence: [] }} now={NOW} />,
+    );
+
+    assert.match(markup, /Bu vakada delil yok/u);
   });
 });

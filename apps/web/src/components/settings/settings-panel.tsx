@@ -1010,6 +1010,7 @@ function SecurityCenterCard({
               <Image
                 alt={t("settings.account.twoFactor.qrAlt")}
                 className="rounded-xl border border-[hsl(var(--border)/0.7)] bg-white p-2"
+                data-testid="two-factor-setup-qr-code"
                 height={132}
                 src={setupMaterial.qrCodeDataUrl}
                 unoptimized

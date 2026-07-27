@@ -85,6 +85,29 @@ test("client health, feature flags and push attempts land as additive tables", (
   assert.doesNotMatch(healthMigration, /DROP TABLE|DROP COLUMN/u);
 });
 
+test("feedback clustering only ever proposes", () => {
+  const model = schema.match(/model FeedbackClusterSuggestion \{[\s\S]*?\n\}/u)?.[0];
+
+  assert.ok(model, "FeedbackClusterSuggestion model is missing");
+  assert.match(model, /status\s+ClusterSuggestionStatus\s+@default\(PENDING\)/u);
+  assert.match(model, /feedbackIds\s+Json/u);
+  assert.match(schema, /enum ClusterSuggestionStatus \{\s*PENDING\s*ACCEPTED\s*REJECTED\s*\}/u);
+
+  const migration = readFileSync(
+    fileURLToPath(
+      new URL(
+        "../prisma/rebaseline-migrations/20260727180000_feedback_cluster_suggestions/migration.sql",
+        import.meta.url,
+      ),
+    ),
+    "utf8",
+  );
+
+  assert.match(migration, /CREATE TABLE "FeedbackClusterSuggestion"/u);
+  // A suggestion must not be able to rewrite the feedback it points at.
+  assert.doesNotMatch(migration, /ALTER TABLE "Feedback"/u);
+});
+
 test("uses deliberate Prisma 7 PostgreSQL adapter pool defaults", () => {
   assert.deepEqual(
     readPrismaPoolOptions({

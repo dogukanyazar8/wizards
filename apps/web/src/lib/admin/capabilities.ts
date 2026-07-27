@@ -1,5 +1,6 @@
 import type { AdminRole } from "@wizards/db";
-import { requireAdminUser, type AdminAccessUser } from "@/lib/admin/access";
+import { requireAdminUser, requireAdminUserById, type AdminAccessUser } from "@/lib/admin/access";
+import { requireMobileApiSession } from "@/lib/auth/api";
 
 /**
  * The single source of truth for admin authorization. A route that forgets its
@@ -43,4 +44,18 @@ export async function requireAdminCapability(
   capability: AdminCapability,
 ): Promise<AdminAccessUser> {
   return requireAdminUser({ roles: [...ADMIN_CAPABILITIES[capability]] });
+}
+
+/**
+ * Mobile carries a Bearer session instead of the cookie `requireAdminUser`
+ * reads, so the session is resolved first and the *same* capability table then
+ * decides. One map, two transports — a role can never mean two things.
+ */
+export async function requireMobileAdminCapability(
+  request: Request,
+  capability: AdminCapability,
+): Promise<AdminAccessUser> {
+  const session = await requireMobileApiSession(request);
+
+  return requireAdminUserById(session.userId, { roles: [...ADMIN_CAPABILITIES[capability]] });
 }

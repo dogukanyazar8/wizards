@@ -114,7 +114,7 @@ jobs:
 
   actionlint:
     name: actionlint
-    runs-on: [self-hosted, linux, x64, wizards-ci]
+    runs-on: [self-hosted, linux, x64, ci-fast]
     timeout-minutes: 5
     permissions:
       contents: read
@@ -211,7 +211,7 @@ jobs:
 
   typescript-native-shadow:
     name: TypeScript Compiler Compatibility
-    runs-on: [self-hosted, linux, x64, wizards-ci]
+    runs-on: [self-hosted, linux, x64, ci-fast]
     timeout-minutes: 12
 
     steps:
@@ -614,7 +614,6 @@ jobs:
     name: Playwright Visual Regression
     runs-on: [self-hosted, linux, x64, wizards-ci]
     needs: verify
-    continue-on-error: true
     timeout-minutes: 35
 
     services:
@@ -717,7 +716,7 @@ jobs:
       # Automatic CI uses the free Linux self-hosted runner. The optional manual
       # matrix adds matching Windows/macOS desktop-ops checks; the path-filtered
       # desktop-native-build workflow owns automatic hosted native build signals.
-      matrix: ${{ inputs.desktop_hosted && fromJSON('{"include":[{"os":"wizards-ci","staged":false},{"os":"windows-latest","staged":false},{"os":"macos-latest","staged":false}]}') || fromJSON('{"include":[{"os":"wizards-ci","staged":false}]}') }}
+      matrix: ${{ inputs.desktop_hosted && fromJSON('{"include":[{"os":"ci-fast","staged":false},{"os":"windows-latest","staged":false},{"os":"macos-latest","staged":false}]}') || fromJSON('{"include":[{"os":"ci-fast","staged":false}]}') }}
 
     env:
       TAURI_WEB_URL: https://whispr.team

@@ -204,11 +204,9 @@ test.describe("settings and preferences", () => {
       await openSettings(page);
 
       await page.getByRole("button", { name: /Set up 2FA|2FA kurulumu yap/i }).click();
-      await expect(page.getByAltText(/two-factor authenticator QR code|iki faktörlü/i)).toBeVisible(
-        {
-          timeout: 10_000,
-        },
-      );
+      await expect(page.getByTestId("two-factor-setup-qr-code")).toBeVisible({
+        timeout: 10_000,
+      });
       await expect(page.getByText(/Manual setup key|Manuel kurulum anahtarı/i)).toBeVisible();
 
       const manualSecret = await getManualTwoFactorSecret(page);

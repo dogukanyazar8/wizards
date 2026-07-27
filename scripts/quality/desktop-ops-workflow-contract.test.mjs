@@ -45,7 +45,7 @@ test("automatic Linux Desktop Ops runs its cargo audit step with Bash", () => {
   const desktopOps = readWorkflowJob(workflow, "desktop-ops");
   const cargoAudit = readWorkflowStep(desktopOps, "Audit Rust dependencies");
 
-  assert.match(desktopOps, /\{"os":"wizards-ci","staged":false\}/u);
+  assert.match(desktopOps, /\{"os":"ci-fast","staged":false\}/u);
   assert.match(cargoAudit, /^        shell: bash$/mu);
   assert.match(cargoAudit, /^          expected_version="cargo-audit \$CARGO_AUDIT_VERSION"$/mu);
   assert.match(cargoAudit, /^          if command -v cargo-audit >\/dev\/null 2>&1; then$/mu);
@@ -59,6 +59,20 @@ test("automatic Linux Desktop Ops runs its cargo audit step with Bash", () => {
   );
   assert.match(cargoAudit, /^          cargo audit --file Cargo\.lock$/mu);
   assert.doesNotMatch(cargoAudit, /Get-Command|\$env:|\$LASTEXITCODE/u);
+});
+
+test("ci-fast receives only Docker-free automatic CI jobs", () => {
+  const workflow = readFileSync(workflowPath, "utf8");
+  const actionlintConfig = readFileSync(join(root, ".github", "actionlint.yaml"), "utf8");
+  const actionlint = readWorkflowJob(workflow, "actionlint");
+  const semgrep = readWorkflowJob(workflow, "semgrep");
+  const typeScriptCompatibility = readWorkflowJob(workflow, "typescript-native-shadow");
+
+  assert.match(actionlintConfig, /^    - ci-fast$/mu);
+  assert.match(actionlint, /^    runs-on: \[self-hosted, linux, x64, ci-fast\]$/mu);
+  assert.match(typeScriptCompatibility, /^    runs-on: \[self-hosted, linux, x64, ci-fast\]$/mu);
+  assert.match(semgrep, /^    runs-on: \[self-hosted, linux, x64, wizards-ci\]$/mu);
+  assert.match(semgrep, /\bdocker run\b/u);
 });
 
 test("automatic Linux Desktop Ops runs fail-closed Clippy through the local command", () => {

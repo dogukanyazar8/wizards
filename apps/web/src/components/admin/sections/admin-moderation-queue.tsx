@@ -24,6 +24,7 @@ type QueueStats = Awaited<ReturnType<typeof getModerationQueueStats>>;
 
 const SCOPE_FILTERS: Array<{ id: ModerationQueueScope; label: string }> = [
   { id: "active", label: "Bekleyen" },
+  { id: "appealed", label: "İtiraz" },
   { id: "resolved", label: "Çözülen" },
   { id: "all", label: "Tümü" },
 ];

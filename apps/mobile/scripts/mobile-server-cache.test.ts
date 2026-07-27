@@ -46,6 +46,7 @@ function createBootstrap(): MobileBootstrapPayload {
       voice: { label: "Voice", status: "available" },
     },
     flags: {},
+    isAdmin: false,
     home: {
       directMessages: { recent: [], totalCount: 0, unreadCount: 0 },
       servers: {

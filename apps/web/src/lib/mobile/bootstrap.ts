@@ -37,6 +37,7 @@ export type MobileBootstrapHomeSummary = {
 
 export type GetMobileBootstrapPayloadInput = {
   flags?: Record<string, boolean>;
+  isAdmin?: boolean;
   home?: MobileBootstrapHomeSummary;
   now?: Date;
   user: MobileBootstrapUser;
@@ -56,6 +57,7 @@ export const EMPTY_MOBILE_BOOTSTRAP_HOME: MobileBootstrapHomeSummary = {
 
 export function getMobileBootstrapPayload({
   flags = {},
+  isAdmin = false,
   home = EMPTY_MOBILE_BOOTSTRAP_HOME,
   now = new Date(),
   user,
@@ -109,6 +111,7 @@ export function getMobileBootstrapPayload({
     },
     flags,
     home,
+    isAdmin,
     user: {
       avatarUrl: user.avatarUrl,
       bannerColor: user.bannerColor ?? null,

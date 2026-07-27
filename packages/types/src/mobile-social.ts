@@ -636,7 +636,15 @@ export const MobileUserReportReasonSchema = z.enum([
 
 export const MobileUserReportRequestSchema = z
   .object({
+    /**
+     * Optional evidence pointers. A client that sends none keeps the old
+     * profile-report behaviour, so an app released before this field still
+     * parses.
+     */
+    attachmentId: MobileBoundedIdSchema.optional(),
     details: z.string().trim().max(500).nullable().optional(),
+    dmMessageId: MobileBoundedIdSchema.optional(),
+    messageId: MobileBoundedIdSchema.optional(),
     reason: MobileUserReportReasonSchema,
   })
   .strict();

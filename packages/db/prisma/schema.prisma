@@ -412,6 +412,7 @@ model User {
   clientHealthEvents      ClientHealthEvent[]       @relation("ClientHealthEventUser")
   featureFlagUpdates      FeatureFlag[]             @relation("FeatureFlagUpdatedBy")
   pushDeliveryAttempts    PushDeliveryAttempt[]     @relation("PushDeliveryAttemptUser")
+  feedbackClustersResolved FeedbackClusterSuggestion[] @relation("FeedbackClusterResolver")
 
   @@index([email])
   @@index([username])
@@ -1671,4 +1672,29 @@ model PushDeliveryAttempt {
   @@index([platform, stage, createdAt])
   @@index([errorCode, createdAt])
   @@index([ticketId])
+}
+
+enum ClusterSuggestionStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+/// A proposal, never an action: clustering suggests which feedback rows look
+/// like the same request, and an operator decides. Nothing here links a
+/// `Feedback` to a roadmap item on its own.
+model FeedbackClusterSuggestion {
+  id           String                  @id @default(uuid())
+  topic        FeedbackTopic
+  feedbackIds  Json
+  score        Float                   @default(0)
+  status       ClusterSuggestionStatus @default(PENDING)
+  resolvedById String?
+  resolvedAt   DateTime?
+  createdAt    DateTime                @default(now())
+
+  resolvedBy User? @relation("FeedbackClusterResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  @@index([status, score])
+  @@index([topic, createdAt])
 }

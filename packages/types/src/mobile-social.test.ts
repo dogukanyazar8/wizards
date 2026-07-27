@@ -657,4 +657,23 @@ describe("mobile peer profile schemas", () => {
     );
     assert.equal(MobileUserReportRequestSchema.safeParse({ reason: "because" }).success, false);
   });
+
+  it("accepts evidence pointers without breaking a client that sends none", async () => {
+    const { MobileUserReportRequestSchema } = await schemas;
+
+    assert.deepEqual(
+      MobileUserReportRequestSchema.parse({ messageId: "message-1", reason: "harassment" }),
+      { messageId: "message-1", reason: "harassment" },
+    );
+    assert.deepEqual(MobileUserReportRequestSchema.parse({ dmMessageId: "dm-1", reason: "spam" }), {
+      dmMessageId: "dm-1",
+      reason: "spam",
+    });
+    // The old body is still the whole contract for an app released before this.
+    assert.deepEqual(MobileUserReportRequestSchema.parse({ reason: "spam" }), { reason: "spam" });
+    assert.equal(
+      MobileUserReportRequestSchema.safeParse({ evidenceUrl: "https://x", reason: "spam" }).success,
+      false,
+    );
+  });
 });

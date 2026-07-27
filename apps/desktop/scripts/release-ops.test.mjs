@@ -147,7 +147,7 @@ describe("desktop release operations contract", () => {
       workflow,
       /^      desktop_hosted:\r?\n        default: false\r?\n        description: Run the Windows\/macOS desktop matrix \(consumes GitHub-hosted runner minutes\)\r?\n        required: true\r?\n        type: boolean$/mu,
     );
-    assert.match(desktopOpsJob, /\{"os":"wizards-ci","staged":false\}/);
+    assert.match(desktopOpsJob, /\{"os":"ci-fast","staged":false\}/);
     assert.match(desktopOpsJob, /inputs\.desktop_hosted && fromJSON/);
     assert.match(desktopOpsJob, /\{"os":"windows-latest","staged":false\}/);
     assert.match(desktopOpsJob, /\{"os":"macos-latest","staged":false\}/);

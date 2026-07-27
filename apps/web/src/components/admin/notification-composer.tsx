@@ -298,6 +298,26 @@ export function NotificationComposer({ canSend }: NotificationComposerProps) {
         </div>
       ) : null}
 
+      {/* Only the in-app channel exists. Push and email are drawn disabled so
+          the composer never implies a delivery path the platform does not have. */}
+      <div className="mt-5 flex flex-wrap items-center gap-2">
+        <span className="rounded-[12px] bg-[hsl(var(--primary))] px-3 py-[7px] text-[12.5px] font-semibold text-[hsl(var(--primary-foreground))]">
+          Uygulama içi
+        </span>
+        <span
+          className="text-app-soft cursor-not-allowed rounded-[12px] border border-[hsl(var(--border)/0.7)] px-3 py-[7px] text-[12.5px] font-semibold opacity-60"
+          title="Kampanya push göndermiyor; bildirim uygulama içinde görünür."
+        >
+          Push
+        </span>
+        <span
+          className="text-app-soft cursor-not-allowed rounded-[12px] border border-[hsl(var(--border)/0.7)] px-3 py-[7px] text-[12.5px] font-semibold opacity-60"
+          title="E-posta kanalı yok."
+        >
+          E-posta
+        </span>
+      </div>
+
       <div className="mt-5 flex flex-wrap items-center justify-end gap-3">
         <Button disabled={disabled} onClick={preview} type="button" variant="outline">
           {previewing ? (
@@ -317,7 +337,7 @@ export function NotificationComposer({ canSend }: NotificationComposerProps) {
           ) : (
             <Send className="mr-2 h-4 w-4" />
           )}
-          {awaitingApproval ? "Awaiting approval" : "Send now"}
+          {awaitingApproval ? "Onaya Gönder" : "Send now"}
         </Button>
       </div>
     </section>

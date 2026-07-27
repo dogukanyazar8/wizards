@@ -22,6 +22,10 @@ import {
 import type { AdminActivitySnapshot } from "@/lib/admin/snapshots/activity";
 import type { AdminOverviewSnapshot } from "@/lib/admin/snapshots/overview";
 import type { AdminServersSnapshot } from "@/lib/admin/snapshots/servers";
+import { formatFirstResponse } from "@/components/admin/sections/admin-moderation-queue";
+import type { getModerationQueueStats } from "@/lib/moderation/case-queries";
+
+type ModerationSummary = Awaited<ReturnType<typeof getModerationQueueStats>>;
 
 const DATE_OPTIONS = [7, 14, 30, 90] as const;
 
@@ -42,11 +46,14 @@ function trendChange(value: number) {
 export function AdminOverview({
   activity,
   canExportActivity,
+  moderation,
   overview,
   servers,
 }: {
   activity: AdminActivitySnapshot;
   canExportActivity: boolean;
+  /** Absent for roles that cannot open the moderation queue. */
+  moderation?: ModerationSummary;
   overview: AdminOverviewSnapshot;
   servers: AdminServersSnapshot;
 }) {
@@ -205,6 +212,40 @@ export function AdminOverview({
           )}
         </AdminCard>
       </div>
+
+      {moderation ? (
+        <AdminCard>
+          <AdminCardHeader subtitle="Vaka kuyruğunun özeti" title="Moderasyon Özeti" />
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <AdminMiniStat
+              label="Bekleyen"
+              tone="danger"
+              value={formatAdminInt(moderation.openCount)}
+            />
+            <AdminMiniStat
+              label="İncelemede"
+              tone="primary"
+              value={formatAdminInt(moderation.inReviewCount)}
+            />
+            <AdminMiniStat
+              label="Çözülen (7g)"
+              tone="success"
+              value={formatAdminInt(moderation.resolvedThisWeek)}
+            />
+            <AdminMiniStat
+              label="Ort. ilk yanıt"
+              tone="neutral"
+              value={formatFirstResponse(moderation.averageFirstResponseMs)}
+            />
+          </div>
+          <Link
+            className="text-app-muted mt-3 inline-flex text-[12.5px] font-semibold hover:underline"
+            href="/admin/moderation"
+          >
+            Kuyruğa git
+          </Link>
+        </AdminCard>
+      ) : null}
 
       <AdminCard>
         <AdminCardHeader

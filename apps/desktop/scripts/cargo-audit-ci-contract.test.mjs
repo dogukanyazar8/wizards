@@ -41,7 +41,7 @@ test("automatic desktop CI runs portable locked Rust quality gates", async () =>
   const desktopOpsConfiguration = desktopOps.slice(0, desktopOps.indexOf("    steps:"));
 
   assert.match(desktopOps, /^    needs: verify$/m);
-  assert.match(desktopOpsConfiguration, /\{"include":\[\{"os":"wizards-ci","staged":false\}\]\}/);
+  assert.match(desktopOpsConfiguration, /\{"include":\[\{"os":"ci-fast","staged":false\}\]\}/);
   assert.doesNotMatch(desktopOpsConfiguration, /^    if:/m);
   assert.match(
     desktopOps,

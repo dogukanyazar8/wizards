@@ -150,6 +150,17 @@ export async function requireAdminUser(
     throw new ApiError("Unauthorized", 401, "UNAUTHORIZED");
   }
 
+  return requireAdminUserById(userId, options);
+}
+
+/**
+ * The transport-free half of the check: the caller proves who they are (cookie
+ * on web, Bearer on mobile) and this decides whether that person may act.
+ */
+export async function requireAdminUserById(
+  userId: string,
+  options: RequireAdminOptions = {},
+): Promise<AdminAccessUser> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {

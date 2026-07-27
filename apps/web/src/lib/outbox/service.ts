@@ -7,6 +7,7 @@ import type { ClientAttribution } from "@/lib/analytics/client-attribution";
 import { processAttachmentScanJob } from "@/lib/attachments/scanner";
 import { createDMMessageNotifications } from "@/lib/dm/notification-service";
 import { logError } from "@/lib/logger";
+import { sendNotificationCampaign } from "@/lib/admin/notification-campaigns";
 import { getSocketServer } from "@/lib/socket/runtime";
 import {
   createChannelMentionNotifications,
@@ -25,6 +26,7 @@ const OUTBOX_ENQUEUE_RETRY_DELAYS_MS = [50, 150, 500] as const;
 
 export const OUTBOX_JOB_TYPES = {
   attachmentScan: "ATTACHMENT_SCAN",
+  campaignSend: "CAMPAIGN_SEND",
   channelMentionNotifications: "CHANNEL_MENTION_NOTIFICATIONS",
   channelThreadReplyNotification: "CHANNEL_THREAD_REPLY_NOTIFICATION",
   dmMessageNotifications: "DM_MESSAGE_NOTIFICATIONS",
@@ -40,6 +42,8 @@ type OutboxClient = {
 };
 
 type EnqueueOutboxJobInput = {
+  /** When the drain may first pick the job up. Defaults to immediately. */
+  availableAt?: Date;
   idempotencyKey: string;
   payload: Prisma.InputJsonValue;
   type: OutboxJobType;
@@ -186,11 +190,34 @@ export async function enqueueOutboxJob(client: OutboxClient, input: EnqueueOutbo
   await client.outboxJob.upsert({
     where: { idempotencyKey: input.idempotencyKey },
     create: {
+      ...(input.availableAt ? { availableAt: input.availableAt } : {}),
       idempotencyKey: input.idempotencyKey,
       payload: input.payload,
       type: input.type,
     },
     update: {},
+  });
+}
+
+export const CampaignSendPayloadSchema = z.object({
+  adminUserId: z.string().min(1),
+  campaignId: z.string().min(1),
+});
+
+/**
+ * A scheduled campaign is one outbox job with a future `availableAt` — the
+ * existing drain loop is the scheduler, so there is no second timer to keep
+ * alive or to lose jobs behind.
+ */
+export async function enqueueCampaignSendJob(
+  client: OutboxClient,
+  input: { adminUserId: string; campaignId: string; scheduledAt: Date },
+) {
+  await enqueueOutboxJob(client, {
+    availableAt: input.scheduledAt,
+    idempotencyKey: `campaign-send:${input.campaignId}`,
+    payload: { adminUserId: input.adminUserId, campaignId: input.campaignId },
+    type: OUTBOX_JOB_TYPES.campaignSend,
   });
 }
 
@@ -428,7 +455,45 @@ async function processNotificationJob(job: ClaimedOutboxJob) {
   throw new Error(`Unsupported outbox job type: ${job.type}`);
 }
 
+export type CampaignSendJobDependencies = {
+  findCampaignStatus(campaignId: string): Promise<{ status: string } | null>;
+  sendCampaign(args: { adminUserId: string; campaignId: string }): Promise<unknown>;
+};
+
+const defaultCampaignSendJobDependencies: CampaignSendJobDependencies = {
+  findCampaignStatus: (campaignId) =>
+    prisma.notificationCampaign.findUnique({
+      where: { id: campaignId },
+      select: { status: true },
+    }),
+  sendCampaign: (args) => sendNotificationCampaign(args),
+};
+
+/**
+ * The audience is frozen when the job runs, not when it was scheduled: a
+ * campaign booked for tomorrow reaches the people who match tomorrow.
+ */
+export async function processCampaignSendJob(
+  payload: { adminUserId: string; campaignId: string },
+  dependencies: CampaignSendJobDependencies = defaultCampaignSendJobDependencies,
+) {
+  const campaign = await dependencies.findCampaignStatus(payload.campaignId);
+
+  if (!campaign || campaign.status === "CANCELLED") {
+    return { skipped: true };
+  }
+
+  await dependencies.sendCampaign(payload);
+  return { skipped: false };
+}
+
 async function processOutboxJob(job: ClaimedOutboxJob) {
+  if (job.type === OUTBOX_JOB_TYPES.campaignSend) {
+    await processCampaignSendJob(CampaignSendPayloadSchema.parse(job.payload));
+    await markOutboxJobCompleted(job.id);
+    return;
+  }
+
   if (job.type === OUTBOX_JOB_TYPES.attachmentScan) {
     const payload = AttachmentScanPayloadSchema.parse(job.payload);
     await processAttachmentScanJob(payload);

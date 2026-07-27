@@ -185,6 +185,98 @@ export function AdminCaseActionMenu({ caseId }: { caseId: string }) {
   );
 }
 
+/** Only offered for evidence that still points at a live message. */
+export function AdminCaseDeleteMessageButton({
+  caseId,
+  evidenceId,
+}: {
+  caseId: string;
+  evidenceId: string;
+}) {
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  return (
+    <span className="inline-flex flex-col items-start gap-1">
+      <Button
+        disabled={pending}
+        onClick={() => {
+          setError(null);
+          startTransition(async () => {
+            try {
+              await postJson(`/api/v1/admin/moderation/cases/${caseId}/evidence/${evidenceId}`, {
+                action: "delete_message",
+              });
+              window.location.reload();
+            } catch (deleteError) {
+              setError(deleteError instanceof Error ? deleteError.message : "Mesaj silinemedi.");
+            }
+          });
+        }}
+        size="sm"
+        type="button"
+        variant="outline"
+      >
+        Mesaj sil
+      </Button>
+      {error ? <span className="text-[11px] text-[hsl(var(--danger))]">{error}</span> : null}
+    </span>
+  );
+}
+
+/** Shown only while a case sits in APPEALED. */
+export function AdminCaseAppealForm({ caseId }: { caseId: string }) {
+  const [error, setError] = useState<string | null>(null);
+  const [note, setNote] = useState("");
+  const [pending, startTransition] = useTransition();
+
+  function decide(resolution: "granted" | "rejected") {
+    setError(null);
+    startTransition(async () => {
+      try {
+        await postJson(`/api/v1/admin/moderation/cases/${caseId}/appeal`, {
+          note: note.trim(),
+          resolution,
+        });
+        window.location.reload();
+      } catch (appealError) {
+        setError(appealError instanceof Error ? appealError.message : "İtiraz sonuçlandırılamadı.");
+      }
+    });
+  }
+
+  return (
+    <div className="space-y-3">
+      <textarea
+        className="app-input min-h-20 w-full rounded-[12px] border p-3 text-sm outline-hidden"
+        onChange={(event) => setNote(event.target.value)}
+        placeholder="İtiraz kararının gerekçesi"
+        value={note}
+      />
+      {error ? <p className="text-[12px] text-[hsl(var(--danger))]">{error}</p> : null}
+      <div className="flex flex-wrap gap-2">
+        <Button
+          disabled={pending || !note.trim()}
+          onClick={() => decide("granted")}
+          size="sm"
+          type="button"
+        >
+          İtirazı kabul et
+        </Button>
+        <Button
+          disabled={pending || !note.trim()}
+          onClick={() => decide("rejected")}
+          size="sm"
+          type="button"
+          variant="outline"
+        >
+          İtirazı reddet
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export function AdminCaseNoteForm({ caseId }: { caseId: string }) {
   const [body, setBody] = useState("");
   const [error, setError] = useState<string | null>(null);

@@ -13,30 +13,50 @@ const expectedNavKeys: Record<AdminRole, string[]> = {
   ADMIN: [
     "overview",
     "users",
+    "analytics",
     "servers",
     "moderation",
     "audit",
-    "activity",
+    "voice",
     "health",
     "notifications",
     "flags",
     "feedback",
   ],
-  ANALYST: ["overview", "activity", "health", "feedback"],
-  MODERATOR: ["overview", "users", "servers", "moderation", "activity", "health", "feedback"],
+  ANALYST: ["overview", "analytics", "voice", "health", "feedback"],
+  MODERATOR: [
+    "overview",
+    "users",
+    "analytics",
+    "servers",
+    "moderation",
+    "voice",
+    "health",
+    "feedback",
+  ],
   OWNER: [
     "overview",
     "users",
+    "analytics",
     "servers",
     "moderation",
     "audit",
-    "activity",
+    "voice",
     "health",
     "notifications",
     "flags",
     "feedback",
   ],
-  SUPPORT: ["overview", "users", "servers", "moderation", "activity", "health", "feedback"],
+  SUPPORT: [
+    "overview",
+    "users",
+    "analytics",
+    "servers",
+    "moderation",
+    "voice",
+    "health",
+    "feedback",
+  ],
 };
 
 /** `/admin` is the segment root; every other module is one segment below it. */
@@ -82,19 +102,19 @@ describe("admin route shell", () => {
     }
   });
 
-  it("keeps the rail honest about which modules already render data", () => {
+  it("publishes no placeholder module in the rail", () => {
     for (const item of ADMIN_NAV_GROUPS.flatMap((group) => group.items)) {
       const source = readFileSync(join(adminAppRoot, toSegmentFile(item.href, "page.tsx")), "utf8");
-      const isPlaceholder = source.includes("AdminModulePlaceholder");
 
-      assert.equal(
-        item.comingSoon === true,
-        isPlaceholder,
-        `${item.href} advertises a different state in the rail than its page renders`,
+      assert.doesNotMatch(
+        source,
+        /AdminModulePlaceholder/u,
+        `${item.href} is in the rail but still renders a placeholder`,
       );
-      assert.ok(
-        !(item.live === true && isPlaceholder),
-        `${item.href} shows a live pulse over a placeholder`,
+      assert.equal(
+        item.comingSoon,
+        undefined,
+        `${item.href} is flagged as coming soon; drop it from the rail instead`,
       );
     }
   });

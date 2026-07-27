@@ -19,7 +19,9 @@ export type AdminNavItem = {
     | "flag"
     | "shield"
     | "pulse"
-    | "toggle";
+    | "toggle"
+    | "chart"
+    | "mic";
   key: string;
   label: string;
 };
@@ -50,6 +52,13 @@ export const ADMIN_NAV_GROUPS: readonly AdminNavGroup[] = [
         icon: "users",
         key: "users",
         label: "Kullanıcılar",
+      },
+      {
+        capability: "dashboard.read",
+        href: "/admin/analytics",
+        icon: "chart",
+        key: "analytics",
+        label: "Analitik",
       },
       {
         capability: "server.read",
@@ -84,11 +93,10 @@ export const ADMIN_NAV_GROUPS: readonly AdminNavGroup[] = [
     items: [
       {
         capability: "dashboard.read",
-        comingSoon: true,
-        href: "/admin/activity",
-        icon: "activity",
-        key: "activity",
-        label: "Aktivite",
+        href: "/admin/voice",
+        icon: "mic",
+        key: "voice",
+        label: "Ses",
       },
       {
         capability: "health.read",

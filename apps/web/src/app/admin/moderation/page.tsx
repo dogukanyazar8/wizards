@@ -12,7 +12,7 @@ type AdminModerationPageProps = {
 };
 
 function normalizeScope(value: string | undefined): ModerationQueueScope {
-  return value === "resolved" || value === "all" ? value : "active";
+  return value === "resolved" || value === "all" || value === "appealed" ? value : "active";
 }
 
 export default async function AdminModerationPage({ searchParams }: AdminModerationPageProps) {

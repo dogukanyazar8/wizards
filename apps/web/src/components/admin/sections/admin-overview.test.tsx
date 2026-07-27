@@ -24,12 +24,20 @@ async function loadOverviewFixture() {
   return { activity, overview, servers };
 }
 
-async function renderOverview(canExportActivity: boolean) {
+const MODERATION_SUMMARY = {
+  averageFirstResponseMs: 26 * 60_000,
+  inReviewCount: 3,
+  openCount: 7,
+  resolvedThisWeek: 12,
+};
+
+async function renderOverview(canExportActivity: boolean, moderation?: typeof MODERATION_SUMMARY) {
   const { activity, overview, servers } = await loadOverviewFixture();
 
   return renderToStaticMarkup(
     <AdminOverview
       activity={activity}
+      {...(moderation ? { moderation } : {})}
       canExportActivity={canExportActivity}
       overview={overview}
       servers={servers}
@@ -87,5 +95,22 @@ describe("admin overview", () => {
     assert.match(markup, /UNKNOWN/u);
     assert.match(markup, /title="UNKNOWN: 0"/u);
     assert.match(markup, /Platform verisi yok/u);
+  });
+});
+
+describe("overview moderation summary", () => {
+  it("shows the queue summary to a role that may open the queue", async () => {
+    const markup = await renderOverview(false, MODERATION_SUMMARY);
+
+    assert.match(markup, /Moderasyon Özeti/u);
+    assert.match(markup, /Ort\. ilk yanıt/u);
+    assert.match(markup, /26 dk/u);
+    assert.match(markup, /\/admin\/moderation/u);
+  });
+
+  it("hides it entirely from a role that cannot read cases", async () => {
+    const markup = await renderOverview(false);
+
+    assert.doesNotMatch(markup, /Moderasyon Özeti/u);
   });
 });

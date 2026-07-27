@@ -13,6 +13,7 @@ import {
   attachReportToCaseInTransaction,
   type ModerationCaseStore,
 } from "@/lib/moderation/case-service";
+import { captureEvidenceForReport, type EvidenceStore } from "@/lib/moderation/evidence-service";
 
 /**
  * Accounts registered before this instant carry the "early member" badge. Kept
@@ -393,7 +394,11 @@ export async function getMobileUserProfile(
 }
 
 export async function createMobileUserReport(input: {
+  /** Optional evidence pointers; each one is access-checked before capture. */
+  attachmentId?: string | undefined;
   details: string | null;
+  dmMessageId?: string | undefined;
+  messageId?: string | undefined;
   reason: "HARASSMENT" | "IMPERSONATION" | "INAPPROPRIATE" | "OTHER" | "SPAM";
   reporterId: string;
   subjectId: string;
@@ -421,11 +426,28 @@ export async function createMobileUserReport(input: {
       select: { id: true },
     });
 
-    await attachReportToCaseInTransaction(transaction as unknown as ModerationCaseStore, {
-      id: report.id,
-      reason: input.reason,
-      subjectId: input.subjectId,
-    });
+    const attached = await attachReportToCaseInTransaction(
+      transaction as unknown as ModerationCaseStore,
+      {
+        id: report.id,
+        reason: input.reason,
+        subjectId: input.subjectId,
+      },
+    );
+
+    // Evidence is best effort and access-checked inside the capture: a pointer
+    // the reporter cannot see is dropped, never the report itself.
+    await captureEvidenceForReport(
+      {
+        ...(input.attachmentId ? { attachmentId: input.attachmentId } : {}),
+        caseId: attached.caseId,
+        ...(input.dmMessageId ? { dmMessageId: input.dmMessageId } : {}),
+        ...(input.messageId ? { messageId: input.messageId } : {}),
+        reportId: report.id,
+        reporterId: input.reporterId,
+      },
+      transaction as unknown as EvidenceStore,
+    );
 
     return { reportId: report.id };
   });

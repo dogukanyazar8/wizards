@@ -208,6 +208,7 @@ const bootstrapPayload: MobileBootstrapPayload = {
     },
   },
   flags: {},
+  isAdmin: false,
   home: {
     directMessages: {
       recent: [conversation],

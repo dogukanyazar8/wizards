@@ -39,6 +39,7 @@ function makeBootstrap(): MobileBootstrapPayload {
       voice: feature,
     },
     flags: {},
+    isAdmin: false,
     home: {
       directMessages: { recent: [], totalCount: 0, unreadCount: 0 },
       servers: {

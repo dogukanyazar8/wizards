@@ -9,7 +9,7 @@ const QUEUE_PAGE_SIZE = 25;
 /** A case older than this without a first look is called out in the queue. */
 export const CASE_STALE_AFTER_MS = DAY_MS;
 
-export type ModerationQueueScope = "active" | "all" | "resolved";
+export type ModerationQueueScope = "active" | "all" | "appealed" | "resolved";
 
 export type ModerationQueueFilters = {
   assigneeId?: string;
@@ -20,10 +20,21 @@ export type ModerationQueueFilters = {
 
 export type ModerationCaseStore = Pick<
   typeof prisma,
-  "moderationCase" | "moderationCaseEvent" | "user" | "userReport"
+  | "dMMessage"
+  | "message"
+  | "moderationCase"
+  | "moderationCaseEvent"
+  | "moderationEvidence"
+  | "user"
+  | "userReport"
 >;
 
 function toStatusFilter(scope: ModerationQueueScope | undefined) {
+  if (scope === "appealed") {
+    // Appeals are a filter on the same queue, not a second inbox.
+    return ["APPEALED"] as ModerationCaseStatus[];
+  }
+
   if (scope === "resolved") {
     return RESOLVED_STATUSES;
   }
@@ -163,6 +174,16 @@ export async function getModerationCaseFile(caseId: string, client: ModerationCa
     where: { id: caseId },
     select: {
       assignee: { select: { displayName: true, id: true, username: true } },
+      evidence: {
+        orderBy: { capturedAt: "asc" },
+        select: {
+          capturedAt: true,
+          dmMessageId: true,
+          id: true,
+          messageId: true,
+          snapshot: true,
+        },
+      },
       events: {
         orderBy: { createdAt: "asc" },
         select: {
@@ -217,6 +238,31 @@ export async function getModerationCaseFile(caseId: string, client: ModerationCa
       })
     : 0;
 
+  const evidenceMessageIds = moderationCase.evidence.flatMap((entry) =>
+    entry.messageId ? [entry.messageId] : [],
+  );
+  const evidenceDmIds = moderationCase.evidence.flatMap((entry) =>
+    entry.dmMessageId ? [entry.dmMessageId] : [],
+  );
+  const [liveMessages, liveDmMessages] = await Promise.all([
+    evidenceMessageIds.length === 0
+      ? Promise.resolve([])
+      : client.message.findMany({
+          where: { deletedAt: null, id: { in: evidenceMessageIds } },
+          select: { id: true },
+        }),
+    evidenceDmIds.length === 0
+      ? Promise.resolve([])
+      : client.dMMessage.findMany({
+          where: { deletedAt: null, id: { in: evidenceDmIds } },
+          select: { id: true },
+        }),
+  ]);
+  const liveIds = new Set([
+    ...liveMessages.map((message) => message.id),
+    ...liveDmMessages.map((message) => message.id),
+  ]);
+
   return {
     assignee: moderationCase.assignee
       ? {
@@ -244,6 +290,22 @@ export async function getModerationCaseFile(caseId: string, client: ModerationCa
           serverCount: moderationCase.subject._count.serverMembers,
         }
       : null,
+    /** The snapshot outlives its source: a deleted message still shows here. */
+    evidence: moderationCase.evidence.map((entry) => ({
+      capturedAt: entry.capturedAt.toISOString(),
+      dmMessageId: entry.dmMessageId,
+      id: entry.id,
+      messageId: entry.messageId,
+      snapshot: entry.snapshot as {
+        attachments?: string[];
+        authorHandle?: string;
+        content?: string;
+        scope?: string;
+        sentAt?: string;
+        source?: string;
+      } | null,
+      sourceDeleted: !liveIds.has(entry.messageId ?? entry.dmMessageId ?? ""),
+    })),
     subjectDeleted: moderationCase.subjectId === null,
     subjectHandle: moderationCase.subjectHandle,
     timeline: [

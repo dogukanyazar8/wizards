@@ -15,7 +15,7 @@ type Recorded = {
   bans: Array<{ reason: string; targetUserId: string }>;
   events: Array<{ body?: string | null; caseId: string; kind: string }>;
   notifications: Array<{ body: string; dedupeKey: string; title: string; userId: string }>;
-  resolutions: Array<{ resolution: string; status: string }>;
+  resolutions: Array<{ evidencePurgeAt: Date; resolution: string; status: string }>;
 };
 
 function harness(
@@ -70,7 +70,11 @@ function harness(
     findCase: async () => moderationCase as never,
     listReporterIds: async () => overrides.reporterIds ?? ["user-9"],
     resolveCase: async (args) => {
-      recorded.resolutions.push({ resolution: args.resolution, status: args.status });
+      recorded.resolutions.push({
+        evidencePurgeAt: args.evidencePurgeAt,
+        resolution: args.resolution,
+        status: args.status,
+      });
     },
     writeAuditLog: async (args) => {
       recorded.audits.push({
@@ -273,5 +277,27 @@ describe("moderation case actions", () => {
 
   it("names the reporter notification key after the case and reader", () => {
     assert.equal(buildReporterDedupeKey("case-1", "user-9"), "modcase:case-1:reporter:user-9");
+  });
+});
+
+describe("evidence retention", () => {
+  it("starts the six-month evidence clock when a case closes", async () => {
+    const { dependencies, recorded } = harness();
+
+    await applyModerationCaseAction(
+      {
+        action: "dismiss",
+        adminUserId: "admin-1",
+        caseId: "case-1",
+        now: NOW,
+        resolution: "Kural ihlali yok.",
+      },
+      dependencies,
+    );
+
+    assert.equal(
+      recorded.resolutions[0]?.evidencePurgeAt.toISOString(),
+      new Date(NOW.getTime() + 180 * 24 * 60 * 60 * 1000).toISOString(),
+    );
   });
 });

@@ -190,6 +190,10 @@ export async function GET(request: Request) {
       },
     };
 
+    const adminMembership = await prisma.adminMembership.findUnique({
+      where: { userId },
+      select: { role: true },
+    });
     const flags = await evaluateFlagsForUser({
       clientType: getAnalyticsClientInfo(request.headers).clientType,
       userId,
@@ -199,6 +203,7 @@ export async function GET(request: Request) {
       getMobileBootstrapPayload({
         flags,
         home,
+        isAdmin: adminMembership !== null,
         user: {
           ...user,
           avatarUrl: normalizeMobileImageUrl(user.avatarUrl),

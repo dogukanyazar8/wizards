@@ -30,6 +30,7 @@ const loadUserById = cache(async (userId: string) =>
       id: true,
       email: true,
       emailVerified: true,
+      isBanned: true,
       username: true,
       displayName: true,
       avatarUrl: true,

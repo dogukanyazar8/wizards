@@ -3,6 +3,7 @@ import { prisma } from "@wizards/db";
 import { ApiError } from "@/lib/api";
 import { setAdminUserBanState } from "@/lib/admin/management";
 import { writeAdminAuditLog } from "@/lib/admin/access";
+import { EVIDENCE_RETENTION_DAYS } from "@/lib/moderation/evidence-service";
 
 export type ModerationCaseActionKind = "ban" | "dismiss" | "warn";
 
@@ -42,6 +43,7 @@ export type ModerationCaseActionDependencies = {
   listReporterIds(caseId: string): Promise<string[]>;
   resolveCase(args: {
     caseId: string;
+    evidencePurgeAt: Date;
     now: Date;
     resolution: string;
     status: ModerationCaseStatus;
@@ -152,6 +154,7 @@ const defaultDependencies: ModerationCaseActionDependencies = {
   resolveCase: (args) =>
     prisma.moderationCase.update({
       data: {
+        evidencePurgeAt: args.evidencePurgeAt,
         resolution: args.resolution,
         resolvedAt: args.now,
         status: args.status,
@@ -239,6 +242,76 @@ export async function addModerationCaseNote(
   return { caseId: args.caseId };
 }
 
+export type EvidenceMessageStore = {
+  deleteChannelMessage(messageId: string, now: Date): Promise<unknown>;
+  deleteDirectMessage(dmMessageId: string, now: Date): Promise<unknown>;
+  findEvidence(
+    caseId: string,
+    evidenceId: string,
+  ): Promise<{ dmMessageId: string | null; id: string; messageId: string | null } | null>;
+};
+
+const defaultEvidenceStore: EvidenceMessageStore = {
+  deleteChannelMessage: (messageId, now) =>
+    prisma.message.update({ data: { deletedAt: now }, where: { id: messageId } }),
+  deleteDirectMessage: (dmMessageId, now) =>
+    prisma.dMMessage.update({ data: { deletedAt: now }, where: { id: dmMessageId } }),
+  findEvidence: (caseId, evidenceId) =>
+    prisma.moderationEvidence.findFirst({
+      where: { caseId, id: evidenceId },
+      select: { dmMessageId: true, id: true, messageId: true },
+    }),
+};
+
+/**
+ * Deletion is only reachable through a case's own evidence: the snapshot stays,
+ * so removing the message never removes the reason it was removed.
+ */
+export async function deleteEvidenceMessage(
+  args: {
+    adminUserId: string;
+    caseId: string;
+    evidenceId: string;
+    headers?: HeaderInput;
+    now?: Date;
+  },
+  dependencies: ModerationCaseActionDependencies = defaultDependencies,
+  evidenceStore: EvidenceMessageStore = defaultEvidenceStore,
+) {
+  const now = args.now ?? new Date();
+  const moderationCase = await requireCase(args.caseId, dependencies);
+  const evidence = await evidenceStore.findEvidence(args.caseId, args.evidenceId);
+
+  if (!evidence) {
+    throw new ApiError("Evidence not found on this case.", 404, "NOT_FOUND");
+  }
+
+  if (evidence.messageId) {
+    await evidenceStore.deleteChannelMessage(evidence.messageId, now);
+  } else if (evidence.dmMessageId) {
+    await evidenceStore.deleteDirectMessage(evidence.dmMessageId, now);
+  } else {
+    throw new ApiError("This evidence points at no message.", 400, "NO_MESSAGE");
+  }
+
+  await dependencies.createEvent({
+    actorId: args.adminUserId,
+    caseId: args.caseId,
+    kind: "ACTION_TAKEN",
+    metadata: { action: "delete_message", evidenceId: args.evidenceId },
+  });
+  await dependencies.writeAuditLog({
+    action: "moderation.message.delete",
+    adminUserId: args.adminUserId,
+    ...(args.headers === undefined ? {} : { headers: args.headers }),
+    metadata: { evidenceId: args.evidenceId, publicNumber: moderationCase.publicNumber },
+    targetId: evidence.messageId ?? evidence.dmMessageId,
+    targetType: evidence.messageId ? "Message" : "DMMessage",
+  });
+
+  return { deleted: true, evidenceId: args.evidenceId };
+}
+
 export async function applyModerationCaseAction(
   args: {
     action: ModerationCaseActionKind;
@@ -282,7 +355,14 @@ export async function applyModerationCaseAction(
 
   const status = ACTION_STATUS[args.action];
 
-  await dependencies.resolveCase({ caseId: args.caseId, now, resolution, status });
+  await dependencies.resolveCase({
+    caseId: args.caseId,
+    // Closing starts the evidence clock; the purge job reads this stamp.
+    evidencePurgeAt: new Date(now.getTime() + EVIDENCE_RETENTION_DAYS * 24 * 60 * 60 * 1000),
+    now,
+    resolution,
+    status,
+  });
   await dependencies.createEvent({
     actorId: args.adminUserId,
     body: resolution,

@@ -51,6 +51,34 @@ export async function requireApiUserId(
   return userId;
 }
 
+/**
+ * The one door a suspended account may still walk through. `requireApiUserId`
+ * refuses a banned session by design, so the appeal path resolves the session
+ * itself and then insists the caller really is banned — an active account has
+ * nothing to appeal.
+ */
+export async function requireBannedApiUserId(
+  dependencies: RequireApiUserIdDependencies = defaultRequireApiUserIdDependencies,
+) {
+  const session = await dependencies.auth();
+  const user = session?.user;
+  const userId = user?.id;
+
+  if (!userId) {
+    throw new ApiError("Unauthorized", 401);
+  }
+
+  if (user.deletedAt) {
+    throw new ApiError("This account has been deleted", 403, "ACCOUNT_DELETED");
+  }
+
+  if (!user.isBanned) {
+    throw new ApiError("There is no decision to appeal.", 409, "NOT_SUSPENDED");
+  }
+
+  return userId;
+}
+
 export async function requireMobileApiUserId(request: Request) {
   const session = await requireMobileApiSession(request);
   return session.userId;

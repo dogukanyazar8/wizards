@@ -22,9 +22,9 @@
 
 **Files:** Modify `packages/types/src/mobile-social.ts:637` (`MobileUserReportRequestSchema` — `messageId/dmMessageId/attachmentId` `MobileBoundedIdSchema.optional()`, `.strict()` kalır); Modify mobil rapor sheet'i (rapor gönderen bileşen — uygulama sırasında `graphify query "mobile user report sheet submit"`); Test `packages/types` + kontrat testleri
 
-- [ ] Kırmızı: yalnızca `reason`+`details` gönderen eski istemci parse olur (spec test 12 — geriye dönük uyum).
-- [ ] Mobil taraf: mesaj bağlamından raporda `messageId` gönderimi (uzun bas → bildir akışı varsa oradan; yoksa profil raporu davranışı değişmez).
-- [ ] `pnpm --filter @wizards/types test` + mobil testler. Checkpoint.
+- [x] Kırmızı: yalnızca `reason`+`details` gönderen eski istemci parse olur (spec test 12 — geriye dönük uyum).
+- [x] Mobil taraf: mesaj bağlamından raporda `messageId` gönderimi (uzun bas → bildir akışı varsa oradan; yoksa profil raporu davranışı değişmez).
+- [x] `pnpm --filter @wizards/types test` + mobil testler. Checkpoint.
 
 ### Task 2: Erişim doğrulama + snapshot yazımı
 
@@ -43,23 +43,23 @@ export async function captureEvidenceForReport(args: {
 }): Promise<{ captured: boolean }>; // erişim doğrulanamazsa captured:false, alan yok sayılır, rapor yine kaydedilir
 ```
 
-- [ ] Kırmızı — **güvenlik testi** (spec test 13): raporcunun göremediği `messageId` → snapshot YAZILMAZ, rapor kaydedilir. Erişim: kanal mesajı → raporcu `ServerMember` + kanal izni (`resolveChannelPermissions`), DM → `DMParticipant`.
-- [ ] Snapshot içeriği: mesaj metni, gönderen id+handle, kanal/DM kimliği, zaman, ek URL'leri — `ModerationEvidence.snapshot` Json.
-- [ ] Delil dayanıklılığı: kaynak `Message` silinse de vaka gösterir (test 14).
-- [ ] Checkpoint.
+- [x] Kırmızı — **güvenlik testi** (spec test 13): raporcunun göremediği `messageId` → snapshot YAZILMAZ, rapor kaydedilir. Erişim: kanal mesajı → raporcu `ServerMember` + kanal izni (`resolveChannelPermissions`), DM → `DMParticipant`.
+- [x] Snapshot içeriği: mesaj metni, gönderen id+handle, kanal/DM kimliği, zaman, ek URL'leri — `ModerationEvidence.snapshot` Json.
+- [x] Delil dayanıklılığı: kaynak `Message` silinse de vaka gösterir (test 14).
+- [x] Checkpoint.
 
 ### Task 3: Delil kartları + "Mesaj sil" aksiyonu + saklama
 
 **Files:** Modify `.../sections/admin-case-file.tsx` (delil kartı: snapshot içerik, "kaynak silinmiş" rozeti); Modify `case-actions.ts` (+`delete_message`: `Message.deletedAt` işaretle — yalnızca delilli vakada); Outbox `moderation.evidence_purge` günlük iş: `evidencePurgeAt < now` → yalnızca `ModerationEvidence` silinir, vaka+olaylar kalır (test 15); vaka kapanışında `evidencePurgeAt = kapanış + 180 gün`
 
-- [ ] Checkpoint.
+- [x] Checkpoint.
 
 ### Task 4: İtiraz akışı
 
 **Files:** Create `apps/web/src/app/api/v1/moderation/appeal/route.ts` (banlı kullanıcı POST — kimlik: banlı oturum özel yolu; `APPEALED` + `APPEAL_OPENED` olayı); banlı web girişinde itiraz ekranı (login redirect'te banlı durum sayfası — uygulama sırasında mevcut banlı akışı `graphify query "banned user login redirect"`); vaka dosyasında itiraz çözümleme (`APPEAL_RESOLVED` → `ACTIONED|DISMISSED`)
 
-- [ ] İtiraz ayrı kuyruk değil — kuyruk `APPEALED` filtresi. D2 kapanış: mobil mesaj raporu → delil kartı; kaynak silinince kart kalıyor.
-- [ ] Checkpoint.
+- [x] İtiraz ayrı kuyruk değil — kuyruk `APPEALED` filtresi. D2 kapanış: mobil mesaj raporu → delil kartı; kaynak silinince kart kalıyor.
+- [x] Checkpoint.
 
 ---
 
@@ -79,16 +79,16 @@ export async function requireMobileAdminCapability(
 // requireMobileApiSession(request) → userId → AdminMembership → ADMIN_CAPABILITIES kontrolü
 ```
 
-- [ ] Kırmızı (F test 2b/2c): geçerli Bearer admin → 200; çerezsiz istek `requireAdminUser` yolunda 401; aynı capability web+mobil aynı rol listesini uygular (tablo testi).
-- [ ] Checkpoint.
+- [x] Kırmızı (F test 2b/2c): geçerli Bearer admin → 200; çerezsiz istek `requireAdminUser` yolunda 401; aynı capability web+mobil aynı rol listesini uygular (tablo testi).
+- [x] Checkpoint.
 
 ### Task 6: Mobil vaka API'leri
 
 **Files:** Create `apps/web/src/app/api/v1/mobile/admin/cases/route.ts` (GET liste — açık vakalar, öncelik+yaş sıralı, filtre yok); `.../cases/[caseId]/route.ts` (GET detay — D1 alanları + delil özetleri); `.../cases/[caseId]/claim/route.ts`; `.../cases/[caseId]/dismiss/route.ts` (neden zorunlu); `.../cases/[caseId]/escalate/route.ts` (→ `HIGH/URGENT` + "masaüstünde karar bekliyor" olayı); Types: `packages/types/src/mobile-admin.ts` zod şemaları; bootstrap yanıtına `isAdmin` bayrağı
 
-- [ ] Kırmızı (F test 1-3): admin olmayan → 403; bayrak elle `true` olsa da uç 403; **ban/mesaj-sil ucu YOK** — rota listesi testle sabitlenir (yalnızca list/detail/claim/dismiss/escalate).
-- [ ] Üstlenme yarışı D1 koşullu güncellemesinden geçer (test 10).
-- [ ] Checkpoint.
+- [x] Kırmızı (F test 1-3): admin olmayan → 403; bayrak elle `true` olsa da uç 403; **ban/mesaj-sil ucu YOK** — rota listesi testle sabitlenir (yalnızca list/detail/claim/dismiss/escalate).
+- [x] Üstlenme yarışı D1 koşullu güncellemesinden geçer (test 10).
+- [x] Checkpoint.
 
 ### Task 7: Mobil ekranlar + derin bağlantı + bildirim
 
@@ -111,6 +111,17 @@ export async function requireMobileAdminCapability(
 **Files:** Modify `lib.rs` tepsi ipucu (`tray_tooltip:387` bölgesi) — açık vaka sayısı **sunucudan** socket olayıyla (`admin:open-case-count` — web tarafı D1 sayısını yayınlar; desktop yalnızca gösterir, hesaplamaz — F test 8); global kısayol: mevcut `allow-configure-desktop-voice-shortcuts` deseniyle yapılandırılabilir konsol kısayolu
 
 - [ ] Dalga kapanışı: web+db+types+mobile typecheck/test, desktop `pnpm --filter` testleri, `graphify update .`, uçtan uca kanıt raporu (F bitti kanıtı: URGENT vaka → telefonda bildirim → dokun → detay → Üstlen → web'de anında görünür).
+
+## D2 + F5-F6 uygulama notları
+
+- **Delil erişim kuralı kodda:** `captureEvidenceForReport` kanal mesajı için `ServerMember`, DM için `DMParticipant` arar; bulamazsa **rapor yine kaydedilir, snapshot yazılmaz**. Rapor ucu böylece özel konuşma okuma aracına dönüşemez.
+- Snapshot kaynağından bağımsız yaşar: vaka dosyası `sourceDeleted` rozetiyle gösterir, "Mesaj sil" yalnız canlı kaynakta çıkar.
+- **Saklama:** vaka kapanışında `evidencePurgeAt = kapanış + 180 gün`; outbox worker'ın saatlik bakımı yalnızca `ModerationEvidence` siler, vaka ve olaylar kalır.
+- **İtiraz ayrı kuyruk değil:** kuyruğa `İtiraz` filtre çipi eklendi (`scope=appealed` → `APPEALED`). Banlı kullanıcı `/suspended` ekranından tek itiraz açar; ikinci itiraz 409.
+- Banlı oturum `requireApiUserId`'den 403 alır, bu yüzden itiraz ucu için `requireBannedApiUserId` eklendi (banlı olmayan çağıran 409 alır) ve rota sözleşme desenine yazıldı.
+- **Mobil yetki tek haritadan:** `requireMobileAdminCapability` Bearer oturumu çözer, sonra aynı `ADMIN_CAPABILITIES` tablosunu uygular (`requireAdminUserById` ortak yarı).
+- **Mobil yüzey triyaj:** yalnız list/detail/claim/dismiss/escalate. `mobile-admin-contract.test.ts` rota listesini birebir sabitliyor ve `setAdminUserBanState`/`deleteEvidenceMessage` geçmesini yasaklıyor — gizli düğme değil, olmayan uç.
+- Bootstrap yanıtına `isAdmin` bayrağı eklendi (mobil ayarlar satırının görünürlüğü; yetki kararı değil).
 
 ## Self-review notları
 
