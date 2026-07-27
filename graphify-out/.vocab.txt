@@ -23,6 +23,7 @@ across
 act
 action
 actionable
+actionlint
 actions
 activate
 active
@@ -50,12 +51,16 @@ age
 agents
 aggregate
 ago
+ait
+akl
 aksiyonlar
 aksiyonu
 aktif
 aktivite
 alanlar
 alert
+alertable
+alerts
 ali
 alias
 aliased
@@ -71,13 +76,18 @@ allows
 alma
 almost
 alperen
+alpha
 already
 also
 alt
 altyap
 ama
+amac
 ana
 analitik
+analiz
+analizin
+analizini
 analyser
 analytics
 analyze
@@ -94,6 +104,7 @@ animasyonu
 animated
 animation
 anl
+anlamda
 announce
 anonymization
 anonymize
@@ -103,6 +114,7 @@ any
 api
 apk
 app
+appeal
 appearance
 append
 apple
@@ -181,6 +193,7 @@ autostart
 availability
 available
 avatar
+average
 await
 aware
 axe
@@ -225,6 +238,8 @@ before
 begin
 behavior
 beklentisi
+bekleyen
+belirtti
 bell
 best
 beta
@@ -244,6 +259,7 @@ birden
 birebir
 bits
 bitti
+bize
 blank
 blob
 block
@@ -269,6 +285,7 @@ bounded
 bounds
 box
 branch
+branchde
 brand
 breadcrumb
 breakdown
@@ -281,6 +298,7 @@ broadcasts
 browser
 browserslist
 bubble
+bucket
 budget
 budgets
 buf
@@ -293,6 +311,7 @@ built
 bulgular
 bulunamad
 bundle
+bunlar
 bunu
 bus
 busy
@@ -347,10 +366,12 @@ catch
 categories
 categorize
 category
+caveman
 cell
 center
 central
 cetin
+cevap
 cfg
 cha
 chain
@@ -389,6 +410,7 @@ chunked
 cihaz
 cila
 cilas
+cim
 circle
 circles
 cjs
@@ -425,12 +447,18 @@ closest
 closure
 cloud
 clsx
+cluster
+clustering
+clusters
 code
 codename
 codes
 codex
+cohort
+cohorts
 collapsed
 collect
+collection
 collision
 color
 colors
@@ -523,6 +551,7 @@ controls
 conventions
 conversation
 conversations
+conversion
 convert
 cookie
 cookies
@@ -543,6 +572,7 @@ cover
 coverage
 covered
 covers
+crash
 create
 created
 creation
@@ -567,6 +597,7 @@ custom
 cutoff
 cycle
 daemons
+daha
 daily
 dalga
 dalgas
@@ -620,12 +651,14 @@ deletion
 deliberate
 delil
 delimited
+deliver
 deliverable
 delivery
 demo
 den
 denetim
 denetimi
+deneyimini
 denials
 denied
 departed
@@ -637,6 +670,7 @@ deployment
 deprecations
 deps
 derin
+derinlemesine
 derive
 derived
 describe
@@ -644,6 +678,7 @@ description
 descriptions
 descriptor
 desenleri
+deserialize
 design
 desktop
 deste
@@ -671,6 +706,7 @@ dialogs
 dictionary
 did
 diff
+digest
 dil
 dili
 dilimi
@@ -697,6 +733,7 @@ discover
 dismiss
 dismissed
 dispatch
+dispatches
 display
 disposable
 dispose
@@ -720,6 +757,7 @@ dokunu
 dolu
 dom
 domain
+donan
 dondurma
 done
 dosya
@@ -754,6 +792,7 @@ duration
 durum
 durumlar
 durumu
+duruyoruz
 dwm
 dynamic
 each
@@ -761,6 +800,7 @@ eas
 easing
 echoed
 ecosystem
+edebilece
 edilen
 edilir
 edilmez
@@ -781,8 +821,12 @@ ekil
 ekirde
 ekle
 ekleme
+eklenebilirlik
 ekler
+ekleri
 ekleriyle
+ekleyebilece
+ekleyerek
 ekli
 ekme
 ekran
@@ -793,6 +837,7 @@ eksiksiz
 elapsed
 ele
 element
+elendir
 elevated
 elevation
 eli
@@ -825,6 +870,7 @@ enek
 enekleri
 enforce
 engagement
+engineering
 engines
 english
 enhanced
@@ -866,7 +912,9 @@ ertelenen
 ertelenenler
 ertelenir
 esbuild
+escalate
 escape
+escaped
 esk
 eski
 eslint
@@ -882,6 +930,7 @@ etkinle
 etkisi
 etkisiz
 eval
+evaluate
 evaluation
 eve
 event
@@ -889,6 +938,7 @@ events
 every
 everyone
 evidence
+evolution
 evrimd
 evrimi
 exact
@@ -1091,6 +1141,7 @@ geri
 gesture
 get
 getir
+getirmek
 gez
 gezinme
 gfm
@@ -1104,6 +1155,7 @@ git
 github
 gitignore
 gitleaks
+given
 gizlilik
 glob
 global
@@ -1126,6 +1178,7 @@ gradle
 gradlew
 grafik
 granted
+grants
 graph
 graphify
 green
@@ -1204,6 +1257,7 @@ hint
 hints
 his
 hissi
+histogram
 historical
 history
 hizalamas
@@ -1221,6 +1275,7 @@ hostnames
 hosts
 hot
 hour
+hourly
 hours
 how
 href
@@ -1251,6 +1306,7 @@ ifremi
 ignore
 ignores
 ihlali
+ihtiyac
 iki
 ikli
 iklik
@@ -1267,6 +1323,7 @@ illustration
 image
 images
 imini
+imiz
 immutable
 impact
 impacts
@@ -1280,12 +1337,16 @@ imports
 inactive
 inbox
 incele
+inceleme
+incident
+incidents
 include
 incoming
 increment
 incremental
 increments
 inde
+indented
 independent
 independently
 index
@@ -1301,6 +1362,7 @@ information
 informational
 infra
 ingest
+ini
 inin
 init
 initial
@@ -1350,6 +1412,7 @@ invalid
 invalidate
 invalidation
 invalidations
+inventory
 inverse
 invite
 inviter
@@ -1369,10 +1432,12 @@ issue
 issuers
 issues
 istemci
+istiyorum
 item
 items
 iterable
 its
+iyile
 iyisini
 izgi
 jailbroken
@@ -1395,6 +1460,7 @@ kabuk
 kabul
 kademeli
 kal
+kalan
 kald
 kaldirilmasi
 kalite
@@ -1411,12 +1477,17 @@ kapatma
 kaplan
 kapsam
 kapsama
+kapsaml
 kar
+karabilmek
 karar
 kararlar
+karmak
 kart
 kartlar
+kartmak
 kategori
+kategoride
 katman
 katmanl
 kay
@@ -1425,6 +1496,8 @@ kayd
 kayna
 kaynak
 kaynaklar
+kazan
+keep
 keeps
 kenleri
 kesim
@@ -1473,6 +1546,10 @@ kpi
 krisp
 kriterleri
 kullan
+kullanarak
+kulland
+kullanmad
+kullanmak
 kur
 kural
 kurallar
@@ -1482,6 +1559,7 @@ kuyruk
 label
 labels
 lacak
+lacaklara
 lam
 lama
 lan
@@ -1540,6 +1618,7 @@ light
 lightbox
 like
 likely
+likli
 limit
 limitation
 limited
@@ -1573,6 +1652,7 @@ lmas
 load
 loader
 loading
+loads
 local
 locale
 locales
@@ -1636,6 +1716,7 @@ markdown
 marker
 markers
 mart
+masa
 mask
 masks
 mass
@@ -1648,7 +1729,9 @@ max
 maximize
 maya
 maybe
+mdaki
 measure
+measurement
 media
 medium
 medya
@@ -1718,6 +1801,7 @@ mix
 mjs
 mkdir
 mlar
+mlara
 mlede
 mleri
 mob
@@ -1775,6 +1859,7 @@ mutuals
 mvp
 nabilecek
 name
+named
 names
 narrow
 nas
@@ -1788,6 +1873,7 @@ navigatio
 navigation
 navigator
 nce
+ncelik
 ncellemesi
 ncesi
 nda
@@ -1800,6 +1886,9 @@ ndermiyor
 near
 nedeni
 needs
+neler
+neleri
+nerede
 neri
 nerilen
 nesneleri
@@ -1830,6 +1919,7 @@ noktas
 non
 nonce
 none
+nonempty
 noop
 normal
 normalize
@@ -1862,6 +1952,7 @@ obse
 observability
 obvious
 occupancy
+odaklanarak
 odas
 off
 offenders
@@ -1922,6 +2013,7 @@ ortam
 other
 otomatikle
 oturum
+oturumun
 otuz
 out
 outbox
@@ -1969,6 +2061,7 @@ pano
 parallel
 param
 parameter
+parameterized
 parameters
 params
 parent
@@ -1978,6 +2071,7 @@ park
 parse
 parsed
 parser
+partial
 participant
 participants
 particle
@@ -2003,6 +2097,7 @@ peer
 penceresi
 pending
 percent
+percentile
 perf
 perform
 performance
@@ -2045,6 +2140,8 @@ plandan
 planlar
 plans
 platform
+platformlar
+platformlardaki
 platforms
 playwright
 plist
@@ -2112,6 +2209,7 @@ primary
 primitive
 primitives
 prior
+priorities
 priority
 prism
 prisma
@@ -2140,6 +2238,7 @@ project
 projection
 projects
 projeler
+projeyi
 promise
 promote
 promoted
@@ -2149,6 +2248,7 @@ prompts
 proof
 properties
 property
+propose
 props
 prose
 protect
@@ -2181,6 +2281,7 @@ qualit
 quality
 queries
 query
+queue
 queued
 quick
 quiet
@@ -2202,6 +2303,7 @@ range
 rank
 rapor
 raporcuya
+raporda
 rapordan
 raporlama
 raporlar
@@ -2214,6 +2316,7 @@ ratio
 rationale
 raw
 rayla
+rde
 react
 reacted
 reaction
@@ -2240,6 +2343,7 @@ recent
 recipient
 recipients
 recommended
+recompute
 reconcile
 reconciliation
 reconnect
@@ -2321,6 +2425,7 @@ render
 renderable
 rendered
 renderer
+renders
 reng
 rengi
 renk
@@ -2335,8 +2440,10 @@ replay
 replies
 reply
 repo
+repoda
 repoint
 report
+reported
 reporter
 reports
 repository
@@ -2387,6 +2494,7 @@ reversible
 review
 revision
 revizyon
+revler
 revocation
 revoke
 revoked
@@ -2410,10 +2518,12 @@ robocopy
 rol
 role
 roles
+roll
 rollback
 roller
 rolleri
 rollout
+rollup
 room
 rooms
 root
@@ -2428,6 +2538,7 @@ rotasi
 rotate
 rotating
 rotation
+round
 rounded
 route
 routed
@@ -2448,6 +2559,7 @@ rulamas
 rulanm
 rule
 rules
+rultusunda
 run
 runbook
 runne
@@ -2539,6 +2651,7 @@ selektif
 self
 semantic
 semantics
+semgrep
 semi
 semver
 send
@@ -2578,6 +2691,7 @@ settings
 settle
 settled
 setup
+seviyeye
 sha
 shadow
 shadows
@@ -2612,6 +2726,7 @@ signin
 signing
 sil
 silinecek
+similarity
 simple
 simplification
 since
@@ -2648,6 +2763,7 @@ sockets
 soft
 sohbet
 sol
+solo
 sonra
 sonraki
 sonras
@@ -2657,6 +2773,7 @@ soon
 sorgu
 sort
 sortable
+sorulara
 sorunlar
 sorununun
 sosyal
@@ -2691,6 +2808,7 @@ stage
 staged
 staging
 stale
+standartlar
 start
 started
 starter
@@ -2728,6 +2846,7 @@ stream
 streamer
 streaming
 strength
+stri
 strict
 string
 stringify
@@ -2756,6 +2875,7 @@ success
 successful
 suffix
 suggestion
+suggestions
 suite
 suites
 sum
@@ -2775,6 +2895,7 @@ suppression
 surface
 surfaces
 suspend
+suspended
 svg
 swatch
 sweep
@@ -2815,6 +2936,7 @@ taraf
 target
 targeted
 targets
+tarz
 tasar
 tasarim
 tasarlanacak
@@ -2883,6 +3005,7 @@ thumbnail
 tick
 ticked
 ticket
+ticks
 tier
 tile
 tiles
@@ -2903,10 +3026,13 @@ tirici
 tirilecek
 tiriyoruz
 tirme
+tirmek
+tirmeliyiz
 title
 tla
 tlar
 tleri
+tls
 tmp
 toast
 toasts
@@ -2918,12 +3044,14 @@ tokenized
 tokenlar
 tokens
 toml
+tomorrow
 tone
 tones
 too
 toolbar
 toolchain
 tooling
+tools
 tooltip
 top
 topic
@@ -2932,6 +3060,7 @@ topluluk
 total
 totals
 totp
+touch
 touching
 trace
 traces
@@ -2959,8 +3088,11 @@ tray
 tree
 trend
 treni
+triage
 tries
 trigger
+trigram
+trigrams
 trimmed
 triples
 troubleshooting
@@ -2988,6 +3120,8 @@ turkish
 turnstile
 turu
 turulacak
+turulan
+tuzaklar
 two
 type
 typecheck
@@ -3002,6 +3136,7 @@ uca
 ucu
 ugur
 ula
+ultra
 una
 unaffected
 unauthenticated
@@ -3075,9 +3210,14 @@ utils
 uygula
 uygulama
 uygulamada
+uygulamadan
+uygulamalar
+uygulamalarda
 uygulamas
+uygulamay
 uygulanamaz
 uygulay
+uygun
 uyulmazsa
 uyumluluk
 uyumu
@@ -3115,9 +3255,11 @@ verify
 verirsen
 verisi
 veritaban
+vermeni
 version
 versioning
 versions
+versiyonundaki
 veya
 via
 video
@@ -3156,12 +3298,14 @@ watermark
 wave
 waveform
 wcag
+weak
 web
 webhook
 webkit
 webrtc
 websocket
 webview
+week
 weight
 welcome
 what
@@ -3190,6 +3334,7 @@ within
 without
 wizards
 wizardsweb
+words
 worker
 workflow
 workflows
@@ -3197,6 +3342,7 @@ worklets
 workspace
 worktree
 wrap
+wrapper
 wrapping
 write
 writer
@@ -3211,7 +3357,11 @@ yaml
 yan
 yanl
 yap
+yapar
+yapmadan
+yapmal
 yaz
+yazar
 yazma
 yazmadan
 year
@@ -3231,11 +3381,13 @@ yol
 yollar
 yolu
 yor
+yorum
 yoruz
 zaman
 zamanlama
 zaten
 zek
+zellikleri
 zelt
 zeltmeler
 zeltmeleri
@@ -3246,6 +3398,7 @@ zeni
 zenle
 zenlendi
 zer
+zere
 zero
 zet
 zeti

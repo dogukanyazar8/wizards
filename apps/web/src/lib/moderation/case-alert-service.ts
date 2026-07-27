@@ -1,6 +1,6 @@
 import type { Prisma } from "@wizards/db";
 import { prisma } from "@wizards/db";
-import { ADMIN_CAPABILITIES } from "@/lib/admin/capabilities";
+import { ADMIN_CAPABILITIES } from "@/lib/admin/capability-roles";
 import { logError } from "@/lib/logger";
 import {
   sendMobilePushForNotifications,

@@ -3,11 +3,31 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, it } from "node:test";
+import { build } from "esbuild";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../../..");
 
 function readRepoFile(path: string) {
   return readFileSync(resolve(repoRoot, path), "utf8");
+}
+
+async function getOutboxWorkerExternalImports() {
+  const result = await build({
+    bundle: true,
+    entryPoints: [resolve(repoRoot, "apps/web/scripts/run-outbox-worker.ts")],
+    format: "esm",
+    logLevel: "silent",
+    metafile: true,
+    packages: "external",
+    platform: "node",
+    target: "node22",
+    tsconfig: resolve(repoRoot, "apps/web/tsconfig.json"),
+    write: false,
+  });
+
+  return Object.values(result.metafile.inputs).flatMap((input) =>
+    input.imports.filter((dependency) => dependency.external).map((dependency) => dependency.path),
+  );
 }
 
 describe("outbox worker railway contract", () => {
@@ -40,5 +60,16 @@ describe("outbox worker railway contract", () => {
     assert.doesNotMatch(campaignService, /from "@\/lib\/admin\/access"/);
     assert.doesNotMatch(auditLog, /from "@\/auth"/);
     assert.doesNotMatch(auditLog, /from "next-auth"/);
+  });
+
+  it("keeps the worker bundle out of the NextAuth dependency graph", async () => {
+    const externalImports = await getOutboxWorkerExternalImports();
+
+    assert.ok(
+      !externalImports.some(
+        (dependency) => dependency === "next-auth" || dependency.startsWith("next-auth/"),
+      ),
+      `outbox worker imports NextAuth: ${externalImports.filter((dependency) => dependency.startsWith("next-auth")).join(", ")}`,
+    );
   });
 });
