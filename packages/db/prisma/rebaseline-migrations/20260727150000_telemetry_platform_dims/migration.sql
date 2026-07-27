@@ -1,6 +1,6 @@
 -- Platform and version dimensions for analytics. Existing rows take UNKNOWN:
 -- the pairs they hold are already unique, so widening the key cannot collide.
-ALTER TABLE "UserDailyMetric" DROP CONSTRAINT "UserDailyMetric_date_userId_key";
+DROP INDEX "UserDailyMetric_date_userId_key";
 
 ALTER TABLE "UserDailyMetric"
   ADD COLUMN "clientType" "AnalyticsClientType" NOT NULL DEFAULT 'UNKNOWN',
