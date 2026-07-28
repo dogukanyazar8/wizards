@@ -75,6 +75,8 @@ const nextConfig: NextConfig = {
   },
   reactCompiler: true,
   reactStrictMode: true,
+  // Keep the patched Node 24 ESM entrypoint out of Turbopack's server bundle.
+  serverExternalPackages: ["next-auth"],
   transpilePackages: ["@wizards/ui", "@wizards/types", "@wizards/db"],
   turbopack: {
     root: turbopackRoot,
