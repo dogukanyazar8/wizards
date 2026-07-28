@@ -1,7 +1,13 @@
 import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import type { MobileDMMessagesResponse } from "@wizards/types";
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Linking, Pressable, Text, View } from "react-native";
+import {
+  Pressable,
+  Text,
+  View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+} from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   runOnJS,
@@ -16,16 +22,15 @@ import Animated, {
 } from "react-native-reanimated";
 
 import {
-  Ionicons,
   copy,
   formatMobileDisplayTime,
   getMobileMessageBodyPreview,
 } from "../mobile-root-screen-shared";
-import { getMobileDisplayMessageDayKey } from "../mobile-display-model";
+import { getMobileMessageGroupModel } from "./message-grouping";
 import { useMobileScreenFocus } from "../mobile-chat-keyboard-region";
 import { useMobileHaptics } from "../providers/mobile-haptics-provider";
 import { useMobileLocaleRuntime } from "../providers/mobile-locale-provider";
-import { useTheme } from "../providers/mobile-theme-provider";
+import { useMobileMessageSpacing, useTheme } from "../providers/mobile-theme-provider";
 import { MobileLinkPreviewCard } from "../../messages/mobile-link-preview-card";
 import { extractFirstHttpsUrl } from "../../messages/mobile-link-preview-client";
 import { formatMobileRelativeTime } from "../../locale/mobile-relative-time";
@@ -36,12 +41,26 @@ import { mobileNavigationRef } from "../../navigation/mobile-navigation-ref";
 import { Icon } from "./kit";
 import { MessageActionMenu, MessageActionMenuTrigger } from "./message-action-menu";
 import {
+  MobileMessageMenuBoundsProvider,
+  measureMobileMessageAnchor,
+  type MobileMessageAnchorRect,
+} from "./message-menu-anchor";
+import {
   MessageAttachmentList,
+  MessageBodyText,
+  MessageDeliveryTicks,
   MessageReactionOverlays,
+  MessageReplyQuote,
+  MessageTimestampInline,
+  MessageTypingDots,
   useMobileMessageReactionOverlay,
   type MobileMessageActionTarget,
+  type MobileMessageDelivery,
   type MobileMessageReactionToggleInput,
 } from "./message-primitives";
+import { isMobileVoiceAttachment } from "./message-voice-attachment";
+import { MobileLineIcon } from "../../design/mobile-line-icons";
+import { mobileMessagingMetrics } from "../../design/tokens";
 import { MessageEmojiPicker } from "./message-emoji-picker";
 import { MessageReactionDetailSheet } from "./message-reaction-detail-sheet";
 import { useDMChatStyles } from "./dm-chat-primitives.styles";
@@ -52,44 +71,44 @@ export type DMChatMessageGroupItem = {
   readonly isGroupedWithNext: boolean;
   readonly isGroupedWithPrevious: boolean;
   readonly message: DMChatMessage;
+  readonly showAvatar: boolean;
   readonly showDateSeparator: boolean;
+  readonly tailCorner: boolean;
 };
 
-const DM_GROUP_WINDOW_MS = 60_000;
-
-function canGroupDMChatMessages(previous: DMChatMessage, current: DMChatMessage): boolean {
-  if (
-    previous.author.id !== current.author.id ||
-    getMobileDisplayMessageDayKey(previous.createdAt) !==
-      getMobileDisplayMessageDayKey(current.createdAt)
-  ) {
-    return false;
-  }
-
-  const elapsed = Date.parse(current.createdAt) - Date.parse(previous.createdAt);
-  return Number.isFinite(elapsed) && elapsed >= 0 && elapsed <= DM_GROUP_WINDOW_MS;
-}
-
+/**
+ * The DM list keeps its own item shape (it carries the message alongside the
+ * flags), but the grouping decision itself now comes from the shared model —
+ * there is exactly one place that knows the five-minute rule and the tail.
+ */
 export function getDMChatMessageGroupModel(
   messages: readonly DMChatMessage[],
 ): DMChatMessageGroupItem[] {
+  const model = getMobileMessageGroupModel(
+    messages.map((message) => ({
+      authorId: message.author.id,
+      createdAt: message.createdAt,
+      id: message.id,
+    })),
+  );
+
   return messages.map((message, index) => {
-    const previous = messages[index - 1];
-    const next = messages[index + 1];
-    const dayKey = getMobileDisplayMessageDayKey(message.createdAt);
-    const previousDayKey = previous ? getMobileDisplayMessageDayKey(previous.createdAt) : "";
+    const entry = model[index]!;
 
     return {
-      isGroupedWithNext: next ? canGroupDMChatMessages(message, next) : false,
-      isGroupedWithPrevious: previous ? canGroupDMChatMessages(previous, message) : false,
+      isGroupedWithNext: !entry.isGroupEnd,
+      isGroupedWithPrevious: !entry.isGroupStart,
       message,
-      showDateSeparator: dayKey.length > 0 && dayKey !== previousDayKey,
+      showAvatar: entry.showAvatar,
+      showDateSeparator: entry.showDateSeparator,
+      tailCorner: entry.tailCorner,
     };
   });
 }
 
 export function DMChatHeader({
   avatarUrl,
+  dimmed = false,
   isOnline,
   lastSeenAt = null,
   onBack,
@@ -100,6 +119,8 @@ export function DMChatHeader({
   typing,
 }: {
   readonly avatarUrl: string | null;
+  /** §2 "1g".1: fades to .5 while a long-press menu is open. */
+  readonly dimmed?: boolean;
   readonly isOnline: boolean;
   readonly lastSeenAt?: string | null;
   readonly onBack: () => void;
@@ -134,7 +155,7 @@ export function DMChatHeader({
         : copy.dmChatOfflineStatus;
 
   return (
-    <View style={styles.header} testID="mobile-dm-chat-header">
+    <View style={[styles.header, dimmed && styles.headerDimmed]} testID="mobile-dm-chat-header">
       <Pressable
         accessibilityLabel={copy.dmBackAction}
         accessibilityRole="button"
@@ -143,7 +164,7 @@ export function DMChatHeader({
         style={({ pressed }) => [styles.backButton, pressed && styles.actionButtonPressed]}
         testID="mobile-dm-back-button"
       >
-        <Ionicons name="chevron-back" size={19} color={theme.text.primary} />
+        <MobileLineIcon color={theme.messaging.textPrimary} name="back-arrow" size={20} />
       </Pressable>
       <View style={styles.headerIdentityButton} testID="mobile-dm-header-identity">
         {/* The avatar opens the quick profile card; the name block opens the
@@ -158,9 +179,9 @@ export function DMChatHeader({
           testID="mobile-dm-header-profile-card"
         >
           <AvatarMark
-            avatarBorderRadius={16}
+            avatarBorderRadius={mobileMessagingMetrics.avatar.chatHeaderRadius}
             avatarBorderWidth={0}
-            dimension={44}
+            dimension={mobileMessagingMetrics.avatar.chatHeader}
             imageUrl={avatarUrl}
             label={title}
             style={styles.headerAvatar}
@@ -200,7 +221,7 @@ export function DMChatHeader({
           ]}
           testID="mobile-dm-voice-call-button"
         >
-          <Ionicons name="call-outline" size={19} color={theme.accent.strong} />
+          <MobileLineIcon color={theme.messaging.accentText} name="phone" size={18} />
         </Pressable>
         <Pressable
           accessibilityLabel={copy.dmChatVideoCallAction}
@@ -215,7 +236,7 @@ export function DMChatHeader({
           ]}
           testID="mobile-dm-video-call-button"
         >
-          <Ionicons name="videocam-outline" size={20} color={theme.accent.strong} />
+          <MobileLineIcon color={theme.messaging.accentText} name="video" size={19} />
         </Pressable>
       </View>
     </View>
@@ -233,31 +254,41 @@ function DMChatDateSeparator({ createdAt }: { readonly createdAt: string }) {
   ) : null;
 }
 
-function DMChatBody({ body, own }: { readonly body: string; readonly own: boolean }) {
+/**
+ * §4: a chip pops when it appears — the feedback for the double-tap ❤️ that
+ * created it — over 220ms, scale 1 → 1.25 → 1.
+ */
+function DMChatReactionChip({
+  count,
+  emoji,
+  mine,
+  testID,
+}: {
+  readonly count: number;
+  readonly emoji: string;
+  readonly mine: boolean;
+  readonly testID: string;
+}) {
   const styles = useDMChatStyles();
-  const segments = body.split(/(https:\/\/[^\s]+)/gu);
+  const reducedMotion = useReducedMotion() === true;
+  const scale = useSharedValue(1);
+  useEffect(() => {
+    if (reducedMotion) return;
+    scale.value = withSequence(
+      withTiming(1.25, { duration: 110 }),
+      withTiming(1, { duration: 110 }),
+    );
+  }, [reducedMotion, scale]);
+  const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+
   return (
-    <Text style={[styles.messageBody, own && styles.messageBodyOwn]}>
-      {segments.map((segment, index) => (
-        <Text
-          key={`${index}:${segment}`}
-          onPress={
-            segment.startsWith("https://")
-              ? () => void Linking.openURL(segment).catch(() => undefined)
-              : undefined
-          }
-          style={
-            segment.startsWith("https://")
-              ? own
-                ? styles.messageLinkOwn
-                : styles.messageLink
-              : undefined
-          }
-        >
-          {segment}
-        </Text>
-      ))}
-    </Text>
+    <Animated.View
+      style={[styles.reactionPill, mine && styles.reactionPillOwnReaction, animatedStyle]}
+      testID={testID}
+    >
+      <Text style={styles.reactionEmoji}>{emoji}</Text>
+      <Text style={[styles.reactionText, mine && styles.reactionTextOwnReaction]}>{count}</Text>
+    </Animated.View>
   );
 }
 
@@ -266,25 +297,38 @@ function DMChatReactionChips({
   message,
   onLongPressReaction,
   onToggleReaction,
+  own,
 }: {
   readonly currentUserId: string;
   readonly message: DMChatMessage;
   /** 8e reaction-detail sheet hook-up point; intentionally optional until then. */
   readonly onLongPressReaction?: (emoji: string) => void;
   readonly onToggleReaction?: (input: MobileMessageReactionToggleInput) => void;
+  readonly own: boolean;
 }) {
   const styles = useDMChatStyles();
   const { selection } = useMobileHaptics();
   if (message.reactions.length === 0) return null;
   return (
-    <View style={styles.reactionTargetRow} testID={`mobile-dm-message-reactions-${message.id}`}>
+    <View
+      style={[styles.reactionRow, own && styles.reactionRowOwn]}
+      testID={`mobile-dm-message-reactions-${message.id}`}
+    >
       {message.reactions.map((reaction) => {
         const hasOwnReaction = reaction.userIds.includes(currentUserId);
         return (
           <Pressable
+            // §7: the chip announces the emoji, the headcount and whether the
+            // viewer is part of it — the ring alone is not a status.
+            accessibilityLabel={(hasOwnReaction
+              ? copy.dmChatReactionChipLabelMine
+              : copy.dmChatReactionChipLabel
+            )
+              .replace("{emoji}", reaction.emoji)
+              .replace("{count}", String(reaction.count))}
             accessibilityRole={onToggleReaction ? "button" : undefined}
             disabled={!onToggleReaction}
-            hitSlop={14}
+            hitSlop={10}
             key={reaction.emoji}
             onPress={() => {
               selection();
@@ -300,15 +344,12 @@ function DMChatReactionChips({
             style={styles.reactionButton}
             testID={`mobile-message-reaction-${message.id}-${reaction.emoji}`}
           >
-            <View
-              style={[styles.reactionPill, hasOwnReaction && styles.reactionPillOwnReaction]}
+            <DMChatReactionChip
+              count={reaction.count}
+              emoji={reaction.emoji}
+              mine={hasOwnReaction}
               testID={`mobile-message-reaction-${message.id}-${reaction.emoji}-visual`}
-            >
-              <Text style={styles.reactionEmoji}>{reaction.emoji}</Text>
-              <Text style={[styles.reactionText, hasOwnReaction && styles.reactionTextOwnReaction]}>
-                {reaction.count}
-              </Text>
-            </View>
+            />
           </Pressable>
         );
       })}
@@ -318,10 +359,16 @@ function DMChatReactionChips({
 
 export { formatMobileRelativeTime as formatDMLastSeenRelativeTime };
 
+/** §4 interaction constants, kept out of the component bodies. */
+export const DM_SWIPE_REPLY_THRESHOLD = 60;
+const DM_DOUBLE_TAP_WINDOW_MS = 300;
+const DM_ENTER_DURATION_MS = 180;
+const DM_ENTER_TRANSLATE_Y = 8;
+/** Within this much of the bottom the list keeps following new messages. */
+const DM_AT_BOTTOM_THRESHOLD = 24;
+
 export function DMChatMessageRow({
   currentUserId,
-  isGroupedWithNext,
-  isGroupedWithPrevious,
   isHighlighted = false,
   isReactionMutationPending,
   menuOpen = false,
@@ -338,13 +385,18 @@ export function DMChatMessageRow({
   onSetMenuMessage,
   onToggleReaction,
   partnerLastReadAt,
+  showAvatar,
+  tailCorner,
 }: DMChatMessageGroupItem & {
   readonly currentUserId: string;
   readonly isHighlighted?: boolean;
   readonly isReactionMutationPending: boolean;
   /** 10d: the list owns which message has its menu open, keyed by message id. */
   readonly menuOpen?: boolean;
-  readonly onSetMenuMessage?: (messageId: string | null) => void;
+  readonly onSetMenuMessage?: (
+    messageId: string | null,
+    anchor?: MobileMessageAnchorRect | null,
+  ) => void;
   readonly onDeleteMessage?: (messageId: string) => void;
   readonly onDiscardFailedMessage?: (messageId: string) => void;
   readonly onEditMessage?: (message: MobileMessageActionTarget) => void;
@@ -370,10 +422,16 @@ export function DMChatMessageRow({
   // The list keys the open menu by message id so realtime list updates cannot
   // drop it; a standalone row (tests, previews) falls back to local state.
   const [isLocalMenuOpen, setLocalMenuOpen] = useState(false);
+  const [localAnchor, setLocalAnchor] = useState<MobileMessageAnchorRect | null>(null);
   const isMenuControlled = onSetMenuMessage !== undefined;
   const isMenuOpen = isMenuControlled ? menuOpen : isLocalMenuOpen;
-  const openMenu = () => {
-    isMenuControlled ? onSetMenuMessage(message.id) : setLocalMenuOpen(true);
+  const openMenu = (anchor: MobileMessageAnchorRect | null) => {
+    if (isMenuControlled) {
+      onSetMenuMessage(message.id, anchor);
+      return;
+    }
+    setLocalAnchor(anchor);
+    setLocalMenuOpen(true);
   };
   const closeMenu = () => {
     isMenuControlled ? onSetMenuMessage(null) : setLocalMenuOpen(false);
@@ -403,7 +461,7 @@ export function DMChatMessageRow({
   const handleBubblePress = useCallback(() => {
     if (!onToggleReaction || isFailed || isDeleted) return;
     const now = Date.now();
-    if (now - lastTapAtRef.current < 300) {
+    if (now - lastTapAtRef.current < DM_DOUBLE_TAP_WINDOW_MS) {
       lastTapAtRef.current = 0;
       haptics.selection();
       onToggleReaction({
@@ -420,9 +478,30 @@ export function DMChatMessageRow({
 
   // WhatsApp-style swipe-right starts a reply and springs back.
   const swipeTranslateX = useSharedValue(0);
-  const swipeStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: swipeTranslateX.value }],
+  const reducedMotion = useReducedMotion() === true;
+  // §4: a new message rises 8px into place over 180ms while it fades in.
+  const enterProgress = useSharedValue(reducedMotion ? 1 : 0);
+  // §4: pressed state is scale(.97) over 150ms; no hover on mobile.
+  const pressScale = useSharedValue(1);
+  useEffect(() => {
+    enterProgress.value = reducedMotion ? 1 : withTiming(1, { duration: DM_ENTER_DURATION_MS });
+  }, [enterProgress, reducedMotion]);
+  // One style: three separate animated styles would each claim `transform` and
+  // the last one mounted would win.
+  const rowMotionStyle = useAnimatedStyle(() => ({
+    opacity: enterProgress.value,
+    transform: [
+      { translateX: swipeTranslateX.value },
+      { translateY: (1 - enterProgress.value) * DM_ENTER_TRANSLATE_Y },
+      { scale: pressScale.value },
+    ],
   }));
+  const handlePressIn = useCallback(() => {
+    pressScale.value = reducedMotion ? 1 : withTiming(0.97, { duration: 150 });
+  }, [pressScale, reducedMotion]);
+  const handlePressOut = useCallback(() => {
+    pressScale.value = reducedMotion ? 1 : withTiming(1, { duration: 150 });
+  }, [pressScale, reducedMotion]);
   const handleSwipeReply = useCallback(() => {
     haptics.selection();
     onReplyMessage?.({ authorLabel, content: message.content, id: message.id });
@@ -441,13 +520,25 @@ export function DMChatMessageRow({
         })
         .onEnd((event) => {
           "worklet";
-          if (event.translationX >= 56) {
+          // §4: the reply threshold is 60px.
+          if (event.translationX >= DM_SWIPE_REPLY_THRESHOLD) {
             runOnJS(handleSwipeReply)();
           }
           swipeTranslateX.value = withSpring(0, { damping: 20, stiffness: 260 });
         }),
     [handleSwipeReply, swipeReplyEnabled, swipeTranslateX],
   );
+
+  const timeLabel = formatMobileDisplayTime(message.createdAt);
+  const delivery: MobileMessageDelivery = isSendPending ? "sending" : read ? "read" : "sent";
+  // An attachment-only message has no bubble at all — the card is the message.
+  // `body` cannot answer this: it falls back to the "shared an attachment" copy.
+  const hasBody = message.content.trim().length > 0 || isDeleted || isFailed;
+  // §1.6/K2: an attachment is not a bubble line, so its clock cannot ride one.
+  // This block is the single place the design allows a separate meta row.
+  const hasAttachment = message.attachments.length > 0;
+  const isVoiceOnly =
+    !hasBody && hasAttachment && message.attachments.every(isMobileVoiceAttachment);
 
   const row = (
     <View
@@ -458,12 +549,7 @@ export function DMChatMessageRow({
       ]}
     >
       {!own ? (
-        isGroupedWithPrevious ? (
-          <View
-            style={styles.messageAvatarSpacer}
-            testID={`mobile-dm-message-avatar-spacer-${message.id}`}
-          />
-        ) : (
+        showAvatar ? (
           <Pressable
             accessibilityLabel={copy.profileCardOpenActionTemplate.replace(
               "{name}",
@@ -475,115 +561,142 @@ export function DMChatMessageRow({
             testID={`mobile-dm-message-author-avatar-${message.id}`}
           >
             <AvatarMark
-              avatarBorderRadius={11}
+              avatarBorderRadius={mobileMessagingMetrics.avatar.dmMessageRadius}
               avatarBorderWidth={0}
-              dimension={30}
+              dimension={mobileMessagingMetrics.avatar.dmMessage}
               identityId={message.author.id}
               imageUrl={message.author.avatarUrl}
               label={message.author.displayName ?? message.author.username}
               style={styles.messageAvatar}
             />
           </Pressable>
+        ) : (
+          <View
+            style={styles.messageAvatarSpacer}
+            testID={`mobile-dm-message-avatar-spacer-${message.id}`}
+          />
         )
       ) : null}
       <View style={[styles.messageContent, own && styles.messageContentOwn]}>
-        <View
-          style={[
-            styles.bubble,
-            own ? styles.outgoingBubble : styles.incomingBubble,
-            own && isGroupedWithPrevious && styles.outgoingBubbleContinuation,
-            isSendPending && styles.messageSendingDim,
-          ]}
-          testID={`mobile-dm-message-bubble-${message.id}`}
-        >
-          {message.forwardedAt ? (
-            <View style={styles.forwardedRow} testID={`mobile-message-forwarded-${message.id}`}>
-              <Ionicons
-                name="arrow-redo-outline"
-                size={12}
-                color={own ? theme.text.onInverseMuted : theme.text.visualFaint}
-              />
-              <Text style={[styles.forwardedText, own && styles.replyQuoteTextOwn]}>
-                {copy.messageForwardedLabel}
-              </Text>
-            </View>
-          ) : null}
-          {message.replyTo ? (
-            <Pressable
-              accessibilityLabel={copy.messageReplyJumpAction}
-              accessibilityRole={onOpenReply ? "button" : undefined}
-              disabled={!onOpenReply}
-              onPress={() => onOpenReply?.(message.replyTo!.id)}
-              style={[styles.replyQuote, own && styles.replyQuoteOwn]}
-              testID={`mobile-dm-reply-quote-${message.id}`}
-            >
-              <Text
-                numberOfLines={1}
-                style={[styles.replyQuoteAuthor, own && styles.replyQuoteAuthorOwn]}
-              >
-                {replyAuthorLabel}
-              </Text>
-              <Text
-                style={[styles.replyQuoteText, own && styles.replyQuoteTextOwn]}
-                numberOfLines={1}
-              >
-                {message.replyTo.content || copy.dmDeletedMessage}
-              </Text>
-            </Pressable>
-          ) : null}
-          <DMChatBody body={body} own={own} />
-          {linkPreviewUrl ? (
-            <MobileLinkPreviewCard messageId={message.id} url={linkPreviewUrl} />
-          ) : null}
-          <MessageAttachmentList
-            attachments={message.attachments}
-            authorLabel={authorLabel}
-            own={own}
-            timeLabel={formatMobileDisplayTime(message.createdAt)}
-          />
-          {isFailed ? (
-            <View style={styles.messageFailedRow} testID={`mobile-message-failed-${message.id}`}>
-              <Icon name="alert-circle-outline" size={14} tone="danger" />
-              <Text style={styles.messageFailedText}>{copy.messageSendFailedLabel}</Text>
-              {onRetryFailedMessage ? (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={copy.messageRetrySendAction}
-                  onPress={() => onRetryFailedMessage(message.id)}
-                  testID={`mobile-message-retry-${message.id}`}
-                >
-                  <Text style={styles.messageFailedAction}>{copy.messageRetrySendAction}</Text>
-                </Pressable>
-              ) : null}
-            </View>
-          ) : null}
-          <DMChatReactionChips
-            currentUserId={currentUserId}
-            message={message}
-            onLongPressReaction={openReactionDetails}
-            {...(onToggleReaction ? { onToggleReaction } : {})}
-          />
-        </View>
-        {!isGroupedWithNext ? (
+        {hasBody ? (
           <View
-            style={[styles.timeRow, message.reactions.length > 0 && styles.reactionTimeSpacing]}
+            style={[
+              styles.bubble,
+              own ? styles.outgoingBubble : styles.incomingBubble,
+              tailCorner && (own ? styles.outgoingBubbleTail : styles.incomingBubbleTail),
+              isSendPending && styles.messageSendingDim,
+            ]}
+            testID={`mobile-dm-message-bubble-${message.id}`}
           >
+            {message.forwardedAt ? (
+              <View style={styles.forwardedRow} testID={`mobile-message-forwarded-${message.id}`}>
+                <MobileLineIcon
+                  color={own ? theme.messaging.bubbleOutMeta : theme.messaging.bubbleMeta}
+                  name="external-link"
+                  size={12}
+                />
+                <Text style={[styles.forwardedText, own && styles.forwardedTextOwn]}>
+                  {copy.messageForwardedLabel}
+                </Text>
+              </View>
+            ) : null}
+            {message.replyTo ? (
+              <Pressable
+                accessibilityLabel={copy.messageReplyJumpAction}
+                accessibilityRole={onOpenReply ? "button" : undefined}
+                disabled={!onOpenReply}
+                onPress={() => onOpenReply?.(message.replyTo!.id)}
+                testID={`mobile-dm-reply-quote-${message.id}`}
+              >
+                <MessageReplyQuote
+                  authorName={replyAuthorLabel ?? ""}
+                  excerpt={message.replyTo.content || copy.dmDeletedMessage}
+                  outgoing={own}
+                />
+              </Pressable>
+            ) : null}
+            {/* §1.1: the clock is the last thing on the last line, not a row. */}
+            <MessageTimestampInline
+              outgoing={own}
+              timeLabel={timeLabel}
+              {...(own ? { delivery } : {})}
+            >
+              <MessageBodyText
+                body={body}
+                channel={false}
+                numberOfLines={0}
+                style={own ? styles.messageBodyOwn : styles.messageBodyIn}
+                tone={own ? "onAccent" : "default"}
+              />
+            </MessageTimestampInline>
             {message.editedAt ? (
-              <Text style={styles.editedText} testID={`mobile-dm-message-edited-${message.id}`}>
+              <Text
+                style={[styles.editedText, own && styles.editedTextOwn]}
+                testID={`mobile-dm-message-edited-${message.id}`}
+              >
                 {copy.messageEditedLabel}
               </Text>
             ) : null}
-            <Text style={styles.timeText}>{formatMobileDisplayTime(message.createdAt)}</Text>
-            {own ? (
-              <Ionicons
-                accessibilityLabel={read ? copy.dmChatReadLabel : copy.dmChatDeliveredLabel}
-                color={read ? theme.accent.strong : theme.text.visualPlaceholder}
-                name="checkmark-done"
-                size={14}
-              />
+            {linkPreviewUrl ? (
+              <MobileLinkPreviewCard messageId={message.id} url={linkPreviewUrl} />
+            ) : null}
+            {isFailed ? (
+              <View style={styles.messageFailedRow} testID={`mobile-message-failed-${message.id}`}>
+                <Icon name="alert-circle-outline" size={14} tone="danger" />
+                <Text style={styles.messageFailedText}>{copy.messageSendFailedLabel}</Text>
+                {onRetryFailedMessage ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={copy.messageRetrySendAction}
+                    onPress={() => onRetryFailedMessage(message.id)}
+                    testID={`mobile-message-retry-${message.id}`}
+                  >
+                    <Text style={styles.messageFailedAction}>{copy.messageRetrySendAction}</Text>
+                  </Pressable>
+                ) : null}
+              </View>
             ) : null}
           </View>
         ) : null}
+        {hasAttachment ? (
+          <View
+            style={isSendPending ? styles.messageSendingDim : undefined}
+            testID={`mobile-dm-message-attachments-${message.id}`}
+          >
+            {/* §1.5: a voice note keeps the bubble; §1.6: a file card does not. */}
+            <View
+              style={
+                isVoiceOnly
+                  ? [
+                      styles.bubble,
+                      styles.bubbleVoice,
+                      own ? styles.outgoingBubble : styles.incomingBubble,
+                      tailCorner && (own ? styles.outgoingBubbleTail : styles.incomingBubbleTail),
+                    ]
+                  : undefined
+              }
+              testID={isVoiceOnly ? `mobile-dm-message-voice-bubble-${message.id}` : undefined}
+            >
+              <MessageAttachmentList
+                attachments={message.attachments}
+                authorLabel={authorLabel}
+                own={own}
+                timeLabel={timeLabel}
+              />
+            </View>
+            <View style={styles.attachmentMetaRow}>
+              <Text style={styles.attachmentMetaText}>{timeLabel}</Text>
+              {own ? <MessageDeliveryTicks delivery={delivery} /> : null}
+            </View>
+          </View>
+        ) : null}
+        <DMChatReactionChips
+          currentUserId={currentUserId}
+          message={message}
+          onLongPressReaction={openReactionDetails}
+          own={own}
+          {...(onToggleReaction ? { onToggleReaction } : {})}
+        />
       </View>
     </View>
   );
@@ -594,14 +707,17 @@ export function DMChatMessageRow({
         disabled={isReactionMutationPending}
         onLongPress={openMenu}
         onPress={handleBubblePress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
         testID={`mobile-message-actions-${message.id}-trigger`}
       >
         <GestureDetector gesture={replyGesture}>
-          <Animated.View style={swipeStyle}>{row}</Animated.View>
+          <Animated.View style={rowMotionStyle}>{row}</Animated.View>
         </GestureDetector>
       </MessageActionMenuTrigger>
       {isMenuControlled ? null : (
         <DMChatMessageActionMenu
+          anchor={localAnchor}
           currentUserId={currentUserId}
           message={message}
           onClose={closeMenu}
@@ -666,6 +782,7 @@ type DMChatMessageActionHandlers = {
 
 /** The menu itself, without a trigger: the row long-presses, this renders. */
 function DMChatMessageActionMenu({
+  anchor = null,
   currentUserId,
   message,
   onClose,
@@ -681,6 +798,7 @@ function DMChatMessageActionMenu({
   onToggleReaction,
   open,
 }: DMChatMessageActionHandlers & {
+  readonly anchor?: MobileMessageAnchorRect | null;
   readonly currentUserId: string;
   readonly message: DMChatMessage;
   readonly onClose: () => void;
@@ -697,6 +815,7 @@ function DMChatMessageActionMenu({
 
   return (
     <MessageActionMenu
+      anchor={anchor}
       authorAvatarUrl={message.author.avatarUrl}
       authorId={message.author.id}
       authorLabel={authorLabel}
@@ -734,6 +853,7 @@ function DMChatMessageActionMenu({
       previewText={body}
       scope="dm"
       testID={`mobile-message-actions-${message.id}`}
+      timeLabel={formatMobileDisplayTime(message.createdAt)}
     />
   );
 }
@@ -746,12 +866,14 @@ function DMChatMessageActionMenu({
  * action, or the message itself disappearing.
  */
 function DMChatMessageOverlays({
+  anchor,
   currentUserId,
   message,
   onClose,
   open,
   ...handlers
 }: DMChatMessageActionHandlers & {
+  readonly anchor: MobileMessageAnchorRect | null;
   readonly currentUserId: string;
   readonly message: DMChatMessage;
   readonly onClose: () => void;
@@ -764,6 +886,7 @@ function DMChatMessageOverlays({
   return (
     <>
       <DMChatMessageActionMenu
+        anchor={anchor}
         currentUserId={currentUserId}
         message={message}
         onClose={onClose}
@@ -813,6 +936,7 @@ export function DMChatMessageList({
   onEditMessage,
   onForwardMessage,
   onLoadMore,
+  onMenuOpenChange,
   onOpenThread,
   onReplyMessage,
   onRetryFailedMessage,
@@ -827,6 +951,8 @@ export function DMChatMessageList({
   readonly onEditMessage?: (message: MobileMessageActionTarget) => void;
   readonly onForwardMessage?: (message: MobileMessageActionTarget) => void;
   readonly onLoadMore?: () => void;
+  /** §2 "1g".1: lets the screen dim its header while the menu is up. */
+  readonly onMenuOpenChange?: (open: boolean) => void;
   readonly onOpenThread?: (messageId: string) => void;
   readonly onReplyMessage?: (message: MobileMessageActionTarget) => void;
   readonly onRetryFailedMessage?: (messageId: string) => void;
@@ -834,22 +960,62 @@ export function DMChatMessageList({
   readonly partnerLastReadAt: string | null;
 }) {
   const styles = useDMChatStyles();
+  const theme = useTheme();
+  const messageSpacing = useMobileMessageSpacing();
   const grouped = useMemo(() => getDMChatMessageGroupModel(messages), [messages]);
   const listRef = useRef<FlashListRef<DMChatMessageGroupItem> | null>(null);
+  // §4: at the bottom the list follows new messages; away from it, the arrival
+  // becomes a pill instead of yanking the reader down.
+  const [isAtBottom, setIsAtBottom] = useState(true);
+  const [pendingNewMessageCount, setPendingNewMessageCount] = useState(0);
+  const lastMessageCountRef = useRef(messages.length);
+  useEffect(() => {
+    const previousCount = lastMessageCountRef.current;
+    lastMessageCountRef.current = messages.length;
+    if (messages.length <= previousCount) return;
+    setPendingNewMessageCount((current) =>
+      isAtBottom ? 0 : current + (messages.length - previousCount),
+    );
+  }, [isAtBottom, messages.length]);
+  const handleScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+    const distanceFromBottom = contentSize.height - (contentOffset.y + layoutMeasurement.height);
+    const atBottom = distanceFromBottom <= DM_AT_BOTTOM_THRESHOLD;
+    setIsAtBottom(atBottom);
+    if (atBottom) setPendingNewMessageCount(0);
+  }, []);
+  const handleJumpToLatest = useCallback(() => {
+    listRef.current?.scrollToEnd({ animated: true });
+    setPendingNewMessageCount(0);
+  }, []);
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
   // 10d: which message owns the action menu, and whether it is still open. The
   // closed entry stays so the menu can play its exit animation before it goes.
-  const [menu, setMenu] = useState<{ readonly id: string; readonly open: boolean } | null>(null);
+  const [menu, setMenu] = useState<{
+    readonly anchor: MobileMessageAnchorRect | null;
+    readonly id: string;
+    readonly open: boolean;
+  } | null>(null);
   const isScreenFocused = useMobileScreenFocus();
-  const handleSetMenuMessage = useCallback((messageId: string | null) => {
-    setMenu((current) =>
-      messageId === null
-        ? current
-          ? { ...current, open: false }
-          : null
-        : { id: messageId, open: true },
-    );
+  const handleSetMenuMessage = useCallback(
+    (messageId: string | null, anchor: MobileMessageAnchorRect | null = null) => {
+      setMenu((current) =>
+        messageId === null
+          ? current
+            ? { ...current, open: false }
+            : null
+          : { anchor, id: messageId, open: true },
+      );
+    },
+    [],
+  );
+  // §2 "1g".1: the scrim stops at the conversation, so the area publishes its
+  // own rectangle to whichever menu opens inside it.
+  const bodyRef = useRef<View | null>(null);
+  const [menuBounds, setMenuBounds] = useState<MobileMessageAnchorRect | null>(null);
+  const handleBodyLayout = useCallback(() => {
+    measureMobileMessageAnchor(bodyRef.current, setMenuBounds);
   }, []);
   const menuMessage = useMemo(
     () => (menu ? (messages.find((message) => message.id === menu.id) ?? null) : null),
@@ -868,6 +1034,11 @@ export function DMChatMessageList({
       setMenu(null);
     }
   }, [isScreenFocused]);
+  // §2 "1g".1: the header is the screen's, so it is told when to dim.
+  const isActionMenuOpen = menu?.open === true;
+  useEffect(() => {
+    onMenuOpenChange?.(isActionMenuOpen);
+  }, [isActionMenuOpen, onMenuOpenChange]);
   // A reaction chip lives on a recycled row, so the sheet it long-presses open
   // is owned here for the same reason the menu is.
   const { closeReactionOverlay, reactionOverlay, reactionOverlayMessage, requestReactionDetails } =
@@ -900,7 +1071,17 @@ export function DMChatMessageList({
   // component moved.
   const renderItem = useCallback(
     ({ item }: { item: DMChatMessageGroupItem }) => (
-      <View style={[styles.messageItem, item.isGroupedWithNext && styles.messageItemGrouped]}>
+      // §1.2: 3px inside a group, 10px between groups, 14px when the group ends
+      // on reaction chips (they already ride 9px up onto the bubble).
+      <View
+        style={{
+          marginBottom: item.isGroupedWithNext
+            ? mobileMessagingMetrics.bubble.gap
+            : item.message.reactions.length > 0
+              ? mobileMessagingMetrics.bubble.groupGapWithReaction
+              : messageSpacing.groupGap,
+        }}
+      >
         {item.showDateSeparator ? <DMChatDateSeparator createdAt={item.message.createdAt} /> : null}
         <MemoizedDMChatMessageRow
           {...item}
@@ -940,83 +1121,87 @@ export function DMChatMessageList({
       openMenuMessageId,
       partnerLastReadAt,
       requestReactionDetails,
-      styles,
+      messageSpacing.groupGap,
     ],
   );
 
   return (
-    <>
-      <FlashList
-        contentContainerStyle={styles.messageFlow}
-        data={grouped}
-        drawDistance={700}
-        keyExtractor={(item) => item.message.id}
-        maintainVisibleContentPosition={{
-          animateAutoScrollToBottom: true,
-          autoscrollToBottomThreshold: 0.2,
-          startRenderingFromBottom: true,
-        }}
-        onStartReached={onLoadMore}
-        onStartReachedThreshold={0.35}
-        ref={listRef}
-        renderItem={renderItem}
-        showsVerticalScrollIndicator={false}
-        style={styles.messageList}
-        testID="mobile-dm-message-list"
-      />
-      {menuMessage ? (
-        <DMChatMessageOverlays
-          currentUserId={currentUserId}
-          key={menuMessage.id}
-          message={menuMessage}
-          onClose={() => handleSetMenuMessage(null)}
-          open={menu?.open === true}
-          {...(onDeleteMessage ? { onDeleteMessage } : {})}
-          {...(onDiscardFailedMessage ? { onDiscardFailedMessage } : {})}
-          {...(onEditMessage ? { onEditMessage } : {})}
-          {...(onForwardMessage ? { onForwardMessage } : {})}
-          {...(onOpenThread ? { onOpenThread } : {})}
-          {...(onReplyMessage ? { onReplyMessage } : {})}
-          {...(onRetryFailedMessage ? { onRetryFailedMessage } : {})}
-          {...(onToggleReaction ? { onToggleReaction } : {})}
+    <MobileMessageMenuBoundsProvider bounds={menuBounds}>
+      <View onLayout={handleBodyLayout} ref={bodyRef} style={styles.messageArea}>
+        <FlashList
+          // §7: the transcript is a live log; RN has no `log` role, so the list
+          // announces itself as a polite live region instead.
+          accessibilityLiveRegion="polite"
+          accessibilityRole="list"
+          contentContainerStyle={styles.messageFlow}
+          data={grouped}
+          drawDistance={700}
+          keyExtractor={(item) => item.message.id}
+          maintainVisibleContentPosition={{
+            animateAutoScrollToBottom: true,
+            autoscrollToBottomThreshold: 0.2,
+            // The RN equivalent of the handoff's `justify-content:flex-end`:
+            // content sits on the bottom edge and grows upward.
+            startRenderingFromBottom: true,
+          }}
+          onScroll={handleScroll}
+          onStartReached={onLoadMore}
+          onStartReachedThreshold={0.35}
+          ref={listRef}
+          renderItem={renderItem}
+          scrollEventThrottle={16}
+          showsVerticalScrollIndicator={false}
+          style={styles.messageList}
+          testID="mobile-dm-message-list"
         />
-      ) : null}
-      {reactionOverlay && reactionOverlayMessage ? (
-        <MessageReactionOverlays
-          currentUserId={currentUserId}
-          key={reactionOverlay.id}
-          message={reactionOverlayMessage}
-          onClose={closeReactionOverlay}
-          overlay={reactionOverlay}
-          {...(onToggleReaction ? { onToggleReaction } : {})}
-        />
-      ) : null}
-    </>
+        {pendingNewMessageCount > 0 ? (
+          <Pressable
+            accessibilityLabel={copy.dmChatNewMessagesTemplate.replace(
+              "{count}",
+              String(pendingNewMessageCount),
+            )}
+            accessibilityRole="button"
+            onPress={handleJumpToLatest}
+            style={({ pressed }) => [styles.newMessagePill, pressed && styles.actionButtonPressed]}
+            testID="mobile-dm-new-messages-pill"
+          >
+            <MobileLineIcon color={theme.messaging.bubbleOutText} name="chevron-down" size={14} />
+            <Text style={styles.newMessagePillText}>
+              {copy.dmChatNewMessagesTemplate.replace("{count}", String(pendingNewMessageCount))}
+            </Text>
+          </Pressable>
+        ) : null}
+        {menuMessage ? (
+          <DMChatMessageOverlays
+            anchor={menu?.anchor ?? null}
+            currentUserId={currentUserId}
+            key={menuMessage.id}
+            message={menuMessage}
+            onClose={() => handleSetMenuMessage(null)}
+            open={menu?.open === true}
+            {...(onDeleteMessage ? { onDeleteMessage } : {})}
+            {...(onDiscardFailedMessage ? { onDiscardFailedMessage } : {})}
+            {...(onEditMessage ? { onEditMessage } : {})}
+            {...(onForwardMessage ? { onForwardMessage } : {})}
+            {...(onOpenThread ? { onOpenThread } : {})}
+            {...(onReplyMessage ? { onReplyMessage } : {})}
+            {...(onRetryFailedMessage ? { onRetryFailedMessage } : {})}
+            {...(onToggleReaction ? { onToggleReaction } : {})}
+          />
+        ) : null}
+        {reactionOverlay && reactionOverlayMessage ? (
+          <MessageReactionOverlays
+            currentUserId={currentUserId}
+            key={reactionOverlay.id}
+            message={reactionOverlayMessage}
+            onClose={closeReactionOverlay}
+            overlay={reactionOverlay}
+            {...(onToggleReaction ? { onToggleReaction } : {})}
+          />
+        ) : null}
+      </View>
+    </MobileMessageMenuBoundsProvider>
   );
-}
-
-function TypingDot({ delay, index }: { readonly delay: number; readonly index: number }) {
-  const styles = useDMChatStyles();
-  const reducedMotion = useReducedMotion() === true;
-  const opacity = useSharedValue(1);
-  useEffect(() => {
-    if (reducedMotion) {
-      opacity.value = 1;
-      return;
-    }
-    opacity.value = withRepeat(
-      withSequence(
-        withDelay(delay, withTiming(0.35, { duration: 280 })),
-        withTiming(1, { duration: 280 }),
-      ),
-      -1,
-      false,
-    );
-  }, [delay, opacity, reducedMotion]);
-  const animatedStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
-  const tone =
-    index === 0 ? styles.typingDotOne : index === 1 ? styles.typingDotTwo : styles.typingDotThree;
-  return <Animated.View style={[styles.typingDot, tone, animatedStyle]} />;
 }
 
 export function DMChatTypingIndicator({
@@ -1037,18 +1222,17 @@ export function DMChatTypingIndicator({
       testID="mobile-dm-typing-indicator"
     >
       <AvatarMark
-        avatarBorderRadius={11}
+        avatarBorderRadius={mobileMessagingMetrics.avatar.dmMessageRadius}
         avatarBorderWidth={0}
-        dimension={30}
+        dimension={mobileMessagingMetrics.avatar.dmMessage}
         identityId={participantId}
         imageUrl={avatarUrl}
         label={title}
         style={styles.messageAvatar}
       />
+      {/* §1.7: the indicator is an incoming bubble carrying the shared dots. */}
       <View style={styles.typingBubble} testID="mobile-dm-typing-dots">
-        {[0, 1, 2].map((index) => (
-          <TypingDot delay={index * 120} index={index} key={index} />
-        ))}
+        <MessageTypingDots />
       </View>
     </View>
   );

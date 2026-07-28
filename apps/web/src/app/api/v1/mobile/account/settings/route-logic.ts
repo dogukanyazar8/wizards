@@ -1,6 +1,8 @@
 import {
+  MobileAccountAppearanceSchema,
   MobileAccountSettingsResponseSchema,
   MobileAccountSettingsUpdateSchema,
+  MobileMessageFontSizeSchema,
   type MobileAccountSettingsResponse,
   type MobileAccountSettingsUpdate,
 } from "@wizards/types";
@@ -19,6 +21,7 @@ function withNoStore(response: Response) {
 }
 
 export type MobileAccountSettingsRecord = {
+  appearance: MobileAccountSettingsResponse["appearance"];
   account: {
     bannerColor: string | null;
     bannerOffsetX: number | null;
@@ -48,7 +51,7 @@ export type MobileAccountSettingsRouteDependencies = {
   updateSettings(
     userId: string,
     input: MobileAccountSettingsUpdate,
-  ): Promise<MobileAccountSettingsRecord["privacy"]>;
+  ): Promise<Pick<MobileAccountSettingsRecord, "appearance" | "privacy">>;
 };
 
 async function loadMobileAccountSettings(userId: string): Promise<MobileAccountSettingsRecord> {
@@ -72,6 +75,9 @@ async function loadMobileAccountSettings(userId: string): Promise<MobileAccountS
         select: {
           dmPolicy: true,
           friendRequestPolicy: true,
+          messageBodyCompact: true,
+          messageBodyFollowSystemFont: true,
+          messageBodySize: true,
         },
       },
     },
@@ -82,6 +88,13 @@ async function loadMobileAccountSettings(userId: string): Promise<MobileAccountS
   }
 
   return {
+    appearance: MobileAccountAppearanceSchema.parse({
+      messageCompact: user.settings.messageBodyCompact,
+      messageFollowSystemFont: user.settings.messageBodyFollowSystemFont,
+      // A column value written by an older client is normalised back to the
+      // default rather than failing the whole settings read.
+      messageFontSize: MobileMessageFontSizeSchema.safeParse(user.settings.messageBodySize).data,
+    }),
     account: {
       bannerColor: user.bannerColor,
       bannerOffsetX: user.bannerOffsetX,
@@ -105,22 +118,37 @@ async function loadMobileAccountSettings(userId: string): Promise<MobileAccountS
 async function updateMobileAccountSettings(
   userId: string,
   input: MobileAccountSettingsUpdate,
-): Promise<MobileAccountSettingsRecord["privacy"]> {
+): Promise<Pick<MobileAccountSettingsRecord, "appearance" | "privacy">> {
   const settings = await prisma.userSettings.update({
     where: { userId },
     data: {
       ...(input.dmPermission !== undefined ? { dmPolicy: input.dmPermission } : {}),
       ...(input.friendRequests !== undefined ? { friendRequestPolicy: input.friendRequests } : {}),
+      ...(input.messageCompact !== undefined ? { messageBodyCompact: input.messageCompact } : {}),
+      ...(input.messageFollowSystemFont !== undefined
+        ? { messageBodyFollowSystemFont: input.messageFollowSystemFont }
+        : {}),
+      ...(input.messageFontSize !== undefined ? { messageBodySize: input.messageFontSize } : {}),
     },
     select: {
       dmPolicy: true,
       friendRequestPolicy: true,
+      messageBodyCompact: true,
+      messageBodyFollowSystemFont: true,
+      messageBodySize: true,
     },
   });
 
   return {
-    dmPermission: settings.dmPolicy,
-    friendRequests: settings.friendRequestPolicy,
+    appearance: MobileAccountAppearanceSchema.parse({
+      messageCompact: settings.messageBodyCompact,
+      messageFollowSystemFont: settings.messageBodyFollowSystemFont,
+      messageFontSize: MobileMessageFontSizeSchema.safeParse(settings.messageBodySize).data,
+    }),
+    privacy: {
+      dmPermission: settings.dmPolicy,
+      friendRequests: settings.friendRequestPolicy,
+    },
   };
 }
 
@@ -157,10 +185,10 @@ export async function mobileAccountSettingsUpdateRoute(
     const userId = await dependencies.authenticate(request);
     await dependencies.enforceRateLimit(userId, "mobile:account:settings");
     const input = await dependencies.parseBody(request);
-    const privacy = await dependencies.updateSettings(userId, input);
+    const written = await dependencies.updateSettings(userId, input);
     const settings = await dependencies.loadSettings(userId);
 
-    return Response.json(MobileAccountSettingsResponseSchema.parse({ ...settings, privacy }), {
+    return Response.json(MobileAccountSettingsResponseSchema.parse({ ...settings, ...written }), {
       headers: NO_STORE_HEADERS,
     });
   } catch (error) {

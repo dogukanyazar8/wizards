@@ -1,69 +1,36 @@
-import Ionicons from "@expo/vector-icons/Ionicons";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
-import Animated, {
-  useAnimatedStyle,
-  useReducedMotion,
-  useSharedValue,
-  withDelay,
-  withRepeat,
-  withSequence,
-  withTiming,
-} from "react-native-reanimated";
 import type { ChatMessage } from "@wizards/types";
 
 import { useMobileAuth } from "../../auth/mobile-auth-context";
+import { MobileLineIcon } from "../../design/mobile-line-icons";
 import { activeMobileCopy as copy } from "../../locale/mobile-locale-preferences";
 import { useMobileChannelMessageThreadQuery } from "../../query/mobile-message-thread-query";
 import { useMobileChannelThreadMessageReactionMutation } from "../../query/use-mobile-message-mutations";
 import { useMobileChannelThreadReplyMutation } from "../../query/use-mobile-thread-reply-mutation";
 import type { MobileChannelTypingUser } from "../../realtime/mobile-typing-state";
-import { MessageListSkeleton, MessagePreviewRow } from "../components/message-primitives";
-import { MessageActionMenu } from "../components/message-action-menu";
-import { MessageEmojiPicker } from "../components/message-emoji-picker";
-import { MessageReactionDetailSheet } from "../components/message-reaction-detail-sheet";
-import { AvatarMark } from "../components/ui-atoms";
+import {
+  MessageListSkeleton,
+  MessagePreviewRow,
+  MessageTypingDots,
+  type MobileMessageActionTarget,
+  type MobileMessageReactionToggleInput,
+} from "../components/message-primitives";
 import { DMComposer, type MobileComposerIntent } from "../composer/mobile-composer";
 import {
   MobileMentionRegistryProvider,
   useMobileServerMentionRegistry,
 } from "../mobile-mention-registry";
-import { formatMobileDisplayTime } from "../mobile-root-screen-shared";
-import {
-  MobileProfileCardScope,
-  useOpenMobileProfileCard,
-} from "../../social/profile-card";
+import { MobileProfileCardScope } from "../../social/profile-card";
 import { useMobileHaptics } from "../providers/mobile-haptics-provider";
 import { useTheme } from "../providers/mobile-theme-provider";
 import { useMessageThreadStyles } from "./message-thread-screen.styles";
 
-function ThreadTypingDot({ delay, index }: { readonly delay: number; readonly index: number }) {
-  const styles = useMessageThreadStyles();
-  const reducedMotion = useReducedMotion() === true;
-  const opacity = useSharedValue(1);
-
-  useEffect(() => {
-    if (reducedMotion) {
-      opacity.value = 1;
-      return;
-    }
-    opacity.value = withRepeat(
-      withSequence(
-        withDelay(delay, withTiming(0.35, { duration: 280 })),
-        withTiming(1, { duration: 280 }),
-      ),
-      -1,
-      false,
-    );
-  }, [delay, opacity, reducedMotion]);
-
-  const animatedStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
-  const tone =
-    index === 0 ? styles.typingDotOne : index === 1 ? styles.typingDotTwo : styles.typingDotThree;
-  return <Animated.View style={[styles.typingDot, tone, animatedStyle]} />;
-}
-
-/** 8d indented thread reply: 34px avatar, compact metadata, small reaction chips. */
+/**
+ * MSG-1f §2 "1f".4: a reply is a channel row and nothing else. This wrapper only
+ * adds the thread's own test hook and its handler shape — the layout, the
+ * grouping and the long-press menu all come from the shared row.
+ */
 export function ThreadReplyRow({
   currentUserId,
   message,
@@ -77,169 +44,29 @@ export function ThreadReplyRow({
   readonly currentUserId: string;
   readonly message: ChatMessage;
   readonly onDiscardFailed?: (messageId: string) => void;
-  readonly onEdit?: (message: { content: string; id: string }) => void;
+  readonly onEdit?: (message: MobileMessageActionTarget) => void;
   readonly onDelete?: (messageId: string) => void;
-  readonly onForward?: (message: { content: string; id: string }) => void;
+  readonly onForward?: (message: MobileMessageActionTarget) => void;
   readonly onRetryFailedSend?: (messageId: string) => void;
-  readonly onToggleReaction?: (input: {
-    emoji: string;
-    messageId: string;
-    shouldReact: boolean;
-  }) => void;
+  readonly onToggleReaction?: (input: MobileMessageReactionToggleInput) => void;
 }) {
   const styles = useMessageThreadStyles();
-  const { selection } = useMobileHaptics();
-  const openProfileCard = useOpenMobileProfileCard();
-  const [isEmojiPickerOpen, setEmojiPickerOpen] = useState(false);
-  const [reactionDetailEmoji, setReactionDetailEmoji] = useState<string | null>(null);
-  const authorLabel = message.author.displayName ?? message.author.username;
-  const own = message.author.id === currentUserId;
-  const isFailed = message.deliveryStatus === "failed";
-  const isSending = message.deliveryStatus === "sending";
 
   return (
-    <>
-      {onToggleReaction ? (
-        <MessageEmojiPicker
-          isOpen={isEmojiPickerOpen}
-          onClose={() => setEmojiPickerOpen(false)}
-          onSelect={(emoji) =>
-            onToggleReaction({
-              emoji,
-              messageId: message.id,
-              shouldReact: !message.reactions.some(
-                (reaction) => reaction.emoji === emoji && reaction.userIds.includes(currentUserId),
-              ),
-            })
-          }
-        />
-      ) : null}
-      <MessageActionMenu
-        authorAvatarUrl={message.author.avatarUrl}
-        authorId={message.author.id}
-        authorLabel={authorLabel}
+    <View style={styles.replyRow} testID={`mobile-thread-reply-${message.id}`}>
+      <MessagePreviewRow
         currentUserId={currentUserId}
         message={message}
-        {...(own && onDelete ? { onDelete: () => onDelete(message.id) } : {})}
-        {...(onDiscardFailed ? { onDiscardFailed: () => onDiscardFailed(message.id) } : {})}
-        {...(own && onEdit
-          ? { onEdit: () => onEdit({ content: message.content, id: message.id }) }
-          : {})}
-        {...(onForward
-          ? { onForward: () => onForward({ content: message.content, id: message.id }) }
-          : {})}
-        {...(onToggleReaction ? { onOpenEmojiPicker: () => setEmojiPickerOpen(true) } : {})}
-        {...(onRetryFailedSend ? { onRetryFailedSend: () => onRetryFailedSend(message.id) } : {})}
+        mode="channel"
+        own={message.author.id === currentUserId}
+        {...(onDelete ? { onDeleteMessage: onDelete } : {})}
+        {...(onDiscardFailed ? { onDiscardFailedMessage: onDiscardFailed } : {})}
+        {...(onEdit ? { onEditMessage: onEdit } : {})}
+        {...(onForward ? { onForwardMessage: onForward } : {})}
+        {...(onRetryFailedSend ? { onRetryFailedMessage: onRetryFailedSend } : {})}
         {...(onToggleReaction ? { onToggleReaction } : {})}
-        own={own}
-        previewText={message.content}
-        // Threads never offer "start thread" on their own replies.
-        scope="dm"
-        testID={`mobile-message-actions-${message.id}`}
-      >
-        <View
-          style={[styles.replyRow, isSending && styles.replySending]}
-          testID={`mobile-thread-reply-${message.id}`}
-        >
-          {/* 11b: thread replies open the same card as channel rows. */}
-          <Pressable
-            accessibilityLabel={copy.profileCardOpenActionTemplate.replace("{name}", authorLabel)}
-            accessibilityRole="button"
-            hitSlop={4}
-            onPress={() => openProfileCard(message.author.id)}
-            testID={`mobile-thread-reply-avatar-${message.id}`}
-          >
-            <AvatarMark
-              avatarBorderRadius={12}
-              avatarBorderWidth={0}
-              dimension={34}
-              identityId={message.author.id}
-              imageUrl={message.author.avatarUrl}
-              label={authorLabel}
-              style={styles.replyAvatar}
-            />
-          </Pressable>
-          <View style={styles.replyContent}>
-            <View style={styles.replyHeader}>
-              <Text numberOfLines={1} style={styles.replyAuthor}>
-                {authorLabel}
-              </Text>
-              <Text style={styles.replyTime}>{formatMobileDisplayTime(message.createdAt)}</Text>
-              {message.editedAt ? (
-                <Text style={styles.replyEdited}>{copy.messageEditedLabel}</Text>
-              ) : null}
-            </View>
-            <Text style={styles.replyBody}>{message.content || copy.dmDeletedMessage}</Text>
-            {message.reactions.length > 0 ? (
-              <View style={styles.replyReactionRow}>
-                {message.reactions.map((reaction) => {
-                  const hasOwnReaction = reaction.userIds.includes(currentUserId);
-                  return (
-                    <Pressable
-                      accessibilityRole={onToggleReaction ? "button" : undefined}
-                      disabled={!onToggleReaction}
-                      hitSlop={14}
-                      key={reaction.emoji}
-                      onLongPress={() => setReactionDetailEmoji(reaction.emoji)}
-                      onPress={() => {
-                        selection();
-                        onToggleReaction?.({
-                          emoji: reaction.emoji,
-                          messageId: message.id,
-                          shouldReact: !hasOwnReaction,
-                        });
-                      }}
-                      style={[
-                        styles.replyReactionChip,
-                        hasOwnReaction && styles.replyReactionChipOwn,
-                      ]}
-                      testID={`mobile-message-reaction-${message.id}-${reaction.emoji}`}
-                    >
-                      <Text style={styles.replyReactionEmoji}>{reaction.emoji}</Text>
-                      <Text
-                        style={[
-                          styles.replyReactionCount,
-                          hasOwnReaction && styles.replyReactionCountOwn,
-                        ]}
-                      >
-                        {reaction.count}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            ) : null}
-            {isFailed ? (
-              <View style={styles.replyFailedRow} testID={`mobile-message-failed-${message.id}`}>
-                <Text style={styles.replyFailedText}>{copy.messageSendFailedLabel}</Text>
-                {onRetryFailedSend ? (
-                  <Pressable
-                    accessibilityLabel={copy.messageRetrySendAction}
-                    accessibilityRole="button"
-                    hitSlop={10}
-                    onPress={() => onRetryFailedSend(message.id)}
-                    testID={`mobile-message-retry-${message.id}`}
-                  >
-                    <Text style={styles.replyFailedAction}>{copy.messageRetrySendAction}</Text>
-                  </Pressable>
-                ) : null}
-              </View>
-            ) : null}
-          </View>
-        </View>
-      </MessageActionMenu>
-      {reactionDetailEmoji !== null ? (
-        <MessageReactionDetailSheet
-          currentUserId={currentUserId}
-          initialEmoji={reactionDetailEmoji}
-          messageId={message.id}
-          onClose={() => setReactionDetailEmoji(null)}
-          open
-          reactions={message.reactions}
-          {...(onToggleReaction ? { onRemoveOwnReaction: onToggleReaction } : {})}
-        />
-      ) : null}
-    </>
+      />
+    </View>
   );
 }
 
@@ -248,6 +75,7 @@ export function MobileMessageThreadScreen({
   contextId,
   messageId,
   onBack,
+  onOpenOptions,
   serverId = null,
   typingUsers = [],
 }: {
@@ -255,6 +83,8 @@ export function MobileMessageThreadScreen({
   readonly contextId: string;
   readonly messageId: string;
   onBack(): void;
+  /** §2 "1f".1 overflow control; inert until a thread menu is specified. */
+  onOpenOptions?(): void;
   /** 10a: resolves the server roster for `@` autocomplete and mention highlights. */
   readonly serverId?: string | null;
   readonly typingUsers?: readonly MobileChannelTypingUser[];
@@ -270,7 +100,9 @@ export function MobileMessageThreadScreen({
     currentUsername: session?.user.username ?? null,
     serverId,
   });
-  const [alsoSendToChannel, setAlsoSendToChannel] = useState(false);
+  // §2 "1f".5: the box ships ticked, and the flag really rides the send payload.
+  const [alsoSendToChannel, setAlsoSendToChannel] = useState(true);
+  const [isFollowingThread, setFollowingThread] = useState(true);
   const [composerIntent, setComposerIntent] = useState<MobileComposerIntent | null>(null);
   const query = useMobileChannelMessageThreadQuery(apiClient, contextId, messageId);
   const payload = query.data;
@@ -310,136 +142,200 @@ export function MobileMessageThreadScreen({
   const headerSubtitle = copy.messageThreadHeaderTemplate
     .replace("{channel}", channelName ?? "")
     .replace("{count}", String(replies.length));
+  const alsoSendLabel = copy.messageThreadAlsoSendToChannelTemplate.replace(
+    "{channel}",
+    channelName ?? "",
+  );
 
   return (
     <MobileProfileCardScope serverId={serverId ?? undefined}>
       <MobileMentionRegistryProvider registry={mentionRegistry}>
-      <View style={styles.screen} testID="mobile-message-thread-screen">
-        <View style={styles.header}>
-          <View style={styles.headerText}>
-            <Text style={styles.headerTitle}>{copy.messageThreadTitle}</Text>
-            <Text numberOfLines={1} style={styles.headerSubtitle}>
-              {headerSubtitle}
-            </Text>
-          </View>
-          <Pressable
-            accessibilityLabel={copy.messageThreadCloseAction}
-            accessibilityRole="button"
-            onPress={onBack}
-            style={({ pressed }) => [styles.closeButton, pressed && styles.actionButtonPressed]}
-            testID="mobile-message-thread-back-button"
-          >
-            <Ionicons name="close" size={17} color={theme.text.visualSecondary} />
-          </Pressable>
-        </View>
-
-        <ScrollView
-          contentContainerStyle={styles.bodyContent}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-          style={styles.body}
-        >
-          {query.isLoading ? <MessageListSkeleton testID="mobile-thread-loading" /> : null}
-          {query.isError ? (
-            <Text style={styles.threadErrorText}>{copy.messageThreadLoadFailed}</Text>
-          ) : null}
-          {payload ? (
-            <>
-              <View style={styles.rootCard} testID="mobile-thread-root-message">
-                <MessagePreviewRow
-                  currentUserId={currentUserId}
-                  message={payload.parent}
-                  mode="channel"
-                  own={payload.parent.author.id === currentUserId}
-                  onToggleReaction={toggleReaction}
+        <View style={styles.screen} testID="mobile-message-thread-screen">
+          <View style={styles.header}>
+            <Pressable
+              accessibilityLabel={copy.channelBackAction}
+              accessibilityRole="button"
+              hitSlop={11}
+              onPress={onBack}
+              style={({ pressed }) => [styles.backButton, pressed && styles.actionButtonPressed]}
+              testID="mobile-message-thread-back-button"
+            >
+              <MobileLineIcon
+                color={theme.messaging.textPrimary}
+                name="back-arrow"
+                size={20}
+                strokeWidth={2.3}
+              />
+            </Pressable>
+            <View style={styles.headerText}>
+              <Text style={styles.headerTitle}>{copy.messageThreadTitle}</Text>
+              <Text numberOfLines={1} style={styles.headerSubtitle}>
+                {headerSubtitle}
+              </Text>
+            </View>
+            <View style={styles.headerActions}>
+              <Pressable
+                accessibilityLabel={copy.messageThreadFollowAction}
+                accessibilityRole="button"
+                accessibilityState={{ selected: isFollowingThread }}
+                onPress={() => {
+                  selection();
+                  setFollowingThread((current) => !current);
+                }}
+                style={({ pressed }) => [
+                  styles.followPill,
+                  !isFollowingThread && styles.followPillOff,
+                  pressed && styles.actionButtonPressed,
+                ]}
+                testID="mobile-thread-follow-toggle"
+              >
+                <MobileLineIcon
+                  color={
+                    isFollowingThread ? theme.messaging.accentText : theme.messaging.textSecondary
+                  }
+                  name="bell"
+                  size={15}
+                  strokeWidth={2.2}
                 />
-              </View>
-              {replies.length > 0 ? (
-                <>
-                  <View style={styles.replySectionRow}>
-                    <Text style={styles.replySectionLabel} testID="mobile-thread-reply-count">
-                      {copy.messageThreadReplySectionTemplate.replace(
-                        "{count}",
-                        String(replies.length),
-                      )}
-                    </Text>
-                    <View style={styles.replySectionLine} />
-                  </View>
-                  <View style={styles.replyList}>
-                    {replies.map((reply) => (
-                      <ThreadReplyRow
-                        currentUserId={currentUserId}
-                        key={reply.id}
-                        message={reply}
-                        onDiscardFailed={discardFailedReply}
-                        onRetryFailedSend={retryFailedReply}
-                        onToggleReaction={toggleReaction}
-                      />
-                    ))}
-                    {typingUsers.length > 0 ? (
-                      <View style={styles.typingRow} testID="mobile-thread-typing-indicator">
-                        <AvatarMark
-                          avatarBorderRadius={12}
-                          avatarBorderWidth={0}
-                          dimension={34}
-                          identityId={typingUsers[0]!.userId}
-                          imageUrl={null}
-                          label={typingUsers[0]!.name}
-                          style={styles.replyAvatar}
+                <Text
+                  style={[styles.followPillLabel, !isFollowingThread && styles.followPillLabelOff]}
+                >
+                  {copy.messageThreadFollowAction}
+                </Text>
+              </Pressable>
+              {/* The handoff draws the control but names no menu for it; until one
+                exists the button follows the members-button precedent and stays
+                inert rather than firing an action nobody specified. */}
+              <Pressable
+                accessibilityLabel={copy.messageThreadOptionsAction}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: !onOpenOptions }}
+                disabled={!onOpenOptions}
+                onPress={onOpenOptions}
+                style={({ pressed }) => [
+                  styles.optionsButton,
+                  !onOpenOptions && styles.optionsButtonDisabled,
+                  pressed && styles.actionButtonPressed,
+                ]}
+                testID="mobile-thread-options-button"
+              >
+                <MobileLineIcon
+                  color={theme.messaging.textSecondary}
+                  name="dots-vertical"
+                  size={17}
+                  strokeWidth={2.6}
+                />
+              </Pressable>
+            </View>
+          </View>
+
+          <ScrollView
+            contentContainerStyle={styles.bodyContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            style={styles.body}
+          >
+            {query.isLoading ? <MessageListSkeleton testID="mobile-thread-loading" /> : null}
+            {query.isError ? (
+              <Text style={styles.threadErrorText}>{copy.messageThreadLoadFailed}</Text>
+            ) : null}
+            {payload ? (
+              <>
+                {/* §2 "1f".2: the source message keeps the channel row shape and
+                  only changes surface — screen tone, ruled top and bottom. */}
+                <View style={styles.rootCard} testID="mobile-thread-root-message">
+                  <MessagePreviewRow
+                    currentUserId={currentUserId}
+                    message={payload.parent}
+                    mode="channel"
+                    onScreenSurface
+                    own={payload.parent.author.id === currentUserId}
+                    onToggleReaction={toggleReaction}
+                  />
+                </View>
+                {replies.length > 0 ? (
+                  <>
+                    <View style={styles.replySectionRow}>
+                      <Text style={styles.replySectionLabel} testID="mobile-thread-reply-count">
+                        {copy.messageThreadReplySectionTemplate.replace(
+                          "{count}",
+                          String(replies.length),
+                        )}
+                      </Text>
+                      <View style={styles.replySectionLine} />
+                    </View>
+                    <View style={styles.replyList}>
+                      {replies.map((reply) => (
+                        <ThreadReplyRow
+                          currentUserId={currentUserId}
+                          key={reply.id}
+                          message={reply}
+                          onDiscardFailed={discardFailedReply}
+                          onRetryFailedSend={retryFailedReply}
+                          onToggleReaction={toggleReaction}
                         />
-                        <View style={styles.typingBubble}>
-                          {[0, 1, 2].map((index) => (
-                            <ThreadTypingDot delay={index * 120} index={index} key={index} />
-                          ))}
+                      ))}
+                      {typingUsers.length > 0 ? (
+                        <View style={styles.typingRow} testID="mobile-thread-typing-indicator">
+                          <MessageTypingDots compact testID="mobile-thread-typing-dots" />
+                          <Text numberOfLines={1} style={styles.typingText}>
+                            {typingUsers[0]!.name}
+                          </Text>
                         </View>
-                      </View>
+                      ) : null}
+                    </View>
+                  </>
+                ) : (
+                  <Text style={styles.emptyText}>{copy.messageThreadEmptyPrompt}</Text>
+                )}
+              </>
+            ) : null}
+          </ScrollView>
+
+          <View style={styles.composerShell}>
+            <DMComposer
+              intent={composerIntent}
+              mentionCandidates={mentionRegistry.candidates}
+              onCancelIntent={() => setComposerIntent(null)}
+              onSend={handleSend}
+              placeholder={copy.messageThreadReplyPlaceholder}
+              sendActionLabel={copy.dmChatSendAction}
+              topAccessory={
+                <Pressable
+                  accessibilityLabel={alsoSendLabel}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: alsoSendToChannel }}
+                  onPress={() => {
+                    selection();
+                    setAlsoSendToChannel((current) => !current);
+                  }}
+                  style={styles.alsoSendRow}
+                  testID="mobile-thread-also-send-toggle"
+                >
+                  <View
+                    style={[
+                      styles.alsoSendCheckbox,
+                      alsoSendToChannel && styles.alsoSendCheckboxChecked,
+                    ]}
+                  >
+                    {alsoSendToChannel ? (
+                      <MobileLineIcon
+                        color={theme.messaging.bubbleOutText}
+                        name="check"
+                        size={12}
+                        strokeWidth={3}
+                      />
                     ) : null}
                   </View>
-                </>
-              ) : (
-                <Text style={styles.emptyText}>{copy.messageThreadEmptyPrompt}</Text>
-              )}
-            </>
-          ) : null}
-        </ScrollView>
-
-        <View style={styles.composerShell}>
-          <Pressable
-            accessibilityLabel={copy.messageThreadAlsoSendToChannelTemplate.replace(
-              "{channel}",
-              channelName ?? "",
-            )}
-            accessibilityRole="checkbox"
-            accessibilityState={{ checked: alsoSendToChannel }}
-            onPress={() => {
-              selection();
-              setAlsoSendToChannel((current) => !current);
-            }}
-            style={styles.alsoSendRow}
-            testID="mobile-thread-also-send-toggle"
-          >
-            <View
-              style={[styles.alsoSendCheckbox, alsoSendToChannel && styles.alsoSendCheckboxChecked]}
-            >
-              {alsoSendToChannel ? (
-                <Ionicons name="checkmark" size={12} color={theme.text.onPrimary} />
-              ) : null}
-            </View>
-            <Text numberOfLines={1} style={styles.alsoSendLabel}>
-              {copy.messageThreadAlsoSendToChannelTemplate.replace("{channel}", channelName ?? "")}
-            </Text>
-          </Pressable>
-          <DMComposer
-            intent={composerIntent}
-            mentionCandidates={mentionRegistry.candidates}
-            onCancelIntent={() => setComposerIntent(null)}
-            onSend={handleSend}
-            placeholder={copy.messageThreadReplyPlaceholder}
-            sendActionLabel={copy.dmChatSendAction}
-            variant="dm"
-          />
+                  <Text numberOfLines={1} style={styles.alsoSendLabel}>
+                    {alsoSendLabel}
+                  </Text>
+                </Pressable>
+              }
+              variant="dm"
+            />
+          </View>
         </View>
-      </View>
       </MobileMentionRegistryProvider>
     </MobileProfileCardScope>
   );

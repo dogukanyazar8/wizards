@@ -319,7 +319,6 @@ describe("Phase 0 Maestro testID contract", () => {
       "src/app/components/dm-chat-primitives.tsx": "useOpenMobileProfileCard",
       "src/app/components/message-primitives.tsx": "useOpenMobileProfileCard",
       "src/app/components/message-reaction-detail-sheet.tsx": "useOpenMobileProfileCard",
-      "src/app/screens/message-thread-screen.tsx": "useOpenMobileProfileCard",
       "src/workspace/mobile-server-members-screen.tsx": "useOpenMobileProfileCard",
     } as const;
     for (const [sourcePath, needle] of Object.entries(entryPoints)) {
@@ -328,6 +327,17 @@ describe("Phase 0 Maestro testID contract", () => {
         `${sourcePath} must open the profile card through ${needle}`,
       );
     }
+
+    // MSG-1f: the thread stopped drawing its own reply layout, so its avatars
+    // reach the card through the shared channel row rather than a second opener.
+    const threadSource = readFileSync(
+      path.join(process.cwd(), "src/app/screens/message-thread-screen.tsx"),
+      "utf8",
+    );
+    assert.ok(
+      threadSource.includes("MessagePreviewRow") && threadSource.includes('mode="channel"'),
+      "src/app/screens/message-thread-screen.tsx must render replies as shared channel rows",
+    );
   });
 
   it("binds the Phase 4 server-management flow to safe, contextual test IDs", () => {

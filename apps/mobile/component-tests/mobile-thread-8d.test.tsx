@@ -52,9 +52,7 @@ function createMessage(id: string, overrides: Partial<ChatMessage> = {}): ChatMe
   };
 }
 
-function createThreadPayload(
-  replies: readonly ChatMessage[],
-): MobileChannelThreadMessagesResponse {
+function createThreadPayload(replies: readonly ChatMessage[]): MobileChannelThreadMessagesResponse {
   return {
     hasMore: false,
     messages: [...replies],
@@ -103,13 +101,16 @@ describe("8d thread screen", () => {
         copy.messageThreadHeaderTemplate.replace("{channel}", "genel").replace("{count}", "2"),
       ),
     ).toBeTruthy();
-    expect(view.getByText(copy.messageThreadReplySectionTemplate.replace("{count}", "2"))).toBeTruthy();
+    expect(
+      view.getByText(copy.messageThreadReplySectionTemplate.replace("{count}", "2")),
+    ).toBeTruthy();
     expect(view.getByTestId("mobile-thread-reply-reply-1")).toBeTruthy();
     expect(view.getByTestId("mobile-message-reaction-reply-2-💯")).toBeTruthy();
-    expect(view.getByLabelText(copy.messageThreadCloseAction)).toBeTruthy();
+    // MSG-1f replaced the close button with the back chevron the handoff draws.
+    expect(view.getByLabelText(copy.channelBackAction)).toBeTruthy();
   });
 
-  it("sends a reply with alsoSendToChannel only when the checkbox is ticked", async () => {
+  it("sends a reply with alsoSendToChannel from its checked default", async () => {
     mockRequestJson.mockImplementation(async (path, options) => {
       if (typeof options === "object" && options !== null && "method" in options) {
         return { message: createMessage("sent-reply", { threadParentId: "root-message" }) };
@@ -137,7 +138,7 @@ describe("8d thread screen", () => {
         "/api/v1/mobile/channels/channel-1/messages",
         expect.objectContaining({
           body: expect.objectContaining({
-            alsoSendToChannel: false,
+            alsoSendToChannel: true,
             content: "thread yanıtı",
             threadParentId: "root-message",
           }),
@@ -146,7 +147,7 @@ describe("8d thread screen", () => {
     );
 
     await fireEvent.press(view.getByTestId("mobile-thread-also-send-toggle"));
-    await fireEvent.changeText(input, "kanala da gitsin");
+    await fireEvent.changeText(input, "sadece thread");
     await fireEvent.press(view.getByTestId("mobile-dm-send-button"));
 
     await waitFor(() =>
@@ -154,8 +155,8 @@ describe("8d thread screen", () => {
         "/api/v1/mobile/channels/channel-1/messages",
         expect.objectContaining({
           body: expect.objectContaining({
-            alsoSendToChannel: true,
-            content: "kanala da gitsin",
+            alsoSendToChannel: false,
+            content: "sadece thread",
           }),
         }),
       ),

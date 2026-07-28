@@ -24,6 +24,12 @@ const DM_TYPING_EXPIRY = 3000;
 const TYPING_KEY_TTL_SECONDS = 10;
 const TYPING_RATE_LIMIT = 24;
 const TYPING_RATE_WINDOW_SECONDS = 10;
+/**
+ * Participant sets change only when a group DM gains or loses a member, so the
+ * lookup behind the personal-room fan-out is cached per connection. A member
+ * added inside this window simply misses typing dots until it lapses.
+ */
+const DM_PARTICIPANT_CACHE_TTL_MS = 60_000;
 
 type DMTypingEntry = {
   expiresAt: number;
@@ -70,6 +76,33 @@ export function registerTypingHandlers(
   const emitSocketError = createSocketErrorEmitter(ctx.socket);
   const dmTypingConversations = new Set<string>();
   const dmTypingTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
+  const dmParticipantCache = new Map<string, { expiresAt: number; userIds: string[] }>();
+
+  /**
+   * The conversation list needs typing dots for chats the reader does not
+   * currently have open, and `dm:${conversationId}` is only joined while a
+   * conversation *is* open. So every participant's personal room gets the update
+   * too. Socket.IO delivers to the union of the named rooms, so a reader sitting
+   * in the conversation still receives it exactly once.
+   */
+  async function getDMParticipantUserIds(conversationId: string): Promise<string[]> {
+    const cached = dmParticipantCache.get(conversationId);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.userIds;
+    }
+
+    const participants = await prisma.dMParticipant.findMany({
+      where: { conversationId },
+      select: { userId: true },
+    });
+    const userIds = participants.map((participant) => participant.userId);
+    dmParticipantCache.set(conversationId, {
+      expiresAt: Date.now() + DM_PARTICIPANT_CACHE_TTL_MS,
+      userIds,
+    });
+
+    return userIds;
+  }
   const isDMParticipantForUser = options.isDMParticipant ?? isDMParticipant;
 
   async function getChannelTypingUsers(channelId: string) {
@@ -138,7 +171,12 @@ export function registerTypingHandlers(
       await ctx.redis.hdel(key, ...expiredUserIds);
     }
 
-    ctx.io.to(`dm:${conversationId}`).emit("dm:typing:update", {
+    let emitter = ctx.io.to(`dm:${conversationId}`);
+    for (const participantUserId of await getDMParticipantUserIds(conversationId)) {
+      emitter = emitter.to(`user:${participantUserId}`);
+    }
+
+    emitter.emit("dm:typing:update", {
       conversationId,
       typingUsers,
     });

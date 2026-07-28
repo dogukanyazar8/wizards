@@ -37,8 +37,26 @@ export const MobileFriendPresenceSchema = z
   })
   .strict();
 
+/**
+ * 1b shows "live-room · paycore" plus a Join pill for a friend who is sitting in
+ * a voice channel right now. Null whenever the friend is not connected.
+ */
+export const MobileFriendVoiceRoomSchema = z
+  .object({
+    channelId: MobileBoundedIdSchema,
+    channelName: z.string().min(1).max(120),
+    serverId: MobileBoundedIdSchema,
+    serverName: z.string().min(1).max(120),
+  })
+  .strict();
+
+/** 1b device line ("Mobil" / "Masaüstü"); null when no live session says. */
+export const MobileFriendDeviceSchema = z.enum(["MOBILE", "DESKTOP", "WEB"]);
+
 export const MobileFriendSchema = MobileFriendUserSchema.extend({
   customStatus: z.string().max(128).nullable(),
+  /** 1b: which client the friend is signed in from. */
+  device: MobileFriendDeviceSchema.nullable().default(null),
   /**
    * Drives the invite sheet's "2 sa önce görüldü" line. Added after the UAT
    * backend shipped, so it defaults rather than making an older payload fail.
@@ -46,18 +64,26 @@ export const MobileFriendSchema = MobileFriendUserSchema.extend({
   lastSeenAt: z.string().datetime().nullable().default(null),
   presence: MobileFriendPresenceSchema,
   status: MobileFriendPresenceStatusSchema,
+  voiceRoom: MobileFriendVoiceRoomSchema.nullable().default(null),
 }).strict();
 
 export const MobileFriendRequestSchema = z
   .object({
     createdAt: z.string().datetime(),
     id: MobileBoundedIdSchema,
+    /** 1c secondary line, "4 ortak arkadaş" half. */
+    mutualFriendCount: z.number().int().nonnegative().default(0),
+    /** 1c secondary line, "2 ortak sunucu · paycore" half. */
+    mutualServerCount: z.number().int().nonnegative().default(0),
+    mutualServerName: z.string().min(1).max(120).nullable().default(null),
     receiver: MobileFriendUserSchema,
     receiverId: MobileBoundedIdSchema,
     sender: MobileFriendUserSchema,
     senderId: MobileBoundedIdSchema,
     status: MobileFriendStatusSchema,
     updatedAt: z.string().datetime(),
+    /** 1c "selin_qa aracılığıyla": a friend both sides already share. */
+    viaUsername: z.string().min(2).max(32).nullable().default(null),
   })
   .strict();
 
@@ -96,6 +122,34 @@ export const MobileFriendBlockResponseSchema = z
   .strict();
 export const MobileFriendRequestParamsSchema = z.object({ id: MobileBoundedIdSchema }).strict();
 export const MobileFriendUserParamsSchema = z.object({ userId: MobileBoundedIdSchema }).strict();
+
+/** 1c "TANIYOR OLABİLİRSİN" row: a stranger reachable through a shared friend or server. */
+export const MOBILE_FRIEND_SUGGESTION_LIMIT = 10;
+
+export const MobileFriendSuggestionSchema = MobileFriendUserSchema.extend({
+  mutualFriendCount: z.number().int().nonnegative().default(0),
+  mutualServerCount: z.number().int().nonnegative().default(0),
+  /** Named server behind "design-guild üyesi"; null when only friends are shared. */
+  mutualServerName: z.string().min(1).max(120).nullable().default(null),
+}).strict();
+
+export const MobileFriendSuggestionsQuerySchema = z
+  .object({
+    limit: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(MOBILE_FRIEND_SUGGESTION_LIMIT)
+      .optional()
+      .default(MOBILE_FRIEND_SUGGESTION_LIMIT),
+  })
+  .strict();
+
+export const MobileFriendSuggestionsResponseSchema = z
+  .object({
+    suggestions: z.array(MobileFriendSuggestionSchema).max(MOBILE_FRIEND_SUGGESTION_LIMIT),
+  })
+  .strict();
 
 /** Viewer-relative state of a searched user, so 9d rows pick the right row action. */
 export const MobileFriendRelationshipSchema = z.enum([
@@ -317,8 +371,28 @@ export const MobileAccountFriendRequestPolicySchema = z.enum([
   "MUTUAL_FRIENDS",
   "NOBODY",
 ]);
+/**
+ * Message-body appearance (redesign §3), synced so the four-step size slider a
+ * person set on one device is the size they get on the next one. Deliberately
+ * apart from the interface text scale, which stays device-local.
+ */
+export const MobileMessageFontSizeSchema = z.enum(["small", "medium", "large", "xlarge"]);
+export const MobileAccountAppearanceSchema = z
+  .object({
+    messageCompact: z.boolean().default(false),
+    messageFollowSystemFont: z.boolean().default(false),
+    messageFontSize: MobileMessageFontSizeSchema.default("medium"),
+  })
+  .strict();
+
+export const MOBILE_ACCOUNT_APPEARANCE_DEFAULT = Object.freeze(
+  MobileAccountAppearanceSchema.parse({}),
+);
+
 export const MobileAccountSettingsResponseSchema = z
   .object({
+    /** Added after the UAT backend shipped, so an older response still parses. */
+    appearance: MobileAccountAppearanceSchema.default(MOBILE_ACCOUNT_APPEARANCE_DEFAULT),
     account: z
       .object({
         ...MobileProfileDecorationShape,
@@ -345,10 +419,15 @@ export const MobileAccountSettingsUpdateSchema = z
   .object({
     dmPermission: MobileAccountDmPolicySchema.optional(),
     friendRequests: MobileAccountFriendRequestPolicySchema.optional(),
+    // The appearance slider writes on its own, without touching privacy, so
+    // every field here is independently optional.
+    messageCompact: z.boolean().optional(),
+    messageFollowSystemFont: z.boolean().optional(),
+    messageFontSize: MobileMessageFontSizeSchema.optional(),
   })
   .strict()
-  .refine((value) => value.dmPermission !== undefined || value.friendRequests !== undefined, {
-    message: "At least one privacy field is required",
+  .refine((value) => Object.values(value).some((field) => field !== undefined), {
+    message: "At least one settings field is required",
   });
 
 export const MobileGiphySearchQuerySchema = z
@@ -655,6 +734,11 @@ export const MobileUserReportResponseSchema = z
 
 export type MobileFriendRequestCreate = z.infer<typeof MobileFriendRequestCreateSchema>;
 export type MobileFriendsOverviewResponse = z.infer<typeof MobileFriendsOverviewResponseSchema>;
+export type MobileFriendVoiceRoom = z.infer<typeof MobileFriendVoiceRoomSchema>;
+export type MobileFriendDevice = z.infer<typeof MobileFriendDeviceSchema>;
+export type MobileFriendSuggestion = z.infer<typeof MobileFriendSuggestionSchema>;
+export type MobileFriendSuggestionsQuery = z.infer<typeof MobileFriendSuggestionsQuerySchema>;
+export type MobileFriendSuggestionsResponse = z.infer<typeof MobileFriendSuggestionsResponseSchema>;
 export type MobileFriendRelationship = z.infer<typeof MobileFriendRelationshipSchema>;
 export type MobileUserSearchQuery = z.infer<typeof MobileUserSearchQuerySchema>;
 export type MobileUserSearchResult = z.infer<typeof MobileUserSearchResultSchema>;
@@ -680,6 +764,8 @@ export type MobileLocaleUpdateRequest = z.infer<typeof MobileLocaleUpdateRequest
 export type MobileLocaleUpdateResponse = z.infer<typeof MobileLocaleUpdateResponseSchema>;
 export type MobilePasswordChangeRequest = z.infer<typeof MobilePasswordChangeRequestSchema>;
 export type MobilePasswordChangeResponse = z.infer<typeof MobilePasswordChangeResponseSchema>;
+export type MobileAccountAppearance = z.infer<typeof MobileAccountAppearanceSchema>;
+export type MobileMessageFontSizePreference = z.infer<typeof MobileMessageFontSizeSchema>;
 export type MobileAccountSettingsResponse = z.infer<typeof MobileAccountSettingsResponseSchema>;
 export type MobileAccountSettingsUpdate = z.infer<typeof MobileAccountSettingsUpdateSchema>;
 export type MobileProfileBadge = z.infer<typeof MobileProfileBadgeSchema>;

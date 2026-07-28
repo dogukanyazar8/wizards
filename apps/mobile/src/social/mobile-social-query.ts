@@ -20,6 +20,7 @@ import {
   cancelMobileFriendRequest,
   createMobileFriendRequest,
   fetchMobileFriends,
+  fetchMobileFriendSuggestions,
   fetchMobileUserProfile,
   normalizeMobileUserSearchTerm,
   openMobileFriendDM,
@@ -51,6 +52,24 @@ export function getMobileFriendsQueryOptions(client: MobileApiClient, enabled = 
 
 export function useMobileFriendsQuery(client: MobileApiClient, enabled = true) {
   return useQuery(getMobileFriendsQueryOptions(client, enabled));
+}
+
+/**
+ * 1c suggestions. The list is derived from the social graph rather than written
+ * to, so it survives a screen revisit without a refetch; every relationship
+ * write below invalidates it, which is when it can actually change.
+ */
+export function getMobileFriendSuggestionsQueryOptions(client: MobileApiClient, enabled = true) {
+  return queryOptions({
+    enabled,
+    queryFn: () => fetchMobileFriendSuggestions(client),
+    queryKey: mobileQueryKeys.friendSuggestions(),
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useMobileFriendSuggestionsQuery(client: MobileApiClient, enabled = true) {
+  return useQuery(getMobileFriendSuggestionsQueryOptions(client, enabled));
 }
 
 export function getMobileUserSearchQueryOptions(
@@ -113,12 +132,15 @@ function toOptimisticFriend(user: {
   return {
     avatarUrl: user.avatarUrl,
     customStatus: null,
+    // Activity is a server-side join; the refetch fills it in moments later.
+    device: null,
     displayName: user.displayName,
     id: user.id,
     lastSeenAt: null,
     presence: { customStatus: null, status: "OFFLINE" },
     status: "OFFLINE",
     username: user.username,
+    voiceRoom: null,
   };
 }
 
@@ -185,6 +207,9 @@ export function useMobileSocialMutations(client: MobileApiClient) {
     Promise.all([
       queryClient.invalidateQueries({ queryKey: mobileQueryKeys.friends() }),
       queryClient.invalidateQueries({ queryKey: mobileQueryKeys.userProfileRoot() }),
+      // Adding, accepting or blocking someone removes them from the suggestion
+      // pool, so a stale list would keep offering a person already actioned.
+      queryClient.invalidateQueries({ queryKey: mobileQueryKeys.friendSuggestions() }),
     ]);
   const cancelFriendsQuery = () =>
     queryClient.cancelQueries({ queryKey: mobileQueryKeys.friends() });

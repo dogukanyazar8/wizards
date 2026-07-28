@@ -17,6 +17,15 @@ let mockGestureHandlers: {
 
 jest.mock("../src/app/providers/mobile-theme-provider", () => ({
   useTheme: () => mockTheme,
+  // The message body resolves its size through the provider; without a provider
+  // the real hook falls back to the default step, so the mock does the same.
+  useMobileMessageBodyStyle: (surface: "channel" | "dm") => {
+    const {
+      getMobileMessageBodyStyle,
+      MOBILE_DEFAULT_MESSAGE_FONT_SIZE,
+    } = require("../src/design/mobile-message-typography");
+    return getMobileMessageBodyStyle({ size: MOBILE_DEFAULT_MESSAGE_FONT_SIZE, surface });
+  },
   useThemedStyles: (factory: (theme: MobileTheme) => Record<string, object>) => {
     const { StyleSheet } = require("react-native");
     return StyleSheet.create(factory(mockTheme));
@@ -189,9 +198,9 @@ for (const theme of [lightTheme, darkTheme]) {
         </BottomSheet>,
       );
 
-      expect(
-        StyleSheet.flatten(view.getByTestId("exit-sheet-backdrop").props.style),
-      ).toMatchObject({ opacity: 1 });
+      expect(StyleSheet.flatten(view.getByTestId("exit-sheet-backdrop").props.style)).toMatchObject(
+        { opacity: 1 },
+      );
 
       await view.rerender(
         <BottomSheet
@@ -213,9 +222,9 @@ for (const theme of [lightTheme, darkTheme]) {
         { duration: MOBILE_OVERLAY_CLOSE_DURATION_MS, easing: Easing.in(Easing.cubic) },
         expect.any(Function),
       );
-      expect(
-        StyleSheet.flatten(view.getByTestId("exit-sheet-backdrop").props.style),
-      ).toMatchObject({ opacity: 0 });
+      expect(StyleSheet.flatten(view.getByTestId("exit-sheet-backdrop").props.style)).toMatchObject(
+        { opacity: 0 },
+      );
 
       await act(async () => {
         exitCompletions.at(-1)?.(true);
@@ -368,7 +377,12 @@ for (const theme of [lightTheme, darkTheme]) {
           onSelect={onSelect}
           open
           options={[
-            { description: "Anyone on Whispr", icon: "globe-outline", label: "Everyone", value: "EVERYONE" },
+            {
+              description: "Anyone on Whispr",
+              icon: "globe-outline",
+              label: "Everyone",
+              value: "EVERYONE",
+            },
             { icon: "lock-closed-outline", label: "Nobody", tone: "neutral", value: "NOBODY" },
           ]}
           selectedValue="NOBODY"
@@ -380,7 +394,9 @@ for (const theme of [lightTheme, darkTheme]) {
 
       // A content-sized panel never carries a fixed height, which is what kept
       // the old fixed sheets taller than the rows they render.
-      expect(StyleSheet.flatten(view.getByTestId("policy-panel").props.style).height).toBeUndefined();
+      expect(
+        StyleSheet.flatten(view.getByTestId("policy-panel").props.style).height,
+      ).toBeUndefined();
       expect(view.getByTestId("policy-options").props.accessibilityRole).toBe("radiogroup");
       expect(view.getByTestId("policy-NOBODY").props.accessibilityState.checked).toBe(true);
       expect(view.getByTestId("policy-EVERYONE").props.accessibilityState.checked).toBe(false);

@@ -579,6 +579,13 @@ model UserSettings {
   renderEmbeds          Boolean                   @default(true)
   renderReactions       Boolean                   @default(true)
   messageFont           String                    @default("outfit")
+  // Messaging redesign §3: the message body carries its own four-step size
+  // preference so it can be synced across devices. Deliberately separate from
+  // `messageDisplayCompact`, which is the web's compact message layout — these
+  // three only affect the mobile DM/channel message body.
+  messageBodySize             String              @default("medium")
+  messageBodyCompact          Boolean             @default(false)
+  messageBodyFollowSystemFont Boolean             @default(false)
   animateEmoji          Boolean                   @default(true)
   animateStickers       AnimateStickers           @default(INTERACTION)
   enableTTS             Boolean                   @default(true)

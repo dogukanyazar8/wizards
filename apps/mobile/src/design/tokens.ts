@@ -254,6 +254,142 @@ export const mobileLayoutMetrics = {
   },
 } as const;
 
+/**
+ * Messaging redesign shape and layout scale (handoff PROMPT.md §0.5 shapes, §1
+ * layout). Read straight from the reference HTML's inline styles; these are
+ * measured values, not a rounded scale, so they live apart from
+ * `mobileSizing`/`mobileRadii`.
+ */
+export const mobileMessagingMetrics = {
+  /** §0.5 avatar ladder: size + radius pairs, one per surface. */
+  avatar: {
+    channelRow: 34,
+    channelRowRadius: 12,
+    chatHeader: 38,
+    chatHeaderRadius: 13,
+    conversationList: 46,
+    conversationListRadius: 16,
+    dmMessage: 30,
+    dmMessageRadius: 11,
+    friendList: 44,
+    friendListRadius: 15,
+    onlineStrip: 50,
+    onlineStripRadius: 17,
+    threadIndicator: 20,
+    threadIndicatorRadius: 7,
+  },
+  bubble: {
+    /** §1.2: consecutive bubbles inside one group. */
+    gap: 3,
+    /** §1.2: between groups, and the wider value when the group carries chips. */
+    groupGap: 10,
+    groupGapWithReaction: 14,
+    /** §1: an outgoing group has no avatar, so its block indents instead. */
+    outgoingBlockPaddingLeft: 38,
+    paddingBottom: 8,
+    paddingHorizontal: 13,
+    paddingTop: 9,
+    radius: 18,
+    /** §0.5: only the last bubble of a group corners its tail. */
+    tailRadius: 7,
+    maxWidthRatio: 0.76,
+  },
+  channel: {
+    /** §1.2: a continuation message drops the avatar and aligns to 61px. */
+    continuationPaddingBottom: 1,
+    continuationPaddingLeft: 61,
+    continuationPaddingRight: 16,
+    continuationPaddingTop: 1,
+    rowPaddingHorizontal: 16,
+    rowPaddingVertical: 6,
+    /** §2 "1e".5: avatar to body. 16 + 34 + 11 is the 61px continuation inset. */
+    rowGap: 11,
+    /** §2 "1e".4: the flow itself pads vertically; rows own the horizontal inset. */
+    flowPaddingTop: 8,
+    flowPaddingBottom: 6,
+    /** §2 "1e".3 pinned strip. */
+    pinnedStripPaddingHorizontal: 16,
+    pinnedStripPaddingVertical: 8,
+    /** §2 "1e".10 system event line. */
+    systemRowPaddingLeft: 22,
+    systemRowPaddingVertical: 8,
+    /** §2 "1e".12 mention row. */
+    mentionRowPaddingLeft: 13,
+    mentionRowPaddingVertical: 8,
+    mentionRowStripeWidth: 3,
+    /** §2 "1e".13 typing line, aligned to the message body. */
+    typingPaddingTop: 10,
+    typingPaddingBottom: 2,
+    /** §2 "1e".7 link preview card. */
+    linkPreviewMaxWidth: 268,
+    linkPreviewRadius: 14,
+    linkPreviewPaddingHorizontal: 12,
+    linkPreviewPaddingVertical: 9,
+    /** §2 "1e".9 thread indicator block. */
+    threadIndicatorRadius: 12,
+    threadIndicatorGap: 8,
+    threadIndicatorFaceOverlap: -7,
+    threadIndicatorFaceBorderWidth: 1.5,
+    /** §0.4 BOT badge. */
+    botBadgeRadius: 5,
+    botBadgePaddingHorizontal: 5,
+    botBadgePaddingVertical: 2,
+  },
+  composer: {
+    actionSize: 42,
+    actionRadius: 15,
+    fieldHeight: 42,
+    fieldRadius: 16,
+    plusSize: 40,
+    plusRadius: 14,
+  },
+  /** §0.5: 13px on list rows (2.5px ring), 12px on the 38/44px avatars. */
+  presenceDot: {
+    listSize: 13,
+    listRingWidth: 2.5,
+    avatarSize: 12,
+    avatarRingWidth: 2.5,
+  },
+  iconButton: 38,
+  iconButtonRadius: 13,
+  headerFab: 40,
+  headerFabRadius: 14,
+  /** §1.4: DM chips ride the bubble edge; channel chips sit under the body. */
+  reactionChip: {
+    channelHeight: 26,
+    channelMarginTop: 4,
+    channelRadius: 13,
+    dmHeight: 25,
+    dmMarginLeft: 10,
+    dmMarginTop: -9,
+    dmRadius: 13,
+    gap: 5,
+    paddingHorizontal: 8,
+  },
+  /** §0.5: the three list surfaces start their hairline at different insets. */
+  listHairlineInset: {
+    conversations: 79,
+    friends: 76,
+    requests: 78,
+  },
+  searchPillHeight: 42,
+  searchPillRadius: 14,
+  segment: {
+    gap: 3,
+    itemHeight: 36,
+    itemRadius: 11,
+    trackPadding: 3,
+    trackRadius: 14,
+  },
+  settings: {
+    cardPadding: 14,
+    cardRadius: 24,
+    dividerInset: 69,
+    rowPaddingHorizontal: 16,
+    rowPaddingVertical: 14,
+  },
+} as const;
+
 export const mobileTypography = {
   fontFamily: "WhisprJakarta_400Regular",
   fontFamilyBold: "WhisprJakarta_700Bold",

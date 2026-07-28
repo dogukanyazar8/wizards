@@ -11,7 +11,8 @@ import {
   MessageActionMenu,
   type MessageActionMenuProps,
 } from "../src/app/components/message-action-menu";
-import { lightTheme } from "../src/design/themes";
+import { createMessageActionMenuStyles } from "../src/app/components/message-action-menu.styles";
+import { darkTheme, lightTheme } from "../src/design/themes";
 import { activeMobileCopy as copy } from "../src/locale/mobile-locale-preferences";
 import { renderWithMobileTheme as render } from "./render-with-mobile-theme";
 
@@ -54,7 +55,8 @@ async function openMenu(view: Awaited<ReturnType<typeof renderMenu>>) {
 
 describe("8a message action menu", () => {
   it("renders the redesigned quick reaction set, highlights own reaction, and toggles it off", async () => {
-    expect(MOBILE_MESSAGE_REACTION_EMOJIS).toEqual(["👍", "❤️", "😂", "😮", "😢", "🙏"]);
+    // §2 "1g".2: five emoji, in this order.
+    expect(MOBILE_MESSAGE_REACTION_EMOJIS).toEqual(["👍", "❤️", "😂", "😮", "🙏"]);
 
     const onToggleReaction = jest.fn();
     const view = await renderMenu({ onToggleReaction });
@@ -191,15 +193,16 @@ describe("8a message action menu", () => {
     expect(mockBottomSystemSpacing).toHaveBeenCalledWith(0);
     expect(
       StyleSheet.flatten(threeButton.getByTestId(`${TEST_ID}-menu`).props.style),
-    ).toMatchObject({ paddingBottom: 48 });
+      // §2 "1g".2 ends the stack 14px above the edge; the nav bar adds to that.
+    ).toMatchObject({ paddingBottom: 62 });
 
     mockBottomSystemSpacing.mockReturnValue(0);
     const gesture = await renderMenu({ onToggleReaction: jest.fn() });
     await openMenu(gesture);
 
-    expect(
-      StyleSheet.flatten(gesture.getByTestId(`${TEST_ID}-menu`).props.style),
-    ).toMatchObject({ paddingBottom: 0 });
+    expect(StyleSheet.flatten(gesture.getByTestId(`${TEST_ID}-menu`).props.style)).toMatchObject({
+      paddingBottom: 14,
+    });
   });
 
   it("shrinks and fades the menu out on the shared overlay timing before unmounting", async () => {
@@ -219,9 +222,10 @@ describe("8a message action menu", () => {
     await openMenu(view);
     await fireEvent.press(view.getByTestId(`${TEST_ID}-backdrop`));
 
-    // The card is still on screen, running the exit animation.
-    const menu = view.getByTestId(`${TEST_ID}-menu`);
-    expect(StyleSheet.flatten(menu.props.style)).toMatchObject({ opacity: 0 });
+    // The card is still on screen, running the exit animation. The layers carry
+    // it — §2 "1g".2 keeps the message itself out of any transform.
+    const card = view.getByTestId(`${TEST_ID}-options`);
+    expect(StyleSheet.flatten(card.props.style)).toMatchObject({ opacity: 0 });
     expect(withTiming).toHaveBeenCalledWith(
       0,
       { duration: MOBILE_OVERLAY_CLOSE_DURATION_MS, easing: Easing.in(Easing.cubic) },
@@ -241,6 +245,138 @@ describe("8a message action menu", () => {
       completion?.(true);
       return value;
     }) as never);
+  });
+
+  it("keeps the handoff's row order, weights and left-hand glyphs", async () => {
+    const view = await renderMenu({
+      canModerate: true,
+      onDelete: jest.fn(),
+      onForward: jest.fn(),
+      onPin: jest.fn(),
+      onReply: jest.fn(),
+      onStartThread: jest.fn(),
+      own: true,
+      onEdit: undefined,
+    });
+    await openMenu(view);
+
+    const card = view.getByTestId(`${TEST_ID}-options`);
+    const rowIds = card.children
+      .map((child) =>
+        typeof child === "object" && child !== null && "props" in child
+          ? String((child.props as { testID?: string }).testID ?? "")
+          : "",
+      )
+      .filter((id) => id.startsWith(`${TEST_ID}-action-`))
+      .map((id) => id.replace(`${TEST_ID}-action-`, ""));
+
+    // §2 "1g".3: reply, thread, forward, copy, pin — then the rule, then delete.
+    expect(rowIds).toEqual(["reply", "start-thread", "forward", "copy", "pin", "delete"]);
+
+    const styles = createMessageActionMenuStyles(lightTheme);
+    expect(styles.actionCard).toMatchObject({ borderRadius: 20, padding: 5, width: 238 });
+    expect(styles.actionRow).toMatchObject({
+      gap: 11,
+      borderRadius: 15,
+      paddingHorizontal: 11,
+      paddingVertical: 10,
+    });
+    expect(styles.actionLabel).toMatchObject({
+      fontFamily: lightTheme.typography.fontFamilySemiBold,
+      fontSize: 13.5,
+    });
+    expect(styles.actionLabelPrimary).toMatchObject({
+      fontFamily: lightTheme.typography.fontFamilyBold,
+    });
+    expect(styles.actionLabelDestructive).toMatchObject({
+      color: lightTheme.messaging.danger,
+      fontFamily: lightTheme.typography.fontFamilyBold,
+    });
+
+    // The glyph is the first child of its row, the label the second.
+    const replyRow = view.getByTestId(`${TEST_ID}-action-reply`);
+    const [glyph, label] = replyRow.children as { type?: unknown }[];
+    expect(String((glyph as { type?: { toString(): string } }).type)).not.toContain("Text");
+    expect(String((label as { type?: { toString(): string } }).type)).toContain("Text");
+  });
+
+  it("puts delete under the separator and nowhere else", async () => {
+    const view = await renderMenu({ onDelete: jest.fn(), onReply: jest.fn(), own: true });
+    await openMenu(view);
+
+    const card = view.getByTestId(`${TEST_ID}-options`);
+    const ids = card.children.map((child) =>
+      typeof child === "object" && child !== null && "props" in child
+        ? String((child.props as { testID?: string }).testID ?? "separator")
+        : "separator",
+    );
+
+    expect(ids.at(-1)).toBe(`${TEST_ID}-action-delete`);
+    expect(ids.at(-2)).toBe("separator");
+  });
+
+  it.each([
+    ["light", lightTheme],
+    ["dark", darkTheme],
+  ] as const)("draws the %s reaction strip at the handoff's own size", (_scheme, theme) => {
+    const styles = createMessageActionMenuStyles(theme);
+
+    expect(styles.quickBar).toMatchObject({
+      backgroundColor: theme.messaging.surface,
+      borderRadius: 24,
+      gap: 1,
+      paddingHorizontal: 7,
+      paddingVertical: 5,
+    });
+    expect(styles.quickEmojiButton).toMatchObject({ borderRadius: 20, height: 40, width: 40 });
+    expect(styles.quickEmojiText).toMatchObject({ fontSize: 21 });
+    expect(styles.quickEmojiButtonActive).toMatchObject({
+      backgroundColor: theme.messaging.accentSoft,
+    });
+    expect(styles.moreEmojiButton).toMatchObject({
+      backgroundColor: theme.messaging.field,
+      borderRadius: 19,
+      height: 38,
+      width: 38,
+    });
+    // §2 "1g".1: `rgba(20,23,42,.45)` and a 3px blur over the live conversation.
+    expect(styles.backdrop).toMatchObject({ backgroundColor: theme.messaging.menuScrim });
+  });
+
+  it("never moves or scales the selected message", async () => {
+    const view = await renderMenu({ onToggleReaction: jest.fn() });
+    await openMenu(view);
+
+    const preview = StyleSheet.flatten(
+      view.getByTestId(`${TEST_ID}-preview`).props.style,
+    ) as Record<string, unknown>;
+
+    // §2 "1g".2: the message earns a shadow and nothing else. The strip and the
+    // action card are the only layers allowed a transform.
+    expect(preview.transform).toBeUndefined();
+    expect(preview.scale).toBeUndefined();
+    expect(
+      (
+        StyleSheet.flatten(view.getByTestId(`${TEST_ID}-options`).props.style) as {
+          transform?: unknown;
+        }
+      ).transform,
+    ).toBeDefined();
+    expect(createMessageActionMenuStyles(lightTheme).previewBubble).toMatchObject({
+      ...lightTheme.elevation.selectedBubble,
+    });
+  });
+
+  it("blurs the conversation behind the scrim instead of hiding it", async () => {
+    const view = await renderMenu({ onToggleReaction: jest.fn() });
+    await openMenu(view);
+
+    // The trigger row is still mounted underneath: §2 "1g".1 wants the real
+    // conversation behind the scrim, not a frozen copy or an empty ground. It
+    // is only hidden from the screen reader, which is what modality means.
+    expect(view.getByTestId(`${TEST_ID}-trigger`, { includeHiddenElements: true })).toBeTruthy();
+    expect(view.getByText("mesaj satırı", { includeHiddenElements: true })).toBeTruthy();
+    expect(view.queryByTestId(`${TEST_ID}-trigger`)).toBeNull();
   });
 
   it("closes from the backdrop without firing any action", async () => {

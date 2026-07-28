@@ -19,6 +19,11 @@ import {
 } from "../src/account/mobile-account-settings-query";
 
 const accountSettings = {
+  appearance: {
+    messageCompact: false,
+    messageFollowSystemFont: false,
+    messageFontSize: "medium" as const,
+  },
   account: {
     bannerColor: null,
     bannerOffsetX: null,
@@ -141,5 +146,34 @@ describe("mobile account settings client", () => {
       }),
       60,
     );
+  });
+
+  it("keeps parsing a settings payload from a server without the appearance block", async () => {
+    const { appearance: _appearance, ...withoutAppearance } = accountSettings;
+    const parsed = await fetchMobileAccountSettings(client(() => withoutAppearance));
+
+    assert.deepEqual(parsed.appearance, {
+      messageCompact: false,
+      messageFollowSystemFont: false,
+      messageFontSize: "medium",
+    });
+  });
+
+  it("sends an appearance-only PATCH without a privacy field", async () => {
+    const calls: Array<[string, unknown]> = [];
+    await updateMobileAccountSettings(
+      client((path, options) => {
+        calls.push([path, options]);
+        return accountSettings;
+      }),
+      { messageCompact: true, messageFontSize: "large" },
+    );
+
+    assert.deepEqual(calls, [
+      [
+        "/api/v1/mobile/account/settings",
+        { body: { messageCompact: true, messageFontSize: "large" }, method: "PATCH" },
+      ],
+    ]);
   });
 });

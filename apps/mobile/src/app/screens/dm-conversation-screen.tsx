@@ -110,6 +110,8 @@ export function DMConversationScreen({
   onToggleMessageReaction(input: { emoji: string; messageId: string; shouldReact: boolean }): void;
 }) {
   const styles = useDMChatStyles();
+  // §2 "1g".1: the header dims behind an open long-press menu, nothing else does.
+  const [isActionMenuOpen, setActionMenuOpen] = useState(false);
   const title =
     state.payload?.conversation.name ??
     getMobileConversationTitle(conversation, copy.directMessageFallback, currentUserId);
@@ -133,6 +135,8 @@ export function DMConversationScreen({
       <View style={styles.root} testID="mobile-dm-chat-screen">
         <DMChatHeader
           avatarUrl={avatarUrl}
+          // §2 "1g".1: the header dims to .5 behind the menu; the composer does not.
+          dimmed={isActionMenuOpen}
           isOnline={isOnline}
           lastSeenAt={resolvedLastSeenAt}
           onBack={onBack}
@@ -155,6 +159,7 @@ export function DMConversationScreen({
           onClearSelectedMediaAsset={onClearSelectedMediaAsset}
           onDeleteMessage={onDeleteMessage}
           onDiscardMessage={onDiscardMessage}
+          onMenuOpenChange={setActionMenuOpen}
           onDraftChange={onDraftChange}
           onEditMessage={onEditMessage}
           {...(onForwardMessage ? { onForwardMessage } : {})}
@@ -206,6 +211,7 @@ export function DMConversationPreviewCard({
   onEditMessage,
   onForwardMessage,
   onLoadMoreMessages,
+  onMenuOpenChange,
   onOpenThread,
   onRequestDocumentPicker,
   onRequestPhotoLibraryPicker,
@@ -232,6 +238,8 @@ export function DMConversationPreviewCard({
   onEditMessage(input: { content: string; messageId: string }): Promise<boolean>;
   onForwardMessage?(input: MobileForwardSendInput): Promise<boolean>;
   onLoadMoreMessages?: () => void;
+  /** §2 "1g".1: raised while a long-press menu is up, so the header can dim. */
+  onMenuOpenChange?(open: boolean): void;
   onOpenThread?(messageId: string): void;
   onRequestDocumentPicker(): Promise<void>;
   onRequestPhotoLibraryPicker(): Promise<void>;
@@ -325,6 +333,7 @@ export function DMConversationPreviewCard({
           onEditMessage={handleEditMessage}
           {...(onForwardMessage ? { onForwardMessage: handleRequestForward } : {})}
           {...(onLoadMoreMessages ? { onLoadMore: onLoadMoreMessages } : {})}
+          {...(onMenuOpenChange ? { onMenuOpenChange } : {})}
           {...(onOpenThread ? { onOpenThread } : {})}
           onReplyMessage={handleReplyMessage}
           onRetryFailedMessage={onRetryMessage}

@@ -282,6 +282,194 @@ export const redesignAppearancePreview = {
   railSurface: "#EDEEF6",
 } as const;
 
+/**
+ * Messaging redesign (handoff `Whispr Mesajlaşma Redesign.dc.html`, PROMPT.md
+ * §0.1 light / §0.2 dark). Like the toast and the voice room, messaging pins its
+ * own surface stack: the dark screen is `#12141F` with `#1B1E2C` chrome and
+ * `#1E2235` bubbles, none of which is the app's own `#131529`/`#1C1F3A` pair, so
+ * the two tables stay literal and the global light/dark palette is untouched.
+ *
+ * §0.2 is shorter than §0.1. Every key it does not name is derived from a stated
+ * rule, never guessed:
+ *
+ * R1 — SEPARATORS COLLAPSE. §0.2 gives a single edge token
+ *      (`rgba(255,255,255,.07)`); light's three separator tones (`cardBorder`,
+ *      `divider`, `hairline`) and the field/chip fill all take it on dark.
+ * R2 — THE WHITE-ALPHA LADDER. §0.2 spaces its foreground stops .10 apart
+ *      (secondary .55, meta .45). `textTertiary` is the emphasis step above
+ *      secondary, so it takes .65; `listTime` and `bubbleMeta` are both the
+ *      weakest metadata stop, so both take .45. The 1h day-divider literal
+ *      (.42) also carries `groupLabel` and `systemEventText`.
+ * R3 — SATURATED STATUS MARKS DO NOT MOVE. §0.2 keeps `#22C55E` and `#4F46E5`
+ *      unchanged on dark, so `online`, `idle` and `accent` keep their §0.1
+ *      values. Accent *foregrounds* take the §0.2 lifted tone `#A5A8FF`
+ *      (`accentText`), green foregrounds take `#4ADE80`, danger foregrounds
+ *      take `#FF7A88`.
+ * R4 — TINTS BECOME WASHES. §0.2 builds tinted surfaces as the hue over the
+ *      screen at an alpha (`rgba(220,78,95,.16)`), not as an opaque mix. Light's
+ *      accent/status washes follow: a full-width row wash uses .12, a
+ *      pill/chip-scale wash .30, a status tile .16 — the same two-step
+ *      relationship light's `#F7F6FF` (row) and `#E7E6FD` (pill) have against
+ *      the `#F6F7FB` screen.
+ * R5 — AVATARS DROP THE HUE FROM THE SURFACE. §0.2 turns the light indigo pair
+ *      `#EEF0FE`/`#4F46E5` into `#2A2F45`/`#A5A8FF`: one slate surface, hue kept
+ *      only in the foreground. All five dark surfaces are therefore `#2A2F45`,
+ *      and each foreground is its light hue held at saturation 100% / lightness
+ *      82% — the transform that takes `#4F46E5` to `#A5A8FF`. The neutral tint
+ *      has no hue to saturate (S < 40%), so it keeps its own saturation.
+ * R6 — NEUTRAL CONTROL FILLS RANK BY DISTANCE FROM THE SCREEN. On light the
+ *      three control neutrals sit at different distances from `#F6F7FB`:
+ *      `sliderStop` (#C9CDE3) furthest, `toggleOff` (#D9DCEC) next,
+ *      `sliderTrack` (#EDEEF6) closest. On dark that ranking becomes white over
+ *      `#12141F` at .28 / .18 / .10, with the thumb hairline at .12.
+ * R7 — SEGMENT TRACK KEEPS ITS DIRECTION. Light stacks track `#ECEEF7` below the
+ *      active white card; dark keeps the same one-step lift by putting the track
+ *      on `surface` (`#1B1E2C`) under the `bubbleIn` (`#1E2235`) active card.
+ */
+export const redesignMessagingLight = {
+  accent: "#4F46E5",
+  accentSoft: "#EEF0FE",
+  /** Accent used as a glyph/label rather than a fill; lifts on dark (R3). */
+  accentText: "#4F46E5",
+  avatarTintGoldBg: "#FEF0E8",
+  avatarTintGoldFg: "#C77A2B",
+  avatarTintGreenBg: "#E9F9EF",
+  avatarTintGreenFg: "#1B8A55",
+  avatarTintIndigoBg: "#EEF0FE",
+  avatarTintIndigoFg: "#4F46E5",
+  avatarTintNeutralBg: "#F0F1F8",
+  avatarTintNeutralFg: "#8A90B0",
+  avatarTintVioletBg: "#F3EEFE",
+  avatarTintVioletFg: "#8B5CF6",
+  bubbleIn: "#FFFFFF",
+  bubbleInText: "#1E2235",
+  bubbleMeta: "#9AA0BC",
+  bubbleOut: "#4F46E5",
+  /** `--out-soft`: a control (voice play button) inside an outgoing bubble. */
+  bubbleOutControl: "rgba(255,255,255,.16)",
+  /** `--out-meta` in the handoff: the clock inside an outgoing bubble. */
+  bubbleOutMeta: "rgba(255,255,255,.68)",
+  /** §1.3: the reply quote's rule and name inside an outgoing bubble. */
+  bubbleOutQuote: "rgba(255,255,255,.78)",
+  bubbleOutText: "#FFFFFF",
+  cardBorder: "#E7E9F4",
+  danger: "#DC4E5F",
+  dangerSurface: "#FCE9E9",
+  divider: "#EDEEF6",
+  field: "#F1F2F9",
+  groupLabel: "#8A90B0",
+  hairline: "#E9EBF4",
+  idle: "#F5B23D",
+  /** §2 "1e".7: the link rule is the accent at 35%, not the accent itself. */
+  linkUnderline: "rgba(79,70,229,.35)",
+  listTime: "#767CA0",
+  mentionPill: "#E7E6FD",
+  mentionRow: "#F7F6FF",
+  /** §2 "1g".1: the long-press scrim, blurred 3px over the live conversation. */
+  menuScrim: "rgba(20,23,42,.45)",
+  newDivider: "#F6D5DB",
+  online: "#22C55E",
+  onlineSurface: "#E9F9EF",
+  onlineText: "#1B8A55",
+  reactionMineRing: "#C9CCFB",
+  reactionMineSurface: "#EEF0FE",
+  reactionMineText: "#4F46E5",
+  /** DM chips sit on white; channel chips use `field` (§1.4). */
+  reactionOtherSurface: "#FFFFFF",
+  reactionOtherText: "#6B7194",
+  recordDeleteIcon: "#DC4E5F",
+  recordDeleteSurface: "#FCE9E9",
+  recordDot: "#DC4E5F",
+  replyQuoteName: "#4F46E5",
+  replyQuoteRule: "#4F46E5",
+  replyQuoteText: "#8A90B0",
+  screen: "#F6F7FB",
+  segmentTrack: "#ECEEF7",
+  sliderStop: "#C9CDE3",
+  sliderThumbBorder: "#E1E3F0",
+  sliderTrack: "#EDEEF6",
+  surface: "#FFFFFF",
+  systemEventIcon: "#22A366",
+  systemEventText: "#8A90B0",
+  textPrimary: "#1E2235",
+  textSecondary: "#6B7194",
+  textTertiary: "#3A3F5C",
+  tickRead: "#4F46E5",
+  tickSent: "#B4B9CF",
+  toggleOff: "#D9DCEC",
+  /** §1.7: the three dots inside an incoming typing bubble. */
+  typingDot: "#B9BED4",
+} as const;
+
+export const redesignMessagingDark = {
+  accent: "#4F46E5",
+  accentSoft: "#2A2F45",
+  accentText: "#A5A8FF",
+  avatarTintGoldBg: "#2A2F45",
+  avatarTintGoldFg: "#FFD1A3",
+  avatarTintGreenBg: "#2A2F45",
+  avatarTintGreenFg: "#A3FFD3",
+  avatarTintIndigoBg: "#2A2F45",
+  avatarTintIndigoFg: "#A5A8FF",
+  avatarTintNeutralBg: "#2A2F45",
+  avatarTintNeutralFg: "#C9CCD9",
+  avatarTintVioletBg: "#2A2F45",
+  avatarTintVioletFg: "#BFA3FF",
+  bubbleIn: "#1E2235",
+  bubbleInText: "#F2F3FA",
+  bubbleMeta: "rgba(255,255,255,.45)",
+  bubbleOut: "#4F46E5",
+  bubbleOutControl: "rgba(255,255,255,.18)",
+  bubbleOutMeta: "rgba(255,255,255,.7)",
+  bubbleOutQuote: "rgba(255,255,255,.78)",
+  bubbleOutText: "#FFFFFF",
+  cardBorder: "rgba(255,255,255,.07)",
+  danger: "#FF7A88",
+  dangerSurface: "rgba(220,78,95,.16)",
+  divider: "rgba(255,255,255,.07)",
+  field: "rgba(255,255,255,.07)",
+  groupLabel: "rgba(255,255,255,.42)",
+  hairline: "rgba(255,255,255,.07)",
+  idle: "#F5B23D",
+  /** R3: the glyph accent lifts on dark, so its 35% rule lifts with it. */
+  linkUnderline: "rgba(165,168,255,.35)",
+  listTime: "rgba(255,255,255,.45)",
+  mentionPill: "rgba(79,70,229,.30)",
+  mentionRow: "rgba(79,70,229,.12)",
+  /** R6: an ink scrim reads the same on both themes; the blur carries the depth. */
+  menuScrim: "rgba(20,23,42,.45)",
+  newDivider: "rgba(220,78,95,.30)",
+  online: "#22C55E",
+  onlineSurface: "rgba(34,197,94,.16)",
+  onlineText: "#4ADE80",
+  reactionMineRing: "#4F46E5",
+  reactionMineSurface: "#2E2C63",
+  reactionMineText: "#C3C0FF",
+  reactionOtherSurface: "#242838",
+  reactionOtherText: "rgba(255,255,255,.6)",
+  recordDeleteIcon: "#FF7A88",
+  recordDeleteSurface: "rgba(220,78,95,.16)",
+  recordDot: "#FF5A6A",
+  replyQuoteName: "#A5A8FF",
+  replyQuoteRule: "#7C74FF",
+  replyQuoteText: "rgba(255,255,255,.5)",
+  screen: "#12141F",
+  segmentTrack: "#1B1E2C",
+  sliderStop: "rgba(255,255,255,.28)",
+  sliderThumbBorder: "rgba(255,255,255,.12)",
+  sliderTrack: "rgba(255,255,255,.10)",
+  surface: "#1B1E2C",
+  systemEventIcon: "#4ADE80",
+  systemEventText: "rgba(255,255,255,.42)",
+  textPrimary: "#F2F3FA",
+  textSecondary: "rgba(255,255,255,.55)",
+  textTertiary: "rgba(255,255,255,.65)",
+  tickRead: "#A5A8FF",
+  tickSent: "rgba(255,255,255,.42)",
+  toggleOff: "rgba(255,255,255,.18)",
+  typingDot: "rgba(255,255,255,.35)",
+} as const;
+
 export const redesignDark = {
   bg: "#131529",
   card: "#1C1F3A",

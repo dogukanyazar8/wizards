@@ -3,6 +3,10 @@ import type { MobileChannelMessagesResponse, MobileDMMessagesResponse } from "@w
 import type { MobileApiClient } from "../api/mobile-api-client";
 import { fetchMobileDMMessages } from "../dm/mobile-dm-client";
 import {
+  getVisibleMobileChannelTypingUsers,
+  type MobileChannelTypingState,
+} from "../realtime/mobile-typing-state";
+import {
   fetchMobileChannelMessages,
   fetchMobileChannelPinnedMessages,
 } from "../workspace/mobile-workspace-client";
@@ -48,6 +52,37 @@ export function getMobileDMMessagesQueryOptions(client: MobileApiClient, convers
 
 export function useMobileDMMessagesQuery(client: MobileApiClient, conversationId: string) {
   return useInfiniteQuery(getMobileDMMessagesQueryOptions(client, conversationId));
+}
+
+/**
+ * 1a's "yazıyor" row, one entry per conversation.
+ *
+ * The realtime provider already keeps `dmTyping` keyed by conversation id and
+ * fills it from `dm:typing:update` regardless of which chat is open, so the list
+ * needs no second subscription — only this projection, which drops entries whose
+ * TTL has lapsed so a row cannot get stuck mid-sentence.
+ *
+ * Conversations with nobody typing are absent rather than present-and-empty, so
+ * a row can test membership directly.
+ */
+export type MobileDMConversationTypingMap = Readonly<Record<string, readonly string[]>>;
+
+export function getMobileDMConversationTypingMap(
+  state: MobileChannelTypingState,
+  now = Date.now(),
+): MobileDMConversationTypingMap {
+  const map: Record<string, readonly string[]> = {};
+
+  for (const conversationId of Object.keys(state)) {
+    const names = getVisibleMobileChannelTypingUsers(state, conversationId, now).map(
+      (user) => user.name,
+    );
+    if (names.length > 0) {
+      map[conversationId] = names;
+    }
+  }
+
+  return map;
 }
 
 /** 8c pinned-message banner and pins sheet for the active text channel. */

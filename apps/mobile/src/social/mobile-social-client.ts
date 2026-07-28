@@ -1,8 +1,10 @@
 import {
+  MOBILE_FRIEND_SUGGESTION_LIMIT,
   MOBILE_USER_SEARCH_LIMIT,
   MobileFriendBlockResponseSchema,
   MobileFriendMutationResponseSchema,
   MobileFriendRequestActionResponseSchema,
+  MobileFriendSuggestionsResponseSchema,
   MobileDMCreateResponseSchema,
   MobileFriendsOverviewResponseSchema,
   MobilePresenceResponseSchema,
@@ -16,6 +18,7 @@ import {
   type MobileUserReportReason,
   type MobileFriendsOverviewResponse,
   type MobileFriendPresenceStatus,
+  type MobileFriendSuggestion,
   type MobileProfileResponse,
   type MobileProfileUpdate,
   type MobileUserSearchResponse,
@@ -30,10 +33,12 @@ export type MobileFriendRequest = MobileFriendsOverview["pending"]["incoming"][n
 export type {
   MobileFriendPresenceStatus,
   MobileFriendRelationship,
+  MobileFriendSuggestion,
   MobileUserProfile,
   MobileUserReportReason,
   MobileUserSearchResult,
 };
+export { MOBILE_FRIEND_SUGGESTION_LIMIT };
 export type MobileProfile = MobileProfileResponse["user"];
 export type { MobileProfileUpdate };
 export type MobileProfileBadgeName = MobileUserProfile["badges"][number];
@@ -55,6 +60,21 @@ function encodeId(value: string) {
 export async function fetchMobileFriends(client: MobileApiClient) {
   return MobileFriendsOverviewResponseSchema.parse(
     await client.requestJson("/api/v1/mobile/friends"),
+  );
+}
+
+/**
+ * 1c "TANIYOR OLABİLİRSİN". The server does the excluding — friends, pending
+ * requests, blocks and anyone whose privacy settings would reject the viewer
+ * never reach this list — so the screen renders whatever comes back.
+ */
+export async function fetchMobileFriendSuggestions(
+  client: MobileApiClient,
+  limit: number = MOBILE_FRIEND_SUGGESTION_LIMIT,
+) {
+  const params = new URLSearchParams({ limit: String(limit) });
+  return MobileFriendSuggestionsResponseSchema.parse(
+    await client.requestJson(`/api/v1/mobile/friends/suggestions?${params.toString()}`),
   );
 }
 

@@ -2,6 +2,7 @@ export const MOBILE_LINE_ICON_NAMES = [
   "activity",
   "alert-circle",
   "alert-triangle",
+  "arrow-down-tray",
   "arrow-up",
   "audit-log",
   "back-arrow",
@@ -17,11 +18,14 @@ export const MOBILE_LINE_ICON_NAMES = [
   "chevron-right",
   "clock",
   "close",
+  "copy",
   "dots-vertical",
   "edit",
   "emoji",
   "external-link",
+  "enter",
   "face-bad",
+  "forward-arrow",
   "face-good",
   "face-great",
   "face-okay",
@@ -29,6 +33,7 @@ export const MOBILE_LINE_ICON_NAMES = [
   "globe",
   "flag",
   "grip",
+  "hash",
   "headphones",
   "image",
   "info",
@@ -45,6 +50,8 @@ export const MOBILE_LINE_ICON_NAMES = [
   "moon",
   "person-plus",
   "phone",
+  "pin",
+  "reply-arrow",
   "play-circle",
   "plus",
   "profile",
@@ -52,11 +59,17 @@ export const MOBILE_LINE_ICON_NAMES = [
   "roadmap-feedback",
   "search",
   "send",
+  "send-plane",
   "servers",
+  "thread-start",
   "settings",
   "shield",
   "speaker",
+  "pause-glyph",
+  "play-glyph",
   "star",
+  "tick-double",
+  "tick-single",
   "trash",
   "video",
 ] as const;
@@ -198,6 +211,82 @@ export const MOBILE_LINE_ICON_DEFINITIONS = {
     strokeLinecap: "round",
     strokeLinejoin: "round",
     children: [{ type: "path", d: "M4 14c5-4 11-4 16 0M4 14l2 3 3-2M20 14l-2 3-3-2" }],
+  },
+  // MSG-1g action menu. Each glyph is the handoff path, drawn at 17px on the
+  // left of its row.
+  "reply-arrow": {
+    mode: "stroke",
+    defaultStrokeWidth: 2,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    children: [
+      { type: "path", d: "M9 14L4 9l5-5" },
+      { type: "path", d: "M4 9h10a6 6 0 0 1 6 6v4" },
+    ],
+  },
+  "thread-start": {
+    mode: "stroke",
+    defaultStrokeWidth: 2,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    children: [
+      { type: "path", d: "M4 5h16M4 10h16M4 15h9" },
+      { type: "path", d: "M16 15l3 3-3 3" },
+    ],
+  },
+  "forward-arrow": {
+    mode: "stroke",
+    defaultStrokeWidth: 2,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    children: [
+      { type: "path", d: "M15 14l5-5-5-5" },
+      { type: "path", d: "M20 9H10a6 6 0 0 0-6 6v4" },
+    ],
+  },
+  copy: {
+    mode: "stroke",
+    defaultStrokeWidth: 2,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    children: [
+      { type: "rect", x: 9, y: 9, width: 11, height: 11, rx: 3 },
+      { type: "path", d: "M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" },
+    ],
+  },
+  /** MSG-1g/1h composer send glyph — the handoff's own plane, not the fill one. */
+  "send-plane": {
+    mode: "stroke",
+    defaultStrokeWidth: 2.1,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    children: [{ type: "path", d: "M4.5 12l15.5-8-6 8 6 8z" }],
+  },
+  /** MSG-1e system event: the arrow entering (or, mirrored, leaving) the door. */
+  enter: {
+    mode: "stroke",
+    defaultStrokeWidth: 2.2,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    children: [
+      { type: "path", d: "M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4" },
+      { type: "path", d: "M10 8l4 4-4 4M14 12H4" },
+    ],
+  },
+  /** MSG-1e channel glyph: two slanted uprights, two rules. */
+  hash: {
+    mode: "stroke",
+    defaultStrokeWidth: 2.3,
+    strokeLinecap: "round",
+    children: [{ type: "path", d: "M5 9h14M4 15h14M10 4l-2 16M17 4l-2 16" }],
+  },
+  /** MSG-1e pinned strip. */
+  pin: {
+    mode: "stroke",
+    defaultStrokeWidth: 2.1,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    children: [{ type: "path", d: "M12 17v5M7.5 4h9l-1.4 7 2.4 2.5H6.5L9 11z" }],
   },
   mic: {
     mode: "stroke",
@@ -531,6 +620,48 @@ export const MOBILE_LINE_ICON_DEFINITIONS = {
     strokeLinejoin: "round",
     children: [
       { type: "path", d: "M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6.5 7l1 13h9l1-13" },
+    ],
+  },
+  /** §1.6: download affordance on the message file card. */
+  "arrow-down-tray": {
+    mode: "stroke",
+    defaultStrokeWidth: 2.1,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    children: [{ type: "path", d: "M12 4v11M7.5 11l4.5 4.5L16.5 11M5 20h14" }],
+  },
+  /**
+   * §1.5 voice-message transport. Filled, not stroked: the handoff draws the
+   * play control as a solid 13px triangle inside the round button.
+   */
+  "play-glyph": {
+    mode: "fill",
+    children: [{ type: "path", d: "M7 4.5l12 7.5-12 7.5z" }],
+  },
+  "pause-glyph": {
+    mode: "fill",
+    children: [{ type: "path", d: "M7.5 4.5h3.5v15H7.5zM13 4.5h3.5v15H13z" }],
+  },
+  /**
+   * Messaging delivery receipts (handoff §1.8). Both paths are read straight
+   * from the reference HTML; the single tick is the same first stroke, so "sent"
+   * and "read" share one glyph geometry instead of two different check marks.
+   */
+  "tick-single": {
+    mode: "stroke",
+    defaultStrokeWidth: 2.6,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    children: [{ type: "path", d: "M2 12.5l4.2 4.2L14 9" }],
+  },
+  "tick-double": {
+    mode: "stroke",
+    defaultStrokeWidth: 2.6,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    children: [
+      { type: "path", d: "M2 12.5l4.2 4.2L14 9" },
+      { type: "path", d: "M10.6 15l2 1.7L20.6 9" },
     ],
   },
   /** Three-quarter arc; the toast spins the whole glyph rather than animating a dash. */

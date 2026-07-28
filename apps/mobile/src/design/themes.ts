@@ -7,6 +7,8 @@ import {
   redesignDark,
   redesignLight,
   redesignLightbox,
+  redesignMessagingDark,
+  redesignMessagingLight,
   redesignProfileDark,
   redesignProfileLight,
   redesignToastDark,
@@ -34,6 +36,17 @@ export type MobileThemeId = "dark" | "light";
  */
 const MOBILE_IMAGE_SCRIM_SURFACE = "rgba(14,16,26,.62)";
 const MOBILE_IMAGE_SCRIM_BORDER = "rgba(255,255,255,.26)";
+
+/** Ink behind the messaging long-press layer: `rgba(20,23,42,.xx)` in §0.3. */
+const MESSAGING_OVERLAY_SHADOW = "#14172A";
+/** Flat elevation: dark drops every raised-surface shadow (§0.3, verified in 1h). */
+const MESSAGING_FLAT_ELEVATION = {
+  elevation: 0,
+  shadowColor: "#000000",
+  shadowOffset: { height: 0, width: 0 },
+  shadowOpacity: 0,
+  shadowRadius: 0,
+} as const;
 
 export interface MobileThemeElevationStyle {
   readonly elevation: number;
@@ -130,6 +143,16 @@ function createToastVariantPalettes(
 }
 
 export type MobileAvatarTints = readonly [MobileAvatarTint, ...MobileAvatarTint[]];
+
+/**
+ * Messaging redesign colour group (handoff PROMPT.md §0.1/§0.2). DM, channel,
+ * thread, the long-press layer and the appearance screen read this instead of
+ * `surface`/`text`/`status`, exactly as the voice room reads `voiceRoom` — the
+ * app's own light/dark palette is not touched by the redesign.
+ */
+export type MobileMessagingPalette = {
+  readonly [K in keyof typeof redesignMessagingLight]: string;
+};
 
 export interface MobileAuthProfileAccent {
   readonly badgeBorder: string;
@@ -247,10 +270,25 @@ export interface MobileTheme {
     readonly bottomSheet: MobileThemeElevationStyle;
     readonly dangerAction: MobileThemeElevationStyle;
     readonly headerCard: MobileThemeElevationStyle;
+    /**
+     * Messaging redesign shadows (PROMPT.md §0.3). Raised *surfaces* flatten on
+     * dark — 1h draws both bubbles without a shadow — while the long-press
+     * overlay shadows keep their geometry over black ink.
+     */
+    readonly actionMenu: MobileThemeElevationStyle;
+    readonly messageBubbleIn: MobileThemeElevationStyle;
+    readonly messageBubbleOut: MobileThemeElevationStyle;
+    /** §1.4: the softer lift under a reaction chip that is not the viewer's own. */
+    readonly reactionChip: MobileThemeElevationStyle;
     readonly miniVoiceBar: MobileThemeElevationStyle;
     readonly primaryAction: MobileThemeElevationStyle;
+    readonly reactionStrip: MobileThemeElevationStyle;
+    readonly segmentActive: MobileThemeElevationStyle;
+    readonly selectedBubble: MobileThemeElevationStyle;
+    readonly sliderThumb: MobileThemeElevationStyle;
     readonly tabBar: MobileThemeElevationStyle;
     readonly toast: MobileThemeElevationStyle;
+    readonly toggleThumb: MobileThemeElevationStyle;
   };
   readonly gradients: {
     readonly appBackground: readonly [string, string];
@@ -295,6 +333,12 @@ export interface MobileTheme {
     readonly selfRowStripe: string;
     readonly text: string;
   };
+  /**
+   * Messaging redesign (MSG-1a…1i). Its own surface stack in both themes, so
+   * DM/channel/thread/long-press/appearance read this instead of the app-wide
+   * `surface`/`text`/`status` groups.
+   */
+  readonly messaging: MobileMessagingPalette;
   /** 8a-8e message action surfaces: long-press overlay chrome + channel stream accents. */
   readonly messageMenu: {
     readonly addReactionBorder: string;
@@ -660,6 +704,78 @@ export const lightTheme = deepFreeze({
       shadowOpacity: 0.04,
       shadowRadius: 8,
     },
+    /** §0.3: `0 18px 46px rgba(20,23,42,.32)`. */
+    actionMenu: {
+      elevation: 18,
+      shadowColor: MESSAGING_OVERLAY_SHADOW,
+      shadowOffset: { height: 18, width: 0 },
+      shadowOpacity: 0.32,
+      shadowRadius: 46,
+    },
+    /** §0.3: `0 1px 2px rgba(30,34,53,.07)`. */
+    messageBubbleIn: {
+      elevation: 1,
+      shadowColor: redesignLight.inkSurface,
+      shadowOffset: { height: 1, width: 0 },
+      shadowOpacity: 0.07,
+      shadowRadius: 2,
+    },
+    /** §0.3: `0 3px 10px rgba(79,70,229,.18)`. */
+    messageBubbleOut: {
+      elevation: 3,
+      shadowColor: redesignMessagingLight.accent,
+      shadowOffset: { height: 3, width: 0 },
+      shadowOpacity: 0.18,
+      shadowRadius: 10,
+    },
+    /** §1.4: `0 1px 3px rgba(30,34,53,.12)`. */
+    reactionChip: {
+      elevation: 1,
+      shadowColor: redesignLight.inkSurface,
+      shadowOffset: { height: 1, width: 0 },
+      shadowOpacity: 0.12,
+      shadowRadius: 3,
+    },
+    /** §0.3: `0 14px 34px rgba(20,23,42,.30)`. */
+    reactionStrip: {
+      elevation: 14,
+      shadowColor: MESSAGING_OVERLAY_SHADOW,
+      shadowOffset: { height: 14, width: 0 },
+      shadowOpacity: 0.3,
+      shadowRadius: 34,
+    },
+    /** §0.3: `0 2px 5px rgba(30,34,53,.07)`. */
+    segmentActive: {
+      elevation: 2,
+      shadowColor: redesignLight.inkSurface,
+      shadowOffset: { height: 2, width: 0 },
+      shadowOpacity: 0.07,
+      shadowRadius: 5,
+    },
+    /** §0.3: `0 18px 44px rgba(20,23,42,.34)`. */
+    selectedBubble: {
+      elevation: 18,
+      shadowColor: MESSAGING_OVERLAY_SHADOW,
+      shadowOffset: { height: 18, width: 0 },
+      shadowOpacity: 0.34,
+      shadowRadius: 44,
+    },
+    /** §0.3: `0 3px 8px rgba(30,34,53,.18)`. */
+    sliderThumb: {
+      elevation: 3,
+      shadowColor: redesignLight.inkSurface,
+      shadowOffset: { height: 3, width: 0 },
+      shadowOpacity: 0.18,
+      shadowRadius: 8,
+    },
+    /** §0.3: `0 1px 3px rgba(30,34,53,.20)`. */
+    toggleThumb: {
+      elevation: 1,
+      shadowColor: redesignLight.inkSurface,
+      shadowOffset: { height: 1, width: 0 },
+      shadowOpacity: 0.2,
+      shadowRadius: 3,
+    },
     miniVoiceBar: {
       elevation: 10,
       shadowColor: redesignLight.inkSurface,
@@ -722,6 +838,7 @@ export const lightTheme = deepFreeze({
     selfRowStripe: redesignLight.primary,
     text: redesignLight.primaryStrong,
   },
+  messaging: redesignMessagingLight,
   messageMenu: {
     addReactionBorder: "#C9CDE4",
     reactionDetailScrim: "rgba(20,23,42,.4)",
@@ -939,6 +1056,26 @@ export const darkTheme = deepFreeze({
       shadowOpacity: 0,
       shadowRadius: 0,
     },
+    // Overlay shadows keep §0.3's geometry over black ink; every raised
+    // messaging *surface* flattens, which is what 1h draws.
+    actionMenu: {
+      ...lightTheme.elevation.actionMenu,
+      shadowColor: "#000000",
+    },
+    messageBubbleIn: MESSAGING_FLAT_ELEVATION,
+    messageBubbleOut: MESSAGING_FLAT_ELEVATION,
+    reactionChip: MESSAGING_FLAT_ELEVATION,
+    reactionStrip: {
+      ...lightTheme.elevation.reactionStrip,
+      shadowColor: "#000000",
+    },
+    segmentActive: MESSAGING_FLAT_ELEVATION,
+    selectedBubble: {
+      ...lightTheme.elevation.selectedBubble,
+      shadowColor: "#000000",
+    },
+    sliderThumb: MESSAGING_FLAT_ELEVATION,
+    toggleThumb: MESSAGING_FLAT_ELEVATION,
     miniVoiceBar: {
       ...lightTheme.elevation.miniVoiceBar,
     },
@@ -994,6 +1131,7 @@ export const darkTheme = deepFreeze({
     selfRowStripe: redesignDark.primary,
     text: redesignDark.accentText,
   },
+  messaging: redesignMessagingDark,
   messageMenu: {
     addReactionBorder: redesignDark.border,
     reactionDetailScrim: redesignDark.sheetOverlay,

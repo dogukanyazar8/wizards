@@ -118,6 +118,8 @@ export const API_RATE_LIMITS = {
   "mobile:friends:request": { limit: 20, windowSeconds: 10 * 60 },
   "mobile:friends:request-action": { limit: 60, windowSeconds: 10 * 60 },
   "mobile:friends:search": { limit: 90, windowSeconds: 60 },
+  /** 1c "people you may know": two bounded graph scans, so it is read-cheap but not free. */
+  "mobile:friends:suggestions": { limit: 60, windowSeconds: 60 },
   "mobile:users:profile": { limit: 120, windowSeconds: 60 },
   /** 2b note saves: one per sheet dismissal, generous enough for edit-and-retry. */
   "mobile:users:note": { limit: 60, windowSeconds: 60 },

@@ -477,6 +477,11 @@ export const MobileBootstrapDMParticipantSchema = z.object({
   avatarUrl: z.string().url().nullable(),
   displayName: z.string().min(1).max(120).nullable(),
   id: z.string().min(1),
+  /**
+   * Drives the 1a "BOT" badge. Defaulted because the bootstrap payload shipped
+   * before the flag existed and an un-redeployed server still has to parse.
+   */
+  isBot: z.boolean().default(false),
   status: z.string().min(1).max(32).nullable(),
   username: z.string().min(1).max(80),
 });
@@ -485,6 +490,8 @@ export const MobileBootstrapDMConversationSummarySchema = z.object({
   iconUrl: z.string().url().nullable(),
   id: z.string().min(1),
   lastMessageAt: z.string().datetime(),
+  /** 1a mention badge; separate from `unreadCount`, which counts every message. */
+  mentionCount: z.number().int().nonnegative().default(0),
   muted: z.boolean(),
   name: z.string().min(1).max(120).nullable(),
   participantCount: z.number().int().nonnegative(),
@@ -499,11 +506,28 @@ export const MobileDMConversationPreviewAuthorSchema = z.object({
   username: z.string().min(1).max(80),
 });
 
+/**
+ * 1a renders "Sesli mesaj · 0:42" instead of the filename for a voice note, so
+ * the preview says what the message *is* rather than only what it reads as.
+ */
+export const MobileDMConversationPreviewKindSchema = z.enum(["text", "voice", "file", "image"]);
+
+/**
+ * Tick state of the viewer's own last message: one tick sent, two ticks read.
+ * Null whenever the last message is not the viewer's — an incoming row draws no
+ * tick at all.
+ */
+export const MobileDMConversationPreviewDeliverySchema = z.enum(["sent", "read"]);
+
 export const MobileDMConversationLastMessagePreviewSchema = z.object({
   author: MobileDMConversationPreviewAuthorSchema,
   authorIsCurrentUser: z.boolean(),
   createdAt: z.string().datetime(),
+  deliveryStatus: MobileDMConversationPreviewDeliverySchema.nullable().default(null),
+  /** Voice-note length, seconds. Null for every other preview kind. */
+  durationSec: z.number().int().nonnegative().max(86_400).nullable().default(null),
   id: z.string().min(1).max(128),
+  kind: MobileDMConversationPreviewKindSchema.default("text"),
   text: z.string().min(1).max(240),
 });
 
@@ -823,6 +847,10 @@ export type MobileBootstrapDMConversationSummary = z.infer<
 >;
 export type MobileDMConversationPreviewAuthor = z.infer<
   typeof MobileDMConversationPreviewAuthorSchema
+>;
+export type MobileDMConversationPreviewKind = z.infer<typeof MobileDMConversationPreviewKindSchema>;
+export type MobileDMConversationPreviewDelivery = z.infer<
+  typeof MobileDMConversationPreviewDeliverySchema
 >;
 export type MobileDMConversationLastMessagePreview = z.infer<
   typeof MobileDMConversationLastMessagePreviewSchema

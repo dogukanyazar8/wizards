@@ -86,6 +86,8 @@ export function createMobileQueryKeys(registry: MobileSearchKeyRegistry) {
     myFeedback: () => [...all, "my-feedback"] as const,
     roadmap: () => [...all, "roadmap"] as const,
     friends: () => [...all, "friends"] as const,
+    /** 1c suggestion rows; separate key so a friends refetch does not re-run the graph scan. */
+    friendSuggestions: () => [...all, "friend-suggestions"] as const,
     profile: () => [...all, "profile"] as const,
     userProfileRoot: () => [...all, "user-profile"] as const,
     /** Server context changes the payload (role chips), so it is part of the key. */

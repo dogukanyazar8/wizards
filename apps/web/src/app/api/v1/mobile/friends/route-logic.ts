@@ -4,6 +4,8 @@ import {
   MobileFriendRequestActionResponseSchema,
   MobileFriendRequestCreateSchema,
   MobileFriendRequestParamsSchema,
+  MobileFriendSuggestionsQuerySchema,
+  MobileFriendSuggestionsResponseSchema,
   MobileFriendUserParamsSchema,
   MobileFriendsOverviewResponseSchema,
   MobileUserSearchQuerySchema,
@@ -25,6 +27,11 @@ import {
   sendFriendRequest,
   unblockUser,
 } from "@/lib/friends/service";
+import {
+  listMobileFriendSuggestions,
+  resolveMobileFriendActivity,
+  resolveMobileFriendRequestContext,
+} from "@/lib/mobile/social-enrichment";
 
 export type MobileFriendRouteContext = {
   params: Promise<Record<string, string>>;
@@ -38,9 +45,12 @@ export type MobileFriendsRouteDependencies = {
   enforceRateLimit: (userId: string, action: ApiRateLimitAction) => Promise<void>;
   listBlockedUsers: typeof listBlockedUsers;
   listFriends: typeof listFriends;
+  listFriendSuggestions: typeof listMobileFriendSuggestions;
   listPendingFriendRequests: typeof listPendingFriendRequests;
   parseBody: typeof parseJsonBody;
   removeFriend: typeof removeFriend;
+  resolveFriendActivity: typeof resolveMobileFriendActivity;
+  resolveFriendRequestContext: typeof resolveMobileFriendRequestContext;
   searchUsers: typeof searchUsers;
   sendFriendRequest: typeof sendFriendRequest;
   unblockUser: typeof unblockUser;
@@ -54,13 +64,29 @@ const defaultDependencies: MobileFriendsRouteDependencies = {
   enforceRateLimit: enforceApiRateLimit,
   listBlockedUsers,
   listFriends,
+  listFriendSuggestions: listMobileFriendSuggestions,
   listPendingFriendRequests,
   parseBody: (request, schema) => parseJsonBody(request, schema),
   removeFriend,
+  resolveFriendActivity: resolveMobileFriendActivity,
+  resolveFriendRequestContext: resolveMobileFriendRequestContext,
   searchUsers,
   sendFriendRequest,
   unblockUser,
 };
+
+type PendingFriendRequests = Awaited<ReturnType<typeof listPendingFriendRequests>>;
+
+/**
+ * 1c reads each request's secondary line from the *counterpart*: the sender on
+ * an incoming row, the receiver on an outgoing one.
+ */
+function getRequestCounterpartId(
+  request: PendingFriendRequests["incoming"][number],
+  viewerId: string,
+) {
+  return request.senderId === viewerId ? request.receiverId : request.senderId;
+}
 
 export async function mobileFriendsListRoute(
   request: Request,
@@ -75,7 +101,52 @@ export async function mobileFriendsListRoute(
       dependencies.listBlockedUsers(userId),
     ]);
 
-    return Response.json(MobileFriendsOverviewResponseSchema.parse({ blocked, friends, pending }));
+    const pendingRequests = [...pending.incoming, ...pending.outgoing];
+    const [activityByUserId, contextByUserId] = await Promise.all([
+      dependencies.resolveFriendActivity(friends.map((friend) => friend.id)),
+      dependencies.resolveFriendRequestContext(
+        userId,
+        pendingRequests.map((entry) => getRequestCounterpartId(entry, userId)),
+      ),
+    ]);
+
+    const withRequestContext = (entry: PendingFriendRequests["incoming"][number]) => ({
+      ...entry,
+      ...contextByUserId.get(getRequestCounterpartId(entry, userId)),
+    });
+
+    return Response.json(
+      MobileFriendsOverviewResponseSchema.parse({
+        blocked,
+        friends: friends.map((friend) => ({
+          ...friend,
+          ...activityByUserId.get(friend.id),
+        })),
+        pending: {
+          incoming: pending.incoming.map(withRequestContext),
+          outgoing: pending.outgoing.map(withRequestContext),
+        },
+      }),
+    );
+  } catch (error) {
+    return jsonError(error);
+  }
+}
+
+export async function mobileFriendSuggestionsRoute(
+  request: Request,
+  dependencies: MobileFriendsRouteDependencies = defaultDependencies,
+) {
+  try {
+    const userId = await dependencies.authenticate(request);
+    await dependencies.enforceRateLimit(userId, "mobile:friends:suggestions");
+    const searchParams = new URL(request.url).searchParams;
+    const { limit } = MobileFriendSuggestionsQuerySchema.parse({
+      limit: searchParams.get("limit") ?? undefined,
+    });
+    const suggestions = await dependencies.listFriendSuggestions(userId, limit);
+
+    return Response.json(MobileFriendSuggestionsResponseSchema.parse({ suggestions }));
   } catch (error) {
     return jsonError(error);
   }

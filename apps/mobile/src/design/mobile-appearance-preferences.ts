@@ -5,6 +5,37 @@ export const MOBILE_FONT_SCALE_PREFERENCE_KEY = "whispr.mobile.font-scale-prefer
 export const MOBILE_VOICE_APPEARANCE_PREFERENCE_KEY = "whispr.mobile.voice-appearance-preference";
 
 /**
+ * Messaging redesign (§3). These three drive the message body only; they are
+ * deliberately independent of `MOBILE_FONT_SCALE_PREFERENCE_KEY`, which keeps
+ * scaling the whole interface.
+ */
+export const MOBILE_MESSAGE_FONT_SIZE_PREFERENCE_KEY = "whispr.mobile.message-font-size";
+export const MOBILE_MESSAGE_COMPACT_PREFERENCE_KEY = "whispr.mobile.message-compact";
+export const MOBILE_MESSAGE_FOLLOW_SYSTEM_PREFERENCE_KEY =
+  "whispr.mobile.message-follow-system-font";
+
+/** Both message toggles ship off (§2 "1i"). */
+export const MOBILE_DEFAULT_MESSAGE_COMPACT = false;
+export const MOBILE_DEFAULT_MESSAGE_FOLLOW_SYSTEM_FONT = false;
+
+export function normalizeMobileMessageBooleanPreference(
+  value: unknown,
+  fallback: boolean,
+): boolean {
+  if (typeof value === "boolean") {
+    return value;
+  }
+  if (value === "true") {
+    return true;
+  }
+  if (value === "false") {
+    return false;
+  }
+
+  return fallback;
+}
+
+/**
  * Voice-room canvas appearance, independent of the app theme. "system" follows
  * the resolved app theme; "dark" is the canonical #5g design; "light" is the
  * light-surface variant. Default follows the app theme.

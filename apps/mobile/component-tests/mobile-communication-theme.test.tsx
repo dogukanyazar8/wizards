@@ -43,25 +43,29 @@ describe("mobile communication semantic themes", () => {
     expect(createDmScreenStyles(theme).dmConversationCardSelected.backgroundColor).toBe(
       theme.surface.card,
     );
+    // MSG-1e moved the channel and its composer onto the messaging group; the
+    // global light/dark surfaces below are untouched by that (K4).
     expect(createChannelScreenStyles(theme).mobileChannelChatScreen.backgroundColor).toBe(
-      theme.surface.base,
+      theme.messaging.surface,
     );
     expect(createVoiceScreenStyles(theme).mobileVoiceChannelScreen.backgroundColor).toBe(
       theme.surface.card,
     );
     expect(createMobileComposerStyles(theme).channelComposer.backgroundColor).toBe(
-      theme.surface.base,
+      theme.messaging.surface,
     );
-    expect(createMobileComposerStyles(theme).channelComposerInputShell.backgroundColor).toBe(
-      theme.surface.card,
+    expect(createMobileComposerStyles(theme).dmChatComposerInputShell.backgroundColor).toBe(
+      theme.messaging.field,
     );
     expect(createMobileIncomingRequestSheetStyles(theme).subtitle.color).toBe(theme.text.secondary);
     expect(createUiAtomStyles(theme).actionButton.backgroundColor).toBe(theme.surface.card);
     expect(createMediaPrimitiveStyles(theme).mediaRuntimeStatusPill.backgroundColor).toBe(
       theme.surface.soft,
     );
+    // MSG-1d moved the file card onto the messaging token group, where the
+    // bubble surface — not the app card — is what a message sits on.
     expect(createMessagePrimitiveStyles(theme).messageAttachmentCard.backgroundColor).toBe(
-      theme.surface.card,
+      theme.messaging.bubbleIn,
     );
     expect(createMobileVoiceRoomPanelStyles(theme).card.backgroundColor).toBe(theme.surface.card);
   });

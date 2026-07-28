@@ -89,22 +89,26 @@ function makeFriends(): MobileFriendsOverviewResponse {
   const target = {
     avatarUrl: null,
     customStatus: null,
+    device: null,
     displayName: "Ada",
     id: "user-1",
     lastSeenAt: null,
     presence: { customStatus: null, status: "ONLINE" as const },
     status: "ONLINE" as const,
     username: "ada",
+    voiceRoom: null,
   };
   const unaffected = {
     avatarUrl: null,
     customStatus: "Busy",
+    device: null,
     displayName: "Grace",
     id: "user-2",
     lastSeenAt: null,
     presence: { customStatus: "Busy", status: "DND" as const },
     status: "DND" as const,
     username: "grace",
+    voiceRoom: null,
   };
 
   return {
@@ -122,6 +126,9 @@ function makeFriends(): MobileFriendsOverviewResponse {
         {
           createdAt: "2026-07-13T09:00:00.000Z",
           id: "request-1",
+          mutualFriendCount: 0,
+          mutualServerCount: 0,
+          mutualServerName: null,
           receiver: {
             avatarUrl: null,
             displayName: "Grace",
@@ -138,6 +145,7 @@ function makeFriends(): MobileFriendsOverviewResponse {
           senderId: "user-1",
           status: "PENDING",
           updatedAt: "2026-07-13T09:00:00.000Z",
+          viaUsername: null,
         },
       ],
       outgoing: [],

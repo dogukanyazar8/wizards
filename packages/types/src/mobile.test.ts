@@ -42,6 +42,8 @@ import {
   MobileDMConversationLastMessagePreviewSchema,
   MobileDMConversationListItemSchema,
   MobileDMConversationPreviewAuthorSchema,
+  MobileDMConversationPreviewDeliverySchema,
+  MobileDMConversationPreviewKindSchema,
   MobileDMConversationsQuerySchema,
   MobileDMConversationsResponseSchema,
   MobileDMMessagesThreadResponseSchema,
@@ -516,6 +518,16 @@ describe("mobile schemas", () => {
         schema: MobileDMConversationLastMessagePreviewSchema,
         valid: mobileDMConversation.lastMessage,
         invalid: { ...mobileDMConversation.lastMessage, text: "" },
+      },
+      MobileDMConversationPreviewKindSchema: {
+        schema: MobileDMConversationPreviewKindSchema,
+        valid: "voice",
+        invalid: "sticker",
+      },
+      MobileDMConversationPreviewDeliverySchema: {
+        schema: MobileDMConversationPreviewDeliverySchema,
+        valid: "read",
+        invalid: "delivered",
       },
       MobileDMConversationListItemSchema: {
         schema: MobileDMConversationListItemSchema,

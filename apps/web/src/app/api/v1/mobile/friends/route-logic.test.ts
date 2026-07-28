@@ -45,8 +45,21 @@ function context(params: Record<string, string>) {
   return { params: Promise.resolve(params) };
 }
 
+/** Every enrichment field the response schema defaults in for a friend row. */
+const friendEnrichmentDefaults = { device: null, voiceRoom: null };
+/** ...and for a pending request row. */
+const requestEnrichmentDefaults = {
+  mutualFriendCount: 0,
+  mutualServerCount: 0,
+  mutualServerName: null,
+  viaUsername: null,
+};
+
 function dependencies(overrides: Record<string, unknown> = {}) {
   return {
+    listFriendSuggestions: async () => [],
+    resolveFriendActivity: async () => new Map(),
+    resolveFriendRequestContext: async () => new Map(),
     actOnFriendRequest: async (
       _userId: string,
       _requestId: string,
@@ -102,8 +115,11 @@ describe("mobile friends route logic", () => {
     assert.equal(response.status, 200);
     assert.deepEqual(await response.json(), {
       blocked: [ada],
-      friends: [adaAsFriend],
-      pending: { incoming: [pendingRequest], outgoing: [] },
+      friends: [{ ...adaAsFriend, ...friendEnrichmentDefaults }],
+      pending: {
+        incoming: [{ ...pendingRequest, ...requestEnrichmentDefaults }],
+        outgoing: [],
+      },
     });
     assert.equal(calls[0], "auth");
     assert.equal(calls[1], "rate:user-1:mobile:friends:list");
@@ -334,5 +350,117 @@ describe("mobile friends route logic", () => {
     assert.deepEqual(await invalid.json(), {
       error: "String must contain at least 1 character(s)",
     });
+  });
+
+  it("attaches 1b activity to friends and 1c context to the counterpart of each request", async () => {
+    const { mobileFriendsListRoute } = await routes;
+    const seen: unknown[] = [];
+    const response = await mobileFriendsListRoute(
+      new Request("https://whispr.test/api/v1/mobile/friends"),
+      dependencies({
+        resolveFriendActivity: async (userIds: string[]) => {
+          seen.push({ activity: userIds });
+          return new Map([
+            [
+              ada.id,
+              {
+                device: "MOBILE",
+                voiceRoom: {
+                  channelId: "channel-1",
+                  channelName: "live-room",
+                  serverId: "server-1",
+                  serverName: "paycore",
+                },
+              },
+            ],
+          ]);
+        },
+        resolveFriendRequestContext: async (viewerId: string, userIds: string[]) => {
+          seen.push({ context: { userIds, viewerId } });
+          return new Map([
+            [
+              // The fixture request was sent *by* the viewer, so the counterpart
+              // the context is keyed by is the receiver.
+              ada.id,
+              {
+                mutualFriendCount: 4,
+                mutualServerCount: 2,
+                mutualServerName: "paycore",
+                viaUsername: "selin_qa",
+              },
+            ],
+          ]);
+        },
+      }),
+    );
+
+    assert.equal(response.status, 200);
+    const body = (await response.json()) as {
+      friends: { device: string; voiceRoom: { serverName: string } }[];
+      pending: { incoming: { mutualServerName: string; viaUsername: string }[] };
+    };
+    assert.equal(body.friends[0]!.device, "MOBILE");
+    assert.equal(body.friends[0]!.voiceRoom.serverName, "paycore");
+    assert.equal(body.pending.incoming[0]!.mutualServerName, "paycore");
+    assert.equal(body.pending.incoming[0]!.viaUsername, "selin_qa");
+    assert.deepEqual(seen, [
+      { activity: [ada.id] },
+      { context: { userIds: [ada.id], viewerId: "user-1" } },
+    ]);
+  });
+
+  it("authenticates, rate limits and bounds the friend suggestions endpoint", async () => {
+    const { mobileFriendSuggestionsRoute } = await routes;
+    const calls: unknown[] = [];
+    const response = await mobileFriendSuggestionsRoute(
+      new Request("https://whispr.test/api/v1/mobile/friends/suggestions?limit=3"),
+      dependencies({
+        enforceRateLimit: async (userId: string, action: string) =>
+          calls.push(`rate:${userId}:${action}`),
+        listFriendSuggestions: async (userId: string, limit: number) => {
+          calls.push({ limit, userId });
+          return [
+            {
+              avatarUrl: null,
+              displayName: "Maestro",
+              id: "user-9",
+              mutualFriendCount: 4,
+              mutualServerCount: 0,
+              mutualServerName: null,
+              username: "maestro",
+            },
+          ];
+        },
+      }),
+    );
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(calls, [
+      "rate:user-1:mobile:friends:suggestions",
+      { limit: 3, userId: "user-1" },
+    ]);
+    assert.deepEqual(await response.json(), {
+      suggestions: [
+        {
+          avatarUrl: null,
+          displayName: "Maestro",
+          id: "user-9",
+          mutualFriendCount: 4,
+          mutualServerCount: 0,
+          mutualServerName: null,
+          username: "maestro",
+        },
+      ],
+    });
+  });
+
+  it("rejects an out-of-range suggestion limit instead of silently widening it", async () => {
+    const { mobileFriendSuggestionsRoute } = await routes;
+    const response = await mobileFriendSuggestionsRoute(
+      new Request("https://whispr.test/api/v1/mobile/friends/suggestions?limit=500"),
+      dependencies(),
+    );
+
+    assert.equal(response.status, 400);
   });
 });

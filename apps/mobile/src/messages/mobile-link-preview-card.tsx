@@ -3,48 +3,57 @@ import { Image, Linking, Pressable, Text, View } from "react-native";
 
 import { useMobileAuth } from "../auth/mobile-auth-context";
 import { useThemedStyles } from "../app/providers/mobile-theme-provider";
+import { mobileMessagingMetrics as metrics } from "../design/tokens";
 import type { MobileTheme } from "../design/themes";
 import { mobileQueryKeys } from "../query/mobile-query-keys";
 import { fetchMobileLinkPreview } from "./mobile-link-preview-client";
 
-// 8b link preview card: flat soft surface, uppercase site row, tight typography.
-const createStyles = (theme: MobileTheme) => ({
+/**
+ * MSG-1e §2 "1e".7 link preview: a screen-tone block with no border at all —
+ * inside the channel it is one of the two allowed surface tones, so a frame
+ * would make it a third.
+ */
+export const createMobileLinkPreviewStyles = (theme: MobileTheme) => ({
   root: {
-    backgroundColor: theme.surface.soft,
-    borderColor: theme.border.subtle,
-    borderRadius: 12,
-    borderWidth: 1,
-    marginTop: 7,
-    maxWidth: 230,
+    backgroundColor: theme.messaging.screen,
+    borderRadius: metrics.channel.linkPreviewRadius,
+    borderWidth: 0,
+    marginTop: 2,
+    maxWidth: metrics.channel.linkPreviewMaxWidth,
     overflow: "hidden" as const,
   },
-  body: { gap: 2, paddingHorizontal: 11, paddingVertical: 9 },
+  body: {
+    gap: 3,
+    paddingHorizontal: metrics.channel.linkPreviewPaddingHorizontal,
+    paddingVertical: metrics.channel.linkPreviewPaddingVertical,
+  },
   image: { height: 128, width: "100%" as const },
   site: {
-    color: theme.text.visualFaint,
-    fontFamily: theme.typography.fontFamilyBold,
-    fontSize: 10.5,
-    letterSpacing: 0.84,
-    lineHeight: 14,
+    color: theme.messaging.groupLabel,
+    fontFamily: theme.typography.fontFamilyExtraBold,
+    fontSize: 9.5,
+    letterSpacing: 0.95,
+    lineHeight: 13,
     textTransform: "uppercase" as const,
   },
   title: {
-    color: theme.text.primary,
-    fontFamily: theme.typography.fontFamilyBold,
-    fontSize: 12.5,
+    color: theme.messaging.textPrimary,
+    fontFamily: theme.typography.fontFamilyExtraBold,
+    fontSize: 13,
+    letterSpacing: -0.13,
     lineHeight: 17,
   },
   description: {
-    color: theme.text.visualSecondary,
-    fontFamily: theme.typography.fontFamily,
+    color: theme.messaging.textSecondary,
+    fontFamily: theme.typography.fontFamilyMedium,
     fontSize: 11.5,
-    lineHeight: 16.1,
+    lineHeight: 16.7,
   },
 });
 
 export function MobileLinkPreviewCard({ messageId, url }: { messageId: string; url: string }) {
   const { apiClient } = useMobileAuth();
-  const styles = useThemedStyles(createStyles);
+  const styles = useThemedStyles(createMobileLinkPreviewStyles);
   const query = useQuery({
     queryKey: mobileQueryKeys.linkPreview(messageId),
     queryFn: () => fetchMobileLinkPreview(apiClient, url),

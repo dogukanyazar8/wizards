@@ -258,13 +258,16 @@ describe("mobile design contract", () => {
     assert.doesNotMatch(screenSource, /testID="mobile-channel-gif-button"/);
     assert.match(screenSource, /testID="mobile-channel-voice-record-button"/);
     assert.match(screenSource, /testID="mobile-channel-send-button"/);
-    assert.match(screenSource, /channelComposerControlRow/);
+    // MSG-1e §2 "1e".14 made the channel composer the 1d composer, so the single
+    // control row it has to keep is the shared one.
+    assert.match(screenSource, /styles\.dmChatComposerRow/);
     assert.match(screenSource, /testID="mobile-channel-attachment-picker"/);
     assert.match(screenSource, /useMobileVoiceMessageRecorder/);
     assert.match(screenSource, /!onOpenMembers\s*&&\s*styles\.mobileChannelChatIconButtonDisabled/);
+    // MSG-1e §0 rule 5: the header buttons are line icons now, not Ionicons.
     assert.match(
       screenSource,
-      /<Ionicons name="person-outline" size=\{17\} color=\{theme\.text\.muted\} \/>/,
+      /<MobileLineIcon color=\{theme\.messaging\.accent\} name="members" size=\{18\} \/>/,
     );
     assert.match(screenSource, /messagePreviewBubbleChannel/);
   });

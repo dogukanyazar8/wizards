@@ -1,8 +1,16 @@
 import type { ImageStyle, TextStyle, ViewStyle } from "react-native";
 import type { MobileTheme } from "../../design/themes";
+import { mobileMessagingMetrics } from "../../design/tokens";
 import { useThemedStyles } from "../providers/mobile-theme-provider";
 import { createSharedStyles } from "../styles/shared-styles";
 
+const metrics = mobileMessagingMetrics;
+
+/**
+ * MSG-1e text channel. §1.10 allows two surface tones here and no more: the
+ * flow and its chrome are `messaging.surface`, and the helper blocks (pinned
+ * strip, link preview, thread source) are `messaging.screen`.
+ */
 export const createChannelScreenStyles = (theme: MobileTheme) => {
   const mobileRadii = theme.radii;
   const mobileSizing = theme.sizing;
@@ -33,75 +41,79 @@ export const createChannelScreenStyles = (theme: MobileTheme) => {
       fontSize: 12,
       fontFamily: theme.typography.fontFamilyBold,
     },
+    /** 26x38 strip: the chevron sits flush with the hash square beside it. */
     mobileChannelChatBackButton: {
-      width: 22,
-      height: 38,
-      alignItems: "center",
+      width: 26,
+      height: metrics.iconButton,
+      alignItems: "flex-start",
       justifyContent: "center",
-      borderRadius: mobileRadii.pill,
-      backgroundColor: "transparent",
     },
     mobileChannelChatBody: {
       flex: 1,
       minWidth: 0,
     },
+    /**
+     * §2 "1e".4: `padding: 8px 0 6px`. The flow has no horizontal padding at
+     * all — every row, separator and system line pads itself to 16, which is
+     * what lets the mention row's fill run edge to edge.
+     */
     mobileChannelChatBodyContent: {
       flexGrow: 1,
       minHeight: 180,
       minWidth: 0,
       gap: 0,
-      paddingHorizontal: 20,
-      paddingTop: 16,
-      paddingBottom: 18,
+      paddingHorizontal: 0,
+      paddingTop: metrics.channel.flowPaddingTop,
+      paddingBottom: metrics.channel.flowPaddingBottom,
     },
+    /** Rows pad themselves, so the empty/loading/error states have to pad here. */
     mobileChannelChatBodyEmptyContent: {
       justifyContent: "center",
+      paddingHorizontal: metrics.channel.rowPaddingHorizontal,
     },
     mobileChannelChatBodyShell: {
       position: "relative",
       flex: 1,
       minWidth: 0,
     },
-    mobileChannelMessageGroupedSpacing: {
-      paddingBottom: 5,
-    },
-    mobileChannelMessageGroupSpacing: {
-      paddingBottom: 16,
-    },
-    mobileChannelMessageItem: {
-      gap: 8,
+    mobileChannelStreamItem: {
       minWidth: 0,
     },
     mobileChannelChatHash: {
-      width: 38,
-      height: 38,
+      width: metrics.iconButton,
+      height: metrics.iconButton,
       alignItems: "center",
       justifyContent: "center",
-      borderRadius: 13,
-      backgroundColor: theme.accent.soft,
-    },
-    mobileChannelChatHashText: {
-      color: theme.accent.strong,
-      fontSize: 17,
-      fontFamily: theme.typography.fontFamilyExtraBold,
+      borderRadius: metrics.iconButtonRadius,
+      backgroundColor: theme.messaging.accentSoft,
     },
     mobileChannelChatHeader: {
       minWidth: 0,
       flexDirection: "row",
       alignItems: "center",
-      gap: 12,
+      gap: 10,
       borderBottomWidth: 1,
-      borderBottomColor: theme.border.subtle,
-      paddingHorizontal: 20,
-      paddingVertical: 10,
+      borderBottomColor: theme.messaging.divider,
+      backgroundColor: theme.messaging.surface,
+      paddingHorizontal: 16,
+      paddingTop: 6,
+      paddingBottom: 10,
     },
+    /** §2 "1g".1: the header — and only the header — fades behind the menu. */
+    mobileChannelChatHeaderDimmed: { opacity: 0.5 },
     mobileChannelChatHeaderText: {
       flex: 1,
       minWidth: 0,
+      gap: 1,
+    },
+    mobileChannelChatHeaderActions: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      flexShrink: 0,
     },
     mobileChannelChatIconButtonActive: {
-      borderColor: theme.border.focus,
-      backgroundColor: theme.accent.soft,
+      backgroundColor: theme.messaging.accentSoft,
     },
     mobileChannelChatIconButtonDisabled: {
       opacity: 0.58,
@@ -114,39 +126,42 @@ export const createChannelScreenStyles = (theme: MobileTheme) => {
       flex: 1,
       minWidth: 0,
       gap: 0,
-      backgroundColor: theme.surface.base,
+      backgroundColor: theme.messaging.surface,
     },
     mobileChannelChatTitle: {
       minWidth: 0,
-      color: theme.text.primary,
-      fontSize: 16.5,
+      color: theme.messaging.textPrimary,
+      fontSize: 15.5,
+      letterSpacing: -0.155,
       fontFamily: theme.typography.fontFamilyExtraBold,
       includeFontPadding: false,
-      lineHeight: 21,
+      lineHeight: 20,
     },
     mobileChannelChatTopic: {
-      marginTop: 1,
-      color: theme.text.muted,
-      fontSize: 12,
-      fontFamily: theme.typography.fontFamily,
+      color: theme.messaging.textSecondary,
+      fontSize: 11.5,
+      lineHeight: 15,
+      fontFamily: theme.typography.fontFamilySemiBold,
+      includeFontPadding: false,
     },
+    /** §2 "1e".13: the typing line starts where the message bodies start. */
     mobileChannelTypingIndicator: {
-      minHeight: 26,
       minWidth: 0,
       flexDirection: "row",
       alignItems: "center",
-      gap: 6,
-      paddingLeft: 52,
-      paddingRight: 20,
+      gap: 9,
+      paddingLeft: metrics.channel.continuationPaddingLeft,
+      paddingRight: metrics.channel.rowPaddingHorizontal,
+      paddingTop: metrics.channel.typingPaddingTop,
+      paddingBottom: metrics.channel.typingPaddingBottom,
     },
     mobileChannelTypingText: {
       minWidth: 0,
       flexShrink: 1,
-      color: theme.text.muted,
-      fontSize: 12,
-      fontFamily: theme.typography.fontFamily,
-      fontStyle: "italic",
-      lineHeight: 18,
+      color: theme.messaging.textSecondary,
+      fontSize: 11.5,
+      lineHeight: 15,
+      fontFamily: theme.typography.fontFamilyBold,
     },
     workspaceChannelIconLarge: {
       width: 34,
@@ -160,44 +175,43 @@ export const createChannelScreenStyles = (theme: MobileTheme) => {
       lineHeight: 34,
       textAlign: "center",
     },
-    // 8c pinned-message banner under the channel header.
+    /**
+     * §2 "1e".3 pinned strip: one line on the screen tone, ruled top and bottom.
+     * It is the second of the screen's two tones, so it carries no card chrome.
+     */
     pinnedBanner: {
       minWidth: 0,
       flexDirection: "row",
       alignItems: "center",
       gap: 9,
-      backgroundColor: theme.accent.soft,
+      backgroundColor: theme.messaging.screen,
+      borderTopWidth: 1,
+      borderTopColor: theme.messaging.divider,
       borderBottomWidth: 1,
-      borderBottomColor: theme.accent.softBorder,
-      paddingHorizontal: 16,
-      paddingVertical: 9,
+      borderBottomColor: theme.messaging.divider,
+      paddingHorizontal: metrics.channel.pinnedStripPaddingHorizontal,
+      paddingVertical: metrics.channel.pinnedStripPaddingVertical,
     },
     pinnedBannerBody: {
       flex: 1,
       minWidth: 0,
     },
-    pinnedBannerTitle: {
-      color: theme.accent.strong,
-      fontSize: 11,
-      lineHeight: 14,
-      fontFamily: theme.typography.fontFamilyExtraBold,
-    },
     pinnedBannerContent: {
-      color: theme.text.secondary,
+      color: theme.messaging.textSecondary,
       fontSize: 12,
       lineHeight: 16,
+      fontFamily: theme.typography.fontFamilyMedium,
     },
     pinnedBannerCountButton: {
-      minHeight: 44,
       flexDirection: "row",
       alignItems: "center",
-      gap: 3,
-      paddingLeft: 6,
+      gap: 9,
+      flexShrink: 0,
     },
     pinnedBannerCount: {
-      color: theme.accent.strong,
-      fontSize: 11,
-      lineHeight: 14,
+      color: theme.messaging.accentText,
+      fontSize: 12,
+      lineHeight: 16,
       fontFamily: theme.typography.fontFamilyExtraBold,
     },
     pinnedSheetList: {
@@ -249,15 +263,15 @@ export const createChannelScreenStyles = (theme: MobileTheme) => {
       marginTop: 12,
     },
     ...createSharedStyles(theme),
+    /** Declared after the shared sheet on purpose: it overrides the 8c square. */
     mobileChannelChatIconButton: {
-      width: 38,
-      height: 38,
+      width: metrics.iconButton,
+      height: metrics.iconButton,
       alignItems: "center",
       justifyContent: "center",
-      borderWidth: 1,
-      borderColor: theme.border.subtle,
-      borderRadius: 13,
-      backgroundColor: theme.surface.card,
+      borderWidth: 0,
+      borderRadius: metrics.iconButtonRadius,
+      backgroundColor: theme.messaging.field,
     },
   } satisfies Record<string, ImageStyle | TextStyle | ViewStyle>;
 };

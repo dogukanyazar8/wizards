@@ -94,7 +94,9 @@ describe("8c channel stream redesign", () => {
       closedView.getByTestId("mobile-message-actions-message-bar-trigger"),
       "longPress",
     );
-    expect(onSetMenuMessage).toHaveBeenCalledWith("message-bar");
+    // §2 "1g".2: the row reports the rectangle it was measured at (null in a
+    // test renderer, which is what makes the menu fall back to its own stack).
+    expect(onSetMenuMessage).toHaveBeenCalledWith("message-bar", null);
   });
 
   it("keeps pin/unpin on the message state behind the moderation permission", async () => {
@@ -176,9 +178,7 @@ describe("8c channel stream redesign", () => {
     const threadCard = view.getByTestId("mobile-channel-message-thread-message-rich");
     await fireEvent.press(threadCard);
     expect(onOpenThread).toHaveBeenCalledWith("message-rich");
-    expect(
-      view.getByText(copy.messageThreadReplyCountLabel.replace("{count}", "5")),
-    ).toBeTruthy();
+    expect(view.getByText(copy.messageThreadReplyCountLabel.replace("{count}", "5"))).toBeTruthy();
   });
 
   it("renders the YENİ separator chrome", async () => {
@@ -206,7 +206,13 @@ describe("8c channel stream redesign", () => {
         mediaState={createInitialMobileMediaRuntimeState()}
         memberCount={128}
         messageSearchFeature={null}
-        messageSearchState={{ context: null, error: null, payload: null, query: "", status: "idle" }}
+        messageSearchState={{
+          context: null,
+          error: null,
+          payload: null,
+          query: "",
+          status: "idle",
+        }}
         onBack={jest.fn()}
         onClearMessageSearch={jest.fn()}
         onClearSelectedMediaAsset={jest.fn()}
@@ -246,12 +252,16 @@ describe("8c channel stream redesign", () => {
 
     const banner = view.getByTestId("mobile-channel-pinned-banner");
     expect(banner).toBeTruthy();
+    // MSG-1e collapsed the two-line banner into one summary line: count, then
+    // the pinned message and who pinned it.
     expect(
-      view.getByText(copy.messagePinnedBannerTitleTemplate.replace("{name}", "Ayşegül")),
+      view.getByText(
+        copy.messagePinnedSummaryTemplate
+          .replace("{content}", "Sprint demosu Perşembe 15:00")
+          .replace("{name}", "Ayşegül"),
+      ),
     ).toBeTruthy();
-    expect(
-      view.getByText(copy.messagePinnedCountTemplate.replace("{count}", "1")),
-    ).toBeTruthy();
+    expect(view.getByText(copy.messagePinnedCountTemplate.replace("{count}", "1"))).toBeTruthy();
     expect(await view.findByTestId("mobile-channel-unread-separator")).toBeTruthy();
 
     await fireEvent.press(view.getByTestId("mobile-channel-pinned-banner-count"));

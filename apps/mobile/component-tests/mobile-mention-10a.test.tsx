@@ -177,11 +177,15 @@ describe("10a channel mentions", () => {
         />
       </MobileMentionRegistryProvider>,
     );
-    const row = view.getByTestId("mobile-message-actions-message-3-trigger");
+    const trigger = view.getByTestId("mobile-message-actions-message-3-trigger");
 
-    expect(row.props.accessibilityHint).toBe(copy.messageMentionsYouLabel);
-    expect(StyleSheet.flatten(row.props.style)?.borderLeftColor).toBe(
-      lightTheme.mention.selfRowStripe,
+    expect(trigger.props.accessibilityHint).toBe(copy.messageMentionsYouLabel);
+    // MSG-1e moved the fill and stripe onto the row itself (the trigger has no
+    // padding of its own now), so the mention band spans the full row width.
+    const row = view.getByTestId("mobile-channel-message-row-message-3");
+    expect(StyleSheet.flatten(row.props.style)?.borderLeftColor).toBe(lightTheme.messaging.accent);
+    expect(StyleSheet.flatten(row.props.style)?.backgroundColor).toBe(
+      lightTheme.messaging.mentionRow,
     );
   });
 

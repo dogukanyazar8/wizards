@@ -88,6 +88,7 @@ export async function GET(request: Request) {
             userId,
           },
           select: {
+            mentionCount: true,
             muted: true,
             unreadCount: true,
             conversation: {
@@ -106,6 +107,7 @@ export async function GET(request: Request) {
                         avatarUrl: true,
                         displayName: true,
                         id: true,
+                        isBot: true,
                         status: true,
                         username: true,
                       },
@@ -158,6 +160,7 @@ export async function GET(request: Request) {
           iconUrl: normalizeMobileImageUrl(participant.conversation.iconUrl),
           id: participant.conversation.id,
           lastMessageAt: participant.conversation.lastMessageAt.toISOString(),
+          mentionCount: Math.max(0, participant.mentionCount),
           muted: participant.muted,
           name: participant.conversation.name,
           participantCount: participant.conversation._count.participants,
@@ -165,6 +168,7 @@ export async function GET(request: Request) {
             avatarUrl: normalizeMobileImageUrl(conversationUser.avatarUrl),
             displayName: conversationUser.displayName,
             id: conversationUser.id,
+            isBot: conversationUser.isBot,
             status: conversationUser.status,
             username: conversationUser.username,
           })),

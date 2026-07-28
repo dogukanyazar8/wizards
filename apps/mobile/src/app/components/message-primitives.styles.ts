@@ -1,7 +1,10 @@
 import type { ImageStyle, TextStyle, ViewStyle } from "react-native";
 import type { MobileTheme } from "../../design/themes";
+import { mobileMessagingMetrics } from "../../design/tokens";
 import { useThemedStyles } from "../providers/mobile-theme-provider";
 import { createSharedStyles } from "../styles/shared-styles";
+
+const metrics = mobileMessagingMetrics;
 
 export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
   const mobileRadii = theme.radii;
@@ -22,9 +25,92 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
       lineHeight: 20,
       fontFamily: theme.typography.fontFamilySemiBold,
     },
+    // --- Messaging redesign primitives (handoff §1). One implementation each;
+    // DM, channel and thread all render through these.
+    /** §1.1: the clock rides the last line of the bubble, never its own row. */
+    messageTimestampInline: {
+      flexDirection: "row",
+      alignItems: "flex-end",
+      gap: 9,
+    },
+    messageTimestampInlineMeta: {
+      flexDirection: "row",
+      alignItems: "center",
+      flexGrow: 0,
+      flexShrink: 0,
+      gap: 3,
+      paddingBottom: 1,
+    },
+    messageTimestampInlineText: {
+      color: theme.messaging.bubbleMeta,
+      fontFamily: theme.typography.fontFamilySemiBold,
+      fontSize: 10.5,
+    },
+    messageTimestampInlineTextOutgoing: {
+      color: theme.messaging.bubbleOutMeta,
+    },
+    /** §1.3: no fill and no box — a rule, a name and one clipped line. */
+    messageInlineReplyQuote: {
+      borderLeftColor: theme.messaging.replyQuoteRule,
+      borderLeftWidth: 2.5,
+      flexDirection: "column",
+      gap: 1,
+      marginBottom: 6,
+      paddingLeft: 8,
+      paddingVertical: 1,
+    },
+    messageInlineReplyQuoteOutgoing: {
+      borderLeftColor: theme.messaging.bubbleOutQuote,
+    },
+    messageInlineReplyQuoteName: {
+      color: theme.messaging.replyQuoteName,
+      fontFamily: theme.typography.fontFamilyExtraBold,
+      fontSize: 11.5,
+    },
+    messageInlineReplyQuoteNameOutgoing: {
+      color: theme.messaging.bubbleOutQuote,
+    },
+    messageInlineReplyQuoteText: {
+      color: theme.messaging.replyQuoteText,
+      fontFamily: theme.typography.fontFamilyMedium,
+      fontSize: 12.5,
+      maxWidth: 196,
+    },
+    messageInlineReplyQuoteTextOutgoing: {
+      color: theme.messaging.bubbleOutQuote,
+    },
+    /** §1.7: 6px inside a DM bubble, 5px in the channel and the inbox row. */
+    messageTypingDots: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+    },
+    messageTypingDotBubble: {
+      backgroundColor: theme.messaging.typingDot,
+      borderRadius: 3,
+      height: 6,
+      width: 6,
+    },
+    messageTypingDotCompact: {
+      backgroundColor: theme.messaging.accent,
+      borderRadius: 2.5,
+      height: 5,
+      width: 5,
+    },
+    /** §2 "1e".12: an inline pill — 700 accent on the mention fill, r6, 1/5. */
     messageMention: {
-      backgroundColor: theme.mention.background,
-      color: theme.mention.text,
+      backgroundColor: theme.messaging.mentionPill,
+      borderRadius: 6,
+      color: theme.messaging.accentText,
+      fontFamily: theme.typography.fontFamilyBold,
+      paddingHorizontal: 5,
+      paddingVertical: 1,
+    },
+    /** Inside a filled outgoing bubble the accent tints stop reading at all. */
+    messageLinkOnAccent: { color: theme.messaging.bubbleOutText },
+    messageMentionOnAccent: {
+      backgroundColor: theme.messaging.bubbleOutQuote,
+      color: theme.messaging.bubbleOut,
       fontFamily: theme.typography.fontFamilyExtraBold,
     },
     /** 10a: your own handle reads a shade stronger than everyone else's. */
@@ -60,44 +146,49 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
       fontSize: 11,
       fontFamily: theme.typography.fontFamilyExtraBold,
     },
+    /**
+     * §1.6 file card. It is a card in both directions — on the outgoing side it
+     * stays a card instead of becoming a bubble, which is why its clock needs
+     * the separate meta row K2 otherwise forbids.
+     */
     messageAttachmentCard: {
-      minWidth: 0,
+      minWidth: 236,
       flexDirection: "row",
       alignItems: "center",
-      gap: 9,
-      borderWidth: 1,
-      borderColor: theme.border.subtle,
-      borderRadius: 14,
-      backgroundColor: theme.surface.card,
-      padding: 8,
+      gap: 11,
+      borderRadius: 18,
+      backgroundColor: theme.messaging.bubbleIn,
+      paddingVertical: 9,
+      paddingHorizontal: 13,
+      ...theme.elevation.messageBubbleIn,
     },
     messageAttachmentIcon: {
-      width: 48,
-      height: 42,
+      width: 38,
+      height: 38,
       alignItems: "center",
       justifyContent: "center",
-      borderRadius: 12,
-      backgroundColor: theme.accent.soft,
+      borderRadius: 13,
+      backgroundColor: theme.messaging.dangerSurface,
     },
     messageAttachmentIconText: {
-      color: theme.accent.strong,
+      color: theme.messaging.danger,
       fontSize: 10,
       fontFamily: theme.typography.fontFamilyExtraBold,
     },
     messageAttachmentImage: {
-      width: 48,
-      height: 42,
-      borderRadius: 12,
-      backgroundColor: theme.accent.soft,
+      width: 38,
+      height: 38,
+      borderRadius: 13,
+      backgroundColor: theme.messaging.accentSoft,
     },
     messageAttachmentInfo: {
-      color: theme.text.muted,
-      fontSize: 11,
-      fontFamily: theme.typography.fontFamilyBold,
+      color: theme.messaging.groupLabel,
+      fontSize: 11.5,
+      lineHeight: 15,
+      fontFamily: theme.typography.fontFamilySemiBold,
     },
     messageAttachmentList: {
       gap: 7,
-      marginTop: 8,
       minWidth: 0,
     },
     messageAttachmentMeta: {
@@ -106,14 +197,17 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
       gap: 2,
     },
     messageAttachmentName: {
-      color: theme.text.primary,
-      fontSize: 12,
-      lineHeight: 16,
-      fontFamily: theme.typography.fontFamilyExtraBold,
+      color: theme.messaging.textPrimary,
+      fontSize: 13.5,
+      lineHeight: 18,
+      fontFamily: theme.typography.fontFamilyBold,
     },
+    /** §2 "1e".7: 15/600 accent, underlined in the accent at 35%. */
     messageLink: {
-      color: theme.accent.strong,
+      color: theme.messaging.accentText,
+      fontFamily: theme.typography.fontFamilySemiBold,
       textDecorationLine: "underline",
+      textDecorationColor: theme.messaging.linkUnderline,
     },
     messageDateLine: {
       height: 1,
@@ -172,14 +266,29 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
       fontFamily: theme.typography.fontFamilyBold,
       fontStyle: "italic",
     },
+    /**
+     * §1.9: the channel day divider is a centred label with a rule on each side
+     * (the DM one, drawn in `dm-chat-primitives`, has no rules at all).
+     */
+    messageDateSeparatorChannel: {
+      gap: 10,
+      paddingBottom: 10,
+      paddingHorizontal: metrics.channel.rowPaddingHorizontal,
+      paddingTop: 6,
+    },
+    messageDateLineChannel: {
+      flex: 1,
+      height: 1,
+      backgroundColor: theme.messaging.divider,
+    },
     messageDateTextChannel: {
       borderWidth: 0,
       borderRadius: 0,
-      backgroundColor: "transparent",
-      color: theme.text.soft,
-      fontSize: 11,
-      fontFamily: theme.typography.fontFamilyBold,
-      letterSpacing: 0.1,
+      color: theme.messaging.bubbleMeta,
+      fontSize: 10.5,
+      lineHeight: 14,
+      fontFamily: theme.typography.fontFamilyExtraBold,
+      letterSpacing: 1.26,
       paddingHorizontal: 0,
       paddingVertical: 0,
       textTransform: "uppercase",
@@ -201,17 +310,37 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
       alignItems: "flex-start",
       gap: 10,
     },
+    /** §0.4: 13.5/800 with the tight heading tracking. */
     messagePreviewAuthorChannel: {
       flex: 0,
-      fontSize: 14,
+      color: theme.messaging.textPrimary,
+      fontSize: 13.5,
+      lineHeight: 18,
+      letterSpacing: -0.135,
       fontFamily: theme.typography.fontFamilyExtraBold,
-      lineHeight: 19,
     },
     messagePreviewBodyChannel: {
       marginTop: 0,
-      fontSize: 14,
-      lineHeight: 20.3,
-      fontFamily: theme.typography.fontFamily,
+      color: theme.messaging.textPrimary,
+      // Size and line height come from the punto hook, merged after this.
+      letterSpacing: -0.075,
+      fontFamily: theme.typography.fontFamilyMedium,
+    },
+    /** §0.4 BOT badge — accent on accent-soft, never an emoji. */
+    messagePreviewBotBadge: {
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: metrics.channel.botBadgeRadius,
+      backgroundColor: theme.messaging.accentSoft,
+      paddingHorizontal: metrics.channel.botBadgePaddingHorizontal,
+      paddingVertical: metrics.channel.botBadgePaddingVertical,
+    },
+    messagePreviewBotBadgeText: {
+      color: theme.messaging.accentText,
+      fontSize: 9,
+      lineHeight: 12,
+      letterSpacing: 0.54,
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     messagePreviewBubble: {
       flexShrink: 1,
@@ -225,18 +354,18 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
       paddingHorizontal: 11,
       paddingVertical: 9,
     },
-    // 8c: channel rows are flat Discord-style lines — no card chrome.
+    /**
+     * K1: a channel message has no box. This is not a "thinner card" — the
+     * bubble style is never applied in channel mode, so there is nothing here
+     * to fill, frame or raise; it is pure layout.
+     */
     messagePreviewBubbleChannel: {
       alignSelf: "stretch",
       flexShrink: 1,
       maxWidth: "100%",
-      borderWidth: 0,
-      borderRadius: 0,
-      backgroundColor: "transparent",
-      paddingHorizontal: 0,
-      paddingVertical: 0,
+      minWidth: 0,
+      gap: 3,
     },
-    messagePreviewBubbleChannelContinuation: {},
     messagePreviewBubbleOwn: {
       borderBottomLeftRadius: 18,
       borderBottomRightRadius: 8,
@@ -264,10 +393,6 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
       minWidth: 0,
       gap: 3,
     },
-    messagePreviewAvatarSpacerChannel: {
-      width: 38,
-      flexShrink: 0,
-    },
     messagePreviewRow: {
       width: "100%",
       minWidth: 0,
@@ -275,33 +400,44 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
       alignItems: "flex-start",
       gap: 9,
     },
+    /** §2 "1e".5: the row carries the 16px inset the flow gave up. */
     messagePreviewRowChannel: {
-      gap: 10,
+      gap: metrics.channel.rowGap,
+      paddingHorizontal: metrics.channel.rowPaddingHorizontal,
+      paddingVertical: metrics.channel.rowPaddingVertical,
     },
-    // 8c: long-press highlight bleeds past the stream padding.
+    /**
+     * §1.2: a continuation drops the avatar and indents to 61px instead — row
+     * padding (16) + avatar (34) + row gap (11), so the body stays pixel-aligned
+     * with the first message of the group.
+     */
+    messagePreviewRowChannelContinuation: {
+      paddingBottom: metrics.channel.continuationPaddingBottom,
+      paddingLeft: metrics.channel.continuationPaddingLeft,
+      paddingRight: metrics.channel.continuationPaddingRight,
+      paddingTop: metrics.channel.continuationPaddingTop,
+    },
     messagePreviewRowChannelActive: {
       backgroundColor: theme.messageMenu.rowHighlight,
-      borderRadius: 16,
-      marginHorizontal: -10,
-      paddingHorizontal: 10,
-      paddingVertical: 8,
     },
-    // 10a: a message that names you gets a soft fill plus a left stripe, bleeding
-    // past the stream padding the same way the long-press highlight does.
+    // §2 "1e".12: a message that names you takes the mention fill and the accent
+    // stripe; stripe + padding still add up to the row's 16px inset.
     messagePreviewRowChannelMention: {
-      backgroundColor: theme.mention.selfRowBackground,
-      borderLeftColor: theme.mention.selfRowStripe,
-      borderLeftWidth: 3,
-      borderRadius: 8,
-      marginHorizontal: -10,
-      paddingLeft: 7,
-      paddingRight: 10,
-      paddingVertical: 4,
+      backgroundColor: theme.messaging.mentionRow,
+      borderLeftColor: theme.messaging.accent,
+      borderLeftWidth: metrics.channel.mentionRowStripeWidth,
+      paddingLeft: metrics.channel.mentionRowPaddingLeft,
+      paddingRight: metrics.channel.rowPaddingHorizontal,
+      paddingVertical: metrics.channel.mentionRowPaddingVertical,
+    },
+    /** A mentioning continuation keeps the 61px body, minus the stripe. */
+    messagePreviewRowChannelMentionContinuation: {
+      paddingLeft: metrics.channel.continuationPaddingLeft - metrics.channel.mentionRowStripeWidth,
     },
     messagePreviewTimeChannel: {
-      color: theme.text.visualPlaceholder,
+      color: theme.messaging.bubbleMeta,
       fontSize: 10.5,
-      fontFamily: theme.typography.fontFamilyMedium,
+      fontFamily: theme.typography.fontFamilySemiBold,
       lineHeight: 14,
     },
     messagePreviewRowOwn: {
@@ -337,17 +473,6 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
     messageReactionCountOwn: {
       color: theme.accent.strong,
     },
-    messageReactionAddChip: {
-      alignItems: "center",
-      justifyContent: "center",
-      borderWidth: 1,
-      borderColor: theme.messageMenu.addReactionBorder,
-      borderStyle: "dashed",
-      borderRadius: 11,
-      backgroundColor: theme.surface.card,
-      paddingHorizontal: 9,
-      paddingVertical: 3,
-    },
     messageReactionRow: {
       flexDirection: "row",
       flexWrap: "wrap",
@@ -356,9 +481,53 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
       marginTop: 8,
       minWidth: 0,
     },
+    /** §1.4: in the channel the chips sit under the body, not on a bubble edge. */
     messageReactionRowChannel: {
-      gap: 5,
-      marginTop: 3,
+      gap: metrics.reactionChip.gap,
+      marginTop: metrics.reactionChip.channelMarginTop,
+    },
+    messageReactionChipChannel: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      height: metrics.reactionChip.channelHeight,
+      borderRadius: metrics.reactionChip.channelRadius,
+      borderWidth: 0,
+      backgroundColor: theme.messaging.field,
+      paddingHorizontal: 9,
+      paddingVertical: 0,
+    },
+    /** §1.4: my own reaction is the one with the 1.4px ring. */
+    messageReactionChipChannelOwn: {
+      backgroundColor: theme.messaging.reactionMineSurface,
+      borderColor: theme.messaging.reactionMineRing,
+      borderWidth: 1.4,
+    },
+    /** §2 "1f".2: on the screen-tone thread source block they flip to surface. */
+    messageReactionChipChannelOnScreen: {
+      backgroundColor: theme.messaging.surface,
+    },
+    messageReactionEmojiChannel: {
+      fontSize: 12.5,
+      lineHeight: 17,
+    },
+    messageReactionCountChannel: {
+      color: theme.messaging.reactionOtherText,
+      fontSize: 11,
+      lineHeight: 15,
+      fontFamily: theme.typography.fontFamilyExtraBold,
+    },
+    messageReactionCountChannelOwn: {
+      color: theme.messaging.reactionMineText,
+    },
+    messageReactionAddChipChannel: {
+      width: metrics.reactionChip.channelHeight,
+      height: metrics.reactionChip.channelHeight,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 0,
+      borderRadius: metrics.reactionChip.channelRadius,
+      backgroundColor: theme.messaging.field,
     },
     // 8c compact reply line above the channel author row.
     messageReplyLineChannel: {
@@ -381,30 +550,38 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
     messageReplyLineQuote: {
       color: theme.text.visualPlaceholder,
     },
-    // 8c thread summary card with the overlapping replier facepile.
+    /**
+     * §2 "1e".9 thread indicator: an accent-soft block, not a card. The facepile
+     * borders are the block's own fill, so the avatars punch out of it.
+     */
     messageThreadCard: {
       alignSelf: "flex-start",
       flexDirection: "row",
       alignItems: "center",
-      gap: 8,
+      gap: metrics.channel.threadIndicatorGap,
       maxWidth: 270,
       minWidth: 0,
-      borderWidth: 1,
-      borderColor: theme.border.subtle,
-      borderRadius: 13,
-      backgroundColor: theme.surface.card,
-      paddingHorizontal: 11,
-      paddingVertical: 8,
-      marginTop: 5,
+      borderWidth: 0,
+      borderRadius: metrics.channel.threadIndicatorRadius,
+      backgroundColor: theme.messaging.accentSoft,
+      paddingLeft: 6,
+      paddingRight: 10,
+      paddingVertical: 5,
+      marginTop: 7,
     },
     messageThreadFacepile: {
       flexDirection: "row",
     },
+    messageThreadFace: {
+      borderColor: theme.messaging.accentSoft,
+      borderRadius: metrics.avatar.threadIndicatorRadius,
+      borderWidth: metrics.channel.threadIndicatorFaceBorderWidth,
+    },
     messageThreadFaceOverlap: {
-      marginLeft: -7,
+      marginLeft: metrics.channel.threadIndicatorFaceOverlap,
     },
     messageThreadReplyCount: {
-      color: theme.accent.strong,
+      color: theme.messaging.accentText,
       fontSize: 12,
       lineHeight: 16,
       fontFamily: theme.typography.fontFamilyExtraBold,
@@ -412,35 +589,60 @@ export const createMessagePrimitiveStyles = (theme: MobileTheme) => {
     messageThreadLastReply: {
       flexShrink: 1,
       minWidth: 0,
-      color: theme.text.visualPlaceholder,
-      fontSize: 11,
-      lineHeight: 14,
+      color: theme.messaging.groupLabel,
+      fontSize: 11.5,
+      lineHeight: 15,
+      fontFamily: theme.typography.fontFamilySemiBold,
     },
     // 10e replaced the 8c floating action bar with the full action menu; the
     // pressed tint stays for the inline cards that survived it.
     messageRowCardPressed: {
       backgroundColor: theme.surface.soft,
     },
-    // 8c unread boundary divider.
+    // §1.9 "YENİ": the danger rule and label, sitting right above the first
+    // unread message and pinned there while the screen stays open.
     channelUnreadSeparator: {
       flexDirection: "row",
       alignItems: "center",
       gap: 10,
       minWidth: 0,
-      paddingBottom: 10,
+      paddingBottom: 8,
+      paddingHorizontal: metrics.channel.rowPaddingHorizontal,
       paddingTop: 4,
     },
     channelUnreadSeparatorLine: {
       flex: 1,
       height: 1,
-      backgroundColor: theme.messageMenu.unreadDividerLine,
+      backgroundColor: theme.messaging.newDivider,
     },
     channelUnreadSeparatorLabel: {
-      color: theme.messageMenu.unreadDivider,
-      fontSize: 10.5,
-      lineHeight: 14,
+      color: theme.messaging.danger,
+      fontSize: 10,
+      lineHeight: 13,
       fontFamily: theme.typography.fontFamilyExtraBold,
-      letterSpacing: 1.05,
+      letterSpacing: 1.2,
+    },
+    /** §2 "1e".10: a join/leave event is an icon line, never a message row. */
+    channelSystemEventRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 9,
+      minWidth: 0,
+      paddingLeft: metrics.channel.systemRowPaddingLeft,
+      paddingRight: metrics.channel.rowPaddingHorizontal,
+      paddingVertical: metrics.channel.systemRowPaddingVertical,
+    },
+    channelSystemEventText: {
+      flex: 1,
+      minWidth: 0,
+      color: theme.messaging.systemEventText,
+      fontSize: 12,
+      lineHeight: 16,
+      fontFamily: theme.typography.fontFamilyMedium,
+    },
+    channelSystemEventName: {
+      color: theme.messaging.textTertiary,
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     messageSearchButton: {
       minHeight: mobileSizing.minTouchTarget,

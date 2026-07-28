@@ -9,7 +9,7 @@ import {
   useState,
   type PropsWithChildren,
 } from "react";
-import { StyleSheet, useColorScheme } from "react-native";
+import { PixelRatio, StyleSheet, useColorScheme } from "react-native";
 import {
   getMobileTheme,
   MOBILE_THEME_PREFERENCE_KEY,
@@ -23,17 +23,32 @@ import {
   MOBILE_ACCENT_PREFERENCE_KEY,
   MOBILE_DEFAULT_ACCENT_ID,
   MOBILE_DEFAULT_FONT_SCALE_STEP,
+  MOBILE_DEFAULT_MESSAGE_COMPACT,
+  MOBILE_DEFAULT_MESSAGE_FOLLOW_SYSTEM_FONT,
   MOBILE_DEFAULT_VOICE_APPEARANCE,
   MOBILE_FONT_SCALE_PREFERENCE_KEY,
+  MOBILE_MESSAGE_COMPACT_PREFERENCE_KEY,
+  MOBILE_MESSAGE_FOLLOW_SYSTEM_PREFERENCE_KEY,
+  MOBILE_MESSAGE_FONT_SIZE_PREFERENCE_KEY,
   MOBILE_VOICE_APPEARANCE_PREFERENCE_KEY,
   normalizeMobileAccentId,
   normalizeMobileFontScaleStep,
+  normalizeMobileMessageBooleanPreference,
   normalizeMobileVoiceRoomAppearance,
   resolveMobileVoiceRoomBaseTheme,
   type MobileAccentId,
   type MobileFontScaleStep,
   type MobileVoiceRoomAppearance,
 } from "../../design/mobile-appearance-preferences";
+import {
+  getMobileMessageBodyStyle,
+  getMobileMessageSpacing,
+  MOBILE_DEFAULT_MESSAGE_FONT_SIZE,
+  normalizeMobileMessageFontSize,
+  type MobileMessageBodyStyle,
+  type MobileMessageFontSize,
+  type MobileMessageSurface,
+} from "../../design/mobile-message-typography";
 import type { MobileTheme } from "../../design/themes";
 
 interface MobileThemePreferenceRuntime {
@@ -45,9 +60,22 @@ interface MobileThemePreferenceRuntime {
 interface MobileAppearancePreferenceRuntime extends MobileThemePreferenceRuntime {
   readonly accent: MobileAccentId;
   readonly fontScaleStep: MobileFontScaleStep;
+  /** §3: message-body preferences, independent of `fontScaleStep` (K5). */
+  readonly messageCompact: boolean;
+  readonly messageFollowSystemFont: boolean;
+  readonly messageFontSize: MobileMessageFontSize;
+  /**
+   * False until the three stored message preferences have been read back. The
+   * M4A account sync waits on this so it never reconciles the server against a
+   * value that is only the shipped default because storage has not answered yet.
+   */
+  readonly messagePreferencesReady: boolean;
   readonly voiceRoomAppearance: MobileVoiceRoomAppearance;
   setAccent(accent: MobileAccentId): void;
   setFontScaleStep(step: MobileFontScaleStep): void;
+  setMessageCompact(compact: boolean): void;
+  setMessageFollowSystemFont(followSystemFont: boolean): void;
+  setMessageFontSize(size: MobileMessageFontSize): void;
   setVoiceRoomAppearance(appearance: MobileVoiceRoomAppearance): void;
 }
 
@@ -65,10 +93,21 @@ export function MobileThemeProvider({ children }: PropsWithChildren) {
   const [voiceRoomAppearance, setVoiceRoomAppearanceState] = useState<MobileVoiceRoomAppearance>(
     MOBILE_DEFAULT_VOICE_APPEARANCE,
   );
+  const [messageFontSize, setMessageFontSizeState] = useState<MobileMessageFontSize>(
+    MOBILE_DEFAULT_MESSAGE_FONT_SIZE,
+  );
+  const [messageCompact, setMessageCompactState] = useState(MOBILE_DEFAULT_MESSAGE_COMPACT);
+  const [messageFollowSystemFont, setMessageFollowSystemFontState] = useState(
+    MOBILE_DEFAULT_MESSAGE_FOLLOW_SYSTEM_FONT,
+  );
+  const [messagePreferencesReady, setMessagePreferencesReady] = useState(false);
   const userSelectionVersion = useRef(0);
   const accentSelectionVersion = useRef(0);
   const fontScaleSelectionVersion = useRef(0);
   const voiceAppearanceSelectionVersion = useRef(0);
+  const messageFontSizeSelectionVersion = useRef(0);
+  const messageCompactSelectionVersion = useRef(0);
+  const messageFollowSystemSelectionVersion = useRef(0);
 
   useEffect(() => {
     let active = true;
@@ -124,6 +163,60 @@ export function MobileThemeProvider({ children }: PropsWithChildren) {
     };
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    const fontSizeVersionAtStart = messageFontSizeSelectionVersion.current;
+    const compactVersionAtStart = messageCompactSelectionVersion.current;
+    const followSystemVersionAtStart = messageFollowSystemSelectionVersion.current;
+
+    const loads = [
+      AsyncStorage.getItem(MOBILE_MESSAGE_FONT_SIZE_PREFERENCE_KEY)
+        .then((storedSize) => {
+          if (active && messageFontSizeSelectionVersion.current === fontSizeVersionAtStart) {
+            setMessageFontSizeState(normalizeMobileMessageFontSize(storedSize));
+          }
+        })
+        .catch(() => undefined),
+      AsyncStorage.getItem(MOBILE_MESSAGE_COMPACT_PREFERENCE_KEY)
+        .then((storedCompact) => {
+          if (active && messageCompactSelectionVersion.current === compactVersionAtStart) {
+            setMessageCompactState(
+              normalizeMobileMessageBooleanPreference(
+                storedCompact,
+                MOBILE_DEFAULT_MESSAGE_COMPACT,
+              ),
+            );
+          }
+        })
+        .catch(() => undefined),
+      AsyncStorage.getItem(MOBILE_MESSAGE_FOLLOW_SYSTEM_PREFERENCE_KEY)
+        .then((storedFollowSystem) => {
+          if (
+            active &&
+            messageFollowSystemSelectionVersion.current === followSystemVersionAtStart
+          ) {
+            setMessageFollowSystemFontState(
+              normalizeMobileMessageBooleanPreference(
+                storedFollowSystem,
+                MOBILE_DEFAULT_MESSAGE_FOLLOW_SYSTEM_FONT,
+              ),
+            );
+          }
+        })
+        .catch(() => undefined),
+    ];
+
+    void Promise.all(loads).then(() => {
+      if (active) {
+        setMessagePreferencesReady(true);
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const setMode = useCallback((nextMode: MobileThemeMode) => {
     const normalizedMode = normalizeMobileThemeMode(nextMode);
     userSelectionVersion.current += 1;
@@ -153,9 +246,34 @@ export function MobileThemeProvider({ children }: PropsWithChildren) {
     const normalizedAppearance = normalizeMobileVoiceRoomAppearance(nextAppearance);
     voiceAppearanceSelectionVersion.current += 1;
     setVoiceRoomAppearanceState(normalizedAppearance);
+    void AsyncStorage.setItem(MOBILE_VOICE_APPEARANCE_PREFERENCE_KEY, normalizedAppearance).catch(
+      () => undefined,
+    );
+  }, []);
+
+  const setMessageFontSize = useCallback((nextSize: MobileMessageFontSize) => {
+    const normalizedSize = normalizeMobileMessageFontSize(nextSize);
+    messageFontSizeSelectionVersion.current += 1;
+    setMessageFontSizeState(normalizedSize);
+    void AsyncStorage.setItem(MOBILE_MESSAGE_FONT_SIZE_PREFERENCE_KEY, normalizedSize).catch(
+      () => undefined,
+    );
+  }, []);
+
+  const setMessageCompact = useCallback((nextCompact: boolean) => {
+    messageCompactSelectionVersion.current += 1;
+    setMessageCompactState(nextCompact);
+    void AsyncStorage.setItem(MOBILE_MESSAGE_COMPACT_PREFERENCE_KEY, String(nextCompact)).catch(
+      () => undefined,
+    );
+  }, []);
+
+  const setMessageFollowSystemFont = useCallback((nextFollowSystemFont: boolean) => {
+    messageFollowSystemSelectionVersion.current += 1;
+    setMessageFollowSystemFontState(nextFollowSystemFont);
     void AsyncStorage.setItem(
-      MOBILE_VOICE_APPEARANCE_PREFERENCE_KEY,
-      normalizedAppearance,
+      MOBILE_MESSAGE_FOLLOW_SYSTEM_PREFERENCE_KEY,
+      String(nextFollowSystemFont),
     ).catch(() => undefined);
   }, []);
 
@@ -165,10 +283,17 @@ export function MobileThemeProvider({ children }: PropsWithChildren) {
     () => ({
       accent,
       fontScaleStep,
+      messageCompact,
+      messageFollowSystemFont,
+      messageFontSize,
+      messagePreferencesReady,
       mode,
       resolvedTheme,
       setAccent,
       setFontScaleStep,
+      setMessageCompact,
+      setMessageFollowSystemFont,
+      setMessageFontSize,
       setMode,
       setVoiceRoomAppearance,
       voiceRoomAppearance,
@@ -176,10 +301,17 @@ export function MobileThemeProvider({ children }: PropsWithChildren) {
     [
       accent,
       fontScaleStep,
+      messageCompact,
+      messageFollowSystemFont,
+      messageFontSize,
+      messagePreferencesReady,
       mode,
       resolvedTheme,
       setAccent,
       setFontScaleStep,
+      setMessageCompact,
+      setMessageFollowSystemFont,
+      setMessageFontSize,
       setMode,
       setVoiceRoomAppearance,
       voiceRoomAppearance,
@@ -221,6 +353,46 @@ export function useMobileAppearancePreferences(): MobileAppearancePreferenceRunt
   }
 
   return runtime;
+}
+
+/**
+ * The message body's only size source (handoff §3). React Native has no CSS
+ * variable, so this hook replaces `--msg-size`: it resolves the preference, the
+ * compact toggle and — when "follow system text size" is on — the OS scale.
+ *
+ * Merge the result as an inline style on top of the `StyleSheet` entry. A
+ * fontSize frozen inside `StyleSheet.create` cannot follow the preference, so a
+ * size change would not land in the same frame.
+ */
+export function useMobileMessageBodyStyle(surface: MobileMessageSurface): MobileMessageBodyStyle {
+  const runtime = useContext(ThemePreferenceContext);
+  const followSystemFont =
+    runtime?.messageFollowSystemFont ?? MOBILE_DEFAULT_MESSAGE_FOLLOW_SYSTEM_FONT;
+  // Read per render: the OS scale can change while the app is backgrounded.
+  const systemFontScale = followSystemFont ? PixelRatio.getFontScale() : 1;
+
+  return useMemo(
+    () =>
+      getMobileMessageBodyStyle({
+        compact: runtime?.messageCompact ?? MOBILE_DEFAULT_MESSAGE_COMPACT,
+        fontScale: systemFontScale,
+        size: runtime?.messageFontSize ?? MOBILE_DEFAULT_MESSAGE_FONT_SIZE,
+        surface,
+      }),
+    [runtime?.messageCompact, runtime?.messageFontSize, surface, systemFontScale],
+  );
+}
+
+/**
+ * §3.2 companion to `useMobileMessageBodyStyle`: the compact toggle tightens the
+ * block around the body as well as the line height, and those measures cannot
+ * live in a `StyleSheet` for the same reason the size cannot.
+ */
+export function useMobileMessageSpacing(): ReturnType<typeof getMobileMessageSpacing> {
+  const runtime = useContext(ThemePreferenceContext);
+  const compact = runtime?.messageCompact ?? MOBILE_DEFAULT_MESSAGE_COMPACT;
+
+  return useMemo(() => getMobileMessageSpacing(compact), [compact]);
 }
 
 export function useThemedStyles<T extends StyleSheet.NamedStyles<T>>(

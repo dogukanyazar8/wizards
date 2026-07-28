@@ -34,6 +34,11 @@ import { MobileThemeProvider } from "../src/app/providers/mobile-theme-provider"
 import { mobileQueryKeys } from "../src/query/mobile-query-keys";
 
 const accountSettings = {
+  appearance: {
+    messageCompact: false,
+    messageFollowSystemFont: false,
+    messageFontSize: "medium" as const,
+  },
   account: {
     bannerColor: null,
     bannerOffsetX: null,

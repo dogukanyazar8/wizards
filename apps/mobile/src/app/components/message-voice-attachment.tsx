@@ -1,8 +1,9 @@
-import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import Svg, { Path } from "react-native-svg";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 
+import { MobileLineIcon } from "../../design/mobile-line-icons";
 import type { MobileTheme } from "../../design/themes";
 import { activeMobileCopy as copy } from "../../locale/mobile-locale-preferences";
 import { useMobileHaptics } from "../providers/mobile-haptics-provider";
@@ -12,6 +13,19 @@ const VOICE_WAVEFORM_BAR_COUNT = 24;
 const VOICE_WAVEFORM_MIN_HEIGHT = 7;
 const VOICE_WAVEFORM_MAX_HEIGHT = 18;
 
+/**
+ * §1.5 waveform box: 104x22, stroke 2.4 with round caps. The 17 bars sit on a
+ * 6px pitch starting at x=2, which is what the reference SVG draws.
+ */
+const VOICE_WAVEFORM_WIDTH = 104;
+const VOICE_WAVEFORM_HEIGHT = 22;
+const VOICE_WAVEFORM_STROKE = 2.4;
+const VOICE_WAVEFORM_RENDER_BARS = 17;
+const VOICE_WAVEFORM_BAR_PITCH = 6;
+const VOICE_WAVEFORM_BAR_ORIGIN_X = 2;
+/** §1.5: the part still to play holds at 45% opacity. */
+const VOICE_WAVEFORM_REMAINING_OPACITY = 0.45;
+
 export type MobileVoiceAttachment = {
   readonly contentType: string;
   readonly duration?: number | null | undefined;
@@ -19,9 +33,7 @@ export type MobileVoiceAttachment = {
   readonly url: string | null;
 };
 
-export function isMobileVoiceAttachment(attachment: {
-  readonly contentType: string;
-}): boolean {
+export function isMobileVoiceAttachment(attachment: { readonly contentType: string }): boolean {
   return attachment.contentType.toLowerCase().startsWith("audio/");
 }
 
@@ -48,6 +60,37 @@ export function getMobileVoiceWaveformHeights(
   return heights;
 }
 
+/**
+ * §1.5: the waveform is an SVG path, not a canvas and not a row of views — one
+ * path for the played bars and one for the rest, so the two opacities are two
+ * draw calls instead of seventeen.
+ */
+export function getMobileVoiceWaveformPath(
+  heights: readonly number[],
+  from: number,
+  to: number,
+  // 1h draws the same waveform at a different size (112x20, 6px pitch), so the
+  // geometry is a parameter rather than a second copy of this function.
+  geometry: {
+    readonly height?: number;
+    readonly originX?: number;
+    readonly pitch?: number;
+  } = {},
+): string {
+  const boxHeight = geometry.height ?? VOICE_WAVEFORM_HEIGHT;
+  const originX = geometry.originX ?? VOICE_WAVEFORM_BAR_ORIGIN_X;
+  const pitch = geometry.pitch ?? VOICE_WAVEFORM_BAR_PITCH;
+
+  return heights
+    .slice(from, to)
+    .map((height, index) => {
+      const x = originX + (from + index) * pitch;
+      const bottom = (boxHeight + height) / 2;
+      return `M${x} ${bottom}v-${height}`;
+    })
+    .join("");
+}
+
 export function formatMobileVoiceDuration(totalSeconds: number): string {
   const normalized = Math.max(0, Math.round(totalSeconds));
   const minutes = Math.floor(normalized / 60);
@@ -67,7 +110,10 @@ export function MessageVoiceAttachment({
   const { selection } = useMobileHaptics();
   const player = useAudioPlayer(attachment.url ? { uri: attachment.url } : null);
   const status = useAudioPlayerStatus(player);
-  const heights = useMemo(() => getMobileVoiceWaveformHeights(attachment.id), [attachment.id]);
+  const heights = useMemo(
+    () => getMobileVoiceWaveformHeights(attachment.id, VOICE_WAVEFORM_RENDER_BARS),
+    [attachment.id],
+  );
   const isPlaying = status.playing === true;
   const durationSeconds =
     attachment.duration && attachment.duration > 0
@@ -83,6 +129,17 @@ export function MessageVoiceAttachment({
         : 0
       : 0;
   const playedBarCount = Math.round(progress * heights.length);
+  const playedPath = useMemo(
+    () => getMobileVoiceWaveformPath(heights, 0, playedBarCount),
+    [heights, playedBarCount],
+  );
+  const remainingPath = useMemo(
+    () => getMobileVoiceWaveformPath(heights, playedBarCount, heights.length),
+    [heights, playedBarCount],
+  );
+  // Inside a filled outgoing bubble everything is drawn in the bubble's own
+  // foreground; an incoming voice note carries the accent instead.
+  const waveColor = own ? theme.messaging.bubbleOutText : theme.messaging.accent;
 
   const handleToggle = () => {
     selection();
@@ -109,7 +166,7 @@ export function MessageVoiceAttachment({
         accessibilityRole="button"
         accessibilityState={{ disabled: !attachment.url }}
         disabled={!attachment.url}
-        hitSlop={4}
+        hitSlop={6}
         onPress={handleToggle}
         style={({ pressed }) => [
           styles.playButton,
@@ -118,30 +175,36 @@ export function MessageVoiceAttachment({
         ]}
         testID={`mobile-message-voice-toggle-${attachment.id}`}
       >
-        <Ionicons
-          name={isPlaying ? "pause" : "play"}
-          size={14}
-          color={own ? theme.accent.strong : theme.text.onPrimary}
+        <MobileLineIcon
+          color={own ? theme.messaging.bubbleOutText : theme.messaging.accent}
+          name={isPlaying ? "pause-glyph" : "play-glyph"}
+          size={13}
         />
       </Pressable>
-      <View style={styles.waveform} testID={`mobile-message-voice-waveform-${attachment.id}`}>
-        {heights.map((height, index) => (
-          <View
-            key={index}
-            style={[
-              styles.waveformBar,
-              { height },
-              index < playedBarCount
-                ? own
-                  ? styles.waveformBarPlayedOwn
-                  : styles.waveformBarPlayed
-                : own
-                  ? styles.waveformBarRemainingOwn
-                  : styles.waveformBarRemaining,
-            ]}
+      <Svg
+        height={VOICE_WAVEFORM_HEIGHT}
+        testID={`mobile-message-voice-waveform-${attachment.id}`}
+        viewBox={`0 0 ${VOICE_WAVEFORM_WIDTH} ${VOICE_WAVEFORM_HEIGHT}`}
+        width={VOICE_WAVEFORM_WIDTH}
+      >
+        {playedPath ? (
+          <Path
+            d={playedPath}
+            stroke={waveColor}
+            strokeLinecap="round"
+            strokeWidth={VOICE_WAVEFORM_STROKE}
           />
-        ))}
-      </View>
+        ) : null}
+        {remainingPath ? (
+          <Path
+            d={remainingPath}
+            stroke={waveColor}
+            strokeLinecap="round"
+            strokeOpacity={VOICE_WAVEFORM_REMAINING_OPACITY}
+            strokeWidth={VOICE_WAVEFORM_STROKE}
+          />
+        ) : null}
+      </Svg>
       <Text style={[styles.duration, own && styles.durationOwn]}>
         {formatMobileVoiceDuration(
           isPlaying && durationSeconds > 0 ? durationSeconds - currentTime : durationSeconds,
@@ -156,37 +219,25 @@ const createStyles = (theme: MobileTheme) =>
     root: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 10,
-      minHeight: 44,
-      paddingVertical: 2,
+      gap: 11,
     },
+    /** §1.5: a 32px circle, translucent white inside the outgoing bubble. */
     playButton: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
+      width: 32,
+      height: 32,
+      borderRadius: 16,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: theme.accent.action,
+      backgroundColor: theme.messaging.accentSoft,
       flexShrink: 0,
     },
-    playButtonOwn: { backgroundColor: theme.surface.card },
+    playButtonOwn: { backgroundColor: theme.messaging.bubbleOutControl },
     playButtonPressed: { opacity: 0.85 },
-    waveform: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 2.5,
-      flexShrink: 1,
-    },
-    waveformBar: { width: 3, borderRadius: 2 },
-    waveformBarPlayed: { backgroundColor: theme.accent.default },
-    waveformBarPlayedOwn: { backgroundColor: theme.text.onPrimary },
-    waveformBarRemaining: { backgroundColor: theme.control.chevron },
-    waveformBarRemainingOwn: { backgroundColor: theme.text.onInverseMuted },
     duration: {
-      color: theme.text.visualSecondary,
+      color: theme.messaging.textSecondary,
       fontSize: 11.5,
       lineHeight: 15,
       fontFamily: theme.typography.fontFamilyBold,
     },
-    durationOwn: { color: theme.text.onPrimary },
+    durationOwn: { color: theme.messaging.bubbleOutText },
   });

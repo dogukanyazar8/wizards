@@ -9,7 +9,6 @@ import {
   getMobileChannelChatHeaderModel,
   getMobileChannelChatSearchVisibility,
   getMobileMessageListPerformanceConfig,
-  getMobileMessageStreamItems,
   useCallback,
   useEffect,
   useMemo,
@@ -31,20 +30,33 @@ import { Alert, ScrollView } from "react-native";
 import { DMComposer, type MobileComposerIntent } from "../composer/mobile-composer";
 import {
   ChannelMessageOverlays,
+  ChannelSystemEventRow,
   ChannelUnreadSeparator,
   MessageDateSeparator,
   MessageListSkeleton,
   MessageReactionOverlays,
   MessageSearchPanel,
   MessageStream,
+  MessageTypingDots,
   MemoizedMessagePreviewRow,
   isMessageSearchStateForContext,
+  isMobileChannelSystemEvent,
   useMobileMessageReactionOverlay,
   type MobileRenderableMessage,
   type MobileMessageActionTarget,
 } from "../components/message-primitives";
+import {
+  getMobileMessageGroupModel,
+  resolveMobileMessageUnreadAnchor,
+} from "../components/message-grouping";
+import {
+  MobileMessageMenuBoundsProvider,
+  measureMobileMessageAnchor,
+  type MobileMessageAnchorRect,
+} from "../components/message-menu-anchor";
+import { MobileLineIcon } from "../../design/mobile-line-icons";
 import { StatusChip } from "../components/ui-atoms";
-import { Avatar, BottomSheet, EmptyState, SheetHeader, Skeleton } from "../components/kit";
+import { BottomSheet, EmptyState, SheetHeader, Skeleton } from "../components/kit";
 import { MobileChatKeyboardRegion, useMobileScreenFocus } from "../mobile-chat-keyboard-region";
 import type { MobileMentionCandidate } from "../mobile-mention";
 import {
@@ -160,6 +172,9 @@ export function MobileChannelChatScreen({
   const [composerIntent, setComposerIntent] = useState<MobileComposerIntent | null>(null);
   const [forwardSource, setForwardSource] = useState<MobileMessageActionTarget | null>(null);
   const [isPinsSheetOpen, setPinsSheetOpen] = useState(false);
+  // §2 "1g".1: while the long-press menu is up the header dims to .5 — and the
+  // composer, deliberately, does not.
+  const [isActionMenuOpen, setActionMenuOpen] = useState(false);
   const messageListRef = useRef<ChannelMessageListHandle | null>(null);
   const latestPinnedMessage = channelPinnedMessages[0] ?? null;
   const handleRequestForward = useCallback((message: MobileMessageActionTarget) => {
@@ -283,7 +298,13 @@ export function MobileChannelChatScreen({
         style={styles.mobileChannelChatScreen}
         testID="mobile-channel-chat-screen"
       >
-        <View style={styles.mobileChannelChatHeader} testID="mobile-channel-chat-header">
+        <View
+          style={[
+            styles.mobileChannelChatHeader,
+            isActionMenuOpen && styles.mobileChannelChatHeaderDimmed,
+          ]}
+          testID="mobile-channel-chat-header"
+        >
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={copy.channelBackAction}
@@ -295,14 +316,19 @@ export function MobileChannelChatScreen({
             ]}
             testID="mobile-channel-back-button"
           >
-            <Ionicons name="chevron-back" size={20} color={theme.text.primary} />
+            <MobileLineIcon
+              color={theme.messaging.textPrimary}
+              name="back-arrow"
+              size={20}
+              strokeWidth={2.3}
+            />
           </Pressable>
           <View
             accessible
             accessibilityLabel={headerModel.channelName}
             style={styles.mobileChannelChatHash}
           >
-            <Text style={styles.mobileChannelChatHashText}>#</Text>
+            <MobileLineIcon color={theme.messaging.accent} name="hash" size={18} />
           </View>
           <View style={styles.mobileChannelChatHeaderText}>
             <Text style={styles.mobileChannelChatTitle} numberOfLines={1}>
@@ -312,68 +338,78 @@ export function MobileChannelChatScreen({
               {memberPresenceLabel}
             </Text>
           </View>
-          {searchVisibility.isSearchAvailable ? (
+          <View style={styles.mobileChannelChatHeaderActions}>
+            {searchVisibility.isSearchAvailable ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={searchVisibility.toggleAccessibilityLabel}
+                accessibilityState={{ expanded: searchVisibility.shouldRenderSearchPanel }}
+                onPress={handleToggleSearch}
+                style={({ pressed }) => [
+                  styles.mobileChannelChatIconButton,
+                  searchVisibility.shouldRenderSearchPanel &&
+                    styles.mobileChannelChatIconButtonActive,
+                  pressed && styles.actionButtonPressed,
+                ]}
+              >
+                <MobileLineIcon
+                  color={theme.messaging.accent}
+                  name={searchVisibility.shouldRenderSearchPanel ? "close" : "search"}
+                  size={17}
+                  strokeWidth={2.1}
+                />
+              </Pressable>
+            ) : null}
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={searchVisibility.toggleAccessibilityLabel}
-              accessibilityState={{ expanded: searchVisibility.shouldRenderSearchPanel }}
-              onPress={handleToggleSearch}
+              accessibilityLabel={memberPresenceLabel}
+              accessibilityState={{ disabled: !onOpenMembers }}
+              disabled={!onOpenMembers}
+              onPress={onOpenMembers}
               style={({ pressed }) => [
                 styles.mobileChannelChatIconButton,
-                searchVisibility.shouldRenderSearchPanel &&
-                  styles.mobileChannelChatIconButtonActive,
+                !onOpenMembers && styles.mobileChannelChatIconButtonDisabled,
                 pressed && styles.actionButtonPressed,
               ]}
+              testID="mobile-channel-members-button"
             >
-              <Ionicons
-                name={searchVisibility.shouldRenderSearchPanel ? "close" : "search"}
-                size={18}
-                color={
-                  searchVisibility.shouldRenderSearchPanel ? theme.accent.strong : theme.text.muted
-                }
-              />
+              <MobileLineIcon color={theme.messaging.accent} name="members" size={18} />
             </Pressable>
-          ) : null}
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={memberPresenceLabel}
-            accessibilityState={{ disabled: !onOpenMembers }}
-            disabled={!onOpenMembers}
-            onPress={onOpenMembers}
-            style={({ pressed }) => [
-              styles.mobileChannelChatIconButton,
-              !onOpenMembers && styles.mobileChannelChatIconButtonDisabled,
-              pressed && styles.actionButtonPressed,
-            ]}
-            testID="mobile-channel-members-button"
-          >
-            <Ionicons name="person-outline" size={17} color={theme.text.muted} />
-          </Pressable>
+          </View>
         </View>
 
         {latestPinnedMessage ? (
+          // §2 "1e".3: pin glyph, count, one clipped summary line, chevron.
           <View style={styles.pinnedBanner} testID="mobile-channel-pinned-banner">
-            <Ionicons name="pin-outline" size={15} color={theme.accent.strong} />
+            <MobileLineIcon color={theme.messaging.accent} name="pin" size={14} />
+            <Text style={styles.pinnedBannerCount}>
+              {copy.messagePinnedCountTemplate.replace(
+                "{count}",
+                String(channelPinnedMessages.length),
+              )}
+            </Text>
+            {/* §2 "1e".4: touching the strip opens the pinned-messages sheet;
+                jumping to a message happens from a row inside it. */}
             <Pressable
-              accessibilityLabel={copy.messagePinnedJumpAction}
+              accessibilityLabel={copy.messagePinnedSheetTitle}
               accessibilityRole="button"
-              onPress={() => handleJumpToMessage(latestPinnedMessage.id)}
+              onPress={() => setPinsSheetOpen(true)}
               style={styles.pinnedBannerBody}
-              testID="mobile-channel-pinned-banner-jump"
+              testID="mobile-channel-pinned-banner-open"
             >
-              <Text numberOfLines={1} style={styles.pinnedBannerTitle}>
-                {copy.messagePinnedBannerTitleTemplate.replace(
-                  "{name}",
-                  latestPinnedMessage.author.displayName ?? latestPinnedMessage.author.username,
-                )}
-              </Text>
               <Text numberOfLines={1} style={styles.pinnedBannerContent}>
-                {latestPinnedMessage.content}
+                {copy.messagePinnedSummaryTemplate
+                  .replace("{content}", latestPinnedMessage.content)
+                  .replace(
+                    "{name}",
+                    latestPinnedMessage.author.displayName ?? latestPinnedMessage.author.username,
+                  )}
               </Text>
             </Pressable>
             <Pressable
               accessibilityLabel={copy.messagePinnedSheetTitle}
               accessibilityRole="button"
+              hitSlop={12}
               onPress={() => setPinsSheetOpen(true)}
               style={({ pressed }) => [
                 styles.pinnedBannerCountButton,
@@ -381,13 +417,12 @@ export function MobileChannelChatScreen({
               ]}
               testID="mobile-channel-pinned-banner-count"
             >
-              <Text style={styles.pinnedBannerCount}>
-                {copy.messagePinnedCountTemplate.replace(
-                  "{count}",
-                  String(channelPinnedMessages.length),
-                )}
-              </Text>
-              <Ionicons name="chevron-forward" size={15} color={theme.accent.strong} />
+              <MobileLineIcon
+                color={theme.messaging.bubbleMeta}
+                name="chevron-right"
+                size={15}
+                strokeWidth={2.2}
+              />
             </Pressable>
           </View>
         ) : null}
@@ -413,6 +448,7 @@ export function MobileChannelChatScreen({
             onDeleteMessage={onDeleteMessage}
             onDiscardMessage={onDiscardMessage}
             onEditMessage={handleEditMessage}
+            onMenuOpenChange={setActionMenuOpen}
             {...(onForwardMessage ? { onForwardMessage: handleRequestForward } : {})}
             {...(onPinMessage ? { onPinMessage: handlePinMessage } : {})}
             onReplyMessage={handleReplyMessage}
@@ -507,7 +543,11 @@ export function MobileChannelChatScreen({
               <DMComposer
                 attachmentsFeature={attachmentsFeature}
                 getAccessToken={getAccessToken}
-                placeholder={copy.channelComposerPlaceholder}
+                // §2 "1e".14: the placeholder names the channel.
+                placeholder={copy.channelComposerPlaceholderTemplate.replace(
+                  "{channel}",
+                  headerModel.channelName,
+                )}
                 sendActionLabel={copy.channelSendAction}
                 mediaState={mediaState}
                 intent={composerIntent}
@@ -557,10 +597,15 @@ export function ChannelChatBootSkeleton({
             onPress={onBack}
             style={styles.mobileChannelChatBackButton}
           >
-            <Ionicons name="chevron-back" size={20} color={theme.text.primary} />
+            <MobileLineIcon
+              color={theme.messaging.textPrimary}
+              name="back-arrow"
+              size={20}
+              strokeWidth={2.3}
+            />
           </Pressable>
           <View style={styles.mobileChannelChatHash}>
-            <Text style={styles.mobileChannelChatHashText}>#</Text>
+            <MobileLineIcon color={theme.messaging.accent} name="hash" size={18} />
           </View>
           <View style={styles.mobileChannelChatHeaderText}>
             {title ? (
@@ -593,6 +638,8 @@ export const ChannelMessageList = forwardRef<
     firstUnreadMessageId?: string | null;
     isReactionMutationPending?: boolean;
     onLoadMore?(): void;
+    /** §2 "1g".1: lets the screen dim its header while the menu is up. */
+    onMenuOpenChange?(open: boolean): void;
     onRefresh(): void;
     onDeleteMessage?(messageId: string): Promise<boolean>;
     onDiscardMessage?(messageId: string): void;
@@ -617,6 +664,7 @@ export const ChannelMessageList = forwardRef<
     firstUnreadMessageId = null,
     isReactionMutationPending = false,
     onLoadMore,
+    onMenuOpenChange,
     onRefresh,
     onDeleteMessage,
     onDiscardMessage,
@@ -635,7 +683,32 @@ export const ChannelMessageList = forwardRef<
   const theme = useTheme();
   const styles = useChannelScreenStyles();
   const messages = useMemo(() => state.payload?.messages ?? [], [state.payload?.messages]);
-  const streamItems = useMemo(() => getMobileMessageStreamItems(messages), [messages]);
+  // §1.2/§5: the channel groups through the one shared model — same author,
+  // inside five minutes, nothing (system event, day change) in between. The
+  // stream-item shape stays so FlashList's typing and keying are untouched.
+  const streamItems = useMemo<MobileMessageStreamItem<MobileRenderableMessage>[]>(() => {
+    const groups = getMobileMessageGroupModel(
+      messages.map((message) => ({
+        authorId: message.author.id,
+        createdAt: message.createdAt,
+        id: message.id,
+        isSystemEvent: isMobileChannelSystemEvent(message),
+      })),
+    );
+
+    return messages.map((message, index) => {
+      const group = groups[index];
+      const next = groups[index + 1];
+
+      return {
+        id: message.id,
+        isGroupedWithNext: next !== undefined && !next.isGroupStart,
+        isGroupedWithPrevious: group !== undefined && !group.isGroupStart,
+        message,
+        showDateSeparator: group?.showDateSeparator === true,
+      };
+    });
+  }, [messages]);
   const listRef = useRef<FlashListRef<MobileMessageStreamItem<MobileRenderableMessage>> | null>(
     null,
   );
@@ -643,15 +716,29 @@ export const ChannelMessageList = forwardRef<
   // 10e: long press opens the full action menu for exactly one row. The id lives
   // here, not inside the recycled row, so realtime updates cannot drop it.
   // 10d keeps the closed entry around for one exit animation before it goes.
-  const [menu, setMenu] = useState<{ readonly id: string; readonly open: boolean } | null>(null);
-  const handleSetMenuMessage = useCallback((messageId: string | null) => {
-    setMenu((current) =>
-      messageId === null
-        ? current
-          ? { ...current, open: false }
-          : null
-        : { id: messageId, open: true },
-    );
+  const [menu, setMenu] = useState<{
+    readonly anchor: MobileMessageAnchorRect | null;
+    readonly id: string;
+    readonly open: boolean;
+  } | null>(null);
+  const handleSetMenuMessage = useCallback(
+    (messageId: string | null, anchor: MobileMessageAnchorRect | null = null) => {
+      setMenu((current) =>
+        messageId === null
+          ? current
+            ? { ...current, open: false }
+            : null
+          : { anchor, id: messageId, open: true },
+      );
+    },
+    [],
+  );
+  // §2 "1g".1: the scrim darkens the flow, not the header or the composer, so
+  // the shell publishes its own rectangle to any menu opened inside it.
+  const bodyRef = useRef<View | null>(null);
+  const [menuBounds, setMenuBounds] = useState<MobileMessageAnchorRect | null>(null);
+  const handleBodyLayout = useCallback(() => {
+    measureMobileMessageAnchor(bodyRef.current, setMenuBounds);
   }, []);
   const isScreenFocused = useMobileScreenFocus();
   // The reaction chips and the "+" chip live on a recycled row, so the sheet
@@ -693,10 +780,35 @@ export const ChannelMessageList = forwardRef<
       setMenu(null);
     }
   }, [isScreenFocused]);
+  // §2 "1g".1: the header fades to .5 behind the menu. The list knows when the
+  // menu is up; the header belongs to the screen, so it is told.
+  const isActionMenuOpen = menu?.open === true;
+  useEffect(() => {
+    onMenuOpenChange?.(isActionMenuOpen);
+  }, [isActionMenuOpen, onMenuOpenChange]);
   const performanceConfig = useMemo(
     () => getMobileMessageListPerformanceConfig(messages.length),
     [messages.length],
   );
+  // §2 "1e".11: the "YENİ" divider is placed once and then pinned — reading the
+  // messages under it while the screen is open must not make it walk down.
+  const [unreadAnchorId, setUnreadAnchorId] = useState<string | null>(firstUnreadMessageId);
+  const pinnedUnreadMessageId = resolveMobileMessageUnreadAnchor({
+    lastReadMessageId: null,
+    messages: messages.map((message) => ({
+      authorId: message.author.id,
+      createdAt: message.createdAt,
+      id: message.id,
+    })),
+    pinnedMessageId: unreadAnchorId,
+  });
+  useEffect(() => {
+    // Re-arms only once the pinned anchor is gone (channel switch, message
+    // deleted, everything read), never while it is still on screen.
+    if (pinnedUnreadMessageId === null && firstUnreadMessageId !== null) {
+      setUnreadAnchorId(firstUnreadMessageId);
+    }
+  }, [firstUnreadMessageId, pinnedUnreadMessageId]);
   const scrollToLatestMessage = useCallback(
     (animated = true) => {
       if (streamItems.length === 0) {
@@ -740,54 +852,50 @@ export const ChannelMessageList = forwardRef<
   const openMenuMessageId = menu?.open === true ? menu.id : null;
   const renderItem = useCallback(
     ({ item }: { item: MobileMessageStreamItem<MobileRenderableMessage> }) => (
-      <View
-        style={[
-          styles.messageStreamItem,
-          styles.mobileChannelMessageItem,
-          item.isGroupedWithNext
-            ? styles.mobileChannelMessageGroupedSpacing
-            : styles.mobileChannelMessageGroupSpacing,
-        ]}
-      >
+      <View style={styles.mobileChannelStreamItem}>
         {item.showDateSeparator ? (
           <MessageDateSeparator createdAt={item.message.createdAt} variant="channel" />
         ) : null}
-        {firstUnreadMessageId !== null && item.message.id === firstUnreadMessageId ? (
+        {pinnedUnreadMessageId !== null && item.message.id === pinnedUnreadMessageId ? (
           <ChannelUnreadSeparator />
         ) : null}
-        <MemoizedMessagePreviewRow
-          canModerate={canModerate}
-          currentUserId={currentUserId}
-          isHighlighted={item.message.id === highlightedMessageId}
-          isReactionMutationPending={isReactionMutationPending}
-          menuOpen={openMenuMessageId === item.message.id}
-          message={item.message}
-          mode="channel"
-          channelGroupContinuation={item.isGroupedWithPrevious}
-          isServerOwner={item.message.author.id === ownerUserId}
-          own={item.message.author.id === currentUserId}
-          {...(onOpenThread ? { onOpenThread } : {})}
-          onOpenReply={handleOpenReply}
-          onRequestEmojiPicker={requestEmojiPicker}
-          onRequestReactionDetails={requestReactionDetails}
-          onSetMenuMessage={handleSetMenuMessage}
-          {...(onDeleteMessage
-            ? { onDeleteMessage: (messageId: string) => void onDeleteMessage(messageId) }
-            : {})}
-          {...(onDiscardMessage ? { onDiscardFailedMessage: onDiscardMessage } : {})}
-          {...(onEditMessage ? { onEditMessage } : {})}
-          {...(onForwardMessage ? { onForwardMessage } : {})}
-          {...(onPinMessage ? { onPinMessage } : {})}
-          {...(onReplyMessage ? { onReplyMessage } : {})}
-          {...(onRetryMessage ? { onRetryFailedMessage: onRetryMessage } : {})}
-          {...(onToggleMessageReaction ? { onToggleReaction: onToggleMessageReaction } : {})}
-        />
+        {isMobileChannelSystemEvent(item.message) ? (
+          <ChannelSystemEventRow message={item.message} />
+        ) : (
+          <MemoizedMessagePreviewRow
+            canModerate={canModerate}
+            currentUserId={currentUserId}
+            isHighlighted={item.message.id === highlightedMessageId}
+            isReactionMutationPending={isReactionMutationPending}
+            menuOpen={openMenuMessageId === item.message.id}
+            message={item.message}
+            mode="channel"
+            channelGroupContinuation={item.isGroupedWithPrevious}
+            isServerOwner={item.message.author.id === ownerUserId}
+            own={item.message.author.id === currentUserId}
+            {...(onOpenThread ? { onOpenThread } : {})}
+            onOpenReply={handleOpenReply}
+            onRequestEmojiPicker={requestEmojiPicker}
+            onRequestReactionDetails={requestReactionDetails}
+            onSetMenuMessage={handleSetMenuMessage}
+            {...(onDeleteMessage
+              ? { onDeleteMessage: (messageId: string) => void onDeleteMessage(messageId) }
+              : {})}
+            {...(onDiscardMessage ? { onDiscardFailedMessage: onDiscardMessage } : {})}
+            {...(onEditMessage ? { onEditMessage } : {})}
+            {...(onForwardMessage ? { onForwardMessage } : {})}
+            {...(onPinMessage ? { onPinMessage } : {})}
+            {...(onReplyMessage ? { onReplyMessage } : {})}
+            {...(onRetryMessage ? { onRetryFailedMessage: onRetryMessage } : {})}
+            {...(onToggleMessageReaction ? { onToggleReaction: onToggleMessageReaction } : {})}
+          />
+        )}
       </View>
     ),
     [
       canModerate,
       currentUserId,
-      firstUnreadMessageId,
+      pinnedUnreadMessageId,
       handleOpenReply,
       highlightedMessageId,
       isReactionMutationPending,
@@ -844,83 +952,86 @@ export const ChannelMessageList = forwardRef<
   }, [messages.length, onRefresh, state.error, state.payload, state.status, styles]);
 
   return (
-    <View style={styles.mobileChannelChatBodyShell}>
-      <FlashList
-        contentContainerStyle={[
-          styles.mobileChannelChatBodyContent,
-          streamItems.length === 0 && styles.mobileChannelChatBodyEmptyContent,
-        ]}
-        data={streamItems}
-        ref={listRef}
-        drawDistance={performanceConfig.windowSize * 100}
-        keyboardShouldPersistTaps="handled"
-        keyExtractor={(item) => item.id}
-        ListEmptyComponent={emptyComponent}
-        // FlashList anchors the viewport itself: it renders from the bottom,
-        // keeps the visible message pinned when an older page prepends, and
-        // only follows a new message when the reader is already near the end.
-        // The manual scrollToEnd this replaced fought pagination — every
-        // prepended page changed the content size and yanked the view back down.
-        maintainVisibleContentPosition={{
-          animateAutoScrollToBottom: true,
-          autoscrollToBottomThreshold: 0.2,
-          startRenderingFromBottom: true,
-        }}
-        onLoad={mobileListLoadHandlers.channelMessages}
-        onScroll={handleScroll}
-        {...(onLoadMore ? { onStartReached: onLoadMore, onStartReachedThreshold: 0.35 } : {})}
-        renderItem={renderItem}
-        refreshControl={
-          <RefreshControl
-            colors={[theme.accent.strong]}
-            progressBackgroundColor={theme.surface.card}
-            refreshing={state.status === "loading"}
-            tintColor={theme.accent.strong}
-            onRefresh={onRefresh}
+    <MobileMessageMenuBoundsProvider bounds={menuBounds}>
+      <View onLayout={handleBodyLayout} ref={bodyRef} style={styles.mobileChannelChatBodyShell}>
+        <FlashList
+          contentContainerStyle={[
+            styles.mobileChannelChatBodyContent,
+            streamItems.length === 0 && styles.mobileChannelChatBodyEmptyContent,
+          ]}
+          data={streamItems}
+          ref={listRef}
+          drawDistance={performanceConfig.windowSize * 100}
+          keyboardShouldPersistTaps="handled"
+          keyExtractor={(item) => item.id}
+          ListEmptyComponent={emptyComponent}
+          // FlashList anchors the viewport itself: it renders from the bottom,
+          // keeps the visible message pinned when an older page prepends, and
+          // only follows a new message when the reader is already near the end.
+          // The manual scrollToEnd this replaced fought pagination — every
+          // prepended page changed the content size and yanked the view back down.
+          maintainVisibleContentPosition={{
+            animateAutoScrollToBottom: true,
+            autoscrollToBottomThreshold: 0.2,
+            startRenderingFromBottom: true,
+          }}
+          onLoad={mobileListLoadHandlers.channelMessages}
+          onScroll={handleScroll}
+          {...(onLoadMore ? { onStartReached: onLoadMore, onStartReachedThreshold: 0.35 } : {})}
+          renderItem={renderItem}
+          refreshControl={
+            <RefreshControl
+              colors={[theme.accent.strong]}
+              progressBackgroundColor={theme.surface.card}
+              refreshing={state.status === "loading"}
+              tintColor={theme.accent.strong}
+              onRefresh={onRefresh}
+            />
+          }
+          scrollEventThrottle={80}
+          showsVerticalScrollIndicator={false}
+          style={styles.mobileChannelChatBody}
+          testID="mobile-channel-message-list"
+        />
+        <ChannelScrollToBottomButton
+          onPress={() => scrollToLatestMessage(true)}
+          visible={showScrollToBottom && streamItems.length > 0}
+        />
+        {menuMessage ? (
+          <ChannelMessageOverlays
+            anchor={menu?.anchor ?? null}
+            canModerate={canModerate}
+            currentUserId={currentUserId}
+            key={menuMessage.id}
+            message={menuMessage}
+            onClose={() => handleSetMenuMessage(null)}
+            open={menu?.open === true}
+            own={menuMessage.author.id === currentUserId}
+            {...(onDeleteMessage
+              ? { onDeleteMessage: (messageId: string) => void onDeleteMessage(messageId) }
+              : {})}
+            {...(onDiscardMessage ? { onDiscardFailedMessage: onDiscardMessage } : {})}
+            {...(onEditMessage ? { onEditMessage } : {})}
+            {...(onForwardMessage ? { onForwardMessage } : {})}
+            {...(onOpenThread ? { onOpenThread } : {})}
+            {...(onPinMessage ? { onPinMessage } : {})}
+            {...(onReplyMessage ? { onReplyMessage } : {})}
+            {...(onRetryMessage ? { onRetryFailedMessage: onRetryMessage } : {})}
+            {...(onToggleMessageReaction ? { onToggleReaction: onToggleMessageReaction } : {})}
           />
-        }
-        scrollEventThrottle={80}
-        showsVerticalScrollIndicator={false}
-        style={styles.mobileChannelChatBody}
-        testID="mobile-channel-message-list"
-      />
-      <ChannelScrollToBottomButton
-        onPress={() => scrollToLatestMessage(true)}
-        visible={showScrollToBottom && streamItems.length > 0}
-      />
-      {menuMessage ? (
-        <ChannelMessageOverlays
-          canModerate={canModerate}
-          currentUserId={currentUserId}
-          key={menuMessage.id}
-          message={menuMessage}
-          onClose={() => handleSetMenuMessage(null)}
-          open={menu?.open === true}
-          own={menuMessage.author.id === currentUserId}
-          {...(onDeleteMessage
-            ? { onDeleteMessage: (messageId: string) => void onDeleteMessage(messageId) }
-            : {})}
-          {...(onDiscardMessage ? { onDiscardFailedMessage: onDiscardMessage } : {})}
-          {...(onEditMessage ? { onEditMessage } : {})}
-          {...(onForwardMessage ? { onForwardMessage } : {})}
-          {...(onOpenThread ? { onOpenThread } : {})}
-          {...(onPinMessage ? { onPinMessage } : {})}
-          {...(onReplyMessage ? { onReplyMessage } : {})}
-          {...(onRetryMessage ? { onRetryFailedMessage: onRetryMessage } : {})}
-          {...(onToggleMessageReaction ? { onToggleReaction: onToggleMessageReaction } : {})}
-        />
-      ) : null}
-      {reactionOverlay && reactionOverlayMessage ? (
-        <MessageReactionOverlays
-          currentUserId={currentUserId}
-          key={reactionOverlay.id}
-          message={reactionOverlayMessage}
-          onClose={closeReactionOverlay}
-          overlay={reactionOverlay}
-          {...(onToggleMessageReaction ? { onToggleReaction: onToggleMessageReaction } : {})}
-        />
-      ) : null}
-    </View>
+        ) : null}
+        {reactionOverlay && reactionOverlayMessage ? (
+          <MessageReactionOverlays
+            currentUserId={currentUserId}
+            key={reactionOverlay.id}
+            message={reactionOverlayMessage}
+            onClose={closeReactionOverlay}
+            overlay={reactionOverlay}
+            {...(onToggleMessageReaction ? { onToggleReaction: onToggleMessageReaction } : {})}
+          />
+        ) : null}
+      </View>
+    </MobileMessageMenuBoundsProvider>
   );
 });
 
@@ -952,6 +1063,11 @@ export function ChannelScrollToBottomButton({
   );
 }
 
+/**
+ * §2 "1e".13: three 5px accent dots and one 11.5/700 line, indented to 61px so
+ * it reads as the next line of the flow rather than a separate strip. The dots
+ * are the shared `MessageTypingDots` primitive in its compact form.
+ */
 export function ChannelTypingIndicator({
   label,
   users,
@@ -968,19 +1084,11 @@ export function ChannelTypingIndicator({
     <View
       accessibilityRole="text"
       accessibilityLabel={label}
+      accessibilityLiveRegion="polite"
       style={styles.mobileChannelTypingIndicator}
+      testID={users[0] ? `mobile-channel-typing-${users[0].userId}` : "mobile-channel-typing"}
     >
-      {users[0] ? (
-        <Avatar
-          avatarBorderRadius={6}
-          avatarBorderWidth={0}
-          dimension={18}
-          identityId={users[0].userId}
-          imageUrl={null}
-          label={users[0].name}
-          testID={`mobile-channel-typing-avatar-${users[0].userId}`}
-        />
-      ) : null}
+      <MessageTypingDots compact testID="mobile-channel-typing-dots" />
       <Text style={styles.mobileChannelTypingText} numberOfLines={1}>
         {label}
       </Text>

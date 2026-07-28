@@ -22,14 +22,27 @@ import {
 } from "../mobile-root-screen-shared";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { FlashList, type FlashListRef } from "@shopify/flash-list";
-import { Linking } from "react-native";
+import type { ReactNode } from "react";
+import { Linking, type StyleProp, type TextStyle } from "react-native";
+import Animated, {
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withDelay,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from "react-native-reanimated";
+import { MobileLineIcon } from "../../design/mobile-line-icons";
+import { mobileMessagingMetrics } from "../../design/tokens";
 import { AvatarMark } from "./ui-atoms";
 import { MobileCachedImage } from "./mobile-cached-image";
 import { Icon, Skeleton } from "./kit";
 import { MessageActionMenu } from "./message-action-menu";
+import { measureMobileMessageAnchor, type MobileMessageAnchorRect } from "./message-menu-anchor";
 import { MessageVoiceAttachment, isMobileVoiceAttachment } from "./message-voice-attachment";
 import { useMessagePrimitiveStyles } from "./message-primitives.styles";
-import { useTheme } from "../providers/mobile-theme-provider";
+import { useMobileMessageBodyStyle, useTheme } from "../providers/mobile-theme-provider";
 import { useMobileLocaleRuntime } from "../providers/mobile-locale-provider";
 import { formatMobileDateSeparator } from "../../locale/mobile-date-separator";
 import { MessageEmojiPicker } from "./message-emoji-picker";
@@ -73,8 +86,31 @@ export type MobileMessageActionTarget = {
   readonly id: string;
 };
 
-function MessageBodyText({ body, channel }: { readonly body: string; readonly channel: boolean }) {
+/**
+ * The single message-body component (handoff §3.2). Every scaled body on every
+ * surface renders through this: the size comes from `useMobileMessageBodyStyle`
+ * and is merged as an inline style, because a fontSize frozen into
+ * `StyleSheet.create` cannot follow the preference in the same frame.
+ */
+export function MessageBodyText({
+  body,
+  channel,
+  numberOfLines,
+  style,
+  testID,
+  tone = "default",
+}: {
+  readonly body: string;
+  readonly channel: boolean;
+  readonly numberOfLines?: number;
+  readonly style?: StyleProp<TextStyle>;
+  readonly testID?: string;
+  /** `onAccent` is the outgoing bubble: accent-on-accent link text is unreadable. */
+  readonly tone?: "default" | "onAccent";
+}) {
   const styles = useMessagePrimitiveStyles();
+  const bodyStyle = useMobileMessageBodyStyle(channel ? "channel" : "dm");
+  const onAccent = tone === "onAccent";
   // 10a: inside a server the roster decides which `@handle` is a real mention —
   // the same rule the backend applies before it creates a MENTION notification.
   // Outside one (DM) there is no roster, so every valid handle stays styled.
@@ -89,8 +125,15 @@ function MessageBodyText({ body, channel }: { readonly body: string; readonly ch
 
   return (
     <Text
-      style={[styles.dmMessageBody, channel && styles.messagePreviewBodyChannel]}
-      numberOfLines={channel ? undefined : 4}
+      style={[
+        styles.dmMessageBody,
+        channel && styles.messagePreviewBodyChannel,
+        // Last, so the preference wins over the frozen sheet values.
+        bodyStyle,
+        style,
+      ]}
+      numberOfLines={numberOfLines ?? (channel ? undefined : 4)}
+      testID={testID}
     >
       {segments.map((segment, index) => (
         <Text
@@ -102,11 +145,15 @@ function MessageBodyText({ body, channel }: { readonly body: string; readonly ch
           }
           style={
             segment.type === "link"
-              ? styles.messageLink
+              ? onAccent
+                ? [styles.messageLink, styles.messageLinkOnAccent]
+                : styles.messageLink
               : segment.type === "mention"
-                ? segment.username === selfUsername
-                  ? [styles.messageMention, styles.messageMentionSelf]
-                  : styles.messageMention
+                ? onAccent
+                  ? styles.messageMentionOnAccent
+                  : segment.username === selfUsername
+                    ? [styles.messageMention, styles.messageMentionSelf]
+                    : styles.messageMention
                 : undefined
           }
         >
@@ -114,6 +161,207 @@ function MessageBodyText({ body, channel }: { readonly body: string; readonly ch
         </Text>
       ))}
     </Text>
+  );
+}
+
+/**
+ * §1.1/§1.8: the clock (and, outgoing, the receipt) sit on the last line of the
+ * bubble. This never opens a row of its own — the file card and the voice
+ * message are the only two places the handoff allows a separate meta line, and
+ * they compose their own.
+ */
+export function MessageTimestampInline({
+  children,
+  delivery = null,
+  outgoing = false,
+  testID,
+  timeLabel,
+}: {
+  /** The last line of body content the clock has to sit beside. */
+  readonly children?: ReactNode;
+  readonly delivery?: MobileMessageDelivery | null;
+  readonly outgoing?: boolean;
+  readonly testID?: string;
+  readonly timeLabel: string;
+}) {
+  const styles = useMessagePrimitiveStyles();
+
+  return (
+    <View style={styles.messageTimestampInline} testID={testID}>
+      {children}
+      <View style={styles.messageTimestampInlineMeta}>
+        <Text
+          style={[
+            styles.messageTimestampInlineText,
+            outgoing && styles.messageTimestampInlineTextOutgoing,
+          ]}
+        >
+          {timeLabel}
+        </Text>
+        {delivery ? <MessageDeliveryTicks delivery={delivery} outgoing={outgoing} /> : null}
+      </View>
+    </View>
+  );
+}
+
+export type MobileMessageDelivery = "read" | "sending" | "sent";
+
+/**
+ * §1.8 delivery receipt: one tick sent, two ticks read, 14x14. The state is
+ * announced as well as drawn — colour alone is not a status.
+ */
+export function MessageDeliveryTicks({
+  delivery,
+  outgoing = false,
+  testID,
+}: {
+  readonly delivery: MobileMessageDelivery;
+  readonly outgoing?: boolean;
+  readonly testID?: string;
+}) {
+  const theme = useTheme();
+
+  if (delivery === "sending") {
+    return null;
+  }
+
+  const isRead = delivery === "read";
+  // Inside a filled outgoing bubble the tick is drawn in the bubble's own
+  // foreground; anywhere else it carries the accent (read) or the muted
+  // sent tone.
+  const color = outgoing
+    ? theme.messaging.bubbleOutText
+    : isRead
+      ? theme.messaging.tickRead
+      : theme.messaging.tickSent;
+
+  return (
+    <View testID={testID}>
+      <MobileLineIcon
+        accessibilityLabel={isRead ? copy.dmChatReadLabel : copy.dmChatDeliveredLabel}
+        color={color}
+        name={isRead ? "tick-double" : "tick-single"}
+        size={14}
+      />
+    </View>
+  );
+}
+
+/**
+ * §1.3: the reply quote has no fill and no box — a 2.5px rule, the author and a
+ * single clipped line. Inside an outgoing bubble the rule and both lines switch
+ * to the bubble's own translucent white.
+ */
+export function MessageReplyQuote({
+  authorName,
+  excerpt,
+  outgoing = false,
+  testID,
+}: {
+  readonly authorName: string;
+  readonly excerpt: string;
+  readonly outgoing?: boolean;
+  readonly testID?: string;
+}) {
+  const styles = useMessagePrimitiveStyles();
+
+  return (
+    <View
+      style={[styles.messageInlineReplyQuote, outgoing && styles.messageInlineReplyQuoteOutgoing]}
+      testID={testID}
+    >
+      <Text
+        numberOfLines={1}
+        style={[
+          styles.messageInlineReplyQuoteName,
+          outgoing && styles.messageInlineReplyQuoteNameOutgoing,
+        ]}
+      >
+        {authorName}
+      </Text>
+      <Text
+        numberOfLines={1}
+        style={[
+          styles.messageInlineReplyQuoteText,
+          outgoing && styles.messageInlineReplyQuoteTextOutgoing,
+        ]}
+      >
+        {excerpt}
+      </Text>
+    </View>
+  );
+}
+
+const MESSAGE_TYPING_DOT_DELAYS = [0, 160, 320] as const;
+const MESSAGE_TYPING_DOT_OPACITIES = [1, 0.65, 0.35] as const;
+
+function MessageTypingDot({
+  compact,
+  index,
+}: {
+  readonly compact: boolean;
+  readonly index: number;
+}) {
+  const styles = useMessagePrimitiveStyles();
+  const reducedMotion = useReducedMotion() === true;
+  const restingOpacity = MESSAGE_TYPING_DOT_OPACITIES[index] ?? 1;
+  const offset = useSharedValue(0);
+
+  useEffect(() => {
+    if (reducedMotion) {
+      offset.value = 0;
+      return;
+    }
+
+    // §1.7: a 1.2s cycle, each dot 160ms behind the one before it.
+    offset.value = withRepeat(
+      withDelay(
+        MESSAGE_TYPING_DOT_DELAYS[index] ?? 0,
+        withSequence(withTiming(-4, { duration: 300 }), withTiming(0, { duration: 900 })),
+      ),
+      -1,
+      false,
+    );
+  }, [index, offset, reducedMotion]);
+
+  const animatedStyle = useAnimatedStyle(() => ({ transform: [{ translateY: offset.value }] }));
+
+  return (
+    <Animated.View
+      style={[
+        compact ? styles.messageTypingDotCompact : styles.messageTypingDotBubble,
+        { opacity: restingOpacity },
+        animatedStyle,
+      ]}
+    />
+  );
+}
+
+/**
+ * §1.7 typing indicator. `compact` is the 5px accent form used by the channel
+ * and the inbox row; the default 6px neutral form fills a DM bubble.
+ */
+export function MessageTypingDots({
+  compact = false,
+  testID,
+}: {
+  readonly compact?: boolean;
+  readonly testID?: string;
+}) {
+  const styles = useMessagePrimitiveStyles();
+
+  return (
+    <View
+      accessibilityLabel={copy.dmChatTypingStatus}
+      accessibilityLiveRegion="polite"
+      accessibilityRole="text"
+      style={styles.messageTypingDots}
+      testID={testID}
+    >
+      {MESSAGE_TYPING_DOT_DELAYS.map((_, index) => (
+        <MessageTypingDot compact={compact} index={index} key={index} />
+      ))}
+    </View>
   );
 }
 
@@ -358,6 +606,11 @@ function getMobileAttachmentPreviewUri(attachment: MobileRenderableAttachment): 
   return contentType.startsWith("image/") && previewUrl ? previewUrl : null;
 }
 
+/**
+ * §1.9 day divider. The channel form is a centred label with a 1px rule on each
+ * side; the DM form (drawn in `dm-chat-primitives`) has no rules at all, which
+ * is why this takes a variant instead of the channel growing its own separator.
+ */
 export function MessageDateSeparator({
   createdAt,
   variant = "conversation",
@@ -372,21 +625,24 @@ export function MessageDateSeparator({
     return null;
   }
 
+  const isChannel = variant === "channel";
+  const rule = isChannel ? styles.messageDateLineChannel : styles.messageDateLine;
+
   return (
     <View
       accessible
       accessibilityLabel={label}
       accessibilityRole="text"
-      style={styles.messageDateSeparator}
+      style={[styles.messageDateSeparator, isChannel && styles.messageDateSeparatorChannel]}
     >
-      <View style={styles.messageDateLine} />
+      <View style={rule} testID={isChannel ? "mobile-channel-message-date-rule" : undefined} />
       <Text
-        style={[styles.messageDateText, variant === "channel" && styles.messageDateTextChannel]}
-        testID={variant === "channel" ? "mobile-channel-message-date" : undefined}
+        style={isChannel ? styles.messageDateTextChannel : styles.messageDateText}
+        testID={isChannel ? "mobile-channel-message-date" : undefined}
       >
         {label}
       </Text>
-      <View style={styles.messageDateLine} />
+      <View style={rule} testID={isChannel ? "mobile-channel-message-date-rule" : undefined} />
     </View>
   );
 }
@@ -405,6 +661,7 @@ export function MessageAttachmentList({
   timeLabel?: string | undefined;
 }) {
   const styles = useMessagePrimitiveStyles();
+  const theme = useTheme();
   // The row's long press belongs to the row, but the image card is the touch
   // responder over its own area, so it hands the gesture back deliberately.
   const rowLongPress = useMessageRowLongPress();
@@ -437,17 +694,21 @@ export function MessageAttachmentList({
               />
             ) : (
               <View style={styles.messageAttachmentIcon}>
-                <Icon name="document-attach-outline" size={22} tone="accent" />
+                <MobileLineIcon color={theme.messaging.danger} name="file" size={18} />
               </View>
             )}
             <View style={styles.messageAttachmentMeta}>
-              <Text style={styles.messageAttachmentName} numberOfLines={2}>
+              <Text style={styles.messageAttachmentName} numberOfLines={1}>
                 {attachment.filename}
               </Text>
               <Text style={styles.messageAttachmentInfo} numberOfLines={1}>
-                {[attachment.contentType, sizeLabel].filter(Boolean).join(" - ")}
+                {[attachment.contentType, sizeLabel].filter(Boolean).join(" · ")}
               </Text>
             </View>
+            {/* §1.6: the card ends on an 18px accent download glyph. */}
+            {attachment.url && !previewUri ? (
+              <MobileLineIcon color={theme.messaging.accent} name="arrow-down-tray" size={18} />
+            ) : null}
           </>
         );
 
@@ -514,15 +775,21 @@ export function MessageReactionList({
   messageId,
   onAddReaction,
   onLongPressReaction,
+  onScreenSurface = false,
   onToggleReaction,
   reactions,
   variant = "conversation",
 }: {
   currentUserId?: string;
   messageId?: string;
-  /** 8c channel rows append a dashed "+" chip that opens the full picker. */
+  /** §1.4: the channel row ends its chip strip with a 26x26 "add reaction". */
   onAddReaction?(): void;
   onLongPressReaction?(emoji: string): void;
+  /**
+   * §2 "1f".2: the thread source block sits on the screen tone, so the
+   * not-mine chips there take the surface fill instead of the field fill.
+   */
+  onScreenSurface?: boolean;
   onToggleReaction?(input: MobileMessageReactionToggleInput): void;
   reactions: MobileRenderableMessage["reactions"];
   variant?: "channel" | "conversation";
@@ -534,10 +801,10 @@ export function MessageReactionList({
     return null;
   }
 
+  const isChannel = variant === "channel";
+
   return (
-    <View
-      style={[styles.messageReactionRow, variant === "channel" && styles.messageReactionRowChannel]}
-    >
+    <View style={[styles.messageReactionRow, isChannel && styles.messageReactionRowChannel]}>
       {reactions.map((reaction) => {
         const hasOwnReaction =
           currentUserId !== undefined && reaction.userIds.includes(currentUserId);
@@ -559,19 +826,40 @@ export function MessageReactionList({
                 shouldReact: !hasOwnReaction,
               });
             }}
-            style={[styles.messageReactionChip, hasOwnReaction && styles.messageReactionChipOwn]}
-            testID={messageId ? `mobile-message-reaction-${messageId}-${reaction.emoji}` : undefined}
+            style={
+              isChannel
+                ? [
+                    styles.messageReactionChipChannel,
+                    onScreenSurface && styles.messageReactionChipChannelOnScreen,
+                    hasOwnReaction && styles.messageReactionChipChannelOwn,
+                  ]
+                : [styles.messageReactionChip, hasOwnReaction && styles.messageReactionChipOwn]
+            }
+            testID={
+              messageId ? `mobile-message-reaction-${messageId}-${reaction.emoji}` : undefined
+            }
           >
-            <Text style={styles.messageReactionEmoji}>{reaction.emoji}</Text>
             <Text
-              style={[styles.messageReactionCount, hasOwnReaction && styles.messageReactionCountOwn]}
+              style={isChannel ? styles.messageReactionEmojiChannel : styles.messageReactionEmoji}
+            >
+              {reaction.emoji}
+            </Text>
+            <Text
+              style={
+                isChannel
+                  ? [
+                      styles.messageReactionCountChannel,
+                      hasOwnReaction && styles.messageReactionCountChannelOwn,
+                    ]
+                  : [styles.messageReactionCount, hasOwnReaction && styles.messageReactionCountOwn]
+              }
             >
               {reaction.count}
             </Text>
           </Pressable>
         );
       })}
-      {variant === "channel" && onAddReaction ? (
+      {isChannel && onAddReaction ? (
         <Pressable
           accessibilityLabel={copy.messageEmojiPickerAction}
           accessibilityRole="button"
@@ -580,10 +868,13 @@ export function MessageReactionList({
             selection();
             onAddReaction();
           }}
-          style={styles.messageReactionAddChip}
+          style={[
+            styles.messageReactionAddChipChannel,
+            onScreenSurface && styles.messageReactionChipChannelOnScreen,
+          ]}
           testID={messageId ? `mobile-message-reaction-add-${messageId}` : undefined}
         >
-          <Ionicons name="add" size={13} color={theme.text.visualFaint} />
+          <MobileLineIcon color={theme.messaging.groupLabel} name="emoji" size={14} />
         </Pressable>
       ) : null}
     </View>
@@ -686,6 +977,7 @@ export function MessagePreviewRow({
   onRequestEmojiPicker,
   onRequestReactionDetails,
   onRetryFailedMessage,
+  onScreenSurface = false,
   onSetMenuMessage,
   onToggleReaction,
   own = false,
@@ -713,7 +1005,9 @@ export function MessagePreviewRow({
   onRequestEmojiPicker?(messageId: string): void;
   onRequestReactionDetails?(messageId: string, emoji: string): void;
   onRetryFailedMessage?(messageId: string): void;
-  onSetMenuMessage?(messageId: string | null): void;
+  /** §2 "1f".2: the row is drawn on the screen tone (thread source block). */
+  onScreenSurface?: boolean;
+  onSetMenuMessage?(messageId: string | null, anchor?: MobileMessageAnchorRect | null): void;
   onToggleReaction?(input: MobileMessageReactionToggleInput): void;
   own?: boolean;
 }) {
@@ -723,6 +1017,7 @@ export function MessagePreviewRow({
   const isChannelMode = mode === "channel";
   const [isEmojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [isLocalMenuOpen, setLocalMenuOpen] = useState(false);
+  const [localAnchor, setLocalAnchor] = useState<MobileMessageAnchorRect | null>(null);
   const [reactionDetailEmoji, setReactionDetailEmoji] = useState<string | null>(null);
   // A row is recycled while its overlay is up, so a list that offers to own
   // these takes them; a standalone row (thread screen, tests) keeps them local.
@@ -746,18 +1041,34 @@ export function MessagePreviewRow({
   const mentionRegistry = useMobileMentionRegistry();
   const mentionsViewer =
     isChannelMode && hasMobileSelfMention(message.content, mentionRegistry?.selfUsername ?? null);
+  // §0.4 BOT badge. The flag is not on the message author payload yet (M4A), so
+  // the badge stays dark rather than being guessed from the name.
+  const isBotAuthor =
+    "isBot" in message.author && (message.author as { readonly isBot?: boolean }).isBot === true;
   // The channel list keys the open menu by message id so realtime list updates
   // cannot drop it; standalone rows (thread screen) fall back to local state.
   const isMenuOpen = onSetMenuMessage ? menuOpen : isLocalMenuOpen;
-  const openMenu = () => {
-    onSetMenuMessage ? onSetMenuMessage(message.id) : setLocalMenuOpen(true);
-  };
   const closeMenu = () => {
     onSetMenuMessage ? onSetMenuMessage(null) : setLocalMenuOpen(false);
   };
+  // §2 "1g".2: the row hands the menu the rectangle it occupies, so the menu can
+  // leave the message exactly where it is instead of floating a copy elsewhere.
+  const rowRef = useRef<View | null>(null);
+  const rowAnchorRef = useRef<MobileMessageAnchorRect | null>(null);
+  const captureRowAnchor = () => {
+    measureMobileMessageAnchor(rowRef.current, (anchor) => {
+      rowAnchorRef.current = anchor;
+    });
+  };
   const longPressRow = () => {
     haptics.impact();
-    openMenu();
+    const anchor = rowAnchorRef.current;
+    if (onSetMenuMessage) {
+      onSetMenuMessage(message.id, anchor);
+      return;
+    }
+    setLocalAnchor(anchor);
+    setLocalMenuOpen(true);
   };
   const [replyLinePrefix = "", replyLineSuffix = ""] =
     copy.messageReplyToUserTemplate.split("{name}");
@@ -775,15 +1086,19 @@ export function MessagePreviewRow({
       style={[
         styles.messagePreviewRow,
         isChannelMode && styles.messagePreviewRowChannel,
+        isChannelMode && channelGroupContinuation && styles.messagePreviewRowChannelContinuation,
+        // §2 "1e".12: the mention fill and stripe belong to the row itself, so
+        // they span the full width without a negative-margin bleed.
+        isChannelMode && mentionsViewer && styles.messagePreviewRowChannelMention,
+        isChannelMode &&
+          mentionsViewer &&
+          channelGroupContinuation &&
+          styles.messagePreviewRowChannelMentionContinuation,
         !isChannelMode && own && styles.messagePreviewRowOwn,
       ]}
+      testID={isChannelMode ? `mobile-channel-message-row-${message.id}` : undefined}
     >
-      {isChannelMode && channelGroupContinuation ? (
-        <View
-          style={styles.messagePreviewAvatarSpacerChannel}
-          testID={`mobile-channel-message-avatar-spacer-${message.id}`}
-        />
-      ) : isChannelMode || !own ? (
+      {isChannelMode && channelGroupContinuation ? null : isChannelMode || !own ? (
         // 11b: the avatar becomes the profile-card handle. It is a separate
         // pressable from the bubble, so the row's long-press message menu and
         // the 8c flat layout are untouched.
@@ -796,7 +1111,13 @@ export function MessagePreviewRow({
         >
           <AvatarMark
             {...(isChannelMode
-              ? { avatarBorderRadius: 14, avatarBorderWidth: 0, dimension: 38 }
+              ? {
+                  // §0.5: the channel row avatar is 34/r12 — the value the 61px
+                  // continuation inset is built from.
+                  avatarBorderRadius: mobileMessagingMetrics.avatar.channelRowRadius,
+                  avatarBorderWidth: 0,
+                  dimension: mobileMessagingMetrics.avatar.channelRow,
+                }
               : {})}
             identityId={message.author.id}
             label={authorLabel}
@@ -817,11 +1138,7 @@ export function MessagePreviewRow({
             style={styles.messageReplyLineChannel}
             testID={`mobile-message-reply-quote-${message.id}`}
           >
-            <Ionicons
-              name="arrow-undo-outline"
-              size={13}
-              color={theme.text.visualPlaceholder}
-            />
+            <Ionicons name="arrow-undo-outline" size={13} color={theme.text.visualPlaceholder} />
             <Text numberOfLines={1} style={styles.messageReplyLineText}>
               {replyLinePrefix}
               <Text style={styles.messageReplyLineName}>{getReplyAuthorName(message.replyTo)}</Text>
@@ -841,15 +1158,21 @@ export function MessagePreviewRow({
               // Your own name in a channel still opens your card (1d); in a DM
               // the label reads "Siz", which is not an identity to open.
               accessibilityRole={isChannelMode || !own ? "button" : undefined}
-              onPress={
-                isChannelMode || !own ? () => openProfileCard(message.author.id) : undefined
-              }
+              onPress={isChannelMode || !own ? () => openProfileCard(message.author.id) : undefined}
               style={[styles.dmMessageAuthor, isChannelMode && styles.messagePreviewAuthorChannel]}
               numberOfLines={1}
               testID={`mobile-message-author-name-${message.id}`}
             >
               {isChannelMode ? authorLabel : own ? copy.messageYouLabel : authorLabel}
             </Text>
+            {isChannelMode && isBotAuthor ? (
+              <View
+                style={styles.messagePreviewBotBadge}
+                testID={`mobile-channel-message-bot-badge-${message.id}`}
+              >
+                <Text style={styles.messagePreviewBotBadgeText}>{copy.messageBotBadgeLabel}</Text>
+              </View>
+            ) : null}
             {isChannelMode && isServerOwner ? (
               <View
                 accessibilityLabel={copy.channelOwnerBadgeLabel}
@@ -859,18 +1182,19 @@ export function MessagePreviewRow({
                 <Text style={styles.messagePreviewOwnerBadgeText}>👑</Text>
               </View>
             ) : null}
-            <Text style={[styles.dmMessageTime, isChannelMode && styles.messagePreviewTimeChannel]}>
+            <Text
+              style={[styles.dmMessageTime, isChannelMode && styles.messagePreviewTimeChannel]}
+              testID={isChannelMode ? `mobile-channel-message-time-${message.id}` : undefined}
+            >
               {formatMobileDisplayTime(message.createdAt)}
             </Text>
           </View>
         ) : null}
         <View
           style={[
-            styles.messagePreviewBubble,
-            isChannelMode && styles.messagePreviewBubbleChannel,
-            isChannelMode &&
-              channelGroupContinuation &&
-              styles.messagePreviewBubbleChannelContinuation,
+            // K1: in channel mode the bubble style is never applied at all —
+            // there is no fill, frame or shadow left to tone down.
+            isChannelMode ? styles.messagePreviewBubbleChannel : styles.messagePreviewBubble,
             !isChannelMode && own && styles.messagePreviewBubbleOwn,
             isSendPending && styles.messageSendingDim,
           ]}
@@ -897,9 +1221,8 @@ export function MessagePreviewRow({
             </Pressable>
           ) : null}
           <MessageBodyText body={body} channel={isChannelMode} />
-          {!isChannelMode && previewUrl ? (
-            <MobileLinkPreviewCard messageId={message.id} url={previewUrl} />
-          ) : null}
+          {/* §2 "1e".3 puts the preview under the channel body too, not just the DM one. */}
+          {previewUrl ? <MobileLinkPreviewCard messageId={message.id} url={previewUrl} /> : null}
           {message.editedAt ? (
             <Text style={styles.dmMessageTime}>{copy.messageEditedLabel}</Text>
           ) : null}
@@ -938,6 +1261,7 @@ export function MessagePreviewRow({
         {isChannelMode ? (
           <MessageReactionList
             messageId={message.id}
+            onScreenSurface={onScreenSurface}
             reactions={message.reactions}
             onLongPressReaction={openReactionDetails}
             variant="channel"
@@ -959,18 +1283,23 @@ export function MessagePreviewRow({
             >
               {threadSummary.recentRepliers.length > 0 ? (
                 <View style={styles.messageThreadFacepile}>
-                  {threadSummary.recentRepliers.slice(0, 3).map((replier, index) => (
+                  {/* §2 "1e".9: two 20/r7 faces, overlapped by 7px. */}
+                  {threadSummary.recentRepliers.slice(0, 2).map((replier, index) => (
                     <View
                       key={replier.userId}
                       style={index > 0 ? styles.messageThreadFaceOverlap : undefined}
                     >
                       <AvatarMark
-                        avatarBorderRadius={8}
-                        avatarBorderWidth={2}
-                        dimension={22}
+                        avatarBorderColor={theme.messaging.accentSoft}
+                        avatarBorderRadius={mobileMessagingMetrics.avatar.threadIndicatorRadius}
+                        avatarBorderWidth={
+                          mobileMessagingMetrics.channel.threadIndicatorFaceBorderWidth
+                        }
+                        dimension={mobileMessagingMetrics.avatar.threadIndicator}
                         identityId={replier.userId}
                         imageUrl={replier.avatarUrl}
                         label={replier.displayName ?? replier.username}
+                        style={styles.messageThreadFace}
                       />
                     </View>
                   ))}
@@ -987,7 +1316,7 @@ export function MessagePreviewRow({
                   {threadLastReplyLabel}
                 </Text>
               ) : null}
-              <Ionicons name="chevron-forward" size={14} color={theme.text.visualPlaceholder} />
+              <MobileLineIcon color={theme.messaging.accentText} name="chevron-right" size={13} />
             </Pressable>
           ) : (
             <Pressable
@@ -1010,37 +1339,37 @@ export function MessagePreviewRow({
 
   // Only rendered when this row still owns the trigger; a list-owned row asks
   // the list, which renders `MessageReactionOverlays` outside the recycler.
-  const emojiPicker = onToggleReaction && !onRequestEmojiPicker ? (
-    <MessageEmojiPicker
-      isOpen={isEmojiPickerOpen}
-      onClose={() => setEmojiPickerOpen(false)}
-      onSelect={(emoji) =>
-        onToggleReaction({
-          emoji,
-          messageId: message.id,
-          shouldReact: !message.reactions.some(
-            (reaction) =>
-              reaction.emoji === emoji &&
-              currentUserId !== undefined &&
-              reaction.userIds.includes(currentUserId),
-          ),
-        })
-      }
-    />
-  ) : null;
-  const reactionDetailSheet = currentUserId &&
-  !onRequestReactionDetails &&
-  reactionDetailEmoji !== null ? (
-    <MessageReactionDetailSheet
-      currentUserId={currentUserId}
-      initialEmoji={reactionDetailEmoji}
-      messageId={message.id}
-      onClose={() => setReactionDetailEmoji(null)}
-      open
-      reactions={message.reactions}
-      {...(onToggleReaction ? { onRemoveOwnReaction: onToggleReaction } : {})}
-    />
-  ) : null;
+  const emojiPicker =
+    onToggleReaction && !onRequestEmojiPicker ? (
+      <MessageEmojiPicker
+        isOpen={isEmojiPickerOpen}
+        onClose={() => setEmojiPickerOpen(false)}
+        onSelect={(emoji) =>
+          onToggleReaction({
+            emoji,
+            messageId: message.id,
+            shouldReact: !message.reactions.some(
+              (reaction) =>
+                reaction.emoji === emoji &&
+                currentUserId !== undefined &&
+                reaction.userIds.includes(currentUserId),
+            ),
+          })
+        }
+      />
+    ) : null;
+  const reactionDetailSheet =
+    currentUserId && !onRequestReactionDetails && reactionDetailEmoji !== null ? (
+      <MessageReactionDetailSheet
+        currentUserId={currentUserId}
+        initialEmoji={reactionDetailEmoji}
+        messageId={message.id}
+        onClose={() => setReactionDetailEmoji(null)}
+        open
+        reactions={message.reactions}
+        {...(onToggleReaction ? { onRemoveOwnReaction: onToggleReaction } : {})}
+      />
+    ) : null;
 
   if (isChannelMode) {
     return (
@@ -1050,13 +1379,13 @@ export function MessagePreviewRow({
           accessibilityRole="button"
           accessibilityState={{ disabled: isReactionMutationPending }}
           {...(mentionsViewer ? { accessibilityHint: copy.messageMentionsYouLabel } : {})}
-          delayLongPress={350}
+          // §4: the long press is 400ms.
+          delayLongPress={400}
           disabled={isReactionMutationPending}
           onLongPress={longPressRow}
-          style={[
-            mentionsViewer && styles.messagePreviewRowChannelMention,
-            (isMenuOpen || isHighlighted) && styles.messagePreviewRowChannelActive,
-          ]}
+          onPressIn={captureRowAnchor}
+          ref={rowRef}
+          style={(isMenuOpen || isHighlighted) && styles.messagePreviewRowChannelActive}
           testID={`mobile-message-actions-${message.id}-trigger`}
         >
           <MessageRowLongPressProvider onLongPress={longPressRow}>
@@ -1065,6 +1394,7 @@ export function MessagePreviewRow({
         </Pressable>
         {onSetMenuMessage ? null : (
           <ChannelMessageActionMenu
+            anchor={localAnchor}
             canModerate={canModerate}
             {...(currentUserId !== undefined ? { currentUserId } : {})}
             message={message}
@@ -1162,6 +1492,7 @@ type ChannelMessageActionHandlers = {
 
 /** The channel menu without its trigger: the row long-presses, this renders. */
 function ChannelMessageActionMenu({
+  anchor = null,
   canModerate = false,
   currentUserId,
   message,
@@ -1180,6 +1511,7 @@ function ChannelMessageActionMenu({
   open,
   own,
 }: ChannelMessageActionHandlers & {
+  anchor?: MobileMessageAnchorRect | null;
   canModerate?: boolean;
   currentUserId?: string;
   message: MobileRenderableMessage;
@@ -1197,6 +1529,7 @@ function ChannelMessageActionMenu({
 
   return (
     <MessageActionMenu
+      anchor={anchor}
       authorAvatarUrl={message.author.avatarUrl}
       authorId={message.author.id}
       authorLabel={authorLabel}
@@ -1243,6 +1576,7 @@ function ChannelMessageActionMenu({
       previewText={body}
       scope="channel"
       testID={`mobile-message-actions-${message.id}`}
+      timeLabel={formatMobileDisplayTime(message.createdAt)}
     />
   );
 }
@@ -1254,6 +1588,7 @@ function ChannelMessageActionMenu({
  * that row goes with it.
  */
 export function ChannelMessageOverlays({
+  anchor = null,
   canModerate = false,
   currentUserId,
   message,
@@ -1262,6 +1597,7 @@ export function ChannelMessageOverlays({
   own,
   ...handlers
 }: ChannelMessageActionHandlers & {
+  anchor?: MobileMessageAnchorRect | null;
   canModerate?: boolean;
   currentUserId?: string;
   message: MobileRenderableMessage;
@@ -1276,6 +1612,7 @@ export function ChannelMessageOverlays({
   return (
     <>
       <ChannelMessageActionMenu
+        anchor={anchor}
         canModerate={canModerate}
         {...(currentUserId !== undefined ? { currentUserId } : {})}
         message={message}
@@ -1373,8 +1710,7 @@ export function useMobileMessageReactionOverlay<T extends { readonly id: string 
     [],
   );
   const requestEmojiPicker = useCallback(
-    (messageId: string) =>
-      setOverlay({ emoji: null, id: messageId, open: true, view: "picker" }),
+    (messageId: string) => setOverlay({ emoji: null, id: messageId, open: true, view: "picker" }),
     [],
   );
   const requestReactionDetails = useCallback(
@@ -1438,6 +1774,45 @@ export function MessageReactionOverlays({
         />
       ) : null}
     </>
+  );
+}
+
+/** A join/leave event, which §2 "1e".10 draws as a line rather than a message. */
+export function isMobileChannelSystemEvent(message: MobileRenderableMessage): boolean {
+  return "type" in message && (message.type === "SYSTEM_JOIN" || message.type === "SYSTEM_LEAVE");
+}
+
+/**
+ * §2 "1e".10 system event: a 15px glyph, then one 12/500 line whose only bold
+ * part is the member's name. No avatar, no bubble, no timestamp.
+ */
+export function ChannelSystemEventRow({ message }: { message: MobileRenderableMessage }) {
+  const styles = useMessagePrimitiveStyles();
+  const theme = useTheme();
+  const isLeave = "type" in message && message.type === "SYSTEM_LEAVE";
+  const authorLabel = message.author.displayName ?? message.author.username;
+  const template = isLeave ? copy.channelSystemLeaveTemplate : copy.channelSystemJoinTemplate;
+  const [prefix = "", suffix = ""] = template.split("{name}");
+
+  return (
+    <View
+      accessible
+      accessibilityLabel={template.replace("{name}", authorLabel)}
+      accessibilityRole="text"
+      style={styles.channelSystemEventRow}
+      testID={`mobile-channel-system-event-${message.id}`}
+    >
+      <MobileLineIcon
+        color={theme.messaging.systemEventIcon}
+        name={isLeave ? "leave" : "enter"}
+        size={15}
+      />
+      <Text style={styles.channelSystemEventText} numberOfLines={2}>
+        {prefix}
+        <Text style={styles.channelSystemEventName}>{authorLabel}</Text>
+        {suffix}
+      </Text>
+    </View>
   );
 }
 

@@ -13,6 +13,13 @@ import {
   getDirectMessageUnreadCount,
   listDirectMessages,
 } from "@/lib/dm/service";
+import {
+  getEmptyMobileDMConversationContext,
+  loadMobileDMConversationContext,
+  resolveMobileDMPreviewDurationSec,
+  resolveMobileDMPreviewKind,
+  type MobileDMConversationContext,
+} from "@/lib/mobile/dm-list-enrichment";
 
 export type MobileDMCreateDependencies = {
   authenticate(request: Request): Promise<string>;
@@ -53,6 +60,7 @@ type MobileDMListDependencies = {
     userId: string,
     input: { cursor?: string; limit: number },
   ): Promise<{ conversations: DMConversationDTO[]; nextCursor: string | null }>;
+  loadConversationContext: typeof loadMobileDMConversationContext;
 };
 
 const listDefaults: MobileDMListDependencies = {
@@ -60,6 +68,7 @@ const listDefaults: MobileDMListDependencies = {
   enforceRateLimit: enforceApiRateLimit,
   getUnreadCount: getDirectMessageUnreadCount,
   listDMs: listDirectMessages,
+  loadConversationContext: loadMobileDMConversationContext,
 };
 
 function normalizePreviewText(message: NonNullable<DMConversationDTO["lastMessage"]>): string {
@@ -72,11 +81,36 @@ function normalizePreviewText(message: NonNullable<DMConversationDTO["lastMessag
   return (attachmentName || "Attachment").slice(0, 240);
 }
 
-function toMobileDMConversationListItem(conversation: DMConversationDTO, currentUserId: string) {
+/**
+ * Tick state of the viewer's own last message. Null for an incoming preview —
+ * that row draws no tick at all.
+ */
+function resolvePreviewDeliveryStatus(
+  authorIsCurrentUser: boolean,
+  createdAt: string,
+  othersLastReadAt: Date | null,
+): "sent" | "read" | null {
+  if (!authorIsCurrentUser) {
+    return null;
+  }
+
+  if (othersLastReadAt && othersLastReadAt.getTime() >= new Date(createdAt).getTime()) {
+    return "read";
+  }
+
+  return "sent";
+}
+
+function toMobileDMConversationListItem(
+  conversation: DMConversationDTO,
+  currentUserId: string,
+  context: MobileDMConversationContext,
+) {
   const self = conversation.participants.find(
     (participant) => participant.userId === currentUserId,
   );
   const lastMessage = conversation.lastMessage;
+  const previewAttachment = lastMessage?.attachments[0];
 
   return {
     iconUrl: null,
@@ -90,11 +124,21 @@ function toMobileDMConversationListItem(conversation: DMConversationDTO, current
           },
           authorIsCurrentUser: lastMessage.userId === currentUserId,
           createdAt: lastMessage.createdAt,
+          deliveryStatus: resolvePreviewDeliveryStatus(
+            lastMessage.userId === currentUserId,
+            lastMessage.createdAt,
+            context.othersLastReadAt,
+          ),
+          durationSec: resolveMobileDMPreviewDurationSec(previewAttachment?.duration),
           id: lastMessage.id,
+          kind: previewAttachment
+            ? resolveMobileDMPreviewKind(previewAttachment.contentType)
+            : ("text" as const),
           text: normalizePreviewText(lastMessage),
         }
       : null,
     lastMessageAt: conversation.lastMessageAt,
+    mentionCount: context.mentionCount,
     muted: self?.muted ?? false,
     name: conversation.name,
     participantCount: conversation.participants.length,
@@ -102,6 +146,7 @@ function toMobileDMConversationListItem(conversation: DMConversationDTO, current
       avatarUrl: participant.avatarUrl,
       displayName: participant.displayName,
       id: participant.userId,
+      isBot: context.botUserIds.has(participant.userId),
       status: participant.status,
       username: participant.username,
     })),
@@ -129,10 +174,19 @@ export async function mobileDMListRoute(
       }),
       dependencies.getUnreadCount(userId),
     ]);
+    const contextByConversationId = await dependencies.loadConversationContext(
+      userId,
+      page.conversations.map((conversation) => conversation.id),
+    );
+
     return Response.json(
       MobileDMConversationsResponseSchema.parse({
         conversations: page.conversations.map((conversation) =>
-          toMobileDMConversationListItem(conversation, userId),
+          toMobileDMConversationListItem(
+            conversation,
+            userId,
+            contextByConversationId.get(conversation.id) ?? getEmptyMobileDMConversationContext(),
+          ),
         ),
         nextCursor: page.nextCursor,
         totalUnreadCount,

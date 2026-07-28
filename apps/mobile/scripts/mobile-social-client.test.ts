@@ -12,9 +12,11 @@ const overview = {
     {
       ...user,
       customStatus: null,
+      device: null,
       lastSeenAt: null,
       presence: { customStatus: null, status: "ONLINE" },
       status: "ONLINE",
+      voiceRoom: null,
     },
   ],
   pending: { incoming: [], outgoing: [] },
@@ -109,5 +111,34 @@ describe("mobile social client", () => {
     );
     assert.equal(result.conversation.id, "dm-1");
     assert.equal((calls[0] as [string])[0], "/api/v1/mobile/dm");
+  });
+
+  it("asks the suggestions endpoint for a bounded page and validates what comes back", async () => {
+    const { fetchMobileFriendSuggestions, MOBILE_FRIEND_SUGGESTION_LIMIT } = await social;
+    const calls: string[] = [];
+    const suggestion = {
+      ...user,
+      mutualFriendCount: 4,
+      mutualServerCount: 0,
+      mutualServerName: null,
+    };
+    const api = client((path) => {
+      calls.push(path);
+      return { suggestions: [suggestion] };
+    });
+
+    assert.deepEqual(await fetchMobileFriendSuggestions(api), { suggestions: [suggestion] });
+    assert.deepEqual(await fetchMobileFriendSuggestions(api, 3), { suggestions: [suggestion] });
+    assert.deepEqual(calls, [
+      `/api/v1/mobile/friends/suggestions?limit=${MOBILE_FRIEND_SUGGESTION_LIMIT}`,
+      "/api/v1/mobile/friends/suggestions?limit=3",
+    ]);
+
+    // An unrecognised field is a contract break, not something to pass through.
+    await assert.rejects(() =>
+      fetchMobileFriendSuggestions(
+        client(() => ({ suggestions: [{ ...suggestion, mutualFriendUsername: "selin_qa" }] })),
+      ),
+    );
   });
 });
