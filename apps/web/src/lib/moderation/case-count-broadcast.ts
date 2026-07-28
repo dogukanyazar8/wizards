@@ -1,5 +1,5 @@
 import { prisma } from "@wizards/db";
-import { ADMIN_CAPABILITIES } from "@/lib/admin/capabilities";
+import { ADMIN_CAPABILITIES } from "@/lib/admin/capability-roles";
 import { logError } from "@/lib/logger";
 import { countOpenModerationCases } from "@/lib/moderation/case-queries";
 import { emitToUserRooms } from "@/lib/socket/emitters";

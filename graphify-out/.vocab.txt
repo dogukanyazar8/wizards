@@ -116,6 +116,7 @@ apk
 app
 appeal
 appearance
+appearances
 append
 apple
 application
@@ -200,6 +201,7 @@ axe
 ayar
 ayarlar
 ayn
+aynen
 ayr
 ayrac
 babel
@@ -284,6 +286,7 @@ boundary
 bounded
 bounds
 box
+boyunca
 branch
 branchde
 brand
@@ -565,6 +568,7 @@ corrupt
 corrupted
 count
 counter
+counterpart
 counterparts
 country
 counts
@@ -877,6 +881,7 @@ enhanced
 enler
 enough
 enqueue
+enrichment
 enrichments
 enrolled
 enstr
@@ -1185,6 +1190,8 @@ green
 greeting
 grid
 group
+groupable
+grouping
 groups
 grow
 gruplama
@@ -1843,6 +1850,7 @@ mounted
 mounting
 mouse
 move
+msg
 msvc
 multi
 must
@@ -1980,6 +1988,7 @@ one
 oneline
 online
 only
+opacities
 opaque
 open
 opened
@@ -2206,6 +2215,7 @@ previews
 previous
 prewarm
 primary
+primitifleri
 primitive
 primitives
 prior
@@ -2245,6 +2255,7 @@ promoted
 promotion
 prompt
 prompts
+promptunun
 proof
 properties
 property
@@ -2270,6 +2281,7 @@ publish
 publisher
 pull
 pulse
+punto
 pure
 purge
 purpose
@@ -2586,6 +2598,7 @@ sampling
 sanitize
 sanitized
 sans
+sapma
 sapman
 sarp
 sat
@@ -2642,6 +2655,7 @@ seen
 segment
 segments
 sekme
+sekmeleri
 sekmesini
 select
 selected
@@ -2762,6 +2776,7 @@ socket
 sockets
 soft
 sohbet
+sohbeti
 sol
 solo
 sonra
@@ -3239,6 +3254,7 @@ variant
 variants
 vars
 varsayma
+vde
 vec
 vector
 venl
@@ -3350,6 +3366,7 @@ writes
 written
 wrong
 wsl
+xlarge
 yakinda
 yakla
 yaln
@@ -3369,6 +3386,7 @@ yen
 yeni
 yeniden
 yenileme
+yenilemesi
 yerel
 yesterda
 yesterday

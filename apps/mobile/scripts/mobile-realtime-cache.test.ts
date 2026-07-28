@@ -1,12 +1,16 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import type { InfiniteData } from "@tanstack/react-query";
 import type {
   MobileBootstrapPayload,
+  MobileDMConversationsResponse,
   MobileFriendsOverviewResponse,
   MobileManagedWorkspaceServerDetailResponse,
 } from "@wizards/types";
 import {
   patchMobileRealtimeBootstrapProfile,
+  patchMobileRealtimeDMConversationReceipt,
+  patchMobileRealtimeFriendsVoiceRoom,
   patchMobileRealtimeBootstrapPresence,
   patchMobileRealtimeBootstrapServerUnread,
   patchMobileRealtimeFriendsProfile,
@@ -319,5 +323,157 @@ describe("mobile realtime cache", () => {
     assert.equal(patchMobileRealtimeFriendsProfile(friends, profile).data, friends);
     assert.equal(patchMobileRealtimeWorkspacePresence(workspace, presence).data, workspace);
     assert.equal(patchMobileRealtimeWorkspaceProfile(workspace, profile).data, workspace);
+  });
+});
+
+const VOICE_ROOM = {
+  channelId: "channel-1",
+  channelName: "live-room",
+  serverId: "server-1",
+  serverName: "paycore",
+};
+
+function makeDMConversations(
+  deliveryStatus: "sent" | "delivered" | "read" | null,
+): InfiniteData<MobileDMConversationsResponse, unknown> {
+  return {
+    pageParams: [null],
+    pages: [
+      {
+        conversations: [
+          {
+            iconUrl: null,
+            id: "dm-1",
+            lastMessage: {
+              author: { displayName: "Dogukan", id: "user-1", username: "dogukan" },
+              authorIsCurrentUser: deliveryStatus !== null,
+              createdAt: "2026-07-28T08:00:00.000Z",
+              deliveryStatus,
+              durationSec: null,
+              id: "message-1",
+              kind: "text" as const,
+              text: "Merhaba",
+            },
+            lastMessageAt: "2026-07-28T08:00:00.000Z",
+            mentionCount: 0,
+            muted: false,
+            name: null,
+            participantCount: 2,
+            participants: [],
+            type: "DM" as const,
+            unreadCount: 0,
+          },
+        ],
+        nextCursor: null,
+        totalUnreadCount: 0,
+      },
+    ],
+  };
+}
+
+describe("1a voice-room and receipt cache patches", () => {
+  it("swaps the presence dot for the wave tile and back without a refetch", () => {
+    const joined = patchMobileRealtimeFriendsVoiceRoom(makeFriends(), {
+      userId: "user-1",
+      voiceRoom: VOICE_ROOM,
+    });
+    assert.equal(joined.patched, true);
+    assert.deepEqual(joined.data?.friends[0]?.voiceRoom, VOICE_ROOM);
+    // The other friend is untouched.
+    assert.equal(joined.data?.friends[1]?.voiceRoom, null);
+
+    const left = patchMobileRealtimeFriendsVoiceRoom(joined.data, {
+      userId: "user-1",
+      voiceRoom: null,
+    });
+    assert.equal(left.patched, true);
+    assert.equal(left.data?.friends[0]?.voiceRoom, null);
+  });
+
+  it("ignores a voice update that changes nothing or names a stranger", () => {
+    const friends = makeFriends();
+
+    assert.equal(
+      patchMobileRealtimeFriendsVoiceRoom(friends, { userId: "user-1", voiceRoom: null }).patched,
+      false,
+    );
+    assert.equal(
+      patchMobileRealtimeFriendsVoiceRoom(friends, { userId: "user-404", voiceRoom: VOICE_ROOM })
+        .patched,
+      false,
+    );
+    assert.equal(
+      patchMobileRealtimeFriendsVoiceRoom(undefined, { userId: "user-1", voiceRoom: VOICE_ROOM })
+        .patched,
+      false,
+    );
+  });
+
+  it("walks the outgoing preview from sent to delivered to read", () => {
+    const delivered = patchMobileRealtimeDMConversationReceipt(makeDMConversations("sent"), {
+      at: "2026-07-28T08:00:30.000Z",
+      conversationId: "dm-1",
+      kind: "delivered",
+      userId: "user-2",
+    });
+    assert.equal(delivered.patched, true);
+    assert.equal(
+      delivered.data?.pages[0]?.conversations[0]?.lastMessage?.deliveryStatus,
+      "delivered",
+    );
+
+    const read = patchMobileRealtimeDMConversationReceipt(delivered.data, {
+      at: "2026-07-28T08:01:00.000Z",
+      conversationId: "dm-1",
+      kind: "read",
+      userId: "user-2",
+    });
+    assert.equal(read.data?.pages[0]?.conversations[0]?.lastMessage?.deliveryStatus, "read");
+
+    // A delivery mark arriving after the read one must not walk it backwards.
+    const late = patchMobileRealtimeDMConversationReceipt(read.data, {
+      at: "2026-07-28T08:02:00.000Z",
+      conversationId: "dm-1",
+      kind: "delivered",
+      userId: "user-2",
+    });
+    assert.equal(late.patched, false);
+  });
+
+  it("refuses receipts that are the author's own, stale, or for an incoming preview", () => {
+    const sent = makeDMConversations("sent");
+
+    // The author reading their own conversation says nothing about the peer.
+    assert.equal(
+      patchMobileRealtimeDMConversationReceipt(sent, {
+        at: "2026-07-28T08:05:00.000Z",
+        conversationId: "dm-1",
+        kind: "read",
+        userId: "user-1",
+      }).patched,
+      false,
+    );
+
+    // A receipt older than the message describes an earlier one.
+    assert.equal(
+      patchMobileRealtimeDMConversationReceipt(sent, {
+        at: "2026-07-28T07:59:00.000Z",
+        conversationId: "dm-1",
+        kind: "read",
+        userId: "user-2",
+      }).patched,
+      false,
+    );
+
+    // An incoming preview has no tick to move.
+    assert.equal(
+      patchMobileRealtimeDMConversationReceipt(makeDMConversations(null), {
+        at: "2026-07-28T08:05:00.000Z",
+        conversationId: "dm-1",
+        kind: "read",
+        userId: "user-2",
+      }).patched,
+      false,
+    );
   });
 });

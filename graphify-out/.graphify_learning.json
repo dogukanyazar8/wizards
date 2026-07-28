@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-07-27T14:51:04.068765+00:00",
+  "generated_at": "2026-07-28T08:32:54.744909+00:00",
   "nodes": {
     "apps_mobile_src_app_providers_mobile_theme_provider": {
-      "code_fingerprint": "bd446c31ab2919eb145388b5df84e5ae6350dc9ac93f69ec6d189c3788591551",
+      "code_fingerprint": "3ba4b7ba29680a9c82ad067277e19817f6999094a9b90c0dfb140ae902d5ba5f",
       "label": "mobile-theme-provider.tsx",
       "last": "2026-07-27T06:29:17.529452+00:00",
       "provenance": [
@@ -12,7 +12,7 @@
           "q": "Whispr mobile splash görsel dili Discord Slack Teams Zoom gibi olmalı; kaç ekran ve hangi mesajlar?"
         }
       ],
-      "score": 0.991981295,
+      "score": 0.975223696,
       "source_file": "apps/mobile/src/app/providers/mobile-theme-provider.tsx",
       "status": "tentative",
       "uses": 1
@@ -28,7 +28,7 @@
           "q": "Mobil uygulamada navigation bar için hangi ikon paketini kullanıyoruz?"
         }
       ],
-      "score": 0.949299729,
+      "score": 0.933263152,
       "source_file": "apps/mobile/src/navigation/mobile-bottom-tab-bar.tsx",
       "status": "tentative",
       "uses": 1
@@ -44,13 +44,13 @@
           "q": "Mobil açılışında modern splash, yüklemeler ve performans kontrolleri nasıl tasarlanmalı?"
         }
       ],
-      "score": 0.978765315,
+      "score": 0.962230974,
       "source_file": "apps/mobile/src/query/mobile-query-cache-policy.ts",
       "status": "tentative",
       "uses": 1
     },
     "packages_types_src_mobile_mobilebootstrappayload": {
-      "code_fingerprint": "ee5d33fb191144b3018b920c90de71e502311eafe86b77ff1990cc00e78fb9af",
+      "code_fingerprint": "9e15a11e6dd5d917846d0aff36176dad476fa2791c27ef6c12c77c5a6a90c632",
       "label": "MobileBootstrapPayload",
       "last": "2026-07-26T16:33:22.483411+00:00",
       "provenance": [
@@ -60,7 +60,7 @@
           "q": "Mobil açılışında modern splash, yüklemeler ve performans kontrolleri nasıl tasarlanmalı?"
         }
       ],
-      "score": 0.978765315,
+      "score": 0.962230974,
       "source_file": "packages/types/src/mobile.ts",
       "status": "tentative",
       "uses": 1

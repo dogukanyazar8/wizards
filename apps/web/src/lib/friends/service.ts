@@ -395,6 +395,72 @@ export async function broadcastPresenceUpdateToFriends(
   }
 }
 
+/**
+ * Messaging redesign §2 "1a".5: a friend joining or leaving a voice room, pushed
+ * to every friend's personal room.
+ *
+ * `voice:state:update` only reaches sockets watching that voice channel, so the
+ * conversations strip — which is nowhere near the server it happened in — would
+ * otherwise keep drawing the presence dot until the friends query refetched.
+ */
+export async function broadcastVoiceRoomUpdateToFriends(args: {
+  action: "join" | "leave";
+  channelId: string;
+  serverId: string;
+  userId: string;
+}): Promise<void> {
+  const io = getSocketServer();
+  if (!io) {
+    return;
+  }
+
+  const [friendships, channel] = await Promise.all([
+    prisma.friendRequest.findMany({
+      where: {
+        status: "ACCEPTED",
+        OR: [{ senderId: args.userId }, { receiverId: args.userId }],
+      },
+      select: { receiverId: true, senderId: true },
+    }),
+    args.action === "join"
+      ? prisma.channel.findUnique({
+          where: { id: args.channelId },
+          select: { name: true, server: { select: { id: true, name: true } } },
+        })
+      : Promise.resolve(null),
+  ]);
+
+  // A join whose channel or server cannot be named has nothing to render, so it
+  // is dropped rather than sent as a half-filled tile.
+  if (args.action === "join" && !channel?.server) {
+    return;
+  }
+
+  const voiceRoom =
+    args.action === "join" && channel?.server
+      ? {
+          channelId: args.channelId,
+          channelName: channel.name,
+          serverId: channel.server.id,
+          serverName: channel.server.name,
+        }
+      : null;
+
+  const targetUserIds = new Set<string>([args.userId]);
+  for (const friendship of friendships) {
+    targetUserIds.add(
+      friendship.senderId === args.userId ? friendship.receiverId : friendship.senderId,
+    );
+  }
+
+  for (const targetUserId of targetUserIds) {
+    io.to(`user:${targetUserId}`).emit("friends:voice:update", {
+      userId: args.userId,
+      voiceRoom,
+    });
+  }
+}
+
 export async function listFriends(userId: string): Promise<FriendDto[]> {
   const friendships = await prisma.friendRequest.findMany({
     where: {

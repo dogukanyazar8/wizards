@@ -513,11 +513,11 @@ export const MobileDMConversationPreviewAuthorSchema = z.object({
 export const MobileDMConversationPreviewKindSchema = z.enum(["text", "voice", "file", "image"]);
 
 /**
- * Tick state of the viewer's own last message: one tick sent, two ticks read.
- * Null whenever the last message is not the viewer's — an incoming row draws no
- * tick at all.
+ * Tick state of the viewer's own last message: one tick left the server, two
+ * grey ticks reached the other device, two accent ticks were read. Null whenever
+ * the last message is not the viewer's — an incoming row draws no tick at all.
  */
-export const MobileDMConversationPreviewDeliverySchema = z.enum(["sent", "read"]);
+export const MobileDMConversationPreviewDeliverySchema = z.enum(["sent", "delivered", "read"]);
 
 export const MobileDMConversationLastMessagePreviewSchema = z.object({
   author: MobileDMConversationPreviewAuthorSchema,
@@ -610,6 +610,11 @@ export const MobileBootstrapPayloadSchema = z.object({
 });
 
 export const MobileDMParticipantReadStateSchema = z.object({
+  /**
+   * §2 "1a".6.4: the grey two-tick state in a chat bubble. Defaulted rather than
+   * required so a client running against an older server still parses.
+   */
+  lastDeliveredAt: z.string().datetime().nullable().default(null),
   lastReadAt: z.string().datetime().nullable(),
   userId: z.string().min(1).max(128),
 });
@@ -619,8 +624,28 @@ export const MobileDMMarkReadResponseSchema = z.object({
   participantReadStates: z.array(MobileDMParticipantReadStateSchema).max(100),
 });
 
-export const MobileDMReadUpdatedEventSchema = MobileDMParticipantReadStateSchema.extend({
+/**
+ * Deliberately not `MobileDMParticipantReadStateSchema.extend` — the read event
+ * says only "this person has read up to here". Delivery travels as its own
+ * event, and folding both into one payload would let a read broadcast overwrite
+ * a delivery mark it knows nothing about.
+ */
+export const MobileDMReadUpdatedEventSchema = z.object({
   conversationId: z.string().min(1).max(128),
+  lastReadAt: z.string().datetime().nullable(),
+  userId: z.string().min(1).max(128),
+});
+
+/**
+ * "Delivered" is its own event because it happens without the recipient doing
+ * anything: their client received the message, or their app pulled the list.
+ * It reaches every participant's personal room, so the sender sees the second
+ * tick while sitting on the conversation list.
+ */
+export const MobileDMDeliveredUpdatedEventSchema = z.object({
+  conversationId: z.string().min(1).max(128),
+  lastDeliveredAt: z.string().datetime().nullable(),
+  userId: z.string().min(1).max(128),
 });
 
 export const MobileDMCallPeerSchema = z.object({
@@ -863,6 +888,7 @@ export type MobileDMMessagesResponse = z.infer<typeof MobileDMMessagesResponseSc
 export type MobileDMParticipantReadState = z.infer<typeof MobileDMParticipantReadStateSchema>;
 export type MobileDMMarkReadResponse = z.infer<typeof MobileDMMarkReadResponseSchema>;
 export type MobileDMReadUpdatedEvent = z.infer<typeof MobileDMReadUpdatedEventSchema>;
+export type MobileDMDeliveredUpdatedEvent = z.infer<typeof MobileDMDeliveredUpdatedEventSchema>;
 export type MobileDMCallPeer = z.infer<typeof MobileDMCallPeerSchema>;
 export type MobileDMCallIncomingEvent = z.infer<typeof MobileDMCallIncomingEventSchema>;
 export type MobileDMCallSignalEvent = z.infer<typeof MobileDMCallSignalEventSchema>;

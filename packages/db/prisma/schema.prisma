@@ -1304,6 +1304,9 @@ model DMParticipant {
   userId         String
   joinedAt       DateTime  @default(now())
   lastReadAt     DateTime?
+  // Newest message this participant's client has actually received. Drives the
+  // second tick ("iletildi") independently of whether they opened the chat.
+  lastDeliveredAt DateTime?
   mentionCount   Int       @default(0)
   muted          Boolean   @default(false)
   hiddenAt       DateTime?

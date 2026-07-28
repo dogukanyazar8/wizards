@@ -24,15 +24,21 @@ describe("mobile DM mark-read route", () => {
         getParticipantReadStates: async () => {
           calls.push("read-states");
           return [
-            { lastReadAt: new Date("2026-07-17T08:05:00.000Z"), userId: "user-1" },
-            { lastReadAt: null, userId: "user-2" },
+            {
+              lastDeliveredAt: new Date("2026-07-17T08:04:00.000Z"),
+              lastReadAt: new Date("2026-07-17T08:05:00.000Z"),
+              userId: "user-1",
+            },
+            { lastDeliveredAt: null, lastReadAt: null, userId: "user-2" },
           ];
         },
         markRead: async () => {
           calls.push("mark-read");
         },
-        emitReadUpdate: (event) => {
-          calls.push(`emit:${event.conversationId}:${event.userId}:${event.lastReadAt}`);
+        emitReadUpdate: (event, participantUserIds) => {
+          calls.push(
+            `emit:${event.conversationId}:${event.userId}:${event.lastReadAt}:${participantUserIds.join(",")}`,
+          );
         },
       },
     );
@@ -41,16 +47,23 @@ describe("mobile DM mark-read route", () => {
     assert.deepEqual(await response.json(), {
       conversationId: "conversation-1",
       participantReadStates: [
-        { lastReadAt: "2026-07-17T08:05:00.000Z", userId: "user-1" },
-        { lastReadAt: null, userId: "user-2" },
+        {
+          lastDeliveredAt: "2026-07-17T08:04:00.000Z",
+          lastReadAt: "2026-07-17T08:05:00.000Z",
+          userId: "user-1",
+        },
+        { lastDeliveredAt: null, lastReadAt: null, userId: "user-2" },
       ],
     });
+    // §2 "1a".6.4: every participant is a fan-out target, because the sender
+    // waiting for the third tick is sitting on the conversation list, not in
+    // the `dm:<id>` room.
     assert.deepEqual(calls, [
       "authenticate",
       "rate-limit:user-1:mobile:dm:mark-read",
       "mark-read",
       "read-states",
-      "emit:conversation-1:user-1:2026-07-17T08:05:00.000Z",
+      "emit:conversation-1:user-1:2026-07-17T08:05:00.000Z:user-1,user-2",
     ]);
   });
 

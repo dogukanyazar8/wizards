@@ -4,7 +4,9 @@ import {
   DMMessagePayloadSchema,
   MOBILE_NOTIFICATION_FILTERS,
   MobileChannelMessagesStaleEventSchema,
+  MobileDMDeliveredUpdatedEventSchema,
   MobileDMReadUpdatedEventSchema,
+  MobileFriendVoiceRoomUpdateEventSchema,
   MobileNotificationNewEventSchema,
   MobilePresenceUpdateEventSchema,
   MobileServerUnreadUpdateEventSchema,
@@ -16,6 +18,7 @@ import {
   MobileVoiceStateUpdateEventSchema,
   type MobileBootstrapPayload,
   type MobileChannelMessagesResponse,
+  type MobileDMConversationsResponse,
   type MobileDMMessagesResponse,
   type MobileFriendsOverviewResponse,
   type MobileManagedWorkspaceServerDetailResponse,
@@ -36,8 +39,10 @@ import {
   patchMobileRealtimeBootstrapProfile,
   patchMobileRealtimeBootstrapPresence,
   patchMobileRealtimeBootstrapServerUnread,
+  patchMobileRealtimeDMConversationReceipt,
   patchMobileRealtimeFriendsProfile,
   patchMobileRealtimeFriendsPresence,
+  patchMobileRealtimeFriendsVoiceRoom,
   patchMobileRealtimeWorkspaceProfile,
   patchMobileRealtimeUserProfilePresence,
   patchMobileRealtimeWorkspacePresence,
@@ -60,6 +65,7 @@ import { applyMobileRealtimeNotificationEvent } from "../notifications/mobile-no
 
 type MobileChannelMessagesInfiniteData = InfiniteData<MobileChannelMessagesResponse, string | null>;
 type MobileDMMessagesInfiniteData = InfiniteData<MobileDMMessagesResponse, string | null>;
+type MobileDMConversationsInfiniteData = InfiniteData<MobileDMConversationsResponse, unknown>;
 
 export interface MobileRealtimeQueryBridgeScheduler {
   clearTimeout(timer: unknown): void;
@@ -470,6 +476,29 @@ export function createMobileRealtimeQueryBridge({
       return true;
     }
 
+    if (event.eventName === "friends:voice:update") {
+      const parsed = MobileFriendVoiceRoomUpdateEventSchema.safeParse(event.payload);
+      if (!parsed.success) {
+        return true;
+      }
+
+      let friendsPatched = false;
+      queryClient.setQueryData<MobileFriendsOverviewResponse>(
+        mobileQueryKeys.friends(),
+        (current) => {
+          const result = patchMobileRealtimeFriendsVoiceRoom(current, parsed.data);
+          friendsPatched = result.patched;
+          return result.data;
+        },
+      );
+      // Nothing cached yet (or a friend the list has never seen): fall back to a
+      // read rather than leaving the strip showing a stale dot.
+      if (!friendsPatched) {
+        scheduleSource("presence", null);
+      }
+      return true;
+    }
+
     if (event.eventName === "user:profile:updated") {
       patchProfileCaches(event.payload);
       return true;
@@ -500,6 +529,54 @@ export function createMobileRealtimeQueryBridge({
     return handled;
   };
 
+  /**
+   * §2 "1a".6.4: read and delivery receipts move the tick on a conversation row,
+   * which is a different cache from the open chat — and the row is usually the
+   * only thing on screen when they land, because the sender is not inside the
+   * conversation. Runs for every conversation, open or not.
+   */
+  const applyDMConversationReceiptEvent = (event: MobileRealtimeEventEnvelope): boolean => {
+    let receipt: { at: string | null; conversationId: string; userId: string } | null = null;
+
+    if (event.eventName === "dm:conversation:read") {
+      const parsed = MobileDMReadUpdatedEventSchema.safeParse(event.payload);
+      receipt = parsed.success
+        ? {
+            at: parsed.data.lastReadAt,
+            conversationId: parsed.data.conversationId,
+            userId: parsed.data.userId,
+          }
+        : null;
+    } else if (event.eventName === "dm:conversation:delivered") {
+      const parsed = MobileDMDeliveredUpdatedEventSchema.safeParse(event.payload);
+      receipt = parsed.success
+        ? {
+            at: parsed.data.lastDeliveredAt,
+            conversationId: parsed.data.conversationId,
+            userId: parsed.data.userId,
+          }
+        : null;
+    }
+
+    if (!receipt) {
+      return false;
+    }
+
+    const resolved = receipt;
+    const kind = event.eventName === "dm:conversation:read" ? "read" : "delivered";
+    let patched = false;
+    queryClient.setQueryData<MobileDMConversationsInfiniteData>(
+      mobileQueryKeys.dmConversations(),
+      (current) => {
+        const result = patchMobileRealtimeDMConversationReceipt(current, { ...resolved, kind });
+        patched = result.patched;
+        return result.data;
+      },
+    );
+
+    return patched;
+  };
+
   const applyActiveDMEvent = (event: MobileRealtimeEventEnvelope): boolean => {
     const { conversationId } = getActiveTargets();
     if (!conversationId || (event.conversationId && event.conversationId !== conversationId)) {
@@ -516,6 +593,21 @@ export function createMobileRealtimeQueryBridge({
           patchDMParticipantReadState(current, {
             lastReadAt: readState.data.lastReadAt,
             userId: readState.data.userId,
+          }),
+      );
+      return true;
+    }
+    if (event.eventName === "dm:conversation:delivered") {
+      const deliveryState = MobileDMDeliveredUpdatedEventSchema.safeParse(event.payload);
+      if (!deliveryState.success || deliveryState.data.conversationId !== conversationId) {
+        return false;
+      }
+      queryClient.setQueryData<MobileDMMessagesInfiniteData>(
+        mobileQueryKeys.dmMessages(conversationId),
+        (current) =>
+          patchDMParticipantReadState(current, {
+            lastDeliveredAt: deliveryState.data.lastDeliveredAt,
+            userId: deliveryState.data.userId,
           }),
       );
       return true;
@@ -736,7 +828,8 @@ export function createMobileRealtimeQueryBridge({
 
       const workspaceChannelPreviewPatched = patchWorkspaceChannelLastMessageFromEvent(event);
       const channelEventHandled = applyActiveChannelEvent(event);
-      const dmEventHandled = applyActiveDMEvent(event);
+      const dmReceiptPatched = applyDMConversationReceiptEvent(event);
+      const dmEventHandled = applyActiveDMEvent(event) || dmReceiptPatched;
       const notificationApplied = applyNotificationEvent(event);
       const workspaceRefreshedImmediately = refreshWorkspaceImmediatelyForChannelEvent(event);
       for (const source of event.refreshSources) {
@@ -760,18 +853,39 @@ export function createMobileRealtimeQueryBridge({
   };
 }
 
+/**
+ * Merges rather than replaces: read and delivery marks arrive as separate
+ * events, so overwriting the row would drop whichever one did not just fire and
+ * walk the bubble's tick backwards.
+ */
 function patchDMParticipantReadState(
   data: MobileDMMessagesInfiniteData | undefined,
-  readState: { readonly lastReadAt: string | null; readonly userId: string },
+  readState: {
+    readonly lastDeliveredAt?: string | null;
+    readonly lastReadAt?: string | null;
+    readonly userId: string;
+  },
 ): MobileDMMessagesInfiniteData | undefined {
   if (!data) return data;
   return {
     ...data,
     pages: data.pages.map((page) => {
       const current = page.participantReadStates ?? [];
-      const next = current.some((state) => state.userId === readState.userId)
-        ? current.map((state) => (state.userId === readState.userId ? readState : state))
-        : [...current, readState];
+      const existing = current.find((state) => state.userId === readState.userId);
+      const merged = {
+        lastDeliveredAt:
+          readState.lastDeliveredAt !== undefined
+            ? readState.lastDeliveredAt
+            : (existing?.lastDeliveredAt ?? null),
+        lastReadAt:
+          readState.lastReadAt !== undefined
+            ? readState.lastReadAt
+            : (existing?.lastReadAt ?? null),
+        userId: readState.userId,
+      };
+      const next = existing
+        ? current.map((state) => (state.userId === readState.userId ? merged : state))
+        : [...current, merged];
       return { ...page, participantReadStates: next };
     }),
   };

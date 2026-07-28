@@ -1,6 +1,10 @@
+import type { InfiniteData } from "@tanstack/react-query";
 import type {
   MobileBootstrapPayload,
+  MobileDMConversationPreviewDelivery,
+  MobileDMConversationsResponse,
   MobileFriendsOverviewResponse,
+  MobileFriendVoiceRoomUpdateEvent,
   MobileManagedWorkspaceServerDetailResponse,
   MobilePresenceUpdateEvent,
   MobileServerUnreadUpdateEvent,
@@ -199,6 +203,101 @@ export function patchMobileRealtimeFriendsPresence(
   });
 
   return patched ? { data: { ...data, friends }, patched: true } : unchanged(data);
+}
+
+/**
+ * §2 "1a".5: a friend entering or leaving a voice room. Patched rather than
+ * refetched because the conversations strip is on screen while it happens.
+ */
+export function patchMobileRealtimeFriendsVoiceRoom(
+  data: MobileFriendsOverviewResponse | undefined,
+  event: MobileFriendVoiceRoomUpdateEvent,
+): MobileRealtimeCachePatch<MobileFriendsOverviewResponse> {
+  if (!data) {
+    return unchanged<MobileFriendsOverviewResponse>(data);
+  }
+
+  let patched = false;
+  const friends = data.friends.map((friend) => {
+    if (friend.id !== event.userId) {
+      return friend;
+    }
+
+    const currentChannelId = friend.voiceRoom?.channelId ?? null;
+    const nextChannelId = event.voiceRoom?.channelId ?? null;
+    if (currentChannelId === nextChannelId) {
+      return friend;
+    }
+
+    patched = true;
+    return { ...friend, voiceRoom: event.voiceRoom };
+  });
+
+  return patched ? { data: { ...data, friends }, patched: true } : unchanged(data);
+}
+
+/**
+ * §2 "1a".6.4 tick state for a conversation row, moved by a receipt event
+ * instead of a refetch.
+ *
+ * Only the viewer's own outgoing preview can carry a tick, and only somebody
+ * else's receipt can move it — the author's own read of their conversation says
+ * nothing about the other side. A receipt older than the message is ignored, so
+ * a late-arriving event cannot walk the state backwards.
+ */
+export function patchMobileRealtimeDMConversationReceipt(
+  data: InfiniteData<MobileDMConversationsResponse, unknown> | undefined,
+  event: {
+    readonly at: string | null;
+    readonly conversationId: string;
+    readonly kind: "delivered" | "read";
+    readonly userId: string;
+  },
+): MobileRealtimeCachePatch<InfiniteData<MobileDMConversationsResponse, unknown>> {
+  if (!data || !event.at) {
+    return unchanged(data);
+  }
+
+  const nextStatus: MobileDMConversationPreviewDelivery =
+    event.kind === "read" ? "read" : "delivered";
+  let patched = false;
+
+  const pages = data.pages.map((page) => {
+    let pagePatched = false;
+    const conversations = page.conversations.map((conversation) => {
+      const lastMessage = conversation.lastMessage;
+      if (
+        conversation.id !== event.conversationId ||
+        !lastMessage ||
+        !lastMessage.authorIsCurrentUser ||
+        lastMessage.author.id === event.userId ||
+        lastMessage.deliveryStatus === null
+      ) {
+        return conversation;
+      }
+
+      // A receipt that predates the message describes an older one.
+      if (new Date(event.at as string).getTime() < new Date(lastMessage.createdAt).getTime()) {
+        return conversation;
+      }
+
+      // "Read" is terminal for this message; a delivery mark never undoes it.
+      if (lastMessage.deliveryStatus === nextStatus || lastMessage.deliveryStatus === "read") {
+        return conversation;
+      }
+
+      pagePatched = true;
+      return { ...conversation, lastMessage: { ...lastMessage, deliveryStatus: nextStatus } };
+    });
+
+    if (!pagePatched) {
+      return page;
+    }
+    patched = true;
+    return { ...page, conversations };
+  });
+
+  return patched ? { data: { ...data, pages }, patched: true } : unchanged(data);
 }
 
 export function patchMobileRealtimeFriendsProfile(

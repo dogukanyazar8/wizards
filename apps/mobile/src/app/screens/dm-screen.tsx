@@ -22,6 +22,7 @@ import type {
 import { FriendsHub } from "../../social/friends-hub";
 import { useMobileAuth } from "../../auth/mobile-auth-context";
 import { mobileNavigationRef } from "../../navigation/mobile-navigation-ref";
+import { useMobileDMRowTyping } from "../features/use-mobile-dm-row-typing";
 import { useMobileFriendsQuery, useMobileSocialMutations } from "../../social/mobile-social-query";
 
 export { DMConversationScreen, DMConversationPreviewCard } from "./dm-conversation-screen";
@@ -89,6 +90,9 @@ export function MessagesScreen({
           displayName: friend.displayName,
           avatarUrl: friend.avatarUrl,
           status: friend.status,
+          // §2 "1a".5: M4A's live voice-room join, so the strip can draw the
+          // wave tile instead of the presence dot.
+          voiceRoom: friend.voiceRoom,
         })),
     [friendsQuery.data?.friends],
   );
@@ -98,6 +102,7 @@ export function MessagesScreen({
       mobileNavigationRef.navigate("DirectMessage", { conversationId: result.conversation.id });
     }
   };
+  const rowTyping = useMobileDMRowTyping();
   const swipeHandlers = useMobileDmSegmentSwipe(inboxSegment, setInboxSegment);
   const forwardTargets = useMemo<readonly MobileForwardTarget[]>(
     () =>
@@ -159,7 +164,10 @@ export function MessagesScreen({
 
   return (
     <View style={[styles.chatScreen, styles.dmInboxScreen]} testID="mobile-dm-inbox-screen">
-      <DMInboxHeader onCompose={() => setInboxSegment("requests")} />
+      <DMInboxHeader
+        onCompose={() => setInboxSegment(inboxSegment === "conversations" ? "friends" : "requests")}
+        segment={inboxSegment}
+      />
       <DMInboxSegmentTabs
         incomingRequestCount={incomingRequestCount}
         onSelectSegment={setInboxSegment}
@@ -196,6 +204,7 @@ export function MessagesScreen({
               onOpenFriendDM={(friendId) => void openFriendDM(friendId)}
               query={searchQuery}
               selectedConversationId={selectedConversationId}
+              typingByConversationId={rowTyping}
             />
           ) : shouldShowEmpty ? (
             <DMInboxEmptyState onCompose={() => setInboxSegment("friends")} />

@@ -866,16 +866,11 @@ export async function listDirectMessageMutualServers(
  * counted — the 1c profile header ("PAYLAŞILAN MEDYA — N") needs the real total
  * and this is one indexed count rather than a second history walk.
  */
-export async function countDirectMessageMediaAttachments(
-  conversationId: string,
-): Promise<number> {
+export async function countDirectMessageMediaAttachments(conversationId: string): Promise<number> {
   return prisma.attachment.count({
     where: {
       dmMessage: { conversationId, deletedAt: null },
-      OR: [
-        { contentType: { startsWith: "image/" } },
-        { contentType: { startsWith: "video/" } },
-      ],
+      OR: [{ contentType: { startsWith: "image/" } }, { contentType: { startsWith: "video/" } }],
     },
   });
 }
@@ -1103,8 +1098,68 @@ export async function getDirectMessageParticipantReadStates(conversationId: stri
   return prisma.dMParticipant.findMany({
     where: { conversationId },
     orderBy: { userId: "asc" },
-    select: { lastReadAt: true, userId: true },
+    select: { lastDeliveredAt: true, lastReadAt: true, userId: true },
   });
+}
+
+export type DirectMessageDeliveryMark = {
+  readonly conversationId: string;
+  readonly lastDeliveredAt: Date;
+  /** Everyone to notify, the delivering participant included. */
+  readonly participantUserIds: readonly string[];
+};
+
+/**
+ * Messaging redesign §2 "1a".6.4: marks that this participant's client now holds
+ * everything in these conversations, which is the sender's second tick.
+ *
+ * Only conversations whose newest message is younger than the existing mark are
+ * touched, so re-opening the list on a quiet account writes nothing and emits
+ * nothing. Membership is the `where` clause rather than a separate guard: a
+ * conversation the caller does not participate in simply matches no row.
+ */
+export async function markDirectMessagesDelivered(
+  userId: string,
+  conversationIds: readonly string[],
+  now: Date = new Date(),
+): Promise<readonly DirectMessageDeliveryMark[]> {
+  const ids = [...new Set(conversationIds)].filter((id) => id.length > 0);
+  if (ids.length === 0) {
+    return [];
+  }
+
+  const rows = await prisma.dMParticipant.findMany({
+    where: { conversationId: { in: ids }, userId },
+    select: {
+      conversationId: true,
+      lastDeliveredAt: true,
+      conversation: {
+        select: {
+          lastMessageAt: true,
+          participants: { select: { userId: true } },
+        },
+      },
+    },
+  });
+
+  const stale = rows.filter((row) => {
+    const { lastMessageAt } = row.conversation;
+    return lastMessageAt !== null && (!row.lastDeliveredAt || row.lastDeliveredAt < lastMessageAt);
+  });
+  if (stale.length === 0) {
+    return [];
+  }
+
+  await prisma.dMParticipant.updateMany({
+    where: { conversationId: { in: stale.map((row) => row.conversationId) }, userId },
+    data: { lastDeliveredAt: now },
+  });
+
+  return stale.map((row) => ({
+    conversationId: row.conversationId,
+    lastDeliveredAt: now,
+    participantUserIds: row.conversation.participants.map((participant) => participant.userId),
+  }));
 }
 
 export async function markDirectMessageUnread(userId: string, conversationId: string) {

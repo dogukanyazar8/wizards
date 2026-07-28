@@ -21,23 +21,44 @@ import type { MobileApiClient } from "../api/mobile-api-client";
 export const MOBILE_DM_MESSAGES_LIMIT = 30;
 export const MOBILE_DM_CONVERSATIONS_LIMIT = 20;
 
-export function getMobileDMPartnerLastReadAt(
+function getMobileDMPartnerLatest(
   readStates: readonly MobileDMParticipantReadState[] | undefined,
   currentUserId: string,
+  pick: (state: MobileDMParticipantReadState) => string | null,
 ): string | null {
   let latest: string | null = null;
   let latestTimestamp = Number.NEGATIVE_INFINITY;
 
   for (const state of readStates ?? []) {
-    if (state.userId === currentUserId || !state.lastReadAt) continue;
-    const timestamp = Date.parse(state.lastReadAt);
+    const value = state.userId === currentUserId ? null : pick(state);
+    if (!value) continue;
+    const timestamp = Date.parse(value);
     if (Number.isFinite(timestamp) && timestamp > latestTimestamp) {
-      latest = state.lastReadAt;
+      latest = value;
       latestTimestamp = timestamp;
     }
   }
 
   return latest;
+}
+
+export function getMobileDMPartnerLastReadAt(
+  readStates: readonly MobileDMParticipantReadState[] | undefined,
+  currentUserId: string,
+): string | null {
+  return getMobileDMPartnerLatest(readStates, currentUserId, (state) => state.lastReadAt);
+}
+
+/** §2 "1a".6.4: newest "their client has it" mark, for the grey two-tick state. */
+export function getMobileDMPartnerLastDeliveredAt(
+  readStates: readonly MobileDMParticipantReadState[] | undefined,
+  currentUserId: string,
+): string | null {
+  return getMobileDMPartnerLatest(
+    readStates,
+    currentUserId,
+    (state) => state.lastDeliveredAt ?? null,
+  );
 }
 
 export function getMobileDMReadTarget(input: {

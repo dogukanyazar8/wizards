@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { parseJsonBody } from "@/lib/api";
-import { mobileDMCreateRoute, mobileDMListRoute } from "./route-logic";
+import {
+  mobileDMCreateRoute,
+  mobileDMListRoute,
+  resolvePreviewDeliveryStatus,
+} from "./route-logic";
 
 describe("mobile DM create route", () => {
   it("returns a bearer-authenticated, bounded page with typed previews", async () => {
@@ -65,13 +69,20 @@ describe("mobile DM create route", () => {
         },
         getUnreadCount: async () => 7,
         loadConversationContext: async () => new Map(),
+        recordDelivery: async (userId, conversationIds) => {
+          calls.push({ delivered: conversationIds, userId });
+          return [];
+        },
       },
     );
 
     assert.equal(response.status, 200);
+    // Reading the list is what marks these conversations delivered for the
+    // viewer, which is the sender's second tick on the other device.
     assert.deepEqual(calls, [
       "mobile:dm:conversations:list",
       { input: { cursor: "dm-2", limit: 20 }, userId: "user-1" },
+      { delivered: ["dm-1"], userId: "user-1" },
     ]);
     assert.deepEqual(await response.json(), {
       conversations: [
@@ -178,6 +189,7 @@ describe("mobile DM create route", () => {
         nextCursor: null,
       }),
       getUnreadCount: async () => 0,
+      recordDelivery: async () => [],
       loadConversationContext: async (viewerId, conversationIds) => {
         assert.equal(viewerId, "user-1");
         assert.deepEqual(conversationIds, ["dm-1"]);
@@ -187,7 +199,8 @@ describe("mobile DM create route", () => {
             {
               botUserIds: new Set(["bot-1"]),
               mentionCount: 3,
-              // Read after the message was sent, so the row draws two ticks.
+              othersLastDeliveredAt: new Date("2026-07-15T12:01:00.000Z"),
+              // Read after the message was sent, so the row draws two accent ticks.
               othersLastReadAt: new Date("2026-07-15T12:05:00.000Z"),
             },
           ],
@@ -250,6 +263,7 @@ describe("mobile DM create route", () => {
         nextCursor: null,
       }),
       getUnreadCount: async () => 0,
+      recordDelivery: async () => [],
       loadConversationContext: async () =>
         new Map([
           [
@@ -257,6 +271,7 @@ describe("mobile DM create route", () => {
             {
               botUserIds: new Set<string>(),
               mentionCount: 0,
+              othersLastDeliveredAt: null,
               othersLastReadAt: new Date("2026-07-15T11:00:00.000Z"),
             },
           ],
@@ -321,5 +336,29 @@ describe("mobile DM create route", () => {
     );
     assert.equal(response.status, 201);
     assert.deepEqual(calls, ["mobile:dm:create", "user-1:user-2"]);
+  });
+});
+
+/**
+ * §2 "1a".6.4. Three states, and the order between them matters: a client that
+ * marked the conversation read has necessarily received the message, so a
+ * delivery mark that lands afterwards must not pull the tick back.
+ */
+describe("mobile DM preview delivery status", () => {
+  const sentAt = "2026-07-28T08:00:00.000Z";
+  const before = new Date("2026-07-28T07:59:00.000Z");
+  const after = new Date("2026-07-28T08:01:00.000Z");
+
+  it("resolves sent, delivered and read against the message timestamp", () => {
+    assert.equal(resolvePreviewDeliveryStatus(true, sentAt, null, null), "sent");
+    assert.equal(resolvePreviewDeliveryStatus(true, sentAt, null, after), "delivered");
+    assert.equal(resolvePreviewDeliveryStatus(true, sentAt, after, after), "read");
+    // Marks that predate the message belong to an older one.
+    assert.equal(resolvePreviewDeliveryStatus(true, sentAt, before, before), "sent");
+  });
+
+  it("prefers read over a stale delivery mark and draws nothing for an incoming row", () => {
+    assert.equal(resolvePreviewDeliveryStatus(true, sentAt, after, before), "read");
+    assert.equal(resolvePreviewDeliveryStatus(false, sentAt, after, after), null);
   });
 });

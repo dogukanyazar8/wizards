@@ -48,6 +48,8 @@ import { useMobileQueryClient } from "./mobile-query-provider";
 
 const MOBILE_CHANNEL_TYPING_STOP_DELAY_MS = 3_000;
 const MOBILE_CHANNEL_TYPING_START_THROTTLE_MS = 1_500;
+/** Collapses a burst of incoming DMs into one "iletildi" acknowledgement. */
+export const MOBILE_DM_DELIVERY_ACK_DELAY_MS = 300;
 
 type MobileRealtimeEventListener = (event: MobileRealtimeEventEnvelope) => void;
 
@@ -85,6 +87,7 @@ export function MobileRealtimeProvider({ children }: PropsWithChildren) {
   const typingStopTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const typingLastStartAtRef = useRef<Record<string, number>>({});
   const typingPruneTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const deliveryAckTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const [connection, dispatchConnection] = useReducer(
     mobileRealtimeReducer,
     undefined,
@@ -225,10 +228,36 @@ export function MobileRealtimeProvider({ children }: PropsWithChildren) {
     [status, stopDMTyping],
   );
 
+  /**
+   * §2 "1a".6.4: this device is the only honest source for "iletildi", so an
+   * incoming DM is acknowledged back to the server.
+   *
+   * Trailing debounce, not one ack per message: the server marks a timestamp,
+   * so a burst of five messages needs exactly one ack — and it has to be the one
+   * *after* the last of them, or the mark lands behind `lastMessageAt`.
+   */
+  const scheduleDeliveryAck = useCallback((conversationId: string) => {
+    const existing = deliveryAckTimersRef.current[conversationId];
+    if (existing) {
+      clearTimeout(existing);
+    }
+    deliveryAckTimersRef.current[conversationId] = setTimeout(() => {
+      delete deliveryAckTimersRef.current[conversationId];
+      clientRef.current?.emitDMMessageDelivered(conversationId);
+    }, MOBILE_DM_DELIVERY_ACK_DELAY_MS);
+  }, []);
+
   const handleEvent = useCallback(
     (event: MobileRealtimeEventEnvelope) => {
       dispatchConnection({ event, type: "event-received" });
       bridge.handleEvent(event);
+
+      if (event.eventName === "dm:message:new") {
+        const incoming = getMobileDMIncomingMessagePayload(event.payload);
+        if (incoming && incoming.authorId !== session?.user.id) {
+          scheduleDeliveryAck(incoming.conversationId);
+        }
+      }
 
       if (event.eventName === "typing:update") {
         const payload = getMobileChannelTypingUpdatePayload(event.payload);
@@ -269,9 +298,11 @@ export function MobileRealtimeProvider({ children }: PropsWithChildren) {
     },
     [
       bridge,
+      scheduleDeliveryAck,
       scheduleDMTypingPrune,
       scheduleTypingPrune,
       session?.user.displayName,
+      session?.user.id,
       session?.user.username,
     ],
   );
@@ -390,9 +421,13 @@ export function MobileRealtimeProvider({ children }: PropsWithChildren) {
       for (const timer of Object.values(typingPruneTimersRef.current)) {
         clearTimeout(timer);
       }
+      for (const timer of Object.values(deliveryAckTimersRef.current)) {
+        clearTimeout(timer);
+      }
       typingStopTimersRef.current = {};
       typingLastStartAtRef.current = {};
       typingPruneTimersRef.current = {};
+      deliveryAckTimersRef.current = {};
     },
     [bridge],
   );
@@ -498,6 +533,35 @@ function getMobileChannelTypingUpdatePayload(payload: unknown): {
   return {
     channelId: record.channelId,
     users: record.users.filter((user): user is string => typeof user === "string"),
+  };
+}
+
+/**
+ * Just enough of a `dm:message:new` payload to decide whether this device owes
+ * the sender a delivery acknowledgement: which conversation, and who wrote it.
+ */
+export function getMobileDMIncomingMessagePayload(payload: unknown): {
+  authorId: string | null;
+  conversationId: string;
+} | null {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return null;
+  }
+
+  const record = payload as Record<string, unknown>;
+  if (typeof record.conversationId !== "string" || record.conversationId.trim().length === 0) {
+    return null;
+  }
+
+  const author = record.author;
+  const authorId =
+    author && typeof author === "object" && !Array.isArray(author)
+      ? (author as Record<string, unknown>).id
+      : record.userId;
+
+  return {
+    authorId: typeof authorId === "string" ? authorId : null,
+    conversationId: record.conversationId,
   };
 }
 

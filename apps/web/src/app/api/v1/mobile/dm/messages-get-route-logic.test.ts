@@ -109,8 +109,8 @@ describe("mobile DM messages GET route logic", () => {
         listParticipantReadStates: async () => {
           calls.push("list-read-states");
           return [
-            { lastReadAt: new Date(now), userId: "user-1" },
-            { lastReadAt: null, userId: "user-2" },
+            { lastDeliveredAt: new Date(now), lastReadAt: new Date(now), userId: "user-1" },
+            { lastDeliveredAt: null, lastReadAt: null, userId: "user-2" },
           ];
         },
       },
@@ -131,8 +131,8 @@ describe("mobile DM messages GET route logic", () => {
       userId: "user-1",
     });
     assert.deepEqual((await response.json()).participantReadStates, [
-      { lastReadAt: now, userId: "user-1" },
-      { lastReadAt: null, userId: "user-2" },
+      { lastDeliveredAt: now, lastReadAt: now, userId: "user-1" },
+      { lastDeliveredAt: null, lastReadAt: null, userId: "user-2" },
     ]);
   });
 });

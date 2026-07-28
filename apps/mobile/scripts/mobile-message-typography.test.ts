@@ -148,3 +148,48 @@ describe("mobile message typography", () => {
     assert.equal(normalizeMobileMessageBooleanPreference("yes", true), true);
   });
 });
+
+/**
+ * §2 "1i".7 / criterion 12. The settings screen composes its live value label
+ * from the same resolver the chats use, so these pin the two answers the label
+ * has to give: the raw step, and the clamped effective size when the OS scale
+ * is in charge.
+ */
+describe("MSG-1i message size value label", () => {
+  it("reports the plain step size while the OS scale is not followed", () => {
+    for (const [size, px] of [
+      ["small", 14],
+      ["medium", 15],
+      ["large", 16.5],
+      ["xlarge", 18],
+    ] as const) {
+      assert.equal(getMobileMessageBodyStyle({ size, surface: "dm" }).fontSize, px);
+    }
+  });
+
+  it("reports the clamped effective size once the OS scale is followed", () => {
+    // A large OS scale cannot push the body past 22px...
+    assert.equal(
+      getMobileMessageBodyStyle({ fontScale: 2.5, size: "xlarge", surface: "dm" }).fontSize,
+      22,
+    );
+    // ...and a small one cannot drop it below 14px, which §9 forbids outright.
+    assert.equal(
+      getMobileMessageBodyStyle({ fontScale: 0.5, size: "small", surface: "dm" }).fontSize,
+      14,
+    );
+    // In between it simply multiplies.
+    assert.equal(
+      getMobileMessageBodyStyle({ fontScale: 1.2, size: "medium", surface: "dm" }).fontSize,
+      18,
+    );
+  });
+
+  it("never lets the compact toggle change the size, only the leading", () => {
+    const roomy = getMobileMessageBodyStyle({ size: "medium", surface: "dm" });
+    const compact = getMobileMessageBodyStyle({ compact: true, size: "medium", surface: "dm" });
+
+    assert.equal(compact.fontSize, roomy.fontSize);
+    assert.ok(compact.lineHeight < roomy.lineHeight);
+  });
+});

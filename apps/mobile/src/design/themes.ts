@@ -18,6 +18,7 @@ import {
 } from "./palette";
 import {
   mobileLayoutMetrics,
+  mobileMessagingMetrics,
   mobileRadii,
   mobileSizing,
   mobileSpacing,
@@ -276,6 +277,8 @@ export interface MobileTheme {
      * overlay shadows keep their geometry over black ink.
      */
     readonly actionMenu: MobileThemeElevationStyle;
+    /** §0.3: the 1a/1b/1c header FAB sits a notch deeper than `primaryAction`. */
+    readonly headerFab: MobileThemeElevationStyle;
     readonly messageBubbleIn: MobileThemeElevationStyle;
     readonly messageBubbleOut: MobileThemeElevationStyle;
     /** §1.4: the softer lift under a reaction chip that is not the viewer's own. */
@@ -339,6 +342,12 @@ export interface MobileTheme {
    * `surface`/`text`/`status` groups.
    */
   readonly messaging: MobileMessagingPalette;
+  /**
+   * Messaging shape scale (PROMPT.md §0.5 / §1). Exposed on the theme so the
+   * redesign screens resolve every measurement through a named role, the same
+   * way `layout` does.
+   */
+  readonly messagingMetrics: typeof mobileMessagingMetrics;
   /** 8a-8e message action surfaces: long-press overlay chrome + channel stream accents. */
   readonly messageMenu: {
     readonly addReactionBorder: string;
@@ -744,6 +753,14 @@ export const lightTheme = deepFreeze({
       shadowOpacity: 0.3,
       shadowRadius: 34,
     },
+    /** §0.3: `0 6px 14px rgba(79,70,229,.32)`. */
+    headerFab: {
+      elevation: 6,
+      shadowColor: redesignLight.primary,
+      shadowOffset: { height: 6, width: 0 },
+      shadowOpacity: 0.32,
+      shadowRadius: 14,
+    },
     /** §0.3: `0 2px 5px rgba(30,34,53,.07)`. */
     segmentActive: {
       elevation: 2,
@@ -839,6 +856,7 @@ export const lightTheme = deepFreeze({
     text: redesignLight.primaryStrong,
   },
   messaging: redesignMessagingLight,
+  messagingMetrics: mobileMessagingMetrics,
   messageMenu: {
     addReactionBorder: "#C9CDE4",
     reactionDetailScrim: "rgba(20,23,42,.4)",
@@ -1063,6 +1081,13 @@ export const darkTheme = deepFreeze({
       shadowColor: "#000000",
     },
     messageBubbleIn: MESSAGING_FLAT_ELEVATION,
+    headerFab: {
+      elevation: 6,
+      shadowColor: redesignDark.primaryWithWhiteText,
+      shadowOffset: { height: 6, width: 0 },
+      shadowOpacity: 0.32,
+      shadowRadius: 14,
+    },
     messageBubbleOut: MESSAGING_FLAT_ELEVATION,
     reactionChip: MESSAGING_FLAT_ELEVATION,
     reactionStrip: {
@@ -1132,6 +1157,7 @@ export const darkTheme = deepFreeze({
     text: redesignDark.accentText,
   },
   messaging: redesignMessagingDark,
+  messagingMetrics: mobileMessagingMetrics,
   messageMenu: {
     addReactionBorder: redesignDark.border,
     reactionDetailScrim: redesignDark.sheetOverlay,

@@ -25,6 +25,8 @@ export type MobileRealtimeClient = {
   emitDMCallDecline(input: { conversationId: string; fromUserId: string }): void;
   emitDMCallEnd(input: { conversationId: string }): void;
   emitDMCallStart(input: { conversationId: string; video: boolean }): void;
+  /** §2 "1a".6.4: acknowledges that this device now holds the newest message. */
+  emitDMMessageDelivered(conversationId: string): void;
   emitDMTypingStart(conversationId: string): void;
   emitDMTypingStop(conversationId: string): void;
   emitVoiceInviteAccept(input: { channelId: string; inviteId: string; serverId: string }): void;
@@ -257,6 +259,13 @@ export function createMobileRealtimeClient(
       }
 
       socket.emit("dm:call:end", input);
+    },
+
+    emitDMMessageDelivered(conversationId) {
+      if (!socket?.connected || conversationId.trim().length === 0) {
+        return;
+      }
+      socket.emit("dm:message:delivered", { conversationId });
     },
 
     emitDMTypingStart(conversationId) {

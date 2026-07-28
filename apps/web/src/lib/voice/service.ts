@@ -8,6 +8,7 @@ import {
   startMediaUsageSession,
 } from "@/lib/analytics/service";
 import type { ClientAttribution } from "@/lib/analytics/client-attribution";
+import { broadcastVoiceRoomUpdateToFriends } from "@/lib/friends/service";
 import { getLiveKitRoomServiceClient } from "@/lib/livekit/server";
 import { logError } from "@/lib/logger";
 import { getRedis } from "@/lib/redis";
@@ -591,6 +592,17 @@ export async function emitVoiceStateUpdate(args: {
   io.to(getVoiceStateViewerRoomName(args.channelId))
     .to(getVoiceParticipantRoomName(args.channelId))
     .emit("voice:state:update", payload);
+
+  // §2 "1a".5: the same fact, addressed to friends instead of channel watchers,
+  // so the conversations strip can swap the presence dot for the wave tile.
+  await broadcastVoiceRoomUpdateToFriends({
+    action: args.action,
+    channelId: args.channelId,
+    serverId: args.serverId,
+    userId: args.userId,
+  }).catch((error: unknown) => {
+    logError("[voice] friend voice-room broadcast failed", error);
+  });
 }
 
 export async function emitVoiceScreenShareUpdate(args: {

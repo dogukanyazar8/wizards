@@ -1,6 +1,7 @@
 import type { TextStyle, ViewStyle } from "react-native";
 
 import { redesignAppearancePreview } from "../../design/palette";
+import { mobileMessagingMetrics as msg } from "../../design/tokens";
 import type { MobileTheme } from "../../design/themes";
 import { useThemedStyles } from "../providers/mobile-theme-provider";
 
@@ -9,83 +10,116 @@ export const MOBILE_APPEARANCE_PREVIEW = redesignAppearancePreview;
 
 export const createMobileAppearanceSettingsStyles = (theme: MobileTheme) =>
   ({
-    root: { backgroundColor: theme.surface.base, flex: 1 },
+    root: { backgroundColor: theme.messaging.screen, flex: 1 },
     content: { paddingBottom: 40 },
+    /** §2 "1i".1: `padding: 8px 20px 12px`, gap 8, a 26px back well. */
     header: {
       alignItems: "center",
       flexDirection: "row",
-      gap: 10,
-      paddingBottom: 4,
+      gap: 8,
+      paddingBottom: 12,
       paddingHorizontal: 20,
-      paddingTop: 12,
+      paddingTop: 8,
     },
     back: {
       alignItems: "center",
-      height: 44,
+      height: 38,
       justifyContent: "center",
-      width: 44,
+      width: 26,
     },
-    backVisual: {
-      alignItems: "center",
-      backgroundColor: theme.surface.card,
-      borderColor: theme.border.subtle,
-      borderRadius: 14,
-      borderWidth: 1,
-      height: 40,
-      justifyContent: "center",
-      width: 40,
-    },
+    backVisual: { alignItems: "center", justifyContent: "center" },
     pressed: { opacity: 0.82 },
-    headerText: { flex: 1, gap: 1, minWidth: 0 },
+    headerText: { flex: 1, minWidth: 0 },
     title: {
-      color: theme.text.primary,
+      color: theme.messaging.textPrimary,
       fontFamily: theme.typography.fontFamilyExtraBold,
-      fontSize: 22,
-      letterSpacing: -0.44,
+      fontSize: 21,
+      letterSpacing: -0.525,
     },
-    subtitle: {
-      color: theme.text.muted,
-      fontFamily: theme.typography.fontFamily,
-      fontSize: 12.5,
-    },
+    /** §2 "1i": group label 11.5 / 700, `ls .12em`, `padding: 6px 4px 5px`. */
     sectionHeading: {
-      color: theme.text.soft,
+      color: theme.messaging.textSecondary,
       fontFamily: theme.typography.fontFamilyBold,
       fontSize: 11.5,
       letterSpacing: 1.38,
-      paddingBottom: 8,
+      paddingBottom: 5,
       paddingHorizontal: 24,
-      paddingTop: 18,
+      paddingTop: 16,
       textTransform: "uppercase",
     },
-    optionRow: { flexDirection: "row", gap: 10, paddingHorizontal: 20 },
-    optionCard: {
-      backgroundColor: theme.surface.card,
-      borderColor: theme.border.subtle,
-      borderRadius: 20,
-      borderWidth: 1,
-      flex: 1,
+    /** The message-size heading carries a live value on its right. */
+    sectionHeadingRow: {
+      alignItems: "center",
+      flexDirection: "row",
       gap: 8,
-      padding: 10,
+      paddingHorizontal: 24,
+      paddingTop: 16,
     },
-    optionCardSelected: {
-      borderColor: theme.accent.default,
-      borderWidth: 2,
-      padding: 9,
-      ...theme.elevation.headerCard,
-      shadowColor: theme.accent.default,
-      shadowOffset: { height: 6, width: 0 },
-      shadowOpacity: 0.15,
-      shadowRadius: 16,
+    sectionHeadingInline: {
+      color: theme.messaging.textSecondary,
+      flex: 1,
+      fontFamily: theme.typography.fontFamilyBold,
+      fontSize: 11.5,
+      letterSpacing: 1.38,
+      textTransform: "uppercase",
     },
+    /** §2 "1i".3: "Orta · 15 px", 11.5 / 800 accent, recomputed every step. */
+    sectionHeadingValue: {
+      color: theme.messaging.accentText,
+      fontFamily: theme.typography.fontFamilyExtraBold,
+      fontSize: 11.5,
+    },
+    /**
+     * K6: both size controls live on this screen, so each heading carries a line
+     * saying what it does and does not touch. Without it the two read as
+     * duplicates of one another.
+     */
+    sectionHint: {
+      color: theme.messaging.textSecondary,
+      fontFamily: theme.typography.fontFamilyMedium,
+      fontSize: 11.5,
+      lineHeight: 16,
+      paddingBottom: 8,
+      paddingHorizontal: 24,
+      paddingTop: 2,
+    },
+    /** §2 "1i": every group sits in one r24 card with 14px of inner padding. */
+    settingsCard: {
+      backgroundColor: theme.messaging.surface,
+      borderColor: theme.messaging.cardBorder,
+      borderRadius: msg.settings.cardRadius,
+      borderWidth: 1,
+      marginHorizontal: 20,
+      padding: msg.settings.cardPadding,
+    },
+    /** A card whose children are full-bleed rows owns no padding of its own. */
+    settingsRowCard: {
+      backgroundColor: theme.messaging.surface,
+      borderColor: theme.messaging.cardBorder,
+      borderRadius: msg.settings.cardRadius,
+      borderWidth: 1,
+      marginHorizontal: 20,
+      overflow: "hidden",
+    },
+    optionRow: { flexDirection: "row", gap: 10 },
+    optionCard: { alignItems: "center", flex: 1, gap: 8 },
+    optionCardSelected: {},
+    /** §2 "1i".2: 56px preview, r14, 2px accent edge when picked. */
     themePreview: {
-      borderColor: MOBILE_APPEARANCE_PREVIEW.lightBorder,
-      borderRadius: 13,
+      borderColor: theme.messaging.cardBorder,
+      borderRadius: 14,
       borderWidth: 1,
       gap: 4,
-      height: 64,
+      height: 56,
+      justifyContent: "center",
       overflow: "hidden",
       padding: 8,
+      width: "100%",
+    },
+    themePreviewSelected: {
+      borderColor: theme.messaging.accent,
+      borderWidth: 2,
+      padding: 7,
     },
     themePreviewLight: { backgroundColor: MOBILE_APPEARANCE_PREVIEW.lightSurface },
     themePreviewDark: {
@@ -159,13 +193,13 @@ export const createMobileAppearanceSettingsStyles = (theme: MobileTheme) =>
     },
     optionLabelColumn: { alignItems: "center", gap: 2 },
     optionLabel: {
-      color: theme.text.muted,
+      color: theme.messaging.textSecondary,
       fontFamily: theme.typography.fontFamilySemiBold,
-      fontSize: 13,
+      fontSize: 12,
     },
     optionLabelSelected: {
-      color: theme.accent.strong,
-      fontFamily: theme.typography.fontFamilyBold,
+      color: theme.messaging.accentText,
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     optionHint: {
       color: theme.text.soft,
@@ -183,15 +217,9 @@ export const createMobileAppearanceSettingsStyles = (theme: MobileTheme) =>
     },
     accentCard: {
       alignItems: "center",
-      backgroundColor: theme.surface.card,
-      borderColor: theme.border.subtle,
-      borderRadius: 20,
-      borderWidth: 1,
       flexDirection: "row",
       gap: 12,
-      marginHorizontal: 20,
-      paddingHorizontal: 16,
-      paddingVertical: 14,
+      justifyContent: "space-between",
     },
     accentSwatchTarget: {
       alignItems: "center",
@@ -276,6 +304,205 @@ export const createMobileAppearanceSettingsStyles = (theme: MobileTheme) =>
       width: 8,
     },
     layoutTabDotActive: { backgroundColor: theme.accent.default },
+    /** §2 "1i".4 live preview: an r18 screen-toned block holding two bubbles. */
+    messagePreviewBlock: {
+      backgroundColor: theme.messaging.screen,
+      borderRadius: 18,
+      gap: 5,
+      padding: 12,
+    },
+    messagePreviewBubbleIn: {
+      alignItems: "flex-end",
+      alignSelf: "flex-start",
+      backgroundColor: theme.messaging.bubbleIn,
+      borderBottomLeftRadius: 6,
+      borderBottomRightRadius: 16,
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
+      flexDirection: "row",
+      gap: 9,
+      maxWidth: "82%",
+      paddingBottom: 7,
+      paddingHorizontal: 12,
+      paddingTop: 8,
+      ...theme.elevation.messageBubbleIn,
+    },
+    messagePreviewBubbleOut: {
+      alignItems: "flex-end",
+      alignSelf: "flex-end",
+      backgroundColor: theme.messaging.bubbleOut,
+      borderBottomLeftRadius: 16,
+      borderBottomRightRadius: 6,
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
+      flexDirection: "row",
+      gap: 9,
+      maxWidth: "82%",
+      paddingBottom: 7,
+      paddingHorizontal: 12,
+      paddingTop: 8,
+    },
+    /**
+     * §3.2 / criterion 12: the body is the ONLY text here that scales — the hook
+     * style is merged on top of this at render. The clock below stays 10.5.
+     */
+    messagePreviewBodyIn: {
+      color: theme.messaging.bubbleInText,
+      fontFamily: theme.typography.fontFamilyMedium,
+      flexShrink: 1,
+    },
+    messagePreviewBodyOut: {
+      color: theme.messaging.bubbleOutText,
+      fontFamily: theme.typography.fontFamilyMedium,
+      flexShrink: 1,
+    },
+    messagePreviewClockIn: {
+      color: theme.messaging.bubbleMeta,
+      fontFamily: theme.typography.fontFamilySemiBold,
+      fontSize: 10.5,
+      paddingBottom: 1,
+    },
+    messagePreviewClockOut: {
+      color: theme.messaging.bubbleOutMeta,
+      fontFamily: theme.typography.fontFamilySemiBold,
+      fontSize: 10.5,
+      paddingBottom: 1,
+    },
+    /** §2 "1i".5 slider row: small "A", track, large "A". */
+    messageSliderRow: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: 13,
+      paddingHorizontal: 2,
+    },
+    messageSliderSmallA: {
+      color: theme.messaging.groupLabel,
+      fontFamily: theme.typography.fontFamilyBold,
+      fontSize: 12,
+    },
+    messageSliderLargeA: {
+      color: theme.messaging.nameMuted,
+      fontFamily: theme.typography.fontFamilyExtraBold,
+      fontSize: 19,
+    },
+    messageSliderTouch: { flex: 1, height: 22, justifyContent: "center" },
+    messageSliderDisabled: { opacity: 0.5 },
+    messageSliderTrack: {
+      backgroundColor: theme.messaging.sliderTrack,
+      borderRadius: 3,
+      height: 6,
+      justifyContent: "center",
+    },
+    messageSliderFill: {
+      backgroundColor: theme.messaging.accent,
+      borderRadius: 3,
+      height: 6,
+      left: 0,
+      position: "absolute",
+    },
+    messageSliderStops: {
+      alignItems: "center",
+      flexDirection: "row",
+      justifyContent: "space-between",
+      left: 0,
+      paddingHorizontal: 1,
+      position: "absolute",
+      right: 0,
+    },
+    /** A stop behind the fill inverts so it stays visible on the accent bar. */
+    messageSliderStop: {
+      backgroundColor: theme.messaging.sliderStop,
+      borderRadius: 3,
+      height: 5,
+      width: 5,
+    },
+    messageSliderStopFilled: { backgroundColor: theme.messaging.surface, opacity: 0.9 },
+    messageSliderThumb: {
+      backgroundColor: theme.messaging.surface,
+      borderColor: theme.messaging.sliderThumbBorder,
+      borderRadius: 11,
+      borderWidth: 1.5,
+      height: 22,
+      marginLeft: -11,
+      position: "absolute",
+      width: 22,
+      ...theme.elevation.sliderThumb,
+    },
+    messageSliderLabels: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      paddingHorizontal: 2,
+    },
+    messageSliderLabel: {
+      color: theme.messaging.textSecondary,
+      fontFamily: theme.typography.fontFamilySemiBold,
+      fontSize: 11,
+    },
+    messageSliderLabelActive: {
+      color: theme.messaging.accentText,
+      fontFamily: theme.typography.fontFamilyExtraBold,
+    },
+    messageSizeCardBody: { gap: 14 },
+    /** §2 "1i".5: settings row, `padding: 14px 16px`, gap 13. */
+    toggleRow: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: 13,
+      paddingHorizontal: msg.settings.rowPaddingHorizontal,
+      paddingVertical: msg.settings.rowPaddingVertical,
+    },
+    toggleRowDivider: {
+      backgroundColor: theme.messaging.settingsDivider,
+      height: 1,
+      marginLeft: msg.settings.dividerInset,
+    },
+    toggleIconTile: {
+      alignItems: "center",
+      borderRadius: 14,
+      height: 40,
+      justifyContent: "center",
+      width: 40,
+    },
+    toggleIconTileAccent: { backgroundColor: theme.messaging.accentSoft },
+    toggleIconTileOnline: { backgroundColor: theme.messaging.onlineSurface },
+    toggleText: { flex: 1, gap: 2, minWidth: 0 },
+    toggleTitle: {
+      color: theme.messaging.textPrimary,
+      fontFamily: theme.typography.fontFamilyBold,
+      fontSize: 14.5,
+    },
+    toggleSubtitle: {
+      color: theme.messaging.textSecondary,
+      fontFamily: theme.typography.fontFamilyMedium,
+      fontSize: 12,
+    },
+    /** §2 "1i".6: 46x28 r14, 2px padding, a 24px thumb that slides. */
+    toggleTrack: {
+      backgroundColor: theme.messaging.toggleOff,
+      borderRadius: 14,
+      height: 28,
+      justifyContent: "center",
+      padding: 2,
+      width: 46,
+    },
+    toggleTrackOn: { backgroundColor: theme.messaging.accent },
+    toggleThumb: {
+      backgroundColor: theme.messaging.surface,
+      borderRadius: 12,
+      height: 24,
+      width: 24,
+      ...theme.elevation.toggleThumb,
+    },
+    toggleThumbOn: { alignSelf: "flex-end" },
+    /** §2 "1i".6 footer: 11.5 / 500, line-height 1.55. */
+    footerNote: {
+      color: theme.messaging.textSecondary,
+      fontFamily: theme.typography.fontFamilyMedium,
+      fontSize: 11.5,
+      lineHeight: 17.83,
+      paddingHorizontal: 24,
+      paddingTop: 10,
+    },
     textSizeCard: {
       alignItems: "center",
       backgroundColor: theme.surface.card,

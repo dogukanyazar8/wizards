@@ -55,37 +55,42 @@ describe("1c DM inbox redesign", () => {
     expect(view.getByTestId("mobile-dm-conversation-group-badge")).toBeTruthy();
   });
 
-  it("locks the 1c unread-card and avatar geometry to semantic theme tokens", () => {
+  it("locks the MSG-1a row geometry to the messaging shape scale", () => {
     const styles = createDmScreenStyles(lightTheme);
 
+    // §0.5: 46/r16 on the conversation list, `padding: 10px 20px`, gap 13.
     expect(styles.dmConversationAvatar).toMatchObject({
-      borderRadius: 18,
-      height: 50,
-      width: 50,
+      borderRadius: 16,
+      height: 46,
+      width: 46,
     });
-    expect(styles.dmConversationCardUnread).toMatchObject({
-      backgroundColor: lightTheme.surface.card,
-      borderColor: lightTheme.border.subtle,
-      borderRadius: 18,
-      borderWidth: 1,
+    expect(styles.dmConversationCard).toMatchObject({
+      gap: 13,
+      paddingHorizontal: 20,
+      paddingVertical: 10,
     });
-    expect(styles.inboxFilterButtonActive).toMatchObject({
-      backgroundColor: lightTheme.surface.inverse,
-      borderRadius: 14,
+    // K1: no card, no frame — a hairline at 79px is the only separator.
+    expect(styles.dmConversationCard).not.toHaveProperty("borderWidth");
+    expect(styles.dmConversationHairline).toMatchObject({
+      backgroundColor: lightTheme.messaging.hairline,
+      height: 1,
+      marginLeft: 79,
     });
   });
 
   it("anchors the 6a presence dot to the avatar corner with per-status colours", () => {
     const styles = createDmScreenStyles(lightTheme);
 
+    // §0.5: 13px dot ringed 2.5px in the screen tone, overhanging the corner.
     expect(styles.dmActivePresenceDot).toMatchObject({
       position: "absolute",
-      bottom: lightTheme.layout.dmInbox.groupBadgeOffset,
-      right: lightTheme.layout.dmInbox.groupBadgeOffset,
-      width: 14,
-      height: 14,
+      bottom: -1,
+      right: -1,
+      width: 13,
+      height: 13,
       borderWidth: 2.5,
-      backgroundColor: lightTheme.status.success,
+      backgroundColor: lightTheme.messaging.online,
+      borderColor: lightTheme.messaging.screen,
     });
     expect(getMobilePresenceColor("online", lightTheme)).toBe(lightTheme.status.success);
     expect(getMobilePresenceColor("idle", lightTheme)).toBe(lightTheme.status.warning);

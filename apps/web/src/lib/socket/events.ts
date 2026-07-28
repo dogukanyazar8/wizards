@@ -128,6 +128,11 @@ export interface ClientToServerEvents {
   "dm:message:delete": (data: { messageId: string }) => void;
   "dm:message:react": (data: { messageId: string; emoji: string }) => void;
   "dm:message:unreact": (data: { messageId: string; emoji: string }) => void;
+  /**
+   * "This client now holds the newest message in that conversation." Sent by the
+   * receiving client, which is the only party that can honestly claim delivery.
+   */
+  "dm:message:delivered": (data: { conversationId: string }) => void;
   "dm:typing:start": (data: { conversationId: string }) => void;
   "dm:typing:stop": (data: { conversationId: string }) => void;
   "dm:call:start": (data: { conversationId: string; video: boolean }) => void;
@@ -242,6 +247,12 @@ export interface ServerToClientEvents {
     lastReadAt: string | null;
     userId: string;
   }) => void;
+  /** Second tick: `userId`'s client received everything up to `lastDeliveredAt`. */
+  "dm:conversation:delivered": (data: {
+    conversationId: string;
+    lastDeliveredAt: string | null;
+    userId: string;
+  }) => void;
   "dm:call:incoming": (data: {
     conversationId: string;
     expiresAt: string;
@@ -278,6 +289,19 @@ export interface ServerToClientEvents {
    * resolves differently per person.
    */
   "feature-flags:changed": (data: { key: string }) => void;
+  /**
+   * §2 "1a".5 — a friend entered or left a voice room. Friend-scoped, unlike
+   * `voice:state:update`, which only reaches that channel's watchers.
+   */
+  "friends:voice:update": (data: {
+    userId: string;
+    voiceRoom: {
+      channelId: string;
+      channelName: string;
+      serverId: string;
+      serverName: string;
+    } | null;
+  }) => void;
   "voice:state:update": (data: {
     channelId: string;
     serverId: string;

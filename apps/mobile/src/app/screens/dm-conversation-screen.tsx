@@ -32,7 +32,10 @@ import {
   type MobileForwardTarget,
 } from "../components/message-forward-sheet";
 import { EmptyState, MobileSyncHealthBanner } from "../components/ui-atoms";
-import { getMobileDMPartnerLastReadAt } from "../../dm/mobile-dm-client";
+import {
+  getMobileDMPartnerLastDeliveredAt,
+  getMobileDMPartnerLastReadAt,
+} from "../../dm/mobile-dm-client";
 import { useDMChatStyles } from "../components/dm-chat-primitives.styles";
 
 export { formatDMLastSeenRelativeTime } from "../components/dm-chat-primitives";
@@ -303,6 +306,10 @@ export function DMConversationPreviewCard({
     state.payload?.participantReadStates,
     currentUserId,
   );
+  const partnerLastDeliveredAt = getMobileDMPartnerLastDeliveredAt(
+    state.payload?.participantReadStates,
+    currentUserId,
+  );
 
   return (
     // The chat body rides the IME with a transform (no per-frame relayout of
@@ -338,6 +345,7 @@ export function DMConversationPreviewCard({
           onReplyMessage={handleReplyMessage}
           onRetryFailedMessage={onRetryMessage}
           onToggleReaction={onToggleMessageReaction}
+          partnerLastDeliveredAt={partnerLastDeliveredAt}
           partnerLastReadAt={partnerLastReadAt}
         />
       ) : null}

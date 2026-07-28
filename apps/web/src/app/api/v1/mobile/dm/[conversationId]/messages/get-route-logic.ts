@@ -15,6 +15,7 @@ export type MobileDMMessagesRouteContext = {
 
 type MobileDMMessagePage = Pick<MobileDMMessagesResponse, "messages" | "nextCursor">;
 type MobileDMParticipantReadStateRecord = {
+  lastDeliveredAt?: Date | null;
   lastReadAt: Date | null;
   userId: string;
 };
@@ -44,7 +45,7 @@ const defaultDependencies: MobileDMMessagesGetRouteDependencies = {
   listParticipantReadStates: (conversationId) =>
     prisma.dMParticipant.findMany({
       where: { conversationId },
-      select: { lastReadAt: true, userId: true },
+      select: { lastDeliveredAt: true, lastReadAt: true, userId: true },
     }),
 };
 
@@ -82,6 +83,7 @@ export async function mobileDMMessagesGetRoute(
         messages: messagePage.messages,
         nextCursor: messagePage.nextCursor,
         participantReadStates: readStates.map((state) => ({
+          lastDeliveredAt: state.lastDeliveredAt?.toISOString() ?? null,
           lastReadAt: state.lastReadAt?.toISOString() ?? null,
           userId: state.userId,
         })),

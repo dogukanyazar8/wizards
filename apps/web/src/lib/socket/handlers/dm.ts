@@ -3,6 +3,7 @@ import { prisma } from "@wizards/db";
 import { ApiError } from "@/lib/api";
 import { UNKNOWN_ATTRIBUTION } from "@/lib/analytics/client-attribution";
 import { assertUnblockedDMParticipants } from "@/lib/dm/blocking";
+import { recordDirectMessageDelivery } from "@/lib/dm/delivery-receipts";
 import { isDMParticipant } from "@/lib/dm/participant-service";
 import { sendDirectMessage } from "@/lib/dm/message-send-service";
 import { deleteDMMessage, editDMMessage, getDMDisplayName, setDMReaction } from "@/lib/dm/service";
@@ -34,6 +35,14 @@ import type { SocketHandlerRegistration } from ".";
 
 /** How long an unanswered DM call keeps ringing before both sides give up. */
 const DM_CALL_RING_TTL_MS = 45_000;
+
+/**
+ * Floor between two delivery acknowledgements for the same conversation on one
+ * connection. The client already debounces bursts; this is the server-side
+ * guard, and a dropped ack costs nothing because the next message (or the next
+ * conversation-list read) marks the same thing.
+ */
+const DM_DELIVERY_ACK_MIN_INTERVAL_MS = 1_000;
 
 /**
  * Rings every callee's mobile devices alongside the socket signal. Exported for
@@ -108,6 +117,9 @@ export function registerDMHandlers(
 
     return participants;
   }
+
+  /** Last delivery acknowledgement per conversation on this connection. */
+  const deliveryAckAtByConversation = new Map<string, number>();
 
   async function requireUnblockedDMParticipants(conversationId: string) {
     const participants = await getAuthorizedDMParticipants(conversationId);
@@ -186,6 +198,31 @@ export function registerDMHandlers(
       socket.leave(`dm:${conversationId}`);
     } catch (error) {
       emitSafeDMError("FORBIDDEN", "Unable to leave this DM.", error);
+    }
+  });
+
+  /**
+   * §2 "1a".6.4: the receiving client says "I have it", which is what turns the
+   * sender's single tick into two grey ones. `markDirectMessagesDelivered`
+   * scopes itself to rows this user actually participates in and no-ops when the
+   * mark is already current, so a chatty client costs one read.
+   *
+   * The per-connection floor is there because the ack is client-driven: a loop
+   * emitting it cannot turn one socket into a stream of database reads.
+   */
+  socket.on("dm:message:delivered", async (rawData) => {
+    try {
+      const data = parseSocketPayload(SocketConversationPayloadSchema, rawData);
+      const now = Date.now();
+      const lastAckAt = deliveryAckAtByConversation.get(data.conversationId) ?? 0;
+      if (now - lastAckAt < DM_DELIVERY_ACK_MIN_INTERVAL_MS) {
+        return;
+      }
+      deliveryAckAtByConversation.set(data.conversationId, now);
+
+      await recordDirectMessageDelivery(userId, [data.conversationId]);
+    } catch (error) {
+      emitSafeDMError("FORBIDDEN", "Unable to record DM delivery.", error);
     }
   });
 

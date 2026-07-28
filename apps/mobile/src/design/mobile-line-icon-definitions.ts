@@ -4,9 +4,11 @@ export const MOBILE_LINE_ICON_NAMES = [
   "alert-triangle",
   "arrow-down-tray",
   "arrow-up",
+  "audio-wave",
   "audit-log",
   "back-arrow",
   "bell",
+  "bell-off",
   "block",
   "bolt",
   "bug",
@@ -43,6 +45,8 @@ export const MOBILE_LINE_ICON_NAMES = [
   "log-out",
   "lock",
   "members",
+  "mention",
+  "device-mobile",
   "message-square",
   "mic",
   "mic-off",
@@ -719,6 +723,55 @@ export const MOBILE_LINE_ICON_DEFINITIONS = {
         type: "path",
         d: "M12 3.5c2.2 2.4 3.3 5.3 3.3 8.5s-1.1 6.1-3.3 8.5c-2.2-2.4-3.3-5.3-3.3-8.5s1.1-6.1 3.3-8.5z",
       },
+    ],
+  },
+  /**
+   * §2 "1a".5 / "1b": someone is sitting in a voice room right now. Four bars,
+   * drawn at stroke 3 so it still reads inside the 19x19 strip tile.
+   */
+  "audio-wave": {
+    mode: "stroke",
+    defaultStrokeWidth: 3,
+    strokeLinecap: "round",
+    children: [{ type: "path", d: "M5 10v4M10 6v12M15 8v8M20 11v2" }],
+  },
+  /** §2 "1a".6: a muted conversation — the bell with its slash. */
+  "bell-off": {
+    mode: "stroke",
+    defaultStrokeWidth: 2,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    children: [
+      { type: "path", d: "M8.5 4.5A5.5 5.5 0 0 1 17.5 9c0 5 2 6.5 2 6.5H6" },
+      { type: "path", d: "M10 19a2.2 2.2 0 0 0 4 0" },
+      { type: "path", d: "M3 3l18 18" },
+    ],
+  },
+  /** §2 "1a".5: the @ mark inside the 20px mention badge. */
+  mention: {
+    mode: "stroke",
+    defaultStrokeWidth: 2.4,
+    strokeLinecap: "round",
+    children: [
+      { type: "circle", cx: 12, cy: 12, r: 4 },
+      {
+        type: "path",
+        d: "M16 8v5.5a3.5 3.5 0 0 0 3.5 3.5c1.4 0 2.5-1.6 2.5-4.5A10 10 0 1 0 16 20.5",
+      },
+    ],
+  },
+  /**
+   * §2 "1b": which client a friend is signed in from. A handset, distinct from
+   * `phone`, which is the telephone-call glyph.
+   */
+  "device-mobile": {
+    mode: "stroke",
+    defaultStrokeWidth: 2.2,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    children: [
+      { type: "rect", x: 7, y: 2.5, width: 10, height: 19, rx: 3 },
+      { type: "path", d: "M11 18.5h2" },
     ],
   },
   "message-square": {

@@ -8,11 +8,13 @@ import {
 import { enforceApiRateLimit, type ApiRateLimitAction } from "@/lib/api-rate-limit";
 import { jsonError, parseJsonBody } from "@/lib/api";
 import { requireMobileApiUserId } from "@/lib/auth/api";
+import { recordDirectMessageDelivery } from "@/lib/dm/delivery-receipts";
 import {
   createOrOpenDirectMessage,
   getDirectMessageUnreadCount,
   listDirectMessages,
 } from "@/lib/dm/service";
+import { logError } from "@/lib/logger";
 import {
   getEmptyMobileDMConversationContext,
   loadMobileDMConversationContext,
@@ -61,6 +63,12 @@ type MobileDMListDependencies = {
     input: { cursor?: string; limit: number },
   ): Promise<{ conversations: DMConversationDTO[]; nextCursor: string | null }>;
   loadConversationContext: typeof loadMobileDMConversationContext;
+  /**
+   * Pulling the list is proof the viewer's device holds these messages, which is
+   * the cold-start half of the "iletildi" tick — a push can wake the app before
+   * its socket is up, so the socket ack alone would miss it.
+   */
+  recordDelivery(userId: string, conversationIds: readonly string[]): Promise<unknown>;
 };
 
 const listDefaults: MobileDMListDependencies = {
@@ -69,6 +77,7 @@ const listDefaults: MobileDMListDependencies = {
   getUnreadCount: getDirectMessageUnreadCount,
   listDMs: listDirectMessages,
   loadConversationContext: loadMobileDMConversationContext,
+  recordDelivery: recordDirectMessageDelivery,
 };
 
 function normalizePreviewText(message: NonNullable<DMConversationDTO["lastMessage"]>): string {
@@ -84,18 +93,28 @@ function normalizePreviewText(message: NonNullable<DMConversationDTO["lastMessag
 /**
  * Tick state of the viewer's own last message. Null for an incoming preview —
  * that row draws no tick at all.
+ *
+ * Read wins over delivered: a client that marked the conversation read has
+ * necessarily received the message, and a delivery mark can lag behind a read
+ * one when the reader opened the chat straight from a push.
  */
-function resolvePreviewDeliveryStatus(
+export function resolvePreviewDeliveryStatus(
   authorIsCurrentUser: boolean,
   createdAt: string,
   othersLastReadAt: Date | null,
-): "sent" | "read" | null {
+  othersLastDeliveredAt: Date | null,
+): "sent" | "delivered" | "read" | null {
   if (!authorIsCurrentUser) {
     return null;
   }
 
-  if (othersLastReadAt && othersLastReadAt.getTime() >= new Date(createdAt).getTime()) {
+  const sentAt = new Date(createdAt).getTime();
+  if (othersLastReadAt && othersLastReadAt.getTime() >= sentAt) {
     return "read";
+  }
+
+  if (othersLastDeliveredAt && othersLastDeliveredAt.getTime() >= sentAt) {
+    return "delivered";
   }
 
   return "sent";
@@ -128,6 +147,7 @@ function toMobileDMConversationListItem(
             lastMessage.userId === currentUserId,
             lastMessage.createdAt,
             context.othersLastReadAt,
+            context.othersLastDeliveredAt,
           ),
           durationSec: resolveMobileDMPreviewDurationSec(previewAttachment?.duration),
           id: lastMessage.id,
@@ -179,19 +199,29 @@ export async function mobileDMListRoute(
       page.conversations.map((conversation) => conversation.id),
     );
 
-    return Response.json(
-      MobileDMConversationsResponseSchema.parse({
-        conversations: page.conversations.map((conversation) =>
-          toMobileDMConversationListItem(
-            conversation,
-            userId,
-            contextByConversationId.get(conversation.id) ?? getEmptyMobileDMConversationContext(),
-          ),
+    const body = MobileDMConversationsResponseSchema.parse({
+      conversations: page.conversations.map((conversation) =>
+        toMobileDMConversationListItem(
+          conversation,
+          userId,
+          contextByConversationId.get(conversation.id) ?? getEmptyMobileDMConversationContext(),
         ),
-        nextCursor: page.nextCursor,
-        totalUnreadCount,
-      }),
-    );
+      ),
+      nextCursor: page.nextCursor,
+      totalUnreadCount,
+    });
+
+    // The tick other people see is not worth failing this read over.
+    await dependencies
+      .recordDelivery(
+        userId,
+        page.conversations.map((conversation) => conversation.id),
+      )
+      .catch((error: unknown) => {
+        logError("[mobile] DM delivery mark failed", error);
+      });
+
+    return Response.json(body);
   } catch (error) {
     return jsonError(error);
   }

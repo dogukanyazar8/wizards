@@ -489,7 +489,8 @@ describe("4a DM conversation redesign", () => {
     const block = within(view.getByTestId("mobile-dm-message-attachments-m-file"));
     expect(block.getByText("demo-sunum-v2.pdf")).toBeTruthy();
     expect(block.getByText(/\d{2}:\d{2}/)).toBeTruthy();
-    expect(block.getByLabelText(copy.dmChatDeliveredLabel)).toBeTruthy();
+    // Nobody has acknowledged it yet, so it is one tick: "Gönderildi".
+    expect(block.getByLabelText(copy.dmChatSentLabel)).toBeTruthy();
   });
 
   it("keeps a voice note inside a bubble while the file card stays a card", async () => {

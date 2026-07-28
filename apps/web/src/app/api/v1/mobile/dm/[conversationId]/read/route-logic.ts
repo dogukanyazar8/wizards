@@ -12,13 +12,14 @@ export type MobileDMMarkReadRouteContext = {
 };
 
 type ReadStateRow = {
+  readonly lastDeliveredAt?: Date | null;
   readonly lastReadAt: Date | null;
   readonly userId: string;
 };
 
 export type MobileDMMarkReadRouteDependencies = {
   authenticate(request: Request): Promise<string>;
-  emitReadUpdate(event: MobileDMReadUpdatedEvent): void;
+  emitReadUpdate(event: MobileDMReadUpdatedEvent, participantUserIds: readonly string[]): void;
   enforceRateLimit(userId: string, action: "mobile:dm:mark-read"): Promise<void>;
   getParticipantReadStates(conversationId: string): Promise<readonly ReadStateRow[]>;
   markRead(userId: string, conversationId: string): Promise<unknown>;
@@ -26,8 +27,22 @@ export type MobileDMMarkReadRouteDependencies = {
 
 const defaultDependencies: MobileDMMarkReadRouteDependencies = {
   authenticate: (request) => requireMobileApiUserId(request),
-  emitReadUpdate(event) {
-    getSocketServer()?.to(`dm:${event.conversationId}`).emit("dm:conversation:read", event);
+  /**
+   * §2 "1a".6.4: the sender is normally on the conversation list, which never
+   * joins `dm:<id>` — that room only exists while a chat is open. Without the
+   * personal-room leg the third tick would only appear after a refetch.
+   */
+  emitReadUpdate(event, participantUserIds) {
+    const io = getSocketServer();
+    if (!io) {
+      return;
+    }
+
+    let emitter = io.to(`dm:${event.conversationId}`);
+    for (const participantUserId of participantUserIds) {
+      emitter = emitter.to(`user:${participantUserId}`);
+    }
+    emitter.emit("dm:conversation:read", event);
   },
   enforceRateLimit: enforceApiRateLimit,
   getParticipantReadStates: getDirectMessageParticipantReadStates,
@@ -47,6 +62,7 @@ export async function mobileDMMarkReadRoute(
     await dependencies.markRead(userId, conversationId);
     const rows = await dependencies.getParticipantReadStates(conversationId);
     const participantReadStates = rows.map((row) => ({
+      lastDeliveredAt: row.lastDeliveredAt?.toISOString() ?? null,
       lastReadAt: row.lastReadAt?.toISOString() ?? null,
       userId: row.userId,
     }));
@@ -58,7 +74,10 @@ export async function mobileDMMarkReadRoute(
       (state) => state.userId === userId,
     );
     if (currentUserReadState) {
-      dependencies.emitReadUpdate({ conversationId, ...currentUserReadState });
+      dependencies.emitReadUpdate(
+        { conversationId, ...currentUserReadState },
+        response.participantReadStates.map((state) => state.userId),
+      );
     }
 
     return Response.json(response, {

@@ -22,7 +22,11 @@ export interface ContextMenuProps {
   readonly actions: readonly ContextMenuAction[];
   readonly children: ReactNode;
   readonly disabled?: boolean;
+  /** Fires with the next open state for both the controlled and uncontrolled modes. */
+  readonly onOpenChange?: (open: boolean) => void;
   readonly onPress?: () => void;
+  /** Supply to drive the sheet from the outside — e.g. a row's overflow button. */
+  readonly open?: boolean;
   readonly testID?: string;
 }
 
@@ -49,13 +53,23 @@ export function ContextMenu({
   actions,
   children,
   disabled = false,
+  onOpenChange,
   onPress,
+  open,
   testID = "mobile-context-menu",
 }: ContextMenuProps) {
   const styles = useThemedStyles(createStyles);
   const haptics = useMobileHaptics();
   const presentation = useSheetPresentation();
-  const [open, setOpen] = useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const isControlled = open !== undefined;
+  const isOpen = isControlled ? open : uncontrolledOpen;
+  const setOpen = (next: boolean) => {
+    if (!isControlled) {
+      setUncontrolledOpen(next);
+    }
+    onOpenChange?.(next);
+  };
 
   return (
     <>
@@ -78,7 +92,7 @@ export function ContextMenu({
       <BottomSheet
         accessibilityLabel={accessibilityLabel}
         onClose={() => setOpen(false)}
-        open={open}
+        open={isOpen}
         presentation={presentation}
         sizing="content"
         testID={`${testID}-sheet`}

@@ -41,6 +41,7 @@ describe("socket DM handlers", () => {
     assert.deepEqual(events, [
       "dm:join",
       "dm:leave",
+      "dm:message:delivered",
       "dm:call:start",
       "dm:call:accept",
       "dm:call:decline",

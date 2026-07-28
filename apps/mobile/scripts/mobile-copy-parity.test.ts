@@ -17,7 +17,14 @@ const TURKISH_LETTERS = /[çğıöşüÇĞİÖŞÜ]/;
  * tokens (brand names, "GIF", "E2E", "DM", "Spam") are excluded by rule below
  * rather than listed here, so this stays short.
  */
-const SHARED_BY_DESIGN = new Set(["authWelcomeCopyrightTemplate", "sharedMediaVideoLabelTemplate"]);
+const SHARED_BY_DESIGN = new Set([
+  "authWelcomeCopyrightTemplate",
+  "sharedMediaVideoLabelTemplate",
+  // "{name} · {px} px" — a step name, a number and the unit symbol. "px" is not
+  // translated in either language, so the two dictionaries are identical on
+  // purpose rather than by omission.
+  "appearanceSettingsMessageFontSizeValue",
+]);
 
 /** Placeholder-only templates and lone tokens carry no prose to translate. */
 function hasTranslatableProse(value: string): boolean {

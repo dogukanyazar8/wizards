@@ -50,6 +50,19 @@ export const MobileFriendVoiceRoomSchema = z
   })
   .strict();
 
+/**
+ * §2 "1a".5: a friend joining or leaving a voice room, pushed to every friend's
+ * personal room. `voice:state:update` only reaches people watching that channel,
+ * so the conversations strip would otherwise wait for a friends refetch before
+ * swapping the presence dot for the wave tile.
+ */
+export const MobileFriendVoiceRoomUpdateEventSchema = z
+  .object({
+    userId: MobileBoundedIdSchema,
+    voiceRoom: MobileFriendVoiceRoomSchema.nullable(),
+  })
+  .strict();
+
 /** 1b device line ("Mobil" / "Masaüstü"); null when no live session says. */
 export const MobileFriendDeviceSchema = z.enum(["MOBILE", "DESKTOP", "WEB"]);
 
@@ -735,6 +748,9 @@ export const MobileUserReportResponseSchema = z
 export type MobileFriendRequestCreate = z.infer<typeof MobileFriendRequestCreateSchema>;
 export type MobileFriendsOverviewResponse = z.infer<typeof MobileFriendsOverviewResponseSchema>;
 export type MobileFriendVoiceRoom = z.infer<typeof MobileFriendVoiceRoomSchema>;
+export type MobileFriendVoiceRoomUpdateEvent = z.infer<
+  typeof MobileFriendVoiceRoomUpdateEventSchema
+>;
 export type MobileFriendDevice = z.infer<typeof MobileFriendDeviceSchema>;
 export type MobileFriendSuggestion = z.infer<typeof MobileFriendSuggestionSchema>;
 export type MobileFriendSuggestionsQuery = z.infer<typeof MobileFriendSuggestionsQuerySchema>;

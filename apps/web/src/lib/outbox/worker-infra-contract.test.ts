@@ -30,6 +30,30 @@ async function getOutboxWorkerExternalImports() {
   );
 }
 
+async function getServerBundleDependencyGraph() {
+  const result = await build({
+    bundle: true,
+    entryPoints: [resolve(repoRoot, "apps/web/server.ts")],
+    format: "esm",
+    logLevel: "silent",
+    metafile: true,
+    packages: "external",
+    platform: "node",
+    target: "node22",
+    tsconfig: resolve(repoRoot, "apps/web/tsconfig.json"),
+    write: false,
+  });
+
+  return {
+    externalImports: Object.values(result.metafile.inputs).flatMap((input) =>
+      input.imports
+        .filter((dependency) => dependency.external)
+        .map((dependency) => dependency.path),
+    ),
+    inputs: Object.keys(result.metafile.inputs),
+  };
+}
+
 describe("outbox worker railway contract", () => {
   it("disables the in-process worker on the web service", () => {
     const webConfig = readRepoFile("railway.toml");
@@ -70,6 +94,23 @@ describe("outbox worker railway contract", () => {
         (dependency) => dependency === "next-auth" || dependency.startsWith("next-auth/"),
       ),
       `outbox worker imports NextAuth: ${externalImports.filter((dependency) => dependency.startsWith("next-auth")).join(", ")}`,
+    );
+  });
+});
+
+describe("raw Node server bundle contract", () => {
+  it("keeps request-context auth out of the bootstrap dependency graph", async () => {
+    const dependencyGraph = await getServerBundleDependencyGraph();
+
+    assert.ok(
+      !dependencyGraph.inputs.some((input) => input === "src/auth.ts"),
+      "server bundle imports src/auth.ts before Next initializes request context",
+    );
+    assert.ok(
+      !dependencyGraph.externalImports.some((dependency) =>
+        /^next\/headers(?:\.js)?$/.test(dependency),
+      ),
+      "server bundle imports next/headers before Next initializes AsyncLocalStorage",
     );
   });
 });

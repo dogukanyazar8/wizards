@@ -15,6 +15,8 @@ export interface MobileLineIconProps {
   readonly name: MobileLineIconName;
   readonly size?: number;
   readonly strokeWidth?: number;
+  /** Lets a caller assert which of several same-shaped glyphs it rendered. */
+  readonly testID?: string;
 }
 
 function renderIconChild(
@@ -61,6 +63,7 @@ export function MobileLineIcon({
   name,
   size = 20,
   strokeWidth,
+  testID,
 }: MobileLineIconProps) {
   const definition = MOBILE_LINE_ICON_DEFINITIONS[name];
   const isStrokeIcon = definition.mode === "stroke";
@@ -90,7 +93,14 @@ export function MobileLineIcon({
     : { fill: color, stroke: "none" };
 
   return (
-    <Svg height={size} viewBox="0 0 24 24" width={size} {...accessibilityProps} {...renderingProps}>
+    <Svg
+      height={size}
+      viewBox="0 0 24 24"
+      width={size}
+      {...(testID === undefined ? {} : { testID })}
+      {...accessibilityProps}
+      {...renderingProps}
+    >
       {renderIconChildren(definition, strokeWidth)}
     </Svg>
   );

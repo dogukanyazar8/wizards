@@ -367,6 +367,17 @@ export const redesignMessagingLight = {
   mentionRow: "#F7F6FF",
   /** §2 "1g".1: the long-press scrim, blurred 3px over the live conversation. */
   menuScrim: "rgba(20,23,42,.45)",
+  /**
+   * §2 "1b"/"1c": a name that is still the row's primary text but belongs to
+   * someone offline or to a request already sent. One emphasis stop below
+   * `textPrimary`, above `textSecondary`. §2 "1e".10 uses it for the username
+   * inside a system line.
+   */
+  nameMuted: "#4A4F6B",
+  /** §2 "1a".5: the dashed "Ekle" tile that closes the online strip. */
+  addTileBorder: "#C9CDE3",
+  /** §0.5: the divider *inside* a settings card, inset 69px past the row icon. */
+  settingsDivider: "#F0F1F8",
   newDivider: "#F6D5DB",
   online: "#22C55E",
   onlineSurface: "#E9F9EF",
@@ -438,6 +449,12 @@ export const redesignMessagingDark = {
   mentionRow: "rgba(79,70,229,.12)",
   /** R6: an ink scrim reads the same on both themes; the blur carries the depth. */
   menuScrim: "rgba(20,23,42,.45)",
+  /** R2: the emphasis stop above `textTertiary` (.65) on the white-alpha ladder. */
+  nameMuted: "rgba(255,255,255,.75)",
+  /** R6: the same neutral-control rank `sliderStop` takes. */
+  addTileBorder: "rgba(255,255,255,.28)",
+  /** R1: separators collapse onto the single dark edge token. */
+  settingsDivider: "rgba(255,255,255,.07)",
   newDivider: "rgba(220,78,95,.30)",
   online: "#22C55E",
   onlineSurface: "rgba(34,197,94,.16)",

@@ -1,5 +1,5 @@
 import React from "react";
-import { Share } from "react-native";
+import { Share, StyleSheet } from "react-native";
 import { act, fireEvent } from "@testing-library/react-native";
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
@@ -12,8 +12,10 @@ const mockRejectRequest = jest.fn();
 const mockCancelRequest = jest.fn(async () => ({ success: true }));
 const mockCreateRequest = jest.fn(async () => ({ request: { id: "request-new" } }));
 const mockUnblockFriend = jest.fn();
+const mockRemoveFriend = jest.fn();
 let mockFriendsQuery: Record<string, unknown>;
 let mockUserSearchQuery: Record<string, unknown>;
+let mockSuggestionsQuery: Record<string, unknown>;
 
 jest.mock("../src/auth/mobile-auth-context", () => ({
   useMobileAuth: () => ({
@@ -25,6 +27,7 @@ jest.mock("../src/auth/mobile-auth-context", () => ({
 
 jest.mock("../src/social/mobile-social-query", () => ({
   useMobileFriendsQuery: () => mockFriendsQuery,
+  useMobileFriendSuggestionsQuery: () => mockSuggestionsQuery,
   useMobileUserSearchQuery: () => mockUserSearchQuery,
   useMobileSocialMutations: () => ({
     acceptRequest: { isPending: false, mutate: mockAcceptRequest },
@@ -33,7 +36,7 @@ jest.mock("../src/social/mobile-social-query", () => ({
     createRequest: { isPending: false, mutateAsync: mockCreateRequest },
     openDM: { isPending: false, mutateAsync: mockMutateAsync },
     rejectRequest: { isPending: false, mutate: mockRejectRequest },
-    removeFriend: { isPending: false, mutate: jest.fn() },
+    removeFriend: { isPending: false, mutate: mockRemoveFriend },
     unblockFriend: { isPending: false, mutate: mockUnblockFriend },
     updatePresence: { isPending: false, mutate: jest.fn() },
     updateProfile: { isPending: false, mutate: jest.fn() },
@@ -72,6 +75,7 @@ function emptyOverview(overrides: Record<string, unknown> = {}) {
 beforeEach(() => {
   jest.clearAllMocks();
   mockUserSearchQuery = { data: { results: [] }, isFetching: false, isLoading: false };
+  mockSuggestionsQuery = { data: { suggestions: [] }, isLoading: false };
 });
 
 describe("5c friends screen", () => {
@@ -101,17 +105,44 @@ describe("5c friends screen", () => {
     );
 
     expect(view.getByTestId("mobile-friends-screen")).toBeTruthy();
-    expect(view.getByText("ÇEVRİMİÇİ — 1")).toBeTruthy();
-    expect(view.getByText("ÇEVRİMDIŞI — 1")).toBeTruthy();
+    expect(view.getByTestId("mobile-friends-group-online")).toBeTruthy();
+    expect(view.getByTestId("mobile-friends-group-offline")).toBeTruthy();
+    // §2 "1b": an online row carries message + overflow; an offline row is
+    // message-only. The disabled call button the 5c layout used is gone.
     expect(view.getByTestId("mobile-friend-message-friend-online")).toBeTruthy();
-    expect(view.getByTestId("mobile-friend-voice-friend-online")).toBeTruthy();
+    expect(view.getByTestId("mobile-friend-more-friend-online")).toBeTruthy();
     expect(view.getByTestId("mobile-friend-message-friend-offline")).toBeTruthy();
-    expect(view.queryByTestId("mobile-friend-voice-friend-offline")).toBeNull();
+    expect(view.queryByTestId("mobile-friend-more-friend-offline")).toBeNull();
 
     await fireEvent.press(view.getByTestId("mobile-friends-back"));
     await fireEvent.press(view.getByTestId("mobile-friends-segment-requests"));
     expect(onBack).toHaveBeenCalledTimes(1);
     expect(onSelectMode).toHaveBeenCalledWith("requests");
+  });
+
+  it("opens the row menu from the overflow button instead of the conversation", async () => {
+    mockFriendsQuery = emptyOverview({
+      friends: [
+        {
+          ...ada,
+          customStatus: null,
+          id: "friend-online",
+          presence: { customStatus: null, status: "ONLINE" },
+          status: "ONLINE",
+        },
+      ],
+    });
+    const view = await renderHub(<FriendsHub embedded mode="friends" />);
+
+    await fireEvent.press(view.getByTestId("mobile-friend-more-friend-online"));
+
+    // §2 "1b": remove/block must be reachable with a plain tap — the overflow
+    // button opens the menu and never falls through to the DM.
+    expect(view.getByTestId("mobile-friend-friend-online-options")).toBeTruthy();
+    expect(mockMutateAsync).not.toHaveBeenCalled();
+
+    await fireEvent.press(view.getByLabelText("Arkadaşlıktan çıkar"));
+    expect(mockRemoveFriend).toHaveBeenCalledWith("friend-online");
   });
 
   it("colours friend presence dots with the web status palette", async () => {
@@ -141,7 +172,9 @@ describe("5c friends screen", () => {
 
     const dotColors = view
       .getAllByTestId("mobile-avatar-status-dot")
-      .map((dot) => (dot.props.style as Array<{ backgroundColor?: string }>).at(-1)?.backgroundColor);
+      .map(
+        (dot) => (dot.props.style as Array<{ backgroundColor?: string }>).at(-1)?.backgroundColor,
+      );
     expect(dotColors).toContain(lightTheme.status.warning);
     expect(dotColors).toContain(lightTheme.status.danger);
   });
@@ -172,7 +205,7 @@ describe("9d requests segment", () => {
     expect(view.getByTestId("mobile-friend-search-hint")).toBeTruthy();
     expect(view.getByTestId("mobile-friend-requests-empty")).toBeTruthy();
     expect(view.getByText("Bekleyen istek yok")).toBeTruthy();
-    expect(view.getByText("Gelen — 0")).toBeTruthy();
+    expect(view.getByTestId("mobile-requests-group-incoming")).toBeTruthy();
     expect(view.queryByTestId("mobile-friend-search-results")).toBeNull();
     expect(view.queryByTestId("mobile-friend-blocked-toggle")).toBeNull();
 
@@ -282,11 +315,15 @@ describe("9d requests segment", () => {
     });
     const view = await renderHub(<FriendsHub embedded mode="requests" />);
 
-    expect(view.getByText("Gelen — 1")).toBeTruthy();
-    expect(view.getByText("Gönderilen — 1")).toBeTruthy();
+    expect(view.getByTestId("mobile-requests-group-incoming")).toBeTruthy();
+    expect(view.getByTestId("mobile-requests-group-outgoing")).toBeTruthy();
     expect(view.getByText("2 saat önce")).toBeTruthy();
-    expect(view.getByText("30 dakika önce")).toBeTruthy();
+    expect(view.getByText("Yanıt bekleniyor · 30 dakika önce")).toBeTruthy();
     expect(view.queryByTestId("mobile-friend-requests-empty")).toBeNull();
+    // §2 "1c": accept and reject sit side by side, so the row stays one notch tall.
+    expect(
+      StyleSheet.flatten(view.getByTestId("mobile-friend-request-actions-request-in").props.style),
+    ).toMatchObject({ alignItems: "center", flexDirection: "row" });
 
     await fireEvent.press(view.getByTestId("mobile-friend-request-accept-request-in"));
     await fireEvent.press(view.getByTestId("mobile-friend-request-reject-request-in"));

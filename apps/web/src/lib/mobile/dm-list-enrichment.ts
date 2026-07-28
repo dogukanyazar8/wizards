@@ -16,6 +16,11 @@ export type MobileDMConversationContext = {
   /** Mentions of the viewer waiting in this conversation. */
   readonly mentionCount: number;
   /**
+   * Newest `lastDeliveredAt` across every participant that is not the viewer:
+   * "it reached somebody else's device", which is the grey two-tick state.
+   */
+  readonly othersLastDeliveredAt: Date | null;
+  /**
    * Newest `lastReadAt` across every participant that is not the viewer. In a
    * group DM that means "someone else has read this far", which is what the
    * two-tick state claims on a list row.
@@ -28,6 +33,7 @@ export type MobileDMConversationContext = {
 const EMPTY_CONTEXT: MobileDMConversationContext = Object.freeze({
   botUserIds: new Set<string>(),
   mentionCount: 0,
+  othersLastDeliveredAt: null,
   othersLastReadAt: null,
 });
 
@@ -48,6 +54,7 @@ export async function loadMobileDMConversationContext(
     where: { conversationId: { in: ids } },
     select: {
       conversationId: true,
+      lastDeliveredAt: true,
       lastReadAt: true,
       mentionCount: true,
       userId: true,
@@ -57,11 +64,21 @@ export async function loadMobileDMConversationContext(
 
   const contexts = new Map<
     string,
-    { botUserIds: Set<string>; mentionCount: number; othersLastReadAt: Date | null }
+    {
+      botUserIds: Set<string>;
+      mentionCount: number;
+      othersLastDeliveredAt: Date | null;
+      othersLastReadAt: Date | null;
+    }
   >(
     ids.map((id) => [
       id,
-      { botUserIds: new Set<string>(), mentionCount: 0, othersLastReadAt: null },
+      {
+        botUserIds: new Set<string>(),
+        mentionCount: 0,
+        othersLastDeliveredAt: null,
+        othersLastReadAt: null,
+      },
     ]),
   );
 
@@ -85,6 +102,14 @@ export async function loadMobileDMConversationContext(
       (!context.othersLastReadAt || participant.lastReadAt > context.othersLastReadAt)
     ) {
       context.othersLastReadAt = participant.lastReadAt;
+    }
+
+    if (
+      participant.lastDeliveredAt &&
+      (!context.othersLastDeliveredAt ||
+        participant.lastDeliveredAt > context.othersLastDeliveredAt)
+    ) {
+      context.othersLastDeliveredAt = participant.lastDeliveredAt;
     }
   }
 

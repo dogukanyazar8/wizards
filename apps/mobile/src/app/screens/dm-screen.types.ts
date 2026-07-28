@@ -1,4 +1,8 @@
-import type { MessageAttachment, UploadedAttachmentInput } from "@wizards/types";
+import type {
+  MessageAttachment,
+  MobileFriendVoiceRoom,
+  UploadedAttachmentInput,
+} from "@wizards/types";
 
 import type { MobileForwardSendInput } from "../components/message-forward-sheet";
 import type {
@@ -65,11 +69,16 @@ export type MobileMessagesScreenProps = {
 
 export type MobileDMInboxSegment = "conversations" | "friends" | "requests";
 
-/** Online friend surfaced in the 6A conversations "ÇEVRİMİÇİ" strip. */
+/** Online friend surfaced in the 1a conversations "ÇEVRİMİÇİ" strip. */
 export type MobileDMOnlineFriend = {
   readonly id: string;
   readonly username: string;
   readonly displayName: string | null;
   readonly avatarUrl: string | null;
   readonly status: "ONLINE" | "IDLE" | "DND" | "OFFLINE";
+  /**
+   * §2 "1a".5: a friend sitting in a voice room draws the wave tile instead of
+   * the presence dot. Null when they are simply online.
+   */
+  readonly voiceRoom: MobileFriendVoiceRoom | null;
 };

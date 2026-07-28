@@ -384,6 +384,7 @@ export function DMChatMessageRow({
   onRetryFailedMessage,
   onSetMenuMessage,
   onToggleReaction,
+  partnerLastDeliveredAt = null,
   partnerLastReadAt,
   showAvatar,
   tailCorner,
@@ -408,6 +409,8 @@ export function DMChatMessageRow({
   readonly onRequestReactionDetails?: (messageId: string, emoji: string) => void;
   readonly onRetryFailedMessage?: (messageId: string) => void;
   readonly onToggleReaction?: (input: MobileMessageReactionToggleInput) => void;
+  /** §2 "1a".6.4: newest "their client has it" mark, for the grey two-tick state. */
+  readonly partnerLastDeliveredAt?: string | null | undefined;
   readonly partnerLastReadAt: string | null;
 }) {
   const styles = useDMChatStyles();
@@ -443,10 +446,10 @@ export function DMChatMessageRow({
     attachmentOnly: copy.dmAttachmentOnlyMessage,
     deleted: copy.dmDeletedMessage,
   });
-  const read =
-    own &&
-    partnerLastReadAt !== null &&
-    Date.parse(partnerLastReadAt) >= Date.parse(message.createdAt);
+  const sentAt = Date.parse(message.createdAt);
+  const read = own && partnerLastReadAt !== null && Date.parse(partnerLastReadAt) >= sentAt;
+  const delivered =
+    own && partnerLastDeliveredAt !== null && Date.parse(partnerLastDeliveredAt) >= sentAt;
   const isFailed = message.deliveryStatus === "failed";
   const isSendPending = message.deliveryStatus === "sending";
   const isDeleted = message.deletedAt !== null;
@@ -530,7 +533,13 @@ export function DMChatMessageRow({
   );
 
   const timeLabel = formatMobileDisplayTime(message.createdAt);
-  const delivery: MobileMessageDelivery = isSendPending ? "sending" : read ? "read" : "sent";
+  const delivery: MobileMessageDelivery = isSendPending
+    ? "sending"
+    : read
+      ? "read"
+      : delivered
+        ? "delivered"
+        : "sent";
   // An attachment-only message has no bubble at all — the card is the message.
   // `body` cannot answer this: it falls back to the "shared an attachment" copy.
   const hasBody = message.content.trim().length > 0 || isDeleted || isFailed;
@@ -941,6 +950,7 @@ export function DMChatMessageList({
   onReplyMessage,
   onRetryFailedMessage,
   onToggleReaction,
+  partnerLastDeliveredAt = null,
   partnerLastReadAt,
 }: {
   readonly currentUserId: string;
@@ -957,6 +967,7 @@ export function DMChatMessageList({
   readonly onReplyMessage?: (message: MobileMessageActionTarget) => void;
   readonly onRetryFailedMessage?: (messageId: string) => void;
   readonly onToggleReaction?: (input: MobileMessageReactionToggleInput) => void;
+  readonly partnerLastDeliveredAt?: string | null | undefined;
   readonly partnerLastReadAt: string | null;
 }) {
   const styles = useDMChatStyles();
@@ -1092,6 +1103,7 @@ export function DMChatMessageList({
           onOpenReply={handleOpenReply}
           onRequestReactionDetails={requestReactionDetails}
           onSetMenuMessage={handleSetMenuMessage}
+          partnerLastDeliveredAt={partnerLastDeliveredAt}
           partnerLastReadAt={partnerLastReadAt}
           {...(onDeleteMessage ? { onDeleteMessage } : {})}
           {...(onDiscardFailedMessage ? { onDiscardFailedMessage } : {})}
@@ -1119,6 +1131,7 @@ export function DMChatMessageList({
       onRetryFailedMessage,
       onToggleReaction,
       openMenuMessageId,
+      partnerLastDeliveredAt,
       partnerLastReadAt,
       requestReactionDetails,
       messageSpacing.groupGap,

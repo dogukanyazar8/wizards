@@ -35,14 +35,20 @@ describe("messaging redesign body primitives", () => {
   });
 
   it("announces the delivery state instead of relying on the tick colour", async () => {
+    // §2 "1a".6.4: three states, and "delivered" and "read" share a glyph — the
+    // label is the only thing that separates them for a screen reader.
     const sent = await renderWithMobileTheme(<MessageDeliveryTicks delivery="sent" />);
-    expect(sent.getByLabelText(copy.dmChatDeliveredLabel)).toBeTruthy();
+    expect(sent.getByLabelText(copy.dmChatSentLabel)).toBeTruthy();
+
+    const delivered = await renderWithMobileTheme(<MessageDeliveryTicks delivery="delivered" />);
+    expect(delivered.getByLabelText(copy.dmChatDeliveredLabel)).toBeTruthy();
 
     const read = await renderWithMobileTheme(<MessageDeliveryTicks delivery="read" />);
     expect(read.getByLabelText(copy.dmChatReadLabel)).toBeTruthy();
 
     // Nothing is drawn until the server has the message.
     const sending = await renderWithMobileTheme(<MessageDeliveryTicks delivery="sending" />);
+    expect(sending.queryByLabelText(copy.dmChatSentLabel)).toBeNull();
     expect(sending.queryByLabelText(copy.dmChatDeliveredLabel)).toBeNull();
     expect(sending.queryByLabelText(copy.dmChatReadLabel)).toBeNull();
   });

@@ -39,10 +39,14 @@ describe("mobile communication semantic themes", () => {
     ["light", lightTheme],
     ["dark", darkTheme],
   ] as const)("builds %s communication surfaces from semantic theme roles", (_scheme, theme) => {
-    expect(createDmScreenStyles(theme).dmConversationCard.backgroundColor).toBe("transparent");
+    // MSG-1a: K1 reaches the list. A conversation row paints no surface of its
+    // own — it is separated by a hairline, not a card — and only the selected
+    // and pressed states tint, from the messaging group.
+    expect(createDmScreenStyles(theme).dmConversationCard.backgroundColor).toBeUndefined();
     expect(createDmScreenStyles(theme).dmConversationCardSelected.backgroundColor).toBe(
-      theme.surface.card,
+      theme.messaging.field,
     );
+    expect(createDmScreenStyles(theme).dmInboxScreen.backgroundColor).toBe(theme.messaging.screen);
     // MSG-1e moved the channel and its composer onto the messaging group; the
     // global light/dark surfaces below are untouched by that (K4).
     expect(createChannelScreenStyles(theme).mobileChannelChatScreen.backgroundColor).toBe(

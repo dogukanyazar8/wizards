@@ -131,7 +131,9 @@ function makeDMPage(messages: DMMessagePayload[]): MobileDMMessagesResponse {
     },
     messages,
     nextCursor: null,
-    participantReadStates: [{ lastReadAt: "2026-07-11T11:00:00.000Z", userId: "user-2" }],
+    participantReadStates: [
+      { lastDeliveredAt: null, lastReadAt: "2026-07-11T11:00:00.000Z", userId: "user-2" },
+    ],
   };
 }
 
@@ -487,8 +489,10 @@ describe("mobile realtime query bridge", () => {
 
     const updated =
       queryClient.getQueryData<InfiniteData<MobileDMMessagesResponse, string | null>>(key);
+    // The read event carries no delivery mark, so the merge keeps the existing
+    // one rather than dropping the field.
     assert.deepEqual(updated?.pages[0]?.participantReadStates, [
-      { lastReadAt: "2026-07-17T08:05:00.000Z", userId: "user-2" },
+      { lastDeliveredAt: null, lastReadAt: "2026-07-17T08:05:00.000Z", userId: "user-2" },
     ]);
     assert.equal(fake.pendingCount(), 0);
   });
@@ -692,10 +696,11 @@ describe("mobile realtime query bridge", () => {
       }),
     );
 
-    assert.deepEqual(
-      queryClient.getQueryData<{ presence: unknown }>(cardKey)?.presence,
-      { customStatus: null, customStatusEmoji: null, status: "OFFLINE" },
-    );
+    assert.deepEqual(queryClient.getQueryData<{ presence: unknown }>(cardKey)?.presence, {
+      customStatus: null,
+      customStatusEmoji: null,
+      status: "OFFLINE",
+    });
   });
 
   it("patches matching workspace members under the workspace root", () => {

@@ -54,6 +54,7 @@ import {
   MobileDMCallIncomingEventSchema,
   MobileDMCallPeerSchema,
   MobileDMCallSignalEventSchema,
+  MobileDMDeliveredUpdatedEventSchema,
   MobileDMReadUpdatedEventSchema,
   MobileDMSendMessageRequestSchema,
   MobileDMSendMessageResponseSchema,
@@ -526,8 +527,8 @@ describe("mobile schemas", () => {
       },
       MobileDMConversationPreviewDeliverySchema: {
         schema: MobileDMConversationPreviewDeliverySchema,
-        valid: "read",
-        invalid: "delivered",
+        valid: "delivered",
+        invalid: "seen",
       },
       MobileDMConversationListItemSchema: {
         schema: MobileDMConversationListItemSchema,
@@ -676,6 +677,15 @@ describe("mobile schemas", () => {
           userId: "user-1",
         },
         invalid: { conversationId: "conversation-1", lastReadAt: "nope", userId: "user-1" },
+      },
+      MobileDMDeliveredUpdatedEventSchema: {
+        schema: MobileDMDeliveredUpdatedEventSchema,
+        valid: {
+          conversationId: "conversation-1",
+          lastDeliveredAt: "2026-07-17T08:00:00.000Z",
+          userId: "user-1",
+        },
+        invalid: { conversationId: "conversation-1", lastDeliveredAt: "nope", userId: "user-1" },
       },
       MobileDMMessagesThreadResponseSchema: {
         schema: MobileDMMessagesThreadResponseSchema,

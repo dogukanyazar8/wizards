@@ -349,6 +349,50 @@ export const mobileMessagingMetrics = {
     listRingWidth: 2.5,
     avatarSize: 12,
     avatarRingWidth: 2.5,
+    /** §2 "1a": the dot overhangs the avatar corner by a hair. */
+    offset: -1,
+    /**
+     * §2 "1a".5 carried onto a conversation row: the strip's 19px voice tile
+     * against a 46px avatar instead of a 50px one, so it keeps the same optical
+     * weight rather than the same number.
+     */
+    rowVoiceTileSize: 17.5,
+  },
+  /** §2 "1a".6.4: the delivery tick that leads an outgoing preview line. */
+  listTick: {
+    size: 14,
+  },
+  /**
+   * §1.7 / §2 "1a".6.2: the three typing dots fade back in fixed steps, so the
+   * animation reads as a sequence rather than a flicker.
+   */
+  typingDotOpacity: {
+    first: 1,
+    second: 0.6,
+    third: 0.3,
+  },
+  /** §2 "1a".5 online strip. */
+  onlineStrip: {
+    cellWidth: 52,
+    gap: 13,
+    /** A voice tile is bigger than a dot, so it hangs further out. */
+    voiceTileOffset: -3,
+    voiceTileRadius: 7,
+    voiceTileRingWidth: 2,
+    voiceTileSize: 19,
+    addTileBorderWidth: 1.6,
+  },
+  /** §0.4 list typography that is not a plain size: the tracked values. */
+  listType: {
+    /** Screen title "Mesajlar", 23 / 800 `ls -.03em`. */
+    titleSize: 23,
+    titleTracking: -0.69,
+    /** Row name `ls -.01em` at 15px. */
+    rowNameTracking: -0.15,
+    /** Group label `ls .1em` at 11px. */
+    groupLabelTracking: 1.1,
+    /** BOT badge `ls .06em` at 9px. */
+    botBadgeTracking: 0.54,
   },
   iconButton: 38,
   iconButtonRadius: 13,

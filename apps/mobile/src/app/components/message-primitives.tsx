@@ -204,11 +204,13 @@ export function MessageTimestampInline({
   );
 }
 
-export type MobileMessageDelivery = "read" | "sending" | "sent";
+export type MobileMessageDelivery = "read" | "delivered" | "sending" | "sent";
 
 /**
- * §1.8 delivery receipt: one tick sent, two ticks read, 14x14. The state is
- * announced as well as drawn — colour alone is not a status.
+ * §1.8 delivery receipt, 14x14, three states like every other messenger: one
+ * tick left the server, two ticks reached the other device, two accent ticks
+ * were read. The state is announced as well as drawn — colour alone is not a
+ * status, and "delivered" and "read" share a glyph.
  */
 export function MessageDeliveryTicks({
   delivery,
@@ -228,7 +230,7 @@ export function MessageDeliveryTicks({
   const isRead = delivery === "read";
   // Inside a filled outgoing bubble the tick is drawn in the bubble's own
   // foreground; anywhere else it carries the accent (read) or the muted
-  // sent tone.
+  // sent/delivered tone.
   const color = outgoing
     ? theme.messaging.bubbleOutText
     : isRead
@@ -238,9 +240,15 @@ export function MessageDeliveryTicks({
   return (
     <View testID={testID}>
       <MobileLineIcon
-        accessibilityLabel={isRead ? copy.dmChatReadLabel : copy.dmChatDeliveredLabel}
+        accessibilityLabel={
+          isRead
+            ? copy.dmChatReadLabel
+            : delivery === "delivered"
+              ? copy.dmChatDeliveredLabel
+              : copy.dmChatSentLabel
+        }
         color={color}
-        name={isRead ? "tick-double" : "tick-single"}
+        name={delivery === "sent" ? "tick-single" : "tick-double"}
         size={14}
       />
     </View>

@@ -18,12 +18,14 @@ export const MOBILE_REALTIME_SERVER_EVENTS = [
   "dm:typing:update",
   "dm:conversation:updated",
   "dm:conversation:read",
+  "dm:conversation:delivered",
   "dm:call:incoming",
   "dm:call:accepted",
   "dm:call:declined",
   "dm:call:cancelled",
   "dm:call:ended",
   "friends:updated",
+  "friends:voice:update",
   "presence:update",
   "user:profile:updated",
   "typing:update",
@@ -209,6 +211,21 @@ const MOBILE_REALTIME_PAYLOAD_PARSERS = {
           serverId: null,
         }
       : null;
+  },
+  "dm:conversation:delivered": (payload) => {
+    const parsed = MobileDMDeliveredUpdatedEventSchema.safeParse(payload);
+    return parsed.success
+      ? {
+          channelId: null,
+          conversationId: parsed.data.conversationId,
+          payload: parsed.data,
+          serverId: null,
+        }
+      : null;
+  },
+  "friends:voice:update": (payload) => {
+    const parsed = MobileFriendVoiceRoomUpdateEventSchema.safeParse(payload);
+    return parsed.success ? { channelId: null, payload: parsed.data, serverId: null } : null;
   },
   "channel:messages:stale": (payload) => {
     const parsed = MobileChannelMessagesStaleEventSchema.safeParse(payload);
@@ -477,7 +494,9 @@ import {
   MobileDMCallAcceptedEventSchema,
   MobileDMCallIncomingEventSchema,
   MobileDMCallSignalEventSchema,
+  MobileDMDeliveredUpdatedEventSchema,
   MobileDMReadUpdatedEventSchema,
+  MobileFriendVoiceRoomUpdateEventSchema,
   MobileMessageHistoryClearedEventSchema,
   MobilePresenceUpdateEventSchema,
   MobileServerUnreadUpdateEventSchema,

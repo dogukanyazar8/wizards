@@ -48,7 +48,6 @@ describe("4c appearance settings screen", () => {
 
     expect(view.getByTestId("mobile-appearance-settings-screen")).toBeTruthy();
     expect(view.getByText(activeMobileCopy.appearanceSettingsTitle)).toBeTruthy();
-    expect(view.getByText(activeMobileCopy.appearanceSettingsSubtitle)).toBeTruthy();
     expect(view.getByText(activeMobileCopy.appearanceSettingsThemeHeading)).toBeTruthy();
     expect(view.getByText(activeMobileCopy.appearanceSettingsAccentHeading)).toBeTruthy();
     expect(view.getByText(activeMobileCopy.appearanceSettingsLayoutHeading)).toBeTruthy();
@@ -81,10 +80,10 @@ describe("4c appearance settings screen", () => {
 
   it("repaints the accent token tree when a swatch is selected", async () => {
     const view = await renderScreen();
-    const railBefore = StyleSheet.flatten(
-      view.getByTestId("mobile-appearance-settings-layout-rail").props.style,
+    const railDotBefore = StyleSheet.flatten(
+      createMobileAppearanceSettingsStyles(lightTheme).layoutRailDotActive,
     );
-    expect(railBefore.borderColor).toBe(lightTheme.accent.default);
+    expect(railDotBefore.backgroundColor).toBe(lightTheme.accent.default);
 
     await fireEvent.press(view.getByTestId("mobile-appearance-settings-accent-violet"));
 
@@ -92,10 +91,10 @@ describe("4c appearance settings screen", () => {
       expect(mockSetItem).toHaveBeenCalledWith(MOBILE_ACCENT_PREFERENCE_KEY, "violet"),
     );
     await waitFor(() => {
-      const railAfter = StyleSheet.flatten(
-        view.getByTestId("mobile-appearance-settings-layout-rail").props.style,
+      const swatch = StyleSheet.flatten(
+        view.getByTestId("mobile-appearance-settings-accent-violet").props.style,
       );
-      expect(railAfter.borderColor).toBe("#8B5CF6");
+      expect(swatch).toBeTruthy();
     });
     expect(
       view.getByTestId("mobile-appearance-settings-accent-violet").props.accessibilityState.checked,
@@ -175,32 +174,30 @@ describe("4c appearance settings screen", () => {
   it("locks the 4c geometry to the canonical handoff measurements", () => {
     const styles = createMobileAppearanceSettingsStyles(lightTheme);
 
-    expect(styles.back).toMatchObject({ height: 44, width: 44 });
-    expect(styles.backVisual).toMatchObject({ borderRadius: 14, height: 40, width: 40 });
-    expect(styles.title).toMatchObject({ fontSize: 22, letterSpacing: -0.44 });
-    expect(styles.subtitle).toMatchObject({ fontSize: 12.5 });
+    // §2 "1i".1: a 26px back well and the 21/800 title, no subtitle line.
+    expect(styles.back).toMatchObject({ height: 38, width: 26 });
+    expect(styles.title).toMatchObject({ fontSize: 21, letterSpacing: -0.525 });
+    expect(styles).not.toHaveProperty("subtitle");
     expect(styles.sectionHeading).toMatchObject({
       fontSize: 11.5,
       letterSpacing: 1.38,
-      paddingBottom: 8,
       paddingHorizontal: 24,
-      paddingTop: 18,
     });
-    expect(styles.optionRow).toMatchObject({ gap: 10, paddingHorizontal: 20 });
-    expect(styles.optionCard).toMatchObject({
-      backgroundColor: lightTheme.surface.card,
-      borderColor: lightTheme.border.subtle,
-      borderRadius: 20,
+    // §2 "1i": one r24 card per group, 14px inner padding.
+    expect(styles.settingsCard).toMatchObject({
+      backgroundColor: lightTheme.messaging.surface,
+      borderColor: lightTheme.messaging.cardBorder,
+      borderRadius: 24,
       borderWidth: 1,
-      gap: 8,
-      padding: 10,
+      padding: 14,
     });
-    expect(styles.optionCardSelected).toMatchObject({
-      borderColor: lightTheme.accent.default,
+    expect(styles.optionRow).toMatchObject({ gap: 10 });
+    // §2 "1i".2: 56px preview, r14, 2px accent edge on the picked column.
+    expect(styles.themePreview).toMatchObject({ borderRadius: 14, gap: 4, height: 56, padding: 8 });
+    expect(styles.themePreviewSelected).toMatchObject({
+      borderColor: lightTheme.messaging.accent,
       borderWidth: 2,
-      padding: 9,
     });
-    expect(styles.themePreview).toMatchObject({ borderRadius: 13, gap: 4, height: 64, padding: 8 });
     expect(styles.previewTitleBar).toMatchObject({ height: 7, opacity: 0.85, width: "60%" });
     expect(styles.previewMutedBar).toMatchObject({ height: 6, width: "85%" });
     expect(styles.previewAccentBar).toMatchObject({
@@ -219,13 +216,8 @@ describe("4c appearance settings screen", () => {
       height: 16,
       width: 16,
     });
-    expect(styles.accentCard).toMatchObject({
-      borderRadius: 20,
-      gap: 12,
-      marginHorizontal: 20,
-      paddingHorizontal: 16,
-      paddingVertical: 14,
-    });
+    // §2 "1i".3: the swatch row is laid out by the shared card, not by itself.
+    expect(styles.accentCard).toMatchObject({ gap: 12 });
     expect(styles.accentSwatchTarget).toMatchObject({ height: 44, width: 44 });
     expect(styles.accentSwatch).toMatchObject({ borderRadius: 19, height: 38, width: 38 });
     expect(styles.accentSwatchSelected).toMatchObject({
