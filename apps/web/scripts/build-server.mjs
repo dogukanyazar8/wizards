@@ -46,6 +46,16 @@ const localAliasPlugin = {
   },
 };
 
+const nextEsmPlugin = {
+  name: "next-node-esm-specifiers",
+  setup(buildContext) {
+    buildContext.onResolve({ filter: /^next\/(headers|navigation|server)$/ }, (args) => ({
+      path: `${args.path}.js`,
+      external: true,
+    }));
+  },
+};
+
 await build({
   bundle: true,
   entryPoints: {
@@ -58,7 +68,7 @@ await build({
   outdir: resolve(webRoot, "dist"),
   packages: "external",
   platform: "node",
-  plugins: [localAliasPlugin],
+  plugins: [localAliasPlugin, nextEsmPlugin],
   sourcemap: true,
   target: "node22",
 });
