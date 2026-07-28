@@ -47,8 +47,8 @@ describe("MSG-1i appearance settings", () => {
     const view = await renderScreen();
     const copy = activeMobileCopy;
 
-    // 1 theme · 2 voice room · 3 accent · 4 message size · 5 interface size ·
-    // 6 layout · 7 toggles · 8 footer note.
+    // 1 theme · 2 voice room · 3 server layout · 4 accent · 5 message size ·
+    // 6 interface size · 7 toggles · 8 footer note.
     expect(view.getByText(copy.appearanceSettingsThemeHeading)).toBeTruthy();
     expect(view.getByText(copy.appearanceSettingsVoiceRoomHeading)).toBeTruthy();
     expect(view.getByText(copy.appearanceSettingsAccentHeading)).toBeTruthy();
@@ -70,6 +70,48 @@ describe("MSG-1i appearance settings", () => {
     expect(view.getByTestId("mobile-appearance-settings-layout-rail")).toBeTruthy();
     expect(view.getByTestId("mobile-appearance-settings-layout-compact")).toBeTruthy();
     expect(view.getByTestId("mobile-appearance-settings-font-scale-slider")).toBeTruthy();
+  });
+
+  /**
+   * `getByText` above proves the groups exist, not where. This pins the order,
+   * which is the whole point of the reshuffle: the two canvas pickers and the
+   * server layout above, then the colour, then the two size controls with the
+   * toggles that qualify them directly underneath.
+   */
+  it("paints the groups and the theme columns in their canonical order", async () => {
+    const view = await renderScreen();
+    const copy = activeMobileCopy;
+    // toJSON walks the tree depth-first, so a substring's position in the
+    // serialised output is its position on the screen.
+    const tree = JSON.stringify(view.toJSON());
+    // Quoted, so a short label like "Tema" cannot match inside a longer string.
+    const at = (needle: string) => {
+      const index = tree.indexOf(JSON.stringify(needle));
+      expect(index).toBeGreaterThan(-1);
+      return index;
+    };
+
+    const groups = [
+      copy.appearanceSettingsThemeHeading,
+      copy.appearanceSettingsVoiceRoomHeading,
+      copy.appearanceSettingsLayoutHeading,
+      copy.appearanceSettingsAccentHeading,
+      copy.appearanceSettingsMessageFontSizeHeading,
+      copy.appearanceSettingsTextSizeHeading,
+      copy.appearanceSettingsCompactTitle,
+      copy.appearanceSettingsFollowSystemTitle,
+      copy.appearanceSettingsMessageFontSizeNote,
+    ].map(at);
+    expect(groups).toEqual([...groups].sort((left, right) => left - right));
+
+    // Both pickers read light · dark · system, so a column means the same
+    // thing in each.
+    for (const group of ["theme", "voice"]) {
+      const columns = ["light", "dark", "system"].map((mode) =>
+        at(`mobile-appearance-settings-${group}-${mode}`),
+      );
+      expect(columns).toEqual([...columns].sort((left, right) => left - right));
+    }
   });
 
   /**
@@ -214,8 +256,14 @@ describe("MSG-1i appearance settings", () => {
 
     const slider = view.getByTestId("mobile-appearance-settings-message-font-slider");
     expect(slider.props.accessibilityState).toMatchObject({ disabled: true });
-    expect([slider.props.style].flat(Infinity)).toContainEqual(
-      expect.objectContaining({ opacity: 0.5 }),
+    // The dim belongs to the whole control — track, both "A" glyphs and the
+    // four stop names — so none of it can read as live while the OS owns it.
+    const control = view.getByTestId("mobile-appearance-settings-message-size-control");
+    expect([control.props.style].flat(Infinity)).toContainEqual(
+      expect.objectContaining({ opacity: 0.45 }),
+    );
+    expect([slider.props.style].flat(Infinity)).not.toContainEqual(
+      expect.objectContaining({ opacity: expect.any(Number) }),
     );
 
     // Stepping is inert while the OS owns the size.

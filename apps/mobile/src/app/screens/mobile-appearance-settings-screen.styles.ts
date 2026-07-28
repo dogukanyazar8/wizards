@@ -11,7 +11,7 @@ export const MOBILE_APPEARANCE_PREVIEW = redesignAppearancePreview;
 export const createMobileAppearanceSettingsStyles = (theme: MobileTheme) =>
   ({
     root: { backgroundColor: theme.messaging.screen, flex: 1 },
-    content: { paddingBottom: 40 },
+    content: { paddingBottom: 32 },
     /** §2 "1i".1: `padding: 8px 20px 12px`, gap 8, a 26px back well. */
     header: {
       alignItems: "center",
@@ -36,24 +36,34 @@ export const createMobileAppearanceSettingsStyles = (theme: MobileTheme) =>
       fontSize: 21,
       letterSpacing: -0.525,
     },
-    /** §2 "1i": group label 11.5 / 700, `ls .12em`, `padding: 6px 4px 5px`. */
+    /**
+     * §2 "1i": group label 11.5 / 700, `ls .12em`.
+     *
+     * The screen's vertical rhythm lives entirely on these three rules: 18
+     * above a group label, 8 between the last line of a group's text and its
+     * card. Groups whose label is followed by a hint line swap that 8 for
+     * `sectionHeadingTight` so the gap under the *hint* is the one that counts,
+     * and every card lands the same distance below its text either way.
+     */
     sectionHeading: {
       color: theme.messaging.textSecondary,
       fontFamily: theme.typography.fontFamilyBold,
       fontSize: 11.5,
       letterSpacing: 1.38,
-      paddingBottom: 5,
+      paddingBottom: 8,
       paddingHorizontal: 24,
-      paddingTop: 16,
+      paddingTop: 18,
       textTransform: "uppercase",
     },
+    sectionHeadingTight: { paddingBottom: 3 },
     /** The message-size heading carries a live value on its right. */
     sectionHeadingRow: {
       alignItems: "center",
       flexDirection: "row",
       gap: 8,
+      paddingBottom: 3,
       paddingHorizontal: 24,
-      paddingTop: 16,
+      paddingTop: 18,
     },
     sectionHeadingInline: {
       color: theme.messaging.textSecondary,
@@ -81,7 +91,6 @@ export const createMobileAppearanceSettingsStyles = (theme: MobileTheme) =>
       lineHeight: 16,
       paddingBottom: 8,
       paddingHorizontal: 24,
-      paddingTop: 2,
     },
     /** §2 "1i": every group sits in one r24 card with 14px of inner padding. */
     settingsCard: {
@@ -92,18 +101,33 @@ export const createMobileAppearanceSettingsStyles = (theme: MobileTheme) =>
       marginHorizontal: 20,
       padding: msg.settings.cardPadding,
     },
-    /** A card whose children are full-bleed rows owns no padding of its own. */
+    /**
+     * A card whose children are full-bleed rows owns no padding of its own.
+     * It carries no group label, so it has to supply the 18 a label would.
+     */
     settingsRowCard: {
       backgroundColor: theme.messaging.surface,
       borderColor: theme.messaging.cardBorder,
       borderRadius: msg.settings.cardRadius,
       borderWidth: 1,
       marginHorizontal: 20,
+      marginTop: 18,
       overflow: "hidden",
     },
     optionRow: { flexDirection: "row", gap: 10 },
     optionCard: { alignItems: "center", flex: 1, gap: 8 },
     optionCardSelected: {},
+    /**
+     * The layout row is the one pair whose columns are not interchangeable: the
+     * previews are drawings of two different canvas widths, so drawing them the
+     * same width said nothing. The rail column gives up a little width to the
+     * tabbed one — 45/55 — which is enough to read as "narrower" without
+     * squeezing either hint line, and the wider gap keeps the two artworks from
+     * reading as one picture.
+     */
+    optionRowLayout: { gap: 14 },
+    optionCardLayoutRail: { flex: 0.9 },
+    optionCardLayoutCompact: { flex: 1.1 },
     /** §2 "1i".2: 56px preview, r14, 2px accent edge when picked. */
     themePreview: {
       borderColor: theme.messaging.cardBorder,
@@ -368,6 +392,14 @@ export const createMobileAppearanceSettingsStyles = (theme: MobileTheme) =>
       fontSize: 10.5,
       paddingBottom: 1,
     },
+    /**
+     * Slider row plus its stop names. They dim together: with follow-system on
+     * the OS owns the size, so every part of the control has to read inert —
+     * dimming the track by itself left the "A" glyphs and the stop names bright
+     * enough to look like the control was still live.
+     */
+    messageSizeControl: { gap: 10 },
+    messageSizeControlDisabled: { opacity: 0.45 },
     /** §2 "1i".5 slider row: small "A", track, large "A". */
     messageSliderRow: {
       alignItems: "center",
@@ -386,7 +418,6 @@ export const createMobileAppearanceSettingsStyles = (theme: MobileTheme) =>
       fontSize: 19,
     },
     messageSliderTouch: { flex: 1, height: 22, justifyContent: "center" },
-    messageSliderDisabled: { opacity: 0.5 },
     messageSliderTrack: {
       backgroundColor: theme.messaging.sliderTrack,
       borderRadius: 3,
@@ -400,6 +431,8 @@ export const createMobileAppearanceSettingsStyles = (theme: MobileTheme) =>
       left: 0,
       position: "absolute",
     },
+    /** Accent means "your setting"; the OS owns it here, so the fill goes grey. */
+    messageSliderFillDisabled: { backgroundColor: theme.messaging.sliderStop },
     messageSliderStops: {
       alignItems: "center",
       flexDirection: "row",
@@ -440,6 +473,11 @@ export const createMobileAppearanceSettingsStyles = (theme: MobileTheme) =>
     },
     messageSliderLabelActive: {
       color: theme.messaging.accentText,
+      fontFamily: theme.typography.fontFamilyExtraBold,
+    },
+    /** Still the stored stop, but no longer the size in effect — so no accent. */
+    messageSliderLabelInert: {
+      color: theme.messaging.textSecondary,
       fontFamily: theme.typography.fontFamilyExtraBold,
     },
     messageSizeCardBody: { gap: 14 },
@@ -501,7 +539,7 @@ export const createMobileAppearanceSettingsStyles = (theme: MobileTheme) =>
       fontSize: 11.5,
       lineHeight: 17.83,
       paddingHorizontal: 24,
-      paddingTop: 10,
+      paddingTop: 14,
     },
     textSizeCard: {
       alignItems: "center",

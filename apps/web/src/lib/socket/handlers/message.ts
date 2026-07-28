@@ -268,9 +268,11 @@ export function registerMessageHandlers(
         );
 
         if (senderViewerIds.length > 0) {
+          // The nonce goes to the author and nobody else: it is the key to their
+          // optimistic bubble and means nothing to any other viewer's cache.
           io.to(senderViewerIds.map((viewerUserId) => `user:${viewerUserId}`)).emit(
             "message:new",
-            message,
+            data.clientNonce ? { ...message, clientNonce: data.clientNonce } : message,
           );
         }
 

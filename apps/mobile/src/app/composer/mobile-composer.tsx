@@ -698,6 +698,7 @@ export function DMComposer({
           )}
           {voiceMessageRecorder.isRecording ? (
             <ComposerVoiceRecordingField
+              levels={voiceMessageRecorder.levels}
               locked={isRecordingLocked}
               seconds={voiceRecordingSeconds}
             />
@@ -866,54 +867,79 @@ export function DMComposer({
         {mentionPanel}
         {/* §2 "1e".14: the 1d composer, with only the placeholder changed. */}
         <View style={styles.dmChatComposerRow}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={copy.composerAttachAction}
-            accessibilityState={{ disabled: isChannelAttachUnavailable }}
-            disabled={isChannelAttachUnavailable}
-            onPress={() => setAttachmentPickerOpen(true)}
-            style={({ pressed }) => [
-              styles.dmChatComposerControl,
-              isChannelAttachUnavailable && styles.dmChatComposerControlDisabled,
-              pressed && !isChannelAttachUnavailable && styles.actionButtonPressed,
-            ]}
-            testID="mobile-channel-attach-button"
-          >
-            <MobileLineIcon
-              color={theme.messaging.textSecondary}
-              name={isChannelAttachmentUploading ? "clock" : "plus"}
-              size={19}
-            />
-          </Pressable>
-          <View style={styles.dmChatComposerInputShell}>
-            <TextInput
-              accessibilityLabel={placeholder}
-              maxLength={2000}
-              multiline
-              onChangeText={handleDraftChange}
-              onSelectionChange={handleSelectionChange}
-              placeholder={placeholder}
-              placeholderTextColor={theme.messaging.groupLabel}
-              {...(pendingSelection ? { selection: pendingSelection } : {})}
-              style={[styles.dmComposerInput, styles.dmChatComposerInput]}
-              testID="mobile-channel-composer-input"
-              value={draft}
-            />
+          {voiceMessageRecorder.isRecording ? (
+            // §2 "1h".2: a channel records exactly like a DM — delete, live
+            // waveform, send — so the two composers cannot drift apart.
             <Pressable
+              accessibilityLabel={copy.dmChatVoiceRecordCancelAction}
               accessibilityRole="button"
-              accessibilityLabel={copy.messageEmojiPickerTitle}
-              accessibilityState={{ disabled: false }}
-              hitSlop={10}
-              onPress={() => setEmojiPickerOpen(true)}
+              onPress={() => void handleCancelVoiceRecord()}
               style={({ pressed }) => [
-                styles.dmChatEmojiButton,
+                styles.dmChatRecordingDelete,
                 pressed && styles.actionButtonPressed,
               ]}
-              testID="mobile-channel-emoji-button"
+              testID="mobile-channel-voice-record-cancel"
             >
-              <MobileLineIcon color={theme.messaging.groupLabel} name="emoji" size={19} />
+              <MobileLineIcon color={theme.messaging.recordDeleteIcon} name="trash" size={18} />
             </Pressable>
-          </View>
+          ) : (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={copy.composerAttachAction}
+              accessibilityState={{ disabled: isChannelAttachUnavailable }}
+              disabled={isChannelAttachUnavailable}
+              onPress={() => setAttachmentPickerOpen(true)}
+              style={({ pressed }) => [
+                styles.dmChatComposerControl,
+                isChannelAttachUnavailable && styles.dmChatComposerControlDisabled,
+                pressed && !isChannelAttachUnavailable && styles.actionButtonPressed,
+              ]}
+              testID="mobile-channel-attach-button"
+            >
+              <MobileLineIcon
+                color={theme.messaging.textSecondary}
+                name={isChannelAttachmentUploading ? "clock" : "plus"}
+                size={19}
+              />
+            </Pressable>
+          )}
+          {voiceMessageRecorder.isRecording ? (
+            <ComposerVoiceRecordingField
+              levels={voiceMessageRecorder.levels}
+              locked={isRecordingLocked}
+              seconds={voiceRecordingSeconds}
+            />
+          ) : (
+            <View style={styles.dmChatComposerInputShell}>
+              <TextInput
+                accessibilityLabel={placeholder}
+                maxLength={2000}
+                multiline
+                onChangeText={handleDraftChange}
+                onSelectionChange={handleSelectionChange}
+                placeholder={placeholder}
+                placeholderTextColor={theme.messaging.groupLabel}
+                {...(pendingSelection ? { selection: pendingSelection } : {})}
+                style={[styles.dmComposerInput, styles.dmChatComposerInput]}
+                testID="mobile-channel-composer-input"
+                value={draft}
+              />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={copy.messageEmojiPickerTitle}
+                accessibilityState={{ disabled: false }}
+                hitSlop={10}
+                onPress={() => setEmojiPickerOpen(true)}
+                style={({ pressed }) => [
+                  styles.dmChatEmojiButton,
+                  pressed && styles.actionButtonPressed,
+                ]}
+                testID="mobile-channel-emoji-button"
+              >
+                <MobileLineIcon color={theme.messaging.groupLabel} name="emoji" size={19} />
+              </Pressable>
+            </View>
+          )}
           {channelCanSend ? (
             <Pressable
               accessibilityRole="button"
@@ -1272,20 +1298,46 @@ function getAttachmentCapabilityHint(
   }
 }
 
-/** §2 "1h".2: 112x20, one bar per second recorded, the rest at .22. */
+/** §2 "1h".2: 112x20, 6px pitch, drawn from the microphone's own loudness. */
 const VOICE_RECORDING_WAVE_BARS = 18;
 const VOICE_RECORDING_WAVE_WIDTH = 112;
 const VOICE_RECORDING_WAVE_HEIGHT = 20;
+const VOICE_RECORDING_WAVE_MIN_BAR = 3;
+const VOICE_RECORDING_WAVE_MAX_BAR = 13;
 const VOICE_RECORDING_WAVE_GEOMETRY = {
   height: VOICE_RECORDING_WAVE_HEIGHT,
   originX: 3,
   pitch: 6,
 } as const;
 
+/**
+ * §2 "1h".2: 0…1 loudness to the bar heights the design draws. Newest sample on
+ * the right, and a window that is not full yet is padded on the left with the
+ * resting height, so the bar starts as a flat line and grows into the voice
+ * rather than jumping in from nowhere.
+ */
+export function getMobileVoiceRecordingBarHeights(
+  levels: readonly number[] = [],
+  barCount = VOICE_RECORDING_WAVE_BARS,
+): readonly number[] {
+  const visible = levels.slice(Math.max(0, levels.length - barCount));
+  const padding = Array.from({ length: Math.max(0, barCount - visible.length) }, () => 0);
+  return [...padding, ...visible].map((level) => {
+    const clamped = Math.min(1, Math.max(0, level));
+    return (
+      VOICE_RECORDING_WAVE_MIN_BAR +
+      Math.round(clamped * (VOICE_RECORDING_WAVE_MAX_BAR - VOICE_RECORDING_WAVE_MIN_BAR))
+    );
+  });
+}
+
 function ComposerVoiceRecordingField({
+  levels = [],
   locked,
   seconds,
 }: {
+  /** Newest-last loudness samples, 0…1, straight off the recorder. */
+  readonly levels?: readonly number[] | undefined;
   readonly locked: boolean;
   readonly seconds: number;
 }) {
@@ -1304,21 +1356,21 @@ function ComposerVoiceRecordingField({
   }, [pulse, reducedMotion]);
 
   const dotStyle = useAnimatedStyle(() => ({ opacity: pulse.value }));
-  const heights = useMemo(
-    () => getMobileVoiceWaveformHeights("voice-recording", VOICE_RECORDING_WAVE_BARS),
-    [],
-  );
-  const recordedBars = Math.max(1, Math.min(VOICE_RECORDING_WAVE_BARS, Math.floor(seconds) + 1));
+  const heights = useMemo(() => getMobileVoiceRecordingBarHeights(levels), [levels]);
+  // Bars that already carry a sample are drawn solid; the ones still waiting for
+  // one stay at the faint resting opacity the design uses.
+  const recordedBars = Math.min(VOICE_RECORDING_WAVE_BARS, levels.length);
+  const recordedFrom = VOICE_RECORDING_WAVE_BARS - recordedBars;
   const recordedPath = getMobileVoiceWaveformPath(
     heights,
-    0,
-    recordedBars,
+    recordedFrom,
+    VOICE_RECORDING_WAVE_BARS,
     VOICE_RECORDING_WAVE_GEOMETRY,
   );
   const upcomingPath = getMobileVoiceWaveformPath(
     heights,
-    recordedBars,
-    heights.length,
+    0,
+    recordedFrom,
     VOICE_RECORDING_WAVE_GEOMETRY,
   );
 

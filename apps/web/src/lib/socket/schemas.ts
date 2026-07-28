@@ -16,11 +16,20 @@ export const SocketIdSchema = z.string().trim().min(1).max(SOCKET_ID_MAX_LENGTH)
 
 const SocketOptionalIdSchema = SocketIdSchema.optional();
 
+/**
+ * The id the sender's optimistic bubble is already rendered under. Nothing is
+ * stored under it — the server hands it back on the author's own copy of the
+ * message so the echo can land in that bubble instead of beside it. Optional, so
+ * a client that does not send one still gets the old content-matched behaviour.
+ */
+const SocketClientNonceSchema = SocketIdSchema.optional();
+
 export const SocketMessageSendPayloadSchema = z
   .object({
     alsoSendToChannel: z.boolean().optional(),
     attachments: z.array(UploadedAttachmentInputSchema).max(SOCKET_ATTACHMENT_MAX_COUNT).optional(),
     channelId: SocketIdSchema,
+    clientNonce: SocketClientNonceSchema,
     content: z.string().max(SOCKET_CHANNEL_MESSAGE_MAX_LENGTH),
     replyToId: SocketOptionalIdSchema,
     threadParentId: SocketOptionalIdSchema,
@@ -30,6 +39,7 @@ export const SocketMessageSendPayloadSchema = z
 export const SocketDMMessageSendPayloadSchema = z
   .object({
     attachments: z.array(UploadedAttachmentInputSchema).max(SOCKET_ATTACHMENT_MAX_COUNT).optional(),
+    clientNonce: SocketClientNonceSchema,
     conversationId: SocketIdSchema,
     content: z.string().max(SOCKET_DM_MESSAGE_MAX_LENGTH),
     replyToId: SocketOptionalIdSchema,

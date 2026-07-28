@@ -370,6 +370,7 @@ export function registerDMHandlers(
         await sendDirectMessage({
           attachments: data.attachments,
           attribution: socket.data.clientAttribution ?? UNKNOWN_ATTRIBUTION,
+          clientNonce: data.clientNonce ?? null,
           content: data.content,
           conversationId: data.conversationId,
           io,

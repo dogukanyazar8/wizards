@@ -12,12 +12,27 @@ describe("mobile Phase 3 social contract", () => {
     const account = read("../src/social/social-account-screens.tsx");
     const sources = `${dm}\n${dmInbox}\n${friends}\n${account}`;
     // 9d replaced the username submit form with live search plus per-row actions.
-    for (const testId of ["mobile-friends-screen", "mobile-friend-search-users-input", "mobile-friend-invite-card", "mobile-presence-sheet", "mobile-profile-edit-screen", "mobile-blocked-users-screen"]) {
+    // §2 "1c" then folded that search into the tab band and dropped the invite
+    // card, so the requests tab is the three groups the design draws and nothing
+    // else — user lookup now rides `mobile-dm-search-input`.
+    for (const testId of [
+      "mobile-friends-screen",
+      "mobile-dm-search-input",
+      "mobile-presence-sheet",
+      "mobile-profile-edit-screen",
+      "mobile-blocked-users-screen",
+    ]) {
       assert.equal(sources.includes(testId), true, `Missing ${testId}`);
+    }
+    for (const removedTestId of ["mobile-friend-invite-card", "mobile-friend-search-users-input"]) {
+      assert.equal(sources.includes(removedTestId), false, `Unexpected ${removedTestId}`);
     }
     // Segment ids are built from the segment union, so assert the template and its members.
     assert.match(dmInbox, /testID=\{`mobile-social-segment-\$\{candidate\}`\}/);
-    assert.match(read("../src/app/screens/dm-screen.types.ts"), /"conversations" \| "friends" \| "requests"/);
+    assert.match(
+      read("../src/app/screens/dm-screen.types.ts"),
+      /"conversations" \| "friends" \| "requests"/,
+    );
   });
 
   it("keeps social state remote-only and maps verified socket events narrowly", () => {

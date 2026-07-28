@@ -466,7 +466,62 @@ describe("mobile realtime query bridge", () => {
       updated?.pages[0]?.messages.map((message) => message.id),
       ["message-1", "message-2"],
     );
-    assert.equal(fake.pendingCount(), 1);
+    // The message is already in the stream, so refetching it would only reload
+    // the conversation the reader is looking at. The inbox row is refreshed by
+    // the `dm:conversation:updated` the server sends beside every message.
+    assert.equal(fake.pendingCount(), 0);
+  });
+
+  it("refreshes only the inbox from a conversation-level DM event", () => {
+    const queryClient = new QueryClient();
+    const fake = createFakeScheduler();
+    const bridge = createBridge(queryClient, fake.scheduler);
+    const streamKey = mobileQueryKeys.dmMessages("conversation-1");
+    const inboxKey = mobileQueryKeys.dmConversations();
+    queryClient.setQueryData(streamKey, { pageParams: [null], pages: [makeDMPage([])] });
+    queryClient.setQueryData(inboxKey, { ready: true });
+
+    bridge.handleEvent(
+      createMobileRealtimeEventEnvelope("dm:conversation:updated", {
+        conversationId: "conversation-1",
+        lastMessageAt: "2026-07-17T08:06:00.000Z",
+        preview: "Merhaba",
+        unreadCount: 0,
+      }),
+    );
+    fake.flush();
+
+    assert.equal(queryClient.getQueryState(inboxKey)?.isInvalidated, true);
+    // The event carries no message, so the open chat is left alone.
+    assert.equal(queryClient.getQueryState(streamKey)?.isInvalidated, false);
+  });
+
+  it("absorbs the sender's own echo into the optimistic bubble", () => {
+    const queryClient = new QueryClient();
+    const fake = createFakeScheduler();
+    const bridge = createBridge(queryClient, fake.scheduler);
+    const key = mobileQueryKeys.dmMessages("conversation-1");
+    queryClient.setQueryData<InfiniteData<MobileDMMessagesResponse, string | null>>(key, {
+      pageParams: [null],
+      pages: [makeDMPage([{ ...makeDMMessage("client-1"), deliveryStatus: "sending" }])],
+    });
+
+    bridge.handleEvent(
+      createMobileRealtimeEventEnvelope("dm:message:new", {
+        ...makeDMMessage("server-1"),
+        clientNonce: "client-1",
+      }),
+    );
+
+    const updated =
+      queryClient.getQueryData<InfiniteData<MobileDMMessagesResponse, string | null>>(key);
+    // One bubble, not two — and the nonce does not linger, so the copy the next
+    // refetch brings back is identical to this one.
+    assert.deepEqual(
+      updated?.pages[0]?.messages.map((message) => message.id),
+      ["server-1"],
+    );
+    assert.equal("clientNonce" in (updated?.pages[0]?.messages[0] ?? {}), false);
   });
 
   it("patches authoritative participant read states from a DM read event", () => {

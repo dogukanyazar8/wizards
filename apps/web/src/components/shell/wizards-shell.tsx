@@ -666,10 +666,21 @@ export function WizardsShell({ children, currentUser, uploadthingEnabled }: Wiza
       latestMessageId: string;
       serverId: string;
     }) => {
-      void queryClient.invalidateQueries({
-        exact: true,
-        queryKey: getMessagesQueryKey("channel", data.channelId),
-      });
+      const queryKey = getMessagesQueryKey("channel", data.channelId);
+      const cached = queryClient.getQueryData<MessagePages>(queryKey);
+
+      // The event names the message it is reporting, so a list that already
+      // holds it is not stale. Without this check an open channel refetched
+      // every page it had loaded to recover a message it already had.
+      const hasLatestMessage = cached?.pages.some((page) =>
+        page.messages.some((message) => message.id === data.latestMessageId),
+      );
+
+      if (hasLatestMessage) {
+        return;
+      }
+
+      void queryClient.invalidateQueries({ exact: true, queryKey });
     };
 
     const handleServerSettingsUpdated = (data: { serverId: string }) => {

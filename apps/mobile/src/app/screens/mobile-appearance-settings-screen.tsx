@@ -280,12 +280,18 @@ function MessageFontSizeSlider({
       onAccessibilityAction={(event) => {
         commitIndex(index + (event.nativeEvent.actionName === "increment" ? 1 : -1));
       }}
-      style={[styles.messageSliderTouch, disabled && styles.messageSliderDisabled]}
+      style={styles.messageSliderTouch}
       testID="mobile-appearance-settings-message-font-slider"
       {...panResponder.panHandlers}
     >
       <View onLayout={handleLayout} style={styles.messageSliderTrack}>
-        <View style={[styles.messageSliderFill, { width: trackWidth * progress }]} />
+        <View
+          style={[
+            styles.messageSliderFill,
+            disabled && styles.messageSliderFillDisabled,
+            { width: trackWidth * progress },
+          ]}
+        />
         <View pointerEvents="none" style={styles.messageSliderStops}>
           {MOBILE_MESSAGE_FONT_SIZES.map((stop, stopIndex) => (
             <View
@@ -560,7 +566,44 @@ export function MobileAppearanceSettingsScreen({ onBack }: { onBack(): void }) {
         })}
       </View>
 
-      {/* 3. AKSAN RENGİ — K6: all six swatches kept. */}
+      {/* 3. SUNUCU YERLEŞİMİ — sits with the other canvas choices above. */}
+      <Text style={styles.sectionHeading}>{copy.appearanceSettingsLayoutHeading}</Text>
+      <View style={[styles.settingsCard, styles.optionRow, styles.optionRowLayout]}>
+        {WORKSPACE_LAYOUTS.map((workspaceLayout) => {
+          const selected = layout === workspaceLayout;
+          return (
+            <Pressable
+              accessibilityLabel={getLayoutLabel(locale, workspaceLayout)}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: selected, selected }}
+              key={workspaceLayout}
+              onPress={() => selectLayout(workspaceLayout)}
+              style={({ pressed }) => [
+                styles.optionCard,
+                workspaceLayout === "rail"
+                  ? styles.optionCardLayoutRail
+                  : styles.optionCardLayoutCompact,
+                selected && styles.optionCardSelected,
+                pressed && styles.pressed,
+              ]}
+              testID={`mobile-appearance-settings-layout-${workspaceLayout}`}
+            >
+              <LayoutPreview layout={workspaceLayout} />
+              <View style={styles.optionLabelColumn}>
+                <View style={styles.optionLabelRow}>
+                  <Text style={[styles.optionLabel, selected && styles.optionLabelSelected]}>
+                    {getLayoutLabel(locale, workspaceLayout)}
+                  </Text>
+                  {selected ? <SelectionCheck /> : null}
+                </View>
+                <Text style={styles.optionHint}>{getLayoutHint(locale, workspaceLayout)}</Text>
+              </View>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {/* 4. AKSAN RENGİ — K6: all six swatches kept. */}
       <Text style={styles.sectionHeading}>{copy.appearanceSettingsAccentHeading}</Text>
       <View style={[styles.settingsCard, styles.accentCard]}>
         {MOBILE_ACCENT_OPTIONS.map((option) => {
@@ -594,7 +637,7 @@ export function MobileAppearanceSettingsScreen({ onBack }: { onBack(): void }) {
         })}
       </View>
 
-      {/* 4. MESAJ YAZI BOYUTU — the new control. */}
+      {/* 5. MESAJ YAZI BOYUTU — the new control. */}
       <View style={styles.sectionHeadingRow}>
         <Text style={styles.sectionHeadingInline}>
           {copy.appearanceSettingsMessageFontSizeHeading}
@@ -641,33 +684,52 @@ export function MobileAppearanceSettingsScreen({ onBack }: { onBack(): void }) {
             </Text>
           </View>
         </View>
-        <View style={styles.messageSliderRow}>
-          <Text style={styles.messageSliderSmallA}>A</Text>
-          <MessageFontSizeSlider
-            disabled={messageFollowSystemFont}
-            label={copy.appearanceSettingsMessageFontSizeSlider}
-            onChange={setMessageFontSize}
-            size={messageFontSize}
-          />
-          <Text style={styles.messageSliderLargeA}>A</Text>
-        </View>
-        <View style={styles.messageSliderLabels}>
-          {MOBILE_MESSAGE_FONT_SIZES.map((stop) => (
-            <Text
-              key={stop}
-              style={[
-                styles.messageSliderLabel,
-                stop === messageFontSize && styles.messageSliderLabelActive,
-              ]}
-            >
-              {getMessageFontSizeLabel(locale, stop)}
-            </Text>
-          ))}
+        {/*
+          Follow-system dims the whole control, not just the track: dimming the
+          track alone left the two "A" glyphs and the four stop names at full
+          strength, which read as a half-broken slider rather than a disabled
+          one.
+        */}
+        <View
+          style={[
+            styles.messageSizeControl,
+            messageFollowSystemFont && styles.messageSizeControlDisabled,
+          ]}
+          testID="mobile-appearance-settings-message-size-control"
+        >
+          <View style={styles.messageSliderRow}>
+            <Text style={styles.messageSliderSmallA}>A</Text>
+            <MessageFontSizeSlider
+              disabled={messageFollowSystemFont}
+              label={copy.appearanceSettingsMessageFontSizeSlider}
+              onChange={setMessageFontSize}
+              size={messageFontSize}
+            />
+            <Text style={styles.messageSliderLargeA}>A</Text>
+          </View>
+          <View style={styles.messageSliderLabels}>
+            {MOBILE_MESSAGE_FONT_SIZES.map((stop) => (
+              <Text
+                key={stop}
+                style={[
+                  styles.messageSliderLabel,
+                  stop === messageFontSize &&
+                    (messageFollowSystemFont
+                      ? styles.messageSliderLabelInert
+                      : styles.messageSliderLabelActive),
+                ]}
+              >
+                {getMessageFontSizeLabel(locale, stop)}
+              </Text>
+            ))}
+          </View>
         </View>
       </View>
 
-      {/* 5. METİN BOYUTU (arayüz) — K6: the existing global scale, kept. */}
-      <Text style={styles.sectionHeading}>{copy.appearanceSettingsTextSizeHeading}</Text>
+      {/* 6. METİN BOYUTU (arayüz) — K6: the existing global scale, kept. */}
+      <Text style={[styles.sectionHeading, styles.sectionHeadingTight]}>
+        {copy.appearanceSettingsTextSizeHeading}
+      </Text>
       <Text style={styles.sectionHint}>{copy.appearanceSettingsTextSizeHint}</Text>
       <View style={[styles.settingsCard, styles.textSizeCard]}>
         <Text
@@ -689,41 +751,10 @@ export function MobileAppearanceSettingsScreen({ onBack }: { onBack(): void }) {
         </Text>
       </View>
 
-      {/* 6. DÜZEN — K6: the existing workspace layout choice, kept. */}
-      <Text style={styles.sectionHeading}>{copy.appearanceSettingsLayoutHeading}</Text>
-      <View style={[styles.settingsCard, styles.optionRow]}>
-        {WORKSPACE_LAYOUTS.map((workspaceLayout) => {
-          const selected = layout === workspaceLayout;
-          return (
-            <Pressable
-              accessibilityLabel={getLayoutLabel(locale, workspaceLayout)}
-              accessibilityRole="radio"
-              accessibilityState={{ checked: selected, selected }}
-              key={workspaceLayout}
-              onPress={() => selectLayout(workspaceLayout)}
-              style={({ pressed }) => [
-                styles.optionCard,
-                selected && styles.optionCardSelected,
-                pressed && styles.pressed,
-              ]}
-              testID={`mobile-appearance-settings-layout-${workspaceLayout}`}
-            >
-              <LayoutPreview layout={workspaceLayout} />
-              <View style={styles.optionLabelColumn}>
-                <View style={styles.optionLabelRow}>
-                  <Text style={[styles.optionLabel, selected && styles.optionLabelSelected]}>
-                    {getLayoutLabel(locale, workspaceLayout)}
-                  </Text>
-                  {selected ? <SelectionCheck /> : null}
-                </View>
-                <Text style={styles.optionHint}>{getLayoutHint(locale, workspaceLayout)}</Text>
-              </View>
-            </Pressable>
-          );
-        })}
-      </View>
-
-      {/* 7. Toggle kartı — both default OFF, both persisted by the M0 provider. */}
+      {/*
+        7. Toggle kartı — both default OFF, both persisted by the M0 provider.
+        They sit directly under the two size controls they qualify.
+      */}
       <View style={styles.settingsRowCard}>
         <View style={styles.toggleRow}>
           <View style={[styles.toggleIconTile, styles.toggleIconTileAccent]}>

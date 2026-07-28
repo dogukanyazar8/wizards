@@ -19,7 +19,9 @@ describe("mobile bootstrap payload", () => {
 
     assert.equal(payload.app.name, "Whispr");
     assert.equal(payload.app.serverTime, "2026-06-26T12:00:00.000Z");
-    assert.equal(payload.features.attachments.status, "requires-server-contract");
+    // The uploader takes a Bearer token and accepts the voice `audio/mp4` type,
+    // so advertising this as pending was a lie that also disabled the mic.
+    assert.equal(payload.features.attachments.status, "available");
     assert.equal(payload.features.invites.status, "available");
     assert.equal(payload.features.messageSearch.status, "available");
     assert.equal(payload.features.messages.status, "available");

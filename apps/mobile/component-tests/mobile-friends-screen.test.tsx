@@ -13,6 +13,13 @@ const mockCancelRequest = jest.fn(async () => ({ success: true }));
 const mockCreateRequest = jest.fn(async () => ({ request: { id: "request-new" } }));
 const mockUnblockFriend = jest.fn();
 const mockRemoveFriend = jest.fn();
+const mockJoinVoiceChannel = jest.fn(async () => true);
+const mockRequestMicrophonePermission = jest.fn(async () => ({ hasMicrophonePermission: true }));
+const mockNavigateRouteIntent = jest.fn();
+const mockVoiceRuntime = {
+  joinVoiceChannel: mockJoinVoiceChannel,
+  requestMicrophonePermission: mockRequestMicrophonePermission,
+};
 let mockFriendsQuery: Record<string, unknown>;
 let mockUserSearchQuery: Record<string, unknown>;
 let mockSuggestionsQuery: Record<string, unknown>;
@@ -45,6 +52,11 @@ jest.mock("../src/social/mobile-social-query", () => ({
 
 jest.mock("../src/navigation/mobile-navigation-ref", () => ({
   mobileNavigationRef: { isReady: () => false, navigate: jest.fn() },
+  navigateMobileRouteIntent: (...args: unknown[]) => mockNavigateRouteIntent(...args),
+}));
+
+jest.mock("../src/app/providers/mobile-voice-provider", () => ({
+  useOptionalMobileVoiceRuntime: () => mockVoiceRuntime,
 }));
 
 import { FriendsHub, createFriendsHubStyles } from "../src/social/friends-hub";
@@ -170,11 +182,14 @@ describe("5c friends screen", () => {
     });
     const view = await renderHub(<FriendsHub mode="friends" />);
 
-    const dotColors = view
-      .getAllByTestId("mobile-avatar-status-dot")
-      .map(
-        (dot) => (dot.props.style as Array<{ backgroundColor?: string }>).at(-1)?.backgroundColor,
-      );
+    // §2 "1b": the row draws its own dot — ringed in the screen tone, not the
+    // card tone the kit avatar uses, which painted a white halo on this list.
+    const dotColors = [
+      view.getByTestId("mobile-friend-presence-friend-idle"),
+      view.getByTestId("mobile-friend-presence-friend-dnd"),
+    ].map(
+      (dot) => (dot.props.style as Array<{ backgroundColor?: string }>).at(-1)?.backgroundColor,
+    );
     expect(dotColors).toContain(lightTheme.status.warning);
     expect(dotColors).toContain(lightTheme.status.danger);
   });
@@ -197,24 +212,23 @@ describe("5c friends screen", () => {
 });
 
 describe("9d requests segment", () => {
-  it("shows the invite card, the search hint and the empty incoming state", async () => {
+  /**
+   * §2 "1c": the tab is three groups and nothing else — no invite card, no
+   * second search field. The band above the list is the only search, so an
+   * embedded hub with no term shows the empty incoming state straight away.
+   */
+  it("is the three request groups alone, with no invite card and no search field", async () => {
     mockFriendsQuery = emptyOverview();
-    const shareSpy = jest.spyOn(Share, "share").mockResolvedValue({ action: "sharedAction" });
     const view = await renderHub(<FriendsHub embedded mode="requests" />);
 
-    expect(view.getByTestId("mobile-friend-search-hint")).toBeTruthy();
     expect(view.getByTestId("mobile-friend-requests-empty")).toBeTruthy();
     expect(view.getByText("Bekleyen istek yok")).toBeTruthy();
     expect(view.getByTestId("mobile-requests-group-incoming")).toBeTruthy();
     expect(view.queryByTestId("mobile-friend-search-results")).toBeNull();
     expect(view.queryByTestId("mobile-friend-blocked-toggle")).toBeNull();
-
-    await fireEvent.press(view.getByTestId("mobile-friend-invite-card"));
-
-    expect(shareSpy).toHaveBeenCalledWith({
-      message: "Whispr'da bana katıl! Kullanıcı adım @dogukan.",
-    });
-    shareSpy.mockRestore();
+    expect(view.queryByTestId("mobile-friend-invite-card")).toBeNull();
+    expect(view.queryByTestId("mobile-friend-search-users-input")).toBeNull();
+    expect(view.queryByTestId("mobile-friend-search-hint")).toBeNull();
   });
 
   it("debounces the username search and renders a relationship-aware action per row", async () => {
@@ -254,12 +268,9 @@ describe("9d requests segment", () => {
       isFetching: true,
       isLoading: false,
     };
-    const view = await renderHub(<FriendsHub embedded mode="requests" />);
+    // The search term now arrives from the tab band above the list.
+    const view = await renderHub(<FriendsHub embedded externalSearch="@ad" mode="requests" />);
 
-    await act(async () => {
-      fireEvent.changeText(view.getByTestId("mobile-friend-search-users-input"), "@ad");
-    });
-    expect(view.getByTestId("mobile-friend-search-spinner")).toBeTruthy();
     await act(async () => {
       jest.advanceTimersByTime(300);
     });
@@ -369,6 +380,90 @@ describe("9d requests segment", () => {
     });
     expect(styles.rowPill.minHeight).toBe(lightTheme.sizing.minTouchTarget);
     expect(styles.rowPillFilled.backgroundColor).toBe(lightTheme.accent.action);
-    expect(styles.inviteCard.backgroundColor).toBe(lightTheme.surface.card);
+  });
+});
+
+describe("1b voice room join", () => {
+  const voiceRoom = {
+    channelId: "channel-1",
+    channelName: "live-room",
+    serverId: "server-1",
+    serverName: "paycore",
+  };
+
+  /**
+   * §2 "1b": the pill has to do what tapping the voice channel does. Opening the
+   * room screen without joining left it on its loading state forever.
+   */
+  it("asks for the microphone and actually joins before showing the room", async () => {
+    mockFriendsQuery = emptyOverview({
+      friends: [
+        {
+          ...ada,
+          customStatus: null,
+          id: "friend-online",
+          presence: { customStatus: null, status: "ONLINE" },
+          status: "ONLINE",
+          voiceRoom,
+        },
+      ],
+    });
+    const view = await renderHub(<FriendsHub embedded mode="friends" />);
+
+    await act(async () => {
+      fireEvent.press(view.getByTestId("mobile-friend-join-voice-friend-online"));
+    });
+
+    expect(mockRequestMicrophonePermission).toHaveBeenCalledTimes(1);
+    expect(mockJoinVoiceChannel).toHaveBeenCalledWith({
+      channelId: "channel-1",
+      channelName: "live-room",
+      permission: { hasMicrophonePermission: true },
+      serverId: "server-1",
+    });
+    expect(mockNavigateRouteIntent).toHaveBeenCalled();
+  });
+
+  it("stays put when the microphone is refused", async () => {
+    mockRequestMicrophonePermission.mockResolvedValueOnce({ hasMicrophonePermission: false });
+    mockFriendsQuery = emptyOverview({
+      friends: [
+        {
+          ...ada,
+          customStatus: null,
+          id: "friend-online",
+          presence: { customStatus: null, status: "ONLINE" },
+          status: "ONLINE",
+          voiceRoom,
+        },
+      ],
+    });
+    const view = await renderHub(<FriendsHub embedded mode="friends" />);
+
+    await act(async () => {
+      fireEvent.press(view.getByTestId("mobile-friend-join-voice-friend-online"));
+    });
+
+    expect(mockJoinVoiceChannel).not.toHaveBeenCalled();
+    expect(mockNavigateRouteIntent).not.toHaveBeenCalled();
+  });
+
+  it("draws the wave tile instead of a presence dot for a friend in a room", async () => {
+    mockFriendsQuery = emptyOverview({
+      friends: [
+        {
+          ...ada,
+          customStatus: null,
+          id: "friend-online",
+          presence: { customStatus: null, status: "ONLINE" },
+          status: "ONLINE",
+          voiceRoom,
+        },
+      ],
+    });
+    const view = await renderHub(<FriendsHub embedded mode="friends" />);
+
+    expect(view.getByTestId("mobile-friend-voice-friend-online")).toBeTruthy();
+    expect(view.queryByTestId("mobile-friend-presence-friend-online")).toBeNull();
   });
 });

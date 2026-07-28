@@ -22,6 +22,34 @@ describe("socket payload schemas", () => {
     );
   });
 
+  /**
+   * The nonce is client-supplied and comes straight back to that same client, so
+   * the only thing standing between it and an unbounded echo is this schema.
+   */
+  it("bounds the optimistic-bubble nonce", () => {
+    assert.deepEqual(
+      parseSocketPayload(SocketMessageSendPayloadSchema, {
+        channelId: "channel-1",
+        clientNonce: "optimistic-1-1",
+        content: "hello",
+      }),
+      {
+        channelId: "channel-1",
+        clientNonce: "optimistic-1-1",
+        content: "hello",
+      },
+    );
+    assert.throws(
+      () =>
+        parseSocketPayload(SocketMessageSendPayloadSchema, {
+          channelId: "channel-1",
+          clientNonce: "n".repeat(129),
+          content: "hello",
+        }),
+      ApiError,
+    );
+  });
+
   it("rejects unknown fields at the socket boundary", () => {
     assert.throws(
       () =>

@@ -1,4 +1,4 @@
-import type { UploadedAttachmentInput } from "@wizards/types";
+import type { DMMessagePayload, UploadedAttachmentInput } from "@wizards/types";
 
 import { prisma } from "@wizards/db";
 
@@ -22,6 +22,8 @@ import type { AppSocketServer } from "@/lib/socket/runtime";
 export type SendDirectMessageInput = {
   attachments?: unknown;
   attribution?: ClientAttribution;
+  /** Echoed back to the author so their optimistic bubble can absorb the echo. */
+  clientNonce?: string | null;
   content: string;
   conversationId: string;
   forwardOfMessageId?: string | null;
@@ -135,7 +137,16 @@ export async function sendDirectMessage(input: SendDirectMessageInput) {
     userId: input.userId,
   });
 
-  const messagePayload = mapDMMessagePayload(createdMessage, undefined, undefined, input.userId);
+  // Only the author gets the nonce: it is the key to their optimistic bubble and
+  // means nothing to anyone else's cache.
+  const clientNonce = input.clientNonce ?? null;
+  const withAuthorNonce = (payload: DMMessagePayload, viewerUserId: string) =>
+    clientNonce && viewerUserId === input.userId ? { ...payload, clientNonce } : payload;
+
+  const messagePayload = withAuthorNonce(
+    mapDMMessagePayload(createdMessage, undefined, undefined, input.userId),
+    input.userId,
+  );
 
   if (input.io) {
     for (const participant of participants) {
@@ -143,7 +154,10 @@ export async function sendDirectMessage(input: SendDirectMessageInput) {
         .to(`user:${participant.userId}`)
         .emit(
           "dm:message:new",
-          mapDMMessagePayload(createdMessage, undefined, undefined, participant.userId),
+          withAuthorNonce(
+            mapDMMessagePayload(createdMessage, undefined, undefined, participant.userId),
+            participant.userId,
+          ),
         );
     }
   }

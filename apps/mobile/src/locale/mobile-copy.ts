@@ -619,6 +619,20 @@ export const mobileCopy = {
     messageSearchResultsTitle: "Arama sonuçları",
     errorBoundaryDescription:
       "Oturumun korunur; gizli veri veya mesaj içeriği bu ekranda gösterilmez.",
+    errorBoundaryEyebrow: "Beklenmedik durum",
+    errorBoundaryFeedbackAction: "Geri bildirim gönder",
+    errorBoundaryFeedbackDisclosure:
+      "Ekran görüntüsü, cihaz modeli, uygulama sürümü ve tanı kodu gönderilir. Mesaj içeriği gönderilmez.",
+    errorBoundaryFeedbackFailed:
+      "Geri bildirim gönderilemedi. Tanı kodunu kopyalayıp destekle paylaşabilirsin.",
+    errorBoundaryFeedbackMessage: "Otomatik hata raporu. Tanı kodu: {reference}. Tür: {kind}.",
+    errorBoundaryFeedbackSendingAction: "Gönderiliyor...",
+    errorBoundaryFeedbackSentDescription: "Ekran görüntüsü ve cihaz bilgisi ekibe iletildi.",
+    errorBoundaryFeedbackSentDescriptionWithoutScreenshot:
+      "Cihaz bilgisi ekibe iletildi; ekran görüntüsü alınamadı.",
+    errorBoundaryFeedbackSentLabel: "Kayıt numaran",
+    errorBoundaryFeedbackSignedOut:
+      "Geri bildirim için oturum gerekiyor. Tanı kodunu kopyalayıp destekle paylaşabilirsin.",
     errorBoundaryFootnote: "Sorun devam ederse uygulamayı yeniden açıp tekrar deneyebilirsin.",
     errorBoundaryProblemLabel: "Sorun",
     errorBoundaryReferenceCopiedNotice: "Tanı kodu kopyalandı.",
@@ -641,13 +655,10 @@ export const mobileCopy = {
     errorBoundaryStorageProblem: "Cihazdaki güvenli depo okunamadı, bu yüzden ekran hazırlanamadı.",
     errorBoundaryStorageSolution:
       "Tekrar yükle'ye dokun. Sürerse çıkış yapıp yeniden giriş yap; oturum yeniden kurulur.",
-    realtimeFailedDescription:
-      "Yeni mesajlar kendiliğinden gelmiyor. Gönderme ve okuma çalışır, ancak liste yenilemeden güncellenmez.",
-    realtimeFailedTitle: "Canlı bağlantı kurulamadı",
-    realtimeReconnectAction: "Yeniden bağlan",
-    realtimeReconnectingDescription:
-      "Yeni mesajlar birkaç saniye gecikebilir. Gönderme ve okuma çalışmaya devam eder.",
-    realtimeReconnectingTitle: "Canlı bağlantı yeniden kuruluyor",
+    realtimeFailedTitle: "Canlı bağlantı yok",
+    realtimeReconnectAction: "Yeniden dene",
+    realtimeReconnectingTitle: "Yeniden bağlanılıyor",
+    realtimeRetryingAction: "Deneniyor",
     homeDmLabel: "DM",
     homeGreetingTitle: "Merhaba, {name}",
     homeGreetingSubtitle: "Whispr'a hoş geldin.",
@@ -810,10 +821,8 @@ export const mobileCopy = {
     legalDocumentLastUpdated: "Son güncelleme: {date}",
     legalDocumentError: "Belge yüklenemedi. Bağlantını kontrol edip tekrar dene.",
     aboutSettingsCookies: "Çerez politikası",
-    connectivityRestoredDescription: "Yeni mesajlar yeniden canlı geliyor.",
     connectivityRestoredTitle: "Bağlantı geri geldi",
-    offlineBannerDescription: "Bağlantı gelince veriler kendiliğinden yenilenir.",
-    offlineBannerTitle: "İnternet bağlantısı yok",
+    offlineBannerTitle: "İnternet yok",
     offlineMutationMessage: "Bu işlem için internet bağlantısı gerekiyor.",
     privacyShieldAccessibilityLabel: "Whispr gizlilik ekranı",
     secondaryAction: "Oturumu yenile",
@@ -2611,6 +2620,21 @@ export const mobileCopy = {
     messageSearchResultsTitle: "Search results",
     errorBoundaryDescription:
       "Your session stays preserved; secrets and message content are not shown on this screen.",
+    errorBoundaryEyebrow: "Unexpected state",
+    errorBoundaryFeedbackAction: "Send feedback",
+    errorBoundaryFeedbackDisclosure:
+      "A screenshot, the device model, the app version and the diagnostic code are sent. Message content is not.",
+    errorBoundaryFeedbackFailed:
+      "Feedback could not be sent. Copy the diagnostic code and share it with support.",
+    errorBoundaryFeedbackMessage:
+      "Automatic crash report. Diagnostic code: {reference}. Kind: {kind}.",
+    errorBoundaryFeedbackSendingAction: "Sending...",
+    errorBoundaryFeedbackSentDescription: "The screenshot and device details reached the team.",
+    errorBoundaryFeedbackSentDescriptionWithoutScreenshot:
+      "The device details reached the team; the screenshot could not be captured.",
+    errorBoundaryFeedbackSentLabel: "Your report number",
+    errorBoundaryFeedbackSignedOut:
+      "Feedback needs a signed-in session. Copy the diagnostic code and share it with support.",
     errorBoundaryFootnote: "If the problem continues, restart the app and try again.",
     errorBoundaryProblemLabel: "Problem",
     errorBoundaryReferenceCopiedNotice: "Diagnostic code copied.",
@@ -2634,13 +2658,10 @@ export const mobileCopy = {
       "Secure storage on this device could not be read, so the screen could not be prepared.",
     errorBoundaryStorageSolution:
       "Tap Reload. If it persists, sign out and sign back in to rebuild the session.",
-    realtimeFailedDescription:
-      "New messages no longer arrive on their own. Sending and reading still work, but the list only updates on refresh.",
-    realtimeFailedTitle: "Live connection failed",
-    realtimeReconnectAction: "Reconnect",
-    realtimeReconnectingDescription:
-      "New messages may lag a few seconds. Sending and reading keep working.",
-    realtimeReconnectingTitle: "Reconnecting the live link",
+    realtimeFailedTitle: "Live connection is down",
+    realtimeReconnectAction: "Try again",
+    realtimeReconnectingTitle: "Reconnecting",
+    realtimeRetryingAction: "Trying",
     homeDmLabel: "DMs",
     homeGreetingTitle: "Hello, {name}",
     homeGreetingSubtitle: "Welcome back to Whispr.",
@@ -2804,10 +2825,8 @@ export const mobileCopy = {
     legalDocumentLastUpdated: "Last updated: {date}",
     legalDocumentError: "The document could not be loaded. Check your connection and try again.",
     aboutSettingsCookies: "Cookie policy",
-    connectivityRestoredDescription: "New messages are arriving live again.",
     connectivityRestoredTitle: "Back online",
-    offlineBannerDescription: "Data refreshes on its own once the connection returns.",
-    offlineBannerTitle: "No internet connection",
+    offlineBannerTitle: "No internet",
     offlineMutationMessage: "This action requires an internet connection.",
     privacyShieldAccessibilityLabel: "Whispr privacy screen",
     secondaryAction: "Refresh session",

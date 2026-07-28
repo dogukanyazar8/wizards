@@ -10,7 +10,12 @@ import {
 } from "react";
 import { AppState, Linking, Platform, type AppStateStatus } from "react-native";
 import * as WebBrowser from "expo-web-browser";
-import { createMobileApiClient, type MobileApiClient } from "../api/mobile-api-client";
+import {
+  createMobileApiClient,
+  MobileApiError,
+  type MobileApiClient,
+} from "../api/mobile-api-client";
+import { setMobileCrashReportTokenReader } from "../feedback/mobile-crash-report-bridge";
 import { revokeMobilePushToken } from "../notifications/mobile-notification-client";
 import { getMobileRuntimeConfig, type MobileEnvironmentConfig } from "../config/environment";
 import {
@@ -76,6 +81,32 @@ const appLockCopy = activeMobileCopy;
 
 /** Enough to cover a retried hand-off without growing the map unbounded. */
 const MAX_TRACKED_HANDOFF_EXCHANGES = 8;
+
+/**
+ * The refresh call is not user-blocking and it runs while the app is still
+ * painting its first frame, so it gets a longer budget than the shared client's
+ * 12s: a cold API container regularly needs more than that, and an abort here
+ * used to cost the user their session.
+ */
+const SESSION_REFRESH_TIMEOUT_MS = 30_000;
+
+/**
+ * A failed refresh no longer ends the session, so every subsequent API call
+ * would otherwise retry it. Back off between attempts so a server outage cannot
+ * burn the refresh rate limit.
+ */
+const SESSION_REFRESH_RETRY_COOLDOWN_MS = 15_000;
+
+/**
+ * Only the API can end a session. A rejected refresh token (401) means the
+ * server has forgotten this session and the stored credentials are worthless.
+ * Everything else — timeout, offline, 5xx, rate limit — is transient and must
+ * leave the stored credentials untouched, otherwise a flaky network signs the
+ * user out permanently.
+ */
+function isMobileSessionRejected(error: unknown): boolean {
+  return error instanceof MobileApiError && error.status === 401;
+}
 
 /**
  * The browser fallback is deliberately silent for the user, which also hid the
@@ -184,6 +215,7 @@ export function MobileAuthProvider({
     useState<MobileAppLockAvailability>("unknown");
   const deviceIntegrityCheckStartedRef = useRef(false);
   const refreshPromiseRef = useRef<Promise<MobileSessionSnapshot | null> | null>(null);
+  const refreshCooldownUntilRef = useRef(0);
   const stateRef = useRef(state);
   const appLockEnabledRef = useRef(false);
   const appLockColdArmedRef = useRef(false);
@@ -358,6 +390,19 @@ export function MobileAuthProvider({
     [runtimeConfig.apiUrl],
   );
 
+  // Session refresh needs its own client: the shared offline guard rejects the
+  // POST before it is ever sent, which turned "no signal right now" into "signed
+  // out for good". Let the request reach the network and fail honestly instead.
+  const createSessionRefreshClient = useCallback(
+    () =>
+      createMobileApiClient({
+        baseUrl: runtimeConfig.apiUrl,
+        getNetworkStatus: () => "unknown",
+        timeoutMs: SESSION_REFRESH_TIMEOUT_MS,
+      }),
+    [runtimeConfig.apiUrl],
+  );
+
   const refreshSessionWithServer = useCallback(
     async (session: MobileSessionSnapshot) => {
       const refreshToken = session.tokens.refreshToken;
@@ -365,21 +410,28 @@ export function MobileAuthProvider({
         return null;
       }
 
+      if (Date.now() < refreshCooldownUntilRef.current) {
+        return null;
+      }
+
       if (!refreshPromiseRef.current) {
-        refreshPromiseRef.current = refreshMobileAuthSession(createUnauthenticatedClient(), {
+        refreshPromiseRef.current = refreshMobileAuthSession(createSessionRefreshClient(), {
           refreshToken,
         })
           .then(async (refreshedSession) => {
+            refreshCooldownUntilRef.current = 0;
             await repository.save(refreshedSession);
             commitAuthState(createMobileAuthState("signed-in", refreshedSession));
             return refreshedSession;
           })
-          .catch(async () => {
-            if (isMobileSessionExpired(session)) {
+          .catch(async (error: unknown) => {
+            if (isMobileSessionRejected(error)) {
               await repository.clear();
               commitAuthState(createMobileAuthState("signed-out"));
+              return null;
             }
 
+            refreshCooldownUntilRef.current = Date.now() + SESSION_REFRESH_RETRY_COOLDOWN_MS;
             return null;
           })
           .finally(() => {
@@ -389,7 +441,7 @@ export function MobileAuthProvider({
 
       return refreshPromiseRef.current;
     },
-    [commitAuthState, createUnauthenticatedClient, repository],
+    [commitAuthState, createSessionRefreshClient, repository],
   );
 
   const ensureFreshSession = useCallback(
@@ -403,7 +455,15 @@ export function MobileAuthProvider({
       }
 
       const refreshedSession = await refreshSessionWithServer(session);
-      return refreshedSession ?? (isMobileSessionExpired(session) ? null : session);
+      if (refreshedSession) {
+        return refreshedSession;
+      }
+
+      // The refresh did not go through. If the server rejected the token the
+      // catch above already signed the user out and the ref is empty; otherwise
+      // the stored session survives, its access token goes stale, requests fail
+      // with 401 and the next call retries once the cooldown lapses.
+      return stateRef.current.session;
     },
     [refreshSessionWithServer],
   );
@@ -411,24 +471,24 @@ export function MobileAuthProvider({
   const refreshSessionFromStorage = useCallback(async () => {
     commitAuthState(createMobileAuthState("checking"));
 
+    let session: MobileSessionSnapshot | null;
     try {
-      const session = await repository.load();
-      if (!session) {
-        commitAuthState(createMobileAuthState("signed-out"));
-        return;
-      }
-
-      const freshSession = await ensureFreshSession(session);
-      if (!freshSession) {
-        await repository.clear();
-        commitAuthState(createMobileAuthState("signed-out"));
-        return;
-      }
-
-      commitAuthState(createMobileAuthState("signed-in", freshSession));
+      session = await repository.load();
     } catch {
       commitAuthState(createMobileAuthState("error", null, activeMobileCopy.authSessionReadFailed));
+      return;
     }
+
+    if (!session) {
+      commitAuthState(createMobileAuthState("signed-out"));
+      return;
+    }
+
+    // Trust the stored snapshot and render the app immediately, then refresh
+    // behind it. A cold start no longer waits on the network to decide whether
+    // the user is signed in, and only a rejected refresh token can undo this.
+    commitAuthState(createMobileAuthState("signed-in", session));
+    await ensureFreshSession(session);
   }, [commitAuthState, ensureFreshSession, repository]);
 
   const signOut = useCallback(async () => {
@@ -456,6 +516,7 @@ export function MobileAuthProvider({
       }
     }
 
+    refreshCooldownUntilRef.current = 0;
     await repository.clear();
     commitAuthState(createMobileAuthState("signed-out"));
   }, [commitAuthState, createUnauthenticatedClient, repository, runtimeConfig.apiUrl]);
@@ -796,6 +857,18 @@ export function MobileAuthProvider({
       }),
     [getAccessToken, runtimeConfig.apiUrl],
   );
+
+  // The crash boundaries sit above this provider, so a report sent from the
+  // fallback screen has no context to read a token from.
+  //
+  // Deliberately not cleared on unmount: a caught render error unmounts this
+  // whole subtree, so the one moment the reader is needed is the moment the
+  // provider is already gone. The closure keeps answering from the last known
+  // session, which is the honest answer — a signed-out one returns null and the
+  // crash screen says so.
+  useEffect(() => {
+    setMobileCrashReportTokenReader(getAccessToken);
+  }, [getAccessToken]);
 
   const diagnostics = useMemo(() => getMobileSessionDiagnostics(state), [state]);
   const deviceIntegrityWarningVisible =

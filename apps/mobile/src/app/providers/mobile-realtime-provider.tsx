@@ -25,7 +25,6 @@ import {
 import { createMobileRealtimeQueryBridge } from "../../realtime/realtime-query-bridge";
 import {
   createInitialMobileRealtimeSnapshot,
-  getMobileRealtimeBannerState,
   getMobileRealtimeForegroundBackfillSources,
   getMobileRealtimeVisibilityFromAppState,
   mobileRealtimeReducer,
@@ -43,7 +42,11 @@ import { resetMobileSessionState } from "../../state/reset-mobile-session-state"
 import { useMobileActiveTargetStore } from "../../state/mobile-active-target-store";
 import { MobileConnectivityBanner } from "../components/mobile-connectivity-banner";
 import { getMobileConnectivityHealth } from "../mobile-connectivity-presentation";
-import { useMobileNetworkStatus } from "./mobile-network-provider";
+import {
+  MobileConnectivityPhaseProvider,
+  useMobileConnectivityPhaseState,
+} from "./mobile-connectivity-context";
+import { useMobileNetworkRefresh, useMobileNetworkStatus } from "./mobile-network-provider";
 import { useMobileQueryClient } from "./mobile-query-provider";
 
 const MOBILE_CHANNEL_TYPING_STOP_DELAY_MS = 3_000;
@@ -79,6 +82,7 @@ export function MobileRealtimeProvider({ children }: PropsWithChildren) {
   const { apiClient, getAccessToken, session, status } = useMobileAuth();
   const queryClient = useMobileQueryClient();
   const networkStatus = useMobileNetworkStatus();
+  const refreshNetworkStatus = useMobileNetworkRefresh();
   /** Bumped by the banner's manual retry; the connect effect below keys on it. */
   const [reconnectNonce, setReconnectNonce] = useState(0);
   const clientRef = useRef<MobileRealtimeClient | null>(null);
@@ -460,9 +464,20 @@ export function MobileRealtimeProvider({ children }: PropsWithChildren) {
     networkStatus,
     realtime: connection,
   });
-  const connectivityCanRetry =
-    getMobileRealtimeBannerState({ authStatus: status, networkStatus, realtime: connection }) ===
-    "failed";
+  const connectivityPhase = useMobileConnectivityPhaseState(connectivityHealth);
+
+  /**
+   * The bar's retry asks the OS first, then the socket.
+   *
+   * Offline is usually a state the user has just left — Wi-Fi back on, airplane
+   * mode off — and NetInfo can take seconds to notice on its own. Rebuilding the
+   * socket against a network the app still believes is dead only burns the retry
+   * budget, so the OS answer has to land before the reconnect.
+   */
+  const retryConnectivity = useCallback(async () => {
+    await refreshNetworkStatus();
+    reconnect();
+  }, [reconnect, refreshNetworkStatus]);
 
   const value = useMemo<MobileRealtimeRuntime>(
     () => ({
@@ -499,12 +514,13 @@ export function MobileRealtimeProvider({ children }: PropsWithChildren) {
 
   return (
     <MobileRealtimeRuntimeContext.Provider value={value}>
-      <MobileConnectivityBanner
-        canRetry={connectivityCanRetry}
-        health={connectivityHealth}
-        onReconnect={reconnect}
-      />
-      {children}
+      {/* The phase is published rather than kept inside the bar: the screens
+          below have their own failure surfaces and must stand down while the bar
+          is already telling this story. */}
+      <MobileConnectivityPhaseProvider phase={connectivityPhase}>
+        <MobileConnectivityBanner onRetry={retryConnectivity} phase={connectivityPhase} />
+        {children}
+      </MobileConnectivityPhaseProvider>
     </MobileRealtimeRuntimeContext.Provider>
   );
 }

@@ -21,11 +21,20 @@ export const MobileBootstrapFeatureSchema = z.object({
   status: MobileBootstrapFeatureStatusSchema,
 });
 
+/**
+ * The mobile upload transport is complete: `messageAttachmentUploader` accepts a
+ * Bearer token, allows the voice `audio/mp4` type alongside images and
+ * documents, and the returned attachment id is claimed by the send routes.
+ *
+ * This used to advertise `requires-server-contract`, which the DM composer reads
+ * as "no attachments" — and that gate also disables the microphone, so voice
+ * messages could not be recorded at all.
+ */
 export const MOBILE_BOOTSTRAP_ATTACHMENTS_FEATURE_DEFAULT = {
   label: "Attachments",
   reason:
-    "Mobile can prepare local file selection, but native binary upload transport is gated until the mobile upload provider contract is complete.",
-  status: "requires-server-contract",
+    "Authenticated mobile uploads carry images, documents and voice messages through the shared attachment uploader.",
+  status: "available",
 } as const;
 
 export const MOBILE_BOOTSTRAP_INVITES_FEATURE_DEFAULT = {
@@ -715,6 +724,13 @@ const MobileSendMessageRequestSchema = z
   .object({
     alsoSendToChannel: z.boolean().optional(),
     attachments: z.array(UploadedAttachmentInputSchema).max(5).default([]),
+    /**
+     * The id the client's optimistic bubble is already rendered under. The
+     * server stores nothing under it — it only hands it back on the author's own
+     * copy so the realtime echo can be matched to that bubble instead of landing
+     * beside it as a second message.
+     */
+    clientNonce: z.string().min(1).max(128).optional(),
     content: z.string().max(MESSAGE_CONTENT_DEFAULT_LIMIT),
     forwardOfMessageId: z.string().min(1).max(128).nullable().optional(),
     replyToId: z.string().min(1).max(128).nullable().optional(),

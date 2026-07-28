@@ -4,12 +4,16 @@ import {
   MOBILE_ACCENT_PREFERENCE_KEY,
   MOBILE_FONT_SCALE_PREFERENCE_KEY,
   MOBILE_FONT_SCALE_STEPS,
+  MOBILE_VOICE_APPEARANCE_OPTIONS,
   composeMobileTheme,
   getMobileAccentColor,
   getMobileFontScaleSliderProgress,
   getMobileFontScaleStepForSliderProgress,
+  getMobileThemeFontScale,
+  getMobileThemeStyleSource,
   normalizeMobileAccentId,
   normalizeMobileFontScaleStep,
+  scaleMobileStyleSheetText,
 } from "../src/design/mobile-appearance-preferences";
 import { darkTheme, lightTheme } from "../src/design/themes";
 
@@ -63,6 +67,52 @@ describe("4c appearance preferences", () => {
       lightTheme.typography.overline.letterSpacing,
     );
     expect(scaled.accent.default).toBe(lightTheme.accent.default);
+  });
+
+  it("lists the voice-room columns in the theme picker's order", () => {
+    expect(MOBILE_VOICE_APPEARANCE_OPTIONS).toEqual(["light", "dark", "system"]);
+  });
+
+  /**
+   * The interface scale used to reach `theme.typography` and stop there, which
+   * meant it moved barely a tenth of the app's text: everything else writes its
+   * size as a literal in a style factory. The scale now rides on the finished
+   * style sheet, and these three exports are what carries it there.
+   */
+  it("carries the interface scale to the style sheet instead of the tokens alone", () => {
+    const scaled = composeMobileTheme(lightTheme, "indigo", 4);
+    const factor = MOBILE_FONT_SCALE_STEPS[4];
+
+    expect(getMobileThemeFontScale(scaled)).toBe(factor);
+    expect(getMobileThemeFontScale(lightTheme)).toBe(1);
+
+    const sheet = scaleMobileStyleSheetText(
+      {
+        badge: { borderRadius: 8, fontSize: 11, height: 16 },
+        body: { fontSize: 15, lineHeight: 21 },
+        divider: { height: 1 },
+      },
+      getMobileThemeFontScale(scaled),
+    );
+
+    expect(sheet.body).toEqual({ fontSize: 15 * factor, lineHeight: 21 * factor });
+    // Box measurements hold: the type grows inside the existing layout.
+    expect(sheet.badge).toEqual({ borderRadius: 8, fontSize: 11 * factor, height: 16 });
+    expect(sheet.divider).toEqual({ height: 1 });
+  });
+
+  /**
+   * The guard against applying the factor twice: a style built by spreading a
+   * typography token must reach the sheet at 1x, because the sheet is what gets
+   * scaled.
+   */
+  it("hands style factories unscaled typography", () => {
+    const scaled = composeMobileTheme(lightTheme, "indigo", 4);
+    const source = getMobileThemeStyleSource(scaled);
+
+    expect(source.typography.body.fontSize).toBe(lightTheme.typography.body.fontSize);
+    expect(source.accent.default).toBe(scaled.accent.default);
+    expect(getMobileThemeStyleSource(lightTheme)).toBe(lightTheme);
   });
 
   it("places the handoff default text scale at its 45 percent track marker", () => {

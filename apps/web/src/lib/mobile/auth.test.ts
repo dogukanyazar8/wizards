@@ -9,6 +9,7 @@ import {
   exchangeMobileAuthHandoffToken,
   isMobileAccessSessionActive,
   isMobileAuthHandoffToken,
+  MOBILE_REFRESH_TOKEN_GRACE_MS,
   MobileNativeAuthError,
   refreshMobileSession,
   registerMobilePasswordAccount,
@@ -20,13 +21,7 @@ import {
 class MemoryRedis {
   readonly values = new Map<string, string>();
 
-  async set(
-    key: string,
-    value: string,
-    _mode: "EX",
-    _ttlSeconds: number,
-    condition: "NX",
-  ) {
+  async set(key: string, value: string, _mode: "EX", _ttlSeconds: number, condition: "NX") {
     if (condition === "NX" && this.values.has(key)) {
       return null;
     }
@@ -330,10 +325,7 @@ describe("mobile auth handoff", () => {
     }
     assert.deepEqual(
       await getMobileNativeAuthFailure(() =>
-        createMobilePasswordSession(
-          { email: user.email, password: "wrong-password" },
-          options,
-        ),
+        createMobilePasswordSession({ email: user.email, password: "wrong-password" }, options),
       ),
       {
         code: "RATE_LIMITED",
@@ -435,7 +427,10 @@ describe("mobile auth handoff", () => {
 
     assert.equal(isMobileAuthHandoffToken(handoff.token), true);
     assert.equal(handoff.callbackPath, "/channels/@me");
-    assert.equal([...redis.values.keys()].some((key) => key.includes(handoff.token)), false);
+    assert.equal(
+      [...redis.values.keys()].some((key) => key.includes(handoff.token)),
+      false,
+    );
 
     const response = await exchangeMobileAuthHandoffToken(
       handoff.token,
@@ -564,7 +559,7 @@ describe("mobile auth handoff", () => {
     );
   });
 
-  it("rotates refresh tokens and rejects replayed refresh credentials", async () => {
+  it("rotates refresh tokens and keeps the rotated one usable inside the grace window", async () => {
     const redis = new MemoryRedis();
     const handoff = await createMobileAuthHandoffToken(
       { callbackPath: "/channels", userId: "user-1" },
@@ -578,18 +573,112 @@ describe("mobile auth handoff", () => {
     const refreshToken = response?.session.tokens.refreshToken;
     assert.equal(typeof refreshToken, "string");
 
+    const rotatedAtMs = 1_800_000_060_000;
     const refreshed = await refreshMobileSession(refreshToken ?? "", {
       env,
       loadUser,
-      nowMs: 1_800_000_060_000,
+      nowMs: rotatedAtMs,
       redis,
     });
     assert.equal(refreshed?.session.user.id, "user-1");
     assert.notEqual(refreshed?.session.tokens.refreshToken, refreshToken);
     assert.equal(refreshed?.session.tokens.expiresAt, 1_800_000_960_000);
 
+    // The rotated response can be lost in flight, leaving the device holding a
+    // credential the server just destroyed. The grace window lets it retry.
+    const replayedAtMs = rotatedAtMs + MOBILE_REFRESH_TOKEN_GRACE_MS;
+    const replayed = await refreshMobileSession(refreshToken ?? "", {
+      env,
+      loadUser,
+      nowMs: replayedAtMs,
+      redis,
+    });
+    assert.equal(replayed?.session.user.id, "user-1");
+    assert.notEqual(replayed?.session.tokens.refreshToken, refreshToken);
+    assert.notEqual(replayed?.session.tokens.refreshToken, refreshed?.session.tokens.refreshToken);
+
+    const rotatedClaims = verifyMobileAccessToken(refreshed?.session.tokens.accessToken ?? "", {
+      env,
+      nowMs: rotatedAtMs,
+    });
+    const replayedClaims = verifyMobileAccessToken(replayed?.session.tokens.accessToken ?? "", {
+      env,
+      nowMs: replayedAtMs,
+    });
+    assert.ok(rotatedClaims);
+    assert.ok(replayedClaims);
+    assert.equal(replayedClaims.sessionId, rotatedClaims.sessionId);
+  });
+
+  it("rejects a replayed refresh token once the grace window closes", async () => {
+    const redis = new MemoryRedis();
+    const handoff = await createMobileAuthHandoffToken(
+      { callbackPath: "/channels", userId: "user-1" },
+      { redis },
+    );
+    const response = await exchangeMobileAuthHandoffToken(
+      handoff.token,
+      { expectedCallbackPath: "/channels" },
+      { env, loadUser, nowMs: 1_800_000_000_000, redis },
+    );
+    const refreshToken = response?.session.tokens.refreshToken ?? "";
+    const rotatedAtMs = 1_800_000_060_000;
+
+    assert.ok(
+      await refreshMobileSession(refreshToken, { env, loadUser, nowMs: rotatedAtMs, redis }),
+    );
+
+    const expiredReplayAtMs = rotatedAtMs + MOBILE_REFRESH_TOKEN_GRACE_MS + 1;
     assert.equal(
-      await refreshMobileSession(refreshToken ?? "", { env, loadUser, redis }),
+      await refreshMobileSession(refreshToken, {
+        env,
+        loadUser,
+        nowMs: expiredReplayAtMs,
+        redis,
+      }),
+      null,
+    );
+
+    // The stale credential is dropped on the first rejection rather than lingering
+    // until its own TTL runs out, so a later retry finds nothing at all.
+    assert.equal(
+      await refreshMobileSession(refreshToken, {
+        env,
+        loadUser,
+        nowMs: expiredReplayAtMs,
+        redis,
+      }),
+      null,
+    );
+  });
+
+  it("stops honouring the grace window when the session is revoked", async () => {
+    const redis = new MemoryRedis();
+    const handoff = await createMobileAuthHandoffToken(
+      { callbackPath: "/channels", userId: "user-1" },
+      { redis },
+    );
+    const response = await exchangeMobileAuthHandoffToken(
+      handoff.token,
+      { expectedCallbackPath: "/channels" },
+      { env, loadUser, nowMs: 1_800_000_000_000, redis },
+    );
+    const refreshToken = response?.session.tokens.refreshToken ?? "";
+    const rotatedAtMs = 1_800_000_060_000;
+
+    const refreshed = await refreshMobileSession(refreshToken, {
+      env,
+      loadUser,
+      nowMs: rotatedAtMs,
+      redis,
+    });
+    await revokeMobileSession(
+      { refreshToken: refreshed?.session.tokens.refreshToken ?? null },
+      { redis },
+    );
+
+    assert.equal(
+      await refreshMobileSession(refreshToken, { env, loadUser, nowMs: rotatedAtMs, redis }),
       null,
     );
   });

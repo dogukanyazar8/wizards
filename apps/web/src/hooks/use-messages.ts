@@ -1,11 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import {
-  useInfiniteQuery,
-  useQueryClient,
-  type InfiniteData,
-} from "@tanstack/react-query";
+import { useInfiniteQuery, useQueryClient, type InfiniteData } from "@tanstack/react-query";
 import type {
   ChatMessage,
   DMMessagePayload,
@@ -85,51 +81,104 @@ export function mapDMMessageToChatMessage(message: DMMessagePayload): ChatMessag
   };
 }
 
-export function appendMessage(
-  old: MessagePages | undefined,
-  message: ChatMessage,
-): MessagePages {
+export const OPTIMISTIC_MESSAGE_PREFIX = "optimistic-";
+
+/** How far apart a send and its echo may be before the fallback stops guessing. */
+const OPTIMISTIC_CONTENT_MATCH_WINDOW_MS = 30_000;
+
+export function isOptimisticMessageId(messageId: string): boolean {
+  return messageId.startsWith(OPTIMISTIC_MESSAGE_PREFIX);
+}
+
+/**
+ * Whether `candidate` is the optimistic bubble that `message` just confirmed.
+ *
+ * `clientNonce` is the id the sender rendered the bubble under, echoed back by
+ * the server on the author's own copy — an exact answer. Without one (a client
+ * that predates the field, or a message the server wrote itself) all that is
+ * left is a guess from author, content and timing, and that guess misfires on
+ * two identical sends inside the window: the first echo clears both bubbles and
+ * the second only reappears once its own echo lands.
+ */
+function isConfirmedOptimisticMessage(candidate: ChatMessage, message: ChatMessage): boolean {
+  if (!isOptimisticMessageId(candidate.id)) {
+    return false;
+  }
+
+  if (message.clientNonce) {
+    return candidate.id === message.clientNonce;
+  }
+
+  const sameAttachments =
+    candidate.attachments.length === message.attachments.length &&
+    candidate.attachments.every((attachment) =>
+      message.attachments.some((confirmed) => confirmed.id === attachment.id),
+    );
+
+  return (
+    candidate.author.id === message.author.id &&
+    candidate.content === message.content &&
+    sameAttachments &&
+    Math.abs(new Date(message.createdAt).getTime() - new Date(candidate.createdAt).getTime()) <
+      OPTIMISTIC_CONTENT_MATCH_WINDOW_MS
+  );
+}
+
+/**
+ * The nonce belongs to one delivery, not to the message. Left in the cache it
+ * would differ from the copy the next fetch brings back, so an unchanged message
+ * would look changed and re-render its row for nothing.
+ */
+function withoutClientNonce(message: ChatMessage): ChatMessage {
+  if (message.clientNonce === undefined) {
+    return message;
+  }
+
+  const { clientNonce: _clientNonce, ...rest } = message;
+  return rest;
+}
+
+export function appendMessage(old: MessagePages | undefined, message: ChatMessage): MessagePages {
+  const confirmed = withoutClientNonce(message);
+
   if (!old) {
     return {
       pageParams: [undefined],
       pages: [
         {
           hasMore: false,
-          messages: [message],
+          messages: [confirmed],
         },
       ],
     };
   }
 
-  return {
-    ...old,
-    pages: old.pages.map((page, index) => {
-      if (index !== 0) return page;
+  let changed = false;
+  const pages = old.pages.map((page, index) => {
+    if (index !== 0) return page;
 
-      const withoutOptimistic = page.messages.filter((candidate) => {
-        if (!candidate.id.startsWith("optimistic-")) return true;
-        const sameAttachments =
-          candidate.attachments.length === message.attachments.length &&
-          candidate.attachments.every((attachment) =>
-            message.attachments.some((confirmed) => confirmed.id === attachment.id),
-          );
-        return !(
-          candidate.author.id === message.author.id &&
-          candidate.content === message.content &&
-          sameAttachments &&
-          Math.abs(
-            new Date(message.createdAt).getTime() - new Date(candidate.createdAt).getTime(),
-          ) < 30_000
-        );
-      });
+    const withoutOptimistic = page.messages.filter(
+      (candidate) => !isConfirmedOptimisticMessage(candidate, message),
+    );
+    const clearedOptimistic = withoutOptimistic.length !== page.messages.length;
 
-      if (withoutOptimistic.some((candidate) => candidate.id === message.id)) {
-        return { ...page, messages: withoutOptimistic };
+    if (withoutOptimistic.some((candidate) => candidate.id === confirmed.id)) {
+      // The same message reaches this cache twice for an open DM — once as
+      // `dm:message:new`, once inside `dm:conversation:updated`. Handing back the
+      // very same page on the second delivery keeps the list from re-rendering.
+      if (!clearedOptimistic) {
+        return page;
       }
 
-      return { ...page, messages: [...withoutOptimistic, message] };
-    }),
-  };
+      changed = true;
+      return { ...page, messages: withoutOptimistic };
+    }
+
+    changed = true;
+    return { ...page, messages: [...withoutOptimistic, confirmed] };
+  });
+
+  return changed ? { ...old, pages } : old;
 }
 
 export function resetMessagePages(): MessagePages {
@@ -183,7 +232,8 @@ function markMessageDeleted(
               content: "",
               reactions: [],
               deletedById: data.deletedById ?? message.deletedById ?? null,
-              placeholderExpiresAt: data.placeholderExpiresAt ?? message.placeholderExpiresAt ?? null,
+              placeholderExpiresAt:
+                data.placeholderExpiresAt ?? message.placeholderExpiresAt ?? null,
             }
           : message,
       ),
@@ -221,9 +271,7 @@ function updateReactions(
     pages: old.pages.map((page) => ({
       ...page,
       messages: page.messages.map((message) =>
-        message.id === data.messageId
-          ? { ...message, reactions: data.reactions }
-          : message,
+        message.id === data.messageId ? { ...message, reactions: data.reactions } : message,
       ),
     })),
   };
@@ -343,9 +391,7 @@ export function useMessages(mode: MessageMode, conversationId: string) {
 
   useEffect(() => {
     const handlePresenceUpdate = (data: FriendPresenceUpdateDto) => {
-      queryClient.setQueryData<MessagePages>(queryKey, (old) =>
-        updateAuthorPresence(old, data),
-      );
+      queryClient.setQueryData<MessagePages>(queryKey, (old) => updateAuthorPresence(old, data));
     };
 
     socket.on("presence:update", handlePresenceUpdate);
@@ -399,10 +445,7 @@ export function useMessages(mode: MessageMode, conversationId: string) {
         }
       };
 
-      const handleReactionUpdated = (data: {
-        messageId: string;
-        reactions: MessageReaction[];
-      }) => {
+      const handleReactionUpdated = (data: { messageId: string; reactions: MessageReaction[] }) => {
         queryClient.setQueryData<MessagePages>(queryKey, (old) => updateReactions(old, data));
       };
 
@@ -434,9 +477,7 @@ export function useMessages(mode: MessageMode, conversationId: string) {
       }
 
       if (message.conversationId === conversationId) {
-        queryClient.setQueryData<MessagePages>(queryKey, (old) =>
-          appendMessage(old, chatMessage),
-        );
+        queryClient.setQueryData<MessagePages>(queryKey, (old) => appendMessage(old, chatMessage));
       }
     };
 
@@ -464,10 +505,7 @@ export function useMessages(mode: MessageMode, conversationId: string) {
       }
     };
 
-    const handleReactionUpdated = (data: {
-      messageId: string;
-      reactions: MessageReaction[];
-    }) => {
+    const handleReactionUpdated = (data: { messageId: string; reactions: MessageReaction[] }) => {
       queryClient.setQueryData<MessagePages>(queryKey, (old) => updateReactions(old, data));
     };
 

@@ -37,6 +37,7 @@ import { useI18n } from "@/components/providers/locale-provider";
 import {
   appendMessage,
   getMessagesQueryKey,
+  OPTIMISTIC_MESSAGE_PREFIX,
   type MessageMode,
   type MessagePages,
 } from "@/hooks/use-messages";
@@ -76,6 +77,19 @@ interface ChatAreaProps {
   onOpenDirectMessageDetails?: (() => void) | undefined;
   serverId?: string;
   uploadthingEnabled: boolean;
+}
+
+let optimisticMessageSequence = 0;
+
+/**
+ * The id an optimistic bubble is rendered under, and the `clientNonce` the send
+ * carries so the server can hand it back on the author's own echo. The counter
+ * is what makes it a key: two sends inside the same millisecond would otherwise
+ * share an id, and the echo for one would land in the other's bubble.
+ */
+function createOptimisticMessageId(): string {
+  optimisticMessageSequence += 1;
+  return `${OPTIMISTIC_MESSAGE_PREFIX}${Date.now()}-${optimisticMessageSequence}`;
 }
 
 function buildOptimisticMessage(input: {
@@ -507,12 +521,27 @@ function ChatAreaContent({
   }, [markOptimisticMessageFailed, mode, socket]);
 
   useEffect(() => {
+    const forgetPending = (tempId: string) => {
+      pendingMessagesRef.current.delete(tempId);
+      pendingOrderRef.current = pendingOrderRef.current.filter((id) => id !== tempId);
+    };
+
     const clearConfirmedPending = (message: {
       attachments?: Array<{ id: string }>;
       author?: { id: string };
+      clientNonce?: string | null | undefined;
       content: string;
     }) => {
       if (message.author?.id !== currentUserId) {
+        return;
+      }
+
+      // The echo names the send it confirms, so the retry payload it retires is
+      // exactly that one. Guessing from content instead retired whichever send
+      // happened to look alike — which, for the same text twice, was the wrong
+      // one.
+      if (message.clientNonce) {
+        forgetPending(message.clientNonce);
         return;
       }
 
@@ -525,8 +554,7 @@ function ChatAreaContent({
           );
 
         if (sameContent && sameAttachments) {
-          pendingMessagesRef.current.delete(tempId);
-          pendingOrderRef.current = pendingOrderRef.current.filter((id) => id !== tempId);
+          forgetPending(tempId);
           return;
         }
       }
@@ -563,7 +591,7 @@ function ChatAreaContent({
     attachments: UploadedAttachmentInput[] = [],
     optimisticAttachments: MessageAttachment[] = [],
   ) => {
-    const tempId = `optimistic-${Date.now()}`;
+    const tempId = createOptimisticMessageId();
     const payload: PendingMessagePayload = {
       attachments,
       content,
@@ -596,12 +624,14 @@ function ChatAreaContent({
     if (mode === "channel") {
       socket.emit("message:send", {
         channelId: conversationId,
+        clientNonce: tempId,
         content,
         attachments,
         ...(replyToId ? { replyToId } : {}),
       });
     } else {
       socket.emit("dm:message:send", {
+        clientNonce: tempId,
         conversationId,
         content,
         attachments,
@@ -622,9 +652,13 @@ function ChatAreaContent({
 
       markOptimisticMessageSending(messageId);
 
+      // The retry keeps the bubble it is retrying, so it keeps that bubble's id
+      // as its nonce — the echo has to come back to the row the reader is
+      // watching, not to a new one.
       if (mode === "channel") {
         socket.emit("message:send", {
           channelId: conversationId,
+          clientNonce: messageId,
           content: payload.content,
           attachments: payload.attachments,
           ...(payload.replyToId ? { replyToId: payload.replyToId } : {}),
@@ -633,6 +667,7 @@ function ChatAreaContent({
       }
 
       socket.emit("dm:message:send", {
+        clientNonce: messageId,
         conversationId,
         content: payload.content,
         attachments: payload.attachments,

@@ -94,8 +94,7 @@ async function renderSendHook(client: MobileApiClient) {
 
 function readMessages(queryClient: QueryClient) {
   const data = queryClient.getQueryData(mobileQueryKeys.dmMessages(conversationId)) as
-    | { pages: MobileDMMessagesResponse[] }
-    | undefined;
+    { pages: MobileDMMessagesResponse[] } | undefined;
   return data?.pages.flatMap((page) => page.messages) ?? [];
 }
 
@@ -202,8 +201,14 @@ describe("10c DM attachment send chain", () => {
       expect(requestJson).toHaveBeenCalledTimes(2);
     });
     const [, retryCall] = requestJson.mock.calls;
+    // A retry is a fresh send, so it carries a fresh nonce — the rest of the
+    // draft is byte-for-byte the original one.
     expect(retryCall?.[1]).toEqual({
-      body: { attachments: [{ id: uploadedAttachment.id }], content: "Bak şuna" },
+      body: {
+        attachments: [{ id: uploadedAttachment.id }],
+        clientNonce: expect.stringMatching(/^client-/) as unknown as string,
+        content: "Bak şuna",
+      },
       method: "POST",
     });
   });

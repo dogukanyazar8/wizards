@@ -19,6 +19,7 @@ import { renderWithMobileTheme as render } from "./render-with-mobile-theme";
 const mockVoiceRecorder = {
   discard: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
   isRecording: false as boolean,
+  levels: [] as readonly number[],
   phase: "idle" as const,
   start: jest.fn<() => Promise<"recording">>().mockResolvedValue("recording"),
   stop: jest.fn(),
@@ -617,23 +618,50 @@ describe("4a DM conversation redesign", () => {
     expect(getMobileDMPartnerLastReadAt(undefined, "me")).toBeNull();
   });
 
-  it("marks the same open conversation again when its latest message changes", async () => {
+  /**
+   * Opening reads the conversation, and so does every message that arrives from
+   * the other side. The viewer's own send must not: mark-read invalidates the
+   * inbox and the bootstrap payload, and firing it on a send cost two of those
+   * round trips per message — one for the optimistic bubble, one for the server
+   * id that replaced it.
+   */
+  it("marks the open conversation read on open and on inbound messages only", async () => {
     const markRead = jest.fn();
+    const inbound = { id: "message-2", userId: "partner" } as const;
+    const ownSend = { deliveryStatus: "sending", id: "client-1", userId: "me" } as const;
+    const ownConfirmed = { id: "message-3", userId: "me" } as const;
 
     function ReadEffectHarness() {
-      const [latestMessageId, setLatestMessageId] = React.useState("message-1");
+      const [latestMessage, setLatestMessage] = React.useState<{
+        deliveryStatus?: "sending" | "failed";
+        id: string;
+        userId: string;
+      }>({ id: "message-1", userId: "partner" });
       useMobileDMReadEffect({
         conversationId: "conversation-1",
+        currentUserId: "me",
         isSignedIn: true,
-        latestMessageId,
+        latestMessage,
         markRead,
       });
       return (
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => setLatestMessageId("message-2")}
-          testID="advance-latest-dm-message"
-        />
+        <>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => setLatestMessage(inbound)}
+            testID="advance-inbound-dm-message"
+          />
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => setLatestMessage(ownSend)}
+            testID="advance-own-optimistic-dm-message"
+          />
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => setLatestMessage(ownConfirmed)}
+            testID="advance-own-confirmed-dm-message"
+          />
+        </>
       );
     }
 
@@ -641,10 +669,16 @@ describe("4a DM conversation redesign", () => {
     await waitFor(() =>
       expect(markRead).toHaveBeenNthCalledWith(1, { conversationId: "conversation-1" }),
     );
-    await fireEvent.press(view.getByTestId("advance-latest-dm-message"));
+
+    await fireEvent.press(view.getByTestId("advance-inbound-dm-message"));
     await waitFor(() =>
       expect(markRead).toHaveBeenNthCalledWith(2, { conversationId: "conversation-1" }),
     );
+
+    // Neither half of a send counts as reading.
+    await fireEvent.press(view.getByTestId("advance-own-optimistic-dm-message"));
+    await fireEvent.press(view.getByTestId("advance-own-confirmed-dm-message"));
+    expect(markRead).toHaveBeenCalledTimes(2);
   });
 
   it("renders 38px call controls and gives typing precedence in the live header", async () => {

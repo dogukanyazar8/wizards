@@ -6,6 +6,8 @@ import { fireEvent } from "@testing-library/react-native";
 const mockVoiceRecorder = {
   discard: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
   isRecording: true,
+  // §2 "1h".2: newest-last loudness samples off the microphone.
+  levels: [0.2, 0.6, 0.9, 0.4] as readonly number[],
   phase: "recording" as const,
   start: jest.fn<() => Promise<"recording">>().mockResolvedValue("recording"),
   stop: jest.fn<() => Promise<null>>().mockResolvedValue(null),
@@ -24,7 +26,7 @@ jest.mock("../src/media/mobile-message-attachment-upload", () => ({
   uploadMobileMessageAttachmentToUploadThing: jest.fn(),
 }));
 
-import { DMComposer } from "../src/app/composer/mobile-composer";
+import { DMComposer, getMobileVoiceRecordingBarHeights } from "../src/app/composer/mobile-composer";
 import { createMobileComposerStyles } from "../src/app/composer/mobile-composer.styles";
 import { createDMChatStyles } from "../src/app/components/dm-chat-primitives.styles";
 import { mobileMessagingMetrics } from "../src/design/tokens";
@@ -72,6 +74,30 @@ describe("MSG-1h recording composer", () => {
 
     expect(wave.props.width).toBe(112);
     expect(wave.props.height).toBe(20);
+  });
+
+  /**
+   * §2 "1h".2: the bar is the microphone, not a canned animation. Loud samples
+   * must draw taller bars than quiet ones, and the newest sample is on the right.
+   */
+  it("sizes the waveform bars from the recorder's own loudness samples", () => {
+    const heights = getMobileVoiceRecordingBarHeights([0, 0.5, 1]);
+
+    expect(heights).toHaveLength(18);
+    // Only the three real samples carry height; the rest rest at the floor.
+    expect(heights.slice(0, 15).every((height) => height === heights[0])).toBe(true);
+    expect(heights.at(-3)).toBe(heights[0]);
+    expect(heights.at(-2)).toBeGreaterThan(heights[0] as number);
+    expect(heights.at(-1)).toBeGreaterThan(heights.at(-2) as number);
+
+    // A window that has overflowed keeps the newest samples, oldest first.
+    const overflowed = getMobileVoiceRecordingBarHeights(
+      Array.from({ length: 40 }, (_unused, index) => (index === 39 ? 1 : 0)),
+    );
+    expect(overflowed.at(-1)).toBeGreaterThan(overflowed[0] as number);
+
+    // A recorder that never reported a level must not crash the bar.
+    expect(getMobileVoiceRecordingBarHeights()).toHaveLength(18);
   });
 
   it("discards the take from the delete button", async () => {

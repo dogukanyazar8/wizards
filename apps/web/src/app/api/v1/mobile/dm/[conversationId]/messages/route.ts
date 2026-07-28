@@ -74,6 +74,7 @@ export async function POST(request: Request, context: RouteContext) {
     const message = await sendDirectMessage({
       attachments: body.attachments,
       attribution: readRequestAttribution(request.headers),
+      clientNonce: body.clientNonce ?? null,
       content: body.content,
       conversationId,
       forwardOfMessageId: body.forwardOfMessageId ?? null,

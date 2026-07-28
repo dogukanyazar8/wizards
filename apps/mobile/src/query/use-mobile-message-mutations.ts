@@ -108,7 +108,15 @@ type MobileOptimisticMutationOptions<
 > = {
   readonly createOptimisticMessage: (variables: TVariables, clientId: string) => TMessage;
   readonly getResponseMessage: (response: TResponse) => TMessage;
-  readonly mutationFn: MutationFunction<TResponse, TVariables>;
+  /**
+   * The send call, given the id the optimistic bubble is already rendered under.
+   * It travels to the server as `clientNonce` and comes back on the author's own
+   * realtime echo, which is what lets the echo land *in* the bubble instead of
+   * beside it.
+   */
+  readonly mutationFn: (
+    variables: TVariables & { readonly clientNonce: string },
+  ) => Promise<TResponse>;
   readonly onSendFailed?: (
     clientId: string,
     variables: TVariables,
@@ -169,6 +177,13 @@ type MobileOptimisticEditMutationOptions<
 
 let optimisticMessageSequence = 0;
 
+/**
+ * The optimistic id each in-flight send was rendered under, keyed by the exact
+ * variables object `mutate` was called with — the one value `onMutate` and
+ * `mutationFn` are guaranteed to share for a single send.
+ */
+const optimisticClientIds = new WeakMap<object, string>();
+
 function requireMobileMutationAuthor<T>(author: T | null): T {
   if (!author) {
     throw new Error("A signed-in author is required for mobile message mutation.");
@@ -182,7 +197,7 @@ function createMobileOptimisticMessageId(): string {
 }
 
 export function createMobileOptimisticMutationOptions<
-  TVariables,
+  TVariables extends object,
   TResponse,
   TMessage extends MobileSendableCacheMessage,
   TPage extends MobileMessagePage<TMessage>,
@@ -192,7 +207,13 @@ export function createMobileOptimisticMutationOptions<
   type TContext = MobileOptimisticMutationContext<TMessage>;
 
   return mutationOptions<TResponse, Error, TVariables, TContext>({
-    mutationFn: options.mutationFn,
+    // `onMutate` mints the id and parks it against this exact variables object, so
+    // two sends fired back to back cannot hand each other's nonce to the server.
+    mutationFn: (variables) =>
+      options.mutationFn({
+        ...variables,
+        clientNonce: optimisticClientIds.get(variables) ?? createMobileOptimisticMessageId(),
+      }),
     onError: (_error, variables, context) => {
       if (!context) {
         return;
@@ -209,6 +230,7 @@ export function createMobileOptimisticMutationOptions<
     onMutate: async (variables) => {
       await options.queryClient.cancelQueries({ queryKey: options.queryKey });
       const clientId = createMobileOptimisticMessageId();
+      optimisticClientIds.set(variables, clientId);
       const optimisticMessage = options.createOptimisticMessage(variables, clientId);
       options.queryClient.setQueryData<TData>(options.queryKey, (current) =>
         insertOptimisticMobileMessage(current, optimisticMessage),
@@ -789,7 +811,8 @@ export function useMobileChannelThreadMessageReactionMutation(input: {
       }),
     onError: (_error, _variables, context) => {
       if (!context) return;
-      if (context.previousChannel) queryClient.setQueryData(channelQueryKey, context.previousChannel);
+      if (context.previousChannel)
+        queryClient.setQueryData(channelQueryKey, context.previousChannel);
       if (context.previousThread) queryClient.setQueryData(threadQueryKey, context.previousThread);
     },
     onMutate: async (variables) => {
@@ -812,23 +835,14 @@ export function useMobileChannelThreadMessageReactionMutation(input: {
       );
       queryClient.setQueryData<MobileChannelThreadMessagesResponse>(threadQueryKey, (current) =>
         updateMobileChannelThreadMessageReactions(current, variables.messageId, (reactions) =>
-          getNextMobileMessageReactions(
-            reactions,
-            variables.emoji,
-            userId,
-            variables.shouldReact,
-          ),
+          getNextMobileMessageReactions(reactions, variables.emoji, userId, variables.shouldReact),
         ),
       );
       return { previousChannel, previousThread };
     },
     onSuccess: (response, variables) => {
       queryClient.setQueryData<ChannelData>(channelQueryKey, (current) =>
-        replaceMobileMessageReactions(
-          current,
-          variables.messageId,
-          response.reactions,
-        ),
+        replaceMobileMessageReactions(current, variables.messageId, response.reactions),
       );
       queryClient.setQueryData<MobileChannelThreadMessagesResponse>(threadQueryKey, (current) =>
         updateMobileChannelThreadMessageReactions(

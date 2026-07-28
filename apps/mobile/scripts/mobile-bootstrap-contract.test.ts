@@ -151,7 +151,10 @@ describe("mobile bootstrap contract", () => {
 
     const parsed = MobileBootstrapPayloadSchema.parse(legacyPayload);
 
-    assert.equal(parsed.features.attachments.status, "requires-server-contract");
+    // The attachment transport shipped, so its default is now "available" — an
+    // older server that omits the field describes a build that could already
+    // upload, and defaulting it closed silently disables the microphone.
+    assert.equal(parsed.features.attachments.status, "available");
     assert.equal(parsed.features.invites.status, "requires-server-contract");
     assert.equal(parsed.features.messageSearch.status, "requires-server-contract");
   });

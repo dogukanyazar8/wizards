@@ -50,9 +50,10 @@ describe("mobile Phase 2 architecture", () => {
     const source = readFileSync(dmScreen, "utf8");
     assert.match(source, /from "\.\/dm-inbox"/);
     assert.match(source, /from "\.\/dm-conversation-screen"/);
-    // Budget covers the inbox/conversation split plus the route gate that keeps
-    // the pushed DirectMessage screen from falling back to the inbox.
-    assert.ok(source.split(/\r?\n/).length < 232, "DM screen shell must remain focused");
+    // Budget covers the inbox/conversation split, the route gate that keeps the
+    // pushed DirectMessage screen from falling back to the inbox, and the one
+    // search band all three tabs share.
+    assert.ok(source.split(/\r?\n/).length < 245, "DM screen shell must remain focused");
   });
 
   it("moves the workspace message surface behind a dedicated browser module", () => {

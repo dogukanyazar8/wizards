@@ -43,6 +43,15 @@ import {
 export const MOBILE_AUTH_HANDOFF_TTL_SECONDS = 120;
 export const MOBILE_ACCESS_TOKEN_TTL_SECONDS = 15 * 60;
 export const MOBILE_REFRESH_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60;
+/**
+ * A rotated refresh token stays usable for this long. Rotation destroys the old
+ * credential before the new one can reach the device, so a dropped response, a
+ * client timeout or an app kill mid-flight would otherwise strand the device
+ * holding a token the server no longer knows — an unrecoverable sign-out. The
+ * window is deliberately short: inside it a stolen token can be replayed once,
+ * which is the accepted trade in the OAuth 2.0 security BCP.
+ */
+export const MOBILE_REFRESH_TOKEN_GRACE_MS = 60_000;
 
 const MOBILE_AUTH_HANDOFF_TOKEN_PATTERN = /^[A-Za-z0-9_-]{32,128}$/;
 const MOBILE_REFRESH_TOKEN_PATTERN = /^[A-Za-z0-9_-]{48,192}$/;
@@ -64,6 +73,8 @@ interface MobileAuthHandoffPayload {
 }
 
 interface MobileRefreshTokenPayload {
+  /** Set when the token is rotated; opens the replay grace window. */
+  consumedAt?: number;
   createdAt: number;
   sessionId: string;
   userId: string;
@@ -305,7 +316,13 @@ function parseMobileRefreshTokenPayload(value: unknown): MobileRefreshTokenPaylo
       return null;
     }
 
+    const consumedAt =
+      typeof parsed.consumedAt === "number" && Number.isFinite(parsed.consumedAt)
+        ? Math.trunc(parsed.consumedAt)
+        : null;
+
     return {
+      ...(consumedAt === null ? {} : { consumedAt }),
       createdAt: parsed.createdAt,
       sessionId: parsed.sessionId,
       userId: parsed.userId,
@@ -536,6 +553,62 @@ async function takeRedisValue(redis: MobileAuthRedis, key: string) {
   );
 }
 
+async function writeRedisValue(
+  redis: MobileAuthRedis,
+  key: string,
+  value: string,
+  ttlSeconds: number,
+) {
+  await redis.eval(
+    "redis.call('SET', KEYS[1], ARGV[1], 'EX', ARGV[2]); return 'OK'",
+    1,
+    key,
+    value,
+    String(ttlSeconds),
+  );
+}
+
+async function deleteRedisValue(redis: MobileAuthRedis, key: string) {
+  await redis.eval("redis.call('DEL', KEYS[1]); return 'OK'", 1, key);
+}
+
+/**
+ * Marks a refresh token as rotated instead of destroying it, so the device that
+ * never received the rotated response can retry inside the grace window. The
+ * replay path deliberately leaves `consumedAt` untouched: the window is anchored
+ * to the first rotation and cannot be extended by chaining retries.
+ */
+async function consumeMobileRefreshToken(
+  redis: MobileAuthRedis,
+  refreshToken: string,
+  nowMs: number,
+) {
+  const key = getMobileRefreshTokenKey(refreshToken);
+  const payload = parseMobileRefreshTokenPayload(await readRedisValue(redis, key));
+
+  if (!payload) {
+    return null;
+  }
+
+  if (payload.consumedAt !== undefined) {
+    if (nowMs - payload.consumedAt > MOBILE_REFRESH_TOKEN_GRACE_MS) {
+      await deleteRedisValue(redis, key);
+      return null;
+    }
+
+    return payload;
+  }
+
+  await writeRedisValue(
+    redis,
+    key,
+    JSON.stringify({ ...payload, consumedAt: nowMs } satisfies MobileRefreshTokenPayload),
+    Math.ceil(MOBILE_REFRESH_TOKEN_GRACE_MS / 1000),
+  );
+
+  return payload;
+}
+
 async function upsertMobileSession(
   redis: MobileAuthRedis,
   input: {
@@ -550,12 +623,11 @@ async function upsertMobileSession(
     userId: input.userId,
   };
 
-  await redis.eval(
-    "redis.call('SET', KEYS[1], ARGV[1], 'EX', ARGV[2]); return 'OK'",
-    1,
+  await writeRedisValue(
+    redis,
     getMobileSessionKey(input.sessionId),
     JSON.stringify(sessionPayload),
-    String(MOBILE_REFRESH_TOKEN_TTL_SECONDS),
+    MOBILE_REFRESH_TOKEN_TTL_SECONDS,
   );
 }
 
@@ -1063,8 +1135,8 @@ export async function refreshMobileSession(refreshToken: string, options: Mobile
   }
 
   const redis = getMobileAuthRedis(options);
-  const rawPayload = await takeRedisValue(redis, getMobileRefreshTokenKey(refreshToken));
-  const payload = parseMobileRefreshTokenPayload(rawPayload);
+  const nowMs = Math.trunc(options.nowMs ?? Date.now());
+  const payload = await consumeMobileRefreshToken(redis, refreshToken, nowMs);
   if (!payload) {
     return null;
   }
@@ -1081,7 +1153,6 @@ export async function refreshMobileSession(refreshToken: string, options: Mobile
     return null;
   }
 
-  const nowMs = Math.trunc(options.nowMs ?? Date.now());
   return MobileAuthRefreshResponseSchema.parse({
     session: await createMobileSessionSnapshot(
       user,
@@ -1112,7 +1183,7 @@ export async function revokeMobileSession(
   }
 
   if (sessionId) {
-    await redis.eval("redis.call('DEL', KEYS[1]); return 'OK'", 1, getMobileSessionKey(sessionId));
+    await deleteRedisValue(redis, getMobileSessionKey(sessionId));
   }
 }
 

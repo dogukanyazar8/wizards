@@ -6,7 +6,11 @@ import {
   type MobileChannelMessagesResponse,
 } from "@wizards/types";
 import type { MobileChannelMessagesViewState } from "../app/mobile-screen-state";
-import { shouldRenderMobileMessageInChannelStream } from "../query/mobile-message-cache";
+import {
+  getMobileMessageMatchIds,
+  shouldRenderMobileMessageInChannelStream,
+  stripMobileMessageClientNonce,
+} from "../query/mobile-message-cache";
 import type { MobileRealtimeServerEventName } from "../realtime/mobile-realtime-contract";
 import { MOBILE_CHANNEL_MESSAGES_LIMIT } from "./mobile-workspace-client";
 
@@ -103,9 +107,13 @@ function upsertMessage(
     return { handled: false, state };
   }
 
-  const existingIndex = state.payload.messages.findIndex(
-    (currentMessage) => currentMessage.id === message.id,
+  // The author's own echo carries the id their optimistic bubble is rendered
+  // under, so it lands in that bubble instead of doubling it.
+  const matchedIds = getMobileMessageMatchIds(message);
+  const existingIndex = state.payload.messages.findIndex((currentMessage) =>
+    matchedIds.has(currentMessage.id),
   );
+  const nextMessage = stripMobileMessageClientNonce(message);
 
   // 8d: a thread reply only belongs in the channel stream when its author
   // ticked "also send to channel"; otherwise it lives in the thread alone.
@@ -116,9 +124,9 @@ function upsertMessage(
   const nextMessages =
     existingIndex >= 0
       ? state.payload.messages.map((currentMessage, index) =>
-          index === existingIndex ? message : currentMessage,
+          index === existingIndex ? nextMessage : currentMessage,
         )
-      : [...state.payload.messages, message].slice(-MOBILE_CHANNEL_MESSAGES_LIMIT);
+      : [...state.payload.messages, nextMessage].slice(-MOBILE_CHANNEL_MESSAGES_LIMIT);
 
   return {
     handled: true,

@@ -1,17 +1,24 @@
-import { useEffect, useRef, useState } from "react";
-import { Animated, Easing, Pressable, Text, View } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Animated, Easing, Pressable, Text } from "react-native";
 
 import type { MobileTheme } from "../../design/themes";
 import { activeMobileCopy as copy } from "../../locale/mobile-locale-preferences";
 import {
-  createInitialMobileConnectivityPresentation,
-  planMobileConnectivityPresentation,
-  type MobileConnectivityHealth,
+  isMobileConnectivityDegradedPhase,
   type MobileConnectivityPhase,
 } from "../mobile-connectivity-presentation";
 import { useThemedStyles } from "../providers/mobile-theme-provider";
 
 const BANNER_ENTER_MS = 200;
+const DOT_PULSE_MS = 900;
+
+/**
+ * How long the button stays in its "trying" state after a retry was asked for.
+ *
+ * A reconnect either lands in milliseconds or not at all, so without a floor the
+ * label flickers through "Deneniyor" too fast to read and the tap looks ignored.
+ */
+const RETRY_FEEDBACK_MS = 900;
 
 /**
  * The airplane-mode flow (`.maestro/helpers/phase5-offline-recovery.yml`) waits
@@ -19,6 +26,7 @@ const BANNER_ENTER_MS = 200;
  * That is also what a reader wants from a log: which state the bar was in.
  */
 const PHASE_TEST_ID: Record<Exclude<MobileConnectivityPhase, "hidden">, string> = {
+  failed: "mobile-realtime-failed-banner",
   offline: "mobile-offline-banner",
   reconnecting: "mobile-realtime-banner",
   restored: "mobile-connectivity-restored",
@@ -27,161 +35,212 @@ const PHASE_TEST_ID: Record<Exclude<MobileConnectivityPhase, "hidden">, string> 
 const createStyles = (theme: MobileTheme) => ({
   action: {
     alignItems: "center" as const,
-    borderRadius: theme.radii.control,
-    borderWidth: 1,
+    backgroundColor: theme.surface.card,
+    borderRadius: theme.radii.pill,
+    borderWidth: theme.layout.border.hairline,
     borderColor: theme.border.subtle,
+    flexDirection: "row" as const,
+    gap: 6,
     justifyContent: "center" as const,
-    minHeight: 32,
+    minHeight: 30,
     paddingHorizontal: 12,
   },
+  actionDisabled: { opacity: theme.layout.opacity.disabled },
   actionLabel: {
     ...theme.typography.label,
-    color: theme.status.onStatus,
+    color: theme.text.primary,
   },
-  actionPressed: { opacity: 0.85 },
+  actionPressed: { opacity: theme.layout.opacity.pressed },
   banner: {
     alignItems: "center" as const,
+    borderBottomWidth: theme.layout.border.hairline,
     flexDirection: "row" as const,
     gap: 10,
-    minHeight: 44,
+    minHeight: theme.sizing.minTouchTarget,
     paddingHorizontal: theme.spacing.page,
-    paddingVertical: 6,
+    paddingVertical: 7,
     width: "100%" as const,
     zIndex: 90,
   },
-  bannerOffline: { backgroundColor: theme.status.warningSoft },
-  bannerReconnecting: { backgroundColor: theme.status.warningSoft },
-  bannerRestored: { backgroundColor: theme.status.successSoft },
-  description: {
-    color: theme.status.onStatus,
-    fontFamily: theme.typography.fontFamilyBold,
-    fontSize: 11,
-    lineHeight: 15,
+  bannerFailed: {
+    backgroundColor: theme.status.dangerSoft,
+    borderBottomColor: theme.status.danger,
+  },
+  bannerOffline: {
+    backgroundColor: theme.status.warningSoft,
+    borderBottomColor: theme.status.warning,
+  },
+  bannerReconnecting: {
+    backgroundColor: theme.status.warningSoft,
+    borderBottomColor: theme.status.warning,
+  },
+  bannerRestored: {
+    backgroundColor: theme.status.successSoft,
+    borderBottomColor: theme.status.success,
   },
   dot: { borderRadius: 4, height: 8, width: 8 },
+  dotFailed: { backgroundColor: theme.status.danger },
   dotOffline: { backgroundColor: theme.status.warning },
   dotReconnecting: { backgroundColor: theme.status.warning },
   dotRestored: { backgroundColor: theme.status.success },
-  text: { flex: 1, gap: 1, minWidth: 0 },
   title: {
     color: theme.status.onStatus,
+    flex: 1,
     fontFamily: theme.typography.fontFamilyExtraBold,
-    fontSize: 12,
+    fontSize: 13,
+    minWidth: 0,
   },
 });
 
 type BannerStyles = ReturnType<typeof useThemedStyles<ReturnType<typeof createStyles>>>;
 
-function getPhaseCopy(phase: Exclude<MobileConnectivityPhase, "hidden">, canRetry: boolean) {
-  if (phase === "offline") {
-    return { description: copy.offlineBannerDescription, title: copy.offlineBannerTitle };
+function getPhaseTitle(phase: Exclude<MobileConnectivityPhase, "hidden">): string {
+  switch (phase) {
+    case "failed":
+      return copy.realtimeFailedTitle;
+    case "offline":
+      return copy.offlineBannerTitle;
+    case "restored":
+      return copy.connectivityRestoredTitle;
+    default:
+      return copy.realtimeReconnectingTitle;
   }
-
-  if (phase === "restored") {
-    return {
-      description: copy.connectivityRestoredDescription,
-      title: copy.connectivityRestoredTitle,
-    };
-  }
-
-  return canRetry
-    ? { description: copy.realtimeFailedDescription, title: copy.realtimeFailedTitle }
-    : { description: copy.realtimeReconnectingDescription, title: copy.realtimeReconnectingTitle };
 }
 
 function getPhaseStyles(phase: Exclude<MobileConnectivityPhase, "hidden">, styles: BannerStyles) {
-  if (phase === "offline") {
-    return { banner: styles.bannerOffline, dot: styles.dotOffline };
+  switch (phase) {
+    case "failed":
+      return { banner: styles.bannerFailed, dot: styles.dotFailed };
+    case "offline":
+      return { banner: styles.bannerOffline, dot: styles.dotOffline };
+    case "restored":
+      return { banner: styles.bannerRestored, dot: styles.dotRestored };
+    default:
+      return { banner: styles.bannerReconnecting, dot: styles.dotReconnecting };
   }
-
-  if (phase === "restored") {
-    return { banner: styles.bannerRestored, dot: styles.dotRestored };
-  }
-
-  return { banner: styles.bannerReconnecting, dot: styles.dotReconnecting };
 }
 
 /**
- * The single connectivity surface: network loss, socket reconnects, and recovery
- * all speak through one bar, in that priority order.
+ * The single connectivity surface: network loss, socket reconnects, a spent
+ * retry budget and recovery all speak through one bar, in that priority order.
  *
- * Timing is the whole point. `planMobileConnectivityPresentation` decides *when*
- * a state is worth showing — a reconnect that resolves in under two seconds is
- * never mentioned, an outage that is mentioned stays until it is resolved, and a
- * resolved outage closes with a confirmation instead of the bar just vanishing.
+ * The bar states the situation in one line and offers the only action that can
+ * change it. It used to spend a second line explaining what still works while
+ * hiding the retry behind a state the user could not observe — so an outage read
+ * as a lecture with no way out. Whenever the connection is not carrying events
+ * the button is there, including offline: the user is usually the one who just
+ * fixed the network, and asking the OS again is cheaper than waiting for it.
  */
 export function MobileConnectivityBanner({
-  canRetry,
-  health,
-  onReconnect,
+  onRetry,
+  phase,
 }: {
-  canRetry: boolean;
-  health: MobileConnectivityHealth;
-  onReconnect(): void;
+  onRetry(): Promise<void> | void;
+  phase: MobileConnectivityPhase;
 }) {
   const styles = useThemedStyles(createStyles);
-  const [presentation, setPresentation] = useState(createInitialMobileConnectivityPresentation);
-  const healthSinceRef = useRef(Date.now());
-  const lastHealthRef = useRef(health);
+  const [retrying, setRetrying] = useState(false);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    if (lastHealthRef.current !== health) {
-      lastHealthRef.current = health;
-      healthSinceRef.current = Date.now();
-    }
+  useEffect(
+    () => () => {
+      if (retryTimerRef.current) {
+        clearTimeout(retryTimerRef.current);
+      }
+    },
+    [],
+  );
 
-    const replan = () =>
-      setPresentation((current) =>
-        planMobileConnectivityPresentation({
-          health,
-          healthSince: healthSinceRef.current,
-          now: Date.now(),
-          previous: current,
-        }),
-      );
-
-    replan();
-
-    if (presentation.nextCheckInMs === null) {
+  const handleRetry = useCallback(() => {
+    if (retrying) {
       return;
     }
 
-    const timer = setTimeout(replan, presentation.nextCheckInMs);
-    return () => clearTimeout(timer);
-  }, [health, presentation]);
-
-  const { phase } = presentation;
+    setRetrying(true);
+    void Promise.resolve(onRetry())
+      .catch(() => {
+        // A retry that could not even be attempted is still an attempt as far as
+        // this bar is concerned; the phase is what reports the outcome.
+      })
+      .finally(() => {
+        retryTimerRef.current = setTimeout(() => setRetrying(false), RETRY_FEEDBACK_MS);
+      });
+  }, [onRetry, retrying]);
 
   if (phase === "hidden") {
     return null;
   }
 
-  const phaseCopy = getPhaseCopy(phase, canRetry);
   const phaseStyles = getPhaseStyles(phase, styles);
-  const showRetry = phase === "reconnecting" && canRetry;
+  const canRetry = isMobileConnectivityDegradedPhase(phase);
 
   return (
     <ConnectivityBannerSurface phase={phase} style={[styles.banner, phaseStyles.banner]}>
-      <View style={[styles.dot, phaseStyles.dot]} />
-      <View style={styles.text}>
-        <Text style={styles.title}>{phaseCopy.title}</Text>
-        <Text numberOfLines={2} style={styles.description}>
-          {phaseCopy.description}
-        </Text>
-      </View>
-      {showRetry ? (
+      <ConnectivityDot phase={phase} style={[styles.dot, phaseStyles.dot]} />
+      <Text numberOfLines={1} style={styles.title}>
+        {getPhaseTitle(phase)}
+      </Text>
+      {canRetry ? (
         <Pressable
           accessibilityLabel={copy.realtimeReconnectAction}
           accessibilityRole="button"
-          onPress={onReconnect}
-          style={({ pressed }) => [styles.action, pressed && styles.actionPressed]}
+          accessibilityState={{ busy: retrying, disabled: retrying }}
+          disabled={retrying}
+          onPress={handleRetry}
+          style={({ pressed }) => [
+            styles.action,
+            retrying && styles.actionDisabled,
+            pressed && styles.actionPressed,
+          ]}
           testID="mobile-connectivity-reconnect"
         >
-          <Text style={styles.actionLabel}>{copy.realtimeReconnectAction}</Text>
+          {retrying ? <ActivityIndicator size="small" /> : null}
+          <Text style={styles.actionLabel}>
+            {retrying ? copy.realtimeRetryingAction : copy.realtimeReconnectAction}
+          </Text>
         </Pressable>
       ) : null}
     </ConnectivityBannerSurface>
   );
+}
+
+/** Only a state the app is actively working on breathes; a settled one holds still. */
+function ConnectivityDot({
+  phase,
+  style,
+}: {
+  phase: Exclude<MobileConnectivityPhase, "hidden">;
+  style: object[];
+}) {
+  const pulse = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (phase !== "reconnecting") {
+      pulse.setValue(1);
+      return;
+    }
+
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, {
+          duration: DOT_PULSE_MS,
+          easing: Easing.inOut(Easing.quad),
+          toValue: 0.35,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulse, {
+          duration: DOT_PULSE_MS,
+          easing: Easing.inOut(Easing.quad),
+          toValue: 1,
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [phase, pulse]);
+
+  return <Animated.View style={[...style, { opacity: pulse }]} />;
 }
 
 /**

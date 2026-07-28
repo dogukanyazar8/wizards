@@ -140,3 +140,13 @@ export function useMobileVoiceRuntime(): MobileVoiceRuntime {
 
   return runtime;
 }
+
+/**
+ * For surfaces that can start a call but do not belong to the voice feature —
+ * the friends list's "Katıl" pill, for one. They render standalone in tests and
+ * previews, where throwing on a missing provider would be the wrong answer:
+ * without it there is simply nothing to join.
+ */
+export function useOptionalMobileVoiceRuntime(): MobileVoiceRuntime | null {
+  return useContext(MobileVoiceRuntimeContext);
+}

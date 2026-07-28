@@ -105,6 +105,12 @@ export interface ClientToServerEvents {
   "message:send": (data: {
     attachments?: UploadedAttachmentInput[];
     channelId: string;
+    /**
+     * The id the sender's optimistic bubble is rendered under. Stored nowhere —
+     * the server echoes it back on the author's own copy of the message so the
+     * echo lands in that bubble instead of beside it.
+     */
+    clientNonce?: string;
     content: string;
     replyToId?: string;
     threadParentId?: string;
@@ -119,6 +125,8 @@ export interface ClientToServerEvents {
   "dm:leave": (conversationId: string) => void;
   "dm:message:send": (data: {
     attachments?: UploadedAttachmentInput[];
+    /** See `message:send`: the author's own bubble id, echoed back to them. */
+    clientNonce?: string;
     conversationId: string;
     content: string;
     replyToId?: string;

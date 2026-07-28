@@ -285,9 +285,10 @@ describe("MobileThemeProvider", () => {
 
       await waitFor(() => expect(mockGetItem).toHaveBeenCalledWith(MOBILE_THEME_PREFERENCE_KEY));
       await waitFor(() => {
-        const fallback = view.getByText(activeMobileCopy.errorBoundaryTitle).parent?.parent;
-        expect(fallback?.props.accessibilityRole).toBe("alert");
-        expect(StyleSheet.flatten(fallback?.props.style).backgroundColor).toBe(
+        expect(view.getByText(activeMobileCopy.errorBoundaryTitle)).toBeTruthy();
+        const fallback = view.getByTestId("mobile-error-boundary");
+        expect(fallback.props.accessibilityRole).toBe("alert");
+        expect(StyleSheet.flatten(fallback.props.style).backgroundColor).toBe(
           darkTheme.surface.base,
         );
       });
@@ -322,9 +323,10 @@ describe("MobileThemeProvider", () => {
         </SafeAreaProvider>,
       );
 
-      const fallback = view.getByText(activeMobileCopy.errorBoundaryTitle).parent?.parent;
-      expect(fallback?.props.accessibilityRole).toBe("alert");
-      expect(StyleSheet.flatten(fallback?.props.style).backgroundColor).toBe(
+      expect(view.getByText(activeMobileCopy.errorBoundaryTitle)).toBeTruthy();
+      const fallback = view.getByTestId("mobile-error-boundary");
+      expect(fallback.props.accessibilityRole).toBe("alert");
+      expect(StyleSheet.flatten(fallback.props.style).backgroundColor).toBe(
         lightTheme.surface.base,
       );
     } finally {

@@ -110,6 +110,8 @@ async function assertChannelAttachmentsAllowed(args: {
 }
 
 async function emitChannelMessageFanout(args: {
+  /** The author's copy, which alone carries their `clientNonce`. */
+  authorMessage?: ChatMessage;
   channelId: string;
   io: AppSocketServer;
   message: ChatMessage;
@@ -162,7 +164,7 @@ async function emitChannelMessageFanout(args: {
     if (senderViewerIds.length > 0) {
       args.io
         .to(senderViewerIds.map((viewerUserId) => `user:${viewerUserId}`))
-        .emit("message:new", args.message);
+        .emit("message:new", args.authorMessage ?? args.message);
     }
 
     if (otherViewerIds.length > 0) {
@@ -206,6 +208,8 @@ export async function sendChannelMessage(args: {
   attachments?: UploadedAttachmentInput[];
   attribution?: ClientAttribution;
   channelId: string;
+  /** Echoed back to the author so their optimistic bubble can absorb the echo. */
+  clientNonce?: string | null;
   content: string;
   forwardOfMessageId?: string | null;
   io?: AppSocketServer | null;
@@ -257,10 +261,14 @@ export async function sendChannelMessage(args: {
     },
   );
 
+  // Only the author gets the nonce: it is the key to their optimistic bubble and
+  // means nothing to anyone else's cache.
+  const authorMessage = args.clientNonce ? { ...message, clientNonce: args.clientNonce } : message;
   let readUserIds = [args.userId];
 
   if (args.io) {
     const fanout = await emitChannelMessageFanout({
+      authorMessage,
       channelId: args.channelId,
       io: args.io,
       message,

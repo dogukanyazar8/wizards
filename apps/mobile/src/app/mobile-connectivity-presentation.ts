@@ -12,9 +12,22 @@ import { getMobileRealtimeBannerState } from "../realtime/mobile-realtime-state"
  * nothing appears until the bad state has *lasted*, and once it appears it stays
  * long enough to be read, then closes itself with a confirmation.
  */
-export type MobileConnectivityHealth = "degraded" | "healthy" | "irrelevant" | "offline";
+export type MobileConnectivityHealth = "degraded" | "failed" | "healthy" | "irrelevant" | "offline";
 
-export type MobileConnectivityPhase = "hidden" | "offline" | "reconnecting" | "restored";
+/**
+ * `failed` is its own phase rather than a flag on `reconnecting`.
+ *
+ * The bar used to render "Canlı bağlantı kurulamadı" while its phase — the name
+ * in the test id and in every log line — still said `reconnecting`. Whoever read
+ * one of the two was told the opposite of the other. A retry budget that is
+ * spent is a different state, so it gets a different name everywhere.
+ */
+export type MobileConnectivityPhase = "failed" | "hidden" | "offline" | "reconnecting" | "restored";
+
+/** Phases where the socket is not carrying events, whatever the reason. */
+export function isMobileConnectivityDegradedPhase(phase: MobileConnectivityPhase): boolean {
+  return phase === "failed" || phase === "offline" || phase === "reconnecting";
+}
 
 export interface MobileConnectivityPresentation {
   /** ms until this phase must be re-planned, or null when it is stable. */
@@ -59,13 +72,20 @@ export function getMobileConnectivityHealth(input: {
     return "healthy";
   }
 
-  return getMobileRealtimeBannerState({
-    authStatus: input.authStatus,
-    networkStatus: input.networkStatus,
-    realtime: input.realtime,
-  }) === "hidden"
-    ? "healthy"
-    : "degraded";
+  switch (
+    getMobileRealtimeBannerState({
+      authStatus: input.authStatus,
+      networkStatus: input.networkStatus,
+      realtime: input.realtime,
+    })
+  ) {
+    case "failed":
+      return "failed";
+    case "reconnecting":
+      return "degraded";
+    default:
+      return "healthy";
+  }
 }
 
 export function createInitialMobileConnectivityPresentation(
@@ -126,19 +146,22 @@ export function planMobileConnectivityPresentation(input: {
         : enter("hidden", now, previous, MOBILE_CONNECTIVITY_OFFLINE_GRACE_MS - waited);
     }
 
-    case "degraded": {
+    case "degraded":
+    case "failed": {
+      const phase = health === "failed" ? "failed" : "reconnecting";
+
       if (isVisible(previous.phase)) {
-        return enter("reconnecting", now, previous);
+        return enter(phase, now, previous);
       }
 
       const waited = now - healthSince;
       return waited >= MOBILE_CONNECTIVITY_RECONNECT_GRACE_MS
-        ? enter("reconnecting", now, previous)
+        ? enter(phase, now, previous)
         : enter("hidden", now, previous, MOBILE_CONNECTIVITY_RECONNECT_GRACE_MS - waited);
     }
 
     default: {
-      if (previous.phase === "offline" || previous.phase === "reconnecting") {
+      if (isMobileConnectivityDegradedPhase(previous.phase)) {
         return enter("restored", now, previous, MOBILE_CONNECTIVITY_RESTORED_HOLD_MS);
       }
 

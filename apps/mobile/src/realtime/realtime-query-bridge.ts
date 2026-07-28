@@ -146,9 +146,22 @@ export function createMobileRealtimeQueryBridge({
     timers.set(timerKey, { queryKeys: [...queryKeys], timer });
   };
 
+  /**
+   * Which of the two DM caches still needs a read. They are separate queries and
+   * only one of them is on screen during a conversation: refetching the open
+   * stream reloads the list the reader is looking at, refetching the inbox does
+   * not. Keeping them apart is what stops a sent message from reloading the chat
+   * it was just sent into.
+   */
+  type MobileDMRefreshScope = {
+    readonly conversations: boolean;
+    readonly stream: boolean;
+  };
+
   const scheduleSource = (
     source: MobileRealtimeRefreshSource,
     event: MobileRealtimeEventEnvelope | null,
+    dmScope: MobileDMRefreshScope = { conversations: true, stream: true },
   ) => {
     const targets = getActiveTargets();
 
@@ -211,10 +224,11 @@ export function createMobileRealtimeQueryBridge({
 
     const targetConversationId = targets.conversationId;
     const matchesTarget =
+      dmScope.stream &&
       targetConversationId &&
       (!event?.conversationId || event.conversationId === targetConversationId);
     scheduleInvalidations(source, [
-      mobileQueryKeys.dmConversations(),
+      ...(dmScope.conversations ? [mobileQueryKeys.dmConversations()] : []),
       ...(matchesTarget ? [mobileQueryKeys.dmMessages(targetConversationId)] : []),
     ]);
   };
@@ -780,7 +794,19 @@ export function createMobileRealtimeQueryBridge({
     });
   };
 
-  const refreshWorkspaceImmediatelyForChannelEvent = (event: MobileRealtimeEventEnvelope) => {
+  /**
+   * Our own send, recognised by the nonce the server echoes back to the author
+   * alone. Nothing else in the payload distinguishes it, and the distinction
+   * matters: a message we wrote cannot raise our own unread or mention count.
+   */
+  const isOwnChannelMessageEcho = (event: MobileRealtimeEventEnvelope): boolean =>
+    event.eventName === "message:new" &&
+    typeof (event.payload as { readonly clientNonce?: unknown } | null)?.clientNonce === "string";
+
+  const refreshWorkspaceImmediatelyForChannelEvent = (
+    event: MobileRealtimeEventEnvelope,
+    previewPatched: boolean,
+  ) => {
     // Reactions are deliberately excluded: they cannot move the channel preview
     // or an unread count, and pulling the server-detail read on every emoji tap
     // re-rendered the open message list under the reader's finger.
@@ -789,6 +815,13 @@ export function createMobileRealtimeQueryBridge({
       !isMobileRealtimeWorkspaceAffectingChannelEvent(event.eventName)
     ) {
       return false;
+    }
+
+    // The preview is already patched and our own message moves no counter, so
+    // the heaviest read on the backend has nothing left to tell us. Reported as
+    // handled so the debounced workspace refresh is skipped as well.
+    if (previewPatched && isOwnChannelMessageEcho(event)) {
+      return true;
     }
 
     const serverId = event.serverId ?? getActiveTargets().serverId;
@@ -828,15 +861,34 @@ export function createMobileRealtimeQueryBridge({
 
       const workspaceChannelPreviewPatched = patchWorkspaceChannelLastMessageFromEvent(event);
       const channelEventHandled = applyActiveChannelEvent(event);
-      const dmReceiptPatched = applyDMConversationReceiptEvent(event);
-      const dmEventHandled = applyActiveDMEvent(event) || dmReceiptPatched;
+      const dmConversationsPatched = applyDMConversationReceiptEvent(event);
+      const dmStreamPatched = applyActiveDMEvent(event);
       const notificationApplied = applyNotificationEvent(event);
-      const workspaceRefreshedImmediately = refreshWorkspaceImmediatelyForChannelEvent(event);
+      const workspaceRefreshedImmediately = refreshWorkspaceImmediatelyForChannelEvent(
+        event,
+        workspaceChannelPreviewPatched,
+      );
+      /*
+       * The two DM caches are refreshed by different events on purpose.
+       *
+       * `dm:conversation:updated` is the inbox's event — the server sends one
+       * beside every message — and it carries no message content, so it must
+       * never reload the open chat. The `dm:message:*` events are the stream's,
+       * and once one has been patched into the stream there is nothing left to
+       * read: dragging the inbox along behind them is what made sending a
+       * message reload the conversation it was sent into.
+       */
+      const isDMConversationEvent = event.eventName === "dm:conversation:updated";
+      const dmScope = {
+        conversations: isDMConversationEvent && !dmConversationsPatched,
+        stream: !dmStreamPatched && !isDMConversationEvent,
+      };
+
       for (const source of event.refreshSources) {
         if (source === "channel" && (channelEventHandled || workspaceChannelPreviewPatched)) {
           continue;
         }
-        if (source === "dm" && dmEventHandled && event.eventName !== "dm:message:new") {
+        if (source === "dm" && !dmScope.conversations && !dmScope.stream) {
           continue;
         }
         if (source === "workspace" && workspaceRefreshedImmediately) {
@@ -847,7 +899,7 @@ export function createMobileRealtimeQueryBridge({
           scheduleSource("notification-badge", event);
           continue;
         }
-        scheduleSource(source, event);
+        scheduleSource(source, event, dmScope);
       }
     },
   };
@@ -958,10 +1010,18 @@ function applyMobileRealtimeEventToInfiniteChannelData(
   const isUpsert = event.eventName === "message:new" || event.eventName === "message:updated";
   let targetPageIndex = 0;
   if (isUpsert && event.payload && typeof event.payload === "object") {
-    const messageId = (event.payload as { readonly id?: unknown }).id;
-    if (typeof messageId === "string") {
+    // The author's optimistic bubble sits under `clientNonce`, so the page that
+    // owns it is found by either id.
+    const { clientNonce, id } = event.payload as {
+      readonly clientNonce?: unknown;
+      readonly id?: unknown;
+    };
+    const messageIds = [id, clientNonce].filter(
+      (value): value is string => typeof value === "string" && value.length > 0,
+    );
+    if (messageIds.length > 0) {
       const matchingPageIndex = data.pages.findIndex((page) =>
-        page.messages.some((message) => message.id === messageId),
+        page.messages.some((message) => messageIds.includes(message.id)),
       );
       targetPageIndex = matchingPageIndex >= 0 ? matchingPageIndex : 0;
     }

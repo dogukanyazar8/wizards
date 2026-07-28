@@ -13,6 +13,7 @@ import { MOBILE_WORKSPACE_LAYOUT_PREFERENCE_KEY } from "../src/app/providers/mob
 import {
   MOBILE_ACCENT_PREFERENCE_KEY,
   MOBILE_FONT_SCALE_PREFERENCE_KEY,
+  MOBILE_FONT_SCALE_STEPS,
 } from "../src/design/mobile-appearance-preferences";
 import { MOBILE_THEME_PREFERENCE_KEY } from "../src/design/mobile-theme-runtime";
 import { redesignAppearancePreview } from "../src/design/palette";
@@ -133,6 +134,31 @@ describe("4c appearance settings screen", () => {
           .now,
       ).toBe(3),
     );
+  });
+
+  /**
+   * The setting moved the slider but not the app: it scaled `theme.typography`,
+   * and almost every screen writes its sizes as literals in a style factory
+   * instead of spreading a token. The scale now rides on the finished style
+   * sheet, so a literal has to move with it.
+   */
+  it("scales interface text that never came from a typography token", async () => {
+    mockGetItem.mockImplementation((key) =>
+      key === MOBILE_FONT_SCALE_PREFERENCE_KEY ? Promise.resolve("4") : Promise.resolve(null),
+    );
+    const view = await renderScreen();
+
+    await waitFor(() =>
+      expect(
+        view.getByTestId("mobile-appearance-settings-font-scale-slider").props.accessibilityValue
+          .now,
+      ).toBe(4),
+    );
+    // 21 is a literal in the screen's style factory, not a token.
+    const title = StyleSheet.flatten(
+      view.getByText(activeMobileCopy.appearanceSettingsTitle).props.style,
+    );
+    expect(title.fontSize).toBeCloseTo(21 * MOBILE_FONT_SCALE_STEPS[4], 5);
   });
 
   it("hydrates stored preferences on mount", async () => {

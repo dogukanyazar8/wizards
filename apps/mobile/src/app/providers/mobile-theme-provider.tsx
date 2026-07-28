@@ -31,11 +31,14 @@ import {
   MOBILE_MESSAGE_FOLLOW_SYSTEM_PREFERENCE_KEY,
   MOBILE_MESSAGE_FONT_SIZE_PREFERENCE_KEY,
   MOBILE_VOICE_APPEARANCE_PREFERENCE_KEY,
+  getMobileThemeFontScale,
+  getMobileThemeStyleSource,
   normalizeMobileAccentId,
   normalizeMobileFontScaleStep,
   normalizeMobileMessageBooleanPreference,
   normalizeMobileVoiceRoomAppearance,
   resolveMobileVoiceRoomBaseTheme,
+  scaleMobileStyleSheetText,
   type MobileAccentId,
   type MobileFontScaleStep,
   type MobileVoiceRoomAppearance,
@@ -395,10 +398,19 @@ export function useMobileMessageSpacing(): ReturnType<typeof getMobileMessageSpa
   return useMemo(() => getMobileMessageSpacing(compact), [compact]);
 }
 
-export function useThemedStyles<T extends StyleSheet.NamedStyles<T>>(
+/**
+ * Builds a factory's sheet for one theme and memoizes it against that theme.
+ *
+ * The factory is run against the theme's 1x typography and the interface text
+ * scale is applied to the finished sheet: most of the app writes its font sizes
+ * as literals rather than as typography tokens, so scaling the tokens alone
+ * left the preference with almost nothing to move. Caching stays keyed by the
+ * theme object because a composed theme is already unique per accent AND step.
+ */
+function buildThemedStyles<T extends StyleSheet.NamedStyles<T>>(
   factory: (theme: MobileTheme) => T,
+  theme: MobileTheme,
 ): T {
-  const theme = useTheme();
   let factoryCache = styleCache.get(factory) as WeakMap<MobileTheme, T> | undefined;
 
   if (!factoryCache) {
@@ -408,11 +420,22 @@ export function useThemedStyles<T extends StyleSheet.NamedStyles<T>>(
 
   let styles = factoryCache.get(theme);
   if (!styles) {
-    styles = StyleSheet.create(factory(theme));
+    styles = StyleSheet.create(
+      scaleMobileStyleSheetText(
+        factory(getMobileThemeStyleSource(theme)),
+        getMobileThemeFontScale(theme),
+      ),
+    );
     factoryCache.set(theme, styles);
   }
 
   return styles;
+}
+
+export function useThemedStyles<T extends StyleSheet.NamedStyles<T>>(
+  factory: (theme: MobileTheme) => T,
+): T {
+  return buildThemedStyles(factory, useTheme());
 }
 
 /**
@@ -436,19 +459,5 @@ export function useVoiceRoomTheme(): MobileTheme {
 export function useVoiceRoomThemedStyles<T extends StyleSheet.NamedStyles<T>>(
   factory: (theme: MobileTheme) => T,
 ): T {
-  const theme = useVoiceRoomTheme();
-  let factoryCache = styleCache.get(factory) as WeakMap<MobileTheme, T> | undefined;
-
-  if (!factoryCache) {
-    factoryCache = new WeakMap<MobileTheme, T>();
-    styleCache.set(factory, factoryCache);
-  }
-
-  let styles = factoryCache.get(theme);
-  if (!styles) {
-    styles = StyleSheet.create(factory(theme));
-    factoryCache.set(theme, styles);
-  }
-
-  return styles;
+  return buildThemedStyles(factory, useVoiceRoomTheme());
 }

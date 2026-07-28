@@ -124,6 +124,7 @@ export async function POST(request: Request, context: RouteContext) {
       attachments: body.attachments,
       attribution: readRequestAttribution(request.headers),
       channelId,
+      clientNonce: body.clientNonce ?? null,
       content: body.content,
       forwardOfMessageId: body.forwardOfMessageId ?? null,
       io: getSocketServer(),

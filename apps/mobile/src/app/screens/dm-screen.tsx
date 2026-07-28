@@ -173,17 +173,21 @@ export function MessagesScreen({
         onSelectSegment={setInboxSegment}
         segment={inboxSegment}
       />
-      {inboxSegment === "requests" ? null : (
-        <DMInboxSearchField
-          onChangeText={setSearchQuery}
-          placeholder={
-            inboxSegment === "friends"
+      {/*
+       * §2 "1c": one search band for all three tabs. On the requests tab it is
+       * the user lookup the hub used to carry as a second field of its own.
+       */}
+      <DMInboxSearchField
+        onChangeText={setSearchQuery}
+        placeholder={
+          inboxSegment === "conversations"
+            ? copy.dmConversationSearchPlaceholder
+            : inboxSegment === "friends"
               ? copy.dmFriendSearchPlaceholder
-              : copy.dmConversationSearchPlaceholder
-          }
-          value={searchQuery}
-        />
-      )}
+              : copy.friendsSearchPlaceholder
+        }
+        value={searchQuery}
+      />
       <MobileSyncHealthBanner health={syncHealth} onRetry={onRefreshVisibleData} />
       <BootstrapStateNotice state={bootstrapState} onRetry={onRefreshBootstrap} />
       <View style={styles.dmInboxBody} {...swipeHandlers}>
@@ -219,6 +223,7 @@ export function MessagesScreen({
         ) : (
           <FriendsHub
             embedded
+            externalSearch={searchQuery}
             mode="requests"
             onSelectMode={(nextMode) => setInboxSegment(nextMode)}
           />

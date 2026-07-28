@@ -1,5 +1,5 @@
 import React from "react";
-import { act, render } from "@testing-library/react-native";
+import { act, fireEvent, render } from "@testing-library/react-native";
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { lightTheme, type MobileTheme } from "../src/design/themes";
 
@@ -20,11 +20,31 @@ import {
   type MobileConnectivityHealth,
 } from "../src/app/mobile-connectivity-presentation";
 import { MobileConnectivityBanner } from "../src/app/components/mobile-connectivity-banner";
+import { useMobileConnectivityPhaseState } from "../src/app/providers/mobile-connectivity-context";
 import { activeMobileCopy as copy } from "../src/locale/mobile-locale-preferences";
 
 const OFFLINE_TEST_ID = "mobile-offline-banner";
 const RECONNECTING_TEST_ID = "mobile-realtime-banner";
+const FAILED_TEST_ID = "mobile-realtime-failed-banner";
 const RESTORED_TEST_ID = "mobile-connectivity-restored";
+const RETRY_TEST_ID = "mobile-connectivity-reconnect";
+
+/**
+ * The bar draws a phase the provider owns, so the harness owns the same state
+ * machine the provider does — driving the component by `health` keeps every case
+ * written the way the app produces it.
+ */
+function Harness({
+  health,
+  onRetry,
+}: {
+  health: MobileConnectivityHealth;
+  onRetry(): Promise<void> | void;
+}) {
+  return (
+    <MobileConnectivityBanner onRetry={onRetry} phase={useMobileConnectivityPhaseState(health)} />
+  );
+}
 
 async function tick(ms: number) {
   await act(async () => {
@@ -32,10 +52,8 @@ async function tick(ms: number) {
   });
 }
 
-async function renderBanner(health: MobileConnectivityHealth, canRetry = false) {
-  return await render(
-    <MobileConnectivityBanner canRetry={canRetry} health={health} onReconnect={jest.fn()} />,
-  );
+async function renderBanner(health: MobileConnectivityHealth, onRetry = jest.fn()) {
+  return await render(<Harness health={health} onRetry={onRetry} />);
 }
 
 describe("mobile connectivity banner", () => {
@@ -54,9 +72,7 @@ describe("mobile connectivity banner", () => {
     expect(view.queryByTestId(RECONNECTING_TEST_ID)).toBeNull();
 
     await act(async () => {
-      view.rerender(
-        <MobileConnectivityBanner canRetry={false} health="healthy" onReconnect={jest.fn()} />,
-      );
+      view.rerender(<Harness health="healthy" onRetry={jest.fn()} />);
     });
     await tick(MOBILE_CONNECTIVITY_RESTORED_HOLD_MS * 2);
 
@@ -80,7 +96,6 @@ describe("mobile connectivity banner", () => {
 
     expect(view.getByTestId(OFFLINE_TEST_ID)).toBeTruthy();
     expect(view.getByText(copy.offlineBannerTitle)).toBeTruthy();
-    expect(view.getByText(copy.offlineBannerDescription)).toBeTruthy();
   });
 
   it("morphs offline into reconnecting without a blank frame between them", async () => {
@@ -90,9 +105,7 @@ describe("mobile connectivity banner", () => {
 
     // Airplane mode off: network back, socket not yet.
     await act(async () => {
-      view.rerender(
-        <MobileConnectivityBanner canRetry={false} health="degraded" onReconnect={jest.fn()} />,
-      );
+      view.rerender(<Harness health="degraded" onRetry={jest.fn()} />);
     });
 
     expect(view.getByTestId(RECONNECTING_TEST_ID)).toBeTruthy();
@@ -104,9 +117,7 @@ describe("mobile connectivity banner", () => {
     await tick(MOBILE_CONNECTIVITY_RECONNECT_GRACE_MS);
 
     await act(async () => {
-      view.rerender(
-        <MobileConnectivityBanner canRetry={false} health="healthy" onReconnect={jest.fn()} />,
-      );
+      view.rerender(<Harness health="healthy" onRetry={jest.fn()} />);
     });
 
     expect(view.getByTestId(RESTORED_TEST_ID)).toBeTruthy();
@@ -117,19 +128,46 @@ describe("mobile connectivity banner", () => {
     expect(view.queryByTestId(RESTORED_TEST_ID)).toBeNull();
   });
 
-  it("only offers a manual retry once the automatic ones are spent", async () => {
-    const view = await renderBanner("degraded");
+  it("names a spent retry budget as its own phase, not as reconnecting", async () => {
+    const view = await renderBanner("failed");
     await tick(MOBILE_CONNECTIVITY_RECONNECT_GRACE_MS);
-    expect(view.queryByTestId("mobile-connectivity-reconnect")).toBeNull();
+
+    expect(view.getByTestId(FAILED_TEST_ID)).toBeTruthy();
+    expect(view.queryByTestId(RECONNECTING_TEST_ID)).toBeNull();
+    expect(view.getByText(copy.realtimeFailedTitle)).toBeTruthy();
+  });
+
+  it("offers the retry in every degraded phase, offline included", async () => {
+    const offline = await renderBanner("offline");
+    await tick(MOBILE_CONNECTIVITY_OFFLINE_GRACE_MS);
+    expect(offline.getByTestId(RETRY_TEST_ID)).toBeTruthy();
+
+    const reconnecting = await renderBanner("degraded");
+    await tick(MOBILE_CONNECTIVITY_RECONNECT_GRACE_MS);
+    expect(reconnecting.getByTestId(RETRY_TEST_ID)).toBeTruthy();
+
+    const failed = await renderBanner("failed");
+    await tick(MOBILE_CONNECTIVITY_RECONNECT_GRACE_MS);
+    expect(failed.getByTestId(RETRY_TEST_ID)).toBeTruthy();
+  });
+
+  it("reports the retry back to the user instead of swallowing the tap", async () => {
+    const onRetry = jest.fn(() => Promise.resolve());
+    const view = await renderBanner("offline", onRetry);
+    await tick(MOBILE_CONNECTIVITY_OFFLINE_GRACE_MS);
 
     await act(async () => {
-      view.rerender(
-        <MobileConnectivityBanner canRetry health="degraded" onReconnect={jest.fn()} />,
-      );
+      fireEvent.press(view.getByTestId(RETRY_TEST_ID));
     });
 
-    expect(view.getByTestId("mobile-connectivity-reconnect")).toBeTruthy();
-    expect(view.getByText(copy.realtimeFailedTitle)).toBeTruthy();
+    expect(onRetry).toHaveBeenCalledTimes(1);
+    expect(view.getByText(copy.realtimeRetryingAction)).toBeTruthy();
+
+    // A second tap while the first is still in flight must not queue another.
+    await act(async () => {
+      fireEvent.press(view.getByTestId(RETRY_TEST_ID));
+    });
+    expect(onRetry).toHaveBeenCalledTimes(1);
   });
 
   it("drops the bar the moment the app leaves the foreground", async () => {
@@ -138,9 +176,7 @@ describe("mobile connectivity banner", () => {
     expect(view.getByTestId(RECONNECTING_TEST_ID)).toBeTruthy();
 
     await act(async () => {
-      view.rerender(
-        <MobileConnectivityBanner canRetry={false} health="irrelevant" onReconnect={jest.fn()} />,
-      );
+      view.rerender(<Harness health="irrelevant" onRetry={jest.fn()} />);
     });
 
     expect(view.queryByTestId(RECONNECTING_TEST_ID)).toBeNull();

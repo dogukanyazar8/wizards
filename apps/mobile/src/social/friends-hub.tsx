@@ -1,17 +1,10 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  Share,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 
 import { Avatar, ContextMenu, EmptyState, Icon, Skeleton, useToast } from "../app/components/kit";
 import { useMobileLocaleRuntime } from "../app/providers/mobile-locale-provider";
-import { useTheme, useThemedStyles } from "../app/providers/mobile-theme-provider";
+import { useTheme } from "../app/providers/mobile-theme-provider";
+import { useOptionalMobileVoiceRuntime } from "../app/providers/mobile-voice-provider";
 import { MobileApiError } from "../api/mobile-api-client";
 import { useMobileAuth } from "../auth/mobile-auth-context";
 import type { MobileFriendVoiceRoom } from "@wizards/types";
@@ -19,7 +12,12 @@ import type { MobileFriendVoiceRoom } from "@wizards/types";
 import type { MobileTheme } from "../design/themes";
 import { MobileLineIcon } from "../design/mobile-line-icons";
 import { mobileMessagingMetrics as msg } from "../design/tokens";
-import { getMobilePresenceTone, type MobilePresenceTone } from "../app/mobile-display-model";
+import {
+  scaleMobileMessagingMetric,
+  useMobileMessagingScale,
+} from "../design/mobile-messaging-scale";
+import { getMobilePresenceTone } from "../app/mobile-display-model";
+import { getMobilePresenceColor } from "../design/mobile-presence-color";
 import { formatMobileRelativeTime } from "../locale/mobile-relative-time";
 import { mobileNavigationRef } from "../navigation/mobile-navigation-ref";
 import { openMobileVoiceRoom } from "../voice/mobile-voice-room-route-navigation";
@@ -36,389 +34,428 @@ import {
 } from "./mobile-social-query";
 import { mobileCopy } from "../locale/mobile-copy";
 
-/** Presence tone → Avatar dot variant, so friend rows use the web status colours. */
-const AVATAR_PRESENCE_STATUS = {
-  dnd: "dnd",
-  idle: "idle",
-  offline: "offline",
-  online: "active",
-} as const satisfies Record<MobilePresenceTone, "active" | "idle" | "dnd" | "offline">;
-
 /** Keystrokes settle before the search request fires. */
 const USER_SEARCH_DEBOUNCE_MS = 300;
 
 type FriendsHubMode = "all" | "friends" | "requests";
 type FriendsHubSegment = "online" | "all" | "requests";
 
-export const createFriendsHubStyles = (theme: MobileTheme) => ({
-  root: { backgroundColor: theme.messaging.screen, flex: 1 },
-  content: { gap: 0, paddingBottom: 32 },
-  /** §2 "1b"/"1c": group label row — `padding: 16px 20px 8px`, gap 7. */
-  groupLabelRow: {
-    alignItems: "center" as const,
-    flexDirection: "row" as const,
-    gap: 7,
-    paddingBottom: 8,
-    paddingHorizontal: 20,
-    paddingTop: 16,
-  },
-  groupLabel: {
-    color: theme.messaging.groupLabel,
-    fontFamily: theme.typography.fontFamilyExtraBold,
-    fontSize: 11,
-    letterSpacing: msg.listType.groupLabelTracking,
-    lineHeight: 14,
-  },
-  groupCount: {
-    color: theme.messaging.groupLabel,
-    fontFamily: theme.typography.fontFamilyExtraBold,
-    fontSize: 11,
-    lineHeight: 14,
-  },
-  groupCountOnline: { color: theme.messaging.onlineText },
-  groupCountDanger: { color: theme.messaging.danger },
-  /** §2 "1b"/"1c": rows are a flat list, so the hairline is its own element. */
-  listHairlineFriends: {
-    backgroundColor: theme.messaging.hairline,
-    height: 1,
-    marginLeft: msg.listHairlineInset.friends,
-  },
-  listHairlineRequests: {
-    backgroundColor: theme.messaging.hairline,
-    height: 1,
-    marginLeft: msg.listHairlineInset.requests,
-  },
-  /** §2 "1b": `padding: 9px 20px`, gap 12. */
-  socialRow: {
-    alignItems: "center" as const,
-    flexDirection: "row" as const,
-    gap: 12,
-    minHeight: 66,
-    paddingHorizontal: 20,
-    paddingVertical: 9,
-  },
-  /** §2 "1c": the request rows breathe one notch more than the friend rows. */
-  socialRowRequest: { paddingVertical: 10 },
-  socialIdentity: { flex: 1, gap: 2, minWidth: 0 },
-  socialIdentityRequest: { gap: 3 },
-  socialName: {
-    color: theme.messaging.textPrimary,
-    fontFamily: theme.typography.fontFamilyBold,
-    fontSize: 14.5,
-    lineHeight: 19,
-  },
-  /** §2 "1c": an incoming request is the only name drawn at 800. */
-  socialNameStrong: { fontFamily: theme.typography.fontFamilyExtraBold },
-  /** §2 "1b"/"1c": offline friends and already-sent requests dim their name. */
-  socialNameMuted: { color: theme.messaging.nameMuted },
-  socialDetailRow: {
-    alignItems: "center" as const,
-    flexDirection: "row" as const,
-    gap: 5,
-    minWidth: 0,
-  },
-  socialDetail: {
-    color: theme.messaging.textSecondary,
-    fontFamily: theme.typography.fontFamilyMedium,
-    fontSize: 12,
-    lineHeight: 16,
-  },
-  socialDetailStrong: { fontFamily: theme.typography.fontFamilySemiBold },
-  socialDetailOnline: {
-    color: theme.messaging.onlineText,
-    fontFamily: theme.typography.fontFamilySemiBold,
-  },
-  socialDetailAccent: {
-    color: theme.messaging.accent,
-    fontFamily: theme.typography.fontFamilySemiBold,
-  },
-  socialAvatarOffline: { opacity: 0.6 },
-  socialAvatarSent: { opacity: 0.75 },
-  socialActions: { alignItems: "center" as const, flexDirection: "row" as const, gap: 7 },
-  socialActionsRequest: { gap: 8 },
-  /** §2 "1b": 38/r13 icon buttons; accent-soft when the friend is reachable. */
-  socialIconButton: {
-    alignItems: "center" as const,
-    backgroundColor: theme.messaging.field,
-    borderRadius: msg.iconButtonRadius,
-    height: msg.iconButton,
-    justifyContent: "center" as const,
-    width: msg.iconButton,
-  },
-  socialIconButtonAccent: { backgroundColor: theme.messaging.accentSoft },
-  /** §2 "1b": the "Katıl" pill, h38 `padding: 0 12` r13. */
-  socialJoinPill: {
-    alignItems: "center" as const,
-    backgroundColor: theme.messaging.accentSoft,
-    borderRadius: msg.iconButtonRadius,
-    flexDirection: "row" as const,
-    gap: 6,
-    height: msg.iconButton,
-    justifyContent: "center" as const,
-    paddingHorizontal: 12,
-  },
-  socialJoinPillText: {
-    color: theme.messaging.accentText,
-    fontFamily: theme.typography.fontFamilyExtraBold,
-    fontSize: 12,
-  },
-  /** §2 "1c": 40/r14 accept, and the bordered 40/r14 reject beside it. */
-  requestDecisionAccept: {
-    alignItems: "center" as const,
-    backgroundColor: theme.messaging.accent,
-    borderRadius: msg.headerFabRadius,
-    height: msg.headerFab,
-    justifyContent: "center" as const,
-    width: msg.headerFab,
-    ...theme.elevation.primaryAction,
-  },
-  requestDecisionReject: {
-    alignItems: "center" as const,
-    backgroundColor: theme.messaging.surface,
-    borderColor: theme.messaging.cardBorder,
-    borderRadius: msg.headerFabRadius,
-    borderWidth: 1,
-    height: msg.headerFab,
-    justifyContent: "center" as const,
-    width: msg.headerFab,
-  },
-  /** §2 "1c": h36 r12 pills — outline for "Geri al", accent-soft for "Ekle". */
-  socialSmallPill: {
-    alignItems: "center" as const,
-    borderRadius: 12,
-    flexDirection: "row" as const,
-    gap: 6,
-    height: 36,
-    justifyContent: "center" as const,
-    paddingHorizontal: 14,
-  },
-  socialSmallPillOutline: {
-    backgroundColor: theme.messaging.surface,
-    borderColor: theme.messaging.cardBorder,
-    borderWidth: 1,
-  },
-  socialSmallPillOutlineText: {
-    color: theme.messaging.textSecondary,
-    fontFamily: theme.typography.fontFamilyBold,
-    fontSize: 12.5,
-  },
-  socialSmallPillSoft: { backgroundColor: theme.messaging.accentSoft, paddingHorizontal: 13 },
-  socialSmallPillSoftText: {
-    color: theme.messaging.accentText,
-    fontFamily: theme.typography.fontFamilyExtraBold,
-    fontSize: 12.5,
-  },
-  header: {
-    alignItems: "center" as const,
-    flexDirection: "row" as const,
-    gap: 10,
-    paddingBottom: 2,
-    paddingHorizontal: theme.spacing.page,
-    paddingTop: 10,
-  },
-  headerBack: {
-    alignItems: "center" as const,
-    backgroundColor: theme.surface.card,
-    borderColor: theme.border.subtle,
-    borderRadius: theme.radii.control,
-    borderWidth: 1,
-    height: theme.sizing.minTouchTarget,
-    justifyContent: "center" as const,
-    width: theme.sizing.minTouchTarget,
-  },
-  headerTitle: {
-    ...theme.typography.display,
-    color: theme.text.primary,
-    flex: 1,
-    fontSize: 22,
-    lineHeight: 28,
-  },
-  headerAction: {
-    alignItems: "center" as const,
-    backgroundColor: theme.accent.action,
-    borderRadius: 15,
-    height: theme.sizing.minTouchTarget,
-    justifyContent: "center" as const,
-    width: theme.sizing.minTouchTarget,
-    ...theme.elevation.primaryAction,
-  },
-  segmentShell: {
-    backgroundColor: theme.surface.rail,
-    borderRadius: 16,
-    flexDirection: "row" as const,
-    gap: 4,
-    marginHorizontal: theme.spacing.page,
-    marginTop: 12,
-    padding: 4,
-  },
-  segment: {
-    alignItems: "center" as const,
-    borderRadius: 13,
-    flex: 1,
-    flexDirection: "row" as const,
-    gap: 6,
-    justifyContent: "center" as const,
-    minHeight: theme.sizing.minTouchTarget,
-    paddingHorizontal: 4,
-  },
-  segmentActive: { backgroundColor: theme.surface.card, ...theme.elevation.headerCard },
-  segmentText: { ...theme.typography.label, color: theme.text.muted },
-  segmentTextActive: { color: theme.accent.strong, fontFamily: theme.typography.fontFamilyBold },
-  requestCount: {
-    alignItems: "center" as const,
-    backgroundColor: theme.status.danger,
-    borderRadius: theme.radii.pill,
-    justifyContent: "center" as const,
-    minHeight: 18,
-    minWidth: 18,
-    paddingHorizontal: 5,
-  },
-  requestCountText: { ...theme.typography.caption, color: theme.text.onPrimary, fontSize: 10.5 },
-  searchShell: {
-    alignItems: "center" as const,
-    backgroundColor: theme.surface.card,
-    borderColor: theme.border.subtle,
-    borderRadius: 16,
-    borderWidth: 1,
-    flexDirection: "row" as const,
-    gap: 10,
-    marginHorizontal: theme.spacing.page,
-    marginTop: 12,
-    minHeight: 50,
-    paddingHorizontal: 14,
-  },
-  searchInput: {
-    ...theme.typography.message,
-    color: theme.text.primary,
-    flex: 1,
-    minHeight: theme.sizing.minTouchTarget,
-  },
-  searchSpinnerSlot: {
-    alignItems: "center" as const,
-    justifyContent: "center" as const,
-    minWidth: 20,
-  },
-  searchHint: {
-    ...theme.typography.secondary,
-    color: theme.text.muted,
-    paddingHorizontal: 24,
-    paddingTop: 10,
-  },
-  sectionHeading: {
-    ...theme.typography.overline,
-    color: theme.text.visualFaint,
-    paddingBottom: 6,
-    paddingHorizontal: 24,
-    paddingTop: 14,
-  },
-  sectionCard: {
-    backgroundColor: theme.surface.card,
-    borderColor: theme.border.subtle,
-    borderRadius: theme.radii.cardLarge,
-    borderWidth: 1,
-    marginHorizontal: theme.spacing.page,
-    overflow: "hidden" as const,
-  },
-  offlineCard: { opacity: 0.75 },
-  friendRow: {
-    alignItems: "center" as const,
-    flexDirection: "row" as const,
-    gap: 12,
-    minHeight: 66,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  friendRowBorder: { borderBottomColor: theme.surface.soft, borderBottomWidth: 1 },
-  friendIdentity: { flex: 1, minWidth: 0 },
-  friendName: { ...theme.typography.bodyStrong, color: theme.text.primary },
-  friendStatus: { ...theme.typography.secondary, color: theme.text.visualSecondary, marginTop: 1 },
-  onlineStatus: {
-    color: theme.status.successText,
-    fontFamily: theme.typography.fontFamilySemiBold,
-  },
-  rowMeta: { ...theme.typography.caption, color: theme.text.visualFaint, marginTop: 2 },
-  actionRow: { flexDirection: "row" as const, gap: 6 },
-  rowAction: {
-    alignItems: "center" as const,
-    backgroundColor: theme.surface.base,
-    borderColor: theme.border.subtle,
-    borderRadius: theme.radii.control,
-    borderWidth: 1,
-    height: theme.sizing.minTouchTarget,
-    justifyContent: "center" as const,
-    width: theme.sizing.minTouchTarget,
-  },
-  notice: {
-    ...theme.typography.body,
-    color: theme.text.muted,
-    paddingHorizontal: theme.spacing.page,
-    paddingVertical: 20,
-    textAlign: "center" as const,
-  },
-  error: { color: theme.status.dangerOnBase },
-  inviteCard: {
-    alignItems: "center" as const,
-    backgroundColor: theme.surface.card,
-    borderColor: theme.border.subtle,
-    borderRadius: theme.radii.cardLarge,
-    borderWidth: 1,
-    flexDirection: "row" as const,
-    gap: 12,
-    marginHorizontal: theme.spacing.page,
-    marginTop: 12,
-    minHeight: theme.sizing.minTouchTarget + 16,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  inviteIcon: {
-    alignItems: "center" as const,
-    backgroundColor: theme.accent.soft,
-    borderRadius: theme.radii.control,
-    height: 38,
-    justifyContent: "center" as const,
-    width: 38,
-  },
-  inviteTitle: { ...theme.typography.bodyStrong, color: theme.text.primary, flex: 1 },
-  rowPill: {
-    alignItems: "center" as const,
-    borderRadius: theme.radii.control,
-    borderWidth: 1,
-    justifyContent: "center" as const,
-    minHeight: theme.sizing.minTouchTarget,
-    minWidth: 78,
-    paddingHorizontal: 14,
-  },
-  rowPillFilled: { backgroundColor: theme.accent.action, borderColor: theme.accent.action },
-  rowPillFilledText: { ...theme.typography.button, color: theme.text.onPrimary },
-  rowPillOutline: { backgroundColor: theme.surface.base, borderColor: theme.border.subtle },
-  rowPillOutlineText: { ...theme.typography.button, color: theme.text.secondary },
-  rowPillDisabled: { opacity: theme.layout.opacity.disabled },
-  friendsAlreadyText: { ...theme.typography.caption, color: theme.text.muted },
-  requestActions: { alignItems: "center" as const, flexDirection: "row" as const, gap: 8 },
-  requestCircle: {
-    alignItems: "center" as const,
-    borderRadius: theme.sizing.minTouchTarget / 2,
-    borderWidth: 1,
-    height: theme.sizing.minTouchTarget,
-    justifyContent: "center" as const,
-    width: theme.sizing.minTouchTarget,
-  },
-  requestCircleAccept: { backgroundColor: theme.accent.action, borderColor: theme.accent.action },
-  requestCircleReject: { backgroundColor: theme.surface.base, borderColor: theme.border.subtle },
-  emptyStateWrap: { paddingHorizontal: theme.spacing.page, paddingTop: 2 },
-  collapseHeader: {
-    alignItems: "center" as const,
-    flexDirection: "row" as const,
-    gap: 8,
-    minHeight: theme.sizing.minTouchTarget,
-    paddingHorizontal: 24,
-    paddingVertical: 10,
-  },
-  collapseHeaderText: { ...theme.typography.overline, color: theme.text.visualFaint, flex: 1 },
-  loadingCard: { gap: 12, padding: 16 },
-  loadingRow: { alignItems: "center" as const, flexDirection: "row" as const, gap: 12 },
-  loadingText: { flex: 1, gap: 7 },
-});
+/**
+ * `scale` maps the handoff's 390pt frame onto the real screen, exactly as the
+ * conversations list does — see `mobile-messaging-scale`. It defaults to the
+ * baseline so the design's own numbers stay assertable.
+ */
+export const createFriendsHubStyles = (theme: MobileTheme, scale = 1) => {
+  const s = (value: number) => scaleMobileMessagingMetric(value, scale);
+
+  return {
+    root: { backgroundColor: theme.messaging.screen, flex: 1 },
+    content: { gap: 0, paddingBottom: 32 },
+    /** §2 "1b"/"1c": group label row — `padding: 16px 20px 8px`, gap 7. */
+    groupLabelRow: {
+      alignItems: "center" as const,
+      flexDirection: "row" as const,
+      gap: s(7),
+      paddingBottom: s(8),
+      paddingHorizontal: s(20),
+      paddingTop: s(16),
+    },
+    groupLabel: {
+      color: theme.messaging.groupLabel,
+      fontFamily: theme.typography.fontFamilyExtraBold,
+      fontSize: s(11),
+      letterSpacing: msg.listType.groupLabelTracking,
+      lineHeight: s(14),
+    },
+    groupCount: {
+      color: theme.messaging.groupLabel,
+      fontFamily: theme.typography.fontFamilyExtraBold,
+      fontSize: s(11),
+      lineHeight: s(14),
+    },
+    groupCountOnline: { color: theme.messaging.onlineText },
+    groupCountDanger: { color: theme.messaging.danger },
+    /** §2 "1b"/"1c": rows are a flat list, so the hairline is its own element. */
+    listHairlineFriends: {
+      backgroundColor: theme.messaging.hairline,
+      height: 1,
+      marginLeft: s(msg.listHairlineInset.friends),
+    },
+    listHairlineRequests: {
+      backgroundColor: theme.messaging.hairline,
+      height: 1,
+      marginLeft: s(msg.listHairlineInset.requests),
+    },
+    /** §2 "1b": `padding: 9px 20px`, gap 12. */
+    socialRow: {
+      alignItems: "center" as const,
+      flexDirection: "row" as const,
+      gap: s(12),
+      minHeight: s(66),
+      paddingHorizontal: s(20),
+      paddingVertical: s(9),
+    },
+    /** §2 "1c": the request rows breathe one notch more than the friend rows. */
+    socialRowRequest: { paddingVertical: s(10) },
+    socialIdentity: { flex: 1, gap: s(2), minWidth: 0 },
+    socialIdentityRequest: { gap: s(3) },
+    socialName: {
+      color: theme.messaging.textPrimary,
+      fontFamily: theme.typography.fontFamilyBold,
+      fontSize: s(14.5),
+      lineHeight: s(19),
+    },
+    /**
+     * §2 "1b": 12px dot, 2.5px ring in the screen tone, overhanging the avatar
+     * corner. The kit avatar rings its dot in the card tone, which paints a white
+     * halo on this list's grey background.
+     */
+    socialAvatarWrap: { position: "relative" as const },
+    socialPresenceDot: {
+      borderColor: theme.messaging.screen,
+      borderRadius: theme.radii.pill,
+      borderWidth: s(msg.presenceDot.avatarRingWidth),
+      bottom: s(msg.presenceDot.offset),
+      height: s(msg.presenceDot.avatarSize),
+      position: "absolute" as const,
+      right: s(msg.presenceDot.offset),
+      width: s(msg.presenceDot.avatarSize),
+    },
+    /** §2 "1b": someone in a voice room reads as a wave tile, never as a dot. */
+    socialVoiceTile: {
+      alignItems: "center" as const,
+      backgroundColor: theme.messaging.surface,
+      borderColor: theme.messaging.screen,
+      borderRadius: s(msg.onlineStrip.voiceTileRadius),
+      borderWidth: s(msg.onlineStrip.voiceTileRingWidth),
+      bottom: s(msg.onlineStrip.voiceTileOffset),
+      height: s(msg.presenceDot.rowVoiceTileSize),
+      justifyContent: "center" as const,
+      position: "absolute" as const,
+      right: s(msg.onlineStrip.voiceTileOffset),
+      width: s(msg.presenceDot.rowVoiceTileSize),
+    },
+    /** §2 "1c": an incoming request is the only name drawn at 800. */
+    socialNameStrong: { fontFamily: theme.typography.fontFamilyExtraBold },
+    /** §2 "1b"/"1c": offline friends and already-sent requests dim their name. */
+    socialNameMuted: { color: theme.messaging.nameMuted },
+    socialDetailRow: {
+      alignItems: "center" as const,
+      flexDirection: "row" as const,
+      gap: s(5),
+      minWidth: 0,
+    },
+    socialDetail: {
+      color: theme.messaging.textSecondary,
+      fontFamily: theme.typography.fontFamilyMedium,
+      fontSize: s(12),
+      lineHeight: s(16),
+    },
+    socialDetailStrong: { fontFamily: theme.typography.fontFamilySemiBold },
+    socialDetailOnline: {
+      color: theme.messaging.onlineText,
+      fontFamily: theme.typography.fontFamilySemiBold,
+    },
+    socialDetailAccent: {
+      color: theme.messaging.accent,
+      fontFamily: theme.typography.fontFamilySemiBold,
+    },
+    socialAvatarOffline: { opacity: 0.6 },
+    socialAvatarSent: { opacity: 0.75 },
+    socialActions: { alignItems: "center" as const, flexDirection: "row" as const, gap: s(7) },
+    socialActionsRequest: { gap: s(8) },
+    /** §2 "1b": 38/r13 icon buttons; accent-soft when the friend is reachable. */
+    socialIconButton: {
+      alignItems: "center" as const,
+      backgroundColor: theme.messaging.field,
+      borderRadius: s(msg.iconButtonRadius),
+      height: s(msg.iconButton),
+      justifyContent: "center" as const,
+      width: s(msg.iconButton),
+    },
+    socialIconButtonAccent: { backgroundColor: theme.messaging.accentSoft },
+    /** §2 "1b": the "Katıl" pill, h38 `padding: 0 12` r13. */
+    socialJoinPill: {
+      alignItems: "center" as const,
+      backgroundColor: theme.messaging.accentSoft,
+      borderRadius: s(msg.iconButtonRadius),
+      flexDirection: "row" as const,
+      gap: s(6),
+      height: s(msg.iconButton),
+      justifyContent: "center" as const,
+      paddingHorizontal: s(12),
+    },
+    socialJoinPillText: {
+      color: theme.messaging.accentText,
+      fontFamily: theme.typography.fontFamilyExtraBold,
+      fontSize: s(12),
+    },
+    /** §2 "1c": 40/r14 accept, and the bordered 40/r14 reject beside it. */
+    requestDecisionAccept: {
+      alignItems: "center" as const,
+      backgroundColor: theme.messaging.accent,
+      borderRadius: s(msg.headerFabRadius),
+      height: s(msg.headerFab),
+      justifyContent: "center" as const,
+      width: s(msg.headerFab),
+      ...theme.elevation.primaryAction,
+    },
+    requestDecisionReject: {
+      alignItems: "center" as const,
+      backgroundColor: theme.messaging.surface,
+      borderColor: theme.messaging.cardBorder,
+      borderRadius: s(msg.headerFabRadius),
+      borderWidth: 1,
+      height: s(msg.headerFab),
+      justifyContent: "center" as const,
+      width: s(msg.headerFab),
+    },
+    /** §2 "1c": h36 r12 pills — outline for "Geri al", accent-soft for "Ekle". */
+    socialSmallPill: {
+      alignItems: "center" as const,
+      borderRadius: s(12),
+      flexDirection: "row" as const,
+      gap: s(6),
+      height: s(36),
+      justifyContent: "center" as const,
+      paddingHorizontal: s(14),
+    },
+    socialSmallPillOutline: {
+      backgroundColor: theme.messaging.surface,
+      borderColor: theme.messaging.cardBorder,
+      borderWidth: 1,
+    },
+    socialSmallPillOutlineText: {
+      color: theme.messaging.textSecondary,
+      fontFamily: theme.typography.fontFamilyBold,
+      fontSize: s(12.5),
+    },
+    socialSmallPillSoft: { backgroundColor: theme.messaging.accentSoft, paddingHorizontal: s(13) },
+    socialSmallPillSoftText: {
+      color: theme.messaging.accentText,
+      fontFamily: theme.typography.fontFamilyExtraBold,
+      fontSize: s(12.5),
+    },
+    header: {
+      alignItems: "center" as const,
+      flexDirection: "row" as const,
+      gap: 10,
+      paddingBottom: 2,
+      paddingHorizontal: theme.spacing.page,
+      paddingTop: 10,
+    },
+    headerBack: {
+      alignItems: "center" as const,
+      backgroundColor: theme.surface.card,
+      borderColor: theme.border.subtle,
+      borderRadius: theme.radii.control,
+      borderWidth: 1,
+      height: theme.sizing.minTouchTarget,
+      justifyContent: "center" as const,
+      width: theme.sizing.minTouchTarget,
+    },
+    headerTitle: {
+      ...theme.typography.display,
+      color: theme.text.primary,
+      flex: 1,
+      fontSize: 22,
+      lineHeight: 28,
+    },
+    headerAction: {
+      alignItems: "center" as const,
+      backgroundColor: theme.accent.action,
+      borderRadius: 15,
+      height: theme.sizing.minTouchTarget,
+      justifyContent: "center" as const,
+      width: theme.sizing.minTouchTarget,
+      ...theme.elevation.primaryAction,
+    },
+    segmentShell: {
+      backgroundColor: theme.surface.rail,
+      borderRadius: 16,
+      flexDirection: "row" as const,
+      gap: 4,
+      marginHorizontal: theme.spacing.page,
+      marginTop: 12,
+      padding: 4,
+    },
+    segment: {
+      alignItems: "center" as const,
+      borderRadius: 13,
+      flex: 1,
+      flexDirection: "row" as const,
+      gap: 6,
+      justifyContent: "center" as const,
+      minHeight: theme.sizing.minTouchTarget,
+      paddingHorizontal: 4,
+    },
+    segmentActive: { backgroundColor: theme.surface.card, ...theme.elevation.headerCard },
+    segmentText: { ...theme.typography.label, color: theme.text.muted },
+    segmentTextActive: { color: theme.accent.strong, fontFamily: theme.typography.fontFamilyBold },
+    requestCount: {
+      alignItems: "center" as const,
+      backgroundColor: theme.status.danger,
+      borderRadius: theme.radii.pill,
+      justifyContent: "center" as const,
+      minHeight: 18,
+      minWidth: 18,
+      paddingHorizontal: 5,
+    },
+    requestCountText: { ...theme.typography.caption, color: theme.text.onPrimary, fontSize: 10.5 },
+    searchShell: {
+      alignItems: "center" as const,
+      backgroundColor: theme.surface.card,
+      borderColor: theme.border.subtle,
+      borderRadius: 16,
+      borderWidth: 1,
+      flexDirection: "row" as const,
+      gap: 10,
+      marginHorizontal: theme.spacing.page,
+      marginTop: 12,
+      minHeight: 50,
+      paddingHorizontal: 14,
+    },
+    searchInput: {
+      ...theme.typography.message,
+      color: theme.text.primary,
+      flex: 1,
+      minHeight: theme.sizing.minTouchTarget,
+    },
+    searchSpinnerSlot: {
+      alignItems: "center" as const,
+      justifyContent: "center" as const,
+      minWidth: 20,
+    },
+    searchHint: {
+      ...theme.typography.secondary,
+      color: theme.text.muted,
+      paddingHorizontal: 24,
+      paddingTop: 10,
+    },
+    sectionHeading: {
+      ...theme.typography.overline,
+      color: theme.text.visualFaint,
+      paddingBottom: 6,
+      paddingHorizontal: 24,
+      paddingTop: 14,
+    },
+    sectionCard: {
+      backgroundColor: theme.surface.card,
+      borderColor: theme.border.subtle,
+      borderRadius: theme.radii.cardLarge,
+      borderWidth: 1,
+      marginHorizontal: theme.spacing.page,
+      overflow: "hidden" as const,
+    },
+    offlineCard: { opacity: 0.75 },
+    friendRow: {
+      alignItems: "center" as const,
+      flexDirection: "row" as const,
+      gap: 12,
+      minHeight: 66,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+    },
+    friendRowBorder: { borderBottomColor: theme.surface.soft, borderBottomWidth: 1 },
+    friendIdentity: { flex: 1, minWidth: 0 },
+    friendName: { ...theme.typography.bodyStrong, color: theme.text.primary },
+    friendStatus: {
+      ...theme.typography.secondary,
+      color: theme.text.visualSecondary,
+      marginTop: 1,
+    },
+    onlineStatus: {
+      color: theme.status.successText,
+      fontFamily: theme.typography.fontFamilySemiBold,
+    },
+    rowMeta: { ...theme.typography.caption, color: theme.text.visualFaint, marginTop: 2 },
+    actionRow: { flexDirection: "row" as const, gap: 6 },
+    rowAction: {
+      alignItems: "center" as const,
+      backgroundColor: theme.surface.base,
+      borderColor: theme.border.subtle,
+      borderRadius: theme.radii.control,
+      borderWidth: 1,
+      height: theme.sizing.minTouchTarget,
+      justifyContent: "center" as const,
+      width: theme.sizing.minTouchTarget,
+    },
+    notice: {
+      ...theme.typography.body,
+      color: theme.text.muted,
+      paddingHorizontal: theme.spacing.page,
+      paddingVertical: 20,
+      textAlign: "center" as const,
+    },
+    error: { color: theme.status.dangerOnBase },
+    rowPill: {
+      alignItems: "center" as const,
+      borderRadius: theme.radii.control,
+      borderWidth: 1,
+      justifyContent: "center" as const,
+      minHeight: theme.sizing.minTouchTarget,
+      minWidth: 78,
+      paddingHorizontal: 14,
+    },
+    rowPillFilled: { backgroundColor: theme.accent.action, borderColor: theme.accent.action },
+    rowPillFilledText: { ...theme.typography.button, color: theme.text.onPrimary },
+    rowPillOutline: { backgroundColor: theme.surface.base, borderColor: theme.border.subtle },
+    rowPillOutlineText: { ...theme.typography.button, color: theme.text.secondary },
+    rowPillDisabled: { opacity: theme.layout.opacity.disabled },
+    friendsAlreadyText: { ...theme.typography.caption, color: theme.text.muted },
+    requestActions: { alignItems: "center" as const, flexDirection: "row" as const, gap: 8 },
+    requestCircle: {
+      alignItems: "center" as const,
+      borderRadius: theme.sizing.minTouchTarget / 2,
+      borderWidth: 1,
+      height: theme.sizing.minTouchTarget,
+      justifyContent: "center" as const,
+      width: theme.sizing.minTouchTarget,
+    },
+    requestCircleAccept: { backgroundColor: theme.accent.action, borderColor: theme.accent.action },
+    requestCircleReject: { backgroundColor: theme.surface.base, borderColor: theme.border.subtle },
+    emptyStateWrap: { paddingHorizontal: theme.spacing.page, paddingTop: 2 },
+    collapseHeader: {
+      alignItems: "center" as const,
+      flexDirection: "row" as const,
+      gap: 8,
+      minHeight: theme.sizing.minTouchTarget,
+      paddingHorizontal: 24,
+      paddingVertical: 10,
+    },
+    collapseHeaderText: { ...theme.typography.overline, color: theme.text.visualFaint, flex: 1 },
+    loadingCard: { gap: 12, padding: 16 },
+    loadingRow: { alignItems: "center" as const, flexDirection: "row" as const, gap: 12 },
+    loadingText: { flex: 1, gap: 7 },
+  };
+};
+
+type FriendsHubStyles = ReturnType<typeof createFriendsHubStyles>;
+
+/** Theme, then scale — the same two-level cache the conversations list uses. */
+const friendsHubStyleCache = new WeakMap<MobileTheme, Map<number, FriendsHubStyles>>();
+
+function useFriendsHubStyles(): FriendsHubStyles {
+  const theme = useTheme();
+  const scale = useMobileMessagingScale();
+
+  return useMemo(() => {
+    let byScale = friendsHubStyleCache.get(theme);
+    if (!byScale) {
+      byScale = new Map<number, FriendsHubStyles>();
+      friendsHubStyleCache.set(theme, byScale);
+    }
+
+    const cached = byScale.get(scale);
+    if (cached) {
+      return cached;
+    }
+
+    const created = createFriendsHubStyles(theme, scale);
+    byScale.set(scale, created);
+    return created;
+  }, [scale, theme]);
+}
 
 function matchesFriendQuery(
   friend: { displayName: string | null; username: string },
@@ -449,8 +486,22 @@ export function FriendsHub({
   const { apiClient, session, status } = useMobileAuth();
   const { locale } = useMobileLocaleRuntime();
   const theme = useTheme();
-  const styles = useThemedStyles(createFriendsHubStyles);
+  const styles = useFriendsHubStyles();
+  // Avatars are component props rather than styles, so they take the same 390pt
+  // mapping by hand — otherwise the row grows around a fixed-size avatar.
+  const messagingScale = useMobileMessagingScale();
+  const friendAvatarSize = scaleMobileMessagingMetric(msg.avatar.friendList, messagingScale);
+  const friendAvatarRadius = scaleMobileMessagingMetric(
+    msg.avatar.friendListRadius,
+    messagingScale,
+  );
+  const requestAvatarSize = scaleMobileMessagingMetric(msg.avatar.conversationList, messagingScale);
+  const requestAvatarRadius = scaleMobileMessagingMetric(
+    msg.avatar.conversationListRadius,
+    messagingScale,
+  );
   const { showToast } = useToast();
+  const voiceRuntime = useOptionalMobileVoiceRuntime();
   const t = mobileCopy[locale];
   const query = useMobileFriendsQuery(apiClient, status === "signed-in");
   const mutations = useMobileSocialMutations(apiClient);
@@ -481,6 +532,18 @@ export function FriendsHub({
     ONLINE: t.friendsStatusOnline,
   } as const;
 
+  /**
+   * §2 "1c": embedded in the Messages tabs there is exactly one search field —
+   * the band under the segment — so what the reader types there is what looks
+   * people up here. Standalone the hub keeps its own field.
+   */
+  useEffect(() => {
+    if (!embedded) {
+      return;
+    }
+    setUserSearchDraft(externalSearch ?? "");
+  }, [embedded, externalSearch]);
+
   useEffect(() => {
     const timer = setTimeout(() => setUserSearchTerm(userSearchDraft), USER_SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(timer);
@@ -506,18 +569,43 @@ export function FriendsHub({
   );
   const suggestions = suggestionsQuery.data?.suggestions ?? [];
   const hasUserSearchTerm = normalizedUserSearch.length >= MOBILE_USER_SEARCH_MIN_TERM_LENGTH;
-  const draftIsAhead =
-    normalizeMobileUserSearchTerm(userSearchDraft) !== normalizedUserSearch &&
-    normalizeMobileUserSearchTerm(userSearchDraft).length >= MOBILE_USER_SEARCH_MIN_TERM_LENGTH;
 
   /**
    * §2 "1b": the "Katıl" pill drops the reader into the room the friend is
    * already in, using M4A's channel/server ids rather than a lookup.
    */
-  const joinVoiceRoom = (voiceRoom: MobileFriendVoiceRoom) => {
+  /**
+   * §2 "1b": "Katıl" has to do what tapping the voice channel itself does —
+   * ask for the microphone, then actually join. Opening the room screen alone
+   * left it sitting on its loading state forever, because nothing had connected.
+   */
+  const joinVoiceRoom = async (voiceRoom: MobileFriendVoiceRoom) => {
+    if (!voiceRuntime) {
+      openMobileVoiceRoom({
+        channelId: voiceRoom.channelId,
+        channelName: voiceRoom.channelName,
+        serverId: voiceRoom.serverId,
+      });
+      return;
+    }
+
+    const permission = await voiceRuntime.requestMicrophonePermission();
+    if (!permission.hasMicrophonePermission) {
+      showToast({ title: t.voiceRoomPermissionDenied, variant: "warning" });
+      return;
+    }
+
+    // The screen opens first: joining costs a token fetch and an ICE handshake,
+    // and waiting for it makes the pill feel dead.
     openMobileVoiceRoom({
       channelId: voiceRoom.channelId,
       channelName: voiceRoom.channelName,
+      serverId: voiceRoom.serverId,
+    });
+    void voiceRuntime.joinVoiceChannel({
+      channelId: voiceRoom.channelId,
+      channelName: voiceRoom.channelName,
+      permission,
       serverId: voiceRoom.serverId,
     });
   };
@@ -569,15 +657,6 @@ export function FriendsHub({
     } catch (error) {
       showToast({ title: resolveRequestErrorCopy(error), variant: "error" });
     }
-  };
-
-  const shareInvite = async () => {
-    const username = session?.user.username ?? "";
-    await Share.share({
-      message: username
-        ? t.friendsInviteMessage.replace("{username}", username)
-        : t.friendsInviteMessageFallback,
-    });
   };
 
   /**
@@ -690,15 +769,37 @@ export function FriendsHub({
       >
         <>
           <View style={styles.socialRow}>
-            <View style={isOffline ? styles.socialAvatarOffline : undefined}>
+            <View style={[styles.socialAvatarWrap, isOffline ? styles.socialAvatarOffline : null]}>
               <Avatar
-                avatarBorderRadius={msg.avatar.friendListRadius}
-                dimension={msg.avatar.friendList}
+                avatarBorderRadius={friendAvatarRadius}
+                dimension={friendAvatarSize}
                 identityId={friend.id}
                 imageUrl={friend.avatarUrl}
                 label={title}
-                status={AVATAR_PRESENCE_STATUS[getMobilePresenceTone(friend.status)]}
               />
+              {friend.voiceRoom ? (
+                <View style={styles.socialVoiceTile} testID={`mobile-friend-voice-${friend.id}`}>
+                  <MobileLineIcon
+                    accessibilityLabel={t.dmVoiceRoomPresenceLabel}
+                    color={theme.messaging.accent}
+                    name="audio-wave"
+                    size={9}
+                  />
+                </View>
+              ) : (
+                <View
+                  style={[
+                    styles.socialPresenceDot,
+                    {
+                      backgroundColor: getMobilePresenceColor(
+                        getMobilePresenceTone(friend.status),
+                        theme,
+                      ),
+                    },
+                  ]}
+                  testID={`mobile-friend-presence-${friend.id}`}
+                />
+              )}
             </View>
             <View style={styles.socialIdentity}>
               <Text
@@ -714,7 +815,7 @@ export function FriendsHub({
                 <Pressable
                   accessibilityLabel={`${t.dmVoiceRoomJoinAction}: ${friend.voiceRoom.channelName}`}
                   accessibilityRole="button"
-                  onPress={() => joinVoiceRoom(friend.voiceRoom!)}
+                  onPress={() => void joinVoiceRoom(friend.voiceRoom!)}
                   style={styles.socialJoinPill}
                   testID={`mobile-friend-join-voice-${friend.id}`}
                 >
@@ -881,8 +982,8 @@ export function FriendsHub({
         <View style={[styles.socialRow, styles.socialRowRequest]} testID={testID}>
           <View style={options.dimmed ? styles.socialAvatarSent : undefined}>
             <Avatar
-              avatarBorderRadius={msg.avatar.conversationListRadius}
-              dimension={msg.avatar.conversationList}
+              avatarBorderRadius={requestAvatarRadius}
+              dimension={requestAvatarSize}
               identityId={entry.id}
               imageUrl={entry.avatarUrl}
               label={title}
@@ -1075,54 +1176,13 @@ export function FriendsHub({
 
       {!query.isLoading && !query.isError && activeSegment === "requests" ? (
         <>
-          <Pressable
-            accessibilityLabel={t.friendsInviteTitle}
-            accessibilityRole="button"
-            onPress={() => void shareInvite()}
-            style={styles.inviteCard}
-            testID="mobile-friend-invite-card"
-          >
-            <View style={styles.inviteIcon}>
-              <Icon name="share-social-outline" size={18} tone="accent" />
-            </View>
-            <Text numberOfLines={1} style={styles.inviteTitle}>
-              {t.friendsInviteTitle}
-            </Text>
-            <Icon name="chevron-forward" size={18} tone="muted" />
-          </Pressable>
-
-          <Text style={styles.sectionHeading}>{t.friendsAdd}</Text>
-          <View style={styles.searchShell}>
-            <Icon name="search" size={17} tone="muted" />
-            <TextInput
-              accessibilityLabel={t.friendsAdd}
-              autoCapitalize="none"
-              autoCorrect={false}
-              clearButtonMode="while-editing"
-              onChangeText={setUserSearchDraft}
-              placeholder={t.friendsSearchPlaceholder}
-              placeholderTextColor={theme.text.visualPlaceholder}
-              returnKeyType="search"
-              style={styles.searchInput}
-              testID="mobile-friend-search-users-input"
-              value={userSearchDraft}
-            />
-            {userSearch.isFetching || draftIsAhead ? (
-              <View style={styles.searchSpinnerSlot}>
-                <ActivityIndicator
-                  color={theme.accent.default}
-                  size="small"
-                  testID="mobile-friend-search-spinner"
-                />
-              </View>
-            ) : null}
-          </View>
-
-          {!hasUserSearchTerm ? (
-            <Text style={styles.searchHint} testID="mobile-friend-search-hint">
-              {t.friendsSearchHint}
-            </Text>
-          ) : userSearch.isLoading ? (
+          {/*
+           * §2 "1c": the screen is three groups and nothing else. The invite
+           * card and the second search field are gone — the tab band's own
+           * search drives user lookup, so this list is not two search boxes
+           * deep, and the header FAB is the "add someone" affordance.
+           */}
+          {!hasUserSearchTerm ? null : userSearch.isLoading ? (
             <View
               style={[styles.sectionCard, styles.loadingCard]}
               testID="mobile-friend-search-loading"

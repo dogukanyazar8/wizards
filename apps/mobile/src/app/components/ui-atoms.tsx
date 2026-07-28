@@ -18,6 +18,8 @@ import {
 import type { TextStyle, ViewProps } from "react-native";
 import { Avatar as KitAvatar, Button as KitButton, EmptyState as KitEmptyState } from "./kit";
 import { useUiAtomStyles } from "./ui-atoms.styles";
+import { isMobileConnectivityDegradedPhase } from "../mobile-connectivity-presentation";
+import { useMobileConnectivityPhase } from "../providers/mobile-connectivity-context";
 import { useTheme } from "../providers/mobile-theme-provider";
 
 function getMobilePermissionLabel(intentId: MobilePermissionIntentId): string {
@@ -107,6 +109,7 @@ export function MobileSyncHealthBanner({
   onRetry(): void;
 }) {
   const styles = useUiAtomStyles();
+  const connectivityPhase = useMobileConnectivityPhase();
 
   // Background refreshes are silent on every screen. A running refetch is not
   // news — announcing it made routine polling look like an incident and pushed
@@ -114,6 +117,14 @@ export function MobileSyncHealthBanner({
   // is worth a word, because otherwise stale or empty content has no explanation
   // and no way back.
   if (health.status !== "error") {
+    return null;
+  }
+
+  // One outage, one bar. A dead network fails these refreshes too, and stacking
+  // "Bağlantı toparlanamadı" under the connectivity bar's own line reported the
+  // same problem twice with two different retries. The bar above already names
+  // the cause and owns the recovery, so this one stays quiet until it is back.
+  if (isMobileConnectivityDegradedPhase(connectivityPhase)) {
     return null;
   }
 

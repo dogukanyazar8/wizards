@@ -92,6 +92,12 @@ export const ChatMessageSchema = z.object({
   replyTo: ReplyToSchema.nullable().optional(),
   createdAt: z.string().datetime(),
   deliveryStatus: z.enum(["sending", "failed"]).optional(),
+  /**
+   * The id the sender's own optimistic bubble was created under, echoed back so
+   * the sender can recognise its own message. Only ever set on the copy the
+   * author receives — the HTTP response and the author's own socket fan-out.
+   */
+  clientNonce: z.string().min(1).max(128).nullable().optional(),
   errorMessage: z.string().optional(),
   forwardedAt: z.string().datetime().nullable().optional(),
   editedAt: z.string().datetime().nullable(),

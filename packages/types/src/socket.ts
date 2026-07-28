@@ -57,6 +57,13 @@ export interface DMMessagePayload {
   replyTo: DMMessagePayload | null;
   /** Client-side optimistic state — the server never sends this field. */
   deliveryStatus?: "sending" | "failed" | undefined;
+  /**
+   * The id the sender's own optimistic bubble was created under, echoed back so
+   * the sender can recognise its own message. Present only on the copy that goes
+   * to the author — the HTTP response and the author's socket fan-out — because
+   * nobody else has a bubble to match it against.
+   */
+  clientNonce?: string | null | undefined;
 }
 
 export interface DMParticipantDTO extends DMPresence {
@@ -127,6 +134,7 @@ export const DMMessagePayloadSchema: z.ZodType<DMMessagePayload> = z.lazy(() =>
     reactions: z.array(MessageReactionSchema, { error: "Expected array" }),
     replyTo: DMMessagePayloadSchema.nullable(),
     deliveryStatus: z.enum(["sending", "failed"]).optional(),
+    clientNonce: z.string().min(1).max(128).nullable().optional(),
   }),
 );
 

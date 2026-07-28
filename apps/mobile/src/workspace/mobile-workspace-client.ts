@@ -122,6 +122,7 @@ export type SendMobileChannelMessageInput = {
   content: string;
   alsoSendToChannel?: MobileChannelSendMessageRequest["alsoSendToChannel"];
   attachments?: MobileChannelSendMessageRequest["attachments"];
+  clientNonce?: MobileChannelSendMessageRequest["clientNonce"];
   forwardOfMessageId?: MobileChannelSendMessageRequest["forwardOfMessageId"];
   replyToId?: MobileChannelSendMessageRequest["replyToId"];
   threadParentId?: MobileChannelSendMessageRequest["threadParentId"];

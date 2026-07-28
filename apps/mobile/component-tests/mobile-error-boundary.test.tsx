@@ -1,13 +1,25 @@
 import React from "react";
 import { Text } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { fireEvent, render, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, render, waitFor } from "@testing-library/react-native";
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
 
 const mockSetStringAsync = jest.fn(() => Promise.resolve(true));
 
 jest.mock("expo-clipboard", () => ({
   setStringAsync: (value: string) => mockSetStringAsync(value),
+}));
+
+type CrashReportOutcome =
+  | { publicNumber: number; screenshot: boolean; status: "sent" }
+  | { reason: "failed" | "signed-out"; status: "failed" };
+
+const mockSendMobileCrashReport = jest.fn<() => Promise<CrashReportOutcome>>(() =>
+  Promise.resolve({ publicNumber: 1284, screenshot: true, status: "sent" } as CrashReportOutcome),
+);
+
+jest.mock("../src/feedback/mobile-crash-report", () => ({
+  sendMobileCrashReport: () => mockSendMobileCrashReport(),
 }));
 
 import { MobileApiError } from "../src/api/mobile-api-client";
@@ -39,6 +51,12 @@ function Throwing({ error }: { error: unknown }): React.JSX.Element {
 describe("mobile error boundary", () => {
   beforeEach(() => {
     mockSetStringAsync.mockClear();
+    mockSendMobileCrashReport.mockClear();
+    mockSendMobileCrashReport.mockResolvedValue({
+      publicNumber: 1284,
+      screenshot: true,
+      status: "sent",
+    });
     consoleError = jest.spyOn(console, "error").mockImplementation(() => {});
   });
 
@@ -91,6 +109,62 @@ describe("mobile error boundary", () => {
     await waitFor(() =>
       expect(view.getByText(copy.errorBoundaryReferenceCopiedNotice)).toBeTruthy(),
     );
+  });
+
+  it("states what a report carries before anything is sent", async () => {
+    const view = await renderBoundary(<Throwing error={new TypeError("bad render")} />);
+
+    await waitFor(() => expect(view.getByTestId("mobile-error-boundary-feedback")).toBeTruthy());
+    expect(view.getByText(copy.errorBoundaryFeedbackDisclosure)).toBeTruthy();
+    expect(view.queryByTestId("mobile-error-boundary-record")).toBeNull();
+  });
+
+  it("hands back a record number once the report lands", async () => {
+    const view = await renderBoundary(<Throwing error={new TypeError("bad render")} />);
+    await waitFor(() => expect(view.getByTestId("mobile-error-boundary-feedback")).toBeTruthy());
+
+    await act(async () => {
+      fireEvent.press(view.getByTestId("mobile-error-boundary-feedback"));
+    });
+
+    expect(mockSendMobileCrashReport).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(view.getByTestId("mobile-error-boundary-record")).toBeTruthy());
+    expect(view.getByText("WSP-1284")).toBeTruthy();
+    expect(view.getByText(copy.errorBoundaryFeedbackSentDescription)).toBeTruthy();
+  });
+
+  it("does not claim a screenshot it could not take", async () => {
+    mockSendMobileCrashReport.mockResolvedValue({
+      publicNumber: 77,
+      screenshot: false,
+      status: "sent",
+    });
+    const view = await renderBoundary(<Throwing error={new TypeError("bad render")} />);
+    await waitFor(() => expect(view.getByTestId("mobile-error-boundary-feedback")).toBeTruthy());
+
+    await act(async () => {
+      fireEvent.press(view.getByTestId("mobile-error-boundary-feedback"));
+    });
+
+    await waitFor(() =>
+      expect(
+        view.getByText(copy.errorBoundaryFeedbackSentDescriptionWithoutScreenshot),
+      ).toBeTruthy(),
+    );
+    expect(view.queryByText(copy.errorBoundaryFeedbackSentDescription)).toBeNull();
+  });
+
+  it("falls back to the diagnostic code when there is no session to report with", async () => {
+    mockSendMobileCrashReport.mockResolvedValue({ reason: "signed-out", status: "failed" });
+    const view = await renderBoundary(<Throwing error={new TypeError("bad render")} />);
+    await waitFor(() => expect(view.getByTestId("mobile-error-boundary-feedback")).toBeTruthy());
+
+    await act(async () => {
+      fireEvent.press(view.getByTestId("mobile-error-boundary-feedback"));
+    });
+
+    await waitFor(() => expect(view.getByText(copy.errorBoundaryFeedbackSignedOut)).toBeTruthy());
+    expect(view.queryByTestId("mobile-error-boundary-record")).toBeNull();
   });
 
   it("hands the screen back after a retry", async () => {

@@ -39,8 +39,12 @@ export function normalizeMobileMessageBooleanPreference(
  * Voice-room canvas appearance, independent of the app theme. "system" follows
  * the resolved app theme; "dark" is the canonical #5g design; "light" is the
  * light-surface variant. Default follows the app theme.
+ *
+ * Listed in the order the settings screen paints them, which is the theme
+ * picker's order — light, dark, system — so the two pickers never disagree
+ * about which column means what.
  */
-export const MOBILE_VOICE_APPEARANCE_OPTIONS = ["system", "dark", "light"] as const;
+export const MOBILE_VOICE_APPEARANCE_OPTIONS = ["light", "dark", "system"] as const;
 export type MobileVoiceRoomAppearance = (typeof MOBILE_VOICE_APPEARANCE_OPTIONS)[number];
 export const MOBILE_DEFAULT_VOICE_APPEARANCE: MobileVoiceRoomAppearance = "system";
 
@@ -229,6 +233,10 @@ function applyAccent(theme: MobileTheme, accentId: MobileAccentId): MobileTheme 
 }
 
 const composedThemeCache = new Map<string, MobileTheme>();
+/** The interface text scale each composed theme was built with. */
+const composedThemeFontScales = new WeakMap<MobileTheme, number>();
+/** The same theme with its typography tokens left at 1x (see below). */
+const composedThemeStyleSources = new WeakMap<MobileTheme, MobileTheme>();
 
 /**
  * Composes the resolved base theme with the user's accent and text-size
@@ -250,16 +258,72 @@ export function composeMobileTheme(
     return cached;
   }
 
-  let composed = accentId === MOBILE_DEFAULT_ACCENT_ID ? base : applyAccent(base, accentId);
+  const accented =
+    accentId === MOBILE_DEFAULT_ACCENT_ID ? { ...base } : applyAccent(base, accentId);
   const factor = MOBILE_FONT_SCALE_STEPS[fontScaleStep];
-  if (factor !== 1) {
-    composed = {
-      ...composed,
-      typography: scaleTypography(composed.typography, factor),
-    };
+  const styleSource = deepFreeze(accented);
+  const composed =
+    factor === 1
+      ? styleSource
+      : deepFreeze({ ...accented, typography: scaleTypography(accented.typography, factor) });
+
+  composedThemeFontScales.set(composed, factor);
+  composedThemeStyleSources.set(composed, styleSource);
+  composedThemeCache.set(cacheKey, composed);
+  return composed;
+}
+
+/**
+ * The interface text scale that produced `theme`.
+ *
+ * Scaling `theme.typography` alone never reached the interface: barely a tenth
+ * of the app's font sizes come from a typography token, the rest are literals
+ * inside the style factories. So the scale is applied to the finished style
+ * sheet instead (`useThemedStyles`), and this is where that sheet reads it.
+ */
+export function getMobileThemeFontScale(theme: MobileTheme): number {
+  return composedThemeFontScales.get(theme) ?? 1;
+}
+
+/**
+ * The theme a style factory must be run against: identical to `theme` except
+ * its typography tokens are still at 1x. Scaling the finished sheet would
+ * otherwise apply the factor a second time to every token-derived size.
+ */
+export function getMobileThemeStyleSource(theme: MobileTheme): MobileTheme {
+  return composedThemeStyleSources.get(theme) ?? theme;
+}
+
+const SCALED_TEXT_STYLE_KEYS = ["fontSize", "lineHeight"] as const;
+
+/**
+ * Applies the interface text scale to a style factory's output. Only the two
+ * text measures move — box measurements stay put, so a larger scale grows the
+ * type inside the existing layout rather than redrawing the screen.
+ */
+export function scaleMobileStyleSheetText<T extends object>(styles: T, factor: number): T {
+  if (factor === 1) {
+    return styles;
   }
 
-  const frozen = deepFreeze(composed === base ? { ...base } : composed);
-  composedThemeCache.set(cacheKey, frozen);
-  return frozen;
+  const scaled: Record<string, unknown> = {};
+  for (const [name, style] of Object.entries(styles)) {
+    if (!style || typeof style !== "object") {
+      scaled[name] = style;
+      continue;
+    }
+
+    let next: Record<string, unknown> | undefined;
+    for (const key of SCALED_TEXT_STYLE_KEYS) {
+      const value = (style as Record<string, unknown>)[key];
+      if (typeof value === "number") {
+        next ??= { ...(style as Record<string, unknown>) };
+        next[key] = value * factor;
+      }
+    }
+
+    scaled[name] = next ?? style;
+  }
+
+  return scaled as T;
 }

@@ -162,6 +162,7 @@ export type SendMobileDMMessageInput = {
   conversationId: string;
   content: string;
   attachments?: MobileDMSendMessageRequest["attachments"];
+  clientNonce?: MobileDMSendMessageRequest["clientNonce"];
   forwardOfMessageId?: MobileDMSendMessageRequest["forwardOfMessageId"];
   replyToId?: MobileDMSendMessageRequest["replyToId"];
   threadParentId?: MobileDMSendMessageRequest["threadParentId"];

@@ -10,6 +10,36 @@ type MobileCacheMessage = {
   readonly id: string;
 };
 
+type MobileEchoableMessage = MobileCacheMessage & {
+  readonly clientNonce?: string | null | undefined;
+};
+
+/**
+ * The ids an incoming server message may already occupy in the cache: its own,
+ * plus the optimistic id its author rendered it under. The server echoes that id
+ * back as `clientNonce` on the author's copy alone, and matching on it is what
+ * turns "append a second bubble" into "fill in the one already on screen".
+ */
+export function getMobileMessageMatchIds(message: MobileEchoableMessage): ReadonlySet<string> {
+  return message.clientNonce ? new Set([message.id, message.clientNonce]) : new Set([message.id]);
+}
+
+/**
+ * The nonce belongs to one delivery, not to the message. Left in the cache it
+ * would differ from the copy the next refetch brings back, so an identical
+ * message would look changed and re-render the row for nothing.
+ */
+export function stripMobileMessageClientNonce<TMessage extends MobileEchoableMessage>(
+  message: TMessage,
+): TMessage {
+  if (message.clientNonce === undefined) {
+    return message;
+  }
+
+  const { clientNonce: _clientNonce, ...rest } = message;
+  return rest as TMessage;
+}
+
 type MobileCachePage<TMessage extends MobileCacheMessage> = {
   readonly messages: readonly TMessage[];
 };
@@ -83,7 +113,7 @@ export function insertOptimisticMobileMessage<
 }
 
 export function replaceMobileMessage<
-  TMessage extends MobileCacheMessage,
+  TMessage extends MobileEchoableMessage,
   TPage extends MobileCachePage<TMessage>,
   TPageParam,
 >(
@@ -91,18 +121,24 @@ export function replaceMobileMessage<
   previousId: string,
   message: TMessage,
 ): MobileMessageData<TMessage, TPage, TPageParam> | undefined {
-  return replaceMatchingMobileMessages(data, new Set([previousId, message.id]), message);
+  const matchedIds = new Set(getMobileMessageMatchIds(message));
+  matchedIds.add(previousId);
+  return replaceMatchingMobileMessages(data, matchedIds, stripMobileMessageClientNonce(message));
 }
 
 export function appendOrReplaceMobileMessage<
-  TMessage extends MobileCacheMessage,
+  TMessage extends MobileEchoableMessage,
   TPage extends MobileCachePage<TMessage>,
   TPageParam,
 >(
   data: MobileMessageData<TMessage, TPage, TPageParam> | undefined,
   message: TMessage,
 ): MobileMessageData<TMessage, TPage, TPageParam> | undefined {
-  return replaceMatchingMobileMessages(data, new Set([message.id]), message);
+  return replaceMatchingMobileMessages(
+    data,
+    getMobileMessageMatchIds(message),
+    stripMobileMessageClientNonce(message),
+  );
 }
 
 export function removeMobileMessage<

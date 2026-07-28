@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type {
   MessageAttachment,
   MobileWorkspaceChannelSummary,
@@ -125,27 +125,59 @@ const INITIAL_MESSAGE_SEARCH_INPUT: MobileMessageSearchInput = {
   scope: "dm",
 };
 
+/**
+ * Marks the open conversation read: once when it is opened, and again whenever
+ * an inbound message lands in it.
+ *
+ * It deliberately does NOT fire for the viewer's own message. Sending is not
+ * reading, and the mark-read response invalidates both the inbox and the
+ * bootstrap payload — so keying purely off "the last message id changed" meant
+ * every send paid for two of those round trips: one for the optimistic bubble's
+ * client id, one more when the server id replaced it. An in-flight bubble is
+ * skipped for the same reason: a message that has not landed cannot be read.
+ */
 export function useMobileDMReadEffect({
   conversationId,
+  currentUserId,
   isSignedIn,
-  latestMessageId,
+  latestMessage,
   markRead,
 }: {
   readonly conversationId: string | null;
+  readonly currentUserId: string | null;
   readonly isSignedIn: boolean;
-  readonly latestMessageId: string | null;
+  readonly latestMessage: {
+    readonly deliveryStatus?: "sending" | "failed" | undefined;
+    readonly id: string;
+    readonly userId: string;
+  } | null;
   readonly markRead: (input: { readonly conversationId: string }) => void;
 }) {
   const readConversationId = getMobileDMReadTarget({
     conversationId,
     isSignedIn,
-    latestMessageId,
+    latestMessageId: latestMessage?.id ?? null,
   });
+  const lastMarkedRef = useRef<{ conversationId: string; messageId: string } | null>(null);
 
   useEffect(() => {
-    if (!readConversationId) return;
+    if (!readConversationId || !latestMessage) return;
+
+    const alreadyMarked = lastMarkedRef.current;
+    const isNewConversation = alreadyMarked?.conversationId !== readConversationId;
+    const isInboundArrival =
+      !latestMessage.deliveryStatus &&
+      latestMessage.userId !== currentUserId &&
+      alreadyMarked?.messageId !== latestMessage.id;
+
+    if (!isNewConversation && !isInboundArrival) return;
+
+    lastMarkedRef.current = {
+      conversationId: readConversationId,
+      messageId: latestMessage.id,
+    };
     markRead({ conversationId: readConversationId });
-  }, [latestMessageId, markRead, readConversationId]);
+  }, [currentUserId, latestMessage, markRead, readConversationId]);
 }
 
 export function useMobileMessagingFeature({
@@ -414,11 +446,12 @@ export function useMobileMessagingFeature({
   const channelSyncState = useMobileSyncSnapshot(channelMessagesQuery, "channel");
   const dmSyncState = useMobileSyncSnapshot(dmMessagesQuery, "dm");
   const workspaceSyncState = useMobileSyncSnapshot(workspaceQuery, "workspace");
-  const latestDMMessageId = dmMessagesState.payload?.messages.at(-1)?.id ?? null;
+  const latestDMMessage = dmMessagesState.payload?.messages.at(-1) ?? null;
   useMobileDMReadEffect({
     conversationId: selectedDMConversationId,
+    currentUserId: currentUser?.id ?? null,
     isSignedIn,
-    latestMessageId: latestDMMessageId,
+    latestMessage: latestDMMessage,
     markRead: markDMRead,
   });
 
