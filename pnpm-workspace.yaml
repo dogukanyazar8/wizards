@@ -57,3 +57,4 @@ minimumReleaseAgeExclude:
 
 patchedDependencies:
   brace-expansion@5.0.8: patches/brace-expansion@5.0.8.patch
+  next-auth@5.0.0-beta.32: patches/next-auth@5.0.0-beta.32.patch

@@ -1,0 +1,35 @@
+diff --git a/lib/env.js b/lib/env.js
+--- a/lib/env.js
++++ b/lib/env.js
+@@ -1,5 +1,5 @@
+ // @ts-expect-error Next.js does not yet correctly use the `package.json#exports` field
+-import { NextRequest } from "next/server";
++import { NextRequest } from "next/server.js";
+ import { setEnvDefaults as coreSetEnvDefaults } from "@auth/core";
+ /** If `NEXTAUTH_URL` or `AUTH_URL` is defined, override the request's URL. */
+ export function reqWithEnvURL(req) {
+diff --git a/lib/index.js b/lib/index.js
+--- a/lib/index.js
++++ b/lib/index.js
+@@ -1,7 +1,7 @@
+ import { Auth, createActionURL } from "@auth/core";
+ // @ts-expect-error Next.js does not yet correctly use the `package.json#exports` field
+-import { headers } from "next/headers";
++import { headers } from "next/headers.js";
+ // @ts-expect-error Next.js does not yet correctly use the `package.json#exports` field
+-import { NextResponse } from "next/server";
++import { NextResponse } from "next/server.js";
+ import { reqWithEnvURL } from "./env.js";
+ async function getSession(headers, config) {
+diff --git a/lib/actions.js b/lib/actions.js
+--- a/lib/actions.js
++++ b/lib/actions.js
+@@ -1,6 +1,6 @@
+ import { Auth, raw, skipCSRFCheck, createActionURL } from "@auth/core";
+ // @ts-expect-error Next.js does not yet correctly use the `package.json#exports` field
+-import { headers as nextHeaders, cookies } from "next/headers";
++import { headers as nextHeaders, cookies } from "next/headers.js";
+ // @ts-expect-error Next.js does not yet correctly use the `package.json#exports` field
+-import { redirect } from "next/navigation";
++import { redirect } from "next/navigation.js";
+ export async function signIn(provider, options = {}, authorizationParams, config) {

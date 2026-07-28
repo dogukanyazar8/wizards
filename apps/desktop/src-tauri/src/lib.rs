@@ -3536,8 +3536,10 @@ fn show_or_create_desktop_admin_console_window(app: &tauri::AppHandle) -> Result
 
     let app_url = desktop_app_url_with_path(DESKTOP_ADMIN_CONSOLE_PATH);
     let allowed_origin = configured_app_origin_url();
-    let webview_data_directory = resolve_webview_data_directory_for_handle(app)
-        .map_err(|error| format!("Unable to prepare desktop admin console webview data: {error}"))?;
+    let webview_data_directory =
+        resolve_webview_data_directory_for_handle(app).map_err(|error| {
+            format!("Unable to prepare desktop admin console webview data: {error}")
+        })?;
 
     WebviewWindowBuilder::new(
         app,
