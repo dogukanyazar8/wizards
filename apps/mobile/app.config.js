@@ -12,6 +12,7 @@ const GOOGLE_SERVICES_FILE = path.join(__dirname, "google-services.json");
 
 const EAS_PROJECT_ID = "3b8b3f68-dd6c-4c9c-84e7-10ed8f4b2aad";
 const MOBILE_ENVIRONMENTS = ["development", "uat", "canary", "production"];
+const GIT_SHA_PATTERN = /^[0-9a-f]{40}$/iu;
 
 const WHISPR_MOBILE_APP_IDENTITY = storeContractData.appIdentity;
 const WHISPR_MOBILE_ICON = storeContractData.icon;
@@ -59,6 +60,19 @@ function readEnvironmentName() {
   return MOBILE_ENVIRONMENTS.includes(value) ? value : "development";
 }
 
+function readBuildId() {
+  const value = process.env.WHISPR_MOBILE_BUILD_ID?.trim();
+
+  if (!value) {
+    return "unknown";
+  }
+  if (!GIT_SHA_PATTERN.test(value)) {
+    throw new Error("WHISPR_MOBILE_BUILD_ID must be a full Git SHA.");
+  }
+
+  return value.toLowerCase();
+}
+
 function normalizeUrl(value, fieldName) {
   const trimmed = value?.trim();
 
@@ -96,6 +110,12 @@ function assertReleaseUrl(value, fieldName, environment) {
   }
 }
 
+function assertCanonicalUatEndpoint(value, expectedValue, fieldName) {
+  if (value !== expectedValue) {
+    throw new Error(`${fieldName} must use the canonical UAT endpoint.`);
+  }
+}
+
 function buildPublicConfig(environment) {
   const defaults = DEFAULT_PUBLIC_ENV[environment];
   const apiUrl = normalizeUrl(
@@ -116,9 +136,15 @@ function buildPublicConfig(environment) {
     assertReleaseUrl(socketUrl, "EXPO_PUBLIC_WHISPR_SOCKET_URL", environment);
     assertReleaseUrl(webUrl, "EXPO_PUBLIC_WHISPR_WEB_URL", environment);
   }
+  if (environment === "uat") {
+    assertCanonicalUatEndpoint(apiUrl, defaults.apiUrl, "EXPO_PUBLIC_WHISPR_API_URL");
+    assertCanonicalUatEndpoint(socketUrl, defaults.socketUrl, "EXPO_PUBLIC_WHISPR_SOCKET_URL");
+    assertCanonicalUatEndpoint(webUrl, defaults.webUrl, "EXPO_PUBLIC_WHISPR_WEB_URL");
+  }
 
   return {
     apiUrl,
+    buildId: readBuildId(),
     environment,
     releaseChannel: environment,
     sentryDsn: process.env.EXPO_PUBLIC_WHISPR_SENTRY_DSN?.trim() || null,

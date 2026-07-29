@@ -27,6 +27,12 @@ param(
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
+$buildIdentityModule = Join-Path $PSScriptRoot "mobile-android-build-identity.psm1"
+if (-not (Test-Path -LiteralPath $buildIdentityModule)) {
+  throw "UAT release build identity module is missing: $buildIdentityModule"
+}
+Import-Module -Name $buildIdentityModule -Force -ErrorAction Stop
+
 $PackageName = "team.whispr.mobile"
 $UatUrl = "https://wizardsweb-uat.up.railway.app"
 $BuildHomeMarkerFileName = ".whispr-mobile-uat-build-root.json"
@@ -938,6 +944,10 @@ if ($resolvedBuildRoot -match "^[A-Za-z]:\\?$") {
 $sourceMobileRoot = Join-Path $resolvedSourceRoot "apps\mobile"
 Resolve-ExistingPath $sourceMobileRoot "Source mobile root" | Out-Null
 
+if ($BuildType -eq "release") {
+  Assert-WhisprReleaseBuildCanSync -BuildType $BuildType -SkipSync $SkipSync.IsPresent
+}
+
 $sourceEqualsBuild = $false
 if (Test-Path -LiteralPath $resolvedBuildRoot) {
   $sourceEqualsBuild = ((Resolve-Path -LiteralPath $resolvedBuildRoot).Path -ieq $resolvedSourceRoot)
@@ -953,9 +963,25 @@ Write-Host "Build root  : $resolvedBuildRoot"
 Write-Host "APK output  : $ApkOutputDir"
 Write-Host "UAT URL     : $UatUrl"
 
-if (-not $NoStartMetro) {
+if (Test-WhisprShouldStartMetro -BuildType $BuildType -NoStartMetro $NoStartMetro.IsPresent) {
   Write-Step "Validating editable source dependencies for Metro"
   Invoke-SourceMetroInstallWithRecovery -WorkingDirectory $resolvedSourceRoot -MobileRoot $sourceMobileRoot
+}
+
+$releaseSourceGitSha = $null
+if ($BuildType -eq "release") {
+  Write-Step "Verifying UAT source provenance"
+  Invoke-CommandChecked -Command "git" -Arguments @(
+    "-C",
+    $resolvedSourceRoot,
+    "fetch",
+    "--quiet",
+    "--no-tags",
+    "origin",
+    "refs/heads/uat:refs/remotes/origin/uat"
+  ) -WorkingDirectory $resolvedSourceRoot
+  $releaseSourceGitSha = Get-WhisprCleanGitCommit -SourceRoot $resolvedSourceRoot
+  Assert-WhisprUatReleaseProvenance -ExpectedCommit $releaseSourceGitSha -SourceRoot $resolvedSourceRoot
 }
 
 if (-not $SkipSync -and -not $sourceEqualsBuild) {
@@ -966,6 +992,11 @@ if (-not $SkipSync -and -not $sourceEqualsBuild) {
   throw "BuildRoot must differ from SourceRoot. Expo prebuild may only regenerate native files inside the managed UAT build root."
 } else {
   Write-Step "Skipping workspace sync"
+}
+
+if ($BuildType -eq "release") {
+  Assert-WhisprGitCommitUnchanged -ExpectedCommit $releaseSourceGitSha -SourceRoot $resolvedSourceRoot
+  Assert-WhisprUatReleaseProvenance -ExpectedCommit $releaseSourceGitSha -SourceRoot $resolvedSourceRoot
 }
 
 $mobileRoot = Join-Path $resolvedBuildRoot "apps\mobile"
@@ -980,6 +1011,7 @@ $env:ANDROID_HOME = $AndroidHome
 $env:ANDROID_SDK_ROOT = $AndroidHome
 $env:GRADLE_USER_HOME = $gradleUserHome
 $env:WHISPR_MOBILE_ENV = "uat"
+$env:WHISPR_MOBILE_BUILD_ID = $releaseSourceGitSha
 # Metro only inlines `EXPO_PUBLIC_*` names into the bundle, so the line above
 # reaches the Expo config but never the device: `process.env.WHISPR_MOBILE_ENV`
 # is undefined at runtime and the app falls back to "development". That fallback

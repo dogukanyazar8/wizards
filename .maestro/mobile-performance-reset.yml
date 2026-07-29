@@ -1,0 +1,23 @@
+appId: team.whispr.mobile
+---
+- openLink: "whispr://settings/about"
+- extendedWaitUntil:
+    visible:
+      id: "mobile-about-settings-screen"
+    timeout: 30000
+- tapOn:
+    id: "mobile-about-performance-diagnostics"
+- extendedWaitUntil:
+    visible:
+      id: "mobile-performance-diagnostics"
+    timeout: 30000
+- tapOn:
+    id: "performance-reset"
+- extendedWaitUntil:
+    visible:
+      id: "performance-reset-pending"
+    timeout: 30000
+- extendedWaitUntil:
+    visible:
+      id: "performance-reset-complete"
+    timeout: 30000

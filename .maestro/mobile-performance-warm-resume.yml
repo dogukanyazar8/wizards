@@ -1,0 +1,10 @@
+appId: team.whispr.mobile
+---
+- extendedWaitUntil:
+    visible:
+      id: "mobile-overview-screen"
+    timeout: 30000
+- extendedWaitUntil:
+    visible:
+      id: "mobile-performance-resume-persisted"
+    timeout: 30000

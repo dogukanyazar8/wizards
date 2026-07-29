@@ -1,0 +1,27 @@
+appId: team.whispr.mobile
+---
+- launchApp:
+    stopApp: false
+- runFlow:
+    when:
+      visible:
+        id: "mobile-auth-welcome-screen"
+    commands:
+      - tapOn:
+          id: "mobile-auth-welcome-sign-in"
+- extendedWaitUntil:
+    visible:
+      id: "mobile-auth-login-screen"
+    timeout: 30000
+- tapOn:
+    id: "mobile-auth-login-email"
+- inputText: ${PERF_EMAIL}
+- tapOn:
+    id: "mobile-auth-login-password"
+- inputText: ${PERF_PASSWORD}
+- tapOn:
+    id: "mobile-auth-login-submit"
+- extendedWaitUntil:
+    visible:
+      id: "mobile-overview-screen"
+    timeout: 30000

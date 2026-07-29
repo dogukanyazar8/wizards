@@ -15,6 +15,7 @@ type BuildExpoConfig = (context: { config: Record<string, unknown> }) => {
   extra?: {
     whispr?: {
       apiUrl?: string;
+      buildId?: string;
       environment?: string;
     };
   };
@@ -43,6 +44,7 @@ function buildTestExpoConfig() {
 describe("mobile app config contract", () => {
   it("emits native identity, permissions, and public UAT endpoints from contracts", () => {
     process.env.WHISPR_MOBILE_ENV = "uat";
+    process.env.WHISPR_MOBILE_BUILD_ID = "0123456789abcdef0123456789abcdef01234567";
 
     const config = buildTestExpoConfig();
 
@@ -64,6 +66,7 @@ describe("mobile app config contract", () => {
       false,
     );
     assert.ok(config.extra?.whispr);
+    assert.equal(config.extra.whispr.buildId, "0123456789abcdef0123456789abcdef01234567");
     assert.equal(config.extra.whispr.environment, "uat");
     assert.match(config.extra.whispr.apiUrl ?? "", /^https:\/\//);
   });
@@ -73,5 +76,19 @@ describe("mobile app config contract", () => {
     process.env.EXPO_PUBLIC_WHISPR_API_URL = "http://localhost:3000";
 
     assert.throws(() => buildTestExpoConfig(), /EXPO_PUBLIC_WHISPR_API_URL must use HTTPS/);
+  });
+
+  it("rejects a UAT build whose API origin is not the canonical UAT endpoint", () => {
+    process.env.WHISPR_MOBILE_ENV = "uat";
+    process.env.EXPO_PUBLIC_WHISPR_API_URL = "https://wrong-uat.example.test";
+
+    assert.throws(() => buildTestExpoConfig(), /canonical UAT endpoint/i);
+  });
+
+  it("rejects a malformed embedded release build identity", () => {
+    process.env.WHISPR_MOBILE_ENV = "uat";
+    process.env.WHISPR_MOBILE_BUILD_ID = "not-a-git-sha";
+
+    assert.throws(() => buildTestExpoConfig(), /WHISPR_MOBILE_BUILD_ID must be a full Git SHA/);
   });
 });

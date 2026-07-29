@@ -1,0 +1,16 @@
+appId: team.whispr.mobile
+---
+- tapOn:
+    id: "mobile-dm-conversation-row"
+    containsChild:
+      text: ${PERF_CACHE_DM_TITLE}
+- extendedWaitUntil:
+    visible:
+      id: "mobile-dm-message-list"
+    timeout: 30000
+- waitForAnimationToEnd
+- pressKey: BACK
+- extendedWaitUntil:
+    visible:
+      id: "mobile-dm-inbox-screen"
+    timeout: 30000

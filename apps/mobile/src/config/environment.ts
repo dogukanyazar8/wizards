@@ -1,4 +1,5 @@
 export const MOBILE_ENVIRONMENTS = ["development", "uat", "canary", "production"] as const;
+export const MOBILE_UAT_API_ORIGIN = "https://wizardsweb-uat.up.railway.app";
 
 export type MobileEnvironmentName = (typeof MOBILE_ENVIRONMENTS)[number];
 
@@ -32,9 +33,9 @@ const DEFAULT_PUBLIC_ENV: Record<
     webUrl: "http://localhost:3000",
   },
   uat: {
-    apiUrl: "https://wizardsweb-uat.up.railway.app",
-    socketUrl: "https://wizardsweb-uat.up.railway.app",
-    webUrl: "https://wizardsweb-uat.up.railway.app",
+    apiUrl: MOBILE_UAT_API_ORIGIN,
+    socketUrl: MOBILE_UAT_API_ORIGIN,
+    webUrl: MOBILE_UAT_API_ORIGIN,
   },
   canary: {
     apiUrl: "https://whispr.team",
@@ -103,6 +104,12 @@ function assertReleaseUrl(value: string, fieldName: string, environment: MobileE
   }
 }
 
+function assertCanonicalUatEndpoint(value: string, expectedValue: string, fieldName: string) {
+  if (value !== expectedValue) {
+    throw new Error(`${fieldName} must use the canonical UAT endpoint.`);
+  }
+}
+
 export function buildMobileEnvironmentConfig(
   input: BuildMobileEnvironmentConfigInput,
 ): MobileEnvironmentConfig {
@@ -119,6 +126,11 @@ export function buildMobileEnvironmentConfig(
     assertReleaseUrl(apiUrl, "EXPO_PUBLIC_WHISPR_API_URL", environment);
     assertReleaseUrl(socketUrl, "EXPO_PUBLIC_WHISPR_SOCKET_URL", environment);
     assertReleaseUrl(webUrl, "EXPO_PUBLIC_WHISPR_WEB_URL", environment);
+  }
+  if (environment === "uat") {
+    assertCanonicalUatEndpoint(apiUrl, defaults.apiUrl, "EXPO_PUBLIC_WHISPR_API_URL");
+    assertCanonicalUatEndpoint(socketUrl, defaults.socketUrl, "EXPO_PUBLIC_WHISPR_SOCKET_URL");
+    assertCanonicalUatEndpoint(webUrl, defaults.webUrl, "EXPO_PUBLIC_WHISPR_WEB_URL");
   }
 
   return {

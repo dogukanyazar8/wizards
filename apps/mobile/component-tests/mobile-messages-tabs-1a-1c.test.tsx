@@ -1,12 +1,18 @@
-import { render } from "@testing-library/react-native";
+import { act, render, waitFor } from "@testing-library/react-native";
 
 import { createDmScreenStyles } from "../src/app/screens/dm-screen.styles";
 import {
   DMInboxHeader,
+  MobileDMPrefetchReadinessMarker,
   DMOnlineStrip,
   DirectMessageConversationCard,
   formatMobileVoicePreviewLabel,
 } from "../src/app/screens/dm-inbox";
+import {
+  recordMobileRecentDMPrefetch,
+  recordMobileRecentDMPrefetchSettled,
+  resetMobileRecentDMPrefetchStatsForTests,
+} from "../src/query/mobile-message-prefetch";
 import {
   getMobileMessagingScale,
   MOBILE_MESSAGING_MAX_SCALE,
@@ -92,6 +98,26 @@ describe("MSG-1a/1b/1c shared shell", () => {
 
     const friends = await renderInTheme(<DMInboxHeader onCompose={() => {}} segment="friends" />);
     expect(friends.getByLabelText(mobileCopy.tr.dmAddFriendAction, { exact: false })).toBeTruthy();
+  });
+
+  it("exposes a ready signal only after the automatic DM prefetch has completed", async () => {
+    resetMobileRecentDMPrefetchStatsForTests();
+    const view = await renderInTheme(<MobileDMPrefetchReadinessMarker />);
+
+    expect(view.getByTestId("mobile-dm-prefetch-readiness").props.accessibilityLabel).toBe(
+      "mobile-dm-prefetch-pending",
+    );
+
+    await act(async () => {
+      recordMobileRecentDMPrefetch(["dm-1"]);
+      recordMobileRecentDMPrefetchSettled("dm-1");
+    });
+
+    await waitFor(() =>
+      expect(view.getByTestId("mobile-dm-prefetch-readiness").props.accessibilityLabel).toBe(
+        "mobile-dm-prefetch-ready",
+      ),
+    );
   });
 
   it("gives the three lists their own hairline inset", () => {

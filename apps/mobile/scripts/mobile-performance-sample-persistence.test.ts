@@ -5,6 +5,7 @@ import {
   discardPendingMobilePerformanceSamples,
   setActiveMobilePerformanceSamplePersistence,
 } from "../src/performance/mobile-performance-sample-persistence";
+import * as mobilePerformancePersistence from "../src/performance/mobile-performance-sample-persistence";
 import {
   observeMobilePerformanceSamples,
   recordMobilePerformanceSample,
@@ -183,6 +184,71 @@ describe("performance sample persistence", () => {
     await flushing;
 
     assert.equal(persistence.pendingCount(), 0);
+    persistence.dispose();
+  });
+
+  it("does not complete a durable checkpoint before an active write reaches storage", async () => {
+    let resolveWrite!: () => void;
+    let signalWriteStarted!: () => void;
+    const writeStarted = new Promise<void>((resolve) => {
+      signalWriteStarted = resolve;
+    });
+    const persistence = createMobilePerformanceSamplePersistence({
+      debounceMs: 5,
+      persist: async () =>
+        new Promise<void>((resolve) => {
+          resolveWrite = resolve;
+          signalWriteStarted();
+        }),
+    });
+    const flushDurably = (persistence as unknown as { flushDurably?: unknown }).flushDurably;
+
+    assert.equal(typeof flushDurably, "function");
+    if (typeof flushDurably !== "function") {
+      return;
+    }
+
+    persistence.capture(sample("a-1"));
+    const flushing = persistence.flush();
+    await writeStarted;
+
+    let checkpointComplete = false;
+    const checkpoint = flushDurably.call(persistence).then(() => {
+      checkpointComplete = true;
+    });
+    await Promise.resolve();
+    assert.equal(checkpointComplete, false);
+
+    resolveWrite();
+    await Promise.all([checkpoint, flushing]);
+    assert.equal(checkpointComplete, true);
+    persistence.dispose();
+  });
+
+  it("exposes a durable checkpoint for the active application persistence", async () => {
+    const recorder = createRecorder();
+    const persistence = createMobilePerformanceSamplePersistence({
+      debounceMs: 5,
+      persist: recorder.persist,
+    });
+    const flushActive = (mobilePerformancePersistence as Record<string, unknown>)[
+      "flushMobilePerformanceSamplesDurably"
+    ];
+
+    assert.equal(typeof flushActive, "function");
+    if (typeof flushActive !== "function") {
+      return;
+    }
+
+    setActiveMobilePerformanceSamplePersistence(persistence);
+    persistence.capture(sample("a-1"));
+    await flushActive();
+
+    assert.deepEqual(
+      recorder.batches[0]?.map((entry) => entry.sampleId),
+      ["a-1"],
+    );
+    setActiveMobilePerformanceSamplePersistence(null);
     persistence.dispose();
   });
 

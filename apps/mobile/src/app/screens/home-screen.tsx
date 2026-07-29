@@ -28,6 +28,8 @@ import {
   type MobileWorkspaceChannelSummary,
   type MobileWorkspaceServerViewState,
 } from "../mobile-root-screen-shared";
+import { useEffect } from "react";
+import { AppState, InteractionManager } from "react-native";
 import type { ChatMessage, UploadedAttachmentInput } from "@wizards/types";
 import { FlashList } from "@shopify/flash-list";
 import { ChannelMessagesPreviewCard } from "./channel-screen";
@@ -41,6 +43,12 @@ import {
 } from "../components/ui-atoms";
 import { useHomeScreenStyles } from "./home-screen.styles";
 import { mobileListLoadHandlers } from "../../performance/mobile-performance-metrics";
+import { signalMobileContentVisible } from "../../performance/mobile-content-visible";
+import { createMobileForegroundContentCheckpoint } from "../../performance/mobile-foreground-content";
+import {
+  isMobilePrivacyShieldCovered,
+  observeMobilePrivacyShieldUncovered,
+} from "../../security/mobile-privacy-shield-lifecycle";
 import { MobileWorkspaceBrowser } from "./workspace-browser";
 import type { MobileForwardSendInput } from "../components/message-forward-sheet";
 
@@ -144,6 +152,29 @@ export function OverviewScreen({
   onToggleMessageReaction(input: { emoji: string; messageId: string; shouldReact: boolean }): void;
 }) {
   const styles = useHomeScreenStyles();
+  useEffect(() => {
+    if (bootstrapState.status !== "ready") {
+      return;
+    }
+    const checkpoint = createMobileForegroundContentCheckpoint({
+      isPrivacyShieldCovered: isMobilePrivacyShieldCovered,
+      observePrivacyShieldUncovered: observeMobilePrivacyShieldUncovered,
+      runAfterInteractions: (callback) => InteractionManager.runAfterInteractions(callback),
+      signalContentVisible: () => signalMobileContentVisible({ closeWarmResume: true }),
+    });
+    const subscription = AppState.addEventListener("change", (state) => {
+      checkpoint.observeAppState(state);
+    });
+    if (AppState.currentState === "active") {
+      checkpoint.observeAppState("active");
+    }
+
+    return () => {
+      subscription.remove();
+      checkpoint.dispose();
+    };
+  }, [bootstrapState.status]);
+
   const attachmentsFeature =
     bootstrapState.status === "ready" ? bootstrapState.payload.features.attachments : null;
   const messageSearchFeature =

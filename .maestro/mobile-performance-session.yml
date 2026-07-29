@@ -1,0 +1,11 @@
+appId: team.whispr.mobile
+---
+# This is deliberately an authenticated-only probe. The host runner uses it
+# first, and only supplies credentials to the separate login flow when needed.
+- launchApp:
+    stopApp: false
+- openLink: "whispr://settings/about"
+- extendedWaitUntil:
+    visible:
+      id: "mobile-about-settings-screen"
+    timeout: 30000

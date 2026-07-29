@@ -9,6 +9,7 @@ import {
   DMInboxEmptyState,
   DMInboxHeader,
   DMInboxLoadingSkeleton,
+  MobileDMPrefetchReadinessMarker,
   DMInboxSearchField,
   DMInboxSegmentTabs,
   DirectMessageListCard,
@@ -191,6 +192,7 @@ export function MessagesScreen({
         }
         value={searchQuery}
       />
+      <MobileDMPrefetchReadinessMarker />
       <MobileSyncHealthBanner health={syncHealth} onRetry={onRefreshVisibleData} />
       <BootstrapStateNotice state={bootstrapState} onRetry={onRefreshBootstrap} />
       <View style={styles.dmInboxBody} {...swipeHandlers}>

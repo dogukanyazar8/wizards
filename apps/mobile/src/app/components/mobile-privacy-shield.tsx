@@ -13,6 +13,7 @@ import Animated, {
 import type { MobileTheme } from "../../design/themes";
 import { activeMobileCopy as copy } from "../../locale/mobile-locale-preferences";
 import { planMobilePrivacyShieldTransition } from "../../security/mobile-privacy-shield";
+import { setMobilePrivacyShieldCovered } from "../../security/mobile-privacy-shield-lifecycle";
 import { useThemedStyles } from "../providers/mobile-theme-provider";
 
 const createStyles = (theme: MobileTheme) => ({
@@ -58,6 +59,7 @@ export function MobilePrivacyShield() {
     // A background flip that lands mid-fade re-covers, and that request wins
     // over the unmount this fade was started for.
     if (!coveredRef.current) {
+      setMobilePrivacyShieldCovered(false);
       setCovered(false);
     }
   }, []);
@@ -74,6 +76,7 @@ export function MobilePrivacyShield() {
 
       if (transition.covered) {
         opacity.value = 1;
+        setMobilePrivacyShieldCovered(true);
         setCovered(true);
         return;
       }
@@ -97,6 +100,10 @@ export function MobilePrivacyShield() {
 
     return () => subscription.remove();
   }, [opacity, reduceMotion, settleUncovered]);
+
+  useEffect(() => {
+    setMobilePrivacyShieldCovered(covered);
+  }, [covered]);
 
   const animatedStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
 

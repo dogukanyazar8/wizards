@@ -1,0 +1,13 @@
+appId: team.whispr.mobile
+---
+# The cache phase leaves its fifteenth open on screen. Reusing that DM avoids
+# adding a sixteenth navigation sample to either chat-open bucket.
+- tapOn:
+    id: "mobile-dm-composer-input"
+- inputText: ${PERF_MESSAGE_TEXT}
+- tapOn:
+    id: "mobile-dm-send-button"
+- extendedWaitUntil:
+    visible: ${PERF_MESSAGE_TEXT}
+    timeout: 30000
+- waitForAnimationToEnd

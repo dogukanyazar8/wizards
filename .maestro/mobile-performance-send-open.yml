@@ -1,0 +1,10 @@
+appId: team.whispr.mobile
+---
+# This deep link deliberately does not create a navigation sample. It returns to
+# the cache DM after the eight measured channel taps, so the send phase does not
+# inflate either chat-open bucket.
+- openLink: "whispr://channels/@me/${PERF_CACHE_DM_CONVERSATION_ID}"
+- extendedWaitUntil:
+    visible:
+      id: "mobile-dm-message-list"
+    timeout: 30000
