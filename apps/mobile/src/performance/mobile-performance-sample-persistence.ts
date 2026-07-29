@@ -38,7 +38,6 @@ export function createMobilePerformanceSamplePersistence({
   let retryDelayMs = debounceMs;
   let resetVersion = 0;
   let inFlightWrite: Promise<void> | null = null;
-  let lastWriteError: unknown = null;
 
   function clearTimer() {
     if (timer) {
@@ -87,10 +86,8 @@ export function createMobilePerformanceSamplePersistence({
       for (const sample of batch) {
         queuedIds.delete(sample.sampleId);
       }
-      lastWriteError = null;
       retryDelayMs = debounceMs;
-    } catch (error) {
-      lastWriteError = error;
+    } catch {
       // A locked database is a retry, not a loss: the batch goes back in front
       // of anything captured while the write was in flight.
       if (resetVersion === writeVersion) {
@@ -106,24 +103,6 @@ export function createMobilePerformanceSamplePersistence({
       }
       writing = false;
       scheduleFlush(retryDelayMs);
-    }
-  }
-
-  async function flushDurably(): Promise<void> {
-    clearTimer();
-    while (writing || pending.length > 0) {
-      if (writing) {
-        const activeWrite = inFlightWrite;
-        if (activeWrite) {
-          await activeWrite;
-        }
-        continue;
-      }
-
-      await flush();
-      if (lastWriteError) {
-        throw lastWriteError;
-      }
     }
   }
 
@@ -151,7 +130,6 @@ export function createMobilePerformanceSamplePersistence({
       queuedIds.clear();
     },
     flush,
-    flushDurably,
     /**
      * Starts copying, beginning with whatever was already recorded — the launch
      * phases are marked before any component can mount, so a subscription alone
@@ -191,13 +169,4 @@ export function setActiveMobilePerformanceSamplePersistence(
 
 export function discardPendingMobilePerformanceSamples(): Promise<void> {
   return activePersistence?.discard() ?? Promise.resolve();
-}
-
-/**
- * A benchmark checkpoint must not claim a completed launch before its retained
- * samples have reached SQLCipher: the host will force-stop immediately after it
- * sees the readiness marker.
- */
-export function flushMobilePerformanceSamplesDurably(): Promise<void> {
-  return activePersistence?.flushDurably() ?? Promise.resolve();
 }

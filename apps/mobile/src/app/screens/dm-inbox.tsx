@@ -1,5 +1,5 @@
 import { FlashList } from "@shopify/flash-list";
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useRef } from "react";
 import { PanResponder, ScrollView } from "react-native";
 import {
   Ionicons,
@@ -31,10 +31,6 @@ const DM_INBOX_SEGMENTS: readonly MobileDMInboxSegment[] = ["conversations", "fr
 const EMPTY_PRESENCE_MAP: ReadonlyMap<string, string> = new Map<string, string>();
 const EMPTY_VOICE_SET: ReadonlySet<string> = new Set<string>();
 import { mobileListLoadHandlers } from "../../performance/mobile-performance-metrics";
-import {
-  getMobileRecentDMPrefetchReadiness,
-  subscribeMobileRecentDMPrefetchReadiness,
-} from "../../query/mobile-message-prefetch";
 
 /** Horizontal swipe gesture that steps between the three inbox segments. */
 export function useMobileDmSegmentSwipe(
@@ -157,34 +153,6 @@ export function DMInboxSearchField({
         />
       </View>
     </View>
-  );
-}
-
-/**
- * A non-visual synchronization point for the device benchmark. The normal UI
- * intentionally does not promise that a speculative fetch has reached cache;
- * this marker prevents the benchmark's cache-hit phase from racing it.
- */
-export function MobileDMPrefetchReadinessMarker() {
-  const [readiness, setReadiness] = useState(getMobileRecentDMPrefetchReadiness);
-
-  useEffect(
-    () =>
-      subscribeMobileRecentDMPrefetchReadiness(() => {
-        setReadiness(getMobileRecentDMPrefetchReadiness());
-      }),
-    [],
-  );
-
-  return (
-    <View
-      accessible
-      accessibilityLabel={
-        readiness.ready ? "mobile-dm-prefetch-ready" : "mobile-dm-prefetch-pending"
-      }
-      style={{ height: 1, opacity: 0.01, width: 1 }}
-      testID="mobile-dm-prefetch-readiness"
-    />
   );
 }
 

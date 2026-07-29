@@ -220,21 +220,14 @@ export function registerMessageHandlers(
         },
       );
 
-      // The author's echo goes first, straight after the commit.
-      //
-      // It used to be emitted from inside the fan-out below, which meant the
-      // sender's own bubble waited on two presence lookups and a permission
-      // filter across every active member — work that is about other people's
-      // screens. The nonce goes to the author and nobody else: it is the key to
-      // their optimistic bubble and means nothing to any other viewer's cache.
-      io.to(`user:${userId}`).emit(
-        "message:new",
-        data.clientNonce ? { ...message, clientNonce: data.clientNonce } : message,
-      );
-
       if (deduplicated) {
         // A retry of a send that already landed. Everyone was told the first
-        // time, and the echo above is the only thing this attempt owed.
+        // time, so the only thing owed here is the author's own echo — this
+        // socket has no other reply, and without it their bubble never resolves.
+        socket.emit(
+          "message:new",
+          data.clientNonce ? { ...message, clientNonce: data.clientNonce } : message,
+        );
         return;
       }
 
@@ -278,15 +271,29 @@ export function registerMessageHandlers(
         );
       }
 
-      // The author is excluded: they already have their copy, with the nonce.
-      const otherViewerIds = activeChannelViewerUserIds.filter(
-        (viewerUserId) => viewerUserId !== userId,
-      );
-      if (otherViewerIds.length > 0) {
-        io.to(otherViewerIds.map((viewerUserId) => `user:${viewerUserId}`)).emit(
-          "message:new",
-          redactMessageAttachmentUrlsForViewer(message, null),
+      if (activeChannelViewerUserIds.length > 0) {
+        const senderViewerIds = activeChannelViewerUserIds.filter(
+          (viewerUserId) => viewerUserId === userId,
         );
+        const otherViewerIds = activeChannelViewerUserIds.filter(
+          (viewerUserId) => viewerUserId !== userId,
+        );
+
+        if (senderViewerIds.length > 0) {
+          // The nonce goes to the author and nobody else: it is the key to their
+          // optimistic bubble and means nothing to any other viewer's cache.
+          io.to(senderViewerIds.map((viewerUserId) => `user:${viewerUserId}`)).emit(
+            "message:new",
+            data.clientNonce ? { ...message, clientNonce: data.clientNonce } : message,
+          );
+        }
+
+        if (otherViewerIds.length > 0) {
+          io.to(otherViewerIds.map((viewerUserId) => `user:${viewerUserId}`)).emit(
+            "message:new",
+            redactMessageAttachmentUrlsForViewer(message, null),
+          );
+        }
       }
       const directEmitDurationMs = Date.now() - directEmitStartedAt;
 

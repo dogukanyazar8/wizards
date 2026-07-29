@@ -77,11 +77,6 @@ export interface MobileMessageStore {
   purgeAll(): Promise<void>;
   /** Clears the measurement log alone, so a baseline run can start from empty. */
   purgePerformanceSamples(): Promise<void>;
-  /**
-   * Benchmark-only reset. Unlike generic cache/sign-out purges, this must prove
-   * the retained measurement log is empty before a run may start.
-   */
-  purgePerformanceSamplesForBenchmark(): Promise<void>;
   purgeUser(userId: string): Promise<void>;
   readPage(input: MobileMessageStoreTarget): Promise<unknown>;
   /** The retained measurements, oldest first. */
@@ -289,22 +284,6 @@ export function createMobileMessageStore(input: {
 
     purgePerformanceSamples() {
       return deleteWhere("DELETE FROM performance_samples;", []);
-    },
-
-    async purgePerformanceSamplesForBenchmark() {
-      const database = await connect();
-      if (!database) {
-        throw new Error("Mobile performance sample store is unavailable.");
-      }
-
-      await database.runAsync("DELETE FROM performance_samples;", []);
-      const retained = await database.getAllAsync<{ sample_id: string }>(
-        "SELECT sample_id FROM performance_samples LIMIT 1;",
-        [],
-      );
-      if (retained.length > 0) {
-        throw new Error("Performance samples remain after benchmark purge.");
-      }
     },
 
     purgeUser(userId) {

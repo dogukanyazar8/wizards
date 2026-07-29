@@ -86,60 +86,11 @@ type MobileRecentDMPrefetchStats = {
 
 const warmedConversationIds = new Set<string>();
 const openedWarmConversationIds = new Set<string>();
-const settledWarmConversationIds = new Set<string>();
-const prefetchReadinessListeners = new Set<() => void>();
-
-function notifyMobileRecentDMPrefetchReadiness(): void {
-  for (const listener of prefetchReadinessListeners) {
-    listener();
-  }
-}
-
-export function subscribeMobileRecentDMPrefetchReadiness(listener: () => void): () => void {
-  prefetchReadinessListeners.add(listener);
-  return () => {
-    prefetchReadinessListeners.delete(listener);
-  };
-}
 
 export function recordMobileRecentDMPrefetch(conversationIds: readonly string[]): void {
-  let changed = false;
   for (const conversationId of conversationIds) {
-    if (!warmedConversationIds.has(conversationId)) {
-      warmedConversationIds.add(conversationId);
-      changed = true;
-    }
+    warmedConversationIds.add(conversationId);
   }
-  if (changed) {
-    notifyMobileRecentDMPrefetchReadiness();
-  }
-}
-
-/**
- * A warming request only makes a cache hit possible after its first page has
- * actually arrived. Keeping this separate from `warmed` lets device automation
- * wait for a real cache rather than racing the fire-and-forget request.
- */
-export function recordMobileRecentDMPrefetchSettled(conversationId: string): void {
-  if (
-    warmedConversationIds.has(conversationId) &&
-    !settledWarmConversationIds.has(conversationId)
-  ) {
-    settledWarmConversationIds.add(conversationId);
-    notifyMobileRecentDMPrefetchReadiness();
-  }
-}
-
-export function getMobileRecentDMPrefetchReadiness(): {
-  readonly completed: number;
-  readonly ready: boolean;
-  readonly warmed: number;
-} {
-  const warmed = warmedConversationIds.size;
-  const completed = [...warmedConversationIds].filter((id) =>
-    settledWarmConversationIds.has(id),
-  ).length;
-  return { completed, ready: warmed > 0 && completed === warmed, warmed };
 }
 
 export function recordMobileRecentDMPrefetchOpen(conversationId: string): void {
@@ -157,8 +108,6 @@ export function getMobileRecentDMPrefetchStats(): MobileRecentDMPrefetchStats {
 export function resetMobileRecentDMPrefetchStatsForTests(): void {
   warmedConversationIds.clear();
   openedWarmConversationIds.clear();
-  settledWarmConversationIds.clear();
-  notifyMobileRecentDMPrefetchReadiness();
 }
 
 export function selectMobileRecentDMPrefetchIds(input: {

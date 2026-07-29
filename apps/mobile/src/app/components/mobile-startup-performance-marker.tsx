@@ -1,35 +1,13 @@
-import { useEffect, useState } from "react";
-import { AppState, type AppStateStatus, View } from "react-native";
+import { useEffect } from "react";
+import { AppState, type AppStateStatus } from "react-native";
 
 import {
   createMobilePerformanceSamplePersistence,
   setActiveMobilePerformanceSamplePersistence,
 } from "../../performance/mobile-performance-sample-persistence";
-import { beginMobileNavigationSpan } from "../../performance/mobile-navigation-timing";
-import { createMobileResumeLifecycle } from "../../performance/mobile-resume-lifecycle";
 import { markMobileStartupPhase } from "../../performance/mobile-startup-phases";
 import { installMobileTelemetryInstruments } from "../../performance/mobile-telemetry-instruments";
 import { mobileMessageStore } from "../../storage/mobile-message-store-database";
-
-type CheckpointState = "idle" | "pending" | "persisted";
-
-function isRetainedColdStartSample(sample: {
-  readonly context: Readonly<Record<string, unknown>>;
-  readonly metric: string;
-}): boolean {
-  return (
-    sample.metric === "startup" &&
-    sample.context.phase === "content-visible" &&
-    sample.context.authenticated === true
-  );
-}
-
-function isRetainedResumeSample(sample: {
-  readonly context: Readonly<Record<string, unknown>>;
-  readonly metric: string;
-}): boolean {
-  return sample.metric === "navigation" && sample.context.route === "Resume";
-}
 
 /**
  * Marks the first frame the root managed to draw. This component sits above the
@@ -38,9 +16,6 @@ function isRetainedResumeSample(sample: {
  * marked from below those gates.
  */
 export function MobileStartupPerformanceMarker() {
-  const [startupCheckpoint, setStartupCheckpoint] = useState<CheckpointState>("pending");
-  const [resumeCheckpoint, setResumeCheckpoint] = useState<CheckpointState>("idle");
-
   useEffect(() => installMobileTelemetryInstruments(), []);
 
   /**
@@ -56,38 +31,18 @@ export function MobileStartupPerformanceMarker() {
    * start may never get another chance.
    */
   useEffect(() => {
-    let mounted = true;
-    const resumeLifecycle = createMobileResumeLifecycle();
     const persistence = createMobilePerformanceSamplePersistence({
-      persist: async (samples) => {
-        await mobileMessageStore.appendPerformanceSamples({ samples });
-        if (!mounted) {
-          return;
-        }
-        if (samples.some(isRetainedColdStartSample)) {
-          setStartupCheckpoint("persisted");
-        }
-        if (samples.some(isRetainedResumeSample)) {
-          setResumeCheckpoint("persisted");
-        }
-      },
+      persist: (samples) => mobileMessageStore.appendPerformanceSamples({ samples }),
     });
     const detach = persistence.observe();
     setActiveMobilePerformanceSamplePersistence(persistence);
-
     const subscription = AppState.addEventListener("change", (state: AppStateStatus) => {
       if (state === "background" || state === "inactive") {
-        setResumeCheckpoint("idle");
         void persistence.flush();
-      }
-      if (resumeLifecycle.observe(state)) {
-        setResumeCheckpoint("pending");
-        beginMobileNavigationSpan("Resume");
       }
     });
 
     return () => {
-      mounted = false;
       detach();
       setActiveMobilePerformanceSamplePersistence(null);
       subscription.remove();
@@ -109,22 +64,5 @@ export function MobileStartupPerformanceMarker() {
     };
   }, []);
 
-  return (
-    <>
-      <View
-        accessible
-        accessibilityLabel={`mobile-performance-startup-${startupCheckpoint}`}
-        collapsable={false}
-        style={{ height: 1, opacity: 0.01, width: 1 }}
-        testID={`mobile-performance-startup-${startupCheckpoint}`}
-      />
-      <View
-        accessible
-        accessibilityLabel={`mobile-performance-resume-${resumeCheckpoint}`}
-        collapsable={false}
-        style={{ height: 1, opacity: 0.01, width: 1 }}
-        testID={`mobile-performance-resume-${resumeCheckpoint}`}
-      />
-    </>
-  );
+  return null;
 }

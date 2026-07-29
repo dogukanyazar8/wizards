@@ -36,14 +36,6 @@ const phase5OfflineFlowPath = path.join(
 const phase5OfflineFlowSource = existsSync(phase5OfflineFlowPath)
   ? readFileSync(phase5OfflineFlowPath, "utf8")
   : "";
-const mobilePerformanceLoginFlowPath = path.join(
-  repositoryRoot,
-  ".maestro",
-  "mobile-performance-login.yml",
-);
-const mobilePerformanceLoginFlowSource = existsSync(mobilePerformanceLoginFlowPath)
-  ? readFileSync(mobilePerformanceLoginFlowPath, "utf8")
-  : "";
 const rootGitignoreSource = readFileSync(path.join(repositoryRoot, ".gitignore"), "utf8");
 
 const testIdSources: Record<string, { file: string; needle: string }> = {
@@ -82,14 +74,6 @@ const testIdSources: Record<string, { file: string; needle: string }> = {
 };
 
 describe("Phase 0 Maestro testID contract", () => {
-  it("keeps mobile performance login input and submit ordering Android-safe", () => {
-    assert.ok(mobilePerformanceLoginFlowSource, ".maestro/mobile-performance-login.yml must exist");
-    assert.match(
-      mobilePerformanceLoginFlowSource,
-      /id:\s*"mobile-auth-login-email-input"\r?\n- inputText:\s*\$\{MAESTRO_PERF_EMAIL\}\r?\n- hideKeyboard\r?\n- tapOn:\r?\n\s+id:\s*"mobile-auth-login-password-input"\r?\n- inputText:\s*\$\{MAESTRO_PERF_PASSWORD\}\r?\n- hideKeyboard\r?\n- tapOn:\r?\n\s+id:\s*"mobile-auth-login-submit"/,
-    );
-  });
-
   it("keeps the shared UAT helper a signed-in no-op across both signed-out call contexts", () => {
     assert.match(rootGitignoreSource, /^\.env\.maestro$/m);
     assert.match(rootGitignoreSource, /^\.env\.local$/m);

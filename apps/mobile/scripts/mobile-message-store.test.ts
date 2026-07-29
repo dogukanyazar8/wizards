@@ -12,7 +12,6 @@ import {
   assertMobileMessageStoreEncrypted,
   createMobileMessageStore,
   type MobileMessageStoreBindValue,
-  type MobileMessageStore,
   type MobileMessageStoreDatabase,
 } from "../src/storage/mobile-message-store";
 
@@ -113,46 +112,6 @@ function createStore(database: MobileMessageStoreDatabase, onOpen?: () => void) 
       return database;
     },
   });
-}
-
-function createPerformancePurgeDatabase(
-  input: {
-    readonly deleteError?: Error;
-    readonly ignoreDelete?: boolean;
-    readonly initialSampleIds?: readonly string[];
-  } = {},
-) {
-  const performanceSampleIds = new Set(input.initialSampleIds ?? ["sample-1"]);
-
-  const database: MobileMessageStoreDatabase = {
-    async closeAsync() {},
-    async execAsync() {},
-    async getAllAsync<T>(source: string) {
-      if (source.includes("FROM performance_samples")) {
-        return [...performanceSampleIds].map((sample_id) => ({ sample_id })) as T[];
-      }
-      return [];
-    },
-    async getFirstAsync<T>() {
-      return null as T | null;
-    },
-    async runAsync(source: string) {
-      if (source === "DELETE FROM performance_samples;") {
-        if (input.deleteError) {
-          throw input.deleteError;
-        }
-        if (!input.ignoreDelete) {
-          performanceSampleIds.clear();
-        }
-      }
-    },
-  };
-
-  return { database, performanceSampleIds };
-}
-
-function purgePerformanceSamplesForBenchmark(store: MobileMessageStore) {
-  return store.purgePerformanceSamplesForBenchmark();
 }
 
 describe("mobile stored message page policy", () => {
@@ -410,55 +369,6 @@ describe("createMobileMessageStore", () => {
     });
     await store.purgeAll();
     await store.close();
-  });
-
-  it("fails a benchmark purge when the encrypted store is unavailable", async () => {
-    const store = createMobileMessageStore({
-      openDatabase: async () => {
-        throw new Error("keystore unavailable");
-      },
-    });
-
-    await assert.rejects(purgePerformanceSamplesForBenchmark(store), /store is unavailable/u);
-  });
-
-  it("propagates a performance-row DELETE failure during a benchmark purge", async () => {
-    const { database } = createPerformancePurgeDatabase({
-      deleteError: new Error("performance delete blocked"),
-    });
-    const store = createStore(database);
-
-    await assert.rejects(purgePerformanceSamplesForBenchmark(store), /performance delete blocked/u);
-  });
-
-  it("fails a benchmark purge if a retained performance row survives DELETE", async () => {
-    const { database } = createPerformancePurgeDatabase({ ignoreDelete: true });
-    const store = createStore(database);
-
-    await assert.rejects(
-      purgePerformanceSamplesForBenchmark(store),
-      /Performance samples remain after benchmark purge/u,
-    );
-  });
-
-  it("removes retained performance rows during a verified benchmark purge", async () => {
-    const { database, performanceSampleIds } = createPerformancePurgeDatabase({
-      initialSampleIds: ["sample-1", "sample-2"],
-    });
-    const store = createStore(database);
-
-    await purgePerformanceSamplesForBenchmark(store);
-
-    assert.equal(performanceSampleIds.size, 0);
-  });
-
-  it("keeps generic performance purges fail-open", async () => {
-    const { database } = createPerformancePurgeDatabase({
-      deleteError: new Error("performance delete blocked"),
-    });
-    const store = createStore(database);
-
-    await store.purgePerformanceSamples();
   });
 });
 

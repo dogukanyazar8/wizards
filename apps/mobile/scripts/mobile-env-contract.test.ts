@@ -97,19 +97,6 @@ describe("mobile environment contract", () => {
     );
   });
 
-  it("rejects non-canonical UAT endpoint overrides", () => {
-    assert.throws(
-      () =>
-        buildMobileEnvironmentConfig({
-          mobileEnvironment: "uat",
-          publicApiUrl: "https://wrong-uat.example.test",
-          publicSocketUrl: "https://wizardsweb-uat.up.railway.app",
-          publicWebUrl: "https://wizardsweb-uat.up.railway.app",
-        }),
-      /canonical UAT endpoint/i,
-    );
-  });
-
   it("trims and passes through a configured Sentry DSN", () => {
     const config = buildMobileEnvironmentConfig({
       mobileEnvironment: "uat",

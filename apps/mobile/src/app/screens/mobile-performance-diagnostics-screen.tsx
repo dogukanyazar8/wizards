@@ -13,17 +13,10 @@ import {
   summarizeMobilePerformanceSamples,
   type MobilePerformanceSummaryInput,
 } from "../../performance/mobile-performance-summary";
-import {
-  createMobilePerformanceBenchmarkReport,
-  serializeMobilePerformanceBenchmarkReport,
-} from "../../performance/mobile-performance-benchmark-report";
 import { discardPendingMobilePerformanceSamples } from "../../performance/mobile-performance-sample-persistence";
 import { mergeMobilePerformanceSampleViews } from "../../performance/mobile-performance-sample-view";
 import { getMobileStartupPhaseTimeline } from "../../performance/mobile-startup-phases";
-import {
-  resolveMobileTelemetryDimensions,
-  type MobileTelemetryDimensions,
-} from "../../performance/mobile-telemetry-dimensions";
+import { resolveMobileTelemetryDimensions } from "../../performance/mobile-telemetry-dimensions";
 import { getMobileRecentDMPrefetchStats } from "../../query/mobile-message-prefetch";
 import { mobileMessageStore } from "../../storage/mobile-message-store-database";
 import type { MobileMessageStoreDiagnostics } from "../../storage/mobile-message-store";
@@ -54,59 +47,37 @@ export function MobilePerformanceDiagnosticsScreen({ onBack }: { onBack(): void 
     peekMobilePerformanceSamples(),
   );
   const [storage, setStorage] = useState<MobileMessageStoreDiagnostics | null>(null);
-  const [reportReady, setReportReady] = useState(false);
-  const [resetState, setResetState] = useState<"complete" | "failed" | "idle" | "pending">("idle");
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(() => {
     // The retained log is the session; memory holds only what has not been
     // written or shipped yet. Reading memory alone is what made a full baseline
     // run report n=0 on every budgeted metric.
-    setReportReady(false);
-    const [nextSamples, nextStorage] = await Promise.all([
-      mobileMessageStore
-        .readPerformanceSamples()
-        .then((persisted) =>
-          mergeMobilePerformanceSampleViews(persisted, peekMobilePerformanceSamples()),
-        )
-        .catch(() => peekMobilePerformanceSamples()),
-      mobileMessageStore.describe().catch(() => null),
-    ]);
-    setSamples(nextSamples);
-    setStorage(nextStorage);
-    setReportReady(true);
+    void mobileMessageStore
+      .readPerformanceSamples()
+      .then((persisted) =>
+        setSamples(mergeMobilePerformanceSampleViews(persisted, peekMobilePerformanceSamples())),
+      )
+      .catch(() => setSamples(peekMobilePerformanceSamples()));
+    void mobileMessageStore
+      .describe()
+      .then(setStorage)
+      .catch(() => setStorage(null));
   }, []);
 
   useEffect(() => {
-    void refresh();
+    refresh();
   }, [refresh]);
 
   const rows = summarizeMobilePerformanceSamples(samples);
   const timeline = getMobileStartupPhaseTimeline();
   const prefetch = getMobileRecentDMPrefetchStats();
   const runtimeConfig = getMobileRuntimeConfig();
-  let dimensions: MobileTelemetryDimensions = {
-    appVersion: "unknown",
-    buildId: "unknown",
-    deviceTier: "unknown",
-    environment: runtimeConfig.environment,
-    networkClass: "unknown",
-    osName: "unknown",
-    osVersion: "unknown",
-  };
+  let dimensions: Record<string, unknown> = {};
   try {
-    dimensions = resolveMobileTelemetryDimensions();
+    dimensions = resolveMobileTelemetryDimensions() as unknown as Record<string, unknown>;
   } catch {
-    // The panel remains usable if a native metadata provider is unavailable.
+    dimensions = {};
   }
-  const benchmarkReport = serializeMobilePerformanceBenchmarkReport(
-    createMobilePerformanceBenchmarkReport({
-      apiOrigin: runtimeConfig.apiUrl,
-      dimensions,
-      prefetch,
-      rows,
-      storage,
-    }),
-  );
 
   const labelStyle = { color: theme.text.secondary, fontSize: 12 };
   const valueStyle = { color: theme.text.primary, fontSize: 14 };
@@ -131,13 +102,7 @@ export function MobilePerformanceDiagnosticsScreen({ onBack }: { onBack(): void 
         <Pressable accessibilityRole="button" onPress={onBack} testID="performance-back">
           <Text style={valueStyle}>{`‹ ${copy.authBackAction}`}</Text>
         </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => {
-            void refresh();
-          }}
-          testID="performance-refresh"
-        >
+        <Pressable accessibilityRole="button" onPress={refresh} testID="performance-refresh">
           <Text style={valueStyle}>{copy.refreshShortAction}</Text>
         </Pressable>
         <Pressable
@@ -149,29 +114,15 @@ export function MobilePerformanceDiagnosticsScreen({ onBack }: { onBack(): void 
             // later and put the previous run back. Draining memory costs the
             // backend the samples it had not collected yet, which is the point.
             drainMobilePerformanceSamples();
-            setResetState("pending");
-            void (async () => {
-              try {
-                await discardPendingMobilePerformanceSamples();
-                await mobileMessageStore.purgePerformanceSamplesForBenchmark();
-                await refresh();
-                setResetState("complete");
-              } catch {
-                setResetState("failed");
-              }
-            })();
+            void discardPendingMobilePerformanceSamples()
+              .then(() => mobileMessageStore.purgePerformanceSamples())
+              .finally(refresh);
           }}
           testID="performance-reset"
         >
           <Text style={valueStyle}>{copy.performanceDiagnosticsReset}</Text>
         </Pressable>
       </View>
-      <View
-        accessible
-        accessibilityLabel={`performance-reset-${resetState}`}
-        style={{ height: 1, opacity: 0.01, width: 1 }}
-        testID={`performance-reset-${resetState}`}
-      />
 
       <Text style={headingStyle}>{copy.performanceDiagnosticsMetricsHeading}</Text>
       {rows.map((row) => (
@@ -230,21 +181,6 @@ export function MobilePerformanceDiagnosticsScreen({ onBack }: { onBack(): void 
           samples: samples.length,
         })}
       </Text>
-      {reportReady ? (
-        <View
-          accessible
-          accessibilityLabel={benchmarkReport}
-          style={{ height: 1, opacity: 0.01, width: 1 }}
-          testID="performance-benchmark-report"
-        />
-      ) : (
-        <View
-          accessible
-          accessibilityLabel="performance-benchmark-report-pending"
-          style={{ height: 1, opacity: 0.01, width: 1 }}
-          testID="performance-benchmark-report-pending"
-        />
-      )}
     </ScrollView>
   );
 }

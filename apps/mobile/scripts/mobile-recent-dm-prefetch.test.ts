@@ -2,15 +2,12 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   MOBILE_RECENT_DM_PREFETCH_LIMIT,
-  getMobileRecentDMPrefetchReadiness,
   getMobileRecentDMPrefetchStats,
   recordMobileRecentDMPrefetch,
-  recordMobileRecentDMPrefetchSettled,
   recordMobileRecentDMPrefetchOpen,
   resetMobileRecentDMPrefetchStatsForTests,
   selectMobileRecentDMPrefetchIds,
   shouldWarmMobileRecentDMs,
-  subscribeMobileRecentDMPrefetchReadiness,
 } from "../src/query/mobile-message-prefetch";
 
 function buildConversation(id: string, unreadCount = 0) {
@@ -50,41 +47,6 @@ describe("selectMobileRecentDMPrefetchIds", () => {
     });
 
     assert.deepEqual(ids, ["dm-1"]);
-  });
-
-  it("does not declare a warmed DM cache ready before every speculative fetch settles", () => {
-    recordMobileRecentDMPrefetch(["dm-1", "dm-2"]);
-
-    assert.deepEqual(getMobileRecentDMPrefetchReadiness(), {
-      completed: 0,
-      ready: false,
-      warmed: 2,
-    });
-
-    recordMobileRecentDMPrefetchSettled("dm-1");
-    assert.equal(getMobileRecentDMPrefetchReadiness().ready, false);
-
-    recordMobileRecentDMPrefetchSettled("dm-2");
-    assert.deepEqual(getMobileRecentDMPrefetchReadiness(), {
-      completed: 2,
-      ready: true,
-      warmed: 2,
-    });
-  });
-
-  it("notifies the inbox when prefetch readiness changes", () => {
-    resetMobileRecentDMPrefetchStatsForTests();
-    let changes = 0;
-    const unsubscribe = subscribeMobileRecentDMPrefetchReadiness(() => {
-      changes += 1;
-    });
-
-    recordMobileRecentDMPrefetch(["dm-1"]);
-    recordMobileRecentDMPrefetchSettled("dm-1");
-    unsubscribe();
-    recordMobileRecentDMPrefetchOpen("dm-1");
-
-    assert.equal(changes, 2);
   });
 
   it("warms nothing when the limit is zero", () => {

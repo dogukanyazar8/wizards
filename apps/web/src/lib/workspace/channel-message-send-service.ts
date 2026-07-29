@@ -10,7 +10,6 @@ import {
   parseUploadedAttachmentInputs,
 } from "@/lib/messages/attachments";
 import { redactMessageAttachmentUrlsForViewer } from "@/lib/messages/attachment-visibility";
-import { deferMessageFanout } from "@/lib/messages/deferred-fanout";
 import type { AppSocketServer } from "@/lib/socket/runtime";
 import { createMessageWithClientNonce } from "@/lib/workspace/message-service";
 import { toMobileChannelMessagePreview } from "@/lib/workspace/mobile-channel-message-preview";
@@ -270,21 +269,14 @@ export async function sendChannelMessage(args: {
   // this message and moved everyone's unread state. Repeating the fan-out would
   // show one send arriving twice.
   if (args.io && !deduplicated) {
-    const io = args.io;
-    // Not awaited. The message is durable and its notification job is already
-    // committed; everything below is other people's screens, and the sender's
-    // tick used to wait on two presence lookups and a permission filter across
-    // every active member before it could turn.
-    void deferMessageFanout("[mobile-api] Channel message fan-out failed", () =>
-      emitChannelMessageFanout({
-        authorMessage,
-        channelId: args.channelId,
-        io,
-        message,
-        senderId: args.userId,
-        serverId: channel.serverId,
-      }),
-    );
+    await emitChannelMessageFanout({
+      authorMessage,
+      channelId: args.channelId,
+      io: args.io,
+      message,
+      senderId: args.userId,
+      serverId: channel.serverId,
+    });
   }
 
   return message;

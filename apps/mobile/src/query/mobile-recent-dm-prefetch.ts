@@ -6,7 +6,6 @@ import { isMobileNetworkMetered } from "../network/mobile-network-events";
 import {
   prefetchMobileDMMessagesPage,
   recordMobileRecentDMPrefetch,
-  recordMobileRecentDMPrefetchSettled,
   selectMobileRecentDMPrefetchIds,
   shouldWarmMobileRecentDMs,
 } from "./mobile-message-prefetch";
@@ -56,9 +55,9 @@ export function useMobileRecentDMPrefetch(input: {
         .reduce(
           (chain, conversationId) =>
             chain.then(() =>
-              prefetchMobileDMMessagesPage(queryClient, apiClient, conversationId)
-                .then(() => recordMobileRecentDMPrefetchSettled(conversationId))
-                .catch(() => undefined),
+              prefetchMobileDMMessagesPage(queryClient, apiClient, conversationId).catch(
+                () => undefined,
+              ),
             ),
           Promise.resolve(),
         )
