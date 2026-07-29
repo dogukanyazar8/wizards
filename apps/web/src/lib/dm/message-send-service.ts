@@ -15,6 +15,7 @@ import {
   normalizeMessageContentForSend,
   parseUploadedAttachmentInputs,
 } from "@/lib/messages/attachments";
+import { deferMessageFanout } from "@/lib/messages/deferred-fanout";
 import type { AppSocketServer } from "@/lib/socket/runtime";
 
 export type SendDirectMessageInput = {
@@ -178,21 +179,31 @@ export async function sendDirectMessage(input: SendDirectMessageInput) {
     }
   }
 
-  const firstAttachment = createdMessage.attachments[0];
-  const preview = getDMConversationPreview(content, firstAttachment);
-  const lastMessageAt = createdMessage.createdAt.toISOString();
-  const conversationUpdates = input.io
-    ? await getDMConversationRealtimeUpdates(input.conversationId, participants)
-    : [];
+  const io = input.io;
+  if (io) {
+    const firstAttachment = createdMessage.attachments[0];
+    const preview = getDMConversationPreview(content, firstAttachment);
+    const lastMessageAt = createdMessage.createdAt.toISOString();
 
-  for (const update of conversationUpdates) {
-    input.io?.to(`user:${update.participantId}`).emit("dm:conversation:updated", {
-      conversationId: input.conversationId,
-      lastMessageAt,
-      preview,
-      hiddenAt: null,
-      unreadCount: update.unreadCount,
-      conversation: update.conversation,
+    // Not awaited. The message copies are already on their way; this is the
+    // inbox row every participant sees, and it costs a projection query per
+    // conversation that the sender was made to wait for.
+    void deferMessageFanout("[dm] Conversation update fan-out failed", async () => {
+      const conversationUpdates = await getDMConversationRealtimeUpdates(
+        input.conversationId,
+        participants,
+      );
+
+      for (const update of conversationUpdates) {
+        io.to(`user:${update.participantId}`).emit("dm:conversation:updated", {
+          conversationId: input.conversationId,
+          lastMessageAt,
+          preview,
+          hiddenAt: null,
+          unreadCount: update.unreadCount,
+          conversation: update.conversation,
+        });
+      }
     });
   }
 

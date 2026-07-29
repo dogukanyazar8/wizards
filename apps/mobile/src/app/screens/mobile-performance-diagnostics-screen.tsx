@@ -15,6 +15,7 @@ import {
 } from "../../performance/mobile-performance-summary";
 import { discardPendingMobilePerformanceSamples } from "../../performance/mobile-performance-sample-persistence";
 import { mergeMobilePerformanceSampleViews } from "../../performance/mobile-performance-sample-view";
+import { getMobileNavigationSpanDiagnostics } from "../../performance/mobile-navigation-timing";
 import { getMobileStartupPhaseTimeline } from "../../performance/mobile-startup-phases";
 import { resolveMobileTelemetryDimensions } from "../../performance/mobile-telemetry-dimensions";
 import { getMobileRecentDMPrefetchStats } from "../../query/mobile-message-prefetch";
@@ -71,6 +72,7 @@ export function MobilePerformanceDiagnosticsScreen({ onBack }: { onBack(): void 
   const rows = summarizeMobilePerformanceSamples(samples);
   const timeline = getMobileStartupPhaseTimeline();
   const prefetch = getMobileRecentDMPrefetchStats();
+  const spans = getMobileNavigationSpanDiagnostics();
   const runtimeConfig = getMobileRuntimeConfig();
   let dimensions: Record<string, unknown> = {};
   try {
@@ -159,6 +161,14 @@ export function MobilePerformanceDiagnosticsScreen({ onBack }: { onBack(): void 
       <Text style={headingStyle}>{copy.performanceDiagnosticsPrefetchHitRate}</Text>
       <Text style={valueStyle}>
         {`${prefetch.hits}/${prefetch.warmed} · ${Math.round(prefetch.hitRate * 100)}%`}
+      </Text>
+
+      {/* A low n next to a high loss count means the instrument dropped spans,
+          not that the reader stopped opening chats. The first baseline run could
+          not tell those apart. */}
+      <Text style={headingStyle}>{copy.performanceDiagnosticsSpanLoss}</Text>
+      <Text style={valueStyle} testID="performance-span-loss">
+        {`${spans.open} · ${spans.abandoned}`}
       </Text>
 
       <Text style={headingStyle}>{copy.performanceDiagnosticsBuild}</Text>

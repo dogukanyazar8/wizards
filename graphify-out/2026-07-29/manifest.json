@@ -2095,8 +2095,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/query/use-mobile-message-mutations.ts": {
-    "mtime": 1785297619.493588,
-    "ast_hash": "e74528ee0de7e86d5a62b5157f47150c",
+    "mtime": 1785319675.856037,
+    "ast_hash": "8626625139bcd36c9fab84265d50552e",
     "semantic_hash": ""
   },
   "apps/mobile/src/query/use-mobile-server-management-mutations.ts": {
@@ -5210,8 +5210,8 @@
     "semantic_hash": ""
   },
   "apps/web/src/lib/dm/message-send-service.ts": {
-    "mtime": 1785308156.4197364,
-    "ast_hash": "06f8b8ed5cfaf649257ce669fc0694f7",
+    "mtime": 1785319051.8727584,
+    "ast_hash": "20d63a7ca0e619ee00af1f399bcb0fd4",
     "semantic_hash": ""
   },
   "apps/web/src/lib/dm/mobile-details-service.test.ts": {
@@ -5245,8 +5245,8 @@
     "semantic_hash": ""
   },
   "apps/web/src/lib/dm/realtime-service.ts": {
-    "mtime": 1785295606.6366365,
-    "ast_hash": "dbb084b9d64231137d189993766eba01",
+    "mtime": 1785319628.5539453,
+    "ast_hash": "d75a0bbc5bc8c5da96f9c94e68a06e63",
     "semantic_hash": ""
   },
   "apps/web/src/lib/dm/service.test.ts": {
@@ -5770,8 +5770,8 @@
     "semantic_hash": ""
   },
   "apps/web/src/lib/socket/handlers/message.ts": {
-    "mtime": 1785295656.6686745,
-    "ast_hash": "305faf2139dab7e40ec7797897c17926",
+    "mtime": 1785318984.283442,
+    "ast_hash": "8eea7cc67eb990b24c03fc7e8c1170af",
     "semantic_hash": ""
   },
   "apps/web/src/lib/socket/handlers/presence.ts": {
@@ -6005,8 +6005,8 @@
     "semantic_hash": ""
   },
   "apps/web/src/lib/workspace/channel-message-send-service.ts": {
-    "mtime": 1785295578.5487213,
-    "ast_hash": "4f6b58b090b725d7280dcd7a25594027",
+    "mtime": 1785318938.770329,
+    "ast_hash": "c4701ecefbe86fb7592705fcd06f018d",
     "semantic_hash": ""
   },
   "apps/web/src/lib/workspace/channel-permission-logic.ts": {
@@ -6060,8 +6060,8 @@
     "semantic_hash": ""
   },
   "apps/web/src/lib/workspace/message-service.ts": {
-    "mtime": 1785295560.4037316,
-    "ast_hash": "f8ad753f7215f3ce0dc6730d54ab1e4d",
+    "mtime": 1785319628.6054966,
+    "ast_hash": "dac4d03aa98cfeee53c428cc1ae9d1b4",
     "semantic_hash": ""
   },
   "apps/web/src/lib/workspace/migration-sql.test.ts": {
@@ -8325,8 +8325,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/component-tests/mobile-dm-attachment-send-10c.test.tsx": {
-    "mtime": 1785247013.6561751,
-    "ast_hash": "0d6521da2bec84cf143781323d2a8b78",
+    "mtime": 1785319298.1554272,
+    "ast_hash": "aa0462e88134d7d41767b5b64cb79182",
     "semantic_hash": ""
   },
   "apps/mobile/component-tests/mobile-dm-attachments-10c.test.tsx": {
@@ -11467,6 +11467,26 @@
   "apps/mobile/component-tests/mobile-prefetch-hit-rate.test.tsx": {
     "mtime": 1785316979.6069403,
     "ast_hash": "0115016662b362bd77010e5e43cb7731",
+    "semantic_hash": ""
+  },
+  "apps/web/src/lib/messages/client-nonce.test.ts": {
+    "mtime": 1785318801.2052002,
+    "ast_hash": "32dfe70380c797471d332f4845d9c03b",
+    "semantic_hash": ""
+  },
+  "apps/web/src/lib/messages/client-nonce.ts": {
+    "mtime": 1785318819.8031325,
+    "ast_hash": "7aac6c223ef99c101492491d8d485aa5",
+    "semantic_hash": ""
+  },
+  "packages/db/prisma/rebaseline-migrations/20260729140000_message_client_nonce/migration.sql": {
+    "mtime": 1785318757.5575223,
+    "ast_hash": "783593a50aa38795a26b11660716c189",
+    "semantic_hash": ""
+  },
+  "graphify-out/memory/query_20260729_100014_railway_uat_ortam\u0131nda_workspace_performance_metrik.md": {
+    "mtime": 1785319214.0606961,
+    "ast_hash": "1c6c00ceecd4aec9a12c17179d0f1e2c",
     "semantic_hash": ""
   }
 }

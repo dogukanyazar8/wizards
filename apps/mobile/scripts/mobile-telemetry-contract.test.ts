@@ -14,8 +14,10 @@ import {
 } from "../src/performance/mobile-startup-phases";
 import { toHealthEvents } from "../src/performance/mobile-health-reporter";
 import {
+  MOBILE_NAVIGATION_SPAN_MAX_AGE_MS,
   beginMobileNavigationSpan,
   completeMobileNavigationSpan,
+  getMobileNavigationSpanDiagnostics,
   resetMobileNavigationTimingForTests,
 } from "../src/performance/mobile-navigation-timing";
 import {
@@ -172,6 +174,65 @@ describe("navigation spans", () => {
     beginMobileNavigationSpan("ChannelChat", 1_500);
 
     assert.equal(completeMobileNavigationSpan("ChannelChat", 1_600), 100);
+  });
+
+  /**
+   * A device run reported `resume` as 60000ms — the clamp ceiling — from a single
+   * sample, because the span stayed open until some unrelated content rendered
+   * minutes later. A span that old is not a slow open; it is a lost one, and
+   * recording it poisons the percentile it lands in.
+   */
+  it("drops a span that stayed open past the age limit instead of recording it", () => {
+    beginMobileNavigationSpan("Resume", 1_000);
+
+    assert.equal(
+      completeMobileNavigationSpan("Resume", 1_000 + MOBILE_NAVIGATION_SPAN_MAX_AGE_MS + 1),
+      null,
+    );
+    assert.deepEqual(peekMobilePerformanceSamples(), []);
+  });
+
+  it("keeps a span that closes exactly on the age limit", () => {
+    beginMobileNavigationSpan("Resume", 1_000);
+
+    assert.equal(
+      completeMobileNavigationSpan("Resume", 1_000 + MOBILE_NAVIGATION_SPAN_MAX_AGE_MS),
+      MOBILE_NAVIGATION_SPAN_MAX_AGE_MS,
+    );
+  });
+
+  it("drops a span whose clock ran backwards", () => {
+    beginMobileNavigationSpan("ChannelChat", 2_000);
+
+    assert.equal(completeMobileNavigationSpan("ChannelChat", 1_900), null);
+    assert.deepEqual(peekMobilePerformanceSamples(), []);
+  });
+
+  /**
+   * Ten resumes produced one sample: every new span silently replaced the one
+   * before it. The replacements are still lost, but they are now countable — an
+   * unmeasured gap has to be visible rather than inferred from a low `n`.
+   */
+  it("counts the spans it lost so the panel can show the gap", () => {
+    beginMobileNavigationSpan("Resume", 1_000);
+    beginMobileNavigationSpan("Resume", 2_000);
+    beginMobileNavigationSpan("Resume", 3_000);
+    completeMobileNavigationSpan("Resume", 3_100);
+
+    beginMobileNavigationSpan("ChannelChat", 1_000);
+    completeMobileNavigationSpan("ChannelChat", 1_000 + MOBILE_NAVIGATION_SPAN_MAX_AGE_MS + 1);
+
+    const diagnostics = getMobileNavigationSpanDiagnostics();
+    assert.equal(diagnostics.abandoned, 3, "two replaced spans plus one expired");
+    assert.equal(diagnostics.open, 0);
+  });
+
+  it("reports the spans still waiting for content", () => {
+    beginMobileNavigationSpan("DirectMessage", 1_000);
+
+    assert.equal(getMobileNavigationSpanDiagnostics().open, 1);
+    completeMobileNavigationSpan("DirectMessage", 1_100);
+    assert.equal(getMobileNavigationSpanDiagnostics().open, 0);
   });
 });
 
