@@ -48,6 +48,19 @@ export type MobileRootStackParamList = {
   LegalDocument: { readonly documentId: MobileLegalDocumentId };
   /** Attribution list for the open-source packages bundled in this build. */
   OpenSourceLicenses: undefined;
+  /**
+   * "Hakkında" redesign destinations. The two consent sheets (2d beta, 2h
+   * rating) and the 1d download sheet are deliberately absent: they are
+   * overlays on the About screen, not places Back should unwind through.
+   */
+  AboutWhatsNew: undefined;
+  AboutReleaseNote: { readonly version: string };
+  AboutReleaseHistory: undefined;
+  AboutUpdateChannel: undefined;
+  HelpCenter: undefined;
+  BugReport: { readonly category?: string } | undefined;
+  CommunityInvite: { readonly slug?: string } | undefined;
+  PerformanceDiagnostics: undefined;
   Security: undefined;
   /**
    * 11f shared-media gallery. `userId` is the other participant, carried so a
@@ -118,6 +131,25 @@ export type MobileNavigationRouteIntent =
       readonly type: "route";
     }
   | { readonly name: "BlockedUsers"; readonly params: undefined; readonly type: "route" }
+  | { readonly name: "AboutWhatsNew"; readonly params: undefined; readonly type: "route" }
+  | {
+      readonly name: "AboutReleaseNote";
+      readonly params: MobileRootStackParamList["AboutReleaseNote"];
+      readonly type: "route";
+    }
+  | { readonly name: "AboutReleaseHistory"; readonly params: undefined; readonly type: "route" }
+  | { readonly name: "AboutUpdateChannel"; readonly params: undefined; readonly type: "route" }
+  | { readonly name: "HelpCenter"; readonly params: undefined; readonly type: "route" }
+  | {
+      readonly name: "BugReport";
+      readonly params: MobileRootStackParamList["BugReport"];
+      readonly type: "route";
+    }
+  | {
+      readonly name: "CommunityInvite";
+      readonly params: MobileRootStackParamList["CommunityInvite"];
+      readonly type: "route";
+    }
   | { readonly name: "AdminIncidents"; readonly params: undefined; readonly type: "route" }
   | {
       readonly name: "AdminIncidentDetail";

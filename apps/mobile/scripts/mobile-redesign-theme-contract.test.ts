@@ -8,6 +8,7 @@ import * as paletteModule from "../src/design/palette";
 import { getMobileThemeCompatibilityColors } from "../src/design/mobile-theme-compat";
 import { darkTheme, lightTheme } from "../src/design/themes";
 import {
+  mobileAboutMetrics,
   mobileLayoutMetrics,
   mobileNavigationMetrics,
   mobileRadii,
@@ -159,6 +160,41 @@ describe("mobile redesign palette contract", () => {
       pageWide: 24,
       section: 16,
       row: 12,
+    });
+    // "Hakkında" handoff §1.4/§3. Pinned here for the same reason `mobileRadii`
+    // is: thirteen screens measure against these numbers, so a screen prompt
+    // that needs a different shape must state it rather than nudge the scale.
+    assert.deepEqual(mobileAboutMetrics, {
+      cardRadius: 24,
+      rowRadiusInner: 16,
+      searchRadius: 16,
+      noticeRadius: 20,
+      sheetTopRadius: 30,
+      sheetBottomRadius: 44,
+      headerButton: 36,
+      headerButtonRadius: 13,
+      stickyHeaderButton: 32,
+      stickyHeaderButtonRadius: 11,
+      iconBox26: 26,
+      iconBox26Radius: 9,
+      iconBox30Radius: 11,
+      iconBox32Radius: 11,
+      iconBox44Radius: 15,
+      chipRadiusSmall: 5,
+      chipRadiusMedium: 7,
+      pillRadius: 11,
+      toggleWidth: 44,
+      toggleHeight: 26,
+      toggleRadius: 13,
+      toggleKnob: 20,
+      typePillWidth: 62,
+      cardMargin: 16,
+      cardPadding: 16,
+      minRowHeight: 44,
+      stickyHeaderThreshold: 12,
+      stickyHeaderDurationMs: 160,
+      footerButtonBottom: 26,
+      footerButtonRadius: 16,
     });
     assert.deepEqual(mobileNavigationMetrics, {
       miniVoiceBarToTabBarGap: 14,
@@ -581,6 +617,29 @@ export function Fixture({ cap }: { cap: number }) {
     );
 
     assert.deepEqual(violations, []);
+  });
+
+  it("ships the About group with one key set across both themes", () => {
+    const lightKeys = Object.keys(lightTheme.about).sort();
+    const darkKeys = Object.keys(darkTheme.about).sort();
+
+    assert.deepEqual(darkKeys, lightKeys);
+    assert.deepEqual(lightKeys, Object.keys(paletteModule.redesignAboutLight).sort());
+    // Handoff §1.2 names twenty of these; the rest are derived. Both tables must
+    // still resolve to a colour, or a dark About screen renders `undefined`.
+    assert.deepEqual(
+      Object.entries(darkTheme.about)
+        .filter(([, value]) => typeof value !== "string" || value.length === 0)
+        .map(([key]) => key),
+      [],
+    );
+    // §1.1 pins the light table literally, so it is the one that can drift.
+    assert.equal(lightTheme.about.accent, "#4F46E5");
+    assert.equal(lightTheme.about.screen, "#F6F7FB");
+    assert.equal(lightTheme.about.card, "#FFFFFF");
+    assert.equal(darkTheme.about.screen, "#12141F");
+    assert.equal(darkTheme.about.card, "#1B1E2C");
+    assert.equal(darkTheme.about.accent, "#A5A8FF");
   });
 
   it("preserves every legacy mobilePalette group and key", () => {

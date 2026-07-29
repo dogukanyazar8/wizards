@@ -1,0 +1,172 @@
+import { useCallback, useEffect, useState } from "react";
+import { Pressable, ScrollView, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+import { getMobileRuntimeConfig } from "../../config/environment";
+import { mobileCopy } from "../../locale/mobile-copy";
+import {
+  drainMobilePerformanceSamples,
+  peekMobilePerformanceSamples,
+  type MobilePerformanceSample,
+} from "../../performance/mobile-performance-metrics";
+import {
+  MOBILE_PERFORMANCE_SUMMARY_METRICS,
+  summarizeMobilePerformanceSamples,
+} from "../../performance/mobile-performance-summary";
+import { getMobileStartupPhaseTimeline } from "../../performance/mobile-startup-phases";
+import { resolveMobileTelemetryDimensions } from "../../performance/mobile-telemetry-dimensions";
+import { getMobileRecentDMPrefetchStats } from "../../query/mobile-message-prefetch";
+import { mobileMessageStore } from "../../storage/mobile-message-store-database";
+import type { MobileMessageStoreDiagnostics } from "../../storage/mobile-message-store";
+import { useMobileLocaleRuntime } from "../providers/mobile-locale-provider";
+import { useTheme } from "../providers/mobile-theme-provider";
+
+function fill(template: string, values: Record<string, string | number>): string {
+  return template.replace(/\{(\w+)\}/gu, (match, key: string) => String(values[key] ?? match));
+}
+
+/**
+ * The numbers a device session produces, on the device that produced them.
+ *
+ * Samples travel to the client-health pipeline, but that path needs the daily
+ * rollup and database access — neither of which a person holding a phone has. A
+ * baseline run has to be readable where it happens, so this panel computes the
+ * percentiles from the in-memory sample log and reports the storage facts that
+ * cannot be proven from outside a release build.
+ *
+ * Deliberately unstyled beyond legibility: it is an instrument, not a surface.
+ */
+export function MobilePerformanceDiagnosticsScreen({ onBack }: { onBack(): void }) {
+  const theme = useTheme();
+  const { locale } = useMobileLocaleRuntime();
+  const copy = mobileCopy[locale];
+  const insets = useSafeAreaInsets();
+  const [samples, setSamples] = useState<readonly MobilePerformanceSample[]>(() =>
+    peekMobilePerformanceSamples(),
+  );
+  const [storage, setStorage] = useState<MobileMessageStoreDiagnostics | null>(null);
+
+  const refresh = useCallback(() => {
+    setSamples(peekMobilePerformanceSamples());
+    void mobileMessageStore
+      .describe()
+      .then(setStorage)
+      .catch(() => setStorage(null));
+  }, []);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  const rows = summarizeMobilePerformanceSamples(samples);
+  const timeline = getMobileStartupPhaseTimeline();
+  const prefetch = getMobileRecentDMPrefetchStats();
+  const runtimeConfig = getMobileRuntimeConfig();
+  let dimensions: Record<string, unknown> = {};
+  try {
+    dimensions = resolveMobileTelemetryDimensions() as unknown as Record<string, unknown>;
+  } catch {
+    dimensions = {};
+  }
+
+  const labelStyle = { color: theme.text.secondary, fontSize: 12 };
+  const valueStyle = { color: theme.text.primary, fontSize: 14 };
+  const headingStyle = {
+    color: theme.text.primary,
+    fontSize: 16,
+    marginBottom: 8,
+    marginTop: 20,
+  };
+
+  return (
+    <ScrollView
+      contentContainerStyle={{
+        backgroundColor: theme.surface.base,
+        paddingBottom: insets.bottom + 32,
+        paddingHorizontal: 16,
+        paddingTop: insets.top + 12,
+      }}
+      testID="mobile-performance-diagnostics"
+    >
+      <View style={{ flexDirection: "row", gap: 12 }}>
+        <Pressable accessibilityRole="button" onPress={onBack} testID="performance-back">
+          <Text style={valueStyle}>{`‹ ${copy.authBackAction}`}</Text>
+        </Pressable>
+        <Pressable accessibilityRole="button" onPress={refresh} testID="performance-refresh">
+          <Text style={valueStyle}>{copy.refreshShortAction}</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => {
+            // Clears the log so a run can start from an empty slate; the samples
+            // are handed over rather than dropped, so nothing is double-counted
+            // if the reporter flushes later.
+            drainMobilePerformanceSamples();
+            refresh();
+          }}
+          testID="performance-reset"
+        >
+          <Text style={valueStyle}>{copy.performanceDiagnosticsReset}</Text>
+        </Pressable>
+      </View>
+
+      <Text style={headingStyle}>{copy.performanceDiagnosticsMetricsHeading}</Text>
+      {rows.map((row) => (
+        <View key={row.metric} style={{ paddingVertical: 4 }}>
+          <Text style={labelStyle}>{`${row.metric} · n=${row.count}`}</Text>
+          <Text style={valueStyle} testID={`performance-metric-${row.metric}`}>
+            {row.count === 0
+              ? copy.performanceDiagnosticsNoMeasurements
+              : `${row.p50Ms ?? "-"} / ${row.p95Ms ?? "-"} / ${row.p99Ms ?? "-"} ms`}
+          </Text>
+        </View>
+      ))}
+
+      <Text style={headingStyle}>{copy.performanceDiagnosticsStartupPhases}</Text>
+      {Object.entries(timeline).length === 0 ? (
+        <Text style={valueStyle}>{copy.performanceDiagnosticsNoMeasurements}</Text>
+      ) : (
+        Object.entries(timeline).map(([phase, elapsedMs]) => (
+          <View key={phase} style={{ paddingVertical: 2 }}>
+            <Text style={labelStyle}>{phase}</Text>
+            <Text style={valueStyle}>{`${Math.round(elapsedMs)} ms`}</Text>
+          </View>
+        ))
+      )}
+
+      <Text style={headingStyle}>{copy.performanceDiagnosticsStoreHeading}</Text>
+      <Text style={labelStyle}>cipher_version</Text>
+      <Text style={valueStyle} testID="performance-cipher-version">
+        {storage?.cipherVersion ?? copy.performanceDiagnosticsStoreUnavailable}
+      </Text>
+      <Text style={labelStyle}>{copy.performanceDiagnosticsStoreStatusRows}</Text>
+      <Text style={valueStyle}>{`${storage?.status ?? "?"} · ${storage?.rowCount ?? "-"}`}</Text>
+
+      <Text style={headingStyle}>{copy.performanceDiagnosticsPrefetchHitRate}</Text>
+      <Text style={valueStyle}>
+        {`${prefetch.hits}/${prefetch.warmed} · ${Math.round(prefetch.hitRate * 100)}%`}
+      </Text>
+
+      <Text style={headingStyle}>{copy.performanceDiagnosticsBuild}</Text>
+      <Text style={valueStyle}>
+        {`${runtimeConfig.environment} · ${String(dimensions.appVersion ?? "?")} · ${String(
+          dimensions.osName ?? "?",
+        )} ${String(dimensions.osVersion ?? "")}`}
+      </Text>
+      <Text style={valueStyle}>
+        {fill(copy.performanceDiagnosticsDeviceMeta, {
+          build: String(dimensions.buildId ?? "?"),
+          network: String(dimensions.networkClass ?? "?"),
+          tier: String(dimensions.deviceTier ?? "?"),
+        })}
+      </Text>
+
+      <Text style={[headingStyle, { fontSize: 12 }]}>
+        {fill(copy.performanceDiagnosticsSampleTotal, {
+          metrics: MOBILE_PERFORMANCE_SUMMARY_METRICS.length,
+          samples: samples.length,
+        })}
+      </Text>
+    </ScrollView>
+  );
+}

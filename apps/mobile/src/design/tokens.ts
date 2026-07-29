@@ -657,3 +657,42 @@ export const mobileTypography = {
     letterSpacing: 0,
   },
 } as const;
+
+/**
+ * "Hakkında" redesign shape and layout scale (handoff PROMPT.md §1.4 shapes,
+ * §3 layout). `mobileRadii` is a locked ten-entry scale, so the ten extra radii
+ * this design measures out (`r5, r6, r9, r11, r12, r13, r15, r16, r18, r20`)
+ * live here instead of widening it.
+ */
+export const mobileAboutMetrics = {
+  cardRadius: 24,
+  rowRadiusInner: 16,
+  searchRadius: 16,
+  noticeRadius: 20,
+  sheetTopRadius: 30,
+  sheetBottomRadius: 44,
+  headerButton: 36,
+  headerButtonRadius: 13,
+  stickyHeaderButton: 32,
+  stickyHeaderButtonRadius: 11,
+  iconBox26: 26,
+  iconBox26Radius: 9,
+  iconBox30Radius: 11,
+  iconBox32Radius: 11,
+  iconBox44Radius: 15,
+  chipRadiusSmall: 5,
+  chipRadiusMedium: 7,
+  pillRadius: 11,
+  toggleWidth: 44,
+  toggleHeight: 26,
+  toggleRadius: 13,
+  toggleKnob: 20,
+  typePillWidth: 62,
+  cardMargin: 16,
+  cardPadding: 16,
+  minRowHeight: 44,
+  stickyHeaderThreshold: 12,
+  stickyHeaderDurationMs: 160,
+  footerButtonBottom: 26,
+  footerButtonRadius: 16,
+} as const;

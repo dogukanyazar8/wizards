@@ -44,9 +44,22 @@ export type MobileMessageStoreTarget = {
   readonly userId: string;
 };
 
+/** What the device panel needs to prove the cache is real and encrypted. */
+export type MobileMessageStoreDiagnostics = {
+  readonly cipherVersion: string | null;
+  readonly rowCount: number | null;
+  readonly status: "sealed" | "unavailable" | "open";
+};
+
 export interface MobileMessageStore {
   /** Closes the connection and seals writes until `resume()`. */
   close(): Promise<void>;
+  /**
+   * Read-only self-report. `cipherVersion` is the only honest proof that the build
+   * has SQLCipher compiled in — a plain SQLite build accepts `PRAGMA key` and would
+   * otherwise look identical.
+   */
+  describe(): Promise<MobileMessageStoreDiagnostics>;
   purgeAll(): Promise<void>;
   purgeUser(userId: string): Promise<void>;
   readPage(input: MobileMessageStoreTarget): Promise<unknown>;
@@ -127,6 +140,38 @@ export function createMobileMessageStore(input: {
   }
 
   return {
+    async describe() {
+      if (sealed) {
+        return { cipherVersion: null, rowCount: null, status: "sealed" as const };
+      }
+
+      const database = await connect();
+      if (!database) {
+        return { cipherVersion: null, rowCount: null, status: "unavailable" as const };
+      }
+
+      try {
+        const cipher = await database.getFirstAsync<{ cipher_version?: unknown }>(
+          "PRAGMA cipher_version;",
+          [],
+        );
+        const counted = await database.getFirstAsync<{ total?: unknown }>(
+          "SELECT COUNT(*) AS total FROM message_pages;",
+          [],
+        );
+        const total = counted?.total;
+
+        return {
+          cipherVersion:
+            typeof cipher?.cipher_version === "string" ? cipher.cipher_version.trim() : null,
+          rowCount: typeof total === "number" ? total : null,
+          status: "open" as const,
+        };
+      } catch {
+        return { cipherVersion: null, rowCount: null, status: "unavailable" as const };
+      }
+    },
+
     async close() {
       sealed = true;
       const pending = databasePromise;

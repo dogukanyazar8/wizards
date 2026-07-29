@@ -85,10 +85,24 @@ export function createMobileLinkingOptions({
             settings: "settings",
           },
         },
+        AboutReleaseHistory: "settings/about/releases",
+        AboutReleaseNote: "settings/about/releases/:version",
+        AboutUpdateChannel: "settings/about/channel",
+        AboutWhatsNew: "settings/about/whats-new",
         AdminIncidents: "admin/cases",
         AdminIncidentDetail: "admin/case/:caseId",
+        BugReport: "help/report",
         ChannelChat: "channels/:serverId/:channelId",
+        /**
+         * Path generation only. An incoming `whispr://invite/<code>` is claimed
+         * earlier by `parseMobileDeepLink` as a server-invite command intent —
+         * that flow predates this screen and still owns the scheme — so this
+         * entry never resolves an inbound link, and `resolveMobileRoutePathIntent`
+         * is what opens 2g when the app asks for the path itself.
+         */
+        CommunityInvite: "invite/:slug",
         DirectMessage: "channels/@me/:conversationId",
+        HelpCenter: "help",
         ServerRoles: "server/:serverId/settings/roles",
         SettingsDetail: "settings/:section",
         UserProfile: "user/:userId",
@@ -197,6 +211,54 @@ export function resolveMobileRoutePathIntent(path: string): MobileNavigationRout
 
   if (pathname === "/settings") {
     return createMainTabsIntent("settings");
+  }
+
+  // The four About destinations are matched before `settings/:section`. That
+  // regex is single-segment (`[^/]+`) so it could not swallow them today, but
+  // the ordering is the guarantee: widening it later must not silently turn
+  // `/settings/about/channel` into a settings section named "about".
+  if (pathname === "/settings/about/whats-new") {
+    return { name: "AboutWhatsNew", params: undefined, type: "route" };
+  }
+
+  if (pathname === "/settings/about/releases") {
+    return { name: "AboutReleaseHistory", params: undefined, type: "route" };
+  }
+
+  const releaseNoteMatch = /^\/settings\/about\/releases\/([^/]+)$/.exec(pathname);
+  if (releaseNoteMatch?.[1]) {
+    return {
+      name: "AboutReleaseNote",
+      params: { version: decodePathSegment(releaseNoteMatch[1]) },
+      type: "route",
+    };
+  }
+
+  if (pathname === "/settings/about/channel") {
+    return { name: "AboutUpdateChannel", params: undefined, type: "route" };
+  }
+
+  if (pathname === "/help") {
+    return { name: "HelpCenter", params: undefined, type: "route" };
+  }
+
+  // §4.17: 2e's "bulamadık" row enters the form with a category preselected.
+  if (pathname === "/help/report") {
+    const category = getSearchParam(path, "category");
+    return {
+      name: "BugReport",
+      params: category ? { category } : undefined,
+      type: "route",
+    };
+  }
+
+  const communityInviteMatch = /^\/invite\/([^/]+)$/.exec(pathname);
+  if (communityInviteMatch?.[1]) {
+    return {
+      name: "CommunityInvite",
+      params: { slug: decodePathSegment(communityInviteMatch[1]) },
+      type: "route",
+    };
   }
 
   const settingsMatch = /^\/settings\/([^/]+)$/.exec(pathname);

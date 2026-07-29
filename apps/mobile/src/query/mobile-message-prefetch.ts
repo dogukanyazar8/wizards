@@ -1,5 +1,7 @@
 import { useCallback } from "react";
 import { useQueryClient, type QueryClient } from "@tanstack/react-query";
+import { beginMobileNavigationSpan } from "../performance/mobile-navigation-timing";
+import { mobileQueryKeys } from "./mobile-query-keys";
 import type { MobileApiClient } from "../api/mobile-api-client";
 import {
   getMobileChannelMessagesQueryOptions,
@@ -142,8 +144,14 @@ export interface MobileMessagePrefetchActions {
 export function useMobileMessagePrefetch(client: MobileApiClient): MobileMessagePrefetchActions {
   const queryClient = useQueryClient();
 
+  // The span opens here rather than in the container: this is the only place that
+  // knows whether the stream the reader tapped was already cached, and that flag
+  // decides which budget the open is measured against.
   const prefetchChannelMessages = useCallback(
     (channelId: string) => {
+      const cacheHit =
+        queryClient.getQueryData(mobileQueryKeys.channelMessages(channelId)) !== undefined;
+      beginMobileNavigationSpan("ChannelChat", globalThis.performance.now(), cacheHit);
       void prefetchMobileChannelMessagesPage(queryClient, client, channelId).catch(() => undefined);
     },
     [client, queryClient],
@@ -151,6 +159,9 @@ export function useMobileMessagePrefetch(client: MobileApiClient): MobileMessage
 
   const prefetchDMMessages = useCallback(
     (conversationId: string) => {
+      const cacheHit =
+        queryClient.getQueryData(mobileQueryKeys.dmMessages(conversationId)) !== undefined;
+      beginMobileNavigationSpan("DirectMessage", globalThis.performance.now(), cacheHit);
       void prefetchMobileDMMessagesPage(queryClient, client, conversationId).catch(() => undefined);
     },
     [client, queryClient],

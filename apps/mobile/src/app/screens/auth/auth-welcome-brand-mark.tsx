@@ -21,6 +21,12 @@ import Svg, {
 import { mobileBrandPalette, mobilePalette } from "../../../design/palette";
 
 interface AuthWelcomeBrandMarkProps {
+  /**
+   * Runs the equalizer loop. Left on by default so the auth screens are
+   * unchanged; the About surfaces turn it off under `prefers-reduced-motion`
+   * (handoff §4.11), which asks for a still logo rather than a slower one.
+   */
+  readonly animated?: boolean;
   /** Rendered card edge length in device-independent pixels. */
   readonly size?: number;
   /** Rendered card corner radius in device-independent pixels. */
@@ -196,11 +202,12 @@ function AnimatedWaveformBar({
 }
 
 export function AuthWelcomeBrandMark({
+  animated = true,
   cornerRadius = WEB_BRAND_ICON_RADIUS,
   size = WEB_BRAND_ICON_SIZE,
   testID,
 }: AuthWelcomeBrandMarkProps) {
-  const active = useScreenFocusActive();
+  const active = useScreenFocusActive() && animated;
   const surfaceGradientId = `${testID ?? "auth-welcome-brand-mark"}-surface-gradient`;
   const surfaceHighlightId = `${testID ?? "auth-welcome-brand-mark"}-surface-highlight`;
   const viewBoxCornerRadius = (cornerRadius * WEB_BRAND_ICON_SIZE) / size;

@@ -427,7 +427,7 @@ const helpArticle = {
   readMinutes: 3,
   slug: "mikrofon-calismiyor",
   title: "Sesli kanalda mikrofonum çalışmıyor",
-  url: "https://whispr.app/help/mikrofon-calismiyor",
+  url: "https://whispr.team/help/mikrofon-calismiyor",
   views: 24_000,
 };
 
@@ -1201,12 +1201,12 @@ describe("mobile schemas", () => {
       },
       MobileServiceStatusResponseSchema: {
         schema: MobileServiceStatusResponseSchema,
-        valid: { checkedAt: now, level: "ok", url: "https://status.whispr.app" },
+        valid: { checkedAt: now, level: "ok", url: "https://status.whispr.team" },
         invalid: {
           checkedAt: now,
           label: "Sorunsuz",
           level: "ok",
-          url: "https://status.whispr.app",
+          url: "https://status.whispr.team",
         },
       },
       MobileHelpArticleSchema: {

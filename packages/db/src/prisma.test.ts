@@ -61,11 +61,13 @@ test("client health, feature flags and push attempts land as additive tables", (
     assert.ok(schema.includes(model), `${model} is missing from the schema`);
   }
 
-  // A rollup row is one per day, platform, version and kind; without the unique
-  // key the daily job would append duplicates instead of updating.
+  // A rollup row is one per day, platform, version, kind and surface; without the
+  // unique key the daily job would append duplicates instead of updating.
+  // Percentiles pooled across surfaces are not actionable, which is why surface
+  // joined the key.
   assert.match(
     schema,
-    /@@unique\(\[date, clientType, appVersion, kind\]\)/u,
+    /@@unique\(\[date, clientType, appVersion, kind, surface\]\)/u,
     "the health summary needs its rollup key",
   );
   assert.match(schema, /clientHealthEvents\s+ClientHealthEvent\[\]/u);

@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import { CONTRIBUTOR_NAMES, CORRUPTED_CONTRIBUTOR_NAMES } from "./contributors";
 import { prisma, type ChannelType } from "./index";
+import { seedAboutContent } from "./seed-about";
 import { readDemoSeedOptions } from "./seed-options";
 
 function assertSeedIsAllowed() {
@@ -299,6 +300,10 @@ async function main() {
   await repairContributorData();
 
   await Promise.all(CONTRIBUTOR_NAMES.map((name) => ensureContributor(name)));
+
+  // The "Hakkında" screens read a release history and a help catalogue; without
+  // rows there is nothing to page, count or search against.
+  await seedAboutContent();
 
   console.log("Seed complete");
 }

@@ -14,7 +14,6 @@ import type {
 } from "../../navigation/mobile-navigation-types";
 import { useMobileAuth } from "../../auth/mobile-auth-context";
 import { useMobileActiveTargetStore } from "../../state/mobile-active-target-store";
-import { beginMobileNavigationSpan } from "../../performance/mobile-navigation-timing";
 import { useMobileChannelTypingLabels } from "../features/use-mobile-typing-labels";
 import {
   useMobileMessagesScreenProps,
@@ -32,6 +31,16 @@ import { ProfileSettingsScreen } from "./settings-screen";
 import { BlockedUsersScreen } from "../../social/social-account-screens";
 import { MobileLegalDocumentScreen } from "../../legal/mobile-legal-document-screen";
 import { MobileOpenSourceLicensesScreen } from "../../legal/mobile-open-source-licenses-screen";
+import { MobilePerformanceDiagnosticsScreen } from "./mobile-performance-diagnostics-screen";
+import {
+  MobileAboutReleaseHistoryScreen,
+  MobileAboutReleaseNoteScreen,
+  MobileAboutUpdateChannelScreen,
+  MobileAboutWhatsNewScreen,
+  MobileBugReportScreen,
+  MobileCommunityInviteScreen,
+  MobileHelpCenterScreen,
+} from "./about/about-screen-shells";
 import { MobileFeedbackFlowScreen } from "../../feedback/mobile-feedback-flow-screen";
 import { MobileFeedbackSubmittedScreen } from "../../feedback/mobile-feedback-submitted-screen";
 import { MobileRoadmapScreen } from "../../feedback/mobile-roadmap-screen";
@@ -96,9 +105,9 @@ export function OverviewTabScreenContainer({
         if (channel.type === "TEXT" && screenProps.selectedWorkspaceServerId && rootNavigation) {
           // Warm the stream first: the request leaves on the tap frame rather
           // than after the push and the selection commit.
+          // Opens the tap-to-content span as well: it is the only caller that
+          // knows whether this stream was already cached.
           prefetchChannelMessages(channel.id);
-          // The span the reader feels starts here, not when the list renders.
-          beginMobileNavigationSpan("ChannelChat");
           rootNavigation.navigate("ChannelChat", {
             channelId: channel.id,
             serverId: screenProps.selectedWorkspaceServerId,
@@ -135,7 +144,6 @@ export function MessagesTabScreenContainer({
         // Push first, same reasoning as the channel row: the animation should
         // not wait behind the selection state the open handler sets.
         prefetchDMMessages(conversationId);
-        beginMobileNavigationSpan("DirectMessage");
         rootNavigation?.navigate("DirectMessage", { conversationId });
         screenProps.onOpenConversation(conversationId);
       }}
@@ -448,6 +456,17 @@ export function DirectMessageStackScreenContainer({
   );
 }
 
+/**
+ * Dev-only instrument. Registered for every environment except production so a UAT
+ * *release* build can report its own numbers — a debug build's numbers are not
+ * comparable to anything a reader would experience.
+ */
+export function PerformanceDiagnosticsStackScreenContainer({
+  navigation,
+}: NativeStackScreenProps<MobileRootStackParamList, "PerformanceDiagnostics">) {
+  return <MobilePerformanceDiagnosticsScreen onBack={() => navigation.goBack()} />;
+}
+
 export function MessageThreadStackScreenContainer({
   navigation,
   route,
@@ -580,6 +599,66 @@ export function OpenSourceLicensesScreenContainer({
     <MobileOpenSourceLicensesScreen
       appVersion={mobilePackageJson.version}
       onBack={() => navigation.goBack()}
+    />
+  );
+}
+
+export function AboutWhatsNewScreenContainer({
+  navigation,
+}: NativeStackScreenProps<MobileRootStackParamList, "AboutWhatsNew">) {
+  return <MobileAboutWhatsNewScreen onBack={() => navigation.goBack()} />;
+}
+
+export function AboutReleaseNoteScreenContainer({
+  navigation,
+  route,
+}: NativeStackScreenProps<MobileRootStackParamList, "AboutReleaseNote">) {
+  return (
+    <MobileAboutReleaseNoteScreen
+      onBack={() => navigation.goBack()}
+      version={route.params.version}
+    />
+  );
+}
+
+export function AboutReleaseHistoryScreenContainer({
+  navigation,
+}: NativeStackScreenProps<MobileRootStackParamList, "AboutReleaseHistory">) {
+  return <MobileAboutReleaseHistoryScreen onBack={() => navigation.goBack()} />;
+}
+
+export function AboutUpdateChannelScreenContainer({
+  navigation,
+}: NativeStackScreenProps<MobileRootStackParamList, "AboutUpdateChannel">) {
+  return <MobileAboutUpdateChannelScreen onBack={() => navigation.goBack()} />;
+}
+
+export function HelpCenterScreenContainer({
+  navigation,
+}: NativeStackScreenProps<MobileRootStackParamList, "HelpCenter">) {
+  return <MobileHelpCenterScreen onBack={() => navigation.goBack()} />;
+}
+
+export function BugReportScreenContainer({
+  navigation,
+  route,
+}: NativeStackScreenProps<MobileRootStackParamList, "BugReport">) {
+  return (
+    <MobileBugReportScreen
+      onBack={() => navigation.goBack()}
+      {...(route.params?.category === undefined ? {} : { category: route.params.category })}
+    />
+  );
+}
+
+export function CommunityInviteScreenContainer({
+  navigation,
+  route,
+}: NativeStackScreenProps<MobileRootStackParamList, "CommunityInvite">) {
+  return (
+    <MobileCommunityInviteScreen
+      onBack={() => navigation.goBack()}
+      {...(route.params?.slug === undefined ? {} : { slug: route.params.slug })}
     />
   );
 }

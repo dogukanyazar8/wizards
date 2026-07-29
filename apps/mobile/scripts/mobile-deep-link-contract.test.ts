@@ -7,6 +7,7 @@ import {
   normalizeSafeMobileRoutePath,
   parseMobileDeepLink,
 } from "../src/deep-link/mobile-deep-links";
+import { resolveMobileRoutePathIntent } from "../src/navigation/mobile-linking";
 
 const webUrl = "https://whispr.team";
 const handoffToken = "abcdefghijklmnopqrstuvwxyzABCDEF1234567890_-"; // gitleaks:allow -- deterministic invalid fixture
@@ -167,6 +168,71 @@ describe("mobile deep link contract", () => {
     );
   });
 
+  it("routes the seven About destinations", () => {
+    assert.deepEqual(resolveMobileRoutePathIntent("/settings/about/whats-new"), {
+      name: "AboutWhatsNew",
+      params: undefined,
+      type: "route",
+    });
+    assert.deepEqual(resolveMobileRoutePathIntent("/settings/about/releases"), {
+      name: "AboutReleaseHistory",
+      params: undefined,
+      type: "route",
+    });
+    assert.deepEqual(resolveMobileRoutePathIntent("/settings/about/releases/0.8.15"), {
+      name: "AboutReleaseNote",
+      params: { version: "0.8.15" },
+      type: "route",
+    });
+    assert.deepEqual(resolveMobileRoutePathIntent("/settings/about/channel"), {
+      name: "AboutUpdateChannel",
+      params: undefined,
+      type: "route",
+    });
+    assert.deepEqual(resolveMobileRoutePathIntent("/help"), {
+      name: "HelpCenter",
+      params: undefined,
+      type: "route",
+    });
+    assert.deepEqual(resolveMobileRoutePathIntent("/help/report"), {
+      name: "BugReport",
+      params: undefined,
+      type: "route",
+    });
+    assert.deepEqual(resolveMobileRoutePathIntent("/invite/whispr-community"), {
+      name: "CommunityInvite",
+      params: { slug: "whispr-community" },
+      type: "route",
+    });
+  });
+
+  it("keeps the two-segment About paths off the single-segment settings branch", () => {
+    // `settings/:section` must not claim `/settings/about/channel` as a section
+    // named "about" — the About paths are matched before it.
+    assert.deepEqual(resolveMobileRoutePathIntent("/settings/about"), {
+      name: "SettingsDetail",
+      params: { section: "about" },
+      type: "route",
+    });
+    assert.equal(resolveMobileRoutePathIntent("/settings/about/nope"), null);
+    // §4.17 lets 2e enter the form with the category already chosen.
+    assert.deepEqual(resolveMobileRoutePathIntent("/help/report?category=voice"), {
+      name: "BugReport",
+      params: { category: "voice" },
+      type: "route",
+    });
+  });
+
+  it("leaves whispr://invite/<code> on the existing server-invite command flow", () => {
+    // 2g is reachable by path, but an inbound invite link is still the
+    // auto-accept intent it has always been; the community screen does not get
+    // to intercept a server invite.
+    assert.deepEqual(parseMobileDeepLink("whispr://invite/ABC_def-123?mobile=1", { webUrl }), {
+      intent: { autoAccept: true, code: "ABC_def-123", type: "invite" },
+      ok: true,
+    });
+  });
+
   it("normalizes only safe in-app mobile route paths", () => {
     assert.equal(normalizeSafeMobileRoutePath("/channels/@me"), "/channels/@me");
     assert.equal(normalizeSafeMobileRoutePath("/settings?panel=voice"), "/settings?panel=voice");
@@ -179,6 +245,18 @@ describe("mobile deep link contract", () => {
       "/admin/moderation/case-1",
     );
     assert.equal(normalizeSafeMobileRoutePath("/administration"), "/channels");
+    // 2e/2f are routable, so a `/help` link survives normalization instead of
+    // collapsing to the channel list.
+    assert.equal(normalizeSafeMobileRoutePath("/help"), "/help");
+    assert.equal(
+      normalizeSafeMobileRoutePath("/help/report?category=voice"),
+      "/help/report?category=voice",
+    );
+    assert.equal(
+      normalizeSafeMobileRoutePath("/settings/about/releases/0.8.15"),
+      "/settings/about/releases/0.8.15",
+    );
+    assert.equal(normalizeSafeMobileRoutePath("/helpdesk"), "/channels");
     assert.equal(normalizeSafeMobileRoutePath("/desktop/voice-mini"), "/channels");
     assert.equal(normalizeSafeMobileRoutePath("/channels?refresh_token=secret"), "/channels");
   });

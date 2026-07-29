@@ -17,6 +17,7 @@ function createRecordingStore(stored: Record<string, unknown> = {}): MobileMessa
   return {
     writes,
     close: async () => undefined,
+    describe: async () => ({ cipherVersion: "4.5.5 test", rowCount: 0, status: "open" as const }),
     purgeAll: async () => undefined,
     purgeUser: async () => undefined,
     resume: () => undefined,

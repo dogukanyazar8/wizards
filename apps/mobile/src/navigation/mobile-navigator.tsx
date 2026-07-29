@@ -22,6 +22,7 @@ import {
   BlockedUsersScreenContainer,
   LegalDocumentScreenContainer,
   OpenSourceLicensesScreenContainer,
+  PerformanceDiagnosticsStackScreenContainer,
   FeedbackScreenContainer,
   FeedbackSubmittedScreenContainer,
   RoadmapScreenContainer,
@@ -36,6 +37,13 @@ import {
   UserProfileStackScreenContainer,
   AdminIncidentsScreenContainer,
   AdminIncidentDetailScreenContainer,
+  AboutWhatsNewScreenContainer,
+  AboutReleaseNoteScreenContainer,
+  AboutReleaseHistoryScreenContainer,
+  AboutUpdateChannelScreenContainer,
+  HelpCenterScreenContainer,
+  BugReportScreenContainer,
+  CommunityInviteScreenContainer,
 } from "../app/screens/mobile-screen-containers";
 import { MobileAuthNavigator } from "./mobile-auth-navigator";
 import { createMobileLinkingOptions } from "./mobile-linking";
@@ -145,6 +153,12 @@ export function MobileNavigator({
           <RootStack.Screen name="OpenSourceLicenses">
             {(props) => <OpenSourceLicensesScreenContainer {...props} />}
           </RootStack.Screen>
+          {/* Instrument, not product: a production build has no route to it. */}
+          {getMobileRuntimeConfig().environment === "production" ? null : (
+            <RootStack.Screen name="PerformanceDiagnostics">
+              {(props) => <PerformanceDiagnosticsStackScreenContainer {...props} />}
+            </RootStack.Screen>
+          )}
           <RootStack.Screen name="Feedback">
             {(props) => <FeedbackScreenContainer {...props} />}
           </RootStack.Screen>
@@ -177,6 +191,27 @@ export function MobileNavigator({
           </RootStack.Screen>
           <RootStack.Screen name="ChannelSettings">
             {(props) => <ChannelSettingsStackScreenContainer {...props} />}
+          </RootStack.Screen>
+          <RootStack.Screen name="AboutWhatsNew">
+            {(props) => <AboutWhatsNewScreenContainer {...props} />}
+          </RootStack.Screen>
+          <RootStack.Screen name="AboutReleaseNote">
+            {(props) => <AboutReleaseNoteScreenContainer {...props} />}
+          </RootStack.Screen>
+          <RootStack.Screen name="AboutReleaseHistory">
+            {(props) => <AboutReleaseHistoryScreenContainer {...props} />}
+          </RootStack.Screen>
+          <RootStack.Screen name="AboutUpdateChannel">
+            {(props) => <AboutUpdateChannelScreenContainer {...props} />}
+          </RootStack.Screen>
+          <RootStack.Screen name="HelpCenter">
+            {(props) => <HelpCenterScreenContainer {...props} />}
+          </RootStack.Screen>
+          <RootStack.Screen name="BugReport">
+            {(props) => <BugReportScreenContainer {...props} />}
+          </RootStack.Screen>
+          <RootStack.Screen name="CommunityInvite">
+            {(props) => <CommunityInviteScreenContainer {...props} />}
           </RootStack.Screen>
           <RootStack.Screen name="AdminIncidents">
             {(props) => <AdminIncidentsScreenContainer {...props} />}

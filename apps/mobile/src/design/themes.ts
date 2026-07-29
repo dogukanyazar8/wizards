@@ -1,5 +1,7 @@
 import {
   mobilePalette,
+  redesignAboutDark,
+  redesignAboutLight,
   redesignAccessibleAvatarTintsLight,
   redesignAvatarTintsDark,
   redesignAuthDark,
@@ -155,6 +157,15 @@ export type MobileMessagingPalette = {
   readonly [K in keyof typeof redesignMessagingLight]: string;
 };
 
+/**
+ * "Hakkında" redesign colour group (handoff PROMPT.md §1.1/§1.2). The thirteen
+ * About surfaces read this instead of `surface`/`text`/`status`, exactly as the
+ * voice room reads `voiceRoom` — no other group moves.
+ */
+export type MobileAboutPalette = {
+  readonly [K in keyof typeof redesignAboutLight]: string;
+};
+
 export interface MobileAuthProfileAccent {
   readonly badgeBorder: string;
   readonly badgeSoft: string;
@@ -201,6 +212,8 @@ const lightboxChrome = {
 } as const;
 
 export interface MobileTheme {
+  /** Handoff §1.1/§1.2 "Hakkında" group; owned by the thirteen About surfaces. */
+  readonly about: MobileAboutPalette;
   readonly accent: {
     /** Accessible filled-action color; use with text.onPrimary. */
     readonly action: string;
@@ -595,6 +608,7 @@ function deepFreeze<T>(value: T): T {
 }
 
 export const lightTheme = deepFreeze({
+  about: redesignAboutLight,
   accent: lightThemeAccent,
   authFeature: {
     community: redesignAuthLight.featureCommunity,
@@ -960,6 +974,7 @@ export const lightTheme = deepFreeze({
 } satisfies MobileTheme);
 
 export const darkTheme = deepFreeze({
+  about: redesignAboutDark,
   accent: darkThemeAccent,
   authFeature: {
     community: redesignAuthDark.featureCommunity,

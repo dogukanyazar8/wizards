@@ -70,6 +70,12 @@ const SAFE_ROUTE_PREFIXES = [
   "/server",
   "/invite",
   "/user",
+  /**
+   * 2e/2f. Like `/admin`, this is a routing decision only: both screens are
+   * read-only surfaces over the public help corpus, and the report form still
+   * authenticates its submission on the server.
+   */
+  "/help",
 ] as const;
 const URL_SCHEME_PATTERN = /^[a-zA-Z][a-zA-Z\d+.-]*:/;
 

@@ -16,7 +16,7 @@ import { getReadinessPayload, type ReadinessPayload } from "@/lib/health";
  */
 
 export const WHISPR_STATUS_PAGE_URL =
-  process.env.NEXT_PUBLIC_WHISPR_STATUS_PAGE_URL ?? "https://status.whispr.app";
+  process.env.NEXT_PUBLIC_WHISPR_STATUS_PAGE_URL ?? "https://status.whispr.team";
 
 export type MobileServiceStatusDependencies = {
   getReadiness: () => Promise<ReadinessPayload>;

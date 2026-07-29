@@ -64,6 +64,27 @@ export function navigateMobileRouteIntent(intent: MobileNavigationRouteIntent): 
     case "BlockedUsers":
       mobileNavigationRef.navigate("BlockedUsers", undefined, ROUTE_INTENT_OPTIONS);
       break;
+    case "AboutWhatsNew":
+      mobileNavigationRef.navigate("AboutWhatsNew", undefined, ROUTE_INTENT_OPTIONS);
+      break;
+    case "AboutReleaseNote":
+      mobileNavigationRef.navigate("AboutReleaseNote", intent.params, ROUTE_INTENT_OPTIONS);
+      break;
+    case "AboutReleaseHistory":
+      mobileNavigationRef.navigate("AboutReleaseHistory", undefined, ROUTE_INTENT_OPTIONS);
+      break;
+    case "AboutUpdateChannel":
+      mobileNavigationRef.navigate("AboutUpdateChannel", undefined, ROUTE_INTENT_OPTIONS);
+      break;
+    case "HelpCenter":
+      mobileNavigationRef.navigate("HelpCenter", undefined, ROUTE_INTENT_OPTIONS);
+      break;
+    case "BugReport":
+      mobileNavigationRef.navigate("BugReport", intent.params, ROUTE_INTENT_OPTIONS);
+      break;
+    case "CommunityInvite":
+      mobileNavigationRef.navigate("CommunityInvite", intent.params, ROUTE_INTENT_OPTIONS);
+      break;
   }
 
   return true;

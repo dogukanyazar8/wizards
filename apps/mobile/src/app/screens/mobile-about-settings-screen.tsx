@@ -3,9 +3,11 @@ import { useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import * as Updates from "expo-updates";
 
+import { getMobileRuntimeConfig } from "../../config/environment";
 import { MOBILE_OPEN_SOURCE_LICENSE_GROUPS } from "../../legal/mobile-open-source-license-manifest";
 import { summarizeMobileOpenSourceLicenses } from "../../legal/mobile-open-source-licenses-model";
 import { mobileCopy } from "../../locale/mobile-copy";
+import { mobileNavigationRef } from "../../navigation/mobile-navigation-ref";
 import { useMobileHaptics } from "../providers/mobile-haptics-provider";
 import { useMobileLocaleRuntime } from "../providers/mobile-locale-provider";
 import { useTheme } from "../providers/mobile-theme-provider";
@@ -15,6 +17,12 @@ import {
   ABOUT_APP_LOGO_SIZE,
   useMobileAboutSettingsStyles,
 } from "./mobile-about-settings-screen.styles";
+
+function openMobilePerformanceDiagnostics(): void {
+  if (mobileNavigationRef.isReady()) {
+    mobileNavigationRef.navigate("PerformanceDiagnostics");
+  }
+}
 
 type AboutUpdateStatus = "checking" | "downloading" | "idle" | "up-to-date";
 
@@ -197,7 +205,6 @@ export function MobileAboutSettingsScreen({
           testID="mobile-about-cookies"
         />
         <AboutLegalRow
-          isLast
           label={copy.aboutSettingsLicenses}
           onPress={onOpenLicenses}
           testID="mobile-about-licenses"
@@ -208,6 +215,15 @@ export function MobileAboutSettingsScreen({
             String(openSourceLicenseSummary.packageCount),
           )}
         />
+        {/* Instrument, not product: absent from a production build entirely. */}
+        {getMobileRuntimeConfig().environment === "production" ? null : (
+          <AboutLegalRow
+            isLast
+            label={copy.performanceDiagnosticsEntry}
+            onPress={openMobilePerformanceDiagnostics}
+            testID="mobile-about-performance-diagnostics"
+          />
+        )}
       </View>
 
       <Text style={styles.sectionHeading}>{copy.aboutSettingsSupportHeading}</Text>

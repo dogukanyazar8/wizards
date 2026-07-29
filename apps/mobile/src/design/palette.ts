@@ -671,6 +671,168 @@ export const redesignAuthDark = {
   profileCorporateBorder: redesignDark.border,
 } as const;
 
+/**
+ * "Hakkında" redesign (handoff `Whispr Hakkında Ekranı.dc.html`, PROMPT.md §1.1
+ * light / §1.2 dark). Like the toast, the voice room and messaging, the About
+ * surfaces pin their own stack: the dark screen is `#12141F` with `#1B1E2C`
+ * cards, which is not the app's own base/card pair, so both tables stay literal
+ * and no other group is touched.
+ */
+export const redesignAboutLight = {
+  accent: "#4F46E5",
+  accentCardBorder: "#E7E6FD",
+  accentCardSurface: "#F7F6FF",
+  accentChipSurface: "#E7E6FD",
+  accentSurface: "#EEF0FE",
+  card: "#FFFFFF",
+  cardBorder: "#E7E9F4",
+  control: "#F1F2F9",
+  danger: "#DC4E5F",
+  grabber: "#DEE1EE",
+  /** §1.1 "Metin üçüncül (alt satır, grup etiketi)" — one tone, two roles. */
+  groupLabel: "#8A90B0",
+  hairline: "#F1F2F9",
+  headerDivider: "#ECEEF7",
+  iconTint: "#B9BED6",
+  /** §1.5: the brand mark's own drop shadow, the only tinted shadow here. */
+  logoShadow: "rgba(67,96,255,.24)",
+  progressTrack: "#ECEEF7",
+  radioBorder: "#D9DCEC",
+  screen: "#F6F7FB",
+  scrim: "rgba(20,23,42,.42)",
+  spinnerTrail: "#DDDBFB",
+  star: "#F5B23D",
+  starEmpty: "#DEE1EE",
+  successChipSurface: "#E1F5E9",
+  successDot: "#22C55E",
+  successSurface: "#E9F9EF",
+  successText: "#1B8A55",
+  text: "#1E2235",
+  textMuted: "#9AA0BC",
+  textSecondary: "#6B7194",
+  textTertiary: "#8A90B0",
+  timelineDot: "#C9CDE3",
+  /** §2: the knob is white whenever the track is filled. */
+  toggleKnob: "#FFFFFF",
+  toggleKnobOff: "#FFFFFF",
+  toggleOff: "#D9DCEC",
+  updateBadgeSurface: "rgba(255,255,255,.2)",
+  updateGhostSurface: "rgba(255,255,255,.16)",
+  updateGradientFrom: "#5A51EA",
+  updateGradientTo: "#4338CA",
+  updateOnGradient: "#FFFFFF",
+  updateOnGradientMuted: "rgba(255,255,255,.72)",
+  updatePrimaryText: "#4338CA",
+  warningChipSurface: "#FBE9DC",
+  /** §3.8: the 2c warning card's body, darkened for its own warm surface. */
+  warningNoteText: "#9A6224",
+  warningSurface: "#FEF0E8",
+  warningText: "#C77A2B",
+} as const;
+
+/**
+ * §1.2 is much shorter than §1.1. Every key it does not name is derived from a
+ * stated rule, never guessed — one comment per derived value below:
+ *
+ * A1 — SEPARATORS COLLAPSE. §1.2 gives one edge token
+ *      (`rgba(255,255,255,.07)`); light's three separator tones
+ *      (`cardBorder`, `hairline`, `headerDivider`) and the neutral control fill
+ *      all take it on dark, exactly as the messaging group's R1 does.
+ * A2 — THE WHITE-ALPHA LADDER. §1.2 steps its foregrounds .55 / .45 / .42 / .35
+ *      (secondary / tertiary / group label / icon tint). `textMuted` is the
+ *      step between tertiary and the icon tint, so it takes .38 — still text,
+ *      still above the tint that §1.1 forbids using as text.
+ * A3 — SATURATED MARKS DO NOT MOVE. §1.2 keeps `#22C55E` unchanged, so the
+ *      gold star, the brand gradient of the 1d update card and every colour
+ *      painted on that gradient keep their §1.1 values. Foregrounds lift
+ *      instead: accent to `#A5A8FF` (§1.2), green to `#4ADE80` (§1.2), danger
+ *      to `#FF7A88` (the dark danger foreground the messaging group already
+ *      pins).
+ * A4 — TINTS ARE WASHES, RANKED AS ON LIGHT. §1.2 builds tinted surfaces as the
+ *      hue over the screen at an alpha and pins two accent rungs: icon-box tint
+ *      .16, chip .18. Light ranks `#F7F6FF` (card wash) below `#EEF0FE`
+ *      (icon box) below `#E7E6FD` (chip), so dark ranks .10 / .16 / .18. The
+ *      green and gold families keep the same +.02 chip step over their pinned
+ *      surfaces.
+ * A5 — NEUTRAL CONTROL MARKS RANK BY DISTANCE FROM THE SCREEN. The about dark
+ *      screen is the same `#12141F` messaging's R6 measured against, so the
+ *      same ladder applies: `#C9CDE3` (furthest from `#F6F7FB`) becomes white
+ *      at .28, `#DEE1EE` (closest) becomes .18, and `#D9DCEC` takes the
+ *      `#2A2F45` §1.2 pins for the toggle track it shares.
+ * A6 — INK IS INK. A scrim reads the same on both themes (messaging R6's
+ *      wording); the layer under it carries the depth.
+ */
+export const redesignAboutDark = {
+  accent: "#A5A8FF",
+  /** A1: the 1c highlight card keeps its wash, not a second edge tone. */
+  accentCardBorder: "rgba(255,255,255,.07)",
+  /** A4: the card wash sits one rung below the .16 icon-box tint. */
+  accentCardSurface: "rgba(124,116,255,.10)",
+  accentChipSurface: "rgba(124,116,255,.18)",
+  accentSurface: "rgba(124,116,255,.16)",
+  card: "#1B1E2C",
+  cardBorder: "rgba(255,255,255,.07)",
+  control: "rgba(255,255,255,.07)",
+  /** A3: the dark danger foreground already pinned by the messaging group. */
+  danger: "#FF7A88",
+  /** A5: `#DEE1EE`, the neutral mark closest to the light screen. */
+  grabber: "rgba(255,255,255,.18)",
+  groupLabel: "rgba(255,255,255,.42)",
+  hairline: "rgba(255,255,255,.07)",
+  /** A1: the sticky header rule is a separator like any other. */
+  headerDivider: "rgba(255,255,255,.07)",
+  iconTint: "rgba(255,255,255,.35)",
+  /** §1.5 last line: the only value that changes for the dark brand mark. */
+  logoShadow: "rgba(47,109,255,.34)",
+  /** A1: the progress track is the neutral control fill under the indigo bar. */
+  progressTrack: "rgba(255,255,255,.07)",
+  /** A5: shares `#D9DCEC` with the toggle track §1.2 pins to `#2A2F45`. */
+  radioBorder: "#2A2F45",
+  screen: "#12141F",
+  /** A6: ink over content, unchanged. */
+  scrim: "rgba(20,23,42,.42)",
+  /** A4: `#DDDBFB` is the accent held palest — the wash rung under the card. */
+  spinnerTrail: "rgba(124,116,255,.28)",
+  /** A3: a gold star is a saturated mark, not a foreground. */
+  star: "#F5B23D",
+  /** A5: `#DEE1EE` again — the empty star is the same neutral mark as the grabber. */
+  starEmpty: "rgba(255,255,255,.18)",
+  /** A4: +.02 over the pinned `.14` green surface, the accent family's chip step. */
+  successChipSurface: "rgba(34,197,94,.16)",
+  successDot: "#22C55E",
+  successSurface: "rgba(34,197,94,.14)",
+  successText: "#4ADE80",
+  text: "#F2F3FA",
+  /** A2: the step between tertiary (.45) and the icon tint (.35). */
+  textMuted: "rgba(255,255,255,.38)",
+  textSecondary: "rgba(255,255,255,.55)",
+  textTertiary: "rgba(255,255,255,.45)",
+  /** A5: `#C9CDE3`, the neutral mark furthest from the light screen. */
+  timelineDot: "rgba(255,255,255,.28)",
+  /** A3: the knob on a filled indigo track stays white. */
+  toggleKnob: "#FFFFFF",
+  toggleKnobOff: "#9AA0BC",
+  toggleOff: "#2A2F45",
+  /** A3: the 1d card paints on its own brand gradient, so its stack is fixed. */
+  updateBadgeSurface: "rgba(255,255,255,.2)",
+  updateGhostSurface: "rgba(255,255,255,.16)",
+  updateGradientFrom: "#5A51EA",
+  updateGradientTo: "#4338CA",
+  updateOnGradient: "#FFFFFF",
+  updateOnGradientMuted: "rgba(255,255,255,.72)",
+  updatePrimaryText: "#4338CA",
+  /** A4: +.02 over the pinned `.16` gold surface. */
+  warningChipSurface: "rgba(224,168,104,.18)",
+  /**
+   * A3: light darkens the note (`#9A6224`) because it sits on an opaque warm
+   * card; on dark that card is a `.16` wash, so the note lifts back to the
+   * §1.2 gold foreground instead.
+   */
+  warningNoteText: "#E0A868",
+  warningSurface: "rgba(224,168,104,.16)",
+  warningText: "#E0A868",
+} as const;
+
 export const redesignAvatarTintsLight = [
   { bg: "#EEF0FE", fg: "#4F46E5" },
   { bg: "#FDEBD7", fg: "#C77A2B" },

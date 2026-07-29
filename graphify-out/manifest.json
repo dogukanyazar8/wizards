@@ -1535,8 +1535,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/app/screens/mobile-screen-containers.tsx": {
-    "mtime": 1785296247.2818828,
-    "ast_hash": "1925d761c18ea43f5ba462369ffe01dd",
+    "mtime": 1785309694.360407,
+    "ast_hash": "d416aba70ae7e8b8f1b8e716fab06ca4",
     "semantic_hash": ""
   },
   "apps/mobile/src/app/screens/mobile-workspace-server-switcher-sheet.tsx": {
@@ -1950,8 +1950,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/navigation/mobile-navigation-types.ts": {
-    "mtime": 1785170424.3650167,
-    "ast_hash": "03b49eeca83b02bdd4ae4e8110f397f5",
+    "mtime": 1785309694.3960564,
+    "ast_hash": "f414c1c0e2fe92510f8e4d5013d2101f",
     "semantic_hash": ""
   },
   "apps/mobile/src/navigation/mobile-navigation.ts": {
@@ -1960,8 +1960,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/navigation/mobile-navigator.tsx": {
-    "mtime": 1785254665.709896,
-    "ast_hash": "61cd28693b635cfb24e5e953c4bb3a03",
+    "mtime": 1785309694.3889973,
+    "ast_hash": "98f64f80214a4a9d2716809ac810c93e",
     "semantic_hash": ""
   },
   "apps/mobile/src/network/mobile-network-contract.ts": {
@@ -2780,8 +2780,8 @@
     "semantic_hash": ""
   },
   "apps/web/src/app/api/v1/route-contract.test.ts": {
-    "mtime": 1785164679.2466445,
-    "ast_hash": "cd32e4245ca164219e9aa8f1fb673c28",
+    "mtime": 1785308283.1905785,
+    "ast_hash": "1a4134d8a59cbe429e4af86be5169cfa",
     "semantic_hash": ""
   },
   "apps/web/src/app/api/v1/admin/dashboard/route-logic.ts": {
@@ -4525,8 +4525,8 @@
     "semantic_hash": ""
   },
   "apps/web/src/lib/api-rate-limit.ts": {
-    "mtime": 1785208594.3286216,
-    "ast_hash": "8972e00073f58525b287f96c867c2d5a",
+    "mtime": 1785308139.4203138,
+    "ast_hash": "6b6c07fa55f8d396860e25593c2d0496",
     "semantic_hash": ""
   },
   "apps/web/src/lib/api.test.ts": {
@@ -5210,8 +5210,8 @@
     "semantic_hash": ""
   },
   "apps/web/src/lib/dm/message-send-service.ts": {
-    "mtime": 1785295632.252933,
-    "ast_hash": "5de11e420db5ec8717e0d56810a3f5a4",
+    "mtime": 1785308156.4197364,
+    "ast_hash": "06f8b8ed5cfaf649257ce669fc0694f7",
     "semantic_hash": ""
   },
   "apps/web/src/lib/dm/mobile-details-service.test.ts": {
@@ -5585,8 +5585,8 @@
     "semantic_hash": ""
   },
   "apps/web/src/lib/outbox/service.ts": {
-    "mtime": 1785295501.1850486,
-    "ast_hash": "955dfa3fb8fdcc9c7e81cecb822d1d62",
+    "mtime": 1785308156.4202406,
+    "ast_hash": "7c7f154371850175da15e8d4e686c982",
     "semantic_hash": ""
   },
   "apps/web/src/lib/outbox/worker-infra-contract.test.ts": {
@@ -6365,13 +6365,13 @@
     "semantic_hash": ""
   },
   "packages/db/src/index.ts": {
-    "mtime": 1785162611.413971,
-    "ast_hash": "da8fa398be7f54af90b41e7a1957291f",
+    "mtime": 1785308011.8013241,
+    "ast_hash": "5e05775f08a792306511ad15515a9f9b",
     "semantic_hash": ""
   },
   "packages/db/src/seed.ts": {
-    "mtime": 1784969096.1968923,
-    "ast_hash": "0be53bdbed9bf8c40dce8c354b9eefe6",
+    "mtime": 1785309032.7229354,
+    "ast_hash": "53a1502878e338ac8f93ab5aa362382e",
     "semantic_hash": ""
   },
   "packages/db/src/sync-contributors.ts": {
@@ -6425,13 +6425,13 @@
     "semantic_hash": ""
   },
   "packages/types/src/mobile.test.ts": {
-    "mtime": 1785230436.967894,
-    "ast_hash": "6cda587327b05dac20ac9fc749253fa6",
+    "mtime": 1785308967.683283,
+    "ast_hash": "55b679c890e4b31e571df46de524ba99",
     "semantic_hash": ""
   },
   "packages/types/src/mobile.ts": {
-    "mtime": 1785241645.4428709,
-    "ast_hash": "680d751d003f2562d06802d50e95908a",
+    "mtime": 1785307975.1764867,
+    "ast_hash": "6941cba4d84a3457c2e67e6128444f12",
     "semantic_hash": ""
   },
   "packages/types/src/schema-test-helpers.ts": {
@@ -7235,8 +7235,8 @@
     "semantic_hash": ""
   },
   "packages/db/package.json": {
-    "mtime": 1785057366.1679866,
-    "ast_hash": "2b5fcced297428ead61e3136d3770145",
+    "mtime": 1785309127.119297,
+    "ast_hash": "db5f965a4a5c2b479efc05710271ea33",
     "semantic_hash": ""
   },
   "packages/db/tsconfig.json": {
@@ -7460,8 +7460,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/app/screens/mobile-about-settings-screen.tsx": {
-    "mtime": 1785087850.301694,
-    "ast_hash": "740ee1649ee20e97e1761f007d30e486",
+    "mtime": 1785309501.900456,
+    "ast_hash": "1271e8c01f1d427a919f6fff68eccd9d",
     "semantic_hash": ""
   },
   "apps/mobile/src/app/screens/mobile-direct-call-screen.tsx": {
@@ -10920,8 +10920,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/query/mobile-message-prefetch.ts": {
-    "mtime": 1785297486.1492698,
-    "ast_hash": "2eef1f1aa36b2917fa269af6be753f03",
+    "mtime": 1785309295.7966228,
+    "ast_hash": "a997c8857fae08a80583e9b9c18a296f",
     "semantic_hash": ""
   },
   "apps/mobile/component-tests/mobile-typing-isolation.test.tsx": {
@@ -10975,8 +10975,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-message-stream-cache.test.ts": {
-    "mtime": 1785271461.807886,
-    "ast_hash": "931fa9e527aedefa298ce092f55a7188",
+    "mtime": 1785309516.4070044,
+    "ast_hash": "b7d4597bb43770a973c8659d5375cc61",
     "semantic_hash": ""
   },
   "apps/mobile/src/query/mobile-message-stream-cache.ts": {
@@ -11000,8 +11000,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/storage/mobile-message-store.ts": {
-    "mtime": 1785271744.3373122,
-    "ast_hash": "c45ebfdfdff695ed4648d2565f8c317a",
+    "mtime": 1785309353.0832608,
+    "ast_hash": "ffa7bcdcf458a4010859dcf3a38d3a9a",
     "semantic_hash": ""
   },
   "graphify-out/memory/query_20260728_172429_mobil_uygulama_maksimum_performans_planinin_repo_k.md": {
@@ -11025,8 +11025,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/performance/mobile-navigation-timing.ts": {
-    "mtime": 1785296128.3175683,
-    "ast_hash": "286f11a34043a164e787b98caa10b336",
+    "mtime": 1785309295.7966228,
+    "ast_hash": "7d1ae9f2eb2450b1836d8e515793f468",
     "semantic_hash": ""
   },
   "apps/mobile/src/performance/mobile-startup-phases.ts": {
@@ -11040,8 +11040,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/performance/mobile-telemetry-instruments.ts": {
-    "mtime": 1785296259.391956,
-    "ast_hash": "64c4af6917df28f847c288d0a31dffcd",
+    "mtime": 1785309337.0140803,
+    "ast_hash": "d8ef4d14855a799a91e3f07f7f0b69fe",
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-performance-budget.test.ts": {
@@ -11080,88 +11080,293 @@
     "semantic_hash": ""
   },
   "docs/prompts/hakkinda-redesign/00-ortak-baglam.md": {
-    "mtime": 1785304577.9959984,
-    "ast_hash": "ca70b0e5f7f71f29133781223ab1959b",
+    "mtime": 1785307950.2733834,
+    "ast_hash": "1e90066454b3bde29393a277a0681f82",
     "semantic_hash": ""
   },
   "docs/prompts/hakkinda-redesign/01-veri-katmani-db-api.md": {
-    "mtime": 1785304686.79305,
-    "ast_hash": "061ecda34688ba4f4ed737a82cbc5708",
+    "mtime": 1785307950.3195848,
+    "ast_hash": "ebca884b21e34b5ab62464c24ceaafab",
     "semantic_hash": ""
   },
   "docs/prompts/hakkinda-redesign/02-mobil-temel-katman.md": {
-    "mtime": 1785304794.3446867,
-    "ast_hash": "f9b2d2315f50f8a4fcebf92b692d938f",
+    "mtime": 1785307950.355652,
+    "ast_hash": "0468d30c8c73c4257de460947478e792",
     "semantic_hash": ""
   },
   "docs/prompts/hakkinda-redesign/03-1a-1b-1e-hakkinda-ekrani.md": {
-    "mtime": 1785305577.0684156,
-    "ast_hash": "1e2bbb3b09984dd7e8766c59dde7d23a",
+    "mtime": 1785307950.379303,
+    "ast_hash": "5a00e0b3f2263e7499e6a3fcd9d08f04",
     "semantic_hash": ""
   },
   "docs/prompts/hakkinda-redesign/README.md": {
-    "mtime": 1785304482.9536324,
-    "ast_hash": "d20809f8c87f5733e619afe791b4ee22",
+    "mtime": 1785307950.508851,
+    "ast_hash": "580488a6b3b65bb2251a12a414ac51b7",
     "semantic_hash": ""
   },
   "docs/prompts/hakkinda-redesign/04-1c-yenilikler.md": {
-    "mtime": 1785305577.069425,
-    "ast_hash": "27b3527a18b220fc155534f564372f91",
+    "mtime": 1785307950.3958316,
+    "ast_hash": "00b7faa4dbe61b3e877e5298876cdabe",
     "semantic_hash": ""
   },
   "docs/prompts/hakkinda-redesign/05-1d-guncelleme-akisi.md": {
-    "mtime": 1785305577.069425,
-    "ast_hash": "d60c5065bf1966985a0d1d675bffb219",
+    "mtime": 1785307950.4079437,
+    "ast_hash": "5bb354585af70a34616a06c1aff85a35",
     "semantic_hash": ""
   },
   "docs/prompts/hakkinda-redesign/06-2a-tam-surum-notu.md": {
-    "mtime": 1785305051.7178967,
-    "ast_hash": "8f43e3fecff47569cea95c7609b908a5",
+    "mtime": 1785307950.4216223,
+    "ast_hash": "7279f98ea37e07489bdb14d8a1a5b783",
     "semantic_hash": ""
   },
   "docs/prompts/hakkinda-redesign/07-2b-surum-gecmisi.md": {
-    "mtime": 1785305093.0886488,
-    "ast_hash": "68b62c8b9d4ee719d0fb38a6e13fd632",
+    "mtime": 1785307950.4291384,
+    "ast_hash": "55dcc10db0a1b0c8c2abe172fcd1e1ce",
     "semantic_hash": ""
   },
   "docs/prompts/hakkinda-redesign/08-2c-guncelleme-kanali.md": {
-    "mtime": 1785305144.4231148,
-    "ast_hash": "833d29ac2ff40b8dea7b00be9854b6a2",
+    "mtime": 1785307950.4397235,
+    "ast_hash": "07f0685be58324b7806fa374c3533e62",
     "semantic_hash": ""
   },
   "docs/prompts/hakkinda-redesign/09-2d-beta-onayi.md": {
-    "mtime": 1785305187.6755438,
-    "ast_hash": "78ac4b8fa26b33d173acff69cfac1445",
+    "mtime": 1785307950.4487216,
+    "ast_hash": "ae6db2b3cbbfafd019e9cdca612350c9",
     "semantic_hash": ""
   },
   "docs/prompts/hakkinda-redesign/10-2e-yardim-merkezi.md": {
-    "mtime": 1785305232.8423254,
-    "ast_hash": "760956ecbab5770fb90bf40d48d1e532",
+    "mtime": 1785307950.457232,
+    "ast_hash": "5f6a7f7b7ab7026c485e70e0c65c7422",
     "semantic_hash": ""
   },
   "docs/prompts/hakkinda-redesign/11-2f-sorun-bildir.md": {
-    "mtime": 1785305295.4228237,
-    "ast_hash": "20c605770c3c2001710dd3b5b6f62298",
+    "mtime": 1785307950.469775,
+    "ast_hash": "fe84a48b3089269ddc7b80e808e3a56d",
     "semantic_hash": ""
   },
   "docs/prompts/hakkinda-redesign/12-2g-topluluk-sunucusu.md": {
-    "mtime": 1785305368.973613,
-    "ast_hash": "bb073e706cdb48fe864cbf23bc02ef03",
+    "mtime": 1785307950.4787757,
+    "ast_hash": "434aefd07148cfe60ebc2d247f11f530",
     "semantic_hash": ""
   },
   "docs/prompts/hakkinda-redesign/13-2h-puanlama.md": {
-    "mtime": 1785305421.3493738,
-    "ast_hash": "687eb3b8bcaa38aec3892e1b68941169",
+    "mtime": 1785307950.4867873,
+    "ast_hash": "a2b964a402e5bd8eab980bb357c8a0a2",
     "semantic_hash": ""
   },
   "docs/prompts/hakkinda-redesign/14-admin-icerik-yonetimi.md": {
-    "mtime": 1785305476.4019797,
-    "ast_hash": "9cd4b75e0ffff4719fdb1603eb1bfc7a",
+    "mtime": 1785307950.4943197,
+    "ast_hash": "aaade6ea8e370569840213d6fc7b1334",
     "semantic_hash": ""
   },
   "docs/prompts/hakkinda-redesign/15-dogrulama-ve-kabul.md": {
-    "mtime": 1785305534.021421,
-    "ast_hash": "caa1b85a1ce8cb1ce1457924ef23de08",
+    "mtime": 1785307950.5038517,
+    "ast_hash": "4105b4d6314ee47a939f3f8e5d997df2",
+    "semantic_hash": ""
+  },
+  "apps/web/src/app/api/v1/mobile/app/channel/route-logic.ts": {
+    "mtime": 1785308212.775311,
+    "ast_hash": "8244837a2cecc6c2a66bc2330a0c68e2",
+    "semantic_hash": ""
+  },
+  "apps/web/src/app/api/v1/mobile/app/channel/route.ts": {
+    "mtime": 1785308222.6159356,
+    "ast_hash": "ff26980d4426e0f697fb030d8658b381",
+    "semantic_hash": ""
+  },
+  "apps/web/src/app/api/v1/mobile/app/releases/[version]/route-logic.ts": {
+    "mtime": 1785308161.7126427,
+    "ast_hash": "16705dfdac2bfd18c4152c8eec2c890e",
+    "semantic_hash": ""
+  },
+  "apps/web/src/app/api/v1/mobile/app/releases/[version]/route.ts": {
+    "mtime": 1785308167.1950204,
+    "ast_hash": "624809cc5da858047489531efc532dd5",
+    "semantic_hash": ""
+  },
+  "apps/web/src/app/api/v1/mobile/app/releases/route-logic.ts": {
+    "mtime": 1785308337.4110122,
+    "ast_hash": "f7a63972266c1edb97fd79f30fccc827",
+    "semantic_hash": ""
+  },
+  "apps/web/src/app/api/v1/mobile/app/releases/route.ts": {
+    "mtime": 1785308154.6565917,
+    "ast_hash": "a359380acb9b11ee2f914d78ec1d71e4",
+    "semantic_hash": ""
+  },
+  "apps/web/src/app/api/v1/mobile/app/status/route-logic.ts": {
+    "mtime": 1785308231.0051386,
+    "ast_hash": "f8f4d2dde12b7a710d9a3ce68eb9b750",
+    "semantic_hash": ""
+  },
+  "apps/web/src/app/api/v1/mobile/app/status/route.ts": {
+    "mtime": 1785308232.0635855,
+    "ast_hash": "dab6bdf3657a039e8392603c87f0cb71",
+    "semantic_hash": ""
+  },
+  "apps/web/src/app/api/v1/mobile/app/update/route-logic.ts": {
+    "mtime": 1785308200.8526871,
+    "ast_hash": "4b8f9580ea019b18c031ac082b279abd",
+    "semantic_hash": ""
+  },
+  "apps/web/src/app/api/v1/mobile/app/update/route.ts": {
+    "mtime": 1785308205.0667124,
+    "ast_hash": "26fc67dbe1ff5b31507b870d433ba1aa",
+    "semantic_hash": ""
+  },
+  "apps/web/src/app/api/v1/mobile/help/articles/[slug]/view/route-logic.ts": {
+    "mtime": 1785308345.637421,
+    "ast_hash": "56138f6b4debb01b5943562660d1149c",
+    "semantic_hash": ""
+  },
+  "apps/web/src/app/api/v1/mobile/help/articles/[slug]/view/route.ts": {
+    "mtime": 1785308266.7256272,
+    "ast_hash": "b323aeac7345cde3a14d1b27cacab577",
+    "semantic_hash": ""
+  },
+  "apps/web/src/app/api/v1/mobile/help/articles/route-logic.ts": {
+    "mtime": 1785308337.4120128,
+    "ast_hash": "679e82bfbff26e9a29e473c32bea2874",
+    "semantic_hash": ""
+  },
+  "apps/web/src/app/api/v1/mobile/help/articles/route.ts": {
+    "mtime": 1785308241.7827158,
+    "ast_hash": "f021462151a7e4b672ec118c8f0ffe6f",
+    "semantic_hash": ""
+  },
+  "apps/web/src/app/api/v1/mobile/help/search/route-logic.ts": {
+    "mtime": 1785308250.667199,
+    "ast_hash": "ed47ef284699218466f676591702890a",
+    "semantic_hash": ""
+  },
+  "apps/web/src/app/api/v1/mobile/help/search/route.ts": {
+    "mtime": 1785308251.7291827,
+    "ast_hash": "971be5a71ad59159c110653ec97bfe0a",
+    "semantic_hash": ""
+  },
+  "apps/web/src/app/api/v1/mobile/support/report/route-logic.ts": {
+    "mtime": 1785308276.5636559,
+    "ast_hash": "bc55a6ac1ca1e09b6961895413f83e6b",
+    "semantic_hash": ""
+  },
+  "apps/web/src/app/api/v1/mobile/support/report/route.ts": {
+    "mtime": 1785308277.852552,
+    "ast_hash": "6211d8378c545b22664b7bd9b33ebd41",
+    "semantic_hash": ""
+  },
+  "apps/web/src/lib/app/release-channel-service.ts": {
+    "mtime": 1785308220.7214935,
+    "ast_hash": "70684fa98523f4aafde9fb4b036bebf9",
+    "semantic_hash": ""
+  },
+  "apps/web/src/lib/app/service-status.ts": {
+    "mtime": 1785308967.6530504,
+    "ast_hash": "d926d79a0ab06312f809f5139e63f916",
+    "semantic_hash": ""
+  },
+  "apps/web/src/lib/help/help-service.ts": {
+    "mtime": 1785308376.1032424,
+    "ast_hash": "640b24a487b77bfc3a90f827f41ef5fe",
+    "semantic_hash": ""
+  },
+  "apps/web/src/lib/releases/release-service.ts": {
+    "mtime": 1785308247.8754041,
+    "ast_hash": "175effa3a94306ba415565838c6aaf9d",
+    "semantic_hash": ""
+  },
+  "apps/web/src/lib/support/bug-report-service.ts": {
+    "mtime": 1785308337.4135165,
+    "ast_hash": "586b8510a80c12bb352d9ca5def54f1e",
+    "semantic_hash": ""
+  },
+  "packages/db/prisma/rebaseline-migrations/20260729120000_about_releases_help_reports/migration.sql": {
+    "mtime": 1785307692.7212718,
+    "ast_hash": "9fd55aa79844ef139e3b273f18a009eb",
+    "semantic_hash": ""
+  },
+  "apps/mobile/component-tests/mobile-performance-diagnostics.test.tsx": {
+    "mtime": 1785309694.4316661,
+    "ast_hash": "994a234b4d315bd33de53764d2d86c4a",
+    "semantic_hash": ""
+  },
+  "apps/mobile/scripts/mobile-performance-summary.test.ts": {
+    "mtime": 1785309239.7018547,
+    "ast_hash": "82022b090ce6ba15d53c818cadad67be",
+    "semantic_hash": ""
+  },
+  "apps/mobile/src/app/screens/mobile-performance-diagnostics-screen.tsx": {
+    "mtime": 1785309694.3230443,
+    "ast_hash": "ea21d3c97f8e0ade043b6cb1ada75c04",
+    "semantic_hash": ""
+  },
+  "apps/mobile/src/performance/mobile-performance-summary.ts": {
+    "mtime": 1785309694.2634883,
+    "ast_hash": "344bd08289411b4254169afa9464e0c4",
+    "semantic_hash": ""
+  },
+  "apps/web/src/app/api/v1/mobile/app/channel/route-logic.test.ts": {
+    "mtime": 1785308758.3886814,
+    "ast_hash": "03a71ce3d3b5efbd8f1d4082fe34ffba",
+    "semantic_hash": ""
+  },
+  "apps/web/src/app/api/v1/mobile/app/releases/[version]/route-logic.test.ts": {
+    "mtime": 1785308719.4080813,
+    "ast_hash": "b9b2b9a84a865199c99cc8112bb08540",
+    "semantic_hash": ""
+  },
+  "apps/web/src/app/api/v1/mobile/app/releases/route-logic.test.ts": {
+    "mtime": 1785308659.828027,
+    "ast_hash": "e1ef91c700f50bc43fa8713bf5579f46",
+    "semantic_hash": ""
+  },
+  "apps/web/src/app/api/v1/mobile/app/status/route-logic.test.ts": {
+    "mtime": 1785308967.667603,
+    "ast_hash": "06311553fcd7a426ec57fb13929d2430",
+    "semantic_hash": ""
+  },
+  "apps/web/src/app/api/v1/mobile/app/update/route-logic.test.ts": {
+    "mtime": 1785308742.7127666,
+    "ast_hash": "1a4443e2b29c123ceeb436b8e05ff484",
+    "semantic_hash": ""
+  },
+  "apps/web/src/app/api/v1/mobile/help/articles/[slug]/view/route-logic.test.ts": {
+    "mtime": 1785308847.1496024,
+    "ast_hash": "460fca3e307ca649438f2e4619699761",
+    "semantic_hash": ""
+  },
+  "apps/web/src/app/api/v1/mobile/help/articles/route-logic.test.ts": {
+    "mtime": 1785308967.69331,
+    "ast_hash": "b57b04d0665a0e642a82e55f29888408",
+    "semantic_hash": ""
+  },
+  "apps/web/src/app/api/v1/mobile/help/search/route-logic.test.ts": {
+    "mtime": 1785308967.7083435,
+    "ast_hash": "928ac6849517a000293e23c343753209",
+    "semantic_hash": ""
+  },
+  "apps/web/src/app/api/v1/mobile/support/report/route-logic.test.ts": {
+    "mtime": 1785308875.029936,
+    "ast_hash": "d3db01edbf7924b5860f4163e5f8149b",
+    "semantic_hash": ""
+  },
+  "apps/web/src/lib/support/bug-report-service.test.ts": {
+    "mtime": 1785308898.2603266,
+    "ast_hash": "b6d4bc174084334ac72a2e7761c80683",
+    "semantic_hash": ""
+  },
+  "packages/db/src/seed-about-model.test.ts": {
+    "mtime": 1785309121.3059409,
+    "ast_hash": "17d47224e19fa8c0757b81e1a9b81615",
+    "semantic_hash": ""
+  },
+  "packages/db/src/seed-about-model.ts": {
+    "mtime": 1785309086.9073374,
+    "ast_hash": "9bdfbc251a570148e046bac1be0d0b38",
+    "semantic_hash": ""
+  },
+  "packages/db/src/seed-about.ts": {
+    "mtime": 1785309103.7697434,
+    "ast_hash": "dabacd2a4a9fe7a0cedea6d56b920aad",
     "semantic_hash": ""
   }
 }

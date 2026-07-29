@@ -55,6 +55,21 @@ export function createMobileQueryKeys(registry: MobileSearchKeyRegistry) {
 
   return {
     all,
+    /** "Hakkında" redesign. One root so a channel change can drop the lot. */
+    aboutRoot: () => [...all, "about"] as const,
+    aboutUpdate: () => [...all, "about", "update"] as const,
+    aboutReleases: () => [...all, "about", "releases"] as const,
+    aboutRelease: (version: string) => [...all, "about", "releases", version] as const,
+    aboutStatus: () => [...all, "about", "status"] as const,
+    helpRoot: () => [...all, "help"] as const,
+    /**
+     * 2e asks for either the popular four or one category, and those are two
+     * different lists — so the parameters are part of the key rather than a
+     * refetch of the same one.
+     */
+    helpArticles: (params: { readonly category?: string; readonly popular?: boolean } = {}) =>
+      [...all, "help", "articles", params.category ?? null, params.popular === true] as const,
+    helpSearch: (query: string) => [...all, "help", "search", query.trim()] as const,
     accountSettings: () => [...all, "account-settings"] as const,
     adminCasesRoot: () => [...all, "admin-cases"] as const,
     adminCases: () => [...all, "admin-cases", "list"] as const,

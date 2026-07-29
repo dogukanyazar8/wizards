@@ -8,11 +8,22 @@ import { recordMobilePerformanceSample } from "./mobile-performance-metrics";
  * span starts on the tap instead, and closes on the first meaningful content of
  * the route it opened.
  */
-const openSpans = new Map<string, number>();
+type MobileNavigationSpan = {
+  readonly cacheHit: boolean;
+  readonly startedAtMs: number;
+};
+
+const openSpans = new Map<string, MobileNavigationSpan>();
 
 export function beginMobileNavigationSpan(
   route: string,
   startedAtMs: number = globalThis.performance.now(),
+  /**
+   * Whether the target's stream was already in the cache when the reader tapped.
+   * A cached open and a network open are different budgets, and pooling them
+   * hides both.
+   */
+  cacheHit = false,
 ): void {
   if (route.length === 0) {
     return;
@@ -20,7 +31,7 @@ export function beginMobileNavigationSpan(
 
   // The newest tap wins: an abandoned span (the reader went back before content
   // arrived) must not be closed by a later, unrelated load.
-  openSpans.set(route, startedAtMs);
+  openSpans.set(route, { cacheHit, startedAtMs });
 }
 
 /**
@@ -32,15 +43,15 @@ export function completeMobileNavigationSpan(
   route: string,
   completedAtMs: number = globalThis.performance.now(),
 ): number | null {
-  const startedAtMs = openSpans.get(route);
-  if (startedAtMs === undefined) {
+  const span = openSpans.get(route);
+  if (!span) {
     return null;
   }
 
   openSpans.delete(route);
-  const durationMs = completedAtMs - startedAtMs;
+  const durationMs = completedAtMs - span.startedAtMs;
   recordMobilePerformanceSample({
-    context: { route },
+    context: { cacheHit: span.cacheHit, route },
     durationMs,
     metric: "navigation",
     surface: "navigation",
