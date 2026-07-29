@@ -807,5 +807,9 @@
   "805": "Task A4: Sıfırlama TTL'i, sosyal sağlayıcı konfigi ve mobil istemci geçişi",
   "806": "admin-kit-contract.test.ts",
   "807": "lint",
-  "808": "describeFile"
+  "808": "describeFile",
+  "809": "livekit/types.ts",
+  "810": "MemoryRedis",
+  "811": "Task 5: Add category/channel CRUD and channel-history clearing",
+  "812": "@babel/runtime"
 }
