@@ -16,6 +16,7 @@ appId: team.whispr.mobile
 - tapOn:
     id: "mobile-auth-login-email-input"
 - inputText: ${MAESTRO_PERF_EMAIL}
+- hideKeyboard
 - tapOn:
     id: "mobile-auth-login-password-input"
 - inputText: ${MAESTRO_PERF_PASSWORD}

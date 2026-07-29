@@ -86,7 +86,7 @@ describe("Phase 0 Maestro testID contract", () => {
     assert.ok(mobilePerformanceLoginFlowSource, ".maestro/mobile-performance-login.yml must exist");
     assert.match(
       mobilePerformanceLoginFlowSource,
-      /id:\s*"mobile-auth-login-email-input"\r?\n- inputText:\s*\$\{MAESTRO_PERF_EMAIL\}[\s\S]*?id:\s*"mobile-auth-login-password-input"\r?\n- inputText:\s*\$\{MAESTRO_PERF_PASSWORD\}\r?\n- hideKeyboard\r?\n- tapOn:\r?\n\s+id:\s*"mobile-auth-login-submit"/,
+      /id:\s*"mobile-auth-login-email-input"\r?\n- inputText:\s*\$\{MAESTRO_PERF_EMAIL\}\r?\n- hideKeyboard\r?\n- tapOn:\r?\n\s+id:\s*"mobile-auth-login-password-input"\r?\n- inputText:\s*\$\{MAESTRO_PERF_PASSWORD\}\r?\n- hideKeyboard\r?\n- tapOn:\r?\n\s+id:\s*"mobile-auth-login-submit"/,
     );
   });
 
