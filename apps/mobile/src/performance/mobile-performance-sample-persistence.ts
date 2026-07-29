@@ -36,6 +36,8 @@ export function createMobilePerformanceSamplePersistence({
   let writing = false;
   let disposed = false;
   let retryDelayMs = debounceMs;
+  let resetVersion = 0;
+  let inFlightWrite: Promise<void> | null = null;
 
   function clearTimer() {
     if (timer) {
@@ -75,9 +77,12 @@ export function createMobilePerformanceSamplePersistence({
     const batch = pending;
     pending = [];
     writing = true;
+    const writeVersion = resetVersion;
+    const write = Promise.resolve().then(() => persist(batch));
+    inFlightWrite = write;
 
     try {
-      await persist(batch);
+      await write;
       for (const sample of batch) {
         queuedIds.delete(sample.sampleId);
       }
@@ -85,12 +90,17 @@ export function createMobilePerformanceSamplePersistence({
     } catch {
       // A locked database is a retry, not a loss: the batch goes back in front
       // of anything captured while the write was in flight.
-      pending = [...batch, ...pending];
-      retryDelayMs = Math.min(
-        Math.max(debounceMs, retryDelayMs) * 2,
-        MOBILE_PERFORMANCE_PERSISTENCE_MAX_RETRY_DELAY_MS,
-      );
+      if (resetVersion === writeVersion) {
+        pending = [...batch, ...pending];
+        retryDelayMs = Math.min(
+          Math.max(debounceMs, retryDelayMs) * 2,
+          MOBILE_PERFORMANCE_PERSISTENCE_MAX_RETRY_DELAY_MS,
+        );
+      }
     } finally {
+      if (inFlightWrite === write) {
+        inFlightWrite = null;
+      }
       writing = false;
       scheduleFlush(retryDelayMs);
     }
@@ -98,9 +108,26 @@ export function createMobilePerformanceSamplePersistence({
 
   return {
     capture,
+    /**
+     * Throws away what has not been written yet.
+     *
+     * Only the panel's reset uses this: purging the table alone would let the
+     * batch still sitting in the debounce window land a second later and put the
+     * previous run back into a baseline that was supposed to start empty.
+     */
+    async discard() {
+      resetVersion += 1;
+      clearTimer();
+      pending = [];
+      queuedIds.clear();
+      await inFlightWrite?.catch(() => undefined);
+    },
     dispose() {
       disposed = true;
+      resetVersion += 1;
       clearTimer();
+      pending = [];
+      queuedIds.clear();
     },
     flush,
     /**
@@ -123,3 +150,23 @@ export function createMobilePerformanceSamplePersistence({
 export type MobilePerformanceSamplePersistence = ReturnType<
   typeof createMobilePerformanceSamplePersistence
 >;
+
+/**
+ * The one instance the app root wired up.
+ *
+ * Registered rather than constructed here because the writer needs the encrypted
+ * store, and this module stays free of native imports so it can be tested on
+ * node. The panel is the only reader: it has to be able to discard the pending
+ * batch when a run is reset.
+ */
+let activePersistence: MobilePerformanceSamplePersistence | null = null;
+
+export function setActiveMobilePerformanceSamplePersistence(
+  persistence: MobilePerformanceSamplePersistence | null,
+): void {
+  activePersistence = persistence;
+}
+
+export function discardPendingMobilePerformanceSamples(): Promise<void> {
+  return activePersistence?.discard() ?? Promise.resolve();
+}

@@ -1170,8 +1170,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/app/components/mobile-startup-performance-marker.tsx": {
-    "mtime": 1785316809.2745614,
-    "ast_hash": "b1344d51bbf21fe45053b91180bdd1ae",
+    "mtime": 1785317281.4894824,
+    "ast_hash": "3221b4d356c913a8be2005144d17664d",
     "semantic_hash": ""
   },
   "apps/mobile/src/app/components/ui-atoms.styles.ts": {
@@ -11285,8 +11285,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/component-tests/mobile-performance-diagnostics.test.tsx": {
-    "mtime": 1785317022.6401336,
-    "ast_hash": "eafb02672b3dea86ee96f6574afb7b36",
+    "mtime": 1785317159.1294112,
+    "ast_hash": "9b6ff386b3140dcb65c239ca893f9c84",
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-performance-summary.test.ts": {
@@ -11295,8 +11295,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/app/screens/mobile-performance-diagnostics-screen.tsx": {
-    "mtime": 1785316752.537891,
-    "ast_hash": "daa980c73ce1e6f1d6e4faf209d680fe",
+    "mtime": 1785317300.4508598,
+    "ast_hash": "4709f31b71bb6e1024f32115b8964eb7",
     "semantic_hash": ""
   },
   "apps/mobile/src/performance/mobile-performance-summary.ts": {
@@ -11450,18 +11450,23 @@
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-performance-sample-persistence.test.ts": {
-    "mtime": 1785316809.2881505,
-    "ast_hash": "cd2ec96c9999418eac4fa980ce026443",
+    "mtime": 1785317318.864911,
+    "ast_hash": "bf50b54b52c1469cc28a2dee046bb22a",
     "semantic_hash": ""
   },
   "apps/mobile/src/performance/mobile-performance-sample-persistence.ts": {
-    "mtime": 1785316809.2725601,
-    "ast_hash": "65fb44b7305063cdcdcfe1660fa0aa0a",
+    "mtime": 1785317258.2545629,
+    "ast_hash": "9b6a93171fe273dae64f47336ab9b75b",
     "semantic_hash": ""
   },
   "apps/mobile/src/performance/mobile-performance-sample-view.ts": {
     "mtime": 1785316246.8969004,
     "ast_hash": "a8a825a25aac6b70c90a2e8edeb94dc8",
+    "semantic_hash": ""
+  },
+  "apps/mobile/component-tests/mobile-prefetch-hit-rate.test.tsx": {
+    "mtime": 1785316979.6069403,
+    "ast_hash": "0115016662b362bd77010e5e43cb7731",
     "semantic_hash": ""
   }
 }

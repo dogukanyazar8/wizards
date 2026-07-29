@@ -1,7 +1,10 @@
 import { useEffect } from "react";
 import { AppState, type AppStateStatus } from "react-native";
 
-import { createMobilePerformanceSamplePersistence } from "../../performance/mobile-performance-sample-persistence";
+import {
+  createMobilePerformanceSamplePersistence,
+  setActiveMobilePerformanceSamplePersistence,
+} from "../../performance/mobile-performance-sample-persistence";
 import { markMobileStartupPhase } from "../../performance/mobile-startup-phases";
 import { installMobileTelemetryInstruments } from "../../performance/mobile-telemetry-instruments";
 import { mobileMessageStore } from "../../storage/mobile-message-store-database";
@@ -32,6 +35,7 @@ export function MobileStartupPerformanceMarker() {
       persist: (samples) => mobileMessageStore.appendPerformanceSamples({ samples }),
     });
     const detach = persistence.observe();
+    setActiveMobilePerformanceSamplePersistence(persistence);
     const subscription = AppState.addEventListener("change", (state: AppStateStatus) => {
       if (state === "background" || state === "inactive") {
         void persistence.flush();
@@ -40,6 +44,7 @@ export function MobileStartupPerformanceMarker() {
 
     return () => {
       detach();
+      setActiveMobilePerformanceSamplePersistence(null);
       subscription.remove();
       void persistence.flush().finally(() => persistence.dispose());
     };

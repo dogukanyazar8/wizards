@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { beforeEach, describe, it } from "node:test";
-import { createMobilePerformanceSamplePersistence } from "../src/performance/mobile-performance-sample-persistence";
+import {
+  createMobilePerformanceSamplePersistence,
+  discardPendingMobilePerformanceSamples,
+  setActiveMobilePerformanceSamplePersistence,
+} from "../src/performance/mobile-performance-sample-persistence";
 import {
   observeMobilePerformanceSamples,
   recordMobilePerformanceSample,
@@ -112,6 +116,73 @@ describe("performance sample persistence", () => {
       recorder.batches[0]?.map((entry) => entry.sampleId),
       ["a-1"],
     );
+    persistence.dispose();
+  });
+
+  it("drops the pending batch when a run is reset", async () => {
+    const recorder = createRecorder();
+    const persistence = createMobilePerformanceSamplePersistence({
+      debounceMs: 1,
+      persist: recorder.persist,
+    });
+
+    persistence.capture(sample("a-1"));
+    await persistence.discard();
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    await persistence.flush();
+
+    assert.equal(recorder.batches.length, 0);
+    persistence.dispose();
+  });
+
+  it("exposes the active instance so the panel can reset it", () => {
+    const recorder = createRecorder();
+    const persistence = createMobilePerformanceSamplePersistence({
+      debounceMs: 5,
+      persist: recorder.persist,
+    });
+
+    setActiveMobilePerformanceSamplePersistence(persistence);
+    persistence.capture(sample("a-1"));
+    assert.equal(persistence.pendingCount(), 1);
+
+    discardPendingMobilePerformanceSamples();
+    assert.equal(persistence.pendingCount(), 0);
+
+    // Unregistering must make the helper a no-op rather than reaching a disposed
+    // instance from a previous launch of the root.
+    setActiveMobilePerformanceSamplePersistence(null);
+    persistence.capture(sample("a-2"));
+    discardPendingMobilePerformanceSamples();
+    assert.equal(persistence.pendingCount(), 1);
+    persistence.dispose();
+  });
+
+  it("waits for an in-flight write before reset clears its batch", async () => {
+    let resolveWrite!: () => void;
+    let signalWriteStarted!: () => void;
+    const writeStarted = new Promise<void>((resolve) => {
+      signalWriteStarted = resolve;
+    });
+    const persistence = createMobilePerformanceSamplePersistence({
+      debounceMs: 5,
+      persist: async () =>
+        new Promise<void>((resolve) => {
+          resolveWrite = resolve;
+          signalWriteStarted();
+        }),
+    });
+
+    persistence.capture(sample("a-1"));
+    const flushing = persistence.flush();
+    await writeStarted;
+    const discarding = persistence.discard();
+
+    resolveWrite();
+    await discarding;
+    await flushing;
+
+    assert.equal(persistence.pendingCount(), 0);
     persistence.dispose();
   });
 

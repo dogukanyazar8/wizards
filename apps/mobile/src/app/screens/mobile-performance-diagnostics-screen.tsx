@@ -13,6 +13,7 @@ import {
   summarizeMobilePerformanceSamples,
   type MobilePerformanceSummaryInput,
 } from "../../performance/mobile-performance-summary";
+import { discardPendingMobilePerformanceSamples } from "../../performance/mobile-performance-sample-persistence";
 import { mergeMobilePerformanceSampleViews } from "../../performance/mobile-performance-sample-view";
 import { getMobileStartupPhaseTimeline } from "../../performance/mobile-startup-phases";
 import { resolveMobileTelemetryDimensions } from "../../performance/mobile-telemetry-dimensions";
@@ -107,12 +108,15 @@ export function MobilePerformanceDiagnosticsScreen({ onBack }: { onBack(): void 
         <Pressable
           accessibilityRole="button"
           onPress={() => {
-            // Both logs, because "reset" means the next measurement is the first
-            // one. Draining memory costs the backend the samples it had not
-            // collected yet — which is the point: whoever pressed this is about
-            // to start a run and does not want the previous one in the numbers.
+            // All three, because "reset" means the next measurement is the first
+            // one: the retained table, the in-memory log, and the batch still
+            // inside the write debounce — which would otherwise land a second
+            // later and put the previous run back. Draining memory costs the
+            // backend the samples it had not collected yet, which is the point.
             drainMobilePerformanceSamples();
-            void mobileMessageStore.purgePerformanceSamples().finally(refresh);
+            void discardPendingMobilePerformanceSamples()
+              .then(() => mobileMessageStore.purgePerformanceSamples())
+              .finally(refresh);
           }}
           testID="performance-reset"
         >
