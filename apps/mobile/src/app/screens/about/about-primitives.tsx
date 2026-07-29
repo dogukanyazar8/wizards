@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Pressable, Text, TextInput, View, type ViewStyle } from "react-native";
+import { Pressable, Text, TextInput, View, type StyleProp, type ViewStyle } from "react-native";
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -108,6 +108,7 @@ export function AboutStickyHeader({
   testID,
   title,
   trailingLabel,
+  visible,
 }: {
   readonly backAccessibilityLabel: string;
   readonly onBack: () => void;
@@ -115,6 +116,8 @@ export function AboutStickyHeader({
   readonly testID?: string;
   readonly title: string;
   readonly trailingLabel?: string;
+  /** Mirrors the UI-thread threshold for accessibility tree visibility. */
+  readonly visible?: boolean;
 }) {
   const theme = useTheme();
   const styles = useMobileAboutPrimitiveStyles();
@@ -135,6 +138,8 @@ export function AboutStickyHeader({
 
   return (
     <Animated.View
+      accessibilityElementsHidden={visible === false}
+      importantForAccessibility={visible === false ? "no-hide-descendants" : "auto"}
       pointerEvents="box-none"
       style={[styles.stickyHeader, animatedStyle]}
       {...(testID === undefined ? {} : { testID })}
@@ -212,7 +217,7 @@ export function AboutCard({
 }: {
   readonly children: ReactNode;
   readonly padding?: number;
-  readonly style?: ViewStyle;
+  readonly style?: StyleProp<ViewStyle>;
   readonly testID?: string;
 }) {
   const styles = useMobileAboutPrimitiveStyles();
@@ -232,6 +237,7 @@ export function AboutRow({
   isFirst = false,
   leading,
   onPress,
+  paddingVertical,
   showChevron = false,
   subtitle,
   testID,
@@ -244,6 +250,7 @@ export function AboutRow({
   readonly isFirst?: boolean;
   readonly leading?: ReactNode;
   readonly onPress?: () => void;
+  readonly paddingVertical?: number;
   readonly showChevron?: boolean;
   readonly subtitle?: string;
   readonly testID?: string;
@@ -256,6 +263,7 @@ export function AboutRow({
   const rowStyle = [
     styles.row,
     subtitle === undefined ? null : styles.rowWithSubtitle,
+    paddingVertical === undefined ? null : { paddingVertical },
     isFirst ? null : styles.rowDivider,
   ];
 
@@ -544,6 +552,7 @@ export function AboutBrandLogo({
         animated={!reduceMotion}
         cornerRadius={resolveAboutBrandLogoRadius(size)}
         size={size}
+        variant="about"
         {...(testID === undefined ? {} : { testID })}
       />
     </View>

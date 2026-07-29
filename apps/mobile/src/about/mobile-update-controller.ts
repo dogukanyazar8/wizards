@@ -38,6 +38,7 @@ export interface MobileUpdateController {
     readonly reportsPercent: boolean; // expo-updates: false
     readonly isEnabled: boolean; // Updates.isEnabled
   };
+  cancelCheck(): void;
   check(): Promise<MobileUpdateState>;
   download(): Promise<void>;
   install(): Promise<void>;
@@ -141,6 +142,7 @@ export function createExpoUpdateController(
   };
   const listeners = new Set<(snapshot: MobileUpdateSnapshot) => void>();
   let snapshot: MobileUpdateSnapshot = IDLE_SNAPSHOT;
+  let checkGeneration = 0;
 
   const emit = (next: Partial<MobileUpdateSnapshot>): MobileUpdateSnapshot => {
     snapshot = { ...snapshot, ...next };
@@ -171,6 +173,15 @@ export function createExpoUpdateController(
       reportsPercent: false,
     },
 
+    cancelCheck() {
+      if (snapshot.state !== "checking") {
+        return;
+      }
+
+      checkGeneration += 1;
+      emit({ error: null, progress: null, state: "current" });
+    },
+
     getSnapshot: () => snapshot,
 
     async check() {
@@ -179,6 +190,7 @@ export function createExpoUpdateController(
       }
 
       const startedAt = deps.now();
+      const generation = ++checkGeneration;
       emit({ error: null, state: "checking" });
 
       let isAvailable = false;
@@ -190,11 +202,19 @@ export function createExpoUpdateController(
         failed = true;
       }
 
+      if (generation !== checkGeneration) {
+        return snapshot.state;
+      }
+
       // The floor is measured from the tap, not added to the request: a check
       // that already took a second does not wait another 800 ms.
       const elapsed = deps.now() - startedAt;
       if (elapsed < MOBILE_UPDATE_CHECKING_FLOOR_MS) {
         await deps.sleep(MOBILE_UPDATE_CHECKING_FLOOR_MS - elapsed);
+      }
+
+      if (generation !== checkGeneration) {
+        return snapshot.state;
       }
 
       const checkedAt = new Date(deps.now()).toISOString();

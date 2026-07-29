@@ -9,6 +9,7 @@ jest.mock("@react-native-async-storage/async-storage", () => ({
   __esModule: true,
   default: {
     getItem: jest.fn(async () => null),
+    multiGet: jest.fn(async (keys: readonly string[]) => keys.map((key) => [key, null] as const)),
     removeItem: jest.fn(async () => undefined),
     setItem: jest.fn(async () => undefined),
   },
@@ -201,14 +202,18 @@ jest.mock("react-native-gesture-handler", () => {
 
 jest.mock("react-native-reanimated", () => {
   const React = require("react");
-  const { View } = require("react-native");
+  const { ScrollView, View } = require("react-native");
   const AnimatedView = React.forwardRef((props: Record<string, unknown>, ref: unknown) =>
     React.createElement(View, { ...props, ref }),
+  );
+  const AnimatedScrollView = React.forwardRef((props: Record<string, unknown>, ref: unknown) =>
+    React.createElement(ScrollView, { ...props, ref }),
   );
 
   return {
     __esModule: true,
     default: {
+      ScrollView: AnimatedScrollView,
       View: AnimatedView,
       createAnimatedComponent: (component: unknown) => component,
     },
@@ -234,6 +239,10 @@ jest.mock("react-native-reanimated", () => {
       return outputStart + progress * (outputEnd - outputStart);
     },
     runOnJS: (callback: (...args: unknown[]) => unknown) => callback,
+    useAnimatedScrollHandler:
+      (handlers: { onScroll?: (event: { contentOffset: { y: number } }) => void }) =>
+      (event: { nativeEvent: { contentOffset: { y: number } } }) =>
+        handlers.onScroll?.(event.nativeEvent),
     useAnimatedProps: (factory: () => Record<string, unknown>) => factory(),
     useAnimatedStyle: (factory: () => Record<string, unknown>) => factory(),
     useReducedMotion: jest.fn(() => false),

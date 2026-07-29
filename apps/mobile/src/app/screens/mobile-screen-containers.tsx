@@ -36,11 +36,11 @@ import {
   MobileAboutReleaseHistoryScreen,
   MobileAboutReleaseNoteScreen,
   MobileAboutUpdateChannelScreen,
-  MobileAboutWhatsNewScreen,
   MobileBugReportScreen,
   MobileCommunityInviteScreen,
   MobileHelpCenterScreen,
 } from "./about/about-screen-shells";
+import { MobileAboutWhatsNewScreen } from "./about/about-whats-new-screen";
 import { MobileFeedbackFlowScreen } from "../../feedback/mobile-feedback-flow-screen";
 import { MobileFeedbackSubmittedScreen } from "../../feedback/mobile-feedback-submitted-screen";
 import { MobileRoadmapScreen } from "../../feedback/mobile-roadmap-screen";
@@ -606,7 +606,14 @@ export function OpenSourceLicensesScreenContainer({
 export function AboutWhatsNewScreenContainer({
   navigation,
 }: NativeStackScreenProps<MobileRootStackParamList, "AboutWhatsNew">) {
-  return <MobileAboutWhatsNewScreen onBack={() => navigation.goBack()} />;
+  return (
+    <MobileAboutWhatsNewScreen
+      installedVersion={mobilePackageJson.version}
+      onBack={() => navigation.goBack()}
+      onOpenReleaseHistory={() => navigation.navigate("AboutReleaseHistory")}
+      onOpenReleaseNote={(version) => navigation.navigate("AboutReleaseNote", { version })}
+    />
+  );
 }
 
 export function AboutReleaseNoteScreenContainer({

@@ -10,6 +10,9 @@ import {
 import { createMobileQueryClient } from "../../query/mobile-query-client";
 import { planMobileQueryFocus } from "../../query/mobile-query-focus";
 import { createMobileQueryPersister } from "../../query/mobile-query-persistence";
+import { setMobileChatCacheProbe } from "../../performance/mobile-chat-route-target";
+import { markMobileStartupPhase } from "../../performance/mobile-startup-phases";
+import { mobileQueryKeys } from "../../query/mobile-query-keys";
 
 export function MobileQueryProvider({ children }: PropsWithChildren) {
   const [queryClient] = useState(createMobileQueryClient);
@@ -21,6 +24,22 @@ export function MobileQueryProvider({ children }: PropsWithChildren) {
     }),
     [],
   );
+
+  useEffect(() => {
+    // The navigator opens a span for every chat it shows and needs to know
+    // whether that stream was already cached. Registering the probe here keeps
+    // the client out of the navigator, which several tests render without one.
+    setMobileChatCacheProbe(
+      (target) =>
+        queryClient.getQueryData(
+          target.route === "ChannelChat"
+            ? mobileQueryKeys.channelMessages(target.targetId)
+            : mobileQueryKeys.dmMessages(target.targetId),
+        ) !== undefined,
+    );
+
+    return () => setMobileChatCacheProbe(null);
+  }, [queryClient]);
 
   useEffect(() => {
     // Mount is not a resume: nothing is covering the app yet, so the first
@@ -60,7 +79,14 @@ export function MobileQueryProvider({ children }: PropsWithChildren) {
   }, []);
 
   return (
-    <PersistQueryClientProvider client={queryClient} persistOptions={persistOptions}>
+    <PersistQueryClientProvider
+      client={queryClient}
+      // Restoring the cache from disk is one of the two things that happen
+      // between the first shell frame and content the reader wants; until this
+      // was marked, the gap was a single unexplained number.
+      onSuccess={() => markMobileStartupPhase("cache-hydrated")}
+      persistOptions={persistOptions}
+    >
       {children}
     </PersistQueryClientProvider>
   );

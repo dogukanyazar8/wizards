@@ -455,6 +455,12 @@ export const createSettingsScreenStyles = (theme: MobileTheme) => {
       paddingHorizontal: 10,
       paddingVertical: 5,
     },
+    mobileProfileSettingsRowDot: {
+      backgroundColor: theme.about.accent,
+      borderRadius: 999,
+      height: 7,
+      width: 7,
+    },
     mobileProfileStateCard: {
       backgroundColor: theme.surface.card,
       borderColor: theme.border.subtle,

@@ -64,6 +64,28 @@ describe("mobile update controller", () => {
     assert.equal(state, "current");
   });
 
+  it("cancels an in-flight check and ignores its late answer", async () => {
+    let resolveCheck!: (result: { readonly isAvailable: boolean }) => void;
+    const checkResult = new Promise<{ readonly isAvailable: boolean }>((resolve) => {
+      resolveCheck = resolve;
+    });
+    const { controller } = createHarness({
+      checkForUpdateAsync: () => checkResult,
+    });
+    const states: string[] = [];
+    controller.subscribe((snapshot) => states.push(snapshot.state));
+
+    const pending = controller.check();
+    assert.equal(controller.getSnapshot().state, "checking");
+
+    controller.cancelCheck();
+    assert.equal(controller.getSnapshot().state, "current");
+
+    resolveCheck({ isAvailable: true });
+    assert.equal(await pending, "current");
+    assert.deepEqual(states, ["checking", "current"]);
+  });
+
   it("does not add the floor on top of a check that was already slow", async () => {
     let clock = 0;
     const sleeps: number[] = [];

@@ -680,6 +680,7 @@ export const mobileAboutMetrics = {
   iconBox30Radius: 11,
   iconBox32Radius: 11,
   iconBox44Radius: 15,
+  currentBadgeRadius: 6,
   chipRadiusSmall: 5,
   chipRadiusMedium: 7,
   pillRadius: 11,

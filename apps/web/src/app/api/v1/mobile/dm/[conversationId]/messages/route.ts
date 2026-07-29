@@ -11,6 +11,7 @@ import { logError } from "@/lib/logger";
 import { getRedisRate } from "@/lib/redis";
 import { checkDMMessageRateLimits, shouldLogRateLimitUnavailable } from "@/lib/socket/rate-limits";
 import { readRequestAttribution } from "@/lib/analytics/client-attribution";
+import { createServerTiming } from "@/lib/server-timing";
 import { getSocketServer } from "@/lib/socket/runtime";
 import { mobileDMMessagesGetRoute, type MobileDMMessagesRouteContext } from "./get-route-logic";
 
@@ -62,32 +63,43 @@ export async function GET(request: Request, context: RouteContext) {
 }
 
 export async function POST(request: Request, context: RouteContext) {
+  // A device baseline put this round trip at 589ms p50 after the fan-out came
+  // off it. `auth` and `db` split what is left into work the server did and time
+  // the wire took, so the next fix is aimed rather than guessed.
+  const timing = createServerTiming();
+
   try {
+    const stopAuthTiming = timing.start("auth");
     const userId = await requireMobileApiUserId(request);
     await enforceApiRateLimit(userId, "dm:messages:send");
+    stopAuthTiming();
 
     const { conversationId } = DMConversationParamsSchema.parse(await context.params);
     const body = await parseJsonBody(request, MobileDMSendMessageRequestSchema);
 
-    await enforceMobileDMMessageSendRateLimit({ conversationId, userId });
+    await timing.measure("ratelimit", () =>
+      enforceMobileDMMessageSendRateLimit({ conversationId, userId }),
+    );
 
-    const message = await sendDirectMessage({
-      attachments: body.attachments,
-      attribution: readRequestAttribution(request.headers),
-      clientNonce: body.clientNonce ?? null,
-      content: body.content,
-      conversationId,
-      forwardOfMessageId: body.forwardOfMessageId ?? null,
-      io: getSocketServer(),
-      replyToId: body.replyToId ?? null,
-      threadParentId: body.threadParentId ?? null,
-      userId,
-    });
+    const message = await timing.measure("db", () =>
+      sendDirectMessage({
+        attachments: body.attachments,
+        attribution: readRequestAttribution(request.headers),
+        clientNonce: body.clientNonce ?? null,
+        content: body.content,
+        conversationId,
+        forwardOfMessageId: body.forwardOfMessageId ?? null,
+        io: getSocketServer(),
+        replyToId: body.replyToId ?? null,
+        threadParentId: body.threadParentId ?? null,
+        userId,
+      }),
+    );
 
     return Response.json(MobileDMSendMessageResponseSchema.parse({ message }), {
-      headers: {
+      headers: timing.headers({
         "Cache-Control": "no-store, no-cache, must-revalidate",
-      },
+      }),
     });
   } catch (error) {
     return jsonError(error);

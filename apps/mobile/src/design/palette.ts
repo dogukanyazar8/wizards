@@ -696,6 +696,7 @@ export const redesignAboutLight = {
   iconTint: "#B9BED6",
   /** §1.5: the brand mark's own drop shadow, the only tinted shadow here. */
   logoShadow: "rgba(67,96,255,.24)",
+  logoTopHighlight: "rgba(255,255,255,.42)",
   progressTrack: "#ECEEF7",
   radioBorder: "#D9DCEC",
   screen: "#F6F7FB",
@@ -784,6 +785,7 @@ export const redesignAboutDark = {
   iconTint: "rgba(255,255,255,.35)",
   /** §1.5 last line: the only value that changes for the dark brand mark. */
   logoShadow: "rgba(47,109,255,.34)",
+  logoTopHighlight: "rgba(255,255,255,.42)",
   /** A1: the progress track is the neutral control fill under the indigo bar. */
   progressTrack: "rgba(255,255,255,.07)",
   /** A5: shares `#D9DCEC` with the toggle track §1.2 pins to `#2A2F45`. */

@@ -11,6 +11,7 @@ export const MOBILE_ABOUT_PREFERENCE_KEYS = Object.freeze({
   channel: "whispr.settings.channel",
   rateSnoozedUntil: "whispr.rate.snoozedUntil",
   rateSubmittedVersion: "whispr.rate.submittedVersion",
+  releaseNotify: "whispr.settings.releaseNotify",
   seenVersion: "whispr.about.seenVersion",
   skippedVersion: "whispr.update.skippedVersion",
 } as const);
@@ -26,6 +27,8 @@ export interface MobileAboutPreferences {
   /** §4.20: "Şimdi değil" holds the sheet back for 90 days. */
   readonly rateSnoozedUntil: string | null;
   readonly rateSubmittedVersion: string | null;
+  /** 1c: opt-in notification when a new release note is published. */
+  readonly releaseNotify: boolean;
   /** §4.5: the newest version the user has actually opened 1c for. */
   readonly seenVersion: string | null;
   readonly skippedVersion: string | null;
@@ -37,6 +40,7 @@ export const MOBILE_ABOUT_DEFAULT_PREFERENCES: MobileAboutPreferences = Object.f
   channel: null,
   rateSnoozedUntil: null,
   rateSubmittedVersion: null,
+  releaseNotify: false,
   seenVersion: null,
   skippedVersion: null,
 });
@@ -112,6 +116,10 @@ export async function readMobileAboutPreferences(
     channel: parseChannel(read("channel")),
     rateSnoozedUntil: parseTimestamp(read("rateSnoozedUntil")),
     rateSubmittedVersion: parseVersion(read("rateSubmittedVersion")),
+    releaseNotify: parseBoolean(
+      read("releaseNotify"),
+      MOBILE_ABOUT_DEFAULT_PREFERENCES.releaseNotify,
+    ),
     seenVersion: parseVersion(read("seenVersion")),
     skippedVersion: parseVersion(read("skippedVersion")),
   };

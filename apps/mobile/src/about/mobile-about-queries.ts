@@ -17,6 +17,7 @@ import type { InfiniteData } from "@tanstack/react-query";
 
 import type { MobileApiClient } from "../api/mobile-api-client";
 import { mobileQueryKeys } from "../query/mobile-query-keys";
+import { getBundledMobileRelease } from "./mobile-about-bundled-release";
 import {
   fetchMobileAppUpdate,
   fetchMobileHelpArticles,
@@ -70,6 +71,7 @@ export function getMobileAboutReleasesQueryOptions(
   client: MobileApiClient,
   installedVersion?: string,
   enabled = true,
+  limit = MOBILE_RELEASE_PAGE_SIZE,
 ) {
   return infiniteQueryOptions({
     enabled,
@@ -79,9 +81,12 @@ export function getMobileAboutReleasesQueryOptions(
       fetchMobileReleaseList(client, {
         ...(pageParam === null ? {} : { cursor: pageParam }),
         ...(installedVersion === undefined ? {} : { installed: installedVersion }),
-        limit: MOBILE_RELEASE_PAGE_SIZE,
+        limit,
       }),
-    queryKey: mobileQueryKeys.aboutReleases(),
+    queryKey: [
+      ...mobileQueryKeys.aboutReleases(),
+      { installedVersion: installedVersion ?? null, limit },
+    ] as const,
   });
 }
 
@@ -89,8 +94,11 @@ export function useMobileAboutReleasesQuery(
   client: MobileApiClient,
   installedVersion?: string,
   enabled = true,
+  limit = MOBILE_RELEASE_PAGE_SIZE,
 ) {
-  return useInfiniteQuery(getMobileAboutReleasesQueryOptions(client, installedVersion, enabled));
+  return useInfiniteQuery(
+    getMobileAboutReleasesQueryOptions(client, installedVersion, enabled, limit),
+  );
 }
 
 /**
@@ -126,6 +134,7 @@ export function getMobileAboutReleaseQueryOptions(
 ) {
   return queryOptions({
     enabled: enabled && version.length > 0,
+    initialData: getBundledMobileRelease(version),
     queryFn: () => fetchMobileReleaseDetail(client, version),
     queryKey: mobileQueryKeys.aboutRelease(version),
   });

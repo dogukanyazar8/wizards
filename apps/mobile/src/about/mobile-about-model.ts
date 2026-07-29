@@ -7,7 +7,7 @@ import type {
 
 import type { mobileCopy } from "../locale/mobile-copy";
 
-export type MobileAboutCopy = (typeof mobileCopy)["tr"];
+export type MobileAboutCopy = (typeof mobileCopy)[keyof typeof mobileCopy];
 
 /** Handoff §3.3: the 1c filter chips, "Tümü" plus one per change type. */
 export type MobileReleaseChangeFilter = "all" | MobileReleaseChangeType;
@@ -131,6 +131,40 @@ export interface MobileReleaseChangeGroup {
 }
 
 /** §3.6: "boş tür grubu hiç render edilmez", so empty groups are never produced. */
+/**
+ * Compares numeric version segments instead of strings (`0.10` sorts after
+ * `0.9`). A fresh install has seen no release, so its current entry is new.
+ */
+export function isMobileReleaseNewer(version: string, seenVersion: string | null): boolean {
+  if (seenVersion === null) {
+    return true;
+  }
+
+  const parse = (value: string) =>
+    value
+      .trim()
+      .replace(/^v/i, "")
+      .split("-", 1)[0]!
+      .split(".")
+      .map((segment) => Number.parseInt(segment, 10));
+  const current = parse(version);
+  const seen = parse(seenVersion);
+  const length = Math.max(current.length, seen.length);
+
+  for (let index = 0; index < length; index += 1) {
+    const left = current[index] ?? 0;
+    const right = seen[index] ?? 0;
+    if (!Number.isFinite(left) || !Number.isFinite(right)) {
+      return version.localeCompare(seenVersion, undefined, { numeric: true }) > 0;
+    }
+    if (left !== right) {
+      return left > right;
+    }
+  }
+
+  return false;
+}
+
 const CHANGE_TYPE_ORDER: readonly MobileReleaseChangeType[] = ["new", "improved", "fixed"];
 
 export function groupReleaseChangesByType(

@@ -32,32 +32,36 @@ describe("about preferences", () => {
       channel: "whispr.settings.channel",
       rateSnoozedUntil: "whispr.rate.snoozedUntil",
       rateSubmittedVersion: "whispr.rate.submittedVersion",
+      releaseNotify: "whispr.settings.releaseNotify",
       seenVersion: "whispr.about.seenVersion",
       skippedVersion: "whispr.update.skippedVersion",
     });
   });
 
-  it("reads all seven keys in a single bridge round trip", async () => {
+  it("reads all eight keys in a single bridge round trip", async () => {
     const harness = createStorage({
       "whispr.about.seenVersion": "0.8.15",
       "whispr.settings.autoUpdate": "false",
       "whispr.settings.channel": "beta",
+      "whispr.settings.releaseNotify": "true",
     });
 
     const preferences = await readMobileAboutPreferences(harness.storage);
 
-    assert.equal(harness.multiGet.mock.callCount(), 1, "seven getItem calls would be seven trips");
-    assert.equal(harness.multiGet.mock.calls[0]?.arguments[0]?.length, 7);
+    assert.equal(harness.multiGet.mock.callCount(), 1, "eight getItem calls would be eight trips");
+    assert.equal(harness.multiGet.mock.calls[0]?.arguments[0]?.length, 8);
     assert.equal(preferences.autoUpdate, false);
     assert.equal(preferences.channel, "beta");
+    assert.equal(preferences.releaseNotify, true);
     assert.equal(preferences.seenVersion, "0.8.15");
   });
 
-  it("defaults automatic updates on, exactly as §3.1's toggle ships", async () => {
+  it("defaults automatic updates on and release notifications off", async () => {
     const preferences = await readMobileAboutPreferences(createStorage().storage);
 
     assert.deepEqual(preferences, MOBILE_ABOUT_DEFAULT_PREFERENCES);
     assert.equal(preferences.autoUpdate, true);
+    assert.equal(preferences.releaseNotify, false);
   });
 
   it("falls back to the default when a stored value is corrupt", async () => {
@@ -67,11 +71,13 @@ describe("about preferences", () => {
         "whispr.rate.snoozedUntil": "yesterday",
         "whispr.settings.autoUpdate": "yes-please",
         "whispr.settings.channel": "nightly",
+        "whispr.settings.releaseNotify": "enabled",
       }).storage,
     );
 
     assert.equal(preferences.autoUpdate, true);
     assert.equal(preferences.channel, null);
+    assert.equal(preferences.releaseNotify, false);
     assert.equal(preferences.seenVersion, null);
     // A timestamp that will not parse must not be read as "snoozed forever".
     assert.equal(preferences.rateSnoozedUntil, null);
@@ -93,6 +99,7 @@ describe("about preferences", () => {
     const harness = createStorage();
 
     await writeMobileAboutPreference(harness.storage, "autoUpdate", false);
+    await writeMobileAboutPreference(harness.storage, "releaseNotify", true);
     await writeMobileAboutPreference(harness.storage, "seenVersion", "0.8.15");
     await writeMobileAboutPreference(harness.storage, "skippedVersion", null);
 
@@ -101,6 +108,10 @@ describe("about preferences", () => {
       "false",
     ]);
     assert.deepEqual(harness.setItem.mock.calls[1]?.arguments, [
+      "whispr.settings.releaseNotify",
+      "true",
+    ]);
+    assert.deepEqual(harness.setItem.mock.calls[2]?.arguments, [
       "whispr.about.seenVersion",
       "0.8.15",
     ]);

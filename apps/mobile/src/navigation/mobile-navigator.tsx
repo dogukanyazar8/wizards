@@ -3,6 +3,12 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { DefaultTheme, NavigationContainer, type NavigationState } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { Linking } from "react-native";
+import {
+  probeMobileChatCache,
+  resolveMobileActiveChatRouteTarget,
+} from "../performance/mobile-chat-route-target";
+import { ensureMobileNavigationSpan } from "../performance/mobile-navigation-timing";
+import { markMobileStartupPhase } from "../performance/mobile-startup-phases";
 import { useReducedMotion } from "react-native-reanimated";
 import { useMobileAuth } from "../auth/mobile-auth-context";
 import { getMobileRuntimeConfig } from "../config/environment";
@@ -80,12 +86,43 @@ export function MobileNavigator({
       }),
     [handleCommand, runtimeConfig.webUrl],
   );
+  /**
+   * Every chat the navigator shows opens a span, tap or no tap.
+   *
+   * The two prefetch tap handlers used to be the only openers, and a device run
+   * measured twelve of roughly twenty-three opens with *zero* abandoned spans —
+   * the missing ones never started. Deep links, push intents, profile cards, the
+   * friends hub and the voice room all navigate straight here. This is the one
+   * seam all of them pass through, and it never replaces a tap's span, which
+   * starts earlier and is the better measurement.
+   */
+  const trackActiveChatRoute = useCallback(() => {
+    const target = resolveMobileActiveChatRouteTarget(mobileNavigationRef.getRootState());
+    if (!target) {
+      return;
+    }
+
+    ensureMobileNavigationSpan(
+      target.route,
+      globalThis.performance.now(),
+      probeMobileChatCache(target),
+    );
+  }, []);
+
   const reportActiveTab = useCallback(() => {
     const tab = getActiveMainTab(mobileNavigationRef.getRootState());
     if (tab) {
       onTabChange?.(tab);
     }
-  }, [onTabChange]);
+    trackActiveChatRoute();
+  }, [onTabChange, trackActiveChatRoute]);
+
+  const handleNavigationReady = useCallback(() => {
+    // The second of the two milestones inside the shell-frame-to-content gap:
+    // the navigation tree exists, so whatever is slow after this is the screen.
+    markMobileStartupPhase("navigator-ready");
+    reportActiveTab();
+  }, [reportActiveTab]);
   const navigationTheme = useMemo(
     () => ({
       ...DefaultTheme,
@@ -114,7 +151,7 @@ export function MobileNavigator({
   return (
     <NavigationContainer
       linking={linking}
-      onReady={reportActiveTab}
+      onReady={handleNavigationReady}
       onStateChange={reportActiveTab}
       ref={mobileNavigationRef}
       theme={navigationTheme}

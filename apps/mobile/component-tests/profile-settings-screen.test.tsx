@@ -312,6 +312,19 @@ describe("mobile profile settings screen", () => {
     expect(onUpdatePresence).toHaveBeenCalledWith("DND");
   });
 
+  it("shows the About new dot while the installed release is unseen", async () => {
+    const view = await render(
+      <ProfileSettingsScreen
+        {...createProfileSettingsScreenProps({
+          bootstrapState: createReadyBootstrapState(),
+          socialActionsEnabled: true,
+        })}
+      />,
+    );
+
+    expect(await view.findByTestId("mobile-profile-about-new-dot")).toBeTruthy();
+  });
+
   it("confirms a presence change with the same profile-updated toast as the editor", async () => {
     const view = await render(
       <ProfileSettingsScreen

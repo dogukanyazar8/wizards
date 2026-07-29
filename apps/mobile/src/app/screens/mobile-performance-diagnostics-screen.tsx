@@ -16,6 +16,7 @@ import {
 import { discardPendingMobilePerformanceSamples } from "../../performance/mobile-performance-sample-persistence";
 import { mergeMobilePerformanceSampleViews } from "../../performance/mobile-performance-sample-view";
 import { getMobileNavigationSpanDiagnostics } from "../../performance/mobile-navigation-timing";
+import { getMobileRequestLatencySnapshot } from "../../performance/mobile-request-metrics";
 import { getMobileStartupPhaseTimeline } from "../../performance/mobile-startup-phases";
 import { resolveMobileTelemetryDimensions } from "../../performance/mobile-telemetry-dimensions";
 import { getMobileRecentDMPrefetchStats } from "../../query/mobile-message-prefetch";
@@ -73,6 +74,11 @@ export function MobilePerformanceDiagnosticsScreen({ onBack }: { onBack(): void 
   const timeline = getMobileStartupPhaseTimeline();
   const prefetch = getMobileRecentDMPrefetchStats();
   const spans = getMobileNavigationSpanDiagnostics();
+  // Only routes the server accounted for: a row with no `Server-Timing` says
+  // nothing this section is for.
+  const requestLatency = getMobileRequestLatencySnapshot().filter(
+    (sample) => sample.server.totalMs !== null,
+  );
   const runtimeConfig = getMobileRuntimeConfig();
   let dimensions: Record<string, unknown> = {};
   try {
@@ -170,6 +176,25 @@ export function MobilePerformanceDiagnosticsScreen({ onBack }: { onBack(): void 
       <Text style={valueStyle} testID="performance-span-loss">
         {`${spans.open} · ${spans.abandoned}`}
       </Text>
+
+      {/* Splits a slow round trip into work the server did and time the wire
+          took. Without it, a high send-ack is equally explainable by a slow
+          query and by a distant region. */}
+      <Text style={headingStyle}>{copy.performanceDiagnosticsServerTiming}</Text>
+      {requestLatency.length === 0 ? (
+        <Text style={valueStyle}>{copy.performanceDiagnosticsNoMeasurements}</Text>
+      ) : (
+        requestLatency.map((sample) => (
+          <View key={sample.route} style={{ paddingVertical: 2 }}>
+            <Text style={labelStyle}>{sample.route}</Text>
+            <Text style={valueStyle}>
+              {`${Math.round(sample.clientMs)} · ${sample.server.totalMs ?? "-"} (auth ${
+                sample.server.authMs ?? "-"
+              } / db ${sample.server.dbMs ?? "-"}) · ${sample.transportMs ?? "-"} ms`}
+            </Text>
+          </View>
+        ))
+      )}
 
       <Text style={headingStyle}>{copy.performanceDiagnosticsBuild}</Text>
       <Text style={valueStyle}>

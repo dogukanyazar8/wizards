@@ -88,9 +88,10 @@ describe("about primitives", () => {
     );
 
     for (const testID of ["pill-new", "pill-improved", "pill-fixed"]) {
-      expect(flatten(view.getByTestId(testID).props.style).width).toBe(
-        mobileAboutMetrics.typePillWidth,
-      );
+      expect(flatten(view.getByTestId(testID).props.style)).toMatchObject({
+        height: 20,
+        width: mobileAboutMetrics.typePillWidth,
+      });
     }
     // 2a lets the chip size to its label; only 1c needs the fixed column.
     expect(flatten(view.getByTestId("pill-auto").props.style).width).toBeUndefined();
@@ -200,10 +201,10 @@ describe("about primitives", () => {
     expect(
       view.getByTestId("about-brand-logo", { includeHiddenElements: true }).props,
     ).toMatchObject({ height: 60, width: 60 });
-    // The canonical five-bar geometry, not a second copy of it.
+    // About owns a measured 60px artwork variant; auth keeps its 52px geometry.
     expect(
       view.getByTestId("about-brand-logo-animated-bar-3", { includeHiddenElements: true }).props,
-    ).toMatchObject({ height: 34, width: 3 });
+    ).toMatchObject({ height: 30, width: 3.5 });
   });
 
   it("lets a card carry anything, not only rows", async () => {

@@ -181,6 +181,7 @@ export const createMobileAboutPrimitiveStyles = (theme: MobileTheme) =>
     typePill: {
       alignItems: "center",
       borderRadius: mobileAboutMetrics.chipRadiusSmall,
+      height: 20,
       justifyContent: "center",
       paddingHorizontal: 6,
       paddingVertical: 3,

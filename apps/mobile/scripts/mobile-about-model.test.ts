@@ -13,6 +13,7 @@ import {
   filterReleaseChanges,
   groupReleaseChangesByType,
   groupReleasesByYear,
+  isMobileReleaseNewer,
   resolveAboutUpdatePresentation,
 } from "../src/about/mobile-about-model";
 
@@ -161,6 +162,13 @@ describe("about update presentation", () => {
 });
 
 describe("release grouping", () => {
+  it("compares release versions numerically for the new badge", () => {
+    assert.equal(isMobileReleaseNewer("0.8.15", null), true);
+    assert.equal(isMobileReleaseNewer("0.8.15", "0.8.15"), false);
+    assert.equal(isMobileReleaseNewer("0.10.0", "0.9.9"), true);
+    assert.equal(isMobileReleaseNewer("0.8.9", "0.8.15"), false);
+  });
+
   it("orders the three type groups and never emits an empty one", () => {
     const groups = groupReleaseChangesByType([
       change("fixed", "Thread bildirimleri"),

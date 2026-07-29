@@ -1,6 +1,38 @@
 {
-  "generated_at": "2026-07-29T10:11:45.829960+00:00",
+  "generated_at": "2026-07-29T16:30:15.698444+00:00",
   "nodes": {
+    "apps_mobile_src_about_mobile_about_model": {
+      "code_fingerprint": "6ecf45da2b908f65b3610ffe1f52f63d428d420d3859c6c5a436bf38b25ced81",
+      "label": "mobile-about-model.ts",
+      "last": "2026-07-29T16:07:15.530439+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-29T16:07:15.530439+00:00",
+          "outcome": "useful",
+          "q": "1c Yenilikler ekranı mevcut 01-03 katmanlarıyla nasıl bağlanır?"
+        }
+      ],
+      "score": 0.999630986,
+      "source_file": "apps/mobile/src/about/mobile-about-model.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "apps_mobile_src_app_providers_mobile_realtime_provider": {
+      "code_fingerprint": "72a543d913401d08560969a6c244e426e760a536208e9034b7ae5397d6bfdca1",
+      "label": "mobile-realtime-provider.tsx",
+      "last": "2026-07-29T14:31:31.690089+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-29T14:31:31.690089+00:00",
+          "outcome": "useful",
+          "q": "Mobil uygulamanın performans, kalite, mimari ve teknoloji altyapısı ile socket fan-out, unread, message büyümesi, Prisma hot path ve NextAuth beta risklerini değerlendir"
+        }
+      ],
+      "score": 0.998096726,
+      "source_file": "apps/mobile/src/app/providers/mobile-realtime-provider.tsx",
+      "status": "tentative",
+      "uses": 1
+    },
     "apps_mobile_src_app_providers_mobile_theme_provider": {
       "code_fingerprint": "3e0a1a60b94e1bb63d7474cd80b2a27d26ffc428559ba70a7f5e175e73d0ed6e",
       "label": "mobile-theme-provider.tsx",
@@ -12,8 +44,72 @@
           "q": "Whispr mobile splash görsel dili Discord Slack Teams Zoom gibi olmalı; kaç ekran ve hangi mesajlar?"
         }
       ],
-      "score": 0.951439302,
+      "score": 0.945678697,
       "source_file": "apps/mobile/src/app/providers/mobile-theme-provider.tsx",
+      "status": "tentative",
+      "uses": 1
+    },
+    "apps_mobile_src_app_screens_about_about_primitives": {
+      "code_fingerprint": "6ee255b1719a2b112d0759aca3e0482316f1219b2c8846aa03c4a3f831243d15",
+      "label": "about-primitives.tsx",
+      "last": "2026-07-29T16:07:15.530439+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-29T16:07:15.530439+00:00",
+          "outcome": "useful",
+          "q": "1c Yenilikler ekranı mevcut 01-03 katmanlarıyla nasıl bağlanır?"
+        }
+      ],
+      "score": 0.999630986,
+      "source_file": "apps/mobile/src/app/screens/about/about-primitives.tsx",
+      "status": "tentative",
+      "uses": 1
+    },
+    "apps_mobile_src_app_screens_about_about_whats_new_card": {
+      "code_fingerprint": "c7a8805cc0197e002274132ce5448fa270457a699f5a5838982aaeab1be203bd",
+      "label": "about-whats-new-card.tsx",
+      "last": "2026-07-29T16:07:15.530439+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-29T16:07:15.530439+00:00",
+          "outcome": "useful",
+          "q": "1c Yenilikler ekranı mevcut 01-03 katmanlarıyla nasıl bağlanır?"
+        }
+      ],
+      "score": 0.999630986,
+      "source_file": "apps/mobile/src/app/screens/about/about-whats-new-card.tsx",
+      "status": "tentative",
+      "uses": 1
+    },
+    "apps_mobile_src_app_screens_about_about_whats_new_screen": {
+      "code_fingerprint": "4f23ca5154df6330ad718a9932ed552e0847a861d013af7ed3c47d183bd0914d",
+      "label": "about-whats-new-screen.tsx",
+      "last": "2026-07-29T16:28:46.419405+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-29T16:28:46.419405+00:00",
+          "outcome": "useful",
+          "q": "Hakkında ekranında yenilikler özeti ve tüm yenilikler ekranı neden görünmüyor?"
+        }
+      ],
+      "score": 0.999976125,
+      "source_file": "apps/mobile/src/app/screens/about/about-whats-new-screen.tsx",
+      "status": "tentative",
+      "uses": 1
+    },
+    "apps_mobile_src_app_screens_mobile_about_settings_screen_mobileaboutsettingsscreen": {
+      "code_fingerprint": "ee8a27c3d6e5b2009f0dd0a3edd4dbde9b15af85df07b1c471aa7b2db6a41a42",
+      "label": "MobileAboutSettingsScreen()",
+      "last": "2026-07-29T16:28:46.419405+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-29T16:28:46.419405+00:00",
+          "outcome": "useful",
+          "q": "Hakkında ekranında yenilikler özeti ve tüm yenilikler ekranı neden görünmüyor?"
+        }
+      ],
+      "score": 0.999976125,
+      "source_file": "apps/mobile/src/app/screens/mobile-about-settings-screen.tsx",
       "status": "tentative",
       "uses": 1
     },
@@ -28,7 +124,7 @@
           "q": "Mobil uygulamada navigation bar için hangi ikon paketini kullanıyoruz?"
         }
       ],
-      "score": 0.910502119,
+      "score": 0.904989373,
       "source_file": "apps/mobile/src/navigation/mobile-bottom-tab-bar.tsx",
       "status": "tentative",
       "uses": 1
@@ -44,7 +140,7 @@
           "q": "Railway UAT ortamında workspace-performance metrikleri tanımlı, mobil için log tutuyor muyuz inceler misin?"
         }
       ],
-      "score": 0.999815026,
+      "score": 0.993761524,
       "source_file": "apps/mobile/src/performance/mobile-health-reporter.ts",
       "status": "tentative",
       "uses": 1
@@ -60,7 +156,7 @@
           "q": "Railway UAT ortamında workspace-performance metrikleri tanımlı, mobil için log tutuyor muyuz inceler misin?"
         }
       ],
-      "score": 0.999815026,
+      "score": 0.993761524,
       "source_file": "apps/mobile/src/performance/mobile-performance-metrics.ts",
       "status": "tentative",
       "uses": 1
@@ -76,24 +172,141 @@
           "q": "Mobil açılışında modern splash, yüklemeler ve performans kontrolleri nasıl tasarlanmalı?"
         }
       ],
-      "score": 0.938763455,
+      "score": 0.933079597,
       "source_file": "apps/mobile/src/query/mobile-query-cache-policy.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "apps_mobile_src_release_mobile_release_contract": {
+      "code_fingerprint": "d795a63e823f971bf09da269e5a52fa507b941143e0a26803be7311eaf07fa1d",
+      "label": "mobile-release-contract.ts",
+      "last": "2026-07-29T14:31:31.690089+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-29T14:31:31.690089+00:00",
+          "outcome": "useful",
+          "q": "Mobil uygulamanın performans, kalite, mimari ve teknoloji altyapısı ile socket fan-out, unread, message büyümesi, Prisma hot path ve NextAuth beta risklerini değerlendir"
+        }
+      ],
+      "score": 0.998096726,
+      "source_file": "apps/mobile/src/release/mobile-release-contract.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "apps_web_src_app_api_v1_mobile_app_releases_route_logic": {
+      "code_fingerprint": "49a3495b2d8f166497ac517244c0dee6b7bab788f4e2a638944b9721eb9ed7e9",
+      "label": "releases/route-logic.ts",
+      "last": "2026-07-29T16:07:15.530439+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-29T16:07:15.530439+00:00",
+          "outcome": "useful",
+          "q": "1c Yenilikler ekranı mevcut 01-03 katmanlarıyla nasıl bağlanır?"
+        }
+      ],
+      "score": 0.999630986,
+      "source_file": "apps/web/src/app/api/v1/mobile/app/releases/route-logic.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "apps_web_src_lib_dm_realtime_service": {
+      "code_fingerprint": "706c1d86d614058205dd876cb7876931dc2068923b73f69004c5c7263e195da6",
+      "label": "realtime-service.ts",
+      "last": "2026-07-29T14:31:31.690089+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-29T14:31:31.690089+00:00",
+          "outcome": "useful",
+          "q": "Mobil uygulamanın performans, kalite, mimari ve teknoloji altyapısı ile socket fan-out, unread, message büyümesi, Prisma hot path ve NextAuth beta risklerini değerlendir"
+        }
+      ],
+      "score": 0.998096726,
+      "source_file": "apps/web/src/lib/dm/realtime-service.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "apps_web_src_lib_socket_handlers_message": {
+      "code_fingerprint": "eafac0997f933de4ceb60d3fc1de8d52f4c7fd9a9adf1dd12a72e50bbdc417ec",
+      "label": "message.ts",
+      "last": "2026-07-29T14:31:31.690089+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-29T14:31:31.690089+00:00",
+          "outcome": "useful",
+          "q": "Mobil uygulamanın performans, kalite, mimari ve teknoloji altyapısı ile socket fan-out, unread, message büyümesi, Prisma hot path ve NextAuth beta risklerini değerlendir"
+        }
+      ],
+      "score": 0.998096726,
+      "source_file": "apps/web/src/lib/socket/handlers/message.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "apps_web_src_lib_workspace_channel_message_send_service": {
+      "code_fingerprint": "78336211b73e76631bb03f15f5697b6aa2c23be888080d5f6649091caeba8624",
+      "label": "channel-message-send-service.ts",
+      "last": "2026-07-29T14:31:31.690089+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-29T14:31:31.690089+00:00",
+          "outcome": "useful",
+          "q": "Mobil uygulamanın performans, kalite, mimari ve teknoloji altyapısı ile socket fan-out, unread, message büyümesi, Prisma hot path ve NextAuth beta risklerini değerlendir"
+        }
+      ],
+      "score": 0.998096726,
+      "source_file": "apps/web/src/lib/workspace/channel-message-send-service.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "apps_web_src_lib_workspace_message_service": {
+      "code_fingerprint": "e12289821a3ddf7bab71b28c19cc172607fd3d43bd609ca8f50584c52db4b00f",
+      "label": "message-service.ts",
+      "last": "2026-07-29T14:31:31.690089+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-29T14:31:31.690089+00:00",
+          "outcome": "useful",
+          "q": "Mobil uygulamanın performans, kalite, mimari ve teknoloji altyapısı ile socket fan-out, unread, message büyümesi, Prisma hot path ve NextAuth beta risklerini değerlendir"
+        }
+      ],
+      "score": 0.998096726,
+      "source_file": "apps/web/src/lib/workspace/message-service.ts",
       "status": "tentative",
       "uses": 1
     },
     "apps_web_src_lib_workspace_performance_metrics": {
       "code_fingerprint": "d2c5f8f6b24537bdc81a9e236e24300411d02fdb0a8c855cbbb1d4d3b3f1cb46",
       "label": "performance-metrics.ts",
-      "last": "2026-07-29T10:00:14.060696+00:00",
+      "last": "2026-07-29T14:31:31.690089+00:00",
       "provenance": [
+        {
+          "date": "2026-07-29T14:31:31.690089+00:00",
+          "outcome": "useful",
+          "q": "Mobil uygulamanın performans, kalite, mimari ve teknoloji altyapısı ile socket fan-out, unread, message büyümesi, Prisma hot path ve NextAuth beta risklerini değerlendir"
+        },
         {
           "date": "2026-07-29T10:00:14.060696+00:00",
           "outcome": "useful",
           "q": "Railway UAT ortamında workspace-performance metrikleri tanımlı, mobil için log tutuyor muyuz inceler misin?"
         }
       ],
-      "score": 0.999815026,
+      "score": 1.99185825,
       "source_file": "apps/web/src/lib/workspace/performance-metrics.ts",
+      "status": "preferred",
+      "uses": 2
+    },
+    "apps_web_src_lib_workspace_unread_service": {
+      "code_fingerprint": "bd4a1eb696614369ea40615123829bb6e8dc17eb86744267ab7dcf5662ce9015",
+      "label": "unread-service.ts",
+      "last": "2026-07-29T14:31:31.690089+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-29T14:31:31.690089+00:00",
+          "outcome": "useful",
+          "q": "Mobil uygulamanın performans, kalite, mimari ve teknoloji altyapısı ile socket fan-out, unread, message büyümesi, Prisma hot path ve NextAuth beta risklerini değerlendir"
+        }
+      ],
+      "score": 0.998096726,
+      "source_file": "apps/web/src/lib/workspace/unread-service.ts",
       "status": "tentative",
       "uses": 1
     },
@@ -108,8 +321,24 @@
           "q": "Mobil açılışında modern splash, yüklemeler ve performans kontrolleri nasıl tasarlanmalı?"
         }
       ],
-      "score": 0.938763455,
+      "score": 0.933079597,
       "source_file": "packages/types/src/mobile.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "ref_server_ts": {
+      "code_fingerprint": "5788e778318631010118c4bf0d3403a63ade373db5cde75fd06f25dc95dc06db",
+      "label": "server.ts",
+      "last": "2026-07-29T14:31:31.690089+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-29T14:31:31.690089+00:00",
+          "outcome": "useful",
+          "q": "Mobil uygulamanın performans, kalite, mimari ve teknoloji altyapısı ile socket fan-out, unread, message büyümesi, Prisma hot path ve NextAuth beta risklerini değerlendir"
+        }
+      ],
+      "score": 0.998096726,
+      "source_file": "apps/web/tsconfig.server.json",
       "status": "tentative",
       "uses": 1
     }

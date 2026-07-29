@@ -1,22 +1,88 @@
-import Ionicons from "@expo/vector-icons/Ionicons";
-import { useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
-import * as Updates from "expo-updates";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import type {
+  MobileAppUpdateResponse,
+  MobileReleaseChannel,
+  MobileServiceStatusLevel,
+} from "@wizards/types";
+import * as Clipboard from "expo-clipboard";
+import * as Device from "expo-device";
+import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
+import { Linking, Platform, Pressable, Text, View } from "react-native";
+import Animated, {
+  Easing,
+  runOnJS,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 
+import {
+  buildDiagnosticsText,
+  isMobileReleaseNewer,
+  resolveAboutUpdatePresentation,
+} from "../../about/mobile-about-model";
+import {
+  MOBILE_ABOUT_DEFAULT_PREFERENCES,
+  readMobileAboutPreferences,
+  writeMobileAboutPreference,
+} from "../../about/mobile-about-preferences";
+import {
+  useMobileAboutReleaseQuery,
+  useMobileAboutStatusQuery,
+  useMobileAboutUpdateQuery,
+} from "../../about/mobile-about-queries";
+import { createExpoUpdateController } from "../../about/mobile-update-controller";
 import { getMobileRuntimeConfig } from "../../config/environment";
+import { mobileAboutMetrics } from "../../design/tokens";
 import { MOBILE_OPEN_SOURCE_LICENSE_GROUPS } from "../../legal/mobile-open-source-license-manifest";
 import { summarizeMobileOpenSourceLicenses } from "../../legal/mobile-open-source-licenses-model";
 import { mobileCopy } from "../../locale/mobile-copy";
+import { formatMobileBytes } from "../../locale/mobile-number-format";
 import { mobileNavigationRef } from "../../navigation/mobile-navigation-ref";
+import { useMobileAuth } from "../../auth/mobile-auth-context";
+import { BottomSheet } from "../components/kit/bottom-sheet";
+import { useToast } from "../components/kit/toast";
+import { useMobileBottomSystemSpacing } from "../use-mobile-bottom-system-spacing";
 import { useMobileHaptics } from "../providers/mobile-haptics-provider";
 import { useMobileLocaleRuntime } from "../providers/mobile-locale-provider";
 import { useTheme } from "../providers/mobile-theme-provider";
-import { AuthWelcomeBrandMark } from "./auth/auth-welcome-brand-mark";
+import { AboutIdentityCard } from "./about/about-identity-card";
+import { AboutChevronRightIcon, AboutClipboardIcon, AboutStarIcon } from "./about/about-icons";
 import {
-  ABOUT_APP_LOGO_RADIUS,
-  ABOUT_APP_LOGO_SIZE,
-  useMobileAboutSettingsStyles,
-} from "./mobile-about-settings-screen.styles";
+  AboutCard,
+  AboutConsentSheetShell,
+  AboutRow,
+  AboutScreenHeader,
+  AboutStickyHeader,
+  AboutToggle,
+} from "./about/about-primitives";
+import { AboutSignatureBlock } from "./about/about-signature-block";
+import { AboutWhatsNewCard } from "./about/about-whats-new-card";
+import { useMobileAboutSettingsStyles } from "./mobile-about-settings-screen.styles";
+
+const openSourceLicenseSummary = summarizeMobileOpenSourceLicenses(
+  MOBILE_OPEN_SOURCE_LICENSE_GROUPS,
+);
+
+function navigate(name: "AboutUpdateChannel" | "AboutWhatsNew" | "HelpCenter"): void {
+  if (mobileNavigationRef.isReady()) {
+    mobileNavigationRef.navigate(name);
+  }
+}
+
+function navigateToBugReport(): void {
+  if (mobileNavigationRef.isReady()) {
+    mobileNavigationRef.navigate("BugReport", undefined);
+  }
+}
+
+function navigateToCommunity(): void {
+  if (mobileNavigationRef.isReady()) {
+    mobileNavigationRef.navigate("CommunityInvite", undefined);
+  }
+}
 
 function openMobilePerformanceDiagnostics(): void {
   if (mobileNavigationRef.isReady()) {
@@ -24,225 +90,544 @@ function openMobilePerformanceDiagnostics(): void {
   }
 }
 
-type AboutUpdateStatus = "checking" | "downloading" | "idle" | "up-to-date";
+function fill(template: string, values: Record<string, string>): string {
+  return template.replace(/\{(\w+)\}/g, (match, key: string) => values[key] ?? match);
+}
 
-/** The manifest is static, so its totals are resolved once at module load. */
-const openSourceLicenseSummary = summarizeMobileOpenSourceLicenses(
-  MOBILE_OPEN_SOURCE_LICENSE_GROUPS,
-);
+function normalizeInstalledVersion(value: string): string {
+  const trimmed = value.trim();
+  return /^v?(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)/.exec(trimmed)?.[1] ?? trimmed;
+}
 
-function AboutLegalRow({
-  isLast = false,
+function releaseChannelForApi(value: string): MobileReleaseChannel | undefined {
+  return value === "stable" || value === "beta" || value === "uat" ? value : undefined;
+}
+
+function formatChannelLabel(value: string, locale: "en" | "tr"): string {
+  switch (value.toLowerCase()) {
+    case "production":
+    case "stable":
+      return locale === "tr" ? "KARARLI" : "STABLE";
+    case "development":
+      return "DEV";
+    case "canary":
+      return "CANARY";
+    case "beta":
+      return "BETA";
+    default:
+      return value.toUpperCase();
+  }
+}
+
+function formatReleaseDate(value: string | undefined, locale: "en" | "tr", withYear: boolean) {
+  if (!value || Number.isNaN(Date.parse(value))) {
+    return "—";
+  }
+
+  return new Intl.DateTimeFormat(locale === "tr" ? "tr-TR" : "en-US", {
+    day: "numeric",
+    month: "short",
+    ...(withYear ? { year: "numeric" } : {}),
+  })
+    .format(new Date(value))
+    .replace(/\.$/, "");
+}
+
+function formatLastChecked(value: string | undefined, locale: "en" | "tr"): string | null {
+  const timestamp = value ? Date.parse(value) : Number.NaN;
+  if (!Number.isFinite(timestamp)) {
+    return null;
+  }
+  const minutes = Math.max(1, Math.floor((Date.now() - timestamp) / 60_000));
+  return locale === "tr" ? `${minutes} dk` : `${minutes} min`;
+}
+
+function AboutGroupHeading({
+  actionLabel,
+  compact = false,
   label,
-  onPress,
-  testID,
-  value,
+  onAction,
 }: {
-  isLast?: boolean;
-  label: string;
-  onPress?: () => void;
-  testID: string;
-  value?: string;
+  readonly actionLabel?: string;
+  readonly compact?: boolean;
+  readonly label: string;
+  readonly onAction?: () => void;
 }) {
+  const styles = useMobileAboutSettingsStyles();
+
+  return (
+    <View style={[styles.groupHeadingRow, compact && styles.groupHeadingRowCompact]}>
+      <Text allowFontScaling={false} style={styles.groupHeading}>
+        {label}
+      </Text>
+      {actionLabel && onAction ? (
+        <Pressable
+          accessibilityLabel={actionLabel}
+          accessibilityRole="button"
+          onPress={onAction}
+          style={({ pressed }) => pressed && styles.pressed}
+        >
+          <Text maxFontSizeMultiplier={2} style={styles.groupAction}>
+            {actionLabel}
+          </Text>
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
+export function AboutServiceStatusPill({
+  label,
+  level,
+  testID,
+}: {
+  readonly label?: string;
+  readonly level: MobileServiceStatusLevel;
+  readonly testID?: string;
+}) {
+  const styles = useMobileAboutSettingsStyles();
+  const fallbackLabel = level === "ok" ? "OK" : level === "degraded" ? "Degraded" : "Down";
+
+  return (
+    <View
+      style={[
+        styles.statusPill,
+        level === "degraded" && styles.statusPillDegraded,
+        level === "down" && styles.statusPillDown,
+      ]}
+      {...(testID === undefined ? {} : { testID })}
+    >
+      <View
+        style={[
+          styles.statusDot,
+          level === "degraded" && styles.statusDotDegraded,
+          level === "down" && styles.statusDotDown,
+        ]}
+      />
+      <Text
+        allowFontScaling={false}
+        style={[
+          styles.statusLabel,
+          level === "degraded" && styles.statusLabelDegraded,
+          level === "down" && styles.statusLabelDown,
+        ]}
+        {...(testID === undefined ? {} : { testID: `${testID}-label` })}
+      >
+        {label ?? fallbackLabel}
+      </Text>
+    </View>
+  );
+}
+
+function AboutRatingStars() {
   const theme = useTheme();
   const styles = useMobileAboutSettingsStyles();
+
   return (
-    <Pressable
-      accessibilityLabel={value ? `${label}, ${value}` : label}
-      accessibilityRole="button"
-      onPress={onPress}
-      style={({ pressed }) => [styles.row, !isLast && styles.rowDivider, pressed && styles.pressed]}
-      testID={testID}
+    <View
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      style={styles.stars}
     >
-      <Text style={styles.rowLabel}>{label}</Text>
-      {value ? (
-        <Text numberOfLines={1} style={styles.rowValue}>
-          {value}
-        </Text>
-      ) : null}
-      <Ionicons color={theme.text.soft} name="chevron-forward" size={16} />
-    </Pressable>
+      {[0, 1, 2, 3, 4].map((index) => (
+        <AboutStarIcon
+          color={index < 4 ? theme.about.star : theme.about.starEmpty}
+          filled={index < 4}
+          key={index}
+          size={13}
+        />
+      ))}
+    </View>
   );
 }
 
 export function MobileAboutSettingsScreen({
   appVersion,
+  buildId,
   onBack,
   onOpenCookies,
   onOpenLicenses,
   onOpenPrivacy,
   onOpenTerms,
   releaseChannel,
+  renderUpdateBanner,
   serviceOnline,
 }: {
-  appVersion: string;
-  onBack(): void;
-  onOpenCookies(): void;
-  onOpenLicenses(): void;
-  onOpenPrivacy(): void;
-  onOpenTerms(): void;
-  releaseChannel: string;
-  serviceOnline: boolean;
+  readonly appVersion: string;
+  readonly buildId: string;
+  readonly onBack: () => void;
+  readonly onOpenCookies: () => void;
+  readonly onOpenLicenses: () => void;
+  readonly onOpenPrivacy: () => void;
+  readonly onOpenTerms: () => void;
+  readonly releaseChannel: string;
+  readonly renderUpdateBanner?: ReactNode;
+  readonly serviceOnline: boolean;
 }) {
+  const auth = useMobileAuth();
   const theme = useTheme();
   const styles = useMobileAboutSettingsStyles();
   const { locale } = useMobileLocaleRuntime();
   const copy = mobileCopy[locale];
   const { selection } = useMobileHaptics();
-  const [updateStatus, setUpdateStatus] = useState<AboutUpdateStatus>("idle");
-  const versionLabel = [appVersion, releaseChannel].filter(Boolean).join(" · ");
-  const isCheckingUpdate = updateStatus === "checking" || updateStatus === "downloading";
+  const { showToast } = useToast();
+  const bottomSpacing = useMobileBottomSystemSpacing(18);
+  const reduceMotion = useReducedMotion() === true;
+  const installedVersion = normalizeInstalledVersion(appVersion);
+  const updateController = useMemo(() => createExpoUpdateController(), []);
+  const updateSnapshot = useSyncExternalStore(
+    updateController.subscribe,
+    updateController.getSnapshot,
+    updateController.getSnapshot,
+  );
+  const updateQuery = useMobileAboutUpdateQuery(auth.apiClient, {
+    channel: releaseChannelForApi(releaseChannel),
+    installed: installedVersion,
+  });
+  const releaseQuery = useMobileAboutReleaseQuery(auth.apiClient, installedVersion);
+  const statusQuery = useMobileAboutStatusQuery(auth.apiClient);
+  const [preferences, setPreferences] = useState(MOBILE_ABOUT_DEFAULT_PREFERENCES);
+  const [isBetaSheetOpen, setIsBetaSheetOpen] = useState(false);
+  const [isRatingSheetOpen, setIsRatingSheetOpen] = useState(false);
+  const [stickyVisible, setStickyVisible] = useState(false);
+  const scrollY = useSharedValue(0);
 
-  const handleCheckUpdates = async () => {
+  useEffect(() => {
+    let active = true;
+    void readMobileAboutPreferences(AsyncStorage).then((value) => {
+      if (active) {
+        setPreferences(value);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const onScroll = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      const nextY = event.contentOffset.y;
+      scrollY.value = nextY;
+      runOnJS(setStickyVisible)(nextY > mobileAboutMetrics.stickyHeaderThreshold);
+    },
+  });
+  const largeHeaderStyle = useAnimatedStyle(() => {
+    const opacity = scrollY.value > mobileAboutMetrics.stickyHeaderThreshold ? 0 : 1;
+    return {
+      opacity: reduceMotion
+        ? opacity
+        : withTiming(opacity, {
+            duration: mobileAboutMetrics.stickyHeaderDurationMs,
+            easing: Easing.out(Easing.cubic),
+          }),
+    };
+  }, [reduceMotion]);
+
+  const controllerUpdate: MobileAppUpdateResponse | null =
+    updateSnapshot.state === "checking"
+      ? {
+          lastCheckedAt: new Date().toISOString(),
+          otaEnabled: updateController.capabilities.isEnabled,
+          state: "checking",
+        }
+      : (updateQuery.data ?? null);
+  const updatePresentation = resolveAboutUpdatePresentation(controllerUpdate, copy, {
+    formatSize: (bytes) => formatMobileBytes(bytes, locale),
+    lastCheckedLabel: formatLastChecked(updateQuery.data?.lastCheckedAt, locale),
+    online: serviceOnline,
+    otaEnabled: updateController.capabilities.isEnabled && updateQuery.data?.otaEnabled !== false,
+  });
+  const updateActionVisible =
+    updateController.capabilities.isEnabled && updateQuery.data?.otaEnabled !== false;
+  const release = releaseQuery.data;
+  const releasedAt = release?.releasedAt;
+  const buildNumber =
+    buildId && buildId !== "unknown"
+      ? buildId
+      : release?.buildNumber === undefined
+        ? "—"
+        : String(release.buildNumber);
+  const fullDate = formatReleaseDate(releasedAt, locale, true);
+  const shortDate = formatReleaseDate(releasedAt, locale, false);
+  const buildLabel = fill(copy.aboutBuild, { build: buildNumber || "—", date: fullDate });
+  const year =
+    releasedAt && !Number.isNaN(Date.parse(releasedAt))
+      ? String(new Date(releasedAt).getFullYear())
+      : String(new Date().getFullYear());
+  const channelLabel = formatChannelLabel(releaseChannel, locale);
+  const codename = release?.codename ? `“${release.codename}”` : "—";
+  const statusLevel: MobileServiceStatusLevel =
+    statusQuery.data?.level ?? (serviceOnline ? "ok" : "down");
+  const statusLabel =
+    statusLevel === "ok"
+      ? copy.aboutSupportStatusOk
+      : statusLevel === "degraded"
+        ? copy.aboutSupportStatusDegraded
+        : copy.aboutSupportStatusDown;
+
+  const copyDiagnostics = async () => {
+    const diagnostics = buildDiagnosticsText({
+      appVersion: installedVersion,
+      buildNumber,
+      channel: releaseChannel,
+      deviceModel: Device.modelName,
+      locale,
+      osName: Device.osName ?? Platform.OS,
+      osVersion: Device.osVersion ?? String(Platform.Version),
+      userId: auth.session?.user.id ?? null,
+    });
+    await Clipboard.setStringAsync(diagnostics);
     selection();
-    if (!Updates.isEnabled) {
-      setUpdateStatus("up-to-date");
+    showToast({ title: copy.aboutCopied, variant: "success" });
+  };
+
+  const handleUpdateAction = async () => {
+    selection();
+    if (updatePresentation.actionKind === "stop") {
+      updateController.cancelCheck();
       return;
     }
+    if (updatePresentation.actionKind === "update") {
+      await updateController.download();
+      return;
+    }
+    await updateController.check();
+    await updateQuery.refetch();
+  };
 
-    setUpdateStatus("checking");
+  const setAutoUpdate = async (next: boolean) => {
+    const previous = preferences.autoUpdate;
+    setPreferences((current) => ({ ...current, autoUpdate: next }));
     try {
-      const result = await Updates.checkForUpdateAsync();
-      if (result.isAvailable) {
-        setUpdateStatus("downloading");
-        await Updates.fetchUpdateAsync();
-        await Updates.reloadAsync();
-        return;
-      }
-      setUpdateStatus("up-to-date");
+      await writeMobileAboutPreference(AsyncStorage, "autoUpdate", next);
     } catch {
-      // Updates are unavailable in Expo Go / dev clients; report as current.
-      setUpdateStatus("up-to-date");
+      setPreferences((current) => ({ ...current, autoUpdate: previous }));
     }
   };
 
-  const updateStatusLabel =
-    updateStatus === "checking"
-      ? copy.aboutSettingsChecking
-      : updateStatus === "downloading"
-        ? copy.aboutSettingsUpdating
-        : copy.aboutSettingsUpToDate;
-
   return (
-    <ScrollView
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-      style={styles.root}
-      testID="mobile-about-settings-screen"
-    >
-      <View style={styles.header}>
-        <Pressable
-          accessibilityLabel={copy.authBackAction}
-          accessibilityRole="button"
-          onPress={onBack}
-          style={({ pressed }) => [styles.back, pressed && styles.pressed]}
-          testID="mobile-about-settings-back"
-        >
-          <View style={styles.backVisual}>
-            <Ionicons color={theme.text.primary} name="chevron-back" size={18} />
-          </View>
-        </Pressable>
-        <Text numberOfLines={1} style={styles.title}>
-          {copy.aboutSettingsTitle}
-        </Text>
-      </View>
-
-      <View style={styles.appCard}>
-        {/*
-          Same animated waveform mark the auth screens render, so the app logo is
-          one component everywhere. It pauses itself while its navigation screen is
-          blurred and draws no SVG blur filter, so it stays on the GPU render path.
-        */}
-        <View
-          accessibilityLabel={copy.aboutSettingsAppName}
-          accessibilityRole="image"
-          style={styles.appIcon}
-        >
-          <AuthWelcomeBrandMark
-            cornerRadius={ABOUT_APP_LOGO_RADIUS}
-            size={ABOUT_APP_LOGO_SIZE}
-            testID="mobile-about-app-logo"
+    <View style={styles.root} testID="mobile-about-settings-screen">
+      <Animated.ScrollView
+        contentContainerStyle={[styles.content, { paddingBottom: bottomSpacing }]}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+        showsVerticalScrollIndicator={false}
+        style={styles.scroll}
+        testID="mobile-about-settings-scroll"
+      >
+        <Animated.View style={[styles.largeHeaderAnimated, largeHeaderStyle]}>
+          <AboutScreenHeader
+            action={{
+              accessibilityLabel: copy.aboutCopyDiagnostics,
+              icon: <AboutClipboardIcon color={theme.about.textSecondary} size={16} />,
+              onPress: () => void copyDiagnostics(),
+              testID: "mobile-about-copy-diagnostics",
+            }}
+            backAccessibilityLabel={copy.authBackAction}
+            onBack={onBack}
+            testID="mobile-about-header"
+            title={copy.aboutTitle}
           />
-        </View>
-        <View style={styles.appIdentity}>
-          <Text style={styles.appName}>{copy.aboutSettingsAppName}</Text>
-          <Text style={styles.appVersion}>{versionLabel}</Text>
-        </View>
-        <Pressable
-          accessibilityLabel={copy.aboutSettingsCheckUpdates}
-          accessibilityRole="button"
-          accessibilityState={{ busy: isCheckingUpdate, disabled: isCheckingUpdate }}
-          disabled={isCheckingUpdate}
-          onPress={() => void handleCheckUpdates()}
-          style={({ pressed }) => [
-            styles.updateButton,
-            isCheckingUpdate && styles.updateButtonDisabled,
-            pressed && !isCheckingUpdate && styles.pressed,
-          ]}
-          testID="mobile-about-check-updates"
-        >
-          <Ionicons color={theme.text.onPrimary} name="refresh" size={15} />
-          <Text style={styles.updateButtonLabel}>{copy.aboutSettingsCheckUpdates}</Text>
-        </Pressable>
-        <Text style={styles.updateStatus}>{updateStatusLabel}</Text>
-      </View>
+        </Animated.View>
 
-      <Text style={styles.sectionHeading}>{copy.aboutSettingsLegalHeading}</Text>
-      <View style={styles.card}>
-        <AboutLegalRow
-          label={copy.aboutSettingsTerms}
-          onPress={onOpenTerms}
-          testID="mobile-about-terms"
+        <AboutIdentityCard
+          appName={copy.aboutSettingsAppName}
+          buildLabel={buildLabel}
+          channelLabel={channelLabel}
+          codename={codename}
+          copyAccessibilityLabel={copy.aboutCopyDiagnostics}
+          onCopyDiagnostics={() => void copyDiagnostics()}
+          onUpdateAction={() => void handleUpdateAction()}
+          renderUpdateBanner={renderUpdateBanner}
+          update={updatePresentation}
+          updateActionVisible={updateActionVisible}
+          version={installedVersion}
         />
-        <AboutLegalRow
-          label={copy.aboutSettingsPrivacy}
-          onPress={onOpenPrivacy}
-          testID="mobile-about-privacy"
+
+        <AboutGroupHeading
+          actionLabel={copy.aboutWhatsNewSeeAll}
+          label={copy.aboutSectionWhatsNew}
+          onAction={() => navigate("AboutWhatsNew")}
         />
-        <AboutLegalRow
-          label={copy.aboutSettingsCookies}
-          onPress={onOpenCookies}
-          testID="mobile-about-cookies"
-        />
-        <AboutLegalRow
-          label={copy.aboutSettingsLicenses}
-          onPress={onOpenLicenses}
-          testID="mobile-about-licenses"
-          // The count is generated from the lockfile, so the row cannot promise
-          // a number the licenses screen then contradicts.
-          value={copy.openSourceLicensesPackageCount.replace(
-            "{count}",
-            String(openSourceLicenseSummary.packageCount),
+        {release ? (
+          <AboutWhatsNewCard
+            copy={copy}
+            dateLabel={shortDate}
+            isNew={isMobileReleaseNewer(release.version, preferences.seenVersion)}
+            onPress={() => navigate("AboutWhatsNew")}
+            release={release}
+          />
+        ) : null}
+
+        <AboutGroupHeading label={copy.aboutSectionApp} />
+        <AboutCard testID="mobile-about-app-card">
+          <AboutRow
+            isFirst
+            onPress={() => navigate("AboutUpdateChannel")}
+            showChevron
+            title={copy.aboutAppChannel}
+            value={channelLabel}
+          />
+          <AboutRow
+            subtitle={copy.aboutAppBetaSub}
+            title={copy.aboutAppBeta}
+            trailing={
+              <AboutToggle
+                accessibilityLabel={copy.aboutAppBeta}
+                onValueChange={(next) => {
+                  if (next) setIsBetaSheetOpen(true);
+                }}
+                testID="mobile-about-beta-toggle"
+                value={preferences.betaConsentAt !== null}
+              />
+            }
+          />
+          <AboutRow
+            subtitle={copy.aboutAppAutoUpdateSub}
+            title={copy.aboutAppAutoUpdate}
+            trailing={
+              <AboutToggle
+                accessibilityLabel={copy.aboutAppAutoUpdate}
+                onValueChange={(next) => void setAutoUpdate(next)}
+                testID="mobile-about-auto-update-toggle"
+                value={preferences.autoUpdate}
+              />
+            }
+          />
+        </AboutCard>
+
+        <AboutGroupHeading compact label={copy.aboutSectionSupport} />
+        <AboutCard>
+          <AboutRow
+            isFirst
+            onPress={() => {
+              if (statusQuery.data?.url) void Linking.openURL(statusQuery.data.url);
+            }}
+            showChevron
+            title={copy.aboutSupportStatus}
+            trailing={<AboutServiceStatusPill label={statusLabel} level={statusLevel} />}
+          />
+          <AboutRow
+            onPress={() => navigate("HelpCenter")}
+            showChevron
+            subtitle={copy.aboutSupportHelpSub}
+            title={copy.aboutSupportHelp}
+          />
+          <AboutRow
+            onPress={navigateToBugReport}
+            showChevron
+            subtitle={copy.aboutSupportReportSub}
+            title={copy.aboutSupportReport}
+          />
+        </AboutCard>
+
+        <AboutGroupHeading label={copy.aboutSectionCommunity} />
+        <AboutCard>
+          <AboutRow
+            isFirst
+            onPress={navigateToCommunity}
+            showChevron
+            subtitle={copy.aboutCommunityServerFallbackSub}
+            title={copy.aboutCommunityServer}
+          />
+          <AboutRow
+            onPress={() => setIsRatingSheetOpen(true)}
+            subtitle={copy.aboutCommunityRateSub}
+            title={copy.aboutCommunityRate}
+            trailing={<AboutRatingStars />}
+          />
+        </AboutCard>
+
+        <AboutGroupHeading label={copy.aboutSectionLegal} />
+        <AboutCard>
+          <AboutRow
+            isFirst
+            onPress={onOpenTerms}
+            paddingVertical={11}
+            showChevron
+            title={copy.aboutLegalTerms}
+          />
+          <AboutRow
+            onPress={onOpenPrivacy}
+            paddingVertical={11}
+            showChevron
+            title={copy.aboutLegalPrivacy}
+          />
+          <AboutRow
+            onPress={onOpenCookies}
+            paddingVertical={11}
+            showChevron
+            title={copy.aboutLegalCookies}
+          />
+          <AboutRow
+            onPress={onOpenLicenses}
+            paddingVertical={11}
+            showChevron
+            testID="mobile-about-licenses"
+            title={copy.aboutLegalLicenses}
+            value={copy.aboutLegalLicensesCount.replace(
+              "{count}",
+              String(openSourceLicenseSummary.packageCount),
+            )}
+          />
+          {/* User override: this existing non-production instrument remains after redesign. */}
+          {getMobileRuntimeConfig().environment === "production" ? null : (
+            <AboutRow
+              onPress={openMobilePerformanceDiagnostics}
+              paddingVertical={11}
+              showChevron
+              testID="mobile-about-performance-diagnostics"
+              title={copy.performanceDiagnosticsEntry}
+            />
           )}
-        />
-        {/* Instrument, not product: absent from a production build entirely. */}
-        {getMobileRuntimeConfig().environment === "production" ? null : (
-          <AboutLegalRow
-            isLast
-            label={copy.performanceDiagnosticsEntry}
-            onPress={openMobilePerformanceDiagnostics}
-            testID="mobile-about-performance-diagnostics"
-          />
-        )}
-      </View>
+        </AboutCard>
 
-      <Text style={styles.sectionHeading}>{copy.aboutSettingsSupportHeading}</Text>
-      <View style={styles.card}>
-        {/* Feedback lives on the profile hub only. Two entry points into the
-            same 4a form meant the same action was offered twice, one level
-            apart, with no way to tell them apart. */}
-        <View style={styles.row} testID="mobile-about-service-status">
-          <Text style={styles.rowLabel}>{copy.aboutSettingsServiceStatus}</Text>
-          <View style={[styles.statusBadge, !serviceOnline && styles.statusBadgeOffline]}>
-            <View style={[styles.statusDot, !serviceOnline && styles.statusDotOffline]} />
-            <Text style={[styles.statusText, !serviceOnline && styles.statusTextOffline]}>
-              {serviceOnline
-                ? copy.aboutSettingsServiceOperational
-                : copy.aboutSettingsServiceOffline}
-            </Text>
-          </View>
-        </View>
-      </View>
-    </ScrollView>
+        <AboutSignatureBlock copy={copy} year={year} />
+      </Animated.ScrollView>
+
+      <AboutStickyHeader
+        backAccessibilityLabel={copy.authBackAction}
+        onBack={onBack}
+        scrollY={scrollY}
+        testID="mobile-about-sticky-header"
+        title={copy.aboutTitle}
+        trailingLabel={installedVersion}
+        visible={stickyVisible}
+      />
+
+      <BottomSheet
+        accessibilityLabel={copy.aboutAppBeta}
+        onClose={() => setIsBetaSheetOpen(false)}
+        open={isBetaSheetOpen}
+        sizing="content"
+        testID="mobile-about-beta-consent"
+      >
+        <AboutConsentSheetShell>
+          <Text maxFontSizeMultiplier={2} style={styles.sheetTitle}>
+            {copy.aboutAppBeta}
+          </Text>
+          <Text maxFontSizeMultiplier={2} style={styles.sheetBody}>
+            {copy.aboutAppBetaSub}
+          </Text>
+        </AboutConsentSheetShell>
+      </BottomSheet>
+
+      <BottomSheet
+        accessibilityLabel={copy.aboutCommunityRate}
+        onClose={() => setIsRatingSheetOpen(false)}
+        open={isRatingSheetOpen}
+        sizing="content"
+        testID="mobile-about-rating"
+      >
+        <AboutConsentSheetShell>
+          <Text maxFontSizeMultiplier={2} style={styles.sheetTitle}>
+            {copy.aboutCommunityRate}
+          </Text>
+          <Text maxFontSizeMultiplier={2} style={styles.sheetBody}>
+            {copy.aboutCommunityRateSub}
+          </Text>
+        </AboutConsentSheetShell>
+      </BottomSheet>
+    </View>
   );
 }

@@ -1,4 +1,5 @@
-import { useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useEffect, useState } from "react";
 import {
   Ionicons,
   Pressable,
@@ -81,6 +82,9 @@ import { mobileBannerContentPosition } from "../../social/mobile-banner-offset";
 import { MobileProfileStatusCard } from "../../social/mobile-profile-status-card";
 import { MobileStatusPickerSheetView } from "../../social/mobile-status-picker-sheet";
 import { toMobilePresenceStatus } from "../../social/mobile-status-picker-model";
+import { MOBILE_ABOUT_PREFERENCE_KEYS } from "../../about/mobile-about-preferences";
+import { isMobileReleaseNewer } from "../../about/mobile-about-model";
+import { resolveMobileTelemetryDimensions } from "../../performance/mobile-telemetry-dimensions";
 
 const MOBILE_PROFILE_PRESENCE_STATUSES: readonly MobileFriendPresenceStatus[] = [
   "ONLINE",
@@ -192,6 +196,7 @@ export function MobileProfileSettingsHub({
     null,
   );
   const [presenceError, setPresenceError] = useState<string | null>(null);
+  const [seenAboutVersion, setSeenAboutVersion] = useState<string | null | undefined>(undefined);
   const profileCopy = mobileCopy[locale];
   const isSecureSessionActive = sessionDiagnostics.hasSession && !sessionDiagnostics.isExpired;
   const user = bootstrapState.status === "ready" ? bootstrapState.payload.user : null;
@@ -227,6 +232,16 @@ export function MobileProfileSettingsHub({
       setIsUpdatingPresence(false);
     }
   };
+
+  useEffect(() => {
+    let active = true;
+    void AsyncStorage.getItem(MOBILE_ABOUT_PREFERENCE_KEYS.seenVersion).then((value) => {
+      if (active) setSeenAboutVersion(value);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   if (!user) {
     return (
@@ -434,6 +449,9 @@ export function MobileProfileSettingsHub({
           iconTone="neutral"
           label={profileCopy.profileHubAbout}
           onPress={() => navigateToMobileSettingsDetail("about")}
+          showDot={
+            seenAboutVersion !== undefined && isMobileReleaseNewer(appVersion, seenAboutVersion)
+          }
           value={appVersion}
         />
         <MobileProfileHubRow
@@ -477,6 +495,7 @@ function MobileProfileHubRow({
   label,
   onPress,
   showChevron = true,
+  showDot = false,
   value,
   valueTone = "default",
 }: {
@@ -486,6 +505,7 @@ function MobileProfileHubRow({
   label: string;
   onPress(): void;
   showChevron?: boolean;
+  showDot?: boolean;
   value?: string;
   valueTone?: "default" | "success";
 }) {
@@ -541,6 +561,9 @@ function MobileProfileHubRow({
         >
           {value}
         </Text>
+      ) : null}
+      {showDot ? (
+        <View style={styles.mobileProfileSettingsRowDot} testID="mobile-profile-about-new-dot" />
       ) : null}
       {showChevron ? <Ionicons name="chevron-forward" size={17} color={theme.text.soft} /> : null}
     </Pressable>
@@ -2067,6 +2090,7 @@ export function ProfileSettingsScreen({
     bootstrapState.status === "ready"
       ? bootstrapState.payload.app.releaseChannel
       : runtimeConfig.environment;
+  const buildId = resolveMobileTelemetryDimensions().buildId;
   const appearanceRows: NativeSettingsRowItem[] = [
     {
       description: copy.settingsLanguageDescription,
@@ -2261,6 +2285,7 @@ export function ProfileSettingsScreen({
     return (
       <MobileAboutSettingsScreen
         appVersion={appVersion}
+        buildId={buildId}
         onBack={onBack ?? (() => mobileNavigationRef.isReady() && mobileNavigationRef.goBack())}
         // Legal texts open in-app now; they are the same server-rendered document
         // the web shows, so there is no reason to eject the user to a browser.

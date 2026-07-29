@@ -12,8 +12,23 @@ import { recordMobilePerformanceSample } from "./mobile-performance-metrics";
  * without a native module; everything after it is measured against the same
  * origin so the phases are comparable.
  */
+/**
+ * `cache-hydrated` and `navigator-ready` split the widest gap in the timeline.
+ *
+ * A device run put `root-first-frame` at 193ms and `content-visible` at 422ms:
+ * more than half the launch sat between a shell frame and anything worth
+ * reading, with nothing to say where. Restoring the query cache from disk and
+ * mounting the navigation tree are the two things that happen in there, and both
+ * are single, unambiguous moments.
+ */
 export type MobileStartupPhase =
-  "auth-resolved" | "bundle-loaded" | "content-visible" | "interactive" | "root-first-frame";
+  | "auth-resolved"
+  | "bundle-loaded"
+  | "cache-hydrated"
+  | "content-visible"
+  | "interactive"
+  | "navigator-ready"
+  | "root-first-frame";
 
 const startupOriginMs = globalThis.performance.now();
 const timeline = new Map<MobileStartupPhase, number>();

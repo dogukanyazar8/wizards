@@ -8,8 +8,19 @@ import { recordMobilePerformanceSample } from "./mobile-performance-metrics";
  * span starts on the tap instead, and closes on the first meaningful content of
  * the route it opened.
  */
+/**
+ * Where the span came from.
+ *
+ * `tap` is the honest origin: the reader's finger. `navigation` is the fallback
+ * for the many entry points that never touch a tap handler — a deep link, a push
+ * intent, a profile card, the friends hub — and it starts a frame or two later,
+ * so the two are recorded apart rather than pooled into one misleading number.
+ */
+export type MobileNavigationSpanOrigin = "navigation" | "tap";
+
 type MobileNavigationSpan = {
   readonly cacheHit: boolean;
+  readonly origin: MobileNavigationSpanOrigin;
   readonly startedAtMs: number;
 };
 
@@ -35,6 +46,7 @@ export function beginMobileNavigationSpan(
    * hides both.
    */
   cacheHit = false,
+  origin: MobileNavigationSpanOrigin = "tap",
 ): void {
   if (route.length === 0) {
     return;
@@ -48,7 +60,27 @@ export function beginMobileNavigationSpan(
     abandonedSpanCount += 1;
   }
 
-  openSpans.set(route, { cacheHit, startedAtMs });
+  openSpans.set(route, { cacheHit, origin, startedAtMs });
+}
+
+/**
+ * Opens a span only when nothing is already waiting on this route.
+ *
+ * The navigator calls this for every chat it shows, which is what closed the
+ * coverage hole: roughly half of a device run's opens were never measured
+ * because they arrived from a deep link or a push intent rather than a tap. A
+ * tap-started span is the better measurement, so it is never replaced.
+ */
+export function ensureMobileNavigationSpan(
+  route: string,
+  startedAtMs: number = globalThis.performance.now(),
+  cacheHit = false,
+): void {
+  if (route.length === 0 || openSpans.has(route)) {
+    return;
+  }
+
+  openSpans.set(route, { cacheHit, origin: "navigation", startedAtMs });
 }
 
 /**
@@ -73,7 +105,7 @@ export function completeMobileNavigationSpan(
   }
 
   recordMobilePerformanceSample({
-    context: { cacheHit: span.cacheHit, route },
+    context: { cacheHit: span.cacheHit, origin: span.origin, route },
     durationMs,
     metric: "navigation",
     surface: "navigation",

@@ -17,9 +17,11 @@ import {
   MOBILE_NAVIGATION_SPAN_MAX_AGE_MS,
   beginMobileNavigationSpan,
   completeMobileNavigationSpan,
+  ensureMobileNavigationSpan,
   getMobileNavigationSpanDiagnostics,
   resetMobileNavigationTimingForTests,
 } from "../src/performance/mobile-navigation-timing";
+import { resolveMobileActiveChatRouteTarget } from "../src/performance/mobile-chat-route-target";
 import {
   abandonMobileSendSpan,
   beginMobileSendSpan,
@@ -233,6 +235,87 @@ describe("navigation spans", () => {
     assert.equal(getMobileNavigationSpanDiagnostics().open, 1);
     completeMobileNavigationSpan("DirectMessage", 1_100);
     assert.equal(getMobileNavigationSpanDiagnostics().open, 0);
+  });
+
+  /**
+   * A device run measured twelve of roughly twenty-three opens with zero
+   * abandoned spans: the missing ones never started, because only two tap
+   * handlers opened spans and half the entry points — deep links, push intents,
+   * profile cards — never pass through them.
+   */
+  it("opens a span for a route nothing tapped", () => {
+    ensureMobileNavigationSpan("DirectMessage", 1_000);
+
+    assert.equal(completeMobileNavigationSpan("DirectMessage", 1_400), 400);
+    assert.equal(peekMobilePerformanceSamples().at(-1)?.context.origin, "navigation");
+  });
+
+  it("leaves a tap's span alone: the tap is the better origin", () => {
+    beginMobileNavigationSpan("ChannelChat", 1_000, true);
+    ensureMobileNavigationSpan("ChannelChat", 1_300);
+
+    assert.equal(completeMobileNavigationSpan("ChannelChat", 1_500), 500);
+    const sample = peekMobilePerformanceSamples().at(-1);
+    assert.equal(sample?.context.origin, "tap");
+    assert.equal(sample?.context.cacheHit, true);
+  });
+
+  it("does not count an ensured span as abandoned", () => {
+    beginMobileNavigationSpan("DirectMessage", 1_000);
+    ensureMobileNavigationSpan("DirectMessage", 1_100);
+
+    assert.equal(getMobileNavigationSpanDiagnostics().abandoned, 0);
+  });
+});
+
+describe("active chat route", () => {
+  const chatState = (name: string, params: unknown) => ({
+    index: 0,
+    routes: [
+      {
+        name: "MainTabs",
+        state: { index: 1, routes: [{ name: "Sohbetler" }, { name, params }] },
+      },
+    ],
+  });
+
+  it("reads the focused chat and its target", () => {
+    assert.deepEqual(
+      resolveMobileActiveChatRouteTarget(chatState("DirectMessage", { conversationId: "dm-1" })),
+      { route: "DirectMessage", targetId: "dm-1" },
+    );
+    assert.deepEqual(
+      resolveMobileActiveChatRouteTarget(
+        chatState("ChannelChat", { channelId: "channel-1", serverId: "server-1" }),
+      ),
+      { route: "ChannelChat", targetId: "channel-1" },
+    );
+  });
+
+  it("ignores a screen that is not a chat", () => {
+    assert.equal(resolveMobileActiveChatRouteTarget(chatState("Settings", {})), null);
+    assert.equal(resolveMobileActiveChatRouteTarget(undefined), null);
+    assert.equal(resolveMobileActiveChatRouteTarget({ index: 0, routes: [] }), null);
+  });
+
+  it("ignores a chat that is not the focused screen", () => {
+    const state = {
+      index: 1,
+      routes: [
+        { name: "DirectMessage", params: { conversationId: "dm-1" } },
+        { name: "UserProfile", params: { userId: "user-1" } },
+      ],
+    };
+
+    assert.equal(resolveMobileActiveChatRouteTarget(state), null);
+  });
+
+  it("ignores a chat route with no target to open", () => {
+    assert.equal(resolveMobileActiveChatRouteTarget(chatState("DirectMessage", {})), null);
+    assert.equal(
+      resolveMobileActiveChatRouteTarget(chatState("DirectMessage", { conversationId: "" })),
+      null,
+    );
   });
 });
 

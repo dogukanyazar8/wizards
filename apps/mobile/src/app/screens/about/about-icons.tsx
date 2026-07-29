@@ -138,15 +138,27 @@ export function AboutSearchIcon({ color, size, strokeWidth = 2.1, testID }: Abou
   );
 }
 
-/** 1c's "Bildir" header action. */
-export function AboutBellIcon({ color, size, strokeWidth = 2, testID }: AboutStrokeIconProps) {
+/** 1c's "Bildir" header action: filled while enabled, crossed while disabled. */
+export function AboutBellIcon({
+  color,
+  crossedOut = false,
+  filled = false,
+  size,
+  strokeWidth = 2,
+  testID,
+}: AboutStrokeIconProps & {
+  readonly crossedOut?: boolean;
+  readonly filled?: boolean;
+}) {
   return (
     <AboutIconCanvas size={size} testID={testID}>
       <Path
         d="M6 9.5a6 6 0 0 1 12 0c0 4 1.5 5.5 1.5 5.5h-15S6 13.5 6 9.5z"
+        fill={filled ? color : "none"}
         {...strokeProps(color, strokeWidth)}
       />
       <Path d="M10.5 18.5a1.8 1.8 0 0 0 3 0" {...strokeProps(color, strokeWidth)} />
+      {crossedOut ? <Path d="M4.5 4.5l15 15" {...strokeProps(color, strokeWidth)} /> : null}
     </AboutIconCanvas>
   );
 }

@@ -32,6 +32,8 @@ interface AuthWelcomeBrandMarkProps {
   /** Rendered card corner radius in device-independent pixels. */
   readonly cornerRadius?: number;
   readonly testID?: string;
+  /** About's measured 60px artwork differs from the auth mark's 52px canvas. */
+  readonly variant?: "about" | "auth";
 }
 
 interface WaveformBar {
@@ -61,6 +63,15 @@ const CANONICAL_WAVEFORM_BARS: readonly WaveformBar[] = [
   { height: 34, rx: 1.5, width: 3, x: 24.5, y: 9 },
   { height: 24, rx: 1.5, width: 3, x: 30.5, y: 14 },
   { height: 18, rx: 1.5, width: 3, x: 36.5, y: 17 },
+];
+
+/** Handoff 1a: 3.5px bars and gaps, centred in a native 60px canvas. */
+const ABOUT_WAVEFORM_BARS: readonly WaveformBar[] = [
+  { height: 15, rx: 1.75, width: 3.5, x: 14.25, y: 22.5 },
+  { height: 22, rx: 1.75, width: 3.5, x: 21.25, y: 19 },
+  { height: 30, rx: 1.75, width: 3.5, x: 28.25, y: 15 },
+  { height: 21, rx: 1.75, width: 3.5, x: 35.25, y: 19.5 },
+  { height: 16, rx: 1.75, width: 3.5, x: 42.25, y: 22 },
 ];
 
 const AnimatedRect = Animated.createAnimatedComponent(Rect);
@@ -206,18 +217,21 @@ export function AuthWelcomeBrandMark({
   cornerRadius = WEB_BRAND_ICON_RADIUS,
   size = WEB_BRAND_ICON_SIZE,
   testID,
+  variant = "auth",
 }: AuthWelcomeBrandMarkProps) {
   const active = useScreenFocusActive() && animated;
+  const canvasSize = variant === "about" ? 60 : WEB_BRAND_ICON_SIZE;
+  const bars = variant === "about" ? ABOUT_WAVEFORM_BARS : CANONICAL_WAVEFORM_BARS;
   const surfaceGradientId = `${testID ?? "auth-welcome-brand-mark"}-surface-gradient`;
   const surfaceHighlightId = `${testID ?? "auth-welcome-brand-mark"}-surface-highlight`;
-  const viewBoxCornerRadius = (cornerRadius * WEB_BRAND_ICON_SIZE) / size;
+  const viewBoxCornerRadius = (cornerRadius * canvasSize) / size;
 
   return (
     <Svg
       accessible={false}
       accessibilityElementsHidden
       height={size}
-      viewBox={`0 0 ${WEB_BRAND_ICON_SIZE} ${WEB_BRAND_ICON_SIZE}`}
+      viewBox={`0 0 ${canvasSize} ${canvasSize}`}
       width={size}
       {...(testID === undefined ? {} : { testID })}
     >
@@ -259,18 +273,19 @@ export function AuthWelcomeBrandMark({
       </Defs>
       <Rect
         fill={`url(#${surfaceGradientId})`}
-        height={WEB_BRAND_ICON_SIZE}
+        height={canvasSize}
         rx={viewBoxCornerRadius}
-        width={WEB_BRAND_ICON_SIZE}
+        width={canvasSize}
         {...(testID === undefined ? {} : { testID: `${testID}-card` })}
       />
       <Rect
         fill={`url(#${surfaceHighlightId})`}
-        height={WEB_BRAND_ICON_SIZE}
+        height={canvasSize}
         rx={viewBoxCornerRadius}
-        width={WEB_BRAND_ICON_SIZE}
+        width={canvasSize}
+        {...(testID === undefined ? {} : { testID: `${testID}-surface-highlight-layer` })}
       />
-      {CANONICAL_WAVEFORM_BARS.map((bar, index) => (
+      {bars.map((bar, index) => (
         <AnimatedWaveformBar
           active={active}
           bar={bar}

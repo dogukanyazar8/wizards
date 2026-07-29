@@ -1,3 +1,4 @@
+abandon
 abi
 abort
 about
@@ -18,6 +19,7 @@ account
 accumulator
 accurate
 achievement
+ack
 acquire
 across
 act
@@ -52,11 +54,13 @@ agents
 aggregate
 ago
 ait
+akisi
 akl
 aksiyonlar
 aksiyonu
 aktif
 aktivite
+alan
 alanlar
 alert
 alertable
@@ -147,6 +151,9 @@ arketipleri
 arm
 array
 arrays
+arrow
+article
+articles
 artifact
 artifacts
 assert
@@ -204,6 +211,7 @@ ayn
 aynen
 ayr
 ayrac
+aza
 babel
 back
 backbone
@@ -214,6 +222,7 @@ background
 backoff
 badge
 badges
+baglam
 bak
 balon
 ban
@@ -247,10 +256,12 @@ best
 beta
 between
 big
+bildir
 bildirdiklerim
 bildirim
 bildirimler
 bile
+bilerek
 bilgisayar
 bilin
 bilinen
@@ -260,10 +271,13 @@ biometric
 bir
 birden
 birebir
+biti
+bitmeden
 bits
 bitti
 bize
 blank
+blo
 blob
 block
 blocked
@@ -320,6 +334,7 @@ bunlar
 bunu
 bus
 busy
+buton
 butonlar
 button
 buttons
@@ -350,6 +365,7 @@ candidate
 candidates
 canl
 canonical
+canvas
 capabilities
 capability
 capable
@@ -367,6 +383,7 @@ cases
 casing
 casts
 catalog
+catalogue
 catch
 categories
 categorize
@@ -617,12 +634,14 @@ data
 database
 date
 dative
+davet
 davran
 day
 days
 dead
 deafen
 debounce
+debounced
 debug
 debugging
 decimal
@@ -641,10 +660,12 @@ dedupe
 deep
 default
 defaults
+defer
 deferred
 define
 definition
 definitions
+degerlendirmesi
 degraded
 del
 delay
@@ -691,6 +712,7 @@ deserialize
 design
 desktop
 deste
+destek
 destination
 destructive
 detach
@@ -751,7 +773,6 @@ dist
 distinct
 divider
 dnd
-dock
 docker
 docs
 doctor
@@ -760,6 +781,7 @@ documentation
 documented
 documents
 does
+dogrulama
 doguk
 dogukan
 dokunu
@@ -807,6 +829,7 @@ dynamic
 each
 eas
 easing
+echo
 echoable
 echoed
 ecosystem
@@ -831,17 +854,24 @@ ekil
 ekirde
 ekle
 ekleme
+eklendi
 eklenebilirlik
+eklenecekler
 ekler
 ekleri
 ekleriyle
+eklerken
 ekleyebilece
 ekleyerek
 ekli
+eklik
 ekme
 ekran
+ekrana
 ekranda
+ekrani
 ekranlar
+eksi
 eksik
 eksiksiz
 elapsed
@@ -856,6 +886,7 @@ ema
 email
 emails
 emalar
+emas
 emit
 emits
 emitted
@@ -911,7 +942,9 @@ equals
 equivalence
 eri
 erik
+erlendir
 erlendirme
+erlendirmesi
 erler
 erlerden
 erleri
@@ -1041,8 +1074,10 @@ file
 filename
 files
 fill
+filler
 filter
 filters
+filtre
 final
 find
 fingerprint
@@ -1060,6 +1095,7 @@ fixtures
 flag
 flags
 flash
+flask
 flat
 flatten
 flex
@@ -1106,6 +1142,7 @@ fractions
 fragments
 frame
 framer
+frames
 freeze
 frekans
 frequency
@@ -1131,6 +1168,7 @@ gasyon
 gate
 gated
 gates
+gecmisi
 gelen
 geli
 gelip
@@ -1203,13 +1241,18 @@ grouping
 groups
 grow
 gruplama
+gruplar
 gtk
 guard
 guards
 guide
+guncelleme
 hafta
+hakk
+hakkinda
 hale
 hali
+halo
 handle
 handled
 handler
@@ -1253,6 +1296,7 @@ hedeflemesi
 hedefler
 height
 heights
+help
 helper
 helpers
 hepsi
@@ -1275,6 +1319,7 @@ hissi
 histogram
 historical
 history
+hit
 hizalamas
 hold
 home
@@ -1303,6 +1348,7 @@ hwnd
 hydrate
 hydration
 hyphen
+icerik
 ici
 icns
 ico
@@ -1318,6 +1364,7 @@ ids
 ifadeyi
 ifle
 ifremi
+ifti
 ignore
 ignores
 ihlali
@@ -1332,6 +1379,7 @@ ile
 ilebilirlik
 ilen
 iletildi
+ilk
 ilkeleri
 ilken
 illustration
@@ -1353,6 +1401,7 @@ inactive
 inbox
 incele
 inceleme
+inceler
 incident
 incidents
 include
@@ -1369,6 +1418,7 @@ indexed
 indexes
 indicator
 indigo
+indirme
 ine
 infer
 infinite
@@ -1404,6 +1454,7 @@ instream
 instrum
 instrument
 instrumentation
+instruments
 int
 integer
 integration
@@ -1485,6 +1536,9 @@ kampanyalar
 kan
 kanal
 kanala
+kanali
+kanallar
+kanitli
 kanonik
 kap
 kapan
@@ -1502,10 +1556,13 @@ karmak
 kart
 kartlar
 kartmak
+kategor
 kategori
 kategoride
 katman
+katmani
 katmanl
+katmanlar
 kay
 kaybolma
 kayd
@@ -1530,10 +1587,12 @@ kilitle
 kilitli
 kill
 kim
+kimlik
 kind
 kinds
 kit
 kitleye
+klama
 klar
 klavye
 kleme
@@ -1546,6 +1605,7 @@ kohort
 kolonu
 kompozit
 komuta
+komutlar
 kon
 konfigi
 konsol
@@ -1616,6 +1676,7 @@ leri
 lerp
 less
 let
+leti
 letim
 letmesi
 level
@@ -1665,6 +1726,7 @@ live
 livekit
 lleri
 lmas
+lmayacaklar
 load
 loader
 loading
@@ -1701,12 +1763,16 @@ luklar
 luminance
 mac
 machine
+madde
+maddesi
 maestro
 main
 maintenance
+makalesi
 make
 makine
 making
+maksimum
 malformed
 malware
 manag
@@ -1747,6 +1813,7 @@ maximize
 maya
 maybe
 mdaki
+mde
 measure
 measurement
 media
@@ -1780,12 +1847,15 @@ messaging
 meta
 metadata
 meter
+metered
 method
 methods
 metin
+metinler
 metric
 metrics
 metrik
+metrikleri
 metro
 mevcut
 mezireli
@@ -1813,6 +1883,7 @@ minimize
 minimum
 mint
 minutes
+misin
 mismatch
 missed
 missing
@@ -1821,6 +1892,7 @@ mjs
 mkdir
 mlar
 mlara
+mle
 mlede
 mleri
 mob
@@ -1837,6 +1909,7 @@ mode
 model
 modeli
 modelini
+modeller
 modelleri
 moderasyon
 moderation
@@ -1876,11 +1949,14 @@ muted
 mutex
 mutual
 mutuals
+muyuz
 mvp
+mza
 nabilecek
 name
 named
 names
+nan
 narrow
 nas
 nativ
@@ -1893,21 +1969,26 @@ navigatio
 navigation
 navigator
 nce
+ncel
 ncelik
+ncelleme
 ncellemesi
 ncesi
 nda
 ndal
 ndan
+nde
 ndeki
 nder
 nderim
 ndermiyor
+ndirme
 near
 nedeni
 needs
 neler
 neleri
+nemli
 nerede
 neri
 nerilen
@@ -1920,6 +2001,7 @@ netinfo
 network
 neutral
 new
+newer
 next
 nextauth
 nextauthjs
@@ -1928,6 +2010,7 @@ neyi
 nickname
 ninja
 nizleme
+nizlemesi
 nizleyici
 nler
 nmas
@@ -1938,6 +2021,7 @@ noise
 noktas
 non
 nonce
+nonces
 none
 nonempty
 noop
@@ -1970,6 +2054,9 @@ object
 objective
 obse
 observability
+observe
+observer
+observers
 obvious
 occupancy
 odaklanarak
@@ -1982,7 +2069,9 @@ offline
 offs
 offset
 okuma
+okunanlar
 okundu
+okur
 olan
 olarak
 olaylar
@@ -1994,6 +2083,7 @@ olu
 omissions
 omurgas
 onay
+onayi
 onboarding
 once
 one
@@ -2068,6 +2158,7 @@ paginate
 paginated
 pagination
 paint
+paketi
 paketini
 paketler
 palet
@@ -2114,11 +2205,13 @@ patterns
 payla
 payload
 payloads
+peek
 peer
 penceresi
 pending
 percent
 percentile
+percentiles
 perf
 perform
 performance
@@ -2158,6 +2251,7 @@ plain
 plaintext
 plan
 plandan
+planinin
 planlar
 plans
 platform
@@ -2183,10 +2277,12 @@ poll
 polygon
 pool
 popover
+popular
 popup
 port
 portlar
 position
+positions
 positive
 posix
 post
@@ -2270,6 +2366,7 @@ promoted
 promotion
 prompt
 prompts
+promptun
 promptunun
 proof
 properties
@@ -2289,10 +2386,13 @@ proxy
 prune
 pseudo
 ptt
+puanla
+puanlama
 pub
 public
 publication
 publish
+published
 publisher
 pull
 pulse
@@ -2329,6 +2429,7 @@ random
 range
 rank
 rapor
+rapora
 raporcuya
 raporda
 rapordan
@@ -2514,6 +2615,7 @@ resume
 retention
 retilmi
 retired
+retried
 retry
 retryable
 returned
@@ -2532,11 +2634,13 @@ rework
 rewrite
 rgba
 rich
+right
 ring
 ringing
 rings
 risk
 riskler
+risklerini
 riskli
 risks
 rlama
@@ -2601,6 +2705,7 @@ runtime
 rust
 rustsec
 rustup
+sabit
 sabitleme
 sabitlenir
 saf
@@ -2613,6 +2718,7 @@ saklama
 salt
 same
 sample
+samples
 sampling
 sanitize
 sanitized
@@ -2623,7 +2729,9 @@ sarp
 sat
 save
 saved
+sayfa
 sayfalama
+sayfalar
 sayfas
 sayol
 scale
@@ -2692,6 +2800,7 @@ send
 sendable
 sender
 sending
+sends
 senkron
 senkronu
 sensitive
@@ -2708,6 +2817,7 @@ server
 servers
 service
 services
+servis
 servisi
 servisler
 servisleri
@@ -2738,6 +2848,7 @@ sharp
 sheet
 sheets
 shell
+shells
 shield
 shim
 ship
@@ -2754,6 +2865,7 @@ sidebar
 sign
 signal
 signalling
+signals
 signature
 signatures
 signed
@@ -2788,6 +2900,7 @@ slots
 slow
 slug
 slugify
+small
 smoke
 snap
 snapshot
@@ -2800,6 +2913,7 @@ sohbet
 sohbeti
 sol
 solo
+son
 sonra
 sonraki
 sonras
@@ -2810,6 +2924,7 @@ sorgu
 sort
 sortable
 sorulara
+sorun
 sorunlar
 sorununun
 sosyal
@@ -2818,6 +2933,10 @@ source
 sources
 spa
 spacing
+span
+spans
+spark
+speaker
 speaking
 spec
 specifiers
@@ -2826,6 +2945,7 @@ specs
 speed
 spesifikasyonu
 spike
+spinner
 splash
 split
 spring
@@ -2847,6 +2967,8 @@ staging
 stale
 stalled
 standartlar
+star
+stars
 start
 started
 starter
@@ -2869,7 +2991,9 @@ stemci
 stenen
 step
 steps
+sticky
 still
+stl
 stop
 stopped
 stopping
@@ -2912,6 +3036,7 @@ succeeded
 success
 successful
 suffix
+suffixes
 suggestion
 suggestions
 suite
@@ -2922,6 +3047,7 @@ summarize
 summary
 sunucu
 sunucular
+sunucusu
 sunum
 superpowers
 supplied
@@ -2932,6 +3058,7 @@ supports
 suppression
 surface
 surfaces
+surum
 suspend
 suspended
 svg
@@ -2991,6 +3118,7 @@ team
 teams
 technology
 tek
+teknoloji
 tel
 telemetri
 telemetrisi
@@ -3000,6 +3128,7 @@ teman
 temel
 temeli
 temizleme
+temizlik
 temmuz
 temp
 template
@@ -3017,6 +3146,7 @@ test
 testi
 testid
 testing
+testler
 testleri
 tests
 text
@@ -3048,6 +3178,7 @@ tier
 tile
 tiles
 time
+timeline
 timeout
 timer
 timers
@@ -3057,6 +3188,7 @@ tint
 tints
 tip
 tipi
+tipler
 tipografi
 tir
 tiraz
@@ -3077,6 +3209,7 @@ toasts
 today
 toggle
 toggles
+tohum
 token
 tokenized
 tokenlar
@@ -3093,6 +3226,7 @@ tools
 tooltip
 top
 topic
+topics
 toplayarak
 topluluk
 total
@@ -3127,10 +3261,12 @@ tree
 trend
 treni
 triage
+triangle
 tries
 trigger
 trigram
 trigrams
+trim
 trimmed
 triples
 troubleshooting
@@ -3159,6 +3295,7 @@ turnstile
 turu
 turulacak
 turulan
+tutuyor
 tuzaklar
 two
 type
@@ -3194,6 +3331,7 @@ unguarded
 uninstaller
 unique
 unit
+units
 universal
 unix
 unknown
@@ -3245,12 +3383,14 @@ using
 utc
 utilities
 utils
+uyar
 uygula
 uygulama
 uygulamada
 uygulamadan
 uygulamalar
 uygulamalarda
+uygulaman
 uygulamas
 uygulamay
 uygulanamaz
@@ -3327,6 +3467,8 @@ vulnerability
 wait
 waits
 walk
+warm
+warmed
 warn
 warning
 warnings
@@ -3365,6 +3507,7 @@ windowing
 windows
 winner
 wip
+wipe
 wire
 wired
 wiring
@@ -3383,6 +3526,7 @@ worktree
 wrap
 wrapper
 wrapping
+wrench
 write
 writer
 writers
@@ -3401,6 +3545,9 @@ yap
 yapar
 yapmadan
 yapmal
+yard
+yardim
+yasal
 yaz
 yazar
 yazma
@@ -3411,17 +3558,21 @@ yeni
 yeniden
 yenileme
 yenilemesi
+yenilikler
 yerel
+yerle
 yesterda
 yesterday
 yet
 yetenekler
 yetki
+yla
 yml
 yok
 yol
 yollar
 yolu
+yonetimi
 yor
 yorum
 yoruz
@@ -3435,12 +3586,14 @@ zeltmeler
 zeltmeleri
 zeltmesi
 zem
+zemini
 zen
 zeni
 zenle
 zenlendi
 zer
 zere
+zerinde
 zero
 zet
 zeti
@@ -3458,3 +3611,4 @@ zoom
 zorunlu
 zorunlulu
 zustand
+üçü

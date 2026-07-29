@@ -54,17 +54,7 @@ function AboutRouteShell({
   );
 }
 
-export function MobileAboutWhatsNewScreen({ onBack }: { readonly onBack: () => void }) {
-  const { locale } = useMobileLocaleRuntime();
-
-  return (
-    <AboutRouteShell
-      onBack={onBack}
-      testID="mobile-about-whats-new-screen"
-      title={mobileCopy[locale].whatsNewTitle}
-    />
-  );
-}
+export { MobileAboutWhatsNewScreen } from "./about-whats-new-screen";
 
 export function MobileAboutReleaseNoteScreen({
   onBack,
