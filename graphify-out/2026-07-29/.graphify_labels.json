@@ -834,5 +834,15 @@
   "832": "admin-campaigns.tsx",
   "833": "categories/route-logic.ts",
   "834": "snapshot-test-fixture.ts",
-  "835": "MessageItem.tsx"
+  "835": "MessageItem.tsx",
+  "836": "@auth/prisma-adapter",
+  "837": "@dnd-kit/utilities",
+  "838": "@hookform/resolvers",
+  "839": "jose",
+  "840": "livekit-server-sdk",
+  "841": "next-auth",
+  "842": "tailwind-merge",
+  "843": "@tanstack/react-query",
+  "844": "@tauri-apps/plugin-updater",
+  "845": "@wizards/ui"
 }

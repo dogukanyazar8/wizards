@@ -324,6 +324,18 @@ export function getMobilePerformanceFixtureSessionResetArgs(): readonly string[]
   return ["shell", "pm", "clear", androidPackageName];
 }
 
+export function getMobilePerformanceFreshInstallApkPath(
+  requestedPath: string | undefined = process.env.MOBILE_PERFORMANCE_FRESH_INSTALL_APK,
+): string {
+  const apkPath = requestedPath?.trim();
+  if (!apkPath) {
+    throw new EnvironmentBlockedError(
+      "Set MOBILE_PERFORMANCE_FRESH_INSTALL_APK to the fresh-install release APK path.",
+    );
+  }
+  return apkPath;
+}
+
 /** Android has accepted HOME only once another window owns foreground focus. */
 export function assertMobilePerformancePackageBackgrounded(activityDump: string): void {
   const currentFocus = activityDump.split(/\r?\n/u).find((line) => line.includes("mCurrentFocus="));
@@ -339,7 +351,25 @@ function establishFixtureSession(input: {
   readonly config: MobilePerformanceBenchmarkConfig;
   readonly serial: string;
 }): void {
-  readAdb(input.adbPath, input.serial, getMobilePerformanceFixtureSessionResetArgs());
+  try {
+    runCommand(input.adbPath, [
+      "-s",
+      input.serial,
+      ...getMobilePerformanceFixtureSessionResetArgs(),
+    ]);
+  } catch {
+    const apkPath = getMobilePerformanceFreshInstallApkPath();
+    if (!existsSync(apkPath)) {
+      throw new EnvironmentBlockedError("The fresh-install release APK path does not exist.");
+    }
+    try {
+      runCommand(input.adbPath, ["-s", input.serial, "uninstall", androidPackageName]);
+      runCommand(input.adbPath, ["-s", input.serial, "install", apkPath]);
+      checkDevicePreflight({ adbPath: input.adbPath, serial: input.serial });
+    } catch {
+      throw new EnvironmentBlockedError("Android fresh-install reset failed.");
+    }
+  }
   runMaestro({
     flow: "login",
     serial: input.serial,

@@ -4,6 +4,7 @@ import {
   assertMobilePerformanceUiHierarchyRemoved,
   assertMobilePerformancePackageBackgrounded,
   getMobilePerformanceFixtureSessionResetArgs,
+  getMobilePerformanceFreshInstallApkPath,
   getMobilePerformanceCacheFlow,
   getMobilePerformanceUiHierarchyPath,
   getMobilePerformanceUatFetchArgs,
@@ -35,6 +36,17 @@ describe("run-mobile-performance-benchmark", () => {
       "clear",
       "team.whispr.mobile",
     ]);
+  });
+
+  it("requires an explicit release artifact before a fresh-install reset", () => {
+    assert.equal(
+      getMobilePerformanceFreshInstallApkPath(" C:\\artifacts\\release.apk "),
+      "C:\\artifacts\\release.apk",
+    );
+    assert.throws(
+      () => getMobilePerformanceFreshInstallApkPath(""),
+      /fresh-install release APK path/u,
+    );
   });
 
   it("closes every one of the fifteen cache-hit opens", () => {
