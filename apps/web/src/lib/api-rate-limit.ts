@@ -81,6 +81,20 @@ export const API_RATE_LIMITS = {
   "mobile:auth-revoke": { limit: 60, windowSeconds: 10 * 60 },
   "mobile:auth-verification-email": { limit: 5, windowSeconds: 60 * 60 },
   "mobile:bootstrap": { limit: 120, windowSeconds: 60 },
+  /** 2c writes a preference, so it is a write budget rather than a read one. */
+  "mobile:app:channel": { limit: 20, windowSeconds: 60 },
+  "mobile:app:release-detail": { limit: 120, windowSeconds: 60 },
+  "mobile:app:releases": { limit: 60, windowSeconds: 60 },
+  "mobile:app:status": { limit: 60, windowSeconds: 60 },
+  /** "Denetle" is a button a frustrated user taps repeatedly; keep it cheap but bounded. */
+  "mobile:app:update": { limit: 60, windowSeconds: 60 },
+  "mobile:help:list": { limit: 60, windowSeconds: 60 },
+  /** 2e debounces at 300ms, so a fast typist is still well inside this. */
+  "mobile:help:search": { limit: 90, windowSeconds: 60 },
+  "mobile:help:view": { limit: 120, windowSeconds: 60 },
+  // A report stores logs, a screenshot and device details under a 90-day
+  // retention promise. A stuck retry loop must not become a flood of them.
+  "mobile:support:report": { limit: 5, windowSeconds: 10 * 60 },
   "mobile:admin:case-claim": { limit: 40, windowSeconds: 60 },
   "mobile:admin:case-detail": { limit: 120, windowSeconds: 60 },
   "mobile:admin:case-dismiss": { limit: 20, windowSeconds: 60 },

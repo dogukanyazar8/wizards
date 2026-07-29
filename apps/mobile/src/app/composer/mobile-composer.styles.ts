@@ -198,6 +198,9 @@ export const createMobileComposerStyles = (theme: MobileTheme) => {
     },
     dmChatRecordingWave: { flex: 1, minWidth: 0 },
     dmChatRecordingLockedHint: {
+      // The waveform keeps its measured width; the hint gives way on a narrow
+      // screen rather than pushing the bar out of the composer.
+      flexShrink: 1,
       color: theme.messaging.textSecondary,
       fontSize: 10.5,
       lineHeight: 14,

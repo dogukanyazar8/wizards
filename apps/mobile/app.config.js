@@ -175,6 +175,14 @@ module.exports = ({ config }) => {
       ],
       "expo-localization",
       [
+        // Message bodies are the one thing the app keeps out of AsyncStorage,
+        // which is not encrypted. SQLCipher is what lets them be cached locally
+        // at all: the database is encrypted at rest with a key that only ever
+        // lives in the keychain/keystore.
+        "expo-sqlite",
+        { useSQLCipher: true },
+      ],
+      [
         // Edge-to-edge draws the app behind the navigation bar. Android's contrast
         // scrim would paint a grey band over the themed background there, and it
         // also suppresses the runtime button style, so the app owns both instead:

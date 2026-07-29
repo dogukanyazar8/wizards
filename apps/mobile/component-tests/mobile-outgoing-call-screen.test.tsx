@@ -8,9 +8,16 @@ import {
   MobileOutgoingVideoCallScreen,
   MobileOutgoingVoiceCallScreen,
 } from "../src/app/screens/mobile-outgoing-call-screen";
-import { createMobileOutgoingCallStyles } from "../src/app/screens/mobile-outgoing-call-screen.styles";
-import { darkTheme, lightTheme } from "../src/design/themes";
-import type { MobileVoiceRoomState } from "../src/voice/mobile-voice-room-contract";
+import type {
+  MobileVoiceRoomParticipant,
+  MobileVoiceRoomState,
+} from "../src/voice/mobile-voice-room-contract";
+
+const cameraTrackRef = {
+  participant: {},
+  publication: {},
+  source: "camera",
+} as MobileVoiceRoomParticipant["cameraTrackRef"];
 
 function createRingingRoom(overrides: Partial<MobileVoiceRoomState> = {}): MobileVoiceRoomState {
   return {
@@ -41,7 +48,7 @@ function createRingingRoom(overrides: Partial<MobileVoiceRoomState> = {}): Mobil
 }
 
 describe("7a outgoing voice call screen", () => {
-  it("shows the callee, the ringing status and the encryption badge", async () => {
+  it("rings inside the room chrome: header, session strip and callee card", async () => {
     const view = await render(
       <MobileOutgoingVoiceCallScreen
         calleeName="ogi_uat"
@@ -52,11 +59,13 @@ describe("7a outgoing voice call screen", () => {
     );
 
     expect(view.getByTestId("mobile-outgoing-voice-call-screen")).toBeTruthy();
-    expect(view.getByText(copy.directCallTitle)).toBeTruthy();
-    expect(view.getByText(copy.directCallEncrypted)).toBeTruthy();
+    expect(view.getAllByText("ogi_uat").length).toBeGreaterThan(0);
+    expect(view.getByText(`${copy.directCallTitle} · ${copy.directCallEncrypted}`)).toBeTruthy();
     expect(view.getByText(copy.directCallEncryptedBadge)).toBeTruthy();
-    expect(view.getByText("ogi_uat")).toBeTruthy();
-    expect(view.getByText(copy.directCallRingingVoice)).toBeTruthy();
+    // The strip carries the ringing state the room would use for its connection.
+    expect(view.getByTestId("mobile-voice-session-strip")).toBeTruthy();
+    expect(view.getAllByText(copy.directCallRingingVoice).length).toBeGreaterThan(0);
+    expect(view.getByTestId("mobile-outgoing-call-pulse")).toBeTruthy();
     expect(view.getByText(copy.directCallLeaveMessageHint)).toBeTruthy();
   });
 
@@ -71,9 +80,9 @@ describe("7a outgoing voice call screen", () => {
       />,
     );
 
-    expect(view.getByTestId("mobile-outgoing-call-screen-share").props.accessibilityState).toMatchObject(
-      { disabled: true },
-    );
+    expect(
+      view.getByTestId("mobile-outgoing-call-screen-share").props.accessibilityState,
+    ).toMatchObject({ disabled: true });
 
     await fireEvent.press(view.getByTestId("mobile-outgoing-call-cancel"));
     expect(onCancelCall).toHaveBeenCalledTimes(1);
@@ -99,21 +108,22 @@ describe("7a outgoing voice call screen", () => {
     expect(onSelectVoiceAudioOutput).toHaveBeenCalledWith("speaker");
   });
 
-  it("locks the 7a avatar and dock geometry to the handoff values", () => {
-    const styles = createMobileOutgoingCallStyles(darkTheme);
+  it("hides the noise toggle until a handler is wired", async () => {
+    const view = await render(
+      <MobileOutgoingVoiceCallScreen
+        calleeName="ogi_uat"
+        onCancelCall={jest.fn()}
+        onToggleVoiceMute={async () => undefined}
+        voiceRoomState={createRingingRoom()}
+      />,
+    );
 
-    expect(styles.avatar).toMatchObject({ borderRadius: 44, height: 128, width: 128 });
-    expect(styles.avatarRingNear).toMatchObject({ borderRadius: 52, borderWidth: 2, top: -20 });
-    expect(styles.avatarRingMid).toMatchObject({ borderRadius: 68, top: -38 });
-    expect(styles.avatarRingFar).toMatchObject({ borderRadius: 84, top: -56 });
-    expect(styles.dock).toMatchObject({ borderRadius: 28, marginHorizontal: 16 });
-    expect(styles.dockButton).toMatchObject({ borderRadius: 20, height: 56, width: 56 });
-    expect(styles.screen.backgroundColor).toBe(darkTheme.surface.voiceRoom);
+    expect(view.queryByTestId("mobile-voice-noise-toggle")).toBeNull();
   });
 });
 
 describe("7b outgoing video call screen", () => {
-  it("labels the video ring and hides the preview chip until the camera is on", async () => {
+  it("labels the video ring and keeps the callee card until a camera goes live", async () => {
     const view = await render(
       <MobileOutgoingVideoCallScreen
         calleeName="ogi_uat"
@@ -124,80 +134,76 @@ describe("7b outgoing video call screen", () => {
     );
 
     expect(view.getByTestId("mobile-outgoing-video-call-screen")).toBeTruthy();
-    expect(view.getByText(copy.directCallVideoTitle)).toBeTruthy();
-    expect(view.getByText(copy.directCallRingingVideo)).toBeTruthy();
-    expect(view.queryByTestId("mobile-outgoing-video-call-preview-chip")).toBeNull();
+    expect(
+      view.getByText(`${copy.directCallVideoTitle} · ${copy.directCallEncrypted}`),
+    ).toBeTruthy();
+    expect(view.getAllByText(copy.directCallRingingVideo).length).toBeGreaterThan(0);
+    expect(view.getByTestId("mobile-outgoing-video-call-callee")).toBeTruthy();
+    // The voice-only hint belongs to 7a.
+    expect(view.queryByText(copy.directCallLeaveMessageHint)).toBeNull();
   });
 
-  it("shows the self-preview chip and enables the flip control with the camera on", async () => {
+  it("hands the stage to the self camera once it publishes", async () => {
     const view = await render(
       <MobileOutgoingVideoCallScreen
         calleeName="ogi_uat"
         onCancelCall={jest.fn()}
         onToggleVoiceMute={async () => undefined}
-        voiceRoomState={createRingingRoom({ selfCameraEnabled: true })}
+        voiceRoomState={createRingingRoom({
+          participants: [
+            {
+              audioLevel: 0,
+              avatarUrl: null,
+              cameraTrackRef,
+              displayName: "You",
+              isCameraEnabled: true,
+              isMuted: false,
+              isScreenSharing: false,
+              isSelf: true,
+              isSpeaking: false,
+              userId: "self",
+              username: "me",
+            },
+          ],
+          selfCameraEnabled: true,
+        })}
       />,
     );
 
-    expect(view.getByTestId("mobile-outgoing-video-call-preview-chip")).toBeTruthy();
-    expect(view.getByText(copy.directCallCameraPreviewHint)).toBeTruthy();
-    expect(view.getByTestId("mobile-outgoing-video-call-flip").props.accessibilityState).toMatchObject(
-      { disabled: false },
+    expect(view.getByTestId("mobile-voice-stage")).toBeTruthy();
+    expect(view.queryByTestId("mobile-outgoing-video-call-callee")).toBeNull();
+  });
+
+  it("flips the camera from the self stage tile", async () => {
+    const onFlipVoiceCamera = jest.fn(async () => undefined);
+    const view = await render(
+      <MobileOutgoingVideoCallScreen
+        calleeName="ogi_uat"
+        onCancelCall={jest.fn()}
+        onFlipVoiceCamera={onFlipVoiceCamera}
+        onToggleVoiceMute={async () => undefined}
+        voiceRoomState={createRingingRoom({
+          participants: [
+            {
+              audioLevel: 0,
+              avatarUrl: null,
+              cameraTrackRef,
+              displayName: "You",
+              isCameraEnabled: true,
+              isMuted: false,
+              isScreenSharing: false,
+              isSelf: true,
+              isSpeaking: false,
+              userId: "self",
+              username: "me",
+            },
+          ],
+          selfCameraEnabled: true,
+        })}
+      />,
     );
-  });
 
-  it("locks the 7b callee card and glass dock to the handoff values", () => {
-    const styles = createMobileOutgoingCallStyles(darkTheme);
-
-    expect(styles.videoScreen.backgroundColor).toBe(darkTheme.surface.voiceRoomVideo);
-    expect(styles.videoCallee).toMatchObject({ top: 210, gap: 16 });
-    expect(styles.videoAvatar).toMatchObject({ borderRadius: 34, height: 96, width: 96 });
-    expect(styles.videoAvatarRingNear).toMatchObject({ borderRadius: 42, top: -16 });
-    expect(styles.videoAvatarRingFar).toMatchObject({ borderRadius: 54, top: -30 });
-    expect(styles.videoPreviewChip).toMatchObject({ bottom: 214 });
-    expect(styles.dockGlass).toMatchObject({ bottom: 16, left: 16, right: 16 });
-  });
-});
-
-describe("7a/7b theme parity", () => {
-  it("keeps every waiting-dock chip distinguishable from the dock in both themes", () => {
-    for (const theme of [lightTheme, darkTheme]) {
-      const styles = createMobileOutgoingCallStyles(theme);
-
-      // Regression: the light theme resolved dock and chips to the same white.
-      expect(styles.dockButton.backgroundColor).not.toBe(styles.dock.backgroundColor);
-      expect(styles.dockButtonActive.backgroundColor).not.toBe(styles.dockButton.backgroundColor);
-      expect(styles.headerButton.backgroundColor).not.toBe(theme.surface.voiceRoom);
-    }
-  });
-
-  it("uses readable muted copy on the light room surface", () => {
-    const light = createMobileOutgoingCallStyles(lightTheme);
-    const dark = createMobileOutgoingCallStyles(darkTheme);
-
-    expect(light.statusText.color).toBe(lightTheme.text.muted);
-    expect(light.hintPillText.color).toBe(lightTheme.text.muted);
-    expect(light.dockLabel.color).toBe(lightTheme.text.muted);
-    expect(dark.statusText.color).toBe(darkTheme.text.onInverseMuted);
-  });
-
-  it("keeps 7b chrome inverse-toned because it floats on the camera feed", () => {
-    for (const theme of [lightTheme, darkTheme]) {
-      const styles = createMobileOutgoingCallStyles(theme);
-
-      expect(styles.videoHeaderTitle.color).toBe(theme.text.onInverse);
-      expect(styles.videoHeaderSubtitle.color).toBe(theme.text.onInverseMuted);
-      expect(styles.videoName.color).toBe(theme.text.onInverse);
-      expect(styles.dockGlass.backgroundColor).toBe(theme.surface.inverse);
-      expect(styles.dockButtonGlass.backgroundColor).toBe(theme.surface.inverseControl);
-    }
-  });
-
-  it("draws the ring halo behind the avatar instead of a full-screen blob", () => {
-    const styles = createMobileOutgoingCallStyles(lightTheme);
-
-    expect(styles.stageHalo).toMatchObject({ height: 340, position: "absolute", width: 340 });
-    expect(styles.stageHalo).not.toHaveProperty("top");
-    expect(styles.stageHalo).not.toHaveProperty("left");
+    await fireEvent.press(view.getByTestId("mobile-voice-participant-self-flip"));
+    expect(onFlipVoiceCamera).toHaveBeenCalledTimes(1);
   });
 });

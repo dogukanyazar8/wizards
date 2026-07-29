@@ -64,15 +64,23 @@ export function MobileNetworkProvider({ children }: PropsWithChildren) {
 
   const applyNetworkState = useCallback(
     (state: {
+      readonly details?: { readonly isConnectionExpensive?: boolean | null } | null;
       readonly isConnected: boolean | null;
       readonly isInternetReachable: boolean | null;
+      readonly type?: string;
     }) => {
       const next = toMobileNetworkStatus({
         isConnected: state.isConnected ?? null,
         isInternetReachable: state.isInternetReachable ?? null,
       });
       setStatus(next);
-      setMobileNetworkStatusSnapshot(next);
+      setMobileNetworkStatusSnapshot(next, {
+        ...(state.details?.isConnectionExpensive === null ||
+        state.details?.isConnectionExpensive === undefined
+          ? {}
+          : { isExpensive: state.details.isConnectionExpensive }),
+        ...(state.type ? { type: state.type } : {}),
+      });
       onlineManager.setOnline(next !== "offline");
     },
     [],

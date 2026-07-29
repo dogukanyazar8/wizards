@@ -36,7 +36,6 @@ import { formatMobileMediaAssetMeta } from "../components/media-primitives";
 import { formatMobileAttachmentSize } from "../components/message-primitives";
 import {
   formatMobileVoiceDuration,
-  getMobileVoiceWaveformHeights,
   getMobileVoiceWaveformPath,
 } from "../components/message-voice-attachment";
 import { resolveMobileVoiceRecordGesture } from "../../media/mobile-voice-record-gesture";
@@ -59,7 +58,10 @@ import {
   type MobileMessageAttachmentUploadFailureCode,
 } from "../../media/mobile-message-attachment-upload-service";
 import { uploadMobileMessageAttachmentToUploadThing } from "../../media/mobile-message-attachment-upload";
-import { useMobileVoiceMessageRecorder } from "../../media/mobile-voice-message-recorder";
+import {
+  useMobileVoiceMessageRecorder,
+  type MobileVoiceMessageRecorder,
+} from "../../media/mobile-voice-message-recorder";
 import {
   applyMobileMentionSelection,
   filterMobileMentionCandidates,
@@ -142,11 +144,12 @@ export function DMComposer({
   );
   const [isChannelAttachmentUploading, setChannelAttachmentUploading] = useState(false);
   const voiceMessageRecorder = useMobileVoiceMessageRecorder();
-  const [voiceRecordingSeconds, setVoiceRecordingSeconds] = useState(0);
   // §2 "1h".3: once locked the finger is free — releasing the button must not
   // end the recording, so the flag is read from a ref inside the touch handlers.
   const [isRecordingLocked, setRecordingLocked] = useState(false);
   const isRecordingLockedRef = useRef(false);
+  /** True while a slide-to-cancel / slide-to-lock drag owns the touch. */
+  const voiceGestureActiveRef = useRef(false);
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [gifPickerOpen, setGifPickerOpen] = useState(false);
   // 10a: the caret position drives `@` detection. `onChangeText` fires before
@@ -235,16 +238,9 @@ export function DMComposer({
 
   useEffect(() => {
     if (!voiceMessageRecorder.isRecording) {
-      setVoiceRecordingSeconds(0);
       isRecordingLockedRef.current = false;
       setRecordingLocked(false);
-      return;
     }
-    const startedAt = Date.now();
-    const timer = setInterval(() => {
-      setVoiceRecordingSeconds(Math.floor((Date.now() - startedAt) / 1_000));
-    }, 1_000);
-    return () => clearInterval(timer);
   }, [voiceMessageRecorder.isRecording]);
 
   const handleSend = useCallback(() => {
@@ -496,13 +492,13 @@ export function DMComposer({
 
   const handleVoiceRecord = useCallback(async () => {
     if (voiceMessageRecorder.isRecording) {
-      try {
-        const picked = await voiceMessageRecorder.stop();
-        if (picked) {
-          await uploadChannelAttachment(async () => picked);
-        }
-      } catch {
+      const outcome = await voiceMessageRecorder.stop();
+      if (outcome.status === "recorded") {
+        await uploadChannelAttachment(async () => outcome.attachment);
+      } else if (outcome.status === "failed") {
         setChannelAttachmentUploadError(copy.composerVoiceRecordFailed);
+      } else if (outcome.status === "too-short") {
+        setChannelAttachmentUploadError(copy.composerVoiceTooShortNotice);
       }
       return;
     }
@@ -515,33 +511,47 @@ export function DMComposer({
     }
   }, [uploadChannelAttachment, voiceMessageRecorder]);
 
-  // 8b press-and-hold voice flow: release stops the recording, uploads it and
-  // sends the voice message immediately; sub-second recordings are dropped.
+  /**
+   * 8b press-and-hold voice flow: release stops the recording, uploads it and
+   * sends the voice message immediately; sub-second recordings are dropped.
+   *
+   * A release fires `onPressOut` and then `onPress`, so this runs twice for one
+   * gesture. `status: "idle"` is the second call finding nothing to stop, and it
+   * must stay silent — reporting it is what put "too short" and "could not be
+   * prepared" on screen back to back.
+   */
   const handleVoiceStopAndSend = useCallback(async () => {
-    if (!voiceMessageRecorder.isRecording) return;
+    const outcome = await voiceMessageRecorder.stop();
+    if (outcome.status === "idle") {
+      return;
+    }
+    if (outcome.status === "too-short") {
+      setChannelAttachmentUploadError(copy.composerVoiceTooShortNotice);
+      return;
+    }
+    if (outcome.status === "failed") {
+      setChannelAttachmentUploadError(copy.composerVoiceRecordFailed);
+      return;
+    }
+
     try {
-      const picked = await voiceMessageRecorder.stop();
-      if (!picked) {
-        setChannelAttachmentUploadError(copy.composerVoiceTooShortNotice);
-        return;
-      }
       if (!getAccessToken) {
         setChannelAttachmentUploadError(copy.composerVoiceRecordFailed);
         return;
       }
       setChannelAttachmentUploading(true);
-      const outcome = await executeMobileMessageAttachmentUpload({
+      const upload = await executeMobileMessageAttachmentUpload({
         dependencies: {
           getAccessToken,
-          pickAttachment: async () => picked,
+          pickAttachment: async () => outcome.attachment,
           uploadAttachment: uploadMobileMessageAttachmentToUploadThing,
         },
       });
       setChannelAttachmentUploading(false);
-      if (outcome.status === "ready") {
+      if (upload.status === "ready") {
         setChannelAttachmentUploadError(null);
-        void onSend("", [outcome.draft.input], [outcome.draft.attachment]);
-      } else if (outcome.status === "error") {
+        void onSend("", [upload.draft.input], [upload.draft.attachment]);
+      } else if (upload.status === "error") {
         setChannelAttachmentUploadError(copy.composerVoiceRecordFailed);
       }
     } catch {
@@ -572,7 +582,19 @@ export function DMComposer({
           voiceMessageRecorder.isRecording &&
           !isRecordingLockedRef.current &&
           (gesture.dx < -12 || gesture.dy < -12),
+        /**
+         * Claiming the touch terminates the mic `Pressable`, and a terminated
+         * press still fires `onPressOut` — which sends the take. Flagging the
+         * drag here is what lets `handlePrimaryPressOut` stand down so slide-left
+         * can actually cancel instead of sending what it meant to throw away.
+         */
+        onPanResponderGrant: () => {
+          voiceGestureActiveRef.current = true;
+        },
+        // Nothing above may take the touch back mid-drag and strand the take.
+        onPanResponderTerminationRequest: () => false,
         onPanResponderRelease: (_event, gesture) => {
+          voiceGestureActiveRef.current = false;
           if (!voiceMessageRecorder.isRecording) return;
           const outcome = resolveMobileVoiceRecordGesture({ dx: gesture.dx, dy: gesture.dy });
           if (outcome === "cancel") {
@@ -585,6 +607,9 @@ export function DMComposer({
             return;
           }
           void handleVoiceStopAndSend();
+        },
+        onPanResponderTerminate: () => {
+          voiceGestureActiveRef.current = false;
         },
       }),
     [handleCancelVoiceRecord, handleVoiceStopAndSend, voiceMessageRecorder.isRecording],
@@ -618,8 +643,9 @@ export function DMComposer({
         void handleSend();
         return;
       }
-      // Tap fallback for the mic: toggles recording so accessibility switch
-      // access still works; press-and-hold is handled by pressIn/pressOut.
+      // Tap fallback for the mic, so switch access can end a take. A release
+      // also fires pressOut first, so this often arrives with the take already
+      // stopped — `stop()` answers "idle" then, and nothing is reported.
       if (voiceMessageRecorder.isRecording) {
         void handleVoiceStopAndSend();
       }
@@ -635,6 +661,9 @@ export function DMComposer({
       // §2 "1h".3: a locked recording keeps going once the finger lifts; only a
       // tap on this button (handled above) or the delete button ends it.
       if (isRecordingLockedRef.current) return;
+      // A slide claimed the touch, which terminated this press. The drag decides
+      // cancel/lock/send on release — sending here would beat it to it.
+      if (voiceGestureActiveRef.current) return;
       void handleVoiceStopAndSend();
     };
     const primaryTestId = hasSendableContent
@@ -698,9 +727,8 @@ export function DMComposer({
           )}
           {voiceMessageRecorder.isRecording ? (
             <ComposerVoiceRecordingField
-              levels={voiceMessageRecorder.levels}
               locked={isRecordingLocked}
-              seconds={voiceRecordingSeconds}
+              recorder={voiceMessageRecorder}
             />
           ) : (
             <View style={styles.dmChatComposerInputShell}>
@@ -733,7 +761,7 @@ export function DMComposer({
               </Pressable>
             </View>
           )}
-          <View {...voiceCancelResponder.panHandlers}>
+          <View {...voiceCancelResponder.panHandlers} testID="mobile-dm-voice-record-gesture">
             <Pressable
               accessibilityLabel={
                 voiceMessageRecorder.isRecording
@@ -905,9 +933,8 @@ export function DMComposer({
           )}
           {voiceMessageRecorder.isRecording ? (
             <ComposerVoiceRecordingField
-              levels={voiceMessageRecorder.levels}
               locked={isRecordingLocked}
-              seconds={voiceRecordingSeconds}
+              recorder={voiceMessageRecorder}
             />
           ) : (
             <View style={styles.dmChatComposerInputShell}>
@@ -970,6 +997,8 @@ export function DMComposer({
               }
               accessibilityState={{ disabled: isChannelVoiceUnavailable }}
               disabled={isChannelVoiceUnavailable}
+              // pressOut usually ended the take already; `stop()` reports "idle"
+              // for this second call, so it stays a no-op rather than a toast.
               onPress={() => {
                 if (voiceMessageRecorder.isRecording) void handleVoiceStopAndSend();
               }}
@@ -1331,28 +1360,61 @@ export function getMobileVoiceRecordingBarHeights(
   });
 }
 
+/**
+ * §2 "1h".2 record dot. A full second per beat read as a stall next to a
+ * waveform moving ten times faster, so the blink is quicker than the handoff's
+ * "once a second" — the point of the dot is liveness.
+ */
+const VOICE_RECORDING_PULSE_DURATION_MS = 340;
+
+/**
+ * The recording bar owns the two things that change while a take runs — the
+ * loudness window and the elapsed seconds — so neither re-renders the composer
+ * around it. Sampling is 10Hz; driving that through the composer redrew the
+ * attachment chips, mention panel and sheets on every sample, which is what made
+ * the whole screen look like it was struggling.
+ */
 function ComposerVoiceRecordingField({
-  levels = [],
   locked,
-  seconds,
+  recorder,
 }: {
-  /** Newest-last loudness samples, 0…1, straight off the recorder. */
-  readonly levels?: readonly number[] | undefined;
   readonly locked: boolean;
-  readonly seconds: number;
+  readonly recorder: Pick<
+    MobileVoiceMessageRecorder,
+    "getLevels" | "isRecording" | "subscribeToLevels"
+  >;
 }) {
   const styles = useMobileComposerStyles();
   const theme = useTheme();
   const reducedMotion = useReducedMotion() === true;
   const pulse = useSharedValue(1);
+  const [levels, setLevels] = useState<readonly number[]>(() => recorder.getLevels());
+  const [seconds, setSeconds] = useState(0);
+
+  useEffect(() => {
+    setLevels(recorder.getLevels());
+    return recorder.subscribeToLevels(setLevels);
+  }, [recorder]);
+
+  useEffect(() => {
+    const startedAt = Date.now();
+    setSeconds(0);
+    const timer = setInterval(() => {
+      setSeconds(Math.floor((Date.now() - startedAt) / 1_000));
+    }, 1_000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (reducedMotion) {
       pulse.value = 1;
       return;
     }
-    // §2 "1h".2: the record dot pulses once a second.
-    pulse.value = withRepeat(withTiming(0.35, { duration: 500 }), -1, true);
+    pulse.value = withRepeat(
+      withTiming(0.3, { duration: VOICE_RECORDING_PULSE_DURATION_MS }),
+      -1,
+      true,
+    );
   }, [pulse, reducedMotion]);
 
   const dotStyle = useAnimatedStyle(() => ({ opacity: pulse.value }));
@@ -1413,11 +1475,19 @@ function ComposerVoiceRecordingField({
           ) : null}
         </Svg>
       </View>
-      {locked ? (
-        <Text numberOfLines={1} style={styles.dmChatRecordingLockedHint}>
-          {copy.dmChatVoiceRecordLockedLabel}
-        </Text>
-      ) : null}
+      {/*
+       * §2 "1h".3: while the finger is down the trash button sits under it and
+       * cannot be tapped, so the only way out is the drag — and a gesture nobody
+       * is told about is not a way out. Locked swaps the hint for the state,
+       * because by then the finger is free and the trash is reachable.
+       */}
+      <Text
+        numberOfLines={1}
+        style={styles.dmChatRecordingLockedHint}
+        testID="mobile-dm-voice-recording-hint"
+      >
+        {locked ? copy.dmChatVoiceRecordLockedLabel : copy.dmChatVoiceRecordCancelHint}
+      </Text>
     </View>
   );
 }

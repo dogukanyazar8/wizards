@@ -6,7 +6,8 @@ import {
   MOBILE_HEALTH_FLUSH_INTERVAL_MS,
   type MobileHealthReporter,
 } from "../../performance/mobile-health-reporter";
-import { getMobilePerformanceMetricsSnapshot } from "../../performance/mobile-performance-metrics";
+import { drainMobilePerformanceSamples } from "../../performance/mobile-performance-metrics";
+import { resolveMobileTelemetryDimensions } from "../../performance/mobile-telemetry-dimensions";
 
 const CLIENT_HEALTH_PATH = "/api/v1/telemetry/client-health";
 
@@ -32,7 +33,10 @@ export function MobileHealthReporterBridge() {
     reporterRef.current = reporter;
 
     function collectAndFlush() {
-      reporter.enqueueMetrics(getMobilePerformanceMetricsSnapshot());
+      // Draining, not snapshotting: the old snapshot was re-enqueued on every
+      // tick, so the backend received the same measurement once a minute for as
+      // long as the app stayed open.
+      reporter.enqueueMetrics(drainMobilePerformanceSamples(), resolveMobileTelemetryDimensions);
       void reporter.flush();
     }
 

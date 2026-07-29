@@ -1,16 +1,22 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Animated, Easing, Pressable, Text } from "react-native";
+import { useCallback, useContext, useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Animated, Easing, Pressable, Text, View } from "react-native";
+import { SafeAreaInsetsContext } from "react-native-safe-area-context";
 
-import type { MobileTheme } from "../../design/themes";
+import { MobileLineIcon, type MobileLineIconName } from "../../design/mobile-line-icons";
+import type { MobileTheme, MobileToastVariantId } from "../../design/themes";
 import { activeMobileCopy as copy } from "../../locale/mobile-locale-preferences";
 import {
   isMobileConnectivityDegradedPhase,
   type MobileConnectivityPhase,
 } from "../mobile-connectivity-presentation";
-import { useThemedStyles } from "../providers/mobile-theme-provider";
+import { useTheme, useThemedStyles } from "../providers/mobile-theme-provider";
+import { getMobileToastVariantPalette } from "./kit/toast-model";
 
 const BANNER_ENTER_MS = 200;
-const DOT_PULSE_MS = 900;
+const GLYPH_SPIN_MS = 900;
+
+/** Same gap the toast keeps under the status bar, so both read as one system. */
+const BANNER_TOP_GAP = 12;
 
 /**
  * How long the button stays in its "trying" state after a retry was asked for.
@@ -32,64 +38,109 @@ const PHASE_TEST_ID: Record<Exclude<MobileConnectivityPhase, "hidden">, string> 
   restored: "mobile-connectivity-restored",
 };
 
+/**
+ * Connectivity borrows the toast's tone vocabulary rather than inventing one.
+ *
+ * The card, the title and the geometry are identical across both surfaces;
+ * colour reaches only the glyph tile and the action button, which is the rule
+ * handoff 3b set for every temporary message the app makes. A second palette
+ * here would be a second answer to a question already answered.
+ */
+const PHASE_VARIANT: Record<Exclude<MobileConnectivityPhase, "hidden">, MobileToastVariantId> = {
+  failed: "error",
+  offline: "warning",
+  reconnecting: "loading",
+  restored: "success",
+};
+
+const PHASE_ICON: Record<Exclude<MobileConnectivityPhase, "hidden">, MobileLineIconName> = {
+  failed: "alert-triangle",
+  offline: "globe",
+  reconnecting: "loader-arc",
+  restored: "check",
+};
+
+/** The arc is the only glyph that moves, exactly as in the toast. */
+const PHASE_STROKE_WIDTH: Record<Exclude<MobileConnectivityPhase, "hidden">, number> = {
+  failed: 2.4,
+  offline: 2.2,
+  reconnecting: 2.4,
+  restored: 2.6,
+};
+
 const createStyles = (theme: MobileTheme) => ({
-  action: {
+  /**
+   * The toast card, held open.
+   *
+   * This used to be a full-bleed tinted strip with a hairline under it — the
+   * inline-banner shape handoff 3a replaced everywhere else in the app, so the
+   * one surface that reports an outage was also the one surface that did not
+   * look like the product. Same radius, same padding, same elevation, same
+   * width cap as the toast; the only difference is that this card is a state
+   * rather than a message, so it stays until the state ends.
+   */
+  card: {
     alignItems: "center" as const,
-    backgroundColor: theme.surface.card,
-    borderRadius: theme.radii.pill,
-    borderWidth: theme.layout.border.hairline,
-    borderColor: theme.border.subtle,
+    alignSelf: "center" as const,
+    backgroundColor: theme.toast.card,
+    borderColor: theme.toast.cardBorder,
+    borderRadius: 18,
+    borderWidth: 1,
     flexDirection: "row" as const,
-    gap: 6,
-    justifyContent: "center" as const,
-    minHeight: 30,
-    paddingHorizontal: 12,
+    gap: 12,
+    maxWidth: theme.sizing.maxInlineContentWidth,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    width: "100%" as const,
+    ...theme.elevation.toast,
   },
-  actionDisabled: { opacity: theme.layout.opacity.disabled },
-  actionLabel: {
-    ...theme.typography.label,
-    color: theme.text.primary,
-  },
-  actionPressed: { opacity: theme.layout.opacity.pressed },
-  banner: {
-    alignItems: "center" as const,
-    borderBottomWidth: theme.layout.border.hairline,
-    flexDirection: "row" as const,
-    gap: 10,
-    minHeight: theme.sizing.minTouchTarget,
-    paddingHorizontal: theme.spacing.page,
-    paddingVertical: 7,
+  /**
+   * The bar is mounted above the shell, and the shell is what owns the top edge
+   * for the screens — so nothing had padded this one. It drew from y=0, straight
+   * under the Android status bar: the title sat behind the clock, the retry
+   * behind the battery icon, and the system bar swallowed the tap.
+   */
+  viewport: {
+    paddingHorizontal: theme.spacing.section,
     width: "100%" as const,
     zIndex: 90,
   },
-  bannerFailed: {
-    backgroundColor: theme.status.dangerSoft,
-    borderBottomColor: theme.status.danger,
+  iconTile: {
+    alignItems: "center" as const,
+    borderRadius: 14,
+    flexGrow: 0,
+    flexShrink: 0,
+    height: 38,
+    justifyContent: "center" as const,
+    width: 38,
   },
-  bannerOffline: {
-    backgroundColor: theme.status.warningSoft,
-    borderBottomColor: theme.status.warning,
-  },
-  bannerReconnecting: {
-    backgroundColor: theme.status.warningSoft,
-    borderBottomColor: theme.status.warning,
-  },
-  bannerRestored: {
-    backgroundColor: theme.status.successSoft,
-    borderBottomColor: theme.status.success,
-  },
-  dot: { borderRadius: 4, height: 8, width: 8 },
-  dotFailed: { backgroundColor: theme.status.danger },
-  dotOffline: { backgroundColor: theme.status.warning },
-  dotReconnecting: { backgroundColor: theme.status.warning },
-  dotRestored: { backgroundColor: theme.status.success },
   title: {
-    color: theme.status.onStatus,
+    color: theme.toast.title,
     flex: 1,
     fontFamily: theme.typography.fontFamilyExtraBold,
-    fontSize: 13,
+    fontSize: 14,
+    includeFontPadding: false,
+    lineHeight: 19,
     minWidth: 0,
   },
+  action: {
+    alignItems: "center" as const,
+    borderRadius: 12,
+    flexDirection: "row" as const,
+    flexGrow: 0,
+    flexShrink: 0,
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  actionDisabled: { opacity: theme.layout.opacity.disabled },
+  actionLabel: {
+    fontFamily: theme.typography.fontFamilyExtraBold,
+    fontSize: 12.5,
+    includeFontPadding: false,
+    lineHeight: 16,
+  },
+  actionPressed: { opacity: theme.layout.opacity.pressed },
 });
 
 type BannerStyles = ReturnType<typeof useThemedStyles<ReturnType<typeof createStyles>>>;
@@ -107,24 +158,11 @@ function getPhaseTitle(phase: Exclude<MobileConnectivityPhase, "hidden">): strin
   }
 }
 
-function getPhaseStyles(phase: Exclude<MobileConnectivityPhase, "hidden">, styles: BannerStyles) {
-  switch (phase) {
-    case "failed":
-      return { banner: styles.bannerFailed, dot: styles.dotFailed };
-    case "offline":
-      return { banner: styles.bannerOffline, dot: styles.dotOffline };
-    case "restored":
-      return { banner: styles.bannerRestored, dot: styles.dotRestored };
-    default:
-      return { banner: styles.bannerReconnecting, dot: styles.dotReconnecting };
-  }
-}
-
 /**
  * The single connectivity surface: network loss, socket reconnects, a spent
- * retry budget and recovery all speak through one bar, in that priority order.
+ * retry budget and recovery all speak through one card, in that priority order.
  *
- * The bar states the situation in one line and offers the only action that can
+ * The card states the situation in one line and offers the only action that can
  * change it. It used to spend a second line explaining what still works while
  * hiding the retry behind a state the user could not observe — so an outage read
  * as a lecture with no way out. Whenever the connection is not carrying events
@@ -139,6 +177,8 @@ export function MobileConnectivityBanner({
   phase: MobileConnectivityPhase;
 }) {
   const styles = useThemedStyles(createStyles);
+  const theme = useTheme();
+  const safeAreaTop = useContext(SafeAreaInsetsContext)?.top ?? 0;
   const [retrying, setRetrying] = useState(false);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -171,76 +211,112 @@ export function MobileConnectivityBanner({
     return null;
   }
 
-  const phaseStyles = getPhaseStyles(phase, styles);
+  const palette = getMobileToastVariantPalette(theme, PHASE_VARIANT[phase]);
   const canRetry = isMobileConnectivityDegradedPhase(phase);
 
   return (
-    <ConnectivityBannerSurface phase={phase} style={[styles.banner, phaseStyles.banner]}>
-      <ConnectivityDot phase={phase} style={[styles.dot, phaseStyles.dot]} />
-      <Text numberOfLines={1} style={styles.title}>
-        {getPhaseTitle(phase)}
-      </Text>
-      {canRetry ? (
-        <Pressable
-          accessibilityLabel={copy.realtimeReconnectAction}
-          accessibilityRole="button"
-          accessibilityState={{ busy: retrying, disabled: retrying }}
-          disabled={retrying}
-          onPress={handleRetry}
-          style={({ pressed }) => [
-            styles.action,
-            retrying && styles.actionDisabled,
-            pressed && styles.actionPressed,
+    <ConnectivityBannerSurface
+      phase={phase}
+      style={[styles.viewport, { paddingTop: safeAreaTop + BANNER_TOP_GAP }]}
+    >
+      <View style={styles.card} testID="mobile-connectivity-card">
+        <View
+          style={[
+            styles.iconTile,
+            {
+              backgroundColor: palette.iconSurface,
+              ...(palette.iconBorder ? { borderColor: palette.iconBorder, borderWidth: 1 } : null),
+            },
           ]}
-          testID="mobile-connectivity-reconnect"
         >
-          {retrying ? <ActivityIndicator size="small" /> : null}
-          <Text style={styles.actionLabel}>
-            {retrying ? copy.realtimeRetryingAction : copy.realtimeReconnectAction}
-          </Text>
-        </Pressable>
-      ) : null}
+          <ConnectivityGlyph color={palette.iconColor} phase={phase} />
+        </View>
+        <Text numberOfLines={2} style={styles.title}>
+          {getPhaseTitle(phase)}
+        </Text>
+        {canRetry ? (
+          <Pressable
+            accessibilityLabel={copy.realtimeReconnectAction}
+            accessibilityRole="button"
+            accessibilityState={{ busy: retrying, disabled: retrying }}
+            disabled={retrying}
+            // The button is 32pt tall inside a 62pt card; the slop hands it the
+            // card's own padding too, so the tap lands wherever a thumb aims at
+            // the right-hand end.
+            hitSlop={{ bottom: 12, left: 14, right: 14, top: 12 }}
+            onPress={handleRetry}
+            style={({ pressed }) => [
+              styles.action,
+              { backgroundColor: palette.actionSurface },
+              retrying && styles.actionDisabled,
+              pressed && styles.actionPressed,
+            ]}
+            testID="mobile-connectivity-reconnect"
+          >
+            {retrying ? <ActivityIndicator color={palette.actionText} size="small" /> : null}
+            <Text style={[styles.actionLabel, { color: palette.actionText }]}>
+              {retrying ? copy.realtimeRetryingAction : copy.realtimeReconnectAction}
+            </Text>
+          </Pressable>
+        ) : null}
+      </View>
     </ConnectivityBannerSurface>
   );
 }
 
-/** Only a state the app is actively working on breathes; a settled one holds still. */
-function ConnectivityDot({
+/** Only a state the app is actively working on moves; a settled one holds still. */
+function ConnectivityGlyph({
+  color,
   phase,
-  style,
 }: {
+  color: string;
   phase: Exclude<MobileConnectivityPhase, "hidden">;
-  style: object[];
 }) {
-  const pulse = useRef(new Animated.Value(1)).current;
+  const spin = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (phase !== "reconnecting") {
-      pulse.setValue(1);
       return;
     }
 
+    spin.setValue(0);
     const animation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, {
-          duration: DOT_PULSE_MS,
-          easing: Easing.inOut(Easing.quad),
-          toValue: 0.35,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulse, {
-          duration: DOT_PULSE_MS,
-          easing: Easing.inOut(Easing.quad),
-          toValue: 1,
-          useNativeDriver: true,
-        }),
-      ]),
+      Animated.timing(spin, {
+        duration: GLYPH_SPIN_MS,
+        easing: Easing.linear,
+        toValue: 1,
+        useNativeDriver: true,
+      }),
     );
     animation.start();
     return () => animation.stop();
-  }, [phase, pulse]);
+  }, [phase, spin]);
 
-  return <Animated.View style={[...style, { opacity: pulse }]} />;
+  const glyph = (
+    <MobileLineIcon
+      color={color}
+      name={PHASE_ICON[phase]}
+      size={17}
+      strokeWidth={PHASE_STROKE_WIDTH[phase]}
+    />
+  );
+
+  if (phase !== "reconnecting") {
+    return glyph;
+  }
+
+  return (
+    <Animated.View
+      style={{
+        transform: [
+          { rotate: spin.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] }) },
+        ],
+      }}
+      testID="mobile-connectivity-spinner"
+    >
+      {glyph}
+    </Animated.View>
+  );
 }
 
 /**

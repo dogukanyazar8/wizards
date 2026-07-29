@@ -151,10 +151,10 @@ describe("mobile settings display model", () => {
         targetCount: 4,
       },
       releaseBudgets: [
-        { label: "Startup", metric: "startup", target: "<= 2500ms" },
-        { label: "Resume", metric: "resume", target: "<= 700ms" },
-        { label: "Composer", metric: "composer", target: "p95 <= 50ms" },
-        { label: "Memory", metric: "memory", target: "<= 180MB" },
+        { label: "Startup", maxMs: 2_500, metric: "startup", target: "<= 2500ms" },
+        { label: "Resume", maxMs: 700, metric: "resume", target: "<= 700ms" },
+        { label: "Composer", maxMs: 50, metric: "composer", target: "p95 <= 50ms" },
+        { label: "Memory", maxMs: 180, metric: "memory", target: "<= 180MB" },
       ],
     });
 

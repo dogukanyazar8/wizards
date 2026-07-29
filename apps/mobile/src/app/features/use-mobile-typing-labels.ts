@@ -2,34 +2,47 @@ import { useMemo } from "react";
 import {
   formatMobileChannelTypingLabel,
   getVisibleMobileChannelTypingUsers,
-  type MobileChannelTypingState,
   type MobileChannelTypingUser,
 } from "../../realtime/mobile-typing-state";
+import { useMobileTypingStore } from "../../state/mobile-typing-store";
 
-export function useMobileTypingLabels(input: {
-  readonly channelId: string | null;
-  readonly channelTyping: MobileChannelTypingState;
-  readonly conversationId: string | null;
-  readonly dmTyping: MobileChannelTypingState;
-}): {
+/**
+ * The channel header's "yazıyor" row.
+ *
+ * Reads the store at the surface that shows the label instead of taking it as a
+ * prop from the product root: typing arrives for every channel the viewer is in,
+ * and routing it through the root re-rendered the whole tree for a stranger
+ * typing somewhere the reader is not looking.
+ *
+ * Selects the raw channel map — a stable reference — and derives the visible
+ * users here. A selector that built the array itself would hand
+ * `useSyncExternalStore` a fresh snapshot on every read.
+ */
+export function useMobileChannelTypingLabels(channelId: string | null): {
   readonly channelTypingLabel: string | null;
   readonly channelTypingUsers: readonly MobileChannelTypingUser[];
-  readonly dmTypingLabel: string | null;
 } {
+  const channels = useMobileTypingStore((state) => state.channels);
   const channelTypingUsers = useMemo(
-    () => getVisibleMobileChannelTypingUsers(input.channelTyping, input.channelId),
-    [input.channelId, input.channelTyping],
+    () => getVisibleMobileChannelTypingUsers(channels, channelId),
+    [channelId, channels],
   );
-  const channelTypingLabel = useMemo(
-    () => formatMobileChannelTypingLabel(channelTypingUsers),
+
+  return useMemo(
+    () => ({
+      channelTypingLabel: formatMobileChannelTypingLabel(channelTypingUsers),
+      channelTypingUsers,
+    }),
     [channelTypingUsers],
   );
-  const dmTypingLabel = useMemo(
-    () =>
-      formatMobileChannelTypingLabel(
-        getVisibleMobileChannelTypingUsers(input.dmTyping, input.conversationId),
-      ),
-    [input.conversationId, input.dmTyping],
+}
+
+/** The DM header's "yazıyor" row, same rule as the channel one. */
+export function useMobileDMTypingLabel(conversationId: string | null): string | null {
+  const dms = useMobileTypingStore((state) => state.dms);
+
+  return useMemo(
+    () => formatMobileChannelTypingLabel(getVisibleMobileChannelTypingUsers(dms, conversationId)),
+    [conversationId, dms],
   );
-  return { channelTypingLabel, channelTypingUsers, dmTypingLabel };
 }

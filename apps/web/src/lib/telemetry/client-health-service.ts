@@ -44,11 +44,29 @@ export type ClientHealthAttribution = {
 
 export type ClientHealthStore = {
   clientHealthEvent: {
-    createMany(args: { data: Prisma.ClientHealthEventCreateManyInput[] }): Promise<{
+    createMany(args: {
+      data: Prisma.ClientHealthEventCreateManyInput[];
+      skipDuplicates?: boolean;
+    }): Promise<{
       count: number;
     }>;
   };
 };
+
+/**
+ * The id the client stamped on the measurement, if it sent one.
+ *
+ * The reporter retries a batch it may already have delivered, so the same sample
+ * can arrive twice; this is what the unique index dedupes on. Bounded to the
+ * column width, and anything that is not a plain string is ignored rather than
+ * coerced.
+ */
+function readSampleId(context: Record<string, unknown> | undefined): string | undefined {
+  const sampleId = context?.sampleId;
+  return typeof sampleId === "string" && sampleId.length > 0 && sampleId.length <= 64
+    ? sampleId
+    : undefined;
+}
 
 /**
  * Size is checked before shape: a body that is too large is refused without
@@ -88,16 +106,24 @@ export async function recordClientHealthEvents(
   }
 
   const result = await client.clientHealthEvent.createMany({
-    data: args.batch.events.map((event) => ({
-      appVersion: args.attribution.appVersion,
-      clientType: args.attribution.clientType,
-      ...(event.context ? { context: event.context as Prisma.InputJsonValue } : {}),
-      kind: event.kind,
-      os: args.attribution.os,
-      ...(event.surface ? { surface: event.surface } : {}),
-      userId: args.userId,
-      ...(event.valueMs === undefined ? {} : { valueMs: event.valueMs }),
-    })),
+    data: args.batch.events.map((event) => {
+      const sampleId = readSampleId(event.context);
+
+      return {
+        appVersion: args.attribution.appVersion,
+        clientType: args.attribution.clientType,
+        ...(event.context ? { context: event.context as Prisma.InputJsonValue } : {}),
+        kind: event.kind,
+        os: args.attribution.os,
+        ...(sampleId ? { sampleId } : {}),
+        ...(event.surface ? { surface: event.surface } : {}),
+        userId: args.userId,
+        ...(event.valueMs === undefined ? {} : { valueMs: event.valueMs }),
+      };
+    }),
+    // A retried flush must not double-count; the unique index on `sampleId` is
+    // what makes this safe rather than lossy.
+    skipDuplicates: true,
   });
 
   return { accepted: result.count };

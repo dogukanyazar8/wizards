@@ -4,12 +4,31 @@ import { prisma } from "@wizards/db";
 
 import { UNKNOWN_ATTRIBUTION, type ClientAttribution } from "@/lib/analytics/client-attribution";
 import { claimUploadedMessageAttachments } from "@/lib/messages/attachments";
-import { enqueueMessageCreatedAnalyticsJob } from "@/lib/outbox/service";
+import {
+  enqueueDMMessageNotificationJob,
+  enqueueMessageCreatedAnalyticsJob,
+} from "@/lib/outbox/service";
+
+import { getDMAttachmentLabelKey } from "./notification-service";
 
 import { dmMessageInclude, getDirectMessageConversationRealtimeViews } from "./service";
 
 export type DMRealtimeParticipant = {
   userId: string;
+};
+
+/**
+ * What the DM notification job needs beyond the message row. Supplied by senders
+ * that want the recipients told; the job is written by this transaction so a
+ * committed message cannot end up unannounced.
+ */
+export type DMMessageNotificationContext = {
+  participants: Array<{
+    muted: boolean;
+    user: { locale: string | null };
+    userId: string;
+  }>;
+  senderName: string;
 };
 
 export async function createRealtimeDMMessage(args: {
@@ -19,6 +38,7 @@ export async function createRealtimeDMMessage(args: {
   content: string;
   conversationId: string;
   forwardOfMessageId?: string | null;
+  notification?: DMMessageNotificationContext;
   participants: DMRealtimeParticipant[];
   replyToId?: string | null;
   threadParentId?: string | null;
@@ -63,6 +83,18 @@ export async function createRealtimeDMMessage(args: {
       uploadedBytes,
       userId: args.userId,
     });
+
+    if (args.notification) {
+      await enqueueDMMessageNotificationJob(tx, {
+        attachmentLabelKey: getDMAttachmentLabelKey(message.attachments[0]),
+        content: args.content,
+        conversationId: args.conversationId,
+        messageId: createdMessage.id,
+        participants: args.notification.participants,
+        senderId: args.userId,
+        senderName: args.notification.senderName,
+      });
+    }
 
     await Promise.all(
       args.participants.map((participant) =>

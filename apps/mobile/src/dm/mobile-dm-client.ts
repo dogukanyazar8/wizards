@@ -6,9 +6,11 @@ import {
   MobileDMSendMessageResponseSchema,
   MobileMessageDeleteResponseSchema,
   MobileMessageReactionResponseSchema,
+  type DMConversationDTO,
   type MobileDMMessagesResponse,
   type MobileDMMarkReadResponse,
   type MobileDMParticipantReadState,
+  type MobileDMConversationListItem,
   type MobileDMConversationsResponse,
   type MobileDMMessagesThreadResponse,
   type MobileDMSendMessageRequest,
@@ -69,6 +71,49 @@ export function getMobileDMReadTarget(input: {
   return input.isSignedIn && input.conversationId && input.latestMessageId
     ? input.conversationId
     : null;
+}
+
+/**
+ * The conversation summary the DM chat frame draws from when the inbox page it
+ * lives on has not been read yet.
+ *
+ * The inbox list is the normal source, but it only holds the pages the reader
+ * has scrolled: a push notification or a deep link into an older conversation
+ * left the chat on a boot skeleton until the whole inbox resolved — and if the
+ * conversation sat past the first page, forever. The message stream answers with
+ * its own conversation, which is enough to draw the header.
+ *
+ * `lastMessage` stays null on purpose: it is the inbox row's preview line, and
+ * the open chat renders the messages themselves.
+ */
+export function toMobileDMConversationSummaryFromStream(
+  conversation: DMConversationDTO,
+  viewerId: string | null,
+): MobileDMConversationListItem {
+  const viewer = viewerId
+    ? conversation.participants.find((participant) => participant.userId === viewerId)
+    : undefined;
+
+  return {
+    iconUrl: null,
+    id: conversation.id,
+    lastMessage: null,
+    lastMessageAt: conversation.lastMessageAt,
+    mentionCount: 0,
+    muted: viewer?.muted ?? false,
+    name: conversation.name,
+    participantCount: conversation.participants.length,
+    participants: conversation.participants.map((participant) => ({
+      avatarUrl: participant.avatarUrl,
+      displayName: participant.displayName,
+      id: participant.userId,
+      isBot: false,
+      status: participant.status,
+      username: participant.username,
+    })),
+    type: conversation.type,
+    unreadCount: viewer?.unreadCount ?? 0,
+  };
 }
 
 export function buildMobileDMConversationsPath(input: { cursor?: string | null }): string {

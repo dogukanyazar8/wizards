@@ -104,6 +104,34 @@ import {
   MobileWorkspaceChannelSummarySchema,
   MobileWorkspaceServerDetailResponseSchema,
   MobileWorkspaceServerDetailSchema,
+  MobileAppChannelRequestSchema,
+  MobileAppChannelResponseSchema,
+  MobileAppUpdateLatestSchema,
+  MobileAppUpdateQuerySchema,
+  MobileAppUpdateResponseSchema,
+  MobileAppUpdateStateSchema,
+  MobileBugReportCategorySchema,
+  MobileBugReportRequestSchema,
+  MobileBugReportResponseSchema,
+  MobileHelpArticleListQuerySchema,
+  MobileHelpArticleListResponseSchema,
+  MobileHelpArticleSchema,
+  MobileHelpArticleSlugParamsSchema,
+  MobileHelpArticleViewResponseSchema,
+  MobileHelpCategoryCountSchema,
+  MobileHelpCategorySchema,
+  MobileHelpSearchQuerySchema,
+  MobileReleaseChangeSchema,
+  MobileReleaseChangeTypeSchema,
+  MobileReleaseChannelSchema,
+  MobileReleaseDetailSchema,
+  MobileReleaseListQuerySchema,
+  MobileReleaseListResponseSchema,
+  MobileReleaseSummarySchema,
+  MobileReleaseVersionParamsSchema,
+  MobileServiceStatusLevelSchema,
+  MobileServiceStatusResponseSchema,
+  formatBugReportTicket,
 } from "./mobile";
 import { assertAccepts, assertRejects, assertSchemaBehaviorCoverage } from "./schema-test-helpers";
 
@@ -368,6 +396,54 @@ const chatMessage = {
 };
 
 const uploadedAttachment = { id: uuid };
+
+const releaseChange = {
+  detail: "Görünüm ayarlarında dört kademe (14–18px).",
+  title: "Mesaj yazı boyutu",
+  type: "new" as const,
+};
+
+const releaseSummary = {
+  changeCount: 7,
+  codename: "Echo",
+  highlight: "okunabilirlik",
+  installed: true,
+  releasedAt: now,
+  version: "0.8.15",
+};
+
+const releaseDetail = {
+  ...releaseSummary,
+  buildNumber: 8150,
+  changes: [releaseChange],
+  sizeBytes: 49_099_571,
+  summary: "Okunabilirlik güncellemesi.",
+};
+
+const helpArticle = {
+  category: "media" as const,
+  hasBody: true,
+  id: "help-1",
+  readMinutes: 3,
+  slug: "mikrofon-calismiyor",
+  title: "Sesli kanalda mikrofonum çalışmıyor",
+  url: "https://whispr.app/help/mikrofon-calismiyor",
+  views: 24_000,
+};
+
+const bugReport = {
+  appBuild: "8150",
+  appVersion: "0.8.15",
+  body: "Sesli kanalda mikrofon açıkken kimse beni duymuyor.",
+  category: "voice" as const,
+  deviceInfo: { deviceModel: "iPhone 15", osName: "iOS", osVersion: "18.2" },
+  includesDeviceInfo: true,
+  includesLogs: true,
+  includesScreenshot: false,
+  logExcerpt: "WARN audio route changed\nERROR publish failed",
+  platform: "ios",
+  releaseChannel: "stable" as const,
+};
 
 describe("mobile schemas", () => {
   it("keeps every exported schema covered by an acceptance and rejection fixture", () => {
@@ -1043,7 +1119,185 @@ describe("mobile schemas", () => {
         valid: workspaceDetail,
         invalid: { ...workspaceDetail, hasMoreChannels: "false" },
       },
+      MobileReleaseChangeTypeSchema: {
+        schema: MobileReleaseChangeTypeSchema,
+        valid: "improved",
+        invalid: "IMPROVED",
+      },
+      MobileReleaseChannelSchema: {
+        schema: MobileReleaseChannelSchema,
+        valid: "beta",
+        invalid: "canary",
+      },
+      MobileAppUpdateStateSchema: {
+        schema: MobileAppUpdateStateSchema,
+        valid: "available",
+        invalid: "up-to-date",
+      },
+      MobileServiceStatusLevelSchema: {
+        schema: MobileServiceStatusLevelSchema,
+        valid: "degraded",
+        invalid: "partial",
+      },
+      MobileHelpCategorySchema: {
+        schema: MobileHelpCategorySchema,
+        valid: "account",
+        invalid: "billing",
+      },
+      MobileBugReportCategorySchema: {
+        schema: MobileBugReportCategorySchema,
+        valid: "voice",
+        invalid: "crash",
+      },
+      MobileReleaseChangeSchema: {
+        schema: MobileReleaseChangeSchema,
+        valid: releaseChange,
+        invalid: { ...releaseChange, type: "NEW" },
+      },
+      MobileReleaseSummarySchema: {
+        schema: MobileReleaseSummarySchema,
+        valid: releaseSummary,
+        invalid: { ...releaseSummary, changeCount: -1 },
+      },
+      MobileReleaseDetailSchema: {
+        schema: MobileReleaseDetailSchema,
+        valid: releaseDetail,
+        invalid: { ...releaseDetail, sizeBytes: "49099571" },
+      },
+      MobileReleaseListResponseSchema: {
+        schema: MobileReleaseListResponseSchema,
+        valid: { nextCursor: null, releases: [releaseSummary], total: 38 },
+        invalid: { nextCursor: null, releases: [releaseSummary] },
+      },
+      MobileReleaseListQuerySchema: {
+        schema: MobileReleaseListQuerySchema,
+        valid: { installed: "0.8.15", limit: "20" },
+        invalid: { limit: "51" },
+      },
+      MobileAppUpdateLatestSchema: {
+        schema: MobileAppUpdateLatestSchema,
+        valid: { mandatory: false, releasedAt: now, sizeBytes: 50_541_363, version: "0.9.0" },
+        invalid: { mandatory: false, releasedAt: now, version: "" },
+      },
+      MobileAppUpdateResponseSchema: {
+        schema: MobileAppUpdateResponseSchema,
+        valid: { lastCheckedAt: now, otaEnabled: false, state: "current" },
+        invalid: { lastCheckedAt: now, otaEnabled: false, state: "idle" },
+      },
+      MobileAppUpdateQuerySchema: {
+        schema: MobileAppUpdateQuerySchema,
+        valid: { channel: "stable", installed: "0.8.15" },
+        invalid: { channel: "nightly" },
+      },
+      MobileAppChannelRequestSchema: {
+        schema: MobileAppChannelRequestSchema,
+        valid: { channel: "beta", consentAt: now },
+        invalid: { channel: "beta", consentAt: "2026-07-29" },
+      },
+      MobileAppChannelResponseSchema: {
+        schema: MobileAppChannelResponseSchema,
+        valid: { channel: "beta", effectiveFrom: "next-build", requiresRestart: true },
+        invalid: { channel: "beta", effectiveFrom: "now", requiresRestart: true },
+      },
+      MobileServiceStatusResponseSchema: {
+        schema: MobileServiceStatusResponseSchema,
+        valid: { checkedAt: now, level: "ok", url: "https://status.whispr.app" },
+        invalid: {
+          checkedAt: now,
+          label: "Sorunsuz",
+          level: "ok",
+          url: "https://status.whispr.app",
+        },
+      },
+      MobileHelpArticleSchema: {
+        schema: MobileHelpArticleSchema,
+        valid: helpArticle,
+        invalid: { ...helpArticle, readMinutes: 0 },
+      },
+      MobileHelpCategoryCountSchema: {
+        schema: MobileHelpCategoryCountSchema,
+        valid: { articleCount: 14, key: "account" },
+        invalid: { articleCount: 14, key: "account", label: "Hesap ve güvenlik" },
+      },
+      MobileHelpArticleListResponseSchema: {
+        schema: MobileHelpArticleListResponseSchema,
+        valid: { articles: [helpArticle], categories: [{ articleCount: 14, key: "account" }] },
+        invalid: { articles: [helpArticle] },
+      },
+      MobileHelpArticleListQuerySchema: {
+        schema: MobileHelpArticleListQuerySchema,
+        valid: { category: "chat", popular: "1" },
+        invalid: { popular: "yes" },
+      },
+      MobileHelpSearchQuerySchema: {
+        schema: MobileHelpSearchQuerySchema,
+        valid: { q: "mikrofon" },
+        invalid: { q: "m" },
+      },
+      MobileHelpArticleViewResponseSchema: {
+        schema: MobileHelpArticleViewResponseSchema,
+        valid: { ok: true },
+        invalid: { ok: false },
+      },
+      MobileBugReportRequestSchema: {
+        schema: MobileBugReportRequestSchema,
+        valid: bugReport,
+        invalid: { ...bugReport, body: "çok kısa" },
+      },
+      MobileBugReportResponseSchema: {
+        schema: MobileBugReportResponseSchema,
+        valid: { createdAt: now, ticket: "WSP-24817" },
+        invalid: { createdAt: now, ticket: "WSP-2481" },
+      },
+      MobileReleaseVersionParamsSchema: {
+        schema: MobileReleaseVersionParamsSchema,
+        valid: { version: "0.8.15" },
+        invalid: { version: "" },
+      },
+      MobileHelpArticleSlugParamsSchema: {
+        schema: MobileHelpArticleSlugParamsSchema,
+        valid: { slug: "mikrofon-calismiyor" },
+        invalid: { slug: "" },
+      },
     });
+  });
+
+  it("keeps release sizes numeric and the ticket format pinned", () => {
+    // The column behind `sizeBytes` is a Prisma BigInt, which does not
+    // serialize; the wire contract has to stay a plain number or every detail
+    // response throws at `JSON.stringify` time.
+    assertRejects(MobileReleaseDetailSchema, { ...releaseDetail, sizeBytes: 49_099_571.5 }, [
+      "sizeBytes",
+    ]);
+    assertAccepts(MobileReleaseDetailSchema, { ...releaseDetail, changes: [] });
+
+    assert.equal(formatBugReportTicket(24_817), "WSP-24817");
+    assert.equal(formatBugReportTicket(7), "WSP-00007");
+    assertAccepts(MobileBugReportResponseSchema, {
+      createdAt: now,
+      ticket: formatBugReportTicket(7),
+    });
+  });
+
+  it("stores device details only behind their own toggle and bounds the log", () => {
+    assertAccepts(MobileBugReportRequestSchema, {
+      body: "Sesli kanalda mikrofon açıkken kimse duymuyor.",
+      category: "voice",
+      includesDeviceInfo: false,
+      includesLogs: false,
+      includesScreenshot: false,
+    });
+    // "Neler gönderilir?" lists exactly these fields, so an unlisted key from a
+    // newer client is a rejection rather than a silent extra column.
+    assertRejects(MobileBugReportRequestSchema, { ...bugReport, userEmail: "ada@example.com" });
+    assertRejects(
+      MobileBugReportRequestSchema,
+      { ...bugReport, deviceInfo: { batteryLevel: 42 } },
+      ["deviceInfo"],
+    );
+    assertRejects(MobileBugReportRequestSchema, { ...bugReport, body: "x".repeat(1_001) }, [
+      "body",
+    ]);
   });
 
   it("enforces bootstrap feature and session token boundaries", () => {

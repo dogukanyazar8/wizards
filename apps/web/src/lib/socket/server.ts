@@ -23,6 +23,7 @@ import { markPresenceSocketActive } from "@/lib/socket/presence-helpers";
 import { createSocketServerWithRedisAdapter } from "@/lib/socket/redis-adapter";
 import { readCachedServerRoomIds, writeCachedServerRoomIds } from "@/lib/socket/server-room-cache";
 import { setSocketServer } from "@/lib/socket/runtime";
+import { installSocketDrainHandlers } from "@/lib/socket/drain-signals";
 import type { SocketData } from "./events";
 
 const SOCKET_MAX_HTTP_BUFFER_SIZE = 1_048_576;
@@ -360,6 +361,7 @@ export function initSocketServer(httpServer: HTTPServer) {
     },
   });
   setSocketServer(io);
+  installSocketDrainHandlers(io);
 
   io.use(async (socket, next) => {
     try {

@@ -1,11 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  AudioModule,
-  RecordingPresets,
-  setAudioModeAsync,
-  useAudioRecorder,
-  useAudioRecorderState,
-} from "expo-audio";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AudioModule, RecordingPresets, setAudioModeAsync, useAudioRecorder } from "expo-audio";
 import { File as ExpoFile } from "expo-file-system";
 
 import {
@@ -34,82 +28,183 @@ const VOICE_MESSAGE_RECORDING_OPTIONS = {
   isMeteringEnabled: true,
 };
 
+/**
+ * What a stop attempt actually did.
+ *
+ * `idle` is the important one: a press-and-hold fires `onPressOut` *and*
+ * `onPress`, so the second call arrives with nothing left to stop. Returning
+ * null for both "there was no take" and "the take was too short" is what put
+ * two different error toasts on screen for one tap.
+ */
+export type MobileVoiceStopOutcome =
+  | { readonly attachment: MobilePickedMessageAttachment; readonly status: "recorded" }
+  | { readonly status: "failed" }
+  | { readonly status: "idle" }
+  | { readonly status: "too-short" };
+
+export type MobileVoiceMessageRecorderPhase =
+  "error" | "idle" | "preparing" | "recording" | "stopping";
+
 export type MobileVoiceMessageRecorder = {
   discard(): Promise<void>;
+  /** Latest loudness window, for a subscriber that mounts mid-take. */
+  getLevels(): readonly number[];
+  /**
+   * True from the moment the button is pressed, not from the moment the
+   * microphone is live: preparing costs a permission check and a native
+   * `prepareToRecordAsync`, and hiding the bar until then reads as a freeze.
+   */
   readonly isRecording: boolean;
-  /** Newest-last loudness samples, 0…1, for the "1h" recording waveform. */
-  readonly levels: readonly number[];
-  readonly phase: "error" | "idle" | "preparing" | "recording" | "stopping";
+  readonly phase: MobileVoiceMessageRecorderPhase;
   start(): Promise<"denied" | "error" | "recording">;
-  stop(): Promise<MobilePickedMessageAttachment | null>;
+  stop(): Promise<MobileVoiceStopOutcome>;
+  /**
+   * Loudness updates, delivered straight to the waveform.
+   *
+   * Deliberately not React state: sampling runs ten times a second, and holding
+   * it in the composer re-rendered the entire composer subtree — attachment
+   * chips, mention panel, sheets — at that rate, which is what made the
+   * recording bar look like a stuttering app.
+   */
+  subscribeToLevels(listener: (levels: readonly number[]) => void): () => void;
 };
 
 export function useMobileVoiceMessageRecorder(): MobileVoiceMessageRecorder {
   const recorder = useAudioRecorder(VOICE_MESSAGE_RECORDING_OPTIONS);
-  const recorderState = useAudioRecorderState(recorder, VOICE_MESSAGE_METER_INTERVAL_MS);
-  const [phase, setPhase] = useState<MobileVoiceMessageRecorder["phase"]>("idle");
-  const [levels, setLevels] = useState<readonly number[]>([]);
+  const [phase, setPhase] = useState<MobileVoiceMessageRecorderPhase>("idle");
+  /** Guards read synchronously; `phase` state lands a render too late for them. */
+  const phaseRef = useRef<MobileVoiceMessageRecorderPhase>("idle");
   const recordingStartedAtRef = useRef<number | null>(null);
+  const startPromiseRef = useRef<Promise<"denied" | "error" | "recording"> | null>(null);
+  const levelsRef = useRef<readonly number[]>([]);
+  const levelListenersRef = useRef(new Set<(levels: readonly number[]) => void>());
+  const meterTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const isRecording = phase === "recording" || recorderState.isRecording;
-  const metering = recorderState.metering;
+  const applyPhase = useCallback((next: MobileVoiceMessageRecorderPhase) => {
+    phaseRef.current = next;
+    setPhase(next);
+  }, []);
 
-  useEffect(() => {
-    if (!isRecording) {
-      return;
+  const publishLevels = useCallback((next: readonly number[]) => {
+    levelsRef.current = next;
+    for (const listener of levelListenersRef.current) {
+      listener(next);
     }
-    setLevels((current) =>
-      appendMobileVoiceMeterLevel(current, normalizeMobileVoiceMeterLevel(metering)),
-    );
-    // `durationMillis` advances on every poll, so it is what makes this effect
-    // sample at the polling rate even while someone holds a steady note.
-  }, [isRecording, metering, recorderState.durationMillis]);
+  }, []);
+
+  const stopMetering = useCallback(() => {
+    if (meterTimerRef.current) {
+      clearInterval(meterTimerRef.current);
+      meterTimerRef.current = null;
+    }
+  }, []);
+
+  const startMetering = useCallback(() => {
+    stopMetering();
+    meterTimerRef.current = setInterval(() => {
+      let metering: number | undefined;
+      try {
+        metering = recorder.getStatus().metering;
+      } catch {
+        // A recorder torn down between ticks simply stops contributing samples.
+        return;
+      }
+      publishLevels(
+        appendMobileVoiceMeterLevel(levelsRef.current, normalizeMobileVoiceMeterLevel(metering)),
+      );
+    }, VOICE_MESSAGE_METER_INTERVAL_MS);
+  }, [publishLevels, recorder, stopMetering]);
+
+  useEffect(() => stopMetering, [stopMetering]);
 
   const start = useCallback(async () => {
-    if (phase === "preparing" || phase === "recording" || phase === "stopping") {
+    if (phaseRef.current !== "idle" && phaseRef.current !== "error") {
       return "error" as const;
     }
 
-    setPhase("preparing");
-    setLevels([]);
-    try {
-      const permission = await AudioModule.requestRecordingPermissionsAsync();
-      if (!permission.granted) {
-        setPhase("idle");
-        return "denied" as const;
+    applyPhase("preparing");
+    publishLevels([]);
+    const attempt = (async () => {
+      try {
+        const permission = await AudioModule.requestRecordingPermissionsAsync();
+        if (!permission.granted) {
+          applyPhase("idle");
+          return "denied" as const;
+        }
+
+        await setAudioModeAsync({
+          allowsRecording: true,
+          playsInSilentMode: true,
+          shouldPlayInBackground: false,
+        });
+        await recorder.prepareToRecordAsync();
+        recorder.record();
+        recordingStartedAtRef.current = Date.now();
+        applyPhase("recording");
+        startMetering();
+        return "recording" as const;
+      } catch {
+        applyPhase("error");
+        return "error" as const;
       }
+    })();
 
-      await setAudioModeAsync({
-        allowsRecording: true,
-        playsInSilentMode: true,
-        shouldPlayInBackground: false,
-      });
-      await recorder.prepareToRecordAsync();
-      recorder.record();
-      recordingStartedAtRef.current = Date.now();
-      setPhase("recording");
-      return "recording" as const;
-    } catch {
-      setPhase("error");
-      return "error" as const;
+    startPromiseRef.current = attempt;
+    try {
+      return await attempt;
+    } finally {
+      if (startPromiseRef.current === attempt) {
+        startPromiseRef.current = null;
+      }
     }
-  }, [phase, recorder]);
+  }, [applyPhase, publishLevels, recorder, startMetering]);
 
-  const stop = useCallback(async (): Promise<MobilePickedMessageAttachment | null> => {
-    if (phase !== "recording" && !recorderState.isRecording) {
-      return null;
+  /**
+   * Releasing the button while the recorder is still preparing is normal — the
+   * permission dialog and `prepareToRecordAsync` take real time. Waiting for the
+   * start to settle is what stops a take from running on with nobody left to
+   * end it.
+   */
+  const settleStart = useCallback(async () => {
+    const pending = startPromiseRef.current;
+    if (pending) {
+      await pending.catch(() => undefined);
+    }
+  }, []);
+
+  const releaseAudioMode = useCallback(async () => {
+    await setAudioModeAsync({ allowsRecording: false, shouldPlayInBackground: false }).catch(
+      () => undefined,
+    );
+  }, []);
+
+  const stop = useCallback(async (): Promise<MobileVoiceStopOutcome> => {
+    await settleStart();
+    if (phaseRef.current !== "recording") {
+      return { status: "idle" };
     }
 
-    setPhase("stopping");
+    applyPhase("stopping");
+    stopMetering();
     try {
       const startedAt = recordingStartedAtRef.current;
       recordingStartedAtRef.current = null;
-      const durationSeconds =
+      // The native duration is the honest one; the wall clock only covers the
+      // window between `record()` returning and this call.
+      let nativeDurationSeconds = 0;
+      try {
+        nativeDurationSeconds = Math.max(0, recorder.getStatus().durationMillis / 1_000);
+      } catch {
+        nativeDurationSeconds = 0;
+      }
+      const wallClockSeconds =
         startedAt !== null ? Math.max(0, (Date.now() - startedAt) / 1_000) : 0;
+      const durationSeconds = Math.max(nativeDurationSeconds, wallClockSeconds);
+
       await recorder.stop();
       const uri = recorder.uri;
       if (!uri) {
-        throw new Error("recording-uri-unavailable");
+        return { status: "failed" };
       }
 
       const recordingFile = new ExpoFile(uri);
@@ -117,7 +212,7 @@ export function useMobileVoiceMessageRecorder(): MobileVoiceMessageRecorder {
         if (recordingFile.exists) {
           recordingFile.delete();
         }
-        return null;
+        return { status: "too-short" };
       }
 
       const size = recordingFile.size;
@@ -129,31 +224,37 @@ export function useMobileVoiceMessageRecorder(): MobileVoiceMessageRecorder {
       });
 
       return {
-        durationSeconds: Math.round(durationSeconds * 10) / 10,
-        file: {
-          lastModified: Date.now(),
-          name: VOICE_MESSAGE_FILE_NAME,
-          size,
-          type: VOICE_MESSAGE_CONTENT_TYPE,
-          uri,
-        } as unknown as File,
-        kind: getMobileMessageAttachmentKind(VOICE_MESSAGE_CONTENT_TYPE),
-        localUri: uri,
+        attachment: {
+          durationSeconds: Math.round(durationSeconds * 10) / 10,
+          file: {
+            lastModified: Date.now(),
+            name: VOICE_MESSAGE_FILE_NAME,
+            size,
+            type: VOICE_MESSAGE_CONTENT_TYPE,
+            uri,
+          } as unknown as File,
+          kind: getMobileMessageAttachmentKind(VOICE_MESSAGE_CONTENT_TYPE),
+          localUri: uri,
+        },
+        status: "recorded",
       };
+    } catch {
+      return { status: "failed" };
     } finally {
-      await setAudioModeAsync({ allowsRecording: false, shouldPlayInBackground: false }).catch(
-        () => undefined,
-      );
-      setPhase("idle");
+      await releaseAudioMode();
+      publishLevels([]);
+      applyPhase("idle");
     }
-  }, [phase, recorder, recorderState.isRecording]);
+  }, [applyPhase, publishLevels, recorder, releaseAudioMode, settleStart, stopMetering]);
 
   const discard = useCallback(async (): Promise<void> => {
-    if (phase !== "recording" && !recorderState.isRecording) {
+    await settleStart();
+    if (phaseRef.current !== "recording") {
       return;
     }
 
-    setPhase("stopping");
+    applyPhase("stopping");
+    stopMetering();
     try {
       recordingStartedAtRef.current = null;
       await recorder.stop();
@@ -164,20 +265,36 @@ export function useMobileVoiceMessageRecorder(): MobileVoiceMessageRecorder {
           recordingFile.delete();
         }
       }
+    } catch {
+      // A discard that cannot reach the file still ends the take.
     } finally {
-      await setAudioModeAsync({ allowsRecording: false, shouldPlayInBackground: false }).catch(
-        () => undefined,
-      );
-      setPhase("idle");
+      await releaseAudioMode();
+      publishLevels([]);
+      applyPhase("idle");
     }
-  }, [phase, recorder, recorderState.isRecording]);
+  }, [applyPhase, publishLevels, recorder, releaseAudioMode, settleStart, stopMetering]);
 
-  return {
-    discard,
-    isRecording,
-    levels,
-    phase,
-    start,
-    stop,
-  };
+  const getLevels = useCallback(() => levelsRef.current, []);
+
+  const subscribeToLevels = useCallback((listener: (levels: readonly number[]) => void) => {
+    levelListenersRef.current.add(listener);
+    return () => {
+      levelListenersRef.current.delete(listener);
+    };
+  }, []);
+
+  // Stable across renders so the waveform's subscription is not torn down and
+  // rebuilt every time anything else in the composer changes.
+  return useMemo(
+    () => ({
+      discard,
+      getLevels,
+      isRecording: phase === "recording" || phase === "preparing",
+      phase,
+      start,
+      stop,
+      subscribeToLevels,
+    }),
+    [discard, getLevels, phase, start, stop, subscribeToLevels],
+  );
 }

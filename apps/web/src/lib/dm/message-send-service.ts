@@ -10,13 +10,11 @@ import {
   createRealtimeDMMessage,
   getDMConversationRealtimeUpdates,
 } from "@/lib/dm/realtime-service";
-import { getDMAttachmentLabelKey, getDMConversationPreview } from "@/lib/dm/notification-service";
-import { logError } from "@/lib/logger";
+import { getDMConversationPreview } from "@/lib/dm/notification-service";
 import {
   normalizeMessageContentForSend,
   parseUploadedAttachmentInputs,
 } from "@/lib/messages/attachments";
-import { enqueueDMMessageNotificationJob } from "@/lib/outbox/service";
 import type { AppSocketServer } from "@/lib/socket/runtime";
 
 export type SendDirectMessageInput = {
@@ -125,12 +123,20 @@ export async function sendDirectMessage(input: SendDirectMessageInput) {
     }),
   ]);
 
+  const senderName =
+    input.senderName ??
+    getDMDisplayName({
+      username: sender.user.username,
+      displayName: sender.user.displayName,
+    });
+
   const createdMessage = await createRealtimeDMMessage({
     attachmentInputs,
     ...(input.attribution ? { attribution: input.attribution } : {}),
     content,
     conversationId: input.conversationId,
     forwardOfMessageId: input.forwardOfMessageId ?? null,
+    notification: { participants, senderName },
     participants,
     replyToId: input.replyToId ?? null,
     threadParentId: input.threadParentId ?? null,
@@ -163,7 +169,6 @@ export async function sendDirectMessage(input: SendDirectMessageInput) {
   }
 
   const firstAttachment = createdMessage.attachments[0];
-  const attachmentLabelKey = getDMAttachmentLabelKey(firstAttachment);
   const preview = getDMConversationPreview(content, firstAttachment);
   const lastMessageAt = createdMessage.createdAt.toISOString();
   const conversationUpdates = input.io
@@ -180,25 +185,6 @@ export async function sendDirectMessage(input: SendDirectMessageInput) {
       conversation: update.conversation,
     });
   }
-
-  const senderName =
-    input.senderName ??
-    getDMDisplayName({
-      username: sender.user.username,
-      displayName: sender.user.displayName,
-    });
-
-  void enqueueDMMessageNotificationJob({
-    attachmentLabelKey,
-    content,
-    conversationId: input.conversationId,
-    messageId: createdMessage.id,
-    participants,
-    senderId: input.userId,
-    senderName,
-  }).catch((error) => {
-    logError("[dm] DM notification enqueue failed", error);
-  });
 
   return messagePayload;
 }

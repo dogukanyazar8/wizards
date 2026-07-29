@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { afterEach, describe, it } from "node:test";
 import { QueryClient } from "@tanstack/react-query";
 import type {
   MobileBootstrapPayload,
@@ -25,6 +25,16 @@ const capabilities = {
   canManageServer: true,
   canUploadServerIcon: true,
 };
+
+const testQueryClients = new Set<QueryClient>();
+
+function createMobileTestQueryClient(): QueryClient {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { gcTime: Infinity } },
+  });
+  testQueryClients.add(queryClient);
+  return queryClient;
+}
 
 function createBootstrap(): MobileBootstrapPayload {
   return {
@@ -121,8 +131,25 @@ function createWorkspace(serverId: string): MobileManagedWorkspaceServerDetailRe
 }
 
 describe("mobile server icon cache", () => {
+  afterEach(() => {
+    for (const queryClient of testQueryClients) {
+      queryClient.clear();
+    }
+    testQueryClients.clear();
+  });
+
+  it("uses test query defaults that do not leave a cache GC timer", () => {
+    const queryClient = createMobileTestQueryClient();
+    const queryKey = ["mobile", "test-query-client"] as const;
+    queryClient.setQueryData(queryKey, { ready: true });
+
+    const query = queryClient.getQueryCache().find({ queryKey });
+
+    assert.equal(query?.options.gcTime, Infinity);
+  });
+
   it("patches only the matching bootstrap and managed workspace server while preserving capabilities", () => {
-    const queryClient = new QueryClient();
+    const queryClient = createMobileTestQueryClient();
     const bootstrap = createBootstrap();
     const firstWorkspace = createWorkspace("server-1");
     const secondWorkspace = createWorkspace("server-2");
@@ -157,7 +184,7 @@ describe("mobile server icon cache", () => {
   });
 
   it("confirms the icon only when the API read-back returns the claimed url", async () => {
-    const queryClient = new QueryClient();
+    const queryClient = createMobileTestQueryClient();
     const claimedIconUrl = "https://cdn.example.test/server-1-new.png";
     const workspace = createWorkspace("server-1");
     // Optimistically patched cache: a staleTime-respecting read would confirm itself.
@@ -190,7 +217,7 @@ describe("mobile server icon cache", () => {
   });
 
   it("confirms the icon while a stale workspace refetch is still in flight", async () => {
-    const queryClient = new QueryClient();
+    const queryClient = createMobileTestQueryClient();
     const claimedIconUrl = "https://cdn.example.test/server-1-new.png";
     const staleWorkspace = createWorkspace("server-1");
     const claimedWorkspace = {
@@ -239,7 +266,7 @@ describe("mobile server icon cache", () => {
   });
 
   it("reports an unconfirmed icon when the read-back fails", async () => {
-    const queryClient = new QueryClient();
+    const queryClient = createMobileTestQueryClient();
     const client = {
       requestJson: async () => {
         throw new Error("offline");
@@ -258,7 +285,7 @@ describe("mobile server icon cache", () => {
   });
 
   it("fails closed for a non-HTTPS icon URL", () => {
-    const queryClient = new QueryClient();
+    const queryClient = createMobileTestQueryClient();
     const bootstrap = createBootstrap();
     queryClient.setQueryData(mobileQueryKeys.bootstrap(), bootstrap);
 

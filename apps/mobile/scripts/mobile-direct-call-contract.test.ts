@@ -84,7 +84,7 @@ describe("mobile direct-call contract", () => {
     assert.match(voiceRoomContainerSource, /MobileOutgoingVoiceCallScreen/);
     // 7a and 7b keep the full waiting dock with screen share disabled until connected.
     assert.match(outgoingScreenSource, /directCallCancelAction/);
-    assert.match(outgoingScreenSource, /disabled\s+glass=\{glass\}\s+icon="tv-outline"/);
+    assert.match(outgoingScreenSource, /disabled\s+icon="tv-outline"/);
   });
 
   it("leaves the voice room route when the DM call ends", () => {
@@ -99,6 +99,9 @@ describe("mobile direct-call contract", () => {
   it("returns to the conversation when an outgoing call is not answered", () => {
     // Popping rather than replacing: the conversation is usually already on the
     // stack under the call, and replacing left a second copy of it behind.
-    assert.match(voiceRoomContainerSource, /navigation\.popTo\("DirectMessage", \{ conversationId \}\)/);
+    assert.match(
+      voiceRoomContainerSource,
+      /navigation\.popTo\("DirectMessage", \{ conversationId \}\)/,
+    );
   });
 });

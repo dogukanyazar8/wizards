@@ -4,6 +4,11 @@ import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
 let mockOverviewProps: Record<string, unknown> = {};
 let mockMessagesProps: Record<string, unknown> = {};
+const mockNavigationActions = {
+  openWorkspaceRoute: jest.fn(),
+  prefetchChannelMessages: jest.fn(),
+  prefetchDMMessages: jest.fn(),
+};
 const overviewRenderProps: Record<string, unknown>[] = [];
 const messagesRenderProps: Record<string, unknown>[] = [];
 
@@ -62,7 +67,10 @@ jest.mock("../src/workspace/mobile-server-settings-screen", () => ({
       { testID: "server-settings-container-screen" },
       React.createElement(
         Pressable,
-        { onPress: () => (props.onOpenMembers as jest.Mock)(), testID: "open-members-from-container" },
+        {
+          onPress: () => (props.onOpenMembers as jest.Mock)(),
+          testID: "open-members-from-container",
+        },
         React.createElement(Text, null, "Members"),
       ),
       React.createElement(
@@ -97,7 +105,7 @@ jest.mock("../src/app/providers/mobile-product-screen-provider", () => ({
   useMobileMessagesScreenProps: () => mockMessagesProps,
   useMobileNotificationsScreenProps: () => ({}),
   useMobileOverviewScreenProps: () => mockOverviewProps,
-  useMobileProductNavigationActions: () => ({ openWorkspaceRoute: jest.fn() }),
+  useMobileProductNavigationActions: () => mockNavigationActions,
   useMobileSettingsScreenProps: () => ({}),
   useMobileVoiceScreenProps: () => ({}),
 }));
@@ -123,6 +131,9 @@ describe("mobile screen navigation containers", () => {
   beforeEach(() => {
     overviewRenderProps.length = 0;
     messagesRenderProps.length = 0;
+    mockNavigationActions.openWorkspaceRoute.mockClear();
+    mockNavigationActions.prefetchChannelMessages.mockClear();
+    mockNavigationActions.prefetchDMMessages.mockClear();
   });
 
   // Both surfaces read the same active-channel / selected-conversation state, so
@@ -138,8 +149,12 @@ describe("mobile screen navigation containers", () => {
     mockMessagesProps = { onCloseConversation: jest.fn(), onOpenConversation: jest.fn() };
     const navigation = createNavigation(jest.fn());
 
-    await render(<OverviewTabScreenContainer navigation={navigation as never} route={{} as never} />);
-    await render(<MessagesTabScreenContainer navigation={navigation as never} route={{} as never} />);
+    await render(
+      <OverviewTabScreenContainer navigation={navigation as never} route={{} as never} />,
+    );
+    await render(
+      <MessagesTabScreenContainer navigation={navigation as never} route={{} as never} />,
+    );
 
     expect(overviewRenderProps.at(-1)?.canRenderChannelChat).toBeUndefined();
     expect(messagesRenderProps.at(-1)?.canRenderConversation).toBeUndefined();
@@ -180,6 +195,39 @@ describe("mobile screen navigation containers", () => {
       channelId: "channel-1",
       serverId: "server-1",
     });
+  });
+
+  // The stream query only mounts after the push and the selection commit, so the
+  // tap itself has to put the fetch on the wire.
+  it("warms the channel stream on the tap that opens it", async () => {
+    mockOverviewProps = {
+      onOpenWorkspaceChannel: jest.fn(),
+      selectedWorkspaceServerId: "server-1",
+    };
+    const view = await render(
+      <OverviewTabScreenContainer
+        navigation={createNavigation(jest.fn()) as never}
+        route={{} as never}
+      />,
+    );
+
+    await fireEvent.press(view.getByTestId("open-channel-from-container"));
+
+    expect(mockNavigationActions.prefetchChannelMessages).toHaveBeenCalledWith("channel-1");
+  });
+
+  it("warms the conversation stream on the tap that opens it", async () => {
+    mockMessagesProps = { onOpenConversation: jest.fn() };
+    const view = await render(
+      <MessagesTabScreenContainer
+        navigation={createNavigation(jest.fn()) as never}
+        route={{} as never}
+      />,
+    );
+
+    await fireEvent.press(view.getByTestId("open-dm-from-container"));
+
+    expect(mockNavigationActions.prefetchDMMessages).toHaveBeenCalledWith("dm-1");
   });
 
   it("pushes a selected conversation through the typed parent stack", async () => {

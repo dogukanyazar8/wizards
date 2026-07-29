@@ -61,6 +61,7 @@ import {
   signInMobileWithGoogleIdToken,
   signInMobileWithPassword,
 } from "./mobile-auth-exchange";
+import { markMobileStartupPhase } from "../performance/mobile-startup-phases";
 import { getMobilePasswordSignInFailure } from "./mobile-auth-error-mapping";
 import {
   createMobileAuthState,
@@ -224,6 +225,11 @@ export function MobileAuthProvider({
   const commitAuthState = useCallback((nextState: MobileAuthState) => {
     stateRef.current = nextState;
     setState(nextState);
+    // The launch is only measurable against a resolved session: everything drawn
+    // while the status is still `checking` is a shell.
+    if (nextState.status === "signed-in" || nextState.status === "signed-out") {
+      markMobileStartupPhase("auth-resolved");
+    }
   }, []);
 
   const commitAuthStateFromCurrent = useCallback(

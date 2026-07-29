@@ -1,16 +1,19 @@
 import React from "react";
 import { describe, expect, it, jest } from "@jest/globals";
 import { StyleSheet } from "react-native";
-import { fireEvent } from "@testing-library/react-native";
+import { act, fireEvent } from "@testing-library/react-native";
 
+// §2 "1h".2: newest-last loudness samples off the microphone, pushed to the bar
+// through a subscription so sampling never re-renders the composer around it.
+const recordedLevels: readonly number[] = [0.2, 0.6, 0.9, 0.4];
 const mockVoiceRecorder = {
   discard: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+  getLevels: () => recordedLevels,
   isRecording: true,
-  // §2 "1h".2: newest-last loudness samples off the microphone.
-  levels: [0.2, 0.6, 0.9, 0.4] as readonly number[],
   phase: "recording" as const,
   start: jest.fn<() => Promise<"recording">>().mockResolvedValue("recording"),
-  stop: jest.fn<() => Promise<null>>().mockResolvedValue(null),
+  stop: jest.fn<() => Promise<{ status: string }>>().mockResolvedValue({ status: "idle" }),
+  subscribeToLevels: () => () => {},
 };
 
 jest.mock("../src/media/mobile-voice-message-recorder", () => ({
@@ -112,6 +115,63 @@ describe("MSG-1h recording composer", () => {
 
     expect(view.getByTestId("mobile-dm-voice-record-button").props.accessibilityLabel).toBe(
       copy.composerVoiceStopAction,
+    );
+  });
+
+  /**
+   * Releasing the mic fires `onPressOut` and then `onPress`, so one gesture
+   * reaches the recorder twice. When `stop()` answered null for both "too short"
+   * and "nothing to stop", that showed as two toasts in a row — "kayıt çok kısa"
+   * followed by "ses kaydı hazırlanamadı".
+   */
+  it("reports one outcome per gesture even though release stops it twice", async () => {
+    mockVoiceRecorder.stop
+      .mockResolvedValueOnce({ status: "too-short" })
+      .mockResolvedValueOnce({ status: "idle" });
+    const view = await render(
+      <DMComposer
+        attachmentsFeature={{ label: "Attachments", status: "available" }}
+        getAccessToken={async () => "mobile-access-token"}
+        onSend={jest.fn<() => Promise<boolean>>().mockResolvedValue(true)}
+        variant="dm"
+      />,
+    );
+    const button = view.getByTestId("mobile-dm-voice-record-button");
+
+    await act(async () => {
+      fireEvent.press(button);
+      fireEvent.press(button);
+    });
+
+    expect(mockVoiceRecorder.stop).toHaveBeenCalledTimes(2);
+    // The second stop found nothing running, so it must add no second notice.
+    expect(view.queryAllByText(copy.composerVoiceRecordFailed)).toHaveLength(0);
+    expect(view.queryAllByText(copy.composerVoiceTooShortNotice)).toHaveLength(1);
+  });
+
+  /**
+   * §2 "1h".3: while the finger is down the trash button is under it, so the
+   * drag is the only way out of a take. Claiming the touch terminates the mic
+   * `Pressable`, and a terminated press still fires `onPressOut` — which used to
+   * send the recording the slide was trying to throw away.
+   */
+  it("lets a slide own the release instead of sending on the terminated press", async () => {
+    mockVoiceRecorder.discard.mockClear();
+    mockVoiceRecorder.stop.mockClear();
+    const view = await renderRecordingComposer();
+
+    await act(async () => {
+      fireEvent(view.getByTestId("mobile-dm-voice-record-gesture"), "responderGrant");
+      fireEvent(view.getByTestId("mobile-dm-voice-record-button"), "pressOut");
+    });
+
+    expect(mockVoiceRecorder.stop).not.toHaveBeenCalled();
+  });
+
+  it("tells the reader how to get out of a take, and what locked means", async () => {
+    const unlocked = await renderRecordingComposer();
+    expect(unlocked.getByTestId("mobile-dm-voice-recording-hint").props.children).toBe(
+      copy.dmChatVoiceRecordCancelHint,
     );
   });
 

@@ -254,6 +254,7 @@ bile
 bilgisayar
 bilin
 bilinen
+bind
 binding
 biometric
 bir
@@ -287,6 +288,7 @@ bounded
 bounds
 box
 boyunca
+brace
 branch
 branchde
 brand
@@ -588,6 +590,7 @@ crop
 cropped
 cross
 crud
+crypto
 csp
 csrf
 css
@@ -642,6 +645,7 @@ deferred
 define
 definition
 definitions
+degraded
 del
 delay
 delays
@@ -657,6 +661,7 @@ delil
 delimited
 deliver
 deliverable
+delivered
 delivery
 demo
 den
@@ -802,6 +807,7 @@ dynamic
 each
 eas
 easing
+echoable
 echoed
 ecosystem
 edebilece
@@ -866,6 +872,7 @@ enabled
 encode
 encoder
 encoding
+encrypted
 encryption
 end
 endpoint
@@ -963,6 +970,7 @@ exit
 exp
 expand
 expanded
+expansion
 expect
 expected
 experience
@@ -1435,6 +1443,7 @@ isi
 iskeleti
 iso
 isolated
+isolation
 issue
 issuers
 issues
@@ -1722,6 +1731,7 @@ mark
 markdown
 marker
 markers
+marks
 mart
 masa
 mask
@@ -1769,6 +1779,7 @@ messages
 messaging
 meta
 metadata
+meter
 method
 methods
 metin
@@ -1797,6 +1808,7 @@ mimarinin
 mime
 min
 mini
+minimatch
 minimize
 minimum
 mint
@@ -2198,6 +2210,9 @@ prefix
 prefixes
 preflight
 preflighted
+preload
+preloadable
+preloaded
 prepare
 prepend
 prerequisites
@@ -2349,6 +2364,8 @@ reason
 reasons
 reauth
 rebaseline
+receipt
+receipts
 received
 receiver
 recent
@@ -2473,6 +2490,7 @@ reserve
 reserved
 reset
 resettable
+resilience
 resizable
 resize
 resmi
@@ -2548,6 +2566,7 @@ rotalar
 rotas
 rotasi
 rotate
+rotated
 rotating
 rotation
 round
@@ -2609,6 +2628,7 @@ sayfas
 sayol
 scale
 scaled
+scales
 scan
 scanner
 scanning
@@ -2725,6 +2745,7 @@ shopify
 short
 shortcut
 shortcuts
+shot
 should
 show
 shutdown
@@ -2810,6 +2831,7 @@ split
 spring
 spy
 sql
+sqlite
 square
 squircle
 src
@@ -2823,6 +2845,7 @@ stage
 staged
 staging
 stale
+stalled
 standartlar
 start
 started
@@ -3362,6 +3385,7 @@ wrapper
 wrapping
 write
 writer
+writers
 writes
 written
 wrong

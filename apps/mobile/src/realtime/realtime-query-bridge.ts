@@ -521,25 +521,69 @@ export function createMobileRealtimeQueryBridge({
     return false;
   };
 
+  /**
+   * Which channel stream an event should reconcile.
+   *
+   * The open channel, or — since prefetch warms streams the reader has not opened
+   * — any channel whose stream is already in the cache. A stream that was never
+   * cached has nothing to correct: the next open fetches it. Without this, a
+   * warmed stream sat inside its stale time and opened showing content that had
+   * already been superseded.
+   */
+  const resolveChannelStreamTarget = (
+    event: MobileRealtimeEventEnvelope,
+  ): { channelId: string; isActive: boolean } | null => {
+    const { channelId: activeChannelId } = getActiveTargets();
+    const eventChannelId = event.channelId ?? null;
+
+    if (activeChannelId && (!eventChannelId || eventChannelId === activeChannelId)) {
+      return { channelId: activeChannelId, isActive: true };
+    }
+
+    if (!eventChannelId) {
+      return null;
+    }
+
+    return queryClient.getQueryData(mobileQueryKeys.channelMessages(eventChannelId)) !== undefined
+      ? { channelId: eventChannelId, isActive: false }
+      : null;
+  };
+
   const applyActiveChannelEvent = (event: MobileRealtimeEventEnvelope): boolean => {
     if (!isMobileRealtimeChannelMessagePayloadEvent(event.eventName)) {
       return false;
     }
 
-    const { channelId } = getActiveTargets();
-    if (!channelId || (event.channelId && event.channelId !== channelId)) {
+    const target = resolveChannelStreamTarget(event);
+    if (!target) {
       return false;
     }
 
     let handled = false;
     queryClient.setQueryData<MobileChannelMessagesInfiniteData>(
-      mobileQueryKeys.channelMessages(channelId),
+      mobileQueryKeys.channelMessages(target.channelId),
       (current) => {
-        const result = applyMobileRealtimeEventToInfiniteChannelData(current, event, channelId);
+        const result = applyMobileRealtimeEventToInfiniteChannelData(
+          current,
+          event,
+          target.channelId,
+        );
         handled = result.handled;
         return result.data;
       },
     );
+
+    if (!handled && !target.isActive) {
+      // Cannot patch this one safely. Marking it stale is enough: nothing is
+      // observing the key, so no request leaves now, and the screen refetches
+      // when it mounts.
+      void queryClient.invalidateQueries({
+        exact: true,
+        queryKey: mobileQueryKeys.channelMessages(target.channelId),
+        refetchType: "active",
+      });
+    }
+
     return handled;
   };
 
@@ -591,11 +635,35 @@ export function createMobileRealtimeQueryBridge({
     return patched;
   };
 
+  /** Same rule as `resolveChannelStreamTarget`, for conversations. */
+  const resolveDMStreamTarget = (
+    event: MobileRealtimeEventEnvelope,
+  ): { conversationId: string; isActive: boolean } | null => {
+    const { conversationId: activeConversationId } = getActiveTargets();
+    const eventConversationId = event.conversationId ?? null;
+
+    if (
+      activeConversationId &&
+      (!eventConversationId || eventConversationId === activeConversationId)
+    ) {
+      return { conversationId: activeConversationId, isActive: true };
+    }
+
+    if (!eventConversationId) {
+      return null;
+    }
+
+    return queryClient.getQueryData(mobileQueryKeys.dmMessages(eventConversationId)) !== undefined
+      ? { conversationId: eventConversationId, isActive: false }
+      : null;
+  };
+
   const applyActiveDMEvent = (event: MobileRealtimeEventEnvelope): boolean => {
-    const { conversationId } = getActiveTargets();
-    if (!conversationId || (event.conversationId && event.conversationId !== conversationId)) {
+    const target = resolveDMStreamTarget(event);
+    if (!target) {
       return false;
     }
+    const conversationId = target.conversationId;
     if (event.eventName === "dm:conversation:read") {
       const readState = MobileDMReadUpdatedEventSchema.safeParse(event.payload);
       if (!readState.success || readState.data.conversationId !== conversationId) {
@@ -670,6 +738,15 @@ export function createMobileRealtimeQueryBridge({
         return appendOrReplaceMobileMessage(current, message.data);
       },
     );
+
+    if (!handled && !target.isActive) {
+      void queryClient.invalidateQueries({
+        exact: true,
+        queryKey: mobileQueryKeys.dmMessages(conversationId),
+        refetchType: "active",
+      });
+    }
+
     return handled;
   };
 

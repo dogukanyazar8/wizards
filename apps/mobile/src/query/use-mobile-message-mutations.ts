@@ -29,6 +29,18 @@ import type {
 import type { MobileApiClient } from "../api/mobile-api-client";
 import type { MobileSessionUser } from "../auth/session-types";
 import {
+  abandonMobileSendSpan,
+  beginMobileSendSpan,
+  completeMobileSendAck,
+  completeMobileSendEcho,
+} from "../performance/mobile-send-timing";
+import {
+  patchMobileBootstrapDMRead,
+  patchMobileDMConversationsRead,
+  readMobileDMConversationUnreadCount,
+  type MobileDMConversationsCache,
+} from "./mobile-dm-read-cache";
+import {
   deleteMobileDMMessage,
   markMobileDMConversationRead,
   sendMobileDMMessage,
@@ -219,6 +231,7 @@ export function createMobileOptimisticMutationOptions<
         return;
       }
 
+      abandonMobileSendSpan(context.clientId);
       options.queryClient.setQueryData<TData>(options.queryKey, (current) =>
         markMobileMessageFailed(current, context.clientId),
       );
@@ -228,13 +241,17 @@ export function createMobileOptimisticMutationOptions<
       });
     },
     onMutate: async (variables) => {
-      await options.queryClient.cancelQueries({ queryKey: options.queryKey });
+      // The span starts before the cache work: the reader's tap is the origin, and
+      // the bubble appearing is what closes the echo half.
       const clientId = createMobileOptimisticMessageId();
+      beginMobileSendSpan(clientId);
+      await options.queryClient.cancelQueries({ queryKey: options.queryKey });
       optimisticClientIds.set(variables, clientId);
       const optimisticMessage = options.createOptimisticMessage(variables, clientId);
       options.queryClient.setQueryData<TData>(options.queryKey, (current) =>
         insertOptimisticMobileMessage(current, optimisticMessage),
       );
+      completeMobileSendEcho(clientId);
       return { clientId, optimisticMessage };
     },
     onSuccess: (response, _variables, context) => {
@@ -242,6 +259,7 @@ export function createMobileOptimisticMutationOptions<
         return;
       }
 
+      completeMobileSendAck(context.clientId);
       const message = options.getResponseMessage(response);
       options.queryClient.setQueryData<TData>(options.queryKey, (current) =>
         replaceMobileMessage(current, context.clientId, message),
@@ -642,11 +660,27 @@ export function useMobileDMReadMutation(input: { readonly client: MobileApiClien
               }
             : current,
       );
-      void queryClient.invalidateQueries({
-        exact: true,
-        queryKey: mobileQueryKeys.dmConversations(),
-      });
-      void queryClient.invalidateQueries({ exact: true, queryKey: mobileQueryKeys.bootstrap() });
+      // Both counters are known locally, so they are patched the way the channel
+      // read has always patched them. Invalidating put the inbox *and* the
+      // bootstrap payload back on the wire for every conversation the reader
+      // opened and every inbound message in an open one — two heavy reads racing
+      // the message fetch the reader was actually waiting for.
+      const clearedCount = readMobileDMConversationUnreadCount(
+        queryClient.getQueryData<MobileDMConversationsCache>(mobileQueryKeys.dmConversations()),
+        response.conversationId,
+      );
+      queryClient.setQueryData<MobileDMConversationsCache>(
+        mobileQueryKeys.dmConversations(),
+        (current) => patchMobileDMConversationsRead(current, response.conversationId).data,
+      );
+      queryClient.setQueryData<MobileBootstrapPayload>(
+        mobileQueryKeys.bootstrap(),
+        (current) =>
+          patchMobileBootstrapDMRead(current, {
+            clearedCount,
+            conversationId: response.conversationId,
+          }).data,
+      );
     },
   });
 }

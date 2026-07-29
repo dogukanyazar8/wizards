@@ -311,7 +311,44 @@ export const createDMChatStyles = (theme: MobileTheme) =>
       lineHeight: 16,
       fontFamily: theme.typography.fontFamilyExtraBold,
     },
-    emptyText: { color: theme.messaging.textSecondary, textAlign: "center", padding: 20 },
+    /**
+     * A conversation with no messages still owns the whole message area, so the
+     * composer keeps the bottom edge it has once the first message lands.
+     */
+    emptyState: {
+      flex: 1,
+      minWidth: 0,
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: 32,
+      paddingVertical: 24,
+    },
+    emptyIcon: {
+      width: 56,
+      height: 56,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: 28,
+      backgroundColor: theme.messaging.accentSoft,
+      marginBottom: 14,
+    },
+    emptyTitle: {
+      color: theme.messaging.textPrimary,
+      fontSize: 16,
+      lineHeight: 21,
+      textAlign: "center",
+      fontFamily: theme.typography.fontFamilyExtraBold,
+      includeFontPadding: false,
+    },
+    emptyText: {
+      color: theme.messaging.textSecondary,
+      fontSize: 13,
+      lineHeight: 18,
+      textAlign: "center",
+      marginTop: 6,
+      fontFamily: theme.typography.fontFamily,
+      includeFontPadding: false,
+    },
     errorRow: { gap: 8, paddingHorizontal: 16, paddingVertical: 12 },
     ...createSharedStyles(theme),
   }) satisfies Record<string, ImageStyle | TextStyle | ViewStyle>;

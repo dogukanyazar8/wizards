@@ -30,10 +30,6 @@ import {
   SocketMessageSendPayloadSchema,
 } from "@/lib/socket/schemas";
 import {
-  enqueueChannelMentionNotificationJob,
-  enqueueChannelThreadReplyNotificationJob,
-} from "@/lib/outbox/service";
-import {
   createMessage,
   deleteMessage,
   editMessage,
@@ -216,6 +212,9 @@ export function registerMessageHandlers(
         {
           alsoSendToChannel: data.alsoSendToChannel === true,
           attribution: socket.data.clientAttribution ?? UNKNOWN_ATTRIBUTION,
+          // Same transaction as the message row; the fan-out below no longer
+          // decides whether anyone is told about it.
+          notification: { channelName: channel.name, serverId: channel.serverId },
           permissions,
         },
       );
@@ -309,32 +308,6 @@ export function registerMessageHandlers(
         readUserCount: readUserIds.length,
         unreadUpdateUserCount: unreadUpdateUserIds.length,
       });
-      void enqueueChannelMentionNotificationJob({
-        channelId: data.channelId,
-        channelName: channel.name,
-        content,
-        messageId: message.id,
-        senderId: userId,
-        senderName: message.author.displayName ?? message.author.username,
-        serverId: channel.serverId,
-        skipUserIds: readUserIds,
-      }).catch((error) => {
-        logError("[socket] Message mention notification enqueue failed", error);
-      });
-      if (data.threadParentId) {
-        void enqueueChannelThreadReplyNotificationJob({
-          channelId: data.channelId,
-          channelName: channel.name,
-          content,
-          messageId: message.id,
-          parentMessageId: data.threadParentId,
-          senderId: userId,
-          senderName: message.author.displayName ?? message.author.username,
-          serverId: channel.serverId,
-        }).catch((error) => {
-          logError("[socket] Message thread reply notification enqueue failed", error);
-        });
-      }
     } catch (error) {
       if (error instanceof ApiError) {
         socket.emit("error", {

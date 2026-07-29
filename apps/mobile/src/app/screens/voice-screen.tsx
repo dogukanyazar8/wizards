@@ -342,26 +342,37 @@ const VOICE_RECONNECT_PULSE_MIN_OPACITY = 0.32;
  * 5a session strip. The header used to carry a connection chip, a noise badge and
  * an invite icon side by side; the live state moved here so the title row is only
  * ever identity plus one action.
+ *
+ * DM calls reuse this strip: they override the label while the peer is being rung
+ * and drop the noise block until there is a session to process.
  */
-function ActiveVoiceRoomSessionStrip({
+export function ActiveVoiceRoomSessionStrip({
   connectionStatus,
   durationLabel,
-  noiseSuppressionEnabled,
+  label: labelOverride,
+  noiseSuppressionEnabled = false,
   onToggleNoiseSuppression,
+  pulsing: pulsingOverride,
+  tone: toneOverride,
 }: {
   connectionStatus: MobileVoiceRoomState["status"];
   durationLabel: string | null;
-  noiseSuppressionEnabled: boolean;
-  onToggleNoiseSuppression(): void;
+  /** Ringing states name themselves; everything else reads from the status. */
+  label?: string | undefined;
+  noiseSuppressionEnabled?: boolean | undefined;
+  /** Omitted while a call rings: there is no live audio to process yet. */
+  onToggleNoiseSuppression?: (() => void) | undefined;
+  pulsing?: boolean | undefined;
+  tone?: ActiveVoiceRoomConnectionTone | undefined;
 }) {
   const styles = useVoiceScreenStyles();
   const theme = useVoiceRoomTheme();
   const reducedMotion = useReducedMotion() === true;
-  const tone = getActiveVoiceRoomConnectionTone(connectionStatus);
-  const label = getActiveVoiceRoomConnectionLabel(connectionStatus);
+  const tone = toneOverride ?? getActiveVoiceRoomConnectionTone(connectionStatus);
+  const label = labelOverride ?? getActiveVoiceRoomConnectionLabel(connectionStatus);
   // Only a dropped session pulses. "Bağlanıyor" is a one-way trip that ends on
-  // its own, so its dot stays steady and amber.
-  const pulsing = connectionStatus === "reconnecting";
+  // its own, so its dot stays steady and amber. A ringing DM call opts in.
+  const pulsing = pulsingOverride ?? connectionStatus === "reconnecting";
   const pulse = useSharedValue(1);
 
   useEffect(() => {
@@ -423,16 +434,18 @@ function ActiveVoiceRoomSessionStrip({
         ) : null}
       </View>
       <View style={styles.activeVoiceRoomSessionSpacer} />
-      <View style={styles.activeVoiceRoomSessionNoise}>
-        <Ionicons color={theme.voiceRoom.textSecondary} name="sparkles" size={14} />
-        <Text numberOfLines={1} style={styles.activeVoiceRoomSessionNoiseLabel}>
-          {copy.voiceRoomNoiseBadge}
-        </Text>
-        <ActiveVoiceRoomNoiseToggle
-          enabled={noiseSuppressionEnabled}
-          onToggle={onToggleNoiseSuppression}
-        />
-      </View>
+      {onToggleNoiseSuppression ? (
+        <View style={styles.activeVoiceRoomSessionNoise}>
+          <Ionicons color={theme.voiceRoom.textSecondary} name="sparkles" size={14} />
+          <Text numberOfLines={1} style={styles.activeVoiceRoomSessionNoiseLabel}>
+            {copy.voiceRoomNoiseBadge}
+          </Text>
+          <ActiveVoiceRoomNoiseToggle
+            enabled={noiseSuppressionEnabled}
+            onToggle={onToggleNoiseSuppression}
+          />
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -485,7 +498,7 @@ function ActiveVoiceRoomNoiseToggle({ enabled, onToggle }: { enabled: boolean; o
  * dock off screen. Past the readable minimum the grid scrolls rather than
  * shrinking further.
  */
-function ActiveVoiceRoomAudience({
+export function ActiveVoiceRoomAudience({
   audioRoute,
   onFlipCamera,
   participants,
@@ -664,7 +677,7 @@ function getVoiceParticipantBadgeColor(
  * page in a layout scaled to the count. Extra tiles slide onto swipeable pages in
  * join order; mic-only members ride the compact rail beneath.
  */
-function ActiveVoiceRoomStage({
+export function ActiveVoiceRoomStage({
   onFlipCamera,
   participants,
 }: {
@@ -1070,7 +1083,7 @@ function getActiveVoiceRoomConnectionLabel(status: MobileVoiceRoomState["status"
   }
 }
 
-type ActiveVoiceRoomConnectionTone = "failed" | "live" | "pending";
+export type ActiveVoiceRoomConnectionTone = "failed" | "live" | "pending";
 
 /** Only a live session is green; anything still settling reads amber and pulses. */
 function getActiveVoiceRoomConnectionTone(
@@ -1087,7 +1100,7 @@ function getActiveVoiceRoomConnectionTone(
   return "pending";
 }
 
-function getVoiceAudioRouteAccessibilityLabel(route: MobileVoiceAudioRoute): string {
+export function getVoiceAudioRouteAccessibilityLabel(route: MobileVoiceAudioRoute): string {
   switch (route) {
     case "speaker":
       return copy.voiceRoomOutputSpeakerA11y;
@@ -1289,7 +1302,7 @@ function ActiveVoiceRoomParticipantCard({
   );
 }
 
-function ActiveVoiceRoomControl({
+export function ActiveVoiceRoomControl({
   accessibilityLabel,
   danger = false,
   disabled = false,

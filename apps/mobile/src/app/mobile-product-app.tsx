@@ -18,7 +18,6 @@ import { useMobilePermissionSummary } from "./features/use-mobile-permission-sum
 import { useMobileProductLinks } from "./features/use-mobile-product-links";
 import { useMobileDMCallFeature } from "./features/use-mobile-dm-call-feature";
 import { useMobileVoiceInviteFeature } from "./features/use-mobile-voice-invite-feature";
-import { useMobileTypingLabels } from "./features/use-mobile-typing-labels";
 import { MobileIncomingRequestSheet } from "./overlays/mobile-incoming-request-sheet";
 import { useMobileLocaleRuntime } from "./providers/mobile-locale-provider";
 import { useMobileMediaRuntime } from "./providers/mobile-media-provider";
@@ -86,11 +85,9 @@ export function MobileProductApp({
     emitVoiceInviteAccept,
     emitVoiceInviteDecline,
     emitVoiceInviteSend,
-    dmTyping: dmTypingState,
     stopChannelTyping,
     stopDMTyping,
     subscribe: subscribeRealtime,
-    typing: channelTypingState,
     updateChannelTyping,
     updateDMTyping,
   } = useMobileRealtimeRuntime();
@@ -131,7 +128,6 @@ export function MobileProductApp({
     handleOpenDMConversation,
     handleOpenVoiceInvite,
     handleOpenWorkspaceChannel,
-    handleOpenWorkspaceRoute,
     handleOpenWorkspaceServer,
     handleRetryChannelMessage,
     handleRetryDMMessage,
@@ -147,6 +143,7 @@ export function MobileProductApp({
     isDMReactionPending,
     isDMMessageActionPending,
     messageSearchState,
+    productNavigationActions,
     refreshBootstrap,
     refreshChannelMessages,
     refreshDMMessages,
@@ -203,12 +200,6 @@ export function MobileProductApp({
         ? copy.authSignedIn
         : copy.authSignedOut;
   const signedInUserLabel = session ? (session.user.displayName ?? session.user.username) : null;
-  const { channelTypingLabel, channelTypingUsers, dmTypingLabel } = useMobileTypingLabels({
-    channelId: selectedWorkspaceChannelId,
-    channelTyping: channelTypingState,
-    conversationId: selectedDMConversationId,
-    dmTyping: dmTypingState,
-  });
   const { openCookies, openPrivacyPolicy, openSupport, openTerms } = useMobileProductLinks(
     runtimeConfig.webUrl,
   );
@@ -252,7 +243,6 @@ export function MobileProductApp({
       onLoadMoreConversations: loadMoreDMConversations,
       onLoadMoreMessages: loadMoreDMMessages,
       dmMessagesState,
-      dmTypingLabel,
       isReactionMutationPending: isDMReactionPending || isDMMessageActionPending,
       mediaState,
       onClearSelectedMediaAsset: handleClearSelectedMediaAsset,
@@ -287,7 +277,6 @@ export function MobileProductApp({
       loadMoreDMConversations,
       loadMoreDMMessages,
       dmMessagesState,
-      dmTypingLabel,
       isDMReactionPending,
       isDMMessageActionPending,
       mediaState,
@@ -324,8 +313,6 @@ export function MobileProductApp({
       channelMessagesState,
       channelPinnedMessages,
       isReactionMutationPending: isChannelReactionPending || isChannelMessageActionPending,
-      channelTypingLabel,
-      channelTypingUsers,
       locale: mobileLocale,
       mediaState,
       messageSearchState,
@@ -366,8 +353,6 @@ export function MobileProductApp({
       channelPinnedMessages,
       isChannelReactionPending,
       isChannelMessageActionPending,
-      channelTypingLabel,
-      channelTypingUsers,
       mobileLocale,
       mediaState,
       messageSearchState,
@@ -470,7 +455,7 @@ export function MobileProductApp({
     voiceRuntime,
   });
   return (
-    <MobileProductNavigationProvider value={{ openWorkspaceRoute: handleOpenWorkspaceRoute }}>
+    <MobileProductNavigationProvider value={productNavigationActions}>
       <MobileMessagesScreenProvider value={messagesScreenProps}>
         <MobileNotificationsScreenProvider value={notificationsScreenProps}>
           <MobileOverviewScreenProvider value={overviewScreenProps}>

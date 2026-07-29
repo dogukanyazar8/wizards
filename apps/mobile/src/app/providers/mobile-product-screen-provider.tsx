@@ -35,6 +35,16 @@ export type MobileVoiceScreenProps = ComponentProps<typeof VoiceScreen> & {
 
 export interface MobileProductNavigationActions {
   readonly openWorkspaceRoute: (serverId: string, channelId: string | null) => void;
+  /**
+   * Tap-time stream warmers. The row that opens a chat lives in a container, and
+   * the stream query only mounts once the push and the selection commit have
+   * gone through — so the fetch is started here instead of a render later. They
+   * are navigation actions rather than screen props because no screen reads
+   * them, and keeping them out of the screen-props memos keeps those objects
+   * stable.
+   */
+  readonly prefetchChannelMessages: (channelId: string) => void;
+  readonly prefetchDMMessages: (conversationId: string) => void;
 }
 
 const ActionsContext = createContext<MobileProductNavigationActions | null>(null);

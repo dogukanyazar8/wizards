@@ -491,6 +491,43 @@ export function getMobileWorkspaceChannels(
   ];
 }
 
+/**
+ * The channel summary the chat frame draws from.
+ *
+ * The server detail read is authoritative — it is the only source carrying the
+ * unread and mention counters — but it is also one of the heaviest reads the
+ * backend serves, and the chat used to hold a boot skeleton until it landed.
+ * The message stream returns its own summary for the channel it answered for,
+ * so that one carries the frame until the detail arrives.
+ *
+ * A detail entry always wins, including when it says the id is not a text
+ * channel: the reader may not open a voice channel as a chat, and the detail
+ * read is what knows the difference.
+ */
+export function resolveMobileActiveTextChannel(input: {
+  readonly activeChannelId: string | null;
+  readonly detailChannels: readonly MobileWorkspaceChannelSummary[];
+  readonly streamChannel: MobileWorkspaceChannelSummary | null;
+}): MobileWorkspaceChannelSummary | null {
+  if (!input.activeChannelId) {
+    return null;
+  }
+
+  const detailChannel = input.detailChannels.find(
+    (channel) => channel.id === input.activeChannelId,
+  );
+  if (detailChannel) {
+    return detailChannel.type === "TEXT" ? detailChannel : null;
+  }
+
+  const streamChannel = input.streamChannel;
+  return streamChannel &&
+    streamChannel.id === input.activeChannelId &&
+    streamChannel.type === "TEXT"
+    ? streamChannel
+    : null;
+}
+
 export function getMobileWorkspaceChannelSurface(
   channel: MobileWorkspaceChannelSummary | null,
   options: {

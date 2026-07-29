@@ -117,6 +117,7 @@ export {
   getMobilePresenceTone,
   getVisibleMobileWorkspaceChannelSections,
   isMobilePresenceActive,
+  resolveMobileActiveTextChannel,
   MOBILE_RENDER_LIMITS,
 } from "./mobile-display-model";
 export type {

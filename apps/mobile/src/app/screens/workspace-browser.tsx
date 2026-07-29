@@ -15,6 +15,7 @@ import {
   getMobileWorkspaceChannels,
   getVisibleMobileWorkspaceChannelSections,
   MOBILE_RENDER_LIMITS,
+  resolveMobileActiveTextChannel,
   useCallback,
   useEffect,
   useMemo,
@@ -36,6 +37,7 @@ import {
 } from "../mobile-root-screen-shared";
 import type { ChatMessage, UploadedAttachmentInput } from "@wizards/types";
 import { useMobileServerManagementFeature } from "../features/use-mobile-server-management-feature";
+import { useMobileChannelTypingLabels } from "../features/use-mobile-typing-labels";
 import { MobileServerCreateJoinSheet } from "../../workspace/mobile-server-create-join-sheet";
 import {
   MobileWorkspaceCreateSheets,
@@ -84,8 +86,6 @@ export function MobileWorkspaceBrowser({
   bootstrapState,
   canRenderChannelChat = false,
   channelMessagesState,
-  channelTypingLabel,
-  channelTypingUsers,
   isReactionMutationPending,
   locale,
   mediaState,
@@ -137,8 +137,6 @@ export function MobileWorkspaceBrowser({
     status: "ready";
   };
   channelMessagesState: MobileChannelMessagesViewState;
-  channelTypingLabel: string | null;
-  channelTypingUsers: readonly MobileChannelTypingUser[];
   isReactionMutationPending: boolean;
   locale: MobileLocale;
   mediaState: MobileMediaRuntimeState;
@@ -232,15 +230,25 @@ export function MobileWorkspaceBrowser({
   const activeOnlineMemberCount = activeServer?.onlineMemberCount ?? 0;
   const activeChannelCount =
     activeServer?.visibleChannelCount ?? activeServerSummary?.channelCount ?? 0;
-  const activeTextChannel =
-    workspacePayload && activeWorkspaceTextChannelId
-      ? (getMobileWorkspaceChannels(workspacePayload.detail).find(
-          (channel) => channel.id === activeWorkspaceTextChannelId && channel.type === "TEXT",
-        ) ?? null)
-      : null;
+  // The detail read stays authoritative, but the chat no longer waits for it:
+  // the message stream returns the summary for the channel it answered for, and
+  // that is enough to draw the frame the reader tapped into.
+  const activeTextChannel = resolveMobileActiveTextChannel({
+    activeChannelId: activeWorkspaceTextChannelId,
+    detailChannels: workspacePayload ? getMobileWorkspaceChannels(workspacePayload.detail) : [],
+    streamChannel:
+      channelMessagesState.channelId === activeWorkspaceTextChannelId
+        ? (channelMessagesState.payload?.channel ?? null)
+        : null,
+  });
   const activeChannelSurface = getMobileWorkspaceChannelSurface(activeTextChannel, {
     isExplicitlyOpened: activeTextChannel?.id === activeWorkspaceTextChannelId,
   });
+  // Read where it is drawn, not carried down from the product root: a typing
+  // event in a channel nobody has open must not re-render the app.
+  const { channelTypingLabel, channelTypingUsers } = useMobileChannelTypingLabels(
+    activeWorkspaceTextChannelId,
+  );
   // 10a: only an open channel needs the roster, so the members query stays idle
   // on the server browser. It shares the members screen cache key.
   const mentionRegistry = useMobileServerMentionRegistry({

@@ -41,6 +41,8 @@ const BODYLESS_MUTATING_METHOD_PATHS = new Set([
   "DELETE friends/block/[userId]",
   "POST friends/block/[userId]",
   "DELETE friends/request/[id]",
+  // The slug is the whole request; a view counter carries no payload.
+  "POST mobile/help/articles/[slug]/view",
   // The invite code is the whole request; a decline carries no body.
   "POST mobile/invites/[code]/decline",
   "DELETE mobile/channels/[channelId]/history",

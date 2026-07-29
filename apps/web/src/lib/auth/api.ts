@@ -138,6 +138,19 @@ export async function requireMobileApiSession(
   };
 }
 
+/**
+ * The user id inside the locally verified token, with no network call at all.
+ *
+ * It is not authorization — the session may still be revoked and the account may
+ * still be banned, which is what `authorizeMobileApiRequest` establishes. It
+ * exists so a route can start a read that only needs the id *concurrently* with
+ * that check, instead of queueing a full round trip behind it. Nothing may be
+ * returned to the caller before the authorization promise has been unwrapped.
+ */
+export function readMobileApiClaimedUserId(request: Request): string {
+  return readMobileApiClaims(request).userId;
+}
+
 function readMobileApiClaims(request: Request) {
   const token = getBearerTokenFromRequest(request);
   if (!token) {

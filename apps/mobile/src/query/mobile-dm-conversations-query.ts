@@ -1,4 +1,5 @@
 import { infiniteQueryOptions, useInfiniteQuery } from "@tanstack/react-query";
+import { MOBILE_PERSISTED_QUERY_GC_TIME_MS } from "./mobile-query-cache-policy";
 import type { InfiniteData } from "@tanstack/react-query";
 import type { MobileDMConversationListItem, MobileDMConversationsResponse } from "@wizards/types";
 import type { MobileApiClient } from "../api/mobile-api-client";
@@ -12,6 +13,9 @@ export function getMobileDMConversationsQueryOptions(client: MobileApiClient, en
     initialPageParam: null as string | null,
     queryFn: ({ pageParam }) => fetchMobileDMConversations(client, { cursor: pageParam }),
     queryKey: mobileQueryKeys.dmConversations(),
+    // Persisted root: it is on disk for a day, so dropping it from memory in
+    // half an hour would only force a re-read of what the device already has.
+    gcTime: MOBILE_PERSISTED_QUERY_GC_TIME_MS,
   });
 }
 

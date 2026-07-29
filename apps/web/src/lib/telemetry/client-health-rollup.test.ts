@@ -18,6 +18,7 @@ function rawRow(overrides: Partial<ClientHealthRawRow> = {}): ClientHealthRawRow
     clientType: "MOBILE",
     createdAt: new Date("2026-06-01T08:00:00.000Z"),
     kind: "STARTUP",
+    surface: null,
     valueMs: 500,
     ...overrides,
   };
@@ -105,5 +106,50 @@ describe("client health rollup", () => {
     assert.deepEqual(result, { deleted: 0, summarized: 0 });
     assert.deepEqual(upserts, []);
     assert.deepEqual(deletes, []);
+  });
+});
+
+/**
+ * A percentile pooled across surfaces is not actionable: a slow conversation hides
+ * behind a fast inbox when both are just "SCREEN_LOAD".
+ */
+describe("client health rollup keeps surfaces apart", () => {
+  const createdAt = new Date("2026-07-28T09:00:00.000Z");
+
+  function row(surface: string | null, valueMs: number): ClientHealthRawRow {
+    return {
+      appVersion: "0.8.15",
+      clientType: "MOBILE",
+      createdAt,
+      kind: "SCREEN_LOAD",
+      surface,
+      valueMs,
+    };
+  }
+
+  it("buckets by surface and reports p50, p95 and p99", () => {
+    const summaries = summarizeClientHealthRows([
+      ...Array.from({ length: 100 }, (_, index) => row("dm-messages", index + 1)),
+      row("dm-inbox", 5),
+    ]);
+
+    const dmMessages = summaries.find((summary) => summary.surface === "dm-messages");
+    const inbox = summaries.find((summary) => summary.surface === "dm-inbox");
+
+    assert.equal(summaries.length, 2);
+    assert.equal(dmMessages?.count, 100);
+    assert.equal(dmMessages?.p50Ms, 50);
+    assert.equal(dmMessages?.p95Ms, 95);
+    assert.equal(dmMessages?.p99Ms, 99);
+    assert.equal(inbox?.count, 1);
+    assert.equal(inbox?.p99Ms, 5);
+  });
+
+  it("puts surfaceless kinds in one bucket rather than inventing a name", () => {
+    const summaries = summarizeClientHealthRows([row(null, 10), row(null, 20)]);
+
+    assert.equal(summaries.length, 1);
+    assert.equal(summaries[0]?.surface, "");
+    assert.equal(summaries[0]?.count, 2);
   });
 });

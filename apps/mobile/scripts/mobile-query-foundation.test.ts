@@ -160,6 +160,61 @@ test("persisted workspace detail drops channel last-message previews", () => {
   });
 });
 
+test("persisted DM inbox drops the last-message preview text", () => {
+  const conversation = (id: string) => ({
+    id,
+    lastMessage: {
+      author: { displayName: null, id: "user-ada", username: "ada" },
+      authorIsCurrentUser: false,
+      createdAt: "2026-07-28T09:00:00.000Z",
+      deliveryStatus: "read",
+      durationSec: null,
+      id: `${id}-m1`,
+      kind: "text",
+      text: "gizli dm mesaji",
+    },
+    name: null,
+    unreadCount: 2,
+  });
+  const client = stripMobilePersistedMessagePreviews({
+    clientState: {
+      queries: [
+        {
+          queryKey: ["mobile", "dm-conversations"],
+          state: {
+            data: {
+              pageParams: [null],
+              pages: [
+                {
+                  conversations: [conversation("conversation-1"), conversation("conversation-2")],
+                  nextCursor: null,
+                  totalUnreadCount: 4,
+                },
+              ],
+            },
+          },
+        },
+      ],
+    },
+  });
+
+  const serialized = JSON.stringify(client);
+  assert.doesNotMatch(serialized, /gizli dm mesaji/);
+  assert.doesNotMatch(serialized, /user-ada/);
+
+  const data = client.clientState.queries[0]?.state.data as {
+    pages: {
+      conversations: { lastMessage: unknown; unreadCount: number }[];
+      totalUnreadCount: number;
+    }[];
+  };
+  // The row's own facts survive; only the message content is dropped.
+  assert.equal(data.pages[0]?.conversations[0]?.lastMessage, null);
+  assert.equal(data.pages[0]?.conversations[1]?.lastMessage, null);
+  assert.equal(data.pages[0]?.conversations[0]?.unreadCount, 2);
+  assert.equal(data.pages[0]?.totalUnreadCount, 4);
+});
+
 test("query cache key isolates environments so a UAT restore never lands in production", () => {
   assert.notEqual(getMobileQueryCacheKey("uat"), getMobileQueryCacheKey("production"));
   assert.match(getMobileQueryCacheKey("uat"), /^whispr\.mobile\.query-cache\.uat\.v\d+$/);

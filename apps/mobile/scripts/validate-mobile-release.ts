@@ -10,11 +10,23 @@ import {
   buildMobileReleaseEvidence,
   validateMobileReleaseEvidence,
 } from "../src/release/mobile-release-evidence";
+import {
+  evaluateMobilePerformanceBudgets,
+  type MobilePerformanceMeasurement,
+} from "../src/release/mobile-performance-budget";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 function readJson<T>(path: string): T {
   return JSON.parse(readFileSync(path, "utf8")) as T;
+}
+
+function readJsonIfPresent<T>(path: string): T | null {
+  try {
+    return readJson<T>(path);
+  } catch {
+    return null;
+  }
 }
 
 const eas = readJson<{ build: Record<string, MobileReleaseProfileConfig> }>(
@@ -35,9 +47,37 @@ const evidence = buildMobileReleaseEvidence({
 });
 const evidenceBlockers = validateMobileReleaseEvidence(evidence);
 
+/**
+ * Device numbers, when a run has produced them. `--require-measurements` is what
+ * the promotion job passes: locally an unmeasured release is a warning, but a
+ * build must not be promoted on prose alone.
+ */
+type MobilePerformanceMeasurementFile = {
+  baseline?: MobilePerformanceMeasurement[];
+  measurements?: MobilePerformanceMeasurement[];
+};
+
+const measurementFile =
+  readJsonIfPresent<MobilePerformanceMeasurementFile>(
+    resolve(__dirname, "../performance-measurements.json"),
+  ) ?? {};
+const budgetResult = evaluateMobilePerformanceBudgets({
+  ...(measurementFile.baseline ? { baseline: measurementFile.baseline } : {}),
+  budgets: result.budgets,
+  measurements: measurementFile.measurements ?? [],
+  requireMeasurements: process.argv.includes("--require-measurements"),
+});
+
 const summary = {
-  blockers: Array.from(new Set([...result.blockers, ...evidenceBlockers])),
+  blockers: Array.from(
+    new Set([...result.blockers, ...evidenceBlockers, ...budgetResult.violations]),
+  ),
   budgetCount: result.budgets.length,
+  performance: {
+    status: budgetResult.status,
+    unmeasured: budgetResult.unmeasured,
+    violations: budgetResult.violations,
+  },
   checklist: result.checklist,
   evidence: {
     automatedGateCount: evidence.automatedGates.length,

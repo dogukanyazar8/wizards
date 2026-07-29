@@ -56,7 +56,6 @@ export async function mobileDMMessagesGetRoute(
 ) {
   try {
     const userId = await dependencies.authenticate(request);
-    await dependencies.enforceRateLimit(userId, "dm:messages:list");
 
     const { conversationId } = DMConversationParamsSchema.parse(await context.params);
     const url = new URL(request.url);
@@ -66,7 +65,21 @@ export async function mobileDMMessagesGetRoute(
     });
     const limit = Math.min(query.limit, MOBILE_DM_MESSAGE_LIMIT);
 
-    const conversation = await dependencies.authorizeConversation(conversationId, userId);
+    // Opening a conversation used to stack three round trips in front of the
+    // read: session, then rate limit, then membership. The last two share only
+    // the id the first resolved, so they go out together — and are unwrapped in
+    // the original precedence, so a throttled request still reads as 429.
+    const [rateLimit, membership] = await Promise.allSettled([
+      dependencies.enforceRateLimit(userId, "dm:messages:list"),
+      dependencies.authorizeConversation(conversationId, userId),
+    ]);
+    if (rateLimit.status === "rejected") {
+      throw rateLimit.reason;
+    }
+    if (membership.status === "rejected") {
+      throw membership.reason;
+    }
+    const conversation = membership.value;
     const [messagePage, readStates] = await Promise.all([
       dependencies.listMessages({
         conversationId,

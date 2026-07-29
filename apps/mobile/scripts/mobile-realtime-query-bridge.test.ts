@@ -920,3 +920,153 @@ describe("mobile realtime query bridge", () => {
     assert.equal(queryClient.getQueryState(bootstrapKey)?.isInvalidated, false);
   });
 });
+
+/**
+ * Prefetch warms conversations the reader is not looking at. Before these, the
+ * bridge dropped every event whose target was not the active one, so a warmed
+ * stream could sit inside its 120s stale time and open showing content that was
+ * already superseded.
+ */
+describe("inactive stream reconciliation", () => {
+  function createInactiveBridge(
+    queryClient: QueryClient,
+    scheduler: MobileRealtimeQueryBridgeScheduler,
+  ) {
+    return createMobileRealtimeQueryBridge({
+      getActiveTargets: () => ({
+        channelId: null,
+        conversationId: null,
+        serverId: "server-1",
+        voiceChannelId: null,
+      }),
+      queryClient,
+      scheduler,
+    });
+  }
+
+  it("patches a warmed channel stream the reader has not opened", () => {
+    const queryClient = new QueryClient();
+    const fake = createFakeScheduler();
+    queryClient.setQueryData(mobileQueryKeys.channelMessages("channel-9"), {
+      pageParams: [null],
+      pages: [{ hasMore: false, messages: [makeMessage("m-1")], nextCursor: null }],
+    });
+    const bridge = createInactiveBridge(queryClient, fake.scheduler);
+
+    bridge.handleEvent(
+      createMobileRealtimeEventEnvelope("message:new", {
+        ...makeMessage("m-2"),
+        channelId: "channel-9",
+      }),
+    );
+
+    const data = queryClient.getQueryData(mobileQueryKeys.channelMessages("channel-9")) as {
+      pages: { messages: ChatMessage[] }[];
+    };
+    assert.deepEqual(
+      data.pages[0]?.messages.map((message) => message.id),
+      ["m-1", "m-2"],
+    );
+    queryClient.clear();
+  });
+
+  it("marks a warmed channel stream stale when the event cannot be patched", () => {
+    const queryClient = new QueryClient();
+    const fake = createFakeScheduler();
+    const queryKey = mobileQueryKeys.channelMessages("channel-9");
+    queryClient.setQueryData(queryKey, {
+      pageParams: [null],
+      pages: [{ hasMore: false, messages: [makeMessage("m-1")], nextCursor: null }],
+    });
+    const bridge = createInactiveBridge(queryClient, fake.scheduler);
+
+    // A payload this client cannot read: the cache is now known-wrong, and the
+    // only safe repair is a refetch when the screen mounts.
+    bridge.handleEvent(
+      createMobileRealtimeEventEnvelope("message:new", {
+        channelId: "channel-9",
+        id: "m-2",
+      }),
+    );
+
+    assert.equal(queryClient.getQueryState(queryKey)?.isInvalidated, true);
+    queryClient.clear();
+  });
+
+  it("leaves a stream it never warmed alone", () => {
+    const queryClient = new QueryClient();
+    const fake = createFakeScheduler();
+    const bridge = createInactiveBridge(queryClient, fake.scheduler);
+
+    bridge.handleEvent(
+      createMobileRealtimeEventEnvelope("message:new", {
+        ...makeMessage("m-2"),
+        channelId: "channel-404",
+      }),
+    );
+
+    assert.equal(
+      queryClient.getQueryData(mobileQueryKeys.channelMessages("channel-404")),
+      undefined,
+    );
+    queryClient.clear();
+  });
+
+  it("patches a warmed DM stream the reader has not opened", () => {
+    const queryClient = new QueryClient();
+    const fake = createFakeScheduler();
+    queryClient.setQueryData(mobileQueryKeys.dmMessages("conversation-9"), {
+      pageParams: [null],
+      pages: [
+        {
+          conversation: {
+            id: "conversation-9",
+            lastMessage: null,
+            lastMessageAt: "2026-07-28T09:00:00.000Z",
+            name: null,
+            participants: [],
+            type: "DM",
+          },
+          messages: [],
+          nextCursor: null,
+        },
+      ],
+    });
+    const bridge = createInactiveBridge(queryClient, fake.scheduler);
+
+    bridge.handleEvent(
+      createMobileRealtimeEventEnvelope("dm:message:new", {
+        attachments: [],
+        author: {
+          avatarUrl: null,
+          customStatus: null,
+          displayName: "Kaya",
+          id: "user-kaya",
+          status: "ONLINE",
+          username: "kaya",
+        },
+        content: "selam",
+        conversationId: "conversation-9",
+        createdAt: "2026-07-28T09:01:00.000Z",
+        deletedAt: null,
+        deletedById: null,
+        editedAt: null,
+        id: "dm-m-1",
+        reactions: [],
+        replyTo: null,
+        replyToId: null,
+        threadParentId: null,
+        userId: "user-kaya",
+      }),
+    );
+
+    const data = queryClient.getQueryData(mobileQueryKeys.dmMessages("conversation-9")) as {
+      pages: { messages: { id: string }[] }[];
+    };
+    assert.deepEqual(
+      data.pages[0]?.messages.map((message) => message.id),
+      ["dm-m-1"],
+    );
+    queryClient.clear();
+  });
+});

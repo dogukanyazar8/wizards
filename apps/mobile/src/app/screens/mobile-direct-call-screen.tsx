@@ -1,6 +1,5 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { VideoTrack } from "@livekit/react-native";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
 import { activeMobileCopy as copy } from "../../locale/mobile-locale-preferences";
@@ -9,149 +8,34 @@ import type {
   MobileVoiceRoomParticipant,
   MobileVoiceRoomState,
 } from "../mobile-root-screen-shared";
-import type { MobileVoiceOutputOption } from "../../voice/mobile-voice-device-contract";
 import {
   formatMobileVoiceRoomDuration,
   getMobileActiveVoiceRoomModel,
+  shouldTickMobileVoiceRoomDuration,
 } from "./active-voice-room-model";
-import { MobileSpeakingPulse } from "../components/mobile-call-pulse";
+import {
+  ActiveVoiceRoomAudience,
+  ActiveVoiceRoomControl,
+  ActiveVoiceRoomSessionStrip,
+  ActiveVoiceRoomStage,
+  getVoiceAudioRouteAccessibilityLabel,
+} from "./voice-screen";
+import { useVoiceScreenStyles } from "./voice-screen.styles";
+import {
+  getMobileVoiceAudioRoute,
+  getMobileVoiceAudioRouteIcon,
+} from "../../voice/mobile-voice-audio-route";
+import { getMobileVoiceStageMode } from "../../voice/mobile-voice-stage";
+import { useToast } from "../components/kit/toast";
 import { useMobileHaptics } from "../providers/mobile-haptics-provider";
 import { useVoiceRoomTheme } from "../providers/mobile-theme-provider";
 import { MobileVoiceSettingsSheet } from "../../voice/mobile-voice-settings-sheet";
-import { useMobileDirectCallStyles } from "./mobile-direct-call-screen.styles";
+import { useMobileBottomSystemSpacing } from "../use-mobile-bottom-system-spacing";
 
-type IoniconName = keyof typeof Ionicons.glyphMap;
-
-function getDirectCallParticipant(
-  room: MobileVoiceRoomState,
-): MobileVoiceRoomParticipant | null {
-  return room.participants.find((participant) => !participant.isSelf) ?? null;
-}
-
-function getDirectCallName(room: MobileVoiceRoomState): string {
-  const participant = getDirectCallParticipant(room);
-  return participant?.displayName ?? participant?.username ?? room.channelName ?? "";
-}
-
-function getDirectCallConnectionLabel(status: MobileVoiceRoomState["status"]): string | null {
-  switch (status) {
-    case "connected":
-      return copy.directCallConnectionGood;
-    case "reconnecting":
-      return copy.directCallReconnecting;
-    case "connecting":
-    case "checking-permission":
-      return copy.directCallConnecting;
-    default:
-      return null;
-  }
-}
-
-export function getDirectCallOutputIcon(option: MobileVoiceOutputOption): IoniconName {
-  switch (option.labelKey) {
-    case "speaker":
-      return "volume-high-outline";
-    case "earpiece":
-      return "call-outline";
-    case "bluetooth":
-    case "headset":
-      return "headset-outline";
-    default:
-      return "phone-portrait-outline";
-  }
-}
-
-export function getDirectCallOutputLabel(option: MobileVoiceOutputOption): string {
-  switch (option.labelKey) {
-    case "speaker":
-      return copy.voiceSpeakerAction;
-    case "earpiece":
-      return copy.directCallEarpiece;
-    case "bluetooth":
-    case "headset":
-      return copy.voiceHeadphonesAction;
-    case "default":
-      return copy.voiceDeviceDefaultLabel;
-    default:
-      return copy.voiceDeviceOtherLabel;
-  }
-}
-
-function DirectCallDockButton({
-  active = false,
-  danger = false,
-  disabled = false,
-  icon,
-  label,
-  onLongPress,
-  onPress,
-  testID,
-}: {
-  active?: boolean;
-  danger?: boolean;
-  disabled?: boolean;
-  icon: IoniconName;
-  label: string;
-  onLongPress?: () => void;
-  onPress(): void;
-  testID: string;
-}) {
-  const theme = useVoiceRoomTheme();
-  const styles = useMobileDirectCallStyles();
-  const iconColor = danger
-    ? theme.text.onInverse
-    : active
-      ? theme.dark
-        ? theme.surface.voiceRoom
-        : theme.text.onPrimary
-      : theme.dark
-        ? theme.text.inverse
-        : theme.text.primary;
-
-  return (
-    <View style={{ alignItems: "center", gap: 6 }}>
-      <Pressable
-        accessibilityLabel={label}
-        accessibilityRole="button"
-        accessibilityState={{ disabled, selected: active }}
-        disabled={disabled}
-        onLongPress={onLongPress}
-        onPress={onPress}
-        style={({ pressed }) => [
-          styles.dockButton,
-          active && styles.dockButtonActive,
-          danger && styles.dockButtonDanger,
-          disabled && styles.dockButtonDisabled,
-          pressed && !disabled && styles.pressed,
-        ]}
-        testID={testID}
-      >
-        <Ionicons color={iconColor} name={icon} size={23} />
-      </Pressable>
-      <Text style={[styles.dockLabel, active && styles.dockLabelActive]} numberOfLines={1}>
-        {label}
-      </Text>
-    </View>
-  );
-}
-
-export function MobileDirectCallScreen({
-  callStartedAt = null,
-  onLeaveVoiceChannel,
-  onMinimize = () => undefined,
-  onRefreshVoiceDevices = async () => undefined,
-  onSelectVoiceAudioInput = async () => undefined,
-  onSelectVoiceAudioOutput = async () => undefined,
-  onSelectVoiceAudioOutputDevice = async () => undefined,
-  onSelectVoiceNoiseSuppression = async () => undefined,
-  onToggleVoiceCamera = async () => undefined,
-  onToggleVoiceMute,
-  onToggleVoiceScreenShare = async () => undefined,
-  testID = "mobile-direct-call-screen",
-  voiceRoomState,
-}: {
+export type MobileDirectCallScreenProps = {
   /** Answered-at stamp shared with the web client; falls back to the room connection time. */
   callStartedAt?: number | null;
+  onFlipVoiceCamera?(): Promise<void>;
   onLeaveVoiceChannel(): Promise<void>;
   onMinimize?(): void;
   onRefreshVoiceDevices?(): Promise<void>;
@@ -164,73 +48,144 @@ export function MobileDirectCallScreen({
   onToggleVoiceScreenShare?(): Promise<void>;
   testID?: string;
   voiceRoomState: MobileVoiceRoomState;
+};
+
+function getDirectCallParticipant(room: MobileVoiceRoomState): MobileVoiceRoomParticipant | null {
+  return room.participants.find((participant) => !participant.isSelf) ?? null;
+}
+
+function getDirectCallName(room: MobileVoiceRoomState): string {
+  const participant = getDirectCallParticipant(room);
+  return participant?.displayName ?? participant?.username ?? room.channelName ?? "";
+}
+
+/**
+ * 5e/5f DM call surface. A direct call is a two-person voice room, so it wears the
+ * room's own chrome: header pill, session strip, the measured audience grid or the
+ * paginated media stage, and the pinned control dock. Only the header identity and
+ * the testID prefix separate the audio and video entry points.
+ */
+export function MobileDirectCallSurface({
+  callStartedAt = null,
+  onFlipVoiceCamera = async () => undefined,
+  onLeaveVoiceChannel,
+  onMinimize = () => undefined,
+  onRefreshVoiceDevices = async () => undefined,
+  onSelectVoiceAudioInput = async () => undefined,
+  onSelectVoiceAudioOutput = async () => undefined,
+  onSelectVoiceAudioOutputDevice = async () => undefined,
+  onSelectVoiceNoiseSuppression = async () => undefined,
+  onToggleVoiceCamera = async () => undefined,
+  onToggleVoiceMute,
+  onToggleVoiceScreenShare = async () => undefined,
+  testID,
+  testIDPrefix,
+  variant,
+  voiceRoomState,
+}: MobileDirectCallScreenProps & {
+  testIDPrefix: string;
+  variant: "video" | "voice";
 }) {
+  const styles = useVoiceScreenStyles();
   const theme = useVoiceRoomTheme();
-  const styles = useMobileDirectCallStyles();
   const { selection } = useMobileHaptics();
+  const { showToast } = useToast();
   const [now, setNow] = useState(() => Date.now());
-  const [outputSelectorOpen, setOutputSelectorOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const model = getMobileActiveVoiceRoomModel(voiceRoomState, null, now);
-  const durationLabel =
-    formatMobileVoiceRoomDuration(callStartedAt, now) ?? model.durationLabel;
+  // The DM call clock starts when the peer answers, not when the room connects.
+  const durationLabel = formatMobileVoiceRoomDuration(callStartedAt, now) ?? model.durationLabel;
+  const dockBottomInset = useMobileBottomSystemSpacing(12);
+  const audioRoute = getMobileVoiceAudioRoute({
+    availableAudioOutputs: voiceRoomState.availableAudioOutputs,
+    selectedAudioOutputId: voiceRoomState.selectedAudioOutputId,
+    selfAudioOutput: voiceRoomState.selfAudioOutput,
+  });
+  const durationRunning = shouldTickMobileVoiceRoomDuration(model.connectionStatus);
   const isConnected = voiceRoomState.status === "connected";
+  const screenShareBusy =
+    voiceRoomState.screenShareStatus === "starting" ||
+    voiceRoomState.screenShareStatus === "stopping";
+  const stageMode = getMobileVoiceStageMode(model.participants);
 
   useEffect(() => {
-    if (!model.canMinimize) {
+    if (!durationRunning) {
       return;
     }
+
     setNow(Date.now());
     const interval = setInterval(() => setNow(Date.now()), 1_000);
     return () => clearInterval(interval);
-  }, [model.canMinimize]);
+  }, [durationRunning]);
 
-  const participant = getDirectCallParticipant(voiceRoomState);
-  const name = getDirectCallName(voiceRoomState);
-  const initials = name.slice(0, 2).toUpperCase();
-  const showRemoteVideo = Boolean(participant?.isCameraEnabled && participant?.cameraTrackRef);
-  const connectionLabel = getDirectCallConnectionLabel(voiceRoomState.status);
-  const selectedOutputId =
-    voiceRoomState.selectedAudioOutputId ??
-    (voiceRoomState.selfAudioOutput === "speaker" ? "speaker" : null);
-
-  const handleMute = () => void onToggleVoiceMute().then(selection);
-  const handleCamera = () => void onToggleVoiceCamera().then(selection);
-  const handleScreen = () => void onToggleVoiceScreenShare().then(selection);
-  const handleLeave = () => void onLeaveVoiceChannel().then(selection);
-  const handleSpeakerTap = () => {
+  const handleMute = () => {
+    void onToggleVoiceMute().then(selection);
+  };
+  const handleAudioOutput = () => {
     const next = voiceRoomState.selfAudioOutput === "speaker" ? "default" : "speaker";
     void onSelectVoiceAudioOutput(next).then(selection);
   };
-  const handleOpenOutputSelector = () => {
+  const handleNoiseSuppression = () => {
+    const next = !voiceRoomState.noiseSuppressionEnabled;
+    selection();
+    showToast({
+      title: next ? copy.voiceRoomNoiseOnToast : copy.voiceRoomNoiseOffToast,
+      variant: "info",
+    });
+    void onSelectVoiceNoiseSuppression(next);
+  };
+  const handleCamera = () => {
+    void onToggleVoiceCamera().then(selection);
+  };
+  const handleScreenShare = () => {
+    void onToggleVoiceScreenShare().then(selection);
+  };
+  const handleFlipCamera = () => {
+    void onFlipVoiceCamera().then(selection);
+  };
+  const handleLeave = () => {
+    void onLeaveVoiceChannel().then(selection);
+  };
+  const handleOpenSettings = () => {
     selection();
     void onRefreshVoiceDevices();
-    setOutputSelectorOpen((current) => !current);
+    setSettingsOpen(true);
   };
 
   return (
-    <View style={styles.screen} testID={testID}>
-      <View style={styles.header}>
+    <View style={styles.activeVoiceRoomScreen} testID={testID}>
+      <View style={styles.activeVoiceRoomHeader}>
         <Pressable
           accessibilityLabel={copy.voiceRoomMinimizeAction}
           accessibilityRole="button"
           disabled={!model.canMinimize}
+          hitSlop={6}
           onPress={onMinimize}
-          style={({ pressed }) => [styles.headerMinimize, pressed && model.canMinimize && styles.pressed]}
-          testID="mobile-direct-call-minimize"
+          style={({ pressed }) => [
+            styles.activeVoiceRoomBackButton,
+            !model.canMinimize && styles.activeVoiceRoomControlDisabled,
+            pressed && model.canMinimize && styles.actionButtonPressed,
+          ]}
+          testID={`${testIDPrefix}-minimize`}
         >
-          <Ionicons
-            color={theme.dark ? theme.text.inverse : theme.text.primary}
-            name="chevron-down"
-            size={22}
-          />
+          <Ionicons color={theme.voiceRoom.text} name="chevron-back" size={17} />
         </Pressable>
-        <View style={styles.headerText}>
-          <Text numberOfLines={1} style={styles.headerTitle}>
-            {copy.directCallTitle}
-          </Text>
-          <Text numberOfLines={1} style={styles.headerSubtitle}>
-            {copy.directCallEncrypted}
+        <View style={styles.activeVoiceRoomHeaderText}>
+          <View style={styles.activeVoiceRoomTitleRow}>
+            <Ionicons
+              color={theme.voiceRoom.success}
+              name={variant === "video" ? "videocam" : "call"}
+              size={16}
+            />
+            <Text numberOfLines={1} style={styles.activeVoiceRoomTitle}>
+              {getDirectCallName(voiceRoomState)}
+            </Text>
+          </View>
+          <Text numberOfLines={1} style={styles.activeVoiceRoomSubtitle}>
+            {[
+              variant === "video" ? copy.directCallVideoTitle : copy.directCallTitle,
+              copy.directCallEncrypted,
+            ].join(" · ")}
           </Text>
         </View>
         <Pressable
@@ -238,150 +193,103 @@ export function MobileDirectCallScreen({
           accessibilityRole="button"
           accessibilityState={{ disabled: !isConnected }}
           disabled={!isConnected}
-          onPress={() => setSettingsOpen(true)}
+          hitSlop={8}
+          onPress={handleOpenSettings}
           style={({ pressed }) => [
-            styles.headerButton,
-            !isConnected && styles.dockButtonDisabled,
-            pressed && isConnected && styles.pressed,
+            styles.activeVoiceRoomHeaderPill,
+            !isConnected && styles.activeVoiceRoomControlDisabled,
+            pressed && isConnected && styles.actionButtonPressed,
           ]}
-          testID="mobile-direct-call-settings"
+          testID={`${testIDPrefix}-settings`}
         >
-          <Ionicons
-            color={theme.dark ? theme.text.inverse : theme.text.primary}
-            name="settings-outline"
-            size={18}
-          />
+          <Ionicons color={theme.voiceRoom.accent} name="options-outline" size={15} />
+          <Text style={styles.activeVoiceRoomHeaderPillText}>{copy.voiceSettingsAction}</Text>
         </Pressable>
       </View>
 
+      <ActiveVoiceRoomSessionStrip
+        connectionStatus={model.connectionStatus}
+        durationLabel={durationLabel}
+        noiseSuppressionEnabled={voiceRoomState.noiseSuppressionEnabled}
+        onToggleNoiseSuppression={handleNoiseSuppression}
+      />
+
       {voiceRoomState.errorMessage ? (
-        <Text numberOfLines={2} style={styles.error}>
+        <Text numberOfLines={2} style={styles.activeVoiceRoomError}>
           {voiceRoomState.errorMessage}
         </Text>
       ) : null}
 
-      <View style={styles.stage}>
-        <View style={styles.avatarWrap}>
-          <View style={styles.avatarRingOuter} />
-          <View style={styles.avatarRingInner} />
-          <MobileSpeakingPulse
-            borderRadius={52}
-            color={theme.accent.default}
-            isSpeaking={Boolean(participant?.isSpeaking && !participant.isMuted)}
-            level={participant?.audioLevel ?? 0}
-            size={152}
-            testID="mobile-direct-call-speaking-pulse"
+      {stageMode === "video" ? (
+        <ActiveVoiceRoomStage onFlipCamera={handleFlipCamera} participants={model.participants} />
+      ) : (
+        <ActiveVoiceRoomAudience
+          audioRoute={audioRoute}
+          onFlipCamera={handleFlipCamera}
+          participants={model.participants}
+        />
+      )}
+
+      <View
+        style={[styles.activeVoiceRoomDock, { paddingBottom: dockBottomInset }]}
+        testID={`${testIDPrefix}-dock`}
+      >
+        <View style={styles.activeVoiceRoomControls}>
+          <ActiveVoiceRoomControl
+            disabled={!model.canToggleMute}
+            icon={voiceRoomState.selfMuted ? "mic-off-outline" : "mic-outline"}
+            label={voiceRoomState.selfMuted ? copy.voiceUnmuteAction : copy.voiceMuteAction}
+            muted={voiceRoomState.selfMuted}
+            onPress={handleMute}
+            testID={`${testIDPrefix}-mic`}
           />
-          <View style={styles.avatar}>
-            {showRemoteVideo ? (
-              <VideoTrack
-                objectFit="cover"
-                style={styles.avatarVideo}
-                trackRef={participant!.cameraTrackRef!}
-              />
-            ) : (
-              <Text style={styles.avatarInitials}>{initials}</Text>
-            )}
-          </View>
+          <ActiveVoiceRoomControl
+            // The icon names the route the platform actually reports, so the
+            // button never claims the speaker while a headset is plugged in.
+            accessibilityLabel={getVoiceAudioRouteAccessibilityLabel(audioRoute)}
+            disabled={!isConnected}
+            icon={getMobileVoiceAudioRouteIcon(audioRoute)}
+            label={copy.voiceRoomAudioOutputAction}
+            onPress={handleAudioOutput}
+            ringOnSelected={false}
+            selected={voiceRoomState.selfAudioOutput === "speaker"}
+            testID={`${testIDPrefix}-speaker`}
+          />
+          <ActiveVoiceRoomControl
+            disabled={!model.canToggleMute}
+            icon={voiceRoomState.selfCameraEnabled ? "videocam-outline" : "videocam-off-outline"}
+            inactive={!voiceRoomState.selfCameraEnabled}
+            label={
+              voiceRoomState.selfCameraEnabled
+                ? copy.voiceCameraOffAction
+                : copy.voiceCameraOnAction
+            }
+            onPress={handleCamera}
+            selected={voiceRoomState.selfCameraEnabled}
+            testID={`${testIDPrefix}-camera`}
+          />
+          <ActiveVoiceRoomControl
+            disabled={!model.canToggleMute || screenShareBusy}
+            icon="tv-outline"
+            inactive={!voiceRoomState.selfScreenShareEnabled}
+            label={
+              voiceRoomState.selfScreenShareEnabled
+                ? copy.voiceScreenShareStopShortAction
+                : copy.voiceScreenShareAction
+            }
+            onPress={handleScreenShare}
+            selected={voiceRoomState.selfScreenShareEnabled}
+            testID={`${testIDPrefix}-screen-share`}
+          />
+          <ActiveVoiceRoomControl
+            danger
+            disabled={!model.canLeave}
+            icon="call-outline"
+            label={copy.voiceLeaveAction}
+            onPress={handleLeave}
+            testID={`${testIDPrefix}-leave`}
+          />
         </View>
-        <View style={styles.identity}>
-          <Text numberOfLines={1} style={styles.name}>
-            {name}
-          </Text>
-          {durationLabel ? <Text style={styles.duration}>{durationLabel}</Text> : null}
-        </View>
-        {connectionLabel ? (
-          <View style={styles.connectionChip} testID="mobile-direct-call-connection">
-            <Ionicons color={theme.status.successOnInverse} name="cellular" size={13} />
-            <Text style={styles.connectionText}>{connectionLabel}</Text>
-          </View>
-        ) : null}
-      </View>
-
-      {outputSelectorOpen && voiceRoomState.availableAudioOutputs.length > 0 ? (
-        <View style={styles.outputSelector} testID="mobile-direct-call-output-selector">
-          {voiceRoomState.availableAudioOutputs.map((option) => {
-            const selected = option.id === selectedOutputId;
-            return (
-              <Pressable
-                accessibilityLabel={getDirectCallOutputLabel(option)}
-                accessibilityRole="radio"
-                accessibilityState={{ checked: selected, selected }}
-                key={option.id}
-                onPress={() => {
-                  selection();
-                  void onSelectVoiceAudioOutputDevice(option.id);
-                  setOutputSelectorOpen(false);
-                }}
-                style={({ pressed }) => [
-                  styles.outputRow,
-                  selected && styles.outputRowSelected,
-                  pressed && styles.pressed,
-                ]}
-                testID={`mobile-direct-call-output-${option.id}`}
-              >
-                <Ionicons
-                  color={selected ? theme.text.onPrimary : theme.text.onInverseMuted}
-                  name={getDirectCallOutputIcon(option)}
-                  size={17}
-                />
-                <Text
-                  numberOfLines={1}
-                  style={[styles.outputLabel, selected && styles.outputLabelSelected]}
-                >
-                  {getDirectCallOutputLabel(option)}
-                </Text>
-                {selected ? (
-                  <Ionicons color={theme.text.onPrimary} name="checkmark" size={16} />
-                ) : null}
-              </Pressable>
-            );
-          })}
-        </View>
-      ) : null}
-
-      <View style={styles.dock}>
-        <DirectCallDockButton
-          active={voiceRoomState.selfMuted}
-          disabled={!isConnected}
-          icon={voiceRoomState.selfMuted ? "mic-off" : "mic"}
-          label={copy.directCallMic}
-          onPress={handleMute}
-          testID="mobile-direct-call-mic"
-        />
-        <DirectCallDockButton
-          active={voiceRoomState.selfAudioOutput === "speaker"}
-          disabled={!isConnected}
-          icon="volume-high"
-          label={copy.voiceSpeakerAction}
-          onLongPress={handleOpenOutputSelector}
-          onPress={handleSpeakerTap}
-          testID="mobile-direct-call-speaker"
-        />
-        <DirectCallDockButton
-          active={voiceRoomState.selfCameraEnabled}
-          disabled={!isConnected}
-          icon={voiceRoomState.selfCameraEnabled ? "videocam" : "videocam-off"}
-          label={copy.voiceCameraOnAction}
-          onPress={handleCamera}
-          testID="mobile-direct-call-camera"
-        />
-        <DirectCallDockButton
-          active={voiceRoomState.selfScreenShareEnabled}
-          disabled={!isConnected}
-          icon="tv-outline"
-          label={copy.directCallScreen}
-          onPress={handleScreen}
-          testID="mobile-direct-call-screen-share"
-        />
-        <DirectCallDockButton
-          danger
-          disabled={!model.canLeave}
-          icon="call"
-          label={copy.voiceLeaveAction}
-          onPress={handleLeave}
-          testID="mobile-direct-call-leave"
-        />
       </View>
 
       <MobileVoiceSettingsSheet
@@ -398,5 +306,20 @@ export function MobileDirectCallScreen({
         selectedAudioOutputId={voiceRoomState.selectedAudioOutputId}
       />
     </View>
+  );
+}
+
+/** 5e — answered DM voice call. */
+export function MobileDirectCallScreen({
+  testID = "mobile-direct-call-screen",
+  ...props
+}: MobileDirectCallScreenProps) {
+  return (
+    <MobileDirectCallSurface
+      {...props}
+      testID={testID}
+      testIDPrefix="mobile-direct-call"
+      variant="voice"
+    />
   );
 }

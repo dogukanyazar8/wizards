@@ -1,4 +1,5 @@
 import { queryOptions, useQuery } from "@tanstack/react-query";
+import { MOBILE_PERSISTED_QUERY_GC_TIME_MS } from "./mobile-query-cache-policy";
 import type { MobileApiClient } from "../api/mobile-api-client";
 import { fetchMobileBootstrap } from "../bootstrap/mobile-bootstrap";
 import { mobileQueryKeys } from "./mobile-query-keys";
@@ -8,6 +9,9 @@ export function getMobileBootstrapQueryOptions(client: MobileApiClient, enabled 
     enabled,
     queryFn: () => fetchMobileBootstrap(client),
     queryKey: mobileQueryKeys.bootstrap(),
+    // Persisted root: it is on disk for a day, so dropping it from memory in
+    // half an hour would only force a re-read of what the device already has.
+    gcTime: MOBILE_PERSISTED_QUERY_GC_TIME_MS,
   });
 }
 

@@ -32,13 +32,19 @@ import {
   shouldForceMobileRealtimeReconnect,
 } from "../../realtime/mobile-realtime-state";
 import {
-  createInitialMobileChannelTypingState,
   pruneMobileChannelTypingState,
   replaceMobileChannelTypingUsers,
-  type MobileChannelTypingState,
 } from "../../realtime/mobile-typing-state";
 import { purgeMobileQueryCache } from "../../query/mobile-query-persistence";
+import { mobileMessageStore } from "../../storage/mobile-message-store-database";
+import { addMobileSecurityBreadcrumb } from "../../observability/mobile-sentry";
+import {
+  planMobileSessionWipe,
+  runMobileSessionWipe,
+  type MobileSessionAuthSnapshot,
+} from "../../state/mobile-session-wipe";
 import { resetMobileSessionState } from "../../state/reset-mobile-session-state";
+import { mobileTypingStoreWriters } from "../../state/mobile-typing-store";
 import { useMobileActiveTargetStore } from "../../state/mobile-active-target-store";
 import { MobileConnectivityBanner } from "../components/mobile-connectivity-banner";
 import { getMobileConnectivityHealth } from "../mobile-connectivity-presentation";
@@ -56,10 +62,13 @@ export const MOBILE_DM_DELIVERY_ACK_DELAY_MS = 300;
 
 type MobileRealtimeEventListener = (event: MobileRealtimeEventEnvelope) => void;
 
+/**
+ * Typing is deliberately absent: it is published to `useMobileTypingStore` so the
+ * surfaces that draw it subscribe directly. Every consumer of this context is a
+ * consumer of *connection* state, which moves rarely.
+ */
 interface MobileRealtimeRuntime {
   readonly connection: MobileRealtimeConnectionSnapshot;
-  readonly dmTyping: MobileChannelTypingState;
-  readonly typing: MobileChannelTypingState;
   emitDMCallAccept(input: { conversationId: string; fromUserId: string; video: boolean }): void;
   emitDMCallCancel(input: { conversationId: string }): void;
   emitDMCallDecline(input: { conversationId: string; fromUserId: string }): void;
@@ -98,12 +107,12 @@ export function MobileRealtimeProvider({ children }: PropsWithChildren) {
     createInitialMobileRealtimeSnapshot,
   );
   const connectionRef = useRef(connection);
-  const [typing, setTyping] = useState<MobileChannelTypingState>(
-    createInitialMobileChannelTypingState,
-  );
-  const [dmTyping, setDMTyping] = useState<MobileChannelTypingState>(
-    createInitialMobileChannelTypingState,
-  );
+  // Typing lives in its own store: it arrives for every channel and conversation
+  // the viewer is in, and publishing it through this context made the product
+  // root — and with it the navigator and every screen-props object — re-render
+  // for a stranger typing somewhere nobody is looking.
+  const setTyping = mobileTypingStoreWriters.patchChannels;
+  const setDMTyping = mobileTypingStoreWriters.patchDMs;
   const [bridge] = useState(() =>
     createMobileRealtimeQueryBridge({
       getActiveTargets: () => {
@@ -400,20 +409,50 @@ export function MobileRealtimeProvider({ children }: PropsWithChildren) {
     return () => subscription.remove();
   }, [bridge, status]);
 
+  // A wipe is driven by the transition out of a signed-in session, never by the
+  // current status: `checking` is the first status of every cold start, and
+  // wiping there threw away the persisted cache on every launch — the exact data
+  // that was persisted to make the launch fast.
+  const authSnapshotRef = useRef<MobileSessionAuthSnapshot | null>(null);
+  const wipeRef = useRef<Promise<unknown> | null>(null);
+
   useEffect(() => {
+    const next: MobileSessionAuthSnapshot = { status, userId: session?.user.id ?? null };
+    const plan = planMobileSessionWipe(next, authSnapshotRef.current);
+    authSnapshotRef.current = next;
+
     if (status === "signed-in") {
+      mobileMessageStore.resume();
+    }
+
+    if (!plan) {
       return;
     }
-    bridge.cancelPending();
-    queryClient.removeQueries({ queryKey: mobileQueryKeys.all });
-    // Clearing the in-memory cache only schedules a throttled empty write, so
-    // drop the persisted file outright — a signed-out device must not keep the
-    // previous account's servers and conversations readable on disk.
-    void purgeMobileQueryCache(getMobileRuntimeConfig().environment);
-    resetMobileSessionState();
-    setTyping(createInitialMobileChannelTypingState());
-    setDMTyping(createInitialMobileChannelTypingState());
-  }, [bridge, queryClient, status]);
+
+    const previousWipe = wipeRef.current ?? Promise.resolve();
+    wipeRef.current = previousWipe.then(() =>
+      runMobileSessionWipe(plan, {
+        cancelRealtimeWork: async () => {
+          bridge.cancelPending();
+        },
+        closeMessageStore: () => mobileMessageStore.close(),
+        dropMemoryCaches: () => {
+          queryClient.removeQueries({ queryKey: mobileQueryKeys.all });
+          resetMobileSessionState();
+        },
+        purgeMessageStore: (previousUserId) => mobileMessageStore.purgeUser(previousUserId),
+        // Clearing the in-memory cache only schedules a throttled empty write, so
+        // drop the persisted file outright — a signed-out device must not keep the
+        // previous account's servers and conversations readable on disk.
+        purgeQueryCache: () => purgeMobileQueryCache(getMobileRuntimeConfig().environment),
+        report: (result) => {
+          if (result.status === "partial") {
+            addMobileSecurityBreadcrumb(`session-wipe-incomplete:${result.failedSteps.join(",")}`);
+          }
+        },
+      }),
+    );
+  }, [bridge, queryClient, session?.user.id, status]);
 
   useEffect(
     () => () => {
@@ -482,7 +521,6 @@ export function MobileRealtimeProvider({ children }: PropsWithChildren) {
   const value = useMemo<MobileRealtimeRuntime>(
     () => ({
       connection,
-      dmTyping,
       emitDMCallAccept: (input) => clientRef.current?.emitDMCallAccept(input),
       emitDMCallCancel: (input) => clientRef.current?.emitDMCallCancel(input),
       emitDMCallDecline: (input) => clientRef.current?.emitDMCallDecline(input),
@@ -495,18 +533,15 @@ export function MobileRealtimeProvider({ children }: PropsWithChildren) {
       stopChannelTyping,
       stopDMTyping,
       subscribe,
-      typing,
       updateChannelTyping,
       updateDMTyping,
     }),
     [
       connection,
-      dmTyping,
       reconnect,
       stopChannelTyping,
       stopDMTyping,
       subscribe,
-      typing,
       updateChannelTyping,
       updateDMTyping,
     ],

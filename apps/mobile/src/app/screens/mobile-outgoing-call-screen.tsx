@@ -1,15 +1,29 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { VideoTrack } from "@livekit/react-native";
 import { Pressable, Text, View } from "react-native";
 
 import { activeMobileCopy as copy } from "../../locale/mobile-locale-preferences";
-import type { MobileVoiceAudioOutputMode, MobileVoiceRoomState } from "../mobile-root-screen-shared";
-import { MobileRingingDots, MobileRingingPulse } from "../components/mobile-call-pulse";
+import type {
+  MobileVoiceAudioOutputMode,
+  MobileVoiceRoomState,
+} from "../mobile-root-screen-shared";
+import { MobileRingingDots, MobileRingingHalo } from "../components/mobile-call-pulse";
+import { Avatar } from "../components/kit/avatar";
 import { useMobileHaptics } from "../providers/mobile-haptics-provider";
 import { useVoiceRoomTheme } from "../providers/mobile-theme-provider";
-import { useMobileOutgoingCallStyles } from "./mobile-outgoing-call-screen.styles";
+import {
+  ActiveVoiceRoomControl,
+  ActiveVoiceRoomSessionStrip,
+  ActiveVoiceRoomStage,
+} from "./voice-screen";
+import { useVoiceScreenStyles } from "./voice-screen.styles";
+import { getMobileVoiceStageMode } from "../../voice/mobile-voice-stage";
+import { useMobileBottomSystemSpacing } from "../use-mobile-bottom-system-spacing";
 
-type IoniconName = keyof typeof Ionicons.glyphMap;
+/** Callee avatar geometry, shared with the halo so the waves stop at its box. */
+const RINGING_AVATAR_SIZE = 96;
+const RINGING_AVATAR_RADIUS = 34;
+/** The whole ring effect lives inside this box; nothing paints outside it. */
+const RINGING_HALO_DIAMETER = 168;
 
 export type MobileOutgoingCallScreenProps = {
   /** Name of the person being called; falls back to the room title. */
@@ -18,378 +32,261 @@ export type MobileOutgoingCallScreenProps = {
   onFlipVoiceCamera?(): Promise<void>;
   onMinimize?(): void;
   onSelectVoiceAudioOutput?(mode: MobileVoiceAudioOutputMode): Promise<void>;
+  onSelectVoiceNoiseSuppression?(enabled: boolean): Promise<void>;
   onToggleVoiceCamera?(): Promise<void>;
   onToggleVoiceMute(): Promise<void>;
   testID?: string;
   voiceRoomState: MobileVoiceRoomState;
 };
 
-function getOutgoingCallInitials(name: string): string {
-  return name.trim().slice(0, 2).toUpperCase() || "??";
-}
-
-function OutgoingCallDockButton({
-  active = false,
-  danger = false,
-  disabled = false,
-  glass = false,
-  icon,
-  label,
-  onPress,
-  testID,
-}: {
-  active?: boolean;
-  danger?: boolean;
-  disabled?: boolean;
-  /** True on 7b, where the dock floats over the camera feed in every theme. */
-  glass?: boolean;
-  icon: IoniconName;
-  label: string;
-  onPress(): void;
-  testID: string;
-}) {
-  const theme = useVoiceRoomTheme();
-  const styles = useMobileOutgoingCallStyles();
-  const iconColor = danger
-    ? theme.text.onInverse
-    : active
-      ? glass || theme.dark
-        ? theme.surface.inverse
-        : theme.text.onPrimary
-      : glass || theme.dark
-        ? theme.text.onInverse
-        : theme.text.primary;
-
-  return (
-    <View style={styles.dockCell}>
-      <Pressable
-        accessibilityLabel={label}
-        accessibilityRole="button"
-        accessibilityState={{ disabled, selected: active }}
-        disabled={disabled}
-        onPress={onPress}
-        style={({ pressed }) => [
-          styles.dockButton,
-          glass && styles.dockButtonGlass,
-          active && styles.dockButtonActive,
-          active && glass && styles.dockButtonGlassActive,
-          danger && styles.dockButtonDanger,
-          disabled && styles.dockButtonDisabled,
-          pressed && !disabled && styles.pressed,
-        ]}
-        testID={testID}
-      >
-        <Ionicons color={iconColor} name={icon} size={22} />
-      </Pressable>
-      <Text
-        numberOfLines={1}
-        style={[
-          styles.dockLabel,
-          glass && styles.dockLabelGlass,
-          active && styles.dockLabelActive,
-          active && glass && styles.dockLabelGlassActive,
-          danger && styles.dockLabelDanger,
-          disabled && styles.dockLabelDisabled,
-        ]}
-      >
-        {label}
-      </Text>
-    </View>
-  );
-}
-
 /**
- * Waiting dock shared by 7a and 7b: microphone, speaker, camera, screen share
- * (disabled until the call connects, per the handoff) and cancel.
+ * 7a/7b outgoing DM call. The ringing screen is the room before anyone answers:
+ * same header, session strip and dock as an active call, with the strip carrying
+ * the ringing state and the solo card ringing around the callee avatar.
  */
-function OutgoingCallDock({
-  glass,
+function MobileOutgoingCallSurface({
+  calleeName,
   onCancelCall,
-  onSelectVoiceAudioOutput,
-  onToggleVoiceCamera,
+  onFlipVoiceCamera = async () => undefined,
+  onMinimize = () => undefined,
+  onSelectVoiceAudioOutput = async () => undefined,
+  onSelectVoiceNoiseSuppression,
+  onToggleVoiceCamera = async () => undefined,
   onToggleVoiceMute,
+  testID,
   testIDPrefix,
+  variant,
   voiceRoomState,
-}: {
-  glass: boolean;
-  onCancelCall(): void;
-  onSelectVoiceAudioOutput(mode: MobileVoiceAudioOutputMode): Promise<void>;
-  onToggleVoiceCamera(): Promise<void>;
-  onToggleVoiceMute(): Promise<void>;
+}: MobileOutgoingCallScreenProps & {
   testIDPrefix: string;
-  voiceRoomState: MobileVoiceRoomState;
+  variant: "video" | "voice";
 }) {
-  const styles = useMobileOutgoingCallStyles();
+  const styles = useVoiceScreenStyles();
+  const theme = useVoiceRoomTheme();
   const { selection } = useMobileHaptics();
+  const dockBottomInset = useMobileBottomSystemSpacing(12);
+  const name = calleeName || voiceRoomState.channelName || "";
+  const isVideo = variant === "video";
   const isSpeakerOn = voiceRoomState.selfAudioOutput === "speaker";
+  // Your own camera is the only live surface while the call rings, so it takes the
+  // stage the same way it would in a room; without a track the ringing card stays.
+  const showSelfStage = isVideo && getMobileVoiceStageMode(voiceRoomState.participants) === "video";
+
+  const handleFlipCamera = () => {
+    void onFlipVoiceCamera().then(selection);
+  };
+  const handleNoiseSuppression = onSelectVoiceNoiseSuppression
+    ? () => {
+        selection();
+        void onSelectVoiceNoiseSuppression(!voiceRoomState.noiseSuppressionEnabled);
+      }
+    : undefined;
 
   return (
-    <View style={[styles.dock, glass && styles.dockGlass]} testID={`${testIDPrefix}-dock`}>
-      <OutgoingCallDockButton
-        active={voiceRoomState.selfMuted}
-        glass={glass}
-        icon={voiceRoomState.selfMuted ? "mic-off" : "mic"}
-        label={copy.directCallMic}
-        onPress={() => void onToggleVoiceMute().then(selection)}
-        testID={`${testIDPrefix}-mic`}
+    <View style={styles.activeVoiceRoomScreen} testID={testID}>
+      <View style={styles.activeVoiceRoomHeader}>
+        <Pressable
+          accessibilityLabel={copy.voiceRoomMinimizeAction}
+          accessibilityRole="button"
+          hitSlop={6}
+          onPress={onMinimize}
+          style={({ pressed }) => [
+            styles.activeVoiceRoomBackButton,
+            pressed && styles.actionButtonPressed,
+          ]}
+          testID={`${testIDPrefix}-minimize`}
+        >
+          <Ionicons color={theme.voiceRoom.text} name="chevron-back" size={17} />
+        </Pressable>
+        <View style={styles.activeVoiceRoomHeaderText}>
+          <View style={styles.activeVoiceRoomTitleRow}>
+            <Ionicons
+              color={theme.voiceRoom.textSecondary}
+              name={isVideo ? "videocam" : "call"}
+              size={16}
+            />
+            <Text numberOfLines={1} style={styles.activeVoiceRoomTitle}>
+              {name}
+            </Text>
+          </View>
+          <Text numberOfLines={1} style={styles.activeVoiceRoomSubtitle}>
+            {[
+              isVideo ? copy.directCallVideoTitle : copy.directCallTitle,
+              copy.directCallEncrypted,
+            ].join(" · ")}
+          </Text>
+        </View>
+        <View style={styles.activeVoiceRoomHeaderPill} testID={`${testIDPrefix}-encryption`}>
+          <Ionicons color={theme.voiceRoom.textSecondary} name="lock-closed-outline" size={13} />
+          <Text style={styles.activeVoiceRoomHeaderPillTextMuted}>
+            {copy.directCallEncryptedBadge}
+          </Text>
+        </View>
+      </View>
+
+      <ActiveVoiceRoomSessionStrip
+        connectionStatus={voiceRoomState.status}
+        durationLabel={null}
+        label={isVideo ? copy.directCallRingingVideo : copy.directCallRingingVoice}
+        noiseSuppressionEnabled={voiceRoomState.noiseSuppressionEnabled}
+        {...(handleNoiseSuppression ? { onToggleNoiseSuppression: handleNoiseSuppression } : {})}
+        pulsing
+        tone="pending"
       />
-      <OutgoingCallDockButton
-        active={isSpeakerOn}
-        glass={glass}
-        icon="volume-high"
-        label={copy.voiceSpeakerAction}
-        onPress={() =>
-          void onSelectVoiceAudioOutput(isSpeakerOn ? "default" : "speaker").then(selection)
-        }
-        testID={`${testIDPrefix}-speaker`}
-      />
-      <OutgoingCallDockButton
-        active={voiceRoomState.selfCameraEnabled}
-        glass={glass}
-        icon={voiceRoomState.selfCameraEnabled ? "videocam" : "videocam-off"}
-        label={copy.voiceCameraOnAction}
-        onPress={() => void onToggleVoiceCamera().then(selection)}
-        testID={`${testIDPrefix}-camera`}
-      />
-      <OutgoingCallDockButton
-        disabled
-        glass={glass}
-        icon="tv-outline"
-        label={copy.directCallScreen}
-        onPress={() => undefined}
-        testID={`${testIDPrefix}-screen-share`}
-      />
-      <OutgoingCallDockButton
-        danger
-        glass={glass}
-        icon="call"
-        label={copy.directCallCancelAction}
-        onPress={() => {
-          selection();
-          onCancelCall();
-        }}
-        testID={`${testIDPrefix}-cancel`}
-      />
+
+      {voiceRoomState.errorMessage ? (
+        <Text numberOfLines={2} style={styles.activeVoiceRoomError}>
+          {voiceRoomState.errorMessage}
+        </Text>
+      ) : null}
+
+      {showSelfStage ? (
+        <ActiveVoiceRoomStage
+          onFlipCamera={handleFlipCamera}
+          participants={voiceRoomState.participants}
+        />
+      ) : (
+        <View style={styles.activeVoiceRoomSolo} testID={`${testIDPrefix}-callee`}>
+          <View style={[styles.activeVoiceRoomSoloCard, styles.activeVoiceRoomRingingCard]}>
+            <View
+              style={[
+                styles.activeVoiceRoomRingingHalo,
+                { height: RINGING_HALO_DIAMETER, width: RINGING_HALO_DIAMETER },
+              ]}
+            >
+              <MobileRingingHalo
+                avatarRadius={RINGING_AVATAR_RADIUS}
+                avatarSize={RINGING_AVATAR_SIZE}
+                color={theme.voiceRoom.accent}
+                diameter={RINGING_HALO_DIAMETER}
+                glowColor={theme.voiceRoom.accent}
+                testID={`${testIDPrefix}-pulse`}
+              />
+              <Avatar
+                accessibilityLabel={name}
+                avatarBorderColor="transparent"
+                avatarBorderRadius={RINGING_AVATAR_RADIUS}
+                avatarBorderWidth={0}
+                dimension={RINGING_AVATAR_SIZE}
+                fallbackTextStyle={styles.activeVoiceRoomSoloAvatarFallback}
+                fallbackTint={{
+                  bg: theme.voiceRoom.avatarSurface,
+                  fg: theme.voiceRoom.avatarText,
+                }}
+                imageUrl={null}
+                label={name}
+              />
+            </View>
+            <Text numberOfLines={1} style={styles.activeVoiceRoomSoloName}>
+              {name}
+            </Text>
+            <View style={styles.activeVoiceRoomRingingStatusRow}>
+              <Text style={styles.activeVoiceRoomSoloStatus} testID={`${testIDPrefix}-status`}>
+                {isVideo ? copy.directCallRingingVideo : copy.directCallRingingVoice}
+              </Text>
+              <MobileRingingDots color={theme.voiceRoom.textSecondary} />
+            </View>
+            {isVideo ? null : (
+              <View style={styles.activeVoiceRoomRingingHint}>
+                <Ionicons
+                  color={theme.voiceRoom.textSecondary}
+                  name="chatbubble-outline"
+                  size={13}
+                />
+                <Text style={styles.activeVoiceRoomRingingHintText}>
+                  {copy.directCallLeaveMessageHint}
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+      )}
+
+      <View
+        style={[styles.activeVoiceRoomDock, { paddingBottom: dockBottomInset }]}
+        testID={`${testIDPrefix}-dock`}
+      >
+        <View style={styles.activeVoiceRoomControls}>
+          <ActiveVoiceRoomControl
+            icon={voiceRoomState.selfMuted ? "mic-off-outline" : "mic-outline"}
+            label={voiceRoomState.selfMuted ? copy.voiceUnmuteAction : copy.voiceMuteAction}
+            muted={voiceRoomState.selfMuted}
+            onPress={() => void onToggleVoiceMute().then(selection)}
+            testID={`${testIDPrefix}-mic`}
+          />
+          <ActiveVoiceRoomControl
+            icon="volume-high-outline"
+            label={copy.voiceRoomAudioOutputAction}
+            onPress={() =>
+              void onSelectVoiceAudioOutput(isSpeakerOn ? "default" : "speaker").then(selection)
+            }
+            ringOnSelected={false}
+            selected={isSpeakerOn}
+            testID={`${testIDPrefix}-speaker`}
+          />
+          <ActiveVoiceRoomControl
+            icon={voiceRoomState.selfCameraEnabled ? "videocam-outline" : "videocam-off-outline"}
+            inactive={!voiceRoomState.selfCameraEnabled}
+            label={
+              voiceRoomState.selfCameraEnabled
+                ? copy.voiceCameraOffAction
+                : copy.voiceCameraOnAction
+            }
+            onPress={() => void onToggleVoiceCamera().then(selection)}
+            selected={voiceRoomState.selfCameraEnabled}
+            testID={`${testIDPrefix}-camera`}
+          />
+          {/* Nobody can receive a screen share until the call is answered. */}
+          <ActiveVoiceRoomControl
+            disabled
+            icon="tv-outline"
+            inactive
+            label={copy.voiceScreenShareAction}
+            onPress={() => undefined}
+            testID={`${testIDPrefix}-screen-share`}
+          />
+          <ActiveVoiceRoomControl
+            danger
+            icon="call-outline"
+            label={copy.directCallCancelAction}
+            onPress={() => {
+              selection();
+              onCancelCall();
+            }}
+            testID={`${testIDPrefix}-cancel`}
+          />
+        </View>
+      </View>
     </View>
   );
 }
 
 /** 7a — outgoing DM voice call, shown until the other side answers. */
 export function MobileOutgoingVoiceCallScreen({
-  calleeName,
-  onCancelCall,
-  onMinimize = () => undefined,
-  onSelectVoiceAudioOutput = async () => undefined,
-  onToggleVoiceCamera = async () => undefined,
-  onToggleVoiceMute,
   testID = "mobile-outgoing-voice-call-screen",
-  voiceRoomState,
+  ...props
 }: MobileOutgoingCallScreenProps) {
-  const theme = useVoiceRoomTheme();
-  const styles = useMobileOutgoingCallStyles();
-  const name = calleeName || voiceRoomState.channelName || "";
-
   return (
-    <View style={styles.screen} testID={testID}>
-      <View style={styles.header}>
-        <Pressable
-          accessibilityLabel={copy.voiceRoomMinimizeAction}
-          accessibilityRole="button"
-          onPress={onMinimize}
-          style={({ pressed }) => [styles.headerMinimize, pressed && styles.pressed]}
-          testID="mobile-outgoing-call-minimize"
-        >
-          <Ionicons
-            color={theme.dark ? theme.text.inverse : theme.text.primary}
-            name="chevron-down"
-            size={22}
-          />
-        </Pressable>
-        <View style={styles.headerText}>
-          <Text numberOfLines={1} style={styles.headerTitle}>
-            {copy.directCallTitle}
-          </Text>
-          <Text numberOfLines={1} style={styles.headerSubtitle}>
-            {copy.directCallEncrypted}
-          </Text>
-        </View>
-        <View style={styles.encryptionBadge}>
-          <Ionicons color={theme.text.onInverseMuted} name="lock-closed-outline" size={12} />
-          <Text style={styles.encryptionBadgeText}>{copy.directCallEncryptedBadge}</Text>
-        </View>
-      </View>
-
-      {voiceRoomState.errorMessage ? (
-        <Text numberOfLines={2} style={styles.error}>
-          {voiceRoomState.errorMessage}
-        </Text>
-      ) : null}
-
-      <View style={styles.stage}>
-        <View style={styles.avatarWrap}>
-          <View pointerEvents="none" style={styles.stageHalo} />
-          <MobileRingingPulse
-            borderRadius={52}
-            color={theme.accent.default}
-            fillColor={theme.accent.soft}
-            size={168}
-            testID="mobile-outgoing-call-pulse"
-          />
-          <View style={styles.avatar}>
-            <Text style={styles.avatarInitials}>{getOutgoingCallInitials(name)}</Text>
-          </View>
-        </View>
-        <View style={styles.identity}>
-          <Text numberOfLines={1} style={styles.name}>
-            {name}
-          </Text>
-          <View style={styles.statusRow}>
-            <Text style={styles.statusText} testID="mobile-outgoing-call-status">
-              {copy.directCallRingingVoice}
-            </Text>
-            <MobileRingingDots color={theme.text.onInverseMuted} />
-          </View>
-        </View>
-        <View style={styles.hintPill}>
-          <Ionicons color={theme.text.onInverseMuted} name="chatbubble-outline" size={13} />
-          <Text style={styles.hintPillText}>{copy.directCallLeaveMessageHint}</Text>
-        </View>
-      </View>
-
-      <OutgoingCallDock
-        glass={false}
-        onCancelCall={onCancelCall}
-        onSelectVoiceAudioOutput={onSelectVoiceAudioOutput}
-        onToggleVoiceCamera={onToggleVoiceCamera}
-        onToggleVoiceMute={onToggleVoiceMute}
-        testIDPrefix="mobile-outgoing-call"
-        voiceRoomState={voiceRoomState}
-      />
-    </View>
+    <MobileOutgoingCallSurface
+      {...props}
+      testID={testID}
+      testIDPrefix="mobile-outgoing-call"
+      variant="voice"
+    />
   );
 }
 
-/** 7b — outgoing DM video call: own camera fills the screen until the call connects. */
+/** 7b — outgoing DM video call: your own camera holds the stage until it connects. */
 export function MobileOutgoingVideoCallScreen({
-  calleeName,
-  onCancelCall,
-  onFlipVoiceCamera = async () => undefined,
-  onMinimize = () => undefined,
-  onSelectVoiceAudioOutput = async () => undefined,
-  onToggleVoiceCamera = async () => undefined,
-  onToggleVoiceMute,
   testID = "mobile-outgoing-video-call-screen",
-  voiceRoomState,
+  ...props
 }: MobileOutgoingCallScreenProps) {
-  const theme = useVoiceRoomTheme();
-  const styles = useMobileOutgoingCallStyles();
-  const { selection } = useMobileHaptics();
-  const name = calleeName || voiceRoomState.channelName || "";
-  const selfParticipant = voiceRoomState.participants.find((participant) => participant.isSelf);
-  const selfCameraTrackRef = selfParticipant?.cameraTrackRef ?? null;
-  const showSelfPreview = Boolean(voiceRoomState.selfCameraEnabled && selfCameraTrackRef);
-
   return (
-    <View style={styles.videoScreen} testID={testID}>
-      {showSelfPreview ? (
-        <VideoTrack
-          objectFit="cover"
-          style={styles.videoPreview}
-          trackRef={selfCameraTrackRef!}
-          zOrder={0}
-        />
-      ) : (
-        <View style={styles.videoPreviewFallback}>
-          <Text style={styles.videoPreviewInitials}>{getOutgoingCallInitials(name)}</Text>
-        </View>
-      )}
-      <View pointerEvents="none" style={styles.videoScrimTop} />
-      <View pointerEvents="none" style={styles.videoScrimBottom} />
-
-      <View style={styles.header}>
-        <Pressable
-          accessibilityLabel={copy.voiceRoomMinimizeAction}
-          accessibilityRole="button"
-          onPress={onMinimize}
-          style={({ pressed }) => [styles.headerMinimize, pressed && styles.pressed]}
-          testID="mobile-outgoing-video-call-minimize"
-        >
-          <Ionicons color={theme.text.onInverse} name="chevron-down" size={22} />
-        </Pressable>
-        <View style={styles.headerText}>
-          <Text numberOfLines={1} style={styles.videoHeaderTitle}>
-            {copy.directCallVideoTitle}
-          </Text>
-          <Text numberOfLines={1} style={styles.videoHeaderSubtitle}>
-            {copy.directCallEncrypted}
-          </Text>
-        </View>
-        <Pressable
-          accessibilityLabel={copy.voiceCameraFlipAction}
-          accessibilityRole="button"
-          accessibilityState={{ disabled: !voiceRoomState.selfCameraEnabled }}
-          disabled={!voiceRoomState.selfCameraEnabled}
-          onPress={() => void onFlipVoiceCamera().then(selection)}
-          style={({ pressed }) => [
-            styles.headerButton,
-            styles.dockButtonGlass,
-            !voiceRoomState.selfCameraEnabled && styles.dockButtonDisabled,
-            pressed && voiceRoomState.selfCameraEnabled && styles.pressed,
-          ]}
-          testID="mobile-outgoing-video-call-flip"
-        >
-          <Ionicons color={theme.text.onInverse} name="camera-reverse-outline" size={18} />
-        </Pressable>
-      </View>
-
-      {voiceRoomState.errorMessage ? (
-        <Text numberOfLines={2} style={styles.error}>
-          {voiceRoomState.errorMessage}
-        </Text>
-      ) : null}
-
-      <View style={styles.videoCallee}>
-        <View style={styles.avatarWrap}>
-          <MobileRingingPulse
-            borderRadius={42}
-            color={theme.accent.default}
-            fillColor={theme.accent.soft}
-            size={128}
-            testID="mobile-outgoing-video-call-pulse"
-          />
-          <View style={styles.videoAvatar}>
-            <Text style={styles.videoAvatarInitials}>{getOutgoingCallInitials(name)}</Text>
-          </View>
-        </View>
-        <View style={styles.videoIdentity}>
-          <Text numberOfLines={1} style={styles.videoName}>
-            {name}
-          </Text>
-          <View style={styles.statusRow}>
-            <Text style={styles.videoStatusText} testID="mobile-outgoing-video-call-status">
-              {copy.directCallRingingVideo}
-            </Text>
-            <MobileRingingDots color={theme.text.onInverseMuted} />
-          </View>
-        </View>
-      </View>
-
-      {voiceRoomState.selfCameraEnabled ? (
-        <View style={styles.videoPreviewChip} testID="mobile-outgoing-video-call-preview-chip">
-          <Ionicons color={theme.status.successOnInverse} name="videocam" size={13} />
-          <Text style={styles.videoPreviewChipText}>{copy.directCallCameraPreviewHint}</Text>
-        </View>
-      ) : null}
-
-      <OutgoingCallDock
-        glass
-        onCancelCall={onCancelCall}
-        onSelectVoiceAudioOutput={onSelectVoiceAudioOutput}
-        onToggleVoiceCamera={onToggleVoiceCamera}
-        onToggleVoiceMute={onToggleVoiceMute}
-        testIDPrefix="mobile-outgoing-video-call"
-        voiceRoomState={voiceRoomState}
-      />
-    </View>
+    <MobileOutgoingCallSurface
+      {...props}
+      testID={testID}
+      testIDPrefix="mobile-outgoing-video-call"
+      variant="video"
+    />
   );
 }

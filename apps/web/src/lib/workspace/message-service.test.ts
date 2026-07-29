@@ -210,3 +210,120 @@ describe("workspace message service", () => {
     );
   });
 });
+
+/**
+ * The notification row is what tells the recipients. It used to be written after
+ * the commit, on its own connection, with the promise discarded — so a message
+ * could be committed and nobody ever told about it.
+ */
+describe("channel message notification enqueue", () => {
+  type AsyncMethod = (...args: never[]) => Promise<unknown>;
+
+  function stubMessageTransaction(operations: string[], upsertKeys: string[]) {
+    const createdAt = new Date("2026-07-28T09:00:00.000Z");
+    const tx = {
+      attachment: { findMany: async () => [], update: async () => ({}) },
+      message: {
+        create: async () => {
+          operations.push("tx.message.create");
+          return { id: "message-1" };
+        },
+        findUniqueOrThrow: async () => ({
+          attachments: [],
+          author: {
+            avatarUrl: null,
+            customStatus: null,
+            displayName: "Ada",
+            id: "user-1",
+            status: "ONLINE",
+            username: "ada",
+          },
+          channelId: "channel-1",
+          content: "@kaya bak",
+          createdAt,
+          deletedAt: null,
+          deletedById: null,
+          editedAt: null,
+          id: "message-1",
+          isPinned: false,
+          mentionEveryone: false,
+          pinnedAt: null,
+          pinnedById: null,
+          placeholderExpiresAt: null,
+          reactions: [],
+          reply: null,
+          threadParentId: null,
+          type: "DEFAULT",
+        }),
+      },
+      outboxJob: {
+        upsert: async (args?: unknown) => {
+          const upsertArgs = args as { create?: { idempotencyKey?: string } };
+          operations.push("tx.outboxJob.upsert");
+          upsertKeys.push(upsertArgs.create?.idempotencyKey ?? "");
+          return {};
+        },
+      },
+    };
+
+    const prismaDelegate = prisma as unknown as {
+      $transaction: AsyncMethod;
+      userDailyMetric: { upsert: AsyncMethod };
+    };
+    const originalTransaction = prismaDelegate.$transaction;
+    const originalMetricUpsert = prismaDelegate.userDailyMetric.upsert;
+
+    prismaDelegate.$transaction = async (callback?: unknown) => {
+      operations.push("transaction.begin");
+      const result = await (callback as (transaction: typeof tx) => Promise<unknown>)(tx);
+      operations.push("transaction.commit");
+      return result;
+    };
+    prismaDelegate.userDailyMetric.upsert = async () => ({});
+
+    return () => {
+      prismaDelegate.$transaction = originalTransaction;
+      prismaDelegate.userDailyMetric.upsert = originalMetricUpsert;
+    };
+  }
+
+  it("writes the mention job inside the message transaction", async () => {
+    const operations: string[] = [];
+    const upsertKeys: string[] = [];
+    const restore = stubMessageTransaction(operations, upsertKeys);
+
+    try {
+      await createMessage("channel-1", "user-1", "@kaya bak", undefined, [], undefined, {
+        notification: { channelName: "genel", serverId: "server-1" },
+      });
+
+      assert.ok(upsertKeys.includes("channel-mention-notifications:message-1"));
+      const commitIndex = operations.indexOf("transaction.commit");
+      const lastUpsertIndex = operations.lastIndexOf("tx.outboxJob.upsert");
+      assert.ok(lastUpsertIndex >= 0);
+      assert.ok(
+        lastUpsertIndex < commitIndex,
+        "notification job must be written before the commit",
+      );
+    } finally {
+      restore();
+    }
+  });
+
+  it("writes no notification job for a sender that did not ask for one", async () => {
+    const operations: string[] = [];
+    const upsertKeys: string[] = [];
+    const restore = stubMessageTransaction(operations, upsertKeys);
+
+    try {
+      await createMessage("channel-1", "user-1", "@kaya bak", undefined, []);
+
+      assert.deepEqual(
+        upsertKeys.filter((key) => key.startsWith("channel-mention-notifications:")),
+        [],
+      );
+    } finally {
+      restore();
+    }
+  });
+});

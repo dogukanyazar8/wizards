@@ -16,7 +16,10 @@ export type MobileReleasePlatform = "android" | "ios";
 
 export type MobileReleaseBudget = {
   label: string;
+  /** The p95 a release may not exceed. Enforced by `release:check`. */
+  maxMs: number;
   metric: string;
+  /** Human-readable form of the same budget, for the checklist. */
   target: string;
 };
 
@@ -49,23 +52,45 @@ const FORBIDDEN_ENV_KEY_PATTERN = /(SECRET|PASSWORD|TOKEN|PRIVATE|PFX|KEY)$/i;
 export const MOBILE_RELEASE_BUDGETS: MobileReleaseBudget[] = [
   {
     label: "Cold authenticated launch",
+    maxMs: 2_500,
     metric: "startup",
-    target: "<= 2500ms on recent iOS/Android devices",
+    target: "p95 <= 2500ms to authenticated content on a mid-tier device",
   },
   {
     label: "Warm foreground resume",
+    maxMs: 700,
     metric: "resume",
-    target: "<= 700ms without refetching unrelated surfaces",
+    target: "p95 <= 700ms without refetching unrelated surfaces",
+  },
+  {
+    label: "Cached chat tap to content",
+    maxMs: 100,
+    metric: "chat-open-cached",
+    target: "p95 <= 100ms when the stream is already cached",
+  },
+  {
+    label: "Network chat tap to content",
+    maxMs: 500,
+    metric: "chat-open-network",
+    target: "p95 <= 500ms same-region",
+  },
+  {
+    label: "Send tap to local echo",
+    maxMs: 50,
+    metric: "send-echo",
+    target: "p95 <= 50ms",
+  },
+  {
+    label: "Send tap to server ack",
+    maxMs: 300,
+    metric: "send-ack",
+    target: "p95 <= 300ms same-region",
   },
   {
     label: "Chat input latency",
+    maxMs: 50,
     metric: "composer",
     target: "p95 <= 50ms while typing",
-  },
-  {
-    label: "Idle memory",
-    metric: "memory",
-    target: "<= 180MB after 5 minutes idle",
   },
 ];
 

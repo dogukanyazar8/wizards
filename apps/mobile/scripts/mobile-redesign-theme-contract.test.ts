@@ -699,13 +699,6 @@ export function Fixture({ cap }: { cap: number }) {
       controlDashedBorder: "#C9CDE4",
       controlSeparatorDot: "#C6CADE",
       inkSurface: "#1E2235",
-      voiceRoomControl: "#FFFFFF",
-      voiceRoomVideo: "#F6F7FB",
-      voiceRoomVideoGlass: "rgba(255,255,255,.72)",
-      voiceRoomControlBorder: "#E7E9F4",
-      voiceRoomInvite: "#FFFFFF",
-      voiceRoomInviteBorder: "#E7E9F4",
-      voiceRoomParticipant: "#FFFFFF",
     });
     assert.deepEqual(paletteExports.redesignDark, {
       bg: "#131529",
@@ -747,14 +740,6 @@ export function Fixture({ cap }: { cap: number }) {
       success: "#34D399",
       successSurface: "rgba(52,211,153,.12)",
       warning: "#F59E0B",
-      voiceRoom: "#1E2235",
-      voiceRoomControl: "rgba(255,255,255,.1)",
-      voiceRoomVideo: "#12141F",
-      voiceRoomVideoGlass: "rgba(18,20,31,.6)",
-      voiceRoomControlBorder: "transparent",
-      voiceRoomInvite: "rgba(255,255,255,.04)",
-      voiceRoomInviteBorder: "rgba(255,255,255,.15)",
-      voiceRoomParticipant: "rgba(255,255,255,.05)",
       warningSurface: "rgba(245,158,11,.14)",
       sheetOverlay: "rgba(0,0,0,.55)",
     });
@@ -965,14 +950,6 @@ export function Fixture({ cap }: { cap: number }) {
       rail: "#EEF0FE",
       scrim: "rgba(0,0,0,.55)",
       soft: "#F6F7FB",
-      voiceRoom: "#F6F7FB",
-      voiceRoomControl: "#FFFFFF",
-      voiceRoomControlBorder: "#E7E9F4",
-      voiceRoomInvite: "#FFFFFF",
-      voiceRoomInviteBorder: "#E7E9F4",
-      voiceRoomParticipant: "#FFFFFF",
-      voiceRoomVideo: "#F6F7FB",
-      voiceRoomVideoGlass: "rgba(255,255,255,.72)",
     });
     assert.deepEqual(darkTheme.surface, {
       base: "#131529",
@@ -986,14 +963,6 @@ export function Fixture({ cap }: { cap: number }) {
       rail: "#1C1F3A",
       scrim: "rgba(0,0,0,.55)",
       soft: "#232644",
-      voiceRoom: "#1E2235",
-      voiceRoomControl: "rgba(255,255,255,.1)",
-      voiceRoomControlBorder: "transparent",
-      voiceRoomInvite: "rgba(255,255,255,.04)",
-      voiceRoomInviteBorder: "rgba(255,255,255,.15)",
-      voiceRoomParticipant: "rgba(255,255,255,.05)",
-      voiceRoomVideo: "#12141F",
-      voiceRoomVideoGlass: "rgba(18,20,31,.6)",
     });
     // A selected chip has to be legible as selected. The handoff ink does that on
     // white and nothing at all on a dark card, so the two themes are allowed to
@@ -1224,10 +1193,6 @@ export function Fixture({ cap }: { cap: number }) {
   });
 
   it("uses onStatus for text placed on semantic status surfaces", () => {
-    const offlineBanner = readFileSync(
-      join(process.cwd(), "src", "app", "components", "mobile-connectivity-banner.tsx"),
-      "utf8",
-    );
     const badge = readFileSync(
       join(process.cwd(), "src", "app", "components", "kit", "badge.tsx"),
       "utf8",
@@ -1249,8 +1214,6 @@ export function Fixture({ cap }: { cap: number }) {
       "utf8",
     );
 
-    assert.match(offlineBanner, /backgroundColor: theme\.status\.warningSoft/);
-    assert.match(offlineBanner, /color: theme\.status\.onStatus/);
     assert.match(badge, /dangerLabel: \{ color: theme\.status\.onStatus \}/);
     assert.match(uiAtoms, /actionButtonTextDanger: \{\s*color: theme\.status\.onStatus,/);
     assert.match(
@@ -1270,6 +1233,29 @@ export function Fixture({ cap }: { cap: number }) {
       composerStyles,
       /dmSendErrorText: \{[\s\S]*?backgroundColor: theme\.status\.dangerSoft,[\s\S]*?color: theme\.status\.onStatus,/,
     );
+  });
+
+  /**
+   * The connectivity bar used to paint its own tinted full-bleed strip in
+   * `status.warningSoft` — the inline-banner shape handoff 3a removed from every
+   * other surface. It now wears the toast card and borrows the toast's variant
+   * palette, so the two temporary-message surfaces cannot drift apart again.
+   */
+  it("draws connectivity on the shared toast card instead of its own status strip", () => {
+    const connectivityBanner = readFileSync(
+      join(process.cwd(), "src", "app", "components", "mobile-connectivity-banner.tsx"),
+      "utf8",
+    );
+
+    assert.match(connectivityBanner, /backgroundColor: theme\.toast\.card/);
+    assert.match(connectivityBanner, /borderColor: theme\.toast\.cardBorder/);
+    assert.match(connectivityBanner, /color: theme\.toast\.title/);
+    assert.match(
+      connectivityBanner,
+      /getMobileToastVariantPalette\(theme, PHASE_VARIANT\[phase\]\)/,
+    );
+    // Colour reaches the glyph tile and the action, never the card.
+    assert.doesNotMatch(connectivityBanner, /theme\.status\./);
   });
 
   it("composes audited bootstrap and feature-status variant foregrounds", () => {
@@ -1411,9 +1397,6 @@ export function Fixture({ cap }: { cap: number }) {
     });
     // The redesign is layout-identical across themes: every role exists in both.
     assert.deepEqual(Object.keys(lightTheme.voiceRoom), Object.keys(darkTheme.voiceRoom));
-    // The older shared voiceRoom surfaces still dress the direct-call screens.
-    assert.equal(lightTheme.surface.voiceRoomControl, "#FFFFFF");
-    assert.equal(darkTheme.surface.voiceRoomControl, "rgba(255,255,255,.1)");
   });
 
   it("keeps sheet and lightbox backdrops on the dedicated scrim role", () => {

@@ -34,7 +34,6 @@ export type MobileMessagesScreenProps = {
   dmConversationsHasNextPage: boolean;
   dmConversationsIsLoading: boolean;
   dmMessagesState: MobileDMMessagesViewState;
-  dmTypingLabel: string | null;
   getAccessToken?: () => Promise<string | null>;
   isEndToEndEncrypted?: boolean;
   isReactionMutationPending: boolean;

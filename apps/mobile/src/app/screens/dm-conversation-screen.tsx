@@ -17,6 +17,7 @@ import {
 import { DMComposer, type MobileComposerIntent } from "../composer/mobile-composer";
 import { MobileChatKeyboardRegion } from "../mobile-chat-keyboard-region";
 import {
+  DMChatEmptyState,
   DMChatEncryptionNotice,
   DMChatHeader,
   DMChatMessageList,
@@ -366,7 +367,7 @@ export function DMConversationPreviewCard({
         />
       ) : null}
       {state.status === "ready" && state.payload.messages.length === 0 ? (
-        <Text style={styles.emptyText}>{copy.dmNoMessages}</Text>
+        <DMChatEmptyState />
       ) : null}
       {state.status === "ready" && typingLabel ? (
         <DMChatTypingIndicator avatarUrl={avatarUrl} participantId={partnerId} title={title} />

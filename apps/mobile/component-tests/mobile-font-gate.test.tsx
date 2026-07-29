@@ -1,6 +1,6 @@
 import React from "react";
 import { Text } from "react-native";
-import { render, waitFor } from "@testing-library/react-native";
+import { act, render, waitFor } from "@testing-library/react-native";
 import { afterEach, describe, expect, it, jest } from "@jest/globals";
 
 const mockUseMobileFonts = jest.fn();
@@ -11,7 +11,11 @@ jest.mock("../src/design/mobile-fonts", () => ({
   useMobileFonts: () => mockUseMobileFonts(),
 }));
 
-import { MOBILE_FONT_FALLBACK_DIAGNOSTIC, MobileFontGate } from "../src/design/mobile-font-gate";
+import {
+  MOBILE_FONT_FALLBACK_DIAGNOSTIC,
+  MOBILE_FONT_GATE_DEADLINE_MS,
+  MobileFontGate,
+} from "../src/design/mobile-font-gate";
 
 afterEach(() => {
   jest.restoreAllMocks();
@@ -31,6 +35,63 @@ describe("MobileFontGate", () => {
 
     expect(view.queryByTestId("font-gated-product")).toBeNull();
     expect(mockInstallMobileFontDefaults).not.toHaveBeenCalled();
+  });
+
+  // A cold start held a blank window for as long as the font load took. The hold
+  // is now bounded: past the deadline the app draws with the system face and
+  // swaps to Jakarta when the load finishes.
+  it("stops holding the tree once the font deadline lapses", async () => {
+    jest.useFakeTimers();
+    mockUseMobileFonts.mockReturnValue([false, null]);
+
+    try {
+      const view = await render(
+        <MobileFontGate>
+          <Text testID="font-gated-product">product</Text>
+        </MobileFontGate>,
+      );
+
+      expect(view.queryByTestId("font-gated-product")).toBeNull();
+
+      await act(async () => {
+        jest.advanceTimersByTime(MOBILE_FONT_GATE_DEADLINE_MS);
+      });
+
+      expect(view.getByTestId("font-gated-product")).toBeTruthy();
+      expect(mockInstallMobileFontDefaults).not.toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it("installs Jakarta defaults when the load finishes after the deadline", async () => {
+    jest.useFakeTimers();
+    mockUseMobileFonts.mockReturnValue([false, null]);
+
+    try {
+      const view = await render(
+        <MobileFontGate>
+          <Text testID="font-gated-product">product</Text>
+        </MobileFontGate>,
+      );
+      await act(async () => {
+        jest.advanceTimersByTime(MOBILE_FONT_GATE_DEADLINE_MS);
+      });
+
+      mockUseMobileFonts.mockReturnValue([true, null]);
+      await act(async () => {
+        await view.rerender(
+          <MobileFontGate>
+            <Text testID="font-gated-product">product</Text>
+          </MobileFontGate>,
+        );
+      });
+
+      expect(mockInstallMobileFontDefaults).toHaveBeenCalledTimes(1);
+      expect(view.getByTestId("font-gated-product")).toBeTruthy();
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it("installs Jakarta defaults before the first product-tree render", async () => {

@@ -83,6 +83,59 @@ describe("mobile DM messages GET route logic", () => {
     assert.deepEqual(calls, ["authenticate", "rate-limit", "authorize"]);
   });
 
+  // Opening a DM used to stack three round trips in front of the read: session,
+  // then rate limit, then membership. The last two only need the id the first one
+  // resolved, so they go out together.
+  it("starts the membership read while the rate-limit call is still in flight", async () => {
+    const events: string[] = [];
+    let releaseRateLimit: () => void = () => undefined;
+    const rateLimitPending = new Promise<void>((resolve) => {
+      releaseRateLimit = resolve;
+    });
+
+    const response = await mobileDMMessagesGetRoute(
+      new Request("https://whispr.test/dm/conversation-1/messages"),
+      context,
+      {
+        authenticate: async () => "user-1",
+        authorizeConversation: async () => {
+          events.push("authorize:start");
+          releaseRateLimit();
+          return conversation;
+        },
+        enforceRateLimit: async () => {
+          events.push("rate-limit:start");
+          await rateLimitPending;
+        },
+        listMessages: async () => ({ messages: [], nextCursor: null }),
+        listParticipantReadStates: async () => [],
+      },
+    );
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(events, ["rate-limit:start", "authorize:start"]);
+  });
+
+  it("keeps reporting a throttled request as 429 when membership also fails", async () => {
+    const response = await mobileDMMessagesGetRoute(
+      new Request("https://whispr.test/dm/conversation-1/messages"),
+      context,
+      {
+        authenticate: async () => "user-1",
+        authorizeConversation: async () => {
+          throw new ApiError("Forbidden", 403, "FORBIDDEN");
+        },
+        enforceRateLimit: async () => {
+          throw new ApiError("Too many requests", 429, "RATE_LIMITED");
+        },
+        listMessages: async () => ({ messages: [], nextCursor: null }),
+        listParticipantReadStates: async () => [],
+      },
+    );
+
+    assert.equal(response.status, 429);
+  });
+
   it("maps ISO and null participant read states after successful authorization", async () => {
     const calls: string[] = [];
     let listInput: unknown = null;

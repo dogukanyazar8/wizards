@@ -1,71 +1,48 @@
-import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import React from "react";
+import { StyleSheet } from "react-native";
 import { describe, expect, it } from "@jest/globals";
 
 import { renderWithMobileTheme as render } from "./render-with-mobile-theme";
 import {
-  MobileRingingPulse,
-  MobileSpeakingPulse,
-  normalizeMobileVoiceLevel,
+  MobileRingingDots,
+  MobileRingingHalo,
+  getMobileRingingWaveScaleRange,
 } from "../src/app/components/mobile-call-pulse";
 import { darkTheme } from "../src/design/themes";
 
 describe("mobile call pulses", () => {
-  it("clamps speaking levels into the 0-1 range the animation expects", () => {
-    expect(normalizeMobileVoiceLevel(0.42)).toBeCloseTo(0.42);
-    expect(normalizeMobileVoiceLevel(-3)).toBe(0);
-    expect(normalizeMobileVoiceLevel(12)).toBe(1);
-    expect(normalizeMobileVoiceLevel(Number.NaN)).toBe(0);
+  it("stops every ringing wave at the halo bound so nothing paints over the name", () => {
+    // Regression: the waves used to scale to 1.9x their own box, which put the
+    // outermost ring on top of the callee name beneath the card.
+    expect(getMobileRingingWaveScaleRange(96, 168)).toEqual({ from: 96 / 168, to: 1 });
+    expect(getMobileRingingWaveScaleRange(96, 0)).toEqual({ from: 1, to: 1 });
+    expect(getMobileRingingWaveScaleRange(240, 168).from).toBe(1);
   });
 
-  it("renders the ringing wave as three expanding rings", async () => {
+  it("renders the ringing halo as bounded rings around the avatar", async () => {
     const view = await render(
-      <MobileRingingPulse
-        borderRadius={52}
-        color={darkTheme.accent.default}
-        size={168}
-        testID="pulse"
+      <MobileRingingHalo
+        avatarRadius={34}
+        avatarSize={96}
+        color={darkTheme.voiceRoom.accent}
+        diameter={168}
+        testID="halo"
       />,
     );
 
-    expect(view.getByTestId("pulse")).toBeTruthy();
-    expect(view.getByTestId("pulse").props.style).toMatchObject({
-      borderColor: darkTheme.accent.default,
-      borderRadius: 52,
+    const ring = StyleSheet.flatten(view.getByTestId("halo").props.style);
+    expect(ring).toMatchObject({
+      borderColor: darkTheme.voiceRoom.accent,
       height: 168,
       width: 168,
     });
   });
 
-  it("keeps the speaking halo mounted so level changes animate instead of popping", async () => {
+  it("renders the chasing ringing dots", async () => {
     const view = await render(
-      <MobileSpeakingPulse
-        borderRadius={52}
-        color={darkTheme.accent.default}
-        isSpeaking={false}
-        level={0}
-        size={152}
-        testID="speaking"
-      />,
+      <MobileRingingDots color={darkTheme.voiceRoom.textSecondary} testID="dots" />,
     );
 
-    expect(view.getByTestId("speaking")).toBeTruthy();
-  });
-});
-
-describe("ringing animation contract", () => {
-  it("loops each wave around a single timing so it never stops after one pass", () => {
-    const source = readFileSync(
-      resolve(__dirname, "../src/app/components/mobile-call-pulse.tsx"),
-      "utf8",
-    );
-
-    // Regression: Animated.loop only resets the first child of a sequence, so looping a
-    // sequence played the wave once and then left the value pinned at its end state.
-    const waveLoop = source.slice(source.indexOf("const loops = waves.map"));
-    assert.match(waveLoop.slice(0, 400), /Animated\.loop\(\s*Animated\.timing\(/);
-    assert.doesNotMatch(waveLoop.slice(0, 400), /Animated\.loop\(\s*Animated\.sequence\(/);
+    expect(view.getByTestId("dots")).toBeTruthy();
   });
 });

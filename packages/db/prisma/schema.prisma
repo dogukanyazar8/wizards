@@ -352,6 +352,9 @@ model User {
   anonymizedAt          DateTime?
   premiumType           PremiumType @default(NONE)
   premiumSince          DateTime?
+  // 2c update-channel preference. Null means "stable"; it never changes the EAS
+  // channel a build was shipped on, only which stream the app offers next.
+  preferredReleaseChannel ReleaseChannel?
   lastLoginAt           DateTime?
   lastLoginIp           String?
   registeredAt          DateTime    @default(now())
@@ -413,6 +416,7 @@ model User {
   featureFlagUpdates      FeatureFlag[]             @relation("FeatureFlagUpdatedBy")
   pushDeliveryAttempts    PushDeliveryAttempt[]     @relation("PushDeliveryAttemptUser")
   feedbackClustersResolved FeedbackClusterSuggestion[] @relation("FeedbackClusterResolver")
+  bugReports              BugReport[]               @relation("BugReportUser")
 
   @@index([email])
   @@index([username])
@@ -1614,6 +1618,9 @@ model ClientHealthEvent {
   surface    String?             @db.VarChar(64)
   valueMs    Int?
   context    Json?
+  /// Stamped per measurement by the client. Unique so a retried flush cannot
+  /// count the same sample twice.
+  sampleId   String?             @unique @db.VarChar(64)
   createdAt  DateTime            @default(now())
 
   user User? @relation("ClientHealthEventUser", fields: [userId], references: [id], onDelete: SetNull)
@@ -1633,12 +1640,16 @@ model ClientHealthDailySummary {
   /// every rollup row distinct under the unique index and duplicate the summary.
   appVersion String              @default("") @db.VarChar(32)
   kind       ClientHealthKind
+  /// Empty string for kinds that have no surface (crashes, errors). Part of the
+  /// unique key: a percentile pooled across surfaces is not actionable.
+  surface    String              @default("") @db.VarChar(64)
   count      Int                 @default(0)
   p50Ms      Int?
   p95Ms      Int?
+  p99Ms      Int?
   createdAt  DateTime            @default(now())
 
-  @@unique([date, clientType, appVersion, kind])
+  @@unique([date, clientType, appVersion, kind, surface])
   @@index([date, kind])
 }
 
@@ -1707,4 +1718,142 @@ model FeedbackClusterSuggestion {
 
   @@index([status, score])
   @@index([topic, createdAt])
+}
+
+/// Which build stream a release belongs to. `UAT` is an internal stream, so it
+/// is never the default a new account lands on.
+enum ReleaseChannel {
+  STABLE
+  BETA
+  UAT
+}
+
+enum ReleaseChangeType {
+  NEW
+  IMPROVED
+  FIXED
+}
+
+enum HelpCategory {
+  ACCOUNT
+  CHAT
+  MEDIA
+  SERVER
+}
+
+enum BugReportCategory {
+  VOICE
+  CHAT
+  NOTIFICATION
+  PERFORMANCE
+  OTHER
+}
+
+enum BugReportStatus {
+  OPEN
+  TRIAGED
+  RESOLVED
+  DISCARDED
+}
+
+/// One shipped app version. The "Yenilikler" card, the release history and the
+/// update banner all read this table, so a version the team has not announced
+/// yet must stay invisible rather than live behind a client-side filter:
+/// `publishedAt = NULL` is a draft and no mobile endpoint returns it.
+model Release {
+  id          String         @id @default(uuid())
+  /// Semver text, for example "0.8.15". Unique because the detail route and the
+  /// installed-version comparison both address a release by it.
+  version     String         @unique @db.VarChar(32)
+  codename    String?        @db.VarChar(48)
+  channel     ReleaseChannel @default(STABLE)
+  releasedAt  DateTime
+  buildNumber Int?
+  /// Download size of the build. BigInt in the column, plain number on the wire.
+  sizeBytes   BigInt?
+  /// The paragraph 2a prints under the version heading.
+  summary     String?        @db.VarChar(600)
+  /// One line for the history row; shorter than `summary` on purpose.
+  highlight   String?        @db.VarChar(160)
+  mandatory   Boolean        @default(false)
+  publishedAt DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  changes ReleaseChange[]
+
+  @@index([publishedAt, releasedAt])
+  @@index([channel, releasedAt])
+}
+
+/// A single line of a release note. `position` orders within a type group, so
+/// 2a can render "YENİ · 2" then "İYİLEŞTİRME · 3" without sorting on the client.
+model ReleaseChange {
+  id        String            @id @default(uuid())
+  releaseId String
+  type      ReleaseChangeType
+  title     String            @db.VarChar(200)
+  detail    String?           @db.VarChar(600)
+  position  Int               @default(0)
+
+  release Release @relation(fields: [releaseId], references: [id], onDelete: Cascade)
+
+  @@index([releaseId, type, position])
+}
+
+/// A help centre entry. `bodyMarkdown` is optional: when it is empty the app
+/// opens `url` in a browser instead of the in-app reader, which is what keeps
+/// a long-form article from having to be duplicated here.
+model HelpArticle {
+  id           String       @id @default(uuid())
+  slug         String       @unique @db.VarChar(120)
+  title        String       @db.VarChar(200)
+  category     HelpCategory
+  readMinutes  Int
+  viewCount    Int          @default(0)
+  url          String       @db.VarChar(2048)
+  bodyMarkdown String?
+  publishedAt  DateTime?
+  position     Int          @default(0)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@index([category, position])
+  @@index([publishedAt, viewCount])
+}
+
+/// 2f "Sorun bildir". Deliberately separate from `Feedback`: that table is a
+/// product suggestion queue with a roadmap and a public number the user tracks,
+/// while this one carries logs, a screenshot and device details under a 90-day
+/// deletion promise the screen makes in writing.
+model BugReport {
+  id                  String            @id @default(uuid())
+  /// `WSP-#####`, quoted back in the submission toast and searched by support.
+  ticket              String            @unique @db.VarChar(16)
+  userId              String?
+  category            BugReportCategory
+  body                String            @db.VarChar(1000)
+  includesLogs        Boolean
+  includesScreenshot  Boolean
+  includesDeviceInfo  Boolean
+  /// Trimmed to the last 500 lines before it is stored; §4.10 promises no more.
+  logExcerpt          String?
+  /// Only written when `includesDeviceInfo` is true.
+  deviceInfo          Json?
+  screenshotUrl       String?           @db.VarChar(2048)
+  appVersion          String?           @db.VarChar(32)
+  appBuild            String?           @db.VarChar(32)
+  releaseChannel      String?           @db.VarChar(16)
+  platform            String?           @db.VarChar(16)
+  status              BugReportStatus   @default(OPEN)
+  createdAt           DateTime          @default(now())
+  /// `createdAt + 90 days`. The purge job reads this column, so the promise is
+  /// data rather than a rule someone has to remember.
+  purgeAfter          DateTime
+
+  user User? @relation("BugReportUser", fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([purgeAfter])
+  @@index([userId, createdAt])
 }

@@ -43,7 +43,6 @@ import { useHomeScreenStyles } from "./home-screen.styles";
 import { mobileListLoadHandlers } from "../../performance/mobile-performance-metrics";
 import { MobileWorkspaceBrowser } from "./workspace-browser";
 import type { MobileForwardSendInput } from "../components/message-forward-sheet";
-import type { MobileChannelTypingUser } from "../../realtime/mobile-typing-state";
 
 export { MobileWorkspaceBrowser } from "./workspace-browser";
 export {
@@ -56,8 +55,6 @@ export function OverviewScreen({
   channelFirstUnreadMessageId = null,
   channelMessagesState,
   channelPinnedMessages = [],
-  channelTypingLabel,
-  channelTypingUsers,
   canRenderChannelChat = false,
   isReactionMutationPending,
   locale,
@@ -98,8 +95,6 @@ export function OverviewScreen({
   channelFirstUnreadMessageId?: string | null;
   channelMessagesState: MobileChannelMessagesViewState;
   channelPinnedMessages?: readonly ChatMessage[];
-  channelTypingLabel: string | null;
-  channelTypingUsers: readonly MobileChannelTypingUser[];
   /** Set only by the pushed ChannelChat route — see MobileWorkspaceBrowser. */
   canRenderChannelChat?: boolean;
   isReactionMutationPending: boolean;
@@ -166,8 +161,6 @@ export function OverviewScreen({
           channelFirstUnreadMessageId={channelFirstUnreadMessageId}
           channelMessagesState={channelMessagesState}
           channelPinnedMessages={channelPinnedMessages}
-          channelTypingLabel={channelTypingLabel}
-          channelTypingUsers={channelTypingUsers}
           isReactionMutationPending={isReactionMutationPending}
           locale={locale}
           mediaState={mediaState}

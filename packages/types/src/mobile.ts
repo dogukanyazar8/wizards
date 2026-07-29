@@ -879,6 +879,317 @@ export const MobileChannelMessagesStaleEventSchema = z.object({
   serverId: z.string().min(1).max(128),
 });
 
+/* -------------------------------------------- about: releases and updates --- */
+
+/**
+ * The "Hakkında" surface: what shipped, what is available, which channel the
+ * user is on, whether the service is healthy, the help centre, and the bug
+ * report form.
+ *
+ * Two rules run through all of it. Nothing here carries UI text — the server
+ * returns a key and `mobile-copy.ts` owns both languages — and `sizeBytes`
+ * crosses the wire as a plain number because the column behind it is a Prisma
+ * `BigInt`, which does not serialize.
+ */
+
+/** 2b pages twenty at a time; 50 is the ceiling a hand-written cursor may ask for. */
+export const MOBILE_RELEASE_PAGE_SIZE = 20;
+export const MOBILE_RELEASE_PAGE_MAX_SIZE = 50;
+/** §4.10 promises the last 500 lines of log and no more. */
+export const MOBILE_BUG_REPORT_LOG_MAX_LINES = 500;
+export const MOBILE_BUG_REPORT_BODY_MIN_LENGTH = 20;
+export const MOBILE_BUG_REPORT_BODY_MAX_LENGTH = 1_000;
+/** 2e shows four tiles: one per help category. */
+export const MOBILE_HELP_SEARCH_MIN_LENGTH = 2;
+export const MOBILE_HELP_ARTICLE_MAX_COUNT = 50;
+
+const MobileVersionSchema = z.string().min(1).max(32);
+
+export const MobileReleaseChangeTypeSchema = z.enum(["new", "improved", "fixed"]);
+export const MobileReleaseChannelSchema = z.enum(["stable", "beta", "uat"]);
+/** PROMPT.md §5 `UpdateState`, field for field. */
+export const MobileAppUpdateStateSchema = z.enum([
+  "current",
+  "available",
+  "checking",
+  "downloading",
+  "ready",
+  "failed",
+]);
+export const MobileServiceStatusLevelSchema = z.enum(["ok", "degraded", "down"]);
+export const MobileHelpCategorySchema = z.enum(["account", "chat", "media", "server"]);
+export const MobileBugReportCategorySchema = z.enum([
+  "voice",
+  "chat",
+  "notification",
+  "performance",
+  "other",
+]);
+
+export const MobileReleaseChangeSchema = z
+  .object({
+    detail: z.string().min(1).max(600).optional(),
+    title: z.string().min(1).max(200),
+    type: MobileReleaseChangeTypeSchema,
+  })
+  .strict();
+
+/**
+ * One row of 2b and of the 1c history. `changeCount` is served rather than
+ * derived: the summary deliberately does not carry `changes`, so the client
+ * cannot count them.
+ */
+export const MobileReleaseSummarySchema = z
+  .object({
+    changeCount: z.number().int().nonnegative(),
+    codename: z.string().min(1).max(48).optional(),
+    highlight: z.string().min(1).max(160).optional(),
+    /** True for the version the requesting build is running. */
+    installed: z.boolean().optional(),
+    releasedAt: z.string().datetime(),
+    /** True when the user dismissed this version with "Bu sürümü atla". */
+    skipped: z.boolean().optional(),
+    version: MobileVersionSchema,
+  })
+  .strict();
+
+export const MobileReleaseDetailSchema = MobileReleaseSummarySchema.extend({
+  buildNumber: z.number().int().nonnegative().optional(),
+  changes: z.array(MobileReleaseChangeSchema).max(200),
+  sizeBytes: z.number().int().nonnegative().optional(),
+  summary: z.string().min(1).max(600).optional(),
+}).strict();
+
+export const MobileReleaseListResponseSchema = z
+  .object({
+    nextCursor: z.string().max(128).nullable(),
+    releases: z.array(MobileReleaseSummarySchema).max(MOBILE_RELEASE_PAGE_MAX_SIZE),
+    /**
+     * Every published release, not the page length: 2b prints it in the header
+     * badge and in "Tüm sürüm geçmişi (38)", and a paged client cannot count.
+     */
+    total: z.number().int().nonnegative(),
+  })
+  .strict();
+
+export const MobileAppUpdateLatestSchema = z
+  .object({
+    codename: z.string().min(1).max(48).optional(),
+    mandatory: z.boolean(),
+    releasedAt: z.string().datetime(),
+    sizeBytes: z.number().int().nonnegative().optional(),
+    version: MobileVersionSchema,
+  })
+  .strict();
+
+export const MobileAppUpdateResponseSchema = z
+  .object({
+    lastCheckedAt: z.string().datetime(),
+    latest: MobileAppUpdateLatestSchema.optional(),
+    /**
+     * Whether the server has an OTA distribution configured — not a mirror of
+     * the client's `Updates.isEnabled`. It is `false` today because
+     * `app.config.js` carries no `updates` key, and the screen says so rather
+     * than offering a download it cannot deliver.
+     */
+    otaEnabled: z.boolean(),
+    state: MobileAppUpdateStateSchema,
+  })
+  .strict();
+
+export const MobileAppChannelRequestSchema = z
+  .object({
+    channel: MobileReleaseChannelSchema,
+    /** 2d beta consent; stored so the sheet is not asked twice. */
+    consentAt: z.string().datetime().optional(),
+  })
+  .strict();
+
+export const MobileAppChannelResponseSchema = z
+  .object({
+    channel: MobileReleaseChannelSchema,
+    /**
+     * Always `next-build`: the preference does not move the EAS channel the
+     * installed binary was shipped on, and 2c tells the user exactly that.
+     */
+    effectiveFrom: z.enum(["next-build", "immediate"]),
+    requiresRestart: z.boolean(),
+  })
+  .strict();
+
+/**
+ * 1b's service-status row. Level and a link only — the three labels
+ * ("Sorunsuz", "Kısmi yavaşlık", "Kesinti") are client copy.
+ */
+export const MobileServiceStatusResponseSchema = z
+  .object({
+    checkedAt: z.string().datetime(),
+    level: MobileServiceStatusLevelSchema,
+    url: z.string().url().max(2048),
+  })
+  .strict();
+
+export const MobileHelpArticleSchema = z
+  .object({
+    category: MobileHelpCategorySchema,
+    /** True when the article can be read in-app; otherwise `url` is opened. */
+    hasBody: z.boolean(),
+    id: z.string().min(1).max(128),
+    readMinutes: z.number().int().positive(),
+    slug: z.string().min(1).max(120),
+    title: z.string().min(1).max(200),
+    url: z.string().url().max(2048),
+    views: z.number().int().nonnegative(),
+  })
+  .strict();
+
+export const MobileHelpCategoryCountSchema = z
+  .object({
+    articleCount: z.number().int().nonnegative(),
+    key: MobileHelpCategorySchema,
+  })
+  .strict();
+
+export const MobileHelpArticleListResponseSchema = z
+  .object({
+    articles: z.array(MobileHelpArticleSchema).max(MOBILE_HELP_ARTICLE_MAX_COUNT),
+    categories: z.array(MobileHelpCategoryCountSchema).max(4),
+  })
+  .strict();
+
+/**
+ * What 2f sends. The screen lists these fields to the user before submitting,
+ * so the schema is `.strict()`: a newer client inventing an extra key must be
+ * rejected rather than have it silently stored under a promise that did not
+ * mention it.
+ */
+export const MobileBugReportRequestSchema = z
+  .object({
+    /** Client build context. Sent regardless of the device-info toggle: a
+     * report nobody can pin to a version is not triageable, and a version
+     * string is not personal data. */
+    appBuild: z.string().min(1).max(32).optional(),
+    appVersion: MobileVersionSchema.optional(),
+    body: z
+      .string()
+      .trim()
+      .min(MOBILE_BUG_REPORT_BODY_MIN_LENGTH)
+      .max(MOBILE_BUG_REPORT_BODY_MAX_LENGTH),
+    category: MobileBugReportCategorySchema,
+    /** Only stored when `includesDeviceInfo` is true. */
+    deviceInfo: z
+      .object({
+        deviceModel: z.string().min(1).max(120).optional(),
+        locale: z.string().min(2).max(16).optional(),
+        osName: z.string().min(1).max(40).optional(),
+        osVersion: z.string().min(1).max(40).optional(),
+      })
+      .strict()
+      .optional(),
+    includesDeviceInfo: z.boolean(),
+    includesLogs: z.boolean(),
+    includesScreenshot: z.boolean(),
+    /** Trimmed to the last 500 lines server-side even if the client sends more. */
+    logExcerpt: z.string().max(200_000).optional(),
+    platform: z.string().min(1).max(16).optional(),
+    releaseChannel: MobileReleaseChannelSchema.optional(),
+    /**
+     * Key from the existing mobile upload flow. The screenshot rides that
+     * lifecycle instead of opening a second, multipart upload path.
+     */
+    screenshotUploadKey: z.string().min(1).max(256).optional(),
+  })
+  .strict();
+
+export const MobileBugReportResponseSchema = z
+  .object({
+    createdAt: z.string().datetime(),
+    /** `WSP-#####`, copied to the clipboard by the submission toast. */
+    ticket: z.string().regex(/^WSP-\d{5}$/),
+  })
+  .strict();
+
+export const MobileReleaseVersionParamsSchema = z.object({ version: MobileVersionSchema }).strict();
+
+export const MobileHelpArticleSlugParamsSchema = z
+  .object({ slug: z.string().min(1).max(120) })
+  .strict();
+
+export const MobileReleaseListQuerySchema = z
+  .object({
+    cursor: z.string().max(128).optional(),
+    /** The build asking, so the server can mark its own row `installed`. */
+    installed: MobileVersionSchema.optional(),
+    limit: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(MOBILE_RELEASE_PAGE_MAX_SIZE)
+      .default(MOBILE_RELEASE_PAGE_SIZE),
+  })
+  .strict();
+
+export const MobileAppUpdateQuerySchema = z
+  .object({
+    channel: MobileReleaseChannelSchema.optional(),
+    installed: MobileVersionSchema.optional(),
+  })
+  .strict();
+
+export const MobileHelpArticleListQuerySchema = z
+  .object({
+    category: MobileHelpCategorySchema.optional(),
+    /** `?popular=1`: the four most-read articles instead of a category page. */
+    popular: z.enum(["0", "1"]).optional(),
+  })
+  .strict();
+
+export const MobileHelpSearchQuerySchema = z
+  .object({
+    q: z.string().trim().min(MOBILE_HELP_SEARCH_MIN_LENGTH).max(120),
+  })
+  .strict();
+
+export const MobileHelpArticleViewResponseSchema = z.object({ ok: z.literal(true) }).strict();
+
+export type MobileReleaseChangeType = z.infer<typeof MobileReleaseChangeTypeSchema>;
+export type MobileReleaseChannel = z.infer<typeof MobileReleaseChannelSchema>;
+export type MobileAppUpdateState = z.infer<typeof MobileAppUpdateStateSchema>;
+export type MobileServiceStatusLevel = z.infer<typeof MobileServiceStatusLevelSchema>;
+export type MobileHelpCategory = z.infer<typeof MobileHelpCategorySchema>;
+export type MobileBugReportCategory = z.infer<typeof MobileBugReportCategorySchema>;
+export type MobileReleaseChange = z.infer<typeof MobileReleaseChangeSchema>;
+export type MobileReleaseSummary = z.infer<typeof MobileReleaseSummarySchema>;
+export type MobileReleaseDetail = z.infer<typeof MobileReleaseDetailSchema>;
+export type MobileReleaseListResponse = z.infer<typeof MobileReleaseListResponseSchema>;
+export type MobileReleaseListQuery = z.infer<typeof MobileReleaseListQuerySchema>;
+export type MobileAppUpdateLatest = z.infer<typeof MobileAppUpdateLatestSchema>;
+export type MobileAppUpdateResponse = z.infer<typeof MobileAppUpdateResponseSchema>;
+export type MobileAppUpdateQuery = z.infer<typeof MobileAppUpdateQuerySchema>;
+export type MobileAppChannelRequest = z.infer<typeof MobileAppChannelRequestSchema>;
+export type MobileAppChannelResponse = z.infer<typeof MobileAppChannelResponseSchema>;
+export type MobileServiceStatusResponse = z.infer<typeof MobileServiceStatusResponseSchema>;
+export type MobileHelpArticle = z.infer<typeof MobileHelpArticleSchema>;
+export type MobileHelpCategoryCount = z.infer<typeof MobileHelpCategoryCountSchema>;
+export type MobileHelpArticleListResponse = z.infer<typeof MobileHelpArticleListResponseSchema>;
+export type MobileHelpArticleListQuery = z.infer<typeof MobileHelpArticleListQuerySchema>;
+export type MobileHelpSearchQuery = z.infer<typeof MobileHelpSearchQuerySchema>;
+export type MobileHelpArticleViewResponse = z.infer<typeof MobileHelpArticleViewResponseSchema>;
+export type MobileBugReportRequest = z.infer<typeof MobileBugReportRequestSchema>;
+export type MobileBugReportResponse = z.infer<typeof MobileBugReportResponseSchema>;
+export type MobileReleaseVersionParams = z.infer<typeof MobileReleaseVersionParamsSchema>;
+export type MobileHelpArticleSlugParams = z.infer<typeof MobileHelpArticleSlugParamsSchema>;
+
+/**
+ * `WSP-24817`. One formatter so the submission toast, the support console and
+ * the row a user quotes back cannot drift into three shapes.
+ */
+export function formatBugReportTicket(sequence: number): string {
+  return `WSP-${String(Math.trunc(Math.abs(sequence)))
+    .padStart(5, "0")
+    .slice(-5)}`;
+}
+
 export type MobileBootstrapFeatureStatus = z.infer<typeof MobileBootstrapFeatureStatusSchema>;
 export type MobileBootstrapFeature = z.infer<typeof MobileBootstrapFeatureSchema>;
 export type MobileBootstrapServerSummary = z.infer<typeof MobileBootstrapServerSummarySchema>;

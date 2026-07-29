@@ -5,6 +5,23 @@ import { createSharedStyles } from "../styles/shared-styles";
 
 export const createVoiceScreenStyles = (theme: MobileTheme) => {
   const mobileRadii = theme.radii;
+  /** One header pill shape, worn by the room's invite action and the DM call's. */
+  const headerPill: ViewStyle = {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    borderWidth: 1,
+    borderColor: theme.voiceRoom.border,
+    borderRadius: 13,
+    backgroundColor: theme.voiceRoom.card,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+  };
+  const headerPillText: TextStyle = {
+    color: theme.voiceRoom.accent,
+    fontSize: 12.5,
+    fontFamily: theme.typography.fontFamilyBold,
+  };
 
   return {
     activeVoiceRoomAvatarFallback: {
@@ -103,22 +120,17 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
     /**
      * The scattered invite icon, connection chip and noise badge collapsed into
      * this one pill; the state they carried moved to the session strip below.
+     * A DM call has nobody to invite, so it hangs its own single action (audio
+     * settings, or the encryption mark while ringing) on the same pill.
      */
-    activeVoiceRoomInviteButton: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 7,
-      borderWidth: 1,
-      borderColor: theme.voiceRoom.border,
-      borderRadius: 13,
-      backgroundColor: theme.voiceRoom.card,
-      paddingHorizontal: 14,
-      paddingVertical: 9,
-    },
-    activeVoiceRoomInviteButtonText: {
-      color: theme.voiceRoom.accent,
-      fontSize: 12.5,
-      fontFamily: theme.typography.fontFamilyBold,
+    activeVoiceRoomInviteButton: headerPill,
+    activeVoiceRoomInviteButtonText: headerPillText,
+    activeVoiceRoomHeaderPill: headerPill,
+    activeVoiceRoomHeaderPillText: headerPillText,
+    /** Muted twin of the pill label: the ringing screen's "E2E" mark. */
+    activeVoiceRoomHeaderPillTextMuted: {
+      ...headerPillText,
+      color: theme.voiceRoom.textSecondary,
     },
     /**
      * One badge carries every participant state: muted, speaking, or the real
@@ -456,6 +468,42 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
     },
     activeVoiceRoomSoloStatusSpeaking: {
       color: theme.voiceRoom.success,
+    },
+    /**
+     * A ringing DM call wears the solo card: same 96pt avatar and card frame, with
+     * the outgoing call waves ringing around the avatar instead of a status badge.
+     * The halo box is sized by the screen and reserves the full wave diameter, so a
+     * ring can never bleed onto the callee name beneath it.
+     */
+    activeVoiceRoomRingingHalo: {
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    /** Shorter than the room's solo card: the halo already carries the height. */
+    activeVoiceRoomRingingCard: {
+      paddingVertical: 30,
+    },
+    activeVoiceRoomRingingStatusRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+    },
+    activeVoiceRoomRingingHint: {
+      marginTop: 16,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 7,
+      borderWidth: 1,
+      borderColor: theme.voiceRoom.border,
+      borderRadius: 13,
+      backgroundColor: theme.voiceRoom.control,
+      paddingHorizontal: 13,
+      paddingVertical: 8,
+    },
+    activeVoiceRoomRingingHintText: {
+      color: theme.voiceRoom.textSecondary,
+      fontSize: 11.5,
+      fontFamily: theme.typography.fontFamilySemiBold,
     },
     mobileChannelChatDot: {
       color: theme.status.successText,

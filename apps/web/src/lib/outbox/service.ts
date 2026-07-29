@@ -22,7 +22,6 @@ const OUTBOX_STALE_PROCESSING_MS = 5 * 60 * 1000;
 const OUTBOX_MAX_ERROR_LENGTH = 1000;
 const OUTBOX_COMPLETED_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 const OUTBOX_FAILED_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
-const OUTBOX_ENQUEUE_RETRY_DELAYS_MS = [50, 150, 500] as const;
 
 export const OUTBOX_JOB_TYPES = {
   attachmentScan: "ATTACHMENT_SCAN",
@@ -142,13 +141,6 @@ function truncateError(error: unknown) {
   return message.slice(0, OUTBOX_MAX_ERROR_LENGTH);
 }
 
-function wait(ms: number) {
-  return new Promise<void>((resolve) => {
-    const timer = setTimeout(resolve, ms);
-    timer.unref?.();
-  });
-}
-
 export function getOutboxRetryDelayMs(attempts: number) {
   const boundedAttempts = Math.max(1, Math.min(attempts, 8));
   return Math.min(60_000, 1000 * 2 ** (boundedAttempts - 1));
@@ -221,23 +213,6 @@ export async function enqueueCampaignSendJob(
   });
 }
 
-async function enqueueOutboxJobWithRetry(input: EnqueueOutboxJobInput) {
-  for (const retryDelayMs of [0, ...OUTBOX_ENQUEUE_RETRY_DELAYS_MS]) {
-    if (retryDelayMs > 0) {
-      await wait(retryDelayMs);
-    }
-
-    try {
-      await enqueueOutboxJob(prisma, input);
-      return;
-    } catch (error) {
-      if (retryDelayMs === OUTBOX_ENQUEUE_RETRY_DELAYS_MS.at(-1)) {
-        throw error;
-      }
-    }
-  }
-}
-
 export async function enqueueMessageCreatedAnalyticsJob(
   client: OutboxClient,
   args: {
@@ -278,63 +253,103 @@ export async function enqueueAttachmentScanJob(
   });
 }
 
-export async function enqueueChannelMentionNotificationJob(args: {
-  channelId: string;
-  channelName: string;
-  content: string;
-  messageId: string;
-  senderId: string;
-  senderName: string;
-  serverId: string;
-  skipUserIds?: string[];
-}) {
-  await enqueueOutboxJobWithRetry({
+/**
+ * The three notification jobs take the caller's client so they can be written by
+ * the transaction that writes the message.
+ *
+ * They used to be enqueued after the commit, on their own connection, with the
+ * promise discarded — so a process that died between the two writes, or an
+ * enqueue that simply failed, committed a message that nobody was ever told
+ * about. There is no retry wrapper here for the same reason: the transaction is
+ * the retry. If the enqueue fails, the message is not written either.
+ */
+export async function enqueueChannelMentionNotificationJob(
+  client: OutboxClient,
+  args: {
+    channelId: string;
+    channelName: string;
+    content: string;
+    messageId: string;
+    senderId: string;
+    senderName: string;
+    serverId: string;
+  },
+) {
+  await enqueueOutboxJob(client, {
     idempotencyKey: `channel-mention-notifications:${args.messageId}`,
-    payload: toJsonValue({
-      ...args,
-      skipUserIds: args.skipUserIds ?? [],
-    }),
+    // No `skipUserIds`: the fan-out that produced it happens after this
+    // transaction commits. The worker resolves it from the read cursors instead.
+    payload: toJsonValue(args),
     type: OUTBOX_JOB_TYPES.channelMentionNotifications,
   });
 }
 
-export async function enqueueChannelThreadReplyNotificationJob(args: {
-  channelId: string;
-  channelName: string;
-  content: string;
-  messageId: string;
-  parentMessageId: string;
-  senderId: string;
-  senderName: string;
-  serverId: string;
-}) {
-  await enqueueOutboxJobWithRetry({
+export async function enqueueChannelThreadReplyNotificationJob(
+  client: OutboxClient,
+  args: {
+    channelId: string;
+    channelName: string;
+    content: string;
+    messageId: string;
+    parentMessageId: string;
+    senderId: string;
+    senderName: string;
+    serverId: string;
+  },
+) {
+  await enqueueOutboxJob(client, {
     idempotencyKey: `channel-thread-reply-notification:${args.messageId}`,
     payload: toJsonValue(args),
     type: OUTBOX_JOB_TYPES.channelThreadReplyNotification,
   });
 }
 
-export async function enqueueDMMessageNotificationJob(args: {
-  attachmentLabelKey: string;
-  content: string;
-  conversationId: string;
-  messageId: string;
-  participants: Array<{
-    muted: boolean;
-    userId: string;
-    user: {
-      locale: string | null;
-    };
-  }>;
-  senderId: string;
-  senderName: string;
-}) {
-  await enqueueOutboxJobWithRetry({
+export async function enqueueDMMessageNotificationJob(
+  client: OutboxClient,
+  args: {
+    attachmentLabelKey: string;
+    content: string;
+    conversationId: string;
+    messageId: string;
+    participants: Array<{
+      muted: boolean;
+      userId: string;
+      user: {
+        locale: string | null;
+      };
+    }>;
+    senderId: string;
+    senderName: string;
+  },
+) {
+  await enqueueOutboxJob(client, {
     idempotencyKey: `dm-message-notifications:${args.messageId}`,
     payload: toJsonValue(args),
     type: OUTBOX_JOB_TYPES.dmMessageNotifications,
   });
+}
+
+/**
+ * Who not to notify about a channel message: everyone whose read cursor already
+ * covers it.
+ *
+ * The payload's own `skipUserIds` is still honoured so jobs queued by the
+ * previous deploy — where the list came from the socket fan-out — keep behaving
+ * as they did.
+ */
+export function resolveOutboxChannelSkipUserIds(
+  sentAt: Date,
+  readStates: readonly { readonly lastReadAt: Date; readonly userId: string }[],
+  payloadSkipUserIds: readonly string[] = [],
+): string[] {
+  const skip = new Set(payloadSkipUserIds);
+  for (const state of readStates) {
+    if (state.lastReadAt.getTime() >= sentAt.getTime()) {
+      skip.add(state.userId);
+    }
+  }
+
+  return [...skip];
 }
 
 async function claimOutboxJobs(limit: number, workerId: string) {
@@ -436,7 +451,30 @@ async function processNotificationJob(job: ClaimedOutboxJob) {
 
   if (job.type === OUTBOX_JOB_TYPES.channelMentionNotifications) {
     const payload = ChannelMentionNotificationsPayloadSchema.parse(job.payload);
-    await createChannelMentionNotifications(withSocketServer(payload));
+    // The sender's fan-out no longer travels with the job, so the readers are
+    // resolved here — from the cursors, which by now also cover anyone who had
+    // the channel open when it landed.
+    const message = await prisma.message.findUnique({
+      where: { id: payload.messageId },
+      select: { createdAt: true },
+    });
+    const readStates = message
+      ? await prisma.channelReadState.findMany({
+          where: { channelId: payload.channelId, lastReadAt: { gte: message.createdAt } },
+          select: { lastReadAt: true, userId: true },
+        })
+      : [];
+
+    await createChannelMentionNotifications(
+      withSocketServer({
+        ...payload,
+        skipUserIds: resolveOutboxChannelSkipUserIds(
+          message?.createdAt ?? new Date(),
+          readStates,
+          payload.skipUserIds,
+        ),
+      }),
+    );
     return;
   }
 

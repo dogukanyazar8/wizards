@@ -31,9 +31,11 @@ describe("mobile health reporter", () => {
       { durationMs: 140.2, metric: "list-load", surface: "dm-inbox" },
     ]);
 
+    // `context` is always present now: it carries the sample id and the build,
+    // platform and network slices. With no resolver injected it is empty.
     assert.deepEqual(events, [
-      { kind: "STARTUP", surface: "startup", valueMs: 812 },
-      { kind: "SCREEN_LOAD", surface: "dm-inbox", valueMs: 140 },
+      { context: {}, kind: "STARTUP", surface: "startup", valueMs: 812 },
+      { context: {}, kind: "SCREEN_LOAD", surface: "dm-inbox", valueMs: 140 },
     ]);
   });
 

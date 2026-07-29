@@ -129,3 +129,73 @@ describe("client health attribution", () => {
     assert.deepEqual(rows, []);
   });
 });
+
+/**
+ * The reporter keeps a failed batch and retries it, so the same measurement can
+ * arrive twice. The client stamps every sample with an id; the unique index turns
+ * the second arrival into a no-op instead of a second data point.
+ */
+describe("client health sample dedupe", () => {
+  it("lifts the sample id out of the context and skips duplicates", async () => {
+    const calls: {
+      data: { context?: unknown; sampleId?: string | null }[];
+      skipDuplicates?: boolean;
+    }[] = [];
+    const store: ClientHealthStore = {
+      clientHealthEvent: {
+        createMany: async (args) => {
+          calls.push(args);
+          return { count: args.data.length };
+        },
+      },
+    };
+
+    await recordClientHealthEvents(
+      {
+        attribution: { appVersion: "0.8.15", clientType: "MOBILE", os: "android" },
+        batch: {
+          events: [
+            {
+              context: { route: "ChannelChat", sampleId: "abc-1" },
+              kind: "SCREEN_LOAD",
+              surface: "channel-messages",
+              valueMs: 120,
+            },
+          ],
+        },
+        userId: "user-1",
+      },
+      store,
+    );
+
+    const received = calls[0];
+    assert.equal(received?.skipDuplicates, true);
+    const [row] = received?.data ?? [];
+    assert.equal(row?.sampleId, "abc-1");
+    // The context keeps the id too: it is what the row was deduped on.
+    assert.deepEqual(row?.context, { route: "ChannelChat", sampleId: "abc-1" });
+  });
+
+  it("accepts a sample that carries no id", async () => {
+    const calls: { data: { sampleId?: string | null }[] }[] = [];
+    const store: ClientHealthStore = {
+      clientHealthEvent: {
+        createMany: async (args) => {
+          calls.push(args);
+          return { count: args.data.length };
+        },
+      },
+    };
+
+    await recordClientHealthEvents(
+      {
+        attribution: { appVersion: null, clientType: "MOBILE", os: null },
+        batch: { events: [{ kind: "STARTUP", valueMs: 900 }] },
+        userId: "user-1",
+      },
+      store,
+    );
+
+    assert.equal(calls[0]?.data[0]?.sampleId, undefined);
+  });
+});

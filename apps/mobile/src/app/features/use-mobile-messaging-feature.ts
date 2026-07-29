@@ -78,7 +78,16 @@ import { activeMobileCopy } from "../../locale/mobile-locale-preferences";
 import { useMobileAccountLocaleSync } from "../../locale/use-mobile-account-locale-sync";
 import { useMobileLocaleRuntime } from "../providers/mobile-locale-provider";
 import { createMobileGiphyAttachment } from "../../media/mobile-giphy-client";
-import { getMobileDMReadTarget } from "../../dm/mobile-dm-client";
+import {
+  getMobileDMReadTarget,
+  toMobileDMConversationSummaryFromStream,
+} from "../../dm/mobile-dm-client";
+import {
+  recordMobileRecentDMPrefetchOpen,
+  useMobileMessagePrefetch,
+} from "../../query/mobile-message-prefetch";
+import { useMobileRecentDMPrefetch } from "../../query/mobile-recent-dm-prefetch";
+import { useMobileMessageStreamPersistence } from "../../query/use-mobile-message-stream-persistence";
 import type { MobileForwardSendInput } from "../components/message-forward-sheet";
 import { resolveMobileWorkspaceServerSelection } from "../../workspace/mobile-workspace-selection";
 
@@ -249,6 +258,28 @@ export function useMobileMessagingFeature({
   const { refetch: refetchDMConversations } = dmConversationsQuery;
   const { refetch: refetchMessageSearch } = messageSearchQuery;
   const queryClient = useMobileQueryClient();
+  // Message bodies live in their own SQLCipher database rather than the plaintext
+  // query cache, so an open stream is seeded from disk on a cold start and its
+  // newest page is written back as it moves.
+  useMobileMessageStreamPersistence({
+    data: channelMessagesQuery.data,
+    enabled: isSignedIn,
+    queryClient,
+    scope: "channel",
+    targetId: activeWorkspaceTextChannelId,
+    userId: currentUser?.id ?? null,
+  });
+  useMobileMessageStreamPersistence({
+    data: dmMessagesQuery.data,
+    enabled: isSignedIn,
+    queryClient,
+    scope: "dm",
+    targetId: selectedDMConversationId,
+    userId: currentUser?.id ?? null,
+  });
+  // Tap-time warmers for the two chat surfaces: the row that opens a chat can put
+  // its first page on the wire before the navigation and selection work runs.
+  const { prefetchChannelMessages, prefetchDMMessages } = useMobileMessagePrefetch(apiClient);
   useMobileWorkspacePrefetch({
     apiClient,
     enabled: isSignedIn,
@@ -371,6 +402,17 @@ export function useMobileMessagingFeature({
     [dmConversationsQuery.data],
   );
   const directMessageUnreadCount = getMobileDMUnreadCount(dmConversationsQuery.data);
+  // The encrypted store only holds the few targets it is bounded to, and only on
+  // builds where SQLCipher is actually compiled in. Everything else still starts
+  // cold, so the streams the reader is most likely to open next are warmed once
+  // the inbox lands instead of on the tap.
+  useMobileRecentDMPrefetch({
+    apiClient,
+    conversations: dmConversations,
+    enabled: isSignedIn,
+    queryClient,
+    selectedConversationId: selectedDMConversationId,
+  });
   // Bottom-tab notification badge. Shares the unfiltered feed key with the
   // notifications screen, so the realtime notification invalidation already
   // keeps the count live without a second endpoint.
@@ -1035,10 +1077,26 @@ export function useMobileMessagingFeature({
       return null;
     }
 
-    return (
-      dmConversations.find((conversation) => conversation.id === selectedDMConversationId) ?? null
+    const fromInbox = dmConversations.find(
+      (conversation) => conversation.id === selectedDMConversationId,
     );
-  }, [dmConversations, selectedDMConversationId]);
+    if (fromInbox) {
+      return fromInbox;
+    }
+
+    // The inbox only holds the pages the reader has scrolled, so a push or a deep
+    // link into an older conversation had nothing to draw the header from. The
+    // message stream answers with its own conversation, which is enough.
+    const streamConversation = dmMessagesState.payload?.conversation ?? null;
+    return streamConversation && streamConversation.id === selectedDMConversationId
+      ? toMobileDMConversationSummaryFromStream(streamConversation, currentUser?.id ?? null)
+      : null;
+  }, [
+    currentUser?.id,
+    dmConversations,
+    dmMessagesState.payload?.conversation,
+    selectedDMConversationId,
+  ]);
 
   useEffect(() => {
     if (!isSignedIn || bootstrapState.status !== "ready") {
@@ -1190,6 +1248,19 @@ export function useMobileMessagingFeature({
     (serverId: string, channelId: string | null) => {
       resetChannelMessageMutation();
       setSelectedWorkspaceServerId(serverId);
+      // The route already names the channel, so the message stream is keyed here
+      // rather than after the server detail read resolves it. That read is one of
+      // the heaviest the backend serves, and the chat used to wait behind it
+      // before its own fetch could even start.
+      //
+      // The detail effect above still reconciles: a channel the reader may not
+      // open as a chat (deleted, voice, no permission) is dropped the moment the
+      // detail lands.
+      if (channelId) {
+        setSelectedWorkspaceChannelId(channelId);
+        setActiveWorkspaceTextChannelId(channelId);
+        setActiveWorkspaceVoiceChannelId(null);
+      }
       setWorkspaceRouteIntent({
         channelId,
         serverId,
@@ -1197,6 +1268,17 @@ export function useMobileMessagingFeature({
       });
     },
     [resetChannelMessageMutation],
+  );
+
+  // One stable object for the container-level navigation actions: an inline
+  // literal at the provider minted a new context value on every root render.
+  const productNavigationActions = useMemo(
+    () => ({
+      openWorkspaceRoute: handleOpenWorkspaceRoute,
+      prefetchChannelMessages,
+      prefetchDMMessages,
+    }),
+    [handleOpenWorkspaceRoute, prefetchChannelMessages, prefetchDMMessages],
   );
 
   const getSyncHealth = useCallback(
@@ -1279,6 +1361,7 @@ export function useMobileMessagingFeature({
     isDMReactionPending,
     isDMMessageActionPending: isDMEditPending || isDMDeletePending,
     messageSearchState,
+    productNavigationActions,
     refreshBootstrap,
     refreshChannelMessages,
     refreshDMMessages,

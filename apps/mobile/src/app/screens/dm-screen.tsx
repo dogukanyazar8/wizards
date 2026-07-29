@@ -23,6 +23,7 @@ import { FriendsHub } from "../../social/friends-hub";
 import { useMobileAuth } from "../../auth/mobile-auth-context";
 import { mobileNavigationRef } from "../../navigation/mobile-navigation-ref";
 import { useMobileDMRowTyping } from "../features/use-mobile-dm-row-typing";
+import { useMobileDMTypingLabel } from "../features/use-mobile-typing-labels";
 import { useMobileFriendsQuery, useMobileSocialMutations } from "../../social/mobile-social-query";
 
 export { DMConversationScreen, DMConversationPreviewCard } from "./dm-conversation-screen";
@@ -41,7 +42,6 @@ export function MessagesScreen({
   dmConversationsHasNextPage,
   dmConversationsIsLoading,
   dmMessagesState,
-  dmTypingLabel,
   getAccessToken,
   isReactionMutationPending,
   isEndToEndEncrypted,
@@ -103,6 +103,9 @@ export function MessagesScreen({
     }
   };
   const rowTyping = useMobileDMRowTyping();
+  // Same rule as the inbox rows: read the typing store here, so a conversation
+  // nobody has open cannot re-render the app to move a label.
+  const dmTypingLabel = useMobileDMTypingLabel(selectedConversationId);
   const swipeHandlers = useMobileDmSegmentSwipe(inboxSegment, setInboxSegment);
   const forwardTargets = useMemo<readonly MobileForwardTarget[]>(
     () =>

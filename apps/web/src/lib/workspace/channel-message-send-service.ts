@@ -10,10 +10,6 @@ import {
   parseUploadedAttachmentInputs,
 } from "@/lib/messages/attachments";
 import { redactMessageAttachmentUrlsForViewer } from "@/lib/messages/attachment-visibility";
-import {
-  enqueueChannelMentionNotificationJob,
-  enqueueChannelThreadReplyNotificationJob,
-} from "@/lib/outbox/service";
 import type { AppSocketServer } from "@/lib/socket/runtime";
 import { createMessage } from "@/lib/workspace/message-service";
 import { toMobileChannelMessagePreview } from "@/lib/workspace/mobile-channel-message-preview";
@@ -257,6 +253,9 @@ export async function sendChannelMessage(args: {
       alsoSendToChannel: args.alsoSendToChannel === true,
       ...(args.attribution ? { attribution: args.attribution } : {}),
       forwardOfMessageId: args.forwardOfMessageId ?? null,
+      // Enqueued by the same transaction that writes the message; the fan-out
+      // below no longer decides whether anyone is told.
+      notification: { channelName: channel.name, serverId: channel.serverId },
       permissions,
     },
   );
@@ -264,45 +263,15 @@ export async function sendChannelMessage(args: {
   // Only the author gets the nonce: it is the key to their optimistic bubble and
   // means nothing to anyone else's cache.
   const authorMessage = args.clientNonce ? { ...message, clientNonce: args.clientNonce } : message;
-  let readUserIds = [args.userId];
 
   if (args.io) {
-    const fanout = await emitChannelMessageFanout({
+    await emitChannelMessageFanout({
       authorMessage,
       channelId: args.channelId,
       io: args.io,
       message,
       senderId: args.userId,
       serverId: channel.serverId,
-    });
-    readUserIds = fanout.readUserIds;
-  }
-
-  void enqueueChannelMentionNotificationJob({
-    channelId: args.channelId,
-    channelName: channel.name,
-    content,
-    messageId: message.id,
-    senderId: args.userId,
-    senderName: message.author.displayName ?? message.author.username,
-    serverId: channel.serverId,
-    skipUserIds: readUserIds,
-  }).catch((error) => {
-    logError("[mobile-api] Channel mention notification enqueue failed", error);
-  });
-
-  if (args.threadParentId) {
-    void enqueueChannelThreadReplyNotificationJob({
-      channelId: args.channelId,
-      channelName: channel.name,
-      content,
-      messageId: message.id,
-      parentMessageId: args.threadParentId,
-      senderId: args.userId,
-      senderName: message.author.displayName ?? message.author.username,
-      serverId: channel.serverId,
-    }).catch((error) => {
-      logError("[mobile-api] Channel thread reply notification enqueue failed", error);
     });
   }
 

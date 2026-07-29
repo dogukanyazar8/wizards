@@ -1,4 +1,6 @@
 import React from "react";
+import { StyleSheet } from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { act, fireEvent, render } from "@testing-library/react-native";
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { lightTheme, type MobileTheme } from "../src/design/themes";
@@ -168,6 +170,53 @@ describe("mobile connectivity banner", () => {
       fireEvent.press(view.getByTestId(RETRY_TEST_ID));
     });
     expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it("clears the status bar instead of drawing under it", async () => {
+    const view = await render(
+      <SafeAreaProvider
+        initialMetrics={{
+          frame: { height: 800, width: 400, x: 0, y: 0 },
+          insets: { bottom: 0, left: 0, right: 0, top: 62 },
+        }}
+      >
+        <Harness health="failed" onRetry={jest.fn()} />
+      </SafeAreaProvider>,
+    );
+    await tick(MOBILE_CONNECTIVITY_RECONNECT_GRACE_MS);
+
+    // Without this the title sat behind the clock and the system bar ate the
+    // retry tap, because the shell — not the bar — owns the top edge below it.
+    const paddingTop = StyleSheet.flatten(view.getByTestId(FAILED_TEST_ID).props.style).paddingTop;
+    expect(paddingTop).toBeGreaterThan(62);
+  });
+
+  it("wears the toast card rather than a tinted strip of its own", async () => {
+    const view = await renderBanner("failed");
+    await tick(MOBILE_CONNECTIVITY_RECONNECT_GRACE_MS);
+
+    // Handoff 3b's rule: the card is neutral on every variant and colour reaches
+    // only the glyph tile and the action. A tinted full-bleed strip was exactly
+    // the inline-banner shape the toast redesign removed from the app.
+    const card = StyleSheet.flatten(view.getByTestId("mobile-connectivity-card").props.style);
+    expect(card.backgroundColor).toBe(mockTheme.toast.card);
+    expect(card.borderColor).toBe(mockTheme.toast.cardBorder);
+    expect(card.borderRadius).toBe(18);
+
+    const action = StyleSheet.flatten(view.getByTestId(RETRY_TEST_ID).props.style);
+    expect(action.backgroundColor).toBe(mockTheme.toast.variants.error.actionSurface);
+  });
+
+  it("spins the same arc the toast spins while it is working", async () => {
+    const view = await renderBanner("degraded");
+    await tick(MOBILE_CONNECTIVITY_RECONNECT_GRACE_MS);
+    expect(view.getByTestId("mobile-connectivity-spinner")).toBeTruthy();
+
+    await act(async () => {
+      view.rerender(<Harness health="healthy" onRetry={jest.fn()} />);
+    });
+
+    expect(view.queryByTestId("mobile-connectivity-spinner")).toBeNull();
   });
 
   it("drops the bar the moment the app leaves the foreground", async () => {

@@ -23,6 +23,7 @@ jest.mock("react-native-gesture-handler", () => {
 });
 
 import { activeMobileCopy as copy } from "../src/locale/mobile-locale-preferences";
+import { ToastProvider } from "../src/app/components/kit/toast";
 import { MobileDirectCallScreen } from "../src/app/screens/mobile-direct-call-screen";
 import type {
   MobileVoiceRoomParticipant,
@@ -90,24 +91,38 @@ function createProps(overrides: Partial<React.ComponentProps<typeof MobileDirect
   } satisfies React.ComponentProps<typeof MobileDirectCallScreen>;
 }
 
+/** The call surface raises a toast when noise suppression flips, so it needs the runtime. */
+function renderDirectCall(props: React.ComponentProps<typeof MobileDirectCallScreen>) {
+  return render(
+    <ToastProvider>
+      <MobileDirectCallScreen {...props} />
+    </ToastProvider>,
+  );
+}
+
 describe("5e direct call screen", () => {
-  it("renders the encrypted call header, callee, and connection chip", async () => {
-    const view = await render(<MobileDirectCallScreen {...createProps()} />);
+  it("wears the voice-room chrome: identity header, session strip and audience", async () => {
+    const view = await renderDirectCall(createProps());
 
     expect(view.getByTestId("mobile-direct-call-screen")).toBeTruthy();
-    expect(view.getByText(copy.directCallTitle)).toBeTruthy();
-    expect(view.getByText(copy.directCallEncrypted)).toBeTruthy();
-    expect(view.getByText("ogi_uat")).toBeTruthy();
-    expect(view.getByText(copy.directCallConnectionGood)).toBeTruthy();
-    expect(view.getByTestId("mobile-direct-call-leave")).toBeTruthy();
+    // Header identity: the callee names the call, the type and encryption sit beneath.
+    expect(view.getAllByText("ogi_uat").length).toBeGreaterThan(0);
+    expect(view.getByText(`${copy.directCallTitle} · ${copy.directCallEncrypted}`)).toBeTruthy();
+    // The room's session strip replaced the old connection chip.
+    expect(view.getByTestId("mobile-voice-session-strip")).toBeTruthy();
+    expect(view.getByText(copy.voiceRoomConnectionConnected)).toBeTruthy();
+    expect(view.getByTestId("mobile-voice-noise-toggle")).toBeTruthy();
+    // Both members ride the measured audience grid, exactly as in a server room.
+    expect(view.getByTestId("mobile-voice-audience")).toBeTruthy();
+    expect(view.getByTestId("mobile-voice-participant-ogi")).toBeTruthy();
+    expect(view.getByTestId("mobile-voice-participant-self")).toBeTruthy();
+    expect(view.getByTestId("mobile-direct-call-dock")).toBeTruthy();
   });
 
   it("routes the dock controls to their handlers", async () => {
     const onLeaveVoiceChannel = jest.fn(async () => undefined);
     const onToggleVoiceMute = jest.fn(async () => undefined);
-    const view = await render(
-      <MobileDirectCallScreen {...createProps({ onLeaveVoiceChannel, onToggleVoiceMute })} />,
-    );
+    const view = await renderDirectCall(createProps({ onLeaveVoiceChannel, onToggleVoiceMute }));
 
     await fireEvent.press(view.getByTestId("mobile-direct-call-mic"));
     await fireEvent.press(view.getByTestId("mobile-direct-call-leave"));
@@ -116,33 +131,32 @@ describe("5e direct call screen", () => {
     expect(onLeaveVoiceChannel).toHaveBeenCalledTimes(1);
   });
 
-  it("opens the audio-output selector on long press and selects a device", async () => {
+  it("flips noise suppression from the session strip", async () => {
+    const onSelectVoiceNoiseSuppression = jest.fn(async () => undefined);
+    const view = await renderDirectCall(createProps({ onSelectVoiceNoiseSuppression }));
+
+    await fireEvent.press(view.getByTestId("mobile-voice-noise-toggle"));
+
+    expect(onSelectVoiceNoiseSuppression).toHaveBeenCalledWith(false);
+  });
+
+  it("opens audio devices from the header settings pill", async () => {
     const onRefreshVoiceDevices = jest.fn(async () => undefined);
-    const onSelectVoiceAudioOutputDevice = jest.fn(async () => undefined);
-    const view = await render(
-      <MobileDirectCallScreen
-        {...createProps({ onRefreshVoiceDevices, onSelectVoiceAudioOutputDevice })}
-      />,
-    );
+    const view = await renderDirectCall(createProps({ onRefreshVoiceDevices }));
 
-    await fireEvent(view.getByTestId("mobile-direct-call-speaker"), "longPress");
+    await fireEvent.press(view.getByTestId("mobile-direct-call-settings"));
+
     expect(onRefreshVoiceDevices).toHaveBeenCalled();
-    expect(view.getByTestId("mobile-direct-call-output-selector")).toBeTruthy();
-
-    await fireEvent.press(view.getByTestId("mobile-direct-call-output-earpiece"));
-    expect(onSelectVoiceAudioOutputDevice).toHaveBeenCalledWith("earpiece");
   });
 
   it("disables the dock controls until the call is connected", async () => {
-    const view = await render(
-      <MobileDirectCallScreen
-        {...createProps({ voiceRoomState: createDirectCallRoom({ status: "connecting" }) })}
-      />,
+    const view = await renderDirectCall(
+      createProps({ voiceRoomState: createDirectCallRoom({ status: "connecting" }) }),
     );
 
     expect(view.getByTestId("mobile-direct-call-mic").props.accessibilityState).toEqual(
       expect.objectContaining({ disabled: true }),
     );
-    expect(view.getByText(copy.directCallConnecting)).toBeTruthy();
+    expect(view.getByText(copy.voiceRoomConnectionConnecting)).toBeTruthy();
   });
 });

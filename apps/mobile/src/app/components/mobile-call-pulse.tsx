@@ -1,207 +1,188 @@
-import { useEffect, useMemo, useRef } from "react";
-import { Animated, Easing, type ViewStyle } from "react-native";
+import { useEffect, useMemo } from "react";
+import { Animated, Easing } from "react-native";
+import Reanimated, {
+  Easing as RingEasing,
+  interpolate,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withDelay,
+  withRepeat,
+  withTiming,
+} from "react-native-reanimated";
 
-/** One outward wave every 2.1s; three waves overlap for a continuous ring. */
-const RINGING_WAVE_DURATION_MS = 2_100;
+/** One outward wave every 2.6s; three overlapping waves read as a continuous ring. */
+const RINGING_WAVE_DURATION_MS = 2_600;
 const RINGING_WAVE_COUNT = 3;
-/** The callee avatar breathes with the wave so the screen never looks frozen. */
-const RINGING_BREATH_DURATION_MS = 1_050;
-/** Speaking rings follow the level fast enough to feel live without visible stepping. */
-const SPEAKING_PULSE_DURATION_MS = 140;
-
-export function normalizeMobileVoiceLevel(level: number): number {
-  if (!Number.isFinite(level)) {
-    return 0;
-  }
-
-  return Math.min(1, Math.max(0, level));
-}
+/** The glow behind the avatar breathes so the screen never looks frozen. */
+const RINGING_GLOW_DURATION_MS = 1_500;
+/** Reduced motion parks every layer mid-swell instead of animating. */
+const RINGING_STILL_PROGRESS = 0.5;
 
 /**
- * Expanding halo behind a callee avatar while a call rings (7a/7b).
- *
- * Each wave gets its own `Animated.loop` around a single timing: looping a *sequence* only
- * resets its first child, which made the rings play once and then sit still.
+ * Waves start at the avatar edge and stop **exactly** at the halo bound, so a ring
+ * can never expand past its own box and paint over the name below it. Callers give
+ * the halo a fixed `diameter` box; nothing here ever scales beyond it.
  */
-export function MobileRingingPulse({
-  color,
-  fillColor,
-  size,
+export function getMobileRingingWaveScaleRange(
+  avatarSize: number,
+  diameter: number,
+): { from: number; to: number } {
+  const safeDiameter = Math.max(1, diameter);
+  const from = Math.min(1, Math.max(0, avatarSize / safeDiameter));
+
+  return { from, to: 1 };
+}
+
+function MobileRingingWave({
   borderRadius,
+  color,
+  delayMs,
+  diameter,
+  from,
+  reducedMotion,
   testID,
 }: {
   borderRadius: number;
   color: string;
-  /** Soft tint that swells with each wave; falls back to the ring colour. */
-  fillColor?: string;
-  size: number;
+  delayMs: number;
+  diameter: number;
+  from: number;
+  reducedMotion: boolean;
   testID?: string;
 }) {
-  const waves = useMemo(
-    () => Array.from({ length: RINGING_WAVE_COUNT }, () => new Animated.Value(0)),
-    [],
-  );
-  const breath = useRef(new Animated.Value(0)).current;
+  const progress = useSharedValue(reducedMotion ? RINGING_STILL_PROGRESS : 0);
 
   useEffect(() => {
-    const timers: ReturnType<typeof setTimeout>[] = [];
-    const loops = waves.map((value) =>
-      Animated.loop(
-        Animated.timing(value, {
+    if (reducedMotion) {
+      progress.value = RINGING_STILL_PROGRESS;
+      return;
+    }
+
+    progress.value = 0;
+    progress.value = withDelay(
+      delayMs,
+      withRepeat(
+        withTiming(1, {
           duration: RINGING_WAVE_DURATION_MS,
-          easing: Easing.out(Easing.cubic),
-          toValue: 1,
-          useNativeDriver: true,
+          easing: RingEasing.out(RingEasing.cubic),
         }),
+        -1,
+        false,
       ),
     );
+  }, [delayMs, progress, reducedMotion]);
 
-    loops.forEach((loop, index) => {
-      if (index === 0) {
-        loop.start();
-        return;
-      }
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(progress.value, [0, 0.14, 1], [0, 0.45, 0]),
+    transform: [{ scale: interpolate(progress.value, [0, 1], [from, 1]) }],
+  }));
 
-      timers.push(
-        setTimeout(
-          () => loop.start(),
-          (RINGING_WAVE_DURATION_MS / RINGING_WAVE_COUNT) * index,
-        ),
-      );
-    });
+  return (
+    <Reanimated.View
+      pointerEvents="none"
+      style={[
+        {
+          borderColor: color,
+          borderRadius,
+          borderWidth: 1.5,
+          height: diameter,
+          position: "absolute",
+          width: diameter,
+        },
+        animatedStyle,
+      ]}
+      {...(testID ? { testID } : {})}
+    />
+  );
+}
 
-    const breathLoop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(breath, {
-          duration: RINGING_BREATH_DURATION_MS,
-          easing: Easing.inOut(Easing.sin),
-          toValue: 1,
-          useNativeDriver: true,
-        }),
-        Animated.timing(breath, {
-          duration: RINGING_BREATH_DURATION_MS,
-          easing: Easing.inOut(Easing.sin),
-          toValue: 0,
-          useNativeDriver: true,
-        }),
-      ]),
+/**
+ * Outgoing-call halo (7a/7b): a breathing glow behind the callee avatar with three
+ * thin waves rippling out to the halo bound. Render it inside a box the size of
+ * `diameter` — the layout then reserves the whole effect and the card content
+ * beneath stays clear of it.
+ */
+export function MobileRingingHalo({
+  avatarRadius,
+  avatarSize,
+  color,
+  diameter,
+  glowColor,
+  testID,
+}: {
+  /** Corner radius of the avatar; the rings keep the same squircle ratio. */
+  avatarRadius: number;
+  avatarSize: number;
+  color: string;
+  diameter: number;
+  /** Soft fill that swells behind the avatar; falls back to the ring colour. */
+  glowColor?: string;
+  testID?: string;
+}) {
+  const reducedMotion = useReducedMotion() === true;
+  const { from } = getMobileRingingWaveScaleRange(avatarSize, diameter);
+  const radiusRatio = avatarSize > 0 ? avatarRadius / avatarSize : 0.35;
+  const glowSize = Math.round(avatarSize * 1.32);
+  const glow = useSharedValue(reducedMotion ? RINGING_STILL_PROGRESS : 0);
+  const waves = useMemo(
+    () =>
+      Array.from(
+        { length: RINGING_WAVE_COUNT },
+        (_, index) => (RINGING_WAVE_DURATION_MS / RINGING_WAVE_COUNT) * index,
+      ),
+    [],
+  );
+
+  useEffect(() => {
+    if (reducedMotion) {
+      glow.value = RINGING_STILL_PROGRESS;
+      return;
+    }
+
+    glow.value = withRepeat(
+      withTiming(1, {
+        duration: RINGING_GLOW_DURATION_MS,
+        easing: RingEasing.inOut(RingEasing.quad),
+      }),
+      -1,
+      true,
     );
-    breathLoop.start();
+  }, [glow, reducedMotion]);
 
-    return () => {
-      for (const timer of timers) {
-        clearTimeout(timer);
-      }
-      for (const loop of loops) {
-        loop.stop();
-      }
-      breathLoop.stop();
-      for (const value of waves) {
-        value.setValue(0);
-      }
-      breath.setValue(0);
-    };
-  }, [breath, waves]);
+  const animatedGlowStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(glow.value, [0, 1], [0.12, 0.26]),
+    transform: [{ scale: interpolate(glow.value, [0, 1], [1, 1.08]) }],
+  }));
 
   return (
     <>
-      <Animated.View
+      <Reanimated.View
         pointerEvents="none"
-        style={{
-          backgroundColor: fillColor ?? color,
-          borderRadius,
-          height: size,
-          opacity: breath.interpolate({ inputRange: [0, 1], outputRange: [0.1, 0.24] }),
-          position: "absolute",
-          transform: [
-            { scale: breath.interpolate({ inputRange: [0, 1], outputRange: [1, 1.12] }) },
-          ],
-          width: size,
-        }}
-      />
-      {waves.map((value, index) => (
-        <Animated.View
-          key={index}
-          pointerEvents="none"
-          style={{
-            borderColor: color,
-            borderRadius,
-            borderWidth: 2.5,
-            height: size,
-            opacity: value.interpolate({
-              inputRange: [0, 0.15, 1],
-              outputRange: [0, 0.55, 0],
-            }),
+        style={[
+          {
+            backgroundColor: glowColor ?? color,
+            borderRadius: Math.round(glowSize * radiusRatio),
+            height: glowSize,
             position: "absolute",
-            transform: [
-              { scale: value.interpolate({ inputRange: [0, 1], outputRange: [0.96, 1.9] }) },
-            ],
-            width: size,
-          }}
+            width: glowSize,
+          },
+          animatedGlowStyle,
+        ]}
+      />
+      {waves.map((delayMs, index) => (
+        <MobileRingingWave
+          key={delayMs}
+          borderRadius={Math.round(diameter * radiusRatio)}
+          color={color}
+          delayMs={delayMs}
+          diameter={diameter}
+          from={from}
+          reducedMotion={reducedMotion}
           {...(index === 0 && testID ? { testID } : {})}
         />
       ))}
     </>
-  );
-}
-
-/**
- * Halo that tracks how loudly the remote participant is speaking, mirroring the glow the
- * web room draws around a speaking avatar.
- */
-export function MobileSpeakingPulse({
-  color,
-  size,
-  borderRadius,
-  isSpeaking,
-  level,
-  testID,
-}: {
-  borderRadius: number;
-  color: string;
-  isSpeaking: boolean;
-  level: number;
-  size: number;
-  testID?: string;
-}) {
-  const intensity = useRef(new Animated.Value(0)).current;
-  const target = isSpeaking ? normalizeMobileVoiceLevel(level) : 0;
-
-  useEffect(() => {
-    const animation = Animated.timing(intensity, {
-      duration: SPEAKING_PULSE_DURATION_MS,
-      easing: Easing.out(Easing.quad),
-      toValue: target,
-      useNativeDriver: true,
-    });
-    animation.start();
-
-    return () => animation.stop();
-  }, [intensity, target]);
-
-  const style: ViewStyle = {
-    borderColor: color,
-    borderRadius,
-    borderWidth: 3,
-    height: size,
-    position: "absolute",
-    width: size,
-  };
-
-  return (
-    <Animated.View
-      pointerEvents="none"
-      style={[
-        style,
-        {
-          opacity: intensity.interpolate({ inputRange: [0, 1], outputRange: [0, 0.85] }),
-          transform: [
-            { scale: intensity.interpolate({ inputRange: [0, 1], outputRange: [1.02, 1.3] }) },
-          ],
-        },
-      ]}
-      {...(testID ? { testID } : {})}
-    />
   );
 }
 
@@ -215,7 +196,10 @@ export function MobileRingingDots({
   size?: number;
   testID?: string;
 }) {
-  const dots = useMemo(() => [new Animated.Value(0), new Animated.Value(0), new Animated.Value(0)], []);
+  const dots = useMemo(
+    () => [new Animated.Value(0), new Animated.Value(0), new Animated.Value(0)],
+    [],
+  );
 
   useEffect(() => {
     const loops = dots.map((value) =>

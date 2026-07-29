@@ -5,7 +5,11 @@ import {
   MessageCreatedAnalyticsPayloadSchema,
   OUTBOX_JOB_TYPES,
   enqueueAttachmentScanJob,
+  enqueueChannelMentionNotificationJob,
+  enqueueChannelThreadReplyNotificationJob,
+  enqueueDMMessageNotificationJob,
   enqueueMessageCreatedAnalyticsJob,
+  resolveOutboxChannelSkipUserIds,
   getOutboxRetryDelayMs,
   logOutboxDrainMetrics,
 } from "./service";
@@ -141,5 +145,94 @@ describe("outbox service", () => {
         },
       },
     ]);
+  });
+});
+
+/**
+ * The notification row has to be written by the same transaction that writes the
+ * message. Enqueueing after the commit meant a process that died — or an enqueue
+ * that simply failed, since the call site discarded the promise — committed a
+ * message nobody was ever told about.
+ */
+describe("notification jobs enqueue through the caller's transaction", () => {
+  it("writes the channel mention job with the transaction client", async () => {
+    const { client, jobs } = outboxClient();
+
+    await enqueueChannelMentionNotificationJob(client, {
+      channelId: "channel-1",
+      channelName: "genel",
+      content: "@ada bak",
+      messageId: "message-1",
+      senderId: "user-1",
+      senderName: "Dogukan",
+      serverId: "server-1",
+    });
+
+    assert.equal(jobs.length, 1);
+    assert.equal(jobs[0]?.type, OUTBOX_JOB_TYPES.channelMentionNotifications);
+  });
+
+  it("writes the thread reply job with the transaction client", async () => {
+    const { client, jobs } = outboxClient();
+
+    await enqueueChannelThreadReplyNotificationJob(client, {
+      channelId: "channel-1",
+      channelName: "genel",
+      content: "cevap",
+      messageId: "message-2",
+      parentMessageId: "message-1",
+      senderId: "user-1",
+      senderName: "Dogukan",
+      serverId: "server-1",
+    });
+
+    assert.equal(jobs.length, 1);
+    assert.equal(jobs[0]?.type, OUTBOX_JOB_TYPES.channelThreadReplyNotification);
+  });
+
+  it("writes the DM job with the transaction client", async () => {
+    const { client, jobs } = outboxClient();
+
+    await enqueueDMMessageNotificationJob(client, {
+      attachmentLabelKey: "",
+      content: "selam",
+      conversationId: "conversation-1",
+      messageId: "message-3",
+      participants: [{ muted: false, user: { locale: "tr" }, userId: "user-2" }],
+      senderId: "user-1",
+      senderName: "Dogukan",
+    });
+
+    assert.equal(jobs.length, 1);
+    assert.equal(jobs[0]?.type, OUTBOX_JOB_TYPES.dmMessageNotifications);
+  });
+});
+
+/**
+ * `skipUserIds` used to come from the socket fan-out, which only exists after the
+ * commit — so it cannot travel with a job written inside the transaction. The
+ * worker resolves it instead, from the read cursors, which is also the more honest
+ * question: not "who was connected" but "who has already read this".
+ */
+describe("resolveOutboxChannelSkipUserIds", () => {
+  const sentAt = new Date("2026-07-28T09:00:00.000Z");
+
+  it("skips readers whose cursor is at or past the message", () => {
+    assert.deepEqual(
+      resolveOutboxChannelSkipUserIds(sentAt, [
+        { lastReadAt: new Date("2026-07-28T09:00:00.000Z"), userId: "user-read-exact" },
+        { lastReadAt: new Date("2026-07-28T09:00:05.000Z"), userId: "user-read-after" },
+        { lastReadAt: new Date("2026-07-28T08:59:59.000Z"), userId: "user-behind" },
+      ]),
+      ["user-read-exact", "user-read-after"],
+    );
+  });
+
+  it("keeps the payload's own skip list working for jobs queued before this deploy", () => {
+    assert.deepEqual(resolveOutboxChannelSkipUserIds(sentAt, [], ["legacy-user"]), ["legacy-user"]);
+  });
+
+  it("returns nothing when nobody has read it", () => {
+    assert.deepEqual(resolveOutboxChannelSkipUserIds(sentAt, []), []);
   });
 });

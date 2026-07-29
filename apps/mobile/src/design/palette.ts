@@ -151,13 +151,6 @@ export const redesignLight = {
   controlDashedBorder: "#C9CDE4",
   controlSeparatorDot: "#C6CADE",
   inkSurface: "#1E2235",
-  voiceRoomControl: "#FFFFFF",
-  voiceRoomVideo: "#F6F7FB",
-  voiceRoomVideoGlass: "rgba(255,255,255,.72)",
-  voiceRoomControlBorder: "#E7E9F4",
-  voiceRoomInvite: "#FFFFFF",
-  voiceRoomInviteBorder: "#E7E9F4",
-  voiceRoomParticipant: "#FFFFFF",
 } as const;
 
 /**
@@ -532,14 +525,6 @@ export const redesignDark = {
   success: "#34D399",
   successSurface: "rgba(52,211,153,.12)",
   warning: "#F59E0B",
-  voiceRoom: "#1E2235",
-  voiceRoomControl: "rgba(255,255,255,.1)",
-  voiceRoomVideo: "#12141F",
-  voiceRoomVideoGlass: "rgba(18,20,31,.6)",
-  voiceRoomControlBorder: "transparent",
-  voiceRoomInvite: "rgba(255,255,255,.04)",
-  voiceRoomInviteBorder: "rgba(255,255,255,.15)",
-  voiceRoomParticipant: "rgba(255,255,255,.05)",
   warningSurface: "rgba(245,158,11,.14)",
   sheetOverlay: "rgba(0,0,0,.55)",
 } as const;

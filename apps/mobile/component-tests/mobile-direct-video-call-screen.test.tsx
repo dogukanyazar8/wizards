@@ -23,9 +23,8 @@ jest.mock("react-native-gesture-handler", () => {
 });
 
 import { activeMobileCopy as copy } from "../src/locale/mobile-locale-preferences";
+import { ToastProvider } from "../src/app/components/kit/toast";
 import { MobileDirectVideoCallScreen } from "../src/app/screens/mobile-direct-video-call-screen";
-import { createMobileDirectVideoCallStyles } from "../src/app/screens/mobile-direct-video-call-screen.styles";
-import { lightTheme } from "../src/design/themes";
 import type {
   MobileVoiceRoomParticipant,
   MobileVoiceRoomState,
@@ -113,66 +112,66 @@ function createProps(
   } satisfies React.ComponentProps<typeof MobileDirectVideoCallScreen>;
 }
 
+function renderVideoCall(props: React.ComponentProps<typeof MobileDirectVideoCallScreen>) {
+  return render(
+    <ToastProvider>
+      <MobileDirectVideoCallScreen {...props} />
+    </ToastProvider>,
+  );
+}
+
 describe("5f direct video call screen", () => {
-  it("renders full-screen video, the video header, dock, and self PiP", async () => {
-    const view = await render(<MobileDirectVideoCallScreen {...createProps()} />);
+  it("puts both cameras on the room stage under the same chrome", async () => {
+    const view = await renderVideoCall(createProps());
 
     expect(view.getByTestId("mobile-direct-video-call-screen")).toBeTruthy();
-    expect(view.getByTestId("mobile-direct-video-call-surface")).toBeTruthy();
-    expect(view.getByTestId("mobile-direct-video-call-pip")).toBeTruthy();
-    expect(view.getByText("ogi_uat")).toBeTruthy();
-    expect(view.getByText(new RegExp(copy.directCallVideoLabel))).toBeTruthy();
-    expect(view.getByText(copy.directCallControlsHint)).toBeTruthy();
-    expect(view.getByTestId("mobile-direct-video-call-leave")).toBeTruthy();
+    // Equal stage tiles instead of a full-bleed remote feed with a self PiP.
+    expect(view.getByTestId("mobile-voice-stage")).toBeTruthy();
+    expect(view.getByTestId("mobile-voice-participant-self")).toBeTruthy();
+    expect(view.getByTestId("mobile-voice-participant-ogi")).toBeTruthy();
+    expect(view.queryByTestId("mobile-direct-video-call-pip")).toBeNull();
+    // Same header, strip and dock as the answered voice call.
+    expect(
+      view.getByText(`${copy.directCallVideoTitle} · ${copy.directCallEncrypted}`),
+    ).toBeTruthy();
+    expect(view.getByTestId("mobile-voice-session-strip")).toBeTruthy();
+    expect(view.getByTestId("mobile-direct-video-call-dock")).toBeTruthy();
   });
 
-  it("routes the flip and leave controls to their handlers", async () => {
+  it("routes the tile flip and the dock leave control to their handlers", async () => {
     const onFlipVoiceCamera = jest.fn(async () => undefined);
     const onLeaveVoiceChannel = jest.fn(async () => undefined);
-    const view = await render(
-      <MobileDirectVideoCallScreen {...createProps({ onFlipVoiceCamera, onLeaveVoiceChannel })} />,
-    );
+    const view = await renderVideoCall(createProps({ onFlipVoiceCamera, onLeaveVoiceChannel }));
 
-    await fireEvent.press(view.getByTestId("mobile-direct-video-call-flip"));
+    // The flip button rides the self tile, the way it does in a server room.
+    await fireEvent.press(view.getByTestId("mobile-voice-participant-self-flip"));
     await fireEvent.press(view.getByTestId("mobile-direct-video-call-leave"));
 
     expect(onFlipVoiceCamera).toHaveBeenCalledTimes(1);
     expect(onLeaveVoiceChannel).toHaveBeenCalledTimes(1);
   });
 
-  it("hides the controls when the video surface is tapped", async () => {
-    const view = await render(<MobileDirectVideoCallScreen {...createProps()} />);
+  it("keeps the controls pinned instead of hiding them behind a tap", async () => {
+    const view = await renderVideoCall(createProps());
 
-    expect(view.queryByTestId("mobile-direct-video-call-leave")).toBeTruthy();
-    await fireEvent.press(view.getByTestId("mobile-direct-video-call-surface"));
-    expect(view.queryByTestId("mobile-direct-video-call-leave")).toBeNull();
-    // The self PiP stays visible even while controls are hidden.
-    expect(view.getByTestId("mobile-direct-video-call-pip")).toBeTruthy();
+    expect(view.queryByTestId("mobile-direct-video-call-surface")).toBeNull();
+    expect(view.getByTestId("mobile-direct-video-call-leave")).toBeTruthy();
   });
 
-  it("opens the audio-output selector on long press", async () => {
-    const onSelectVoiceAudioOutputDevice = jest.fn(async () => undefined);
-    const view = await render(
-      <MobileDirectVideoCallScreen {...createProps({ onSelectVoiceAudioOutputDevice })} />,
+  it("falls back to the audience grid when every camera is off", async () => {
+    const view = await renderVideoCall(
+      createProps({
+        voiceRoomState: createVideoCallRoom({
+          participants: [
+            createParticipant({ displayName: "You", isSelf: true, userId: "self", username: "me" }),
+            createParticipant({ displayName: "ogi_uat", userId: "ogi", username: "ogi_uat" }),
+          ],
+          selfCameraEnabled: false,
+        }),
+      }),
     );
 
-    await fireEvent(view.getByTestId("mobile-direct-video-call-speaker"), "longPress");
-    await fireEvent.press(view.getByTestId("mobile-direct-video-call-output-earpiece"));
-
-    expect(onSelectVoiceAudioOutputDevice).toHaveBeenCalledWith("earpiece");
-  });
-});
-
-describe("5f video chrome contrast", () => {
-  it("keeps the floating dock inverse-toned so controls read on the video surface", () => {
-    const styles = createMobileDirectVideoCallStyles(lightTheme);
-
-    // Regression: the dock used to inherit the light room surface, which rendered white
-    // active buttons with white glyphs on a white dock.
-    expect(styles.dock.backgroundColor).toBe(lightTheme.surface.inverse);
-    expect(styles.dockButton.backgroundColor).toBe(lightTheme.surface.inverseControl);
-    expect(styles.dockButtonActive.backgroundColor).toBe(lightTheme.text.onInverse);
-    expect(styles.dockButton.backgroundColor).not.toBe(styles.dockButtonActive.backgroundColor);
-    expect(styles.outputSelector.backgroundColor).toBe(lightTheme.surface.inverse);
+    expect(view.getByTestId("mobile-voice-audience")).toBeTruthy();
+    expect(view.queryByTestId("mobile-voice-stage")).toBeNull();
   });
 });

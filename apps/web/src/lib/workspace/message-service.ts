@@ -17,9 +17,23 @@ import {
 } from "@/lib/messages/attachments";
 import { UNKNOWN_ATTRIBUTION, type ClientAttribution } from "@/lib/analytics/client-attribution";
 import { mapAttachmentsForViewer } from "@/lib/messages/attachment-visibility";
-import { enqueueMessageCreatedAnalyticsJob } from "@/lib/outbox/service";
+import {
+  enqueueChannelMentionNotificationJob,
+  enqueueChannelThreadReplyNotificationJob,
+  enqueueMessageCreatedAnalyticsJob,
+} from "@/lib/outbox/service";
 import { requireChannelPermissionForUser } from "@/lib/workspace/permission-service";
 import { PermissionBits, hasPermission } from "@/lib/workspace/permissions";
+
+/**
+ * What the notification jobs need that the message row does not carry. The
+ * sender's display name is not here: the transaction already reads the created
+ * message with its author, so it resolves that itself.
+ */
+export type MessageNotificationContext = {
+  channelName: string;
+  serverId: string;
+};
 
 function normalizeMessageType(type: string): ChatMessageType {
   if (type === "SYSTEM_JOIN" || type === "SYSTEM_LEAVE") {
@@ -627,6 +641,12 @@ export async function createMessage(
     alsoSendToChannel?: boolean;
     attribution?: ClientAttribution;
     forwardOfMessageId?: string | null;
+    /**
+     * Supplied by senders that want the recipients told. Omitting it writes the
+     * message and no notification job, which is what system and internal writes
+     * want.
+     */
+    notification?: MessageNotificationContext;
     permissions?: bigint;
   } = {},
 ): Promise<ChatMessage> {
@@ -637,6 +657,7 @@ export async function createMessage(
     ...(options.attribution ? { attribution: options.attribution } : {}),
     ...(options.alsoSendToChannel ? { alsoSendToChannel: true } : {}),
     ...(options.forwardOfMessageId ? { forwardOfMessageId: options.forwardOfMessageId } : {}),
+    ...(options.notification ? { notification: options.notification } : {}),
     ...(options.permissions !== undefined ? { permissions: options.permissions } : {}),
     ...(threadParentId ? { threadParentId } : {}),
     type: "DEFAULT",
@@ -662,6 +683,7 @@ async function createTypedMessage(args: {
   channelId: string;
   content: string;
   forwardOfMessageId?: string | null;
+  notification?: MessageNotificationContext;
   permissions?: bigint;
   replyToId?: string;
   threadParentId?: string;
@@ -748,6 +770,29 @@ async function createTypedMessage(args: {
         uploadedBytes,
         userId: args.userId,
       });
+    }
+
+    // Written by this transaction, not after it: a committed message that nobody
+    // was told about is the failure this replaces.
+    if (args.notification) {
+      const notificationArgs = {
+        channelId: args.channelId,
+        channelName: args.notification.channelName,
+        content,
+        messageId: createdMessage.id,
+        senderId: args.userId,
+        senderName: message.author.displayName ?? message.author.username,
+        serverId: args.notification.serverId,
+      };
+
+      await enqueueChannelMentionNotificationJob(tx, notificationArgs);
+
+      if (args.threadParentId) {
+        await enqueueChannelThreadReplyNotificationJob(tx, {
+          ...notificationArgs,
+          parentMessageId: args.threadParentId,
+        });
+      }
     }
 
     return {

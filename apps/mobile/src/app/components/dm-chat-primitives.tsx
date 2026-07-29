@@ -1260,3 +1260,25 @@ export function DMChatEncryptionNotice() {
     </View>
   );
 }
+
+/**
+ * A conversation whose first message has not been sent yet. It takes the same
+ * space the message list would, so the composer sits on the bottom edge instead
+ * of collapsing up under the header.
+ */
+export function DMChatEmptyState() {
+  const styles = useDMChatStyles();
+  const theme = useTheme();
+
+  return (
+    <View style={styles.emptyState} testID="mobile-dm-empty-state">
+      <View style={styles.emptyIcon}>
+        <MobileLineIcon color={theme.messaging.accentText} name="chat-bubble" size={26} />
+      </View>
+      <Text accessibilityRole="header" style={styles.emptyTitle}>
+        {copy.dmChatEmptyTitle}
+      </Text>
+      <Text style={styles.emptyText}>{copy.dmNoMessages}</Text>
+    </View>
+  );
+}

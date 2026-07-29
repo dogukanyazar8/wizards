@@ -14,6 +14,8 @@ import type {
 } from "../../navigation/mobile-navigation-types";
 import { useMobileAuth } from "../../auth/mobile-auth-context";
 import { useMobileActiveTargetStore } from "../../state/mobile-active-target-store";
+import { beginMobileNavigationSpan } from "../../performance/mobile-navigation-timing";
+import { useMobileChannelTypingLabels } from "../features/use-mobile-typing-labels";
 import {
   useMobileMessagesScreenProps,
   useMobileNotificationsScreenProps,
@@ -71,6 +73,7 @@ export function OverviewTabScreenContainer({
   navigation,
 }: BottomTabScreenProps<MobileBottomTabParamList, "overview">) {
   const screenProps = useMobileOverviewScreenProps();
+  const { prefetchChannelMessages } = useMobileProductNavigationActions();
   const rootNavigation =
     navigation.getParent<NativeStackNavigationProp<MobileRootStackParamList>>();
 
@@ -91,6 +94,11 @@ export function OverviewTabScreenContainer({
         // the tap frame instead of queueing behind the read-marking and
         // selection updates the open handler performs.
         if (channel.type === "TEXT" && screenProps.selectedWorkspaceServerId && rootNavigation) {
+          // Warm the stream first: the request leaves on the tap frame rather
+          // than after the push and the selection commit.
+          prefetchChannelMessages(channel.id);
+          // The span the reader feels starts here, not when the list renders.
+          beginMobileNavigationSpan("ChannelChat");
           rootNavigation.navigate("ChannelChat", {
             channelId: channel.id,
             serverId: screenProps.selectedWorkspaceServerId,
@@ -115,6 +123,7 @@ export function MessagesTabScreenContainer({
   navigation,
 }: BottomTabScreenProps<MobileBottomTabParamList, "messages">) {
   const screenProps = useMobileMessagesScreenProps();
+  const { prefetchDMMessages } = useMobileProductNavigationActions();
   const rootNavigation =
     navigation.getParent<NativeStackNavigationProp<MobileRootStackParamList>>();
 
@@ -125,6 +134,8 @@ export function MessagesTabScreenContainer({
       onOpenConversation={(conversationId) => {
         // Push first, same reasoning as the channel row: the animation should
         // not wait behind the selection state the open handler sets.
+        prefetchDMMessages(conversationId);
+        beginMobileNavigationSpan("DirectMessage");
         rootNavigation?.navigate("DirectMessage", { conversationId });
         screenProps.onOpenConversation(conversationId);
       }}
@@ -274,6 +285,11 @@ export function VoiceRoomStackScreenContainer({
         : {}),
       ...(screenProps.onSelectVoiceAudioOutput
         ? { onSelectVoiceAudioOutput: screenProps.onSelectVoiceAudioOutput }
+        : {}),
+      // The ringing screen carries the room's session strip, so its noise toggle
+      // needs the same handler the answered call gets.
+      ...(screenProps.onSelectVoiceNoiseSuppression
+        ? { onSelectVoiceNoiseSuppression: screenProps.onSelectVoiceNoiseSuppression }
         : {}),
       ...(screenProps.onToggleVoiceCamera
         ? { onToggleVoiceCamera: screenProps.onToggleVoiceCamera }
@@ -439,6 +455,9 @@ export function MessageThreadStackScreenContainer({
   const screenProps = useMobileOverviewScreenProps();
   const { contextId, messageId } = route.params;
   const channelName = findMobileWorkspaceChannelName(screenProps.workspaceServerState, contextId);
+  // The thread belongs to one channel, so it selects that channel's typing users
+  // itself instead of receiving whatever the root last carried.
+  const { channelTypingUsers } = useMobileChannelTypingLabels(contextId);
 
   return (
     <MobileMessageThreadScreen
@@ -448,9 +467,7 @@ export function MessageThreadStackScreenContainer({
       messageId={messageId}
       onBack={() => navigation.goBack()}
       serverId={findMobileWorkspaceServerId(screenProps.workspaceServerState)}
-      typingUsers={
-        screenProps.activeWorkspaceTextChannelId === contextId ? screenProps.channelTypingUsers : []
-      }
+      typingUsers={channelTypingUsers}
     />
   );
 }

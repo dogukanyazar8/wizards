@@ -11,6 +11,7 @@ export type ClientHealthRawRow = {
   clientType: AnalyticsClientType;
   createdAt: Date;
   kind: ClientHealthKind;
+  surface: string | null;
   valueMs: number | null;
 };
 
@@ -23,6 +24,9 @@ export type ClientHealthSummaryRow = {
   kind: ClientHealthKind;
   p50Ms: number | null;
   p95Ms: number | null;
+  p99Ms: number | null;
+  /** Empty string for kinds without a surface, matching the unique key. */
+  surface: string;
 };
 
 export type ClientHealthRollupStore = {
@@ -57,7 +61,8 @@ export function summarizeClientHealthRows(rows: ClientHealthRawRow[]): ClientHea
 
   for (const row of rows) {
     const date = utcDayStart(row.createdAt);
-    const key = `${date.toISOString()}|${row.clientType}|${row.appVersion ?? ""}|${row.kind}`;
+    const surface = row.surface ?? "";
+    const key = `${date.toISOString()}|${row.clientType}|${row.appVersion ?? ""}|${row.kind}|${surface}`;
     const bucket = buckets.get(key) ?? {
       row: {
         appVersion: row.appVersion ?? "",
@@ -67,6 +72,8 @@ export function summarizeClientHealthRows(rows: ClientHealthRawRow[]): ClientHea
         kind: row.kind,
         p50Ms: null,
         p95Ms: null,
+        p99Ms: null,
+        surface,
       },
       values: [],
     };
@@ -84,6 +91,7 @@ export function summarizeClientHealthRows(rows: ClientHealthRawRow[]): ClientHea
     ...row,
     p50Ms: percentileMs(values, 50),
     p95Ms: percentileMs(values, 95),
+    p99Ms: percentileMs(values, 99),
   }));
 }
 
@@ -107,6 +115,7 @@ export async function rollUpClientHealthEvents(
       clientType: true,
       createdAt: true,
       kind: true,
+      surface: true,
       valueMs: true,
     },
   });
@@ -120,13 +129,19 @@ export async function rollUpClientHealthEvents(
   for (const summary of summaries) {
     await client.clientHealthDailySummary.upsert({
       create: summary,
-      update: { count: summary.count, p50Ms: summary.p50Ms, p95Ms: summary.p95Ms },
+      update: {
+        count: summary.count,
+        p50Ms: summary.p50Ms,
+        p95Ms: summary.p95Ms,
+        p99Ms: summary.p99Ms,
+      },
       where: {
-        date_clientType_appVersion_kind: {
+        date_clientType_appVersion_kind_surface: {
           appVersion: summary.appVersion,
           clientType: summary.clientType,
           date: summary.date,
           kind: summary.kind,
+          surface: summary.surface,
         },
       },
     });

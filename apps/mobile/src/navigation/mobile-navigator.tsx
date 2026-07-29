@@ -37,12 +37,11 @@ import {
   AdminIncidentsScreenContainer,
   AdminIncidentDetailScreenContainer,
 } from "../app/screens/mobile-screen-containers";
-import { useMobileVoiceScreenProps } from "../app/providers/mobile-product-screen-provider";
-import { FloatingNavigationChrome } from "./floating-navigation-chrome";
 import { MobileAuthNavigator } from "./mobile-auth-navigator";
 import { createMobileLinkingOptions } from "./mobile-linking";
 import { isMobileTabId, type MobileTabId } from "./mobile-navigation";
-import { mobileNavigationRef, navigateMobileRouteIntent } from "./mobile-navigation-ref";
+import { mobileNavigationRef } from "./mobile-navigation-ref";
+import { MobileTabBarHost } from "./mobile-tab-bar-host";
 import type { MobileBottomTabParamList, MobileRootStackParamList } from "./mobile-navigation-types";
 
 const RootStack = createNativeStackNavigator<MobileRootStackParamList>();
@@ -200,26 +199,6 @@ function MobileBottomTabs({
   readonly directMessageUnreadCount: number;
   readonly notificationUnreadCount: number;
 }) {
-  const {
-    bootstrapState,
-    onBeginVoicePushToTalk,
-    onEndVoicePushToTalk,
-    onLeaveVoiceChannel,
-    onToggleVoiceMute,
-    voiceInputMode,
-    voicePushToTalkPhase,
-    voiceRoomState,
-  } = useMobileVoiceScreenProps();
-  const voiceServerName =
-    bootstrapState.status === "ready"
-      ? (bootstrapState.payload.home.servers.recent.find(
-          (server) => server.id === voiceRoomState.serverId,
-        )?.name ?? null)
-      : null;
-  const openVoiceRoom = useCallback(() => {
-    navigateMobileRouteIntent({ name: "VoiceRoom", params: undefined, type: "route" });
-  }, []);
-
   return (
     <BottomTabs.Navigator
       // Tab visits are not history. With "history" the back key walked every
@@ -235,19 +214,10 @@ function MobileBottomTabs({
         tabBarHideOnKeyboard: true,
       }}
       tabBar={(props) => (
-        <FloatingNavigationChrome
+        <MobileTabBarHost
           {...props}
           directMessageUnreadCount={directMessageUnreadCount}
           notificationUnreadCount={notificationUnreadCount}
-          onBeginPushToTalk={onBeginVoicePushToTalk}
-          onEndPushToTalk={onEndVoicePushToTalk}
-          onLeaveVoiceChannel={onLeaveVoiceChannel}
-          onOpenVoiceRoom={openVoiceRoom}
-          onToggleVoiceMute={onToggleVoiceMute}
-          voiceInputMode={voiceInputMode}
-          voicePushToTalkPhase={voicePushToTalkPhase}
-          voiceRoom={voiceRoomState}
-          voiceServerName={voiceServerName}
         />
       )}
     >

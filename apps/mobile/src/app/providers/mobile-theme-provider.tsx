@@ -112,108 +112,93 @@ export function MobileThemeProvider({ children }: PropsWithChildren) {
   const messageCompactSelectionVersion = useRef(0);
   const messageFollowSystemSelectionVersion = useRef(0);
 
+  /**
+   * One read, one commit.
+   *
+   * Seven `getItem` calls across three effects resolved one after another, so the
+   * tree could be restyled up to seven times before it settled on the reader's own
+   * theme. They are issued together now and committed once.
+   */
   useEffect(() => {
     let active = true;
-    const selectionVersionAtStart = userSelectionVersion.current;
-
-    void AsyncStorage.getItem(MOBILE_THEME_PREFERENCE_KEY)
-      .then((storedMode) => {
-        if (active && userSelectionVersion.current === selectionVersionAtStart) {
-          setModeState(normalizeMobileThemeMode(storedMode));
-        }
-      })
-      .catch(() => {
-        if (active && userSelectionVersion.current === selectionVersionAtStart) {
-          setModeState("system");
-        }
-      });
-
-    return () => {
-      active = false;
+    const versionsAtStart = {
+      accent: accentSelectionVersion.current,
+      compact: messageCompactSelectionVersion.current,
+      followSystem: messageFollowSystemSelectionVersion.current,
+      fontScale: fontScaleSelectionVersion.current,
+      messageFontSize: messageFontSizeSelectionVersion.current,
+      mode: userSelectionVersion.current,
+      voiceAppearance: voiceAppearanceSelectionVersion.current,
     };
-  }, []);
 
-  useEffect(() => {
-    let active = true;
-    const accentVersionAtStart = accentSelectionVersion.current;
-    const fontScaleVersionAtStart = fontScaleSelectionVersion.current;
-    const voiceAppearanceVersionAtStart = voiceAppearanceSelectionVersion.current;
-
-    void AsyncStorage.getItem(MOBILE_ACCENT_PREFERENCE_KEY)
-      .then((storedAccent) => {
-        if (active && accentSelectionVersion.current === accentVersionAtStart) {
-          setAccentState(normalizeMobileAccentId(storedAccent));
-        }
-      })
-      .catch(() => undefined);
-    void AsyncStorage.getItem(MOBILE_FONT_SCALE_PREFERENCE_KEY)
-      .then((storedStep) => {
-        if (active && fontScaleSelectionVersion.current === fontScaleVersionAtStart) {
-          setFontScaleStepState(normalizeMobileFontScaleStep(storedStep));
-        }
-      })
-      .catch(() => undefined);
-    void AsyncStorage.getItem(MOBILE_VOICE_APPEARANCE_PREFERENCE_KEY)
-      .then((storedAppearance) => {
-        if (active && voiceAppearanceSelectionVersion.current === voiceAppearanceVersionAtStart) {
-          setVoiceRoomAppearanceState(normalizeMobileVoiceRoomAppearance(storedAppearance));
-        }
-      })
-      .catch(() => undefined);
-
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    let active = true;
-    const fontSizeVersionAtStart = messageFontSizeSelectionVersion.current;
-    const compactVersionAtStart = messageCompactSelectionVersion.current;
-    const followSystemVersionAtStart = messageFollowSystemSelectionVersion.current;
-
-    const loads = [
-      AsyncStorage.getItem(MOBILE_MESSAGE_FONT_SIZE_PREFERENCE_KEY)
-        .then((storedSize) => {
-          if (active && messageFontSizeSelectionVersion.current === fontSizeVersionAtStart) {
-            setMessageFontSizeState(normalizeMobileMessageFontSize(storedSize));
-          }
-        })
-        .catch(() => undefined),
-      AsyncStorage.getItem(MOBILE_MESSAGE_COMPACT_PREFERENCE_KEY)
-        .then((storedCompact) => {
-          if (active && messageCompactSelectionVersion.current === compactVersionAtStart) {
-            setMessageCompactState(
-              normalizeMobileMessageBooleanPreference(
-                storedCompact,
-                MOBILE_DEFAULT_MESSAGE_COMPACT,
-              ),
-            );
-          }
-        })
-        .catch(() => undefined),
-      AsyncStorage.getItem(MOBILE_MESSAGE_FOLLOW_SYSTEM_PREFERENCE_KEY)
-        .then((storedFollowSystem) => {
-          if (
-            active &&
-            messageFollowSystemSelectionVersion.current === followSystemVersionAtStart
-          ) {
-            setMessageFollowSystemFontState(
-              normalizeMobileMessageBooleanPreference(
-                storedFollowSystem,
-                MOBILE_DEFAULT_MESSAGE_FOLLOW_SYSTEM_FONT,
-              ),
-            );
-          }
-        })
-        .catch(() => undefined),
+    const keys = [
+      MOBILE_THEME_PREFERENCE_KEY,
+      MOBILE_ACCENT_PREFERENCE_KEY,
+      MOBILE_FONT_SCALE_PREFERENCE_KEY,
+      MOBILE_VOICE_APPEARANCE_PREFERENCE_KEY,
+      MOBILE_MESSAGE_FONT_SIZE_PREFERENCE_KEY,
+      MOBILE_MESSAGE_COMPACT_PREFERENCE_KEY,
+      MOBILE_MESSAGE_FOLLOW_SYSTEM_PREFERENCE_KEY,
     ];
 
-    void Promise.all(loads).then(() => {
-      if (active) {
-        setMessagePreferencesReady(true);
-      }
-    });
+    void Promise.all(keys.map((key) => AsyncStorage.getItem(key).catch(() => null)))
+      .then((values) => {
+        if (!active) {
+          return;
+        }
+
+        const stored = new Map(keys.map((key, index) => [key, values[index] ?? null]));
+
+        // A preference the reader changed while storage was answering wins: the
+        // version counters are what make the read a no-op in that case.
+        if (userSelectionVersion.current === versionsAtStart.mode) {
+          setModeState(normalizeMobileThemeMode(stored.get(MOBILE_THEME_PREFERENCE_KEY) ?? null));
+        }
+        if (accentSelectionVersion.current === versionsAtStart.accent) {
+          setAccentState(normalizeMobileAccentId(stored.get(MOBILE_ACCENT_PREFERENCE_KEY) ?? null));
+        }
+        if (fontScaleSelectionVersion.current === versionsAtStart.fontScale) {
+          setFontScaleStepState(
+            normalizeMobileFontScaleStep(stored.get(MOBILE_FONT_SCALE_PREFERENCE_KEY) ?? null),
+          );
+        }
+        if (voiceAppearanceSelectionVersion.current === versionsAtStart.voiceAppearance) {
+          setVoiceRoomAppearanceState(
+            normalizeMobileVoiceRoomAppearance(
+              stored.get(MOBILE_VOICE_APPEARANCE_PREFERENCE_KEY) ?? null,
+            ),
+          );
+        }
+        if (messageFontSizeSelectionVersion.current === versionsAtStart.messageFontSize) {
+          setMessageFontSizeState(
+            normalizeMobileMessageFontSize(
+              stored.get(MOBILE_MESSAGE_FONT_SIZE_PREFERENCE_KEY) ?? null,
+            ),
+          );
+        }
+        if (messageCompactSelectionVersion.current === versionsAtStart.compact) {
+          setMessageCompactState(
+            normalizeMobileMessageBooleanPreference(
+              stored.get(MOBILE_MESSAGE_COMPACT_PREFERENCE_KEY) ?? null,
+              MOBILE_DEFAULT_MESSAGE_COMPACT,
+            ),
+          );
+        }
+        if (messageFollowSystemSelectionVersion.current === versionsAtStart.followSystem) {
+          setMessageFollowSystemFontState(
+            normalizeMobileMessageBooleanPreference(
+              stored.get(MOBILE_MESSAGE_FOLLOW_SYSTEM_PREFERENCE_KEY) ?? null,
+              MOBILE_DEFAULT_MESSAGE_FOLLOW_SYSTEM_FONT,
+            ),
+          );
+        }
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (active) {
+          setMessagePreferencesReady(true);
+        }
+      });
 
     return () => {
       active = false;

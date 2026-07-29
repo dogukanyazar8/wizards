@@ -18,11 +18,14 @@ import { renderWithMobileTheme as render } from "./render-with-mobile-theme";
 
 const mockVoiceRecorder = {
   discard: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+  getLevels: () => [] as readonly number[],
   isRecording: false as boolean,
-  levels: [] as readonly number[],
   phase: "idle" as const,
   start: jest.fn<() => Promise<"recording">>().mockResolvedValue("recording"),
-  stop: jest.fn(),
+  // §2 "1h".2: `stop()` reports what it did, so a second call on the same
+  // gesture is an "idle" no-op instead of a second error toast.
+  stop: jest.fn<() => Promise<{ status: string; attachment?: unknown }>>(),
+  subscribeToLevels: () => () => {},
 };
 
 const mockNavigate = jest.fn();
@@ -985,7 +988,7 @@ describe("4a DM conversation redesign", () => {
       localUri: "file:///cache/voice-message.m4a",
     };
     mockVoiceRecorder.isRecording = true;
-    mockVoiceRecorder.stop.mockResolvedValue(picked);
+    mockVoiceRecorder.stop.mockResolvedValue({ attachment: picked, status: "recorded" });
     jest.mocked(uploadMobileMessageAttachmentToUploadThing).mockClear();
     const view = await render(
       <DMComposer
@@ -1148,6 +1151,28 @@ describe("4a DM conversation redesign", () => {
       />,
     );
     expect(emptyView.getByText(copy.dmNoMessages)).toBeTruthy();
+  });
+
+  it("keeps the composer on the bottom edge in a conversation with no messages", async () => {
+    const view = await render(
+      <DMConversationScreen
+        {...createScreenProps({
+          state: {
+            conversationId: "conversation-1",
+            error: null,
+            payload: { ...readyPayload, messages: [] },
+            status: "ready",
+          },
+        })}
+      />,
+    );
+
+    // The empty conversation takes the message area the list would have owned,
+    // so the composer stays where it sits once the first message lands.
+    const empty = view.getByTestId("mobile-dm-empty-state");
+    expect(StyleSheet.flatten(empty.props.style)).toMatchObject({ flex: 1 });
+    expect(view.getByText(copy.dmChatEmptyTitle)).toBeTruthy();
+    expect(view.getByPlaceholderText(copy.dmChatComposerPlaceholder)).toBeTruthy();
   });
 
   it("opens the existing long-press reaction menu and reaches the real reaction callback boundary", async () => {
