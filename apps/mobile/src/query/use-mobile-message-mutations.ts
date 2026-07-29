@@ -196,6 +196,22 @@ let optimisticMessageSequence = 0;
  */
 const optimisticClientIds = new WeakMap<object, string>();
 
+/**
+ * The nonce a retry has to reuse.
+ *
+ * A send that timed out may already have been written: the response was lost,
+ * not the message. Minting a fresh nonce for the retry would hide that from the
+ * server, whose unique index on `(userId, clientNonce)` is the only thing that
+ * can tell a retry from a second message — so the reader would end up with two.
+ * `markMobileSendRetry` parks the original id against the draft that is about to
+ * be resent, and `onMutate` takes it instead of minting.
+ */
+const retriedClientNonces = new WeakMap<object, string>();
+
+export function markMobileSendRetry(draft: object, clientNonce: string): void {
+  retriedClientNonces.set(draft, clientNonce);
+}
+
 function requireMobileMutationAuthor<T>(author: T | null): T {
   if (!author) {
     throw new Error("A signed-in author is required for mobile message mutation.");
@@ -243,7 +259,9 @@ export function createMobileOptimisticMutationOptions<
     onMutate: async (variables) => {
       // The span starts before the cache work: the reader's tap is the origin, and
       // the bubble appearing is what closes the echo half.
-      const clientId = createMobileOptimisticMessageId();
+      const retriedNonce = retriedClientNonces.get(variables);
+      retriedClientNonces.delete(variables);
+      const clientId = retriedNonce ?? createMobileOptimisticMessageId();
       beginMobileSendSpan(clientId);
       await options.queryClient.cancelQueries({ queryKey: options.queryKey });
       optimisticClientIds.set(variables, clientId);
@@ -574,7 +592,11 @@ export function useMobileChannelMessageMutation(input: {
         queryKey,
         (current) => removeMobileMessage(current, messageId),
       );
-      mutation.mutate(entry.draft as MobileChannelDraft);
+      const draft = entry.draft as MobileChannelDraft;
+      // The same nonce as the attempt that failed: the server may already hold
+      // that message, and this is what lets it answer with the one it has.
+      markMobileSendRetry(draft, entry.clientId);
+      mutation.mutate(draft);
       return true;
     },
     [mutation, queryClient, queryKey, scope],
@@ -759,7 +781,11 @@ export function useMobileDMMessageMutation(input: {
         queryKey,
         (current) => removeMobileMessage(current, messageId),
       );
-      mutation.mutate(entry.draft as MobileDMDraft);
+      const draft = entry.draft as MobileDMDraft;
+      // The same nonce as the attempt that failed: the server may already hold
+      // that message, and this is what lets it answer with the one it has.
+      markMobileSendRetry(draft, entry.clientId);
+      mutation.mutate(draft);
       return true;
     },
     [mutation, queryClient, queryKey, scope],

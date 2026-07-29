@@ -11,7 +11,7 @@ import {
 } from "@/lib/messages/attachments";
 import { redactMessageAttachmentUrlsForViewer } from "@/lib/messages/attachment-visibility";
 import type { AppSocketServer } from "@/lib/socket/runtime";
-import { createMessage } from "@/lib/workspace/message-service";
+import { createMessageWithClientNonce } from "@/lib/workspace/message-service";
 import { toMobileChannelMessagePreview } from "@/lib/workspace/mobile-channel-message-preview";
 import {
   PRIVILEGED_PERMISSION_CACHE_MAX_AGE_SECONDS,
@@ -242,7 +242,7 @@ export async function sendChannelMessage(args: {
     attachmentInputs,
     canBypassMessageLimit ? null : channel.server.messageCharacterLimit,
   );
-  const message = await createMessage(
+  const { deduplicated, message } = await createMessageWithClientNonce(
     args.channelId,
     args.userId,
     content,
@@ -252,6 +252,7 @@ export async function sendChannelMessage(args: {
     {
       alsoSendToChannel: args.alsoSendToChannel === true,
       ...(args.attribution ? { attribution: args.attribution } : {}),
+      clientNonce: args.clientNonce ?? null,
       forwardOfMessageId: args.forwardOfMessageId ?? null,
       // Enqueued by the same transaction that writes the message; the fan-out
       // below no longer decides whether anyone is told.
@@ -264,7 +265,10 @@ export async function sendChannelMessage(args: {
   // means nothing to anyone else's cache.
   const authorMessage = args.clientNonce ? { ...message, clientNonce: args.clientNonce } : message;
 
-  if (args.io) {
+  // A retry is answered, never re-announced: the first attempt already emitted
+  // this message and moved everyone's unread state. Repeating the fan-out would
+  // show one send arriving twice.
+  if (args.io && !deduplicated) {
     await emitChannelMessageFanout({
       authorMessage,
       channelId: args.channelId,

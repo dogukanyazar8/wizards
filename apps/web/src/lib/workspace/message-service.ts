@@ -18,6 +18,11 @@ import {
 import { UNKNOWN_ATTRIBUTION, type ClientAttribution } from "@/lib/analytics/client-attribution";
 import { mapAttachmentsForViewer } from "@/lib/messages/attachment-visibility";
 import {
+  normalizeMessageClientNonce,
+  resolveIdempotentMessageSend,
+  type IdempotentMessageSendResult,
+} from "@/lib/messages/client-nonce";
+import {
   enqueueChannelMentionNotificationJob,
   enqueueChannelThreadReplyNotificationJob,
   enqueueMessageCreatedAnalyticsJob,
@@ -630,6 +635,50 @@ export async function unpinChannelMessage(userId: string, channelId: string, mes
   return mapRawMessage(updated as RawMessage, summaries.get(updated.id), userId);
 }
 
+type CreateMessageOptions = {
+  alsoSendToChannel?: boolean;
+  attribution?: ClientAttribution;
+  /**
+   * Minted by the author's client, one per send. Storing it is what lets a
+   * retried request resolve to the message it already wrote.
+   */
+  clientNonce?: string | null;
+  forwardOfMessageId?: string | null;
+  /**
+   * Supplied by senders that want the recipients told. Omitting it writes the
+   * message and no notification job, which is what system and internal writes
+   * want.
+   */
+  notification?: MessageNotificationContext;
+  permissions?: bigint;
+};
+
+function toCreateMessageArgs(
+  channelId: string,
+  userId: string,
+  content: string,
+  replyToId: string | undefined,
+  attachments: UploadedAttachmentInput[],
+  threadParentId: string | undefined,
+  options: CreateMessageOptions,
+) {
+  return {
+    channelId,
+    attachments,
+    content,
+    ...(options.attribution ? { attribution: options.attribution } : {}),
+    ...(options.alsoSendToChannel ? { alsoSendToChannel: true } : {}),
+    ...(options.clientNonce ? { clientNonce: options.clientNonce } : {}),
+    ...(options.forwardOfMessageId ? { forwardOfMessageId: options.forwardOfMessageId } : {}),
+    ...(options.notification ? { notification: options.notification } : {}),
+    ...(options.permissions !== undefined ? { permissions: options.permissions } : {}),
+    ...(threadParentId ? { threadParentId } : {}),
+    type: "DEFAULT" as const,
+    userId,
+    ...(replyToId ? { replyToId } : {}),
+  };
+}
+
 export async function createMessage(
   channelId: string,
   userId: string,
@@ -637,33 +686,49 @@ export async function createMessage(
   replyToId?: string,
   attachments: UploadedAttachmentInput[] = [],
   threadParentId?: string,
-  options: {
-    alsoSendToChannel?: boolean;
-    attribution?: ClientAttribution;
-    forwardOfMessageId?: string | null;
-    /**
-     * Supplied by senders that want the recipients told. Omitting it writes the
-     * message and no notification job, which is what system and internal writes
-     * want.
-     */
-    notification?: MessageNotificationContext;
-    permissions?: bigint;
-  } = {},
+  options: CreateMessageOptions = {},
 ): Promise<ChatMessage> {
-  return createTypedMessage({
-    channelId,
-    attachments,
-    content,
-    ...(options.attribution ? { attribution: options.attribution } : {}),
-    ...(options.alsoSendToChannel ? { alsoSendToChannel: true } : {}),
-    ...(options.forwardOfMessageId ? { forwardOfMessageId: options.forwardOfMessageId } : {}),
-    ...(options.notification ? { notification: options.notification } : {}),
-    ...(options.permissions !== undefined ? { permissions: options.permissions } : {}),
-    ...(threadParentId ? { threadParentId } : {}),
-    type: "DEFAULT",
-    userId,
-    ...(replyToId ? { replyToId } : {}),
-  });
+  const result = await createTypedMessage(
+    toCreateMessageArgs(
+      channelId,
+      userId,
+      content,
+      replyToId,
+      attachments,
+      threadParentId,
+      options,
+    ),
+  );
+  return result.message;
+}
+
+/**
+ * The same write, for callers that fan out afterwards.
+ *
+ * They need to know whether they are holding a message they just wrote or one an
+ * earlier attempt already wrote: everything after the transaction — socket
+ * emits, unread counters — has already happened for the second kind.
+ */
+export async function createMessageWithClientNonce(
+  channelId: string,
+  userId: string,
+  content: string,
+  replyToId: string | undefined,
+  attachments: UploadedAttachmentInput[],
+  threadParentId: string | undefined,
+  options: CreateMessageOptions,
+): Promise<IdempotentMessageSendResult<ChatMessage>> {
+  return createTypedMessage(
+    toCreateMessageArgs(
+      channelId,
+      userId,
+      content,
+      replyToId,
+      attachments,
+      threadParentId,
+      options,
+    ),
+  );
 }
 
 export async function createSystemMessage(args: {
@@ -672,7 +737,8 @@ export async function createSystemMessage(args: {
   type: Exclude<ChatMessageType, "DEFAULT">;
   userId: string;
 }): Promise<ChatMessage> {
-  return createTypedMessage(args);
+  const result = await createTypedMessage(args);
+  return result.message;
 }
 
 async function createTypedMessage(args: {
@@ -681,6 +747,7 @@ async function createTypedMessage(args: {
   /** Only DEFAULT messages write analytics; system messages have no client. */
   attribution?: ClientAttribution;
   channelId: string;
+  clientNonce?: string | null;
   content: string;
   forwardOfMessageId?: string | null;
   notification?: MessageNotificationContext;
@@ -689,7 +756,7 @@ async function createTypedMessage(args: {
   threadParentId?: string;
   type: ChatMessageType;
   userId: string;
-}): Promise<ChatMessage> {
+}): Promise<IdempotentMessageSendResult<ChatMessage>> {
   const attachments = args.attachments ?? [];
   const content = normalizeMessageContentForSend(args.content, attachments);
   const mentionEveryone = args.type === "DEFAULT" && containsMassMention(content);
@@ -714,93 +781,106 @@ async function createTypedMessage(args: {
     }
   }
 
-  const result = await prisma.$transaction(async (tx) => {
-    if (args.threadParentId) {
-      const parent = await tx.message.findFirst({
-        where: {
-          id: args.threadParentId,
+  const clientNonce = normalizeMessageClientNonce(args.clientNonce);
+
+  const writeMessage = () =>
+    prisma.$transaction(async (tx) => {
+      if (args.threadParentId) {
+        const parent = await tx.message.findFirst({
+          where: {
+            id: args.threadParentId,
+            channelId: args.channelId,
+            deletedAt: null,
+            placeholderRemovedAt: null,
+            threadParentId: null,
+          },
+          select: { id: true },
+        });
+
+        if (!parent) {
+          throw new ApiError("Thread parent message not found", 404, "THREAD_PARENT_NOT_FOUND");
+        }
+      }
+
+      const createdMessage = await tx.message.create({
+        data: {
           channelId: args.channelId,
-          deletedAt: null,
-          placeholderRemovedAt: null,
-          threadParentId: null,
+          userId: args.userId,
+          content,
+          replyToId: args.replyToId ?? null,
+          threadParentId: args.threadParentId ?? null,
+          // Only a reply that lives inside a thread can be mirrored to the channel.
+          alsoSentToChannel: Boolean(args.threadParentId && args.alsoSendToChannel),
+          forwardedAt: args.forwardOfMessageId ? new Date() : null,
+          type: args.type,
+          mentionEveryone,
+          clientNonce,
         },
         select: { id: true },
       });
 
-      if (!parent) {
-        throw new ApiError("Thread parent message not found", 404, "THREAD_PARENT_NOT_FOUND");
-      }
-    }
-
-    const createdMessage = await tx.message.create({
-      data: {
-        channelId: args.channelId,
-        userId: args.userId,
-        content,
-        replyToId: args.replyToId ?? null,
-        threadParentId: args.threadParentId ?? null,
-        // Only a reply that lives inside a thread can be mirrored to the channel.
-        alsoSentToChannel: Boolean(args.threadParentId && args.alsoSendToChannel),
-        forwardedAt: args.forwardOfMessageId ? new Date() : null,
-        type: args.type,
-        mentionEveryone,
-      },
-      select: { id: true },
-    });
-
-    await claimUploadedMessageAttachments(tx, args.userId, attachments, {
-      messageId: createdMessage.id,
-    });
-
-    const message = (await tx.message.findUniqueOrThrow({
-      where: { id: createdMessage.id },
-      include: messageInclude,
-    })) as RawMessage;
-    const attachmentCount = message.attachments.length;
-    const uploadedBytes = message.attachments.reduce(
-      (total, attachment) => total + BigInt(attachment.size),
-      0n,
-    );
-
-    if (args.type === "DEFAULT") {
-      await enqueueMessageCreatedAnalyticsJob(tx, {
-        attachmentCount,
-        attribution: args.attribution ?? UNKNOWN_ATTRIBUTION,
-        idempotencyKey: `analytics:channel-message:${createdMessage.id}`,
-        uploadedBytes,
-        userId: args.userId,
-      });
-    }
-
-    // Written by this transaction, not after it: a committed message that nobody
-    // was told about is the failure this replaces.
-    if (args.notification) {
-      const notificationArgs = {
-        channelId: args.channelId,
-        channelName: args.notification.channelName,
-        content,
+      await claimUploadedMessageAttachments(tx, args.userId, attachments, {
         messageId: createdMessage.id,
-        senderId: args.userId,
-        senderName: message.author.displayName ?? message.author.username,
-        serverId: args.notification.serverId,
-      };
+      });
 
-      await enqueueChannelMentionNotificationJob(tx, notificationArgs);
+      const message = (await tx.message.findUniqueOrThrow({
+        where: { id: createdMessage.id },
+        include: messageInclude,
+      })) as RawMessage;
+      const attachmentCount = message.attachments.length;
+      const uploadedBytes = message.attachments.reduce(
+        (total, attachment) => total + BigInt(attachment.size),
+        0n,
+      );
 
-      if (args.threadParentId) {
-        await enqueueChannelThreadReplyNotificationJob(tx, {
-          ...notificationArgs,
-          parentMessageId: args.threadParentId,
+      if (args.type === "DEFAULT") {
+        await enqueueMessageCreatedAnalyticsJob(tx, {
+          attachmentCount,
+          attribution: args.attribution ?? UNKNOWN_ATTRIBUTION,
+          idempotencyKey: `analytics:channel-message:${createdMessage.id}`,
+          uploadedBytes,
+          userId: args.userId,
         });
       }
-    }
 
-    return {
-      payload: mapRawMessage(message, undefined, args.userId),
-    };
+      // Written by this transaction, not after it: a committed message that nobody
+      // was told about is the failure this replaces.
+      if (args.notification) {
+        const notificationArgs = {
+          channelId: args.channelId,
+          channelName: args.notification.channelName,
+          content,
+          messageId: createdMessage.id,
+          senderId: args.userId,
+          senderName: message.author.displayName ?? message.author.username,
+          serverId: args.notification.serverId,
+        };
+
+        await enqueueChannelMentionNotificationJob(tx, notificationArgs);
+
+        if (args.threadParentId) {
+          await enqueueChannelThreadReplyNotificationJob(tx, {
+            ...notificationArgs,
+            parentMessageId: args.threadParentId,
+          });
+        }
+      }
+
+      return mapRawMessage(message, undefined, args.userId);
+    });
+
+  return resolveIdempotentMessageSend({
+    clientNonce,
+    create: writeMessage,
+    async findExisting() {
+      const existing = (await prisma.message.findFirst({
+        where: { userId: args.userId, clientNonce },
+        include: messageInclude,
+      })) as RawMessage | null;
+
+      return existing ? mapRawMessage(existing, undefined, args.userId) : null;
+    },
   });
-
-  return result.payload;
 }
 
 export async function editMessage(

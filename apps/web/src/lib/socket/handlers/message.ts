@@ -30,7 +30,7 @@ import {
   SocketMessageSendPayloadSchema,
 } from "@/lib/socket/schemas";
 import {
-  createMessage,
+  createMessageWithClientNonce,
   deleteMessage,
   editMessage,
   setReaction,
@@ -202,7 +202,7 @@ export function registerMessageHandlers(
         attachmentInputs,
         canBypassMessageLimit ? null : channel.server.messageCharacterLimit,
       );
-      const message = await createMessage(
+      const { deduplicated, message } = await createMessageWithClientNonce(
         data.channelId,
         userId,
         content,
@@ -212,12 +212,25 @@ export function registerMessageHandlers(
         {
           alsoSendToChannel: data.alsoSendToChannel === true,
           attribution: socket.data.clientAttribution ?? UNKNOWN_ATTRIBUTION,
+          clientNonce: data.clientNonce ?? null,
           // Same transaction as the message row; the fan-out below no longer
           // decides whether anyone is told about it.
           notification: { channelName: channel.name, serverId: channel.serverId },
           permissions,
         },
       );
+
+      if (deduplicated) {
+        // A retry of a send that already landed. Everyone was told the first
+        // time, so the only thing owed here is the author's own echo — this
+        // socket has no other reply, and without it their bubble never resolves.
+        socket.emit(
+          "message:new",
+          data.clientNonce ? { ...message, clientNonce: data.clientNonce } : message,
+        );
+        return;
+      }
+
       const messageCreatedAt = new Date(message.createdAt);
       const fanoutStartedAt = Date.now();
       const presenceLookupStartedAt = Date.now();

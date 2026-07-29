@@ -130,9 +130,10 @@ export async function sendDirectMessage(input: SendDirectMessageInput) {
       displayName: sender.user.displayName,
     });
 
-  const createdMessage = await createRealtimeDMMessage({
+  const { deduplicated, message: createdMessage } = await createRealtimeDMMessage({
     attachmentInputs,
     ...(input.attribution ? { attribution: input.attribution } : {}),
+    clientNonce: input.clientNonce ?? null,
     content,
     conversationId: input.conversationId,
     forwardOfMessageId: input.forwardOfMessageId ?? null,
@@ -153,6 +154,15 @@ export async function sendDirectMessage(input: SendDirectMessageInput) {
     mapDMMessagePayload(createdMessage, undefined, undefined, input.userId),
     input.userId,
   );
+
+  // A retry gets an answer, not a second announcement: the first attempt already
+  // told the other participants, bumped the conversation and moved unread
+  // counts. The author still gets their own echo, because the socket sender has
+  // no other reply and their optimistic bubble waits on it.
+  if (deduplicated) {
+    input.io?.to(`user:${input.userId}`).emit("dm:message:new", messagePayload);
+    return messagePayload;
+  }
 
   if (input.io) {
     for (const participant of participants) {

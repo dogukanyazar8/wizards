@@ -5,6 +5,10 @@ import { prisma } from "@wizards/db";
 import { UNKNOWN_ATTRIBUTION, type ClientAttribution } from "@/lib/analytics/client-attribution";
 import { claimUploadedMessageAttachments } from "@/lib/messages/attachments";
 import {
+  normalizeMessageClientNonce,
+  resolveIdempotentMessageSend,
+} from "@/lib/messages/client-nonce";
+import {
   enqueueDMMessageNotificationJob,
   enqueueMessageCreatedAnalyticsJob,
 } from "@/lib/outbox/service";
@@ -35,6 +39,11 @@ export async function createRealtimeDMMessage(args: {
   attachmentInputs: UploadedAttachmentInput[];
   /** Socket senders carry it on `socket.data`; REST senders read the headers. */
   attribution?: ClientAttribution;
+  /**
+   * Minted by the author's client, one per send. Stored so a retry resolves to
+   * the message it already wrote instead of a second one.
+   */
+  clientNonce?: string | null;
   content: string;
   conversationId: string;
   forwardOfMessageId?: string | null;
@@ -44,83 +53,97 @@ export async function createRealtimeDMMessage(args: {
   threadParentId?: string | null;
   userId: string;
 }) {
-  return prisma.$transaction(async (tx) => {
-    const createdMessage = await tx.dMMessage.create({
-      data: {
-        conversationId: args.conversationId,
-        userId: args.userId,
-        content: args.content,
-        replyToId: args.replyToId ?? null,
-        threadParentId: args.threadParentId ?? null,
-        forwardedAt: args.forwardOfMessageId ? new Date() : null,
-      },
-      select: { id: true, createdAt: true },
-    });
+  const clientNonce = normalizeMessageClientNonce(args.clientNonce);
 
-    await claimUploadedMessageAttachments(tx, args.userId, args.attachmentInputs, {
-      dmMessageId: createdMessage.id,
-    });
-
-    const message = await tx.dMMessage.findUniqueOrThrow({
-      where: { id: createdMessage.id },
-      include: dmMessageInclude,
-    });
-
-    await tx.dMConversation.update({
-      where: { id: args.conversationId },
-      data: { lastMessageAt: createdMessage.createdAt },
-    });
-    const uploadedBytes = message.attachments.reduce(
-      (total, attachment) => total + BigInt(attachment.size),
-      0n,
-    );
-
-    await enqueueMessageCreatedAnalyticsJob(tx, {
-      attachmentCount: message.attachments.length,
-      attribution: args.attribution ?? UNKNOWN_ATTRIBUTION,
-      idempotencyKey: `analytics:dm-message:${createdMessage.id}`,
-      isDm: true,
-      uploadedBytes,
-      userId: args.userId,
-    });
-
-    if (args.notification) {
-      await enqueueDMMessageNotificationJob(tx, {
-        attachmentLabelKey: getDMAttachmentLabelKey(message.attachments[0]),
-        content: args.content,
-        conversationId: args.conversationId,
-        messageId: createdMessage.id,
-        participants: args.notification.participants,
-        senderId: args.userId,
-        senderName: args.notification.senderName,
+  const writeMessage = () =>
+    prisma.$transaction(async (tx) => {
+      const createdMessage = await tx.dMMessage.create({
+        data: {
+          conversationId: args.conversationId,
+          userId: args.userId,
+          content: args.content,
+          replyToId: args.replyToId ?? null,
+          threadParentId: args.threadParentId ?? null,
+          forwardedAt: args.forwardOfMessageId ? new Date() : null,
+          clientNonce,
+        },
+        select: { id: true, createdAt: true },
       });
-    }
 
-    await Promise.all(
-      args.participants.map((participant) =>
-        tx.dMParticipant.update({
-          where: {
-            conversationId_userId: {
-              conversationId: args.conversationId,
-              userId: participant.userId,
+      await claimUploadedMessageAttachments(tx, args.userId, args.attachmentInputs, {
+        dmMessageId: createdMessage.id,
+      });
+
+      const message = await tx.dMMessage.findUniqueOrThrow({
+        where: { id: createdMessage.id },
+        include: dmMessageInclude,
+      });
+
+      await tx.dMConversation.update({
+        where: { id: args.conversationId },
+        data: { lastMessageAt: createdMessage.createdAt },
+      });
+      const uploadedBytes = message.attachments.reduce(
+        (total, attachment) => total + BigInt(attachment.size),
+        0n,
+      );
+
+      await enqueueMessageCreatedAnalyticsJob(tx, {
+        attachmentCount: message.attachments.length,
+        attribution: args.attribution ?? UNKNOWN_ATTRIBUTION,
+        idempotencyKey: `analytics:dm-message:${createdMessage.id}`,
+        isDm: true,
+        uploadedBytes,
+        userId: args.userId,
+      });
+
+      if (args.notification) {
+        await enqueueDMMessageNotificationJob(tx, {
+          attachmentLabelKey: getDMAttachmentLabelKey(message.attachments[0]),
+          content: args.content,
+          conversationId: args.conversationId,
+          messageId: createdMessage.id,
+          participants: args.notification.participants,
+          senderId: args.userId,
+          senderName: args.notification.senderName,
+        });
+      }
+
+      await Promise.all(
+        args.participants.map((participant) =>
+          tx.dMParticipant.update({
+            where: {
+              conversationId_userId: {
+                conversationId: args.conversationId,
+                userId: participant.userId,
+              },
             },
-          },
-          data:
-            participant.userId === args.userId
-              ? {
-                  hiddenAt: null,
-                }
-              : {
-                  hiddenAt: null,
-                  unreadCount: {
-                    increment: 1,
+            data:
+              participant.userId === args.userId
+                ? {
+                    hiddenAt: null,
+                  }
+                : {
+                    hiddenAt: null,
+                    unreadCount: {
+                      increment: 1,
+                    },
                   },
-                },
-        }),
-      ),
-    );
+          }),
+        ),
+      );
 
-    return message;
+      return message;
+    });
+
+  return resolveIdempotentMessageSend({
+    clientNonce,
+    create: writeMessage,
+    findExisting: () =>
+      prisma.dMMessage.findFirst({
+        where: { userId: args.userId, clientNonce },
+        include: dmMessageInclude,
+      }),
   });
 }
 

@@ -1118,6 +1118,10 @@ model Message {
   placeholderExpiresAt DateTime?
   tts                  Boolean     @default(false)
   webhookId            String?
+  /// Minted per send by the author's client and echoed back to them. Unique per
+  /// author so a retried send — a dropped response, an offline replay, a double
+  /// tap — resolves to the message that already exists instead of a second one.
+  clientNonce          String?     @db.VarChar(128)
   createdAt            DateTime    @default(now())
 
   channel       Channel          @relation("MessageChannel", fields: [channelId], references: [id], onDelete: Cascade)
@@ -1142,6 +1146,7 @@ model Message {
   @@index([channelId, placeholderRemovedAt, placeholderExpiresAt])
   @@index([threadParentId, createdAt])
   @@index([userId])
+  @@unique([userId, clientNonce])
 }
 
 model Attachment {
@@ -1335,6 +1340,8 @@ model DMMessage {
   deletedAt            DateTime?
   deletedById          String?
   placeholderRemovedAt DateTime?
+  /// See `Message.clientNonce`: same contract, same guarantee, per author.
+  clientNonce          String?   @db.VarChar(128)
   createdAt            DateTime  @default(now())
 
   conversation  DMConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
@@ -1353,6 +1360,7 @@ model DMMessage {
   @@index([conversationId, placeholderRemovedAt])
   @@index([threadParentId, createdAt])
   @@index([userId])
+  @@unique([userId, clientNonce])
 }
 
 model DMReaction {

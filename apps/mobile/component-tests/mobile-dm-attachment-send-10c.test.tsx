@@ -200,13 +200,17 @@ describe("10c DM attachment send chain", () => {
     await waitFor(() => {
       expect(requestJson).toHaveBeenCalledTimes(2);
     });
-    const [, retryCall] = requestJson.mock.calls;
-    // A retry is a fresh send, so it carries a fresh nonce — the rest of the
-    // draft is byte-for-byte the original one.
+    const [firstCall, retryCall] = requestJson.mock.calls;
+    const firstNonce = (firstCall?.[1] as { body: { clientNonce: string } }).body.clientNonce;
+
+    // The retry carries the *same* nonce, not a fresh one: the first attempt may
+    // have been written before the response was lost, and the nonce is the only
+    // thing that lets the server answer with that message instead of writing a
+    // second one. The rest of the draft is byte-for-byte the original.
     expect(retryCall?.[1]).toEqual({
       body: {
         attachments: [{ id: uploadedAttachment.id }],
-        clientNonce: expect.stringMatching(/^client-/) as unknown as string,
+        clientNonce: firstNonce,
         content: "Bak şuna",
       },
       method: "POST",

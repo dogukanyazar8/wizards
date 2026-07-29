@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-07-28T17:07:46.961864+00:00",
+  "generated_at": "2026-07-29T10:11:45.829960+00:00",
   "nodes": {
     "apps_mobile_src_app_providers_mobile_theme_provider": {
-      "code_fingerprint": "0528fae9688790f3f8bb3f57c71f420c8f648c0daad928cc397df35c50208c6a",
+      "code_fingerprint": "3e0a1a60b94e1bb63d7474cd80b2a27d26ffc428559ba70a7f5e175e73d0ed6e",
       "label": "mobile-theme-provider.tsx",
       "last": "2026-07-27T06:29:17.529452+00:00",
       "provenance": [
@@ -12,7 +12,7 @@
           "q": "Whispr mobile splash görsel dili Discord Slack Teams Zoom gibi olmalı; kaç ekran ve hangi mesajlar?"
         }
       ],
-      "score": 0.967200431,
+      "score": 0.951439302,
       "source_file": "apps/mobile/src/app/providers/mobile-theme-provider.tsx",
       "status": "tentative",
       "uses": 1
@@ -28,13 +28,45 @@
           "q": "Mobil uygulamada navigation bar için hangi ikon paketini kullanıyoruz?"
         }
       ],
-      "score": 0.925585101,
+      "score": 0.910502119,
       "source_file": "apps/mobile/src/navigation/mobile-bottom-tab-bar.tsx",
       "status": "tentative",
       "uses": 1
     },
+    "apps_mobile_src_performance_mobile_health_reporter": {
+      "code_fingerprint": "1a32b22cdecb43c18bd83bba09d069602a1a920e767ffd6db0fa3bed29937030",
+      "label": "mobile-health-reporter.ts",
+      "last": "2026-07-29T10:00:14.060696+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-29T10:00:14.060696+00:00",
+          "outcome": "useful",
+          "q": "Railway UAT ortamında workspace-performance metrikleri tanımlı, mobil için log tutuyor muyuz inceler misin?"
+        }
+      ],
+      "score": 0.999815026,
+      "source_file": "apps/mobile/src/performance/mobile-health-reporter.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "apps_mobile_src_performance_mobile_performance_metrics": {
+      "code_fingerprint": "48a13dd00cbaf40385f8ac49b10a5312ef01c65f021eb55c6f91c7b8c8daae43",
+      "label": "mobile-performance-metrics.ts",
+      "last": "2026-07-29T10:00:14.060696+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-29T10:00:14.060696+00:00",
+          "outcome": "useful",
+          "q": "Railway UAT ortamında workspace-performance metrikleri tanımlı, mobil için log tutuyor muyuz inceler misin?"
+        }
+      ],
+      "score": 0.999815026,
+      "source_file": "apps/mobile/src/performance/mobile-performance-metrics.ts",
+      "status": "tentative",
+      "uses": 1
+    },
     "apps_mobile_src_query_mobile_query_cache_policy": {
-      "code_fingerprint": "ea363a12e580dc1e41c7bfcaf7b506f78b917c36ff4fd53a04e8b0e026c3e3a0",
+      "code_fingerprint": "3c7e0b19856acef4808848f201543094fcb36c682990e5f3b75876fbf3396ee7",
       "label": "mobile-query-cache-policy.ts",
       "last": "2026-07-26T16:33:22.483411+00:00",
       "provenance": [
@@ -44,13 +76,29 @@
           "q": "Mobil açılışında modern splash, yüklemeler ve performans kontrolleri nasıl tasarlanmalı?"
         }
       ],
-      "score": 0.954314602,
+      "score": 0.938763455,
       "source_file": "apps/mobile/src/query/mobile-query-cache-policy.ts",
       "status": "tentative",
       "uses": 1
     },
+    "apps_web_src_lib_workspace_performance_metrics": {
+      "code_fingerprint": "d2c5f8f6b24537bdc81a9e236e24300411d02fdb0a8c855cbbb1d4d3b3f1cb46",
+      "label": "performance-metrics.ts",
+      "last": "2026-07-29T10:00:14.060696+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-29T10:00:14.060696+00:00",
+          "outcome": "useful",
+          "q": "Railway UAT ortamında workspace-performance metrikleri tanımlı, mobil için log tutuyor muyuz inceler misin?"
+        }
+      ],
+      "score": 0.999815026,
+      "source_file": "apps/web/src/lib/workspace/performance-metrics.ts",
+      "status": "tentative",
+      "uses": 1
+    },
     "packages_types_src_mobile_mobilebootstrappayload": {
-      "code_fingerprint": "1f41d74f3c400241fa498c7f1a2fb030391ef69bc1a747898fe99b3215a69902",
+      "code_fingerprint": "9470f47a6c0c430d3e621302be29fe04fba0633bcd52a7507b7861dbb8366096",
       "label": "MobileBootstrapPayload",
       "last": "2026-07-26T16:33:22.483411+00:00",
       "provenance": [
@@ -60,7 +108,7 @@
           "q": "Mobil açılışında modern splash, yüklemeler ve performans kontrolleri nasıl tasarlanmalı?"
         }
       ],
-      "score": 0.954314602,
+      "score": 0.938763455,
       "source_file": "packages/types/src/mobile.ts",
       "status": "tentative",
       "uses": 1
