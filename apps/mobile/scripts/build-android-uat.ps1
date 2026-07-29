@@ -980,6 +980,12 @@ $env:ANDROID_HOME = $AndroidHome
 $env:ANDROID_SDK_ROOT = $AndroidHome
 $env:GRADLE_USER_HOME = $gradleUserHome
 $env:WHISPR_MOBILE_ENV = "uat"
+# Metro only inlines `EXPO_PUBLIC_*` names into the bundle, so the line above
+# reaches the Expo config but never the device: `process.env.WHISPR_MOBILE_ENV`
+# is undefined at runtime and the app falls back to "development". That fallback
+# is not cosmetic — it is the branch that skips `assertReleaseUrl`, so a build
+# pointed at an http or localhost host would ship without complaint.
+$env:EXPO_PUBLIC_WHISPR_MOBILE_ENV = "uat"
 $env:EXPO_PUBLIC_WHISPR_API_URL = $UatUrl
 $env:EXPO_PUBLIC_WHISPR_SOCKET_URL = $UatUrl
 $env:EXPO_PUBLIC_WHISPR_WEB_URL = $UatUrl

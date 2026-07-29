@@ -82,10 +82,7 @@ import {
   getMobileDMReadTarget,
   toMobileDMConversationSummaryFromStream,
 } from "../../dm/mobile-dm-client";
-import {
-  recordMobileRecentDMPrefetchOpen,
-  useMobileMessagePrefetch,
-} from "../../query/mobile-message-prefetch";
+import { useMobileMessagePrefetch } from "../../query/mobile-message-prefetch";
 import { useMobileRecentDMPrefetch } from "../../query/mobile-recent-dm-prefetch";
 import { useMobileMessageStreamPersistence } from "../../query/use-mobile-message-stream-persistence";
 import type { MobileForwardSendInput } from "../components/message-forward-sheet";

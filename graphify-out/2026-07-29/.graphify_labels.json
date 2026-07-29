@@ -810,6 +810,5 @@
   "808": "describeFile",
   "809": "livekit/types.ts",
   "810": "MemoryRedis",
-  "811": "Task 5: Add category/channel CRUD and channel-history clearing",
-  "812": "@babel/runtime"
+  "811": "Task 5: Add category/channel CRUD and channel-history clearing"
 }

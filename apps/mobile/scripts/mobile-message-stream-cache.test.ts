@@ -16,13 +16,16 @@ function createRecordingStore(stored: Record<string, unknown> = {}): MobileMessa
   const writes: { payload: unknown; scope: string; targetId: string; userId: string }[] = [];
   return {
     writes,
+    appendPerformanceSamples: async () => undefined,
     close: async () => undefined,
     describe: async () => ({ cipherVersion: "4.5.5 test", rowCount: 0, status: "open" as const }),
     purgeAll: async () => undefined,
+    purgePerformanceSamples: async () => undefined,
     purgeUser: async () => undefined,
     resume: () => undefined,
     readPage: async ({ scope, targetId, userId }) =>
       stored[`${userId}:${scope}:${targetId}`] ?? null,
+    readPerformanceSamples: async () => [],
     writePage: async ({ payload, scope, targetId, userId }) => {
       writes.push({ payload, scope, targetId, userId });
     },

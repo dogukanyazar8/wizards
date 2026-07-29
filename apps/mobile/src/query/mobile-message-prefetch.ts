@@ -162,6 +162,10 @@ export function useMobileMessagePrefetch(client: MobileApiClient): MobileMessage
       const cacheHit =
         queryClient.getQueryData(mobileQueryKeys.dmMessages(conversationId)) !== undefined;
       beginMobileNavigationSpan("DirectMessage", globalThis.performance.now(), cacheHit);
+      // The tap is the moment a warmed conversation becomes a hit. Nothing
+      // recorded this before, so the panel's hit rate could only ever read 0%
+      // however well the background warming was doing.
+      recordMobileRecentDMPrefetchOpen(conversationId);
       void prefetchMobileDMMessagesPage(queryClient, client, conversationId).catch(() => undefined);
     },
     [client, queryClient],

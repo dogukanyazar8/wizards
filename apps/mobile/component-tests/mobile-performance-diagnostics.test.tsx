@@ -7,15 +7,33 @@ const mockDescribe = jest.fn(async () => ({
   status: "open" as const,
 }));
 
+type StoredSample = {
+  context: Record<string, unknown>;
+  durationMs: number;
+  metric: string;
+  sampleId: string;
+  surface: string;
+};
+
+let storedSamples: StoredSample[] = [];
+const mockReadPerformanceSamples = jest.fn(async () => storedSamples);
+const mockPurgePerformanceSamples = jest.fn(async () => {
+  storedSamples = [];
+});
+
 jest.mock("../src/storage/mobile-message-store-database", () => ({
-  mobileMessageStore: { describe: () => mockDescribe() },
+  mobileMessageStore: {
+    describe: () => mockDescribe(),
+    purgePerformanceSamples: () => mockPurgePerformanceSamples(),
+    readPerformanceSamples: () => mockReadPerformanceSamples(),
+  },
 }));
 
 jest.mock("../src/app/providers/mobile-locale-provider", () => ({
   useMobileLocaleRuntime: () => ({ locale: "tr" }),
 }));
 
-import { render } from "@testing-library/react-native";
+import { fireEvent, render, waitFor } from "@testing-library/react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { MobileThemeProvider } from "../src/app/providers/mobile-theme-provider";
 import { MobilePerformanceDiagnosticsScreen } from "../src/app/screens/mobile-performance-diagnostics-screen";
@@ -41,7 +59,10 @@ function renderPanel() {
 
 afterEach(() => {
   resetMobilePerformanceMetricsForTests();
+  storedSamples = [];
   mockDescribe.mockClear();
+  mockReadPerformanceSamples.mockClear();
+  mockPurgePerformanceSamples.mockClear();
 });
 
 describe("performance diagnostics panel", () => {
@@ -73,5 +94,78 @@ describe("performance diagnostics panel", () => {
 
     await view.findByText("4.5.5 community");
     expect(mockDescribe).toHaveBeenCalled();
+  });
+
+  /**
+   * The regression this panel was rebuilt for: the health reporter drains the
+   * in-memory log on a timer and on every background transition, so a ten-launch
+   * baseline run had nothing left in memory by the time anyone looked. Reading
+   * the retained log is what makes those launches countable.
+   */
+  it("counts measurements the reporter already drained out of memory", async () => {
+    storedSamples = [
+      {
+        context: { authenticated: true, phase: "content-visible" },
+        durationMs: 512,
+        metric: "startup",
+        sampleId: "launch-1",
+        surface: "startup",
+      },
+    ];
+
+    const view = await renderPanel();
+
+    await waitFor(() =>
+      expect(view.getByTestId("performance-metric-startup")).toHaveTextContent(
+        "512 / 512 / 512 ms",
+      ),
+    );
+  });
+
+  it("counts a sample once when it is both retained and still in memory", async () => {
+    const sample = recordMobilePerformanceSample({
+      context: { cacheHit: false, route: "ChannelChat" },
+      durationMs: 300,
+      metric: "navigation",
+      surface: "navigation",
+    });
+    storedSamples = [
+      {
+        context: { cacheHit: false, route: "ChannelChat" },
+        durationMs: 300,
+        metric: "navigation",
+        sampleId: sample.sampleId,
+        surface: "navigation",
+      },
+    ];
+
+    const view = await renderPanel();
+
+    await waitFor(() => expect(view.getByText("chat-open-network · n=1")).toBeTruthy());
+  });
+
+  it("clears the retained log when the run is reset", async () => {
+    storedSamples = [
+      {
+        context: { authenticated: true, phase: "content-visible" },
+        durationMs: 512,
+        metric: "startup",
+        sampleId: "launch-1",
+        surface: "startup",
+      },
+    ];
+
+    const view = await renderPanel();
+    await waitFor(() =>
+      expect(view.getByTestId("performance-metric-startup")).toHaveTextContent(
+        "512 / 512 / 512 ms",
+      ),
+    );
+
+    fireEvent.press(view.getByTestId("performance-reset"));
+
+    await waitFor(() =>
+      expect(view.getByTestId("performance-metric-startup")).toHaveTextContent("ölçüm yok"),
+    );
   });
 });

@@ -1,4 +1,15 @@
-import type { MobilePerformanceSample } from "./mobile-performance-metrics";
+/**
+ * What summarizing needs, and no more.
+ *
+ * Structural on purpose: the panel now reads measurements back from the retained
+ * log as well as from memory, and a row that came off disk carries the same three
+ * fields without carrying the in-memory sample's narrower metric union.
+ */
+export type MobilePerformanceSummaryInput = {
+  readonly context: Readonly<Record<string, unknown>>;
+  readonly durationMs: number;
+  readonly metric: string;
+};
 
 /**
  * The device panel reports the *budget's* metrics, not the raw surfaces.
@@ -46,7 +57,9 @@ export function percentileMs(values: readonly number[], percentile: number): num
   return sorted[index] ?? null;
 }
 
-function classifySample(sample: MobilePerformanceSample): MobilePerformanceSummaryMetric | null {
+function classifySample(
+  sample: MobilePerformanceSummaryInput,
+): MobilePerformanceSummaryMetric | null {
   const context = sample.context as {
     readonly authenticated?: unknown;
     readonly cacheHit?: unknown;
@@ -81,7 +94,7 @@ function classifySample(sample: MobilePerformanceSample): MobilePerformanceSumma
 }
 
 export function summarizeMobilePerformanceSamples(
-  samples: readonly MobilePerformanceSample[],
+  samples: readonly MobilePerformanceSummaryInput[],
 ): readonly MobilePerformanceSummaryRow[] {
   const buckets = new Map<MobilePerformanceSummaryMetric, number[]>(
     MOBILE_PERFORMANCE_SUMMARY_METRICS.map((metric) => [metric, []]),

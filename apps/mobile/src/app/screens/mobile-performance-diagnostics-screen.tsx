@@ -7,12 +7,13 @@ import { mobileCopy } from "../../locale/mobile-copy";
 import {
   drainMobilePerformanceSamples,
   peekMobilePerformanceSamples,
-  type MobilePerformanceSample,
 } from "../../performance/mobile-performance-metrics";
 import {
   MOBILE_PERFORMANCE_SUMMARY_METRICS,
   summarizeMobilePerformanceSamples,
+  type MobilePerformanceSummaryInput,
 } from "../../performance/mobile-performance-summary";
+import { mergeMobilePerformanceSampleViews } from "../../performance/mobile-performance-sample-view";
 import { getMobileStartupPhaseTimeline } from "../../performance/mobile-startup-phases";
 import { resolveMobileTelemetryDimensions } from "../../performance/mobile-telemetry-dimensions";
 import { getMobileRecentDMPrefetchStats } from "../../query/mobile-message-prefetch";
@@ -41,13 +42,21 @@ export function MobilePerformanceDiagnosticsScreen({ onBack }: { onBack(): void 
   const { locale } = useMobileLocaleRuntime();
   const copy = mobileCopy[locale];
   const insets = useSafeAreaInsets();
-  const [samples, setSamples] = useState<readonly MobilePerformanceSample[]>(() =>
+  const [samples, setSamples] = useState<readonly MobilePerformanceSummaryInput[]>(() =>
     peekMobilePerformanceSamples(),
   );
   const [storage, setStorage] = useState<MobileMessageStoreDiagnostics | null>(null);
 
   const refresh = useCallback(() => {
-    setSamples(peekMobilePerformanceSamples());
+    // The retained log is the session; memory holds only what has not been
+    // written or shipped yet. Reading memory alone is what made a full baseline
+    // run report n=0 on every budgeted metric.
+    void mobileMessageStore
+      .readPerformanceSamples()
+      .then((persisted) =>
+        setSamples(mergeMobilePerformanceSampleViews(persisted, peekMobilePerformanceSamples())),
+      )
+      .catch(() => setSamples(peekMobilePerformanceSamples()));
     void mobileMessageStore
       .describe()
       .then(setStorage)
@@ -98,11 +107,12 @@ export function MobilePerformanceDiagnosticsScreen({ onBack }: { onBack(): void 
         <Pressable
           accessibilityRole="button"
           onPress={() => {
-            // Clears the log so a run can start from an empty slate; the samples
-            // are handed over rather than dropped, so nothing is double-counted
-            // if the reporter flushes later.
+            // Both logs, because "reset" means the next measurement is the first
+            // one. Draining memory costs the backend the samples it had not
+            // collected yet — which is the point: whoever pressed this is about
+            // to start a run and does not want the previous one in the numbers.
             drainMobilePerformanceSamples();
-            refresh();
+            void mobileMessageStore.purgePerformanceSamples().finally(refresh);
           }}
           testID="performance-reset"
         >

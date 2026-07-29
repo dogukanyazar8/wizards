@@ -85,7 +85,39 @@ export function recordMobilePerformanceSample(input: {
     samples = samples.slice(samples.length - MOBILE_PERFORMANCE_SAMPLE_CAP);
   }
 
+  onSampleObservers.forEach((observer) => {
+    try {
+      observer(sample);
+    } catch {
+      // A retained-log writer that throws must not cost the measurement.
+    }
+  });
+
   return sample;
+}
+
+type MobilePerformanceSampleObserver = (sample: MobilePerformanceSample) => void;
+const onSampleObservers = new Set<MobilePerformanceSampleObserver>();
+
+/**
+ * Watches every measurement as it is recorded.
+ *
+ * The retained log needs this because the array below is *drained*, not read:
+ * the health reporter hands samples away on an interval and on every background
+ * transition, so anything that only reads the array sees whatever has not been
+ * shipped yet. An observer sees each sample once, at the moment it exists.
+ */
+export function observeMobilePerformanceSamples(
+  observer: MobilePerformanceSampleObserver,
+): () => void {
+  onSampleObservers.add(observer);
+  return () => {
+    onSampleObservers.delete(observer);
+  };
+}
+
+export function resetMobilePerformanceSampleObserversForTests(): void {
+  onSampleObservers.clear();
 }
 
 export function recordMobilePerformanceMetric(

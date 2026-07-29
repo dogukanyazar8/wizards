@@ -10,6 +10,7 @@
       "channel": "development",
       "env": {
         "WHISPR_MOBILE_ENV": "development",
+        "EXPO_PUBLIC_WHISPR_MOBILE_ENV": "development",
         "EXPO_PUBLIC_WHISPR_GOOGLE_WEB_CLIENT_ID": "392832784348-1ck9nah3aq2pqoaufouks2dbb3llbhtr.apps.googleusercontent.com"
       }
     },
@@ -19,6 +20,7 @@
       "autoIncrement": false,
       "env": {
         "WHISPR_MOBILE_ENV": "uat",
+        "EXPO_PUBLIC_WHISPR_MOBILE_ENV": "uat",
         "EXPO_PUBLIC_WHISPR_API_URL": "https://wizardsweb-uat.up.railway.app",
         "EXPO_PUBLIC_WHISPR_SOCKET_URL": "https://wizardsweb-uat.up.railway.app",
         "EXPO_PUBLIC_WHISPR_WEB_URL": "https://wizardsweb-uat.up.railway.app",
@@ -32,6 +34,7 @@
       "autoIncrement": true,
       "env": {
         "WHISPR_MOBILE_ENV": "canary",
+        "EXPO_PUBLIC_WHISPR_MOBILE_ENV": "canary",
         "EXPO_PUBLIC_WHISPR_API_URL": "https://whispr.team",
         "EXPO_PUBLIC_WHISPR_SOCKET_URL": "https://whispr.team",
         "EXPO_PUBLIC_WHISPR_WEB_URL": "https://whispr.team",
@@ -45,6 +48,7 @@
       "autoIncrement": true,
       "env": {
         "WHISPR_MOBILE_ENV": "production",
+        "EXPO_PUBLIC_WHISPR_MOBILE_ENV": "production",
         "EXPO_PUBLIC_WHISPR_API_URL": "https://whispr.team",
         "EXPO_PUBLIC_WHISPR_SOCKET_URL": "https://whispr.team",
         "EXPO_PUBLIC_WHISPR_WEB_URL": "https://whispr.team",

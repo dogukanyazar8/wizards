@@ -62,3 +62,84 @@ export function isMobileStoredMessagePageFresh(
 ): boolean {
   return now - updatedAt <= maxAgeMs;
 }
+
+/**
+ * How many measurements the device keeps for the panel.
+ *
+ * A baseline run is ten launches, ten resumes, a few dozen opens and twenty
+ * sends — a few hundred rows. The cap is what stops an install that is never
+ * looked at from growing, not what a session is expected to fit in.
+ */
+export const MOBILE_PERFORMANCE_SAMPLE_LOG_CAP = 500;
+
+export type MobileStoredPerformanceSample = {
+  readonly context: Readonly<Record<string, unknown>>;
+  readonly durationMs: number;
+  readonly metric: string;
+  readonly sampleId: string;
+  readonly surface: string;
+};
+
+export function serializeMobileStoredPerformanceContext(
+  context: Readonly<Record<string, unknown>>,
+): string {
+  try {
+    return JSON.stringify(context ?? {});
+  } catch {
+    // A context that cannot be serialized still leaves a usable duration.
+    return "{}";
+  }
+}
+
+/**
+ * Turns one stored row back into a sample, or `null` when the row cannot be
+ * trusted.
+ *
+ * Dropping the row is deliberate: the panel exists to be read during a baseline
+ * run, and one unreadable row must cost that row rather than the session.
+ */
+export function parseMobileStoredPerformanceSample(
+  row: {
+    readonly context?: unknown;
+    readonly duration_ms?: unknown;
+    readonly metric?: unknown;
+    readonly recorded_at?: unknown;
+    readonly sample_id?: unknown;
+    readonly surface?: unknown;
+  } | null,
+): MobileStoredPerformanceSample | null {
+  if (!row) {
+    return null;
+  }
+
+  const { context, duration_ms: durationMs, metric, sample_id: sampleId, surface } = row;
+  if (
+    typeof sampleId !== "string" ||
+    sampleId.length === 0 ||
+    typeof metric !== "string" ||
+    typeof surface !== "string" ||
+    typeof durationMs !== "number" ||
+    !Number.isFinite(durationMs)
+  ) {
+    return null;
+  }
+
+  let parsedContext: unknown;
+  try {
+    parsedContext = JSON.parse(typeof context === "string" ? context : "{}");
+  } catch {
+    return null;
+  }
+
+  if (!parsedContext || typeof parsedContext !== "object" || Array.isArray(parsedContext)) {
+    return null;
+  }
+
+  return {
+    context: parsedContext as Readonly<Record<string, unknown>>,
+    durationMs,
+    metric,
+    sampleId,
+    surface,
+  };
+}

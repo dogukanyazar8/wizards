@@ -1,9 +1,13 @@
 import {
   MOBILE_MESSAGE_STORE_MAX_AGE_MS,
   MOBILE_MESSAGE_STORE_MAX_TARGETS,
+  MOBILE_PERFORMANCE_SAMPLE_LOG_CAP,
   isMobileStoredMessagePageFresh,
   parseMobileStoredMessagePage,
+  parseMobileStoredPerformanceSample,
   serializeMobileStoredMessagePage,
+  serializeMobileStoredPerformanceContext,
+  type MobileStoredPerformanceSample,
 } from "./mobile-message-store-policy";
 
 export type MobileMessageStoreScope = "channel" | "dm";
@@ -52,6 +56,16 @@ export type MobileMessageStoreDiagnostics = {
 };
 
 export interface MobileMessageStore {
+  /**
+   * Appends measurements to the retained log.
+   *
+   * Idempotent on `sampleId`: the writer may hand over a sample it already
+   * persisted, and a second arrival must not become a second data point.
+   */
+  appendPerformanceSamples(input: {
+    readonly now?: number;
+    readonly samples: readonly MobileStoredPerformanceSample[];
+  }): Promise<void>;
   /** Closes the connection and seals writes until `resume()`. */
   close(): Promise<void>;
   /**
@@ -61,8 +75,12 @@ export interface MobileMessageStore {
    */
   describe(): Promise<MobileMessageStoreDiagnostics>;
   purgeAll(): Promise<void>;
+  /** Clears the measurement log alone, so a baseline run can start from empty. */
+  purgePerformanceSamples(): Promise<void>;
   purgeUser(userId: string): Promise<void>;
   readPage(input: MobileMessageStoreTarget): Promise<unknown>;
+  /** The retained measurements, oldest first. */
+  readPerformanceSamples(): Promise<readonly MobileStoredPerformanceSample[]>;
   /** Re-opens the store for a new session after a wipe. */
   resume(): void;
   writePage(input: MobileMessageStoreTarget & { readonly payload: unknown }): Promise<void>;
@@ -74,11 +92,21 @@ type MobileMessageStoreRow = {
 };
 
 /**
- * `user_id` is part of the primary key rather than a filter added later.
+ * `user_id` is part of `message_pages`' primary key rather than a filter added
+ * later.
  *
  * The sign-out purge can fail — a locked database, a process killed mid-wipe —
  * and the namespace is what makes that survivable: a read for one account cannot
  * return another account's row even if the old rows are still on disk.
+ *
+ * `performance_samples` is the device's own measurement log, and it is here
+ * rather than in the reporter's queue because those are opposite jobs: the
+ * reporter *hands measurements away*, draining the in-memory log on an interval
+ * and on every background transition, while a baseline run needs them to
+ * accumulate across ten launches. Sharing one buffer is why every budgeted
+ * metric read n=0 after a full session. It carries no account column — these are
+ * timings of this install, not content belonging to a reader, and a launch is
+ * measured before any session is resolved.
  */
 const CREATE_TABLE = `
 CREATE TABLE IF NOT EXISTS message_pages (
@@ -88,6 +116,15 @@ CREATE TABLE IF NOT EXISTS message_pages (
   payload TEXT NOT NULL,
   updated_at INTEGER NOT NULL,
   PRIMARY KEY (user_id, scope, target_id)
+);
+
+CREATE TABLE IF NOT EXISTS performance_samples (
+  sample_id TEXT PRIMARY KEY,
+  metric TEXT NOT NULL,
+  surface TEXT NOT NULL,
+  duration_ms REAL NOT NULL,
+  context TEXT NOT NULL,
+  recorded_at INTEGER NOT NULL
 );`;
 
 /**
@@ -140,6 +177,56 @@ export function createMobileMessageStore(input: {
   }
 
   return {
+    async appendPerformanceSamples({ now = Date.now(), samples }) {
+      if (samples.length === 0) {
+        return;
+      }
+
+      const database = await connect();
+      if (!database) {
+        throw new Error("Mobile performance sample store is unavailable.");
+      }
+
+      try {
+        for (const [index, sample] of samples.entries()) {
+          if (sample.sampleId.length === 0) {
+            continue;
+          }
+
+          await database.runAsync(
+            `INSERT OR IGNORE INTO performance_samples
+               (sample_id, metric, surface, duration_ms, context, recorded_at)
+             VALUES (?, ?, ?, ?, ?, ?);`,
+            [
+              sample.sampleId,
+              sample.metric,
+              sample.surface,
+              sample.durationMs,
+              serializeMobileStoredPerformanceContext(sample.context),
+              // Index keeps the order of one batch stable: several samples can
+              // share a millisecond, and the panel reads them back in order.
+              now + index,
+            ],
+          );
+        }
+
+        const retained = await database.getAllAsync<{ sample_id: string }>(
+          `SELECT sample_id FROM performance_samples
+           ORDER BY recorded_at DESC LIMIT ${MOBILE_PERFORMANCE_SAMPLE_LOG_CAP};`,
+          [],
+        );
+        const placeholders = retained.map(() => "?").join(", ");
+        await database.runAsync(
+          `DELETE FROM performance_samples WHERE sample_id NOT IN (${placeholders});`,
+          retained.map((row) => row.sample_id),
+        );
+      } catch (error) {
+        // The persistence layer owns retries; hiding this failure there would
+        // acknowledge a sample that never became durable.
+        throw error;
+      }
+    },
+
     async describe() {
       if (sealed) {
         return { cipherVersion: null, rowCount: null, status: "sealed" as const };
@@ -195,8 +282,34 @@ export function createMobileMessageStore(input: {
       return deleteWhere("DELETE FROM message_pages;", []);
     },
 
+    purgePerformanceSamples() {
+      return deleteWhere("DELETE FROM performance_samples;", []);
+    },
+
     purgeUser(userId) {
       return deleteWhere("DELETE FROM message_pages WHERE user_id = ?;", [userId]);
+    },
+
+    async readPerformanceSamples() {
+      const database = await connect();
+      if (!database) {
+        return [];
+      }
+
+      try {
+        const rows = await database.getAllAsync<Record<string, unknown>>(
+          `SELECT sample_id, metric, surface, duration_ms, context, recorded_at
+           FROM performance_samples ORDER BY recorded_at ASC;`,
+          [],
+        );
+
+        return rows.flatMap((row) => {
+          const parsed = parseMobileStoredPerformanceSample(row);
+          return parsed ? [parsed] : [];
+        });
+      } catch {
+        return [];
+      }
     },
 
     async readPage({ now = Date.now(), scope, targetId, userId }) {
