@@ -11520,8 +11520,8 @@
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-07-29-mobile-android-device-performance.md": {
-    "mtime": 1785325148.5897355,
-    "ast_hash": "94470d0e098ac0015962be519e88c698",
+    "mtime": 1785326055.3867502,
+    "ast_hash": "a3a3828c44b3208f36465ed3237c7a7d",
     "semantic_hash": ""
   },
   "docs/superpowers/specs/2026-07-29-mobile-android-device-performance-design.md": {
@@ -11560,13 +11560,13 @@
     "semantic_hash": ""
   },
   "apps/mobile/scripts/run-mobile-performance-benchmark.test.ts": {
-    "mtime": 1785325657.784677,
-    "ast_hash": "3bcba277408658a904b4e6b8cb574d95",
+    "mtime": 1785326689.982416,
+    "ast_hash": "cd87724526bb07b97fec2aed88258c51",
     "semantic_hash": ""
   },
   "apps/mobile/scripts/run-mobile-performance-benchmark.ts": {
-    "mtime": 1785325657.8219447,
-    "ast_hash": "f14e44a2877239dc65a59f27250b9c35",
+    "mtime": 1785326707.6214259,
+    "ast_hash": "a0ff0aab5f7e669d8a566f503b04b887",
     "semantic_hash": ""
   },
   "apps/mobile/src/performance/mobile-content-visible.ts": {

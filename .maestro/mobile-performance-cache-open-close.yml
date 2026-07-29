@@ -3,7 +3,7 @@ appId: team.whispr.mobile
 - tapOn:
     id: "mobile-dm-conversation-row"
     containsChild:
-      text: ${PERF_CACHE_DM_TITLE}
+      text: ${MAESTRO_PERF_CACHE_DM_TITLE}
 - extendedWaitUntil:
     visible:
       id: "mobile-dm-message-list"

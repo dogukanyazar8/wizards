@@ -4,10 +4,10 @@ appId: team.whispr.mobile
 # adding a sixteenth navigation sample to either chat-open bucket.
 - tapOn:
     id: "mobile-dm-composer-input"
-- inputText: ${PERF_MESSAGE_TEXT}
+- inputText: ${MAESTRO_PERF_MESSAGE_TEXT}
 - tapOn:
     id: "mobile-dm-send-button"
 - extendedWaitUntil:
-    visible: ${PERF_MESSAGE_TEXT}
+    visible: ${MAESTRO_PERF_MESSAGE_TEXT}
     timeout: 30000
 - waitForAnimationToEnd

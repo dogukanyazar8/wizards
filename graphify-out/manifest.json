@@ -615,8 +615,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-maestro-testid-contract.test.ts": {
-    "mtime": 1785188623.8378897,
-    "ast_hash": "d452381367ebcd0c439d0632f5c95c1f",
+    "mtime": 1785328543.4507718,
+    "ast_hash": "a505fa74111adabff11f2bec1003ddbb",
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-media-claim-client.test.ts": {
@@ -11560,13 +11560,13 @@
     "semantic_hash": ""
   },
   "apps/mobile/scripts/run-mobile-performance-benchmark.test.ts": {
-    "mtime": 1785326689.982416,
-    "ast_hash": "cd87724526bb07b97fec2aed88258c51",
+    "mtime": 1785328555.0249498,
+    "ast_hash": "d9afb6eb0f4820e839c03270c28ecc77",
     "semantic_hash": ""
   },
   "apps/mobile/scripts/run-mobile-performance-benchmark.ts": {
-    "mtime": 1785326707.6214259,
-    "ast_hash": "a0ff0aab5f7e669d8a566f503b04b887",
+    "mtime": 1785328600.2263079,
+    "ast_hash": "2317cf93f10b11da36dd3dc9ad27caa1",
     "semantic_hash": ""
   },
   "apps/mobile/src/performance/mobile-content-visible.ts": {
@@ -11590,8 +11590,8 @@
     "semantic_hash": ""
   },
   ".maestro/mobile-performance-cache-open-close.yml": {
-    "mtime": 1785321958.4093964,
-    "ast_hash": "43f17b6bfe2782d4e4b5d2cd4683cd54",
+    "mtime": 1785328581.3828895,
+    "ast_hash": "1cdc53bb100303701d5d4c30dde5f4d5",
     "semantic_hash": ""
   },
   ".maestro/mobile-performance-cache-ready.yml": {
@@ -11610,13 +11610,13 @@
     "semantic_hash": ""
   },
   ".maestro/mobile-performance-login.yml": {
-    "mtime": 1785321958.4058876,
-    "ast_hash": "436d1465d46d8b31d28224f1aa95e128",
+    "mtime": 1785328581.3838913,
+    "ast_hash": "b6c76832435b1711cf4a2cfe2923f162",
     "semantic_hash": ""
   },
   ".maestro/mobile-performance-network-open-close.yml": {
-    "mtime": 1785323811.162293,
-    "ast_hash": "3f3ba286fec38f741bd64cea48e2b713",
+    "mtime": 1785328581.3848922,
+    "ast_hash": "5e20225a87a09bf9f14f1ac92c08756f",
     "semantic_hash": ""
   },
   ".maestro/mobile-performance-reset.yml": {
@@ -11625,13 +11625,13 @@
     "semantic_hash": ""
   },
   ".maestro/mobile-performance-send-open.yml": {
-    "mtime": 1785322051.8449218,
-    "ast_hash": "1ddf0d32f51464690dd27fd31341ffed",
+    "mtime": 1785328581.3858895,
+    "ast_hash": "a145f984248f9b2d7b0f08ba936aa7a5",
     "semantic_hash": ""
   },
   ".maestro/mobile-performance-send.yml": {
-    "mtime": 1785321958.4103973,
-    "ast_hash": "7a306f6e37145fc5fa73ec2ac7247b09",
+    "mtime": 1785328581.3858895,
+    "ast_hash": "9d69441d286489d04d338ec8da96843b",
     "semantic_hash": ""
   },
   ".maestro/mobile-performance-session.yml": {

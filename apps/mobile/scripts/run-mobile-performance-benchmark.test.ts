@@ -5,6 +5,8 @@ import {
   assertMobilePerformancePackageBackgrounded,
   getMobilePerformanceFixtureSessionResetArgs,
   getMobilePerformanceFreshInstallApkPath,
+  getMobilePerformanceMaestroFlowEnvironment,
+  getMobilePerformanceMaestroSpawnOptions,
   getMobilePerformanceCacheFlow,
   getMobilePerformanceUiHierarchyPath,
   getMobilePerformanceUatFetchArgs,
@@ -46,6 +48,28 @@ describe("run-mobile-performance-benchmark", () => {
     assert.throws(
       () => getMobilePerformanceFreshInstallApkPath(""),
       /fresh-install release APK path/u,
+    );
+  });
+
+  it("launches Maestro through a Windows command shell for the batch launcher", () => {
+    assert.deepEqual(getMobilePerformanceMaestroSpawnOptions("win32"), { shell: true });
+    assert.deepEqual(getMobilePerformanceMaestroSpawnOptions("linux"), {});
+  });
+
+  it("passes dynamic flow values through Maestro's shell environment prefix", () => {
+    assert.deepEqual(
+      getMobilePerformanceMaestroFlowEnvironment({
+        PERF_EMAIL: "fixture@example.test",
+        PERF_PASSWORD: "not-a-real-password",
+      }),
+      {
+        MAESTRO_PERF_EMAIL: "fixture@example.test",
+        MAESTRO_PERF_PASSWORD: "not-a-real-password",
+      },
+    );
+    assert.throws(
+      () => getMobilePerformanceMaestroFlowEnvironment({ PERF_EMAIL: "" }),
+      /must not be empty/u,
     );
   });
 

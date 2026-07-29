@@ -278,6 +278,30 @@ function flowPath(name: string): string {
   return resolved;
 }
 
+export function getMobilePerformanceMaestroSpawnOptions(
+  platform: NodeJS.Platform = process.platform,
+): { readonly shell?: boolean } {
+  // Maestro is distributed as maestro.bat on Windows. Node cannot spawn a batch
+  // file directly, so delegate only that platform to cmd.exe.
+  return platform === "win32" ? { shell: true } : {};
+}
+
+export function getMobilePerformanceMaestroFlowEnvironment(
+  variables: Readonly<Record<string, string>> = {},
+): Readonly<Record<string, string>> {
+  return Object.fromEntries(
+    Object.entries(variables).map(([name, value]) => {
+      if (!/^PERF_[A-Z0-9_]+$/u.test(name)) {
+        throw new BenchmarkFailedError("Maestro flow variable names must begin with PERF_.");
+      }
+      if (!value.trim()) {
+        throw new BenchmarkFailedError(`Maestro flow variable ${name} must not be empty.`);
+      }
+      return [`MAESTRO_${name}`, value];
+    }),
+  );
+}
+
 function runMaestro(input: {
   readonly flow: string;
   readonly serial: string;
@@ -290,10 +314,11 @@ function runMaestro(input: {
     {
       cwd: repositoryRoot,
       encoding: "utf8",
-      env: { ...process.env, ...input.variables },
+      env: { ...process.env, ...getMobilePerformanceMaestroFlowEnvironment(input.variables) },
       maxBuffer: 12 * 1024 * 1024,
       timeout: maestroTimeoutMs,
       windowsHide: true,
+      ...getMobilePerformanceMaestroSpawnOptions(),
     },
   );
   if (result.error || result.status !== 0) {

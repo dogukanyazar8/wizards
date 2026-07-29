@@ -15,10 +15,11 @@ appId: team.whispr.mobile
     timeout: 30000
 - tapOn:
     id: "mobile-auth-login-email-input"
-- inputText: ${PERF_EMAIL}
+- inputText: ${MAESTRO_PERF_EMAIL}
 - tapOn:
     id: "mobile-auth-login-password-input"
-- inputText: ${PERF_PASSWORD}
+- inputText: ${MAESTRO_PERF_PASSWORD}
+- hideKeyboard
 - tapOn:
     id: "mobile-auth-login-submit"
 - extendedWaitUntil:
