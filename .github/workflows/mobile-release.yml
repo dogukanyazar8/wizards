@@ -40,7 +40,7 @@ on:
         type: string
       version_code:
         default: ""
-        description: Expected EAS Android versionCode for APK publication
+        description: Expected signed APK Android versionCode
         required: false
         type: string
 
@@ -55,7 +55,7 @@ jobs:
   preflight:
     name: Verify self-hosted release runner toolchain
     runs-on: [self-hosted, Linux, X64, mobile-release]
-    timeout-minutes: 10
+    timeout-minutes: 30
 
     steps:
       - name: Require UAT dispatch
@@ -82,7 +82,7 @@ jobs:
         run: |
           set -euo pipefail
           missing=()
-          for tool in bash git curl jq openssl base64 sha256sum stat sed awk grep find gpg unzip yes; do
+          for tool in bash git curl jq openssl base64 sha256sum stat sed awk grep find gpg unzip yes flock; do
             command -v "$tool" >/dev/null 2>&1 || missing+=("$tool")
           done
           if (( ${#missing[@]} > 0 )); then
@@ -96,7 +96,7 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Install verified job-local Android Build Tools
+      - name: Provision persistent Android local-build toolchain
         shell: bash
         run: bash .github/scripts/setup-android-build-tools.sh
 
@@ -113,18 +113,21 @@ jobs:
             echo "::error::Pinned AWS CLI 2.27.41 is required; found $aws_version"
             exit 1
           }
-          apksigner_path="$(command -v apksigner || true)"
-          if [[ -z "$apksigner_path" && -n "${ANDROID_HOME:-}" ]]; then
-            apksigner_path="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
-          fi
-          [[ -n "$apksigner_path" && -x "$apksigner_path" ]] || {
-            echo "::error::Android SDK apksigner was not found."
+          missing=()
+          for tool in apksigner aapt cmake ninja; do
+            command -v "$tool" >/dev/null 2>&1 || missing+=("$tool")
+          done
+          [[ -n "${ANDROID_NDK_HOME:-}" && -d "$ANDROID_NDK_HOME" ]] || missing+=("Android NDK")
+          (( ${#missing[@]} == 0 )) || {
+            printf '::error::Android local-build toolchain is missing: %s\n' "${missing[*]}"
             exit 1
           }
           {
             echo "### Self-hosted mobile release runner"
             echo "- AWS CLI: $aws_version"
-            echo "- apksigner: $apksigner_path"
+            echo "- Android SDK: $ANDROID_HOME"
+            echo "- Android NDK: $ANDROID_NDK_HOME"
+            echo "- CMake: $(cmake --version | head -n 1)"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Scrub mobile release material
@@ -133,7 +136,6 @@ jobs:
         run: |
           set -euo pipefail
           rm -rf -- \
-            "$RUNNER_TEMP/android-sdk" \
             "$RUNNER_TEMP/android-sdk-download" \
             "$RUNNER_TEMP/aws-cli" \
             "$RUNNER_TEMP/aws-cli-download"
@@ -374,7 +376,7 @@ jobs:
     if: inputs.kind == 'apk' && inputs.environment == 'uat' && github.ref_name == 'uat'
     needs: contract
     runs-on: [self-hosted, Linux, X64, mobile-release]
-    timeout-minutes: 90
+    timeout-minutes: 120
     environment: mobile-${{ inputs.environment }}
     env:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -397,7 +399,7 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Install verified job-local Android Build Tools
+      - name: Provision persistent Android local-build toolchain
         shell: bash
         run: bash .github/scripts/setup-android-build-tools.sh
 
@@ -438,26 +440,19 @@ jobs:
             exit 1
           fi
 
-      - name: Build APK with the existing EAS-managed Android credential
+      - name: Build APK locally with the existing EAS-managed Android credential
         id: build
         working-directory: apps/mobile
         shell: bash
         run: |
           set -euo pipefail
           environment="${{ inputs.environment }}"
-          eas build --platform android --profile "$environment" --non-interactive --wait --json \
-            > "$RUNNER_TEMP/eas-mobile-build.json"
-          apk_url="$(jq -r '(if type == "array" then .[0] else . end) | .artifacts.buildUrl // .artifacts.applicationArchiveUrl // .artifactUrl // empty' "$RUNNER_TEMP/eas-mobile-build.json")"
-          actual_version_code="$(jq -r '(if type == "array" then .[0] else . end) | .appBuildVersion // .versionCode // empty' "$RUNNER_TEMP/eas-mobile-build.json")"
-          actual_status="$(jq -r '(if type == "array" then .[0] else . end) | .status // empty' "$RUNNER_TEMP/eas-mobile-build.json")"
-          [[ "$actual_status" == "FINISHED" ]] || { echo "::error::EAS build status is $actual_status."; exit 1; }
-          [[ -n "$apk_url" ]] || { echo "::error::EAS did not return an APK URL."; exit 1; }
-          [[ "$actual_version_code" == "${{ inputs.version_code }}" ]] || {
-            echo "::error::EAS versionCode $actual_version_code does not match expected ${{ inputs.version_code }}."
-            exit 1
-          }
-          curl --fail --silent --show-error --location "$apk_url" -o "$RUNNER_TEMP/${{ needs.contract.outputs.file_name }}"
-          echo "apk=$RUNNER_TEMP/${{ needs.contract.outputs.file_name }}" >> "$GITHUB_OUTPUT"
+          apk="$RUNNER_TEMP/${{ needs.contract.outputs.file_name }}"
+          rm -f -- "$apk"
+          eas build --platform android --profile "$environment" --local --non-interactive --freeze-credentials \
+            --output "$apk"
+          [[ -s "$apk" ]] || { echo "::error::Local EAS build did not produce an APK."; exit 1; }
+          echo "apk=$apk" >> "$GITHUB_OUTPUT"
 
       - name: Verify APK certificate and immutable metadata
         id: verify
@@ -470,6 +465,17 @@ jobs:
             apksigner_path="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
           fi
           [[ -x "$apksigner_path" ]] || { echo "::error::apksigner was not found."; exit 1; }
+          aapt_path="$(command -v aapt || true)"
+          if [[ -z "$aapt_path" && -n "${ANDROID_HOME:-}" ]]; then
+            aapt_path="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -n 1)"
+          fi
+          [[ -x "$aapt_path" ]] || { echo "::error::aapt was not found."; exit 1; }
+          package_line="$("$aapt_path" dump badging "$apk" | sed -n '/^package: /p' | head -n 1)"
+          actual_version_code="$(printf '%s\n' "$package_line" | sed -n "s/.*versionCode='\([0-9][0-9]*\)'.*/\1/p")"
+          [[ "$actual_version_code" == "${{ inputs.version_code }}" ]] || {
+            echo "::error::APK versionCode $actual_version_code does not match expected ${{ inputs.version_code }}."
+            exit 1
+          }
           certificate_output="$("$apksigner_path" verify --print-certs "$apk")"
           raw_fingerprint="$(printf '%s\n' "$certificate_output" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n 1)"
           [[ "$raw_fingerprint" =~ ^[a-fA-F0-9]{64}$ ]] || { echo "::error::APK signing certificate digest is missing."; exit 1; }
@@ -584,13 +590,12 @@ jobs:
         run: |
           set -euo pipefail
           find "$RUNNER_TEMP" -maxdepth 1 -type f \
-            \( -name 'mobile-apk-*' -o -name 'mobile-latest.json' -o -name 'eas-mobile-build.json' \
+            \( -name 'mobile-apk-*' -o -name 'mobile-latest.json' \
             -o -name 'whispr-*.apk' -o -name 'whispr-*.apk.sha256' \) -delete
           if [[ -d "$RUNNER_TEMP/eas-cli" ]]; then
             rm -rf -- "$RUNNER_TEMP/eas-cli"
           fi
           rm -rf -- \
-            "$RUNNER_TEMP/android-sdk" \
             "$RUNNER_TEMP/android-sdk-download" \
             "$RUNNER_TEMP/aws-cli" \
             "$RUNNER_TEMP/aws-cli-download"

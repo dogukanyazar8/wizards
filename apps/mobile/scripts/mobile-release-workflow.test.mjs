@@ -76,7 +76,7 @@ describe("mobile release workflow contract", () => {
     );
   });
 
-  it("pins manual, fail-closed OTA and EAS-managed APK publication", async () => {
+  it("pins manual, fail-closed OTA and EAS-managed local APK publication", async () => {
     const [workflow, awsCliSetup, androidBuildToolsSetup, awsCliPublicKey] = await Promise.all([
       readFile(workflowPath, "utf8"),
       readFile(awsCliSetupPath, "utf8"),
@@ -130,8 +130,11 @@ describe("mobile release workflow contract", () => {
       androidBuildToolsSetup,
       /4e4c464f145a7512b57d088ac6c278c03c9eea610886b35a5e0804e74eedf583/,
     );
+    assert.match(androidBuildToolsSetup, /platforms;android-36/);
     assert.match(androidBuildToolsSetup, /build-tools;36\.0\.0/);
-    assert.match(androidBuildToolsSetup, /\$\{RUNNER_TEMP%\/\}\/android-sdk/);
+    assert.match(androidBuildToolsSetup, /ndk;27\.1\.12297006/);
+    assert.match(androidBuildToolsSetup, /cmake;3\.30\.5/);
+    assert.match(androidBuildToolsSetup, /\$\{RUNNER_TOOL_CACHE%\/\}\/whispr-android-sdk/);
     assert.match(androidBuildToolsSetup, /sha256sum --check/);
     assert.doesNotMatch(androidBuildToolsSetup, /sudo|\/usr\/local/);
     assert.match(awsCliPublicKey, /-----BEGIN PGP PUBLIC KEY BLOCK-----/);
@@ -141,13 +144,12 @@ describe("mobile release workflow contract", () => {
     assert.match(workflow, /Require OTA and R2 publication secrets/);
     assert.match(
       workflow,
-      /eas build --platform android --profile "\$environment" --non-interactive/,
+      /eas build --platform android --profile "\$environment" --local --non-interactive --freeze-credentials/,
     );
-    assert.match(
-      workflow,
-      /if type == "array" then \.\[0\] else \. end/,
-      "EAS build JSON can be a one-item array",
-    );
+    assert.match(workflow, /--output "\$apk"/);
+    assert.doesNotMatch(workflow, /--wait|eas-mobile-build\.json|artifacts\.buildUrl/);
+    assert.match(workflow, /"\$aapt_path" dump badging "\$apk"/);
+    assert.match(workflow, /versionCode='/);
     assert.match(workflow, /"\$apksigner_path" verify --print-certs/);
     assert.match(workflow, /sha256sum/);
     assert.match(workflow, /remote_sha256=.*curl/);
@@ -166,7 +168,7 @@ describe("mobile release workflow contract", () => {
     );
     assert.match(workflow, /npm install --prefix "\$RUNNER_TEMP\/eas-cli" eas-cli@21\.3\.0/);
     assert.doesNotMatch(workflow, /npm install --global eas-cli/);
-    assert.doesNotMatch(workflow, /credentials\.json|--local/);
+    assert.doesNotMatch(workflow, /credentials\.json/);
     assert.doesNotMatch(workflow, /upload-artifact[\s\S]{0,300}private-key/i);
   });
 });
