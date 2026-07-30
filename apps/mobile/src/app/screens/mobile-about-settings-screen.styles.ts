@@ -42,16 +42,6 @@ export const createMobileAboutSettingsStyles = (theme: MobileTheme) =>
       shadowRadius: 34,
       width: ABOUT_APP_LOGO_SIZE,
     },
-    logoHighlight: {
-      borderTopColor: theme.about.logoTopHighlight,
-      borderTopLeftRadius: ABOUT_APP_LOGO_RADIUS,
-      borderTopRightRadius: ABOUT_APP_LOGO_RADIUS,
-      borderTopWidth: 1,
-      left: 3,
-      position: "absolute",
-      right: 3,
-      top: 1,
-    },
     identityText: { flex: 1, gap: 6, minWidth: 0 },
     appName: {
       color: theme.about.text,
@@ -303,21 +293,6 @@ export const createMobileAboutSettingsStyles = (theme: MobileTheme) =>
       color: theme.about.textTertiary,
       fontFamily: theme.typography.fontFamilyMedium,
       fontSize: 11,
-      textAlign: "center",
-    },
-
-    sheetTitle: {
-      color: theme.about.text,
-      fontFamily: theme.typography.fontFamilyExtraBold,
-      fontSize: 18,
-      paddingBottom: 8,
-      textAlign: "center",
-    },
-    sheetBody: {
-      color: theme.about.textSecondary,
-      fontFamily: theme.typography.fontFamilyMedium,
-      fontSize: 13,
-      lineHeight: 19,
       textAlign: "center",
     },
   }) satisfies Record<string, TextStyle | ViewStyle>;

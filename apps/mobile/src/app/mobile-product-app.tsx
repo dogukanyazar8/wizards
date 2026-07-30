@@ -19,6 +19,8 @@ import { useMobileProductLinks } from "./features/use-mobile-product-links";
 import { useMobileDMCallFeature } from "./features/use-mobile-dm-call-feature";
 import { useMobileVoiceInviteFeature } from "./features/use-mobile-voice-invite-feature";
 import { MobileIncomingRequestSheet } from "./overlays/mobile-incoming-request-sheet";
+import { AboutBetaConsentSheet } from "./screens/about/about-beta-consent-sheet";
+import { MobileBugReportQueueBridge } from "../about/mobile-bug-report-queue-bridge";
 import { useMobileLocaleRuntime } from "./providers/mobile-locale-provider";
 import { useMobileMediaRuntime } from "./providers/mobile-media-provider";
 import { useMobileNotificationRuntime } from "./providers/mobile-notification-provider";
@@ -491,7 +493,9 @@ export function MobileProductApp({
                         />
                       </>
                     )}
+                    <AboutBetaConsentSheet />
                   </MobileOverlayContentScope>
+                  <MobileBugReportQueueBridge />
                 </MobileAppShell>
                 <MobileOverlayHost />
               </MobileVoiceScreenProvider>

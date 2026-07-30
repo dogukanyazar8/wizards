@@ -118,6 +118,24 @@ describe("mobile update controller", () => {
     assert.notEqual(controller.getSnapshot().checkedAt, null);
   });
 
+  it("turns a signed rollback directive into an explicit reload action", async () => {
+    const reloadAsync = mock.fn(async () => undefined);
+    const { controller } = createHarness({
+      checkForUpdateAsync: async () => ({
+        isAvailable: false,
+        isRollBackToEmbedded: true,
+      }),
+      reloadAsync,
+    });
+
+    assert.equal(await controller.check(), "ready");
+    assert.equal(controller.getSnapshot().rollbackToEmbedded, true);
+    assert.equal(controller.getSnapshot().state, "ready");
+
+    await controller.install();
+    assert.equal(reloadAsync.mock.callCount(), 1);
+  });
+
   it("never downloads or installs on a build where OTA is off", async () => {
     const fetchUpdateAsync = mock.fn(async () => ({ isNew: true }));
     const reloadAsync = mock.fn(async () => undefined);
@@ -131,6 +149,17 @@ describe("mobile update controller", () => {
     assert.equal(reloadAsync.mock.callCount(), 0);
     assert.equal(controller.capabilities.isEnabled, false);
     assert.equal(controller.getSnapshot().state, "disabled");
+    assert.equal(controller.getSnapshot().error, "disabled");
+  });
+
+  it("fails honestly without throwing when download is requested while OTA is off", async () => {
+    const fetchUpdateAsync = mock.fn(async () => ({ isNew: true }));
+    const { controller } = createHarness({ fetchUpdateAsync, isEnabled: false });
+
+    await assert.doesNotReject(controller.download());
+
+    assert.equal(fetchUpdateAsync.mock.callCount(), 0);
+    assert.equal(controller.getSnapshot().state, "failed");
     assert.equal(controller.getSnapshot().error, "disabled");
   });
 
@@ -151,7 +180,7 @@ describe("mobile update controller", () => {
     }
     assert.deepEqual(
       progresses.map((progress) => progress?.step),
-      ["download", "verify"],
+      ["download"],
     );
     assert.equal(controller.getSnapshot().state, "ready");
   });

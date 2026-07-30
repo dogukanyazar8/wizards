@@ -1,5 +1,6 @@
 import type {
   MobileAppUpdateResponse,
+  MobileBugReportCategory,
   MobileReleaseChange,
   MobileReleaseChangeType,
   MobileReleaseSummary,
@@ -237,6 +238,33 @@ export function filterReleaseChanges(
   const filtered = filter === "all" ? changes : changes.filter((change) => change.type === filter);
 
   return { changes: filtered, isEmpty: filtered.length === 0 };
+}
+
+const HELP_QUERY_CATEGORY_RULES: readonly {
+  readonly category: MobileBugReportCategory;
+  readonly keywords: readonly string[];
+}[] = [
+  { category: "voice", keywords: ["mikrofon", "ses", "arama"] },
+  { category: "notification", keywords: ["bildirim"] },
+  { category: "performance", keywords: ["yavaş", "donma"] },
+  { category: "chat", keywords: ["mesaj", "sohbet", "kanal"] },
+];
+
+/**
+ * §4.17: an empty help search opens 2f with the most likely category already
+ * selected. The table stays deliberately small and deterministic; no query
+ * content leaves the device for classification.
+ */
+export function inferBugReportCategoryFromHelpQuery(query: string): MobileBugReportCategory {
+  const normalized = query.trim().toLocaleLowerCase("tr-TR");
+
+  for (const rule of HELP_QUERY_CATEGORY_RULES) {
+    if (rule.keywords.some((keyword) => normalized.includes(keyword))) {
+      return rule.category;
+    }
+  }
+
+  return "other";
 }
 
 export interface MobileAboutDiagnosticsInput {

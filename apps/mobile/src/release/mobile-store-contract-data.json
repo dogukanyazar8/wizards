@@ -61,6 +61,13 @@
       "id": "screenCapture",
       "usageDescription": "Whispr captures your screen only when you choose to share your screen in a voice room. Your entire screen, notifications, and other apps may be visible until you stop sharing.",
       "userActionRequired": true
+    },
+    {
+      "androidPermission": "REQUEST_INSTALL_PACKAGES",
+      "id": "app-updates",
+      "storeBlocker": true,
+      "usageDescription": "Whispr requests package installation only when you choose to install an update in internal, non-store builds.",
+      "userActionRequired": true
     }
   ],
   "privacyRequirements": [

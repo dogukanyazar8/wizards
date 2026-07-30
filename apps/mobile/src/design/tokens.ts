@@ -696,4 +696,7 @@ export const mobileAboutMetrics = {
   stickyHeaderDurationMs: 160,
   footerButtonBottom: 26,
   footerButtonRadius: 16,
+  ratingFeedbackRadius: 18,
+  ratingTopicRadius: 10,
+  writeButtonRadius: 12,
 } as const;

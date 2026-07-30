@@ -11,6 +11,7 @@ const mockNavigationActions = {
 };
 const overviewRenderProps: Record<string, unknown>[] = [];
 const messagesRenderProps: Record<string, unknown>[] = [];
+const whatsNewRenderProps: Record<string, unknown>[] = [];
 
 // Only `useFocusEffect` is replaced: the stack containers run their route
 // wiring through it, and the rest of the module still has to be real because
@@ -54,6 +55,22 @@ jest.mock("../src/app/screens/dm-screen", () => ({
         testID: "open-dm-from-container",
       },
       React.createElement(Text, null, "Open"),
+    );
+  },
+}));
+
+jest.mock("../src/app/screens/about/about-whats-new-screen", () => ({
+  MobileAboutWhatsNewScreen: (props: Record<string, unknown>) => {
+    const React = require("react");
+    const { Pressable, Text } = require("react-native");
+    whatsNewRenderProps.push(props);
+    return React.createElement(
+      Pressable,
+      {
+        onPress: props.onOpenBugReport,
+        testID: "open-bug-report-from-whats-new",
+      },
+      React.createElement(Text, null, "Report"),
     );
   },
 }));
@@ -111,6 +128,7 @@ jest.mock("../src/app/providers/mobile-product-screen-provider", () => ({
 }));
 
 import {
+  AboutWhatsNewScreenContainer,
   ChannelStackScreenContainer,
   DirectMessageStackScreenContainer,
   MessagesTabScreenContainer,
@@ -131,9 +149,24 @@ describe("mobile screen navigation containers", () => {
   beforeEach(() => {
     overviewRenderProps.length = 0;
     messagesRenderProps.length = 0;
+    whatsNewRenderProps.length = 0;
     mockNavigationActions.openWorkspaceRoute.mockClear();
     mockNavigationActions.prefetchChannelMessages.mockClear();
     mockNavigationActions.prefetchDMMessages.mockClear();
+  });
+
+  it("routes the Whats new report action to the About bug-report screen", async () => {
+    const navigate = jest.fn();
+    const view = await render(
+      <AboutWhatsNewScreenContainer
+        navigation={{ goBack: jest.fn(), navigate } as never}
+        route={{} as never}
+      />,
+    );
+
+    await fireEvent.press(view.getByTestId("open-bug-report-from-whats-new"));
+
+    expect(navigate).toHaveBeenCalledWith("BugReport");
   });
 
   // Both surfaces read the same active-channel / selected-conversation state, so

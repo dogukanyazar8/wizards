@@ -8,6 +8,7 @@ import ts from "typescript";
 const API_V1_DIR = fileURLToPath(new URL(".", import.meta.url));
 
 const UNAUTHENTICATED_ROUTE_PATHS = new Set([
+  "app/updates/manifest",
   "app/version",
   "desktop/download",
   "mobile/auth/exchange",
@@ -21,6 +22,8 @@ const UNAUTHENTICATED_ROUTE_PATHS = new Set([
 ]);
 
 const BODYLESS_MUTATING_METHOD_PATHS = new Set([
+  "DELETE admin/help/articles/[articleId]",
+  "DELETE admin/releases/[releaseId]",
   // Recomputing clusters reads the feedback table; there is nothing to send.
   "POST admin/feedback/clusters",
   // Claiming a case only records who opened it; the session is the payload.
@@ -28,6 +31,8 @@ const BODYLESS_MUTATING_METHOD_PATHS = new Set([
   // The approver is the session; the decision itself carries no payload.
   "POST admin/notification-campaigns/[campaignId]/approve",
   "POST admin/notification-campaigns/[campaignId]/send",
+  // Publishing records the authenticated admin and current server time.
+  "POST admin/releases/[releaseId]/publish",
   "POST auth/desktop-session",
   "DELETE channels/[channelId]",
   "DELETE channels/[channelId]/messages",
@@ -115,6 +120,11 @@ const EXPECTED_RATE_LIMIT_ACTIONS = [
     action: "mobile:dm:attachments",
     method: "GET",
     routePath: "mobile/dm/[conversationId]/attachments",
+  },
+  {
+    action: "mobile:invite:preview",
+    method: "GET",
+    routePath: "mobile/invites/[code]/preview",
   },
   {
     action: "mobile:server:create",

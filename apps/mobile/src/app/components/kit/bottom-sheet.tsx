@@ -42,8 +42,14 @@ import {
 export interface BottomSheetProps {
   accessibilityLabel: string;
   children: ReactNode;
+  /** Optional first screen-reader target; defaults to the dialog panel. */
+  initialFocusRef?: RefObject<View | null>;
   onClose(): void;
   open: boolean;
+  /** Optional stable identity for a named entry in the single overlay host. */
+  overlayId?: string;
+  /** Disables drag-to-dismiss while an irreversible child operation is pending. */
+  panEnabled?: boolean;
   /** Panel height in "fixed" sizing; ignored when the panel sizes to content. */
   snapPoint?: number;
   /**
@@ -99,8 +105,11 @@ function shouldCloseSheet(translationY: number, velocityY: number, snapPoint: nu
 export function BottomSheet({
   accessibilityLabel,
   children,
+  initialFocusRef,
   onClose,
   open,
+  overlayId,
+  panEnabled = true,
   presentation,
   sizing = "fixed",
   snapPoint: requestedSnapPoint,
@@ -191,7 +200,7 @@ export function BottomSheet({
   const panGesture = useMemo(
     () =>
       Gesture.Pan()
-        .enabled(open)
+        .enabled(open && panEnabled)
         .onUpdate((event) => {
           "worklet";
           translateY.value = Math.max(0, event.translationY);
@@ -207,7 +216,7 @@ export function BottomSheet({
 
           translateY.value = reducedMotion ? 0 : withSpring(0, MOBILE_OVERLAY_OPEN_SPRING);
         }),
-    [onClose, open, panelTravel, reducedMotion, translateY],
+    [onClose, open, panelTravel, panEnabled, reducedMotion, translateY],
   );
 
   // Darkening is derived from the panel position, so both directions fade in
@@ -229,9 +238,10 @@ export function BottomSheet({
       animatedBackdropStyle={animatedBackdropStyle}
       backdropBlurIntensity={content.presentation?.backdropBlurIntensity}
       backdropStyle={[styles.backdrop, content.presentation?.backdropStyle]}
-      focusRef={panelRef}
+      focusRef={initialFocusRef ?? panelRef}
       onClose={onClose}
       open={open}
+      {...(overlayId === undefined ? {} : { registryId: overlayId })}
       style={styles.root}
       testID={testID}
     >

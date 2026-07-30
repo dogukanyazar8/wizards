@@ -221,22 +221,36 @@ export const createMobileAboutPrimitiveStyles = (theme: MobileTheme) =>
       // push the field past the handoff's 11px.
       paddingVertical: 0,
     },
+    searchClear: {
+      alignItems: "center",
+      justifyContent: "center",
+    },
 
     // §3.8/§7.27: one filled action per screen, pinned 26px above the edge.
     footerButton: {
       alignItems: "center",
       backgroundColor: theme.about.accent,
       borderRadius: mobileAboutMetrics.footerButtonRadius,
-      bottom: mobileAboutMetrics.footerButtonBottom,
-      elevation: 6,
-      left: mobileAboutMetrics.cardMargin,
+      minHeight: 48,
+      justifyContent: "center",
       paddingVertical: 14,
-      position: "absolute",
-      right: mobileAboutMetrics.cardMargin,
       shadowColor: theme.about.accent,
       shadowOffset: { height: 10, width: 0 },
       shadowOpacity: 0.24,
       shadowRadius: 24,
+    },
+    footerButtonPinned: {
+      bottom: mobileAboutMetrics.footerButtonBottom,
+      elevation: 6,
+      left: mobileAboutMetrics.cardMargin,
+      position: "absolute",
+      right: mobileAboutMetrics.cardMargin,
+    },
+    footerButtonFlow: {
+      marginBottom: mobileAboutMetrics.footerButtonBottom,
+      marginHorizontal: mobileAboutMetrics.cardMargin,
+      marginTop: 18,
+      position: "relative",
     },
     footerButtonDisabled: { opacity: 0.45 },
     footerButtonLabel: {
@@ -257,7 +271,7 @@ export const createMobileAboutPrimitiveStyles = (theme: MobileTheme) =>
       paddingBottom: 30,
       paddingHorizontal: 20,
       paddingTop: 10,
-      shadowColor: theme.about.text,
+      shadowColor: theme.about.sheetShadow,
       shadowOffset: { height: -14, width: 0 },
       shadowOpacity: 0.18,
       shadowRadius: 40,
@@ -267,7 +281,7 @@ export const createMobileAboutPrimitiveStyles = (theme: MobileTheme) =>
       backgroundColor: theme.about.grabber,
       borderRadius: 2,
       height: 4,
-      marginBottom: 16,
+      marginBottom: 20,
       width: 38,
     },
 

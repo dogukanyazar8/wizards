@@ -12,10 +12,7 @@ import {
   type MobileAboutCopy,
   type MobileReleaseChangeFilter,
 } from "../../../about/mobile-about-model";
-import {
-  readMobileAboutPreferences,
-  writeMobileAboutPreference,
-} from "../../../about/mobile-about-preferences";
+import { writeMobileAboutPreference } from "../../../about/mobile-about-preferences";
 import {
   flattenMobileReleasePages,
   getMobileReleaseTotal,
@@ -25,7 +22,6 @@ import {
 import { mobileCopy } from "../../../locale/mobile-copy";
 import { useMobileAuth } from "../../../auth/mobile-auth-context";
 import { Skeleton } from "../../components/kit/skeleton";
-import { useToast } from "../../components/kit/toast";
 import { useMobileLocaleRuntime } from "../../providers/mobile-locale-provider";
 import { useTheme } from "../../providers/mobile-theme-provider";
 import { AboutBellIcon, AboutChevronRightIcon } from "./about-icons";
@@ -44,6 +40,7 @@ const PREVIOUS_RELEASE_COUNT = 3;
 type MobileAboutWhatsNewScreenProps = {
   readonly installedVersion: string;
   readonly onBack: () => void;
+  readonly onOpenBugReport: () => void;
   readonly onOpenReleaseHistory: () => void;
   readonly onOpenReleaseNote: (version: string) => void;
 };
@@ -302,6 +299,7 @@ function PreviousReleases({
 export function MobileAboutWhatsNewScreen({
   installedVersion,
   onBack,
+  onOpenBugReport,
   onOpenReleaseHistory,
   onOpenReleaseNote,
 }: MobileAboutWhatsNewScreenProps) {
@@ -310,10 +308,7 @@ export function MobileAboutWhatsNewScreen({
   const styles = useMobileAboutWhatsNewStyles();
   const { locale } = useMobileLocaleRuntime();
   const copy = mobileCopy[locale];
-  const { showToast } = useToast();
   const [filter, setFilter] = useState<MobileReleaseChangeFilter>("all");
-  const [releaseNotify, setReleaseNotify] = useState(false);
-  const releaseNotifyTouchedRef = useRef(false);
   const seenVersionWriteRef = useRef<string | null>(null);
 
   const releasesQuery = useMobileAboutReleasesQuery(
@@ -336,18 +331,6 @@ export function MobileAboutWhatsNewScreen({
   );
 
   useEffect(() => {
-    let active = true;
-    void readMobileAboutPreferences(AsyncStorage).then((preferences) => {
-      if (active && !releaseNotifyTouchedRef.current) {
-        setReleaseNotify(preferences.releaseNotify);
-      }
-    });
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  useEffect(() => {
     if (!releasesQuery.isSuccess || !latestVersion) {
       return;
     }
@@ -363,41 +346,30 @@ export function MobileAboutWhatsNewScreen({
     });
   }, [latestVersion, releasesQuery.isSuccess]);
 
-  const toggleReleaseNotify = () => {
-    const next = !releaseNotify;
-    releaseNotifyTouchedRef.current = true;
-    setReleaseNotify(next);
-    showToast({ title: copy.whatsNewNotify, variant: next ? "success" : "info" });
-    void writeMobileAboutPreference(AsyncStorage, "releaseNotify", next).catch(() => {
-      setReleaseNotify(!next);
-      showToast({ title: copy.whatsNewNotify, variant: "error" });
-    });
-  };
-
   const retry = () => {
     void Promise.all([releasesQuery.refetch(), currentReleaseQuery.refetch()]);
   };
 
-  const isLoading = releasesQuery.isPending || currentReleaseQuery.isPending;
-  const isError = releasesQuery.isError || currentReleaseQuery.isError || !currentRelease;
+  const hasUsableReleaseData = releasesQuery.data !== undefined && currentRelease !== undefined;
+  const isLoading =
+    !hasUsableReleaseData && (releasesQuery.isPending || currentReleaseQuery.isPending);
+  const isError = !hasUsableReleaseData;
 
   return (
     <View style={styles.root} testID="mobile-about-whats-new-screen">
       <AboutScreenHeader
         action={{
-          accessibilityLabel: copy.whatsNewNotify,
+          accessibilityLabel: copy.whatsNewReport,
           icon: (
             <AboutBellIcon
               color={theme.about.accent}
-              crossedOut={!releaseNotify}
-              filled={releaseNotify}
               size={14}
-              testID={`mobile-about-release-notify-icon-${releaseNotify ? "on" : "off"}`}
+              testID="mobile-about-report-issue-icon"
             />
           ),
-          label: copy.whatsNewNotify,
-          onPress: toggleReleaseNotify,
-          testID: "mobile-about-release-notify",
+          label: copy.whatsNewReport,
+          onPress: onOpenBugReport,
+          testID: "mobile-about-report-issue",
         }}
         backAccessibilityLabel={copy.authBackAction}
         onBack={onBack}

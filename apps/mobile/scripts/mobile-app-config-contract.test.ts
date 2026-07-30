@@ -15,6 +15,7 @@ type BuildExpoConfig = (context: { config: Record<string, unknown> }) => {
   extra?: {
     whispr?: {
       apiUrl?: string;
+      communityInviteSlug?: string;
       environment?: string;
     };
   };
@@ -24,8 +25,23 @@ type BuildExpoConfig = (context: { config: Record<string, unknown> }) => {
   };
   name?: string;
   plugins?: unknown[];
+  runtimeVersion?: {
+    policy?: string;
+  };
   scheme?: string;
   slug?: string;
+  updates?: {
+    checkAutomatically?: string;
+    codeSigningCertificate?: string;
+    codeSigningMetadata?: {
+      alg?: string;
+      keyid?: string;
+    };
+    enabled?: boolean;
+    fallbackToCacheTimeout?: number;
+    requestHeaders?: Record<string, string>;
+    url?: string;
+  };
 };
 
 const originalEnv = { ...process.env };
@@ -51,7 +67,10 @@ describe("mobile app config contract", () => {
     assert.equal(config.scheme, WHISPR_MOBILE_APP_IDENTITY.scheme);
     assert.equal(config.android?.package, WHISPR_MOBILE_APP_IDENTITY.androidPackage);
     assert.equal(config.ios?.bundleIdentifier, WHISPR_MOBILE_APP_IDENTITY.iosBundleIdentifier);
-    assert.deepEqual(config.android?.permissions, getWhisprMobileAndroidPermissions());
+    assert.deepEqual(
+      config.android?.permissions,
+      getWhisprMobileAndroidPermissions({ includeStoreBlockers: true }),
+    );
     assert.deepEqual(config.ios?.infoPlist, getWhisprMobileIosInfoPlistUsageDescriptions());
     assert.ok(config.plugins?.includes("./plugins/withWebRtc"));
     assert.equal(config.plugins?.includes("@config-plugins/react-native-webrtc"), false);
@@ -66,6 +85,48 @@ describe("mobile app config contract", () => {
     assert.ok(config.extra?.whispr);
     assert.equal(config.extra.whispr.environment, "uat");
     assert.match(config.extra.whispr.apiUrl ?? "", /^https:\/\//);
+    assert.equal(config.extra.whispr.communityInviteSlug, "whispr-community");
+  });
+
+  it("embeds the UAT OTA trust root only when signed OTA is enabled", () => {
+    process.env.WHISPR_MOBILE_ENV = "uat";
+    process.env.WHISPR_MOBILE_OTA_ENABLED = "true";
+
+    const config = buildTestExpoConfig();
+
+    assert.equal(config.updates?.enabled, true);
+    assert.equal(
+      config.updates?.url,
+      "https://wizardsweb-uat.up.railway.app/api/v1/app/updates/manifest",
+    );
+    assert.equal(config.updates?.checkAutomatically, "NEVER");
+    assert.equal(config.updates?.fallbackToCacheTimeout, 0);
+    assert.equal(config.updates?.requestHeaders?.["expo-channel-name"], "uat");
+    assert.equal(config.updates?.codeSigningCertificate, "./certs/ota/uat/certificate.pem");
+    assert.deepEqual(config.updates?.codeSigningMetadata, {
+      alg: "rsa-v1_5-sha256",
+      keyid: "whispr-mobile-ota-uat-2026-01",
+    });
+    assert.deepEqual(config.runtimeVersion, { policy: "fingerprint" });
+  });
+
+  it("fails closed when signed OTA is enabled without its public certificate", () => {
+    process.env.WHISPR_MOBILE_ENV = "uat";
+    process.env.WHISPR_MOBILE_OTA_ENABLED = "true";
+    process.env.WHISPR_MOBILE_OTA_CERTIFICATE_PATH = "./certs/ota/uat/missing.pem";
+
+    assert.throws(() => buildTestExpoConfig(), /OTA certificate does not exist/);
+  });
+
+  it("keeps production store builds outside OTA and APK sideload trust", () => {
+    process.env.WHISPR_MOBILE_ENV = "production";
+    process.env.WHISPR_MOBILE_OTA_ENABLED = "false";
+
+    const config = buildTestExpoConfig();
+
+    assert.equal(config.updates?.enabled, false);
+    assert.equal(config.updates?.codeSigningCertificate, undefined);
+    assert.equal(config.android?.permissions?.includes("REQUEST_INSTALL_PACKAGES"), false);
   });
 
   it("rejects production-like mobile builds with local endpoints", () => {

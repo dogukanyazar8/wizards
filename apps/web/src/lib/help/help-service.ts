@@ -55,11 +55,17 @@ export function toHelpCategoryColumn(category: MobileHelpCategory): HelpCategory
 }
 
 function toMobileHelpArticle(row: HelpArticleRow) {
+  const bodyMarkdown =
+    typeof row.bodyMarkdown === "string" && row.bodyMarkdown.trim().length > 0
+      ? row.bodyMarkdown
+      : null;
+
   return {
+    bodyMarkdown,
     category: HELP_CATEGORY_TO_WIRE[row.category],
     // An article with no stored body opens `url` in a browser instead of the
     // in-app reader; the client needs to know which before it navigates.
-    hasBody: typeof row.bodyMarkdown === "string" && row.bodyMarkdown.trim().length > 0,
+    hasBody: bodyMarkdown !== null,
     id: row.id,
     readMinutes: row.readMinutes,
     slug: row.slug,

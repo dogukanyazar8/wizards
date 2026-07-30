@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
-import { InteractionManager } from "react-native";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { useMobileVoiceScreenProps } from "../app/providers/mobile-product-screen-provider";
+import { scheduleMobileIdleTask } from "../performance/mobile-idle-task";
 import { FloatingNavigationChrome } from "./floating-navigation-chrome";
 import { navigateMobileRouteIntent } from "./mobile-navigation-ref";
 import { preloadMobileTabs } from "./mobile-tab-preload";
@@ -54,7 +54,7 @@ export function MobileTabBarHost({
 
     // After the launch work, never during it: the point is to move the mount off
     // the frame the reader is waiting on, not to add one to startup.
-    const handle = InteractionManager.runAfterInteractions(() => {
+    const handle = scheduleMobileIdleTask(() => {
       preloadMobileTabs(navigation, activeTab);
     });
 

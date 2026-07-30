@@ -255,6 +255,7 @@ bell
 best
 beta
 between
+beyaz
 big
 bildir
 bildirdiklerim
@@ -330,12 +331,15 @@ built
 bulgular
 bulunamad
 bundle
+bundled
 bunlar
 bunu
 bus
 busy
 buton
 butonlar
+butonunu
+butonunun
 button
 buttons
 bypass
@@ -361,6 +365,7 @@ can
 canary
 cancel
 cancellation
+cancelled
 candidate
 candidates
 canl
@@ -551,6 +556,7 @@ consume
 consumer
 consumers
 consumes
+contact
 contain
 contained
 container
@@ -697,6 +703,7 @@ dependency
 depends
 deploy
 deployment
+deprecation
 deprecations
 deps
 derin
@@ -719,6 +726,7 @@ detach
 detail
 details
 detay
+detayl
 detect
 detector
 deterministic
@@ -797,6 +805,7 @@ dosyas
 dot
 dotenv
 dots
+down
 downgrades
 downgrading
 download
@@ -851,6 +860,7 @@ effort
 efor
 eicar
 ekil
+ekilde
 ekirde
 ekle
 ekleme
@@ -871,6 +881,7 @@ ekrana
 ekranda
 ekrani
 ekranlar
+ekranlarda
 eksi
 eksik
 eksiksiz
@@ -1134,6 +1145,7 @@ formatter
 forward
 forwarded
 foto
+found
 foundation
 four
 fourth
@@ -1164,6 +1176,7 @@ galerisi
 game
 gap
 gaps
+garip
 gasyon
 gate
 gated
@@ -1354,6 +1367,7 @@ icns
 ico
 icon
 icons
+ide
 idempotent
 identifier
 identity
@@ -1379,6 +1393,7 @@ ile
 ilebilirlik
 ilen
 iletildi
+ilgili
 ilk
 ilkeleri
 ilken
@@ -1448,6 +1463,7 @@ inside
 instagram
 install
 installation
+installed
 installer
 instance
 instream
@@ -1464,6 +1480,7 @@ intentionally
 intents
 inter
 interaction
+interactionmanager
 interactions
 interface
 internal
@@ -1504,6 +1521,7 @@ item
 items
 iterable
 its
+iyi
 iyile
 iyisini
 izgi
@@ -1622,6 +1640,7 @@ kpi
 krisp
 kriterleri
 kullan
+kullanabilirsin
 kullanarak
 kulland
 kullanmad
@@ -1639,6 +1658,7 @@ lacaklara
 lam
 lama
 lan
+land
 lang
 language
 lanlar
@@ -1710,6 +1730,7 @@ link
 linked
 linker
 linking
+linkleri
 links
 lint
 lintable
@@ -1751,6 +1772,7 @@ logic
 logical
 login
 logo
+logosunun
 logout
 logs
 long
@@ -1899,6 +1921,7 @@ mob
 mobi
 mobil
 mobile
+mobileaboutwhatsnewscreen
 mock
 mocked
 mocks
@@ -1953,6 +1976,7 @@ muyuz
 mvp
 mza
 nabilecek
+namad
 name
 named
 names
@@ -1975,6 +1999,7 @@ ncelleme
 ncellemesi
 ncesi
 nda
+ndaki
 ndal
 ndan
 nde
@@ -1984,11 +2009,14 @@ nderim
 ndermiyor
 ndirme
 near
+neden
 nedeni
 needs
 neler
+nelerdir
 neleri
 nemli
+nered
 nerede
 neri
 nerilen
@@ -2012,6 +2040,7 @@ ninja
 nizleme
 nizlemesi
 nizleyici
+nlendiririz
 nler
 nmas
 nmesi
@@ -2202,6 +2231,7 @@ pathname
 paths
 pattern
 patterns
+pause
 payla
 payload
 payloads
@@ -2226,6 +2256,7 @@ persisted
 persistence
 persistent
 persister
+person
 phanesi
 phase
 phases
@@ -2322,6 +2353,7 @@ press
 pressable
 prettier
 preview
+previewed
 previews
 previous
 prewarm
@@ -2359,6 +2391,7 @@ project
 projection
 projects
 projeler
+projesi
 projeyi
 promise
 promote
@@ -2632,6 +2665,7 @@ revoke
 revoked
 rework
 rewrite
+rgb
 rgba
 rich
 right
@@ -2905,6 +2939,7 @@ smoke
 snap
 snapshot
 snapshots
+snoozed
 social
 socket
 sockets
@@ -3019,6 +3054,8 @@ strong
 structural
 structure
 structured
+stt
+stteki
 stub
 stubs
 studio
@@ -3393,6 +3430,7 @@ uygulamalarda
 uygulaman
 uygulamas
 uygulamay
+uygulan
 uygulanamaz
 uygulay
 uygun
@@ -3558,6 +3596,7 @@ yeni
 yeniden
 yenileme
 yenilemesi
+yenilik
 yenilikler
 yerel
 yerle
@@ -3582,6 +3621,7 @@ zaten
 zek
 zellikleri
 zelt
+zeltir
 zeltmeler
 zeltmeleri
 zeltmesi

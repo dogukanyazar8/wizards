@@ -1,8 +1,9 @@
 import React from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, waitFor, within } from "@testing-library/react-native";
+import { act, fireEvent, render, waitFor, within } from "@testing-library/react-native";
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { Linking } from "react-native";
 import type {
   MobileAppUpdateResponse,
   MobileReleaseChange,
@@ -45,6 +46,7 @@ jest.mock("../src/app/components/kit/bottom-sheet", () => {
 });
 
 import { resolveAboutUpdatePresentation } from "../src/about/mobile-about-model";
+import { writeMobileAboutPreference } from "../src/about/mobile-about-preferences";
 import {
   AboutServiceStatusPill,
   MobileAboutSettingsScreen,
@@ -93,15 +95,22 @@ function flattenStyle(style: unknown): Record<string, unknown> {
 
 function createApiClient(
   level: MobileServiceStatusLevel = "ok",
-  { failReleaseDetail = false }: { readonly failReleaseDetail?: boolean } = {},
+  {
+    failChannelChange = false,
+    failReleaseDetail = false,
+  }: {
+    readonly failChannelChange?: boolean;
+    readonly failReleaseDetail?: boolean;
+  } = {},
 ) {
   return {
-    requestJson: jest.fn(async (path: string) => {
+    requestJson: jest.fn(async (path: string, init?: { readonly body?: unknown }) => {
       if (path.startsWith("/api/v1/mobile/app/update")) {
         return {
           lastCheckedAt: "2026-07-29T09:39:00.000Z",
           otaEnabled: false,
           state: "current",
+          updateKind: "none",
         };
       }
       if (path.startsWith("/api/v1/mobile/app/releases/0.8.15")) {
@@ -138,6 +147,16 @@ function createApiClient(
           checkedAt: "2026-07-29T09:40:00.000Z",
           level,
           url: "https://status.whispr.team",
+        };
+      }
+      if (path === "/api/v1/mobile/app/channel") {
+        if (failChannelChange) {
+          throw new Error("Channel change unavailable");
+        }
+        return {
+          channel: (init?.body as { readonly channel: "beta" | "stable" | "uat" }).channel,
+          effectiveFrom: "next-build",
+          requiresRestart: false,
         };
       }
       throw new Error(`Unexpected About request: ${path}`);
@@ -203,7 +222,7 @@ describe("1a + 1b About screen", () => {
     });
   });
 
-  it("renders the handoff identity, compact logo geometry and one-line metadata", async () => {
+  it("renders the login brand mark at the handoff 60px size with one-line metadata", async () => {
     const view = await renderScreen();
 
     await view.findByText("0.8.15 “Echo”");
@@ -233,12 +252,10 @@ describe("1a + 1b About screen", () => {
       }),
     ).toBeTruthy();
     expect(
-      flattenStyle(
-        view.getByTestId("mobile-about-logo-top-highlight", {
-          includeHiddenElements: true,
-        }).props.style,
-      ),
-    ).toMatchObject({ borderTopColor: lightTheme.about.logoTopHighlight, borderTopWidth: 1 });
+      view.queryByTestId("mobile-about-logo-top-highlight", {
+        includeHiddenElements: true,
+      }),
+    ).toBeNull();
 
     const metadata = view.getByTestId("mobile-about-version-metadata");
     expect(within(metadata).getByText("0.8.15")).toBeTruthy();
@@ -255,6 +272,17 @@ describe("1a + 1b About screen", () => {
     ).toBe(11);
   });
 
+  it("updates the identity chip and app row from the same stored channel preference", async () => {
+    const view = await renderScreen();
+    await view.findByText("0.8.15 “Echo”");
+
+    await act(async () => {
+      await writeMobileAboutPreference(AsyncStorage, "channel", "beta");
+    });
+
+    await waitFor(() => expect(view.getAllByText("BETA")).toHaveLength(2));
+  });
+
   it("maps current, available and checking updates to the exact row labels", () => {
     const cases: readonly [MobileAppUpdateResponse, string, string][] = [
       [
@@ -262,6 +290,7 @@ describe("1a + 1b About screen", () => {
           lastCheckedAt: "2026-07-29T09:00:00.000Z",
           otaEnabled: true,
           state: "current",
+          updateKind: "none",
         },
         "Güncel sürümü kullanıyorsun",
         "Denetle",
@@ -278,6 +307,7 @@ describe("1a + 1b About screen", () => {
           },
           otaEnabled: true,
           state: "available",
+          updateKind: "ota",
         },
         "0.9.0 “Halo” hazır · 48,2 MB",
         "Güncelle",
@@ -287,6 +317,7 @@ describe("1a + 1b About screen", () => {
           lastCheckedAt: "2026-07-29T09:00:00.000Z",
           otaEnabled: true,
           state: "checking",
+          updateKind: "none",
         },
         "Güncellemeler denetleniyor…",
         "Durdur",
@@ -310,6 +341,29 @@ describe("1a + 1b About screen", () => {
     await view.findByText(copy.aboutUpdateCurrent);
 
     expect(view.queryByTestId("mobile-about-check-updates")).toBeNull();
+  });
+
+  it("keeps the identity-card Denetle action visible when OTA is disabled", async () => {
+    const apiClient = createApiClient();
+    mockUseMobileAuth.mockReturnValue({
+      apiClient,
+      session: { user: { id: "usr_0123456789abcdef" } },
+      status: "signed-in",
+    });
+    const view = await renderScreen();
+    await view.findByText(copy.aboutUpdateCurrent);
+    const action = view.getByRole("button", {
+      name: copy.aboutSettingsCheckUpdates,
+    });
+
+    expect(view.getByTestId("mobile-about-update-action")).toBeTruthy();
+    await fireEvent.press(action);
+    await waitFor(() => {
+      const checks = apiClient.requestJson.mock.calls.filter(([path]) =>
+        String(path).startsWith("/api/v1/mobile/app/update"),
+      );
+      expect(checks.length).toBeGreaterThanOrEqual(2);
+    });
   });
 
   it("uses the three change color families and full-bleed -16px hairlines", async () => {
@@ -408,15 +462,87 @@ describe("1a + 1b About screen", () => {
     await waitFor(() => expect(view.queryByTestId("mobile-about-new-badge")).toBeNull());
   });
 
-  it("opens beta consent without optimistically enabling the toggle", async () => {
-    const view = await renderScreen();
+  it("keeps the beta toggle off and sends no channel request when consent is rejected", async () => {
+    const openBetaConsent = jest.fn(async () => false);
+    const apiClient = createApiClient();
+    mockUseMobileAuth.mockReturnValue({
+      apiClient,
+      session: { user: { id: "usr_0123456789abcdef" } },
+      status: "signed-in",
+    });
+    const view = await renderScreen(createProps({ openBetaConsent }));
     await view.findByText(copy.aboutAppBeta);
 
     const toggle = view.getByTestId("mobile-about-beta-toggle");
     await fireEvent.press(toggle);
 
-    expect(toggle.props.accessibilityState).toMatchObject({ checked: false });
-    expect(view.getByTestId("mobile-about-beta-consent-panel")).toBeTruthy();
+    await waitFor(() => expect(openBetaConsent).toHaveBeenCalledTimes(1));
+    expect(view.getByTestId("mobile-about-beta-toggle").props.accessibilityState).toMatchObject({
+      checked: false,
+    });
+    expect(apiClient.requestJson).not.toHaveBeenCalledWith(
+      "/api/v1/mobile/app/channel",
+      expect.anything(),
+    );
+  });
+
+  it("changes to beta only after consent and updates the chip, row, and toggle together", async () => {
+    const openBetaConsent = jest.fn(async () => true);
+    const apiClient = createApiClient();
+    mockUseMobileAuth.mockReturnValue({
+      apiClient,
+      session: { user: { id: "usr_0123456789abcdef" } },
+      status: "signed-in",
+    });
+    const view = await renderScreen(createProps({ openBetaConsent }));
+    await view.findByText(copy.aboutAppBeta);
+
+    await fireEvent.press(view.getByTestId("mobile-about-beta-toggle"));
+
+    await waitFor(() =>
+      expect(apiClient.requestJson).toHaveBeenCalledWith("/api/v1/mobile/app/channel", {
+        body: { channel: "beta" },
+        method: "POST",
+      }),
+    );
+    expect(view.getAllByText("BETA")).toHaveLength(2);
+    expect(view.getByTestId("mobile-about-beta-toggle").props.accessibilityState).toMatchObject({
+      checked: true,
+    });
+  });
+
+  it("uses the saved channel, not consent proof, as the beta toggle state", async () => {
+    jest
+      .mocked(AsyncStorage.multiGet)
+      .mockImplementation(async (keys) =>
+        keys.map((key) => [
+          key,
+          key === "whispr.settings.betaConsentAt" ? "2026-07-30T09:41:00.000Z" : null,
+        ]),
+      );
+    const openBetaConsent = jest.fn(async () => true);
+    const apiClient = createApiClient("ok", { failChannelChange: true });
+    mockUseMobileAuth.mockReturnValue({
+      apiClient,
+      session: { user: { id: "usr_0123456789abcdef" } },
+      status: "signed-in",
+    });
+    const view = await renderScreen(createProps({ openBetaConsent, releaseChannel: "stable" }));
+    await view.findByText(copy.aboutAppBeta);
+
+    expect(view.getByTestId("mobile-about-beta-toggle").props.accessibilityState).toMatchObject({
+      checked: false,
+    });
+    await fireEvent.press(view.getByTestId("mobile-about-beta-toggle"));
+    await waitFor(() => expect(openBetaConsent).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(view.getByTestId("mobile-about-beta-toggle").props.accessibilityState).toMatchObject({
+        checked: false,
+      }),
+    );
+
+    await fireEvent.press(view.getByTestId("mobile-about-beta-toggle"));
+    await waitFor(() => expect(openBetaConsent).toHaveBeenCalledTimes(2));
   });
 
   it.each([
@@ -439,6 +565,30 @@ describe("1a + 1b About screen", () => {
     expect(view.getByTestId(`service-${level}-label`).props.style).toEqual(
       expect.arrayContaining([expect.objectContaining({ color: foreground })]),
     );
+  });
+
+  it("opens the 2h rating sheet from the community rating row", async () => {
+    const view = await renderScreen();
+
+    await fireEvent.press(await view.findByText(copy.aboutCommunityRate));
+
+    expect(await view.findByTestId("mobile-about-rating-sheet-panel")).toBeTruthy();
+    expect(view.getByText(copy.rateTitle)).toBeTruthy();
+  });
+
+  it("opens the canonical X and Instagram profiles from the social chips", async () => {
+    const openURL = jest.spyOn(Linking, "openURL").mockResolvedValue(true);
+    const view = await renderScreen();
+
+    try {
+      await fireEvent.press(await view.findByTestId("mobile-about-social-x"));
+      await fireEvent.press(view.getByTestId("mobile-about-social-instagram"));
+
+      expect(openURL).toHaveBeenNthCalledWith(1, "https://x.com/WhisprTeam");
+      expect(openURL).toHaveBeenNthCalledWith(2, "https://www.instagram.com/whispr.team");
+    } finally {
+      openURL.mockRestore();
+    }
   });
 
   it("renders package count, signature and preserved performance diagnostics", async () => {

@@ -4,6 +4,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { getRedisRate } from "@/lib/redis";
 
 export const API_RATE_LIMITS = {
+  "app:updates:manifest": { limit: 120, windowSeconds: 60 },
   "admin:campaign:approve": { limit: 20, windowSeconds: 60 },
   "admin:campaign:create": { limit: 12, windowSeconds: 60 },
   "admin:campaign:preview": { limit: 60, windowSeconds: 60 },
@@ -17,6 +18,9 @@ export const API_RATE_LIMITS = {
   "admin:feedback:update": { limit: 40, windowSeconds: 60 },
   "admin:flag:list": { limit: 120, windowSeconds: 60 },
   "admin:flag:update": { limit: 20, windowSeconds: 60 },
+  "admin:help:list": { limit: 120, windowSeconds: 60 },
+  "admin:help:read": { limit: 120, windowSeconds: 60 },
+  "admin:help:write": { limit: 30, windowSeconds: 60 },
   "admin:moderation:action": { limit: 20, windowSeconds: 60 },
   "admin:moderation:appeal": { limit: 20, windowSeconds: 60 },
   "admin:moderation:claim": { limit: 40, windowSeconds: 60 },
@@ -26,7 +30,14 @@ export const API_RATE_LIMITS = {
   "admin:moderation:note": { limit: 40, windowSeconds: 60 },
   "admin:roadmap:update": { limit: 40, windowSeconds: 60 },
   "admin:report:export": { limit: 20, windowSeconds: 60 },
+  "admin:release:list": { limit: 120, windowSeconds: 60 },
+  "admin:release:read": { limit: 120, windowSeconds: 60 },
+  "admin:release:write": { limit: 30, windowSeconds: 60 },
+  "admin:release:artifact": { limit: 20, windowSeconds: 60 },
   "admin:server:list": { limit: 120, windowSeconds: 60 },
+  "admin:support:list": { limit: 120, windowSeconds: 60 },
+  "admin:support:read": { limit: 120, windowSeconds: 60 },
+  "admin:support:update": { limit: 40, windowSeconds: 60 },
   "admin:user:list": { limit: 120, windowSeconds: 60 },
   "admin:user:update": { limit: 20, windowSeconds: 60 },
   // Health flushes are batched client-side; anything faster is a loop or abuse.
@@ -140,6 +151,7 @@ export const API_RATE_LIMITS = {
   /** Reports are a moderation write, so the window is deliberately narrow. */
   "mobile:users:report": { limit: 5, windowSeconds: 10 * 60 },
   "mobile:invite:decline": { limit: 30, windowSeconds: 10 * 60 },
+  "mobile:invite:preview": { limit: 60, windowSeconds: 60 },
   "mobile:giphy:search": { limit: 60, windowSeconds: 60 },
   "mobile:giphy:attachment": { limit: 60, windowSeconds: 60 },
   "mobile:link-preview": { limit: 30, windowSeconds: 60 },

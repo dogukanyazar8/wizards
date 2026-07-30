@@ -38,8 +38,9 @@ import {
   MobileAboutUpdateChannelScreen,
   MobileBugReportScreen,
   MobileCommunityInviteScreen,
-  MobileHelpCenterScreen,
+  resolveAboutRuntimeReleaseChannel,
 } from "./about/about-screen-shells";
+import { MobileHelpCenterScreen } from "./about/about-help-center-screen";
 import { MobileAboutWhatsNewScreen } from "./about/about-whats-new-screen";
 import { MobileFeedbackFlowScreen } from "../../feedback/mobile-feedback-flow-screen";
 import { MobileFeedbackSubmittedScreen } from "../../feedback/mobile-feedback-submitted-screen";
@@ -63,6 +64,9 @@ import { MobileSharedMediaScreen } from "../../dm/mobile-shared-media-screen";
 import { resolveMobileSharedMediaParticipantName } from "../../dm/mobile-shared-media-model";
 import { flattenMobileDMConversationPages } from "../../query/mobile-dm-conversations-query";
 import { mobileQueryKeys } from "../../query/mobile-query-keys";
+import { getMobileRuntimeConfig } from "../../config/environment";
+import { useMobileBootstrapQuery } from "../../query/mobile-bootstrap-query";
+import { resolveMobileTelemetryDimensions } from "../../performance/mobile-telemetry-dimensions";
 import { MobileServerSettingsScreen } from "../../workspace/mobile-server-settings-screen";
 import { MobileServerRolesScreen } from "../../workspace/mobile-server-roles-screen";
 import { MobileRoleDetailScreen } from "../../workspace/mobile-role-detail-screen";
@@ -610,6 +614,7 @@ export function AboutWhatsNewScreenContainer({
     <MobileAboutWhatsNewScreen
       installedVersion={mobilePackageJson.version}
       onBack={() => navigation.goBack()}
+      onOpenBugReport={() => navigation.navigate("BugReport")}
       onOpenReleaseHistory={() => navigation.navigate("AboutReleaseHistory")}
       onOpenReleaseNote={(version) => navigation.navigate("AboutReleaseNote", { version })}
     />
@@ -622,8 +627,10 @@ export function AboutReleaseNoteScreenContainer({
 }: NativeStackScreenProps<MobileRootStackParamList, "AboutReleaseNote">) {
   return (
     <MobileAboutReleaseNoteScreen
+      key={route.params.version}
       onBack={() => navigation.goBack()}
       version={route.params.version}
+      webUrl={getMobileRuntimeConfig().webUrl}
     />
   );
 }
@@ -631,28 +638,56 @@ export function AboutReleaseNoteScreenContainer({
 export function AboutReleaseHistoryScreenContainer({
   navigation,
 }: NativeStackScreenProps<MobileRootStackParamList, "AboutReleaseHistory">) {
-  return <MobileAboutReleaseHistoryScreen onBack={() => navigation.goBack()} />;
+  return (
+    <MobileAboutReleaseHistoryScreen
+      installedVersion={mobilePackageJson.version}
+      onBack={() => navigation.goBack()}
+      onOpenReleaseNote={(version) => navigation.navigate("AboutReleaseNote", { version })}
+    />
+  );
 }
 
 export function AboutUpdateChannelScreenContainer({
   navigation,
 }: NativeStackScreenProps<MobileRootStackParamList, "AboutUpdateChannel">) {
-  return <MobileAboutUpdateChannelScreen onBack={() => navigation.goBack()} />;
+  return (
+    <MobileAboutUpdateChannelScreen
+      currentChannel={resolveAboutRuntimeReleaseChannel(getMobileRuntimeConfig().releaseChannel)}
+      onBack={() => navigation.goBack()}
+    />
+  );
 }
 
 export function HelpCenterScreenContainer({
   navigation,
 }: NativeStackScreenProps<MobileRootStackParamList, "HelpCenter">) {
-  return <MobileHelpCenterScreen onBack={() => navigation.goBack()} />;
+  return (
+    <MobileHelpCenterScreen
+      onBack={() => navigation.goBack()}
+      onOpenBugReport={(category) =>
+        navigation.navigate("BugReport", category === undefined ? undefined : { category })
+      }
+    />
+  );
 }
 
 export function BugReportScreenContainer({
   navigation,
   route,
 }: NativeStackScreenProps<MobileRootStackParamList, "BugReport">) {
+  const auth = useMobileAuth();
+  const bootstrapQuery = useMobileBootstrapQuery(auth.apiClient, auth.status === "signed-in");
+  const runtime = resolveMobileTelemetryDimensions();
+  const app = bootstrapQuery.data?.app;
+
   return (
     <MobileBugReportScreen
+      appBuild={app?.buildId ?? runtime.buildId}
+      appVersion={app?.version ?? mobilePackageJson.version}
       onBack={() => navigation.goBack()}
+      releaseChannel={resolveAboutRuntimeReleaseChannel(
+        app?.releaseChannel ?? getMobileRuntimeConfig().releaseChannel,
+      )}
       {...(route.params?.category === undefined ? {} : { category: route.params.category })}
     />
   );
@@ -662,10 +697,18 @@ export function CommunityInviteScreenContainer({
   navigation,
   route,
 }: NativeStackScreenProps<MobileRootStackParamList, "CommunityInvite">) {
+  const { openWorkspaceRoute } = useMobileProductNavigationActions();
+  const runtime = getMobileRuntimeConfig();
+
   return (
     <MobileCommunityInviteScreen
       onBack={() => navigation.goBack()}
-      {...(route.params?.slug === undefined ? {} : { slug: route.params.slug })}
+      onOpenServer={(serverId) => {
+        openWorkspaceRoute(serverId, null);
+        navigation.popTo("MainTabs", { screen: "overview" });
+      }}
+      slug={route.params?.slug ?? runtime.communityInviteSlug}
+      webUrl={runtime.webUrl}
     />
   );
 }

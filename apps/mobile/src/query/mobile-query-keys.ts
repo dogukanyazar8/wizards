@@ -61,6 +61,7 @@ export function createMobileQueryKeys(registry: MobileSearchKeyRegistry) {
     aboutReleases: () => [...all, "about", "releases"] as const,
     aboutRelease: (version: string) => [...all, "about", "releases", version] as const,
     aboutStatus: () => [...all, "about", "status"] as const,
+    aboutCommunityInvite: (slug: string) => [...all, "about", "community-invite", slug] as const,
     helpRoot: () => [...all, "help"] as const,
     /**
      * 2e asks for either the popular four or one category, and those are two

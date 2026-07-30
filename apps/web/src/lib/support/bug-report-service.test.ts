@@ -115,6 +115,36 @@ describe("bug report service", () => {
     assert.equal(result.ticket, "WSP-00007");
   });
 
+  it("stores the claimed screenshot only while its attachment toggle is enabled", async () => {
+    const written: Array<{ screenshotUrl?: string | null }> = [];
+    const capture = service({
+      createBugReport: async (data) => {
+        written.push(data);
+        return { createdAt: submittedAt };
+      },
+    });
+
+    await submitMobileBugReport(
+      {
+        ...input,
+        includesScreenshot: true,
+        screenshotUploadKey: "claim-safe-123",
+      },
+      capture,
+    );
+    await submitMobileBugReport(
+      {
+        ...input,
+        includesScreenshot: false,
+        screenshotUploadKey: "claim-must-not-be-stored",
+      },
+      capture,
+    );
+
+    assert.equal(written[0]?.screenshotUrl, "claim-safe-123");
+    assert.equal(written[1]?.screenshotUrl, null);
+  });
+
   it("dates the row ninety days out", () => {
     assert.deepEqual(
       resolveBugReportPurgeDate(new Date("2026-07-29T09:00:00.000Z")),

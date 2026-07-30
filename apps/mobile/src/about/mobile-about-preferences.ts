@@ -55,6 +55,20 @@ export interface MobileAboutPreferenceStorage {
 }
 
 const RELEASE_CHANNELS: readonly MobileReleaseChannel[] = ["stable", "beta", "uat"];
+const channelPreferenceListeners = new Set<(channel: MobileReleaseChannel | null) => void>();
+
+export function subscribeMobileAboutChannelPreference(
+  listener: (channel: MobileReleaseChannel | null) => void,
+): () => void {
+  channelPreferenceListeners.add(listener);
+  return () => channelPreferenceListeners.delete(listener);
+}
+
+export function publishMobileAboutChannelPreference(channel: MobileReleaseChannel | null): void {
+  for (const listener of channelPreferenceListeners) {
+    listener(channel);
+  }
+}
 
 function parseBoolean(value: string | null, fallback: boolean): boolean {
   if (value === "true") {
@@ -134,8 +148,49 @@ export async function writeMobileAboutPreference(
 
   if (value === null) {
     await storage.removeItem(storageKey);
+    if (key === "channel") {
+      publishMobileAboutChannelPreference(null);
+    }
     return;
   }
 
   await storage.setItem(storageKey, typeof value === "boolean" ? String(value) : value);
+  if (key === "channel") {
+    publishMobileAboutChannelPreference(parseChannel(typeof value === "string" ? value : null));
+  }
+}
+
+/**
+ * Channel persistence invariant: leaving beta/UAT invalidates the old consent
+ * before the stable preference becomes visible to subscribers. If either write
+ * fails, the prior pair is restored so a half-transition cannot survive restart.
+ */
+export async function writeMobileAboutChannelPreference(
+  storage: MobileAboutPreferenceStorage,
+  channel: MobileReleaseChannel,
+): Promise<void> {
+  const channelKey = MOBILE_ABOUT_PREFERENCE_KEYS.channel;
+  const consentKey = MOBILE_ABOUT_PREFERENCE_KEYS.betaConsentAt;
+  const previousEntries = await storage.multiGet([channelKey, consentKey]);
+  const previous = new Map(previousEntries);
+  const restore = async (key: MobileAboutPreferenceKey, value: string | null) => {
+    await writeMobileAboutPreference(storage, key, value);
+  };
+
+  try {
+    if (channel === "stable") {
+      await writeMobileAboutPreference(storage, "betaConsentAt", null);
+    }
+    await writeMobileAboutPreference(storage, "channel", channel);
+  } catch (error) {
+    try {
+      await restore("channel", previous.get(channelKey) ?? null);
+      await restore("betaConsentAt", previous.get(consentKey) ?? null);
+    } catch {
+      // Preserve the original storage failure. The caller publishes the
+      // authoritative server response for the current process and can surface
+      // a reconciliation warning without misreporting the network request.
+    }
+    throw error;
+  }
 }

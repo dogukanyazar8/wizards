@@ -26,6 +26,7 @@ import { mobileCopy } from "../src/locale/mobile-copy";
 type WhatsNewScreenProps = {
   readonly installedVersion: string;
   readonly onBack: () => void;
+  readonly onOpenBugReport: () => void;
   readonly onOpenReleaseHistory: () => void;
   readonly onOpenReleaseNote: (version: string) => void;
 };
@@ -91,14 +92,19 @@ function currentRelease(
 function createApiClient({
   changes = DEFAULT_CHANGES,
   list = Promise.resolve(RELEASE_LIST),
+  shouldFail = () => false,
   summary = "Okunabilirlik güncellemesi",
 }: {
   readonly changes?: readonly MobileReleaseChange[];
   readonly list?: Promise<MobileReleaseListResponse>;
+  readonly shouldFail?: () => boolean;
   readonly summary?: string | null;
 } = {}) {
   return {
     requestJson: jest.fn(async (path: string) => {
+      if (shouldFail()) {
+        throw new Error("Transient release refresh failure");
+      }
       if (path === "/api/v1/mobile/app/releases/0.8.15") {
         return currentRelease(changes, summary);
       }
@@ -121,12 +127,16 @@ function createQueryClient() {
 
 function renderScreen({
   apiClient = createApiClient(),
+  onOpenBugReport = jest.fn(),
   onOpenReleaseHistory = jest.fn(),
   onOpenReleaseNote = jest.fn(),
+  queryClient = createQueryClient(),
 }: {
   readonly apiClient?: ReturnType<typeof createApiClient>;
+  readonly onOpenBugReport?: () => void;
   readonly onOpenReleaseHistory?: () => void;
   readonly onOpenReleaseNote?: (version: string) => void;
+  readonly queryClient?: QueryClient;
 } = {}) {
   mockUseMobileAuth.mockReturnValue({
     apiClient,
@@ -135,13 +145,14 @@ function renderScreen({
   });
 
   return render(
-    <QueryClientProvider client={createQueryClient()}>
+    <QueryClientProvider client={queryClient}>
       <MobileThemeProvider>
         <MobileLocaleProvider>
           <ToastProvider>
             <WhatsNewScreen
               installedVersion="0.8.15"
               onBack={jest.fn()}
+              onOpenBugReport={onOpenBugReport}
               onOpenReleaseHistory={onOpenReleaseHistory}
               onOpenReleaseNote={onOpenReleaseNote}
             />
@@ -253,6 +264,25 @@ describe("1c Whats new screen", () => {
     expect(onOpenReleaseHistory).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps cached release notes visible when re-entry refresh fails", async () => {
+    const queryClient = createQueryClient();
+    let shouldFail = false;
+    const apiClient = createApiClient({ shouldFail: () => shouldFail });
+    const firstView = await renderScreen({ apiClient, queryClient });
+
+    await firstView.findByText(DEFAULT_CHANGES[0]!.title);
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0));
+    await firstView.unmount();
+
+    shouldFail = true;
+    const secondView = await renderScreen({ apiClient, queryClient });
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0));
+
+    expect(secondView.queryByTestId("mobile-about-load-error")).toBeNull();
+    expect(secondView.getByText(DEFAULT_CHANGES[0]!.title)).toBeTruthy();
+    expect(secondView.getByText("0.8.14")).toBeTruthy();
+  });
+
   it("writes latest seenVersion only after the release list succeeds", async () => {
     let resolveList!: (value: MobileReleaseListResponse) => void;
     const pendingList = new Promise<MobileReleaseListResponse>((resolve) => {
@@ -304,32 +334,60 @@ describe("1c Whats new screen", () => {
     expect(onOpenReleaseNote).toHaveBeenCalledWith("0.8.15");
   });
 
-  it("persists the release notification toggle and shows toast feedback", async () => {
-    jest.useFakeTimers();
+  it("opens the About bug report without changing the release notification preference", async () => {
+    const onOpenBugReport = jest.fn();
+    const view = await renderScreen({ onOpenBugReport });
+
+    await fireEvent.press(view.getByTestId("mobile-about-report-issue"));
+
+    expect(onOpenBugReport).toHaveBeenCalledTimes(1);
+    expect(AsyncStorage.setItem).not.toHaveBeenCalledWith(
+      "whispr.settings.releaseNotify",
+      expect.anything(),
+    );
+    expect(view.queryByTestId("mobile-toast")).toBeNull();
+  });
+
+  it("keeps the Bildir bell identical to the handoff outline", async () => {
     const view = await renderScreen();
+    const button = view.getByTestId("mobile-about-report-issue");
+    const bellPath = "M6 9.5a6 6 0 0 1 12 0c0 4 1.5 5.5 1.5 5.5h-15S6 13.5 6 9.5z";
 
-    const button = view.getByTestId("mobile-about-release-notify");
+    expect(flattenStyle(button.props.style)).toMatchObject({
+      borderRadius: mobileAboutMetrics.headerButtonRadius,
+      borderWidth: 1,
+      gap: 6,
+      height: mobileAboutMetrics.headerButton,
+      paddingHorizontal: 12,
+    });
     expect(
-      view.getByTestId("mobile-about-release-notify-icon-off", {
+      flattenStyle(within(button).getByText(mobileCopy.tr.whatsNewReport).props.style),
+    ).toMatchObject({
+      color: lightTheme.about.accent,
+      fontFamily: lightTheme.typography.fontFamilyBold,
+      fontSize: 12,
+    });
+
+    expect(
+      view.getByTestId("mobile-about-report-issue-icon", {
+        includeHiddenElements: true,
+      }).props,
+    ).toMatchObject({ height: 14, width: 14 });
+    expect(
+      view.getByTestId("mobile-about-report-issue-icon-body", {
+        includeHiddenElements: true,
+      }).props,
+    ).toMatchObject({
+      d: bellPath,
+      // react-native-svg normalizes `fill="none"` to a null native fill.
+      fill: null,
+      strokeWidth: 2,
+    });
+    expect(
+      view.queryByTestId("mobile-about-report-issue-icon-strike", {
         includeHiddenElements: true,
       }),
-    ).toBeTruthy();
-    await fireEvent.press(button);
-
-    expect(
-      view.getByTestId("mobile-about-release-notify-icon-on", {
-        includeHiddenElements: true,
-      }),
-    ).toBeTruthy();
-    expect(AsyncStorage.setItem).toHaveBeenCalledWith("whispr.settings.releaseNotify", "true");
-    expect(view.getByTestId("mobile-toast")).toBeTruthy();
-
-    await act(async () => {
-      jest.advanceTimersByTime(4_000);
-    });
-    await act(async () => {
-      jest.advanceTimersByTime(1_000);
-    });
+    ).toBeNull();
   });
 
   it("matches acceptance geometry and keeps icon tint out of text", async () => {

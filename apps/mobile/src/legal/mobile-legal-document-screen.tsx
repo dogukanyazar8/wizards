@@ -86,11 +86,7 @@ export function MobileLegalDocumentScreen({
             ) : null}
           </View>
 
-          <View style={styles.documentCard} testID="mobile-legal-document-body">
-            {document.blocks.map((block, index) => (
-              <LegalBlock block={block} key={`${block.kind}-${index}`} />
-            ))}
-          </View>
+          <MobileDocumentBlocks blocks={document.blocks} testID="mobile-legal-document-body" />
         </>
       ) : documentQuery.isError ? (
         <View style={styles.stateCard} testID="mobile-legal-document-error">
@@ -114,6 +110,82 @@ export function MobileLegalDocumentScreen({
         </View>
       )}
     </ScrollView>
+  );
+}
+
+export function parseMobileMarkdownBlocks(markdown: string): readonly MobileLegalDocumentBlock[] {
+  const blocks: MobileLegalDocumentBlock[] = [];
+  let paragraph: string[] = [];
+
+  const flushParagraph = () => {
+    const text = paragraph.join(" ").trim();
+    if (text.length > 0) {
+      blocks.push({ kind: "paragraph", text });
+    }
+    paragraph = [];
+  };
+
+  for (const rawLine of markdown.replace(/\r\n?/g, "\n").split("\n")) {
+    const line = rawLine.trim();
+    if (line.length === 0) {
+      flushParagraph();
+      continue;
+    }
+
+    const heading = /^(#{1,6})\s+(.+)$/.exec(line);
+    if (heading) {
+      flushParagraph();
+      blocks.push({
+        kind: heading[1]!.length === 1 ? "heading" : "subheading",
+        text: heading[2]!.trim(),
+      });
+      continue;
+    }
+
+    const bullet = /^(?:[-*+]|\d+\.)\s+(.+)$/.exec(line);
+    if (bullet) {
+      flushParagraph();
+      blocks.push({ kind: "bullet", text: bullet[1]!.trim() });
+      continue;
+    }
+
+    paragraph.push(line);
+  }
+
+  flushParagraph();
+  return blocks;
+}
+
+export function MobileMarkdownDocument({
+  bodyMarkdown,
+  testID,
+}: {
+  readonly bodyMarkdown: string;
+  readonly testID?: string;
+}) {
+  return (
+    <MobileDocumentBlocks
+      blocks={parseMobileMarkdownBlocks(bodyMarkdown)}
+      {...(testID === undefined ? {} : { testID })}
+    />
+  );
+}
+
+function MobileDocumentBlocks({
+  blocks,
+  testID,
+}: {
+  readonly blocks: readonly MobileLegalDocumentBlock[];
+  readonly testID?: string;
+}) {
+  const styles = useThemedStyles(createStyles);
+
+  return (
+    <View style={styles.documentCard} {...(testID === undefined ? {} : { testID })}>
+      {blocks.map((block, index) => (
+        <LegalBlock block={block} key={`${block.kind}-${index}`} />
+      ))}
+    </View>
   );
 }
 

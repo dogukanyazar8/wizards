@@ -29,7 +29,13 @@ yarn-error.*
 
 # macOS
 .DS_Store
+# Private signing keys stay local. The public UAT OTA trust root is required
+# in shipped UAT binaries so Expo can verify signed manifests.
 *.pem
+!certs/
+!certs/ota/
+!certs/ota/uat/
+!certs/ota/uat/certificate.pem
 
 # local env files
 .env*.local

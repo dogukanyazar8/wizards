@@ -602,36 +602,51 @@ export async function buildMobileServerInviteQrCode(
   });
 }
 
+const workspaceJoinInviteSelect = {
+  channelId: true,
+  createdById: true,
+  expiresAt: true,
+  id: true,
+  maxUses: true,
+  server: {
+    select: {
+      id: true,
+      ownerId: true,
+      roles: {
+        orderBy: {
+          position: "desc" as const,
+        },
+        select: {
+          id: true,
+          isDefault: true,
+        },
+      },
+    },
+  },
+  targetUserId: true,
+  uses: true,
+} as const;
+
 export async function joinWorkspaceServerByInvite(userId: string, code: string) {
-  const invite = await prisma.serverInvite.findUnique({
+  const directInvite = await prisma.serverInvite.findUnique({
+    select: workspaceJoinInviteSelect,
     where: {
       code,
     },
-    select: {
-      channelId: true,
-      createdById: true,
-      expiresAt: true,
-      id: true,
-      maxUses: true,
-      server: {
-        select: {
-          id: true,
-          ownerId: true,
-          roles: {
-            orderBy: {
-              position: "desc",
-            },
-            select: {
-              id: true,
-              isDefault: true,
-            },
-          },
-        },
-      },
-      targetUserId: true,
-      uses: true,
-    },
   });
+  // Community links use a stable human-readable slug. Resolve that slug to the
+  // newest public link invite, then continue through this same join lifecycle;
+  // no second mutation endpoint or permission path is introduced.
+  const invite =
+    directInvite ??
+    (await prisma.serverInvite.findFirst({
+      orderBy: [{ createdAt: "desc" }, { id: "asc" }],
+      select: workspaceJoinInviteSelect,
+      where: {
+        server: { vanityUrlCode: code },
+        targetUserId: null,
+      },
+    }));
 
   if (!invite) {
     throw new ApiError("Invite not found", 404);

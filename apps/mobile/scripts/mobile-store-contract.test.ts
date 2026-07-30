@@ -27,7 +27,7 @@ describe("mobile store contract", () => {
     }
   });
 
-  it("exposes only the Android permissions the product currently needs", () => {
+  it("keeps Play Store builds free of sideload permissions", () => {
     assert.deepEqual(getWhisprMobileAndroidPermissions(), [
       "USE_BIOMETRIC",
       "CAMERA",
@@ -35,6 +35,22 @@ describe("mobile store contract", () => {
       "POST_NOTIFICATIONS",
       "FOREGROUND_SERVICE_MEDIA_PROJECTION",
     ]);
+  });
+
+  it("adds package installation only to internal Android builds", () => {
+    assert.deepEqual(getWhisprMobileAndroidPermissions({ includeStoreBlockers: true }), [
+      "USE_BIOMETRIC",
+      "CAMERA",
+      "RECORD_AUDIO",
+      "POST_NOTIFICATIONS",
+      "FOREGROUND_SERVICE_MEDIA_PROJECTION",
+      "REQUEST_INSTALL_PACKAGES",
+    ]);
+    const disclosure = WHISPR_MOBILE_PERMISSION_DISCLOSURES.find(
+      (candidate) => candidate.id === "app-updates",
+    );
+    assert.equal(disclosure?.storeBlocker, true);
+    assert.equal(disclosure?.iosInfoPlistKey, undefined);
   });
 
   it("builds iOS usage descriptions from the same permission contract", () => {

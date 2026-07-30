@@ -21,7 +21,10 @@ export type AdminNavItem = {
     | "pulse"
     | "toggle"
     | "chart"
-    | "mic";
+    | "mic"
+    | "package"
+    | "book"
+    | "life-buoy";
   key: string;
   label: string;
 };
@@ -88,6 +91,32 @@ export const ADMIN_NAV_GROUPS: readonly AdminNavGroup[] = [
       },
     ],
     label: "Güven & Güvenlik",
+  },
+  {
+    items: [
+      {
+        capability: "release.read",
+        href: "/admin/releases",
+        icon: "package",
+        key: "releases",
+        label: "Sürümler",
+      },
+      {
+        capability: "help.write",
+        href: "/admin/help",
+        icon: "book",
+        key: "help",
+        label: "Yardım Makaleleri",
+      },
+      {
+        capability: "support.read",
+        href: "/admin/support",
+        icon: "life-buoy",
+        key: "support",
+        label: "Hata Raporları",
+      },
+    ],
+    label: "İçerik & Destek",
   },
   {
     items: [

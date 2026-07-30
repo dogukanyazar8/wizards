@@ -13,6 +13,7 @@ import {
   filterReleaseChanges,
   groupReleaseChangesByType,
   groupReleasesByYear,
+  inferBugReportCategoryFromHelpQuery,
   isMobileReleaseNewer,
   resolveAboutUpdatePresentation,
 } from "../src/about/mobile-about-model";
@@ -25,6 +26,7 @@ function updateResponse(overrides: Partial<MobileAppUpdateResponse> = {}): Mobil
     lastCheckedAt: "2026-07-29T09:00:00.000Z",
     otaEnabled: true,
     state: "current",
+    updateKind: "none",
     ...overrides,
   };
 }
@@ -280,5 +282,31 @@ describe("diagnostics clipboard text", () => {
     });
 
     assert.equal(partial, ["Whispr: 0.8.15", "Channel: production", "Locale: en"].join("\n"));
+  });
+});
+
+describe("help search bug-report category", () => {
+  it("maps the documented Turkish help keywords and defaults unknown queries to other", () => {
+    const cases = [
+      ["mikrofon çalışmıyor", "voice"],
+      ["ses kesiliyor", "voice"],
+      ["arama bağlanmıyor", "voice"],
+      ["bildirim gelmiyor", "notification"],
+      ["uygulama çok yavaş", "performance"],
+      ["ekran donma yapıyor", "performance"],
+      ["mesaj gönderemiyorum", "chat"],
+      ["sohbet açılmıyor", "chat"],
+      ["kanal kayboldu", "chat"],
+      ["hesabımı değiştirmek istiyorum", "other"],
+    ] as const;
+
+    for (const [query, expected] of cases) {
+      assert.equal(inferBugReportCategoryFromHelpQuery(query), expected, query);
+    }
+  });
+
+  it("matches keywords case-insensitively and ignores surrounding whitespace", () => {
+    assert.equal(inferBugReportCategoryFromHelpQuery("  MİKROFON  "), "voice");
+    assert.equal(inferBugReportCategoryFromHelpQuery("BİLDİRİM"), "notification");
   });
 });

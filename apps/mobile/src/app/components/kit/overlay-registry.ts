@@ -1,5 +1,12 @@
 import type { ReactNode } from "react";
 
+/** Stable registry identity for the 1d download sheet. */
+export const MOBILE_ABOUT_UPDATE_OVERLAY_ID = "about-update";
+/** Stable registry identity for the 2d beta-consent sheet. */
+export const MOBILE_ABOUT_BETA_CONSENT_OVERLAY_ID = "about-beta-consent";
+/** Stable registry identity for the 2h in-app rating sheet. */
+export const MOBILE_ABOUT_RATING_OVERLAY_ID = "about-rating";
+
 /**
  * One mounted overlay. `node` is the element the host renders on behalf of the
  * call site; `onClose` is the dismissal the top-most entry owns.

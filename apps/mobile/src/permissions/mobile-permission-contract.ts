@@ -6,17 +6,9 @@ import {
 } from "../release/mobile-store-contract";
 
 export type MobilePermissionIntentId =
-  | "camera"
-  | "microphone"
-  | "notifications"
-  | "photoLibrary"
-  | "screenCapture";
+  "camera" | "microphone" | "notifications" | "photoLibrary" | "screenCapture";
 export type MobilePermissionFeature =
-  | "attachments"
-  | "camera"
-  | "messages"
-  | "screenShare"
-  | "voice";
+  "attachments" | "camera" | "messages" | "screenShare" | "voice";
 export type MobilePermissionStatus = "blocked" | "denied" | "granted" | "not-requested" | "unknown";
 export type MobilePermissionPromptPolicy = "after-user-action" | "never-automatically";
 
@@ -84,7 +76,7 @@ export const MOBILE_PERMISSION_INTENTS: readonly MobilePermissionIntent[] = [
 // Biometrics is disclosed in the store/native app config but is intentionally
 // managed by the dedicated app-lock authentication flow. It is not a generic
 // runtime permission that the media/notification permission dispatcher can request.
-const STORE_ONLY_PERMISSION_IDS = new Set<MobileStorePermissionId>(["biometrics"]);
+const STORE_ONLY_PERMISSION_IDS = new Set<MobileStorePermissionId>(["app-updates", "biometrics"]);
 
 const disclosureById = new Map(
   WHISPR_MOBILE_PERMISSION_DISCLOSURES.map((disclosure) => [disclosure.id, disclosure]),
@@ -179,7 +171,12 @@ export function validateMobilePermissionContract(): string[] {
   const disclosureIds = new Set(
     WHISPR_MOBILE_PERMISSION_DISCLOSURES.map((disclosure) => disclosure.id),
   );
-  const androidPermissions = new Set(getWhisprMobileAndroidPermissions());
+  // Validate the union of store and internal-build permissions. App config
+  // omits store blockers from production, but internal Android builds include
+  // package installation for verified APK updates.
+  const androidPermissions = new Set(
+    getWhisprMobileAndroidPermissions({ includeStoreBlockers: true }),
+  );
   const iosUsageDescriptions = getWhisprMobileIosInfoPlistUsageDescriptions();
 
   for (const intent of MOBILE_PERMISSION_INTENTS) {

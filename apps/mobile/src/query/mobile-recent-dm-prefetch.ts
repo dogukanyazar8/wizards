@@ -1,8 +1,9 @@
 import { useEffect } from "react";
 import type { QueryClient } from "@tanstack/react-query";
-import { AppState, InteractionManager } from "react-native";
+import { AppState } from "react-native";
 import type { MobileApiClient } from "../api/mobile-api-client";
 import { isMobileNetworkMetered } from "../network/mobile-network-events";
+import { scheduleMobileIdleTask } from "../performance/mobile-idle-task";
 import {
   prefetchMobileDMMessagesPage,
   recordMobileRecentDMPrefetch,
@@ -46,7 +47,7 @@ export function useMobileRecentDMPrefetch(input: {
       return;
     }
 
-    const handle = InteractionManager.runAfterInteractions(() => {
+    const handle = scheduleMobileIdleTask(() => {
       const conversationIds = prefetchIds.split(",");
       recordMobileRecentDMPrefetch(conversationIds);
       // One at a time: a burst of speculative reads competes with the fetch the

@@ -110,9 +110,15 @@ import {
   MobileAppUpdateQuerySchema,
   MobileAppUpdateResponseSchema,
   MobileAppUpdateStateSchema,
+  MobileAndroidArtifactSchema,
+  MobileBuildEnvironmentSchema,
   MobileBugReportCategorySchema,
   MobileBugReportRequestSchema,
   MobileBugReportResponseSchema,
+  MobileInvitePreviewChannelSchema,
+  MobileInvitePreviewChannelTypeSchema,
+  MobileInvitePreviewMutualFriendSchema,
+  MobileInvitePreviewResponseSchema,
   MobileHelpArticleListQuerySchema,
   MobileHelpArticleListResponseSchema,
   MobileHelpArticleSchema,
@@ -131,12 +137,96 @@ import {
   MobileReleaseVersionParamsSchema,
   MobileServiceStatusLevelSchema,
   MobileServiceStatusResponseSchema,
+  MobileUpdateKindSchema,
+  MobileUpdatePlatformSchema,
   formatBugReportTicket,
 } from "./mobile";
 import { assertAccepts, assertRejects, assertSchemaBehaviorCoverage } from "./schema-test-helpers";
 
 const now = "2026-07-09T12:00:00.000Z";
 const uuid = "550e8400-e29b-41d4-a716-446655440000";
+
+describe("mobile update delivery contract", () => {
+  it("accepts the build identity needed to choose an update path", () => {
+    assert.deepEqual(
+      MobileAppUpdateQuerySchema.parse({
+        buildEnvironment: "uat",
+        channel: "uat",
+        installed: "0.8.15",
+        platform: "android",
+        runtimeVersion: "fingerprint-2026-07-30",
+        versionCode: "815",
+      }),
+      {
+        buildEnvironment: "uat",
+        channel: "uat",
+        installed: "0.8.15",
+        platform: "android",
+        runtimeVersion: "fingerprint-2026-07-30",
+        versionCode: 815,
+      },
+    );
+  });
+
+  it("accepts a newer internal Android APK with independently verifiable metadata", () => {
+    const parsed = MobileAppUpdateResponseSchema.parse({
+      androidArtifact: {
+        sha256: "a".repeat(64),
+        signingCertSha256: Array(32).fill("AB").join(":"),
+        sizeBytes: 50_541_363,
+        url: "https://updates.whispr.team/mobile/uat/whispr-816.apk",
+        versionCode: 816,
+      },
+      lastCheckedAt: now,
+      minSupportedVersionCode: 810,
+      otaEnabled: true,
+      state: "available",
+      updateKind: "apk",
+    });
+
+    assert.equal(parsed.updateKind, "apk");
+    assert.equal(parsed.androidArtifact?.versionCode, 816);
+    assert.equal(parsed.minSupportedVersionCode, 810);
+  });
+
+  it("rejects APK metadata that cannot be checked safely", () => {
+    const base = {
+      sha256: "a".repeat(64),
+      sizeBytes: 50_541_363,
+      url: "https://updates.whispr.team/mobile/uat/whispr-816.apk",
+      versionCode: 816,
+    };
+
+    for (const invalid of [
+      { ...base, sha256: "ABC" },
+      { ...base, sizeBytes: 0 },
+      { ...base, url: "http://updates.whispr.team/whispr.apk" },
+      { ...base, versionCode: 0 },
+    ]) {
+      assert.equal(MobileAndroidArtifactSchema.safeParse(invalid).success, false);
+    }
+
+    assert.equal(
+      MobileAppUpdateResponseSchema.safeParse({
+        lastCheckedAt: now,
+        otaEnabled: true,
+        state: "available",
+        updateKind: "apk",
+      }).success,
+      false,
+    );
+    assert.equal(
+      MobileAppUpdateResponseSchema.safeParse({
+        androidArtifact: base,
+        lastCheckedAt: now,
+        otaEnabled: false,
+        state: "current",
+        updateKind: "none",
+      }).success,
+      false,
+    );
+  });
+});
 
 describe("mobile realtime stale-channel contract", () => {
   it("validates only the bounded user-room payload needed to refresh a workspace", () => {
@@ -421,6 +511,7 @@ const releaseDetail = {
 };
 
 const helpArticle = {
+  bodyMarkdown: "# Mikrofon sorunları",
   category: "media" as const,
   hasBody: true,
   id: "help-1",
@@ -1129,6 +1220,36 @@ describe("mobile schemas", () => {
         valid: "beta",
         invalid: "canary",
       },
+      MobileBuildEnvironmentSchema: {
+        schema: MobileBuildEnvironmentSchema,
+        valid: "uat",
+        invalid: "beta",
+      },
+      MobileUpdatePlatformSchema: {
+        schema: MobileUpdatePlatformSchema,
+        valid: "android",
+        invalid: "web",
+      },
+      MobileUpdateKindSchema: {
+        schema: MobileUpdateKindSchema,
+        valid: "apk",
+        invalid: "download",
+      },
+      MobileAndroidArtifactSchema: {
+        schema: MobileAndroidArtifactSchema,
+        valid: {
+          sha256: "a".repeat(64),
+          sizeBytes: 50_541_363,
+          url: "https://updates.whispr.team/mobile/uat/whispr-816.apk",
+          versionCode: 816,
+        },
+        invalid: {
+          sha256: "a".repeat(64),
+          sizeBytes: 0,
+          url: "https://updates.whispr.team/mobile/uat/whispr-816.apk",
+          versionCode: 816,
+        },
+      },
       MobileAppUpdateStateSchema: {
         schema: MobileAppUpdateStateSchema,
         valid: "available",
@@ -1181,8 +1302,18 @@ describe("mobile schemas", () => {
       },
       MobileAppUpdateResponseSchema: {
         schema: MobileAppUpdateResponseSchema,
-        valid: { lastCheckedAt: now, otaEnabled: false, state: "current" },
-        invalid: { lastCheckedAt: now, otaEnabled: false, state: "idle" },
+        valid: {
+          lastCheckedAt: now,
+          otaEnabled: false,
+          state: "current",
+          updateKind: "none",
+        },
+        invalid: {
+          lastCheckedAt: now,
+          otaEnabled: false,
+          state: "idle",
+          updateKind: "none",
+        },
       },
       MobileAppUpdateQuerySchema: {
         schema: MobileAppUpdateQuerySchema,
@@ -1212,7 +1343,7 @@ describe("mobile schemas", () => {
       MobileHelpArticleSchema: {
         schema: MobileHelpArticleSchema,
         valid: helpArticle,
-        invalid: { ...helpArticle, readMinutes: 0 },
+        invalid: { ...helpArticle, bodyMarkdown: 42 },
       },
       MobileHelpCategoryCountSchema: {
         schema: MobileHelpCategoryCountSchema,
@@ -1248,6 +1379,54 @@ describe("mobile schemas", () => {
         schema: MobileBugReportResponseSchema,
         valid: { createdAt: now, ticket: "WSP-24817" },
         invalid: { createdAt: now, ticket: "WSP-2481" },
+      },
+      MobileInvitePreviewChannelTypeSchema: {
+        schema: MobileInvitePreviewChannelTypeSchema,
+        valid: "voice",
+        invalid: "stage",
+      },
+      MobileInvitePreviewChannelSchema: {
+        schema: MobileInvitePreviewChannelSchema,
+        valid: { liveCount: 14, name: "topluluk-sesli", readOnly: false, type: "voice" },
+        invalid: { liveCount: -1, name: "topluluk-sesli", readOnly: false, type: "voice" },
+      },
+      MobileInvitePreviewMutualFriendSchema: {
+        schema: MobileInvitePreviewMutualFriendSchema,
+        valid: { avatarUrl: null, displayName: "Ada", id: "friend-1" },
+        invalid: { avatarUrl: null, displayName: "", id: "friend-1" },
+      },
+      MobileInvitePreviewResponseSchema: {
+        schema: MobileInvitePreviewResponseSchema,
+        valid: {
+          bannerUrl: null,
+          channels: [{ liveCount: null, name: "duyurular", readOnly: true, type: "text" }],
+          description: "Yol haritasını burada tartışıyoruz.",
+          iconUrl: null,
+          joined: false,
+          memberCount: 12_400,
+          mutualFriendCount: 0,
+          mutualFriends: [],
+          name: "Whispr Topluluk",
+          onlineCount: 1_200,
+          serverId: "server-1",
+          slug: "whispr-community",
+          verified: true,
+        },
+        invalid: {
+          bannerUrl: null,
+          channels: [],
+          description: "",
+          iconUrl: null,
+          joined: false,
+          memberCount: 12_400,
+          mutualFriendCount: 0,
+          mutualFriends: [],
+          name: "Whispr Topluluk",
+          onlineCount: 1_200,
+          serverId: "server-1",
+          slug: "../admin",
+          verified: true,
+        },
       },
       MobileReleaseVersionParamsSchema: {
         schema: MobileReleaseVersionParamsSchema,

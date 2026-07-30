@@ -1,5 +1,14 @@
 import type { ReactNode } from "react";
-import { Pressable, Text, TextInput, View, type StyleProp, type ViewStyle } from "react-native";
+import {
+  ActivityIndicator,
+  Pressable,
+  Text,
+  TextInput,
+  View,
+  type LayoutChangeEvent,
+  type StyleProp,
+  type ViewStyle,
+} from "react-native";
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -10,7 +19,10 @@ import Animated, {
 
 import { mobileAboutMetrics } from "../../../design/tokens";
 import { useTheme } from "../../providers/mobile-theme-provider";
-import { AuthWelcomeBrandMark } from "../auth/auth-welcome-brand-mark";
+import {
+  AuthWelcomeBrandMark,
+  type AuthWelcomeBrandWaveformHeights,
+} from "../auth/auth-welcome-brand-mark";
 import {
   AboutChevronLeftIcon,
   AboutChevronRightIcon,
@@ -41,6 +53,7 @@ export function AboutScreenHeader({
   onBack,
   testID,
   title,
+  trailing,
   variant = "back",
 }: {
   readonly action?: AboutScreenHeaderAction;
@@ -48,6 +61,8 @@ export function AboutScreenHeader({
   readonly onBack: () => void;
   readonly testID?: string;
   readonly title: string;
+  /** Non-interactive status at the right edge, such as 2b's server total badge. */
+  readonly trailing?: ReactNode;
   /** §3.11: 2f is a form, so it closes rather than going back. */
   readonly variant?: "back" | "close";
 }) {
@@ -64,9 +79,17 @@ export function AboutScreenHeader({
         {...(testID === undefined ? {} : { testID: `${testID}-back` })}
       >
         {variant === "close" ? (
-          <AboutCloseIcon color={theme.about.text} size={17} />
+          <AboutCloseIcon
+            color={theme.about.text}
+            size={17}
+            {...(testID === undefined ? {} : { testID: `${testID}-close-icon` })}
+          />
         ) : (
-          <AboutChevronLeftIcon color={theme.about.text} size={17} />
+          <AboutChevronLeftIcon
+            color={theme.about.text}
+            size={17}
+            {...(testID === undefined ? {} : { testID: `${testID}-back-icon` })}
+          />
         )}
       </Pressable>
       <Text maxFontSizeMultiplier={2} numberOfLines={1} style={styles.headerTitle}>
@@ -90,7 +113,9 @@ export function AboutScreenHeader({
             </Text>
           )}
         </Pressable>
-      ) : null}
+      ) : (
+        (trailing ?? null)
+      )}
     </View>
   );
 }
@@ -407,6 +432,7 @@ export function AboutTypePill({
 export function AboutSearchField({
   accessibilityLabel,
   autoFocus = false,
+  clearAccessibilityLabel,
   onChangeText,
   onSubmitEditing,
   placeholder,
@@ -415,6 +441,7 @@ export function AboutSearchField({
 }: {
   readonly accessibilityLabel?: string;
   readonly autoFocus?: boolean;
+  readonly clearAccessibilityLabel?: string;
   readonly onChangeText: (next: string) => void;
   readonly onSubmitEditing?: () => void;
   readonly placeholder: string;
@@ -425,8 +452,15 @@ export function AboutSearchField({
   const styles = useMobileAboutPrimitiveStyles();
 
   return (
-    <View style={styles.searchField}>
-      <AboutSearchIcon color={theme.about.iconTint} size={16} />
+    <View
+      style={styles.searchField}
+      {...(testID === undefined ? {} : { testID: `${testID}-container` })}
+    >
+      <AboutSearchIcon
+        color={theme.about.iconTint}
+        size={16}
+        {...(testID === undefined ? {} : { testID: `${testID}-icon` })}
+      />
       <TextInput
         accessibilityLabel={accessibilityLabel ?? placeholder}
         autoCapitalize="none"
@@ -444,19 +478,41 @@ export function AboutSearchField({
         {...(onSubmitEditing === undefined ? {} : { onSubmitEditing })}
         {...(testID === undefined ? {} : { testID })}
       />
+      {value.length === 0 ? null : (
+        <Pressable
+          accessibilityLabel={clearAccessibilityLabel ?? accessibilityLabel ?? placeholder}
+          accessibilityRole="button"
+          hitSlop={8}
+          onPress={() => onChangeText("")}
+          style={({ pressed }) => [styles.searchClear, pressed && styles.pressed]}
+          {...(testID === undefined ? {} : { testID: `${testID}-clear` })}
+        >
+          <AboutCloseIcon
+            color={theme.about.iconTint}
+            size={14}
+            {...(testID === undefined ? {} : { testID: `${testID}-clear-icon` })}
+          />
+        </Pressable>
+      )}
     </View>
   );
 }
 
 /** §3.8/§7.27: the single filled action, pinned to the bottom of 2c/2f/2g. */
 export function AboutStickyFooterButton({
+  busy = false,
   disabled = false,
   label,
+  mode = "fixed",
+  onLayout,
   onPress,
   testID,
 }: {
+  readonly busy?: boolean;
   readonly disabled?: boolean;
   readonly label: string;
+  readonly mode?: "fixed" | "flow";
+  readonly onLayout?: (event: LayoutChangeEvent) => void;
   readonly onPress: () => void;
   readonly testID?: string;
 }) {
@@ -466,19 +522,29 @@ export function AboutStickyFooterButton({
     <Pressable
       accessibilityLabel={label}
       accessibilityRole="button"
-      accessibilityState={{ disabled }}
-      disabled={disabled}
+      accessibilityState={{ busy, disabled: disabled || busy }}
+      disabled={disabled || busy}
+      onLayout={onLayout}
       onPress={onPress}
       style={({ pressed }) => [
         styles.footerButton,
-        disabled && styles.footerButtonDisabled,
-        pressed && !disabled && styles.pressed,
+        mode === "fixed" ? styles.footerButtonPinned : styles.footerButtonFlow,
+        (disabled || busy) && styles.footerButtonDisabled,
+        pressed && !disabled && !busy && styles.pressed,
       ]}
       {...(testID === undefined ? {} : { testID })}
     >
-      <Text maxFontSizeMultiplier={2} style={styles.footerButtonLabel}>
-        {label}
-      </Text>
+      {busy ? (
+        <ActivityIndicator
+          color={styles.footerButtonLabel.color}
+          size="small"
+          {...(testID === undefined ? {} : { testID: `${testID}-spinner` })}
+        />
+      ) : (
+        <Text maxFontSizeMultiplier={2} style={styles.footerButtonLabel}>
+          {label}
+        </Text>
+      )}
     </Pressable>
   );
 }
@@ -533,10 +599,12 @@ export function AboutBrandLogo({
   accessibilityLabel,
   size,
   testID,
+  waveformHeights,
 }: {
   readonly accessibilityLabel?: string;
   readonly size: number;
   readonly testID?: string;
+  readonly waveformHeights?: AuthWelcomeBrandWaveformHeights;
 }) {
   const styles = useMobileAboutPrimitiveStyles();
   const reduceMotion = useReducedMotion() === true;
@@ -552,7 +620,8 @@ export function AboutBrandLogo({
         animated={!reduceMotion}
         cornerRadius={resolveAboutBrandLogoRadius(size)}
         size={size}
-        variant="about"
+        variant={waveformHeights === undefined ? "about" : "auth"}
+        {...(waveformHeights === undefined ? {} : { waveformHeights })}
         {...(testID === undefined ? {} : { testID })}
       />
     </View>

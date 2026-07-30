@@ -1,0 +1,22 @@
+diff --git a/build/utils/updateDevicePushTokenAsync.js b/build/utils/updateDevicePushTokenAsync.js
+--- a/build/utils/updateDevicePushTokenAsync.js
++++ b/build/utils/updateDevicePushTokenAsync.js
+@@ -109,6 +109,6 @@ export async function updateDevicePushTokenAsync(signal, token) {
+             // - which creates exceptions like
+             //   https://github.com/github/fetch/blob/75d9455d380f365701151f3ac85c5bda4bbbde76/fetch.js#L490-L494
+-            if (typeof error === 'object' && error?.name === 'AbortError') {
++            if (signal.aborted || (typeof error === 'object' && error?.name === 'AbortError')) {
+                 // We don't consider AbortError a failure, it's a sign somewhere else the
+                 // request is expected to succeed and we don't need this one, so let's
+                 // just return.
+diff --git a/src/utils/updateDevicePushTokenAsync.ts b/src/utils/updateDevicePushTokenAsync.ts
+--- a/src/utils/updateDevicePushTokenAsync.ts
++++ b/src/utils/updateDevicePushTokenAsync.ts
+@@ -124,6 +124,6 @@ export async function updateDevicePushTokenAsync(signal: AbortSignal, token: Dev
+       // - which creates exceptions like
+       //   https://github.com/github/fetch/blob/75d9455d380f365701151f3ac85c5bda4bbbde76/fetch.js#L490-L494
+-      if (typeof error === 'object' && error?.name === 'AbortError') {
++      if (signal.aborted || (typeof error === 'object' && error?.name === 'AbortError')) {
+         // We don't consider AbortError a failure, it's a sign somewhere else the
+         // request is expected to succeed and we don't need this one, so let's
+         // just return.

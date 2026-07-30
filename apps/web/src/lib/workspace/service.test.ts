@@ -1916,6 +1916,62 @@ describe("workspace service characterization", { concurrency: false }, () => {
     });
   });
 
+  it("resolves a configured community vanity slug through the existing join service", async () => {
+    await withPatchedEnvironment(async (restores) => {
+      patchMethod(prisma.serverInvite, "findUnique", async () => null, restores);
+      patchMethod(
+        prisma.serverInvite,
+        "findFirst",
+        async (input: UnknownRecord) => {
+          assert.deepEqual(input.where, {
+            server: { vanityUrlCode: "whispr-community" },
+            targetUserId: null,
+          });
+          return {
+            channelId: "channel-1",
+            createdById: "owner",
+            expiresAt: null,
+            id: "invite-1",
+            maxUses: null,
+            server: {
+              id: "server-1",
+              ownerId: "owner",
+              roles: [defaultRole()],
+            },
+            targetUserId: null,
+            uses: 0,
+          };
+        },
+        restores,
+      );
+      patchMethod(
+        prisma.user,
+        "findUnique",
+        async () => ({
+          displayName: "Ada",
+          isBanned: false,
+          username: "ada",
+        }),
+        restores,
+      );
+      patchMethod(prisma.serverBan, "findUnique", async () => null, restores);
+      patchMethod(
+        prisma.serverMember,
+        "findUnique",
+        async () => ({ id: "member-existing" }),
+        restores,
+      );
+
+      const result = await joinWorkspaceServerByInvite("joiner", "whispr-community");
+
+      assert.deepEqual(result, {
+        alreadyMember: true,
+        channelId: "channel-1",
+        serverId: "server-1",
+      });
+    });
+  });
+
   it("checks MANAGE_CHANNELS before channel updates", async () => {
     await withPatchedEnvironment(async (restores) => {
       patchMethod(

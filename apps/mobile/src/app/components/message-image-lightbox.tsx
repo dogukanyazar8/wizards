@@ -1,4 +1,12 @@
-import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
 import {
@@ -76,14 +84,19 @@ function clamp(value: number, bound: number) {
 export function MessageImageLightbox({
   authorLabel,
   onClose,
+  onRemove,
   open,
+  removeLabel,
   timeLabel,
   uri,
 }: {
   /** Sender shown in the top bar; omitted when the caller has no author. */
   readonly authorLabel?: string | undefined;
   readonly onClose: () => void;
+  /** Optional caller-owned action; 2f uses it to discard its local capture. */
+  readonly onRemove?: (() => void) | undefined;
   readonly open: boolean;
+  readonly removeLabel?: string | undefined;
   readonly timeLabel?: string | undefined;
   readonly uri: string | null;
 }) {
@@ -229,8 +242,14 @@ export function MessageImageLightbox({
         return;
       }
 
-      const nextX = clamp(translateX.value, getMobileLightboxPanBound(contentWidth, viewportWidth, scale.value));
-      const nextY = clamp(translateY.value, getMobileLightboxPanBound(contentHeight, viewportHeight, scale.value));
+      const nextX = clamp(
+        translateX.value,
+        getMobileLightboxPanBound(contentWidth, viewportWidth, scale.value),
+      );
+      const nextY = clamp(
+        translateY.value,
+        getMobileLightboxPanBound(contentHeight, viewportHeight, scale.value),
+      );
       translateX.value = reducedMotion ? nextX : withSpring(nextX, MOBILE_OVERLAY_OPEN_SPRING);
       translateY.value = reducedMotion ? nextY : withSpring(nextY, MOBILE_OVERLAY_OPEN_SPRING);
     };
@@ -322,10 +341,7 @@ export function MessageImageLightbox({
 
         translateX.value = event.translationX;
         translateY.value = event.translationY;
-        dismiss.value = Math.min(
-          1,
-          Math.abs(event.translationY) / LIGHTBOX_DISMISS_FADE_DISTANCE,
-        );
+        dismiss.value = Math.min(1, Math.abs(event.translationY) / LIGHTBOX_DISMISS_FADE_DISTANCE);
       })
       .onEnd((event) => {
         "worklet";
@@ -343,10 +359,10 @@ export function MessageImageLightbox({
           if (!reducedMotion) {
             // Fling out the way the finger was going; the overlay's own fade
             // runs underneath it and owns the unmount.
-            translateY.value = withTiming(
-              (event.translationY >= 0 ? 1 : -1) * windowHeight,
-              { duration: MOBILE_OVERLAY_CLOSE_DURATION_MS, easing: MOBILE_OVERLAY_CLOSE_EASING },
-            );
+            translateY.value = withTiming((event.translationY >= 0 ? 1 : -1) * windowHeight, {
+              duration: MOBILE_OVERLAY_CLOSE_DURATION_MS,
+              easing: MOBILE_OVERLAY_CLOSE_EASING,
+            });
           }
           runOnJS(onClose)();
           return;
@@ -359,10 +375,7 @@ export function MessageImageLightbox({
 
     // Taps race the transforms: a tap only wins if nothing moved, and the
     // double tap gets first refusal on the tap pair.
-    return Gesture.Race(
-      Gesture.Exclusive(doubleTap, singleTap),
-      Gesture.Simultaneous(pinch, pan),
-    );
+    return Gesture.Race(Gesture.Exclusive(doubleTap, singleTap), Gesture.Simultaneous(pinch, pan));
   }, [
     contentHeight,
     contentWidth,
@@ -506,6 +519,18 @@ export function MessageImageLightbox({
           <Icon name="share-outline" size={20} tone="inverse" />
           <Text style={styles.shareLabel}>{copy.messageLightboxShareAction}</Text>
         </Pressable>
+        {onRemove === undefined || removeLabel === undefined ? null : (
+          <Pressable
+            accessibilityLabel={removeLabel}
+            accessibilityRole="button"
+            onPress={onRemove}
+            style={styles.shareAction}
+            testID="mobile-message-image-lightbox-remove"
+          >
+            <Icon name="trash-outline" size={20} tone="inverse" />
+            <Text style={styles.shareLabel}>{removeLabel}</Text>
+          </Pressable>
+        )}
       </Animated.View>
     </OverlaySurface>
   );
@@ -524,6 +549,9 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       paddingTop: theme.spacing.pageWide,
       position: "absolute",
       right: 0,
+      flexDirection: "row",
+      gap: theme.spacing.section,
+      justifyContent: "center",
     },
     chromeMeta: {
       flex: 1,

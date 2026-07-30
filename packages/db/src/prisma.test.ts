@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
+import { Prisma } from "./generated/prisma/client";
 import { readPrismaPoolOptions } from "./pool-options";
 
 const schema = readFileSync(
@@ -50,6 +51,27 @@ const healthMigrationPath = fileURLToPath(
 const healthMigration = existsSync(healthMigrationPath)
   ? readFileSync(healthMigrationPath, "utf8")
   : "";
+
+test("generated client exposes immutable mobile update publication records", () => {
+  assert.equal(Prisma.ModelName.OtaBundle, "OtaBundle");
+  assert.equal(Prisma.ModelName.ReleaseArtifact, "ReleaseArtifact");
+  const otaFields = Object.values(Prisma.OtaBundleScalarFieldEnum);
+  const artifactFields = Object.values(Prisma.ReleaseArtifactScalarFieldEnum);
+
+  assert.ok(otaFields.includes("releaseId"));
+  assert.ok(otaFields.includes("manifestSignature"));
+  assert.ok(otaFields.includes("noUpdateDirectiveSignature"));
+  assert.ok(otaFields.includes("rollbackDirectiveSignature"));
+  assert.ok(artifactFields.includes("releaseId"));
+  assert.ok(artifactFields.includes("channel"));
+  assert.ok(artifactFields.includes("versionCode"));
+  assert.ok(artifactFields.includes("sha256"));
+  assert.match(schema, /@@unique\(\[platform,\s*kind,\s*channel,\s*versionCode\]\)/u);
+  assert.equal(
+    otaFields.some((field) => /private.*key/iu.test(field)),
+    false,
+  );
+});
 
 test("client health, feature flags and push attempts land as additive tables", () => {
   for (const model of [

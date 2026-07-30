@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useQueryClient } from "@tanstack/react-query";
 import type {
   MobileAppUpdateResponse,
   MobileReleaseChannel,
@@ -23,9 +24,17 @@ import {
   isMobileReleaseNewer,
   resolveAboutUpdatePresentation,
 } from "../../about/mobile-about-model";
+import { saveMobileAppChannel } from "../../about/mobile-about-client";
+import {
+  openAboutBetaConsent,
+  type OpenAboutBetaConsent,
+} from "../../about/open-about-beta-consent";
 import {
   MOBILE_ABOUT_DEFAULT_PREFERENCES,
+  publishMobileAboutChannelPreference,
   readMobileAboutPreferences,
+  subscribeMobileAboutChannelPreference,
+  writeMobileAboutChannelPreference,
   writeMobileAboutPreference,
 } from "../../about/mobile-about-preferences";
 import {
@@ -33,7 +42,15 @@ import {
   useMobileAboutStatusQuery,
   useMobileAboutUpdateQuery,
 } from "../../about/mobile-about-queries";
-import { createExpoUpdateController } from "../../about/mobile-update-controller";
+import {
+  createExpoUpdateController,
+  type MobileUpdateController,
+  type MobileUpdateState,
+} from "../../about/mobile-update-controller";
+import {
+  readMobileUpdateRuntimeIdentity,
+  selectMobileUpdateController,
+} from "../../about/mobile-update-controller-factory";
 import { getMobileRuntimeConfig } from "../../config/environment";
 import { mobileAboutMetrics } from "../../design/tokens";
 import { MOBILE_OPEN_SOURCE_LICENSE_GROUPS } from "../../legal/mobile-open-source-license-manifest";
@@ -41,8 +58,8 @@ import { summarizeMobileOpenSourceLicenses } from "../../legal/mobile-open-sourc
 import { mobileCopy } from "../../locale/mobile-copy";
 import { formatMobileBytes } from "../../locale/mobile-number-format";
 import { mobileNavigationRef } from "../../navigation/mobile-navigation-ref";
+import { mobileQueryKeys } from "../../query/mobile-query-keys";
 import { useMobileAuth } from "../../auth/mobile-auth-context";
-import { BottomSheet } from "../components/kit/bottom-sheet";
 import { useToast } from "../components/kit/toast";
 import { useMobileBottomSystemSpacing } from "../use-mobile-bottom-system-spacing";
 import { useMobileHaptics } from "../providers/mobile-haptics-provider";
@@ -50,15 +67,17 @@ import { useMobileLocaleRuntime } from "../providers/mobile-locale-provider";
 import { useTheme } from "../providers/mobile-theme-provider";
 import { AboutIdentityCard } from "./about/about-identity-card";
 import { AboutChevronRightIcon, AboutClipboardIcon, AboutStarIcon } from "./about/about-icons";
+import { AboutRatingSheet } from "./about/about-rating-sheet";
 import {
   AboutCard,
-  AboutConsentSheetShell,
   AboutRow,
   AboutScreenHeader,
   AboutStickyHeader,
   AboutToggle,
 } from "./about/about-primitives";
 import { AboutSignatureBlock } from "./about/about-signature-block";
+import { AboutUpdateBanner } from "./about/about-update-banner";
+import { AboutUpdateSheet } from "./about/about-update-sheet";
 import { AboutWhatsNewCard } from "./about/about-whats-new-card";
 import { useMobileAboutSettingsStyles } from "./mobile-about-settings-screen.styles";
 
@@ -84,6 +103,12 @@ function navigateToCommunity(): void {
   }
 }
 
+function navigateToReleaseNote(version: string): void {
+  if (mobileNavigationRef.isReady()) {
+    mobileNavigationRef.navigate("AboutReleaseNote", { version });
+  }
+}
+
 function openMobilePerformanceDiagnostics(): void {
   if (mobileNavigationRef.isReady()) {
     mobileNavigationRef.navigate("PerformanceDiagnostics");
@@ -101,6 +126,10 @@ function normalizeInstalledVersion(value: string): string {
 
 function releaseChannelForApi(value: string): MobileReleaseChannel | undefined {
   return value === "stable" || value === "beta" || value === "uat" ? value : undefined;
+}
+
+function isBetaReleaseChannel(value: string): boolean {
+  return value === "beta" || value === "canary";
 }
 
 function formatChannelLabel(value: string, locale: "en" | "tr"): string {
@@ -252,6 +281,8 @@ export function MobileAboutSettingsScreen({
   releaseChannel,
   renderUpdateBanner,
   serviceOnline,
+  openBetaConsent: requestBetaConsent = openAboutBetaConsent,
+  updateController: providedUpdateController,
 }: {
   readonly appVersion: string;
   readonly buildId: string;
@@ -263,8 +294,12 @@ export function MobileAboutSettingsScreen({
   readonly releaseChannel: string;
   readonly renderUpdateBanner?: ReactNode;
   readonly serviceOnline: boolean;
+  readonly openBetaConsent?: OpenAboutBetaConsent;
+  /** Test/preview seam; product uses the expo-updates adapter. */
+  readonly updateController?: MobileUpdateController;
 }) {
   const auth = useMobileAuth();
+  const queryClient = useQueryClient();
   const theme = useTheme();
   const styles = useMobileAboutSettingsStyles();
   const { locale } = useMobileLocaleRuntime();
@@ -274,21 +309,66 @@ export function MobileAboutSettingsScreen({
   const bottomSpacing = useMobileBottomSystemSpacing(18);
   const reduceMotion = useReducedMotion() === true;
   const installedVersion = normalizeInstalledVersion(appVersion);
-  const updateController = useMemo(() => createExpoUpdateController(), []);
+  const runtimeConfig = getMobileRuntimeConfig();
+  const updatePlatform = Platform.OS === "android" ? "android" : "ios";
+  const updateRuntimeIdentity = useMemo(
+    () => readMobileUpdateRuntimeIdentity(updatePlatform),
+    [updatePlatform],
+  );
+  const otaUpdateController = useMemo(() => createExpoUpdateController(), []);
+  const updateQuery = useMobileAboutUpdateQuery(auth.apiClient, {
+    buildEnvironment: runtimeConfig.environment,
+    channel: releaseChannelForApi(releaseChannel),
+    installed: installedVersion,
+    platform: updatePlatform,
+    runtimeVersion: updateRuntimeIdentity.runtimeVersion,
+    versionCode: updateRuntimeIdentity.versionCode,
+  });
+  const updateController = useMemo(() => {
+    if (providedUpdateController) {
+      return providedUpdateController;
+    }
+    if (!updateQuery.data) {
+      return otaUpdateController;
+    }
+    return selectMobileUpdateController({
+      buildEnvironment: runtimeConfig.environment,
+      currentVersionCode: updateRuntimeIdentity.versionCode ?? 0,
+      decision: updateQuery.data,
+      otaController: otaUpdateController,
+      platform: updatePlatform,
+    }).controller;
+  }, [
+    otaUpdateController,
+    providedUpdateController,
+    runtimeConfig.environment,
+    updatePlatform,
+    updateQuery.data,
+    updateRuntimeIdentity.versionCode,
+  ]);
   const updateSnapshot = useSyncExternalStore(
     updateController.subscribe,
     updateController.getSnapshot,
     updateController.getSnapshot,
   );
-  const updateQuery = useMobileAboutUpdateQuery(auth.apiClient, {
-    channel: releaseChannelForApi(releaseChannel),
-    installed: installedVersion,
-  });
   const releaseQuery = useMobileAboutReleaseQuery(auth.apiClient, installedVersion);
+  const latestVersion = updateQuery.data?.latest?.version ?? "";
+  const latestReleaseQuery = useMobileAboutReleaseQuery(
+    auth.apiClient,
+    latestVersion,
+    latestVersion.length > 0 && latestVersion !== installedVersion,
+  );
   const statusQuery = useMobileAboutStatusQuery(auth.apiClient);
   const [preferences, setPreferences] = useState(MOBILE_ABOUT_DEFAULT_PREFERENCES);
-  const [isBetaSheetOpen, setIsBetaSheetOpen] = useState(false);
+  const [preferencesLoaded, setPreferencesLoaded] = useState(false);
+  const [isBetaChannelSaving, setIsBetaChannelSaving] = useState(false);
+  // Automatic 2h activation point, intentionally disabled by product scope.
+  // When enabled, derive firstSessionAt, newest readMobileFaultLog() timestamp
+  // and open BUG feedback state, then gate this setter with
+  // shouldAutoTriggerMobileRating(...). Manual opening below remains active.
   const [isRatingSheetOpen, setIsRatingSheetOpen] = useState(false);
+  const [isUpdateSheetOpen, setIsUpdateSheetOpen] = useState(false);
+  const [updateRunsInBackground, setUpdateRunsInBackground] = useState(false);
   const [stickyVisible, setStickyVisible] = useState(false);
   const scrollY = useSharedValue(0);
 
@@ -297,12 +377,32 @@ export function MobileAboutSettingsScreen({
     void readMobileAboutPreferences(AsyncStorage).then((value) => {
       if (active) {
         setPreferences(value);
+        setPreferencesLoaded(true);
       }
     });
     return () => {
       active = false;
     };
   }, []);
+
+  useEffect(
+    () =>
+      subscribeMobileAboutChannelPreference((channel) => {
+        setPreferences((current) => ({ ...current, channel }));
+      }),
+    [],
+  );
+
+  useEffect(() => {
+    if (!updateRunsInBackground || updateSnapshot.state !== "ready") {
+      return;
+    }
+
+    // The current notifications layer registers remote push and permissions
+    // but has no local-scheduling contract. Toast is the documented fallback.
+    showToast({ title: copy.updateReadyNotification, variant: "success" });
+    setUpdateRunsInBackground(false);
+  }, [copy.updateReadyNotification, showToast, updateRunsInBackground, updateSnapshot.state]);
 
   const onScroll = useAnimatedScrollHandler({
     onScroll: (event) => {
@@ -329,6 +429,7 @@ export function MobileAboutSettingsScreen({
           lastCheckedAt: new Date().toISOString(),
           otaEnabled: updateController.capabilities.isEnabled,
           state: "checking",
+          updateKind: updateQuery.data?.updateKind ?? "none",
         }
       : (updateQuery.data ?? null);
   const updatePresentation = resolveAboutUpdatePresentation(controllerUpdate, copy, {
@@ -337,8 +438,20 @@ export function MobileAboutSettingsScreen({
     online: serviceOnline,
     otaEnabled: updateController.capabilities.isEnabled && updateQuery.data?.otaEnabled !== false,
   });
-  const updateActionVisible =
-    updateController.capabilities.isEnabled && updateQuery.data?.otaEnabled !== false;
+  const latest = updateQuery.data?.latest;
+  const bannerState: MobileUpdateState =
+    updateSnapshot.state === "current"
+      ? (updateQuery.data?.state ?? "current")
+      : updateSnapshot.state;
+  const updateSheetLatest =
+    latest ??
+    (updateSnapshot.rollbackToEmbedded === true
+      ? {
+          mandatory: true,
+          releasedAt: new Date().toISOString(),
+          version: installedVersion,
+        }
+      : null);
   const release = releaseQuery.data;
   const releasedAt = release?.releasedAt;
   const buildNumber =
@@ -354,7 +467,8 @@ export function MobileAboutSettingsScreen({
     releasedAt && !Number.isNaN(Date.parse(releasedAt))
       ? String(new Date(releasedAt).getFullYear())
       : String(new Date().getFullYear());
-  const channelLabel = formatChannelLabel(releaseChannel, locale);
+  const channelLabel = formatChannelLabel(preferences.channel ?? releaseChannel, locale);
+  const betaProgramEnabled = isBetaReleaseChannel(preferences.channel ?? releaseChannel);
   const codename = release?.codename ? `“${release.codename}”` : "—";
   const statusLevel: MobileServiceStatusLevel =
     statusQuery.data?.level ?? (serviceOnline ? "ok" : "down");
@@ -388,12 +502,43 @@ export function MobileAboutSettingsScreen({
       return;
     }
     if (updatePresentation.actionKind === "update") {
+      setUpdateRunsInBackground(false);
+      setIsUpdateSheetOpen(true);
       await updateController.download();
       return;
     }
-    await updateController.check();
+    const state = await updateController.check();
     await updateQuery.refetch();
+    if (state === "ready" && updateController.getSnapshot().rollbackToEmbedded === true) {
+      setIsUpdateSheetOpen(true);
+    }
   };
+
+  const skipUpdateVersion = async (version: string): Promise<boolean> => {
+    try {
+      await writeMobileAboutPreference(AsyncStorage, "skippedVersion", version);
+      setPreferences((current) => ({ ...current, skippedVersion: version }));
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const internalUpdateBanner =
+    latest && preferencesLoaded ? (
+      <AboutUpdateBanner
+        copy={copy}
+        dateLabel={formatReleaseDate(latest.releasedAt, locale, true)}
+        formatSize={(bytes) => formatMobileBytes(bytes, locale)}
+        latest={latest}
+        onOpenReleaseNote={navigateToReleaseNote}
+        onRequestUpdate={() => void handleUpdateAction()}
+        onSkipVersion={skipUpdateVersion}
+        release={latestReleaseQuery.data ?? null}
+        skippedVersion={preferences.skippedVersion}
+        state={bannerState}
+      />
+    ) : null;
 
   const setAutoUpdate = async (next: boolean) => {
     const previous = preferences.autoUpdate;
@@ -402,6 +547,54 @@ export function MobileAboutSettingsScreen({
       await writeMobileAboutPreference(AsyncStorage, "autoUpdate", next);
     } catch {
       setPreferences((current) => ({ ...current, autoUpdate: previous }));
+    }
+  };
+
+  const setBetaProgram = async (next: boolean) => {
+    if (isBetaChannelSaving || next === betaProgramEnabled) {
+      return;
+    }
+
+    setIsBetaChannelSaving(true);
+    try {
+      if (next && !(await requestBetaConsent())) {
+        return;
+      }
+
+      const response = await saveMobileAppChannel(auth.apiClient, {
+        channel: next ? "beta" : "stable",
+      });
+      setPreferences((current) => ({
+        ...current,
+        betaConsentAt: next ? (current.betaConsentAt ?? new Date().toISOString()) : null,
+        channel: response.channel,
+      }));
+      try {
+        await writeMobileAboutChannelPreference(AsyncStorage, response.channel);
+      } catch {
+        publishMobileAboutChannelPreference(response.channel);
+        await queryClient.invalidateQueries({
+          queryKey: mobileQueryKeys.aboutRoot(),
+          refetchType: "none",
+        });
+        showToast({ title: copy.channelPersistenceFailed, variant: "error" });
+        return;
+      }
+      await queryClient.invalidateQueries({
+        queryKey: mobileQueryKeys.aboutRoot(),
+        refetchType: "none",
+      });
+      showToast({
+        title:
+          response.effectiveFrom === "next-build"
+            ? copy.channelEffectsNextBuild
+            : copy.channelEffectiveImmediate,
+        variant: "success",
+      });
+    } catch {
+      showToast({ title: copy.channelSaveFailed, variant: "error" });
+    } finally {
+      setIsBetaChannelSaving(false);
     }
   };
 
@@ -438,9 +631,9 @@ export function MobileAboutSettingsScreen({
           copyAccessibilityLabel={copy.aboutCopyDiagnostics}
           onCopyDiagnostics={() => void copyDiagnostics()}
           onUpdateAction={() => void handleUpdateAction()}
-          renderUpdateBanner={renderUpdateBanner}
+          renderUpdateBanner={renderUpdateBanner ?? internalUpdateBanner}
           update={updatePresentation}
-          updateActionVisible={updateActionVisible}
+          updateAccessibilityLabel={copy.aboutSettingsCheckUpdates}
           version={installedVersion}
         />
 
@@ -474,11 +667,10 @@ export function MobileAboutSettingsScreen({
             trailing={
               <AboutToggle
                 accessibilityLabel={copy.aboutAppBeta}
-                onValueChange={(next) => {
-                  if (next) setIsBetaSheetOpen(true);
-                }}
+                disabled={isBetaChannelSaving}
+                onValueChange={(next) => void setBetaProgram(next)}
                 testID="mobile-about-beta-toggle"
-                value={preferences.betaConsentAt !== null}
+                value={betaProgramEnabled}
               />
             }
           />
@@ -571,7 +763,7 @@ export function MobileAboutSettingsScreen({
             )}
           />
           {/* User override: this existing non-production instrument remains after redesign. */}
-          {getMobileRuntimeConfig().environment === "production" ? null : (
+          {runtimeConfig.environment === "production" ? null : (
             <AboutRow
               onPress={openMobilePerformanceDiagnostics}
               paddingVertical={11}
@@ -595,39 +787,28 @@ export function MobileAboutSettingsScreen({
         visible={stickyVisible}
       />
 
-      <BottomSheet
-        accessibilityLabel={copy.aboutAppBeta}
-        onClose={() => setIsBetaSheetOpen(false)}
-        open={isBetaSheetOpen}
-        sizing="content"
-        testID="mobile-about-beta-consent"
-      >
-        <AboutConsentSheetShell>
-          <Text maxFontSizeMultiplier={2} style={styles.sheetTitle}>
-            {copy.aboutAppBeta}
-          </Text>
-          <Text maxFontSizeMultiplier={2} style={styles.sheetBody}>
-            {copy.aboutAppBetaSub}
-          </Text>
-        </AboutConsentSheetShell>
-      </BottomSheet>
+      {updateSheetLatest ? (
+        <AboutUpdateSheet
+          controller={updateController}
+          copy={copy}
+          formatEta={(seconds) => (locale === "tr" ? `${seconds} sn` : `${seconds} sec`)}
+          formatPercent={(percent) =>
+            locale === "tr" ? `%${Math.round(percent)}` : `${Math.round(percent)}%`
+          }
+          formatSize={(bytes) => formatMobileBytes(bytes, locale)}
+          latest={updateSheetLatest}
+          onClose={() => setIsUpdateSheetOpen(false)}
+          onReadyInBackground={() => setUpdateRunsInBackground(true)}
+          open={isUpdateSheetOpen}
+        />
+      ) : null}
 
-      <BottomSheet
-        accessibilityLabel={copy.aboutCommunityRate}
+      <AboutRatingSheet
+        apiClient={auth.apiClient}
+        appVersion={installedVersion}
         onClose={() => setIsRatingSheetOpen(false)}
         open={isRatingSheetOpen}
-        sizing="content"
-        testID="mobile-about-rating"
-      >
-        <AboutConsentSheetShell>
-          <Text maxFontSizeMultiplier={2} style={styles.sheetTitle}>
-            {copy.aboutCommunityRate}
-          </Text>
-          <Text maxFontSizeMultiplier={2} style={styles.sheetBody}>
-            {copy.aboutCommunityRateSub}
-          </Text>
-        </AboutConsentSheetShell>
-      </BottomSheet>
+      />
     </View>
   );
 }

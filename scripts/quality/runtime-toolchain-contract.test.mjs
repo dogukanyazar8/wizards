@@ -197,7 +197,7 @@ test("all GitHub Actions pnpm jobs consume packageManager as their version sourc
     }
   }
 
-  assert.equal(setupPnpmSteps, 13, "unexpected pnpm/action-setup step count");
+  assert.equal(setupPnpmSteps, 16, "unexpected pnpm/action-setup step count");
 });
 
 test("CI pins supported Node 24 action runtimes to reviewed releases", () => {
@@ -383,5 +383,5 @@ test("all GitHub Actions jobs consume the central Node runtime contract", () => 
     setupNodeSteps += setupNodeCount;
   }
 
-  assert.equal(setupNodeSteps, 13, "unexpected setup-node step count");
+  assert.equal(setupNodeSteps, 16, "unexpected setup-node step count");
 });

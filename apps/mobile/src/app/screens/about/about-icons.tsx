@@ -68,11 +68,34 @@ export function AboutSparkIcon({ color, size, strokeWidth = 2.1, testID }: About
   );
 }
 
+/** 2a's second NEW item: the live voice-message waveform from HTML line 75. */
+export function AboutWaveformIcon({ color, size, strokeWidth = 2, testID }: AboutStrokeIconProps) {
+  return (
+    <AboutIconCanvas size={size} testID={testID}>
+      <Path d="M12 4v16M7 8v8M17 8v8M3 11v2M21 11v2" {...strokeProps(color, strokeWidth)} />
+    </AboutIconCanvas>
+  );
+}
+
 /** Change type "improved" (§3.1). */
 export function AboutArrowUpIcon({ color, size, strokeWidth = 2.1, testID }: AboutStrokeIconProps) {
   return (
     <AboutIconCanvas size={size} testID={testID}>
       <Path d="M12 19V5.5M12 5.5L6.5 11M12 5.5L17.5 11" {...strokeProps(color, strokeWidth)} />
+    </AboutIconCanvas>
+  );
+}
+
+/** 2b's pagination affordance; the handoff uses a down arrow, not a chevron. */
+export function AboutArrowDownIcon({
+  color,
+  size,
+  strokeWidth = 2.3,
+  testID,
+}: AboutStrokeIconProps) {
+  return (
+    <AboutIconCanvas size={size} testID={testID}>
+      <Path d="M12 5v14M5.5 12.5L12 19l6.5-6.5" {...strokeProps(color, strokeWidth)} />
     </AboutIconCanvas>
   );
 }
@@ -94,6 +117,21 @@ export function AboutShieldIcon({ color, size, strokeWidth = 2, testID }: AboutS
   return (
     <AboutIconCanvas size={size} testID={testID}>
       <Path d="M12 3.5l7 3v6c0 4-3 7-7 8-4-1-7-4-7-8v-6z" {...strokeProps(color, strokeWidth)} />
+    </AboutIconCanvas>
+  );
+}
+
+/** 2d's safety row: the shield and its confirmation tick are one glyph. */
+export function AboutShieldCheckIcon({
+  color,
+  size,
+  strokeWidth = 2.1,
+  testID,
+}: AboutStrokeIconProps) {
+  return (
+    <AboutIconCanvas size={size} testID={testID}>
+      <Path d="M12 3.5l7 3v6c0 4-3 7-7 8-4-1-7-4-7-8v-6z" {...strokeProps(color, strokeWidth)} />
+      <Path d="M9 12l2 2 4-4" {...strokeProps(color, strokeWidth)} />
     </AboutIconCanvas>
   );
 }
@@ -138,27 +176,78 @@ export function AboutSearchIcon({ color, size, strokeWidth = 2.1, testID }: Abou
   );
 }
 
-/** 1c's "Bildir" header action: filled while enabled, crossed while disabled. */
-export function AboutBellIcon({
+/** 2e account-and-security category tile. */
+export function AboutPersonIcon({ color, size, strokeWidth = 2, testID }: AboutStrokeIconProps) {
+  return (
+    <AboutIconCanvas size={size} testID={testID}>
+      <Circle cx={12} cy={8.5} r={3.5} {...strokeProps(color, strokeWidth)} />
+      <Path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6" {...strokeProps(color, strokeWidth)} />
+    </AboutIconCanvas>
+  );
+}
+
+/** 2e chat-and-channels category tile. */
+export function AboutChatBubbleIcon({
   color,
-  crossedOut = false,
-  filled = false,
   size,
   strokeWidth = 2,
   testID,
-}: AboutStrokeIconProps & {
-  readonly crossedOut?: boolean;
-  readonly filled?: boolean;
-}) {
+}: AboutStrokeIconProps) {
+  return (
+    <AboutIconCanvas size={size} testID={testID}>
+      <Path
+        d="M20 12.5c0 3.9-3.6 7-8 7-1 0-2-.2-2.9-.5L5 20.5l1.2-3.4A6.8 6.8 0 0 1 4 12.5c0-3.9 3.6-7 8-7s8 3.1 8 7z"
+        {...strokeProps(color, strokeWidth)}
+      />
+    </AboutIconCanvas>
+  );
+}
+
+/** 2e voice-and-video category tile. */
+export function AboutVideoCameraIcon({
+  color,
+  size,
+  strokeWidth = 2,
+  testID,
+}: AboutStrokeIconProps) {
+  return (
+    <AboutIconCanvas size={size} testID={testID}>
+      <Rect height={10} rx={2.5} width={12} x={3} y={7} {...strokeProps(color, strokeWidth)} />
+      <Path d="M15 11l6-3.5v9L15 13z" {...strokeProps(color, strokeWidth)} />
+    </AboutIconCanvas>
+  );
+}
+
+/** 2e server-management category tile. */
+export function AboutServerListIcon({
+  color,
+  size,
+  strokeWidth = 2,
+  testID,
+}: AboutStrokeIconProps) {
+  return (
+    <AboutIconCanvas size={size} testID={testID}>
+      <Rect height={15} rx={4} width={16} x={4} y={4.5} {...strokeProps(color, strokeWidth)} />
+      <Path d="M8 9.5h8M8 14.5h5" {...strokeProps(color, strokeWidth)} />
+    </AboutIconCanvas>
+  );
+}
+
+/** 1c's "Bildir" header action, copied from the handoff's fixed outline glyph. */
+export function AboutBellIcon({ color, size, strokeWidth = 2, testID }: AboutStrokeIconProps) {
   return (
     <AboutIconCanvas size={size} testID={testID}>
       <Path
         d="M6 9.5a6 6 0 0 1 12 0c0 4 1.5 5.5 1.5 5.5h-15S6 13.5 6 9.5z"
-        fill={filled ? color : "none"}
+        fill="none"
         {...strokeProps(color, strokeWidth)}
+        {...(testID === undefined ? {} : { testID: `${testID}-body` })}
       />
-      <Path d="M10.5 18.5a1.8 1.8 0 0 0 3 0" {...strokeProps(color, strokeWidth)} />
-      {crossedOut ? <Path d="M4.5 4.5l15 15" {...strokeProps(color, strokeWidth)} /> : null}
+      <Path
+        d="M10.5 18.5a1.8 1.8 0 0 0 3 0"
+        {...strokeProps(color, strokeWidth)}
+        {...(testID === undefined ? {} : { testID: `${testID}-clapper` })}
+      />
     </AboutIconCanvas>
   );
 }
@@ -281,9 +370,19 @@ export function AboutStarIcon({
   return (
     <AboutIconCanvas size={size} testID={testID}>
       {filled ? (
-        <Path d={STAR_PATH} fill={color} />
+        <Path
+          d={STAR_PATH}
+          fill={color}
+          {...(testID === undefined ? {} : { testID: `${testID}-path` })}
+        />
       ) : (
-        <Path d={STAR_PATH} stroke={color} strokeWidth={strokeWidth} />
+        <Path
+          d={STAR_PATH}
+          fill="none"
+          stroke={color}
+          strokeWidth={strokeWidth}
+          {...(testID === undefined ? {} : { testID: `${testID}-path` })}
+        />
       )}
     </AboutIconCanvas>
   );
@@ -330,7 +429,11 @@ export function AboutCloseIcon({ color, size, strokeWidth = 2.1, testID }: About
 export function AboutCheckIcon({ color, size, strokeWidth = 2.4, testID }: AboutStrokeIconProps) {
   return (
     <AboutIconCanvas size={size} testID={testID}>
-      <Path d="M5 12.5l4.5 4.5L19 7.5" {...strokeProps(color, strokeWidth)} />
+      <Path
+        d="M5 12.5l4.5 4.5L19 7.5"
+        {...strokeProps(color, strokeWidth)}
+        {...(testID === undefined ? {} : { testID: `${testID}-path` })}
+      />
     </AboutIconCanvas>
   );
 }

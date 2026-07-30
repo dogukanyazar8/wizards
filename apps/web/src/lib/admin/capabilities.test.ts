@@ -53,6 +53,19 @@ describe("admin capability map", () => {
     assert.deepEqual(ADMIN_CAPABILITIES["feedback.write"], ["OWNER", "ADMIN", "SUPPORT"]);
   });
 
+  it("maps content-management capabilities to the prompt 14 role matrix", () => {
+    assert.deepEqual(ADMIN_CAPABILITIES["release.read"], [
+      "OWNER",
+      "ADMIN",
+      "SUPPORT",
+      "ANALYST",
+      "MODERATOR",
+    ]);
+    assert.deepEqual(ADMIN_CAPABILITIES["release.write"], ["OWNER", "ADMIN"]);
+    assert.deepEqual(ADMIN_CAPABILITIES["help.write"], ["OWNER", "ADMIN"]);
+    assert.deepEqual(ADMIN_CAPABILITIES["support.read"], ["OWNER", "ADMIN", "SUPPORT"]);
+  });
+
   it("routes every capability through requireAdminUser instead of re-implementing role checks", () => {
     const source = readFileSync(new URL("./capabilities.ts", import.meta.url), "utf8");
 

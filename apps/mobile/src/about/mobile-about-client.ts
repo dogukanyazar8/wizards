@@ -11,11 +11,13 @@ import {
   type MobileAppChannelRequest,
   type MobileAppChannelResponse,
   type MobileAppUpdateResponse,
+  type MobileBuildEnvironment,
   type MobileBugReportRequest,
   type MobileBugReportResponse,
   type MobileHelpArticleListResponse,
   type MobileHelpCategory,
   type MobileReleaseChannel,
+  type MobileUpdatePlatform,
   type MobileReleaseDetail,
   type MobileReleaseListResponse,
   type MobileServiceStatusResponse,
@@ -58,14 +60,22 @@ export function buildMobileReleaseDetailPath(version: string): string {
 }
 
 export interface MobileAppUpdateParams {
+  readonly buildEnvironment?: MobileBuildEnvironment | undefined;
   readonly channel?: MobileReleaseChannel | undefined;
   readonly installed?: string | undefined;
+  readonly platform?: MobileUpdatePlatform | undefined;
+  readonly runtimeVersion?: string | undefined;
+  readonly versionCode?: number | undefined;
 }
 
 export function buildMobileAppUpdatePath(params: MobileAppUpdateParams = {}): string {
   return withQuery(`${ABOUT_API_ROOT}/app/update`, {
+    buildEnvironment: params.buildEnvironment,
     channel: params.channel,
     installed: params.installed,
+    platform: params.platform,
+    runtimeVersion: params.runtimeVersion,
+    versionCode: params.versionCode,
   });
 }
 

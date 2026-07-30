@@ -29,6 +29,7 @@ export interface MobileUpdateSnapshot {
   readonly error: MobileUpdateErrorKind | null;
   readonly latestVersion: string | null;
   readonly progress: MobileUpdateProgress | null;
+  readonly rollbackToEmbedded?: boolean;
   readonly state: MobileUpdateState;
 }
 
@@ -42,6 +43,10 @@ export interface MobileUpdateController {
   check(): Promise<MobileUpdateState>;
   download(): Promise<void>;
   install(): Promise<void>;
+  /** Present only on adapters whose `canPause` capability is true. */
+  pause?(): Promise<void>;
+  /** Present only on adapters whose `canPause` capability is true. */
+  resume?(): Promise<void>;
   subscribe(listener: (snapshot: MobileUpdateSnapshot) => void): () => void;
   getSnapshot(): MobileUpdateSnapshot;
 }
@@ -62,7 +67,10 @@ const IDLE_SNAPSHOT: MobileUpdateSnapshot = Object.freeze({
 });
 
 export interface MobileUpdateControllerDependencies {
-  readonly checkForUpdateAsync: () => Promise<{ readonly isAvailable: boolean }>;
+  readonly checkForUpdateAsync: () => Promise<{
+    readonly isAvailable: boolean;
+    readonly isRollBackToEmbedded?: boolean;
+  }>;
   readonly fetchUpdateAsync: () => Promise<{ readonly isNew: boolean }>;
   readonly getNetwork: () => MobileUpdateProgress["network"];
   readonly isEnabled: boolean;
@@ -94,7 +102,10 @@ function getExpoUpdatesModule(): typeof import("expo-updates") | null {
 const expoDependencies: MobileUpdateControllerDependencies = {
   checkForUpdateAsync: async () => {
     const result = await getExpoUpdatesModule()?.checkForUpdateAsync();
-    return { isAvailable: result?.isAvailable === true };
+    return {
+      isAvailable: result?.isAvailable === true,
+      isRollBackToEmbedded: result?.isRollBackToEmbedded === true,
+    };
   },
   fetchUpdateAsync: async () => {
     const result = await getExpoUpdatesModule()?.fetchUpdateAsync();
@@ -123,7 +134,6 @@ const expoDependencies: MobileUpdateControllerDependencies = {
  * this module made up — a fake percentage that jumps to 100% is worse than no
  * percentage at all.
  */
-/** `app.config.js` still carries no `updates` key, so this reads false today. */
 function readExpoUpdatesEnabled(): boolean {
   return getExpoUpdatesModule()?.isEnabled === true;
 }
@@ -179,7 +189,7 @@ export function createExpoUpdateController(
       }
 
       checkGeneration += 1;
-      emit({ error: null, progress: null, state: "current" });
+      emit({ error: null, progress: null, rollbackToEmbedded: false, state: "current" });
     },
 
     getSnapshot: () => snapshot,
@@ -191,13 +201,16 @@ export function createExpoUpdateController(
 
       const startedAt = deps.now();
       const generation = ++checkGeneration;
-      emit({ error: null, state: "checking" });
+      emit({ error: null, rollbackToEmbedded: false, state: "checking" });
 
       let isAvailable = false;
+      let isRollBackToEmbedded = false;
       let failed = false;
 
       try {
-        isAvailable = (await deps.checkForUpdateAsync()).isAvailable;
+        const result = await deps.checkForUpdateAsync();
+        isAvailable = result.isAvailable;
+        isRollBackToEmbedded = result.isRollBackToEmbedded === true;
       } catch {
         failed = true;
       }
@@ -220,22 +233,44 @@ export function createExpoUpdateController(
       const checkedAt = new Date(deps.now()).toISOString();
 
       if (failed) {
-        emit({ checkedAt, error: "check-failed", state: "failed" });
+        emit({
+          checkedAt,
+          error: "check-failed",
+          rollbackToEmbedded: false,
+          state: "failed",
+        });
         return "failed";
       }
 
-      const state: MobileUpdateState = isAvailable ? "available" : "current";
-      emit({ checkedAt, error: null, progress: null, state });
+      const state: MobileUpdateState = isRollBackToEmbedded
+        ? "ready"
+        : isAvailable
+          ? "available"
+          : "current";
+      emit({
+        checkedAt,
+        error: null,
+        progress: null,
+        rollbackToEmbedded: isRollBackToEmbedded,
+        state,
+      });
       return state;
     },
 
     async download() {
       if (!deps.isEnabled) {
-        disable();
+        // A check can be "disabled", but a user-requested download is a failed
+        // action. It remains non-throwing so the sheet can explain the reason.
+        emit({ error: "disabled", progress: null, state: "failed" });
         return;
       }
 
-      emit({ error: null, progress: progressFor("download"), state: "downloading" });
+      emit({
+        error: null,
+        progress: progressFor("download"),
+        rollbackToEmbedded: false,
+        state: "downloading",
+      });
 
       try {
         await deps.fetchUpdateAsync();
@@ -244,11 +279,10 @@ export function createExpoUpdateController(
         return;
       }
 
-      // expo-updates verifies the signature inside `fetchUpdateAsync`; the step
-      // is reported so 1d's three-row list matches what actually happened,
-      // still without a percentage.
-      emit({ progress: progressFor("verify") });
-      emit({ error: null, progress: null, state: "ready" });
+      // expo-updates performs any signature work inside `fetchUpdateAsync` but
+      // exposes no distinct verification progress. Reporting a `verify` step
+      // here would therefore be invented; 1d keeps that row pending.
+      emit({ error: null, progress: null, rollbackToEmbedded: false, state: "ready" });
     },
 
     async install() {

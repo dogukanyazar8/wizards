@@ -4,6 +4,7 @@ export type MobileEnvironmentName = (typeof MOBILE_ENVIRONMENTS)[number];
 
 export type MobileEnvironmentConfig = {
   apiUrl: string;
+  communityInviteSlug: string;
   environment: MobileEnvironmentName;
   /** Google *web* client id used as `serverClientId`; null disables native sign-in. */
   googleWebClientId: string | null;
@@ -16,6 +17,7 @@ export type MobileEnvironmentConfig = {
 type BuildMobileEnvironmentConfigInput = {
   mobileEnvironment?: string;
   publicApiUrl?: string;
+  publicCommunityInviteSlug?: string;
   publicGoogleWebClientId?: string;
   publicSentryDsn?: string;
   publicSocketUrl?: string;
@@ -48,6 +50,8 @@ const DEFAULT_PUBLIC_ENV: Record<
   },
 };
 
+export const DEFAULT_MOBILE_COMMUNITY_INVITE_SLUG = "whispr-community";
+
 export function getDefaultMobilePublicEnv(environment: MobileEnvironmentName) {
   return DEFAULT_PUBLIC_ENV[environment];
 }
@@ -74,6 +78,16 @@ function normalizeUrl(value: string | undefined, fieldName: string): string {
   } catch {
     throw new Error(`${fieldName} must be a valid absolute URL.`);
   }
+}
+
+function normalizeCommunityInviteSlug(value: string | undefined): string {
+  const slug = value?.trim() || DEFAULT_MOBILE_COMMUNITY_INVITE_SLUG;
+  if (!/^[A-Za-z0-9_-]{1,96}$/.test(slug)) {
+    throw new Error(
+      "EXPO_PUBLIC_WHISPR_COMMUNITY_INVITE_SLUG must contain only letters, numbers, '-' or '_'.",
+    );
+  }
+  return slug;
 }
 
 function isLocalOrInvalidUrl(value: string): boolean {
@@ -123,6 +137,7 @@ export function buildMobileEnvironmentConfig(
 
   return {
     apiUrl,
+    communityInviteSlug: normalizeCommunityInviteSlug(input.publicCommunityInviteSlug),
     environment,
     googleWebClientId: normalizeGoogleWebClientId(input.publicGoogleWebClientId),
     releaseChannel: environment,
@@ -151,6 +166,7 @@ export function getMobileRuntimeConfig(): MobileEnvironmentConfig {
   return buildMobileEnvironmentConfig({
     mobileEnvironment: process.env.EXPO_PUBLIC_WHISPR_MOBILE_ENV ?? process.env.WHISPR_MOBILE_ENV,
     publicApiUrl: process.env.EXPO_PUBLIC_WHISPR_API_URL,
+    publicCommunityInviteSlug: process.env.EXPO_PUBLIC_WHISPR_COMMUNITY_INVITE_SLUG,
     publicGoogleWebClientId: process.env.EXPO_PUBLIC_WHISPR_GOOGLE_WEB_CLIENT_ID,
     publicSentryDsn: process.env.EXPO_PUBLIC_WHISPR_SENTRY_DSN,
     publicSocketUrl: process.env.EXPO_PUBLIC_WHISPR_SOCKET_URL,

@@ -55,95 +55,12 @@ function AboutRouteShell({
 }
 
 export { MobileAboutWhatsNewScreen } from "./about-whats-new-screen";
-
-export function MobileAboutReleaseNoteScreen({
-  onBack,
-}: {
-  readonly onBack: () => void;
-  /** Carried by the route; 06 reads it to fetch the note. */
-  readonly version: string;
-}) {
-  const { locale } = useMobileLocaleRuntime();
-
-  return (
-    <AboutRouteShell
-      onBack={onBack}
-      testID="mobile-about-release-note-screen"
-      title={mobileCopy[locale].releaseNoteTitle}
-    />
-  );
-}
-
-export function MobileAboutReleaseHistoryScreen({ onBack }: { readonly onBack: () => void }) {
-  const { locale } = useMobileLocaleRuntime();
-
-  return (
-    <AboutRouteShell
-      onBack={onBack}
-      testID="mobile-about-release-history-screen"
-      title={mobileCopy[locale].historyTitle}
-    />
-  );
-}
-
-export function MobileAboutUpdateChannelScreen({ onBack }: { readonly onBack: () => void }) {
-  const { locale } = useMobileLocaleRuntime();
-
-  return (
-    <AboutRouteShell
-      onBack={onBack}
-      testID="mobile-about-update-channel-screen"
-      title={mobileCopy[locale].channelTitle}
-    />
-  );
-}
-
-export function MobileHelpCenterScreen({ onBack }: { readonly onBack: () => void }) {
-  const { locale } = useMobileLocaleRuntime();
-
-  return (
-    <AboutRouteShell
-      onBack={onBack}
-      testID="mobile-help-center-screen"
-      title={mobileCopy[locale].helpTitle}
-    />
-  );
-}
-
-export function MobileBugReportScreen({
-  onBack,
-}: {
-  /** Preselected by 2e's "Bunu bulamadık" row; 11 reads it. */
-  readonly category?: string | undefined;
-  readonly onBack: () => void;
-}) {
-  const { locale } = useMobileLocaleRuntime();
-
-  return (
-    <AboutRouteShell
-      onBack={onBack}
-      testID="mobile-bug-report-screen"
-      title={mobileCopy[locale].reportTitle}
-      // §3.11: a form closes, it does not go back.
-      variant="close"
-    />
-  );
-}
-
-export function MobileCommunityInviteScreen({
-  onBack,
-}: {
-  readonly onBack: () => void;
-  /** The invite slug the link carried; 12 resolves it. */
-  readonly slug?: string | undefined;
-}) {
-  const { locale } = useMobileLocaleRuntime();
-
-  return (
-    <AboutRouteShell
-      onBack={onBack}
-      testID="mobile-community-invite-screen"
-      title={mobileCopy[locale].communityTitle}
-    />
-  );
-}
+export { MobileAboutReleaseHistoryScreen } from "./about-release-history-screen";
+export { MobileAboutReleaseNoteScreen } from "./about-release-note-screen";
+export {
+  MobileAboutUpdateChannelScreen,
+  resolveAboutRuntimeReleaseChannel,
+} from "./about-channel-screen";
+export { MobileHelpCenterScreen } from "./about-help-center-screen";
+export { MobileBugReportScreen } from "./about-bug-report-screen";
+export { MobileCommunityInviteScreen } from "./about-community-invite-screen";

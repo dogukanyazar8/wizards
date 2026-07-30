@@ -25,6 +25,36 @@ describe("mobile environment contract", () => {
     assert.equal(config.releaseChannel, "development");
   });
 
+  it("defaults and validates the community invite slug", () => {
+    const defaults = buildMobileEnvironmentConfig({
+      mobileEnvironment: "development",
+      publicApiUrl: "http://localhost:3000",
+      publicSocketUrl: "http://localhost:3000",
+      publicWebUrl: "http://localhost:3000",
+    });
+    const configured = buildMobileEnvironmentConfig({
+      mobileEnvironment: "development",
+      publicApiUrl: "http://localhost:3000",
+      publicCommunityInviteSlug: " community_uat ",
+      publicSocketUrl: "http://localhost:3000",
+      publicWebUrl: "http://localhost:3000",
+    });
+
+    assert.equal(defaults.communityInviteSlug, "whispr-community");
+    assert.equal(configured.communityInviteSlug, "community_uat");
+    assert.throws(
+      () =>
+        buildMobileEnvironmentConfig({
+          mobileEnvironment: "development",
+          publicApiUrl: "http://localhost:3000",
+          publicCommunityInviteSlug: "../admin",
+          publicSocketUrl: "http://localhost:3000",
+          publicWebUrl: "http://localhost:3000",
+        }),
+      /must contain only letters/,
+    );
+  });
+
   it("arms the native Google sheet only for a real Google client id", () => {
     const configured = buildMobileEnvironmentConfig({
       mobileEnvironment: "uat",

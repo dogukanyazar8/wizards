@@ -1,8 +1,40 @@
 {
-  "generated_at": "2026-07-29T16:30:15.698444+00:00",
+  "generated_at": "2026-07-30T09:43:47.302588+00:00",
   "nodes": {
+    "apps_desktop_package": {
+      "code_fingerprint": "dca80724c74ed8b5f42bb1393fd082b657bec9adb1c9e03dc8ec6acdbeec4a65",
+      "label": "desktop/package.json",
+      "last": "2026-07-29T16:37:03.750272+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-29T16:37:03.750272+00:00",
+          "outcome": "useful",
+          "q": "Wizards projesi için en iyi IDE ve geliştirme araçları nelerdir? Detaylı inceler misin, graphify kullanabilirsin."
+        }
+      ],
+      "score": 0.98366106,
+      "source_file": "apps/desktop/package.json",
+      "status": "tentative",
+      "uses": 1
+    },
+    "apps_mobile_package": {
+      "code_fingerprint": "0c22fdf3fc43aa7b7ee82d59e954ed4e7e3e6faa0c024afb30e7adad21358041",
+      "label": "mobile/package.json",
+      "last": "2026-07-29T16:37:03.750272+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-29T16:37:03.750272+00:00",
+          "outcome": "useful",
+          "q": "Wizards projesi için en iyi IDE ve geliştirme araçları nelerdir? Detaylı inceler misin, graphify kullanabilirsin."
+        }
+      ],
+      "score": 0.98366106,
+      "source_file": "apps/mobile/package.json",
+      "status": "tentative",
+      "uses": 1
+    },
     "apps_mobile_src_about_mobile_about_model": {
-      "code_fingerprint": "6ecf45da2b908f65b3610ffe1f52f63d428d420d3859c6c5a436bf38b25ced81",
+      "code_fingerprint": "12be9dc6e4e55c618fb21082d035e987db332d6a897221c2a5395bf4c76e48cd",
       "label": "mobile-about-model.ts",
       "last": "2026-07-29T16:07:15.530439+00:00",
       "provenance": [
@@ -12,8 +44,56 @@
           "q": "1c Yenilikler ekranı mevcut 01-03 katmanlarıyla nasıl bağlanır?"
         }
       ],
-      "score": 0.999630986,
+      "score": 0.983190784,
       "source_file": "apps/mobile/src/about/mobile-about-model.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "apps_mobile_src_about_mobile_about_queries_usemobileaboutreleasesquery": {
+      "code_fingerprint": "32f7488bb1666b62e0c42364a511de1b35f6aefe0d158d7a08aefcb82e0fdda4",
+      "label": "useMobileAboutReleasesQuery()",
+      "last": "2026-07-30T06:30:23.849264+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-30T06:30:23.849264+00:00",
+          "outcome": "useful",
+          "q": "sürüm geçmişi ekranında da sürüm notları alınamadı hatasını alıyorum, bunu da çözer misin en güvenli en hızlı şekilde."
+        }
+      ],
+      "score": 0.996901838,
+      "source_file": "apps/mobile/src/about/mobile-about-queries.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "apps_mobile_src_about_mobile_rating_model": {
+      "code_fingerprint": "d01001bfc546c17c0a12645c4f94d5f376b5e5eda36d9775e9044bc30cbe6d14",
+      "label": "mobile-rating-model.ts",
+      "last": "2026-07-30T07:58:01.590444+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-30T07:58:01.590444+00:00",
+          "outcome": "useful",
+          "q": "Adım 13 2h puanlama sheet'i nasıl uygulanır?"
+        }
+      ],
+      "score": 0.998304482,
+      "source_file": "apps/mobile/src/about/mobile-rating-model.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "apps_mobile_src_about_open_about_beta_consent_openaboutbetaconsent": {
+      "code_fingerprint": "c5704fd2797c7b40c7ee1c19454a9a272045ddf6043977d56f9245feea808838",
+      "label": "openAboutBetaConsent",
+      "last": "2026-07-30T08:16:06.914501+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-30T08:16:06.914501+00:00",
+          "outcome": "useful",
+          "q": "1A Hakkında sağ üst kopyala eylemi ve beta katılım toast okunabilirliği nerede çözülür?"
+        }
+      ],
+      "score": 0.998594267,
+      "source_file": "apps/mobile/src/about/open-about-beta-consent.ts",
       "status": "tentative",
       "uses": 1
     },
@@ -28,7 +108,7 @@
           "q": "Mobil uygulamanın performans, kalite, mimari ve teknoloji altyapısı ile socket fan-out, unread, message büyümesi, Prisma hot path ve NextAuth beta risklerini değerlendir"
         }
       ],
-      "score": 0.998096726,
+      "score": 0.981681757,
       "source_file": "apps/mobile/src/app/providers/mobile-realtime-provider.tsx",
       "status": "tentative",
       "uses": 1
@@ -44,24 +124,93 @@
           "q": "Whispr mobile splash görsel dili Discord Slack Teams Zoom gibi olmalı; kaç ekran ve hangi mesajlar?"
         }
       ],
-      "score": 0.945678697,
+      "score": 0.930125808,
       "source_file": "apps/mobile/src/app/providers/mobile-theme-provider.tsx",
       "status": "tentative",
       "uses": 1
     },
-    "apps_mobile_src_app_screens_about_about_primitives": {
-      "code_fingerprint": "6ee255b1719a2b112d0759aca3e0482316f1219b2c8846aa03c4a3f831243d15",
-      "label": "about-primitives.tsx",
-      "last": "2026-07-29T16:07:15.530439+00:00",
+    "apps_mobile_src_app_screens_about_about_icons_aboutbellicon": {
+      "code_fingerprint": "51ac89a310ecf1e1d3303dfa5476b903b6c1e4ea7fac51800749fafe61547077",
+      "label": "AboutBellIcon()",
+      "last": "2026-07-30T06:22:02.958555+00:00",
       "provenance": [
+        {
+          "date": "2026-07-30T06:22:02.958555+00:00",
+          "outcome": "useful",
+          "q": "1A ekranındaki ve diğer ilgili ekranlarda sağ üstteki Bildir butonunun ikon tasarımını HTML 1a/ilgili About handoff tasarımıyla eşleştir"
+        }
+      ],
+      "score": 0.996768315,
+      "source_file": "apps/mobile/src/app/screens/about/about-icons.tsx",
+      "status": "tentative",
+      "uses": 1
+    },
+    "apps_mobile_src_app_screens_about_about_icons_aboutclipboardicon": {
+      "code_fingerprint": "51ac89a310ecf1e1d3303dfa5476b903b6c1e4ea7fac51800749fafe61547077",
+      "label": "AboutClipboardIcon()",
+      "last": "2026-07-30T06:22:02.958555+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-30T06:22:02.958555+00:00",
+          "outcome": "useful",
+          "q": "1A ekranındaki ve diğer ilgili ekranlarda sağ üstteki Bildir butonunun ikon tasarımını HTML 1a/ilgili About handoff tasarımıyla eşleştir"
+        }
+      ],
+      "score": 0.996768315,
+      "source_file": "apps/mobile/src/app/screens/about/about-icons.tsx",
+      "status": "tentative",
+      "uses": 1
+    },
+    "apps_mobile_src_app_screens_about_about_primitives": {
+      "code_fingerprint": "c289291b30847e51c9d37729bf9373651223f371c0e94d072c1267e0cbebdbd6",
+      "label": "about-primitives.tsx",
+      "last": "2026-07-30T06:09:43.273927+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-30T06:09:43.273927+00:00",
+          "outcome": "useful",
+          "q": "Whispr logosunun üstünde garip bir beyaz çizgi görüntülüyorum, bunu düzeltir misin?"
+        },
         {
           "date": "2026-07-29T16:07:15.530439+00:00",
           "outcome": "useful",
           "q": "1c Yenilikler ekranı mevcut 01-03 katmanlarıyla nasıl bağlanır?"
         }
       ],
-      "score": 0.999630986,
+      "score": 1.979761953,
       "source_file": "apps/mobile/src/app/screens/about/about-primitives.tsx",
+      "status": "preferred",
+      "uses": 2
+    },
+    "apps_mobile_src_app_screens_about_about_primitives_aboutscreenheader": {
+      "code_fingerprint": "c289291b30847e51c9d37729bf9373651223f371c0e94d072c1267e0cbebdbd6",
+      "label": "AboutScreenHeader()",
+      "last": "2026-07-30T06:22:02.958555+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-30T06:22:02.958555+00:00",
+          "outcome": "useful",
+          "q": "1A ekranındaki ve diğer ilgili ekranlarda sağ üstteki Bildir butonunun ikon tasarımını HTML 1a/ilgili About handoff tasarımıyla eşleştir"
+        }
+      ],
+      "score": 0.996768315,
+      "source_file": "apps/mobile/src/app/screens/about/about-primitives.tsx",
+      "status": "tentative",
+      "uses": 1
+    },
+    "apps_mobile_src_app_screens_about_about_rating_sheet": {
+      "code_fingerprint": "895ad3613a3982b13ceb8f6ba496f157c079c66b656ba8baa54411e651f3fc5c",
+      "label": "about-rating-sheet.tsx",
+      "last": "2026-07-30T07:58:01.590444+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-30T07:58:01.590444+00:00",
+          "outcome": "useful",
+          "q": "Adım 13 2h puanlama sheet'i nasıl uygulanır?"
+        }
+      ],
+      "score": 0.998304482,
+      "source_file": "apps/mobile/src/app/screens/about/about-rating-sheet.tsx",
       "status": "tentative",
       "uses": 1
     },
@@ -76,13 +225,13 @@
           "q": "1c Yenilikler ekranı mevcut 01-03 katmanlarıyla nasıl bağlanır?"
         }
       ],
-      "score": 0.999630986,
+      "score": 0.983190784,
       "source_file": "apps/mobile/src/app/screens/about/about-whats-new-card.tsx",
       "status": "tentative",
       "uses": 1
     },
     "apps_mobile_src_app_screens_about_about_whats_new_screen": {
-      "code_fingerprint": "4f23ca5154df6330ad718a9932ed552e0847a861d013af7ed3c47d183bd0914d",
+      "code_fingerprint": "e480b8c645e8714e2388f65dc34874c4698f4b608156d04eb7c28ecb6fb630d4",
       "label": "about-whats-new-screen.tsx",
       "last": "2026-07-29T16:28:46.419405+00:00",
       "provenance": [
@@ -92,13 +241,55 @@
           "q": "Hakkında ekranında yenilikler özeti ve tüm yenilikler ekranı neden görünmüyor?"
         }
       ],
-      "score": 0.999976125,
+      "score": 0.983530247,
       "source_file": "apps/mobile/src/app/screens/about/about-whats-new-screen.tsx",
       "status": "tentative",
       "uses": 1
     },
+    "apps_mobile_src_app_screens_about_about_whats_new_screen_mobileaboutwhatsnewscreen": {
+      "code_fingerprint": "e480b8c645e8714e2388f65dc34874c4698f4b608156d04eb7c28ecb6fb630d4",
+      "label": "MobileAboutWhatsNewScreen()",
+      "last": "2026-07-30T08:05:22.845398+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-30T08:05:22.845398+00:00",
+          "outcome": "useful",
+          "q": "Yenilikler ekranındaki Bildir butonunu Hakkında sorun bildir sayfasına nasıl yönlendiririz?"
+        },
+        {
+          "date": "2026-07-30T06:30:23.849264+00:00",
+          "outcome": "useful",
+          "q": "sürüm geçmişi ekranında da sürüm notları alınamadı hatasını alıyorum, bunu da çözer misin en güvenli en hızlı şekilde."
+        },
+        {
+          "date": "2026-07-30T06:22:02.958555+00:00",
+          "outcome": "useful",
+          "q": "1A ekranındaki ve diğer ilgili ekranlarda sağ üstteki Bildir butonunun ikon tasarımını HTML 1a/ilgili About handoff tasarımıyla eşleştir"
+        }
+      ],
+      "score": 2.992092442,
+      "source_file": "apps/mobile/src/app/screens/about/about-whats-new-screen.tsx",
+      "status": "preferred",
+      "uses": 3
+    },
+    "apps_mobile_src_app_screens_auth_auth_welcome_brand_mark_authwelcomebrandmark": {
+      "code_fingerprint": "93af4b723bdc228482cce81bbc6753ef90f59db6879b81b1ab8cf07a0383a14a",
+      "label": "AuthWelcomeBrandMark()",
+      "last": "2026-07-30T06:09:43.273927+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-30T06:09:43.273927+00:00",
+          "outcome": "useful",
+          "q": "Whispr logosunun üstünde garip bir beyaz çizgi görüntülüyorum, bunu düzeltir misin?"
+        }
+      ],
+      "score": 0.996571169,
+      "source_file": "apps/mobile/src/app/screens/auth/auth-welcome-brand-mark.tsx",
+      "status": "tentative",
+      "uses": 1
+    },
     "apps_mobile_src_app_screens_mobile_about_settings_screen_mobileaboutsettingsscreen": {
-      "code_fingerprint": "ee8a27c3d6e5b2009f0dd0a3edd4dbde9b15af85df07b1c471aa7b2db6a41a42",
+      "code_fingerprint": "a5c4c8095eeee9b00d40fdbc0594cdb3c611988cdf8b6369ad17f49c3fa3771a",
       "label": "MobileAboutSettingsScreen()",
       "last": "2026-07-29T16:28:46.419405+00:00",
       "provenance": [
@@ -108,7 +299,7 @@
           "q": "Hakkında ekranında yenilikler özeti ve tüm yenilikler ekranı neden görünmüyor?"
         }
       ],
-      "score": 0.999976125,
+      "score": 0.983530247,
       "source_file": "apps/mobile/src/app/screens/mobile-about-settings-screen.tsx",
       "status": "tentative",
       "uses": 1
@@ -124,8 +315,24 @@
           "q": "Mobil uygulamada navigation bar için hangi ikon paketini kullanıyoruz?"
         }
       ],
-      "score": 0.904989373,
+      "score": 0.890105672,
       "source_file": "apps/mobile/src/navigation/mobile-bottom-tab-bar.tsx",
+      "status": "tentative",
+      "uses": 1
+    },
+    "apps_mobile_src_navigation_mobile_tab_bar_host_mobiletabbarhost": {
+      "code_fingerprint": "ab100e347cc39ceb33ca4c074b5aeef7a630264470c61f1b92114cd091e3ccd2",
+      "label": "MobileTabBarHost()",
+      "last": "2026-07-30T06:28:22.041210+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-30T06:28:22.041210+00:00",
+          "outcome": "useful",
+          "q": "Fix Android InteractionManager deprecation and expo-notifications cancelled fetch warnings safely"
+        }
+      ],
+      "score": 0.996869366,
+      "source_file": "apps/mobile/src/navigation/mobile-tab-bar-host.tsx",
       "status": "tentative",
       "uses": 1
     },
@@ -140,8 +347,24 @@
           "q": "Railway UAT ortamında workspace-performance metrikleri tanımlı, mobil için log tutuyor muyuz inceler misin?"
         }
       ],
-      "score": 0.993761524,
+      "score": 0.977417852,
       "source_file": "apps/mobile/src/performance/mobile-health-reporter.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "apps_mobile_src_performance_mobile_idle_task_schedulemobileidletask": {
+      "code_fingerprint": "e6faac30676e10199d6a45f6c15c902b5c413cb61785f2b77d9e62ddc3458624",
+      "label": "scheduleMobileIdleTask()",
+      "last": "2026-07-30T06:28:22.041210+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-30T06:28:22.041210+00:00",
+          "outcome": "useful",
+          "q": "Fix Android InteractionManager deprecation and expo-notifications cancelled fetch warnings safely"
+        }
+      ],
+      "score": 0.996869366,
+      "source_file": "apps/mobile/src/performance/mobile-idle-task.ts",
       "status": "tentative",
       "uses": 1
     },
@@ -156,8 +379,24 @@
           "q": "Railway UAT ortamında workspace-performance metrikleri tanımlı, mobil için log tutuyor muyuz inceler misin?"
         }
       ],
-      "score": 0.993761524,
+      "score": 0.977417852,
       "source_file": "apps/mobile/src/performance/mobile-performance-metrics.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "apps_mobile_src_performance_mobile_telemetry_instruments_installmobiletelemetryinstruments": {
+      "code_fingerprint": "af679f34716873d09d5aef2196b6e2b9f7ceda1a781c923cf926497aa55cf56d",
+      "label": "installMobileTelemetryInstruments()",
+      "last": "2026-07-30T06:28:22.041210+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-30T06:28:22.041210+00:00",
+          "outcome": "useful",
+          "q": "Fix Android InteractionManager deprecation and expo-notifications cancelled fetch warnings safely"
+        }
+      ],
+      "score": 0.996869366,
+      "source_file": "apps/mobile/src/performance/mobile-telemetry-instruments.ts",
       "status": "tentative",
       "uses": 1
     },
@@ -172,8 +411,24 @@
           "q": "Mobil açılışında modern splash, yüklemeler ve performans kontrolleri nasıl tasarlanmalı?"
         }
       ],
-      "score": 0.933079597,
+      "score": 0.917733917,
       "source_file": "apps/mobile/src/query/mobile-query-cache-policy.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "apps_mobile_src_query_mobile_recent_dm_prefetch_usemobilerecentdmprefetch": {
+      "code_fingerprint": "be7050f38e20ed66301bc58217f7e404da6f276d3daea9e7f5927b61c09af075",
+      "label": "useMobileRecentDMPrefetch()",
+      "last": "2026-07-30T06:28:22.041210+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-30T06:28:22.041210+00:00",
+          "outcome": "useful",
+          "q": "Fix Android InteractionManager deprecation and expo-notifications cancelled fetch warnings safely"
+        }
+      ],
+      "score": 0.996869366,
+      "source_file": "apps/mobile/src/query/mobile-recent-dm-prefetch.ts",
       "status": "tentative",
       "uses": 1
     },
@@ -188,24 +443,24 @@
           "q": "Mobil uygulamanın performans, kalite, mimari ve teknoloji altyapısı ile socket fan-out, unread, message büyümesi, Prisma hot path ve NextAuth beta risklerini değerlendir"
         }
       ],
-      "score": 0.998096726,
+      "score": 0.981681757,
       "source_file": "apps/mobile/src/release/mobile-release-contract.ts",
       "status": "tentative",
       "uses": 1
     },
-    "apps_web_src_app_api_v1_mobile_app_releases_route_logic": {
-      "code_fingerprint": "49a3495b2d8f166497ac517244c0dee6b7bab788f4e2a638944b9721eb9ed7e9",
-      "label": "releases/route-logic.ts",
-      "last": "2026-07-29T16:07:15.530439+00:00",
+    "apps_web_playwright_config": {
+      "code_fingerprint": "f5d9fe5f669f580303434e4abe7dce7ef9ffa9c151718c319c3d3ce909520db7",
+      "label": "playwright.config.ts",
+      "last": "2026-07-29T16:37:03.750272+00:00",
       "provenance": [
         {
-          "date": "2026-07-29T16:07:15.530439+00:00",
+          "date": "2026-07-29T16:37:03.750272+00:00",
           "outcome": "useful",
-          "q": "1c Yenilikler ekranı mevcut 01-03 katmanlarıyla nasıl bağlanır?"
+          "q": "Wizards projesi için en iyi IDE ve geliştirme araçları nelerdir? Detaylı inceler misin, graphify kullanabilirsin."
         }
       ],
-      "score": 0.999630986,
-      "source_file": "apps/web/src/app/api/v1/mobile/app/releases/route-logic.ts",
+      "score": 0.98366106,
+      "source_file": "apps/web/playwright.config.ts",
       "status": "tentative",
       "uses": 1
     },
@@ -220,7 +475,7 @@
           "q": "Mobil uygulamanın performans, kalite, mimari ve teknoloji altyapısı ile socket fan-out, unread, message büyümesi, Prisma hot path ve NextAuth beta risklerini değerlendir"
         }
       ],
-      "score": 0.998096726,
+      "score": 0.981681757,
       "source_file": "apps/web/src/lib/dm/realtime-service.ts",
       "status": "tentative",
       "uses": 1
@@ -236,7 +491,7 @@
           "q": "Mobil uygulamanın performans, kalite, mimari ve teknoloji altyapısı ile socket fan-out, unread, message büyümesi, Prisma hot path ve NextAuth beta risklerini değerlendir"
         }
       ],
-      "score": 0.998096726,
+      "score": 0.981681757,
       "source_file": "apps/web/src/lib/socket/handlers/message.ts",
       "status": "tentative",
       "uses": 1
@@ -252,7 +507,7 @@
           "q": "Mobil uygulamanın performans, kalite, mimari ve teknoloji altyapısı ile socket fan-out, unread, message büyümesi, Prisma hot path ve NextAuth beta risklerini değerlendir"
         }
       ],
-      "score": 0.998096726,
+      "score": 0.981681757,
       "source_file": "apps/web/src/lib/workspace/channel-message-send-service.ts",
       "status": "tentative",
       "uses": 1
@@ -268,7 +523,7 @@
           "q": "Mobil uygulamanın performans, kalite, mimari ve teknoloji altyapısı ile socket fan-out, unread, message büyümesi, Prisma hot path ve NextAuth beta risklerini değerlendir"
         }
       ],
-      "score": 0.998096726,
+      "score": 0.981681757,
       "source_file": "apps/web/src/lib/workspace/message-service.ts",
       "status": "tentative",
       "uses": 1
@@ -289,7 +544,7 @@
           "q": "Railway UAT ortamında workspace-performance metrikleri tanımlı, mobil için log tutuyor muyuz inceler misin?"
         }
       ],
-      "score": 1.99185825,
+      "score": 1.959099609,
       "source_file": "apps/web/src/lib/workspace/performance-metrics.ts",
       "status": "preferred",
       "uses": 2
@@ -305,13 +560,61 @@
           "q": "Mobil uygulamanın performans, kalite, mimari ve teknoloji altyapısı ile socket fan-out, unread, message büyümesi, Prisma hot path ve NextAuth beta risklerini değerlendir"
         }
       ],
-      "score": 0.998096726,
+      "score": 0.981681757,
       "source_file": "apps/web/src/lib/workspace/unread-service.ts",
       "status": "tentative",
       "uses": 1
     },
+    "docs_development_windows_onboarding_whispr_windows_geliştirme_ve_ci_cd_onboarding_rehberi": {
+      "code_fingerprint": "50491046d5f4aef1677d7dd16246f30e8d87b8dd875274ebcb9678b13a90d3df",
+      "label": "Whispr Windows geliştirme ve CI/CD onboarding rehberi",
+      "last": "2026-07-29T16:37:03.750272+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-29T16:37:03.750272+00:00",
+          "outcome": "useful",
+          "q": "Wizards projesi için en iyi IDE ve geliştirme araçları nelerdir? Detaylı inceler misin, graphify kullanabilirsin."
+        }
+      ],
+      "score": 0.98366106,
+      "source_file": "docs/development/windows-onboarding.md",
+      "status": "tentative",
+      "uses": 1
+    },
+    "docs_prompts_hakkinda_redesign_13_2h_puanlama": {
+      "code_fingerprint": "892da24f2b064c3ffcd4ce7b7a46cdd1974b0b657c18cae2a3abfff5137c9cb1",
+      "label": "13-2h-puanlama.md",
+      "last": "2026-07-30T07:58:01.590444+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-30T07:58:01.590444+00:00",
+          "outcome": "useful",
+          "q": "Adım 13 2h puanlama sheet'i nasıl uygulanır?"
+        }
+      ],
+      "score": 0.998304482,
+      "source_file": "docs/prompts/hakkinda-redesign/13-2h-puanlama.md",
+      "status": "tentative",
+      "uses": 1
+    },
+    "package": {
+      "code_fingerprint": "de57841a901a5a71e62e3423f256709021c45dd60bb12a60bed8c168fc2795b2",
+      "label": "package.json",
+      "last": "2026-07-29T16:37:03.750272+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-29T16:37:03.750272+00:00",
+          "outcome": "useful",
+          "q": "Wizards projesi için en iyi IDE ve geliştirme araçları nelerdir? Detaylı inceler misin, graphify kullanabilirsin."
+        }
+      ],
+      "score": 0.98366106,
+      "source_file": "package.json",
+      "status": "tentative",
+      "uses": 1
+    },
     "packages_types_src_mobile_mobilebootstrappayload": {
-      "code_fingerprint": "9470f47a6c0c430d3e621302be29fe04fba0633bcd52a7507b7861dbb8366096",
+      "code_fingerprint": "ed886599fe771afed9cf90337c9e3e7a26fa9852e061a785577453b6e845691e",
       "label": "MobileBootstrapPayload",
       "last": "2026-07-26T16:33:22.483411+00:00",
       "provenance": [
@@ -321,7 +624,7 @@
           "q": "Mobil açılışında modern splash, yüklemeler ve performans kontrolleri nasıl tasarlanmalı?"
         }
       ],
-      "score": 0.933079597,
+      "score": 0.917733917,
       "source_file": "packages/types/src/mobile.ts",
       "status": "tentative",
       "uses": 1
@@ -337,8 +640,24 @@
           "q": "Mobil uygulamanın performans, kalite, mimari ve teknoloji altyapısı ile socket fan-out, unread, message büyümesi, Prisma hot path ve NextAuth beta risklerini değerlendir"
         }
       ],
-      "score": 0.998096726,
+      "score": 0.981681757,
       "source_file": "apps/web/tsconfig.server.json",
+      "status": "tentative",
+      "uses": 1
+    },
+    "scripts_quality_typescript_typecheck_runner": {
+      "code_fingerprint": "f38c03c162f8925d4054f2987cea273f999802cccad4ba4c2d62e292f013f3ff",
+      "label": "typescript-typecheck-runner.mjs",
+      "last": "2026-07-29T16:37:03.750272+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-29T16:37:03.750272+00:00",
+          "outcome": "useful",
+          "q": "Wizards projesi için en iyi IDE ve geliştirme araçları nelerdir? Detaylı inceler misin, graphify kullanabilirsin."
+        }
+      ],
+      "score": 0.98366106,
+      "source_file": "scripts/quality/typescript-typecheck-runner.mjs",
       "status": "tentative",
       "uses": 1
     }

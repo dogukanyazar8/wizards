@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 
 import { ApiError } from "@/lib/api";
 import { compareReleaseVersions } from "@/lib/releases/release-service";
+import type { MobileAppUpdateQuery } from "@wizards/types";
 
 const routes = import("./route-logic");
 
@@ -23,8 +24,18 @@ function dependencies(
 ): Parameters<Awaited<typeof routes>["mobileAppUpdateRoute"]>[1] {
   return {
     authenticate: async () => "user-1",
+    decideUpdate: async (query: MobileAppUpdateQuery) => {
+      const isBehind =
+        query.installed !== undefined &&
+        compareReleaseVersions(query.installed, latest.version) < 0;
+      return {
+        otaEnabled: false,
+        state: isBehind ? "available" : "current",
+        updateKind: "none",
+        ...(isBehind ? { latest } : {}),
+      };
+    },
     enforceRateLimit: async () => undefined,
-    getLatestRelease: async () => latest,
     now: () => new Date("2026-07-29T09:00:00.000Z"),
     ...overrides,
   } as Parameters<Awaited<typeof routes>["mobileAppUpdateRoute"]>[1];
@@ -83,7 +94,13 @@ describe("mobile app update route", () => {
     const { mobileAppUpdateRoute } = await routes;
     const response = await mobileAppUpdateRoute(
       request("https://whispr.test/api/v1/mobile/app/update?installed=0.8.15"),
-      dependencies({ getLatestRelease: async () => null }),
+      dependencies({
+        decideUpdate: async () => ({
+          otaEnabled: false,
+          state: "current",
+          updateKind: "none",
+        }),
+      }),
     );
     const payload = (await response.json()) as { state: string };
 
@@ -98,20 +115,42 @@ describe("mobile app update route", () => {
     assert.equal(payload.otaEnabled, false);
   });
 
-  it("asks the channel the caller named", async () => {
+  it("passes the complete build identity to the decision boundary", async () => {
     const { mobileAppUpdateRoute } = await routes;
     const asked: string[] = [];
     await mobileAppUpdateRoute(
-      request("https://whispr.test/api/v1/mobile/app/update?channel=beta&installed=0.8.15"),
+      request(
+        "https://whispr.test/api/v1/mobile/app/update?channel=uat&installed=0.8.15&buildEnvironment=uat&platform=android&runtimeVersion=fingerprint-1&versionCode=815",
+      ),
       dependencies({
-        getLatestRelease: async (channel: string) => {
-          asked.push(channel);
-          return latest;
+        decideUpdate: async (query: MobileAppUpdateQuery) => {
+          asked.push(JSON.stringify(query));
+          return {
+            androidArtifact: {
+              sha256: "a".repeat(64),
+              sizeBytes: 50_541_363,
+              url: "https://updates.whispr.team/mobile/uat/releases/v0.9.0/whispr.apk",
+              versionCode: 816,
+            },
+            latest,
+            otaEnabled: false,
+            state: "available",
+            updateKind: "apk",
+          };
         },
       }),
     );
 
-    assert.deepEqual(asked, ["beta"]);
+    assert.deepEqual(asked, [
+      JSON.stringify({
+        buildEnvironment: "uat",
+        channel: "uat",
+        installed: "0.8.15",
+        platform: "android",
+        runtimeVersion: "fingerprint-1",
+        versionCode: 815,
+      }),
+    ]);
   });
 
   it("rejects a channel that is not a release stream", async () => {

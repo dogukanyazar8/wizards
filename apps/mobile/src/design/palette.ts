@@ -684,6 +684,9 @@ export const redesignAboutLight = {
   accentCardSurface: "#F7F6FF",
   accentChipSurface: "#E7E6FD",
   accentSurface: "#EEF0FE",
+  brandGradientEnd: "#2F6DFF",
+  brandGradientMiddle: "#5B62FF",
+  brandGradientStart: "#7C70FF",
   card: "#FFFFFF",
   cardBorder: "#E7E9F4",
   control: "#F1F2F9",
@@ -694,6 +697,7 @@ export const redesignAboutLight = {
   hairline: "#F1F2F9",
   headerDivider: "#ECEEF7",
   iconTint: "#B9BED6",
+  inviteShadow: "#1E2235",
   /** §1.5: the brand mark's own drop shadow, the only tinted shadow here. */
   logoShadow: "rgba(67,96,255,.24)",
   logoTopHighlight: "rgba(255,255,255,.42)",
@@ -701,6 +705,8 @@ export const redesignAboutLight = {
   radioBorder: "#D9DCEC",
   screen: "#F6F7FB",
   scrim: "rgba(20,23,42,.42)",
+  /** 1d sheet: RN separates shadow colour from its .18 opacity. */
+  sheetShadow: "#14172A",
   spinnerTrail: "#DDDBFB",
   star: "#F5B23D",
   starEmpty: "#DEE1EE",
@@ -771,6 +777,10 @@ export const redesignAboutDark = {
   accentCardSurface: "rgba(124,116,255,.10)",
   accentChipSurface: "rgba(124,116,255,.18)",
   accentSurface: "rgba(124,116,255,.16)",
+  /** A3: the brand gradient stays saturated in both themes. */
+  brandGradientEnd: "#2F6DFF",
+  brandGradientMiddle: "#5B62FF",
+  brandGradientStart: "#7C70FF",
   card: "#1B1E2C",
   cardBorder: "rgba(255,255,255,.07)",
   control: "rgba(255,255,255,.07)",
@@ -783,6 +793,8 @@ export const redesignAboutDark = {
   /** A1: the sticky header rule is a separator like any other. */
   headerDivider: "rgba(255,255,255,.07)",
   iconTint: "rgba(255,255,255,.35)",
+  /** The handoff pins the invite card shadow to the same ink in both themes. */
+  inviteShadow: "#1E2235",
   /** §1.5 last line: the only value that changes for the dark brand mark. */
   logoShadow: "rgba(47,109,255,.34)",
   logoTopHighlight: "rgba(255,255,255,.42)",
@@ -793,6 +805,8 @@ export const redesignAboutDark = {
   screen: "#12141F",
   /** A6: ink over content, unchanged. */
   scrim: "rgba(20,23,42,.42)",
+  /** A6: the sheet shadow is the same ink as the scrim. */
+  sheetShadow: "#14172A",
   /** A4: `#DDDBFB` is the accent held palest — the wash rung under the card. */
   spinnerTrail: "rgba(124,116,255,.28)",
   /** A3: a gold star is a saturated mark, not a foreground. */

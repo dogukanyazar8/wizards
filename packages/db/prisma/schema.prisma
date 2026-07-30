@@ -1742,6 +1742,17 @@ enum ReleaseChangeType {
   FIXED
 }
 
+enum MobileUpdatePlatform {
+  ANDROID
+  IOS
+}
+
+enum ReleaseArtifactKind {
+  APK
+  AAB
+  IPA
+}
+
 enum HelpCategory {
   ACCOUNT
   CHAT
@@ -1784,14 +1795,70 @@ model Release {
   /// One line for the history row; shorter than `summary` on purpose.
   highlight   String?        @db.VarChar(160)
   mandatory   Boolean        @default(false)
+  /// Old native builds below this code must install a new binary before OTA.
+  minSupportedVersionCode Int?
   publishedAt DateTime?
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 
-  changes ReleaseChange[]
+  artifacts  ReleaseArtifact[]
+  changes    ReleaseChange[]
+  otaBundles OtaBundle[]
 
   @@index([publishedAt, releasedAt])
   @@index([channel, releasedAt])
+}
+
+/// Immutable, pre-signed Expo update publication metadata. The signing private
+/// key is deliberately absent: publication signs offline before this row exists.
+model OtaBundle {
+  id                         String               @id @default(uuid())
+  releaseId                  String
+  platform                   MobileUpdatePlatform
+  channel                    ReleaseChannel
+  runtimeVersion             String               @db.VarChar(256)
+  bundleKey                  String               @unique @db.VarChar(512)
+  manifestBody               String
+  manifestSignature          String
+  manifestSha256             String               @db.VarChar(64)
+  noUpdateDirectiveBody      String
+  noUpdateDirectiveSignature String
+  rollbackDirectiveBody      String
+  rollbackDirectiveSignature String
+  signingKeyId               String               @db.VarChar(128)
+  rolloutPercentage          Int                  @default(100)
+  enabled                    Boolean              @default(true)
+  publishedAt                DateTime?
+  createdAt                  DateTime             @default(now())
+  updatedAt                  DateTime             @updatedAt
+
+  release Release @relation(fields: [releaseId], references: [id], onDelete: Cascade)
+
+  @@index([platform, channel, runtimeVersion, publishedAt])
+}
+
+/// A native package registered only after CI verifies its bytes and Android
+/// signing certificate. Store builds never receive an internal APK URL.
+model ReleaseArtifact {
+  id                String               @id @default(uuid())
+  releaseId         String
+  channel           ReleaseChannel
+  platform          MobileUpdatePlatform
+  kind              ReleaseArtifactKind
+  versionCode       Int
+  url               String               @db.VarChar(2048)
+  sizeBytes         BigInt
+  sha256            String               @db.VarChar(64)
+  signingCertSha256 String?              @db.VarChar(95)
+  publishedAt       DateTime?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  release Release @relation(fields: [releaseId], references: [id], onDelete: Cascade)
+
+  @@unique([platform, kind, channel, versionCode])
+  @@index([releaseId])
+  @@index([platform, kind, channel, versionCode, publishedAt])
 }
 
 /// A single line of a release note. `position` orders within a type group, so

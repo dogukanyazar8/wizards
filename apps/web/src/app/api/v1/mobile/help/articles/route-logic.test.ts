@@ -192,11 +192,16 @@ describe("mobile help article list route", () => {
       dependencies(),
     );
     const payload = (await response.json()) as {
-      articles: Array<{ hasBody: boolean; slug: string }>;
+      articles: Array<{ bodyMarkdown: string | null; hasBody: boolean; slug: string }>;
     };
 
     assert.equal(payload.articles.find((a) => a.slug === "mikrofon-calismiyor")?.hasBody, true);
+    assert.equal(
+      payload.articles.find((a) => a.slug === "mikrofon-calismiyor")?.bodyMarkdown,
+      "# Mikrofon",
+    );
     assert.equal(payload.articles.find((a) => a.slug === "kanal-sessize-alma")?.hasBody, false);
+    assert.equal(payload.articles.find((a) => a.slug === "kanal-sessize-alma")?.bodyMarkdown, null);
   });
 
   it("rejects a category that is not one of the four tiles", async () => {

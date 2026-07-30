@@ -105,7 +105,9 @@ export async function submitMobileBugReport(
       ? { deviceInfo: input.deviceInfo as Prisma.InputJsonValue }
       : {}),
     logExcerpt: input.includesLogs && input.logExcerpt ? trimBugReportLog(input.logExcerpt) : null,
-    screenshotUrl: input.includesScreenshot ? (input.screenshotUrl ?? null) : null,
+    screenshotUrl: input.includesScreenshot
+      ? (input.screenshotUrl ?? input.screenshotUploadKey ?? null)
+      : null,
   };
 
   for (let attempt = 0; attempt < BUG_REPORT_TICKET_ATTEMPTS; attempt += 1) {

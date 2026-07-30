@@ -60,13 +60,16 @@ describe("mobile help search route", () => {
   it("matches a title regardless of case", async () => {
     const { mobileHelpSearchRoute } = await routes;
     const response = await mobileHelpSearchRoute(request("q=MİKROFON"), dependencies());
-    const payload = (await response.json()) as { articles: Array<{ slug: string }> };
+    const payload = (await response.json()) as {
+      articles: Array<{ bodyMarkdown: string | null; slug: string }>;
+    };
 
     assert.equal(response.status, 200);
     assert.deepEqual(
       payload.articles.map((entry) => entry.slug),
       ["mikrofon-calismiyor"],
     );
+    assert.equal(payload.articles[0]?.bodyMarkdown, "# Mikrofon");
   });
 
   it("answers 200 with an empty list when nothing matches", async () => {

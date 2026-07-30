@@ -907,6 +907,27 @@ const MobileVersionSchema = z.string().min(1).max(32);
 
 export const MobileReleaseChangeTypeSchema = z.enum(["new", "improved", "fixed"]);
 export const MobileReleaseChannelSchema = z.enum(["stable", "beta", "uat"]);
+export const MobileBuildEnvironmentSchema = z.enum(["development", "uat", "canary", "production"]);
+export const MobileUpdatePlatformSchema = z.enum(["android", "ios"]);
+export const MobileUpdateKindSchema = z.enum(["ota", "apk", "store", "none"]);
+export const MobileAndroidArtifactSchema = z
+  .object({
+    sha256: z.string().regex(/^[a-f0-9]{64}$/),
+    signingCertSha256: z
+      .string()
+      .regex(/^(?:[A-F0-9]{2}:){31}[A-F0-9]{2}$/)
+      .optional(),
+    sizeBytes: z.number().int().positive(),
+    url: z
+      .string()
+      .url()
+      .max(2_048)
+      .refine((value) => value.startsWith("https://"), {
+        message: "Android update artifacts must use HTTPS.",
+      }),
+    versionCode: z.number().int().positive(),
+  })
+  .strict();
 /** PROMPT.md §5 `UpdateState`, field for field. */
 export const MobileAppUpdateStateSchema = z.enum([
   "current",
@@ -925,6 +946,48 @@ export const MobileBugReportCategorySchema = z.enum([
   "performance",
   "other",
 ]);
+export const MobileInvitePreviewChannelTypeSchema = z.enum(["text", "voice"]);
+
+export const MobileInvitePreviewChannelSchema = z
+  .object({
+    liveCount: z.number().int().nonnegative().nullable(),
+    name: z.string().min(1).max(100),
+    readOnly: z.boolean(),
+    type: MobileInvitePreviewChannelTypeSchema,
+  })
+  .strict();
+
+export const MobileInvitePreviewMutualFriendSchema = z
+  .object({
+    avatarUrl: z.string().url().max(2048).nullable(),
+    displayName: z.string().min(1).max(120),
+    id: z.string().min(1).max(128),
+  })
+  .strict();
+
+/** 2g's authenticated, permission-filtered community invite preview. */
+export const MobileInvitePreviewResponseSchema = z
+  .object({
+    bannerUrl: z.string().url().max(2048).nullable(),
+    channels: z.array(MobileInvitePreviewChannelSchema).max(100),
+    description: z.string().max(1_000),
+    iconUrl: z.string().url().max(2048).nullable(),
+    joined: z.boolean(),
+    memberCount: z.number().int().nonnegative(),
+    mutualFriendCount: z.number().int().nonnegative(),
+    mutualFriends: z.array(MobileInvitePreviewMutualFriendSchema).max(8),
+    name: z.string().min(1).max(120),
+    onlineCount: z.number().int().nonnegative(),
+    serverId: z.string().min(1).max(128),
+    slug: z
+      .string()
+      .trim()
+      .min(1)
+      .max(96)
+      .regex(/^[A-Za-z0-9_-]+$/),
+    verified: z.boolean(),
+  })
+  .strict();
 
 export const MobileReleaseChangeSchema = z
   .object({
@@ -984,8 +1047,10 @@ export const MobileAppUpdateLatestSchema = z
 
 export const MobileAppUpdateResponseSchema = z
   .object({
+    androidArtifact: MobileAndroidArtifactSchema.optional(),
     lastCheckedAt: z.string().datetime(),
     latest: MobileAppUpdateLatestSchema.optional(),
+    minSupportedVersionCode: z.number().int().positive().optional(),
     /**
      * Whether the server has an OTA distribution configured — not a mirror of
      * the client's `Updates.isEnabled`. It is `false` today because
@@ -994,8 +1059,25 @@ export const MobileAppUpdateResponseSchema = z
      */
     otaEnabled: z.boolean(),
     state: MobileAppUpdateStateSchema,
+    updateKind: MobileUpdateKindSchema,
   })
-  .strict();
+  .strict()
+  .superRefine((value, context) => {
+    if (value.updateKind === "apk" && value.androidArtifact === undefined) {
+      context.addIssue({
+        code: "custom",
+        message: "APK updates require an Android artifact.",
+        path: ["androidArtifact"],
+      });
+    }
+    if (value.updateKind !== "apk" && value.androidArtifact !== undefined) {
+      context.addIssue({
+        code: "custom",
+        message: "Android artifacts are valid only for APK updates.",
+        path: ["androidArtifact"],
+      });
+    }
+  });
 
 export const MobileAppChannelRequestSchema = z
   .object({
@@ -1031,6 +1113,8 @@ export const MobileServiceStatusResponseSchema = z
 
 export const MobileHelpArticleSchema = z
   .object({
+    /** Published body for the in-app reader; null opens the canonical web URL. */
+    bodyMarkdown: z.string().trim().min(1).max(200_000).nullable(),
     category: MobileHelpCategorySchema,
     /** True when the article can be read in-app; otherwise `url` is opened. */
     hasBody: z.boolean(),
@@ -1131,8 +1215,12 @@ export const MobileReleaseListQuerySchema = z
 
 export const MobileAppUpdateQuerySchema = z
   .object({
+    buildEnvironment: MobileBuildEnvironmentSchema.optional(),
     channel: MobileReleaseChannelSchema.optional(),
     installed: MobileVersionSchema.optional(),
+    platform: MobileUpdatePlatformSchema.optional(),
+    runtimeVersion: z.string().trim().min(1).max(256).optional(),
+    versionCode: z.coerce.number().int().positive().optional(),
   })
   .strict();
 
@@ -1154,6 +1242,10 @@ export const MobileHelpArticleViewResponseSchema = z.object({ ok: z.literal(true
 
 export type MobileReleaseChangeType = z.infer<typeof MobileReleaseChangeTypeSchema>;
 export type MobileReleaseChannel = z.infer<typeof MobileReleaseChannelSchema>;
+export type MobileBuildEnvironment = z.infer<typeof MobileBuildEnvironmentSchema>;
+export type MobileUpdatePlatform = z.infer<typeof MobileUpdatePlatformSchema>;
+export type MobileUpdateKind = z.infer<typeof MobileUpdateKindSchema>;
+export type MobileAndroidArtifact = z.infer<typeof MobileAndroidArtifactSchema>;
 export type MobileAppUpdateState = z.infer<typeof MobileAppUpdateStateSchema>;
 export type MobileServiceStatusLevel = z.infer<typeof MobileServiceStatusLevelSchema>;
 export type MobileHelpCategory = z.infer<typeof MobileHelpCategorySchema>;
@@ -1177,6 +1269,10 @@ export type MobileHelpSearchQuery = z.infer<typeof MobileHelpSearchQuerySchema>;
 export type MobileHelpArticleViewResponse = z.infer<typeof MobileHelpArticleViewResponseSchema>;
 export type MobileBugReportRequest = z.infer<typeof MobileBugReportRequestSchema>;
 export type MobileBugReportResponse = z.infer<typeof MobileBugReportResponseSchema>;
+export type MobileInvitePreviewChannelType = z.infer<typeof MobileInvitePreviewChannelTypeSchema>;
+export type MobileInvitePreviewChannel = z.infer<typeof MobileInvitePreviewChannelSchema>;
+export type MobileInvitePreviewMutualFriend = z.infer<typeof MobileInvitePreviewMutualFriendSchema>;
+export type MobileInvitePreviewResponse = z.infer<typeof MobileInvitePreviewResponseSchema>;
 export type MobileReleaseVersionParams = z.infer<typeof MobileReleaseVersionParamsSchema>;
 export type MobileHelpArticleSlugParams = z.infer<typeof MobileHelpArticleSlugParamsSchema>;
 

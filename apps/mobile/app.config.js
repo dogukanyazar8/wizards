@@ -12,6 +12,13 @@ const GOOGLE_SERVICES_FILE = path.join(__dirname, "google-services.json");
 
 const EAS_PROJECT_ID = "3b8b3f68-dd6c-4c9c-84e7-10ed8f4b2aad";
 const MOBILE_ENVIRONMENTS = ["development", "uat", "canary", "production"];
+const DEFAULT_COMMUNITY_INVITE_SLUG = "whispr-community";
+const OTA_SIGNING_PROFILES = {
+  uat: {
+    certificate: "./certs/ota/uat/certificate.pem",
+    keyid: "whispr-mobile-ota-uat-2026-01",
+  },
+};
 
 const WHISPR_MOBILE_APP_IDENTITY = storeContractData.appIdentity;
 const WHISPR_MOBILE_ICON = storeContractData.icon;
@@ -39,9 +46,11 @@ const DEFAULT_PUBLIC_ENV = {
   },
 };
 
-function getWhisprMobileAndroidPermissions() {
+function getWhisprMobileAndroidPermissions({ includeStoreBlockers = false } = {}) {
   return storeContractData.permissionDisclosures.flatMap((disclosure) =>
-    disclosure.androidPermission ? [disclosure.androidPermission] : [],
+    disclosure.androidPermission && (includeStoreBlockers || disclosure.storeBlocker !== true)
+      ? [disclosure.androidPermission]
+      : [],
   );
 }
 
@@ -119,11 +128,51 @@ function buildPublicConfig(environment) {
 
   return {
     apiUrl,
+    communityInviteSlug:
+      process.env.EXPO_PUBLIC_WHISPR_COMMUNITY_INVITE_SLUG?.trim() || DEFAULT_COMMUNITY_INVITE_SLUG,
     environment,
     releaseChannel: environment,
     sentryDsn: process.env.EXPO_PUBLIC_WHISPR_SENTRY_DSN?.trim() || null,
     socketUrl,
     webUrl,
+  };
+}
+
+function buildUpdatesConfig(environment, publicConfig) {
+  const enabled = process.env.WHISPR_MOBILE_OTA_ENABLED === "true";
+  const base = {
+    enabled,
+    url: `${publicConfig.apiUrl}/api/v1/app/updates/manifest`,
+    // About 1A's explicit action owns checks; cold start never waits on network.
+    checkAutomatically: "NEVER",
+    fallbackToCacheTimeout: 0,
+    requestHeaders: { "expo-channel-name": environment },
+  };
+
+  if (!enabled) {
+    return base;
+  }
+
+  const signingProfile = OTA_SIGNING_PROFILES[environment];
+  if (!signingProfile) {
+    throw new Error(
+      `Signed OTA is not configured for ${environment}; provide a separate certificate before enabling it.`,
+    );
+  }
+
+  const certificate =
+    process.env.WHISPR_MOBILE_OTA_CERTIFICATE_PATH?.trim() || signingProfile.certificate;
+  if (!fs.existsSync(path.resolve(__dirname, certificate))) {
+    throw new Error(`OTA certificate does not exist: ${certificate}`);
+  }
+
+  return {
+    ...base,
+    codeSigningCertificate: certificate,
+    codeSigningMetadata: {
+      alg: "rsa-v1_5-sha256",
+      keyid: signingProfile.keyid,
+    },
   };
 }
 
@@ -154,7 +203,9 @@ module.exports = ({ config }) => {
         backgroundColor: WHISPR_MOBILE_ICON.adaptiveBackgroundColor,
         foregroundImage: WHISPR_MOBILE_ICON.adaptiveForegroundImage,
       },
-      permissions: getWhisprMobileAndroidPermissions(),
+      permissions: getWhisprMobileAndroidPermissions({
+        includeStoreBlockers: environment === "uat" || environment === "canary",
+      }),
       predictiveBackGestureEnabled: true,
       ...(fs.existsSync(GOOGLE_SERVICES_FILE)
         ? { googleServicesFile: "./google-services.json" }
@@ -210,6 +261,8 @@ module.exports = ({ config }) => {
       whispr: publicConfig,
       ...(easProjectId ? { eas: { projectId: easProjectId } } : {}),
     },
+    runtimeVersion: { policy: "fingerprint" },
+    updates: buildUpdatesConfig(environment, publicConfig),
     web: {
       ...config.web,
       favicon: WHISPR_MOBILE_ICON.webFavicon,

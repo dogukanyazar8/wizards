@@ -1,6 +1,7 @@
 import storeContractData from "./mobile-store-contract-data.json";
 
 export type MobileStorePermissionId =
+  | "app-updates"
   | "biometrics"
   | "camera"
   | "microphone"
@@ -12,6 +13,7 @@ export type MobileStorePermissionDisclosure = {
   androidPermission?: string;
   id: MobileStorePermissionId;
   iosInfoPlistKey?: string;
+  storeBlocker?: true;
   userActionRequired: true;
   usageDescription: string;
 };
@@ -55,12 +57,15 @@ export const WHISPR_MOBILE_PRIVACY_REQUIREMENTS = STORE_CONTRACT.privacyRequirem
 
 const FORBIDDEN_ANDROID_PERMISSIONS = new Set(STORE_CONTRACT.forbiddenAndroidPermissions);
 
-const EXPECTED_ANDROID_PERMISSIONS = WHISPR_MOBILE_PERMISSION_DISCLOSURES.flatMap((disclosure) =>
-  disclosure.androidPermission ? [disclosure.androidPermission] : [],
-);
-
-export function getWhisprMobileAndroidPermissions(): string[] {
-  return [...EXPECTED_ANDROID_PERMISSIONS];
+export function getWhisprMobileAndroidPermissions(
+  options: { includeStoreBlockers?: boolean } = {},
+): string[] {
+  return WHISPR_MOBILE_PERMISSION_DISCLOSURES.flatMap((disclosure) =>
+    disclosure.androidPermission &&
+    (options.includeStoreBlockers === true || disclosure.storeBlocker !== true)
+      ? [disclosure.androidPermission]
+      : [],
+  );
 }
 
 export function getWhisprMobileIosInfoPlistUsageDescriptions(): Record<string, string> {

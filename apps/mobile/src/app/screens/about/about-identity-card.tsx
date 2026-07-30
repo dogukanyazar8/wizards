@@ -92,7 +92,7 @@ export function AboutIdentityCard({
   onUpdateAction,
   renderUpdateBanner,
   update,
-  updateActionVisible,
+  updateAccessibilityLabel,
   version,
 }: {
   readonly appName: string;
@@ -104,7 +104,7 @@ export function AboutIdentityCard({
   readonly onUpdateAction: () => void;
   readonly renderUpdateBanner?: ReactNode;
   readonly update: MobileAboutUpdatePresentation;
-  readonly updateActionVisible: boolean;
+  readonly updateAccessibilityLabel: string;
   readonly version: string;
 }) {
   const theme = useTheme();
@@ -126,12 +126,6 @@ export function AboutIdentityCard({
               accessibilityLabel={appName}
               size={ABOUT_APP_LOGO_SIZE}
               testID="mobile-about-app-logo"
-            />
-            {/* React Native has no inset shadow; the measured 1px top light is a border layer. */}
-            <View
-              pointerEvents="none"
-              style={styles.logoHighlight}
-              testID="mobile-about-logo-top-highlight"
             />
           </View>
           <View style={styles.identityText}>
@@ -176,19 +170,17 @@ export function AboutIdentityCard({
               {update.subtitle}
             </Text>
           </View>
-          {updateActionVisible ? (
-            <Pressable
-              accessibilityLabel={update.action}
-              accessibilityRole="button"
-              onPress={onUpdateAction}
-              style={({ pressed }) => [styles.updateAction, pressed && styles.pressed]}
-              testID="mobile-about-update-action"
-            >
-              <Text maxFontSizeMultiplier={2} style={styles.updateActionText}>
-                {update.action}
-              </Text>
-            </Pressable>
-          ) : null}
+          <Pressable
+            accessibilityLabel={updateAccessibilityLabel}
+            accessibilityRole="button"
+            onPress={onUpdateAction}
+            style={({ pressed }) => [styles.updateAction, pressed && styles.pressed]}
+            testID="mobile-about-update-action"
+          >
+            <Text maxFontSizeMultiplier={2} style={styles.updateActionText}>
+              {update.action}
+            </Text>
+          </Pressable>
         </View>
       </View>
     </>

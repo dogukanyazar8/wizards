@@ -85,6 +85,8 @@ export interface OverlaySurfaceProps {
   readonly onClose: () => void;
   /** The request, not the phase: a closing overlay no longer takes the back key. */
   readonly open: boolean;
+  /** Stable product identity when the caller owns a named overlay contract. */
+  readonly registryId?: string;
   readonly style: StyleProp<ViewStyle>;
   readonly testID: string;
 }
@@ -112,10 +114,12 @@ export function OverlaySurface({
   focusRef,
   onClose,
   open,
+  registryId,
   style,
   testID,
 }: OverlaySurfaceProps) {
-  const id = useId();
+  const generatedId = useId();
+  const id = registryId ?? generatedId;
   const hostMounted = useSyncExternalStore(subscribeHost, getHostMounted, getHostMounted);
   const bridgedValues = useMobileOverlayContextBridge();
   const onCloseRef = useRef(onClose);

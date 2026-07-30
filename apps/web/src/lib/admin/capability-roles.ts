@@ -21,7 +21,11 @@ export const ADMIN_CAPABILITIES = {
   "health.read": ["OWNER", "ADMIN", "SUPPORT", "ANALYST", "MODERATOR"],
   "feedback.read": ["OWNER", "ADMIN", "SUPPORT", "ANALYST", "MODERATOR"],
   "feedback.write": ["OWNER", "ADMIN", "SUPPORT"],
+  "help.write": ["OWNER", "ADMIN"],
+  "release.read": ["OWNER", "ADMIN", "SUPPORT", "ANALYST", "MODERATOR"],
+  "release.write": ["OWNER", "ADMIN"],
   "server.read": ["OWNER", "ADMIN", "SUPPORT", "MODERATOR"],
+  "support.read": ["OWNER", "ADMIN", "SUPPORT"],
   "user.ban": ["OWNER", "ADMIN", "MODERATOR"],
   "user.read": ["OWNER", "ADMIN", "SUPPORT", "MODERATOR"],
 } as const satisfies Record<string, readonly AdminRole[]>;

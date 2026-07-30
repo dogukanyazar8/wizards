@@ -20,6 +20,8 @@ import Svg, {
 } from "react-native-svg";
 import { mobileBrandPalette, mobilePalette } from "../../../design/palette";
 
+export type AuthWelcomeBrandWaveformHeights = readonly [number, number, number, number, number];
+
 interface AuthWelcomeBrandMarkProps {
   /**
    * Runs the equalizer loop. Left on by default so the auth screens are
@@ -34,6 +36,11 @@ interface AuthWelcomeBrandMarkProps {
   readonly testID?: string;
   /** About's measured 60px artwork differs from the auth mark's 52px canvas. */
   readonly variant?: "about" | "auth";
+  /**
+   * Keeps the canonical five-bar positions and widths while allowing a handoff
+   * surface on the 52px canvas to specify its measured heights.
+   */
+  readonly waveformHeights?: AuthWelcomeBrandWaveformHeights;
 }
 
 interface WaveformBar {
@@ -218,13 +225,22 @@ export function AuthWelcomeBrandMark({
   size = WEB_BRAND_ICON_SIZE,
   testID,
   variant = "auth",
+  waveformHeights,
 }: AuthWelcomeBrandMarkProps) {
   const active = useScreenFocusActive() && animated;
   const canvasSize = variant === "about" ? 60 : WEB_BRAND_ICON_SIZE;
-  const bars = variant === "about" ? ABOUT_WAVEFORM_BARS : CANONICAL_WAVEFORM_BARS;
   const surfaceGradientId = `${testID ?? "auth-welcome-brand-mark"}-surface-gradient`;
   const surfaceHighlightId = `${testID ?? "auth-welcome-brand-mark"}-surface-highlight`;
   const viewBoxCornerRadius = (cornerRadius * canvasSize) / size;
+  const waveformBars =
+    waveformHeights === undefined
+      ? variant === "about"
+        ? ABOUT_WAVEFORM_BARS
+        : CANONICAL_WAVEFORM_BARS
+      : CANONICAL_WAVEFORM_BARS.map((bar, index) => {
+          const height = waveformHeights[index]!;
+          return { ...bar, height, y: (canvasSize - height) / 2 };
+        });
 
   return (
     <Svg
@@ -285,7 +301,7 @@ export function AuthWelcomeBrandMark({
         width={canvasSize}
         {...(testID === undefined ? {} : { testID: `${testID}-surface-highlight-layer` })}
       />
-      {bars.map((bar, index) => (
+      {waveformBars.map((bar, index) => (
         <AnimatedWaveformBar
           active={active}
           bar={bar}

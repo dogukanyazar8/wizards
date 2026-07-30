@@ -3,7 +3,8 @@ import { MobileAppUpdateQuerySchema, MobileAppUpdateResponseSchema } from "@wiza
 import { jsonError } from "@/lib/api";
 import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import { requireMobileApiUserId } from "@/lib/auth/api";
-import { compareReleaseVersions, getMobileLatestRelease } from "@/lib/releases/release-service";
+import { decideMobileUpdate } from "@/lib/app/mobile-update-decision-service";
+import { tryReleasePublisherUserId } from "@/lib/releases/release-publisher-auth";
 
 /**
  * 1a's status row and 1d's update card.
@@ -14,24 +15,18 @@ import { compareReleaseVersions, getMobileLatestRelease } from "@/lib/releases/r
  * client-side transitions.
  */
 
-/**
- * `app.config.js` carries no `updates` key, so `Updates.isEnabled` is false on
- * every build. Saying so is the point: 1d must not offer a download this
- * deployment cannot deliver. Flip this when OTA is actually configured.
- */
-export const MOBILE_OTA_ENABLED = false;
-
 export type MobileAppUpdateRouteDependencies = {
   authenticate(request: Request): Promise<string>;
+  decideUpdate: typeof decideMobileUpdate;
   enforceRateLimit(userId: string, action: "mobile:app:update"): Promise<void>;
-  getLatestRelease: typeof getMobileLatestRelease;
   now(): Date;
 };
 
 const defaultDependencies: MobileAppUpdateRouteDependencies = {
-  authenticate: (request) => requireMobileApiUserId(request),
+  authenticate: async (request) =>
+    tryReleasePublisherUserId(request) ?? requireMobileApiUserId(request),
+  decideUpdate: decideMobileUpdate,
   enforceRateLimit: enforceApiRateLimit,
-  getLatestRelease: getMobileLatestRelease,
   now: () => new Date(),
 };
 
@@ -49,21 +44,12 @@ export async function mobileAppUpdateRoute(
     const query = MobileAppUpdateQuerySchema.parse(
       Object.fromEntries(new URL(request.url).searchParams.entries()),
     );
-    const latest = await dependencies.getLatestRelease(query.channel ?? "stable");
-
-    // No published release, or the caller is running something newer than the
-    // newest one we know about (an internal build), both mean "nothing to do".
-    const isBehind =
-      latest !== null &&
-      query.installed !== undefined &&
-      compareReleaseVersions(query.installed, latest.version) < 0;
+    const decision = await dependencies.decideUpdate(query);
 
     return Response.json(
       MobileAppUpdateResponseSchema.parse({
+        ...decision,
         lastCheckedAt: dependencies.now().toISOString(),
-        otaEnabled: MOBILE_OTA_ENABLED,
-        state: isBehind ? "available" : "current",
-        ...(isBehind && latest ? { latest } : {}),
       }),
       { headers: NO_STORE_HEADERS },
     );

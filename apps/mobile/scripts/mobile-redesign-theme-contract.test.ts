@@ -196,6 +196,9 @@ describe("mobile redesign palette contract", () => {
       stickyHeaderDurationMs: 160,
       footerButtonBottom: 26,
       footerButtonRadius: 16,
+      ratingFeedbackRadius: 18,
+      ratingTopicRadius: 10,
+      writeButtonRadius: 12,
     });
     assert.deepEqual(mobileNavigationMetrics, {
       miniVoiceBarToTabBarGap: 14,

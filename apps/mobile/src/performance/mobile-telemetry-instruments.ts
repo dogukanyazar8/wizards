@@ -1,5 +1,6 @@
-import { AppState, InteractionManager, type AppStateStatus } from "react-native";
+import { AppState, type AppStateStatus } from "react-native";
 
+import { scheduleMobileIdleTask } from "./mobile-idle-task";
 import { observeMobileListLoads } from "./mobile-performance-metrics";
 import {
   beginMobileNavigationSpan,
@@ -88,7 +89,7 @@ export function installMobileTelemetryInstruments(
     // Interactive is the first idle *after* content: the queue draining is what
     // says the JS thread is free to answer a tap.
     if (contentPhase !== null && !interactiveHandle) {
-      interactiveHandle = InteractionManager.runAfterInteractions(() => {
+      interactiveHandle = scheduleMobileIdleTask(() => {
         interactiveHandle = null;
         markMobileStartupPhase("interactive");
       });

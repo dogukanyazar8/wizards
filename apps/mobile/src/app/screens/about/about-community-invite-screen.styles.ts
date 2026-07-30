@@ -1,0 +1,285 @@
+import type { ImageStyle, TextStyle, ViewStyle } from "react-native";
+
+import { mobileAboutMetrics } from "../../../design/tokens";
+import type { MobileTheme } from "../../../design/themes";
+import { useThemedStyles } from "../../providers/mobile-theme-provider";
+
+export const createMobileAboutCommunityInviteStyles = (theme: MobileTheme) =>
+  ({
+    root: {
+      backgroundColor: theme.about.screen,
+      flex: 1,
+    },
+    scroll: {
+      flex: 1,
+    },
+    inviteCard: {
+      marginTop: 8,
+      overflow: "hidden",
+    },
+    banner: {
+      height: 92,
+      overflow: "hidden",
+      position: "relative",
+    },
+    bannerHighlight: {
+      backgroundColor: theme.about.updateOnGradient,
+      borderRadius: 82,
+      height: 164,
+      left: -18,
+      opacity: 0.3,
+      position: "absolute",
+      top: -58,
+      width: 164,
+    },
+    inviteContent: {
+      marginTop: -26,
+      paddingBottom: 16,
+      paddingHorizontal: 16,
+    },
+    iconFrame: {
+      alignItems: "center",
+      backgroundColor: theme.about.card,
+      borderColor: theme.about.card,
+      borderRadius: 18,
+      borderWidth: 3,
+      elevation: 5,
+      height: 56,
+      justifyContent: "center",
+      shadowColor: theme.about.inviteShadow,
+      shadowOffset: { height: 6, width: 0 },
+      shadowOpacity: 0.14,
+      shadowRadius: 8,
+      width: 56,
+    },
+    serverIcon: {
+      borderRadius: 14,
+      height: 50,
+      width: 50,
+    },
+    nameRow: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: 7,
+      marginTop: 12,
+    },
+    name: {
+      color: theme.about.text,
+      flexShrink: 1,
+      fontFamily: theme.typography.fontFamilyExtraBold,
+      fontSize: 18,
+      letterSpacing: -0.18,
+      minWidth: 0,
+    },
+    countRow: {
+      alignItems: "center",
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 14,
+      marginTop: 9,
+    },
+    countItem: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: 6,
+    },
+    countDotOnline: {
+      backgroundColor: theme.about.successDot,
+      borderRadius: 3.5,
+      height: 7,
+      width: 7,
+    },
+    countDotMember: {
+      backgroundColor: theme.about.timelineDot,
+      borderRadius: 3.5,
+      height: 7,
+      width: 7,
+    },
+    countText: {
+      color: theme.about.textSecondary,
+      fontFamily: theme.typography.fontFamilySemiBold,
+      fontSize: 11.5,
+    },
+    description: {
+      color: theme.about.textSecondary,
+      fontFamily: theme.typography.fontFamilyMedium,
+      fontSize: 12.5,
+      lineHeight: 18.75,
+      marginTop: 11,
+    },
+    channelCard: {
+      overflow: "hidden",
+    },
+    channelRow: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: 11,
+      minHeight: 44,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+    },
+    channelDivider: {
+      borderTopColor: theme.about.hairline,
+      borderTopWidth: 1,
+    },
+    channelName: {
+      color: theme.about.text,
+      flex: 1,
+      fontFamily: theme.typography.fontFamilySemiBold,
+      fontSize: 13.5,
+      minWidth: 0,
+    },
+    readOnly: {
+      color: theme.about.textTertiary,
+      flexShrink: 1,
+      fontFamily: theme.typography.fontFamilyBold,
+      fontSize: 10.5,
+    },
+    livePill: {
+      backgroundColor: theme.about.accentSurface,
+      borderRadius: mobileAboutMetrics.chipRadiusSmall,
+      paddingHorizontal: 5,
+      paddingVertical: 2,
+    },
+    liveLabel: {
+      color: theme.about.accent,
+      fontFamily: theme.typography.fontFamilyExtraBold,
+      fontSize: 9,
+      letterSpacing: 0.54,
+    },
+    voiceStatus: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: 6,
+    },
+    voiceDot: {
+      backgroundColor: theme.about.successDot,
+      borderRadius: 3.5,
+      height: 7,
+      width: 7,
+    },
+    voiceCount: {
+      color: theme.about.successText,
+      fontFamily: theme.typography.fontFamilySemiBold,
+      fontSize: 11,
+    },
+    socialCard: {
+      alignItems: "center",
+      borderRadius: mobileAboutMetrics.noticeRadius,
+      flexDirection: "row",
+      gap: 11,
+      marginTop: 16,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+    },
+    avatarStack: {
+      flexDirection: "row",
+      flexShrink: 0,
+    },
+    avatarFrame: {
+      alignItems: "center",
+      backgroundColor: theme.about.control,
+      borderColor: theme.about.card,
+      borderRadius: 14,
+      borderWidth: 2,
+      height: 28,
+      justifyContent: "center",
+      overflow: "hidden",
+      width: 28,
+    },
+    avatarOverlap: {
+      marginLeft: -9,
+    },
+    avatarOverflow: {
+      color: theme.about.textSecondary,
+      fontFamily: theme.typography.fontFamilyExtraBold,
+      fontSize: 9.5,
+    },
+    socialText: {
+      color: theme.about.textTertiary,
+      flex: 1,
+      fontFamily: theme.typography.fontFamilyMedium,
+      fontSize: 11.5,
+      lineHeight: 16.1,
+      minWidth: 0,
+    },
+    actions: {
+      bottom: mobileAboutMetrics.footerButtonBottom,
+      flexDirection: "row",
+      gap: 9,
+      left: mobileAboutMetrics.cardMargin,
+      position: "absolute",
+      right: mobileAboutMetrics.cardMargin,
+    },
+    primaryAction: {
+      alignItems: "center",
+      backgroundColor: theme.about.accent,
+      borderRadius: mobileAboutMetrics.footerButtonRadius,
+      elevation: 8,
+      flex: 1,
+      justifyContent: "center",
+      minHeight: 48,
+      paddingVertical: 14,
+      shadowColor: theme.about.accent,
+      shadowOffset: { height: 10, width: 0 },
+      shadowOpacity: 0.24,
+      shadowRadius: 12,
+    },
+    primaryActionDisabled: {
+      opacity: 0.45,
+    },
+    primaryActionLabel: {
+      color: theme.about.updateOnGradient,
+      fontFamily: theme.typography.fontFamilyExtraBold,
+      fontSize: 14,
+    },
+    copyAction: {
+      alignItems: "center",
+      backgroundColor: theme.about.card,
+      borderColor: theme.about.cardBorder,
+      borderRadius: mobileAboutMetrics.footerButtonRadius,
+      borderWidth: 1,
+      justifyContent: "center",
+      minHeight: 48,
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+    },
+    loadingCard: {
+      gap: 12,
+      padding: 16,
+    },
+    loadingIcon: {
+      marginTop: -26,
+    },
+    emptyState: {
+      alignItems: "center",
+      gap: 14,
+      marginHorizontal: 16,
+      marginTop: 32,
+      padding: 24,
+    },
+    emptyTitle: {
+      color: theme.about.text,
+      fontFamily: theme.typography.fontFamilyExtraBold,
+      fontSize: 16,
+      textAlign: "center",
+    },
+    emptyAction: {
+      alignItems: "center",
+      borderRadius: mobileAboutMetrics.writeButtonRadius,
+      justifyContent: "center",
+      minHeight: 44,
+      paddingHorizontal: 18,
+    },
+    emptyActionLabel: {
+      color: theme.about.accent,
+      fontFamily: theme.typography.fontFamilyBold,
+      fontSize: 13,
+    },
+    pressed: {
+      opacity: 0.82,
+    },
+  }) satisfies Record<string, ImageStyle | TextStyle | ViewStyle>;
+
+export const useMobileAboutCommunityInviteStyles = () =>
+  useThemedStyles(createMobileAboutCommunityInviteStyles);

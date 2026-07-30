@@ -4,10 +4,12 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, it } from "node:test";
 import { ApiError, jsonError } from "@/lib/api";
-import { ensureAdminRoleAllowed } from "@/lib/admin/access";
-import { ADMIN_CAPABILITIES, type AdminCapability } from "@/lib/admin/capabilities";
+import type { AdminCapability } from "@/lib/admin/capabilities";
 
 const adminApiRoot = dirname(fileURLToPath(import.meta.url));
+process.env.DATABASE_URL ??= "postgresql://test:test@127.0.0.1:5432/whispr_test";
+const accessModule = import("@/lib/admin/access");
+const capabilitiesModule = import("@/lib/admin/capabilities");
 
 /**
  * The routes that shipped without a role filter — `ANALYST` reached the raw
@@ -32,6 +34,16 @@ const ROUTE_CAPABILITY_PINS: ReadonlyArray<{ capability: AdminCapability; file: 
     capability: "case.action",
     file: "moderation/cases/[caseId]/evidence/[evidenceId]/route.ts",
   },
+  { capability: "release.read", file: "releases/route-logic.ts" },
+  { capability: "release.write", file: "releases/route-logic.ts" },
+  { capability: "release.read", file: "releases/[releaseId]/route-logic.ts" },
+  { capability: "release.write", file: "releases/[releaseId]/route-logic.ts" },
+  { capability: "release.write", file: "releases/[releaseId]/publish/route-logic.ts" },
+  { capability: "release.write", file: "releases/[releaseId]/changes/route-logic.ts" },
+  { capability: "help.write", file: "help/articles/route-logic.ts" },
+  { capability: "help.write", file: "help/articles/[articleId]/route-logic.ts" },
+  { capability: "support.read", file: "support/reports/route-logic.ts" },
+  { capability: "support.read", file: "support/reports/[reportId]/route-logic.ts" },
 ];
 
 function collectRouteFiles(directory: string): string[] {
@@ -108,6 +120,11 @@ describe("admin API capability coverage", () => {
 
 describe("admin capability authorization", () => {
   it("answers ANALYST with the shared 403 envelope on the leaked capabilities", async () => {
+    const [{ ensureAdminRoleAllowed }, { ADMIN_CAPABILITIES }] = await Promise.all([
+      accessModule,
+      capabilitiesModule,
+    ]);
+
     for (const capability of [
       "user.read",
       "export.activity",
@@ -135,7 +152,12 @@ describe("admin capability authorization", () => {
     }
   });
 
-  it("still admits the roles the capability grants", () => {
+  it("still admits the roles the capability grants", async () => {
+    const [{ ensureAdminRoleAllowed }, { ADMIN_CAPABILITIES }] = await Promise.all([
+      accessModule,
+      capabilitiesModule,
+    ]);
+
     assert.equal(
       ensureAdminRoleAllowed("SUPPORT", [...ADMIN_CAPABILITIES["user.read"]]),
       "SUPPORT",
@@ -146,7 +168,12 @@ describe("admin capability authorization", () => {
     );
   });
 
-  it("rejects a missing admin membership before it can reach a capability", () => {
+  it("rejects a missing admin membership before it can reach a capability", async () => {
+    const [{ ensureAdminRoleAllowed }, { ADMIN_CAPABILITIES }] = await Promise.all([
+      accessModule,
+      capabilitiesModule,
+    ]);
+
     assert.throws(
       () => ensureAdminRoleAllowed(null, [...ADMIN_CAPABILITIES["dashboard.read"]]),
       ApiError,

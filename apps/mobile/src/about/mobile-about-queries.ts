@@ -32,7 +32,8 @@ import {
 /** §4.9: the 1b service row is live, so a minute-old answer is refreshed behind it. */
 export const MOBILE_ABOUT_STATUS_STALE_TIME_MS = 60_000;
 /** §4.14/§4.17: one request per pause in typing, not one per keystroke. */
-export const MOBILE_HELP_SEARCH_DEBOUNCE_MS = 300;
+export const MOBILE_ABOUT_SEARCH_DEBOUNCE_MS = 300;
+export const MOBILE_HELP_SEARCH_DEBOUNCE_MS = MOBILE_ABOUT_SEARCH_DEBOUNCE_MS;
 
 export function getMobileAboutUpdateQueryOptions(
   client: MobileApiClient,

@@ -125,6 +125,39 @@ corepack pnpm --filter @wizards/mobile quality:check
 
 Non-development profiles must use HTTPS, non-local Whispr endpoints. Secret-like values must not be embedded into EAS public env.
 
+## OTA and internal APK publication
+
+`.github/workflows/mobile-release.yml` is a manual, environment-gated publisher. UAT OTA
+publishes an Expo export signed outside the repository, uploads immutable bytes to R2, registers
+only the signed metadata, then verifies the served manifest. UAT/canary APK publication uses the
+existing EAS-managed Android application-signing credential, verifies the resulting APK with
+`apksigner`, and registers its certificate fingerprint, SHA-256, size, and immutable URL.
+Production remains store-only and never receives `REQUEST_INSTALL_PACKAGES` or an internal APK URL.
+
+The first internal APK must be installed manually from the trusted immutable release URL. Later
+UAT/canary native updates can use the in-app downloader after Android's per-app unknown-source
+permission is explicitly granted. JavaScript-only compatible updates use signed OTA delivery.
+
+Configure these GitHub environment secrets separately for `mobile-uat` and, after establishing a
+distinct trust root, `mobile-canary`:
+
+- `WHISPR_MOBILE_OTA_PRIVATE_KEY`: environment-specific RSA private key; OTA job only.
+- `WHISPR_RELEASE_PUBLISH_TOKEN`: narrowly scoped server publisher credential.
+- `EXPO_TOKEN`: EAS build credential; APK job only.
+- `CLOUDFLARE_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`.
+
+The server also requires `WHISPR_RELEASE_PUBLISH_TOKEN` and
+`WHISPR_RELEASE_PUBLISH_ADMIN_USER_ID`; the latter must identify a dedicated service user so audit
+records retain a valid actor. Never place an OTA private key in app configuration, PostgreSQL, R2,
+build artifacts, logs, or the workspace.
+
+Keep the Android application-signing key managed by EAS and maintain a separately access-controlled
+disaster-recovery backup. Keep each OTA private key in a secret manager with least-privilege CI
+access; store only its public certificate under `certs/ota/<environment>/`. Use a distinct key per
+environment, document owner and expiry, rotate before certificate expiry by shipping the new public
+certificate in a native build first, then switching the publisher secret. A leaked OTA key requires
+immediate publication disablement and a new native build with a new trust root.
+
 ## Mobile performance budgets
 
 - Cold authenticated launch: `<= 2500ms`.
