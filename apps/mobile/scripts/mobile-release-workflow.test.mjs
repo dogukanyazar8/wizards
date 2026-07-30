@@ -71,9 +71,23 @@ describe("mobile release workflow contract", () => {
   it("pins manual, fail-closed OTA and EAS-managed APK publication", async () => {
     const workflow = await readFile(workflowPath, "utf8");
 
-    for (const input of ["environment:", "release_id:", "rollout:", "kind:"]) {
+    for (const input of ["environment:", "release_id:", "rollout:", "kind:", "preflight_only:"]) {
       assert.match(workflow, new RegExp(`^\\s{6}${input}`, "m"));
     }
+    assert.equal(
+      workflow.match(/runs-on: \[self-hosted, Linux, X64, mobile-release\]/g)?.length,
+      4,
+      "every mobile release job must use the dedicated local runner label",
+    );
+    assert.doesNotMatch(workflow, /runs-on: ubuntu-latest/);
+    assert.match(workflow, /Verify self-hosted release runner toolchain/);
+    assert.match(workflow, /github\.ref_name.*uat/);
+    assert.equal(
+      workflow.match(/persist-credentials: false/g)?.length,
+      3,
+      "every checkout that handles release state must avoid persisting GITHUB_TOKEN",
+    );
+    assert.match(workflow, /Scrub mobile release material/);
     assert.match(workflow, /WHISPR_MOBILE_OTA_PRIVATE_KEY/);
     assert.match(workflow, /Require OTA and R2 publication secrets/);
     assert.match(
@@ -97,7 +111,12 @@ describe("mobile release workflow contract", () => {
     assert.match(workflow, /mobile\/\$\{environment\}\/releases/);
     assert.match(workflow, /r2\.cloudflarestorage\.com/);
     assert.match(workflow, /Authorization: Bearer/);
-    assert.match(workflow, /if: inputs\.kind == 'apk' && inputs\.environment != 'production'/);
+    assert.match(
+      workflow,
+      /if: inputs\.kind == 'apk' && inputs\.environment == 'uat' && github\.ref_name == 'uat'/,
+    );
+    assert.match(workflow, /npm install --prefix "\$RUNNER_TEMP\/eas-cli" eas-cli@21\.3\.0/);
+    assert.doesNotMatch(workflow, /npm install --global eas-cli/);
     assert.doesNotMatch(workflow, /credentials\.json|--local/);
     assert.doesNotMatch(workflow, /upload-artifact[\s\S]{0,300}private-key/i);
   });
