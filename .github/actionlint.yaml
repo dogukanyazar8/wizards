@@ -3,3 +3,4 @@ self-hosted-runner:
     - wizards-ci
     - playwright
     - ci-fast
+    - mobile-release
