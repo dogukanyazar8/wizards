@@ -28,8 +28,8 @@
     "format": "node ../../scripts/quality/prettier-changed.mjs --scope packages/db"
   },
   "dependencies": {
-    "@prisma/adapter-pg": "7.9.0",
-    "@prisma/client": "7.9.0",
+    "@prisma/adapter-pg": "7.9.1",
+    "@prisma/client": "7.9.1",
     "bcryptjs": "^2.4.3",
     "pg": "^8.22.0"
   },
@@ -39,7 +39,7 @@
     "@types/pg": "^8.15.6",
     "dotenv": "^17.2.3",
     "prettier": "3.9.6",
-    "prisma": "7.9.0",
+    "prisma": "7.9.1",
     "tsx": "^4.23.1",
     "typescript": "catalog:"
   }
