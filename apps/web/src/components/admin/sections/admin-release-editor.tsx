@@ -11,10 +11,6 @@ import type { getAdminRelease } from "@/lib/releases/admin-release-service";
 type AdminRelease = Awaited<ReturnType<typeof getAdminRelease>>["release"];
 type AdminReleaseChange = AdminRelease["changes"][number];
 
-function nullableNumber(value: string) {
-  return value.trim() === "" ? null : Number(value);
-}
-
 export function AdminReleaseEditor({
   canWrite = true,
   release,
@@ -23,13 +19,11 @@ export function AdminReleaseEditor({
   release: AdminRelease;
 }) {
   const [form, setForm] = useState({
-    buildNumber: release.buildNumber === null ? "" : String(release.buildNumber),
     channel: release.channel,
     codename: release.codename ?? "",
     highlight: release.highlight ?? "",
     mandatory: release.mandatory,
     releasedAt: release.releasedAt.slice(0, 10),
-    sizeBytes: release.sizeBytes === null ? "" : String(release.sizeBytes),
     summary: release.summary ?? "",
     version: release.version,
   });
@@ -55,13 +49,11 @@ export function AdminReleaseEditor({
     try {
       await requestJson(`/api/v1/admin/releases/${release.id}`, {
         body: JSON.stringify({
-          buildNumber: nullableNumber(form.buildNumber),
           channel: form.channel,
           codename: form.codename.trim() || null,
           highlight: form.highlight.trim() || null,
           mandatory: form.mandatory,
           releasedAt: new Date(`${form.releasedAt}T12:00:00.000Z`).toISOString(),
-          sizeBytes: nullableNumber(form.sizeBytes),
           summary: form.summary.trim() || null,
           version: form.version.trim(),
         }),
@@ -254,9 +246,9 @@ export function AdminReleaseEditor({
               <input
                 className="app-input h-11 rounded-[12px] border px-3"
                 min="0"
-                onChange={(event) => setForm({ ...form, buildNumber: event.target.value })}
+                readOnly
                 type="number"
-                value={form.buildNumber}
+                value={release.buildNumber ?? ""}
               />
             </label>
             <label className="grid gap-1.5 text-sm">
@@ -264,9 +256,9 @@ export function AdminReleaseEditor({
               <input
                 className="app-input h-11 rounded-[12px] border px-3"
                 min="0"
-                onChange={(event) => setForm({ ...form, sizeBytes: event.target.value })}
+                readOnly
                 type="number"
-                value={form.sizeBytes}
+                value={release.sizeBytes ?? ""}
               />
             </label>
             <label className="flex items-center gap-3 text-sm">

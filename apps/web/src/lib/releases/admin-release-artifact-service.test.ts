@@ -22,7 +22,7 @@ function dependencies(
   overrides: Partial<AdminReleaseArtifactServiceDependencies> = {},
 ): AdminReleaseArtifactServiceDependencies {
   return {
-    createArtifact: async (releaseId, _channel, value, publishedAt) => ({
+    createArtifactAndSyncRelease: async (releaseId, _channel, value, publishedAt) => ({
       ...value,
       id: "artifact-1",
       publishedAt,
@@ -47,8 +47,10 @@ describe("admin release artifact service", () => {
       "release-1",
       input,
       dependencies({
-        createArtifact: async (releaseId, channel, value, publishedAt) => {
-          observedChannels.push(`create:${channel}`);
+        createArtifactAndSyncRelease: async (releaseId, channel, value, publishedAt) => {
+          observedChannels.push(
+            `create-and-sync:${channel}:${value.versionCode}:${value.sizeBytes}`,
+          );
           return {
             ...value,
             id: "artifact-1",
@@ -65,7 +67,7 @@ describe("admin release artifact service", () => {
 
     assert.equal(result.artifact.id, "artifact-1");
     assert.equal(result.artifact.versionCode, 8_200);
-    assert.deepEqual(observedChannels, ["find:UAT", "create:UAT"]);
+    assert.deepEqual(observedChannels, ["find:UAT", "create-and-sync:UAT:8200:50541363"]);
   });
 
   it("rejects unpublished, duplicate, non-HTTPS, and mutable artifact records", async () => {

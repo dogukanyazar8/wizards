@@ -22,6 +22,11 @@ jest.mock("expo-device", () => ({
   osVersion: "18.2",
 }));
 
+jest.mock("expo-application", () => ({
+  nativeApplicationVersion: "0.8.15",
+  nativeBuildVersion: "8203",
+}));
+
 jest.mock("expo-updates", () => ({
   isEnabled: false,
   checkForUpdateAsync: jest.fn(),
@@ -169,7 +174,6 @@ function createProps(
 ) {
   return {
     appVersion: "0.8.15",
-    buildId: "8150",
     onBack: jest.fn(),
     onOpenCookies: jest.fn(),
     onOpenLicenses: jest.fn(),
@@ -438,7 +442,7 @@ describe("1a + 1b About screen", () => {
 
     expect(await view.findByTestId("mobile-about-whats-new-card")).toBeTruthy();
     expect(view.getByText("0.8.15 “Echo”")).toBeTruthy();
-    expect(view.getByText("Yapı 8150 · 24 Tem 2026")).toBeTruthy();
+    expect(view.getByText("Yapı 8203 · 24 Tem 2026")).toBeTruthy();
     expect(view.getByText(changes[0]!.title)).toBeTruthy();
     expect(view.getByText(changes[1]!.title)).toBeTruthy();
     expect(view.getByText(changes[2]!.title)).toBeTruthy();

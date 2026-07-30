@@ -63,17 +63,23 @@ export function buildMobileReleaseContract(input) {
   if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/u.test(input.version ?? "")) {
     throw new Error("APK version must be a semantic version.");
   }
+  const apkContract = {
+    ...common,
+    latestKey: `mobile/${input.environment}/latest.json`,
+    releaseChannel: input.environment === "uat" ? "UAT" : "BETA",
+    version: input.version,
+  };
+  if (input.versionCode === undefined) {
+    return apkContract;
+  }
   if (!Number.isInteger(input.versionCode) || input.versionCode <= 0) {
     throw new Error("APK versionCode must be a positive integer.");
   }
   const fileName = `whispr-${input.version}-${input.versionCode}.apk`;
   return {
-    ...common,
+    ...apkContract,
     artifactKey: `mobile/${input.environment}/releases/v${input.version}/${fileName}`,
     fileName,
-    latestKey: `mobile/${input.environment}/latest.json`,
-    releaseChannel: input.environment === "uat" ? "UAT" : "BETA",
-    version: input.version,
     versionCode: input.versionCode,
   };
 }

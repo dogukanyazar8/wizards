@@ -74,6 +74,17 @@ describe("mobile update decision service", () => {
     assert.equal(decision.minSupportedVersionCode, 8_000);
   });
 
+  it("offers a higher Android versionCode within the same SemVer", async () => {
+    const decision = await decideMobileUpdate(
+      { ...baseInput, installed: "0.9.0", versionCode: 8_199 },
+      dependencies(),
+    );
+
+    assert.equal(decision.updateKind, "apk");
+    assert.equal(decision.androidArtifact?.versionCode, 8_200);
+    assert.equal(decision.latest?.version, "0.9.0");
+  });
+
   it("turns the minimum supported versionCode into a mandatory update gate", async () => {
     const decision = await decideMobileUpdate({ ...baseInput, versionCode: 7_999 }, dependencies());
 
@@ -116,7 +127,10 @@ describe("mobile update decision service", () => {
 
   it("returns none when no newer published release exists", async () => {
     const missing = await decideMobileUpdate(baseInput, dependencies(null));
-    const current = await decideMobileUpdate({ ...baseInput, installed: "0.9.0" }, dependencies());
+    const current = await decideMobileUpdate(
+      { ...baseInput, installed: "0.9.0", versionCode: 8_200 },
+      dependencies(),
+    );
 
     assert.equal(missing.updateKind, "none");
     assert.equal(current.updateKind, "none");

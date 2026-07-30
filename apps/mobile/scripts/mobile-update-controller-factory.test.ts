@@ -4,7 +4,10 @@ import { describe, it } from "node:test";
 import type { MobileAppUpdateResponse } from "@wizards/types";
 
 import type { MobileUpdateController } from "../src/about/mobile-update-controller";
-import { selectMobileUpdateController } from "../src/about/mobile-update-controller-factory";
+import {
+  resolveMobileUpdateRuntimeIdentity,
+  selectMobileUpdateController,
+} from "../src/about/mobile-update-controller-factory";
 
 const controller = {
   capabilities: { canPause: false, isEnabled: true, reportsPercent: false },
@@ -29,6 +32,35 @@ const decision: MobileAppUpdateResponse = {
 };
 
 describe("mobile update controller factory", () => {
+  it("uses native Android versionName and versionCode as installed identity", () => {
+    assert.deepEqual(
+      resolveMobileUpdateRuntimeIdentity({
+        nativeBuildVersion: "8203",
+        nativeVersion: "0.9.0",
+        platform: "android",
+        runtimeVersion: "runtime-0.9.0",
+      }),
+      {
+        buildVersion: "8203",
+        runtimeVersion: "runtime-0.9.0",
+        versionCode: 8_203,
+        versionName: "0.9.0",
+      },
+    );
+  });
+
+  it("rejects invalid native Android build versions", () => {
+    assert.deepEqual(
+      resolveMobileUpdateRuntimeIdentity({
+        nativeBuildVersion: "8203.5",
+        nativeVersion: " ",
+        platform: "android",
+        runtimeVersion: null,
+      }),
+      {},
+    );
+  });
+
   it("selects APK only for newer Android internal builds", () => {
     let receivedVersionCode = 0;
     const result = selectMobileUpdateController({

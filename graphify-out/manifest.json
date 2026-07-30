@@ -840,13 +840,13 @@
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-release-contract.test.ts": {
-    "mtime": 1783962986.585471,
-    "ast_hash": "7879ee53f5e382cfd49b0d8ba426c887",
+    "mtime": 1785426893.2982826,
+    "ast_hash": "4a6c4d197e16dc9ad27d03da6b5d728e",
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-release-evidence.test.ts": {
-    "mtime": 1783962986.5864718,
-    "ast_hash": "0bca384ab031af961cbf1d4999cf3e90",
+    "mtime": 1785426893.2987902,
+    "ast_hash": "86d17a240fb782ca4d7e21a3ea4eca44",
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-retired-handoff-contract.test.ts": {
@@ -1000,13 +1000,13 @@
     "semantic_hash": ""
   },
   "apps/mobile/scripts/validate-mobile-release.ts": {
-    "mtime": 1785297396.685825,
-    "ast_hash": "52e114e1a9548085c11195e8f56ac911",
+    "mtime": 1785426893.2997954,
+    "ast_hash": "37b604f6ff93d4b345e5f5c27cec2ea0",
     "semantic_hash": ""
   },
   "apps/mobile/scripts/write-mobile-release-evidence.ts": {
-    "mtime": 1782990773.3104055,
-    "ast_hash": "b83d8e4f5c9c16279c3dee4b78eb065e",
+    "mtime": 1785426893.3007953,
+    "ast_hash": "f7c9f18b0ff99a0c2f6edb875dfc83ec",
     "semantic_hash": ""
   },
   "apps/mobile/src/account/mobile-account-settings-client.ts": {
@@ -1565,8 +1565,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/app/screens/settings-screen.tsx": {
-    "mtime": 1785338837.8092577,
-    "ast_hash": "a10bc8a36e83d5adaa2c2867e9bc1209",
+    "mtime": 1785440750.7144904,
+    "ast_hash": "013d30ecf32a001d91b992b0451e451d",
     "semantic_hash": ""
   },
   "apps/mobile/src/app/screens/voice-screen.styles.ts": {
@@ -2135,8 +2135,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/release/mobile-release-contract.ts": {
-    "mtime": 1785297382.5087628,
-    "ast_hash": "103c4005560e79e9fc68decc386fb0b3",
+    "mtime": 1785426893.3017964,
+    "ast_hash": "18ae87426a9ae16e7ca6f8fe79aa8c54",
     "semantic_hash": ""
   },
   "apps/mobile/src/release/mobile-release-evidence.ts": {
@@ -7125,13 +7125,13 @@
     "semantic_hash": ""
   },
   "apps/mobile/eas.json": {
-    "mtime": 1785405427.0151398,
-    "ast_hash": "28c4c30df524cd65840f2b733ac4e5f6",
+    "mtime": 1785426893.296282,
+    "ast_hash": "0fcae0b2cf0cf713d55969f0f302fa14",
     "semantic_hash": ""
   },
   "apps/mobile/package.json": {
-    "mtime": 1785405554.7394779,
-    "ast_hash": "71b1e115681fd5b9cacd105d73e85e03",
+    "mtime": 1785440673.8385763,
+    "ast_hash": "018bb3c6741d807827e0bd1c2d3f2dab",
     "semantic_hash": ""
   },
   "apps/mobile/src/app/components/kit/auth/auth-password-strength-row.tsx": {
@@ -7455,8 +7455,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/app/screens/mobile-about-settings-screen.tsx": {
-    "mtime": 1785407450.8957415,
-    "ast_hash": "fbd53200b6870970f8052adf9db1f1ee",
+    "mtime": 1785441074.6569242,
+    "ast_hash": "7c6e36c842d7eb697682062b97f96a81",
     "semantic_hash": ""
   },
   "apps/mobile/src/app/screens/mobile-direct-call-screen.tsx": {
@@ -8420,8 +8420,8 @@
     "semantic_hash": ""
   },
   ".github/actionlint.yaml": {
-    "mtime": 1785163138.8999035,
-    "ast_hash": "c7c0acfd6bba608b4f15db4c0e1a7354",
+    "mtime": 1785426893.292282,
+    "ast_hash": "c3b8dadc88bd7ba131b040161501bfca",
     "semantic_hash": ""
   },
   "apps/mobile/component-tests/mobile-profile-sheets-11e.test.tsx": {
@@ -11510,8 +11510,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/component-tests/mobile-about-screen-1a-1b.test.tsx": {
-    "mtime": 1785415601.1646974,
-    "ast_hash": "d369737e6fb5eb4ca801fc680e6ee77c",
+    "mtime": 1785440720.1028907,
+    "ast_hash": "b26fb63c78fb687d748a03451fa685a1",
     "semantic_hash": ""
   },
   "apps/mobile/src/app/screens/about/about-identity-card.tsx": {
@@ -11935,8 +11935,8 @@
     "semantic_hash": ""
   },
   "apps/web/src/components/admin/sections/admin-content-management.test.tsx": {
-    "mtime": 1785398081.8643386,
-    "ast_hash": "0b3373d7087f6972e14f2f4d1ce7ae53",
+    "mtime": 1785440866.419123,
+    "ast_hash": "f71992ff8fd8e31e41df4eab120b4804",
     "semantic_hash": ""
   },
   "apps/web/src/components/admin/sections/admin-releases.tsx": {
@@ -11985,8 +11985,8 @@
     "semantic_hash": ""
   },
   "apps/web/src/components/admin/sections/admin-release-editor.tsx": {
-    "mtime": 1785398586.996007,
-    "ast_hash": "16fac1b651102ace99f2f8c110d9ddef",
+    "mtime": 1785440848.5853631,
+    "ast_hash": "dc61e7ee72a776dbc084b729413e790d",
     "semantic_hash": ""
   },
   "graphify-out/memory/query_20260730_075751_hakk\u0131nda_ekran\u0131ndaki_x_ve_instagram_linkleri_nered.md": {
@@ -12055,18 +12055,18 @@
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-release-workflow.mjs": {
-    "mtime": 1785408550.90486,
-    "ast_hash": "6f82ea14fa16dff9c394b569ba95cf3d",
+    "mtime": 1785440956.0027232,
+    "ast_hash": "b551f5563b8af0df584f73d52166bbf3",
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-release-workflow.test.mjs": {
-    "mtime": 1785408801.9589503,
-    "ast_hash": "6887e51ed0f8649ef34a60871275ec4f",
+    "mtime": 1785441013.2291546,
+    "ast_hash": "84883400a45d2731e5c99a3988215d6e",
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-update-controller-factory.test.ts": {
-    "mtime": 1785408550.947992,
-    "ast_hash": "bd4c8040367dc2e1f10d47e66ad4f5bf",
+    "mtime": 1785440764.659511,
+    "ast_hash": "696f3ede03399fd63526d663d046135a",
     "semantic_hash": ""
   },
   "apps/mobile/scripts/publish-ota-bundle.mjs": {
@@ -12085,8 +12085,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/about/mobile-update-controller-factory.ts": {
-    "mtime": 1785408551.0320156,
-    "ast_hash": "769677054c689afc8e59c0bdd6e55368",
+    "mtime": 1785440764.660624,
+    "ast_hash": "2b372e21321cd1ed1031d17b7ac20cc6",
     "semantic_hash": ""
   },
   "apps/web/src/app/api/v1/admin/releases/[releaseId]/artifact/route-logic.test.ts": {
@@ -12135,13 +12135,13 @@
     "semantic_hash": ""
   },
   "apps/web/src/lib/app/mobile-update-decision-service.test.ts": {
-    "mtime": 1785414830.8854716,
-    "ast_hash": "f84b2d5f2c4612e315105d6316eb5671",
+    "mtime": 1785440540.135186,
+    "ast_hash": "f0128827a0efb9f57d77326cd41a8788",
     "semantic_hash": ""
   },
   "apps/web/src/lib/app/mobile-update-decision-service.ts": {
-    "mtime": 1785414858.8715386,
-    "ast_hash": "3f4aea028f8f0c6ecb0fb3da13073a68",
+    "mtime": 1785440528.0398986,
+    "ast_hash": "cd94069ed233fa68a6dc9cbac65cd52d",
     "semantic_hash": ""
   },
   "apps/web/src/lib/app/ota-manifest-service.test.ts": {
@@ -12165,13 +12165,13 @@
     "semantic_hash": ""
   },
   "apps/web/src/lib/releases/admin-release-artifact-service.test.ts": {
-    "mtime": 1785409244.6801422,
-    "ast_hash": "6c38bcc586fbfa06732c4eb93b00122d",
+    "mtime": 1785441074.6724322,
+    "ast_hash": "1bf243e48db631338b5052ffcf94950a",
     "semantic_hash": ""
   },
   "apps/web/src/lib/releases/admin-release-artifact-service.ts": {
-    "mtime": 1785409223.4420106,
-    "ast_hash": "7fca8de77d3811905fff26325929823e",
+    "mtime": 1785440848.5838525,
+    "ast_hash": "d346bd94fb1205b6218ad695c39e563f",
     "semantic_hash": ""
   },
   "apps/web/src/lib/releases/release-publisher-auth.test.ts": {
@@ -12190,8 +12190,8 @@
     "semantic_hash": ""
   },
   ".github/workflows/mobile-release.yml": {
-    "mtime": 1785408834.119438,
-    "ast_hash": "6814c1fd01e07d3edd37f30836678d8a",
+    "mtime": 1785440999.1788714,
+    "ast_hash": "7a4c52196956206039322c1f69b1ff4f",
     "semantic_hash": ""
   },
   "apps/mobile/certs/ota/README.md": {
@@ -12205,8 +12205,8 @@
     "semantic_hash": ""
   },
   "docs/prompts/hakkinda-redesign/17-android-apk-guncelleme.md": {
-    "mtime": 1785415705.2443433,
-    "ast_hash": "cb2f69c680e2e4ff11ee511a225a836a",
+    "mtime": 1785441151.3653908,
+    "ast_hash": "e01d5c730b369faeedec76db86029f64",
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-07-30-whispr-mobile-ota-apk-update.md": {
@@ -12232,6 +12232,41 @@
   "graphify-out/memory/query_20260730_131512_railway_uat_ortam\u0131_build_fail_verdi__inceleyip_\u00e7\u00f6z.md": {
     "mtime": 1785417312.9307795,
     "ast_hash": "8bced52eb2cf94e56a434d419b616205",
+    "semantic_hash": ""
+  },
+  ".github/scripts/setup-android-build-tools.sh": {
+    "mtime": 1785427293.372276,
+    "ast_hash": "e64015bf2708c4686f89a3e91d106ee1",
+    "semantic_hash": ""
+  },
+  ".github/scripts/setup-aws-cli.sh": {
+    "mtime": 1785426893.2942822,
+    "ast_hash": "b5b1c360f22e80fbb42f53e84a1427b1",
+    "semantic_hash": ""
+  },
+  "graphify-out/memory/query_20260730_160433_sentry_get__admin_releases_apierror_unauthorized_n.md": {
+    "mtime": 1785427473.1962218,
+    "ast_hash": "0a89c32530cade16af38522a5387f1aa",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/plans/2026-07-30-mobile-release-identity-automation.md": {
+    "mtime": 1785440484.8533897,
+    "ast_hash": "880a83d8f2612300b9d0f4d0b5bd01f5",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/specs/2026-07-30-mobile-release-identity-automation-design.md": {
+    "mtime": 1785440484.8520675,
+    "ast_hash": "7495f83c626dc713ba3b34ce6640156f",
+    "semantic_hash": ""
+  },
+  "graphify-out/memory/query_20260730_184634_versiyon___kod_ad\u0131___build_nedir__mobilde_yeni_g\u00fcn.md": {
+    "mtime": 1785437194.8627896,
+    "ast_hash": "dc084b206e09fdf963d46d53069b5738",
+    "semantic_hash": ""
+  },
+  "graphify-out/memory/query_20260730_192302_her_yeni_github_mobile_release_workflowunda_build.md": {
+    "mtime": 1785439382.3080347,
+    "ast_hash": "869ef89beb208b2441e1244339e3e24c",
     "semantic_hash": ""
   }
 }

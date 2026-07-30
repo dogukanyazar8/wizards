@@ -121,6 +121,7 @@ answer
 answered
 any
 api
+apierror
 apk
 app
 appeal
@@ -209,6 +210,7 @@ avatar
 average
 await
 aware
+aws
 axe
 ayar
 ayarlar
@@ -2046,6 +2048,7 @@ ndirme
 near
 neden
 nedeni
+nedir
 needs
 neler
 nelerdir
@@ -3514,6 +3517,7 @@ venli
 venlik
 ver
 vercel
+verdi
 veri
 veriden
 verification

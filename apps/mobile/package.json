@@ -60,6 +60,7 @@
     "@uploadthing/react": "7.3.3",
     "@wizards/types": "workspace:*",
     "expo": "~57.0.8",
+    "expo-application": "~57.0.2",
     "expo-asset": "~57.0.7",
     "expo-audio": "~57.0.3",
     "expo-blur": "~57.0.2",

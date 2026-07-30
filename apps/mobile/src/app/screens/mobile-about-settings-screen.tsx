@@ -272,7 +272,6 @@ function AboutRatingStars() {
 
 export function MobileAboutSettingsScreen({
   appVersion,
-  buildId,
   onBack,
   onOpenCookies,
   onOpenLicenses,
@@ -285,7 +284,6 @@ export function MobileAboutSettingsScreen({
   updateController: providedUpdateController,
 }: {
   readonly appVersion: string;
-  readonly buildId: string;
   readonly onBack: () => void;
   readonly onOpenCookies: () => void;
   readonly onOpenLicenses: () => void;
@@ -308,12 +306,14 @@ export function MobileAboutSettingsScreen({
   const { showToast } = useToast();
   const bottomSpacing = useMobileBottomSystemSpacing(18);
   const reduceMotion = useReducedMotion() === true;
-  const installedVersion = normalizeInstalledVersion(appVersion);
   const runtimeConfig = getMobileRuntimeConfig();
   const updatePlatform = Platform.OS === "android" ? "android" : "ios";
   const updateRuntimeIdentity = useMemo(
     () => readMobileUpdateRuntimeIdentity(updatePlatform),
     [updatePlatform],
+  );
+  const installedVersion = normalizeInstalledVersion(
+    updateRuntimeIdentity.versionName ?? appVersion,
   );
   const otaUpdateController = useMemo(() => createExpoUpdateController(), []);
   const updateQuery = useMobileAboutUpdateQuery(auth.apiClient, {
@@ -455,11 +455,7 @@ export function MobileAboutSettingsScreen({
   const release = releaseQuery.data;
   const releasedAt = release?.releasedAt;
   const buildNumber =
-    buildId && buildId !== "unknown"
-      ? buildId
-      : release?.buildNumber === undefined
-        ? "—"
-        : String(release.buildNumber);
+    updateRuntimeIdentity.buildVersion === undefined ? "—" : updateRuntimeIdentity.buildVersion;
   const fullDate = formatReleaseDate(releasedAt, locale, true);
   const shortDate = formatReleaseDate(releasedAt, locale, false);
   const buildLabel = fill(copy.aboutBuild, { build: buildNumber || "—", date: fullDate });

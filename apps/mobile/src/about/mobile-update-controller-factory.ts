@@ -32,22 +32,62 @@ export interface MobileUpdateControllerSelection {
   readonly kind: MobileUpdateControllerKind;
 }
 
-export function readMobileUpdateRuntimeIdentity(platform: MobileUpdatePlatform): {
+export interface MobileUpdateRuntimeIdentity {
+  readonly buildVersion?: string;
   readonly runtimeVersion?: string;
   readonly versionCode?: number;
-} {
-  const updates = require("expo-updates") as typeof import("expo-updates");
-  const runtimeVersion = updates.runtimeVersion ?? undefined;
-  if (platform !== "android") {
-    return runtimeVersion ? { runtimeVersion } : {};
-  }
+  readonly versionName?: string;
+}
 
-  const constantsModule = require("expo-constants") as typeof import("expo-constants");
-  const versionCode = constantsModule.default.platform?.android?.versionCode;
+export function resolveMobileUpdateRuntimeIdentity({
+  nativeBuildVersion,
+  nativeVersion,
+  platform,
+  runtimeVersion,
+}: {
+  readonly nativeBuildVersion: string | null | undefined;
+  readonly nativeVersion: string | null | undefined;
+  readonly platform: MobileUpdatePlatform;
+  readonly runtimeVersion: string | null | undefined;
+}): MobileUpdateRuntimeIdentity {
+  const normalizedRuntimeVersion = runtimeVersion?.trim();
+  const versionName = nativeVersion?.trim();
+  const parsedVersionCode =
+    platform === "android" && nativeBuildVersion && /^\d+$/.test(nativeBuildVersion)
+      ? Number(nativeBuildVersion)
+      : undefined;
+  const versionCode =
+    parsedVersionCode !== undefined &&
+    Number.isSafeInteger(parsedVersionCode) &&
+    parsedVersionCode > 0
+      ? parsedVersionCode
+      : undefined;
+  const buildVersion =
+    platform === "android"
+      ? versionCode === undefined
+        ? undefined
+        : String(versionCode)
+      : nativeBuildVersion?.trim() || undefined;
+
   return {
-    ...(runtimeVersion ? { runtimeVersion } : {}),
-    ...(typeof versionCode === "number" && versionCode > 0 ? { versionCode } : {}),
+    ...(buildVersion ? { buildVersion } : {}),
+    ...(normalizedRuntimeVersion ? { runtimeVersion: normalizedRuntimeVersion } : {}),
+    ...(versionCode === undefined ? {} : { versionCode }),
+    ...(versionName ? { versionName } : {}),
   };
+}
+
+export function readMobileUpdateRuntimeIdentity(
+  platform: MobileUpdatePlatform,
+): MobileUpdateRuntimeIdentity {
+  const updates = require("expo-updates") as typeof import("expo-updates");
+  const application = require("expo-application") as typeof import("expo-application");
+  return resolveMobileUpdateRuntimeIdentity({
+    nativeBuildVersion: application.nativeBuildVersion,
+    nativeVersion: application.nativeApplicationVersion,
+    platform,
+    runtimeVersion: updates.runtimeVersion,
+  });
 }
 
 function disabledSelection(kind: "none" | "store"): MobileUpdateControllerSelection {

@@ -119,9 +119,22 @@ export async function decideMobileUpdate(
     release.minSupportedVersionCode !== null &&
     input.versionCode !== undefined &&
     input.versionCode < release.minSupportedVersionCode;
+  const internalAndroid =
+    release !== null &&
+    input.platform === "android" &&
+    environmentMatchesInternalChannel(input.buildEnvironment, release.channel);
+  const artifact = release?.artifacts.find(
+    (candidate) =>
+      candidate.kind === "APK" &&
+      candidate.platform === "ANDROID" &&
+      candidate.publishedAt !== null &&
+      input.versionCode !== undefined &&
+      candidate.versionCode > input.versionCode,
+  );
   const isBehind =
     release !== null &&
     (forcedByMinimumVersionCode ||
+      (internalAndroid && artifact !== undefined) ||
       (input.installed !== undefined &&
         compareReleaseVersions(input.installed, release.version) < 0));
 
@@ -164,18 +177,6 @@ export async function decideMobileUpdate(
       updateKind: "none",
     };
   }
-
-  const internalAndroid =
-    input.platform === "android" &&
-    environmentMatchesInternalChannel(input.buildEnvironment, release.channel);
-  const artifact = release.artifacts.find(
-    (candidate) =>
-      candidate.kind === "APK" &&
-      candidate.platform === "ANDROID" &&
-      candidate.publishedAt !== null &&
-      input.versionCode !== undefined &&
-      candidate.versionCode > input.versionCode,
-  );
 
   if (internalAndroid && artifact) {
     return {

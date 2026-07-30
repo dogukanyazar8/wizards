@@ -93,7 +93,7 @@ credential'ı kullanılır; yeni keystore üretilmez. Farklı anahtar
 ring başına ayrı manifest, publish sonrası uzak doğrulama.
 
 ```
-whispr-mobile-updates/
+${R2_BUCKET}/
   mobile/uat/latest.json
   mobile/uat/releases/v0.9.0-uat.1/whispr-0.9.0-8200.apk
   mobile/uat/releases/v0.9.0-uat.1/whispr-0.9.0-8200.apk.sha256
@@ -164,6 +164,9 @@ Ayrıca yanıt kökünde `minSupportedVersionCode?: number` ve
 `POST /api/v1/admin/releases/[releaseId]/artifact` — yetenek `release.write`
 (prompt 14'teki haritaya ekle), gövde `ReleaseArtifact` alanları.
 Aynı `(platform, kind, channel, versionCode)` ikinci kez gelirse 409.
+Artifact oluşturma ile `Release.buildNumber = versionCode` ve
+`Release.sizeBytes = artifact.sizeBytes` eşitlemesi aynı transaction içinde yapılır.
+Admin editöründe Build ve boyut salt okunurdur; elle PATCH edilmez.
 Her yazım audit kaydı düşürür.
 
 Hız sınırı eylemleri: `mobile:app:update` mevcut; `admin:release:artifact` eklenir.
@@ -251,16 +254,22 @@ capabilities: { isEnabled: Platform.OS === "android", reportsPercent: true, canP
 Yeni workflow: `.github/workflows/mobile-release.yml` — `desktop-release.yml` deseninin
 mobil karşılığı. Sırayla:
 
-1. Sürüm/kanal sözleşmesini doğrula (ring, versiyon, `versionCode` monotonluğu).
-2. EAS ile APK üret (`--profile <ring> --platform android`).
-3. Artefaktı indir, `sha256` hesapla, imza sertifikası parmak izini çıkar.
-4. R2'ye yükle: `mobile/<ring>/releases/<tag>/`. Desktop hattının kullandığı yükleme
+1. Sürüm/kanal sözleşmesini doğrula. Operatör yalnız SemVer `version` verir;
+   `versionCode` workflow girdisi değildir.
+2. EAS ile APK üret (`--profile <ring> --platform android`); `autoIncrement` gerçek
+   native `versionCode` değerini artırır.
+3. APK'dan `aapt dump badging` ile gerçek `versionName` ve `versionCode` değerlerini oku.
+   `versionName`, girilen SemVer ile birebir eşleşmezse yayını durdur. Artefakt adı,
+   R2 anahtarı, Admin Build ve `latest.json` gerçek `versionCode` ile üretilir.
+4. `sha256` hesapla, imza sertifikası parmak izini çıkar.
+5. R2'ye yükle: `mobile/<ring>/releases/<tag>/`. Desktop hattının kullandığı yükleme
    aracını kullan (`apps/desktop` scriptlerinden oku), yeni yol icat etme.
-5. `latest.json` üret ve `mobile/<ring>/latest.json` olarak yükle.
-6. Admin ucuna kaydet: `POST /api/v1/admin/releases/[releaseId]/artifact`.
-7. **Uzak doğrulama:** APK URL'sine `HEAD` at (boyut eşleşiyor mu), `Range: bytes=0-1023`
-   ile kısmi indirme dene (devam ettirme buna bağlı), `/api/v1/mobile/app/update`
-   yanıtının yeni artefaktı gösterdiğini doğrula. Bu adım geçmezse iş **başarısız** olur.
+6. **Uzak byte doğrulaması:** APK URL'sine `HEAD` at (boyut eşleşiyor mu),
+   `Range: bytes=0-1023` ile kısmi indirme dene (devam ettirme buna bağlı).
+7. Admin ucuna kaydet: `POST /api/v1/admin/releases/[releaseId]/artifact`.
+8. Aynı SemVer ve `versionCode - 1` ile `/api/v1/mobile/app/update` karar ucunu çağır;
+   yeni APK'nın döndüğünü doğrula. Bu adım geçmezse iş **başarısız** olur.
+9. `latest.json` üret ve `mobile/<ring>/latest.json` olarak yükle.
 
 Gizli anahtarlar: R2 erişim anahtarı, EAS token, admin API token. Hiçbiri repoya girmez.
 

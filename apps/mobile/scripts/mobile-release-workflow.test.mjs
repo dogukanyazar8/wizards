@@ -19,7 +19,7 @@ const androidBuildToolsSetupPath = resolve(
 const awsCliPublicKeyPath = resolve(workspaceRoot, ".github", "aws-cli-public-key.asc");
 
 describe("mobile release workflow contract", () => {
-  it("builds immutable OTA and APK paths without secret material", () => {
+  it("validates APK dispatch before build and finalizes paths from the actual versionCode", () => {
     const ota = buildMobileReleaseContract({
       environment: "uat",
       kind: "ota",
@@ -27,6 +27,15 @@ describe("mobile release workflow contract", () => {
       rollout: 25,
       runNumber: 42,
       sourceSha: "a".repeat(40),
+    });
+    const pendingApk = buildMobileReleaseContract({
+      environment: "canary",
+      kind: "apk",
+      releaseId: "release-2",
+      rollout: 100,
+      runNumber: 43,
+      sourceSha: "b".repeat(40),
+      version: "0.9.0-canary.1",
     });
     const apk = buildMobileReleaseContract({
       environment: "canary",
@@ -40,6 +49,9 @@ describe("mobile release workflow contract", () => {
     });
 
     assert.match(ota.bundleKey, /^uat-release-1-42-a{12}$/);
+    assert.equal(pendingApk.artifactKey, undefined);
+    assert.equal(pendingApk.fileName, undefined);
+    assert.equal(pendingApk.latestKey, "mobile/canary/latest.json");
     assert.equal(
       apk.artifactKey,
       "mobile/canary/releases/v0.9.0-canary.1/whispr-0.9.0-canary.1-8200.apk",
@@ -87,6 +99,8 @@ describe("mobile release workflow contract", () => {
     for (const input of ["environment:", "release_id:", "rollout:", "kind:", "preflight_only:"]) {
       assert.match(workflow, new RegExp(`^\\s{6}${input}`, "m"));
     }
+    assert.doesNotMatch(workflow, /^\s{6}version_code:/m);
+    assert.doesNotMatch(workflow, /\$\{\{\s*inputs\.version_code\s*\}\}/);
     assert.equal(
       workflow.match(/runs-on: \[self-hosted, Linux, X64, mobile-release\]/g)?.length,
       4,
@@ -161,6 +175,10 @@ describe("mobile release workflow contract", () => {
     assert.doesNotMatch(workflow, /--wait|eas-mobile-build\.json|artifacts\.buildUrl/);
     assert.match(workflow, /"\$aapt_path" dump badging "\$apk"/);
     assert.match(workflow, /versionCode='/);
+    assert.match(workflow, /versionName='/);
+    assert.match(workflow, /actual_version_name.*inputs\.version/);
+    assert.match(workflow, /--version-code "\$actual_version_code"/);
+    assert.match(workflow, /steps\.verify\.outputs\.version_code/);
     assert.match(workflow, /"\$apksigner_path" verify --print-certs/);
     assert.match(workflow, /sha256sum/);
     assert.match(workflow, /remote_sha256=.*curl/);
@@ -169,8 +187,10 @@ describe("mobile release workflow contract", () => {
     assert.match(workflow, /Content-Length/i);
     assert.match(workflow, /Range: bytes=0-1023/);
     assert.match(workflow, /api\/v1\/mobile\/app\/update/);
+    assert.match(workflow, /installed=\$\{\{ steps\.verify\.outputs\.version_name \}\}/);
+    assert.doesNotMatch(workflow, /installed=0\.0\.0/);
     assert.match(workflow, /\.updateKind == "apk"/);
-    assert.match(workflow, /mobile\/\$\{environment\}\/releases/);
+    assert.match(workflow, /artifact_key="\$\{\{ steps\.verify\.outputs\.artifact_key \}\}"/);
     assert.match(workflow, /r2\.cloudflarestorage\.com/);
     assert.match(workflow, /Authorization: Bearer/);
     assert.match(

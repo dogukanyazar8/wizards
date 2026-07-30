@@ -82,6 +82,7 @@ describe("admin content management panels", () => {
     }
 
     assert.match(markup, /width:358px/u);
+    assert.equal((markup.match(/readonly=""/giu) ?? []).length, 2);
   });
 
   it("renders help article metadata and the full editor contract", () => {

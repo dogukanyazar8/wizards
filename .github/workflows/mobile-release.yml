@@ -38,11 +38,6 @@ on:
         description: Required semantic version for APK publication
         required: false
         type: string
-      version_code:
-        default: ""
-        description: Expected signed APK Android versionCode
-        required: false
-        type: string
 
 concurrency:
   group: mobile-release-${{ inputs.environment }}
@@ -158,9 +153,7 @@ jobs:
     timeout-minutes: 15
     outputs:
       api_base_url: ${{ steps.contract.outputs.api_base_url }}
-      artifact_key: ${{ steps.contract.outputs.artifact_key }}
       bundle_key: ${{ steps.contract.outputs.bundle_key }}
-      file_name: ${{ steps.contract.outputs.file_name }}
       key_id: ${{ steps.contract.outputs.key_id }}
       latest_key: ${{ steps.contract.outputs.latest_key }}
       release_channel: ${{ steps.contract.outputs.release_channel }}
@@ -196,8 +189,7 @@ jobs:
             --rollout "${{ inputs.rollout }}" \
             --run-number "${{ github.run_number }}" \
             --source-sha "${{ github.sha }}" \
-            --version "${{ inputs.version }}" \
-            --version-code "${{ inputs.version_code }}"
+            --version "${{ inputs.version }}"
 
       - name: Run release contract tests
         run: |
@@ -459,7 +451,7 @@ jobs:
         run: |
           set -euo pipefail
           environment="${{ inputs.environment }}"
-          apk="$RUNNER_TEMP/${{ needs.contract.outputs.file_name }}"
+          apk="$RUNNER_TEMP/mobile-release.apk"
           build_root="$RUNNER_TEMP/eas-local-build"
           build_log="$RUNNER_TEMP/eas-local-build.log"
           rm -rf -- "$build_root"
@@ -503,8 +495,29 @@ jobs:
           [[ -x "$aapt_path" ]] || { echo "::error::aapt was not found."; exit 1; }
           package_line="$("$aapt_path" dump badging "$apk" | sed -n '/^package: /p' | head -n 1)"
           actual_version_code="$(printf '%s\n' "$package_line" | sed -n "s/.*versionCode='\([0-9][0-9]*\)'.*/\1/p")"
-          [[ "$actual_version_code" == "${{ inputs.version_code }}" ]] || {
-            echo "::error::APK versionCode $actual_version_code does not match expected ${{ inputs.version_code }}."
+          actual_version_name="$(printf '%s\n' "$package_line" | sed -n "s/.*versionName='\([^']*\)'.*/\1/p")"
+          [[ "$actual_version_code" =~ ^[1-9][0-9]*$ ]] || {
+            echo "::error::APK has no positive Android versionCode."
+            exit 1
+          }
+          [[ "$actual_version_name" == "${{ inputs.version }}" ]] || {
+            echo "::error::APK versionName $actual_version_name does not match requested ${{ inputs.version }}."
+            exit 1
+          }
+          contract_json="$(
+            node apps/mobile/scripts/mobile-release-workflow.mjs \
+              --environment "${{ inputs.environment }}" \
+              --kind apk \
+              --release-id "${{ inputs.release_id }}" \
+              --rollout "${{ inputs.rollout }}" \
+              --run-number "${{ github.run_number }}" \
+              --source-sha "${{ github.sha }}" \
+              --version "$actual_version_name" \
+              --version-code "$actual_version_code"
+          )"
+          file_name="$(printf '%s' "$contract_json" | jq -r '.fileName')"
+          [[ "$file_name" != "null" && -n "$file_name" ]] || {
+            echo "::error::Final APK artifact name could not be generated."
             exit 1
           }
           certificate_output="$("$apksigner_path" verify --print-certs "$apk")"
@@ -513,10 +526,11 @@ jobs:
           signing_fingerprint="$(printf '%s' "$raw_fingerprint" | sed 's/../&:/g;s/:$//' | tr '[:lower:]' '[:upper:]')"
           sha256="$(sha256sum "$apk" | awk '{print $1}')"
           size_bytes="$(stat -c%s "$apk")"
-          printf '%s  %s\n' "$sha256" "${{ needs.contract.outputs.file_name }}" > "$RUNNER_TEMP/${{ needs.contract.outputs.file_name }}.sha256"
+          printf '%s  %s\n' "$sha256" "$file_name" > "$RUNNER_TEMP/${file_name}.sha256"
           echo "sha256=$sha256" >> "$GITHUB_OUTPUT"
           echo "signing_fingerprint=$signing_fingerprint" >> "$GITHUB_OUTPUT"
           echo "size_bytes=$size_bytes" >> "$GITHUB_OUTPUT"
+          echo "version_name=$actual_version_name" >> "$GITHUB_OUTPUT"
 
       - name: Publish and remotely verify immutable APK
         shell: bash
@@ -526,9 +540,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
         run: |
           set -euo pipefail
-          environment="${{ inputs.environment }}"
-          release_prefix="mobile/${environment}/releases"
-          artifact_key="${{ needs.contract.outputs.artifact_key }}"
+          artifact_key="${{ steps.verify.outputs.artifact_key }}"
           endpoint_url="https://${CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com"
           if aws --endpoint-url "$endpoint_url" s3api head-object \
             --bucket "$R2_BUCKET" --key "$artifact_key" >/dev/null 2>&1; then
@@ -540,7 +552,7 @@ jobs:
             --content-type "application/vnd.android.package-archive" \
             --cache-control "public, max-age=31536000, immutable" --no-progress
           aws --endpoint-url "$endpoint_url" s3 cp \
-            "$RUNNER_TEMP/${{ needs.contract.outputs.file_name }}.sha256" \
+            "$RUNNER_TEMP/${{ steps.verify.outputs.file_name }}.sha256" \
             "s3://${R2_BUCKET}/${artifact_key}.sha256" \
             --content-type "text/plain; charset=utf-8" \
             --cache-control "public, max-age=31536000, immutable" --no-progress
@@ -572,13 +584,13 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
         run: |
           set -euo pipefail
-          artifact_url="https://updates.whispr.team/${{ needs.contract.outputs.artifact_key }}"
+          artifact_url="https://updates.whispr.team/${{ steps.verify.outputs.artifact_key }}"
           jq -n \
             --arg sha256 "${{ steps.verify.outputs.sha256 }}" \
             --arg signingCertSha256 "${{ steps.verify.outputs.signing_fingerprint }}" \
             --arg url "$artifact_url" \
             --argjson sizeBytes "${{ steps.verify.outputs.size_bytes }}" \
-            --argjson versionCode "${{ inputs.version_code }}" \
+            --argjson versionCode "${{ steps.verify.outputs.version_code }}" \
             '{kind:"APK",platform:"ANDROID",sha256:$sha256,signingCertSha256:$signingCertSha256,sizeBytes:$sizeBytes,url:$url,versionCode:$versionCode}' \
             > "$RUNNER_TEMP/mobile-apk-registration.json"
           curl --fail-with-body --silent --show-error \
@@ -590,28 +602,29 @@ jobs:
 
           environment="${{ inputs.environment }}"
           mobile_channel="$([[ "$environment" == "uat" ]] && printf 'uat' || printf 'beta')"
-          previous_version_code="$((${{ inputs.version_code }} - 1))"
+          version_code="${{ steps.verify.outputs.version_code }}"
+          previous_version_code="$((version_code - 1))"
           curl --fail-with-body --silent --show-error \
             -H "Authorization: Bearer ${WHISPR_RELEASE_PUBLISH_TOKEN}" \
-            "${{ needs.contract.outputs.api_base_url }}/api/v1/mobile/app/update?buildEnvironment=${environment}&channel=${mobile_channel}&installed=0.0.0&platform=android&runtimeVersion=publication-verification&versionCode=${previous_version_code}" \
+            "${{ needs.contract.outputs.api_base_url }}/api/v1/mobile/app/update?buildEnvironment=${environment}&channel=${mobile_channel}&installed=${{ steps.verify.outputs.version_name }}&platform=android&runtimeVersion=publication-verification&versionCode=${previous_version_code}" \
             > "$RUNNER_TEMP/mobile-apk-decision.json"
           jq -e \
             --arg url "$artifact_url" \
-            --argjson versionCode "${{ inputs.version_code }}" \
+            --argjson versionCode "${{ steps.verify.outputs.version_code }}" \
             '.updateKind == "apk" and .androidArtifact.url == $url and .androidArtifact.versionCode == $versionCode' \
             "$RUNNER_TEMP/mobile-apk-decision.json" >/dev/null
 
           jq -n \
             --arg sha256 "${{ steps.verify.outputs.sha256 }}" \
             --arg url "$artifact_url" \
-            --arg version "${{ inputs.version }}" \
+            --arg version "${{ steps.verify.outputs.version_name }}" \
             --argjson sizeBytes "${{ steps.verify.outputs.size_bytes }}" \
-            --argjson versionCode "${{ inputs.version_code }}" \
+            --argjson versionCode "${{ steps.verify.outputs.version_code }}" \
             '{sha256:$sha256,sizeBytes:$sizeBytes,url:$url,version:$version,versionCode:$versionCode}' \
             > "$RUNNER_TEMP/mobile-latest.json"
           endpoint_url="https://${CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com"
           aws --endpoint-url "$endpoint_url" s3 cp "$RUNNER_TEMP/mobile-latest.json" \
-            "s3://${R2_BUCKET}/${{ needs.contract.outputs.latest_key }}" \
+            "s3://${R2_BUCKET}/${{ steps.verify.outputs.latest_key }}" \
             --content-type "application/json" \
             --cache-control "public, max-age=60" --no-progress
 
@@ -622,6 +635,7 @@ jobs:
           set -euo pipefail
           find "$RUNNER_TEMP" -maxdepth 1 -type f \
             \( -name 'mobile-apk-*' -o -name 'mobile-latest.json' \
+            -o -name 'mobile-release.apk' \
             -o -name 'whispr-*.apk' -o -name 'whispr-*.apk.sha256' \) -delete
           if [[ -d "$RUNNER_TEMP/eas-cli" ]]; then
             rm -rf -- "$RUNNER_TEMP/eas-cli"

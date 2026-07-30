@@ -19,7 +19,7 @@ export type AdminReleaseArtifactSummary = AdminReleaseArtifactInput & {
 };
 
 export type AdminReleaseArtifactServiceDependencies = {
-  createArtifact(
+  createArtifactAndSyncRelease(
     releaseId: string,
     channel: "BETA" | "STABLE" | "UAT",
     input: AdminReleaseArtifactInput,
@@ -42,28 +42,38 @@ export type AdminReleaseArtifactServiceDependencies = {
 };
 
 const defaultDependencies: AdminReleaseArtifactServiceDependencies = {
-  async createArtifact(releaseId, channel, input, publishedAt) {
-    const { signingCertSha256, ...requiredInput } = input;
-    const artifact = await prisma.releaseArtifact.create({
-      data: {
-        ...requiredInput,
-        ...(signingCertSha256 ? { signingCertSha256 } : {}),
-        channel,
-        publishedAt,
-        releaseId,
-      },
-      select: {
-        id: true,
-        kind: true,
-        platform: true,
-        publishedAt: true,
-        releaseId: true,
-        sha256: true,
-        signingCertSha256: true,
-        sizeBytes: true,
-        url: true,
-        versionCode: true,
-      },
+  async createArtifactAndSyncRelease(releaseId, channel, input, publishedAt) {
+    const artifact = await prisma.$transaction(async (transaction) => {
+      const { signingCertSha256, ...requiredInput } = input;
+      const created = await transaction.releaseArtifact.create({
+        data: {
+          ...requiredInput,
+          ...(signingCertSha256 ? { signingCertSha256 } : {}),
+          channel,
+          publishedAt,
+          releaseId,
+        },
+        select: {
+          id: true,
+          kind: true,
+          platform: true,
+          publishedAt: true,
+          releaseId: true,
+          sha256: true,
+          signingCertSha256: true,
+          sizeBytes: true,
+          url: true,
+          versionCode: true,
+        },
+      });
+      await transaction.release.update({
+        data: {
+          buildNumber: input.versionCode,
+          sizeBytes: BigInt(input.sizeBytes),
+        },
+        where: { id: releaseId },
+      });
+      return created;
     });
     return {
       id: artifact.id,
@@ -162,7 +172,7 @@ export async function registerAdminReleaseArtifact(
   }
 
   return {
-    artifact: await dependencies.createArtifact(
+    artifact: await dependencies.createArtifactAndSyncRelease(
       releaseId,
       release.channel,
       input,

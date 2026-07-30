@@ -84,7 +84,6 @@ import { MobileStatusPickerSheetView } from "../../social/mobile-status-picker-s
 import { toMobilePresenceStatus } from "../../social/mobile-status-picker-model";
 import { MOBILE_ABOUT_PREFERENCE_KEYS } from "../../about/mobile-about-preferences";
 import { isMobileReleaseNewer } from "../../about/mobile-about-model";
-import { resolveMobileTelemetryDimensions } from "../../performance/mobile-telemetry-dimensions";
 
 const MOBILE_PROFILE_PRESENCE_STATUSES: readonly MobileFriendPresenceStatus[] = [
   "ONLINE",
@@ -2090,7 +2089,6 @@ export function ProfileSettingsScreen({
     bootstrapState.status === "ready"
       ? bootstrapState.payload.app.releaseChannel
       : runtimeConfig.environment;
-  const buildId = resolveMobileTelemetryDimensions().buildId;
   const appearanceRows: NativeSettingsRowItem[] = [
     {
       description: copy.settingsLanguageDescription,
@@ -2285,7 +2283,6 @@ export function ProfileSettingsScreen({
     return (
       <MobileAboutSettingsScreen
         appVersion={appVersion}
-        buildId={buildId}
         onBack={onBack ?? (() => mobileNavigationRef.isReady() && mobileNavigationRef.goBack())}
         // Legal texts open in-app now; they are the same server-rendered document
         // the web shows, so there is no reason to eject the user to a browser.
