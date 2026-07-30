@@ -16,13 +16,15 @@ function readJson<T>(path: string): T {
 
 describe("mobile release contract", () => {
   it("validates the real EAS build matrix and version alignment", () => {
-    const eas = readJson<{ build: Record<string, MobileReleaseProfileConfig> }>(
-      resolve(__dirname, "../eas.json"),
-    );
+    const eas = readJson<{
+      build: Record<string, MobileReleaseProfileConfig>;
+      cli: { appVersionSource: string };
+    }>(resolve(__dirname, "../eas.json"));
     const mobilePackage = readJson<{ version: string }>(resolve(__dirname, "../package.json"));
     const rootPackage = readJson<{ version: string }>(resolve(__dirname, "../../../package.json"));
 
     const result = validateMobileReleaseContract({
+      appVersionSource: eas.cli.appVersionSource,
       easBuildProfiles: eas.build,
       packageVersion: mobilePackage.version,
       rootVersion: rootPackage.version,
@@ -30,13 +32,22 @@ describe("mobile release contract", () => {
 
     assert.deepEqual(result.blockers, []);
     assert.equal(result.budgets.length >= 4, true);
-    assert.equal(result.checklist.some((item) => item.includes("permission")), true);
+    assert.equal(
+      result.checklist.some((item) => item.includes("permission")),
+      true,
+    );
     assert.equal(result.storeReadiness.permissionCount >= 4, true);
-    assert.equal(result.checklist.some((item) => item.includes("Store")), true);
+    assert.equal(
+      result.checklist.some((item) => item.includes("Store")),
+      true,
+    );
+    assert.equal(eas.cli.appVersionSource, "remote");
+    assert.equal(eas.build.uat?.autoIncrement, true);
   });
 
   it("blocks production-like profiles that point to HTTP or local hosts", () => {
     const result = validateMobileReleaseContract({
+      appVersionSource: "local",
       easBuildProfiles: {
         canary: {
           autoIncrement: true,
@@ -87,6 +98,16 @@ describe("mobile release contract", () => {
     assert.equal(
       result.blockers.some((blocker) =>
         blocker.includes("production EXPO_PUBLIC_WHISPR_API_URL must be an HTTPS non-local URL"),
+      ),
+      true,
+    );
+    assert.equal(
+      result.blockers.some((blocker) => blocker.includes("appVersionSource must be remote")),
+      true,
+    );
+    assert.equal(
+      result.blockers.some((blocker) =>
+        blocker.includes("uat, canary, and production profiles must auto-increment"),
       ),
       true,
     );

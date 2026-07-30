@@ -16,13 +16,15 @@ function readJson<T>(path: string): T {
 }
 
 function buildRealEvidence() {
-  const eas = readJson<{ build: Record<string, MobileReleaseProfileConfig> }>(
-    resolve(__dirname, "../eas.json"),
-  );
+  const eas = readJson<{
+    build: Record<string, MobileReleaseProfileConfig>;
+    cli: { appVersionSource: string };
+  }>(resolve(__dirname, "../eas.json"));
   const mobilePackage = readJson<{ version: string }>(resolve(__dirname, "../package.json"));
   const rootPackage = readJson<{ version: string }>(resolve(__dirname, "../../../package.json"));
 
   return buildMobileReleaseEvidence({
+    appVersionSource: eas.cli.appVersionSource,
     easBuildProfiles: eas.build,
     generatedAt: "2026-07-02T00:00:00.000Z",
     packageVersion: mobilePackage.version,
@@ -37,7 +39,10 @@ describe("mobile release evidence", () => {
     assert.equal(evidence.schemaVersion, 1);
     assert.equal(evidence.redacted, true);
     assert.equal(evidence.blockers.length, 0);
-    assert.equal(evidence.automatedGates.some((gate) => gate.id === "mobile-release-evidence"), true);
+    assert.equal(
+      evidence.automatedGates.some((gate) => gate.id === "mobile-release-evidence"),
+      true,
+    );
     assert.equal(evidence.manualQa.length >= 20, true);
     assert.equal(evidence.deviceMatrix.length >= 4, true);
     assert.equal(evidence.nativeCapabilities.length >= 5, true);

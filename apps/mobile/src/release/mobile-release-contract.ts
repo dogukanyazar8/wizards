@@ -32,6 +32,7 @@ export type MobileReleaseProfileConfig = {
 };
 
 export type MobileReleaseContractInput = {
+  appVersionSource: string;
   easBuildProfiles: Record<string, MobileReleaseProfileConfig | undefined>;
   packageVersion: string;
   rootVersion: string;
@@ -150,6 +151,7 @@ function pushSecretBlockers(
 }
 
 export function validateMobileReleaseContract({
+  appVersionSource,
   easBuildProfiles,
   packageVersion,
   rootVersion,
@@ -170,6 +172,12 @@ export function validateMobileReleaseContract({
   if (packageVersion !== rootVersion) {
     blockers.push(
       `Mobile package version '${packageVersion}' must match root version '${rootVersion}'.`,
+    );
+  }
+
+  if (appVersionSource !== "remote") {
+    blockers.push(
+      "EAS appVersionSource must be remote so CI preserves monotonic native build numbers.",
     );
   }
 
@@ -209,12 +217,12 @@ export function validateMobileReleaseContract({
     blockers.push("production profile must use store distribution.");
   }
 
-  if (production?.autoIncrement !== true || canary?.autoIncrement !== true) {
-    blockers.push("canary and production profiles must auto-increment native build numbers.");
-  }
-
-  if (uat?.autoIncrement !== false) {
-    warnings.push("uat profile should keep autoIncrement=false for deterministic smoke builds.");
+  if (
+    uat?.autoIncrement !== true ||
+    canary?.autoIncrement !== true ||
+    production?.autoIncrement !== true
+  ) {
+    blockers.push("uat, canary, and production profiles must auto-increment native build numbers.");
   }
 
   return {
