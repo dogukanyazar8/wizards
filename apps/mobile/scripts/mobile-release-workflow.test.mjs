@@ -10,6 +10,12 @@ const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const workspaceRoot = resolve(scriptDirectory, "..", "..", "..");
 const workflowPath = resolve(workspaceRoot, ".github", "workflows", "mobile-release.yml");
 const awsCliSetupPath = resolve(workspaceRoot, ".github", "scripts", "setup-aws-cli.sh");
+const androidBuildToolsSetupPath = resolve(
+  workspaceRoot,
+  ".github",
+  "scripts",
+  "setup-android-build-tools.sh",
+);
 const awsCliPublicKeyPath = resolve(workspaceRoot, ".github", "aws-cli-public-key.asc");
 
 describe("mobile release workflow contract", () => {
@@ -71,9 +77,10 @@ describe("mobile release workflow contract", () => {
   });
 
   it("pins manual, fail-closed OTA and EAS-managed APK publication", async () => {
-    const [workflow, awsCliSetup, awsCliPublicKey] = await Promise.all([
+    const [workflow, awsCliSetup, androidBuildToolsSetup, awsCliPublicKey] = await Promise.all([
       readFile(workflowPath, "utf8"),
       readFile(awsCliSetupPath, "utf8"),
+      readFile(androidBuildToolsSetupPath, "utf8"),
       readFile(awsCliPublicKeyPath, "utf8"),
     ]);
 
@@ -103,6 +110,30 @@ describe("mobile release workflow contract", () => {
     assert.match(awsCliSetup, /--install-dir "\$install_root"/);
     assert.match(awsCliSetup, /FB5DB77FD5C118B80511ADA8A6310ACC4672475C/);
     assert.doesNotMatch(awsCliSetup, /sudo|\/usr\/local/);
+    assert.equal(
+      workflow.match(/actions\/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95/g)?.length,
+      2,
+      "preflight and APK publication must provision the pinned JDK",
+    );
+    assert.equal(
+      workflow.match(/\.github\/scripts\/setup-android-build-tools\.sh/g)?.length,
+      2,
+      "preflight and APK publication must install the verified job-local apksigner",
+    );
+    const otaJob = workflow.slice(workflow.indexOf("\n  ota:"), workflow.indexOf("\n  apk:"));
+    const apkJob = workflow.slice(workflow.indexOf("\n  apk:"));
+    assert.doesNotMatch(otaJob, /setup-android-build-tools|setup-java/);
+    assert.match(apkJob, /setup-android-build-tools/);
+    assert.match(apkJob, /setup-java/);
+    assert.match(androidBuildToolsSetup, /commandlinetools-linux-15859902_latest\.zip/);
+    assert.match(
+      androidBuildToolsSetup,
+      /4e4c464f145a7512b57d088ac6c278c03c9eea610886b35a5e0804e74eedf583/,
+    );
+    assert.match(androidBuildToolsSetup, /build-tools;36\.0\.0/);
+    assert.match(androidBuildToolsSetup, /\$\{RUNNER_TEMP%\/\}\/android-sdk/);
+    assert.match(androidBuildToolsSetup, /sha256sum --check/);
+    assert.doesNotMatch(androidBuildToolsSetup, /sudo|\/usr\/local/);
     assert.match(awsCliPublicKey, /-----BEGIN PGP PUBLIC KEY BLOCK-----/);
     assert.match(awsCliPublicKey, /=knv7/);
     assert.match(workflow, /Scrub mobile release material/);
