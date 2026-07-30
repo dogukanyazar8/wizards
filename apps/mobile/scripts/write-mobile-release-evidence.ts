@@ -29,13 +29,15 @@ function readOutPath(): string {
   return resolve(__dirname, "../artifacts/mobile-release-evidence.json");
 }
 
-const eas = readJson<{ build: Record<string, MobileReleaseProfileConfig> }>(
-  resolve(__dirname, "../eas.json"),
-);
+const eas = readJson<{
+  build: Record<string, MobileReleaseProfileConfig>;
+  cli: { appVersionSource: string };
+}>(resolve(__dirname, "../eas.json"));
 const mobilePackage = readJson<{ version: string }>(resolve(__dirname, "../package.json"));
 const rootPackage = readJson<{ version: string }>(resolve(__dirname, "../../../package.json"));
 
 const evidence = buildMobileReleaseEvidence({
+  appVersionSource: eas.cli.appVersionSource,
   easBuildProfiles: eas.build,
   packageVersion: mobilePackage.version,
   rootVersion: rootPackage.version,
