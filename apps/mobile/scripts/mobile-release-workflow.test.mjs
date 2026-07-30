@@ -147,6 +147,16 @@ describe("mobile release workflow contract", () => {
       /eas build --platform android --profile "\$environment" --local --non-interactive --freeze-credentials/,
     );
     assert.match(workflow, /--output "\$apk"/);
+    assert.match(workflow, /EAS_LOCAL_BUILD_WORKINGDIR="\$build_root\/work"/);
+    assert.match(workflow, /EAS_LOCAL_BUILD_ARTIFACTS_DIR="\$build_root\/artifacts"/);
+    assert.match(workflow, /TMPDIR="\$build_root\/tmp"/);
+    assert.match(workflow, /df -Pk "\$RUNNER_TEMP"/);
+    assert.match(workflow, /runner_temp_available_kb >= 20971520/);
+    assert.match(workflow, /> "\$build_log" 2>&1/);
+    assert.match(workflow, /grep -F '\[RUN_GRADLEW\]'/);
+    assert.match(workflow, /\[A-Za-z0-9\+\\\/=\]\{80,\}/);
+    assert.doesNotMatch(workflow, /cat "\$build_log"/);
+    assert.match(workflow, /rm -f -- "\$RUNNER_TEMP\/eas-local-build\.log"/);
     assert.doesNotMatch(workflow, /--wait|eas-mobile-build\.json|artifacts\.buildUrl/);
     assert.match(workflow, /"\$aapt_path" dump badging "\$apk"/);
     assert.match(workflow, /versionCode='/);

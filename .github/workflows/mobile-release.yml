@@ -82,7 +82,7 @@ jobs:
         run: |
           set -euo pipefail
           missing=()
-          for tool in bash git curl jq openssl base64 sha256sum stat sed awk grep find gpg unzip yes flock; do
+          for tool in bash git curl jq openssl base64 sha256sum stat sed awk grep find gpg unzip yes flock df; do
             command -v "$tool" >/dev/null 2>&1 || missing+=("$tool")
           done
           if (( ${#missing[@]} > 0 )); then
@@ -122,12 +122,22 @@ jobs:
             printf '::error::Android local-build toolchain is missing: %s\n' "${missing[*]}"
             exit 1
           }
+          runner_temp_available_kb="$(df -Pk "$RUNNER_TEMP" | awk 'NR == 2 { print $4 }')"
+          [[ "$runner_temp_available_kb" =~ ^[0-9]+$ ]] || {
+            echo "::error::Could not determine available space for RUNNER_TEMP."
+            exit 1
+          }
+          (( runner_temp_available_kb >= 20971520 )) || {
+            echo "::error::RUNNER_TEMP requires at least 20 GiB free for a local Android build."
+            exit 1
+          }
           {
             echo "### Self-hosted mobile release runner"
             echo "- AWS CLI: $aws_version"
             echo "- Android SDK: $ANDROID_HOME"
             echo "- Android NDK: $ANDROID_NDK_HOME"
             echo "- CMake: $(cmake --version | head -n 1)"
+            echo "- RUNNER_TEMP available: $((runner_temp_available_kb / 1024 / 1024)) GiB"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Scrub mobile release material
@@ -448,9 +458,28 @@ jobs:
           set -euo pipefail
           environment="${{ inputs.environment }}"
           apk="$RUNNER_TEMP/${{ needs.contract.outputs.file_name }}"
-          rm -f -- "$apk"
+          build_root="$RUNNER_TEMP/eas-local-build"
+          build_log="$RUNNER_TEMP/eas-local-build.log"
+          rm -rf -- "$build_root"
+          rm -f -- "$build_log" "$apk"
+          mkdir -p "$build_root/work" "$build_root/artifacts" "$build_root/tmp"
+          export EAS_LOCAL_BUILD_WORKINGDIR="$build_root/work"
+          export EAS_LOCAL_BUILD_ARTIFACTS_DIR="$build_root/artifacts"
+          export TMPDIR="$build_root/tmp"
+
+          set +e
           eas build --platform android --profile "$environment" --local --non-interactive --freeze-credentials \
-            --output "$apk"
+            --output "$apk" > "$build_log" 2>&1
+          build_status="$?"
+          set -e
+          if (( build_status != 0 )); then
+            grep -F '[RUN_GRADLEW]' "$build_log" \
+              | tail -n 200 \
+              | sed -E 's/[A-Za-z0-9+\/=]{80,}/[REDACTED]/g' >&2 || true
+            echo "::error::Local EAS build failed; raw credential-bearing log was not published."
+            exit "$build_status"
+          fi
+          rm -f -- "$build_log"
           [[ -s "$apk" ]] || { echo "::error::Local EAS build did not produce an APK."; exit 1; }
           echo "apk=$apk" >> "$GITHUB_OUTPUT"
 
@@ -595,6 +624,10 @@ jobs:
           if [[ -d "$RUNNER_TEMP/eas-cli" ]]; then
             rm -rf -- "$RUNNER_TEMP/eas-cli"
           fi
+          if [[ -d "$RUNNER_TEMP/eas-local-build" ]]; then
+            rm -rf -- "$RUNNER_TEMP/eas-local-build"
+          fi
+          rm -f -- "$RUNNER_TEMP/eas-local-build.log"
           rm -rf -- \
             "$RUNNER_TEMP/android-sdk-download" \
             "$RUNNER_TEMP/aws-cli" \
