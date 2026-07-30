@@ -9,6 +9,8 @@ import { buildMobileReleaseContract } from "./mobile-release-workflow.mjs";
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const workspaceRoot = resolve(scriptDirectory, "..", "..", "..");
 const workflowPath = resolve(workspaceRoot, ".github", "workflows", "mobile-release.yml");
+const awsCliSetupPath = resolve(workspaceRoot, ".github", "scripts", "setup-aws-cli.sh");
+const awsCliPublicKeyPath = resolve(workspaceRoot, ".github", "aws-cli-public-key.asc");
 
 describe("mobile release workflow contract", () => {
   it("builds immutable OTA and APK paths without secret material", () => {
@@ -69,7 +71,11 @@ describe("mobile release workflow contract", () => {
   });
 
   it("pins manual, fail-closed OTA and EAS-managed APK publication", async () => {
-    const workflow = await readFile(workflowPath, "utf8");
+    const [workflow, awsCliSetup, awsCliPublicKey] = await Promise.all([
+      readFile(workflowPath, "utf8"),
+      readFile(awsCliSetupPath, "utf8"),
+      readFile(awsCliPublicKeyPath, "utf8"),
+    ]);
 
     for (const input of ["environment:", "release_id:", "rollout:", "kind:", "preflight_only:"]) {
       assert.match(workflow, new RegExp(`^\\s{6}${input}`, "m"));
@@ -84,9 +90,21 @@ describe("mobile release workflow contract", () => {
     assert.match(workflow, /github\.ref_name.*uat/);
     assert.equal(
       workflow.match(/persist-credentials: false/g)?.length,
-      3,
+      4,
       "every checkout that handles release state must avoid persisting GITHUB_TOKEN",
     );
+    assert.equal(
+      workflow.match(/\.github\/scripts\/setup-aws-cli\.sh/g)?.length,
+      3,
+      "every job that invokes the AWS CLI must install the verified job-local tool",
+    );
+    assert.match(awsCliSetup, /awscli-exe-linux-x86_64-2\.27\.41\.zip/);
+    assert.match(awsCliSetup, /gpg .*--verify/);
+    assert.match(awsCliSetup, /--install-dir "\$install_root"/);
+    assert.match(awsCliSetup, /FB5DB77FD5C118B80511ADA8A6310ACC4672475C/);
+    assert.doesNotMatch(awsCliSetup, /sudo|\/usr\/local/);
+    assert.match(awsCliPublicKey, /-----BEGIN PGP PUBLIC KEY BLOCK-----/);
+    assert.match(awsCliPublicKey, /=knv7/);
     assert.match(workflow, /Scrub mobile release material/);
     assert.match(workflow, /WHISPR_MOBILE_OTA_PRIVATE_KEY/);
     assert.match(workflow, /Require OTA and R2 publication secrets/);
