@@ -150,6 +150,7 @@ describe("mobile release workflow contract", () => {
     assert.match(workflow, /EAS_LOCAL_BUILD_WORKINGDIR="\$build_root\/work"/);
     assert.match(workflow, /EAS_LOCAL_BUILD_ARTIFACTS_DIR="\$build_root\/artifacts"/);
     assert.match(workflow, /TMPDIR="\$build_root\/tmp"/);
+    assert.match(workflow, /SENTRY_DISABLE_AUTO_UPLOAD: "true"/);
     assert.match(workflow, /df -Pk "\$RUNNER_TEMP"/);
     assert.match(workflow, /runner_temp_available_kb >= 20971520/);
     assert.match(workflow, /> "\$build_log" 2>&1/);

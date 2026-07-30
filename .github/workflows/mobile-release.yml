@@ -452,6 +452,8 @@ jobs:
 
       - name: Build APK locally with the existing EAS-managed Android credential
         id: build
+        env:
+          SENTRY_DISABLE_AUTO_UPLOAD: "true"
         working-directory: apps/mobile
         shell: bash
         run: |
