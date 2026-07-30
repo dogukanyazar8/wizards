@@ -1,4 +1,9 @@
 import { adminReleaseCreateRoute, adminReleaseListRoute } from "./route-logic";
 
-export const GET = adminReleaseListRoute;
-export const POST = adminReleaseCreateRoute;
+export function GET(request: Request) {
+  return adminReleaseListRoute(request);
+}
+
+export function POST(request: Request) {
+  return adminReleaseCreateRoute(request);
+}

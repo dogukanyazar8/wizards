@@ -1129,7 +1129,7 @@ function isNextRouteContextParameter(parameter: ts.ParameterDeclaration, checker
   return Boolean(checker.getPropertyOfType(type, "params"));
 }
 
-function mobileRouteHandlerIssues(route: RouteFile) {
+function routeHandlerIssues(route: RouteFile) {
   const issues: string[] = [];
 
   for (const method of route.methods) {
@@ -1139,9 +1139,9 @@ function mobileRouteHandlerIssues(route: RouteFile) {
       continue;
     }
 
-    if (handler.parameters.length < 1 || handler.parameters.length > 2) {
+    if (handler.parameters.length > 2) {
       issues.push(
-        `${method} ${route.routePath}: expected one or two parameters, received ${handler.parameters.length}`,
+        `${method} ${route.routePath}: expected at most two parameters, received ${handler.parameters.length}`,
       );
       continue;
     }
@@ -1351,14 +1351,12 @@ describe("API v1 route contract", () => {
     assert.deepEqual(rawBodyReaders, []);
   });
 
-  it("keeps injectable mobile route logic behind Next.js-compatible handlers", () => {
-    const directlyAliasedHandlers = routes
-      .filter((route) => route.routePath.startsWith("mobile/"))
-      .flatMap((route) =>
-        route.methods
-          .filter((method) => isDirectHandlerAlias(route, method))
-          .map((method) => `${method} ${route.path}`),
-      );
+  it("keeps injectable route logic behind Next.js-compatible handlers", () => {
+    const directlyAliasedHandlers = routes.flatMap((route) =>
+      route.methods
+        .filter((method) => isDirectHandlerAlias(route, method))
+        .map((method) => `${method} ${route.path}`),
+    );
 
     assert.deepEqual(directlyAliasedHandlers, []);
   });
@@ -1388,10 +1386,8 @@ describe("API v1 route contract", () => {
     assert.deepEqual(missing, []);
   });
 
-  it("keeps exported mobile Next handlers on request/context signatures", () => {
-    const invalidHandlers = routes
-      .filter(({ routePath }) => routePath.startsWith("mobile/"))
-      .flatMap((route) => mobileRouteHandlerIssues(route));
+  it("keeps exported Next handlers on request/context signatures", () => {
+    const invalidHandlers = routes.flatMap((route) => routeHandlerIssues(route));
 
     assert.deepEqual(invalidHandlers, []);
   });
@@ -1472,7 +1468,7 @@ describe("API v1 route contract", () => {
 
     assert.deepEqual(route.methods, ["GET", "POST", "PATCH", "PUT"]);
     assert.deepEqual(
-      mobileRouteHandlerIssues(route).map((issue) => issue.split(":", 1)[0]),
+      routeHandlerIssues(route).map((issue) => issue.split(":", 1)[0]),
       ["PATCH mobile/contract-fixture", "PUT mobile/contract-fixture"],
     );
   });

@@ -1,4 +1,13 @@
-import { adminSupportReportDetailRoute, adminSupportReportStatusRoute } from "./route-logic";
+import {
+  adminSupportReportDetailRoute,
+  adminSupportReportStatusRoute,
+  type AdminSupportDetailRouteContext,
+} from "./route-logic";
 
-export const GET = adminSupportReportDetailRoute;
-export const PATCH = adminSupportReportStatusRoute;
+export function GET(request: Request, context: AdminSupportDetailRouteContext) {
+  return adminSupportReportDetailRoute(request, context);
+}
+
+export function PATCH(request: Request, context: AdminSupportDetailRouteContext) {
+  return adminSupportReportStatusRoute(request, context);
+}

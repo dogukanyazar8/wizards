@@ -1,4 +1,9 @@
 import { adminHelpArticleCreateRoute, adminHelpArticleListRoute } from "./route-logic";
 
-export const GET = adminHelpArticleListRoute;
-export const POST = adminHelpArticleCreateRoute;
+export function GET(request: Request) {
+  return adminHelpArticleListRoute(request);
+}
+
+export function POST(request: Request) {
+  return adminHelpArticleCreateRoute(request);
+}

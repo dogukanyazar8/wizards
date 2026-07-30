@@ -33,6 +33,7 @@ activity
 actor
 actual
 ada
+adapt
 adapter
 adb
 add
@@ -85,9 +86,13 @@ already
 also
 alt
 altyap
+altyapisi
+always
 ama
 amac
+amas
 ana
+anahtar
 analitik
 analiz
 analizin
@@ -266,6 +271,7 @@ bilerek
 bilgisayar
 bilin
 bilinen
+bilinmesi
 bind
 binding
 biometric
@@ -329,6 +335,7 @@ building
 builds
 built
 bulgular
+bulun
 bulunamad
 bundle
 bundled
@@ -628,6 +635,7 @@ cutoff
 cycle
 daemons
 daha
+dahil
 daily
 dalga
 dalgas
@@ -650,6 +658,7 @@ debounce
 debounced
 debug
 debugging
+decide
 decimal
 decision
 decisions
@@ -694,6 +703,7 @@ demo
 den
 denetim
 denetimi
+denetle
 deneyimini
 denials
 denied
@@ -714,6 +724,7 @@ describe
 description
 descriptions
 descriptor
+deseninin
 desenleri
 deserialize
 design
@@ -1041,6 +1052,7 @@ extract
 eyebrow
 eyi
 eylem
+eylemi
 fab
 facing
 factor
@@ -1281,6 +1293,7 @@ haptik
 har
 hardcoded
 hardware
+hari
 harita
 haritas
 harness
@@ -1290,6 +1303,7 @@ hashes
 hata
 hatas
 hatlar
+hatt
 have
 haz
 hazir
@@ -1387,6 +1401,7 @@ iki
 ikli
 iklik
 iklikler
+iklikleri
 ikon
 ilan
 ile
@@ -1400,6 +1415,7 @@ ilken
 illustration
 image
 images
+imi
 imini
 imiz
 immutable
@@ -1412,11 +1428,14 @@ import
 important
 imported
 imports
+imza
+imzalama
 inactive
 inbox
 incele
 inceleme
 inceler
+inceleyip
 incident
 incidents
 include
@@ -1425,6 +1444,7 @@ increment
 incremental
 increments
 inde
+inden
 indented
 independent
 independently
@@ -1433,6 +1453,7 @@ indexed
 indexes
 indicator
 indigo
+indirip
 indirme
 ine
 infer
@@ -1574,10 +1595,12 @@ karmak
 kart
 kartlar
 kartmak
+kat
 kategor
 kategori
 kategoride
 katman
+katmanda
 katmani
 katmanl
 katmanlar
@@ -1590,6 +1613,7 @@ kaynaklar
 kazan
 keep
 keeps
+kendi
 kenleri
 kesim
 kesimi
@@ -1631,6 +1655,7 @@ konsolu
 kontratlar
 kontrol
 kontrolleri
+kopyala
 koru
 korumas
 korunacak
@@ -1649,6 +1674,8 @@ kur
 kural
 kurallar
 kurallari
+kurma
+kurulum
 kuyru
 kuyruk
 label
@@ -1674,6 +1701,7 @@ later
 latest
 latma
 launch
+launcher
 lay
 layer
 layered
@@ -1697,6 +1725,7 @@ lerp
 less
 let
 leti
+letilmesi
 letim
 letmesi
 level
@@ -1815,6 +1844,7 @@ mapper
 mapping
 mappings
 maps
+margin
 mark
 markdown
 marker
@@ -1834,6 +1864,7 @@ max
 maximize
 maya
 maybe
+mazl
 mdaki
 mde
 measure
@@ -1897,6 +1928,7 @@ migrations
 milestone
 mimari
 mimarinin
+mimarisi
 mime
 min
 mini
@@ -1961,6 +1993,7 @@ move
 msg
 msvc
 multi
+multipart
 must
 mutable
 mutate
@@ -1975,6 +2008,7 @@ mutuals
 muyuz
 mvp
 mza
+mzalama
 nabilecek
 namad
 name
@@ -1994,6 +2028,7 @@ navigation
 navigator
 nce
 ncel
+nceli
 ncelik
 ncelleme
 ncellemesi
@@ -2019,6 +2054,7 @@ nemli
 nered
 nerede
 neri
+neride
 nerilen
 nesneleri
 nested
@@ -2098,6 +2134,7 @@ offline
 offs
 offset
 okuma
+okunabilirli
 okunanlar
 okundu
 okur
@@ -2150,6 +2187,7 @@ original
 origins
 ortak
 ortam
+ota
 other
 otomatikle
 oturum
@@ -2212,6 +2250,7 @@ park
 parse
 parsed
 parser
+part
 partial
 participant
 participants
@@ -2289,6 +2328,7 @@ platform
 platformlar
 platformlardaki
 platforms
+play
 playwright
 plist
 plugin
@@ -2384,6 +2424,7 @@ profil
 profile
 profiles
 profili
+profilleri
 program
 progress
 proje
@@ -2427,6 +2468,7 @@ publication
 publish
 published
 publisher
+publishing
 pull
 pulse
 punto
@@ -2703,6 +2745,7 @@ rotal
 rotalar
 rotas
 rotasi
+rotasyon
 rotate
 rotated
 rotating
@@ -2725,6 +2768,7 @@ rubber
 rula
 rulama
 rulamas
+rulan
 rulanm
 rule
 rules
@@ -2794,6 +2838,7 @@ screencap
 screens
 screenshot
 script
+scriptleri
 scripts
 scroll
 scrollable
@@ -2961,6 +3006,7 @@ sortable
 sorulara
 sorun
 sorunlar
+sorunu
 sorununun
 sosyal
 sound
@@ -3084,6 +3130,7 @@ summarize
 summary
 sunucu
 sunucular
+sunucumuzdan
 sunucusu
 sunum
 superpowers
@@ -3149,6 +3196,7 @@ tasi
 task
 tasks
 tauri
+tavuk
 tcp
 tea
 team
@@ -3346,6 +3394,7 @@ uat
 ubu
 uca
 ucu
+ucun
 ugur
 ula
 ultra
@@ -3434,6 +3483,7 @@ uygulan
 uygulanamaz
 uygulay
 uygun
+uyu
 uyulmazsa
 uyumluluk
 uyumu
@@ -3458,6 +3508,7 @@ varsayma
 vde
 vec
 vector
+ven
 venl
 venli
 venlik
@@ -3586,6 +3637,7 @@ yapmal
 yard
 yardim
 yasal
+yay
 yaz
 yazar
 yazma
@@ -3615,10 +3667,12 @@ yonetimi
 yor
 yorum
 yoruz
+yumurta
 zaman
 zamanlama
 zaten
 zek
+zel
 zellikleri
 zelt
 zeltir
@@ -3639,6 +3693,7 @@ zet
 zeti
 zeyi
 zeyler
+zin
 zip
 zland
 zle

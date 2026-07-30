@@ -1,1 +1,5 @@
-export { adminSupportReportListRoute as GET } from "./route-logic";
+import { adminSupportReportListRoute } from "./route-logic";
+
+export function GET(request: Request) {
+  return adminSupportReportListRoute(request);
+}
