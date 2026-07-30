@@ -82,13 +82,23 @@ jobs:
         run: |
           set -euo pipefail
           missing=()
-          for tool in bash git curl jq openssl base64 sha256sum stat sed awk grep find gpg unzip; do
+          for tool in bash git curl jq openssl base64 sha256sum stat sed awk grep find gpg unzip yes; do
             command -v "$tool" >/dev/null 2>&1 || missing+=("$tool")
           done
           if (( ${#missing[@]} > 0 )); then
             printf '::error::Self-hosted mobile release runner is missing: %s\n' "${missing[*]}"
             exit 1
           fi
+
+      - name: Setup JDK for Android SDK tools
+        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install verified job-local Android Build Tools
+        shell: bash
+        run: bash .github/scripts/setup-android-build-tools.sh
 
       - name: Install verified job-local AWS CLI
         shell: bash
@@ -122,7 +132,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          rm -rf -- "$RUNNER_TEMP/aws-cli" "$RUNNER_TEMP/aws-cli-download"
+          rm -rf -- \
+            "$RUNNER_TEMP/android-sdk" \
+            "$RUNNER_TEMP/android-sdk-download" \
+            "$RUNNER_TEMP/aws-cli" \
+            "$RUNNER_TEMP/aws-cli-download"
 
   contract:
     name: Validate mobile release contract
@@ -377,6 +391,16 @@ jobs:
           clean: true
           persist-credentials: false
 
+      - name: Setup JDK for Android SDK tools
+        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install verified job-local Android Build Tools
+        shell: bash
+        run: bash .github/scripts/setup-android-build-tools.sh
+
       - name: Install verified job-local AWS CLI
         shell: bash
         run: bash .github/scripts/setup-aws-cli.sh
@@ -565,4 +589,8 @@ jobs:
           if [[ -d "$RUNNER_TEMP/eas-cli" ]]; then
             rm -rf -- "$RUNNER_TEMP/eas-cli"
           fi
-          rm -rf -- "$RUNNER_TEMP/aws-cli" "$RUNNER_TEMP/aws-cli-download"
+          rm -rf -- \
+            "$RUNNER_TEMP/android-sdk" \
+            "$RUNNER_TEMP/android-sdk-download" \
+            "$RUNNER_TEMP/aws-cli" \
+            "$RUNNER_TEMP/aws-cli-download"
