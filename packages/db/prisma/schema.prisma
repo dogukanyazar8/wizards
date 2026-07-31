@@ -5,6 +5,11 @@
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
+  /// Without this, an `include` graph becomes one query per relation: the
+  /// message page pulls author, attachments, reactions, reaction users and the
+  /// reply separately — five round trips for one page. With it, Prisma emits a
+  /// single statement using LATERAL joins.
+  previewFeatures = ["relationJoins"]
 }
 
 datasource db {

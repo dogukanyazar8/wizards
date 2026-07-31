@@ -215,6 +215,7 @@ module.exports = ({ config }) => {
       ...(config.plugins ?? []),
       "@livekit/react-native-expo-plugin",
       "./plugins/withWebRtc",
+      "./plugins/withWhisprApkIntegrity",
       "expo-image",
       [
         "expo-audio",

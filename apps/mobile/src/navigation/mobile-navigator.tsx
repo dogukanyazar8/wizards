@@ -7,7 +7,10 @@ import {
   probeMobileChatCache,
   resolveMobileActiveChatRouteTarget,
 } from "../performance/mobile-chat-route-target";
-import { ensureMobileNavigationSpan } from "../performance/mobile-navigation-timing";
+import {
+  ensureMobileNavigationSpan,
+  markMobileNavigationStage,
+} from "../performance/mobile-navigation-timing";
 import { markMobileStartupPhase } from "../performance/mobile-startup-phases";
 import { useReducedMotion } from "react-native-reanimated";
 import { useMobileAuth } from "../auth/mobile-auth-context";
@@ -102,11 +105,11 @@ export function MobileNavigator({
       return;
     }
 
-    ensureMobileNavigationSpan(
-      target.route,
-      globalThis.performance.now(),
-      probeMobileChatCache(target),
-    );
+    const now = globalThis.performance.now();
+    ensureMobileNavigationSpan(target.route, now, probeMobileChatCache(target));
+    // First of the three stages: the navigator has committed the route. What is
+    // left after this is the screen tree and the list.
+    markMobileNavigationStage(target.route, "navigated", now);
   }, []);
 
   const reportActiveTab = useCallback(() => {

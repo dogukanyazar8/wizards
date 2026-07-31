@@ -19,8 +19,13 @@ import {
   completeMobileNavigationSpan,
   ensureMobileNavigationSpan,
   getMobileNavigationSpanDiagnostics,
+  markMobileNavigationStage,
   resetMobileNavigationTimingForTests,
 } from "../src/performance/mobile-navigation-timing";
+import {
+  summarizeMobileChatOpenStages,
+  summarizeMobilePerformanceSamples,
+} from "../src/performance/mobile-performance-summary";
 import { resolveMobileActiveChatRouteTarget } from "../src/performance/mobile-chat-route-target";
 import {
   abandonMobileSendSpan,
@@ -265,6 +270,88 @@ describe("navigation spans", () => {
     ensureMobileNavigationSpan("DirectMessage", 1_100);
 
     assert.equal(getMobileNavigationSpanDiagnostics().abandoned, 0);
+  });
+});
+
+/**
+ * A cached open measured 653ms p95 against a 100ms budget with the stream
+ * already in memory. Everything in that number is the client, and the client is
+ * three costs — the transition, the screen tree, the list. One number cannot say
+ * which of the three to fix.
+ */
+describe("chat open stages", () => {
+  it("times each milestone from the tap, leaving the span open", () => {
+    beginMobileNavigationSpan("DirectMessage", 1_000, true);
+
+    assert.equal(markMobileNavigationStage("DirectMessage", "navigated", 1_120), 120);
+    assert.equal(markMobileNavigationStage("DirectMessage", "mounted", 1_300), 300);
+    assert.equal(completeMobileNavigationSpan("DirectMessage", 1_490), 490);
+
+    assert.deepEqual(
+      peekMobilePerformanceSamples().map((sample) => [
+        sample.context.stage ?? "content",
+        sample.durationMs,
+      ]),
+      [
+        ["navigated", 120],
+        ["mounted", 300],
+        ["content", 490],
+      ],
+    );
+  });
+
+  it("marks a stage once: a re-render is not a second open", () => {
+    beginMobileNavigationSpan("ChannelChat", 1_000);
+    markMobileNavigationStage("ChannelChat", "mounted", 1_200);
+
+    assert.equal(markMobileNavigationStage("ChannelChat", "mounted", 1_400), null);
+    assert.equal(peekMobilePerformanceSamples().length, 1);
+  });
+
+  it("ignores a stage for a route with no open span", () => {
+    assert.equal(markMobileNavigationStage("DirectMessage", "mounted", 1_000), null);
+    assert.deepEqual(peekMobilePerformanceSamples(), []);
+  });
+
+  it("keeps stages out of the budget rows", () => {
+    beginMobileNavigationSpan("DirectMessage", 1_000, true);
+    markMobileNavigationStage("DirectMessage", "navigated", 1_120);
+    completeMobileNavigationSpan("DirectMessage", 1_490);
+
+    const rows = summarizeMobilePerformanceSamples(peekMobilePerformanceSamples());
+    const cached = rows.find((row) => row.metric === "chat-open-cached");
+    assert.equal(cached?.count, 1, "one open, not one open plus one stage");
+    assert.equal(cached?.p50Ms, 490);
+  });
+
+  it("reports the three stages as a running total", () => {
+    beginMobileNavigationSpan("DirectMessage", 1_000);
+    markMobileNavigationStage("DirectMessage", "navigated", 1_120);
+    markMobileNavigationStage("DirectMessage", "mounted", 1_300);
+    completeMobileNavigationSpan("DirectMessage", 1_490);
+
+    assert.deepEqual(
+      summarizeMobileChatOpenStages(peekMobilePerformanceSamples()).map((row) => [
+        row.stage,
+        row.count,
+        row.p50Ms,
+      ]),
+      [
+        ["navigated", 1, 120],
+        ["mounted", 1, 300],
+        ["content", 1, 490],
+      ],
+    );
+  });
+
+  it("ignores spans that are not chat routes", () => {
+    beginMobileNavigationSpan("Resume", 1_000);
+    completeMobileNavigationSpan("Resume", 1_200);
+
+    assert.deepEqual(
+      summarizeMobileChatOpenStages(peekMobilePerformanceSamples()).map((row) => row.count),
+      [0, 0, 0],
+    );
   });
 });
 

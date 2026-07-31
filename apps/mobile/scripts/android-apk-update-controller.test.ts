@@ -165,6 +165,16 @@ describe("Android APK update controller", () => {
     assert.deepEqual(verifyPercent, [0, 50, 100]);
   });
 
+  it("retains the completed download and verification stages when the APK is ready", async () => {
+    const { controller } = createHarness();
+
+    await controller.download();
+
+    assert.deepEqual(controller.getSnapshot().completedSteps, ["download", "verify"]);
+    assert.equal(controller.getSnapshot().progress, null);
+    assert.equal(controller.getSnapshot().state, "ready");
+  });
+
   it("fails before network I/O when free space is insufficient", async () => {
     const { calls, controller } = createHarness({
       getFreeDiskStorageAsync: async () => artifact.sizeBytes,

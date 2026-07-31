@@ -103,11 +103,17 @@ function createApiClient(
   {
     failChannelChange = false,
     failReleaseDetail = false,
+    releaseChanges = changes,
+    releaseChangeResponses,
   }: {
     readonly failChannelChange?: boolean;
     readonly failReleaseDetail?: boolean;
+    readonly releaseChanges?: readonly MobileReleaseChange[];
+    readonly releaseChangeResponses?: readonly (readonly MobileReleaseChange[])[];
   } = {},
 ) {
+  let releaseDetailRequestCount = 0;
+
   return {
     requestJson: jest.fn(async (path: string, init?: { readonly body?: unknown }) => {
       if (path.startsWith("/api/v1/mobile/app/update")) {
@@ -122,10 +128,15 @@ function createApiClient(
         if (failReleaseDetail) {
           throw new Error("Release detail unavailable");
         }
+        const responseChanges =
+          releaseChangeResponses?.[
+            Math.min(releaseDetailRequestCount, releaseChangeResponses.length - 1)
+          ] ?? releaseChanges;
+        releaseDetailRequestCount += 1;
         return {
           buildNumber: 8150,
-          changeCount: changes.length,
-          changes,
+          changeCount: responseChanges.length,
+          changes: responseChanges,
           codename: "Echo",
           installed: true,
           releasedAt: RELEASED_AT,
@@ -185,19 +196,19 @@ function createProps(
   } satisfies React.ComponentProps<typeof MobileAboutSettingsScreen>;
 }
 
-function createQueryClient() {
+function createQueryClient({ staleTime = 0 }: { readonly staleTime?: number } = {}) {
   return new QueryClient({
     defaultOptions: {
       mutations: { gcTime: Number.POSITIVE_INFINITY },
-      queries: { gcTime: Number.POSITIVE_INFINITY, retry: false },
+      queries: { gcTime: Number.POSITIVE_INFINITY, retry: false, staleTime },
     },
   });
 }
 
 function renderScreen(
   props: React.ComponentProps<typeof MobileAboutSettingsScreen> = createProps(),
+  queryClient = createQueryClient(),
 ) {
-  const queryClient = createQueryClient();
   return render(
     <QueryClientProvider client={queryClient}>
       <MobileThemeProvider>
@@ -368,6 +379,49 @@ describe("1a + 1b About screen", () => {
       );
       expect(checks.length).toBeGreaterThanOrEqual(2);
     });
+  });
+
+  it("replaces bundled release notes with the server release on the first About render", async () => {
+    const apiClient = createApiClient("ok", {
+      releaseChanges: [{ title: "Current admin release note", type: "new" }],
+    });
+    mockUseMobileAuth.mockReturnValue({
+      apiClient,
+      session: { user: { id: "usr_0123456789abcdef" } },
+      status: "signed-in",
+    });
+
+    const view = await renderScreen(createProps(), createQueryClient({ staleTime: 15_000 }));
+
+    expect(await view.findByText("Current admin release note")).toBeTruthy();
+    expect(apiClient.requestJson).toHaveBeenCalledWith("/api/v1/mobile/app/releases/0.8.15", {
+      method: "GET",
+    });
+  });
+
+  it("refreshes installed release notes when Denetle runs", async () => {
+    const apiClient = createApiClient("ok", {
+      releaseChangeResponses: [
+        [{ title: "Previous admin release note", type: "improved" }],
+        [{ title: "Current admin release note", type: "new" }],
+      ],
+    });
+    mockUseMobileAuth.mockReturnValue({
+      apiClient,
+      session: { user: { id: "usr_0123456789abcdef" } },
+      status: "signed-in",
+    });
+
+    const view = await renderScreen();
+    expect(await view.findByText("Previous admin release note")).toBeTruthy();
+
+    await fireEvent.press(
+      view.getByRole("button", {
+        name: copy.aboutSettingsCheckUpdates,
+      }),
+    );
+
+    expect(await view.findByText("Current admin release note")).toBeTruthy();
   });
 
   it("uses the three change color families and full-bleed -16px hairlines", async () => {

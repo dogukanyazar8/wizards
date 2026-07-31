@@ -26,6 +26,8 @@ export interface MobileUpdateProgress {
 
 export interface MobileUpdateSnapshot {
   readonly checkedAt: string | null;
+  /** Steps whose real work completed; never inferred by the presentation layer. */
+  readonly completedSteps?: readonly MobileUpdateStep[];
   readonly error: MobileUpdateErrorKind | null;
   readonly latestVersion: string | null;
   readonly progress: MobileUpdateProgress | null;

@@ -56,6 +56,7 @@ aggregate
 ago
 ait
 akisi
+akisinda
 akl
 aksiyonlar
 aksiyonu
@@ -158,6 +159,7 @@ arm
 array
 arrays
 arrow
+art
 article
 articles
 artifact
@@ -203,6 +205,7 @@ authorized
 authors
 auto
 automated
+automation
 autostart
 availability
 available
@@ -323,6 +326,7 @@ bridged
 brief
 broadcast
 broadcasts
+broken
 browser
 browserslist
 bubble
@@ -623,6 +627,7 @@ cropped
 cross
 crud
 crypto
+cryptographic
 csp
 csrf
 css
@@ -856,6 +861,7 @@ echoable
 echoed
 ecosystem
 edebilece
+ederim
 edilen
 edilir
 edilmez
@@ -906,6 +912,7 @@ elevated
 elevation
 eli
 eligible
+elle
 ema
 email
 emails
@@ -1150,6 +1157,7 @@ for
 forbidden
 force
 foreground
+forgery
 forget
 forgot
 form
@@ -1169,6 +1177,7 @@ fragments
 frame
 framer
 frames
+framework
 freeze
 frekans
 frequency
@@ -1272,6 +1281,7 @@ gruplar
 gtk
 guard
 guards
+guidance
 guide
 guncelleme
 hafta
@@ -1385,6 +1395,7 @@ icon
 icons
 ide
 idempotent
+identification
 identifier
 identity
 idiom
@@ -1474,6 +1485,7 @@ initialized
 initializer
 initials
 injected
+injection
 inline
 input
 inputs
@@ -1799,6 +1811,7 @@ locks
 log
 logged
 logger
+logging
 logic
 logical
 login
@@ -1939,10 +1952,12 @@ minimize
 minimum
 mint
 minutes
+misconfiguration
 misin
 mismatch
 missed
 missing
+mission
 mix
 mjs
 mkdir
@@ -1954,6 +1969,7 @@ mleri
 mob
 mobi
 mobil
+mobilde
 mobile
 mobileaboutwhatsnewscreen
 mock
@@ -1966,6 +1982,7 @@ mode
 model
 modeli
 modelini
+modelleniyor
 modeller
 modelleri
 moderasyon
@@ -2019,6 +2036,7 @@ names
 nan
 narrow
 nas
+nasil
 nativ
 native
 nav
@@ -2079,6 +2097,7 @@ ninja
 nizleme
 nizlemesi
 nizleyici
+nlama
 nlendiririz
 nler
 nmas
@@ -2115,6 +2134,7 @@ npx
 nsis
 null
 nullable
+numaras
 number
 numeric
 oauth
@@ -2149,6 +2169,7 @@ olgun
 olmal
 olmaz
 olu
+olusturup
 omissions
 omurgas
 onay
@@ -2192,6 +2213,7 @@ ortak
 ortam
 ota
 other
+otomatik
 otomatikle
 oturum
 oturumun
@@ -2199,6 +2221,7 @@ otuz
 out
 outbox
 outcome
+outdated
 outfit
 outgoing
 output
@@ -2212,6 +2235,7 @@ override
 overrides
 oversized
 overview
+owasp
 owned
 owner
 owners
@@ -2404,6 +2428,7 @@ primary
 primitifleri
 primitive
 primitives
+principles
 prior
 priorities
 priority
@@ -2702,6 +2727,7 @@ rev
 revamp
 reversible
 review
+reviewer
 revision
 revizyon
 revler
@@ -2992,6 +3018,7 @@ social
 socket
 sockets
 soft
+software
 sohbet
 sohbeti
 sol
@@ -3023,6 +3050,7 @@ spark
 speaker
 speaking
 spec
+specific
 specifiers
 specify
 specs
@@ -3047,6 +3075,7 @@ stable
 stack
 stage
 staged
+stages
 staging
 stale
 stalled
@@ -3158,6 +3187,7 @@ symbol
 symbols
 sync
 synced
+synchronization
 syncing
 synthetic
 sys
@@ -3285,6 +3315,7 @@ tirilecek
 tiriyoruz
 tirme
 tirmek
+tirmeliyim
 tirmeliyiz
 title
 tla
@@ -3330,6 +3361,7 @@ tracked
 tracker
 tracking
 tracks
+trade
 trailing
 transaction
 transform
@@ -3528,9 +3560,11 @@ verirsen
 verisi
 veritaban
 vermeni
+vermiyor
 version
 versioning
 versions
+versiyon
 versiyonundaki
 veya
 via
@@ -3557,6 +3591,7 @@ volume
 volumes
 vote
 vulnerability
+vulnerable
 wait
 waits
 walk
@@ -3613,6 +3648,7 @@ words
 worker
 workflow
 workflows
+workflowunda
 worklets
 workspace
 worktree
@@ -3642,6 +3678,9 @@ yard
 yardim
 yasal
 yay
+yayin
+yayinlad
+yayinladim
 yaz
 yazar
 yazma

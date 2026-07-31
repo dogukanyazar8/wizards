@@ -136,8 +136,12 @@ export function getMobileAboutReleaseQueryOptions(
   return queryOptions({
     enabled: enabled && version.length > 0,
     initialData: getBundledMobileRelease(version),
+    // The bundled note keeps About usable offline, but release management owns
+    // the live content. Mark the fallback stale so it is replaced on open.
+    initialDataUpdatedAt: 0,
     queryFn: () => fetchMobileReleaseDetail(client, version),
     queryKey: mobileQueryKeys.aboutRelease(version),
+    staleTime: 0,
   });
 }
 

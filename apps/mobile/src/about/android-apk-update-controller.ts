@@ -14,7 +14,7 @@ export const ANDROID_APK_MIME_TYPE = "application/vnd.android.package-archive";
 export const ANDROID_APK_INSTALL_FLAGS = 0x10000001;
 export const ANDROID_APK_DOWNLOAD_SAFETY_MIN_BYTES = 16 * 1024 * 1024;
 export const ANDROID_APK_DOWNLOAD_SAFETY_MAX_BYTES = 64 * 1024 * 1024;
-export const ANDROID_APK_HASH_CHUNK_BYTES = 192 * 1024;
+export const ANDROID_APK_HASH_CHUNK_BYTES = 1024 * 1024;
 
 type AndroidDownloadProgress = {
   readonly totalBytesExpectedToWrite: number;
@@ -79,6 +79,20 @@ export interface CreateAndroidApkUpdateControllerInput {
   readonly latestVersion: string;
 }
 
+type AndroidApkIntegrityNativeModule = {
+  sha256(uri: string): Promise<string>;
+};
+
+function getAndroidApkIntegrityNativeModule(): AndroidApkIntegrityNativeModule | null {
+  try {
+    const { NativeModules } = require("react-native") as typeof import("react-native");
+    const module = NativeModules.WhisprApkIntegrity as AndroidApkIntegrityNativeModule | undefined;
+    return typeof module?.sha256 === "function" ? module : null;
+  } catch {
+    return null;
+  }
+}
+
 function base64ToBytes(value: string): Uint8Array {
   const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
   const cleaned = value.replace(/=+$/, "");
@@ -113,6 +127,13 @@ export async function hashAndroidApkFileSha256(
     options: { readonly encoding: "base64"; readonly length: number; readonly position: number },
   ) => Promise<string>,
 ): Promise<string> {
+  const nativeModule = readChunk ? null : getAndroidApkIntegrityNativeModule();
+  if (nativeModule) {
+    const digest = await nativeModule.sha256(uri);
+    onProgress?.(sizeBytes);
+    return digest;
+  }
+
   const read =
     readChunk ??
     (async (fileUri, options) => {
@@ -208,6 +229,7 @@ export function createAndroidApkUpdateController({
   const resumeStorageKey = `whispr.update.apk.resume.${artifact.versionCode}`;
   let snapshot: MobileUpdateSnapshot = {
     checkedAt: null,
+    completedSteps: [],
     error: null,
     latestVersion,
     progress: null,
@@ -245,6 +267,7 @@ export function createAndroidApkUpdateController({
 
   const verifyDownload = async (uri: string): Promise<void> => {
     emit({
+      completedSteps: ["download"],
       error: null,
       progress: {
         downloadedBytes: 0,
@@ -284,7 +307,7 @@ export function createAndroidApkUpdateController({
 
     verifiedUri = uri;
     await dependencies.clearResumeData(resumeStorageKey);
-    emit({ error: null, progress: null, state: "ready" });
+    emit({ completedSteps: ["download", "verify"], error: null, progress: null, state: "ready" });
   };
 
   const finishDownload = async (result: AndroidDownloadResult | undefined) => {
@@ -343,6 +366,7 @@ export function createAndroidApkUpdateController({
     async check(): Promise<MobileUpdateState> {
       emit({
         checkedAt: new Date(dependencies.now()).toISOString(),
+        completedSteps: [],
         error: null,
         state: "available",
       });
@@ -383,6 +407,7 @@ export function createAndroidApkUpdateController({
       lastProgressBytes = 0;
       speedSamples.length = 0;
       emit({
+        completedSteps: [],
         error: null,
         progress: {
           downloadedBytes: 0,

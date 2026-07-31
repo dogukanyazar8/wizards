@@ -391,6 +391,57 @@ describe("1d About update flow", () => {
     expect(install).toHaveBeenCalledTimes(1);
   });
 
+  it("shows a verified APK as ready to install instead of still downloading", async () => {
+    const { controller } = createController({
+      snapshot: {
+        checkedAt: "2026-07-31T07:39:00.000Z",
+        completedSteps: ["download", "verify"],
+        error: null,
+        latestVersion: latest.version,
+        progress: null,
+        state: "ready",
+      },
+    });
+    const view = await renderSheet(controller);
+
+    expect(view.getByText("0.9.0 kuruluma hazır")).toBeTruthy();
+    expect(view.getByText("İndirme ve dosya doğrulaması tamamlandı")).toBeTruthy();
+    expect(view.getAllByTestId("mobile-about-update-step-complete")).toHaveLength(2);
+    expect(view.getAllByTestId("mobile-about-update-step-pending")).toHaveLength(1);
+    expect(view.queryByTestId("mobile-about-update-step-active")).toBeNull();
+    expect(
+      flattenStyle(view.getByTestId("mobile-about-update-progress-fill").props.style),
+    ).toMatchObject({ width: "100%" });
+  });
+
+  it("marks the download complete while the downloaded file is being verified", async () => {
+    const { controller } = createController({
+      reportsPercent: true,
+      snapshot: {
+        checkedAt: "2026-07-31T07:39:00.000Z",
+        completedSteps: ["download"],
+        error: null,
+        latestVersion: latest.version,
+        progress: {
+          downloadedBytes: 25_270_681,
+          etaSeconds: null,
+          network: "wifi",
+          percent: 50,
+          step: "verify",
+          totalBytes: latest.sizeBytes,
+        },
+        state: "downloading",
+      },
+    });
+    const view = await renderSheet(controller);
+
+    expect(view.getByText("0.9.0 doğrulanıyor")).toBeTruthy();
+    expect(view.getAllByText("Dosya doğrulanıyor")).toHaveLength(2);
+    expect(view.getAllByTestId("mobile-about-update-step-complete")).toHaveLength(1);
+    expect(view.getAllByTestId("mobile-about-update-step-active")).toHaveLength(1);
+    expect(view.getAllByTestId("mobile-about-update-step-pending")).toHaveLength(1);
+  });
+
   it("keeps 44px device corners separate from 30px plus safe-area content padding", async () => {
     const { controller } = createController({
       snapshot: {

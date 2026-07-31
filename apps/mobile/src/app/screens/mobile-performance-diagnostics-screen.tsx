@@ -10,6 +10,7 @@ import {
 } from "../../performance/mobile-performance-metrics";
 import {
   MOBILE_PERFORMANCE_SUMMARY_METRICS,
+  summarizeMobileChatOpenStages,
   summarizeMobilePerformanceSamples,
   type MobilePerformanceSummaryInput,
 } from "../../performance/mobile-performance-summary";
@@ -27,6 +28,61 @@ import { useTheme } from "../providers/mobile-theme-provider";
 
 function fill(template: string, values: Record<string, string | number>): string {
   return template.replace(/\{(\w+)\}/gu, (match, key: string) => String(values[key] ?? match));
+}
+
+function formatDiagnosticsTime(date: Date): string {
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}:${String(
+    date.getSeconds(),
+  ).padStart(2, "0")}`;
+}
+
+/**
+ * A control big enough to hit and obvious enough to have been hit.
+ *
+ * 44pt is the smallest target a thumb reliably lands on; the pressed state and
+ * the ripple are what say the press registered on a screen that otherwise only
+ * changes numbers.
+ */
+function DiagnosticsButton({
+  busy = false,
+  danger = false,
+  label,
+  onPress,
+  testID,
+  theme,
+}: {
+  readonly busy?: boolean;
+  readonly danger?: boolean;
+  readonly label: string;
+  readonly onPress: () => void;
+  readonly testID: string;
+  readonly theme: ReturnType<typeof useTheme>;
+}) {
+  const tint = danger ? theme.status.danger : theme.text.primary;
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ busy }}
+      android_ripple={{ color: theme.border.subtle }}
+      disabled={busy}
+      onPress={onPress}
+      style={({ pressed }) => ({
+        alignItems: "center",
+        backgroundColor: pressed ? theme.surface.elevated : "transparent",
+        borderColor: danger ? theme.status.danger : theme.border.subtle,
+        borderRadius: 10,
+        borderWidth: 1,
+        justifyContent: "center",
+        minHeight: 44,
+        opacity: busy ? 0.5 : 1,
+        paddingHorizontal: 14,
+      })}
+      testID={testID}
+    >
+      <Text style={{ color: tint, fontSize: 14, fontWeight: "600" }}>{label}</Text>
+    </Pressable>
+  );
 }
 
 /**
@@ -70,7 +126,60 @@ export function MobilePerformanceDiagnosticsScreen({ onBack }: { onBack(): void 
     refresh();
   }, [refresh]);
 
+  /**
+   * What the last press did, and when.
+   *
+   * The buttons used to be bare text: nothing grew under a finger and nothing
+   * changed on screen, so a reset was indistinguishable from a missed tap — on a
+   * panel whose whole job is a run that must start from empty.
+   */
+  const [action, setAction] = useState<"idle" | "refresh" | "reset">("idle");
+  const [status, setStatus] = useState<string | null>(null);
+
+  const announce = useCallback((template: string, count: number) => {
+    setStatus(fill(template, { count, time: formatDiagnosticsTime(new Date()) }));
+  }, []);
+
+  const handleRefresh = useCallback(() => {
+    setAction("refresh");
+    void mobileMessageStore
+      .readPerformanceSamples()
+      .then((persisted) => {
+        const merged = mergeMobilePerformanceSampleViews(persisted, peekMobilePerformanceSamples());
+        setSamples(merged);
+        announce(copy.performanceDiagnosticsActionRefreshed, merged.length);
+      })
+      .catch(() => {
+        const fallback = peekMobilePerformanceSamples();
+        setSamples(fallback);
+        announce(copy.performanceDiagnosticsActionRefreshed, fallback.length);
+      })
+      .finally(() => setAction("idle"));
+    void mobileMessageStore
+      .describe()
+      .then(setStorage)
+      .catch(() => setStorage(null));
+  }, [announce, copy.performanceDiagnosticsActionRefreshed]);
+
+  const handleReset = useCallback(() => {
+    setAction("reset");
+    // All three, because "reset" means the next measurement is the first one:
+    // the retained table, the in-memory log, and the batch still inside the
+    // write debounce — which would otherwise land a second later and put the
+    // previous run back. Draining memory costs the backend the samples it had
+    // not collected yet, which is the point.
+    const drained = drainMobilePerformanceSamples().length;
+    void discardPendingMobilePerformanceSamples()
+      .then(() => mobileMessageStore.purgePerformanceSamples())
+      .finally(() => {
+        refresh();
+        announce(copy.performanceDiagnosticsActionReset, drained);
+        setAction("idle");
+      });
+  }, [announce, copy.performanceDiagnosticsActionReset, refresh]);
+
   const rows = summarizeMobilePerformanceSamples(samples);
+  const chatOpenStages = summarizeMobileChatOpenStages(samples);
   const timeline = getMobileStartupPhaseTimeline();
   const prefetch = getMobileRecentDMPrefetchStats();
   const spans = getMobileNavigationSpanDiagnostics();
@@ -106,31 +215,35 @@ export function MobilePerformanceDiagnosticsScreen({ onBack }: { onBack(): void 
       }}
       testID="mobile-performance-diagnostics"
     >
-      <View style={{ flexDirection: "row", gap: 12 }}>
-        <Pressable accessibilityRole="button" onPress={onBack} testID="performance-back">
-          <Text style={valueStyle}>{`‹ ${copy.authBackAction}`}</Text>
-        </Pressable>
-        <Pressable accessibilityRole="button" onPress={refresh} testID="performance-refresh">
-          <Text style={valueStyle}>{copy.refreshShortAction}</Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => {
-            // All three, because "reset" means the next measurement is the first
-            // one: the retained table, the in-memory log, and the batch still
-            // inside the write debounce — which would otherwise land a second
-            // later and put the previous run back. Draining memory costs the
-            // backend the samples it had not collected yet, which is the point.
-            drainMobilePerformanceSamples();
-            void discardPendingMobilePerformanceSamples()
-              .then(() => mobileMessageStore.purgePerformanceSamples())
-              .finally(refresh);
-          }}
+      <View style={{ flexDirection: "row", gap: 8 }}>
+        <DiagnosticsButton
+          label={`‹ ${copy.authBackAction}`}
+          onPress={onBack}
+          testID="performance-back"
+          theme={theme}
+        />
+        <DiagnosticsButton
+          busy={action === "refresh"}
+          label={copy.refreshShortAction}
+          onPress={handleRefresh}
+          testID="performance-refresh"
+          theme={theme}
+        />
+        <DiagnosticsButton
+          busy={action === "reset"}
+          danger
+          label={copy.performanceDiagnosticsReset}
+          onPress={handleReset}
           testID="performance-reset"
-        >
-          <Text style={valueStyle}>{copy.performanceDiagnosticsReset}</Text>
-        </Pressable>
+          theme={theme}
+        />
       </View>
+
+      {/* Pressing something and seeing nothing move is how a run gets reset
+          twice, or not at all. The row says which action last ran and when. */}
+      <Text style={[labelStyle, { marginTop: 8 }]} testID="performance-action-status">
+        {status ?? copy.performanceDiagnosticsActionIdle}
+      </Text>
 
       <Text style={headingStyle}>{copy.performanceDiagnosticsMetricsHeading}</Text>
       {rows.map((row) => (
@@ -140,6 +253,20 @@ export function MobilePerformanceDiagnosticsScreen({ onBack }: { onBack(): void 
             {row.count === 0
               ? copy.performanceDiagnosticsNoMeasurements
               : `${row.p50Ms ?? "-"} / ${row.p95Ms ?? "-"} / ${row.p99Ms ?? "-"} ms`}
+          </Text>
+        </View>
+      ))}
+
+      {/* Three costs, one tap. A cached open has no request in it, so whichever
+          of these is largest is the whole problem. */}
+      <Text style={headingStyle}>{copy.performanceDiagnosticsChatOpenStages}</Text>
+      {chatOpenStages.map((row) => (
+        <View key={row.stage} style={{ paddingVertical: 2 }}>
+          <Text style={labelStyle}>{`${row.stage} · n=${row.count}`}</Text>
+          <Text style={valueStyle} testID={`performance-chat-stage-${row.stage}`}>
+            {row.count === 0
+              ? copy.performanceDiagnosticsNoMeasurements
+              : `${row.p50Ms ?? "-"} / ${row.p95Ms ?? "-"} ms`}
           </Text>
         </View>
       ))}

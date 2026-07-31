@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { Pressable, Text, View, type LayoutChangeEvent } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, {
@@ -131,14 +131,13 @@ export function AboutUpdateSheet({
   const [paused, setPaused] = useState(false);
   const [trackWidth, setTrackWidth] = useState(0);
   const bandTranslateX = useSharedValue(0);
-  const observedSteps = useRef(new Set<MobileUpdateStep>());
-  if (progress) {
-    observedSteps.current.add(progress.step);
-  }
+  const completedSteps = snapshot.completedSteps ?? [];
+  const readyToInstall = snapshot.state === "ready" && completedSteps.includes("verify");
 
   const reportsPercent = controller.capabilities.reportsPercent;
-  const percent =
-    reportsPercent && progress?.percent !== null && progress?.percent !== undefined
+  const percent = readyToInstall
+    ? 100
+    : reportsPercent && progress?.percent !== null && progress?.percent !== undefined
       ? clampPercent(progress.percent)
       : null;
   const verifyFailed = snapshot.error === "verify-failed";
@@ -184,15 +183,19 @@ export function AboutUpdateSheet({
     progress.etaSeconds !== null;
   const meta = rollbackToEmbedded
     ? copy.updateRollbackBody
-    : detailedProgress
-      ? fill(copy.updateProgressMeta, {
-          downloaded: formatSize(progress.downloadedBytes),
-          eta: formatEta(progress.etaSeconds),
-          size: formatSize(progress.totalBytes),
-        })
-      : latest.sizeBytes === undefined
-        ? copy.updateStepDownload
-        : fill(copy.updateProgressIndeterminate, { size: formatSize(latest.sizeBytes) });
+    : readyToInstall
+      ? copy.updateVerifiedReady
+      : progress?.step === "verify"
+        ? copy.updateVerificationInProgress
+        : detailedProgress
+          ? fill(copy.updateProgressMeta, {
+              downloaded: formatSize(progress.downloadedBytes),
+              eta: formatEta(progress.etaSeconds),
+              size: formatSize(progress.totalBytes),
+            })
+          : latest.sizeBytes === undefined
+            ? copy.updateStepDownload
+            : fill(copy.updateProgressIndeterminate, { size: formatSize(latest.sizeBytes) });
 
   const activeStep = progress?.step ?? null;
   const stepStatus = (step: MobileUpdateStep): UpdateStepStatus => {
@@ -202,10 +205,7 @@ export function AboutUpdateSheet({
     if (activeStep === step) {
       return "active";
     }
-    if (step === "download" && (activeStep === "verify" || activeStep === "install")) {
-      return "complete";
-    }
-    if (step === "verify" && observedSteps.current.has("verify") && activeStep === "install") {
+    if (completedSteps.includes(step)) {
       return "complete";
     }
     return "pending";
@@ -224,6 +224,13 @@ export function AboutUpdateSheet({
       : progress?.network === "cellular"
         ? copy.updateNetworkCellular
         : copy.updateNetworkUnknown;
+  const title = rollbackToEmbedded
+    ? copy.updateRollbackTitle
+    : readyToInstall
+      ? fill(copy.updateReadyToInstall, { version: latest.version })
+      : progress?.step === "verify"
+        ? fill(copy.updateVerifying, { version: latest.version })
+        : fill(copy.updateDownloading, { version: latest.version });
 
   const togglePause = async () => {
     const action = paused ? controller.resume : controller.pause;
@@ -249,11 +256,7 @@ export function AboutUpdateSheet({
 
   return (
     <BottomSheet
-      accessibilityLabel={
-        rollbackToEmbedded
-          ? copy.updateRollbackTitle
-          : fill(copy.updateDownloading, { version: latest.version })
-      }
+      accessibilityLabel={title}
       onClose={onClose}
       open={open}
       overlayId={MOBILE_ABOUT_UPDATE_OVERLAY_ID}
@@ -272,9 +275,7 @@ export function AboutUpdateSheet({
         </View>
         <View style={styles.headerText}>
           <Text maxFontSizeMultiplier={2} numberOfLines={1} style={styles.title}>
-            {rollbackToEmbedded
-              ? copy.updateRollbackTitle
-              : fill(copy.updateDownloading, { version: latest.version })}
+            {title}
           </Text>
           <Text maxFontSizeMultiplier={2} numberOfLines={2} style={styles.meta}>
             {meta}

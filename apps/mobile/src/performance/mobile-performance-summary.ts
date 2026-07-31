@@ -65,7 +65,15 @@ function classifySample(
     readonly cacheHit?: unknown;
     readonly phase?: unknown;
     readonly route?: unknown;
+    readonly stage?: unknown;
   };
+
+  // A stage is a milestone *inside* an open, not an open. Counting it would
+  // report three openings for every one the reader performed and drag the
+  // percentile down with partial timings.
+  if (typeof context.stage === "string") {
+    return null;
+  }
 
   if (sample.metric === "startup") {
     // Content drawn before the session resolved is a shell, not the launch.
@@ -91,6 +99,54 @@ function classifySample(
   }
 
   return null;
+}
+
+/**
+ * The chat open, split into what the client actually spent the time on.
+ *
+ * `navigated` is the transition, `mounted` is the screen tree, `content` is the
+ * list's first render — each measured from the same tap, so they read as a
+ * running total rather than three unrelated numbers.
+ */
+export const MOBILE_CHAT_OPEN_STAGES = ["navigated", "mounted", "content"] as const;
+
+export type MobileChatOpenStageRow = {
+  readonly count: number;
+  readonly p50Ms: number | null;
+  readonly p95Ms: number | null;
+  readonly stage: (typeof MOBILE_CHAT_OPEN_STAGES)[number];
+};
+
+export function summarizeMobileChatOpenStages(
+  samples: readonly MobilePerformanceSummaryInput[],
+): readonly MobileChatOpenStageRow[] {
+  const buckets = new Map<string, number[]>(MOBILE_CHAT_OPEN_STAGES.map((stage) => [stage, []]));
+
+  for (const sample of samples) {
+    if (sample.metric !== "navigation") {
+      continue;
+    }
+
+    const context = sample.context as { readonly route?: unknown; readonly stage?: unknown };
+    if (typeof context.route !== "string" || !CHAT_ROUTES.has(context.route)) {
+      continue;
+    }
+
+    // The completed span is the last stage: it is the same measurement the
+    // budget row reports, listed here so the three add up to the whole open.
+    const stage = typeof context.stage === "string" ? context.stage : "content";
+    buckets.get(stage)?.push(sample.durationMs);
+  }
+
+  return MOBILE_CHAT_OPEN_STAGES.map((stage) => {
+    const values = buckets.get(stage) ?? [];
+    return {
+      count: values.length,
+      p50Ms: percentileMs(values, 50),
+      p95Ms: percentileMs(values, 95),
+      stage,
+    };
+  });
 }
 
 export function summarizeMobilePerformanceSamples(

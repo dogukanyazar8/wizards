@@ -66,6 +66,7 @@ import { flattenMobileDMConversationPages } from "../../query/mobile-dm-conversa
 import { mobileQueryKeys } from "../../query/mobile-query-keys";
 import { getMobileRuntimeConfig } from "../../config/environment";
 import { useMobileBootstrapQuery } from "../../query/mobile-bootstrap-query";
+import { markMobileNavigationStage } from "../../performance/mobile-navigation-timing";
 import { resolveMobileTelemetryDimensions } from "../../performance/mobile-telemetry-dimensions";
 import { MobileServerSettingsScreen } from "../../workspace/mobile-server-settings-screen";
 import { MobileServerRolesScreen } from "../../workspace/mobile-server-roles-screen";
@@ -367,6 +368,11 @@ export function ChannelStackScreenContainer({
   const screenProps = useMobileOverviewScreenProps();
   const { openWorkspaceRoute } = useMobileProductNavigationActions();
   const { channelId, serverId } = route.params;
+  // Second of the three stages: this screen's tree is committed. Whatever is
+  // left before content is the list's own first render.
+  useEffect(() => {
+    markMobileNavigationStage("ChannelChat", "mounted");
+  }, []);
   const closeWorkspaceChannel = screenProps.onCloseWorkspaceChannel;
   const closeWorkspaceChannelRef = useLatestValueRef(closeWorkspaceChannel);
   const setServer = useMobileActiveTargetStore((state) => state.setServer);
@@ -422,6 +428,11 @@ export function DirectMessageStackScreenContainer({
 }: NativeStackScreenProps<MobileRootStackParamList, "DirectMessage">) {
   const screenProps = useMobileMessagesScreenProps();
   const { conversationId } = route.params;
+  // Second of the three stages: this screen's tree is committed. Whatever is
+  // left before content is the list's own first render.
+  useEffect(() => {
+    markMobileNavigationStage("DirectMessage", "mounted");
+  }, []);
   const closeDMConversation = screenProps.onCloseConversation;
   const closeDMConversationRef = useLatestValueRef(closeDMConversation);
   const openDMConversation = screenProps.onOpenConversation;

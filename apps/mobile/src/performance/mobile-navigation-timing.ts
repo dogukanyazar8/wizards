@@ -18,9 +18,22 @@ import { recordMobilePerformanceSample } from "./mobile-performance-metrics";
  */
 export type MobileNavigationSpanOrigin = "navigation" | "tap";
 
+/**
+ * The two moments inside a chat open worth telling apart.
+ *
+ * A cached open measured 653ms p95 against a 100ms budget with the stream
+ * already in memory — no request, no server, no database. Everything in that
+ * number is the client, and "the client" is three different costs: the
+ * transition, mounting the screen, and the list's first render. One number
+ * cannot say which, and guessing between them is how a week gets spent on the
+ * wrong one.
+ */
+export type MobileNavigationStage = "mounted" | "navigated";
+
 type MobileNavigationSpan = {
   readonly cacheHit: boolean;
   readonly origin: MobileNavigationSpanOrigin;
+  readonly stages: Set<MobileNavigationStage>;
   readonly startedAtMs: number;
 };
 
@@ -60,7 +73,39 @@ export function beginMobileNavigationSpan(
     abandonedSpanCount += 1;
   }
 
-  openSpans.set(route, { cacheHit, origin, startedAtMs });
+  openSpans.set(route, { cacheHit, origin, stages: new Set(), startedAtMs });
+}
+
+/**
+ * Records how far into an open a milestone landed, without closing the span.
+ *
+ * Once per stage per span: a screen that re-renders is not opening again, and a
+ * second mark would restate the same moment at a later time.
+ */
+export function markMobileNavigationStage(
+  route: string,
+  stage: MobileNavigationStage,
+  atMs: number = globalThis.performance.now(),
+): number | null {
+  const span = openSpans.get(route);
+  if (!span || span.stages.has(stage)) {
+    return null;
+  }
+
+  const durationMs = atMs - span.startedAtMs;
+  if (durationMs < 0 || durationMs > MOBILE_NAVIGATION_SPAN_MAX_AGE_MS) {
+    return null;
+  }
+
+  span.stages.add(stage);
+  recordMobilePerformanceSample({
+    context: { cacheHit: span.cacheHit, origin: span.origin, route, stage },
+    durationMs,
+    metric: "navigation",
+    surface: "navigation",
+  });
+
+  return durationMs;
 }
 
 /**
@@ -80,7 +125,7 @@ export function ensureMobileNavigationSpan(
     return;
   }
 
-  openSpans.set(route, { cacheHit, origin: "navigation", startedAtMs });
+  openSpans.set(route, { cacheHit, origin: "navigation", stages: new Set(), startedAtMs });
 }
 
 /**

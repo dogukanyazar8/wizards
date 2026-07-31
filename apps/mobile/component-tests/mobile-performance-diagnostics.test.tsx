@@ -33,7 +33,7 @@ jest.mock("../src/app/providers/mobile-locale-provider", () => ({
   useMobileLocaleRuntime: () => ({ locale: "tr" }),
 }));
 
-import { fireEvent, render, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, render, waitFor } from "@testing-library/react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { MobileThemeProvider } from "../src/app/providers/mobile-theme-provider";
 import { MobilePerformanceDiagnosticsScreen } from "../src/app/screens/mobile-performance-diagnostics-screen";
@@ -167,5 +167,37 @@ describe("performance diagnostics panel", () => {
     await waitFor(() =>
       expect(view.getByTestId("performance-metric-startup")).toHaveTextContent("ölçüm yok"),
     );
+  });
+
+  /**
+   * The controls were bare text: nothing grew under a finger and nothing changed
+   * on screen, so a reset was indistinguishable from a missed tap — on a panel
+   * whose whole job is a run that has to start from empty.
+   */
+  it("says what the last press did", async () => {
+    const view = await renderPanel();
+    const statusText = () =>
+      String(view.getByTestId("performance-action-status").props.children ?? "");
+
+    expect(statusText()).toContain("Sıfırla'ya basmadan");
+
+    await act(async () => {
+      fireEvent.press(view.getByTestId("performance-refresh"));
+    });
+    expect(statusText()).toContain("yenilendi");
+
+    await act(async () => {
+      fireEvent.press(view.getByTestId("performance-reset"));
+    });
+    expect(statusText()).toContain("sıfırlandı");
+  });
+
+  it("gives every control a thumb-sized target", async () => {
+    const view = await renderPanel();
+
+    for (const testID of ["performance-back", "performance-refresh", "performance-reset"]) {
+      const style = view.getByTestId(testID).props.style as { minHeight?: number };
+      expect(style.minHeight).toBeGreaterThanOrEqual(44);
+    }
   });
 });

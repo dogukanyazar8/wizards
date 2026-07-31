@@ -504,7 +504,7 @@ export function MobileAboutSettingsScreen({
       return;
     }
     const state = await updateController.check();
-    await updateQuery.refetch();
+    await Promise.all([updateQuery.refetch(), releaseQuery.refetch()]);
     if (state === "ready" && updateController.getSnapshot().rollbackToEmbedded === true) {
       setIsUpdateSheetOpen(true);
     }
