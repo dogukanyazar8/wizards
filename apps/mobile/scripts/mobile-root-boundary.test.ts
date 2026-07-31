@@ -36,7 +36,7 @@ describe("mobile root boundary", () => {
     assert.match(source, /useLatestValueRef\(closeWorkspaceChannel\)/);
     assert.match(source, /useLatestValueRef\(closeDMConversation\)/);
     assert.match(source, /closeWorkspaceChannelRef\.current\(\)/);
-    assert.match(source, /closeDMConversationRef\.current\(\)/);
+    assert.match(source, /closeDMConversationRef\.current\(conversationId\)/);
   });
 
   it("keeps route, overlay, and composer modules split by product surface", () => {

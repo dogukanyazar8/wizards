@@ -13,7 +13,6 @@ const repository: TotpSecretMaintenanceRepository = {
     if (input.mode === "backfill") {
       modeFilter = {
         twoFactorSecret: { not: null },
-        twoFactorSecretCiphertext: null,
       };
     } else if (input.mode === "rotate") {
       modeFilter = {
@@ -29,7 +28,7 @@ const repository: TotpSecretMaintenanceRepository = {
       };
     } else {
       modeFilter = {
-        twoFactorSecretCiphertext: { not: null },
+        OR: [{ twoFactorSecret: { not: null } }, { twoFactorSecretCiphertext: { not: null } }],
       };
     }
 
@@ -51,11 +50,13 @@ const repository: TotpSecretMaintenanceRepository = {
   async updateEncryptedSecret(input) {
     const result = await prisma.user.updateMany({
       data: {
+        twoFactorSecret: null,
         twoFactorSecretCiphertext: input.ciphertext,
         twoFactorSecretKeyVersion: input.keyVersion,
       },
       where: {
         id: input.id,
+        twoFactorSecret: input.expectedPlaintext,
         twoFactorSecretCiphertext: input.expectedCiphertext,
         twoFactorSecretKeyVersion: input.expectedKeyVersion,
       },

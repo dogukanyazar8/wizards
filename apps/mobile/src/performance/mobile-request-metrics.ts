@@ -21,6 +21,7 @@ export type MobileRequestLatencySample = {
    */
   readonly headersMs: number;
   readonly method: MobileRequestMethod;
+  readonly requestId: string | null;
   readonly route: string;
   readonly server: MobileServerTimingBreakdown;
   /**
@@ -49,6 +50,7 @@ export type MobileRequestLatencyStats = {
   readonly headersP50Ms: number | null;
   readonly headersP95Ms: number | null;
   readonly key: string;
+  readonly lastRequestId: string | null;
   /** The most recent breakdown; the split between auth and db is stable enough. */
   readonly lastServer: MobileServerTimingBreakdown;
   readonly method: MobileRequestMethod;
@@ -69,6 +71,7 @@ const MAX_TRACKED_ROUTES = 40;
  * baseline run, small enough that forty tracked keys stay a bounded cost.
  */
 const MAX_SAMPLES_PER_KEY = 60;
+const SAFE_OPAQUE_REQUEST_ID = /^[0-9a-f]{32}$/i;
 
 /**
  * Requests slower than this get a Sentry breadcrumb. Every request would drown
@@ -183,6 +186,7 @@ export function recordMobileRequestLatency(input: {
   readonly headersMs: number;
   readonly method?: string | null;
   readonly path: string;
+  readonly requestId?: string | null;
   readonly serverTimingHeader: string | null | undefined;
   /** Defaults to the header timing for the paths that never read a body. */
   readonly settledMs?: number;
@@ -194,6 +198,10 @@ export function recordMobileRequestLatency(input: {
   const sample: MobileRequestLatencySample = {
     headersMs,
     method,
+    requestId:
+      typeof input.requestId === "string" && SAFE_OPAQUE_REQUEST_ID.test(input.requestId)
+        ? input.requestId.toLowerCase()
+        : null,
     route,
     server,
     // Never earlier than the headers: a clock that went backwards must not
@@ -247,6 +255,7 @@ function summarizeKey(key: string, samples: readonly MobileRequestLatencySample[
       95,
     ),
     key,
+    lastRequestId: last?.requestId ?? null,
     lastServer: last?.server ?? EMPTY_BREAKDOWN,
     method: last?.method ?? "OTHER",
     route: last?.route ?? "/",

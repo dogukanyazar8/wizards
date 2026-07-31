@@ -10,6 +10,43 @@ import {
 import { clearErrorReporter, registerErrorReporter } from "./observability/reporter";
 
 describe("structured logger", () => {
+  it("redacts credential-bearing URI userinfo before serializing nested errors", () => {
+    const cause = new Error("request failed: redis://user:password@cache.example.test:6379");
+    cause.stack = "Error: https://user:password@api.example.test/cause";
+    const failure = new Error("postgresql://secret@db.example.test/whispr", { cause });
+    failure.stack = "Error: rediss://user:password@cache.example.test/0";
+    const payload = JSON.parse(
+      formatErrorLog(
+        "http://user:password@scope.example.test",
+        {
+          nested: {
+            postgres: "postgres://user@db.example.test/whispr",
+            percentEncoded: "https://user%40name:pass%3Aword@api.example.test/path",
+            safeUrl: "https://api.example.test/path",
+          },
+          failure,
+        },
+        new Date("2026-05-14T00:00:00.000Z"),
+      ),
+    ) as {
+      error: {
+        failure: { cause?: unknown; message: string; stack?: string };
+        nested: { safeUrl: string };
+      };
+      scope: string;
+    };
+    const serialized = JSON.stringify(payload);
+
+    for (const forbidden of ["secret@", "user:password@", "user%40name:pass%3Aword@"]) {
+      assert.equal(serialized.includes(forbidden), false);
+    }
+    assert.equal(payload.error.nested.safeUrl, "https://api.example.test/path");
+    assert.equal(typeof payload.error.failure.cause, "object");
+    assert.equal(payload.error.failure.message.includes("[redacted-userinfo]@"), true);
+    assert.equal(payload.error.failure.stack?.includes("[redacted-userinfo]@"), true);
+    assert.equal(payload.scope.includes("[redacted-userinfo]@"), true);
+  });
+
   it("preserves non-PII email metadata and approved diagnostic hashes", () => {
     const payload = JSON.parse(
       formatWarningLog(

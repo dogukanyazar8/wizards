@@ -21,13 +21,13 @@ class MemoryRedis {
   async eval(script: string, keyCount: number, ...input: string[]) {
     const keys = input.slice(0, keyCount);
     const args = input.slice(keyCount);
-    if (script.includes("mobile-refresh-family:create-v1")) {
-      const [sessionKey = "", refreshTokenKey = ""] = keys;
-      if (this.values.has(sessionKey) || this.values.has(refreshTokenKey)) {
+    if (script.includes("mobile-refresh-family:create-v2")) {
+      const [sessionKey = "", familyKey = ""] = keys;
+      if (this.values.has(sessionKey) || this.values.has(familyKey)) {
         return ["COLLISION"];
       }
       this.values.set(sessionKey, args[0] ?? "");
-      this.values.set(refreshTokenKey, args[1] ?? "");
+      this.values.set(familyKey, args[1] ?? "");
       return ["CREATED"];
     }
 

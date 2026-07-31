@@ -15,6 +15,7 @@ import type {
 import { useMobileAuth } from "../../auth/mobile-auth-context";
 import { useMobileActiveTargetStore } from "../../state/mobile-active-target-store";
 import { useMobileChannelTypingLabels } from "../features/use-mobile-typing-labels";
+import { useMobileDMRouteState } from "../features/use-mobile-dm-route-state";
 import {
   useMobileMessagesScreenProps,
   useMobileNotificationsScreenProps,
@@ -66,7 +67,12 @@ import { flattenMobileDMConversationPages } from "../../query/mobile-dm-conversa
 import { mobileQueryKeys } from "../../query/mobile-query-keys";
 import { getMobileRuntimeConfig } from "../../config/environment";
 import { useMobileBootstrapQuery } from "../../query/mobile-bootstrap-query";
-import { markMobileNavigationStage } from "../../performance/mobile-navigation-timing";
+import {
+  getMobileNavigationSampleId,
+  markMobileNavigationPhase,
+  markMobileNavigationStage,
+  type MobileNavigationPhase,
+} from "../../performance/mobile-navigation-timing";
 import { resolveMobileTelemetryDimensions } from "../../performance/mobile-telemetry-dimensions";
 import { MobileServerSettingsScreen } from "../../workspace/mobile-server-settings-screen";
 import { MobileServerRolesScreen } from "../../workspace/mobile-server-roles-screen";
@@ -112,11 +118,17 @@ export function OverviewTabScreenContainer({
           // than after the push and the selection commit.
           // Opens the tap-to-content span as well: it is the only caller that
           // knows whether this stream was already cached.
-          prefetchChannelMessages(channel.id);
+          const navigationSampleId = prefetchChannelMessages(channel.id);
           rootNavigation.navigate("ChannelChat", {
             channelId: channel.id,
             serverId: screenProps.selectedWorkspaceServerId,
           });
+          markMobileNavigationPhase(
+            "ChannelChat",
+            "navigation-dispatched",
+            globalThis.performance.now(),
+            navigationSampleId,
+          );
           void screenProps.onOpenWorkspaceChannel(channel);
           return false;
         }
@@ -148,9 +160,14 @@ export function MessagesTabScreenContainer({
       onOpenConversation={(conversationId) => {
         // Push first, same reasoning as the channel row: the animation should
         // not wait behind the selection state the open handler sets.
-        prefetchDMMessages(conversationId);
+        const navigationSampleId = prefetchDMMessages(conversationId);
         rootNavigation?.navigate("DirectMessage", { conversationId });
-        screenProps.onOpenConversation(conversationId);
+        markMobileNavigationPhase(
+          "DirectMessage",
+          "navigation-dispatched",
+          globalThis.performance.now(),
+          navigationSampleId,
+        );
       }}
     />
   );
@@ -368,11 +385,19 @@ export function ChannelStackScreenContainer({
   const screenProps = useMobileOverviewScreenProps();
   const { openWorkspaceRoute } = useMobileProductNavigationActions();
   const { channelId, serverId } = route.params;
+  const navigationSampleIdRef = useRef<string | null>(null);
   // Second of the three stages: this screen's tree is committed. Whatever is
   // left before content is the list's own first render.
   useEffect(() => {
-    markMobileNavigationStage("ChannelChat", "mounted");
+    navigationSampleIdRef.current ??= getMobileNavigationSampleId("ChannelChat");
+    markMobileNavigationStage(
+      "ChannelChat",
+      "mounted",
+      globalThis.performance.now(),
+      navigationSampleIdRef.current,
+    );
   }, []);
+  useMobileTransitionCompletion(navigation, "ChannelChat", navigationSampleIdRef);
   const closeWorkspaceChannel = screenProps.onCloseWorkspaceChannel;
   const closeWorkspaceChannelRef = useLatestValueRef(closeWorkspaceChannel);
   const setServer = useMobileActiveTargetStore((state) => state.setServer);
@@ -382,6 +407,13 @@ export function ChannelStackScreenContainer({
     useCallback(() => {
       openWorkspaceRoute(serverId, channelId);
       setTextChannel(serverId, channelId);
+      navigationSampleIdRef.current ??= getMobileNavigationSampleId("ChannelChat");
+      markMobileNavigationPhase(
+        "ChannelChat",
+        "conversation-selection-ready",
+        globalThis.performance.now(),
+        navigationSampleIdRef.current,
+      );
 
       return () => {
         closeWorkspaceChannelRef.current();
@@ -428,11 +460,27 @@ export function DirectMessageStackScreenContainer({
 }: NativeStackScreenProps<MobileRootStackParamList, "DirectMessage">) {
   const screenProps = useMobileMessagesScreenProps();
   const { conversationId } = route.params;
+  const navigationSampleIdRef = useRef<string | null>(null);
+  const auth = useMobileAuth();
+  const routeState = useMobileDMRouteState({
+    apiClient: auth.apiClient,
+    conversationId,
+    conversations: screenProps.dmConversations ?? [],
+    currentUserId: auth.session?.user.id ?? null,
+    isSignedIn: auth.status === "signed-in",
+  });
   // Second of the three stages: this screen's tree is committed. Whatever is
   // left before content is the list's own first render.
   useEffect(() => {
-    markMobileNavigationStage("DirectMessage", "mounted");
+    navigationSampleIdRef.current ??= getMobileNavigationSampleId("DirectMessage");
+    markMobileNavigationStage(
+      "DirectMessage",
+      "mounted",
+      globalThis.performance.now(),
+      navigationSampleIdRef.current,
+    );
   }, []);
+  useMobileTransitionCompletion(navigation, "DirectMessage", navigationSampleIdRef);
   const closeDMConversation = screenProps.onCloseConversation;
   const closeDMConversationRef = useLatestValueRef(closeDMConversation);
   const openDMConversation = screenProps.onOpenConversation;
@@ -442,9 +490,16 @@ export function DirectMessageStackScreenContainer({
     useCallback(() => {
       openDMConversation(conversationId);
       setConversation(conversationId);
+      navigationSampleIdRef.current ??= getMobileNavigationSampleId("DirectMessage");
+      markMobileNavigationPhase(
+        "DirectMessage",
+        "conversation-selection-ready",
+        globalThis.performance.now(),
+        navigationSampleIdRef.current,
+      );
 
       return () => {
-        closeDMConversationRef.current();
+        closeDMConversationRef.current(conversationId);
         if (useMobileActiveTargetStore.getState().conversationId === conversationId) {
           setConversation(null);
         }
@@ -460,11 +515,20 @@ export function DirectMessageStackScreenContainer({
       key={conversationId}
       {...screenProps}
       canRenderConversation
+      dmMessagesState={routeState.messagesState}
+      onLoadMoreMessages={routeState.loadMoreMessages}
+      onRefreshConversation={routeState.refreshConversation}
+      onRefreshVisibleData={() => {
+        screenProps.onRefreshVisibleData();
+        routeState.refreshConversation();
+      }}
+      selectedConversation={routeState.selectedConversation}
+      selectedConversationId={conversationId}
       onOpenThread={(messageId) => {
         navigation.navigate("MessageThread", { contextId: conversationId, messageId, scope: "dm" });
       }}
       onCloseConversation={() => {
-        screenProps.onCloseConversation();
+        screenProps.onCloseConversation(conversationId);
         navigation.goBack();
       }}
     />
@@ -479,7 +543,16 @@ export function DirectMessageStackScreenContainer({
 export function PerformanceDiagnosticsStackScreenContainer({
   navigation,
 }: NativeStackScreenProps<MobileRootStackParamList, "PerformanceDiagnostics">) {
-  return <MobilePerformanceDiagnosticsScreen onBack={() => navigation.goBack()} />;
+  const queryClient = useQueryClient();
+  const bootstrap = queryClient.getQueryData<{ readonly app?: { readonly buildId?: string } }>(
+    mobileQueryKeys.bootstrap(),
+  );
+  return (
+    <MobilePerformanceDiagnosticsScreen
+      backendBuildId={bootstrap?.app?.buildId ?? "unknown"}
+      onBack={() => navigation.goBack()}
+    />
+  );
 }
 
 export function MessageThreadStackScreenContainer({
@@ -950,4 +1023,34 @@ function useLatestValueRef<T>(value: T) {
   }, [value]);
 
   return valueRef;
+}
+
+function useMobileTransitionCompletion(
+  navigation: {
+    readonly addListener?: (
+      event: "transitionEnd",
+      listener: (event: { readonly data?: { readonly closing?: boolean } }) => void,
+    ) => () => void;
+  },
+  route: "ChannelChat" | "DirectMessage",
+  navigationSampleIdRef: { current: string | null },
+) {
+  useEffect(() => {
+    if (typeof navigation.addListener !== "function") {
+      return;
+    }
+
+    return navigation.addListener("transitionEnd", (event) => {
+      if (event.data?.closing) {
+        return;
+      }
+      navigationSampleIdRef.current ??= getMobileNavigationSampleId(route);
+      markMobileNavigationPhase(
+        route,
+        "transition-completed" satisfies MobileNavigationPhase,
+        globalThis.performance.now(),
+        navigationSampleIdRef.current,
+      );
+    });
+  }, [navigation, navigationSampleIdRef, route]);
 }

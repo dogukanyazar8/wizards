@@ -1,3 +1,4 @@
+aad
 abandon
 abi
 abort
@@ -47,6 +48,8 @@ administrator
 advance
 advanced
 advisory
+aead
+aes
 affecting
 after
 against
@@ -110,11 +113,13 @@ and
 androi
 android
 animasyon
+animasyonsuz
 animasyonu
 animated
 animation
 anl
 anlamda
+annotate
 announce
 anonymization
 anonymize
@@ -180,6 +185,7 @@ attach
 attachment
 attachments
 attempt
+attempted
 attempts
 attribute
 attributes
@@ -222,6 +228,7 @@ aynen
 ayr
 ayrac
 aza
+azure
 babel
 back
 backbone
@@ -242,6 +249,7 @@ banned
 banner
 bar
 bare
+bariyeri
 bars
 bas
 base
@@ -284,7 +292,9 @@ biometric
 bir
 birden
 birebir
+birikmeyi
 biti
+bitiminde
 bitmeden
 bits
 bitti
@@ -332,6 +342,7 @@ browser
 browserslist
 bubble
 bucket
+budama
 budget
 budgets
 buf
@@ -343,8 +354,10 @@ builds
 built
 bulgu
 bulgular
+bulgusu
 bulun
 bulunamad
+bulunan
 bundle
 bundled
 bunlar
@@ -364,8 +377,10 @@ cache
 cached
 caches
 cadence
+cak
 calculate
 calendar
+calismalar
 call
 callable
 callback
@@ -454,6 +469,8 @@ cihaz
 cila
 cilas
 cim
+cipher
+ciphertext
 circle
 circles
 cjs
@@ -599,6 +616,7 @@ conversion
 convert
 cookie
 cookies
+cooldown
 coordinator
 copy
 copyright
@@ -631,6 +649,7 @@ cross
 crud
 crypto
 cryptographic
+cryptography
 csp
 csrf
 css
@@ -646,8 +665,10 @@ cycle
 daemons
 daha
 dahil
+dahildir
 daily
 dalga
+dalgada
 dalgas
 danger
 dangerous
@@ -681,6 +702,7 @@ decode
 decoded
 decoration
 decrypt
+decryption
 dedicated
 dedupe
 deep
@@ -800,8 +822,10 @@ disposable
 dispose
 disposition
 dist
+distance
 distinct
 divider
+diyeti
 dnd
 docker
 docs
@@ -814,7 +838,9 @@ does
 dogrulama
 doguk
 dogukan
+dokunma
 dokunu
+dolarlik
 dolu
 dom
 domain
@@ -828,7 +854,6 @@ dot
 dotenv
 dots
 down
-downgrade
 downgrades
 downgrading
 download
@@ -846,13 +871,16 @@ drop
 dropped
 dsn
 dto
+dual
 due
 duman
 dummy
 duplicate
 durable
 duration
+durdur
 durum
+durumda
 durumlar
 durumu
 duruyoruz
@@ -867,6 +895,7 @@ echoed
 ecosystem
 edebilece
 ederim
+edilebilir
 edilen
 edilir
 edilmez
@@ -964,6 +993,7 @@ enstr
 ensure
 entegrasyon
 enter
+entrance
 entries
 entry
 enum
@@ -1006,12 +1036,15 @@ esnext
 establish
 established
 etiketleme
+etilmez
 etk
 etkile
 etkilenen
 etkinle
 etkisi
+etkisini
 etkisiz
+etme
 eval
 evaluate
 evaluation
@@ -1094,6 +1127,7 @@ fatal
 fatih
 fault
 faults
+fayda
 faz
 fazlar
 fcm
@@ -1213,6 +1247,8 @@ gasyon
 gate
 gated
 gates
+gcm
+gecirmek
 gecmisi
 gelen
 geli
@@ -1234,11 +1270,13 @@ gercekten
 gerek
 gereken
 gerekirse
+gerekiyor
 geri
 gesture
 get
 getir
 getirmek
+gev
 gez
 gezinme
 gfm
@@ -1296,6 +1334,7 @@ guidance
 guide
 guncelleme
 guvenlik
+hafif
 hafta
 hakk
 hakkinda
@@ -1329,6 +1368,7 @@ hatas
 hatlar
 hatt
 have
+havuzu
 haz
 hazir
 head
@@ -1402,6 +1442,7 @@ hydration
 hyphen
 icerik
 ici
+icin
 icns
 ico
 icon
@@ -1410,6 +1451,7 @@ ide
 idempotent
 identification
 identifier
+identities
 identity
 idiom
 idiomatic
@@ -1418,12 +1460,15 @@ ids
 ifadeyi
 ifle
 ifremi
+ift
 ifti
 ignore
 ignores
+ihlal
 ihlali
 ihtiyac
 iki
+ikiye
 ikli
 iklik
 iklikler
@@ -1441,6 +1486,7 @@ ilken
 illustration
 image
 images
+imde
 imi
 imini
 imiz
@@ -1462,6 +1508,7 @@ incele
 inceleme
 inceler
 inceleyip
+incelt
 incident
 incidents
 include
@@ -1555,6 +1602,8 @@ ionicons
 ioredis
 ios
 ipleri
+ipv
+isabet
 isi
 iskeleti
 iso
@@ -1582,6 +1631,7 @@ jobs
 join
 joined
 joining
+joins
 jose
 json
 jsx
@@ -1604,10 +1654,12 @@ kanal
 kanala
 kanali
 kanallar
+kanit
 kanitli
 kanonik
 kap
 kapan
+kapasitesi
 kapat
 kapatma
 kaplan
@@ -1647,6 +1699,7 @@ kesimi
 kesin
 key
 keyboard
+keyring
 keys
 keystore
 keytool
@@ -1683,12 +1736,14 @@ kontratlar
 kontrol
 kontrolleri
 kopyala
+korelasyonu
 koru
 korumas
 korunacak
 kotlin
 koyu
 kpi
+kredisi
 krisp
 kriterleri
 kullan
@@ -1732,6 +1787,8 @@ launcher
 lay
 layer
 layered
+layering
+layers
 layout
 layouts
 leading
@@ -1744,10 +1801,12 @@ leb
 left
 legacy
 legal
+len
 lendir
 length
 ler
 leri
+lerinde
 lerp
 less
 let
@@ -1797,6 +1856,7 @@ listen
 listener
 listeners
 listesi
+listesine
 lists
 literal
 live
@@ -1832,11 +1892,15 @@ logo
 logosunun
 logout
 logs
+lokalde
+lokalimde
 long
 lookup
+loop
 loopback
 low
 lparam
+lru
 lucide
 luklar
 luminance
@@ -1850,10 +1914,13 @@ maintenance
 makalesi
 make
 makine
+makineyi
 making
 maksimum
 malformed
+maliyeti
 malware
+man
 manag
 manage
 managed
@@ -1884,6 +1951,7 @@ mask
 masks
 mass
 match
+matched
 matches
 matching
 matrisi
@@ -1897,12 +1965,14 @@ mdaki
 mde
 measure
 measurement
+meden
 media
 medium
 medya
 mehmet
 meleme
 meler
+meleri
 meli
 member
 members
@@ -1933,6 +2003,7 @@ method
 methods
 metin
 metinler
+metri
 metric
 metrics
 metrik
@@ -2127,6 +2198,7 @@ none
 nonempty
 noop
 normal
+normalization
 normalize
 normalized
 normu
@@ -2179,14 +2251,18 @@ okur
 olan
 olarak
 olaylar
+olcum
 oldu
 olgun
 olmal
 olmaz
+olsun
 olu
 olusturup
 omissions
 omurgas
+onar
+onarimi
 onay
 onayi
 onboarding
@@ -2275,10 +2351,12 @@ palette
 palettes
 pan
 panel
+panelde
 paneli
 panels
 panic
 pano
+paralelle
 parallel
 param
 parameter
@@ -2415,6 +2493,7 @@ preference
 preferences
 preferred
 prefetch
+prefetched
 prefix
 prefixes
 preflight
@@ -2434,6 +2513,7 @@ presets
 press
 pressable
 prettier
+prevention
 preview
 previewed
 previews
@@ -2474,7 +2554,9 @@ proje
 project
 projection
 projects
+projeksiyonunu
 projeler
+projemizin
 projesi
 projeyi
 promise
@@ -2484,6 +2566,7 @@ promotion
 prompt
 prompts
 promptun
+promptuna
 promptunun
 proof
 properties
@@ -2495,6 +2578,7 @@ protect
 protected
 protection
 protocols
+protokol
 prove
 proven
 provider
@@ -2502,6 +2586,7 @@ providers
 proxy
 prune
 pseudo
+ptal
 ptt
 puanla
 puanlama
@@ -2662,6 +2747,7 @@ releases
 reliability
 remaining
 remark
+remediation
 remember
 remembered
 reminder
@@ -2686,6 +2772,7 @@ replaced
 replacement
 replacing
 replay
+replica
 replies
 reply
 repo
@@ -2726,6 +2813,7 @@ response
 responsive
 restart
 restore
+restored
 restores
 restriction
 result
@@ -2737,6 +2825,7 @@ retired
 retried
 retry
 retryable
+return
 returned
 reusable
 rev
@@ -2836,6 +2925,7 @@ safari
 safe
 safely
 safety
+saglar
 sahte
 saklama
 salt
@@ -2843,6 +2933,7 @@ same
 sample
 samples
 sampling
+sanal
 sanitize
 sanitized
 sans
@@ -2852,6 +2943,7 @@ sarp
 sat
 save
 saved
+say
 sayfa
 sayfalama
 sayfalar
@@ -2896,6 +2988,7 @@ second
 secondary
 seconds
 secret
+secrets
 section
 sections
 secure
@@ -2984,6 +3077,7 @@ shot
 should
 show
 shutdown
+sicak
 side
 sidebar
 sign
@@ -3040,6 +3134,7 @@ sohbeti
 sol
 solo
 son
+sonda
 sonra
 sonraki
 sonras
@@ -3121,6 +3216,7 @@ stenen
 step
 steps
 steriyor
+steriyorsa
 sticky
 still
 stl
@@ -3167,6 +3263,7 @@ subtitle
 succeeded
 success
 successful
+successor
 suffix
 suffixes
 suggestion
@@ -3189,6 +3286,9 @@ support
 supported
 supports
 suppression
+surecini
+sureclerind
+sureclerinde
 surface
 surfaces
 surum
@@ -3211,6 +3311,7 @@ sys
 syste
 system
 tab
+taban
 tabanl
 table
 tablosu
@@ -3229,6 +3330,7 @@ tamamla
 tamamlama
 tamamlandi
 tan
+tane
 tanstack
 tap
 taraf
@@ -3355,6 +3457,7 @@ tomorrow
 tone
 tones
 too
+tool
 toolbar
 toolchain
 tooling
@@ -3363,6 +3466,7 @@ tooltip
 top
 topic
 topics
+topla
 toplayarak
 topluluk
 total
@@ -3381,6 +3485,7 @@ tracks
 trade
 trailing
 transaction
+transcript
 transform
 transient
 transition
@@ -3421,8 +3526,10 @@ tsc
 tsco
 tsconfig
 tsx
+ttan
 ttf
 ttl
+tum
 tun
 tur
 turbo
@@ -3444,6 +3551,8 @@ typing
 typography
 uat
 ubu
+ubun
+ubuntu
 uca
 ucu
 ucun
@@ -3573,6 +3682,7 @@ verification
 verified
 verifier
 verify
+verimli
 verirsen
 verisi
 veritaban
@@ -3613,7 +3723,6 @@ wait
 waits
 walk
 warm
-warmed
 warn
 warning
 warnings
@@ -3623,6 +3732,7 @@ watchdog
 watermark
 wave
 waveform
+waves
 wcag
 weak
 web
@@ -3691,8 +3801,10 @@ yan
 yanl
 yap
 yapar
+yapilabilir
 yapmadan
 yapmal
+yaptigimiz
 yard
 yardim
 yasal
@@ -3705,6 +3817,7 @@ yazar
 yazma
 yazmadan
 year
+yelik
 yen
 yeni
 yeniden
@@ -3733,10 +3846,13 @@ yumurta
 zaman
 zamanlama
 zaten
+zdelik
+zdelikli
 zek
 zel
 zellikleri
 zelt
+zeltildi
 zeltir
 zeltmeler
 zeltmeleri

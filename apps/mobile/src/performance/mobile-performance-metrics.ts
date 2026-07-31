@@ -27,6 +27,8 @@ export interface MobilePerformanceMetric {
 export interface MobilePerformanceSample extends MobilePerformanceMetric {
   readonly context: Readonly<Record<string, unknown>>;
   readonly sampleId: string;
+  /** Monotonic within one app process; used for warm-up and drift analysis. */
+  readonly sampleOrdinal: number;
 }
 
 interface MobileListLoadInfo {
@@ -72,11 +74,14 @@ export function recordMobilePerformanceSample(input: {
   readonly metric: MobilePerformanceMetricKind;
   readonly surface: MobilePerformanceSurface;
 }): MobilePerformanceSample {
+  const sampleId = nextSampleId();
+  const sampleOrdinal = sampleCounter;
   const sample: MobilePerformanceSample = Object.freeze({
-    context: Object.freeze({ ...(input.context ?? {}) }),
+    context: Object.freeze({ ...(input.context ?? {}), sampleOrdinal }),
     durationMs: normalizeDurationMs(input.durationMs),
     metric: input.metric,
-    sampleId: nextSampleId(),
+    sampleId,
+    sampleOrdinal,
     surface: input.surface,
   });
 
@@ -169,13 +174,19 @@ function recordListLoad(
   surface: MobilePerformanceSurface,
   elapsedTimeInMs: number,
   route: string | null,
+  navigationSampleId?: string | null,
 ): MobilePerformanceSample {
   const sample = recordMobilePerformanceMetric(surface, elapsedTimeInMs);
-  onListLoadObservers.forEach((observer) => observer(route));
+  onListLoadObservers.forEach((observer) => observer({ navigationSampleId, route }));
   return sample;
 }
 
-type MobileListLoadObserver = (route: string | null) => void;
+export type MobileListLoadEvent = {
+  readonly navigationSampleId: string | null | undefined;
+  readonly route: string | null;
+};
+
+type MobileListLoadObserver = (event: MobileListLoadEvent) => void;
 const onListLoadObservers = new Set<MobileListLoadObserver>();
 
 /**
@@ -202,17 +213,17 @@ export function resetMobileListLoadObserversForTests(): void {
  * empty conversation is still an opening the reader waited for, so it closes the
  * span the same way, without inventing a render duration nobody measured.
  */
-export function notifyMobileFirstPaint(route: string): void {
+export function notifyMobileFirstPaint(route: string, navigationSampleId?: string | null): void {
   if (route.length === 0) {
     return;
   }
 
-  onListLoadObservers.forEach((observer) => observer(route));
+  onListLoadObservers.forEach((observer) => observer({ navigationSampleId, route }));
 }
 
 export const mobileListLoadHandlers = Object.freeze({
-  channelMessages: ({ elapsedTimeInMs }: MobileListLoadInfo) =>
-    recordListLoad("channel-messages", elapsedTimeInMs, "ChannelChat"),
+  channelMessages: ({ elapsedTimeInMs }: MobileListLoadInfo, navigationSampleId?: string | null) =>
+    recordListLoad("channel-messages", elapsedTimeInMs, "ChannelChat", navigationSampleId),
   /**
    * The bounded preview card, not the live transcript. It reports its render
    * cost but closes no span: it renders channel messages inside an already-open
@@ -223,8 +234,8 @@ export const mobileListLoadHandlers = Object.freeze({
     recordListLoad("channel-messages", elapsedTimeInMs, null),
   dmInbox: ({ elapsedTimeInMs }: MobileListLoadInfo) =>
     recordListLoad("dm-inbox", elapsedTimeInMs, null),
-  dmMessages: ({ elapsedTimeInMs }: MobileListLoadInfo) =>
-    recordListLoad("dm-messages", elapsedTimeInMs, "DirectMessage"),
+  dmMessages: ({ elapsedTimeInMs }: MobileListLoadInfo, navigationSampleId?: string | null) =>
+    recordListLoad("dm-messages", elapsedTimeInMs, "DirectMessage", navigationSampleId),
   workspaceChannels: ({ elapsedTimeInMs }: MobileListLoadInfo) =>
     recordListLoad("workspace-channels", elapsedTimeInMs, null),
   workspaceServers: ({ elapsedTimeInMs }: MobileListLoadInfo) =>

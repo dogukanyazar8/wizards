@@ -40,6 +40,7 @@ function sample(sampleId: string): MobilePerformanceSample {
     durationMs: 10,
     metric: "startup" as const,
     sampleId,
+    sampleOrdinal: 1,
     surface: "startup" as const,
   });
 }

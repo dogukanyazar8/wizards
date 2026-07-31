@@ -31,7 +31,7 @@ afterEach(() => {
 describe("chat open instrumentation wiring", () => {
   it("closes a route's span from the live DM transcript", () => {
     const routes: (string | null)[] = [];
-    observeMobileListLoads((route) => routes.push(route));
+    observeMobileListLoads(({ route }) => routes.push(route));
 
     mobileListLoadHandlers.dmMessages({ elapsedTimeInMs: 42 });
 
@@ -40,7 +40,7 @@ describe("chat open instrumentation wiring", () => {
 
   it("keeps the bounded channel preview from closing a DM open", () => {
     const routes: (string | null)[] = [];
-    observeMobileListLoads((route) => routes.push(route));
+    observeMobileListLoads(({ route }) => routes.push(route));
 
     mobileListLoadHandlers.channelMessagesPreview({ elapsedTimeInMs: 12 });
 
@@ -52,7 +52,7 @@ describe("chat open instrumentation wiring", () => {
 
   it("closes an open that settled with no list to render", () => {
     const routes: (string | null)[] = [];
-    observeMobileListLoads((route) => routes.push(route));
+    observeMobileListLoads(({ route }) => routes.push(route));
 
     notifyMobileFirstPaint("DirectMessage");
     notifyMobileFirstPaint("");
@@ -66,7 +66,7 @@ describe("chat open instrumentation wiring", () => {
     const liveTranscript = readMobileSource("src/app/components/dm-chat-primitives.tsx");
     const previewSurface = readMobileSource("src/app/components/message-primitives.tsx");
 
-    assert.match(liveTranscript, /onLoad=\{mobileListLoadHandlers\.dmMessages\}/);
+    assert.match(liveTranscript, /mobileListLoadHandlers\.dmMessages\(info,/);
     assert.equal(previewSurface.includes("mobileListLoadHandlers.dmMessages"), false);
   });
 
@@ -77,7 +77,7 @@ describe("chat open instrumentation wiring", () => {
     ] as const) {
       assert.match(
         readMobileSource(source),
-        new RegExp(`notifyMobileFirstPaint\\("${route}"\\)`),
+        new RegExp(`notifyMobileFirstPaint\\("${route}",`),
         `${source} leaves an empty or failed open unmeasured`,
       );
     }

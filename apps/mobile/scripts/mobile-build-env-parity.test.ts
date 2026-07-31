@@ -64,6 +64,15 @@ describe("mobile build environment parity", () => {
     // to be read from the source tree the sync came from.
     assert.match(buildScript, /git -C \$resolvedSourceRoot rev-parse --short=12 HEAD/);
     assert.match(buildScript, /\$env:EXPO_PUBLIC_WHISPR_BUILD_ID = \$resolvedBuildId/);
+    assert.match(buildScript, /\^\[0-9a-fA-F\]\{12,40\}\$/);
+    assert.match(buildScript, /throw "A 12-40 character Git SHA is required/);
+  });
+
+  it("stamps both OTA and APK workflows with the checked-out commit", () => {
+    const workflow = readMobileFile("../../.github/workflows/mobile-release.yml");
+    const matches = workflow.match(/EXPO_PUBLIC_WHISPR_BUILD_ID: \$\{\{ github\.sha \}\}/g) ?? [];
+
+    assert.ok(matches.length >= 2, "both OTA and APK build jobs must export github.sha");
   });
 
   it("fails release APK builds loudly instead of shipping the browser fallback", () => {

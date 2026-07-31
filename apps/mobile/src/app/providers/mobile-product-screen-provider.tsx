@@ -43,8 +43,8 @@ export interface MobileProductNavigationActions {
    * them, and keeping them out of the screen-props memos keeps those objects
    * stable.
    */
-  readonly prefetchChannelMessages: (channelId: string) => void;
-  readonly prefetchDMMessages: (conversationId: string) => void;
+  readonly prefetchChannelMessages: (channelId: string) => string | null;
+  readonly prefetchDMMessages: (conversationId: string) => string | null;
 }
 
 const ActionsContext = createContext<MobileProductNavigationActions | null>(null);

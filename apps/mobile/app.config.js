@@ -68,9 +68,7 @@ function readEnvironmentName() {
   return MOBILE_ENVIRONMENTS.includes(value) ? value : "development";
 }
 
-// Wide enough for a full or short commit SHA and a CI run suffix, narrow enough
-// that nothing else can ride into a telemetry dimension through this field.
-const BUILD_ID_PATTERN = /^[A-Za-z0-9._-]{1,64}$/;
+const BUILD_ID_PATTERN = /^[0-9a-f]{12,40}$/i;
 
 /**
  * Which build a measurement came from.
@@ -81,14 +79,24 @@ const BUILD_ID_PATTERN = /^[A-Za-z0-9._-]{1,64}$/;
  * the same request. The build pipeline supplies the commit; an unrecognisable
  * value stays `unknown` rather than becoming one.
  */
-function readBuildId() {
+function readBuildId(environment) {
   const value = (
     process.env.EXPO_PUBLIC_WHISPR_BUILD_ID ??
     process.env.WHISPR_MOBILE_BUILD_ID ??
     ""
   ).trim();
 
-  return BUILD_ID_PATTERN.test(value) ? value : "unknown";
+  if (BUILD_ID_PATTERN.test(value)) {
+    return value.toLowerCase();
+  }
+
+  if (environment === "development") {
+    return "dev-local";
+  }
+
+  throw new Error(
+    "EXPO_PUBLIC_WHISPR_BUILD_ID or WHISPR_MOBILE_BUILD_ID must be a valid Git SHA (12-40 hex characters) for release mobile builds.",
+  );
 }
 
 function normalizeUrl(value, fieldName) {
@@ -151,7 +159,7 @@ function buildPublicConfig(environment) {
 
   return {
     apiUrl,
-    buildId: readBuildId(),
+    buildId: readBuildId(environment),
     communityInviteSlug:
       process.env.EXPO_PUBLIC_WHISPR_COMMUNITY_INVITE_SLUG?.trim() || DEFAULT_COMMUNITY_INVITE_SLUG,
     environment,

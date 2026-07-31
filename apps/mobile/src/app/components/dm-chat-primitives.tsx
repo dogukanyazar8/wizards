@@ -70,6 +70,10 @@ import { mobileMessagingMetrics } from "../../design/tokens";
 import { MessageEmojiPicker } from "./message-emoji-picker";
 import { MessageReactionDetailSheet } from "./message-reaction-detail-sheet";
 import { useDMChatStyles } from "./dm-chat-primitives.styles";
+import {
+  getMobileNavigationSampleId,
+  markMobileNavigationPhase,
+} from "../../performance/mobile-navigation-timing";
 
 export type DMChatMessage = MobileDMMessagesResponse["messages"][number];
 
@@ -110,6 +114,23 @@ export function getDMChatMessageGroupModel(
       tailCorner: entry.tailCorner,
     };
   });
+}
+
+export type DMChatMessageItemType = "attachment" | "date" | "rich" | "status" | "text";
+
+/** Fixed-cardinality recycling hint; it never derives a type from message data. */
+export function getDMChatMessageItemType(item: DMChatMessageGroupItem): DMChatMessageItemType {
+  if (item.showDateSeparator) return "date";
+  if (item.message.attachments.length > 0) return "attachment";
+  if (
+    item.message.replyTo != null ||
+    item.message.forwardedAt != null ||
+    item.message.reactions.length > 0
+  ) {
+    return "rich";
+  }
+  if (item.message.deletedAt != null || item.message.deliveryStatus === "failed") return "status";
+  return "text";
 }
 
 export function DMChatHeader({
@@ -794,6 +815,43 @@ export function DMChatMessageRow({
   );
 }
 
+type DMChatMessageRowProps = React.ComponentProps<typeof DMChatMessageRow>;
+
+/**
+ * Grouping rebuilds lightweight wrappers whenever the message array changes.
+ * Preserve mounted rows when their message reference and every rendered input
+ * are stable; immutable reaction/edit updates and receipt timestamps still
+ * invalidate exactly the affected row.
+ */
+export function areDMChatMessageRowPropsEqual(
+  previous: DMChatMessageRowProps,
+  next: DMChatMessageRowProps,
+): boolean {
+  return (
+    previous.message === next.message &&
+    previous.animateEntrance === next.animateEntrance &&
+    previous.currentUserId === next.currentUserId &&
+    previous.isHighlighted === next.isHighlighted &&
+    previous.isReactionMutationPending === next.isReactionMutationPending &&
+    previous.menuOpen === next.menuOpen &&
+    previous.showAvatar === next.showAvatar &&
+    previous.tailCorner === next.tailCorner &&
+    previous.partnerLastDeliveredAt === next.partnerLastDeliveredAt &&
+    previous.partnerLastReadAt === next.partnerLastReadAt &&
+    previous.onDeleteMessage === next.onDeleteMessage &&
+    previous.onDiscardFailedMessage === next.onDiscardFailedMessage &&
+    previous.onEditMessage === next.onEditMessage &&
+    previous.onForwardMessage === next.onForwardMessage &&
+    previous.onOpenReply === next.onOpenReply &&
+    previous.onOpenThread === next.onOpenThread &&
+    previous.onReplyMessage === next.onReplyMessage &&
+    previous.onRequestReactionDetails === next.onRequestReactionDetails &&
+    previous.onRetryFailedMessage === next.onRetryFailedMessage &&
+    previous.onSetMenuMessage === next.onSetMenuMessage &&
+    previous.onToggleReaction === next.onToggleReaction
+  );
+}
+
 type DMChatMessageActionHandlers = {
   readonly onDeleteMessage?: (messageId: string) => void;
   readonly onDiscardFailedMessage?: (messageId: string) => void;
@@ -950,7 +1008,7 @@ function DMChatMessageOverlays({
   );
 }
 
-const MemoizedDMChatMessageRow = memo(DMChatMessageRow);
+const MemoizedDMChatMessageRow = memo(DMChatMessageRow, areDMChatMessageRowPropsEqual);
 
 export function DMChatMessageList({
   currentUserId,
@@ -990,6 +1048,21 @@ export function DMChatMessageList({
   const theme = useTheme();
   const messageSpacing = useMobileMessageSpacing();
   const grouped = useMemo(() => getDMChatMessageGroupModel(messages), [messages]);
+  const navigationSampleIdRef = useRef(getMobileNavigationSampleId("DirectMessage"));
+  useEffect(() => {
+    navigationSampleIdRef.current ??= getMobileNavigationSampleId("DirectMessage");
+    markMobileNavigationPhase(
+      "DirectMessage",
+      "list-mounted",
+      globalThis.performance.now(),
+      navigationSampleIdRef.current,
+    );
+  }, []);
+  const handleListLoad = useCallback(
+    (info: { elapsedTimeInMs: number }) =>
+      mobileListLoadHandlers.dmMessages(info, navigationSampleIdRef.current),
+    [],
+  );
   // The entrance animation is a list-level decision; see `message-entrance.ts`
   // for why a row's own mount effect could never make it correctly.
   const entranceTrackerRef = useRef<MobileMessageEntranceTracker | null>(null);
@@ -1178,6 +1251,7 @@ export function DMChatMessageList({
           contentContainerStyle={styles.messageFlow}
           data={grouped}
           drawDistance={700}
+          getItemType={getDMChatMessageItemType}
           keyExtractor={(item) => item.message.id}
           maintainVisibleContentPosition={{
             animateAutoScrollToBottom: true,
@@ -1190,7 +1264,7 @@ export function DMChatMessageList({
           // the preview component this list replaced, so every DM open in a
           // device baseline went to the abandoned counter and the panel had no
           // DM measurement at all.
-          onLoad={mobileListLoadHandlers.dmMessages}
+          onLoad={handleListLoad}
           onScroll={handleScroll}
           onStartReached={onLoadMore}
           onStartReachedThreshold={0.35}

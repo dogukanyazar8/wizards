@@ -43,7 +43,7 @@ export type MobileMessagesScreenProps = {
   selectedConversationId: string | null;
   syncHealth: MobileSyncHealthSummary;
   onClearSelectedMediaAsset(): void;
-  onCloseConversation(): void;
+  onCloseConversation(conversationId?: string): void;
   onDeleteMessage(messageId: string): Promise<boolean>;
   onDiscardMessage(messageId: string): void;
   onDraftChange(content: string): void;

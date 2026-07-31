@@ -2,6 +2,9 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   percentileMs,
+  summarizeMobileChatContentClasses,
+  summarizeMobileChatOpenCohorts,
+  summarizeMobileChatOpenPhases,
   summarizeMobilePerformanceSamples,
 } from "../src/performance/mobile-performance-summary";
 import type { MobilePerformanceSample } from "../src/performance/mobile-performance-metrics";
@@ -13,6 +16,7 @@ function sample(
     context: {},
     metric: "navigation",
     sampleId: `sample-${overrides.durationMs}`,
+    sampleOrdinal: overrides.sampleOrdinal ?? 1,
     surface: "navigation",
     ...overrides,
   };
@@ -34,6 +38,73 @@ describe("percentileMs", () => {
 
   it("reports nothing for an empty set rather than zero", () => {
     assert.equal(percentileMs([], 95), null);
+  });
+});
+
+describe("chat-open diagnostic summaries", () => {
+  it("summarizes every recorded route-owned phase", () => {
+    const rows = summarizeMobileChatOpenPhases([
+      sample({
+        context: {
+          phases: {
+            content: 420,
+            "message-model-built": 180,
+            "query-data-ready": 120,
+            tap: 0,
+          },
+          route: "DirectMessage",
+        },
+        durationMs: 420,
+      }),
+    ]);
+
+    assert.equal(rows.find((row) => row.phase === "query-data-ready")?.p50Ms, 120);
+    assert.equal(rows.find((row) => row.phase === "content")?.p95Ms, 420);
+  });
+
+  it("reports route-source-transition cohorts with warm-up trend", () => {
+    const samples = Array.from({ length: 10 }, (_, index) =>
+      sample({
+        context: {
+          route: "DirectMessage",
+          sampleOrdinal: index + 1,
+          source: "prefetch",
+          transition: "slide",
+        },
+        durationMs: 100 + index * 10,
+        sampleOrdinal: index + 1,
+      }),
+    );
+
+    const row = summarizeMobileChatOpenCohorts(samples).find(
+      (entry) =>
+        entry.route === "DirectMessage" &&
+        entry.source === "prefetch" &&
+        entry.transition === "slide",
+    );
+    assert.equal(row?.count, 10);
+    assert.equal(row?.first5P50Ms, 120);
+    assert.equal(row?.last5P50Ms, 170);
+    assert.equal(row?.slopeMsPerSample, 10);
+  });
+
+  it("keeps message and rich-content classes bounded", () => {
+    const rows = summarizeMobileChatContentClasses([
+      sample({
+        context: {
+          attachmentCountClass: "1-5",
+          messageCount: 37,
+          reactionCountClass: "6-20",
+          richContentCountClass: "1-5",
+          route: "DirectMessage",
+          visibleInitialRowCount: 12,
+        },
+        durationMs: 300,
+      }),
+    ]);
+
+    assert.ok(rows.some((row) => row.dimension === "message-count" && row.value === "21-50"));
+    assert.ok(rows.some((row) => row.dimension === "visible-rows" && row.value === "6-20"));
   });
 });
 

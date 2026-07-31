@@ -55,9 +55,7 @@ export type TwoFactorUserRecord = {
   twoFactorSecretKeyVersion: string | null;
 };
 
-export type TwoFactorSecretWrite = EncryptedTotpSecret & {
-  plaintext: string;
-};
+export type TwoFactorSecretWrite = EncryptedTotpSecret;
 
 export type TwoFactorRepository = {
   consumeRecoveryCode: (codeId: string) => Promise<boolean>;
@@ -203,7 +201,7 @@ const defaultTwoFactorRepository: TwoFactorRepository = {
       await tx.user.update({
         data: {
           twoFactorEnabled: true,
-          twoFactorSecret: secret.plaintext,
+          twoFactorSecret: null,
           twoFactorSecretCiphertext: secret.ciphertext,
           twoFactorSecretKeyVersion: secret.keyVersion,
         },
@@ -248,7 +246,7 @@ const defaultTwoFactorRepository: TwoFactorRepository = {
     await prisma.user.update({
       data: {
         twoFactorEnabled: false,
-        twoFactorSecret: secret.plaintext,
+        twoFactorSecret: null,
         twoFactorSecretCiphertext: secret.ciphertext,
         twoFactorSecretKeyVersion: secret.keyVersion,
       },
@@ -351,7 +349,6 @@ export async function startTwoFactorSetup(
   });
   await deps.repository.savePendingSecret(userId, {
     ...encryptedSecret,
-    plaintext: setup.secret,
   });
 
   return {
@@ -430,7 +427,6 @@ export async function confirmTwoFactorSetup(
     input.userId,
     {
       ...encryptedSecret,
-      plaintext: secret,
     },
     mapRecoveryCodeHashes(recoveryCodes),
   );

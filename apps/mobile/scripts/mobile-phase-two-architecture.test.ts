@@ -9,13 +9,17 @@ describe("mobile Phase 2 architecture", () => {
   it("moves message data ownership into a dedicated feature hook", () => {
     const productApp = readFileSync(join(appRoot, "mobile-product-app.tsx"), "utf8");
     const messagingHook = join(appRoot, "features", "use-mobile-messaging-feature.ts");
+    const dmRouteState = join(appRoot, "features", "use-mobile-dm-route-state.ts");
 
     assert.equal(existsSync(messagingHook), true, "Expected a dedicated messaging feature hook");
+    assert.equal(existsSync(dmRouteState), true, "Expected a dedicated DM route state hook");
     assert.match(productApp, /useMobileMessagingFeature/);
 
     const source = readFileSync(messagingHook, "utf8");
+    const routeSource = readFileSync(dmRouteState, "utf8");
     assert.match(source, /useMobileChannelMessagesQuery/);
-    assert.match(source, /useMobileDMMessagesQuery/);
+    assert.doesNotMatch(source, /useMobileDMMessagesQuery/);
+    assert.match(routeSource, /useMobileDMMessagesQuery/);
     assert.match(source, /useMobileMessageSearchQuery/);
     assert.match(source, /useMobileChannelMessageMutation/);
     assert.match(source, /useMobileDMMessageMutation/);

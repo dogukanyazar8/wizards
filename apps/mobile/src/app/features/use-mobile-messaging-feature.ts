@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import type {
   MessageAttachment,
   MobileWorkspaceChannelSummary,
@@ -22,11 +22,9 @@ import {
 import {
   useMobileChannelMessagesQuery,
   useMobileChannelPinsQuery,
-  useMobileDMMessagesQuery,
 } from "../../query/mobile-message-queries";
 import {
   getMobileChannelFailedSendScope,
-  getMobileDMFailedSendScope,
   mobileFailedSendRegistry,
   withMobileFailedSendOverlay,
 } from "../../query/mobile-failed-send-registry";
@@ -43,7 +41,6 @@ import {
   useMobileChannelMessagePinMutation,
   useMobileDMMessageMutation,
   useMobileDMMessageReactionMutation,
-  useMobileDMReadMutation,
   useMobileMessageForwardMutation,
   type MobileMessageReactionMutationVariables,
   type MobileMessageEditMutationVariables,
@@ -73,15 +70,15 @@ import {
   toMobileWorkspaceViewState,
 } from "../mobile-query-view-state";
 import { getVisibleMobileSyncHealth, type MobileSyncHealthDomain } from "../mobile-screen-sync";
-import type { MobileSyncSnapshot, MobileSyncSource } from "../../sync/mobile-sync-contract";
+import {
+  createInitialMobileSyncSnapshot,
+  type MobileSyncSnapshot,
+  type MobileSyncSource,
+} from "../../sync/mobile-sync-contract";
 import { activeMobileCopy } from "../../locale/mobile-locale-preferences";
 import { useMobileAccountLocaleSync } from "../../locale/use-mobile-account-locale-sync";
 import { useMobileLocaleRuntime } from "../providers/mobile-locale-provider";
 import { createMobileGiphyAttachment } from "../../media/mobile-giphy-client";
-import {
-  getMobileDMReadTarget,
-  toMobileDMConversationSummaryFromStream,
-} from "../../dm/mobile-dm-client";
 import { useMobileMessagePrefetch } from "../../query/mobile-message-prefetch";
 import { useMobileRecentDMPrefetch } from "../../query/mobile-recent-dm-prefetch";
 import { useMobileMessageStreamPersistence } from "../../query/use-mobile-message-stream-persistence";
@@ -91,6 +88,15 @@ import { resolveMobileWorkspaceServerSelection } from "../../workspace/mobile-wo
 
 const copy = activeMobileCopy;
 const EMPTY_PINNED_MESSAGES: readonly never[] = [];
+const IDLE_DM_MESSAGES_STATE = toMobileDMMessagesViewState(
+  { data: undefined, isError: false },
+  null,
+  copy.dmMessagesLoadFailed,
+);
+const IDLE_DM_SYNC_STATE = createInitialMobileSyncSnapshot("dm");
+const NOOP = () => undefined;
+
+export { useMobileDMReadEffect } from "./use-mobile-dm-read-effect";
 
 /**
  * Sync banners read five fetch counters off a query. Memoizing on those
@@ -131,61 +137,6 @@ const INITIAL_MESSAGE_SEARCH_INPUT: MobileMessageSearchInput = {
   query: "",
   scope: "dm",
 };
-
-/**
- * Marks the open conversation read: once when it is opened, and again whenever
- * an inbound message lands in it.
- *
- * It deliberately does NOT fire for the viewer's own message. Sending is not
- * reading, and the mark-read response invalidates both the inbox and the
- * bootstrap payload — so keying purely off "the last message id changed" meant
- * every send paid for two of those round trips: one for the optimistic bubble's
- * client id, one more when the server id replaced it. An in-flight bubble is
- * skipped for the same reason: a message that has not landed cannot be read.
- */
-export function useMobileDMReadEffect({
-  conversationId,
-  currentUserId,
-  isSignedIn,
-  latestMessage,
-  markRead,
-}: {
-  readonly conversationId: string | null;
-  readonly currentUserId: string | null;
-  readonly isSignedIn: boolean;
-  readonly latestMessage: {
-    readonly deliveryStatus?: "sending" | "failed" | undefined;
-    readonly id: string;
-    readonly userId: string;
-  } | null;
-  readonly markRead: (input: { readonly conversationId: string }) => void;
-}) {
-  const readConversationId = getMobileDMReadTarget({
-    conversationId,
-    isSignedIn,
-    latestMessageId: latestMessage?.id ?? null,
-  });
-  const lastMarkedRef = useRef<{ conversationId: string; messageId: string } | null>(null);
-
-  useEffect(() => {
-    if (!readConversationId || !latestMessage) return;
-
-    const alreadyMarked = lastMarkedRef.current;
-    const isNewConversation = alreadyMarked?.conversationId !== readConversationId;
-    const isInboundArrival =
-      !latestMessage.deliveryStatus &&
-      latestMessage.userId !== currentUserId &&
-      alreadyMarked?.messageId !== latestMessage.id;
-
-    if (!isNewConversation && !isInboundArrival) return;
-
-    lastMarkedRef.current = {
-      conversationId: readConversationId,
-      messageId: latestMessage.id,
-    };
-    markRead({ conversationId: readConversationId });
-  }, [currentUserId, latestMessage, markRead, readConversationId]);
-}
 
 export function useMobileMessagingFeature({
   activeVoiceChannelId,
@@ -243,7 +194,6 @@ export function useMobileMessagingFeature({
     apiClient,
     activeWorkspaceTextChannelId ?? "",
   );
-  const dmMessagesQuery = useMobileDMMessagesQuery(apiClient, selectedDMConversationId ?? "");
   const messageSearchQuery = useMobileMessageSearchQuery(apiClient, messageSearchInput);
   // Observers bind `refetch`/`fetchNextPage` once, so pulling them out here is
   // what lets the callbacks below keep a stable identity across renders — the
@@ -252,7 +202,6 @@ export function useMobileMessagingFeature({
   const { refetch: refetchBootstrap } = bootstrapQuery;
   const { refetch: refetchWorkspace } = workspaceQuery;
   const { refetch: refetchChannelMessages } = channelMessagesQuery;
-  const { refetch: refetchDMMessages } = dmMessagesQuery;
   const { refetch: refetchDMConversations } = dmConversationsQuery;
   const { refetch: refetchMessageSearch } = messageSearchQuery;
   const queryClient = useMobileQueryClient();
@@ -266,15 +215,6 @@ export function useMobileMessagingFeature({
     queryClient,
     scope: "channel",
     targetId: activeWorkspaceTextChannelId,
-    userId: currentUser?.id ?? null,
-  });
-  useMobileMessageStreamPersistence({
-    data: dmMessagesQuery.data,
-    enabled: isSignedIn,
-    error: dmMessagesQuery.error,
-    queryClient,
-    scope: "dm",
-    targetId: selectedDMConversationId,
     userId: currentUser?.id ?? null,
   });
   // Tap-time warmers for the two chat surfaces: the row that opens a chat can put
@@ -306,7 +246,6 @@ export function useMobileMessagingFeature({
     client: apiClient,
     conversationId: selectedDMConversationId ?? "",
   });
-  const dmReadMutation = useMobileDMReadMutation({ client: apiClient });
   const channelReactionMutation = useMobileChannelMessageReactionMutation({
     author: currentUser,
     channelId: activeWorkspaceTextChannelId ?? "",
@@ -372,7 +311,6 @@ export function useMobileMessagingFeature({
   const { isPending: isChannelDeletePending, mutateAsync: deleteChannelMessage } =
     channelDeleteMutation;
   const { isPending: isDMDeletePending, mutateAsync: deleteDMMessage } = dmDeleteMutation;
-  const { mutate: markDMRead } = dmReadMutation;
   // `useQuery` returns a new tracking proxy every render, so every view state
   // below memoizes on the query fields it actually reads. Without that, each
   // render minted a new payload/messages array, every screen-props object
@@ -445,12 +383,8 @@ export function useMobileMessagingFeature({
     [selectedWorkspaceServerId, workspaceQuery.data, workspaceQuery.isError],
   );
   const channelFailedScope = getMobileChannelFailedSendScope(activeWorkspaceTextChannelId ?? "");
-  const dmFailedScope = getMobileDMFailedSendScope(selectedDMConversationId ?? "");
   const channelFailedSends = useSyncExternalStore(mobileFailedSendRegistry.subscribe, () =>
     mobileFailedSendRegistry.getEntries(channelFailedScope),
-  );
-  const dmFailedSends = useSyncExternalStore(mobileFailedSendRegistry.subscribe, () =>
-    mobileFailedSendRegistry.getEntries(dmFailedScope),
   );
   // Failed sends only live in the registry, so re-attach them after a refetch
   // drops the optimistic rows. Channel scopes always hold ChatMessage entries
@@ -472,18 +406,10 @@ export function useMobileMessagingFeature({
       channelMessagesQuery.isError,
     ],
   );
-  const dmMessagesState = useMemo(
-    () =>
-      withMobileFailedSendOverlay(
-        toMobileDMMessagesViewState(
-          { data: dmMessagesQuery.data, isError: dmMessagesQuery.isError },
-          selectedDMConversationId,
-          copy.dmMessagesLoadFailed,
-        ),
-        dmFailedSends,
-      ),
-    [dmFailedSends, dmMessagesQuery.data, dmMessagesQuery.isError, selectedDMConversationId],
-  );
+  // The product root owns inbox selection and mutations, but never subscribes
+  // to a DM transcript. The pushed DirectMessage route owns that observer so a
+  // prefetched page can render on its first route commit.
+  const dmMessagesState = IDLE_DM_MESSAGES_STATE;
   const messageSearchState = useMemo(
     () =>
       toMobileMessageSearchViewState(
@@ -495,16 +421,8 @@ export function useMobileMessagingFeature({
   );
   const bootstrapSyncState = useMobileSyncSnapshot(bootstrapQuery, "bootstrap");
   const channelSyncState = useMobileSyncSnapshot(channelMessagesQuery, "channel");
-  const dmSyncState = useMobileSyncSnapshot(dmMessagesQuery, "dm");
+  const dmSyncState = IDLE_DM_SYNC_STATE;
   const workspaceSyncState = useMobileSyncSnapshot(workspaceQuery, "workspace");
-  const latestDMMessage = dmMessagesState.payload?.messages.at(-1) ?? null;
-  useMobileDMReadEffect({
-    conversationId: selectedDMConversationId,
-    currentUserId: currentUser?.id ?? null,
-    isSignedIn,
-    latestMessage: latestDMMessage,
-    markRead: markDMRead,
-  });
 
   useEffect(() => {
     setActiveWorkspaceTextChannelId((channelId) =>
@@ -884,17 +802,7 @@ export function useMobileMessagingFeature({
     channelMessagesQuery.hasNextPage,
     channelMessagesQuery.isFetchingNextPage,
   ]);
-  const loadMoreDMMessages = useCallback(() => {
-    loadMoreMobileInfinitePages({
-      fetchNextPage: dmMessagesQuery.fetchNextPage,
-      hasNextPage: dmMessagesQuery.hasNextPage,
-      isFetchingNextPage: dmMessagesQuery.isFetchingNextPage,
-    });
-  }, [
-    dmMessagesQuery.fetchNextPage,
-    dmMessagesQuery.hasNextPage,
-    dmMessagesQuery.isFetchingNextPage,
-  ]);
+  const loadMoreDMMessages = NOOP;
   const loadMoreDMConversations = useCallback(() => {
     loadMoreMobileInfinitePages({
       fetchNextPage: dmConversationsQuery.fetchNextPage,
@@ -911,11 +819,7 @@ export function useMobileMessagingFeature({
     void refetchBootstrap();
   }, [refetchBootstrap]);
 
-  const refreshDMMessages = useCallback(() => {
-    if (selectedDMConversationId) {
-      void refetchDMMessages();
-    }
-  }, [refetchDMMessages, selectedDMConversationId]);
+  const refreshDMMessages = NOOP;
 
   const refreshChannelMessages = useCallback(() => {
     if (activeWorkspaceTextChannelId) {
@@ -956,14 +860,25 @@ export function useMobileMessagingFeature({
     [clearMessageSearch, resetDMMessageMutation],
   );
 
-  const handleCloseDMConversation = useCallback(() => {
-    if (selectedDMConversationId) {
-      stopDMTyping(selectedDMConversationId);
-    }
-    clearMessageSearch();
-    resetDMMessageMutation();
-    setSelectedDMConversationId(null);
-  }, [clearMessageSearch, resetDMMessageMutation, selectedDMConversationId, stopDMTyping]);
+  const handleCloseDMConversation = useCallback(
+    (conversationId?: string) => {
+      const closingConversationId = conversationId ?? selectedDMConversationId;
+      if (!closingConversationId) {
+        return;
+      }
+
+      stopDMTyping(closingConversationId);
+      // A stale blur from route A may run after route B focused. It owns A's
+      // typing cleanup, but it must not clear B's selection or mutation state.
+      if (selectedDMConversationId !== closingConversationId) {
+        return;
+      }
+      clearMessageSearch();
+      resetDMMessageMutation();
+      setSelectedDMConversationId(null);
+    },
+    [clearMessageSearch, resetDMMessageMutation, selectedDMConversationId, stopDMTyping],
+  );
 
   const handleOpenWorkspaceServer = useCallback(
     (serverId: string) => {
@@ -1086,26 +1001,10 @@ export function useMobileMessagingFeature({
       return null;
     }
 
-    const fromInbox = dmConversations.find(
-      (conversation) => conversation.id === selectedDMConversationId,
+    return (
+      dmConversations.find((conversation) => conversation.id === selectedDMConversationId) ?? null
     );
-    if (fromInbox) {
-      return fromInbox;
-    }
-
-    // The inbox only holds the pages the reader has scrolled, so a push or a deep
-    // link into an older conversation had nothing to draw the header from. The
-    // message stream answers with its own conversation, which is enough.
-    const streamConversation = dmMessagesState.payload?.conversation ?? null;
-    return streamConversation && streamConversation.id === selectedDMConversationId
-      ? toMobileDMConversationSummaryFromStream(streamConversation, currentUser?.id ?? null)
-      : null;
-  }, [
-    currentUser?.id,
-    dmConversations,
-    dmMessagesState.payload?.conversation,
-    selectedDMConversationId,
-  ]);
+  }, [dmConversations, selectedDMConversationId]);
 
   useEffect(() => {
     if (!isSignedIn || bootstrapState.status !== "ready") {
@@ -1149,9 +1048,6 @@ export function useMobileMessagingFeature({
     }
     void refetchBootstrap();
     void refetchDMConversations();
-    if (selectedDMConversationId) {
-      void refetchDMMessages();
-    }
     if (selectedWorkspaceServerId) {
       void refetchWorkspace();
     }
@@ -1164,9 +1060,7 @@ export function useMobileMessagingFeature({
     refetchBootstrap,
     refetchChannelMessages,
     refetchDMConversations,
-    refetchDMMessages,
     refetchWorkspace,
-    selectedDMConversationId,
     selectedWorkspaceServerId,
   ]);
 
@@ -1329,7 +1223,6 @@ export function useMobileMessagingFeature({
     directMessageUnreadCount,
     dmConversations,
     dmConversationsQuery,
-    dmMessagesQuery,
     loadMoreDMConversations,
     loadMoreDMMessages,
     loadMoreChannelMessages,

@@ -23,28 +23,37 @@ export type TotpSecretMaintenanceRepository = {
     ciphertext: string;
     expectedCiphertext: string | null;
     expectedKeyVersion: string | null;
+    expectedPlaintext: string | null;
     id: string;
     keyVersion: string;
   }) => Promise<boolean>;
 };
 
 export type TotpSecretMaintenanceSummary = {
+  ciphertextMissing: number;
   conflicts: number;
+  decryptFailures: number;
   failed: number;
+  plaintextRemaining: number;
   planned: number;
   scanned: number;
   skipped: number;
+  unknownKeyVersions: number;
   updated: number;
   verified: number;
 };
 
 function createSummary(): TotpSecretMaintenanceSummary {
   return {
+    ciphertextMissing: 0,
     conflicts: 0,
+    decryptFailures: 0,
     failed: 0,
+    plaintextRemaining: 0,
     planned: 0,
     scanned: 0,
     skipped: 0,
+    unknownKeyVersions: 0,
     updated: 0,
     verified: 0,
   };
@@ -139,6 +148,38 @@ export async function runTotpSecretMaintenance(options: {
 
     for (const record of records) {
       summary.scanned += 1;
+      if (options.mode === "verify") {
+        const hasPlaintext = Boolean(record.twoFactorSecret);
+        const hasCiphertext = Boolean(record.twoFactorSecretCiphertext);
+        if (hasPlaintext) {
+          summary.plaintextRemaining += 1;
+        }
+        if (!hasCiphertext) {
+          summary.ciphertextMissing += 1;
+          continue;
+        }
+        if (
+          !record.twoFactorSecretKeyVersion ||
+          !options.keyring.keys.has(record.twoFactorSecretKeyVersion)
+        ) {
+          summary.failed += 1;
+          summary.unknownKeyVersions += 1;
+          continue;
+        }
+        try {
+          decryptTotpSecret({
+            ciphertext: record.twoFactorSecretCiphertext ?? "",
+            keyVersion: record.twoFactorSecretKeyVersion,
+            keyring: options.keyring,
+            userId: record.id,
+          });
+          summary.verified += 1;
+        } catch {
+          summary.decryptFailures += 1;
+          summary.failed += 1;
+        }
+        continue;
+      }
       try {
         const plaintext = resolveTotpSecret(record, record.id, options.keyring);
         if (!plaintext) {
@@ -146,18 +187,6 @@ export async function runTotpSecretMaintenance(options: {
           continue;
         }
 
-        if (options.mode === "verify") {
-          summary.verified += 1;
-          continue;
-        }
-        if (
-          options.mode === "backfill" &&
-          record.twoFactorSecretCiphertext !== null &&
-          record.twoFactorSecretCiphertext !== undefined
-        ) {
-          summary.skipped += 1;
-          continue;
-        }
         if (
           options.mode === "rotate" &&
           record.twoFactorSecretKeyVersion === options.keyring.activeKeyVersion
@@ -191,6 +220,7 @@ export async function runTotpSecretMaintenance(options: {
           ciphertext: encrypted.ciphertext,
           expectedCiphertext: record.twoFactorSecretCiphertext ?? null,
           expectedKeyVersion: record.twoFactorSecretKeyVersion ?? null,
+          expectedPlaintext: record.twoFactorSecret ?? null,
           id: record.id,
           keyVersion: encrypted.keyVersion,
         });

@@ -72,6 +72,19 @@ import {
   notifyMobileFirstPaint,
 } from "../../performance/mobile-performance-metrics";
 import type { MobileChannelTypingUser } from "../../realtime/mobile-typing-state";
+import {
+  annotateMobileNavigationSpan,
+  getMobileNavigationSampleId,
+  markMobileNavigationPhase,
+} from "../../performance/mobile-navigation-timing";
+
+function toChannelCountClass(value: number): "0" | "1-5" | "6-20" | "21-50" | "51+" {
+  if (value <= 0) return "0";
+  if (value <= 5) return "1-5";
+  if (value <= 20) return "6-20";
+  if (value <= 50) return "21-50";
+  return "51+";
+}
 
 export function MobileChannelChatScreen({
   attachmentsFeature,
@@ -687,6 +700,7 @@ export const ChannelMessageList = forwardRef<
   const theme = useTheme();
   const styles = useChannelScreenStyles();
   const messages = useMemo(() => state.payload?.messages ?? [], [state.payload?.messages]);
+  const navigationSampleIdRef = useRef(getMobileNavigationSampleId("ChannelChat"));
   // §1.2/§5: the channel groups through the one shared model — same author,
   // inside five minutes, nothing (system event, day change) in between. The
   // stream-item shape stays so FlashList's typing and keying are untouched.
@@ -713,6 +727,68 @@ export const ChannelMessageList = forwardRef<
       };
     });
   }, [messages]);
+  useEffect(() => {
+    navigationSampleIdRef.current ??= getMobileNavigationSampleId("ChannelChat");
+    markMobileNavigationPhase(
+      "ChannelChat",
+      "query-observer-bound",
+      globalThis.performance.now(),
+      navigationSampleIdRef.current,
+    );
+    markMobileNavigationPhase(
+      "ChannelChat",
+      "list-mounted",
+      globalThis.performance.now(),
+      navigationSampleIdRef.current,
+    );
+  }, []);
+  useEffect(() => {
+    if (!state.payload) {
+      return;
+    }
+    navigationSampleIdRef.current ??= getMobileNavigationSampleId("ChannelChat");
+    const attachmentCount = messages.reduce(
+      (total, message) => total + message.attachments.length,
+      0,
+    );
+    const reactionCount = messages.reduce((total, message) => total + message.reactions.length, 0);
+    const richContentCount = messages.filter(
+      (message) =>
+        message.attachments.length > 0 ||
+        message.reactions.length > 0 ||
+        message.replyTo != null ||
+        message.forwardedAt != null,
+    ).length;
+    annotateMobileNavigationSpan(
+      "ChannelChat",
+      {
+        attachmentCountClass: toChannelCountClass(attachmentCount),
+        messageCount: Math.min(messages.length, 200),
+        reactionCountClass: toChannelCountClass(reactionCount),
+        richContentCountClass: toChannelCountClass(richContentCount),
+        visibleInitialRowCount: Math.min(messages.length, 12),
+      },
+      navigationSampleIdRef.current,
+    );
+    const now = globalThis.performance.now();
+    markMobileNavigationPhase(
+      "ChannelChat",
+      "query-data-ready",
+      now,
+      navigationSampleIdRef.current,
+    );
+    markMobileNavigationPhase(
+      "ChannelChat",
+      "message-model-built",
+      now,
+      navigationSampleIdRef.current,
+    );
+  }, [messages, state.payload]);
+  const handleListLoad = useCallback(
+    (info: { elapsedTimeInMs: number }) =>
+      mobileListLoadHandlers.channelMessages(info, navigationSampleIdRef.current),
+    [],
+  );
   const listRef = useRef<FlashListRef<MobileMessageStreamItem<MobileRenderableMessage>> | null>(
     null,
   );
@@ -966,7 +1042,8 @@ export const ChannelMessageList = forwardRef<
     state.status === "error" || (state.status === "ready" && messages.length === 0);
   useEffect(() => {
     if (isSettledWithoutMessages) {
-      notifyMobileFirstPaint("ChannelChat");
+      navigationSampleIdRef.current ??= getMobileNavigationSampleId("ChannelChat");
+      notifyMobileFirstPaint("ChannelChat", navigationSampleIdRef.current);
     }
   }, [isSettledWithoutMessages]);
 
@@ -994,7 +1071,7 @@ export const ChannelMessageList = forwardRef<
             autoscrollToBottomThreshold: 0.2,
             startRenderingFromBottom: true,
           }}
-          onLoad={mobileListLoadHandlers.channelMessages}
+          onLoad={handleListLoad}
           onScroll={handleScroll}
           {...(onLoadMore ? { onStartReached: onLoadMore, onStartReachedThreshold: 0.35 } : {})}
           renderItem={renderItem}

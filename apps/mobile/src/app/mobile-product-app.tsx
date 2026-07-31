@@ -106,7 +106,6 @@ export function MobileProductApp({
     directMessageUnreadCount,
     dmConversations,
     dmConversationsQuery,
-    dmMessagesQuery,
     loadMoreChannelMessages,
     loadMoreDMConversations,
     loadMoreDMMessages,

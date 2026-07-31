@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { AppState, Pressable, ScrollView, Share, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { getMobileRuntimeConfig } from "../../config/environment";
@@ -10,6 +10,9 @@ import {
 } from "../../performance/mobile-performance-metrics";
 import {
   MOBILE_PERFORMANCE_SUMMARY_METRICS,
+  summarizeMobileChatContentClasses,
+  summarizeMobileChatOpenCohorts,
+  summarizeMobileChatOpenPhases,
   summarizeMobileChatOpenRoutes,
   summarizeMobileChatOpenSources,
   summarizeMobileChatOpenStages,
@@ -18,6 +21,7 @@ import {
   type MobilePerformanceSummaryInput,
 } from "../../performance/mobile-performance-summary";
 import { getMobileListBlankAreaSnapshot } from "../../performance/mobile-list-blank-area";
+import { buildMobilePerformanceReport } from "../../performance/mobile-performance-report";
 import { discardPendingMobilePerformanceSamples } from "../../performance/mobile-performance-sample-persistence";
 import { mergeMobilePerformanceSampleViews } from "../../performance/mobile-performance-sample-view";
 import { getMobileNavigationSpanDiagnostics } from "../../performance/mobile-navigation-timing";
@@ -29,6 +33,7 @@ import { mobileMessageStore } from "../../storage/mobile-message-store-database"
 import type { MobileMessageStoreDiagnostics } from "../../storage/mobile-message-store";
 import { useMobileLocaleRuntime } from "../providers/mobile-locale-provider";
 import { useTheme } from "../providers/mobile-theme-provider";
+import { createMobileEventLoopLagMonitor } from "../../performance/mobile-event-loop-lag";
 
 function fill(template: string, values: Record<string, string | number>): string {
   return template.replace(/\{(\w+)\}/gu, (match, key: string) => String(values[key] ?? match));
@@ -100,7 +105,13 @@ function DiagnosticsButton({
  *
  * Deliberately unstyled beyond legibility: it is an instrument, not a surface.
  */
-export function MobilePerformanceDiagnosticsScreen({ onBack }: { onBack(): void }) {
+export function MobilePerformanceDiagnosticsScreen({
+  backendBuildId = "unknown",
+  onBack,
+}: {
+  readonly backendBuildId?: string;
+  onBack(): void;
+}) {
   const theme = useTheme();
   const { locale } = useMobileLocaleRuntime();
   const copy = mobileCopy[locale];
@@ -109,6 +120,26 @@ export function MobilePerformanceDiagnosticsScreen({ onBack }: { onBack(): void 
     peekMobilePerformanceSamples(),
   );
   const [storage, setStorage] = useState<MobileMessageStoreDiagnostics | null>(null);
+  const eventLoopMonitorRef = useRef<ReturnType<typeof createMobileEventLoopLagMonitor> | null>(
+    null,
+  );
+  eventLoopMonitorRef.current ??= createMobileEventLoopLagMonitor();
+
+  useEffect(() => {
+    const monitor = eventLoopMonitorRef.current!;
+    if (AppState.currentState === "active") {
+      monitor.start();
+    }
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") monitor.start();
+      else monitor.stop();
+    });
+
+    return () => {
+      subscription.remove();
+      monitor.stop();
+    };
+  }, []);
 
   const refresh = useCallback(() => {
     // The retained log is the session; memory holds only what has not been
@@ -137,7 +168,7 @@ export function MobilePerformanceDiagnosticsScreen({ onBack }: { onBack(): void 
    * changed on screen, so a reset was indistinguishable from a missed tap — on a
    * panel whose whole job is a run that must start from empty.
    */
-  const [action, setAction] = useState<"idle" | "refresh" | "reset">("idle");
+  const [action, setAction] = useState<"export" | "idle" | "refresh" | "reset">("idle");
   const [status, setStatus] = useState<string | null>(null);
 
   const announce = useCallback((template: string, count: number) => {
@@ -176,6 +207,7 @@ export function MobilePerformanceDiagnosticsScreen({ onBack }: { onBack(): void 
     void discardPendingMobilePerformanceSamples()
       .then(() => mobileMessageStore.purgePerformanceSamples())
       .finally(() => {
+        eventLoopMonitorRef.current?.reset();
         refresh();
         announce(copy.performanceDiagnosticsActionReset, drained);
         setAction("idle");
@@ -184,6 +216,9 @@ export function MobilePerformanceDiagnosticsScreen({ onBack }: { onBack(): void 
 
   const rows = summarizeMobilePerformanceSamples(samples);
   const chatOpenStages = summarizeMobileChatOpenStages(samples);
+  const chatOpenPhases = summarizeMobileChatOpenPhases(samples);
+  const chatOpenCohorts = summarizeMobileChatOpenCohorts(samples);
+  const chatContentClasses = summarizeMobileChatContentClasses(samples);
   const chatOpenRoutes = summarizeMobileChatOpenRoutes(samples);
   const chatOpenSources = summarizeMobileChatOpenSources(samples);
   const chatTransitions = summarizeMobileChatTransitions(samples);
@@ -204,6 +239,57 @@ export function MobilePerformanceDiagnosticsScreen({ onBack }: { onBack(): void 
     dimensions = {};
   }
 
+  /**
+   * The run leaves the device as text.
+   *
+   * A baseline is five scrolling sections of percentiles, and the only way out of
+   * them was a screenshot — which cannot be searched, diffed against the previous
+   * wave, or pasted into the ticket that argues about the numbers. Built from the
+   * same values rendered below, so the report and the screen can never disagree.
+   */
+  const handleExport = () => {
+    setAction("export");
+    const report = buildMobilePerformanceReport({
+      blankArea,
+      build: {
+        appVersion: String(dimensions.appVersion ?? "?"),
+        backendBuildId,
+        buildId: String(dimensions.buildId ?? "?"),
+        deviceTier: String(dimensions.deviceTier ?? "?"),
+        environment: runtimeConfig.environment,
+        networkClass: String(dimensions.networkClass ?? "?"),
+        osName: String(dimensions.osName ?? "?"),
+        osVersion: String(dimensions.osVersion ?? ""),
+      },
+      chatContentClasses,
+      chatOpenCohorts,
+      chatOpenPhases,
+      chatOpenRoutes,
+      chatOpenSources,
+      chatOpenStages,
+      eventLoop: eventLoopMonitorRef.current?.snapshot() ?? {
+        count: 0,
+        maxMs: null,
+        p50Ms: null,
+        p95Ms: null,
+      },
+      generatedAt: new Date().toISOString(),
+      metrics: rows,
+      prefetch,
+      requestLatency,
+      sampleCount: samples.length,
+      spans,
+      startupPhases: timeline,
+      storage,
+      transitions: chatTransitions,
+    });
+
+    void Share.share({ message: report })
+      .then(() => announce(copy.performanceDiagnosticsActionExported, samples.length))
+      .catch(() => announce(copy.performanceDiagnosticsActionExportFailed, samples.length))
+      .finally(() => setAction("idle"));
+  };
+
   const labelStyle = { color: theme.text.secondary, fontSize: 12 };
   const valueStyle = { color: theme.text.primary, fontSize: 14 };
   const headingStyle = {
@@ -223,7 +309,9 @@ export function MobilePerformanceDiagnosticsScreen({ onBack }: { onBack(): void 
       }}
       testID="mobile-performance-diagnostics"
     >
-      <View style={{ flexDirection: "row", gap: 8 }}>
+      {/* Four controls do not fit one row on a narrow phone, and a reset button
+          pushed off the edge is worse than a second line. */}
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
         <DiagnosticsButton
           label={`‹ ${copy.authBackAction}`}
           onPress={onBack}
@@ -235,6 +323,13 @@ export function MobilePerformanceDiagnosticsScreen({ onBack }: { onBack(): void 
           label={copy.refreshShortAction}
           onPress={handleRefresh}
           testID="performance-refresh"
+          theme={theme}
+        />
+        <DiagnosticsButton
+          busy={action === "export"}
+          label={copy.performanceDiagnosticsExport}
+          onPress={handleExport}
+          testID="performance-export"
           theme={theme}
         />
         <DiagnosticsButton
@@ -400,9 +495,11 @@ export function MobilePerformanceDiagnosticsScreen({ onBack }: { onBack(): void 
               }/${stats.settledP95Ms ?? "-"} ms`}
             </Text>
             <Text style={valueStyle}>
-              {`srv ${stats.serverP50Ms ?? "-"}/${stats.serverP95Ms ?? "-"} (auth ${
+              {`srv ${stats.serverP50Ms ?? "-"}/${stats.serverP95Ms ?? "-"} (last auth ${
                 stats.lastServer.authMs ?? "-"
-              } / db ${stats.lastServer.dbMs ?? "-"}) · net ${stats.transportP95Ms ?? "-"} ms`}
+              } / last db ${stats.lastServer.dbMs ?? "-"}) · net ${
+                stats.transportP95Ms ?? "-"
+              } ms · req ${stats.lastRequestId ?? "-"}`}
             </Text>
           </View>
         ))

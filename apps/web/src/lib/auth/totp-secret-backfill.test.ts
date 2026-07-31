@@ -46,7 +46,7 @@ class MemoryRepository implements TotpSecretMaintenanceRepository {
       .filter((record) => record.id > (input.afterId ?? ""))
       .filter((record) => {
         if (input.mode === "backfill") {
-          return Boolean(record.twoFactorSecret) && !record.twoFactorSecretCiphertext;
+          return Boolean(record.twoFactorSecret);
         }
         if (input.mode === "rotate") {
           return (
@@ -54,7 +54,7 @@ class MemoryRepository implements TotpSecretMaintenanceRepository {
             record.twoFactorSecretKeyVersion !== input.activeKeyVersion
           );
         }
-        return Boolean(record.twoFactorSecretCiphertext);
+        return Boolean(record.twoFactorSecret) || Boolean(record.twoFactorSecretCiphertext);
       })
       .sort((left, right) => left.id.localeCompare(right.id))
       .slice(0, input.batchSize)
@@ -65,6 +65,7 @@ class MemoryRepository implements TotpSecretMaintenanceRepository {
     ciphertext: string;
     expectedCiphertext: string | null;
     expectedKeyVersion: string | null;
+    expectedPlaintext: string | null;
     id: string;
     keyVersion: string;
   }) {
@@ -74,11 +75,13 @@ class MemoryRepository implements TotpSecretMaintenanceRepository {
     const record = this.rows.get(input.id);
     if (
       !record ||
+      record.twoFactorSecret !== input.expectedPlaintext ||
       record.twoFactorSecretCiphertext !== input.expectedCiphertext ||
       record.twoFactorSecretKeyVersion !== input.expectedKeyVersion
     ) {
       return false;
     }
+    record.twoFactorSecret = null;
     record.twoFactorSecretCiphertext = input.ciphertext;
     record.twoFactorSecretKeyVersion = input.keyVersion;
     return true;
@@ -95,6 +98,97 @@ function legacyRecord(id: string): TotpSecretMaintenanceRecord {
 }
 
 describe("TOTP secret maintenance", () => {
+  it("reports transition and ciphertext health separately in verify mode", async () => {
+    const valid = encryptTotpSecret({
+      keyring: keyring("v1"),
+      plaintext: "VALID",
+      userId: "valid",
+    });
+    const unknownVersion = encryptTotpSecret({
+      keyring: keyring("v1"),
+      plaintext: "UNKNOWN",
+      userId: "unknown",
+    });
+    const repository = new MemoryRepository([
+      legacyRecord("plaintext-only"),
+      {
+        id: "valid",
+        twoFactorSecret: null,
+        twoFactorSecretCiphertext: valid.ciphertext,
+        twoFactorSecretKeyVersion: valid.keyVersion,
+      },
+      {
+        id: "corrupt",
+        twoFactorSecret: "LEGACY",
+        twoFactorSecretCiphertext: '{"v":1,"ciphertext":"bad","nonce":"bad","tag":"bad"}',
+        twoFactorSecretKeyVersion: "v1",
+      },
+      {
+        id: "unknown",
+        twoFactorSecret: null,
+        twoFactorSecretCiphertext: unknownVersion.ciphertext,
+        twoFactorSecretKeyVersion: "v9",
+      },
+    ]);
+
+    const summary = await runTotpSecretMaintenance({
+      batchSize: 10,
+      keyring: keyring("v1"),
+      mode: "verify",
+      repository,
+    });
+
+    assert.equal(summary.plaintextRemaining, 2);
+    assert.equal(summary.ciphertextMissing, 1);
+    assert.equal(summary.decryptFailures, 1);
+    assert.equal(summary.unknownKeyVersions, 1);
+    assert.equal(summary.verified, 1);
+  });
+
+  it("clears plaintext only after a verified conditional backfill update", async () => {
+    const repository = new MemoryRepository([legacyRecord("user-1")]);
+
+    const summary = await runTotpSecretMaintenance({
+      batchSize: 10,
+      keyring: keyring("v1"),
+      mode: "backfill",
+      repository,
+    });
+
+    const record = repository.rows.get("user-1");
+    assert.equal(summary.updated, 1);
+    assert.equal(record?.twoFactorSecret, null);
+    assert.equal(resolveTotpSecret(record!, "user-1", keyring("v1")), "SECRETuser-1");
+  });
+
+  it("clears historical dual-written plaintext after verifying its ciphertext", async () => {
+    const encrypted = encryptTotpSecret({
+      keyring: keyring("v1"),
+      plaintext: "CIPHERTEXT_SOURCE",
+      userId: "user-1",
+    });
+    const repository = new MemoryRepository([
+      {
+        id: "user-1",
+        twoFactorSecret: "CIPHERTEXT_SOURCE",
+        twoFactorSecretCiphertext: encrypted.ciphertext,
+        twoFactorSecretKeyVersion: encrypted.keyVersion,
+      },
+    ]);
+
+    const summary = await runTotpSecretMaintenance({
+      batchSize: 10,
+      keyring: keyring("v1"),
+      mode: "backfill",
+      repository,
+    });
+
+    const record = repository.rows.get("user-1");
+    assert.equal(summary.updated, 1);
+    assert.equal(record?.twoFactorSecret, null);
+    assert.equal(resolveTotpSecret(record!, "user-1", keyring("v1")), "CIPHERTEXT_SOURCE");
+  });
+
   it("parses bounded explicit CLI arguments and rejects unsafe input", () => {
     assert.deepEqual(
       parseTotpSecretMaintenanceArgs(["--mode", "backfill", "--batch-size", "100", "--dry-run"]),
@@ -154,11 +248,15 @@ describe("TOTP secret maintenance", () => {
     });
 
     assert.deepEqual(first, {
+      ciphertextMissing: 0,
       conflicts: 0,
+      decryptFailures: 0,
       failed: 0,
+      plaintextRemaining: 0,
       planned: 3,
       scanned: 3,
       skipped: 0,
+      unknownKeyVersions: 0,
       updated: 3,
       verified: 3,
     });
@@ -166,7 +264,7 @@ describe("TOTP secret maintenance", () => {
     for (const record of repository.rows.values()) {
       assert.equal(typeof record.twoFactorSecretCiphertext, "string");
       assert.equal(record.twoFactorSecretKeyVersion, "v1");
-      assert.equal(resolveTotpSecret(record, record.id, keyring("v1")), record.twoFactorSecret);
+      assert.equal(resolveTotpSecret(record, record.id, keyring("v1")), `SECRET${record.id}`);
     }
 
     repository.pages.length = 0;
@@ -177,11 +275,15 @@ describe("TOTP secret maintenance", () => {
       repository,
     });
     assert.deepEqual(second, {
+      ciphertextMissing: 0,
       conflicts: 0,
+      decryptFailures: 0,
       failed: 0,
+      plaintextRemaining: 0,
       planned: 0,
       scanned: 0,
       skipped: 0,
+      unknownKeyVersions: 0,
       updated: 0,
       verified: 0,
     });
@@ -279,6 +381,6 @@ describe("TOTP secret maintenance", () => {
 
     assert.equal(summary.failed, 1);
     assert.equal(summary.verified, 0);
-    assert.doesNotMatch(JSON.stringify(summary), /PLAINTEXT|ciphertext|nonce|tag/u);
+    assert.doesNotMatch(JSON.stringify(summary), /PLAINTEXT|"nonce":"bad"|"tag":"bad"/u);
   });
 });

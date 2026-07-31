@@ -131,6 +131,27 @@ describe("mobile request latency samples", () => {
     assert.equal(sample.transportMs, null);
   });
 
+  it("keeps only a bounded opaque request id for edge correlation", () => {
+    const requestId = "abcdef0123456789abcdef0123456789";
+    recordMobileRequestLatency({
+      headersMs: 120,
+      path: "/api/v1/mobile/bootstrap",
+      requestId,
+      serverTimingHeader: "total;dur=50",
+    });
+
+    assert.equal(getMobileRequestLatencySnapshot()[0]?.lastRequestId, requestId);
+
+    resetMobileRequestLatencyForTests();
+    recordMobileRequestLatency({
+      headersMs: 120,
+      path: "/api/v1/mobile/bootstrap",
+      requestId: "user@example.com",
+      serverTimingHeader: "total;dur=50",
+    });
+    assert.equal(getMobileRequestLatencySnapshot()[0]?.lastRequestId, null);
+  });
+
   it("never reports negative transport time when the clocks disagree", () => {
     const sample = recordMobileRequestLatency({
       headersMs: 40,

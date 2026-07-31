@@ -125,7 +125,11 @@ export function MobileNavigator({
 
     const now = globalThis.performance.now();
     const dataUpdatedAtMs = probeMobileChatCache(target);
-    ensureMobileNavigationSpan(target.route, now, dataUpdatedAtMs !== null);
+    const navigationSampleId = ensureMobileNavigationSpan(
+      target.route,
+      now,
+      dataUpdatedAtMs !== null,
+    );
     // The pushed screen has already read the variant by the time the navigator
     // commits, so this records what the reader saw rather than what is next.
     // `cacheHit` was one bit and could not say whether the page came from memory,
@@ -135,14 +139,19 @@ export function MobileNavigator({
       scope: target.route === "ChannelChat" ? "channel" : "dm",
       targetId: target.targetId,
     });
-    annotateMobileNavigationSpan(target.route, {
-      cacheAgeMs: origin.cacheAgeMs,
-      source: origin.source,
-      transition: getMobileChatTransitionVariant(),
-    });
+    annotateMobileNavigationSpan(
+      target.route,
+      {
+        cacheAgeMs:
+          origin.cacheAgeMs === null ? null : Math.min(Math.max(origin.cacheAgeMs, 0), 86_400_000),
+        source: origin.source,
+        transition: getMobileChatTransitionVariant(),
+      },
+      navigationSampleId,
+    );
     // First of the three stages: the navigator has committed the route. What is
     // left after this is the screen tree and the list.
-    if (markMobileNavigationStage(target.route, "navigated", now) !== null) {
+    if (markMobileNavigationStage(target.route, "navigated", now, navigationSampleId) !== null) {
       // Only a route that was newly committed is an open; a state change inside
       // a chat the reader is already in must not rotate the experiment.
       advanceMobileChatTransitionVariant();

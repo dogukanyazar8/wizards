@@ -145,7 +145,8 @@ export function createMobileApiClient(options: MobileApiClientOptions): MobileAp
 
         // Fresh per request, so a slow sample on this device can be found in the
         // edge's own record of the same call.
-        headers.set(MOBILE_REQUEST_ID_HEADER, createMobileRequestId());
+        const requestId = createMobileRequestId();
+        headers.set(MOBILE_REQUEST_ID_HEADER, requestId);
 
         const accessToken = await resolveAccessToken(options.getAccessToken);
         if (accessToken) {
@@ -183,6 +184,7 @@ export function createMobileApiClient(options: MobileApiClientOptions): MobileAp
             headersMs,
             method: requestOptions.method ?? "GET",
             path,
+            requestId,
             serverTimingHeader,
             settledMs: Date.now() - requestStartedAt,
           });

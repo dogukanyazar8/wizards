@@ -6,6 +6,7 @@ import {
   MOBILE_MESSAGE_STREAM_SOURCES,
   type MobileMessageStreamSource,
 } from "../query/mobile-message-stream-source";
+import { MOBILE_NAVIGATION_PHASES, type MobileNavigationPhase } from "./mobile-navigation-timing";
 
 /**
  * What summarizing needs, and no more.
@@ -168,7 +169,7 @@ export type MobileChatOpenRouteRow = {
 
 /** The two chat surfaces, which are two different screens with two different lists. */
 const MOBILE_CHAT_ROUTES = ["DirectMessage", "ChannelChat"] as const;
-type MobileChatRoute = (typeof MOBILE_CHAT_ROUTES)[number];
+export type MobileChatRoute = (typeof MOBILE_CHAT_ROUTES)[number];
 
 /**
  * The chat-open budget, split by the surface that produced it.
@@ -340,6 +341,193 @@ export function summarizeMobileChatTransitions(
       p50Ms: percentileMs(values, 50),
       p95Ms: percentileMs(values, 95),
       variant,
+    };
+  });
+}
+
+export type MobileChatOpenPhaseRow = {
+  readonly count: number;
+  readonly p50Ms: number | null;
+  readonly p95Ms: number | null;
+  readonly phase: MobileNavigationPhase;
+};
+
+export function summarizeMobileChatOpenPhases(
+  samples: readonly MobilePerformanceSummaryInput[],
+): readonly MobileChatOpenPhaseRow[] {
+  const buckets = new Map<MobileNavigationPhase, number[]>(
+    MOBILE_NAVIGATION_PHASES.map((phase) => [phase, []]),
+  );
+
+  for (const sample of samples) {
+    if (sample.metric !== "navigation") continue;
+    const context = sample.context as { readonly phases?: unknown; readonly route?: unknown };
+    if (typeof context.route !== "string" || !CHAT_ROUTES.has(context.route)) continue;
+    if (!context.phases || typeof context.phases !== "object") continue;
+
+    for (const phase of MOBILE_NAVIGATION_PHASES) {
+      const durationMs = (context.phases as Record<string, unknown>)[phase];
+      if (typeof durationMs === "number" && Number.isFinite(durationMs) && durationMs >= 0) {
+        buckets.get(phase)?.push(durationMs);
+      }
+    }
+  }
+
+  return MOBILE_NAVIGATION_PHASES.map((phase) => {
+    const values = buckets.get(phase) ?? [];
+    return {
+      count: values.length,
+      p50Ms: percentileMs(values, 50),
+      p95Ms: percentileMs(values, 95),
+      phase,
+    };
+  });
+}
+
+export type MobileChatOpenCohortRow = {
+  readonly count: number;
+  readonly first5P50Ms: number | null;
+  readonly last5P50Ms: number | null;
+  readonly p50Ms: number | null;
+  readonly p95Ms: number | null;
+  readonly route: MobileChatRoute;
+  readonly slopeMsPerSample: number | null;
+  readonly source: MobileMessageStreamSource;
+  readonly transition: MobileChatTransitionVariant;
+};
+
+type OrderedDuration = { readonly durationMs: number; readonly ordinal: number };
+
+function slopeMsPerSample(values: readonly OrderedDuration[]): number | null {
+  if (values.length < 2) return null;
+  const meanX = values.reduce((total, value) => total + value.ordinal, 0) / values.length;
+  const meanY = values.reduce((total, value) => total + value.durationMs, 0) / values.length;
+  let covariance = 0;
+  let variance = 0;
+  for (const value of values) {
+    const deltaX = value.ordinal - meanX;
+    covariance += deltaX * (value.durationMs - meanY);
+    variance += deltaX * deltaX;
+  }
+  return variance === 0 ? null : Math.round((covariance / variance) * 100) / 100;
+}
+
+export function summarizeMobileChatOpenCohorts(
+  samples: readonly MobilePerformanceSummaryInput[],
+): readonly MobileChatOpenCohortRow[] {
+  const buckets = new Map<string, OrderedDuration[]>();
+  for (const sample of samples) {
+    if (sample.metric !== "navigation") continue;
+    const context = sample.context as {
+      readonly route?: unknown;
+      readonly sampleOrdinal?: unknown;
+      readonly source?: unknown;
+      readonly stage?: unknown;
+      readonly transition?: unknown;
+    };
+    if (
+      typeof context.stage === "string" ||
+      !MOBILE_CHAT_ROUTES.includes(context.route as MobileChatRoute) ||
+      !MOBILE_MESSAGE_STREAM_SOURCES.includes(context.source as MobileMessageStreamSource) ||
+      !MOBILE_CHAT_TRANSITION_VARIANTS.includes(context.transition as MobileChatTransitionVariant)
+    ) {
+      continue;
+    }
+    const ordinal =
+      typeof context.sampleOrdinal === "number" && Number.isFinite(context.sampleOrdinal)
+        ? context.sampleOrdinal
+        : 0;
+    const key = `${context.route}:${context.source}:${context.transition}`;
+    const bucket = buckets.get(key) ?? [];
+    bucket.push({ durationMs: sample.durationMs, ordinal });
+    buckets.set(key, bucket);
+  }
+
+  return MOBILE_CHAT_ROUTES.flatMap((route) =>
+    MOBILE_MESSAGE_STREAM_SOURCES.flatMap((source) =>
+      MOBILE_CHAT_TRANSITION_VARIANTS.map((transition) => {
+        const values = [...(buckets.get(`${route}:${source}:${transition}`) ?? [])].sort(
+          (left, right) => left.ordinal - right.ordinal,
+        );
+        const durations = values.map((value) => value.durationMs);
+        return {
+          count: values.length,
+          first5P50Ms: percentileMs(
+            values.slice(0, 5).map((value) => value.durationMs),
+            50,
+          ),
+          last5P50Ms: percentileMs(
+            values.slice(-5).map((value) => value.durationMs),
+            50,
+          ),
+          p50Ms: percentileMs(durations, 50),
+          p95Ms: percentileMs(durations, 95),
+          route,
+          slopeMsPerSample: slopeMsPerSample(values),
+          source,
+          transition,
+        };
+      }),
+    ),
+  );
+}
+
+export type MobileChatContentClassRow = {
+  readonly count: number;
+  readonly dimension:
+    "attachments" | "message-count" | "reactions" | "rich-content" | "visible-rows";
+  readonly p50Ms: number | null;
+  readonly p95Ms: number | null;
+  readonly value: string;
+};
+
+function toCountClass(value: unknown): string | null {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) return null;
+  if (value === 0) return "0";
+  if (value <= 5) return "1-5";
+  if (value <= 20) return "6-20";
+  if (value <= 50) return "21-50";
+  return "51+";
+}
+
+export function summarizeMobileChatContentClasses(
+  samples: readonly MobilePerformanceSummaryInput[],
+): readonly MobileChatContentClassRow[] {
+  const buckets = new Map<string, number[]>();
+  const dimensions = [
+    ["attachments", "attachmentCountClass"],
+    ["message-count", "messageCount"],
+    ["reactions", "reactionCountClass"],
+    ["rich-content", "richContentCountClass"],
+    ["visible-rows", "visibleInitialRowCount"],
+  ] as const;
+
+  for (const sample of samples) {
+    if (sample.metric !== "navigation") continue;
+    const context = sample.context as Record<string, unknown>;
+    if (!MOBILE_CHAT_ROUTES.includes(context.route as MobileChatRoute) || context.stage) continue;
+    for (const [dimension, key] of dimensions) {
+      const value = key.endsWith("Class")
+        ? typeof context[key] === "string"
+          ? context[key]
+          : null
+        : toCountClass(context[key]);
+      if (!value || !["0", "1-5", "6-20", "21-50", "51+"].includes(value)) continue;
+      const bucketKey = `${dimension}:${value}`;
+      const bucket = buckets.get(bucketKey) ?? [];
+      bucket.push(sample.durationMs);
+      buckets.set(bucketKey, bucket);
+    }
+  }
+
+  return [...buckets.entries()].map(([key, values]) => {
+    const [dimension, value] = key.split(":") as [MobileChatContentClassRow["dimension"], string];
+    return {
+      count: values.length,
+      dimension,
+      p50Ms: percentileMs(values, 50),
+      p95Ms: percentileMs(values, 95),
+      value,
     };
   });
 }

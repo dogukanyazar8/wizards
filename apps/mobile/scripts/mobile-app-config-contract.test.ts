@@ -54,6 +54,13 @@ afterEach(() => {
 });
 
 function buildTestExpoConfig() {
+  if (
+    process.env.WHISPR_MOBILE_ENV !== "development" &&
+    !process.env.EXPO_PUBLIC_WHISPR_BUILD_ID &&
+    !process.env.WHISPR_MOBILE_BUILD_ID
+  ) {
+    process.env.WHISPR_MOBILE_BUILD_ID = "558f05bcce84";
+  }
   return buildExpoConfig({ config: {} });
 }
 
@@ -101,11 +108,27 @@ describe("mobile app config contract", () => {
     assert.equal(buildTestExpoConfig().extra?.whispr?.buildId, "2d6c2c86f0a1");
   });
 
-  it("reports an unrecognisable build id as unknown rather than passing it on", () => {
+  it("fails UAT config instead of shipping an unrecognisable build id", () => {
     process.env.WHISPR_MOBILE_ENV = "uat";
     process.env.WHISPR_MOBILE_BUILD_ID = "not a commit; drop table";
 
-    assert.equal(buildTestExpoConfig().extra?.whispr?.buildId, "unknown");
+    assert.throws(() => buildTestExpoConfig(), /valid Git SHA/);
+  });
+
+  it("fails UAT config when the build SHA is missing", () => {
+    process.env.WHISPR_MOBILE_ENV = "uat";
+    delete process.env.EXPO_PUBLIC_WHISPR_BUILD_ID;
+    delete process.env.WHISPR_MOBILE_BUILD_ID;
+
+    assert.throws(() => buildExpoConfig({ config: {} }), /valid Git SHA/);
+  });
+
+  it("uses an explicit local-only build id for development", () => {
+    process.env.WHISPR_MOBILE_ENV = "development";
+    delete process.env.EXPO_PUBLIC_WHISPR_BUILD_ID;
+    delete process.env.WHISPR_MOBILE_BUILD_ID;
+
+    assert.equal(buildTestExpoConfig().extra?.whispr?.buildId, "dev-local");
   });
 
   it("embeds the UAT OTA trust root only when signed OTA is enabled", () => {

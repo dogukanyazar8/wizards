@@ -80,10 +80,10 @@ export function installMobileTelemetryInstruments(
     previousAppState = nextState;
   });
 
-  const unobserve = observeMobileListLoads((route) => {
+  const unobserve = observeMobileListLoads(({ navigationSampleId, route }) => {
     const contentPhase = markMobileStartupPhase("content-visible");
     if (route) {
-      completeMobileNavigationSpan(route);
+      completeMobileNavigationSpan(route, globalThis.performance.now(), navigationSampleId);
     }
 
     // Interactive is the first idle *after* content: the queue draining is what

@@ -1,7 +1,7 @@
 import React from "react";
 import { afterEach, describe, expect, it, jest } from "@jest/globals";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, renderHook, waitFor } from "@testing-library/react-native";
+import { act, cleanup, renderHook, waitFor } from "@testing-library/react-native";
 import type { MobileChannelMessagesResponse, MobileDMMessagesResponse } from "@wizards/types";
 
 import type { MobileApiClient } from "../src/api/mobile-api-client";
@@ -84,7 +84,11 @@ function createStalledDetailClient() {
         return dmMessagesPage as TResponse;
       }
 
-      return new Promise<TResponse>(() => undefined);
+      if (path === "/api/v1/mobile/servers/server-1") {
+        return new Promise<TResponse>(() => undefined);
+      }
+
+      throw new Error(`Unexpected test request: ${path}`);
     },
   };
 
@@ -128,7 +132,8 @@ async function renderMessagingFeature(client: MobileApiClient) {
 }
 
 describe("chat open path", () => {
-  afterEach(() => {
+  afterEach(async () => {
+    await cleanup();
     for (const queryClient of renderedQueryClients.splice(0)) {
       queryClient.clear();
     }
@@ -139,7 +144,7 @@ describe("chat open path", () => {
     const { client, paths } = createStalledDetailClient();
     const { view } = await renderMessagingFeature(client);
 
-    await act(async () => {
+    act(() => {
       view.result.current.handleOpenWorkspaceRoute("server-1", "channel-9");
     });
 
@@ -155,7 +160,7 @@ describe("chat open path", () => {
     const { client } = createStalledDetailClient();
     const { view } = await renderMessagingFeature(client);
 
-    await act(async () => {
+    act(() => {
       view.result.current.handleOpenWorkspaceRoute("server-1", "channel-9");
     });
 
@@ -165,19 +170,18 @@ describe("chat open path", () => {
     expect(view.result.current.workspaceServerState.payload).toBe(null);
   });
 
-  it("resolves the open conversation from the message stream when the inbox has not paged it in", async () => {
-    const { client } = createStalledDetailClient();
+  it("does not subscribe the product root to DM history when selection changes", async () => {
+    const { client, paths } = createStalledDetailClient();
     const { view } = await renderMessagingFeature(client);
 
-    await act(async () => {
+    act(() => {
       view.result.current.handleOpenDMConversation("conversation-7");
     });
 
-    await waitFor(() => {
-      expect(view.result.current.selectedDMConversation?.id).toBe("conversation-7");
-    });
-    expect(view.result.current.selectedDMConversation?.participants).toHaveLength(1);
-    expect(view.result.current.selectedDMConversation?.participants[0]?.id).toBe("user-kaya");
+    expect(view.result.current.selectedDMConversationId).toBe("conversation-7");
+    expect(paths.some((path) => path.startsWith("/api/v1/mobile/dm/conversation-7/messages"))).toBe(
+      false,
+    );
   });
 });
 

@@ -13,6 +13,7 @@ import {
   type MobileSyncHealthSummary,
   useCallback,
   useEffect,
+  useRef,
   useState,
 } from "../mobile-root-screen-shared";
 import { DMComposer, type MobileComposerIntent } from "../composer/mobile-composer";
@@ -40,6 +41,7 @@ import {
   getMobileDMPartnerLastReadAt,
 } from "../../dm/mobile-dm-client";
 import { useDMChatStyles } from "../components/dm-chat-primitives.styles";
+import { getMobileNavigationSampleId } from "../../performance/mobile-navigation-timing";
 
 export { formatDMLastSeenRelativeTime } from "../components/dm-chat-primitives";
 
@@ -258,6 +260,7 @@ export function DMConversationPreviewCard({
   typingLabel: string | null;
 }) {
   const styles = useDMChatStyles();
+  const navigationSampleIdRef = useRef(getMobileNavigationSampleId("DirectMessage"));
   const [composerIntent, setComposerIntent] = useState<MobileComposerIntent | null>(null);
   const [forwardSource, setForwardSource] = useState<MobileMessageActionTarget | null>(null);
   const handleRequestForward = useCallback((message: MobileMessageActionTarget) => {
@@ -297,7 +300,8 @@ export function DMConversationPreviewCard({
     state.status === "error" || (state.status === "ready" && state.payload.messages.length === 0);
   useEffect(() => {
     if (isSettledWithoutList) {
-      notifyMobileFirstPaint("DirectMessage");
+      navigationSampleIdRef.current ??= getMobileNavigationSampleId("DirectMessage");
+      notifyMobileFirstPaint("DirectMessage", navigationSampleIdRef.current);
     }
   }, [isSettledWithoutList]);
 

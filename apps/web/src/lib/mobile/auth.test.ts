@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { describe, it } from "node:test";
 
 import { createMemoryAttemptStore } from "../auth/attempt-tracker";
@@ -10,6 +11,7 @@ import {
   isMobileAccessSessionActive,
   isMobileAuthHandoffToken,
   MOBILE_REFRESH_TOKEN_GRACE_MS,
+  MOBILE_REFRESH_TOKEN_TTL_SECONDS,
   MobileNativeAuthError,
   refreshMobileSession,
   registerMobilePasswordAccount,
@@ -19,6 +21,7 @@ import {
 } from "./auth";
 
 class MemoryRedis {
+  evalCalls = 0;
   failEval = false;
   readonly ttlSeconds = new Map<string, number>();
   readonly values = new Map<string, string>();
@@ -43,12 +46,178 @@ class MemoryRedis {
   }
 
   async eval(script: string, keyCount: number, ...input: string[]) {
+    this.evalCalls += 1;
     if (this.failEval) {
       throw new Error("Redis temporarily unavailable.");
     }
 
     const keys = input.slice(0, keyCount);
     const args = input.slice(keyCount);
+
+    if (script.includes("mobile-refresh-family:create-v2")) {
+      const [sessionKey = "", familyKey = ""] = keys;
+      if (this.values.has(sessionKey) || this.values.has(familyKey)) {
+        return ["COLLISION"];
+      }
+
+      this.setValue(sessionKey, args[0] ?? "", Number(args[2]));
+      this.setValue(familyKey, args[1] ?? "", Number(args[2]));
+      return ["CREATED"];
+    }
+
+    if (script.includes("mobile-refresh-family:rotate-v2")) {
+      const [familyKey = "", sessionKey = "", retryKey = ""] = keys;
+      const familyRaw = this.values.get(familyKey);
+      const sessionRaw = this.values.get(sessionKey);
+      if (!familyRaw || !sessionRaw) {
+        return ["INVALID"];
+      }
+
+      const family = JSON.parse(familyRaw) as Record<string, unknown>;
+      const session = JSON.parse(sessionRaw) as Record<string, unknown>;
+      const nowMs = Number(args[0]);
+      const graceMs = Number(args[1]);
+      const tokenTtlSeconds = Number(args[2]);
+      const sessionId = args[3];
+      const familyId = args[4];
+      const generation = Number(args[5]);
+      const oldTokenHash = args[6];
+      const successorTokenHash = args[7];
+      const expiresAt = Number(args[8]);
+      const receipt = args[9];
+      const receiptTtlSeconds = Number(args[10]);
+      const revoke = () => {
+        this.deleteValue(familyKey);
+        this.deleteValue(sessionKey);
+        this.deleteValue(retryKey);
+        return ["REPLAY"];
+      };
+
+      if (
+        family.v !== 1 ||
+        family.familyId !== familyId ||
+        family.sessionId !== sessionId ||
+        session.familyId !== familyId ||
+        session.userId !== family.userId
+      ) {
+        return ["INVALID"];
+      }
+      if (family.currentGeneration === generation) {
+        if (family.currentTokenHash !== oldTokenHash) {
+          return ["INVALID"];
+        }
+        family.previousGeneration = generation;
+        family.previousRotatedAt = nowMs;
+        family.previousTokenHash = oldTokenHash;
+        family.currentGeneration = generation + 1;
+        family.currentTokenHash = successorTokenHash;
+        family.retryExpiresAt = nowMs + graceMs;
+        family.expiresAt = expiresAt;
+        this.setValue(familyKey, JSON.stringify(family), tokenTtlSeconds);
+        this.setValue(sessionKey, sessionRaw, tokenTtlSeconds);
+        this.setValue(retryKey, receipt ?? "", receiptTtlSeconds);
+        return ["ROTATED"];
+      }
+      if (family.previousGeneration === generation) {
+        if (family.previousTokenHash !== oldTokenHash) {
+          return ["INVALID"];
+        }
+        if (
+          nowMs > Number(family.previousRotatedAt) + graceMs ||
+          !this.values.has(retryKey) ||
+          nowMs > Number(family.retryExpiresAt)
+        ) {
+          return revoke();
+        }
+        return ["RETRY", this.values.get(retryKey) ?? "", family.currentTokenHash as string];
+      }
+      return generation < Number(family.currentGeneration) ? revoke() : ["INVALID"];
+    }
+
+    if (script.includes("mobile-refresh-family:revoke-v2")) {
+      const [sessionKey = ""] = keys;
+      const sessionRaw = this.values.get(sessionKey);
+      if (sessionRaw) {
+        const session = JSON.parse(sessionRaw) as { familyId?: string };
+        if (session.familyId) {
+          this.deleteValue(`auth:mobile-refresh-family:${session.familyId}`);
+          this.deleteValue(`auth:mobile-refresh-retry:${session.familyId}`);
+        }
+      }
+      this.deleteValue(sessionKey);
+      return "REVOKED";
+    }
+
+    if (script.includes("mobile-refresh-family:adopt-legacy-v2")) {
+      const [legacyKey = "", sessionKey = "", familyKey = "", retryKey = ""] = keys;
+      const legacyRaw = this.values.get(legacyKey);
+      const sessionRaw = this.values.get(sessionKey);
+      if (!legacyRaw || !sessionRaw) {
+        return ["INVALID"];
+      }
+
+      const legacy = JSON.parse(legacyRaw) as Record<string, unknown>;
+      const session = JSON.parse(sessionRaw) as Record<string, unknown>;
+      const nowMs = Number(args[0]);
+      const graceMs = Number(args[1]);
+      const tokenTtlSeconds = Number(args[2]);
+      const sessionId = args[3];
+      const userId = args[4];
+      const familyId = args[5];
+      const generation = Number(args[6]);
+      const oldTokenHash = args[7];
+      const successorTokenHash = args[8];
+      const receipt = args[9];
+      const family = () => {
+        const raw = this.values.get(familyKey);
+        return raw ? (JSON.parse(raw) as Record<string, unknown>) : null;
+      };
+      const revoke = () => {
+        this.deleteValue(sessionKey);
+        this.deleteValue(familyKey);
+        return ["REPLAY"];
+      };
+
+      if (
+        legacy.sessionId !== sessionId ||
+        legacy.userId !== userId ||
+        session.userId !== userId ||
+        (legacy.familyId ?? legacy.sessionId) !== familyId ||
+        Number(legacy.generation ?? 0) !== generation
+      ) {
+        return ["INVALID"];
+      }
+      if (legacy.consumedAt !== undefined) {
+        const storedFamily = family();
+        if (
+          !storedFamily ||
+          storedFamily.previousGeneration !== generation ||
+          storedFamily.previousTokenHash !== oldTokenHash ||
+          nowMs > Number(storedFamily.previousRotatedAt) + graceMs ||
+          !this.values.has(retryKey)
+        ) {
+          return revoke();
+        }
+        return ["RETRY", this.values.get(retryKey) ?? "", storedFamily.currentTokenHash as string];
+      }
+      if (this.values.has(familyKey)) {
+        return ["COLLISION"];
+      }
+
+      legacy.familyId = familyId;
+      legacy.generation = generation;
+      legacy.consumedAt = nowMs;
+      legacy.successorTokenHash = successorTokenHash;
+      this.setValue(
+        legacyKey,
+        JSON.stringify(legacy),
+        this.ttlSeconds.get(legacyKey) ?? tokenTtlSeconds,
+      );
+      this.setValue(sessionKey, args[11] ?? "", tokenTtlSeconds);
+      this.setValue(familyKey, args[10] ?? "", tokenTtlSeconds);
+      this.setValue(retryKey, receipt ?? "", Number(args[12]));
+      return ["ROTATED"];
+    }
 
     if (script.includes("mobile-refresh-family:create-v1")) {
       const [sessionKey = "", refreshTokenKey = ""] = keys;
@@ -259,20 +428,27 @@ async function createTestMobileSession(redis: MemoryRedis, nowMs = 1_800_000_000
   };
 }
 
-function downgradeRefreshFamilyToLegacy(redis: MemoryRedis) {
-  for (const [key, value] of redis.values) {
-    if (!key.startsWith("auth:mobile-session:") && !key.startsWith("auth:mobile-refresh:")) {
-      continue;
-    }
-
-    const record = JSON.parse(value) as Record<string, unknown>;
-    delete record.familyId;
-    delete record.generation;
-    delete record.kind;
-    delete record.currentGeneration;
-    delete record.currentTokenHash;
-    redis.values.set(key, JSON.stringify(record));
+function installLegacyRefreshToken(redis: MemoryRedis, sessionId: string, nowMs: number) {
+  const refreshToken = "l".repeat(64);
+  const tokenHash = createHash("sha256").update(refreshToken).digest("base64url");
+  const sessionKey = `auth:mobile-session:${sessionId}`;
+  const familyKeys = [...redis.values.keys()].filter((key) =>
+    key.startsWith("auth:mobile-refresh-family:"),
+  );
+  for (const key of familyKeys) {
+    redis.values.delete(key);
+    redis.ttlSeconds.delete(key);
   }
+  redis.values.set(
+    sessionKey,
+    JSON.stringify({ createdAt: nowMs, lastRotatedAt: nowMs, userId: "user-1" }),
+  );
+  redis.values.set(
+    `auth:mobile-refresh:${tokenHash}`,
+    JSON.stringify({ createdAt: nowMs, sessionId, userId: "user-1" }),
+  );
+  redis.ttlSeconds.set(`auth:mobile-refresh:${tokenHash}`, 30 * 24 * 60 * 60);
+  return refreshToken;
 }
 
 async function getMobileNativeAuthFailure(operation: () => Promise<unknown>) {
@@ -803,18 +979,24 @@ describe("mobile auth handoff", () => {
     assert.notEqual(successors[0], refreshToken);
   });
 
-  it("tracks family identity and monotonic generation in Redis", async () => {
+  it("tracks family identity and monotonic generation in one family state record", async () => {
     const redis = new MemoryRedis();
     const response = await createTestMobileSession(redis);
-    const sessionEntry = [...redis.values.entries()].find(([key]) =>
+    const familyEntry = [...redis.values.entries()].find(([key]) =>
+      key.startsWith("auth:mobile-refresh-family:"),
+    );
+    assert.ok(familyEntry);
+    const initialFamily = JSON.parse(familyEntry[1]) as Record<string, unknown>;
+
+    assert.equal(typeof initialFamily.familyId, "string");
+    assert.equal(initialFamily.currentGeneration, 0);
+    assert.equal(typeof initialFamily.currentTokenHash, "string");
+    assert.equal(redis.ttlSeconds.get(familyEntry[0]), MOBILE_REFRESH_TOKEN_TTL_SECONDS);
+    const sessionKey = [...redis.values.keys()].find((key) =>
       key.startsWith("auth:mobile-session:"),
     );
-    assert.ok(sessionEntry);
-    const initialSession = JSON.parse(sessionEntry[1]) as Record<string, unknown>;
-
-    assert.equal(typeof initialSession.familyId, "string");
-    assert.equal(initialSession.currentGeneration, 0);
-    assert.equal(typeof initialSession.currentTokenHash, "string");
+    assert.ok(sessionKey);
+    assert.equal(redis.ttlSeconds.get(sessionKey), MOBILE_REFRESH_TOKEN_TTL_SECONDS);
 
     await refreshMobileSession(response.session.tokens.refreshToken, {
       env,
@@ -822,13 +1004,64 @@ describe("mobile auth handoff", () => {
       nowMs: 1_800_000_060_000,
       redis,
     });
-    const rotatedSession = JSON.parse(redis.values.get(sessionEntry[0]) ?? "null") as Record<
+    const rotatedFamily = JSON.parse(redis.values.get(familyEntry[0]) ?? "null") as Record<
       string,
       unknown
     >;
-    assert.equal(rotatedSession.familyId, initialSession.familyId);
-    assert.equal(rotatedSession.currentGeneration, 1);
-    assert.notEqual(rotatedSession.currentTokenHash, initialSession.currentTokenHash);
+    assert.equal(rotatedFamily.familyId, initialFamily.familyId);
+    assert.equal(rotatedFamily.currentGeneration, 1);
+    assert.notEqual(rotatedFamily.currentTokenHash, initialFamily.currentTokenHash);
+    assert.equal(redis.ttlSeconds.get(familyEntry[0]), MOBILE_REFRESH_TOKEN_TTL_SECONDS);
+    assert.equal(redis.ttlSeconds.get(sessionKey), MOBILE_REFRESH_TOKEN_TTL_SECONDS);
+  });
+
+  it("authenticates refresh claims before Redis and keeps one bounded family state", async () => {
+    const redis = new MemoryRedis();
+    const response = await createTestMobileSession(redis);
+    const initialRefreshToken = response.session.tokens.refreshToken;
+    const lastCharacter = initialRefreshToken.at(-1);
+    const tamperedRefreshToken = `${initialRefreshToken.slice(0, -1)}${
+      lastCharacter === "A" ? "B" : "A"
+    }`;
+    const redisCallsBeforeTamper = redis.evalCalls;
+
+    assert.equal(
+      await refreshMobileSession(tamperedRefreshToken, {
+        env,
+        loadUser,
+        nowMs: 1_800_000_060_000,
+        redis,
+      }),
+      null,
+    );
+    assert.equal(redis.evalCalls, redisCallsBeforeTamper);
+
+    let refreshToken = initialRefreshToken;
+    for (let generation = 1; generation <= 100; generation += 1) {
+      const refreshed = await refreshMobileSession(refreshToken, {
+        env,
+        loadUser,
+        nowMs: 1_800_000_060_000 + generation * (MOBILE_REFRESH_TOKEN_GRACE_MS + 1),
+        redis,
+      });
+      assert.ok(refreshed?.session.tokens.refreshToken);
+      refreshToken = refreshed.session.tokens.refreshToken;
+    }
+
+    const familyStateKeys = [...redis.values.keys()].filter((key) =>
+      key.startsWith("auth:mobile-refresh-family:"),
+    );
+    const retiredTokenKeys = [...redis.values.keys()].filter(
+      (key) =>
+        key.startsWith("auth:mobile-refresh:") && !key.startsWith("auth:mobile-refresh-family:"),
+    );
+    const familyBoundedKeys = [...redis.values.keys()].filter((key) =>
+      /^(?:auth:mobile-refresh-family:|auth:mobile-refresh-retry:|auth:mobile-session:)/u.test(key),
+    );
+
+    assert.equal(familyStateKeys.length, 1);
+    assert.equal(retiredTokenKeys.length, 0);
+    assert.equal(familyBoundedKeys.length, 3);
   });
 
   it("adopts an unconsumed legacy token into generation one atomically", async () => {
@@ -839,24 +1072,28 @@ describe("mobile auth handoff", () => {
       nowMs: 1_800_000_000_000,
     });
     assert.ok(accessClaims);
-    downgradeRefreshFamilyToLegacy(redis);
+    const legacyRefreshToken = installLegacyRefreshToken(
+      redis,
+      accessClaims.sessionId,
+      1_800_000_000_000,
+    );
 
-    const rotated = await refreshMobileSession(response.session.tokens.refreshToken, {
+    const rotated = await refreshMobileSession(legacyRefreshToken, {
       env,
       loadUser,
       nowMs: 1_800_000_060_000,
       redis,
     });
     assert.ok(rotated);
-    const sessionRaw = [...redis.values.entries()].find(([key]) =>
-      key.startsWith("auth:mobile-session:"),
+    const familyRaw = [...redis.values.entries()].find(([key]) =>
+      key.startsWith("auth:mobile-refresh-family:"),
     )?.[1];
-    assert.ok(sessionRaw);
-    const session = JSON.parse(sessionRaw) as Record<string, unknown>;
+    assert.ok(familyRaw);
+    const family = JSON.parse(familyRaw) as Record<string, unknown>;
 
-    assert.equal(session.familyId, accessClaims.sessionId);
-    assert.equal(session.currentGeneration, 1);
-    assert.equal(typeof session.currentTokenHash, "string");
+    assert.equal(family.familyId, accessClaims.sessionId);
+    assert.equal(family.currentGeneration, 1);
+    assert.equal(typeof family.currentTokenHash, "string");
   });
 
   it("revokes a consumed legacy token that has no idempotent receipt", async () => {
@@ -867,7 +1104,11 @@ describe("mobile auth handoff", () => {
       nowMs: 1_800_000_000_000,
     });
     assert.ok(accessClaims);
-    downgradeRefreshFamilyToLegacy(redis);
+    const legacyRefreshToken = installLegacyRefreshToken(
+      redis,
+      accessClaims.sessionId,
+      1_800_000_000_000,
+    );
     const tokenEntry = [...redis.values.entries()].find(([key]) =>
       key.startsWith("auth:mobile-refresh:"),
     );
@@ -877,7 +1118,7 @@ describe("mobile auth handoff", () => {
     redis.values.set(tokenEntry[0], JSON.stringify(tokenRecord));
 
     assert.equal(
-      await refreshMobileSession(response.session.tokens.refreshToken, {
+      await refreshMobileSession(legacyRefreshToken, {
         env,
         loadUser,
         nowMs: 1_800_000_060_000,
@@ -888,7 +1129,7 @@ describe("mobile auth handoff", () => {
     assert.equal(await isMobileAccessSessionActive(accessClaims, { redis }), false);
   });
 
-  it("stores the retry successor only as a short-lived encrypted receipt", async () => {
+  it("stores the retry successor only as a short-lived encrypted family receipt", async () => {
     const redis = new MemoryRedis();
     const response = await createTestMobileSession(redis);
     const rotated = await refreshMobileSession(response.session.tokens.refreshToken, {
@@ -900,14 +1141,22 @@ describe("mobile auth handoff", () => {
     assert.ok(rotated);
     assert.ok(rotated.session.tokens.refreshToken);
 
+    const family = JSON.parse(
+      [...redis.values.entries()].find(([key]) =>
+        key.startsWith("auth:mobile-refresh-family:"),
+      )?.[1] ?? "null",
+    ) as Record<string, unknown>;
     const receipts = [...redis.values.entries()].filter(([key]) =>
       key.startsWith("auth:mobile-refresh-retry:"),
     );
+    assert.equal(family.retryReceipt, undefined);
     assert.equal(receipts.length, 1);
     assert.equal(receipts[0]?.[1].includes(rotated.session.tokens.refreshToken), false);
-    const receiptTtlSeconds = redis.ttlSeconds.get(receipts[0]?.[0] ?? "");
-    assert.equal(typeof receiptTtlSeconds, "number");
-    assert.ok((receiptTtlSeconds ?? Number.POSITIVE_INFINITY) <= 61);
+    assert.ok((redis.ttlSeconds.get(receipts[0]?.[0] ?? "") ?? Number.POSITIVE_INFINITY) <= 61);
+    assert.equal(
+      Number(family.retryExpiresAt) - Number(family.previousRotatedAt),
+      MOBILE_REFRESH_TOKEN_GRACE_MS,
+    );
   });
 
   it("revokes the token family after an old-generation replay outside grace", async () => {
@@ -951,6 +1200,47 @@ describe("mobile auth handoff", () => {
       null,
     );
     assert.equal(await isMobileAccessSessionActive(rotatedClaims, { redis }), false);
+  });
+
+  it("revokes the family when a token older than the single previous generation reappears", async () => {
+    const redis = new MemoryRedis();
+    const response = await createTestMobileSession(redis);
+    const firstRefreshToken = response.session.tokens.refreshToken;
+    const firstRotationAtMs = 1_800_000_060_000;
+
+    const firstRotation = await refreshMobileSession(firstRefreshToken, {
+      env,
+      loadUser,
+      nowMs: firstRotationAtMs,
+      redis,
+    });
+    assert.ok(firstRotation?.session.tokens.refreshToken);
+    const secondRotation = await refreshMobileSession(firstRotation.session.tokens.refreshToken, {
+      env,
+      loadUser,
+      nowMs: firstRotationAtMs + 1,
+      redis,
+    });
+    assert.ok(secondRotation?.session.tokens.refreshToken);
+    const secondRotationClaims = verifyMobileAccessToken(
+      secondRotation.session.tokens.accessToken,
+      {
+        env,
+        nowMs: firstRotationAtMs + 1,
+      },
+    );
+    assert.ok(secondRotationClaims);
+
+    assert.equal(
+      await refreshMobileSession(firstRefreshToken, {
+        env,
+        loadUser,
+        nowMs: firstRotationAtMs + 2,
+        redis,
+      }),
+      null,
+    );
+    assert.equal(await isMobileAccessSessionActive(secondRotationClaims, { redis }), false);
   });
 
   it("rejects a wrong refresh token hash without revoking the valid family", async () => {
@@ -1013,7 +1303,7 @@ describe("mobile auth handoff", () => {
     });
     await revokeMobileSession(
       { refreshToken: refreshed?.session.tokens.refreshToken ?? null },
-      { redis },
+      { env, redis },
     );
 
     assert.equal(
@@ -1041,7 +1331,10 @@ describe("mobile auth handoff", () => {
     assert.ok(accessClaims);
     assert.equal(await isMobileAccessSessionActive(accessClaims, { redis }), true);
 
-    await revokeMobileSession({ refreshToken: rotated.session.tokens.refreshToken }, { redis });
+    await revokeMobileSession(
+      { refreshToken: rotated.session.tokens.refreshToken },
+      { env, redis },
+    );
 
     assert.equal(await isMobileAccessSessionActive(accessClaims, { redis }), false);
     assert.equal(

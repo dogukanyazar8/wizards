@@ -162,6 +162,22 @@ describe("Playwright E2E governance", () => {
     assert.match(workflow, /pnpm --filter @wizards\/web e2e:check-env/);
   });
 
+  it("provisions the test-only TOTP keyring in every Playwright job", () => {
+    const workflow = readWorkspaceFile(join(workspaceRoot, ".github", "workflows", "ci.yml"));
+    const jobs = ["e2e-smoke", "e2e-cross-browser", "e2e-a11y", "e2e-visual"];
+
+    for (const jobName of jobs) {
+      const job = new RegExp(
+        `\\n  ${jobName}:\\n([\\s\\S]*?)(?=\\n  [A-Za-z][A-Za-z0-9_-]*:|$)`,
+        "u",
+      ).exec(workflow)?.[0];
+
+      assert.ok(job, `${jobName} must exist`);
+      assert.match(job, /TOTP_SECRET_ENCRYPTION_ACTIVE_KEY_VERSION:\s*v1/);
+      assert.match(job, /TOTP_SECRET_ENCRYPTION_KEYS:\s*'\{"v1":"A{43}"\}'/);
+    }
+  });
+
   it("grants the secret scanner least-privilege pull request access", () => {
     const workflow = readWorkspaceFile(join(workspaceRoot, ".github", "workflows", "ci.yml"));
     const permissionsStart = workflow.indexOf("\npermissions:");

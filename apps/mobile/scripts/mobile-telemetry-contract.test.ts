@@ -19,6 +19,7 @@ import {
   completeMobileNavigationSpan,
   ensureMobileNavigationSpan,
   getMobileNavigationSpanDiagnostics,
+  markMobileNavigationPhase,
   markMobileNavigationStage,
   resetMobileNavigationTimingForTests,
 } from "../src/performance/mobile-navigation-timing";
@@ -65,6 +66,16 @@ describe("performance sample log", () => {
     assert.ok(ids.every((id) => id.length > 0));
   });
 
+  it("assigns a monotonic ordinal without exposing a product identifier", () => {
+    recordMobilePerformanceSample({ durationMs: 10, metric: "list-load", surface: "dm-inbox" });
+    recordMobilePerformanceSample({ durationMs: 20, metric: "list-load", surface: "dm-inbox" });
+
+    assert.deepEqual(
+      peekMobilePerformanceSamples().map((sample) => sample.sampleOrdinal),
+      [1, 2],
+    );
+  });
+
   // The bridge used to re-enqueue the whole snapshot on every 60s tick, so the
   // same measurement was sent again and again.
   it("drains what it hands out so nothing is reported twice", () => {
@@ -102,6 +113,7 @@ describe("performance sample log", () => {
     assert.deepEqual(peekMobilePerformanceSamples()[0]?.context, {
       cacheHit: true,
       route: "DirectMessage",
+      sampleOrdinal: 1,
     });
   });
 });
@@ -174,6 +186,15 @@ describe("navigation spans", () => {
 
     assert.equal(completeMobileNavigationSpan("ChannelChat", 1_400), null);
     assert.equal(peekMobilePerformanceSamples().length, 1);
+  });
+
+  it("only lets the matching navigation sample close a cached route", () => {
+    const firstSampleId = beginMobileNavigationSpan("DirectMessage", 1_000, true);
+    const secondSampleId = beginMobileNavigationSpan("DirectMessage", 1_100, true);
+
+    assert.notEqual(firstSampleId, secondSampleId);
+    assert.equal(completeMobileNavigationSpan("DirectMessage", 1_200, firstSampleId), null);
+    assert.equal(completeMobileNavigationSpan("DirectMessage", 1_250, secondSampleId), 150);
   });
 
   it("lets the newest tap replace an abandoned one for the same route", () => {
@@ -280,6 +301,30 @@ describe("navigation spans", () => {
  * which of the three to fix.
  */
 describe("chat open stages", () => {
+  it("records bounded route-owned phases once for one navigation sample", () => {
+    const navigationSampleId = beginMobileNavigationSpan("DirectMessage", 1_000, true);
+    assert.ok(navigationSampleId);
+
+    assert.equal(
+      markMobileNavigationPhase("DirectMessage", "query-observer-bound", 1_100, navigationSampleId),
+      100,
+    );
+    assert.equal(
+      markMobileNavigationPhase("DirectMessage", "query-observer-bound", 1_200, navigationSampleId),
+      null,
+    );
+
+    completeMobileNavigationSpan("DirectMessage", 1_300, navigationSampleId);
+    const phaseSample = peekMobilePerformanceSamples().at(-1);
+    assert.equal(phaseSample?.context.route, "DirectMessage");
+    assert.equal(phaseSample?.context.navigationSampleId, navigationSampleId);
+    assert.deepEqual(phaseSample?.context.phases, {
+      content: 300,
+      "query-observer-bound": 100,
+      tap: 0,
+    });
+  });
+
   it("times each milestone from the tap, leaving the span open", () => {
     beginMobileNavigationSpan("DirectMessage", 1_000, true);
 

@@ -7,6 +7,7 @@ const SAFE_DIAGNOSTIC_HASH_KEY_NAMES = new Set(["ipaddresshash", "useragenthash"
 const JWT_PATTERN = /\beyJ[a-zA-Z0-9_-]{20,}\.[a-zA-Z0-9_-]{20,}\.[a-zA-Z0-9_-]{20,}\b/g;
 const LONG_SECRET_PATTERN = /\b(?:sk|pk|ya29|gh[opsu])_[a-zA-Z0-9_-]{16,}\b/g;
 const EMAIL_PATTERN = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi;
+const CREDENTIAL_BEARING_URI_PATTERN = /\b((?:postgres(?:ql)?|rediss?|https?):\/\/)[^/?#\s]*@/giu;
 const KEYED_PII_PATTERN =
   /(\b(?:email|emailAddress|ip|ipAddress|query|search|userId|username|userAgent)\b\s*[:=]\s*)([^\s,;&]+)/gi;
 
@@ -24,6 +25,7 @@ function shouldRedactKey(key: string) {
 
 export function redactText(value: string) {
   return value
+    .replace(CREDENTIAL_BEARING_URI_PATTERN, "$1[redacted-userinfo]@")
     .replace(JWT_PATTERN, "[redacted-jwt]")
     .replace(LONG_SECRET_PATTERN, "[redacted-secret]")
     .replace(KEYED_PII_PATTERN, "$1[redacted-value]")
@@ -35,16 +37,6 @@ export function redactValue(value: unknown, seen = new WeakSet<object>()): unkno
     return redactText(value);
   }
 
-  if (value instanceof Error) {
-    const errorWithCode = value as Error & { code?: unknown };
-
-    return {
-      name: value.name,
-      message: redactText(value.message),
-      ...(typeof errorWithCode.code === "string" ? { code: errorWithCode.code } : {}),
-    };
-  }
-
   if (!value || typeof value !== "object") {
     return value;
   }
@@ -53,6 +45,19 @@ export function redactValue(value: unknown, seen = new WeakSet<object>()): unkno
     return "[circular]";
   }
   seen.add(value);
+
+  if (value instanceof Error) {
+    const errorWithCode = value as Error & { code?: unknown };
+    const errorWithCause = value as Error & { cause?: unknown };
+
+    return {
+      name: value.name,
+      message: redactText(value.message),
+      ...(typeof errorWithCode.code === "string" ? { code: errorWithCode.code } : {}),
+      ...(value.stack ? { stack: redactText(value.stack) } : {}),
+      ...("cause" in errorWithCause ? { cause: redactValue(errorWithCause.cause, seen) } : {}),
+    };
+  }
 
   if (Array.isArray(value)) {
     return value.map((item) => redactValue(item, seen));
@@ -140,6 +145,15 @@ export function redactErrorForReport(error: unknown): Error {
     const code = (error as Error & { code?: unknown }).code;
     if (typeof code === "string") {
       (redacted as Error & { code?: string }).code = code;
+    }
+    const cause = (error as Error & { cause?: unknown }).cause;
+    if ("cause" in error && cause !== undefined) {
+      Object.defineProperty(redacted, "cause", {
+        configurable: true,
+        enumerable: false,
+        value: redactValue(cause),
+        writable: true,
+      });
     }
     return redacted;
   }

@@ -201,8 +201,8 @@ export function selectMobileRecentDMRestoreIds(input: {
 }
 
 export interface MobileMessagePrefetchActions {
-  prefetchChannelMessages(channelId: string): void;
-  prefetchDMMessages(conversationId: string): void;
+  prefetchChannelMessages(channelId: string): string | null;
+  prefetchDMMessages(conversationId: string): string | null;
 }
 
 /** Fire-and-forget wrappers for the tap handlers that open a chat. */
@@ -216,8 +216,13 @@ export function useMobileMessagePrefetch(client: MobileApiClient): MobileMessage
     (channelId: string) => {
       const cacheHit =
         queryClient.getQueryData(mobileQueryKeys.channelMessages(channelId)) !== undefined;
-      beginMobileNavigationSpan("ChannelChat", globalThis.performance.now(), cacheHit);
+      const navigationSampleId = beginMobileNavigationSpan(
+        "ChannelChat",
+        globalThis.performance.now(),
+        cacheHit,
+      );
       void prefetchMobileChannelMessagesPage(queryClient, client, channelId).catch(() => undefined);
+      return navigationSampleId;
     },
     [client, queryClient],
   );
@@ -226,12 +231,17 @@ export function useMobileMessagePrefetch(client: MobileApiClient): MobileMessage
     (conversationId: string) => {
       const cacheHit =
         queryClient.getQueryData(mobileQueryKeys.dmMessages(conversationId)) !== undefined;
-      beginMobileNavigationSpan("DirectMessage", globalThis.performance.now(), cacheHit);
+      const navigationSampleId = beginMobileNavigationSpan(
+        "DirectMessage",
+        globalThis.performance.now(),
+        cacheHit,
+      );
       // The tap is the moment a warmed conversation becomes a hit. Nothing
       // recorded this before, so the panel's hit rate could only ever read 0%
       // however well the background warming was doing.
       recordMobileRecentDMPrefetchOpen(conversationId);
       void prefetchMobileDMMessagesPage(queryClient, client, conversationId).catch(() => undefined);
+      return navigationSampleId;
     },
     [client, queryClient],
   );

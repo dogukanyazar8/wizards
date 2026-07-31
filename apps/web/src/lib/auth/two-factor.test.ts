@@ -61,7 +61,7 @@ function createHarness() {
     async enableTwoFactor(targetUserId, secret, recoveryCodeHashes) {
       assert.equal(targetUserId, userId);
       user.twoFactorEnabled = true;
-      user.twoFactorSecret = secret.plaintext;
+      user.twoFactorSecret = null;
       user.twoFactorSecretCiphertext = secret.ciphertext;
       user.twoFactorSecretKeyVersion = secret.keyVersion;
       recoveryCodes.length = 0;
@@ -89,7 +89,7 @@ function createHarness() {
     async savePendingSecret(targetUserId, secret) {
       assert.equal(targetUserId, userId);
       user.twoFactorEnabled = false;
-      user.twoFactorSecret = secret.plaintext;
+      user.twoFactorSecret = null;
       user.twoFactorSecretCiphertext = secret.ciphertext;
       user.twoFactorSecretKeyVersion = secret.keyVersion;
     },
@@ -130,6 +130,17 @@ function createHarness() {
 }
 
 describe("two-factor service", () => {
+  it("writes only ciphertext while a new setup is pending", async () => {
+    const harness = createHarness();
+
+    const setup = await startTwoFactorSetup(userId, harness.dependencies);
+
+    assert.equal(setup.success, true);
+    assert.equal(harness.user.twoFactorSecret, null);
+    assert.equal(typeof harness.user.twoFactorSecretCiphertext, "string");
+    assert.equal(harness.user.twoFactorSecretKeyVersion, "v1");
+  });
+
   it("keeps setup pending until the first TOTP code is confirmed", async () => {
     const harness = createHarness();
 
@@ -139,7 +150,7 @@ describe("two-factor service", () => {
     assert.equal(setup.manualEntryKey, rfc6238Secret);
     assert.equal(setup.qrCodeDataUrl.includes(setup.otpauthUri), true);
     assert.equal(harness.user.twoFactorEnabled, false);
-    assert.equal(harness.user.twoFactorSecret, rfc6238Secret);
+    assert.equal(harness.user.twoFactorSecret, null);
     assert.equal(typeof harness.user.twoFactorSecretCiphertext, "string");
     assert.equal(harness.user.twoFactorSecretKeyVersion, "v1");
     assert.equal(resolveTotpSecret(harness.user, userId, keyring), rfc6238Secret);
@@ -184,6 +195,7 @@ describe("two-factor service", () => {
     );
 
     assert.equal(result.success, true);
+    assert.equal(harness.user.twoFactorSecret, null);
     assert.equal(typeof harness.user.twoFactorSecretCiphertext, "string");
     assert.equal(harness.user.twoFactorSecretKeyVersion, "v1");
   });

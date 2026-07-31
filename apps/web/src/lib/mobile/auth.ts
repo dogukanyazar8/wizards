@@ -42,6 +42,7 @@ import {
 import {
   createMobileRefreshFamily,
   isMobileRefreshFamilyActive,
+  isMobileRefreshToken,
   type MobileRefreshFamilyRedis,
   revokeMobileRefreshFamily,
   rotateMobileRefreshFamily,
@@ -61,7 +62,6 @@ export const MOBILE_REFRESH_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60;
 export const MOBILE_REFRESH_TOKEN_GRACE_MS = 60_000;
 
 const MOBILE_AUTH_HANDOFF_TOKEN_PATTERN = /^[A-Za-z0-9_-]{32,128}$/;
-const MOBILE_REFRESH_TOKEN_PATTERN = /^[A-Za-z0-9_-]{48,192}$/;
 const MOBILE_AUTH_HANDOFF_KEY_PREFIX = "auth:mobile-handoff:";
 const MOBILE_ACCESS_TOKEN_ISSUER = "whispr-api";
 const MOBILE_ACCESS_TOKEN_AUDIENCE = "whispr-mobile";
@@ -473,6 +473,7 @@ async function createMobileSessionSnapshot(
     (await createMobileRefreshFamily({
       nowMs: input.nowMs,
       redis: input.redis,
+      secret: getMobileAuthSecret(options.env),
       sessionId,
       tokenTtlSeconds: MOBILE_REFRESH_TOKEN_TTL_SECONDS,
       userId: user.id,
@@ -501,10 +502,6 @@ async function createMobileSessionSnapshot(
 
 export function isMobileAuthHandoffToken(value: unknown): value is string {
   return typeof value === "string" && MOBILE_AUTH_HANDOFF_TOKEN_PATTERN.test(value);
-}
-
-export function isMobileRefreshToken(value: unknown): value is string {
-  return typeof value === "string" && MOBILE_REFRESH_TOKEN_PATTERN.test(value);
 }
 
 export async function createMobileAuthHandoffToken(
@@ -980,12 +977,13 @@ export async function revokeMobileSession(
     refreshToken?: string | null;
     sessionId?: string | null;
   },
-  options: Pick<MobileAuthOptions, "redis"> = {},
+  options: Pick<MobileAuthOptions, "env" | "redis"> = {},
 ) {
   const redis = getMobileAuthRedis(options);
   await revokeMobileRefreshFamily(redis, {
     refreshToken:
       input.refreshToken && isMobileRefreshToken(input.refreshToken) ? input.refreshToken : null,
+    ...(input.refreshToken ? { secret: getMobileAuthSecret(options.env) } : {}),
     ...(input.sessionId === undefined ? {} : { sessionId: input.sessionId }),
   });
 }

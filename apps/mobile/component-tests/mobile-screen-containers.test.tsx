@@ -1,6 +1,8 @@
 import React from "react";
-import { fireEvent, render } from "@testing-library/react-native";
-import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { act, cleanup, fireEvent, render } from "@testing-library/react-native";
+import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { mobileQueryKeys } from "../src/query/mobile-query-keys";
 
 let mockOverviewProps: Record<string, unknown> = {};
 let mockMessagesProps: Record<string, unknown> = {};
@@ -12,6 +14,34 @@ const mockNavigationActions = {
 const overviewRenderProps: Record<string, unknown>[] = [];
 const messagesRenderProps: Record<string, unknown>[] = [];
 const whatsNewRenderProps: Record<string, unknown>[] = [];
+const mockApiClient = {
+  requestJson: jest.fn(async () => ({
+    conversation: {
+      id: "dm-1",
+      lastMessage: null,
+      lastMessageAt: "2026-07-31T09:00:00.000Z",
+      name: null,
+      participants: [],
+      type: "DM",
+    },
+    messages: [],
+    nextCursor: null,
+    participantReadStates: [],
+  })),
+};
+let queryClient: QueryClient;
+
+jest.mock("../src/auth/mobile-auth-context", () => ({
+  useMobileAuth: () => ({
+    apiClient: mockApiClient,
+    session: { user: { id: "viewer" } },
+    status: "signed-in",
+  }),
+}));
+
+jest.mock("../src/query/use-mobile-message-stream-persistence", () => ({
+  useMobileMessageStreamPersistence: jest.fn(),
+}));
 
 // Only `useFocusEffect` is replaced: the stack containers run their route
 // wiring through it, and the rest of the module still has to be real because
@@ -147,12 +177,21 @@ function createNavigation(parentNavigate: jest.Mock) {
 
 describe("mobile screen navigation containers", () => {
   beforeEach(() => {
+    queryClient = new QueryClient({
+      defaultOptions: { queries: { gcTime: Number.POSITIVE_INFINITY, retry: false } },
+    });
     overviewRenderProps.length = 0;
     messagesRenderProps.length = 0;
     whatsNewRenderProps.length = 0;
     mockNavigationActions.openWorkspaceRoute.mockClear();
     mockNavigationActions.prefetchChannelMessages.mockClear();
     mockNavigationActions.prefetchDMMessages.mockClear();
+    mockApiClient.requestJson.mockClear();
+  });
+
+  afterEach(async () => {
+    await cleanup();
+    queryClient.clear();
   });
 
   it("routes the Whats new report action to the About bug-report screen", async () => {
@@ -199,14 +238,69 @@ describe("mobile screen navigation containers", () => {
       />,
     );
     await render(
-      <DirectMessageStackScreenContainer
-        navigation={{ goBack: jest.fn(), navigate: jest.fn() } as never}
-        route={{ params: { conversationId: "dm-1" } } as never}
-      />,
+      <QueryClientProvider client={queryClient}>
+        <DirectMessageStackScreenContainer
+          navigation={{ goBack: jest.fn(), navigate: jest.fn() } as never}
+          route={{ params: { conversationId: "dm-1" } } as never}
+        />
+      </QueryClientProvider>,
     );
 
     expect(overviewRenderProps.at(-1)?.canRenderChannelChat).toBe(true);
     expect(messagesRenderProps.at(-1)?.canRenderConversation).toBe(true);
+  });
+
+  it("binds the route's cached DM query before global selection commits", async () => {
+    queryClient.setDefaultOptions({
+      queries: {
+        gcTime: Number.POSITIVE_INFINITY,
+        retry: false,
+        staleTime: Number.POSITIVE_INFINITY,
+      },
+    });
+    queryClient.setQueryData(mobileQueryKeys.dmMessages("dm-1"), {
+      pageParams: [null],
+      pages: [
+        {
+          conversation: {
+            id: "dm-1",
+            lastMessage: null,
+            lastMessageAt: "2026-07-31T09:00:00.000Z",
+            name: "Cached route",
+            participants: [],
+            type: "DM",
+          },
+          messages: [],
+          nextCursor: null,
+          participantReadStates: [],
+        },
+      ],
+    });
+    mockMessagesProps = {
+      bootstrapState: { status: "loading" },
+      dmConversations: [],
+      dmMessagesState: { payload: null, status: "loading" },
+      onCloseConversation: jest.fn(),
+      onOpenConversation: jest.fn(),
+      selectedConversation: null,
+      selectedConversationId: null,
+    };
+
+    await render(
+      <QueryClientProvider client={queryClient}>
+        <DirectMessageStackScreenContainer
+          navigation={{ goBack: jest.fn(), navigate: jest.fn() } as never}
+          route={{ params: { conversationId: "dm-1" } } as never}
+        />
+      </QueryClientProvider>,
+    );
+
+    expect(messagesRenderProps.at(-1)?.selectedConversationId).toBe("dm-1");
+    expect(messagesRenderProps.at(-1)?.dmMessagesState).toMatchObject({
+      payload: { conversation: { id: "dm-1", name: "Cached route" } },
+      status: "ready",
+    });
+    expect(mockApiClient.requestJson).not.toHaveBeenCalled();
   });
 
   it("pushes a selected text channel through the typed parent stack", async () => {
@@ -263,7 +357,7 @@ describe("mobile screen navigation containers", () => {
     expect(mockNavigationActions.prefetchDMMessages).toHaveBeenCalledWith("dm-1");
   });
 
-  it("pushes a selected conversation through the typed parent stack", async () => {
+  it("pushes a selected conversation without selecting it twice", async () => {
     const parentNavigate = jest.fn();
     const onOpenDMConversation = jest.fn();
     mockMessagesProps = { onOpenConversation: onOpenDMConversation };
@@ -274,10 +368,32 @@ describe("mobile screen navigation containers", () => {
 
     await fireEvent.press(view.getByTestId("open-dm-from-container"));
 
-    expect(onOpenDMConversation).toHaveBeenCalledWith("dm-1");
+    expect(onOpenDMConversation).not.toHaveBeenCalled();
     expect(parentNavigate).toHaveBeenCalledWith("DirectMessage", {
       conversationId: "dm-1",
     });
+  });
+
+  it("selects once from route focus and closes only that route", async () => {
+    const onCloseConversation = jest.fn();
+    const onOpenConversation = jest.fn();
+    mockMessagesProps = { onCloseConversation, onOpenConversation };
+
+    const view = await render(
+      <QueryClientProvider client={queryClient}>
+        <DirectMessageStackScreenContainer
+          navigation={{ goBack: jest.fn(), navigate: jest.fn() } as never}
+          route={{ params: { conversationId: "dm-1" } } as never}
+        />
+      </QueryClientProvider>,
+    );
+
+    expect(onOpenConversation).toHaveBeenCalledTimes(1);
+    expect(onOpenConversation).toHaveBeenCalledWith("dm-1");
+    await act(async () => {
+      await view.unmount();
+    });
+    expect(onCloseConversation).toHaveBeenCalledWith("dm-1");
   });
 
   it("retains server context when opening member and channel management", async () => {

@@ -386,11 +386,13 @@ jobs:
     environment: mobile-${{ inputs.environment }}
     env:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      EXPO_PUBLIC_WHISPR_BUILD_ID: ${{ github.sha }}
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
       R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
       R2_BUCKET: ${{ secrets.R2_BUCKET }}
       R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
       WHISPR_RELEASE_PUBLISH_TOKEN: ${{ secrets.WHISPR_RELEASE_PUBLISH_TOKEN }}
+      WHISPR_MOBILE_BUILD_ID: ${{ github.sha }}
 
     steps:
       - name: Checkout

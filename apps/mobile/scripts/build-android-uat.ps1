@@ -998,13 +998,13 @@ $resolvedBuildId = $env:EXPO_PUBLIC_WHISPR_BUILD_ID
 if (-not $resolvedBuildId) {
   $resolvedBuildId = (& git -C $resolvedSourceRoot rev-parse --short=12 HEAD 2>$null)
 }
-if ($resolvedBuildId -and $resolvedBuildId -match '^[A-Za-z0-9._-]{1,64}$') {
-  $env:EXPO_PUBLIC_WHISPR_BUILD_ID = $resolvedBuildId
-  $env:WHISPR_MOBILE_BUILD_ID = $resolvedBuildId
-  Write-Host "Build id: $resolvedBuildId"
-} else {
-  Write-Warning "No usable commit SHA; this APK will report its build as 'unknown' in telemetry."
+$resolvedBuildId = "$resolvedBuildId".Trim()
+if ($resolvedBuildId -notmatch '^[0-9a-fA-F]{12,40}$') {
+  throw "A 12-40 character Git SHA is required for a UAT APK build; refusing to ship buildId=unknown."
 }
+$env:EXPO_PUBLIC_WHISPR_BUILD_ID = $resolvedBuildId.ToLowerInvariant()
+$env:WHISPR_MOBILE_BUILD_ID = $env:EXPO_PUBLIC_WHISPR_BUILD_ID
+Write-Host "Build id: $($env:EXPO_PUBLIC_WHISPR_BUILD_ID)"
 
 # Native Google sign-in only arms when this id is inlined into the bundle. An
 # APK built without it silently falls back to the browser hand-off, which looks

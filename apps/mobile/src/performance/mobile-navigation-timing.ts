@@ -30,11 +30,28 @@ export type MobileNavigationSpanOrigin = "navigation" | "tap";
  */
 export type MobileNavigationStage = "mounted" | "navigated";
 
+export const MOBILE_NAVIGATION_PHASES = [
+  "tap",
+  "navigation-dispatched",
+  "screen-mounted",
+  "conversation-selection-ready",
+  "query-observer-bound",
+  "query-data-ready",
+  "message-model-built",
+  "list-mounted",
+  "content",
+  "transition-completed",
+] as const;
+
+export type MobileNavigationPhase = (typeof MOBILE_NAVIGATION_PHASES)[number];
+
 type MobileNavigationSpan = {
   readonly cacheHit: boolean;
+  readonly navigationSampleId: string;
   /** Facts learned after the span opened; see `annotateMobileNavigationSpan`. */
   readonly notes: Record<string, unknown>;
   readonly origin: MobileNavigationSpanOrigin;
+  readonly phases: Partial<Record<MobileNavigationPhase, number>>;
   readonly stages: Set<MobileNavigationStage>;
   readonly startedAtMs: number;
 };
@@ -51,6 +68,29 @@ export const MOBILE_NAVIGATION_SPAN_MAX_AGE_MS = 15_000;
 
 const openSpans = new Map<string, MobileNavigationSpan>();
 let abandonedSpanCount = 0;
+let navigationSampleCounter = 0;
+const navigationProcessNonce = Date.now().toString(36);
+
+function nextNavigationSampleId(): string {
+  navigationSampleCounter += 1;
+  return `nav-${navigationProcessNonce}-${navigationSampleCounter}`;
+}
+
+function createSpan(input: {
+  readonly cacheHit: boolean;
+  readonly origin: MobileNavigationSpanOrigin;
+  readonly startedAtMs: number;
+}): MobileNavigationSpan {
+  return {
+    cacheHit: input.cacheHit,
+    navigationSampleId: nextNavigationSampleId(),
+    notes: {},
+    origin: input.origin,
+    phases: input.origin === "tap" ? { tap: 0 } : {},
+    stages: new Set(),
+    startedAtMs: input.startedAtMs,
+  };
+}
 
 export function beginMobileNavigationSpan(
   route: string,
@@ -62,9 +102,9 @@ export function beginMobileNavigationSpan(
    */
   cacheHit = false,
   origin: MobileNavigationSpanOrigin = "tap",
-): void {
+): string | null {
   if (route.length === 0) {
-    return;
+    return null;
   }
 
   // The newest tap wins: an abandoned span (the reader went back before content
@@ -75,7 +115,9 @@ export function beginMobileNavigationSpan(
     abandonedSpanCount += 1;
   }
 
-  openSpans.set(route, { cacheHit, notes: {}, origin, stages: new Set(), startedAtMs });
+  const span = createSpan({ cacheHit, origin, startedAtMs });
+  openSpans.set(route, span);
+  return span.navigationSampleId;
 }
 
 /**
@@ -89,9 +131,10 @@ export function beginMobileNavigationSpan(
 export function annotateMobileNavigationSpan(
   route: string,
   notes: Readonly<Record<string, unknown>>,
+  navigationSampleId?: string | null,
 ): void {
   const span = openSpans.get(route);
-  if (!span) {
+  if (!span || (navigationSampleId && span.navigationSampleId !== navigationSampleId)) {
     return;
   }
 
@@ -104,6 +147,36 @@ export function annotateMobileNavigationSpan(
   }
 }
 
+/** Returns the current route instance's opaque measurement id, never a product id. */
+export function getMobileNavigationSampleId(route: string): string | null {
+  return openSpans.get(route)?.navigationSampleId ?? null;
+}
+
+/** Stores one bounded milestone on the route instance without minting ten samples per open. */
+export function markMobileNavigationPhase(
+  route: string,
+  phase: MobileNavigationPhase,
+  atMs: number = globalThis.performance.now(),
+  navigationSampleId?: string | null,
+): number | null {
+  const span = openSpans.get(route);
+  if (
+    !span ||
+    (navigationSampleId && span.navigationSampleId !== navigationSampleId) ||
+    span.phases[phase] !== undefined
+  ) {
+    return null;
+  }
+
+  const durationMs = atMs - span.startedAtMs;
+  if (durationMs < 0 || durationMs > MOBILE_NAVIGATION_SPAN_MAX_AGE_MS) {
+    return null;
+  }
+
+  span.phases[phase] = Math.round(durationMs * 100) / 100;
+  return durationMs;
+}
+
 /**
  * Records how far into an open a milestone landed, without closing the span.
  *
@@ -114,9 +187,14 @@ export function markMobileNavigationStage(
   route: string,
   stage: MobileNavigationStage,
   atMs: number = globalThis.performance.now(),
+  navigationSampleId?: string | null,
 ): number | null {
   const span = openSpans.get(route);
-  if (!span || span.stages.has(stage)) {
+  if (
+    !span ||
+    (navigationSampleId && span.navigationSampleId !== navigationSampleId) ||
+    span.stages.has(stage)
+  ) {
     return null;
   }
 
@@ -126,8 +204,21 @@ export function markMobileNavigationStage(
   }
 
   span.stages.add(stage);
+  markMobileNavigationPhase(
+    route,
+    stage === "mounted" ? "screen-mounted" : "navigation-dispatched",
+    atMs,
+    span.navigationSampleId,
+  );
   recordMobilePerformanceSample({
-    context: { ...span.notes, cacheHit: span.cacheHit, origin: span.origin, route, stage },
+    context: {
+      ...span.notes,
+      cacheHit: span.cacheHit,
+      navigationSampleId: span.navigationSampleId,
+      origin: span.origin,
+      route,
+      stage,
+    },
     durationMs,
     metric: "navigation",
     surface: "navigation",
@@ -148,18 +239,19 @@ export function ensureMobileNavigationSpan(
   route: string,
   startedAtMs: number = globalThis.performance.now(),
   cacheHit = false,
-): void {
-  if (route.length === 0 || openSpans.has(route)) {
-    return;
+): string | null {
+  if (route.length === 0) {
+    return null;
   }
 
-  openSpans.set(route, {
-    cacheHit,
-    notes: {},
-    origin: "navigation",
-    stages: new Set(),
-    startedAtMs,
-  });
+  const current = openSpans.get(route);
+  if (current) {
+    return current.navigationSampleId;
+  }
+
+  const span = createSpan({ cacheHit, origin: "navigation", startedAtMs });
+  openSpans.set(route, span);
+  return span.navigationSampleId;
 }
 
 /**
@@ -170,9 +262,10 @@ export function ensureMobileNavigationSpan(
 export function completeMobileNavigationSpan(
   route: string,
   completedAtMs: number = globalThis.performance.now(),
+  navigationSampleId?: string | null,
 ): number | null {
   const span = openSpans.get(route);
-  if (!span) {
+  if (!span || (navigationSampleId && span.navigationSampleId !== navigationSampleId)) {
     return null;
   }
 
@@ -183,8 +276,16 @@ export function completeMobileNavigationSpan(
     return null;
   }
 
+  span.phases.content = Math.round(durationMs * 100) / 100;
   recordMobilePerformanceSample({
-    context: { ...span.notes, cacheHit: span.cacheHit, origin: span.origin, route },
+    context: {
+      ...span.notes,
+      cacheHit: span.cacheHit,
+      navigationSampleId: span.navigationSampleId,
+      origin: span.origin,
+      phases: Object.freeze({ ...span.phases }),
+      route,
+    },
     durationMs,
     metric: "navigation",
     surface: "navigation",
@@ -209,4 +310,5 @@ export function getMobileNavigationSpanDiagnostics(): {
 export function resetMobileNavigationTimingForTests(): void {
   openSpans.clear();
   abandonedSpanCount = 0;
+  navigationSampleCounter = 0;
 }

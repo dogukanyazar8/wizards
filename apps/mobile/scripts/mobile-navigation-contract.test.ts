@@ -311,6 +311,17 @@ test("voice room navigation does not retain the legacy overview voice surface", 
   assert.doesNotMatch(voiceJoinBranch, /setActiveWorkspaceVoiceChannelId\(channel\.id\)/);
 });
 
+test("the DirectMessage route, not global selection, owns the transcript query", () => {
+  const containers = read("../src/app/screens/mobile-screen-containers.tsx");
+  const routeState = read("../src/app/features/use-mobile-dm-route-state.ts");
+  const messagingFeature = read("../src/app/features/use-mobile-messaging-feature.ts");
+
+  assert.match(containers, /useMobileDMRouteState\(\{[\s\S]*conversationId/);
+  assert.match(routeState, /useMobileDMMessagesQuery\(input\.apiClient, input\.conversationId\)/);
+  assert.doesNotMatch(messagingFeature, /useMobileDMMessagesQuery/);
+  assert.doesNotMatch(messagingFeature, /dmMessagesQuery/);
+});
+
 test("floating navigation chrome is the measured inset owner for tab roots", () => {
   const chrome = read("../src/navigation/floating-navigation-chrome.tsx");
   const bottomTabBar = read("../src/navigation/mobile-bottom-tab-bar.tsx");
