@@ -132,6 +132,34 @@ describe("mobile API client", () => {
     assert.equal(result, undefined);
   });
 
+  /**
+   * The id is the only thing that ties a slow sample on a phone to the edge's
+   * record of the same call. It has to be per-request and it has to be derived
+   * from nothing the reader owns.
+   */
+  it("sends a fresh opaque correlation id on every request", async () => {
+    const sentIds: (string | null)[] = [];
+    const client = createMobileApiClient({
+      baseUrl: "https://whispr.team",
+      fetchImpl: async (_input, init) => {
+        sentIds.push(new Headers(init?.headers).get("x-request-id"));
+        return new Response(null, { status: 204 });
+      },
+      getAccessToken: () => "access-token-1234567890",
+    });
+
+    await client.requestJson("/api/v1/mobile/bootstrap");
+    await client.requestJson("/api/v1/mobile/bootstrap");
+
+    assert.equal(sentIds.length, 2);
+    assert.notEqual(sentIds[0], sentIds[1]);
+    for (const id of sentIds) {
+      assert.match(id ?? "", /^[0-9a-f]{32}$/);
+      // Nothing about the caller may be recoverable from it.
+      assert.equal(id?.includes("access-token"), false);
+    }
+  });
+
   it("fails offline mutations before token resolution or fetch without queueing", async () => {
     let fetchCalls = 0;
     let tokenCalls = 0;

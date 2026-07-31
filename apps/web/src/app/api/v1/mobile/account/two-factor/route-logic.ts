@@ -62,6 +62,12 @@ function unwrapTwoFactorResult<T extends { success: boolean }>(
       throw new ApiError("Two-factor authentication is not enabled", 409, "NOT_ENABLED");
     case "setup_required":
       throw new ApiError("Two-factor setup is required", 409, "SETUP_REQUIRED");
+    case "verification_unavailable":
+      throw new ApiError(
+        "Two-factor verification is temporarily unavailable",
+        503,
+        "TWO_FACTOR_UNAVAILABLE",
+      );
   }
 }
 

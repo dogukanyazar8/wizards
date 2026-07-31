@@ -193,9 +193,34 @@ export function resetMobileListLoadObserversForTests(): void {
   onListLoadObservers.clear();
 }
 
+/**
+ * Content that arrived without a list to render it.
+ *
+ * `onLoad` is a FlashList callback, and FlashList never fires it for an empty
+ * list — so an empty or failed chat open left its span open forever. Ten DM
+ * opens in a device run all went to the abandoned counter for this reason. An
+ * empty conversation is still an opening the reader waited for, so it closes the
+ * span the same way, without inventing a render duration nobody measured.
+ */
+export function notifyMobileFirstPaint(route: string): void {
+  if (route.length === 0) {
+    return;
+  }
+
+  onListLoadObservers.forEach((observer) => observer(route));
+}
+
 export const mobileListLoadHandlers = Object.freeze({
   channelMessages: ({ elapsedTimeInMs }: MobileListLoadInfo) =>
     recordListLoad("channel-messages", elapsedTimeInMs, "ChannelChat"),
+  /**
+   * The bounded preview card, not the live transcript. It reports its render
+   * cost but closes no span: it renders channel messages inside an already-open
+   * channel screen, and it used to be wired to the DM handler — so every preview
+   * render closed a `DirectMessage` span that a DM open was still waiting on.
+   */
+  channelMessagesPreview: ({ elapsedTimeInMs }: MobileListLoadInfo) =>
+    recordListLoad("channel-messages", elapsedTimeInMs, null),
   dmInbox: ({ elapsedTimeInMs }: MobileListLoadInfo) =>
     recordListLoad("dm-inbox", elapsedTimeInMs, null),
   dmMessages: ({ elapsedTimeInMs }: MobileListLoadInfo) =>

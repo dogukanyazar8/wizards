@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 
+import { getTrustedClientIp } from "@/lib/security/client-ip";
+
 export type AnalyticsClientInfo = {
   appVersion: string | null;
   /** True when `x-whispr-client` declared the platform instead of UA guessing. */
@@ -67,17 +69,10 @@ export function hashAnalyticsValue(value: string | null | undefined) {
   return createHash("sha256").update(`${salt}:${normalized}`).digest("hex");
 }
 
-function getFirstForwardedIp(value: string | null) {
-  return value?.split(",")[0]?.trim() || null;
-}
-
 function getIpAddress(headers: HeaderSource | null | undefined) {
-  return (
-    readHeader(headers, "cf-connecting-ip") ??
-    readHeader(headers, "x-real-ip") ??
-    getFirstForwardedIp(readHeader(headers, "x-forwarded-for")) ??
-    readHeader(headers, "x-client-ip")
-  );
+  return getTrustedClientIp({
+    get: (name) => readHeader(headers, name),
+  });
 }
 
 function detectBrowser(userAgent: string) {

@@ -11,7 +11,7 @@ import {
   shouldLogRateLimitUnavailable,
 } from "@/lib/socket/rate-limits";
 import { readRequestAttribution } from "@/lib/analytics/client-attribution";
-import { createServerTiming } from "@/lib/server-timing";
+import { createServerTimingForRequest } from "@/lib/server-timing";
 import { getSocketServer } from "@/lib/socket/runtime";
 import { sendChannelMessage } from "@/lib/workspace/channel-message-send-service";
 import { mobileChannelMessagesGetRoute } from "./get-route-logic";
@@ -63,7 +63,7 @@ export async function POST(request: Request, context: RouteContext) {
   // A device baseline put this round trip at 589ms p50 after the fan-out came
   // off it. `auth` and `db` split what is left into work the server did and time
   // the wire took, so the next fix is aimed rather than guessed.
-  const timing = createServerTiming();
+  const timing = createServerTimingForRequest(request);
 
   try {
     const stopAuthTiming = timing.start("auth");
@@ -97,6 +97,6 @@ export async function POST(request: Request, context: RouteContext) {
       }),
     });
   } catch (error) {
-    return jsonError(error);
+    return jsonError(error, timing.requestId);
   }
 }

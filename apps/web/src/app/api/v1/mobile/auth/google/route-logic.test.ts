@@ -33,7 +33,7 @@ function createDependencies(
 ): MobileGoogleLoginRouteDependencies {
   return {
     createGoogleSession: async () => ({ session }),
-    enforceIpRateLimit: async () => undefined,
+    enforceRateLimit: async () => undefined,
     parseGoogleLoginRequest: async () => ({ idToken, locale: undefined }),
     ...overrides,
   };
@@ -48,7 +48,7 @@ function createRequest(body: unknown = { idToken }) {
 }
 
 describe("mobile native Google login route", () => {
-  it("rate limits before parsing the token and never caches the session response", async () => {
+  it("rate limits the token fingerprint after parsing and before verification", async () => {
     const calls: string[] = [];
     const response = await mobileGoogleLoginRoute(
       createRequest(),
@@ -57,8 +57,11 @@ describe("mobile native Google login route", () => {
           calls.push("verify-and-mint");
           return { session };
         },
-        enforceIpRateLimit: async () => {
-          calls.push("ip-limit");
+        enforceRateLimit: async (_request, subject) => {
+          assert.equal(subject.namespace, "google-credential");
+          assert.match(subject.value, /^[A-Za-z0-9_-]{43}$/);
+          assert.notEqual(subject.value, idToken);
+          calls.push("rate-limit");
         },
         parseGoogleLoginRequest: async () => {
           calls.push("parse-body");
@@ -67,7 +70,7 @@ describe("mobile native Google login route", () => {
       }),
     );
 
-    assert.deepEqual(calls, ["ip-limit", "parse-body", "verify-and-mint"]);
+    assert.deepEqual(calls, ["parse-body", "rate-limit", "verify-and-mint"]);
     assert.equal(response.status, 200);
     assert.equal(response.headers.get("Cache-Control"), "no-store, no-cache, must-revalidate");
     assert.deepEqual(await response.json(), { session });

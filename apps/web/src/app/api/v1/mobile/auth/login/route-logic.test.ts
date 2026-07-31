@@ -5,17 +5,14 @@ import { MobileAuthPasswordLoginRequestSchema } from "@wizards/types";
 
 import { parseJsonBody } from "@/lib/api";
 import { MobileNativeAuthError } from "@/lib/mobile/auth";
-import {
-  mobilePasswordLoginRoute,
-  type MobilePasswordLoginRouteDependencies,
-} from "./route-logic";
+import { mobilePasswordLoginRoute, type MobilePasswordLoginRouteDependencies } from "./route-logic";
 
 function createDependencies(
   overrides: Partial<MobilePasswordLoginRouteDependencies> = {},
 ): MobilePasswordLoginRouteDependencies {
   return {
     createPasswordSession: async () => null,
-    enforceIpRateLimit: async () => undefined,
+    enforceRateLimit: async () => undefined,
     parseLoginRequest: async () => ({
       email: "ada@example.com",
       password: "wrong-password",
@@ -25,7 +22,7 @@ function createDependencies(
 }
 
 describe("mobile password login route", () => {
-  it("keeps IP limiting before body parsing and account authentication without human verification", async () => {
+  it("rate limits the normalized account after parsing and before authentication", async () => {
     const calls: string[] = [];
     const response = await mobilePasswordLoginRoute(
       new Request("http://localhost/api/v1/mobile/auth/login", {
@@ -38,20 +35,20 @@ describe("mobile password login route", () => {
           calls.push("account-auth");
           return null;
         },
-        enforceIpRateLimit: async () => {
-          calls.push("ip-limit");
+        enforceRateLimit: async (_request, subject) => {
+          calls.push(`rate-limit:${subject.namespace}:${subject.value}`);
         },
         parseLoginRequest: async () => {
           calls.push("parse-body");
           return {
-            email: "ada@example.com",
+            email: "Ada@Example.COM",
             password: "wrong-password",
           };
         },
       }),
     );
 
-    assert.deepEqual(calls, ["ip-limit", "parse-body", "account-auth"]);
+    assert.deepEqual(calls, ["parse-body", "rate-limit:email:ada@example.com", "account-auth"]);
     assert.equal(response.status, 401);
     assert.deepEqual(await response.json(), {
       code: "INVALID_CREDENTIALS",
@@ -95,5 +92,4 @@ describe("mobile password login route", () => {
 
     assert.equal(response.status, 401);
   });
-
 });

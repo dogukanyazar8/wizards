@@ -10,7 +10,7 @@ import {
 
 import { jsonError, parseJsonBody } from "@/lib/api";
 import { authorizeMobileApiRequest } from "@/lib/auth/api";
-import { createServerTiming } from "@/lib/server-timing";
+import { createServerTimingForRequest } from "@/lib/server-timing";
 import { resolveMobileServerCapabilities } from "@/lib/workspace/mobile-capabilities";
 import {
   deleteWorkspaceServer,
@@ -63,7 +63,7 @@ export async function mobileServerDetailRoute(
   context: MobileServerDetailRouteContext,
   dependencies: MobileServerDetailRouteDependencies = defaultDependencies,
 ) {
-  const timing = createServerTiming();
+  const timing = createServerTimingForRequest(request);
 
   try {
     const stopAuthTiming = timing.start("auth");
@@ -86,7 +86,7 @@ export async function mobileServerDetailRoute(
       },
     );
   } catch (error) {
-    return jsonError(error);
+    return jsonError(error, timing.requestId);
   }
 }
 

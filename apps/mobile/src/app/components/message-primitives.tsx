@@ -934,7 +934,7 @@ export function MessageStream({
       contentContainerStyle={styles.dmMessageListContent}
       data={streamItems}
       keyExtractor={(item) => item.id}
-      onLoad={mobileListLoadHandlers.dmMessages}
+      onLoad={mobileListLoadHandlers.channelMessagesPreview}
       ref={listRef}
       renderItem={({ item }) => (
         <View style={styles.messageStreamItem}>

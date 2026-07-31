@@ -133,6 +133,8 @@ function mapTwoFactorError(error: TwoFactorFailureResult["error"]) {
       return "settings.account.twoFactor.errors.rateLimited";
     case "setup_required":
       return "settings.account.twoFactor.errors.setupRequired";
+    case "verification_unavailable":
+      return "settings.account.twoFactor.errors.unavailable";
   }
 }
 

@@ -990,6 +990,22 @@ $env:EXPO_PUBLIC_WHISPR_API_URL = $UatUrl
 $env:EXPO_PUBLIC_WHISPR_SOCKET_URL = $UatUrl
 $env:EXPO_PUBLIC_WHISPR_WEB_URL = $UatUrl
 
+# The commit this APK was cut from. Device telemetry carries it as a dimension,
+# and it is the only way to line a slow sample on a phone up with the edge's own
+# record of the same request. Read from the source tree because the build root is
+# a robocopy mirror without a .git directory.
+$resolvedBuildId = $env:EXPO_PUBLIC_WHISPR_BUILD_ID
+if (-not $resolvedBuildId) {
+  $resolvedBuildId = (& git -C $resolvedSourceRoot rev-parse --short=12 HEAD 2>$null)
+}
+if ($resolvedBuildId -and $resolvedBuildId -match '^[A-Za-z0-9._-]{1,64}$') {
+  $env:EXPO_PUBLIC_WHISPR_BUILD_ID = $resolvedBuildId
+  $env:WHISPR_MOBILE_BUILD_ID = $resolvedBuildId
+  Write-Host "Build id: $resolvedBuildId"
+} else {
+  Write-Warning "No usable commit SHA; this APK will report its build as 'unknown' in telemetry."
+}
+
 # Native Google sign-in only arms when this id is inlined into the bundle. An
 # APK built without it silently falls back to the browser hand-off, which looks
 # exactly like "native sign-in is broken on device".

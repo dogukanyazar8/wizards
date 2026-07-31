@@ -1,16 +1,16 @@
 # Graph Report - Wizards  (2026-07-31)
 
 ## Corpus Check
-- 2393 files · ~1,660,707 words
+- 2451 files · ~1,691,888 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 20088 nodes · 48237 edges · 866 communities (698 shown, 168 thin omitted)
-- Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 669 edges (avg confidence: 0.69)
+- 20506 nodes · 49003 edges · 867 communities (715 shown, 152 thin omitted)
+- Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 670 edges (avg confidence: 0.69)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `fd58e396`
+- Built from commit: `2d6c2c86`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -432,7 +432,7 @@
 - audio-health.ts
 - krisp-quality.ts
 - send-sentry-test-event.ts
-- reset-mobile-session-state.ts
+- mobile-telemetry-dimensions.ts
 - TraceCallable
 - exportedRouteHandler
 - railway-contract.test.ts
@@ -485,13 +485,13 @@
 - urls
 - join
 - globalEnv
-- build.gradle
+- mobile-app-lock-screen.test.tsx
 - settings.gradle
 - build.gradle
 - Task A4: Sıfırlama TTL'i, sosyal sağlayıcı konfigi ve mobil istemci geçişi
 - use-login-theme.ts
-- FakeAudioContext
-- db:generate
+- mobile-session-contract.test.ts
+- session-store.ts
 - test
 - route-logic.ts
 - qrcode
@@ -509,7 +509,7 @@
 - mobileFriendRequestCreateRoute
 - Global Constraints
 - mobile-phase3-m4-ui.test.ts
-- realtime-service.test.ts
+- session-types.ts
 - mobile-social-client.test.ts
 - lint
 - test
@@ -521,11 +521,11 @@
 - expo-linear-gradient
 - Mobil "Dil" ayar ekranı — tasarım
 - @uploadthing/react
-- lucide-react
+- media-capabilities.test.ts
 - assets.d.ts
 - next-env.d.ts
 - Task 10: Add and execute the deterministic Phase 4 Maestro UAT flow
-- mobile-voice-room-panel.tsx
+- mobile-session-resilience.test.tsx
 - @dnd-kit/sortable
 - uploadthing
 - privacy-policy.ts
@@ -540,8 +540,8 @@
 - @tanstack/react-query
 - react-markdown
 - class-variance-authority
-- mobile-google-native-sign-in.ts
-- MobileNotificationsResponse
+- ProfileCardViewHandlers
+- dashboard.ts
 - 0. KAYNAKLAR VE ÇALIŞMA KURALLARI
 - @wizards/types
 - login-redirect.ts
@@ -560,7 +560,7 @@
 - @tanstack/react-query
 - RUN PROMPT — Admin Dalga 1: B1 Yetki + E1 Kampanya Güvenliği
 - expo-navigation-bar
-- @tanstack/query-async-storage-persister
+- voice.spec.ts
 - @dnd-kit/core
 - @dnd-kit/core
 - route-logic.test.ts
@@ -577,7 +577,7 @@
 - socket.io-client
 - RUN PROMPT — Admin Dalga 4: C4 Analitik + E2 Zamanlama + E3 Feedback Zekâsı
 - 16. Railway web ve worker CD
-- mobile-shared-media-screen.test.tsx
+- e2e/uploads/route.ts
 - prisma-generate.mjs
 - build-next.mjs
 - mobile-voice-room-panel.tsx
@@ -596,14 +596,14 @@
 - Whispr Mobil Chat + Medya + Navigasyon — Sıralı Prompt'lar (10a → 10g)
 - service.test.ts
 - expo-local-authentication
-- history/route-logic.ts
+- mobile-google-native-sign-in.ts
 - expo-audio
 - outbox/service.test.ts
 - reauth-cleanup.ts
 - verify-prisma7-disposable.mjs
 - expo-image-picker
 - @livekit/react-native-webrtc
-- decline/route-logic.ts
+- mobile-update-controller.ts
 - mobile-user-profile-service.test.ts
 - @sentry/react-native
 - react-native-gesture-handler
@@ -617,7 +617,7 @@
 - mobile-dm-attachments-client.ts
 - channels/route-logic.ts
 - livekit-server-sdk
-- route-guard.ts
+- mobile-voice-audience-grid.ts
 - @tauri-apps/plugin-notification
 - @uploadthing/react
 - zod
@@ -631,7 +631,7 @@
 - expo-document-picker
 - expo-file-system
 - navigation-helper.test.ts
-- expo-haptics
+- client-health-rollup.ts
 - expo-navigation-bar
 - mobile-voice-room-panel.tsx
 - state-cache.test.ts
@@ -657,7 +657,7 @@
 - expo-image-manipulator
 - uploadthing.ts
 - expo-local-authentication
-- @emoji-mart/react
+- [categoryId]/route-logic.ts
 - @sentry/cli
 - socket.io-client
 - mobile-media-upload-architecture.test.ts
@@ -666,9 +666,9 @@
 - 20260727170000_client_health_flags_push/migration.sql
 - notifications/route-logic.test.ts
 - mobile-phase-zero-boundary.test.ts
-- MemoryRedis
+- mobile-voice-room-panel.tsx
 - mobile-two-factor-client.ts
-- @socket.io/redis-adapter
+- moderation/appeal/route.ts
 - desktop
 - mobile-account-password-client.ts
 - TraceCallable
@@ -681,7 +681,7 @@
 - mobile-device-integrity-warning.test.tsx
 - mobile-message-menu-lifecycle.test.tsx
 - mobile-voice-message-recorder.ts
-- @dnd-kit/utilities
+- mobile-phase3-m4-ui.test.ts
 - expo-image-picker
 - auth-welcome-brand-mark.tsx
 - expo-localization
@@ -708,7 +708,7 @@
 - 20260727120000_add_roadmap_item_version_label/migration.sql
 - 20260727130000_allow_feedback_attachment_uploads/migration.sql
 - react-native-gesture-handler
-- db:generate
+- use-mobile-feedback-attachment-upload.ts
 - dashboard/route.test.ts
 - @dnd-kit/utilities
 - @react-navigation/bottom-tabs
@@ -717,18 +717,18 @@
 - FakeSource
 - @react-native-async-storage/async-storage
 - mobile-admin-model.ts
-- dashboard/route.test.ts
+- history/route-logic.ts
 - CASE_STALE_AFTER_MS
 - 20260729140000_message_client_nonce/migration.sql
 - request/route-logic.ts
 - COHORT_WINDOW_MS
-- overview/route-logic.ts
+- servers/route-logic.ts
 - lib/api.test.ts
 - MessageItem.tsx
-- view/route-logic.ts
-- mobile-invite-share.ts
+- categories/route-logic.ts
+- channels/route-logic.ts
 - resolveTraceValue
-- upload-persistence.test.ts
+- next-auth-beta-contract.test.ts
 - admin-nav-search.tsx
 - mobile-call-pulse.test.tsx
 - Task A4: Sıfırlama TTL'i, sosyal sağlayıcı konfigi ve mobil istemci geçişi
@@ -740,10 +740,10 @@
 - Q: Why does MobileAboutWhatsNewScreen show release notes only once and fail on re-entry?
 - Q: Whispr logosunun üstünde garip bir beyaz çizgi görüntülüyorum, bunu düzeltir misin?
 - lint
-- db:generate
+- details.test.ts
 - test
-- admin-kit-contract.test.ts
-- MemoryRedis
+- mobile-auth-social-config.ts
+- google-signin-doctor.ts
 - @shopify/flash-list
 - @babel/runtime
 - qrcode
@@ -751,103 +751,104 @@
 - bootstrap.test.ts
 - mobile-overlay-host.test.tsx
 - Q: Mobil uygulama maksimum performans planinin repo kanitli degerlendirmesi
-- FakeMediaStream
+- mobile-session-wipe.ts
 - expo-crypto
 - expo-dev-client
 - expo-font
 - @dnd-kit/core
-- typecheck
-- MemoryRedis
-- expo-notifications
+- mobile-social-client.test.ts
+- uploadthing/route.ts
+- mobile/package.json
 - pg
 - react-dom
 - Whispr "Hakkında" yeniden tasarımı — uygulama prompt paketi
-- @tauri-apps/plugin-process
-- expo-local-authentication
+- mobile-locale-coverage.test.ts
+- mobile-voice-room-panel.tsx
 - MobileRoadmapScreenProps
-- mobile-camera-contract.ts
+- login-proof.ts
 - 20260728130000_dm_delivery_receipts/migration.sql
-- expo-secure-store
+- mobile-shared-media-screen.test.tsx
 - 20260729090000_client_health_percentiles/migration.sql
-- expo-updates
-- admin/releases/route.ts
-- mobile/package.json
-- @livekit/react-native-webrtc
-- react
-- MobileServerSettingsScreenProps
+- mobile-theme-contract.test.ts
+- view/route-logic.ts
+- MobileFeedbackSubmittedScreenProps
+- registration-compensation.ts
+- admin-kit-contract.test.ts
+- 0. KAYNAKLAR VE ÇALIŞMA KURALLARI
 - Q: Admin yayin akisinda yeni surum olusturup yayinladim; Denetle neden tepki vermiyor ve nasil test ederim?
-- admin/releases/route.ts
+- access-context.test.ts
 - MobileNotificationsResponse
 - admin-nav-items.ts
 - 20260729120000_about_releases_help_reports/migration.sql
 - schema-test-helpers.ts
-- mobile-privacy-shield.ts
-- react-native-view-shot
+- [version]/route-logic.ts
+- servers/route-logic.ts
 - qrcode
 - admin-kit-contract.test.ts
-- 0. KAYNAKLAR VE ÇALIŞMA KURALLARI
+- mobile-direct-video-call-screen.test.tsx
 - lint
 - @babel/runtime
-- expo
-- expo-audio
+- mobile-voice-invite-row.ts
+- expo-crypto
 - expo-constants
 - expo-device
-- expo-document-picker
-- expo-font
+- Task A4: Sıfırlama TTL'i, sosyal sağlayıcı konfigi ve mobil istemci geçişi
+- bootstrap.test.ts
 - expo-linear-gradient
-- expo-image-picker
-- expo-local-authentication
-- expo-notifications
-- expo-secure-store
+- Task 10: Add and execute the deterministic Phase 4 Maestro UAT flow
 - @expo/vector-icons
+- @livekit/react-native-expo-plugin
 - overview/route-logic.ts
-- @livekit/react-native
+- react-native
 - @react-native-async-storage/async-storage
 - Q: Adım 13 2h puanlama sheet'i nasıl uygulanır?
 - @react-native-community/netinfo
 - Q: Hakkında ekranındaki X ve Instagram linkleri nerede yapılandırılıyor?
-- react-native-keyboard-controller
+- expo-clipboard
 - react-native-reanimated
 - Q: Yenilikler ekranındaki Bildir butonunu Hakkında sorun bildir sayfasına nasıl yönlendiririz?
-- react-native-screens
-- @react-navigation/bottom-tabs
-- @sentry/react-native
-- @livekit/react-native-expo-plugin
-- MobileRoadmapScreenProps
-- @shopify/flash-list
-- @tanstack/react-query-persist-client
 - @babel/runtime
 - build
 - 0. KAYNAKLAR VE ÇALIŞMA KURALLARI
-- @wizards/types
 - Q: 1A Hakkında sağ üst kopyala eylemi ve beta katılım toast okunabilirliği nerede çözülür?
 - Q: 17-android-apk-guncelleme.md dosyasını inceleyip imzalama özel anahtarıyla ilgili öneride bulun
-- @auth/prisma-adapter
 - emptyStringToNull
 - 20260730100000_mobile_update_delivery/migration.sql
 - Mobile OTA signing trust roots
-- bootstrap.test.ts
+- Q: Which reported security findings require fixes, and how should related work be grouped into implementation prompts?
 - expo-file-system
-- react-native
+- expo-font
+- @socket.io/redis-adapter
+- expo-secure-store
+- expo-system-ui
+- @sentry/cli
 - @sentry/react-native
+- @react-native-google-signin/google-signin
+- describeFile
 - @dnd-kit/utilities
-- @hookform/resolvers
-- jose
-- livekit-server-sdk
-- next-auth
 - tailwind-merge
-- @tanstack/react-query
 - @tauri-apps/plugin-updater
-- @wizards/ui
-- Task 10: Add and execute the deterministic Phase 4 Maestro UAT flow
-- @react-navigation/native
+- bcryptjs
+- @livekit/components-core
+- @prisma/adapter-pg
+- @prisma/client
+- @prisma/instrumentation
+- react-markdown
+- socket.io
+- uploadthing
+- @uploadthing/react
+- @wizards/db
+- zustand
+- 20260731120000_encrypt_totp_secrets/migration.sql
+- ioredis
+- next-auth
 
 ## God Nodes (most connected - your core abstractions)
 1. `jsonError()` - 444 edges
 2. `useTheme()` - 306 edges
 3. `enforceApiRateLimit()` - 268 edges
 4. `useThemedStyles()` - 253 edges
-5. `parseJsonBody()` - 239 edges
+5. `parseJsonBody()` - 234 edges
 6. `useI18n()` - 197 edges
 7. `ApiError` - 193 edges
 8. `cn()` - 167 edges
@@ -857,255 +858,255 @@
 ## Surprising Connections (you probably didn't know these)
 - `MobileAboutPreferences` --references--> `MobileReleaseChannel`  [EXTRACTED]
   apps/mobile/src/about/mobile-about-preferences.ts → packages/types/src/mobile.ts
-- `MobileErrorFeedbackSection()` --calls--> `formatFeedbackPublicNumber()`  [EXTRACTED]
-  apps/mobile/src/app/mobile-error-boundary.tsx → packages/types/src/mobile-feedback.ts
 - `MobileUserNoteCacheSnapshot` --references--> `MobileUserProfile`  [EXTRACTED]
   apps/mobile/src/social/mobile-user-note-query.ts → packages/types/src/mobile-social.ts
-- `listRustSources()` --indirect_call--> `entry()`  [INFERRED]
-  apps/desktop/scripts/cargo-security-baseline.test.mjs → apps/mobile/scripts/mobile-overlay-registry.test.ts
 - `flattenStyle()` --indirect_call--> `entry()`  [INFERRED]
   apps/mobile/component-tests/mobile-about-bug-report-2f.test.tsx → apps/mobile/scripts/mobile-overlay-registry.test.ts
+- `flattenStyle()` --indirect_call--> `entry()`  [INFERRED]
+  apps/mobile/component-tests/mobile-about-community-2g.test.tsx → apps/mobile/scripts/mobile-overlay-registry.test.ts
+- `flattenStyle()` --indirect_call--> `entry()`  [INFERRED]
+  apps/mobile/component-tests/mobile-about-rating-2h.test.tsx → apps/mobile/scripts/mobile-overlay-registry.test.ts
 
 ## Import Cycles
 - None detected.
 
-## Communities (866 total, 168 thin omitted)
+## Communities (867 total, 152 thin omitted)
 
 ### Community 0 - "mobile.ts"
-Cohesion: 0.01
-Nodes (201): notification, notificationService, useMobileChannelPinsQuery(), useMobileChannelReadMutation(), buildMobileChannelMarkReadPath(), buildMobileChannelPinnedMessagesPath(), DeleteMobileChannelMessageInput, FetchMobileChannelMessageThreadInput (+193 more)
+Cohesion: 0.02
+Nodes (185): notification, notificationService, getMobileVoiceStatesQueryOptions(), useMobileVoiceStatesQuery(), fetchMobileVoiceStates(), sendMobileVoiceHeartbeat(), EMPTY_MOBILE_BOOTSTRAP_HOME, GetMobileBootstrapPayloadInput (+177 more)
 
 ### Community 1 - "mobile-open-source-licenses-screen.tsx"
-Cohesion: 0.06
+Cohesion: 0.05
 Nodes (70): handler, messagesRenderProps, mockMessagesProps, mockNavigationActions, mockOverviewProps, navigate, navigation, onOpenDMConversation (+62 more)
 
 ### Community 2 - "mobile-release-contract.ts"
 Cohesion: 0.04
-Nodes (69): budgets, summary, __dirname, eas, mobilePackage, result, rootPackage, buildRealEvidence() (+61 more)
+Nodes (59): budgets, __dirname, eas, mobilePackage, result, rootPackage, buildRealEvidence(), compromisedEvidence (+51 more)
 
 ### Community 3 - "[serverId]/route-logic.ts"
-Cohesion: 0.01
-Nodes (264): androidThreeButtonMetrics, renderShell(), styles, channelSummary, DMMessage, renderRow(), channelSummary, createChannelMessage() (+256 more)
+Cohesion: 0.02
+Nodes (169): channelSummary, channelSummary, createChannelMessage(), mentionCandidates, mentionRegistry, renderChannelScreen(), IMAGE_ATTACHMENT, mockGestureHandlers (+161 more)
 
 ### Community 4 - "mobile-workspace-management.ts"
-Cohesion: 0.02
-Nodes (102): metadata, NotificationComposer(), NotificationComposerProps, parseUserIds(), RequestState, SegmentType, PrimaryButton(), ClearChannelHistoryAction() (+94 more)
+Cohesion: 0.05
+Nodes (64): AUDIENCE_SELECTOR_OPTIONS, AudienceSelector(), AudienceSelectorOption, AudienceSelectorProps, AudienceSelectorValue, AppleIcon(), AUDIENCE_ICON_CLASS, AUDIENCES (+56 more)
 
 ### Community 5 - "build-server.mjs"
 Cohesion: 0.29
 Nodes (5): localAliasPlugin, nextEsmPlugin, srcRoot, webRoot, workspaceRoot
 
 ### Community 6 - "mobile-realtime-provider.tsx"
-Cohesion: 0.06
-Nodes (58): friends, linkInvite, mockUseMobileAuth, mountSheet(), openUsernameTab(), pendingInvites, RequestHandler, searchResults (+50 more)
+Cohesion: 0.02
+Nodes (169): englishRow, mockSelection, { Pressable, View: NativeView }, ReactRuntime, renderSheet(), microphone, mockSelection, React (+161 more)
 
 ### Community 7 - "voice-store.ts"
-Cohesion: 0.10
-Nodes (38): DesktopGameOverlayLayout, DEFAULT_DESKTOP_GAME_OVERLAY_GAME_PREFERENCE, DESKTOP_GAME_OVERLAY_EXECUTABLE_NAMES, DESKTOP_GAME_OVERLAY_EXECUTABLE_WHITELIST, DesktopGameOverlayGamePreference, DesktopGameOverlayGameSettings, isWhitelistedDesktopGameExecutable(), normalizeDesktopExecutableName() (+30 more)
+Cohesion: 0.07
+Nodes (57): DesktopGameOverlayLayout, DEFAULT_DESKTOP_GAME_OVERLAY_GAME_PREFERENCE, DESKTOP_GAME_OVERLAY_EXECUTABLE_WHITELIST, DesktopGameOverlayGamePreference, DesktopGameOverlayGameSettings, isWhitelistedDesktopGameExecutable(), normalizeDesktopExecutableName(), resolveDesktopGameOverlayProcessGate() (+49 more)
 
 ### Community 8 - "chat-area.tsx"
-Cohesion: 0.06
-Nodes (44): BuildExpoConfig, buildTestExpoConfig(), config, originalEnv, require, metadata, readiness, summary (+36 more)
+Cohesion: 0.07
+Nodes (32): ACCOUNT_SETTINGS, createPermissionReadiness(), createProfileSettingsScreenProps(), createSeededQueryClient(), errorProps, healthySync, mockMobileAccountSettingsScreen, mockNavigate (+24 more)
 
 ### Community 9 - "desktop-experience.tsx"
-Cohesion: 0.04
-Nodes (119): AdminConsoleDetachButton(), subscribeToDesktopRuntime(), DesktopDiagnosticsPanel(), DiagnosticTone, formatCapabilityDetail(), formatDesktopError(), formatSurfaceStatus(), getCapabilityStatusLabel() (+111 more)
+Cohesion: 0.05
+Nodes (100): Dependencies, AdminConsoleDetachButton(), subscribeToDesktopRuntime(), DesktopDiagnosticsPanel(), DiagnosticTone, formatCapabilityDetail(), formatDesktopError(), formatSurfaceStatus() (+92 more)
 
 ### Community 10 - "mobile-appearance-settings-screen.tsx"
-Cohesion: 0.04
-Nodes (112): channel, channelSections, conversation, message, mockExpoImageRender, mockFlashListRender, server, voiceChannelSections (+104 more)
+Cohesion: 0.02
+Nodes (247): channel, ChannelPreviewProps, conversation, DmPreviewProps, message, channel, channelSections, conversation (+239 more)
 
 ### Community 11 - "mobile-display-model.ts"
-Cohesion: 0.02
-Nodes (192): coveredSlots, darkSlot, darkTint, identityIds, initials, invalidTheme, lightSlot, lightTint (+184 more)
+Cohesion: 0.01
+Nodes (260): PasswordResetInput, PasswordResetResult, gestureInsets, threeButtonInsets, accessory, button, checkbox, input (+252 more)
 
 ### Community 12 - "mobile-message-cache.test.ts"
-Cohesion: 0.01
-Nodes (298): { client, requests }, createClient(), malformedClient, managedDetail, offlineMember, onlineMember, options, rows (+290 more)
+Cohesion: 0.06
+Nodes (59): isRecord(), normalizeNullableString(), normalizePresenceStatus(), parsePresencePayload(), parsePresenceRecord(), PRESENCE_STATUSES, PresenceFallback, PresenceFields (+51 more)
 
 ### Community 13 - "MobileMutationSuccessResponseSchema"
-Cohesion: 0.07
-Nodes (37): AdminHelpPage(), AdminSupportPage(), AdminGridTable(), draftRelease, publishedRelease, AdminHelpArticle, AdminHelpArticles(), EditorState (+29 more)
+Cohesion: 0.03
+Nodes (131): coveredSlots, darkSlot, darkTint, identityIds, initials, invalidTheme, lightSlot, lightTint (+123 more)
 
 ### Community 14 - "mobile-dm-client.ts"
-Cohesion: 0.18
-Nodes (18): attributionIsRequired(), ClientAttribution, UNKNOWN_ATTRIBUTION, AnalyticsClientInfo, AnalyticsMetricClient, endMediaUsageSession(), getUtcDayStart(), HeaderSource (+10 more)
+Cohesion: 0.05
+Nodes (39): actual, attach, conversation, createMessage(), createRowProps(), DMMessage, emoji, emojiStyle (+31 more)
 
 ### Community 15 - "mobile-voice-room-contract.ts"
-Cohesion: 0.08
-Nodes (19): { map, storage }, PROMPT_OPTIONS, reopenedStore, source, { storage }, store, expoSecureStoreAdapter, mobileAppLockPreferenceStore (+11 more)
+Cohesion: 0.05
+Nodes (66): mockDescribe, mockPurgePerformanceSamples, mockReadPerformanceSamples, StoredSample, storedSamples, AppStateStatus, resumeSamples(), MOBILE_ROOT (+58 more)
 
 ### Community 16 - "live-voice-provider.tsx"
-Cohesion: 0.05
-Nodes (73): control, dark, light, mockGetItem, mockSetHapticsEnabled, mockSetItem, system, toggle (+65 more)
+Cohesion: 0.04
+Nodes (96): control, dark, light, mockGetItem, mockSetHapticsEnabled, mockSetItem, system, toggle (+88 more)
 
 ### Community 17 - "dm/client.ts"
-Cohesion: 0.10
-Nodes (47): restoreMobileProfilePresenceCaches(), actOnMobileFriendRequest(), blockMobileFriend(), cancelMobileFriendRequest(), createMobileFriendRequest(), encodeId(), fetchMobileFriends(), fetchMobileFriendSuggestions() (+39 more)
+Cohesion: 0.11
+Nodes (45): restoreMobileProfilePresenceCaches(), actOnMobileFriendRequest(), blockMobileFriend(), cancelMobileFriendRequest(), createMobileFriendRequest(), encodeId(), fetchMobileFriends(), fetchMobileFriendSuggestions() (+37 more)
 
 ### Community 18 - "friends-view.tsx"
-Cohesion: 0.05
-Nodes (61): ConfirmDialog(), ConfirmState, EMPTY_BLOCKED_USERS, EMPTY_FRIENDS, EMPTY_PENDING, FRIENDS_TAB_IDS, FriendsMetricTone, FriendsTabId (+53 more)
+Cohesion: 0.03
+Nodes (85): DmConversationItem(), DmConversationItemView, DmFilterId, DmFilterOption, DmFilterTabs(), DmSidebar(), DmSidebarProps, getStatusDotClass() (+77 more)
 
 ### Community 19 - "wizards-shell.tsx"
-Cohesion: 0.03
-Nodes (129): ChannelConversationPage(), ChannelConversationPageProps, ChatArea(), buildReorderPayload(), CategorySortableHandle, ChannelDropZone(), ChannelDropZoneProps, ChannelSidebar() (+121 more)
+Cohesion: 0.04
+Nodes (103): ClearChannelHistoryAction(), ClearChannelHistoryActionProps, buildReorderPayload(), CategorySortableHandle, ChannelDropZone(), ChannelDropZoneProps, ChannelSidebar(), ChannelSidebarProps (+95 more)
 
 ### Community 20 - "mobile-server-management-client.ts"
-Cohesion: 0.04
-Nodes (70): createDirectCallRoom(), createParticipant(), createProps(), renderDirectCall(), model, participants, room, candidates (+62 more)
+Cohesion: 0.05
+Nodes (65): FIRST_PAGE, INSTALLED_RELEASE, mockUseMobileAuth, ReleaseHistoryScreen, ReleaseHistoryScreenProps, SECOND_PAGE, BUNDLED_RELEASES, getBundledMobileRelease() (+57 more)
 
 ### Community 21 - "notification-campaigns.ts"
-Cohesion: 0.07
-Nodes (42): FILES_PAGE, image(), LINKS_PAGE, MEDIA_PAGE, MEDIA_PAGE_TWO, mockFetchAttachments, WAIT, rowOptions (+34 more)
+Cohesion: 0.09
+Nodes (37): viewport, reportMobileListBlankArea(), fill(), formatDiagnosticsTime(), MobilePerformanceDiagnosticsScreen(), MobileChatTransitionVariant, computeMobileListBlankArea(), getMobileListBlankAreaSnapshot() (+29 more)
 
 ### Community 22 - "mobile-voice-provider.tsx"
-Cohesion: 0.02
-Nodes (173): PasswordResetInput, PasswordResetResult, onOpenWebSignIn, onSignIn, pendingSignIn, renderLogin(), SignInInput, SocialSignInResult (+165 more)
+Cohesion: 0.03
+Nodes (108): mockGetItem, mockSetItem, lightGreen, scaled, violet, mockGetItem, mockSetItem, onBack (+100 more)
 
 ### Community 23 - "mobile-account-settings-screen.tsx"
-Cohesion: 0.05
-Nodes (55): AppLockHarness(), cameraState, mockCompleteAuthHandoff, mockGetAccessToken, mockRequestCamera, mockRequestDocument, mockRequestMicrophone, mockRequestNotifications (+47 more)
+Cohesion: 0.35
+Nodes (10): MOBILE_PUSH_ANDROID_CHANNELS, MOBILE_PUSH_INCOMING_CALL_ACTIONS, MobilePushData, parseMobilePushData(), readString(), resolveMobilePushNavigationPath(), shouldPresentMobilePushInForeground(), MobilePushResponseRuntimeOptions (+2 more)
 
 ### Community 24 - "outbox/service.ts"
-Cohesion: 0.04
-Nodes (69): f, isUploadUserAllowed(), requireMessageUploadUser(), requireProfileAvatarUploadUser(), requireUploadUser(), resolveMessageUploadUserId(), existingRouteConfigs, uploadRouter (+61 more)
+Cohesion: 0.09
+Nodes (25): changeMobilePassword(), MobilePasswordChangeFailure, defaultDependencies, mobileAccountPasswordChangeRoute(), MobilePasswordChangeUser, MobilePasswordRouteDependencies, NO_STORE_HEADERS, validBody (+17 more)
 
 ### Community 25 - "mobile/auth.ts"
-Cohesion: 0.04
-Nodes (88): assertMobileLoginAttemptAllowed(), getMobileLoginAccountIdentifier(), getMobileLoginAttemptKey(), mobileLoginAttemptTracker, recordMobileLoginAttemptFailure(), resetMobileLoginAttemptFailures(), consumeMobileRefreshToken(), createMobileAccessToken() (+80 more)
+Cohesion: 0.05
+Nodes (60): assertMobileLoginAttemptAllowed(), getMobileLoginAccountIdentifier(), getMobileLoginAttemptKey(), mobileLoginAttemptTracker, recordMobileLoginAttemptFailure(), resetMobileLoginAttemptFailures(), createMobileAccessToken(), createMobileGoogleSession() (+52 more)
 
 ### Community 26 - "mobile-shared-media-screen.tsx"
-Cohesion: 0.04
-Nodes (72): authBodyFont, bodyFont, displayFont, messageInterFont, messageOpenSansFont, messageOutfitFont, messageRalewayFont, metadata (+64 more)
+Cohesion: 0.07
+Nodes (50): AdminThemePicker(), subscribeToHydration(), AUTH_THEME_ROUTES, AuthThemePickerCorner(), getClientHydrationSnapshot(), getServerHydrationSnapshot(), getThemeMode(), LANGUAGE_OPTIONS (+42 more)
 
 ### Community 27 - "mobile-auth-context.tsx"
 Cohesion: 0.03
-Nodes (147): PATCH(), DELETE(), noStoreHeaders, POST(), PATCH(), DELETE(), defaultVoiceStateRouteDependencies, deleteVoiceStateRoute() (+139 more)
+Nodes (125): attributionIsRequired(), DELETE(), noStoreHeaders, POST(), GET(), DELETE(), deleteVoiceStateRoute(), postVoiceStateRoute() (+117 more)
 
 ### Community 28 - "use-mobile-message-mutations.ts"
-Cohesion: 0.17
-Nodes (14): microphone, mockSelection, React, renderChrome(), styles, tabBarProps, { View }, mobileNavigationMetrics (+6 more)
+Cohesion: 0.09
+Nodes (28): DesktopOAuthCompleteClient(), DesktopOAuthCompleteClientProps, DesktopOAuthCompleteLabels, DesktopStartClient(), DesktopStartClientProps, waitForMainWindowViewport(), waitForMinimumStartupVisibility(), DesktopStartPage() (+20 more)
 
 ### Community 29 - "attachments.ts"
-Cohesion: 0.06
-Nodes (32): setServerRoomIdsCacheRedisForTest(), accessMembership(), categories, categoryChannels, categorySelect, defaultRole(), defaultRoleEntry, defaultRoleRow (+24 more)
+Cohesion: 0.05
+Nodes (39): anyElement, Providers(), renderHosted(), anyElement, mockIdleMutation, mockShowToast, Opener(), peerProfile (+31 more)
 
 ### Community 30 - "link-preview.ts"
-Cohesion: 0.08
-Nodes (46): ATTACHMENT_REDIRECT_STATUSES, AttachmentHttpResponse, getHeader(), isRedirectStatus(), openPublicAttachmentDownload(), requestPublicAttachmentUrl(), assertPublicHttpUrl(), assertPublicResolvedAddresses() (+38 more)
+Cohesion: 0.06
+Nodes (59): GET(), jsonDesktopDownloadError(), ATTACHMENT_REDIRECT_STATUSES, AttachmentHttpResponse, getHeader(), isRedirectStatus(), openPublicAttachmentDownload(), requestPublicAttachmentUrl() (+51 more)
 
 ### Community 31 - "useMobileLocaleRuntime"
 Cohesion: 0.04
-Nodes (108): ensureOwner(), ensureServerPermission(), ensureUserNotServerBanned(), getAccessContext(), getAccessContextWithClient(), { client }, { client, operations }, operations (+100 more)
+Nodes (85): dependencies(), previewFixture(), routes, actor, authorizationRoles, calls, cases, dependencies() (+77 more)
 
 ### Community 32 - "auth-welcome-screen.test.tsx"
 Cohesion: 0.07
-Nodes (39): GET(), assertExpectedSignature(), defaultDependencies, EXPO_RESPONSE_HEADERS, otaManifestRoute(), OtaManifestRouteDependencies, OtaRequestHeadersSchema, parseHeaders() (+31 more)
+Nodes (42): GET(), assertExpectedSignature(), defaultDependencies, EXPO_RESPONSE_HEADERS, otaManifestRoute(), OtaManifestRouteDependencies, OtaRequestHeadersSchema, parseHeaders() (+34 more)
 
 ### Community 33 - "provider-lifecycle.test.ts"
 Cohesion: 0.04
-Nodes (55): VoiceAudioLevelPayload, ConnectLiveKitRoomClient, ConnectLiveKitRoomRetryOptions, connectLiveKitRoomWithRetry(), createReconnectTimeoutController(), createVoiceAudioLevelMonitor(), getParticipantAudioActivity(), isTransientLiveKitSignalRequestError() (+47 more)
+Nodes (53): createServer(), VoiceAudioLevelPayload, ConnectLiveKitRoomClient, ConnectLiveKitRoomRetryOptions, createVoiceAudioLevelMonitor(), getParticipantAudioActivity(), isTransientLiveKitSignalRequestError(), LIVEKIT_CONNECT_RETRY_DELAYS_MS (+45 more)
 
 ### Community 34 - "20260725000000_uat_schema_baseline/migration.sql"
 Cohesion: 0.11
 Nodes (48): "Account", "AccountReauthChallenge", "AdminAuditLog", "AdminMembership", "AppSession", "Attachment", "AuditLog", "Channel" (+40 more)
 
 ### Community 35 - "mobile-api-client.ts"
-Cohesion: 0.06
-Nodes (81): MobileVoiceChannelScreenModel, MobileIoniconName, useVoiceRoomTheme(), formatMobileVoiceRoomDuration(), getMobileActiveVoiceRoomModel(), shouldTickMobileVoiceRoomDuration(), getDirectCallName(), getDirectCallParticipant() (+73 more)
+Cohesion: 0.09
+Nodes (48): useVoiceRoomTheme(), MobileOutgoingCallSurface(), ActiveVoiceRoomAudience(), ActiveVoiceRoomConnectionTone, ActiveVoiceRoomControl(), ActiveVoiceRoomNoiseToggle(), ActiveVoiceRoomParticipantCard(), ActiveVoiceRoomSessionStrip() (+40 more)
 
 ### Community 36 - "types/src/index.ts"
-Cohesion: 0.04
-Nodes (61): DesktopOAuthClaimClient(), DesktopOAuthClaimClientProps, DesktopOAuthClaimLabels, getServerDesktopRuntimeSnapshot(), subscribeToDesktopRuntime(), DesktopOAuthCompleteClient(), DesktopOAuthCompleteClientProps, DesktopOAuthCompleteLabels (+53 more)
+Cohesion: 0.11
+Nodes (25): ActiveVoiceCard(), buildMemberGroups(), getGroupPreview(), getRoleColorStyle(), getRoleDisplay(), getRoleKind(), getRoleRank(), getServerChannels() (+17 more)
 
 ### Community 37 - "voice.spec.ts"
 Cohesion: 0.04
-Nodes (92): buildOptimisticMessage(), ChatAreaContent(), ChatAreaProps, createOptimisticMessageId(), FloatingPanelPosition, getFloatingPanelPosition(), PendingMessagePayload, MessageItem (+84 more)
+Nodes (93): ChannelConversationPage(), ChannelConversationPageProps, buildOptimisticMessage(), ChatArea(), ChatAreaContent(), createOptimisticMessageId(), FloatingPanelPosition, getFloatingPanelPosition() (+85 more)
 
 ### Community 38 - "attempt-tracker.ts"
-Cohesion: 0.08
-Nodes (36): AdminServersPage(), AdminServersPageProps, AdminServersResult, AdminUsersResult, servers, users, AdminManagementPagination(), AdminManagementPaginationProps (+28 more)
+Cohesion: 0.07
+Nodes (42): viewport, rowOptions, MOBILE_OVERLAY_OPEN_SPRING, clamp(), createStyles(), getMobileLightboxContainedSize(), getMobileLightboxPanBound(), MobileLightboxSize (+34 more)
 
 ### Community 39 - "src/messages.ts"
-Cohesion: 0.06
-Nodes (35): defaultDependencies, mobileLinkPreviewRoute(), MobileLinkPreviewRouteDependencies, POST(), PUT(), GET(), POST(), defaultDependencies (+27 more)
+Cohesion: 0.10
+Nodes (32): defaultDependencies, MobileProfileRouteDependencies, mobileProfileUpdateRoute(), calls, PATCH(), GET(), defaultDependencies, loadMobileAccountSettings() (+24 more)
 
 ### Community 40 - "workspace-browser.tsx"
-Cohesion: 0.01
-Nodes (308): ConsentToggleHarness(), contrastRatio(), flattenStyle(), parseRgb(), relativeLuminance(), requestConsent(), Rgb, storedValues (+300 more)
+Cohesion: 0.06
+Nodes (53): changes, mockUseMobileAuth, buildDiagnosticsText(), isMobileReleaseNewer(), MobileAboutCopy, MobileAboutUpdatePresentation, channelPreferenceListeners, MOBILE_ABOUT_DEFAULT_PREFERENCES (+45 more)
 
 ### Community 41 - "mobile-quality-gate.ts"
-Cohesion: 0.04
-Nodes (79): captureOptions, hookSource, payload, publishOptions, roomContractSource, serviceSource, stateSource, voiceScreenSource (+71 more)
+Cohesion: 0.05
+Nodes (69): captureOptions, hookSource, payload, publishOptions, roomContractSource, serviceSource, stateSource, voiceScreenSource (+61 more)
 
 ### Community 42 - "analytics/service.ts"
-Cohesion: 0.07
-Nodes (41): NotificationCampaignCreateRequestSchema, client, operations, tx, TOMORROW, AttachmentScanPayloadSchema, CampaignSendJobDependencies, CampaignSendPayloadSchema (+33 more)
+Cohesion: 0.05
+Nodes (59): install(), authBodyFont, bodyFont, displayFont, messageInterFont, messageOpenSansFont, messageOutfitFont, messageRalewayFont (+51 more)
 
 ### Community 43 - "e2e/environment.ts"
 Cohesion: 0.10
-Nodes (37): assertSafeE2EDatabase(), assertSafeE2ERedis(), E2E_CONTRIBUTOR_NAMES, getE2EDatabaseUrl(), resetAndSeedE2EData(), resetE2EData(), resetE2ERedisState(), seedE2EData() (+29 more)
+Nodes (38): assertSafeE2EDatabase(), assertSafeE2ERedis(), createE2EPrismaClient(), E2E_CONTRIBUTOR_NAMES, getE2EDatabaseUrl(), resetAndSeedE2EData(), resetE2EData(), resetE2ERedisState() (+30 more)
 
 ### Community 44 - "mobile-social.ts"
 Cohesion: 0.03
-Nodes (78): changeMobilePassword(), MobilePasswordChangeFailure, fetchMobileDMAttachments(), fetchMobileDMDetails(), MOBILE_PROFILE_BANNER_COLORS, MobileAccountDmPolicySchema, MobileAccountFriendRequestPolicySchema, MobileAccountLocale (+70 more)
+Nodes (63): MOBILE_PROFILE_BANNER_COLORS, MobileAccountDmPolicySchema, MobileAccountFriendRequestPolicySchema, MobileAccountLocale, MobileAccountLocaleSchema, MobileBannerOffsetSchema, MobileBoundedIdSchema, MobileDMAttachmentItemBaseShape (+55 more)
 
 ### Community 45 - "web/src/auth.ts"
-Cohesion: 0.05
-Nodes (62): adapter, authorize(), baseAdapter, canOAuthUserAccessWhispr(), clearJwtUserState(), deriveBaseUsername(), encode(), getAuthEnvCandidates() (+54 more)
+Cohesion: 0.08
+Nodes (36): HomePage(), adapter, authorize(), baseAdapter, canOAuthUserAccessWhispr(), clearJwtUserState(), encode(), getAuthEnvCandidates() (+28 more)
 
 ### Community 46 - "voice/service.ts"
-Cohesion: 0.09
-Nodes (22): hardwareBackHandlers, renderNavigator(), useMobileVoiceScreenProps(), VoiceRoomStackScreenContainer(), mobileNavigationRef, navigateMobileRouteIntent(), ROUTE_INTENT_OPTIONS, MobileNavigationRouteIntent (+14 more)
+Cohesion: 0.05
+Nodes (35): routeFor(), storage, controller, hookSource, microphoneCalls, preferenceSource, storage, timers (+27 more)
 
 ### Community 47 - "useMobileHaptics"
-Cohesion: 0.04
-Nodes (75): MobileFeedbackSubmittedScreenProps, parseFilters(), AdminFeedbackPanelProps, STATUS_MESSAGE_KEYS, StatusPill(), statusTone(), buildFeedbackPreview(), compareRoadmapItems() (+67 more)
+Cohesion: 0.07
+Nodes (53): GET(), PUT(), GET(), GET(), defaultDependencies, mobileFeedbackDetailRoute(), mobileFeedbackListRoute(), MobileFeedbackRateLimitAction (+45 more)
 
 ### Community 48 - "mobile-kit-overlays.test.tsx"
-Cohesion: 0.05
-Nodes (39): actual, attach, conversation, createMessage(), createRowProps(), DMMessage, emoji, emojiStyle (+31 more)
+Cohesion: 0.10
+Nodes (28): cleared, existing, incoming, makeChannelPayload(), makeReadyState(), messages, removed, result (+20 more)
 
 ### Community 49 - "cn"
-Cohesion: 0.10
-Nodes (29): EmojiPicker(), EmojiPickerProps, EmojiSelection, Picker, GifPicker(), GifPickerProps, GiphyAttachmentResponse, GiphyGif (+21 more)
+Cohesion: 0.05
+Nodes (50): uploadedFile, uploadedImage, toMobileOptimisticChannelAttachments(), toMobileOptimisticDMAttachments(), EmojiPicker(), EmojiPickerProps, EmojiSelection, Picker (+42 more)
 
 ### Community 50 - "message-service.ts"
-Cohesion: 0.18
-Nodes (18): deleteMany(), getMobilePushTokenFingerprint(), hashMobilePushSessionId(), MobilePushTokenStore, registerMobilePushToken(), RegisterMobilePushTokenInput, revokeMobilePushToken(), RevokeMobilePushTokenInput (+10 more)
+Cohesion: 0.08
+Nodes (30): attachment, Call, { calls, client }, preview, response, confirmMobileTwoFactor(), disableMobileTwoFactor(), setupMobileTwoFactor() (+22 more)
 
 ### Community 51 - "mobile-workspace-client.ts"
-Cohesion: 0.12
-Nodes (26): MobileMentionSegment, buildMobileCollapsedSectionKey(), getMobileChannelRowPreview(), getMobileChannelRowTone(), getMobileMissedNotifications(), getMobileOtherServersUnreadTotal(), getMobileServerBadge(), getMobileServerCreateAccess() (+18 more)
+Cohesion: 0.05
+Nodes (63): initial, onCopyUsername, onRetry, onUpdateLocalVisibility, onUpdatePrivacy, onUpdateProfile, { Pressable }, Props (+55 more)
 
 ### Community 52 - "google-signin-doctor.ts"
-Cohesion: 0.11
-Nodes (27): client, input, key, keys, messages, registry, serialized, MobileQueryProvider() (+19 more)
+Cohesion: 0.09
+Nodes (30): client, input, key, keys, messages, registry, serialized, MobileQueryProvider() (+22 more)
 
 ### Community 53 - "use-shell-readiness.ts"
 Cohesion: 0.11
-Nodes (34): AppStartupSessionMarker(), getNow(), recordStartupMetricOnce(), ShellReadinessState, useShellReadiness(), AppStartupReadyMetric, AppStartupResult, AppStartupRuntime (+26 more)
+Nodes (33): getNow(), recordStartupMetricOnce(), ShellReadinessState, useShellReadiness(), AppStartupReadyMetric, AppStartupResult, AppStartupRuntime, formatAppStartupMetric() (+25 more)
 
 ### Community 54 - "mobile-mention-10a.test.tsx"
-Cohesion: 0.02
-Nodes (167): englishRow, mockSelection, { Pressable, View: NativeView }, ReactRuntime, renderSheet(), checkbox, mockedRuntimeConfig, onRegister (+159 more)
+Cohesion: 0.10
+Nodes (23): ServerPage(), ServerPageProps, getVisibleStatus(), MainLayout(), SettingsLayout(), SettingsPage(), SuspendedPage(), AppStartupSessionMarker() (+15 more)
 
 ### Community 55 - "mobile-deep-links.ts"
-Cohesion: 0.11
-Nodes (32): result, url, createSession(), MobileSocialAuthSessionOutcome, MobileSocialAuthSessionRawResult, MobileSocialAuthSessionResultType, runMobileSocialAuthSession(), RunMobileSocialAuthSessionOptions (+24 more)
+Cohesion: 0.05
+Nodes (60): result, url, link, readiness, route, unsafe, commands, linking (+52 more)
 
 ### Community 56 - "friends/service.ts"
-Cohesion: 0.07
-Nodes (34): BottomSheetMockProps, onClose, onCreate, onJoin, onServerReady, onUploadServerIcon, { Pressable, View }, React (+26 more)
+Cohesion: 0.25
+Nodes (10): groups, MOBILE_OPEN_SOURCE_LICENSE_GROUPS, buildMobileOpenSourceLicenseList(), filterGroup(), filterMobileOpenSourceLicenses(), MobileOpenSourceLicenseGroup, MobileOpenSourceLicenseListItem, MobileOpenSourceLicensePackage (+2 more)
 
 ### Community 57 - "lib.rs"
 Cohesion: 0.07
 Nodes (41): current_unix_ms(), desktop_app_info_exposes_runtime_version_metadata(), desktop_native_log_path(), desktop_native_media_capabilities_stay_research_gated(), desktop_platform_capabilities(), desktop_research_feature(), desktop_support_app_info(), desktop_updater_enabled() (+33 more)
 
 ### Community 58 - "mobile-workspace-management.test.ts"
-Cohesion: 0.09
-Nodes (23): AdminPulseDot(), ADMIN_ROLE_LABELS, AdminShellUser, NAV_ICONS, AdminAnchorShim(), LEGACY_ADMIN_HASH_ROUTES, redirectLegacyAdminHash(), AdminAppSurfaceOnly() (+15 more)
+Cohesion: 0.25
+Nodes (7): AdminAnchorShim(), LEGACY_ADMIN_HASH_ROUTES, redirectLegacyAdminHash(), adminAppRoot, expectedNavKeys, AdminShellNavLink(), isAdminNavPathActive()
 
 ### Community 59 - "mobile-media-uploadthing.ts"
 Cohesion: 0.08
@@ -1116,36 +1117,36 @@ Cohesion: 0.04
 Nodes (49): a11yJob, a11yRuntime, a11yStart, authHelper, chromiumScripts, [commit, path, rule, line, ...extra], config, crossBrowserJob (+41 more)
 
 ### Community 61 - "MobileApiClient"
-Cohesion: 0.05
-Nodes (64): now, reaction, serverMemberJoined, todayMention, voiceRoomStarted, yesterdayInvite, calls, client (+56 more)
+Cohesion: 0.06
+Nodes (58): calls, client, all, bootstrapKey, client, notificationKey, one, options (+50 more)
 
 ### Community 62 - "Whispr Admin Paneli — Tasarım Brief'i"
 Cohesion: 0.10
 Nodes (20): 0. Bir cümlede, 10. Tasarlanmayacaklar, 11. Referans alınabilecek ürünler, 12. İstenen teslimat, 13. Bağlam dosyaları, 1. Ürün ve kullanıcı, 2.1. Otuz iki tema var, 2.2. Token sistemi (+12 more)
 
 ### Community 63 - "two-factor.ts"
-Cohesion: 0.05
-Nodes (73): auth, HomePage(), SecurityCenterCard(), AccountSettingsField, confirmTwoFactorSetupAction(), ConfirmTwoFactorSetupActionResult, disableTwoFactorAction(), DisableTwoFactorActionResult (+65 more)
+Cohesion: 0.08
+Nodes (40): RecoveryCode, createRedisTotpReplayStore(), MemoryRedis, TotpReplayRedis, TotpReplayStore, resolveTotpSecret(), assertAttemptAllowed(), confirmTwoFactorSetup() (+32 more)
 
 ### Community 64 - "mobile-dev-login.test.ts"
 Cohesion: 0.08
 Nodes (30): bottomTabBar, bottomTabs, chrome, containers, copy, messagingFeature, navigationRef, navigator (+22 more)
 
 ### Community 65 - "password-reset.ts"
-Cohesion: 0.07
-Nodes (43): PATCH(), RouteContext, PATCH(), RouteContext, DELETE(), PATCH(), PATCH(), GET() (+35 more)
+Cohesion: 0.03
+Nodes (111): f, isUploadUserAllowed(), requireMessageUploadUser(), requireProfileAvatarUploadUser(), requireUploadUser(), resolveMessageUploadUserId(), existingRouteConfigs, uploadRouter (+103 more)
 
 ### Community 66 - "message-primitives.tsx"
-Cohesion: 0.10
-Nodes (26): assertUnblockedDMParticipants(), assertDMReplyTarget(), assertDMThreadParent(), parseDMMessageInputs(), sendDirectMessage(), SendDirectMessageInput, getDMAttachmentLabelKey(), getDMConversationPreview() (+18 more)
+Cohesion: 0.04
+Nodes (128): clearAccountRuntimeState(), listFriends(), getSocketServer(), invalidateServerRoomIdsCache(), setServerRoomIdsCacheRedisForTest(), canAddMembers(), ensureOwner(), ensureServerPermission() (+120 more)
 
 ### Community 67 - "mobile-locale-preferences.ts"
-Cohesion: 0.06
-Nodes (44): routeFor(), storage, controller, hookSource, microphoneCalls, preferenceSource, storage, timers (+36 more)
+Cohesion: 0.02
+Nodes (220): mockLocaleRuntime, mockUseMobileAuth, account, accountSettings(), createQueryClient(), mockSelectAndUpload, mockUseMobileAuth, savedProfile (+212 more)
 
 ### Community 68 - "mobile-screen-containers.tsx"
-Cohesion: 0.01
-Nodes (125): accessModule, adminApiRoot, capabilitiesModule, collectRouteFiles(), ROUTE_CAPABILITY_PINS, admin, Dependencies, detail (+117 more)
+Cohesion: 0.05
+Nodes (51): defaultDependencies, mobileAuthExchangeRoute(), MobileAuthExchangeRouteDependencies, POST(), defaultDependencies, mobileForgotPasswordRoute(), MobileForgotPasswordRouteDependencies, POST() (+43 more)
 
 ### Community 69 - "bundle"
 Cohesion: 0.20
@@ -1169,91 +1170,87 @@ Nodes (39): alreadyDeleted, baseInput, calls, cases, ClaimHarnessOptions, claimU
 
 ### Community 74 - "category-service.ts"
 Cohesion: 0.03
-Nodes (70): accountSettings, apiClient, canonicalProfile, mockUseMobileAuth, queryClient, ReactRuntime, replaceSessionUser, sessionUser (+62 more)
+Nodes (67): createApiClient(), currentRelease(), DEFAULT_CHANGES, mockUseMobileAuth, RELEASE_LIST, WhatsNewScreen, WhatsNewScreenProps, friends (+59 more)
 
 ### Community 75 - "appearance.ts"
-Cohesion: 0.02
-Nodes (135): UserLayoutSettings, AppIconProvider(), applyAppIcon(), applyAttributes(), ensureOwnedIconLink(), updateIconLink(), AuthenticatedAppProviders(), AuthenticatedAppProvidersProps (+127 more)
+Cohesion: 0.03
+Nodes (84): UserLayoutSettings, profile(), AuthenticatedAppProviders(), AuthenticatedAppProvidersProps, SoundEffectsProvider(), SoundEffectsProviderProps, toAudioVolume(), InAppSettingsOverlay() (+76 more)
 
 ### Community 76 - "mobile-media-contract.ts"
-Cohesion: 0.11
-Nodes (39): asset, cameraDenied, cleared, documentReady, initial, photoReady, state, summary (+31 more)
+Cohesion: 0.10
+Nodes (42): createChannelPreviewProps(), createDmPreviewProps(), asset, cameraDenied, cleared, documentReady, initial, photoReady (+34 more)
 
 ### Community 77 - "permission-cache.ts"
 Cohesion: 0.07
 Nodes (27): compilerOptions, allowJs, allowSyntheticDefaultImports, declaration, emitDeclarationOnly, esModuleInterop, ignoreDeprecations, incremental (+19 more)
 
 ### Community 78 - "updater.ts"
-Cohesion: 0.11
-Nodes (41): DesktopNativeUpdateNotifier(), formatDownloadProgress(), NativeUpdate, getWhisprDesktopReleaseRing(), isWhisprDesktopUpdaterEnabled(), canUseDesktopNativeUpdater(), checkDesktopNativeUpdate(), clearDismissedDesktopUpdateVersion() (+33 more)
+Cohesion: 0.08
+Nodes (46): DesktopMetricOperation, DesktopMetricResult, DesktopMetricRuntime, DesktopPerformanceMetric, formatDesktopPerformanceMetric(), isDesktopMetricsEnabled(), isEnabledValue(), normalizeDesktopDurationMs() (+38 more)
 
 ### Community 79 - "voice-mini.ts"
-Cohesion: 0.10
-Nodes (24): apiClient, renderPrefetchActions(), channelPage, dmPage, isMobileNetworkMetered(), scheduleMobileIdleTask(), beginMobileNavigationSpan(), getMobileRecentDMPrefetchStats() (+16 more)
+Cohesion: 0.16
+Nodes (8): AttachmentScanRetryableError, createAttachment(), deletes, findUnique(), logs, notifications, update(), updates
 
 ### Community 80 - "mobile-redesign-device-capture.ts"
 Cohesion: 0.09
 Nodes (26): allowedMaskIds, anchor, AndroidCaptureEnvironment, assertAndroidRuntimeCaptureContract(), baselineDirectory, captureAndroidDeviceScreenshot(), CaptureEnvironment, DEVICE_CAPTURE_LOGICAL_VIEWPORT (+18 more)
 
 ### Community 81 - "mobile-voice-room-route-context.ts"
-Cohesion: 0.09
-Nodes (21): button, createConnectedVoiceRoom(), createParticipant(), createVoiceScreenProps(), expandButton, gesture, microphoneButton, onLeaveVoiceChannel (+13 more)
+Cohesion: 0.14
+Nodes (18): AdminFeedbackPage(), AdminFlagsPage(), AdminPage(), AdminPageProps, AdminServersPage(), AdminServersPageProps, AdminFlags(), AdminServersFilters (+10 more)
 
 ### Community 82 - "logger.ts"
 Cohesion: 0.07
 Nodes (27): Audit kapsamı (hepsini tek tek gez), Bağlam ve kurallar, Bağlam ve kurallar, Bağlam ve kurallar, Bağlam ve kurallar, Doğrulama (hepsi geçmeli, commit yok), Doğrulama (hepsi geçmeli, commit yok), Doğrulama (hepsi geçmeli, commit yok) (+19 more)
 
 ### Community 83 - "login-redirect.ts"
-Cohesion: 0.08
-Nodes (50): createApiClient(), flattenStyle(), mockCaptureScreenshot, mockNotification, mockShowToast, mockUploadImage, mockUseMobileAuth, mockUseMobileNetworkStatus (+42 more)
+Cohesion: 0.04
+Nodes (51): contracts, darkModeFlowPath, destinationContracts, flowIds, flowSource, loginHelperPath, manualIds, phase2FlowPath (+43 more)
 
 ### Community 84 - "db.ts"
-Cohesion: 0.12
-Nodes (37): inviteCode(), addE2EServerMember(), clearE2EVoiceStates(), createIsolatedServerForMembershipTest(), createReadOnlyServerForMessagingTest(), deleteIsolatedE2EServer(), E2EPrismaClient, enableE2EUserTwoFactor() (+29 more)
+Cohesion: 0.13
+Nodes (35): inviteCode(), addE2EServerMember(), clearE2EVoiceStates(), createIsolatedServerForMembershipTest(), createReadOnlyServerForMessagingTest(), deleteIsolatedE2EServer(), E2EPrismaClient, enableE2EUserTwoFactor() (+27 more)
 
 ### Community 85 - "dependencies"
 Cohesion: 0.04
-Nodes (51): dependencies, bcryptjs, class-variance-authority, @dnd-kit/sortable, @emoji-mart/data, framer-motion, ioredis, @livekit/components-core (+43 more)
+Nodes (51): dependencies, @auth/prisma-adapter, class-variance-authority, @emoji-mart/data, framer-motion, @hookform/resolvers, jose, livekit-client (+43 more)
 
 ### Community 86 - "mobile-composer.tsx"
 Cohesion: 0.08
-Nodes (32): bootstrap, canonical, friends, profile, queryClient, snapshot, unrelatedWorkspace, workspace (+24 more)
+Nodes (31): bootstrap, canonical, friends, profile, queryClient, snapshot, unrelatedWorkspace, workspace (+23 more)
 
 ### Community 87 - "mobile-account-settings-screen.tsx"
-Cohesion: 0.14
-Nodes (32): buildServerChannelUnreadQuery(), buildServerUnreadTotalsQuery(), ChannelUnreadCountRow, createServerCountMap(), createUserCountMap(), getBoundedMobileServerUnreadSummary(), getServerChannelUnreadCounts(), getServerChannelUnreadCountsForVisibleChannelIds() (+24 more)
+Cohesion: 0.06
+Nodes (61): decimalFormatter, formatAdminBytes(), formatAdminDuration(), formatAdminInt(), formatAdminNumber(), formatAdminPercent(), integerFormatter, singleDecimalFormatter (+53 more)
 
 ### Community 88 - "mobile-api-client.ts"
-Cohesion: 0.10
-Nodes (14): anyElement, mockIdleMutation, mockShowToast, Opener(), peerProfile, selfProfile, getEntries(), getOverlayOpen() (+6 more)
+Cohesion: 0.07
+Nodes (40): formatSize(), CHANGE_TYPE_ORDER, fill(), groupReleaseChangesByType(), groupReleasesByYear(), HELP_QUERY_CATEGORY_RULES, MobileAboutDiagnosticsInput, MobileAboutUpdateContext (+32 more)
 
 ### Community 89 - "service.ts"
-Cohesion: 0.06
-Nodes (27): authFeatures, authPrimaryButton, authScreenBackground, authSecurityCard, badge, bottomSheet, cameraGrid, composerStyles (+19 more)
+Cohesion: 0.07
+Nodes (35): groupConversation, onOpenConversation, styles, ada, grace, mockAcceptRequest, mockCancelRequest, mockCreateRequest (+27 more)
 
 ### Community 90 - "api.ts"
-Cohesion: 0.02
-Nodes (281): AdminFlagsPage(), AdminLayout(), requireAdminOrRedirect(), AdminReleasesPage(), AdminUsersPage(), AdminUsersPageProps, parseStatus(), USER_STATUSES (+273 more)
+Cohesion: 0.03
+Nodes (116): DELETE(), GET(), adminHelpArticleDeleteRoute(), adminHelpArticleDetailRoute(), adminHelpArticleUpdateRoute(), AdminHelpDetailRateLimitAction, AdminHelpDetailRouteContext, AdminHelpDetailRouteDependencies (+108 more)
 
 ### Community 91 - "route-contract.test.ts"
 Cohesion: 0.05
-Nodes (43): actualM1Mappings, API_V1_DIR, BODYLESS_MUTATING_METHOD_PATHS, CENTRAL_PARSER_VALUE, CENTRAL_RATE_LIMITER_VALUE, collectRouteFiles(), createRouteFixture(), createRouteProgram() (+35 more)
+Nodes (35): actualM1Mappings, API_V1_DIR, BODYLESS_MUTATING_METHOD_PATHS, CENTRAL_PARSER_VALUE, CENTRAL_RATE_LIMITER_VALUE, directlyAliasedHandlers, ExecutionTrace, EXPECTED_M1_RATE_LIMIT_MAPPINGS (+27 more)
 
 ### Community 92 - "actions.ts"
-Cohesion: 0.05
-Nodes (56): Harness(), advance(), connected(), dropped(), background, connected, connectedSnapshot(), error (+48 more)
-
-### Community 93 - "mobile-ui-stores.test.ts"
-Cohesion: 0.06
-Nodes (51): state, channelHealth, failedSnapshot(), freshSnapshot(), health, hiddenConversationHealth, serverOnlyHealth, visibleConversationHealth (+43 more)
+Cohesion: 0.07
+Nodes (43): Harness(), advance(), connected(), dropped(), background, connected, connectedSnapshot(), error (+35 more)
 
 ### Community 94 - "use-shell-readiness.ts"
-Cohesion: 0.10
-Nodes (28): flattenStyle(), mockSelection, NOW, storedValues, labels, NOW, buildMobileRatingFeedbackRequest(), calculateMobileRatingUsageDays() (+20 more)
+Cohesion: 0.06
+Nodes (57): diagnosticsLabels, diagnosticsPayload, labels, addMobileFeedbackAttachment(), addMobileFeedbackAttachments(), buildMobileFeedbackDiagnosticsRows(), canAddMobileFeedbackAttachment(), canSubmitMobileFeedback() (+49 more)
 
 ### Community 95 - "server.ts"
-Cohesion: 0.07
-Nodes (40): AdminFeedbackPanel(), item(), mapStoredPresenceStatus(), activeCaseStatuses, attachReportToCase(), attachReportToCaseInTransaction(), CaseRecord, CaseReport (+32 more)
+Cohesion: 0.12
+Nodes (24): environmentConfig, sentryInitialized, initMobileSentry(), MobileSentryConfig, reportMobileSlowRequestToSentry(), EMPTY_BREAKDOWN, getMobileRequestLatencySnapshot(), MOBILE_REQUEST_METHODS (+16 more)
 
 ### Community 96 - "Whispr Mobile Redesign Design"
 Cohesion: 0.05
@@ -1261,51 +1258,51 @@ Nodes (40): A. UI-first with conditional omissions, All-channel voice occupancy,
 
 ### Community 97 - "mobile-quality-gate.test.ts"
 Cohesion: 0.10
-Nodes (33): client, requests, validSession, MobileApiError, APP_LOCK_PROMPT_OPTIONS, isMobileSessionRejected(), MobileAuthContext, MobileAuthProvider() (+25 more)
+Nodes (38): POST(), defaultDependencies, mobileVoiceTokenPostRoute(), MobileVoiceTokenRouteDependencies, MobileVoiceTokenSession, calls, capture, POST() (+30 more)
 
 ### Community 98 - "mobile-realtime-contract.ts"
-Cohesion: 0.31
-Nodes (7): cameraTrackRef, createParticipant(), createProps(), createVideoCallRoom(), renderVideoCall(), MobileDirectCallScreenProps, MobileDirectVideoCallScreen()
+Cohesion: 0.06
+Nodes (46): AdminCaseFilePage(), AdminCaseFilePageProps, AdminModerationPage(), AdminModerationPageProps, normalizeScope(), ACTION_COPY, AdminCaseActionForm(), AdminCaseActionMenu() (+38 more)
 
 ### Community 99 - "realtime-query-bridge.ts"
-Cohesion: 0.14
-Nodes (20): DELETE(), defaultDependencies, mobileServerCategoryDeleteRoute(), MobileServerCategoryRateLimitAction, MobileServerCategoryRouteContext, MobileServerCategoryRouteDependencies, mobileServerCategoryUpdateRoute(), PATCH() (+12 more)
+Cohesion: 0.08
+Nodes (49): getMobileAuthRateLimitKeys(), collectKeys(), request, ForgotPasswordPage(), getSignInHref(), normalizeNameAsUsername(), REGISTER_COPY, RegisterPage() (+41 more)
 
 ### Community 100 - "mobile-sync-contract.ts"
 Cohesion: 0.05
 Nodes (37): 10. Test Stratejisi, 11. Doğrulama ve Raporlama, 12. Teslim Sınırları, 1. Hedef, 2. Kapsam, 3. Kaynak Önceliği ve Uyuşmazlık Kararları, 4.1 Android uygulama imza anahtarı, 4.2 OTA kod imzalama anahtarı (+29 more)
 
 ### Community 101 - "index.ts"
-Cohesion: 0.20
-Nodes (16): AdminHealthPage(), AdminHealthPageProps, AdminHealth(), formatMs(), formatRate(), getHealthBandTone(), PLATFORM_LABEL, NOW (+8 more)
+Cohesion: 0.27
+Nodes (7): ClientHealthRawRow, ClientHealthRollupStore, ClientHealthSummaryRow, percentileMs(), summarizeClientHealthRows(), NOW, utcDayStart()
 
 ### Community 102 - "run-tauri.mjs"
 Cohesion: 0.07
 Nodes (35): appCommandPermissions, buildDesktopCsp(), capabilityUrlPatterns(), child, desktopBuildTime, desktopCsp, desktopRoot, devUrl (+27 more)
 
 ### Community 103 - "app-version.ts"
-Cohesion: 0.03
-Nodes (117): bootstrap, bootstrapResult, event, friendResult, friends, friendsResult, presence, profile (+109 more)
+Cohesion: 0.07
+Nodes (52): bootstrap, bootstrapResult, event, friendResult, friends, friendsResult, presence, profile (+44 more)
 
 ### Community 104 - "scanner.ts"
-Cohesion: 0.04
-Nodes (82): mockDescribe, mockPurgePerformanceSamples, mockReadPerformanceSamples, StoredSample, storedSamples, AppStateStatus, install(), resumeSamples() (+74 more)
+Cohesion: 0.07
+Nodes (38): BuildExpoConfig, buildTestExpoConfig(), config, originalEnv, require, metadata, readiness, summary (+30 more)
 
 ### Community 105 - "privacy-service.ts"
-Cohesion: 0.11
-Nodes (33): createAccountDeletionReauthToken(), createAccountDeletionReauthTokenForCredential(), createAccountDeletionReauthTokenForPassword(), createAccountDeletionReauthTokenForVerifiedEmail(), assertEmailReauthEligibleUser(), buildAccountDeletionReauthUrl(), confirmAccountDeletionReauthEmail(), createAccountReauthChallenge() (+25 more)
+Cohesion: 0.21
+Nodes (18): createAccountDeletionReauthToken(), createAccountDeletionReauthTokenForCredential(), createAccountDeletionReauthTokenForPassword(), createAccountDeletionReauthTokenForVerifiedEmail(), getEmailCredentialBinding(), getPasswordCredentialBinding(), getReauthSecret(), isSafeEqual() (+10 more)
 
 ### Community 106 - "route-logic.ts"
-Cohesion: 0.04
-Nodes (84): accountSettings, api, calls, changes, current, queryClient, snapshot, storage (+76 more)
+Cohesion: 0.10
+Nodes (29): POST(), GET(), readCountryCode(), defaultDependencies, mobileGiphyAttachmentRoute(), MobileGiphyAttachmentRouteDependencies, POST(), defaultDependencies (+21 more)
 
 ### Community 107 - "mobile-deep-links.ts"
-Cohesion: 0.02
-Nodes (131): GET(), readCookieValue(), ForgotPasswordPage(), AUTH_ERROR_MESSAGES, DesktopOAuthPendingDialog(), DesktopOAuthPendingDialogProps, getAuthErrorMessage(), LoginClient() (+123 more)
+Cohesion: 0.08
+Nodes (40): filterReleaseChanges(), ABOUT_BRAND_LOGO_RADII, AboutBrandLogo(), AboutCard(), AboutConsentSheetShell(), AboutGroupLabel(), AboutGroupLabelPadding, AboutRow() (+32 more)
 
 ### Community 108 - "voice.spec.ts"
-Cohesion: 0.12
-Nodes (30): casePath(), claimMobileAdminCase(), dismissMobileAdminCase(), escalateMobileAdminCase(), fetchMobileAdminCase(), fetchMobileAdminCases(), useMobileAdminCaseInvalidation(), useMobileAdminCaseQuery() (+22 more)
+Cohesion: 0.09
+Nodes (35): main(), repository, assertBatchSize(), createSummary(), parseTotpSecretMaintenanceArgs(), runTotpSecretMaintenance(), KEY_V1, KEY_V2 (+27 more)
 
 ### Community 109 - "release-ops.mjs"
 Cohesion: 0.10
@@ -1317,7 +1314,7 @@ Nodes (30): authFlowPath, authTestIdSources, authTopBarSource, flowIds, forbidde
 
 ### Community 111 - "MobileApiClient"
 Cohesion: 0.05
-Nodes (60): AddServerMemberInput, AddServerMemberSchema, CreateCategoryInput, CreateCategorySchema, CreateChannelSchema, CreateInviteSchema, CreateServerInput, CreateServerSchema (+52 more)
+Nodes (64): AddServerMemberInput, AddServerMemberSchema, CreateCategoryInput, CreateCategorySchema, CreateChannelInput, CreateChannelSchema, CreateInviteInput, CreateInviteSchema (+56 more)
 
 ### Community 112 - "runtime.ts"
 Cohesion: 0.04
@@ -1328,28 +1325,28 @@ Cohesion: 0.13
 Nodes (23): DesktopCompanionConnection, DesktopCompanionConnectionQuality, DesktopCompanionOverlay, DesktopCompanionOverlayAnchor, DesktopCompanionOverlaySize, DesktopCompanionParticipant, DesktopCompanionPrivacyMode, DesktopCompanionSnapshotPublishResultV1 (+15 more)
 
 ### Community 114 - "mobile-realtime-query-bridge.test.ts"
-Cohesion: 0.13
-Nodes (28): joinDirectCall(), openVoiceRoom, peer, setMobileDirectCallStarter(), MobileDMCallEmitters, MobileDMCallFeatureInput, useMobileDMCallFeature(), useMobileNotificationPreferences() (+20 more)
+Cohesion: 0.08
+Nodes (37): incomingCall, voiceInvite, peer, ButtonVariant, MobileDirectCallStarter, setMobileDirectCallStarter(), MobileDMCallEmitters, MobileDMCallFeatureInput (+29 more)
 
 ### Community 115 - "mobile-voice-provider.tsx"
 Cohesion: 0.13
-Nodes (21): dependencies(), routes, service(), submission, submittedAt, Written, BUG_REPORT_CATEGORY_FROM_WIRE, defaultDependencies (+13 more)
+Nodes (22): dependencies(), routes, service(), submission, submittedAt, Written, BUG_REPORT_CATEGORY_FROM_WIRE, defaultDependencies (+14 more)
 
 ### Community 116 - "attempt-tracker.ts"
-Cohesion: 0.10
-Nodes (36): NetworkStatusProbe(), ageLabels, now, MobileAdminCaseDetailScreen(), MobileAdminCaseDetailScreenProps, AdminCopy, getMobileAdminCopyLabels(), isMobileAdminForbidden() (+28 more)
+Cohesion: 0.05
+Nodes (79): detail, mockClaim, mockDismiss, mockEscalate, mockFetchCase, mockFetchCases, renderCase(), renderQueue() (+71 more)
 
 ### Community 117 - "dependencies"
-Cohesion: 0.03
-Nodes (59): dependencies, expo-application, expo-asset, expo-blur, expo-crypto, expo-document-picker, expo-image, expo-image-manipulator (+51 more)
+Cohesion: 0.02
+Nodes (93): dependencies, expo, expo-application, expo-asset, expo-audio, expo-constants, expo-crypto, expo-document-picker (+85 more)
 
 ### Community 118 - "route.ts"
-Cohesion: 0.10
-Nodes (31): attachment, Call, { calls, client }, preview, response, confirmMobileTwoFactor(), disableMobileTwoFactor(), setupMobileTwoFactor() (+23 more)
+Cohesion: 0.03
+Nodes (97): resolveVerifiedAttribution(), endAppSession(), heartbeatAppSession(), startAppSession(), FriendPresenceUpdateDto, getBearerTokenFromHeaderValue(), isMobileAccessSessionActive(), broadcastOpenModerationCaseCount() (+89 more)
 
 ### Community 119 - "mobile-media-upload-service.ts"
-Cohesion: 0.11
-Nodes (34): POST(), defaultDependencies, mobileVoiceTokenPostRoute(), MobileVoiceTokenRouteDependencies, MobileVoiceTokenSession, calls, capture, POST() (+26 more)
+Cohesion: 0.10
+Nodes (27): AdminReleasesPage(), AdminReleasePage(), AdminReleasePageProps, AdminRelease, AdminReleaseChange, AdminReleaseEditor(), AdminReleaseChangeInput, AdminReleaseChangeTransaction (+19 more)
 
 ### Community 120 - "Global Constraints"
 Cohesion: 0.07
@@ -1360,8 +1357,8 @@ Cohesion: 0.05
 Nodes (43): devDependencies, @axe-core/playwright, babel-plugin-react-compiler, c8, esbuild, eslint, eslint-plugin-react-hooks, @next/bundle-analyzer (+35 more)
 
 ### Community 122 - "useI18n"
-Cohesion: 0.03
-Nodes (132): DELETE(), POST(), RouteContext, GET(), GET(), DELETE(), PATCH(), RouteContext (+124 more)
+Cohesion: 0.10
+Nodes (33): DELETE(), PUT(), POST(), POST(), DELETE(), POST(), defaultDependencies, friendRequestActionRoute() (+25 more)
 
 ### Community 123 - "participant-mapping.ts"
 Cohesion: 0.07
@@ -1384,12 +1381,12 @@ Cohesion: 0.12
 Nodes (37): append_desktop_update_log_field(), assert_desktop_main_command_window(), desktop_companion_surface_info(), desktop_companion_surface_queued_info(), desktop_companion_surfaces_queued_status(), desktop_companion_surfaces_status(), desktop_foreground_process_name(), desktop_update_failure_log_path() (+29 more)
 
 ### Community 128 - "requireAuth"
-Cohesion: 0.10
-Nodes (25): ServerPage(), ServerPageProps, getVisibleStatus(), MainLayout(), SettingsLayout(), SettingsPage(), SuspendedPage(), LocaleSessionSync() (+17 more)
+Cohesion: 0.07
+Nodes (40): channelMessageEvents, event, history, malformed, membership, payload, presence, profile (+32 more)
 
 ### Community 129 - "audio-device-select.tsx"
-Cohesion: 0.08
-Nodes (21): appSource, bottomTabBarSource, buttonSource, containerSource, contextMenuSource, errorBoundarySource, fontGateSource, iconButtonSource (+13 more)
+Cohesion: 0.06
+Nodes (42): MobileErrorFeedbackSection(), MobileFeedbackSubmittedScreenProps, parseFilters(), AdminFeedbackPanel(), AdminFeedbackPanelProps, STATUS_MESSAGE_KEYS, StatusPill(), statusTone() (+34 more)
 
 ### Community 130 - "scripts"
 Cohesion: 0.05
@@ -1404,48 +1401,48 @@ Cohesion: 0.08
 Nodes (24): A. Repoint `typescript` directly to TypeScript 7, Acceptance Criteria, Aggregate typecheck runner, Architecture, B. Add `@typescript/native` to every workspace and call bare `tsc`, C. Root-owned compiler runners with a TS6 compatibility shadow, CI Design, Considered Approaches (+16 more)
 
 ### Community 133 - "server-member-panel.tsx"
-Cohesion: 0.17
-Nodes (22): ActionButton(), BootstrapStateNotice(), DiagnosticPill(), EmptyState(), FeatureStatusCard(), getMobilePermissionLabel(), getMobileSyncStatusLabel(), getMobileSyncTone() (+14 more)
+Cohesion: 0.03
+Nodes (118): NotificationCampaignCreateRequestSchema, hasJsonContentType(), readJsonBodyWithLimit(), AttachmentRecord, AttachmentScanClient, AttachmentScanJobPayload, AttachmentScanResult, CLAMAV_INSTREAM_COMMAND (+110 more)
 
 ### Community 134 - "app-startup-screen.tsx"
-Cohesion: 0.14
-Nodes (19): environmentConfig, sentryInitialized, addMobileSecurityBreadcrumb(), initMobileSentry(), MobileSentryConfig, reportMobileSlowRequestToSentry(), EMPTY_BREAKDOWN, latencyByRoute (+11 more)
+Cohesion: 0.07
+Nodes (54): shared, friend(), friendLabels, metaLabels, NOW, getNativeShareAdapter(), isCanonicalHttpsInviteUrl(), MobileShareAdapter (+46 more)
 
 ### Community 135 - "dashboard.ts"
-Cohesion: 0.09
-Nodes (25): AppRouteReadyOptions, appRouteSegment(), ChannelSidebarNavigationOptions, clickChannelSidebarChannelAndWait(), clickServerRailDmAndWait(), clickServerRailServerAndWait(), closeInAppSettingsOverlay(), cssAttributeValue() (+17 more)
+Cohesion: 0.13
+Nodes (19): expectComposerInputBudget(), expectFitsViewport(), expectInteractionWithinBudget(), expectMobileSurfaceHealthy(), expectNoHorizontalOverflow(), expectVisibleTestIdCountAtMost(), MobileClientPreferenceScenario, MobileQualityViewport (+11 more)
 
 ### Community 136 - "route-logic.ts"
 Cohesion: 0.09
-Nodes (31): GET(), PATCH(), PATCH(), GET(), POST(), GET(), adminFeedbackDetailRoute(), adminFeedbackListRoute() (+23 more)
+Nodes (28): createDirectCallRoom(), createParticipant(), createProps(), renderDirectCall(), cameraTrackRef, getMobileRingingWaveScaleRange(), MobileRingingDots(), MobileRingingHalo() (+20 more)
 
 ### Community 137 - "validate-update-manifest.mjs"
 Cohesion: 0.14
 Nodes (26): assertExistingFile(), assertImmutableReleaseArtifactUrl(), assertPlainObject(), assertRemoteArtifactAvailable(), assertSafeHttpsUrl(), assertSemver(), assertSupportedPlatform(), assertValidDate() (+18 more)
 
 ### Community 138 - "mobile-message-attachment-contract.ts"
-Cohesion: 0.04
-Nodes (92): actor, authorizationRoles, calls, cases, dependencies(), payload, privateMember, protectedRoles (+84 more)
+Cohesion: 0.06
+Nodes (63): createMessageSendFanoutMetrics(), createPermissionCacheMetrics(), createUnreadFanoutMetrics(), flushWorkspacePerformanceMetrics(), flushWorkspacePerformanceMetricsForTest(), getFlushIntervalMs(), getWorkspacePerformanceInstanceId(), hasMetricsToFlush() (+55 more)
 
 ### Community 139 - "mobile-workspace-client.ts"
-Cohesion: 0.07
-Nodes (33): heartbeatTimer, io, require, Sentry, shutdown(), started, createRedisClient(), getRedisOptions() (+25 more)
+Cohesion: 0.08
+Nodes (36): createMobileApiClient(), normalizeBaseUrl(), createMobileErrorStyles(), FAULT_COPY, FAULT_ICON, MobileBootstrapErrorFallback(), MobileBoundaryFault, MobileBoundaryFeedbackState (+28 more)
 
 ### Community 140 - "auth.ts"
-Cohesion: 0.02
-Nodes (120): searchMobileGiphy(), removeMobileNotificationsByInviteCode(), defaultDependencies, mobileAccountLocaleUpdateRoute(), MobileLocaleRouteDependencies, createDependencies(), PATCH(), defaultDependencies (+112 more)
+Cohesion: 0.04
+Nodes (71): GET(), RouteContext, SearchQuerySchema, GET(), RouteContext, SearchQuerySchema, defaultDependencies, mobileAppChannelRoute() (+63 more)
 
 ### Community 141 - "rooms.test.ts"
-Cohesion: 0.07
-Nodes (37): CampaignDeliveryCounts, CampaignDeliveryDependencies, CampaignDeliveryDraft, defaultCampaignDeliveryDependencies, freezeCampaignRecipients(), selectFrequencyCappedUserIds(), CampaignRow, NOW (+29 more)
+Cohesion: 0.02
+Nodes (125): AdminLayout(), requireAdminOrRedirect(), AdminUsersPage(), AdminUsersPageProps, parseStatus(), USER_STATUSES, accessModule, adminApiRoot (+117 more)
 
 ### Community 142 - "Global Constraints"
 Cohesion: 0.07
 Nodes (27): code:ts (assert.equal(sanitizeMobileVoiceDeviceId("  mic-1  "), "mic-), code:powershell (git add apps/mobile pnpm-lock.yaml), code:ts (assert.equal(shouldShowMobilePrivacyShield("background"), tr), code:tsx (expect(screen.getByTestId("mobile-privacy-shield")).toBeTrut), code:ts (assert.deepEqual(recordMobileBlankArea({ blankArea: 24, offs), code:ts (assert.match(migration, /Faz 0-5 kapanış özeti/);), code:powershell (git add .maestro/phase5-voice-polish.yml apps/mobile), code:ts (assert.match(voiceHook, /getTrackPublication\(Track\.Source\) (+19 more)
 
 ### Community 143 - "desktop-release-timing-summary.mjs"
-Cohesion: 0.12
-Nodes (27): buildBudgetRows(), buildCategoryRows(), categorizeStep(), createDesktopReleaseTimingReport(), DEFAULT_BUDGETS, durationBetween(), escapeTable(), fallbackMarkdown (+19 more)
+Cohesion: 0.07
+Nodes (29): buildBudgetRows(), buildCategoryRows(), categorizeStep(), createDesktopReleaseTimingReport(), DEFAULT_BUDGETS, durationBetween(), escapeTable(), fallbackMarkdown (+21 more)
 
 ### Community 144 - "show_or_create_desktop_game_overlay_window"
 Cohesion: 0.18
@@ -1460,8 +1457,8 @@ Cohesion: 0.11
 Nodes (26): collectScreenShares(), countActiveScreenShares(), getParticipantCameraState(), getParticipantDeafenState(), getParticipantProfile(), getScreenShareId(), parseParticipantMetadata(), ParticipantMetadata (+18 more)
 
 ### Community 147 - "message-interactions.spec.ts"
-Cohesion: 0.13
-Nodes (22): AdminReleasePage(), AdminReleasePageProps, AdminReleaseChangeInput, AdminReleaseChangeTransaction, AdminReleaseDetailRow, AdminReleaseInput, AdminReleaseListRow, AdminReleasePatchInput (+14 more)
+Cohesion: 0.12
+Nodes (28): DMSurfaces(), publishChannelTyping(), publishDMTyping(), TypingLabel(), cleared, initial, state, visibleUsers (+20 more)
 
 ### Community 148 - "unread-service.ts"
 Cohesion: 0.10
@@ -1476,8 +1473,8 @@ Cohesion: 0.11
 Nodes (26): assertRegion(), buildExcludedMask(), calculateSsim(), CANONICAL_DPR, CANONICAL_LOGICAL_VIEWPORT, CANONICAL_PHYSICAL_VIEWPORT, crop(), DecodedImage (+18 more)
 
 ### Community 151 - "mobile-notification-contract.ts"
-Cohesion: 0.02
-Nodes (223): mockLocaleRuntime, mockUseMobileAuth, actual, createDetail(), createMutation(), mockConfirmServerIconPersisted, mockCopyToClipboard, mockPatchServerIconCaches (+215 more)
+Cohesion: 0.10
+Nodes (28): flattenStyle(), mockSelection, NOW, storedValues, labels, NOW, buildMobileRatingFeedbackRequest(), calculateMobileRatingUsageDays() (+20 more)
 
 ### Community 152 - "scripts"
 Cohesion: 0.12
@@ -1488,8 +1485,8 @@ Cohesion: 0.09
 Nodes (21): Admin Dalga 3 — D1 Moderasyon Kuyruğu + C1 Sağlık + C2 Feature Flag + C3 Push Telemetrisi, C1-C3 uygulama notları, C1 — Sağlık olayları (Görev 7-9), C2 — Feature flag (Görev 10-11), C3 — Push telemetrisi (Görev 12), D1 — Moderasyon (Görev 1-6), D1 uygulama notları, Global Constraints (+13 more)
 
 ### Community 154 - "route-logic.ts"
-Cohesion: 0.10
-Nodes (30): asset(), AssetOverrides, UriFile, captureMobileCrashScreenshot(), getViewShotModule(), measureLocalFileSize(), ViewShotModule, getExpoFileSystemModule() (+22 more)
+Cohesion: 0.21
+Nodes (12): getResultPreview(), getSearchPanelPosition(), MessageSearchPanel(), MessageSearchPanelProps, SearchMode, SearchPanelPosition, subscribeToHydration(), toIsoDateTime() (+4 more)
 
 ### Community 155 - "push-notifications.ts"
 Cohesion: 0.10
@@ -1512,20 +1509,20 @@ Cohesion: 0.14
 Nodes (22): assertInstallerMatchesVersion(), assertManifestFilename(), assertNoSensitiveValues(), assertReleaseArtifactBaseUrl(), assertSignatureMatchesInstaller(), createDesktopReleasePublishPlan(), describeInputFile(), ensureTrailingSlash() (+14 more)
 
 ### Community 160 - "Result"
-Cohesion: 0.06
-Nodes (34): createStore(), page, Row, page, createStore(), SampleRow, hydrateMobileMessageStream(), MobileMessageStreamData (+26 more)
+Cohesion: 0.05
+Nodes (53): createStore(), page, Row, page, createStore(), SampleRow, selectMobileRecentDMRestoreIds(), dropMobileMessageStream() (+45 more)
 
 ### Community 161 - "compilerOptions"
 Cohesion: 0.06
 Nodes (33): compilerOptions, allowArbitraryExtensions, allowJs, declaration, incremental, jsx, lib, noEmit (+25 more)
 
 ### Community 162 - "use-mobile-voice-room.ts"
-Cohesion: 0.09
-Nodes (31): feedbackList, mockFetchFeedbackList, mockFetchRoadmap, mockSetVote, roadmap, sendFeedback(), fetchMobileFeedback(), fetchMobileFeedbackList() (+23 more)
+Cohesion: 0.06
+Nodes (44): asset(), AssetOverrides, UriFile, completion, claims, controller, events, pickedImage (+36 more)
 
 ### Community 163 - "mobile-server-management-client.ts"
-Cohesion: 0.03
-Nodes (118): createMessage(), createThreadPayload(), mockRequestJson, bootstrap, cachedSnapshot, channel, client, data (+110 more)
+Cohesion: 0.09
+Nodes (23): claimDesktopOAuthHandoffAction(), ClaimDesktopOAuthHandoffResult, DesktopOAuthClaimClient(), DesktopOAuthClaimClientProps, DesktopOAuthClaimLabels, getServerDesktopRuntimeSnapshot(), subscribeToDesktopRuntime(), signIn() (+15 more)
 
 ### Community 164 - "env"
 Cohesion: 0.06
@@ -1540,20 +1537,20 @@ Cohesion: 0.08
 Nodes (20): capability, desktopRoot, execFileAsync, gameOverlayCapability, generatedCapability, generatedConfig, generatedConfigPath, generatedGameOverlayCapability (+12 more)
 
 ### Community 167 - "AppHandle"
-Cohesion: 0.20
-Nodes (20): callbackContentType(), cancelReader(), decodedContentType(), defaultDependencies, FORMAT_CONTENT_TYPES, isTransientMobileImageVerificationFailure(), isUploadThingHostname(), MobileImageVerifierDependencies (+12 more)
+Cohesion: 0.09
+Nodes (26): AppRouteReadyOptions, appRouteSegment(), ChannelSidebarNavigationOptions, clickChannelSidebarChannelAndWait(), clickServerRailDmAndWait(), clickServerRailServerAndWait(), closeInAppSettingsOverlay(), cssAttributeValue() (+18 more)
 
 ### Community 168 - "devDependencies"
 Cohesion: 0.05
 Nodes (43): devDependencies, babel-preset-expo, @babel/traverse, eslint, eslint-plugin-react-hooks, globals, jest, jest-expo (+35 more)
 
 ### Community 169 - "worker.ts"
-Cohesion: 0.11
-Nodes (26): GET(), readCountryCode(), defaultDependencies, mobileGiphyAttachmentRoute(), MobileGiphyAttachmentRouteDependencies, cleanTitle(), createGiphyAttachment(), CreateGiphyAttachmentSchema (+18 more)
+Cohesion: 0.06
+Nodes (51): E2E_CAMERA_TRACK, E2EVoiceProvider(), getE2EFlag(), mapE2EVoiceParticipants(), VoiceCameraStatus, VoiceContextValue, VoiceParticipantsContext, VoiceParticipantsContextValue (+43 more)
 
 ### Community 170 - "invite-service.ts"
-Cohesion: 0.13
-Nodes (17): admin, context, Dependencies, input, manifestBody, routes, AdminOtaBundleEnabledSummary, AdminOtaBundleInput (+9 more)
+Cohesion: 0.06
+Nodes (27): authFeatures, authPrimaryButton, authScreenBackground, authSecurityCard, badge, bottomSheet, cameraGrid, composerStyles (+19 more)
 
 ### Community 171 - "Whispr Mobile Phase 1 Design System and Dark Mode Design"
 Cohesion: 0.08
@@ -1564,20 +1561,20 @@ Cohesion: 0.17
 Nodes (20): assertStableReleaseGuard(), buildDesktopReleaseTag(), buildReleaseArtifactBaseUrl(), contract, createDesktopReleaseWorkflowContract(), defaultUpdaterFeedBaseUrlForRing(), defaultWebUrlForRing(), ensureTrailingSlash() (+12 more)
 
 ### Community 173 - "route-logic.ts"
-Cohesion: 0.07
-Nodes (27): defaultDependencies, MobileServerMemberRolesRateLimitAction, MobileServerMemberRolesRouteContext, MobileServerMemberRolesRouteDependencies, mobileServerMemberRolesUpdateRoute(), cases, delegatedRoleIds, Dependencies (+19 more)
+Cohesion: 0.16
+Nodes (14): defaultDependencies, MobileServerMemberRolesRateLimitAction, MobileServerMemberRolesRouteContext, MobileServerMemberRolesRouteDependencies, mobileServerMemberRolesUpdateRoute(), PATCH(), defaultDependencies, defaultServerMemberRolesRouteDependencies (+6 more)
 
 ### Community 174 - "scripts"
 Cohesion: 0.07
-Nodes (29): scripts, build, build:server, db:migrate:deploy, dev, dev:clear-auth-rate-limits, e2e, e2e:a11y (+21 more)
+Nodes (30): scripts, build, build:server, db:migrate:deploy, dev, dev:clear-auth-rate-limits, e2e, e2e:a11y (+22 more)
 
 ### Community 175 - "route-logic.ts"
-Cohesion: 0.15
-Nodes (18): calls, client, fetchMobileVoiceStates(), fetchMobileVoiceToken(), joinMobileVoiceState(), leaveMobileVoiceState(), sendMobileVoiceHeartbeat(), MobileVoiceHeartbeatResponse (+10 more)
+Cohesion: 0.14
+Nodes (24): DmCallBar(), DmCallNotice(), DmCallNoticeBanner(), getRemainingSeconds(), IncomingDMCallDialog(), DMCallContext, DMCallProvider(), useDMCallActions() (+16 more)
 
 ### Community 176 - "page.tsx"
-Cohesion: 0.02
-Nodes (99): alert, exitCompletions, gesture, message, mockBottomSystemSpacing, mockGestureHandlers, onAction, onClose (+91 more)
+Cohesion: 0.07
+Nodes (51): createApiClient(), flattenStyle(), mockCaptureScreenshot, mockNotification, mockShowToast, mockUploadImage, mockUseMobileAuth, mockUseMobileNetworkStatus (+43 more)
 
 ### Community 177 - "health.ts"
 Cohesion: 0.11
@@ -1588,28 +1585,28 @@ Cohesion: 0.10
 Nodes (20): Build Commands, CI Plan, code:powershell (pnpm --filter @wizards/web typecheck), code:text (.github/workflows/desktop-release.yml), code:powershell (pnpm --filter @wizards/desktop release:publish-plan -- `), code:powershell (pnpm --filter @wizards/desktop release:artifacts -- `), code:powershell (pnpm --filter @wizards/desktop build:desktop), code:text (apps/desktop/src-tauri/target/release/bundle/nsis/) (+12 more)
 
 ### Community 179 - "message-send-service.ts"
-Cohesion: 0.07
-Nodes (32): ACCOUNT_SETTINGS, createPermissionReadiness(), createProfileSettingsScreenProps(), createSeededQueryClient(), errorProps, healthySync, mockMobileAccountSettingsScreen, mockNavigate (+24 more)
+Cohesion: 0.12
+Nodes (26): captureMobileCrashScreenshot(), getViewShotModule(), measureLocalFileSize(), ViewShotModule, getExpoFileSystemModule(), getExpoImageManipulatorModule(), isPositive(), MOBILE_IMAGE_RESCUE_PASSES (+18 more)
 
 ### Community 180 - "mobile-image-upload-service.test.ts"
-Cohesion: 0.08
-Nodes (38): DELETE(), PUT(), DELETE(), PATCH(), GET(), ChannelMessageInput, defaultMobileChannelMessageRouteDependencies, emitChannelMessageDeleted() (+30 more)
+Cohesion: 0.03
+Nodes (113): emitPinUpdate(), RouteContext, DELETE(), emitMobilePinUpdate(), handleMobilePinRoute(), POST(), DELETE(), PUT() (+105 more)
 
 ### Community 181 - "mobile-app-providers.test.tsx"
 Cohesion: 0.12
 Nodes (16): Admin Dalga 4 — C4 Analitik + E2 Zamanlama/Teslimat + E3 Feedback Zekâsı, C4 — Analitik (Görev 1-3), E2 — Zamanlama + teslimat raporu (Görev 4-6), E3 — Feedback zekâsı (Görev 7-9), Global Constraints, Self-review notları, Task 1: Seri + kohort + funnel servisleri, Task 2: `/admin/analytics` ekranı (G türetilmiş — metrik arketipi) (+8 more)
 
 ### Community 182 - "mobile-realtime-provider.tsx"
-Cohesion: 0.17
-Nodes (4): SocketDrainDependencies, SocketDrainResult, createServer(), FakeAudioContext
+Cohesion: 0.16
+Nodes (19): apiClient, renderPrefetchActions(), isMobileNetworkMetered(), attemptedConversationIds, getMobileRecentDMPrefetchStats(), MobileMessagePrefetchActions, MobileRecentDMPrefetchStats, openedAfterSettledConversationIds (+11 more)
 
 ### Community 183 - "turnstile.ts"
-Cohesion: 0.04
-Nodes (78): DesktopStartClient(), DesktopStartClientProps, waitForMainWindowViewport(), waitForMinimumStartupVisibility(), profile(), ChromeButton(), ChromeButtonProps, DesktopWindowChrome() (+70 more)
+Cohesion: 0.08
+Nodes (21): current, initial, joined, left, next, participant, MOBILE_CLIENT_HEADERS, applyMobileVoiceScreenShareUpdate() (+13 more)
 
 ### Community 184 - "mobile-responsive.spec.ts"
 Cohesion: 0.13
-Nodes (19): expectComposerInputBudget(), expectFitsViewport(), expectInteractionWithinBudget(), expectMobileSurfaceHealthy(), expectNoHorizontalOverflow(), expectVisibleTestIdCountAtMost(), MobileClientPreferenceScenario, MobileQualityViewport (+11 more)
+Nodes (15): test, sendComposerMessage(), sendMessage(), drawer, sendMessage(), sendMessage(), bobMessage, LoggedInPage (+7 more)
 
 ### Community 185 - "release-promotion.mjs"
 Cohesion: 0.17
@@ -1624,20 +1621,20 @@ Cohesion: 0.07
 Nodes (26): files, PlusJakartaSans-Bold.ttf, PlusJakartaSans-ExtraBold.ttf, PlusJakartaSans-Medium.ttf, PlusJakartaSans-Regular.ttf, PlusJakartaSans-SemiBold.ttf, family, sha256 (+18 more)
 
 ### Community 188 - "mobile-direct-call-runtime.test.tsx"
-Cohesion: 0.05
-Nodes (73): DMConversationPage(), DMConversationPageContent(), DMConversationPageProps, DmConversationItemView, DmFilterId, formatConversationTime(), FriendsSidebar(), FriendsSidebarProps (+65 more)
+Cohesion: 0.13
+Nodes (26): allowedPermissions, nativeNotifications, screenShare, summary, videoCalls, voiceChannels, runtimeSource, state (+18 more)
 
 ### Community 189 - "env.ts"
-Cohesion: 0.09
-Nodes (21): createDetector(), createProviderProps(), createRepository(), deviceIntegrityDetector, DeviceIntegrityHarness(), MobileAuthProviderProps, renderIntegrityHarness(), rooted (+13 more)
+Cohesion: 0.04
+Nodes (100): ChatAreaProps, DmComposer(), DmConversationHeader(), DmConversationHeaderProps, DmConversationToolbar(), DmConversationToolbarProps, DmMessageSurface(), getDmStatusDotClass() (+92 more)
 
 ### Community 190 - "mobile-social-client.ts"
 Cohesion: 0.07
 Nodes (27): AtomicAttemptFailureInput, AttemptRedis, AttemptState, AttemptStore, AttemptTrackerConfig, createAttemptTracker(), createMemoryAttemptStore(), createRedisAttemptStore() (+19 more)
 
 ### Community 191 - "service.ts"
-Cohesion: 0.12
-Nodes (21): AttachmentScanStatus, AttachmentScanStatusSchema, MessageThreadSummarySchema, DMConversationDTOSchema, DMConversationType, DMConversationTypeSchema, DMMessageAttachmentPayload, DMMessageAttachmentSchema (+13 more)
+Cohesion: 0.10
+Nodes (25): client, requests, validSession, calls, client, MobileApiRequestOptions, exchangeMobileAuthHandoff(), refreshMobileAuthSession() (+17 more)
 
 ### Community 192 - "Audit Scope"
 Cohesion: 0.10
@@ -1648,8 +1645,8 @@ Cohesion: 0.07
 Nodes (26): dependencies, zod, devDependencies, prettier, tsx, @types/node, typescript, exports (+18 more)
 
 ### Community 194 - "mobile-notification-lifecycle-contract.ts"
-Cohesion: 0.13
-Nodes (27): DMSurfaces(), publishChannelTyping(), publishDMTyping(), TypingLabel(), cleared, initial, state, visibleUsers (+19 more)
+Cohesion: 0.01
+Nodes (346): buildInboxConversation(), channelMessagesPage, currentUser, dmMessagesPage, renderedQueryClients, renderMessagingFeature(), renderReadMutation(), author (+338 more)
 
 ### Community 195 - "mobile-voice-contract.ts"
 Cohesion: 0.12
@@ -1664,12 +1661,12 @@ Cohesion: 0.12
 Nodes (16): scripts, build, contributors:sync, db:generate, db:migrate:deploy, db:migrate:reset, db:migrate:status, db:rebaseline:uat (+8 more)
 
 ### Community 198 - "mobile-media-verifier.test.ts"
-Cohesion: 0.04
-Nodes (91): video(), DmCallBar(), DmCallNotice(), DmCallView(), DmComposer(), DmConversationHeader(), DmConversationHeaderProps, DmConversationToolbar() (+83 more)
+Cohesion: 0.05
+Nodes (70): video(), DmCallView(), useVoiceParticipants(), useVoiceState(), isE2EVoiceMockEnabled(), mergeProfileUpdate(), mergeVoiceCurrentUserProfile(), currentUser (+62 more)
 
 ### Community 199 - "mobile-media-verifier.ts"
-Cohesion: 0.12
-Nodes (17): config, DEBUG_KEYSTORE_PATH, easProfilesWithClientId, KEYTOOL_CANDIDATES, sha1, config, result, config (+9 more)
+Cohesion: 0.14
+Nodes (23): model, participants, room, formatMobileVoiceRoomDuration(), getMobileActiveVoiceRoomModel(), shouldTickMobileVoiceRoomDuration(), getDirectCallName(), getDirectCallParticipant() (+15 more)
 
 ### Community 200 - "Whispr Desktop QA Checklist"
 Cohesion: 0.10
@@ -1684,24 +1681,24 @@ Cohesion: 0.17
 Nodes (22): configure_desktop_voice_shortcuts(), configure_desktop_voice_shortcuts_impl(), desktop_voice_shortcut_registry_status(), desktop_voice_shortcut_status(), DesktopVoiceShortcutAction, DesktopVoiceShortcutConfig, DesktopVoiceShortcutEntry, DesktopVoiceShortcutRegistration (+14 more)
 
 ### Community 203 - "mobile-font-contract.test.ts"
-Cohesion: 0.08
-Nodes (30): main(), since(), WINDOW_DAYS, derivePriority(), groupBySubject(), main(), main(), createPrismaClient() (+22 more)
+Cohesion: 0.07
+Nodes (31): main(), since(), WINDOW_DAYS, derivePriority(), groupBySubject(), main(), main(), createPrismaClient() (+23 more)
 
 ### Community 204 - "mobile-attachment-upload-contract.ts"
-Cohesion: 0.18
-Nodes (11): draft, MobileSearchKeyRegistry, initialState, MobileActiveTargetState, MobileComposerDraftKey, MobileComposerDraftState, useMobileComposerDraftStore, MobileOverlayId (+3 more)
+Cohesion: 0.10
+Nodes (22): client, requests, result, error, providerSource, MobileApiClientOptions, MobileNetworkContext, MobileNetworkProvider() (+14 more)
 
 ### Community 205 - "mobile-redesign-semantic-role-gate.ts"
-Cohesion: 0.10
-Nodes (27): ChatMessageSchema, ChatMessageType, ChatMessageTypeSchema, EditMessageInput, EditMessageInputSchema, MessageAuthor, MessageAuthorSchema, MessageSearchResultSchema (+19 more)
+Cohesion: 0.17
+Nodes (26): createMobileRefreshFamily(), decryptRetryReceipt(), deriveRetryReceiptKey(), EncryptedMobileRefreshRetryReceipt, encryptRetryReceipt(), getMobileRefreshRetryKeyFromHash(), getMobileRefreshTokenKeyFromHash(), getMobileSessionKey() (+18 more)
 
 ### Community 206 - "mobile-typing-state.ts"
-Cohesion: 0.09
-Nodes (34): beforeSend(), dsn, CustomRequiredMessageSchema, errorLog, original, parseResult, reports, response (+26 more)
+Cohesion: 0.05
+Nodes (76): isDMParticipant(), broadcastPresenceUpdateToFriends(), cacheUserPresence(), getPresenceRedisKey(), getUserPresenceBroadcast(), persistUserPresence(), ensureChannelMembership(), AppSocket (+68 more)
 
 ### Community 207 - "requireMobileApiUserId"
-Cohesion: 0.15
-Nodes (20): buildVoiceMiniSnapshot(), clampAudioLevel(), DEFAULT_DESKTOP_GAME_OVERLAY_PREFERENCES, resolveVoiceMiniConnectionQuality(), sanitizeAvatarUrl(), sanitizeDisplayName(), VoiceMiniSnapshotInput, participant (+12 more)
+Cohesion: 0.31
+Nodes (6): DesktopContextMenuGuard(), ClosestCapableTarget, getClosestCapableTarget(), hasClosest(), shouldAllowDesktopNativeContextMenu(), target
 
 ### Community 208 - "typescript-toolchain-contract.test.mjs"
 Cohesion: 0.11
@@ -1724,32 +1721,32 @@ Cohesion: 0.23
 Nodes (13): AdminAuditPage(), AdminAuditPageProps, normalizeAuditFilter(), AdminAudit(), AdminAuditFilter, AUDIT_FILTERS, filterAdminAuditLogs(), formatAdminAuditIpHash() (+5 more)
 
 ### Community 213 - "notification-bell.tsx"
-Cohesion: 0.08
-Nodes (44): DELETE(), handleMobilePinRoute(), POST(), addMinutes(), assertCanMentionEveryone(), containsMassMention(), createEmptyThreadSummary(), createMessage() (+36 more)
+Cohesion: 0.03
+Nodes (85): GET(), readCookieValue(), AUTH_ERROR_MESSAGES, DesktopOAuthPendingDialog(), DesktopOAuthPendingDialogProps, getAuthErrorMessage(), LoginClient(), LoginClientProps (+77 more)
 
 ### Community 214 - "scripts"
 Cohesion: 0.07
 Nodes (27): scripts, android, android:uat:local, android:uat:local:apk, android:uat:local:apk:phone, android:uat:local:apk:phone:release, android:uat:local:apk:universal, android:uat:local:apk:universal:release (+19 more)
 
 ### Community 215 - "use-voice-heartbeat.test.ts"
-Cohesion: 0.05
-Nodes (56): AdminCaseFilePage(), AdminCaseFilePageProps, AdminModerationPage(), AdminModerationPageProps, normalizeScope(), AdminPage(), AdminPageProps, GET() (+48 more)
+Cohesion: 0.08
+Nodes (21): appSource, bottomTabBarSource, buttonSource, containerSource, contextMenuSource, errorBoundarySource, fontGateSource, iconButtonSource (+13 more)
 
 ### Community 216 - "route-logic.ts"
-Cohesion: 0.11
-Nodes (24): enforceMobileChannelMessageActionRateLimit(), enforceMobileDMMessageActionRateLimit(), checkedKeys, error, graceRedis, MemoryRateLimitGraceRedis, redis, CHANNEL_MESSAGE_EDIT_RATE_LIMIT (+16 more)
+Cohesion: 0.14
+Nodes (20): KrispAvailability, DESKTOP_GAME_OVERLAY_ANCHORS, DESKTOP_GAME_OVERLAY_GAME_LABELS, DESKTOP_GAME_OVERLAY_SIZES, DesktopShortcutInputRow(), formatShortcutFromKeyboardEvent(), getServerCapabilitySnapshot(), resolveCleanVoiceStatus() (+12 more)
 
 ### Community 217 - "route-logic.ts"
-Cohesion: 0.16
-Nodes (18): ACTION_STATUS, addModerationCaseNote(), applyModerationCaseAction(), buildReporterDedupeKey(), defaultDependencies, defaultEvidenceStore, deleteEvidenceMessage(), EvidenceMessageStore (+10 more)
+Cohesion: 0.06
+Nodes (48): ModerationCaseActionSchema, POST(), RouteContext, POST(), EvidenceActionSchema, POST(), RouteContext, ModerationCaseNoteSchema (+40 more)
 
 ### Community 218 - "dot-grid.tsx"
-Cohesion: 0.06
-Nodes (59): createMessageSendFanoutMetrics(), createPermissionCacheMetrics(), createUnreadFanoutMetrics(), flushWorkspacePerformanceMetrics(), flushWorkspacePerformanceMetricsForTest(), getFlushIntervalMs(), getWorkspacePerformanceInstanceId(), hasMetricsToFlush() (+51 more)
+Cohesion: 0.08
+Nodes (46): getPermissionCacheReadOptions(), listChannelIdsByServerForUserWithPermission(), listChannelIdsForUsersWithPermission(), listChannelIdsForUserWithPermission(), mergePermissionRoles(), AsyncMethod, banBatchSizes, banDelegate (+38 more)
 
 ### Community 219 - "TestRedisClient"
-Cohesion: 0.07
-Nodes (37): completion, claims, controller, events, pickedImage, profileClaim, profileCompletion, profileTarget (+29 more)
+Cohesion: 0.12
+Nodes (22): feedbackList, mockFetchFeedbackList, mockFetchRoadmap, mockSetVote, roadmap, fetchMobileFeedback(), fetchMobileFeedbackList(), fetchMobileRoadmap() (+14 more)
 
 ### Community 220 - "seed.ts"
 Cohesion: 0.10
@@ -1768,20 +1765,20 @@ Cohesion: 0.20
 Nodes (13): assertNoSensitiveValues(), createCargoAuditSummary(), normalizeAdvisoryUrl(), normalizeVulnerabilityEntry(), normalizeWarningEntry(), options, parseCargoAuditSummaryCliArgs(), inputPath (+5 more)
 
 ### Community 224 - "String"
-Cohesion: 0.20
-Nodes (13): groups, MOBILE_OPEN_SOURCE_LICENSE_GROUPS, buildMobileOpenSourceLicenseList(), filterGroup(), filterMobileOpenSourceLicenses(), MobileOpenSourceLicenseGroup, MobileOpenSourceLicenseListItem, MobileOpenSourceLicensePackage (+5 more)
+Cohesion: 0.09
+Nodes (21): button, createConnectedVoiceRoom(), createParticipant(), createVoiceScreenProps(), expandButton, gesture, microphoneButton, onLeaveVoiceChannel (+13 more)
 
 ### Community 225 - "environment.ts"
 Cohesion: 0.14
 Nodes (35): App, AppHandle, begin_desktop_close_request(), close_desktop_admin_console_window(), complete_desktop_before_close(), complete_desktop_close_request(), desktop_main_window_state_path(), desktop_native_settings_path() (+27 more)
 
 ### Community 226 - "notifications-screen-model.ts"
-Cohesion: 0.10
-Nodes (10): dependencies, genericDelegate, identity, now, operations, payload, Restore, restores (+2 more)
+Cohesion: 0.02
+Nodes (116): appStateHandlers, authentication, biometricAuthenticator, createAuthenticator(), createDetector(), createPreferenceStore(), createProviderProps(), createSignedInRepository() (+108 more)
 
 ### Community 227 - "mobile-message-search-client.ts"
-Cohesion: 0.17
-Nodes (16): reporter(), MobileHealthReporterBridge(), createMobileHealthReporter(), MobileHealthEvent, MobileHealthKind, MobileHealthReporter, MobileHealthReporterOptions, toHealthEvents() (+8 more)
+Cohesion: 0.10
+Nodes (22): oneTime, parsed, remembered, ForgotPasswordInput, LoginCredentialsInput, LoginCredentialsSchema, LoginFormInput, LoginInput (+14 more)
 
 ### Community 228 - "route-logic.ts"
 Cohesion: 0.20
@@ -1804,8 +1801,8 @@ Cohesion: 0.10
 Nodes (21): 1. Şema, 2. Migration, 3. İstemci sözleşmesi, 4. `ClientAttribution` — tek taşıyıcı tip, 5. Geçmiş veri kesim politikası, 6. Attribution yolları, 7. Gizlilik, Admin Telemetri Omurgası (Alt Proje A) (+13 more)
 
 ### Community 233 - "service.test.ts"
-Cohesion: 0.14
-Nodes (13): incomingCall, voiceInvite, ButtonVariant, IoniconsName, MobileIncomingRequestAction, MobileIncomingRequestKind, MobileIncomingRequestPresentation, MobileIncomingRequestSource (+5 more)
+Cohesion: 0.10
+Nodes (20): Analytics, Central Client-IP Module, Central IP Tests, Constraints, Consumers, Error and Logging Behavior, Flow Regression Tests, Goal (+12 more)
 
 ### Community 234 - "Whispr Mobile"
 Cohesion: 0.12
@@ -1836,16 +1833,16 @@ Cohesion: 0.12
 Nodes (16): Bağlam, E1 bitti kanıtı, E1 — Gönderim güvenliği, E2 — Zamanlama ve teslimat raporu, E3 — Geri bildirim zekâsı, Fazlar, Frekans limiti, Gönderim akışı — iki aşama (+8 more)
 
 ### Community 241 - "route-logic.ts"
-Cohesion: 0.03
-Nodes (123): PATCH(), RouteContext, DELETE(), GET(), defaultDirectMessageConversationRouteDependencies, deleteDirectMessageConversationRoute(), DirectMessageConversationRouteDependencies, getDirectMessageConversationRoute() (+115 more)
+Cohesion: 0.14
+Nodes (25): boundedCleanupLimit(), claimMobileMediaUpload(), cleanupMobileMediaUploads(), defaultClaimDependencies, defaultCleanupDependencies, defaultOpportunisticCleanupDependencies, defaultRecordDependencies, describeUnclaimableUpload() (+17 more)
 
 ### Community 242 - "attachments.spec.ts"
 Cohesion: 0.08
 Nodes (23): 0. Neden 1d tasarımı bu katmanda tam çalışır, 10. Bitiş kriterleri, 17 — Katman B: Android APK'yı uygulama içinden indirip kurma, 1. Yeni bağımlılık ve tavuk-yumurta sorunu, 2. Yapılandırma, 3. R2 düzeni (desktop deseninin aynısı), 4. Veri modeli ve uçlar, 5. İstemci: indirme, doğrulama, kurulum (+15 more)
 
 ### Community 243 - "privacy-service.test.ts"
-Cohesion: 0.15
-Nodes (19): assertOutboxWorkerEnvironment(), assertWebEnvironment(), EnvSource, EnvValidationResult, isBooleanFlag(), isPositiveInteger(), isPresent(), isValidUrl() (+11 more)
+Cohesion: 0.13
+Nodes (22): assertOutboxWorkerEnvironment(), assertWebEnvironment(), EnvSource, EnvValidationResult, isBooleanFlag(), isPositiveInteger(), isPresent(), isValidUrl() (+14 more)
 
 ### Community 244 - "Whispr Desktop"
 Cohesion: 0.13
@@ -1864,16 +1861,16 @@ Cohesion: 0.14
 Nodes (13): appRoot, channelSections, conversation, dmScreen, homeScreen, inbox, messagePrimitives, messagingHook (+5 more)
 
 ### Community 248 - "mobile-details-service.ts"
-Cohesion: 0.05
-Nodes (63): isDMParticipant(), broadcastPresenceUpdateToFriends(), cacheUserPresence(), getUserPresenceBroadcast(), AppSocket, HandlerContext, createDMErrorEmitter(), createSafeDMErrorEmitter() (+55 more)
+Cohesion: 0.09
+Nodes (39): buildMutualFriendsWhere(), getBlockedUserIdsForUser(), getBlockStatus(), getFriendship(), haveMutualFriends(), haveMutualServers(), userHasAcceptedFriendshipWith(), resolveLastSeenAtByUserId() (+31 more)
 
 ### Community 249 - "next.config.ts"
 Cohesion: 0.13
 Nodes (11): nextConfig, packageJson, securityHeaders, sentryAuthToken, sentryOrg, sentryProject, turbopackRoot, whisprCommitId (+3 more)
 
 ### Community 250 - "tasks"
-Cohesion: 0.07
-Nodes (47): createDMMessageNotifications(), DMNotificationAttachment, DMNotificationParticipant, createFriendAcceptedNotification(), createFriendRequestNotification(), getDisplayName(), LocaleActionResult, updateLocalePreferenceAction() (+39 more)
+Cohesion: 0.12
+Nodes (22): checkedKeys, error, graceRedis, MemoryRateLimitGraceRedis, redis, CHANNEL_MESSAGE_EDIT_RATE_LIMIT, CHANNEL_MESSAGE_RATE_LIMIT, ChannelMessageRateLimitResult (+14 more)
 
 ### Community 251 - "Auth.js v5 Beta Risk Runbook"
 Cohesion: 0.17
@@ -1901,11 +1898,11 @@ Nodes (15): apiLoginAs(), apiLogout(), assertSuccessfulE2EApiResponse(), enableE
 
 ### Community 257 - "app.config.js"
 Cohesion: 0.12
-Nodes (13): assertReleaseUrl(), buildPublicConfig(), DEFAULT_PUBLIC_ENV, environment, fs, GOOGLE_SERVICES_FILE, MOBILE_ENVIRONMENTS, normalizeUrl() (+5 more)
+Nodes (14): assertReleaseUrl(), buildPublicConfig(), DEFAULT_PUBLIC_ENV, environment, fs, GOOGLE_SERVICES_FILE, MOBILE_ENVIRONMENTS, normalizeUrl() (+6 more)
 
 ### Community 258 - "mobile-voice-lifecycle-contract.ts"
-Cohesion: 0.07
-Nodes (40): client, input, requests, validConversationsResponse, validResponse, validThreadResponse, channel, client (+32 more)
+Cohesion: 0.14
+Nodes (19): deriveBaseUsername(), getUniqueUsername(), buildUsernameCandidate(), normalizeUsername(), candidate, TURKISH_USERNAME_TRANSLITERATION, MobileGoogleAuthOptions, findUniqueUsername() (+11 more)
 
 ### Community 259 - "reauth-cleanup.ts"
 Cohesion: 0.12
@@ -1916,8 +1913,8 @@ Cohesion: 0.13
 Nodes (14): 11 — 2f · Sorun bildir, 1. Dosyalar, 2. Yerleşim, 3. Günlük ve cihaz verisi, 4. Gönderim (§4.18), 5. Testler, 6. Doğrulama, 7. Kabul kriterleri (+6 more)
 
 ### Community 261 - "env"
-Cohesion: 0.04
-Nodes (67): author, emptyPage, emptyServerMessage, renderedQueryClients, renderSendHook(), uploadedAttachment, ReadEffectHarness(), client (+59 more)
+Cohesion: 0.14
+Nodes (16): coverageEnv, coverageTempDirectory, e2eMode, e2eValidation, runCommand(), runPnpm(), scriptDir, webRoot (+8 more)
 
 ### Community 262 - "compilerOptions"
 Cohesion: 0.12
@@ -1936,8 +1933,8 @@ Cohesion: 0.17
 Nodes (9): actualPath, diffPath, directory, expectedPath, invalidPath, mobileRoot, outputDirectory, packageJson (+1 more)
 
 ### Community 266 - "mobile-voice-room-route-navigation.ts"
-Cohesion: 0.25
-Nodes (16): getExpoDocumentPickerModule(), getExpoImagePickerModule(), getMobileMessageAttachmentKind(), getMobileMessageAttachmentMaxBytes(), isMobileLocalUri(), MOBILE_LOCAL_URI_SCHEMES, MOBILE_MESSAGE_AUDIO_CONTENT_TYPES, MOBILE_MESSAGE_FILE_CONTENT_TYPES (+8 more)
+Cohesion: 0.16
+Nodes (17): reporter(), MobileHealthReporterBridge(), createMobileHealthReporter(), MobileHealthEvent, MobileHealthKind, MobileHealthReporter, MobileHealthReporterOptions, toHealthEvents() (+9 more)
 
 ### Community 267 - "desktop-download.ts"
 Cohesion: 0.09
@@ -1948,8 +1945,8 @@ Cohesion: 0.26
 Nodes (10): getAutomatedSuitesForCadence(), getRiskCoverage(), getSuitesForCadence(), getUncoveredRiskAreas(), ProductRiskArea, preMergeCommands, preMergeSuiteIds, TestCadence (+2 more)
 
 ### Community 269 - "page-exit.test.ts"
-Cohesion: 0.12
-Nodes (15): addQuickReaction(), browserDialogs, composer, LoggedInPage, message, messageByText(), messageList, openLoggedInPage() (+7 more)
+Cohesion: 0.16
+Nodes (24): deleteAccountUploadThingFiles(), extractUploadThingFileKey(), deleteUploadedFile(), callbackContentType(), cancelReader(), decodedContentType(), defaultDependencies, extractTrustedStorageKey() (+16 more)
 
 ### Community 270 - "typescript-declaration-parity.mjs"
 Cohesion: 0.26
@@ -1980,20 +1977,20 @@ Cohesion: 0.18
 Nodes (10): authContextPath, authRevokeIndex, clearIndex, pushRevokeIndex, setStateCalls, signedOutCommitIndex, signOutEnd, signOutSource (+2 more)
 
 ### Community 277 - "voice-preferences-panel.tsx"
-Cohesion: 0.10
-Nodes (28): client, mockSaveNote, mockSelectionHaptic, mockUpdatePresence, mockUpdateProfile, onClose, onOpenCustomStatus, renderNoteSheet() (+20 more)
+Cohesion: 0.07
+Nodes (55): client, mockSaveNote, mockSelectionHaptic, mockUpdatePresence, mockUpdateProfile, onClose, onOpenCustomStatus, renderNoteSheet() (+47 more)
 
 ### Community 278 - "page.tsx"
-Cohesion: 0.29
-Nodes (10): AdminVoicePage(), AdminVoice(), PLATFORM_LABEL, NOW, snapshot(), AdminVoiceClient, AdminVoiceSnapshot, averageDurationSeconds() (+2 more)
+Cohesion: 0.16
+Nodes (17): removeTurnstileWidget(), TurnstileApi, TurnstileWidget(), TurnstileWidgetProps, Window, assertTurnstileActionAllowed(), assertTurnstileHostnameAllowed(), isE2ETurnstileBypassEnabled() (+9 more)
 
 ### Community 279 - "mobile/feedback/route-logic.ts"
-Cohesion: 0.16
-Nodes (18): attachE2EPageDiagnostics(), collectPageSnapshot(), E2EPageDiagnosticsHandle, PageSnapshot, pushPageSnapshot(), safeAttachmentName(), bobMessage, LoggedInPage (+10 more)
+Cohesion: 0.08
+Nodes (31): attachE2EPageDiagnostics(), collectPageSnapshot(), E2EPageDiagnosticsHandle, PageSnapshot, pushPageSnapshot(), safeAttachmentName(), addQuickReaction(), browserDialogs (+23 more)
 
 ### Community 280 - "route-logic.ts"
-Cohesion: 0.11
-Nodes (18): constructor(), createHarness(), firstPromise, grantedCameraPermission, grantedMicrophonePermission, join, mockConfigureAudio, mockCreateRoom() (+10 more)
+Cohesion: 0.10
+Nodes (21): constructor(), createHarness(), firstPromise, grantedCameraPermission, grantedMicrophonePermission, join, joinDirectCall(), mockConfigureAudio (+13 more)
 
 ### Community 281 - "compilerOptions"
 Cohesion: 0.12
@@ -2012,8 +2009,8 @@ Cohesion: 0.18
 Nodes (10): 1. DOSYA HARİTASI, Değiştirilecek (ana hatlar), FAZ 4 — DURUMLAR, ETKİLEŞİM CİLASI, i18n, Global Constraints, Oluşturulacak, SELF-REVIEW NOTLARI (spec kapsama kontrolü), Task 21: Hata/çevrimdışı bandı ve websocket durumu, Task 22: Haptik + animasyon + erişilebilirlik denetimi (+2 more)
 
 ### Community 285 - "Task A4: Sıfırlama TTL'i, sosyal sağlayıcı konfigi ve mobil istemci geçişi"
-Cohesion: 0.03
-Nodes (101): createMessageAttachment(), clampZoom(), formatAttachmentSize(), getAttachmentDownloadUrl(), getLightboxCursor(), getZoomLabel(), ImageLightbox(), ImageLightboxContent() (+93 more)
+Cohesion: 0.13
+Nodes (31): assertDataUrlMatchesContentType(), E2EUploadSchema, POST(), createMessageAttachment(), POST(), createPendingMessageAttachmentUpload(), MessageAttachmentUploadClient, MessageAttachmentUploadFile (+23 more)
 
 ### Community 286 - "Mobile Phase 4 Server Management and Media Upload Design"
 Cohesion: 0.18
@@ -2044,8 +2041,8 @@ Cohesion: 0.12
 Nodes (15): Admin Dalga 5 — D2 Delil Sözleşmesi + F Desktop/Mobil Yüzeyler, D2 — Delil (Görev 1-4), D2 + F5-F6 uygulama notları, F — Desktop + mobil (Görev 5-9), Global Constraints, Self-review notları, Task 1: Rapor sözleşmesi genişletmesi, Task 2: Erişim doğrulama + snapshot yazımı (+7 more)
 
 ### Community 293 - "ensure-prisma-client-runtime.mjs"
-Cohesion: 0.12
-Nodes (18): dependencies(), latest, routes, CHANNEL_TO_DATABASE, DatabasePlatform, DatabaseReleaseChannel, decideMobileUpdate(), defaultDependencies (+10 more)
+Cohesion: 0.06
+Nodes (51): candidates, connected, currentGeneration, currentTrack, failed, firstGeneration, initial, members (+43 more)
 
 ### Community 294 - "Observability Runbook"
 Cohesion: 0.20
@@ -2075,10 +2072,6 @@ Nodes (9): code:tsx (it("does not reserve a fixed bottom gap for signed-in navig
 Cohesion: 0.07
 Nodes (33): code:ts (export type MobileServerCapabilities = {), code:sql ("MobileMediaUpload_purpose_target_check"), code:powershell (corepack pnpm --filter @wizards/db exec prisma validate), code:ts (export type VerifiedMobileImage = {), code:powershell (corepack pnpm --filter @wizards/web add sharp@0.34.5), code:powershell (corepack pnpm --filter @wizards/web exec node --import tsx -), code:ts (const options = {), code:ts (export type MobileMediaUploadIntent =) (+25 more)
 
-### Community 301 - "mobile-message-search-client.ts"
-Cohesion: 0.11
-Nodes (16): body, calls, channels, dependencies(), deps, firstCategoryChannels, invalidDetail, invalidParams (+8 more)
-
 ### Community 302 - "FAZ 1 — NAVİGASYON: 4 SEKME + VOICEROOM ROTASI + TAB BAR + MİNİ SES ÇUBUĞU"
 Cohesion: 0.20
 Nodes (9): code:tsx (<RootStack.Screen), code:tsx (// Özet: MobileBottomTabBar'ı 4 rotalı sahte BottomTabBarPro), code:tsx (it("sese bağlı değilken render olmaz", () => {), code:tsx (interface MobileMiniVoiceBarProps {), FAZ 1 — NAVİGASYON: 4 SEKME + VOICEROOM ROTASI + TAB BAR + MİNİ SES ÇUBUĞU, Task 10: Maestro testID sözleşmesi ve akışları, Task 7: `voice` sekmesini kaldır, `VoiceRoom` rotasını ekle, Task 8: Yeni yüzer TabBar (+1 more)
@@ -2097,7 +2090,7 @@ Nodes (9): File Structure, Global Constraints, Mobile Profile & Settings 1F Impl
 
 ### Community 306 - "mobile-dev-login.test.ts"
 Cohesion: 0.11
-Nodes (22): purgeExpiredEvidence(), cleanupOutboxJobs(), readPositiveIntegerEnv(), startOutboxWorker(), StartOutboxWorkerOptions, stopOutboxWorker(), stopOutboxWorkerForTests(), StopOutboxWorkerOptions (+14 more)
+Nodes (21): heartbeatTimer, io, require, Sentry, shutdown(), started, purgeExpiredEvidence(), cleanupOutboxJobs() (+13 more)
 
 ### Community 307 - "mobile-phase3-social.test.ts"
 Cohesion: 0.22
@@ -2136,8 +2129,8 @@ Cohesion: 0.22
 Nodes (8): code:bash (pnpm --filter @wizards/mobile test), code:bash (pnpm --filter @wizards/mobile test:components), code:bash (WHISPR_MOBILE_E2E_EMAIL), code:json ({), code:yaml (name: mobile-e2e-android), Component test stack, Device E2E decision, Mobile Component and Device Testing
 
 ### Community 316 - "mobile-media-claim-client.test.ts"
-Cohesion: 0.14
-Nodes (22): createMemoryStorage(), renderScreen(), asyncStorageAdapter, MobileNotificationPreferencesContext, MobileNotificationPreferencesProvider(), MobileNotificationPreferencesRuntime, DEFAULT_MOBILE_NOTIFICATION_PREFERENCES, formatMobileQuietHoursRange() (+14 more)
+Cohesion: 0.16
+Nodes (20): asyncStorageAdapter, MobileNotificationPreferencesContext, MobileNotificationPreferencesProvider(), MobileNotificationPreferencesRuntime, DEFAULT_MOBILE_NOTIFICATION_PREFERENCES, formatMobileQuietHoursRange(), isWithinMobileQuietHours(), loadMobileNotificationPreferences() (+12 more)
 
 ### Community 317 - "Revizyon 2 — Bağlayıcı Düzeltmeler ve Gerçek Değerler"
 Cohesion: 0.22
@@ -2148,8 +2141,8 @@ Cohesion: 0.22
 Nodes (9): dependencies, bcryptjs, pg, @prisma/adapter-pg, @prisma/client, bcryptjs, pg, @prisma/adapter-pg (+1 more)
 
 ### Community 319 - "Task 1: Lock the custom picker and official UploadThing transport"
-Cohesion: 0.16
-Nodes (14): CreateLiveKitTokenBody, CreateLiveKitTokenBodySchema, LiveKitTokenResponse, LiveKitTokenResponseSchema, deleteVoiceState(), fetchLiveKitToken(), fetchVoiceStates(), requestJson() (+6 more)
+Cohesion: 0.09
+Nodes (26): defaultDependencies, MobilePresenceRouteDependencies, mobilePresenceUpdateRoute(), calls, PUT(), defaultDependencies, mobileLinkPreviewRoute(), MobileLinkPreviewRouteDependencies (+18 more)
 
 ### Community 320 - "realtime-service.ts"
 Cohesion: 0.20
@@ -2200,8 +2193,8 @@ Cohesion: 0.25
 Nodes (7): Current Production Path, Hardware Encode Reality, LiveKit Custom Track Spike, Platform Matrix, Privacy Rules, Spike Acceptance Gates, Whispr Desktop Native Media Research
 
 ### Community 332 - "rooms.ts"
-Cohesion: 0.21
-Nodes (12): POST(), RawBodySchema, resolveReporter(), ClientHealthAttribution, ClientHealthBatch, ClientHealthBatchSchema, ClientHealthEventSchema, ClientHealthStore (+4 more)
+Cohesion: 0.15
+Nodes (20): ConsentToggleHarness(), contrastRatio(), parseRgb(), relativeLuminance(), requestConsent(), Rgb, storedValues, AboutBetaConsentRequest (+12 more)
 
 ### Community 333 - "Görev 2: Server/worker Sentry init (`instrument.ts`) + redakte köprü + build/start"
 Cohesion: 0.29
@@ -2216,8 +2209,8 @@ Cohesion: 0.18
 Nodes (6): expectedActionlint, expectedAllowedBuilds, expectedNode24ActionPins, nodeTypesManifestPaths, root, runtimeManifestPaths
 
 ### Community 337 - "Global Constraints"
-Cohesion: 0.08
-Nodes (46): resolveVerifiedAttribution(), endAppSession(), heartbeatAppSession(), startAppSession(), getBearerTokenFromHeaderValue(), getRedisOp(), createHandlerContext(), drainSocketServer() (+38 more)
+Cohesion: 0.10
+Nodes (29): POST(), RawBodySchema, resolveReporter(), buildAdminAuditLogEntry(), AnalyticsClientInfo, detectAppVersion(), detectBrowser(), detectClientType() (+21 more)
 
 ### Community 338 - "Task 1: Extend the management client, query keys, and member model"
 Cohesion: 0.29
@@ -2236,8 +2229,8 @@ Cohesion: 0.21
 Nodes (16): buildCompilerArgs(), buildPnpmInvocation(), MODES, parseCheckerCount(), parseProjectRunnerArgs(), PROJECTS, root, runPnpm() (+8 more)
 
 ### Community 342 - "lucide-react"
-Cohesion: 0.14
-Nodes (25): boundedCleanupLimit(), claimMobileMediaUpload(), cleanupMobileMediaUploads(), defaultClaimDependencies, defaultCleanupDependencies, defaultOpportunisticCleanupDependencies, defaultRecordDependencies, describeUnclaimableUpload() (+17 more)
+Cohesion: 0.21
+Nodes (16): acceptInviteInBrowserAction(), getInviteDestination(), getInvitePath(), getInviteDestination(), getInviteErrorMessage(), getInvitePath(), InvitePage(), InvitePageProps (+8 more)
 
 ### Community 343 - "tsconfig.json"
 Cohesion: 0.15
@@ -2252,8 +2245,8 @@ Cohesion: 0.15
 Nodes (14): createVoiceHeartbeatController(), createVoiceHeartbeatTimerApi(), calls, controller, fake, handle, options, ticked (+6 more)
 
 ### Community 346 - "mobile-app-lock-screen.test.tsx"
-Cohesion: 0.12
-Nodes (20): deleteAccountUploadThingFiles(), extractUploadThingFileKey(), AttachmentRecord, AttachmentScanClient, AttachmentScanJobPayload, AttachmentScanResult, CLAMAV_INSTREAM_COMMAND, CLAMAV_ZERO_LENGTH_CHUNK (+12 more)
+Cohesion: 0.17
+Nodes (20): assertSuccessfulE2EResponse(), { authRequestTimeoutMs }, expectLoggedIn(), expectLoggedOut(), expectLoginAlert(), fillLoginCredentials(), getEnabledLoginSubmitButton(), loginAs() (+12 more)
 
 ### Community 347 - "mobile-social.test.ts"
 Cohesion: 0.29
@@ -2304,8 +2297,8 @@ Cohesion: 0.33
 Nodes (6): code:powershell (git fetch origin), code:powershell (git diff --cached --check), code:powershell (git commit -m "feat(mobile): complete phase 4 server managem), code:text (feat(mobile): complete phase 4 server management parity), code:powershell ($uat = "https://wizardsweb-uat.up.railway.app"), Task 12: Create the single M3 commit, push `uat`, and verify Railway/UAT
 
 ### Community 359 - "walk"
-Cohesion: 0.03
-Nodes (82): link, readiness, route, unsafe, contracts, darkModeFlowPath, destinationContracts, flowIds (+74 more)
+Cohesion: 0.22
+Nodes (12): defaultDependencies, mobileInviteDeclineRoute(), MobileInviteDeclineRouteContext, MobileInviteDeclineRouteDependencies, POST(), GET(), defaultDependencies, mobileInvitePreviewRoute() (+4 more)
 
 ### Community 360 - "Android Push Notifications Implementation Plan"
 Cohesion: 0.18
@@ -2364,8 +2357,8 @@ Cohesion: 0.24
 Nodes (14): DotGrid(), getActiveTheme(), cloneDotGridTheme(), DARK_DOT_GRID_THEME, DotGridThemeValues, LIGHT_DOT_GRID_THEME, buildDots(), DotGridPoint (+6 more)
 
 ### Community 376 - "Whispr Mobile Redesign — Faz 1 Kapanış Doğrulaması"
-Cohesion: 0.23
-Nodes (15): isNonEmptyString(), isPlainObject(), isValidMobileSecretToken(), normalizeAvatarUrl(), normalizeMobileSessionSnapshot(), normalizeMobileSessionTokens(), normalizeMobileSessionUser(), normalizeNullableString() (+7 more)
+Cohesion: 0.16
+Nodes (21): counterBuffer(), createTotpSetup(), decodeBase32(), encodeBase32(), formatRecoveryCode(), generateRecoveryCodes(), generateTotpCode(), generateTotpCodeForCounter() (+13 more)
 
 ### Community 377 - "@sentry/nextjs"
 Cohesion: 0.17
@@ -2384,16 +2377,16 @@ Cohesion: 0.05
 Nodes (39): code:text (feat(mobile): add server creation, invites and avatar upload), code:text (POST /api/v1/mobile/servers), code:powershell (corepack pnpm --filter @wizards/mobile exec node --test --im), code:text (MobileServerCreateRequestSchema), code:ts (export type MobileImageUploadOutcome =), code:text (pickImage -> onLocalPreview -> getAccessToken -> uploadFile ), code:ts (let accessToken: string | null = null;), code:ts (export type MobilePickedImage = {) (+31 more)
 
 ### Community 381 - "createRuntime"
-Cohesion: 0.10
-Nodes (15): sendComposerMessage(), aliceUnavailableAttachment, attachmentDraftByFilename(), bobUnavailableAttachment, EICAR_TEST_FILE, imageAttachment, lightbox, message (+7 more)
+Cohesion: 0.03
+Nodes (96): PATCH(), RouteContext, GET(), POST(), defaultDependencies, mobileDMMarkReadRoute(), MobileDMMarkReadRouteContext, MobileDMMarkReadRouteDependencies (+88 more)
 
 ### Community 382 - "next-auth-beta-contract.test.ts"
-Cohesion: 0.10
-Nodes (13): accepted, ChunkedResponse, corrupt, dependencies, hosts, input, options, oversized (+5 more)
+Cohesion: 0.24
+Nodes (9): AccountReauthChallengeCleanupDelegate, AccountReauthChallengeCleanupRecord, buildAccountReauthChallengeCleanupWhere(), cleanupAccountReauthChallenges(), getAccountReauthChallengeCleanupCutoff(), shouldDeleteAccountReauthChallenge(), calls, NOW (+1 more)
 
 ### Community 383 - "page.tsx"
-Cohesion: 0.21
-Nodes (16): acceptInviteInBrowserAction(), getInviteDestination(), getInvitePath(), getInviteDestination(), getInviteErrorMessage(), getInvitePath(), InvitePage(), InvitePageProps (+8 more)
+Cohesion: 0.08
+Nodes (41): auth, SecurityCenterCard(), AccountSettingsField, confirmTwoFactorSetupAction(), ConfirmTwoFactorSetupActionResult, disableTwoFactorAction(), DisableTwoFactorActionResult, isTrustedAvatarUrl() (+33 more)
 
 ### Community 384 - "Task A3: Mobil login/register'da Turnstile doğrulaması"
 Cohesion: 0.18
@@ -2508,24 +2501,24 @@ Cohesion: 0.67
 Nodes (3): code:ts (export type MobileRootStackParamList = {), code:ts (ServerSettingsStackScreenContainer;), Task 3: Add typed protected contextual navigation
 
 ### Community 415 - "audio-health.ts"
-Cohesion: 0.16
-Nodes (12): admin, context, Dependencies, input, routes, AdminReleaseArtifactInput, AdminReleaseArtifactServiceDependencies, AdminReleaseArtifactSummary (+4 more)
+Cohesion: 0.10
+Nodes (10): dependencies, genericDelegate, identity, now, operations, payload, Restore, restores (+2 more)
 
 ### Community 416 - "krisp-quality.ts"
-Cohesion: 0.06
-Nodes (45): ARTICLES, CATEGORIES, createQueryClient(), flattenStyle(), HelpArticlePayload, mockUseMobileAuth, mockUseMobileNetworkStatus, renderScreen() (+37 more)
+Cohesion: 0.11
+Nodes (16): body, calls, channels, dependencies(), deps, firstCategoryChannels, invalidDetail, invalidParams (+8 more)
 
 ### Community 417 - "send-sentry-test-event.ts"
 Cohesion: 0.50
 Nodes (3): dsn, require, Sentry
 
-### Community 418 - "reset-mobile-session-state.ts"
-Cohesion: 0.11
-Nodes (23): buildInboxConversation(), channelMessagesPage, currentUser, dmMessagesPage, renderedQueryClients, renderMessagingFeature(), renderReadMutation(), data (+15 more)
+### Community 418 - "mobile-telemetry-dimensions.ts"
+Cohesion: 0.12
+Nodes (17): config, DEBUG_KEYSTORE_PATH, easProfilesWithClientId, KEYTOOL_CANDIDATES, sha1, config, result, config (+9 more)
 
 ### Community 419 - "TraceCallable"
-Cohesion: 0.09
-Nodes (43): diagnosticsLabels, diagnosticsPayload, labels, addMobileFeedbackAttachment(), addMobileFeedbackAttachments(), canAddMobileFeedbackAttachment(), canSubmitMobileFeedback(), classifyMobileFeedbackPickerFailure() (+35 more)
+Cohesion: 0.10
+Nodes (27): BottomSheetMockProps, onClose, onCreate, onJoin, onServerReady, onUploadServerIcon, { Pressable, View }, React (+19 more)
 
 ### Community 420 - "exportedRouteHandler"
 Cohesion: 0.18
@@ -2537,7 +2530,7 @@ Nodes (3): Authentication Security Notes, Phase 2, Two-Factor Authentication
 
 ### Community 424 - "[version]/route-logic.ts"
 Cohesion: 0.16
-Nodes (16): GET(), adminHelpArticleCreateRoute(), adminHelpArticleListRoute(), AdminHelpCollectionRateLimitAction, AdminHelpCollectionRouteDependencies, defaultDependencies, NO_STORE_HEADERS, POST() (+8 more)
+Nodes (16): beforeSend(), dsn, formatErrorLog(), formatWarningLog(), redactErrorForReport(), redactText(), redactValue(), stringifyStructuredLog() (+8 more)
 
 ### Community 425 - "DM voice and video calls on web, desktop and mobile"
 Cohesion: 0.14
@@ -2552,8 +2545,8 @@ Cohesion: 0.19
 Nodes (11): code:powershell (corepack pnpm --filter @wizards/mobile exec node --test --im), code:ts (export interface MobileChannelSettingsScreenProps {), code:text (mobile-category-create-open), code:ts ({), code:text (Bu çalışma, web'in tam rol CRUD'una (create/update/delete + ), Global Constraints, Mobile Phase 4 M3 Management and Closure Implementation Plan, Task 5: Add category/channel CRUD and channel-history clearing (+3 more)
 
 ### Community 429 - "upload-persistence.test.ts"
-Cohesion: 0.17
-Nodes (11): initial, onCopyUsername, onRetry, onUpdateLocalVisibility, onUpdatePrivacy, onUpdateProfile, { Pressable }, Props (+3 more)
+Cohesion: 0.15
+Nodes (14): CustomRequiredMessageSchema, errorLog, original, parseResult, reports, response, TestSchema, resettableUser (+6 more)
 
 ### Community 430 - "class-variance-authority"
 Cohesion: 0.16
@@ -2588,8 +2581,8 @@ Cohesion: 0.25
 Nodes (8): Bağlam ve kurallar, Doğrulama (hepsi geçmeli, commit yok), Kabul kriterleri, Korunacak sözleşmeler, Mevcut durum, PROMPT 2 / 7 — 10b: Görsel kartına tam-tap + modern görsel önizleyici (lightbox) redesign, Rapor, Uygulama hedefi
 
 ### Community 440 - "readRoutes"
-Cohesion: 0.13
-Nodes (24): GET(), defaultDependencies, loadMobileAccountSettings(), mobileAccountSettingsGetRoute(), MobileAccountSettingsRecord, MobileAccountSettingsRouteDependencies, mobileAccountSettingsUpdateRoute(), NO_STORE_HEADERS (+16 more)
+Cohesion: 0.14
+Nodes (15): DmSharedAttachment, DmSharedAttachmentSummary, getDmSharedAttachmentSummary(), isFileAttachment(), isMediaAttachment(), deleted, file, image (+7 more)
 
 ### Community 443 - "2b Login Alignment Comparison"
 Cohesion: 0.25
@@ -2616,8 +2609,8 @@ Cohesion: 0.29
 Nodes (6): compilerOptions, noEmit, extends, include, server.ts, ./tsconfig.json
 
 ### Community 461 - "describeFile"
-Cohesion: 0.23
-Nodes (17): csp, attachSecurityHeaders(), buildContentSecurityPolicy(), config, createNonce(), CSRF_PROTECTED_API_PREFIXES, getAllowedRequestOrigins(), getAuthRouteRedirectPath() (+9 more)
+Cohesion: 0.15
+Nodes (20): DELETE(), E2ESessionSchema, findE2EUser(), getAuthSecret(), POST(), AuthSessionCookieWriter, expireAuthSessionCookies(), getAuthSessionCookieConfig() (+12 more)
 
 ### Community 462 - "prisma-config.d.ts"
 Cohesion: 0.24
@@ -2632,16 +2625,12 @@ Cohesion: 0.13
 Nodes (15): APP_URL, AUTH_SECRET, AUTH_URL, DATABASE_URL, E2E_BASE_URL, E2E_DATABASE_URL, E2E_TEST_MODE, E2E_TEST_PASSWORD (+7 more)
 
 ### Community 477 - "join"
-Cohesion: 0.22
-Nodes (10): AuthSocialProviderIcon(), AuthSocialProviderIconProps, PROVIDER_ICON_SIZE, renderProviderMark(), isLiveMobileAuthSocialProvider(), MOBILE_AUTH_SOCIAL_PROVIDERS, MobileAuthSocialProvider, MobileAuthSocialProviderId (+2 more)
+Cohesion: 0.16
+Nodes (20): GET(), PATCH(), PATCH(), GET(), POST(), GET(), adminFeedbackDetailRoute(), adminFeedbackListRoute() (+12 more)
 
 ### Community 478 - "globalEnv"
-Cohesion: 0.29
-Nodes (9): collectClassTokens(), collectLeadingImportantModifiers(), collectSourceFiles(), globalCssPath, packageJsonPath, postcssConfigPath, readWorkspaceFile(), tailwindConfigPath (+1 more)
-
-### Community 479 - "build.gradle"
-Cohesion: 0.13
-Nodes (4): AuthLoginScreenProps, MobileAuthContextValue, MobileSocialSignInResult, MobileAuthLiveSocialProviderId
+Cohesion: 0.14
+Nodes (16): exclude, collectClassTokens(), collectLeadingImportantModifiers(), collectSourceFiles(), globalCssPath, packageJsonPath, postcssConfigPath, readWorkspaceFile() (+8 more)
 
 ### Community 480 - "settings.gradle"
 Cohesion: 0.20
@@ -2655,9 +2644,13 @@ Nodes (8): Bağlam ve kurallar, Doğrulama (hepsi geçmeli, commit yok), Kabul k
 Cohesion: 0.07
 Nodes (48): mockAcceptInvite, mockDeclineInvite, mockMarkRead, mockNotifications, renderScreen(), friendRequest, mention, mockAcceptRequest (+40 more)
 
-### Community 485 - "db:generate"
-Cohesion: 0.24
-Nodes (15): detectAppVersion(), detectBrowser(), detectClientType(), detectDeviceType(), detectOs(), getAnalyticsClientInfo(), getFirstForwardedIp(), getIpAddress() (+7 more)
+### Community 484 - "mobile-session-contract.test.ts"
+Cohesion: 0.23
+Nodes (17): csp, attachSecurityHeaders(), buildContentSecurityPolicy(), config, createNonce(), CSRF_PROTECTED_API_PREFIXES, getAllowedRequestOrigins(), getAuthRouteRedirectPath() (+9 more)
+
+### Community 485 - "session-store.ts"
+Cohesion: 0.26
+Nodes (10): describeMobileGoogleError(), isMobileGoogleCancellation(), isMobileGoogleDeveloperError(), MobileGoogleNativeSignInClient, MobileGoogleNativeSignInFailureReason, MobileGoogleNativeSignInOutcome, readMobileGoogleErrorCode(), runMobileGoogleNativeSignIn() (+2 more)
 
 ### Community 486 - "test"
 Cohesion: 0.25
@@ -2676,20 +2669,20 @@ Cohesion: 0.18
 Nodes (10): browserslist, engines, node, name, private, type, version, Chrome >= 111 (+2 more)
 
 ### Community 491 - "Task 5: Add category/channel CRUD and channel-history clearing"
-Cohesion: 0.04
-Nodes (68): LoginPage(), LoginPageProps, claimDesktopOAuthHandoffAction(), ClaimDesktopOAuthHandoffResult, DesktopOAuthClaimPage(), DesktopOAuthClaimPageProps, buildDesktopOAuthHandoffUrl(), DesktopOAuthCompletePage() (+60 more)
+Cohesion: 0.07
+Nodes (46): LoginPage(), LoginPageProps, DesktopOAuthClaimPage(), DesktopOAuthClaimPageProps, buildDesktopOAuthHandoffUrl(), DesktopOAuthCompletePage(), DesktopOAuthCompletePageProps, DesktopOAuthStartClient() (+38 more)
 
 ### Community 492 - "update/route-logic.ts"
-Cohesion: 0.12
-Nodes (26): test, assertSuccessfulE2EResponse(), { authRequestTimeoutMs }, expectLoggedIn(), expectLoggedOut(), expectLoginAlert(), fillLoginCredentials(), getEnabledLoginSubmitButton() (+18 more)
+Cohesion: 0.18
+Nodes (12): draft, MobileSearchKeyRegistry, initialState, MobileActiveTargetState, useMobileActiveTargetStore, MobileComposerDraftKey, MobileComposerDraftState, useMobileComposerDraftStore (+4 more)
 
 ### Community 493 - "realtime-service.test.ts"
 Cohesion: 0.29
 Nodes (7): 5.1 Git, 5.2 Node.js ve Corepack, 5.3 Docker Desktop ve WSL 2, 5.4 JDK 17 ve Android Studio, 5.5 Rust, MSVC ve WebView2, 5.6 İsteğe bağlı araçlar, 5. Zorunlu araçlar
 
 ### Community 494 - "ProfileActionRowProps"
-Cohesion: 0.15
-Nodes (22): DELETE(), E2ESessionSchema, findE2EUser(), getAuthSecret(), POST(), getAuthSecret(), POST(), AuthSessionCookieWriter (+14 more)
+Cohesion: 0.20
+Nodes (16): AdminHealthPage(), AdminHealthPageProps, AdminHealth(), formatMs(), formatRate(), getHealthBandTone(), PLATFORM_LABEL, NOW (+8 more)
 
 ### Community 495 - "mobile-camera-contract.ts"
 Cohesion: 0.33
@@ -2700,8 +2693,8 @@ Cohesion: 0.40
 Nodes (4): Answer, Outcome, Q: Whispr Web, Desktop, Mobile platformlarında çalışan analiz edebileceğin üzere discord, slack tarzı bir platform. Whispr'ın masaüstü uygulamasının native gücü tam kullanmadığını düşünüyorum, daha çok bir web uygulamasının wrapperı gibi. Desktop uygulamayı en üst seviyeye çıkarmak, slack discord teams zoom gibi uygulamaların masaüstü gücünü kullandığı gibi tüm yazılım ve donanım desteğini kullanarak modern uygulamalarda olduğu gibi whispr'ın masaüstü versiyonundaki var olan tüm özellikleri ve ekleyebileceğimiz tüm özellikleri, bu belirttiğim platformlardaki bize uygun olan tüm özellikleri de ekleyerek en üst seviyeye, endüstri standartlarına çıkarmak, tüm native masaüstü gücünü kullanmak ve kullanıcı deneyimini en üst seviyeye çıkartmak istiyorum. Derinlemesine, kapsamlı bir analiz yapıp, hız, performans, kalite, güvenlik, ölçeklenebilirlik, ci/cd süreçleri gibi bir çok kategoride ve türde derinlemesine inceleme yapar mısın? Neler yapmalıyız, neleri iyileştirmeliyiz, mimari olarak değişlikliğe ihtiyacımız var mı gibi aklımdaki bu ve bunlar gibi tüm sorulara cevap vermeni istiyorum., Source Nodes
 
 ### Community 497 - "Task A4: Sıfırlama TTL'i, sosyal sağlayıcı konfigi ve mobil istemci geçişi"
-Cohesion: 0.20
-Nodes (9): createVoicePageExitHandler(), calls, cleanup, handler, notifyFinished, room, VoicePageExitHandlerOptions, VoicePageExitRoom (+1 more)
+Cohesion: 0.10
+Nodes (13): accepted, ChunkedResponse, corrupt, dependencies, hosts, input, options, oversized (+5 more)
 
 ### Community 498 - "Değişiklikler"
 Cohesion: 0.20
@@ -2712,8 +2705,8 @@ Cohesion: 0.40
 Nodes (4): Answer, Outcome, Q: Whispr mobile splash görsel dili Discord Slack Teams Zoom gibi olmalı; kaç ekran ve hangi mesajlar?, Source Nodes
 
 ### Community 500 - "mobileFriendRequestCreateRoute"
-Cohesion: 0.18
-Nodes (10): DELETE(), defaultDependencies, MobileServerMemberKickRateLimitAction, mobileServerMemberKickRoute(), MobileServerMemberKickRouteContext, MobileServerMemberKickRouteDependencies, calls, denials (+2 more)
+Cohesion: 0.33
+Nodes (9): canPublishDesktopRichPresence(), DESKTOP_STREAMING_EXECUTABLE_NAMES, DESKTOP_STREAMING_EXECUTABLE_WHITELIST, DesktopStreamerModeReason, DesktopStreamerModeResolution, isWhitelistedDesktopStreamingExecutable(), normalizeDesktopProcessBasename(), resolveDesktopStreamerMode() (+1 more)
 
 ### Community 501 - "Global Constraints"
 Cohesion: 0.22
@@ -2723,9 +2716,9 @@ Nodes (8): Global Constraints, Task 1: Add the root-owned TS7 project runner, Ta
 Cohesion: 0.40
 Nodes (5): 7.1 Mevcut env yükleme gerçeği, 7.2 Temel local değerler, 7.3 İsteğe bağlı provider alanları, 7.4 Production zorunlu web alanları, 7. Ortam değişkenleri
 
-### Community 503 - "realtime-service.test.ts"
-Cohesion: 0.21
-Nodes (11): appStateHandlers, authentication, biometricAuthenticator, createAuthenticator(), createDetector(), createPreferenceStore(), createProviderProps(), createSignedInRepository() (+3 more)
+### Community 503 - "session-types.ts"
+Cohesion: 0.17
+Nodes (11): 1. gcTime ayrımı, 2. `maxPages` sınırı, 3. LRU budama, 4. İptal edilebilir prefetch, 5. Prefetch değeri ölçülsün, Gerçek kazanım, Güvenlik, Hedef (+3 more)
 
 ### Community 504 - "mobile-social-client.test.ts"
 Cohesion: 0.40
@@ -2747,6 +2740,10 @@ Nodes (17): selectedAsset, getMobileAttachmentAssetValidationReason(), getMobile
 Cohesion: 0.17
 Nodes (11): 07 — 2b · Tüm sürüm geçmişi (arama + yıl grupları + sayfalama), 1. Dosyalar, 2. Yerleşim, 3. Veri, 4. Testler, 5. Doğrulama, 6. Kabul kriterleri, Arama alanı (HTML 132–135) (+3 more)
 
+### Community 509 - "join"
+Cohesion: 0.17
+Nodes (11): 1. Çift üyelik kontrolünü kaldır, 2. Auth ile hafif üyelik kontrolünü paralelleştir, 3. Başlık projeksiyonunu incelt, 4. DM GET'e Server-Timing, 5. `relationJoins` etkisini ölç, Gerçek kazanım, Güvenlik, Hedef (+3 more)
+
 ### Community 510 - "qrcode"
 Cohesion: 0.22
 Nodes (8): Global Constraints, Prisma 7 UAT Implementation Plan, Task 1: Prove migration replay precondition before changing runtime code, Task 2: Add adapter-backed Prisma client boundary with test-first pool validation, Task 3: Move generator and CLI configuration to Prisma 7 contracts, Task 4: Convert seed, contributor, and E2E clients to the shared factory, Task 5: Verify ESM/tooling and documentation contracts, Task 6: Dependency resolution, clean install, full database verification, and builds
@@ -2756,8 +2753,8 @@ Cohesion: 0.13
 Nodes (14): Bağlayıcı kurallar, Bu oturumun dışında kalan, kullanıcıya ait açık kapılar, Bu repoda bilinen tuzaklar, Doğrulama, Doğrulanmış kod gerçekleri, Görevler, Karar bekleyen (uygulamadan önce seç ve raporda gerekçelendir), Nerede duruyoruz (+6 more)
 
 ### Community 512 - "expo-linear-gradient"
-Cohesion: 0.10
-Nodes (22): DMAttachment, DMMessage, fileAttachment, imageAttachment, mockVoiceRecorder, renderRow(), draft, picked (+14 more)
+Cohesion: 0.07
+Nodes (45): DMAttachment, DMMessage, fileAttachment, imageAttachment, mockVoiceRecorder, renderRow(), draft, picked (+37 more)
 
 ### Community 513 - "Mobil "Dil" ayar ekranı — tasarım"
 Cohesion: 0.33
@@ -2767,21 +2764,29 @@ Nodes (5): Amaç, Doğrulama, Ekran, Hesap senkronu (yeni), Mobil "Dil" ayar ekr
 Cohesion: 0.22
 Nodes (8): Client and pool lifecycle, Generator and import boundary, Goal, Prisma 7 UAT Design, Required Prisma 7 changes, Scope and safety boundary, Seed and deployment operations, Verification
 
-### Community 515 - "lucide-react"
-Cohesion: 0.29
-Nodes (12): AudioCaptureProcessingProfile, ENHANCED_NOISE_FILTER_MODES, getAudioCaptureProcessingProfile(), getBrowserNoiseFilterEnabled(), getKrispNoiseFilterTier(), isEnhancedNoiseFilterMode(), isKrispNoiseFilterTier(), resolveNoiseFilterTier() (+4 more)
+### Community 515 - "media-capabilities.test.ts"
+Cohesion: 0.17
+Nodes (12): 1. Event-loop enstrümanı, 2. Prisma havuzu, 3. Fan-out metriğine yüzdelik, 4. `fetchSockets` maliyeti, Aşama 1 — Kanıt topla, Aşama 2 — A/B (yalnız kanıt gösteriyorsa), Gerçek kazanım, Güvenlik (+4 more)
 
-### Community 519 - "mobile-voice-room-panel.tsx"
-Cohesion: 0.15
-Nodes (18): artifact, createHarness(), AndroidApkIntegrityNativeModule, AndroidApkUpdateControllerDependencies, AndroidDownloadProgress, AndroidDownloadResult, AndroidDownloadTask, AndroidFileInfo (+10 more)
+### Community 518 - "Task 10: Add and execute the deterministic Phase 4 Maestro UAT flow"
+Cohesion: 0.11
+Nodes (17): Backfill and Rotation, Cryptography, Current Lifecycle, Data Model, Dual Read, Dual Write, Goal, Key Rotation (+9 more)
+
+### Community 519 - "mobile-session-resilience.test.tsx"
+Cohesion: 0.06
+Nodes (47): artifact, createHarness(), artifact, controller, decision, createHarness(), AndroidApkIntegrityNativeModule, AndroidApkUpdateControllerDependencies (+39 more)
 
 ### Community 521 - "uploadthing"
-Cohesion: 0.09
-Nodes (28): catalogue, dependencies(), published, routes, Row, table(), dependencies(), routes (+20 more)
+Cohesion: 0.12
+Nodes (23): catalogue, dependencies(), published, routes, Row, table(), dependencies(), routes (+15 more)
 
 ### Community 522 - "privacy-policy.ts"
-Cohesion: 0.03
-Nodes (67): client, requests, result, client, leakingClient, requests, validClaimResponse, client (+59 more)
+Cohesion: 0.18
+Nodes (12): client, leakingClient, requests, validClaimResponse, buildMobileMediaClaimPath(), claimMobileMediaUpload(), defaultDependencies, MobileMediaClaimRateLimitAction (+4 more)
+
+### Community 523 - "@sentry/nextjs"
+Cohesion: 0.14
+Nodes (19): actor, seed(), applyMobileRealtimeNotificationEvent(), canApplyMobileNotificationEvent(), getEventKind(), getMetadataString(), matchesFilter(), prependNotification() (+11 more)
 
 ### Community 525 - "@livekit/components-core"
 Cohesion: 0.25
@@ -2811,13 +2816,13 @@ Nodes (5): Building with the Whispr design system, Idiomatic example, Styling id
 Cohesion: 0.33
 Nodes (5): description, name, private, types, version
 
-### Community 536 - "mobile-google-native-sign-in.ts"
-Cohesion: 0.24
-Nodes (11): layoutFor(), PHONE, clamp(), getAvatarSize(), getContentGap(), getMobileVoiceAudienceGridLayout(), getNameFontSize(), getPreferredColumns() (+3 more)
+### Community 536 - "ProfileCardViewHandlers"
+Cohesion: 0.27
+Nodes (9): captureChannelMessage(), captureDirectMessage(), captureEvidenceForReport(), EvidenceCaptureInput, EvidencePurgeStore, EvidenceSnapshot, EvidenceStore, baseInput (+1 more)
 
-### Community 537 - "MobileNotificationsResponse"
-Cohesion: 0.19
-Nodes (12): createChannelPreviewProps(), createDmPreviewProps(), ChannelHarness(), channelSummary, createChannelMessage(), createChannelProps(), createDMMessage(), DMHarness() (+4 more)
+### Community 537 - "dashboard.ts"
+Cohesion: 0.22
+Nodes (14): POST(), DELETE(), authorize(), defaultDependencies, DisableResult, mobileTwoFactorConfirmRoute(), mobileTwoFactorDisableRoute(), MobileTwoFactorRouteDependencies (+6 more)
 
 ### Community 538 - "0. KAYNAKLAR VE ÇALIŞMA KURALLARI"
 Cohesion: 0.14
@@ -2844,48 +2849,48 @@ Cohesion: 0.33
 Nodes (6): code:ts (assert.deepEqual(Object.keys(manifest.files).sort(), [), code:powershell (corepack pnpm --filter @wizards/mobile test -- mobile-font-c), code:powershell (corepack pnpm add --filter @wizards/mobile --save-exact @exp), code:tsx (import { useFonts } from "expo-font";), code:powershell (rg -n "useOutfitFonts|Outfit|@expo-google-fonts" apps/mobile), Task 1: Plus Jakarta Sans fontları
 
 ### Community 560 - "mobile-admin-triage-screens.test.tsx"
-Cohesion: 0.19
-Nodes (13): detail, mockClaim, mockDismiss, mockEscalate, mockFetchCase, mockFetchCases, renderCase(), renderQueue() (+5 more)
+Cohesion: 0.20
+Nodes (13): buildTabFilter(), listMobileDMAttachments(), MobileDMAttachmentsInput, resolveCursorCreatedAt(), dmAttachmentSelect, DmSharedMediaMessage, extractDmMessageLinks(), getDmSharedMediaContentTypes() (+5 more)
 
 ### Community 561 - "expo-blur"
-Cohesion: 0.13
-Nodes (21): EMPTY_ACTIVITY, EMPTY_REQUEST_CONTEXT, listMobileFriendSuggestions(), loadFriendIds(), loadMutualFriends(), loadMutualServers(), loadUsernames(), loadViewerServers() (+13 more)
+Cohesion: 0.14
+Nodes (20): EMPTY_ACTIVITY, EMPTY_REQUEST_CONTEXT, listMobileFriendSuggestions(), loadFriendIds(), loadMutualFriends(), loadMutualServers(), loadUsernames(), loadViewerServers() (+12 more)
 
 ### Community 563 - "RUN PROMPT — Admin Dalga 1: B1 Yetki + E1 Kampanya Güvenliği"
 Cohesion: 0.33
 Nodes (5): Bağlayıcı kurallar, Doğrulama (dalga sonu, hepsi yeşil), Okuma sırası (kod yazmadan önce, tamamını), Rapor formatı, RUN PROMPT — Admin Dalga 1: B1 Yetki + E1 Kampanya Güvenliği
 
 ### Community 564 - "expo-navigation-bar"
-Cohesion: 0.38
-Nodes (8): AdminFeatureFlag, evaluateFlags(), evaluateFlagsForUser(), FeatureFlagRecord, FeatureFlagStore, getFlagRolloutBucket(), isFeatureFlagOnForUser(), flag()
+Cohesion: 0.01
+Nodes (209): admin, Dependencies, detail, listItem, roadmapItem, routes, PATCH(), RouteContext (+201 more)
 
-### Community 565 - "@tanstack/query-async-storage-persister"
-Cohesion: 0.08
-Nodes (19): almostExpired, diagnostics, MemorySecureStorage, now, refreshable, replacement, repository, serialized (+11 more)
+### Community 565 - "voice.spec.ts"
+Cohesion: 0.18
+Nodes (10): 1. Transcript satırlarını animasyonsuz çiz, 2. Geçiş animasyonu A/B, 3. SQLCipher restore bariyeri, 4. `drawDistance` — ölçmeden dokunma, Gerçek kazanım, Güvenlik, Hedef, İşler (+2 more)
 
 ### Community 566 - "@dnd-kit/core"
 Cohesion: 0.38
 Nodes (6): collectFiles(), defaultDirectories, findHardcodedPasswordFallbacks(), guardRules, main(), repositoryRoot
 
 ### Community 567 - "@dnd-kit/core"
-Cohesion: 0.21
-Nodes (9): source, storage, expoMobileHaptics, mobileHapticsPreferenceRepository, storage, loadMobileHapticsPreference(), MobileHapticsPreferenceStorage, saveMobileHapticsPreference() (+1 more)
+Cohesion: 0.22
+Nodes (8): source, storage, expoMobileHaptics, mobileHapticsPreferenceRepository, storage, loadMobileHapticsPreference(), MobileHapticsPreferenceStorage, saveMobileHapticsPreference()
 
 ### Community 568 - "route-logic.test.ts"
 Cohesion: 0.18
 Nodes (10): 05 — 1d · Güncelleme hazır kartı + indirme sayfası, 0. Dürüstlük sözleşmesi (bu promptun en önemli maddesi), 1. Dosyalar, 2. Güncelleme kartı (HTML 1036–1049), 3. İndirme sayfası (HTML 1065–1102), 4. Testler, 5. Doğrulama, 6. Kabul kriterleri (+2 more)
 
 ### Community 569 - "mobile-google-native-sign-in.ts"
-Cohesion: 0.03
-Nodes (126): baseProfile, createHandlers(), renderCard(), STATUS_LABELS, containersSource, deepLinkSource, linkingSource, navigationRefSource (+118 more)
+Cohesion: 0.22
+Nodes (14): formatNotificationDate(), NotificationBell(), NotificationBellProps, NotificationItem(), deleteAllNotifications(), fetchNotifications(), markAllNotificationsRead(), markNotificationRead() (+6 more)
 
 ### Community 570 - "ProfileActionRowProps"
 Cohesion: 0.33
 Nodes (5): Bağlayıcı kurallar, Doğrulama, Okuma sırası, Rapor formatı, RUN PROMPT — Admin Dalga 2: A Telemetri + B2 Handoff Kabuğu
 
 ### Community 571 - "mobile-social-client.test.ts"
-Cohesion: 0.09
-Nodes (27): createMobileApiClient(), normalizeBaseUrl(), MobileBoundaryFault, MobileErrorBoundaryCore, classifyMobileBoundaryFault(), createMobileBoundaryFaultReference(), FAULT_KIND_PREFIX, MobileBoundaryFaultKind (+19 more)
+Cohesion: 0.13
+Nodes (20): WizardsUploadRouter, AVATAR_CONTENT_TYPES, buildAvatarFallback(), clamp(), clampDraftOffset(), createCroppedAvatarFile(), CropDraft, DragState (+12 more)
 
 ### Community 572 - "RUN PROMPT — Admin Dalga 3: D1 Moderasyon + C1 Sağlık + C2 Flags + C3 Push Telemetrisi"
 Cohesion: 0.33
@@ -2923,17 +2928,17 @@ Nodes (5): Bağlayıcı kurallar, Doğrulama, Okuma sırası, Rapor formatı, RU
 Cohesion: 0.67
 Nodes (3): 16. Railway web ve worker CD, Web service, Worker service
 
-### Community 582 - "mobile-shared-media-screen.test.tsx"
-Cohesion: 0.38
-Nodes (6): COPY_ATTRIBUTE, COPY_ATTRIBUTES, findHardcodedCopy(), isUserFacingCopy(), LANGUAGE_NEUTRAL, LOCALE_TABLE_OWNERS
+### Community 582 - "e2e/uploads/route.ts"
+Cohesion: 0.22
+Nodes (11): fetchMobileDMAttachments(), GET(), defaultDependencies, mobileDMAttachmentsRoute(), MobileDMAttachmentsRouteContext, MobileDMAttachmentsRouteDependencies, emptyPage, MobileDMAttachmentsQuery (+3 more)
 
 ### Community 583 - "prisma-generate.mjs"
 Cohesion: 0.50
 Nodes (3): packageRoot, prisma, result
 
 ### Community 586 - "@react-navigation/native-stack"
-Cohesion: 0.08
-Nodes (46): IDLE_PUSH_TO_TALK_STATE, LiveVoiceProvider(), loadKrispModule(), PushToTalkPhase, PushToTalkState, subscribeToRuntimeCapability(), AudioElementWithSinkId, VoiceAudioRenderer() (+38 more)
+Cohesion: 0.05
+Nodes (87): IDLE_PUSH_TO_TALK_STATE, LiveVoiceProvider(), loadKrispModule(), PushToTalkPhase, PushToTalkState, subscribeToRuntimeCapability(), notifyVoiceExit(), AudioElementWithSinkId (+79 more)
 
 ### Community 587 - "RUN PROMPT — Admin Dalga 5: D2 Delil + F Desktop/Mobil"
 Cohesion: 0.33
@@ -2968,8 +2973,8 @@ Cohesion: 0.67
 Nodes (3): 9.1 Başlatma, 9.2 Ayrı outbox worker, 9. Web geliştirme
 
 ### Community 598 - "MobileFeedbackSubmittedScreenProps"
-Cohesion: 0.09
-Nodes (31): catalogue, dependencies(), routes, Row, table(), dependencies(), releaseTable(), routes (+23 more)
+Cohesion: 0.05
+Nodes (49): catalogue, dependencies(), routes, Row, table(), dependencies(), releaseTable(), routes (+41 more)
 
 ### Community 600 - "service.test.ts"
 Cohesion: 0.50
@@ -2979,9 +2984,9 @@ Nodes (3): friendUser, mobile, social
 Cohesion: 0.18
 Nodes (10): 06 — 2a · Tam sürüm notu (tek sürüm detayı), 1. Dosyalar, 2. Yerleşim, 3. Veri, 4. Testler, 5. Doğrulama, 6. Kabul kriterleri, Başlık bloğu (HTML 53–63) — **kart yok**, sayfa zemini üzerinde (+2 more)
 
-### Community 602 - "history/route-logic.ts"
-Cohesion: 0.26
-Nodes (10): describeMobileGoogleError(), isMobileGoogleCancellation(), isMobileGoogleDeveloperError(), MobileGoogleNativeSignInClient, MobileGoogleNativeSignInFailureReason, MobileGoogleNativeSignInOutcome, readMobileGoogleErrorCode(), runMobileGoogleNativeSignIn() (+2 more)
+### Community 602 - "mobile-google-native-sign-in.ts"
+Cohesion: 0.25
+Nodes (11): exportedRouteHandler(), functionInitializer(), isDirectHandlerAlias(), isNextRouteContextParameter(), moduleExportSymbol(), parameterReferencesDependency(), resolveAliasedSymbol(), resolveFunctionLikeFromSymbol() (+3 more)
 
 ### Community 604 - "outbox/service.test.ts"
 Cohesion: 0.18
@@ -3003,9 +3008,9 @@ Nodes (10): 1. Ortak kit — B2'de bir kez inşa edilir, 2. Modül → faz harit
 Cohesion: 0.29
 Nodes (6): 1. Update decision, 2. Native About identity, 3. Admin metadata synchronization, 4. Workflow automation, 5. Verification, Mobile Release Identity Automation Implementation Plan
 
-### Community 609 - "decline/route-logic.ts"
-Cohesion: 0.14
-Nodes (11): ada, adaAsFriend, calls, dependencies(), deps, dogukan, friendEnrichmentDefaults, pendingRequest (+3 more)
+### Community 609 - "mobile-update-controller.ts"
+Cohesion: 0.29
+Nodes (8): AdminAppSurfaceOnly(), AdminSurface, AdminSurfaceRoot(), resolveAdminSurface(), adminShellSource, desktopLibSource, shellRoot, useAdminSurface()
 
 ### Community 611 - "@sentry/react-native"
 Cohesion: 0.50
@@ -3028,24 +3033,36 @@ Cohesion: 0.31
 Nodes (9): assignNumber(), collectVoiceAudioHealthFromSender(), collectVoiceAudioHealthFromStats(), isAudioRtpReport(), readNumber(), stats, VoiceAudioHealthMetric, VoiceAudioHealthSender (+1 more)
 
 ### Community 619 - "Task A4: Sıfırlama TTL'i, sosyal sağlayıcı konfigi ve mobil istemci geçişi"
-Cohesion: 0.31
-Nodes (8): AudioDeviceFallbackOption, AudioDeviceFallbackReason, AudioDeviceFallbackResult, findFirstRealDevice(), hasDevice(), isValidDeviceId(), resolveAudioDeviceFallback(), result
+Cohesion: 0.17
+Nodes (11): DELETE(), defaultDependencies, MobileServerMemberKickRateLimitAction, mobileServerMemberKickRoute(), MobileServerMemberKickRouteContext, MobileServerMemberKickRouteDependencies, calls, denials (+3 more)
+
+### Community 620 - "mobile-dm-attachments-client.ts"
+Cohesion: 0.25
+Nodes (8): collectRouteFiles(), createRouteFixture(), createRouteProgram(), exportedMethods(), readRouteContractSource(), readRoutes(), routePathFor(), sourceFileFor()
 
 ### Community 621 - "channels/route-logic.ts"
 Cohesion: 0.40
 Nodes (4): Answer, Outcome, Q: Tüm bu analizini kullanarak mevcut projeyi geliştirmek, en üst seviyeye çıkarabilmek için, over engineering yapmadan, gerçek kazanımlara ve öncelik sırasına odaklanarak, yapılacaklara ait prompt yazar mısın? UAT'de yeni bir branch oluşturulacak, tüm bu işler oluşturulan yeni branchde yapılacak. caveman ultra kullanılacak. Amacımız whispr desktop'u analizin doğrultusunda en üst seviyeye getirmek, her anlamda!, Source Nodes
 
 ### Community 622 - "livekit-server-sdk"
-Cohesion: 0.19
-Nodes (16): MobilePushNotificationRow, ALERT_NOTIFICATION, ALERTABLE_STATUSES, alertModerationCase(), alertModerationCaseInBackground(), buildAlertNotifications(), buildModerationAlertDedupeKey(), defaultDependencies (+8 more)
+Cohesion: 0.18
+Nodes (17): MobilePushNotificationRow, ALERT_NOTIFICATION, ALERTABLE_STATUSES, alertModerationCase(), alertModerationCaseInBackground(), buildAlertNotifications(), buildModerationAlertDedupeKey(), defaultDependencies (+9 more)
 
-### Community 623 - "route-guard.ts"
-Cohesion: 0.14
-Nodes (16): coverageEnv, coverageTempDirectory, e2eMode, e2eValidation, runCommand(), runPnpm(), scriptDir, webRoot (+8 more)
+### Community 623 - "mobile-voice-audience-grid.ts"
+Cohesion: 0.24
+Nodes (11): layoutFor(), PHONE, clamp(), getAvatarSize(), getContentGap(), getMobileVoiceAudienceGridLayout(), getNameFontSize(), getPreferredColumns() (+3 more)
+
+### Community 624 - "@tauri-apps/plugin-notification"
+Cohesion: 0.20
+Nodes (10): 1. POST'a bucket'lı Server-Timing, 2. GET/POST ayrımı panelde görünsün, 3. Request-ID korelasyonu, Aşama 1 — Ölç (bu dalga önce bunu yapar), Aşama 2 — Socket callback ack, Gerçek kazanım, Güvenlik, Hedef (+2 more)
 
 ### Community 625 - "@uploadthing/react"
 Cohesion: 0.29
 Nodes (7): "AdminAuditLog", "AdminMembership", "AppSession", "MediaUsageSession", "Notification", "NotificationCampaign", "UserDailyMetric"
+
+### Community 627 - "resend"
+Cohesion: 0.23
+Nodes (14): assertEmailReauthEligibleUser(), buildAccountDeletionReauthUrl(), createAccountReauthChallenge(), EmailReauthUser, escapeHtml(), getAppUrl(), getFirstRequiredEnv(), getRequiredEnv() (+6 more)
 
 ### Community 628 - "client-health-rollup.ts"
 Cohesion: 0.33
@@ -3053,7 +3070,7 @@ Nodes (5): Behavior, Compatibility, Decision, Mobile Release Identity Automation
 
 ### Community 629 - "mobile-profile-card-lifecycle.test.tsx"
 Cohesion: 0.14
-Nodes (19): actor, seed(), applyMobileRealtimeNotificationEvent(), canApplyMobileNotificationEvent(), getEventKind(), getMetadataString(), matchesFilter(), prependNotification() (+11 more)
+Nodes (9): aliceUnavailableAttachment, attachmentDraftByFilename(), bobUnavailableAttachment, EICAR_TEST_FILE, imageAttachment, lightbox, message, unavailableAttachment (+1 more)
 
 ### Community 630 - "@wizards/ui"
 Cohesion: 0.70
@@ -3071,9 +3088,9 @@ Nodes (9): 1. Veri modeli, 2. Rapordan vakaya gruplama, 3. Migration: geçmiş r
 Cohesion: 0.80
 Nodes (4): "ModerationCase", "ModerationCaseEvent", "ModerationEvidence", "UserReport"
 
-### Community 642 - "expo-haptics"
-Cohesion: 0.11
-Nodes (25): cleared, existing, incoming, makeChannelPayload(), makeReadyState(), messages, removed, result (+17 more)
+### Community 642 - "client-health-rollup.ts"
+Cohesion: 0.30
+Nodes (11): MobileOAuthStartClient(), MobileOAuthStartClientProps, MobileOAuthStartPage(), MobileOAuthStartPageProps, readSingleParam(), buildMobileOAuthCompletePath(), buildMobileOAuthStartPath(), getMobileOAuthGoogleAuthorizationParams() (+3 more)
 
 ### Community 644 - "mobile-voice-room-panel.tsx"
 Cohesion: 0.40
@@ -3084,8 +3101,8 @@ Cohesion: 0.25
 Nodes (7): authSource, containerSource, DEV_LOGIN_ENV_KEYS, DevLoginEnvironmentKey, screenSource, setDevLoginEnvironment(), withControlledDevLoginRuntime()
 
 ### Community 647 - "qrcode"
-Cohesion: 0.25
-Nodes (12): jsonDesktopDownloadError(), assertSafeManifestUrl(), DESKTOP_MANIFEST_RINGS, DesktopUpdateManifest, getDesktopDownloadManifestUrl(), getSafeDesktopDownloadUrl(), normalizeUrl(), resolveDesktopDownloadUrlFromManifest() (+4 more)
+Cohesion: 0.54
+Nodes (6): evaluateFlags(), evaluateFlagsForUser(), FeatureFlagRecord, getFlagRolloutBucket(), isFeatureFlagOnForUser(), flag()
 
 ### Community 649 - "expo-clipboard"
 Cohesion: 0.15
@@ -3096,8 +3113,8 @@ Cohesion: 0.15
 Nodes (12): 01 — Veri katmanı: Prisma modelleri, paylaşılan tipler, mobil API uçları, 1. Prisma şeması, 2. Paylaşılan tipler (`packages/types/src/mobile.ts`), 3. Servis katmanı (`apps/web/src/lib/`), 4. Mobil API uçları, 5. Tohum verisi (seed), 6. Testler (bu prompt bitmeden hepsi yeşil), 7. Doğrulama (+4 more)
 
 ### Community 655 - "mobile-push-display-contract.ts"
-Cohesion: 0.40
-Nodes (5): code:ts (import { PASSWORD_RESET_TOKEN_EXPIRY_MINUTES } from "@/lib/a), code:ts (export type MobileAuthSocialProviderId = "google";), code:tsx (import { MobileApiError } from "../api/mobile-api-client";), code:powershell (corepack pnpm --filter @wizards/web test), Task A4: Sıfırlama TTL'i, sosyal sağlayıcı konfigi ve mobil istemci geçişi
+Cohesion: 0.20
+Nodes (10): events, fontError, mockInstallMobileFontDefaults, mockUseMobileFonts, warn, MobileFontGate(), MobileFontGateState, FontDefaultTarget (+2 more)
 
 ### Community 656 - "@auth/prisma-adapter"
 Cohesion: 0.25
@@ -3116,32 +3133,28 @@ Cohesion: 0.25
 Nodes (8): Admin Paneli Yeniden Tasarımı — Alt Proje Haritası, Alt projeler arası bağlayıcı kararlar, Alt projeler ve fazlar, Bilinçli ertelemeler, Görsel tasarım kaynağı, Revizyon özeti, Sıralama, Uygulama planları ve run prompt'lar
 
 ### Community 665 - "@livekit/react-native-webrtc"
-Cohesion: 0.06
-Nodes (46): buildMobileAppChannelPath(), buildMobileAppUpdatePath(), buildMobileBugReportPath(), buildMobileHelpArticleListPath(), buildMobileHelpArticleViewPath(), buildMobileHelpSearchPath(), buildMobileReleaseDetailPath(), buildMobileReleaseListPath() (+38 more)
+Cohesion: 0.05
+Nodes (34): listRustSources(), scriptDirectory, tauriDirectory, flattenStyle(), flattenStyle(), ARTICLES, CATEGORIES, createQueryClient() (+26 more)
 
 ### Community 666 - "expo-image-manipulator"
 Cohesion: 0.15
 Nodes (12): 02 — Mobil temel katman: token'lar, metinler, ortak bileşenler, rotalar, veri bağlama, 1.1 `apps/mobile/src/design/palette.ts`, 1.2 `apps/mobile/src/design/themes.ts`, 1.3 Ölçü token'ları, 1. Tema token'ları, 2. Metinler (`apps/mobile/src/locale/mobile-copy.ts`), 3. Ortak bileşenler, 4. Rotalar (+4 more)
 
 ### Community 668 - "uploadthing.ts"
-Cohesion: 0.25
-Nodes (7): featureSource, mobileMessagingFeature, mobileProductApp, mobileRoot, productSource, readTree(), source
+Cohesion: 0.01
+Nodes (145): onOpenWebSignIn, onSignIn, pendingSignIn, renderLogin(), SignInInput, SocialSignInResult, checkbox, mockedRuntimeConfig (+137 more)
 
 ### Community 669 - "expo-local-authentication"
-Cohesion: 0.27
-Nodes (7): CachedMobileHelpArticle, cacheMobileHelpArticle(), MobileHelpCacheStorage, parseCachedArticle(), readCachedMobileHelpArticles(), MobileHelpArticle, MobileHelpArticleSchema
+Cohesion: 0.25
+Nodes (12): buildBootstrapSlice(), buildConversation(), buildConversationsData(), ConversationsData, isCleared(), MobileBootstrapDMReadSlice, MobileDMConversationsCache, MobileDMReadCachePatch (+4 more)
 
-### Community 670 - "@emoji-mart/react"
-Cohesion: 0.16
-Nodes (9): appLockPreferenceStore, biometricAuthenticator, buildExpiredStoredSession(), buildRotatedSession(), buildSession(), deviceIntegrityDetector, MobileRefreshImplementation, runtimeConfig (+1 more)
+### Community 670 - "[categoryId]/route-logic.ts"
+Cohesion: 0.22
+Nodes (10): dependencies(), routes, statusFrom(), defaultDependencies, getMobileServiceStatus(), MobileServiceStatusDependencies, resolveLevel(), ReadinessPayload (+2 more)
 
 ### Community 672 - "socket.io-client"
 Cohesion: 0.40
 Nodes (4): Answer, Outcome, Q: 1A ekranındaki ve diğer ilgili ekranlarda sağ üstteki Bildir butonunun ikon tasarımını HTML 1a/ilgili About handoff tasarımıyla eşleştir, Source Nodes
-
-### Community 673 - "mobile-media-upload-architecture.test.ts"
-Cohesion: 0.20
-Nodes (14): createHarness(), createExpoUpdateController(), createFakeUpdateController(), expoDependencies, getExpoUpdatesModule(), IDLE_SNAPSHOT, MobileFakeUpdateScript, MobileUpdateControllerDependencies (+6 more)
 
 ### Community 674 - "@uploadthing/react"
 Cohesion: 0.22
@@ -3160,20 +3173,20 @@ Cohesion: 0.22
 Nodes (8): 0. Mağaza değerlendirmesi hakkında karar, 13 — 2h · Whispr'ı puanla, 1. Dosyalar, 2. Yerleşim, 3. Davranış (§4.20), 4. Testler, 5. Doğrulama, 6. Kabul kriterleri
 
 ### Community 678 - "mobile-phase-zero-boundary.test.ts"
-Cohesion: 0.03
-Nodes (80): DELETE(), RouteContext, DMThreadParamsSchema, GET(), RouteContext, RouteContext, GET(), normalizeMobileImageUrl() (+72 more)
+Cohesion: 0.02
+Nodes (198): ReadEffectHarness(), GET(), GET(), assertAttachmentAccess(), contentDispositionFor(), GET(), RouteContext, getAuthSecret() (+190 more)
 
-### Community 679 - "MemoryRedis"
-Cohesion: 0.22
-Nodes (11): dependencies(), previewFixture(), routes, buildMobileInvitePreviewResponse(), getMobileInvitePreview(), getMobileInvitePreviewWithDatabase(), inviteCanBePreviewed(), isVoiceChannel() (+3 more)
+### Community 679 - "mobile-voice-room-panel.tsx"
+Cohesion: 0.25
+Nodes (7): Doğrulama komutları (dalga bitiminde hepsi yeşil olmalı), Güvenlik sözleşmeleri (hız için gevşetilmez), Mimari sözleşmeler (ihlal etme), Ortak bağlam — her dalga promptuna dahildir, Test altyapısı tuzakları, Çalışma kuralları, Ölçüm gerçekleri (2026-07-31 release APK, uat)
 
 ### Community 680 - "mobile-two-factor-client.ts"
-Cohesion: 0.11
-Nodes (17): artifact, controller, decision, MobileAppUpdateParams, disabledSelection(), isNewerArtifact(), MobileUpdateControllerKind, MobileUpdateControllerSelection (+9 more)
+Cohesion: 0.25
+Nodes (5): Kabul protokolü (W1'den sonra her dalga), Mobil mesajlaşma performansı — dalga paketi, Sıra bağlayıcı, Yapılmayacaklar (her dalgada geçerli), Ölçülen taban (2026-07-31, release APK, uat)
 
-### Community 681 - "@socket.io/redis-adapter"
-Cohesion: 0.50
-Nodes (3): ALLOWED_ROUTES, collectRoutes(), mobileAdminRoot
+### Community 681 - "moderation/appeal/route.ts"
+Cohesion: 0.12
+Nodes (20): flattenStyle(), latest, release, renderAbout(), renderSheet(), MobileUpdateStep, AboutUpdateBanner(), AboutUpdateChangeIcon() (+12 more)
 
 ### Community 682 - "desktop"
 Cohesion: 0.40
@@ -3184,24 +3197,24 @@ Cohesion: 0.40
 Nodes (4): Answer, Outcome, Q: Her yeni GitHub Mobile Release workflowunda build numarası otomatik artıyor mu; elle ne değiştirmeliyim?, Source Nodes
 
 ### Community 684 - "TraceCallable"
-Cohesion: 0.28
-Nodes (12): MobilePushResponseBridge(), navigatePushPathWhenReady(), MOBILE_PUSH_ANDROID_CHANNELS, MOBILE_PUSH_INCOMING_CALL_ACTIONS, MobilePushData, parseMobilePushData(), readString(), resolveMobilePushNavigationPath() (+4 more)
+Cohesion: 0.07
+Nodes (53): inferBugReportCategoryFromHelpQuery(), MOBILE_HELP_SEARCH_DEBOUNCE_MS, CachedMobileHelpArticle, cacheMobileHelpArticle(), MobileHelpCacheStorage, parseCachedArticle(), readCachedMobileHelpArticles(), CategoryGrid() (+45 more)
 
 ### Community 685 - "build"
 Cohesion: 0.17
 Nodes (13): buildMobileReleaseContract(), ENVIRONMENTS, KINDS, main(), parseArguments(), requireSafeId(), SCRIPT_PATH, androidBuildToolsSetupPath (+5 more)
 
 ### Community 686 - "mobile-privacy-shield.ts"
-Cohesion: 0.12
-Nodes (12): mockBuildDiagnostics, mockPickImages, mockSetVote, mockSubmit, mockUploadImage, openRoadmap, renderFlow(), renderSubmitted() (+4 more)
+Cohesion: 0.18
+Nodes (10): Global Constraints, Task 1: Additive Prisma Model and Migration, Task 2: Keyring Validation and AES-256-GCM Envelope, Task 3: Dual Read and Dual Write, Task 4: Idempotent Backfill and Rotation Tool, Task 5: Return Matched TOTP Counter, Task 6: Atomic Redis Replay Claim, Task 7: Web and Mobile Login Integration (+2 more)
 
 ### Community 687 - "voice-audio-renderer.tsx"
 Cohesion: 0.33
 Nodes (5): NEXT_TELEMETRY_DISABLED, NODE_ENV, TURBO_TELEMETRY_DISABLED, globalEnv, $schema
 
 ### Community 688 - "expo"
-Cohesion: 0.15
-Nodes (9): codeInput, disableButton, lightThemeOption, openSettings(), outputTrigger, passwordInput, setupCodeInput, turkishOption (+1 more)
+Cohesion: 0.22
+Nodes (8): contractSource, mediaRoot, moduleSource, packageJson, pickerSource, productAppSource, runtimeSource, transportSource
 
 ### Community 689 - "zustand"
 Cohesion: 0.50
@@ -3220,12 +3233,12 @@ Cohesion: 0.13
 Nodes (15): ^typecheck, cache, persistent, cache, outputs, tasks, dev, e2e (+7 more)
 
 ### Community 693 - "mobile-voice-message-recorder.ts"
-Cohesion: 0.29
-Nodes (10): ClusterSuggestionDecisionSchema, POST(), RouteContext, acceptClusterSuggestion(), ClusterServiceStore, ClusterSuggestionDependencies, defaultDependencies, readFeedbackIds() (+2 more)
+Cohesion: 0.25
+Nodes (7): Global Constraints, Task 1: Central trusted client-IP identity, Task 2: Mobile auth network and subject layers, Task 3: Web auth independent network and subject limits, Task 4: OTA and analytics consumers, Task 5: Full verification and graph refresh, Trusted Client IP and Sensitive Rate Limits Implementation Plan
 
-### Community 694 - "@dnd-kit/utilities"
-Cohesion: 0.16
-Nodes (8): AttachmentScanRetryableError, createAttachment(), deletes, findUnique(), logs, notifications, update(), updates
+### Community 694 - "mobile-phase3-m4-ui.test.ts"
+Cohesion: 0.22
+Nodes (8): card, client, details, feature, picker, root, settings, source
 
 ### Community 695 - "expo-image-picker"
 Cohesion: 0.40
@@ -3236,24 +3249,24 @@ Cohesion: 0.17
 Nodes (11): Task 10: Cross-package verification and graph refresh, Task 1: Extend shared update contracts, Task 2: Add Prisma OTA/artifact persistence, Task 3: Configure UAT OTA signing and Play Store-safe permissions, Task 4: Implement signed Expo manifest decision and public route, Task 5: Add OTA admin publication API and offline signing script, Task 6: Make About 1A “Denetle” always visible and support OTA rollback, Task 7: Implement internal Android APK controller (+3 more)
 
 ### Community 697 - "expo-localization"
-Cohesion: 0.25
-Nodes (7): exclude, liveVoiceProviderAst, liveVoiceProviderPath, liveVoiceProviderSource, staticKrispImports, @sentry/react-native, typescript
+Cohesion: 0.16
+Nodes (13): GET(), defaultDependencies, mobileDMDetailsRoute(), MobileDMDetailsRouteContext, MobileDMDetailsRouteDependencies, calls, defaultDependencies, getMobileDMDetails() (+5 more)
 
 ### Community 698 - "verify-prisma7-disposable.mjs"
-Cohesion: 0.22
-Nodes (3): AUTHOR, BASE, handlers
+Cohesion: 0.33
+Nodes (6): bodylessMutatingMethodKeys(), MUTATING_METHODS, rateLimitActionsForMethod(), routeContractSourcePaths(), routeMethodConsumesRequestWithCentralParser(), traceRouteMethod()
 
 ### Community 699 - "[channelId]/route-logic.test.ts"
-Cohesion: 0.33
-Nodes (9): createLoginProof(), getLoginProofSecret(), isSafeEqual(), LoginProofOptions, normalizeLoginProofEmail(), signLoginProof(), env, proof (+1 more)
+Cohesion: 0.40
+Nodes (6): collectUnstableSymbols(), isContractCallable(), symbolSignature(), TraceCallable, traceFrameSignature(), traceValueSignature()
 
 ### Community 729 - "react-native-gesture-handler"
 Cohesion: 0.50
 Nodes (3): eslintRequire, minimatchRequire, mobileRequire
 
-### Community 730 - "db:generate"
-Cohesion: 0.19
-Nodes (13): buildScreenShareMediaConstraints(), getScreenShareCaptureOptions(), getScreenSharePublishOptions(), getScreenShareQualityPreset(), H1080_FPS60_PRESET, H1440_FPS60_PRESET, H720_FPS60_PRESET, isScreenShareQualityId() (+5 more)
+### Community 730 - "use-mobile-feedback-attachment-upload.ts"
+Cohesion: 0.14
+Nodes (12): ACTIVE_SESSION_ROWS, LATEST_USERS, METRIC_ROWS, QueryArgs, RECENT_AUDIT_LOGS, RECENT_CAMPAIGNS, RECENT_MESSAGES, SESSION_USERS (+4 more)
 
 ### Community 732 - "@dnd-kit/utilities"
 Cohesion: 0.25
@@ -3268,64 +3281,68 @@ Cohesion: 0.40
 Nodes (4): Answer, Outcome, Q: Wizards projesi için en iyi IDE ve geliştirme araçları nelerdir? Detaylı inceler misin, graphify kullanabilirsin., Source Nodes
 
 ### Community 738 - "mobile-admin-model.ts"
-Cohesion: 0.15
-Nodes (10): calls, dependencies(), deps, inviteSheet, inviteSheetUser, parseBody(), payload, pendingInvite (+2 more)
+Cohesion: 0.02
+Nodes (279): { client, requests }, createClient(), malformedClient, managedDetail, offlineMember, onlineMember, options, rows (+271 more)
 
-### Community 739 - "dashboard/route.test.ts"
-Cohesion: 0.33
-Nodes (7): getFallbackKrispQuality(), getNavigator(), getPreferredKrispQuality(), NavigatorWithDeviceMemory, shouldPrewarmKrispProcessor(), NavigatorGlobal, KrispProcessorQuality
+### Community 739 - "history/route-logic.ts"
+Cohesion: 0.09
+Nodes (21): hardwareBackHandlers, renderNavigator(), useMobileVoiceScreenProps(), VoiceRoomStackScreenContainer(), navigateMobileRouteIntent(), ROUTE_INTENT_OPTIONS, MobileNavigationRouteIntent, MobileTabBarHost() (+13 more)
 
 ### Community 742 - "request/route-logic.ts"
-Cohesion: 0.13
-Nodes (21): commands, linking, routedUrls, unsubscribe, MobileDeepLinkProvider(), MobileDeepLinkRuntime, MobileDeepLinkRuntimeContext, useMobileDeepLinkRuntime() (+13 more)
+Cohesion: 0.08
+Nodes (33): mapStoredPresenceStatus(), activeCaseStatuses, attachReportToCase(), attachReportToCaseInTransaction(), CaseRecord, CaseReport, createModerationCaseService(), deriveCasePriority() (+25 more)
 
-### Community 744 - "overview/route-logic.ts"
-Cohesion: 0.30
-Nodes (10): GET(), AdminSupportDetailRateLimitAction, AdminSupportDetailRouteContext, AdminSupportDetailRouteDependencies, adminSupportReportDetailRoute(), adminSupportReportStatusRoute(), defaultDependencies, NO_STORE_HEADERS (+2 more)
+### Community 744 - "servers/route-logic.ts"
+Cohesion: 0.29
+Nodes (7): 1. DM listesine gerçek span kapatıcı, 2. `buildId` gerçek olsun, 3. Request metriği method-aware ve yüzdelikli, 4. İstemci ölçümünü ikiye ayır, 5. Prefetch gerçek isabet sayılsın, 6. Request-ID korelasyonu, İşler
 
 ### Community 745 - "lib/api.test.ts"
 Cohesion: 0.40
 Nodes (4): Answer, Outcome, Q: Mobil APK güncelleme sayfasında indirme, doğrulama ve kurulum durumları nasıl modelleniyor?, Source Nodes
 
 ### Community 746 - "MessageItem.tsx"
-Cohesion: 0.06
-Nodes (59): AdminFeedbackPage(), AdminCampaignPage(), AdminCampaignPageProps, AdminNotificationsPage(), decimalFormatter, formatAdminBytes(), formatAdminDuration(), formatAdminInt() (+51 more)
+Cohesion: 0.15
+Nodes (18): AdminCampaignPage(), AdminCampaignPageProps, AdminNotificationsPage(), AdminCampaignDetailView(), formatDateTime(), STATUS_LABEL, AdminCampaigns(), formatDateTime() (+10 more)
 
-### Community 748 - "mobile-invite-share.ts"
-Cohesion: 0.50
-Nodes (3): listRustSources(), scriptDirectory, tauriDirectory
+### Community 747 - "categories/route-logic.ts"
+Cohesion: 0.40
+Nodes (4): Answer, Outcome, Q: lokalimde bulunan iki tane self hosted runner ubuntu sanal makineyi projemizin CI/CD süreçlerinde en verimli şekilde kullanıyor muyuz? Görev paylaşımı, iş paylaşımı, doğru düzgün optimize performanslı bir şekilde yapılıyor mu?, Source Nodes
+
+### Community 748 - "channels/route-logic.ts"
+Cohesion: 0.02
+Nodes (108): metadata, NotificationComposer(), NotificationComposerProps, parseUserIds(), RequestState, SegmentType, BetaNotice(), clampZoom() (+100 more)
 
 ### Community 749 - "resolveTraceValue"
 Cohesion: 0.43
 Nodes (7): ancestorImportDeclaration(), isImportedBinding(), isImportedSymbol(), objectPropertyTraceValue(), propertyName(), resolveSymbolTraceValue(), resolveTraceValue()
 
-### Community 750 - "upload-persistence.test.ts"
-Cohesion: 0.29
-Nodes (8): source, MobileVoiceMessageRecorder, MobileVoiceMessageRecorderPhase, MobileVoiceStopOutcome, useMobileVoiceMessageRecorder(), VOICE_MESSAGE_RECORDING_OPTIONS, appendMobileVoiceMeterLevel(), normalizeMobileVoiceMeterLevel()
+### Community 750 - "next-auth-beta-contract.test.ts"
+Cohesion: 0.22
+Nodes (8): lockfile, packageJson, runbook, runbookPath, spec, specPath, webRoot, workspaceRoot
 
 ### Community 754 - "Task A4: Sıfırlama TTL'i, sosyal sağlayıcı konfigi ve mobil istemci geçişi"
-Cohesion: 0.22
-Nodes (7): WizardsUploadRouter, E2EUploadOptions, E2EUploadResponse, helpers, readFileAsDataUrl(), uploadE2EFile(), useE2EUploadThing
+Cohesion: 0.40
+Nodes (4): Answer, Outcome, Q: Lokalde tum CI/CD surecini Azure a gecirmek icin yaptigimiz calismalar ne durumda?, Source Nodes
 
 ### Community 755 - "Q: Fix Android InteractionManager deprecation and expo-notifications cancelled fetch warnings safely"
 Cohesion: 0.40
 Nodes (4): Answer, Outcome, Q: Fix Android InteractionManager deprecation and expo-notifications cancelled fetch warnings safely, Source Nodes
 
 ### Community 756 - "view/route-logic.ts"
-Cohesion: 0.29
-Nodes (4): calls, deps, notification, routes
+Cohesion: 0.33
+Nodes (5): Gerçek kazanım, Güvenlik, Kabul kriterleri, Neden bu dalga önce, W0 — Ölçüm onarımı
 
 ### Community 757 - "mobile-dm-attachments-client.ts"
-Cohesion: 0.08
-Nodes (47): emitMobilePinUpdate(), emitChannelMessageUpdated(), redactMessageAttachmentUrlsForViewer(), normalizeMessageContentForSend(), parseUploadedAttachmentInputs(), broadcastOpenModerationCaseCount(), broadcastOpenModerationCaseCountInBackground(), defaultDependencies (+39 more)
+Cohesion: 0.36
+Nodes (9): BottomInsetHarness(), authScreenBottomPadding(), sheetPanelPadding(), normalizeSpacing(), resolveMobileBottomKeyboardSpacing(), resolveMobileBottomSystemSpacing(), resolveMobileBottomSystemTopUp(), useMobileBottomSystemSpacing() (+1 more)
 
 ### Community 758 - "Q: sürüm geçmişi ekranında da sürüm notları alınamadı hatasını alıyorum, bunu da çözer misin en güvenli en hızlı şekilde."
 Cohesion: 0.40
 Nodes (4): Answer, Outcome, Q: sürüm geçmişi ekranında da sürüm notları alınamadı hatasını alıyorum, bunu da çözer misin en güvenli en hızlı şekilde., Source Nodes
 
 ### Community 759 - "mobile-admin-contract.test.ts"
-Cohesion: 0.08
-Nodes (31): assertAttachmentAccess(), contentDispositionFor(), GET(), RouteContext, GET(), GET(), defaultDependencies, mobileDMAttachmentsRoute() (+23 more)
+Cohesion: 0.17
+Nodes (10): mockBuildDiagnostics, mockPickImages, mockSetVote, mockSubmit, mockUploadImage, openRoadmap, renderFlow(), renderSubmitted() (+2 more)
 
 ### Community 760 - "Q: Why does MobileAboutWhatsNewScreen show release notes only once and fail on re-entry?"
 Cohesion: 0.40
@@ -3335,13 +3352,21 @@ Nodes (4): Answer, Outcome, Q: Why does MobileAboutWhatsNewScreen show release n
 Cohesion: 0.40
 Nodes (4): Answer, Outcome, Q: Whispr logosunun üstünde garip bir beyaz çizgi görüntülüyorum, bunu düzeltir misin?, Source Nodes
 
-### Community 762 - "lint"
-Cohesion: 0.20
-Nodes (10): events, fontError, mockInstallMobileFontDefaults, mockUseMobileFonts, warn, MobileFontGate(), MobileFontGateState, FontDefaultTarget (+2 more)
+### Community 763 - "details.test.ts"
+Cohesion: 0.08
+Nodes (36): AdminHelpPage(), AdminSupportPage(), AdminCard(), AdminGridTable(), AdminPageHeader(), draftRelease, publishedRelease, AdminHelpArticle (+28 more)
 
-### Community 765 - "admin-kit-contract.test.ts"
-Cohesion: 0.18
-Nodes (12): bodylessMutatingMethodKeys(), collectUnstableSymbols(), isContractCallable(), MUTATING_METHODS, rateLimitActionsForMethod(), routeContractSourcePaths(), routeMethodConsumesRequestWithCentralParser(), symbolSignature() (+4 more)
+### Community 764 - "test"
+Cohesion: 0.33
+Nodes (8): AdminVoicePage(), NOW, snapshot(), AdminVoiceClient, AdminVoiceSnapshot, averageDurationSeconds(), buildHourlyHistogram(), loadAdminVoiceSnapshot()
+
+### Community 765 - "mobile-auth-social-config.ts"
+Cohesion: 0.22
+Nodes (10): AuthSocialProviderIcon(), AuthSocialProviderIconProps, PROVIDER_ICON_SIZE, renderProviderMark(), isLiveMobileAuthSocialProvider(), MOBILE_AUTH_SOCIAL_PROVIDERS, MobileAuthSocialProvider, MobileAuthSocialProviderId (+2 more)
+
+### Community 766 - "google-signin-doctor.ts"
+Cohesion: 0.15
+Nodes (9): codeInput, disableButton, lightThemeOption, openSettings(), outputTrigger, passwordInput, setupCodeInput, turkishOption (+1 more)
 
 ### Community 767 - "@shopify/flash-list"
 Cohesion: 0.40
@@ -3352,8 +3377,8 @@ Cohesion: 0.29
 Nodes (8): ensureMainApplicationPackage(), fs, path, { withDangerousMod, withMainApplication }, withWhisprApkIntegrity(), withWhisprApkIntegrityMainApplication(), withWhisprApkIntegritySources(), { ensureMainApplicationPackage }
 
 ### Community 769 - "qrcode"
-Cohesion: 0.22
-Nodes (10): MobileNavigator(), MobileChatCacheProbe, MobileChatRoute, MobileChatRouteTarget, NavigationRouteLike, NavigationStateLike, probeMobileChatCache(), readTargetId() (+2 more)
+Cohesion: 0.05
+Nodes (57): AppLockHarness(), cameraState, mockCompleteAuthHandoff, mockGetAccessToken, mockRequestCamera, mockRequestDocument, mockRequestMicrophone, mockRequestNotifications (+49 more)
 
 ### Community 772 - "mobile-overlay-host.test.tsx"
 Cohesion: 0.50
@@ -3363,121 +3388,161 @@ Nodes (4): packages/db/src/generated/prisma/**, cache, outputs, db:generate
 Cohesion: 0.40
 Nodes (4): Answer, Outcome, Q: Mobil uygulama maksimum performans planinin repo kanitli degerlendirmesi, Source Nodes
 
-### Community 774 - "FakeMediaStream"
-Cohesion: 0.36
-Nodes (9): DELETE(), GET(), adminHelpArticleDeleteRoute(), adminHelpArticleDetailRoute(), adminHelpArticleUpdateRoute(), AdminHelpDetailRouteContext, AdminHelpDetailRouteDependencies, PATCH() (+1 more)
+### Community 774 - "mobile-session-wipe.ts"
+Cohesion: 0.25
+Nodes (8): MobileSessionAuthSnapshot, MobileSessionWipeDependencies, MobileSessionWipePlan, MobileSessionWipeReason, MobileSessionWipeResult, MobileSessionWipeStep, planMobileSessionWipe(), runMobileSessionWipe()
 
 ### Community 775 - "expo-crypto"
-Cohesion: 0.14
-Nodes (12): ACTIVE_SESSION_ROWS, LATEST_USERS, METRIC_ROWS, QueryArgs, RECENT_AUDIT_LOGS, RECENT_CAMPAIGNS, RECENT_MESSAGES, SESSION_USERS (+4 more)
+Cohesion: 0.20
+Nodes (9): Atomic Rotation, Goal, Legacy Tokens, Mobile Refresh Token Family Rotation Design, Redis Model, Replay and Revocation, Retry Receipt Encryption, Root Cause (+1 more)
 
 ### Community 777 - "expo-font"
 Cohesion: 0.50
 Nodes (3): Answer, Outcome, Q: OWASP Top 10 security review: auth authorization validation crypto APIs configuration logging session upload
 
-### Community 779 - "typecheck"
-Cohesion: 0.20
-Nodes (8): admin, context, Dependencies, detail, routes, dependencies(), status(), surface()
+### Community 779 - "mobile-social-client.test.ts"
+Cohesion: 0.25
+Nodes (6): api, calls, conversation, overview, social, user
 
-### Community 780 - "MemoryRedis"
-Cohesion: 0.31
-Nodes (8): GET(), defaultDependencies, mobileServerMembersListRoute(), MobileServerMembersRateLimitAction, MobileServerMembersRouteContext, MobileServerMembersRouteDependencies, GET(), listWorkspaceServerMembers()
+### Community 780 - "uploadthing/route.ts"
+Cohesion: 0.38
+Nodes (4): callbackUrl, { GET, POST }, ORIGIN_ENV_VARS, resolveUploadCallbackUrl()
 
-### Community 781 - "expo-notifications"
-Cohesion: 0.22
-Nodes (8): contractSource, mediaRoot, moduleSource, packageJson, pickerSource, productAppSource, runtimeSource, transportSource
+### Community 781 - "mobile/package.json"
+Cohesion: 0.29
+Nodes (6): expo, install, main, name, private, version
+
+### Community 783 - "react-dom"
+Cohesion: 0.33
+Nodes (6): collectSourceFiles(), findSourceViolations(), readSource(), read(), readWorkspaceFile(), join()
 
 ### Community 784 - "Whispr "Hakkında" yeniden tasarımı — uygulama prompt paketi"
 Cohesion: 0.33
 Nodes (5): Alınan kararlar (bağlayıcı), Kapsam dışı (bilerek), Sıra ve bağımlılıklar, Whispr "Hakkında" yeniden tasarımı — uygulama prompt paketi, Çalışma kuralları (her prompt için geçerli)
 
-### Community 786 - "expo-local-authentication"
-Cohesion: 0.39
-Nodes (6): canGroup(), getMobileMessageGroupModel(), MobileGroupableMessage, MobileMessageGroupEntry, resolveMobileMessageUnreadAnchor(), getMobileDisplayMessageDayKey()
+### Community 785 - "mobile-locale-coverage.test.ts"
+Cohesion: 0.38
+Nodes (6): COPY_ATTRIBUTE, COPY_ATTRIBUTES, findHardcodedCopy(), isUserFacingCopy(), LANGUAGE_NEUTRAL, LOCALE_TABLE_OWNERS
+
+### Community 786 - "mobile-voice-room-panel.tsx"
+Cohesion: 0.36
+Nodes (10): useVoiceRoomThemedStyles(), createMobileVoiceRoomPanelStyles(), getParticipantLabel(), getVoiceRoomStatusLabel(), MobileVoiceRoomPanel(), SpeakingWave(), useMobileVoiceRoomPanelStyles(), VoiceAvatar() (+2 more)
 
 ### Community 787 - "MobileRoadmapScreenProps"
 Cohesion: 0.40
 Nodes (4): Answer, Outcome, Q: Mobil uygulamanın performans, kalite, mimari ve teknoloji altyapısı ile socket fan-out, unread, message büyümesi, Prisma hot path ve NextAuth beta risklerini değerlendir, Source Nodes
 
-### Community 788 - "mobile-camera-contract.ts"
-Cohesion: 0.22
-Nodes (8): card, client, details, feature, picker, root, settings, source
-
-### Community 790 - "expo-secure-store"
-Cohesion: 0.25
-Nodes (5): GET(), AdminDashboardRouteDependencies, getAdminDashboardRoute(), calls, errorLog
-
-### Community 792 - "expo-updates"
-Cohesion: 0.22
-Nodes (8): lockfile, packageJson, runbook, runbookPath, spec, specPath, webRoot, workspaceRoot
-
-### Community 793 - "admin/releases/route.ts"
-Cohesion: 0.36
-Nodes (6): MobileOAuthCompleteClient(), MobileOAuthCompleteClientProps, buildMobileOAuthCompletePath(), buildMobileOAuthHandoffUrl(), MobileOAuthCompletePage(), MobileOAuthCompletePageProps
-
-### Community 794 - "mobile/package.json"
-Cohesion: 0.29
-Nodes (6): expo, install, main, name, private, version
-
-### Community 796 - "react"
+### Community 788 - "login-proof.ts"
 Cohesion: 0.33
-Nodes (6): collectSourceFiles(), findSourceViolations(), readSource(), read(), readWorkspaceFile(), join()
+Nodes (9): createLoginProof(), getLoginProofSecret(), isSafeEqual(), LoginProofOptions, normalizeLoginProofEmail(), signLoginProof(), env, proof (+1 more)
+
+### Community 790 - "mobile-shared-media-screen.test.tsx"
+Cohesion: 0.20
+Nodes (9): FILES_PAGE, image(), LINKS_PAGE, MEDIA_PAGE, MEDIA_PAGE_TWO, mockFetchAttachments, renderScreen(), WAIT (+1 more)
+
+### Community 792 - "mobile-theme-contract.test.ts"
+Cohesion: 0.31
+Nodes (7): assertThemeContrast(), composite(), contrastRatio(), linearize(), parseColor(), relativeLuminance(), RgbaColor
+
+### Community 793 - "view/route-logic.ts"
+Cohesion: 0.33
+Nodes (8): defaultDependencies, mobileHelpArticleViewRoute(), MobileHelpArticleViewRouteContext, MobileHelpArticleViewRouteDependencies, NO_STORE_HEADERS, POST(), MobileHelpArticleSlugParamsSchema, MobileHelpArticleViewResponseSchema
+
+### Community 794 - "MobileFeedbackSubmittedScreenProps"
+Cohesion: 0.21
+Nodes (11): hookSource, scenarioIds, summary, voiceProviderSource, MOBILE_VOICE_UAT_LIFECYCLE_SCENARIOS, MobileVoiceLifecycleMatrixSummary, MobileVoiceLifecycleScenario, MobileVoiceLifecycleScenarioId (+3 more)
+
+### Community 795 - "registration-compensation.ts"
+Cohesion: 0.20
+Nodes (6): RegistrationRollbackLogger, RegistrationRollbackUserDelegate, RollbackUnverifiedUserResult, calls, error, logs
+
+### Community 796 - "admin-kit-contract.test.ts"
+Cohesion: 0.31
+Nodes (8): AudioDeviceFallbackOption, AudioDeviceFallbackReason, AudioDeviceFallbackResult, findFirstRealDevice(), hasDevice(), isValidDeviceId(), resolveAudioDeviceFallback(), result
+
+### Community 797 - "0. KAYNAKLAR VE ÇALIŞMA KURALLARI"
+Cohesion: 0.50
+Nodes (4): 0. KAYNAKLAR VE ÇALIŞMA KURALLARI, Çalışma düzeni, Kanonik referanslar, Kesin kurallar (README'den — ihlali kabul edilmez)
 
 ### Community 798 - "Q: Admin yayin akisinda yeni surum olusturup yayinladim; Denetle neden tepki vermiyor ve nasil test ederim?"
 Cohesion: 0.40
 Nodes (4): Answer, Outcome, Q: Admin yayin akisinda yeni surum olusturup yayinladim; Denetle neden tepki vermiyor ve nasil test ederim?, Source Nodes
 
-### Community 799 - "admin/releases/route.ts"
-Cohesion: 0.53
-Nodes (5): GET(), AdminReleaseCollectionRouteDependencies, adminReleaseCreateRoute(), adminReleaseListRoute(), POST()
+### Community 799 - "access-context.test.ts"
+Cohesion: 0.20
+Nodes (6): { client }, { client, operations }, operations, Restore, restores, UnknownRecord
 
 ### Community 801 - "admin-nav-items.ts"
-Cohesion: 0.40
-Nodes (5): AdminShell(), ADMIN_NAV_GROUPS, AdminNavGroup, findAdminNavItemByKey(), getVisibleAdminNavGroups()
+Cohesion: 0.33
+Nodes (5): Global Constraints, Mobile Refresh Token Family Rotation Implementation Plan, Task 1: Regression Contract, Task 2: Atomic Token-Family State, Task 3: Verification
 
 ### Community 802 - "20260729120000_about_releases_help_reports/migration.sql"
 Cohesion: 0.47
 Nodes (5): "BugReport", "HelpArticle", "Release", "ReleaseChange", "User"
 
 ### Community 803 - "schema-test-helpers.ts"
-Cohesion: 0.40
-Nodes (5): assertAccepts(), assertRejects(), assertSchemaBehaviorCoverage(), isSchemaExport(), SchemaBehaviorCase
+Cohesion: 0.09
+Nodes (29): AttachmentScanStatusSchema, ChatMessageType, ChatMessageTypeSchema, EditMessageInput, EditMessageInputSchema, MessageAuthor, MessageAuthorSchema, MessageSearchResultSchema (+21 more)
 
-### Community 804 - "mobile-privacy-shield.ts"
-Cohesion: 0.70
-Nodes (3): MobilePrivacyShieldTransition, planMobilePrivacyShieldTransition(), shouldShowMobilePrivacyShield()
+### Community 804 - "[version]/route-logic.ts"
+Cohesion: 0.36
+Nodes (7): GET(), defaultDependencies, mobileReleaseDetailRoute(), MobileReleaseDetailRouteContext, MobileReleaseDetailRouteDependencies, NO_STORE_HEADERS, MobileReleaseVersionParamsSchema
 
-### Community 805 - "react-native-view-shot"
-Cohesion: 0.24
-Nodes (9): AccountReauthChallengeCleanupDelegate, AccountReauthChallengeCleanupRecord, buildAccountReauthChallengeCleanupWhere(), cleanupAccountReauthChallenges(), getAccountReauthChallengeCleanupCutoff(), shouldDeleteAccountReauthChallenge(), calls, NOW (+1 more)
+### Community 805 - "servers/route-logic.ts"
+Cohesion: 0.36
+Nodes (7): defaultDependencies, MobileServerCreateRateLimitAction, mobileServerCreateRoute(), MobileServerCreateRouteDependencies, POST(), POST(), createWorkspaceServer()
 
 ### Community 806 - "qrcode"
 Cohesion: 0.67
 Nodes (3): qrcode, createDefaultQrCodeDataUrl(), qrcode
 
-### Community 807 - "admin-kit-contract.test.ts"
-Cohesion: 0.50
-Nodes (3): adminComponentsRoot, collectSourceFiles(), GRADIENT_FILE
-
-### Community 808 - "0. KAYNAKLAR VE ÇALIŞMA KURALLARI"
-Cohesion: 0.50
-Nodes (4): 0. KAYNAKLAR VE ÇALIŞMA KURALLARI, Çalışma düzeni, Kanonik referanslar, Kesin kurallar (README'den — ihlali kabul edilmez)
+### Community 808 - "mobile-direct-video-call-screen.test.tsx"
+Cohesion: 0.38
+Nodes (6): cameraTrackRef, createParticipant(), createProps(), createVideoCallRoom(), renderVideoCall(), MobileDirectVideoCallScreen()
 
 ### Community 809 - "lint"
 Cohesion: 0.50
 Nodes (4): ^lint, dependsOn, outputs, lint
 
-### Community 815 - "expo-document-picker"
-Cohesion: 0.25
-Nodes (11): exportedRouteHandler(), functionInitializer(), isDirectHandlerAlias(), isNextRouteContextParameter(), moduleExportSymbol(), parameterReferencesDependency(), resolveAliasedSymbol(), resolveFunctionLikeFromSymbol() (+3 more)
+### Community 810 - "@babel/runtime"
+Cohesion: 0.40
+Nodes (4): Answer, Outcome, Q: Hakkında ekranı neden eski yayın notunu gösteriyor?, Source Nodes
+
+### Community 811 - "mobile-voice-invite-row.ts"
+Cohesion: 0.33
+Nodes (5): getMobileVoiceInviteRowPresentation(), MobileVoiceInviteRowIcon, MobileVoiceInviteRowPresentation, MobileVoiceInviteRowTone, MobileVoiceInviteStatus
+
+### Community 812 - "expo-crypto"
+Cohesion: 0.38
+Nodes (6): patchMethod(), query, Restore, roleRows, UnknownRecord, withRoleEnvironment()
+
+### Community 813 - "expo-constants"
+Cohesion: 0.20
+Nodes (8): calls, cleanup, handler, notifyFinished, room, VoicePageExitHandlerOptions, VoicePageExitRoom, VoicePageExitState
+
+### Community 815 - "Task A4: Sıfırlama TTL'i, sosyal sağlayıcı konfigi ve mobil istemci geçişi"
+Cohesion: 0.40
+Nodes (5): code:ts (import { PASSWORD_RESET_TOKEN_EXPIRY_MINUTES } from "@/lib/a), code:ts (export type MobileAuthSocialProviderId = "google";), code:tsx (import { MobileApiError } from "../api/mobile-api-client";), code:powershell (corepack pnpm --filter @wizards/web test), Task A4: Sıfırlama TTL'i, sosyal sağlayıcı konfigi ve mobil istemci geçişi
+
+### Community 818 - "Task 10: Add and execute the deterministic Phase 4 Maestro UAT flow"
+Cohesion: 0.67
+Nodes (3): code:text (artifacts/mobile/phase4/closure/light-server-management), code:powershell (adb shell mkdir -p /sdcard/Pictures/WhisprPhase4), Task 10: Add and execute the deterministic Phase 4 Maestro UAT flow
 
 ### Community 826 - "Q: Adım 13 2h puanlama sheet'i nasıl uygulanır?"
 Cohesion: 0.40
 Nodes (4): Answer, Outcome, Q: Adım 13 2h puanlama sheet'i nasıl uygulanır?, Source Nodes
 
+### Community 827 - "@react-native-community/netinfo"
+Cohesion: 0.22
+Nodes (3): AUTHOR, BASE, handlers
+
 ### Community 828 - "Q: Hakkında ekranındaki X ve Instagram linkleri nerede yapılandırılıyor?"
 Cohesion: 0.50
 Nodes (3): Answer, Outcome, Q: Hakkında ekranındaki X ve Instagram linkleri nerede yapılandırılıyor?
+
+### Community 831 - "react-native-reanimated"
+Cohesion: 0.14
+Nodes (19): advanceMobileChatTransitionVariant(), configureMobileChatTransition(), getMobileChatTransitionVariant(), MOBILE_CHAT_TRANSITION_VARIANTS, MobileChatTransitionAnimation, NATIVE_STACK_ANIMATION, resetMobileChatTransitionForTests(), resolveMobileChatTransitionAnimation() (+11 more)
 
 ### Community 832 - "Q: Yenilikler ekranındaki Bildir butonunu Hakkında sorun bildir sayfasına nasıl yönlendiririz?"
 Cohesion: 0.40
@@ -3495,28 +3560,35 @@ Nodes (4): Answer, Outcome, Q: 1A Hakkında sağ üst kopyala eylemi ve beta kat
 Cohesion: 0.40
 Nodes (4): Answer, Outcome, Q: 17-android-apk-guncelleme.md dosyasını inceleyip imzalama özel anahtarıyla ilgili öneride bulun, Source Nodes
 
+### Community 847 - "emptyStringToNull"
+Cohesion: 0.40
+Nodes (4): Answer, Outcome, Q: Ekteki guvenlik geri bildirimleri gercekten bulgu mu?, Source Nodes
+
 ### Community 848 - "20260730100000_mobile_update_delivery/migration.sql"
 Cohesion: 0.83
 Nodes (3): "OtaBundle", "Release", "ReleaseArtifact"
 
-### Community 879 - "Task 10: Add and execute the deterministic Phase 4 Maestro UAT flow"
-Cohesion: 0.67
-Nodes (3): code:text (artifacts/mobile/phase4/closure/light-server-management), code:powershell (adb shell mkdir -p /sdcard/Pictures/WhisprPhase4), Task 10: Add and execute the deterministic Phase 4 Maestro UAT flow
+### Community 851 - "Q: Which reported security findings require fixes, and how should related work be grouped into implementation prompts?"
+Cohesion: 0.40
+Nodes (4): Answer, Outcome, Q: Which reported security findings require fixes, and how should related work be grouped into implementation prompts?, Source Nodes
 
 ## Knowledge Gaps
-- **7288 isolated node(s):** `repo`, `web`, `tmp`, `fonts`, `repo` (+7283 more)
+- **7475 isolated node(s):** `repo`, `web`, `tmp`, `fonts`, `repo` (+7470 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **168 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **152 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Work-memory lessons
 
 **Preferred sources** — corroborated by past sessions; start here.
-- `mobile/package.json` (3× useful, score=2.95362674)
-- `MobileAboutWhatsNewScreen()` (3× useful, score=2.936073134)
-- `android-apk-update-controller.ts` (2× useful, score=1.998296875)
-- `mobile-release-contract.ts` (2× useful, score=1.953163229)
-- `about-primitives.tsx` (2× useful, score=1.942695955)
-- `performance-metrics.ts` (2× useful, score=1.92242046)
+- `android-apk-update-controller.ts` (3× useful, score=2.982759801)
+- `mobile/package.json` (3× useful, score=2.937972832)
+- `MobileAboutWhatsNewScreen()` (3× useful, score=2.920512259)
+- `uploadthing/core.ts` (2× useful, score=1.989879503)
+- `two-factor.ts` (2× useful, score=1.989879503)
+- `link-preview.ts` (2× useful, score=1.989879503)
+- `mobile-release-contract.ts` (2× useful, score=1.942811672)
+- `about-primitives.tsx` (2× useful, score=1.932399873)
+- `performance-metrics.ts` (2× useful, score=1.912231836)
 
 **Known dead ends** — questions that led nowhere; don't re-derive.
 - "Hakkında ekranındaki X ve Instagram linkleri nerede yapılandırılıyor?"
@@ -3525,12 +3597,12 @@ Nodes (3): code:text (artifacts/mobile/phase4/closure/light-server-management), 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `dependencies` connect `dependencies` to `desktop-context-menu-guard.tsx`, `Task 10: Add and execute the deterministic Phase 4 Maestro UAT flow`, `@dnd-kit/sortable`, `@dnd-kit/core`, `@sentry/nextjs`, `pg`, `react-dom`, `@tauri-apps/plugin-process`, `MobileNotificationsResponse`, `qrcode`, `package.json`, `build`, `mobile-voice-room-panel.tsx`, `@auth/prisma-adapter`, `@dnd-kit/utilities`, `@hookform/resolvers`, `jose`, `livekit-server-sdk`, `next-auth`, `tailwind-merge`, `FakeAudioContext`, `FakeSource`, `view/route-logic.ts`, `@tanstack/react-query`, `@tauri-apps/plugin-updater`, `@wizards/ui`, `@tauri-apps/plugin-notification`, `zod`, `resend`, `join`?**
-  _High betweenness centrality (0.024) - this node is a cross-community bridge._
-- **Why does `qrcode` connect `qrcode` to `dependencies`, `useMobileLocaleRuntime`?**
-  _High betweenness centrality (0.024) - this node is a cross-community bridge._
-- **Why does `jsonError()` connect `api.ts` to `FakeMediaStream`, `route-logic.ts`, `auth.ts`, `mobile-message-cache.test.ts`, `MemoryRedis`, `expo-secure-store`, `@livekit/react-native-webrtc`, `mobile-auth-context.tsx`, `admin/releases/route.ts`, `auth-welcome-screen.test.tsx`, `mobile-phase-zero-boundary.test.ts`, `src/messages.ts`, `[version]/route-logic.ts`, `worker.ts`, `route-logic.ts`, `mobile-image-upload-service.test.ts`, `mobile-voice-message-recorder.ts`, `readRoutes`, `password-reset.ts`, `mobile-screen-containers.tsx`, `rooms.ts`, `mobile-typing-state.ts`, `notification-bell.tsx`, `mobile-media-upload-service.ts`, `use-voice-heartbeat.test.ts`, `realtime-query-bridge.ts`, `overview/route-logic.ts`, `ProfileActionRowProps`, `MainActivity`, `route-logic.ts`, `mobileFriendRequestCreateRoute`, `route.ts`, `mobile-admin-contract.test.ts`, `useI18n`?**
-  _High betweenness centrality (0.021) - this node is a cross-community bridge._
+- **Why does `typescript` connect `globalEnv` to `typescript-toolchain-contract.test.mjs`, `invite-service.ts`, `route-contract.test.ts`?**
+  _High betweenness centrality (0.027) - this node is a cross-community bridge._
+- **Why does `useTheme()` connect `MobileMutationSuccessResponseSchema` to `mobile-open-source-licenses-screen.tsx`, `[serverId]/route-logic.ts`, `mobile-workspace-management.ts`, `mobile-realtime-provider.tsx`, `app-startup-screen.tsx`, `mobile-appearance-settings-screen.tsx`, `mobile-display-model.ts`, `mobile-workspace-client.ts`, `live-voice-provider.tsx`, `mobile-server-management-client.ts`, `voice-preferences-panel.tsx`, `mobile-voice-provider.tsx`, `mobile-notification-contract.ts`, `notification-campaigns.ts`, `mobile-shared-media-screen.tsx`, `mobile-api-client.ts`, `TraceCallable`, `attempt-tracker.ts`, `workspace-browser.tsx`, `moderation/appeal/route.ts`, `TraceCallable`, `page.tsx`, `mobile-workspace-client.ts`, `react-native-reanimated`, `mobile-notification-lifecycle-contract.ts`, `mobile-locale-preferences.ts`, `category-service.ts`, `rooms.ts`, `mobile-api-client.ts`, `service.ts`, `use-shell-readiness.ts`, `mobile-deep-links.ts`, `attempt-tracker.ts`?**
+  _High betweenness centrality (0.026) - this node is a cross-community bridge._
+- **Why does `dependencies` connect `dependencies` to `desktop-context-menu-guard.tsx`, `bootstrap.test.ts`, `@dnd-kit/sortable`, `@dnd-kit/core`, `ioredis`, `next-auth`, `pg`, `qrcode`, `package.json`, `build`, `mobile-voice-room-panel.tsx`, `@socket.io/redis-adapter`, `@react-native-google-signin/google-signin`, `@dnd-kit/utilities`, `tailwind-merge`, `FakeAudioContext`, `FakeSource`, `@tauri-apps/plugin-updater`, `bcryptjs`, `zod`, `@livekit/components-core`, `@prisma/adapter-pg`, `@prisma/client`, `@prisma/instrumentation`, `react-markdown`, `socket.io`, `uploadthing`, `@uploadthing/react`, `@wizards/db`, `zustand`?**
+  _High betweenness centrality (0.023) - this node is a cross-community bridge._
 - **Are the 17 inferred relationships involving `jsonError()` (e.g. with `GET()` and `routeDependencies()`) actually correct?**
   _`jsonError()` has 17 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 4 inferred relationships involving `useTheme()` (e.g. with `ThemeLanguageControls()` and `AuthThemePickerCorner()`) actually correct?**

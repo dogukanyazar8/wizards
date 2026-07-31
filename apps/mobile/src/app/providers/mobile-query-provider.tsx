@@ -29,14 +29,15 @@ export function MobileQueryProvider({ children }: PropsWithChildren) {
     // The navigator opens a span for every chat it shows and needs to know
     // whether that stream was already cached. Registering the probe here keeps
     // the client out of the navigator, which several tests render without one.
-    setMobileChatCacheProbe(
-      (target) =>
-        queryClient.getQueryData(
-          target.route === "ChannelChat"
-            ? mobileQueryKeys.channelMessages(target.targetId)
-            : mobileQueryKeys.dmMessages(target.targetId),
-        ) !== undefined,
-    );
+    setMobileChatCacheProbe((target) => {
+      const state = queryClient.getQueryState(
+        target.route === "ChannelChat"
+          ? mobileQueryKeys.channelMessages(target.targetId)
+          : mobileQueryKeys.dmMessages(target.targetId),
+      );
+
+      return state?.data === undefined ? null : state.dataUpdatedAt;
+    });
 
     return () => setMobileChatCacheProbe(null);
   }, [queryClient]);

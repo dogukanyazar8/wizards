@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { beginMobileNavigationSpan } from "../performance/mobile-navigation-timing";
+import { markMobileMessageStreamPrefetched } from "./mobile-message-stream-source";
 import { mobileQueryKeys } from "./mobile-query-keys";
 import type { MobileApiClient } from "../api/mobile-api-client";
 import {
@@ -74,40 +75,66 @@ export function shouldWarmMobileRecentDMs(input: {
 }
 
 /**
- * Hit rate for the warming: how much of what was warmed the reader actually
- * opened. A rate that stays low is the signal to delete the feature rather than
- * tune it.
+ * Whether the warming did anything, told apart from whether it was attempted.
+ *
+ * The panel reported 4/4 warmed on a device run and it meant nothing: the count
+ * was incremented before the request chain started, so it measured the
+ * *intention* to warm. A conversation whose read never completed before the tap
+ * is not a warm one — the reader waited for the same request either way.
+ *
+ * `openedAfterSettled` is the only one of these that is a win.
  */
 type MobileRecentDMPrefetchStats = {
+  readonly attempted: number;
   readonly hitRate: number;
-  readonly hits: number;
-  readonly warmed: number;
+  readonly openedAfterSettled: number;
+  readonly settled: number;
 };
 
-const warmedConversationIds = new Set<string>();
-const openedWarmConversationIds = new Set<string>();
+const attemptedConversationIds = new Set<string>();
+const settledConversationIds = new Set<string>();
+const openedAfterSettledConversationIds = new Set<string>();
 
 export function recordMobileRecentDMPrefetch(conversationIds: readonly string[]): void {
   for (const conversationId of conversationIds) {
-    warmedConversationIds.add(conversationId);
+    attemptedConversationIds.add(conversationId);
+  }
+}
+
+/** Called when a warming read resolves, which is the moment it is worth anything. */
+export function recordMobileRecentDMPrefetchSettled(conversationId: string): void {
+  if (attemptedConversationIds.has(conversationId)) {
+    settledConversationIds.add(conversationId);
+    // The panel reports where an open's first screenful came from, and a warmed
+    // stream is neither "already in memory" nor "restored from disk".
+    markMobileMessageStreamPrefetched("dm", conversationId);
   }
 }
 
 export function recordMobileRecentDMPrefetchOpen(conversationId: string): void {
-  if (warmedConversationIds.has(conversationId)) {
-    openedWarmConversationIds.add(conversationId);
+  // Only counted when the warm had already landed: opening a conversation whose
+  // prefetch is still in flight is an ordinary open with an extra request.
+  if (settledConversationIds.has(conversationId)) {
+    openedAfterSettledConversationIds.add(conversationId);
   }
 }
 
 export function getMobileRecentDMPrefetchStats(): MobileRecentDMPrefetchStats {
-  const warmed = warmedConversationIds.size;
-  const hits = openedWarmConversationIds.size;
-  return { hitRate: warmed === 0 ? 0 : hits / warmed, hits, warmed };
+  const settled = settledConversationIds.size;
+  const openedAfterSettled = openedAfterSettledConversationIds.size;
+
+  return {
+    attempted: attemptedConversationIds.size,
+    hitRate: settled === 0 ? 0 : openedAfterSettled / settled,
+    openedAfterSettled,
+    settled,
+  };
 }
 
 export function resetMobileRecentDMPrefetchStatsForTests(): void {
-  warmedConversationIds.clear();
-  openedWarmConversationIds.clear();
+  attemptedConversationIds.clear();
+  settledConversationIds.clear();
+  openedAfterSettledConversationIds.clear();
 }
 
 export function selectMobileRecentDMPrefetchIds(input: {
@@ -123,6 +150,44 @@ export function selectMobileRecentDMPrefetchIds(input: {
   const ids = new Set<string>();
   for (const conversation of input.conversations) {
     if (conversation.id.length === 0 || conversation.id === input.selectedConversationId) {
+      continue;
+    }
+
+    ids.add(conversation.id);
+    if (ids.size >= limit) {
+      break;
+    }
+  }
+
+  return [...ids];
+}
+
+/**
+ * How many conversations are drawn off disk once the inbox lands.
+ *
+ * Higher than the network warm above it because it is a different cost: a local
+ * decrypt rather than a real backend read, bounded by the eight targets per scope
+ * the encrypted store keeps at all.
+ */
+export const MOBILE_RECENT_DM_RESTORE_LIMIT = 5;
+
+/**
+ * Lives beside the prefetch selector rather than with the restore hook: that hook
+ * reaches the encrypted store, which reaches Expo, and the node test runner
+ * cannot transform any of it.
+ */
+export function selectMobileRecentDMRestoreIds(input: {
+  readonly conversations: readonly { readonly id: string }[];
+  readonly limit?: number;
+}): string[] {
+  const limit = input.limit ?? MOBILE_RECENT_DM_RESTORE_LIMIT;
+  if (limit <= 0) {
+    return [];
+  }
+
+  const ids = new Set<string>();
+  for (const conversation of input.conversations) {
+    if (conversation.id.length === 0) {
       continue;
     }
 

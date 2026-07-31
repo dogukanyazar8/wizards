@@ -1,3 +1,5 @@
+import { readRequestId } from "@/lib/request-id";
+
 /**
  * Coarse `Server-Timing` instrumentation for the mobile read routes.
  *
@@ -9,6 +11,8 @@ export type ServerTimingRecorder = {
   header(): string;
   headers(extra?: Record<string, string>): Record<string, string>;
   measure<T>(name: string, work: () => Promise<T>): Promise<T>;
+  /** The caller's correlation id, so the failure path can log it too. */
+  readonly requestId: string | null;
   /**
    * Manual variant for calls that must stay syntactically plain. The route
    * contract test statically traces `authorizeMobileApiRequest(request, action)`
@@ -33,11 +37,18 @@ function formatDuration(durationMs: number): string {
 
 export function createServerTiming(
   now: () => number = () => performance.now(),
+  /**
+   * Echoed back so a slow sample on a device can be found in the edge's own
+   * record of the same request. Validated by `readRequestId` before it gets
+   * here; anything else is absent rather than reflected.
+   */
+  requestId: string | null = null,
 ): ServerTimingRecorder {
   const startedAt = now();
   const durations = new Map<string, number>();
 
   return {
+    requestId,
     header() {
       const total = now() - startedAt;
       const entries = [...durations.entries()].map(
@@ -47,7 +58,11 @@ export function createServerTiming(
       return [...entries, `total;dur=${formatDuration(total)}`].join(", ");
     },
     headers(extra = {}) {
-      return { ...extra, "Server-Timing": this.header() };
+      return {
+        ...extra,
+        ...(requestId ? { "X-Request-Id": requestId } : {}),
+        "Server-Timing": this.header(),
+      };
     },
     start(name) {
       const metric = normalizeMetricName(name);
@@ -76,4 +91,13 @@ export function createServerTiming(
       }
     },
   };
+}
+
+/**
+ * The variant every request-handling route should use: it carries the client's
+ * correlation id through to the response and, via `jsonError`, to the log line a
+ * failure leaves behind.
+ */
+export function createServerTimingForRequest(request: Request): ServerTimingRecorder {
+  return createServerTiming(undefined, readRequestId(request.headers));
 }

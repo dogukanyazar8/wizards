@@ -2,6 +2,12 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { validateOutboxWorkerEnvironment, validateWebEnvironment } from "./env";
 
+const TOTP_KEY = Buffer.alloc(32, 0x44).toString("base64url");
+const TOTP_ENV = {
+  TOTP_SECRET_ENCRYPTION_ACTIVE_KEY_VERSION: "v1",
+  TOTP_SECRET_ENCRYPTION_KEYS: JSON.stringify({ v1: TOTP_KEY }),
+};
+
 describe("web environment validation", () => {
   it("fails closed in production when required variables are missing", () => {
     const result = validateWebEnvironment({}, "production");
@@ -9,11 +15,24 @@ describe("web environment validation", () => {
     assert.match(result.missing.join(","), /AUTH_SECRET/);
     assert.match(result.missing.join(","), /DATABASE_URL/);
     assert.match(result.missing.join(","), /REDIS_URL/);
+    assert.match(result.missing.join(","), /TOTP_SECRET_ENCRYPTION_KEYS/);
+    assert.match(result.missing.join(","), /TOTP_SECRET_ENCRYPTION_ACTIVE_KEY_VERSION/);
+  });
+
+  it("requires TOTP encryption keys outside production too", () => {
+    for (const runtime of ["development", "test"] as const) {
+      const result = validateWebEnvironment({}, runtime);
+      assert.deepEqual(result.missing, [
+        "TOTP_SECRET_ENCRYPTION_KEYS",
+        "TOTP_SECRET_ENCRYPTION_ACTIVE_KEY_VERSION",
+      ]);
+    }
   });
 
   it("accepts a complete production environment", () => {
     const result = validateWebEnvironment(
       {
+        ...TOTP_ENV,
         APP_URL: "https://app.example.test",
         AUTH_SECRET: "secret",
         DATABASE_URL: "postgresql://user:pass@localhost:5432/whispr",
@@ -67,6 +86,7 @@ describe("web environment validation", () => {
   it("validates optional workspace performance flags", () => {
     const valid = validateWebEnvironment(
       {
+        ...TOTP_ENV,
         APP_URL: "https://app.example.test",
         AUTH_SECRET: "secret",
         DATABASE_URL: "postgresql://user:pass@localhost:5432/whispr",
@@ -130,6 +150,37 @@ describe("web environment validation", () => {
       "WORKSPACE_PERFORMANCE_METRICS_INTERVAL_MS",
     ]);
   });
+
+  it("rejects malformed, short, and unknown TOTP keys without returning values", () => {
+    const malformed = validateWebEnvironment(
+      {
+        TOTP_SECRET_ENCRYPTION_ACTIVE_KEY_VERSION: "v1",
+        TOTP_SECRET_ENCRYPTION_KEYS: "{not-json",
+      },
+      "test",
+    );
+    const short = validateWebEnvironment(
+      {
+        TOTP_SECRET_ENCRYPTION_ACTIVE_KEY_VERSION: "v1",
+        TOTP_SECRET_ENCRYPTION_KEYS: JSON.stringify({
+          v1: Buffer.alloc(16, 0x55).toString("base64url"),
+        }),
+      },
+      "test",
+    );
+    const unknown = validateWebEnvironment(
+      {
+        TOTP_SECRET_ENCRYPTION_ACTIVE_KEY_VERSION: "v2",
+        TOTP_SECRET_ENCRYPTION_KEYS: JSON.stringify({ v1: TOTP_KEY }),
+      },
+      "test",
+    );
+
+    for (const result of [malformed, short, unknown]) {
+      assert.deepEqual(result.invalid, ["TOTP_SECRET_ENCRYPTION_KEYS"]);
+      assert.doesNotMatch(JSON.stringify(result), new RegExp(TOTP_KEY, "u"));
+    }
+  });
 });
 
 describe("outbox worker environment validation", () => {
@@ -152,6 +203,9 @@ describe("outbox worker environment validation", () => {
     const result = validateOutboxWorkerEnvironment({}, "production");
 
     assert.deepEqual(result.missing, ["DATABASE_URL", "REDIS_URL"]);
-    assert.doesNotMatch(result.missing.join(","), /AUTH_SECRET|NEXTAUTH_URL|SOCKET_ALLOWED_ORIGINS/);
+    assert.doesNotMatch(
+      result.missing.join(","),
+      /AUTH_SECRET|NEXTAUTH_URL|SOCKET_ALLOWED_ORIGINS/,
+    );
   });
 });

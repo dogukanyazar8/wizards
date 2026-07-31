@@ -5,20 +5,25 @@ import {
 
 import { ApiError, jsonError, parseJsonBody } from "@/lib/api";
 import { createMobileGoogleSession, MobileNativeAuthError } from "@/lib/mobile/auth";
-import { enforceMobileAuthRateLimit } from "../rate-limit";
+import {
+  createMobileAuthCredentialSubject,
+  enforceMobileAuthRateLimit,
+  type MobileAuthRateLimitSubject,
+} from "../rate-limit";
 
 export type MobileGoogleLoginRouteDependencies = {
   createGoogleSession: (
     input: MobileAuthGoogleLoginRequest,
   ) => ReturnType<typeof createMobileGoogleSession>;
-  enforceIpRateLimit: (request: Request) => Promise<void>;
+  enforceRateLimit: (request: Request, subject: MobileAuthRateLimitSubject) => Promise<void>;
   parseGoogleLoginRequest: (request: Request) => Promise<MobileAuthGoogleLoginRequest>;
 };
 
 const defaultMobileGoogleLoginRouteDependencies: MobileGoogleLoginRouteDependencies = {
   createGoogleSession: ({ idToken, locale }) =>
     createMobileGoogleSession(locale === undefined ? { idToken } : { idToken, locale }),
-  enforceIpRateLimit: (request) => enforceMobileAuthRateLimit(request, "mobile:auth-google"),
+  enforceRateLimit: (request, subject) =>
+    enforceMobileAuthRateLimit(request, "mobile:auth-google", subject),
   parseGoogleLoginRequest: (request) => parseJsonBody(request, MobileAuthGoogleLoginRequestSchema),
 };
 
@@ -27,8 +32,11 @@ export async function mobileGoogleLoginRoute(
   dependencies: MobileGoogleLoginRouteDependencies = defaultMobileGoogleLoginRouteDependencies,
 ) {
   try {
-    await dependencies.enforceIpRateLimit(request);
     const body = await dependencies.parseGoogleLoginRequest(request);
+    await dependencies.enforceRateLimit(
+      request,
+      createMobileAuthCredentialSubject("google-credential", body.idToken),
+    );
     const response = await dependencies.createGoogleSession(body);
 
     if (!response) {

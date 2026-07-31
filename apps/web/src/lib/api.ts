@@ -46,20 +46,24 @@ function publicZodErrorMessage(error: ZodError) {
   return issue?.message ?? "Invalid request body";
 }
 
-export function jsonError(error: unknown) {
+export function jsonError(error: unknown, requestId: string | null = null) {
+  const headers = requestId ? { headers: { "X-Request-Id": requestId } } : {};
+
   if (error instanceof ApiError) {
     return Response.json(
       error.code ? { error: error.message, code: error.code } : { error: error.message },
-      { status: error.status },
+      { status: error.status, ...headers },
     );
   }
 
   if (error instanceof ZodError) {
-    return Response.json({ error: publicZodErrorMessage(error) }, { status: 400 });
+    return Response.json({ error: publicZodErrorMessage(error) }, { status: 400, ...headers });
   }
 
-  logError("[api] Unhandled error", error);
-  return Response.json({ error: "Internal server error" }, { status: 500 });
+  // The correlation id goes on the log line as well as the response: a 500 the
+  // reader reported is otherwise impossible to find among the edge's records.
+  logError("[api] Unhandled error", error, { requestId });
+  return Response.json({ error: "Internal server error" }, { status: 500, ...headers });
 }
 
 function hasJsonContentType(request: Request) {

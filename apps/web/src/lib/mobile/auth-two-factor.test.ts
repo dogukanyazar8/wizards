@@ -2,25 +2,14 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { createMemoryAttemptStore } from "../auth/attempt-tracker";
-import {
-  createMobilePasswordSession,
-  MobileNativeAuthError,
-} from "./auth";
+import { createMobilePasswordSession, MobileNativeAuthError } from "./auth";
 
-type MobilePasswordSessionOptions = NonNullable<
-  Parameters<typeof createMobilePasswordSession>[1]
->;
+type MobilePasswordSessionOptions = NonNullable<Parameters<typeof createMobilePasswordSession>[1]>;
 
 class MemoryRedis {
   readonly values = new Map<string, string>();
 
-  async set(
-    key: string,
-    value: string,
-    _mode: "EX",
-    _ttlSeconds: number,
-    condition: "NX",
-  ) {
+  async set(key: string, value: string, _mode: "EX", _ttlSeconds: number, condition: "NX") {
     if (condition === "NX" && this.values.has(key)) {
       return null;
     }
@@ -29,7 +18,20 @@ class MemoryRedis {
     return "OK" as const;
   }
 
-  async eval(script: string, _keyCount: number, key: string, ...args: string[]) {
+  async eval(script: string, keyCount: number, ...input: string[]) {
+    const keys = input.slice(0, keyCount);
+    const args = input.slice(keyCount);
+    if (script.includes("mobile-refresh-family:create-v1")) {
+      const [sessionKey = "", refreshTokenKey = ""] = keys;
+      if (this.values.has(sessionKey) || this.values.has(refreshTokenKey)) {
+        return ["COLLISION"];
+      }
+      this.values.set(sessionKey, args[0] ?? "");
+      this.values.set(refreshTokenKey, args[1] ?? "");
+      return ["CREATED"];
+    }
+
+    const key = keys[0] ?? "";
     if (script.includes("redis.call('SET'")) {
       this.values.set(key, args[0] ?? "");
       return "OK";
@@ -49,10 +51,14 @@ const env: NodeJS.ProcessEnv = {
   NODE_ENV: "test",
 };
 
-function buildPasswordUser(overrides: Partial<{
-  twoFactorEnabled: boolean;
-  twoFactorSecret: string | null;
-}> = {}) {
+function buildPasswordUser(
+  overrides: Partial<{
+    twoFactorEnabled: boolean;
+    twoFactorSecret: string | null;
+    twoFactorSecretCiphertext: string | null;
+    twoFactorSecretKeyVersion: string | null;
+  }> = {},
+) {
   return {
     avatarUrl: "https://whispr.team/avatar.png",
     deletedAt: null,
@@ -65,6 +71,8 @@ function buildPasswordUser(overrides: Partial<{
     passwordHash: "stored-hash",
     twoFactorEnabled: false,
     twoFactorSecret: null,
+    twoFactorSecretCiphertext: null,
+    twoFactorSecretKeyVersion: null,
     username: "ada",
     ...overrides,
   };
@@ -137,12 +145,45 @@ describe("mobile password session two-factor enforcement", () => {
     );
   });
 
-  it("creates a session after a valid two-factor credential", async () => {
+  it("fails closed when two-factor replay protection is unavailable", async () => {
     const user = buildPasswordUser({
       twoFactorEnabled: true,
       twoFactorSecret: "two-factor-secret",
     });
-    const calls: Array<{ code: string; secret: string | null; userId: string }> = [];
+
+    await expectMobileAuthError(
+      () =>
+        createMobilePasswordSession(
+          {
+            email: user.email,
+            password: "correct-horse-battery",
+            twoFactorCode: "123456",
+          },
+          createOptions(user, {
+            verifyTwoFactor: async () => ({
+              error: "verification_unavailable",
+              success: false,
+            }),
+          }),
+        ),
+      { code: "TWO_FACTOR_UNAVAILABLE", status: 503 },
+    );
+  });
+
+  it("creates a session after a valid two-factor credential", async () => {
+    const user = buildPasswordUser({
+      twoFactorEnabled: true,
+      twoFactorSecret: "two-factor-secret",
+      twoFactorSecretCiphertext: "encrypted-envelope",
+      twoFactorSecretKeyVersion: "v1",
+    });
+    const calls: Array<{
+      code: string;
+      secret: string | null;
+      secretCiphertext: string | null;
+      secretKeyVersion: string | null;
+      userId: string;
+    }> = [];
 
     const response = await createMobilePasswordSession(
       {
@@ -154,11 +195,15 @@ describe("mobile password session two-factor enforcement", () => {
         verifyTwoFactor: async (input: {
           code: string;
           secret: string | null | undefined;
+          secretCiphertext?: string | null;
+          secretKeyVersion?: string | null;
           userId: string;
         }) => {
           calls.push({
             code: input.code,
             secret: input.secret ?? null,
+            secretCiphertext: input.secretCiphertext ?? null,
+            secretKeyVersion: input.secretKeyVersion ?? null,
             userId: input.userId,
           });
           return { success: true };
@@ -168,7 +213,13 @@ describe("mobile password session two-factor enforcement", () => {
 
     assert.equal(response?.session.user.id, user.id);
     assert.deepEqual(calls, [
-      { code: "123456", secret: user.twoFactorSecret, userId: user.id },
+      {
+        code: "123456",
+        secret: user.twoFactorSecret,
+        secretCiphertext: user.twoFactorSecretCiphertext,
+        secretKeyVersion: user.twoFactorSecretKeyVersion,
+        userId: user.id,
+      },
     ]);
   });
 

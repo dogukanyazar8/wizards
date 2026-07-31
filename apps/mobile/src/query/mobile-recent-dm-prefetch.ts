@@ -7,6 +7,7 @@ import { scheduleMobileIdleTask } from "../performance/mobile-idle-task";
 import {
   prefetchMobileDMMessagesPage,
   recordMobileRecentDMPrefetch,
+  recordMobileRecentDMPrefetchSettled,
   selectMobileRecentDMPrefetchIds,
   shouldWarmMobileRecentDMs,
 } from "./mobile-message-prefetch";
@@ -56,7 +57,11 @@ export function useMobileRecentDMPrefetch(input: {
         .reduce(
           (chain, conversationId) =>
             chain.then(() =>
-              prefetchMobileDMMessagesPage(queryClient, apiClient, conversationId).catch(
+              prefetchMobileDMMessagesPage(queryClient, apiClient, conversationId).then(
+                // Only a completed read is a warm conversation. Counting the
+                // attempt is what made the panel report a 100% hit rate for a
+                // feature whose requests had not necessarily finished.
+                () => recordMobileRecentDMPrefetchSettled(conversationId),
                 () => undefined,
               ),
             ),

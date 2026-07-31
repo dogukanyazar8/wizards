@@ -68,6 +68,29 @@ function readEnvironmentName() {
   return MOBILE_ENVIRONMENTS.includes(value) ? value : "development";
 }
 
+// Wide enough for a full or short commit SHA and a CI run suffix, narrow enough
+// that nothing else can ride into a telemetry dimension through this field.
+const BUILD_ID_PATTERN = /^[A-Za-z0-9._-]{1,64}$/;
+
+/**
+ * Which build a measurement came from.
+ *
+ * The telemetry dimension has read `extra.whispr.buildId` since it was written,
+ * and nothing ever wrote it — every device sample so far reports `unknown`, so a
+ * p95 cannot be pinned to a release or matched against the edge's own record of
+ * the same request. The build pipeline supplies the commit; an unrecognisable
+ * value stays `unknown` rather than becoming one.
+ */
+function readBuildId() {
+  const value = (
+    process.env.EXPO_PUBLIC_WHISPR_BUILD_ID ??
+    process.env.WHISPR_MOBILE_BUILD_ID ??
+    ""
+  ).trim();
+
+  return BUILD_ID_PATTERN.test(value) ? value : "unknown";
+}
+
 function normalizeUrl(value, fieldName) {
   const trimmed = value?.trim();
 
@@ -128,6 +151,7 @@ function buildPublicConfig(environment) {
 
   return {
     apiUrl,
+    buildId: readBuildId(),
     communityInviteSlug:
       process.env.EXPO_PUBLIC_WHISPR_COMMUNITY_INVITE_SLUG?.trim() || DEFAULT_COMMUNITY_INVITE_SLUG,
     environment,

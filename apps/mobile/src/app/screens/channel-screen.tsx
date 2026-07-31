@@ -55,6 +55,7 @@ import {
   type MobileMessageAnchorRect,
 } from "../components/message-menu-anchor";
 import { MobileLineIcon } from "../../design/mobile-line-icons";
+import { reportMobileListBlankArea } from "../components/message-list-blank-area";
 import { StatusChip } from "../components/ui-atoms";
 import { BottomSheet, EmptyState, SheetHeader, Skeleton } from "../components/kit";
 import { MobileChatKeyboardRegion, useMobileScreenFocus } from "../mobile-chat-keyboard-region";
@@ -66,7 +67,10 @@ import {
 } from "../components/message-forward-sheet";
 import { useChannelScreenStyles } from "./channel-screen.styles";
 import { useTheme } from "../providers/mobile-theme-provider";
-import { mobileListLoadHandlers } from "../../performance/mobile-performance-metrics";
+import {
+  mobileListLoadHandlers,
+  notifyMobileFirstPaint,
+} from "../../performance/mobile-performance-metrics";
 import type { MobileChannelTypingUser } from "../../realtime/mobile-typing-state";
 
 export function MobileChannelChatScreen({
@@ -825,6 +829,10 @@ export const ChannelMessageList = forwardRef<
     const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
     const distanceFromBottom = contentSize.height - (contentOffset.y + layoutMeasurement.height);
     setShowScrollToBottom(distanceFromBottom > 120);
+    // Same instrument as the DM transcript: the channel's `drawDistance` is
+    // derived from the performance profile, and no profile may lower it before
+    // this number says the renderer is keeping up.
+    reportMobileListBlankArea("channel-messages", listRef.current, event.nativeEvent);
   }, []);
   const handleOpenReply = useCallback(
     (messageId: string) => {
@@ -950,6 +958,17 @@ export const ChannelMessageList = forwardRef<
 
     return null;
   }, [messages.length, onRefresh, state.error, state.payload, state.status, styles]);
+
+  // `onLoad` below never fires for a list with no items, so an empty or failed
+  // channel open would leave its span open until an unrelated load closed it.
+  // The empty component rendering is that open's first paint.
+  const isSettledWithoutMessages =
+    state.status === "error" || (state.status === "ready" && messages.length === 0);
+  useEffect(() => {
+    if (isSettledWithoutMessages) {
+      notifyMobileFirstPaint("ChannelChat");
+    }
+  }, [isSettledWithoutMessages]);
 
   return (
     <MobileMessageMenuBoundsProvider bounds={menuBounds}>

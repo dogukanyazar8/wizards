@@ -13,7 +13,7 @@ function createDependencies(
   overrides: Partial<MobilePasswordRegisterRouteDependencies> = {},
 ): MobilePasswordRegisterRouteDependencies {
   return {
-    enforceIpRateLimit: async () => undefined,
+    enforceRateLimit: async () => undefined,
     parseRegisterRequest: async () => ({
       confirmPassword: "correct-password",
       email: "ada@example.com",
@@ -30,19 +30,19 @@ function createDependencies(
 }
 
 describe("mobile password register route", () => {
-  it("keeps IP limiting before registration without human verification", async () => {
+  it("rate limits the normalized email after parsing and before registration", async () => {
     const calls: string[] = [];
     const response = await mobilePasswordRegisterRoute(
       new Request("http://localhost/api/v1/mobile/auth/register", { method: "POST" }),
       createDependencies({
-        enforceIpRateLimit: async () => {
-          calls.push("ip-limit");
+        enforceRateLimit: async (_request, subject) => {
+          calls.push(`rate-limit:${subject.namespace}:${subject.value}`);
         },
         parseRegisterRequest: async () => {
           calls.push("parse-body");
           return {
             confirmPassword: "correct-password",
-            email: "ada@example.com",
+            email: "Ada@Example.COM",
             password: "correct-password",
             username: "ada",
           };
@@ -58,7 +58,7 @@ describe("mobile password register route", () => {
       }),
     );
 
-    assert.deepEqual(calls, ["ip-limit", "parse-body", "register-account"]);
+    assert.deepEqual(calls, ["parse-body", "rate-limit:email:ada@example.com", "register-account"]);
     assert.equal(response.status, 200);
   });
 
@@ -75,12 +75,10 @@ describe("mobile password register route", () => {
         method: "POST",
       }),
       createDependencies({
-        parseRegisterRequest: (request) =>
-          parseJsonBody(request, MobileAuthRegisterRequestSchema),
+        parseRegisterRequest: (request) => parseJsonBody(request, MobileAuthRegisterRequestSchema),
       }),
     );
 
     assert.equal(response.status, 200);
   });
-
 });

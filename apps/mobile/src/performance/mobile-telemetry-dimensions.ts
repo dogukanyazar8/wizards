@@ -51,10 +51,23 @@ function readDeviceTier(): MobileTelemetryDeviceTier {
   return totalMemory < MOBILE_MID_TIER_MEMORY_BYTES ? "mid" : "high";
 }
 
+/**
+ * Two sources because either one can be missing on a real device: the manifest
+ * is absent when `Constants.expoConfig` does not resolve, and the inlined value
+ * only exists when the pipeline exported it. Both are written by the same build,
+ * so agreeing on one of them is enough.
+ */
 function readBuildId(): string {
   const extra = Constants.expoConfig?.extra as { whispr?: { buildId?: unknown } } | undefined;
-  const buildId = extra?.whispr?.buildId;
-  return typeof buildId === "string" && buildId.length > 0 ? buildId : "unknown";
+  const manifestBuildId = extra?.whispr?.buildId;
+  if (typeof manifestBuildId === "string" && manifestBuildId.length > 0) {
+    return manifestBuildId;
+  }
+
+  const inlinedBuildId = process.env.EXPO_PUBLIC_WHISPR_BUILD_ID;
+  return typeof inlinedBuildId === "string" && inlinedBuildId.length > 0
+    ? inlinedBuildId
+    : "unknown";
 }
 
 export function resolveMobileTelemetryDimensions(): MobileTelemetryDimensions {

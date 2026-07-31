@@ -51,6 +51,29 @@ const healthMigrationPath = fileURLToPath(
 const healthMigration = existsSync(healthMigrationPath)
   ? readFileSync(healthMigrationPath, "utf8")
   : "";
+const totpSecretMigrationPath = fileURLToPath(
+  new URL(
+    "../prisma/rebaseline-migrations/20260731120000_encrypt_totp_secrets/migration.sql",
+    import.meta.url,
+  ),
+);
+const totpSecretMigration = existsSync(totpSecretMigrationPath)
+  ? readFileSync(totpSecretMigrationPath, "utf8")
+  : "";
+
+test("TOTP secret encryption lands as an additive rollback-safe migration", () => {
+  const user = schema.match(/model User \{[\s\S]*?\n\}/u)?.[0];
+
+  assert.ok(user, "User model is missing");
+  assert.match(user, /twoFactorSecret\s+String\?/u);
+  assert.match(user, /twoFactorSecretCiphertext\s+String\?\s+@db\.Text/u);
+  assert.match(user, /twoFactorSecretKeyVersion\s+String\?\s+@db\.VarChar\(64\)/u);
+
+  assert.ok(existsSync(totpSecretMigrationPath), "TOTP secret encryption migration is missing");
+  assert.match(totpSecretMigration, /ADD COLUMN "twoFactorSecretCiphertext" TEXT/u);
+  assert.match(totpSecretMigration, /ADD COLUMN "twoFactorSecretKeyVersion" VARCHAR\(64\)/u);
+  assert.doesNotMatch(totpSecretMigration, /DROP COLUMN|UPDATE\s+"User"|DELETE FROM/u);
+});
 
 test("generated client exposes immutable mobile update publication records", () => {
   assert.equal(Prisma.ModelName.OtaBundle, "OtaBundle");

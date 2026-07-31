@@ -36,6 +36,7 @@
     "e2e:web-server": "pnpm run build:server && pnpm start",
     "lint": "node --test scripts/eslint-config.test.mjs && eslint .",
     "maintenance:cleanup-reauth": "tsx scripts/cleanup-account-reauth-challenges.ts",
+    "maintenance:totp-secrets": "tsx scripts/backfill-totp-secrets.ts",
     "test": "node scripts/run-node-tests.mjs",
     "test:coverage": "tsx scripts/run-coverage.ts",
     "typecheck": "node ../../scripts/quality/typescript-project-runner.mjs --project=web --mode=check",

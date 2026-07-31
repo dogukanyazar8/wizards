@@ -345,6 +345,8 @@ model User {
   emailVerifiedAt       DateTime?
   twoFactorEnabled      Boolean     @default(false)
   twoFactorSecret       String?
+  twoFactorSecretCiphertext String? @db.Text
+  twoFactorSecretKeyVersion String? @db.VarChar(64)
   phoneNumber           String?
   phoneVerified         Boolean     @default(false)
   isBot                 Boolean     @default(false)

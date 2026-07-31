@@ -5,6 +5,7 @@ import {
   getMobileRecentDMPrefetchStats,
   recordMobileRecentDMPrefetch,
   recordMobileRecentDMPrefetchOpen,
+  recordMobileRecentDMPrefetchSettled,
   resetMobileRecentDMPrefetchStatsForTests,
   selectMobileRecentDMPrefetchIds,
   shouldWarmMobileRecentDMs,
@@ -86,23 +87,64 @@ describe("shouldWarmMobileRecentDMs", () => {
   });
 });
 
+/**
+ * A device run showed 4/4 warmed, which was not a measurement: the counter was
+ * incremented before the request chain started, so it recorded the intent to
+ * warm and every rate it produced was 100% by construction.
+ */
 describe("mobile recent DM prefetch hit rate", () => {
-  it("counts a warmed conversation as a hit only when it is opened", () => {
+  it("counts a conversation as warmed only once its read has resolved", () => {
     resetMobileRecentDMPrefetchStatsForTests();
     recordMobileRecentDMPrefetch(["dm-1", "dm-2"]);
+    recordMobileRecentDMPrefetchSettled("dm-1");
+
+    const stats = getMobileRecentDMPrefetchStats();
+    assert.equal(stats.attempted, 2);
+    assert.equal(stats.settled, 1);
+  });
+
+  it("counts an open as a hit only when the warm had already landed", () => {
+    resetMobileRecentDMPrefetchStatsForTests();
+    recordMobileRecentDMPrefetch(["dm-1", "dm-2"]);
+    recordMobileRecentDMPrefetchSettled("dm-1");
+    recordMobileRecentDMPrefetchSettled("dm-2");
 
     recordMobileRecentDMPrefetchOpen("dm-1");
+    // Never warmed at all: an open that the panel must not take credit for.
     recordMobileRecentDMPrefetchOpen("dm-9");
 
     const stats = getMobileRecentDMPrefetchStats();
-    assert.equal(stats.warmed, 2);
-    assert.equal(stats.hits, 1);
+    assert.equal(stats.openedAfterSettled, 1);
     assert.equal(stats.hitRate, 0.5);
+  });
+
+  it("ignores a settle for a conversation nothing tried to warm", () => {
+    resetMobileRecentDMPrefetchStatsForTests();
+    recordMobileRecentDMPrefetchSettled("dm-7");
+
+    assert.equal(getMobileRecentDMPrefetchStats().settled, 0);
+  });
+
+  it("gives an open no credit while its warm is still in flight", () => {
+    resetMobileRecentDMPrefetchStatsForTests();
+    recordMobileRecentDMPrefetch(["dm-1"]);
+
+    recordMobileRecentDMPrefetchOpen("dm-1");
+
+    const stats = getMobileRecentDMPrefetchStats();
+    assert.equal(stats.attempted, 1);
+    assert.equal(stats.openedAfterSettled, 0);
+    assert.equal(stats.hitRate, 0);
   });
 
   it("reports a zero rate rather than dividing by nothing", () => {
     resetMobileRecentDMPrefetchStatsForTests();
 
-    assert.deepEqual(getMobileRecentDMPrefetchStats(), { hitRate: 0, hits: 0, warmed: 0 });
+    assert.deepEqual(getMobileRecentDMPrefetchStats(), {
+      attempted: 0,
+      hitRate: 0,
+      openedAfterSettled: 0,
+      settled: 0,
+    });
   });
 });

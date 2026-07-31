@@ -1,5 +1,3 @@
-import { createHash } from "node:crypto";
-
 import { prisma } from "@wizards/db";
 import { z } from "zod";
 
@@ -13,6 +11,10 @@ import {
   type OtaManifestRequest,
   type OtaManifestRepository,
 } from "@/lib/app/ota-manifest-service";
+import {
+  createClientRateLimitIdentity,
+  createSubjectRateLimitIdentity,
+} from "@/lib/security/client-ip";
 
 const OtaRequestHeadersSchema = z
   .object({
@@ -77,14 +79,27 @@ const EXPO_RESPONSE_HEADERS = {
   "Expo-SFV-Version": "0",
 } as const;
 
-function rateIdentity(request: Request) {
-  const forwarded =
-    request.headers.get("cf-connecting-ip")?.trim() ||
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    request.headers.get("x-real-ip")?.trim() ||
-    "unknown";
-  const userAgent = request.headers.get("user-agent")?.trim() || "unknown";
-  return `ota:${createHash("sha256").update(`${forwarded}:${userAgent}`).digest("base64url")}`;
+function rateIdentities(request: Request, headers: z.infer<typeof OtaRequestHeadersSchema>) {
+  const subject = headers.installationId
+    ? { namespace: "installation", value: headers.installationId }
+    : headers.currentUpdateId
+      ? { namespace: "current-update", value: headers.currentUpdateId }
+      : {
+          namespace: "runtime",
+          value: `${headers.channel}\0${headers.platform}\0${headers.runtimeVersion}`,
+        };
+
+  return {
+    network: `ota:network:${createClientRateLimitIdentity({
+      fallbackNamespace: subject.namespace,
+      fallbackValue: subject.value,
+      headers: request.headers,
+    })}`,
+    recipient: `ota:installation:${createSubjectRateLimitIdentity(
+      subject.namespace,
+      subject.value,
+    )}`,
+  };
 }
 
 function parseHeaders(request: Request) {
@@ -122,13 +137,16 @@ export async function otaManifestRoute(
   dependencies: OtaManifestRouteDependencies = defaultDependencies,
 ) {
   try {
-    const limiterKey = rateIdentity(request);
-    await dependencies.enforceRateLimit(limiterKey, "app:updates:manifest");
     const headers = parseHeaders(request);
+    const limiterKeys = rateIdentities(request, headers);
+    await Promise.all([
+      dependencies.enforceRateLimit(limiterKeys.network, "app:updates:manifest"),
+      dependencies.enforceRateLimit(limiterKeys.recipient, "app:updates:manifest"),
+    ]);
     const part = await dependencies.resolveManifest({
       channel: headers.channel,
       ...(headers.currentUpdateId ? { currentUpdateId: headers.currentUpdateId } : {}),
-      installationId: headers.installationId ?? headers.currentUpdateId ?? limiterKey,
+      installationId: headers.installationId ?? headers.currentUpdateId ?? limiterKeys.recipient,
       platform: headers.platform,
       runtimeVersion: headers.runtimeVersion,
     });

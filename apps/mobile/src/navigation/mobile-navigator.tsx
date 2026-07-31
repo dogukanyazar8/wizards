@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { DefaultTheme, NavigationContainer, type NavigationState } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
@@ -8,9 +8,17 @@ import {
   resolveMobileActiveChatRouteTarget,
 } from "../performance/mobile-chat-route-target";
 import {
+  annotateMobileNavigationSpan,
   ensureMobileNavigationSpan,
   markMobileNavigationStage,
 } from "../performance/mobile-navigation-timing";
+import { resolveMobileMessageStreamOpenSource } from "../query/mobile-message-stream-source";
+import {
+  advanceMobileChatTransitionVariant,
+  configureMobileChatTransition,
+  getMobileChatTransitionVariant,
+  resolveMobileChatTransitionAnimation,
+} from "./mobile-chat-transition";
 import { markMobileStartupPhase } from "../performance/mobile-startup-phases";
 import { useReducedMotion } from "react-native-reanimated";
 import { useMobileAuth } from "../auth/mobile-auth-context";
@@ -64,6 +72,16 @@ import type { MobileBottomTabParamList, MobileRootStackParamList } from "./mobil
 const RootStack = createNativeStackNavigator<MobileRootStackParamList>();
 const BottomTabs = createBottomTabNavigator<MobileBottomTabParamList>();
 
+/**
+ * Read at push time, not at navigator render time.
+ *
+ * A screen's `options` function runs when that screen renders, which for a push
+ * is the push itself — so the rotating variant reaches the transition without
+ * the navigator re-rendering. Re-rendering it would remount every inline screen
+ * element on the stack, which is the cost this whole wave is trying to remove.
+ */
+const chatScreenOptions = () => ({ animation: resolveMobileChatTransitionAnimation() });
+
 interface MobileNavigatorProps {
   readonly directMessageUnreadCount?: number;
   readonly notificationUnreadCount?: number;
@@ -106,10 +124,29 @@ export function MobileNavigator({
     }
 
     const now = globalThis.performance.now();
-    ensureMobileNavigationSpan(target.route, now, probeMobileChatCache(target));
+    const dataUpdatedAtMs = probeMobileChatCache(target);
+    ensureMobileNavigationSpan(target.route, now, dataUpdatedAtMs !== null);
+    // The pushed screen has already read the variant by the time the navigator
+    // commits, so this records what the reader saw rather than what is next.
+    // `cacheHit` was one bit and could not say whether the page came from memory,
+    // from the encrypted store or from a warm that had settled.
+    const origin = resolveMobileMessageStreamOpenSource({
+      dataUpdatedAtMs,
+      scope: target.route === "ChannelChat" ? "channel" : "dm",
+      targetId: target.targetId,
+    });
+    annotateMobileNavigationSpan(target.route, {
+      cacheAgeMs: origin.cacheAgeMs,
+      source: origin.source,
+      transition: getMobileChatTransitionVariant(),
+    });
     // First of the three stages: the navigator has committed the route. What is
     // left after this is the screen tree and the list.
-    markMobileNavigationStage(target.route, "navigated", now);
+    if (markMobileNavigationStage(target.route, "navigated", now) !== null) {
+      // Only a route that was newly committed is an open; a state change inside
+      // a chat the reader is already in must not rotate the experiment.
+      advanceMobileChatTransitionVariant();
+    }
   }, []);
 
   const reportActiveTab = useCallback(() => {
@@ -150,6 +187,14 @@ export function MobileNavigator({
     }),
     [reducedMotion],
   );
+  // The three chat transitions rotate inside one run so a baseline can compare
+  // them; a production build keeps the slide it has always had.
+  useEffect(() => {
+    configureMobileChatTransition({
+      reducedMotion,
+      rotate: runtimeConfig.environment !== "production",
+    });
+  }, [reducedMotion, runtimeConfig.environment]);
 
   return (
     <NavigationContainer
@@ -172,10 +217,10 @@ export function MobileNavigator({
           <RootStack.Screen name="VoiceRoom">
             {(props) => <VoiceRoomStackScreenContainer {...props} />}
           </RootStack.Screen>
-          <RootStack.Screen name="ChannelChat">
+          <RootStack.Screen name="ChannelChat" options={chatScreenOptions}>
             {(props) => <ChannelStackScreenContainer {...props} />}
           </RootStack.Screen>
-          <RootStack.Screen name="DirectMessage">
+          <RootStack.Screen name="DirectMessage" options={chatScreenOptions}>
             {(props) => <DirectMessageStackScreenContainer {...props} />}
           </RootStack.Screen>
           <RootStack.Screen name="MessageThread">

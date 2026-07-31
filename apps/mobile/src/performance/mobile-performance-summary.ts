@@ -1,3 +1,12 @@
+import {
+  MOBILE_CHAT_TRANSITION_VARIANTS,
+  type MobileChatTransitionVariant,
+} from "../navigation/mobile-chat-transition";
+import {
+  MOBILE_MESSAGE_STREAM_SOURCES,
+  type MobileMessageStreamSource,
+} from "../query/mobile-message-stream-source";
+
 /**
  * What summarizing needs, and no more.
  *
@@ -145,6 +154,192 @@ export function summarizeMobileChatOpenStages(
       p50Ms: percentileMs(values, 50),
       p95Ms: percentileMs(values, 95),
       stage,
+    };
+  });
+}
+
+export type MobileChatOpenRouteRow = {
+  readonly cacheHit: boolean;
+  readonly count: number;
+  readonly p50Ms: number | null;
+  readonly p95Ms: number | null;
+  readonly route: MobileChatRoute;
+};
+
+/** The two chat surfaces, which are two different screens with two different lists. */
+const MOBILE_CHAT_ROUTES = ["DirectMessage", "ChannelChat"] as const;
+type MobileChatRoute = (typeof MOBILE_CHAT_ROUTES)[number];
+
+/**
+ * The chat-open budget, split by the surface that produced it.
+ *
+ * The pooled `chat-open-*` rows were channel numbers wearing both names: the DM
+ * transcript had no span closer at all, so every DM open in the first device
+ * baseline landed in the abandoned counter. With both surfaces measured, pooling
+ * them again would hide whichever one is slower behind the other's sample count.
+ */
+export function summarizeMobileChatOpenRoutes(
+  samples: readonly MobilePerformanceSummaryInput[],
+): readonly MobileChatOpenRouteRow[] {
+  const buckets = new Map<string, number[]>();
+  for (const route of MOBILE_CHAT_ROUTES) {
+    buckets.set(`${route}:cached`, []);
+    buckets.set(`${route}:network`, []);
+  }
+
+  for (const sample of samples) {
+    if (sample.metric !== "navigation") {
+      continue;
+    }
+
+    const context = sample.context as {
+      readonly cacheHit?: unknown;
+      readonly route?: unknown;
+      readonly stage?: unknown;
+    };
+    if (
+      typeof context.stage === "string" ||
+      typeof context.route !== "string" ||
+      !CHAT_ROUTES.has(context.route)
+    ) {
+      continue;
+    }
+
+    buckets
+      .get(`${context.route}:${context.cacheHit === true ? "cached" : "network"}`)
+      ?.push(sample.durationMs);
+  }
+
+  return MOBILE_CHAT_ROUTES.flatMap((route) =>
+    [true, false].map((cacheHit) => {
+      const values = buckets.get(`${route}:${cacheHit ? "cached" : "network"}`) ?? [];
+      return {
+        cacheHit,
+        count: values.length,
+        p50Ms: percentileMs(values, 50),
+        p95Ms: percentileMs(values, 95),
+        route,
+      };
+    }),
+  );
+}
+
+export type MobileChatOpenSourceRow = {
+  /** How stale the local page was, when there was one. */
+  readonly cacheAgeP50Ms: number | null;
+  readonly count: number;
+  readonly p50Ms: number | null;
+  readonly p95Ms: number | null;
+  readonly source: MobileMessageStreamSource;
+};
+
+/**
+ * Where each chat open's first screenful came from, and what it cost.
+ *
+ * The restore path is only worth its complexity if `sqlcipher` opens land near
+ * `memory` opens rather than near `network` ones, and one pooled "cached" number
+ * could not show that either way.
+ */
+export function summarizeMobileChatOpenSources(
+  samples: readonly MobilePerformanceSummaryInput[],
+): readonly MobileChatOpenSourceRow[] {
+  const durations = new Map<MobileMessageStreamSource, number[]>(
+    MOBILE_MESSAGE_STREAM_SOURCES.map((source) => [source, []]),
+  );
+  const ages = new Map<MobileMessageStreamSource, number[]>(
+    MOBILE_MESSAGE_STREAM_SOURCES.map((source) => [source, []]),
+  );
+
+  for (const sample of samples) {
+    if (sample.metric !== "navigation") {
+      continue;
+    }
+
+    const context = sample.context as {
+      readonly cacheAgeMs?: unknown;
+      readonly route?: unknown;
+      readonly source?: unknown;
+      readonly stage?: unknown;
+    };
+    if (
+      typeof context.stage === "string" ||
+      typeof context.route !== "string" ||
+      !CHAT_ROUTES.has(context.route) ||
+      typeof context.source !== "string"
+    ) {
+      continue;
+    }
+
+    const source = context.source as MobileMessageStreamSource;
+    durations.get(source)?.push(sample.durationMs);
+    if (typeof context.cacheAgeMs === "number") {
+      ages.get(source)?.push(context.cacheAgeMs);
+    }
+  }
+
+  return MOBILE_MESSAGE_STREAM_SOURCES.map((source) => {
+    const values = durations.get(source) ?? [];
+    return {
+      cacheAgeP50Ms: percentileMs(ages.get(source) ?? [], 50),
+      count: values.length,
+      p50Ms: percentileMs(values, 50),
+      p95Ms: percentileMs(values, 95),
+      source,
+    };
+  });
+}
+
+export type MobileChatTransitionRow = {
+  readonly count: number;
+  readonly p50Ms: number | null;
+  readonly p95Ms: number | null;
+  readonly variant: MobileChatTransitionVariant;
+};
+
+/**
+ * The three push animations, measured against each other inside one run.
+ *
+ * Only completed opens count: a stage is a milestone inside an open, and the
+ * transition's whole claim is about what the reader waited for end to end.
+ */
+export function summarizeMobileChatTransitions(
+  samples: readonly MobilePerformanceSummaryInput[],
+): readonly MobileChatTransitionRow[] {
+  const buckets = new Map<MobileChatTransitionVariant, number[]>(
+    MOBILE_CHAT_TRANSITION_VARIANTS.map((variant) => [variant, []]),
+  );
+
+  for (const sample of samples) {
+    if (sample.metric !== "navigation") {
+      continue;
+    }
+
+    const context = sample.context as {
+      readonly route?: unknown;
+      readonly stage?: unknown;
+      readonly transition?: unknown;
+    };
+    if (
+      typeof context.stage === "string" ||
+      typeof context.route !== "string" ||
+      !CHAT_ROUTES.has(context.route)
+    ) {
+      continue;
+    }
+
+    const variant = context.transition;
+    if (typeof variant === "string") {
+      buckets.get(variant as MobileChatTransitionVariant)?.push(sample.durationMs);
+    }
+  }
+
+  return MOBILE_CHAT_TRANSITION_VARIANTS.map((variant) => {
+    const values = buckets.get(variant) ?? [];
+    return {
+      count: values.length,
+      p50Ms: percentileMs(values, 50),
+      p95Ms: percentileMs(values, 95),
+      variant,
     };
   });
 }

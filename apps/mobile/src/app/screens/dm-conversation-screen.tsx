@@ -12,6 +12,7 @@ import {
   type MobileMediaRuntimeState,
   type MobileSyncHealthSummary,
   useCallback,
+  useEffect,
   useState,
 } from "../mobile-root-screen-shared";
 import { DMComposer, type MobileComposerIntent } from "../composer/mobile-composer";
@@ -33,6 +34,7 @@ import {
   type MobileForwardTarget,
 } from "../components/message-forward-sheet";
 import { EmptyState, MobileSyncHealthBanner } from "../components/ui-atoms";
+import { notifyMobileFirstPaint } from "../../performance/mobile-performance-metrics";
 import {
   getMobileDMPartnerLastDeliveredAt,
   getMobileDMPartnerLastReadAt,
@@ -287,6 +289,17 @@ export function DMConversationPreviewCard({
           }),
     [composerIntent, onEditMessage, onSendMessage],
   );
+
+  // A conversation that opens empty — or fails — never renders a list, and the
+  // list's `onLoad` is the only thing that closes the chat-open span. Ten DM
+  // opens in a device run went to the abandoned counter for want of this.
+  const isSettledWithoutList =
+    state.status === "error" || (state.status === "ready" && state.payload.messages.length === 0);
+  useEffect(() => {
+    if (isSettledWithoutList) {
+      notifyMobileFirstPaint("DirectMessage");
+    }
+  }, [isSettledWithoutList]);
 
   if (!conversation) return <EmptyState tone="accent" label={copy.dmSelectConversation} />;
 

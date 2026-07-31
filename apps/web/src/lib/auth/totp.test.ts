@@ -23,15 +23,17 @@ describe("TOTP helpers", () => {
     );
   });
 
-  it("verifies current and adjacent-window codes without accepting arbitrary values", () => {
-    const code = generateTotpCode(rfc6238Secret, {
-      nowMs: 90_000,
-    });
+  it("returns exact current and adjacent counters without widening the window", () => {
+    const previous = generateTotpCode(rfc6238Secret, { nowMs: 60_000 });
+    const current = generateTotpCode(rfc6238Secret, { nowMs: 90_000 });
+    const next = generateTotpCode(rfc6238Secret, { nowMs: 120_000 });
 
-    assert.equal(verifyTotpCode(rfc6238Secret, code, { nowMs: 90_000 }), true);
-    assert.equal(verifyTotpCode(rfc6238Secret, code, { nowMs: 119_000 }), true);
-    assert.equal(verifyTotpCode(rfc6238Secret, "000000", { nowMs: 90_000 }), false);
-    assert.equal(verifyTotpCode(rfc6238Secret, "not-a-code", { nowMs: 90_000 }), false);
+    assert.deepEqual(verifyTotpCode(rfc6238Secret, previous, { nowMs: 90_000 }), { counter: 2 });
+    assert.deepEqual(verifyTotpCode(rfc6238Secret, current, { nowMs: 90_000 }), { counter: 3 });
+    assert.deepEqual(verifyTotpCode(rfc6238Secret, next, { nowMs: 90_000 }), { counter: 4 });
+    assert.equal(verifyTotpCode(rfc6238Secret, current, { nowMs: 150_000 }), null);
+    assert.equal(verifyTotpCode(rfc6238Secret, "000000", { nowMs: 90_000 }), null);
+    assert.equal(verifyTotpCode(rfc6238Secret, "not-a-code", { nowMs: 90_000 }), null);
   });
 
   it("creates setup material with an otpauth URI and normalized manual key", () => {

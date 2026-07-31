@@ -107,13 +107,14 @@ export const reportMobileSlowRequestToSentry: MobileLatencyReporter = (sample) =
     category: "latency",
     data: {
       auth_ms: sample.server.authMs,
-      client_ms: sample.clientMs,
       db_ms: sample.server.dbMs,
+      headers_ms: sample.headersMs,
       server_ms: sample.server.totalMs,
+      settled_ms: sample.settledMs,
       transport_ms: sample.transportMs,
     },
     level: "info",
-    message: `slow request ${sample.route}`,
+    message: `slow request ${sample.method} ${sample.route}`,
   });
 };
 

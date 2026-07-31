@@ -11,6 +11,14 @@ import {
   type RecoveryCode,
 } from "./totp";
 import {
+  encryptTotpSecret,
+  parseTotpSecretKeyring,
+  resolveTotpSecret,
+  type EncryptedTotpSecret,
+  type TotpSecretKeyring,
+} from "./totp-secret-encryption";
+import { createRedisTotpReplayStore, type TotpReplayStore } from "./totp-replay";
+import {
   createAttemptTracker,
   createMemoryAttemptStore,
   createRedisAttemptStore,
@@ -43,6 +51,12 @@ export type TwoFactorUserRecord = {
   passwordHash: string | null;
   twoFactorEnabled: boolean;
   twoFactorSecret: string | null;
+  twoFactorSecretCiphertext: string | null;
+  twoFactorSecretKeyVersion: string | null;
+};
+
+export type TwoFactorSecretWrite = EncryptedTotpSecret & {
+  plaintext: string;
 };
 
 export type TwoFactorRepository = {
@@ -50,12 +64,12 @@ export type TwoFactorRepository = {
   disableTwoFactor: (userId: string) => Promise<void>;
   enableTwoFactor: (
     userId: string,
-    secret: string,
+    secret: TwoFactorSecretWrite,
     recoveryCodeHashes: string[],
   ) => Promise<void>;
   findUserForTwoFactor: (userId: string) => Promise<TwoFactorUserRecord | null>;
   listUnusedRecoveryCodes: (userId: string) => Promise<TwoFactorRecoveryCodeRecord[]>;
-  savePendingSecret: (userId: string, secret: string) => Promise<void>;
+  savePendingSecret: (userId: string, secret: TwoFactorSecretWrite) => Promise<void>;
 };
 
 export type TwoFactorAttemptStore = AttemptStore;
@@ -64,8 +78,10 @@ export type TwoFactorServiceDependencies = {
   attemptStore?: TwoFactorAttemptStore;
   comparePassword?: (password: string, passwordHash: string) => Promise<boolean>;
   createQrCodeDataUrl?: (otpauthUri: string) => Promise<string>;
+  keyring?: TotpSecretKeyring;
   nowMs?: () => number;
   randomBytes?: (size: number) => Buffer;
+  replayStore?: TotpReplayStore;
   repository?: TwoFactorRepository;
 };
 
@@ -76,7 +92,8 @@ type TwoFactorError =
   | "not_enabled"
   | "not_found"
   | "rate_limited"
-  | "setup_required";
+  | "setup_required"
+  | "verification_unavailable";
 
 export type TwoFactorFailureResult = {
   error: TwoFactorError;
@@ -173,6 +190,8 @@ const defaultTwoFactorRepository: TwoFactorRepository = {
         data: {
           twoFactorEnabled: false,
           twoFactorSecret: null,
+          twoFactorSecretCiphertext: null,
+          twoFactorSecretKeyVersion: null,
         },
         where: { id: userId },
       });
@@ -184,7 +203,9 @@ const defaultTwoFactorRepository: TwoFactorRepository = {
       await tx.user.update({
         data: {
           twoFactorEnabled: true,
-          twoFactorSecret: secret,
+          twoFactorSecret: secret.plaintext,
+          twoFactorSecretCiphertext: secret.ciphertext,
+          twoFactorSecretKeyVersion: secret.keyVersion,
         },
         where: { id: userId },
       });
@@ -204,6 +225,8 @@ const defaultTwoFactorRepository: TwoFactorRepository = {
         passwordHash: true,
         twoFactorEnabled: true,
         twoFactorSecret: true,
+        twoFactorSecretCiphertext: true,
+        twoFactorSecretKeyVersion: true,
       },
       where: { id: userId },
     });
@@ -225,7 +248,9 @@ const defaultTwoFactorRepository: TwoFactorRepository = {
     await prisma.user.update({
       data: {
         twoFactorEnabled: false,
-        twoFactorSecret: secret,
+        twoFactorSecret: secret.plaintext,
+        twoFactorSecretCiphertext: secret.ciphertext,
+        twoFactorSecretKeyVersion: secret.keyVersion,
       },
       where: { id: userId },
     });
@@ -249,8 +274,10 @@ function resolveDependencies(dependencies: TwoFactorServiceDependencies = {}) {
     attemptStore: dependencies.attemptStore ?? getDefaultAttemptStore(),
     comparePassword: dependencies.comparePassword ?? bcrypt.compare,
     createQrCodeDataUrl: dependencies.createQrCodeDataUrl ?? createDefaultQrCodeDataUrl,
+    keyring: dependencies.keyring ?? parseTotpSecretKeyring(),
     nowMs: dependencies.nowMs ?? Date.now,
     randomBytes: dependencies.randomBytes ?? cryptoRandomBytes,
+    replayStore: dependencies.replayStore ?? createRedisTotpReplayStore(getRedisRate()),
     repository: dependencies.repository ?? defaultTwoFactorRepository,
   };
 }
@@ -282,6 +309,21 @@ function mapRecoveryCodeHashes(codes: RecoveryCode[]) {
   return codes.map((entry) => entry.hash);
 }
 
+async function consumeTotpMatch(args: {
+  counter: number;
+  replayStore: TotpReplayStore;
+  userId: string;
+}) {
+  try {
+    return await args.replayStore.consume({
+      counter: args.counter,
+      userId: args.userId,
+    });
+  } catch {
+    return null;
+  }
+}
+
 export async function startTwoFactorSetup(
   userId: string,
   dependencies?: TwoFactorServiceDependencies,
@@ -302,7 +344,15 @@ export async function startTwoFactorSetup(
     issuer: TWO_FACTOR_ISSUER,
     randomBytes: deps.randomBytes,
   });
-  await deps.repository.savePendingSecret(userId, setup.secret);
+  const encryptedSecret = encryptTotpSecret({
+    keyring: deps.keyring,
+    plaintext: setup.secret,
+    userId,
+  });
+  await deps.repository.savePendingSecret(userId, {
+    ...encryptedSecret,
+    plaintext: setup.secret,
+  });
 
   return {
     manualEntryKey: setup.manualEntryKey,
@@ -336,14 +386,30 @@ export async function confirmTwoFactorSetup(
     return { error: "already_enabled", success: false };
   }
 
-  if (!user.twoFactorSecret) {
+  const secret = resolveTotpSecret(user, input.userId, deps.keyring);
+  if (!secret) {
     return { error: "setup_required", success: false };
   }
 
-  if (
-    !hasUsableCode(input.code) ||
-    !verifyTotpCode(user.twoFactorSecret, input.code.trim(), { nowMs })
-  ) {
+  const totpMatch = hasUsableCode(input.code)
+    ? verifyTotpCode(secret, input.code.trim(), { nowMs })
+    : null;
+  if (!totpMatch) {
+    return recordAttemptFailure({
+      nowMs,
+      store: deps.attemptStore,
+      userId: input.userId,
+    });
+  }
+  const consumed = await consumeTotpMatch({
+    counter: totpMatch.counter,
+    replayStore: deps.replayStore,
+    userId: input.userId,
+  });
+  if (consumed === null) {
+    return { error: "verification_unavailable", success: false };
+  }
+  if (!consumed) {
     return recordAttemptFailure({
       nowMs,
       store: deps.attemptStore,
@@ -355,9 +421,17 @@ export async function confirmTwoFactorSetup(
     count: TWO_FACTOR_RECOVERY_CODE_COUNT,
     randomBytes: deps.randomBytes,
   });
+  const encryptedSecret = encryptTotpSecret({
+    keyring: deps.keyring,
+    plaintext: secret,
+    userId: input.userId,
+  });
   await deps.repository.enableTwoFactor(
     input.userId,
-    user.twoFactorSecret,
+    {
+      ...encryptedSecret,
+      plaintext: secret,
+    },
     mapRecoveryCodeHashes(recoveryCodes),
   );
   await resetAttemptFailures(deps.attemptStore, input.userId);
@@ -372,6 +446,8 @@ export async function verifyTwoFactorCredential(
   input: {
     code: string;
     secret: string | null | undefined;
+    secretCiphertext?: string | null;
+    secretKeyVersion?: string | null;
     userId: string;
   },
   dependencies?: TwoFactorServiceDependencies,
@@ -387,7 +463,20 @@ export async function verifyTwoFactorCredential(
     return allowed;
   }
 
-  if (!input.secret || !hasUsableCode(input.code)) {
+  const secret = resolveTotpSecret(
+    {
+      ...(input.secret === undefined ? {} : { twoFactorSecret: input.secret }),
+      ...(input.secretCiphertext === undefined
+        ? {}
+        : { twoFactorSecretCiphertext: input.secretCiphertext }),
+      ...(input.secretKeyVersion === undefined
+        ? {}
+        : { twoFactorSecretKeyVersion: input.secretKeyVersion }),
+    },
+    input.userId,
+    deps.keyring,
+  );
+  if (!secret || !hasUsableCode(input.code)) {
     return recordAttemptFailure({
       nowMs,
       store: deps.attemptStore,
@@ -396,8 +485,8 @@ export async function verifyTwoFactorCredential(
   }
 
   const trimmedCode = input.code.trim();
-  const isTotpValid = verifyTotpCode(input.secret, trimmedCode, { nowMs });
-  const isRecoveryCodeValid = isTotpValid
+  const totpMatch = verifyTotpCode(secret, trimmedCode, { nowMs });
+  const isRecoveryCodeValid = totpMatch
     ? false
     : await verifyRecoveryCodeCredential({
         code: trimmedCode,
@@ -405,12 +494,29 @@ export async function verifyTwoFactorCredential(
         userId: input.userId,
       });
 
-  if (!isTotpValid && !isRecoveryCodeValid) {
+  if (!totpMatch && !isRecoveryCodeValid) {
     return recordAttemptFailure({
       nowMs,
       store: deps.attemptStore,
       userId: input.userId,
     });
+  }
+  if (totpMatch) {
+    const consumed = await consumeTotpMatch({
+      counter: totpMatch.counter,
+      replayStore: deps.replayStore,
+      userId: input.userId,
+    });
+    if (consumed === null) {
+      return { error: "verification_unavailable", success: false };
+    }
+    if (!consumed) {
+      return recordAttemptFailure({
+        nowMs,
+        store: deps.attemptStore,
+        userId: input.userId,
+      });
+    }
   }
 
   await resetAttemptFailures(deps.attemptStore, input.userId);
@@ -432,7 +538,11 @@ export async function disableTwoFactor(
     return { error: "not_found", success: false };
   }
 
-  if (!user.twoFactorEnabled || !user.twoFactorSecret) {
+  if (!user.twoFactorEnabled) {
+    return { error: "not_enabled", success: false };
+  }
+  const secret = resolveTotpSecret(user, input.userId, deps.keyring);
+  if (!secret) {
     return { error: "not_enabled", success: false };
   }
 
@@ -443,14 +553,15 @@ export async function disableTwoFactor(
   const secondFactor = await verifyTwoFactorCredential(
     {
       code: input.code,
-      secret: user.twoFactorSecret,
+      secret,
       userId: input.userId,
     },
     deps,
   );
 
   if (!secondFactor.success) {
-    return secondFactor.error === "rate_limited"
+    return secondFactor.error === "rate_limited" ||
+      secondFactor.error === "verification_unavailable"
       ? secondFactor
       : { error: "invalid_code", success: false };
   }

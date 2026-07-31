@@ -27,7 +27,6 @@ const manifestPart: OtaManifestPart = {
 function request(overrides: Record<string, string> = {}) {
   return new Request("https://whispr.test/api/v1/app/updates/manifest", {
     headers: {
-      "cf-connecting-ip": "203.0.113.10",
       "expo-channel-name": "uat",
       "expo-expect-signature": 'sig, keyid="whispr-mobile-ota-uat-2026-01", alg="rsa-v1_5-sha256"',
       "expo-installation-id": "install-a",
@@ -35,6 +34,7 @@ function request(overrides: Record<string, string> = {}) {
       "expo-protocol-version": "1",
       "expo-runtime-version": "fingerprint-uat-1",
       "user-agent": "expo-updates/57",
+      "x-real-ip": "203.0.113.10",
       ...overrides,
     },
   });
@@ -81,7 +81,7 @@ describe("OTA manifest route", () => {
     assert.match(body, /expo-signature:/i);
   });
 
-  it("rate limits by a hashed network identity without requiring a session", async () => {
+  it("rate limits independent hashed network and installation identities", async () => {
     const { otaManifestRoute } = await routes;
     const calls: Array<{ action: string; key: string }> = [];
 
@@ -95,9 +95,89 @@ describe("OTA manifest route", () => {
     );
 
     assert.equal(response.status, 200);
-    assert.equal(calls[0]?.action, "app:updates:manifest");
-    assert.doesNotMatch(calls[0]?.key ?? "", /203\.0\.113\.10/);
-    assert.match(calls[0]?.key ?? "", /^ota:[A-Za-z0-9_-]{43}$/);
+    assert.deepEqual(
+      calls.map(({ action }) => action),
+      ["app:updates:manifest", "app:updates:manifest"],
+    );
+    assert.match(calls[0]?.key ?? "", /^ota:network:/);
+    assert.match(calls[1]?.key ?? "", /^ota:installation:/);
+    assert.doesNotMatch(JSON.stringify(calls), /203\.0\.113\.10|install-a/);
+  });
+
+  it("ignores spoofed forwarded headers and User-Agent", async () => {
+    const { otaManifestRoute } = await routes;
+
+    async function collect(overrides: Record<string, string>) {
+      const keys: string[] = [];
+      await otaManifestRoute(
+        request(overrides),
+        dependencies({
+          enforceRateLimit: async (key: string) => {
+            keys.push(key);
+          },
+        }),
+      );
+      return keys;
+    }
+
+    const first = await collect({
+      "cf-connecting-ip": "192.0.2.10",
+      "user-agent": "agent-a",
+      "x-forwarded-for": "192.0.2.11",
+    });
+    const second = await collect({
+      "cf-connecting-ip": "198.51.100.10",
+      "user-agent": "agent-b",
+      "x-forwarded-for": "198.51.100.11",
+    });
+
+    assert.deepEqual(first, second);
+  });
+
+  it("shares network bucket but separates installations on the same IP", async () => {
+    const { otaManifestRoute } = await routes;
+
+    async function collect(installationId: string) {
+      const keys: string[] = [];
+      await otaManifestRoute(
+        request({ "expo-installation-id": installationId }),
+        dependencies({
+          enforceRateLimit: async (key: string) => {
+            keys.push(key);
+          },
+        }),
+      );
+      return keys;
+    }
+
+    const first = await collect("install-a");
+    const second = await collect("install-b");
+
+    assert.equal(first[0], second[0]);
+    assert.notEqual(first[1], second[1]);
+  });
+
+  it("shares installation bucket but separates different network IPs", async () => {
+    const { otaManifestRoute } = await routes;
+
+    async function collect(ip: string) {
+      const keys: string[] = [];
+      await otaManifestRoute(
+        request({ "x-real-ip": ip }),
+        dependencies({
+          enforceRateLimit: async (key: string) => {
+            keys.push(key);
+          },
+        }),
+      );
+      return keys;
+    }
+
+    const first = await collect("203.0.113.10");
+    const second = await collect("198.51.100.10");
+
+    assert.notEqual(first[0], second[0]);
+    assert.equal(first[1], second[1]);
   });
 
   it("uses 204 when no signing metadata exists for the channel", async () => {

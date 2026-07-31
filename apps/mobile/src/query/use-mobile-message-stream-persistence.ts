@@ -7,7 +7,9 @@ import type { QueryClient } from "@tanstack/react-query";
 import type { MobileMessageStore, MobileMessageStoreScope } from "../storage/mobile-message-store";
 import { mobileMessageStore } from "../storage/mobile-message-store-database";
 import {
+  dropMobileMessageStream,
   hydrateMobileMessageStream,
+  isMobileMessageStreamRevoked,
   persistMobileMessageStream,
 } from "./mobile-message-stream-cache";
 
@@ -32,7 +34,8 @@ function parseStoredPage(scope: MobileMessageStoreScope, page: unknown): unknown
 
 /**
  * Binds one open message stream to the encrypted cache: seed it on open, store
- * its newest page whenever it moves.
+ * its newest page whenever it moves, and take it away when the server says the
+ * reader may no longer have it.
  *
  * The hydration effect runs before the fetch resolves, which is the whole point —
  * the reader sees the conversation they left instead of a skeleton. It never wins
@@ -41,13 +44,15 @@ function parseStoredPage(scope: MobileMessageStoreScope, page: unknown): unknown
 export function useMobileMessageStreamPersistence(input: {
   readonly data: MobileMessageStreamData | undefined;
   readonly enabled: boolean;
+  /** The stream query's failure, so a revoked conversation can be dropped. */
+  readonly error?: unknown;
   readonly queryClient: QueryClient;
   readonly scope: MobileMessageStoreScope;
   readonly store?: MobileMessageStore;
   readonly targetId: string | null;
   readonly userId: string | null;
 }): void {
-  const { data, enabled, queryClient, scope } = input;
+  const { data, enabled, error, queryClient, scope } = input;
   const store = input.store ?? mobileMessageStore;
   const targetId = input.targetId ?? "";
   const userId = input.userId ?? "";
@@ -64,8 +69,23 @@ export function useMobileMessageStreamPersistence(input: {
       store,
       targetId,
       userId,
-    }).catch(() => false);
+    }).catch(() => null);
   }, [enabled, queryClient, scope, store, targetId, userId]);
+
+  // Reconciliation has to be able to remove. A restored page is stale by
+  // definition, and the reader's access to the conversation can have been
+  // revoked in the meantime — leaving it on screen because the refetch failed
+  // is the one failure mode a stale-first cache must not have.
+  const isRevoked = isMobileMessageStreamRevoked(error);
+  useEffect(() => {
+    if (!isRevoked || targetId.length === 0 || userId.length === 0) {
+      return;
+    }
+
+    void dropMobileMessageStream({ queryClient, scope, store, targetId, userId }).catch(
+      () => undefined,
+    );
+  }, [isRevoked, queryClient, scope, store, targetId, userId]);
 
   useEffect(() => {
     if (!enabled || targetId.length === 0 || userId.length === 0) {

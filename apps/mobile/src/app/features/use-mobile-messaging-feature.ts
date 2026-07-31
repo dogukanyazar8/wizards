@@ -85,6 +85,7 @@ import {
 import { useMobileMessagePrefetch } from "../../query/mobile-message-prefetch";
 import { useMobileRecentDMPrefetch } from "../../query/mobile-recent-dm-prefetch";
 import { useMobileMessageStreamPersistence } from "../../query/use-mobile-message-stream-persistence";
+import { useMobileRecentDMRestore } from "../../query/mobile-recent-dm-restore";
 import type { MobileForwardSendInput } from "../components/message-forward-sheet";
 import { resolveMobileWorkspaceServerSelection } from "../../workspace/mobile-workspace-selection";
 
@@ -261,6 +262,7 @@ export function useMobileMessagingFeature({
   useMobileMessageStreamPersistence({
     data: channelMessagesQuery.data,
     enabled: isSignedIn,
+    error: channelMessagesQuery.error,
     queryClient,
     scope: "channel",
     targetId: activeWorkspaceTextChannelId,
@@ -269,6 +271,7 @@ export function useMobileMessagingFeature({
   useMobileMessageStreamPersistence({
     data: dmMessagesQuery.data,
     enabled: isSignedIn,
+    error: dmMessagesQuery.error,
     queryClient,
     scope: "dm",
     targetId: selectedDMConversationId,
@@ -409,6 +412,15 @@ export function useMobileMessagingFeature({
     enabled: isSignedIn,
     queryClient,
     selectedConversationId: selectedDMConversationId,
+  });
+  // Disk first, and before the tap rather than after it: the encrypted page used
+  // to be read only once the stream query had already mounted, so it raced the
+  // network from behind and a cold open watched a skeleton either way.
+  useMobileRecentDMRestore({
+    conversations: dmConversations,
+    enabled: isSignedIn,
+    queryClient,
+    userId: currentUser?.id ?? null,
   });
   // Bottom-tab notification badge. Shares the unfiltered feed key with the
   // notifications screen, so the realtime notification invalidation already

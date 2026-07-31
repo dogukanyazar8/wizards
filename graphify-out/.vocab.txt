@@ -271,6 +271,7 @@ bildir
 bildirdiklerim
 bildirim
 bildirimler
+bildirimleri
 bile
 bilerek
 bilgisayar
@@ -340,6 +341,7 @@ build
 building
 builds
 built
+bulgu
 bulgular
 bulun
 bulunamad
@@ -406,6 +408,7 @@ catch
 categories
 categorize
 category
+cause
 caveman
 cell
 center
@@ -677,6 +680,7 @@ decline
 decode
 decoded
 decoration
+decrypt
 dedicated
 dedupe
 deep
@@ -824,6 +828,7 @@ dot
 dotenv
 dots
 down
+downgrade
 downgrades
 downgrading
 download
@@ -904,6 +909,7 @@ ekranlarda
 eksi
 eksik
 eksiksiz
+ekteki
 elapsed
 ele
 element
@@ -934,6 +940,7 @@ enabled
 encode
 encoder
 encoding
+encrypt
 encrypted
 encryption
 end
@@ -1112,6 +1119,7 @@ filters
 filtre
 final
 find
+findings
 fingerprint
 fingerprints
 finished
@@ -1122,6 +1130,7 @@ first
 fits
 fix
 fixed
+fixes
 fixture
 fixtures
 flag
@@ -1221,6 +1230,7 @@ generic
 geni
 geometry
 ger
+gercekten
 gerek
 gereken
 gerekirse
@@ -1273,6 +1283,7 @@ greeting
 grid
 group
 groupable
+grouped
 grouping
 groups
 grow
@@ -1284,6 +1295,7 @@ guards
 guidance
 guide
 guncelleme
+guvenlik
 hafta
 hakk
 hakkinda
@@ -1360,6 +1372,7 @@ historical
 history
 hit
 hizalamas
+hkdf
 hold
 home
 homepage
@@ -2068,6 +2081,7 @@ neden
 nedeni
 nedir
 needs
+negative
 neler
 nelerdir
 neleri
@@ -2127,6 +2141,7 @@ notify
 notlar
 notlari
 notu
+notunu
 now
 npm
 npmrc
@@ -2637,6 +2652,7 @@ reject
 rejected
 rejection
 rejects
+related
 relation
 relationship
 relative
@@ -3104,6 +3120,7 @@ stemci
 stenen
 step
 steps
+steriyor
 sticky
 still
 stl
@@ -3621,6 +3638,7 @@ what
 whats
 when
 where
+which
 while
 whispr
 whitelist
@@ -3645,6 +3663,7 @@ without
 wizards
 wizardsweb
 words
+work
 worker
 workflow
 workflows

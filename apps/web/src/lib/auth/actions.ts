@@ -5,8 +5,6 @@ import { normalizeAuthEmail, signIn, signOut } from "@/auth";
 import { DEFAULT_WIZARDS_THEME } from "@/lib/appearance";
 import { normalizeAppLocale } from "@/lib/locale";
 import { persistUserLocale } from "@/lib/locale/persistence";
-import { getRedisRate } from "@/lib/redis";
-import { checkRateLimit } from "@/lib/rate-limit";
 import { logError } from "@/lib/logger";
 import {
   EmailVerificationError,
@@ -19,14 +17,20 @@ import {
   sendPasswordResetEmail,
   type PasswordResetUser,
 } from "@/lib/auth/password-reset";
-import {
-  getTurnstileErrorMessageKey,
-  verifyTurnstileToken,
-} from "@/lib/auth/turnstile";
+import { getTurnstileErrorMessageKey, verifyTurnstileToken } from "@/lib/auth/turnstile";
 import { getSafeAuthRedirectPath } from "@/lib/auth/redirect";
 import { rollbackUnverifiedUser } from "@/lib/auth/registration-compensation";
 import { createLoginProof } from "@/lib/auth/login-proof";
 import { LOGIN_FAILED_MESSAGE_KEY } from "@/lib/auth/login-errors";
+import {
+  checkLoginRequestRateLimit,
+  checkPasswordResetConsumeRateLimit,
+  checkPasswordResetRequestRateLimit,
+  checkRegistrationRequestRateLimit,
+  checkVerificationResendRequestRateLimit,
+  checkVerificationSendRequestRateLimit,
+} from "@/lib/auth/request-rate-limits";
+import { getTrustedClientIp, type ClientIpHeaderSource } from "@/lib/security/client-ip";
 import { Prisma, prisma } from "@wizards/db";
 import {
   ForgotPasswordSchema,
@@ -49,50 +53,19 @@ function getFormValue(formData: FormData, key: string): string {
   return typeof value === "string" ? value : "";
 }
 
-async function getRequestIpAddress() {
-  const headerStore = await headers();
-  const forwardedFor = headerStore.get("x-forwarded-for");
-  if (forwardedFor) {
-    return forwardedFor.split(",")[0]?.trim() || "unknown";
-  }
-
-  return headerStore.get("x-real-ip")?.trim() || "unknown";
-}
-
 async function sendVerificationEmailWithRateLimit(input: {
-  ipAddress: string;
+  headers: ClientIpHeaderSource;
   locale: string;
   user: EmailVerificationUser;
 }) {
-  const redis = getRedisRate();
-
-  try {
-    const [emailAllowed, ipAllowed] = await Promise.all([
-      checkRateLimit(
-        redis,
-        `rate:email-verification:user:${input.user.id}`,
-        5,
-        60 * 60,
-      ),
-      checkRateLimit(
-        redis,
-        `rate:email-verification:ip:${input.ipAddress}`,
-        20,
-        60 * 60,
-      ),
-    ]);
-
-    if (!emailAllowed || !ipAllowed) {
-      return {
-        success: false,
-        error: "auth.emailVerification.rateLimited",
-      } as const;
-    }
-  } catch (error) {
-    logError("[auth] Email verification rate limit unavailable", error);
+  const isAllowed = await checkVerificationSendRequestRateLimit({
+    headers: input.headers,
+    userId: input.user.id,
+  });
+  if (!isAllowed) {
     return {
       success: false,
-      error: "auth.emailVerification.sendFailed",
+      error: "auth.emailVerification.rateLimited",
     } as const;
   }
 
@@ -108,7 +81,7 @@ async function sendVerificationEmailWithRateLimit(input: {
             ? "auth.emailVerification.notConfigured"
             : error.code === "SENDER_RESTRICTED"
               ? "auth.emailVerification.senderRestricted"
-            : "auth.emailVerification.sendFailed",
+              : "auth.emailVerification.sendFailed",
       } as const;
     }
 
@@ -116,86 +89,6 @@ async function sendVerificationEmailWithRateLimit(input: {
       success: false,
       error: "auth.emailVerification.sendFailed",
     } as const;
-  }
-}
-
-async function checkVerificationResendRateLimit(input: {
-  email: string;
-  ipAddress: string;
-}) {
-  const redis = getRedisRate();
-
-  try {
-    const cooldownAllowed = await checkRateLimit(
-      redis,
-      `rate:email-verification:resend:cooldown:${input.email}:${input.ipAddress}`,
-      1,
-      60,
-    );
-
-    if (!cooldownAllowed) {
-      return false;
-    }
-
-    const [emailAllowed, ipAllowed] = await Promise.all([
-      checkRateLimit(
-        redis,
-        `rate:email-verification:resend:email:${input.email}`,
-        5,
-        60 * 60,
-      ),
-      checkRateLimit(
-        redis,
-        `rate:email-verification:resend:ip:${input.ipAddress}`,
-        5,
-        60 * 60,
-      ),
-    ]);
-
-    return cooldownAllowed && emailAllowed && ipAllowed;
-  } catch (error) {
-    logError("[auth] Verification resend rate limit unavailable", error);
-    return false;
-  }
-}
-
-async function checkPasswordResetRateLimit(input: {
-  email: string;
-  ipAddress: string;
-}) {
-  const redis = getRedisRate();
-
-  try {
-    const cooldownAllowed = await checkRateLimit(
-      redis,
-      `rate:password-reset:cooldown:${input.email}:${input.ipAddress}`,
-      1,
-      60,
-    );
-
-    if (!cooldownAllowed) {
-      return false;
-    }
-
-    const [emailAllowed, ipAllowed] = await Promise.all([
-      checkRateLimit(
-        redis,
-        `rate:password-reset:email:${input.email}`,
-        5,
-        60 * 60,
-      ),
-      checkRateLimit(
-        redis,
-        `rate:password-reset:ip:${input.ipAddress}`,
-        10,
-        60 * 60,
-      ),
-    ]);
-
-    return emailAllowed && ipAllowed;
-  } catch (error) {
-    logError("[auth] Password reset rate limit unavailable", error);
-    return false;
   }
 }
 
@@ -234,32 +127,23 @@ export async function registerAction(formData: FormData): Promise<AuthActionResu
   const email = normalizeAuthEmail(validation.data.email);
   const locale = normalizeAppLocale(getFormValue(formData, "locale"));
   const username = validation.data.username;
-  const ipAddress = await getRequestIpAddress();
-
-  try {
-    const isAllowed = await checkRateLimit(
-      getRedisRate(),
-      `rate:register:${ipAddress}`,
-      10,
-      60 * 60,
-    );
-
-    if (!isAllowed) {
-      return {
-        success: false,
-        error: "auth.register.rateLimited",
-      };
-    }
-  } catch (error) {
-    logError("[auth] Registration rate limit unavailable", error);
+  const headerStore = await headers();
+  const isAllowed = await checkRegistrationRequestRateLimit({
+    email,
+    headers: headerStore,
+  });
+  if (!isAllowed) {
     return {
       success: false,
-      error: "auth.register.alertUnavailable",
+      error: "auth.register.rateLimited",
     };
   }
 
   try {
-    await verifyTurnstileToken(validation.data.turnstileToken, ipAddress);
+    await verifyTurnstileToken(
+      validation.data.turnstileToken,
+      getTrustedClientIp(headerStore) ?? undefined,
+    );
   } catch (error) {
     return {
       success: false,
@@ -285,7 +169,7 @@ export async function registerAction(formData: FormData): Promise<AuthActionResu
   if (existingEmail) {
     if (!existingEmail.emailVerified) {
       const verificationEmail = await sendVerificationEmailWithRateLimit({
-        ipAddress,
+        headers: headerStore,
         locale,
         user: existingEmail,
       });
@@ -341,7 +225,7 @@ export async function registerAction(formData: FormData): Promise<AuthActionResu
     await persistUserLocale(createdUser.id, locale);
 
     const verificationEmail = await sendVerificationEmailWithRateLimit({
-      ipAddress,
+      headers: headerStore,
       locale,
       user: createdUser,
     });
@@ -393,34 +277,26 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
 
   const { email, password, rememberMe } = validation.data;
   const redirectTo = getSafeAuthRedirectPath(getFormValue(formData, "callbackUrl"));
-  const ipAddress = await getRequestIpAddress();
-
-  try {
-    const isAllowed = await checkRateLimit(
-      getRedisRate(),
-      `rate:login:${email}:${ipAddress}`,
-      5,
-      15 * 60,
-    );
-
-    if (!isAllowed) {
-      return {
-        success: false,
-        error: "auth.login.rateLimited",
-      };
-    }
-  } catch (error) {
-    logError("[auth] Login rate limit unavailable", error);
+  const headerStore = await headers();
+  const isAllowed = await checkLoginRequestRateLimit({
+    email,
+    headers: headerStore,
+  });
+  if (!isAllowed) {
     return {
       success: false,
-      error: "auth.login.alertUnavailable",
+      error: "auth.login.rateLimited",
     };
   }
 
   try {
-    await verifyTurnstileToken(validation.data.turnstileToken, ipAddress, {
-      expectedAction: "login",
-    });
+    await verifyTurnstileToken(
+      validation.data.turnstileToken,
+      getTrustedClientIp(headerStore) ?? undefined,
+      {
+        expectedAction: "login",
+      },
+    );
   } catch (error) {
     return {
       success: false,
@@ -483,14 +359,17 @@ export async function forgotPasswordAction(formData: FormData): Promise<AuthActi
 
   const email = normalizeAuthEmail(validation.data.email);
   const locale = normalizeAppLocale(getFormValue(formData, "locale"));
-  const ipAddress = await getRequestIpAddress();
+  const headerStore = await headers();
   const genericSuccess = {
     email,
     success: true,
     message: "auth.forgot.genericSuccess",
   } satisfies AuthActionResult;
 
-  const isAllowed = await checkPasswordResetRateLimit({ email, ipAddress });
+  const isAllowed = await checkPasswordResetRequestRateLimit({
+    email,
+    headers: headerStore,
+  });
   if (!isAllowed) {
     return {
       success: false,
@@ -553,6 +432,18 @@ export async function resetPasswordAction(formData: FormData): Promise<AuthActio
     };
   }
 
+  const headerStore = await headers();
+  const isAllowed = await checkPasswordResetConsumeRateLimit({
+    headers: headerStore,
+    token: validation.data.token,
+  });
+  if (!isAllowed) {
+    return {
+      success: false,
+      error: "auth.passwordReset.unavailable",
+    };
+  }
+
   try {
     const result = await resetPasswordWithToken({
       password: validation.data.password,
@@ -582,9 +473,7 @@ export async function resetPasswordAction(formData: FormData): Promise<AuthActio
   }
 }
 
-export async function resendVerificationEmailAction(
-  formData: FormData,
-): Promise<AuthActionResult> {
+export async function resendVerificationEmailAction(formData: FormData): Promise<AuthActionResult> {
   const validation = ForgotPasswordSchema.safeParse({
     email: normalizeAuthEmail(getFormValue(formData, "email")),
   });
@@ -598,11 +487,11 @@ export async function resendVerificationEmailAction(
 
   const email = normalizeAuthEmail(validation.data.email);
   const locale = normalizeAppLocale(getFormValue(formData, "locale"));
-  const ipAddress = await getRequestIpAddress();
+  const headerStore = await headers();
 
-  const isResendAllowed = await checkVerificationResendRateLimit({
+  const isResendAllowed = await checkVerificationResendRequestRateLimit({
     email,
-    ipAddress,
+    headers: headerStore,
   });
 
   if (!isResendAllowed) {
@@ -633,7 +522,7 @@ export async function resendVerificationEmailAction(
   }
 
   const verificationEmail = await sendVerificationEmailWithRateLimit({
-    ipAddress,
+    headers: headerStore,
     locale: normalizeAppLocale(user.locale ?? locale),
     user,
   });

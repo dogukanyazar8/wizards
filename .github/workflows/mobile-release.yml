@@ -255,6 +255,10 @@ jobs:
         id: prepare
         shell: bash
         env:
+          # Telemetry reports this as the build a sample came from; without it
+          # every device percentile is unattributable to a release.
+          EXPO_PUBLIC_WHISPR_BUILD_ID: ${{ github.sha }}
+          WHISPR_MOBILE_BUILD_ID: ${{ github.sha }}
           WHISPR_MOBILE_ENV: ${{ inputs.environment }}
           WHISPR_MOBILE_OTA_ENABLED: "true"
         run: |

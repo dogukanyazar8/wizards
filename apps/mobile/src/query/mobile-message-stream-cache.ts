@@ -1,6 +1,10 @@
 import type { QueryClient } from "@tanstack/react-query";
 import type { MobileMessageStore, MobileMessageStoreScope } from "../storage/mobile-message-store";
 import { mobileQueryKeys } from "./mobile-query-keys";
+import {
+  forgetMobileMessageStreamOrigin,
+  markMobileMessageStreamRestored,
+} from "./mobile-message-stream-source";
 
 type MobileMessageStreamData = {
   readonly pageParams: readonly unknown[];
@@ -21,6 +25,8 @@ function streamQueryKey(scope: MobileMessageStoreScope, targetId: string) {
  * disk — it has been patched by the socket — so hydration must not touch it. The
  * seeded page keeps `pageParams: [null]`, which is what lets the reader page back
  * from it exactly as if it had been fetched.
+ *
+ * Returns when the page was written, or `null` when nothing was restored.
  */
 export async function hydrateMobileMessageStream(input: {
   /**
@@ -34,38 +40,89 @@ export async function hydrateMobileMessageStream(input: {
   readonly store: MobileMessageStore;
   readonly targetId: string;
   readonly userId: string;
-}): Promise<boolean> {
+}): Promise<number | null> {
   if (input.targetId.length === 0 || input.userId.length === 0) {
-    return false;
+    return null;
   }
 
   const queryKey = streamQueryKey(input.scope, input.targetId);
   if (input.queryClient.getQueryData(queryKey) !== undefined) {
-    return false;
+    return null;
   }
 
-  const page = await input.store.readPage({
+  const entry = await input.store.readPageEntry({
     scope: input.scope,
     targetId: input.targetId,
     userId: input.userId,
   });
-  if (!page) {
-    return false;
+  if (!entry) {
+    return null;
   }
 
-  const parsed = input.parsePage ? input.parsePage(page) : page;
+  const parsed = input.parsePage ? input.parsePage(entry.payload) : entry.payload;
   if (!parsed) {
-    return false;
+    return null;
   }
 
   // Re-checked after the read: the network may have answered while the encrypted
   // database was being opened, and that answer wins.
   if (input.queryClient.getQueryData(queryKey) !== undefined) {
-    return false;
+    return null;
   }
 
-  input.queryClient.setQueryData(queryKey, { pageParams: [null], pages: [parsed] });
-  return true;
+  // Dated to the write, not to now. Seeded as fresh, a page could be a day old
+  // and still hold the stream for the whole stale window — so a conversation the
+  // reader had lost access to would keep rendering with no refetch to remove it.
+  // Backdating makes the mount refetch, which is the reconciliation.
+  input.queryClient.setQueryData(
+    queryKey,
+    { pageParams: [null], pages: [parsed] },
+    { updatedAt: entry.updatedAt },
+  );
+  markMobileMessageStreamRestored(input.scope, input.targetId, entry.updatedAt);
+  return entry.updatedAt;
+}
+
+/**
+ * Statuses that mean the reader may no longer see this conversation.
+ *
+ * A stale local page is allowed to be old; it is not allowed to survive the
+ * server saying the reader cannot have it. 401 is deliberately absent: an expired
+ * token is a session problem, and the session layer already wipes the store when
+ * it decides one has ended.
+ */
+const MOBILE_MESSAGE_STREAM_REVOKED_STATUSES = new Set([403, 404]);
+
+export function isMobileMessageStreamRevoked(error: unknown): boolean {
+  const status = (error as { readonly status?: unknown } | null)?.status;
+  return typeof status === "number" && MOBILE_MESSAGE_STREAM_REVOKED_STATUSES.has(status);
+}
+
+/**
+ * Removes a stream the server refused, from memory and from disk.
+ *
+ * Reconciliation has to be able to take content away. Without this the refetch
+ * that failed with 403 left the restored page on screen, which is the one outcome
+ * a stale-first cache is not allowed to produce.
+ */
+export async function dropMobileMessageStream(input: {
+  readonly queryClient: QueryClient;
+  readonly scope: MobileMessageStoreScope;
+  readonly store: MobileMessageStore;
+  readonly targetId: string;
+  readonly userId: string;
+}): Promise<void> {
+  if (input.targetId.length === 0 || input.userId.length === 0) {
+    return;
+  }
+
+  input.queryClient.removeQueries({ queryKey: streamQueryKey(input.scope, input.targetId) });
+  forgetMobileMessageStreamOrigin(input.scope, input.targetId);
+  await input.store.deletePage({
+    scope: input.scope,
+    targetId: input.targetId,
+    userId: input.userId,
+  });
 }
 
 /**

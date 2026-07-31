@@ -1,7 +1,7 @@
 import { prisma } from "@wizards/db";
 import { ApiError, jsonError } from "@/lib/api";
 import { authorizeMobileApiRequest } from "@/lib/auth/api";
-import { createServerTiming } from "@/lib/server-timing";
+import { createServerTimingForRequest } from "@/lib/server-timing";
 import {
   MOBILE_UNREAD_COUNT_CAP,
   getServerUnreadAndMentionCounts,
@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export async function GET(request: Request) {
-  const timing = createServerTiming();
+  const timing = createServerTimingForRequest(request);
 
   try {
     const stopAuthTiming = timing.start("auth");
@@ -217,7 +217,7 @@ export async function GET(request: Request) {
       { headers: timing.headers({ "Cache-Control": "no-store, no-cache, must-revalidate" }) },
     );
   } catch (error) {
-    return jsonError(error);
+    return jsonError(error, timing.requestId);
   }
 }
 

@@ -5,13 +5,13 @@ import {
 
 import { ApiError, jsonError, parseJsonBody } from "@/lib/api";
 import { createMobilePasswordSession, MobileNativeAuthError } from "@/lib/mobile/auth";
-import { enforceMobileAuthRateLimit } from "../rate-limit";
+import { enforceMobileAuthRateLimit, type MobileAuthRateLimitSubject } from "../rate-limit";
 
 export type MobilePasswordLoginRouteDependencies = {
   createPasswordSession: (
     input: MobileAuthPasswordLoginRequest,
   ) => ReturnType<typeof createMobilePasswordSession>;
-  enforceIpRateLimit: (request: Request) => Promise<void>;
+  enforceRateLimit: (request: Request, subject: MobileAuthRateLimitSubject) => Promise<void>;
   parseLoginRequest: (request: Request) => Promise<MobileAuthPasswordLoginRequest>;
 };
 
@@ -20,7 +20,8 @@ const defaultMobilePasswordLoginRouteDependencies: MobilePasswordLoginRouteDepen
     createMobilePasswordSession(
       twoFactorCode === undefined ? { email, password } : { email, password, twoFactorCode },
     ),
-  enforceIpRateLimit: (request) => enforceMobileAuthRateLimit(request, "mobile:auth-login"),
+  enforceRateLimit: (request, subject) =>
+    enforceMobileAuthRateLimit(request, "mobile:auth-login", subject),
   parseLoginRequest: (request) => parseJsonBody(request, MobileAuthPasswordLoginRequestSchema),
 };
 
@@ -29,8 +30,11 @@ export async function mobilePasswordLoginRoute(
   dependencies: MobilePasswordLoginRouteDependencies = defaultMobilePasswordLoginRouteDependencies,
 ) {
   try {
-    await dependencies.enforceIpRateLimit(request);
     const body = await dependencies.parseLoginRequest(request);
+    await dependencies.enforceRateLimit(request, {
+      namespace: "email",
+      value: body.email.trim().toLowerCase(),
+    });
     const response = await dependencies.createPasswordSession(body);
 
     if (!response) {

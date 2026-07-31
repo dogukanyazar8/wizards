@@ -57,6 +57,15 @@ describe("mobile build environment parity", () => {
     );
   });
 
+  it("stamps the local UAT APK with the commit it was cut from", () => {
+    const buildScript = readMobileFile("scripts/build-android-uat.ps1");
+
+    // The build root is a robocopy mirror with no .git directory, so the SHA has
+    // to be read from the source tree the sync came from.
+    assert.match(buildScript, /git -C \$resolvedSourceRoot rev-parse --short=12 HEAD/);
+    assert.match(buildScript, /\$env:EXPO_PUBLIC_WHISPR_BUILD_ID = \$resolvedBuildId/);
+  });
+
   it("fails release APK builds loudly instead of shipping the browser fallback", () => {
     const packageJson = JSON.parse(readMobileFile("package.json")) as {
       scripts: Record<string, string>;

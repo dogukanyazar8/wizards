@@ -1,49 +1,72 @@
 import { createHash } from "node:crypto";
-
 import { getApiRateLimitConfig, type ApiRateLimitAction } from "@/lib/api-rate-limit";
 import { ApiError } from "@/lib/api";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getRedisRate } from "@/lib/redis";
+import {
+  createClientRateLimitIdentity,
+  createSubjectRateLimitIdentity,
+} from "@/lib/security/client-ip";
 
-export function getMobileAuthRequestIp(request: Request) {
-  const forwardedFor = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "";
-  const realIp = request.headers.get("x-real-ip")?.trim() ?? "";
+type MobileAuthRateLimitAction = Extract<
+  ApiRateLimitAction,
+  | "mobile:auth-exchange"
+  | "mobile:auth-forgot-password"
+  | "mobile:auth-google"
+  | "mobile:auth-login"
+  | "mobile:auth-refresh"
+  | "mobile:auth-register"
+  | "mobile:auth-revoke"
+  | "mobile:auth-verification-email"
+>;
 
-  return forwardedFor || realIp || "unknown";
+export type MobileAuthRateLimitSubject = {
+  namespace: string;
+  value: string;
+};
+
+export function createMobileAuthCredentialSubject(
+  namespace: string,
+  credential: string,
+): MobileAuthRateLimitSubject {
+  return {
+    namespace,
+    value: createHash("sha256").update(credential).digest("base64url"),
+  };
 }
 
-function getClientRateLimitKey(request: Request) {
-  const forwardedFor = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "";
-  const realIp = request.headers.get("x-real-ip")?.trim() ?? "";
-  const userAgent = request.headers.get("user-agent")?.trim() ?? "";
-  const keyMaterial = `${forwardedFor || realIp || "unknown"}:${userAgent || "unknown"}`;
+export function getMobileAuthRateLimitKeys(
+  request: Request,
+  action: MobileAuthRateLimitAction,
+  subject: MobileAuthRateLimitSubject,
+) {
+  const networkIdentity = createClientRateLimitIdentity({
+    fallbackNamespace: subject.namespace,
+    fallbackValue: subject.value,
+    headers: request.headers,
+  });
+  const subjectIdentity = createSubjectRateLimitIdentity(subject.namespace, subject.value);
 
-  return createHash("sha256").update(keyMaterial).digest("base64url");
+  return [
+    `rate:api:${action}:network:${networkIdentity}`,
+    `rate:api:${action}:subject:${subjectIdentity}`,
+  ];
 }
 
 export async function enforceMobileAuthRateLimit(
   request: Request,
-  action: Extract<
-    ApiRateLimitAction,
-    | "mobile:auth-exchange"
-    | "mobile:auth-forgot-password"
-    | "mobile:auth-google"
-    | "mobile:auth-login"
-    | "mobile:auth-refresh"
-    | "mobile:auth-register"
-    | "mobile:auth-revoke"
-    | "mobile:auth-verification-email"
-  >,
+  action: MobileAuthRateLimitAction,
+  subject: MobileAuthRateLimitSubject,
 ) {
   const config = getApiRateLimitConfig(action);
-  const isAllowed = await checkRateLimit(
-    getRedisRate(),
-    `rate:api:${action}:${getClientRateLimitKey(request)}`,
-    config.limit,
-    config.windowSeconds,
+  const redis = getRedisRate();
+  const results = await Promise.all(
+    getMobileAuthRateLimitKeys(request, action, subject).map((key) =>
+      checkRateLimit(redis, key, config.limit, config.windowSeconds),
+    ),
   );
 
-  if (!isAllowed) {
+  if (results.some((isAllowed) => !isAllowed)) {
     throw new ApiError("Too many requests. Please try again shortly.", 429, "RATE_LIMITED");
   }
 }

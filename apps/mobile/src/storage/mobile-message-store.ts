@@ -48,6 +48,18 @@ export type MobileMessageStoreTarget = {
   readonly userId: string;
 };
 
+/**
+ * A stored page with the moment it was written.
+ *
+ * The timestamp is not decoration: a page seeded into the query cache without it
+ * looks freshly fetched, so the stream stayed "fresh" for its whole stale window
+ * and the network never reconciled a page that could be a day old.
+ */
+export type MobileMessageStorePageEntry = {
+  readonly payload: unknown;
+  readonly updatedAt: number;
+};
+
 /** What the device panel needs to prove the cache is real and encrypted. */
 export type MobileMessageStoreDiagnostics = {
   readonly cipherVersion: string | null;
@@ -68,6 +80,12 @@ export interface MobileMessageStore {
   }): Promise<void>;
   /** Closes the connection and seals writes until `resume()`. */
   close(): Promise<void>;
+  /** Drops one target's page — what a revoked conversation needs. */
+  deletePage(input: {
+    readonly scope: MobileMessageStoreScope;
+    readonly targetId: string;
+    readonly userId: string;
+  }): Promise<void>;
   /**
    * Read-only self-report. `cipherVersion` is the only honest proof that the build
    * has SQLCipher compiled in — a plain SQLite build accepts `PRAGMA key` and would
@@ -79,6 +97,8 @@ export interface MobileMessageStore {
   purgePerformanceSamples(): Promise<void>;
   purgeUser(userId: string): Promise<void>;
   readPage(input: MobileMessageStoreTarget): Promise<unknown>;
+  /** The same read, with the write time the restore path needs. */
+  readPageEntry(input: MobileMessageStoreTarget): Promise<MobileMessageStorePageEntry | null>;
   /** The retained measurements, oldest first. */
   readPerformanceSamples(): Promise<readonly MobileStoredPerformanceSample[]>;
   /** Re-opens the store for a new session after a wipe. */
@@ -159,6 +179,37 @@ export function createMobileMessageStore(input: {
       // Retry on the next call rather than latching a dead connection: the
       // keystore can become available again (first unlock after boot).
       databasePromise = null;
+      return null;
+    }
+  }
+
+  async function readPageEntry({
+    now = Date.now(),
+    scope,
+    targetId,
+    userId,
+  }: MobileMessageStoreTarget): Promise<MobileMessageStorePageEntry | null> {
+    if (targetId.length === 0 || userId.length === 0) {
+      return null;
+    }
+
+    const database = await connect();
+    if (!database) {
+      return null;
+    }
+
+    try {
+      const row = await database.getFirstAsync<MobileMessageStoreRow>(
+        "SELECT payload, updated_at FROM message_pages WHERE user_id = ? AND scope = ? AND target_id = ?;",
+        [userId, scope, targetId],
+      );
+      if (!row || !isMobileStoredMessagePageFresh(row.updated_at, now)) {
+        return null;
+      }
+
+      const payload = parseMobileStoredMessagePage(row.payload);
+      return payload === null ? null : { payload, updatedAt: row.updated_at };
+    } catch {
       return null;
     }
   }
@@ -278,6 +329,13 @@ export function createMobileMessageStore(input: {
       sealed = false;
     },
 
+    deletePage({ scope, targetId, userId }) {
+      return deleteWhere(
+        "DELETE FROM message_pages WHERE user_id = ? AND scope = ? AND target_id = ?;",
+        [userId, scope, targetId],
+      );
+    },
+
     purgeAll() {
       return deleteWhere("DELETE FROM message_pages;", []);
     },
@@ -312,30 +370,11 @@ export function createMobileMessageStore(input: {
       }
     },
 
-    async readPage({ now = Date.now(), scope, targetId, userId }) {
-      if (targetId.length === 0 || userId.length === 0) {
-        return null;
-      }
-
-      const database = await connect();
-      if (!database) {
-        return null;
-      }
-
-      try {
-        const row = await database.getFirstAsync<MobileMessageStoreRow>(
-          "SELECT payload, updated_at FROM message_pages WHERE user_id = ? AND scope = ? AND target_id = ?;",
-          [userId, scope, targetId],
-        );
-        if (!row || !isMobileStoredMessagePageFresh(row.updated_at, now)) {
-          return null;
-        }
-
-        return parseMobileStoredMessagePage(row.payload);
-      } catch {
-        return null;
-      }
+    async readPage(input) {
+      return (await readPageEntry(input))?.payload ?? null;
     },
+
+    readPageEntry,
 
     async writePage({ now = Date.now(), payload, scope, targetId, userId }) {
       if (targetId.length === 0 || userId.length === 0) {

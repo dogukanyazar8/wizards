@@ -1,4 +1,9 @@
-import { createHash, createHmac, randomBytes as cryptoRandomBytes, timingSafeEqual } from "node:crypto";
+import {
+  createHash,
+  createHmac,
+  randomBytes as cryptoRandomBytes,
+  timingSafeEqual,
+} from "node:crypto";
 
 const BASE32_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 const DEFAULT_DIGITS = 6;
@@ -23,6 +28,10 @@ export type TotpSetup = {
 export type RecoveryCode = {
   hash: string;
   plaintext: string;
+};
+
+export type TotpMatch = {
+  counter: number;
 };
 
 function encodeBase32(input: Buffer) {
@@ -78,7 +87,10 @@ function counterBuffer(counter: number) {
 }
 
 function normalizeRecoveryCode(code: string) {
-  return code.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+  return code
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
 }
 
 function formatRecoveryCode(raw: string, index: number) {
@@ -96,6 +108,10 @@ export function generateTotpCode(secret: string, options: TotpOptions = {}) {
   const periodSeconds = options.periodSeconds ?? DEFAULT_PERIOD_SECONDS;
   const nowMs = options.nowMs ?? Date.now();
   const counter = Math.floor(nowMs / 1000 / periodSeconds);
+  return generateTotpCodeForCounter(secret, counter, digits);
+}
+
+function generateTotpCodeForCounter(secret: string, counter: number, digits: number) {
   const hmac = createHmac("sha1", decodeBase32(secret)).update(counterBuffer(counter)).digest();
   const offset = hmac[hmac.length - 1]! & 0x0f;
   const binary =
@@ -109,19 +125,20 @@ export function generateTotpCode(secret: string, options: TotpOptions = {}) {
 
 export function verifyTotpCode(secret: string, code: string, options: TotpOptions = {}) {
   if (!/^\d{6,8}$/.test(code)) {
-    return false;
+    return null;
   }
 
   const digits = options.digits ?? DEFAULT_DIGITS;
   const periodSeconds = options.periodSeconds ?? DEFAULT_PERIOD_SECONDS;
   const nowMs = options.nowMs ?? Date.now();
+  const currentCounter = Math.floor(nowMs / 1000 / periodSeconds);
 
   for (const offset of [-1, 0, 1]) {
-    const expected = generateTotpCode(secret, {
-      digits,
-      nowMs: nowMs + offset * periodSeconds * 1000,
-      periodSeconds,
-    });
+    const counter = currentCounter + offset;
+    if (counter < 0) {
+      continue;
+    }
+    const expected = generateTotpCodeForCounter(secret, counter, digits);
     const expectedBuffer = Buffer.from(expected);
     const codeBuffer = Buffer.from(code);
 
@@ -129,11 +146,11 @@ export function verifyTotpCode(secret: string, code: string, options: TotpOption
       expectedBuffer.length === codeBuffer.length &&
       timingSafeEqual(expectedBuffer, codeBuffer)
     ) {
-      return true;
+      return { counter } satisfies TotpMatch;
     }
   }
 
-  return false;
+  return null;
 }
 
 export function verifyTwoFactorLoginCode(args: {
@@ -150,10 +167,12 @@ export function verifyTwoFactorLoginCode(args: {
     return false;
   }
 
-  return verifyTotpCode(
-    args.secret,
-    args.code.trim(),
-    args.nowMs === undefined ? {} : { nowMs: args.nowMs },
+  return (
+    verifyTotpCode(
+      args.secret,
+      args.code.trim(),
+      args.nowMs === undefined ? {} : { nowMs: args.nowMs },
+    ) !== null
   );
 }
 

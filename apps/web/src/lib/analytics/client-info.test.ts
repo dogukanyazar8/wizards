@@ -1,19 +1,16 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import {
-  getAnalyticsClientInfo,
-  hashAnalyticsValue,
-} from "@/lib/analytics/client-info";
+import { getAnalyticsClientInfo, hashAnalyticsValue } from "@/lib/analytics/client-info";
 
 describe("analytics client info", () => {
   it("detects mobile browsers without storing raw IP or user-agent", () => {
     process.env.ANALYTICS_HASH_SECRET = "analytics-test";
 
     const headers = new Headers({
-      "cf-connecting-ip": "203.0.113.10",
       "cf-ipcountry": "tr",
       "user-agent":
         "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 Version/17.5 Mobile/15E148 Safari/604.1",
+      "x-real-ip": "203.0.113.10",
     });
 
     const info = getAnalyticsClientInfo(headers);
@@ -26,6 +23,19 @@ describe("analytics client info", () => {
     assert.equal(info.ipHash, hashAnalyticsValue("203.0.113.10"));
     assert.notEqual(info.ipHash, "203.0.113.10");
     assert.ok(info.userAgentHash);
+  });
+
+  it("hashes only trusted normalized X-Real-IP", () => {
+    process.env.ANALYTICS_HASH_SECRET = "analytics-test";
+    const info = getAnalyticsClientInfo({
+      "cf-connecting-ip": "192.0.2.10",
+      "x-forwarded-for": "192.0.2.11",
+      "x-real-ip": "2001:0db8:0:0:0:0:0:1",
+    });
+
+    assert.equal(info.ipHash, hashAnalyticsValue("2001:db8::1"));
+    assert.notEqual(info.ipHash, hashAnalyticsValue("192.0.2.10"));
+    assert.notEqual(info.ipHash, hashAnalyticsValue("192.0.2.11"));
   });
 
   it("honors explicit desktop client headers", () => {

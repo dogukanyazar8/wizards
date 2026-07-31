@@ -1,3 +1,5 @@
+import { parseTotpSecretKeyring } from "./auth/totp-secret-encryption";
+
 export type WebRuntimeEnvironment = "development" | "production" | "test";
 
 export type EnvValidationResult = {
@@ -16,6 +18,10 @@ const REQUIRED_PRODUCTION_ENV_VARS = [
 ] as const;
 
 const REQUIRED_OUTBOX_WORKER_PRODUCTION_ENV_VARS = ["DATABASE_URL", "REDIS_URL"] as const;
+const REQUIRED_TOTP_SECRET_ENV_VARS = [
+  "TOTP_SECRET_ENCRYPTION_KEYS",
+  "TOTP_SECRET_ENCRYPTION_ACTIVE_KEY_VERSION",
+] as const;
 
 const REQUIRED_URL_ENV_VARS = [
   "APP_URL",
@@ -79,6 +85,20 @@ export function validateWebEnvironment(
   const missing: string[] = [];
   const invalid: string[] = [];
 
+  for (const key of REQUIRED_TOTP_SECRET_ENV_VARS) {
+    if (!isPresent(env[key])) {
+      missing.push(key);
+    }
+  }
+
+  if (REQUIRED_TOTP_SECRET_ENV_VARS.every((key) => isPresent(env[key]))) {
+    try {
+      parseTotpSecretKeyring(env);
+    } catch {
+      invalid.push("TOTP_SECRET_ENCRYPTION_KEYS");
+    }
+  }
+
   if (runtime === "production") {
     for (const key of REQUIRED_PRODUCTION_ENV_VARS) {
       if (!isPresent(env[key])) {
@@ -138,12 +158,8 @@ export function assertWebEnvironment(
 
   if (result.missing.length > 0 || result.invalid.length > 0) {
     const parts = [
-      result.missing.length > 0
-        ? `missing: ${result.missing.join(", ")}`
-        : null,
-      result.invalid.length > 0
-        ? `invalid: ${result.invalid.join(", ")}`
-        : null,
+      result.missing.length > 0 ? `missing: ${result.missing.join(", ")}` : null,
+      result.invalid.length > 0 ? `invalid: ${result.invalid.join(", ")}` : null,
     ].filter(Boolean);
 
     throw new Error(`Invalid Whispr web environment (${parts.join("; ")}).`);
@@ -204,12 +220,8 @@ export function assertOutboxWorkerEnvironment(
 
   if (result.missing.length > 0 || result.invalid.length > 0) {
     const parts = [
-      result.missing.length > 0
-        ? `missing: ${result.missing.join(", ")}`
-        : null,
-      result.invalid.length > 0
-        ? `invalid: ${result.invalid.join(", ")}`
-        : null,
+      result.missing.length > 0 ? `missing: ${result.missing.join(", ")}` : null,
+      result.invalid.length > 0 ? `invalid: ${result.invalid.join(", ")}` : null,
     ].filter(Boolean);
 
     throw new Error(`Invalid Whispr outbox worker environment (${parts.join("; ")}).`);

@@ -39,6 +39,13 @@ import {
   verifyMobileGoogleIdToken,
   type MobileGoogleIdentity,
 } from "./google-native-auth";
+import {
+  createMobileRefreshFamily,
+  isMobileRefreshFamilyActive,
+  type MobileRefreshFamilyRedis,
+  revokeMobileRefreshFamily,
+  rotateMobileRefreshFamily,
+} from "./refresh-token-family";
 
 export const MOBILE_AUTH_HANDOFF_TTL_SECONDS = 120;
 export const MOBILE_ACCESS_TOKEN_TTL_SECONDS = 15 * 60;
@@ -56,8 +63,6 @@ export const MOBILE_REFRESH_TOKEN_GRACE_MS = 60_000;
 const MOBILE_AUTH_HANDOFF_TOKEN_PATTERN = /^[A-Za-z0-9_-]{32,128}$/;
 const MOBILE_REFRESH_TOKEN_PATTERN = /^[A-Za-z0-9_-]{48,192}$/;
 const MOBILE_AUTH_HANDOFF_KEY_PREFIX = "auth:mobile-handoff:";
-const MOBILE_REFRESH_TOKEN_KEY_PREFIX = "auth:mobile-refresh:";
-const MOBILE_SESSION_KEY_PREFIX = "auth:mobile-session:";
 const MOBILE_ACCESS_TOKEN_ISSUER = "whispr-api";
 const MOBILE_ACCESS_TOKEN_AUDIENCE = "whispr-mobile";
 const MOBILE_ACCESS_TOKEN_TYPE = "whispr-mobile-access";
@@ -72,26 +77,7 @@ interface MobileAuthHandoffPayload {
   userId: string;
 }
 
-interface MobileRefreshTokenPayload {
-  /** Set when the token is rotated; opens the replay grace window. */
-  consumedAt?: number;
-  createdAt: number;
-  sessionId: string;
-  userId: string;
-}
-
-interface MobileSessionPayload {
-  createdAt: number;
-  lastRotatedAt: number;
-  userId: string;
-}
-
-interface MobileAuthRedis {
-  eval(
-    script: string,
-    keyCount: number,
-    ...args: string[]
-  ): Promise<Buffer | number | string | null>;
+interface MobileAuthRedis extends MobileRefreshFamilyRedis {
   set(
     key: string,
     value: string,
@@ -124,6 +110,8 @@ interface MobilePasswordAuthUser extends MobileAuthUser {
   passwordHash: string | null;
   twoFactorEnabled: boolean;
   twoFactorSecret: string | null;
+  twoFactorSecretCiphertext?: string | null;
+  twoFactorSecretKeyVersion?: string | null;
 }
 
 interface MobileGoogleAuthOptions extends MobileAuthOptions {
@@ -211,18 +199,6 @@ function getMobileAuthHandoffKey(token: string) {
   return `${MOBILE_AUTH_HANDOFF_KEY_PREFIX}${hashMobileAuthHandoffToken(token)}`;
 }
 
-function hashMobileRefreshToken(token: string) {
-  return createHash("sha256").update(token).digest("base64url");
-}
-
-function getMobileRefreshTokenKey(token: string) {
-  return `${MOBILE_REFRESH_TOKEN_KEY_PREFIX}${hashMobileRefreshToken(token)}`;
-}
-
-function getMobileSessionKey(sessionId: string) {
-  return `${MOBILE_SESSION_KEY_PREFIX}${sessionId}`;
-}
-
 function encodeBase64UrlJson(value: unknown) {
   return Buffer.from(JSON.stringify(value), "utf8").toString("base64url");
 }
@@ -291,68 +267,6 @@ function parseMobileAuthHandoffPayload(value: unknown): MobileAuthHandoffPayload
     return {
       callbackPath: parsed.callbackPath,
       createdAt: parsed.createdAt,
-      userId: parsed.userId,
-    };
-  } catch {
-    return null;
-  }
-}
-
-function parseMobileRefreshTokenPayload(value: unknown): MobileRefreshTokenPayload | null {
-  if (typeof value !== "string" || !value) {
-    return null;
-  }
-
-  try {
-    const parsed = JSON.parse(value) as Partial<MobileRefreshTokenPayload>;
-    if (
-      typeof parsed.userId !== "string" ||
-      !parsed.userId ||
-      typeof parsed.sessionId !== "string" ||
-      !parsed.sessionId ||
-      typeof parsed.createdAt !== "number" ||
-      !Number.isFinite(parsed.createdAt)
-    ) {
-      return null;
-    }
-
-    const consumedAt =
-      typeof parsed.consumedAt === "number" && Number.isFinite(parsed.consumedAt)
-        ? Math.trunc(parsed.consumedAt)
-        : null;
-
-    return {
-      ...(consumedAt === null ? {} : { consumedAt }),
-      createdAt: parsed.createdAt,
-      sessionId: parsed.sessionId,
-      userId: parsed.userId,
-    };
-  } catch {
-    return null;
-  }
-}
-
-function parseMobileSessionPayload(value: unknown): MobileSessionPayload | null {
-  if (typeof value !== "string" || !value) {
-    return null;
-  }
-
-  try {
-    const parsed = JSON.parse(value) as Partial<MobileSessionPayload>;
-    if (
-      typeof parsed.userId !== "string" ||
-      !parsed.userId ||
-      typeof parsed.createdAt !== "number" ||
-      !Number.isFinite(parsed.createdAt) ||
-      typeof parsed.lastRotatedAt !== "number" ||
-      !Number.isFinite(parsed.lastRotatedAt)
-    ) {
-      return null;
-    }
-
-    return {
-      createdAt: parsed.createdAt,
-      lastRotatedAt: parsed.lastRotatedAt,
       userId: parsed.userId,
     };
   } catch {
@@ -471,6 +385,8 @@ async function loadMobilePasswordAuthUser(email: string) {
       passwordHash: true,
       twoFactorEnabled: true,
       twoFactorSecret: true,
+      twoFactorSecretCiphertext: true,
+      twoFactorSecretKeyVersion: true,
       username: true,
     },
   });
@@ -525,18 +441,6 @@ function isActiveMobileAuthUser(user: MobileAuthUser | null | undefined): user i
   return Boolean(user && !user.deletedAt && !user.isBanned && user.emailVerified);
 }
 
-async function readRedisValue(redis: MobileAuthRedis, key: string) {
-  const rawRedisValue = await redis.eval("return redis.call('GET', KEYS[1])", 1, key);
-
-  return redisValueToString(
-    typeof rawRedisValue === "string" ||
-      typeof rawRedisValue === "number" ||
-      Buffer.isBuffer(rawRedisValue)
-      ? rawRedisValue
-      : null,
-  );
-}
-
 async function takeRedisValue(redis: MobileAuthRedis, key: string) {
   const rawRedisValue = await redis.eval(
     "local value = redis.call('GET', KEYS[1]); if value then redis.call('DEL', KEYS[1]); end; return value",
@@ -553,137 +457,27 @@ async function takeRedisValue(redis: MobileAuthRedis, key: string) {
   );
 }
 
-async function writeRedisValue(
-  redis: MobileAuthRedis,
-  key: string,
-  value: string,
-  ttlSeconds: number,
-) {
-  await redis.eval(
-    "redis.call('SET', KEYS[1], ARGV[1], 'EX', ARGV[2]); return 'OK'",
-    1,
-    key,
-    value,
-    String(ttlSeconds),
-  );
-}
-
-async function deleteRedisValue(redis: MobileAuthRedis, key: string) {
-  await redis.eval("redis.call('DEL', KEYS[1]); return 'OK'", 1, key);
-}
-
-/**
- * Marks a refresh token as rotated instead of destroying it, so the device that
- * never received the rotated response can retry inside the grace window. The
- * replay path deliberately leaves `consumedAt` untouched: the window is anchored
- * to the first rotation and cannot be extended by chaining retries.
- */
-async function consumeMobileRefreshToken(
-  redis: MobileAuthRedis,
-  refreshToken: string,
-  nowMs: number,
-) {
-  const key = getMobileRefreshTokenKey(refreshToken);
-  const payload = parseMobileRefreshTokenPayload(await readRedisValue(redis, key));
-
-  if (!payload) {
-    return null;
-  }
-
-  if (payload.consumedAt !== undefined) {
-    if (nowMs - payload.consumedAt > MOBILE_REFRESH_TOKEN_GRACE_MS) {
-      await deleteRedisValue(redis, key);
-      return null;
-    }
-
-    return payload;
-  }
-
-  await writeRedisValue(
-    redis,
-    key,
-    JSON.stringify({ ...payload, consumedAt: nowMs } satisfies MobileRefreshTokenPayload),
-    Math.ceil(MOBILE_REFRESH_TOKEN_GRACE_MS / 1000),
-  );
-
-  return payload;
-}
-
-async function upsertMobileSession(
-  redis: MobileAuthRedis,
-  input: {
-    nowMs: number;
-    sessionId: string;
-    userId: string;
-  },
-) {
-  const sessionPayload: MobileSessionPayload = {
-    createdAt: input.nowMs,
-    lastRotatedAt: input.nowMs,
-    userId: input.userId,
-  };
-
-  await writeRedisValue(
-    redis,
-    getMobileSessionKey(input.sessionId),
-    JSON.stringify(sessionPayload),
-    MOBILE_REFRESH_TOKEN_TTL_SECONDS,
-  );
-}
-
-async function createMobileRefreshToken(
-  redis: MobileAuthRedis,
-  input: {
-    nowMs: number;
-    sessionId: string;
-    userId: string;
-  },
-) {
-  const refreshToken = randomBytes(48).toString("base64url");
-  const payload: MobileRefreshTokenPayload = {
-    createdAt: input.nowMs,
-    sessionId: input.sessionId,
-    userId: input.userId,
-  };
-  const stored = await redis.set(
-    getMobileRefreshTokenKey(refreshToken),
-    JSON.stringify(payload),
-    "EX",
-    MOBILE_REFRESH_TOKEN_TTL_SECONDS,
-    "NX",
-  );
-
-  if (stored !== "OK") {
-    throw new Error("Mobile refresh token could not be created.");
-  }
-
-  return refreshToken;
-}
-
 async function createMobileSessionSnapshot(
   user: MobileAuthUser,
   input: {
     nowMs: number;
     redis: MobileAuthRedis;
+    refreshToken?: string;
     sessionId?: string;
   },
   options: MobileAuthOptions = {},
 ) {
   const sessionId = input.sessionId ?? randomBytes(24).toString("base64url");
-  await upsertMobileSession(input.redis, {
-    nowMs: input.nowMs,
-    sessionId,
-    userId: user.id,
-  });
-
-  const [accessToken, refreshToken] = await Promise.all([
-    Promise.resolve(createMobileAccessToken({ sessionId, userId: user.id }, options)),
-    createMobileRefreshToken(input.redis, {
+  const refreshToken =
+    input.refreshToken ??
+    (await createMobileRefreshFamily({
       nowMs: input.nowMs,
+      redis: input.redis,
       sessionId,
+      tokenTtlSeconds: MOBILE_REFRESH_TOKEN_TTL_SECONDS,
       userId: user.id,
-    }),
-  ]);
+    }));
+  const accessToken = createMobileAccessToken({ sessionId, userId: user.id }, options);
 
   return {
     lastValidatedAt: input.nowMs,
@@ -895,6 +689,12 @@ export async function createMobilePasswordSession(
     const result = await verifyTwoFactor({
       code: input.twoFactorCode,
       secret: user.twoFactorSecret,
+      ...(user.twoFactorSecretCiphertext === undefined
+        ? {}
+        : { secretCiphertext: user.twoFactorSecretCiphertext }),
+      ...(user.twoFactorSecretKeyVersion === undefined
+        ? {}
+        : { secretKeyVersion: user.twoFactorSecretKeyVersion }),
       userId: user.id,
     });
 
@@ -904,6 +704,13 @@ export async function createMobilePasswordSession(
           "RATE_LIMITED",
           429,
           "Too many two-factor verification attempts. Please try again shortly.",
+        );
+      }
+      if (result.error === "verification_unavailable") {
+        throw new MobileNativeAuthError(
+          "TWO_FACTOR_UNAVAILABLE",
+          503,
+          "Two-factor verification is temporarily unavailable.",
         );
       }
 
@@ -1136,20 +943,21 @@ export async function refreshMobileSession(refreshToken: string, options: Mobile
 
   const redis = getMobileAuthRedis(options);
   const nowMs = Math.trunc(options.nowMs ?? Date.now());
-  const payload = await consumeMobileRefreshToken(redis, refreshToken, nowMs);
-  if (!payload) {
+  const rotation = await rotateMobileRefreshFamily({
+    graceMs: MOBILE_REFRESH_TOKEN_GRACE_MS,
+    nowMs,
+    redis,
+    refreshToken,
+    secret: getMobileAuthSecret(options.env),
+    tokenTtlSeconds: MOBILE_REFRESH_TOKEN_TTL_SECONDS,
+  });
+  if (!rotation) {
     return null;
   }
 
-  const rawSession = await readRedisValue(redis, getMobileSessionKey(payload.sessionId));
-  const session = parseMobileSessionPayload(rawSession);
-  if (!session || session.userId !== payload.userId) {
-    return null;
-  }
-
-  const user = await (options.loadUser ?? loadMobileAuthUser)(payload.userId);
+  const user = await (options.loadUser ?? loadMobileAuthUser)(rotation.userId);
   if (!isActiveMobileAuthUser(user)) {
-    await revokeMobileSession({ sessionId: payload.sessionId }, options);
+    await revokeMobileSession({ sessionId: rotation.sessionId }, options);
     return null;
   }
 
@@ -1159,7 +967,8 @@ export async function refreshMobileSession(refreshToken: string, options: Mobile
       {
         nowMs,
         redis,
-        sessionId: payload.sessionId,
+        refreshToken: rotation.refreshToken,
+        sessionId: rotation.sessionId,
       },
       options,
     ),
@@ -1174,17 +983,11 @@ export async function revokeMobileSession(
   options: Pick<MobileAuthOptions, "redis"> = {},
 ) {
   const redis = getMobileAuthRedis(options);
-  let sessionId = input.sessionId ?? null;
-
-  if (input.refreshToken && isMobileRefreshToken(input.refreshToken)) {
-    const rawPayload = await takeRedisValue(redis, getMobileRefreshTokenKey(input.refreshToken));
-    const payload = parseMobileRefreshTokenPayload(rawPayload);
-    sessionId = payload?.sessionId ?? sessionId;
-  }
-
-  if (sessionId) {
-    await deleteRedisValue(redis, getMobileSessionKey(sessionId));
-  }
+  await revokeMobileRefreshFamily(redis, {
+    refreshToken:
+      input.refreshToken && isMobileRefreshToken(input.refreshToken) ? input.refreshToken : null,
+    ...(input.sessionId === undefined ? {} : { sessionId: input.sessionId }),
+  });
 }
 
 export async function isMobileAccessSessionActive(
@@ -1192,10 +995,7 @@ export async function isMobileAccessSessionActive(
   options: Pick<MobileAuthOptions, "redis"> = {},
 ) {
   const redis = getMobileAuthRedis(options);
-  const rawSession = await readRedisValue(redis, getMobileSessionKey(claims.sessionId));
-  const session = parseMobileSessionPayload(rawSession);
-
-  return Boolean(session && session.userId === claims.userId);
+  return isMobileRefreshFamilyActive(redis, claims);
 }
 
 export function verifyMobileAccessToken(

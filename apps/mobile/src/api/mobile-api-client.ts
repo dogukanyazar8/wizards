@@ -9,6 +9,7 @@ import {
 } from "../network/mobile-network-events";
 import { recordMobileRequestLatency } from "../performance/mobile-request-metrics";
 import { MOBILE_CLIENT_HEADERS } from "./mobile-client-headers";
+import { MOBILE_REQUEST_ID_HEADER, createMobileRequestId } from "./mobile-request-id";
 
 export class MobileApiError extends Error {
   readonly apiPath: string | null;
@@ -142,6 +143,10 @@ export function createMobileApiClient(options: MobileApiClientOptions): MobileAp
           headers.set(name, value);
         }
 
+        // Fresh per request, so a slow sample on this device can be found in the
+        // edge's own record of the same call.
+        headers.set(MOBILE_REQUEST_ID_HEADER, createMobileRequestId());
+
         const accessToken = await resolveAccessToken(options.getAccessToken);
         if (accessToken) {
           headers.set("Authorization", `Bearer ${accessToken}`);
@@ -161,41 +166,61 @@ export function createMobileApiClient(options: MobileApiClientOptions): MobileAp
         const safeErrorPath = getSafeErrorPath(path);
         const requestStartedAt = Date.now();
         const response = await fetchImpl(buildRequestUrl(baseUrl, path), fetchOptions);
-        // Measured at the response headers rather than after the body parse so
-        // the sample lines up with the server's own `total` bucket.
-        recordMobileRequestLatency({
-          clientMs: Date.now() - requestStartedAt,
-          path,
-          serverTimingHeader: response.headers.get("Server-Timing"),
-        });
+        // Two numbers, because they answer different questions. The header
+        // arrival is what the server's own `total` bucket lines up with; the
+        // settle is what the caller waited for, and the difference between them
+        // is body download plus JSON parse on the JS thread.
+        const headersMs = Date.now() - requestStartedAt;
+        const serverTimingHeader = response.headers.get("Server-Timing");
+        let recorded = false;
+        const recordLatency = () => {
+          if (recorded) {
+            return;
+          }
 
-        if (!response.ok) {
-          const serverCode = await readSafeServerErrorCode(response);
-          const codeSuffix = serverCode ? ` (${serverCode})` : "";
-          throw new MobileApiError(
-            `Whispr API request failed with status ${response.status} at ${safeErrorPath}${codeSuffix}.`,
-            {
-              apiPath: safeErrorPath,
-              code: "http_error",
-              serverCode,
-              status: response.status,
-            },
-          );
-        }
-
-        if (response.status === 204) {
-          return undefined as TResponse;
-        }
-
-        const contentType = response.headers.get("content-type") ?? "";
-        if (!contentType.toLowerCase().includes("application/json")) {
-          throw new MobileApiError("Whispr API returned a non-JSON response.", {
-            code: "invalid_content_type",
-            status: response.status,
+          recorded = true;
+          recordMobileRequestLatency({
+            headersMs,
+            method: requestOptions.method ?? "GET",
+            path,
+            serverTimingHeader,
+            settledMs: Date.now() - requestStartedAt,
           });
-        }
+        };
 
-        return (await response.json()) as TResponse;
+        try {
+          if (!response.ok) {
+            const serverCode = await readSafeServerErrorCode(response);
+            const codeSuffix = serverCode ? ` (${serverCode})` : "";
+            throw new MobileApiError(
+              `Whispr API request failed with status ${response.status} at ${safeErrorPath}${codeSuffix}.`,
+              {
+                apiPath: safeErrorPath,
+                code: "http_error",
+                serverCode,
+                status: response.status,
+              },
+            );
+          }
+
+          if (response.status === 204) {
+            return undefined as TResponse;
+          }
+
+          const contentType = response.headers.get("content-type") ?? "";
+          if (!contentType.toLowerCase().includes("application/json")) {
+            throw new MobileApiError("Whispr API returned a non-JSON response.", {
+              code: "invalid_content_type",
+              status: response.status,
+            });
+          }
+
+          return (await response.json()) as TResponse;
+        } finally {
+          // Every exit records exactly once, including the thrown ones: a route
+          // that only ever fails would otherwise report no latency at all.
+          recordLatency();
+        }
       } catch (error) {
         if (error instanceof MobileApiError) {
           throw error;

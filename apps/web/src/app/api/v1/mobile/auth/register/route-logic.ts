@@ -2,10 +2,10 @@ import { MobileAuthRegisterRequestSchema, type MobileAuthRegisterRequest } from 
 
 import { ApiError, jsonError, parseJsonBody } from "@/lib/api";
 import { MobileNativeAuthError, registerMobilePasswordAccount } from "@/lib/mobile/auth";
-import { enforceMobileAuthRateLimit } from "../rate-limit";
+import { enforceMobileAuthRateLimit, type MobileAuthRateLimitSubject } from "../rate-limit";
 
 export type MobilePasswordRegisterRouteDependencies = {
-  enforceIpRateLimit: (request: Request) => Promise<void>;
+  enforceRateLimit: (request: Request, subject: MobileAuthRateLimitSubject) => Promise<void>;
   parseRegisterRequest: (request: Request) => Promise<MobileAuthRegisterRequest>;
   registerPassword: (
     input: MobileAuthRegisterRequest,
@@ -13,7 +13,8 @@ export type MobilePasswordRegisterRouteDependencies = {
 };
 
 const defaultMobilePasswordRegisterRouteDependencies: MobilePasswordRegisterRouteDependencies = {
-  enforceIpRateLimit: (request) => enforceMobileAuthRateLimit(request, "mobile:auth-register"),
+  enforceRateLimit: (request, subject) =>
+    enforceMobileAuthRateLimit(request, "mobile:auth-register", subject),
   parseRegisterRequest: (request) => parseJsonBody(request, MobileAuthRegisterRequestSchema),
   registerPassword: registerMobilePasswordAccount,
 };
@@ -23,8 +24,11 @@ export async function mobilePasswordRegisterRoute(
   dependencies: MobilePasswordRegisterRouteDependencies = defaultMobilePasswordRegisterRouteDependencies,
 ) {
   try {
-    await dependencies.enforceIpRateLimit(request);
     const body = await dependencies.parseRegisterRequest(request);
+    await dependencies.enforceRateLimit(request, {
+      namespace: "email",
+      value: body.email.trim().toLowerCase(),
+    });
     const response = await dependencies.registerPassword(body);
 
     return Response.json(response, {

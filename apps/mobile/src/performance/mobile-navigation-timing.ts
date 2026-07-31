@@ -32,6 +32,8 @@ export type MobileNavigationStage = "mounted" | "navigated";
 
 type MobileNavigationSpan = {
   readonly cacheHit: boolean;
+  /** Facts learned after the span opened; see `annotateMobileNavigationSpan`. */
+  readonly notes: Record<string, unknown>;
   readonly origin: MobileNavigationSpanOrigin;
   readonly stages: Set<MobileNavigationStage>;
   readonly startedAtMs: number;
@@ -73,7 +75,33 @@ export function beginMobileNavigationSpan(
     abandonedSpanCount += 1;
   }
 
-  openSpans.set(route, { cacheHit, origin, stages: new Set(), startedAtMs });
+  openSpans.set(route, { cacheHit, notes: {}, origin, stages: new Set(), startedAtMs });
+}
+
+/**
+ * Records something about an open span that was not knowable when it started.
+ *
+ * The tap opens the span before the navigator has decided anything, so the
+ * transition variant a push played only exists a frame later. First write wins:
+ * a re-entry into a chat the reader is already in must not restate the open with
+ * whatever the instrument has rotated to since.
+ */
+export function annotateMobileNavigationSpan(
+  route: string,
+  notes: Readonly<Record<string, unknown>>,
+): void {
+  const span = openSpans.get(route);
+  if (!span) {
+    return;
+  }
+
+  for (const [key, value] of Object.entries(notes)) {
+    // `in` rather than `??=`: a recorded `null` is an answer ("nothing local
+    // behind this open"), and `??=` would let the next annotation overwrite it.
+    if (!(key in span.notes)) {
+      span.notes[key] = value;
+    }
+  }
 }
 
 /**
@@ -99,7 +127,7 @@ export function markMobileNavigationStage(
 
   span.stages.add(stage);
   recordMobilePerformanceSample({
-    context: { cacheHit: span.cacheHit, origin: span.origin, route, stage },
+    context: { ...span.notes, cacheHit: span.cacheHit, origin: span.origin, route, stage },
     durationMs,
     metric: "navigation",
     surface: "navigation",
@@ -125,7 +153,13 @@ export function ensureMobileNavigationSpan(
     return;
   }
 
-  openSpans.set(route, { cacheHit, origin: "navigation", stages: new Set(), startedAtMs });
+  openSpans.set(route, {
+    cacheHit,
+    notes: {},
+    origin: "navigation",
+    stages: new Set(),
+    startedAtMs,
+  });
 }
 
 /**
@@ -150,7 +184,7 @@ export function completeMobileNavigationSpan(
   }
 
   recordMobilePerformanceSample({
-    context: { cacheHit: span.cacheHit, origin: span.origin, route },
+    context: { ...span.notes, cacheHit: span.cacheHit, origin: span.origin, route },
     durationMs,
     metric: "navigation",
     surface: "navigation",

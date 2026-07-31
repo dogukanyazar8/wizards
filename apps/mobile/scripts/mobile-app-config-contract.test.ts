@@ -15,6 +15,7 @@ type BuildExpoConfig = (context: { config: Record<string, unknown> }) => {
   extra?: {
     whispr?: {
       apiUrl?: string;
+      buildId?: string;
       communityInviteSlug?: string;
       environment?: string;
     };
@@ -86,6 +87,25 @@ describe("mobile app config contract", () => {
     assert.equal(config.extra.whispr.environment, "uat");
     assert.match(config.extra.whispr.apiUrl ?? "", /^https:\/\//);
     assert.equal(config.extra.whispr.communityInviteSlug, "whispr-community");
+  });
+
+  /**
+   * The dimension read this field from the day it was written and the config
+   * never emitted it, so every measurement taken so far reports its build as
+   * `unknown` — the one fact that ties a device percentile to a release.
+   */
+  it("carries the build's commit into the telemetry dimension", () => {
+    process.env.WHISPR_MOBILE_ENV = "uat";
+    process.env.WHISPR_MOBILE_BUILD_ID = "2d6c2c86f0a1";
+
+    assert.equal(buildTestExpoConfig().extra?.whispr?.buildId, "2d6c2c86f0a1");
+  });
+
+  it("reports an unrecognisable build id as unknown rather than passing it on", () => {
+    process.env.WHISPR_MOBILE_ENV = "uat";
+    process.env.WHISPR_MOBILE_BUILD_ID = "not a commit; drop table";
+
+    assert.equal(buildTestExpoConfig().extra?.whispr?.buildId, "unknown");
   });
 
   it("embeds the UAT OTA trust root only when signed OTA is enabled", () => {

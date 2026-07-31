@@ -83,11 +83,26 @@ function stringifyStructuredLog(entry: Record<string, unknown>) {
   }
 }
 
-export function formatErrorLog(scope: string, error: unknown, now = new Date()) {
+/**
+ * The client's per-request correlation token, when the caller sent one.
+ *
+ * It is the only field here that is safe to key on across systems: opaque,
+ * random, and validated before it reaches a log line, so it identifies a request
+ * without identifying whoever made it.
+ */
+export type LogContext = { requestId?: string | null };
+
+export function formatErrorLog(
+  scope: string,
+  error: unknown,
+  now = new Date(),
+  context: LogContext = {},
+) {
   return stringifyStructuredLog({
     timestamp: now.toISOString(),
     level: "error",
     scope: redactText(scope),
+    ...(context.requestId ? { requestId: context.requestId } : {}),
     error: redactValue(error),
   });
 }
@@ -101,8 +116,8 @@ export function formatWarningLog(scope: string, error: unknown, now = new Date()
   });
 }
 
-export function logError(scope: string, error: unknown) {
-  console.error(formatErrorLog(scope, error));
+export function logError(scope: string, error: unknown, context: LogContext = {}) {
+  console.error(formatErrorLog(scope, error, new Date(), context));
   // Errors keep their class for the reporter's stack grouping; other payloads
   // stay plain so structured diagnostics are not flattened into a message.
   reportError(

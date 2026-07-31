@@ -127,6 +127,24 @@ describe("jsonError", () => {
     assert.equal(errorLog.mock.callCount(), 1);
   });
 
+  /**
+   * A 500 the reader reported is otherwise impossible to find among the edge's
+   * records: the correlation id has to reach both the response and the log line.
+   */
+  it("carries the caller's correlation id onto the failure and its log line", async () => {
+    const lines: string[] = [];
+    mock.method(console, "error", (line: string) => lines.push(line));
+
+    const response = jsonError(new Error("boom"), "abcdef0123456789abcdef0123456789");
+
+    assert.equal(response.status, 500);
+    assert.equal(response.headers.get("x-request-id"), "abcdef0123456789abcdef0123456789");
+    assert.equal(
+      (JSON.parse(lines[0] ?? "{}") as { requestId?: string }).requestId,
+      "abcdef0123456789abcdef0123456789",
+    );
+  });
+
   it("passes only a safe diagnostic error to the observability reporter", async () => {
     mock.method(console, "error", () => undefined);
     const reports: unknown[] = [];

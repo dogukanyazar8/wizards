@@ -10,10 +10,14 @@ import {
 } from "../../performance/mobile-performance-metrics";
 import {
   MOBILE_PERFORMANCE_SUMMARY_METRICS,
+  summarizeMobileChatOpenRoutes,
+  summarizeMobileChatOpenSources,
   summarizeMobileChatOpenStages,
+  summarizeMobileChatTransitions,
   summarizeMobilePerformanceSamples,
   type MobilePerformanceSummaryInput,
 } from "../../performance/mobile-performance-summary";
+import { getMobileListBlankAreaSnapshot } from "../../performance/mobile-list-blank-area";
 import { discardPendingMobilePerformanceSamples } from "../../performance/mobile-performance-sample-persistence";
 import { mergeMobilePerformanceSampleViews } from "../../performance/mobile-performance-sample-view";
 import { getMobileNavigationSpanDiagnostics } from "../../performance/mobile-navigation-timing";
@@ -180,13 +184,17 @@ export function MobilePerformanceDiagnosticsScreen({ onBack }: { onBack(): void 
 
   const rows = summarizeMobilePerformanceSamples(samples);
   const chatOpenStages = summarizeMobileChatOpenStages(samples);
+  const chatOpenRoutes = summarizeMobileChatOpenRoutes(samples);
+  const chatOpenSources = summarizeMobileChatOpenSources(samples);
+  const chatTransitions = summarizeMobileChatTransitions(samples);
+  const blankArea = getMobileListBlankAreaSnapshot();
   const timeline = getMobileStartupPhaseTimeline();
   const prefetch = getMobileRecentDMPrefetchStats();
   const spans = getMobileNavigationSpanDiagnostics();
   // Only routes the server accounted for: a row with no `Server-Timing` says
   // nothing this section is for.
   const requestLatency = getMobileRequestLatencySnapshot().filter(
-    (sample) => sample.server.totalMs !== null,
+    (stats) => stats.lastServer.totalMs !== null,
   );
   const runtimeConfig = getMobileRuntimeConfig();
   let dimensions: Record<string, unknown> = {};
@@ -271,6 +279,70 @@ export function MobilePerformanceDiagnosticsScreen({ onBack }: { onBack(): void 
         </View>
       ))}
 
+      {/* The pooled budget rows above were channel numbers wearing both names
+          until the DM transcript got its span closer. Kept apart from here on. */}
+      <Text style={headingStyle}>{copy.performanceDiagnosticsChatOpenRoutes}</Text>
+      {chatOpenRoutes.map((row) => {
+        const key = `${row.route}-${row.cacheHit ? "cached" : "network"}`;
+        return (
+          <View key={key} style={{ paddingVertical: 2 }}>
+            <Text style={labelStyle}>{`${key} · n=${row.count}`}</Text>
+            <Text style={valueStyle} testID={`performance-chat-route-${key}`}>
+              {row.count === 0
+                ? copy.performanceDiagnosticsNoMeasurements
+                : `${row.p50Ms ?? "-"} / ${row.p95Ms ?? "-"} ms`}
+            </Text>
+          </View>
+        );
+      })}
+
+      {/* "Cached" was one bit. A page restored off the encrypted store, a warm
+          that had settled and a stream the session already held are three
+          different opens, and only one of them is free. */}
+      <Text style={headingStyle}>{copy.performanceDiagnosticsStreamSource}</Text>
+      {chatOpenSources.map((row) => (
+        <View key={row.source} style={{ paddingVertical: 2 }}>
+          <Text style={labelStyle}>{`${row.source} · n=${row.count}`}</Text>
+          <Text style={valueStyle} testID={`performance-open-source-${row.source}`}>
+            {row.count === 0
+              ? copy.performanceDiagnosticsNoMeasurements
+              : `${row.p50Ms ?? "-"} / ${row.p95Ms ?? "-"} ms · ${
+                  row.cacheAgeP50Ms === null ? "-" : `${Math.round(row.cacheAgeP50Ms / 1_000)}s`
+                }`}
+          </Text>
+        </View>
+      ))}
+
+      {/* The three push animations, rotated inside this run. A 100ms budget and
+          a 350ms slide cannot both survive; these numbers say which one goes. */}
+      <Text style={headingStyle}>{copy.performanceDiagnosticsTransitionAb}</Text>
+      {chatTransitions.map((row) => (
+        <View key={row.variant} style={{ paddingVertical: 2 }}>
+          <Text style={labelStyle}>{`${row.variant} · n=${row.count}`}</Text>
+          <Text style={valueStyle} testID={`performance-transition-${row.variant}`}>
+            {row.count === 0
+              ? copy.performanceDiagnosticsNoMeasurements
+              : `${row.p50Ms ?? "-"} / ${row.p95Ms ?? "-"} ms`}
+          </Text>
+        </View>
+      ))}
+
+      {/* What gates `drawDistance`. Lowering it is free until the renderer falls
+          behind the thumb, and this is the only number that says when it does. */}
+      <Text style={headingStyle}>{copy.performanceDiagnosticsBlankArea}</Text>
+      {blankArea.length === 0 ? (
+        <Text style={valueStyle}>{copy.performanceDiagnosticsNoMeasurements}</Text>
+      ) : (
+        blankArea.map((stats) => (
+          <View key={stats.surface} style={{ paddingVertical: 2 }}>
+            <Text style={labelStyle}>{`${stats.surface} · n=${stats.count}`}</Text>
+            <Text style={valueStyle} testID={`performance-blank-area-${stats.surface}`}>
+              {`${stats.p50Px ?? "-"} / ${stats.p95Px ?? "-"} / ${stats.maxPx ?? "-"} px`}
+            </Text>
+          </View>
+        ))
+      )}
+
       <Text style={headingStyle}>{copy.performanceDiagnosticsStartupPhases}</Text>
       {Object.entries(timeline).length === 0 ? (
         <Text style={valueStyle}>{copy.performanceDiagnosticsNoMeasurements}</Text>
@@ -291,9 +363,14 @@ export function MobilePerformanceDiagnosticsScreen({ onBack }: { onBack(): void 
       <Text style={labelStyle}>{copy.performanceDiagnosticsStoreStatusRows}</Text>
       <Text style={valueStyle}>{`${storage?.status ?? "?"} · ${storage?.rowCount ?? "-"}`}</Text>
 
+      {/* Three counts, because the first two used to be the same number: the
+          attempt was recorded before the request chain ran, so the panel could
+          only ever read 100%. */}
       <Text style={headingStyle}>{copy.performanceDiagnosticsPrefetchHitRate}</Text>
-      <Text style={valueStyle}>
-        {`${prefetch.hits}/${prefetch.warmed} · ${Math.round(prefetch.hitRate * 100)}%`}
+      <Text style={valueStyle} testID="performance-prefetch">
+        {`${prefetch.attempted} / ${prefetch.settled} / ${prefetch.openedAfterSettled} · ${Math.round(
+          prefetch.hitRate * 100,
+        )}%`}
       </Text>
 
       {/* A low n next to a high loss count means the instrument dropped spans,
@@ -311,13 +388,21 @@ export function MobilePerformanceDiagnosticsScreen({ onBack }: { onBack(): void 
       {requestLatency.length === 0 ? (
         <Text style={valueStyle}>{copy.performanceDiagnosticsNoMeasurements}</Text>
       ) : (
-        requestLatency.map((sample) => (
-          <View key={sample.route} style={{ paddingVertical: 2 }}>
-            <Text style={labelStyle}>{sample.route}</Text>
+        requestLatency.map((stats) => (
+          <View key={stats.key} style={{ paddingVertical: 2 }}>
+            <Text style={labelStyle}>{`${stats.key} · n=${stats.count}`}</Text>
+            {/* Header arrival first, then the settle that includes the body and
+                its parse: the gap between the two is the client's own cost, and
+                it used to be outside every number the panel showed. */}
+            <Text style={valueStyle} testID={`performance-request-${stats.key}`}>
+              {`hdr ${stats.headersP50Ms ?? "-"}/${stats.headersP95Ms ?? "-"} · settled ${
+                stats.settledP50Ms ?? "-"
+              }/${stats.settledP95Ms ?? "-"} ms`}
+            </Text>
             <Text style={valueStyle}>
-              {`${Math.round(sample.clientMs)} · ${sample.server.totalMs ?? "-"} (auth ${
-                sample.server.authMs ?? "-"
-              } / db ${sample.server.dbMs ?? "-"}) · ${sample.transportMs ?? "-"} ms`}
+              {`srv ${stats.serverP50Ms ?? "-"}/${stats.serverP95Ms ?? "-"} (auth ${
+                stats.lastServer.authMs ?? "-"
+              } / db ${stats.lastServer.dbMs ?? "-"}) · net ${stats.transportP95Ms ?? "-"} ms`}
             </Text>
           </View>
         ))

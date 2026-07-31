@@ -78,14 +78,20 @@ export function resolveMobileActiveChatRouteTarget(
 }
 
 /**
- * Answers whether a chat's stream is already cached.
+ * When a chat's stream was last written into the cache, or `null` when it is not
+ * cached at all.
+ *
+ * A boolean was enough to pick a budget and not enough for anything else: a page
+ * seeded off the encrypted store and a page fetched a second ago are both "cached"
+ * and are not the same open. The timestamp is what lets the source be told apart
+ * from the origin that put it there.
  *
  * Registered by the query provider rather than read through `useQueryClient`:
  * the navigator is rendered without a client in several tests, and a telemetry
  * detail must not become a mounting requirement. An unregistered probe reports
  * "not cached", which is the bucket that must not flatter itself.
  */
-export type MobileChatCacheProbe = (target: MobileChatRouteTarget) => boolean;
+export type MobileChatCacheProbe = (target: MobileChatRouteTarget) => number | null;
 
 let chatCacheProbe: MobileChatCacheProbe | null = null;
 
@@ -93,10 +99,10 @@ export function setMobileChatCacheProbe(probe: MobileChatCacheProbe | null): voi
   chatCacheProbe = probe;
 }
 
-export function probeMobileChatCache(target: MobileChatRouteTarget): boolean {
+export function probeMobileChatCache(target: MobileChatRouteTarget): number | null {
   try {
-    return chatCacheProbe?.(target) ?? false;
+    return chatCacheProbe?.(target) ?? null;
   } catch {
-    return false;
+    return null;
   }
 }

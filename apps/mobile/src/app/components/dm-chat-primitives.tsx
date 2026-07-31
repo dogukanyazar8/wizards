@@ -26,7 +26,13 @@ import {
   formatMobileDisplayTime,
   getMobileMessageBodyPreview,
 } from "../mobile-root-screen-shared";
+import { mobileListLoadHandlers } from "../../performance/mobile-performance-metrics";
 import { getMobileMessageGroupModel } from "./message-grouping";
+import { reportMobileListBlankArea } from "./message-list-blank-area";
+import {
+  createMobileMessageEntranceTracker,
+  type MobileMessageEntranceTracker,
+} from "./message-entrance";
 import { useMobileScreenFocus } from "../mobile-chat-keyboard-region";
 import { useMobileHaptics } from "../providers/mobile-haptics-provider";
 import { useMobileLocaleRuntime } from "../providers/mobile-locale-provider";
@@ -368,6 +374,7 @@ const DM_ENTER_TRANSLATE_Y = 8;
 const DM_AT_BOTTOM_THRESHOLD = 24;
 
 export function DMChatMessageRow({
+  animateEntrance = false,
   currentUserId,
   isHighlighted = false,
   isReactionMutationPending,
@@ -389,6 +396,12 @@ export function DMChatMessageRow({
   showAvatar,
   tailCorner,
 }: DMChatMessageGroupItem & {
+  /**
+   * §4's entrance belongs to a message that just landed. The list decides, and
+   * defaults to off: a row rendered on its own (a preview, a test) is part of a
+   * transcript, not an arrival.
+   */
+  readonly animateEntrance?: boolean;
   readonly currentUserId: string;
   readonly isHighlighted?: boolean;
   readonly isReactionMutationPending: boolean;
@@ -482,13 +495,16 @@ export function DMChatMessageRow({
   // WhatsApp-style swipe-right starts a reply and springs back.
   const swipeTranslateX = useSharedValue(0);
   const reducedMotion = useReducedMotion() === true;
-  // §4: a new message rises 8px into place over 180ms while it fades in.
-  const enterProgress = useSharedValue(reducedMotion ? 1 : 0);
+  // §4: a new message rises 8px into place over 180ms while it fades in. A row
+  // the list did not call an arrival starts at its final state, so reopening a
+  // conversation draws the transcript rather than replaying it.
+  const enterProgress = useSharedValue(reducedMotion || !animateEntrance ? 1 : 0);
   // §4: pressed state is scale(.97) over 150ms; no hover on mobile.
   const pressScale = useSharedValue(1);
   useEffect(() => {
-    enterProgress.value = reducedMotion ? 1 : withTiming(1, { duration: DM_ENTER_DURATION_MS });
-  }, [enterProgress, reducedMotion]);
+    enterProgress.value =
+      reducedMotion || !animateEntrance ? 1 : withTiming(1, { duration: DM_ENTER_DURATION_MS });
+  }, [animateEntrance, enterProgress, reducedMotion]);
   // One style: three separate animated styles would each claim `transform` and
   // the last one mounted would win.
   const rowMotionStyle = useAnimatedStyle(() => ({
@@ -974,6 +990,11 @@ export function DMChatMessageList({
   const theme = useTheme();
   const messageSpacing = useMobileMessageSpacing();
   const grouped = useMemo(() => getDMChatMessageGroupModel(messages), [messages]);
+  // The entrance animation is a list-level decision; see `message-entrance.ts`
+  // for why a row's own mount effect could never make it correctly.
+  const entranceTrackerRef = useRef<MobileMessageEntranceTracker | null>(null);
+  entranceTrackerRef.current ??= createMobileMessageEntranceTracker();
+  const enteringMessageIds = entranceTrackerRef.current.select(messages);
   const listRef = useRef<FlashListRef<DMChatMessageGroupItem> | null>(null);
   // §4: at the bottom the list follows new messages; away from it, the arrival
   // becomes a pill instead of yanking the reader down.
@@ -994,6 +1015,9 @@ export function DMChatMessageList({
     const atBottom = distanceFromBottom <= DM_AT_BOTTOM_THRESHOLD;
     setIsAtBottom(atBottom);
     if (atBottom) setPendingNewMessageCount(0);
+    // `drawDistance` below stays at 700 until this reads clean: lowering it
+    // blindly buys render time by showing the reader empty space instead.
+    reportMobileListBlankArea("dm-messages", listRef.current, event.nativeEvent);
   }, []);
   const handleJumpToLatest = useCallback(() => {
     listRef.current?.scrollToEnd({ animated: true });
@@ -1096,6 +1120,7 @@ export function DMChatMessageList({
         {item.showDateSeparator ? <DMChatDateSeparator createdAt={item.message.createdAt} /> : null}
         <MemoizedDMChatMessageRow
           {...item}
+          animateEntrance={enteringMessageIds.has(item.message.id)}
           currentUserId={currentUserId}
           isHighlighted={item.message.id === highlightedMessageId}
           isReactionMutationPending={isReactionMutationPending}
@@ -1118,6 +1143,10 @@ export function DMChatMessageList({
     ),
     [
       currentUserId,
+      // Stable across batches by contract: the tracker mutates one Set rather
+      // than minting a new one, so an arriving message does not re-mint
+      // `renderItem` and with it every mounted row.
+      enteringMessageIds,
       handleOpenReply,
       handleSetMenuMessage,
       highlightedMessageId,
@@ -1157,6 +1186,11 @@ export function DMChatMessageList({
             // content sits on the bottom edge and grows upward.
             startRenderingFromBottom: true,
           }}
+          // What closes the DM chat-open span. The handler had stayed behind on
+          // the preview component this list replaced, so every DM open in a
+          // device baseline went to the abandoned counter and the panel had no
+          // DM measurement at all.
+          onLoad={mobileListLoadHandlers.dmMessages}
           onScroll={handleScroll}
           onStartReached={onLoadMore}
           onStartReachedThreshold={0.35}

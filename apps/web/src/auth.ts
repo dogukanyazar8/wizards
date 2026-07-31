@@ -35,7 +35,7 @@ import {
 import { isUserSessionRevoked, shouldCheckSessionRevocation } from "@/lib/auth/session-revocation";
 import { consumeDesktopOAuthHandoffToken } from "@/lib/auth/desktop-oauth-handoff";
 import { getSafeAuthRedirectPath } from "@/lib/auth/redirect";
-import { verifyTwoFactorCredential } from "@/lib/auth/two-factor";
+import { verifyWebLoginTwoFactor } from "@/lib/auth/web-login-two-factor";
 
 function getAuthEnvCandidates() {
   return [
@@ -612,9 +612,7 @@ const authConfig = {
         const loginProof =
           typeof credentialRecord?.loginProof === "string" ? credentialRecord.loginProof : "";
         const twoFactorCode =
-          typeof credentialRecord?.twoFactorCode === "string"
-            ? credentialRecord.twoFactorCode
-            : "";
+          typeof credentialRecord?.twoFactorCode === "string" ? credentialRecord.twoFactorCode : "";
 
         let hasValidLoginProof = false;
         try {
@@ -643,6 +641,8 @@ const authConfig = {
             theme: true,
             twoFactorEnabled: true,
             twoFactorSecret: true,
+            twoFactorSecretCiphertext: true,
+            twoFactorSecretKeyVersion: true,
           },
         });
 
@@ -664,16 +664,8 @@ const authConfig = {
           return null;
         }
 
-        if (user.twoFactorEnabled) {
-          const twoFactorResult = await verifyTwoFactorCredential({
-            code: twoFactorCode,
-            secret: user.twoFactorSecret,
-            userId: user.id,
-          });
-
-          if (!twoFactorResult.success) {
-            return null;
-          }
+        if (!(await verifyWebLoginTwoFactor(user, twoFactorCode))) {
+          return null;
         }
 
         return {

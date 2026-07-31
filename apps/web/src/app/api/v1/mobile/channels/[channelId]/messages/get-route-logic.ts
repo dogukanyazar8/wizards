@@ -7,7 +7,7 @@ import { ChannelType, prisma } from "@wizards/db";
 
 import { ApiError, jsonError } from "@/lib/api";
 import { authorizeMobileApiRequest, readMobileApiClaimedUserId } from "@/lib/auth/api";
-import { createServerTiming } from "@/lib/server-timing";
+import { createServerTimingForRequest } from "@/lib/server-timing";
 import { getChannelMessages } from "@/lib/workspace/message-service";
 import { requireChannelPermissionForUser } from "@/lib/workspace/permission-service";
 import { PermissionBits } from "@/lib/workspace/permissions";
@@ -78,7 +78,7 @@ export async function mobileChannelMessagesGetRoute(
   context: MobileChannelMessagesGetRouteContext,
   dependencies: MobileChannelMessagesGetRouteDependencies = defaultDependencies,
 ) {
-  const timing = createServerTiming();
+  const timing = createServerTimingForRequest(request);
 
   try {
     const claimedUserId = dependencies.readUserId(request);
@@ -126,7 +126,7 @@ export async function mobileChannelMessagesGetRoute(
       },
     );
   } catch (error) {
-    return jsonError(error);
+    return jsonError(error, timing.requestId);
   }
 }
 
