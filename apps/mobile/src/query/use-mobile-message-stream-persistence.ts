@@ -11,6 +11,7 @@ import {
   hydrateMobileMessageStream,
   isMobileMessageStreamRevoked,
   persistMobileMessageStream,
+  trimMobileMessageStream,
 } from "./mobile-message-stream-cache";
 
 type MobileMessageStreamData = {
@@ -86,6 +87,19 @@ export function useMobileMessageStreamPersistence(input: {
       () => undefined,
     );
   }, [isRevoked, queryClient, scope, store, targetId, userId]);
+
+  // Leaving a conversation gives its older pages back. The stream stays in the
+  // cache — reopening it must not cost a request — but a reader who paged to the
+  // start of a long conversation should not carry all of it into the next one.
+  useEffect(() => {
+    if (targetId.length === 0) {
+      return;
+    }
+
+    return () => {
+      trimMobileMessageStream({ queryClient, scope, targetId });
+    };
+  }, [queryClient, scope, targetId]);
 
   useEffect(() => {
     if (!enabled || targetId.length === 0 || userId.length === 0) {

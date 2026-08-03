@@ -1,0 +1,16 @@
+appId: team.whispr.mobile
+---
+# The reader's own path. Every other flow opens a chat with `openLink`, so the
+# `tap` phase read n=0 in forty-two device runs and the prefetch open counter —
+# which only fires from the tap handler — could only ever report 0%.
+- extendedWaitUntil:
+    visible:
+      id: "mobile-dm-inbox-screen"
+    timeout: 15000
+- tapOn:
+    id: "mobile-dm-conversation-row"
+    index: 0
+- extendedWaitUntil:
+    visible:
+      id: "mobile-dm-chat-screen"
+    timeout: 15000

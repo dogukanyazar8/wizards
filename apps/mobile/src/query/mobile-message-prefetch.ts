@@ -179,6 +179,16 @@ export const MOBILE_RECENT_DM_RESTORE_LIMIT = 5;
 export function selectMobileRecentDMRestoreIds(input: {
   readonly conversations: readonly { readonly id: string }[];
   readonly limit?: number;
+  /**
+   * The conversation the reader is opening right now, moved to the front.
+   *
+   * The encrypted store is one connection and the reads run one at a time, so
+   * position in this list is time. A device run designed to measure the restore
+   * reported `sqlcipher n=0` against `network n=30`: the page the reader was
+   * actually waiting for sat behind four they were not, and the network answered
+   * first every single time.
+   */
+  readonly priorityConversationId?: string | null;
 }): string[] {
   const limit = input.limit ?? MOBILE_RECENT_DM_RESTORE_LIMIT;
   if (limit <= 0) {
@@ -186,18 +196,20 @@ export function selectMobileRecentDMRestoreIds(input: {
   }
 
   const ids = new Set<string>();
+  const priority = input.priorityConversationId ?? "";
+  if (priority.length > 0) {
+    ids.add(priority);
+  }
+
   for (const conversation of input.conversations) {
-    if (conversation.id.length === 0) {
+    if (conversation.id.length === 0 || ids.size >= limit) {
       continue;
     }
 
     ids.add(conversation.id);
-    if (ids.size >= limit) {
-      break;
-    }
   }
 
-  return [...ids];
+  return [...ids].slice(0, limit);
 }
 
 export interface MobileMessagePrefetchActions {

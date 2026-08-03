@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react-native";
 import type { MobileChannelMessagesResponse, MobileDMMessagesResponse } from "@wizards/types";
 
-import type { MobileApiClient } from "../src/api/mobile-api-client";
+import type { MobileApiClient, MobileApiRequestOptions } from "../src/api/mobile-api-client";
 import { MobileLocaleProvider } from "../src/app/providers/mobile-locale-provider";
 import { useMobileMessagingFeature } from "../src/app/features/use-mobile-messaging-feature";
 import { mobileQueryKeys } from "../src/query/mobile-query-keys";
@@ -73,7 +73,7 @@ const renderedQueryClients: QueryClient[] = [];
 function createStalledDetailClient() {
   const paths: string[] = [];
   const client: MobileApiClient = {
-    async requestJson<TResponse>(path: string) {
+    async requestJson<TResponse>(path: string, options: MobileApiRequestOptions = {}) {
       paths.push(path);
 
       if (path.startsWith("/api/v1/mobile/channels/channel-9/messages")) {
@@ -85,7 +85,14 @@ function createStalledDetailClient() {
       }
 
       if (path === "/api/v1/mobile/servers/server-1") {
-        return new Promise<TResponse>(() => undefined);
+        return new Promise<TResponse>((_resolve, reject) => {
+          const abort = () => reject(Object.assign(new Error("Aborted"), { name: "AbortError" }));
+          if (options.signal?.aborted) {
+            abort();
+            return;
+          }
+          options.signal?.addEventListener("abort", abort, { once: true });
+        });
       }
 
       throw new Error(`Unexpected test request: ${path}`);
@@ -144,7 +151,7 @@ describe("chat open path", () => {
     const { client, paths } = createStalledDetailClient();
     const { view } = await renderMessagingFeature(client);
 
-    act(() => {
+    await act(() => {
       view.result.current.handleOpenWorkspaceRoute("server-1", "channel-9");
     });
 
@@ -160,7 +167,7 @@ describe("chat open path", () => {
     const { client } = createStalledDetailClient();
     const { view } = await renderMessagingFeature(client);
 
-    act(() => {
+    await act(() => {
       view.result.current.handleOpenWorkspaceRoute("server-1", "channel-9");
     });
 
@@ -174,7 +181,7 @@ describe("chat open path", () => {
     const { client, paths } = createStalledDetailClient();
     const { view } = await renderMessagingFeature(client);
 
-    act(() => {
+    await act(() => {
       view.result.current.handleOpenDMConversation("conversation-7");
     });
 

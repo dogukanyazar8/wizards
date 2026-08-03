@@ -177,7 +177,7 @@ describe("mobile performance device scripts", () => {
     }
   });
 
-  it("keeps scenarios 06-14 independently runnable with one reset and export", () => {
+  it("keeps scenarios 06-15 independently runnable with one reset and export", () => {
     const names = [
       "06-cold-start.ps1",
       "07-warm-resume.ps1",
@@ -188,6 +188,7 @@ describe("mobile performance device scripts", () => {
       "12-send.ps1",
       "13-content-scroll.ps1",
       "14-event-loop.ps1",
+      "15-tap-dm.ps1",
     ];
 
     for (const name of names) {
@@ -282,6 +283,65 @@ describe("mobile performance device scripts", () => {
     assert.match(output, /PERF_MESSAGE=perf-auto-[A-Za-z0-9._-]+-1/u);
     assert.match(output, /PERF_MESSAGE=perf-auto-[A-Za-z0-9._-]+-3/u);
     assert.equal((output.match(/DRYRUN\|MAESTRO\|send-dm\.yml/gu) ?? []).length, 3);
+  });
+
+  it("opens every repetition of the tap scenario with a finger, not a link", () => {
+    const output = runDry("15-tap-dm.ps1", 3);
+
+    // Forty-two device runs reported `tap n=0`: every flow used `openLink`, so
+    // the span never started at the tap and the prefetch open counter — which
+    // only fires from the tap handler — could only ever read 0%.
+    assert.equal((output.match(/DRYRUN\|MAESTRO\|tap-dm\.yml/gu) ?? []).length, 3);
+    assert.equal((output.match(/DRYRUN\|MAESTRO\|open-dm\.yml/gu) ?? []).length, 1);
+
+    const flow = readFileSync(path.join(performanceFlowsDirectory, "tap-dm.yml"), "utf8");
+    assert.doesNotMatch(flow, /^- openLink:/mu);
+    assert.match(flow, /- tapOn:\r?\n\s+id: "mobile-dm-conversation-row"/u);
+  });
+
+  it("fails a scenario whose own cohort came up short", () => {
+    const report = [
+      "samples 151",
+      "DirectMessage-cached     n=29  652.62 / 723.67",
+      "sqlcipher                n=0  - / - | -",
+      "lag                      n=120  16.1 / 21.1 / 283.7",
+    ].join("`n");
+    const call = (scenario: string, repetitions: number) =>
+      runModuleScript(
+        `$report = "${report}"; $result = Test-WhisprScenarioCohorts -Report $report -Scenario '${scenario}' -Repetitions ${repetitions}; if ($null -eq $result) { 'OK' } else { $result }`,
+      );
+
+    // 151 samples with 29 opens used to pass, because the gate counted samples
+    // of every kind rather than the one the scenario exists to produce.
+    const short = call("cached-dm", 30);
+    assert.equal(short.status, 0, short.stderr);
+    assert.match(
+      short.stdout,
+      /Cohort 'DirectMessage-cached' reported 29 samples, expected at least 30/u,
+    );
+
+    const exact = call("cached-dm", 29);
+    assert.equal(exact.stdout.trim().split(/\r?\n/u).at(-1), "OK");
+
+    // Three SQLCipher runs passed while reporting `sqlcipher n=0`.
+    const restore = call("sqlcipher", 30);
+    assert.match(restore.stdout, /Cohort 'sqlcipher' reported 0 samples, expected at least 30/u);
+
+    // Lag is sampled on a timer, so its floor is "any", not the repetition count.
+    const lag = call("content-scroll", 30);
+    assert.equal(lag.stdout.trim().split(/\r?\n/u).at(-1), "OK");
+
+    const missing = call("cached-channel", 1);
+    assert.match(missing.stdout, /no 'ChannelChat-cached' row/u);
+  });
+
+  it("gives the prefetch bridge longer than the app's own request budget", () => {
+    const source = readFileSync(modulePath, "utf8");
+
+    // 12s request timeout + one retry + up to 2s backoff is ~26s; a 20s host
+    // deadline fired first and returned eight of ten prefetch runs partial.
+    assert.match(source, /if \(\$Command -eq "prefetch"\) \{ 45 \} else \{ 20 \}/u);
+    assert.match(source, /-TimeoutSeconds \$markerTimeoutSeconds/u);
   });
 
   it("reconstructs only complete checksum-valid report frames", () => {

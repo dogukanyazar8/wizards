@@ -68,6 +68,16 @@ describe("mobile build environment parity", () => {
     assert.match(buildScript, /throw "A 12-40 character Git SHA is required/);
   });
 
+  it("says so when the APK carries uncommitted work", () => {
+    const buildScript = readMobileFile("scripts/build-android-uat.ps1");
+
+    // A SHA names the commit, not the binary. Two APKs built from the same HEAD
+    // with different uncommitted work both reported `b1528b6c5367`, and their
+    // device runs differed by a factor of two on the same metric.
+    assert.match(buildScript, /git -C \$resolvedSourceRoot status --porcelain/);
+    assert.match(buildScript, /\$resolvedBuildId = "\$resolvedBuildId-dirty"/);
+  });
+
   it("stamps both OTA and APK workflows with the checked-out commit", () => {
     const workflow = readMobileFile("../../.github/workflows/mobile-release.yml");
     const matches = workflow.match(/EXPO_PUBLIC_WHISPR_BUILD_ID: \$\{\{ github\.sha \}\}/g) ?? [];

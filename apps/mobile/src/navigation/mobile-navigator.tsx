@@ -13,6 +13,7 @@ import {
   ensureMobileNavigationSpan,
   markMobileNavigationStage,
 } from "../performance/mobile-navigation-timing";
+import { getMobileMessageListAnchorVariant } from "../app/components/message-list-anchor";
 import { resolveMobileMessageStreamOpenSource } from "../query/mobile-message-stream-source";
 import {
   advanceMobileChatTransitionVariant,
@@ -148,6 +149,9 @@ export function MobileNavigator({
       {
         cacheAgeMs:
           origin.cacheAgeMs === null ? null : Math.min(Math.max(origin.cacheAgeMs, 0), 86_400_000),
+        // Which layout the transcript was asked for. Both switches ride the open
+        // so a run can price them instead of arguing about them.
+        listAnchor: getMobileMessageListAnchorVariant(),
         source: origin.source,
         transition: getMobileChatTransitionVariant(),
       },

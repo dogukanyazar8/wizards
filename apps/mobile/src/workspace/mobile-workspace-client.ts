@@ -29,9 +29,12 @@ export function buildMobileWorkspaceServerPath(input: { serverId: string }): str
 
 export async function fetchMobileWorkspaceServer(
   client: MobileApiClient,
-  input: { serverId: string },
+  input: { serverId: string; signal?: AbortSignal | undefined },
 ): Promise<MobileManagedWorkspaceServerDetailResponse> {
-  const payload = await client.requestJson<unknown>(buildMobileWorkspaceServerPath(input));
+  const payload = await client.requestJson<unknown>(
+    buildMobileWorkspaceServerPath(input),
+    input.signal ? { signal: input.signal } : {},
+  );
   return MobileManagedWorkspaceServerDetailResponseSchema.parse(payload);
 }
 
@@ -69,9 +72,14 @@ export async function fetchMobileChannelMessages(
   input: {
     channelId: string;
     cursor?: string | null;
+    /** TanStack's own signal: a cancelled query must stop costing the JS thread. */
+    signal?: AbortSignal | undefined;
   },
 ): Promise<MobileChannelMessagesResponse> {
-  const payload = await client.requestJson<unknown>(buildMobileChannelMessagesPath(input));
+  const payload = await client.requestJson<unknown>(
+    buildMobileChannelMessagesPath(input),
+    input.signal ? { signal: input.signal } : {},
+  );
   return MobileChannelMessagesResponseSchema.parse(payload);
 }
 

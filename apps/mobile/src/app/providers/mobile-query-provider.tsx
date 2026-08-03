@@ -9,6 +9,8 @@ import {
 } from "../../query/mobile-query-cache-policy";
 import { createMobileQueryClient } from "../../query/mobile-query-client";
 import { planMobileQueryFocus } from "../../query/mobile-query-focus";
+import { selectMobileResumeRefreshKeys } from "../../query/mobile-resume-refresh";
+import { useMobileActiveTargetStore } from "../../state/mobile-active-target-store";
 import { createMobileQueryPersister } from "../../query/mobile-query-persistence";
 import { setMobileChatCacheProbe } from "../../performance/mobile-chat-route-target";
 import { markMobileStartupPhase } from "../../performance/mobile-startup-phases";
@@ -69,6 +71,13 @@ export function MobileQueryProvider({ children }: PropsWithChildren) {
       resumeTimer = setTimeout(() => {
         resumeTimer = null;
         focusManager.setFocused(plan.focused);
+        // Focus no longer refetches by itself (`refetchOnWindowFocus: false`), so
+        // the resume names what it wants: the screen the reader came back to.
+        for (const queryKey of selectMobileResumeRefreshKeys(
+          useMobileActiveTargetStore.getState(),
+        )) {
+          void queryClient.invalidateQueries({ exact: true, queryKey });
+        }
       }, plan.delayMs);
     });
 
@@ -77,7 +86,7 @@ export function MobileQueryProvider({ children }: PropsWithChildren) {
       subscription.remove();
       focusManager.setFocused(undefined);
     };
-  }, []);
+  }, [queryClient]);
 
   return (
     <PersistQueryClientProvider

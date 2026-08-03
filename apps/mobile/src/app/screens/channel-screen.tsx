@@ -45,10 +45,12 @@ import {
   type MobileRenderableMessage,
   type MobileMessageActionTarget,
 } from "../components/message-primitives";
+import { resolveMobileMessageUnreadAnchor } from "../components/message-grouping";
 import {
-  getMobileMessageGroupModel,
-  resolveMobileMessageUnreadAnchor,
-} from "../components/message-grouping";
+  buildMobileChannelStreamModel,
+  getMobileChannelMessageItemType,
+} from "../components/channel-stream-model";
+import { getMobileMessageListAnchorConfig } from "../components/message-list-anchor";
 import {
   MobileMessageMenuBoundsProvider,
   measureMobileMessageAnchor,
@@ -702,31 +704,12 @@ export const ChannelMessageList = forwardRef<
   const messages = useMemo(() => state.payload?.messages ?? [], [state.payload?.messages]);
   const navigationSampleIdRef = useRef(getMobileNavigationSampleId("ChannelChat"));
   // §1.2/§5: the channel groups through the one shared model — same author,
-  // inside five minutes, nothing (system event, day change) in between. The
-  // stream-item shape stays so FlashList's typing and keying are untouched.
-  const streamItems = useMemo<MobileMessageStreamItem<MobileRenderableMessage>[]>(() => {
-    const groups = getMobileMessageGroupModel(
-      messages.map((message) => ({
-        authorId: message.author.id,
-        createdAt: message.createdAt,
-        id: message.id,
-        isSystemEvent: isMobileChannelSystemEvent(message),
-      })),
-    );
-
-    return messages.map((message, index) => {
-      const group = groups[index];
-      const next = groups[index + 1];
-
-      return {
-        id: message.id,
-        isGroupedWithNext: next !== undefined && !next.isGroupStart,
-        isGroupedWithPrevious: group !== undefined && !group.isGroupStart,
-        message,
-        showDateSeparator: group?.showDateSeparator === true,
-      };
-    });
-  }, [messages]);
+  // inside five minutes, nothing (system event, day change) in between. Grouping,
+  // the telemetry content classes and the unread anchor's input all come out of
+  // one pass now; they used to be six walks of the same array, one of them on
+  // every render.
+  const streamModel = useMemo(() => buildMobileChannelStreamModel(messages), [messages]);
+  const streamItems = streamModel.items;
   useEffect(() => {
     navigationSampleIdRef.current ??= getMobileNavigationSampleId("ChannelChat");
     markMobileNavigationPhase(
@@ -747,25 +730,13 @@ export const ChannelMessageList = forwardRef<
       return;
     }
     navigationSampleIdRef.current ??= getMobileNavigationSampleId("ChannelChat");
-    const attachmentCount = messages.reduce(
-      (total, message) => total + message.attachments.length,
-      0,
-    );
-    const reactionCount = messages.reduce((total, message) => total + message.reactions.length, 0);
-    const richContentCount = messages.filter(
-      (message) =>
-        message.attachments.length > 0 ||
-        message.reactions.length > 0 ||
-        message.replyTo != null ||
-        message.forwardedAt != null,
-    ).length;
     annotateMobileNavigationSpan(
       "ChannelChat",
       {
-        attachmentCountClass: toChannelCountClass(attachmentCount),
+        attachmentCountClass: toChannelCountClass(streamModel.attachmentCount),
         messageCount: Math.min(messages.length, 200),
-        reactionCountClass: toChannelCountClass(reactionCount),
-        richContentCountClass: toChannelCountClass(richContentCount),
+        reactionCountClass: toChannelCountClass(streamModel.reactionCount),
+        richContentCountClass: toChannelCountClass(streamModel.richContentCount),
         visibleInitialRowCount: Math.min(messages.length, 12),
       },
       navigationSampleIdRef.current,
@@ -783,7 +754,7 @@ export const ChannelMessageList = forwardRef<
       now,
       navigationSampleIdRef.current,
     );
-  }, [messages, state.payload]);
+  }, [messages.length, state.payload, streamModel]);
   const handleListLoad = useCallback(
     (info: { elapsedTimeInMs: number }) =>
       mobileListLoadHandlers.channelMessages(info, navigationSampleIdRef.current),
@@ -792,6 +763,7 @@ export const ChannelMessageList = forwardRef<
   const listRef = useRef<FlashListRef<MobileMessageStreamItem<MobileRenderableMessage>> | null>(
     null,
   );
+  const listAnchor = getMobileMessageListAnchorConfig();
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   // 10e: long press opens the full action menu for exactly one row. The id lives
   // here, not inside the recycled row, so realtime updates cannot drop it.
@@ -875,11 +847,9 @@ export const ChannelMessageList = forwardRef<
   const [unreadAnchorId, setUnreadAnchorId] = useState<string | null>(firstUnreadMessageId);
   const pinnedUnreadMessageId = resolveMobileMessageUnreadAnchor({
     lastReadMessageId: null,
-    messages: messages.map((message) => ({
-      authorId: message.author.id,
-      createdAt: message.createdAt,
-      id: message.id,
-    })),
+    // Reuses the model's own array. Mapping every message here ran on each
+    // render — a keystroke in the composer walked the whole transcript.
+    messages: streamModel.groupable,
     pinnedMessageId: unreadAnchorId,
   });
   useEffect(() => {
@@ -1058,6 +1028,10 @@ export const ChannelMessageList = forwardRef<
           data={streamItems}
           ref={listRef}
           drawDistance={performanceConfig.windowSize * 100}
+          // The DM transcript has had this since it was written; the channel had
+          // none, so a system event, an attachment card and a plain bubble all
+          // recycled through one slot and every reuse rebuilt the subtree.
+          getItemType={getMobileChannelMessageItemType}
           keyboardShouldPersistTaps="handled"
           keyExtractor={(item) => item.id}
           ListEmptyComponent={emptyComponent}
@@ -1066,11 +1040,8 @@ export const ChannelMessageList = forwardRef<
           // only follows a new message when the reader is already near the end.
           // The manual scrollToEnd this replaced fought pagination — every
           // prepended page changed the content size and yanked the view back down.
-          maintainVisibleContentPosition={{
-            animateAutoScrollToBottom: true,
-            autoscrollToBottomThreshold: 0.2,
-            startRenderingFromBottom: true,
-          }}
+          // Shared switch with the DM transcript; see `message-list-anchor`.
+          maintainVisibleContentPosition={listAnchor}
           onLoad={handleListLoad}
           onScroll={handleScroll}
           {...(onLoadMore ? { onStartReached: onLoadMore, onStartReachedThreshold: 0.35 } : {})}

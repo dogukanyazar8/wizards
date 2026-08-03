@@ -38,6 +38,7 @@ import { mobileMessagingMetrics } from "../../design/tokens";
 import { AvatarMark } from "./ui-atoms";
 import { MobileCachedImage } from "./mobile-cached-image";
 import { Icon, Skeleton } from "./kit";
+import { useMobileDeferredRowContent } from "./use-deferred-row-content";
 import { MessageActionMenu } from "./message-action-menu";
 import { measureMobileMessageAnchor, type MobileMessageAnchorRect } from "./message-menu-anchor";
 import { MessageVoiceAttachment, isMobileVoiceAttachment } from "./message-voice-attachment";
@@ -1041,6 +1042,9 @@ export function MessagePreviewRow({
     deleted: copy.dmDeletedMessage,
   });
   const previewUrl = extractFirstHttpsUrl(message.content);
+  // Same reasoning as the DM transcript: the card renders `null` until its fetch
+  // resolves, so mounting it during the opening frame buys the reader nothing.
+  const showLinkPreview = useMobileDeferredRowContent(previewUrl !== null);
   const isFailed = message.deliveryStatus === "failed";
   const isSendPending = message.deliveryStatus === "sending";
   // 10a: a channel row that names you gets the Discord-style soft fill and left
@@ -1230,7 +1234,9 @@ export function MessagePreviewRow({
           ) : null}
           <MessageBodyText body={body} channel={isChannelMode} />
           {/* §2 "1e".3 puts the preview under the channel body too, not just the DM one. */}
-          {previewUrl ? <MobileLinkPreviewCard messageId={message.id} url={previewUrl} /> : null}
+          {showLinkPreview && previewUrl ? (
+            <MobileLinkPreviewCard messageId={message.id} url={previewUrl} />
+          ) : null}
           {message.editedAt ? (
             <Text style={styles.dmMessageTime}>{copy.messageEditedLabel}</Text>
           ) : null}

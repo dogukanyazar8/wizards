@@ -7,7 +7,7 @@ import { mobileQueryKeys } from "./mobile-query-keys";
 export function getMobileBootstrapQueryOptions(client: MobileApiClient, enabled = true) {
   return queryOptions({
     enabled,
-    queryFn: () => fetchMobileBootstrap(client),
+    queryFn: ({ signal }) => fetchMobileBootstrap(client, signal),
     queryKey: mobileQueryKeys.bootstrap(),
     // Persisted root: it is on disk for a day, so dropping it from memory in
     // half an hour would only force a re-read of what the device already has.

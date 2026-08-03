@@ -8,6 +8,7 @@ import {
 import type { MobileBootstrapPayload } from "@wizards/types";
 
 import type { MobileApiClient } from "../api/mobile-api-client";
+import { MOBILE_PERSISTED_QUERY_GC_TIME_MS } from "../query/mobile-query-cache-policy";
 import { mobileQueryKeys } from "../query/mobile-query-keys";
 import {
   patchMobileProfileIdentityCaches,
@@ -44,6 +45,10 @@ type MobileUserSearchRelationPatch = Pick<MobileUserSearchResult, "relationship"
 export function getMobileFriendsQueryOptions(client: MobileApiClient, enabled = true) {
   return queryOptions({
     enabled,
+    // A persisted root pins its own retention: the default is half an hour now,
+    // and a payload restored from disk that memory drops first is a restore the
+    // reader pays for twice.
+    gcTime: MOBILE_PERSISTED_QUERY_GC_TIME_MS,
     queryFn: () => fetchMobileFriends(client),
     queryKey: mobileQueryKeys.friends(),
     staleTime: 30_000,

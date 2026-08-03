@@ -191,6 +191,32 @@ describe("recent DM restore selection", () => {
     );
   });
 
+  it("puts the conversation being opened at the front of the queue", () => {
+    // The encrypted store is one connection and the reads run one at a time, so
+    // position is time. A run built to measure the restore reported
+    // `sqlcipher n=0` against `network n=30` while the page the reader waited
+    // for sat behind four they did not.
+    assert.deepEqual(
+      selectMobileRecentDMRestoreIds({
+        conversations: [{ id: "a" }, { id: "b" }, { id: "c" }],
+        limit: 3,
+        priorityConversationId: "c",
+      }),
+      ["c", "a", "b"],
+    );
+  });
+
+  it("never restores more than the limit, priority included", () => {
+    assert.deepEqual(
+      selectMobileRecentDMRestoreIds({
+        conversations: [{ id: "a" }, { id: "b" }, { id: "c" }],
+        limit: 2,
+        priorityConversationId: "z",
+      }),
+      ["z", "a"],
+    );
+  });
+
   it("restores nothing when there is nothing to restore", () => {
     assert.deepEqual(selectMobileRecentDMRestoreIds({ conversations: [{ id: "" }], limit: 3 }), []);
     assert.deepEqual(

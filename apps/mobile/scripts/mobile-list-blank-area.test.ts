@@ -93,15 +93,29 @@ describe("list blank area", () => {
     );
   });
 
-  it("leaves drawDistance alone until the number exists", () => {
+  it("keeps the DM window at the platform default the measurement licensed", () => {
     const transcript = readFileSync(
       path.join(__dirname, "..", "src/app/components/dm-chat-primitives.tsx"),
       "utf8",
     );
 
-    // W1 measures first. Lowering the window blindly buys render time by showing
-    // the reader empty space instead, which is not a win.
-    assert.match(transcript, /drawDistance=\{700\}/u);
+    // 700 buffered 1400px — about two extra screens of rows — before first paint.
+    // 250 is FlashList's own Android default, and the blank-area instrument put
+    // this list at p95 20-82px, so the headroom was real rather than assumed.
+    assert.match(transcript, /const DM_DRAW_DISTANCE = 250;/u);
+    assert.match(transcript, /drawDistance=\{DM_DRAW_DISTANCE\}/u);
     assert.match(transcript, /reportMobileListBlankArea\("dm-messages"/u);
+  });
+
+  it("leaves the channel window alone, because its blank area has none to give", () => {
+    const channel = readFileSync(
+      path.join(__dirname, "..", "src/app/screens/channel-screen.tsx"),
+      "utf8",
+    );
+
+    // Channel blank area measured p95 = max = 504px: the renderer is already
+    // behind the thumb there, and narrowing the window would only widen the gap.
+    assert.match(channel, /drawDistance=\{performanceConfig\.windowSize \* 100\}/u);
+    assert.match(channel, /reportMobileListBlankArea\("channel-messages"/u);
   });
 });

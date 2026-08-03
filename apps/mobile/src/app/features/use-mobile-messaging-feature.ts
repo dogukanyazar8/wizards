@@ -357,6 +357,9 @@ export function useMobileMessagingFeature({
   useMobileRecentDMRestore({
     conversations: dmConversations,
     enabled: isSignedIn,
+    // The open conversation is restored first and without waiting for idle; the
+    // speculative ones queue behind it.
+    priorityConversationId: selectedDMConversationId,
     queryClient,
     userId: currentUser?.id ?? null,
   });

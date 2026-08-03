@@ -27,8 +27,8 @@ export function getMobileChannelMessagesQueryOptions(client: MobileApiClient, ch
     enabled: channelId.length > 0,
     getNextPageParam: (page: MobileChannelMessagesResponse) => page.nextCursor ?? undefined,
     initialPageParam: null as string | null,
-    queryFn: ({ pageParam }) =>
-      fetchMobileChannelMessages(client, { channelId, cursor: pageParam }),
+    queryFn: ({ pageParam, signal }) =>
+      fetchMobileChannelMessages(client, { channelId, cursor: pageParam, signal }),
     queryKey: mobileQueryKeys.channelMessages(channelId),
     staleTime: MOBILE_MESSAGE_STREAM_STALE_TIME_MS,
   });
@@ -43,8 +43,8 @@ export function getMobileDMMessagesQueryOptions(client: MobileApiClient, convers
     enabled: conversationId.length > 0,
     getNextPageParam: (page: MobileDMMessagesResponse) => page.nextCursor ?? undefined,
     initialPageParam: null as string | null,
-    queryFn: ({ pageParam }) =>
-      fetchMobileDMMessages(client, { conversationId, cursor: pageParam }),
+    queryFn: ({ pageParam, signal }) =>
+      fetchMobileDMMessages(client, { conversationId, cursor: pageParam, signal }),
     queryKey: mobileQueryKeys.dmMessages(conversationId),
     staleTime: MOBILE_MESSAGE_STREAM_STALE_TIME_MS,
   });

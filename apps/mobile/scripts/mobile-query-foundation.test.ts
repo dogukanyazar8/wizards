@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { MobileApiClient } from "../src/api/mobile-api-client";
 import {
+  MOBILE_MEMORY_QUERY_GC_TIME_MS,
+  MOBILE_PERSISTED_QUERY_GC_TIME_MS,
   MOBILE_QUERY_CACHE_MAX_AGE_MS,
   getMobileQueryCacheKey,
   shouldPersistMobileQuery,
@@ -54,19 +56,42 @@ test("thread query keys isolate the parent message from channel and DM history",
   ]);
 });
 
-test("mobile query client keeps cached data for the persisted max age", () => {
+test("mobile query client keeps memory-only data for half an hour, not a day", () => {
   const client = createMobileQueryClient();
   const defaults = client.getDefaultOptions().queries;
 
   assert.equal(defaults?.retry, 1);
   assert.equal(defaults?.staleTime, 15_000);
-  assert.equal(defaults?.gcTime, MOBILE_QUERY_CACHE_MAX_AGE_MS);
+  // The day belongs to the persisted roots, which pin it themselves. Message
+  // streams had been inheriting it by default, and a device reported 499MB PSS
+  // with every conversation it had ever opened still resident.
+  assert.equal(defaults?.gcTime, MOBILE_MEMORY_QUERY_GC_TIME_MS);
+  assert.notEqual(defaults?.gcTime, MOBILE_QUERY_CACHE_MAX_AGE_MS);
   assert.equal(defaults?.refetchOnReconnect, true);
   const retryDelay = defaults?.retryDelay;
   assert.equal(typeof retryDelay, "function");
   if (typeof retryDelay === "function") {
     assert.equal(retryDelay(0, new Error("x")), 1_000);
     assert.equal(retryDelay(5, new Error("x")), 2_000);
+  }
+});
+
+test("every persisted root pins the day the default no longer grants", async () => {
+  const client: MobileApiClient = { requestJson: async () => ({}) as never };
+  const { getMobileFriendsQueryOptions } = await import("../src/social/mobile-social-query");
+  const { getMobileWorkspaceQueryOptions } = await import("../src/query/mobile-workspace-query");
+  const { getMobileDMConversationsQueryOptions } =
+    await import("../src/query/mobile-dm-conversations-query");
+
+  // A root that restores from disk and is evicted from memory half an hour later
+  // makes the reader pay for the restore twice.
+  for (const options of [
+    getMobileBootstrapQueryOptions(client),
+    getMobileFriendsQueryOptions(client),
+    getMobileWorkspaceQueryOptions(client, "server-1"),
+    getMobileDMConversationsQueryOptions(client, true),
+  ]) {
+    assert.equal(options.gcTime, MOBILE_PERSISTED_QUERY_GC_TIME_MS);
   }
 });
 

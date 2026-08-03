@@ -2,6 +2,32 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 $script:WhisprPackage = "team.whispr.mobile"
+
+<#
+  What each scenario has to have measured before its report counts.
+
+  The old gate read the report's total `samples` line, which counts every sample
+  of every kind: a run that produced 151 samples and only 28 chat opens passed as
+  a complete 30-repetition run, and the SQLCipher scenario passed three times in a
+  row while reporting `sqlcipher n=0` and `network n=30` — it never measured the
+  thing it exists to measure. These are the cohort rows the panel prints, and a
+  scenario fails when its own cohort is short.
+#>
+$script:ScenarioCohorts = @{
+  "cold-start"       = @("startup", "DirectMessage-cached")
+  "warm-resume"      = @("resume")
+  "cached-dm"        = @("DirectMessage-cached")
+  "cached-channel"   = @("ChannelChat-cached")
+  "sqlcipher"        = @("sqlcipher")
+  "prefetch-network" = @("memory", "network")
+  "send"             = @("send-echo", "send-ack")
+  "content-scroll"   = @("lag")
+  "event-loop"       = @("lag", "resume")
+  "tap-dm"           = @("tap", "DirectMessage-cached")
+}
+
+# Sampled on a timer rather than once per repetition, so its floor is "any".
+$script:CohortFloorOne = @("lag")
 $script:FlowRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\..\..\..\.maestro\performance"))
 $script:DefaultOutputRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\..\..\..\artifacts\mobile\performance"))
 
@@ -149,7 +175,17 @@ function Send-WhisprPerfCommand {
   [void](Invoke-WhisprAdb -DeviceSerial $DeviceSerial -Arguments @(
       "shell", "am", "start", "-W", "-a", "android.intent.action.VIEW", "-d", $shellQuotedUrl, "-p", $script:WhisprPackage
     ))
-  Wait-WhisprPerfMarker -DeviceSerial $DeviceSerial -RunId $RunId -Marker $(if ($Command -eq "export") { "END" } else { "ACK" }) -Command $Command
+  # `prefetch` runs a real read through the app's own client: a 12s request
+  # timeout, one retry and up to 2s of backoff is ~26s in the worst case. A 20s
+  # host deadline fired first and failed runs the device was still serving —
+  # eight of ten prefetch-network runs came back partial for this alone.
+  $markerTimeoutSeconds = if ($Command -eq "prefetch") { 45 } else { 20 }
+  Wait-WhisprPerfMarker `
+    -DeviceSerial $DeviceSerial `
+    -RunId $RunId `
+    -Marker $(if ($Command -eq "export") { "END" } else { "ACK" }) `
+    -Command $Command `
+    -TimeoutSeconds $markerTimeoutSeconds
 }
 
 function ConvertFrom-WhisprPerformanceFrames {
@@ -298,6 +334,18 @@ function Invoke-WhisprScenarioWorkload {
         Invoke-WhisprMaestroFlow -DeviceSerial $DeviceSerial -FlowName "open-channel-in-session.yml" -Environment $channelEnvironment -DryRun:$DryRun
       }
     }
+    "tap-dm" {
+      # Opens once by link to bring the app forward, then never again: every
+      # repetition after this is a finger on an inbox row, which is the only path
+      # that starts a span at the tap and the only one that can score a prefetch.
+      Invoke-WhisprMaestroFlow -DeviceSerial $DeviceSerial -FlowName "open-dm.yml" -Environment $dmEnvironment -DryRun:$DryRun
+      Invoke-WhisprMaestroFlow -DeviceSerial $DeviceSerial -FlowName "return-to-dm-inbox.yml" -DryRun:$DryRun
+      for ($index = 1; $index -le $Repetitions; $index++) {
+        Write-WhisprIterationProgress -Scenario $Scenario -Index $index -Total $Repetitions
+        Invoke-WhisprMaestroFlow -DeviceSerial $DeviceSerial -FlowName "tap-dm.yml" -DryRun:$DryRun
+        Invoke-WhisprMaestroFlow -DeviceSerial $DeviceSerial -FlowName "return-to-dm-inbox.yml" -DryRun:$DryRun
+      }
+    }
     "sqlcipher" {
       & $command "purge" "dm" $DmConversationId
       Invoke-WhisprMaestroFlow -DeviceSerial $DeviceSerial -FlowName "open-dm.yml" -Environment $dmEnvironment -DryRun:$DryRun
@@ -355,6 +403,44 @@ function Invoke-WhisprScenarioWorkload {
   }
 }
 
+function Get-WhisprReportCohortCount {
+  param(
+    [Parameter(Mandatory = $true)][string]$Report,
+    [Parameter(Mandatory = $true)][string]$Label
+  )
+
+  $match = [regex]::Match($Report, "(?m)^$([regex]::Escape($Label))\s+n=(\d+)")
+  # -1 means the row is absent, which is a different failure from a row that ran
+  # and measured nothing: one is a report shape change, the other is a short run.
+  if (-not $match.Success) { return -1 }
+  return [int]$match.Groups[1].Value
+}
+
+function Test-WhisprScenarioCohorts {
+  param(
+    [Parameter(Mandatory = $true)][string]$Report,
+    [Parameter(Mandatory = $true)][string]$Scenario,
+    [Parameter(Mandatory = $true)][int]$Repetitions
+  )
+
+  if (-not $script:ScenarioCohorts.ContainsKey($Scenario)) {
+    return "Scenario '$Scenario' declares no cohort to validate."
+  }
+
+  foreach ($label in $script:ScenarioCohorts[$Scenario]) {
+    $minimum = if ($script:CohortFloorOne -contains $label) { 1 } else { $Repetitions }
+    $count = Get-WhisprReportCohortCount -Report $Report -Label $label
+    if ($count -lt 0) {
+      return "Report has no '$label' row; the scenario measured nothing it is for."
+    }
+    if ($count -lt $minimum) {
+      return "Cohort '$label' reported $count samples, expected at least $minimum."
+    }
+  }
+
+  return $null
+}
+
 function Export-WhisprPerformanceReport {
   param(
     [Parameter(Mandatory = $true)][string]$DeviceSerial,
@@ -379,8 +465,8 @@ function Export-WhisprPerformanceReport {
     $validationError = "Report contains fewer than $MinimumSamples samples."
   } elseif ($Scenario -eq "sqlcipher" -and $report -notmatch "(?m)^cipher_version (?!-)\S+.*\| status open \|") {
     $validationError = "Report does not prove an open SQLCipher store."
-  } elseif ($Scenario -eq "event-loop" -and $report -notmatch "(?m)^lag\s+n=[1-9]\d*") {
-    $validationError = "Report contains no event-loop lag samples."
+  } else {
+    $validationError = Test-WhisprScenarioCohorts -Report $report -Scenario $Scenario -Repetitions $MinimumSamples
   }
 
   $runDirectory = Join-Path $OutputRoot $RunId
@@ -397,7 +483,7 @@ function Invoke-WhisprPerformanceScenario {
   [CmdletBinding()]
   param(
     [Parameter(Mandatory = $true)]
-    [ValidateSet("cold-start", "warm-resume", "cached-dm", "cached-channel", "sqlcipher", "prefetch-network", "send", "content-scroll", "event-loop")]
+    [ValidateSet("cold-start", "warm-resume", "cached-dm", "cached-channel", "sqlcipher", "prefetch-network", "send", "content-scroll", "event-loop", "tap-dm")]
     [string]$Scenario,
     [string]$DeviceSerial = "",
     [ValidateRange(1, 100)][int]$Repetitions = 30,

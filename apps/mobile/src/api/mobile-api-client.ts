@@ -131,8 +131,27 @@ export function createMobileApiClient(options: MobileApiClientOptions): MobileAp
         throw new MobileOfflineError();
       }
 
+      /**
+       * The request dies when either clock says so: the timeout below, or the
+       * caller.
+       *
+       * `signal` used to be written into `fetchOptions` after the spread, so a
+       * caller's signal was always discarded — TanStack could cancel a query and
+       * its HTTP request would keep running, keep downloading and keep parsing on
+       * the JS thread. A resume that abandoned a dozen refetches abandoned only
+       * the bookkeeping.
+       */
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), timeoutMs);
+      const callerSignal = requestOptions.signal ?? null;
+      const abortFromCaller = () => controller.abort(callerSignal?.reason);
+      if (callerSignal) {
+        if (callerSignal.aborted) {
+          controller.abort(callerSignal.reason);
+        } else {
+          callerSignal.addEventListener("abort", abortFromCaller);
+        }
+      }
 
       try {
         const { body: requestBody, ...initWithoutBody } = requestOptions;
@@ -239,6 +258,7 @@ export function createMobileApiClient(options: MobileApiClientOptions): MobileAp
         });
       } finally {
         clearTimeout(timeout);
+        callerSignal?.removeEventListener("abort", abortFromCaller);
       }
     },
   };

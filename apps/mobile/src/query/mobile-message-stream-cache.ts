@@ -5,6 +5,7 @@ import {
   forgetMobileMessageStreamOrigin,
   markMobileMessageStreamRestored,
 } from "./mobile-message-stream-source";
+import { trimMobileMessageStreamPages } from "./mobile-message-stream-trim";
 
 type MobileMessageStreamData = {
   readonly pageParams: readonly unknown[];
@@ -81,6 +82,40 @@ export async function hydrateMobileMessageStream(input: {
   );
   markMobileMessageStreamRestored(input.scope, input.targetId, entry.updatedAt);
   return entry.updatedAt;
+}
+
+/**
+ * Gives a conversation's older pages back once the reader has left it.
+ *
+ * The write carries the stream's own `dataUpdatedAt` forward. Without that, a
+ * trim would date the stream to now — the query would look freshly fetched, its
+ * stale window would restart, and the network reconciliation that a restored or
+ * warmed page depends on would be skipped on the next open.
+ */
+export function trimMobileMessageStream(input: {
+  readonly maxPages?: number;
+  readonly queryClient: QueryClient;
+  readonly scope: MobileMessageStoreScope;
+  readonly targetId: string;
+}): boolean {
+  if (input.targetId.length === 0) {
+    return false;
+  }
+
+  const queryKey = streamQueryKey(input.scope, input.targetId);
+  const state = input.queryClient.getQueryState<MobileMessageStreamData>(queryKey);
+  const current = state?.data;
+  if (!current) {
+    return false;
+  }
+
+  const trimmed = trimMobileMessageStreamPages(current, input.maxPages);
+  if (trimmed === current) {
+    return false;
+  }
+
+  input.queryClient.setQueryData(queryKey, trimmed, { updatedAt: state.dataUpdatedAt });
+  return true;
 }
 
 /**

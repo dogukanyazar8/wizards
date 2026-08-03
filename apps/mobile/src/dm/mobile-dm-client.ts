@@ -152,9 +152,14 @@ export async function fetchMobileDMMessages(
   input: {
     conversationId: string;
     cursor?: string | null;
+    /** TanStack's own signal: a cancelled query must stop costing the JS thread. */
+    signal?: AbortSignal | undefined;
   },
 ): Promise<MobileDMMessagesResponse> {
-  const payload = await client.requestJson<unknown>(buildMobileDMMessagesPath(input));
+  const payload = await client.requestJson<unknown>(
+    buildMobileDMMessagesPath(input),
+    input.signal ? { signal: input.signal } : {},
+  );
   return MobileDMMessagesResponseSchema.parse(payload);
 }
 

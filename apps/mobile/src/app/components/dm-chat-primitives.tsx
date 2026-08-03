@@ -29,6 +29,8 @@ import {
 import { mobileListLoadHandlers } from "../../performance/mobile-performance-metrics";
 import { getMobileMessageGroupModel } from "./message-grouping";
 import { reportMobileListBlankArea } from "./message-list-blank-area";
+import { getMobileMessageListAnchorConfig } from "./message-list-anchor";
+import { useMobileDeferredRowContent } from "./use-deferred-row-content";
 import {
   createMobileMessageEntranceTracker,
   type MobileMessageEntranceTracker,
@@ -394,6 +396,22 @@ const DM_ENTER_TRANSLATE_Y = 8;
 /** Within this much of the bottom the list keeps following new messages. */
 const DM_AT_BOTTOM_THRESHOLD = 24;
 
+/**
+ * How far past the viewport FlashList renders, in pixels.
+ *
+ * FlashList buffers `drawDistance` in both directions, so 700 meant 1400px of
+ * extra rows — roughly two more screens of them — built before the reader saw
+ * anything. A device measured 560-676ms between `list-mounted` and `content` on
+ * an idle JS thread with the whole conversation already in memory: that window
+ * is what the transcript spends its open on.
+ *
+ * 250 is FlashList's own Android default. It is affordable here because the
+ * blank-area instrument next to it measured this list at p50 3-20px and p95
+ * 20-82px against the channel's 504px — the DM transcript had the headroom, the
+ * channel does not and keeps its own window.
+ */
+const DM_DRAW_DISTANCE = 250;
+
 export function DMChatMessageRow({
   animateEntrance = false,
   currentUserId,
@@ -488,6 +506,9 @@ export function DMChatMessageRow({
   const isSendPending = message.deliveryStatus === "sending";
   const isDeleted = message.deletedAt !== null;
   const linkPreviewUrl = !isDeleted && !isFailed ? extractFirstHttpsUrl(message.content) : null;
+  // The card is a query observer that renders nothing until its fetch resolves,
+  // so it costs the opening frame without adding to it.
+  const showLinkPreview = useMobileDeferredRowContent(linkPreviewUrl !== null);
   const replyAuthorLabel = message.replyTo
     ? message.replyTo.userId === currentUserId
       ? copy.messageYouLabel
@@ -542,10 +563,22 @@ export function DMChatMessageRow({
   const handlePressOut = useCallback(() => {
     pressScale.value = reducedMotion ? 1 : withTiming(1, { duration: 150 });
   }, [pressScale, reducedMotion]);
-  const handleSwipeReply = useCallback(() => {
+  /**
+   * Read through a ref so the gesture below outlives the message it belongs to.
+   *
+   * FlashList recycles a row by handing it a different message, and the callback
+   * changed with it — which rebuilt a native pan handler on every reuse, thirty
+   * of them on an open. The handler is the expensive part; which message it
+   * replies to is not.
+   */
+  const swipeReplyRef = useRef<() => void>(() => undefined);
+  swipeReplyRef.current = () => {
     haptics.selection();
     onReplyMessage?.({ authorLabel, content: message.content, id: message.id });
-  }, [authorLabel, haptics, message.content, message.id, onReplyMessage]);
+  };
+  const handleSwipeReply = useCallback(() => {
+    swipeReplyRef.current();
+  }, []);
   const swipeReplyEnabled = Boolean(onReplyMessage) && !isFailed && !isDeleted;
   const replyGesture = useMemo(
     () =>
@@ -683,7 +716,7 @@ export function DMChatMessageRow({
                 {copy.messageEditedLabel}
               </Text>
             ) : null}
-            {linkPreviewUrl ? (
+            {showLinkPreview && linkPreviewUrl ? (
               <MobileLinkPreviewCard messageId={message.id} url={linkPreviewUrl} />
             ) : null}
             {isFailed ? (
@@ -1069,6 +1102,7 @@ export function DMChatMessageList({
   entranceTrackerRef.current ??= createMobileMessageEntranceTracker();
   const enteringMessageIds = entranceTrackerRef.current.select(messages);
   const listRef = useRef<FlashListRef<DMChatMessageGroupItem> | null>(null);
+  const listAnchor = getMobileMessageListAnchorConfig();
   // §4: at the bottom the list follows new messages; away from it, the arrival
   // becomes a pill instead of yanking the reader down.
   const [isAtBottom, setIsAtBottom] = useState(true);
@@ -1088,8 +1122,9 @@ export function DMChatMessageList({
     const atBottom = distanceFromBottom <= DM_AT_BOTTOM_THRESHOLD;
     setIsAtBottom(atBottom);
     if (atBottom) setPendingNewMessageCount(0);
-    // `drawDistance` below stays at 700 until this reads clean: lowering it
-    // blindly buys render time by showing the reader empty space instead.
+    // What licensed the `drawDistance` below coming down, and what would catch
+    // it going too far: lowering the window blindly buys render time by showing
+    // the reader empty space instead.
     reportMobileListBlankArea("dm-messages", listRef.current, event.nativeEvent);
   }, []);
   const handleJumpToLatest = useCallback(() => {
@@ -1250,16 +1285,13 @@ export function DMChatMessageList({
           accessibilityRole="list"
           contentContainerStyle={styles.messageFlow}
           data={grouped}
-          drawDistance={700}
+          drawDistance={DM_DRAW_DISTANCE}
           getItemType={getDMChatMessageItemType}
           keyExtractor={(item) => item.message.id}
-          maintainVisibleContentPosition={{
-            animateAutoScrollToBottom: true,
-            autoscrollToBottomThreshold: 0.2,
-            // The RN equivalent of the handoff's `justify-content:flex-end`:
-            // content sits on the bottom edge and grows upward.
-            startRenderingFromBottom: true,
-          }}
+          // The RN equivalent of the handoff's `justify-content:flex-end`:
+          // content sits on the bottom edge and grows upward. Behind a switch so
+          // a run can price the layout pass it asks for; see `message-list-anchor`.
+          maintainVisibleContentPosition={listAnchor}
           // What closes the DM chat-open span. The handler had stayed behind on
           // the preview component this list replaced, so every DM open in a
           // device baseline went to the abandoned counter and the panel had no
