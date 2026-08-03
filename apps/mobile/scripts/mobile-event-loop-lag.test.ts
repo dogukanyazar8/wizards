@@ -5,6 +5,7 @@ import {
   MOBILE_EVENT_LOOP_SAMPLE_CAP,
   createMobileEventLoopLagMonitor,
 } from "../src/performance/mobile-event-loop-lag";
+import * as eventLoopLag from "../src/performance/mobile-event-loop-lag";
 
 function createFakeScheduler() {
   let nextId = 0;
@@ -30,6 +31,65 @@ function createFakeScheduler() {
 }
 
 describe("mobile event-loop lag monitor", () => {
+  it("re-arms an active UAT run after the app process recreates the provider", () => {
+    const scheduler = createFakeScheduler();
+    const monitor = createMobileEventLoopLagMonitor({
+      cancel: (timerId) => scheduler.cancel(timerId as unknown as number),
+      now: () => 0,
+      schedule: (callback) =>
+        scheduler.schedule(callback) as unknown as ReturnType<typeof setTimeout>,
+    });
+    const createLifecycle = Reflect.get(eventLoopLag, "createMobileEventLoopLagRunLifecycle") as
+      | ((input: { readonly environment: string; readonly monitor: typeof monitor }) => {
+          begin(): void;
+          end(): void;
+          sync(appState: string): void;
+        })
+      | undefined;
+
+    assert.equal(typeof createLifecycle, "function");
+    if (!createLifecycle) return;
+
+    const lifecycle = createLifecycle({ environment: "uat", monitor });
+    lifecycle.sync("active");
+    assert.equal(scheduler.pendingCount(), 1);
+
+    lifecycle.sync("background");
+    assert.equal(scheduler.pendingCount(), 0);
+    lifecycle.sync("active");
+    assert.equal(scheduler.pendingCount(), 1);
+
+    lifecycle.end();
+    lifecycle.sync("active");
+    assert.equal(scheduler.pendingCount(), 0);
+
+    lifecycle.begin();
+    lifecycle.sync("active");
+    assert.equal(scheduler.pendingCount(), 1);
+    lifecycle.end();
+  });
+
+  it("does not auto-arm a production monitor", () => {
+    const scheduler = createFakeScheduler();
+    const monitor = createMobileEventLoopLagMonitor({
+      cancel: (timerId) => scheduler.cancel(timerId as unknown as number),
+      now: () => 0,
+      schedule: (callback) =>
+        scheduler.schedule(callback) as unknown as ReturnType<typeof setTimeout>,
+    });
+    const createLifecycle = Reflect.get(eventLoopLag, "createMobileEventLoopLagRunLifecycle") as
+      | ((input: { readonly environment: string; readonly monitor: typeof monitor }) => {
+          sync(appState: string): void;
+        })
+      | undefined;
+
+    assert.equal(typeof createLifecycle, "function");
+    if (!createLifecycle) return;
+
+    createLifecycle({ environment: "production", monitor }).sync("active");
+    assert.equal(scheduler.pendingCount(), 0);
+  });
+
   it("reports bounded p50/p95/max lag", () => {
     const scheduler = createFakeScheduler();
     let now = 0;

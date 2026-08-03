@@ -16,6 +16,18 @@ export type MobileDeepLinkIntent =
       readonly type: "dm-call-answer";
     }
   | {
+      readonly command: "export" | "reset";
+      readonly runId: string;
+      readonly type: "performance-automation";
+    }
+  | {
+      readonly command: "prefetch" | "purge";
+      readonly runId: string;
+      readonly scope: "channel" | "dm";
+      readonly targetId: string;
+      readonly type: "performance-automation";
+    }
+  | {
       readonly path: string;
       readonly type: "route";
     };
@@ -24,6 +36,7 @@ export type MobileDeepLinkRejectionReason =
   | "external-origin"
   | "invalid-auth-handoff"
   | "invalid-invite-code"
+  | "invalid-performance-command"
   | "invalid-url"
   | "sensitive-query"
   | "unsupported-path";
@@ -46,6 +59,8 @@ const WHISPR_SCHEME = "whispr:";
 export const MOBILE_WEB_OAUTH_START_PATH = "/mobile/oauth/start";
 const AUTH_HANDOFF_TOKEN_PATTERN = /^[A-Za-z0-9_-]{32,128}$/;
 const INVITE_CODE_PATTERN = /^[A-Za-z0-9_-]{1,96}$/;
+const PERFORMANCE_RUN_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
+const PERFORMANCE_TARGET_ID_PATTERN = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/iu;
 const SENSITIVE_QUERY_PARAMS = new Set([
   "access_token",
   "code",
@@ -172,6 +187,13 @@ export function parseMobileDeepLink(
     return { intent: dmCallAnswer, ok: true };
   }
 
+  if (path === "/performance" || path.startsWith("/performance/")) {
+    const performanceAutomation = parsePerformanceAutomationIntent(path, parsedUrl.searchParams);
+    return performanceAutomation
+      ? { intent: performanceAutomation, ok: true }
+      : { ok: false, reason: "invalid-performance-command" };
+  }
+
   const routePath = normalizeSafeMobileRoutePath(`${path}${parsedUrl.search}`, null);
   if (routePath) {
     return {
@@ -184,6 +206,49 @@ export function parseMobileDeepLink(
   }
 
   return { ok: false, reason: "unsupported-path" };
+}
+
+function parsePerformanceAutomationIntent(
+  path: string,
+  searchParams: URLSearchParams,
+): MobileDeepLinkIntent | null {
+  const segments = path.split("/").filter(Boolean);
+  const command = segments.length === 2 ? segments[1] : null;
+  const runId = searchParams.get("runId");
+  if (
+    !runId ||
+    !PERFORMANCE_RUN_ID_PATTERN.test(runId) ||
+    searchParams.getAll("runId").length !== 1
+  ) {
+    return null;
+  }
+
+  if (command === "reset" || command === "export") {
+    if ([...searchParams.keys()].some((key) => key !== "runId")) {
+      return null;
+    }
+    return { command, runId, type: "performance-automation" };
+  }
+
+  if (command !== "purge" && command !== "prefetch") {
+    return null;
+  }
+
+  const scope = searchParams.get("scope");
+  const targetId = searchParams.get("targetId");
+  const allowedKeys = new Set(["runId", "scope", "targetId"]);
+  if (
+    (scope !== "channel" && scope !== "dm") ||
+    !targetId ||
+    !PERFORMANCE_TARGET_ID_PATTERN.test(targetId) ||
+    [...searchParams.keys()].some((key) => !allowedKeys.has(key)) ||
+    searchParams.getAll("scope").length !== 1 ||
+    searchParams.getAll("targetId").length !== 1
+  ) {
+    return null;
+  }
+
+  return { command, runId, scope, targetId, type: "performance-automation" };
 }
 
 export function normalizeSafeMobileRoutePath(

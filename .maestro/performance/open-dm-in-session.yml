@@ -1,0 +1,7 @@
+appId: team.whispr.mobile
+---
+- openLink: "whispr://channels/@me/${PERF_DM_CONVERSATION_ID}"
+- extendedWaitUntil:
+    visible:
+      id: "mobile-dm-chat-screen"
+    timeout: 15000

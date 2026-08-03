@@ -1,0 +1,8 @@
+appId: team.whispr.mobile
+---
+- tapOn:
+    id: "mobile-dm-back-button"
+- extendedWaitUntil:
+    visible:
+      id: "mobile-dm-inbox-screen"
+    timeout: 15000

@@ -12,6 +12,10 @@ export function getMobileBootstrapQueryOptions(client: MobileApiClient, enabled 
     // Persisted root: it is on disk for a day, so dropping it from memory in
     // half an hour would only force a re-read of what the device already has.
     gcTime: MOBILE_PERSISTED_QUERY_GC_TIME_MS,
+    // Realtime handlers and mutations explicitly invalidate or patch bootstrap.
+    // A mount inside that window must not add another large JSON parse wave.
+    refetchOnMount: false,
+    staleTime: 60_000,
   });
 }
 

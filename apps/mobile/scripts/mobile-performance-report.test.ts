@@ -179,13 +179,34 @@ describe("mobile performance report", () => {
     assert.ok(report.length <= MOBILE_PERFORMANCE_REPORT_MAX_CHARS);
   });
 
-  it("is reachable only from the diagnostics panel", () => {
+  it("keeps UI sharing and UAT automation on the same report builder", () => {
     const screen = readFileSync(
       path.join(__dirname, "..", "src/app/screens/mobile-performance-diagnostics-screen.tsx"),
       "utf8",
     );
+    const runtime = readFileSync(
+      path.join(__dirname, "..", "src/performance/mobile-performance-diagnostics-runtime.ts"),
+      "utf8",
+    );
+    const automationProvider = readFileSync(
+      path.join(__dirname, "..", "src/app/providers/mobile-performance-automation-provider.tsx"),
+      "utf8",
+    );
     assert.match(screen, /testID="performance-export"/u);
     assert.match(screen, /Share\.share\(\{ message: report \}\)/u);
-    assert.match(screen, /buildMobilePerformanceReport\(\{/u);
+    assert.match(screen, /buildMobilePerformanceDiagnosticsReport\(\{/u);
+    assert.match(runtime, /buildMobilePerformanceReport\(\{/u);
+    assert.match(automationProvider, /buildMobilePerformanceDiagnosticsReport\(\{/u);
+  });
+
+  it("resets every run-local diagnostic before the next device script", () => {
+    const runtime = readFileSync(
+      path.join(__dirname, "..", "src/performance/mobile-performance-diagnostics-runtime.ts"),
+      "utf8",
+    );
+
+    assert.match(runtime, /resetMobileRequestLatencyForTests\(\)/u);
+    assert.match(runtime, /resetMobileRecentDMPrefetchStatsForTests\(\)/u);
+    assert.match(runtime, /resetMobileMessageStreamSourcesForTests\(\)/u);
   });
 });

@@ -1,0 +1,8 @@
+appId: team.whispr.mobile
+---
+- tapOn:
+    id: "mobile-channel-back-button"
+- extendedWaitUntil:
+    notVisible:
+      id: "mobile-channel-chat-screen"
+    timeout: 15000

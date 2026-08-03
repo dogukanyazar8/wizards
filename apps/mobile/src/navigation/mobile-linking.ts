@@ -25,6 +25,7 @@ export interface MobileNavigationIntentOptions {
 interface CreateMobileLinkingOptions extends MobileNavigationIntentOptions {
   readonly linking: MobileLinkingAdapter;
   readonly onCommand: (command: MobileNavigationCommandIntent) => void;
+  readonly onRoute: (route: MobileNavigationRouteIntent) => void;
 }
 
 export function resolveMobileNavigationIntent(
@@ -47,6 +48,7 @@ export function resolveMobileNavigationIntent(
 export function createMobileLinkingOptions({
   linking,
   onCommand,
+  onRoute,
   webUrl,
 }: CreateMobileLinkingOptions): LinkingOptions<MobileRootStackParamList> {
   const prefixes = [...MOBILE_LINKING_PREFIXES, getTrustedWebOrigin(webUrl)];
@@ -63,6 +65,7 @@ export function createMobileLinkingOptions({
       return null;
     }
 
+    onRoute(intent);
     return url;
   };
 

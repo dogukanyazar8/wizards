@@ -1,0 +1,22 @@
+appId: team.whispr.mobile
+---
+- launchApp:
+    clearState: false
+    stopApp: false
+- extendedWaitUntil:
+    visible:
+      id: "mobile-app-shell"
+    timeout: 15000
+- openLink: "whispr://channels/@me/${PERF_DM_CONVERSATION_ID}"
+- extendedWaitUntil:
+    visible:
+      id: "mobile-dm-chat-screen"
+    timeout: 15000
+- tapOn:
+    id: "mobile-dm-composer-input"
+- inputText: "${PERF_MESSAGE}"
+- tapOn:
+    id: "mobile-dm-send-button"
+- extendedWaitUntil:
+    visible: "${PERF_MESSAGE}"
+    timeout: 15000

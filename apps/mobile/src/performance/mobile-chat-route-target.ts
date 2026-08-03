@@ -1,3 +1,7 @@
+import type { MobileNavigationRouteIntent } from "../navigation/mobile-navigation-types";
+import { recordMobileRecentDMPrefetchOpen } from "../query/mobile-message-prefetch";
+import { beginMobileNavigationSpan } from "./mobile-navigation-timing";
+
 /**
  * The chat the navigator is currently showing, read straight off its state.
  *
@@ -18,6 +22,34 @@ export type MobileChatRouteTarget = {
   readonly route: MobileChatRoute;
   readonly targetId: string;
 };
+
+/** Starts linked chat timing before React Navigation commits the destination. */
+export function beginMobileLinkedChatNavigationSpan(
+  intent: MobileNavigationRouteIntent,
+  startedAtMs: number = globalThis.performance.now(),
+): string | null {
+  const target: MobileChatRouteTarget | null =
+    intent.name === "DirectMessage"
+      ? { route: "DirectMessage", targetId: intent.params.conversationId }
+      : intent.name === "ChannelChat"
+        ? { route: "ChannelChat", targetId: intent.params.channelId }
+        : null;
+
+  if (!target) {
+    return null;
+  }
+
+  if (target.route === "DirectMessage") {
+    recordMobileRecentDMPrefetchOpen(target.targetId);
+  }
+
+  return beginMobileNavigationSpan(
+    target.route,
+    startedAtMs,
+    probeMobileChatCache(target) !== null,
+    "navigation",
+  );
+}
 
 type NavigationRouteLike = {
   readonly name?: unknown;

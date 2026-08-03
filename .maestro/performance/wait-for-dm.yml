@@ -1,0 +1,6 @@
+appId: team.whispr.mobile
+---
+- extendedWaitUntil:
+    visible:
+      id: "mobile-dm-chat-screen"
+    timeout: 15000

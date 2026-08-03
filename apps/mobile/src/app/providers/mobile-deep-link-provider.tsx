@@ -12,6 +12,7 @@ import { resolveMobileRoutePathIntent } from "../../navigation/mobile-linking";
 import { navigateMobileRouteIntent } from "../../navigation/mobile-navigation-ref";
 import type { MobileNavigationCommandIntent } from "../../navigation/mobile-navigation-types";
 import { useMobileDMCallStore } from "../../state/mobile-dm-call-store";
+import { useMobilePerformanceAutomation } from "./mobile-performance-automation-provider";
 
 interface MobileDeepLinkRuntime {
   readonly handleCommand: (command: MobileNavigationCommandIntent) => void;
@@ -22,6 +23,7 @@ const MobileDeepLinkRuntimeContext = createContext<MobileDeepLinkRuntime | null>
 
 export function MobileDeepLinkProvider({ children }: PropsWithChildren) {
   const { completeAuthHandoff } = useMobileAuth();
+  const performanceAutomation = useMobilePerformanceAutomation();
   const [lastDeepLink, setLastDeepLink] = useState<MobileDeepLinkParseResult | null>(null);
 
   const navigatePath = useCallback((path: string) => {
@@ -34,6 +36,11 @@ export function MobileDeepLinkProvider({ children }: PropsWithChildren) {
   const handleCommand = useCallback(
     (command: MobileNavigationCommandIntent) => {
       setLastDeepLink({ intent: command, ok: true });
+
+      if (command.type === "performance-automation") {
+        performanceAutomation.handleCommand(command);
+        return;
+      }
 
       if (command.type === "invite") {
         navigatePath("/channels");
@@ -63,7 +70,7 @@ export function MobileDeepLinkProvider({ children }: PropsWithChildren) {
         navigatePath(completed ? command.callbackPath : "/settings");
       });
     },
-    [completeAuthHandoff, navigatePath],
+    [completeAuthHandoff, navigatePath, performanceAutomation],
   );
 
   const value = useMemo(() => ({ handleCommand, lastDeepLink }), [handleCommand, lastDeepLink]);

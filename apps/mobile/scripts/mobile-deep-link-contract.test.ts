@@ -152,6 +152,64 @@ describe("mobile deep link contract", () => {
     );
   });
 
+  it("parses bounded mobile performance automation commands", () => {
+    assert.deepEqual(parseMobileDeepLink("whispr://performance/reset?runId=run-06_a", { webUrl }), {
+      intent: { command: "reset", runId: "run-06_a", type: "performance-automation" },
+      ok: true,
+    });
+    assert.deepEqual(
+      parseMobileDeepLink(
+        "whispr://performance/purge?runId=run-08&scope=dm&targetId=a2190c2f-bc49-4cf0-862f-bbd0f8724e26",
+        { webUrl },
+      ),
+      {
+        intent: {
+          command: "purge",
+          runId: "run-08",
+          scope: "dm",
+          targetId: "a2190c2f-bc49-4cf0-862f-bbd0f8724e26",
+          type: "performance-automation",
+        },
+        ok: true,
+      },
+    );
+    assert.deepEqual(
+      parseMobileDeepLink(
+        "whispr://performance/prefetch?runId=run-11&scope=channel&targetId=521474f4-111a-4654-bffb-41e41450dd29",
+        { webUrl },
+      ),
+      {
+        intent: {
+          command: "prefetch",
+          runId: "run-11",
+          scope: "channel",
+          targetId: "521474f4-111a-4654-bffb-41e41450dd29",
+          type: "performance-automation",
+        },
+        ok: true,
+      },
+    );
+    assert.deepEqual(parseMobileDeepLink("whispr://performance/export?runId=run-14", { webUrl }), {
+      intent: { command: "export", runId: "run-14", type: "performance-automation" },
+      ok: true,
+    });
+  });
+
+  it("rejects malformed or over-broad performance automation commands", () => {
+    for (const url of [
+      "whispr://performance/reset?runId=bad%20run",
+      "whispr://performance/purge?runId=run-1&scope=all&targetId=target-1",
+      "whispr://performance/prefetch?runId=run-1&scope=dm&targetId=../target",
+      "whispr://performance/export?runId=run-1&targetId=target-1",
+      "whispr://performance/wipe?runId=run-1",
+    ]) {
+      assert.deepEqual(parseMobileDeepLink(url, { webUrl }), {
+        ok: false,
+        reason: "invalid-performance-command",
+      });
+    }
+  });
+
   it("falls back to the plain DM route when an answer link is incomplete", () => {
     // No "from" and non-answer actions must still open the conversation.
     assert.deepEqual(parseMobileDeepLink("whispr://channels/@me/conv-1?call=answer", { webUrl }), {

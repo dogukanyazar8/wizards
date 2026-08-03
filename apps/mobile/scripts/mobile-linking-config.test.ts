@@ -155,6 +155,7 @@ describe("mobile linking configuration", () => {
 
   it("validates cold-start and foreground links before dispatch", async () => {
     const commands: unknown[] = [];
+    const routes: unknown[] = [];
     let foregroundListener: ((event: { readonly url: string }) => void) | undefined;
     let removed = false;
     const linking = createMobileLinkingOptions({
@@ -170,6 +171,7 @@ describe("mobile linking configuration", () => {
         getInitialURL: async () => "whispr://channels/server-1/channel-1",
       },
       onCommand: (command) => commands.push(command),
+      onRoute: (route) => routes.push(route),
       webUrl,
     });
 
@@ -200,6 +202,18 @@ describe("mobile linking configuration", () => {
         autoAccept: false,
         code: "ABC_def-123",
         type: "invite",
+      },
+    ]);
+    assert.deepEqual(routes, [
+      {
+        name: "ChannelChat",
+        params: { channelId: "channel-1", serverId: "server-1" },
+        type: "route",
+      },
+      {
+        name: "MainTabs",
+        params: { screen: "settings" },
+        type: "route",
       },
     ]);
 

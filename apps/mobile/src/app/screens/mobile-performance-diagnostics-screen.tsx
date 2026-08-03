@@ -4,10 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { getMobileRuntimeConfig } from "../../config/environment";
 import { mobileCopy } from "../../locale/mobile-copy";
-import {
-  drainMobilePerformanceSamples,
-  peekMobilePerformanceSamples,
-} from "../../performance/mobile-performance-metrics";
+import { peekMobilePerformanceSamples } from "../../performance/mobile-performance-metrics";
 import {
   MOBILE_PERFORMANCE_SUMMARY_METRICS,
   summarizeMobileChatContentClasses,
@@ -21,8 +18,10 @@ import {
   type MobilePerformanceSummaryInput,
 } from "../../performance/mobile-performance-summary";
 import { getMobileListBlankAreaSnapshot } from "../../performance/mobile-list-blank-area";
-import { buildMobilePerformanceReport } from "../../performance/mobile-performance-report";
-import { discardPendingMobilePerformanceSamples } from "../../performance/mobile-performance-sample-persistence";
+import {
+  buildMobilePerformanceDiagnosticsReport,
+  resetMobilePerformanceDiagnostics,
+} from "../../performance/mobile-performance-diagnostics-runtime";
 import { mergeMobilePerformanceSampleViews } from "../../performance/mobile-performance-sample-view";
 import { getMobileNavigationSpanDiagnostics } from "../../performance/mobile-navigation-timing";
 import { getMobileRequestLatencySnapshot } from "../../performance/mobile-request-metrics";
@@ -203,13 +202,13 @@ export function MobilePerformanceDiagnosticsScreen({
     // write debounce — which would otherwise land a second later and put the
     // previous run back. Draining memory costs the backend the samples it had
     // not collected yet, which is the point.
-    const drained = drainMobilePerformanceSamples().length;
-    void discardPendingMobilePerformanceSamples()
-      .then(() => mobileMessageStore.purgePerformanceSamples())
-      .finally(() => {
+    void resetMobilePerformanceDiagnostics()
+      .then((drained) => {
         eventLoopMonitorRef.current?.reset();
         refresh();
         announce(copy.performanceDiagnosticsActionReset, drained);
+      })
+      .finally(() => {
         setAction("idle");
       });
   }, [announce, copy.performanceDiagnosticsActionReset, refresh]);
@@ -249,39 +248,16 @@ export function MobilePerformanceDiagnosticsScreen({
    */
   const handleExport = () => {
     setAction("export");
-    const report = buildMobilePerformanceReport({
-      blankArea,
-      build: {
-        appVersion: String(dimensions.appVersion ?? "?"),
-        backendBuildId,
-        buildId: String(dimensions.buildId ?? "?"),
-        deviceTier: String(dimensions.deviceTier ?? "?"),
-        environment: runtimeConfig.environment,
-        networkClass: String(dimensions.networkClass ?? "?"),
-        osName: String(dimensions.osName ?? "?"),
-        osVersion: String(dimensions.osVersion ?? ""),
-      },
-      chatContentClasses,
-      chatOpenCohorts,
-      chatOpenPhases,
-      chatOpenRoutes,
-      chatOpenSources,
-      chatOpenStages,
+    const report = buildMobilePerformanceDiagnosticsReport({
+      backendBuildId,
       eventLoop: eventLoopMonitorRef.current?.snapshot() ?? {
         count: 0,
         maxMs: null,
         p50Ms: null,
         p95Ms: null,
       },
-      generatedAt: new Date().toISOString(),
-      metrics: rows,
-      prefetch,
-      requestLatency,
-      sampleCount: samples.length,
-      spans,
-      startupPhases: timeline,
+      samples,
       storage,
-      transitions: chatTransitions,
     });
 
     void Share.share({ message: report })

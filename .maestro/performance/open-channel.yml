@@ -1,0 +1,14 @@
+appId: team.whispr.mobile
+---
+- launchApp:
+    clearState: false
+    stopApp: false
+- extendedWaitUntil:
+    visible:
+      id: "mobile-app-shell"
+    timeout: 15000
+- openLink: "whispr://channels/${PERF_SERVER_ID}/${PERF_CHANNEL_ID}"
+- extendedWaitUntil:
+    visible:
+      id: "mobile-channel-chat-screen"
+    timeout: 15000

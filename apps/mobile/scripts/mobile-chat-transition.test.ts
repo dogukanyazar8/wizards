@@ -121,4 +121,13 @@ describe("chat transition variants", () => {
     assert.match(navigator, /name="ChannelChat" options=\{chatScreenOptions\}/u);
     assert.match(navigator, /name="DirectMessage" options=\{chatScreenOptions\}/u);
   });
+
+  it("keeps the settled transition baseline stable during UAT measurements", () => {
+    const navigator = readFileSync(
+      path.join(__dirname, "..", "src/navigation/mobile-navigator.tsx"),
+      "utf8",
+    );
+
+    assert.match(navigator, /configureMobileChatTransition\(\{[\s\S]*?rotate: false,/u);
+  });
 });

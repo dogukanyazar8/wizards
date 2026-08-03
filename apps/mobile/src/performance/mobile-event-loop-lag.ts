@@ -89,3 +89,34 @@ export function createMobileEventLoopLagMonitor({
 }
 
 export type MobileEventLoopLagMonitor = ReturnType<typeof createMobileEventLoopLagMonitor>;
+
+/**
+ * Keeps the UAT run monitor aligned with app foreground state.
+ *
+ * Android may recreate the process while the device runner exercises Home/resume.
+ * The active flag cannot survive that restart, so a fresh UAT bridge starts armed;
+ * the next reset discards any samples collected before an actual run begins.
+ */
+export function createMobileEventLoopLagRunLifecycle({
+  environment,
+  monitor,
+}: {
+  readonly environment: string;
+  readonly monitor: Pick<MobileEventLoopLagMonitor, "start" | "stop">;
+}) {
+  let runActive = environment === "uat";
+
+  return {
+    begin() {
+      runActive = true;
+    },
+    end() {
+      runActive = false;
+      monitor.stop();
+    },
+    sync(appState: string) {
+      if (runActive && appState === "active") monitor.start();
+      else monitor.stop();
+    },
+  };
+}

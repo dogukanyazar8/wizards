@@ -11,6 +11,7 @@ import { MobileRealtimeProvider } from "./mobile-realtime-provider";
 import { MobileVoiceProvider } from "./mobile-voice-provider";
 import { MobileWorkspaceLayoutProvider } from "./mobile-workspace-layout-provider";
 import { MobileProfileCardProvider } from "../../social/profile-card";
+import { MobilePerformanceAutomationProvider } from "./mobile-performance-automation-provider";
 
 export function MobileAppProviders({ children }: PropsWithChildren) {
   return (
@@ -27,7 +28,9 @@ export function MobileAppProviders({ children }: PropsWithChildren) {
                   {/* 11b: one card for the whole app, mounted above the shell so
                       every avatar surface shares its cache and back-key stack. */}
                   <MobileProfileCardProvider>
-                    <MobileDeepLinkProvider>{children}</MobileDeepLinkProvider>
+                    <MobilePerformanceAutomationProvider>
+                      <MobileDeepLinkProvider>{children}</MobileDeepLinkProvider>
+                    </MobilePerformanceAutomationProvider>
                   </MobileProfileCardProvider>
                 </MobileNotificationPreferencesProvider>
               </MobileWorkspaceLayoutProvider>

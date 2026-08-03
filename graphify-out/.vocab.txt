@@ -296,6 +296,7 @@ birikmeyi
 biti
 bitiminde
 bitmeden
+bitmiyor
 bits
 bitti
 bize
@@ -466,6 +467,7 @@ chromium
 chunk
 chunked
 cihaz
+cihazda
 cila
 cilas
 cim
@@ -516,6 +518,7 @@ codes
 codex
 cohort
 cohorts
+cold
 collapsed
 collect
 collection
@@ -869,6 +872,7 @@ drawer
 drift
 drop
 dropped
+dry
 dsn
 dto
 dual
@@ -1068,6 +1072,7 @@ exec
 executable
 execute
 execution
+executor
 existing
 exists
 exit
@@ -1181,6 +1186,7 @@ floating
 floor
 flow
 flowchart
+flows
 flush
 fmt
 fns
@@ -1478,6 +1484,7 @@ ilan
 ile
 ilebilirlik
 ilen
+ilerleme
 iletildi
 ilgili
 ilk
@@ -1617,6 +1624,7 @@ istiyorum
 item
 items
 iterable
+iteration
 its
 iyi
 iyile
@@ -1764,6 +1772,7 @@ label
 labels
 lacak
 lacaklara
+lag
 lam
 lama
 lan
@@ -1907,6 +1916,7 @@ luminance
 mac
 machine
 madde
+maddelerini
 maddesi
 maestro
 main
@@ -1978,6 +1988,7 @@ member
 members
 membership
 memberships
+memoization
 memoized
 memory
 men
@@ -2043,6 +2054,7 @@ missed
 missing
 mission
 mix
+miyiz
 mjs
 mkdir
 mlar
@@ -2083,6 +2095,7 @@ module
 modules
 monitor
 monitoring
+monkey
 monorepo
 month
 more
@@ -2123,6 +2136,7 @@ nas
 nasil
 nativ
 native
+nativecomm
 nav
 naviga
 navigasyon
@@ -2178,10 +2192,12 @@ nextauthjs
 nextjs
 neyi
 nickname
+nine
 ninja
 nizleme
 nizlemesi
 nizleyici
+nla
 nlama
 nlendiririz
 nler
@@ -2295,6 +2311,7 @@ options
 orchestrate
 orchestration
 order
+ordered
 ordinary
 org
 origin
@@ -2398,6 +2415,7 @@ peek
 peer
 penceresi
 pending
+per
 percent
 percentile
 percentiles
@@ -2586,6 +2604,7 @@ providers
 proxy
 prune
 pseudo
+psm
 ptal
 ptt
 puanla
@@ -2917,6 +2936,7 @@ runtime
 rust
 rustsec
 rustup
+ruyor
 sabit
 sabitleme
 sabitlenir
@@ -2975,7 +2995,10 @@ screencap
 screens
 screenshot
 script
+scripti
 scriptleri
+scriptlerl
+scriptlerle
 scripts
 scroll
 scrollable
@@ -3026,6 +3049,7 @@ sentry
 separator
 sequence
 seri
+serial
 serialize
 serialized
 series
@@ -3113,6 +3137,7 @@ sleep
 slice
 slices
 slider
+slope
 slot
 slots
 slow
@@ -3135,12 +3160,14 @@ sol
 solo
 son
 sonda
+sonlanm
 sonra
 sonraki
 sonras
 sonu
 sonucu
 soon
+sor
 sorgu
 sort
 sortable
@@ -3174,6 +3201,7 @@ split
 spring
 spy
 sql
+sqlcipher
 sqlite
 square
 squircle
@@ -3215,6 +3243,7 @@ stemci
 stenen
 step
 steps
+sterilir
 steriyor
 steriyorsa
 sticky
@@ -3323,6 +3352,8 @@ tahmini
 tailwind
 tailwindcss
 take
+talimatl
+talimatlar
 talk
 tam
 tamam
@@ -3356,6 +3387,7 @@ teams
 technology
 tek
 teknoloji
+tekrar
 tel
 telemetri
 telemetrisi
@@ -3385,7 +3417,9 @@ testid
 testing
 testler
 testleri
+testlerini
 tests
+testte
 text
 textarea
 the
@@ -3395,6 +3429,7 @@ themes
 theming
 then
 these
+thin
 thing
 third
 this
@@ -3429,6 +3464,7 @@ tipler
 tipografi
 tir
 tiraz
+tirebilir
 tirici
 tirilecek
 tiriyoruz
@@ -3542,6 +3578,7 @@ turulan
 tutuyor
 tuzaklar
 two
+txt
 type
 typecheck
 typed
@@ -3686,6 +3723,7 @@ verimli
 verirsen
 verisi
 veritaban
+veriyor
 vermeni
 vermiyor
 version
@@ -3779,6 +3817,7 @@ workflow
 workflows
 workflowunda
 worklets
+workload
 workspace
 worktree
 wrap
@@ -3804,6 +3843,7 @@ yapar
 yapilabilir
 yapmadan
 yapmal
+yapmam
 yaptigimiz
 yard
 yardim
@@ -3853,6 +3893,7 @@ zel
 zellikleri
 zelt
 zeltildi
+zeltilir
 zeltir
 zeltmeler
 zeltmeleri

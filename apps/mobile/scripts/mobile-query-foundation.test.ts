@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import type { MobileApiClient } from "../src/api/mobile-api-client";
 import {
   MOBILE_QUERY_CACHE_MAX_AGE_MS,
   getMobileQueryCacheKey,
@@ -7,6 +8,7 @@ import {
   stripMobilePersistedMessagePreviews,
 } from "../src/query/mobile-query-cache-policy";
 import { createMobileQueryClient } from "../src/query/mobile-query-client";
+import { getMobileBootstrapQueryOptions } from "../src/query/mobile-bootstrap-query";
 import { createMobileQueryKeys, MobileSearchKeyRegistry } from "../src/query/mobile-query-keys";
 import {
   flattenMobileInfinitePages,
@@ -66,6 +68,18 @@ test("mobile query client keeps cached data for the persisted max age", () => {
     assert.equal(retryDelay(0, new Error("x")), 1_000);
     assert.equal(retryDelay(5, new Error("x")), 2_000);
   }
+});
+
+test("bootstrap avoids mount refetch churn while explicit invalidation stays available", () => {
+  const client: MobileApiClient = {
+    requestJson: async () => {
+      throw new Error("query function must not run while inspecting options");
+    },
+  };
+  const options = getMobileBootstrapQueryOptions(client);
+
+  assert.equal(options.staleTime, 60_000);
+  assert.equal(options.refetchOnMount, false);
 });
 
 test("infinite pages flatten chronologically and keep newest duplicate values", () => {

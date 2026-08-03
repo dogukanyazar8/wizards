@@ -4,6 +4,7 @@ import { DefaultTheme, NavigationContainer, type NavigationState } from "@react-
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { Linking } from "react-native";
 import {
+  beginMobileLinkedChatNavigationSpan,
   probeMobileChatCache,
   resolveMobileActiveChatRouteTarget,
 } from "../performance/mobile-chat-route-target";
@@ -103,6 +104,9 @@ export function MobileNavigator({
       createMobileLinkingOptions({
         linking: Linking,
         onCommand: handleCommand,
+        onRoute: (route) => {
+          beginMobileLinkedChatNavigationSpan(route);
+        },
         webUrl: runtimeConfig.webUrl,
       }),
     [handleCommand, runtimeConfig.webUrl],
@@ -196,14 +200,14 @@ export function MobileNavigator({
     }),
     [reducedMotion],
   );
-  // The three chat transitions rotate inside one run so a baseline can compare
-  // them; a production build keeps the slide it has always had.
+  // The baseline found no meaningful transition difference. Keep one variant so
+  // later renderer measurements do not inherit experiment variance.
   useEffect(() => {
     configureMobileChatTransition({
       reducedMotion,
-      rotate: runtimeConfig.environment !== "production",
+      rotate: false,
     });
-  }, [reducedMotion, runtimeConfig.environment]);
+  }, [reducedMotion]);
 
   return (
     <NavigationContainer
