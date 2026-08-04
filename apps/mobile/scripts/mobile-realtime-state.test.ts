@@ -95,7 +95,8 @@ describe("mobile realtime state", () => {
   it("maps native AppState values into a narrow realtime visibility contract", () => {
     assert.equal(getMobileRealtimeVisibilityFromAppState("active"), "foreground");
     assert.equal(getMobileRealtimeVisibilityFromAppState("background"), "background");
-    assert.equal(getMobileRealtimeVisibilityFromAppState("inactive"), "background");
+    assert.equal(getMobileRealtimeVisibilityFromAppState("inactive", "foreground"), "foreground");
+    assert.equal(getMobileRealtimeVisibilityFromAppState("inactive", "background"), "background");
     assert.equal(getMobileRealtimeVisibilityFromAppState("extension"), "background");
   });
 
@@ -121,7 +122,7 @@ describe("mobile realtime state", () => {
       }),
       // The notification feed is always backfilled: the socket is down in the
       // background, so anything that landed while away arrived only as a push.
-      ["bootstrap", "notification", "workspace", "channel"],
+      ["notification", "workspace", "channel"],
     );
   });
 

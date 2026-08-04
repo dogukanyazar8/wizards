@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-03T09:46:14.087463+00:00",
+  "generated_at": "2026-08-04T11:24:31.684723+00:00",
   "nodes": {
     "apps_desktop_package": {
       "code_fingerprint": "dca80724c74ed8b5f42bb1393fd082b657bec9adb1c9e03dc8ec6acdbeec4a65",
@@ -12,7 +12,7 @@
           "q": "Wizards projesi için en iyi IDE ve geliştirme araçları nelerdir? Detaylı inceler misin, graphify kullanabilirsin."
         }
       ],
-      "score": 0.896790707,
+      "score": 0.874927023,
       "source_file": "apps/desktop/package.json",
       "status": "tentative",
       "uses": 1
@@ -28,7 +28,7 @@
           "q": "desktop ve mobile release Azure da yapilabilir mi?"
         }
       ],
-      "score": 0.934201748,
+      "score": 0.911425986,
       "source_file": "apps/desktop/RELEASE.md",
       "status": "tentative",
       "uses": 1
@@ -54,10 +54,26 @@
           "q": "lokalimde bulunan iki tane self hosted runner ubuntu sanal makineyi projemizin CI/CD süreçlerinde en verimli şekilde kullanıyor muyuz? Görev paylaşımı, iş paylaşımı, doğru düzgün optimize performanslı bir şekilde yapılıyor mu?"
         }
       ],
-      "score": 2.80247116,
+      "score": 2.734147141,
       "source_file": "apps/desktop/src-tauri/tauri.conf.json",
       "status": "preferred",
       "uses": 3
+    },
+    "apps_mobile_app_config": {
+      "code_fingerprint": "6ead8ee30cbe92d7d97236fbb26a3dc1ff661bd119d5e7122a98a241900a52b9",
+      "label": "app.config.js",
+      "last": "2026-08-04T05:07:17.468743+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-04T05:07:17.468743+00:00",
+          "outcome": "useful",
+          "q": "APK derlerken EXPO_PUBLIC_WHISPR_BUILD_ID valid Git SHA hatası neden oluşuyor ve nasıl düzeltilir?"
+        }
+      ],
+      "score": 0.993965487,
+      "source_file": "apps/mobile/app.config.js",
+      "status": "tentative",
+      "uses": 1
     },
     "apps_mobile_migration_phase_0_maestro_testid_compatibility": {
       "code_fingerprint": "22ce772ed5ee6c47e02e69af3de78338cc0dd697998fd855e9f37956d026c430",
@@ -70,7 +86,7 @@
           "q": "6 7 8 9 10 11 12 13 14 maddelerini ayrı scriptlerle otomatikleştirebilir miyiz; reset ve txt export istiyorum"
         }
       ],
-      "score": 0.936911946,
+      "score": 0.914070109,
       "source_file": "apps/mobile/MIGRATION_PHASE_0.md",
       "status": "tentative",
       "uses": 1
@@ -96,7 +112,7 @@
           "q": "Wizards projesi için en iyi IDE ve geliştirme araçları nelerdir? Detaylı inceler misin, graphify kullanabilirsin."
         }
       ],
-      "score": 2.744159617,
+      "score": 2.677257229,
       "source_file": "apps/mobile/package.json",
       "status": "preferred",
       "uses": 3
@@ -113,11 +129,85 @@
           "q": "Yapmam gereken cihaz testlerini sırasıyla talimatlarınla paylaşır mısın?"
         }
       ],
-      "score": 0.024911926,
+      "score": 0.024304575,
       "source_file": "apps/mobile/package.json",
       "status": "contested",
       "uses": 1,
       "verdict": "useful"
+    },
+    "apps_mobile_scripts_build_android_uat": {
+      "code_fingerprint": "c32c40b4c6e8b3a50e0681dd88c2d31da0a983e44ab2b480a5b6fa02af0ec041",
+      "label": "build-android-uat.ps1",
+      "last": "2026-08-04T05:07:17.468743+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-04T05:07:17.468743+00:00",
+          "outcome": "useful",
+          "q": "APK derlerken EXPO_PUBLIC_WHISPR_BUILD_ID valid Git SHA hatası neden oluşuyor ve nasıl düzeltilir?"
+        }
+      ],
+      "score": 0.993965487,
+      "source_file": "apps/mobile/scripts/build-android-uat.ps1",
+      "status": "tentative",
+      "uses": 1
+    },
+    "apps_mobile_scripts_mobile_app_config_contract_test": {
+      "code_fingerprint": "e318e07a78da91b41c6dd76e5a870c80df3815dcf5eee7a6ab2364757c10a5ef",
+      "label": "mobile-app-config-contract.test.ts",
+      "last": "2026-08-04T05:07:17.468743+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-04T05:07:17.468743+00:00",
+          "outcome": "useful",
+          "q": "APK derlerken EXPO_PUBLIC_WHISPR_BUILD_ID valid Git SHA hatası neden oluşuyor ve nasıl düzeltilir?"
+        }
+      ],
+      "score": 0.993965487,
+      "source_file": "apps/mobile/scripts/mobile-app-config-contract.test.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "apps_mobile_scripts_mobile_performance_device_scripts_test": {
+      "code_fingerprint": "ecc1f8c60cf762698b67885e596575bd8dd88cf9f10e61bd1885a2348149d9bd",
+      "label": "mobile-performance-device-scripts.test.ts",
+      "last": "2026-08-04T09:07:05.544396+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-04T09:07:05.544396+00:00",
+          "outcome": "useful",
+          "q": "son testte hata aldım, sorunu inceleyip çözer misin? tap-dm Report contains fewer than 15 samples"
+        },
+        {
+          "date": "2026-08-04T05:26:55.565277+00:00",
+          "outcome": "useful",
+          "q": "06-cold-start 15 iterasyonda startup 15 fakat DirectMessage-cached 14 olduğunda neden partial oluyor?"
+        },
+        {
+          "date": "2026-08-04T04:54:17.312931+00:00",
+          "outcome": "useful",
+          "q": "06-15 mobil cihaz performans testlerinin düzeltme gereksinimi ve 15 tekrar çalıştırma hazırlığı"
+        }
+      ],
+      "score": 2.985834083,
+      "source_file": "apps/mobile/scripts/mobile-performance-device-scripts.test.ts",
+      "status": "preferred",
+      "uses": 3
+    },
+    "apps_mobile_scripts_mobile_realtime_state_test": {
+      "code_fingerprint": "9db6e18b86b8d2bc7a0507f6ef4c74341e089fde6412acb2480429e43bfc196b",
+      "label": "mobile-realtime-state.test.ts",
+      "last": "2026-08-04T09:47:40.926695+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-04T09:47:40.926695+00:00",
+          "outcome": "useful",
+          "q": "Tüm mobil yavaşlıkları ve gecikmeleri endüstri seviyesinde giderecek, test tekrarı ve commit olmadan uygulanabilir prompt hazırla."
+        }
+      ],
+      "score": 0.998447306,
+      "source_file": "apps/mobile/scripts/mobile-realtime-state.test.ts",
+      "status": "tentative",
+      "uses": 1
     },
     "apps_mobile_scripts_mobile_release_workflow": {
       "code_fingerprint": "407e1c95ca1829b875d086dd88c53fed2a392420299106324f9b1650729daf2c",
@@ -130,7 +220,7 @@
           "q": "Versiyon - Kod Adı - Build nedir; mobilde yeni güncelleme yayınlama yolu nasıl olmalı?"
         }
       ],
-      "score": 0.919661392,
+      "score": 0.897240122,
       "source_file": "apps/mobile/scripts/mobile-release-workflow.mjs",
       "status": "tentative",
       "uses": 1
@@ -146,46 +236,62 @@
           "q": "SQLCipher purge ACK timeout hangi testte ve neden oldu?"
         }
       ],
-      "score": 0.99704756,
+      "score": 0.972739622,
       "source_file": "apps/mobile/scripts/performance-device/10-sqlcipher.ps1",
       "status": "tentative",
       "uses": 1
     },
-    "apps_mobile_scripts_performance_device_whisprperformancedevice": {
-      "code_fingerprint": "86a74a5dfccc10c816686872d80ba10671fcdf97e9310c5cf5c22643ea788eaf",
-      "label": "WhisprPerformanceDevice.psm1",
-      "last": "2026-08-03T09:19:16.876057+00:00",
+    "apps_mobile_scripts_performance_device_15_tap_dm": {
+      "code_fingerprint": "968272e22ed5e95b4177bf04bd49629c014f1eaefae7d2db8968cd1e5a9447ce",
+      "label": "15-tap-dm.ps1",
+      "last": "2026-08-04T09:07:05.544396+00:00",
       "provenance": [
         {
-          "date": "2026-08-03T09:19:16.876057+00:00",
+          "date": "2026-08-04T09:07:05.544396+00:00",
           "outcome": "useful",
-          "q": "testleri tamamladım ve ekteki hatayı aldım, sorun nedir inceler misin?"
-        },
-        {
-          "date": "2026-08-03T06:41:57.210974+00:00",
-          "outcome": "useful",
-          "q": "SQLCipher purge ACK timeout hangi testte ve neden oldu?"
-        },
-        {
-          "date": "2026-08-03T05:32:56.671809+00:00",
-          "outcome": "useful",
-          "q": "Performans cihaz scripti neden 30 tekrar boyunca bitmiyor, DM deep-link nasıl düzeltilir ve ilerleme nasıl gösterilir?"
-        },
-        {
-          "date": "2026-08-03T05:22:51.717962+00:00",
-          "outcome": "useful",
-          "q": "Bu performans testi neden sonlanmıyor; cihazda sorun var mı?"
-        },
-        {
-          "date": "2026-07-31T14:49:01.336699+00:00",
-          "outcome": "useful",
-          "q": "06-cold-start.ps1 neden adb monkey args NativeCommandError veriyor ve export zaman aşımına uğruyor?"
+          "q": "son testte hata aldım, sorunu inceleyip çözer misin? tap-dm Report contains fewer than 15 samples"
         }
       ],
-      "score": 4.925919374,
+      "score": 0.997797264,
+      "source_file": "apps/mobile/scripts/performance-device/15-tap-dm.ps1",
+      "status": "tentative",
+      "uses": 1
+    },
+    "apps_mobile_scripts_performance_device_whisprperformancedevice": {
+      "code_fingerprint": "73f3173ce0d61c9661c5e79c211048e769a36d3bbdf0e16e8c2ac6883ee412da",
+      "label": "WhisprPerformanceDevice.psm1",
+      "last": "2026-08-04T09:07:05.544396+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-04T09:07:05.544396+00:00",
+          "outcome": "useful",
+          "q": "son testte hata aldım, sorunu inceleyip çözer misin? tap-dm Report contains fewer than 15 samples"
+        },
+        {
+          "date": "2026-08-04T07:13:32.219707+00:00",
+          "outcome": "useful",
+          "q": "Test 11 prefetch-network neden ACK timeout oluyor ve tekrarlanabilir cihaz test süreci nasıl düzeltilir?"
+        },
+        {
+          "date": "2026-08-04T06:18:17.410977+00:00",
+          "outcome": "useful",
+          "q": "Test 10 SQLCipher 15 tekrarda neden sqlcipher 0 sample veriyor ve nasil duzeltilir?"
+        },
+        {
+          "date": "2026-08-04T05:26:55.565277+00:00",
+          "outcome": "useful",
+          "q": "06-cold-start 15 iterasyonda startup 15 fakat DirectMessage-cached 14 olduğunda neden partial oluyor?"
+        },
+        {
+          "date": "2026-08-04T04:54:17.312931+00:00",
+          "outcome": "useful",
+          "q": "06-15 mobil cihaz performans testlerinin düzeltme gereksinimi ve 15 tekrar çalıştırma hazırlığı"
+        }
+      ],
+      "score": 10.758451439,
       "source_file": "apps/mobile/scripts/performance-device/WhisprPerformanceDevice.psm1",
       "status": "preferred",
-      "uses": 5
+      "uses": 11
     },
     "apps_mobile_src_about_android_apk_update_controller": {
       "code_fingerprint": "0b526f26a5c798811221dc36698abe6fd71717e77d185dbf56ed619780650a53",
@@ -208,7 +314,7 @@
           "q": "Admin yayin akisinda yeni surum olusturup yayinladim; Denetle neden tepki vermiyor ve nasil test ederim?"
         }
       ],
-      "score": 2.785992064,
+      "score": 2.718069804,
       "source_file": "apps/mobile/src/about/android-apk-update-controller.ts",
       "status": "preferred",
       "uses": 3
@@ -224,7 +330,7 @@
           "q": "1c Yenilikler ekranı mevcut 01-03 katmanlarıyla nasıl bağlanır?"
         }
       ],
-      "score": 0.896361963,
+      "score": 0.874508731,
       "source_file": "apps/mobile/src/about/mobile-about-model.ts",
       "status": "tentative",
       "uses": 1
@@ -240,7 +346,7 @@
           "q": "sürüm geçmişi ekranında da sürüm notları alınamadı hatasını alıyorum, bunu da çözer misin en güvenli en hızlı şekilde."
         }
       ],
-      "score": 0.908862149,
+      "score": 0.886704164,
       "source_file": "apps/mobile/src/about/mobile-about-queries.ts",
       "status": "tentative",
       "uses": 1
@@ -256,7 +362,7 @@
           "q": "Adım 13 2h puanlama sheet'i nasıl uygulanır?"
         }
       ],
-      "score": 0.91014092,
+      "score": 0.887951759,
       "source_file": "apps/mobile/src/about/mobile-rating-model.ts",
       "status": "tentative",
       "uses": 1
@@ -272,7 +378,7 @@
           "q": "Mobil APK güncelleme sayfasında indirme, doğrulama ve kurulum durumları nasıl modelleniyor?"
         }
       ],
-      "score": 0.928872907,
+      "score": 0.906227062,
       "source_file": "apps/mobile/src/about/mobile-update-controller.ts",
       "status": "tentative",
       "uses": 1
@@ -288,42 +394,131 @@
           "q": "1A Hakkında sağ üst kopyala eylemi ve beta katılım toast okunabilirliği nerede çözülür?"
         }
       ],
-      "score": 0.910405113,
+      "score": 0.888209511,
       "source_file": "apps/mobile/src/about/open-about-beta-consent.ts",
       "status": "tentative",
       "uses": 1
     },
-    "apps_mobile_src_app_providers_mobile_performance_automation_provider": {
-      "code_fingerprint": "53c8a0df4955c2b121be77566f75f5da57ad6f9e405781977555990bdc19f158",
-      "label": "mobile-performance-automation-provider.tsx",
-      "last": "2026-08-03T09:19:16.876057+00:00",
+    "apps_mobile_src_api_mobile_api_client": {
+      "code_fingerprint": "06484f28ed00ee06fa864730fc96e572b2d662f9e07e76650eaa47a5e4875077",
+      "label": "mobile-api-client.ts",
+      "last": "2026-08-04T09:47:40.926695+00:00",
       "provenance": [
+        {
+          "date": "2026-08-04T09:47:40.926695+00:00",
+          "outcome": "useful",
+          "q": "Tüm mobil yavaşlıkları ve gecikmeleri endüstri seviyesinde giderecek, test tekrarı ve commit olmadan uygulanabilir prompt hazırla."
+        },
+        {
+          "date": "2026-08-04T09:32:52.196529+00:00",
+          "outcome": "useful",
+          "q": "tüm testleri tamamladım. sonuçları detaylı bir şekilde inceleyip, mobil uygulamadaki yavaşlık sorununun nedenleri ve çözümlerini eksiksiz bir şekilde analiz eder misin"
+        }
+      ],
+      "score": 1.996657347,
+      "source_file": "apps/mobile/src/api/mobile-api-client.ts",
+      "status": "preferred",
+      "uses": 2
+    },
+    "apps_mobile_src_app_features_use_mobile_dm_route_state_usemobiledmroutestate": {
+      "code_fingerprint": "68c7451c94831b86a9e0eab92263753e51e7544a9136520db491e7e9e42b387d",
+      "label": "useMobileDMRouteState()",
+      "last": "2026-08-04T06:18:17.410977+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-04T06:18:17.410977+00:00",
+          "outcome": "useful",
+          "q": "Test 10 SQLCipher 15 tekrarda neden sqlcipher 0 sample veriyor ve nasil duzeltilir?"
+        }
+      ],
+      "score": 0.995098442,
+      "source_file": "apps/mobile/src/app/features/use-mobile-dm-route-state.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "apps_mobile_src_app_features_use_mobile_messaging_feature": {
+      "code_fingerprint": "1f64d6404214998bb13fcdf5d8e20f31e755ee05506895b6cc28e005aa67962d",
+      "label": "use-mobile-messaging-feature.ts",
+      "last": "2026-08-04T09:47:40.926695+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-04T09:47:40.926695+00:00",
+          "outcome": "useful",
+          "q": "Tüm mobil yavaşlıkları ve gecikmeleri endüstri seviyesinde giderecek, test tekrarı ve commit olmadan uygulanabilir prompt hazırla."
+        }
+      ],
+      "score": 0.998447306,
+      "source_file": "apps/mobile/src/app/features/use-mobile-messaging-feature.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "apps_mobile_src_app_providers_mobile_performance_automation_provider": {
+      "code_fingerprint": "e12b9962bf8040b845cd30957a9462ed59375e20cac69969b2a2182e367b9946",
+      "label": "mobile-performance-automation-provider.tsx",
+      "last": "2026-08-04T09:47:40.926695+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-04T09:47:40.926695+00:00",
+          "outcome": "useful",
+          "q": "Tüm mobil yavaşlıkları ve gecikmeleri endüstri seviyesinde giderecek, test tekrarı ve commit olmadan uygulanabilir prompt hazırla."
+        },
+        {
+          "date": "2026-08-04T09:32:52.196529+00:00",
+          "outcome": "useful",
+          "q": "tüm testleri tamamladım. sonuçları detaylı bir şekilde inceleyip, mobil uygulamadaki yavaşlık sorununun nedenleri ve çözümlerini eksiksiz bir şekilde analiz eder misin"
+        },
+        {
+          "date": "2026-08-03T09:52:06.860876+00:00",
+          "outcome": "useful",
+          "q": "Düzeltmeyi yapıp testi çalıştırma komutlarını verir misin?"
+        },
         {
           "date": "2026-08-03T09:19:16.876057+00:00",
           "outcome": "useful",
           "q": "testleri tamamladım ve ekteki hatayı aldım, sorun nedir inceler misin?"
         }
       ],
-      "score": 0.999567622,
+      "score": 3.947567716,
+      "source_file": "apps/mobile/src/app/providers/mobile-performance-automation-provider.tsx",
+      "status": "preferred",
+      "uses": 4
+    },
+    "apps_mobile_src_app_providers_mobile_performance_automation_provider_mobileperformanceautomationprovider": {
+      "code_fingerprint": "e12b9962bf8040b845cd30957a9462ed59375e20cac69969b2a2182e367b9946",
+      "label": "MobilePerformanceAutomationProvider()",
+      "last": "2026-08-04T07:13:32.219707+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-04T07:13:32.219707+00:00",
+          "outcome": "useful",
+          "q": "Test 11 prefetch-network neden ACK timeout oluyor ve tekrarlanabilir cihaz test süreci nasıl düzeltilir?"
+        }
+      ],
+      "score": 0.995980928,
       "source_file": "apps/mobile/src/app/providers/mobile-performance-automation-provider.tsx",
       "status": "tentative",
       "uses": 1
     },
     "apps_mobile_src_app_providers_mobile_realtime_provider": {
-      "code_fingerprint": "72a543d913401d08560969a6c244e426e760a536208e9034b7ae5397d6bfdca1",
+      "code_fingerprint": "4331f3f3848a1e6ddb80b93b56378011f8847b2c83c1e51820da7a093f6b58bd",
       "label": "mobile-realtime-provider.tsx",
-      "last": "2026-07-29T14:31:31.690089+00:00",
+      "last": "2026-08-04T09:32:52.196529+00:00",
       "provenance": [
+        {
+          "date": "2026-08-04T09:32:52.196529+00:00",
+          "outcome": "useful",
+          "q": "tüm testleri tamamladım. sonuçları detaylı bir şekilde inceleyip, mobil uygulamadaki yavaşlık sorununun nedenleri ve çözümlerini eksiksiz bir şekilde analiz eder misin"
+        },
         {
           "date": "2026-07-29T14:31:31.690089+00:00",
           "outcome": "useful",
           "q": "Mobil uygulamanın performans, kalite, mimari ve teknoloji altyapısı ile socket fan-out, unread, message büyümesi, Prisma hot path ve NextAuth beta risklerini değerlendir"
         }
       ],
-      "score": 0.894986203,
+      "score": 1.871376553,
       "source_file": "apps/mobile/src/app/providers/mobile-realtime-provider.tsx",
-      "status": "tentative",
-      "uses": 1
+      "status": "preferred",
+      "uses": 2
     },
     "apps_mobile_src_app_providers_mobile_theme_provider": {
       "code_fingerprint": "3e0a1a60b94e1bb63d7474cd80b2a27d26ffc428559ba70a7f5e175e73d0ed6e",
@@ -336,7 +531,7 @@
           "q": "Whispr mobile splash görsel dili Discord Slack Teams Zoom gibi olmalı; kaç ekran ve hangi mesajlar?"
         }
       ],
-      "score": 0.84798333,
+      "score": 0.827309566,
       "source_file": "apps/mobile/src/app/providers/mobile-theme-provider.tsx",
       "status": "tentative",
       "uses": 1
@@ -352,7 +547,7 @@
           "q": "1A ekranındaki ve diğer ilgili ekranlarda sağ üstteki Bildir butonunun ikon tasarımını HTML 1a/ilgili About handoff tasarımıyla eşleştir"
         }
       ],
-      "score": 0.908740417,
+      "score": 0.8865854,
       "source_file": "apps/mobile/src/app/screens/about/about-icons.tsx",
       "status": "tentative",
       "uses": 1
@@ -368,7 +563,7 @@
           "q": "1A ekranındaki ve diğer ilgili ekranlarda sağ üstteki Bildir butonunun ikon tasarımını HTML 1a/ilgili About handoff tasarımıyla eşleştir"
         }
       ],
-      "score": 0.908740417,
+      "score": 0.8865854,
       "source_file": "apps/mobile/src/app/screens/about/about-icons.tsx",
       "status": "tentative",
       "uses": 1
@@ -389,7 +584,7 @@
           "q": "1c Yenilikler ekranı mevcut 01-03 katmanlarıyla nasıl bağlanır?"
         }
       ],
-      "score": 1.804922645,
+      "score": 1.760918778,
       "source_file": "apps/mobile/src/app/screens/about/about-primitives.tsx",
       "status": "preferred",
       "uses": 2
@@ -405,7 +600,7 @@
           "q": "1A ekranındaki ve diğer ilgili ekranlarda sağ üstteki Bildir butonunun ikon tasarımını HTML 1a/ilgili About handoff tasarımıyla eşleştir"
         }
       ],
-      "score": 0.908740417,
+      "score": 0.8865854,
       "source_file": "apps/mobile/src/app/screens/about/about-primitives.tsx",
       "status": "tentative",
       "uses": 1
@@ -421,7 +616,7 @@
           "q": "Adım 13 2h puanlama sheet'i nasıl uygulanır?"
         }
       ],
-      "score": 0.91014092,
+      "score": 0.887951759,
       "source_file": "apps/mobile/src/app/screens/about/about-rating-sheet.tsx",
       "status": "tentative",
       "uses": 1
@@ -437,7 +632,7 @@
           "q": "Mobil APK güncelleme sayfasında indirme, doğrulama ve kurulum durumları nasıl modelleniyor?"
         }
       ],
-      "score": 0.928872907,
+      "score": 0.906227062,
       "source_file": "apps/mobile/src/app/screens/about/about-update-sheet.tsx",
       "status": "tentative",
       "uses": 1
@@ -453,7 +648,7 @@
           "q": "1c Yenilikler ekranı mevcut 01-03 katmanlarıyla nasıl bağlanır?"
         }
       ],
-      "score": 0.896361963,
+      "score": 0.874508731,
       "source_file": "apps/mobile/src/app/screens/about/about-whats-new-card.tsx",
       "status": "tentative",
       "uses": 1
@@ -469,7 +664,7 @@
           "q": "Hakkında ekranında yenilikler özeti ve tüm yenilikler ekranı neden görünmüyor?"
         }
       ],
-      "score": 0.896671447,
+      "score": 0.87481067,
       "source_file": "apps/mobile/src/app/screens/about/about-whats-new-screen.tsx",
       "status": "tentative",
       "uses": 1
@@ -495,7 +690,7 @@
           "q": "1A ekranındaki ve diğer ilgili ekranlarda sağ üstteki Bildir butonunun ikon tasarımını HTML 1a/ilgili About handoff tasarımıyla eşleştir"
         }
       ],
-      "score": 2.727850889,
+      "score": 2.661346106,
       "source_file": "apps/mobile/src/app/screens/about/about-whats-new-screen.tsx",
       "status": "preferred",
       "uses": 3
@@ -511,7 +706,7 @@
           "q": "Whispr logosunun üstünde garip bir beyaz çizgi görüntülüyorum, bunu düzeltir misin?"
         }
       ],
-      "score": 0.908560682,
+      "score": 0.886410046,
       "source_file": "apps/mobile/src/app/screens/auth/auth-welcome-brand-mark.tsx",
       "status": "tentative",
       "uses": 1
@@ -527,7 +722,7 @@
           "q": "Versiyon - Kod Adı - Build nedir; mobilde yeni güncelleme yayınlama yolu nasıl olmalı?"
         }
       ],
-      "score": 0.919661392,
+      "score": 0.897240122,
       "source_file": "apps/mobile/src/app/screens/mobile-about-settings-screen.tsx",
       "status": "tentative",
       "uses": 1
@@ -543,7 +738,7 @@
           "q": "Hakkında ekranında yenilikler özeti ve tüm yenilikler ekranı neden görünmüyor?"
         }
       ],
-      "score": 0.896671447,
+      "score": 0.87481067,
       "source_file": "apps/mobile/src/app/screens/mobile-about-settings-screen.tsx",
       "status": "tentative",
       "uses": 1
@@ -564,7 +759,7 @@
           "q": "Yapmam gereken cihaz testlerini sırasıyla talimatlarınla paylaşır mısın?"
         }
       ],
-      "score": 1.873401943,
+      "score": 1.827728557,
       "source_file": "apps/mobile/src/app/screens/mobile-performance-diagnostics-screen.tsx",
       "status": "preferred",
       "uses": 2
@@ -580,13 +775,13 @@
           "q": "Mobil uygulamada navigation bar için hangi ikon paketini kullanıyoruz?"
         }
       ],
-      "score": 0.811497504,
+      "score": 0.791713261,
       "source_file": "apps/mobile/src/navigation/mobile-bottom-tab-bar.tsx",
       "status": "tentative",
       "uses": 1
     },
     "apps_mobile_src_navigation_mobile_chat_transition": {
-      "code_fingerprint": "f36ef7819b15feabf97e9882162587bc7dc8e7f61db9861597b5a443b9766522",
+      "code_fingerprint": "70fa5d703febc5574359f8b2c346de6ab6c4f8d504656b86ca42509ed644a82f",
       "label": "mobile-chat-transition.ts",
       "last": "2026-07-31T13:36:43.679323+00:00",
       "provenance": [
@@ -596,7 +791,7 @@
           "q": "Yapmam gereken cihaz testlerini sırasıyla talimatlarınla paylaşır mısın?"
         }
       ],
-      "score": 0.936489998,
+      "score": 0.913658448,
       "source_file": "apps/mobile/src/navigation/mobile-chat-transition.ts",
       "status": "tentative",
       "uses": 1
@@ -612,8 +807,24 @@
           "q": "Fix Android InteractionManager deprecation and expo-notifications cancelled fetch warnings safely"
         }
       ],
-      "score": 0.908832544,
+      "score": 0.886675281,
       "source_file": "apps/mobile/src/navigation/mobile-tab-bar-host.tsx",
+      "status": "tentative",
+      "uses": 1
+    },
+    "apps_mobile_src_performance_mobile_event_loop_lag": {
+      "code_fingerprint": "1deb84c24460584e2bbc3c87d106d603a62d982308ccf9a0fcf0cd5db6ec3745",
+      "label": "mobile-event-loop-lag.ts",
+      "last": "2026-08-03T09:52:06.860876+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-03T09:52:06.860876+00:00",
+          "outcome": "useful",
+          "q": "Düzeltmeyi yapıp testi çalıştırma komutlarını verir misin?"
+        }
+      ],
+      "score": 0.975712124,
+      "source_file": "apps/mobile/src/performance/mobile-event-loop-lag.ts",
       "status": "tentative",
       "uses": 1
     },
@@ -628,7 +839,7 @@
           "q": "Railway UAT ortamında workspace-performance metrikleri tanımlı, mobil için log tutuyor muyuz inceler misin?"
         }
       ],
-      "score": 0.891098858,
+      "score": 0.86937394,
       "source_file": "apps/mobile/src/performance/mobile-health-reporter.ts",
       "status": "tentative",
       "uses": 1
@@ -644,8 +855,24 @@
           "q": "Fix Android InteractionManager deprecation and expo-notifications cancelled fetch warnings safely"
         }
       ],
-      "score": 0.908832544,
+      "score": 0.886675281,
       "source_file": "apps/mobile/src/performance/mobile-idle-task.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "apps_mobile_src_performance_mobile_navigation_timing": {
+      "code_fingerprint": "6ebc8be418c7ea435eb18bd28ce7532b22c64627d0734dce0e316c98c241dc7b",
+      "label": "mobile-navigation-timing.ts",
+      "last": "2026-08-04T09:32:52.196529+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-04T09:32:52.196529+00:00",
+          "outcome": "useful",
+          "q": "tüm testleri tamamladım. sonuçları detaylı bir şekilde inceleyip, mobil uygulamadaki yavaşlık sorununun nedenleri ve çözümlerini eksiksiz bir şekilde analiz eder misin"
+        }
+      ],
+      "score": 0.998210041,
+      "source_file": "apps/mobile/src/performance/mobile-navigation-timing.ts",
       "status": "tentative",
       "uses": 1
     },
@@ -665,10 +892,26 @@
           "q": "Railway UAT ortamında workspace-performance metrikleri tanımlı, mobil için log tutuyor muyuz inceler misin?"
         }
       ],
-      "score": 1.828010803,
+      "score": 1.783444049,
       "source_file": "apps/mobile/src/performance/mobile-performance-metrics.ts",
       "status": "preferred",
       "uses": 2
+    },
+    "apps_mobile_src_performance_mobile_startup_phases": {
+      "code_fingerprint": "a44e42d6b2ec138ece7661c3c60d1e539e1a0460e99a4be5d4da770bc178c309",
+      "label": "mobile-startup-phases.ts",
+      "last": "2026-08-04T09:32:52.196529+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-04T09:32:52.196529+00:00",
+          "outcome": "useful",
+          "q": "tüm testleri tamamladım. sonuçları detaylı bir şekilde inceleyip, mobil uygulamadaki yavaşlık sorununun nedenleri ve çözümlerini eksiksiz bir şekilde analiz eder misin"
+        }
+      ],
+      "score": 0.998210041,
+      "source_file": "apps/mobile/src/performance/mobile-startup-phases.ts",
+      "status": "tentative",
+      "uses": 1
     },
     "apps_mobile_src_performance_mobile_telemetry_instruments_installmobiletelemetryinstruments": {
       "code_fingerprint": "61e164518c05456db5bd9bf39b3cf74a51f98ae26ae5e525a8d66d60243e5943",
@@ -681,8 +924,77 @@
           "q": "Fix Android InteractionManager deprecation and expo-notifications cancelled fetch warnings safely"
         }
       ],
-      "score": 0.908832544,
+      "score": 0.886675281,
       "source_file": "apps/mobile/src/performance/mobile-telemetry-instruments.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "apps_mobile_src_query_mobile_message_prefetch": {
+      "code_fingerprint": "3e057fce5c68b3deb2abfa522366cb7f663201a167b4971aa9820ec074fa587e",
+      "label": "mobile-message-prefetch.ts",
+      "last": "2026-08-04T09:47:40.926695+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-04T09:47:40.926695+00:00",
+          "outcome": "useful",
+          "q": "Tüm mobil yavaşlıkları ve gecikmeleri endüstri seviyesinde giderecek, test tekrarı ve commit olmadan uygulanabilir prompt hazırla."
+        },
+        {
+          "date": "2026-08-04T09:32:52.196529+00:00",
+          "outcome": "useful",
+          "q": "tüm testleri tamamladım. sonuçları detaylı bir şekilde inceleyip, mobil uygulamadaki yavaşlık sorununun nedenleri ve çözümlerini eksiksiz bir şekilde analiz eder misin"
+        }
+      ],
+      "score": 1.996657347,
+      "source_file": "apps/mobile/src/query/mobile-message-prefetch.ts",
+      "status": "preferred",
+      "uses": 2
+    },
+    "apps_mobile_src_query_mobile_message_prefetch_prefetchmobiledmmessagespage": {
+      "code_fingerprint": "3e057fce5c68b3deb2abfa522366cb7f663201a167b4971aa9820ec074fa587e",
+      "label": "prefetchMobileDMMessagesPage()",
+      "last": "2026-08-04T07:13:32.219707+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-04T07:13:32.219707+00:00",
+          "outcome": "useful",
+          "q": "Test 11 prefetch-network neden ACK timeout oluyor ve tekrarlanabilir cihaz test süreci nasıl düzeltilir?"
+        }
+      ],
+      "score": 0.995980928,
+      "source_file": "apps/mobile/src/query/mobile-message-prefetch.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "apps_mobile_src_query_mobile_message_queries_getmobiledmmessagesqueryoptions": {
+      "code_fingerprint": "b4809ea128db0a81960f753830f47bc850d322d52a6448bc6ec517dc5ecd7a1a",
+      "label": "getMobileDMMessagesQueryOptions()",
+      "last": "2026-08-04T06:18:17.410977+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-04T06:18:17.410977+00:00",
+          "outcome": "useful",
+          "q": "Test 10 SQLCipher 15 tekrarda neden sqlcipher 0 sample veriyor ve nasil duzeltilir?"
+        }
+      ],
+      "score": 0.995098442,
+      "source_file": "apps/mobile/src/query/mobile-message-queries.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "apps_mobile_src_query_mobile_message_stream_cache_dropmobilemessagestream": {
+      "code_fingerprint": "a07c8dedaf3fe509ffe1ee85b0de2764b4619f09b00a933bd247721bcd1e8a96",
+      "label": "dropMobileMessageStream()",
+      "last": "2026-08-04T07:13:32.219707+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-04T07:13:32.219707+00:00",
+          "outcome": "useful",
+          "q": "Test 11 prefetch-network neden ACK timeout oluyor ve tekrarlanabilir cihaz test süreci nasıl düzeltilir?"
+        }
+      ],
+      "score": 0.995980928,
+      "source_file": "apps/mobile/src/query/mobile-message-stream-cache.ts",
       "status": "tentative",
       "uses": 1
     },
@@ -697,13 +1009,13 @@
           "q": "Mobil açılışında modern splash, yüklemeler ve performans kontrolleri nasıl tasarlanmalı?"
         }
       ],
-      "score": 0.836685808,
+      "score": 0.816287476,
       "source_file": "apps/mobile/src/query/mobile-query-cache-policy.ts",
       "status": "tentative",
       "uses": 1
     },
     "apps_mobile_src_query_mobile_recent_dm_prefetch_usemobilerecentdmprefetch": {
-      "code_fingerprint": "b55fb5bde9360af12297328318f3e4a772c75d6e18dc905ccc3e23d9718476d3",
+      "code_fingerprint": "368fe4c01ce4ec02bd9841d037173b4f4b75a8f3c16d5e9b313b3c70ada8dbbe",
       "label": "useMobileRecentDMPrefetch()",
       "last": "2026-07-30T06:28:22.041210+00:00",
       "provenance": [
@@ -713,16 +1025,37 @@
           "q": "Fix Android InteractionManager deprecation and expo-notifications cancelled fetch warnings safely"
         }
       ],
-      "score": 0.908832544,
+      "score": 0.886675281,
       "source_file": "apps/mobile/src/query/mobile-recent-dm-prefetch.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "apps_mobile_src_query_use_mobile_message_stream_persistence_usemobilemessagestreamhydration": {
+      "code_fingerprint": "7a31efb1ec99e619d0ca8a3a3345f2da19f2f02f1dea948104760398b9bfa381",
+      "label": "useMobileMessageStreamHydration()",
+      "last": "2026-08-04T06:18:17.410977+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-04T06:18:17.410977+00:00",
+          "outcome": "useful",
+          "q": "Test 10 SQLCipher 15 tekrarda neden sqlcipher 0 sample veriyor ve nasil duzeltilir?"
+        }
+      ],
+      "score": 0.995098442,
+      "source_file": "apps/mobile/src/query/use-mobile-message-stream-persistence.ts",
       "status": "tentative",
       "uses": 1
     },
     "apps_mobile_src_release_mobile_release_contract": {
       "code_fingerprint": "6cfb301b116b677703843783babee6f16608c5247f21a162feaaa6aae2f50b04",
       "label": "mobile-release-contract.ts",
-      "last": "2026-07-30T18:46:34.861783+00:00",
+      "last": "2026-08-04T05:26:55.565277+00:00",
       "provenance": [
+        {
+          "date": "2026-08-04T05:26:55.565277+00:00",
+          "outcome": "useful",
+          "q": "06-cold-start 15 iterasyonda startup 15 fakat DirectMessage-cached 14 olduğunda neden partial oluyor?"
+        },
         {
           "date": "2026-07-30T18:46:34.861783+00:00",
           "outcome": "useful",
@@ -734,10 +1067,10 @@
           "q": "Mobil uygulamanın performans, kalite, mimari ve teknoloji altyapısı ile socket fan-out, unread, message büyümesi, Prisma hot path ve NextAuth beta risklerini değerlendir"
         }
       ],
-      "score": 1.814647595,
+      "score": 2.764685313,
       "source_file": "apps/mobile/src/release/mobile-release-contract.ts",
       "status": "preferred",
-      "uses": 2
+      "uses": 3
     },
     "apps_web_playwright_config": {
       "code_fingerprint": "f5d9fe5f669f580303434e4abe7dce7ef9ffa9c151718c319c3d3ce909520db7",
@@ -750,7 +1083,7 @@
           "q": "Wizards projesi için en iyi IDE ve geliştirme araçları nelerdir? Detaylı inceler misin, graphify kullanabilirsin."
         }
       ],
-      "score": 0.896790707,
+      "score": 0.874927023,
       "source_file": "apps/web/playwright.config.ts",
       "status": "tentative",
       "uses": 1
@@ -766,7 +1099,7 @@
           "q": "Sentry GET /admin/releases ApiError Unauthorized nedir?"
         }
       ],
-      "score": 0.91727361,
+      "score": 0.894910554,
       "source_file": "apps/web/src/app/admin/releases/page.tsx",
       "status": "tentative",
       "uses": 1
@@ -787,7 +1120,7 @@
           "q": "Ekteki guvenlik geri bildirimleri gercekten bulgu mu?"
         }
       ],
-      "score": 1.858610439,
+      "score": 1.813297668,
       "source_file": "apps/web/src/app/api/uploadthing/core.ts",
       "status": "preferred",
       "uses": 2
@@ -803,7 +1136,7 @@
           "q": "Railway UAT ortamı build fail verdi, inceleyip çözer misin sorunu"
         }
       ],
-      "score": 0.914784726,
+      "score": 0.892482349,
       "source_file": "apps/web/src/app/api/v1/admin/help/articles/route.ts",
       "status": "tentative",
       "uses": 1
@@ -819,7 +1152,7 @@
           "q": "Railway UAT ortamı build fail verdi, inceleyip çözer misin sorunu"
         }
       ],
-      "score": 0.914784726,
+      "score": 0.892482349,
       "source_file": "apps/web/src/app/api/v1/admin/help/articles/route-logic.ts",
       "status": "tentative",
       "uses": 1
@@ -835,7 +1168,7 @@
           "q": "Railway UAT ortamı build fail verdi, inceleyip çözer misin sorunu"
         }
       ],
-      "score": 0.914784726,
+      "score": 0.892482349,
       "source_file": "apps/web/src/app/api/v1/route-contract.test.ts",
       "status": "tentative",
       "uses": 1
@@ -851,7 +1184,7 @@
           "q": "Sentry GET /admin/releases ApiError Unauthorized nedir?"
         }
       ],
-      "score": 0.91727361,
+      "score": 0.894910554,
       "source_file": "apps/web/src/lib/admin/access.ts",
       "status": "tentative",
       "uses": 1
@@ -867,7 +1200,7 @@
           "q": "Sentry GET /admin/releases ApiError Unauthorized nedir?"
         }
       ],
-      "score": 0.91727361,
+      "score": 0.894910554,
       "source_file": "apps/web/src/lib/admin/module-access.ts",
       "status": "tentative",
       "uses": 1
@@ -883,7 +1216,7 @@
           "q": "Which reported security findings require fixes, and how should related work be grouped into implementation prompts?"
         }
       ],
-      "score": 0.929411639,
+      "score": 0.906752659,
       "source_file": "apps/web/src/lib/auth/actions.ts",
       "status": "tentative",
       "uses": 1
@@ -899,7 +1232,7 @@
           "q": "Which reported security findings require fixes, and how should related work be grouped into implementation prompts?"
         }
       ],
-      "score": 0.929411639,
+      "score": 0.906752659,
       "source_file": "apps/web/src/lib/auth/oauth-email.ts",
       "status": "tentative",
       "uses": 1
@@ -915,7 +1248,7 @@
           "q": "İlk üç güvenlik bulgusu en güvenli ve performanslı biçimde düzeltildi mi; Railway UAT değişikliği gerekiyor mu?"
         }
       ],
-      "score": 0.934580047,
+      "score": 0.911795061,
       "source_file": "apps/web/src/lib/auth/request-rate-limits.ts",
       "status": "tentative",
       "uses": 1
@@ -931,7 +1264,7 @@
           "q": "Which reported security findings require fixes, and how should related work be grouped into implementation prompts?"
         }
       ],
-      "score": 0.929411639,
+      "score": 0.906752659,
       "source_file": "apps/web/src/lib/auth/totp.ts",
       "status": "tentative",
       "uses": 1
@@ -947,7 +1280,7 @@
           "q": "İlk üç güvenlik bulgusu en güvenli ve performanslı biçimde düzeltildi mi; Railway UAT değişikliği gerekiyor mu?"
         }
       ],
-      "score": 0.934580047,
+      "score": 0.911795061,
       "source_file": "apps/web/src/lib/auth/totp-secret-encryption.ts",
       "status": "tentative",
       "uses": 1
@@ -963,7 +1296,7 @@
           "q": "Ekteki guvenlik geri bildirimleri gercekten bulgu mu?"
         }
       ],
-      "score": 0.9291988,
+      "score": 0.906545009,
       "source_file": "apps/web/src/lib/auth/totp.ts",
       "status": "tentative",
       "uses": 1
@@ -989,7 +1322,7 @@
           "q": "Ekteki guvenlik geri bildirimleri gercekten bulgu mu?"
         }
       ],
-      "score": 2.793190486,
+      "score": 2.725092729,
       "source_file": "apps/web/src/lib/auth/two-factor.ts",
       "status": "preferred",
       "uses": 3
@@ -1015,7 +1348,7 @@
           "q": "Lokalde tum CI/CD surecini Azure a gecirmek icin yaptigimiz calismalar ne durumda?"
         }
       ],
-      "score": 2.802967217,
+      "score": 2.734631104,
       "source_file": "apps/web/src/lib/deployment/railway-contract.test.ts",
       "status": "preferred",
       "uses": 3
@@ -1036,7 +1369,7 @@
           "q": "Lokalde tum CI/CD surecini Azure a gecirmek icin yaptigimiz calismalar ne durumda?"
         }
       ],
-      "score": 1.86838717,
+      "score": 1.822836043,
       "source_file": "apps/web/src/lib/deployment/railway-contract.test.ts",
       "status": "preferred",
       "uses": 2
@@ -1052,7 +1385,7 @@
           "q": "Mobil uygulamanın performans, kalite, mimari ve teknoloji altyapısı ile socket fan-out, unread, message büyümesi, Prisma hot path ve NextAuth beta risklerini değerlendir"
         }
       ],
-      "score": 0.894986203,
+      "score": 0.873166512,
       "source_file": "apps/web/src/lib/dm/realtime-service.ts",
       "status": "tentative",
       "uses": 1
@@ -1073,7 +1406,7 @@
           "q": "Ekteki guvenlik geri bildirimleri gercekten bulgu mu?"
         }
       ],
-      "score": 1.858610439,
+      "score": 1.813297668,
       "source_file": "apps/web/src/lib/messages/link-preview.ts",
       "status": "preferred",
       "uses": 2
@@ -1089,7 +1422,7 @@
           "q": "Which reported security findings require fixes, and how should related work be grouped into implementation prompts?"
         }
       ],
-      "score": 0.929411639,
+      "score": 0.906752659,
       "source_file": "apps/web/src/lib/mobile/auth.ts",
       "status": "tentative",
       "uses": 1
@@ -1105,7 +1438,7 @@
           "q": "İlk üç güvenlik bulgusu en güvenli ve performanslı biçimde düzeltildi mi; Railway UAT değişikliği gerekiyor mu?"
         }
       ],
-      "score": 0.934580047,
+      "score": 0.911795061,
       "source_file": "apps/web/src/lib/mobile/refresh-token-family.ts",
       "status": "tentative",
       "uses": 1
@@ -1126,7 +1459,7 @@
           "q": "lokalimde bulunan iki tane self hosted runner ubuntu sanal makineyi projemizin CI/CD süreçlerinde en verimli şekilde kullanıyor muyuz? Görev paylaşımı, iş paylaşımı, doğru düzgün optimize performanslı bir şekilde yapılıyor mu?"
         }
       ],
-      "score": 1.868269411,
+      "score": 1.822721155,
       "source_file": "apps/web/src/lib/prisma-test-environment.test.ts",
       "status": "preferred",
       "uses": 2
@@ -1142,7 +1475,7 @@
           "q": "İlk üç güvenlik bulgusu en güvenli ve performanslı biçimde düzeltildi mi; Railway UAT değişikliği gerekiyor mu?"
         }
       ],
-      "score": 0.934580047,
+      "score": 0.911795061,
       "source_file": "apps/web/src/lib/security/client-ip.ts",
       "status": "tentative",
       "uses": 1
@@ -1158,7 +1491,7 @@
           "q": "Mobil uygulamanın performans, kalite, mimari ve teknoloji altyapısı ile socket fan-out, unread, message büyümesi, Prisma hot path ve NextAuth beta risklerini değerlendir"
         }
       ],
-      "score": 0.894986203,
+      "score": 0.873166512,
       "source_file": "apps/web/src/lib/socket/handlers/message.ts",
       "status": "tentative",
       "uses": 1
@@ -1174,7 +1507,7 @@
           "q": "Mobil uygulamanın performans, kalite, mimari ve teknoloji altyapısı ile socket fan-out, unread, message büyümesi, Prisma hot path ve NextAuth beta risklerini değerlendir"
         }
       ],
-      "score": 0.894986203,
+      "score": 0.873166512,
       "source_file": "apps/web/src/lib/workspace/channel-message-send-service.ts",
       "status": "tentative",
       "uses": 1
@@ -1190,7 +1523,7 @@
           "q": "Mobil uygulamanın performans, kalite, mimari ve teknoloji altyapısı ile socket fan-out, unread, message büyümesi, Prisma hot path ve NextAuth beta risklerini değerlendir"
         }
       ],
-      "score": 0.894986203,
+      "score": 0.873166512,
       "source_file": "apps/web/src/lib/workspace/message-service.ts",
       "status": "tentative",
       "uses": 1
@@ -1211,7 +1544,7 @@
           "q": "Railway UAT ortamında workspace-performance metrikleri tanımlı, mobil için log tutuyor muyuz inceler misin?"
         }
       ],
-      "score": 1.78608506,
+      "score": 1.742540452,
       "source_file": "apps/web/src/lib/workspace/performance-metrics.ts",
       "status": "preferred",
       "uses": 2
@@ -1227,7 +1560,7 @@
           "q": "Mobil uygulamanın performans, kalite, mimari ve teknoloji altyapısı ile socket fan-out, unread, message büyümesi, Prisma hot path ve NextAuth beta risklerini değerlendir"
         }
       ],
-      "score": 0.894986203,
+      "score": 0.873166512,
       "source_file": "apps/web/src/lib/workspace/unread-service.ts",
       "status": "tentative",
       "uses": 1
@@ -1243,7 +1576,7 @@
           "q": "Which reported security findings require fixes, and how should related work be grouped into implementation prompts?"
         }
       ],
-      "score": 0.929411639,
+      "score": 0.906752659,
       "source_file": "apps/web/src/proxy.ts",
       "status": "tentative",
       "uses": 1
@@ -1259,7 +1592,7 @@
           "q": "Ekteki guvenlik geri bildirimleri gercekten bulgu mu?"
         }
       ],
-      "score": 0.9291988,
+      "score": 0.906545009,
       "source_file": "apps/web/src/proxy.ts",
       "status": "tentative",
       "uses": 1
@@ -1275,7 +1608,7 @@
           "q": "Wizards projesi için en iyi IDE ve geliştirme araçları nelerdir? Detaylı inceler misin, graphify kullanabilirsin."
         }
       ],
-      "score": 0.896790707,
+      "score": 0.874927023,
       "source_file": "docs/development/windows-onboarding.md",
       "status": "tentative",
       "uses": 1
@@ -1291,7 +1624,7 @@
           "q": "Yapmam gereken cihaz testlerini sırasıyla talimatlarınla paylaşır mısın?"
         }
       ],
-      "score": 0.936489998,
+      "score": 0.913658448,
       "source_file": "docs/operations/mobile-component-device-testing.md",
       "status": "tentative",
       "uses": 1
@@ -1307,7 +1640,7 @@
           "q": "Adım 13 2h puanlama sheet'i nasıl uygulanır?"
         }
       ],
-      "score": 0.91014092,
+      "score": 0.887951759,
       "source_file": "docs/prompts/hakkinda-redesign/13-2h-puanlama.md",
       "status": "tentative",
       "uses": 1
@@ -1315,8 +1648,18 @@
     "docs_superpowers_specs_2026_07_31_mobile_performance_device_automation_design_maestro_flows": {
       "code_fingerprint": "7f493e20b535c0ca01e8d1245c8936a446438c6ae69d57a5972769c95d114f57",
       "label": "Maestro flows",
-      "last": "2026-08-03T06:41:57.210974+00:00",
+      "last": "2026-08-04T09:07:05.544396+00:00",
       "provenance": [
+        {
+          "date": "2026-08-04T09:07:05.544396+00:00",
+          "outcome": "useful",
+          "q": "son testte hata aldım, sorunu inceleyip çözer misin? tap-dm Report contains fewer than 15 samples"
+        },
+        {
+          "date": "2026-08-04T07:13:32.219707+00:00",
+          "outcome": "useful",
+          "q": "Test 11 prefetch-network neden ACK timeout oluyor ve tekrarlanabilir cihaz test süreci nasıl düzeltilir?"
+        },
         {
           "date": "2026-08-03T06:41:57.210974+00:00",
           "outcome": "useful",
@@ -1328,10 +1671,10 @@
           "q": "Performans cihaz scripti neden 30 tekrar boyunca bitmiyor, DM deep-link nasıl düzeltilir ve ilerleme nasıl gösterilir?"
         }
       ],
-      "score": 1.992991747,
+      "score": 3.938180962,
       "source_file": "docs/superpowers/specs/2026-07-31-mobile-performance-device-automation-design.md",
       "status": "preferred",
-      "uses": 2
+      "uses": 4
     },
     "package": {
       "code_fingerprint": "de57841a901a5a71e62e3423f256709021c45dd60bb12a60bed8c168fc2795b2",
@@ -1344,7 +1687,7 @@
           "q": "Wizards projesi için en iyi IDE ve geliştirme araçları nelerdir? Detaylı inceler misin, graphify kullanabilirsin."
         }
       ],
-      "score": 0.896790707,
+      "score": 0.874927023,
       "source_file": "package.json",
       "status": "tentative",
       "uses": 1
@@ -1370,7 +1713,7 @@
           "q": "lokalimde bulunan iki tane self hosted runner ubuntu sanal makineyi projemizin CI/CD süreçlerinde en verimli şekilde kullanıyor muyuz? Görev paylaşımı, iş paylaşımı, doğru düzgün optimize performanslı bir şekilde yapılıyor mu?"
         }
       ],
-      "score": 2.80247116,
+      "score": 2.734147141,
       "source_file": "packages/types/src/mobile-messaging-redesign.test.ts",
       "status": "preferred",
       "uses": 3
@@ -1386,7 +1729,7 @@
           "q": "Mobil açılışında modern splash, yüklemeler ve performans kontrolleri nasıl tasarlanmalı?"
         }
       ],
-      "score": 0.836685808,
+      "score": 0.816287476,
       "source_file": "packages/types/src/mobile.ts",
       "status": "tentative",
       "uses": 1
@@ -1402,7 +1745,7 @@
           "q": "Mobil uygulamanın performans, kalite, mimari ve teknoloji altyapısı ile socket fan-out, unread, message büyümesi, Prisma hot path ve NextAuth beta risklerini değerlendir"
         }
       ],
-      "score": 0.894986203,
+      "score": 0.873166512,
       "source_file": "apps/web/tsconfig.server.json",
       "status": "tentative",
       "uses": 1
@@ -1418,7 +1761,7 @@
           "q": "Wizards projesi için en iyi IDE ve geliştirme araçları nelerdir? Detaylı inceler misin, graphify kullanabilirsin."
         }
       ],
-      "score": 0.896790707,
+      "score": 0.874927023,
       "source_file": "scripts/quality/typescript-typecheck-runner.mjs",
       "status": "tentative",
       "uses": 1

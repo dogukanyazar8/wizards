@@ -9,17 +9,25 @@ describe("mobile Phase 2 architecture", () => {
   it("moves message data ownership into a dedicated feature hook", () => {
     const productApp = readFileSync(join(appRoot, "mobile-product-app.tsx"), "utf8");
     const messagingHook = join(appRoot, "features", "use-mobile-messaging-feature.ts");
+    const channelRouteState = join(appRoot, "features", "use-mobile-channel-route-state.ts");
     const dmRouteState = join(appRoot, "features", "use-mobile-dm-route-state.ts");
 
     assert.equal(existsSync(messagingHook), true, "Expected a dedicated messaging feature hook");
+    assert.equal(
+      existsSync(channelRouteState),
+      true,
+      "Expected a dedicated channel route state hook",
+    );
     assert.equal(existsSync(dmRouteState), true, "Expected a dedicated DM route state hook");
     assert.match(productApp, /useMobileMessagingFeature/);
 
     const source = readFileSync(messagingHook, "utf8");
-    const routeSource = readFileSync(dmRouteState, "utf8");
-    assert.match(source, /useMobileChannelMessagesQuery/);
+    const channelRouteSource = readFileSync(channelRouteState, "utf8");
+    const dmRouteSource = readFileSync(dmRouteState, "utf8");
+    assert.doesNotMatch(source, /useMobileChannelMessagesQuery/);
     assert.doesNotMatch(source, /useMobileDMMessagesQuery/);
-    assert.match(routeSource, /useMobileDMMessagesQuery/);
+    assert.match(channelRouteSource, /useMobileChannelMessagesQuery/);
+    assert.match(dmRouteSource, /useMobileDMMessagesQuery/);
     assert.match(source, /useMobileMessageSearchQuery/);
     assert.match(source, /useMobileChannelMessageMutation/);
     assert.match(source, /useMobileDMMessageMutation/);
@@ -37,6 +45,7 @@ describe("mobile Phase 2 architecture", () => {
     assert.match(messagingHook, /const refreshVisibleMobileData/);
     assert.doesNotMatch(productApp, /const \[selectedDMConversationId/);
     assert.doesNotMatch(productApp, /const handleOpenWorkspaceChannel/);
+    assert.match(productApp, /const channelScreenProps = overviewScreenProps;/);
     assert.ok(
       productApp.trimEnd().split(/\r?\n/).length < 520,
       "Product app must stay focused (memoized tab screen-props carry explicit dependency arrays)",

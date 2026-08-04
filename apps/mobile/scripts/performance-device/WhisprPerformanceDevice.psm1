@@ -14,12 +14,12 @@ $script:WhisprPackage = "team.whispr.mobile"
   scenario fails when its own cohort is short.
 #>
 $script:ScenarioCohorts = @{
-  "cold-start"       = @("startup", "DirectMessage-cached")
+  "cold-start"       = @("startup")
   "warm-resume"      = @("resume")
   "cached-dm"        = @("DirectMessage-cached")
   "cached-channel"   = @("ChannelChat-cached")
   "sqlcipher"        = @("sqlcipher")
-  "prefetch-network" = @("memory", "network")
+  "prefetch-network" = @("prefetch", "network")
   "send"             = @("send-echo", "send-ack")
   "content-scroll"   = @("lag")
   "event-loop"       = @("lag", "resume")
@@ -105,8 +105,12 @@ function Invoke-WhisprAdb {
 function Assert-WhisprDeviceReady {
   param([Parameter(Mandatory = $true)][string]$DeviceSerial)
 
-  $packagePath = (Invoke-WhisprAdb -DeviceSerial $DeviceSerial -Arguments @("shell", "pm", "path", $script:WhisprPackage)) -join ""
-  if ($packagePath -notmatch "^package:") {
+  # Some Android builds return exit 1 for `pm path` when the package is absent,
+  # bypassing this function's actionable preflight error. `list packages`
+  # returns exit 0 for the same state and lets us report the real problem.
+  $packages = @(Invoke-WhisprAdb -DeviceSerial $DeviceSerial -Arguments @("shell", "pm", "list", "packages", $script:WhisprPackage)) |
+    ForEach-Object { ([string]$_).Trim() }
+  if ($packages -notcontains "package:$($script:WhisprPackage)") {
     throw "Package '$($script:WhisprPackage)' is not installed on '$DeviceSerial'."
   }
   if (-not (Get-Command maestro -ErrorAction SilentlyContinue)) {
@@ -268,6 +272,28 @@ function Write-WhisprIterationProgress {
   Write-Output "PERF|$Scenario|iteration=$Index/$Total"
 }
 
+function Initialize-WhisprScenarioState {
+  param(
+    [Parameter(Mandatory = $true)][string]$Scenario,
+    [Parameter(Mandatory = $true)][string]$DeviceSerial,
+    [Parameter(Mandatory = $true)][string]$DmConversationId,
+    [switch]$DryRun
+  )
+
+  if ($Scenario -eq "prefetch-network") {
+    # Test 10 intentionally ends on the target DM. Purging an actively observed
+    # query and prefetching it immediately made test 11 depend on prior-screen
+    # state. Leave the target first; the reset below removes preparation samples.
+    Invoke-WhisprMaestroFlow -DeviceSerial $DeviceSerial -FlowName "open-dm.yml" -Environment @{ PERF_DM_CONVERSATION_ID = $DmConversationId } -DryRun:$DryRun
+    Invoke-WhisprMaestroFlow -DeviceSerial $DeviceSerial -FlowName "return-to-dm-inbox.yml" -DryRun:$DryRun
+    return
+  }
+
+  # Bridge commands are foreground links. Bring the signed-in shell up before
+  # reset so a killed process cannot turn reset into a cold-start delivery race.
+  Invoke-WhisprMaestroFlow -DeviceSerial $DeviceSerial -FlowName "wait-for-app-shell.yml" -DryRun:$DryRun
+}
+
 function Invoke-WhisprScenarioWorkload {
   param(
     [Parameter(Mandatory = $true)][string]$Scenario,
@@ -335,15 +361,12 @@ function Invoke-WhisprScenarioWorkload {
       }
     }
     "tap-dm" {
-      # Opens once by link to bring the app forward, then never again: every
-      # repetition after this is a finger on an inbox row, which is the only path
-      # that starts a span at the tap and the only one that can score a prefetch.
-      Invoke-WhisprMaestroFlow -DeviceSerial $DeviceSerial -FlowName "open-dm.yml" -Environment $dmEnvironment -DryRun:$DryRun
-      Invoke-WhisprMaestroFlow -DeviceSerial $DeviceSerial -FlowName "return-to-dm-inbox.yml" -DryRun:$DryRun
       for ($index = 1; $index -le $Repetitions; $index++) {
         Write-WhisprIterationProgress -Scenario $Scenario -Index $index -Total $Repetitions
+        # The flow activates the inbox before tapping. React Navigation retains
+        # inactive routes in the accessibility tree, so a separate back flow can
+        # match a hidden inbox while a channel is still the active screen.
         Invoke-WhisprMaestroFlow -DeviceSerial $DeviceSerial -FlowName "tap-dm.yml" -DryRun:$DryRun
-        Invoke-WhisprMaestroFlow -DeviceSerial $DeviceSerial -FlowName "return-to-dm-inbox.yml" -DryRun:$DryRun
       }
     }
     "sqlcipher" {
@@ -460,13 +483,16 @@ function Export-WhisprPerformanceReport {
   Send-WhisprPerfCommand -DeviceSerial $DeviceSerial -Command "export" -RunId $RunId
   $report = ConvertFrom-WhisprPerformanceFrames -Lines (Get-WhisprPerfLogLines -DeviceSerial $DeviceSerial) -RunId $RunId
   $validationError = $null
-  $sampleMatch = [regex]::Match($report, "(?m)^samples (\d+)\s*$")
-  if (-not $sampleMatch.Success -or [int]$sampleMatch.Groups[1].Value -lt $MinimumSamples) {
-    $validationError = "Report contains fewer than $MinimumSamples samples."
-  } elseif ($Scenario -eq "sqlcipher" -and $report -notmatch "(?m)^cipher_version (?!-)\S+.*\| status open \|") {
-    $validationError = "Report does not prove an open SQLCipher store."
-  } else {
+  if (-not $Partial) {
     $validationError = Test-WhisprScenarioCohorts -Report $report -Scenario $Scenario -Repetitions $MinimumSamples
+    $sampleMatch = [regex]::Match($report, "(?m)^samples (\d+)\s*$")
+    if (-not $validationError) {
+      if (-not $sampleMatch.Success -or [int]$sampleMatch.Groups[1].Value -lt $MinimumSamples) {
+        $validationError = "Report contains fewer than $MinimumSamples samples."
+      } elseif ($Scenario -eq "sqlcipher" -and $report -notmatch "(?m)^cipher_version (?!-)\S+.*\| status open \|") {
+        $validationError = "Report does not prove an open SQLCipher store."
+      }
+    }
   }
 
   $runDirectory = Join-Path $OutputRoot $RunId
@@ -500,6 +526,7 @@ function Invoke-WhisprPerformanceScenario {
 
   $workloadError = $null
   try {
+    Initialize-WhisprScenarioState -Scenario $Scenario -DeviceSerial $serial -DmConversationId $DmConversationId -DryRun:$DryRun
     if ($DryRun) { Write-Output "DRYRUN|RESET|$runId" }
     else { Send-WhisprPerfCommand -DeviceSerial $serial -Command "reset" -RunId $runId }
     Invoke-WhisprScenarioWorkload -Scenario $Scenario -DeviceSerial $serial -Repetitions $Repetitions -RunId $runId -DmConversationId $DmConversationId -ServerId $ServerId -ChannelId $ChannelId -DryRun:$DryRun

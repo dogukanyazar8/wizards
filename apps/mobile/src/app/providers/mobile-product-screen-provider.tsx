@@ -17,6 +17,7 @@ import type {
 } from "../mobile-root-screen-shared";
 
 export type MobileMessagesScreenProps = ComponentProps<typeof MessagesScreen>;
+export type MobileChannelScreenProps = ComponentProps<typeof OverviewScreen>;
 export type MobileOverviewScreenProps = ComponentProps<typeof OverviewScreen>;
 export type MobileNotificationsScreenProps = ComponentProps<typeof NotificationsScreen>;
 export type MobileSettingsScreenProps = ComponentProps<typeof ProfileSettingsScreen>;
@@ -48,6 +49,7 @@ export interface MobileProductNavigationActions {
 }
 
 const ActionsContext = createContext<MobileProductNavigationActions | null>(null);
+const ChannelContext = createContext<MobileChannelScreenProps | null>(null);
 const MessagesContext = createContext<MobileMessagesScreenProps | null>(null);
 const NotificationsContext = createContext<MobileNotificationsScreenProps | null>(null);
 const OverviewContext = createContext<MobileOverviewScreenProps | null>(null);
@@ -66,6 +68,13 @@ export function MobileMessagesScreenProvider({
   value,
 }: PropsWithChildren<{ readonly value: MobileMessagesScreenProps }>) {
   return <MessagesContext.Provider value={value}>{children}</MessagesContext.Provider>;
+}
+
+export function MobileChannelScreenProvider({
+  children,
+  value,
+}: PropsWithChildren<{ readonly value: MobileChannelScreenProps }>) {
+  return <ChannelContext.Provider value={value}>{children}</ChannelContext.Provider>;
 }
 
 export function MobileNotificationsScreenProvider({
@@ -102,6 +111,10 @@ export function useMobileProductNavigationActions(): MobileProductNavigationActi
 
 export function useMobileMessagesScreenProps(): MobileMessagesScreenProps {
   return useRequiredContext(MessagesContext, "messages");
+}
+
+export function useMobileChannelScreenProps(): MobileChannelScreenProps {
+  return useRequiredContext(ChannelContext, "channel");
 }
 
 export function useMobileNotificationsScreenProps(): MobileNotificationsScreenProps {

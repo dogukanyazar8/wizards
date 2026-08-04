@@ -103,6 +103,8 @@ export interface MobileMessageStore {
   readPerformanceSamples(): Promise<readonly MobileStoredPerformanceSample[]>;
   /** Re-opens the store for a new session after a wipe. */
   resume(): void;
+  /** Opens and keys the database before a route needs its first local page. */
+  warm(): Promise<void>;
   writePage(input: MobileMessageStoreTarget & { readonly payload: unknown }): Promise<void>;
 }
 
@@ -327,6 +329,10 @@ export function createMobileMessageStore(input: {
 
     resume() {
       sealed = false;
+    },
+
+    async warm() {
+      await connect();
     },
 
     deletePage({ scope, targetId, userId }) {

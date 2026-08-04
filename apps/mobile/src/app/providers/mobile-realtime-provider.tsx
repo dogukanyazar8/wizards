@@ -94,8 +94,11 @@ export function MobileRealtimeProvider({ children }: PropsWithChildren) {
   const refreshNetworkStatus = useMobileNetworkRefresh();
   /** Bumped by the banner's manual retry; the connect effect below keys on it. */
   const [reconnectNonce, setReconnectNonce] = useState(0);
+  const [messageStoreBlockedUserId, setMessageStoreBlockedUserId] = useState<string | null>(null);
   const clientRef = useRef<MobileRealtimeClient | null>(null);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+  const backgroundedAtRef = useRef<number | null>(null);
+  const reconnectPendingRef = useRef(false);
   const listenersRef = useRef(new Set<MobileRealtimeEventListener>());
   const typingStopTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const typingLastStartAtRef = useRef<Record<string, number>>({});
@@ -107,6 +110,8 @@ export function MobileRealtimeProvider({ children }: PropsWithChildren) {
     createInitialMobileRealtimeSnapshot,
   );
   const connectionRef = useRef(connection);
+  const sessionUserIdRef = useRef<string | null>(session?.user.id ?? null);
+  sessionUserIdRef.current = session?.user.id ?? null;
   // Typing lives in its own store: it arrives for every channel and conversation
   // the viewer is in, and publishing it through this context made the product
   // root — and with it the navigator and every screen-props object — re-render
@@ -120,6 +125,7 @@ export function MobileRealtimeProvider({ children }: PropsWithChildren) {
           useMobileActiveTargetStore.getState();
         return { channelId, conversationId, serverId, voiceChannelId };
       },
+      getCurrentUserId: () => sessionUserIdRef.current,
       queryClient,
       refreshWorkspace: (serverId) =>
         queryClient.prefetchQuery(getMobileWorkspaceQueryOptions(apiClient, serverId)),
@@ -354,6 +360,7 @@ export function MobileRealtimeProvider({ children }: PropsWithChildren) {
       socketUrl: getMobileRuntimeConfig().socketUrl,
     });
     clientRef.current = client;
+    reconnectPendingRef.current = false;
     dispatchConnection({ type: "connect-started" });
     void client.connect();
 
@@ -390,21 +397,31 @@ export function MobileRealtimeProvider({ children }: PropsWithChildren) {
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextState) => {
-      const previousVisibility = getMobileRealtimeVisibilityFromAppState(appStateRef.current);
-      const nextVisibility = getMobileRealtimeVisibilityFromAppState(nextState);
+      const previousVisibility = connectionRef.current.visibility;
+      const nextVisibility = getMobileRealtimeVisibilityFromAppState(nextState, previousVisibility);
+      const now = Date.now();
+      if (nextState === "background" && previousVisibility !== "background") {
+        backgroundedAtRef.current = now;
+      }
       appStateRef.current = nextState;
       dispatchConnection({ type: "visibility-changed", visibility: nextVisibility });
 
-      const targets = useMobileActiveTargetStore.getState();
-      bridge.backfill(
-        getMobileRealtimeForegroundBackfillSources({
-          authStatus: status,
-          nextVisibility,
-          previousVisibility,
-          realtime: connectionRef.current,
-          targets,
-        }),
-      );
+      const backgroundedAt = backgroundedAtRef.current;
+      if (backgroundedAt !== null && nextVisibility === "foreground") {
+        const targets = useMobileActiveTargetStore.getState();
+        bridge.backfill(
+          getMobileRealtimeForegroundBackfillSources({
+            backgroundedAt,
+            authStatus: status,
+            nextVisibility,
+            now,
+            previousVisibility,
+            realtime: connectionRef.current,
+            targets,
+          }),
+        );
+        backgroundedAtRef.current = null;
+      }
     });
     return () => subscription.remove();
   }, [bridge, status]);
@@ -417,41 +434,67 @@ export function MobileRealtimeProvider({ children }: PropsWithChildren) {
   const wipeRef = useRef<Promise<unknown> | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     const next: MobileSessionAuthSnapshot = { status, userId: session?.user.id ?? null };
     const plan = planMobileSessionWipe(next, authSnapshotRef.current);
     authSnapshotRef.current = next;
 
-    if (status === "signed-in") {
-      mobileMessageStore.resume();
-    }
-
     if (!plan) {
-      return;
+      if (status === "signed-in" && next.userId) {
+        mobileMessageStore.resume();
+        void mobileMessageStore.warm();
+      } else {
+        setMessageStoreBlockedUserId(null);
+      }
+      return () => {
+        cancelled = true;
+      };
     }
 
+    setMessageStoreBlockedUserId(next.status === "signed-in" ? next.userId : null);
     const previousWipe = wipeRef.current ?? Promise.resolve();
-    wipeRef.current = previousWipe.then(() =>
-      runMobileSessionWipe(plan, {
-        cancelRealtimeWork: async () => {
-          bridge.cancelPending();
-        },
-        closeMessageStore: () => mobileMessageStore.close(),
-        dropMemoryCaches: () => {
-          queryClient.removeQueries({ queryKey: mobileQueryKeys.all });
-          resetMobileSessionState();
-        },
-        purgeMessageStore: (previousUserId) => mobileMessageStore.purgeUser(previousUserId),
-        // Clearing the in-memory cache only schedules a throttled empty write, so
-        // drop the persisted file outright — a signed-out device must not keep the
-        // previous account's servers and conversations readable on disk.
-        purgeQueryCache: () => purgeMobileQueryCache(getMobileRuntimeConfig().environment),
-        report: (result) => {
-          if (result.status === "partial") {
-            addMobileSecurityBreadcrumb(`session-wipe-incomplete:${result.failedSteps.join(",")}`);
+    wipeRef.current = previousWipe
+      .then(() =>
+        runMobileSessionWipe(plan, {
+          cancelRealtimeWork: async () => {
+            bridge.cancelPending();
+          },
+          closeMessageStore: () => mobileMessageStore.close(),
+          dropMemoryCaches: () => {
+            queryClient.removeQueries({ queryKey: mobileQueryKeys.all });
+            resetMobileSessionState();
+          },
+          purgeMessageStore: (previousUserId) => mobileMessageStore.purgeUser(previousUserId),
+          // Clearing the in-memory cache only schedules a throttled empty write, so
+          // drop the persisted file outright — a signed-out device must not keep the
+          // previous account's servers and conversations readable on disk.
+          purgeQueryCache: () => purgeMobileQueryCache(getMobileRuntimeConfig().environment),
+          report: (result) => {
+            if (result.status === "partial") {
+              addMobileSecurityBreadcrumb(
+                `session-wipe-incomplete:${result.failedSteps.join(",")}`,
+              );
+            }
+          },
+        }),
+      )
+      .then(async () => {
+        if (
+          next.status === "signed-in" &&
+          next.userId &&
+          authSnapshotRef.current?.status === "signed-in" &&
+          authSnapshotRef.current.userId === next.userId
+        ) {
+          mobileMessageStore.resume();
+          await mobileMessageStore.warm();
+          if (!cancelled) {
+            setMessageStoreBlockedUserId((current) => (current === next.userId ? null : current));
           }
-        },
-      }),
-    );
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [bridge, queryClient, session?.user.id, status]);
 
   useEffect(
@@ -486,6 +529,16 @@ export function MobileRealtimeProvider({ children }: PropsWithChildren) {
   // socket.io offers once its own retry budget is spent, and the connect effect
   // already owns that lifecycle — so the retry re-runs the effect.
   const reconnect = useCallback(() => {
+    if (
+      reconnectPendingRef.current ||
+      !shouldForceMobileRealtimeReconnect({
+        networkStatus: "online",
+        realtime: connectionRef.current,
+      })
+    ) {
+      return;
+    }
+    reconnectPendingRef.current = true;
     setReconnectNonce((current) => current + 1);
   }, []);
 
@@ -504,6 +557,11 @@ export function MobileRealtimeProvider({ children }: PropsWithChildren) {
     realtime: connection,
   });
   const connectivityPhase = useMobileConnectivityPhaseState(connectivityHealth);
+  const isAccountSwitchPending =
+    status === "signed-in" &&
+    Boolean(session?.user.id) &&
+    authSnapshotRef.current?.status === "signed-in" &&
+    authSnapshotRef.current.userId !== session?.user.id;
 
   /**
    * The bar's retry asks the OS first, then the socket.
@@ -554,7 +612,7 @@ export function MobileRealtimeProvider({ children }: PropsWithChildren) {
           is already telling this story. */}
       <MobileConnectivityPhaseProvider phase={connectivityPhase}>
         <MobileConnectivityBanner onRetry={retryConnectivity} phase={connectivityPhase} />
-        {children}
+        {isAccountSwitchPending || session?.user.id === messageStoreBlockedUserId ? null : children}
       </MobileConnectivityPhaseProvider>
     </MobileRealtimeRuntimeContext.Provider>
   );

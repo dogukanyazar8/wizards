@@ -147,6 +147,29 @@ export function annotateMobileNavigationSpan(
   }
 }
 
+/**
+ * Replaces only the navigator's provisional `network` classification once the
+ * route proves that its first page came from a local stream source.
+ */
+export function refineMobileNavigationSpanStreamSource(
+  route: string,
+  source: "prefetch" | "sqlcipher",
+  cacheAgeMs: number,
+  navigationSampleId?: string | null,
+): void {
+  const span = openSpans.get(route);
+  if (
+    !span ||
+    (navigationSampleId && span.navigationSampleId !== navigationSampleId) ||
+    (span.notes.source !== undefined && span.notes.source !== "network")
+  ) {
+    return;
+  }
+
+  span.notes.source = source;
+  span.notes.cacheAgeMs = Math.min(Math.max(Math.round(cacheAgeMs), 0), 86_400_000);
+}
+
 /** Returns the current route instance's opaque measurement id, never a product id. */
 export function getMobileNavigationSampleId(route: string): string | null {
   return openSpans.get(route)?.navigationSampleId ?? null;

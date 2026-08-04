@@ -1,6 +1,7 @@
 import type { InfiniteData, QueryClient, QueryKey } from "@tanstack/react-query";
 import {
   ChatMessageSchema,
+  DMConversationDTOSchema,
   DMMessagePayloadSchema,
   MOBILE_NOTIFICATION_FILTERS,
   MobileChannelMessagesStaleEventSchema,
@@ -19,6 +20,7 @@ import {
   type MobileBootstrapPayload,
   type MobileChannelMessagesResponse,
   type MobileDMConversationsResponse,
+  type MobileDMConversationListItem,
   type MobileDMMessagesResponse,
   type MobileFriendsOverviewResponse,
   type MobileManagedWorkspaceServerDetailResponse,
@@ -81,6 +83,7 @@ export interface MobileRealtimeQueryBridge {
 
 interface CreateMobileRealtimeQueryBridgeOptions {
   readonly getActiveTargets: () => MobileRealtimeActiveTargets;
+  readonly getCurrentUserId?: () => string | null;
   readonly queryClient: QueryClient;
   readonly refreshWorkspace?: (serverId: string) => Promise<unknown>;
   readonly scheduler?: MobileRealtimeQueryBridgeScheduler;
@@ -97,6 +100,7 @@ const defaultScheduler: MobileRealtimeQueryBridgeScheduler = {
 
 export function createMobileRealtimeQueryBridge({
   getActiveTargets,
+  getCurrentUserId = () => null,
   queryClient,
   refreshWorkspace,
   scheduler = defaultScheduler,
@@ -635,6 +639,124 @@ export function createMobileRealtimeQueryBridge({
     return patched;
   };
 
+  const applyDMConversationUpdateEvent = (event: MobileRealtimeEventEnvelope): boolean => {
+    if (event.eventName !== "dm:conversation:updated") {
+      return false;
+    }
+    const payload = event.payload;
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      return false;
+    }
+    const record = payload as Record<string, unknown>;
+    const conversation = DMConversationDTOSchema.safeParse(record.conversation);
+    const preview = record.preview;
+    const unreadCount = record.unreadCount;
+    if (
+      !conversation.success ||
+      typeof record.conversationId !== "string" ||
+      conversation.data.id !== record.conversationId ||
+      typeof unreadCount !== "number" ||
+      !Number.isInteger(unreadCount) ||
+      unreadCount < 0 ||
+      typeof preview !== "string" ||
+      preview.trim().length === 0 ||
+      Number.isNaN(Date.parse(conversation.data.lastMessageAt)) ||
+      (conversation.data.lastMessage !== null &&
+        Number.isNaN(Date.parse(conversation.data.lastMessage.createdAt)))
+    ) {
+      return false;
+    }
+
+    const viewerUserId = getCurrentUserId();
+    let patched = false;
+    queryClient.setQueryData<MobileDMConversationsInfiniteData>(
+      mobileQueryKeys.dmConversations(),
+      (current) => {
+        if (!current || current.pages.length === 0) {
+          return current;
+        }
+        const existing = current.pages
+          .flatMap((page) => page.conversations)
+          .find((item) => item.id === conversation.data.id);
+        if (!existing && current.pages[0]!.conversations.length >= 30) {
+          return current;
+        }
+
+        const self = conversation.data.participants.find(
+          (participant) => participant.userId === viewerUserId,
+        );
+        const lastMessage = conversation.data.lastMessage;
+        const attachment = lastMessage?.attachments[0];
+        const contentType = attachment?.contentType.toLowerCase() ?? "";
+        const nextConversation: MobileDMConversationListItem = {
+          iconUrl: existing?.iconUrl ?? null,
+          id: conversation.data.id,
+          lastMessage: lastMessage
+            ? {
+                author: {
+                  displayName: lastMessage.author.displayName,
+                  id: lastMessage.author.id,
+                  username: lastMessage.author.username,
+                },
+                authorIsCurrentUser: lastMessage.userId === viewerUserId,
+                createdAt: lastMessage.createdAt,
+                deliveryStatus:
+                  lastMessage.userId === viewerUserId
+                    ? existing?.lastMessage?.id === lastMessage.id
+                      ? (existing.lastMessage.deliveryStatus ?? "sent")
+                      : "sent"
+                    : null,
+                durationSec:
+                  typeof attachment?.duration === "number"
+                    ? Math.min(86_400, Math.max(0, Math.round(attachment.duration)))
+                    : null,
+                id: lastMessage.id,
+                kind: contentType.startsWith("audio/")
+                  ? "voice"
+                  : contentType.startsWith("image/")
+                    ? "image"
+                    : attachment
+                      ? "file"
+                      : "text",
+                text: preview.trim().slice(0, 240),
+              }
+            : null,
+          lastMessageAt: conversation.data.lastMessageAt,
+          mentionCount: existing?.mentionCount ?? 0,
+          muted: self?.muted ?? existing?.muted ?? false,
+          name: conversation.data.name,
+          participantCount: conversation.data.participants.length,
+          participants: conversation.data.participants.slice(0, 4).map((participant) => ({
+            avatarUrl: participant.avatarUrl,
+            displayName: participant.displayName,
+            id: participant.userId,
+            isBot:
+              existing?.participants.find(
+                (currentParticipant) => currentParticipant.id === participant.userId,
+              )?.isBot ?? false,
+            status: participant.status,
+            username: participant.username,
+          })),
+          type: conversation.data.type,
+          unreadCount,
+        };
+        const previousUnreadCount = existing?.unreadCount ?? 0;
+        const unreadDelta = unreadCount - previousUnreadCount;
+        const pages = current.pages.map((page, index) => ({
+          ...page,
+          conversations: [
+            ...(index === 0 ? [nextConversation] : []),
+            ...page.conversations.filter((item) => item.id !== nextConversation.id),
+          ],
+          totalUnreadCount: Math.max(0, page.totalUnreadCount + unreadDelta),
+        }));
+        patched = true;
+        return { ...current, pages };
+      },
+    );
+    return patched;
+  };
+
   /** Same rule as `resolveChannelStreamTarget`, for conversations. */
   const resolveDMStreamTarget = (
     event: MobileRealtimeEventEnvelope,
@@ -716,6 +838,9 @@ export function createMobileRealtimeQueryBridge({
         (current) => replaceMobileMessageReactions(current, messageId, reactions),
       );
       return true;
+    }
+    if (event.eventName === "dm:conversation:updated") {
+      return false;
     }
     if (!isMobileRealtimeDMMessagePayloadEvent(event.eventName)) {
       return false;
@@ -938,7 +1063,8 @@ export function createMobileRealtimeQueryBridge({
 
       const workspaceChannelPreviewPatched = patchWorkspaceChannelLastMessageFromEvent(event);
       const channelEventHandled = applyActiveChannelEvent(event);
-      const dmConversationsPatched = applyDMConversationReceiptEvent(event);
+      const dmConversationsPatched =
+        applyDMConversationUpdateEvent(event) || applyDMConversationReceiptEvent(event);
       const dmStreamPatched = applyActiveDMEvent(event);
       const notificationApplied = applyNotificationEvent(event);
       const workspaceRefreshedImmediately = refreshWorkspaceImmediatelyForChannelEvent(
@@ -949,8 +1075,8 @@ export function createMobileRealtimeQueryBridge({
        * The two DM caches are refreshed by different events on purpose.
        *
        * `dm:conversation:updated` is the inbox's event — the server sends one
-       * beside every message — and it carries no message content, so it must
-       * never reload the open chat. The `dm:message:*` events are the stream's,
+       * beside every message — its conversation projection updates the inbox,
+       * never the open chat. The `dm:message:*` events are the stream's,
        * and once one has been patched into the stream there is nothing left to
        * read: dragging the inbox along behind them is what made sending a
        * message reload the conversation it was sent into.

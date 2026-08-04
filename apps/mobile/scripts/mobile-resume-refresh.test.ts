@@ -60,16 +60,13 @@ describe("resume refresh", () => {
     assert.equal(MOBILE_WORKSPACE_STALE_TIME_MS, 60_000);
   });
 
-  it("is what the provider runs on resume", () => {
+  it("leaves missed-event refresh ownership to the realtime gap backfill", () => {
     const provider = readFileSync(
       path.join(__dirname, "..", "src/app/providers/mobile-query-provider.tsx"),
       "utf8",
     );
 
-    assert.match(
-      provider,
-      /selectMobileResumeRefreshKeys\(\s*useMobileActiveTargetStore\.getState/u,
-    );
-    assert.match(provider, /queryClient\.invalidateQueries\(\{ exact: true, queryKey \}\)/u);
+    assert.doesNotMatch(provider, /selectMobileResumeRefreshKeys/u);
+    assert.doesNotMatch(provider, /queryClient\.invalidateQueries/u);
   });
 });

@@ -29,14 +29,14 @@ afterEach(() => {
 });
 
 describe("chat transition variants", () => {
-  it("keeps the slide a production build has always had", () => {
+  it("uses no production chat transition so cached content can paint immediately", () => {
     configureMobileChatTransition({ reducedMotion: false, rotate: false });
 
     advanceMobileChatTransitionVariant();
     advanceMobileChatTransitionVariant();
 
-    assert.equal(getMobileChatTransitionVariant(), "slide");
-    assert.equal(resolveMobileChatTransitionAnimation(), "slide_from_right");
+    assert.equal(getMobileChatTransitionVariant(), "none");
+    assert.equal(resolveMobileChatTransitionAnimation(), "none");
   });
 
   it("walks all three variants inside one run", () => {
@@ -48,10 +48,10 @@ describe("chat transition variants", () => {
       return variant;
     });
 
-    assert.deepEqual(seen, ["slide", "fade", "none"]);
+    assert.deepEqual(seen, ["none", "fade", "slide"]);
     // Comparing a slide today against a fade tomorrow compares two devices, two
     // caches and two networks as well, so the rotation has to close its loop.
-    assert.equal(getMobileChatTransitionVariant(), "slide");
+    assert.equal(getMobileChatTransitionVariant(), "none");
   });
 
   it("lets reduced motion outrank the experiment", () => {
@@ -102,9 +102,9 @@ describe("chat transition variants", () => {
     assert.deepEqual(
       rows.map((row) => [row.variant, row.count, row.p95Ms]),
       [
-        ["slide", 2, 500],
-        ["fade", 0, null],
         ["none", 1, 150],
+        ["fade", 0, null],
+        ["slide", 2, 500],
       ],
     );
   });

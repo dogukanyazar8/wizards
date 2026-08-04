@@ -9,8 +9,6 @@ import {
 } from "../../query/mobile-query-cache-policy";
 import { createMobileQueryClient } from "../../query/mobile-query-client";
 import { planMobileQueryFocus } from "../../query/mobile-query-focus";
-import { selectMobileResumeRefreshKeys } from "../../query/mobile-resume-refresh";
-import { useMobileActiveTargetStore } from "../../state/mobile-active-target-store";
 import { createMobileQueryPersister } from "../../query/mobile-query-persistence";
 import { setMobileChatCacheProbe } from "../../performance/mobile-chat-route-target";
 import { markMobileStartupPhase } from "../../performance/mobile-startup-phases";
@@ -47,42 +45,19 @@ export function MobileQueryProvider({ children }: PropsWithChildren) {
   useEffect(() => {
     // Mount is not a resume: nothing is covering the app yet, so the first
     // focus value is applied straight away.
-    focusManager.setFocused(planMobileQueryFocus(AppState.currentState).focused);
-
-    let resumeTimer: ReturnType<typeof setTimeout> | null = null;
-    const clearResumeTimer = () => {
-      if (resumeTimer !== null) {
-        clearTimeout(resumeTimer);
-        resumeTimer = null;
-      }
-    };
+    const initialFocus = planMobileQueryFocus(AppState.currentState).focused;
+    if (initialFocus !== null) {
+      focusManager.setFocused(initialFocus);
+    }
 
     const subscription = AppState.addEventListener("change", (status: AppStateStatus) => {
-      // Whichever direction the app just moved, a pending resume refetch from an
-      // earlier flip is stale — rapid switching must not stack refetch waves.
-      clearResumeTimer();
       const plan = planMobileQueryFocus(status);
-
-      if (plan.delayMs === 0) {
+      if (plan.focused !== null) {
         focusManager.setFocused(plan.focused);
-        return;
       }
-
-      resumeTimer = setTimeout(() => {
-        resumeTimer = null;
-        focusManager.setFocused(plan.focused);
-        // Focus no longer refetches by itself (`refetchOnWindowFocus: false`), so
-        // the resume names what it wants: the screen the reader came back to.
-        for (const queryKey of selectMobileResumeRefreshKeys(
-          useMobileActiveTargetStore.getState(),
-        )) {
-          void queryClient.invalidateQueries({ exact: true, queryKey });
-        }
-      }, plan.delayMs);
     });
 
     return () => {
-      clearResumeTimer();
       subscription.remove();
       focusManager.setFocused(undefined);
     };

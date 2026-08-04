@@ -11,6 +11,7 @@ import {
   selectMobileRecentDMPrefetchIds,
   shouldWarmMobileRecentDMs,
 } from "./mobile-message-prefetch";
+import { mobileQueryKeys } from "./mobile-query-keys";
 
 /**
  * Warms the newest conversations once the inbox has resolved, after the launch
@@ -48,30 +49,45 @@ export function useMobileRecentDMPrefetch(input: {
       return;
     }
 
+    const conversationIds = prefetchIds.split(",");
+    let cancelled = false;
     const handle = scheduleMobileIdleTask(() => {
-      const conversationIds = prefetchIds.split(",");
       recordMobileRecentDMPrefetch(conversationIds);
       // One at a time: a burst of speculative reads competes with the fetch the
       // reader is actually waiting for.
-      void conversationIds
-        .reduce(
-          (chain, conversationId) =>
-            chain.then(() =>
-              prefetchMobileDMMessagesPage(queryClient, apiClient, conversationId).then(
-                // Only a completed read is a warm conversation. Counting the
-                // attempt is what made the panel report a 100% hit rate for a
-                // feature whose requests had not necessarily finished.
-                () => recordMobileRecentDMPrefetchSettled(conversationId),
-                () => undefined,
-              ),
-            ),
-          Promise.resolve(),
-        )
-        .catch(() => undefined);
+      void (async () => {
+        for (const conversationId of conversationIds) {
+          if (cancelled) {
+            return;
+          }
+          try {
+            const fetched = await prefetchMobileDMMessagesPage(
+              queryClient,
+              apiClient,
+              conversationId,
+            );
+            if (!cancelled && fetched) {
+              recordMobileRecentDMPrefetchSettled(conversationId);
+            }
+          } catch {
+            if (cancelled) {
+              return;
+            }
+          }
+        }
+      })();
     });
 
     return () => {
+      cancelled = true;
       handle.cancel();
+      for (const conversationId of conversationIds) {
+        const queryKey = mobileQueryKeys.dmMessages(conversationId);
+        const query = queryClient.getQueryCache().find({ exact: true, queryKey });
+        if ((query?.getObserversCount() ?? 0) === 0) {
+          void queryClient.cancelQueries({ exact: true, queryKey });
+        }
+      }
     };
   }, [apiClient, enabled, prefetchIds, queryClient]);
 }

@@ -12,6 +12,8 @@ type MobileMessageStreamData = {
   readonly pages: readonly unknown[];
 };
 
+const hydrationByQueryClient = new WeakMap<QueryClient, Map<string, Promise<number | null>>>();
+
 function streamQueryKey(scope: MobileMessageStoreScope, targetId: string) {
   return scope === "channel"
     ? mobileQueryKeys.channelMessages(targetId)
@@ -51,6 +53,32 @@ export async function hydrateMobileMessageStream(input: {
     return null;
   }
 
+  let clientHydrations = hydrationByQueryClient.get(input.queryClient);
+  if (!clientHydrations) {
+    clientHydrations = new Map();
+    hydrationByQueryClient.set(input.queryClient, clientHydrations);
+  }
+  const hydrationKey = JSON.stringify([input.userId, input.scope, input.targetId]);
+  const pendingHydration = clientHydrations.get(hydrationKey);
+  if (pendingHydration) {
+    return pendingHydration;
+  }
+
+  const hydration = hydrateMobileMessageStreamOnce(input, queryKey);
+  clientHydrations.set(hydrationKey, hydration);
+  try {
+    return await hydration;
+  } finally {
+    if (clientHydrations.get(hydrationKey) === hydration) {
+      clientHydrations.delete(hydrationKey);
+    }
+  }
+}
+
+async function hydrateMobileMessageStreamOnce(
+  input: Parameters<typeof hydrateMobileMessageStream>[0],
+  queryKey: ReturnType<typeof streamQueryKey>,
+): Promise<number | null> {
   const entry = await input.store.readPageEntry({
     scope: input.scope,
     targetId: input.targetId,
@@ -104,6 +132,10 @@ export function trimMobileMessageStream(input: {
 
   const queryKey = streamQueryKey(input.scope, input.targetId);
   const state = input.queryClient.getQueryState<MobileMessageStreamData>(queryKey);
+  const query = input.queryClient.getQueryCache().find({ exact: true, queryKey });
+  if (state?.fetchStatus === "fetching" || (query?.getObserversCount() ?? 0) > 0) {
+    return false;
+  }
   const current = state?.data;
   if (!current) {
     return false;
@@ -151,7 +183,12 @@ export async function dropMobileMessageStream(input: {
     return;
   }
 
-  input.queryClient.removeQueries({ queryKey: streamQueryKey(input.scope, input.targetId) });
+  const queryKey = streamQueryKey(input.scope, input.targetId);
+  // `removeQueries` requests cancellation but does not wait for the in-flight
+  // fetch to settle. A performance purge followed immediately by a prefetch
+  // could therefore race the request it had just removed and never settle.
+  await input.queryClient.cancelQueries({ exact: true, queryKey });
+  input.queryClient.removeQueries({ exact: true, queryKey });
   forgetMobileMessageStreamOrigin(input.scope, input.targetId);
   await input.store.deletePage({
     scope: input.scope,

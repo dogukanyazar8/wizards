@@ -256,14 +256,17 @@ export function createMobileOptimisticMutationOptions<
         deliveryStatus: "failed",
       });
     },
-    onMutate: async (variables) => {
+    onMutate: (variables) => {
       // The span starts before the cache work: the reader's tap is the origin, and
       // the bubble appearing is what closes the echo half.
       const retriedNonce = retriedClientNonces.get(variables);
       retriedClientNonces.delete(variables);
       const clientId = retriedNonce ?? createMobileOptimisticMessageId();
       beginMobileSendSpan(clientId);
-      await options.queryClient.cancelQueries({ queryKey: options.queryKey });
+      void options.queryClient.cancelQueries(
+        { exact: true, queryKey: options.queryKey },
+        { revert: false },
+      );
       optimisticClientIds.set(variables, clientId);
       const optimisticMessage = options.createOptimisticMessage(variables, clientId);
       options.queryClient.setQueryData<TData>(options.queryKey, (current) =>

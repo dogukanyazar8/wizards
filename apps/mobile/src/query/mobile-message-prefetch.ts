@@ -22,30 +22,64 @@ export function prefetchMobileChannelMessagesPage(
   queryClient: QueryClient,
   client: MobileApiClient,
   channelId: string,
-): Promise<void> {
+): Promise<boolean> {
   if (channelId.length === 0) {
-    return Promise.resolve();
+    return Promise.resolve(false);
   }
 
-  return queryClient.prefetchInfiniteQuery({
-    ...getMobileChannelMessagesQueryOptions(client, channelId),
-    pages: 1,
-  });
+  const queryKey = mobileQueryKeys.channelMessages(channelId);
+  const beforeData = queryClient.getQueryData(queryKey);
+  const beforeUpdatedAt = queryClient.getQueryState(queryKey)?.dataUpdatedAt ?? 0;
+  return queryClient
+    .prefetchInfiniteQuery({
+      ...getMobileChannelMessagesQueryOptions(client, channelId),
+      pages: 1,
+    })
+    .then(
+      () =>
+        queryClient.getQueryData(queryKey) !== beforeData ||
+        (queryClient.getQueryState(queryKey)?.dataUpdatedAt ?? 0) !== beforeUpdatedAt,
+    );
 }
 
 export function prefetchMobileDMMessagesPage(
   queryClient: QueryClient,
   client: MobileApiClient,
   conversationId: string,
-): Promise<void> {
+): Promise<boolean> {
   if (conversationId.length === 0) {
-    return Promise.resolve();
+    return Promise.resolve(false);
   }
 
-  return queryClient.prefetchInfiniteQuery({
-    ...getMobileDMMessagesQueryOptions(client, conversationId),
-    pages: 1,
-  });
+  const queryKey = mobileQueryKeys.dmMessages(conversationId);
+  const beforeData = queryClient.getQueryData(queryKey);
+  const beforeUpdatedAt = queryClient.getQueryState(queryKey)?.dataUpdatedAt ?? 0;
+  return queryClient
+    .prefetchInfiniteQuery({
+      ...getMobileDMMessagesQueryOptions(client, conversationId),
+      pages: 1,
+    })
+    .then(
+      () =>
+        queryClient.getQueryData(queryKey) !== beforeData ||
+        (queryClient.getQueryState(queryKey)?.dataUpdatedAt ?? 0) !== beforeUpdatedAt,
+    );
+}
+
+/** UAT measurement warm: records both intent and successful settlement. */
+export async function prefetchMeasuredMobileDMMessagesPage(
+  queryClient: QueryClient,
+  client: MobileApiClient,
+  conversationId: string,
+): Promise<void> {
+  if (conversationId.length === 0) {
+    return;
+  }
+
+  recordMobileRecentDMPrefetch([conversationId]);
+  if (await prefetchMobileDMMessagesPage(queryClient, client, conversationId)) {
+    recordMobileRecentDMPrefetchSettled(conversationId);
+  }
 }
 
 /**

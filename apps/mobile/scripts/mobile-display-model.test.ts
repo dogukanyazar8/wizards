@@ -836,6 +836,25 @@ describe("mobile display model", () => {
     assert.equal(formatMobileDisplayTime("not-a-date"), "");
   });
 
+  it("reuses one compact-time formatter per locale", () => {
+    const OriginalDateTimeFormat = Intl.DateTimeFormat;
+    let constructions = 0;
+    Intl.DateTimeFormat = class extends OriginalDateTimeFormat {
+      constructor(...args: ConstructorParameters<typeof Intl.DateTimeFormat>) {
+        super(...args);
+        constructions += 1;
+      }
+    } as typeof Intl.DateTimeFormat;
+
+    try {
+      formatMobileDisplayTime("2026-06-30T09:15:00.000Z", "en-CA");
+      formatMobileDisplayTime("2026-06-30T09:16:00.000Z", "en-CA");
+      assert.equal(constructions, 1);
+    } finally {
+      Intl.DateTimeFormat = OriginalDateTimeFormat;
+    }
+  });
+
   it("bounds mobile list rendering without changing source ordering semantics", () => {
     const values = ["one", "two", "three", "four"];
 

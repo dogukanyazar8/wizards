@@ -141,13 +141,23 @@ export function shouldConnectMobileRealtime(input: {
 
 export function getMobileRealtimeVisibilityFromAppState(
   appState: string,
+  previousVisibility: MobileRealtimeVisibility = "foreground",
 ): MobileRealtimeVisibility {
-  return appState === "active" ? "foreground" : "background";
+  if (appState === "active") {
+    return "foreground";
+  }
+
+  if (appState === "inactive") {
+    return previousVisibility;
+  }
+
+  return "background";
 }
 
 export function getMobileRealtimeForegroundBackfillSources(input: {
   authStatus: string;
   minGapMs?: number;
+  backgroundedAt?: number | null;
   nextVisibility: MobileRealtimeVisibility;
   now?: number;
   previousVisibility: MobileRealtimeVisibility;
@@ -163,7 +173,7 @@ export function getMobileRealtimeForegroundBackfillSources(input: {
   }
 
   const now = input.now ?? Date.now();
-  const lastSeenAt = input.realtime.lastSeenAt;
+  const lastSeenAt = input.backgroundedAt ?? input.realtime.lastSeenAt;
   const minGapMs = input.minGapMs ?? MOBILE_REALTIME_FOREGROUND_BACKFILL_GAP_MS;
 
   if (lastSeenAt !== null && now - lastSeenAt < minGapMs) {
@@ -173,7 +183,7 @@ export function getMobileRealtimeForegroundBackfillSources(input: {
   // "notification" belongs in every backfill: the socket is torn down in the
   // background, so anything that arrived while the app was away exists only as a
   // push and the feed would otherwise sit stale until its own staleTime expired.
-  const sources: MobileRealtimeRefreshSource[] = ["bootstrap", "notification"];
+  const sources: MobileRealtimeRefreshSource[] = ["notification"];
 
   if (input.targets.conversationId) {
     sources.push("dm");

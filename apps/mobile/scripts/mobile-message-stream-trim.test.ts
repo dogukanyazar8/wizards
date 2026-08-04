@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, it } from "node:test";
-import { QueryClient } from "@tanstack/react-query";
+import { QueryClient, QueryObserver } from "@tanstack/react-query";
 import {
   MOBILE_MESSAGE_STREAM_RETAINED_PAGES,
   trimMobileMessageStreamPages,
@@ -77,6 +77,26 @@ describe("message stream trim", () => {
     queryClient.clear();
   });
 
+  it("does not trim a stream while a route observes it", () => {
+    const queryClient = new QueryClient();
+    const queryKey = mobileQueryKeys.dmMessages("conversation-1");
+    queryClient.setQueryData(queryKey, buildStream(9));
+    const observer = new QueryObserver(queryClient, {
+      enabled: false,
+      queryFn: async () => buildStream(1),
+      queryKey,
+    });
+    const unsubscribe = observer.subscribe(() => undefined);
+
+    assert.equal(
+      trimMobileMessageStream({ queryClient, scope: "dm", targetId: "conversation-1" }),
+      false,
+    );
+    assert.equal((queryClient.getQueryData(queryKey) as { pages: unknown[] }).pages.length, 9);
+    unsubscribe();
+    queryClient.clear();
+  });
+
   it("is what a closed conversation runs", () => {
     const source = readFileSync(
       path.join(__dirname, "..", "src/query/use-mobile-message-stream-persistence.ts"),
@@ -85,7 +105,7 @@ describe("message stream trim", () => {
 
     assert.match(
       source,
-      /return \(\) => \{\s*trimMobileMessageStream\(\{ queryClient, scope, targetId \}\);/u,
+      /return \(\) => \{[\s\S]*queueMicrotask\(\(\) => \{\s*trimMobileMessageStream\(\{ queryClient, scope, targetId \}\);/u,
     );
   });
 });

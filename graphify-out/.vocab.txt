@@ -67,6 +67,7 @@ aktif
 aktivite
 alan
 alanlar
+ald
 alert
 alertable
 alerts
@@ -756,6 +757,7 @@ derin
 derinlemesine
 derive
 derived
+derlerken
 describe
 description
 descriptions
@@ -801,6 +803,7 @@ dimension
 dimensions
 dims
 dir
+dire
 direct
 direction
 directive
@@ -888,6 +891,7 @@ durumda
 durumlar
 durumu
 duruyoruz
+duzeltilir
 dwm
 dynamic
 each
@@ -1117,6 +1121,7 @@ failed
 failing
 failure
 failures
+fakat
 fake
 fallback
 fallbacks
@@ -1277,6 +1282,7 @@ gerek
 gereken
 gerekirse
 gerekiyor
+gereksinimi
 geri
 gesture
 get
@@ -1355,6 +1361,7 @@ handling
 handoff
 handshake
 hangi
+hanging
 hangover
 haptic
 haptics
@@ -1371,6 +1378,7 @@ hash
 hashes
 hata
 hatas
+hatay
 hatlar
 hatt
 have
@@ -1624,6 +1632,7 @@ istiyorum
 item
 items
 iterable
+iterasyonda
 iteration
 its
 iyi
@@ -1974,6 +1983,7 @@ mazl
 mdaki
 mde
 measure
+measured
 measurement
 meden
 media
@@ -2275,6 +2285,7 @@ olmaz
 olsun
 olu
 olusturup
+oluyor
 omissions
 omurgas
 onar
@@ -2657,6 +2668,7 @@ raporda
 rapordan
 raporlama
 raporlar
+raporluyor
 raporu
 ras
 ratchet
@@ -2692,6 +2704,7 @@ receipts
 received
 receiver
 recent
+reci
 recipient
 recipients
 recommended
@@ -2736,6 +2749,7 @@ referanslar
 reference
 references
 refetch
+refine
 refresh
 refreshable
 refreshed
@@ -3358,6 +3372,7 @@ talk
 tam
 tamam
 tamamla
+tamamlad
 tamamlama
 tamamlandi
 tan
@@ -3388,6 +3403,8 @@ technology
 tek
 teknoloji
 tekrar
+tekrarda
+tekrarlanabilir
 tel
 telemetri
 telemetrisi
@@ -3418,6 +3435,7 @@ testing
 testler
 testleri
 testlerini
+testlerinin
 tests
 testte
 text
@@ -3609,6 +3627,7 @@ unchecked
 unclaimable
 uncover
 uncovered
+unda
 undo
 ungrouped
 unguarded
@@ -3681,6 +3700,7 @@ uygulan
 uygulanamaz
 uygulay
 uygun
+uyor
 uyu
 uyulmazsa
 uyumluluk
@@ -3720,6 +3740,7 @@ verified
 verifier
 verify
 verimli
+verir
 verirsen
 verisi
 veritaban
@@ -3895,9 +3916,11 @@ zelt
 zeltildi
 zeltilir
 zeltir
+zeltme
 zeltmeler
 zeltmeleri
 zeltmesi
+zeltmeyi
 zem
 zemini
 zen

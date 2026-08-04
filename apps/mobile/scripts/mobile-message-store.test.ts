@@ -145,6 +145,20 @@ describe("mobile stored message page policy", () => {
 });
 
 describe("createMobileMessageStore", () => {
+  it("warms the encrypted connection once before the first route restore", async () => {
+    const { database, statements } = createFakeDatabase();
+    let opens = 0;
+    const store = createStore(database, () => {
+      opens += 1;
+    });
+
+    await store.warm();
+    await store.warm();
+
+    assert.equal(opens, 1);
+    assert.equal(statements.filter((statement) => statement.includes("CREATE TABLE")).length, 1);
+  });
+
   it("reads back a page it wrote for the same account, scope and target", async () => {
     const { database } = createFakeDatabase();
     const store = createStore(database);

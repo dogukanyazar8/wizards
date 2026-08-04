@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
   MessageAttachment,
   MobileWorkspaceChannelSummary,
@@ -19,20 +19,10 @@ import {
   getMobileDMUnreadCount,
   useMobileDMConversationsQuery,
 } from "../../query/mobile-dm-conversations-query";
-import {
-  useMobileChannelMessagesQuery,
-  useMobileChannelPinsQuery,
-} from "../../query/mobile-message-queries";
-import {
-  getMobileChannelFailedSendScope,
-  mobileFailedSendRegistry,
-  withMobileFailedSendOverlay,
-} from "../../query/mobile-failed-send-registry";
 import { useMobileMessageSearchQuery } from "../../query/mobile-message-search-query";
 import { loadMoreMobileInfinitePages } from "../../query/mobile-query-pages";
 import {
   useMobileChannelMessageMutation,
-  useMobileChannelReadMutation,
   useMobileChannelMessageDeleteMutation,
   useMobileChannelMessageEditMutation,
   useMobileChannelMessageReactionMutation,
@@ -81,13 +71,18 @@ import { useMobileLocaleRuntime } from "../providers/mobile-locale-provider";
 import { createMobileGiphyAttachment } from "../../media/mobile-giphy-client";
 import { useMobileMessagePrefetch } from "../../query/mobile-message-prefetch";
 import { useMobileRecentDMPrefetch } from "../../query/mobile-recent-dm-prefetch";
-import { useMobileMessageStreamPersistence } from "../../query/use-mobile-message-stream-persistence";
 import { useMobileRecentDMRestore } from "../../query/mobile-recent-dm-restore";
 import type { MobileForwardSendInput } from "../components/message-forward-sheet";
 import { resolveMobileWorkspaceServerSelection } from "../../workspace/mobile-workspace-selection";
 
 const copy = activeMobileCopy;
 const EMPTY_PINNED_MESSAGES: readonly never[] = [];
+const IDLE_CHANNEL_MESSAGES_STATE = toMobileChannelMessagesViewState(
+  { data: undefined, isError: false },
+  null,
+  copy.workspaceChannelLoadFailed,
+);
+const IDLE_CHANNEL_SYNC_STATE = createInitialMobileSyncSnapshot("channel");
 const IDLE_DM_MESSAGES_STATE = toMobileDMMessagesViewState(
   { data: undefined, isError: false },
   null,
@@ -190,10 +185,6 @@ export function useMobileMessagingFeature({
   const bootstrapQuery = useMobileBootstrapQuery(apiClient, isSignedIn);
   const dmConversationsQuery = useMobileDMConversationsQuery(apiClient, isSignedIn);
   const workspaceQuery = useMobileWorkspaceQuery(apiClient, selectedWorkspaceServerId ?? "");
-  const channelMessagesQuery = useMobileChannelMessagesQuery(
-    apiClient,
-    activeWorkspaceTextChannelId ?? "",
-  );
   const messageSearchQuery = useMobileMessageSearchQuery(apiClient, messageSearchInput);
   // Observers bind `refetch`/`fetchNextPage` once, so pulling them out here is
   // what lets the callbacks below keep a stable identity across renders — the
@@ -201,22 +192,9 @@ export function useMobileMessagingFeature({
   // handler dependencies stop changing every render.
   const { refetch: refetchBootstrap } = bootstrapQuery;
   const { refetch: refetchWorkspace } = workspaceQuery;
-  const { refetch: refetchChannelMessages } = channelMessagesQuery;
   const { refetch: refetchDMConversations } = dmConversationsQuery;
   const { refetch: refetchMessageSearch } = messageSearchQuery;
   const queryClient = useMobileQueryClient();
-  // Message bodies live in their own SQLCipher database rather than the plaintext
-  // query cache, so an open stream is seeded from disk on a cold start and its
-  // newest page is written back as it moves.
-  useMobileMessageStreamPersistence({
-    data: channelMessagesQuery.data,
-    enabled: isSignedIn,
-    error: channelMessagesQuery.error,
-    queryClient,
-    scope: "channel",
-    targetId: activeWorkspaceTextChannelId,
-    userId: currentUser?.id ?? null,
-  });
   // Tap-time warmers for the two chat surfaces: the row that opens a chat can put
   // its first page on the wire before the navigation and selection work runs.
   const { prefetchChannelMessages, prefetchDMMessages } = useMobileMessagePrefetch(apiClient);
@@ -240,7 +218,6 @@ export function useMobileMessagingFeature({
     channelId: activeWorkspaceTextChannelId ?? "",
     client: apiClient,
   });
-  const channelReadMutation = useMobileChannelReadMutation({ client: apiClient });
   const dmMessageControls = useMobileDMMessageMutation({
     author: dmMessageAuthor,
     client: apiClient,
@@ -274,10 +251,6 @@ export function useMobileMessagingFeature({
   });
   const forwardMutation = useMobileMessageForwardMutation({ client: apiClient });
   const { mutateAsync: forwardMessage } = forwardMutation;
-  const channelPinsQuery = useMobileChannelPinsQuery(
-    apiClient,
-    isSignedIn ? (activeWorkspaceTextChannelId ?? "") : "",
-  );
   const channelPinMutation = useMobileChannelMessagePinMutation({
     channelId: activeWorkspaceTextChannelId ?? "",
     client: apiClient,
@@ -285,9 +258,6 @@ export function useMobileMessagingFeature({
   const { mutateAsync: mutateChannelPin } = channelPinMutation;
   // 8c "YENİ" divider: the read endpoint reports the first unread message id
   // for the channel being opened, captured once per open.
-  const [channelFirstUnreadMessageId, setChannelFirstUnreadMessageId] = useState<string | null>(
-    null,
-  );
   const {
     discardFailedMessage: discardFailedChannelMessage,
     mutation: channelMessageMutation,
@@ -304,7 +274,6 @@ export function useMobileMessagingFeature({
   const resetDMMessageMutation = dmMessageMutation.reset;
   const { isPending: isChannelReactionPending, mutate: mutateChannelReaction } =
     channelReactionMutation;
-  const { mutate: markChannelRead } = channelReadMutation;
   const { isPending: isDMReactionPending, mutate: mutateDMReaction } = dmReactionMutation;
   const { isPending: isChannelEditPending, mutateAsync: editChannelMessage } = channelEditMutation;
   const { isPending: isDMEditPending, mutateAsync: editDMMessage } = dmEditMutation;
@@ -385,30 +354,10 @@ export function useMobileMessagingFeature({
       ),
     [selectedWorkspaceServerId, workspaceQuery.data, workspaceQuery.isError],
   );
-  const channelFailedScope = getMobileChannelFailedSendScope(activeWorkspaceTextChannelId ?? "");
-  const channelFailedSends = useSyncExternalStore(mobileFailedSendRegistry.subscribe, () =>
-    mobileFailedSendRegistry.getEntries(channelFailedScope),
-  );
-  // Failed sends only live in the registry, so re-attach them after a refetch
-  // drops the optimistic rows. Channel scopes always hold ChatMessage entries
-  // and DM scopes always hold DMMessagePayload entries.
-  const channelMessagesState = useMemo(
-    () =>
-      withMobileFailedSendOverlay(
-        toMobileChannelMessagesViewState(
-          { data: channelMessagesQuery.data, isError: channelMessagesQuery.isError },
-          activeWorkspaceTextChannelId,
-          copy.workspaceChannelLoadFailed,
-        ),
-        channelFailedSends,
-      ),
-    [
-      activeWorkspaceTextChannelId,
-      channelFailedSends,
-      channelMessagesQuery.data,
-      channelMessagesQuery.isError,
-    ],
-  );
+  // The pushed ChannelChat route owns its transcript observer and failed-send
+  // overlay. Keeping a second observer here made every cache delta re-render the
+  // product root before the route could draw it.
+  const channelMessagesState = IDLE_CHANNEL_MESSAGES_STATE;
   // The product root owns inbox selection and mutations, but never subscribes
   // to a DM transcript. The pushed DirectMessage route owns that observer so a
   // prefetched page can render on its first route commit.
@@ -423,7 +372,7 @@ export function useMobileMessagingFeature({
     [messageSearchInput, messageSearchQuery.data, messageSearchQuery.isError],
   );
   const bootstrapSyncState = useMobileSyncSnapshot(bootstrapQuery, "bootstrap");
-  const channelSyncState = useMobileSyncSnapshot(channelMessagesQuery, "channel");
+  const channelSyncState = IDLE_CHANNEL_SYNC_STATE;
   const dmSyncState = IDLE_DM_SYNC_STATE;
   const workspaceSyncState = useMobileSyncSnapshot(workspaceQuery, "workspace");
 
@@ -794,17 +743,7 @@ export function useMobileMessagingFeature({
     [currentUser, deleteDMMessage, isDMDeletePending, isSignedIn, selectedDMConversationId],
   );
 
-  const loadMoreChannelMessages = useCallback(() => {
-    loadMoreMobileInfinitePages({
-      fetchNextPage: channelMessagesQuery.fetchNextPage,
-      hasNextPage: channelMessagesQuery.hasNextPage,
-      isFetchingNextPage: channelMessagesQuery.isFetchingNextPage,
-    });
-  }, [
-    channelMessagesQuery.fetchNextPage,
-    channelMessagesQuery.hasNextPage,
-    channelMessagesQuery.isFetchingNextPage,
-  ]);
+  const loadMoreChannelMessages = NOOP;
   const loadMoreDMMessages = NOOP;
   const loadMoreDMConversations = useCallback(() => {
     loadMoreMobileInfinitePages({
@@ -824,11 +763,7 @@ export function useMobileMessagingFeature({
 
   const refreshDMMessages = NOOP;
 
-  const refreshChannelMessages = useCallback(() => {
-    if (activeWorkspaceTextChannelId) {
-      void refetchChannelMessages();
-    }
-  }, [activeWorkspaceTextChannelId, refetchChannelMessages]);
+  const refreshChannelMessages = NOOP;
 
   const refreshWorkspaceServer = useCallback(() => {
     if (selectedWorkspaceServerId) {
@@ -974,23 +909,11 @@ export function useMobileMessagingFeature({
       resetChannelMessageMutation();
       setActiveWorkspaceTextChannelId(channel.id);
       setActiveWorkspaceVoiceChannelId(null);
-      setChannelFirstUnreadMessageId(null);
-      markChannelRead(
-        { channelId: channel.id },
-        {
-          onSuccess: (response) => {
-            if (response.channelId === channel.id) {
-              setChannelFirstUnreadMessageId(response.firstUnreadMessageId);
-            }
-          },
-        },
-      );
       return false;
     },
     [
       clearMessageSearch,
       joinVoiceChannel,
-      markChannelRead,
       requestMicrophonePermission,
       resetChannelMessageMutation,
       selectedWorkspaceChannelId,
@@ -1054,14 +977,9 @@ export function useMobileMessagingFeature({
     if (selectedWorkspaceServerId) {
       void refetchWorkspace();
     }
-    if (activeWorkspaceTextChannelId) {
-      void refetchChannelMessages();
-    }
   }, [
-    activeWorkspaceTextChannelId,
     isSignedIn,
     refetchBootstrap,
-    refetchChannelMessages,
     refetchDMConversations,
     refetchWorkspace,
     selectedWorkspaceServerId,
@@ -1216,10 +1134,9 @@ export function useMobileMessagingFeature({
     bootstrapQuery,
     bootstrapState,
     bootstrapSyncState,
-    channelFirstUnreadMessageId,
-    channelMessagesQuery,
+    channelFirstUnreadMessageId: null,
     channelMessagesState,
-    channelPinnedMessages: channelPinsQuery.data?.messages ?? EMPTY_PINNED_MESSAGES,
+    channelPinnedMessages: EMPTY_PINNED_MESSAGES,
     channelSyncState,
     clearMessageSearch,
     currentTab,

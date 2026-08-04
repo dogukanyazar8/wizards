@@ -22,9 +22,13 @@ import { mobileQueryKeys } from "./mobile-query-keys";
  */
 export const MOBILE_MESSAGE_STREAM_STALE_TIME_MS = 120_000;
 
-export function getMobileChannelMessagesQueryOptions(client: MobileApiClient, channelId: string) {
+export function getMobileChannelMessagesQueryOptions(
+  client: MobileApiClient,
+  channelId: string,
+  enabled = true,
+) {
   return infiniteQueryOptions({
-    enabled: channelId.length > 0,
+    enabled: enabled && channelId.length > 0,
     getNextPageParam: (page: MobileChannelMessagesResponse) => page.nextCursor ?? undefined,
     initialPageParam: null as string | null,
     queryFn: ({ pageParam, signal }) =>
@@ -34,13 +38,21 @@ export function getMobileChannelMessagesQueryOptions(client: MobileApiClient, ch
   });
 }
 
-export function useMobileChannelMessagesQuery(client: MobileApiClient, channelId: string) {
-  return useInfiniteQuery(getMobileChannelMessagesQueryOptions(client, channelId));
+export function useMobileChannelMessagesQuery(
+  client: MobileApiClient,
+  channelId: string,
+  enabled = true,
+) {
+  return useInfiniteQuery(getMobileChannelMessagesQueryOptions(client, channelId, enabled));
 }
 
-export function getMobileDMMessagesQueryOptions(client: MobileApiClient, conversationId: string) {
+export function getMobileDMMessagesQueryOptions(
+  client: MobileApiClient,
+  conversationId: string,
+  enabled = true,
+) {
   return infiniteQueryOptions({
-    enabled: conversationId.length > 0,
+    enabled: enabled && conversationId.length > 0,
     getNextPageParam: (page: MobileDMMessagesResponse) => page.nextCursor ?? undefined,
     initialPageParam: null as string | null,
     queryFn: ({ pageParam, signal }) =>
@@ -50,8 +62,12 @@ export function getMobileDMMessagesQueryOptions(client: MobileApiClient, convers
   });
 }
 
-export function useMobileDMMessagesQuery(client: MobileApiClient, conversationId: string) {
-  return useInfiniteQuery(getMobileDMMessagesQueryOptions(client, conversationId));
+export function useMobileDMMessagesQuery(
+  client: MobileApiClient,
+  conversationId: string,
+  enabled = true,
+) {
+  return useInfiniteQuery(getMobileDMMessagesQueryOptions(client, conversationId, enabled));
 }
 
 /**

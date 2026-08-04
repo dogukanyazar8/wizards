@@ -12,7 +12,11 @@ import {
 import { useMobileDMMessagesQuery } from "../../query/mobile-message-queries";
 import { loadMoreMobileInfinitePages } from "../../query/mobile-query-pages";
 import { useMobileDMReadMutation } from "../../query/use-mobile-message-mutations";
-import { useMobileMessageStreamPersistence } from "../../query/use-mobile-message-stream-persistence";
+import {
+  useMobileMessageStreamHydration,
+  useMobileMessageStreamPersistence,
+} from "../../query/use-mobile-message-stream-persistence";
+import { resolveMobileMessageStreamOpenSource } from "../../query/mobile-message-stream-source";
 import { toMobileDMMessagesViewState } from "../mobile-query-view-state";
 import type { MobileDMConversationListItem } from "../mobile-root-screen-shared";
 import { useMobileDMReadEffect } from "./use-mobile-dm-read-effect";
@@ -20,6 +24,7 @@ import {
   annotateMobileNavigationSpan,
   getMobileNavigationSampleId,
   markMobileNavigationPhase,
+  refineMobileNavigationSpanStreamSource,
 } from "../../performance/mobile-navigation-timing";
 
 function toBoundedCountClass(value: number): "0" | "1-5" | "6-20" | "21-50" | "51+" {
@@ -45,7 +50,18 @@ export function useMobileDMRouteState(input: {
   readonly isSignedIn: boolean;
 }) {
   const queryClient = useQueryClient();
-  const query = useMobileDMMessagesQuery(input.apiClient, input.conversationId);
+  const hydrationReady = useMobileMessageStreamHydration({
+    enabled: input.isSignedIn,
+    queryClient,
+    scope: "dm",
+    targetId: input.conversationId,
+    userId: input.currentUserId,
+  });
+  const query = useMobileDMMessagesQuery(
+    input.apiClient,
+    input.conversationId,
+    input.isSignedIn && hydrationReady,
+  );
   const navigationSampleIdRef = useRef<string | null>(null);
   useEffect(() => {
     navigationSampleIdRef.current ??= getMobileNavigationSampleId("DirectMessage");
@@ -65,6 +81,7 @@ export function useMobileDMRouteState(input: {
     data: query.data,
     enabled: input.isSignedIn,
     error: query.error,
+    hydrateOnMount: false,
     queryClient,
     scope: "dm",
     targetId: input.conversationId,
@@ -89,13 +106,29 @@ export function useMobileDMRouteState(input: {
       return;
     }
     navigationSampleIdRef.current ??= getMobileNavigationSampleId("DirectMessage");
+    const streamSource = resolveMobileMessageStreamOpenSource({
+      dataUpdatedAtMs: query.dataUpdatedAt > 0 ? query.dataUpdatedAt : null,
+      scope: "dm",
+      targetId: input.conversationId,
+    });
+    if (
+      streamSource.cacheAgeMs !== null &&
+      (streamSource.source === "prefetch" || streamSource.source === "sqlcipher")
+    ) {
+      refineMobileNavigationSpanStreamSource(
+        "DirectMessage",
+        streamSource.source,
+        streamSource.cacheAgeMs,
+        navigationSampleIdRef.current,
+      );
+    }
     markMobileNavigationPhase(
       "DirectMessage",
       "query-data-ready",
       globalThis.performance.now(),
       navigationSampleIdRef.current,
     );
-  }, [query.data]);
+  }, [input.conversationId, query.data, query.dataUpdatedAt]);
 
   useEffect(() => {
     const messages = messagesState.payload?.messages;

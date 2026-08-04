@@ -15,19 +15,31 @@ const overviewRenderProps: Record<string, unknown>[] = [];
 const messagesRenderProps: Record<string, unknown>[] = [];
 const whatsNewRenderProps: Record<string, unknown>[] = [];
 const mockApiClient = {
-  requestJson: jest.fn(async () => ({
-    conversation: {
-      id: "dm-1",
-      lastMessage: null,
-      lastMessageAt: "2026-07-31T09:00:00.000Z",
-      name: null,
-      participants: [],
-      type: "DM",
-    },
-    messages: [],
-    nextCursor: null,
-    participantReadStates: [],
-  })),
+  requestJson: jest.fn(async (path: string) =>
+    path.endsWith("/read")
+      ? {
+          channelId: "channel-1",
+          firstUnreadMessageId: null,
+          mentionCount: 0,
+          serverId: "server-1",
+          serverMentionCount: 0,
+          serverUnreadCount: 0,
+          unreadCount: 0,
+        }
+      : {
+          conversation: {
+            id: "dm-1",
+            lastMessage: null,
+            lastMessageAt: "2026-07-31T09:00:00.000Z",
+            name: null,
+            participants: [],
+            type: "DM",
+          },
+          messages: [],
+          nextCursor: null,
+          participantReadStates: [],
+        },
+  ),
 };
 let queryClient: QueryClient;
 
@@ -40,6 +52,7 @@ jest.mock("../src/auth/mobile-auth-context", () => ({
 }));
 
 jest.mock("../src/query/use-mobile-message-stream-persistence", () => ({
+  useMobileMessageStreamHydration: jest.fn(() => true),
   useMobileMessageStreamPersistence: jest.fn(),
 }));
 
@@ -149,12 +162,20 @@ jest.mock("../src/workspace/mobile-channel-settings-screen", () => ({
 }));
 
 jest.mock("../src/app/providers/mobile-product-screen-provider", () => ({
+  useMobileChannelScreenProps: () => mockOverviewProps,
   useMobileMessagesScreenProps: () => mockMessagesProps,
   useMobileNotificationsScreenProps: () => ({}),
   useMobileOverviewScreenProps: () => mockOverviewProps,
   useMobileProductNavigationActions: () => mockNavigationActions,
   useMobileSettingsScreenProps: () => ({}),
   useMobileVoiceScreenProps: () => ({}),
+}));
+
+jest.mock("../src/app/providers/mobile-realtime-provider", () => ({
+  useMobileRealtimeRuntime: () => ({
+    stopChannelTyping: jest.fn(),
+    updateChannelTyping: jest.fn(),
+  }),
 }));
 
 import {
@@ -178,7 +199,10 @@ function createNavigation(parentNavigate: jest.Mock) {
 describe("mobile screen navigation containers", () => {
   beforeEach(() => {
     queryClient = new QueryClient({
-      defaultOptions: { queries: { gcTime: Number.POSITIVE_INFINITY, retry: false } },
+      defaultOptions: {
+        mutations: { gcTime: Number.POSITIVE_INFINITY },
+        queries: { gcTime: Number.POSITIVE_INFINITY, retry: false },
+      },
     });
     overviewRenderProps.length = 0;
     messagesRenderProps.length = 0;
@@ -232,10 +256,12 @@ describe("mobile screen navigation containers", () => {
     expect(messagesRenderProps.at(-1)?.canRenderConversation).toBeUndefined();
 
     await render(
-      <ChannelStackScreenContainer
-        navigation={{ goBack: jest.fn(), navigate: jest.fn() } as never}
-        route={{ params: { channelId: "channel-1", serverId: "server-1" } } as never}
-      />,
+      <QueryClientProvider client={queryClient}>
+        <ChannelStackScreenContainer
+          navigation={{ goBack: jest.fn(), navigate: jest.fn() } as never}
+          route={{ params: { channelId: "channel-1", serverId: "server-1" } } as never}
+        />
+      </QueryClientProvider>,
     );
     await render(
       <QueryClientProvider client={queryClient}>
@@ -252,6 +278,7 @@ describe("mobile screen navigation containers", () => {
 
   it("binds the route's cached DM query before global selection commits", async () => {
     queryClient.setDefaultOptions({
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
       queries: {
         gcTime: Number.POSITIVE_INFINITY,
         retry: false,
@@ -301,6 +328,66 @@ describe("mobile screen navigation containers", () => {
       status: "ready",
     });
     expect(mockApiClient.requestJson).not.toHaveBeenCalled();
+  });
+
+  it("binds the route's cached channel query before global selection commits", async () => {
+    queryClient.setDefaultOptions({
+      mutations: { gcTime: Number.POSITIVE_INFINITY },
+      queries: {
+        gcTime: Number.POSITIVE_INFINITY,
+        retry: false,
+        staleTime: Number.POSITIVE_INFINITY,
+      },
+    });
+    queryClient.setQueryData(mobileQueryKeys.channelMessages("channel-1"), {
+      pageParams: [null],
+      pages: [
+        {
+          channel: {
+            categoryId: null,
+            categoryName: null,
+            id: "channel-1",
+            lastMessage: null,
+            locked: false,
+            mentionCount: 0,
+            name: "Cached channel",
+            position: 0,
+            readOnly: false,
+            topic: null,
+            type: "TEXT",
+            unreadCount: 0,
+          },
+          hasMore: false,
+          messages: [],
+          nextCursor: null,
+        },
+      ],
+    });
+    queryClient.setQueryData(mobileQueryKeys.channelPins("channel-1"), { messages: [] });
+    mockOverviewProps = {
+      activeWorkspaceTextChannelId: null,
+      channelMessagesState: { payload: null, status: "loading" },
+      onCloseWorkspaceChannel: jest.fn(),
+    };
+
+    await render(
+      <QueryClientProvider client={queryClient}>
+        <ChannelStackScreenContainer
+          navigation={{ goBack: jest.fn(), navigate: jest.fn() } as never}
+          route={{ params: { channelId: "channel-1", serverId: "server-1" } } as never}
+        />
+      </QueryClientProvider>,
+    );
+
+    expect(overviewRenderProps.at(-1)?.activeWorkspaceTextChannelId).toBe("channel-1");
+    expect(overviewRenderProps.at(-1)?.channelMessagesState).toMatchObject({
+      channelId: "channel-1",
+      payload: { channel: { id: "channel-1", name: "Cached channel" } },
+      status: "ready",
+    });
+    expect(
+      mockApiClient.requestJson.mock.calls.some(([path]) => String(path).includes("/messages?")),
+    ).toBe(false);
   });
 
   it("pushes a selected text channel through the typed parent stack", async () => {

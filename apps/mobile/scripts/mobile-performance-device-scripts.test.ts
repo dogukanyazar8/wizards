@@ -116,6 +116,20 @@ describe("mobile performance device scripts", () => {
     assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
   });
 
+  it("reports a missing app before starting a device scenario", () => {
+    const result = runModuleScript(
+      [
+        "$script:capturedArguments = @()",
+        "function Invoke-WhisprAdb { param([string]$DeviceSerial, [string[]]$Arguments); $script:capturedArguments = $Arguments; return @() }",
+        "try { Assert-WhisprDeviceReady -DeviceSerial 'device-1'; exit 9 } catch { Write-Output ($script:capturedArguments -join ' '); Write-Output $_.Exception.Message }",
+      ].join("; "),
+    );
+
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    assert.match(result.stdout, /shell pm list packages team\.whispr\.mobile/u);
+    assert.match(result.stdout, /Package 'team\.whispr\.mobile' is not installed/u);
+  });
+
   it("quotes ampersand-bearing performance links for the ADB remote shell", () => {
     const result = runModuleScript(
       [
@@ -198,6 +212,27 @@ describe("mobile performance device scripts", () => {
     }
   });
 
+  it("brings the app shell up before resetting each measured run", () => {
+    for (const name of [
+      "06-cold-start.ps1",
+      "07-warm-resume.ps1",
+      "08-cached-dm.ps1",
+      "09-cached-channel.ps1",
+      "10-sqlcipher.ps1",
+      "12-send.ps1",
+      "13-content-scroll.ps1",
+      "14-event-loop.ps1",
+      "15-tap-dm.ps1",
+    ]) {
+      const output = runDry(name, 1);
+      assert.ok(output.indexOf("DRYRUN|MAESTRO|wait-for-app-shell.yml|") >= 0, name);
+      assert.ok(
+        output.indexOf("DRYRUN|MAESTRO|wait-for-app-shell.yml|") < output.indexOf("DRYRUN|RESET|"),
+        name,
+      );
+    }
+  });
+
   it("keeps cached chat repetitions inside one foreground session", () => {
     const dmOutput = runDry("08-cached-dm.ps1", 3);
     assert.equal((dmOutput.match(/DRYRUN\|MAESTRO\|open-dm\.yml/gu) ?? []).length, 1);
@@ -237,9 +272,13 @@ describe("mobile performance device scripts", () => {
     const output = runDry("11-prefetch-network.ps1", 1);
     const workload = output
       .split(/\r?\n/u)
-      .filter((line) => /DRYRUN\|(ADB|COMMAND|MAESTRO)\|/u.test(line));
+      .filter((line) => /DRYRUN\|(ADB|COMMAND|MAESTRO|RESET)\|/u.test(line))
+      .map((line) => (line.startsWith("DRYRUN|RESET|") ? "DRYRUN|RESET|<run>" : line));
 
     assert.deepEqual(workload, [
+      `DRYRUN|MAESTRO|open-dm.yml|PERF_DM_CONVERSATION_ID=${dmConversationId}`,
+      "DRYRUN|MAESTRO|return-to-dm-inbox.yml|",
+      "DRYRUN|RESET|<run>",
       `DRYRUN|COMMAND|purge|dm|${dmConversationId}`,
       `DRYRUN|COMMAND|prefetch|dm|${dmConversationId}`,
       `DRYRUN|MAESTRO|open-dm.yml|PERF_DM_CONVERSATION_ID=${dmConversationId}`,
@@ -258,6 +297,40 @@ describe("mobile performance device scripts", () => {
 
     assert.ok(backButton >= 0, "flow must tap the DM back button");
     assert.ok(inboxWait > backButton, "flow must wait for the DM inbox after going back");
+  });
+
+  it("keeps an early-failure export partial without applying final sample gates", () => {
+    const result = runModuleScript(
+      [
+        "$tempRoot = Join-Path ([IO.Path]::GetTempPath()) ('whispr-partial-' + [Guid]::NewGuid().ToString('N'))",
+        "function Send-WhisprPerfCommand { param([string]$DeviceSerial, [string]$Command, [string]$RunId) }",
+        "function Get-WhisprPerfLogLines { param([string]$DeviceSerial); return @() }",
+        'function ConvertFrom-WhisprPerformanceFrames { param([string[]]$Lines, [string]$RunId); return "samples 1`nstartup n=0 - / -" }',
+        "try { Export-WhisprPerformanceReport -DeviceSerial 'device-1' -RunId 'run-partial' -Scenario 'cold-start' -OutputRoot $tempRoot -MinimumSamples 15 -Partial; 'OK' } finally { if (Test-Path -LiteralPath $tempRoot) { Remove-Item -LiteralPath $tempRoot -Recurse -Force } }",
+      ].join("; "),
+    );
+
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    assert.match(result.stdout, /cold-start\.partial\.txt/u);
+    assert.equal(result.stdout.trim().split(/\r?\n/u).at(-1), "OK");
+  });
+
+  it("reports the missing scenario cohort before the generic sample total", () => {
+    const result = runModuleScript(
+      [
+        "$tempRoot = Join-Path ([IO.Path]::GetTempPath()) ('whispr-cohort-' + [Guid]::NewGuid().ToString('N'))",
+        "function Send-WhisprPerfCommand { param([string]$DeviceSerial, [string]$Command, [string]$RunId) }",
+        "function Get-WhisprPerfLogLines { param([string]$DeviceSerial); return @() }",
+        'function ConvertFrom-WhisprPerformanceFrames { param([string[]]$Lines, [string]$RunId); return "samples 8`ntap n=0 - / -`nDirectMessage-cached n=1 100 / 100" }',
+        "try { Export-WhisprPerformanceReport -DeviceSerial 'device-1' -RunId 'run-cohort' -Scenario 'tap-dm' -OutputRoot $tempRoot -MinimumSamples 15; exit 9 } catch { $_.Exception.Message } finally { if (Test-Path -LiteralPath $tempRoot) { Remove-Item -LiteralPath $tempRoot -Recurse -Force } }",
+      ].join("; "),
+    );
+
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    assert.equal(
+      result.stdout.trim().split(/\r?\n/u).at(-1),
+      "Cohort 'tap' reported 0 samples, expected at least 15.",
+    );
   });
 
   it("correlates every repeated bridge command independently", () => {
@@ -288,15 +361,40 @@ describe("mobile performance device scripts", () => {
   it("opens every repetition of the tap scenario with a finger, not a link", () => {
     const output = runDry("15-tap-dm.ps1", 3);
 
-    // Forty-two device runs reported `tap n=0`: every flow used `openLink`, so
-    // the span never started at the tap and the prefetch open counter — which
-    // only fires from the tap handler — could only ever read 0%.
+    // Each flow must activate the inbox itself. Inactive native-stack routes
+    // remain in the accessibility tree, so a separate back flow can falsely
+    // pass while another screen is still active.
     assert.equal((output.match(/DRYRUN\|MAESTRO\|tap-dm\.yml/gu) ?? []).length, 3);
-    assert.equal((output.match(/DRYRUN\|MAESTRO\|open-dm\.yml/gu) ?? []).length, 1);
+    assert.equal((output.match(/DRYRUN\|MAESTRO\|open-dm\.yml/gu) ?? []).length, 0);
+    assert.equal((output.match(/DRYRUN\|MAESTRO\|return-to-dm-inbox\.yml/gu) ?? []).length, 0);
 
     const flow = readFileSync(path.join(performanceFlowsDirectory, "tap-dm.yml"), "utf8");
-    assert.doesNotMatch(flow, /^- openLink:/mu);
+    const inboxLink = flow.indexOf('- openLink: "whispr://channels/@me"');
+    const rowTap = flow.indexOf('id: "mobile-dm-conversation-row"');
+    assert.ok(inboxLink >= 0, "each tap flow must activate the DM inbox itself");
+    assert.ok(rowTap > inboxLink, "the row tap must happen after the inbox deep link");
     assert.match(flow, /- tapOn:\r?\n\s+id: "mobile-dm-conversation-row"/u);
+  });
+
+  it("gates cold-start on startup, not secondary chat samples", () => {
+    const validate = (startup: number, cachedDm: number) =>
+      runModuleScript(
+        [
+          `$report = "samples 30\`nstartup n=${startup} 500 / 700\`nDirectMessage-cached n=${cachedDm} 600 / 800"`,
+          "$result = Test-WhisprScenarioCohorts -Report $report -Scenario 'cold-start' -Repetitions 15",
+          "if ($null -eq $result) { 'OK' } else { $result }",
+        ].join("; "),
+      );
+
+    const completeStartup = validate(15, 14);
+    assert.equal(completeStartup.status, 0, completeStartup.stderr);
+    assert.equal(completeStartup.stdout.trim().split(/\r?\n/u).at(-1), "OK");
+
+    const shortStartup = validate(14, 15);
+    assert.match(
+      shortStartup.stdout,
+      /Cohort 'startup' reported 14 samples, expected at least 15/u,
+    );
   });
 
   it("fails a scenario whose own cohort came up short", () => {
@@ -326,6 +424,18 @@ describe("mobile performance device scripts", () => {
     // Three SQLCipher runs passed while reporting `sqlcipher n=0`.
     const restore = call("sqlcipher", 30);
     assert.match(restore.stdout, /Cohort 'sqlcipher' reported 0 samples, expected at least 30/u);
+
+    // A prefetch run must prove the prefetch source, not merely a warm memory hit.
+    const prefetchReport = [
+      "samples 60",
+      "memory n=30 500 / 700 | -",
+      "prefetch n=0 - / - | -",
+      "network n=30 900 / 1200 | -",
+    ].join("`n");
+    const prefetch = runModuleScript(
+      `$report = "${prefetchReport}"; $result = Test-WhisprScenarioCohorts -Report $report -Scenario 'prefetch-network' -Repetitions 30; if ($null -eq $result) { 'OK' } else { $result }`,
+    );
+    assert.match(prefetch.stdout, /Cohort 'prefetch' reported 0 samples, expected at least 30/u);
 
     // Lag is sampled on a timer, so its floor is "any", not the repetition count.
     const lag = call("content-scroll", 30);

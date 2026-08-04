@@ -804,14 +804,34 @@ export function getMobileChannelPriority(channel: MobileWorkspaceChannelSummary)
   };
 }
 
+const MOBILE_TIME_FORMATTER_CACHE_MAX_LOCALES = 8;
+const mobileTimeFormatters = new Map<string, Intl.DateTimeFormat>();
+
+function getMobileTimeFormatter(locale: string): Intl.DateTimeFormat {
+  const cached = mobileTimeFormatters.get(locale);
+  if (cached) {
+    return cached;
+  }
+
+  const formatter = new Intl.DateTimeFormat(locale, {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  if (mobileTimeFormatters.size >= MOBILE_TIME_FORMATTER_CACHE_MAX_LOCALES) {
+    const oldestLocale = mobileTimeFormatters.keys().next().value;
+    if (oldestLocale !== undefined) {
+      mobileTimeFormatters.delete(oldestLocale);
+    }
+  }
+  mobileTimeFormatters.set(locale, formatter);
+  return formatter;
+}
+
 export function formatMobileDisplayTime(value: string, locale = "tr-TR"): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
     return "";
   }
 
-  return new Intl.DateTimeFormat(locale, {
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
+  return getMobileTimeFormatter(locale).format(date);
 }

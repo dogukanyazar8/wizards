@@ -1,8 +1,9 @@
 appId: team.whispr.mobile
 ---
-# The reader's own path. Every other flow opens a chat with `openLink`, so the
-# `tap` phase read n=0 in forty-two device runs and the prefetch open counter —
-# which only fires from the tap handler — could only ever report 0%.
+# Activate the real inbox first, then open the chat with the reader's own path.
+# Inactive native-stack routes remain in the accessibility tree, so relying on
+# a prior back flow can tap a hidden row while another screen is still active.
+- openLink: "whispr://channels/@me"
 - extendedWaitUntil:
     visible:
       id: "mobile-dm-inbox-screen"

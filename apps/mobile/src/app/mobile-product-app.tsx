@@ -27,6 +27,7 @@ import { useMobileNotificationRuntime } from "./providers/mobile-notification-pr
 import { useMobileRealtimeRuntime } from "./providers/mobile-realtime-provider";
 import { useMobileVoiceRuntime } from "./providers/mobile-voice-provider";
 import {
+  MobileChannelScreenProvider,
   MobileMessagesScreenProvider,
   MobileNotificationsScreenProvider,
   MobileOverviewScreenProvider,
@@ -386,6 +387,9 @@ export function MobileProductApp({
       workspaceServerState,
     ],
   );
+  // The route replaces every channel-owned field. Reuse the memoized overview
+  // base so shared workspace/media handlers keep one stable context value.
+  const channelScreenProps = overviewScreenProps;
   const joinVoiceChannel = voiceRuntime.joinVoiceChannel;
   const notificationsScreenProps = useMemo(
     () =>
@@ -458,49 +462,51 @@ export function MobileProductApp({
   return (
     <MobileProductNavigationProvider value={productNavigationActions}>
       <MobileMessagesScreenProvider value={messagesScreenProps}>
-        <MobileNotificationsScreenProvider value={notificationsScreenProps}>
-          <MobileOverviewScreenProvider value={overviewScreenProps}>
-            <MobileSettingsScreenProvider value={settingsScreenProps}>
-              <MobileVoiceScreenProvider value={voiceScreenProps}>
-                <MobileAppShell authStatus={status}>
-                  <MobileOverlayContentScope style={{ flex: 1, minWidth: 0 }}>
-                    {appLockLocked ? (
-                      <MobileAppLockScreen
-                        onRetry={() => void retryAppLockUnlock()}
-                        onSignOut={() => void signOut()}
-                        visible
-                      />
-                    ) : (
-                      <>
-                        <MobileDeviceIntegrityWarning
-                          onDismiss={dismissDeviceIntegrityWarning}
-                          visible={deviceIntegrityWarningVisible}
+        <MobileChannelScreenProvider value={channelScreenProps}>
+          <MobileNotificationsScreenProvider value={notificationsScreenProps}>
+            <MobileOverviewScreenProvider value={overviewScreenProps}>
+              <MobileSettingsScreenProvider value={settingsScreenProps}>
+                <MobileVoiceScreenProvider value={voiceScreenProps}>
+                  <MobileAppShell authStatus={status}>
+                    <MobileOverlayContentScope style={{ flex: 1, minWidth: 0 }}>
+                      {appLockLocked ? (
+                        <MobileAppLockScreen
+                          onRetry={() => void retryAppLockUnlock()}
+                          onSignOut={() => void signOut()}
+                          visible
                         />
-                        <Navigator
-                          directMessageUnreadCount={directMessageUnreadCount}
-                          notificationUnreadCount={notificationUnreadCount}
-                          onTabChange={setCurrentTab}
-                        />
-                        <MobileIncomingRequestSheet
-                          call={incomingDMCall}
-                          invites={voiceInviteEntries}
-                          onAcceptCall={() => void handleAcceptDMCall()}
-                          onAcceptInvite={handleAcceptVoiceInvite}
-                          onDeclineCall={() => void handleDeclineDMCall()}
-                          onDeclineInvite={handleDeclineVoiceInvite}
-                          vibrationEnabled={incomingCallAlertsEnabled}
-                        />
-                      </>
-                    )}
-                    <AboutBetaConsentSheet />
-                  </MobileOverlayContentScope>
-                  <MobileBugReportQueueBridge />
-                </MobileAppShell>
-                <MobileOverlayHost />
-              </MobileVoiceScreenProvider>
-            </MobileSettingsScreenProvider>
-          </MobileOverviewScreenProvider>
-        </MobileNotificationsScreenProvider>
+                      ) : (
+                        <>
+                          <MobileDeviceIntegrityWarning
+                            onDismiss={dismissDeviceIntegrityWarning}
+                            visible={deviceIntegrityWarningVisible}
+                          />
+                          <Navigator
+                            directMessageUnreadCount={directMessageUnreadCount}
+                            notificationUnreadCount={notificationUnreadCount}
+                            onTabChange={setCurrentTab}
+                          />
+                          <MobileIncomingRequestSheet
+                            call={incomingDMCall}
+                            invites={voiceInviteEntries}
+                            onAcceptCall={() => void handleAcceptDMCall()}
+                            onAcceptInvite={handleAcceptVoiceInvite}
+                            onDeclineCall={() => void handleDeclineDMCall()}
+                            onDeclineInvite={handleDeclineVoiceInvite}
+                            vibrationEnabled={incomingCallAlertsEnabled}
+                          />
+                        </>
+                      )}
+                      <AboutBetaConsentSheet />
+                    </MobileOverlayContentScope>
+                    <MobileBugReportQueueBridge />
+                  </MobileAppShell>
+                  <MobileOverlayHost />
+                </MobileVoiceScreenProvider>
+              </MobileSettingsScreenProvider>
+            </MobileOverviewScreenProvider>
+          </MobileNotificationsScreenProvider>
+        </MobileChannelScreenProvider>
       </MobileMessagesScreenProvider>
     </MobileProductNavigationProvider>
   );

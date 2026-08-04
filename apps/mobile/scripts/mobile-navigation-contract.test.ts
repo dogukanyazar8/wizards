@@ -317,9 +317,26 @@ test("the DirectMessage route, not global selection, owns the transcript query",
   const messagingFeature = read("../src/app/features/use-mobile-messaging-feature.ts");
 
   assert.match(containers, /useMobileDMRouteState\(\{[\s\S]*conversationId/);
-  assert.match(routeState, /useMobileDMMessagesQuery\(input\.apiClient, input\.conversationId\)/);
+  assert.match(
+    routeState,
+    /useMobileDMMessagesQuery\(\s*input\.apiClient,\s*input\.conversationId,/,
+  );
   assert.doesNotMatch(messagingFeature, /useMobileDMMessagesQuery/);
   assert.doesNotMatch(messagingFeature, /dmMessagesQuery/);
+});
+
+test("the ChannelChat route, not Overview state, owns the transcript query", () => {
+  const containers = read("../src/app/screens/mobile-screen-containers.tsx");
+  const routeState = read("../src/app/features/use-mobile-channel-route-state.ts");
+  const messagingFeature = read("../src/app/features/use-mobile-messaging-feature.ts");
+
+  assert.match(containers, /useMobileChannelRouteState\(\{[\s\S]*channelId/);
+  assert.match(
+    routeState,
+    /useMobileChannelMessagesQuery\(\s*input\.apiClient,\s*input\.channelId,/,
+  );
+  assert.doesNotMatch(messagingFeature, /useMobileChannelMessagesQuery/);
+  assert.doesNotMatch(messagingFeature, /channelMessagesQuery/);
 });
 
 test("floating navigation chrome is the measured inset owner for tab roots", () => {

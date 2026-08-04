@@ -5,6 +5,7 @@ import type {
   ChatMessage,
   DMMessagePayload,
   MobileChannelMessagesResponse,
+  MobileDMConversationsResponse,
   MobileDMMessagesResponse,
   MobileVoiceStatesResponse,
 } from "@wizards/types";
@@ -177,6 +178,7 @@ function createBridge(
       serverId: activeServerId,
       voiceChannelId: null,
     }),
+    getCurrentUserId: () => "viewer-1",
     queryClient,
     scheduler,
   });
@@ -494,6 +496,85 @@ describe("mobile realtime query bridge", () => {
     assert.equal(queryClient.getQueryState(inboxKey)?.isInvalidated, true);
     // The event carries no message, so the open chat is left alone.
     assert.equal(queryClient.getQueryState(streamKey)?.isInvalidated, false);
+  });
+
+  it("patches a complete conversation update into the paginated inbox", () => {
+    const queryClient = new QueryClient();
+    const fake = createFakeScheduler();
+    const bridge = createBridge(queryClient, fake.scheduler);
+    const inboxKey = mobileQueryKeys.dmConversations();
+    const streamKey = mobileQueryKeys.dmMessages("conversation-1");
+    const existing = {
+      iconUrl: null,
+      id: "conversation-1",
+      lastMessage: null,
+      lastMessageAt: "2026-07-17T08:00:00.000Z",
+      mentionCount: 0,
+      muted: false,
+      name: null,
+      participantCount: 2,
+      participants: [],
+      type: "DM" as const,
+      unreadCount: 1,
+    };
+    queryClient.setQueryData<InfiniteData<MobileDMConversationsResponse, string | null>>(inboxKey, {
+      pageParams: [null],
+      pages: [{ conversations: [existing], nextCursor: null, totalUnreadCount: 4 }],
+    });
+    queryClient.setQueryData(streamKey, { pageParams: [null], pages: [makeDMPage([])] });
+    const message = makeDMMessage("message-new");
+
+    bridge.handleEvent(
+      createMobileRealtimeEventEnvelope("dm:conversation:updated", {
+        conversation: {
+          id: "conversation-1",
+          lastMessage: message,
+          lastMessageAt: message.createdAt,
+          name: null,
+          participants: [
+            {
+              avatarUrl: null,
+              customStatus: null,
+              displayName: "Viewer",
+              muted: false,
+              presence: { customStatus: null, status: "ONLINE" },
+              status: "ONLINE",
+              unreadCount: 2,
+              userId: "viewer-1",
+              username: "viewer",
+            },
+            {
+              avatarUrl: null,
+              customStatus: null,
+              displayName: "Ada",
+              muted: false,
+              presence: { customStatus: null, status: "ONLINE" },
+              status: "ONLINE",
+              unreadCount: 0,
+              userId: "user-1",
+              username: "ada",
+            },
+          ],
+          type: "DM",
+        },
+        conversationId: "conversation-1",
+        hiddenAt: null,
+        lastMessageAt: message.createdAt,
+        preview: "Yeni mesaj",
+        unreadCount: 2,
+      }),
+    );
+
+    const updated =
+      queryClient.getQueryData<InfiniteData<MobileDMConversationsResponse, string | null>>(
+        inboxKey,
+      );
+    assert.equal(updated?.pages[0]?.conversations[0]?.lastMessage?.id, "message-new");
+    assert.equal(updated?.pages[0]?.conversations[0]?.unreadCount, 2);
+    assert.equal(updated?.pages[0]?.totalUnreadCount, 5);
+    assert.equal(queryClient.getQueryState(inboxKey)?.isInvalidated, false);
+    assert.equal(queryClient.getQueryState(streamKey)?.isInvalidated, false);
+    assert.equal(fake.pendingCount(), 0);
   });
 
   it("absorbs the sender's own echo into the optimistic bubble", () => {

@@ -29,7 +29,7 @@ import {
 import { mobileQueryKeys } from "../../query/mobile-query-keys";
 import {
   prefetchMobileChannelMessagesPage,
-  prefetchMobileDMMessagesPage,
+  prefetchMeasuredMobileDMMessagesPage,
 } from "../../query/mobile-message-prefetch";
 import { dropMobileMessageStream } from "../../query/mobile-message-stream-cache";
 import { mobileMessageStore } from "../../storage/mobile-message-store-database";
@@ -90,7 +90,7 @@ export function MobilePerformanceAutomationProvider({ children }: PropsWithChild
           if (!session) throw new Error("signed-in session required");
           await (scope === "channel"
             ? prefetchMobileChannelMessagesPage(queryClient, apiClient, targetId)
-            : prefetchMobileDMMessagesPage(queryClient, apiClient, targetId));
+            : prefetchMeasuredMobileDMMessagesPage(queryClient, apiClient, targetId));
         },
         purge: async (scope, targetId) => {
           if (!session) throw new Error("signed-in session required");

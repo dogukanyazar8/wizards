@@ -69,6 +69,7 @@ function readEnvironmentName() {
 }
 
 const BUILD_ID_PATTERN = /^[0-9a-f]{12,40}$/i;
+const LOCAL_UAT_BUILD_ID_PATTERN = /^[0-9a-f]{12,40}-dirty$/i;
 
 /**
  * Which build a measurement came from.
@@ -86,7 +87,10 @@ function readBuildId(environment) {
     ""
   ).trim();
 
-  if (BUILD_ID_PATTERN.test(value)) {
+  if (
+    BUILD_ID_PATTERN.test(value) ||
+    (environment === "uat" && LOCAL_UAT_BUILD_ID_PATTERN.test(value))
+  ) {
     return value.toLowerCase();
   }
 
@@ -95,7 +99,7 @@ function readBuildId(environment) {
   }
 
   throw new Error(
-    "EXPO_PUBLIC_WHISPR_BUILD_ID or WHISPR_MOBILE_BUILD_ID must be a valid Git SHA (12-40 hex characters) for release mobile builds.",
+    "EXPO_PUBLIC_WHISPR_BUILD_ID or WHISPR_MOBILE_BUILD_ID must be a valid Git SHA (12-40 hex characters); local UAT builds may append '-dirty'.",
   );
 }
 

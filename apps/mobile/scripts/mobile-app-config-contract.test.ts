@@ -108,6 +108,20 @@ describe("mobile app config contract", () => {
     assert.equal(buildTestExpoConfig().extra?.whispr?.buildId, "2d6c2c86f0a1");
   });
 
+  it("carries the dirty local UAT build identity into telemetry", () => {
+    process.env.WHISPR_MOBILE_ENV = "uat";
+    process.env.WHISPR_MOBILE_BUILD_ID = "52099b986613-dirty";
+
+    assert.equal(buildTestExpoConfig().extra?.whispr?.buildId, "52099b986613-dirty");
+  });
+
+  it("keeps production build identities pinned to a clean commit", () => {
+    process.env.WHISPR_MOBILE_ENV = "production";
+    process.env.WHISPR_MOBILE_BUILD_ID = "52099b986613-dirty";
+
+    assert.throws(() => buildTestExpoConfig(), /valid Git SHA/);
+  });
+
   it("fails UAT config instead of shipping an unrecognisable build id", () => {
     process.env.WHISPR_MOBILE_ENV = "uat";
     process.env.WHISPR_MOBILE_BUILD_ID = "not a commit; drop table";

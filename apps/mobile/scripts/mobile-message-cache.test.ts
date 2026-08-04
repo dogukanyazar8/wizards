@@ -461,3 +461,42 @@ test("optimistic mutation options insert, replace on success, and mark failed on
     },
   ]);
 });
+
+test("send inserts local echo without waiting for exact query cancellation", async () => {
+  const queryClient = new QueryClient();
+  const queryKey = ["mobile", "dm-messages", "conversation-1"] as const;
+  queryClient.setQueryData(queryKey, createData());
+  const cancellationFilters: unknown[] = [];
+  let settleCancellation!: () => void;
+  queryClient.cancelQueries = ((filters: unknown) => {
+    cancellationFilters.push(filters);
+    return new Promise<void>((resolve) => {
+      settleCancellation = resolve;
+    });
+  }) as typeof queryClient.cancelQueries;
+  const options = createMobileOptimisticMutationOptions({
+    createOptimisticMessage: (input: { content: string }, clientId: string) => ({
+      content: input.content,
+      id: clientId,
+    }),
+    getResponseMessage: (response: { message: TestMessage }) => response.message,
+    mutationFn: async () => ({ message: { content: "sent", id: "server-1" } }),
+    queryClient,
+    queryKey,
+  });
+
+  const context = options.onMutate!({ content: "local-now" }, {} as never);
+
+  assert.equal(context instanceof Promise, false);
+  assert.deepEqual(cancellationFilters, [{ exact: true, queryKey }]);
+  assert.equal(
+    (
+      flattenMobileInfiniteData(queryClient.getQueryData(queryKey)).at(-1) as
+        TestMessage | undefined
+    )?.content,
+    "local-now",
+  );
+  settleCancellation();
+  await context;
+  queryClient.clear();
+});

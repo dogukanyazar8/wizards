@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   MobileChannelMessagesResponseSchema,
   MobileDMMessagesResponseSchema,
@@ -34,6 +34,57 @@ function parseStoredPage(scope: MobileMessageStoreScope, page: unknown): unknown
 }
 
 /**
+ * Attempts the encrypted restore before allowing a cold stream query to start.
+ * The restored page is backdated, so the enabled query immediately reconciles
+ * it with the server without letting a fast network response erase disk proof.
+ */
+export function useMobileMessageStreamHydration(input: {
+  readonly enabled: boolean;
+  readonly queryClient: QueryClient;
+  readonly scope: MobileMessageStoreScope;
+  readonly store?: MobileMessageStore;
+  readonly targetId: string | null;
+  readonly userId: string | null;
+}): boolean {
+  const store = input.store ?? mobileMessageStore;
+  const targetId = input.targetId ?? "";
+  const userId = input.userId ?? "";
+  const hydrationKey =
+    input.enabled && targetId.length > 0 && userId.length > 0
+      ? `${userId}:${input.scope}:${targetId}`
+      : null;
+  const [settledKey, setSettledKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!hydrationKey) {
+      return;
+    }
+
+    let active = true;
+    void hydrateMobileMessageStream({
+      parsePage: (page) => parseStoredPage(input.scope, page),
+      queryClient: input.queryClient,
+      scope: input.scope,
+      store,
+      targetId,
+      userId,
+    })
+      .catch(() => null)
+      .finally(() => {
+        if (active) {
+          setSettledKey(hydrationKey);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [hydrationKey, input.queryClient, input.scope, store, targetId, userId]);
+
+  return !input.enabled || (hydrationKey !== null && settledKey === hydrationKey);
+}
+
+/**
  * Binds one open message stream to the encrypted cache: seed it on open, store
  * its newest page whenever it moves, and take it away when the server says the
  * reader may no longer have it.
@@ -45,6 +96,8 @@ function parseStoredPage(scope: MobileMessageStoreScope, page: unknown): unknown
 export function useMobileMessageStreamPersistence(input: {
   readonly data: MobileMessageStreamData | undefined;
   readonly enabled: boolean;
+  /** Set false when a route already owns the pre-query hydration barrier. */
+  readonly hydrateOnMount?: boolean;
   /** The stream query's failure, so a revoked conversation can be dropped. */
   readonly error?: unknown;
   readonly queryClient: QueryClient;
@@ -59,7 +112,12 @@ export function useMobileMessageStreamPersistence(input: {
   const userId = input.userId ?? "";
 
   useEffect(() => {
-    if (!enabled || targetId.length === 0 || userId.length === 0) {
+    if (
+      input.hydrateOnMount === false ||
+      !enabled ||
+      targetId.length === 0 ||
+      userId.length === 0
+    ) {
       return;
     }
 
@@ -71,7 +129,7 @@ export function useMobileMessageStreamPersistence(input: {
       targetId,
       userId,
     }).catch(() => null);
-  }, [enabled, queryClient, scope, store, targetId, userId]);
+  }, [enabled, input.hydrateOnMount, queryClient, scope, store, targetId, userId]);
 
   // Reconciliation has to be able to remove. A restored page is stale by
   // definition, and the reader's access to the conversation can have been
@@ -97,7 +155,12 @@ export function useMobileMessageStreamPersistence(input: {
     }
 
     return () => {
-      trimMobileMessageStream({ queryClient, scope, targetId });
+      // QueryObserver unsubscribes in a sibling cleanup. The microtask runs after
+      // that lifecycle pass, so the active-stream guard can distinguish a real
+      // close from a route that is still mounted or was immediately reopened.
+      queueMicrotask(() => {
+        trimMobileMessageStream({ queryClient, scope, targetId });
+      });
     };
   }, [queryClient, scope, targetId]);
 

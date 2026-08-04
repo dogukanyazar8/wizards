@@ -104,7 +104,10 @@ function createStalledDetailClient() {
 
 async function renderMessagingFeature(client: MobileApiClient) {
   const queryClient = new QueryClient({
-    defaultOptions: { mutations: { retry: false }, queries: { retry: false } },
+    defaultOptions: {
+      mutations: { gcTime: Number.POSITIVE_INFINITY, retry: false },
+      queries: { gcTime: Number.POSITIVE_INFINITY, retry: false },
+    },
   });
   renderedQueryClients.push(queryClient);
 
@@ -147,7 +150,7 @@ describe("chat open path", () => {
     jest.clearAllMocks();
   });
 
-  it("fetches the route's channel messages without waiting for the server detail read", async () => {
+  it("does not subscribe the product root to channel history when a route opens", async () => {
     const { client, paths } = createStalledDetailClient();
     const { view } = await renderMessagingFeature(client);
 
@@ -155,15 +158,13 @@ describe("chat open path", () => {
       view.result.current.handleOpenWorkspaceRoute("server-1", "channel-9");
     });
 
-    await waitFor(() => {
-      expect(
-        paths.some((path) => path.startsWith("/api/v1/mobile/channels/channel-9/messages")),
-      ).toBe(true);
-    });
     expect(view.result.current.activeWorkspaceTextChannelId).toBe("channel-9");
+    expect(
+      paths.some((path) => path.startsWith("/api/v1/mobile/channels/channel-9/messages")),
+    ).toBe(false);
   });
 
-  it("exposes the stream's channel summary while the server detail read is pending", async () => {
+  it("keeps root channel transcript state idle while the server detail read is pending", async () => {
     const { client } = createStalledDetailClient();
     const { view } = await renderMessagingFeature(client);
 
@@ -171,9 +172,7 @@ describe("chat open path", () => {
       view.result.current.handleOpenWorkspaceRoute("server-1", "channel-9");
     });
 
-    await waitFor(() => {
-      expect(view.result.current.channelMessagesState.payload?.channel.name).toBe("duyurular");
-    });
+    expect(view.result.current.channelMessagesState.payload).toBe(null);
     expect(view.result.current.workspaceServerState.payload).toBe(null);
   });
 
@@ -213,7 +212,10 @@ describe("DM mark-read cache handling", () => {
 
   async function renderReadMutation() {
     const queryClient = new QueryClient({
-      defaultOptions: { mutations: { retry: false }, queries: { retry: false } },
+      defaultOptions: {
+        mutations: { gcTime: Number.POSITIVE_INFINITY, retry: false },
+        queries: { gcTime: Number.POSITIVE_INFINITY, retry: false },
+      },
     });
     renderedQueryClients.push(queryClient);
     queryClient.setQueryData(mobileQueryKeys.dmConversations(), {

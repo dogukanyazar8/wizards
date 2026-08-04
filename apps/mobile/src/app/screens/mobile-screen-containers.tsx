@@ -15,8 +15,10 @@ import type {
 import { useMobileAuth } from "../../auth/mobile-auth-context";
 import { useMobileActiveTargetStore } from "../../state/mobile-active-target-store";
 import { useMobileChannelTypingLabels } from "../features/use-mobile-typing-labels";
+import { useMobileChannelRouteState } from "../features/use-mobile-channel-route-state";
 import { useMobileDMRouteState } from "../features/use-mobile-dm-route-state";
 import {
+  useMobileChannelScreenProps,
   useMobileMessagesScreenProps,
   useMobileNotificationsScreenProps,
   useMobileOverviewScreenProps,
@@ -24,6 +26,7 @@ import {
   useMobileSettingsScreenProps,
   useMobileVoiceScreenProps,
 } from "../providers/mobile-product-screen-provider";
+import { useMobileRealtimeRuntime } from "../providers/mobile-realtime-provider";
 import { MessagesScreen } from "./dm-screen";
 import { MobileMessageThreadScreen } from "./message-thread-screen";
 import { OverviewScreen } from "./home-screen";
@@ -382,9 +385,19 @@ export function ChannelStackScreenContainer({
   navigation,
   route,
 }: NativeStackScreenProps<MobileRootStackParamList, "ChannelChat">) {
-  const screenProps = useMobileOverviewScreenProps();
+  const screenProps = useMobileChannelScreenProps();
   const { openWorkspaceRoute } = useMobileProductNavigationActions();
   const { channelId, serverId } = route.params;
+  const auth = useMobileAuth();
+  const { stopChannelTyping, updateChannelTyping } = useMobileRealtimeRuntime();
+  const routeState = useMobileChannelRouteState({
+    apiClient: auth.apiClient,
+    channelId,
+    currentUser: auth.session?.user ?? null,
+    isSignedIn: auth.status === "signed-in",
+    stopTyping: stopChannelTyping,
+    updateTyping: updateChannelTyping,
+  });
   const navigationSampleIdRef = useRef<string | null>(null);
   // Second of the three stages: this screen's tree is committed. Whatever is
   // left before content is the list's own first render.
@@ -442,7 +455,28 @@ export function ChannelStackScreenContainer({
     <OverviewScreen
       key={`${serverId}:${channelId}`}
       {...screenProps}
+      activeWorkspaceTextChannelId={channelId}
+      activeWorkspaceVoiceChannelId={null}
       canRenderChannelChat
+      channelFirstUnreadMessageId={routeState.firstUnreadMessageId}
+      channelMessagesState={routeState.messagesState}
+      channelPinnedMessages={routeState.pinnedMessages}
+      isReactionMutationPending={routeState.isReactionPending || routeState.isMessageActionPending}
+      onChannelDraftChange={routeState.draftChanged}
+      onDeleteMessage={routeState.deleteMessage}
+      onDiscardMessage={routeState.discardMessage}
+      onEditMessage={routeState.editMessage}
+      onLoadMoreChannelMessages={routeState.loadMoreMessages}
+      onPinMessage={routeState.pinMessage}
+      onRefreshChannelMessages={routeState.refreshMessages}
+      onRefreshVisibleData={() => {
+        screenProps.onRefreshVisibleData();
+        routeState.refreshMessages();
+      }}
+      onRetryMessage={routeState.retryMessage}
+      onSendChannelGif={routeState.sendGif}
+      onSendChannelMessage={routeState.sendMessage}
+      onToggleMessageReaction={routeState.toggleReaction}
       onOpenThread={(messageId) => {
         navigation.navigate("MessageThread", { contextId: channelId, messageId, scope: "channel" });
       }}
@@ -450,6 +484,8 @@ export function ChannelStackScreenContainer({
         screenProps.onCloseWorkspaceChannel();
         navigation.goBack();
       }}
+      selectedWorkspaceChannelId={channelId}
+      selectedWorkspaceServerId={serverId}
     />
   );
 }

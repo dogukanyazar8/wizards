@@ -25,7 +25,7 @@ import {
 } from "../mobile-root-screen-shared";
 import type { ChatMessage, MessageAttachment, UploadedAttachmentInput } from "@wizards/types";
 import { FlashList, type FlashListRef } from "@shopify/flash-list";
-import { forwardRef, useImperativeHandle } from "react";
+import { forwardRef, memo, useImperativeHandle } from "react";
 import { Alert, ScrollView } from "react-native";
 import { DMComposer, type MobileComposerIntent } from "../composer/mobile-composer";
 import {
@@ -649,7 +649,7 @@ export type ChannelMessageListHandle = {
   scrollToMessage(messageId: string): void;
 };
 
-export const ChannelMessageList = forwardRef<
+const ChannelMessageListComponent = forwardRef<
   ChannelMessageListHandle,
   {
     canModerate?: boolean;
@@ -714,12 +714,6 @@ export const ChannelMessageList = forwardRef<
     navigationSampleIdRef.current ??= getMobileNavigationSampleId("ChannelChat");
     markMobileNavigationPhase(
       "ChannelChat",
-      "query-observer-bound",
-      globalThis.performance.now(),
-      navigationSampleIdRef.current,
-    );
-    markMobileNavigationPhase(
-      "ChannelChat",
       "list-mounted",
       globalThis.performance.now(),
       navigationSampleIdRef.current,
@@ -741,17 +735,10 @@ export const ChannelMessageList = forwardRef<
       },
       navigationSampleIdRef.current,
     );
-    const now = globalThis.performance.now();
-    markMobileNavigationPhase(
-      "ChannelChat",
-      "query-data-ready",
-      now,
-      navigationSampleIdRef.current,
-    );
     markMobileNavigationPhase(
       "ChannelChat",
       "message-model-built",
-      now,
+      globalThis.performance.now(),
       navigationSampleIdRef.current,
     );
   }, [messages.length, state.payload, streamModel]);
@@ -904,6 +891,12 @@ export const ChannelMessageList = forwardRef<
   // Primitive, so opening a menu does not mint a new renderItem — a new
   // renderItem identity re-renders every mounted cell in the list.
   const openMenuMessageId = menu?.open === true ? menu.id : null;
+  const handleDeleteMessage = useCallback(
+    (messageId: string) => {
+      void onDeleteMessage?.(messageId);
+    },
+    [onDeleteMessage],
+  );
   const renderItem = useCallback(
     ({ item }: { item: MobileMessageStreamItem<MobileRenderableMessage> }) => (
       <View style={styles.mobileChannelStreamItem}>
@@ -932,9 +925,7 @@ export const ChannelMessageList = forwardRef<
             onRequestEmojiPicker={requestEmojiPicker}
             onRequestReactionDetails={requestReactionDetails}
             onSetMenuMessage={handleSetMenuMessage}
-            {...(onDeleteMessage
-              ? { onDeleteMessage: (messageId: string) => void onDeleteMessage(messageId) }
-              : {})}
+            {...(onDeleteMessage ? { onDeleteMessage: handleDeleteMessage } : {})}
             {...(onDiscardMessage ? { onDiscardFailedMessage: onDiscardMessage } : {})}
             {...(onEditMessage ? { onEditMessage } : {})}
             {...(onForwardMessage ? { onForwardMessage } : {})}
@@ -957,6 +948,7 @@ export const ChannelMessageList = forwardRef<
       openMenuMessageId,
       requestEmojiPicker,
       requestReactionDetails,
+      handleDeleteMessage,
       onDeleteMessage,
       onDiscardMessage,
       onEditMessage,
@@ -1101,6 +1093,8 @@ export const ChannelMessageList = forwardRef<
     </MobileMessageMenuBoundsProvider>
   );
 });
+
+export const ChannelMessageList = memo(ChannelMessageListComponent);
 
 export function ChannelScrollToBottomButton({
   onPress,

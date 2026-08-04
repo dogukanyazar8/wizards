@@ -14,7 +14,10 @@ const page = { channel: { id: "channel-1" }, hasMore: false, messages: [{ id: "m
 
 const STORED_AT_MS = 1_700_000_000_000;
 
-function createRecordingStore(stored: Record<string, unknown> = {}): MobileMessageStore & {
+function createRecordingStore(
+  stored: Record<string, unknown> = {},
+  onDelete?: () => void,
+): MobileMessageStore & {
   readonly deletes: { scope: string; targetId: string; userId: string }[];
   readonly writes: { payload: unknown; scope: string; targetId: string; userId: string }[];
 } {
@@ -26,6 +29,7 @@ function createRecordingStore(stored: Record<string, unknown> = {}): MobileMessa
     appendPerformanceSamples: async () => undefined,
     close: async () => undefined,
     deletePage: async ({ scope, targetId, userId }) => {
+      onDelete?.();
       deletes.push({ scope, targetId, userId });
     },
     describe: async () => ({ cipherVersion: "4.5.5 test", rowCount: 0, status: "open" as const }),
@@ -33,6 +37,7 @@ function createRecordingStore(stored: Record<string, unknown> = {}): MobileMessa
     purgePerformanceSamples: async () => undefined,
     purgeUser: async () => undefined,
     resume: () => undefined,
+    warm: async () => undefined,
     readPage: async ({ scope, targetId, userId }) =>
       stored[`${userId}:${scope}:${targetId}`] ?? null,
     readPageEntry: async ({ scope, targetId, userId }) => {
@@ -117,6 +122,37 @@ describe("hydrateMobileMessageStream", () => {
     );
     queryClient.clear();
   });
+
+  it("coalesces concurrent hydration for the same encrypted row", async () => {
+    const queryClient = new QueryClient();
+    let reads = 0;
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const store = createRecordingStore({ "user-1:dm:conversation-1": page });
+    const readPageEntry = store.readPageEntry;
+    store.readPageEntry = async (input) => {
+      reads += 1;
+      await gate;
+      return readPageEntry(input);
+    };
+
+    const input = {
+      queryClient,
+      scope: "dm" as const,
+      store,
+      targetId: "conversation-1",
+      userId: "user-1",
+    };
+    const first = hydrateMobileMessageStream(input);
+    const second = hydrateMobileMessageStream(input);
+    release();
+    await Promise.all([first, second]);
+
+    assert.equal(reads, 1);
+    queryClient.clear();
+  });
 });
 
 describe("dropMobileMessageStream", () => {
@@ -140,6 +176,47 @@ describe("dropMobileMessageStream", () => {
     assert.deepEqual(store.deletes, [
       { scope: "dm", targetId: "conversation-1", userId: "user-1" },
     ]);
+    queryClient.clear();
+  });
+
+  it("settles an in-flight stream cancellation before deleting its stored page", async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const queryKey = mobileQueryKeys.dmMessages("conversation-1");
+    let markStarted!: () => void;
+    const started = new Promise<void>((resolve) => {
+      markStarted = resolve;
+    });
+    let requestSettled = false;
+    const request = queryClient
+      .fetchQuery({
+        queryFn: ({ signal }) =>
+          new Promise<never>((_resolve, reject) => {
+            markStarted();
+            signal.addEventListener("abort", () => {
+              queueMicrotask(() => {
+                requestSettled = true;
+                reject(new Error("aborted"));
+              });
+            });
+          }),
+        queryKey,
+      })
+      .catch(() => undefined);
+    await started;
+    const store = createRecordingStore({}, () => {
+      assert.equal(requestSettled, true);
+    });
+
+    await dropMobileMessageStream({
+      queryClient,
+      scope: "dm",
+      store,
+      targetId: "conversation-1",
+      userId: "user-1",
+    });
+    await request;
+
+    assert.equal(queryClient.getQueryData(queryKey), undefined);
     queryClient.clear();
   });
 

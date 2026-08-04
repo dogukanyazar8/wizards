@@ -5,9 +5,17 @@ import type { MobileChannelMessagesResponse, MobileDMMessagesResponse } from "@w
 import type { MobileApiClient } from "../src/api/mobile-api-client";
 import { mobileQueryKeys } from "../src/query/mobile-query-keys";
 import {
+  getMobileRecentDMPrefetchStats,
   prefetchMobileChannelMessagesPage,
   prefetchMobileDMMessagesPage,
+  prefetchMeasuredMobileDMMessagesPage,
+  resetMobileRecentDMPrefetchStatsForTests,
 } from "../src/query/mobile-message-prefetch";
+import {
+  markMobileMessageStreamRestored,
+  resetMobileMessageStreamSourcesForTests,
+  resolveMobileMessageStreamOpenSource,
+} from "../src/query/mobile-message-stream-source";
 
 const channelPage: MobileChannelMessagesResponse = {
   channel: {
@@ -119,5 +127,64 @@ describe("prefetchMobileDMMessagesPage", () => {
 
     assert.deepEqual(paths, []);
     queryClient.clear();
+  });
+
+  it("records a measured warm as a settled prefetch source", async () => {
+    resetMobileRecentDMPrefetchStatsForTests();
+    resetMobileMessageStreamSourcesForTests();
+    const queryClient = createQueryClient();
+    const { client } = createRecordingClient(dmPage);
+
+    await prefetchMeasuredMobileDMMessagesPage(queryClient, client, "conversation-1");
+
+    assert.deepEqual(getMobileRecentDMPrefetchStats(), {
+      attempted: 1,
+      hitRate: 0,
+      openedAfterSettled: 0,
+      settled: 1,
+    });
+    assert.equal(
+      resolveMobileMessageStreamOpenSource({
+        dataUpdatedAtMs:
+          queryClient.getQueryState(mobileQueryKeys.dmMessages("conversation-1"))?.dataUpdatedAt ??
+          null,
+        scope: "dm",
+        targetId: "conversation-1",
+      }).source,
+      "prefetch",
+    );
+    queryClient.clear();
+    resetMobileRecentDMPrefetchStatsForTests();
+    resetMobileMessageStreamSourcesForTests();
+  });
+
+  it("does not relabel a fresh SQLCipher page when prefetch is a no-op", async () => {
+    resetMobileRecentDMPrefetchStatsForTests();
+    resetMobileMessageStreamSourcesForTests();
+    const queryClient = createQueryClient();
+    const { client, paths } = createRecordingClient(dmPage);
+    const restoredAt = Date.now();
+    queryClient.setQueryData(
+      mobileQueryKeys.dmMessages("conversation-1"),
+      { pageParams: [null], pages: [dmPage] },
+      { updatedAt: restoredAt },
+    );
+    markMobileMessageStreamRestored("dm", "conversation-1", restoredAt);
+
+    await prefetchMeasuredMobileDMMessagesPage(queryClient, client, "conversation-1");
+
+    assert.deepEqual(paths, []);
+    assert.equal(getMobileRecentDMPrefetchStats().settled, 0);
+    assert.equal(
+      resolveMobileMessageStreamOpenSource({
+        dataUpdatedAtMs: restoredAt,
+        scope: "dm",
+        targetId: "conversation-1",
+      }).source,
+      "sqlcipher",
+    );
+    queryClient.clear();
+    resetMobileRecentDMPrefetchStatsForTests();
+    resetMobileMessageStreamSourcesForTests();
   });
 });

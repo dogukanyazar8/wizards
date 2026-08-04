@@ -14,11 +14,11 @@
  */
 export type MobileChatTransitionVariant = "fade" | "none" | "slide";
 
-/** Rotation order. `slide` is first so an un-rotated build behaves as it always did. */
+/** Rotation order. `none` is first so production never spends the cached-open budget on motion. */
 export const MOBILE_CHAT_TRANSITION_VARIANTS: readonly MobileChatTransitionVariant[] = [
-  "slide",
-  "fade",
   "none",
+  "fade",
+  "slide",
 ];
 
 /** What `@react-navigation/native-stack` calls each of them. */
