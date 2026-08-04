@@ -20,10 +20,23 @@ const performanceFlowsDirectory = path.resolve(
   ".maestro",
   "performance",
 );
+const powerShellExecutable = process.platform === "win32" ? "powershell.exe" : "pwsh";
+const powerShellProbe = spawnSync(powerShellExecutable, ["-NoProfile", "-Command", "exit 0"], {
+  encoding: "utf8",
+  timeout: 15_000,
+});
+const powerShellSkipReason =
+  powerShellProbe.status === 0
+    ? false
+    : `${powerShellExecutable} is unavailable on this runner: ${powerShellProbe.error?.message ?? "probe failed"}`;
+
+function powerShellIt(name: string, test: () => void): void {
+  void it(name, { skip: powerShellSkipReason }, test);
+}
 
 function runDry(scriptName: string, repetitions = 2): string {
   const result = spawnSync(
-    "powershell.exe",
+    powerShellExecutable,
     [
       "-NoProfile",
       "-ExecutionPolicy",
@@ -50,7 +63,7 @@ function parseFrames(lines: readonly string[]) {
   const escapedModule = modulePath.replaceAll("'", "''");
   const array = lines.map((line) => `'${line.replaceAll("'", "''")}'`).join(",");
   return spawnSync(
-    "powershell.exe",
+    powerShellExecutable,
     [
       "-NoProfile",
       "-Command",
@@ -63,11 +76,12 @@ function parseFrames(lines: readonly string[]) {
 function runModuleExternal(command: string) {
   const escapedModule = modulePath.replaceAll("'", "''");
   const escapedCommand = command.replaceAll("'", "''");
+  const escapedPowerShellExecutable = powerShellExecutable.replaceAll("'", "''");
   const source = [
     `Import-Module '${escapedModule}' -Force`,
-    `& (Get-Module WhisprPerformanceDevice) { Invoke-WhisprExternal -FilePath 'powershell.exe' -Arguments @('-NoProfile', '-Command', '${escapedCommand}') }`,
+    `& (Get-Module WhisprPerformanceDevice) { Invoke-WhisprExternal -FilePath '${escapedPowerShellExecutable}' -Arguments @('-NoProfile', '-Command', '${escapedCommand}') }`,
   ].join("; ");
-  return spawnSync("powershell.exe", ["-NoProfile", "-Command", source], {
+  return spawnSync(powerShellExecutable, ["-NoProfile", "-Command", source], {
     encoding: "utf8",
     timeout: 15_000,
   });
@@ -76,13 +90,14 @@ function runModuleExternal(command: string) {
 function runModuleExternalWithEnvironment(command: string) {
   const escapedModule = modulePath.replaceAll("'", "''");
   const escapedCommand = command.replaceAll("'", "''");
+  const escapedPowerShellExecutable = powerShellExecutable.replaceAll("'", "''");
   const source = [
     "$env:WHISPR_PERF_TEST = 'outer'",
     `Import-Module '${escapedModule}' -Force`,
-    `& (Get-Module WhisprPerformanceDevice) { Invoke-WhisprExternal -FilePath 'powershell.exe' -Arguments @('-NoProfile', '-Command', '${escapedCommand}') -Environment @{ WHISPR_PERF_TEST = 'inner' } }`,
+    `& (Get-Module WhisprPerformanceDevice) { Invoke-WhisprExternal -FilePath '${escapedPowerShellExecutable}' -Arguments @('-NoProfile', '-Command', '${escapedCommand}') -Environment @{ WHISPR_PERF_TEST = 'inner' } }`,
     "if ($env:WHISPR_PERF_TEST -ne 'outer') { exit 8 }",
   ].join("; ");
-  return spawnSync("powershell.exe", ["-NoProfile", "-Command", source], {
+  return spawnSync(powerShellExecutable, ["-NoProfile", "-Command", source], {
     encoding: "utf8",
     timeout: 15_000,
   });
@@ -94,21 +109,21 @@ function runModuleScript(source: string) {
     `Import-Module '${escapedModule}' -Force`,
     `& (Get-Module WhisprPerformanceDevice) { ${source} }`,
   ].join("; ");
-  return spawnSync("powershell.exe", ["-NoProfile", "-Command", command], {
+  return spawnSync(powerShellExecutable, ["-NoProfile", "-Command", command], {
     encoding: "utf8",
     timeout: 15_000,
   });
 }
 
 describe("mobile performance device scripts", () => {
-  it("accepts native stderr diagnostics when the process exits successfully", () => {
+  powerShellIt("accepts native stderr diagnostics when the process exits successfully", () => {
     const result = runModuleExternal("[Console]::Error.WriteLine(42); exit 0");
 
     assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
     assert.match(`${result.stdout}\n${result.stderr}`, /42/u);
   });
 
-  it("scopes native environment overrides to one external command", () => {
+  powerShellIt("scopes native environment overrides to one external command", () => {
     const result = runModuleExternalWithEnvironment(
       "if ($env:WHISPR_PERF_TEST -ne 'inner') { exit 7 }; exit 0",
     );
@@ -116,7 +131,7 @@ describe("mobile performance device scripts", () => {
     assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
   });
 
-  it("reports a missing app before starting a device scenario", () => {
+  powerShellIt("reports a missing app before starting a device scenario", () => {
     const result = runModuleScript(
       [
         "$script:capturedArguments = @()",
@@ -130,7 +145,7 @@ describe("mobile performance device scripts", () => {
     assert.match(result.stdout, /Package 'team\.whispr\.mobile' is not installed/u);
   });
 
-  it("quotes ampersand-bearing performance links for the ADB remote shell", () => {
+  powerShellIt("quotes ampersand-bearing performance links for the ADB remote shell", () => {
     const result = runModuleScript(
       [
         "$script:capturedArguments = @()",
@@ -148,7 +163,7 @@ describe("mobile performance device scripts", () => {
     );
   });
 
-  it("announces every cold-start repetition", () => {
+  powerShellIt("announces every cold-start repetition", () => {
     const output = runDry("06-cold-start.ps1", 3);
 
     assert.equal((output.match(/PERF\|cold-start\|iteration=\d+\/3/gu) ?? []).length, 3);
@@ -191,7 +206,7 @@ describe("mobile performance device scripts", () => {
     }
   });
 
-  it("keeps scenarios 06-15 independently runnable with one reset and export", () => {
+  powerShellIt("keeps scenarios 06-15 independently runnable with one reset and export", () => {
     const names = [
       "06-cold-start.ps1",
       "07-warm-resume.ps1",
@@ -212,7 +227,7 @@ describe("mobile performance device scripts", () => {
     }
   });
 
-  it("brings the app shell up before resetting each measured run", () => {
+  powerShellIt("brings the app shell up before resetting each measured run", () => {
     for (const name of [
       "06-cold-start.ps1",
       "07-warm-resume.ps1",
@@ -233,7 +248,7 @@ describe("mobile performance device scripts", () => {
     }
   });
 
-  it("keeps cached chat repetitions inside one foreground session", () => {
+  powerShellIt("keeps cached chat repetitions inside one foreground session", () => {
     const dmOutput = runDry("08-cached-dm.ps1", 3);
     assert.equal((dmOutput.match(/DRYRUN\|MAESTRO\|open-dm\.yml/gu) ?? []).length, 1);
     assert.equal((dmOutput.match(/DRYRUN\|MAESTRO\|open-dm-in-session\.yml/gu) ?? []).length, 3);
@@ -253,7 +268,7 @@ describe("mobile performance device scripts", () => {
     assert.doesNotMatch(channelOutput, /DRYRUN\|ADB\|shell input keyevent 4/u);
   });
 
-  it("cold-starts SQLCipher repetitions directly on the DM route", () => {
+  powerShellIt("cold-starts SQLCipher repetitions directly on the DM route", () => {
     const output = runDry("10-sqlcipher.ps1", 3);
 
     assert.equal((output.match(/DRYRUN\|MAESTRO\|open-dm\.yml/gu) ?? []).length, 1);
@@ -268,7 +283,7 @@ describe("mobile performance device scripts", () => {
     );
   });
 
-  it("waits for the DM inbox before the network purge", () => {
+  powerShellIt("waits for the DM inbox before the network purge", () => {
     const output = runDry("11-prefetch-network.ps1", 1);
     const workload = output
       .split(/\r?\n/u)
@@ -299,7 +314,7 @@ describe("mobile performance device scripts", () => {
     assert.ok(inboxWait > backButton, "flow must wait for the DM inbox after going back");
   });
 
-  it("keeps an early-failure export partial without applying final sample gates", () => {
+  powerShellIt("keeps an early-failure export partial without applying final sample gates", () => {
     const result = runModuleScript(
       [
         "$tempRoot = Join-Path ([IO.Path]::GetTempPath()) ('whispr-partial-' + [Guid]::NewGuid().ToString('N'))",
@@ -315,7 +330,7 @@ describe("mobile performance device scripts", () => {
     assert.equal(result.stdout.trim().split(/\r?\n/u).at(-1), "OK");
   });
 
-  it("reports the missing scenario cohort before the generic sample total", () => {
+  powerShellIt("reports the missing scenario cohort before the generic sample total", () => {
     const result = runModuleScript(
       [
         "$tempRoot = Join-Path ([IO.Path]::GetTempPath()) ('whispr-cohort-' + [Guid]::NewGuid().ToString('N'))",
@@ -333,7 +348,7 @@ describe("mobile performance device scripts", () => {
     );
   });
 
-  it("correlates every repeated bridge command independently", () => {
+  powerShellIt("correlates every repeated bridge command independently", () => {
     const result = runModuleScript(
       [
         "$script:capturedRunIds = [Collections.Generic.List[string]]::new()",
@@ -351,14 +366,14 @@ describe("mobile performance device scripts", () => {
     );
   });
 
-  it("makes send mutations explicit and uniquely numbered", () => {
+  powerShellIt("makes send mutations explicit and uniquely numbered", () => {
     const output = runDry("12-send.ps1", 3);
     assert.match(output, /PERF_MESSAGE=perf-auto-[A-Za-z0-9._-]+-1/u);
     assert.match(output, /PERF_MESSAGE=perf-auto-[A-Za-z0-9._-]+-3/u);
     assert.equal((output.match(/DRYRUN\|MAESTRO\|send-dm\.yml/gu) ?? []).length, 3);
   });
 
-  it("opens every repetition of the tap scenario with a finger, not a link", () => {
+  powerShellIt("opens every repetition of the tap scenario with a finger, not a link", () => {
     const output = runDry("15-tap-dm.ps1", 3);
 
     // Each flow must activate the inbox itself. Inactive native-stack routes
@@ -376,7 +391,7 @@ describe("mobile performance device scripts", () => {
     assert.match(flow, /- tapOn:\r?\n\s+id: "mobile-dm-conversation-row"/u);
   });
 
-  it("gates cold-start on startup, not secondary chat samples", () => {
+  powerShellIt("gates cold-start on startup, not secondary chat samples", () => {
     const validate = (startup: number, cachedDm: number) =>
       runModuleScript(
         [
@@ -397,7 +412,7 @@ describe("mobile performance device scripts", () => {
     );
   });
 
-  it("fails a scenario whose own cohort came up short", () => {
+  powerShellIt("fails a scenario whose own cohort came up short", () => {
     const report = [
       "samples 151",
       "DirectMessage-cached     n=29  652.62 / 723.67",
@@ -454,7 +469,7 @@ describe("mobile performance device scripts", () => {
     assert.match(source, /-TimeoutSeconds \$markerTimeoutSeconds/u);
   });
 
-  it("reconstructs only complete checksum-valid report frames", () => {
+  powerShellIt("reconstructs only complete checksum-valid report frames", () => {
     const report = "performance report";
     const hash = createHash("sha256").update(report, "utf8").digest("hex");
     const valid = [
