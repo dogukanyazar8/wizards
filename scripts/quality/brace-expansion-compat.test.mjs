@@ -17,7 +17,9 @@ test("minimatch 3 keeps callable CommonJS brace-pattern behavior", () => {
 
 test("brace-expansion keeps its callable and named CommonJS exports", () => {
   const braceExpansion = minimatchRequire("brace-expansion");
+  const braceExpansionPackage = minimatchRequire("brace-expansion/package.json");
 
+  assert.equal(braceExpansionPackage.version, "5.0.9");
   assert.equal(typeof braceExpansion, "function");
   assert.equal(braceExpansion.expand, braceExpansion);
   assert.equal(typeof braceExpansion.EXPANSION_MAX, "number");
