@@ -2,6 +2,7 @@
 
 import {
   ArrowLeft,
+  Award,
   BellRing,
   ChevronDown,
   Code2,
@@ -579,10 +580,16 @@ export function SettingsSidebar({
             onToggle={() => toggleGroup("account")}
           >
             <SettingsNavItem
-              active={section === "account"}
+              active={section === "account" && panel !== "badges"}
               icon={UserRound}
               label={t("settings.account.nav")}
               onClick={() => goTo("account")}
+            />
+            <SettingsNavItem
+              active={section === "account" && panel === "badges"}
+              icon={Award}
+              label={t("settings.account.badges.title")}
+              onClick={() => goTo("account", "badges")}
             />
           </SettingsSection>
 

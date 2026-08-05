@@ -988,43 +988,59 @@ export function DMComposer({
           ) : (
             // §2 "1d".11: with an empty draft the primary action is the mic,
             // press-and-hold; it morphs into the plane as soon as there is text.
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={
-                voiceMessageRecorder.isRecording
-                  ? copy.composerVoiceStopAction
-                  : copy.composerVoiceRecordAction
-              }
-              accessibilityState={{ disabled: isChannelVoiceUnavailable }}
-              disabled={isChannelVoiceUnavailable}
-              // pressOut usually ended the take already; `stop()` reports "idle"
-              // for this second call, so it stays a no-op rather than a toast.
-              onPress={() => {
-                if (voiceMessageRecorder.isRecording) void handleVoiceStopAndSend();
-              }}
-              onPressIn={() => {
-                if (!voiceMessageRecorder.isRecording && !isChannelVoiceUnavailable) {
-                  void handleVoiceRecord();
+            // The wrapper carries the slide gestures, exactly as in a DM: the
+            // Pressable itself must survive the recording switch, so the state
+            // only changes the glyph and never the element.
+            <View {...voiceCancelResponder.panHandlers} testID="mobile-channel-voice-gesture">
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={
+                  voiceMessageRecorder.isRecording
+                    ? copy.composerVoiceStopAction
+                    : copy.composerVoiceRecordAction
                 }
-              }}
-              onPressOut={() => {
-                if (voiceMessageRecorder.isRecording) void handleVoiceStopAndSend();
-              }}
-              style={({ pressed }) => [
-                styles.dmChatPrimaryButton,
-                isChannelVoiceUnavailable && styles.dmChatComposerControlDisabled,
-                pressed && styles.actionButtonPressed,
-              ]}
-              testID="mobile-channel-voice-record-button"
-            >
-              <Animated.View style={[styles.dmChatPrimaryIcon, dmMicIconStyle]}>
-                <MobileLineIcon
-                  color={theme.messaging.bubbleOutText}
-                  name={voiceMessageRecorder.isRecording ? "close" : "mic"}
-                  size={19}
-                />
-              </Animated.View>
-            </Pressable>
+                accessibilityState={{ disabled: isChannelVoiceUnavailable }}
+                disabled={isChannelVoiceUnavailable}
+                // pressOut usually ended the take already; `stop()` reports "idle"
+                // for this second call, so it stays a no-op rather than a toast.
+                onPress={() => {
+                  if (voiceMessageRecorder.isRecording) void handleVoiceStopAndSend();
+                }}
+                onPressIn={() => {
+                  if (!voiceMessageRecorder.isRecording && !isChannelVoiceUnavailable) {
+                    void handleVoiceRecord();
+                  }
+                }}
+                onPressOut={() => {
+                  if (!voiceMessageRecorder.isRecording) return;
+                  // §2 "1h".3: a locked take outlives the finger, and a slide
+                  // owns its own outcome — sending here would beat both.
+                  if (isRecordingLockedRef.current || voiceGestureActiveRef.current) return;
+                  void handleVoiceStopAndSend();
+                }}
+                style={({ pressed }) => [
+                  styles.dmChatPrimaryButton,
+                  isChannelVoiceUnavailable && styles.dmChatComposerControlDisabled,
+                  pressed && styles.actionButtonPressed,
+                ]}
+                testID="mobile-channel-voice-record-button"
+              >
+                <Animated.View style={[styles.dmChatPrimaryIcon, dmMicIconStyle]}>
+                  {/* A recording ends by sending it: the X read as "discard",
+                      which is the trash control on the other side of the row. */}
+                  <MobileLineIcon
+                    color={theme.messaging.bubbleOutText}
+                    name={voiceMessageRecorder.isRecording ? "send-plane" : "mic"}
+                    size={19}
+                    testID={
+                      voiceMessageRecorder.isRecording
+                        ? "mobile-channel-voice-send-icon"
+                        : "mobile-channel-voice-mic-icon"
+                    }
+                  />
+                </Animated.View>
+              </Pressable>
+            </View>
           )}
         </View>
 

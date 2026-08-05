@@ -37,7 +37,12 @@ import { activeMobileCopy as copy } from "../../locale/mobile-locale-preferences
 import { mobileCopy } from "../../locale/mobile-copy";
 
 type MobileCopy = (typeof mobileCopy)[keyof typeof mobileCopy];
-import { mobileNavigationRef } from "../../navigation/mobile-navigation-ref";
+import {
+  mobileNavigationRef,
+  navigateMobileRouteIntent,
+} from "../../navigation/mobile-navigation-ref";
+import { buildMobileBadgesRouteIntent } from "../profile-badges/mobile-badges-route";
+import { useMobileUserBadgesQuery } from "../mobile-badges-query";
 import { MobileCustomStatusSheet } from "../mobile-custom-status-sheet";
 import type { MobileUserReportReason } from "../mobile-social-client";
 import {
@@ -47,6 +52,10 @@ import {
 } from "../mobile-social-query";
 import { MobileStatusPickerSheet } from "../mobile-status-picker-sheet";
 import { MobileUserNoteSheet } from "../mobile-user-note-sheet";
+import {
+  ProfileBadgeDetailSheet,
+  type ProfileBadgeDetailRequest,
+} from "../profile-badges/profile-badge-detail-sheet";
 import { ProfileCardMenu, type ProfileCardMenuItem } from "./profile-card-menu";
 import { ProfileCardErrorState, ProfileCardSkeleton, ProfileCardView } from "./profile-card-view";
 import { PROFILE_CARD_OPEN_DURATION_MS, useProfileCardStyles } from "./profile-card.styles";
@@ -131,6 +140,12 @@ function ProfileCardOverlay({
   const [requestOpen, setRequestOpen] = useState(false);
   const [statusPickerOpen, setStatusPickerOpen] = useState(false);
   const [customStatusOpen, setCustomStatusOpen] = useState(false);
+  /**
+   * 06 §2: the badge sheet rides over the card, it does not replace it. Holding
+   * the request here rather than inside the card body is what keeps the card
+   * mounted while the sheet is up.
+   */
+  const [badgeRequest, setBadgeRequest] = useState<ProfileBadgeDetailRequest | null>(null);
   const reducedMotion = useReducedMotion();
   // Always from zero: the overlay mounts per open, so seeding this from `open`
   // would land the card on screen already finished and skip the entry motion.
@@ -145,6 +160,12 @@ function ProfileCardOverlay({
   });
   const profile = profileQuery.data ?? null;
   const displayName = profile ? (profile.user.displayName ?? profile.user.username) : "";
+  // Starts with the profile read, not after it: the chip row reserves its height
+  // either way, so whichever request lands second does not move the card.
+  const badgesQuery = useMobileUserBadgesQuery(apiClient, {
+    enabled: status === "signed-in",
+    userId: target.userId,
+  });
 
   // Replying to an incoming request needs the request id, which the profile
   // payload does not carry; the friends overview is the one cache that holds it.
@@ -351,6 +372,23 @@ function ProfileCardOverlay({
     }
   }, [onClose]);
 
+  const closeMenu = useCallback(() => setMenuOpen(false), []);
+
+  /**
+   * An open menu is the top-most layer, so it takes the dismissal: a tap on the
+   * scrim outside the card, or the back key, closes the menu and leaves the card
+   * up. Only a card with no menu open closes on the same gesture. Taps that land
+   * on the card itself are the menu's own backdrop.
+   */
+  const handleSurfaceDismiss = useCallback(() => {
+    if (menuOpen) {
+      setMenuOpen(false);
+      return;
+    }
+
+    onClose();
+  }, [menuOpen, onClose]);
+
   const menuItems = useMemo<readonly ProfileCardMenuItem[]>(
     () => [
       // The note row leads: it is the only non-destructive action in the menu,
@@ -418,7 +456,7 @@ function ProfileCardOverlay({
         animatedBackdropStyle={animatedBackdropStyle}
         backdropStyle={styles.backdrop}
         focusRef={cardRef}
-        onClose={onClose}
+        onClose={handleSurfaceDismiss}
         open={open}
         style={styles.surface}
         testID="mobile-profile-card"
@@ -438,8 +476,12 @@ function ProfileCardOverlay({
         >
           {profile ? (
             <ProfileCardView
+              badges={badgesQuery.data?.badges ?? []}
+              // `isLoading`, not `isPending`: a disabled query is pending
+              // forever, and a signed-out card would hold an empty row for good.
+              badgesLoading={badgesQuery.isLoading}
               busy={isBusy}
-              menu={menuOpen ? <ProfileCardMenu items={menuItems} /> : null}
+              menu={menuOpen ? <ProfileCardMenu items={menuItems} onDismiss={closeMenu} /> : null}
               onAddFriend={handleAddFriend}
               onEditProfile={handleEditProfile}
               onMessage={handleMessage}
@@ -447,6 +489,19 @@ function ProfileCardOverlay({
               onOpenMenu={profile.self ? null : () => setMenuOpen((current) => !current)}
               onOpenMutuals={openFullProfile}
               onOpenStatusPicker={openStatusPicker}
+              onPressBadge={(badge) => setBadgeRequest({ badgeId: badge.id, kind: "badge" })}
+              onPressBadgeOverflow={() => {
+                // 07 §2: on your own profile `+N` is a shortcut into
+                // "Rozetlerim", which is the full list plus your progress; on
+                // someone else's it stays the in-place list sheet, where no
+                // counter of theirs is ever shown (06 §1).
+                if (profile?.self === true) {
+                  onClose();
+                  navigateMobileRouteIntent(buildMobileBadgesRouteIntent(null));
+                  return;
+                }
+                setBadgeRequest({ kind: "list" });
+              }}
               onRespondToRequest={openPendingSurface}
               onUnblock={handleUnblock}
               onVideoCall={() => startCall(true)}
@@ -508,6 +563,13 @@ function ProfileCardOverlay({
         subtitle={copy.profileCardRequestSheetSubtitle.replace("{name}", displayName)}
         testID="mobile-profile-card-request"
         title={copy.profileCardRequestSheetTitle}
+      />
+      <ProfileBadgeDetailSheet
+        badges={badgesQuery.data?.badges ?? []}
+        client={apiClient}
+        isSelf={profile?.self === true}
+        onClose={() => setBadgeRequest(null)}
+        request={badgeRequest}
       />
       {profile && !profile.self ? (
         <MobileUserNoteSheet

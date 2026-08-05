@@ -16,6 +16,7 @@ type WorkspaceNotificationRecord = {
   readAt: Date | null;
   title: string;
   type:
+    | "BADGE"
     | "FEEDBACK"
     | "MENTION"
     | "FRIEND_REQUEST"

@@ -100,7 +100,7 @@ function ConsentToggleHarness() {
   return (
     <>
       <AboutToggle
-        accessibilityLabel={copy.aboutAppBeta}
+        accessibilityLabel={copy.betaTitle}
         onValueChange={(next) => {
           if (!next) {
             setEnabled(false);

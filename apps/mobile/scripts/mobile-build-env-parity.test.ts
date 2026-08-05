@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, it } from "node:test";
@@ -77,6 +78,66 @@ describe("mobile build environment parity", () => {
     assert.match(buildScript, /git -C \$resolvedSourceRoot status --porcelain/);
     assert.match(buildScript, /\$resolvedBuildId = "\$resolvedBuildId-dirty"/);
   });
+
+  it(
+    "keeps one dirty status line countable under Windows PowerShell StrictMode",
+    { skip: process.platform !== "win32" },
+    () => {
+      const buildScriptPath = path.join(MOBILE_ROOT, "scripts", "build-android-uat.ps1");
+      const escapedBuildScriptPath = buildScriptPath.replaceAll("'", "''");
+      const probe = `
+$ErrorActionPreference = "Stop"
+Set-StrictMode -Version Latest
+$tokens = $null
+$parseErrors = $null
+$ast = [System.Management.Automation.Language.Parser]::ParseFile(
+  '${escapedBuildScriptPath}',
+  [ref]$tokens,
+  [ref]$parseErrors
+)
+if (@($parseErrors).Count -gt 0) {
+  throw "build-android-uat.ps1 could not be parsed"
+}
+
+$assignment = $ast.Find({
+  param($node)
+  $node -is [System.Management.Automation.Language.AssignmentStatementAst] -and
+    $node.Left.Extent.Text -eq '$workingTreeStatus'
+}, $true)
+$dirtyCheck = $ast.Find({
+  param($node)
+  $node -is [System.Management.Automation.Language.IfStatementAst] -and
+    $node.Extent.Text -match '\\$workingTreeStatus\\.Count' -and
+    $node.Extent.Text -match '\\$resolvedBuildId-dirty'
+}, $true)
+if ($null -eq $assignment -or $null -eq $dirtyCheck) {
+  throw "working-tree build identity statements were not found"
+}
+
+function git { " M one-file.ts" }
+$resolvedSourceRoot = "C:\\fake"
+$resolvedBuildId = "52099b986613"
+Invoke-Expression ($assignment.Extent.Text + [Environment]::NewLine + $dirtyCheck.Extent.Text)
+
+[pscustomobject]@{
+  count = $workingTreeStatus.Count
+  buildId = $resolvedBuildId
+} | ConvertTo-Json -Compress
+`;
+      const result = spawnSync(
+        "powershell.exe",
+        ["-NoProfile", "-NonInteractive", "-Command", probe],
+        { encoding: "utf8" },
+      );
+
+      assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+      const output = result.stdout.trim().split(/\r?\n/).at(-1);
+      assert.deepEqual(JSON.parse(output ?? "null"), {
+        count: 1,
+        buildId: "52099b986613-dirty",
+      });
+    },
+  );
 
   it("stamps both OTA and APK workflows with the checked-out commit", () => {
     const workflow = readMobileFile("../../.github/workflows/mobile-release.yml");

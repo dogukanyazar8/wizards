@@ -9,6 +9,7 @@ const mockOpenDM = jest.fn();
 const mockRefetch = jest.fn();
 const mockStartCall = jest.fn();
 let mockProfileQuery: Record<string, unknown>;
+let mockBadgesQuery: Record<string, unknown>;
 let mockConversations: unknown[];
 
 jest.mock("../src/auth/mobile-auth-context", () => ({
@@ -26,6 +27,13 @@ jest.mock("../src/social/mobile-social-query", () => ({
     reportUser: { isPending: false, mutate: jest.fn() },
     unblockFriend: { isPending: false, mutate: jest.fn() },
   }),
+}));
+
+jest.mock("../src/social/mobile-badges-query", () => ({
+  // The badge detail sheet reads progress from the own-badges query; it stays
+  // idle here because this suite never opens the sheet.
+  useMobileOwnBadgesQuery: () => ({ data: undefined, isError: false, isLoading: false }),
+  useMobileUserBadgesQuery: () => mockBadgesQuery,
 }));
 
 jest.mock("../src/query/mobile-dm-conversations-query", () => ({
@@ -46,6 +54,8 @@ import { MobileLocaleProvider } from "../src/app/providers/mobile-locale-provide
 import { MobileThemeProvider } from "../src/app/providers/mobile-theme-provider";
 import { ToastProvider } from "../src/app/components/kit/toast";
 import { darkTheme, lightTheme } from "../src/design/themes";
+import { MOBILE_BANNER_REFERENCE_GUTTER } from "../src/social/mobile-banner-frame";
+import { MOBILE_PROFILE_PAGE_METRICS } from "../src/social/profile-page/mobile-profile-page.styles";
 
 const baseProfile = {
   badges: ["earlyMember", "supporter"],
@@ -140,6 +150,19 @@ describe("11c full profile page", () => {
       isPending: false,
       refetch: mockRefetch,
     };
+    // The badge row is fed by its own query now; `profile.badges` is the frozen
+    // 0.8.x payload field and no screen reads it (00 §2).
+    mockBadgesQuery = {
+      data: {
+        badges: [
+          { earnedAt: "2026-01-02T00:00:00.000Z", expiresAt: null, id: "earlyMember", tier: 1 },
+          { earnedAt: "2026-01-03T00:00:00.000Z", expiresAt: null, id: "supporter", tier: 1 },
+        ],
+      },
+      isError: false,
+      isLoading: false,
+      isPending: false,
+    };
     mockFetchDMDetails.mockResolvedValue({
       mediaCount: 1,
       mutualServers: [],
@@ -166,6 +189,39 @@ describe("11c full profile page", () => {
 
   afterEach(() => {
     jest.restoreAllMocks();
+  });
+
+  /**
+   * The page, the quick card and the profile hub all crop the same image
+   * `cover`, so they only agree on what they show when their frames share an
+   * aspect ratio. The hub's identity card — page width by a fixed 212pt — is
+   * where the owner positions the banner, so it is the ratio to reproduce.
+   */
+  it("frames a banner photo exactly like the identity card the owner positioned it in", async () => {
+    mockProfileQuery = {
+      ...mockProfileQuery,
+      data: { ...baseProfile, bannerUrl: "https://cdn.example.com/banner.png" },
+    };
+    const screen = await renderScreen();
+    const windowWidth = ReactNative.Dimensions.get("window").width;
+    const height = flattenStyle(
+      screen.getByTestId("mobile-user-profile-banner").props.style,
+    ).height;
+
+    expect(typeof height).toBe("number");
+    expect(windowWidth / (height as number)).toBeCloseTo(
+      (windowWidth - MOBILE_BANNER_REFERENCE_GUTTER * 2) /
+        lightTheme.layout.fixed.profileIdentityCardHeight,
+      1,
+    );
+  });
+
+  it("keeps the handoff's 148pt strip when the banner is only a colour", async () => {
+    const screen = await renderScreen();
+
+    expect(flattenStyle(screen.getByTestId("mobile-user-profile-banner").props.style).height).toBe(
+      MOBILE_PROFILE_PAGE_METRICS.bannerHeight,
+    );
   });
 
   it("fills every 1c section from the profile payload", async () => {
@@ -423,6 +479,23 @@ describe("11c full profile page", () => {
     expect(screen.getByTestId("mobile-user-profile-media-duration-attachment-2")).toBeTruthy();
     expect(screen.getByText("0:42")).toBeTruthy();
     expect(screen.getByText("PAYLAŞILAN MEDYA — 96")).toBeTruthy();
+  });
+
+  it("draws the identity badge row from the badge query, in the shared chip", async () => {
+    const screen = await renderScreen();
+
+    expect(screen.getByTestId("mobile-user-profile-badges")).toBeTruthy();
+    expect(screen.getByTestId("mobile-user-profile-badges-earlyMember")).toBeTruthy();
+    expect(screen.getByTestId("mobile-user-profile-badges-supporter")).toBeTruthy();
+  });
+
+  it("keeps the badge row's place while the badge query is still in flight", async () => {
+    mockBadgesQuery = { data: undefined, isError: false, isLoading: true, isPending: true };
+    const screen = await renderScreen();
+    const row = screen.getByTestId("mobile-user-profile-badges");
+
+    expect(flattenStyle(row.props.style).height).toBe(28);
+    expect(screen.queryByTestId("mobile-user-profile-badges-earlyMember")).toBeNull();
   });
 
   it("renders the 1f dark page from the dark token family", async () => {

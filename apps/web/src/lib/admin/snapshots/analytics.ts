@@ -2,6 +2,7 @@ import type { AnalyticsClientType, PrismaClient } from "@wizards/db";
 import { prisma } from "@wizards/db";
 import { buildCohortTable } from "@/lib/admin/analytics/cohorts";
 import { buildFunnel, type FunnelPlatform } from "@/lib/admin/analytics/funnel";
+import { summarizeLegacyMobileClients } from "@/lib/admin/analytics/legacy-clients";
 import type { AdminSnapshotInput } from "@/lib/admin/snapshots/client";
 import { DAY_MS, getDashboardDateRange } from "@/lib/admin/snapshots/shared";
 
@@ -161,8 +162,13 @@ export async function loadAdminAnalyticsSnapshot(
         }),
   ]);
 
+  // Not part of the analytics story, but the question it answers has no other
+  // home: whether the frozen mobile profile field may be removed yet (08 §5).
+  const legacyMobileClients = await summarizeLegacyMobileClients({ now, store: client });
+
   return {
     cohorts: buildCohortTable(cohortUsers, cohortActivity),
+    legacyMobileClients,
     funnel: buildFunnel(
       {
         emailVerifiedCount,

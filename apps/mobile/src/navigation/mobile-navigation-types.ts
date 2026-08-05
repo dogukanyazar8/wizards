@@ -26,6 +26,11 @@ export type MobileRootStackParamList = {
   };
   SettingsDetail: {
     readonly section: string;
+    /**
+     * Only the `badges` section reads it: a BADGE notification names the badge
+     * it is about, and the screen opens that detail directly (07 §4).
+     */
+    readonly badgeId?: string;
   };
   ProfileEdit: undefined;
   /** 11c full profile page; `serverId` is what turns the role chips on. */

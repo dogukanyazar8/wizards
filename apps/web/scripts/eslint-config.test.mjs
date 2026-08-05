@@ -28,11 +28,11 @@ test("React Compiler diagnostics are loaded as errors by the flat config", async
     assert.doesNotMatch(source, new RegExp(`"${rule}": 0`));
   }
 
-  assert.match(packageJson.devDependencies.eslint, /^\^?10\.7\.0$/u);
+  assert.match(packageJson.devDependencies.eslint, /^\^?10\.8\.0$/u);
   assert.equal(packageJson.devDependencies["@eslint/js"], undefined);
-  assert.equal(packageJson.devDependencies["@next/eslint-plugin-next"], "16.2.11");
+  assert.equal(packageJson.devDependencies["@next/eslint-plugin-next"], "16.3.0");
   assert.match(packageJson.devDependencies["eslint-plugin-react-hooks"], /^\^?7\.1\.1$/u);
-  assert.equal(packageJson.devDependencies["typescript-eslint"], "8.65.0");
+  assert.equal(packageJson.devDependencies["typescript-eslint"], "8.66.0");
   assert.equal(packageJson.devDependencies["babel-plugin-react-compiler"], "1.0.0");
 
   const eslint = new ESLint({
@@ -44,6 +44,24 @@ test("React Compiler diagnostics are loaded as errors by the flat config", async
     assert.equal(config.rules[rule]?.[0], 2, `${rule} must be enabled as an error`);
   }
   assert.equal(config.rules["no-undef"]?.[0], 0);
+});
+
+test("badge surfaces avoid synchronous state resets inside effects", async () => {
+  const eslint = new ESLint({
+    cwd: fileURLToPath(new URL("..", import.meta.url)),
+  });
+  const results = await eslint.lintFiles([
+    "src/components/admin/sections/admin-user-badges.tsx",
+    "src/components/shared/profile-badge-detail.tsx",
+    "src/components/shared/user-profile-popover.tsx",
+  ]);
+  const violations = results.flatMap((result) =>
+    result.messages
+      .filter((message) => message.ruleId === "react-hooks/set-state-in-effect")
+      .map((message) => `${result.filePath}:${message.line}:${message.column}`),
+  );
+
+  assert.deepEqual(violations, []);
 });
 
 test("unused-value conventions are explicit for intentional omissions", async () => {

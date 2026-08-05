@@ -12,6 +12,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Accessibility,
+  Award,
   BellRing,
   Camera,
   CalendarDays,
@@ -80,6 +81,8 @@ import {
   getProfileCompletionSummary,
   type ProfileCompletionSummary,
 } from "@/lib/account/profile-completion";
+import { AccountBadgesCard } from "@/components/settings/account-badges-card";
+import { BADGE_QUERY_STALE_TIME_MS, badgeQueryKeys, fetchOwnBadges } from "@/lib/badges/client";
 import { fetchLayoutSettings, patchLayoutSettings, settingsQueryKeys } from "@/lib/settings/client";
 import {
   buildSettingsHref,
@@ -1514,6 +1517,18 @@ function SettingsPanelContent({
     staleTime: 60_000,
   });
 
+  /**
+   * 07 §3. Fetched only while the badges panel is open: every other settings
+   * panel would otherwise pay for a read it never draws. The key is the same
+   * `badges.own()` the popover uses, so a BADGE notification refreshes both.
+   */
+  const ownBadgesQuery = useQuery({
+    enabled: section === "account" && panel === "badges",
+    queryFn: fetchOwnBadges,
+    queryKey: badgeQueryKeys.own(),
+    staleTime: BADGE_QUERY_STALE_TIME_MS,
+  });
+
   useEffect(() => {
     if (settingsQuery.data) {
       applyPersistedSettings(settingsQuery.data);
@@ -1818,6 +1833,27 @@ function SettingsPanelContent({
         </div>
       </div>
     );
+
+    // 07 §3: a panel of this section rather than a route of its own, so the
+    // badges view replaces the account body instead of opening a new surface.
+    if (panel === "badges") {
+      return (
+        <div className="space-y-3">
+          <AccountPageHeader
+            description={t("settings.account.badges.description")}
+            eyebrow={t("settings.account.badge")}
+            title={t("settings.account.badges.title")}
+          />
+          <SettingCard
+            description={t("settings.account.badges.description")}
+            icon={Award}
+            title={t("settings.account.badges.title")}
+          >
+            <AccountBadgesCard data={ownBadgesQuery.data ?? null} />
+          </SettingCard>
+        </div>
+      );
+    }
 
     return (
       <div className="space-y-3">

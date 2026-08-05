@@ -1,6 +1,7 @@
 import { prisma, type BugReportStatus, type Prisma } from "@wizards/db";
 
 import { ApiError } from "@/lib/api";
+import { onBugReportResolved } from "@/lib/badges/badge-triggers";
 
 const adminBugReportListSelect = {
   appVersion: true,
@@ -145,5 +146,13 @@ export async function updateAdminBugReportStatus(
     );
   }
 
-  return dependencies.updateStatus(reportId, status);
+  const result = await dependencies.updateStatus(reportId, status);
+
+  // Only a fixed report earns the badge; TRIAGED and DISCARDED do not. An
+  // anonymous report has no reporter to credit.
+  if (status === "RESOLVED" && result.report.user) {
+    await onBugReportResolved({ userId: result.report.user.id });
+  }
+
+  return result;
 }

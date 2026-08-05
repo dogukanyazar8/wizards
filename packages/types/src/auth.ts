@@ -1,5 +1,18 @@
 import { z } from "zod";
 
+import { isBcryptPasswordWithinLimit } from "./password";
+
+const NewPasswordSchema = z
+  .string()
+  .min(8, "validation.password.min")
+  .max(100, "validation.password.max")
+  .refine(isBcryptPasswordWithinLimit, "validation.password.bcryptMax");
+
+const ConfirmNewPasswordSchema = z
+  .string()
+  .max(100, "validation.password.max")
+  .refine(isBcryptPasswordWithinLimit, "validation.password.bcryptMax");
+
 export const TurnstileTokenSchema = z
   .string()
   .min(1, "validation.turnstile.required")
@@ -41,8 +54,8 @@ export const RegisterSchema = z
       .min(2, "validation.username.min")
       .max(32, "validation.username.max")
       .regex(/^[a-zA-Z0-9_]+$/, "validation.username.pattern"),
-    password: z.string().min(8, "validation.password.min").max(100, "validation.password.max"),
-    confirmPassword: z.string(),
+    password: NewPasswordSchema,
+    confirmPassword: ConfirmNewPasswordSchema,
     turnstileToken: TurnstileTokenSchema,
   })
   .refine((data) => data.confirmPassword === data.password, {
@@ -56,8 +69,8 @@ export const ForgotPasswordSchema = z.object({
 
 export const ResetPasswordSchema = z
   .object({
-    password: z.string().min(8, "validation.password.min").max(100, "validation.password.max"),
-    confirmPassword: z.string(),
+    password: NewPasswordSchema,
+    confirmPassword: ConfirmNewPasswordSchema,
     token: z.string().min(1, "auth.passwordReset.invalidToken"),
   })
   .refine((data) => data.confirmPassword === data.password, {

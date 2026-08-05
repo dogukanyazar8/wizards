@@ -197,6 +197,32 @@ export function AdminAnalytics({ snapshot }: { snapshot: AdminAnalyticsSnapshot 
           })}
         </div>
       </AdminCard>
+
+      <AdminCard>
+        <AdminCardHeader
+          subtitle={`Son ${formatAdminInt(snapshot.legacyMobileClients.windowDays)} günde ${snapshot.legacyMobileClients.maxVersion} altı mobil oturum`}
+          title="Eski mobil istemciler"
+        />
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <AdminMiniStat
+            label="Eski oturum"
+            tone={snapshot.legacyMobileClients.clear ? "success" : "warning"}
+            value={formatAdminInt(snapshot.legacyMobileClients.sessions)}
+          />
+          <div className="flex flex-wrap gap-2">
+            {snapshot.legacyMobileClients.versions.map((entry) => (
+              <AdminPill key={entry.appVersion ?? "unknown"} tone="warning">
+                {`${entry.appVersion ?? "sürümsüz"} · ${formatAdminInt(entry.sessions)}`}
+              </AdminPill>
+            ))}
+          </div>
+        </div>
+        <p className="text-app-soft mt-3 text-[11.5px]">
+          {snapshot.legacyMobileClients.clear
+            ? "Sayı sıfır: profil payload'ındaki donmuş rozet alanı kaldırılabilir."
+            : "Sayı sıfırlanana kadar profil payload'ındaki donmuş rozet alanı kaldırılamaz — eski istemcide profil kartı hiç açılmaz."}
+        </p>
+      </AdminCard>
     </section>
   );
 }

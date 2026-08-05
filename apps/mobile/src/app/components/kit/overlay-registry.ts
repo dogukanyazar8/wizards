@@ -6,6 +6,13 @@ export const MOBILE_ABOUT_UPDATE_OVERLAY_ID = "about-update";
 export const MOBILE_ABOUT_BETA_CONSENT_OVERLAY_ID = "about-beta-consent";
 /** Stable registry identity for the 2h in-app rating sheet. */
 export const MOBILE_ABOUT_RATING_OVERLAY_ID = "about-rating";
+/**
+ * Stable registry identity for the badge detail sheet. It is named because the
+ * sheet swaps its own body between the badge list and a single badge (06 §2):
+ * a generated id per view would register a second entry and stack two sheets
+ * where the design has one.
+ */
+export const MOBILE_PROFILE_BADGE_DETAIL_OVERLAY_ID = "profile-badge-detail";
 
 /**
  * One mounted overlay. `node` is the element the host renders on behalf of the

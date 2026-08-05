@@ -64,6 +64,7 @@ describe("mobile notification realtime cache", () => {
     assert.deepEqual(item, {
       actionUrl: "/channels/server-1/channel-1",
       actor,
+      badgeId: null,
       body: "Ada seni #genel kanalında etiketledi.",
       channel: { id: "channel-1", name: "genel" },
       createdAt: "2026-07-26T10:00:00.000Z",
@@ -77,6 +78,32 @@ describe("mobile notification realtime cache", () => {
       serverInviteCode: null,
       type: "MENTION",
     });
+  });
+
+  it("keeps a badge id only on a BADGE row", () => {
+    const earned = toMobileNotificationItem(
+      mentionEvent({
+        metadata: { badgeId: "streak", tier: 2 },
+        type: "BADGE" as const,
+      }) as Parameters<typeof toMobileNotificationItem>[0],
+    );
+    assert.equal(earned.badgeId, "streak");
+
+    // The same metadata on another type means nothing, and an id outside the
+    // catalog is dropped rather than carried into a route param.
+    assert.equal(
+      toMobileNotificationItem(mentionEvent({ metadata: { badgeId: "streak" } })).badgeId,
+      null,
+    );
+    assert.equal(
+      toMobileNotificationItem(
+        mentionEvent({
+          metadata: { badgeId: "not-a-badge" },
+          type: "BADGE" as const,
+        }) as Parameters<typeof toMobileNotificationItem>[0],
+      ).badgeId,
+      null,
+    );
   });
 
   it("carries a pushed server invite's code so the row can answer immediately", () => {

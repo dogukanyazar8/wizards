@@ -135,6 +135,7 @@ describe("getMobileMissedNotifications", () => {
   ): MobileNotificationItem => ({
     actionUrl: null,
     actor: null,
+    badgeId: null,
     body: "body",
     channel: null,
     createdAt,

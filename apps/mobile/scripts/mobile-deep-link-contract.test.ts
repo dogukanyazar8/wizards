@@ -8,6 +8,10 @@ import {
   parseMobileDeepLink,
 } from "../src/deep-link/mobile-deep-links";
 import { resolveMobileRoutePathIntent } from "../src/navigation/mobile-linking";
+import {
+  MOBILE_BADGES_ROUTE_PATH,
+  buildMobileBadgesRouteIntent,
+} from "../src/social/profile-badges/mobile-badges-route";
 
 const webUrl = "https://whispr.team";
 const handoffToken = "abcdefghijklmnopqrstuvwxyzABCDEF1234567890_-"; // gitleaks:allow -- deterministic invalid fixture
@@ -262,6 +266,43 @@ describe("mobile deep link contract", () => {
       params: { slug: "whispr-community" },
       type: "route",
     });
+  });
+
+  it("opens Rozetlerim, with or without the badge a notification names", () => {
+    // 07 §2 deep link. The section is a free string on `SettingsDetail`, so the
+    // screen is reached through the same `settings/:section` branch every other
+    // settings destination uses.
+    assert.deepEqual(resolveMobileRoutePathIntent("/settings/badges"), {
+      name: "SettingsDetail",
+      params: { section: "badges" },
+      type: "route",
+    });
+    assert.deepEqual(resolveMobileRoutePathIntent("/settings/badges?badge=streak"), {
+      name: "SettingsDetail",
+      params: { badgeId: "streak", section: "badges" },
+      type: "route",
+    });
+  });
+
+  it("routes a BADGE notification on its type, not on its action URL", () => {
+    // 07 §4: the row opens "Rozetlerim" whether or not it carries a URL, and an
+    // id that is not in the catalog is dropped rather than carried through.
+    assert.deepEqual(buildMobileBadgesRouteIntent("streak"), {
+      name: "SettingsDetail",
+      params: { badgeId: "streak", section: "badges" },
+      type: "route",
+    });
+    assert.deepEqual(buildMobileBadgesRouteIntent(null), {
+      name: "SettingsDetail",
+      params: { section: "badges" },
+      type: "route",
+    });
+    assert.deepEqual(buildMobileBadgesRouteIntent("not-a-badge"), {
+      name: "SettingsDetail",
+      params: { section: "badges" },
+      type: "route",
+    });
+    assert.equal(MOBILE_BADGES_ROUTE_PATH, "/settings/badges");
   });
 
   it("keeps the two-segment About paths off the single-segment settings branch", () => {

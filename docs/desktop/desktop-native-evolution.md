@@ -15,7 +15,7 @@ Living P00 baseline. This document is source-grounded as of 2026-07-27 and is th
 
 Whispr Desktop is a Tauri 2 shell around external web content, not a bundled local renderer.
 
-- Versions: Node `24.18.0`, pnpm `11.17.0`, Rust/Cargo `1.95.0`, Tauri CLI `2.11.4`; desktop package, Cargo package, and Tauri config are `0.8.15`. The lockfile resolves Tauri `2.11.5` and updater `2.10.1`.
+- Versions: Node `24.18.0`, pnpm `11.20.0`, Rust/Cargo `1.95.0`, Tauri CLI `2.11.4`; desktop package, Cargo package, and Tauri config are `0.8.15`. The lockfile resolves Tauri `2.11.5` and updater `2.10.1`.
 - Main, voice-mini, and game-overlay WebViews use `WebviewUrl::External(...)`. Production origin is HTTPS `https://whispr.team`; development allows localhost. Sources: `apps/desktop/src-tauri/src/lib.rs:660-683,3097-3126,3227-3255`, `apps/desktop/scripts/run-tauri.mjs:13-47`.
 - The main WebView is a remote-capable surface with 21 custom native command permissions plus notification/window permissions. Voice mini has only `core:window:allow-start-dragging`; game overlay has no WebView command permissions. Sources: `apps/desktop/src-tauri/capabilities/main.json`, `voice-mini.json`, `game-overlay.json`.
 - Existing native capabilities: tray; single-instance; deep links; OAuth navigation restriction; global shortcuts; autostart; close-to-tray; notifications; updater contract; diagnostics export; voice mini; game overlay; Windows foreground-process and focus checks. Sources: `apps/desktop/src-tauri/src/lib.rs:569-632,2297-2394,3420-3708`.

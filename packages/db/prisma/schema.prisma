@@ -54,6 +54,10 @@ enum NotificationType {
   // handler can route to the tracking view without sniffing metadata, and so a
   // user can mute product updates without losing security notices.
   FEEDBACK
+  // Badge awards and revocations. Its own type rather than SYSTEM so the mobile tap
+  // handler can route to "Rozetlerim" without sniffing metadata, and so a user can
+  // mute badge news without losing security notices.
+  BADGE
 }
 
 enum FeedbackRating {
@@ -315,6 +319,15 @@ enum ScheduledEventEntityType {
   EXTERNAL
 }
 
+/// Which layer wrote a badge row. DERIVED badges never persist a row — the value is
+/// recomputed from the User row on read — so the enum value exists only for grants
+/// that later migrate between layers, keeping the column honest about its author.
+enum BadgeSource {
+  DERIVED
+  AWARDED
+  GRANTED
+}
+
 // =============================================================================
 // MODELS
 // =============================================================================
@@ -424,6 +437,10 @@ model User {
   pushDeliveryAttempts    PushDeliveryAttempt[]     @relation("PushDeliveryAttemptUser")
   feedbackClustersResolved FeedbackClusterSuggestion[] @relation("FeedbackClusterResolver")
   bugReports              BugReport[]               @relation("BugReportUser")
+  badges                  UserBadge[]               @relation("UserBadgeOwner")
+  badgeGrants             UserBadge[]               @relation("UserBadgeGranter")
+  badgeProgress           UserBadgeProgress[]
+  contributorEntries      Contributor[]             @relation("ContributorUser")
 
   @@index([email])
   @@index([username])
@@ -1503,10 +1520,62 @@ model CampaignDelivery {
 model Contributor {
   id        String   @id @default(uuid())
   name      String   @unique
+  /// Set when an operator links the credit line to a real account; that link is what
+  /// the `contributor` badge grant reads. Null keeps the historical name-only rows.
+  userId    String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  user User? @relation("ContributorUser", fields: [userId], references: [id], onDelete: SetNull)
+
   @@index([name])
+  @@index([userId])
+}
+
+/// Kazanılmış rozet. DERIVED rozetler burada satır tutmaz — onlar okuma anında
+/// User satırından hesaplanır. Satır silinmez; iptal `revokedAt` ile işaretlenir,
+/// çünkü "bir zamanlar kazanmıştı" bilgisi moderasyon için gerekir.
+model UserBadge {
+  id           String      @id @default(uuid())
+  userId       String
+  badge        String      @db.VarChar(32)
+  tier         Int         @default(1)
+  source       BadgeSource
+  earnedAt     DateTime    @default(now())
+  /// Yalnız GRANTED rozetlerde dolu (event). Okuma yolunda filtrelenir.
+  expiresAt    DateTime?
+  revokedAt    DateTime?
+  revokeReason String?     @db.VarChar(280)
+  grantedById  String?
+  grantReason  String?     @db.VarChar(280)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  user      User  @relation("UserBadgeOwner", fields: [userId], references: [id], onDelete: Cascade)
+  grantedBy User? @relation("UserBadgeGranter", fields: [grantedById], references: [id], onDelete: SetNull)
+
+  @@unique([userId, badge])
+  @@index([userId, revokedAt])
+  @@index([badge, tier])
+}
+
+/// Değerlendiricinin sayacı. Okuma yolunda ASLA okunmaz; yalnız "Rozetlerim"
+/// ekranı ve değerlendiricinin kendisi okur.
+model UserBadgeProgress {
+  userId         String
+  badge          String    @db.VarChar(32)
+  /// Kümülatif ölçüm (gün sayısı, davet sayısı, saniye…). BigInt çünkü
+  /// voiceSeconds toplamı Int sınırını aşabilir.
+  value          BigInt    @default(0)
+  /// Yalnız `streak` kullanır; gün atlanınca 1'e döner.
+  streakDays     Int       @default(0)
+  /// Aynı günün ikinci kez sayılmasını engelleyen UTC gün başlangıcı.
+  lastCountedDay DateTime?
+  updatedAt      DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, badge])
 }
 
 model Emoji {

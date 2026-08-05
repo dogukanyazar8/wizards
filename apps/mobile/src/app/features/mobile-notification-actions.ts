@@ -1,6 +1,7 @@
 import type { MobileNotificationItem } from "@wizards/types";
 import { resolveMobileRoutePathIntent } from "../../navigation/mobile-linking";
 import { navigateMobileRouteIntent } from "../../navigation/mobile-navigation-ref";
+import { buildMobileBadgesRouteIntent } from "../../social/profile-badges/mobile-badges-route";
 import { openMobileVoiceRoom } from "../../voice/mobile-voice-room-route-navigation";
 import type { MobileNotificationsScreenProps } from "../providers/mobile-product-screen-provider";
 
@@ -35,8 +36,21 @@ export function createMobileNotificationActions({
         openMobileVoiceRoom(voiceChannel);
       }
     },
-    onOpenNotification(actionUrl: string) {
-      const routeIntent = resolveMobileRoutePathIntent(actionUrl);
+    onOpenNotification(notification: MobileNotificationItem) {
+      // Routed on the type, not on a metadata sniff — the same reason FEEDBACK
+      // has its own type (07 §4). `badgeId` is a parameter of the destination,
+      // never the thing that picks it: a BADGE row opens "Rozetlerim" with or
+      // without one.
+      if (notification.type === "BADGE") {
+        navigateMobileRouteIntent(buildMobileBadgesRouteIntent(notification.badgeId));
+        return;
+      }
+
+      if (!notification.actionUrl) {
+        return;
+      }
+
+      const routeIntent = resolveMobileRoutePathIntent(notification.actionUrl);
       if (routeIntent) {
         navigateMobileRouteIntent(routeIntent);
       }

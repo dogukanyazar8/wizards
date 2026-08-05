@@ -1,18 +1,20 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import { BADGE_IDS } from "@wizards/types";
+
 const service = import("./mobile-user-profile-service");
 
 describe("mobile profile badge derivation", () => {
-  it("derives every badge from an account fact rather than stored state", async () => {
+  it("derives every badge from an account fact or a stored row", async () => {
     const { MOBILE_PROFILE_EARLY_MEMBER_BEFORE, deriveMobileProfileBadges } = await service;
     const threshold = Date.parse(MOBILE_PROFILE_EARLY_MEMBER_BEFORE);
 
     assert.deepEqual(
       deriveMobileProfileBadges({
-        premiumType: "TIER_1",
+        premiumType: "FULL",
         registeredAt: new Date(threshold - 1),
-        usedInviteCount: 4,
+        storedBadgeIds: ["inviter"],
       }),
       ["earlyMember", "supporter", "inviter"],
     );
@@ -20,9 +22,61 @@ describe("mobile profile badge derivation", () => {
       deriveMobileProfileBadges({
         premiumType: "NONE",
         registeredAt: new Date(threshold),
-        usedInviteCount: 0,
+        storedBadgeIds: [],
       }),
       [],
+    );
+  });
+
+  /**
+   * The guard on 00 §2's compatibility constraint: this field feeds 0.8.x
+   * clients that parse the profile with a `.strict()` schema and cannot be
+   * updated over the air. A single new id leaking out of the engine would stop
+   * their profile card from opening at all.
+   */
+  it("never lets a new catalog id reach the frozen profile field", async () => {
+    const { MOBILE_PROFILE_EARLY_MEMBER_BEFORE, deriveMobileProfileBadges } = await service;
+    const threshold = Date.parse(MOBILE_PROFILE_EARLY_MEMBER_BEFORE);
+
+    assert.deepEqual(
+      deriveMobileProfileBadges({
+        premiumType: "FULL",
+        registeredAt: new Date(threshold - 1),
+        // Every badge the catalog knows, including the thirteen this payload
+        // has no way to describe.
+        storedBadgeIds: [...BADGE_IDS],
+      }),
+      ["earlyMember", "supporter", "inviter"],
+    );
+  });
+
+  it("reads inviter off the badge row rather than an invite count", async () => {
+    const { deriveMobileProfileBadges } = await service;
+    const facts = {
+      premiumType: "NONE",
+      registeredAt: new Date("2025-01-01T00:00:00.000Z"),
+    } as const;
+
+    assert.deepEqual(deriveMobileProfileBadges({ ...facts, storedBadgeIds: ["inviter"] }), [
+      "earlyMember",
+      "inviter",
+    ]);
+    // No row means no badge: an invite that nobody redeemed proves nothing, and
+    // the profile read no longer counts invites to find that out.
+    assert.deepEqual(deriveMobileProfileBadges(facts), ["earlyMember"]);
+  });
+
+  it("keeps an admin-revoked derived badge out of the frozen legacy field", async () => {
+    const { deriveMobileProfileBadges } = await service;
+
+    assert.deepEqual(
+      deriveMobileProfileBadges({
+        premiumType: "FULL",
+        registeredAt: new Date("2025-01-01T00:00:00.000Z"),
+        storedBadgeIds: ["inviter"],
+        suppressedBadgeIds: ["earlyMember", "supporter"],
+      }),
+      ["inviter"],
     );
   });
 
@@ -31,12 +85,10 @@ describe("mobile profile badge derivation", () => {
     const facts = {
       premiumType: "NONE",
       registeredAt: new Date("2025-01-01T00:00:00.000Z"),
-      usedInviteCount: 1,
-    };
+      storedBadgeIds: ["inviter"],
+    } as const;
 
     assert.deepEqual(deriveMobileProfileBadges(facts), deriveMobileProfileBadges(facts));
-    // An invite that was never used is not a badge: the row alone proves nothing.
-    assert.deepEqual(deriveMobileProfileBadges({ ...facts, usedInviteCount: 0 }), ["earlyMember"]);
   });
 });
 
@@ -103,6 +155,62 @@ describe("mobile profile presence read", () => {
     );
     assert.equal(readActiveCustomStatus("Release day", null, now), "Release day");
     assert.equal(readActiveCustomStatus(null, null, now), null);
+  });
+
+  /**
+   * `User.status` is the presence the account chose and nothing clears it on
+   * disconnect, so reading a peer's presence off the column reported every
+   * account that had ever been online as still online. The live socket registry
+   * is the answer for peers; the column stays the answer for your own card.
+   */
+  it("reads a peer's presence off the live registry, not off the stored column", async () => {
+    const { resolveMobileProfilePresenceStatus } = await service;
+
+    assert.equal(
+      resolveMobileProfilePresenceStatus({
+        livePresence: { status: "OFFLINE" },
+        self: false,
+        storedStatus: "ONLINE",
+      }),
+      "OFFLINE",
+    );
+    // No record at all is itself an offline answer: presence only exists while a
+    // socket is registered.
+    assert.equal(
+      resolveMobileProfilePresenceStatus({ livePresence: null, self: false, storedStatus: "DND" }),
+      "OFFLINE",
+    );
+    assert.equal(
+      resolveMobileProfilePresenceStatus({
+        livePresence: { status: "IDLE" },
+        self: false,
+        storedStatus: "ONLINE",
+      }),
+      "IDLE",
+    );
+  });
+
+  it("keeps your own card on the presence you picked", async () => {
+    const { resolveMobileProfilePresenceStatus } = await service;
+
+    assert.equal(
+      resolveMobileProfilePresenceStatus({
+        livePresence: { status: "OFFLINE" },
+        self: true,
+        storedStatus: "DND",
+      }),
+      "DND",
+    );
+    // "Görünmez" is still cropped downstream; the resolver hands the stored value
+    // over untouched and `readProfilePresence` publishes it as offline.
+    assert.equal(
+      resolveMobileProfilePresenceStatus({
+        livePresence: null,
+        self: true,
+        storedStatus: "INVISIBLE",
+      }),
+      "INVISIBLE",
+    );
   });
 
   it("publishes an invisible account as offline and leaks none of its status", async () => {

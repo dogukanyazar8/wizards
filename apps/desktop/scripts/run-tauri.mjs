@@ -144,6 +144,7 @@ await writeFile(
         frontendDist: webUrl.href,
       },
       app: {
+        macOSPrivateApi: true,
         withGlobalTauri: false,
         windows: [],
         security: {

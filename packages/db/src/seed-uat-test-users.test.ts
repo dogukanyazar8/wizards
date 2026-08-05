@@ -76,6 +76,14 @@ test("requires an explicit confirmation and a non-default password", () => {
       }),
     /at least 12 characters/,
   );
+  assert.throws(
+    () =>
+      readUatTestUsersSeedOptions({
+        UAT_TEST_USERS_CONFIRM: UAT_TEST_USERS_CONFIRMATION,
+        UAT_TEST_USERS_PASSWORD: "🙂".repeat(19),
+      }),
+    /72 UTF-8 bytes/,
+  );
 
   assert.deepEqual(
     readUatTestUsersSeedOptions({

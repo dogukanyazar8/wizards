@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { BadgeIdSchema } from "./badges";
 import {
   ChatMessageSchema,
   MESSAGE_CONTENT_DEFAULT_LIMIT,
@@ -7,6 +8,7 @@ import {
   MessagesResponseSchema,
   UploadedAttachmentInputSchema,
 } from "./messages";
+import { isBcryptPasswordWithinLimit } from "./password";
 import { DMConversationDTOSchema, DMMessagePayloadSchema } from "./socket";
 import { WorkspaceChannelSchema, WorkspaceMemberSchema } from "./workspace";
 
@@ -107,15 +109,23 @@ export const MobileAuthRevokeRequestSchema = z.object({
 });
 
 const MobileAuthEmailSchema = z.string().email("validation.email.invalid").max(254);
-const MobileAuthPasswordSchema = z
+const MobileAuthLoginPasswordSchema = z
   .string()
   .min(8, "validation.password.min")
   .max(100, "validation.password.max");
+const MobileAuthNewPasswordSchema = MobileAuthLoginPasswordSchema.refine(
+  isBcryptPasswordWithinLimit,
+  "validation.password.bcryptMax",
+);
+const MobileAuthConfirmNewPasswordSchema = z
+  .string()
+  .max(100, "validation.password.max")
+  .refine(isBcryptPasswordWithinLimit, "validation.password.bcryptMax");
 const MobileAuthLocaleSchema = z.enum(["tr", "en"]).optional();
 
 export const MobileAuthPasswordLoginRequestSchema = z.object({
   email: MobileAuthEmailSchema,
-  password: MobileAuthPasswordSchema,
+  password: MobileAuthLoginPasswordSchema,
   twoFactorCode: z.string().trim().min(1).max(64).optional(),
 });
 
@@ -143,10 +153,10 @@ export const MobileAuthGoogleLoginResponseSchema = z.object({
 
 export const MobileAuthRegisterRequestSchema = z
   .object({
-    confirmPassword: z.string().max(100, "validation.password.max"),
+    confirmPassword: MobileAuthConfirmNewPasswordSchema,
     email: MobileAuthEmailSchema,
     locale: MobileAuthLocaleSchema,
-    password: MobileAuthPasswordSchema,
+    password: MobileAuthNewPasswordSchema,
     username: z
       .string()
       .min(2, "validation.username.min")
@@ -219,6 +229,12 @@ export const MobilePushRegistrationRevokeResponseSchema = z.object({
 });
 
 export const MobileNotificationTypeSchema = z.enum([
+  /**
+   * A badge tier the evaluator just granted (07 §4). It carries its own type
+   * rather than riding SYSTEM so the tap can route to "Rozetlerim" without
+   * reading metadata, and so muting badge news never mutes a security notice.
+   */
+  "BADGE",
   "FEEDBACK",
   "FRIEND_REQUEST",
   "FRIEND_ACCEPTED",
@@ -261,6 +277,12 @@ export const MobileNotificationItemSchema = z.object({
     })
     .nullable(),
   actor: MobileNotificationActorSchema.nullable(),
+  /**
+   * Which badge a BADGE row is about, so the tap can open that badge's detail
+   * directly. Null on every other type, and defaulted for the same reason the
+   * two fields below are: an un-redeployed server must still parse.
+   */
+  badgeId: BadgeIdSchema.nullable().default(null),
   body: z.string().min(1).max(1_000),
   channel: MobileNotificationContextSchema.nullable(),
   createdAt: z.string().datetime(),

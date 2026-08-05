@@ -96,7 +96,7 @@ export function NotificationsScreen({
   onRefreshBootstrap(): void;
   onRefreshVisibleData(): void;
   onJoinVoiceNotification(notification: MobileNotificationItem): Promise<void>;
-  onOpenNotification(actionUrl: string): void;
+  onOpenNotification(notification: MobileNotificationItem): void;
 }) {
   const styles = useNotificationsScreenStyles();
   const theme = useTheme();
@@ -392,7 +392,7 @@ function MobileNotificationFeedRow({
   onDeclineServerInvite(code: string): void;
   onJoinVoiceNotification(notification: MobileNotificationItem): Promise<void>;
   onMarkRead(): void;
-  onOpenNotification(actionUrl: string): void;
+  onOpenNotification(notification: MobileNotificationItem): void;
   serverInvitePending: boolean;
 }) {
   const styles = useNotificationsScreenStyles();
@@ -411,9 +411,9 @@ function MobileNotificationFeedRow({
         if (!notification.read) {
           onMarkRead();
         }
-        if (notification.actionUrl) {
-          onOpenNotification(notification.actionUrl);
-        }
+        // The router decides on the notification, not on its URL: a BADGE row
+        // has a destination whether or not it carries one (07 §4).
+        onOpenNotification(notification);
       }}
       style={({ pressed }) => [
         styles.notificationFeedRow,

@@ -8,6 +8,7 @@ const routes = import("./route-logic");
 const notification = {
   actionUrl: "/channels/server-1/channel-1",
   actor: { avatarUrl: null, displayName: "Ada", id: "user-2", username: "ada" },
+  badgeId: null,
   body: "Ada mentioned you",
   channel: { id: "channel-1", name: "general" },
   createdAt: "2026-07-15T10:00:00.000Z",
@@ -136,6 +137,30 @@ describe("mobile notifications route logic", () => {
       { filter: "mentions", limit: 20 },
     ]);
     assert.equal(rejected.status, 400);
+  });
+
+  it("shows badge notifications only to clients that declare the badge capability", async () => {
+    const { mobileNotificationsListRoute } = await routes;
+    const capabilities: unknown[] = [];
+    const deps = dependencies({
+      listNotifications: async (_userId: string, _query: unknown, options: unknown) => {
+        capabilities.push(options);
+        return { nextCursor: null, notifications: [], unreadCount: 0 };
+      },
+    });
+
+    await mobileNotificationsListRoute(
+      new Request("https://whispr.test/api/v1/mobile/notifications"),
+      deps,
+    );
+    await mobileNotificationsListRoute(
+      new Request("https://whispr.test/api/v1/mobile/notifications", {
+        headers: { "x-whispr-capabilities": "badge-notifications-v1" },
+      }),
+      deps,
+    );
+
+    assert.deepEqual(capabilities, [{ badgeCapable: false }, { badgeCapable: true }]);
   });
 
   it("clears the whole feed behind its own rate-limit action", async () => {

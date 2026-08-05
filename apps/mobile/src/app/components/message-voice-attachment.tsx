@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
@@ -6,6 +6,11 @@ import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { MobileLineIcon } from "../../design/mobile-line-icons";
 import type { MobileTheme } from "../../design/themes";
 import { activeMobileCopy as copy } from "../../locale/mobile-locale-preferences";
+import {
+  claimMobileVoicePlayback,
+  ensureMobilePlaybackAudioMode,
+  releaseMobileVoicePlayback,
+} from "../../media/mobile-audio-playback-session";
 import { useMobileHaptics } from "../providers/mobile-haptics-provider";
 import { useTheme, useThemedStyles } from "../providers/mobile-theme-provider";
 
@@ -141,17 +146,96 @@ export function MessageVoiceAttachment({
   // foreground; an incoming voice note carries the accent instead.
   const waveColor = own ? theme.messaging.bubbleOutText : theme.messaging.accent;
 
+  // A tap can land before the remote file has loaded, and starting a player
+  // that is not ready is what made playback look random. The intent is kept and
+  // replayed the moment the source reports itself loaded.
+  const pendingPlayRef = useRef(false);
+  const playbackRequestRef = useRef(0);
+  const playbackHandle = useMemo(
+    () => ({
+      pause: () => {
+        pendingPlayRef.current = false;
+        playbackRequestRef.current += 1;
+        try {
+          player.pause();
+        } catch {
+          // Already released by a recycled row; nothing left to pause.
+        }
+      },
+    }),
+    [player],
+  );
+
+  const startPlayback = useCallback(async () => {
+    const requestId = playbackRequestRef.current + 1;
+    playbackRequestRef.current = requestId;
+    claimMobileVoicePlayback(playbackHandle);
+    // iOS decides silent-switch behaviour from the session category, so the
+    // mode has to be applied before `play()`, not after it.
+    await ensureMobilePlaybackAudioMode();
+    if (playbackRequestRef.current !== requestId) {
+      return;
+    }
+    try {
+      player.play();
+    } catch {
+      // The row can be recycled out from under an awaited mode change, which
+      // releases the native player. A dead player is not an error worth a toast.
+      releaseMobileVoicePlayback(playbackHandle);
+    }
+  }, [playbackHandle, player]);
+
+  useEffect(() => {
+    if (!pendingPlayRef.current) {
+      return;
+    }
+    if (status.playing === true) {
+      pendingPlayRef.current = false;
+      return;
+    }
+    if (status.isLoaded === true) {
+      pendingPlayRef.current = false;
+      void startPlayback();
+    }
+  }, [startPlayback, status.isLoaded, status.playing]);
+
+  useEffect(() => {
+    if (status.didJustFinish === true) {
+      pendingPlayRef.current = false;
+      // The pause is not cosmetic and it must come first. ExoPlayer keeps
+      // `playWhenReady` true after it reaches the end, so rewinding a finished
+      // note put it straight back into playback — the note restarted forever.
+      playbackHandle.pause();
+      releaseMobileVoicePlayback(playbackHandle);
+      // Rewound so the bubble shows an unplayed waveform and the next tap does
+      // not have to seek before it can play.
+      player.seekTo(0);
+    }
+  }, [playbackHandle, player, status.didJustFinish]);
+
+  useEffect(() => () => releaseMobileVoicePlayback(playbackHandle), [playbackHandle]);
+
   const handleToggle = () => {
     selection();
     if (isPlaying) {
+      pendingPlayRef.current = false;
       player.pause();
+      releaseMobileVoicePlayback(playbackHandle);
       return;
     }
 
     if (durationSeconds > 0 && currentTime >= durationSeconds - 0.05) {
       player.seekTo(0);
     }
-    player.play();
+    // `isLoaded` is undefined on a player that has not reported yet, which is
+    // the same "not ready" case as an explicit false.
+    if (status.isLoaded !== true) {
+      pendingPlayRef.current = true;
+      claimMobileVoicePlayback(playbackHandle);
+      return;
+    }
+    pendingPlayRef.current = false;
+    void startPlayback();
   };
 
   return (

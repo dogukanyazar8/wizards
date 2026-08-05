@@ -1,6 +1,20 @@
 const { getSentryExpoConfig } = require("@sentry/react-native/metro");
 
+const { computeTransformFingerprint } = require("./metro-transform-fingerprint.js");
+
 const config = getSentryExpoConfig(__dirname);
+
+/**
+ * Metro's transform cache key ignores the Babel plugins `babel.config.js`
+ * resolves at transform time, so a plugin bump leaves stale output cached — and
+ * for `react-native-worklets` that stale output hard-crashes the app with a
+ * plugin/runtime version mismatch. `cacheVersion` is the one part of the key we
+ * control, so the installed versions go here. See
+ * `metro-transform-fingerprint.js` for the full mechanism.
+ */
+config.cacheVersion = [config.cacheVersion, computeTransformFingerprint()]
+  .filter(Boolean)
+  .join("-");
 
 /**
  * Expo ships `inlineRequires: false`, so every module in the bundle is evaluated

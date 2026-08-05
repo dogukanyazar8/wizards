@@ -76,13 +76,20 @@ import { mobileNavigationRef } from "../../navigation/mobile-navigation-ref";
 import { useMobileHaptics } from "../providers/mobile-haptics-provider";
 import { useMobileWorkspaceLayoutPreference } from "../providers/mobile-workspace-layout-provider";
 import type { MobileFriendPresenceStatus } from "../../social/mobile-social-client";
-import type { MobileLegalDocumentId } from "@wizards/types";
+import { summarizeOwnBadges, type MobileLegalDocumentId } from "@wizards/types";
 import { MobileCachedImage } from "../components/mobile-cached-image";
 import { mobileBannerContentPosition } from "../../social/mobile-banner-offset";
 import { MobileProfileStatusCard } from "../../social/mobile-profile-status-card";
+import { useMobileAuth } from "../../auth/mobile-auth-context";
+import { useMobileOwnBadgesQuery } from "../../social/mobile-badges-query";
+import {
+  MOBILE_BADGES_SETTINGS_SECTION,
+  MobileBadgesScreen,
+} from "../../social/profile-badges/mobile-badges-screen";
 import { MobileStatusPickerSheetView } from "../../social/mobile-status-picker-sheet";
 import { toMobilePresenceStatus } from "../../social/mobile-status-picker-model";
 import { MOBILE_ABOUT_PREFERENCE_KEYS } from "../../about/mobile-about-preferences";
+import { getMobileAppReleaseChannel, getMobileAppVersion } from "../../about/mobile-app-identity";
 import { isMobileReleaseNewer } from "../../about/mobile-about-model";
 
 const MOBILE_PROFILE_PRESENCE_STATUSES: readonly MobileFriendPresenceStatus[] = [
@@ -188,6 +195,7 @@ export function MobileProfileSettingsHub({
   const styles = useSettingsScreenStyles();
   const theme = useTheme();
   const { showToast } = useToast();
+  const { apiClient } = useMobileAuth();
   const [isPresencePickerOpen, setIsPresencePickerOpen] = useState(false);
   const [isSignOutConfirmationOpen, setIsSignOutConfirmationOpen] = useState(false);
   const [isUpdatingPresence, setIsUpdatingPresence] = useState(false);
@@ -209,6 +217,19 @@ export function MobileProfileSettingsHub({
         : copy.settingsThemeSystemValue;
   const localeLabel =
     locale === "tr" ? copy.settingsLanguageTurkishValue : copy.settingsLanguageEnglishValue;
+  // 07 §2: the hub row carries the same {earned}/{total} counter the screen
+  // behind it prints. It waits for the read rather than showing "0/16", which
+  // would read as "you lost your badges" for the second the request is open.
+  const ownBadgesQuery = useMobileOwnBadgesQuery(apiClient, bootstrapState.status === "ready");
+  const badgeSummary = ownBadgesQuery.data
+    ? summarizeOwnBadges({ badges: ownBadgesQuery.data.badges })
+    : null;
+  const badgeSummaryLabel =
+    badgeSummary === null
+      ? undefined
+      : copy.profileBadgesSummary
+          .replace("{earned}", String(badgeSummary.earned))
+          .replace("{total}", String(badgeSummary.total));
   const visiblePresence =
     optimisticPresence ?? getMobileProfilePresenceStatus(user?.status ?? null);
   const selectPresence = async (nextPresence: MobileFriendPresenceStatus) => {
@@ -404,6 +425,13 @@ export function MobileProfileSettingsHub({
           valueTone={isSecureSessionActive ? "success" : "default"}
         />
         <MobileProfileHubRow
+          icon="ribbon-outline"
+          iconTone="accent"
+          label={profileCopy.profileBadgesScreenTitle}
+          onPress={() => navigateToMobileSettingsDetail(MOBILE_BADGES_SETTINGS_SECTION)}
+          {...(badgeSummaryLabel === undefined ? {} : { value: badgeSummaryLabel })}
+        />
+        <MobileProfileHubRow
           icon="sunny-outline"
           iconTone="warning"
           label={profileCopy.profileHubAppearance}
@@ -584,10 +612,10 @@ export function SettingsAccountCard({
   const user = bootstrapState.status === "ready" ? bootstrapState.payload.user : null;
   const displayName =
     user?.displayName ?? signedInUserLabel ?? user?.username ?? copy.settingsAccountSignedOut;
-  const releaseLabel =
-    bootstrapState.status === "ready"
-      ? `${bootstrapState.payload.app.version} / ${bootstrapState.payload.app.releaseChannel}`
-      : runtimeConfig.environment;
+  // The badge names this build, so both halves come from the binary. Bootstrap
+  // reports the web deployment's version and channel — a different fact that
+  // used to make this badge disagree with the About screen it links to.
+  const releaseLabel = `${getMobileAppVersion()} / ${getMobileAppReleaseChannel()}`;
 
   return (
     <View style={styles.settingsHeroCard}>
@@ -2006,6 +2034,7 @@ function getDeepLinkStatusLabel(result: MobileDeepLinkParseResult | null) {
 }
 
 export function ProfileSettingsScreen({
+  activeBadgeId,
   activeSection,
   appLockAvailability,
   appLockEnabled,
@@ -2042,6 +2071,8 @@ export function ProfileSettingsScreen({
   onToggleAppLock,
   onBack,
 }: {
+  /** 07 §4: a BADGE notification names the badge "Rozetlerim" should open on. */
+  activeBadgeId?: string | undefined;
   activeSection?: string;
   appLockAvailability: MobileAppLockAvailability;
   appLockEnabled: boolean;
@@ -2085,10 +2116,9 @@ export function ProfileSettingsScreen({
     bootstrapState.status === "ready"
       ? bootstrapState.payload.app.version
       : mobilePackageJson.version;
-  const releaseChannel =
-    bootstrapState.status === "ready"
-      ? bootstrapState.payload.app.releaseChannel
-      : runtimeConfig.environment;
+  // The binary's channel, not the web deployment's: bootstrap reports the
+  // server's release channel, which is a different fact with the same name.
+  const releaseChannel = getMobileAppReleaseChannel();
   const appearanceRows: NativeSettingsRowItem[] = [
     {
       description: copy.settingsLanguageDescription,
@@ -2255,6 +2285,14 @@ export function ProfileSettingsScreen({
         onSignOut={onSignOut}
         onToggleAppLock={onToggleAppLock}
         sessionDiagnostics={sessionDiagnostics}
+      />
+    );
+  }
+  if (resolvedSection === MOBILE_BADGES_SETTINGS_SECTION) {
+    return (
+      <MobileBadgesScreen
+        initialBadgeId={activeBadgeId}
+        onBack={onBack ?? (() => mobileNavigationRef.isReady() && mobileNavigationRef.goBack())}
       />
     );
   }

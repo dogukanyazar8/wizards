@@ -610,6 +610,13 @@ struct DesktopVoiceShortcutStatus {
     registered: Vec<DesktopVoiceShortcutRegistration>,
 }
 
+fn desktop_sentry_options(environment: String) -> sentry::ClientOptions {
+    sentry::ClientOptions::new()
+        .environment(environment)
+        .maybe_release(sentry::release_name!())
+        .send_default_pii(false)
+}
+
 pub fn run() {
     let desktop_app_name =
         std::env::var("WHISPR_DESKTOP_APP_NAME").unwrap_or_else(|_| "Whispr".into());
@@ -620,17 +627,7 @@ pub fn run() {
     // integration'ı sentry::init içinde varsayılan olarak kurulur.
     let _sentry_guard = option_env!("WHISPR_DESKTOP_SENTRY_DSN")
         .filter(|dsn| !dsn.trim().is_empty())
-        .map(|dsn| {
-            sentry::init((
-                dsn,
-                sentry::ClientOptions {
-                    environment: Some(desktop_release_ring.clone().into()),
-                    release: sentry::release_name!(),
-                    send_default_pii: false,
-                    ..Default::default()
-                },
-            ))
-        });
+        .map(|dsn| sentry::init((dsn, desktop_sentry_options(desktop_release_ring.clone()))));
 
     let desktop_updater_enabled = desktop_updater_enabled();
     let voice_shortcut_registry = DesktopVoiceShortcutRegistry::default();
@@ -4003,6 +4000,15 @@ fn open_external_url(url: &Url) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn desktop_sentry_options_preserve_release_environment_and_pii_policy() {
+        let options = desktop_sentry_options("uat".to_string());
+
+        assert_eq!(options.environment.as_deref(), Some("uat"));
+        assert_eq!(options.release, sentry::release_name!());
+        assert!(!options.send_default_pii);
+    }
 
     #[test]
     fn desktop_custom_commands_are_main_window_only() {

@@ -197,6 +197,57 @@ describe("mobile realtime query bridge", () => {
     ]);
   });
 
+  it("invalidates both badge reads when a BADGE notification lands", () => {
+    const queryClient = new QueryClient();
+    const fake = createFakeScheduler();
+    const bridge = createBridge(queryClient, fake.scheduler);
+    const ownKey = mobileQueryKeys.badges.own();
+    const selfKey = mobileQueryKeys.badges.user("viewer-1");
+    const peerKey = mobileQueryKeys.badges.user("user-2");
+    [ownKey, selfKey, peerKey].forEach((key) => queryClient.setQueryData(key, { badges: [] }));
+
+    bridge.handleEvent(
+      createMobileRealtimeEventEnvelope("notification:new", {
+        actionUrl: "/settings/badges",
+        body: "Rozetlerim'de görebilirsin.",
+        createdAt: "2026-08-05T10:00:00.000Z",
+        id: "notice-badge-1",
+        metadata: { badgeId: "streak", tier: 1 },
+        type: "BADGE",
+        userId: "viewer-1",
+      }),
+    );
+
+    // 07 §4: straight through, not on the debounce — the screen it changes may
+    // be open right now.
+    assert.equal(queryClient.getQueryState(ownKey)?.isInvalidated, true);
+    assert.equal(queryClient.getQueryState(selfKey)?.isInvalidated, true);
+    // Somebody else's badges did not change.
+    assert.equal(queryClient.getQueryState(peerKey)?.isInvalidated, false);
+    queryClient.clear();
+  });
+
+  it("leaves the badge caches alone for every other notification type", () => {
+    const queryClient = new QueryClient();
+    const fake = createFakeScheduler();
+    const bridge = createBridge(queryClient, fake.scheduler);
+    const ownKey = mobileQueryKeys.badges.own();
+    queryClient.setQueryData(ownKey, { badges: [] });
+
+    bridge.handleEvent(
+      createMobileRealtimeEventEnvelope("notification:new", {
+        body: "Ada seni etiketledi",
+        createdAt: "2026-08-05T10:00:00.000Z",
+        id: "notice-mention-1",
+        type: "MENTION",
+        userId: "viewer-1",
+      }),
+    );
+
+    assert.equal(queryClient.getQueryState(ownKey)?.isInvalidated, false);
+    queryClient.clear();
+  });
+
   it("debounces presence, notification, workspace, channel, and DM mappings by timer source", () => {
     const queryClient = new QueryClient();
     const fake = createFakeScheduler();

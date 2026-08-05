@@ -101,12 +101,10 @@ function flattenStyle(style: unknown): Record<string, unknown> {
 function createApiClient(
   level: MobileServiceStatusLevel = "ok",
   {
-    failChannelChange = false,
     failReleaseDetail = false,
     releaseChanges = changes,
     releaseChangeResponses,
   }: {
-    readonly failChannelChange?: boolean;
     readonly failReleaseDetail?: boolean;
     readonly releaseChanges?: readonly MobileReleaseChange[];
     readonly releaseChangeResponses?: readonly (readonly MobileReleaseChange[])[];
@@ -115,7 +113,7 @@ function createApiClient(
   let releaseDetailRequestCount = 0;
 
   return {
-    requestJson: jest.fn(async (path: string, init?: { readonly body?: unknown }) => {
+    requestJson: jest.fn(async (path: string) => {
       if (path.startsWith("/api/v1/mobile/app/update")) {
         return {
           lastCheckedAt: "2026-07-29T09:39:00.000Z",
@@ -165,16 +163,8 @@ function createApiClient(
           url: "https://status.whispr.team",
         };
       }
-      if (path === "/api/v1/mobile/app/channel") {
-        if (failChannelChange) {
-          throw new Error("Channel change unavailable");
-        }
-        return {
-          channel: (init?.body as { readonly channel: "beta" | "stable" | "uat" }).channel,
-          effectiveFrom: "next-build",
-          requiresRestart: false,
-        };
-      }
+      // No /app/channel branch on purpose: 1a only reads the channel now, and
+      // an unexpected POST must fail the test rather than be answered.
       throw new Error(`Unexpected About request: ${path}`);
     }),
   };
@@ -520,87 +510,27 @@ describe("1a + 1b About screen", () => {
     await waitFor(() => expect(view.queryByTestId("mobile-about-new-badge")).toBeNull());
   });
 
-  it("keeps the beta toggle off and sends no channel request when consent is rejected", async () => {
-    const openBetaConsent = jest.fn(async () => false);
+  it("carries the beta invitation on the single channel row and ships no second switch", async () => {
     const apiClient = createApiClient();
     mockUseMobileAuth.mockReturnValue({
       apiClient,
       session: { user: { id: "usr_0123456789abcdef" } },
       status: "signed-in",
     });
-    const view = await renderScreen(createProps({ openBetaConsent }));
-    await view.findByText(copy.aboutAppBeta);
+    const view = await renderScreen(createProps({ releaseChannel: "stable" }));
 
-    const toggle = view.getByTestId("mobile-about-beta-toggle");
-    await fireEvent.press(toggle);
+    const row = await view.findByTestId("mobile-about-channel-row");
+    await within(row).findByText(copy.aboutAppChannel);
+    await within(row).findByText(copy.aboutAppChannelSub);
+    await within(row).findByText("KARARLI");
 
-    await waitFor(() => expect(openBetaConsent).toHaveBeenCalledTimes(1));
-    expect(view.getByTestId("mobile-about-beta-toggle").props.accessibilityState).toMatchObject({
-      checked: false,
-    });
+    // One control owns the channel: no toggle, and nothing on this screen can
+    // POST the preference behind the 2c screen's warnings and consent sheet.
+    expect(view.queryByTestId("mobile-about-beta-toggle")).toBeNull();
     expect(apiClient.requestJson).not.toHaveBeenCalledWith(
       "/api/v1/mobile/app/channel",
       expect.anything(),
     );
-  });
-
-  it("changes to beta only after consent and updates the chip, row, and toggle together", async () => {
-    const openBetaConsent = jest.fn(async () => true);
-    const apiClient = createApiClient();
-    mockUseMobileAuth.mockReturnValue({
-      apiClient,
-      session: { user: { id: "usr_0123456789abcdef" } },
-      status: "signed-in",
-    });
-    const view = await renderScreen(createProps({ openBetaConsent }));
-    await view.findByText(copy.aboutAppBeta);
-
-    await fireEvent.press(view.getByTestId("mobile-about-beta-toggle"));
-
-    await waitFor(() =>
-      expect(apiClient.requestJson).toHaveBeenCalledWith("/api/v1/mobile/app/channel", {
-        body: { channel: "beta" },
-        method: "POST",
-      }),
-    );
-    expect(view.getAllByText("BETA")).toHaveLength(2);
-    expect(view.getByTestId("mobile-about-beta-toggle").props.accessibilityState).toMatchObject({
-      checked: true,
-    });
-  });
-
-  it("uses the saved channel, not consent proof, as the beta toggle state", async () => {
-    jest
-      .mocked(AsyncStorage.multiGet)
-      .mockImplementation(async (keys) =>
-        keys.map((key) => [
-          key,
-          key === "whispr.settings.betaConsentAt" ? "2026-07-30T09:41:00.000Z" : null,
-        ]),
-      );
-    const openBetaConsent = jest.fn(async () => true);
-    const apiClient = createApiClient("ok", { failChannelChange: true });
-    mockUseMobileAuth.mockReturnValue({
-      apiClient,
-      session: { user: { id: "usr_0123456789abcdef" } },
-      status: "signed-in",
-    });
-    const view = await renderScreen(createProps({ openBetaConsent, releaseChannel: "stable" }));
-    await view.findByText(copy.aboutAppBeta);
-
-    expect(view.getByTestId("mobile-about-beta-toggle").props.accessibilityState).toMatchObject({
-      checked: false,
-    });
-    await fireEvent.press(view.getByTestId("mobile-about-beta-toggle"));
-    await waitFor(() => expect(openBetaConsent).toHaveBeenCalledTimes(1));
-    await waitFor(() =>
-      expect(view.getByTestId("mobile-about-beta-toggle").props.accessibilityState).toMatchObject({
-        checked: false,
-      }),
-    );
-
-    await fireEvent.press(view.getByTestId("mobile-about-beta-toggle"));
-    await waitFor(() => expect(openBetaConsent).toHaveBeenCalledTimes(2));
   });
 
   it.each([

@@ -5,20 +5,13 @@ import { useTheme } from "../../app/providers/mobile-theme-provider";
 import type { MobileTheme } from "../../design/themes";
 import { MobileLineIcon } from "../../design/mobile-line-icons";
 import { activeMobileCopy as copy } from "../../locale/mobile-locale-preferences";
-import type {
-  MobileProfileBadgeName,
-  MobileProfileRoleBadge,
-  MobileUserProfile,
-} from "../mobile-social-client";
+import type { MobileProfileRoleBadge, MobileUserProfile } from "../mobile-social-client";
 import {
   formatMobileProfileMutualSummary,
   toMobileProfileRoleColor,
   type MobileProfileStatusTone,
 } from "./profile-card-model";
-import {
-  PROFILE_CARD_MUTUAL_AVATAR_SIZE,
-  useProfileCardStyles,
-} from "./profile-card.styles";
+import { PROFILE_CARD_MUTUAL_AVATAR_SIZE, useProfileCardStyles } from "./profile-card.styles";
 
 type ProfileCardStyles = ReturnType<typeof useProfileCardStyles>;
 
@@ -60,71 +53,6 @@ export function ProfileStatusDot({
 }) {
   const styles = useProfileCardStyles();
   return <View style={[styles.statusDot, styles[STATUS_DOT_STYLE_KEY[tone]]]} testID={testID} />;
-}
-
-const BADGE_ICONS = {
-  earlyMember: "star",
-  inviter: "person-plus",
-  supporter: "bolt",
-} as const;
-
-const BADGE_LABEL_KEYS = {
-  earlyMember: "profileCardBadgeEarlyMember",
-  inviter: "profileCardBadgeInviter",
-  supporter: "profileCardBadgeSupporter",
-} as const;
-
-/** 28×28 r10 chips; the three tints are fixed per badge, not derived from the id. */
-export function ProfileBadgeChips({ badges }: { readonly badges: readonly MobileProfileBadgeName[] }) {
-  const styles = useProfileCardStyles();
-  const theme = useTheme();
-  const card = theme.profileCard;
-  const tints = {
-    earlyMember: {
-      borderColor: card.badgeEarlyBorder,
-      backgroundColor: card.badgeEarlySurface,
-      icon: card.badgeEarlyIcon,
-    },
-    inviter: {
-      borderColor: card.badgeInviterBorder,
-      backgroundColor: card.badgeInviterSurface,
-      icon: card.badgeInviterIcon,
-    },
-    supporter: {
-      borderColor: card.badgeSupporterBorder,
-      backgroundColor: card.badgeSupporterSurface,
-      icon: card.badgeSupporterIcon,
-    },
-  } as const;
-
-  if (badges.length === 0) {
-    return null;
-  }
-
-  return (
-    <View style={styles.badgeRow} testID="mobile-profile-card-badges">
-      {badges.map((badge) => {
-        const tint = tints[badge];
-        return (
-          <View
-            key={badge}
-            style={[
-              styles.badge,
-              { backgroundColor: tint.backgroundColor, borderColor: tint.borderColor },
-            ]}
-            testID={`mobile-profile-card-badge-${badge}`}
-          >
-            <MobileLineIcon
-              accessibilityLabel={copy[BADGE_LABEL_KEYS[badge]]}
-              color={tint.icon}
-              name={BADGE_ICONS[badge]}
-              size={14}
-            />
-          </View>
-        );
-      })}
-    </View>
-  );
 }
 
 /**
@@ -296,11 +224,7 @@ export function ProfileActionRow({
             style={styles.squareAction}
             testID="mobile-profile-card-voice-action"
           >
-            <MobileLineIcon
-              color={theme.profileCard.secondaryActionIcon}
-              name="phone"
-              size={17}
-            />
+            <MobileLineIcon color={theme.profileCard.secondaryActionIcon} name="phone" size={17} />
           </Pressable>
           <Pressable
             accessibilityLabel={copy.profileCardVideoCallAction}
@@ -309,11 +233,7 @@ export function ProfileActionRow({
             style={styles.squareAction}
             testID="mobile-profile-card-video-action"
           >
-            <MobileLineIcon
-              color={theme.profileCard.secondaryActionIcon}
-              name="video"
-              size={17}
-            />
+            <MobileLineIcon color={theme.profileCard.secondaryActionIcon} name="video" size={17} />
           </Pressable>
         </>
       ) : null}

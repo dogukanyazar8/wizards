@@ -252,6 +252,24 @@ export function createMobileRealtimeQueryBridge({
       return false;
     }
 
+    // 07 §4: a badge arrived, so both badge reads for this account are stale —
+    // "Rozetlerim" and the chip row on your own profile. Invalidated straight
+    // away rather than through the debounce, because a badge lands at most once
+    // in a while and the screen it changes may be open right now.
+    if (parsed.data.type === "BADGE") {
+      const selfId = getCurrentUserId();
+      void queryClient.invalidateQueries({
+        exact: true,
+        queryKey: mobileQueryKeys.badges.own(),
+      });
+      if (selfId) {
+        void queryClient.invalidateQueries({
+          exact: true,
+          queryKey: mobileQueryKeys.badges.user(selfId),
+        });
+      }
+    }
+
     return applyMobileRealtimeNotificationEvent({ event: parsed.data, queryClient });
   };
 

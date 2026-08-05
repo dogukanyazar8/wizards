@@ -20,6 +20,7 @@ export const MOBILE_LINE_ICON_NAMES = [
   "chevron-right",
   "clock",
   "close",
+  "code",
   "copy",
   "dots-vertical",
   "edit",
@@ -34,6 +35,8 @@ export const MOBILE_LINE_ICON_NAMES = [
   "file",
   "globe",
   "flag",
+  "flame",
+  "flask",
   "grip",
   "hash",
   "headphones",
@@ -41,6 +44,7 @@ export const MOBILE_LINE_ICON_NAMES = [
   "info",
   "invite-user",
   "leave",
+  "lightbulb",
   "loader-arc",
   "log-out",
   "lock",
@@ -68,6 +72,7 @@ export const MOBILE_LINE_ICON_NAMES = [
   "thread-start",
   "settings",
   "shield",
+  "sparkle",
   "speaker",
   "pause-glyph",
   "play-glyph",
@@ -698,6 +703,68 @@ export const MOBILE_LINE_ICON_DEFINITIONS = {
     children: [
       { type: "circle", cx: 12, cy: 13, r: 6 },
       { type: "path", d: "M9 3h6M12 7v-4M17.5 8.5L19 7" },
+    ],
+  },
+  // Badge catalog glyphs (00-ortak-baglam §4). Same 24×24 stroke idiom as the
+  // 11b card set above: one outline, 1.9 stroke, round caps, no fills.
+  /** `streak` — the flame's outline with the inner tongue that reads at 14px. */
+  flame: {
+    mode: "stroke",
+    defaultStrokeWidth: 1.9,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    children: [
+      {
+        type: "path",
+        d: "M12 2.8c.6 2.8 2.1 4 3.4 5.4A7.4 7.4 0 0 1 17.6 13a5.6 5.6 0 0 1-11.2 0c0-1.8.8-3.3 1.9-4.4.2 1.4.9 2.2 1.8 2.3-.3-3.1.3-6 1.9-8.1Z",
+      },
+    ],
+  },
+  /** `ideaShipped` — bulb over its two base rules. */
+  lightbulb: {
+    mode: "stroke",
+    defaultStrokeWidth: 1.9,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    children: [
+      {
+        type: "path",
+        d: "M12 3a6 6 0 0 0-3.4 10.9c.6.5.9 1.2.9 2h5c0-.8.3-1.5.9-2A6 6 0 0 0 12 3Z",
+      },
+      { type: "path", d: "M9.5 19h5M10.3 21.3h3.4" },
+    ],
+  },
+  /** `contributor` — `</>`: two chevrons around a leaning rule. */
+  code: {
+    mode: "stroke",
+    defaultStrokeWidth: 1.9,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    children: [{ type: "path", d: "M8.5 8L4.5 12l4 4M15.5 8l4 4-4 4M13.6 4.8l-3.2 14.4" }],
+  },
+  /** `betaTester` — erlenmeyer: neck, body, liquid line. */
+  flask: {
+    mode: "stroke",
+    defaultStrokeWidth: 1.9,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    children: [
+      {
+        type: "path",
+        d: "M9.6 3v5.4l-4.7 8.7a2.6 2.6 0 0 0 2.3 3.8h9.6a2.6 2.6 0 0 0 2.3-3.8l-4.7-8.7V3",
+      },
+      { type: "path", d: "M8.4 3h7.2M7.2 15h9.6" },
+    ],
+  },
+  /** `event` — four-pointed star with the small companion the handoff draws. */
+  sparkle: {
+    mode: "stroke",
+    defaultStrokeWidth: 1.9,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    children: [
+      { type: "path", d: "M10.2 3l2.1 5.1 5.1 2.1-5.1 2.1-2.1 5.1-2.1-5.1L3 10.2l5.1-2.1z" },
+      { type: "path", d: "M17.6 15l1 2.4 2.4 1-2.4 1-1 2.4-1-2.4-2.4-1 2.4-1z" },
     ],
   },
   image: {

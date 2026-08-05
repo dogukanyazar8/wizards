@@ -37,6 +37,15 @@ const defaultDependencies: MobileNotificationsRouteDependencies = {
   markRead,
 };
 
+const BADGE_NOTIFICATIONS_CAPABILITY = "badge-notifications-v1";
+
+function hasMobileCapability(request: Request, capability: string): boolean {
+  return (request.headers.get("x-whispr-capabilities") ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .includes(capability);
+}
+
 function getMobileNotificationsQuery(request: Request) {
   const searchParams = new URL(request.url).searchParams;
   return MobileNotificationsQuerySchema.parse({
@@ -56,6 +65,7 @@ export async function mobileNotificationsListRoute(
     const notifications = await dependencies.listNotifications(
       userId,
       getMobileNotificationsQuery(request),
+      { badgeCapable: hasMobileCapability(request, BADGE_NOTIFICATIONS_CAPABILITY) },
     );
     return Response.json(MobileNotificationsResponseSchema.parse(notifications), {
       headers: { "Cache-Control": "no-store" },

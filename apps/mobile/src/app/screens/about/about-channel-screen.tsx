@@ -34,21 +34,6 @@ import { useMobileAboutChannelStyles } from "./about-channel-screen.styles";
 const CHANNELS: readonly MobileReleaseChannel[] = ["stable", "beta", "uat"];
 const INITIAL_FOOTER_BUTTON_HEIGHT = 48;
 
-export function resolveAboutRuntimeReleaseChannel(value: string): MobileReleaseChannel {
-  switch (value) {
-    case "beta":
-    case "canary":
-      return "beta";
-    case "development":
-    case "uat":
-      return "uat";
-    case "production":
-    case "stable":
-    default:
-      return "stable";
-  }
-}
-
 interface ChannelOptionCopy {
   readonly chip?: string;
   readonly description: string;

@@ -115,10 +115,15 @@ describe("auth schemas", () => {
     assertAccepts(RegisterSchema, base);
     assertAccepts(RegisterSchema, {
       ...base,
-      password: "p".repeat(100),
-      confirmPassword: "p".repeat(100),
+      password: "p".repeat(72),
+      confirmPassword: "p".repeat(72),
       turnstileToken: "x".repeat(4096),
       username: "u".repeat(32),
+    });
+    assertAccepts(RegisterSchema, {
+      ...base,
+      password: "🙂".repeat(18),
+      confirmPassword: "🙂".repeat(18),
     });
     assertRejects(RegisterSchema, { ...base, username: "a" }, ["username"]);
     assertRejects(RegisterSchema, { ...base, username: "u".repeat(33) }, ["username"]);
@@ -126,7 +131,12 @@ describe("auth schemas", () => {
     assertRejects(RegisterSchema, { ...base, password: "short" }, ["password"]);
     assertRejects(
       RegisterSchema,
-      { ...base, password: "p".repeat(101), confirmPassword: "p".repeat(101) },
+      { ...base, password: "p".repeat(73), confirmPassword: "p".repeat(73) },
+      ["password"],
+    );
+    assertRejects(
+      RegisterSchema,
+      { ...base, password: "🙂".repeat(19), confirmPassword: "🙂".repeat(19) },
       ["password"],
     );
     assertRejects(RegisterSchema, { ...base, turnstileToken: "" }, ["turnstileToken"]);
@@ -175,8 +185,8 @@ describe("auth schemas", () => {
     assertRejects(
       ResetPasswordSchema,
       {
-        confirmPassword: "p".repeat(101),
-        password: "p".repeat(101),
+        confirmPassword: "p".repeat(73),
+        password: "p".repeat(73),
         token: "token",
       },
       ["password"],

@@ -1,3 +1,5 @@
+import type { BadgeTint } from "@wizards/types";
+
 import {
   mobilePalette,
   redesignAboutDark,
@@ -11,6 +13,8 @@ import {
   redesignLightbox,
   redesignMessagingDark,
   redesignMessagingLight,
+  redesignProfileBadgeDark,
+  redesignProfileBadgeLight,
   redesignProfileDark,
   redesignProfileLight,
   redesignToastDark,
@@ -372,6 +376,14 @@ export interface MobileTheme {
     readonly unreadDivider: string;
     readonly unreadDividerLine: string;
   };
+  /**
+   * Badge chip tints, one per `BadgeTint` in the shared catalog. Keyed by the
+   * catalog's own union so a tint added there fails to compile here rather than
+   * falling through to a missing colour at render time.
+   */
+  readonly profileBadge: Readonly<
+    Record<BadgeTint, { readonly border: string; readonly icon: string; readonly surface: string }>
+  >;
   /**
    * 11b quick profile card (handoff 1a/1b/1d, dark 1e). The card is its own
    * surface family: a brand banner that ignores the theme, three fixed badge
@@ -865,6 +877,7 @@ export const lightTheme = deepFreeze({
     unreadDivider: "#E5484D",
     unreadDividerLine: "#E5484D55",
   },
+  profileBadge: redesignProfileBadgeLight,
   profileCard: redesignProfileLight,
   profileSheet: {
     check: redesignLight.primary,
@@ -1159,6 +1172,7 @@ export const darkTheme = deepFreeze({
     unreadDivider: "#E5484D",
     unreadDividerLine: "#E5484D55",
   },
+  profileBadge: redesignProfileBadgeDark,
   profileCard: redesignProfileDark,
   profileSheet: {
     check: redesignDark.accentText,

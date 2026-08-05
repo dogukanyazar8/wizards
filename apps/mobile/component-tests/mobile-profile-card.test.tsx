@@ -1,15 +1,21 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import { fireEvent, waitFor } from "@testing-library/react-native";
-import type { MobileUserProfile } from "@wizards/types";
+import { Dimensions } from "react-native";
+import type { EarnedBadge, MobileUserProfile } from "@wizards/types";
 
 import { lightTheme } from "../src/design/themes";
 import { mobileCopy } from "../src/locale/mobile-copy";
+import { MOBILE_BANNER_REFERENCE_GUTTER } from "../src/social/mobile-banner-frame";
 import { ProfileCardMenu } from "../src/social/profile-card/profile-card-menu";
 import {
   ProfileCardErrorState,
   ProfileCardSkeleton,
   ProfileCardView,
 } from "../src/social/profile-card/profile-card-view";
+import {
+  PROFILE_CARD_BANNER_HEIGHT,
+  PROFILE_CARD_WIDTH,
+} from "../src/social/profile-card/profile-card.styles";
 import { renderWithMobileTheme as render } from "./render-with-mobile-theme";
 
 const copy = mobileCopy.tr;
@@ -80,9 +86,20 @@ function createHandlers() {
   };
 }
 
+/**
+ * Badges no longer travel in the profile payload: the card renders whatever its
+ * own badge query returned, so the tests hand that result in directly.
+ */
+const baseBadges: readonly EarnedBadge[] = [
+  { earnedAt: "2026-01-02T00:00:00.000Z", expiresAt: null, id: "earlyMember", tier: 1 },
+  { earnedAt: "2026-01-03T00:00:00.000Z", expiresAt: null, id: "supporter", tier: 1 },
+];
+
 function renderCard(
   profile: MobileUserProfile,
   options: {
+    badges?: readonly EarnedBadge[];
+    badgesLoading?: boolean;
     handlers?: ReturnType<typeof createHandlers>;
     onOpenMenu?: (() => void) | null;
     serverId?: string | undefined;
@@ -91,6 +108,8 @@ function renderCard(
   return render(
     <ProfileCardView
       {...(options.handlers ?? createHandlers())}
+      badges={options.badges ?? baseBadges}
+      badgesLoading={options.badgesLoading ?? false}
       busy={false}
       menu={null}
       onOpenMenu={options.onOpenMenu === undefined ? jest.fn() : options.onOpenMenu}
@@ -99,6 +118,39 @@ function renderCard(
     />,
   );
 }
+
+/**
+ * A banner is the same image cropped `cover`, so two frames only show the same
+ * thing when they share an aspect ratio. The owner positions it against the
+ * profile hub's identity card — page width by a fixed 212pt — and that box is
+ * what every peer surface has to reproduce.
+ */
+function referenceBannerAspectRatio(): number {
+  const windowWidth = Dimensions.get("window").width;
+
+  return (
+    (windowWidth - MOBILE_BANNER_REFERENCE_GUTTER * 2) /
+    lightTheme.layout.fixed.profileIdentityCardHeight
+  );
+}
+
+describe("profile card banner frame", () => {
+  it("frames a photo exactly like the identity card the owner positioned it in", async () => {
+    const view = await renderCard({ ...baseProfile, bannerUrl: "https://cdn.test/banner.png" });
+    const height = flattenStyle(view.getByTestId("mobile-profile-card-banner").props.style).height;
+
+    expect(typeof height).toBe("number");
+    expect(PROFILE_CARD_WIDTH / (height as number)).toBeCloseTo(referenceBannerAspectRatio(), 1);
+  });
+
+  it("keeps the handoff's short strip when the banner is only a colour", async () => {
+    const view = await renderCard(baseProfile);
+
+    expect(flattenStyle(view.getByTestId("mobile-profile-card-banner").props.style).height).toBe(
+      PROFILE_CARD_BANNER_HEIGHT,
+    );
+  });
+});
 
 describe("profile card variants", () => {
   it("gives a friend the message + call set and the server role chips", async () => {
@@ -173,7 +225,7 @@ describe("profile card variants", () => {
   it("reduces a blocked user to identity plus unblock", async () => {
     const handlers = createHandlers();
     const view = await renderCard(
-      { ...baseProfile, badges: [], blocked: true, relationship: "blocked", serverContext: null },
+      { ...baseProfile, blocked: true, relationship: "blocked", serverContext: null },
       { handlers, serverId: "server-1" },
     );
 
@@ -185,6 +237,22 @@ describe("profile card variants", () => {
     expect(view.queryByTestId("mobile-profile-card-view-profile")).toBeNull();
 
     await press(view, "mobile-profile-card-primary-action", handlers.onUnblock);
+  });
+
+  /**
+   * The card draws the badge query's rows, not `profile.badges` — that payload
+   * field is frozen for 0.8.x clients (00 §2) and no screen reads it any more.
+   */
+  it("draws the badge row from the badge query and holds its place while it loads", async () => {
+    const view = await renderCard(baseProfile);
+
+    expect(view.getByTestId("mobile-profile-card-badges-earlyMember")).toBeTruthy();
+    expect(view.getByTestId("mobile-profile-card-badges-supporter")).toBeTruthy();
+    await view.unmount();
+
+    const loading = await renderCard(baseProfile, { badges: [], badgesLoading: true });
+    expect(loading.getByTestId("mobile-profile-card-badges")).toBeTruthy();
+    expect(loading.queryByTestId("mobile-profile-card-badges-earlyMember")).toBeNull();
   });
 
   it("colours your own status dot red on DND instead of a fixed online green", async () => {
@@ -250,11 +318,36 @@ describe("profile card menu and states", () => {
             onPress: onReport,
           },
         ]}
+        onDismiss={jest.fn()}
       />,
     );
 
     await press(view, "mobile-profile-card-menu-block", onBlock);
     await press(view, "mobile-profile-card-menu-report", onReport);
+  });
+
+  /**
+   * The menu used to be dismissable only by pressing one of its own rows, so an
+   * accidental open had no exit that did not also run an action.
+   */
+  it("dismisses the three-dot menu from a tap outside it", async () => {
+    const onDismiss = jest.fn();
+    const view = await render(
+      <ProfileCardMenu
+        items={[
+          {
+            destructive: true,
+            icon: "block",
+            id: "block",
+            label: copy.profileCardMenuBlock,
+            onPress: jest.fn(),
+          },
+        ]}
+        onDismiss={onDismiss}
+      />,
+    );
+
+    await press(view, "mobile-profile-card-menu-backdrop", onDismiss);
   });
 
   it("opens the three-dot menu from the banner on someone else's card", async () => {

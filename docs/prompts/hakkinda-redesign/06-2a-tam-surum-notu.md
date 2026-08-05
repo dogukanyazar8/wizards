@@ -61,7 +61,11 @@ Paylaş → `Share.share({ url })` ile sürüm notunun kalıcı bağlantısı
 **İYİLEŞTİRME ve DÜZELTME kartları** — `padding: 12px 16px`, `gap: 11`;
 **ikon kutusu yok**: 6px nokta (`successText` / `warningText`, `marginTop: 6`,
 `alignItems: flex-start`) + 12.5/600 `lineHeight 1.45` metin.
-Bu iki grupta `detail` alanı **gösterilmez** (uzun listede okuma hızını düşürür).
+Bu iki grupta `detail` alanı da yazılır: metin kolonu `gap: 3`, açıklama
+11.5/500 `lineHeight 1.45` `textTertiary` (YENİ grubuyla aynı ikincil tipografi).
+Handoff bu satırları tek cümlelik başlıkla çiziyordu; gerçek sürüm içeriğinde
+başlık kısa ("Performans") ve cümle `detail` alanında olduğu için gizlemek
+satırı içeriksiz bırakıyordu. `detail` yoksa satır tek satır kalır.
 
 Kabul kriteri 23: "YENİ maddelerinde 26px ikon kutusu, diğer gruplarda 6px nokta —
 ikisi karıştırılmaz."
@@ -71,6 +75,10 @@ ikisi karıştırılmaz."
 ## 3. Veri
 
 - `useAboutReleaseQuery(version)` → `MobileReleaseDetail`.
+- Detay ucu `installed` bayrağını yalnız istek `?installed=` taşırsa döner ve bu
+  ekran taşımaz; bu yüzden çip, container'dan gelen `installedVersion`
+  (`mobilePackageJson.version`) ile sürüm eşleşmesinden çözülür — 2b ile aynı
+  kaynak. Sunucu bayrağı gelirse o da kabul edilir.
 - Yükleniyor: başlık bloğu + üç kart iskeleti.
 - 404: boş durum (`kit/empty-state.tsx`) "Bu sürümün notu bulunamadı" + geri eylemi.
 - Ağ yok: son önbellek varsa gösterilir, üstte küçük "çevrimdışı" bilgisi yoktur —

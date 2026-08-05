@@ -266,9 +266,15 @@ export function resolveMobileRoutePathIntent(path: string): MobileNavigationRout
 
   const settingsMatch = /^\/settings\/([^/]+)$/.exec(pathname);
   if (settingsMatch?.[1]) {
+    // `whispr://settings/badges?badge=<id>` — the shape a BADGE notification's
+    // `actionUrl` takes once it names a badge. Every other section ignores it.
+    const badgeId = getSearchParam(path, "badge");
     return {
       name: "SettingsDetail",
-      params: { section: decodePathSegment(settingsMatch[1]) },
+      params: {
+        ...(badgeId ? { badgeId } : {}),
+        section: decodePathSegment(settingsMatch[1]),
+      },
       type: "route",
     };
   }

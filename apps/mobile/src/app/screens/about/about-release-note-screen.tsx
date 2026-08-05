@@ -21,6 +21,13 @@ import { AboutCard, AboutGroupLabel, AboutScreenHeader } from "./about-primitive
 import { useMobileAboutReleaseNoteStyles } from "./about-release-note-screen.styles";
 
 type MobileAboutReleaseNoteScreenProps = {
+  /**
+   * The detail endpoint only marks `installed` when the request carries the
+   * running version, and this screen does not send it. 2b already resolves the
+   * badge from the build's own version, so 2a does the same rather than adding
+   * a second source of truth on the wire.
+   */
+  readonly installedVersion?: string;
   readonly onBack: () => void;
   readonly version: string;
   readonly webUrl: string;
@@ -108,10 +115,12 @@ function ReleaseNoteLoading() {
 
 function ReleaseHeader({
   copy,
+  installed,
   locale,
   release,
 }: {
   readonly copy: MobileAboutCopy;
+  readonly installed: boolean;
   readonly locale: "en" | "tr";
   readonly release: MobileReleaseDetail;
 }) {
@@ -138,7 +147,7 @@ function ReleaseHeader({
         ) : null}
       </View>
       <View style={styles.metaRow}>
-        {release.installed === true ? (
+        {installed ? (
           <View style={styles.currentBadge} testID="mobile-about-release-current-badge">
             <Text allowFontScaling={false} style={styles.currentBadgeLabel}>
               {copy.releaseCurrentBadge}
@@ -234,13 +243,24 @@ function FlatReleaseChanges({
             style={type === "improved" ? styles.improvedDot : styles.fixedDot}
             testID={`mobile-about-release-${type}-dot-${index}`}
           />
-          <Text
-            maxFontSizeMultiplier={2}
-            style={styles.flatText}
-            testID={`mobile-about-release-${type}-text-${index}`}
-          >
-            {change.title}
-          </Text>
+          <View style={styles.flatTextColumn}>
+            <Text
+              maxFontSizeMultiplier={2}
+              style={styles.flatText}
+              testID={`mobile-about-release-${type}-text-${index}`}
+            >
+              {change.title}
+            </Text>
+            {change.detail ? (
+              <Text
+                maxFontSizeMultiplier={2}
+                style={styles.flatDetail}
+                testID={`mobile-about-release-${type}-detail-${index}`}
+              >
+                {change.detail}
+              </Text>
+            ) : null}
+          </View>
         </View>
       ))}
     </AboutCard>
@@ -330,6 +350,7 @@ function ReleaseErrorState({
 }
 
 export function MobileAboutReleaseNoteScreen({
+  installedVersion,
   onBack,
   version,
   webUrl,
@@ -369,7 +390,15 @@ export function MobileAboutReleaseNoteScreen({
         <View style={styles.content} testID="mobile-about-release-content">
           {release ? (
             <>
-              <ReleaseHeader copy={copy} locale={locale} release={release} />
+              <ReleaseHeader
+                copy={copy}
+                installed={
+                  release.installed === true ||
+                  (installedVersion !== undefined && release.version === installedVersion)
+                }
+                locale={locale}
+                release={release}
+              />
               <ReleaseGroups copy={copy} release={release} />
             </>
           ) : releaseQuery.isPending ? (

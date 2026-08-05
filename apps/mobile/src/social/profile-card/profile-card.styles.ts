@@ -128,15 +128,12 @@ export const createProfileCardStyles = (theme: MobileTheme) => {
       borderColor: card.statusOffline,
     } satisfies ViewStyle,
 
-    badgeRow: { flexDirection: "row", gap: 6, marginBottom: 4 } satisfies ViewStyle,
-    badge: {
-      alignItems: "center",
-      borderRadius: 10,
-      borderWidth: 1,
-      height: 28,
-      justifyContent: "center",
-      width: 28,
-    } satisfies ViewStyle,
+    /**
+     * Placement only. The chips (28×28 r10, 6px apart) come from the shared
+     * `ProfileBadgeChips`, which the 1c page renders too; the card just sits the
+     * row on the avatar's baseline the way 1a:329 does.
+     */
+    badgeRow: { marginBottom: 4 } satisfies ViewStyle,
 
     nameBlock: { gap: 1, marginTop: 8 } satisfies ViewStyle,
     displayName: {
@@ -330,6 +327,21 @@ export const createProfileCardStyles = (theme: MobileTheme) => {
     } satisfies TextStyle,
 
     // --- menu --------------------------------------------------------------
+    /**
+     * Outside-tap target for the anchored menu. It covers the card itself, and
+     * the overlay's own backdrop takes every tap beyond it, so the menu closes
+     * from anywhere on screen instead of only from its own rows. Above the body
+     * (`zIndex: 1`) and below the menu (`zIndex: 2`), so a row press still lands
+     * on the row.
+     */
+    menuBackdrop: {
+      bottom: 0,
+      left: 0,
+      position: "absolute",
+      right: 0,
+      top: 0,
+      zIndex: 1,
+    } satisfies ViewStyle,
     menu: {
       backgroundColor: card.menuSurface,
       borderColor: card.menuBorder,

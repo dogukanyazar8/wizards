@@ -73,6 +73,9 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_WHISPR_RELEASE_CHANNEL: whisprReleaseChannel,
     NEXT_PUBLIC_WHISPR_VERSION: whisprVersion,
   },
+  experimental: {
+    useTypeScriptCli: false,
+  },
   reactCompiler: true,
   reactStrictMode: true,
   // Keep the patched Node 24 ESM entrypoint out of Turbopack's server bundle.

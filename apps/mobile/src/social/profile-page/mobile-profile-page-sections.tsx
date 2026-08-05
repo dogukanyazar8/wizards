@@ -1,15 +1,18 @@
 import type { ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
+import type { EarnedBadge } from "@wizards/types";
 
 import { Avatar, Skeleton } from "../../app/components/kit";
 import { MobileCachedImage } from "../../app/components/mobile-cached-image";
+import { useMobileBannerHeight } from "../mobile-banner-frame";
 import { mobileBannerContentPosition } from "../mobile-banner-offset";
 import { useTheme, useThemedStyles } from "../../app/providers/mobile-theme-provider";
 import { getMobileAvatarTint } from "../../design/mobile-avatar-color";
 import { MobileLineIcon, type MobileLineIconName } from "../../design/mobile-line-icons";
 import type { MobileTheme } from "../../design/themes";
 import type { MobileLocale } from "../../locale/mobile-locale-preferences";
-import type { MobileProfileBadgeName, MobileUserProfile } from "../mobile-social-client";
+import type { MobileUserProfile } from "../mobile-social-client";
+import { ProfileBadgeChips } from "../profile-badges/profile-badge-chips";
 import {
   MOBILE_PROFILE_PAGE_METRICS as METRICS,
   createMobileProfilePageStyles,
@@ -40,51 +43,6 @@ export const MOBILE_PROFILE_MUTUAL_FRIEND_AVATAR_LIMIT = 4;
 export const MOBILE_PROFILE_MEDIA_PREVIEW_LIMIT = 3;
 /** Mutual servers collapse to this many rows until "Tümünü gör" expands the card. */
 export const MOBILE_PROFILE_MUTUAL_SERVER_COLLAPSED_LIMIT = 3;
-
-/**
- * The same three glyphs the 11b card draws. The page ran on Ionicons while the
- * card drew the handoff strokes, so a badge changed shape between the card and
- * the page it opens; both now read from `MobileLineIcon`.
- */
-const BADGE_ICON: Record<MobileProfileBadgeName, MobileLineIconName> = {
-  earlyMember: "star",
-  inviter: "person-plus",
-  supporter: "bolt",
-};
-
-function getBadgeTint(theme: MobileTheme, badge: MobileProfileBadgeName) {
-  switch (badge) {
-    case "earlyMember":
-      return {
-        border: theme.profileCard.badgeEarlyBorder,
-        icon: theme.profileCard.badgeEarlyIcon,
-        surface: theme.profileCard.badgeEarlySurface,
-      };
-    case "supporter":
-      return {
-        border: theme.profileCard.badgeSupporterBorder,
-        icon: theme.profileCard.badgeSupporterIcon,
-        surface: theme.profileCard.badgeSupporterSurface,
-      };
-    default:
-      return {
-        border: theme.profileCard.badgeInviterBorder,
-        icon: theme.profileCard.badgeInviterIcon,
-        surface: theme.profileCard.badgeInviterSurface,
-      };
-  }
-}
-
-function getBadgeLabel(badge: MobileProfileBadgeName, copy: MobileProfileCopy): string {
-  switch (badge) {
-    case "earlyMember":
-      return copy.profileBadgeEarlyMember;
-    case "supporter":
-      return copy.profileBadgeSupporter;
-    default:
-      return copy.profileBadgeInviter;
-  }
-}
 
 export function getMobileProfilePresenceColor(
   theme: MobileTheme,
@@ -142,10 +100,17 @@ export function ProfilePageBanner({
   readonly styles: Styles;
 }) {
   const theme = useTheme();
+  // Same rule as the card: a photo is framed like the identity card the owner
+  // positioned it in, a flat colour keeps the handoff's 148px strip.
+  const photoHeight = useMobileBannerHeight(null);
 
   return (
     <View
-      style={[styles.banner, { backgroundColor: bannerColor }]}
+      style={[
+        styles.banner,
+        bannerUrl ? { height: photoHeight } : null,
+        { backgroundColor: bannerColor },
+      ]}
       testID="mobile-user-profile-banner"
     >
       {bannerUrl ? (
@@ -192,12 +157,22 @@ export function ProfilePageBanner({
 
 export function ProfileIdentityCard({
   actions,
+  badges,
+  badgesLoading,
   chrome,
+  onPressBadge,
+  onPressBadgeOverflow,
   profile,
   sections,
 }: {
   readonly actions: ReactNode;
+  /** From the badge query; `profile.badges` is frozen and no longer read (00 §2). */
+  readonly badges: readonly EarnedBadge[];
+  readonly badgesLoading: boolean;
   readonly chrome: MobileProfilePageChrome;
+  /** 06: a chip opens the shared detail sheet over the page. */
+  readonly onPressBadge: ((badge: EarnedBadge) => void) | undefined;
+  readonly onPressBadgeOverflow: (() => void) | undefined;
   readonly profile: MobileUserProfile;
   readonly sections: MobileProfilePageSections;
 }) {
@@ -236,31 +211,14 @@ export function ProfileIdentityCard({
           />
         </View>
       </View>
-      {profile.badges.length > 0 ? (
-        <View style={styles.identityBadges} testID="mobile-user-profile-badges">
-          {profile.badges.map((badge) => {
-            const tint = getBadgeTint(theme, badge);
-            return (
-              <View
-                accessible
-                accessibilityLabel={getBadgeLabel(badge, copy)}
-                accessibilityRole="image"
-                key={badge}
-                style={[
-                  styles.identityBadge,
-                  { backgroundColor: tint.surface, borderColor: tint.border },
-                ]}
-              >
-                <MobileLineIcon
-                  color={tint.icon}
-                  name={BADGE_ICON[badge]}
-                  size={METRICS.badgeGlyph}
-                />
-              </View>
-            );
-          })}
-        </View>
-      ) : null}
+      <ProfileBadgeChips
+        badges={badges}
+        loading={badgesLoading}
+        {...(onPressBadge ? { onPressBadge } : {})}
+        {...(onPressBadgeOverflow ? { onPressOverflow: onPressBadgeOverflow } : {})}
+        style={styles.identityBadges}
+        testID="mobile-user-profile-badges"
+      />
       <View style={styles.identityNameBlock}>
         <Text numberOfLines={1} style={styles.identityName}>
           {name}

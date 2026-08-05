@@ -10,6 +10,7 @@ import {
 } from "@wizards/types";
 
 import { ApiError } from "@/lib/api";
+import { onInviteRedeemed } from "@/lib/badges/badge-triggers";
 import { listFriends } from "@/lib/friends/service";
 import { normalizeAppLocale, translate } from "@/lib/locale";
 import { sendMobilePushForNotifications } from "@/lib/mobile/push-sender";
@@ -834,6 +835,10 @@ export async function joinWorkspaceServerByInvite(userId: string, code: string) 
         serverId: invite.server.id,
       });
     }
+
+    // Outside the transaction on purpose: the join is already committed, and a
+    // badge counter must never be able to roll it back or hold it open.
+    await onInviteRedeemed({ inviterId: invite.createdById, joinedUserId: userId });
   }
 
   const targetChannel =

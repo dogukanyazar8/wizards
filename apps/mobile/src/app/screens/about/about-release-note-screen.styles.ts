@@ -132,13 +132,26 @@ export const createMobileAboutReleaseNoteStyles = (theme: MobileTheme) =>
       marginTop: 6,
       width: 6,
     },
+    flatTextColumn: {
+      flex: 1,
+      gap: 3,
+      minWidth: 0,
+    },
     flatText: {
       color: theme.about.text,
-      flex: 1,
       fontFamily: theme.typography.fontFamilySemiBold,
       fontSize: 12.5,
       lineHeight: 18.125,
-      minWidth: 0,
+    },
+    // The handoff draws improvements and fixes as one descriptive line, but
+    // release management writes short titles ("Performans") and puts the
+    // sentence in `detail`. Hiding it left those rows with no content at all,
+    // so the detail is rendered with the same secondary type as the NEW group.
+    flatDetail: {
+      color: theme.about.textTertiary,
+      fontFamily: theme.typography.fontFamilyMedium,
+      fontSize: 11.5,
+      lineHeight: 16.675,
     },
     loadingHeader: {
       gap: 10,

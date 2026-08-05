@@ -251,6 +251,7 @@ export const TR_MESSAGES = {
   "validation.channel.pattern": "Kanal adları harf, sayı, boşluk, tire veya alt çizgi içerebilir.",
   "validation.email.invalid": "Geçerli bir e-posta adresi girin.",
   "validation.form.atLeastOne": "En az bir alan gönderilmelidir.",
+  "validation.password.bcryptMax": "Şifre UTF-8 olarak kodlandığında en fazla 72 bayt olabilir.",
   "validation.password.confirmMismatch": "Şifreler eşleşmiyor.",
   "validation.password.max": "Şifre en fazla 100 karakter olabilir.",
   "validation.password.min": "Şifre en az 8 karakter olmalıdır.",
@@ -1227,6 +1228,19 @@ export const TR_MESSAGES = {
   "settings.account.summaryTitle": "Profil özeti",
   "settings.account.summaryDescription":
     "Arkadaşlar, DM'ler ve sunucular içinde hesabının nasıl göründüğüne dair hızlı bir görünüm.",
+  // 07 §3 "Rozetlerim". Yalnız çerçeve metni; rozet adları katalogdan gelir.
+  "settings.account.badges.title": "Rozetlerim",
+  "settings.account.badges.description":
+    "Kazandığın rozetler ve henüz açılmamış olanların ilerlemesi.",
+  "settings.account.badges.summary": "{earned}/{total}",
+  "settings.account.badges.earned": "Kazanılanlar",
+  "settings.account.badges.locked": "Henüz kazanılmadı",
+  "settings.account.badges.empty": "Henüz rozetin yok.",
+  "settings.account.badges.family.identity": "Kimlik",
+  "settings.account.badges.family.contribution": "Katkı",
+  "settings.account.badges.family.activity": "Aktiflik",
+  "settings.account.badges.family.commerce": "Destek",
+  "settings.account.badges.family.event": "Etkinlik",
   "settings.account.profile.edit": "Profili Düzenle",
   "settings.account.profile.changeStatus": "Durum Değiştir",
   "settings.account.copy.username": "Kullanıcı adını kopyala",
@@ -2272,6 +2286,25 @@ export const TR_MESSAGES = {
   "profile.unblock": "Engeli Kaldır",
   "profile.message": "Mesaj",
   "profile.blockedByThem": "Bu kullanıcıyla etkileşim kuramıyorsun",
+  // Yalnız çerçeve metni: rozet adı ve açıklaması `packages/types/src/badges.ts`
+  // katalogunda durur, iki sözlük drift etmesin diye buraya kopyalanmaz (00 §5).
+  "profile.badges.title": "Rozetler",
+  "profile.badges.overflow": "+{count}",
+  "profile.badges.tier": "Kademe {tier}",
+  "profile.badges.earned": "{date}'te kazanıldı",
+  "profile.badges.expires": "{date}'e kadar geçerli",
+  "profile.badges.progress": "{value}/{next} {unit}",
+  "profile.badges.maxTier": "En üst kademe",
+  // İlerleme birimleri. `second` rozetleri saat olarak yazılır; ham saniye
+  // kullanıcıya hiç gösterilmez (06 §1).
+  "profile.badges.unit.day": "gün",
+  "profile.badges.unit.hour": "saat",
+  "profile.badges.unit.invite": "davet",
+  "profile.badges.unit.member": "üye",
+  // Rozet adı gövdeye gömülmez: satır bir dilde saklanır, kullanıcı dilini
+  // değiştirince o dilde donup kalırdı. İstemci adı katalogdan yazar (07 §4).
+  "badge.notification.title": "Yeni rozet kazandın",
+  "badge.notification.body": "Rozetlerim'de görebilirsin.",
 
   "workspace.modal.serverCreateTitle": "Sunucu Oluştur",
   "workspace.modal.serverEditTitle": "Sunucuyu Düzenle",

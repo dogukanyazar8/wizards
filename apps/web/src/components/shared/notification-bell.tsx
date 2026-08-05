@@ -10,6 +10,7 @@ import { useShallow } from "zustand/react/shallow";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useSocket } from "@/hooks/use-socket";
+import { badgeQueryKeys } from "@/lib/badges/client";
 import { useI18n } from "@/components/providers/locale-provider";
 import { useAppStore } from "@/lib/store";
 import { actOnFriendRequestRequest } from "@/lib/friends/client";
@@ -22,6 +23,7 @@ import {
   notificationsQueryKeys,
 } from "@/lib/notifications/client";
 import type { NotificationDTO } from "@/lib/notifications/types";
+import type { NotificationSocketPayload } from "@/lib/socket/events";
 import { cn } from "@/lib/utils";
 
 const COMPACT_NOTIFICATION_LIMIT = 6;
@@ -176,9 +178,19 @@ export function NotificationBell({
   }, [unreadCount]);
 
   useEffect(() => {
-    const handleIncomingNotification = () => {
+    const handleIncomingNotification = (notification: NotificationSocketPayload) => {
       updateUnreadCount((current) => current + 1);
       syncNotificationQueries();
+
+      // 07 §4: a badge landed, so both badge reads for this account are stale —
+      // the settings list and the chip row on your own profile. Invalidated
+      // rather than patched: the row it changes is a tier, not a list entry.
+      if (notification?.type === "BADGE") {
+        void queryClient.invalidateQueries({ queryKey: badgeQueryKeys.own() });
+        void queryClient.invalidateQueries({
+          queryKey: badgeQueryKeys.user(notification.userId),
+        });
+      }
     };
 
     const handleFriendsUpdated = () => {
@@ -192,7 +204,7 @@ export function NotificationBell({
       socket.off("notification:new", handleIncomingNotification);
       socket.off("friends:updated", handleFriendsUpdated);
     };
-  }, [socket, syncNotificationQueries, updateUnreadCount]);
+  }, [queryClient, socket, syncNotificationQueries, updateUnreadCount]);
 
   useEffect(() => {
     if (!open) {

@@ -10,6 +10,7 @@ import {
 import { MobileLocaleProvider } from "../src/app/providers/mobile-locale-provider";
 import { MobileThemeProvider } from "../src/app/providers/mobile-theme-provider";
 import { lightTheme } from "../src/design/themes";
+import { mobileCopy } from "../src/locale/mobile-copy";
 import { renderWithMobileTheme as render } from "./render-with-mobile-theme";
 
 const mockSelection = jest.fn();
@@ -50,7 +51,7 @@ function wrapTabBar(props: ReturnType<typeof createProps>) {
 }
 
 describe("mobile redesign edge-to-edge tab bar", () => {
-  it("renders four canonical tabs with a dot-only typed DM unread indicator", async () => {
+  it("renders four canonical tabs and counts the waiting direct messages", async () => {
     const props = createProps(0, 3);
     const view = await render(<MobileBottomTabBar {...props} />);
 
@@ -58,8 +59,8 @@ describe("mobile redesign edge-to-edge tab bar", () => {
       expect(view.getByTestId(`mobile-bottom-tab-${tab}`)).toBeTruthy();
     }
     expect(view.queryByTestId("mobile-bottom-tab-voice")).toBeNull();
-    expect(view.getByTestId("mobile-bottom-tab-unread-dot")).toBeTruthy();
-    expect(view.queryByText("3")).toBeNull();
+    expect(view.getByTestId("mobile-bottom-tab-messages-badge")).toBeTruthy();
+    expect(view.getByText("3")).toBeTruthy();
     // Aktiflik yalnızca renk/ağırlıkla belirtilir; arka plan kutusu (pill) yok.
     expect(view.getByTestId("mobile-bottom-tab-overview").props.style).not.toEqual(
       expect.arrayContaining([expect.objectContaining({ backgroundColor: expect.anything() })]),
@@ -70,7 +71,7 @@ describe("mobile redesign edge-to-edge tab bar", () => {
     );
   });
 
-  it("uses canonical active-tab and unread-dot presentation tokens", () => {
+  it("uses canonical active-tab presentation tokens", () => {
     const styles = createMobileBottomTabBarStyles(lightTheme);
     const source = readFileSync(
       join(process.cwd(), "src", "navigation", "mobile-bottom-tab-bar.tsx"),
@@ -111,15 +112,6 @@ describe("mobile redesign edge-to-edge tab bar", () => {
         lineHeight: 13,
       }),
     );
-    expect(styles.navUnreadDot).toEqual(
-      expect.objectContaining({
-        backgroundColor: "#E05252",
-        borderColor: lightTheme.border.onSurfaceRing,
-        borderWidth: 2,
-        right: 22,
-        top: 5,
-      }),
-    );
     expect(styles.navVisualWrap).toEqual(expect.objectContaining({ height: 22, width: 22 }));
     expect(styles.navVisualWrap).not.toHaveProperty("position");
     expect(source).toContain("color={isActive ? theme.accent.tabActive : theme.text.visualFaint}");
@@ -129,30 +121,35 @@ describe("mobile redesign edge-to-edge tab bar", () => {
   it("counts every waiting notification on the notifications tab", async () => {
     const view = await render(<MobileBottomTabBar {...createProps(0, 0, 4)} />);
 
-    const badge = view.getByTestId("mobile-bottom-tab-notification-badge");
-    expect(badge).toBeTruthy();
+    expect(view.getByTestId("mobile-bottom-tab-notifications-badge")).toBeTruthy();
     expect(view.getByText("4")).toBeTruthy();
-    // The counter belongs to the bell, never to messages.
-    expect(view.queryByTestId("mobile-bottom-tab-unread-dot")).toBeNull();
+    // Each counter answers for its own tab: a caught-up inbox stays unmarked.
+    expect(view.queryByTestId("mobile-bottom-tab-messages-badge")).toBeNull();
   });
 
-  it("caps the notification counter instead of widening the tab", async () => {
-    const view = await render(<MobileBottomTabBar {...createProps(0, 0, 250)} />);
+  it("caps both counters instead of widening the tab", async () => {
+    const view = await render(<MobileBottomTabBar {...createProps(0, 250, 250)} />);
 
-    expect(view.getByText("99+")).toBeTruthy();
+    expect(view.getAllByText("99+")).toHaveLength(2);
   });
 
-  it("drops the notification badge once the feed is caught up", async () => {
+  it("drops each badge once its own surface is caught up", async () => {
     const view = await render(<MobileBottomTabBar {...createProps(0, 3, 0)} />);
 
-    expect(view.queryByTestId("mobile-bottom-tab-notification-badge")).toBeNull();
-    expect(view.getByTestId("mobile-bottom-tab-unread-dot")).toBeTruthy();
+    expect(view.queryByTestId("mobile-bottom-tab-notifications-badge")).toBeNull();
+    expect(view.getByTestId("mobile-bottom-tab-messages-badge")).toBeTruthy();
+    expect(view.getByText("3")).toBeTruthy();
   });
 
-  it("keeps the notification badge on the canonical danger token", () => {
+  /**
+   * One badge shape for both tabs: two different counters in one bar would read
+   * as two different kinds of urgency.
+   */
+  it("draws both counters from the one canonical badge", () => {
     const styles = createMobileBottomTabBarStyles(lightTheme);
 
-    expect(styles.navNotificationBadge).toEqual(
+    expect(styles).not.toHaveProperty("navUnreadDot");
+    expect(styles.navUnreadBadge).toEqual(
       expect.objectContaining({
         backgroundColor: "#E05252",
         height: 16,
@@ -160,12 +157,23 @@ describe("mobile redesign edge-to-edge tab bar", () => {
         position: "absolute",
       }),
     );
-    expect(styles.navNotificationBadgeText).toEqual(
+    expect(styles.navUnreadBadgeText).toEqual(
       expect.objectContaining({
         color: lightTheme.text.onPrimary,
         fontFamily: lightTheme.typography.fontFamilyExtraBold,
         fontSize: 9,
       }),
+    );
+  });
+
+  it("names each counter for the surface it speaks for", async () => {
+    const view = await render(<MobileBottomTabBar {...createProps(0, 2, 5)} />);
+
+    expect(view.getByTestId("mobile-bottom-tab-messages-badge").props.accessibilityLabel).toBe(
+      mobileCopy.tr.messagesUnreadBadgeLabel.replace("{count}", "2"),
+    );
+    expect(view.getByTestId("mobile-bottom-tab-notifications-badge").props.accessibilityLabel).toBe(
+      mobileCopy.tr.notificationsUnreadBadgeLabel.replace("{count}", "5"),
     );
   });
 

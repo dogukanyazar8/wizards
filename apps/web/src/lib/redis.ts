@@ -21,7 +21,7 @@ function getRedisUrl() {
   return DEFAULT_REDIS_URL;
 }
 
-function getRedisOptions(): RedisOptions {
+function getRedisOptions() {
   const redisUrl = getRedisUrl();
   let parsedUrl: URL;
 
@@ -51,15 +51,11 @@ function getRedisOptions(): RedisOptions {
   return {
     host: parsedUrl.hostname || "localhost",
     port: parsedUrl.port ? Number.parseInt(parsedUrl.port, 10) : 6379,
-    ...(parsedUrl.username
-      ? { username: decodeURIComponent(parsedUrl.username) }
-      : {}),
-    ...(parsedUrl.password
-      ? { password: decodeURIComponent(parsedUrl.password) }
-      : {}),
+    ...(parsedUrl.username ? { username: decodeURIComponent(parsedUrl.username) } : {}),
+    ...(parsedUrl.password ? { password: decodeURIComponent(parsedUrl.password) } : {}),
     ...(db === undefined ? {} : { db }),
     ...(parsedUrl.protocol === "rediss:" ? { tls: {} } : {}),
-  };
+  } satisfies RedisOptions;
 }
 
 type RedisClientRole = "op" | "pub" | "sub" | "rate";

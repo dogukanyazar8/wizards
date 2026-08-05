@@ -39,6 +39,8 @@ export default async function AdminUsersPage({ searchParams }: AdminUsersPagePro
   return (
     <AdminUsers
       canBan={adminRoleHasCapability(admin.role, "user.ban")}
+      canReadBadges={adminRoleHasCapability(admin.role, "badge.read")}
+      canWriteBadges={adminRoleHasCapability(admin.role, "badge.write")}
       filters={filters}
       result={result}
     />

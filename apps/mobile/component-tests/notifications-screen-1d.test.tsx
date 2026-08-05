@@ -222,7 +222,9 @@ describe("1d notifications screen", () => {
     await fireEvent.press(view.getByTestId(`mobile-notification-${mention.id}`));
 
     expect(mockMarkRead).toHaveBeenCalledWith(mention.id);
-    expect(onOpenNotification).toHaveBeenCalledWith(mention.actionUrl);
+    // The row hands the whole notification over: a BADGE row has a destination
+    // even without an action URL (07 §4).
+    expect(onOpenNotification).toHaveBeenCalledWith(mention);
   });
 
   it("renders a real actor avatar and mention badge instead of a fabricated identity", async () => {

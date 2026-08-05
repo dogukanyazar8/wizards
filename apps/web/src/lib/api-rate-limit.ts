@@ -5,6 +5,8 @@ import { getRedisRate } from "@/lib/redis";
 
 export const API_RATE_LIMITS = {
   "app:updates:manifest": { limit: 120, windowSeconds: 60 },
+  "admin:badge:read": { limit: 120, windowSeconds: 60 },
+  "admin:badge:write": { limit: 20, windowSeconds: 60 },
   "admin:campaign:approve": { limit: 20, windowSeconds: 60 },
   "admin:campaign:create": { limit: 12, windowSeconds: 60 },
   "admin:campaign:preview": { limit: 60, windowSeconds: 60 },
@@ -207,6 +209,19 @@ export const API_RATE_LIMITS = {
   "server:list": { limit: 240, windowSeconds: 60 },
   "server:update": { limit: 30, windowSeconds: 60 },
   "settings:update": { limit: 60, windowSeconds: 60 },
+  /**
+   * Higher than the profile budget on purpose: opening a card fires the profile
+   * read and the badge read in parallel, and a member list walks several cards
+   * in a row.
+   */
+  "user:badges": { limit: 120, windowSeconds: 60 },
+  /** Only "Rozetlerim" asks for this one, and only when the screen opens. */
+  "user:badges:self": { limit: 60, windowSeconds: 60 },
+  /**
+   * One cached summary for the whole product, refreshed daily by the sweep, so
+   * a client asking for it is reading a value that cannot move under it.
+   */
+  "user:badges:rarity": { limit: 60, windowSeconds: 60 },
   "user:profile": { limit: 60, windowSeconds: 60 },
   "user:data-export": { limit: 3, windowSeconds: 60 * 60 },
   "user:delete": { limit: 3, windowSeconds: 60 * 60 },

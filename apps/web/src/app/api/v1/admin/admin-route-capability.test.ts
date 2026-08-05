@@ -18,6 +18,8 @@ const capabilitiesModule = import("@/lib/admin/capabilities");
  */
 const ROUTE_CAPABILITY_PINS: ReadonlyArray<{ capability: AdminCapability; file: string }> = [
   { capability: "user.read", file: "users/route.ts" },
+  { capability: "badge.read", file: "users/[userId]/badges/route.ts" },
+  { capability: "badge.write", file: "users/[userId]/badges/route.ts" },
   { capability: "server.read", file: "servers/route.ts" },
   { capability: "export.activity", file: "reports/activity.csv/route.ts" },
   { capability: "campaign.read", file: "notification-campaigns/route.ts" },

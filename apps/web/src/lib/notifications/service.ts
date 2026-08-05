@@ -1,6 +1,10 @@
 import { prisma } from "@wizards/db";
 import type { NotificationType, Prisma } from "@wizards/db";
-import type { MobileNotificationsQuery, MobileNotificationsResponse } from "@wizards/types";
+import {
+  BadgeIdSchema,
+  type MobileNotificationsQuery,
+  type MobileNotificationsResponse,
+} from "@wizards/types";
 import { ApiError } from "@/lib/api";
 import { isLiveInvite } from "@/lib/workspace/invite-selection";
 import { emitServerUnreadUpdateToUser } from "@/lib/workspace/unread-service";
@@ -28,6 +32,7 @@ type UserRow = Prisma.UserGetPayload<{
 }>;
 
 const VISIBLE_NOTIFICATION_TYPES: NotificationType[] = [
+  "BADGE",
   "FRIEND_REQUEST",
   "FRIEND_ACCEPTED",
   "DM",
@@ -37,7 +42,16 @@ const VISIBLE_NOTIFICATION_TYPES: NotificationType[] = [
   "MODERATION",
 ];
 
+export function getMobileVisibleNotificationTypes(options: {
+  badgeCapable: boolean;
+}): NotificationType[] {
+  return options.badgeCapable
+    ? [...VISIBLE_NOTIFICATION_TYPES]
+    : VISIBLE_NOTIFICATION_TYPES.filter((type) => type !== "BADGE");
+}
+
 type VisibleNotificationType =
+  | "BADGE"
   | "FRIEND_REQUEST"
   | "FRIEND_ACCEPTED"
   | "DM"
@@ -106,7 +120,9 @@ function decodeMobileNotificationCursor(cursor: string): MobileNotificationCurso
 export async function listMobileNotifications(
   userId: string,
   query: MobileNotificationsQuery,
+  options: { badgeCapable: boolean } = { badgeCapable: false },
 ): Promise<MobileNotificationsResponse> {
+  const visibleTypes = getMobileVisibleNotificationTypes(options);
   const cursor = query.cursor ? decodeMobileNotificationCursor(query.cursor) : null;
   const filterWhere =
     query.filter === "unread"
@@ -128,7 +144,7 @@ export async function listMobileNotifications(
     },
     take: query.limit + 1,
     where: {
-      type: { in: VISIBLE_NOTIFICATION_TYPES },
+      type: { in: visibleTypes },
       userId,
       ...filterWhere,
       ...(cursor
@@ -163,7 +179,7 @@ export async function listMobileNotifications(
       where: { id: { in: channelIds } },
     }),
     prisma.notification.count({
-      where: { read: false, type: { in: VISIBLE_NOTIFICATION_TYPES }, userId },
+      where: { read: false, type: { in: visibleTypes }, userId },
     }),
   ]);
   const channelMap = new Map(channels.map((channel) => [channel.id, channel]));
@@ -221,6 +237,9 @@ export async function listMobileNotifications(
         "friendRequestId",
       );
       const inviteCode = getNotificationMetadataString(notificationMetadata, "inviteCode", 96);
+      const badgeId = BadgeIdSchema.safeParse(
+        getNotificationMetadataString(notificationMetadata, "badgeId", 64),
+      );
       const actor = senderId ? (userMap.get(senderId) ?? null) : null;
       const channel = channelId ? (channelMap.get(channelId) ?? null) : null;
       const server = serverId ? (serverMap.get(serverId) ?? null) : null;
@@ -235,6 +254,9 @@ export async function listMobileNotifications(
               username: actor.username,
             }
           : null,
+        // Only a BADGE row carries one, the same per-type narrowing
+        // `friendRequestId` and `serverInviteCode` below apply.
+        badgeId: notification.type === "BADGE" && badgeId.success ? badgeId.data : null,
         body: notification.body,
         channel: channel ? { id: channel.id, name: channel.name } : null,
         createdAt: notification.createdAt.toISOString(),

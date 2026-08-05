@@ -13,7 +13,6 @@ export {
 export { ProfileCardMenu, type ProfileCardMenuItem } from "./profile-card-menu";
 export {
   ProfileActionRow,
-  ProfileBadgeChips,
   ProfileMutualRow,
   ProfileRoleChips,
   ProfileStatusDot,

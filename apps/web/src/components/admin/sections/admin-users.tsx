@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useState } from "react";
-import { Ban, Check, Loader2, Search } from "lucide-react";
+import { Award, Ban, Check, Loader2, Search } from "lucide-react";
 import { Button } from "@wizards/ui";
 import { Textarea } from "@/components/ui/textarea";
 import { Modal } from "@/components/ui/modal";
+import { AdminUserBadges, type AdminBadgeUser } from "./admin-user-badges";
 import {
   AdminAvatarSquare,
   AdminCard,
@@ -58,13 +59,23 @@ export function getAdminBanReasonError(reason: string) {
 
 export function AdminUsers({
   canBan,
+  canReadBadges = false,
+  canWriteBadges = false,
   filters,
   result,
 }: {
   canBan: boolean;
+  /**
+   * `badge.read` opens the panel; `badge.write` is what draws the grant form and
+   * the revoke controls inside it. A session without the write capability never
+   * renders them at all (08 §3).
+   */
+  canReadBadges?: boolean;
+  canWriteBadges?: boolean;
   filters: AdminUsersFilters;
   result: AdminUsersResult;
 }) {
+  const [badgeUser, setBadgeUser] = useState<AdminBadgeUser | null>(null);
   const [action, setAction] = useState<AdminUserAction | null>(null);
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -189,7 +200,7 @@ export function AdminUsers({
 
         <div className="mt-5">
           <AdminGridTable
-            columns="2.2fr 1.9fr 1.1fr 1fr 1fr 1.1fr 36px"
+            columns="2.2fr 1.9fr 1.1fr 1fr 1fr 1.1fr 76px"
             emptyLabel="Bu filtrelerle kullanıcı bulunamadı."
             headers={["Kullanıcı", "Durum", "Son oturum", "30g etkinlik", "Sunucular", "Kayıt", ""]}
             rows={result.users.map((user) => ({
@@ -238,29 +249,47 @@ export function AdminUsers({
                 <span className="text-app-muted text-[12px]" key="registered">
                   {formatDate(user.registeredAt)}
                 </span>,
-                canBan ? (
-                  <button
-                    aria-label={
-                      user.isBanned
-                        ? `${user.displayName} banını kaldır`
-                        : `${user.displayName} banla`
-                    }
-                    className={
-                      user.isBanned
-                        ? "text-app-success flex h-9 w-9 items-center justify-center rounded-[10px] hover:bg-[hsl(var(--success)/0.12)]"
-                        : "text-app-danger flex h-9 w-9 items-center justify-center rounded-[10px] hover:bg-[hsl(var(--danger)/0.12)]"
-                    }
-                    key="action"
-                    onClick={() => {
-                      setAction({ banned: !user.isBanned, user });
-                      setError(null);
-                      setReason("");
-                    }}
-                    type="button"
-                  >
-                    {user.isBanned ? <Check size={16} /> : <Ban size={16} />}
-                  </button>
-                ) : null,
+                <div className="flex items-center justify-end gap-1" key="action">
+                  {canReadBadges ? (
+                    <button
+                      aria-label={`${user.displayName} rozetleri`}
+                      className="text-app-muted flex h-9 w-9 items-center justify-center rounded-[10px] hover:bg-[hsl(var(--primary)/0.12)]"
+                      onClick={() =>
+                        setBadgeUser({
+                          avatarUrl: user.avatarUrl,
+                          displayName: user.displayName,
+                          email: user.email,
+                          id: user.id,
+                        })
+                      }
+                      type="button"
+                    >
+                      <Award size={16} />
+                    </button>
+                  ) : null}
+                  {canBan ? (
+                    <button
+                      aria-label={
+                        user.isBanned
+                          ? `${user.displayName} banını kaldır`
+                          : `${user.displayName} banla`
+                      }
+                      className={
+                        user.isBanned
+                          ? "text-app-success flex h-9 w-9 items-center justify-center rounded-[10px] hover:bg-[hsl(var(--success)/0.12)]"
+                          : "text-app-danger flex h-9 w-9 items-center justify-center rounded-[10px] hover:bg-[hsl(var(--danger)/0.12)]"
+                      }
+                      onClick={() => {
+                        setAction({ banned: !user.isBanned, user });
+                        setError(null);
+                        setReason("");
+                      }}
+                      type="button"
+                    >
+                      {user.isBanned ? <Check size={16} /> : <Ban size={16} />}
+                    </button>
+                  ) : null}
+                </div>,
               ],
               id: user.id,
             }))}
@@ -277,6 +306,13 @@ export function AdminUsers({
           />
         </div>
       </AdminCard>
+
+      <AdminUserBadges
+        canWrite={canWriteBadges}
+        onClose={() => setBadgeUser(null)}
+        open={Boolean(badgeUser)}
+        user={badgeUser}
+      />
 
       <Modal
         description={

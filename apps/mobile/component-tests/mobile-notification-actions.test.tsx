@@ -19,6 +19,24 @@ jest.mock("../src/voice/mobile-voice-room-route-navigation", () => ({
 
 import { createMobileNotificationActions } from "../src/app/features/mobile-notification-actions";
 
+const notification: MobileNotificationItem = {
+  actionUrl: null,
+  actor: null,
+  badgeId: null,
+  body: "Bildirim",
+  channel: null,
+  createdAt: "2026-07-16T10:00:00.000Z",
+  eventKind: null,
+  friendRequestId: null,
+  id: "00000000-0000-4000-8000-000000000005",
+  messageQuote: null,
+  read: false,
+  readAt: null,
+  server: null,
+  serverInviteCode: null,
+  type: "SYSTEM",
+};
+
 const voiceNotification: MobileNotificationItem = {
   actionUrl: null,
   actor: null,
@@ -44,8 +62,10 @@ describe("mobile notification actions", () => {
     mockResolveMobileRoutePathIntent.mockReturnValueOnce(routeIntent).mockReturnValueOnce(null);
     const actions = createMobileNotificationActions({ joinVoiceChannel: jest.fn() });
 
-    actions.onOpenNotification("/channels/server-1/channel-1");
-    actions.onOpenNotification("https://untrusted.example");
+    actions.onOpenNotification({ ...notification, actionUrl: "/channels/server-1/channel-1" });
+    actions.onOpenNotification({ ...notification, actionUrl: "https://untrusted.example" });
+    // A row with no URL and no BADGE type has nowhere to go.
+    actions.onOpenNotification({ ...notification, actionUrl: null });
 
     expect(mockNavigateMobileRouteIntent).toHaveBeenCalledTimes(1);
     expect(mockNavigateMobileRouteIntent).toHaveBeenCalledWith(routeIntent);

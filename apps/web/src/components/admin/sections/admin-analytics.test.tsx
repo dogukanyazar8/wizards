@@ -20,6 +20,13 @@ function snapshot(overrides: Partial<AdminAnalyticsSnapshot> = {}): AdminAnalyti
       { count: 40, platformSplittable: true, step: "first_message" },
     ],
     generatedAt: NOW.toISOString(),
+    legacyMobileClients: {
+      clear: false,
+      maxVersion: "0.9.0",
+      sessions: 6,
+      versions: [{ appVersion: "0.8.15", sessions: 6 }],
+      windowDays: 30,
+    },
     platform: "ALL",
     range: { days: 3, end: NOW.toISOString(), start: NOW.toISOString() },
     usageSeries: [

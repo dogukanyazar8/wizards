@@ -209,6 +209,48 @@ describe("mobile social and account schemas", () => {
     assert.equal(MobileTwoFactorDisableRequestSchema.safeParse({ code: "123456" }).success, false);
   });
 
+  it("limits new passwords by UTF-8 bytes without narrowing current-password verification", async () => {
+    const { MobilePasswordChangeRequestSchema } = await schemas;
+    const base = {
+      confirmPassword: "p".repeat(72),
+      currentPassword: "c".repeat(256),
+      newPassword: "p".repeat(72),
+    };
+
+    assert.equal(MobilePasswordChangeRequestSchema.safeParse(base).success, true);
+    assert.equal(
+      MobilePasswordChangeRequestSchema.safeParse({
+        ...base,
+        confirmPassword: "🙂".repeat(18),
+        newPassword: "🙂".repeat(18),
+      }).success,
+      true,
+    );
+    const overLimit = MobilePasswordChangeRequestSchema.safeParse({
+      ...base,
+      confirmPassword: "p".repeat(73),
+      newPassword: "p".repeat(73),
+    });
+    assert.equal(overLimit.success, false);
+    if (!overLimit.success) {
+      assert.ok(
+        overLimit.error.issues.some(
+          (issue) =>
+            issue.path.join(".") === "newPassword" &&
+            issue.message === "validation.password.bcryptMax",
+        ),
+      );
+    }
+    assert.equal(
+      MobilePasswordChangeRequestSchema.safeParse({
+        ...base,
+        confirmPassword: "🙂".repeat(19),
+        newPassword: "🙂".repeat(19),
+      }).success,
+      false,
+    );
+  });
+
   it("accepts only bounded HTTPS Giphy results", async () => {
     const { MobileGiphySearchQuerySchema, MobileGiphySearchResponseSchema } = await schemas;
     assert.deepEqual(MobileGiphySearchQuerySchema.parse({ limit: "24", offset: "0", q: "wave" }), {

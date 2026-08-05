@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 const root = fileURLToPath(new URL("../..", import.meta.url));
 const expectedNodeVersion = "24.18.0";
 const expectedNodeRange = `>=${expectedNodeVersion} <25`;
-const expectedPackageManager = "pnpm@11.17.0";
+const expectedPackageManager = "pnpm@11.20.0";
 const expectedNodeTypes = "^24.13.3";
 const expectedNode24ActionPins = {
   "actions/checkout": {
@@ -139,8 +139,8 @@ test("Prisma 7 uses the ESM client, generated import boundary, and explicit seed
   const turbo = readJson("turbo.json");
 
   assert.equal(dbPackage.type, "module");
-  assert.equal(dbPackage.dependencies["@prisma/client"], "7.9.0");
-  assert.equal(dbPackage.dependencies["@prisma/adapter-pg"], "7.9.0");
+  assert.equal(dbPackage.dependencies["@prisma/client"], "7.9.1");
+  assert.equal(dbPackage.dependencies["@prisma/adapter-pg"], "7.9.1");
   assert.equal(dbPackage.scripts["db:seed"], "prisma db seed");
   assert.equal(dbPackage.scripts["db:migrate:status"], "prisma migrate status");
   assert.equal(dbPackage.scripts["prisma:ensure-runtime"], undefined);

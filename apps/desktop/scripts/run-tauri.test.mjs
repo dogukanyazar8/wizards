@@ -121,6 +121,22 @@ describe("desktop Tauri config generation", () => {
     ]);
   });
 
+  it("enables macOS private APIs for transparent companion windows", async () => {
+    await execFileAsync(process.execPath, [runTauriScript, "build", "--write-config-only"], {
+      cwd: desktopRoot,
+      env: testDesktopEnv(),
+    });
+
+    const staticConfigPath = path.join(desktopRoot, "src-tauri", "tauri.conf.json");
+    const [generatedConfig, staticConfig] = await Promise.all([
+      readFile(generatedConfigPath, "utf8").then(JSON.parse),
+      readFile(staticConfigPath, "utf8").then(JSON.parse),
+    ]);
+
+    assert.equal(generatedConfig.app.macOSPrivateApi, true);
+    assert.equal(staticConfig.app.macOSPrivateApi, true);
+  });
+
   it("uses the Whispr icon for NSIS installer and uninstaller binaries", async () => {
     const staticConfigPath = path.join(desktopRoot, "src-tauri", "tauri.conf.json");
     const staticConfig = JSON.parse(await readFile(staticConfigPath, "utf8"));

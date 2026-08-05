@@ -199,6 +199,76 @@ describe("MSG-1h recording composer", () => {
   });
 });
 
+/**
+ * §2 "1h".2 says a channel records exactly like a DM. It did not: the channel
+ * primary button wore an X while a take ran, which reads as "throw this away"
+ * next to a trash button that actually does, and the slide gestures were wired
+ * on the DM composer only.
+ */
+describe("MSG-1h channel recording parity", () => {
+  async function renderRecordingChannelComposer() {
+    return render(
+      <DMComposer
+        getAccessToken={async () => "mobile-access-token"}
+        onSend={jest.fn<() => Promise<boolean>>().mockResolvedValue(true)}
+        placeholder="#welcome-chat kanalına yaz"
+        variant="channel"
+      />,
+    );
+  }
+
+  it("ends a channel take on a send plane, with delete on the other side", async () => {
+    const view = await renderRecordingChannelComposer();
+
+    // The glyph is decorative, so it is hidden from the accessibility tree.
+    expect(
+      view.getByTestId("mobile-channel-voice-send-icon", { includeHiddenElements: true }),
+    ).toBeTruthy();
+    expect(
+      view.queryByTestId("mobile-channel-voice-mic-icon", { includeHiddenElements: true }),
+    ).toBeNull();
+    expect(view.getByTestId("mobile-channel-voice-record-cancel")).toBeTruthy();
+    expect(view.getByTestId("mobile-channel-voice-record-button").props.accessibilityLabel).toBe(
+      copy.composerVoiceStopAction,
+    );
+  });
+
+  it("sends the take from the primary button", async () => {
+    mockVoiceRecorder.stop.mockClear();
+    mockVoiceRecorder.stop.mockResolvedValueOnce({ status: "idle" });
+    const view = await renderRecordingChannelComposer();
+
+    await fireEvent.press(view.getByTestId("mobile-channel-voice-record-button"));
+
+    expect(mockVoiceRecorder.stop).toHaveBeenCalledTimes(1);
+    expect(mockVoiceRecorder.discard).not.toHaveBeenCalled();
+  });
+
+  it("discards a channel take from the delete button", async () => {
+    mockVoiceRecorder.discard.mockClear();
+    const view = await renderRecordingChannelComposer();
+
+    await fireEvent.press(view.getByTestId("mobile-channel-voice-record-cancel"));
+
+    expect(mockVoiceRecorder.discard).toHaveBeenCalledTimes(1);
+  });
+
+  it("wires the same slide gestures the DM composer has", async () => {
+    const dm = await renderRecordingComposer();
+    const channel = await renderRecordingChannelComposer();
+    const responderProps = (props: Record<string, unknown>) =>
+      Object.keys(props)
+        .filter((key) => key.startsWith("onResponder") || key.endsWith("ShouldSetResponder"))
+        .sort();
+
+    // The drag outcome itself is `resolveMobileVoiceRecordGesture`'s unit test;
+    // what this guards is that a channel take can be dragged at all.
+    expect(responderProps(channel.getByTestId("mobile-channel-voice-gesture").props)).toEqual(
+      responderProps(dm.getByTestId("mobile-dm-voice-record-gesture").props),
+    );
+  });
+});
+
 describe("MSG-1h dark theme", () => {
   it("changes only colour: the 1d geometry survives the theme swap", () => {
     const light = createDMChatStyles(lightTheme) as Record<string, Record<string, unknown>>;

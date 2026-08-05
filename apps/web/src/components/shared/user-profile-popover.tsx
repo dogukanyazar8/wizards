@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
@@ -8,6 +8,17 @@ import { motion } from "framer-motion";
 import { X } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { useI18n } from "@/components/providers/locale-provider";
+import { ProfileBadgeChips } from "@/components/shared/profile-badge-chips";
+import {
+  ProfileBadgeDetail,
+  type ProfileBadgeDetailRequest,
+} from "@/components/shared/profile-badge-detail";
+import {
+  badgeQueryKeys,
+  fetchOwnBadges,
+  fetchUserBadges,
+  BADGE_QUERY_STALE_TIME_MS,
+} from "@/lib/badges/client";
 import { cn } from "@/lib/utils";
 import {
   sendFriendRequestRequest,
@@ -22,6 +33,7 @@ import {
   FriendsClientError,
 } from "@/lib/friends/client";
 import { createDMConversationRequest } from "@/lib/dm/client";
+import { buildSettingsHref } from "@/lib/settings/navigation";
 import type { FriendDto, PendingFriendsResponse } from "@/lib/friends/types";
 
 interface UserProfileData {
@@ -62,6 +74,7 @@ export function UserProfilePopover({
   children,
 }: UserProfilePopoverProps) {
   const { t } = useI18n();
+  const router = useRouter();
 
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLDivElement>(null);
@@ -135,6 +148,58 @@ export function UserProfilePopover({
     return "not_friends";
   }, [friendsQuery.data, pendingQuery.data, blockedQuery.data, userId, isSelf, blockedByThem]);
 
+  /**
+   * Badges are a second read, deliberately not folded into the profile query:
+   * they change rarely, so they carry the shared 5 minute freshness window
+   * (03 §4) while the profile keeps its own. The row below holds its height
+   * until this settles, so the popover does not jump when it lands.
+   */
+  const isBlocked =
+    relationshipState === "blocked_by_me" || relationshipState === "blocked_by_them";
+
+  const badgesQuery = useQuery({
+    queryKey: badgeQueryKeys.user(userId),
+    queryFn: () => fetchUserBadges(userId),
+    enabled: open && !isBlocked,
+    staleTime: BADGE_QUERY_STALE_TIME_MS,
+  });
+
+  /**
+   * 06 §3/§4. The detail panel replaces the popover's body; the badges it shows
+   * are the ones already loaded above, so opening it costs no request. The one
+   * exception is your own progress, which is fetched only on your own profile
+   * and only while the panel is open — never on a peer's, where a counter would
+   * leak how they use the app (00 §4).
+   */
+  const [badgeRequest, setBadgeRequest] = useState<ProfileBadgeDetailRequest | null>(null);
+
+  const ownBadgesQuery = useQuery({
+    queryKey: badgeQueryKeys.own(),
+    queryFn: fetchOwnBadges,
+    enabled: isSelf && badgeRequest !== null,
+    staleTime: BADGE_QUERY_STALE_TIME_MS,
+  });
+
+  const closePopover = useCallback(() => {
+    setBadgeRequest(null);
+    setOpen(false);
+  }, []);
+
+  /**
+   * 07 §3. On your own profile the `+N` chip is a shortcut to "Rozetlerim",
+   * which is the full list plus your progress; on somebody else's it stays the
+   * in-popover list, because their progress is not yours to read (06 §1).
+   */
+  const openBadgeOverflow = () => {
+    if (isSelf) {
+      closePopover();
+      router.push(buildSettingsHref("account", "badges"));
+      return;
+    }
+
+    setBadgeRequest({ kind: "list" });
+  };
+
   const openPopover = () => {
     if (!triggerRef.current) return;
 
@@ -176,12 +241,12 @@ export function UserProfilePopover({
     const handler = (e: PointerEvent) => {
       if (triggerRef.current?.contains(e.target as Node)) return;
       if (popoverRef.current?.contains(e.target as Node)) return;
-      setOpen(false);
+      closePopover();
     };
 
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setOpen(false);
+        closePopover();
       }
     };
 
@@ -191,7 +256,7 @@ export function UserProfilePopover({
       window.removeEventListener("pointerdown", handler);
       window.removeEventListener("keydown", handleEscape);
     };
-  }, [open]);
+  }, [closePopover, open]);
 
   return (
     <>
@@ -222,11 +287,17 @@ export function UserProfilePopover({
                 className="fixed inset-0 z-[90] bg-[hsl(var(--background)/0.58)] backdrop-blur-xs"
                 exit={{ opacity: 0 }}
                 initial={{ opacity: 0 }}
-                onClick={() => setOpen(false)}
+                onClick={closePopover}
               />
             ) : null}
             <motion.div
               ref={popoverRef}
+              // 06 §3 assumes the popover is already a dialog; it was not, and
+              // the inline badge panel needs that shell to be one so the
+              // aria-live region inside it is announced within a named surface
+              // instead of loose in the document.
+              aria-label={profileQuery.data?.displayName ?? t("profile.badges.title")}
+              role="dialog"
               data-testid="user-profile-popover"
               className={cn(
                 "fixed z-[91] overflow-hidden border border-[hsl(var(--border)/0.88)] bg-[hsl(var(--surface-overlay)/0.98)] shadow-[0_28px_80px_hsl(var(--shadow-color)/0.28)] backdrop-blur-2xl",
@@ -247,7 +318,7 @@ export function UserProfilePopover({
               <button
                 aria-label={t("common.close")}
                 className="absolute right-3 top-3 z-10 rounded-full border border-[hsl(var(--border)/0.55)] bg-[hsl(var(--surface-overlay)/0.84)] p-2 text-app-muted backdrop-blur transition hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
-                onClick={() => setOpen(false)}
+                onClick={closePopover}
                 type="button"
               >
                 <X className="h-3.5 w-3.5" />
@@ -265,57 +336,87 @@ export function UserProfilePopover({
                 }}
               />
 
-              <div className="relative px-4 pb-4">
-                <div className="-mt-11 mb-3">
-                  <Avatar
-                    src={profileQuery.data?.avatarUrl}
-                    alt={profileQuery.data?.displayName || "User"}
-                    className="h-20 w-20 border-4 border-[hsl(var(--surface-card))]"
-                    fallback={(profileQuery.data?.displayName ?? "?")[0] ?? "?"}
+              {badgeRequest ? (
+                <div className="relative px-4 pb-4 pt-4">
+                  <ProfileBadgeDetail
+                    badges={badgesQuery.data?.badges ?? []}
+                    isSelf={isSelf}
+                    onBack={() => setBadgeRequest(null)}
+                    progress={ownBadgesQuery.data?.progress ?? null}
+                    request={badgeRequest}
                   />
                 </div>
-
-                <div className="mb-4">
-                  <h3 className="text-lg font-semibold text-app-foreground">
-                    {profileQuery.data?.displayName || "Unknown"}
-                  </h3>
-                  <p className="text-sm text-app-muted">
-                    @{profileQuery.data?.username || "unknown"}
-                  </p>
-                  {profileQuery.data?.customStatus && (
-                    <p className="mt-2 rounded-2xl border border-[hsl(var(--border)/0.65)] bg-[hsl(var(--surface-soft)/0.42)] px-3 py-2 text-xs text-app-muted">
-                      {profileQuery.data.customStatus}
-                    </p>
-                  )}
-                  {profileQuery.data?.bio && (
-                    <p className="mt-2 text-sm leading-6 text-app-muted">{profileQuery.data.bio}</p>
-                  )}
-                </div>
-
-                <div className="app-panel-soft space-y-1 rounded-[20px] border px-3 py-3 text-xs text-app-muted">
-                  <div>
-                    {t("profile.memberSince", {
-                      date: new Date(profileQuery.data?.createdAt ?? 0).toLocaleDateString(),
-                    })}
+              ) : (
+                <div className="relative px-4 pb-4">
+                  {/*
+                  1a puts the badge row on the avatar line, pushed to its right
+                  edge. `flex-wrap` is what keeps that promise on a narrow
+                  desktop window: the row drops under the avatar instead of the
+                  chips shrinking away from the 28px the mock fixes them at.
+                */}
+                  <div className="-mt-11 mb-3 flex flex-wrap items-end justify-between gap-3">
+                    <Avatar
+                      src={profileQuery.data?.avatarUrl}
+                      alt={profileQuery.data?.displayName || "User"}
+                      className="h-20 w-20 border-4 border-[hsl(var(--surface-card))]"
+                      fallback={(profileQuery.data?.displayName ?? "?")[0] ?? "?"}
+                    />
+                    {isBlocked ? null : (
+                      <ProfileBadgeChips
+                        badges={badgesQuery.data?.badges ?? []}
+                        loading={badgesQuery.isPending}
+                        onSelectBadge={(badge) =>
+                          setBadgeRequest({ badgeId: badge.id, kind: "badge" })
+                        }
+                        onSelectOverflow={openBadgeOverflow}
+                      />
+                    )}
                   </div>
-                  {serverId && profileQuery.data?.serverNickname && (
+
+                  <div className="mb-4">
+                    <h3 className="text-lg font-semibold text-app-foreground">
+                      {profileQuery.data?.displayName || "Unknown"}
+                    </h3>
+                    <p className="text-sm text-app-muted">
+                      @{profileQuery.data?.username || "unknown"}
+                    </p>
+                    {profileQuery.data?.customStatus && (
+                      <p className="mt-2 rounded-2xl border border-[hsl(var(--border)/0.65)] bg-[hsl(var(--surface-soft)/0.42)] px-3 py-2 text-xs text-app-muted">
+                        {profileQuery.data.customStatus}
+                      </p>
+                    )}
+                    {profileQuery.data?.bio && (
+                      <p className="mt-2 text-sm leading-6 text-app-muted">
+                        {profileQuery.data.bio}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="app-panel-soft space-y-1 rounded-[20px] border px-3 py-3 text-xs text-app-muted">
                     <div>
-                      {t("profile.serverNickname")}: {profileQuery.data.serverNickname}
+                      {t("profile.memberSince", {
+                        date: new Date(profileQuery.data?.createdAt ?? 0).toLocaleDateString(),
+                      })}
                     </div>
+                    {serverId && profileQuery.data?.serverNickname && (
+                      <div>
+                        {t("profile.serverNickname")}: {profileQuery.data.serverNickname}
+                      </div>
+                    )}
+                  </div>
+
+                  {!isSelf && (
+                    <ActionButtons
+                      state={relationshipState}
+                      userId={userId}
+                      onSetBlockedByThem={setBlockedByThem}
+                    />
+                  )}
+                  {isSelf && (
+                    <div className="mt-4 text-center text-sm text-app-muted">This is you</div>
                   )}
                 </div>
-
-                {!isSelf && (
-                  <ActionButtons
-                    state={relationshipState}
-                    userId={userId}
-                    onSetBlockedByThem={setBlockedByThem}
-                  />
-                )}
-                {isSelf && (
-                  <div className="mt-4 text-center text-sm text-app-muted">This is you</div>
-                )}
-              </div>
+              )}
             </motion.div>
           </>,
           document.body,

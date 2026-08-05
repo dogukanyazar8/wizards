@@ -530,20 +530,57 @@ export const redesignDark = {
 } as const;
 
 /**
+ * Badge chip tints, one entry per `BadgeTint` in `@wizards/types`. The catalog
+ * needs seven, the handoff only ever drew three (1a:330-332), so `blue`,
+ * `purple` and `red` take their surface and icon from the handoff token table
+ * and their border from the rule in `docs/prompts/rozet-sistemi/04`: the icon
+ * colour mixed 12% over the surface, resolved here to a constant rather than
+ * blended at runtime. The three handoff pairs keep their shipped values — no
+ * single ratio reproduces all three, so the formula is not applied backwards.
+ */
+export const redesignProfileBadgeLight = {
+  lavender: { border: "#DFE2FC", icon: "#4F46E5", surface: "#EEF0FE" },
+  amber: { border: "#F5DDBC", icon: "#C77A2B", surface: "#FDEBD7" },
+  green: { border: "#D2F0DE", icon: "#1B8A55", surface: "#E8F8EE" },
+  blue: { border: "#CAE2F4", icon: "#2B7AC7", surface: "#E0F0FA" },
+  purple: { border: "#E6D5F4", icon: "#8A46C7", surface: "#F3E8FA" },
+  red: { border: "#F9D7D7", icon: "#E05252", surface: "#FCE9E9" },
+  neutral: { border: "#E7E9F4", icon: "#6B7194", surface: "#F6F7FB" },
+} as const;
+
+/**
+ * Dark tints follow the shipped dark badge pattern: surface `rgba(icon, .12)`,
+ * border `rgba(icon, .3)`, with the icon lifted to a tone that survives a dark
+ * surface. `lavender` and `amber` keep the solid pair 1e already draws.
+ */
+export const redesignProfileBadgeDark = {
+  lavender: { border: "#3B3F73", icon: "#A5A8F5", surface: "#2A2D55" },
+  amber: { border: "#55432A", icon: "#E8B36A", surface: "#3A2E1B" },
+  green: { border: "rgba(52,211,153,.3)", icon: "#34D399", surface: "rgba(52,211,153,.12)" },
+  blue: { border: "rgba(107,182,232,.3)", icon: "#6BB6E8", surface: "rgba(107,182,232,.12)" },
+  purple: { border: "rgba(189,143,224,.3)", icon: "#BD8FE0", surface: "rgba(189,143,224,.12)" },
+  red: { border: "rgba(240,139,139,.3)", icon: "#F08B8B", surface: "rgba(240,139,139,.12)" },
+  neutral: { border: "#2B2F52", icon: "#9BA1C7", surface: "#232644" },
+} as const;
+
+/**
  * 11b quick profile card, read from handoff `Whispr Profil Ekranı.dc.html`
  * sections 1a/1b/1d (light) and 1e (dark). The banner base stays `#4F46E5` in
  * both themes on purpose — the handoff keeps brand colour behind the avatar.
  */
 export const redesignProfileLight = {
-  badgeEarlyBorder: "#DFE2FC",
-  badgeEarlyIcon: "#4F46E5",
-  badgeEarlySurface: "#EEF0FE",
-  badgeInviterBorder: "#D2F0DE",
-  badgeInviterIcon: "#1B8A55",
-  badgeInviterSurface: "#E8F8EE",
-  badgeSupporterBorder: "#F5DDBC",
-  badgeSupporterIcon: "#C77A2B",
-  badgeSupporterSurface: "#FDEBD7",
+  // Kept as aliases of the badge group above, not deleted: the shipped card and
+  // page tokens are asserted by `mobile-redesign-theme-contract.test.ts` and
+  // read by surfaces outside the badge row.
+  badgeEarlyBorder: redesignProfileBadgeLight.lavender.border,
+  badgeEarlyIcon: redesignProfileBadgeLight.lavender.icon,
+  badgeEarlySurface: redesignProfileBadgeLight.lavender.surface,
+  badgeInviterBorder: redesignProfileBadgeLight.green.border,
+  badgeInviterIcon: redesignProfileBadgeLight.green.icon,
+  badgeInviterSurface: redesignProfileBadgeLight.green.surface,
+  badgeSupporterBorder: redesignProfileBadgeLight.amber.border,
+  badgeSupporterIcon: redesignProfileBadgeLight.amber.icon,
+  badgeSupporterSurface: redesignProfileBadgeLight.amber.surface,
   bannerControl: "rgba(255,255,255,.18)",
   bannerControlActive: "rgba(255,255,255,.32)",
   bannerControlText: "#FFFFFF",
@@ -576,15 +613,15 @@ export const redesignProfileLight = {
 } as const;
 
 export const redesignProfileDark = {
-  badgeEarlyBorder: "#3B3F73",
-  badgeEarlyIcon: "#A5A8F5",
-  badgeEarlySurface: "#2A2D55",
-  badgeInviterBorder: "rgba(52,211,153,.3)",
-  badgeInviterIcon: "#34D399",
-  badgeInviterSurface: "rgba(52,211,153,.12)",
-  badgeSupporterBorder: "#55432A",
-  badgeSupporterIcon: "#E8B36A",
-  badgeSupporterSurface: "#3A2E1B",
+  badgeEarlyBorder: redesignProfileBadgeDark.lavender.border,
+  badgeEarlyIcon: redesignProfileBadgeDark.lavender.icon,
+  badgeEarlySurface: redesignProfileBadgeDark.lavender.surface,
+  badgeInviterBorder: redesignProfileBadgeDark.green.border,
+  badgeInviterIcon: redesignProfileBadgeDark.green.icon,
+  badgeInviterSurface: redesignProfileBadgeDark.green.surface,
+  badgeSupporterBorder: redesignProfileBadgeDark.amber.border,
+  badgeSupporterIcon: redesignProfileBadgeDark.amber.icon,
+  badgeSupporterSurface: redesignProfileBadgeDark.amber.surface,
   bannerControl: "rgba(255,255,255,.18)",
   bannerControlActive: "rgba(255,255,255,.32)",
   bannerControlText: "#FFFFFF",

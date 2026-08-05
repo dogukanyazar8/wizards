@@ -253,6 +253,7 @@ export const EN_MESSAGES = {
     "Channel names can use letters, numbers, spaces, hyphens, or underscores.",
   "validation.email.invalid": "Please enter a valid email address.",
   "validation.form.atLeastOne": "At least one field must be provided.",
+  "validation.password.bcryptMax": "Password must be 72 bytes or fewer when UTF-8 encoded.",
   "validation.password.confirmMismatch": "Passwords do not match.",
   "validation.password.max": "Password must be 100 characters or fewer.",
   "validation.password.min": "Password must be at least 8 characters.",
@@ -1229,6 +1230,18 @@ export const EN_MESSAGES = {
   "settings.account.summaryTitle": "Profile snapshot",
   "settings.account.summaryDescription":
     "A quick view of how your account appears across friends, DMs, and servers.",
+  "settings.account.badges.title": "My badges",
+  "settings.account.badges.description":
+    "The badges you have earned, and how far along the locked ones are.",
+  "settings.account.badges.summary": "{earned}/{total}",
+  "settings.account.badges.earned": "Earned",
+  "settings.account.badges.locked": "Not earned yet",
+  "settings.account.badges.empty": "You have no badges yet.",
+  "settings.account.badges.family.identity": "Identity",
+  "settings.account.badges.family.contribution": "Contribution",
+  "settings.account.badges.family.activity": "Activity",
+  "settings.account.badges.family.commerce": "Support",
+  "settings.account.badges.family.event": "Events",
   "settings.account.profile.edit": "Edit Profile",
   "settings.account.profile.changeStatus": "Change Status",
   "settings.account.copy.username": "Copy username",
@@ -2273,6 +2286,23 @@ export const EN_MESSAGES = {
   "profile.unblock": "Unblock",
   "profile.message": "Message",
   "profile.blockedByThem": "You cannot interact with this user",
+  // Frame copy only: badge names and descriptions live in the catalog
+  // (`packages/types/src/badges.ts`) so the dictionaries cannot drift (00 §5).
+  "profile.badges.title": "Badges",
+  "profile.badges.overflow": "+{count}",
+  "profile.badges.tier": "Tier {tier}",
+  "profile.badges.earned": "Earned in {date}",
+  "profile.badges.expires": "Valid until {date}",
+  "profile.badges.progress": "{value}/{next} {unit}",
+  "profile.badges.maxTier": "Top tier",
+  // Progress units. `second` badges print in hours; raw seconds never reach a
+  // user (06 §1).
+  "profile.badges.unit.day": "days",
+  "profile.badges.unit.hour": "hours",
+  "profile.badges.unit.invite": "invites",
+  "profile.badges.unit.member": "members",
+  "badge.notification.title": "You earned a new badge",
+  "badge.notification.body": "You can see it under My badges.",
 
   "workspace.modal.serverCreateTitle": "Create Server",
   "workspace.modal.serverEditTitle": "Edit Server",

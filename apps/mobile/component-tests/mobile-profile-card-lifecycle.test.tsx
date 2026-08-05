@@ -55,6 +55,15 @@ jest.mock("../src/social/mobile-social-query", () => ({
   }),
 }));
 
+// The badge row runs its own query beside the profile read; this suite is about
+// the card's layer lifecycle, so it stands in as an empty result.
+jest.mock("../src/social/mobile-badges-query", () => ({
+  // The detail sheet reads progress from the own-badges query; it stays idle
+  // here because this suite never opens it.
+  useMobileOwnBadgesQuery: () => ({ data: undefined, isError: false, isLoading: false }),
+  useMobileUserBadgesQuery: () => ({ data: undefined, isError: false, isLoading: false }),
+}));
+
 // The 11e sheets carry their own clients and queries; the card's mount/unmount
 // contract is what this suite is about, so they stand in as inert children.
 jest.mock("../src/social/mobile-user-note-sheet", () => ({ MobileUserNoteSheet: () => null }));

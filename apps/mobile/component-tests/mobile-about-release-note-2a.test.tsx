@@ -20,6 +20,7 @@ import { lightTheme } from "../src/design/themes";
 import { mobileAboutMetrics } from "../src/design/tokens";
 
 type ReleaseNoteScreenProps = {
+  readonly installedVersion?: string;
   readonly onBack: () => void;
   readonly version: string;
   readonly webUrl: string;
@@ -39,10 +40,18 @@ const CHANGES: readonly MobileReleaseChange[] = [
     title: "Sesli mesajlarda canlı dalga formu",
     type: "new",
   },
-  { title: "Kanal listesi %30 daha hızlı açılıyor", type: "improved" },
+  {
+    detail: "Kanal listesi artık önbellekten açılıyor.",
+    title: "Kanal listesi %30 daha hızlı açılıyor",
+    type: "improved",
+  },
   { title: "Okunmamış sayacı anlık güncelleniyor", type: "improved" },
   { title: "Görüntülü arama daha hızlı bağlanıyor", type: "improved" },
-  { title: "Thread yanıtları bildirim göndermiyordu", type: "fixed" },
+  {
+    detail: "Takip edilen başlıklara gelen yanıtlar sessiz kalmıyor.",
+    title: "Thread yanıtları bildirim göndermiyordu",
+    type: "fixed",
+  },
   { title: "Sunucu sessize alma süresi sıfırlanıyordu", type: "fixed" },
 ];
 
@@ -94,11 +103,13 @@ function createQueryClient() {
 
 function renderScreen({
   apiClient = createApiClient(),
+  installedVersion,
   onBack = jest.fn(),
   version = "0.9.0",
   webUrl = "https://whispr.team/base",
 }: {
   readonly apiClient?: ReturnType<typeof createApiClient>;
+  readonly installedVersion?: string;
   readonly onBack?: () => void;
   readonly version?: string;
   readonly webUrl?: string;
@@ -113,7 +124,12 @@ function renderScreen({
     <QueryClientProvider client={createQueryClient()}>
       <MobileThemeProvider>
         <MobileLocaleProvider>
-          <ReleaseNoteScreen onBack={onBack} version={version} webUrl={webUrl} />
+          <ReleaseNoteScreen
+            {...(installedVersion === undefined ? {} : { installedVersion })}
+            onBack={onBack}
+            version={version}
+            webUrl={webUrl}
+          />
         </MobileLocaleProvider>
       </MobileThemeProvider>
     </QueryClientProvider>,
@@ -199,6 +215,50 @@ describe("2a full release note screen", () => {
     expect(view.queryByTestId("mobile-about-release-current-badge")).toBeNull();
     expect(view.queryByTestId("mobile-about-release-summary")).toBeNull();
     expect(view.getByText("24 Tem 2026 · Yapı 8150 · 46,8 MB")).toBeTruthy();
+  });
+
+  it("prints the detail of improvements and fixes, not only their titles", async () => {
+    const view = await renderScreen();
+
+    await view.findByText("İYİLEŞTİRME · 3");
+    expect(view.getByTestId("mobile-about-release-improved-detail-0")).toHaveTextContent(
+      "Kanal listesi artık önbellekten açılıyor.",
+    );
+    expect(view.getByTestId("mobile-about-release-fixed-detail-0")).toHaveTextContent(
+      "Takip edilen başlıklara gelen yanıtlar sessiz kalmıyor.",
+    );
+    // Rows without a detail stay one line: an empty second line would break the
+    // dot-to-baseline rhythm the handoff draws.
+    expect(view.queryByTestId("mobile-about-release-improved-detail-1")).toBeNull();
+    expect(view.queryByTestId("mobile-about-release-fixed-detail-1")).toBeNull();
+
+    const detail = view.getByTestId("mobile-about-release-improved-detail-0");
+    expect(detail.props.numberOfLines).toBeUndefined();
+    expect(flattenStyle(detail.props.style)).toMatchObject({
+      color: lightTheme.about.textTertiary,
+      fontSize: 11.5,
+      lineHeight: 16.675,
+    });
+  });
+
+  it("marks the running build as installed when the response omits the flag", async () => {
+    const view = await renderScreen({
+      apiClient: createApiClient(releaseFixture({ installed: false })),
+      installedVersion: "0.9.0",
+    });
+
+    await view.findByText("YENİ · 2");
+    expect(view.getByTestId("mobile-about-release-current-badge")).toBeTruthy();
+  });
+
+  it("leaves an older version unbadged when a newer build is installed", async () => {
+    const view = await renderScreen({
+      apiClient: createApiClient(releaseFixture({ installed: false })),
+      installedVersion: "0.9.1",
+    });
+
+    await view.findByText("YENİ · 2");
+    expect(view.queryByTestId("mobile-about-release-current-badge")).toBeNull();
   });
 
   it("shares the permanent release URL from the configured web origin", async () => {

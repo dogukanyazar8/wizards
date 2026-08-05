@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { MessageAttachmentSchema } from "./messages";
+import { isBcryptPasswordWithinLimit } from "./password";
 import { DMConversationDTOSchema } from "./socket";
 import { RoleBadgeSchema } from "./workspace";
 
@@ -349,9 +350,17 @@ export const MobileTwoFactorDisableResponseSchema = z.object({ success: z.litera
 
 export const MobilePasswordChangeRequestSchema = z
   .object({
-    confirmPassword: z.string().min(1).max(100),
+    confirmPassword: z
+      .string()
+      .min(1)
+      .max(100)
+      .refine(isBcryptPasswordWithinLimit, "validation.password.bcryptMax"),
     currentPassword: z.string().min(1).max(256),
-    newPassword: z.string().min(8).max(100),
+    newPassword: z
+      .string()
+      .min(8)
+      .max(100)
+      .refine(isBcryptPasswordWithinLimit, "validation.password.bcryptMax"),
   })
   .strict()
   .refine((value) => value.newPassword === value.confirmPassword, {

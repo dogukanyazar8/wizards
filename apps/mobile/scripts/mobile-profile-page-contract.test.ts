@@ -5,6 +5,11 @@ import { describe, it } from "node:test";
 
 import { darkTheme, lightTheme } from "../src/design/themes";
 import { mobileCopy } from "../src/locale/mobile-copy";
+import {
+  PROFILE_BADGE_CHIP_RADIUS,
+  PROFILE_BADGE_CHIP_SIZE,
+  PROFILE_BADGE_GLYPH_SIZE,
+} from "../src/social/profile-badges/profile-badge-chips.styles";
 import { MOBILE_PROFILE_PAGE_METRICS } from "../src/social/profile-page/mobile-profile-page.styles";
 
 function read(relativePath: string): string {
@@ -108,8 +113,11 @@ describe("11c profile page contract", () => {
     assert.equal(MOBILE_PROFILE_PAGE_METRICS.avatarRadius, 28);
     assert.equal(MOBILE_PROFILE_PAGE_METRICS.avatarOffsetTop, -40);
     assert.equal(MOBILE_PROFILE_PAGE_METRICS.presenceDot, 19);
-    assert.equal(MOBILE_PROFILE_PAGE_METRICS.badge, 28);
-    assert.equal(MOBILE_PROFILE_PAGE_METRICS.badgeRadius, 10);
+    // The chip measures moved to the shared badge row the card and the page now
+    // both render; 1c:491 and 1a:330 draw the same box, so one source holds it.
+    assert.equal(PROFILE_BADGE_CHIP_SIZE, 28);
+    assert.equal(PROFILE_BADGE_CHIP_RADIUS, 10);
+    assert.equal(PROFILE_BADGE_GLYPH_SIZE, 14);
     assert.equal(MOBILE_PROFILE_PAGE_METRICS.serverAvatar, 40);
     assert.equal(MOBILE_PROFILE_PAGE_METRICS.serverAvatarRadius, 14);
     assert.equal(MOBILE_PROFILE_PAGE_METRICS.mutualAvatar, 30);

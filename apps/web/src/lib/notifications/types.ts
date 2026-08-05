@@ -10,6 +10,7 @@ export interface NotificationActorDTO {
 export interface NotificationDTO {
   id: string;
   type:
+    | "BADGE"
     | "FRIEND_REQUEST"
     | "FRIEND_ACCEPTED"
     | "DM"

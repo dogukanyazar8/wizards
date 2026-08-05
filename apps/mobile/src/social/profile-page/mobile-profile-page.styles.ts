@@ -14,9 +14,6 @@ export const MOBILE_PROFILE_PAGE_METRICS = {
   avatarOffsetLeft: 18,
   avatarOffsetTop: -40,
   avatarRadius: 28,
-  badge: 28,
-  badgeGlyph: 14,
-  badgeRadius: 10,
   bannerHeight: 148,
   bannerNavPaddingHorizontal: 16,
   bannerNavPaddingTop: 6,
@@ -123,20 +120,15 @@ export const createMobileProfilePageStyles = (theme: MobileTheme) =>
       right: METRICS.presenceDotOffset,
       width: METRICS.presenceDot,
     },
+    /**
+     * Placement only — 1c:490 pins the row to the identity card's top-right
+     * corner. The chips come from the shared `ProfileBadgeChips`, which owns
+     * their 28×28 r10 geometry for both this page and the 11b card.
+     */
     identityBadges: {
-      flexDirection: "row",
-      gap: 6,
       position: "absolute",
       right: 14,
       top: 12,
-    },
-    identityBadge: {
-      alignItems: "center",
-      borderRadius: METRICS.badgeRadius,
-      borderWidth: theme.layout.border.hairline,
-      height: METRICS.badge,
-      justifyContent: "center",
-      width: METRICS.badge,
     },
     identityNameBlock: { flexDirection: "column", gap: 1 },
     identityName: {

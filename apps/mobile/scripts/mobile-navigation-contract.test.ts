@@ -414,8 +414,11 @@ test("edge-to-edge tab bar uses canonical styling and typed DM unread state", ()
   assert.match(bottomTabBar, /mobileNavigationMetrics\.tabBarPaddingBottom \+ bottomSafeAreaInset/);
   assert.match(bottomTabBar, /theme\.surface\.card/);
   assert.match(bottomTabBar, /theme\.elevation\.tabBar/);
-  assert.match(bottomTabBar, /mobile-bottom-tab-unread-dot/);
-  assert.doesNotMatch(bottomTabBar, /navBadgeText|Math\.min\(badge/);
+  // Messages and notifications carry the same counted badge; the bare DM dot it
+  // replaced could not say how many messages were waiting.
+  assert.match(bottomTabBar, /mobile-bottom-tab-\$\{tabId\}-badge/);
+  assert.doesNotMatch(bottomTabBar, /navUnreadDot|Math\.min\(badge/);
+  assert.match(bottomTabBar, /formatMobileUnreadCount\(unreadBadgeCount\)/);
   assert.match(bottomTabBar, /pendingTabKeyRef/);
   assert.match(messagingFeature, /getMobileDMUnreadCount\(dmConversationsQuery\.data\)/);
   assert.doesNotMatch(messagingFeature, /bootstrapState\.summary\.unreadDirectMessageCount/);

@@ -42,8 +42,8 @@ import {
   MobileAboutUpdateChannelScreen,
   MobileBugReportScreen,
   MobileCommunityInviteScreen,
-  resolveAboutRuntimeReleaseChannel,
 } from "./about/about-screen-shells";
+import { getMobileAppReleaseChannel } from "../../about/mobile-app-identity";
 import { MobileHelpCenterScreen } from "./about/about-help-center-screen";
 import { MobileAboutWhatsNewScreen } from "./about/about-whats-new-screen";
 import { MobileFeedbackFlowScreen } from "../../feedback/mobile-feedback-flow-screen";
@@ -646,6 +646,9 @@ export function SettingsDetailScreenContainer({
     <ProfileSettingsScreen
       {...useMobileSettingsScreenProps()}
       activeSection={route.params.section}
+      // Carried through rather than read here: only the badges section knows
+      // what to do with it (07 §4).
+      activeBadgeId={route.params.badgeId}
       onBack={() => navigation.goBack()}
     />
   );
@@ -748,6 +751,7 @@ export function AboutReleaseNoteScreenContainer({
   return (
     <MobileAboutReleaseNoteScreen
       key={route.params.version}
+      installedVersion={mobilePackageJson.version}
       onBack={() => navigation.goBack()}
       version={route.params.version}
       webUrl={getMobileRuntimeConfig().webUrl}
@@ -772,7 +776,7 @@ export function AboutUpdateChannelScreenContainer({
 }: NativeStackScreenProps<MobileRootStackParamList, "AboutUpdateChannel">) {
   return (
     <MobileAboutUpdateChannelScreen
-      currentChannel={resolveAboutRuntimeReleaseChannel(getMobileRuntimeConfig().releaseChannel)}
+      currentChannel={getMobileAppReleaseChannel()}
       onBack={() => navigation.goBack()}
     />
   );
@@ -805,9 +809,7 @@ export function BugReportScreenContainer({
       appBuild={app?.buildId ?? runtime.buildId}
       appVersion={app?.version ?? mobilePackageJson.version}
       onBack={() => navigation.goBack()}
-      releaseChannel={resolveAboutRuntimeReleaseChannel(
-        app?.releaseChannel ?? getMobileRuntimeConfig().releaseChannel,
-      )}
+      releaseChannel={getMobileAppReleaseChannel()}
       {...(route.params?.category === undefined ? {} : { category: route.params.category })}
     />
   );

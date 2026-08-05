@@ -1008,8 +1008,10 @@ $resolvedBuildId = $resolvedBuildId.ToLowerInvariant()
 # different uncommitted work both reported `b1528b6c5367`, and their device runs
 # differed by a factor of two on the same metric — the wave that produced the
 # improvement could not be told apart from the one before it. A dirty tree says so.
-$workingTreeStatus = @(& git -C $resolvedSourceRoot status --porcelain 2>$null) |
-  Where-Object { "$_".Trim().Length -gt 0 }
+$workingTreeStatus = @(
+  & git -C $resolvedSourceRoot status --porcelain 2>$null |
+    Where-Object { "$_".Trim().Length -gt 0 }
+)
 if ($workingTreeStatus.Count -gt 0) {
   $resolvedBuildId = "$resolvedBuildId-dirty"
   Write-Warning "Working tree has $($workingTreeStatus.Count) uncommitted change(s); this APK reports its build as '$resolvedBuildId'."

@@ -2,10 +2,13 @@ import { Pressable, Text, View } from "react-native";
 
 import { Avatar } from "../../app/components/kit/avatar";
 import { MobileCachedImage } from "../../app/components/mobile-cached-image";
+import { useMobileBannerHeight } from "../mobile-banner-frame";
 import { mobileBannerContentPosition } from "../mobile-banner-offset";
 import { useTheme } from "../../app/providers/mobile-theme-provider";
 import { MobileLineIcon, type MobileLineIconName } from "../../design/mobile-line-icons";
 import { activeMobileCopy as copy } from "../../locale/mobile-locale-preferences";
+import type { EarnedBadge } from "@wizards/types";
+
 import type { MobileUserProfile } from "../mobile-social-client";
 import {
   formatMobileProfileStatusLine,
@@ -20,14 +23,15 @@ import {
 import {
   getProfileCardStatusColor,
   ProfileActionRow,
-  ProfileBadgeChips,
   ProfileMutualRow,
   ProfileRoleChips,
   ProfileStatusDot,
 } from "./profile-card-parts";
+import { ProfileBadgeChips } from "../profile-badges/profile-badge-chips";
 import {
   PROFILE_CARD_AVATAR_RADIUS,
   PROFILE_CARD_AVATAR_SIZE,
+  PROFILE_CARD_WIDTH,
   useProfileCardStyles,
 } from "./profile-card.styles";
 
@@ -97,10 +101,18 @@ function ProfileCardBanner({
     ? (profile?.bannerColor ?? theme.profileCard.bannerDefault)
     : theme.profileCard.bannerNeutral;
   const bannerUrl = isPersonal ? (profile?.bannerUrl ?? null) : null;
+  // A photo takes the identity card's proportions so the crop matches the frame
+  // its owner positioned it in; the 92px strip stays for the flat-colour banner,
+  // which has no framing to preserve.
+  const photoHeight = useMobileBannerHeight(PROFILE_CARD_WIDTH);
 
   return (
     <View
-      style={[styles.banner, { backgroundColor: background }]}
+      style={[
+        styles.banner,
+        bannerUrl ? { height: photoHeight } : null,
+        { backgroundColor: background },
+      ]}
       testID="mobile-profile-card-banner"
     >
       {bannerUrl ? (
@@ -193,6 +205,17 @@ export function ProfileCardErrorState({ onRetry }: { onRetry(): void }) {
 }
 
 export interface ProfileCardViewProps extends ProfileCardViewHandlers {
+  /**
+   * From the badge query, not from `profile.badges`: the profile payload's
+   * field is frozen to the three 0.8.x ids (00 §2) and no longer read by any
+   * screen.
+   */
+  readonly badges: readonly EarnedBadge[];
+  /** Badges resolve on their own request; the row holds its height until then. */
+  readonly badgesLoading: boolean;
+  /** 06: a chip opens the detail sheet over the card; the card stays up. */
+  readonly onPressBadge: ((badge: EarnedBadge) => void) | undefined;
+  readonly onPressBadgeOverflow: (() => void) | undefined;
   readonly busy: boolean;
   readonly menu: React.ReactNode;
   readonly onOpenMenu: (() => void) | null;
@@ -202,6 +225,8 @@ export interface ProfileCardViewProps extends ProfileCardViewHandlers {
 
 /** Presentational card body; every variant in README 1a/1b/1d renders from here. */
 export function ProfileCardView({
+  badges,
+  badgesLoading,
   busy,
   menu,
   onAddFriend,
@@ -211,6 +236,8 @@ export function ProfileCardView({
   onOpenMenu,
   onOpenMutuals,
   onOpenStatusPicker,
+  onPressBadge,
+  onPressBadgeOverflow,
   onRespondToRequest,
   onUnblock,
   onVideoCall,
@@ -279,7 +306,16 @@ export function ProfileCardView({
             />
             <ProfileStatusDot tone={isBlocked ? "offline" : tone} />
           </View>
-          {isBlocked ? null : <ProfileBadgeChips badges={profile.badges} />}
+          {isBlocked ? null : (
+            <ProfileBadgeChips
+              badges={badges}
+              loading={badgesLoading}
+              {...(onPressBadge ? { onPressBadge } : {})}
+              {...(onPressBadgeOverflow ? { onPressOverflow: onPressBadgeOverflow } : {})}
+              style={styles.badgeRow}
+              testID="mobile-profile-card-badges"
+            />
+          )}
         </View>
         <View style={styles.nameBlock}>
           <Text numberOfLines={1} style={styles.displayName} testID="mobile-profile-card-name">

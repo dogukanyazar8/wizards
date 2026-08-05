@@ -57,10 +57,7 @@ function AboutRouteShell({
 export { MobileAboutWhatsNewScreen } from "./about-whats-new-screen";
 export { MobileAboutReleaseHistoryScreen } from "./about-release-history-screen";
 export { MobileAboutReleaseNoteScreen } from "./about-release-note-screen";
-export {
-  MobileAboutUpdateChannelScreen,
-  resolveAboutRuntimeReleaseChannel,
-} from "./about-channel-screen";
+export { MobileAboutUpdateChannelScreen } from "./about-channel-screen";
 export { MobileHelpCenterScreen } from "./about-help-center-screen";
 export { MobileBugReportScreen } from "./about-bug-report-screen";
 export { MobileCommunityInviteScreen } from "./about-community-invite-screen";

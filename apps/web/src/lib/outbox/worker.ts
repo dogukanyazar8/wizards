@@ -1,4 +1,5 @@
 import { logError } from "@/lib/logger";
+import { sweepBadges as sweepBadgesService } from "@/lib/badges/badge-sweep";
 import { cleanupAccountReauthChallenges } from "@/lib/auth/reauth-cleanup";
 import { cleanupMobileMediaUploads as cleanupMobileMediaUploadsService } from "@/lib/mobile/mobile-media-upload-service";
 import { cleanupOutboxJobs, drainOutboxJobs } from "@/lib/outbox/service";
@@ -23,6 +24,7 @@ type StartOutboxWorkerOptions = {
   intervalMs?: number;
   purgeExpiredEvidence?: typeof purgeExpiredEvidenceService;
   rollUpClientHealthEvents?: typeof rollUpClientHealthEventsService;
+  sweepBadges?: typeof sweepBadgesService;
   sweepModerationCaseAlerts?: typeof sweepModerationCaseAlertsService;
   keepAlive?: boolean;
   runImmediately?: boolean;
@@ -48,6 +50,7 @@ export function startOutboxWorker({
   purgeExpiredEvidence = purgeExpiredEvidenceService,
   rollUpClientHealthEvents = rollUpClientHealthEventsService,
   runImmediately = true,
+  sweepBadges = sweepBadgesService,
   sweepModerationCaseAlerts = sweepModerationCaseAlertsService,
   workerId: configuredWorkerId,
 }: StartOutboxWorkerOptions = {}) {
@@ -85,6 +88,10 @@ export function startOutboxWorker({
         // "Open for more than a day" only becomes a notification if something
         // periodic looks; this hourly block is the only scheduler the app has.
         await sweepModerationCaseAlerts({ now: cleanupNow });
+        // Same reason the badge engine's periodic half rides along: recomputing
+        // `founder` and applying moderation revocations needs a clock, and this
+        // is the only one.
+        await sweepBadges({ now: cleanupNow });
       })
       .catch((error) => {
         logError("[outbox] Worker drain failed", error);

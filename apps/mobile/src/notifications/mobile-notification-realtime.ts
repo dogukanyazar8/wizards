@@ -1,5 +1,6 @@
 import type { InfiniteData, QueryClient } from "@tanstack/react-query";
 import {
+  BadgeIdSchema,
   MobileNotificationEventKindSchema,
   type MobileNotificationEventKind,
   type MobileNotificationFilter,
@@ -56,9 +57,14 @@ export function toMobileNotificationItem(
   // the row can offer accept/decline without waiting for the list refetch.
   const inviteCode = getMetadataString(metadata, "inviteCode", INVITE_CODE_MAX_LENGTH);
 
+  const badgeId = BadgeIdSchema.safeParse(getMetadataString(metadata, "badgeId", 64));
+
   return {
     actionUrl: event.actionUrl,
     actor: event.actor ?? null,
+    // Same per-type narrowing the two fields below use: a badge id only means
+    // something on a BADGE row.
+    badgeId: event.type === "BADGE" && badgeId.success ? badgeId.data : null,
     body: event.body,
     channel: event.channel ?? null,
     createdAt: event.createdAt,

@@ -47,11 +47,11 @@ import {
   isCameraDeviceUnavailable,
   isCameraPermissionDenied,
   isLikelyKrispSecurityPolicyError,
-  isMicrophoneConstraintError,
   isMicrophoneDeviceUnavailable,
   isMicrophonePermissionDenied,
   isScreenSharePermissionDenied,
 } from "@/lib/voice/error-classification";
+import { resolveMicrophoneCaptureRetry } from "@/lib/voice/microphone-capture-retry";
 import {
   buildAudioCaptureOptions,
   buildCameraCaptureOptions,
@@ -146,6 +146,7 @@ import {
 const NEXT_PUBLIC_LIVEKIT_URL = process.env.NEXT_PUBLIC_LIVEKIT_URL ?? "";
 const RECONNECT_TIMEOUT_MS = 30_000;
 const MICROPHONE_HEALTH_CHECK_INTERVAL_MS = 2_500;
+const MICROPHONE_AUTO_RECOVERY_MAX_ATTEMPTS = 3;
 const VOICE_AUDIO_HEALTH_METRICS_INTERVAL_MS = 30_000;
 const KRISP_PROCESSOR_NAME = "livekit-noise-filter";
 const KRISP_BUFFER_DROP_MS = 300;
@@ -179,6 +180,19 @@ function loadKrispModule() {
   return krispModulePromise;
 }
 
+function requirePublishedMicrophoneTrack(targetRoom: Room) {
+  const track = getLocalMicrophoneTrack(targetRoom);
+
+  // LiveKit resolves setMicrophoneEnabled without a track when it deduplicates a concurrent
+  // publish attempt that timed out. Treating that as success is what left the room reporting an
+  // unmuted microphone while nothing was published.
+  if (!isLocalMicrophoneTrackLive(track)) {
+    throw new Error("Microphone track was not published");
+  }
+
+  return track;
+}
+
 export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
@@ -195,6 +209,8 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
   } | null>(null);
   const microphoneRecoveryRunnerRef = useRef<((targetRoom: Room) => Promise<boolean>) | null>(null);
   const microphoneIntentionalMuteRef = useRef(false);
+  const microphonePublishInFlightRef = useRef(0);
+  const microphoneAutoRecoveryAttemptsRef = useRef(0);
   const remoteAudioLevelsRef = useRef(new Map<string, RemoteVoiceAudioLevel>());
   const [reconnectTimeoutController] = useState(() =>
     createReconnectTimeoutController<ReturnType<typeof setTimeout>>({
@@ -469,22 +485,45 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
     [participantVolumes],
   );
 
-  const requestMicrophonePermission = useCallback(async () => {
-    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
-      return false;
-    }
+  const requestMicrophonePermission = useCallback(
+    async ({ promptWhenUnknown = false }: { promptWhenUnknown?: boolean } = {}) => {
+      if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+        return false;
+      }
 
-    const permissionState = await getMicrophonePermissionState();
-    if (permissionState === "denied") {
-      return false;
-    }
+      const permissionState = await getMicrophonePermissionState();
+      if (permissionState === "denied") {
+        return false;
+      }
 
-    return true;
-  }, []);
+      if (permissionState === "granted" || !promptWhenUnknown) {
+        return true;
+      }
+
+      // "prompt" (and browsers without the Permissions API) means the user has never answered, so
+      // querying alone cannot report access. Raise the real prompt here, otherwise the join flow
+      // reports an unmuted microphone it does not own yet.
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        for (const track of stream.getTracks()) {
+          track.stop();
+        }
+
+        return true;
+      } catch (error) {
+        if (isMicrophonePermissionDenied(error)) {
+          return false;
+        }
+
+        throw error;
+      }
+    },
+    [],
+  );
 
   const prepareForVoiceJoin = useCallback(async () => {
     try {
-      const granted = await requestMicrophonePermission();
+      const granted = await requestMicrophonePermission({ promptWhenUnknown: true });
       preparedMicrophoneAccessRef.current = granted;
       return granted;
     } catch (error) {
@@ -994,69 +1033,62 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
 
   const enableLocalMicrophone = useCallback(
     async (targetRoom: Room, preferences: VoiceAudioPreferences) => {
+      microphonePublishInFlightRef.current += 1;
+
       try {
-        const captureConfig = getAudioCaptureConfig(preferences);
-        await targetRoom.localParticipant.setMicrophoneEnabled(
-          true,
-          buildAudioCaptureOptions(preferences, {
-            enhancedNoiseFilterActive: captureConfig.enhancedNoiseFilterActive,
-          }),
-        );
+        try {
+          const captureConfig = getAudioCaptureConfig(preferences);
+          await targetRoom.localParticipant.setMicrophoneEnabled(
+            true,
+            buildAudioCaptureOptions(preferences, {
+              enhancedNoiseFilterActive: captureConfig.enhancedNoiseFilterActive,
+            }),
+          );
 
-        return {
-          preferences,
-          processingProfile: captureConfig.processingProfile,
-          track: getLocalMicrophoneTrack(targetRoom),
-        };
-      } catch (error) {
-        const shouldRetryWithDefaultDevice =
-          preferences.inputDeviceId !== DEFAULT_AUDIO_DEVICE_ID &&
-          isMicrophoneDeviceUnavailable(error);
+          return {
+            preferences,
+            processingProfile: captureConfig.processingProfile,
+            track: requirePublishedMicrophoneTrack(targetRoom),
+          };
+        } catch (error) {
+          const retry = resolveMicrophoneCaptureRetry(preferences, error);
+          if (!retry) {
+            throw error;
+          }
 
-        const shouldRetryWithStableProcessing =
-          !shouldRetryWithDefaultDevice &&
-          preferences.voiceIsolation &&
-          isMicrophoneConstraintError(error);
+          logError(
+            retry.reason === "default-device"
+              ? "[voice] Selected microphone unavailable, retrying system default"
+              : retry.reason === "stable-processing"
+                ? "[voice] Advanced microphone processing unavailable, retrying stable profile"
+                : "[voice] Default microphone capture failed, retrying with plain constraints",
+            error,
+          );
 
-        if (!shouldRetryWithDefaultDevice && !shouldRetryWithStableProcessing) {
-          throw error;
+          if (retry.persistDeviceFallback) {
+            useVoiceStore.getState().setAudioPreference("inputDeviceId", DEFAULT_AUDIO_DEVICE_ID);
+          }
+
+          if (retry.persistProcessingFallback) {
+            useVoiceStore.getState().setAudioPreference("voiceIsolation", false);
+          }
+
+          const fallbackCaptureConfig = getAudioCaptureConfig(retry.preferences);
+          await targetRoom.localParticipant.setMicrophoneEnabled(
+            true,
+            buildAudioCaptureOptions(retry.preferences, {
+              enhancedNoiseFilterActive: fallbackCaptureConfig.enhancedNoiseFilterActive,
+            }),
+          );
+
+          return {
+            preferences: retry.preferences,
+            processingProfile: fallbackCaptureConfig.processingProfile,
+            track: requirePublishedMicrophoneTrack(targetRoom),
+          };
         }
-
-        logError(
-          shouldRetryWithDefaultDevice
-            ? "[voice] Selected microphone unavailable, retrying system default"
-            : "[voice] Advanced microphone processing unavailable, retrying stable profile",
-          error,
-        );
-        const fallbackPreferences = {
-          ...preferences,
-          inputDeviceId: shouldRetryWithDefaultDevice
-            ? DEFAULT_AUDIO_DEVICE_ID
-            : preferences.inputDeviceId,
-          voiceIsolation: shouldRetryWithStableProcessing ? false : preferences.voiceIsolation,
-        };
-
-        if (shouldRetryWithDefaultDevice) {
-          useVoiceStore.getState().setAudioPreference("inputDeviceId", DEFAULT_AUDIO_DEVICE_ID);
-        }
-
-        if (shouldRetryWithStableProcessing) {
-          useVoiceStore.getState().setAudioPreference("voiceIsolation", false);
-        }
-
-        const fallbackCaptureConfig = getAudioCaptureConfig(fallbackPreferences);
-        await targetRoom.localParticipant.setMicrophoneEnabled(
-          true,
-          buildAudioCaptureOptions(fallbackPreferences, {
-            enhancedNoiseFilterActive: fallbackCaptureConfig.enhancedNoiseFilterActive,
-          }),
-        );
-
-        return {
-          preferences: fallbackPreferences,
-          processingProfile: fallbackCaptureConfig.processingProfile,
-          track: getLocalMicrophoneTrack(targetRoom),
-        };
+      } finally {
+        microphonePublishInFlightRef.current -= 1;
       }
     },
     [getAudioCaptureConfig],
@@ -1101,51 +1133,36 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
             );
             appliedAudioPreferencesSignatureRef.current = nextSignature;
           } catch (error) {
-            const shouldRetryWithDefaultDevice =
-              audioPreferences.inputDeviceId !== DEFAULT_AUDIO_DEVICE_ID &&
-              isMicrophoneDeviceUnavailable(error);
-
-            const shouldRetryWithStableProcessing =
-              !shouldRetryWithDefaultDevice &&
-              audioPreferences.voiceIsolation &&
-              isMicrophoneConstraintError(error);
-
-            if (!shouldRetryWithDefaultDevice && !shouldRetryWithStableProcessing) {
+            const retry = resolveMicrophoneCaptureRetry(audioPreferences, error);
+            if (!retry) {
               throw error;
             }
 
             logError(
-              shouldRetryWithDefaultDevice
+              retry.reason === "default-device"
                 ? "[voice] Microphone restart failed, retrying system default"
-                : "[voice] Advanced microphone restart failed, retrying stable profile",
+                : retry.reason === "stable-processing"
+                  ? "[voice] Advanced microphone restart failed, retrying stable profile"
+                  : "[voice] Microphone restart failed, retrying with plain constraints",
               error,
             );
-            const fallbackPreferences = {
-              ...audioPreferences,
-              inputDeviceId: shouldRetryWithDefaultDevice
-                ? DEFAULT_AUDIO_DEVICE_ID
-                : audioPreferences.inputDeviceId,
-              voiceIsolation: shouldRetryWithStableProcessing
-                ? false
-                : audioPreferences.voiceIsolation,
-            };
 
-            if (shouldRetryWithDefaultDevice) {
+            if (retry.persistDeviceFallback) {
               useVoiceStore.getState().setAudioPreference("inputDeviceId", DEFAULT_AUDIO_DEVICE_ID);
             }
 
-            if (shouldRetryWithStableProcessing) {
+            if (retry.persistProcessingFallback) {
               useVoiceStore.getState().setAudioPreference("voiceIsolation", false);
             }
 
-            const fallbackCaptureConfig = getAudioCaptureConfig(fallbackPreferences);
+            const fallbackCaptureConfig = getAudioCaptureConfig(retry.preferences);
             await localMicrophoneTrack.restartTrack(
-              buildAudioCaptureOptions(fallbackPreferences, {
+              buildAudioCaptureOptions(retry.preferences, {
                 enhancedNoiseFilterActive: fallbackCaptureConfig.enhancedNoiseFilterActive,
               }),
             );
             appliedAudioPreferencesSignatureRef.current = getAudioCaptureRestartSignature(
-              fallbackPreferences,
+              retry.preferences,
               fallbackCaptureConfig.processingProfile,
             );
             activeCaptureConfig = fallbackCaptureConfig;
@@ -1178,17 +1195,32 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
         return false;
       }
 
-      if (roomRef.current !== targetRoom || targetRoom.state === ConnectionState.Disconnected) {
+      // Publishing before the signal connection is up throws a non-permission LiveKit error, which
+      // surfaces as the generic "microphone could not be enabled" banner.
+      if (roomRef.current !== targetRoom || targetRoom.state !== ConnectionState.Connected) {
         return false;
       }
 
       if (isLocalMicrophoneTrackLive(getLocalMicrophoneTrack(targetRoom))) {
+        microphoneAutoRecoveryAttemptsRef.current = 0;
         return true;
+      }
+
+      // A publish is already in flight (its permission prompt may still be open); starting a second
+      // one only makes LiveKit spin on its 10s pending-publication wait.
+      if (microphonePublishInFlightRef.current > 0) {
+        return false;
+      }
+
+      if (microphoneAutoRecoveryAttemptsRef.current >= MICROPHONE_AUTO_RECOVERY_MAX_ATTEMPTS) {
+        return false;
       }
 
       if (microphoneRecoveryPromiseRef.current?.room === targetRoom) {
         return microphoneRecoveryPromiseRef.current.promise;
       }
+
+      microphoneAutoRecoveryAttemptsRef.current += 1;
 
       const recovery = (async () => {
         const microphoneDeniedMessage = isDesktopRuntime
@@ -1206,34 +1238,30 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
             return false;
           }
 
-          if (roomRef.current !== targetRoom || targetRoom.state === ConnectionState.Disconnected) {
+          if (roomRef.current !== targetRoom || targetRoom.state !== ConnectionState.Connected) {
             return false;
           }
 
-          const {
-            preferences,
-            processingProfile,
-            track: localMicrophoneTrack,
-          } = await enableLocalMicrophone(targetRoom, useVoiceStore.getState().audioPreferences);
+          const { preferences, track: localMicrophoneTrack } = await enableLocalMicrophone(
+            targetRoom,
+            useVoiceStore.getState().audioPreferences,
+          );
 
           if (roomRef.current !== targetRoom) {
             await stopLocalTracks(targetRoom).catch(() => undefined);
             return false;
           }
 
-          let nextProcessingProfile = processingProfile;
-          if (localMicrophoneTrack) {
-            const syncedNoiseFilter = await syncNoiseFilterForTrack(
-              localMicrophoneTrack,
-              preferences,
-            );
-            nextProcessingProfile = syncedNoiseFilter.processingProfile;
-          }
+          const syncedNoiseFilter = await syncNoiseFilterForTrack(
+            localMicrophoneTrack,
+            preferences,
+          );
 
           appliedAudioPreferencesSignatureRef.current = getAudioCaptureRestartSignature(
             preferences,
-            nextProcessingProfile,
+            syncedNoiseFilter.processingProfile,
           );
+          microphoneAutoRecoveryAttemptsRef.current = 0;
           useVoiceStore.getState().setMuted(false);
           setErrorMessage(null);
           syncParticipants(targetRoom);
@@ -1244,6 +1272,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
               "[voice] Microphone recovery reported an error after track was published",
               error,
             );
+            microphoneAutoRecoveryAttemptsRef.current = 0;
             useVoiceStore.getState().setMuted(false);
             setErrorMessage(null);
             syncParticipants(targetRoom);
@@ -1724,6 +1753,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
     appliedAudioPreferencesSignatureRef.current = null;
     microphoneRecoveryPromiseRef.current = null;
     microphoneIntentionalMuteRef.current = false;
+    microphoneAutoRecoveryAttemptsRef.current = 0;
     lastEmittedScreenShareStateRef.current = null;
     setRoom(null);
     setParticipants([]);
@@ -1856,6 +1886,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       }
 
       joinRequestRef.current = nextJoinKey;
+      microphoneAutoRecoveryAttemptsRef.current = 0;
 
       let hasMicrophoneAccess = shouldStartMuted;
       const preparedMicrophoneAccess = preparedMicrophoneAccessRef.current;
@@ -1867,7 +1898,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
         hasMicrophoneAccess = preparedMicrophoneAccess;
       } else {
         try {
-          hasMicrophoneAccess = await requestMicrophonePermission();
+          hasMicrophoneAccess = await requestMicrophonePermission({ promptWhenUnknown: true });
         } catch (error) {
           if (isMicrophonePermissionDenied(error)) {
             hasMicrophoneAccess = false;
@@ -2076,31 +2107,31 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
         }
 
         void enableLocalMicrophone(nextRoom, useVoiceStore.getState().audioPreferences)
-          .then(async ({ preferences, processingProfile, track: localMicrophoneTrack }) => {
+          .then(async ({ preferences, track: localMicrophoneTrack }) => {
             if (roomRef.current !== nextRoom) {
               await stopLocalTracks(nextRoom).catch(() => undefined);
               return;
             }
 
-            let nextProcessingProfile = processingProfile;
-            let resolvedTier: NoiseFilterTier = "off";
-            if (localMicrophoneTrack) {
-              const syncedNoiseFilter = await syncNoiseFilterForTrack(
-                localMicrophoneTrack,
-                preferences,
-              );
-              const isKrispActive = syncedNoiseFilter.isKrispActive;
-              nextProcessingProfile = syncedNoiseFilter.processingProfile;
-              resolvedTier = resolveNoiseFilterTierForPreferences(preferences, {
+            const syncedNoiseFilter = await syncNoiseFilterForTrack(
+              localMicrophoneTrack,
+              preferences,
+            );
+            const isKrispActive = syncedNoiseFilter.isKrispActive;
+            const resolvedTier: NoiseFilterTier = resolveNoiseFilterTierForPreferences(
+              preferences,
+              {
                 isKrispNoiseCancellationActive: isKrispActive,
                 krispQuality: isKrispActive ? krispProcessorQualityRef.current : null,
-              });
-            }
+              },
+            );
+
             recordNoiseFilterTierResolved(resolvedTier);
             appliedAudioPreferencesSignatureRef.current = getAudioCaptureRestartSignature(
               preferences,
-              nextProcessingProfile,
+              syncedNoiseFilter.processingProfile,
             );
+            microphoneAutoRecoveryAttemptsRef.current = 0;
             setErrorMessage(null);
             useVoiceStore.getState().setMuted(false);
             syncRoomParticipants();
@@ -2115,6 +2146,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
                 "[voice] Microphone enable reported an error after track was published",
                 error,
               );
+              microphoneAutoRecoveryAttemptsRef.current = 0;
               setErrorMessage(null);
               syncRoomParticipants();
               return;
@@ -2123,7 +2155,11 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
             setIsKrispNoiseCancellationActive(false);
             setActiveKrispQuality(null);
             recordNoiseFilterTierResolved("off");
-            useVoiceStore.getState().setMuted(true);
+            // Only a denial should mute the participant. Muting on a transient capture failure also
+            // switches off the health-check recovery, which is what left the control dead.
+            if (isMicrophonePermissionDenied(error)) {
+              useVoiceStore.getState().setMuted(true);
+            }
             setErrorMessage(
               isMicrophonePermissionDenied(error)
                 ? microphoneDeniedMessage
@@ -2252,9 +2288,10 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       setIsKrispNoiseCancellationActive(false);
     } else {
       const nextAudioPreferences = useVoiceStore.getState().audioPreferences;
+      let hasMicrophoneAccess = false;
 
       try {
-        await requestMicrophonePermission();
+        hasMicrophoneAccess = await requestMicrophonePermission({ promptWhenUnknown: true });
       } catch (error) {
         if (isMicrophonePermissionDenied(error)) {
           setErrorMessage(microphoneDeniedMessage);
@@ -2267,23 +2304,25 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
         return;
       }
 
+      if (!hasMicrophoneAccess) {
+        setErrorMessage(microphoneDeniedMessage);
+        useVoiceStore.getState().setMuted(true);
+        syncParticipants(activeRoom);
+        return;
+      }
+
+      // An explicit unmute is a fresh intent, so the automatic recovery budget starts over.
+      microphoneAutoRecoveryAttemptsRef.current = 0;
+
       try {
-        const {
-          preferences,
-          processingProfile,
-          track: localMicrophoneTrack,
-        } = await enableLocalMicrophone(activeRoom, nextAudioPreferences);
-        let nextProcessingProfile = processingProfile;
-        if (localMicrophoneTrack) {
-          const syncedNoiseFilter = await syncNoiseFilterForTrack(
-            localMicrophoneTrack,
-            preferences,
-          );
-          nextProcessingProfile = syncedNoiseFilter.processingProfile;
-        }
+        const { preferences, track: localMicrophoneTrack } = await enableLocalMicrophone(
+          activeRoom,
+          nextAudioPreferences,
+        );
+        const syncedNoiseFilter = await syncNoiseFilterForTrack(localMicrophoneTrack, preferences);
         appliedAudioPreferencesSignatureRef.current = getAudioCaptureRestartSignature(
           preferences,
-          nextProcessingProfile,
+          syncedNoiseFilter.processingProfile,
         );
         setErrorMessage(null);
       } catch (error) {
@@ -2296,12 +2335,17 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
         }
 
         setIsKrispNoiseCancellationActive(false);
-        useVoiceStore.getState().setMuted(true);
-        setErrorMessage(
-          isMicrophonePermissionDenied(error)
-            ? microphoneDeniedMessage
-            : microphoneEnableFailedMessage,
-        );
+        if (isMicrophonePermissionDenied(error)) {
+          useVoiceStore.getState().setMuted(true);
+          setErrorMessage(microphoneDeniedMessage);
+          syncParticipants(activeRoom);
+          return;
+        }
+
+        // Keep the unmute intent so the health check can retry the capture; forcing muted here is
+        // what made the control look dead after the first failure.
+        useVoiceStore.getState().setMuted(false);
+        setErrorMessage(microphoneEnableFailedMessage);
         syncParticipants(activeRoom);
         return;
       }
@@ -2649,7 +2693,10 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
     const recoverMissingMicrophone = () => {
       if (
         roomRef.current !== targetRoom ||
-        targetRoom.state === ConnectionState.Disconnected ||
+        // Only republish on a live signal connection, and never while a publish (whose permission
+        // prompt may still be open) is in flight.
+        targetRoom.state !== ConnectionState.Connected ||
+        microphonePublishInFlightRef.current > 0 ||
         useVoiceStore.getState().isMuted ||
         microphoneIntentionalMuteRef.current ||
         isLocalMicrophoneTrackLive(getLocalMicrophoneTrack(targetRoom))
@@ -2711,6 +2758,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
     remoteAudioLevelsRef.current.clear();
     microphoneRecoveryPromiseRef.current = null;
     microphoneIntentionalMuteRef.current = false;
+    microphoneAutoRecoveryAttemptsRef.current = 0;
     if (activeRoom) {
       activeRoom.removeAllListeners();
       void stopScreenShare(activeRoom).catch(() => undefined);

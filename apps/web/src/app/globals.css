@@ -855,6 +855,86 @@ html.theme-royal-blue {
   --ambient-2: 252 80% 70%;
 }
 
+/**
+ * Profile badge tints (docs/prompts/rozet-sistemi/04-w2-mobil-kart-ve-sayfa.md §2).
+ * The values are the mobile `profileBadge` palette group byte for byte, because
+ * the same account must not read as a different colour on a phone and in the
+ * browser. Declared once here rather than per theme: a badge tint is a fixed
+ * identity colour, not a per-theme accent, and only the light/dark split moves.
+ */
+:root {
+  --badge-lavender-surface: #eef0fe;
+  --badge-lavender-border: #dfe2fc;
+  --badge-lavender-icon: #4f46e5;
+  --badge-amber-surface: #fdebd7;
+  --badge-amber-border: #f5ddbc;
+  --badge-amber-icon: #c77a2b;
+  --badge-green-surface: #e8f8ee;
+  --badge-green-border: #d2f0de;
+  --badge-green-icon: #1b8a55;
+  --badge-blue-surface: #e0f0fa;
+  --badge-blue-border: #cae2f4;
+  --badge-blue-icon: #2b7ac7;
+  --badge-purple-surface: #f3e8fa;
+  --badge-purple-border: #e6d5f4;
+  --badge-purple-icon: #8a46c7;
+  --badge-red-surface: #fce9e9;
+  --badge-red-border: #f9d7d7;
+  --badge-red-icon: #e05252;
+  --badge-neutral-surface: #f6f7fb;
+  --badge-neutral-border: #e7e9f4;
+  --badge-neutral-icon: #6b7194;
+}
+
+/**
+ * Every theme whose `mode` is `dark` in `src/lib/appearance.ts`, plus the legacy
+ * class aliases that file maps (`theme-graphite`, `theme-midnight`,
+ * `theme-studio`). `profile-badge-chips.test.ts` fails if a dark theme is added
+ * without being listed here.
+ */
+html.theme-ash,
+html.theme-graphite,
+html.theme-dark,
+html.theme-onyx,
+html.theme-midnight,
+html.theme-deep-purple-gradient,
+html.theme-blue-purple-gradient,
+html.theme-forest-dark,
+html.theme-crimson-dark,
+html.theme-midnight-navy,
+html.theme-mauve-dark,
+html.theme-slate-dark,
+html.theme-teal-dark,
+html.theme-ocean-dark,
+html.theme-purple-teal,
+html.theme-studio,
+html.theme-amber-dark,
+html.theme-green-rainbow,
+html.theme-khaki-dark,
+html.theme-royal-blue {
+  --badge-lavender-surface: #2a2d55;
+  --badge-lavender-border: #3b3f73;
+  --badge-lavender-icon: #a5a8f5;
+  --badge-amber-surface: #3a2e1b;
+  --badge-amber-border: #55432a;
+  --badge-amber-icon: #e8b36a;
+  --badge-green-surface: rgba(52, 211, 153, 0.12);
+  --badge-green-border: rgba(52, 211, 153, 0.3);
+  --badge-green-icon: #34d399;
+  --badge-blue-surface: rgba(107, 182, 232, 0.12);
+  --badge-blue-border: rgba(107, 182, 232, 0.3);
+  --badge-blue-icon: #6bb6e8;
+  --badge-purple-surface: rgba(189, 143, 224, 0.12);
+  --badge-purple-border: rgba(189, 143, 224, 0.3);
+  --badge-purple-icon: #bd8fe0;
+  --badge-red-surface: rgba(240, 139, 139, 0.12);
+  --badge-red-border: rgba(240, 139, 139, 0.3);
+  --badge-red-icon: #f08b8b;
+  --badge-neutral-surface: #232644;
+  --badge-neutral-border: #2b2f52;
+  --badge-neutral-icon: #9ba1c7;
+}
+
 * {
   @apply border-border;
 }

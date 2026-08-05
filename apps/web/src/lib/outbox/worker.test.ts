@@ -80,6 +80,10 @@ describe("outbox worker lifecycle", () => {
         return { deleted: 0, summarized: 0 };
       },
       runImmediately: true,
+      sweepBadges: async () => {
+        operations.push("sweep.badges");
+        return { expired: 0, founderUpdated: 0, rarityComputed: false, revoked: 0 };
+      },
       sweepModerationCaseAlerts: async () => {
         operations.push("sweep.moderation-alerts");
         return { alertedCases: 0, notified: 0 };
@@ -112,6 +116,7 @@ describe("outbox worker lifecycle", () => {
       "purge.evidence",
       // The only periodic hook the app has, so the stale-case alert rides it.
       "sweep.moderation-alerts",
+      "sweep.badges",
     ]);
   });
 });

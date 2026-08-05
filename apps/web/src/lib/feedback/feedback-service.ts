@@ -33,6 +33,7 @@ import {
 } from "@wizards/types";
 
 import { ApiError } from "@/lib/api";
+import { onFeedbackShipped } from "@/lib/badges/badge-triggers";
 import { normalizeAppLocale, translate } from "@/lib/locale";
 import { claimMobileFeedbackAttachmentUploads } from "@/lib/mobile/mobile-media-upload-service";
 import { sendMobilePushForNotifications } from "@/lib/mobile/push-sender";
@@ -667,7 +668,7 @@ export async function updateAdminRoadmapItem(
   client: typeof prisma = prisma,
 ): Promise<AdminRoadmapItemResponse> {
   const exists = await client.roadmapItem.findUnique({
-    select: { id: true },
+    select: { id: true, status: true },
     where: { id: roadmapItemId },
   });
   if (!exists) {
@@ -686,6 +687,19 @@ export async function updateAdminRoadmapItem(
     select: adminRoadmapSelect,
     where: { id: roadmapItemId },
   });
+
+  // `ideaShipped` belongs to whoever asked for the thing, and a roadmap row
+  // usually collects several reports — so the badge goes to every author on it,
+  // once, on the transition into SHIPPED.
+  if (row.status === "SHIPPED" && exists.status !== "SHIPPED") {
+    const authors = await client.feedback.findMany({
+      distinct: ["userId"],
+      select: { userId: true },
+      where: { roadmapItemId },
+    });
+
+    await onFeedbackShipped({ userIds: authors.map((author) => author.userId) });
+  }
 
   return AdminRoadmapItemResponseSchema.parse({ item: toAdminRoadmapItem(row) });
 }

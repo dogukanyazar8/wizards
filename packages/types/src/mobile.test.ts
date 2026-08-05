@@ -1592,6 +1592,29 @@ describe("mobile schemas", () => {
       username: "ada_1",
     };
     assertAccepts(MobileAuthRegisterRequestSchema, registration);
+    assertAccepts(MobileAuthRegisterRequestSchema, {
+      ...registration,
+      confirmPassword: "🙂".repeat(18),
+      password: "🙂".repeat(18),
+    });
+    assertRejects(
+      MobileAuthRegisterRequestSchema,
+      {
+        ...registration,
+        confirmPassword: "p".repeat(73),
+        password: "p".repeat(73),
+      },
+      ["password"],
+    );
+    assertRejects(
+      MobileAuthRegisterRequestSchema,
+      {
+        ...registration,
+        confirmPassword: "🙂".repeat(19),
+        password: "🙂".repeat(19),
+      },
+      ["password"],
+    );
     assertRejects(
       MobileAuthRegisterRequestSchema,
       { ...registration, confirmPassword: "different" },

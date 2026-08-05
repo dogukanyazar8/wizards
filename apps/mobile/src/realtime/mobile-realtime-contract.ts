@@ -423,7 +423,13 @@ export function createMobileRealtimeEventEnvelope(
             isMobileRealtimeChannelMessagePayloadEvent(eventName) ||
             isMobileRealtimeDMMessagePayloadEvent(eventName) ||
             eventName === "typing:update" ||
-            eventName === "dm:typing:update"
+            eventName === "dm:typing:update" ||
+            // The bridge validates this one itself: it writes the row into the
+            // cached feeds and, for a BADGE row, invalidates the badge reads
+            // (07 §4). Dropping the payload here left both paths dead. It is
+            // carried rather than parsed so an unrecognised shape still falls
+            // back to a refresh instead of being discarded outright.
+            eventName === "notification:new"
           ? payload
           : null,
     receivedAt: now,

@@ -1,5 +1,4 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useQueryClient } from "@tanstack/react-query";
 import type {
   MobileAppUpdateResponse,
   MobileReleaseChannel,
@@ -24,17 +23,10 @@ import {
   isMobileReleaseNewer,
   resolveAboutUpdatePresentation,
 } from "../../about/mobile-about-model";
-import { saveMobileAppChannel } from "../../about/mobile-about-client";
-import {
-  openAboutBetaConsent,
-  type OpenAboutBetaConsent,
-} from "../../about/open-about-beta-consent";
 import {
   MOBILE_ABOUT_DEFAULT_PREFERENCES,
-  publishMobileAboutChannelPreference,
   readMobileAboutPreferences,
   subscribeMobileAboutChannelPreference,
-  writeMobileAboutChannelPreference,
   writeMobileAboutPreference,
 } from "../../about/mobile-about-preferences";
 import {
@@ -51,6 +43,7 @@ import {
   readMobileUpdateRuntimeIdentity,
   selectMobileUpdateController,
 } from "../../about/mobile-update-controller-factory";
+import { normalizeMobileAppVersion } from "../../about/mobile-app-identity";
 import { getMobileRuntimeConfig } from "../../config/environment";
 import { mobileAboutMetrics } from "../../design/tokens";
 import { MOBILE_OPEN_SOURCE_LICENSE_GROUPS } from "../../legal/mobile-open-source-license-manifest";
@@ -58,7 +51,6 @@ import { summarizeMobileOpenSourceLicenses } from "../../legal/mobile-open-sourc
 import { mobileCopy } from "../../locale/mobile-copy";
 import { formatMobileBytes } from "../../locale/mobile-number-format";
 import { mobileNavigationRef } from "../../navigation/mobile-navigation-ref";
-import { mobileQueryKeys } from "../../query/mobile-query-keys";
 import { useMobileAuth } from "../../auth/mobile-auth-context";
 import { useToast } from "../components/kit/toast";
 import { useMobileBottomSystemSpacing } from "../use-mobile-bottom-system-spacing";
@@ -119,32 +111,15 @@ function fill(template: string, values: Record<string, string>): string {
   return template.replace(/\{(\w+)\}/g, (match, key: string) => values[key] ?? match);
 }
 
-function normalizeInstalledVersion(value: string): string {
-  const trimmed = value.trim();
-  return /^v?(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)/.exec(trimmed)?.[1] ?? trimmed;
-}
-
-function releaseChannelForApi(value: string): MobileReleaseChannel | undefined {
-  return value === "stable" || value === "beta" || value === "uat" ? value : undefined;
-}
-
-function isBetaReleaseChannel(value: string): boolean {
-  return value === "beta" || value === "canary";
-}
-
-function formatChannelLabel(value: string, locale: "en" | "tr"): string {
-  switch (value.toLowerCase()) {
-    case "production":
-    case "stable":
-      return locale === "tr" ? "KARARLI" : "STABLE";
-    case "development":
-      return "DEV";
-    case "canary":
-      return "CANARY";
+function formatChannelLabel(value: MobileReleaseChannel, locale: "en" | "tr"): string {
+  switch (value) {
     case "beta":
       return "BETA";
+    case "uat":
+      return "UAT";
+    case "stable":
     default:
-      return value.toUpperCase();
+      return locale === "tr" ? "KARARLI" : "STABLE";
   }
 }
 
@@ -280,7 +255,6 @@ export function MobileAboutSettingsScreen({
   releaseChannel,
   renderUpdateBanner,
   serviceOnline,
-  openBetaConsent: requestBetaConsent = openAboutBetaConsent,
   updateController: providedUpdateController,
 }: {
   readonly appVersion: string;
@@ -289,15 +263,14 @@ export function MobileAboutSettingsScreen({
   readonly onOpenLicenses: () => void;
   readonly onOpenPrivacy: () => void;
   readonly onOpenTerms: () => void;
-  readonly releaseChannel: string;
+  /** Always the binary's channel — see `getMobileAppReleaseChannel`. */
+  readonly releaseChannel: MobileReleaseChannel;
   readonly renderUpdateBanner?: ReactNode;
   readonly serviceOnline: boolean;
-  readonly openBetaConsent?: OpenAboutBetaConsent;
   /** Test/preview seam; product uses the expo-updates adapter. */
   readonly updateController?: MobileUpdateController;
 }) {
   const auth = useMobileAuth();
-  const queryClient = useQueryClient();
   const theme = useTheme();
   const styles = useMobileAboutSettingsStyles();
   const { locale } = useMobileLocaleRuntime();
@@ -312,13 +285,13 @@ export function MobileAboutSettingsScreen({
     () => readMobileUpdateRuntimeIdentity(updatePlatform),
     [updatePlatform],
   );
-  const installedVersion = normalizeInstalledVersion(
+  const installedVersion = normalizeMobileAppVersion(
     updateRuntimeIdentity.versionName ?? appVersion,
   );
   const otaUpdateController = useMemo(() => createExpoUpdateController(), []);
   const updateQuery = useMobileAboutUpdateQuery(auth.apiClient, {
     buildEnvironment: runtimeConfig.environment,
-    channel: releaseChannelForApi(releaseChannel),
+    channel: releaseChannel,
     installed: installedVersion,
     platform: updatePlatform,
     runtimeVersion: updateRuntimeIdentity.runtimeVersion,
@@ -361,7 +334,6 @@ export function MobileAboutSettingsScreen({
   const statusQuery = useMobileAboutStatusQuery(auth.apiClient);
   const [preferences, setPreferences] = useState(MOBILE_ABOUT_DEFAULT_PREFERENCES);
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
-  const [isBetaChannelSaving, setIsBetaChannelSaving] = useState(false);
   // Automatic 2h activation point, intentionally disabled by product scope.
   // When enabled, derive firstSessionAt, newest readMobileFaultLog() timestamp
   // and open BUG feedback state, then gate this setter with
@@ -464,7 +436,6 @@ export function MobileAboutSettingsScreen({
       ? String(new Date(releasedAt).getFullYear())
       : String(new Date().getFullYear());
   const channelLabel = formatChannelLabel(preferences.channel ?? releaseChannel, locale);
-  const betaProgramEnabled = isBetaReleaseChannel(preferences.channel ?? releaseChannel);
   const codename = release?.codename ? `“${release.codename}”` : "—";
   const statusLevel: MobileServiceStatusLevel =
     statusQuery.data?.level ?? (serviceOnline ? "ok" : "down");
@@ -546,54 +517,6 @@ export function MobileAboutSettingsScreen({
     }
   };
 
-  const setBetaProgram = async (next: boolean) => {
-    if (isBetaChannelSaving || next === betaProgramEnabled) {
-      return;
-    }
-
-    setIsBetaChannelSaving(true);
-    try {
-      if (next && !(await requestBetaConsent())) {
-        return;
-      }
-
-      const response = await saveMobileAppChannel(auth.apiClient, {
-        channel: next ? "beta" : "stable",
-      });
-      setPreferences((current) => ({
-        ...current,
-        betaConsentAt: next ? (current.betaConsentAt ?? new Date().toISOString()) : null,
-        channel: response.channel,
-      }));
-      try {
-        await writeMobileAboutChannelPreference(AsyncStorage, response.channel);
-      } catch {
-        publishMobileAboutChannelPreference(response.channel);
-        await queryClient.invalidateQueries({
-          queryKey: mobileQueryKeys.aboutRoot(),
-          refetchType: "none",
-        });
-        showToast({ title: copy.channelPersistenceFailed, variant: "error" });
-        return;
-      }
-      await queryClient.invalidateQueries({
-        queryKey: mobileQueryKeys.aboutRoot(),
-        refetchType: "none",
-      });
-      showToast({
-        title:
-          response.effectiveFrom === "next-build"
-            ? copy.channelEffectsNextBuild
-            : copy.channelEffectiveImmediate,
-        variant: "success",
-      });
-    } catch {
-      showToast({ title: copy.channelSaveFailed, variant: "error" });
-    } finally {
-      setIsBetaChannelSaving(false);
-    }
-  };
-
   return (
     <View style={styles.root} testID="mobile-about-settings-screen">
       <Animated.ScrollView
@@ -650,25 +573,24 @@ export function MobileAboutSettingsScreen({
 
         <AboutGroupHeading label={copy.aboutSectionApp} />
         <AboutCard testID="mobile-about-app-card">
+          {/*
+            One control owns the release channel. The beta invitation lives in
+            this row's subtitle rather than a second switch, because a two-state
+            toggle could only ever express two of the three channels and wrote
+            the same preference this row already opens.
+          */}
           <AboutRow
+            // AboutRow's default label is `title, value`, which would drop the
+            // invitation for screen readers now that it is the only place the
+            // beta offer appears.
+            accessibilityLabel={`${copy.aboutAppChannel}, ${channelLabel}, ${copy.aboutAppChannelSub}`}
             isFirst
             onPress={() => navigate("AboutUpdateChannel")}
             showChevron
+            subtitle={copy.aboutAppChannelSub}
+            testID="mobile-about-channel-row"
             title={copy.aboutAppChannel}
             value={channelLabel}
-          />
-          <AboutRow
-            subtitle={copy.aboutAppBetaSub}
-            title={copy.aboutAppBeta}
-            trailing={
-              <AboutToggle
-                accessibilityLabel={copy.aboutAppBeta}
-                disabled={isBetaChannelSaving}
-                onValueChange={(next) => void setBetaProgram(next)}
-                testID="mobile-about-beta-toggle"
-                value={betaProgramEnabled}
-              />
-            }
           />
           <AboutRow
             subtitle={copy.aboutAppAutoUpdateSub}

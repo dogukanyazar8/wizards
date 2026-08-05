@@ -1,12 +1,9 @@
 export type SettingsSection =
-  | "account"
-  | "voice"
-  | "desktop"
-  | "appearance"
-  | "notifications"
-  | "about";
+  "account" | "voice" | "desktop" | "appearance" | "notifications" | "about";
 
 export type SettingsPanelKey =
+  /** 07 §3 "Rozetlerim". A panel of the account section, not a route of its own. */
+  | "badges"
   | "audio"
   | "camera"
   | "screenShare"
@@ -32,24 +29,15 @@ export type SettingsSelection = {
 };
 
 const PANELS_BY_SECTION: Record<SettingsSection, readonly SettingsPanelKey[]> = {
-  account: [],
+  account: ["badges"],
   voice: ["audio", "camera", "screenShare"],
   desktop: ["desktopBehavior", "desktopVoice", "desktopDiagnostics"],
-  appearance: [
-    "language",
-    "theme",
-    "messageFont",
-    "advanced",
-    "appIcon",
-  ],
+  appearance: ["language", "theme", "messageFont", "advanced", "appIcon"],
   notifications: ["general", "sounds"],
   about: ["overview", "build", "whatsNew", "developer"],
 };
 
-export function buildSettingsHref(
-  section: SettingsSection,
-  panel?: SettingsPanelKey | null,
-) {
+export function buildSettingsHref(section: SettingsSection, panel?: SettingsPanelKey | null) {
   const params = new URLSearchParams();
 
   if (section !== "account") {
@@ -82,9 +70,9 @@ export function resolveSettingsSelection(searchParams: {
   ) as SettingsSection;
 
   const validPanels = PANELS_BY_SECTION[section];
-  const panel = (rawPanel && validPanels.includes(rawPanel as SettingsPanelKey)
-    ? rawPanel
-    : null) as SettingsPanelKey | null;
+  const panel = (
+    rawPanel && validPanels.includes(rawPanel as SettingsPanelKey) ? rawPanel : null
+  ) as SettingsPanelKey | null;
 
   return { panel, section };
 }

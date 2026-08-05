@@ -43,6 +43,9 @@ export function readUatTestUsersSeedOptions(
   if (!password || password.length < 12) {
     throw new Error("UAT_TEST_USERS_PASSWORD must contain at least 12 characters.");
   }
+  if (Buffer.byteLength(password, "utf8") > 72) {
+    throw new Error("UAT_TEST_USERS_PASSWORD must be 72 UTF-8 bytes or fewer.");
+  }
 
   return {
     password,

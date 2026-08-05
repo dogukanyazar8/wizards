@@ -88,7 +88,7 @@ Repository sürümü:
 
 - `.nvmrc`: `24.18.0`
 - `package.json` engine: `>=24.18.0 <25`
-- `package.json` packageManager: `pnpm@11.17.0`
+- `package.json` packageManager: `pnpm@11.20.0`
 
 Tam sürümü [Node.js 24.18.0 resmi release sayfasından](https://nodejs.org/en/blog/release/v24.18.0) kurun. Winget'in güncel LTS sürümünü körlemesine kullanmayın; zamanla repository aralığının dışına çıkabilir.
 
@@ -102,7 +102,7 @@ Beklenen:
 
 ```text
 v24.18.0
-11.17.0
+11.20.0
 ```
 
 `corepack enable` için erişim reddedilirse yalnız bu adımı yönetici PowerShell'de bir kez çalıştırın; günlük geliştirmeyi yönetici terminalinde yapmayın.
@@ -1024,7 +1024,7 @@ Get-Content .nvmrc
 (Get-Content package.json -Raw | ConvertFrom-Json).packageManager
 ```
 
-Beklenen: Node `24.18.0`, pnpm `11.17.0`.
+Beklenen: Node `24.18.0`, pnpm `11.20.0`.
 
 ### Docker çalışmıyor
 
@@ -1200,7 +1200,7 @@ Bu boşlukları geçici özel komutlarla saklamayın. Ayrı engineering task ile
 
 - [ ] Git erişimi ve GitHub SSO çalışıyor.
 - [ ] Node `24.18.0`.
-- [ ] pnpm `11.17.0`.
+- [ ] pnpm `11.20.0`.
 - [ ] Docker + WSL 2 çalışıyor.
 - [ ] JDK 17.
 - [ ] Android SDK/adb/emulator çalışıyor.

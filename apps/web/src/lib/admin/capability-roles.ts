@@ -6,6 +6,10 @@ import type { AdminRole } from "@wizards/db";
  */
 export const ADMIN_CAPABILITIES = {
   "audit.read": ["OWNER", "ADMIN"],
+  // Granting a badge writes to a public profile surface; revoking one is a
+  // moderation act. Support may look, only the top two may write.
+  "badge.read": ["OWNER", "ADMIN", "SUPPORT", "MODERATOR"],
+  "badge.write": ["OWNER", "ADMIN"],
   "campaign.approve": ["OWNER", "ADMIN"],
   "campaign.create": ["OWNER", "ADMIN"],
   "campaign.read": ["OWNER", "ADMIN"],

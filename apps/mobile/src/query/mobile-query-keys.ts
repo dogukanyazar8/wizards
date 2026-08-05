@@ -72,6 +72,21 @@ export function createMobileQueryKeys(registry: MobileSearchKeyRegistry) {
       [...all, "help", "articles", params.category ?? null, params.popular === true] as const,
     helpSearch: (query: string) => [...all, "help", "search", query.trim()] as const,
     accountSettings: () => [...all, "account-settings"] as const,
+    /**
+     * Badges are never merged into the profile key: they go stale on a five
+     * minute clock while a profile carries presence, so one key would make the
+     * cheap read pay for the expensive one's freshness.
+     *
+     * They stay under the `mobile` root because signing out drops exactly that
+     * subtree (`mobile-realtime-provider` calls `removeQueries` on
+     * `mobileQueryKeys.all`); a key outside it would survive the wipe and show
+     * the previous account's badges to the next one.
+     */
+    badges: {
+      own: () => [...all, "badges", "own"] as const,
+      root: () => [...all, "badges"] as const,
+      user: (userId: string) => [...all, "badges", "user", userId] as const,
+    },
     adminCasesRoot: () => [...all, "admin-cases"] as const,
     adminCases: () => [...all, "admin-cases", "list"] as const,
     adminCase: (caseId: string) => [...all, "admin-cases", caseId] as const,

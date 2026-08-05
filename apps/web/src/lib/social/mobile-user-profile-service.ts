@@ -1,4 +1,4 @@
-import { prisma } from "@wizards/db";
+import { prisma, type PremiumType } from "@wizards/db";
 import type {
   MobileFriendRelationship,
   MobileProfileBadge,
@@ -6,8 +6,11 @@ import type {
 } from "@wizards/types";
 
 import { ApiError } from "@/lib/api";
+import { deriveBadges } from "@/lib/badges/badge-service";
 import { listDirectMessageMutualServers } from "@/lib/dm/service";
 import { mapStoredPresenceStatus } from "@/lib/friends/service";
+import { readPresenceMap, type VisiblePresenceStatus } from "@/lib/presence";
+import { getRedis } from "@/lib/redis";
 import { getMobileUserNote } from "@/lib/social/mobile-user-note-service";
 import {
   attachReportToCaseInTransaction,
@@ -27,6 +30,13 @@ const MUTUAL_PREVIEW_LIMIT = 12;
 
 const profileUserSelect = {
   avatarUrl: true,
+  /**
+   * The stored badge rows ride along with the user row the profile read already
+   * does, which is how `inviter` stopped costing its own invite count query.
+   */
+  badges: {
+    select: { badge: true, revokedAt: true },
+  },
   bannerColor: true,
   bannerOffsetX: true,
   bannerOffsetY: true,
@@ -54,11 +64,22 @@ export type MobileUserProfileInput = {
 export type MobileUserProfileServiceDependencies = {
   getNote: typeof getMobileUserNote;
   listMutualServers: typeof listDirectMessageMutualServers;
+  /** Live presence for one peer, or null when Redis knows nothing about them. */
+  readLivePresence: (userId: string) => Promise<{ status: VisiblePresenceStatus } | null>;
 };
 
 const defaultDependencies: MobileUserProfileServiceDependencies = {
   getNote: getMobileUserNote,
   listMutualServers: listDirectMessageMutualServers,
+  readLivePresence: async (userId) => {
+    // The same read the friends list and the DM inventory do, so every surface
+    // in the app answers "is this person online" from one source.
+    const presence = await readPresenceMap(getRedis(), [
+      { customStatus: null, status: "OFFLINE", userId },
+    ]);
+
+    return presence.get(userId) ?? null;
+  },
 };
 
 /** Highest-precedence relationship wins when a pair carries several request rows. */
@@ -113,25 +134,60 @@ export function resolveMobileProfileRelationship(
   return { blocked, blockedBy, relationship };
 }
 
+/**
+ * The three ids a 0.8.x client can parse, in the order it already draws them.
+ *
+ * `docs/prompts/rozet-sistemi/00-ortak-baglam.md` §2 ("Uyumluluk kısıtı") froze
+ * this field: `MobileUserProfileSchema` is `.strict()`, the mobile client parses
+ * it, OTA is off and 0.8.15 installs are still in the field — so a fourth id
+ * here would fail the parse and the profile card would never open. The badge
+ * engine below is the new one; its answer is narrowed to these three. The rich
+ * list lives on `/badges`.
+ *
+ * Removal procedure (08 §5), in this order and not before:
+ *
+ * 1. Condition: the admin analytics module reports zero mobile sessions below
+ *    `LEGACY_MOBILE_APP_VERSION` in the last 30 days
+ *    (`@/lib/admin/analytics/legacy-clients`, "Eski mobil istemciler" card).
+ * 2. `packages/types/src/mobile-social.ts`: drop the `badges` field and
+ *    `MobileProfileBadgeSchema`.
+ * 3. This file: drop the narrowing block and `deriveMobileProfileBadges`.
+ * 4. `mobile-user-profile-service.test.ts`: drop the compatibility guard test.
+ * 5. Confirm no mobile client still reads the field (W2 already cut it).
+ *
+ * Doing this early does not degrade an old client's card — it stops the card
+ * from opening at all, because the parse fails before anything renders.
+ */
+const FROZEN_PROFILE_BADGES = ["earlyMember", "supporter", "inviter"] as const;
+
 export function deriveMobileProfileBadges(input: {
-  premiumType: string;
+  premiumType: PremiumType;
   registeredAt: Date;
-  usedInviteCount: number;
+  /** Stored (AWARDED/GRANTED) badge ids — `inviter` is a row now, not a count. */
+  storedBadgeIds?: readonly string[];
+  suppressedBadgeIds?: readonly string[];
 }): MobileProfileBadge[] {
-  const badges: MobileProfileBadge[] = [];
-  if (input.registeredAt.getTime() < Date.parse(MOBILE_PROFILE_EARLY_MEMBER_BEFORE)) {
-    badges.push("earlyMember");
-  }
+  const stored = new Set(input.storedBadgeIds ?? []);
+  const suppressed = new Set(input.suppressedBadgeIds ?? []);
+  const derived = new Set(
+    deriveBadges({
+      // Of the three ids that survive the narrowing below, `earlyMember` and
+      // `supporter` depend only on the two facts this function is given.
+      // `staff` and `verified` are pinned off rather than read, so the profile
+      // query never has to select columns the frozen field cannot carry.
+      adminRole: null,
+      emailVerified: false,
+      hasActionedModerationCase: false,
+      premiumSince: null,
+      premiumType: input.premiumType,
+      registeredAt: input.registeredAt,
+      twoFactorEnabled: false,
+    }).map((badge) => badge.id),
+  );
 
-  if (input.premiumType !== "NONE") {
-    badges.push("supporter");
-  }
-
-  if (input.usedInviteCount > 0) {
-    badges.push("inviter");
-  }
-
-  return badges;
+  return FROZEN_PROFILE_BADGES.filter(
+    (id) => !suppressed.has(id) && (derived.has(id) || stored.has(id)),
+  );
 }
 
 /** Expired custom statuses are treated as absent on read; no write-side sweep is needed. */
@@ -155,6 +211,30 @@ export function readActiveCustomStatus(
  * which is exactly the signal invisibility is meant to withhold. Cropping it
  * here means no caller can leak it by forgetting to check the status.
  */
+/**
+ * `User.status` is the presence the account *chose*, not whether it is reachable:
+ * nothing clears it when the app closes, so a peer read straight off the column
+ * reported everyone who had ever been online as still online. Redis is the live
+ * source — `readPresenceMap` only reports a status while a socket is registered,
+ * and reports OFFLINE otherwise — so peers read that, and the absence of a
+ * record is itself an offline answer.
+ *
+ * Your own card keeps the stored value. It is the presence you picked (including
+ * "Görünmez", which `mapStoredPresenceStatus` still publishes as OFFLINE), and
+ * the status row on your own card is the control that changes it.
+ */
+export function resolveMobileProfilePresenceStatus(input: {
+  livePresence: { status: VisiblePresenceStatus } | null;
+  self: boolean;
+  storedStatus: string;
+}): string {
+  if (input.self) {
+    return input.storedStatus;
+  }
+
+  return input.livePresence?.status ?? "OFFLINE";
+}
+
 export function readProfilePresence(
   user: {
     customStatus: string | null;
@@ -340,7 +420,7 @@ export async function getMobileUserProfile(
   }
 
   const isFriend = self || relationship === "friend";
-  const [mutualServers, mutualServerCount, mutualFriends, usedInviteCount, serverContext, note] =
+  const [mutualServers, mutualServerCount, mutualFriends, serverContext, note, livePresence] =
     await Promise.all([
       dependencies.listMutualServers(input.requesterId, input.userId, {
         limit: MUTUAL_PREVIEW_LIMIT,
@@ -349,7 +429,6 @@ export async function getMobileUserProfile(
       // cannot be inferred from the preview length.
       countMutualServers(input.requesterId, input.userId),
       getMutualFriends(input.requesterId, input.userId),
-      prisma.serverInvite.count({ where: { createdById: input.userId, uses: { gt: 0 } } }),
       input.serverId
         ? getServerContext({
             requesterId: input.requesterId,
@@ -361,13 +440,19 @@ export async function getMobileUserProfile(
       self
         ? Promise.resolve(null)
         : dependencies.getNote({ authorId: input.requesterId, subjectId: input.userId }),
+      // Your own presence is the one you set, so it is read off the row, not off
+      // the socket registry.
+      self ? Promise.resolve(null) : dependencies.readLivePresence(input.userId),
     ]);
 
   return {
     badges: deriveMobileProfileBadges({
       premiumType: user.premiumType,
       registeredAt: user.registeredAt,
-      usedInviteCount,
+      storedBadgeIds: user.badges.filter((row) => row.revokedAt === null).map((row) => row.badge),
+      suppressedBadgeIds: user.badges
+        .filter((row) => row.revokedAt !== null)
+        .map((row) => row.badge),
     }),
     // README 1b: a personal banner is a friends-only detail; everyone else gets
     // the neutral fallback the client draws from tokens.
@@ -383,7 +468,10 @@ export async function getMobileUserProfile(
     // The viewer's own writing about this person. It is never sent to the person
     // it is about; a blocked pair returned above and carries no note either.
     note,
-    presence: readProfilePresence(user),
+    presence: readProfilePresence({
+      ...user,
+      status: resolveMobileProfilePresenceStatus({ livePresence, self, storedStatus: user.status }),
+    }),
     pronouns: user.pronouns,
     registeredAt: user.registeredAt.toISOString(),
     relationship,

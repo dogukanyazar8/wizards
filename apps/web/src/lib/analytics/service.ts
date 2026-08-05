@@ -1,5 +1,11 @@
 import type { AnalyticsMediaKind, Prisma } from "@wizards/db";
 import { prisma } from "@wizards/db";
+import {
+  onAppSessionEnded,
+  onAppSessionStarted,
+  onMediaSessionEnded,
+  onMessageCreated,
+} from "@/lib/badges/badge-triggers";
 import { logError } from "@/lib/logger";
 import { getAnalyticsClientInfo, type AnalyticsClientInfo } from "@/lib/analytics/client-info";
 import {
@@ -211,6 +217,20 @@ export async function startAppSession(args: {
     }),
     startedAt,
   );
+
+  // The beta badge needs the channel preference, which nothing on this path
+  // already carries. The read happens only when a session is actually created,
+  // never on the resume branch above.
+  const preference = await prisma.user.findUnique({
+    where: { id: args.userId },
+    select: { preferredReleaseChannel: true },
+  });
+
+  await onAppSessionStarted({
+    clientType: clientInfo.clientType,
+    releaseChannel: preference?.preferredReleaseChannel ?? null,
+    userId: args.userId,
+  });
 }
 
 export async function heartbeatAppSession(sessionKey: string, seenAt = new Date()) {
@@ -275,6 +295,17 @@ export async function endAppSession(
     "appSeconds",
     resolveVerifiedAttribution(session),
   );
+
+  // A session that crosses midnight makes both days active, so the streak is
+  // told about each UTC day the session covered, oldest first — the order the
+  // consecutive-day counter expects.
+  for (const segment of splitIntervalByUtcDay(session.startedAt, endedAt)) {
+    await onAppSessionEnded({
+      appSeconds: segment.seconds,
+      day: segment.date,
+      userId: session.userId,
+    });
+  }
 }
 
 export async function recordMessageCreated(
@@ -287,6 +318,8 @@ export async function recordMessageCreated(
   attribution: ClientAttribution,
   client: AnalyticsMetricClient = prisma,
 ) {
+  const now = new Date();
+
   await incrementUserDailyMetric(
     args.userId,
     {
@@ -296,9 +329,13 @@ export async function recordMessageCreated(
       uploadedBytes: args.uploadedBytes ?? 0,
     },
     attribution,
-    new Date(),
+    now,
     client,
   );
+
+  // `regular` counts distinct days, not messages: the counter refuses a second
+  // write for the same UTC day, which is what keeps it un-farmable.
+  await onMessageCreated({ day: getUtcDayStart(now), userId: args.userId });
 }
 
 export async function startMediaUsageSession(args: {
@@ -389,6 +426,8 @@ export async function endMediaUsageSession(args: {
     MEDIA_METRIC_FIELD[args.kind],
     { appVersion: null, clientType: session.clientType },
   );
+
+  await onMediaSessionEnded({ durationSeconds, kind: args.kind, userId: args.userId });
 }
 
 export async function endAllMediaUsageSessionsForVoiceSession(
@@ -426,6 +465,11 @@ export async function endAllMediaUsageSessionsForVoiceSession(
       MEDIA_METRIC_FIELD[session.kind],
       { appVersion: null, clientType: session.clientType },
     );
+
+    // Leaving a voice room closes its media sessions through here, not through
+    // `endMediaUsageSession`; without this call `voice` and `broadcaster` would
+    // only ever count a screen share the user toggled off by hand.
+    await onMediaSessionEnded({ durationSeconds, kind: session.kind, userId });
   }
 }
 

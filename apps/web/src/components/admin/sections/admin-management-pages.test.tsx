@@ -91,7 +91,7 @@ describe("admin management pages", () => {
     }
 
     assert.doesNotMatch(markup, /Askıya alınmış/u);
-    assert.match(markup, /grid-template-columns:2\.2fr 1\.9fr 1\.1fr 1fr 1fr 1\.1fr 36px/u);
+    assert.match(markup, /grid-template-columns:2\.2fr 1\.9fr 1\.1fr 1fr 1fr 1\.1fr 76px/u);
     assert.match(
       markup,
       /\/admin\/users\?banned=false&amp;query=ada&amp;status=ONLINE&amp;verified=true&amp;page=3/u,

@@ -21,6 +21,9 @@ import { mobileCopy } from "../locale/mobile-copy";
 import { useMobileDMConversationsQuery } from "../query/mobile-dm-conversations-query";
 import { flattenMobileDMConversationPages } from "../query/mobile-dm-conversations-query";
 import { mobileQueryKeys } from "../query/mobile-query-keys";
+import { navigateMobileRouteIntent } from "../navigation/mobile-navigation-ref";
+import { useMobileUserBadgesQuery } from "./mobile-badges-query";
+import { buildMobileBadgesRouteIntent } from "./profile-badges/mobile-badges-route";
 import type { MobileUserReportReason } from "./mobile-social-client";
 import {
   useMobileFriendsQuery,
@@ -28,6 +31,10 @@ import {
   useMobileUserProfileQuery,
 } from "./mobile-social-query";
 import { MobileUserNoteSheet } from "./mobile-user-note-sheet";
+import {
+  ProfileBadgeDetailSheet,
+  type ProfileBadgeDetailRequest,
+} from "./profile-badges/profile-badge-detail-sheet";
 import {
   MOBILE_PROFILE_MEDIA_PREVIEW_LIMIT,
   ProfileAboutCard,
@@ -104,6 +111,9 @@ export function MobileUserProfileScreen({
 
   const profileQuery = useMobileUserProfileQuery(apiClient, { serverId, userId });
   const profile = profileQuery.data ?? null;
+  // Its own request, running beside the profile read. The card and this page
+  // share the cache entry, so arriving here from a card is already warm.
+  const badgesQuery = useMobileUserBadgesQuery(apiClient, { userId });
   const mutations = useMobileSocialMutations(apiClient);
 
   const [menuOpen, setMenuOpen] = useState(false);
@@ -113,6 +123,8 @@ export function MobileUserProfileScreen({
   const [mutualFriendsExpanded, setMutualFriendsExpanded] = useState(false);
   const [mutualServersExpanded, setMutualServersExpanded] = useState(false);
   const [lightboxUri, setLightboxUri] = useState<string | null>(null);
+  /** 06 §2: the badge sheet opens over the page; the page stays where it is. */
+  const [badgeRequest, setBadgeRequest] = useState<ProfileBadgeDetailRequest | null>(null);
 
   const sections = useMemo(
     () => (profile ? buildMobileProfilePageSections(profile) : null),
@@ -343,7 +355,21 @@ export function MobileUserProfileScreen({
                   variant={sections.variant}
                 />
               }
+              badges={badgesQuery.data?.badges ?? []}
+              badgesLoading={badgesQuery.isLoading}
               chrome={chrome}
+              onPressBadge={(badge) => setBadgeRequest({ badgeId: badge.id, kind: "badge" })}
+              onPressBadgeOverflow={() => {
+                // 07 §2: on your own profile `+N` is a shortcut into
+                // "Rozetlerim", which is the full list plus your progress; on
+                // someone else's it stays the in-place list sheet, where no
+                // counter of theirs is ever shown (06 §1).
+                if (isSelf) {
+                  navigateMobileRouteIntent(buildMobileBadgesRouteIntent(null));
+                  return;
+                }
+                setBadgeRequest({ kind: "list" });
+              }}
               profile={profile}
               sections={sections}
             />
@@ -452,6 +478,14 @@ export function MobileUserProfileScreen({
         testID="mobile-user-profile-report-sheet"
         title={copy.profilePageReportAction}
         tone="danger"
+      />
+
+      <ProfileBadgeDetailSheet
+        badges={badgesQuery.data?.badges ?? []}
+        client={apiClient}
+        isSelf={isSelf}
+        onClose={() => setBadgeRequest(null)}
+        request={badgeRequest}
       />
 
       {profile && !profile.self ? (

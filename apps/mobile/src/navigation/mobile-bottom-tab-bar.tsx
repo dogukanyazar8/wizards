@@ -72,10 +72,18 @@ export function MobileBottomTabBar({
 
         const tabId = route.name;
         const isActive = state.index === index;
-        const showUnreadDot = tabId === "messages" && directMessageUnreadCount > 0;
-        // 1a/1b: notifications is the one tab that carries a counted badge — a bare
-        // dot cannot say how many servers/DMs are waiting.
-        const notificationBadgeCount = tabId === "notifications" ? notificationUnreadCount : 0;
+        // 1a/1b reserved the counted badge for the bell and gave messages a bare
+        // dot. The dot cannot say how many messages are waiting, which is the one
+        // thing the messages tab has a real number for, so both tabs now carry the
+        // same counter — same anchor, same token, same 99+ cap.
+        const unreadBadgeCount =
+          tabId === "messages"
+            ? directMessageUnreadCount
+            : tabId === "notifications"
+              ? notificationUnreadCount
+              : 0;
+        const unreadBadgeLabel =
+          tabId === "messages" ? copy.messagesUnreadBadgeLabel : copy.notificationsUnreadBadgeLabel;
 
         return (
           <Pressable
@@ -102,20 +110,14 @@ export function MobileBottomTabBar({
             <Text style={[styles.navLabel, isActive && styles.navLabelActive]}>
               {getMobileTabLabel(tabId)}
             </Text>
-            {showUnreadDot ? (
-              <View style={styles.navUnreadDot} testID="mobile-bottom-tab-unread-dot" />
-            ) : null}
-            {notificationBadgeCount > 0 ? (
+            {unreadBadgeCount > 0 ? (
               <View
-                accessibilityLabel={copy.notificationsUnreadBadgeLabel.replace(
-                  "{count}",
-                  String(notificationBadgeCount),
-                )}
-                style={styles.navNotificationBadge}
-                testID="mobile-bottom-tab-notification-badge"
+                accessibilityLabel={unreadBadgeLabel.replace("{count}", String(unreadBadgeCount))}
+                style={styles.navUnreadBadge}
+                testID={`mobile-bottom-tab-${tabId}-badge`}
               >
-                <Text style={styles.navNotificationBadgeText} numberOfLines={1}>
-                  {formatMobileUnreadCount(notificationBadgeCount)}
+                <Text style={styles.navUnreadBadgeText} numberOfLines={1}>
+                  {formatMobileUnreadCount(unreadBadgeCount)}
                 </Text>
               </View>
             ) : null}
@@ -190,20 +192,11 @@ export const createMobileBottomTabBarStyles = (theme: MobileTheme) =>
       color: theme.accent.tabActive,
       fontFamily: theme.typography.fontFamilyBold,
     },
-    navUnreadDot: {
-      position: "absolute",
-      top: 5,
-      right: 22,
-      width: 8,
-      height: 8,
-      borderRadius: theme.radii.pill,
-      borderWidth: 2,
-      borderColor: theme.border.onSurfaceRing,
-      backgroundColor: redesignLight.canonicalDanger,
-    },
     // 1a/1b anchors the counter just right of the icon centre so a widening
-    // "99+" grows outwards instead of drifting off the glyph.
-    navNotificationBadge: {
+    // "99+" grows outwards instead of drifting off the glyph. Shared by both
+    // counted tabs: two different badge shapes in one bar would read as two
+    // different kinds of urgency.
+    navUnreadBadge: {
       position: "absolute",
       top: 2,
       left: "50%",
@@ -216,7 +209,7 @@ export const createMobileBottomTabBarStyles = (theme: MobileTheme) =>
       justifyContent: "center",
       backgroundColor: redesignLight.canonicalDanger,
     },
-    navNotificationBadgeText: {
+    navUnreadBadgeText: {
       color: theme.text.onPrimary,
       fontFamily: theme.typography.fontFamilyExtraBold,
       fontSize: 9,

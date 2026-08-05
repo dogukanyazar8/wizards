@@ -3,6 +3,10 @@ import { AudioModule, RecordingPresets, setAudioModeAsync, useAudioRecorder } fr
 import { File as ExpoFile } from "expo-file-system";
 
 import {
+  ensureMobilePlaybackAudioMode,
+  invalidateMobilePlaybackAudioMode,
+} from "./mobile-audio-playback-session";
+import {
   getMobileMessageAttachmentKind,
   validateMobileMessageAttachment,
   type MobilePickedMessageAttachment,
@@ -132,6 +136,9 @@ export function useMobileVoiceMessageRecorder(): MobileVoiceMessageRecorder {
           return "denied" as const;
         }
 
+        // The take owns the session from here, so the cached playback mode is
+        // no longer what the device is running.
+        invalidateMobilePlaybackAudioMode();
         await setAudioModeAsync({
           allowsRecording: true,
           playsInSilentMode: true,
@@ -172,10 +179,15 @@ export function useMobileVoiceMessageRecorder(): MobileVoiceMessageRecorder {
     }
   }, []);
 
+  /**
+   * Ending a take hands the session back to playback rather than dropping
+   * `allowsRecording` on its own: a bare `{ allowsRecording: false }` also
+   * resets `playsInSilentMode` to the platform default, which is what left
+   * every voice note silent behind the iOS ring switch afterwards.
+   */
   const releaseAudioMode = useCallback(async () => {
-    await setAudioModeAsync({ allowsRecording: false, shouldPlayInBackground: false }).catch(
-      () => undefined,
-    );
+    invalidateMobilePlaybackAudioMode();
+    await ensureMobilePlaybackAudioMode();
   }, []);
 
   const stop = useCallback(async (): Promise<MobileVoiceStopOutcome> => {
