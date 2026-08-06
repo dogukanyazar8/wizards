@@ -43,9 +43,30 @@ function readWorkflowStep(job, stepName) {
 test("automatic Linux Desktop Ops runs its cargo audit step with Bash", () => {
   const workflow = readFileSync(workflowPath, "utf8");
   const desktopOps = readWorkflowJob(workflow, "desktop-ops");
+  const linuxDependencies = readWorkflowStep(desktopOps, "Install Tauri Linux system dependencies");
   const cargoAudit = readWorkflowStep(desktopOps, "Audit Rust dependencies");
 
-  assert.match(desktopOps, /\{"os":"ci-fast","staged":false\}/u);
+  assert.match(desktopOps, /\{"os":"ubuntu-24.04","staged":false\}/u);
+  assert.match(linuxDependencies, /^        if: matrix\.os == 'ubuntu-24\.04'$/mu);
+  assert.match(linuxDependencies, /^        shell: bash$/mu);
+  for (const packageName of [
+    "libwebkit2gtk-4.1-dev",
+    "build-essential",
+    "curl",
+    "wget",
+    "file",
+    "libxdo-dev",
+    "libssl-dev",
+    "libayatana-appindicator3-dev",
+    "librsvg2-dev",
+  ]) {
+    assert.match(linuxDependencies, new RegExp(`\\b${packageName.replaceAll(".", "\\.")}\\b`, "u"));
+  }
+  assert.ok(
+    desktopOps.indexOf("- name: Install Tauri Linux system dependencies") <
+      desktopOps.indexOf("- name: Audit Rust dependencies"),
+    "Tauri Linux system dependencies must be installed before Rust compilation",
+  );
   assert.match(cargoAudit, /^        shell: bash$/mu);
   assert.match(cargoAudit, /^          expected_version="cargo-audit \$CARGO_AUDIT_VERSION"$/mu);
   assert.match(cargoAudit, /^          if command -v cargo-audit >\/dev\/null 2>&1; then$/mu);
@@ -61,17 +82,25 @@ test("automatic Linux Desktop Ops runs its cargo audit step with Bash", () => {
   assert.doesNotMatch(cargoAudit, /Get-Command|\$env:|\$LASTEXITCODE/u);
 });
 
-test("ci-fast receives only Docker-free automatic CI jobs", () => {
+test("automatic CI jobs use pinned GitHub-hosted Linux runners", () => {
   const workflow = readFileSync(workflowPath, "utf8");
   const actionlintConfig = readFileSync(join(root, ".github", "actionlint.yaml"), "utf8");
-  const actionlint = readWorkflowJob(workflow, "actionlint");
   const semgrep = readWorkflowJob(workflow, "semgrep");
-  const typeScriptCompatibility = readWorkflowJob(workflow, "typescript-native-shadow");
 
-  assert.match(actionlintConfig, /^    - ci-fast$/mu);
-  assert.match(actionlint, /^    runs-on: \[self-hosted, linux, x64, ci-fast\]$/mu);
-  assert.match(typeScriptCompatibility, /^    runs-on: \[self-hosted, linux, x64, ci-fast\]$/mu);
-  assert.match(semgrep, /^    runs-on: \[self-hosted, linux, x64, wizards-ci\]$/mu);
+  for (const jobName of [
+    "verify",
+    "actionlint",
+    "semgrep",
+    "typescript-native-shadow",
+    "e2e-smoke",
+    "e2e-cross-browser",
+    "e2e-a11y",
+    "e2e-visual",
+  ]) {
+    assert.match(readWorkflowJob(workflow, jobName), /^    runs-on: ubuntu-24\.04$/mu, jobName);
+  }
+
+  assert.equal(actionlintConfig.trim(), "{}");
   assert.match(semgrep, /\bdocker run\b/u);
 });
 

@@ -40,7 +40,7 @@ permissions:
 jobs:
   verify:
     name: Verify
-    runs-on: [self-hosted, linux, x64, wizards-ci]
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
 
     steps:
@@ -56,7 +56,7 @@ jobs:
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version-file: .nvmrc
-          package-manager-cache: false
+          cache: pnpm
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -70,7 +70,7 @@ jobs:
         uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Avoid root-owned or stale host /tmp files on self-hosted runners.
+          # Keep temporary files inside the job-scoped GitHub-hosted runner directory.
           TMPDIR: ${{ runner.temp }}
 
       - name: Dependency audit
@@ -114,7 +114,7 @@ jobs:
 
   actionlint:
     name: actionlint
-    runs-on: [self-hosted, linux, x64, ci-fast]
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
       contents: read
@@ -152,7 +152,7 @@ jobs:
 
   semgrep:
     name: Semgrep CE SAST
-    runs-on: [self-hosted, linux, x64, wizards-ci]
+    runs-on: ubuntu-24.04
     if: github.event_name != 'pull_request'
     timeout-minutes: 15
     permissions:
@@ -211,7 +211,7 @@ jobs:
 
   typescript-native-shadow:
     name: TypeScript Compiler Compatibility
-    runs-on: [self-hosted, linux, x64, ci-fast]
+    runs-on: ubuntu-24.04
     timeout-minutes: 12
 
     steps:
@@ -225,7 +225,7 @@ jobs:
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version-file: .nvmrc
-          package-manager-cache: false
+          cache: pnpm
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -252,9 +252,8 @@ jobs:
 
   node22-compatibility:
     name: Node 22 Native Compatibility
-    # This job validates Windows-native dependencies and cannot run on the Linux
-    # self-hosted runner. Keep it explicit so scheduled CI never queues paid
-    # GitHub-hosted Windows capacity.
+    # This job validates Windows-native dependencies. Keep it explicit so scheduled
+    # CI does not consume additional GitHub-hosted Windows capacity.
     if: github.event_name == 'workflow_dispatch' && inputs.desktop_hosted
     runs-on: windows-latest
     timeout-minutes: 35
@@ -314,7 +313,7 @@ jobs:
 
   e2e-smoke:
     name: Playwright E2E
-    runs-on: [self-hosted, linux, x64, wizards-ci]
+    runs-on: ubuntu-24.04
     needs: verify
     timeout-minutes: 35
 
@@ -372,7 +371,7 @@ jobs:
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version-file: .nvmrc
-          package-manager-cache: false
+          cache: pnpm
       - name: Generate E2E test password
         shell: bash
         run: |
@@ -424,7 +423,7 @@ jobs:
 
   e2e-cross-browser:
     name: Playwright Firefox/WebKit Smoke
-    runs-on: [self-hosted, linux, x64, wizards-ci]
+    runs-on: ubuntu-24.04
     needs: verify
     timeout-minutes: 35
 
@@ -482,7 +481,7 @@ jobs:
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version-file: .nvmrc
-          package-manager-cache: false
+          cache: pnpm
       - name: Generate E2E test password
         shell: bash
         run: |
@@ -521,7 +520,7 @@ jobs:
 
   e2e-a11y:
     name: Playwright Accessibility Scan
-    runs-on: [self-hosted, linux, x64, wizards-ci]
+    runs-on: ubuntu-24.04
     needs: verify
     timeout-minutes: 35
 
@@ -579,7 +578,7 @@ jobs:
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version-file: .nvmrc
-          package-manager-cache: false
+          cache: pnpm
       - name: Generate E2E test password
         shell: bash
         run: |
@@ -618,7 +617,7 @@ jobs:
 
   e2e-visual:
     name: Playwright Visual Regression
-    runs-on: [self-hosted, linux, x64, wizards-ci]
+    runs-on: ubuntu-24.04
     needs: verify
     timeout-minutes: 35
 
@@ -676,7 +675,7 @@ jobs:
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version-file: .nvmrc
-          package-manager-cache: false
+          cache: pnpm
       - name: Generate E2E test password
         shell: bash
         run: |
@@ -721,10 +720,10 @@ jobs:
 
     strategy:
       fail-fast: false
-      # Automatic CI uses the free Linux self-hosted runner. The optional manual
-      # matrix adds matching Windows/macOS desktop-ops checks; the path-filtered
+      # Automatic CI uses pinned GitHub-hosted Linux. The optional manual matrix
+      # adds matching Windows/macOS desktop-ops checks; the path-filtered
       # desktop-native-build workflow owns automatic hosted native build signals.
-      matrix: ${{ inputs.desktop_hosted && fromJSON('{"include":[{"os":"ci-fast","staged":false},{"os":"windows-latest","staged":false},{"os":"macos-latest","staged":false}]}') || fromJSON('{"include":[{"os":"ci-fast","staged":false}]}') }}
+      matrix: ${{ inputs.desktop_hosted && fromJSON('{"include":[{"os":"ubuntu-24.04","staged":false},{"os":"windows-latest","staged":false},{"os":"macos-latest","staged":false}]}') || fromJSON('{"include":[{"os":"ubuntu-24.04","staged":false}]}') }}
 
     env:
       TAURI_WEB_URL: https://whispr.team
@@ -743,7 +742,23 @@ jobs:
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version-file: .nvmrc
-          package-manager-cache: false
+          cache: pnpm
+
+      - name: Install Tauri Linux system dependencies
+        if: matrix.os == 'ubuntu-24.04'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            libwebkit2gtk-4.1-dev \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libxdo-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
@@ -752,8 +767,8 @@ jobs:
           components: rustfmt, clippy
 
       - name: Audit Rust dependencies
-        # Automatic Desktop Ops runs on the Linux self-hosted runner. Keep this
-        # shell POSIX-compatible; hosted Windows validation uses pwsh.
+        # Automatic Desktop Ops runs on GitHub-hosted Linux. Keep this shell
+        # POSIX-compatible; hosted Windows validation uses pwsh.
         shell: bash
         working-directory: apps/desktop/src-tauri
         env:

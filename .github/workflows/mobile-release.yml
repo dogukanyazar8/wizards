@@ -48,8 +48,8 @@ permissions:
 
 jobs:
   preflight:
-    name: Verify self-hosted release runner toolchain
-    runs-on: [self-hosted, Linux, X64, mobile-release]
+    name: Verify GitHub-hosted release runner toolchain
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
 
     steps:
@@ -62,7 +62,7 @@ jobs:
             exit 1
           }
           [[ "${{ inputs.environment }}" == "uat" ]] || {
-            echo "::error::The existing local runner is authorized only for mobile-uat."
+            echo "::error::The release workflow is authorized only for mobile-uat."
             exit 1
           }
 
@@ -72,7 +72,7 @@ jobs:
           clean: true
           persist-credentials: false
 
-      - name: Verify self-hosted release runner prerequisites
+      - name: Verify GitHub-hosted release runner prerequisites
         shell: bash
         run: |
           set -euo pipefail
@@ -81,7 +81,7 @@ jobs:
             command -v "$tool" >/dev/null 2>&1 || missing+=("$tool")
           done
           if (( ${#missing[@]} > 0 )); then
-            printf '::error::Self-hosted mobile release runner is missing: %s\n' "${missing[*]}"
+            printf '::error::GitHub-hosted mobile release runner is missing: %s\n' "${missing[*]}"
             exit 1
           fi
 
@@ -91,7 +91,7 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Provision persistent Android local-build toolchain
+      - name: Provision Android local-build toolchain
         shell: bash
         run: bash .github/scripts/setup-android-build-tools.sh
 
@@ -99,7 +99,7 @@ jobs:
         shell: bash
         run: bash .github/scripts/setup-aws-cli.sh
 
-      - name: Verify self-hosted release runner toolchain
+      - name: Verify GitHub-hosted release runner toolchain
         shell: bash
         run: |
           set -euo pipefail
@@ -122,12 +122,8 @@ jobs:
             echo "::error::Could not determine available space for RUNNER_TEMP."
             exit 1
           }
-          (( runner_temp_available_kb >= 20971520 )) || {
-            echo "::error::RUNNER_TEMP requires at least 20 GiB free for a local Android build."
-            exit 1
-          }
           {
-            echo "### Self-hosted mobile release runner"
+            echo "### GitHub-hosted mobile release runner"
             echo "- AWS CLI: $aws_version"
             echo "- Android SDK: $ANDROID_HOME"
             echo "- Android NDK: $ANDROID_NDK_HOME"
@@ -149,7 +145,7 @@ jobs:
     name: Validate mobile release contract
     if: ${{ ! inputs.preflight_only }}
     needs: preflight
-    runs-on: [self-hosted, Linux, X64, mobile-release]
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     outputs:
       api_base_url: ${{ steps.contract.outputs.api_base_url }}
@@ -200,7 +196,7 @@ jobs:
     name: Publish signed UAT OTA
     if: inputs.kind == 'ota' && inputs.environment == 'uat' && github.ref_name == 'uat'
     needs: contract
-    runs-on: [self-hosted, Linux, X64, mobile-release]
+    runs-on: ubuntu-24.04
     timeout-minutes: 35
     environment: mobile-${{ inputs.environment }}
     env:
@@ -381,7 +377,7 @@ jobs:
     name: Build and publish internal Android APK
     if: inputs.kind == 'apk' && inputs.environment == 'uat' && github.ref_name == 'uat'
     needs: contract
-    runs-on: [self-hosted, Linux, X64, mobile-release]
+    runs-on: ubuntu-24.04
     timeout-minutes: 120
     environment: mobile-${{ inputs.environment }}
     env:
@@ -407,7 +403,7 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Provision persistent Android local-build toolchain
+      - name: Provision Android local-build toolchain
         shell: bash
         run: bash .github/scripts/setup-android-build-tools.sh
 
@@ -448,6 +444,20 @@ jobs:
             exit 1
           fi
 
+      - name: Record APK build disk start
+        shell: bash
+        run: |
+          set -euo pipefail
+          available_kb="$(df -Pk "$RUNNER_TEMP" | awk 'NR == 2 { print $4 }')"
+          [[ "$available_kb" =~ ^[0-9]+$ ]] || {
+            echo "::error::Could not determine available space for RUNNER_TEMP before APK build."
+            exit 1
+          }
+          {
+            echo "### APK build disk"
+            echo "- Before build: $((available_kb / 1024 / 1024)) GiB available"
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Build APK locally with the existing EAS-managed Android credential
         id: build
         env:
@@ -482,6 +492,18 @@ jobs:
           rm -f -- "$build_log"
           [[ -s "$apk" ]] || { echo "::error::Local EAS build did not produce an APK."; exit 1; }
           echo "apk=$apk" >> "$GITHUB_OUTPUT"
+
+      - name: Record APK build disk end
+        if: always()
+        shell: bash
+        run: |
+          set -u
+          available_kb="$(df -Pk "$RUNNER_TEMP" 2>/dev/null | awk 'NR == 2 { print $4 }')"
+          if [[ "$available_kb" =~ ^[0-9]+$ ]]; then
+            echo "- After build: $((available_kb / 1024 / 1024)) GiB available" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::warning::Could not determine available space for RUNNER_TEMP after APK build."
+          fi
 
       - name: Verify APK certificate and immutable metadata
         id: verify

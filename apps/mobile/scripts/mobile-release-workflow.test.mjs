@@ -102,12 +102,13 @@ describe("mobile release workflow contract", () => {
     assert.doesNotMatch(workflow, /^\s{6}version_code:/m);
     assert.doesNotMatch(workflow, /\$\{\{\s*inputs\.version_code\s*\}\}/);
     assert.equal(
-      workflow.match(/runs-on: \[self-hosted, Linux, X64, mobile-release\]/g)?.length,
+      workflow.match(/^    runs-on: ubuntu-24\.04$/gm)?.length,
       4,
-      "every mobile release job must use the dedicated local runner label",
+      "every mobile release job must use pinned GitHub-hosted Linux",
     );
-    assert.doesNotMatch(workflow, /runs-on: ubuntu-latest/);
-    assert.match(workflow, /Verify self-hosted release runner toolchain/);
+    assert.doesNotMatch(workflow, /runs-on:\s*\[self-hosted/u);
+    assert.doesNotMatch(workflow, /runs-on: ubuntu-latest/u);
+    assert.match(workflow, /Verify GitHub-hosted release runner toolchain/);
     assert.match(workflow, /github\.ref_name.*uat/);
     assert.equal(
       workflow.match(/persist-credentials: false/g)?.length,
@@ -133,6 +134,10 @@ describe("mobile release workflow contract", () => {
       workflow.match(/\.github\/scripts\/setup-android-build-tools\.sh/g)?.length,
       2,
       "preflight and APK publication must install the verified job-local apksigner",
+    );
+    const preflightJob = workflow.slice(
+      workflow.indexOf("\n  preflight:"),
+      workflow.indexOf("\n  contract:"),
     );
     const otaJob = workflow.slice(workflow.indexOf("\n  ota:"), workflow.indexOf("\n  apk:"));
     const apkJob = workflow.slice(workflow.indexOf("\n  apk:"));
@@ -165,8 +170,11 @@ describe("mobile release workflow contract", () => {
     assert.match(workflow, /EAS_LOCAL_BUILD_ARTIFACTS_DIR="\$build_root\/artifacts"/);
     assert.match(workflow, /TMPDIR="\$build_root\/tmp"/);
     assert.match(workflow, /SENTRY_DISABLE_AUTO_UPLOAD: "true"/);
-    assert.match(workflow, /df -Pk "\$RUNNER_TEMP"/);
-    assert.match(workflow, /runner_temp_available_kb >= 20971520/);
+    assert.match(preflightJob, /df -Pk "\$RUNNER_TEMP"/);
+    assert.doesNotMatch(preflightJob, /20971520|at least 20 GiB/u);
+    assert.match(apkJob, /- name: Record APK build disk start/u);
+    assert.match(apkJob, /- name: Record APK build disk end\r?\n\s+if: always\(\)/u);
+    assert.equal(apkJob.match(/df -Pk "\$RUNNER_TEMP"/gu)?.length, 2);
     assert.match(workflow, /> "\$build_log" 2>&1/);
     assert.match(workflow, /grep -F '\[RUN_GRADLEW\]'/);
     assert.match(workflow, /\[A-Za-z0-9\+\\\/=\]\{80,\}/);
