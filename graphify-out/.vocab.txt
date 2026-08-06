@@ -142,6 +142,7 @@ append
 apple
 application
 apply
+approach
 approaches
 approve
 approved
@@ -573,6 +574,7 @@ compose
 composed
 composer
 composite
+composition
 compression
 compromised
 compute
@@ -3159,6 +3161,7 @@ separator
 sequence
 seri
 serial
+serializable
 serialize
 serialized
 series

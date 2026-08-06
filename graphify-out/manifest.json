@@ -7125,8 +7125,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/eas.json": {
-    "mtime": 1785426893.296282,
-    "ast_hash": "0fcae0b2cf0cf713d55969f0f302fa14",
+    "mtime": 1785999704.1987054,
+    "ast_hash": "74ab775f2a4a0ba439f849341a6de857",
     "semantic_hash": ""
   },
   "apps/mobile/package.json": {
@@ -7285,8 +7285,8 @@
     "semantic_hash": ""
   },
   ".github/workflows/ci.yml": {
-    "mtime": 1785499109.1218784,
-    "ast_hash": "f3a7cac852dea6d2d3192c1a62de4d72",
+    "mtime": 1785996532.104503,
+    "ast_hash": "aa573bd7b4c5bcbea8a5c53289cb2853",
     "semantic_hash": ""
   },
   ".github/workflows/desktop-release.yml": {
@@ -7515,8 +7515,8 @@
     "semantic_hash": ""
   },
   "scripts/quality/runtime-toolchain-contract.test.mjs": {
-    "mtime": 1785942375.2904658,
-    "ast_hash": "f05124903ebcb970811f612d9e47a15f",
+    "mtime": 1785996209.2231681,
+    "ast_hash": "3acc942a3800f7899eb85d452b0fd67a",
     "semantic_hash": ""
   },
   "apps/web/scripts/eslint-config.test.mjs": {
@@ -8420,8 +8420,8 @@
     "semantic_hash": ""
   },
   ".github/actionlint.yaml": {
-    "mtime": 1785426893.292282,
-    "ast_hash": "c3b8dadc88bd7ba131b040161501bfca",
+    "mtime": 1786005737.2160869,
+    "ast_hash": "8a80554c91d9fca8acb82f023de02f11",
     "semantic_hash": ""
   },
   "apps/mobile/component-tests/mobile-profile-sheets-11e.test.tsx": {
@@ -10050,8 +10050,8 @@
     "semantic_hash": ""
   },
   "scripts/quality/semgrep-ci-contract.test.mjs": {
-    "mtime": 1785144624.7612283,
-    "ast_hash": "66fe9dd6d8019c1d1ee078c31a17904d",
+    "mtime": 1785996209.222164,
+    "ast_hash": "7a698b902fb38e190a5319fcd616d9b9",
     "semantic_hash": ""
   },
   ".semgrep/rules/javascript/security.yml": {
@@ -10190,8 +10190,8 @@
     "semantic_hash": ""
   },
   "scripts/quality/desktop-ops-workflow-contract.test.mjs": {
-    "mtime": 1785163204.2894096,
-    "ast_hash": "845512cf0a254221b383472aeb63bee8",
+    "mtime": 1786005671.1257896,
+    "ast_hash": "44ec727277cefe33d2868eafbf0fe70a",
     "semantic_hash": ""
   },
   "scripts/quality/actionlint-contract.test.mjs": {
@@ -12060,8 +12060,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-release-workflow.test.mjs": {
-    "mtime": 1785441013.2291546,
-    "ast_hash": "84883400a45d2731e5c99a3988215d6e",
+    "mtime": 1786007774.7572613,
+    "ast_hash": "2a8384fa533d032b013522f8d1c0f4eb",
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-update-controller-factory.test.ts": {
@@ -12190,8 +12190,8 @@
     "semantic_hash": ""
   },
   ".github/workflows/mobile-release.yml": {
-    "mtime": 1785503020.4301987,
-    "ast_hash": "a7bb2cd6cdbf1559b971a4567f78330b",
+    "mtime": 1786007727.462499,
+    "ast_hash": "cc5dc588244f0d85bfa04a59a5d5cf61",
     "semantic_hash": ""
   },
   "apps/mobile/certs/ota/README.md": {
@@ -13230,8 +13230,8 @@
     "semantic_hash": ""
   },
   "docs/superpowers/specs/2026-08-05-web-dependency-modernization-design.md": {
-    "mtime": 1785940396.1892614,
-    "ast_hash": "d570f8fe44c1d8032d6a33dcd4d9eb1e",
+    "mtime": 1785944588.2626095,
+    "ast_hash": "30b9d339a6368031f27d760f47875bdb",
     "semantic_hash": ""
   },
   "apps/mobile/component-tests/mobile-badges-screen.test.tsx": {
@@ -13270,8 +13270,8 @@
     "semantic_hash": ""
   },
   "docs/superpowers/specs/2026-08-05-mobile-dependency-modernization-design.md": {
-    "mtime": 1785940396.1902688,
-    "ast_hash": "f4b4b2375b3de46d8a693a3c72075d84",
+    "mtime": 1785944588.2610922,
+    "ast_hash": "40cc87c8c3dd84d4900e0be067f548f5",
     "semantic_hash": ""
   },
   "apps/web/src/app/api/v1/admin/users/[userId]/badges/route.ts": {
@@ -13350,8 +13350,33 @@
     "semantic_hash": ""
   },
   "docs/superpowers/specs/2026-08-05-local-quality-dashboard-design.md": {
-    "mtime": 1785942081.7804768,
-    "ast_hash": "35152e346c8c77e1afaedadf684008f0",
+    "mtime": 1785944588.2610922,
+    "ast_hash": "529ff4803e6b7d4cd0e56f4f63e26301",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/plans/2026-08-06-github-hosted-ci-migration.md": {
+    "mtime": 1785996780.7675047,
+    "ast_hash": "9af7b2b1e67ad7c2abad3b0fa8845324",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/specs/2026-08-06-github-hosted-ci-migration-design.md": {
+    "mtime": 1785996934.1585944,
+    "ast_hash": "02698001d596aa6b39266bcd7767da89",
+    "semantic_hash": ""
+  },
+  "graphify-out/memory/query_20260805_173739_github_actions_i\u015flerini_self_hosted_runner_de\u011fil_d.md": {
+    "mtime": 1785951459.0725403,
+    "ast_hash": "6f06f63646e5f14b3040b3198913a2de",
+    "semantic_hash": ""
+  },
+  "graphify-out/memory/query_20260806_044602_mobilde_20gb_\u015fart\u0131n\u0131_kim_koydu_nedir_sorun_tam_ola.md": {
+    "mtime": 1785991562.6950853,
+    "ast_hash": "5d8438c927862db400c386da5dcaad0f",
+    "semantic_hash": ""
+  },
+  "graphify-out/memory/query_20260806_045854_bu_limiti_kald\u0131ral\u0131m__github_actions_yeterli_olmay.md": {
+    "mtime": 1785992334.778019,
+    "ast_hash": "7dd3cccae1855794dcc7d5368067bfb6",
     "semantic_hash": ""
   }
 }

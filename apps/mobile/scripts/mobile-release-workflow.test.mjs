@@ -89,17 +89,21 @@ describe("mobile release workflow contract", () => {
     );
   });
 
-  it("preflight verifies the separate hosted build volume", async () => {
+  it("preflight reports the hosted runner storage layout", async () => {
     const workflow = await readFile(workflowPath, "utf8");
     const preflightJob = workflow.slice(
       workflow.indexOf("\n  preflight:"),
       workflow.indexOf("\n  contract:"),
     );
 
-    assert.match(preflightJob, /- name: Verify large ephemeral build scratch/u);
-    assert.match(preflightJob, /mountpoint -q \/mnt/u);
-    assert.match(preflightJob, /df -Pk \/mnt/u);
+    assert.match(preflightJob, /- name: Report hosted runner storage layout/u);
+    assert.match(preflightJob, /df -Ph/u);
     assert.match(preflightJob, /Preflight build volume:/u);
+    assert.doesNotMatch(
+      preflightJob,
+      /mountpoint|\/mnt/u,
+      "the hosted image exposes no separate scratch volume, so preflight must not require one",
+    );
   });
 
   it("keeps final disk telemetry safe when scratch preparation fails", async () => {
@@ -175,17 +179,28 @@ describe("mobile release workflow contract", () => {
     assert.doesNotMatch(otaJob, /setup-android-build-tools|setup-java/);
     assert.match(apkJob, /setup-android-build-tools/);
     assert.match(apkJob, /setup-java/);
-    assert.match(apkJob, /- name: Prepare large ephemeral build scratch/u);
+    assert.match(apkJob, /- name: Reclaim hosted runner disk before the native build/u);
     assert.ok(
-      apkJob.indexOf("- name: Prepare large ephemeral build scratch") <
+      apkJob.indexOf("- name: Reclaim hosted runner disk before the native build") <
         apkJob.indexOf("- name: Setup JDK for Android SDK tools"),
-      "the large scratch volume must be prepared before Android tooling",
+      "the runner disk must be reclaimed before Android tooling is provisioned",
     );
-    assert.match(apkJob, /mountpoint -q \/mnt/u);
+    assert.match(apkJob, /sudo rm -rf -- \\/u);
     assert.match(
       apkJob,
-      /scratch_root="\/mnt\/whispr-build\/\$\{GITHUB_RUN_ID\}-\$\{GITHUB_RUN_ATTEMPT\}"/u,
+      /^\s+\/usr\/local\/lib\/android \\$/mu,
+      "the preinstalled Android SDK is the largest reclaimable directory",
     );
+    assert.doesNotMatch(
+      apkJob,
+      /whispr-android-sdk/u,
+      "reclaiming disk must never target the SDK this workflow provisions itself",
+    );
+    assert.match(apkJob, /sudo docker image prune --all --force/u);
+    assert.match(apkJob, /- Before reclaim: /u);
+    assert.match(apkJob, /- After reclaim: /u);
+    assert.doesNotMatch(apkJob, /mountpoint|\/mnt\/whispr-build/u);
+    assert.match(apkJob, /scratch_root="\$RUNNER_TEMP\/whispr-build"/u);
     assert.match(apkJob, /echo "WHISPR_BUILD_ROOT=\$scratch_root" >> "\$GITHUB_ENV"/u);
     assert.match(apkJob, /echo "GRADLE_USER_HOME=\$scratch_root\/gradle" >> "\$GITHUB_ENV"/u);
     assert.match(androidBuildToolsSetup, /commandlinetools-linux-15859902_latest\.zip/);
@@ -226,10 +241,7 @@ describe("mobile release workflow contract", () => {
     assert.match(apkJob, /- name: Record APK build disk end\r?\n\s+if: always\(\)/u);
     assert.equal(apkJob.match(/df -Pk "\$WHISPR_BUILD_ROOT"/gu)?.length, 1);
     assert.equal(apkJob.match(/df -Pk "\$\{WHISPR_BUILD_ROOT:-\}"/gu)?.length, 1);
-    assert.match(
-      apkJob,
-      /expected_build_root="\/mnt\/whispr-build\/\$\{GITHUB_RUN_ID\}-\$\{GITHUB_RUN_ATTEMPT\}"/u,
-    );
+    assert.match(apkJob, /expected_build_root="\$RUNNER_TEMP\/whispr-build"/u);
     assert.match(apkJob, /rm -rf -- "\$WHISPR_BUILD_ROOT"/u);
     assert.doesNotMatch(workflow, /jlumbroso\/free-disk-space|free-disk-space@/u);
     assert.match(workflow, /> "\$build_log" 2>&1/);

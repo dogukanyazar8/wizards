@@ -85,26 +85,22 @@ jobs:
             exit 1
           fi
 
-      - name: Verify large ephemeral build scratch
+      - name: Report hosted runner storage layout
         shell: bash
         run: |
           set -euo pipefail
-          command -v mountpoint >/dev/null 2>&1 || {
-            echo "::error::mountpoint is required to verify the hosted runner scratch volume."
-            exit 1
-          }
-          mountpoint -q /mnt || {
-            echo "::error::The hosted runner does not expose /mnt as a separate build volume."
-            exit 1
-          }
-          mnt_available_kb="$(df -Pk /mnt | awk 'NR == 2 { print $4 }')"
-          [[ "$mnt_available_kb" =~ ^[0-9]+$ ]] || {
-            echo "::error::Could not determine available space for /mnt."
+          build_available_kb="$(df -Pk "$RUNNER_TEMP" | awk 'NR == 2 { print $4 }')"
+          [[ "$build_available_kb" =~ ^[0-9]+$ ]] || {
+            echo "::error::Could not determine available space for the hosted runner build volume."
             exit 1
           }
           {
-            echo "### Hosted build scratch"
-            echo "- Preflight build volume: /mnt ($((mnt_available_kb / 1024 / 1024)) GiB available)"
+            echo "### Hosted runner storage layout"
+            echo "- Preflight build volume: $((build_available_kb / 1024 / 1024)) GiB available before reclaim"
+            echo ""
+            echo '```'
+            df -Ph
+            echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Setup JDK for Android SDK tools
@@ -419,23 +415,37 @@ jobs:
           clean: true
           persist-credentials: false
 
-      - name: Prepare large ephemeral build scratch
+      - name: Reclaim hosted runner disk before the native build
         shell: bash
         run: |
           set -euo pipefail
-          command -v mountpoint >/dev/null 2>&1 || {
-            echo "::error::mountpoint is required to verify the hosted runner scratch volume."
+          before_kb="$(df -Pk "$RUNNER_TEMP" | awk 'NR == 2 { print $4 }')"
+          sudo rm -rf -- \
+            /usr/local/lib/android \
+            /usr/share/dotnet \
+            /usr/local/.ghcup \
+            /opt/ghc \
+            /usr/local/share/chromium \
+            /opt/hostedtoolcache/CodeQL \
+            /opt/hostedtoolcache/PyPy \
+            /opt/hostedtoolcache/Ruby \
+            /opt/hostedtoolcache/go
+          sudo docker image prune --all --force >/dev/null 2>&1 || true
+          after_kb="$(df -Pk "$RUNNER_TEMP" | awk 'NR == 2 { print $4 }')"
+          [[ "$before_kb" =~ ^[0-9]+$ && "$after_kb" =~ ^[0-9]+$ ]] || {
+            echo "::error::Could not measure reclaimed disk on the hosted runner."
             exit 1
           }
-          mountpoint -q /mnt || {
-            echo "::error::The hosted runner does not expose /mnt as a separate build volume."
-            exit 1
-          }
-          scratch_root="/mnt/whispr-build/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          sudo install -d -m 0755 -o "$(id -u)" -g "$(id -g)" /mnt/whispr-build
+          {
+            echo "### Hosted runner disk reclaim"
+            echo "- Before reclaim: $((before_kb / 1024 / 1024)) GiB available"
+            echo "- After reclaim: $((after_kb / 1024 / 1024)) GiB available"
+          } >> "$GITHUB_STEP_SUMMARY"
+          scratch_root="$RUNNER_TEMP/whispr-build"
+          rm -rf -- "$scratch_root"
           install -d -m 0700 "$scratch_root"
           [[ -w "$scratch_root" ]] || {
-            echo "::error::The hosted runner build volume is not writable: $scratch_root"
+            echo "::error::The hosted runner build scratch is not writable: $scratch_root"
             exit 1
           }
           echo "WHISPR_BUILD_ROOT=$scratch_root" >> "$GITHUB_ENV"
@@ -718,7 +728,7 @@ jobs:
           if [[ -d "$RUNNER_TEMP/eas-cli" ]]; then
             rm -rf -- "$RUNNER_TEMP/eas-cli"
           fi
-          expected_build_root="/mnt/whispr-build/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          expected_build_root="$RUNNER_TEMP/whispr-build"
           if [[ -n "${WHISPR_BUILD_ROOT:-}" && "$WHISPR_BUILD_ROOT" != "$expected_build_root" ]]; then
             echo "::warning::Refusing to scrub unexpected build root: $WHISPR_BUILD_ROOT"
           elif [[ -d "${WHISPR_BUILD_ROOT:-}" ]]; then
