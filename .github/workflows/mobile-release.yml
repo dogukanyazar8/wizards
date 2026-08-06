@@ -30,7 +30,7 @@ on:
         type: choice
       preflight_only:
         default: false
-        description: Validate the protected self-hosted runner without publishing
+        description: Validate the protected GitHub-hosted runner without publishing
         required: true
         type: boolean
       version:
@@ -84,6 +84,28 @@ jobs:
             printf '::error::GitHub-hosted mobile release runner is missing: %s\n' "${missing[*]}"
             exit 1
           fi
+
+      - name: Verify large ephemeral build scratch
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v mountpoint >/dev/null 2>&1 || {
+            echo "::error::mountpoint is required to verify the hosted runner scratch volume."
+            exit 1
+          }
+          mountpoint -q /mnt || {
+            echo "::error::The hosted runner does not expose /mnt as a separate build volume."
+            exit 1
+          }
+          mnt_available_kb="$(df -Pk /mnt | awk 'NR == 2 { print $4 }')"
+          [[ "$mnt_available_kb" =~ ^[0-9]+$ ]] || {
+            echo "::error::Could not determine available space for /mnt."
+            exit 1
+          }
+          {
+            echo "### Hosted build scratch"
+            echo "- Preflight build volume: /mnt ($((mnt_available_kb / 1024 / 1024)) GiB available)"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Setup JDK for Android SDK tools
         uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
@@ -397,6 +419,28 @@ jobs:
           clean: true
           persist-credentials: false
 
+      - name: Prepare large ephemeral build scratch
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v mountpoint >/dev/null 2>&1 || {
+            echo "::error::mountpoint is required to verify the hosted runner scratch volume."
+            exit 1
+          }
+          mountpoint -q /mnt || {
+            echo "::error::The hosted runner does not expose /mnt as a separate build volume."
+            exit 1
+          }
+          scratch_root="/mnt/whispr-build/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          sudo install -d -m 0755 -o "$(id -u)" -g "$(id -g)" /mnt/whispr-build
+          install -d -m 0700 "$scratch_root"
+          [[ -w "$scratch_root" ]] || {
+            echo "::error::The hosted runner build volume is not writable: $scratch_root"
+            exit 1
+          }
+          echo "WHISPR_BUILD_ROOT=$scratch_root" >> "$GITHUB_ENV"
+          echo "GRADLE_USER_HOME=$scratch_root/gradle" >> "$GITHUB_ENV"
+
       - name: Setup JDK for Android SDK tools
         uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
         with:
@@ -448,14 +492,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          available_kb="$(df -Pk "$RUNNER_TEMP" | awk 'NR == 2 { print $4 }')"
-          [[ "$available_kb" =~ ^[0-9]+$ ]] || {
-            echo "::error::Could not determine available space for RUNNER_TEMP before APK build."
+          build_available_kb="$(df -Pk "$WHISPR_BUILD_ROOT" | awk 'NR == 2 { print $4 }')"
+          root_available_kb="$(df -Pk "$RUNNER_TEMP" | awk 'NR == 2 { print $4 }')"
+          [[ "$build_available_kb" =~ ^[0-9]+$ && "$root_available_kb" =~ ^[0-9]+$ ]] || {
+            echo "::error::Could not determine available space before APK build."
             exit 1
           }
           {
             echo "### APK build disk"
-            echo "- Before build: $((available_kb / 1024 / 1024)) GiB available"
+            echo "- Build volume before: $((build_available_kb / 1024 / 1024)) GiB available"
+            echo "- Root volume before: $((root_available_kb / 1024 / 1024)) GiB available"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Build APK locally with the existing EAS-managed Android credential
@@ -468,7 +514,7 @@ jobs:
           set -euo pipefail
           environment="${{ inputs.environment }}"
           apk="$RUNNER_TEMP/mobile-release.apk"
-          build_root="$RUNNER_TEMP/eas-local-build"
+          build_root="$WHISPR_BUILD_ROOT/eas-local-build"
           build_log="$RUNNER_TEMP/eas-local-build.log"
           rm -rf -- "$build_root"
           rm -f -- "$build_log" "$apk"
@@ -498,11 +544,15 @@ jobs:
         shell: bash
         run: |
           set -u
-          available_kb="$(df -Pk "$RUNNER_TEMP" 2>/dev/null | awk 'NR == 2 { print $4 }')"
-          if [[ "$available_kb" =~ ^[0-9]+$ ]]; then
-            echo "- After build: $((available_kb / 1024 / 1024)) GiB available" >> "$GITHUB_STEP_SUMMARY"
+          build_available_kb="$(df -Pk "${WHISPR_BUILD_ROOT:-}" 2>/dev/null | awk 'NR == 2 { print $4 }')"
+          root_available_kb="$(df -Pk "$RUNNER_TEMP" 2>/dev/null | awk 'NR == 2 { print $4 }')"
+          if [[ "$build_available_kb" =~ ^[0-9]+$ && "$root_available_kb" =~ ^[0-9]+$ ]]; then
+            {
+              echo "- Build volume after: $((build_available_kb / 1024 / 1024)) GiB available"
+              echo "- Root volume after: $((root_available_kb / 1024 / 1024)) GiB available"
+            } >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "::warning::Could not determine available space for RUNNER_TEMP after APK build."
+            echo "::warning::Could not determine available space after APK build."
           fi
 
       - name: Verify APK certificate and immutable metadata
@@ -668,8 +718,11 @@ jobs:
           if [[ -d "$RUNNER_TEMP/eas-cli" ]]; then
             rm -rf -- "$RUNNER_TEMP/eas-cli"
           fi
-          if [[ -d "$RUNNER_TEMP/eas-local-build" ]]; then
-            rm -rf -- "$RUNNER_TEMP/eas-local-build"
+          expected_build_root="/mnt/whispr-build/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          if [[ -n "${WHISPR_BUILD_ROOT:-}" && "$WHISPR_BUILD_ROOT" != "$expected_build_root" ]]; then
+            echo "::warning::Refusing to scrub unexpected build root: $WHISPR_BUILD_ROOT"
+          elif [[ -d "${WHISPR_BUILD_ROOT:-}" ]]; then
+            rm -rf -- "$WHISPR_BUILD_ROOT"
           fi
           rm -f -- "$RUNNER_TEMP/eas-local-build.log"
           rm -rf -- \

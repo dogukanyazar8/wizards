@@ -89,6 +89,33 @@ describe("mobile release workflow contract", () => {
     );
   });
 
+  it("preflight verifies the separate hosted build volume", async () => {
+    const workflow = await readFile(workflowPath, "utf8");
+    const preflightJob = workflow.slice(
+      workflow.indexOf("\n  preflight:"),
+      workflow.indexOf("\n  contract:"),
+    );
+
+    assert.match(preflightJob, /- name: Verify large ephemeral build scratch/u);
+    assert.match(preflightJob, /mountpoint -q \/mnt/u);
+    assert.match(preflightJob, /df -Pk \/mnt/u);
+    assert.match(preflightJob, /Preflight build volume:/u);
+  });
+
+  it("keeps final disk telemetry safe when scratch preparation fails", async () => {
+    const workflow = await readFile(workflowPath, "utf8");
+    const apkJob = workflow.slice(workflow.indexOf("\n  apk:"));
+    const diskEnd = apkJob.slice(
+      apkJob.indexOf("- name: Record APK build disk end"),
+      apkJob.indexOf("- name: Verify APK certificate and immutable metadata"),
+    );
+
+    assert.match(diskEnd, /if: always\(\)/u);
+    assert.match(diskEnd, /set -u/u);
+    assert.match(diskEnd, /df -Pk "\$\{WHISPR_BUILD_ROOT:-\}"/u);
+    assert.doesNotMatch(diskEnd, /df -Pk "\$WHISPR_BUILD_ROOT"/u);
+  });
+
   it("pins manual, fail-closed OTA and EAS-managed local APK publication", async () => {
     const [workflow, easConfigSource, awsCliSetup, androidBuildToolsSetup, awsCliPublicKey] =
       await Promise.all([
@@ -110,7 +137,7 @@ describe("mobile release workflow contract", () => {
       4,
       "every mobile release job must use pinned GitHub-hosted Linux",
     );
-    assert.doesNotMatch(workflow, /runs-on:\s*\[self-hosted/u);
+    assert.doesNotMatch(workflow, /self-hosted/u);
     assert.doesNotMatch(workflow, /runs-on: ubuntu-latest/u);
     assert.match(workflow, /Verify GitHub-hosted release runner toolchain/);
     assert.match(workflow, /github\.ref_name.*uat/);
@@ -148,6 +175,19 @@ describe("mobile release workflow contract", () => {
     assert.doesNotMatch(otaJob, /setup-android-build-tools|setup-java/);
     assert.match(apkJob, /setup-android-build-tools/);
     assert.match(apkJob, /setup-java/);
+    assert.match(apkJob, /- name: Prepare large ephemeral build scratch/u);
+    assert.ok(
+      apkJob.indexOf("- name: Prepare large ephemeral build scratch") <
+        apkJob.indexOf("- name: Setup JDK for Android SDK tools"),
+      "the large scratch volume must be prepared before Android tooling",
+    );
+    assert.match(apkJob, /mountpoint -q \/mnt/u);
+    assert.match(
+      apkJob,
+      /scratch_root="\/mnt\/whispr-build\/\$\{GITHUB_RUN_ID\}-\$\{GITHUB_RUN_ATTEMPT\}"/u,
+    );
+    assert.match(apkJob, /echo "WHISPR_BUILD_ROOT=\$scratch_root" >> "\$GITHUB_ENV"/u);
+    assert.match(apkJob, /echo "GRADLE_USER_HOME=\$scratch_root\/gradle" >> "\$GITHUB_ENV"/u);
     assert.match(androidBuildToolsSetup, /commandlinetools-linux-15859902_latest\.zip/);
     assert.match(
       androidBuildToolsSetup,
@@ -173,6 +213,7 @@ describe("mobile release workflow contract", () => {
     assert.match(workflow, /EAS_LOCAL_BUILD_WORKINGDIR="\$build_root\/work"/);
     assert.match(workflow, /EAS_LOCAL_BUILD_ARTIFACTS_DIR="\$build_root\/artifacts"/);
     assert.match(workflow, /TMPDIR="\$build_root\/tmp"/);
+    assert.match(apkJob, /build_root="\$WHISPR_BUILD_ROOT\/eas-local-build"/u);
     assert.match(workflow, /SENTRY_DISABLE_AUTO_UPLOAD: "true"/);
     assert.equal(
       easConfig.build.uat.env.ORG_GRADLE_PROJECT_reactNativeArchitectures,
@@ -183,7 +224,14 @@ describe("mobile release workflow contract", () => {
     assert.doesNotMatch(preflightJob, /20971520|at least 20 GiB/u);
     assert.match(apkJob, /- name: Record APK build disk start/u);
     assert.match(apkJob, /- name: Record APK build disk end\r?\n\s+if: always\(\)/u);
-    assert.equal(apkJob.match(/df -Pk "\$RUNNER_TEMP"/gu)?.length, 2);
+    assert.equal(apkJob.match(/df -Pk "\$WHISPR_BUILD_ROOT"/gu)?.length, 1);
+    assert.equal(apkJob.match(/df -Pk "\$\{WHISPR_BUILD_ROOT:-\}"/gu)?.length, 1);
+    assert.match(
+      apkJob,
+      /expected_build_root="\/mnt\/whispr-build\/\$\{GITHUB_RUN_ID\}-\$\{GITHUB_RUN_ATTEMPT\}"/u,
+    );
+    assert.match(apkJob, /rm -rf -- "\$WHISPR_BUILD_ROOT"/u);
+    assert.doesNotMatch(workflow, /jlumbroso\/free-disk-space|free-disk-space@/u);
     assert.match(workflow, /> "\$build_log" 2>&1/);
     assert.match(workflow, /grep -F '\[RUN_GRADLEW\]'/);
     assert.match(workflow, /\[A-Za-z0-9\+\\\/=\]\{80,\}/);
