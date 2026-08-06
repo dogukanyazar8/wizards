@@ -440,8 +440,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/scripts/build-android-uat.ps1": {
-    "mtime": 1785908018.1848981,
-    "ast_hash": "8a64fc2be681c1fed72c6b778f47dca8",
+    "mtime": 1786012326.0132146,
+    "ast_hash": "287f1424653b76afd2aab17daddbdc59",
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-account-settings-client.test.ts": {
@@ -690,8 +690,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-notification-query.test.ts": {
-    "mtime": 1785020529.4657972,
-    "ast_hash": "00ebc6b80a3f11336be58a650ad51cf8",
+    "mtime": 1786017777.7460525,
+    "ast_hash": "255b6f829a4b39397f29d8c6c62b3282",
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-notifications-1d-contract.test.ts": {
@@ -1990,8 +1990,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/notifications/mobile-notification-query.ts": {
-    "mtime": 1785017403.4106956,
-    "ast_hash": "17f8f544e3b4f48fbf81cd129db77803",
+    "mtime": 1786017792.6229432,
+    "ast_hash": "90c09e8e9311dd404bf76736b2440261",
     "semantic_hash": ""
   },
   "apps/mobile/src/notifications/mobile-notification-runtime.ts": {
@@ -5555,8 +5555,8 @@
     "semantic_hash": ""
   },
   "apps/web/src/lib/notifications/service.ts": {
-    "mtime": 1785943950.5280733,
-    "ast_hash": "79dd64f02f691b15fdb3ded9de001456",
+    "mtime": 1786017750.3723197,
+    "ast_hash": "06ba424aee6807b1ac492eaed096a96b",
     "semantic_hash": ""
   },
   "apps/web/src/lib/notifications/types.ts": {
@@ -7285,8 +7285,8 @@
     "semantic_hash": ""
   },
   ".github/workflows/ci.yml": {
-    "mtime": 1785996532.104503,
-    "ast_hash": "aa573bd7b4c5bcbea8a5c53289cb2853",
+    "mtime": 1786011789.296794,
+    "ast_hash": "5db1373bc9fde7a8111b8ed368e95594",
     "semantic_hash": ""
   },
   ".github/workflows/desktop-release.yml": {
@@ -7295,8 +7295,8 @@
     "semantic_hash": ""
   },
   ".github/workflows/mobile-redesign-device-gate-nightly.yml": {
-    "mtime": 1784458943.0216353,
-    "ast_hash": "b0c40a77ac331c89d055c2703178e0f0",
+    "mtime": 1786012000.3426826,
+    "ast_hash": "da9d3c97128577ecfb1a9cc7e682a34a",
     "semantic_hash": ""
   },
   ".maestro/helpers/login-uat.yml": {
@@ -7515,8 +7515,8 @@
     "semantic_hash": ""
   },
   "scripts/quality/runtime-toolchain-contract.test.mjs": {
-    "mtime": 1785996209.2231681,
-    "ast_hash": "3acc942a3800f7899eb85d452b0fd67a",
+    "mtime": 1786011699.460306,
+    "ast_hash": "e0f30c0bdb9d8b042845d0ef499fbe9f",
     "semantic_hash": ""
   },
   "apps/web/scripts/eslint-config.test.mjs": {
@@ -8420,8 +8420,8 @@
     "semantic_hash": ""
   },
   ".github/actionlint.yaml": {
-    "mtime": 1786005737.2160869,
-    "ast_hash": "8a80554c91d9fca8acb82f023de02f11",
+    "mtime": 1786011789.2957873,
+    "ast_hash": "c3b8dadc88bd7ba131b040161501bfca",
     "semantic_hash": ""
   },
   "apps/mobile/component-tests/mobile-profile-sheets-11e.test.tsx": {
@@ -10050,8 +10050,8 @@
     "semantic_hash": ""
   },
   "scripts/quality/semgrep-ci-contract.test.mjs": {
-    "mtime": 1785996209.222164,
-    "ast_hash": "7a698b902fb38e190a5319fcd616d9b9",
+    "mtime": 1786011699.4613078,
+    "ast_hash": "66fe9dd6d8019c1d1ee078c31a17904d",
     "semantic_hash": ""
   },
   ".semgrep/rules/javascript/security.yml": {
@@ -10190,8 +10190,8 @@
     "semantic_hash": ""
   },
   "scripts/quality/desktop-ops-workflow-contract.test.mjs": {
-    "mtime": 1786005671.1257896,
-    "ast_hash": "44ec727277cefe33d2868eafbf0fe70a",
+    "mtime": 1786011699.4613078,
+    "ast_hash": "2f23d18adaacc1b8551b0dcce7ba2282",
     "semantic_hash": ""
   },
   "scripts/quality/actionlint-contract.test.mjs": {
@@ -12060,8 +12060,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-release-workflow.test.mjs": {
-    "mtime": 1786007774.7572613,
-    "ast_hash": "2a8384fa533d032b013522f8d1c0f4eb",
+    "mtime": 1786011699.4593086,
+    "ast_hash": "918af2defaa2ff01d5c5c3e3ad33d823",
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-update-controller-factory.test.ts": {
@@ -12190,8 +12190,8 @@
     "semantic_hash": ""
   },
   ".github/workflows/mobile-release.yml": {
-    "mtime": 1786007727.462499,
-    "ast_hash": "cc5dc588244f0d85bfa04a59a5d5cf61",
+    "mtime": 1786011789.2977903,
+    "ast_hash": "dc982ef38931524f25abaff07e5fa596",
     "semantic_hash": ""
   },
   "apps/mobile/certs/ota/README.md": {
@@ -13345,8 +13345,8 @@
     "semantic_hash": ""
   },
   "apps/web/src/lib/notifications/service.test.ts": {
-    "mtime": 1785944025.4467225,
-    "ast_hash": "d26321209aed7db13723c7fa67f22bee",
+    "mtime": 1786017692.556104,
+    "ast_hash": "a3e173a1ef3a5e15f2c0ace04c3ca41b",
     "semantic_hash": ""
   },
   "docs/superpowers/specs/2026-08-05-local-quality-dashboard-design.md": {
@@ -13377,6 +13377,21 @@
   "graphify-out/memory/query_20260806_045854_bu_limiti_kald\u0131ral\u0131m__github_actions_yeterli_olmay.md": {
     "mtime": 1785992334.778019,
     "ast_hash": "7dd3cccae1855794dcc7d5368067bfb6",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/plans/2026-08-06-self-hosted-hybrid-ci-restoration.md": {
+    "mtime": 1786012239.3965087,
+    "ast_hash": "02b914373cdaf94a5c48019c5f8a39c8",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/specs/2026-08-06-self-hosted-hybrid-ci-restoration-design.md": {
+    "mtime": 1786011574.2995856,
+    "ast_hash": "1fb629fb4133dfce07958e91c84e1515",
+    "semantic_hash": ""
+  },
+  "scripts/quality/mobile-uat-build-contract.test.mjs": {
+    "mtime": 1786012284.062582,
+    "ast_hash": "aa21ba82ea83e4f40f5173b4b58cd494",
     "semantic_hash": ""
   }
 }

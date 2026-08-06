@@ -135,8 +135,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/app.config.js": {
-    "mtime": 1785819722.2774897,
-    "ast_hash": "f71664d46dae313d94dc9745228d2592",
+    "mtime": 1786019701.4656878,
+    "ast_hash": "b7234ebca8ab8748d09d6d0b3387e408",
     "semantic_hash": ""
   },
   "apps/mobile/App.tsx": {
@@ -440,8 +440,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/scripts/build-android-uat.ps1": {
-    "mtime": 1785908018.1848981,
-    "ast_hash": "8a64fc2be681c1fed72c6b778f47dca8",
+    "mtime": 1786012326.0132146,
+    "ast_hash": "287f1424653b76afd2aab17daddbdc59",
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-account-settings-client.test.ts": {
@@ -690,8 +690,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-notification-query.test.ts": {
-    "mtime": 1785020529.4657972,
-    "ast_hash": "00ebc6b80a3f11336be58a650ad51cf8",
+    "mtime": 1786017777.7460525,
+    "ast_hash": "255b6f829a4b39397f29d8c6c62b3282",
     "semantic_hash": ""
   },
   "apps/mobile/scripts/mobile-notifications-1d-contract.test.ts": {
@@ -1990,8 +1990,8 @@
     "semantic_hash": ""
   },
   "apps/mobile/src/notifications/mobile-notification-query.ts": {
-    "mtime": 1785017403.4106956,
-    "ast_hash": "17f8f544e3b4f48fbf81cd129db77803",
+    "mtime": 1786017792.6229432,
+    "ast_hash": "90c09e8e9311dd404bf76736b2440261",
     "semantic_hash": ""
   },
   "apps/mobile/src/notifications/mobile-notification-runtime.ts": {
@@ -5555,8 +5555,8 @@
     "semantic_hash": ""
   },
   "apps/web/src/lib/notifications/service.ts": {
-    "mtime": 1785943950.5280733,
-    "ast_hash": "79dd64f02f691b15fdb3ded9de001456",
+    "mtime": 1786017750.3723197,
+    "ast_hash": "06ba424aee6807b1ac492eaed096a96b",
     "semantic_hash": ""
   },
   "apps/web/src/lib/notifications/types.ts": {
@@ -13345,8 +13345,8 @@
     "semantic_hash": ""
   },
   "apps/web/src/lib/notifications/service.test.ts": {
-    "mtime": 1785944025.4467225,
-    "ast_hash": "d26321209aed7db13723c7fa67f22bee",
+    "mtime": 1786017692.556104,
+    "ast_hash": "a3e173a1ef3a5e15f2c0ace04c3ca41b",
     "semantic_hash": ""
   },
   "docs/superpowers/specs/2026-08-05-local-quality-dashboard-design.md": {
@@ -13380,13 +13380,28 @@
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-08-06-self-hosted-hybrid-ci-restoration.md": {
-    "mtime": 1786011574.3005939,
-    "ast_hash": "aa1234d8e26eba7cb03f880e879556b3",
+    "mtime": 1786012239.3965087,
+    "ast_hash": "02b914373cdaf94a5c48019c5f8a39c8",
     "semantic_hash": ""
   },
   "docs/superpowers/specs/2026-08-06-self-hosted-hybrid-ci-restoration-design.md": {
     "mtime": 1786011574.2995856,
     "ast_hash": "1fb629fb4133dfce07958e91c84e1515",
+    "semantic_hash": ""
+  },
+  "scripts/quality/mobile-uat-build-contract.test.mjs": {
+    "mtime": 1786012284.062582,
+    "ast_hash": "aa21ba82ea83e4f40f5173b4b58cd494",
+    "semantic_hash": ""
+  },
+  "apps/mobile/plugins/withWhisprGradleMemory.js": {
+    "mtime": 1786019701.4646878,
+    "ast_hash": "cdeb516eb9732bde71ce05275ef2d733",
+    "semantic_hash": ""
+  },
+  "apps/mobile/scripts/mobile-gradle-memory-config.test.ts": {
+    "mtime": 1786019677.392964,
+    "ast_hash": "73855daa8460594b9494770ef1459481",
     "semantic_hash": ""
   }
 }

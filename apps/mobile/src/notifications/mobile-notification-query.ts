@@ -96,12 +96,19 @@ type MobileNotificationMutationOptionsInput = {
  * servers screen, the switcher sheet and the channel row are all holding numbers
  * that just changed. Both are prefix invalidations — every cached server has to
  * catch up, not only the one on screen.
+ *
+ * The DM inbox goes with them for the same reason: a DM row read or cleared here
+ * retires `DMParticipant.unreadCount` server-side, and that sum is the only
+ * source of the messages tab badge. Without this the badge keeps counting
+ * notifications the user has already dealt with until the inbox happens to
+ * refetch.
  */
 function invalidateMobileNotifications(queryClient: QueryClient) {
   return Promise.all([
     queryClient.invalidateQueries({ queryKey: mobileQueryKeys.notificationsRoot() }),
     queryClient.invalidateQueries({ exact: true, queryKey: mobileQueryKeys.bootstrap() }),
     queryClient.invalidateQueries({ queryKey: mobileQueryKeys.workspaceRoot() }),
+    queryClient.invalidateQueries({ exact: true, queryKey: mobileQueryKeys.dmConversations() }),
   ]);
 }
 

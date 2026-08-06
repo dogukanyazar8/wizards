@@ -285,6 +285,7 @@ module.exports = ({ config }) => {
       "@react-native-google-signin/google-signin",
       "./plugins/withScreenShare",
       "./plugins/withWhisprCallNotifications",
+      "./plugins/withWhisprGradleMemory",
       [
         "@sentry/react-native/expo",
         {

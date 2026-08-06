@@ -4,6 +4,7 @@ import { QueryClient } from "@tanstack/react-query";
 
 import type { MobileApiClient } from "../src/api/mobile-api-client";
 import {
+  createMobileNotificationClearMutationOptions,
   createMobileNotificationMarkAllReadMutationOptions,
   createMobileNotificationMarkReadMutationOptions,
   getMobileNotificationsQueryOptions,
@@ -41,14 +42,34 @@ test("notification feed query uses the bounded notifications key and opaque curs
   );
 });
 
-test("notification read mutations retire the mention badge caches too", async () => {
+test("notification read mutations retire the mention and DM badge caches too", async () => {
   const queryClient = new QueryClient();
   const notificationKey = mobileQueryKeys.notifications();
   const bootstrapKey = mobileQueryKeys.bootstrap();
   const workspaceKey = mobileQueryKeys.workspace("server-1");
+  const dmConversationsKey = mobileQueryKeys.dmConversations();
+  const touchedKeys = [notificationKey, bootstrapKey, workspaceKey, dmConversationsKey];
+  const resetInvalidation = () => {
+    for (const key of touchedKeys) {
+      queryClient.getQueryCache().find({ queryKey: key, exact: true })?.setState({
+        isInvalidated: false,
+      });
+    }
+  };
+  const assertAllInvalidated = (label: string) => {
+    for (const key of touchedKeys) {
+      assert.equal(
+        queryClient.getQueryState(key)?.isInvalidated,
+        true,
+        `${label}: ${key.join("/")}`,
+      );
+    }
+  };
+
   queryClient.setQueryData(notificationKey, { pages: [] });
   queryClient.setQueryData(bootstrapKey, { ready: true });
   queryClient.setQueryData(workspaceKey, { ready: true });
+  queryClient.setQueryData(dmConversationsKey, { pages: [] });
   const client: MobileApiClient = {
     async requestJson<TResponse>() {
       return { success: true } as TResponse;
@@ -57,22 +78,22 @@ test("notification read mutations retire the mention badge caches too", async ()
 
   const one = createMobileNotificationMarkReadMutationOptions({ client, queryClient });
   const all = createMobileNotificationMarkAllReadMutationOptions({ client, queryClient });
+  const clear = createMobileNotificationClearMutationOptions({ client, queryClient });
   await one.mutationFn("00000000-0000-4000-8000-000000000001");
   await one.onSuccess!();
-  // Reading a mention clears `ChannelReadState.mentionCount` server-side, so the
-  // servers screen (bootstrap) and every cached server detail must refetch.
-  assert.equal(queryClient.getQueryState(notificationKey)?.isInvalidated, true);
-  assert.equal(queryClient.getQueryState(bootstrapKey)?.isInvalidated, true);
-  assert.equal(queryClient.getQueryState(workspaceKey)?.isInvalidated, true);
+  // Reading a mention clears `ChannelReadState.mentionCount` server-side and
+  // reading a DM row clears `DMParticipant.unreadCount`, so the servers screen
+  // (bootstrap), every cached server detail and the DM inbox behind the messages
+  // tab badge must all refetch.
+  assertAllInvalidated("mark read");
 
-  for (const key of [notificationKey, bootstrapKey, workspaceKey]) {
-    queryClient.getQueryCache().find({ queryKey: key, exact: true })?.setState({
-      isInvalidated: false,
-    });
-  }
+  resetInvalidation();
   await all.mutationFn();
   await all.onSuccess!();
-  assert.equal(queryClient.getQueryState(notificationKey)?.isInvalidated, true);
-  assert.equal(queryClient.getQueryState(bootstrapKey)?.isInvalidated, true);
-  assert.equal(queryClient.getQueryState(workspaceKey)?.isInvalidated, true);
+  assertAllInvalidated("mark all read");
+
+  resetInvalidation();
+  await clear.mutationFn();
+  await clear.onSuccess!();
+  assertAllInvalidated("clear all");
 });

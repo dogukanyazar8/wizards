@@ -371,6 +371,15 @@ function getNotificationChannelScope(
   };
 }
 
+function getNotificationConversationId(metadata: Prisma.JsonValue | null): string | null {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return null;
+  }
+
+  const conversationId = (metadata as Record<string, unknown>).conversationId;
+  return typeof conversationId === "string" && conversationId.length > 0 ? conversationId : null;
+}
+
 /**
  * A mention lives in two places: the notification row and the channel's mention
  * badge. Reading it in the notification feed has to retire both, otherwise the
@@ -418,6 +427,32 @@ async function releaseAllChannelMentions(userId: string): Promise<void> {
   }
 }
 
+/**
+ * A DM notification has the same two homes a mention does: the notification row
+ * and `DMParticipant.unreadCount`, which is the sole source of the messages tab
+ * badge (`getDirectMessageUnreadCount` sums it). Reading the row in the feed has
+ * to retire its share of the badge, otherwise the tab keeps counting a message
+ * the user has already dealt with.
+ *
+ * `lastReadAt` is deliberately untouched: it is what the sender's read tick is
+ * drawn from, and clearing a notification is not reading the conversation.
+ * `gt: 0` keeps the counter from going negative.
+ */
+async function releaseDirectMessageUnread(userId: string, conversationId: string): Promise<void> {
+  await prisma.dMParticipant.updateMany({
+    where: { conversationId, unreadCount: { gt: 0 }, userId },
+    data: { unreadCount: { decrement: 1 } },
+  });
+}
+
+/** Clears every DM badge the user owns, for the bulk read/clear actions. */
+async function releaseAllDirectMessageUnread(userId: string): Promise<void> {
+  await prisma.dMParticipant.updateMany({
+    where: { unreadCount: { gt: 0 }, userId },
+    data: { unreadCount: 0 },
+  });
+}
+
 export async function markRead(userId: string, notificationId: string): Promise<void> {
   const notification = await prisma.notification.findFirst({
     where: { id: notificationId, userId },
@@ -441,13 +476,23 @@ export async function markRead(userId: string, notificationId: string): Promise<
 
   // Only the first read retires the badge; re-reading an already-read row must
   // not decrement a counter it already paid for.
-  if (notification.type !== "MENTION" || notification.read) {
+  if (notification.read) {
     return;
   }
 
-  const scope = getNotificationChannelScope(notification.metadata);
-  if (scope) {
-    await releaseChannelMention(userId, scope);
+  if (notification.type === "MENTION") {
+    const scope = getNotificationChannelScope(notification.metadata);
+    if (scope) {
+      await releaseChannelMention(userId, scope);
+    }
+    return;
+  }
+
+  if (notification.type === "DM") {
+    const conversationId = getNotificationConversationId(notification.metadata);
+    if (conversationId) {
+      await releaseDirectMessageUnread(userId, conversationId);
+    }
   }
 }
 
@@ -455,6 +500,7 @@ export async function markRead(userId: string, notificationId: string): Promise<
 export async function clearNotifications(userId: string): Promise<void> {
   await prisma.notification.deleteMany({ where: { userId } });
   await releaseAllChannelMentions(userId);
+  await releaseAllDirectMessageUnread(userId);
 }
 
 export async function markAllRead(userId: string): Promise<void> {
@@ -469,6 +515,7 @@ export async function markAllRead(userId: string): Promise<void> {
     },
   });
   await releaseAllChannelMentions(userId);
+  await releaseAllDirectMessageUnread(userId);
 }
 
 export async function serializeNotificationToDTO(
