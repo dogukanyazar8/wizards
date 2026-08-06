@@ -1,1 +1,6 @@
-{}
+self-hosted-runner:
+  labels:
+    - wizards-ci
+    - playwright
+    - ci-fast
+    - mobile-release

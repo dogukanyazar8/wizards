@@ -334,6 +334,17 @@ function Invoke-RobocopyChecked {
     "*.tsbuildinfo"
   )
 
+  # robocopy resolves a relative /XD entry against the process working directory,
+  # not against $From, so `apps\mobile\android\app\build` never matched: every sync
+  # mirrored the stale native build output of the source tree into the build root
+  # and then purged it again on the next run. Nested exclusions have to be rooted
+  # at $From; bare names stay names so they keep matching at every depth.
+  $resolvedExcludedDirectories = @(
+    $excludedDirectories | ForEach-Object {
+      if ($_ -match '[\\/]') { Join-Path $From $_ } else { $_ }
+    }
+  )
+
   $args = @(
     $From,
     $To,
@@ -345,7 +356,7 @@ function Invoke-RobocopyChecked {
     "/MT:16",
     "/NP",
     "/XD"
-  ) + $excludedDirectories + @("/XF") + $excludedFiles
+  ) + $resolvedExcludedDirectories + @("/XF") + $excludedFiles
 
   Write-Host "> robocopy $From $To ..." -ForegroundColor DarkGray
   & robocopy @args
@@ -856,21 +867,41 @@ function Clear-MobileNativeDependencyBuildCaches {
   }
 }
 
+function Reset-AndroidPackagingState {
+  param([string]$AndroidRoot)
+
+  # AGP packages the APK incrementally from a file map it keeps beside the output.
+  # When that map disagrees with what is on disk, the splitter worker dies without
+  # a message and `:app:packageDebug` reports only "A failure occurred while
+  # executing ...$IncrementalSplitterRunnable". Dropping the map forces a full,
+  # deterministic repackage on the retry.
+  Remove-DirectoryIfPresent (Join-Path $AndroidRoot "app\build\outputs\apk")
+  Remove-DirectoryIfPresent (Join-Path $AndroidRoot "app\build\intermediates\incremental")
+}
+
 function Invoke-GradleBuildWithRetry {
   param(
     [string]$GradleWrapperPath,
     [string[]]$GradleArguments,
     [string]$WorkingDirectory,
+    [string]$AndroidRoot,
     [string]$VirtualStoreDir
   )
 
   try {
     Invoke-CommandChecked -Command $GradleWrapperPath -Arguments $GradleArguments -WorkingDirectory $WorkingDirectory
   } catch {
-    Write-Host "Gradle build failed. Stopping daemons, clearing native dependency build caches, and retrying once." -ForegroundColor Yellow
+    Write-Host "Gradle build failed. Stopping daemons, dropping incremental packaging state and native dependency build caches, then retrying once without the build cache." -ForegroundColor Yellow
     Stop-GradleDaemons -GradleWrapperPath $GradleWrapperPath -WorkingDirectory $WorkingDirectory
+    Reset-AndroidPackagingState -AndroidRoot $AndroidRoot
     Clear-MobileNativeDependencyBuildCaches -VirtualStoreDir $VirtualStoreDir
-    Invoke-CommandChecked -Command $GradleWrapperPath -Arguments $GradleArguments -WorkingDirectory $WorkingDirectory
+
+    # A packaging input restored from the build cache is the one state the first
+    # attempt cannot recover from, so the retry rebuilds it locally.
+    $retryArguments = @(
+      $GradleArguments | Where-Object { $_ -ne "--build-cache" -and $_ -ne "--no-build-cache" }
+    ) + @("--no-build-cache")
+    Invoke-CommandChecked -Command $GradleWrapperPath -Arguments $retryArguments -WorkingDirectory $WorkingDirectory
   }
 }
 
@@ -1125,6 +1156,9 @@ $gradleBuildArguments = @(
   "lint",
   "-x",
   "test",
+  # Without this, an AGP worker failure prints one unactionable line and the cause
+  # is gone once the run ends; the Gradle daemon log keeps nothing at INFO level.
+  "--stacktrace",
   "--configure-on-demand",
   "-PreactNativeDevServerPort=$metroPort",
   "-PreactNativeArchitectures=$reactNativeArchitectures"
@@ -1135,7 +1169,7 @@ if ($DisableGradleBuildCache) {
 } else {
   $gradleBuildArguments += "--build-cache"
 }
-Invoke-GradleBuildWithRetry -GradleWrapperPath $gradlew -GradleArguments $gradleBuildArguments -WorkingDirectory $androidRoot -VirtualStoreDir $pnpmVirtualStoreDir
+Invoke-GradleBuildWithRetry -GradleWrapperPath $gradlew -GradleArguments $gradleBuildArguments -WorkingDirectory $androidRoot -AndroidRoot $androidRoot -VirtualStoreDir $pnpmVirtualStoreDir
 
 Resolve-ExistingPath $apkPath "Generated APK" | Out-Null
 New-Item -ItemType Directory -Force -Path $ApkOutputDir | Out-Null

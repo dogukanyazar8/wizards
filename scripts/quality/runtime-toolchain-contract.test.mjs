@@ -248,7 +248,7 @@ test("actionlint CI job is checksum-verified, fail-closed, and least-privilege",
   assert.doesNotMatch(actionlintJob, /(?:GITHUB_TOKEN|github\.token|secrets\.)/u);
 });
 
-test("setup-node v5 keeps the workflow's pnpm cache policy explicit", () => {
+test("setup-node v5 preserves the workflow's explicit pnpm cache policy", () => {
   const lines = readText(join(".github", "workflows", "ci.yml")).split(/\r?\n/u);
   let automaticCacheOptOuts = 0;
 
@@ -280,7 +280,7 @@ test("setup-node v5 keeps the workflow's pnpm cache policy explicit", () => {
     automaticCacheOptOuts += 1;
   }
 
-  assert.equal(automaticCacheOptOuts, 1, "unexpected setup-node automatic-cache opt-out count");
+  assert.equal(automaticCacheOptOuts, 8, "unexpected setup-node automatic-cache opt-out count");
 });
 
 test("Node 22 native compatibility runs only when hosted desktop checks are requested", () => {
@@ -331,9 +331,9 @@ test("Node 22 native compatibility runs only when hosted desktop checks are requ
   );
 });
 
-test("dependency-installing CI jobs use pnpm cache archives", () => {
+test("self-hosted CI uses the runner's persistent pnpm store instead of GitHub cache archives", () => {
   const workflow = readText(join(".github", "workflows", "ci.yml"));
-  const dependencyInstallingJobs = [
+  const selfHostedJobs = [
     "verify",
     "typescript-native-shadow",
     "e2e-smoke",
@@ -341,14 +341,42 @@ test("dependency-installing CI jobs use pnpm cache archives", () => {
     "e2e-a11y",
     "e2e-visual",
     "desktop-ops",
-    "node22-compatibility",
   ];
 
-  for (const jobName of dependencyInstallingJobs) {
-    assert.match(
+  for (const jobName of selfHostedJobs) {
+    assert.doesNotMatch(
       readWorkflowJob(workflow, jobName),
       /^          cache: pnpm$/mu,
-      `${jobName} must use pnpm cache archives on GitHub-hosted runners`,
+      `${jobName} must use the persistent self-hosted pnpm store`,
+    );
+  }
+
+  assert.match(
+    readWorkflowJob(workflow, "node22-compatibility"),
+    /^          cache: pnpm$/mu,
+    "Node 22 compatibility must retain cache archives on its GitHub-hosted Windows runner",
+  );
+});
+
+test("persistent self-hosted CI jobs reject pull-request events", () => {
+  const workflow = readText(join(".github", "workflows", "ci.yml"));
+  const selfHostedJobs = [
+    "verify",
+    "actionlint",
+    "semgrep",
+    "typescript-native-shadow",
+    "e2e-smoke",
+    "e2e-cross-browser",
+    "e2e-a11y",
+    "e2e-visual",
+    "desktop-ops",
+  ];
+
+  for (const jobName of selfHostedJobs) {
+    assert.match(
+      readWorkflowJob(workflow, jobName),
+      /^    if: .*github\.event_name != 'pull_request'.*$/mu,
+      `${jobName} must not execute pull-request code on a persistent runner`,
     );
   }
 });

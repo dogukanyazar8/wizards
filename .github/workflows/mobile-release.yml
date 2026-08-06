@@ -30,7 +30,7 @@ on:
         type: choice
       preflight_only:
         default: false
-        description: Validate the protected GitHub-hosted runner without publishing
+        description: Validate the protected self-hosted runner without publishing
         required: true
         type: boolean
       version:
@@ -48,8 +48,8 @@ permissions:
 
 jobs:
   preflight:
-    name: Verify GitHub-hosted release runner toolchain
-    runs-on: ubuntu-24.04
+    name: Verify self-hosted release runner toolchain
+    runs-on: [self-hosted, Linux, X64, mobile-release]
     timeout-minutes: 30
 
     steps:
@@ -72,7 +72,7 @@ jobs:
           clean: true
           persist-credentials: false
 
-      - name: Verify GitHub-hosted release runner prerequisites
+      - name: Verify self-hosted release runner prerequisites
         shell: bash
         run: |
           set -euo pipefail
@@ -81,27 +81,9 @@ jobs:
             command -v "$tool" >/dev/null 2>&1 || missing+=("$tool")
           done
           if (( ${#missing[@]} > 0 )); then
-            printf '::error::GitHub-hosted mobile release runner is missing: %s\n' "${missing[*]}"
+            printf '::error::Self-hosted mobile release runner is missing: %s\n' "${missing[*]}"
             exit 1
           fi
-
-      - name: Report hosted runner storage layout
-        shell: bash
-        run: |
-          set -euo pipefail
-          build_available_kb="$(df -Pk "$RUNNER_TEMP" | awk 'NR == 2 { print $4 }')"
-          [[ "$build_available_kb" =~ ^[0-9]+$ ]] || {
-            echo "::error::Could not determine available space for the hosted runner build volume."
-            exit 1
-          }
-          {
-            echo "### Hosted runner storage layout"
-            echo "- Preflight build volume: $((build_available_kb / 1024 / 1024)) GiB available before reclaim"
-            echo ""
-            echo '```'
-            df -Ph
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Setup JDK for Android SDK tools
         uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
@@ -109,7 +91,7 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Provision Android local-build toolchain
+      - name: Provision persistent Android local-build toolchain
         shell: bash
         run: bash .github/scripts/setup-android-build-tools.sh
 
@@ -117,7 +99,7 @@ jobs:
         shell: bash
         run: bash .github/scripts/setup-aws-cli.sh
 
-      - name: Verify GitHub-hosted release runner toolchain
+      - name: Verify self-hosted release runner toolchain
         shell: bash
         run: |
           set -euo pipefail
@@ -141,7 +123,7 @@ jobs:
             exit 1
           }
           {
-            echo "### GitHub-hosted mobile release runner"
+            echo "### Self-hosted mobile release runner"
             echo "- AWS CLI: $aws_version"
             echo "- Android SDK: $ANDROID_HOME"
             echo "- Android NDK: $ANDROID_NDK_HOME"
@@ -163,7 +145,7 @@ jobs:
     name: Validate mobile release contract
     if: ${{ ! inputs.preflight_only }}
     needs: preflight
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, Linux, X64, mobile-release]
     timeout-minutes: 15
     outputs:
       api_base_url: ${{ steps.contract.outputs.api_base_url }}
@@ -214,7 +196,7 @@ jobs:
     name: Publish signed UAT OTA
     if: inputs.kind == 'ota' && inputs.environment == 'uat' && github.ref_name == 'uat'
     needs: contract
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, Linux, X64, mobile-release]
     timeout-minutes: 35
     environment: mobile-${{ inputs.environment }}
     env:
@@ -395,7 +377,7 @@ jobs:
     name: Build and publish internal Android APK
     if: inputs.kind == 'apk' && inputs.environment == 'uat' && github.ref_name == 'uat'
     needs: contract
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, Linux, X64, mobile-release]
     timeout-minutes: 120
     environment: mobile-${{ inputs.environment }}
     env:
@@ -415,49 +397,13 @@ jobs:
           clean: true
           persist-credentials: false
 
-      - name: Reclaim hosted runner disk before the native build
-        shell: bash
-        run: |
-          set -euo pipefail
-          before_kb="$(df -Pk "$RUNNER_TEMP" | awk 'NR == 2 { print $4 }')"
-          sudo rm -rf -- \
-            /usr/local/lib/android \
-            /usr/share/dotnet \
-            /usr/local/.ghcup \
-            /opt/ghc \
-            /usr/local/share/chromium \
-            /opt/hostedtoolcache/CodeQL \
-            /opt/hostedtoolcache/PyPy \
-            /opt/hostedtoolcache/Ruby \
-            /opt/hostedtoolcache/go
-          sudo docker image prune --all --force >/dev/null 2>&1 || true
-          after_kb="$(df -Pk "$RUNNER_TEMP" | awk 'NR == 2 { print $4 }')"
-          [[ "$before_kb" =~ ^[0-9]+$ && "$after_kb" =~ ^[0-9]+$ ]] || {
-            echo "::error::Could not measure reclaimed disk on the hosted runner."
-            exit 1
-          }
-          {
-            echo "### Hosted runner disk reclaim"
-            echo "- Before reclaim: $((before_kb / 1024 / 1024)) GiB available"
-            echo "- After reclaim: $((after_kb / 1024 / 1024)) GiB available"
-          } >> "$GITHUB_STEP_SUMMARY"
-          scratch_root="$RUNNER_TEMP/whispr-build"
-          rm -rf -- "$scratch_root"
-          install -d -m 0700 "$scratch_root"
-          [[ -w "$scratch_root" ]] || {
-            echo "::error::The hosted runner build scratch is not writable: $scratch_root"
-            exit 1
-          }
-          echo "WHISPR_BUILD_ROOT=$scratch_root" >> "$GITHUB_ENV"
-          echo "GRADLE_USER_HOME=$scratch_root/gradle" >> "$GITHUB_ENV"
-
       - name: Setup JDK for Android SDK tools
         uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
         with:
           distribution: temurin
           java-version: "17"
 
-      - name: Provision Android local-build toolchain
+      - name: Provision persistent Android local-build toolchain
         shell: bash
         run: bash .github/scripts/setup-android-build-tools.sh
 
@@ -502,16 +448,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          build_available_kb="$(df -Pk "$WHISPR_BUILD_ROOT" | awk 'NR == 2 { print $4 }')"
-          root_available_kb="$(df -Pk "$RUNNER_TEMP" | awk 'NR == 2 { print $4 }')"
-          [[ "$build_available_kb" =~ ^[0-9]+$ && "$root_available_kb" =~ ^[0-9]+$ ]] || {
-            echo "::error::Could not determine available space before APK build."
+          available_kb="$(df -Pk "$RUNNER_TEMP" | awk 'NR == 2 { print $4 }')"
+          [[ "$available_kb" =~ ^[0-9]+$ ]] || {
+            echo "::error::Could not determine available space for RUNNER_TEMP before APK build."
             exit 1
           }
           {
             echo "### APK build disk"
-            echo "- Build volume before: $((build_available_kb / 1024 / 1024)) GiB available"
-            echo "- Root volume before: $((root_available_kb / 1024 / 1024)) GiB available"
+            echo "- Before build: $((available_kb / 1024 / 1024)) GiB available"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Build APK locally with the existing EAS-managed Android credential
@@ -524,7 +468,7 @@ jobs:
           set -euo pipefail
           environment="${{ inputs.environment }}"
           apk="$RUNNER_TEMP/mobile-release.apk"
-          build_root="$WHISPR_BUILD_ROOT/eas-local-build"
+          build_root="$RUNNER_TEMP/eas-local-build"
           build_log="$RUNNER_TEMP/eas-local-build.log"
           rm -rf -- "$build_root"
           rm -f -- "$build_log" "$apk"
@@ -554,15 +498,11 @@ jobs:
         shell: bash
         run: |
           set -u
-          build_available_kb="$(df -Pk "${WHISPR_BUILD_ROOT:-}" 2>/dev/null | awk 'NR == 2 { print $4 }')"
-          root_available_kb="$(df -Pk "$RUNNER_TEMP" 2>/dev/null | awk 'NR == 2 { print $4 }')"
-          if [[ "$build_available_kb" =~ ^[0-9]+$ && "$root_available_kb" =~ ^[0-9]+$ ]]; then
-            {
-              echo "- Build volume after: $((build_available_kb / 1024 / 1024)) GiB available"
-              echo "- Root volume after: $((root_available_kb / 1024 / 1024)) GiB available"
-            } >> "$GITHUB_STEP_SUMMARY"
+          available_kb="$(df -Pk "$RUNNER_TEMP" 2>/dev/null | awk 'NR == 2 { print $4 }')"
+          if [[ "$available_kb" =~ ^[0-9]+$ ]]; then
+            echo "- After build: $((available_kb / 1024 / 1024)) GiB available" >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "::warning::Could not determine available space after APK build."
+            echo "::warning::Could not determine available space for RUNNER_TEMP after APK build."
           fi
 
       - name: Verify APK certificate and immutable metadata
@@ -728,11 +668,8 @@ jobs:
           if [[ -d "$RUNNER_TEMP/eas-cli" ]]; then
             rm -rf -- "$RUNNER_TEMP/eas-cli"
           fi
-          expected_build_root="$RUNNER_TEMP/whispr-build"
-          if [[ -n "${WHISPR_BUILD_ROOT:-}" && "$WHISPR_BUILD_ROOT" != "$expected_build_root" ]]; then
-            echo "::warning::Refusing to scrub unexpected build root: $WHISPR_BUILD_ROOT"
-          elif [[ -d "${WHISPR_BUILD_ROOT:-}" ]]; then
-            rm -rf -- "$WHISPR_BUILD_ROOT"
+          if [[ -d "$RUNNER_TEMP/eas-local-build" ]]; then
+            rm -rf -- "$RUNNER_TEMP/eas-local-build"
           fi
           rm -f -- "$RUNNER_TEMP/eas-local-build.log"
           rm -rf -- \

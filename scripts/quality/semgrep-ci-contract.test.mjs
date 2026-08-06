@@ -51,7 +51,7 @@ test("Semgrep CE is immutable, least-privilege, and trusted-runner-only", () => 
 
   assert.match(workflow, /^  pull_request:\s*$/mu);
   assert.match(readIndentedBlock(workflow, "push", 2), /^      - uat$/mu);
-  assert.match(semgrepJob, /^    runs-on: ubuntu-24\.04$/mu);
+  assert.match(semgrepJob, /^    runs-on: \[self-hosted, linux, x64, wizards-ci\]$/mu);
   assert.match(semgrepJob, /^    if: github\.event_name != 'pull_request'$/mu);
   assert.deepEqual(
     permissions

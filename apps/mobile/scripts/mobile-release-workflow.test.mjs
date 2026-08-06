@@ -89,24 +89,21 @@ describe("mobile release workflow contract", () => {
     );
   });
 
-  it("preflight reports the hosted runner storage layout", async () => {
+  it("preflight reports self-hosted scratch space without a fixed capacity threshold", async () => {
     const workflow = await readFile(workflowPath, "utf8");
     const preflightJob = workflow.slice(
       workflow.indexOf("\n  preflight:"),
       workflow.indexOf("\n  contract:"),
     );
 
-    assert.match(preflightJob, /- name: Report hosted runner storage layout/u);
-    assert.match(preflightJob, /df -Ph/u);
-    assert.match(preflightJob, /Preflight build volume:/u);
-    assert.doesNotMatch(
-      preflightJob,
-      /mountpoint|\/mnt/u,
-      "the hosted image exposes no separate scratch volume, so preflight must not require one",
-    );
+    assert.match(preflightJob, /Verify self-hosted release runner toolchain/u);
+    assert.match(preflightJob, /df -Pk "\$RUNNER_TEMP"/u);
+    assert.match(preflightJob, /Self-hosted mobile release runner/u);
+    assert.doesNotMatch(preflightJob, /Report hosted runner storage layout|mountpoint|\/mnt/u);
+    assert.doesNotMatch(preflightJob, /20971520|at least 20 GiB/u);
   });
 
-  it("keeps final disk telemetry safe when scratch preparation fails", async () => {
+  it("records final self-hosted scratch telemetry without an optional environment indirection", async () => {
     const workflow = await readFile(workflowPath, "utf8");
     const apkJob = workflow.slice(workflow.indexOf("\n  apk:"));
     const diskEnd = apkJob.slice(
@@ -116,8 +113,8 @@ describe("mobile release workflow contract", () => {
 
     assert.match(diskEnd, /if: always\(\)/u);
     assert.match(diskEnd, /set -u/u);
-    assert.match(diskEnd, /df -Pk "\$\{WHISPR_BUILD_ROOT:-\}"/u);
-    assert.doesNotMatch(diskEnd, /df -Pk "\$WHISPR_BUILD_ROOT"/u);
+    assert.match(diskEnd, /df -Pk "\$RUNNER_TEMP"/u);
+    assert.doesNotMatch(diskEnd, /WHISPR_BUILD_ROOT/u);
   });
 
   it("pins manual, fail-closed OTA and EAS-managed local APK publication", async () => {
@@ -137,13 +134,12 @@ describe("mobile release workflow contract", () => {
     assert.doesNotMatch(workflow, /^\s{6}version_code:/m);
     assert.doesNotMatch(workflow, /\$\{\{\s*inputs\.version_code\s*\}\}/);
     assert.equal(
-      workflow.match(/^    runs-on: ubuntu-24\.04$/gm)?.length,
+      workflow.match(/runs-on: \[self-hosted, Linux, X64, mobile-release\]/g)?.length,
       4,
-      "every mobile release job must use pinned GitHub-hosted Linux",
+      "every mobile release job must use the dedicated local runner label",
     );
-    assert.doesNotMatch(workflow, /self-hosted/u);
-    assert.doesNotMatch(workflow, /runs-on: ubuntu-latest/u);
-    assert.match(workflow, /Verify GitHub-hosted release runner toolchain/);
+    assert.doesNotMatch(workflow, /runs-on: ubuntu-(?:latest|24\.04)/u);
+    assert.match(workflow, /Verify self-hosted release runner toolchain/);
     assert.match(workflow, /github\.ref_name.*uat/);
     assert.equal(
       workflow.match(/persist-credentials: false/g)?.length,
@@ -179,30 +175,11 @@ describe("mobile release workflow contract", () => {
     assert.doesNotMatch(otaJob, /setup-android-build-tools|setup-java/);
     assert.match(apkJob, /setup-android-build-tools/);
     assert.match(apkJob, /setup-java/);
-    assert.match(apkJob, /- name: Reclaim hosted runner disk before the native build/u);
-    assert.ok(
-      apkJob.indexOf("- name: Reclaim hosted runner disk before the native build") <
-        apkJob.indexOf("- name: Setup JDK for Android SDK tools"),
-      "the runner disk must be reclaimed before Android tooling is provisioned",
-    );
-    assert.match(apkJob, /sudo rm -rf -- \\/u);
-    assert.match(
-      apkJob,
-      /^\s+\/usr\/local\/lib\/android \\$/mu,
-      "the preinstalled Android SDK is the largest reclaimable directory",
-    );
     assert.doesNotMatch(
       apkJob,
-      /whispr-android-sdk/u,
-      "reclaiming disk must never target the SDK this workflow provisions itself",
+      /Reclaim hosted runner disk|sudo rm -rf|docker image prune|WHISPR_BUILD_ROOT|GRADLE_USER_HOME|scratch_root/u,
+      "a persistent runner must not mutate hosted-image toolchain paths or redirect persistent caches",
     );
-    assert.match(apkJob, /sudo docker image prune --all --force/u);
-    assert.match(apkJob, /- Before reclaim: /u);
-    assert.match(apkJob, /- After reclaim: /u);
-    assert.doesNotMatch(apkJob, /mountpoint|\/mnt\/whispr-build/u);
-    assert.match(apkJob, /scratch_root="\$RUNNER_TEMP\/whispr-build"/u);
-    assert.match(apkJob, /echo "WHISPR_BUILD_ROOT=\$scratch_root" >> "\$GITHUB_ENV"/u);
-    assert.match(apkJob, /echo "GRADLE_USER_HOME=\$scratch_root\/gradle" >> "\$GITHUB_ENV"/u);
     assert.match(androidBuildToolsSetup, /commandlinetools-linux-15859902_latest\.zip/);
     assert.match(
       androidBuildToolsSetup,
@@ -228,21 +205,19 @@ describe("mobile release workflow contract", () => {
     assert.match(workflow, /EAS_LOCAL_BUILD_WORKINGDIR="\$build_root\/work"/);
     assert.match(workflow, /EAS_LOCAL_BUILD_ARTIFACTS_DIR="\$build_root\/artifacts"/);
     assert.match(workflow, /TMPDIR="\$build_root\/tmp"/);
-    assert.match(apkJob, /build_root="\$WHISPR_BUILD_ROOT\/eas-local-build"/u);
+    assert.match(apkJob, /build_root="\$RUNNER_TEMP\/eas-local-build"/u);
     assert.match(workflow, /SENTRY_DISABLE_AUTO_UPLOAD: "true"/);
     assert.equal(
       easConfig.build.uat.env.ORG_GRADLE_PROJECT_reactNativeArchitectures,
       "arm64-v8a,armeabi-v7a",
-      "the internal UAT APK must avoid emulator ABIs on the bounded GitHub-hosted runner",
+      "the internal UAT phone APK must avoid emulator ABIs",
     );
     assert.match(preflightJob, /df -Pk "\$RUNNER_TEMP"/);
     assert.doesNotMatch(preflightJob, /20971520|at least 20 GiB/u);
     assert.match(apkJob, /- name: Record APK build disk start/u);
     assert.match(apkJob, /- name: Record APK build disk end\r?\n\s+if: always\(\)/u);
-    assert.equal(apkJob.match(/df -Pk "\$WHISPR_BUILD_ROOT"/gu)?.length, 1);
-    assert.equal(apkJob.match(/df -Pk "\$\{WHISPR_BUILD_ROOT:-\}"/gu)?.length, 1);
-    assert.match(apkJob, /expected_build_root="\$RUNNER_TEMP\/whispr-build"/u);
-    assert.match(apkJob, /rm -rf -- "\$WHISPR_BUILD_ROOT"/u);
+    assert.equal(apkJob.match(/df -Pk "\$RUNNER_TEMP"/gu)?.length, 2);
+    assert.match(apkJob, /rm -rf -- "\$RUNNER_TEMP\/eas-local-build"/u);
     assert.doesNotMatch(workflow, /jlumbroso\/free-disk-space|free-disk-space@/u);
     assert.match(workflow, /> "\$build_log" 2>&1/);
     assert.match(workflow, /grep -F '\[RUN_GRADLEW\]'/);
