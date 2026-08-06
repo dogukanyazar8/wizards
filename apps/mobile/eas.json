@@ -23,6 +23,7 @@
         "buildType": "apk"
       },
       "env": {
+        "ORG_GRADLE_PROJECT_reactNativeArchitectures": "arm64-v8a,armeabi-v7a",
         "WHISPR_MOBILE_OTA_ENABLED": "true",
         "WHISPR_MOBILE_ENV": "uat",
         "EXPO_PUBLIC_WHISPR_MOBILE_ENV": "uat",

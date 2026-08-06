@@ -9,6 +9,7 @@ import { buildMobileReleaseContract } from "./mobile-release-workflow.mjs";
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const workspaceRoot = resolve(scriptDirectory, "..", "..", "..");
 const workflowPath = resolve(workspaceRoot, ".github", "workflows", "mobile-release.yml");
+const easConfigPath = resolve(workspaceRoot, "apps", "mobile", "eas.json");
 const awsCliSetupPath = resolve(workspaceRoot, ".github", "scripts", "setup-aws-cli.sh");
 const androidBuildToolsSetupPath = resolve(
   workspaceRoot,
@@ -89,12 +90,15 @@ describe("mobile release workflow contract", () => {
   });
 
   it("pins manual, fail-closed OTA and EAS-managed local APK publication", async () => {
-    const [workflow, awsCliSetup, androidBuildToolsSetup, awsCliPublicKey] = await Promise.all([
-      readFile(workflowPath, "utf8"),
-      readFile(awsCliSetupPath, "utf8"),
-      readFile(androidBuildToolsSetupPath, "utf8"),
-      readFile(awsCliPublicKeyPath, "utf8"),
-    ]);
+    const [workflow, easConfigSource, awsCliSetup, androidBuildToolsSetup, awsCliPublicKey] =
+      await Promise.all([
+        readFile(workflowPath, "utf8"),
+        readFile(easConfigPath, "utf8"),
+        readFile(awsCliSetupPath, "utf8"),
+        readFile(androidBuildToolsSetupPath, "utf8"),
+        readFile(awsCliPublicKeyPath, "utf8"),
+      ]);
+    const easConfig = JSON.parse(easConfigSource);
 
     for (const input of ["environment:", "release_id:", "rollout:", "kind:", "preflight_only:"]) {
       assert.match(workflow, new RegExp(`^\\s{6}${input}`, "m"));
@@ -170,6 +174,11 @@ describe("mobile release workflow contract", () => {
     assert.match(workflow, /EAS_LOCAL_BUILD_ARTIFACTS_DIR="\$build_root\/artifacts"/);
     assert.match(workflow, /TMPDIR="\$build_root\/tmp"/);
     assert.match(workflow, /SENTRY_DISABLE_AUTO_UPLOAD: "true"/);
+    assert.equal(
+      easConfig.build.uat.env.ORG_GRADLE_PROJECT_reactNativeArchitectures,
+      "arm64-v8a,armeabi-v7a",
+      "the internal UAT APK must avoid emulator ABIs on the bounded GitHub-hosted runner",
+    );
     assert.match(preflightJob, /df -Pk "\$RUNNER_TEMP"/);
     assert.doesNotMatch(preflightJob, /20971520|at least 20 GiB/u);
     assert.match(apkJob, /- name: Record APK build disk start/u);
