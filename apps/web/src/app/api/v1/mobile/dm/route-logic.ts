@@ -132,7 +132,7 @@ function toMobileDMConversationListItem(
   const previewAttachment = lastMessage?.attachments[0];
 
   return {
-    iconUrl: null,
+    iconUrl: conversation.iconUrl,
     id: conversation.id,
     lastMessage: lastMessage
       ? {

@@ -53,12 +53,16 @@ describe("desktop Tauri config generation", () => {
     const gameOverlayCapability = generatedConfig.app.security.capabilities.find(
       (entry) => entry.identifier === "game-overlay",
     );
+    const desktopControlCapability = generatedConfig.app.security.capabilities.find(
+      (entry) => entry.identifier === "desktop-control",
+    );
     const serializedConfig = JSON.stringify(generatedConfig);
 
     assert.equal(generatedConfig.build.frontendDist, `${productionUrl}/`);
     assert.deepEqual(capability.remote.urls, [productionUrl, `${productionUrl}/*`]);
     assert.deepEqual(voiceMiniCapability.remote.urls, [productionUrl, `${productionUrl}/*`]);
     assert.deepEqual(gameOverlayCapability.remote.urls, [productionUrl, `${productionUrl}/*`]);
+    assert.equal(desktopControlCapability.remote, undefined);
     assertOnlyProductionRemoteUrls(generatedConfig, productionUrl);
     assert.ok(
       getCspDirective(generatedConfig.app.security.csp, "connect-src").includes(productionUrl),
@@ -95,9 +99,13 @@ describe("desktop Tauri config generation", () => {
       undefined,
       "Updater artifacts must not be produced until updater signing is explicitly enabled.",
     );
+    assert.ok(!capability.permissions.includes("allow-configure-desktop-voice-shortcuts"));
+    assert.ok(!capability.permissions.includes("allow-export-desktop-diagnostics-bundle"));
     assert.ok(
-      capability.permissions.includes("allow-configure-desktop-voice-shortcuts"),
-      "Expected explicit app command permissions on the main window capability.",
+      desktopControlCapability.permissions.includes("allow-configure-desktop-voice-shortcuts"),
+    );
+    assert.ok(
+      desktopControlCapability.permissions.includes("allow-export-desktop-diagnostics-bundle"),
     );
     assert.ok(
       capability.permissions.includes("allow-record-desktop-update-failure"),
@@ -223,6 +231,9 @@ describe("desktop Tauri config generation", () => {
     const gameOverlayCapability = generatedConfig.app.security.capabilities.find(
       (entry) => entry.identifier === "game-overlay",
     );
+    const desktopControlCapability = generatedConfig.app.security.capabilities.find(
+      (entry) => entry.identifier === "desktop-control",
+    );
 
     assert.equal(generatedConfig.bundle.createUpdaterArtifacts, true);
     assert.equal(generatedConfig.bundle.windows.digestAlgorithm, "sha256");
@@ -243,9 +254,18 @@ describe("desktop Tauri config generation", () => {
         installMode: "passive",
       },
     });
-    assert.ok(mainCapability.permissions.includes("updater:allow-check"));
-    assert.ok(mainCapability.permissions.includes("updater:allow-download-and-install"));
-    assert.ok(mainCapability.permissions.includes("process:allow-restart"));
+    assert.ok(!mainCapability.permissions.some((permission) => permission.startsWith("updater:")));
+    assert.ok(!mainCapability.permissions.includes("process:allow-restart"));
+    assert.ok(!mainCapability.permissions.includes("notification:allow-request-permission"));
+    assert.ok(
+      desktopControlCapability.permissions.includes("allow-desktop-control-check-for-updates"),
+    );
+    assert.ok(
+      desktopControlCapability.permissions.includes("allow-desktop-control-install-update"),
+    );
+    assert.ok(!desktopControlCapability.permissions.includes("updater:allow-check"));
+    assert.ok(!desktopControlCapability.permissions.includes("updater:allow-download-and-install"));
+    assert.ok(!desktopControlCapability.permissions.includes("process:allow-restart"));
     assert.ok(mainCapability.permissions.includes("allow-record-desktop-update-failure"));
     assert.ok(!mainCapability.permissions.includes("process:allow-exit"));
     assert.ok(
@@ -290,10 +310,20 @@ describe("desktop Tauri config generation", () => {
     const generatedGameOverlayCapability = generatedConfig.app.security.capabilities.find(
       (entry) => entry.identifier === "game-overlay",
     );
+    const staticDesktopControlCapability = JSON.parse(
+      await readFile(
+        path.join(desktopRoot, "src-tauri", "capabilities", "desktop-control.json"),
+        "utf8",
+      ),
+    );
+    const generatedDesktopControlCapability = generatedConfig.app.security.capabilities.find(
+      (entry) => entry.identifier === "desktop-control",
+    );
 
     assert.ok(generatedCapability, "Expected generated main capability");
     assert.ok(generatedVoiceMiniCapability, "Expected generated voice mini capability");
     assert.ok(generatedGameOverlayCapability, "Expected generated game overlay capability");
+    assert.ok(generatedDesktopControlCapability, "Expected generated Desktop Control capability");
     assert.deepEqual(
       generatedCapability.permissions,
       staticCapability.permissions,
@@ -309,6 +339,12 @@ describe("desktop Tauri config generation", () => {
       staticGameOverlayCapability.permissions,
       "Generated builds must keep the game overlay read-only capability aligned.",
     );
+    assert.deepEqual(
+      generatedDesktopControlCapability.permissions,
+      staticDesktopControlCapability.permissions,
+      "Generated builds must keep Desktop Control permissions aligned.",
+    );
+    assert.equal(generatedDesktopControlCapability.remote, undefined);
     assert.deepEqual(
       generatedGameOverlayCapability.permissions,
       [],
@@ -333,8 +369,13 @@ describe("desktop Tauri config generation", () => {
 
     assert.match(
       rustSource,
-      /if desktop_updater_enabled\s*\{[\s\S]*tauri_plugin_process::init\(\)[\s\S]*tauri_plugin_updater::Builder::new\(\)\.build\(\)[\s\S]*\}/,
-      "Updater and process plugins must stay behind the signed-updater runtime flag so dev builds without updater config do not panic.",
+      /if desktop_updater_enabled\s*\{[\s\S]*tauri_plugin_updater::Builder::new\(\)\.build\(\)[\s\S]*\}/,
+      "The updater plugin must stay behind the signed-updater runtime flag so dev builds without updater config do not panic.",
+    );
+    assert.doesNotMatch(
+      rustSource,
+      /tauri_plugin_process::init\(\)/,
+      "The frontend process plugin must not expose a restart bypass around the confirmed Rust updater command.",
     );
   });
 
@@ -491,6 +532,11 @@ function assertOnlyProductionRemoteUrls(generatedConfig, productionUrl) {
   assert.ok(capabilities.length > 0, "Expected generated capabilities");
 
   for (const capability of capabilities) {
+    if (capability.identifier === "desktop-control") {
+      assert.equal(capability.remote, undefined);
+      continue;
+    }
+
     assert.deepEqual(
       capability.remote.urls,
       [productionUrl, `${productionUrl}/*`],

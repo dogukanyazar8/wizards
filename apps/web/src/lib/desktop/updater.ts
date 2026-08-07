@@ -77,7 +77,6 @@ export interface DesktopUpdateFailureLogReport {
 }
 
 export interface DesktopUpdateFailureLogResult {
-  path: string;
   timestampMs: number;
 }
 

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   isDesktopCompanionSurfaceReady,
+  invokeDesktopControlSection,
   resolveDesktopGameOverlayHealth,
   type DesktopCompanionSurfaceInfo,
   type DesktopCompanionSurfacesStatus,
@@ -60,5 +61,23 @@ describe("desktop companion surface health", () => {
       resolveDesktopGameOverlayHealth(status(surface({ visible: false })), false),
       "idle",
     );
+  });
+});
+
+describe("desktop control bridge", () => {
+  it("invokes only the bounded local-control command with the requested section", async () => {
+    const calls: Array<{
+      args: Record<string, unknown> | undefined;
+      command: string;
+    }> = [];
+    const result = await invokeDesktopControlSection("diagnostics", async (command, args) => {
+      calls.push({ args, command });
+      return true;
+    });
+
+    assert.equal(result, true);
+    assert.deepEqual(calls, [
+      { command: "show_desktop_control", args: { section: "diagnostics" } },
+    ]);
   });
 });

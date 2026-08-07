@@ -21,6 +21,10 @@ import { createHandlerContext } from "@/lib/socket/context";
 import { registerSocketHandlers } from "@/lib/socket/handlers";
 import { markPresenceSocketActive } from "@/lib/socket/presence-helpers";
 import { createSocketServerWithRedisAdapter } from "@/lib/socket/redis-adapter";
+import {
+  addServerOnlineMember,
+  removeServerOnlineMember,
+} from "@/lib/socket/server-online-presence";
 import { readCachedServerRoomIds, writeCachedServerRoomIds } from "@/lib/socket/server-room-cache";
 import { setSocketServer } from "@/lib/socket/runtime";
 import { installSocketDrainHandlers } from "@/lib/socket/drain-signals";
@@ -231,6 +235,7 @@ type ServerRoomMembershipDelegate = {
 };
 
 type ServerRoomJoinSocket = {
+  data: { onlineServerIds?: string[] };
   join(room: string | string[]): Promise<void> | void;
 };
 
@@ -336,6 +341,14 @@ export async function joinServerRoomsForUser(
   }
 
   await socket.join(serverIds.map((serverId) => `server:${serverId}`));
+
+  // The room membership and the online set are written together so the two can
+  // never disagree about which servers this socket is present in.
+  socket.data.onlineServerIds = serverIds;
+  const presenceRedis = options.redis ?? getRedisOp();
+  await Promise.all(
+    serverIds.map((serverId) => addServerOnlineMember(presenceRedis, serverId, userId)),
+  );
 }
 
 export function initSocketServer(httpServer: HTTPServer) {
@@ -490,6 +503,14 @@ export function initSocketServer(httpServer: HTTPServer) {
 
     socket.on("disconnect", async () => {
       try {
+        const onlineServerIds: string[] = socket.data.onlineServerIds ?? [];
+        if (socket.data.userId) {
+          await Promise.all(
+            onlineServerIds.map((serverId) =>
+              removeServerOnlineMember(getRedisOp(), serverId, socket.data.userId as string),
+            ),
+          );
+        }
         clearInterval(presenceHeartbeat);
         await handlerRegistration.cleanup?.();
         await endAppSession(socket.data.appSessionKey ?? appSessionKey).catch((error) => {

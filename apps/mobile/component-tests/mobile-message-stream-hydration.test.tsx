@@ -43,10 +43,12 @@ import { mobileQueryKeys } from "../src/query/mobile-query-keys";
 
 const storedPage: MobileDMMessagesResponse = {
   conversation: {
+    iconUrl: null,
     id: "conversation-1",
     lastMessage: null,
     lastMessageAt: "2026-08-04T05:00:00.000Z",
     name: null,
+    ownerId: null,
     participants: [],
     type: "DM",
   },

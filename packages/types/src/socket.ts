@@ -73,6 +73,13 @@ export interface DMParticipantDTO extends DMPresence {
   avatarUrl: string | null;
   unreadCount: number;
   muted: boolean;
+  /**
+   * Newest `AppSession.lastSeenAt` for this participant — the same source the
+   * friends list and the invite sheet already read. Optional because it shipped
+   * after the UAT backend, so a payload from an older server still parses
+   * instead of taking the whole conversation down.
+   */
+  lastSeenAt?: string | null | undefined;
   presence: DMPresence;
 }
 
@@ -80,6 +87,8 @@ export interface DMConversationDTO {
   id: string;
   type: DMConversationType;
   name: string | null;
+  iconUrl: string | null;
+  ownerId: string | null;
   lastMessageAt: string;
   participants: DMParticipantDTO[];
   lastMessage: DMMessagePayload | null;
@@ -145,6 +154,7 @@ export const DMParticipantDTOSchema: z.ZodType<DMParticipantDTO> = z.object({
   avatarUrl: z.string().nullable(),
   unreadCount: z.number().int().nonnegative(),
   muted: z.boolean(),
+  lastSeenAt: z.string().nullable().optional(),
   status: DMPresenceStatusSchema,
   customStatus: z.string().nullable(),
   presence: DMPresenceSchema,
@@ -154,6 +164,8 @@ export const DMConversationDTOSchema: z.ZodType<DMConversationDTO> = z.object({
   id: z.string(),
   type: DMConversationTypeSchema,
   name: z.string().nullable(),
+  iconUrl: z.string().nullable(),
+  ownerId: z.string().nullable(),
   lastMessageAt: z.string(),
   participants: z.array(DMParticipantDTOSchema),
   lastMessage: DMMessagePayloadSchema.nullable(),

@@ -1,5 +1,11 @@
 import type { VideoCaptureOptions } from "livekit-client";
 
+import {
+  DEFAULT_MOBILE_CAMERA_QUALITY_TIER,
+  buildMobileCameraCaptureOptions,
+  type MobileCameraQualityTier,
+} from "./mobile-video-quality";
+
 export type MobileCameraFacingMode = "environment" | "user";
 
 export const DEFAULT_MOBILE_CAMERA_FACING_MODE: MobileCameraFacingMode = "user";
@@ -16,6 +22,7 @@ export function getNextMobileCameraFacingMode(
 
 export function getMobileCameraCaptureOptions(
   facingMode: MobileCameraFacingMode,
+  tier: MobileCameraQualityTier = DEFAULT_MOBILE_CAMERA_QUALITY_TIER,
 ): VideoCaptureOptions {
-  return { facingMode };
+  return buildMobileCameraCaptureOptions(facingMode, tier);
 }

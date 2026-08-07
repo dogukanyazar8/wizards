@@ -21,16 +21,6 @@ export interface DesktopVoiceShortcutStatus {
   registered: DesktopVoiceShortcutRegistration[];
 }
 
-export interface DesktopVoiceShortcutConfig {
-  hideGameOverlay?: string | null;
-  pushToTalk?: string | null;
-  shortcutsEnabled: boolean;
-  /** F9: opens or closes the detached moderation console. */
-  toggleAdminConsole?: string | null;
-  toggleDeafen?: string | null;
-  toggleMute?: string | null;
-}
-
 interface DesktopCompanionSnapshotPublishResultV1 {
   delivered: boolean;
   version: 1;
@@ -83,38 +73,6 @@ export interface DesktopAppInfo {
   tauriVersion: string;
   updaterEnabled: boolean;
   webviewVersion: string;
-}
-
-export interface DesktopSupportWebDiagnostics {
-  networkStatus: "offline" | "online" | "unknown";
-  notificationPermission: string;
-  overlayHealth: DesktopSurfaceHealth | "unknown";
-  socketStatus: "connected" | "disconnected" | "reconnecting" | "unknown";
-  userAgent: string;
-  voiceStatus: string;
-}
-
-export interface DesktopNativeLogRecord {
-  level: string;
-  message: string;
-  scope: string;
-  timestampMs: number;
-}
-
-export interface DesktopSupportBundle {
-  app: DesktopAppInfo;
-  bundleVersion: number;
-  capabilities: DesktopPlatformCapabilities;
-  companionSurfaces: DesktopCompanionSurfacesStatus;
-  generatedAtMs: number;
-  nativeLogs: DesktopNativeLogRecord[];
-  platform: {
-    arch: string;
-    family: string;
-    os: string;
-  };
-  shortcuts: DesktopVoiceShortcutStatus;
-  web: DesktopSupportWebDiagnostics;
 }
 
 export interface DesktopGameOverlayLayout {
@@ -266,18 +224,6 @@ export function resolveDesktopGameOverlayHealth(
   return status && isDesktopCompanionSurfaceReady(status.gameOverlay) ? "ready" : "needs-repair";
 }
 
-export async function configureDesktopVoiceShortcuts(
-  config: DesktopVoiceShortcutConfig,
-): Promise<DesktopVoiceShortcutStatus | null> {
-  if (!isWhisprDesktopRuntime()) {
-    return null;
-  }
-
-  return invokeDesktopCommand<DesktopVoiceShortcutStatus>("configure_desktop_voice_shortcuts", {
-    config,
-  });
-}
-
 export async function getDesktopPlatformCapabilities() {
   if (!isWhisprDesktopRuntime()) {
     return null;
@@ -291,20 +237,7 @@ export async function getDesktopAppInfo() {
     return null;
   }
 
-  try {
-    return await invokeDesktopCommand<DesktopAppInfo>("get_desktop_app_info");
-  } catch {
-    const fallbackBundle = await exportDesktopDiagnosticsBundle({
-      networkStatus: "unknown",
-      notificationPermission: "unknown",
-      overlayHealth: "unknown",
-      socketStatus: "unknown",
-      userAgent: "unknown",
-      voiceStatus: "unknown",
-    });
-
-    return fallbackBundle?.app ?? null;
-  }
+  return invokeDesktopCommand<DesktopAppInfo>("get_desktop_app_info");
 }
 
 export async function getDesktopCompanionSurfacesStatus() {
@@ -325,12 +258,24 @@ export async function getDesktopVoiceShortcutStatus() {
   return invokeDesktopCommand<DesktopVoiceShortcutStatus>("get_desktop_voice_shortcut_status");
 }
 
-export async function exportDesktopDiagnosticsBundle(web: DesktopSupportWebDiagnostics) {
+export type DesktopControlSection =
+  "diagnostics" | "overview" | "permissions" | "recovery" | "shortcuts" | "updates";
+
+type DesktopControlInvoker = (command: string, args?: Record<string, unknown>) => Promise<boolean>;
+
+export function invokeDesktopControlSection(
+  section: DesktopControlSection,
+  invoke: DesktopControlInvoker = invokeDesktopCommand,
+) {
+  return invoke("show_desktop_control", { section });
+}
+
+export async function openDesktopControl(section: DesktopControlSection = "overview") {
   if (!isWhisprDesktopRuntime()) {
-    return null;
+    return false;
   }
 
-  return invokeDesktopCommand<DesktopSupportBundle>("export_desktop_diagnostics_bundle", { web });
+  return invokeDesktopControlSection(section);
 }
 
 export async function refreshDesktopCompanionSurfaces() {

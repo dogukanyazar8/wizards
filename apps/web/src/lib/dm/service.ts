@@ -10,6 +10,7 @@ import {
 import { Prisma, prisma } from "@wizards/db";
 import { ApiError } from "@/lib/api";
 import { areFriends, getBlockStatus, haveMutualServers } from "@/lib/friends/helpers";
+import { resolveLastSeenAtByUserId } from "@/lib/friends/last-seen";
 import { getRedis } from "@/lib/redis";
 import { normalizeAppLocale, translate } from "@/lib/locale";
 import { mapAttachmentsForViewer } from "@/lib/messages/attachment-visibility";
@@ -71,7 +72,7 @@ export const dmMessageInclude = {
   reply: { include: dmReplyInclude },
 } as const;
 
-const dmConversationInclude = {
+export const dmConversationInclude = {
   participants: {
     orderBy: { joinedAt: "asc" },
     select: {
@@ -176,6 +177,19 @@ async function readDMConversationPresenceMap(conversation: RawDMConversation) {
       ...getPresenceFallback(participant),
       userId: participant.userId,
     })),
+  );
+}
+
+/**
+ * The chat header's "Son görülme" line. Redis presence only says online/offline
+ * right now, so an offline partner needs the same `AppSession.lastSeenAt` the
+ * friends list reads — the header used to print `lastMessageAt` instead, which
+ * moves whenever *either* side sends and therefore described the conversation,
+ * not the partner.
+ */
+async function readDMConversationLastSeenMap(conversation: RawDMConversation) {
+  return resolveLastSeenAtByUserId(
+    conversation.participants.map((participant) => participant.userId),
   );
 }
 
@@ -361,6 +375,7 @@ export function getDMDisplayName(user: { username: string; displayName: string |
 function mapDMParticipantWithPresence(
   participant: RawDMConversation["participants"][number],
   presence: PresenceFields,
+  lastSeenAt: string | null,
 ): DMParticipantDTO {
   return {
     userId: participant.userId,
@@ -369,6 +384,7 @@ function mapDMParticipantWithPresence(
     avatarUrl: participant.user.avatarUrl,
     unreadCount: participant.unreadCount,
     muted: participant.muted,
+    lastSeenAt,
     status: presence.status,
     customStatus: presence.customStatus,
     presence,
@@ -465,7 +481,7 @@ function getDeletedMessageLabelForLocale(locale: string | null | undefined) {
   return translate(normalizeAppLocale(locale), "dm.message.deleted");
 }
 
-async function getDeletedMessageLabel(userId: string) {
+export async function getDeletedMessageLabel(userId: string) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { locale: true },
@@ -517,13 +533,22 @@ export async function mapDMConversationDTO(
   conversation: RawDMConversation,
   viewerId: string,
   deletedMessageLabel: string,
+  /**
+   * Pre-resolved for a page of conversations, so a list is one last-seen query
+   * for every participant on the page rather than one per conversation.
+   */
+  lastSeenByUserId?: Map<string, string>,
 ): Promise<DMConversationDTO> {
-  const presenceByUserId = await readDMConversationPresenceMap(conversation);
+  const [presenceByUserId, resolvedLastSeenByUserId] = await Promise.all([
+    readDMConversationPresenceMap(conversation),
+    lastSeenByUserId ?? readDMConversationLastSeenMap(conversation),
+  ]);
   return mapDMConversationDTOWithPresence(
     conversation,
     viewerId,
     deletedMessageLabel,
     presenceByUserId,
+    resolvedLastSeenByUserId,
   );
 }
 
@@ -532,16 +557,20 @@ function mapDMConversationDTOWithPresence(
   viewerId: string,
   deletedMessageLabel: string,
   presenceByUserId: Map<string, PresenceFields>,
+  lastSeenByUserId: Map<string, string>,
 ): DMConversationDTO {
   return {
     id: conversation.id,
     type: normalizeConversationType(conversation.type),
     name: resolveConversationName(conversation, viewerId),
+    iconUrl: conversation.iconUrl,
+    ownerId: conversation.ownerId,
     lastMessageAt: conversation.lastMessageAt.toISOString(),
     participants: conversation.participants.map((participant) =>
       mapDMParticipantWithPresence(
         participant,
         presenceByUserId.get(participant.userId) ?? getPresenceFallback(participant),
+        lastSeenByUserId.get(participant.userId) ?? null,
       ),
     ),
     lastMessage: mapConversationLastMessage(conversation, deletedMessageLabel, viewerId),
@@ -754,12 +783,24 @@ export async function listDirectMessages(
   const participationById = new Map(
     participations.map((participant) => [participant.id, participant]),
   );
+  // One last-seen read for the whole page. Resolving it inside the per-row
+  // mapper would put a `groupBy` behind every conversation on the page.
+  const lastSeenByUserId = await resolveLastSeenAtByUserId(
+    participations.flatMap((participation) =>
+      participation.conversation.participants.map((participant) => participant.userId),
+    ),
+  );
   const conversations = await Promise.all(
     pageRows
       .map((row) => participationById.get(row.participantId))
       .filter((participant): participant is NonNullable<typeof participant> => Boolean(participant))
       .map((participant) =>
-        mapDMConversationDTO(participant.conversation, userId, deletedMessageLabel),
+        mapDMConversationDTO(
+          participant.conversation,
+          userId,
+          deletedMessageLabel,
+          lastSeenByUserId,
+        ),
       ),
   );
 
@@ -903,7 +944,7 @@ export async function getDirectMessageConversationRealtimeViews(
     conversation.participants.map((participant) => participant.userId),
   );
   const latestMessageDeleted = Boolean(conversation.messages[0]?.deletedAt);
-  const [localeByUserId, presenceByUserId] = await Promise.all([
+  const [localeByUserId, presenceByUserId, lastSeenByUserId] = await Promise.all([
     latestMessageDeleted
       ? prisma.user
           .findMany({
@@ -913,6 +954,7 @@ export async function getDirectMessageConversationRealtimeViews(
           .then((users) => new Map(users.map((user) => [user.id, user.locale])))
       : Promise.resolve(new Map<string, string | null>()),
     readDMConversationPresenceMap(conversation),
+    readDMConversationLastSeenMap(conversation),
   ]);
   const defaultDeletedMessageLabel = getDeletedMessageLabelForLocale(null);
 
@@ -933,6 +975,7 @@ export async function getDirectMessageConversationRealtimeViews(
             ? getDeletedMessageLabelForLocale(localeByUserId.get(participantId))
             : defaultDeletedMessageLabel,
           presenceByUserId,
+          lastSeenByUserId,
         ),
       };
     });

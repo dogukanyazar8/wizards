@@ -13,6 +13,7 @@ function participant(
   return {
     audioLevel: 0.42,
     avatarUrl: "https://whispr.test/avatar.png",
+    cameraPublication: null,
     cameraTrack: null,
     displayName: "Codex",
     isCameraEnabled: false,

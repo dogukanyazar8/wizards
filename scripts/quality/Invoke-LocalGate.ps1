@@ -1,16 +1,22 @@
 [CmdletBinding()]
 param(
-  [ValidateSet("Fast", "Standard", "CI", "Mobile", "MobileRelease", "Security", "E2ESmoke", "E2EApi", "E2ERealtime")]
+  [ValidateSet("Fast", "Standard", "CI", "Mobile", "Desktop", "MobileRelease", "Security", "E2ESmoke", "E2EApi", "E2ERealtime", "E2EFull")]
   [string]$Profile = "Fast",
   [switch]$Plan,
   [switch]$DryRun,
   [ValidateSet("Text", "Json")]
   [string]$OutputFormat = "Text",
-  [switch]$AllowMobileRelease
+  [switch]$AllowMobileRelease,
+  [switch]$AllowDestructiveE2E,
+  [string]$EventStreamPath,
+  [ValidatePattern("^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$")]
+  [string]$RunId = ([guid]::NewGuid().ToString("n"))
 )
 
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
+$script:gateEventPath = $null
+$script:gateEventSequence = 0
 
 function New-GateStepResult {
   param(
@@ -79,8 +85,85 @@ function Resolve-RelativeGatePath {
   return $candidate
 }
 
+function Resolve-EventStreamPath {
+  param([string]$Root, [string]$RequestedPath)
+
+  if ([string]::IsNullOrWhiteSpace($RequestedPath)) {
+    return $null
+  }
+
+  $ownedRoot = [System.IO.Path]::GetFullPath((Join-Path $Root "artifacts\local-quality-dashboard\runtime")).TrimEnd("\", "/")
+  $candidate = [System.IO.Path]::GetFullPath($RequestedPath)
+  $comparison = if (Test-IsWindowsHost) { [System.StringComparison]::OrdinalIgnoreCase } else { [System.StringComparison]::Ordinal }
+  $separator = [System.IO.Path]::DirectorySeparatorChar
+  if (-not $candidate.StartsWith("$ownedRoot$separator", $comparison)) {
+    throw "Event stream path must stay inside artifacts/local-quality-dashboard/runtime."
+  }
+
+  if ((Test-IsWindowsHost) -and $candidate.Substring(2).Contains(":")) {
+    throw "Event stream path must not contain an alternate data stream."
+  }
+
+  [void][System.IO.Directory]::CreateDirectory($ownedRoot)
+  $parent = Split-Path -Parent $candidate
+  [void][System.IO.Directory]::CreateDirectory($parent)
+
+  $current = [System.IO.DirectoryInfo]::new($parent)
+  while ($null -ne $current -and $current.FullName.StartsWith($ownedRoot, $comparison)) {
+    if (($current.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+      throw "Event stream path must not traverse a reparse point."
+    }
+    if ($current.FullName.Equals($ownedRoot, $comparison)) {
+      break
+    }
+    $current = $current.Parent
+  }
+
+  if (Test-Path -LiteralPath $candidate) {
+    throw "Event stream path already exists."
+  }
+  [System.IO.File]::WriteAllText($candidate, "", [System.Text.UTF8Encoding]::new($false))
+  return $candidate
+}
+
+function Write-GateEvent {
+  param(
+    [string]$EventType,
+    [string]$StepId = "",
+    [string]$Status = "",
+    [double]$DurationMs = 0,
+    [object]$ExitCode = $null,
+    [string]$Command = "",
+    [string]$Detail = "",
+    [string]$NextAction = ""
+  )
+
+  if ([string]::IsNullOrWhiteSpace($script:gateEventPath)) {
+    return
+  }
+
+  $script:gateEventSequence += 1
+  $event = [ordered]@{
+    schemaVersion = 1
+    sequence = $script:gateEventSequence
+    timestamp = [DateTimeOffset]::UtcNow.ToString("o")
+    runId = $RunId
+    profile = $Profile
+    type = $EventType
+    stepId = $StepId
+    status = $Status
+    durationMs = [math]::Round($DurationMs, 0)
+    exitCode = $ExitCode
+    command = $Command
+    detail = $Detail
+    nextAction = $NextAction
+  }
+  $line = $event | ConvertTo-Json -Depth 6 -Compress
+  [System.IO.File]::AppendAllText($script:gateEventPath, "$line`n", [System.Text.UTF8Encoding]::new($false))
+}
+
 function Resolve-LocalGateExecutable {
-  param([ValidateSet("git", "node", "pnpm", "powershell")][string]$LogicalName)
+  param([ValidateSet("git", "node", "pnpm", "powershell", "cargo")][string]$LogicalName)
 
   if ($LogicalName -eq "pnpm") {
     if (Test-IsWindowsHost) {
@@ -140,11 +223,17 @@ $stepRegistry = @{
   "mobile-component-tests" = @{ executable = "pnpm"; arguments = @("--filter", "@wizards/mobile", "test:components") }
   "mobile-release-check" = @{ executable = "pnpm"; arguments = @("--filter", "@wizards/mobile", "release:check") }
   "mobile-quality-check" = @{ executable = "pnpm"; arguments = @("--filter", "@wizards/mobile", "quality:check") }
+  "desktop-script-tests" = @{ executable = "pnpm"; arguments = @("--filter", "@wizards/desktop", "test") }
+  "desktop-rust-format" = @{ executable = "cargo"; arguments = @("fmt", "--manifest-path", "apps/desktop/src-tauri/Cargo.toml", "--all", "--", "--check") }
+  "desktop-rust-lint" = @{ executable = "pnpm"; arguments = @("--filter", "@wizards/desktop", "lint:rust") }
+  "desktop-rust-tests" = @{ executable = "cargo"; arguments = @("test", "--locked", "--manifest-path", "apps/desktop/src-tauri/Cargo.toml") }
   "android-uat-release" = @{ executable = "powershell"; arguments = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "apps/mobile/scripts/build-android-uat.ps1", "-BuildType", "release", "-SkipInstall", "-SkipUninstall", "-NoStartMetro") }
   "security-e2e-password-guard" = @{ executable = "node"; arguments = @("scripts/quality/e2e-password-guard.mjs") }
   "e2e-smoke" = @{ executable = "pnpm"; arguments = @("e2e:smoke") }
   "e2e-api" = @{ executable = "pnpm"; arguments = @("e2e:api") }
   "e2e-realtime" = @{ executable = "pnpm"; arguments = @("e2e:realtime") }
+  "e2e-full-seed" = @{ executable = "pnpm"; arguments = @("e2e:seed") }
+  "e2e-full-playwright" = @{ executable = "pnpm"; arguments = @("e2e") }
 }
 
 function Assert-ProfileDefinition {
@@ -229,6 +318,43 @@ function Test-LoopbackTcpEnvironment {
   return [pscustomobject]@{ passed = $true; detail = "$sourceName loopback endpoint is reachable."; nextAction = "Continue." }
 }
 
+function Test-DestructiveE2EDatabase {
+  param([string]$Name)
+
+  if ($Name -cne "E2E_DATABASE_URL") {
+    throw "Destructive E2E database checks require E2E_DATABASE_URL."
+  }
+  $value = [Environment]::GetEnvironmentVariable($Name)
+  if ([string]::IsNullOrWhiteSpace($value)) {
+    return [pscustomobject]@{ passed = $false; detail = "Required environment variable E2E_DATABASE_URL is missing."; nextAction = "Set E2E_DATABASE_URL to a dedicated loopback database ending in _e2e." }
+  }
+
+  try {
+    $uri = [System.Uri]$value
+  } catch {
+    return [pscustomobject]@{ passed = $false; detail = "E2E_DATABASE_URL is not a valid PostgreSQL URL."; nextAction = "Set E2E_DATABASE_URL to a dedicated loopback PostgreSQL database." }
+  }
+
+  if ($uri.Scheme -notin @("postgres", "postgresql")) {
+    return [pscustomobject]@{ passed = $false; detail = "E2E_DATABASE_URL must use postgres or postgresql."; nextAction = "Use a PostgreSQL URL for the dedicated local E2E database." }
+  }
+  if ($uri.DnsSafeHost -notin @("127.0.0.1", "localhost", "::1")) {
+    return [pscustomobject]@{ passed = $false; detail = "E2E_DATABASE_URL must target a loopback host."; nextAction = "Use only a local PostgreSQL endpoint for destructive E2E." }
+  }
+
+  $databaseName = [System.Uri]::UnescapeDataString($uri.AbsolutePath.Trim("/"))
+  if ($databaseName -notmatch "^[a-z0-9][a-z0-9_-]*_e2e$") {
+    return [pscustomobject]@{ passed = $false; detail = "E2E_DATABASE_URL database name must end in _e2e."; nextAction = "Create and target a dedicated database such as wizards_e2e." }
+  }
+
+  $probe = Test-LoopbackTcpEnvironment -Name $Name -FallbackName ""
+  if (-not $probe.passed) {
+    return $probe
+  }
+  $port = if ($uri.Port -gt 0) { $uri.Port } else { 5432 }
+  return [pscustomobject]@{ passed = $true; detail = "Dedicated loopback E2E database target $($uri.DnsSafeHost):$port/$databaseName is reachable."; nextAction = "Continue only with explicit destructive E2E approval." }
+}
+
 function Test-ProfilePreconditions {
   param([object[]]$Preconditions, [string]$Root)
 
@@ -280,6 +406,12 @@ function Test-ProfilePreconditions {
         $detail = $probe.detail
         $nextAction = $probe.nextAction
       }
+      "destructiveE2EDatabase" {
+        $probe = Test-DestructiveE2EDatabase -Name ([string](Get-RequiredProperty $precondition "name"))
+        $passed = $probe.passed
+        $detail = $probe.detail
+        $nextAction = $probe.nextAction
+      }
       default {
         throw "Profile registry contains unsupported precondition type '$type'."
       }
@@ -317,6 +449,7 @@ $exitCode = 1
 $result = $null
 try {
   $root = Get-LocalGateRoot
+  $script:gateEventPath = Resolve-EventStreamPath -Root $root -RequestedPath $EventStreamPath
   $registryPath = Join-Path $PSScriptRoot "local-gate-profiles.json"
   $registry = Get-Content -Raw -LiteralPath $registryPath | ConvertFrom-Json
   if ($registry.schemaVersion -ne 1) {
@@ -327,6 +460,7 @@ try {
     throw "Local gate profile '$Profile' is not defined."
   }
   Assert-ProfileDefinition $profileDefinition
+  Write-GateEvent -EventType "profile.started" -Status "RUNNING" -Detail $profileDefinition.description -NextAction "Validate profile prerequisites."
 
   $preconditions = Test-ProfilePreconditions -Preconditions @($profileDefinition.preconditions) -Root $root
   if ($Profile -eq "MobileRelease" -and -not $AllowMobileRelease) {
@@ -337,19 +471,36 @@ try {
       nextAction = "Review the canonical script impact, then rerun with -AllowMobileRelease if that mutation is intended."
     }
   }
+  if ($Profile -eq "E2EFull" -and -not $AllowDestructiveE2E) {
+    $preconditions += [ordered]@{
+      type = "explicitDestructiveE2EApproval"
+      status = "BLOCKED"
+      detail = "E2EFull resets and seeds the explicitly validated local E2E database."
+      nextAction = "Confirm the displayed local database target, then rerun with -AllowDestructiveE2E."
+    }
+  }
+  foreach ($precondition in $preconditions) {
+    Write-GateEvent -EventType "precondition.completed" -Status $precondition.status -Detail $precondition.detail -NextAction $precondition.nextAction
+  }
   $blocked = @($preconditions | Where-Object { $_.status -eq "BLOCKED" })
   $steps = @()
   $isPlan = $Plan -or $DryRun
   $profileSteps = @($profileDefinition.steps)
   if ($isPlan) {
     foreach ($step in $profileSteps) {
-      $steps += New-GateStepResult -Id $step.id -Status $(if ($blocked.Count -eq 0) { "SKIP" } else { "BLOCKED" }) -Command (Format-Command $step.executable @($step.arguments)) -DurationMs 0 -ExitCode $null -NextAction $(if ($blocked.Count -eq 0) { "Run without -Plan to execute this step." } else { $blocked[0].nextAction })
+      $stepStatus = if ($blocked.Count -eq 0) { "SKIP" } else { "BLOCKED" }
+      $stepCommand = Format-Command $step.executable @($step.arguments)
+      $stepNextAction = if ($blocked.Count -eq 0) { "Run without -Plan to execute this step." } else { $blocked[0].nextAction }
+      $steps += New-GateStepResult -Id $step.id -Status $stepStatus -Command $stepCommand -DurationMs 0 -ExitCode $null -NextAction $stepNextAction
+      Write-GateEvent -EventType "step.completed" -StepId $step.id -Status $stepStatus -Command $stepCommand -NextAction $stepNextAction
     }
     $result = [ordered]@{ profile = $Profile; mode = "Plan"; status = if ($blocked.Count -eq 0) { "PASS" } else { "BLOCKED" }; description = $profileDefinition.description; estimatedImpact = $profileDefinition.estimatedImpact; preconditions = $preconditions; steps = $steps }
     $exitCode = if ($blocked.Count -eq 0) { 0 } else { 2 }
   } elseif ($blocked.Count -gt 0) {
     foreach ($step in $profileSteps) {
-      $steps += New-GateStepResult -Id $step.id -Status "BLOCKED" -Command (Format-Command $step.executable @($step.arguments)) -DurationMs 0 -ExitCode $null -NextAction $blocked[0].nextAction
+      $stepCommand = Format-Command $step.executable @($step.arguments)
+      $steps += New-GateStepResult -Id $step.id -Status "BLOCKED" -Command $stepCommand -DurationMs 0 -ExitCode $null -NextAction $blocked[0].nextAction
+      Write-GateEvent -EventType "step.completed" -StepId $step.id -Status "BLOCKED" -Command $stepCommand -NextAction $blocked[0].nextAction
     }
     $result = [ordered]@{ profile = $Profile; mode = "Run"; status = "BLOCKED"; description = $profileDefinition.description; estimatedImpact = $profileDefinition.estimatedImpact; preconditions = $preconditions; steps = $steps }
     $exitCode = 2
@@ -358,11 +509,15 @@ try {
     for ($index = 0; $index -lt $profileSteps.Count; $index += 1) {
       $step = $profileSteps[$index]
       if ($failed) {
-        $steps += New-GateStepResult -Id $step.id -Status "SKIP" -Command (Format-Command $step.executable @($step.arguments)) -DurationMs 0 -ExitCode $null -NextAction "Resolve the earlier failure before this step runs."
+        $stepCommand = Format-Command $step.executable @($step.arguments)
+        $steps += New-GateStepResult -Id $step.id -Status "SKIP" -Command $stepCommand -DurationMs 0 -ExitCode $null -NextAction "Resolve the earlier failure before this step runs."
+        Write-GateEvent -EventType "step.completed" -StepId $step.id -Status "SKIP" -Command $stepCommand -NextAction "Resolve the earlier failure before this step runs."
         continue
       }
       $resolved = Resolve-LocalGateExecutable $step.executable
       $arguments = @($resolved.prefix) + @($step.arguments)
+      $stepCommand = Format-Command $resolved.display $arguments
+      Write-GateEvent -EventType "step.started" -StepId $step.id -Status "RUNNING" -Command $stepCommand -NextAction "Wait for the command to complete."
       $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
       $LASTEXITCODE = 0
       $previousNativeErrorAction = $ErrorActionPreference
@@ -379,11 +534,13 @@ try {
       }
       $stopwatch.Stop()
       if ($commandExitCode -ne 0) {
-        $steps += New-GateStepResult -Id $step.id -Status "FAIL" -Command (Format-Command $resolved.display $arguments) -DurationMs $stopwatch.Elapsed.TotalMilliseconds -ExitCode $commandExitCode -NextAction "Fix this command failure and rerun profile $Profile."
+        $steps += New-GateStepResult -Id $step.id -Status "FAIL" -Command $stepCommand -DurationMs $stopwatch.Elapsed.TotalMilliseconds -ExitCode $commandExitCode -NextAction "Fix this command failure and rerun profile $Profile."
+        Write-GateEvent -EventType "step.completed" -StepId $step.id -Status "FAIL" -DurationMs $stopwatch.Elapsed.TotalMilliseconds -ExitCode $commandExitCode -Command $stepCommand -NextAction "Fix this command failure and rerun profile $Profile."
         $failed = $true
         $exitCode = $commandExitCode
       } else {
-        $steps += New-GateStepResult -Id $step.id -Status "PASS" -Command (Format-Command $resolved.display $arguments) -DurationMs $stopwatch.Elapsed.TotalMilliseconds -ExitCode 0 -NextAction "Continue."
+        $steps += New-GateStepResult -Id $step.id -Status "PASS" -Command $stepCommand -DurationMs $stopwatch.Elapsed.TotalMilliseconds -ExitCode 0 -NextAction "Continue."
+        Write-GateEvent -EventType "step.completed" -StepId $step.id -Status "PASS" -DurationMs $stopwatch.Elapsed.TotalMilliseconds -ExitCode 0 -Command $stepCommand -NextAction "Continue."
       }
     }
     if (-not $failed) {
@@ -395,5 +552,7 @@ try {
   $result = [ordered]@{ profile = $Profile; mode = if ($Plan -or $DryRun) { "Plan" } else { "Run" }; status = "BLOCKED"; description = "Local gate could not validate its safe registry."; estimatedImpact = "No external command was started."; preconditions = @(); steps = @((New-GateStepResult -Id "registry" -Status "BLOCKED" -Command "No external command" -DurationMs 0 -ExitCode $null -NextAction $_.Exception.Message)) }
   $exitCode = 2
 }
+
+Write-GateEvent -EventType "profile.completed" -Status $result.status -ExitCode $exitCode -Detail $result.description -NextAction $(if ($result.status -eq "PASS") { "Continue." } else { $result.steps[0].nextAction })
 
 Write-GateResult -Result $result -ExitCode $exitCode -Format $OutputFormat

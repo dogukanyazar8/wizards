@@ -17,11 +17,11 @@ import {
   type WhisprDesktopCommandDetail,
 } from "@/lib/desktop/runtime";
 import {
-  configureDesktopVoiceShortcuts,
   getDesktopAdminConsoleOpen,
   getDesktopForegroundProcessName,
-  hideDesktopGameOverlaySurface,
   getDesktopMainWindowFocused,
+  getDesktopVoiceShortcutStatus,
+  hideDesktopGameOverlaySurface,
   publishDesktopAdminCaseCount,
   setDesktopAdminConsoleVisible,
   publishDesktopGameOverlaySnapshot,
@@ -147,37 +147,6 @@ async function getNotificationApi() {
   } catch {
     return null;
   }
-}
-
-function requestNotificationPermissionOnInteraction(enabled: boolean) {
-  if (!enabled || typeof window === "undefined") {
-    return () => undefined;
-  }
-
-  const requestPermission = () => {
-    void getNotificationApi()
-      .then(async (api) => {
-        if (!api) {
-          if ("Notification" in window && Notification.permission === "default") {
-            await Notification.requestPermission().catch(() => undefined);
-          }
-          return;
-        }
-
-        if (!(await api.isPermissionGranted().catch(() => false))) {
-          await api.requestPermission().catch(() => undefined);
-        }
-      })
-      .catch(() => undefined);
-  };
-
-  window.addEventListener("pointerdown", requestPermission, { once: true });
-  window.addEventListener("keydown", requestPermission, { once: true });
-
-  return () => {
-    window.removeEventListener("pointerdown", requestPermission);
-    window.removeEventListener("keydown", requestPermission);
-  };
 }
 
 async function sendNativeNotification(payload: NotificationSocketPayload, showPreviews: boolean) {
@@ -318,38 +287,26 @@ export function DesktopExperience() {
     (state) => state.setDesktopStreamerModeDetected,
   );
   const {
-    desktopGlobalShortcutsEnabled,
     desktopGameOverlayAnchor,
     desktopGameOverlayEnabled,
     desktopGameOverlayGameSettings,
     desktopGameOverlayProcessDetectionEnabled,
     desktopGameOverlaySize,
     desktopGameOverlaySpeakingOnly,
-    adminConsoleShortcut,
-    gameOverlayPanicShortcut,
     desktopVoiceMiniEnabled,
-    pushToTalkShortcut,
     setDesktopGameOverlayEnabled,
-    toggleDeafenShortcut,
-    toggleMuteShortcut,
-    voiceInputMode,
+    setDesktopGlobalShortcutsEnabled,
   } = useVoiceStore(
     useShallow((state) => ({
-      desktopGlobalShortcutsEnabled: state.desktopGlobalShortcutsEnabled,
       desktopGameOverlayAnchor: state.desktopGameOverlayAnchor,
       desktopGameOverlayEnabled: state.desktopGameOverlayEnabled,
       desktopGameOverlayGameSettings: state.desktopGameOverlayGameSettings,
       desktopGameOverlayProcessDetectionEnabled: state.desktopGameOverlayProcessDetectionEnabled,
       desktopGameOverlaySize: state.desktopGameOverlaySize,
       desktopGameOverlaySpeakingOnly: state.desktopGameOverlaySpeakingOnly,
-      adminConsoleShortcut: state.adminConsoleShortcut,
-      gameOverlayPanicShortcut: state.gameOverlayPanicShortcut,
       desktopVoiceMiniEnabled: state.desktopVoiceMiniEnabled,
-      pushToTalkShortcut: state.pushToTalkShortcut,
       setDesktopGameOverlayEnabled: state.setDesktopGameOverlayEnabled,
-      toggleDeafenShortcut: state.toggleDeafenShortcut,
-      toggleMuteShortcut: state.toggleMuteShortcut,
-      voiceInputMode: state.voiceInputMode,
+      setDesktopGlobalShortcutsEnabled: state.setDesktopGlobalShortcutsEnabled,
     })),
   );
   const isDesktop = useSyncExternalStore(
@@ -357,6 +314,38 @@ export function DesktopExperience() {
     isWhisprDesktopRuntime,
     () => false,
   );
+
+  useEffect(() => {
+    if (!isDesktop) {
+      return;
+    }
+
+    let active = true;
+    const syncShortcutStatus = () => {
+      void getDesktopVoiceShortcutStatus()
+        .then((status) => {
+          if (active && status) {
+            setDesktopGlobalShortcutsEnabled(status.enabled);
+          }
+        })
+        .catch(() => undefined);
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        syncShortcutStatus();
+      }
+    };
+
+    syncShortcutStatus();
+    window.addEventListener("focus", syncShortcutStatus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      active = false;
+      window.removeEventListener("focus", syncShortcutStatus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [isDesktop, setDesktopGlobalShortcutsEnabled]);
   const [isMainWindowFocused, setIsMainWindowFocused] = useState(true);
   const [desktopCompanionSurfacesGateOpen, setDesktopCompanionSurfacesGateOpen] = useState(false);
   const [detectedForegroundProcessName, setDetectedForegroundProcessName] = useState<string | null>(
@@ -950,61 +939,6 @@ export function DesktopExperience() {
       return;
     }
 
-    return () => {
-      void configureDesktopVoiceShortcuts({
-        shortcutsEnabled: false,
-      }).catch(() => undefined);
-    };
-  }, [isDesktop]);
-
-  useEffect(() => {
-    if (!isDesktop) {
-      return;
-    }
-
-    void configureDesktopVoiceShortcuts({
-      hideGameOverlay:
-        desktopGlobalShortcutsEnabled && desktopGameOverlayEnabled
-          ? gameOverlayPanicShortcut
-          : null,
-      pushToTalk:
-        desktopGlobalShortcutsEnabled && voiceInputMode === "push-to-talk"
-          ? pushToTalkShortcut
-          : null,
-      shortcutsEnabled: desktopGlobalShortcutsEnabled,
-      toggleAdminConsole: desktopGlobalShortcutsEnabled ? adminConsoleShortcut : null,
-      toggleDeafen: desktopGlobalShortcutsEnabled ? toggleDeafenShortcut : null,
-      toggleMute: desktopGlobalShortcutsEnabled ? toggleMuteShortcut : null,
-    })
-      .then((status) => {
-        recordDesktopPerformanceMetric({
-          operation: "desktop_shortcuts_configured",
-          result: status === null ? "skipped" : "success",
-        });
-      })
-      .catch(() => {
-        recordDesktopPerformanceMetric({
-          operation: "desktop_shortcuts_configured",
-          result: "failure",
-        });
-      });
-  }, [
-    adminConsoleShortcut,
-    desktopGameOverlayEnabled,
-    desktopGlobalShortcutsEnabled,
-    gameOverlayPanicShortcut,
-    isDesktop,
-    pushToTalkShortcut,
-    toggleDeafenShortcut,
-    toggleMuteShortcut,
-    voiceInputMode,
-  ]);
-
-  useEffect(() => {
-    if (!isDesktop) {
-      return;
-    }
-
     if (!isMainWindowFocused) {
       return;
     }
@@ -1337,14 +1271,6 @@ export function DesktopExperience() {
       channel.close();
     };
   }, [isDesktop, leaveChannel, toggleDeafen, toggleMute]);
-
-  useEffect(() => {
-    if (!isDesktop) {
-      return;
-    }
-
-    return requestNotificationPermissionOnInteraction(desktopNotificationsEnabled);
-  }, [desktopNotificationsEnabled, isDesktop]);
 
   useEffect(() => {
     if (!isDesktop) {

@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "main",
-  "description": "Whispr's primary desktop window receives the minimal permissions required for native notifications, custom window chrome, startup promotion, and persisted window state.",
+  "description": "Whispr's remote primary window receives read-oriented desktop integration permissions; privileged local mutations live in Desktop Control.",
   "windows": ["main"],
   "remote": {
     "urls": [
@@ -17,8 +17,6 @@
   },
   "permissions": [
     "allow-complete-desktop-before-close",
-    "allow-configure-desktop-voice-shortcuts",
-    "allow-export-desktop-diagnostics-bundle",
     "allow-get-desktop-app-info",
     "allow-get-desktop-companion-surfaces-status",
     "allow-get-desktop-foreground-process-name",
@@ -33,9 +31,9 @@
     "allow-set-desktop-activity-status",
     "allow-set-desktop-game-overlay-visible",
     "allow-set-desktop-voice-mini-visible",
+    "allow-show-desktop-control",
     "notification:allow-is-permission-granted",
     "notification:allow-notify",
-    "notification:allow-request-permission",
     "core:window:allow-close",
     "core:window:allow-center",
     "core:event:allow-listen",

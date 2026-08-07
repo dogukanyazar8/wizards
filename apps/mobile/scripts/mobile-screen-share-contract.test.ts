@@ -7,10 +7,14 @@ import { MobileVoiceHeartbeatRequestSchema } from "@wizards/types";
 
 import {
   DEFAULT_MOBILE_SCREEN_SHARE_QUALITY_ID,
+  MOBILE_SCREEN_SHARE_DEGRADATION_PREFERENCE,
+  MOBILE_SCREEN_SHARE_MAX_BITRATE,
   MOBILE_SCREEN_SHARE_QUALITY_OPTIONS,
   getMobileScreenShareCaptureOptions,
   getMobileScreenSharePublishOptions,
+  getPreferredMobileScreenShareQualityId,
   normalizeMobileScreenShareQualityId,
+  setPreferredMobileScreenShareQualityId,
   validateMobileScreenShareQualityContract,
 } from "../src/voice/mobile-screen-share";
 import {
@@ -44,6 +48,71 @@ describe("mobile screen share contract", () => {
     assert.equal(publishOptions.source, Track.Source.ScreenShare);
     assert.equal(publishOptions.screenShareEncoding?.maxFramerate, 30);
     assert.equal(validateMobileScreenShareQualityContract().length, 0);
+  });
+
+  it("raises the mobile ceiling to 1080p30 at 4 Mbps on the hardware encoder", () => {
+    assert.equal(MOBILE_SCREEN_SHARE_MAX_BITRATE, 4_000_000);
+
+    const high = getMobileScreenSharePublishOptions("h1080fps30");
+    assert.equal(high.screenShareEncoding?.maxBitrate, 4_000_000);
+    assert.equal(high.videoCodec, "h264");
+    // H.264 carries no SVC layers, so there is no backup codec to regress to.
+    assert.equal(high.backupCodec, false);
+
+    const standard = getMobileScreenSharePublishOptions("h720fps30");
+    assert.equal(standard.screenShareEncoding?.maxBitrate, 2_000_000);
+    assert.equal(standard.videoCodec, "h264");
+  });
+
+  it("holds resolution over framerate so shared text stays readable", () => {
+    assert.equal(MOBILE_SCREEN_SHARE_DEGRADATION_PREFERENCE, "maintain-resolution");
+
+    for (const option of MOBILE_SCREEN_SHARE_QUALITY_OPTIONS) {
+      assert.equal(
+        getMobileScreenSharePublishOptions(option.id).degradationPreference,
+        "maintain-resolution",
+      );
+    }
+  });
+
+  it("publishes the quality the user chose, even when the call site passes nothing", () => {
+    try {
+      setPreferredMobileScreenShareQualityId("h1080fps30");
+
+      assert.equal(getPreferredMobileScreenShareQualityId(), "h1080fps30");
+      assert.equal(getMobileScreenShareCaptureOptions().resolution?.height, 1080);
+      assert.equal(getMobileScreenSharePublishOptions().screenShareEncoding?.maxBitrate, 4_000_000);
+
+      // A stored value the app no longer ships falls back to the safe default.
+      setPreferredMobileScreenShareQualityId("h1440fps60");
+      assert.equal(getPreferredMobileScreenShareQualityId(), "h720fps30");
+      assert.equal(getMobileScreenShareCaptureOptions().resolution?.height, 720);
+    } finally {
+      setPreferredMobileScreenShareQualityId(DEFAULT_MOBILE_SCREEN_SHARE_QUALITY_ID);
+    }
+  });
+
+  it("hands the stored quality to the LiveKit publish call instead of dropping it", () => {
+    const hookSource = readFileSync(
+      resolve(__dirname, "../src/voice/use-mobile-voice-room.ts"),
+      "utf8",
+    );
+
+    assert.match(hookSource, /voiceDevicePreferencesRef\.current\.screenShareQualityId/);
+    assert.match(hookSource, /getMobileScreenShareCaptureOptions\(screenShareQualityId\)/);
+    assert.match(hookSource, /getMobileScreenSharePublishOptions\(screenShareQualityId\)/);
+    assert.match(hookSource, /setPreferredMobileScreenShareQualityId/);
+  });
+
+  it("exposes the quality picker on the settings sheet rather than leaving it dead code", () => {
+    const sheetSource = readFileSync(
+      resolve(__dirname, "../src/voice/mobile-voice-settings-sheet.tsx"),
+      "utf8",
+    );
+
+    assert.match(sheetSource, /MOBILE_SCREEN_SHARE_QUALITY_OPTIONS/);
+    assert.match(sheetSource, /mobile-voice-screen-share-quality-/);
+    assert.match(sheetSource, /onSelectScreenShareQuality/);
   });
 
   it("shares the same presence key and heartbeat payload shape as web voice state", () => {

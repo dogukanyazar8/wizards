@@ -134,9 +134,9 @@ export function DMConversationScreen({
     summaryPartner?.avatarUrl ??
     getMobileConversationAvatarUrl(conversation, currentUserId);
   const isOnline = (responsePartner?.status ?? summaryPartner?.status) === "ONLINE";
-  // Presence has no dedicated last-seen field; the conversation's real
-  // last-activity timestamp is the closest honest signal for the 4a status line.
-  const resolvedLastSeenAt = lastSeenAt ?? conversation.lastMessageAt ?? null;
+  // Conversation activity belongs to both participants; only the partner's
+  // presence-derived value can describe when that person was last seen.
+  const resolvedLastSeenAt = responsePartner?.lastSeenAt ?? lastSeenAt ?? null;
 
   return (
     <View style={styles.root} testID="mobile-dm-conversation-screen">

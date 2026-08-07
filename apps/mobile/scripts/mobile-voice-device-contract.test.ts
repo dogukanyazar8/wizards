@@ -57,17 +57,42 @@ describe("mobile voice device contract", () => {
         audioInputId: " mic-1 ",
         audioOutputId: "speaker",
         noiseSuppressionEnabled: false,
+        screenShareQualityId: "h1080fps30",
       }),
       {
         audioInputId: "mic-1",
         audioOutputId: "speaker",
         noiseSuppressionEnabled: false,
+        screenShareQualityId: "h1080fps30",
       },
     );
     assert.deepEqual(await loadMobileVoiceDevicePreferences(storage), {
       audioInputId: "mic-1",
       audioOutputId: "speaker",
       noiseSuppressionEnabled: false,
+      screenShareQualityId: "h1080fps30",
     });
+  });
+
+  it("keeps the screen-share quality a stored preference and drops retired values", async () => {
+    const storage = createMemoryStorage();
+
+    assert.equal(
+      (await loadMobileVoiceDevicePreferences(storage)).screenShareQualityId,
+      "h720fps30",
+    );
+
+    const saved = await saveMobileVoiceDevicePreferences(storage, {
+      audioInputId: null,
+      audioOutputId: null,
+      noiseSuppressionEnabled: true,
+      screenShareQualityId: "h1440fps60" as never,
+    });
+
+    assert.equal(saved.screenShareQualityId, "h720fps30");
+    assert.equal(
+      (await loadMobileVoiceDevicePreferences(storage)).screenShareQualityId,
+      "h720fps30",
+    );
   });
 });

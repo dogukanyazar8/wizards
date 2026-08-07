@@ -1,8 +1,8 @@
 # Whispr Desktop Native Evolution
 
-Living P00 baseline. This document is source-grounded as of 2026-07-27 and is the single phase record for the desktop-native evolution work.
+Living desktop-native phase record. P00/P01 sections preserve their historical evidence; the P02 record below is source-grounded against the uncommitted `uat` working tree on 2026-08-07.
 
-## Scope lock
+## P00 scope lock (historical)
 
 - Branch: `codex/desktop-native-evolution`
 - Worktree: `C:\Users\doguk\Desktop\Wizards\.worktrees\desktop-native-evolution`
@@ -11,7 +11,7 @@ Living P00 baseline. This document is source-grounded as of 2026-07-27 and is th
 - Main checkout was preserved: it was dirty on `uat` and never switched, reset, stashed, cleaned, copied, or modified.
 - P00 phase commit is document-only. Its immutable SHA is recorded by Git history after the commit; the base SHA above is the source baseline.
 
-## Current state
+## P00 baseline state (historical)
 
 Whispr Desktop is a Tauri 2 shell around external web content, not a bundled local renderer.
 
@@ -58,7 +58,7 @@ Legend: `M` is the remote main WebView and is the only permitted command caller.
 | `configure_desktop_voice_shortcuts`     | M; max four bounded shortcut strings; reserved/duplicate/newline forms rejected | Register and persist OS global shortcuts                         | No                             | Rust shortcut test in `lib.rs`                              |
 | `get_desktop_voice_shortcut_status`     | M; no payload                                                                   | Reads shortcut registry state                                    | No                             | Indirect controls coverage                                  |
 | `export_desktop_diagnostics_bundle`     | M; sanitized web diagnostic payload                                             | Build redacted native diagnostics bundle for browser download    | UI click only; no native proof | Rust diagnostic-redaction test; diagnostics-panel tests     |
-| `record_desktop_update_failure`         | M; sanitized bounded failure fields                                             | Append redacted native updater log                               | No                             | `apps/web/src/lib/desktop/updater.test.ts`                  |
+| `record_desktop_update_failure`         | M; sanitized bounded failure fields                                             | Append redacted native updater log; return timestamp only        | No                             | `apps/web/src/lib/desktop/updater.test.ts`                  |
 | `get_desktop_autostart_enabled`         | M; no payload                                                                   | Reads OS autostart state                                         | No                             | Indirect controls coverage                                  |
 | `set_desktop_autostart_enabled`         | M; boolean                                                                      | Changes and verifies OS autostart                                | UI click only; no native proof | Indirect controls coverage                                  |
 | `get_desktop_quit_on_close_enabled`     | M; no payload                                                                   | Reads close behavior preference                                  | No                             | Indirect controls coverage                                  |
@@ -203,53 +203,66 @@ Rollback: revert focused P01 source commits. Do not restore non-protected signin
 
 ## P02 trust-boundary record
 
-**Status: IN PROGRESS.** The first bounded slice reduces the remote `main` custom-command capability set from 21 to 17. P02 is not PASS until privileged updater, diagnostics-export, and shortcut-mutation groups have trusted local counterparts.
+**Status: FAIL (required dependency-audit gate) / SOURCE PASS / RUNTIME PARTIAL / CURRENT-CHANGE REMOTE CI NOT RUN.** The synchronized `uat`/`origin/uat` base is `4b1fad7c257e9aa46413f7f019cd87d9389155f4`; this P02 slice is an uncommitted working-tree change and has no current-change hosted CI evidence.
 
-### Completed source/local slice
+### Trusted local control plane
 
-- Remote `main` no longer receives read or write commands for autostart or close behavior. The generated build contract, checked-in capability, Rust command manifest, and web controls all remove the four permissions.
-- Native tray check items now own **Launch at startup** and **Quit when main window closes**. The close behavior persists in `.native-settings.json`; a tray action is a local user gesture. The remote settings/diagnostics pages now direct users to this trusted surface.
-- Voice-mini and game-overlay snapshots now enter Rust as `DesktopCompanionSnapshotV1`, with a v1 response, bounded typed fields, 12-participant ceiling, allowed URL schemes, timestamp shape, and unknown-field rejection. Legacy snapshots without `version` map to v1 during the temporary remote-web rollout window; explicit unsupported versions fail closed.
-- `voice-mini` remains drag-only and `game-overlay` remains `permissions: []`.
+- `desktop-control` is a lazy singleton local WebView. Rust serves three allowlisted embedded assets through `desktop-control://`; unknown/traversal paths return `404`. The response sets explicit content types, `no-store`, `nosniff`, a no-referrer policy, and a network-denying CSP. There is no remote URL, CDN, font, router, framework, or new dependency.
+- Capability `desktop-control` has no `remote.urls`. Runtime authorization independently requires exact label `desktop-control` and local scheme `desktop-control`; main, companion, spoofed-label, and remote windows fail closed.
+- Shortcut registration, native-only diagnostics export, signed-updater check/install/restart, notification permission onboarding, and bounded recovery commands are owned by this local capability. Install requires both UI confirmation and Rust-side `confirmed: true` plus exact expected-version validation. Remote main can read granted status and send bounded notifications, but cannot request permission.
+- Diagnostics are size-bounded, redacted, atomically written without clobbering an existing file, and return the safe output path. Recovery only reopens/focuses voice-mini, refreshes/hides overlay, or restores the main window; no process kill, data deletion, shell execution, arbitrary URL, or retry service exists.
+- Permissions report platform instructions and `OS status unverified` when the OS cannot be measured. No synthetic PASS is produced.
+- Tray Settings, Diagnostics, and Updates actions open/focus the same local window. Remote web settings retain only a harmless `show_desktop_control` bridge.
+- Existing web shortcut preferences are intentionally not auto-imported across the new boundary. Native shortcuts default disabled; both the remote handoff copy and local panel require an explicit local Save before re-enabling them.
+
+### Capability result
+
+- Remote `main` custom permissions: **16**, counted from checked-in `main.json` entries beginning with `allow-` (previous P02 slice: 17; P00 baseline: 21).
+- Remote `main` no longer owns `allow-configure-desktop-voice-shortcuts` or `allow-export-desktop-diagnostics-bundle`. No frontend capability owns raw updater check/download or process restart permissions; Desktop Control reaches those operations only through exact-window Rust wrappers with explicit confirmation and expected-version validation.
+- `desktop-control` exposes exactly seven guarded Rust command permissions and no raw plugin permission.
+- `voice-mini` remains exactly drag-only. `game-overlay` remains `permissions: []`.
+- Existing native tray ownership of autostart/close behavior and typed/versioned companion snapshot bounds remain intact.
 
 ### Current gates
 
-- PASS: desktop trusted-control contract, desktop script suite, Rust fmt, Rust clippy, Rust unit tests, shared voice-mini schema tests, focused web lint.
-- ENV BLOCKED: broad web typecheck has existing generated-Prisma and unrelated UAT/admin errors; no P02 source error was reported.
-- NOT RUN: signed updater/release flow, remote hosted builds, candidate-specific runtime smoke/measurement remain outside this source slice or blocked by existing user-managed processes.
+- PASS: 100 desktop script tests; 11 focused desktop-web tests; Rust fmt; clippy with `-D warnings`; 26 Rust workspace tests; unsigned Windows no-bundle build; release-ops contract; diff whitespace check; and final code review with no remaining findings.
+- FAIL (unrelated concurrent WIP): final broad web typecheck reports four `TS2740` errors in `apps/web/src/app/api/v1/admin/servers/route-logic.test.ts` because new admin-server fixtures omit required fields. Those files are outside P02 and were not changed by this slice; focused desktop-web tests remain green.
+- FAIL: `corepack pnpm audit --audit-level moderate` reports two high `js-yaml` findings for `GHSA-5p4m-2wfm-xmqj` / `CVE-2026-59870`. The shown paths are mobile Expo/Jest transitive chains, outside this P02 slice; no broad dependency change was made.
+- MANUAL PASS: candidate launch; main render; second-launch singleton; tray restore; local control open; one-window reuse with the same WebView processes; close-to-hide and reopen; keyboard Tab focus through nine controls; disabled-updater check; native diagnostics file creation, JSON parse, 2,441-byte bound, and negative scans for full home path, bearer token, authorization, cookie, email, and queried remote URL. The generated test bundle was sent to Recycle Bin and the candidate exited through tray Quit.
+- NOT RUN: live shortcut registration/unregistration and companion recovery, to avoid changing persisted user settings or creating companion state after the required audit gate failed; signed updater install/relaunch; release publication; deployment; and current-change remote CI.
 
-### Remaining P02 gate
+### Hosted native-build evidence
 
-Build trusted local counterparts for updater, diagnostics export, shortcut configuration, permissions onboarding, and recovery UI; then remove their remote capabilities one group at a time. Do not mark P02 PASS before those mutations require a native/local user gesture.
+GitHub Actions run [31021827583](https://github.com/dogukanyazar8/wizards/actions/runs/31021827583) passed both `Unsigned native build (Windows)` and `Unsigned native build (macOS)` for ancestor commit `8b1daabf` on 2026-08-05. This corrects the older feature-ref `NOT RUN` snapshot, but it does **not** cover current base `4b1fad7c` or the uncommitted P02 working-tree changes. Current-change hosted Windows/macOS remain `NOT RUN` until push/PR or workflow-dispatch authority is granted.
 
 ## Phase checklist
 
-| Phase | Scope                                                              | Status                                                     |
-| ----- | ------------------------------------------------------------------ | ---------------------------------------------------------- |
-| P00   | Baseline, source inventory, trust boundary, scope lock             | PASS after this document-only commit                       |
-| P01   | CI/security/release gates and executable measurement evidence      | ENV BLOCKED: source/local PASS; candidate runtime blocked  |
-| P02   | Trusted local control plane and incremental IPC boundary reduction | IN PROGRESS: autostart/close group local; companion IPC v1 |
-| P03   | Windows native media spike and measured selection                  | Blocked on P02 acceptance and research decision            |
-| P04   | Windows native UX                                                  | Blocked on prior phases                                    |
-| P05   | Bundled local renderer and shared core strangler migration         | Blocked on prior phases                                    |
-| P06   | macOS/Linux parity                                                 | Blocked on Windows evidence                                |
-| P07   | Collaboration parity                                               | Blocked on foundation gates                                |
-| P08   | Scale, observability, accessibility                                | Blocked on foundation gates                                |
-| P09   | UAT acceptance                                                     | Blocked on all preceding gates and external CI baseline    |
+| Phase | Scope                                                              | Status                                                    |
+| ----- | ------------------------------------------------------------------ | --------------------------------------------------------- |
+| P00   | Baseline, source inventory, trust boundary, scope lock             | PASS after this document-only commit                      |
+| P01   | CI/security/release gates and executable measurement evidence      | ENV BLOCKED: source/local PASS; candidate runtime blocked |
+| P02   | Trusted local control plane and incremental IPC boundary reduction | Source implemented; local/runtime/remote evidence split   |
+| P03   | Windows native media spike and measured selection                  | Blocked on P02 acceptance and research decision           |
+| P04   | Windows native UX                                                  | Blocked on prior phases                                   |
+| P05   | Bundled local renderer and shared core strangler migration         | Blocked on prior phases                                   |
+| P06   | macOS/Linux parity                                                 | Blocked on Windows evidence                               |
+| P07   | Collaboration parity                                               | Blocked on foundation gates                               |
+| P08   | Scale, observability, accessibility                                | Blocked on foundation gates                               |
+| P09   | UAT acceptance                                                     | Blocked on all preceding gates and external CI baseline   |
 
 ## Risks
 
-1. **High — remote native authority.** Remote main content has the full custom-command surface. A remote compromise can reach autostart, global shortcuts, companion-window lifecycle, diagnostics writes, and—when updater builds are enabled—check/install/restart privileges. P02 must reduce this without deleting a feature before its trusted local replacement exists.
-2. **Medium — gesture enforcement.** Some UI paths are user clicks, but Rust does not independently attest an explicit native gesture for privileged mutations.
-3. **Medium — IPC typing.** Companion snapshots cross Rust as `serde_json::Value` with a 16 KiB cap; child renderer Zod parsing is fail-closed, but the native boundary is not typed/versioned.
+1. **Medium — residual remote native authority.** Remote main remains an external renderer with bounded companion/window commands. High-risk shortcut mutation, diagnostics write, and updater install/restart moved local, but P05 local-renderer migration is still future work.
+2. **Medium — runtime acceptance gap.** Singleton focus/hide, keyboard navigation, disabled-updater state, and diagnostics export passed a local Windows smoke. Live shortcut register/unregister, invalid-shortcut runtime rollback, companion recovery, notification onboarding, and signed updater install/relaunch remain unverified.
+3. **Medium — current-change CI gap.** The latest hosted Windows/macOS success covers base `8b1daabf`, not this uncommitted P02 working tree.
 4. **Medium — privacy/reliability.** Foreground process basename can reach remote main content; companion visibility commands queue asynchronous work yet return success before the work completes.
 5. **Medium — audit/platform debt.** Cargo audit has 17 informational warnings, including a `glib` unsoundness advisory on Linux dependency paths. No vulnerability was reported; no suppression was added.
-6. **Medium — UAT evidence gap.** Source/local gates pass. Hosted Windows/macOS, candidate measurement, candidate smoke, signed updater, SBOM/provenance, and device-media remain distinct states.
+6. **Medium — UAT evidence gap.** Candidate measurement, manual smoke, signed updater, SBOM/provenance, and device-media remain distinct states.
 
 ## Rollback
 
-P00 is documentation-only. Revert its single document commit to remove the phase record; no runtime, data, database, release, or infrastructure state changes exist to roll back.
+Rollback only the focused P02 files: remove the `desktop-control` capability/assets and Rust commands, then restore the previous main capability and web direct-control paths together. Do not reset, clean, stash, or touch unrelated UAT WIP. No database, API, auth, mobile, signing, release, deployment, or automatic persisted-data migration was introduced.
 
 ## Next phase gate
 
-Do not begin P02. P02 gate needs latest `origin/uat` integrated, desktop contract regression closed, real candidate measurement, candidate smoke complete or exact environmental blocker. Hosted Windows/macOS may remain `NOT RUN` until later authorization. Signed release, protected provenance, AWS CLI patch pin are not P02 prerequisites.
+Do not begin P03 until P02 has current-candidate manual Windows acceptance and the source/local gates above are complete. Current-change hosted Windows/macOS CI needs separate push/PR or dispatch authority. Signed release, protected provenance, AWS CLI patch pin, P03 media work, and P05 local-renderer migration are not part of this slice.

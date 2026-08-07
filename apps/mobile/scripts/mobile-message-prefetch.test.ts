@@ -39,10 +39,12 @@ const channelPage: MobileChannelMessagesResponse = {
 
 const dmPage: MobileDMMessagesResponse = {
   conversation: {
+    iconUrl: null,
     id: "conversation-1",
     lastMessage: null,
     lastMessageAt: "2026-07-28T09:00:00.000Z",
     name: null,
+    ownerId: null,
     participants: [],
     type: "DM",
   },

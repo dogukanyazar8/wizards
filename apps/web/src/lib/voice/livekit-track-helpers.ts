@@ -1,10 +1,4 @@
-import {
-  LocalAudioTrack,
-  LocalTrack,
-  LocalVideoTrack,
-  type Room,
-  Track,
-} from "livekit-client";
+import { LocalAudioTrack, LocalTrack, LocalVideoTrack, type Room, Track } from "livekit-client";
 
 import { logError } from "@/lib/logger";
 import {
@@ -98,6 +92,22 @@ export async function stopLocalTracks(room: Room) {
   }
 }
 
+/**
+ * Every remote audio source livekit lets a participant volume be set on.
+ *
+ * Screen-share audio is a second, independent publication: without it in this
+ * list, deafening leaves a shared tab's audio playing at full volume and the
+ * participant's volume slider does not reach it. Nothing publishes it yet — both
+ * capture paths still pass `audio: false` — but livekit remembers a volume set
+ * before the track exists (`volumeMap`) and applies it the moment one is
+ * subscribed, so setting it here also covers a track published by some other
+ * client or a later release.
+ */
+const REMOTE_AUDIO_VOLUME_SOURCES = [
+  Track.Source.Microphone,
+  Track.Source.ScreenShareAudio,
+] as const;
+
 export function applyRemoteAudioState(
   room: Room,
   isDeafened: boolean,
@@ -105,18 +115,21 @@ export function applyRemoteAudioState(
   defaultParticipantVolume: number,
 ) {
   for (const participant of room.remoteParticipants.values()) {
-    try {
-      participant.setVolume(
-        resolveParticipantVolume(
-          participant.identity,
-          isDeafened,
-          participantVolumes,
-          defaultParticipantVolume,
-        ),
-        Track.Source.Microphone,
-      );
-    } catch (error) {
-      logError("[voice] Remote participant volume sync failed", error);
+    const volume = resolveParticipantVolume(
+      participant.identity,
+      isDeafened,
+      participantVolumes,
+      defaultParticipantVolume,
+    );
+
+    // Per source, not per participant: one source throwing must not leave the
+    // other one carrying a stale volume — least of all an un-deafened one.
+    for (const source of REMOTE_AUDIO_VOLUME_SOURCES) {
+      try {
+        participant.setVolume(volume, source);
+      } catch (error) {
+        logError("[voice] Remote participant volume sync failed", error);
+      }
     }
   }
 }

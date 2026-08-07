@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
   AlertTriangle,
   ChevronDown,
@@ -19,9 +19,14 @@ import {
   type NoiseFilterTier,
 } from "@/components/providers/voice-provider";
 import { useI18n } from "@/components/providers/locale-provider";
+import {
+  launchDesktopControlSection,
+  type DesktopControlLaunchState,
+} from "@/components/desktop/desktop-control-launch";
 import { AudioDeviceSelect } from "@/components/voice/audio-device-select";
 import {
   hideDesktopGameOverlaySurface,
+  openDesktopControl,
   refreshDesktopCompanionSurfacesWithLayout,
   testDesktopGameOverlaySurface,
   testDesktopVoiceMiniSurface,
@@ -217,129 +222,6 @@ export function VoicePreferenceToggleRow({
   );
 }
 
-function resolveShortcutKey(event: KeyboardEvent<HTMLInputElement>) {
-  if (event.code === "Space") {
-    return "Space";
-  }
-  if (/^Key[A-Z]$/u.test(event.code)) {
-    return event.code.replace("Key", "");
-  }
-  if (/^Digit[0-9]$/u.test(event.code)) {
-    return event.code.replace("Digit", "");
-  }
-  if (/^F(?:[1-9]|1[0-9]|2[0-4])$/u.test(event.code)) {
-    return event.code;
-  }
-  if (event.code.startsWith("Numpad")) {
-    return event.code;
-  }
-
-  switch (event.key) {
-    case "ArrowDown":
-    case "ArrowLeft":
-    case "ArrowRight":
-    case "ArrowUp":
-    case "Backspace":
-    case "CapsLock":
-    case "Delete":
-    case "End":
-    case "Enter":
-    case "Home":
-    case "Insert":
-    case "PageDown":
-    case "PageUp":
-    case "Tab":
-      return event.key;
-    case "`":
-      return "Backquote";
-    case ",":
-      return "Comma";
-    case ".":
-      return "Period";
-    case "/":
-      return "Slash";
-    case ";":
-      return "Semicolon";
-    case "'":
-      return "Quote";
-    case "-":
-      return "Minus";
-    case "=":
-      return "Equal";
-    case "\\":
-      return "Backslash";
-    case "[":
-      return "BracketLeft";
-    case "]":
-      return "BracketRight";
-    default:
-      return null;
-  }
-}
-
-function formatShortcutFromKeyboardEvent(event: KeyboardEvent<HTMLInputElement>) {
-  const key = resolveShortcutKey(event);
-  if (!key || ["Alt", "Control", "Meta", "Shift"].includes(event.key)) {
-    return null;
-  }
-
-  const modifiers = [
-    event.ctrlKey ? "Ctrl" : null,
-    event.metaKey ? "Super" : null,
-    event.altKey ? "Alt" : null,
-    event.shiftKey ? "Shift" : null,
-  ].filter(Boolean);
-
-  if (modifiers.length === 0 && !/^F(?:1[3-9]|2[0-4])$/u.test(key)) {
-    return null;
-  }
-
-  return [...modifiers, key].join("+");
-}
-
-function DesktopShortcutInputRow({
-  description,
-  label,
-  onChange,
-  value,
-}: {
-  description: string;
-  label: string;
-  onChange: (value: string) => void;
-  value: string;
-}) {
-  return (
-    <label className="grid gap-1.5 rounded-xl border border-[hsl(var(--border)/0.54)] bg-[hsl(var(--surface-card)/0.62)] p-2.5 shadow-[0_8px_18px_hsl(var(--shadow-color)/0.035)]">
-      <span className="flex items-center justify-between gap-2">
-        <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-app-muted">
-          {label}
-        </span>
-        <kbd className="rounded-lg border border-[hsl(var(--border)/0.64)] bg-[hsl(var(--surface-soft)/0.68)] px-1.5 py-0.5 text-[10px] font-semibold text-app-foreground">
-          {value}
-        </kbd>
-      </span>
-      <input
-        aria-label={label}
-        className="min-h-9 rounded-xl border border-[hsl(var(--border)/0.66)] bg-[hsl(var(--surface-card)/0.88)] px-2.5 text-xs font-semibold text-app-foreground outline-hidden transition placeholder:text-app-soft focus:border-[hsl(var(--primary)/0.45)] focus:ring-2 focus:ring-[hsl(var(--ring)/0.18)]"
-        onChange={(event) => onChange(event.target.value)}
-        onKeyDown={(event) => {
-          const shortcut = formatShortcutFromKeyboardEvent(event);
-          if (!shortcut) {
-            return;
-          }
-
-          event.preventDefault();
-          onChange(shortcut);
-        }}
-        placeholder={value}
-        spellCheck={false}
-        value={value}
-      />
-      <span className="text-[11px] leading-4 text-app-soft">{description}</span>
-    </label>
-  );
-}
-
 function VoiceInputModeButton({
   active,
   description,
@@ -378,6 +260,7 @@ export function VoicePreferencesPanel({ mode = "all" }: { mode?: VoicePreference
   const [desktopSurfacePending, setDesktopSurfacePending] = useState<
     "hide" | "overlay" | "refresh" | "voice-mini" | null
   >(null);
+  const [desktopControlState, setDesktopControlState] = useState<DesktopControlLaunchState>("idle");
   const isDesktopRuntime = useSyncExternalStore(
     subscribeToRuntimeCapabilities,
     isWhisprDesktopRuntime,
@@ -400,9 +283,6 @@ export function VoicePreferencesPanel({ mode = "all" }: { mode?: VoicePreference
     retryKrispNoiseCancellation,
     setAudioPreference,
   } = useVoiceState();
-  const desktopGlobalShortcutsEnabled = useVoiceStore(
-    (state) => state.desktopGlobalShortcutsEnabled,
-  );
   const desktopGameOverlayAnchor = useVoiceStore((state) => state.desktopGameOverlayAnchor);
   const desktopGameOverlayEnabled = useVoiceStore((state) => state.desktopGameOverlayEnabled);
   const desktopGameOverlayGameSettings = useVoiceStore(
@@ -415,17 +295,9 @@ export function VoicePreferencesPanel({ mode = "all" }: { mode?: VoicePreference
   const desktopGameOverlaySpeakingOnly = useVoiceStore(
     (state) => state.desktopGameOverlaySpeakingOnly,
   );
-  const gameOverlayPanicShortcut = useVoiceStore((state) => state.gameOverlayPanicShortcut);
-  const adminConsoleShortcut = useVoiceStore((state) => state.adminConsoleShortcut);
   const desktopVoiceMiniEnabled = useVoiceStore((state) => state.desktopVoiceMiniEnabled);
   const pushToTalkHangoverMs = useVoiceStore((state) => state.pushToTalkHangoverMs);
-  const pushToTalkShortcut = useVoiceStore((state) => state.pushToTalkShortcut);
-  const toggleDeafenShortcut = useVoiceStore((state) => state.toggleDeafenShortcut);
-  const toggleMuteShortcut = useVoiceStore((state) => state.toggleMuteShortcut);
   const voiceInputMode = useVoiceStore((state) => state.voiceInputMode);
-  const setDesktopGlobalShortcutsEnabled = useVoiceStore(
-    (state) => state.setDesktopGlobalShortcutsEnabled,
-  );
   const setDesktopGameOverlayAnchor = useVoiceStore((state) => state.setDesktopGameOverlayAnchor);
   const setDesktopGameOverlayEnabled = useVoiceStore((state) => state.setDesktopGameOverlayEnabled);
   const setDesktopGameOverlayGamePreference = useVoiceStore(
@@ -439,12 +311,7 @@ export function VoicePreferencesPanel({ mode = "all" }: { mode?: VoicePreference
     (state) => state.setDesktopGameOverlaySpeakingOnly,
   );
   const setDesktopVoiceMiniEnabled = useVoiceStore((state) => state.setDesktopVoiceMiniEnabled);
-  const setGameOverlayPanicShortcut = useVoiceStore((state) => state.setGameOverlayPanicShortcut);
-  const setAdminConsoleShortcut = useVoiceStore((state) => state.setAdminConsoleShortcut);
   const setPushToTalkHangoverMs = useVoiceStore((state) => state.setPushToTalkHangoverMs);
-  const setPushToTalkShortcut = useVoiceStore((state) => state.setPushToTalkShortcut);
-  const setToggleDeafenShortcut = useVoiceStore((state) => state.setToggleDeafenShortcut);
-  const setToggleMuteShortcut = useVoiceStore((state) => state.setToggleMuteShortcut);
   const setVoiceInputMode = useVoiceStore((state) => state.setVoiceInputMode);
 
   const krispEnabled = audioPreferences.krispNoiseCancellation;
@@ -809,13 +676,37 @@ export function VoicePreferencesPanel({ mode = "all" }: { mode?: VoicePreference
           </summary>
 
           <div className="mt-3 grid gap-2.5">
-            <VoicePreferenceToggleRow
-              checked={desktopGlobalShortcutsEnabled}
-              description={t("voice.settings.desktopShortcutsDesc")}
-              helperText={t("voice.settings.desktopShortcutsHelper")}
-              label={t("voice.settings.desktopShortcuts")}
-              onToggle={() => setDesktopGlobalShortcutsEnabled(!desktopGlobalShortcutsEnabled)}
-            />
+            <div className="app-panel-soft rounded-[18px] border p-2.5 sm:p-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[13px] font-semibold text-app-foreground">
+                    {t("voice.settings.desktopShortcuts")}
+                  </p>
+                  <p className="mt-0.5 text-xs leading-4 text-app-muted">
+                    {t("voice.settings.desktopShortcutsDesc")}
+                  </p>
+                  {desktopControlState === "error" ? (
+                    <p className="mt-1.5 text-[11px] font-semibold text-rose-600">
+                      {t("desktop.control.openError")}
+                    </p>
+                  ) : null}
+                </div>
+                <button
+                  className="inline-flex min-h-9 items-center justify-center rounded-xl bg-[hsl(var(--primary))] px-3 text-[11px] font-black text-white transition hover:bg-[hsl(var(--primary)/0.92)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] disabled:cursor-wait disabled:opacity-65"
+                  disabled={desktopControlState === "pending"}
+                  onClick={() => {
+                    void launchDesktopControlSection(
+                      "shortcuts",
+                      openDesktopControl,
+                      setDesktopControlState,
+                    );
+                  }}
+                  type="button"
+                >
+                  {t("desktop.control.openShortcuts")}
+                </button>
+              </div>
+            </div>
 
             <VoicePreferenceToggleRow
               checked={desktopVoiceMiniEnabled}
@@ -1204,39 +1095,6 @@ export function VoicePreferencesPanel({ mode = "all" }: { mode?: VoicePreference
                   />
                 ))}
               </div>
-            </div>
-
-            <div className="order-2 grid gap-2.5 md:grid-cols-2">
-              <DesktopShortcutInputRow
-                description={t("voice.settings.toggleMuteShortcutDesc")}
-                label={t("voice.settings.toggleMuteShortcut")}
-                onChange={setToggleMuteShortcut}
-                value={toggleMuteShortcut}
-              />
-              <DesktopShortcutInputRow
-                description={t("voice.settings.toggleDeafenShortcutDesc")}
-                label={t("voice.settings.toggleDeafenShortcut")}
-                onChange={setToggleDeafenShortcut}
-                value={toggleDeafenShortcut}
-              />
-              <DesktopShortcutInputRow
-                description={t("voice.settings.pushToTalkShortcutDesc")}
-                label={t("voice.settings.pushToTalkShortcut")}
-                onChange={setPushToTalkShortcut}
-                value={pushToTalkShortcut}
-              />
-              <DesktopShortcutInputRow
-                description={t("voice.settings.gameOverlayPanicShortcutDesc")}
-                label={t("voice.settings.gameOverlayPanicShortcut")}
-                onChange={setGameOverlayPanicShortcut}
-                value={gameOverlayPanicShortcut}
-              />
-              <DesktopShortcutInputRow
-                description={t("voice.settings.adminConsoleShortcutDesc")}
-                label={t("voice.settings.adminConsoleShortcut")}
-                onChange={setAdminConsoleShortcut}
-                value={adminConsoleShortcut}
-              />
             </div>
 
             <label className="order-3 app-panel-soft rounded-[18px] border p-2.5 sm:p-3">

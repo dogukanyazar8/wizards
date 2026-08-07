@@ -1,11 +1,12 @@
+import {
+  DEFAULT_MOBILE_SCREEN_SHARE_QUALITY_ID,
+  normalizeMobileScreenShareQualityId,
+  type MobileScreenShareQualityId,
+} from "./mobile-screen-share";
+
 export type MobileVoiceDeviceKind = "audioinput" | "audiooutput";
 export type MobileVoiceOutputLabelKey =
-  | "bluetooth"
-  | "default"
-  | "earpiece"
-  | "headset"
-  | "other"
-  | "speaker";
+  "bluetooth" | "default" | "earpiece" | "headset" | "other" | "speaker";
 
 export interface MobileVoiceInputDeviceSource {
   readonly deviceId: string;
@@ -28,6 +29,7 @@ export interface MobileVoiceDevicePreferences {
   readonly audioInputId: string | null;
   readonly audioOutputId: string | null;
   readonly noiseSuppressionEnabled: boolean;
+  readonly screenShareQualityId: MobileScreenShareQualityId;
 }
 
 export interface MobileVoicePreferenceStorage {
@@ -39,12 +41,15 @@ export const DEFAULT_MOBILE_VOICE_DEVICE_PREFERENCES: MobileVoiceDevicePreferenc
   audioInputId: null,
   audioOutputId: null,
   noiseSuppressionEnabled: true,
+  screenShareQualityId: DEFAULT_MOBILE_SCREEN_SHARE_QUALITY_ID,
 };
 
 export const MOBILE_VOICE_AUDIO_INPUT_STORAGE_KEY = "whispr.mobile.voice.audio-input.v1";
 export const MOBILE_VOICE_AUDIO_OUTPUT_STORAGE_KEY = "whispr.mobile.voice.audio-output.v1";
 export const MOBILE_VOICE_NOISE_SUPPRESSION_STORAGE_KEY =
   "whispr.mobile.voice.noise-suppression.v1";
+export const MOBILE_VOICE_SCREEN_SHARE_QUALITY_STORAGE_KEY =
+  "whispr.mobile.voice.screen-share-quality.v1";
 
 const MAX_MOBILE_VOICE_DEVICE_ID_LENGTH = 256;
 const MAX_MOBILE_VOICE_DEVICE_LABEL_LENGTH = 96;
@@ -132,10 +137,11 @@ export function toMobileVoiceOutputOptions(
 export async function loadMobileVoiceDevicePreferences(
   storage: MobileVoicePreferenceStorage,
 ): Promise<MobileVoiceDevicePreferences> {
-  const [audioInputId, audioOutputId, noiseSuppression] = await Promise.all([
+  const [audioInputId, audioOutputId, noiseSuppression, screenShareQuality] = await Promise.all([
     storage.getItemAsync(MOBILE_VOICE_AUDIO_INPUT_STORAGE_KEY),
     storage.getItemAsync(MOBILE_VOICE_AUDIO_OUTPUT_STORAGE_KEY),
     storage.getItemAsync(MOBILE_VOICE_NOISE_SUPPRESSION_STORAGE_KEY),
+    storage.getItemAsync(MOBILE_VOICE_SCREEN_SHARE_QUALITY_STORAGE_KEY),
   ]);
 
   return {
@@ -145,6 +151,7 @@ export async function loadMobileVoiceDevicePreferences(
       noiseSuppression === "false"
         ? false
         : DEFAULT_MOBILE_VOICE_DEVICE_PREFERENCES.noiseSuppressionEnabled,
+    screenShareQualityId: normalizeMobileScreenShareQualityId(screenShareQuality),
   };
 }
 
@@ -156,6 +163,7 @@ export async function saveMobileVoiceDevicePreferences(
     audioInputId: sanitizeMobileVoiceDeviceId(preferences.audioInputId),
     audioOutputId: sanitizeMobileVoiceDeviceId(preferences.audioOutputId),
     noiseSuppressionEnabled: preferences.noiseSuppressionEnabled === false ? false : true,
+    screenShareQualityId: normalizeMobileScreenShareQualityId(preferences.screenShareQualityId),
   };
 
   await Promise.all([
@@ -164,6 +172,10 @@ export async function saveMobileVoiceDevicePreferences(
     storage.setItemAsync(
       MOBILE_VOICE_NOISE_SUPPRESSION_STORAGE_KEY,
       String(normalized.noiseSuppressionEnabled),
+    ),
+    storage.setItemAsync(
+      MOBILE_VOICE_SCREEN_SHARE_QUALITY_STORAGE_KEY,
+      normalized.screenShareQualityId,
     ),
   ]);
 

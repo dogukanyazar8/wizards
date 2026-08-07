@@ -14,6 +14,7 @@ export type HealthCheckInput = z.infer<typeof HealthCheckSchema>;
 
 export * from "./auth";
 export * from "./badges";
+export * from "./group-dm";
 export * from "./workspace";
 export * from "./messages";
 export * from "./mobile";

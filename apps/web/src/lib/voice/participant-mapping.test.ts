@@ -131,6 +131,8 @@ describe("voice participant mapping helpers", () => {
         }) as never,
       ),
       {
+        // The publication rides along so a tile can request its own layer.
+        cameraPublication: { isMuted: false, videoTrack: cameraTrack },
         cameraTrack,
         isCameraEnabled: true,
       },
@@ -150,6 +152,7 @@ describe("voice participant mapping helpers", () => {
         }) as never,
       ),
       {
+        cameraPublication: null,
         cameraTrack: null,
         isCameraEnabled: false,
       },
@@ -221,6 +224,11 @@ describe("voice participant mapping helpers", () => {
         id: "user-1:local-share",
         isLocal: true,
         participantId: "user-1",
+        publication: {
+          source: Track.Source.ScreenShare,
+          trackSid: "local-share",
+          videoTrack: localShareTrack,
+        },
         track: localShareTrack,
         trackSid: "local-share",
         username: "current",
@@ -231,6 +239,11 @@ describe("voice participant mapping helpers", () => {
         id: "user-2:remote-share",
         isLocal: false,
         participantId: "user-2",
+        publication: {
+          source: Track.Source.ScreenShare,
+          trackSid: "remote-share",
+          videoTrack: remoteShareTrack,
+        },
         track: remoteShareTrack,
         trackSid: "remote-share",
         username: "remote",

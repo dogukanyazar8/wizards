@@ -506,9 +506,17 @@ describe("mobile design contract", () => {
     );
     // Exactly one invite surface in the header, whatever the stage mode is.
     assert.equal(voiceScreenSource.match(/testID="mobile-voice-invite"/g)?.length, 1);
-    // The crowded header chat + kebab and the mic-permission footnote were removed.
+    // The crowded header chat and the mic-permission footnote stay removed.
     assert.doesNotMatch(voiceScreenSource, /testID="mobile-voice-chat"/);
-    assert.doesNotMatch(voiceScreenSource, /testID="mobile-voice-settings"/);
+    // The settings entry is back, but icon-only: the invite pill already spends
+    // the header's width, and the sheet is the only way to reach the screen-share
+    // quality rows from a channel room.
+    assert.equal(voiceScreenSource.match(/testID="mobile-voice-settings"/g)?.length, 1);
+    assert.match(voiceScreenSource, /styles\.activeVoiceRoomHeaderIconButton/);
+    assert.doesNotMatch(
+      voiceScreenSource,
+      /testID="mobile-voice-settings"[\s\S]{0,220}activeVoiceRoomHeaderPillText/,
+    );
     assert.doesNotMatch(voiceScreenSource, /voiceRoomPermissionFootnote/);
     assert.doesNotMatch(voiceScreenSource, /onRequestVoicePermission\(\)/);
     assert.doesNotMatch(modelSource, /\b(dummy|fake|mock)\b/i);

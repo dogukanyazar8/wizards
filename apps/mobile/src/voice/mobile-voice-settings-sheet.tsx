@@ -10,6 +10,11 @@ import type {
   MobileVoiceInputOption,
   MobileVoiceOutputOption,
 } from "./mobile-voice-device-contract";
+import {
+  DEFAULT_MOBILE_SCREEN_SHARE_QUALITY_ID,
+  MOBILE_SCREEN_SHARE_QUALITY_OPTIONS,
+  type MobileScreenShareQualityId,
+} from "./mobile-screen-share";
 
 const createStyles = (theme: MobileTheme) => ({
   root: { flex: 1 },
@@ -100,7 +105,9 @@ export function MobileVoiceSettingsSheet({
   onSelectAudioInput,
   onSelectAudioOutput,
   onSelectNoiseSuppression,
+  onSelectScreenShareQuality,
   open,
+  screenShareQualityId = DEFAULT_MOBILE_SCREEN_SHARE_QUALITY_ID,
   selectedAudioInputId,
   selectedAudioOutputId,
 }: {
@@ -112,7 +119,9 @@ export function MobileVoiceSettingsSheet({
   onSelectAudioInput(id: string): void | Promise<void>;
   onSelectAudioOutput(id: string): void | Promise<void>;
   onSelectNoiseSuppression(enabled: boolean): void | Promise<void>;
+  onSelectScreenShareQuality?(qualityId: MobileScreenShareQualityId): void | Promise<void>;
   open: boolean;
+  screenShareQualityId?: MobileScreenShareQualityId;
   selectedAudioInputId: string | null;
   selectedAudioOutputId: string | null;
 }) {
@@ -173,6 +182,22 @@ export function MobileVoiceSettingsSheet({
               testID={`mobile-voice-audio-output-${option.id}`}
             />
           ))}
+          {onSelectScreenShareQuality ? (
+            <>
+              <Text maxFontSizeMultiplier={2} numberOfLines={2} style={styles.sectionTitle}>
+                {copy.voiceScreenShareQualityTitle}
+              </Text>
+              {MOBILE_SCREEN_SHARE_QUALITY_OPTIONS.map((option) => (
+                <DeviceRow
+                  key={option.id}
+                  label={option.label}
+                  onPress={() => void onSelectScreenShareQuality(option.id)}
+                  selected={option.id === screenShareQualityId}
+                  testID={`mobile-voice-screen-share-quality-${option.id}`}
+                />
+              ))}
+            </>
+          ) : null}
           <Text maxFontSizeMultiplier={2} numberOfLines={2} style={styles.sectionTitle}>
             {copy.voiceNoiseSuppressionAction}
           </Text>

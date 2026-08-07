@@ -22,6 +22,7 @@ describe("mobile DM create route", () => {
           return {
             conversations: [
               {
+                iconUrl: null,
                 id: "dm-1",
                 lastMessage: {
                   attachments: [],
@@ -48,6 +49,7 @@ describe("mobile DM create route", () => {
                 },
                 lastMessageAt: "2026-07-15T12:00:00.000Z",
                 name: null,
+                ownerId: null,
                 participants: [
                   {
                     avatarUrl: null,
@@ -131,6 +133,7 @@ describe("mobile DM create route", () => {
       listDMs: async () => ({
         conversations: [
           {
+            iconUrl: null,
             id: "dm-1",
             lastMessage: {
               attachments: [
@@ -170,6 +173,7 @@ describe("mobile DM create route", () => {
             },
             lastMessageAt: sentAt,
             name: null,
+            ownerId: null,
             participants: [
               {
                 avatarUrl: null,
@@ -230,6 +234,7 @@ describe("mobile DM create route", () => {
       listDMs: async () => ({
         conversations: [
           {
+            iconUrl: null,
             id: "dm-1",
             lastMessage: {
               attachments: [],
@@ -256,6 +261,7 @@ describe("mobile DM create route", () => {
             },
             lastMessageAt: "2026-07-15T12:00:00.000Z",
             name: null,
+            ownerId: null,
             participants: [],
             type: "DM",
           },
@@ -301,10 +307,12 @@ describe("mobile DM create route", () => {
         createDM: async (userId, targetId) => {
           calls.push(`${userId}:${targetId}`);
           return {
+            iconUrl: null,
             id: "dm-1",
             lastMessage: null,
             lastMessageAt: new Date().toISOString(),
             name: null,
+            ownerId: null,
             participants: [
               {
                 avatarUrl: null,

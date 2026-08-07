@@ -76,7 +76,71 @@ describe("LiveKit voice track helpers", () => {
 
     assert.deepEqual(calls, [
       { identity: "alice", source: Track.Source.Microphone, volume: 0.25 },
+      { identity: "alice", source: Track.Source.ScreenShareAudio, volume: 0.25 },
       { identity: "bob", source: Track.Source.Microphone, volume: 0.8 },
+      { identity: "bob", source: Track.Source.ScreenShareAudio, volume: 0.8 },
+    ]);
+  });
+
+  it("silences a participant's screen-share audio while deafened", () => {
+    const calls: Array<{ source: string; volume: number }> = [];
+    const room = {
+      remoteParticipants: new Map([
+        [
+          "alice",
+          {
+            identity: "alice",
+            setVolume(volume: number, source: string) {
+              calls.push({ source, volume });
+            },
+          },
+        ],
+      ]),
+    };
+
+    applyRemoteAudioState(room as never, true, { alice: 90 }, 80);
+
+    assert.deepEqual(calls, [
+      { source: Track.Source.Microphone, volume: 0 },
+      { source: Track.Source.ScreenShareAudio, volume: 0 },
+    ]);
+  });
+
+  it("keeps applying the other sources and participants when setVolume throws", () => {
+    console.error = () => undefined;
+    const calls: Array<{ identity: string; source: string; volume: number }> = [];
+    const room = {
+      remoteParticipants: new Map([
+        [
+          "alice",
+          {
+            identity: "alice",
+            setVolume(volume: number, source: string) {
+              if (source === Track.Source.Microphone) {
+                throw new Error("no microphone element attached");
+              }
+              calls.push({ identity: "alice", source, volume });
+            },
+          },
+        ],
+        [
+          "bob",
+          {
+            identity: "bob",
+            setVolume(volume: number, source: string) {
+              calls.push({ identity: "bob", source, volume });
+            },
+          },
+        ],
+      ]),
+    };
+
+    applyRemoteAudioState(room as never, false, { alice: 25 }, 80);
+
+    assert.deepEqual(calls, [
+      { identity: "alice", source: Track.Source.ScreenShareAudio, volume: 0.25 },
+      { identity: "bob", source: Track.Source.Microphone, volume: 0.8 },
+      { identity: "bob", source: Track.Source.ScreenShareAudio, volume: 0.8 },
     ]);
   });
 
@@ -97,6 +161,60 @@ describe("LiveKit voice track helpers", () => {
 
     assert.equal(nextParameters[0]?.encodings?.[0]?.maxBitrate, 3_500_000);
     assert.equal(nextParameters[0]?.encodings?.[0]?.maxFramerate, 60);
+  });
+
+  it("caps an SVC send without dissolving its scalability layers", async () => {
+    const nextParameters: RTCRtpSendParameters[] = [];
+    const track = {
+      sender: {
+        getParameters() {
+          return {
+            encodings: [{ rid: "q", scalabilityMode: "L3T3_KEY" }],
+          };
+        },
+        async setParameters(parameters: RTCRtpSendParameters) {
+          nextParameters.push(parameters);
+        },
+      },
+    } as unknown as LocalVideoTrack;
+
+    await applyScreenShareQualityToTrack(track, "h1080fps60");
+
+    const encodings = nextParameters[0]?.encodings ?? [];
+    assert.equal(encodings.length, 1);
+    assert.equal(encodings[0]?.maxBitrate, 6_000_000);
+    assert.equal(encodings[0]?.maxFramerate, 60);
+    // Losing this field collapses the share to a single layer.
+    assert.equal(
+      (encodings[0] as RTCRtpEncodingParameters & { scalabilityMode?: string })?.scalabilityMode,
+      "L3T3_KEY",
+    );
+    assert.equal(encodings[0]?.rid, "q");
+  });
+
+  it("leaves the lower SVC entries alone while rewriting the primary one", async () => {
+    const nextParameters: RTCRtpSendParameters[] = [];
+    const track = {
+      sender: {
+        getParameters() {
+          return {
+            encodings: [
+              { rid: "q", scalabilityMode: "L3T3_KEY" },
+              { maxBitrate: 150_000, rid: "h" },
+            ],
+          };
+        },
+        async setParameters(parameters: RTCRtpSendParameters) {
+          nextParameters.push(parameters);
+        },
+      },
+    } as unknown as LocalVideoTrack;
+
+    await applyScreenShareQualityToTrack(track, "h720fps60");
+
+    const encodings = nextParameters[0]?.encodings ?? [];
+    assert.equal(encodings[0]?.maxBitrate, 3_500_000);
+    assert.equal(encodings[1]?.maxBitrate, 150_000);
   });
 
   it("contains non-fatal join step failures", () => {

@@ -1,0 +1,15 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "desktop-control",
+  "description": "Whispr's local Desktop Control window owns privileged desktop mutations and never loads a remote URL.",
+  "windows": ["desktop-control"],
+  "permissions": [
+    "allow-configure-desktop-voice-shortcuts",
+    "allow-desktop-control-check-for-updates",
+    "allow-desktop-control-install-update",
+    "allow-desktop-control-recover",
+    "allow-desktop-control-request-notification-permission",
+    "allow-export-desktop-diagnostics-bundle",
+    "allow-get-desktop-control-state"
+  ]
+}

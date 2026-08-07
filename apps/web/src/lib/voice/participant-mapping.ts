@@ -4,6 +4,7 @@ import {
   type Participant,
   type RemoteVideoTrack,
   type Room,
+  type TrackPublication,
 } from "livekit-client";
 
 export type VoiceCurrentUser = {
@@ -21,6 +22,7 @@ export type VoiceParticipantProfile = {
 };
 
 export type VoiceParticipantCameraState = {
+  cameraPublication: TrackPublication | null;
   cameraTrack: LocalVideoTrack | RemoteVideoTrack | null;
   isCameraEnabled: boolean;
 };
@@ -31,6 +33,8 @@ export interface VoiceScreenShareViewModel {
   id: string;
   isLocal: boolean;
   participantId: string;
+  /** Carried so a surface can ask this publication for the layer it needs. */
+  publication: TrackPublication | null;
   track: LocalVideoTrack | RemoteVideoTrack | null;
   trackSid: string;
   username: string;
@@ -96,6 +100,7 @@ export function getParticipantCameraState(participant: Participant): VoicePartic
   const isCameraEnabled = Boolean(cameraTrack) && cameraPublication?.isMuted !== true;
 
   return {
+    cameraPublication: isCameraEnabled ? (cameraPublication ?? null) : null,
     cameraTrack: isCameraEnabled ? cameraTrack : null,
     isCameraEnabled,
   };
@@ -128,6 +133,7 @@ export function collectScreenShares(
           id: getScreenShareId(participant.identity, publication.trackSid),
           isLocal: participant.identity === currentUser.id,
           participantId: participant.identity,
+          publication,
           track: publication.videoTrack ?? null,
           trackSid: publication.trackSid,
           username: profile.username,

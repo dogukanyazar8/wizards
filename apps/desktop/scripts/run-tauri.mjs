@@ -58,8 +58,6 @@ const capabilityUrls =
     : capabilityUrlPatterns(webUrl);
 const appCommandPermissions = [
   "allow-complete-desktop-before-close",
-  "allow-configure-desktop-voice-shortcuts",
-  "allow-export-desktop-diagnostics-bundle",
   "allow-get-desktop-app-info",
   "allow-get-desktop-companion-surfaces-status",
   "allow-get-desktop-foreground-process-name",
@@ -74,15 +72,21 @@ const appCommandPermissions = [
   "allow-set-desktop-activity-status",
   "allow-set-desktop-game-overlay-visible",
   "allow-set-desktop-voice-mini-visible",
+  "allow-show-desktop-control",
+];
+const desktopControlPermissions = [
+  "allow-configure-desktop-voice-shortcuts",
+  "allow-desktop-control-check-for-updates",
+  "allow-desktop-control-install-update",
+  "allow-desktop-control-recover",
+  "allow-desktop-control-request-notification-permission",
+  "allow-export-desktop-diagnostics-bundle",
+  "allow-get-desktop-control-state",
 ];
 const nativeUxPermissions = [
   ...appCommandPermissions,
-  ...(updaterConfig.enabled
-    ? ["updater:allow-check", "updater:allow-download-and-install", "process:allow-restart"]
-    : []),
   "notification:allow-is-permission-granted",
   "notification:allow-notify",
-  "notification:allow-request-permission",
   "core:window:allow-close",
   "core:window:allow-center",
   "core:event:allow-listen",
@@ -171,6 +175,13 @@ await writeFile(
               permissions: voiceMiniPermissions,
             },
             {
+              identifier: "desktop-control",
+              description:
+                "Whispr's local Desktop Control window owns privileged desktop mutations and never loads a remote URL.",
+              windows: ["desktop-control"],
+              permissions: desktopControlPermissions,
+            },
+            {
               identifier: "game-overlay",
               description:
                 "Whispr's read-only game overlay receives no webview command permissions; sanitized voice state is pushed by the main window through Rust-owned app commands.",
@@ -197,6 +208,9 @@ console.log(`[Whispr Desktop] web target: ${webUrl.href}`);
 console.log(`[Whispr Desktop] generated config: ${generatedConfigPath}`);
 console.log(`[Whispr Desktop] allowed web origins: ${capabilityUrls.join(", ")}`);
 console.log(`[Whispr Desktop] native permissions: ${nativeUxPermissions.join(", ")}`);
+console.log(
+  `[Whispr Desktop] Desktop Control permissions: ${desktopControlPermissions.join(", ")}`,
+);
 console.log(`[Whispr Desktop] voice mini permissions: ${voiceMiniPermissions.join(", ")}`);
 console.log(
   `[Whispr Desktop] game overlay permissions: ${gameOverlayPermissions.join(", ") || "(none)"}`,

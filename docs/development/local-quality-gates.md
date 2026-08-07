@@ -16,6 +16,37 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\quality\Invoke
 
 The runner resolves `pnpm.cmd` first on Windows. If it is unavailable, it resolves `corepack.cmd` and supplies `pnpm` as its first argument. It preserves a failed child command's exit code, stops at that failed step, and exits explicitly with that code. Missing prerequisites produce `BLOCKED` without running the profile command and exit with code `2`.
 
+## Local quality dashboard
+
+Start the browser dashboard from the repository root:
+
+```powershell
+corepack pnpm quality:dashboard
+```
+
+The server listens only on `http://127.0.0.1:47832` and opens that address in the default browser. Use `Ctrl+C` in the original terminal to stop it. It accepts only fixed profile identifiers from the same declarative registry as the PowerShell runner; browser input never becomes a command, argument, executable, path, or environment value.
+
+The main actions are:
+
+- `Güvenli Tümünü Çalıştır`: runs `Standard`, `CI`, `Mobile`, `Security`, and `Desktop`, sequentially. A failed profile does not hide later profile results.
+- Individual profile buttons: run one selected profile.
+- `Başarısızları Yeniden Çalıştır`: reruns only `FAIL` and `BLOCKED` profiles from the current completed run.
+- `Durdur`: cancels the active owned process tree and marks remaining work honestly.
+- `Tam Kabul Testleri`: requires a dedicated loopback PostgreSQL database whose name ends in `_e2e`, the exact database name typed into the confirmation dialog, and a short-lived single-use capability. It then runs destructive `E2EFull` and build-only `MobileRelease` sequentially.
+
+`E2EFull` can reset and seed only the explicitly confirmed local E2E database. `MobileRelease` can mutate the canonical managed Android build root but does not install an APK, launch Metro, or publish a release. These profiles never run through the safe-all button.
+
+Live output and stored evidence are redacted before display and persistence. Run state, JSONL events, bounded logs, and JSON/Markdown exports are written under ignored `artifacts/local-quality-dashboard/`. Interrupted active runs are recovered as `CANCELLED` on the next start. The dashboard retains the latest 30 runs without deleting older evidence automatically.
+
+Verify the dashboard implementation itself with:
+
+```powershell
+corepack pnpm test:quality-dashboard
+corepack pnpm test:quality-dashboard:browser
+```
+
+The browser suite uses a deterministic test-only runner protected by both `NODE_ENV=test` and `WHISPR_QUALITY_DASHBOARD_TEST_MODE=1`; normal dashboard startup always delegates to the real PowerShell gate.
+
 ## Profiles
 
 | Profile         | Commands                                                                                                                         | Purpose and prerequisites                                                                                                                                                                                                                                                      |
@@ -24,11 +55,13 @@ The runner resolves `pnpm.cmd` first on Windows. If it is unavailable, it resolv
 | `Standard`      | `pnpm lint`; `pnpm typecheck`; `pnpm format`; `pnpm test`                                                                        | Normal local quality pass from existing root scripts. `typecheck` may generate Prisma client artifacts; it does not migrate or reset a database.                                                                                                                               |
 | `CI`            | `pnpm ci`                                                                                                                        | Existing root aggregate only. It is not a replica of GitHub Actions.                                                                                                                                                                                                           |
 | `Mobile`        | Existing mobile `validate:env`, `test`, `test:components`, `release:check`, and `quality:check` scripts                          | Mobile source checks only; no Expo prebuild, Gradle, Metro, or APK generation.                                                                                                                                                                                                 |
+| `Desktop`       | Desktop script tests; `cargo fmt`; Rust lint; locked Rust tests                                                                  | Desktop source and Rust checks; no installer build, signing, publish, or application launch.                                                                                                                                                                                   |
 | `MobileRelease` | Canonical `apps/mobile/scripts/build-android-uat.ps1` with `-BuildType release -SkipInstall -SkipUninstall -NoStartMetro`        | Explicit `-AllowMobileRelease` build-only release APK flow. The canonical script owns Java, Android SDK, ADB, device, Google Sign-In, managed-root, and pnpm-layout validation.                                                                                                |
 | `Security`      | `node scripts/quality/e2e-password-guard.mjs`                                                                                    | Portable source guard for E2E password fallback patterns.                                                                                                                                                                                                                      |
 | `E2ESmoke`      | `pnpm e2e:smoke`                                                                                                                 | Requires `E2E_TEST_PASSWORD`, local loopback PostgreSQL from `E2E_DATABASE_URL` or `DATABASE_URL`, and local loopback Redis from `REDIS_URL`.                                                                                                                                  |
 | `E2EApi`        | `pnpm e2e:api`                                                                                                                   | Same read-only prerequisites as `E2ESmoke`.                                                                                                                                                                                                                                    |
 | `E2ERealtime`   | `pnpm e2e:realtime`                                                                                                              | Same read-only prerequisites as `E2ESmoke`.                                                                                                                                                                                                                                    |
+| `E2EFull`       | `pnpm e2e:seed`; `pnpm e2e`                                                                                                      | Destructive only after `-AllowDestructiveE2E`; requires a reachable loopback `E2E_DATABASE_URL` whose database name ends in `_e2e`, explicit approval, and local Redis.                                                                                                        |
 
 E2E prerequisite checks only inspect environment presence and open a short TCP connection to loopback services. They do not start Docker, seed data, migrate, reset, or delete anything. The runner never prints environment values, tokens, or private keys.
 

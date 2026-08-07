@@ -410,10 +410,12 @@ const dmParticipant = {
 };
 
 const dmConversation = {
+  iconUrl: null,
   id: "conversation-1",
   lastMessage: dmMessage,
   lastMessageAt: now,
   name: null,
+  ownerId: null,
   participants: [dmParticipant],
   type: "DM" as const,
 };

@@ -29,10 +29,12 @@ const message = {
   userId: "user-1",
 };
 const conversation = {
+  iconUrl: null,
   id: "conversation-1",
   lastMessage: message,
   lastMessageAt: now,
   name: null,
+  ownerId: null,
   participants: [
     {
       avatarUrl: null,

@@ -29,6 +29,9 @@ export const ADMIN_CAPABILITIES = {
   "release.read": ["OWNER", "ADMIN", "SUPPORT", "ANALYST", "MODERATOR"],
   "release.write": ["OWNER", "ADMIN"],
   "server.read": ["OWNER", "ADMIN", "SUPPORT", "MODERATOR"],
+  // Creating or deleting a community server changes what every user can
+  // discover and join. Only the two founding roles may write.
+  "server.write": ["OWNER", "ADMIN"],
   "support.read": ["OWNER", "ADMIN", "SUPPORT"],
   "user.ban": ["OWNER", "ADMIN", "MODERATOR"],
   "user.read": ["OWNER", "ADMIN", "SUPPORT", "MODERATOR"],

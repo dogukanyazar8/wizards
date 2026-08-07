@@ -295,6 +295,15 @@ enum ConversationType {
   GROUP_DM
 }
 
+enum DMSystemMessageType {
+  GROUP_CREATED
+  MEMBER_ADDED
+  MEMBER_REMOVED
+  MEMBER_LEFT
+  NAME_CHANGED
+  ICON_CHANGED
+}
+
 // Audit log target types
 enum AuditLogTargetType {
   USER
@@ -317,6 +326,11 @@ enum ScheduledEventEntityType {
   STAGE
   VOICE
   EXTERNAL
+}
+
+enum ServerType {
+  PERSONAL
+  COMMUNITY
 }
 
 /// Which layer wrote a badge row. DERIVED badges never persist a row — the value is
@@ -928,6 +942,8 @@ model Server {
   afkChannelId                String?
   afkTimeout                  Int                   @default(300)
   isNsfw                      Boolean               @default(false)
+  type                        ServerType            @default(PERSONAL)
+  memberCount                 Int                   @default(0)
   features                    String[]
   messageCharacterLimit       Int                   @default(2000)
   deletedMessageNoticeMinutes Int                   @default(60)
@@ -953,6 +969,7 @@ model Server {
   @@index([inviteCode])
   @@index([ownerId])
   @@index([discoverable])
+  @@index([type, discoverable, memberCount])
 }
 
 model ServerMember {
@@ -1366,6 +1383,11 @@ model DMMessage {
   placeholderRemovedAt DateTime?
   /// See `Message.clientNonce`: same contract, same guarantee, per author.
   clientNonce          String?   @db.VarChar(128)
+  /// Group lifecycle row. Null for a real message. `content` stays empty:
+  /// the sentence is built client-side so each viewer reads their own locale.
+  systemType           DMSystemMessageType?
+  systemTargetUserIds  String[]             @default([])
+  systemValue          String?              @db.VarChar(100)
   createdAt            DateTime  @default(now())
 
   conversation  DMConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)

@@ -38,6 +38,17 @@ services:
     restart: unless-stopped
     environment:
       LIVEKIT_KEYS: "${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}"
+      # The audio-level observer is the only source of `participant.isSpeaking`
+      # for every client. LiveKit's defaults (400ms interval, smoothed over two
+      # intervals) put the speaking ring most of a second behind the voice, so
+      # the observer is tightened to keep the server-side signal in step with
+      # the clients' own metering. Deployed LiveKit nodes need the same values.
+      LIVEKIT_CONFIG: |
+        audio:
+          active_level: 35
+          min_percentile: 40
+          update_interval: 100
+          smooth_intervals: 1
     command: --dev --bind 0.0.0.0 --node-ip ${LIVEKIT_NODE_IP:-127.0.0.1}
     ports:
       - "7880:7880"

@@ -70,10 +70,12 @@ const participant = {
 };
 
 const conversation = {
+  iconUrl: null,
   id: "conversation-1",
   lastMessage: createMessage(),
   lastMessageAt: "2026-07-09T12:00:00.000Z",
   name: null,
+  ownerId: null,
   participants: [participant],
   type: "DM" as const,
 };

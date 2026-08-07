@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-05
 
-**Status:** User-approved design, pending written-spec review
+**Status:** User-approved written spec on 2026-08-07
 
 **Target branch:** `uat`
 

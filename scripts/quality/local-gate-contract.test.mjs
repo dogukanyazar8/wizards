@@ -21,11 +21,13 @@ test("local quality profiles are declarative, complete, and shell-free", () => {
     "Standard",
     "CI",
     "Mobile",
+    "Desktop",
     "MobileRelease",
     "Security",
     "E2ESmoke",
     "E2EApi",
     "E2ERealtime",
+    "E2EFull",
   ];
 
   assert.equal(profiles.schemaVersion, 1);
@@ -67,6 +69,18 @@ test("local quality profiles are declarative, complete, and shell-free", () => {
     profiles.profiles.Security.steps.map((step) => [step.executable, step.arguments]),
     [["node", ["scripts/quality/e2e-password-guard.mjs"]]],
   );
+  assert.deepEqual(
+    profiles.profiles.Desktop.steps.map((step) => [step.executable, step.arguments]),
+    [
+      ["pnpm", ["--filter", "@wizards/desktop", "test"]],
+      [
+        "cargo",
+        ["fmt", "--manifest-path", "apps/desktop/src-tauri/Cargo.toml", "--all", "--", "--check"],
+      ],
+      ["pnpm", ["--filter", "@wizards/desktop", "lint:rust"]],
+      ["cargo", ["test", "--locked", "--manifest-path", "apps/desktop/src-tauri/Cargo.toml"]],
+    ],
+  );
   assert.deepEqual(profiles.profiles.MobileRelease.steps, [
     {
       id: "android-uat-release",
@@ -85,6 +99,24 @@ test("local quality profiles are declarative, complete, and shell-free", () => {
       ],
     },
   ]);
+  assert.deepEqual(
+    profiles.profiles.E2EFull.steps.map((step) => [step.executable, step.arguments]),
+    [
+      ["pnpm", ["e2e:seed"]],
+      ["pnpm", ["e2e"]],
+    ],
+  );
+  assert.deepEqual(
+    profiles.profiles.E2EFull.preconditions.map((precondition) => precondition.type),
+    [
+      "repository",
+      "nodeModules",
+      "executable",
+      "environment",
+      "destructiveE2EDatabase",
+      "loopbackTcpEnvironment",
+    ],
+  );
 });
 
 test("local gate runner, hook installer, hooks, and CI share the safe contracts", () => {
@@ -110,7 +142,15 @@ test("local gate runner, hook installer, hooks, and CI share the safe contracts"
   assert.match(runner, /fast-actionlint/u);
   assert.match(runner, /\[ValidateSet\("Text", "Json"\)\]/u);
   assert.match(runner, /\[switch\]\$AllowMobileRelease/u);
+  assert.match(runner, /\[switch\]\$AllowDestructiveE2E/u);
+  assert.match(runner, /\[string\]\$EventStreamPath/u);
   assert.match(runner, /\$Profile -eq "MobileRelease" -and -not \$AllowMobileRelease/u);
+  assert.match(runner, /\$Profile -eq "E2EFull" -and -not \$AllowDestructiveE2E/u);
+  assert.match(runner, /ValidateSet\("git", "node", "pnpm", "powershell", "cargo"\)/u);
+  assert.match(runner, /Resolve-EventStreamPath/u);
+  assert.match(runner, /Write-GateEvent/u);
+  assert.match(runner, /E2E_DATABASE_URL/u);
+  assert.match(runner, /(?:whispr|wizards)_e2e|_e2e/u);
   assert.match(runner, /exit \$ExitCode/u);
   assert.doesNotMatch(runner, /Invoke-Expression|cmd\s*\/c|Start-Process/iu);
   assert.doesNotMatch(installer, /--local\s+core\.hooksPath/iu);

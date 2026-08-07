@@ -1,12 +1,16 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import {
+  addServerOnlineMember,
+  countServerOnlineMembers,
+} from "@/lib/socket/server-online-presence";
+import type { ServerOnlinePresenceRedis } from "@/lib/socket/server-online-presence";
 import { setSocketServer } from "@/lib/socket/runtime";
 import {
   MOBILE_UNREAD_COUNT_CAP,
   buildServerChannelUnreadQuery,
   buildServerUnreadTotalsQuery,
   getActiveChannelViewerUserIds,
-  getOnlineServerMemberCount,
   groupUsersByVisibleChannelIds,
 } from "./unread-service";
 
@@ -39,31 +43,36 @@ describe("workspace unread service", () => {
   });
 
   it("counts distinct, visible-presence members in a server room", async () => {
-    let requestedRoom: string | null = null;
-    const socketServer = {
-      in(room: string) {
-        requestedRoom = room;
-
-        return {
-          async fetchSockets() {
-            return [
-              { data: { presenceStatus: "ONLINE", userId: "user-1" } },
-              { data: { presenceStatus: "IDLE", userId: "user-2" } },
-              { data: { presenceStatus: "OFFLINE", userId: "user-3" } },
-              { data: { presenceStatus: "DND", userId: "user-1" } },
-              { data: { presenceStatus: "ONLINE" } },
-            ];
-          },
-        };
+    // Task 8 moved `getOnlineServerMemberCount` off `fetchSockets` onto a
+    // Redis set (`countServerOnlineMembers(getRedisOp(), serverId)`), and the
+    // new body takes no Redis override, so it can no longer be driven through
+    // a socket-server double at this layer — that coverage now lives in
+    // server-online-presence.test.ts. What stays true, and is asserted here
+    // via the primitives the socket lifecycle (join/disconnect/presence
+    // handlers) actually calls, is the same observable shape:
+    // distinct, non-OFFLINE users, deduped across repeat/multi-socket adds.
+    const sets = new Map<string, Set<string>>();
+    const redis: ServerOnlinePresenceRedis = {
+      expire: async () => 1,
+      sadd: async (key, member) => {
+        const set = sets.get(key) ?? new Set<string>();
+        set.add(member);
+        sets.set(key, set);
+        return 1;
       },
-    } as unknown as Parameters<typeof setSocketServer>[0];
+      scard: async (key) => sets.get(key)?.size ?? 0,
+      srem: async (key, member) => {
+        sets.get(key)?.delete(member);
+        return 1;
+      },
+    };
 
-    setSocketServer(socketServer);
+    await addServerOnlineMember(redis, "server-1", "user-1"); // ONLINE
+    await addServerOnlineMember(redis, "server-1", "user-2"); // IDLE
+    // user-3 never joins the set: its presence stays OFFLINE.
+    await addServerOnlineMember(redis, "server-1", "user-1"); // a second socket, still DND
 
-    const count = await getOnlineServerMemberCount("server-1");
-
-    assert.equal(requestedRoom, "server:server-1");
-    assert.equal(count, 2);
+    assert.equal(await countServerOnlineMembers(redis, "server-1"), 2);
   });
 
   it("groups users by identical visible channel sets", () => {

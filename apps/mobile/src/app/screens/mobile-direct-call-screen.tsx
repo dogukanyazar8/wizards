@@ -30,6 +30,10 @@ import { useToast } from "../components/kit/toast";
 import { useMobileHaptics } from "../providers/mobile-haptics-provider";
 import { useVoiceRoomTheme } from "../providers/mobile-theme-provider";
 import { MobileVoiceSettingsSheet } from "../../voice/mobile-voice-settings-sheet";
+import {
+  DEFAULT_MOBILE_SCREEN_SHARE_QUALITY_ID,
+  type MobileScreenShareQualityId,
+} from "../../voice/mobile-screen-share";
 import { useMobileBottomSystemSpacing } from "../use-mobile-bottom-system-spacing";
 
 export type MobileDirectCallScreenProps = {
@@ -43,11 +47,13 @@ export type MobileDirectCallScreenProps = {
   onSelectVoiceAudioOutput?(mode: MobileVoiceAudioOutputMode): Promise<void>;
   onSelectVoiceAudioOutputDevice?(id: string): Promise<void>;
   onSelectVoiceNoiseSuppression?(enabled: boolean): Promise<void>;
+  onSelectVoiceScreenShareQuality?(qualityId: MobileScreenShareQualityId): void;
   onToggleVoiceCamera?(): Promise<void>;
   onToggleVoiceMute(): Promise<void>;
   onToggleVoiceScreenShare?(): Promise<void>;
   testID?: string;
   voiceRoomState: MobileVoiceRoomState;
+  voiceScreenShareQualityId?: MobileScreenShareQualityId;
 };
 
 function getDirectCallParticipant(room: MobileVoiceRoomState): MobileVoiceRoomParticipant | null {
@@ -75,6 +81,7 @@ export function MobileDirectCallSurface({
   onSelectVoiceAudioOutput = async () => undefined,
   onSelectVoiceAudioOutputDevice = async () => undefined,
   onSelectVoiceNoiseSuppression = async () => undefined,
+  onSelectVoiceScreenShareQuality,
   onToggleVoiceCamera = async () => undefined,
   onToggleVoiceMute,
   onToggleVoiceScreenShare = async () => undefined,
@@ -82,6 +89,7 @@ export function MobileDirectCallSurface({
   testIDPrefix,
   variant,
   voiceRoomState,
+  voiceScreenShareQualityId = DEFAULT_MOBILE_SCREEN_SHARE_QUALITY_ID,
 }: MobileDirectCallScreenProps & {
   testIDPrefix: string;
   variant: "video" | "voice";
@@ -301,7 +309,11 @@ export function MobileDirectCallSurface({
         onSelectAudioInput={onSelectVoiceAudioInput}
         onSelectAudioOutput={onSelectVoiceAudioOutputDevice}
         onSelectNoiseSuppression={onSelectVoiceNoiseSuppression}
+        {...(onSelectVoiceScreenShareQuality
+          ? { onSelectScreenShareQuality: onSelectVoiceScreenShareQuality }
+          : {})}
         open={settingsOpen}
+        screenShareQualityId={voiceScreenShareQualityId}
         selectedAudioInputId={voiceRoomState.selectedAudioInputId}
         selectedAudioOutputId={voiceRoomState.selectedAudioOutputId}
       />

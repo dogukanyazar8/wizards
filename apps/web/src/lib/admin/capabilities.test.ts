@@ -20,6 +20,10 @@ describe("admin capability map", () => {
     }
   });
 
+  it("restricts server writes to the two founding roles", () => {
+    assert.deepEqual(ADMIN_CAPABILITIES["server.write"], ["OWNER", "ADMIN"]);
+  });
+
   it("keeps ANALYST out of the sensitive capabilities", () => {
     const sensitive = [
       "audit.read",

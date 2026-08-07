@@ -10,6 +10,7 @@ import type {
   MobileVoiceInputOption,
   MobileVoiceOutputOption,
 } from "./mobile-voice-device-contract";
+import type { MobileCameraVideoCodec } from "./mobile-video-quality";
 
 export type MobileVoiceRoomConnectionStatus =
   | "checking-permission"
@@ -115,6 +116,8 @@ export interface MobileVoiceRoomState {
   readonly availableAudioInputs: readonly MobileVoiceInputOption[];
   readonly availableAudioOutputs: readonly MobileVoiceOutputOption[];
   readonly cameraFacingMode: MobileCameraFacingMode;
+  /** Codec the local camera publication actually negotiated, null while off. */
+  readonly cameraVideoCodec: MobileCameraVideoCodec | null;
   readonly channelId: string | null;
   readonly channelName: string | null;
   readonly conversationId?: string | null;
@@ -145,6 +148,7 @@ export function createInitialMobileVoiceRoomState(): MobileVoiceRoomState {
     availableAudioInputs: [],
     availableAudioOutputs: [],
     cameraFacingMode: DEFAULT_MOBILE_CAMERA_FACING_MODE,
+    cameraVideoCodec: null,
     channelId: null,
     channelName: null,
     conversationId: null,

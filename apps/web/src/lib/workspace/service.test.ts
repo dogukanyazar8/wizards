@@ -1329,6 +1329,7 @@ describe("workspace service characterization", { concurrency: false }, () => {
         },
         restores,
       );
+      patchMethod(prisma.server, "findUniqueOrThrow", async () => ({ type: "PERSONAL" }), restores);
       patchMethod(
         prisma.server,
         "findUnique",
@@ -2196,11 +2197,24 @@ describe("workspace service characterization", { concurrency: false }, () => {
         restores,
       );
       patchMethod(
-        prisma.serverMember,
-        "delete",
-        async () => {
-          operations.push("serverMember.delete");
-          return {};
+        prisma,
+        "$transaction",
+        async (callback: (tx: unknown) => Promise<unknown>) => {
+          const tx = {
+            $executeRaw: async () => {
+              operations.push("server.memberCount.decrement");
+              return 1;
+            },
+            serverMember: {
+              delete: async () => {
+                operations.push("serverMember.delete");
+                return {};
+              },
+            },
+          };
+          const result = await callback(tx);
+          operations.push("transaction.commit");
+          return result;
         },
         restores,
       );
@@ -2208,6 +2222,15 @@ describe("workspace service characterization", { concurrency: false }, () => {
 
       await leaveWorkspaceServer("member", "server-1");
 
+      assert.deepEqual(
+        operations.filter(
+          (operation) =>
+            operation === "serverMember.delete" ||
+            operation === "server.memberCount.decrement" ||
+            operation === "transaction.commit",
+        ),
+        ["serverMember.delete", "server.memberCount.decrement", "transaction.commit"],
+      );
       assert.ok(
         indexOfOperation(operations, "serverMember.delete") <
           indexOfOperation(operations, "permission-cache.member"),
@@ -2261,11 +2284,24 @@ describe("workspace service characterization", { concurrency: false }, () => {
         restores,
       );
       patchMethod(
-        prisma.serverMember,
-        "delete",
-        async () => {
-          operations.push("serverMember.delete");
-          return {};
+        prisma,
+        "$transaction",
+        async (callback: (tx: unknown) => Promise<unknown>) => {
+          const tx = {
+            $executeRaw: async () => {
+              operations.push("server.memberCount.decrement");
+              return 1;
+            },
+            serverMember: {
+              delete: async () => {
+                operations.push("serverMember.delete");
+                return {};
+              },
+            },
+          };
+          const result = await callback(tx);
+          operations.push("transaction.commit");
+          return result;
         },
         restores,
       );
@@ -2273,6 +2309,15 @@ describe("workspace service characterization", { concurrency: false }, () => {
 
       await kickWorkspaceMember("owner", "server-1", "member-target");
 
+      assert.deepEqual(
+        operations.filter(
+          (operation) =>
+            operation === "serverMember.delete" ||
+            operation === "server.memberCount.decrement" ||
+            operation === "transaction.commit",
+        ),
+        ["serverMember.delete", "server.memberCount.decrement", "transaction.commit"],
+      );
       assert.ok(
         indexOfOperation(operations, "serverMember.delete") <
           indexOfOperation(operations, "permission-cache.member"),
@@ -2325,6 +2370,7 @@ describe("workspace service characterization", { concurrency: false }, () => {
         },
         restores,
       );
+      patchMethod(prisma.server, "findUniqueOrThrow", async () => ({ type: "PERSONAL" }), restores);
       patchMethod(
         prisma,
         "$transaction",
@@ -2428,6 +2474,7 @@ describe("workspace service characterization", { concurrency: false }, () => {
         restores,
       );
       patchMethod(prisma.serverMember, "findMany", async () => members, restores);
+      patchMethod(prisma.server, "findUniqueOrThrow", async () => ({ type: "PERSONAL" }), restores);
       patchMethod(
         prisma,
         "$transaction",

@@ -36,6 +36,8 @@ export const API_RATE_LIMITS = {
   "admin:release:read": { limit: 120, windowSeconds: 60 },
   "admin:release:write": { limit: 30, windowSeconds: 60 },
   "admin:release:artifact": { limit: 20, windowSeconds: 60 },
+  "admin:server:create": { limit: 10, windowSeconds: 60 * 60 },
+  "admin:server:delete": { limit: 5, windowSeconds: 60 * 60 },
   "admin:server:list": { limit: 120, windowSeconds: 60 },
   "admin:support:list": { limit: 120, windowSeconds: 60 },
   "admin:support:read": { limit: 120, windowSeconds: 60 },

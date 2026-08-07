@@ -36,6 +36,7 @@ import {
 } from "@/lib/workspace/unread-service";
 import { PermissionBits } from "@/lib/workspace/permissions";
 import { mapInvites } from "@/lib/workspace/server-query-helpers";
+import { incrementServerMemberCount } from "@/lib/workspace/server-member-counter";
 
 const workspaceInviteSelect = {
   channelId: true,
@@ -760,6 +761,8 @@ export async function joinWorkspaceServerByInvite(userId: string, code: string) 
           id: true,
         },
       });
+
+      await incrementServerMemberCount(tx, invite.server.id);
 
       const defaultRole = invite.server.roles.find((role) => role.isDefault);
 

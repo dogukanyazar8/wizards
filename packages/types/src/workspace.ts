@@ -200,20 +200,41 @@ export const WorkspaceMembersResponseSchema = z.object({
   members: z.array(WorkspaceMemberSchema),
 });
 
-export const CreateServerSchema = z.object({
-  allowFileUploads: z.boolean().optional().default(true),
-  allowGifs: z.boolean().optional().default(true),
-  allowMemberAdds: z.boolean().optional().default(true),
-  description: optionalTrimmedString(160),
-  iconUrl: z
-    .string()
-    .url()
-    .optional()
-    .or(z.literal(""))
-    .or(z.null())
-    .transform((value) => emptyStringToNull(value)),
-  name: z.string().trim().min(2).max(64),
-  shortName: optionalServerShortName,
+export const ServerTypeSchema = z.enum(["PERSONAL", "COMMUNITY"]);
+
+export const ServerVerificationLevelSchema = z.enum(["NONE", "LOW", "MEDIUM", "HIGH", "VERY_HIGH"]);
+
+export const CreateServerSchema = z
+  .object({
+    allowFileUploads: z.boolean().optional().default(true),
+    allowGifs: z.boolean().optional().default(true),
+    allowMemberAdds: z.boolean().optional().default(true),
+    description: optionalTrimmedString(160),
+    iconUrl: z
+      .string()
+      .url()
+      .optional()
+      .or(z.literal(""))
+      .or(z.null())
+      .transform((value) => emptyStringToNull(value)),
+    name: z.string().trim().min(2).max(64),
+    shortName: optionalServerShortName,
+  })
+  .strict();
+
+/**
+ * Community servers exist only behind the admin surface, so the privileged
+ * fields live on a separate schema. The consumer contract never carries them —
+ * the gate is the shape of the request, not a runtime check inside the service.
+ */
+export const AdminCreateServerSchema = CreateServerSchema.extend({
+  discoverable: z.boolean().optional().default(false),
+  isPublic: z.boolean().optional().default(false),
+  type: ServerTypeSchema.default("PERSONAL"),
+  verificationLevel: ServerVerificationLevelSchema.optional().default("NONE"),
+}).refine((value) => value.type !== "COMMUNITY" || value.isPublic, {
+  message: "Community servers must be publicly joinable",
+  path: ["isPublic"],
 });
 
 export const UpdateServerFieldsSchema = z.object({
@@ -221,6 +242,7 @@ export const UpdateServerFieldsSchema = z.object({
   allowGifs: z.boolean().optional(),
   allowMemberAdds: z.boolean().optional(),
   description: optionalTrimmedString(160, true),
+  discoverable: z.boolean().optional(),
   iconUrl: z
     .string()
     .url()
@@ -228,6 +250,7 @@ export const UpdateServerFieldsSchema = z.object({
     .or(z.literal(""))
     .or(z.null())
     .transform((value) => (value === undefined ? undefined : emptyStringToNull(value))),
+  isPublic: z.boolean().optional(),
   name: z.string().trim().min(2).max(64).optional(),
   messageCharacterLimit: z.number().int().min(250).max(40000).optional(),
   deletedMessageNoticeMinutes: z.number().int().min(5).max(10080).optional(),
@@ -244,7 +267,9 @@ export const UpdateServerSchema = UpdateServerFieldsSchema.refine(
     value.deletedMessageNoticeMinutes !== undefined ||
     value.allowGifs !== undefined ||
     value.allowFileUploads !== undefined ||
-    value.allowMemberAdds !== undefined,
+    value.allowMemberAdds !== undefined ||
+    value.isPublic !== undefined ||
+    value.discoverable !== undefined,
   {
     message: "validation.form.atLeastOne",
   },
@@ -350,6 +375,43 @@ export const UpdateWorkspaceMemberRolesSchema = z.object({
 
 export const UpdateWorkspaceChannelPermissionsSchema = WorkspaceChannelPermissionSettingsSchema;
 
+export const ServerPublicProfileChannelSchema = z.object({
+  liveCount: z.number().int().nonnegative().nullable(),
+  name: z.string(),
+  readOnly: z.boolean(),
+  type: z.enum(["text", "voice"]),
+});
+
+export const ServerPublicProfileFriendSchema = z.object({
+  avatarUrl: z.string().nullable(),
+  displayName: z.string(),
+  id: z.string(),
+});
+
+/**
+ * One read model behind three surfaces: the 2g profile card, the discovery
+ * card, and the invite preview. Keeping it single stops the permission filter
+ * from being written twice and drifting.
+ */
+export const ServerPublicProfileSchema = z.object({
+  bannerUrl: z.string().nullable(),
+  channels: z.array(ServerPublicProfileChannelSchema),
+  description: z.string(),
+  discoverable: z.boolean(),
+  iconUrl: z.string().nullable(),
+  isPublic: z.boolean(),
+  joined: z.boolean(),
+  memberCount: z.number().int().nonnegative(),
+  mutualFriendCount: z.number().int().nonnegative(),
+  mutualFriends: z.array(ServerPublicProfileFriendSchema),
+  name: z.string(),
+  onlineCount: z.number().int().nonnegative(),
+  serverId: z.string(),
+  shortName: z.string().nullable(),
+  type: ServerTypeSchema,
+  verified: z.boolean(),
+});
+
 export type WorkspaceAccessLevel = z.infer<typeof WorkspaceAccessLevelSchema>;
 export type WorkspaceCategory = z.infer<typeof WorkspaceCategorySchema>;
 export type WorkspaceChannel = z.infer<typeof WorkspaceChannelSchema>;
@@ -385,3 +447,8 @@ export type UpdateWorkspaceMemberRolesInput = z.infer<typeof UpdateWorkspaceMemb
 export type UpdateWorkspaceChannelPermissionsInput = z.infer<
   typeof UpdateWorkspaceChannelPermissionsSchema
 >;
+export type ServerTypeValue = z.infer<typeof ServerTypeSchema>;
+export type AdminCreateServerInput = z.infer<typeof AdminCreateServerSchema>;
+export type ServerPublicProfile = z.infer<typeof ServerPublicProfileSchema>;
+export type ServerPublicProfileChannel = z.infer<typeof ServerPublicProfileChannelSchema>;
+export type ServerPublicProfileFriend = z.infer<typeof ServerPublicProfileFriendSchema>;

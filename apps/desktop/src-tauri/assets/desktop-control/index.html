@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Whispr Desktop Control</title>
+    <link rel="stylesheet" href="/app.css" />
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <header class="shell-header">
+      <div>
+        <p class="eyebrow">Trusted local surface</p>
+        <h1>Desktop Control</h1>
+        <p class="subtitle">Shortcuts, support, updates, permissions, recovery.</p>
+      </div>
+      <span class="trust-badge">Local only</span>
+    </header>
+
+    <nav aria-label="Desktop Control sections" class="section-nav">
+      <button data-section-target="overview" type="button">Overview</button>
+      <button data-section-target="shortcuts" type="button">Shortcuts</button>
+      <button data-section-target="diagnostics" type="button">Diagnostics</button>
+      <button data-section-target="updates" type="button">Updates</button>
+      <button data-section-target="permissions" type="button">Permissions</button>
+      <button data-section-target="recovery" type="button">Recovery</button>
+    </nav>
+
+    <main>
+      <p aria-live="polite" class="global-status" id="global-status" role="status">
+        Loading local desktop state…
+      </p>
+
+      <section aria-labelledby="overview-title" id="overview">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Runtime</p>
+            <h2 id="overview-title">Overview</h2>
+          </div>
+          <button data-action="refresh-state" type="button">Refresh</button>
+        </div>
+        <dl class="status-grid">
+          <div>
+            <dt>App</dt>
+            <dd id="app-version">Unknown</dd>
+          </div>
+          <div>
+            <dt>Platform</dt>
+            <dd id="platform">Unknown</dd>
+          </div>
+          <div>
+            <dt>Updater</dt>
+            <dd id="updater-summary">Unknown</dd>
+          </div>
+          <div>
+            <dt>Shortcuts</dt>
+            <dd id="shortcut-summary">Unknown</dd>
+          </div>
+          <div>
+            <dt>Voice mini</dt>
+            <dd id="voice-mini-summary">Unknown</dd>
+          </div>
+          <div>
+            <dt>Overlay</dt>
+            <dd id="overlay-summary">Unknown</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section aria-labelledby="shortcuts-title" id="shortcuts">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Global keys</p>
+            <h2 id="shortcuts-title">Shortcuts</h2>
+          </div>
+        </div>
+        <p class="hint">
+          Security migration: existing web shortcut settings are not imported. Shortcuts stay
+          disabled until you explicitly save them here.
+        </p>
+        <form id="shortcut-form">
+          <label class="toggle-row">
+            <input id="shortcuts-enabled" name="shortcutsEnabled" type="checkbox" />
+            Enable global shortcuts
+          </label>
+          <div class="form-grid">
+            <label>Toggle mute<input autocomplete="off" id="toggle-mute" type="text" /></label>
+            <label>Toggle deafen<input autocomplete="off" id="toggle-deafen" type="text" /></label>
+            <label>Push to talk<input autocomplete="off" id="push-to-talk" type="text" /></label>
+            <label
+              >Hide overlay<input autocomplete="off" id="hide-game-overlay" type="text"
+            /></label>
+            <label
+              >Moderation console<input autocomplete="off" id="toggle-admin-console" type="text"
+            /></label>
+          </div>
+          <p class="hint">
+            Examples: <code>Alt+M</code>, <code>CmdOrCtrl+Shift+D</code>. Invalid changes preserve
+            working shortcuts.
+          </p>
+          <div class="actions">
+            <button data-action="save-shortcuts" type="submit">Save shortcuts</button>
+            <button class="secondary" data-action="reset-shortcuts" type="button">
+              Disable and reset
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <section aria-labelledby="diagnostics-title" id="diagnostics">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Redacted native bundle</p>
+            <h2 id="diagnostics-title">Diagnostics</h2>
+          </div>
+        </div>
+        <p>
+          Exports bounded app, OS, companion, updater, shortcut, and native error state. No
+          messages, cookies, tokens, or remote page snapshot.
+        </p>
+        <div class="actions">
+          <button data-action="export-diagnostics" type="button">Export support bundle</button>
+        </div>
+        <output aria-live="polite" class="result" id="diagnostics-result"></output>
+      </section>
+
+      <section aria-labelledby="updates-title" id="updates">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Signed updater</p>
+            <h2 id="updates-title">Updates</h2>
+          </div>
+        </div>
+        <p id="update-status">Loading updater state…</p>
+        <div class="actions">
+          <button data-action="check-update" type="button">Check for update</button>
+          <button data-action="install-update" disabled type="button">
+            Download, install, restart
+          </button>
+        </div>
+        <p class="hint">
+          Install requires a second confirmation. Disabled builds never call updater plugin.
+        </p>
+      </section>
+
+      <section aria-labelledby="permissions-title" id="permissions">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Onboarding</p>
+            <h2 id="permissions-title">Permissions</h2>
+          </div>
+        </div>
+        <div id="permission-list"></div>
+        <div class="actions">
+          <button data-action="request-notification" type="button">
+            Request notification permission
+          </button>
+        </div>
+        <p class="hint">
+          OS status may remain unverified. This panel never reports permission as granted without
+          reliable OS proof.
+        </p>
+      </section>
+
+      <section aria-labelledby="recovery-title" id="recovery">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Bounded repairs</p>
+            <h2 id="recovery-title">Recovery</h2>
+          </div>
+        </div>
+        <p>
+          Repairs allowlisted windows only. No process kill, app-data deletion, credential clearing,
+          or retry loop.
+        </p>
+        <div class="actions recovery-actions">
+          <button data-action="recover-voice-mini" type="button">Reopen voice mini</button>
+          <button data-action="recover-overlay" type="button">Refresh overlay</button>
+          <button class="secondary" data-action="hide-overlay" type="button">Hide overlay</button>
+          <button class="secondary" data-action="reset-main-window" type="button">
+            Reset main window
+          </button>
+        </div>
+        <output aria-live="polite" class="result" id="recovery-result"></output>
+      </section>
+    </main>
+  </body>
+</html>

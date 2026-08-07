@@ -1046,6 +1046,54 @@ describe("4a DM conversation redesign", () => {
     ).toBe("5 dakika önce");
   });
 
+  it("reads the header last-seen line from presence, never from the conversation's last message", async () => {
+    // `lastMessageAt` moves every time either side sends, so using it as the
+    // last-seen source claimed the partner had just been seen whenever the
+    // viewer had just written. An offline partner with no last-seen is offline.
+    const offlineView = await render(<DMConversationScreen {...createScreenProps()} />);
+    const offlineHeader = within(offlineView.getByTestId("mobile-dm-header-open-profile"));
+    expect(offlineHeader.getByText(copy.dmChatOfflineStatus)).toBeTruthy();
+    expect(
+      offlineHeader.queryByText(
+        copy.dmChatLastSeenTemplate.replace(
+          "{time}",
+          formatDMLastSeenRelativeTime(conversation.lastMessageAt, "tr"),
+        ),
+      ),
+    ).toBeNull();
+    await offlineView.unmount();
+
+    const lastSeenAt = "2026-07-17T08:00:00.000Z";
+    const seenView = await render(
+      <DMConversationScreen
+        {...createScreenProps({
+          state: {
+            conversationId: "conversation-1",
+            error: null,
+            payload: {
+              ...readyPayload,
+              conversation: {
+                ...readyPayload.conversation,
+                participants: readyPayload.conversation.participants.map((participant) =>
+                  participant.userId === "partner" ? { ...participant, lastSeenAt } : participant,
+                ),
+              },
+            },
+            status: "ready",
+          },
+        })}
+      />,
+    );
+    expect(
+      within(seenView.getByTestId("mobile-dm-header-open-profile")).getByText(
+        copy.dmChatLastSeenTemplate.replace(
+          "{time}",
+          formatDMLastSeenRelativeTime(lastSeenAt, "tr"),
+        ),
+      ),
+    ).toBeTruthy();
+  });
+
   it("falls back when Android does not provide Intl.RelativeTimeFormat", () => {
     const intlWithOptionalRelativeTimeFormat = Intl as typeof Intl & {
       RelativeTimeFormat?: Intl.RelativeTimeFormat;

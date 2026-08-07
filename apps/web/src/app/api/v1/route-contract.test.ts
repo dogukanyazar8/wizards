@@ -24,6 +24,7 @@ const UNAUTHENTICATED_ROUTE_PATHS = new Set([
 const BODYLESS_MUTATING_METHOD_PATHS = new Set([
   "DELETE admin/help/articles/[articleId]",
   "DELETE admin/releases/[releaseId]",
+  "DELETE admin/servers/[serverId]",
   // Recomputing clusters reads the feedback table; there is nothing to send.
   "POST admin/feedback/clusters",
   // Claiming a case only records who opened it; the session is the payload.

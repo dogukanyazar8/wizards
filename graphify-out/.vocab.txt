@@ -38,6 +38,7 @@ actual
 ada
 adapt
 adapter
+adaptive
 adb
 add
 added
@@ -85,6 +86,7 @@ all
 allow
 allowed
 allowlist
+allowlisted
 allows
 alma
 almak
@@ -385,6 +387,7 @@ bus
 busy
 buton
 butonlar
+butonu
 butonunu
 butonunun
 button
@@ -397,6 +400,7 @@ cached
 caches
 cadence
 cak
+cal
 calculate
 calendar
 calismalar
@@ -444,6 +448,7 @@ categorize
 category
 cause
 caveman
+ceiling
 cell
 center
 central
@@ -519,6 +524,7 @@ client
 clients
 clienttype
 clipboard
+clobber
 clock
 clone
 close
@@ -531,6 +537,7 @@ cluster
 clustering
 clusters
 code
+codec
 codename
 codes
 codex
@@ -654,6 +661,7 @@ count
 counter
 counterpart
 counterparts
+counters
 country
 counts
 cover
@@ -726,6 +734,7 @@ decline
 decode
 decoded
 decoration
+decrement
 decrypt
 decryption
 dedicated
@@ -746,6 +755,7 @@ delay
 delays
 delegate
 delegated
+deletable
 delete
 deleted
 deletes
@@ -766,6 +776,7 @@ denetle
 deneyimini
 denials
 denied
+denormalize
 departed
 dependencies
 dependency
@@ -799,6 +810,7 @@ details
 detay
 detayi
 detayl
+detaylar
 detect
 detector
 deterministic
@@ -844,6 +856,7 @@ disclosure
 disconnect
 discord
 discover
+disk
 dismiss
 dismissed
 dispatch
@@ -857,6 +870,7 @@ distance
 distinct
 distribution
 divider
+diyalo
 diyeti
 dnd
 docker
@@ -872,6 +886,8 @@ doguk
 dogukan
 dokunma
 dokunu
+dokunulmayacak
+dokunulmayan
 dolarlik
 dolu
 dom
@@ -915,6 +931,7 @@ duration
 durdur
 durum
 durumda
+durumday
 durumlar
 durumu
 duruyoruz
@@ -983,6 +1000,7 @@ ekteki
 elapsed
 ele
 element
+elements
 elendir
 elevated
 elevation
@@ -994,6 +1012,7 @@ email
 emails
 emalar
 emas
+emaya
 emit
 emits
 emitted
@@ -1010,6 +1029,7 @@ enabled
 encode
 encoder
 encoding
+encodings
 encrypt
 encrypted
 encryption
@@ -1133,6 +1153,7 @@ expo
 export
 exported
 exports
+expose
 exposes
 expression
 extend
@@ -1143,6 +1164,8 @@ external
 extr
 extra
 extract
+extraction
+extractor
 eyebrow
 eyi
 eylem
@@ -1155,6 +1178,7 @@ facts
 fail
 failed
 failing
+fails
 failure
 failures
 fakat
@@ -1199,15 +1223,18 @@ filter
 filters
 filtre
 final
+finalize
 find
 findings
 fingerprint
 fingerprints
+finish
 finished
 fire
 firebase
 firefox
 first
+fit
 fits
 fix
 fixed
@@ -1324,6 +1351,7 @@ gerek
 gereken
 gerekirse
 gerekiyor
+gerekmeyen
 gereksinimi
 geri
 gesture
@@ -1357,6 +1385,7 @@ goals
 golden
 goldens
 google
+gorunurluk
 goto
 governance
 gra
@@ -1383,6 +1412,7 @@ grouping
 groups
 grow
 grubu
+grup
 gruplama
 gruplar
 gtk
@@ -1398,6 +1428,7 @@ hakk
 hakkinda
 hale
 hali
+halihaz
 halo
 handle
 handled
@@ -1498,6 +1529,7 @@ http
 https
 hub
 hwnd
+hybrid
 hydrate
 hydration
 hyphen
@@ -1535,6 +1567,7 @@ iklik
 iklikler
 iklikleri
 ikon
+iksiz
 ilan
 ile
 ilebilirlik
@@ -1588,6 +1621,7 @@ indexed
 indexes
 indicator
 indigo
+indirgemesi
 indirip
 indirme
 ine
@@ -1641,6 +1675,7 @@ interactionmanager
 interactions
 interface
 internal
+internals
 interop
 interpolate
 interrupted
@@ -1659,6 +1694,7 @@ inviter
 invites
 invocation
 invoke
+invoker
 ionicon
 ionicons
 ioredis
@@ -1677,6 +1713,7 @@ issuers
 issues
 istedi
 istemci
+istemcisi
 istiyorum
 item
 items
@@ -1729,6 +1766,8 @@ kanonik
 kap
 kapan
 kapand
+kapanmal
+kapasite
 kapasitesi
 kapat
 kapatma
@@ -1755,16 +1794,20 @@ katmanda
 katmani
 katmanl
 katmanlar
+kavram
 kay
 kaybolma
 kayd
+kayda
 kayna
 kaynak
 kaynaklar
 kazan
 keep
 keeps
+kenar
 kendi
+kendisine
 kenleri
 kesim
 kesimi
@@ -1796,7 +1839,9 @@ knowledge
 known
 kod
 koda
+kodlar
 kohort
+kolon
 kolonu
 kompozit
 komut
@@ -1812,14 +1857,17 @@ kontrolleri
 kopyala
 korelasyonu
 koru
+koruma
 korumas
 korunacak
 kotlin
+koydu
 koyu
 kpi
 kredisi
 krisp
 kriterleri
+kritik
 kullan
 kullanabilirsin
 kullanarak
@@ -1831,7 +1879,9 @@ kural
 kurallar
 kurallari
 kurma
+kurucu
 kurulum
+kutusu
 kuyru
 kuyruk
 label
@@ -1882,6 +1932,7 @@ length
 ler
 leri
 lerinde
+lerini
 lerp
 less
 let
@@ -2053,6 +2104,7 @@ media
 medium
 medya
 mehmet
+mekani
 meleme
 meler
 meleri
@@ -2076,6 +2128,7 @@ mesaj
 mesajla
 mesajlar
 mesi
+mesine
 message
 messages
 messaging
@@ -2096,6 +2149,7 @@ metro
 mevcut
 mey
 mezireli
+mezler
 mget
 mic
 micro
@@ -2122,6 +2176,7 @@ minimum
 minor
 mint
 minutes
+mirror
 misconfiguration
 misi
 misin
@@ -2224,6 +2279,7 @@ navigatio
 navigation
 navigator
 nce
+nceki
 ncel
 nceli
 ncelik
@@ -2247,6 +2303,7 @@ nedenleri
 nedir
 needs
 negative
+nele
 neler
 nelerdir
 neleri
@@ -2332,6 +2389,7 @@ observer
 observers
 obvious
 occupancy
+odadan
 odaklanarak
 odas
 off
@@ -2346,6 +2404,7 @@ okunabilirli
 okunanlar
 okundu
 okur
+ola
 olan
 olanlar
 olarak
@@ -2355,6 +2414,8 @@ oldu
 olgun
 olmadan
 olmal
+olmay
+olmayacak
 olmaz
 olsun
 olu
@@ -2378,6 +2439,7 @@ open
 opened
 opener
 opening
+operable
 operasyon
 operation
 operational
@@ -2439,6 +2501,7 @@ pack
 packag
 package
 packages
+packaging
 pad
 padding
 page
@@ -2532,6 +2595,7 @@ pick
 picked
 picker
 pictures
+pid
 piece
 pii
 pill
@@ -2546,6 +2610,7 @@ plain
 plaintext
 plan
 plandan
+plane
 planinin
 planlar
 plans
@@ -2668,6 +2733,7 @@ projeksiyonunu
 projeler
 projemizin
 projesi
+projesinde
 projeyi
 promise
 promote
@@ -2688,6 +2754,7 @@ prosed
 protect
 protected
 protection
+protocol
 protocols
 protokol
 prove
@@ -2705,6 +2772,7 @@ puanlama
 pub
 public
 publication
+publications
 publish
 published
 publisher
@@ -2762,6 +2830,7 @@ ratio
 rationale
 raw
 rayla
+rda
 rde
 react
 reacted
@@ -2816,6 +2885,7 @@ red
 redact
 redacted
 redaction
+redacts
 redaksiyon
 redaksiyonu
 redakte
@@ -2835,6 +2905,7 @@ reference
 references
 refetch
 refine
+reflects
 refresh
 refreshable
 refreshed
@@ -2923,6 +2994,7 @@ resizable
 resize
 resmi
 resolution
+resolutions
 resolve
 resolved
 resolver
@@ -2933,6 +3005,7 @@ respond
 response
 responsive
 restart
+restoration
 restore
 restored
 restores
@@ -2981,6 +3054,7 @@ rlama
 rlar
 rma
 rmas
+rntl
 roadmap
 robocopy
 rol
@@ -3030,6 +3104,7 @@ rula
 rulama
 rulamas
 rulan
+ruland
 rulanm
 rule
 rules
@@ -3049,6 +3124,9 @@ saatlik
 sabit
 sabitleme
 sabitlenir
+sabitler
+sabitleri
+sadd
 saf
 safari
 safe
@@ -3064,26 +3142,30 @@ samples
 sampling
 sanal
 sanitize
-sanitized
 sans
 sapma
+sapmalar
 sapman
 sarp
 sat
 save
 saved
 say
+saya
+sayac
 sayfa
 sayfalama
 sayfalar
 sayfas
 sayol
+scalable
 scale
 scaled
 scales
 scan
 scanner
 scanning
+scard
 scenario
 scenarios
 schedule
@@ -3168,10 +3250,12 @@ series
 serileri
 server
 servers
+serves
 service
 services
 servis
 servisi
+servisinde
 servisler
 servisleri
 ses
@@ -3233,6 +3317,7 @@ silinecek
 similarity
 simple
 simplification
+simulcast
 since
 single
 sink
@@ -3271,6 +3356,7 @@ soft
 software
 sohbet
 sohbeti
+soketi
 sol
 solo
 son
@@ -3301,6 +3387,7 @@ spacing
 span
 spans
 spark
+spawn
 speaker
 speaking
 spec
@@ -3323,6 +3410,7 @@ square
 squircle
 src
 srcmap
+srem
 srgb
 ssim
 ssrf
@@ -3406,6 +3494,7 @@ submission
 submit
 submitted
 subscribe
+subscription
 subtitle
 succeeded
 success
@@ -3461,6 +3550,7 @@ tab
 taban
 tabanl
 table
+tables
 tablosu
 tablosunun
 tabs
@@ -3507,6 +3597,7 @@ tdd
 tea
 team
 teams
+teardown
 technology
 tek
 teknoloji
@@ -3527,11 +3618,13 @@ temmuz
 temp
 template
 temporary
+ten
 tepki
 tepsi
 tercihleri
 term
 terminal
+terminate
 terms
 teslim
 teslimat
@@ -3601,6 +3694,7 @@ tirme
 tirmek
 tirmeliyim
 tirmeliyiz
+tirmesinde
 title
 tla
 tlar
@@ -3704,6 +3798,7 @@ tur
 turbo
 turbopack
 turkish
+turma
 turnstile
 turu
 turulacak
@@ -3852,6 +3947,7 @@ venlik
 ver
 vercel
 verdi
+verebilirim
 veri
 veriden
 verification
@@ -3966,6 +4062,7 @@ wrap
 wrapper
 wrapping
 wrench
+writable
 write
 writer
 writers
@@ -3986,6 +4083,7 @@ yapilabilir
 yapmadan
 yapmal
 yapmam
+yapt
 yaptigimiz
 yard
 yardim
@@ -4008,6 +4106,7 @@ yenileme
 yenilemesi
 yenilik
 yenilikler
+yenin
 yer
 yerel
 yerine
@@ -4016,7 +4115,9 @@ yesterda
 yesterday
 yet
 yetenekler
+yeterli
 yetki
+yetkisi
 yla
 yml
 yok
@@ -4037,6 +4138,7 @@ zdelikli
 zdesi
 zek
 zel
+zeldi
 zellikleri
 zelt
 zeltebilirim

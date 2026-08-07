@@ -4,6 +4,7 @@ import {
   getUserPresenceBroadcast,
 } from "@/lib/friends/service";
 import { logError } from "@/lib/logger";
+import { getRedisOp } from "@/lib/redis";
 import { parseSocketPayload, SocketPresenceActivityPayloadSchema } from "@/lib/socket/schemas";
 import {
   addPresenceSocket,
@@ -11,6 +12,10 @@ import {
   markPresenceSocketActive,
   removePresenceSocket,
 } from "@/lib/socket/presence-helpers";
+import {
+  addServerOnlineMember,
+  removeServerOnlineMember,
+} from "@/lib/socket/server-online-presence";
 import type { HandlerContext } from "../context";
 import { createSocketErrorEmitter } from "../errors";
 import type { SocketHandlerRegistration } from ".";
@@ -30,6 +35,15 @@ async function initializePresence(ctx: HandlerContext) {
     }
     ctx.socket.data.presenceStatus = presence.status;
     ctx.socket.data.presenceCustomStatus = presence.customStatus;
+
+    const presenceServerIds: string[] = ctx.socket.data.onlineServerIds ?? [];
+    const applyPresence =
+      presence.status === "OFFLINE" ? removeServerOnlineMember : addServerOnlineMember;
+    await Promise.all(
+      presenceServerIds.map((serverId) =>
+        applyPresence(getRedisOp(), serverId, ctx.socket.data.userId as string),
+      ),
+    );
 
     await addPresenceSocket(ctx.redis, ctx.userId, ctx.socket.id);
 
@@ -86,6 +100,16 @@ export function registerPresenceHandlers(ctx: HandlerContext): SocketHandlerRegi
 
       ctx.socket.data.presenceStatus = presence.status;
       ctx.socket.data.presenceCustomStatus = presence.customStatus;
+
+      const presenceServerIds: string[] = ctx.socket.data.onlineServerIds ?? [];
+      const applyPresence =
+        presence.status === "OFFLINE" ? removeServerOnlineMember : addServerOnlineMember;
+      await Promise.all(
+        presenceServerIds.map((serverId) =>
+          applyPresence(getRedisOp(), serverId, ctx.socket.data.userId as string),
+        ),
+      );
+
       await markPresenceSocketActive(ctx.redis, ctx.userId, ctx.socket.id);
       await broadcastPresenceUpdateToFriends(presence);
     } catch (error) {

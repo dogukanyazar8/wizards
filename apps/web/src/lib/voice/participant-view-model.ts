@@ -1,4 +1,4 @@
-import type { LocalVideoTrack, RemoteVideoTrack, Room } from "livekit-client";
+import type { LocalVideoTrack, RemoteVideoTrack, Room, TrackPublication } from "livekit-client";
 
 import { getParticipantAudioActivity } from "@/lib/voice/provider-lifecycle";
 import {
@@ -11,6 +11,8 @@ import {
 export interface VoiceParticipantViewModel {
   audioLevel: number;
   avatarUrl: string | null;
+  /** Carried so a tile can ask this publication for the layer it needs. */
+  cameraPublication: TrackPublication | null;
   cameraTrack: LocalVideoTrack | RemoteVideoTrack | null;
   displayName: string | null;
   isCameraEnabled: boolean;

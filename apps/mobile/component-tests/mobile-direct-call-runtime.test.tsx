@@ -103,6 +103,14 @@ jest.mock("livekit-client", () => ({
   VideoPreset: class MockVideoPreset {
     constructor(..._args: unknown[]) {}
   },
+  VideoPresets: {
+    h360: {
+      encoding: { maxBitrate: 500_000, maxFramerate: 20 },
+      height: 360,
+      width: 640,
+    },
+  },
+  VideoQuality: { HIGH: 2, LOW: 0, MEDIUM: 1 },
 }));
 
 import { AudioSession } from "@livekit/react-native";
@@ -313,12 +321,24 @@ describe("mobile direct-call runtime", () => {
     const harness = await createHarness();
     expect(await joinDirectCall(harness.hook, false)).toBe(true);
     const room = mockRooms[0]!;
+    // Both the H.264 publish and its single VP8 retry have to fail before the
+    // upgrade is reported as failed.
+    room.localParticipant.setCameraEnabled.mockRejectedValueOnce(
+      new Error("wss://secret.example camera publish failed"),
+    );
     room.localParticipant.setCameraEnabled.mockRejectedValueOnce(
       new Error("wss://secret.example camera publish failed"),
     );
 
     expect(await joinDirectCall(harness.hook, true)).toBe(false);
 
+    expect(room.localParticipant.setCameraEnabled).toHaveBeenCalledTimes(2);
+    expect(room.localParticipant.setCameraEnabled.mock.calls[0]?.[2]).toMatchObject({
+      videoCodec: "h264",
+    });
+    expect(room.localParticipant.setCameraEnabled.mock.calls[1]?.[2]).toMatchObject({
+      videoCodec: "vp8",
+    });
     expect(room.disconnect).not.toHaveBeenCalled();
     expect(harness.hook.result.current.roomState).toMatchObject({
       errorMessage: "Video could not be started.",

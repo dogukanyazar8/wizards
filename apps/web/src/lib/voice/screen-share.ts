@@ -1,8 +1,10 @@
 import {
   Track,
   VideoPreset,
+  type ScalabilityMode,
   type ScreenShareCaptureOptions,
   type TrackPublishOptions,
+  type VideoCodec,
   type VideoEncoding,
 } from "livekit-client";
 
@@ -90,12 +92,28 @@ export function getScreenShareCaptureOptions(
   };
 }
 
+/**
+ * A shared screen is read as text, so the encoder drops frames before it drops
+ * pixels. Left unset, WebRTC shrinks the resolution under CPU pressure and the
+ * share turns unreadable.
+ */
+export const SCREEN_SHARE_DEGRADATION_PREFERENCE: RTCDegradationPreference = "maintain-resolution";
+
+export const SCREEN_SHARE_VIDEO_CODEC: VideoCodec = "vp9";
+
+/** Temporal + spatial SVC layers, key-frame aligned, so the SFU can drop layers. */
+export const SCREEN_SHARE_SCALABILITY_MODE: ScalabilityMode = "L3T3_KEY";
+
 export function getScreenSharePublishOptions(qualityId: ScreenShareQualityId): TrackPublishOptions {
   const preset = getScreenShareQualityPreset(qualityId);
 
   return {
+    backupCodec: true,
+    degradationPreference: SCREEN_SHARE_DEGRADATION_PREFERENCE,
+    scalabilityMode: SCREEN_SHARE_SCALABILITY_MODE,
     screenShareEncoding: preset.encoding,
     source: Track.Source.ScreenShare,
+    videoCodec: SCREEN_SHARE_VIDEO_CODEC,
   };
 }
 
@@ -112,14 +130,38 @@ export function buildScreenShareMediaConstraints(
   };
 }
 
+type ScalableRtpEncodingParameters = RTCRtpEncodingParameters & {
+  scalabilityMode?: string;
+};
+
+export function isScalableScreenShareEncoding(
+  encodings: readonly RTCRtpEncodingParameters[] | undefined,
+): boolean {
+  return (encodings ?? []).some(
+    (entry) => typeof (entry as ScalableRtpEncodingParameters).scalabilityMode === "string",
+  );
+}
+
+/**
+ * Re-applies the selected quality ceiling to a live sender.
+ *
+ * Simulcast and SVC lay their encodings out differently: simulcast publishes one
+ * entry per spatial layer, SVC publishes a single entry that carries
+ * `scalabilityMode` and expands into layers inside the encoder. Writing the same
+ * bitrate onto every entry is right for simulcast but would flatten an SVC send
+ * into whatever the last entry said, so under SVC only the first encoding is
+ * rewritten and its `scalabilityMode` is preserved untouched. Dropping that
+ * field silently collapses the share to a single layer.
+ */
 export function applyScreenShareEncodingToSender(sender: RTCRtpSender, encoding: VideoEncoding) {
   const parameters = sender.getParameters();
   const baseEncodings =
     parameters.encodings && parameters.encodings.length > 0
       ? parameters.encodings
       : [{} as RTCRtpEncodingParameters];
+  const isScalable = isScalableScreenShareEncoding(parameters.encodings);
 
-  const encodings = baseEncodings.map((entry) => {
+  const applyEncoding = (entry: RTCRtpEncodingParameters): RTCRtpEncodingParameters => {
     const nextEntry: RTCRtpEncodingParameters = {
       ...entry,
       maxBitrate: encoding.maxBitrate,
@@ -130,7 +172,11 @@ export function applyScreenShareEncodingToSender(sender: RTCRtpSender, encoding:
     }
 
     return nextEntry;
-  });
+  };
+
+  const encodings = isScalable
+    ? baseEncodings.map((entry, index) => (index === 0 ? applyEncoding(entry) : entry))
+    : baseEncodings.map(applyEncoding);
 
   return sender.setParameters({
     ...parameters,

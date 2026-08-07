@@ -97,6 +97,8 @@ describe("voice participant view models", () => {
       {
         audioLevel: 0.4,
         avatarUrl: "https://example.com/me.png",
+        // The publication rides along so a tile can request its own layer.
+        cameraPublication: { isMuted: false, videoTrack: localCameraTrack },
         cameraTrack: localCameraTrack,
         displayName: "Current User",
         isCameraEnabled: true,
@@ -110,6 +112,7 @@ describe("voice participant view models", () => {
       {
         audioLevel: 0.5,
         avatarUrl: "https://example.com/remote.png",
+        cameraPublication: { isMuted: false, videoTrack: remoteCameraTrack },
         cameraTrack: remoteCameraTrack,
         displayName: "Remote User",
         isCameraEnabled: true,

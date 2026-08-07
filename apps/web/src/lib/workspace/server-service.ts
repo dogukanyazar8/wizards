@@ -1,5 +1,5 @@
 import { ChannelType, MobileMediaUploadPurpose, prisma } from "@wizards/db";
-import type { Prisma } from "@wizards/db";
+import type { Prisma, ServerType, VerificationLevel } from "@wizards/db";
 import type {
   CreateServerInput,
   DeleteServerInput,
@@ -911,24 +911,56 @@ export async function listWorkspaceServerMembers(
   };
 }
 
-export async function createWorkspaceServer(userId: string, input: CreateServerInput) {
+export type CreateWorkspaceServerOptions = {
+  readonly discoverable?: boolean;
+  readonly isPublic?: boolean;
+  readonly type?: ServerType;
+  readonly verificationLevel?: VerificationLevel;
+};
+
+/**
+ * Split out of the transaction so the privileged defaults can be asserted
+ * without a database. The consumer route never passes `options`, which is why
+ * `POST /api/v1/servers` can only ever produce a private personal server.
+ */
+export function buildServerCreateData(
+  userId: string,
+  input: CreateServerInput,
+  inviteCode: string,
+  options: CreateWorkspaceServerOptions = {},
+): Prisma.ServerUncheckedCreateInput {
+  return {
+    description: input.description ?? null,
+    discoverable: options.discoverable ?? false,
+    features: applyServerMediaSettings([], {
+      allowFileUploads: input.allowFileUploads,
+      allowGifs: input.allowGifs,
+      allowMemberAdds: input.allowMemberAdds,
+    }),
+    iconUrl: input.iconUrl ?? null,
+    inviteCode,
+    isPublic: options.isPublic ?? false,
+    // The founding member row is created inside the same transaction, so the
+    // counter starts at one instead of zero plus a follow-up increment.
+    memberCount: 1,
+    name: input.name.trim(),
+    ownerId: userId,
+    shortName: input.shortName ?? null,
+    type: options.type ?? "PERSONAL",
+    verificationLevel: options.verificationLevel ?? "NONE",
+  };
+}
+
+export async function createWorkspaceServer(
+  userId: string,
+  input: CreateServerInput,
+  options: CreateWorkspaceServerOptions = {},
+) {
   const createdServer = await prisma.$transaction(async (tx) => {
     const inviteCode = await generateInviteCode(tx);
 
     const server = await tx.server.create({
-      data: {
-        description: input.description ?? null,
-        features: applyServerMediaSettings([], {
-          allowFileUploads: input.allowFileUploads,
-          allowGifs: input.allowGifs,
-          allowMemberAdds: input.allowMemberAdds,
-        }),
-        iconUrl: input.iconUrl ?? null,
-        inviteCode,
-        name: input.name.trim(),
-        ownerId: userId,
-        shortName: input.shortName ?? null,
-      },
+      data: buildServerCreateData(userId, input, inviteCode, options),
       select: {
         id: true,
       },
@@ -1051,6 +1083,43 @@ export async function createWorkspaceServer(userId: string, input: CreateServerI
   return createdServer;
 }
 
+/**
+ * A community server's owner is the admin who created it, so the ordinary
+ * owner check is not enough on its own — deletion has to route through the
+ * admin surface where it lands in the audit trail.
+ */
+export function assertServerIsDeletableByOwner(type: ServerType): void {
+  if (type === "COMMUNITY") {
+    throw new ApiError(
+      "Community servers can only be deleted from the admin surface",
+      403,
+      "COMMUNITY_SERVER_PROTECTED",
+    );
+  }
+}
+
+export type ServerVisibilityFields = {
+  readonly discoverable?: boolean | undefined;
+  readonly isPublic?: boolean | undefined;
+};
+
+export function assertVisibilityFieldsWritable(
+  type: ServerType,
+  input: ServerVisibilityFields,
+): void {
+  if (type !== "COMMUNITY") {
+    return;
+  }
+
+  if (input.isPublic !== undefined || input.discoverable !== undefined) {
+    throw new ApiError(
+      "Community server visibility is managed from the admin surface",
+      403,
+      "COMMUNITY_SERVER_PROTECTED",
+    );
+  }
+}
+
 export async function updateWorkspaceServer(
   userId: string,
   serverId: string,
@@ -1058,6 +1127,12 @@ export async function updateWorkspaceServer(
 ) {
   const access = await getAccessContext(userId, serverId);
   ensureServerPermission(access, PermissionBits.MANAGE_SERVER);
+
+  const currentServer = await prisma.server.findUniqueOrThrow({
+    select: { type: true },
+    where: { id: serverId },
+  });
+  assertVisibilityFieldsWritable(currentServer.type, input);
 
   const data: Prisma.ServerUpdateInput = {};
 
@@ -1079,6 +1154,14 @@ export async function updateWorkspaceServer(
 
   if (input.messageCharacterLimit !== undefined) {
     data.messageCharacterLimit = input.messageCharacterLimit;
+  }
+
+  if (input.isPublic !== undefined) {
+    data.isPublic = input.isPublic;
+  }
+
+  if (input.discoverable !== undefined) {
+    data.discoverable = input.discoverable;
   }
 
   if (input.deletedMessageNoticeMinutes !== undefined) {
@@ -1167,6 +1250,13 @@ export async function deleteWorkspaceServer(
   input: DeleteServerInput,
 ) {
   const access = await getAccessContext(userId, serverId);
+
+  const deletedServer = await prisma.server.findUniqueOrThrow({
+    select: { type: true },
+    where: { id: serverId },
+  });
+  assertServerIsDeletableByOwner(deletedServer.type);
+
   ensureOwner(access);
 
   if (input.confirmationName !== access.serverName) {

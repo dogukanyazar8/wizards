@@ -137,6 +137,8 @@ import {
   getScreenSharePublishOptions,
   type ScreenShareQualityId,
 } from "@/lib/voice/screen-share";
+import { getCameraPublishOptions, getCameraRoomDefaults } from "@/lib/voice/video-quality";
+import { getVoiceRoomSubscriptionOptions } from "@/lib/voice/video-subscription";
 import {
   DEFAULT_AUDIO_DEVICE_ID,
   DEFAULT_PARTICIPANT_VOLUME,
@@ -1615,7 +1617,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       const publication = await activeRoom.localParticipant.setCameraEnabled(
         true,
         buildCameraCaptureOptions(cameraPreferences),
-        { source: Track.Source.Camera },
+        { ...getCameraPublishOptions(), source: Track.Source.Camera },
       );
       const localCameraTrack =
         publication?.track instanceof LocalVideoTrack
@@ -1925,10 +1927,16 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       const sessionId = crypto.randomUUID();
       let voiceStateCreated = false;
       const initialCaptureConfig = getAudioCaptureConfig(currentState.audioPreferences);
+      const cameraRoomDefaults = getCameraRoomDefaults();
       const nextRoom = new Room({
+        // A DM call shows one fullscreen remote video, so adaptive stream only
+        // costs sharpness there; a channel room keeps it.
+        ...getVoiceRoomSubscriptionOptions({ sessionMode: isDirectCall ? "direct" : "channel" }),
         audioCaptureDefaults: buildAudioCaptureOptions(currentState.audioPreferences, {
           enhancedNoiseFilterActive: initialCaptureConfig.enhancedNoiseFilterActive,
         }),
+        publishDefaults: cameraRoomDefaults.publishDefaults,
+        videoCaptureDefaults: buildCameraCaptureOptions(currentState.cameraPreferences),
       });
       roomRef.current = nextRoom;
       setRoom(nextRoom);
@@ -2370,7 +2378,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
 
   const startPushToTalk = useCallback(async () => {
     const activeRoom = roomRef.current;
-    if (!pushToTalkEnabled || !activeRoom) {
+    if (!isDesktopRuntime || voiceInputMode !== "push-to-talk" || !activeRoom) {
       return;
     }
 
@@ -2462,12 +2470,12 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
   }, [
     enableLocalMicrophone,
     isDesktopRuntime,
-    pushToTalkEnabled,
     requestMicrophonePermission,
     setTransientErrorMessage,
     syncNoiseFilterForTrack,
     syncParticipants,
     t,
+    voiceInputMode,
   ]);
 
   const stopPushToTalk = useCallback(async () => {

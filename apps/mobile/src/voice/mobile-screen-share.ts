@@ -3,16 +3,31 @@ import {
   VideoPreset,
   type ScreenShareCaptureOptions,
   type TrackPublishOptions,
+  type VideoCodec,
 } from "livekit-client";
 
 export type MobileScreenShareQualityId = "h720fps30" | "h1080fps30";
 
 export const DEFAULT_MOBILE_SCREEN_SHARE_QUALITY_ID: MobileScreenShareQualityId = "h720fps30";
 
+/** Ceiling for the mobile ladder: 1080p30 at 4 Mbps, matching the web tiers. */
+export const MOBILE_SCREEN_SHARE_MAX_BITRATE = 4_000_000;
+
 const MOBILE_SCREEN_SHARE_PRESETS: Record<MobileScreenShareQualityId, VideoPreset> = {
   h720fps30: new VideoPreset(1280, 720, 2_000_000, 30),
-  h1080fps30: new VideoPreset(1920, 1080, 3_500_000, 30),
+  h1080fps30: new VideoPreset(1920, 1080, MOBILE_SCREEN_SHARE_MAX_BITRATE, 30),
 };
+
+/**
+ * The share is read as text, so the encoder must drop frames before it drops
+ * pixels. Without this WebRTC shrinks the resolution under CPU pressure and the
+ * shared screen turns into mush.
+ */
+export const MOBILE_SCREEN_SHARE_DEGRADATION_PREFERENCE: RTCDegradationPreference =
+  "maintain-resolution";
+
+/** Hardware encoder on every shipped handset; no SVC, so no backup codec. */
+export const MOBILE_SCREEN_SHARE_VIDEO_CODEC: VideoCodec = "h264";
 
 export const MOBILE_SCREEN_SHARE_QUALITY_OPTIONS = [
   {
@@ -44,8 +59,25 @@ export function normalizeMobileScreenShareQualityId(value: unknown): MobileScree
   return DEFAULT_MOBILE_SCREEN_SHARE_QUALITY_ID;
 }
 
+/**
+ * The user's stored choice, mirrored here so a call site that forgets to pass a
+ * quality still publishes what the user picked instead of silently falling back
+ * to 720p. The voice runtime writes it whenever the stored preferences change.
+ */
+let preferredMobileScreenShareQualityId: MobileScreenShareQualityId =
+  DEFAULT_MOBILE_SCREEN_SHARE_QUALITY_ID;
+
+export function setPreferredMobileScreenShareQualityId(value: unknown): MobileScreenShareQualityId {
+  preferredMobileScreenShareQualityId = normalizeMobileScreenShareQualityId(value);
+  return preferredMobileScreenShareQualityId;
+}
+
+export function getPreferredMobileScreenShareQualityId(): MobileScreenShareQualityId {
+  return preferredMobileScreenShareQualityId;
+}
+
 export function getMobileScreenShareCaptureOptions(
-  qualityId: unknown = DEFAULT_MOBILE_SCREEN_SHARE_QUALITY_ID,
+  qualityId: unknown = getPreferredMobileScreenShareQualityId(),
 ): ScreenShareCaptureOptions {
   const preset = MOBILE_SCREEN_SHARE_PRESETS[normalizeMobileScreenShareQualityId(qualityId)];
 
@@ -61,13 +93,17 @@ export function getMobileScreenShareCaptureOptions(
 }
 
 export function getMobileScreenSharePublishOptions(
-  qualityId: unknown = DEFAULT_MOBILE_SCREEN_SHARE_QUALITY_ID,
+  qualityId: unknown = getPreferredMobileScreenShareQualityId(),
 ): TrackPublishOptions {
   const preset = MOBILE_SCREEN_SHARE_PRESETS[normalizeMobileScreenShareQualityId(qualityId)];
 
   return {
+    // H.264 has no SVC, so there is no backup codec to fall back to.
+    backupCodec: false,
+    degradationPreference: MOBILE_SCREEN_SHARE_DEGRADATION_PREFERENCE,
     screenShareEncoding: preset.encoding,
     source: Track.Source.ScreenShare,
+    videoCodec: MOBILE_SCREEN_SHARE_VIDEO_CODEC,
   };
 }
 
@@ -109,6 +145,18 @@ export function validateMobileScreenShareQualityContract(): string[] {
 
     if ((publishOptions.screenShareEncoding?.maxFramerate ?? 0) > 30) {
       issues.push(`${option.id} publish encoding must stay at or below 30fps.`);
+    }
+
+    if ((publishOptions.screenShareEncoding?.maxBitrate ?? 0) > MOBILE_SCREEN_SHARE_MAX_BITRATE) {
+      issues.push(`${option.id} publish encoding must stay at or below 4 Mbps on mobile.`);
+    }
+
+    if (publishOptions.videoCodec !== MOBILE_SCREEN_SHARE_VIDEO_CODEC) {
+      issues.push(`${option.id} must publish with the hardware H.264 encoder.`);
+    }
+
+    if (publishOptions.degradationPreference !== MOBILE_SCREEN_SHARE_DEGRADATION_PREFERENCE) {
+      issues.push(`${option.id} must hold resolution instead of framerate.`);
     }
   }
 

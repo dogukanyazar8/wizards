@@ -93,6 +93,46 @@
         }
       ]
     },
+    "Desktop": {
+      "description": "Run desktop script, Rust formatting, lint, and locked unit-test checks without building or signing an installer.",
+      "estimatedImpact": "May compile Rust test targets but does not build an installer, sign artifacts, publish, or launch the desktop app.",
+      "preconditions": [
+        { "type": "repository" },
+        { "type": "nodeModules" },
+        { "type": "path", "path": "apps/desktop/src-tauri/Cargo.toml" },
+        { "type": "executable", "name": "pnpm" },
+        { "type": "executable", "name": "cargo" }
+      ],
+      "steps": [
+        {
+          "id": "desktop-script-tests",
+          "executable": "pnpm",
+          "arguments": ["--filter", "@wizards/desktop", "test"]
+        },
+        {
+          "id": "desktop-rust-format",
+          "executable": "cargo",
+          "arguments": [
+            "fmt",
+            "--manifest-path",
+            "apps/desktop/src-tauri/Cargo.toml",
+            "--all",
+            "--",
+            "--check"
+          ]
+        },
+        {
+          "id": "desktop-rust-lint",
+          "executable": "pnpm",
+          "arguments": ["--filter", "@wizards/desktop", "lint:rust"]
+        },
+        {
+          "id": "desktop-rust-tests",
+          "executable": "cargo",
+          "arguments": ["test", "--locked", "--manifest-path", "apps/desktop/src-tauri/Cargo.toml"]
+        }
+      ]
+    },
     "MobileRelease": {
       "description": "Delegate a build-only release APK to the canonical Android UAT script.",
       "estimatedImpact": "Builds a release APK in the canonical managed UAT root; it may perform canonical managed dependency recovery, but does not install to a device or start Metro.",
@@ -186,6 +226,22 @@
         { "type": "loopbackTcpEnvironment", "name": "REDIS_URL" }
       ],
       "steps": [{ "id": "e2e-realtime", "executable": "pnpm", "arguments": ["e2e:realtime"] }]
+    },
+    "E2EFull": {
+      "description": "Reset and seed a dedicated local E2E database, then run the complete existing Chromium Playwright entrypoint.",
+      "estimatedImpact": "Destructively resets only an explicitly named loopback E2E database and clears matching local E2E Redis state.",
+      "preconditions": [
+        { "type": "repository" },
+        { "type": "nodeModules" },
+        { "type": "executable", "name": "pnpm" },
+        { "type": "environment", "name": "E2E_TEST_PASSWORD" },
+        { "type": "destructiveE2EDatabase", "name": "E2E_DATABASE_URL" },
+        { "type": "loopbackTcpEnvironment", "name": "REDIS_URL" }
+      ],
+      "steps": [
+        { "id": "e2e-full-seed", "executable": "pnpm", "arguments": ["e2e:seed"] },
+        { "id": "e2e-full-playwright", "executable": "pnpm", "arguments": ["e2e"] }
+      ]
     }
   }
 }

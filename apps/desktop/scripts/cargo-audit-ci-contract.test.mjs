@@ -42,7 +42,7 @@ test("automatic desktop CI runs portable locked Rust quality gates", async () =>
 
   assert.match(desktopOps, /^    needs: verify$/m);
   assert.match(desktopOpsConfiguration, /\{"include":\[\{"os":"ci-fast","staged":false\}\]\}/);
-  assert.doesNotMatch(desktopOpsConfiguration, /^    if:/m);
+  assert.match(desktopOpsConfiguration, /^    if: github\.event_name != 'pull_request'$/m);
   assert.match(
     desktopOps,
     /uses: dtolnay\/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable/,

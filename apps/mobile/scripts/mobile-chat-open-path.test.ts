@@ -26,10 +26,12 @@ function buildChannel(
 
 function buildStreamConversation(overrides: Partial<DMConversationDTO> = {}): DMConversationDTO {
   return {
+    iconUrl: null,
     id: "conversation-1",
     lastMessage: null,
     lastMessageAt: "2026-07-28T09:00:00.000Z",
     name: null,
+    ownerId: null,
     participants: [
       {
         avatarUrl: "https://cdn.whispr.team/ada.png",

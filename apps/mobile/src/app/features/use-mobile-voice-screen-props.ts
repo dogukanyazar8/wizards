@@ -68,6 +68,7 @@ export function useMobileVoiceScreenProps({
         onSelectVoiceAudioOutput: voiceRuntime.selectAudioOutput,
         onSelectVoiceAudioOutputDevice: voiceRuntime.selectAudioDeviceOutput,
         onSelectVoiceNoiseSuppression: voiceRuntime.selectNoiseSuppression,
+        onSelectVoiceScreenShareQuality: voiceRuntime.selectScreenShareQuality,
         onSendInvite,
         onToggleVoiceCamera: voiceRuntime.toggleCamera,
         onToggleVoiceMute: voiceRuntime.toggleMute,
@@ -75,6 +76,7 @@ export function useMobileVoiceScreenProps({
         voiceInputMode: voiceRuntime.voiceInputMode,
         voicePushToTalkPhase: voiceRuntime.pushToTalkState.phase,
         voiceRoomState,
+        voiceScreenShareQualityId: voiceRuntime.screenShareQualityId,
       }),
     [
       bootstrapState,

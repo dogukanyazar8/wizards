@@ -1,9 +1,10 @@
-import {
-  VideoPresets,
-  type AudioCaptureOptions,
-  type VideoCaptureOptions,
-} from "livekit-client";
+import type { AudioCaptureOptions, VideoCaptureOptions } from "livekit-client";
 
+import {
+  DEFAULT_CAMERA_QUALITY_TIER,
+  getCameraCaptureOptions,
+  type CameraQualityTier,
+} from "@/lib/voice/video-quality";
 import {
   DEFAULT_AUDIO_DEVICE_ID,
   DEFAULT_CAMERA_DEVICE_ID,
@@ -78,18 +79,11 @@ export function buildAudioCaptureOptions(
 
 export function buildCameraCaptureOptions(
   cameraPreferences: VoiceCameraPreferences,
+  tier: CameraQualityTier = DEFAULT_CAMERA_QUALITY_TIER,
 ): VideoCaptureOptions {
-  const options: VideoCaptureOptions = {
-    facingMode: "user",
-    frameRate: { ideal: 30, max: 30 },
-    resolution: VideoPresets.h720.resolution,
-  };
-
-  if (cameraPreferences.deviceId !== DEFAULT_CAMERA_DEVICE_ID) {
-    options.deviceId = cameraPreferences.deviceId;
-  }
-
-  return options;
+  return cameraPreferences.deviceId === DEFAULT_CAMERA_DEVICE_ID
+    ? getCameraCaptureOptions(tier)
+    : getCameraCaptureOptions(tier, cameraPreferences.deviceId);
 }
 
 export function getAudioCaptureRestartSignature(

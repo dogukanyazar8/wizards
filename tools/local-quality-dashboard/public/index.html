@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="tr" class="theme-dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark light" />
+    <title>Whispr Local Quality</title>
+    <link rel="stylesheet" href="/whispr.css" />
+    <link rel="stylesheet" href="/dashboard.css" />
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Ana içeriğe geç</a>
+
+    <header class="topbar">
+      <div class="brand-lockup" aria-label="Whispr Local Quality">
+        <img class="brand-logo-image" src="/assets/whispr-logo.png" alt="" width="44" height="44" />
+        <span>
+          <strong>Whispr</strong>
+          <small>Local Quality</small>
+        </span>
+      </div>
+
+      <div class="topbar-actions">
+        <span class="local-badge"><span aria-hidden="true"></span> Yalnızca localhost</span>
+        <span id="readiness-badge" class="readiness-badge" data-state="loading">Hazırlanıyor</span>
+        <label class="theme-field" for="theme-select">
+          <span>Tema</span>
+          <select id="theme-select" aria-label="Dashboard teması">
+            <option value="system">Sistem</option>
+            <option value="dark">Koyu</option>
+            <option value="light">Açık</option>
+          </select>
+        </label>
+      </div>
+    </header>
+
+    <main id="main-content" class="dashboard-shell">
+      <section class="hero" aria-labelledby="page-title">
+        <div>
+          <p class="eyebrow">UAT ÖNCESİ LOKAL KALİTE KAPISI</p>
+          <h1 id="page-title">Kalite Kontrol Merkezi</h1>
+          <p class="hero-copy">
+            Web, mobil, güvenlik ve desktop kontrollerini tek yerden çalıştır. Sonuçları ayrı,
+            izlenebilir, dürüst kanıt olarak sakla.
+          </p>
+        </div>
+
+        <div class="hero-state" aria-label="Aktif çalışma durumu">
+          <span id="hero-state-dot" class="state-dot" data-status="NOT_RUN"></span>
+          <div>
+            <small>Şu an</small>
+            <strong id="hero-state-text">Çalışma yok</strong>
+          </div>
+        </div>
+      </section>
+
+      <p id="status-announcer" class="sr-only" aria-live="polite"></p>
+
+      <section class="action-bar" aria-label="Kalite kontrol eylemleri">
+        <button id="run-safe" class="button button-primary" type="button">
+          Güvenli Tümünü Çalıştır
+        </button>
+        <button id="run-acceptance" class="button button-warning" type="button">
+          Tam Kabul Testleri
+        </button>
+        <button id="rerun-failed" class="button button-secondary" type="button" disabled>
+          Başarısızları Yeniden Çalıştır
+        </button>
+        <button id="cancel-run" class="button button-danger" type="button" disabled>Durdur</button>
+      </section>
+
+      <section class="summary-grid" aria-label="Çalışma özeti">
+        <article class="summary-card">
+          <span>Toplam</span>
+          <strong id="summary-total">0</strong>
+        </article>
+        <article class="summary-card summary-pass">
+          <span>Geçti</span>
+          <strong id="summary-pass">0</strong>
+        </article>
+        <article class="summary-card summary-fail">
+          <span>Başarısız</span>
+          <strong id="summary-fail">0</strong>
+        </article>
+        <article class="summary-card summary-blocked">
+          <span>Engellendi</span>
+          <strong id="summary-blocked">0</strong>
+        </article>
+        <article class="summary-card">
+          <span>Kalan</span>
+          <strong id="summary-remaining">0</strong>
+        </article>
+      </section>
+
+      <div class="workspace-grid">
+        <section class="panel profile-panel" aria-labelledby="profiles-title">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">PROFİLLER</p>
+              <h2 id="profiles-title">Kontrol paketleri</h2>
+            </div>
+            <span id="profile-count" class="count-pill">0 profil</span>
+          </div>
+          <div id="profile-grid" class="profile-grid"></div>
+        </section>
+
+        <aside id="issues-panel" class="panel issues-panel" aria-labelledby="issues-title">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">TEŞHİS</p>
+              <h2 id="issues-title">İlgilenilmesi gerekenler</h2>
+            </div>
+            <span id="issue-count" class="count-pill">0 sorun</span>
+          </div>
+          <div class="issue-tabs" role="tablist" aria-label="Sorun filtresi">
+            <button
+              id="issue-filter-fail"
+              class="issue-tab is-active"
+              type="button"
+              role="tab"
+              aria-selected="true"
+              aria-controls="issue-list"
+              data-issue-status="FAIL"
+            >
+              Başarısız
+            </button>
+            <button
+              id="issue-filter-blocked"
+              class="issue-tab"
+              type="button"
+              role="tab"
+              aria-selected="false"
+              aria-controls="issue-list"
+              data-issue-status="BLOCKED"
+            >
+              Engellendi
+            </button>
+          </div>
+          <div
+            id="issue-list"
+            class="issue-list"
+            role="tabpanel"
+            aria-labelledby="issue-filter-fail"
+            aria-live="polite"
+          >
+            <p class="empty-state">Başarısız kontrol yok.</p>
+          </div>
+        </aside>
+      </div>
+
+      <div class="observability-grid">
+        <section class="panel log-panel" aria-labelledby="log-title">
+          <div class="panel-heading log-heading">
+            <div>
+              <p class="eyebrow">CANLI ÇIKTI</p>
+              <h2 id="log-title">Güvenli çalışma günlüğü</h2>
+            </div>
+            <div class="log-controls">
+              <label for="log-filter">
+                <span>Profil</span>
+                <select id="log-filter">
+                  <option value="all">Tümü</option>
+                </select>
+              </label>
+              <label class="check-field" for="follow-log">
+                <input id="follow-log" type="checkbox" checked />
+                <span>Akışı takip et</span>
+              </label>
+              <button id="copy-log" class="button button-quiet" type="button">Kopyala</button>
+            </div>
+          </div>
+          <div id="log-output" class="log-output" role="log" aria-live="off" tabindex="0">
+            <p class="empty-state">Çalışma başladığında redakte edilmiş çıktı burada görünür.</p>
+          </div>
+        </section>
+
+        <aside class="panel history-panel" aria-labelledby="history-title">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">GEÇMİŞ</p>
+              <h2 id="history-title">Son çalışmalar</h2>
+            </div>
+          </div>
+          <ol id="history-list" class="history-list">
+            <li class="empty-state">Henüz sonuç yok.</li>
+          </ol>
+        </aside>
+      </div>
+
+      <section
+        id="completion-panel"
+        class="panel completion-panel"
+        aria-labelledby="completion-title"
+        hidden
+      >
+        <div>
+          <p class="eyebrow">SONUÇ</p>
+          <h2 id="completion-title">Çalışma tamamlandı</h2>
+          <p id="completion-copy"></p>
+        </div>
+        <div class="completion-actions">
+          <a id="export-json" class="button button-secondary" href="#">JSON indir</a>
+          <a id="export-markdown" class="button button-secondary" href="#">Markdown indir</a>
+        </div>
+      </section>
+    </main>
+
+    <dialog id="acceptance-dialog" class="acceptance-dialog" aria-labelledby="acceptance-title">
+      <form id="acceptance-form">
+        <div class="dialog-heading">
+          <div>
+            <p class="eyebrow">AÇIK ONAY GEREKİR</p>
+            <h2 id="acceptance-title">Tam Kabul Testleri</h2>
+          </div>
+          <button
+            id="close-dialog"
+            class="icon-button"
+            type="button"
+            aria-label="Onay penceresini kapat"
+          >
+            ×
+          </button>
+        </div>
+        <div class="danger-notice" role="note">
+          <strong id="acceptance-warning">Lokal E2E verisi sıfırlanacak.</strong>
+          <p id="acceptance-impact">
+            Yalnız doğrulanan loopback E2E veritabanı hedeflenir. Ardından Playwright ve Android
+            release APK derlemesi çalışır.
+          </p>
+        </div>
+        <dl class="target-details">
+          <div>
+            <dt>Hedef</dt>
+            <dd id="acceptance-target">Yapılandırılmadı</dd>
+          </div>
+          <div>
+            <dt>Koruma</dt>
+            <dd>60 saniyelik, tek kullanımlık onay</dd>
+          </div>
+        </dl>
+        <label class="confirmation-field" for="acceptance-input">
+          <span id="acceptance-label">Devam etmek için veritabanı adını yaz</span>
+          <input id="acceptance-input" name="confirmation" autocomplete="off" required />
+        </label>
+        <p id="acceptance-error" class="field-error" aria-live="polite"></p>
+        <div class="dialog-actions">
+          <button id="cancel-dialog" class="button button-secondary" type="button">Vazgeç</button>
+          <button class="button button-danger" type="submit">Onayla ve Çalıştır</button>
+        </div>
+      </form>
+    </dialog>
+
+    <template id="profile-template">
+      <article class="profile-card">
+        <div class="profile-card-heading">
+          <span class="profile-icon" aria-hidden="true"></span>
+          <span class="status-pill" data-status="NOT_RUN">Çalışmadı</span>
+        </div>
+        <h3></h3>
+        <p class="profile-description"></p>
+        <p class="profile-impact"></p>
+        <div class="profile-meta">
+          <span class="profile-preconditions"></span>
+          <span class="profile-steps"></span>
+          <span class="profile-duration">—</span>
+          <span class="profile-exit">exit —</span>
+        </div>
+        <button class="button button-secondary profile-run" type="button">
+          Tek Başına Çalıştır
+        </button>
+      </article>
+    </template>
+  </body>
+</html>

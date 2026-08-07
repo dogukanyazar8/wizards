@@ -123,10 +123,12 @@ function makeDMMessage(id: string): DMMessagePayload {
 function makeDMPage(messages: DMMessagePayload[]): MobileDMMessagesResponse {
   return {
     conversation: {
+      iconUrl: null,
       id: "conversation-1",
       lastMessage: null,
       lastMessageAt: "2026-07-11T12:00:00.000Z",
       name: null,
+      ownerId: null,
       participants: [],
       type: "DM",
     },
@@ -578,10 +580,12 @@ describe("mobile realtime query bridge", () => {
     bridge.handleEvent(
       createMobileRealtimeEventEnvelope("dm:conversation:updated", {
         conversation: {
+          iconUrl: null,
           id: "conversation-1",
           lastMessage: message,
           lastMessageAt: message.createdAt,
           name: null,
+          ownerId: null,
           participants: [
             {
               avatarUrl: null,

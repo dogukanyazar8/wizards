@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { ChannelType, Prisma, prisma } from "@wizards/db";
+import { getRedisOp } from "@/lib/redis";
+import { countServerOnlineMembers } from "@/lib/socket/server-online-presence";
 import { getSocketServer } from "@/lib/socket/runtime";
 import { recordUnreadFanoutMetric } from "@/lib/workspace/performance-metrics";
 import {
@@ -628,24 +630,22 @@ export async function getActiveServerMemberUserIds(serverId: string) {
 
 /**
  * Counts distinct server-room members whose live socket presence is visible.
- * Socket.IO's Redis adapter keeps this correct across application instances and
- * avoids deriving real-time presence from persisted user preferences.
+ * Reads the `server:<id>:online` Redis set (Task 8) that the socket lifecycle
+ * — join, disconnect, and presence transitions — keeps in sync, instead of
+ * serialising the room's sockets on every call.
+ *
+ * The pre-Task-8 version returned 0 whenever the socket server hadn't been
+ * initialized yet rather than throwing; a not-yet-`ready` Redis client is the
+ * same situation under the new backing store, so it gets the same fail-open
+ * treatment instead of surfacing a connection error to an unrelated caller.
  */
 export async function getOnlineServerMemberCount(serverId: string) {
-  const io = getSocketServer();
-  if (!io) {
+  const redis = getRedisOp();
+  if (redis.status !== "ready") {
     return 0;
   }
 
-  const sockets = await io.in(`server:${serverId}`).fetchSockets();
-  const userIds = new Set<string>();
-  for (const socket of sockets) {
-    if (socket.data.presenceStatus !== "OFFLINE" && socket.data.userId) {
-      userIds.add(socket.data.userId);
-    }
-  }
-
-  return userIds.size;
+  return countServerOnlineMembers(redis, serverId);
 }
 
 export async function emitServerUnreadUpdateToUser(userId: string, serverId: string) {

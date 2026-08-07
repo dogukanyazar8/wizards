@@ -41,6 +41,8 @@ export type {
   NotificationType,
   PremiumType,
   PushAttemptStage,
+  ServerType,
   User,
   UserReportReason,
+  VerificationLevel,
 } from "./generated/prisma/client";

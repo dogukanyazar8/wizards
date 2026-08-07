@@ -378,6 +378,12 @@ export interface SocketData {
   clientAttribution?: ClientAttribution;
   presenceCustomStatus: string | null;
   presenceStatus: FriendPresenceUpdateDto["status"];
+  /**
+   * Server rooms this socket added itself to in the online-presence set (Task
+   * 8). Disconnect and presence transitions read this back to know which
+   * `server:<id>:online` sets to update — it is not persisted anywhere else.
+   */
+  onlineServerIds?: string[];
   typingChannels: Set<string>;
   lastVoiceAudioLevelAt?: number;
   voiceStateViewerChannelsByServer: Map<string, Set<string>>;

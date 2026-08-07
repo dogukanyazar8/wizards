@@ -66,6 +66,7 @@ export function createMobileVoiceScreenProps({
   onSelectVoiceAudioOutput,
   onSelectVoiceAudioOutputDevice,
   onSelectVoiceNoiseSuppression,
+  onSelectVoiceScreenShareQuality,
   onSendInvite,
   onToggleVoiceCamera,
   onToggleVoiceMute,
@@ -73,6 +74,7 @@ export function createMobileVoiceScreenProps({
   voiceInputMode,
   voicePushToTalkPhase,
   voiceRoomState,
+  voiceScreenShareQualityId,
 }: {
   readonly bootstrapState: MobileBootstrapViewState;
   readonly inviteCandidates: readonly MobileVoiceInviteCandidate[];
@@ -86,6 +88,7 @@ export function createMobileVoiceScreenProps({
   readonly onSelectVoiceAudioOutput: MobileVoiceScreenProps["onSelectVoiceAudioOutput"];
   readonly onSelectVoiceAudioOutputDevice: MobileVoiceScreenProps["onSelectVoiceAudioOutputDevice"];
   readonly onSelectVoiceNoiseSuppression: MobileVoiceScreenProps["onSelectVoiceNoiseSuppression"];
+  readonly onSelectVoiceScreenShareQuality: MobileVoiceScreenProps["onSelectVoiceScreenShareQuality"];
   readonly onSendInvite: (targetUserId: string) => void;
   readonly onToggleVoiceCamera?: MobileVoiceScreenProps["onToggleVoiceCamera"];
   readonly onToggleVoiceMute: MobileVoiceScreenProps["onToggleVoiceMute"];
@@ -93,6 +96,7 @@ export function createMobileVoiceScreenProps({
   readonly voiceInputMode: MobileVoiceScreenProps["voiceInputMode"];
   readonly voicePushToTalkPhase: MobileVoiceScreenProps["voicePushToTalkPhase"];
   readonly voiceRoomState: MobileVoiceRoomState;
+  readonly voiceScreenShareQualityId: MobileVoiceScreenProps["voiceScreenShareQualityId"];
 }): MobileVoiceScreenProps {
   return {
     bootstrapState,
@@ -107,6 +111,7 @@ export function createMobileVoiceScreenProps({
     ...(onSelectVoiceAudioOutput ? { onSelectVoiceAudioOutput } : {}),
     ...(onSelectVoiceAudioOutputDevice ? { onSelectVoiceAudioOutputDevice } : {}),
     ...(onSelectVoiceNoiseSuppression ? { onSelectVoiceNoiseSuppression } : {}),
+    ...(onSelectVoiceScreenShareQuality ? { onSelectVoiceScreenShareQuality } : {}),
     onSendInvite,
     ...(onToggleVoiceCamera ? { onToggleVoiceCamera } : {}),
     onToggleVoiceMute,
@@ -115,5 +120,6 @@ export function createMobileVoiceScreenProps({
     voiceInputMode,
     voicePushToTalkPhase,
     voiceRoomState,
+    ...(voiceScreenShareQualityId ? { voiceScreenShareQualityId } : {}),
   };
 }

@@ -57,6 +57,11 @@ export const TR_MESSAGES = {
   "app.update.whatsNew": "Neler yeni",
   "app.update.currentBuild": "Mevcut build {build}",
   "app.update.latestBuild": "Yeni build {build}",
+  "desktop.control.label": "Masaüstü Denetimi",
+  "desktop.control.openError": "Masaüstü Denetimi açılamadı.",
+  "desktop.control.opening": "Masaüstü Denetimi açılıyor…",
+  "desktop.control.openShortcuts": "Masaüstü Denetimi'nde yönet",
+  "desktop.control.openUpdates": "Güvenilir Masaüstü Denetimi'ni aç",
   "desktop.update.badge": "Masaüstü güncellemesi",
   "desktop.update.title": "İmzalı Whispr Desktop güncellemesi mevcut",
   "desktop.update.description":
@@ -818,9 +823,8 @@ export const TR_MESSAGES = {
     "Whispr masaüstü uygulaması için global kısayolları ve bas-konuş modunu isteğe bağlı aç. Yalnızca seçtiğin tam kombinasyonlar kaydedilir.",
   "voice.settings.desktopShortcuts": "Global ses kısayollarını aç",
   "voice.settings.desktopShortcutsDesc":
-    "Başka bir uygulama odaktayken bile Whispr'in mikrofon, sağırlaştırma ve bas-konuş kısayollarına tepki vermesini sağlar.",
-  "voice.settings.desktopShortcutsHelper":
-    "Global kısayollar bu masaüstü uygulamasına özeldir, değiştirici tuş ister ve istediğin zaman kapatılabilir.",
+    "Sistem genelindeki kısayolları güvenilir yerel Masaüstü Denetimi penceresinde yönet. Güvenlik için eski web kısayol ayarları aktarılmaz; yeniden etkinleştirmek için ayarları orada açıkça kaydet.",
+  "voice.settings.desktopShortcutsHelper": "Kısayol kaydı ve kurtarma Masaüstü Denetimi'ne aittir.",
   "voice.settings.desktopVoiceMini": "Kompakt ses mini penceresini göster",
   "voice.settings.desktopVoiceMiniDesc":
     "Ses kanalındayken Whispr, sanitize edilmiş katılımcı durumuyla küçük ve üstte kalan bir kontrol penceresi gösterebilir.",
@@ -1694,11 +1698,11 @@ export const TR_MESSAGES = {
   "desktop.diagnostics.shell.ready": "hazır",
   "desktop.diagnostics.supportBundle.label": "Destek paketi",
   "desktop.diagnostics.supportBundle.detail":
-    "Uygulama, platform, overlay, kısayol, socket ve redakte edilmiş native log tanılarını yerel JSON olarak dışa aktarır. Token, e-posta adresi ve mesaj içeriği dahil edilmez.",
-  "desktop.diagnostics.supportBundle.button": "Tanıları dışa aktar",
-  "desktop.diagnostics.supportBundle.exporting": "Dışa aktarılıyor...",
-  "desktop.diagnostics.supportBundle.success": "Tanı paketi indirildi.",
-  "desktop.diagnostics.supportBundle.error": "Whispr tanı paketini dışa aktaramadı.",
+    "Yalnızca yerel tanı paketini dışa aktarmak için güvenilir Masaüstü Denetimi'ni aç.",
+  "desktop.diagnostics.supportBundle.button": "Masaüstü Denetimi'ni aç",
+  "desktop.diagnostics.supportBundle.exporting": "Açılıyor...",
+  "desktop.diagnostics.supportBundle.success": "Masaüstü Denetimi açıldı.",
+  "desktop.diagnostics.supportBundle.error": "Whispr Masaüstü Denetimi'ni açamadı.",
   "desktop.diagnostics.shortcuts.label": "Global kısayollar",
   "desktop.diagnostics.shortcuts.detail":
     "Yalnızca kayıtlı aksiyon adlarını ve tuş kombinasyonlarını raporlar; tuş geçmişi saklanmaz.",

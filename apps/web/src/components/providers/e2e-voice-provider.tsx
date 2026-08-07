@@ -74,6 +74,9 @@ function mapE2EVoiceParticipants(
     return {
       audioLevel: 0,
       avatarUrl: participant.avatarUrl,
+      // The fake room publishes no real track, so there is no publication whose
+      // subscribed layer could be tuned.
+      cameraPublication: null,
       cameraTrack: participantCameraEnabled ? E2E_CAMERA_TRACK : null,
       displayName: participant.displayName,
       isCameraEnabled: participantCameraEnabled,
@@ -378,11 +381,7 @@ export function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) 
 
   const startPushToTalk = useCallback(async () => {
     const store = useVoiceStore.getState();
-    if (
-      !store.desktopGlobalShortcutsEnabled ||
-      store.voiceInputMode !== "push-to-talk" ||
-      !store.activeChannelId
-    ) {
+    if (store.voiceInputMode !== "push-to-talk" || !store.activeChannelId) {
       return;
     }
 
@@ -410,11 +409,7 @@ export function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) 
 
   const stopPushToTalk = useCallback(async () => {
     const store = useVoiceStore.getState();
-    if (
-      !store.desktopGlobalShortcutsEnabled ||
-      store.voiceInputMode !== "push-to-talk" ||
-      !pushToTalkHoldingRef.current
-    ) {
+    if (store.voiceInputMode !== "push-to-talk" || !pushToTalkHoldingRef.current) {
       return;
     }
 
@@ -527,6 +522,7 @@ export function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) 
       id: shareId,
       isLocal: true,
       participantId: currentUser.id,
+      publication: null,
       track: null,
       trackSid: "e2e-screen-share",
       username: currentUser.username,
@@ -650,6 +646,7 @@ export function E2EVoiceProvider({ children, currentUser }: VoiceProviderProps) 
             id: shareId,
             isLocal: false,
             participantId: participant.userId,
+            publication: null,
             track: null,
             trackSid: "e2e-screen-share",
             username: participant.username,

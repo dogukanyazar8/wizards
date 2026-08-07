@@ -8,6 +8,8 @@ const conversation = {
   id: "dm-1",
   type: "GROUP_DM",
   name: null,
+  iconUrl: null,
+  ownerId: null,
   lastMessageAt: "2026-05-14T00:00:00.000Z",
   participants: [],
   lastMessage: null,

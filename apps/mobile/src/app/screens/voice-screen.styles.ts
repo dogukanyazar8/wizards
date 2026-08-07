@@ -22,6 +22,21 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
     fontSize: 12.5,
     fontFamily: theme.typography.fontFamilyBold,
   };
+  /**
+   * The pill's icon-only twin, worn by the minimize control and by the channel
+   * room's settings entry — the invite pill already spends the header's width,
+   * so a second labelled pill would not fit beside it.
+   */
+  const headerIconButton: ViewStyle = {
+    width: 36,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: theme.voiceRoom.border,
+    borderRadius: 13,
+    backgroundColor: theme.voiceRoom.card,
+  };
 
   return {
     activeVoiceRoomAvatarFallback: {
@@ -40,16 +55,7 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
       borderWidth: 3,
     },
     /** 5a header: a compact card chip, not a bare 44pt hit box. */
-    activeVoiceRoomBackButton: {
-      width: 36,
-      height: 36,
-      alignItems: "center",
-      justifyContent: "center",
-      borderWidth: 1,
-      borderColor: theme.voiceRoom.border,
-      borderRadius: 13,
-      backgroundColor: theme.voiceRoom.card,
-    },
+    activeVoiceRoomBackButton: headerIconButton,
     activeVoiceRoomControl: {
       width: 48,
       height: 48,
@@ -125,6 +131,7 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
      */
     activeVoiceRoomInviteButton: headerPill,
     activeVoiceRoomInviteButtonText: headerPillText,
+    activeVoiceRoomHeaderIconButton: headerIconButton,
     activeVoiceRoomHeaderPill: headerPill,
     activeVoiceRoomHeaderPillText: headerPillText,
     /** Muted twin of the pill label: the ringing screen's "E2E" mark. */

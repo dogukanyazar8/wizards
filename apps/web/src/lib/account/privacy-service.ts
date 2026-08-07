@@ -8,6 +8,7 @@ import { getRedis } from "@/lib/redis";
 import { getSocketServer } from "@/lib/socket/runtime";
 import { invalidateServerRoomIdsCache } from "@/lib/socket/server-room-cache";
 import { invalidateMemberPermissionCache } from "@/lib/workspace/permission-cache";
+import { decrementServerMemberCounts } from "@/lib/workspace/server-member-counter";
 
 export const ACCOUNT_DELETION_CONFIRMATION = "DELETE MY ACCOUNT";
 const DELETED_ACCOUNT_DISPLAY_NAME = "Deleted User";
@@ -502,7 +503,15 @@ export async function anonymizeAccount(
       where: { OR: [{ createdById: userId }, { targetUserId: userId }] },
     });
     await tx.serverBan.deleteMany({ where: { userId } });
+    const removedMemberships = await tx.serverMember.findMany({
+      select: { serverId: true },
+      where: { userId },
+    });
     await tx.serverMember.deleteMany({ where: { userId } });
+    await decrementServerMemberCounts(
+      tx,
+      removedMemberships.map((membership) => membership.serverId),
+    );
     await tx.dMParticipant.deleteMany({ where: { userId } });
     await tx.dMConversation.updateMany({
       where: { ownerId: userId },

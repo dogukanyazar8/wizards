@@ -83,10 +83,12 @@ describe("mobile social client", () => {
     const { openMobileFriendDM } = await social;
     const calls: unknown[] = [];
     const conversation = {
+      iconUrl: null,
       id: "dm-1",
       lastMessage: null,
       lastMessageAt: new Date().toISOString(),
       name: null,
+      ownerId: null,
       participants: [
         {
           avatarUrl: null,

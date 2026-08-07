@@ -1,6 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import {
   ConnectionQuality,
   ConnectionState,
@@ -35,6 +43,13 @@ import {
 } from "@/components/providers/voice-provider";
 import { VoiceSettingsModal } from "@/components/voice/voice-settings-modal";
 import { SCREEN_SHARE_QUALITY_OPTIONS, type ScreenShareQualityId } from "@/lib/voice/screen-share";
+import {
+  resolveMirror,
+  resolveVideoAspect,
+  resolveVideoFit,
+  type VideoSizeClass,
+} from "@/lib/voice/video-layout";
+import { setVoiceVideoQualityCeiling } from "@/lib/voice/video-subscription";
 import { cn } from "@/lib/utils";
 import { useVoiceStore } from "@/store/voice-store";
 
@@ -362,7 +377,48 @@ async function toggleElementFullscreen(element: HTMLElement | null) {
   await element.requestFullscreen().catch(() => undefined);
 }
 
-export function ScreenShareVideo({ track }: { track: LocalVideoTrack | RemoteVideoTrack | null }) {
+function readTrackSourceAspect(track: LocalVideoTrack | RemoteVideoTrack | null): number {
+  const settings = track?.mediaStreamTrack?.getSettings?.();
+  if (!settings) {
+    return resolveVideoAspect(null);
+  }
+
+  return resolveVideoAspect({ height: settings.height ?? 0, width: settings.width ?? 0 });
+}
+
+/**
+ * Keeps a tile box on the source instead of a hard-coded 16/9. The capture
+ * settings give the box before the first frame arrives; the element's own
+ * `resize` event corrects it when the publisher rotates the device.
+ */
+export function useVideoSourceAspect(track: LocalVideoTrack | RemoteVideoTrack | null) {
+  const [state, setState] = useState(() => ({
+    aspect: readTrackSourceAspect(track),
+    track,
+  }));
+  const setAspect = useCallback(
+    (aspect: number) => {
+      setState((current) => (current.track === track ? { ...current, aspect } : current));
+    },
+    [track],
+  );
+
+  if (state.track !== track) {
+    const nextState = { aspect: readTrackSourceAspect(track), track };
+    setState(nextState);
+    return [nextState.aspect, setAspect] as const;
+  }
+
+  return [state.aspect, setAspect] as const;
+}
+
+export function ScreenShareVideo({
+  onSourceAspectChange,
+  track,
+}: {
+  onSourceAspectChange?: (aspect: number) => void;
+  track: LocalVideoTrack | RemoteVideoTrack | null;
+}) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
@@ -371,13 +427,24 @@ export function ScreenShareVideo({ track }: { track: LocalVideoTrack | RemoteVid
       return;
     }
 
+    const reportAspect = () => {
+      onSourceAspectChange?.(
+        resolveVideoAspect({ height: video.videoHeight, width: video.videoWidth }),
+      );
+    };
+
     track.attach(video);
     video.play().catch(() => undefined);
+    video.addEventListener("loadedmetadata", reportAspect);
+    video.addEventListener("resize", reportAspect);
+    reportAspect();
 
     return () => {
+      video.removeEventListener("loadedmetadata", reportAspect);
+      video.removeEventListener("resize", reportAspect);
       track.detach(video);
     };
-  }, [track]);
+  }, [onSourceAspectChange, track]);
 
   return (
     <video
@@ -392,9 +459,13 @@ export function ScreenShareVideo({ track }: { track: LocalVideoTrack | RemoteVid
 
 export function ParticipantCameraVideo({
   isLocal,
+  onSourceAspectChange,
+  sizeClass = "stage",
   track,
 }: {
   isLocal: boolean;
+  onSourceAspectChange?: (aspect: number) => void;
+  sizeClass?: VideoSizeClass;
   track: LocalVideoTrack | RemoteVideoTrack;
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -404,15 +475,22 @@ export function ParticipantCameraVideo({
       rotation: state.cameraPreferences.rotation,
     })),
   );
+  // The mirror preference only ever describes the local front-facing preview, so
+  // it reaches the shared rule as a facing mode and can never flip a remote tile.
+  const mirrored = resolveMirror({
+    facingMode: mirrorPreview ? "user" : "environment",
+    isLocal,
+  });
+  const fit = resolveVideoFit({ sizeClass });
   const localPreviewStyle = useMemo<CSSProperties | undefined>(() => {
     if (!isLocal) {
       return undefined;
     }
 
     return {
-      transform: `scaleX(${mirrorPreview ? -1 : 1}) rotate(${rotation}deg)`,
+      transform: `scaleX(${mirrored ? -1 : 1}) rotate(${rotation}deg)`,
     };
-  }, [isLocal, mirrorPreview, rotation]);
+  }, [isLocal, mirrored, rotation]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -420,19 +498,31 @@ export function ParticipantCameraVideo({
       return;
     }
 
+    const reportAspect = () => {
+      onSourceAspectChange?.(
+        resolveVideoAspect({ height: video.videoHeight, width: video.videoWidth }),
+      );
+    };
+
     track.attach(video);
     video.play().catch(() => undefined);
+    video.addEventListener("loadedmetadata", reportAspect);
+    video.addEventListener("resize", reportAspect);
+    reportAspect();
 
     return () => {
+      video.removeEventListener("loadedmetadata", reportAspect);
+      video.removeEventListener("resize", reportAspect);
       track.detach(video);
     };
-  }, [track]);
+  }, [onSourceAspectChange, track]);
 
   return (
     <video
       autoPlay
-      className="h-full w-full bg-black object-cover"
+      className={cn("h-full w-full bg-black", fit === "cover" ? "object-cover" : "object-contain")}
       data-testid="voice-participant-camera-video"
+      data-video-fit={fit}
       muted={isLocal}
       playsInline
       ref={videoRef}
@@ -454,6 +544,13 @@ export function VoiceParticipantTile({
   const avatarGlowStyle = getAvatarGlowStyle(participant);
   const cameraTrack =
     participant.isCameraEnabled && participant.cameraTrack ? participant.cameraTrack : null;
+  const cameraPublication = participant.cameraPublication;
+
+  // A grid card is a readable surface, not a corner preview: it asks for the top
+  // layer while it holds a camera and stops asking when the camera goes away.
+  useEffect(() => {
+    setVoiceVideoQualityCeiling(cameraPublication, { isStage: true });
+  }, [cameraPublication]);
 
   return (
     <article
@@ -831,6 +928,22 @@ export function ScreenShareStage({
   const canFocusCamera = Boolean(activeCameraParticipant && activeCameraTrack);
   const primaryFocus: VoiceStageFocus =
     stageFocus === "camera" && canFocusCamera ? "camera" : "screen";
+  // Both picture-in-picture boxes follow their source, so a portrait phone is
+  // previewed portrait instead of being cropped into a 16/9 slot.
+  const [cameraPipAspect, setCameraPipAspect] = useVideoSourceAspect(activeCameraTrack);
+  const [screenPipAspect, setScreenPipAspect] = useVideoSourceAspect(activeShare?.track ?? null);
+  const activeCameraPublication = activeCameraParticipant?.cameraPublication ?? null;
+  const activeSharePublication = activeShare?.publication ?? null;
+
+  // Whichever surface holds the stage asks for the top layer; the one demoted to
+  // the corner preview gives it back.
+  useEffect(() => {
+    setVoiceVideoQualityCeiling(activeCameraPublication, { isStage: primaryFocus === "camera" });
+  }, [activeCameraPublication, primaryFocus]);
+
+  useEffect(() => {
+    setVoiceVideoQualityCeiling(activeSharePublication, { isStage: primaryFocus === "screen" });
+  }, [activeSharePublication, primaryFocus]);
 
   return (
     <div
@@ -955,9 +1068,14 @@ export function ScreenShareStage({
                 <Video className="h-3 w-3" />
                 {t("voice.screenShare.cameraPreview")}
               </span>
-              <div className="aspect-video">
+              <div
+                data-testid="voice-stage-camera-pip-frame"
+                style={{ aspectRatio: cameraPipAspect }}
+              >
                 <ParticipantCameraVideo
                   isLocal={activeCameraParticipant.isLocal}
+                  onSourceAspectChange={setCameraPipAspect}
+                  sizeClass="thumbnail"
                   track={activeCameraTrack}
                 />
               </div>
@@ -978,9 +1096,15 @@ export function ScreenShareStage({
                 <MonitorUp className="h-3 w-3" />
                 {t("voice.screenShare.focusScreen")}
               </span>
-              <div className="aspect-video">
+              <div
+                data-testid="voice-stage-screen-pip-frame"
+                style={{ aspectRatio: screenPipAspect }}
+              >
                 {activeShare.track ? (
-                  <ScreenShareVideo track={activeShare.track} />
+                  <ScreenShareVideo
+                    onSourceAspectChange={setScreenPipAspect}
+                    track={activeShare.track}
+                  />
                 ) : (
                   <div className="flex h-full items-center justify-center bg-[hsl(var(--surface-soft)/0.42)] text-white">
                     <MonitorUp className="h-6 w-6 opacity-70" />

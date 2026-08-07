@@ -4,6 +4,7 @@ import { AppState } from "react-native";
 import {
   LocalAudioTrack,
   LocalVideoTrack,
+  RemoteAudioTrack,
   Room,
   RoomEvent,
   Track,
@@ -44,6 +45,8 @@ import {
 import {
   getMobileScreenShareCaptureOptions,
   getMobileScreenSharePublishOptions,
+  normalizeMobileScreenShareQualityId,
+  setPreferredMobileScreenShareQualityId,
 } from "./mobile-screen-share";
 import {
   MOBILE_SCREEN_SHARE_BACKGROUND_STOP_MESSAGE,
@@ -57,6 +60,10 @@ import {
   MOBILE_VOICE_LEVEL_CHANGE_THRESHOLD,
   MOBILE_VOICE_LEVEL_INTERVAL_MS,
 } from "./mobile-voice-lifecycle-contract";
+import {
+  resumeRemoteVideoFromBackground,
+  suspendRemoteVideoForBackground,
+} from "./mobile-remote-video-background";
 import { shouldSuspendVoiceMediaOnAppStateChange } from "./mobile-voice-background-media";
 import {
   createInitialMobilePushToTalkState,
@@ -71,9 +78,16 @@ import {
 import { requestMobileVoicePermissionAfterUserAction } from "./mobile-voice-runtime";
 import type { MobileVoiceStateParticipant } from "@wizards/types";
 import {
+  DEFAULT_MOBILE_CAMERA_FACING_MODE,
   getMobileCameraCaptureOptions,
   getNextMobileCameraFacingMode,
 } from "./mobile-camera-contract";
+import {
+  enableMobileCameraWithCodecFallback,
+  getMobileCameraRoomDefaults,
+  type MobileCameraVideoCodec,
+} from "./mobile-video-quality";
+import { getMobileVoiceRoomSubscriptionOptions } from "./mobile-video-subscription";
 import {
   DEFAULT_MOBILE_VOICE_DEVICE_PREFERENCES,
   sanitizeMobileVoiceDeviceId,
@@ -82,6 +96,15 @@ import {
   type MobileVoiceDevicePreferences,
 } from "./mobile-voice-device-contract";
 import { hasMobileVoiceAudioRouteInputChanged } from "./mobile-voice-audio-route";
+import {
+  createMobileVoiceAudioActivityFromPeer,
+  getFreshMobileVoiceAudioActivity,
+  measureMobileVoiceAudioActivity,
+  readMobileVoiceAudioLevel,
+  type MobileVoiceAudioActivity,
+  type MobileVoiceAudioLevelDirection,
+  type MobileVoiceAudioStatsReport,
+} from "./mobile-voice-audio-meter";
 
 /**
  * How often a connected room re-reads the platform's output list. Plugging a
@@ -214,9 +237,85 @@ function getScreenShareTrackRef(
   };
 }
 
+type MobileVoiceAudioLevelSource = {
+  direction: MobileVoiceAudioLevelDirection;
+  isMuted: boolean;
+  readStats: () => Promise<MobileVoiceAudioStatsReport | null>;
+  userId: string;
+};
+
+/**
+ * One stats reader per live microphone track. Muted publishers are still listed
+ * so their entry is zeroed instead of decaying through the release hold, and a
+ * participant with no readable sender/receiver is skipped so the LiveKit value
+ * keeps driving that avatar.
+ */
+function collectMobileVoiceAudioLevelSources(room: Room): MobileVoiceAudioLevelSource[] {
+  const sources: MobileVoiceAudioLevelSource[] = [];
+  const participants: Participant[] = [
+    room.localParticipant,
+    ...Array.from(room.remoteParticipants.values()),
+  ];
+
+  for (const participant of participants) {
+    const publication = participant.getTrackPublication(Track.Source.Microphone);
+    const track = publication?.track;
+    if (!publication || !track) {
+      continue;
+    }
+
+    const userId = participantIdentityToUserId(participant.identity);
+    const isMuted = publication.isMuted;
+
+    if (track instanceof LocalAudioTrack) {
+      const sender = track.sender;
+      if (sender) {
+        sources.push({
+          direction: "outbound",
+          isMuted,
+          readStats: () => sender.getStats() as Promise<MobileVoiceAudioStatsReport>,
+          userId,
+        });
+      }
+      continue;
+    }
+
+    if (track instanceof RemoteAudioTrack) {
+      const receiver = track.receiver;
+      if (receiver) {
+        sources.push({
+          direction: "inbound",
+          isMuted,
+          readStats: () => receiver.getStats() as Promise<MobileVoiceAudioStatsReport>,
+          userId,
+        });
+      }
+    }
+  }
+
+  return sources;
+}
+
+async function readMobileVoiceAudioLevelForSource(
+  source: MobileVoiceAudioLevelSource,
+): Promise<number | null> {
+  if (source.isMuted) {
+    return 0;
+  }
+
+  try {
+    return readMobileVoiceAudioLevel(await source.readStats(), source.direction);
+  } catch {
+    // A track torn down mid-read rejects; the LiveKit value covers that avatar
+    // until the next tick finds a live sender again.
+    return null;
+  }
+}
+
 function mapLiveKitParticipantToRoomParticipant(
   participant: Participant,
   currentUser: MobileSessionUser,
+  measuredActivity?: MobileVoiceAudioActivity | null,
 ): MobileVoiceRoomParticipant {
   const userId = participantIdentityToUserId(participant.identity);
   const isSelf = userId === currentUser.id;
@@ -231,15 +330,20 @@ function mapLiveKitParticipantToRoomParticipant(
       ? participant.name.trim()
       : null;
 
+  const isMuted = microphonePublication ? microphonePublication.isMuted : false;
+  // A measured level is always fresher than `participant.isSpeaking`, which the
+  // SFU only recomputes every few hundred milliseconds, so it wins outright.
+  const measured = isMuted ? null : measuredActivity;
+
   const roomParticipant = {
-    audioLevel: toBoundedAudioLevel(participant.audioLevel),
+    audioLevel: measured ? measured.audioLevel : toBoundedAudioLevel(participant.audioLevel),
     avatarUrl: isSelf ? currentUser.avatarUrl : null,
     displayName: isSelf ? currentUser.displayName : liveKitName,
     isCameraEnabled: participant.isCameraEnabled,
-    isMuted: microphonePublication ? microphonePublication.isMuted : false,
+    isMuted,
     isScreenSharing: Boolean(screenSharePublication?.isSubscribed || screenSharePublication),
     isSelf,
-    isSpeaking: participant.isSpeaking,
+    isSpeaking: isMuted ? false : (measured?.isSpeaking ?? participant.isSpeaking),
     // LiveKit stamps a join time on every participant; it anchors stable stage
     // order so a tile never jumps pages just because its owner started speaking.
     joinedAt: participant.joinedAt instanceof Date ? participant.joinedAt.getTime() : undefined,
@@ -271,12 +375,22 @@ function mergeLiveKitParticipants(
   currentUser: MobileSessionUser,
   current: readonly MobileVoiceRoomParticipant[],
   room: Room,
+  audioActivity: ReadonlyMap<string, MobileVoiceAudioActivity>,
 ): MobileVoiceRoomParticipant[] {
+  const now = Date.now();
+  const toParticipant = (participant: Participant) =>
+    mapLiveKitParticipantToRoomParticipant(
+      participant,
+      currentUser,
+      getFreshMobileVoiceAudioActivity(
+        audioActivity.get(participantIdentityToUserId(participant.identity)),
+        now,
+      ),
+    );
+
   const participants = [
-    mapLiveKitParticipantToRoomParticipant(room.localParticipant, currentUser),
-    ...Array.from(room.remoteParticipants.values()).map((participant) =>
-      mapLiveKitParticipantToRoomParticipant(participant, currentUser),
-    ),
+    toParticipant(room.localParticipant),
+    ...Array.from(room.remoteParticipants.values()).map(toParticipant),
   ];
 
   return mergeMobileVoiceRoomParticipants(current, participants);
@@ -341,9 +455,16 @@ export function useMobileVoiceRoom({
   const [pushToTalkState, setPushToTalkState] = useState<MobilePushToTalkState>(
     createInitialMobilePushToTalkState,
   );
+  // Every camera publish carries the facing mode, so the stored direction and the
+  // physical camera cannot drift apart and make the first flip a no-op.
+  const cameraFacingMode = roomState.cameraFacingMode;
   const roomRef = useRef<Room | null>(null);
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const levelTickerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  /** Measured (or peer-reported) speaking state per user, keyed by user id. */
+  const audioActivityRef = useRef<Map<string, MobileVoiceAudioActivity>>(new Map());
+  /** Guards the stats batch so a slow device throttles itself by dropping ticks. */
+  const audioSampleInFlightRef = useRef(false);
   const sessionIdRef = useRef<string | null>(null);
   const sessionModeRef = useRef<"channel" | "direct" | null>(null);
   const joinPendingRef = useRef(false);
@@ -356,6 +477,10 @@ export function useMobileVoiceRoom({
   // permission, iOS broadcast picker) is up. A counter, not a flag, so an
   // overlapping camera+screen flow cannot end the guard early.
   const captureConsentDepthRef = useRef(0);
+  // Track sids this hook disabled when the app went to the background. Only
+  // these are re-enabled on the way back; a publication someone else disabled is
+  // never resumed on our behalf.
+  const backgroundSuspendedRemoteVideoSidsRef = useRef<Set<string>>(new Set());
 
   const startSessionGeneration = useCallback(() => {
     sessionGenerationRef.current = advanceMobileVoiceSessionGeneration(
@@ -384,6 +509,9 @@ export function useMobileVoiceRoom({
 
   useEffect(() => {
     voiceDevicePreferencesRef.current = voiceDevicePreferences;
+    // Mirrored into the screen-share contract so even a call site that publishes
+    // without an explicit quality still honours what the user picked.
+    setPreferredMobileScreenShareQualityId(voiceDevicePreferences.screenShareQualityId);
     setRoomState((current) => ({
       ...current,
       noiseSuppressionEnabled: voiceDevicePreferences.noiseSuppressionEnabled,
@@ -402,6 +530,9 @@ export function useMobileVoiceRoom({
   }, []);
 
   const clearLevelTicker = useCallback(() => {
+    audioActivityRef.current.clear();
+    audioSampleInFlightRef.current = false;
+
     if (!levelTickerRef.current) {
       return;
     }
@@ -428,7 +559,12 @@ export function useMobileVoiceRoom({
           return current;
         }
 
-        const participants = mergeLiveKitParticipants(user, current.participants, room);
+        const participants = mergeLiveKitParticipants(
+          user,
+          current.participants,
+          room,
+          audioActivityRef.current,
+        );
         const selfCameraEnabled = room.localParticipant.isCameraEnabled;
         const selfMuted = !room.localParticipant.isMicrophoneEnabled;
         const selfScreenShareEnabled = isLocalParticipantScreenSharing(room);
@@ -673,6 +809,7 @@ export function useMobileVoiceRoom({
         // Room disconnect is best-effort; server state cleanup is still attempted.
       } finally {
         roomRef.current = null;
+        backgroundSuspendedRemoteVideoSidsRef.current.clear();
       }
 
       try {
@@ -706,14 +843,84 @@ export function useMobileVoiceRoom({
     startSessionGeneration,
   ]);
 
+  /**
+   * Reads every live microphone's WebRTC audio level and folds it into the
+   * activity map the participant snapshot renders from. One batched read per
+   * tick; a tick that arrives while the previous batch is still resolving is
+   * dropped, so a slow device degrades to a lower sample rate instead of piling
+   * up bridge calls.
+   */
+  const sampleRoomAudioActivity = useCallback(
+    async (generation: number) => {
+      const room = roomRef.current;
+      if (!room || audioSampleInFlightRef.current || !isCurrentSessionGeneration(generation)) {
+        return;
+      }
+
+      const sources = collectMobileVoiceAudioLevelSources(room);
+      if (sources.length === 0) {
+        audioActivityRef.current.clear();
+        return;
+      }
+
+      audioSampleInFlightRef.current = true;
+      try {
+        const readings = await Promise.all(
+          sources.map(async (source) => ({
+            level: await readMobileVoiceAudioLevelForSource(source),
+            source,
+          })),
+        );
+
+        if (roomRef.current !== room || !isCurrentSessionGeneration(generation)) {
+          return;
+        }
+
+        const now = Date.now();
+        const activity = audioActivityRef.current;
+        const liveUserIds = new Set(sources.map((source) => source.userId));
+
+        for (const { level, source } of readings) {
+          if (level === null) {
+            // No level on this platform: drop the stale entry so the LiveKit
+            // value takes the avatar back instead of freezing it mid-state.
+            activity.delete(source.userId);
+            continue;
+          }
+
+          activity.set(
+            source.userId,
+            measureMobileVoiceAudioActivity({
+              isMuted: source.isMuted,
+              level,
+              now,
+              previous: activity.get(source.userId),
+            }),
+          );
+        }
+
+        for (const userId of [...activity.keys()]) {
+          if (!liveUserIds.has(userId)) {
+            activity.delete(userId);
+          }
+        }
+      } finally {
+        audioSampleInFlightRef.current = false;
+      }
+    },
+    [isCurrentSessionGeneration],
+  );
+
   const startLevelTicker = useCallback(
     (generation: number) => {
       clearLevelTicker();
       levelTickerRef.current = setInterval(() => {
-        updateParticipantsFromRoom(generation);
+        void sampleRoomAudioActivity(generation).finally(() => {
+          updateParticipantsFromRoom(generation);
+        });
       }, MOBILE_VOICE_LEVEL_INTERVAL_MS);
     },
-    [clearLevelTicker, updateParticipantsFromRoom],
+    [clearLevelTicker, sampleRoomAudioActivity, updateParticipantsFromRoom],
   );
 
   const startHeartbeat = useCallback(
@@ -754,6 +961,7 @@ export function useMobileVoiceRoom({
       if (roomRef.current === room) {
         roomRef.current = null;
       }
+      backgroundSuspendedRemoteVideoSidsRef.current.clear();
 
       void AudioSession.stopAudioSession().catch(() => undefined);
 
@@ -895,7 +1103,9 @@ export function useMobileVoiceRoom({
     }
 
     try {
-      await room.localParticipant.setCameraEnabled(true);
+      const publishResult = await enableMobileCameraWithCodecFallback(room.localParticipant, {
+        facingMode: cameraFacingMode,
+      });
       if (!isCurrentSessionGeneration(generation) || roomRef.current !== room) {
         return false;
       }
@@ -905,6 +1115,7 @@ export function useMobileVoiceRoom({
       updateParticipantsFromRoom();
       setRoomState((current) => ({
         ...current,
+        cameraVideoCodec: publishResult.codec,
         errorMessage: null,
         selfCameraEnabled: true,
         updatedAt: Date.now(),
@@ -925,6 +1136,7 @@ export function useMobileVoiceRoom({
       return false;
     }
   }, [
+    cameraFacingMode,
     cameraPermissionDeniedMessage,
     directCallVideoErrorMessage,
     isCurrentSessionGeneration,
@@ -1045,13 +1257,19 @@ export function useMobileVoiceRoom({
           return false;
         }
 
+        const cameraRoomDefaults = getMobileCameraRoomDefaults(DEFAULT_MOBILE_CAMERA_FACING_MODE);
         const room = new Room({
-          adaptiveStream: true,
-          dynacast: true,
+          // A DM call shows one fullscreen remote video, so adaptive stream only
+          // costs sharpness there; a channel room keeps it.
+          ...getMobileVoiceRoomSubscriptionOptions({ sessionMode: input.sessionMode }),
+          publishDefaults: cameraRoomDefaults.publishDefaults,
+          videoCaptureDefaults: cameraRoomDefaults.videoCaptureDefaults,
         });
         const unbindRoomEvents = bindRoomEvents(room, generation);
 
         roomRef.current = room;
+        // A fresh room carries none of the previous room's track sids.
+        backgroundSuspendedRemoteVideoSidsRef.current.clear();
         await AudioSession.configureAudio({
           android: {
             audioTypeOptions: AndroidAudioTypePresets.communication,
@@ -1088,12 +1306,16 @@ export function useMobileVoiceRoom({
           return false;
         }
 
+        let cameraVideoCodec: MobileCameraVideoCodec | null = null;
         if (video) {
           directFailureMessage = directCallVideoErrorMessage;
-          await room.localParticipant.setCameraEnabled(true);
+          const publishResult = await enableMobileCameraWithCodecFallback(room.localParticipant, {
+            facingMode: DEFAULT_MOBILE_CAMERA_FACING_MODE,
+          });
           if (!room.localParticipant.isCameraEnabled) {
             throw new Error("Direct-call camera publication did not become active.");
           }
+          cameraVideoCodec = publishResult.codec;
         }
         if (!isCurrentSessionGeneration(generation)) {
           return false;
@@ -1116,6 +1338,7 @@ export function useMobileVoiceRoom({
 
           return {
             ...transitionMobileVoiceRoomConnectionState(current, "connected", Date.now()),
+            cameraVideoCodec,
             channelId,
             channelName,
             conversationId,
@@ -1124,6 +1347,7 @@ export function useMobileVoiceRoom({
               user,
               mergeServerParticipants(user, current.participants, serverParticipants),
               room,
+              audioActivityRef.current,
             ),
             noiseSuppressionEnabled: voiceDevicePreferencesRef.current.noiseSuppressionEnabled,
             screenShareStatus: "off",
@@ -1269,8 +1493,21 @@ export function useMobileVoiceRoom({
 
     const nextEnabled = !room.localParticipant.isCameraEnabled;
     try {
-      await room.localParticipant.setCameraEnabled(nextEnabled);
+      let nextCameraVideoCodec: MobileCameraVideoCodec | null = null;
+      if (nextEnabled) {
+        const publishResult = await enableMobileCameraWithCodecFallback(room.localParticipant, {
+          facingMode: cameraFacingMode,
+        });
+        nextCameraVideoCodec = publishResult.codec;
+      } else {
+        await room.localParticipant.setCameraEnabled(false);
+      }
       updateParticipantsFromRoom();
+      setRoomState((current) => ({
+        ...current,
+        cameraVideoCodec: nextCameraVideoCodec,
+        updatedAt: Date.now(),
+      }));
       if (sessionIdRef.current && sessionModeRef.current === "channel") {
         void sendMobileVoiceHeartbeat(apiClient, {
           selfVideo: nextEnabled,
@@ -1284,7 +1521,7 @@ export function useMobileVoiceRoom({
         updatedAt: Date.now(),
       }));
     }
-  }, [apiClient, roomState.status, updateParticipantsFromRoom]);
+  }, [apiClient, cameraFacingMode, roomState.status, updateParticipantsFromRoom]);
 
   const flipCamera = useCallback(async () => {
     const room = roomRef.current;
@@ -1351,11 +1588,13 @@ export function useMobileVoiceRoom({
       updatedAt: Date.now(),
     }));
 
+    const screenShareQualityId = voiceDevicePreferencesRef.current.screenShareQualityId;
+
     try {
       await room.localParticipant.setScreenShareEnabled(
         nextEnabled,
-        getMobileScreenShareCaptureOptions(),
-        getMobileScreenSharePublishOptions(),
+        getMobileScreenShareCaptureOptions(screenShareQualityId),
+        getMobileScreenSharePublishOptions(screenShareQualityId),
       );
       updateParticipantsFromRoom();
       sendScreenShareHeartbeat(nextEnabled);
@@ -1467,6 +1706,23 @@ export function useMobileVoiceRoom({
     [roomState.availableAudioOutputs, selectAudioDeviceOutput],
   );
 
+  /**
+   * Screen-share quality is a device preference, not room state: it survives the
+   * call and applies to the next share. A live share is not restarted here — the
+   * user chose a ceiling, not a reason to drop the stream mid-sentence.
+   */
+  const selectScreenShareQuality = useCallback(
+    (qualityId: unknown) => {
+      const normalized = normalizeMobileScreenShareQualityId(qualityId);
+      setPreferredMobileScreenShareQualityId(normalized);
+      commitVoiceDevicePreferences({
+        ...voiceDevicePreferencesRef.current,
+        screenShareQualityId: normalized,
+      });
+    },
+    [commitVoiceDevicePreferences],
+  );
+
   const selectNoiseSuppression = useCallback(
     async (enabled: boolean) => {
       const room = roomRef.current;
@@ -1531,6 +1787,18 @@ export function useMobileVoiceRoom({
     ({ audioLevel, channelId, isMuted, isSpeaking, userId }: SyncServerVoiceAudioLevelInput) => {
       const generation = sessionGenerationRef.current;
       const level = toBoundedAudioLevel(audioLevel);
+
+      // Without this the level ticker would overwrite the peer's fast update
+      // with the lagging LiveKit value on the very next tick.
+      audioActivityRef.current.set(
+        userId,
+        createMobileVoiceAudioActivityFromPeer({
+          audioLevel: level,
+          isMuted,
+          isSpeaking,
+          now: Date.now(),
+        }),
+      );
 
       setRoomState((current) => {
         if (
@@ -1621,7 +1889,15 @@ export function useMobileVoiceRoom({
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextState) => {
+      const suspendedRemoteVideoSids = backgroundSuspendedRemoteVideoSidsRef.current;
+
       if (nextState === "active") {
+        const activeRoom = roomRef.current;
+        if (activeRoom) {
+          resumeRemoteVideoFromBackground(activeRoom, suspendedRemoteVideoSids);
+        }
+        // Cleared either way: a sid we cannot resume now is not ours to resume later.
+        suspendedRemoteVideoSids.clear();
         return;
       }
 
@@ -1647,6 +1923,13 @@ export function useMobileVoiceRoom({
         })
       ) {
         return;
+      }
+
+      // livekit's own `pauseVideoInBackground` never fires on React Native, so
+      // remote video is stopped here instead. Runs before the local teardown so
+      // the download stops even when nothing local is publishing.
+      for (const trackSid of suspendRemoteVideoForBackground(room)) {
+        suspendedRemoteVideoSids.add(trackSid);
       }
 
       if (room.localParticipant.isCameraEnabled) {
@@ -1718,6 +2001,7 @@ export function useMobileVoiceRoom({
       }
       sessionModeRef.current = null;
       roomRef.current = null;
+      backgroundSuspendedRemoteVideoSidsRef.current.clear();
       void AudioSession.stopAudioSession().catch(() => undefined);
     },
     [apiClient, clearHeartbeat, clearLevelTicker, pushToTalkController, startSessionGeneration],
@@ -1737,10 +2021,12 @@ export function useMobileVoiceRoom({
     requestMicrophonePermission,
     refreshVoiceDevices,
     roomState,
+    screenShareQualityId: voiceDevicePreferences.screenShareQualityId,
     selectAudioDeviceOutput,
     selectAudioInput,
     selectAudioOutput,
     selectNoiseSuppression,
+    selectScreenShareQuality,
     syncParticipantAudioLevelFromServer,
     syncParticipantsFromServer,
     toggleCamera,

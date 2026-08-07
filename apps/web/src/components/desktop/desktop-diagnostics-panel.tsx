@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useSocket } from "@/hooks/use-socket";
+import { launchDesktopControlSection } from "@/components/desktop/desktop-control-launch";
 import {
-  exportDesktopDiagnosticsBundle,
   getDesktopCompanionSurfacesStatus,
   getDesktopPlatformCapabilities,
   getDesktopVoiceShortcutStatus,
   hideDesktopGameOverlaySurface,
+  openDesktopControl,
   repairDesktopGameOverlaySurface,
   refreshDesktopCompanionSurfaces,
   resolveDesktopGameOverlayHealth,
@@ -15,7 +16,6 @@ import {
   type DesktopPlatformCapabilities,
   type DesktopPlatformFeature,
   type DesktopPlatformFeatureStatus,
-  type DesktopSupportBundle,
   type DesktopVoiceShortcutStatus,
 } from "@/lib/desktop/controls";
 import {
@@ -149,24 +149,6 @@ async function readNotificationPermission() {
   }
 
   return "unknown";
-}
-
-function saveDiagnosticsBundle(bundle: DesktopSupportBundle) {
-  const generatedAt = new Date(bundle.generatedAtMs || Date.now())
-    .toISOString()
-    .replace(/[:.]/g, "-");
-  const blob = new Blob([JSON.stringify(bundle, null, 2)], {
-    type: "application/json;charset=utf-8",
-  });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = `whispr-desktop-diagnostics-${generatedAt}.json`;
-  anchor.rel = "noopener";
-  document.body.append(anchor);
-  anchor.click();
-  anchor.remove();
-  window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 export function DesktopDiagnosticsPanel() {
@@ -346,43 +328,17 @@ export function DesktopDiagnosticsPanel() {
       return;
     }
 
-    setDiagnosticsExportPending(true);
     setDiagnosticsExportError(null);
     setDiagnosticsExportSuccess(null);
-    const startedAt = performance.now();
-
-    try {
-      const bundle = await exportDesktopDiagnosticsBundle({
-        networkStatus: isOnline ? "online" : "offline",
-        notificationPermission,
-        overlayHealth,
-        socketStatus: socketConnected ? "connected" : isOnline ? "reconnecting" : "disconnected",
-        userAgent: navigator.userAgent,
-        voiceStatus,
-      });
-
-      if (!bundle) {
-        throw new Error(t("desktop.diagnostics.supportBundle.error"));
-      }
-
-      saveDiagnosticsBundle(bundle);
+    const state = await launchDesktopControlSection(
+      "diagnostics",
+      openDesktopControl,
+      (launchState) => setDiagnosticsExportPending(launchState === "pending"),
+    );
+    if (state === "idle") {
       setDiagnosticsExportSuccess(t("desktop.diagnostics.supportBundle.success"));
-      recordDesktopPerformanceMetric({
-        durationMs: performance.now() - startedAt,
-        operation: "desktop_diagnostics_export",
-        result: "success",
-      });
-    } catch (error) {
-      setDiagnosticsExportError(
-        formatDesktopError(error, t("desktop.diagnostics.supportBundle.error")),
-      );
-      recordDesktopPerformanceMetric({
-        durationMs: performance.now() - startedAt,
-        operation: "desktop_diagnostics_export",
-        result: "failure",
-      });
-    } finally {
-      setDiagnosticsExportPending(false);
+    } else {
+      setDiagnosticsExportError(t("desktop.diagnostics.supportBundle.error"));
     }
   };
 

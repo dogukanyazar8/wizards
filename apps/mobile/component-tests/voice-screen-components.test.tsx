@@ -147,7 +147,7 @@ describe("mobile voice component rendering", () => {
     expect(view.getByTestId("mobile-voice-noise-toggle")).toBeTruthy();
     expect(view.queryByTestId("mobile-voice-noise-badge")).toBeNull();
     expect(view.queryByTestId("mobile-voice-chat")).toBeNull();
-    expect(view.queryByTestId("mobile-voice-settings")).toBeNull();
+    expect(view.getByTestId("mobile-voice-settings")).toBeTruthy();
     expect(view.queryByText(copy.voiceRoomPermissionFootnote)).toBeNull();
   });
 
@@ -617,6 +617,7 @@ describe("mobile voice component rendering", () => {
     } as MobileVoiceRoomParticipant["cameraTrackRef"];
     const view = await render(
       <MobileVoiceCameraGrid
+        cameraFacingMode="user"
         canFlip
         onFlip={() => undefined}
         participants={[
@@ -628,6 +629,150 @@ describe("mobile voice component rendering", () => {
     expect(view.getByTestId("mobile-voice-camera-grid")).toBeTruthy();
     expect(view.getByTestId("mobile-voice-camera-flip")).toBeTruthy();
     expect(view.getByTestId("mobile-livekit-video-track")).toBeTruthy();
+    // The publisher's own front camera is the only mirrored surface.
+    expect(view.getByTestId("mobile-livekit-video-track").props.mirror).toBe(true);
+  });
+
+  it("never mirrors a remote tile or a rear-facing self view", async () => {
+    const trackRef = {
+      participant: {},
+      publication: {},
+      source: "camera",
+    } as MobileVoiceRoomParticipant["cameraTrackRef"];
+    const rearView = await render(
+      <MobileVoiceCameraGrid
+        cameraFacingMode="environment"
+        canFlip
+        onFlip={() => undefined}
+        participants={[
+          createParticipant({ cameraTrackRef: trackRef, isCameraEnabled: true, isSelf: true }),
+        ]}
+      />,
+    );
+
+    expect(rearView.getByTestId("mobile-livekit-video-track").props.mirror).toBe(false);
+
+    const remoteView = await render(
+      <MobileVoiceCameraGrid
+        cameraFacingMode="user"
+        canFlip={false}
+        onFlip={() => undefined}
+        participants={[
+          createParticipant({
+            cameraTrackRef: trackRef,
+            isCameraEnabled: true,
+            isSelf: false,
+            userId: "remote-1",
+          }),
+        ]}
+      />,
+    );
+
+    expect(remoteView.getByTestId("mobile-livekit-video-track").props.mirror).toBe(false);
+  });
+
+  it("pins the visible stage page to the top layer and releases the page behind it", async () => {
+    // livekit's VideoQuality: LOW 0, MEDIUM 1, HIGH 2.
+    const setVideoQuality = Array.from({ length: 5 }, () => jest.fn());
+    const participants = setVideoQuality.map((mock, index) =>
+      createParticipant({
+        cameraTrackRef: {
+          participant: {},
+          publication: {
+            dimensions: { height: 720, width: 1280 },
+            isSubscribed: true,
+            setVideoQuality: mock,
+          },
+          source: "camera",
+        },
+        isCameraEnabled: true,
+        userId: `user-${index}`,
+        username: `user-${index}`,
+      } as Partial<MobileVoiceRoomParticipant>),
+    );
+
+    await renderVoiceScreen(
+      createVoiceScreenProps({
+        voiceRoomState: createConnectedVoiceRoom({ participants }),
+      }),
+    );
+
+    // Four tiles fit a page; the first four are on screen, the fifth is not.
+    expect(setVideoQuality[0]).toHaveBeenCalledWith(2);
+    expect(setVideoQuality[3]).toHaveBeenCalledWith(2);
+    expect(setVideoQuality[4]).toHaveBeenCalledWith(1);
+  });
+
+  it("skips a stage tile whose publication went away instead of throwing", async () => {
+    const participants = [
+      createParticipant({
+        cameraTrackRef: {
+          participant: {},
+          publication: {},
+          source: "camera",
+        },
+        isCameraEnabled: true,
+        userId: "user-no-publication",
+        username: "user-no-publication",
+      } as Partial<MobileVoiceRoomParticipant>),
+    ];
+
+    const view = await renderVoiceScreen(
+      createVoiceScreenProps({
+        voiceRoomState: createConnectedVoiceRoom({ participants }),
+      }),
+    );
+
+    expect(view.getByTestId("mobile-voice-stage")).toBeTruthy();
+  });
+
+  it("opens the settings sheet from the channel room header and refreshes devices first", async () => {
+    const onRefreshVoiceDevices = jest.fn(async () => undefined);
+    const view = await renderVoiceScreen(createVoiceScreenProps({ onRefreshVoiceDevices }));
+
+    expect(view.queryByTestId("mobile-voice-device-sheet-panel")).toBeNull();
+
+    await fireEvent.press(view.getByTestId("mobile-voice-settings"));
+
+    // Twice by design, same as the DM call: the press refreshes, then the sheet
+    // refreshes again on open so a device plugged in mid-call still shows up.
+    expect(onRefreshVoiceDevices).toHaveBeenCalledTimes(2);
+    expect(view.getByTestId("mobile-voice-device-sheet-panel")).toBeTruthy();
+  });
+
+  it("reaches the screen-share quality rows from the channel room", async () => {
+    const onSelectVoiceScreenShareQuality = jest.fn();
+    const view = await renderVoiceScreen(
+      createVoiceScreenProps({
+        onSelectVoiceScreenShareQuality,
+        voiceScreenShareQualityId: "h720fps30",
+      }),
+    );
+
+    await fireEvent.press(view.getByTestId("mobile-voice-settings"));
+
+    expect(view.getByTestId("mobile-voice-screen-share-quality-h720fps30")).toBeTruthy();
+    await fireEvent.press(view.getByTestId("mobile-voice-screen-share-quality-h1080fps30"));
+
+    expect(onSelectVoiceScreenShareQuality).toHaveBeenCalledWith("h1080fps30");
+  });
+
+  it("keeps the settings entry disabled until the room is connected", async () => {
+    const onRefreshVoiceDevices = jest.fn(async () => undefined);
+    const view = await renderVoiceScreen(
+      createVoiceScreenProps({
+        onRefreshVoiceDevices,
+        voiceRoomState: createConnectedVoiceRoom({ status: "connecting" }),
+      }),
+    );
+
+    const settings = view.getByTestId("mobile-voice-settings");
+    expect(settings.props.accessibilityState).toEqual(expect.objectContaining({ disabled: true }));
+
+    await fireEvent.press(settings);
+
+    expect(onRefreshVoiceDevices).not.toHaveBeenCalled();
+    expect(view.queryByTestId("mobile-voice-device-sheet-panel")).toBeNull();
   });
 
   it("renders device choices and a persisted noise toggle in the voice settings sheet", async () => {

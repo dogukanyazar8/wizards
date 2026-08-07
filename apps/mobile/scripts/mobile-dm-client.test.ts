@@ -24,10 +24,12 @@ import type { MobileApiClient, MobileApiRequestOptions } from "../src/api/mobile
 
 const validResponse = {
   conversation: {
+    iconUrl: null,
     id: "conversation-1",
     lastMessage: null,
     lastMessageAt: "2026-06-29T10:00:00.000Z",
     name: null,
+    ownerId: null,
     participants: [
       {
         avatarUrl: null,

@@ -43,10 +43,16 @@ describe("socket handshake attribution", () => {
   });
 });
 
+// Task 8 gave `joinServerRoomsForUser` a second Redis responsibility — writing
+// each joined server into its online-presence set — so this double now also
+// implements `ServerOnlinePresenceRedis` alongside the room-id cache surface
+// it already had.
 class MemoryServerRoomRedis {
   status = "ready";
   store = new Map<string, string>();
   setCalls: Array<{ key: string; ttlSeconds: number; value: string }> = [];
+  onlineSets = new Map<string, Set<string>>();
+  onlineExpireCalls: string[] = [];
 
   async get(key: string) {
     return this.store.get(key) ?? null;
@@ -57,6 +63,27 @@ class MemoryServerRoomRedis {
     this.store.set(key, value);
     this.setCalls.push({ key, ttlSeconds, value });
     return "OK";
+  }
+
+  async sadd(key: string, member: string) {
+    const set = this.onlineSets.get(key) ?? new Set<string>();
+    set.add(member);
+    this.onlineSets.set(key, set);
+    return 1;
+  }
+
+  async srem(key: string, member: string) {
+    this.onlineSets.get(key)?.delete(member);
+    return 1;
+  }
+
+  async scard(key: string) {
+    return this.onlineSets.get(key)?.size ?? 0;
+  }
+
+  async expire(key: string) {
+    this.onlineExpireCalls.push(key);
+    return 1;
   }
 }
 
@@ -175,21 +202,31 @@ describe("socket server room joins", () => {
         return memberships.map((serverId) => ({ serverId }));
       },
     };
+    const socket = {
+      data: {} as { onlineServerIds?: string[] },
+      join(room: string | string[]) {
+        joinedRooms.push(room);
+      },
+    };
 
-    await joinServerRoomsForUser(
-      {
-        join(room: string | string[]) {
-          joinedRooms.push(room);
-        },
-      },
-      "user-1",
-      {
-        redis: redis as never,
-        serverMemberDelegate,
-      },
-    );
+    await joinServerRoomsForUser(socket, "user-1", {
+      redis: redis as never,
+      serverMemberDelegate,
+    });
 
     assert.equal(findManyCalls, 1);
     assert.deepEqual(joinedRooms, [memberships.map((serverId) => `server:${serverId}`)]);
+
+    // Task 8: joining a server room also marks the user online in that
+    // server's Redis set, and remembers which servers this socket did that
+    // for so disconnect/presence handlers know what to unwind.
+    assert.deepEqual(socket.data.onlineServerIds, memberships);
+    for (const serverId of memberships) {
+      assert.deepEqual(redis.onlineSets.get(`server:${serverId}:online`), new Set(["user-1"]));
+    }
+    assert.deepEqual(
+      redis.onlineExpireCalls.sort(),
+      memberships.map((serverId) => `server:${serverId}:online`).sort(),
+    );
   });
 });

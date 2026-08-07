@@ -57,6 +57,11 @@ export const EN_MESSAGES = {
   "app.update.whatsNew": "What's new",
   "app.update.currentBuild": "Current build {build}",
   "app.update.latestBuild": "Latest build {build}",
+  "desktop.control.label": "Desktop Control",
+  "desktop.control.openError": "Desktop Control could not be opened.",
+  "desktop.control.opening": "Opening Desktop Control…",
+  "desktop.control.openShortcuts": "Manage in Desktop Control",
+  "desktop.control.openUpdates": "Open trusted Desktop Control",
   "desktop.update.badge": "Desktop update",
   "desktop.update.title": "A signed Whispr Desktop update is available",
   "desktop.update.description":
@@ -819,9 +824,9 @@ export const EN_MESSAGES = {
     "Opt in to global shortcuts and push-to-talk for the Whispr desktop app. Shortcuts are registered only for the exact combinations you choose.",
   "voice.settings.desktopShortcuts": "Enable global voice shortcuts",
   "voice.settings.desktopShortcutsDesc":
-    "Lets Whispr react to mute, deafen, and push-to-talk shortcuts while another app is focused.",
+    "Manage system-wide shortcuts in the trusted local Desktop Control window. For security, previous web shortcut settings are not imported; explicitly save them there to re-enable shortcuts.",
   "voice.settings.desktopShortcutsHelper":
-    "Global shortcuts are local to this desktop app, require a modifier key, and can be turned off anytime.",
+    "Desktop Control owns shortcut registration and recovery.",
   "voice.settings.desktopVoiceMini": "Show compact voice mini window",
   "voice.settings.desktopVoiceMiniDesc":
     "When you are in voice, Whispr can show a small always-on-top controller with sanitized participant state.",
@@ -1693,11 +1698,11 @@ export const EN_MESSAGES = {
   "desktop.diagnostics.shell.ready": "ready",
   "desktop.diagnostics.supportBundle.label": "Support bundle",
   "desktop.diagnostics.supportBundle.detail":
-    "Exports a local JSON snapshot with app, platform, overlay, shortcut, socket, and redacted native log diagnostics. Tokens, email addresses, and message content are not included.",
-  "desktop.diagnostics.supportBundle.button": "Export diagnostics",
-  "desktop.diagnostics.supportBundle.exporting": "Exporting...",
-  "desktop.diagnostics.supportBundle.success": "Diagnostics bundle downloaded.",
-  "desktop.diagnostics.supportBundle.error": "Whispr could not export the diagnostics bundle.",
+    "Open trusted local Desktop Control to export a native-only diagnostics bundle.",
+  "desktop.diagnostics.supportBundle.button": "Open Desktop Control",
+  "desktop.diagnostics.supportBundle.exporting": "Opening...",
+  "desktop.diagnostics.supportBundle.success": "Desktop Control opened.",
+  "desktop.diagnostics.supportBundle.error": "Whispr could not open Desktop Control.",
   "desktop.diagnostics.shortcuts.label": "Global shortcuts",
   "desktop.diagnostics.shortcuts.detail":
     "Reports only the registered action names and key combinations; no keystroke history is stored.",

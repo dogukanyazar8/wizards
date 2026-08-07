@@ -66,6 +66,22 @@ import type { MobileTheme } from "../../design/themes";
 import { useMobileBottomSystemSpacing } from "../use-mobile-bottom-system-spacing";
 import { MobileVoiceCameraGrid } from "../../voice/mobile-camera-grid";
 import {
+  DEFAULT_MOBILE_CAMERA_FACING_MODE,
+  type MobileCameraFacingMode,
+} from "../../voice/mobile-camera-contract";
+import {
+  resolveMirror,
+  resolveVideoAspect,
+  resolveVideoFit,
+  resolveVideoSizeClass,
+} from "../../voice/mobile-video-layout";
+import { setVoiceVideoQualityCeiling } from "../../voice/mobile-video-subscription";
+import {
+  DEFAULT_MOBILE_SCREEN_SHARE_QUALITY_ID,
+  type MobileScreenShareQualityId,
+} from "../../voice/mobile-screen-share";
+import { MobileVoiceSettingsSheet } from "../../voice/mobile-voice-settings-sheet";
+import {
   buildMobileVoiceStageTiles,
   getMobileVoiceStageMode,
   getMobileVoiceStageTileLayout,
@@ -101,6 +117,11 @@ export function VoiceScreen({
   onToggleVoiceCamera = async () => undefined,
   onToggleVoiceScreenShare = async () => undefined,
   onFlipVoiceCamera = async () => undefined,
+  onRefreshVoiceDevices = async () => undefined,
+  onSelectVoiceAudioInput = async () => undefined,
+  onSelectVoiceAudioOutputDevice = async () => undefined,
+  onSelectVoiceScreenShareQuality,
+  voiceScreenShareQualityId = DEFAULT_MOBILE_SCREEN_SHARE_QUALITY_ID,
   serverName = null,
   testID = "mobile-voice-screen",
 }: {
@@ -120,8 +141,10 @@ export function VoiceScreen({
   onSelectVoiceAudioInput?(id: string): Promise<void>;
   onSelectVoiceAudioOutputDevice?(id: string): Promise<void>;
   onSelectVoiceNoiseSuppression?(enabled: boolean): Promise<void>;
+  onSelectVoiceScreenShareQuality?(qualityId: MobileScreenShareQualityId): void;
   serverName?: string | null;
   testID?: string;
+  voiceScreenShareQualityId?: MobileScreenShareQualityId;
 }) {
   const styles = useVoiceScreenStyles();
   const theme = useVoiceRoomTheme();
@@ -129,7 +152,11 @@ export function VoiceScreen({
   const { showToast } = useToast();
   const [now, setNow] = useState(() => Date.now());
   const [inviteSheetVisible, setInviteSheetVisible] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const model = getMobileActiveVoiceRoomModel(voiceRoomState, serverName, now);
+  // Same gate the DM call uses: the device lists the sheet reads only exist once
+  // the room is up.
+  const isConnected = voiceRoomState.status === "connected";
   // The dock is the last row of the screen, so it carries the Android system-bar
   // reservation itself the way the app's bottom navigation bar does.
   const dockBottomInset = useMobileBottomSystemSpacing(12);
@@ -184,6 +211,11 @@ export function VoiceScreen({
     selection();
     setInviteSheetVisible(true);
   };
+  const handleOpenSettings = () => {
+    selection();
+    void onRefreshVoiceDevices();
+    setSettingsOpen(true);
+  };
   const screenShareBusy =
     voiceRoomState.screenShareStatus === "starting" ||
     voiceRoomState.screenShareStatus === "stopping";
@@ -232,6 +264,22 @@ export function VoiceScreen({
           <Ionicons color={theme.voiceRoom.accent} name="person-add-outline" size={15} />
           <Text style={styles.activeVoiceRoomInviteButtonText}>{copy.voiceRoomInviteAction}</Text>
         </Pressable>
+        <Pressable
+          accessibilityLabel={copy.voiceSettingsAction}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: !isConnected }}
+          disabled={!isConnected}
+          hitSlop={8}
+          onPress={handleOpenSettings}
+          style={({ pressed }) => [
+            styles.activeVoiceRoomHeaderIconButton,
+            !isConnected && styles.activeVoiceRoomControlDisabled,
+            pressed && isConnected && styles.actionButtonPressed,
+          ]}
+          testID="mobile-voice-settings"
+        >
+          <Ionicons color={theme.voiceRoom.accent} name="options-outline" size={15} />
+        </Pressable>
       </View>
 
       <ActiveVoiceRoomSessionStrip
@@ -248,10 +296,15 @@ export function VoiceScreen({
       ) : null}
 
       {stageMode === "video" ? (
-        <ActiveVoiceRoomStage onFlipCamera={handleFlipCamera} participants={model.participants} />
+        <ActiveVoiceRoomStage
+          cameraFacingMode={voiceRoomState.cameraFacingMode}
+          onFlipCamera={handleFlipCamera}
+          participants={model.participants}
+        />
       ) : (
         <ActiveVoiceRoomAudience
           audioRoute={audioRoute}
+          cameraFacingMode={voiceRoomState.cameraFacingMode}
           onFlipCamera={handleFlipCamera}
           participants={model.participants}
         />
@@ -324,6 +377,24 @@ export function VoiceScreen({
         onSendInvite={onSendInvite}
         open={inviteSheetVisible}
         sendStates={inviteSendStates}
+      />
+
+      <MobileVoiceSettingsSheet
+        audioInputs={voiceRoomState.availableAudioInputs}
+        audioOutputs={voiceRoomState.availableAudioOutputs}
+        noiseSuppressionEnabled={voiceRoomState.noiseSuppressionEnabled}
+        onClose={() => setSettingsOpen(false)}
+        onRefresh={onRefreshVoiceDevices}
+        onSelectAudioInput={onSelectVoiceAudioInput}
+        onSelectAudioOutput={onSelectVoiceAudioOutputDevice}
+        onSelectNoiseSuppression={onSelectVoiceNoiseSuppression}
+        {...(onSelectVoiceScreenShareQuality
+          ? { onSelectScreenShareQuality: onSelectVoiceScreenShareQuality }
+          : {})}
+        open={settingsOpen}
+        screenShareQualityId={voiceScreenShareQualityId}
+        selectedAudioInputId={voiceRoomState.selectedAudioInputId}
+        selectedAudioOutputId={voiceRoomState.selectedAudioOutputId}
       />
     </View>
   );
@@ -500,10 +571,12 @@ function ActiveVoiceRoomNoiseToggle({ enabled, onToggle }: { enabled: boolean; o
  */
 export function ActiveVoiceRoomAudience({
   audioRoute,
+  cameraFacingMode = DEFAULT_MOBILE_CAMERA_FACING_MODE,
   onFlipCamera,
   participants,
 }: {
   audioRoute: MobileVoiceAudioRoute;
+  cameraFacingMode?: MobileCameraFacingMode;
   onFlipCamera(): void;
   participants: readonly MobileVoiceRoomParticipant[];
 }) {
@@ -562,6 +635,7 @@ export function ActiveVoiceRoomAudience({
               <ActiveVoiceRoomParticipantCard
                 key={participant.userId}
                 audioRoute={audioRoute}
+                cameraFacingMode={cameraFacingMode}
                 layout={layout}
                 onFlipCamera={onFlipCamera}
                 participant={participant}
@@ -678,9 +752,11 @@ function getVoiceParticipantBadgeColor(
  * join order; mic-only members ride the compact rail beneath.
  */
 export function ActiveVoiceRoomStage({
+  cameraFacingMode = DEFAULT_MOBILE_CAMERA_FACING_MODE,
   onFlipCamera,
   participants,
 }: {
+  cameraFacingMode?: MobileCameraFacingMode;
   onFlipCamera(): void;
   participants: readonly MobileVoiceRoomParticipant[];
 }) {
@@ -726,6 +802,7 @@ export function ActiveVoiceRoomStage({
               testID={`mobile-voice-stage-page-${index}`}
             >
               <ActiveVoiceRoomStagePageGrid
+                cameraFacingMode={cameraFacingMode}
                 isActive={index === activeIndex}
                 onFlipCamera={onFlipCamera}
                 tiles={pageTiles}
@@ -753,10 +830,12 @@ export function ActiveVoiceRoomStage({
 }
 
 function ActiveVoiceRoomStagePageGrid({
+  cameraFacingMode,
   isActive,
   onFlipCamera,
   tiles,
 }: {
+  cameraFacingMode: MobileCameraFacingMode;
   isActive: boolean;
   onFlipCamera(): void;
   tiles: readonly MobileVoiceStageTile[];
@@ -777,6 +856,7 @@ function ActiveVoiceRoomStagePageGrid({
           {rowTiles.map((tile) => (
             <VoiceStageTile
               key={tile.key}
+              cameraFacingMode={cameraFacingMode}
               isActive={isActive}
               onFlipCamera={onFlipCamera}
               tile={tile}
@@ -789,10 +869,12 @@ function ActiveVoiceRoomStagePageGrid({
 }
 
 function VoiceStageTile({
+  cameraFacingMode,
   isActive,
   onFlipCamera,
   tile,
 }: {
+  cameraFacingMode: MobileCameraFacingMode;
   isActive: boolean;
   onFlipCamera(): void;
   tile: MobileVoiceStageTile;
@@ -808,10 +890,23 @@ function VoiceStageTile({
   // Only the visible page decodes video; off-page tiles hold an avatar so a large
   // room never pays for streams the user cannot see.
   const showVideo = isActive && Boolean(trackRef);
+  const publication = trackRef?.publication;
+
+  // The tile on the visible page is the stage: it asks for the top layer and
+  // gives it back when the pager moves it off screen.
+  useEffect(() => {
+    setVoiceVideoQualityCeiling(publication, { isStage: showVideo });
+  }, [publication, showVideo]);
 
   const surface = showVideo ? (
     <VideoTrack
-      objectFit={isScreen ? "contain" : "cover"}
+      // A stage tile is read, not glanced at: the whole frame stays visible and
+      // the tile's dark surface fills whatever the source does not cover.
+      mirror={resolveMirror({
+        facingMode: cameraFacingMode,
+        isLocal: participant.isSelf && !isScreen,
+      })}
+      objectFit={resolveVideoFit({ isScreenShare: isScreen, sizeClass: "stage" })}
       style={styles.activeVoiceRoomStageVideo}
       trackRef={trackRef!}
     />
@@ -1005,7 +1100,12 @@ function VoiceStageScreenFullscreen({
           showsVerticalScrollIndicator={false}
           style={styles.mobileVoiceScreenShareFullscreenScroll}
         >
-          <View style={styles.mobileVoiceScreenShareFullscreenFrame}>
+          <View
+            style={[
+              styles.mobileVoiceScreenShareFullscreenFrame,
+              { aspectRatio: getScreenShareAspect(participant) },
+            ]}
+          >
             <ScreenShareVideoSurface participant={participant} variant="fullscreen" />
           </View>
         </ScrollView>
@@ -1114,11 +1214,13 @@ export function getVoiceAudioRouteAccessibilityLabel(route: MobileVoiceAudioRout
 
 function ActiveVoiceRoomParticipantCard({
   audioRoute,
+  cameraFacingMode,
   layout,
   participant,
   onFlipCamera,
 }: {
   audioRoute: MobileVoiceAudioRoute;
+  cameraFacingMode: MobileCameraFacingMode;
   layout: MobileVoiceAudienceGridLayout;
   participant: MobileVoiceRoomParticipant;
   onFlipCamera(): void;
@@ -1149,6 +1251,19 @@ function ActiveVoiceRoomParticipantCard({
         width: ringSize,
       }
     : null;
+  // A measured card decides its own fit: a small tile fills, a readable one keeps
+  // the whole frame. Before measurement the safe, uncropped default applies.
+  const sizeClass = resolveVideoSizeClass(
+    layout.measured ? Math.min(layout.tileWidth, layout.tileHeight) : null,
+  );
+  const cameraFit = resolveVideoFit({ sizeClass });
+  const cameraPublication = participant.cameraTrackRef?.publication;
+
+  // The audience grid asks for the layer its own tile size justifies, so a
+  // twelve-person room never pulls twelve top layers.
+  useEffect(() => {
+    setVoiceVideoQualityCeiling(cameraPublication, { isStage: sizeClass === "stage" });
+  }, [cameraPublication, sizeClass]);
 
   if (showCamera) {
     return (
@@ -1162,7 +1277,8 @@ function ActiveVoiceRoomParticipantCard({
         testID={`mobile-voice-participant-${participant.userId}`}
       >
         <VideoTrack
-          objectFit="cover"
+          mirror={resolveMirror({ facingMode: cameraFacingMode, isLocal: participant.isSelf })}
+          objectFit={cameraFit}
           style={styles.activeVoiceRoomVideoSurface}
           trackRef={participant.cameraTrackRef!}
         />
@@ -1591,6 +1707,14 @@ function getScreenShareViewerTitle(participant: MobileVoiceRoomParticipant): str
   return copy.voiceScreenShareViewerTitle.replace("{name}", getVoiceParticipantName(participant));
 }
 
+/**
+ * The share frame follows the shared surface. A phone sharing a portrait screen
+ * used to letterbox inside a 16/9 box and lose most of its readable height.
+ */
+function getScreenShareAspect(participant: MobileVoiceRoomParticipant): number {
+  return resolveVideoAspect(participant.screenShareTrackRef?.publication.dimensions);
+}
+
 function ScreenShareVideoSurface({
   participant,
   variant,
@@ -1600,6 +1724,14 @@ function ScreenShareVideoSurface({
 }) {
   const theme = useVoiceRoomTheme();
   const styles = useVoiceScreenStyles();
+  const publication = participant.screenShareTrackRef?.publication;
+
+  // A shared screen is read as text: the fullscreen viewer takes the top layer,
+  // the inline preview hands it back.
+  useEffect(() => {
+    setVoiceVideoQualityCeiling(publication, { isStage: variant === "fullscreen" });
+  }, [publication, variant]);
+
   if (!participant.screenShareTrackRef) {
     return (
       <View
@@ -1693,6 +1825,7 @@ export function MobileScreenShareViewer({
         onPress={() => setExpanded(true)}
         style={({ pressed }) => [
           styles.mobileVoiceScreenShareVideoFrame,
+          { aspectRatio: getScreenShareAspect(participant) },
           pressed && canExpand && styles.actionButtonPressed,
         ]}
       >
@@ -1735,7 +1868,12 @@ export function MobileScreenShareViewer({
             showsVerticalScrollIndicator={false}
             style={styles.mobileVoiceScreenShareFullscreenScroll}
           >
-            <View style={styles.mobileVoiceScreenShareFullscreenFrame}>
+            <View
+              style={[
+                styles.mobileVoiceScreenShareFullscreenFrame,
+                { aspectRatio: getScreenShareAspect(participant) },
+              ]}
+            >
               <ScreenShareVideoSurface participant={participant} variant="fullscreen" />
             </View>
           </ScrollView>

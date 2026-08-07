@@ -174,6 +174,10 @@ describe("account privacy service", { concurrency: false }, () => {
           operations.push("transaction.begin");
           const tx = new Proxy(
             {
+              $executeRaw: async (_query: TemplateStringsArray, ..._values: unknown[]) => {
+                operations.push("server.memberCount.decrementBatch");
+                return 1;
+              },
               mobileMediaUpload: {
                 async updateMany(args: {
                   data: { cleanupAfter: Date };
@@ -199,6 +203,16 @@ describe("account privacy service", { concurrency: false }, () => {
                     }
                   }
                   return { count: 3 };
+                },
+              },
+              serverMember: {
+                async deleteMany() {
+                  operations.push("serverMember.deleteMany");
+                  return { count: 1 };
+                },
+                async findMany() {
+                  operations.push("serverMember.findMany");
+                  return [{ serverId: "server-surviving" }];
                 },
               },
             },
@@ -241,6 +255,20 @@ describe("account privacy service", { concurrency: false }, () => {
       assert.ok(operations.indexOf("storage.delete") < operations.indexOf("transaction.begin"));
       assert.ok(operations.indexOf("media.schedule") < operations.indexOf("transaction.commit"));
       assert.ok(operations.indexOf("transaction.commit") < operations.indexOf("sessions.revoke"));
+      // The affected server ids must be read before the membership rows are
+      // deleted, and the batched decrement must land inside the same
+      // transaction as the delete rather than after it.
+      assert.ok(
+        operations.indexOf("serverMember.findMany") < operations.indexOf("serverMember.deleteMany"),
+      );
+      assert.ok(
+        operations.indexOf("serverMember.deleteMany") <
+          operations.indexOf("server.memberCount.decrementBatch"),
+      );
+      assert.ok(
+        operations.indexOf("server.memberCount.decrementBatch") <
+          operations.indexOf("transaction.commit"),
+      );
       assert.equal(uploads.find((upload) => upload.id === "owned-avatar")?.cleanupAfter, now);
       assert.equal(
         uploads.find((upload) => upload.id === "expired-owned-upload")?.cleanupAfter,

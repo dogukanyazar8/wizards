@@ -17,6 +17,10 @@ import {
 import { getMessageById } from "@/lib/workspace/message-service";
 import { invalidateMemberPermissionCache } from "@/lib/workspace/permission-cache";
 import {
+  decrementServerMemberCount,
+  incrementServerMemberCount,
+} from "@/lib/workspace/server-member-counter";
+import {
   emitServerUnreadUpdatesForServer,
   getActiveChannelViewerUserIds,
   markChannelReadStates,
@@ -220,13 +224,16 @@ export async function leaveWorkspaceServer(userId: string, serverId: string) {
     throw new ApiError("Transfer ownership or delete the server instead", 400);
   }
 
-  await prisma.serverMember.delete({
-    where: {
-      userId_serverId: {
-        serverId,
-        userId,
+  await prisma.$transaction(async (tx) => {
+    await tx.serverMember.delete({
+      where: {
+        userId_serverId: {
+          serverId,
+          userId,
+        },
       },
-    },
+    });
+    await decrementServerMemberCount(tx, serverId);
   });
 
   await Promise.all([
@@ -382,6 +389,8 @@ export async function addWorkspaceServerMemberByUsername(
         id: true,
       },
     });
+
+    await incrementServerMemberCount(tx, serverId);
 
     const defaultRole = server.roles.find((role) => role.isDefault);
     if (defaultRole) {
@@ -548,10 +557,13 @@ export async function kickWorkspaceMember(userId: string, serverId: string, memb
     throw new ApiError("The server owner cannot be kicked", 403, "OWNER_PROTECTED");
   }
 
-  await prisma.serverMember.delete({
-    where: {
-      id: member.id,
-    },
+  await prisma.$transaction(async (tx) => {
+    await tx.serverMember.delete({
+      where: {
+        id: member.id,
+      },
+    });
+    await decrementServerMemberCount(tx, serverId);
   });
 
   await Promise.all([

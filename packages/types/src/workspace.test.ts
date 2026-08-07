@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 import * as workspaceSchemas from "./workspace";
 import {
   AddServerMemberSchema,
+  AdminCreateServerSchema,
   CreateCategorySchema,
   CreateChannelSchema,
   CreateInviteSchema,
@@ -13,6 +14,11 @@ import {
   ReorderCategoriesSchema,
   ReorderChannelsSchema,
   RoleBadgeSchema,
+  ServerPublicProfileChannelSchema,
+  ServerPublicProfileFriendSchema,
+  ServerPublicProfileSchema,
+  ServerTypeSchema,
+  ServerVerificationLevelSchema,
   UpdateCategorySchema,
   UpdateChannelFieldsSchema,
   UpdateChannelSchema,
@@ -109,6 +115,24 @@ const serverDetail = {
   server: { ...serverSummary, description: null, isAdmin: true, isOwner: true },
   ungroupedChannels: [channel],
 };
+const serverPublicProfile = {
+  bannerUrl: null,
+  channels: [{ liveCount: null, name: "duyurular", readOnly: true, type: "text" as const }],
+  description: "",
+  discoverable: true,
+  iconUrl: null,
+  isPublic: true,
+  joined: false,
+  memberCount: 12_400,
+  mutualFriendCount: 0,
+  mutualFriends: [],
+  name: "Whispr Topluluk",
+  onlineCount: 1_200,
+  serverId: "s1",
+  shortName: null,
+  type: "COMMUNITY" as const,
+  verified: true,
+};
 
 describe("workspace schemas", () => {
   it("keeps every exported schema covered by an acceptance and rejection fixture", () => {
@@ -117,6 +141,20 @@ describe("workspace schemas", () => {
         schema: AddServerMemberSchema,
         valid: { username: "ada" },
         invalid: { username: "a" },
+      },
+      AdminCreateServerSchema: {
+        schema: AdminCreateServerSchema,
+        valid: {
+          discoverable: true,
+          isPublic: true,
+          name: "Whispr Topluluk",
+          type: "COMMUNITY",
+        },
+        invalid: {
+          isPublic: false,
+          name: "Whispr Topluluk",
+          type: "COMMUNITY",
+        },
       },
       CreateCategorySchema: {
         schema: CreateCategorySchema,
@@ -162,6 +200,31 @@ describe("workspace schemas", () => {
         schema: RoleBadgeSchema,
         valid: roleBadge,
         invalid: { ...roleBadge, color: -1 },
+      },
+      ServerPublicProfileChannelSchema: {
+        schema: ServerPublicProfileChannelSchema,
+        valid: { liveCount: null, name: "duyurular", readOnly: true, type: "text" },
+        invalid: { liveCount: null, name: "duyurular", readOnly: true, type: "forum" },
+      },
+      ServerPublicProfileFriendSchema: {
+        schema: ServerPublicProfileFriendSchema,
+        valid: { avatarUrl: null, displayName: "Ada", id: "friend-1" },
+        invalid: { avatarUrl: null, displayName: "Ada", id: 1 },
+      },
+      ServerPublicProfileSchema: {
+        schema: ServerPublicProfileSchema,
+        valid: serverPublicProfile,
+        invalid: { ...serverPublicProfile, memberCount: -1 },
+      },
+      ServerTypeSchema: {
+        schema: ServerTypeSchema,
+        valid: "PERSONAL",
+        invalid: "SYSTEM",
+      },
+      ServerVerificationLevelSchema: {
+        schema: ServerVerificationLevelSchema,
+        valid: "NONE",
+        invalid: "EXTREME",
       },
       UpdateCategorySchema: {
         schema: UpdateCategorySchema,
@@ -421,5 +484,91 @@ describe("workspace schemas", () => {
     assertRejects(WorkspaceServerSummarySchema, { ...serverSummary, messageCharacterLimit: 0 }, [
       "messageCharacterLimit",
     ]);
+  });
+});
+
+describe("server type contract", () => {
+  it("accepts only the two known server types", () => {
+    assert.equal(ServerTypeSchema.parse("PERSONAL"), "PERSONAL");
+    assert.equal(ServerTypeSchema.parse("COMMUNITY"), "COMMUNITY");
+    assert.equal(ServerTypeSchema.safeParse("SYSTEM").success, false);
+  });
+
+  it("keeps the consumer create contract free of privileged fields", () => {
+    assert.equal("type" in CreateServerSchema.shape, false);
+    assert.equal("isPublic" in CreateServerSchema.shape, false);
+    assert.equal("discoverable" in CreateServerSchema.shape, false);
+    assert.equal("verificationLevel" in CreateServerSchema.shape, false);
+  });
+
+  it("lets the admin create contract carry the privileged fields", () => {
+    const parsed = AdminCreateServerSchema.parse({
+      discoverable: true,
+      isPublic: true,
+      name: "Whispr Topluluk",
+      type: "COMMUNITY",
+    });
+
+    assert.equal(parsed.type, "COMMUNITY");
+    assert.equal(parsed.isPublic, true);
+    assert.equal(parsed.discoverable, true);
+  });
+
+  it("forces community servers to stay publicly joinable", () => {
+    const result = AdminCreateServerSchema.safeParse({
+      isPublic: false,
+      name: "Whispr Topluluk",
+      type: "COMMUNITY",
+    });
+
+    assert.equal(result.success, false);
+  });
+
+  it("exposes visibility switches on update but never the type", () => {
+    assert.equal("isPublic" in UpdateServerFieldsSchema.shape, true);
+    assert.equal("discoverable" in UpdateServerFieldsSchema.shape, true);
+    assert.equal("type" in UpdateServerFieldsSchema.shape, false);
+  });
+
+  it("describes the canonical public profile payload", () => {
+    const profile = ServerPublicProfileSchema.parse({
+      bannerUrl: null,
+      channels: [{ liveCount: null, name: "duyurular", readOnly: true, type: "text" }],
+      description: "",
+      discoverable: true,
+      iconUrl: null,
+      isPublic: true,
+      joined: false,
+      memberCount: 12_400,
+      mutualFriendCount: 0,
+      mutualFriends: [],
+      name: "Whispr Topluluk",
+      onlineCount: 1_200,
+      serverId: "s1",
+      shortName: null,
+      type: "COMMUNITY",
+      verified: true,
+    });
+
+    assert.equal(profile.channels[0]?.name, "duyurular");
+    assert.equal(profile.type, "COMMUNITY");
+  });
+
+  it("rejects a privileged field smuggled into the consumer contract", () => {
+    const result = CreateServerSchema.safeParse({
+      name: "Sızma denemesi",
+      type: "COMMUNITY",
+    });
+
+    assert.equal(result.success, false);
+  });
+
+  it("accepts a visibility-only update", () => {
+    assert.equal(UpdateServerSchema.safeParse({ isPublic: true }).success, true);
+    assert.equal(UpdateServerSchema.safeParse({ discoverable: true }).success, true);
+  });
+
+  it("still rejects an update with no fields at all", () => {
+    assert.equal(UpdateServerSchema.safeParse({}).success, false);
   });
 });

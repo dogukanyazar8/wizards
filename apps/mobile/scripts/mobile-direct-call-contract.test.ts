@@ -52,7 +52,13 @@ describe("mobile direct-call contract", () => {
 
   it("requests maintained camera permission and publishes video only for video calls", () => {
     assert.match(providerSource, /requestCameraPermission/);
-    assert.match(hookSource, /video[^]*setCameraEnabled\(true\)/);
+    assert.match(
+      hookSource,
+      /video[^]*enableMobileCameraWithCodecFallback\(room\.localParticipant/,
+    );
+    // A bare enable would drop the capture resolution and codec contract back to
+    // the livekit-client defaults.
+    assert.doesNotMatch(hookSource, /setCameraEnabled\(true\)/);
   });
 
   it("wires both Task 3 DM callbacks through the successful-join navigation gate", () => {
