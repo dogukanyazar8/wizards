@@ -220,8 +220,8 @@ export function getDesktopReleaseOpsContract() {
     safetyRules: DESKTOP_RELEASE_SAFETY_RULES.map((rule) => ({ ...rule })),
     versionContract: getDesktopVersionContract(),
     platformMatrix: {
-      windows: "automatic-path-filtered",
-      macos: "automatic-path-filtered",
+      windows: "disabled-no-local-runner",
+      macos: "disabled-no-local-runner",
       linux: "automatic-self-hosted",
     },
   };
@@ -297,12 +297,12 @@ export function assertDesktopReleaseOpsContract(contract = getDesktopReleaseOpsC
   }
 
   assertCondition(
-    contract.platformMatrix.windows === "automatic-path-filtered",
-    "Windows desktop CI must use an automatic path-filtered native build signal.",
+    contract.platformMatrix.windows === "disabled-no-local-runner",
+    "Windows desktop CI must remain disabled until a local Windows runner is registered.",
   );
   assertCondition(
-    contract.platformMatrix.macos === "automatic-path-filtered",
-    "macOS desktop CI must use an automatic path-filtered native build signal.",
+    contract.platformMatrix.macos === "disabled-no-local-runner",
+    "macOS desktop CI must remain disabled until a local macOS runner is registered.",
   );
   assertCondition(
     contract.platformMatrix.linux === "automatic-self-hosted",

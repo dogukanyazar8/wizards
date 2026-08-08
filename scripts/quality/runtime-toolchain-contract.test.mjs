@@ -197,7 +197,7 @@ test("all GitHub Actions pnpm jobs consume packageManager as their version sourc
     }
   }
 
-  assert.equal(setupPnpmSteps, 16, "unexpected pnpm/action-setup step count");
+  assert.equal(setupPnpmSteps, 12, "unexpected pnpm/action-setup step count");
 });
 
 test("CI pins supported Node 24 action runtimes to reviewed releases", () => {
@@ -280,10 +280,10 @@ test("setup-node v5 preserves the workflow's explicit pnpm cache policy", () => 
     automaticCacheOptOuts += 1;
   }
 
-  assert.equal(automaticCacheOptOuts, 8, "unexpected setup-node automatic-cache opt-out count");
+  assert.equal(automaticCacheOptOuts, 9, "unexpected setup-node automatic-cache opt-out count");
 });
 
-test("Node 22 native compatibility runs only when hosted desktop checks are requested", () => {
+test("Node 22 native compatibility runs manually on the heavy local Linux runner", () => {
   const workflow = readText(join(".github", "workflows", "ci.yml"));
   const compatibilityJob = readWorkflowJob(workflow, "node22-compatibility");
   const installRuntimeIndex = compatibilityJob.indexOf(
@@ -297,10 +297,8 @@ test("Node 22 native compatibility runs only when hosted desktop checks are requ
     "- name: Verify Node.js native dependencies",
   );
 
-  assert.match(
-    compatibilityJob,
-    /^    if: github\.event_name == 'workflow_dispatch' && inputs\.desktop_hosted$/mu,
-  );
+  assert.match(compatibilityJob, /^    if: github\.event_name == 'workflow_dispatch'$/mu);
+  assert.match(compatibilityJob, /^    runs-on: \[self-hosted, linux, x64, wizards-ci\]$/mu);
   assert.match(compatibilityJob, /^          node-version-file: \.nvmrc$/mu);
   assert.match(compatibilityJob, /^          node-version: 22\.23\.1$/mu);
   assert.equal(
@@ -329,6 +327,8 @@ test("Node 22 native compatibility runs only when hosted desktop checks are requ
     compatibilityJob,
     /cargo check --locked --manifest-path apps\/desktop\/src-tauri\/Cargo\.toml/u,
   );
+  assert.match(compatibilityJob, /^        shell: bash$/mu);
+  assert.match(compatibilityJob, /^          set -euo pipefail$/mu);
 });
 
 test("self-hosted CI uses the runner's persistent pnpm store instead of GitHub cache archives", () => {
@@ -341,6 +341,7 @@ test("self-hosted CI uses the runner's persistent pnpm store instead of GitHub c
     "e2e-a11y",
     "e2e-visual",
     "desktop-ops",
+    "node22-compatibility",
   ];
 
   for (const jobName of selfHostedJobs) {
@@ -350,12 +351,6 @@ test("self-hosted CI uses the runner's persistent pnpm store instead of GitHub c
       `${jobName} must use the persistent self-hosted pnpm store`,
     );
   }
-
-  assert.match(
-    readWorkflowJob(workflow, "node22-compatibility"),
-    /^          cache: pnpm$/mu,
-    "Node 22 compatibility must retain cache archives on its GitHub-hosted Windows runner",
-  );
 });
 
 test("persistent self-hosted CI jobs reject pull-request events", () => {
@@ -373,9 +368,11 @@ test("persistent self-hosted CI jobs reject pull-request events", () => {
   ];
 
   for (const jobName of selfHostedJobs) {
-    assert.match(
-      readWorkflowJob(workflow, jobName),
-      /^    if: .*github\.event_name != 'pull_request'.*$/mu,
+    const job = readWorkflowJob(workflow, jobName);
+    assert.match(job, /^    if: /mu, `${jobName} must gate persistent runner execution`);
+    assert.ok(
+      /^    if: .*github\.event_name != 'pull_request'.*$/mu.test(job) ||
+        /^    if: github\.event_name == 'workflow_dispatch'$/mu.test(job),
       `${jobName} must not execute pull-request code on a persistent runner`,
     );
   }
@@ -404,5 +401,5 @@ test("all GitHub Actions jobs consume the central Node runtime contract", () => 
     setupNodeSteps += setupNodeCount;
   }
 
-  assert.equal(setupNodeSteps, 16, "unexpected setup-node step count");
+  assert.equal(setupNodeSteps, 11, "unexpected setup-node step count");
 });

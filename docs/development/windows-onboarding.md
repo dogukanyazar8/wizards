@@ -922,9 +922,9 @@ Railway dashboard'da doğrulanması gereken dış durum:
 
 Branch mapping, automatic deploy trigger, approval ve Railway project/service kimliği repo içinde kilitli değildir. Dashboard kanıtı gerekir.
 
-## 17. Desktop release CD
+## 17. Desktop release CD (currently disabled)
 
-Workflow: `.github/workflows/desktop-release.yml`. Yalnız manual dispatch.
+`.github/workflows/desktop-release.yml` kaldırıldı. Kayıtlı local Windows runner yok; GitHub-hosted runner da kullanılmıyor. Windows desktop build, imza, updater ve yayın kanıtı **NOT RUN** durumunda. Aşağıdaki eski manual-dispatch sözleşmesi, yalnız local Windows runner kaydedilip workflow geri getirildiğinde kullanılabilir.
 
 Input'lar:
 

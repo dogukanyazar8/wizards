@@ -124,13 +124,13 @@ describe("desktop release operations contract", () => {
     );
   });
 
-  it("keeps unsigned native build signals automatic and release signing protected", async () => {
+  it("keeps desktop CI local-only while native release runners are unavailable", async () => {
     const contract = assertDesktopReleaseOpsContract(getDesktopReleaseOpsContract());
     const workflow = await readFile(path.join(repoRoot, ".github/workflows/ci.yml"), "utf8");
 
     assert.deepEqual(contract.platformMatrix, {
-      windows: "automatic-path-filtered",
-      macos: "automatic-path-filtered",
+      windows: "disabled-no-local-runner",
+      macos: "disabled-no-local-runner",
       linux: "automatic-self-hosted",
     });
     const desktopOpsStart = workflow.indexOf("\n  desktop-ops:");
@@ -143,14 +143,8 @@ describe("desktop release operations contract", () => {
     assert.notEqual(desktopOpsStart, -1);
     assert.equal(desktopBuildStart, -1);
     assert.doesNotMatch(desktopOpsJob, /continue-on-error:/);
-    assert.match(
-      workflow,
-      /^      desktop_hosted:\r?\n        default: false\r?\n        description: Run the Windows\/macOS desktop matrix \(consumes GitHub-hosted runner minutes\)\r?\n        required: true\r?\n        type: boolean$/mu,
-    );
-    assert.match(desktopOpsJob, /\{"os":"ci-fast","staged":false\}/);
-    assert.match(desktopOpsJob, /inputs\.desktop_hosted && fromJSON/);
-    assert.match(desktopOpsJob, /\{"os":"windows-latest","staged":false\}/);
-    assert.match(desktopOpsJob, /\{"os":"macos-latest","staged":false\}/);
+    assert.match(desktopOpsJob, /^    runs-on: \[self-hosted, linux, x64, ci-fast\]$/mu);
+    assert.doesNotMatch(workflow, /desktop_hosted|windows-latest|macos-latest/u);
   });
 
   it("documents the required manual CI evidence before release", async () => {
@@ -159,11 +153,10 @@ describe("desktop release operations contract", () => {
     assert.match(releaseGuide, /## Required Manual CI Evidence Before Release/);
     assert.match(releaseGuide, /`e2e_scope`: `full`/);
     assert.match(releaseGuide, /`e2e_scope`: `smoke`/);
-    assert.match(releaseGuide, /`desktop_hosted`: `true`/);
     assert.match(releaseGuide, /`playwright-report`/);
-    assert.match(releaseGuide, /`desktop-native-build\.yml`/);
-    assert.match(releaseGuide, /path-filtered.*Windows.*macOS.*unsigned/i);
-    assert.match(releaseGuide, /Desktop Release.*protected environment/i);
+    assert.match(releaseGuide, /Desktop native GitHub Actions workflows are disabled/i);
+    assert.match(releaseGuide, /local Linux runner/i);
+    assert.match(releaseGuide, /Windows and macOS native artifact.*NOT RUN/i);
     assert.match(releaseGuide, /Linux `desktop-ops`.*not Windows release artifact evidence/i);
     assert.match(releaseGuide, /schedule.*does not prove UAT runtime/i);
     assert.doesNotMatch(

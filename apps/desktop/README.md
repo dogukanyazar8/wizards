@@ -141,9 +141,9 @@ pnpm --filter @wizards/desktop build:desktop
 
 Do not use local or HTTP endpoints for updater manifests. Do not commit Ed25519 updater private keys, Windows certificate material, generated updater artifacts, or manifest drafts.
 
-The `desktop-release.yml` workflow builds Windows artifacts from the validated release contract. When `publish_r2=true`, CI enables updater artifact generation and fails closed unless the HTTPS updater artifact directory, Ed25519 signing key pair, and Windows signing configuration are present. UAT can use a self-signed Windows PFX for updater smoke tests; `stable` requires `WHISPR_DESKTOP_WINDOWS_SIGNING_CERT_KIND=OV` or `EV` plus the real certificate secrets before artifacts can be produced. CI generates `latest.json`, validates it locally against the installer and `.sig`, then writes redacted audit and promotion evidence into the GitHub artifact.
+GitHub Actions desktop release automation is disabled because no local Windows runner is registered. GitHub-hosted runners are not used. A future local Windows runner must restore the workflow before CI can build, sign, validate, publish, or create evidence for Windows artifacts. The local release scripts and secret requirements below remain the contract for that future restoration.
 
-When publishing is enabled, the same workflow uploads the installer and `.sig` to immutable Cloudflare R2 release keys under `desktop/<ring>/releases/<release-tag>/`, while `latest.json` remains the single mutable feed at `desktop/<ring>/latest.json`. R2 is the canonical public updater/download source. GitHub Releases are optional evidence and convenience bundles; because the repository is private, release asset access remains limited to users who can access the repository.
+When a future local Windows release process is enabled, it must upload the installer and `.sig` to immutable Cloudflare R2 release keys under `desktop/<ring>/releases/<release-tag>/`, while `latest.json` remains the single mutable feed at `desktop/<ring>/latest.json`. R2 is the canonical public updater/download source. GitHub Releases are optional evidence and convenience bundles; because the repository is private, release asset access remains limited to users who can access the repository.
 
 Required publishing secrets:
 

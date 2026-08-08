@@ -109,6 +109,8 @@ Sources: `apps/desktop/scripts/release-ops.mjs`, `apps/web/src/lib/desktop/perfo
 
 ## CI, release, and audit baseline
 
+**2026-08-08 local-only update:** GitHub-hosted desktop workflows were removed because no local Windows/macOS runner is registered. Remaining CI runs on local Linux runners; Windows/macOS native artifact, signature, updater, R2, and GitHub Release evidence are **NOT RUN** until those runners and workflows are restored.
+
 - Semgrep CE is the current equivalent SAST and runs `--strict --error`; CodeQL is not currently present. Required-check/branch-protection configuration was not inspected. Source: `.github/workflows/ci.yml:76,115`.
 - `desktop-ops` installs version-pinned `cargo-audit 0.22.1` with `--locked`, then runs the desktop release script tests and config generation. Source: `.github/workflows/ci.yml:670,706`.
 - Automatic Rust `cargo fmt --check`, `cargo clippy`, and `cargo test --locked` gates are missing. Windows native compatibility/Tauri binary evidence runs only for `workflow_dispatch` with `desktop_hosted=true`; normal pushes do not prove a Windows binary. Source: `.github/workflows/ci.yml:219,267,706,741,879`.
@@ -149,8 +151,8 @@ The older "missing admin sections" snapshot is not the current failure evidence:
 ### Source and local gates — PASS
 
 - `origin/uat` through `40b8df2f` is integrated without rebase, reset, stash, or clean. Only `.github/workflows/ci.yml` conflicted.
-- Linux self-hosted `desktop-ops` uses Bash. Windows hosted `desktop-native-build` uses PowerShell. Both require `cargo-audit 0.22.1`, validate `Cargo.lock` with `cargo metadata --locked`, then audit exact `Cargo.lock` with `cargo audit --file Cargo.lock`. `cargo-audit 0.22.1` has no `--locked`; this remains fail-closed lockfile validation.
-- `cargo-audit-ci-contract.test.mjs` verifies both platform contracts. `desktop-ops-workflow-contract.test.mjs` verifies Linux Bash exact-lock behavior.
+- Linux self-hosted `desktop-ops` uses Bash and requires `cargo-audit 0.22.1`, validates `Cargo.lock` with `cargo metadata --locked`, then audits exact `Cargo.lock` with `cargo audit --file Cargo.lock`. `cargo-audit 0.22.1` has no `--locked`; this remains fail-closed lockfile validation.
+- `cargo-audit-ci-contract.test.mjs` and `desktop-ops-workflow-contract.test.mjs` verify the local Linux exact-lock behavior.
 - Semgrep CE, protected signing, updater protection, and no-bundle contracts remain unchanged. No signing secret moved into non-protected CI.
 
 ### Local P01 evidence

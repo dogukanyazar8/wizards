@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../..", import.meta.url));
 const workflowPath = join(root, ".github", "workflows", "ci.yml");
+const workflowsDirectory = join(root, ".github", "workflows");
 
 function readWorkflowJob(source, jobName) {
   const lines = source.split(/\r?\n/u);
@@ -45,7 +46,8 @@ test("automatic Linux Desktop Ops runs its cargo audit step with Bash", () => {
   const desktopOps = readWorkflowJob(workflow, "desktop-ops");
   const cargoAudit = readWorkflowStep(desktopOps, "Audit Rust dependencies");
 
-  assert.match(desktopOps, /\{"os":"ci-fast","staged":false\}/u);
+  assert.match(desktopOps, /^    runs-on: \[self-hosted, linux, x64, ci-fast\]$/mu);
+  assert.doesNotMatch(desktopOps, /matrix\.os|windows-latest|macos-latest/u);
   assert.doesNotMatch(desktopOps, /Install Tauri Linux system dependencies/u);
   assert.match(cargoAudit, /^        shell: bash$/mu);
   assert.match(cargoAudit, /^          expected_version="cargo-audit \$CARGO_AUDIT_VERSION"$/mu);
@@ -104,6 +106,22 @@ test("scheduled mobile device evidence gate uses the heavy self-hosted Linux run
 
   assert.match(workflow, /^    runs-on: \[self-hosted, linux, x64, wizards-ci\]$/mu);
   assert.doesNotMatch(workflow, /^    runs-on: ubuntu-/mu);
+});
+
+test("remaining workflow files use only registered local Linux runners", () => {
+  const hostedRunner = /(?:ubuntu-(?:latest|\d+\.\d+)|windows-latest|macos-latest)/u;
+
+  for (const workflowName of readdirSync(workflowsDirectory)) {
+    if (!/\.ya?ml$/u.test(workflowName)) {
+      continue;
+    }
+
+    const workflow = readFileSync(join(workflowsDirectory, workflowName), "utf8");
+    assert.doesNotMatch(workflow, hostedRunner, workflowName);
+  }
+
+  assert.equal(existsSync(join(workflowsDirectory, "desktop-native-build.yml")), false);
+  assert.equal(existsSync(join(workflowsDirectory, "desktop-release.yml")), false);
 });
 
 test("automatic Linux Desktop Ops runs fail-closed Clippy through the local command", () => {

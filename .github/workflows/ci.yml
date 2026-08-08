@@ -13,11 +13,6 @@ on:
           - full
         required: true
         type: choice
-      desktop_hosted:
-        default: false
-        description: Run the Windows/macOS desktop matrix (consumes GitHub-hosted runner minutes)
-        required: true
-        type: boolean
   schedule:
     - cron: "17 2 * * *"
   pull_request:
@@ -254,11 +249,11 @@ jobs:
           retention-days: 14
 
   node22-compatibility:
-    name: Node 22 Native Compatibility
-    # This job validates Windows-native dependencies. Keep it explicit so scheduled
-    # CI does not consume additional GitHub-hosted Windows capacity.
-    if: github.event_name == 'workflow_dispatch' && inputs.desktop_hosted
-    runs-on: windows-latest
+    name: Node 22 Compatibility
+    # Keep this explicit: it validates the previous supported Node runtime without
+    # running on scheduled CI or untrusted pull-request code.
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: [self-hosted, linux, x64, wizards-ci]
     timeout-minutes: 35
 
     steps:
@@ -272,18 +267,12 @@ jobs:
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version-file: .nvmrc
-          cache: pnpm
+          package-manager-cache: false
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
         with:
           toolchain: stable
-
-      - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
-        with:
-          workspaces: apps/desktop/src-tauri
-          cache-on-failure: true
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -294,25 +283,21 @@ jobs:
           node-version: 22.23.1
           package-manager-cache: false
       - name: Verify Node.js native dependencies
-        shell: pwsh
+        shell: bash
         run: |
+          set -euo pipefail
+
           pnpm --filter @wizards/db db:generate
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
           pnpm --filter @wizards/web exec node --input-type=module -e "const { default: sharp } = await import('sharp'); await sharp({ create: { width: 1, height: 1, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } }).png().toBuffer();"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
           pnpm --filter @wizards/web exec esbuild --version
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Verify Tauri native toolchain
-        shell: pwsh
+        shell: bash
         run: |
-          pnpm --filter @wizards/desktop exec tauri --version
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          set -euo pipefail
 
+          pnpm --filter @wizards/desktop exec tauri --version
           cargo check --locked --manifest-path apps/desktop/src-tauri/Cargo.toml
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
   e2e-smoke:
     name: Playwright E2E
@@ -720,18 +705,11 @@ jobs:
           retention-days: 7
 
   desktop-ops:
-    name: Desktop Ops (${{ matrix.os }})
+    name: Desktop Ops (Linux)
     if: github.event_name != 'pull_request'
-    runs-on: ${{ matrix.os }}
+    runs-on: [self-hosted, linux, x64, ci-fast]
     needs: verify
     timeout-minutes: 20
-
-    strategy:
-      fail-fast: false
-      # Automatic CI uses the lightweight Linux self-hosted runner. The optional manual matrix
-      # adds matching Windows/macOS desktop-ops checks; the path-filtered
-      # desktop-native-build workflow owns automatic hosted native build signals.
-      matrix: ${{ inputs.desktop_hosted && fromJSON('{"include":[{"os":"ci-fast","staged":false},{"os":"windows-latest","staged":false},{"os":"macos-latest","staged":false}]}') || fromJSON('{"include":[{"os":"ci-fast","staged":false}]}') }}
 
     env:
       TAURI_WEB_URL: https://whispr.team
@@ -759,8 +737,7 @@ jobs:
           components: rustfmt, clippy
 
       - name: Audit Rust dependencies
-        # Automatic Desktop Ops runs on the Linux self-hosted runner. Keep this shell
-        # POSIX-compatible; hosted Windows validation uses pwsh.
+        # This job runs on the local Linux runner; keep the command POSIX-compatible.
         shell: bash
         working-directory: apps/desktop/src-tauri
         env:
