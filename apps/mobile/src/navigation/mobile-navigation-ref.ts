@@ -43,6 +43,9 @@ export function navigateMobileRouteIntent(intent: MobileNavigationRouteIntent): 
     case "DirectMessage":
       mobileNavigationRef.navigate("DirectMessage", intent.params, ROUTE_INTENT_OPTIONS);
       break;
+    case "GroupCreate":
+      mobileNavigationRef.navigate("GroupCreate", undefined, ROUTE_INTENT_OPTIONS);
+      break;
     case "MessageThread":
       mobileNavigationRef.navigate("MessageThread", intent.params, ROUTE_INTENT_OPTIONS);
       break;
@@ -84,6 +87,9 @@ export function navigateMobileRouteIntent(intent: MobileNavigationRouteIntent): 
       break;
     case "CommunityInvite":
       mobileNavigationRef.navigate("CommunityInvite", intent.params, ROUTE_INTENT_OPTIONS);
+      break;
+    case "ServerProfile":
+      mobileNavigationRef.navigate("ServerProfile", intent.params, ROUTE_INTENT_OPTIONS);
       break;
   }
 

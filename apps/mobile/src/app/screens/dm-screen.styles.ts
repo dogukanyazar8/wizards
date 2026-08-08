@@ -286,6 +286,16 @@ export const createDmScreenStyles = (theme: MobileTheme, scale = 1) => {
       paddingTop: s(8),
       paddingBottom: s(10),
     },
+    /**
+     * Faz 5 §13.1: the header carries two actions on the Chats tab (create
+     * group, then compose) and one everywhere else, so the buttons live in
+     * their own row instead of being direct children of the header band.
+     */
+    dmInboxHeaderActions: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+    },
     dmInboxScreen: {
       gap: 0,
       backgroundColor: theme.messaging.screen,
@@ -720,6 +730,175 @@ export const createDmScreenStyles = (theme: MobileTheme, scale = 1) => {
       fontSize: s(10.5),
       lineHeight: s(14),
       fontFamily: theme.typography.fontFamilySemiBold,
+    },
+    /**
+     * Faz 5 §15.2 group creation. It shares this sheet rather than owning one
+     * because it draws the same list rows, avatars and pills the inbox does —
+     * a second sheet would be a second set of numbers to keep in step.
+     */
+    groupCreateScreen: {
+      flex: 1,
+      minWidth: 0,
+      backgroundColor: theme.messaging.screen,
+    },
+    groupCreateHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: s(12),
+      paddingHorizontal: s(20),
+      paddingTop: s(8),
+      paddingBottom: s(10),
+    },
+    groupCreateHeaderTitle: {
+      flex: 1,
+      minWidth: 0,
+      color: theme.messaging.textPrimary,
+      fontSize: s(19),
+      lineHeight: s(25),
+      fontFamily: theme.typography.fontFamilyExtraBold,
+      letterSpacing: msg.listType.titleTracking,
+    },
+    groupCreateCounter: {
+      color: theme.messaging.textSecondary,
+      fontSize: s(13),
+      lineHeight: s(18),
+      fontFamily: theme.typography.fontFamilySemiBold,
+    },
+    groupCreateStepLabel: {
+      paddingHorizontal: s(20),
+      paddingBottom: s(8),
+    },
+    groupCreateChipStrip: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: s(8),
+      paddingHorizontal: s(20),
+      paddingBottom: s(10),
+    },
+    groupCreateChip: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: s(6),
+      borderRadius: mobileRadii.pill,
+      backgroundColor: theme.messaging.segmentTrack,
+      paddingHorizontal: s(10),
+      paddingVertical: s(6),
+    },
+    groupCreateChipText: {
+      color: theme.messaging.textPrimary,
+      fontSize: s(12.5),
+      fontFamily: theme.typography.fontFamilySemiBold,
+    },
+    groupCreateFriendRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: s(12),
+      paddingHorizontal: s(20),
+      paddingVertical: s(10),
+    },
+    /** Full rows stay visible but stop reading as tappable. */
+    groupCreateFriendRowDisabled: {
+      opacity: 0.4,
+    },
+    groupCreateFriendText: {
+      flex: 1,
+      minWidth: 0,
+    },
+    groupCreateFriendName: {
+      color: theme.messaging.textPrimary,
+      fontSize: s(14.5),
+      lineHeight: s(19),
+      fontFamily: theme.typography.fontFamilyBold,
+    },
+    groupCreateFriendUsername: {
+      color: theme.messaging.textSecondary,
+      fontSize: s(12.5),
+      lineHeight: s(17),
+      fontFamily: theme.typography.fontFamilyMedium,
+    },
+    groupCreateSelectionMark: {
+      width: s(22),
+      height: s(22),
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: mobileRadii.pill,
+      borderWidth: 1.5,
+      borderColor: theme.border.subtle,
+    },
+    groupCreateSelectionMarkOn: {
+      borderColor: theme.messaging.accent,
+      backgroundColor: theme.messaging.accent,
+    },
+    groupCreateIdentityBody: {
+      gap: s(14),
+      paddingHorizontal: s(20),
+      paddingTop: s(6),
+    },
+    groupCreatePhotoButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: s(12),
+    },
+    groupCreatePhotoBadge: {
+      width: s(56),
+      height: s(56),
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: s(28),
+      borderWidth: 1,
+      borderStyle: "dashed",
+      borderColor: theme.messaging.addTileBorder,
+    },
+    groupCreatePhotoLabel: {
+      color: theme.messaging.textSecondary,
+      fontSize: s(13.5),
+      fontFamily: theme.typography.fontFamilySemiBold,
+    },
+    groupCreateFieldLabel: {
+      color: theme.messaging.groupLabel,
+      fontSize: s(11.5),
+      fontFamily: theme.typography.fontFamilyExtraBold,
+      letterSpacing: 0.4,
+    },
+    groupCreateNameField: {
+      minHeight: mobileSizing.minTouchTarget,
+      justifyContent: "center",
+      borderRadius: s(msg.searchPillRadius),
+      backgroundColor: theme.messaging.segmentTrack,
+      paddingHorizontal: s(13),
+    },
+    groupCreateNameInput: {
+      color: theme.messaging.textPrimary,
+      fontSize: s(14),
+      fontFamily: theme.typography.fontFamilyMedium,
+      paddingVertical: 0,
+    },
+    groupCreateHint: {
+      color: theme.messaging.textSecondary,
+      fontSize: s(12),
+      lineHeight: s(17),
+      fontFamily: theme.typography.fontFamilyMedium,
+    },
+    groupCreateFooter: {
+      gap: s(8),
+      paddingHorizontal: s(20),
+      paddingTop: s(10),
+      paddingBottom: s(16),
+    },
+    groupCreatePrimaryButton: {
+      minHeight: mobileSizing.minTouchTarget,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: s(msg.searchPillRadius),
+      backgroundColor: theme.messaging.accent,
+    },
+    groupCreatePrimaryButtonDisabled: {
+      opacity: 0.45,
+    },
+    groupCreatePrimaryButtonText: {
+      color: theme.messaging.surface,
+      fontSize: s(14.5),
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
     ...createSharedStyles(theme),
   } satisfies Record<string, ImageStyle | TextStyle | ViewStyle>;

@@ -1,11 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { MobileMediaUploadIntentSchema } from "@wizards/types";
-import {
-  isUploadUserAllowed,
-  resolveMessageUploadUserId,
-  uploadRouter,
-} from "./core";
+import { GroupIconUploadInputSchema } from "@/lib/dm/group-icon-upload";
+import { isUploadUserAllowed, resolveMessageUploadUserId, uploadRouter } from "./core";
 
 const existingRouteConfigs = {
   messageAttachmentUploader: {
@@ -146,14 +143,24 @@ describe("UploadThing route contracts", () => {
     }
   });
 
-  it("adds only the mobile media uploader slug", () => {
+  it("exposes exactly the known uploader slugs", () => {
     assert.deepEqual(Object.keys(uploadRouter).sort(), [
+      "groupIconUploader",
       "messageAttachmentUploader",
       "messageImageUploader",
       "mobileMediaUploader",
       "profileAvatarUploader",
       "serverIconUploader",
     ]);
+  });
+
+  it("accepts one four-MiB group icon and binds the ownership input schema", () => {
+    const route = uploadRouter.groupIconUploader;
+    assert.ok(route);
+    assert.deepEqual(route.routerConfig, {
+      image: { maxFileCount: 1, maxFileSize: "4MB" },
+    });
+    assert.equal(route.inputParser, GroupIconUploadInputSchema);
   });
 
   it("accepts only one four-MiB JPEG, PNG, or WebP mobile image", () => {

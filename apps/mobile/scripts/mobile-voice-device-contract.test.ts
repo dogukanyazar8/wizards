@@ -57,12 +57,14 @@ describe("mobile voice device contract", () => {
         audioInputId: " mic-1 ",
         audioOutputId: "speaker",
         noiseSuppressionEnabled: false,
+        screenShareAudioMuted: true,
         screenShareQualityId: "h1080fps30",
       }),
       {
         audioInputId: "mic-1",
         audioOutputId: "speaker",
         noiseSuppressionEnabled: false,
+        screenShareAudioMuted: true,
         screenShareQualityId: "h1080fps30",
       },
     );
@@ -70,6 +72,7 @@ describe("mobile voice device contract", () => {
       audioInputId: "mic-1",
       audioOutputId: "speaker",
       noiseSuppressionEnabled: false,
+      screenShareAudioMuted: true,
       screenShareQualityId: "h1080fps30",
     });
   });
@@ -86,6 +89,7 @@ describe("mobile voice device contract", () => {
       audioInputId: null,
       audioOutputId: null,
       noiseSuppressionEnabled: true,
+      screenShareAudioMuted: false,
       screenShareQualityId: "h1440fps60" as never,
     });
 

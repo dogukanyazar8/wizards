@@ -155,6 +155,8 @@ export const WorkspaceMemberPageSchema = z.object({
   nextCursor: z.string().nullable(),
 });
 
+export const ServerTypeSchema = z.enum(["PERSONAL", "COMMUNITY"]);
+
 export const WorkspaceServerSummarySchema = z.object({
   allowFileUploads: z.boolean(),
   allowGifs: z.boolean(),
@@ -176,8 +178,16 @@ export const WorkspaceServerSummarySchema = z.object({
 export const WorkspaceServerDetailSchema = z.object({
   server: WorkspaceServerSummarySchema.extend({
     description: z.string().nullable(),
+    /**
+     * The visibility triple rides along with the detail the settings overlay
+     * already holds; it used to re-read the public profile on every open just
+     * to learn these three columns.
+     */
+    discoverable: z.boolean(),
     isAdmin: z.boolean(),
     isOwner: z.boolean(),
+    isPublic: z.boolean(),
+    type: ServerTypeSchema,
   }),
   categories: z.array(WorkspaceCategorySchema),
   invites: z.array(WorkspaceInviteSchema),
@@ -199,8 +209,6 @@ export const WorkspaceMembersResponseSchema = z.object({
   memberPage: WorkspaceMemberPageSchema,
   members: z.array(WorkspaceMemberSchema),
 });
-
-export const ServerTypeSchema = z.enum(["PERSONAL", "COMMUNITY"]);
 
 export const ServerVerificationLevelSchema = z.enum(["NONE", "LOW", "MEDIUM", "HIGH", "VERY_HIGH"]);
 
@@ -237,6 +245,39 @@ export const AdminCreateServerSchema = CreateServerSchema.extend({
   path: ["isPublic"],
 });
 
+/**
+ * The admin write surface for a server that already exists. `verified` and
+ * `featured` are booleans rather than a `features` array because that column
+ * also carries the media-settings flags (`TEXT_GIFS_DISABLED` and friends) —
+ * accepting the array wholesale would let a promote request silently wipe
+ * them.
+ */
+const AdminUpdateServerFieldsSchema = z.object({
+  discoverable: z.boolean().optional(),
+  featured: z.boolean().optional(),
+  isPublic: z.boolean().optional(),
+  type: ServerTypeSchema.optional(),
+  verificationLevel: ServerVerificationLevelSchema.optional(),
+  verified: z.boolean().optional(),
+});
+
+/**
+ * The "at least one field" predicate is derived from the schema's own keys.
+ * The hand-listed variant of this predicate has gone stale three times in this
+ * package (`UpdateServerSchema`, `hasMobileServerUpdate`, and the mobile update
+ * fields), always by adding a field to the contract and forgetting the list.
+ */
+const ADMIN_UPDATE_SERVER_FIELD_KEYS = Object.keys(
+  AdminUpdateServerFieldsSchema.shape,
+) as ReadonlyArray<keyof z.infer<typeof AdminUpdateServerFieldsSchema>>;
+
+export const AdminUpdateServerSchema = AdminUpdateServerFieldsSchema.refine(
+  (value) => ADMIN_UPDATE_SERVER_FIELD_KEYS.some((key) => value[key] !== undefined),
+  {
+    message: "validation.form.atLeastOne",
+  },
+);
+
 export const UpdateServerFieldsSchema = z.object({
   allowFileUploads: z.boolean().optional(),
   allowGifs: z.boolean().optional(),
@@ -257,19 +298,12 @@ export const UpdateServerFieldsSchema = z.object({
   shortName: optionalServerShortName,
 });
 
+const UPDATE_SERVER_FIELD_KEYS = Object.keys(UpdateServerFieldsSchema.shape) as ReadonlyArray<
+  keyof z.infer<typeof UpdateServerFieldsSchema>
+>;
+
 export const UpdateServerSchema = UpdateServerFieldsSchema.refine(
-  (value) =>
-    value.name !== undefined ||
-    value.shortName !== undefined ||
-    value.description !== undefined ||
-    value.iconUrl !== undefined ||
-    value.messageCharacterLimit !== undefined ||
-    value.deletedMessageNoticeMinutes !== undefined ||
-    value.allowGifs !== undefined ||
-    value.allowFileUploads !== undefined ||
-    value.allowMemberAdds !== undefined ||
-    value.isPublic !== undefined ||
-    value.discoverable !== undefined,
+  (value) => UPDATE_SERVER_FIELD_KEYS.some((key) => value[key] !== undefined),
   {
     message: "validation.form.atLeastOne",
   },
@@ -412,6 +446,42 @@ export const ServerPublicProfileSchema = z.object({
   verified: z.boolean(),
 });
 
+/**
+ * The discovery card (S3) is a strict subset of `ServerPublicProfileSchema`:
+ * no channel list, no friend intersection, no permission resolution -- a
+ * discovery page lists N servers, and N times the profile's permission
+ * filter would be the thing that kills it. `memberCount`/`onlineCount` stay
+ * raw numbers here, the same as the profile schema, so both surfaces format
+ * them through the same `formatServerProfileCount` at render time instead of
+ * the backend baking one locale's formatting into the payload.
+ */
+export const ServerDiscoveryCardSchema = z.object({
+  bannerUrl: z.string().nullable(),
+  description: z.string(),
+  iconUrl: z.string().nullable(),
+  id: z.string(),
+  memberCount: z.number().int().nonnegative(),
+  name: z.string(),
+  onlineCount: z.number().int().nonnegative(),
+  shortName: z.string().nullable(),
+  type: ServerTypeSchema,
+  verified: z.boolean(),
+});
+
+export const ServerDiscoveryPageSchema = z.object({
+  nextCursor: z.string().nullable(),
+  servers: z.array(ServerDiscoveryCardSchema),
+});
+
+/** Shared by both the web and mobile discovery routes -- one query shape. */
+export const ServerDiscoveryQuerySchema = z
+  .object({
+    cursor: z.string().min(1).max(64).optional(),
+    limit: z.coerce.number().int().min(1).max(50).optional(),
+    query: z.string().trim().min(1).max(100).optional(),
+  })
+  .strict();
+
 export type WorkspaceAccessLevel = z.infer<typeof WorkspaceAccessLevelSchema>;
 export type WorkspaceCategory = z.infer<typeof WorkspaceCategorySchema>;
 export type WorkspaceChannel = z.infer<typeof WorkspaceChannelSchema>;
@@ -449,6 +519,10 @@ export type UpdateWorkspaceChannelPermissionsInput = z.infer<
 >;
 export type ServerTypeValue = z.infer<typeof ServerTypeSchema>;
 export type AdminCreateServerInput = z.infer<typeof AdminCreateServerSchema>;
+export type AdminUpdateServerInput = z.infer<typeof AdminUpdateServerSchema>;
 export type ServerPublicProfile = z.infer<typeof ServerPublicProfileSchema>;
 export type ServerPublicProfileChannel = z.infer<typeof ServerPublicProfileChannelSchema>;
 export type ServerPublicProfileFriend = z.infer<typeof ServerPublicProfileFriendSchema>;
+export type ServerDiscoveryCard = z.infer<typeof ServerDiscoveryCardSchema>;
+export type ServerDiscoveryPage = z.infer<typeof ServerDiscoveryPageSchema>;
+export type ServerDiscoveryQuery = z.infer<typeof ServerDiscoveryQuerySchema>;

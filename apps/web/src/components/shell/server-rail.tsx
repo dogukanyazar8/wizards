@@ -5,7 +5,7 @@ import type { MouseEvent } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import { motion, Reorder } from "framer-motion";
-import { MessagesSquare, Plus, RotateCcw } from "lucide-react";
+import { Compass, MessagesSquare, Plus, RotateCcw } from "lucide-react";
 import type { WorkspaceServerSummary } from "@wizards/types";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { useI18n } from "@/components/providers/locale-provider";
@@ -411,6 +411,35 @@ export function ServerRail({
                 }}
               >
                 <Plus className="h-4 w-4" />
+              </span>
+            </motion.button>
+          </div>
+
+          <div className="mt-2" data-server-rail-item>
+            <motion.button
+              aria-label={t("discover.title")}
+              className="group relative mx-auto flex shrink-0 items-center justify-center rounded-[18px] text-left text-[hsl(var(--primary))] outline-hidden transition hover:bg-[hsl(var(--primary)/0.1)] focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--background)/0.72)]"
+              data-testid="server-rail-discover"
+              onClick={() => onNavigate("/discover")}
+              onFocus={() => onPrefetch?.("/discover")}
+              onMouseEnter={() => onPrefetch?.("/discover")}
+              style={{
+                height: COMPACT_SERVER_RAIL_TOUCH_SIZE,
+                width: COMPACT_SERVER_RAIL_TOUCH_SIZE,
+              }}
+              title={t("discover.title")}
+              type="button"
+              whileHover={{ scale: 1.035, y: -1 }}
+              whileTap={{ scale: 0.985 }}
+            >
+              <span
+                className="flex shrink-0 items-center justify-center rounded-[16px] bg-[hsl(var(--primary)/0.12)] ring-1 ring-[hsl(var(--primary)/0.18)]"
+                style={{
+                  height: COMPACT_SERVER_RAIL_ICON_SIZE,
+                  width: COMPACT_SERVER_RAIL_ICON_SIZE,
+                }}
+              >
+                <Compass className="h-4 w-4" />
               </span>
             </motion.button>
           </div>

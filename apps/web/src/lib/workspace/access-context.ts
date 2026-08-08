@@ -39,8 +39,10 @@ export async function getAccessContextWithClient(
         server: {
           select: {
             id: true,
+            isPublic: true,
             name: true,
             ownerId: true,
+            type: true,
             roles: {
               where: { isDefault: true },
               select: {
@@ -81,11 +83,13 @@ export async function getAccessContextWithClient(
 
   return {
     accessLevel: deriveAccessLevel(membership.server.ownerId, userId, roles),
+    isPublic: membership.server.isPublic,
     memberId: membership.id,
     ownerId: membership.server.ownerId,
     roles,
     serverId: membership.server.id,
     serverName: membership.server.name,
+    type: membership.server.type,
     userId,
   };
 }

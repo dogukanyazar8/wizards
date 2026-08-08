@@ -25,10 +25,7 @@ function toAudioVolume(volume: number) {
   return Math.min(1, Math.max(0, volume / 100));
 }
 
-export function SoundEffectsProvider({
-  children,
-  currentUserId,
-}: SoundEffectsProviderProps) {
+export function SoundEffectsProvider({ children, currentUserId }: SoundEffectsProviderProps) {
   const socket = useSocket();
   const audioCacheRef = useRef<Map<string, HTMLAudioElement>>(new Map());
   const hasTrackedActiveChannelRef = useRef(false);

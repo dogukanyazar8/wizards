@@ -63,7 +63,9 @@ export type VoiceContextValue = {
   room: Room | null;
   screenShareError: string | null;
   screenShares: VoiceScreenShareViewModel[];
+  screenShareAudioEnabled: boolean;
   screenShareQuality: ScreenShareQualityId;
+  screenShareVolume: number;
   serverId: string | null;
   activeScreenShareId: string | null;
   startPushToTalk: () => Promise<void>;
@@ -74,6 +76,8 @@ export type VoiceContextValue = {
   ) => void;
   setActiveScreenShareId: (id: string) => void;
   setParticipantVolume: (userId: string, volume: number) => void;
+  setScreenShareAudioEnabled: (enabled: boolean) => void;
+  setScreenShareVolume: (volume: number) => void;
   setScreenShareQuality: (qualityId: ScreenShareQualityId) => Promise<void>;
   retryKrispNoiseCancellation: () => Promise<boolean>;
   preloadVoiceProcessing: () => Promise<boolean>;
@@ -96,14 +100,10 @@ export type VoiceParticipantsContextValue = Pick<
   "participants" | "screenShares"
 >;
 
-export type VoiceStateContextValue = Omit<
-  VoiceContextValue,
-  keyof VoiceParticipantsContextValue
->;
+export type VoiceStateContextValue = Omit<VoiceContextValue, keyof VoiceParticipantsContextValue>;
 
 export const VoiceStateContext = createContext<VoiceStateContextValue | null>(null);
-export const VoiceParticipantsContext =
-  createContext<VoiceParticipantsContextValue | null>(null);
+export const VoiceParticipantsContext = createContext<VoiceParticipantsContextValue | null>(null);
 
 export function useVoiceState() {
   const value = useContext(VoiceStateContext);

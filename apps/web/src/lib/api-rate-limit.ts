@@ -39,6 +39,8 @@ export const API_RATE_LIMITS = {
   "admin:server:create": { limit: 10, windowSeconds: 60 * 60 },
   "admin:server:delete": { limit: 5, windowSeconds: 60 * 60 },
   "admin:server:list": { limit: 120, windowSeconds: 60 },
+  "admin:server:recount": { limit: 30, windowSeconds: 60 },
+  "admin:server:update": { limit: 30, windowSeconds: 60 },
   "admin:support:list": { limit: 120, windowSeconds: 60 },
   "admin:support:read": { limit: 120, windowSeconds: 60 },
   "admin:support:update": { limit: 40, windowSeconds: 60 },
@@ -65,6 +67,9 @@ export const API_RATE_LIMITS = {
   "dm:conversation:read": { limit: 120, windowSeconds: 60 },
   "dm:conversations:list": { limit: 120, windowSeconds: 60 },
   "dm:create": { limit: 30, windowSeconds: 60 },
+  "dm:group:create": { limit: 10, windowSeconds: 10 * 60 },
+  "dm:group:members": { limit: 30, windowSeconds: 60 },
+  "dm:group:update": { limit: 30, windowSeconds: 60 },
   "dm:hide": { limit: 60, windowSeconds: 60 },
   "dm:mark-unread": { limit: 180, windowSeconds: 60 },
   "dm:mark-read": { limit: 180, windowSeconds: 60 },
@@ -141,6 +146,12 @@ export const API_RATE_LIMITS = {
   /** 11f gallery paging: one request per scroll page and per tab switch. */
   "mobile:dm:attachments": { limit: 120, windowSeconds: 60 },
   "mobile:dm:create": { limit: 30, windowSeconds: 10 * 60 },
+  "mobile:dm:group:create": { limit: 10, windowSeconds: 10 * 60 },
+  "mobile:dm:group:members": { limit: 30, windowSeconds: 60 },
+  "mobile:dm:group:update": { limit: 30, windowSeconds: 60 },
+  // Same ceilings as the web `dm:hide` / `dm:mute` buckets they mirror.
+  "mobile:dm:hide": { limit: 60, windowSeconds: 60 },
+  "mobile:dm:mute": { limit: 60, windowSeconds: 60 },
   "mobile:friends:block": { limit: 30, windowSeconds: 10 * 60 },
   "mobile:friends:list": { limit: 120, windowSeconds: 60 },
   "mobile:friends:remove": { limit: 30, windowSeconds: 10 * 60 },
@@ -193,10 +204,19 @@ export const API_RATE_LIMITS = {
   "mobile:server:invites:revoke": { limit: 20, windowSeconds: 10 * 60 },
   "mobile:server:invites:sheet": { limit: 60, windowSeconds: 60 },
   "mobile:server:invites:target": { limit: 40, windowSeconds: 10 * 60 },
+  // Matches server:discover: a browse surface, the generous end of the mobile
+  // server-read budgets (mobile:server:detail/profile sit at 120).
+  "mobile:server:discover": { limit: 120, windowSeconds: 60 },
   "mobile:server:join": { limit: 20, windowSeconds: 10 * 60 },
+  // Distinct from mobile:server:join above, which spends an invite code at
+  // POST mobile/servers/join. This is the invite-free path at
+  // POST mobile/servers/[serverId]/join -- see server:join-public's comment
+  // for why it needs the same tight, secret-independent ceiling.
+  "mobile:server:join-public": { limit: 10, windowSeconds: 60 * 60 },
   "mobile:server:member:kick": { limit: 30, windowSeconds: 10 * 60 },
   "mobile:server:member-roles:update": { limit: 40, windowSeconds: 10 * 60 },
   "mobile:server:members:list": { limit: 60, windowSeconds: 60 },
+  "mobile:server:profile": { limit: 120, windowSeconds: 60 },
   "mobile:server:roles:create": { limit: 20, windowSeconds: 10 * 60 },
   "mobile:server:roles:delete": { limit: 20, windowSeconds: 10 * 60 },
   "mobile:server:roles:list": { limit: 60, windowSeconds: 60 },
@@ -208,7 +228,17 @@ export const API_RATE_LIMITS = {
   "server:create": { limit: 10, windowSeconds: 60 * 60 },
   "server:delete": { limit: 5, windowSeconds: 60 * 60 },
   "server:detail": { limit: 240, windowSeconds: 60 },
+  // Discovery is a browse surface (grid scroll + debounced search), so it
+  // shares server:list/profile's generous read budget rather than a tighter one.
+  "server:discover": { limit: 240, windowSeconds: 60 },
   "server:list": { limit: 240, windowSeconds: 60 },
+  // Invite-free join writes a membership row, bumps a shared counter, and fans
+  // out a system message over sockets -- the same blast radius as creating a
+  // server, so it gets the same 10/hour ceiling as server:create. Unlike an
+  // invite code, a public server's id is enumerable straight off the discovery
+  // list, so this budget has to hold on its own without a secret backing it.
+  "server:join-public": { limit: 10, windowSeconds: 60 * 60 },
+  "server:profile": { limit: 240, windowSeconds: 60 },
   "server:update": { limit: 30, windowSeconds: 60 },
   "settings:update": { limit: 60, windowSeconds: 60 },
   /**

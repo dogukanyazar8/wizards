@@ -199,4 +199,36 @@ describe("messaging redesign M4A schemas", () => {
       false,
     );
   });
+
+  it("accepts an empty preview only for a group lifecycle row", async () => {
+    const { MobileDMConversationLastMessagePreviewSchema } = await mobile;
+
+    const parsed = MobileDMConversationLastMessagePreviewSchema.parse({
+      author: { displayName: "Ada", id: "user-1", username: "ada" },
+      authorIsCurrentUser: true,
+      createdAt: "2026-08-08T09:00:00.000Z",
+      id: "message-system-1",
+      systemType: "MEMBER_LEFT",
+      text: "",
+    });
+
+    assert.equal(parsed.systemType, "MEMBER_LEFT");
+    assert.equal(parsed.text, "");
+  });
+
+  it("rejects localized system metadata attached to a nonempty preview", async () => {
+    const { MobileDMConversationLastMessagePreviewSchema } = await mobile;
+
+    assert.equal(
+      MobileDMConversationLastMessagePreviewSchema.safeParse({
+        author: { displayName: "Ada", id: "user-1", username: "ada" },
+        authorIsCurrentUser: true,
+        createdAt: "2026-08-08T09:00:00.000Z",
+        id: "message-system-2",
+        systemType: "MEMBER_LEFT",
+        text: "Ada ayrıldı",
+      }).success,
+      false,
+    );
+  });
 });

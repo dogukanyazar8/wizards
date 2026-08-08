@@ -29,6 +29,12 @@ import {
 } from "@/lib/messages/attachment-rules";
 import { cn } from "@/lib/utils";
 
+/**
+ * Faz 6 §19.2. The group arm of this surface is `DmGroupDetailsPanel`
+ * (`dm-group-details-panel.tsx`). It is a separate module rather than a mode
+ * here because it shares no section with the 1:1 panel below, and it imports
+ * `DmConversationShortcuts` from this file — so the dependency runs one way.
+ */
 type DmDetailsPanelProps = {
   className?: string;
   conversation: DMConversationDTO;

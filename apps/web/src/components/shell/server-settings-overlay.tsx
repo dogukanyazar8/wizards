@@ -21,6 +21,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ServerIconField } from "@/components/shell/server-icon-field";
 import { ServerFeatureToggle } from "@/components/shell/server-feature-toggle";
 import { useAppStore } from "@/lib/store";
+import { serverProfileQueryKeys } from "@/lib/servers/client";
 import {
   createWorkspaceRoleRequest,
   deleteWorkspaceRoleRequest,
@@ -294,6 +295,8 @@ function ServerSettingsOverlayContent({
     detail?.server.deletedMessageNoticeMinutes ?? 60,
   );
   const [overviewSaved, setOverviewSaved] = useState(false);
+  const [isPublic, setIsPublic] = useState(detail?.server.isPublic ?? false);
+  const [discoverable, setDiscoverable] = useState(detail?.server.discoverable ?? false);
   const [roleEditorId, setRoleEditorId] = useState<string | null>(null);
   const [roleName, setRoleName] = useState("");
   const [roleColor, setRoleColor] = useState<number>(DEFAULT_ROLE_COLOR);
@@ -323,6 +326,8 @@ function ServerSettingsOverlayContent({
     }, 50);
   }, [overviewSaved]);
 
+  const isCommunityServer = detail?.server.type === "COMMUNITY";
+
   const updateMutation = useMutation({
     onMutate: () => {
       setOverviewSaved(false);
@@ -342,12 +347,19 @@ function ServerSettingsOverlayContent({
         deletedMessageNoticeMinutes,
         name,
         shortName,
+        // A COMMUNITY server's visibility is admin-owned; the service rejects
+        // the write, so the fields are left out rather than sent and refused.
+        ...(isCommunityServer ? {} : { discoverable, isPublic }),
       });
     },
     onSuccess: async (result) => {
       if (!detail || !result?.detail) {
         return;
       }
+
+      void queryClient.invalidateQueries({
+        queryKey: serverProfileQueryKeys.profile(detail.server.id),
+      });
 
       const updatedDetail = result.detail;
       queryClient.setQueryData<WorkspaceServerDetail>(
@@ -787,6 +799,51 @@ function ServerSettingsOverlayContent({
                     onChange={setAllowMemberAdds}
                     title={t("workspace.members.allowAdds.title")}
                   />
+                </div>
+                <div className="app-panel rounded-[28px] border p-4 sm:p-5">
+                  <div className="mb-4">
+                    <p className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]">
+                      {t("serverSettings.visibility.title")}
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-app-muted">
+                      {t("serverSettings.visibility.description")}
+                    </p>
+                  </div>
+                  <div className="grid gap-3">
+                    {isCommunityServer ? (
+                      <p
+                        className="app-panel-soft rounded-2xl border px-4 py-3 text-xs leading-5 text-app-muted"
+                        data-testid="server-settings-visibility-community-notice"
+                      >
+                        {t("serverSettings.visibility.communityLocked")}
+                      </p>
+                    ) : null}
+                    <ServerFeatureToggle
+                      checked={isPublic}
+                      description={t("serverSettings.visibility.isPublicDescription")}
+                      disabled={isCommunityServer || updateMutation.isPending}
+                      onChange={(checked) => {
+                        setIsPublic(checked);
+                        if (!checked) {
+                          setDiscoverable(false);
+                        }
+                      }}
+                      testId="server-settings-is-public-toggle"
+                      title={t("serverSettings.visibility.isPublicTitle")}
+                    />
+                    <ServerFeatureToggle
+                      checked={discoverable}
+                      description={
+                        isPublic
+                          ? t("serverSettings.visibility.discoverableDescription")
+                          : t("serverSettings.visibility.discoverableRequiresPublic")
+                      }
+                      disabled={isCommunityServer || !isPublic || updateMutation.isPending}
+                      onChange={setDiscoverable}
+                      testId="server-settings-discoverable-toggle"
+                      title={t("serverSettings.visibility.discoverableTitle")}
+                    />
+                  </div>
                 </div>
                 <div className="flex justify-stretch sm:justify-end">
                   <Button

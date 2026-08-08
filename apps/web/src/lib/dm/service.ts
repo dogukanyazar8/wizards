@@ -3,6 +3,7 @@ import {
   MESSAGE_CONTENT_DEFAULT_LIMIT,
   type DMConversationDTO,
   type DMMessagePayload,
+  type DMSystemMessageTypeValue,
   type DMParticipantDTO,
   type MessageReaction,
   type MessageThreadSummary,
@@ -14,7 +15,7 @@ import { resolveLastSeenAtByUserId } from "@/lib/friends/last-seen";
 import { getRedis } from "@/lib/redis";
 import { normalizeAppLocale, translate } from "@/lib/locale";
 import { mapAttachmentsForViewer } from "@/lib/messages/attachment-visibility";
-import { readPresenceMap, type PresenceFields } from "@/lib/presence";
+import { readPresenceState, type PresenceFields } from "@/lib/presence";
 import { canStartDirectMessage } from "@/lib/privacy-policy";
 import type {
   DMConversationsPageResponse,
@@ -104,6 +105,14 @@ type DMMessageNode = {
   deletedById: string | null;
   placeholderRemovedAt: Date | null;
   createdAt: Date;
+  /**
+   * Faz 5 §16.1. Optional on the node because a reply preview is selected with
+   * the same include but older callers hand-build nodes in tests; a row that
+   * predates the columns reads as an ordinary message.
+   */
+  systemType?: DMSystemMessageTypeValue | null;
+  systemTargetUserIds?: string[];
+  systemValue?: string | null;
   author: {
     id: string;
     username: string;
@@ -136,7 +145,12 @@ type RawDMMessage = Prisma.DMMessageGetPayload<{
   include: typeof dmMessageInclude;
 }>;
 
-type RawDMConversation = Prisma.DMConversationGetPayload<{
+/**
+ * Exported so a writer that already loaded this projection inside its own
+ * transaction can hand it straight to `mapDMConversationDTO` instead of making
+ * the caller re-read the row it just wrote.
+ */
+export type RawDMConversation = Prisma.DMConversationGetPayload<{
   include: typeof dmConversationInclude;
 }>;
 
@@ -170,8 +184,8 @@ function getPresenceFallback(
   };
 }
 
-async function readDMConversationPresenceMap(conversation: RawDMConversation) {
-  return readPresenceMap(
+async function readDMConversationPresenceState(conversation: RawDMConversation) {
+  return readPresenceState(
     getRedis(),
     conversation.participants.map((participant) => ({
       ...getPresenceFallback(participant),
@@ -448,6 +462,9 @@ function mapDMReply(
     })),
     reactions: groupDMReactions(reactionsByMessageId.get(message.id) ?? message.reactions ?? []),
     replyTo: nextReply,
+    systemType: message.systemType ?? null,
+    systemTargetUserIds: message.systemTargetUserIds ?? [],
+    systemValue: message.systemValue ?? null,
   };
 }
 
@@ -539,16 +556,17 @@ export async function mapDMConversationDTO(
    */
   lastSeenByUserId?: Map<string, string>,
 ): Promise<DMConversationDTO> {
-  const [presenceByUserId, resolvedLastSeenByUserId] = await Promise.all([
-    readDMConversationPresenceMap(conversation),
+  const [presenceState, resolvedLastSeenByUserId] = await Promise.all([
+    readDMConversationPresenceState(conversation),
     lastSeenByUserId ?? readDMConversationLastSeenMap(conversation),
   ]);
   return mapDMConversationDTOWithPresence(
     conversation,
     viewerId,
     deletedMessageLabel,
-    presenceByUserId,
+    presenceState.presenceByUserId,
     resolvedLastSeenByUserId,
+    presenceState.hiddenUserIds,
   );
 }
 
@@ -558,6 +576,7 @@ function mapDMConversationDTOWithPresence(
   deletedMessageLabel: string,
   presenceByUserId: Map<string, PresenceFields>,
   lastSeenByUserId: Map<string, string>,
+  hiddenUserIds: ReadonlySet<string>,
 ): DMConversationDTO {
   return {
     id: conversation.id,
@@ -570,7 +589,11 @@ function mapDMConversationDTOWithPresence(
       mapDMParticipantWithPresence(
         participant,
         presenceByUserId.get(participant.userId) ?? getPresenceFallback(participant),
-        lastSeenByUserId.get(participant.userId) ?? null,
+        // An invisible participant publishes OFFLINE while still heartbeating, so
+        // their last-seen would refresh forever and give the mode away.
+        hiddenUserIds.has(participant.userId)
+          ? null
+          : (lastSeenByUserId.get(participant.userId) ?? null),
       ),
     ),
     lastMessage: mapConversationLastMessage(conversation, deletedMessageLabel, viewerId),
@@ -944,7 +967,7 @@ export async function getDirectMessageConversationRealtimeViews(
     conversation.participants.map((participant) => participant.userId),
   );
   const latestMessageDeleted = Boolean(conversation.messages[0]?.deletedAt);
-  const [localeByUserId, presenceByUserId, lastSeenByUserId] = await Promise.all([
+  const [localeByUserId, presenceState, lastSeenByUserId] = await Promise.all([
     latestMessageDeleted
       ? prisma.user
           .findMany({
@@ -953,7 +976,7 @@ export async function getDirectMessageConversationRealtimeViews(
           })
           .then((users) => new Map(users.map((user) => [user.id, user.locale])))
       : Promise.resolve(new Map<string, string | null>()),
-    readDMConversationPresenceMap(conversation),
+    readDMConversationPresenceState(conversation),
     readDMConversationLastSeenMap(conversation),
   ]);
   const defaultDeletedMessageLabel = getDeletedMessageLabelForLocale(null);
@@ -974,8 +997,9 @@ export async function getDirectMessageConversationRealtimeViews(
           latestMessageDeleted
             ? getDeletedMessageLabelForLocale(localeByUserId.get(participantId))
             : defaultDeletedMessageLabel,
-          presenceByUserId,
+          presenceState.presenceByUserId,
           lastSeenByUserId,
+          presenceState.hiddenUserIds,
         ),
       };
     });

@@ -21,11 +21,13 @@ const request = new Request("https://example.test/api/uploadthing", {
 
 const accessContext: AccessContext = {
   accessLevel: "ADMIN",
+  isPublic: false,
   memberId: "member-1",
   ownerId: "owner-1",
   roles: [],
   serverId: "server-1",
   serverName: "Server",
+  type: "PERSONAL",
   userId: "user-1",
 };
 

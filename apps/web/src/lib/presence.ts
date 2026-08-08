@@ -13,6 +13,24 @@ export type PresenceFields = {
   status: VisiblePresenceStatus;
 };
 
+export type PresenceState = {
+  presenceByUserId: Map<string, PresenceFields>;
+  /**
+   * Users who hold a live socket while publishing OFFLINE — the invisible set.
+   *
+   * "Görünmez" is stored as `OFFLINE` (the picker converts it before it ever
+   * reaches the server, and `mapStoredPresenceStatus` collapses anything that
+   * is not ONLINE/IDLE/DND), and choosing it does not close the socket. So a
+   * connected user reading as OFFLINE is either invisible or has an expired
+   * presence key; either way the app is telling viewers "offline", and any
+   * activity-derived value shown next to that — last-seen above all — must not
+   * contradict it. The session heartbeat keeps writing every 60s, so an
+   * ungated last-seen would refresh forever and expose the mode it is meant to
+   * hide.
+   */
+  hiddenUserIds: Set<string>;
+};
+
 type RedisPresenceStatus = VisiblePresenceStatus | "INVISIBLE";
 
 const PRESENCE_SOCKET_PREFIX = "presence:socket-set:";
@@ -109,7 +127,21 @@ export async function readPresenceMap(
   redis: Redis,
   fallbacks: PresenceFallback[],
 ): Promise<Map<string, PresenceFields>> {
+  const { presenceByUserId } = await readPresenceState(redis, fallbacks);
+  return presenceByUserId;
+}
+
+/**
+ * `readPresenceMap` plus the invisible set, from the same two round trips.
+ * Callers that pair presence with an activity-derived value (last-seen) need
+ * both; everything that only renders a dot keeps using `readPresenceMap`.
+ */
+export async function readPresenceState(
+  redis: Redis,
+  fallbacks: PresenceFallback[],
+): Promise<PresenceState> {
   const result = new Map<string, PresenceFields>();
+  const activeSocketByUserId = new Map<string, boolean>();
   const uniqueFallbacks = Array.from(
     new Map(fallbacks.map((fallback) => [fallback.userId, fallback])).values(),
   );
@@ -121,8 +153,22 @@ export async function readPresenceMap(
     });
   }
 
+  // A failed read leaves this empty on purpose: presence already degrades to
+  // "everybody offline" during an outage, and gating on top of that would blank
+  // every last-seen line at once. Fail open, stay at today's exposure.
+  const toState = (): PresenceState => ({
+    hiddenUserIds: new Set(
+      Array.from(result.entries())
+        .filter(
+          ([userId, presence]) => presence.status === "OFFLINE" && activeSocketByUserId.get(userId),
+        )
+        .map(([userId]) => userId),
+    ),
+    presenceByUserId: result,
+  });
+
   if (uniqueFallbacks.length === 0) {
-    return result;
+    return toState();
   }
 
   try {
@@ -146,7 +192,7 @@ export async function readPresenceMap(
 
     const presenceResults = await presencePipeline.exec();
     if (!presenceResults) {
-      return result;
+      return toState();
     }
 
     const valueRequests: Array<{
@@ -169,6 +215,11 @@ export async function readPresenceMap(
         continue;
       }
 
+      // Recorded for every user, not only the ones with a live key: a connected
+      // user whose presence key expired still reads as offline and still needs
+      // gating.
+      activeSocketByUserId.set(fallback.userId, socketCount > 0);
+
       if (keyType === "hash" || keyType === "string") {
         valueRequests.push({
           fallback,
@@ -180,7 +231,7 @@ export async function readPresenceMap(
     }
 
     if (valueRequests.length === 0) {
-      return result;
+      return toState();
     }
 
     const valuePipeline = redis.pipeline();
@@ -194,7 +245,7 @@ export async function readPresenceMap(
 
     const valueResults = await valuePipeline.exec();
     if (!valueResults) {
-      return result;
+      return toState();
     }
 
     for (const [index, [, value]] of valueResults.entries()) {
@@ -218,8 +269,11 @@ export async function readPresenceMap(
       });
     }
   } catch {
-    return result;
+    // Half-read state would gate on statuses that never arrived, so a partial
+    // failure drops the socket evidence rather than over-hiding.
+    activeSocketByUserId.clear();
+    return toState();
   }
 
-  return result;
+  return toState();
 }

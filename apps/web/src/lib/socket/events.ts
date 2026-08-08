@@ -251,6 +251,14 @@ export interface ServerToClientEvents {
     unreadCount: number;
     conversation: DMConversationDTO;
   }) => void;
+  /** A group the viewer is now in. Lands in their inbox without a refetch. */
+  "dm:conversation:created": (data: { conversation: DMConversationDTO }) => void;
+  "dm:conversation:members_changed": (data: {
+    conversationId: string;
+    conversation: DMConversationDTO;
+  }) => void;
+  /** The viewer is no longer a participant. Drop the row, close the chat. */
+  "dm:conversation:removed": (data: { conversationId: string }) => void;
   "dm:conversation:read": (data: {
     conversationId: string;
     lastReadAt: string | null;

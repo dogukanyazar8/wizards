@@ -15,9 +15,10 @@ import {
   Trash2,
   UserRoundPlus,
   Users,
+  UsersRound,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { useState } from "react";
+import React, { useState } from "react";
 import type { DMConversationDTO, DMPresenceStatus } from "@wizards/types";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -26,15 +27,23 @@ import { Input } from "@/components/ui/input";
 import type { FriendRequestDto } from "@/lib/friends/types";
 import { cn } from "@/lib/utils";
 
-export type DmFilterId = "all" | "requests" | "unread";
+/** K1 parity: the mobile inbox has had a groups filter since Faz 2. */
+export type DmFilterId = "all" | "groups" | "requests" | "unread";
 
 export type DmConversationItemView = {
   avatarUrl: string | null | undefined;
   conversation: DMConversationDTO;
   displayName: string;
+  /**
+   * Faz 6 §18.3. A group has no single counterpart, so instead of one avatar and
+   * a presence dot the row draws a stack of member faces and a member count.
+   */
+  groupAvatars?: readonly { avatarUrl: string | null; id: string; label: string }[] | undefined;
   handle: string | null;
   isActive: boolean;
+  isGroup?: boolean | undefined;
   isMuted: boolean;
+  memberCount?: number | undefined;
   preview: string;
   searchText: string;
   status: DMPresenceStatus;
@@ -59,6 +68,7 @@ type DmSidebarProps = {
   incomingRequests: FriendRequestDto[];
   isFetchingNextPage: boolean;
   isHidingConversation: boolean;
+  onCreateGroup: () => void;
   onFilterChange: (filter: DmFilterId) => void;
   onHideConversation: (conversationId: string) => Promise<void>;
   onLoadMore: () => void;
@@ -78,6 +88,7 @@ type DmSidebarProps = {
     emptyRequests: string;
     emptySearch: string;
     emptyTitle: string;
+    groups: string;
     friends: string;
     hideConversation: (name: string) => string;
     loadMore: string;
@@ -85,6 +96,8 @@ type DmSidebarProps = {
     markRead: string;
     markUnread: string;
     moreActions: (name: string) => string;
+    createGroup: string;
+    memberCount: (count: number) => string;
     mute: string;
     newChat: string;
     pendingRequests: string;
@@ -369,19 +382,42 @@ function DmConversationItem({
         type="button"
       >
         <span className="relative shrink-0">
-          <Avatar
-            alt={item.displayName}
-            className="h-10 w-10 rounded-[16px] text-xs"
-            fallback={item.displayName}
-            src={item.avatarUrl}
-          />
-          <span
-            aria-hidden="true"
-            className={cn(
-              "absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-[hsl(var(--background))]",
-              getStatusDotClass(item.status),
-            )}
-          />
+          {item.isGroup && !item.avatarUrl && item.groupAvatars?.length ? (
+            <span
+              className="flex h-10 w-10 items-center"
+              data-testid={`dm-conversation-${item.conversation.id}-avatar-stack`}
+            >
+              {item.groupAvatars.map((member, index) => (
+                <Avatar
+                  alt={member.label}
+                  className={cn(
+                    "h-7 w-7 rounded-[12px] border border-[hsl(var(--background))] text-[10px]",
+                    index > 0 ? "-ml-3" : "",
+                  )}
+                  fallback={member.label}
+                  key={member.id}
+                  src={member.avatarUrl}
+                />
+              ))}
+            </span>
+          ) : (
+            <Avatar
+              alt={item.displayName}
+              className="h-10 w-10 rounded-[16px] text-xs"
+              fallback={item.displayName}
+              src={item.avatarUrl}
+            />
+          )}
+          {/* A group has no one presence to report, so the dot is absent. */}
+          {item.isGroup ? null : (
+            <span
+              aria-hidden="true"
+              className={cn(
+                "absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-[hsl(var(--background))]",
+                getStatusDotClass(item.status),
+              )}
+            />
+          )}
         </span>
 
         <span className="min-w-0 flex-1">
@@ -396,7 +432,14 @@ function DmConversationItem({
             ) : null}
           </span>
           <span className="mt-0.5 flex min-w-0 items-center gap-2">
-            {item.handle ? (
+            {item.isGroup && item.memberCount ? (
+              <span
+                className="shrink-0 text-[11px] text-app-soft"
+                data-testid={`dm-conversation-${item.conversation.id}-member-count`}
+              >
+                {text.memberCount(item.memberCount)}
+              </span>
+            ) : item.handle ? (
               <span className="max-w-[8.75rem] shrink-0 truncate text-[11px] text-app-soft">
                 {item.handle}
               </span>
@@ -610,6 +653,7 @@ export function DmSidebar({
   incomingRequests,
   isFetchingNextPage,
   isHidingConversation,
+  onCreateGroup,
   onFilterChange,
   onHideConversation,
   onLoadMore,
@@ -628,6 +672,7 @@ export function DmSidebar({
   const filterOptions: DmFilterOption[] = [
     { id: "all", label: text.all },
     { badge: unreadCount, id: "unread", label: text.unread },
+    { id: "groups", label: text.groups },
     { disabled: true, icon: Pin, id: "pinned", label: text.pinned },
     { badge: incomingRequests.length, id: "requests", label: text.requests },
   ];
@@ -672,6 +717,17 @@ export function DmSidebar({
           >
             <Plus className="h-4 w-4" />
             {text.newChat}
+          </button>
+          {/* Faz 6 §18.3: group creation sits beside the new-chat control, not
+              inside it — a group is a different thing to start, not a mode. */}
+          <button
+            className="flex min-h-10 w-full items-center justify-center gap-2 rounded-[16px] border border-[hsl(var(--border)/0.6)] bg-[hsl(var(--surface-soft)/0.42)] px-3.5 text-sm font-bold text-app-foreground transition hover:bg-[hsl(var(--surface-soft)/0.68)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+            data-testid="dm-create-group-button"
+            onClick={onCreateGroup}
+            type="button"
+          >
+            <UsersRound className="h-4 w-4" />
+            {text.createGroup}
           </button>
           <DmFilterTabs
             activeFilter={activeFilter}

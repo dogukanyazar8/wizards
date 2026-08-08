@@ -64,6 +64,7 @@ import {
   resumeRemoteVideoFromBackground,
   suspendRemoteVideoForBackground,
 } from "./mobile-remote-video-background";
+import { applyMobileScreenShareAudioMute } from "./mobile-screen-share-audio";
 import { shouldSuspendVoiceMediaOnAppStateChange } from "./mobile-voice-background-media";
 import {
   createInitialMobilePushToTalkState,
@@ -553,6 +554,14 @@ export function useMobileVoiceRoom({
       if (!user || !room) {
         return;
       }
+
+      // A reconnect, or a sharer who joined after the choice was made, arrives at
+      // full volume; the listener's mute is re-asserted on every sync rather
+      // than only at the moment they pressed the button.
+      applyMobileScreenShareAudioMute(
+        room,
+        voiceDevicePreferencesRef.current.screenShareAudioMuted,
+      );
 
       setRoomState((current) => {
         if (generation !== undefined && !isCurrentSessionGeneration(generation)) {
@@ -1711,6 +1720,22 @@ export function useMobileVoiceRoom({
    * call and applies to the next share. A live share is not restarted here — the
    * user chose a ceiling, not a reason to drop the stream mid-sentence.
    */
+  /**
+   * A listener-side mute, stored with the device preferences so it survives the
+   * call. Applied immediately and re-applied on every room update, because
+   * livekit forgets a volume only if the participant object itself is replaced.
+   */
+  const selectScreenShareAudioMuted = useCallback(
+    (muted: boolean) => {
+      applyMobileScreenShareAudioMute(roomRef.current, muted);
+      commitVoiceDevicePreferences({
+        ...voiceDevicePreferencesRef.current,
+        screenShareAudioMuted: muted,
+      });
+    },
+    [commitVoiceDevicePreferences],
+  );
+
   const selectScreenShareQuality = useCallback(
     (qualityId: unknown) => {
       const normalized = normalizeMobileScreenShareQualityId(qualityId);
@@ -2021,11 +2046,13 @@ export function useMobileVoiceRoom({
     requestMicrophonePermission,
     refreshVoiceDevices,
     roomState,
+    screenShareAudioMuted: voiceDevicePreferences.screenShareAudioMuted,
     screenShareQualityId: voiceDevicePreferences.screenShareQualityId,
     selectAudioDeviceOutput,
     selectAudioInput,
     selectAudioOutput,
     selectNoiseSuppression,
+    selectScreenShareAudioMuted,
     selectScreenShareQuality,
     syncParticipantAudioLevelFromServer,
     syncParticipantsFromServer,

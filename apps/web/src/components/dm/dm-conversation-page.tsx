@@ -7,6 +7,10 @@ import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { ChatArea } from "@/components/chat/chat-area";
 import { DmDetailsPanel } from "@/components/dm/dm-details-panel";
+import { DmGroupDetailsPanel } from "@/components/dm/dm-group-details-panel";
+import { useGroupConversationMutations } from "@/hooks/use-group-conversation";
+import { isGroupConversation } from "@/lib/dm/group-presentation";
+import { fetchFriends, friendsQueryKeys } from "@/lib/friends/client";
 import { useI18n } from "@/components/providers/locale-provider";
 import { useDMConversations } from "@/hooks/use-dm-conversations";
 import { useBodyScrollLock, useResponsiveLayout } from "@/hooks/use-responsive-layout";
@@ -67,6 +71,39 @@ function DMConversationPageContent({
     () => (activeConversation ? findOtherParticipant(activeConversation, currentUserId) : null),
     [activeConversation, currentUserId],
   );
+  // Faz 6 §19.2: a group has no counterpart, so the 1:1 panel's own guard
+  // (`otherParticipant`) would hide the details surface entirely.
+  const isGroup = Boolean(activeConversation && isGroupConversation(activeConversation));
+  const groupMutations = useGroupConversationMutations(conversationId);
+  // Only fetched for a group the viewer owns: nobody else can add anyone, and a
+  // 1:1 has nothing to add to.
+  const isGroupOwner = Boolean(
+    activeConversation?.ownerId && activeConversation.ownerId === currentUserId,
+  );
+  const groupFriendsQuery = useQuery({
+    enabled: isGroup && isGroupOwner,
+    queryFn: fetchFriends,
+    queryKey: friendsQueryKeys.list,
+    staleTime: 30_000,
+  });
+  const groupCandidates = useMemo(() => {
+    if (!activeConversation) {
+      return [];
+    }
+
+    const memberIds = new Set(
+      activeConversation.participants.map((participant) => participant.userId),
+    );
+
+    return (groupFriendsQuery.data ?? [])
+      .filter((friend) => !memberIds.has(friend.id))
+      .map((friend) => ({
+        avatarUrl: friend.avatarUrl,
+        displayName: friend.displayName,
+        id: friend.id,
+        username: friend.username,
+      }));
+  }, [activeConversation, groupFriendsQuery.data]);
 
   useEffect(() => {
     if (isLoading || conversationQuery.isLoading || activeConversation || redirectedRef.current) {
@@ -97,7 +134,7 @@ function DMConversationPageContent({
   }, [activeConversation, markAsRead]);
 
   const detailsDrawerOpen = isDetailsDrawerRequested && responsiveLayout.shouldMountInfoDrawer;
-  const shouldShowDetailsDrawer = detailsDrawerOpen && Boolean(otherParticipant);
+  const shouldShowDetailsDrawer = detailsDrawerOpen && Boolean(otherParticipant || isGroup);
   useBodyScrollLock(shouldShowDetailsDrawer);
 
   const openSearchFromDetails = () => {
@@ -135,7 +172,7 @@ function DMConversationPageContent({
 
   return (
     <div className="flex min-h-0 flex-1 overflow-hidden">
-      {shouldShowDetailsDrawer && otherParticipant && typeof document !== "undefined"
+      {shouldShowDetailsDrawer && typeof document !== "undefined"
         ? createPortal(
             <div className="fixed inset-0 z-[90] xl:hidden" data-testid="dm-details-drawer-root">
               <div
@@ -152,13 +189,29 @@ function DMConversationPageContent({
                 role="dialog"
                 style={{ width: RESPONSIVE_SHELL_SIZES.infoDrawerWidth }}
               >
-                <DmDetailsPanel
-                  conversation={activeConversation}
-                  onClose={() => setIsDetailsDrawerRequested(false)}
-                  onOpenSearch={openSearchFromDetails}
-                  participant={otherParticipant}
-                  variant="drawer"
-                />
+                {isGroup ? (
+                  <DmGroupDetailsPanel
+                    candidates={groupCandidates}
+                    conversation={activeConversation}
+                    currentUserId={currentUserId}
+                    onAddMembers={groupMutations.addMembers}
+                    isPending={groupMutations.isPending}
+                    onClose={() => setIsDetailsDrawerRequested(false)}
+                    onLeave={() => groupMutations.leave(currentUserId)}
+                    onOpenSearch={openSearchFromDetails}
+                    onRemoveMember={groupMutations.removeMember}
+                    onUpdate={groupMutations.update}
+                    variant="drawer"
+                  />
+                ) : otherParticipant ? (
+                  <DmDetailsPanel
+                    conversation={activeConversation}
+                    onClose={() => setIsDetailsDrawerRequested(false)}
+                    onOpenSearch={openSearchFromDetails}
+                    participant={otherParticipant}
+                    variant="drawer"
+                  />
+                ) : null}
               </div>
             </div>,
             document.body,
@@ -173,6 +226,7 @@ function DMConversationPageContent({
           currentUserDisplayName={currentUserDisplayName}
           currentUserUsername={currentUserUsername}
           canModerate={false}
+          directMessageConversation={activeConversation}
           directMessageParticipant={otherParticipant}
           directMessageSearchRequestId={searchRequestId}
           onOpenDirectMessageDetails={
@@ -184,7 +238,20 @@ function DMConversationPageContent({
         />
       </div>
 
-      {otherParticipant ? (
+      {isGroup ? (
+        <DmGroupDetailsPanel
+          candidates={groupCandidates}
+          className="hidden w-[22rem] shrink-0 xl:flex 2xl:w-[23rem]"
+          conversation={activeConversation}
+          currentUserId={currentUserId}
+          onAddMembers={groupMutations.addMembers}
+          isPending={groupMutations.isPending}
+          onLeave={() => groupMutations.leave(currentUserId)}
+          onOpenSearch={openSearchFromDetails}
+          onRemoveMember={groupMutations.removeMember}
+          onUpdate={groupMutations.update}
+        />
+      ) : otherParticipant ? (
         <DmDetailsPanel
           className="hidden w-[22rem] shrink-0 xl:flex 2xl:w-[23rem]"
           conversation={activeConversation}

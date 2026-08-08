@@ -17,6 +17,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   ChatMessage,
+  DMConversationDTO,
   DMMessagePayload,
   DMParticipantDTO,
   MessageAttachment,
@@ -31,8 +32,13 @@ import { ServerMemberPanel } from "@/components/shell/server-member-panel";
 import {
   DmComposer,
   DmConversationHeader,
+  DmGroupConversationHeader,
   DmMessageSurface,
 } from "@/components/dm/dm-conversation";
+import {
+  getGroupConversationTitle,
+  isGroupConversation as isGroupDm,
+} from "@/lib/dm/group-presentation";
 import { useI18n } from "@/components/providers/locale-provider";
 import {
   appendMessage,
@@ -72,12 +78,20 @@ interface ChatAreaProps {
   canModerate: boolean;
   directMessageSearchRequestId?: number;
   directMessageParticipant?: DMParticipantDTO | null;
+  /**
+   * Faz 6 §19.3. Present for a DM route so the header can tell a group from a
+   * 1:1 and a system row can resolve the ids it names.
+   */
+  directMessageConversation?: DMConversationDTO | null;
   initialUnreadMessageId?: string | null;
   messageCharacterLimit?: number | null;
   onOpenDirectMessageDetails?: (() => void) | undefined;
   serverId?: string;
   uploadthingEnabled: boolean;
 }
+
+/** Stable identity: `?? []` would hand the message list a new array per render. */
+const EMPTY_PARTICIPANTS: readonly [] = [];
 
 let optimisticMessageSequence = 0;
 
@@ -191,6 +205,7 @@ function ChatAreaContent({
   canModerate,
   directMessageSearchRequestId = 0,
   directMessageParticipant = null,
+  directMessageConversation = null,
   initialUnreadMessageId = null,
   messageCharacterLimit = 2000,
   onOpenDirectMessageDetails,
@@ -198,6 +213,16 @@ function ChatAreaContent({
   uploadthingEnabled,
 }: ChatAreaProps) {
   const { t } = useI18n();
+  const isGroupConversation = Boolean(
+    directMessageConversation && isGroupDm(directMessageConversation),
+  );
+  const groupTitle = directMessageConversation
+    ? getGroupConversationTitle(
+        directMessageConversation,
+        currentUserId,
+        t("dm.sidebar.unknownUser"),
+      )
+    : "";
   const socket = useSocket();
   const queryClient = useQueryClient();
   const responsiveLayout = useResponsiveLayout();
@@ -729,6 +754,7 @@ function ChatAreaContent({
         currentUserId={currentUserId}
         canModerate={canModerate}
         initialUnreadMessageId={initialUnreadMessageId}
+        participants={directMessageConversation?.participants ?? EMPTY_PARTICIPANTS}
         onRemoveOptimistic={removeOptimisticMessage}
         onReply={handleReply}
         onRetry={retryOptimisticMessage}
@@ -867,7 +893,32 @@ function ChatAreaContent({
             document.body,
           )
         : null}
-      {mode === "dm" && directMessageParticipant ? (
+      {mode === "dm" && isGroupConversation ? (
+        <DmGroupConversationHeader
+          avatarUrl={directMessageConversation?.iconUrl ?? null}
+          memberCount={directMessageConversation?.participants.length ?? 0}
+          onOpenDetails={onOpenDirectMessageDetails}
+          onOpenSearch={openSearch}
+          searchButtonRef={searchButtonRef}
+          searchOpen={showSearch}
+          title={groupTitle}
+        >
+          {showSearch ? (
+            <MessageSearchPanel
+              anchorRef={searchButtonRef}
+              conversationId={conversationId}
+              mode={mode}
+              onClose={closeSearch}
+              onJumpToMessage={(messageId) => {
+                closeSearch();
+                jumpToMessage(messageId);
+              }}
+            />
+          ) : null}
+        </DmGroupConversationHeader>
+      ) : null}
+
+      {mode === "dm" && !isGroupConversation && directMessageParticipant ? (
         <DmConversationHeader
           onOpenDetails={onOpenDirectMessageDetails}
           onOpenSearch={openSearch}

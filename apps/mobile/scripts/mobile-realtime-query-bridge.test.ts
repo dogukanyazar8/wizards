@@ -115,6 +115,9 @@ function makeDMMessage(id: string): DMMessagePayload {
     reactions: [],
     replyTo: null,
     replyToId: null,
+    systemTargetUserIds: [],
+    systemType: null,
+    systemValue: null,
     threadParentId: null,
     userId: "user-1",
   };

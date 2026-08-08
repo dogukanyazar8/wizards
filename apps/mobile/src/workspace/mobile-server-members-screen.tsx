@@ -39,6 +39,8 @@ export interface MobileServerMembersScreenProps {
   onBack(): void;
   /** 11c: a member row opens their full profile with this server as context. */
   onOpenMemberProfile?(userId: string): void;
+  /** S2 Section D: the server's own public card, from the list header. */
+  onOpenServerProfile?(): void;
 }
 
 function localizeStatus(
@@ -55,6 +57,7 @@ function colorFromRole(color: number): string {
 export function MobileServerMembersScreen({
   onBack,
   onOpenMemberProfile,
+  onOpenServerProfile,
   serverId,
 }: MobileServerMembersScreenProps) {
   const { apiClient } = useMobileAuth();
@@ -143,6 +146,18 @@ export function MobileServerMembersScreen({
           {labels.members}
         </Text>
       </View>
+      {onOpenServerProfile ? (
+        <Pressable
+          accessibilityLabel={labels.serverProfile}
+          accessibilityRole="button"
+          hitSlop={8}
+          onPress={onOpenServerProfile}
+          style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
+          testID="mobile-server-members-profile"
+        >
+          <MobileLineIcon color={theme.text.primary} name="info" size={18} strokeWidth={2.2} />
+        </Pressable>
+      ) : null}
     </View>
   );
 
@@ -158,9 +173,7 @@ export function MobileServerMembersScreen({
     }
     const { member } = item;
     const display = member.displayName ?? member.username;
-    const openProfile = onOpenMemberProfile
-      ? () => onOpenMemberProfile(member.userId)
-      : undefined;
+    const openProfile = onOpenMemberProfile ? () => onOpenMemberProfile(member.userId) : undefined;
     return (
       <View style={styles.memberRow} testID={`mobile-server-member-${member.id}`}>
         <Pressable

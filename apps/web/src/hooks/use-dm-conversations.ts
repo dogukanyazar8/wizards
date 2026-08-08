@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import type { DMConversationDTO } from "@wizards/types";
 import {
   applyDMConversationPresenceUpdateToPageData,
@@ -35,19 +35,15 @@ interface UseDMConversationsOptions {
   autoMarkActiveAsRead?: boolean;
 }
 
-export function useDMConversations(
-  currentUserId: string,
-  options: UseDMConversationsOptions = {},
-) {
+export function useDMConversations(currentUserId: string, options: UseDMConversationsOptions = {}) {
   const socket = useSocket();
   const queryClient = useQueryClient();
+  const router = useRouter();
   const activeReadRequestsRef = useRef<Set<string>>(new Set());
   const autoMarkActiveAsRead = options.autoMarkActiveAsRead ?? false;
   const params = useParams<{ channelId?: string; serverId?: string }>();
   const activeConversationId =
-    params.serverId === "@me" && typeof params.channelId === "string"
-      ? params.channelId
-      : null;
+    params.serverId === "@me" && typeof params.channelId === "string" ? params.channelId : null;
 
   const query = useInfiniteQuery<
     DMConversationsPageResponse,
@@ -72,13 +68,15 @@ export function useDMConversations(
       preview: string;
       unreadCount: number;
     }) => {
-      queryClient.setQueryData<DMConversationsInfiniteData | undefined>(dmQueryKeys.list, (current) =>
-        applyDMConversationUpdateToPageData(
-          current,
-          event.conversation,
-          currentUserId,
-          activeConversationId,
-        ),
+      queryClient.setQueryData<DMConversationsInfiniteData | undefined>(
+        dmQueryKeys.list,
+        (current) =>
+          applyDMConversationUpdateToPageData(
+            current,
+            event.conversation,
+            currentUserId,
+            activeConversationId,
+          ),
       );
 
       if (event.conversationId !== activeConversationId) {
@@ -104,11 +102,7 @@ export function useDMConversations(
             queryClient.setQueryData<DMConversationsInfiniteData | undefined>(
               dmQueryKeys.list,
               (current) =>
-                markDMConversationAsReadInPageData(
-                  current,
-                  event.conversationId,
-                  currentUserId,
-                ),
+                markDMConversationAsReadInPageData(current, event.conversationId, currentUserId),
             );
           })
           .finally(() => {
@@ -122,25 +116,62 @@ export function useDMConversations(
       status: "ONLINE" | "IDLE" | "DND" | "OFFLINE";
       userId: string;
     }) => {
-      queryClient.setQueryData<DMConversationsInfiniteData | undefined>(dmQueryKeys.list, (current) =>
-        applyDMConversationPresenceUpdateToPageData(current, event),
+      queryClient.setQueryData<DMConversationsInfiniteData | undefined>(
+        dmQueryKeys.list,
+        (current) => applyDMConversationPresenceUpdateToPageData(current, event),
       );
     };
 
+    /**
+     * Faz 6 §19.4. The three group lifecycle events carry no list projection to
+     * patch, so they invalidate. `removed` also has to leave the screen: the
+     * viewer is no longer a participant, and an open conversation would keep
+     * polling one the server now answers 403 for.
+     */
+    const handleConversationCreated = () => {
+      void queryClient.invalidateQueries({ queryKey: dmQueryKeys.list });
+    };
+
+    const handleMembersChanged = (event: { conversationId: string }) => {
+      void queryClient.invalidateQueries({ queryKey: dmQueryKeys.list });
+      void queryClient.invalidateQueries({
+        queryKey: dmQueryKeys.conversation(event.conversationId),
+      });
+    };
+
+    const handleConversationRemoved = (event: { conversationId: string }) => {
+      queryClient.setQueryData<DMConversationsInfiniteData | undefined>(
+        dmQueryKeys.list,
+        (current) => removeDMConversationFromPageData(current, event.conversationId),
+      );
+      queryClient.removeQueries({ queryKey: dmQueryKeys.conversation(event.conversationId) });
+
+      if (event.conversationId === activeConversationId) {
+        router.replace("/channels/@me");
+      }
+    };
+
     socket.on("dm:conversation:updated", handleConversationUpdated);
+    socket.on("dm:conversation:created", handleConversationCreated);
+    socket.on("dm:conversation:members_changed", handleMembersChanged);
+    socket.on("dm:conversation:removed", handleConversationRemoved);
     socket.on("presence:update", handlePresenceUpdate);
 
     return () => {
       socket.off("dm:conversation:updated", handleConversationUpdated);
+      socket.off("dm:conversation:created", handleConversationCreated);
+      socket.off("dm:conversation:members_changed", handleMembersChanged);
+      socket.off("dm:conversation:removed", handleConversationRemoved);
       socket.off("presence:update", handlePresenceUpdate);
     };
-  }, [activeConversationId, autoMarkActiveAsRead, currentUserId, queryClient, socket]);
+  }, [activeConversationId, autoMarkActiveAsRead, currentUserId, queryClient, router, socket]);
 
   const hideMutation = useMutation({
     mutationFn: (conversationId: string) => hideDMConversationRequest(conversationId),
     onSuccess: (_result, conversationId) => {
-      queryClient.setQueryData<DMConversationsInfiniteData | undefined>(dmQueryKeys.list, (current) =>
-        removeDMConversationFromPageData(current, conversationId),
+      queryClient.setQueryData<DMConversationsInfiniteData | undefined>(
+        dmQueryKeys.list,
+        (current) => removeDMConversationFromPageData(current, conversationId),
       );
     },
   });
@@ -148,8 +179,9 @@ export function useDMConversations(
   const markAsReadMutation = useMutation({
     mutationFn: (conversationId: string) => markDMConversationReadRequest(conversationId),
     onSuccess: (_result, conversationId) => {
-      queryClient.setQueryData<DMConversationsInfiniteData | undefined>(dmQueryKeys.list, (current) =>
-        markDMConversationAsReadInPageData(current, conversationId, currentUserId),
+      queryClient.setQueryData<DMConversationsInfiniteData | undefined>(
+        dmQueryKeys.list,
+        (current) => markDMConversationAsReadInPageData(current, conversationId, currentUserId),
       );
     },
   });
@@ -157,8 +189,9 @@ export function useDMConversations(
   const markAsUnreadMutation = useMutation({
     mutationFn: (conversationId: string) => markDMConversationUnreadRequest(conversationId),
     onSuccess: (_result, conversationId) => {
-      queryClient.setQueryData<DMConversationsInfiniteData | undefined>(dmQueryKeys.list, (current) =>
-        markDMConversationAsUnreadInPageData(current, conversationId, currentUserId),
+      queryClient.setQueryData<DMConversationsInfiniteData | undefined>(
+        dmQueryKeys.list,
+        (current) => markDMConversationAsUnreadInPageData(current, conversationId, currentUserId),
       );
     },
   });
@@ -167,8 +200,10 @@ export function useDMConversations(
     mutationFn: ({ conversationId, muted }: { conversationId: string; muted: boolean }) =>
       setDMConversationMutedRequest(conversationId, muted),
     onSuccess: (_result, { conversationId, muted }) => {
-      queryClient.setQueryData<DMConversationsInfiniteData | undefined>(dmQueryKeys.list, (current) =>
-        setDMConversationMutedInPageData(current, conversationId, currentUserId, muted),
+      queryClient.setQueryData<DMConversationsInfiniteData | undefined>(
+        dmQueryKeys.list,
+        (current) =>
+          setDMConversationMutedInPageData(current, conversationId, currentUserId, muted),
       );
     },
   });
@@ -182,8 +217,9 @@ export function useDMConversations(
 
   const markAsRead = useCallback(
     async (conversationId: string) => {
-      queryClient.setQueryData<DMConversationsInfiniteData | undefined>(dmQueryKeys.list, (current) =>
-        markDMConversationAsReadInPageData(current, conversationId, currentUserId),
+      queryClient.setQueryData<DMConversationsInfiniteData | undefined>(
+        dmQueryKeys.list,
+        (current) => markDMConversationAsReadInPageData(current, conversationId, currentUserId),
       );
       await markAsReadMutation.mutateAsync(conversationId);
     },
@@ -192,8 +228,9 @@ export function useDMConversations(
 
   const markAsUnread = useCallback(
     async (conversationId: string) => {
-      queryClient.setQueryData<DMConversationsInfiniteData | undefined>(dmQueryKeys.list, (current) =>
-        markDMConversationAsUnreadInPageData(current, conversationId, currentUserId),
+      queryClient.setQueryData<DMConversationsInfiniteData | undefined>(
+        dmQueryKeys.list,
+        (current) => markDMConversationAsUnreadInPageData(current, conversationId, currentUserId),
       );
       await markAsUnreadMutation.mutateAsync(conversationId);
     },
@@ -202,8 +239,10 @@ export function useDMConversations(
 
   const setMuted = useCallback(
     async (conversationId: string, muted: boolean) => {
-      queryClient.setQueryData<DMConversationsInfiniteData | undefined>(dmQueryKeys.list, (current) =>
-        setDMConversationMutedInPageData(current, conversationId, currentUserId, muted),
+      queryClient.setQueryData<DMConversationsInfiniteData | undefined>(
+        dmQueryKeys.list,
+        (current) =>
+          setDMConversationMutedInPageData(current, conversationId, currentUserId, muted),
       );
       await setMutedMutation.mutateAsync({ conversationId, muted });
     },

@@ -128,6 +128,91 @@ export function DmConversationHeader({
   );
 }
 
+/**
+ * Faz 6 §19.3. A group's header names the group and counts its members. The
+ * presence dot and the call buttons are absent rather than disabled: a group has
+ * no single presence to report, and group calls are out of scope.
+ */
+export function DmGroupConversationHeader({
+  avatarUrl,
+  children,
+  memberCount,
+  onOpenDetails,
+  onOpenSearch,
+  searchButtonRef,
+  searchOpen,
+  title,
+}: {
+  avatarUrl: string | null;
+  children?: ReactNode;
+  memberCount: number;
+  onOpenDetails?: (() => void) | undefined;
+  onOpenSearch: () => void;
+  searchButtonRef: RefObject<HTMLButtonElement | null>;
+  searchOpen: boolean;
+  title: string;
+}) {
+  const { t } = useI18n();
+
+  return (
+    <header
+      className="sticky top-0 z-20 border-b border-[hsl(var(--border)/0.34)] bg-[hsl(var(--background)/0.76)] px-3 py-2 backdrop-blur-xl md:px-4"
+      data-testid="dm-group-conversation-header"
+    >
+      <div className="flex min-w-0 items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <Avatar
+            alt={title}
+            className="h-10 w-10 shrink-0 text-sm md:h-11 md:w-11"
+            fallback={title}
+            src={avatarUrl}
+          />
+          <div className="min-w-0">
+            <h1 className="truncate text-sm font-bold leading-5 text-app-foreground md:text-[15px]">
+              {title}
+            </h1>
+            <p
+              className="truncate text-xs font-semibold text-app-muted"
+              data-testid="dm-group-member-count"
+            >
+              {t("dm.group.memberCount", { count: memberCount })}
+            </p>
+          </div>
+        </div>
+
+        <div className="inline-flex shrink-0 items-center gap-1 rounded-[18px] bg-[hsl(var(--surface-soft)/0.34)] p-1">
+          <button
+            aria-expanded={searchOpen}
+            aria-label={t("chat.search.open")}
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-app-muted transition hover:bg-[hsl(var(--surface-soft)/0.58)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] md:h-9 md:w-9"
+            data-testid="message-search-open"
+            onClick={onOpenSearch}
+            ref={searchButtonRef}
+            title={t("chat.search.open")}
+            type="button"
+          >
+            <Search className="h-4 w-4" />
+          </button>
+          {onOpenDetails ? (
+            <button
+              aria-label={t("dm.details.open")}
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-app-muted transition hover:bg-[hsl(var(--surface-soft)/0.58)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)] md:h-9 md:w-9"
+              data-testid="dm-details-open"
+              onClick={onOpenDetails}
+              title={t("dm.details.open")}
+              type="button"
+            >
+              <Info className="h-4 w-4" />
+            </button>
+          ) : null}
+        </div>
+      </div>
+
+      {children}
+    </header>
+  );
+}
+
 interface DmConversationToolbarProps {
   callDisabled: boolean;
   onOpenDetails?: (() => void) | undefined;

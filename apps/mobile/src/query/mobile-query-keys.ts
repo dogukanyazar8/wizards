@@ -62,6 +62,9 @@ export function createMobileQueryKeys(registry: MobileSearchKeyRegistry) {
     aboutRelease: (version: string) => [...all, "about", "releases", version] as const,
     aboutStatus: () => [...all, "about", "status"] as const,
     aboutCommunityInvite: (slug: string) => [...all, "about", "community-invite", slug] as const,
+    /** S2 Section D: the same 2g body, sourced by `serverId` instead of an invite code. */
+    aboutServerProfile: (serverId: string) =>
+      [...all, "about", "server-profile", serverId] as const,
     helpRoot: () => [...all, "help"] as const,
     /**
      * 2e asks for either the popular four or one category, and those are two
@@ -140,6 +143,8 @@ export function createMobileQueryKeys(registry: MobileSearchKeyRegistry) {
         input.conversationId,
         registry.getFingerprint(input),
       ] as const,
+    /** S3 Section D: browse page, keyed by its trimmed search text. */
+    serverDiscovery: (query: string) => [...all, "server-discovery", query.trim()] as const,
     workspaceRoot: () => [...all, "workspace"] as const,
     workspace: (serverId: string) => [...all, "workspace", serverId] as const,
     workspaceMembers: (serverId: string) => [...all, "workspace", serverId, "members"] as const,

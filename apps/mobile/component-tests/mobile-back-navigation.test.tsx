@@ -80,6 +80,8 @@ jest.mock(
       VoiceRoomStackScreenContainer: plainScreen("mobile-voice-room-screen"),
       SettingsDetailScreenContainer: plainScreen("mobile-settings-detail-screen"),
       ProfileEditScreenContainer: plainScreen("mobile-profile-edit-screen"),
+      GroupCreateScreenContainer: plainScreen("mobile-group-create-screen"),
+      GroupDetailsScreenContainer: plainScreen("mobile-group-details-screen"),
       BlockedUsersScreenContainer: plainScreen("mobile-blocked-users-screen"),
       SecurityScreenContainer: plainScreen("mobile-security-screen"),
       ServerSettingsStackScreenContainer: plainScreen("mobile-server-settings-stack-screen"),

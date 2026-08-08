@@ -86,11 +86,13 @@ describe("MSG-1a/1b/1c shared shell", () => {
 
   it("swaps only the FAB glyph between the chats tab and the people tabs", async () => {
     const chats = await renderInTheme(
-      <DMInboxHeader onCompose={() => {}} segment="conversations" />,
+      <DMInboxHeader onCompose={() => {}} onCreateGroup={() => {}} segment="conversations" />,
     );
     expect(chats.getByLabelText(mobileCopy.tr.dmComposeAction, { exact: false })).toBeTruthy();
 
-    const friends = await renderInTheme(<DMInboxHeader onCompose={() => {}} segment="friends" />);
+    const friends = await renderInTheme(
+      <DMInboxHeader onCompose={() => {}} onCreateGroup={() => {}} segment="friends" />,
+    );
     expect(friends.getByLabelText(mobileCopy.tr.dmAddFriendAction, { exact: false })).toBeTruthy();
   });
 

@@ -4,7 +4,6 @@ import {
   ConnectionState,
   type AudioProcessorOptions,
   type LocalAudioTrack,
-  LocalTrack,
   LocalVideoTrack,
   Room,
   Track,
@@ -68,11 +67,13 @@ import {
   getLocalCameraTrack,
   getLocalMicrophoneTrack,
   getLocalScreenShareTrack,
+  getLocalScreenShareTracks,
   isLocalCameraTrackLive,
   isLocalMicrophoneTrackLive,
   isLocalScreenShareTrackLive,
   runNonFatalVoiceJoinStep,
   stopLocalTracks,
+  suppressLocalScreenShareAudioPlayback,
 } from "@/lib/voice/livekit-track-helpers";
 import { createVoicePageExitHandler } from "@/lib/voice/page-exit";
 import {
@@ -135,10 +136,15 @@ import { useVoiceHeartbeat } from "@/lib/voice/use-voice-heartbeat";
 import {
   getScreenShareCaptureOptions,
   getScreenSharePublishOptions,
+  isScreenShareAudioSupported,
   type ScreenShareQualityId,
 } from "@/lib/voice/screen-share";
 import { getCameraPublishOptions, getCameraRoomDefaults } from "@/lib/voice/video-quality";
 import { getVoiceRoomSubscriptionOptions } from "@/lib/voice/video-subscription";
+import {
+  resumeRemoteVideoFromBackground,
+  suspendRemoteVideoForBackground,
+} from "@/lib/voice/remote-video-background";
 import {
   DEFAULT_AUDIO_DEVICE_ID,
   DEFAULT_PARTICIPANT_VOLUME,
@@ -202,6 +208,8 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
   const preferredKrispQuality = getPreferredKrispQuality();
   const fallbackKrispQuality = getFallbackKrispQuality(preferredKrispQuality);
   const roomRef = useRef<Room | null>(null);
+  /** Remote video this client paused while the tab was hidden, and only that. */
+  const backgroundSuspendedRemoteVideoSidsRef = useRef<Set<string>>(new Set());
   const joinRequestRef = useRef<string | null>(null);
   const preparedMicrophoneAccessRef = useRef<boolean | null>(null);
   const appliedAudioPreferencesSignatureRef = useRef<string | null>(null);
@@ -281,8 +289,10 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
     isScreenSharing,
     participantVolumes,
     pushToTalkHangoverMs,
+    screenShareAudioEnabled,
     screenShareError,
     screenShareQuality,
+    screenShareVolume,
     serverId,
     sessionMode,
     voiceInputMode,
@@ -298,7 +308,9 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       isScreenSharing: state.isScreenSharing,
       participantVolumes: state.participantVolumes,
       pushToTalkHangoverMs: state.pushToTalkHangoverMs,
+      screenShareAudioEnabled: state.screenShareAudioEnabled,
       screenShareError: state.screenShareError,
+      screenShareVolume: state.screenShareVolume,
       screenShareQuality: state.screenShareQuality,
       serverId: state.serverId,
       sessionMode: state.sessionMode,
@@ -538,6 +550,45 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       throw error;
     }
   }, [requestMicrophonePermission]);
+
+  /**
+   * Keeps a hidden tab from pulling remote video in a direct call, where
+   * adaptive stream — and with it livekit's own `pauseVideoInBackground` — is
+   * off. Safe to call from the participant-sync hot path: a visible tab exits
+   * on the first property read, and a track that subscribes while the tab is
+   * hidden is caught on the same pass instead of streaming until the user
+   * comes back.
+   */
+  const enforceHiddenTabRemoteVideo = useCallback(() => {
+    if (typeof document === "undefined" || document.visibilityState !== "hidden") {
+      return;
+    }
+
+    if (useVoiceStore.getState().sessionMode !== "direct") {
+      return;
+    }
+
+    const activeRoom = roomRef.current;
+    if (!activeRoom) {
+      return;
+    }
+
+    for (const trackSid of suspendRemoteVideoForBackground(activeRoom)) {
+      backgroundSuspendedRemoteVideoSidsRef.current.add(trackSid);
+    }
+  }, []);
+
+  /** Hands back exactly what the hidden-tab rule suspended, and nothing else. */
+  const releaseHiddenTabRemoteVideo = useCallback(() => {
+    const suspendedTrackSids = backgroundSuspendedRemoteVideoSidsRef.current;
+    const activeRoom = roomRef.current;
+
+    if (activeRoom) {
+      resumeRemoteVideoFromBackground(activeRoom, suspendedTrackSids);
+    }
+
+    suspendedTrackSids.clear();
+  }, []);
 
   const syncParticipants = useCallback(
     (targetRoom: Room | null = roomRef.current) => {
@@ -1480,11 +1531,9 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
         return;
       }
 
-      const localScreenTracks = activeRoom.localParticipant
-        .getTrackPublications()
-        .filter((publication) => publication.source === Track.Source.ScreenShare)
-        .map((publication) => publication.track)
-        .filter((track): track is LocalTrack => track instanceof LocalTrack);
+      // Picture and share audio both, so stopping can never leave the sharer's
+      // system sound broadcasting.
+      const localScreenTracks = getLocalScreenShareTracks(activeRoom);
 
       const unpublishedByLiveKit = await activeRoom.localParticipant
         .setScreenShareEnabled(false)
@@ -1693,14 +1742,20 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
 
     try {
       const currentQuality = useVoiceStore.getState().screenShareQuality;
+      // A browser without the feature is asked for video only, so the share can
+      // never fail over a preference the browser cannot honour.
+      const shareSystemAudio =
+        useVoiceStore.getState().screenShareAudioEnabled && isScreenShareAudioSupported();
       const publication = await activeRoom.localParticipant.setScreenShareEnabled(
         true,
-        getScreenShareCaptureOptions(currentQuality),
+        getScreenShareCaptureOptions(currentQuality, { shareSystemAudio }),
         getScreenSharePublishOptions(currentQuality),
       );
       const localScreenTrack = publication?.track;
 
       if (localScreenTrack instanceof LocalVideoTrack) {
+        // Only the video track ends the share. livekit unpublishes an ended
+        // track on its own, so audio stopping leaves the picture running.
         localScreenTrack.mediaStreamTrack.addEventListener(
           "ended",
           () => {
@@ -1708,6 +1763,10 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
           },
           { once: true },
         );
+      }
+
+      if (shareSystemAudio) {
+        suppressLocalScreenShareAudioPlayback(activeRoom);
       }
 
       setErrorMessage(null);
@@ -1948,9 +2007,13 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
             useVoiceStore.getState().isDeafened,
             useVoiceStore.getState().participantVolumes,
             DEFAULT_PARTICIPANT_VOLUME,
+            useVoiceStore.getState().screenShareVolume,
           );
           syncParticipants(nextRoom);
           syncScreenShares(nextRoom);
+          // A track that subscribes while the tab is hidden would otherwise
+          // stream at full rate until the user comes back to it.
+          enforceHiddenTabRemoteVideo();
         } catch (error) {
           logError("[voice] Room participant sync failed", error);
         }
@@ -2233,6 +2296,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       clearConnectionWarning,
       clearReconnectTimeout,
       enableLocalMicrophone,
+      enforceHiddenTabRemoteVideo,
       ensureLocalMicrophonePublished,
       getAudioCaptureConfig,
       isDesktopRuntime,
@@ -2550,6 +2614,7 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       nextDeafened,
       useVoiceStore.getState().participantVolumes,
       DEFAULT_PARTICIPANT_VOLUME,
+      useVoiceStore.getState().screenShareVolume,
     );
     syncParticipants(activeRoom);
   }, [syncParticipants]);
@@ -2673,8 +2738,46 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       return;
     }
 
-    applyRemoteAudioState(activeRoom, isDeafened, participantVolumes, DEFAULT_PARTICIPANT_VOLUME);
-  }, [isDeafened, participantVolumes]);
+    applyRemoteAudioState(
+      activeRoom,
+      isDeafened,
+      participantVolumes,
+      DEFAULT_PARTICIPANT_VOLUME,
+      screenShareVolume,
+    );
+  }, [isDeafened, participantVolumes, screenShareVolume]);
+
+  // Direct calls run without adaptive stream, which also drops livekit's own
+  // `pauseVideoInBackground`. Without this a hidden tab keeps pulling the other
+  // side's camera at full bitrate; channel rooms keep adaptive stream and need
+  // no second rule.
+  useEffect(() => {
+    if (typeof document === "undefined" || sessionMode !== "direct") {
+      return;
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        enforceHiddenTabRemoteVideo();
+        return;
+      }
+
+      releaseHiddenTabRemoteVideo();
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    // A call joined in an already-hidden tab never fires the event, so the rule
+    // has to sweep once on the way in. livekit's own rule does the same by
+    // reading `visibilityState` when it installs its listener.
+    enforceHiddenTabRemoteVideo();
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      // Leaving the call (or switching to a channel room) must never leave a
+      // publication parked in the disabled state this rule put it in.
+      releaseHiddenTabRemoteVideo();
+    };
+  }, [enforceHiddenTabRemoteVideo, releaseHiddenTabRemoteVideo, sessionMode]);
 
   useEffect(() => {
     const activeRoom = roomRef.current;
@@ -2877,8 +2980,10 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       krispAvailability,
       resetParticipantVolume: useVoiceStore.getState().resetParticipantVolume,
       room,
+      screenShareAudioEnabled,
       screenShareError,
       screenShareQuality,
+      screenShareVolume,
       serverId,
       activeScreenShareId,
       startPushToTalk,
@@ -2886,6 +2991,8 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       setAudioPreference: useVoiceStore.getState().setAudioPreference,
       setActiveScreenShareId,
       setParticipantVolume: useVoiceStore.getState().setParticipantVolume,
+      setScreenShareAudioEnabled: useVoiceStore.getState().setScreenShareAudioEnabled,
+      setScreenShareVolume: useVoiceStore.getState().setScreenShareVolume,
       setScreenShareQuality,
       retryKrispNoiseCancellation,
       preloadVoiceProcessing,
@@ -2928,8 +3035,10 @@ export function LiveVoiceProvider({ children, currentUser }: VoiceProviderProps)
       prepareForVoiceJoin,
       room,
       retryKrispNoiseCancellation,
+      screenShareAudioEnabled,
       screenShareError,
       screenShareQuality,
+      screenShareVolume,
       serverId,
       sessionMode,
       setActiveScreenShareId,

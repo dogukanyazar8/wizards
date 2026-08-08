@@ -141,15 +141,34 @@ jest.mock("../src/workspace/mobile-server-settings-screen", () => ({
         },
         React.createElement(Text, null, "Channel"),
       ),
+      React.createElement(
+        Pressable,
+        {
+          onPress: () => (props.onOpenProfile as jest.Mock)(),
+          testID: "open-profile-from-container",
+        },
+        React.createElement(Text, null, "Profile"),
+      ),
     );
   },
 }));
 
 jest.mock("../src/workspace/mobile-server-members-screen", () => ({
-  MobileServerMembersScreen: () => {
+  MobileServerMembersScreen: (props: Record<string, unknown>) => {
     const React = require("react");
-    const { View } = require("react-native");
-    return React.createElement(View, { testID: "server-members-container-screen" });
+    const { Pressable, Text, View } = require("react-native");
+    return React.createElement(
+      View,
+      { testID: "server-members-container-screen" },
+      React.createElement(
+        Pressable,
+        {
+          onPress: () => (props.onOpenServerProfile as jest.Mock)(),
+          testID: "open-profile-from-members-container",
+        },
+        React.createElement(Text, null, "Profile"),
+      ),
+    );
   },
 }));
 
@@ -494,16 +513,32 @@ describe("mobile screen navigation containers", () => {
 
     await fireEvent.press(view.getByTestId("open-members-from-container"));
     await fireEvent.press(view.getByTestId("open-channel-settings-from-container"));
+    await fireEvent.press(view.getByTestId("open-profile-from-container"));
 
     expect(navigate).toHaveBeenCalledWith("ServerMembers", { serverId: "server-7" });
     expect(navigate).toHaveBeenCalledWith("ChannelSettings", {
       channelId: "channel-9",
       serverId: "server-7",
     });
+    expect(navigate).toHaveBeenCalledWith("ServerProfile", { serverId: "server-7" });
+  });
+
+  it("opens the server profile from the member list with that list's server", async () => {
+    const navigate = jest.fn();
+    const view = await render(
+      <ServerMembersStackScreenContainer
+        navigation={{ goBack: jest.fn(), navigate } as never}
+        route={{ params: { serverId: "server-5" } } as never}
+      />,
+    );
+
+    await fireEvent.press(view.getByTestId("open-profile-from-members-container"));
+
+    expect(navigate).toHaveBeenCalledWith("ServerProfile", { serverId: "server-5" });
   });
 
   it("forwards contextual ids unchanged to protected management screens", async () => {
-    const navigation = { goBack: jest.fn() };
+    const navigation = { goBack: jest.fn(), navigate: jest.fn() };
     const members = await render(
       <ServerMembersStackScreenContainer
         navigation={navigation as never}

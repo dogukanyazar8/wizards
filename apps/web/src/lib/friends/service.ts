@@ -12,7 +12,7 @@ import { sendMobilePushForNotifications } from "@/lib/mobile/push-sender";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getSocketServer } from "@/lib/socket/runtime";
 import { logError } from "@/lib/logger";
-import { readPresenceMap } from "@/lib/presence";
+import { readPresenceState } from "@/lib/presence";
 import { canSendFriendRequest } from "@/lib/privacy-policy";
 import { resolveLastSeenAtByUserId } from "@/lib/friends/last-seen";
 import { isLiveInvite } from "@/lib/workspace/invite-selection";
@@ -477,8 +477,8 @@ export async function listFriends(userId: string): Promise<FriendDto[]> {
   const friends = friendships.map((friendship) =>
     friendship.senderId === userId ? friendship.receiver : friendship.sender,
   );
-  const [presenceByUserId, lastSeenByUserId] = await Promise.all([
-    readPresenceMap(
+  const [{ hiddenUserIds, presenceByUserId }, lastSeenByUserId] = await Promise.all([
+    readPresenceState(
       getRedis(),
       friends.map((friend) => ({
         customStatus: friend.customStatus,
@@ -502,7 +502,9 @@ export async function listFriends(userId: string): Promise<FriendDto[]> {
       avatarUrl: friend.avatarUrl,
       status: presence.status,
       customStatus: presence.customStatus,
-      lastSeenAt: lastSeenByUserId.get(friend.id) ?? null,
+      // Invisible friends keep heartbeating behind an offline dot; publishing
+      // their last-seen would undo the mode they chose.
+      lastSeenAt: hiddenUserIds.has(friend.id) ? null : (lastSeenByUserId.get(friend.id) ?? null),
       presence,
     };
   });

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import { useFocusEffect } from "@react-navigation/native";
-import { useQueryClient, type InfiniteData } from "@tanstack/react-query";
+import { useQuery, useQueryClient, type InfiniteData } from "@tanstack/react-query";
 import { BackHandler } from "react-native";
 import type { MobileDMConversationsResponse } from "@wizards/types";
 import type {
@@ -28,6 +28,12 @@ import {
 } from "../providers/mobile-product-screen-provider";
 import { useMobileRealtimeRuntime } from "../providers/mobile-realtime-provider";
 import { MessagesScreen } from "./dm-screen";
+import { MobileGroupCreateScreen } from "./group-create-screen";
+import { useMobileGroupMutations } from "../../dm/mobile-group-client";
+import { pickAndUploadMobileGroupIcon } from "../../dm/mobile-group-icon-upload";
+import { useMobileFriendsQuery } from "../../social/mobile-social-query";
+import { MobileGroupDetailsScreen } from "../../dm/mobile-group-details-screen";
+import { fetchMobileDMDetails } from "../../dm/mobile-dm-details-client";
 import { MobileMessageThreadScreen } from "./message-thread-screen";
 import { OverviewScreen } from "./home-screen";
 import { NotificationsScreen } from "./notifications-screen";
@@ -42,6 +48,7 @@ import {
   MobileAboutUpdateChannelScreen,
   MobileBugReportScreen,
   MobileCommunityInviteScreen,
+  MobileServerProfileScreen,
 } from "./about/about-screen-shells";
 import { getMobileAppReleaseChannel } from "../../about/mobile-app-identity";
 import { MobileHelpCenterScreen } from "./about/about-help-center-screen";
@@ -83,6 +90,7 @@ import { MobileRoleDetailScreen } from "../../workspace/mobile-role-detail-scree
 import { MobileServerMembersScreen } from "../../workspace/mobile-server-members-screen";
 import { MobileServerInvitesScreen } from "../../workspace/mobile-server-invites-screen";
 import { MobileChannelSettingsScreen } from "../../workspace/mobile-channel-settings-screen";
+import { MobileServerDiscoveryScreen } from "../../workspace/mobile-server-discovery-screen";
 import {
   clearMobileVoiceRoomRouteContext,
   getMobileVoiceRoomRouteContext,
@@ -660,6 +668,96 @@ export function ProfileEditScreenContainer({
   return <MobileProfileEditScreen onBack={() => navigation.goBack()} />;
 }
 
+/**
+ * Faz 5 §15.3. The created conversation is opened directly instead of unwinding
+ * to the inbox: the user just named a group, and the next thing they want is to
+ * write in it.
+ */
+export function GroupCreateScreenContainer({
+  navigation,
+}: NativeStackScreenProps<MobileRootStackParamList, "GroupCreate">) {
+  const { apiClient, getAccessToken } = useMobileAuth();
+  const friendsQuery = useMobileFriendsQuery(apiClient);
+  const { create } = useMobileGroupMutations(apiClient);
+
+  return (
+    <MobileGroupCreateScreen
+      friends={friendsQuery.data?.friends ?? []}
+      isPending={create.isPending}
+      onCancel={() => navigation.goBack()}
+      onCreated={(conversationId) => navigation.navigate("DirectMessage", { conversationId })}
+      onPickPhoto={() => pickAndUploadMobileGroupIcon({ getAccessToken })}
+      onSubmit={(input) => create.mutateAsync(input)}
+    />
+  );
+}
+
+export function GroupDetailsScreenContainer({
+  navigation,
+  route,
+}: NativeStackScreenProps<MobileRootStackParamList, "GroupDetails">) {
+  const { conversationId } = route.params;
+  const { apiClient, getAccessToken, session } = useMobileAuth();
+  const currentUserId = session?.user.id ?? "";
+  const conversations = useMobileDMConversationsCache();
+  const conversation = conversations.find((entry) => entry.id === conversationId) ?? null;
+  const { addMembers, hide, removeMember, setMuted, update } = useMobileGroupMutations(
+    apiClient,
+    currentUserId,
+  );
+  const detailsQuery = useQuery({
+    queryFn: () => fetchMobileDMDetails(apiClient, conversationId),
+    queryKey: mobileQueryKeys.dmDetails(conversationId),
+    staleTime: 30_000,
+  });
+  // Only the owner can add anyone, so only the owner pays for the friend list.
+  const friendsQuery = useMobileFriendsQuery(
+    apiClient,
+    Boolean(detailsQuery.data?.ownerId && detailsQuery.data.ownerId === currentUserId),
+  );
+
+  return (
+    <MobileGroupDetailsScreen
+      conversation={{
+        iconUrl: conversation?.iconUrl ?? null,
+        id: conversationId,
+        name: conversation?.name ?? null,
+        // The inbox row does not carry `ownerId`; the details read is the only
+        // source, so owner-only controls stay hidden until it lands.
+        ownerId: detailsQuery.data?.ownerId ?? null,
+      }}
+      currentUserId={currentUserId}
+      friends={friendsQuery.data?.friends ?? []}
+      isMuted={conversation?.muted ?? false}
+      isPending={
+        addMembers.isPending ||
+        hide.isPending ||
+        removeMember.isPending ||
+        setMuted.isPending ||
+        update.isPending
+      }
+      members={detailsQuery.data?.members ?? []}
+      onAddMembers={(userIds) => addMembers.mutateAsync({ conversationId, userIds })}
+      onBack={() => navigation.goBack()}
+      onHide={async () => {
+        await hide.mutateAsync({ conversationId });
+        navigation.popTo("MainTabs", { screen: "messages" });
+      }}
+      onLeave={async () => {
+        await removeMember.mutateAsync({ conversationId, userId: currentUserId });
+        navigation.popTo("MainTabs", { screen: "messages" });
+      }}
+      onOpenSharedMedia={() => navigation.navigate("SharedMedia", { conversationId })}
+      // The group exists, so the upload is authorized against it rather than
+      // left inert the way a create-time icon is.
+      onPickPhoto={() => pickAndUploadMobileGroupIcon({ conversationId, getAccessToken })}
+      onRemoveMember={(userId) => removeMember.mutateAsync({ conversationId, userId })}
+      onSetMuted={(muted) => setMuted.mutateAsync({ conversationId, muted })}
+      onUpdate={(patch) => update.mutateAsync({ conversationId, patch })}
+    />
+  );
+}
+
 export function BlockedUsersScreenContainer({
   navigation,
 }: NativeStackScreenProps<MobileRootStackParamList, "BlockedUsers">) {
@@ -835,6 +933,39 @@ export function CommunityInviteScreenContainer({
   );
 }
 
+/** S2 Section D: the same 2g body, sourced by `serverId` (settings/members entry points, deep link). */
+export function ServerProfileScreenContainer({
+  navigation,
+  route,
+}: NativeStackScreenProps<MobileRootStackParamList, "ServerProfile">) {
+  const { openWorkspaceRoute } = useMobileProductNavigationActions();
+  const runtime = getMobileRuntimeConfig();
+
+  return (
+    <MobileServerProfileScreen
+      onBack={() => navigation.goBack()}
+      onOpenServer={(serverId) => {
+        openWorkspaceRoute(serverId, null);
+        navigation.popTo("MainTabs", { screen: "overview" });
+      }}
+      serverId={route.params.serverId}
+      webUrl={runtime.webUrl}
+    />
+  );
+}
+
+/** S3 Section D: browse public, discoverable servers. A card tap opens the S2 profile screen. */
+export function DiscoverScreenContainer({
+  navigation,
+}: NativeStackScreenProps<MobileRootStackParamList, "Discover">) {
+  return (
+    <MobileServerDiscoveryScreen
+      onBack={() => navigation.goBack()}
+      onOpenServer={(serverId) => navigation.navigate("ServerProfile", { serverId })}
+    />
+  );
+}
+
 export function SecurityScreenContainer({
   navigation,
 }: NativeStackScreenProps<MobileRootStackParamList, "Security">) {
@@ -978,6 +1109,7 @@ export function ServerSettingsStackScreenContainer({
       serverId={serverId}
       onBack={() => navigation.goBack()}
       onOpenMembers={() => navigation.navigate("ServerMembers", { serverId })}
+      onOpenProfile={() => navigation.navigate("ServerProfile", { serverId })}
       onOpenRoles={() => navigation.navigate("ServerRoles", { serverId })}
       onOpenInvites={() => navigation.navigate("ServerInvites", { serverId })}
       onOpenChannelSettings={(channelId) =>
@@ -1024,6 +1156,7 @@ export function ServerMembersStackScreenContainer({
       serverId={serverId}
       onBack={() => navigation.goBack()}
       onOpenMemberProfile={(userId) => navigation.navigate("UserProfile", { serverId, userId })}
+      onOpenServerProfile={() => navigation.navigate("ServerProfile", { serverId })}
     />
   );
 }

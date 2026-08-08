@@ -38,6 +38,7 @@ import { cn } from "@/lib/utils";
 const subscribeToRuntimeCapabilities = () => () => {};
 const getServerCapabilitySnapshot = () => false;
 import { supportsMediaConstraint } from "@/lib/voice/media-capabilities";
+import { isScreenShareAudioSupported } from "@/lib/voice/screen-share";
 import {
   ENHANCED_NOISE_FILTER_MODES,
   isKrispNoiseFilterTier,
@@ -271,6 +272,14 @@ export function VoicePreferencesPanel({ mode = "all" }: { mode?: VoicePreference
     () => supportsMediaConstraint("voiceIsolation"),
     getServerCapabilitySnapshot,
   );
+  // The share panel only exists while a share is running, and the preference
+  // applies to the next share — so this is the only place a user can turn share
+  // audio on before their first share.
+  const screenShareAudioSupported = useSyncExternalStore(
+    subscribeToRuntimeCapabilities,
+    isScreenShareAudioSupported,
+    getServerCapabilitySnapshot,
+  );
   const cleanVoiceFeedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const desktopSurfaceFeedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const {
@@ -283,6 +292,8 @@ export function VoicePreferencesPanel({ mode = "all" }: { mode?: VoicePreference
     retryKrispNoiseCancellation,
     setAudioPreference,
   } = useVoiceState();
+  const screenShareAudioEnabled = useVoiceStore((state) => state.screenShareAudioEnabled);
+  const setScreenShareAudioEnabled = useVoiceStore((state) => state.setScreenShareAudioEnabled);
   const desktopGameOverlayAnchor = useVoiceStore((state) => state.desktopGameOverlayAnchor);
   const desktopGameOverlayEnabled = useVoiceStore((state) => state.desktopGameOverlayEnabled);
   const desktopGameOverlayGameSettings = useVoiceStore(
@@ -530,6 +541,24 @@ export function VoicePreferencesPanel({ mode = "all" }: { mode?: VoicePreference
             <AudioDeviceSelect kind="input" />
             <AudioDeviceSelect kind="output" />
           </div>
+
+          {/*
+            Sits above the collapsed advanced block on purpose: the share panel
+            only exists while a share is running and the preference applies to
+            the next share, so this is the one place a user can turn share audio
+            on before their first share. Buried behind a disclosure it would not
+            be found in time to matter.
+          */}
+          {screenShareAudioSupported ? (
+            <div data-testid="voice-screen-share-audio">
+              <VoicePreferenceToggleRow
+                checked={screenShareAudioEnabled}
+                description={t("voice.screenShare.audio.description")}
+                label={t("voice.screenShare.audio.title")}
+                onToggle={() => setScreenShareAudioEnabled(!screenShareAudioEnabled)}
+              />
+            </div>
+          ) : null}
 
           <details
             className="group app-panel-soft rounded-[20px] border p-3"

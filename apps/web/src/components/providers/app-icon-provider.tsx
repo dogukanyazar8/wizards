@@ -31,11 +31,7 @@ function updateIconLink(link: HTMLLinkElement, href: string) {
   });
 }
 
-function ensureOwnedIconLink(
-  rel: string,
-  href: string,
-  attributes: Record<string, string> = {},
-) {
+function ensureOwnedIconLink(rel: string, href: string, attributes: Record<string, string> = {}) {
   const selector = `link[rel="${rel}"][data-wizards-app-icon="true"]`;
   let link = document.head.querySelector<HTMLLinkElement>(selector);
 
@@ -66,9 +62,7 @@ function applyAppIcon(href: string) {
     sizes: "512x512",
   });
 
-  document
-    .querySelector('meta[name="msapplication-TileImage"]')
-    ?.setAttribute("content", href);
+  document.querySelector('meta[name="msapplication-TileImage"]')?.setAttribute("content", href);
 }
 
 export function AppIconProvider({ children }: { children: ReactNode }) {

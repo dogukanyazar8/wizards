@@ -5,6 +5,7 @@ import * as workspaceSchemas from "./workspace";
 import {
   AddServerMemberSchema,
   AdminCreateServerSchema,
+  AdminUpdateServerSchema,
   CreateCategorySchema,
   CreateChannelSchema,
   CreateInviteSchema,
@@ -14,6 +15,9 @@ import {
   ReorderCategoriesSchema,
   ReorderChannelsSchema,
   RoleBadgeSchema,
+  ServerDiscoveryCardSchema,
+  ServerDiscoveryPageSchema,
+  ServerDiscoveryQuerySchema,
   ServerPublicProfileChannelSchema,
   ServerPublicProfileFriendSchema,
   ServerPublicProfileSchema,
@@ -112,7 +116,15 @@ const serverDetail = {
   memberPage,
   members: [member],
   roles: [role],
-  server: { ...serverSummary, description: null, isAdmin: true, isOwner: true },
+  server: {
+    ...serverSummary,
+    description: null,
+    discoverable: false,
+    isAdmin: true,
+    isOwner: true,
+    isPublic: false,
+    type: "PERSONAL" as const,
+  },
   ungroupedChannels: [channel],
 };
 const serverPublicProfile = {
@@ -155,6 +167,11 @@ describe("workspace schemas", () => {
           name: "Whispr Topluluk",
           type: "COMMUNITY",
         },
+      },
+      AdminUpdateServerSchema: {
+        schema: AdminUpdateServerSchema,
+        valid: { type: "COMMUNITY" },
+        invalid: {},
       },
       CreateCategorySchema: {
         schema: CreateCategorySchema,
@@ -200,6 +217,43 @@ describe("workspace schemas", () => {
         schema: RoleBadgeSchema,
         valid: roleBadge,
         invalid: { ...roleBadge, color: -1 },
+      },
+      ServerDiscoveryCardSchema: {
+        schema: ServerDiscoveryCardSchema,
+        valid: {
+          bannerUrl: null,
+          description: "",
+          iconUrl: null,
+          id: "s1",
+          memberCount: 12_400,
+          name: "Whispr Topluluk",
+          onlineCount: 1_200,
+          shortName: null,
+          type: "COMMUNITY",
+          verified: true,
+        },
+        invalid: {
+          bannerUrl: null,
+          description: "",
+          iconUrl: null,
+          id: "s1",
+          memberCount: -1,
+          name: "Whispr Topluluk",
+          onlineCount: 1_200,
+          shortName: null,
+          type: "COMMUNITY",
+          verified: true,
+        },
+      },
+      ServerDiscoveryPageSchema: {
+        schema: ServerDiscoveryPageSchema,
+        valid: { nextCursor: null, servers: [] },
+        invalid: { nextCursor: null, servers: "not-an-array" },
+      },
+      ServerDiscoveryQuerySchema: {
+        schema: ServerDiscoveryQuerySchema,
+        valid: { cursor: "12400|s1", limit: 20, query: "whispr" },
+        invalid: { cursor: "12400|s1", limit: 20, query: "whispr", extra: true },
       },
       ServerPublicProfileChannelSchema: {
         schema: ServerPublicProfileChannelSchema,
@@ -409,6 +463,18 @@ describe("workspace schemas", () => {
     assert.equal(assertAccepts(UpdateChannelSchema, { topic: "" })?.topic, null);
   });
 
+  it("carries the visibility triple on the server detail, so settings needs no second read", () => {
+    const parsed = assertAccepts(WorkspaceServerDetailSchema, serverDetail);
+    assert.equal(parsed.server.discoverable, false);
+    assert.equal(parsed.server.isPublic, false);
+    assert.equal(parsed.server.type, "PERSONAL");
+
+    for (const missing of ["discoverable", "isPublic", "type"] as const) {
+      const { [missing]: _omitted, ...server } = serverDetail.server;
+      assertRejects(WorkspaceServerDetailSchema, { ...serverDetail, server }, ["server", missing]);
+    }
+  });
+
   it("enforces server update numeric boundaries", () => {
     assertAccepts(UpdateServerSchema, {
       deletedMessageNoticeMinutes: 5,
@@ -522,6 +588,87 @@ describe("server type contract", () => {
     });
 
     assert.equal(result.success, false);
+  });
+
+  it("defaults verificationLevel to NONE and lets the admin contract override it", () => {
+    const defaulted = AdminCreateServerSchema.parse({ name: "Whispr Topluluk" });
+    assert.equal(defaulted.verificationLevel, "NONE");
+
+    const overridden = AdminCreateServerSchema.parse({
+      name: "Whispr Topluluk",
+      verificationLevel: "HIGH",
+    });
+    assert.equal(overridden.verificationLevel, "HIGH");
+
+    assert.equal(
+      AdminCreateServerSchema.safeParse({ name: "Whispr Topluluk", verificationLevel: "EXTREME" })
+        .success,
+      false,
+    );
+  });
+
+  it("accepts every admin update field on its own, so the predicate cannot go stale", () => {
+    const samples: Record<string, unknown> = {
+      discoverable: true,
+      featured: true,
+      isPublic: true,
+      type: "COMMUNITY",
+      verificationLevel: "HIGH",
+      verified: true,
+    };
+
+    // Derived from the schema's own keys, so adding a field to the contract
+    // without teaching this test about it fails here instead of shipping a
+    // predicate that silently ignores the new field.
+    assert.deepEqual(
+      Object.keys(AdminUpdateServerSchema.shape).sort(),
+      Object.keys(samples).sort(),
+    );
+
+    for (const [field, value] of Object.entries(samples)) {
+      assert.equal(
+        AdminUpdateServerSchema.safeParse({ [field]: value }).success,
+        true,
+        `${field} alone must satisfy the at-least-one predicate`,
+      );
+    }
+
+    assert.equal(AdminUpdateServerSchema.safeParse({}).success, false);
+  });
+
+  it("accepts every server update field on its own, so the predicate cannot go stale", () => {
+    const samples: Record<string, unknown> = {
+      allowFileUploads: true,
+      allowGifs: true,
+      allowMemberAdds: true,
+      deletedMessageNoticeMinutes: 60,
+      description: "Updated description",
+      discoverable: true,
+      iconUrl: "https://example.com/icon.png",
+      isPublic: true,
+      messageCharacterLimit: 2000,
+      name: "Updated server",
+      shortName: "ws1",
+    };
+
+    // Derived from the schema's own keys, so a field that lands on
+    // `UpdateServerFieldsSchema` without this test knowing about it fails
+    // here instead of silently being accepted by a hand-list that forgot it
+    // -- the drift `UpdateServerSchema` itself has already hit once.
+    assert.deepEqual(
+      Object.keys(UpdateServerFieldsSchema.shape).sort(),
+      Object.keys(samples).sort(),
+    );
+
+    for (const [field, value] of Object.entries(samples)) {
+      assert.equal(
+        UpdateServerSchema.safeParse({ [field]: value }).success,
+        true,
+        `${field} alone must satisfy the at-least-one predicate`,
+      );
+    }
+
+    assert.equal(UpdateServerSchema.safeParse({}).success, false);
   });
 
   it("exposes visibility switches on update but never the type", () => {

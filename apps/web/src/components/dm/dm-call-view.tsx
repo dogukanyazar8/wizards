@@ -40,10 +40,14 @@ export function DmCallView({
     getParticipantVolume,
     resetParticipantVolume,
     room,
+    screenShareAudioEnabled,
     screenShareQuality,
+    screenShareVolume,
     setActiveScreenShareId,
     setParticipantVolume,
+    setScreenShareAudioEnabled,
     setScreenShareQuality,
+    setScreenShareVolume,
     stopScreenShare,
     activeScreenShareId,
     toggleCamera,
@@ -171,8 +175,13 @@ export function DmCallView({
             onStopShare={() => {
               void stopScreenShare();
             }}
+            onResetShareVolume={() => setScreenShareVolume(100)}
+            onSetShareVolume={setScreenShareVolume}
+            onToggleShareAudio={setScreenShareAudioEnabled}
             screenShares={screenShares}
             selectedQuality={screenShareQuality}
+            shareAudioEnabled={screenShareAudioEnabled}
+            shareVolume={screenShareVolume}
             stageFocus={stageFocus}
           />
         ) : (

@@ -1655,6 +1655,15 @@ export function ChannelSidebar({
         open={headerMenu.open}
         position={headerMenu}
       >
+        <ContextMenuItem
+          onClick={() => {
+            setHeaderMenu((state) => ({ ...state, open: false }));
+            onNavigate(`/servers/${detail.server.id}/about`);
+          }}
+        >
+          Sunucu profili
+        </ContextMenuItem>
+        <ContextMenuSeparator />
         {canManage ? (
           <>
             <ContextMenuItem

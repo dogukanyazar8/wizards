@@ -22,8 +22,9 @@ import { registerSocketHandlers } from "@/lib/socket/handlers";
 import { markPresenceSocketActive } from "@/lib/socket/presence-helpers";
 import { createSocketServerWithRedisAdapter } from "@/lib/socket/redis-adapter";
 import {
-  addServerOnlineMember,
+  applyServerOnlinePresenceForSocket,
   removeServerOnlineMember,
+  type ServerOnlinePresenceRedis,
 } from "@/lib/socket/server-online-presence";
 import { readCachedServerRoomIds, writeCachedServerRoomIds } from "@/lib/socket/server-room-cache";
 import { setSocketServer } from "@/lib/socket/runtime";
@@ -235,7 +236,8 @@ type ServerRoomMembershipDelegate = {
 };
 
 type ServerRoomJoinSocket = {
-  data: { onlineServerIds?: string[] };
+  connected?: boolean;
+  data: { onlineServerIds?: string[]; presenceStatus?: string };
   join(room: string | string[]): Promise<void> | void;
 };
 
@@ -342,13 +344,118 @@ export async function joinServerRoomsForUser(
 
   await socket.join(serverIds.map((serverId) => `server:${serverId}`));
 
-  // The room membership and the online set are written together so the two can
-  // never disagree about which servers this socket is present in.
+  // `onlineServerIds` records room membership for the disconnect and presence
+  // handlers regardless of what happens next, and is assigned before the
+  // online-set write so the presence chain racing this one always sees it.
+  // The online-set mirror of it is narrower: `applyServerOnlinePresenceForSocket`
+  // only writes while the socket is still eligible, and reverses if that flips
+  // mid-write. Without it, a disconnect or an OFFLINE presence transition
+  // racing this task -- both can start in the same synchronous tick of
+  // `connection` -- would leave a ghost entry nothing ever removes (Task 8
+  // findings 3/4).
   socket.data.onlineServerIds = serverIds;
-  const presenceRedis = options.redis ?? getRedisOp();
-  await Promise.all(
-    serverIds.map((serverId) => addServerOnlineMember(presenceRedis, serverId, userId)),
+
+  await applyServerOnlinePresenceForSocket(options.redis ?? getRedisOp(), socket, userId);
+}
+
+type DisconnectCleanupSocket = {
+  data: { appSessionKey?: string; onlineServerIds?: string[]; userId?: string };
+  id: string;
+};
+
+type DisconnectRoomProbe = {
+  in(room: string): {
+    fetchSockets(): Promise<ReadonlyArray<{ id: string; rooms: ReadonlySet<string> }>>;
+  };
+};
+
+/**
+ * Which of this socket's servers the user is actually leaving.
+ *
+ * The online set is per user, not per socket, so a second tab must not be
+ * evicted by the first one closing. There is deliberately no ref count: the
+ * interface carries no socket identity and adding one would lock S3's bulk
+ * read contract early. Asking Socket.IO once per disconnect is the cheaper
+ * shape -- the ban was on `fetchSockets` in the *counting* path, which runs
+ * per server per read, not here.
+ *
+ * Failing open (releasing everything) is the safe direction: an over-eager
+ * removal under-counts until the next join/presence event rewrites the set,
+ * whereas a skipped removal is a ghost that nothing reaps.
+ */
+async function resolveReleasableServerIds(
+  io: DisconnectRoomProbe | null,
+  socketId: string,
+  userId: string,
+  serverIds: string[],
+): Promise<string[]> {
+  if (!io || serverIds.length === 0) {
+    return serverIds;
+  }
+
+  let siblings: ReadonlyArray<{ id: string; rooms: ReadonlySet<string> }>;
+  try {
+    siblings = (await io.in(`user:${userId}`).fetchSockets()).filter(
+      (sibling) => sibling.id !== socketId,
+    );
+  } catch (error) {
+    logError("[socket] Disconnect sibling lookup error", error);
+    return serverIds;
+  }
+
+  if (siblings.length === 0) {
+    return serverIds;
+  }
+
+  return serverIds.filter(
+    (serverId) => !siblings.some((sibling) => sibling.rooms.has(`server:${serverId}`)),
   );
+}
+
+/**
+ * Extracted from the `disconnect` listener so the failure isolation below can
+ * be asserted: every step used to sit in one `try` whose first statement was
+ * the Redis online-set write, so a rejection there skipped the heartbeat
+ * clear (leaking a 60s interval with no TTL against a dead socket), the
+ * presence cleanup (leaving the user ONLINE to their friends) and the app
+ * session close. The write helpers no longer throw, and the heartbeat clear
+ * is now synchronous and unconditional ahead of any await, so neither can
+ * regress silently.
+ */
+export async function runSocketDisconnectCleanup(options: {
+  cleanup?: (() => Promise<void> | void) | undefined;
+  endSession?: (appSessionKey: string) => Promise<unknown>;
+  fallbackAppSessionKey: string;
+  io?: DisconnectRoomProbe | null;
+  presenceHeartbeat: ReturnType<typeof setInterval>;
+  redis?: ServerOnlinePresenceRedis;
+  socket: DisconnectCleanupSocket;
+}) {
+  clearInterval(options.presenceHeartbeat);
+
+  try {
+    const userId = options.socket.data.userId;
+    if (userId) {
+      const redis = options.redis ?? getRedisOp();
+      const releasableServerIds = await resolveReleasableServerIds(
+        options.io ?? null,
+        options.socket.id,
+        userId,
+        options.socket.data.onlineServerIds ?? [],
+      );
+      await Promise.all(
+        releasableServerIds.map((serverId) => removeServerOnlineMember(redis, serverId, userId)),
+      );
+    }
+    await options.cleanup?.();
+    await (options.endSession ?? endAppSession)(
+      options.socket.data.appSessionKey ?? options.fallbackAppSessionKey,
+    ).catch((error) => {
+      logAnalyticsError("app session end", error);
+    });
+  } catch (error) {
+    logError("[socket] Disconnect cleanup error", error);
+  }
 }
 
 export function initSocketServer(httpServer: HTTPServer) {
@@ -502,23 +609,13 @@ export function initSocketServer(httpServer: HTTPServer) {
     const handlerRegistration = registerSocketHandlers(ctx);
 
     socket.on("disconnect", async () => {
-      try {
-        const onlineServerIds: string[] = socket.data.onlineServerIds ?? [];
-        if (socket.data.userId) {
-          await Promise.all(
-            onlineServerIds.map((serverId) =>
-              removeServerOnlineMember(getRedisOp(), serverId, socket.data.userId as string),
-            ),
-          );
-        }
-        clearInterval(presenceHeartbeat);
-        await handlerRegistration.cleanup?.();
-        await endAppSession(socket.data.appSessionKey ?? appSessionKey).catch((error) => {
-          logAnalyticsError("app session end", error);
-        });
-      } catch (error) {
-        logError("[socket] Disconnect cleanup error", error);
-      }
+      await runSocketDisconnectCleanup({
+        cleanup: handlerRegistration.cleanup,
+        fallbackAppSessionKey: appSessionKey,
+        io,
+        presenceHeartbeat,
+        socket,
+      });
     });
   });
 

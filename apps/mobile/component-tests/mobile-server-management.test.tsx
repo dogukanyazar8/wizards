@@ -8,11 +8,15 @@ let mockMutations: Record<string, { isPending: boolean; mutateAsync: jest.Mock }
 let mockMembersQuery: Record<string, unknown>;
 let mockRolesQuery: Record<string, unknown>;
 let mockInvitesQuery: Record<string, unknown>;
+// S3 Section C: the settings screen's own `useQuery` call for isPublic/discoverable/type
+// (the workspace detail payload carries none of the three -- see the screen's comment).
+let mockVisibilityQuery: Record<string, unknown>;
 const mockSelectAndUpload = jest.fn();
 const mockPatchServerIconCaches = jest.fn();
 const mockConfirmServerIconPersisted = jest.fn(async () => true);
 
 jest.mock("@tanstack/react-query", () => ({
+  useQuery: () => mockVisibilityQuery,
   useQueryClient: () => ({ fetchQuery: jest.fn(), invalidateQueries: jest.fn() }),
 }));
 
@@ -267,6 +271,11 @@ function resetMocks() {
     refetch: jest.fn().mockResolvedValue({}),
   };
   mockInvitesQuery = { data: { invites: [] }, isLoading: false };
+  mockVisibilityQuery = {
+    data: { discoverable: false, isPublic: true, type: "PERSONAL" },
+    isError: false,
+    isLoading: false,
+  };
   mockSelectAndUpload.mockReset();
   mockPatchServerIconCaches.mockReset();
   mockConfirmServerIconPersisted.mockReset();
@@ -278,6 +287,7 @@ describe("mobile server management", () => {
     resetMocks();
     const onOpenInvites = jest.fn();
     const onOpenMembers = jest.fn();
+    const onOpenProfile = jest.fn();
     const onOpenRoles = jest.fn();
     const view = await render(
       <MobileServerSettingsScreen
@@ -285,6 +295,7 @@ describe("mobile server management", () => {
         onBack={jest.fn()}
         onOpenInvites={onOpenInvites}
         onOpenMembers={onOpenMembers}
+        onOpenProfile={onOpenProfile}
         onOpenRoles={onOpenRoles}
       />,
     );
@@ -305,9 +316,11 @@ describe("mobile server management", () => {
     await fireEvent.press(view.getByTestId("mobile-server-members-row"));
     await fireEvent.press(view.getByTestId("mobile-server-roles-row"));
     await fireEvent.press(view.getByTestId("mobile-server-invites-row"));
+    await fireEvent.press(view.getByTestId("mobile-server-profile-row"));
     expect(onOpenMembers).toHaveBeenCalledTimes(1);
     expect(onOpenRoles).toHaveBeenCalledTimes(1);
     expect(onOpenInvites).toHaveBeenCalledTimes(1);
+    expect(onOpenProfile).toHaveBeenCalledTimes(1);
   });
 
   it("uses the approved server-icon claim target and exact name for deletion", async () => {
@@ -373,7 +386,11 @@ describe("mobile server management", () => {
       };
     });
     const view = await render(
-      <MobileServerSettingsScreen serverId="server-1" onBack={jest.fn()} onOpenMembers={jest.fn()} />,
+      <MobileServerSettingsScreen
+        serverId="server-1"
+        onBack={jest.fn()}
+        onOpenMembers={jest.fn()}
+      />,
     );
 
     await fireEvent.press(view.getByTestId("mobile-server-icon-picker"));
@@ -417,7 +434,11 @@ describe("mobile server management", () => {
       };
     });
     const view = await render(
-      <MobileServerSettingsScreen serverId="server-1" onBack={jest.fn()} onOpenMembers={jest.fn()} />,
+      <MobileServerSettingsScreen
+        serverId="server-1"
+        onBack={jest.fn()}
+        onOpenMembers={jest.fn()}
+      />,
     );
 
     await fireEvent.press(view.getByTestId("mobile-server-icon-picker"));
@@ -447,7 +468,11 @@ describe("mobile server management", () => {
       status: "error",
     });
     const view = await render(
-      <MobileServerSettingsScreen serverId="server-1" onBack={jest.fn()} onOpenMembers={jest.fn()} />,
+      <MobileServerSettingsScreen
+        serverId="server-1"
+        onBack={jest.fn()}
+        onOpenMembers={jest.fn()}
+      />,
     );
 
     await fireEvent.press(view.getByTestId("mobile-server-icon-picker"));
@@ -512,8 +537,80 @@ describe("mobile server management", () => {
     expect(server.getByTestId("mobile-server-invites-row").props.accessibilityState.disabled).toBe(
       true,
     );
+    expect(
+      server.getByTestId("mobile-server-public-toggle").props.accessibilityState.disabled,
+    ).toBe(true);
+    expect(
+      server.getByTestId("mobile-server-discoverable-toggle").props.accessibilityState.disabled,
+    ).toBe(true);
     expect(channel.queryByTestId("mobile-channel-history-clear-open-channel-voice")).toBeNull();
     expect(channel.queryByTestId("mobile-channel-delete-open-channel-voice")).toBeNull();
+  });
+
+  it("toggles server visibility and forces discoverable off when public is turned off", async () => {
+    resetMocks();
+    mockVisibilityQuery = {
+      data: { discoverable: true, isPublic: true, type: "PERSONAL" },
+      isError: false,
+      isLoading: false,
+    };
+    const view = await render(
+      <MobileServerSettingsScreen
+        serverId="server-1"
+        onBack={jest.fn()}
+        onOpenMembers={jest.fn()}
+      />,
+    );
+
+    expect(view.getByTestId("mobile-server-public-toggle").props.accessibilityState.checked).toBe(
+      true,
+    );
+    expect(
+      view.getByTestId("mobile-server-discoverable-toggle").props.accessibilityState.checked,
+    ).toBe(true);
+
+    // S3 Section C binding rule: the off-cascade is one request, not two.
+    await fireEvent.press(view.getByTestId("mobile-server-public-toggle"));
+
+    await waitFor(() =>
+      expect(mockMutations.updateServer.mutateAsync).toHaveBeenCalledWith({
+        discoverable: false,
+        isPublic: false,
+        serverId: "server-1",
+      }),
+    );
+    expect(
+      view.getByTestId("mobile-server-discoverable-toggle").props.accessibilityState.disabled,
+    ).toBe(true);
+  });
+
+  it("keeps both visibility toggles read-only on a COMMUNITY server", async () => {
+    resetMocks();
+    mockVisibilityQuery = {
+      data: { discoverable: true, isPublic: true, type: "COMMUNITY" },
+      isError: false,
+      isLoading: false,
+    };
+    const view = await render(
+      <MobileServerSettingsScreen
+        serverId="server-1"
+        onBack={jest.fn()}
+        onOpenMembers={jest.fn()}
+      />,
+    );
+
+    expect(view.getByTestId("mobile-server-public-toggle").props.accessibilityState.disabled).toBe(
+      true,
+    );
+    expect(
+      view.getByTestId("mobile-server-discoverable-toggle").props.accessibilityState.disabled,
+    ).toBe(true);
+    expect(
+      view.getAllByText("Topluluk sunucusu · görünürlük yönetim ekibi tarafından yönetilir"),
+    ).toHaveLength(2);
+
+    await fireEvent.press(view.getByTestId("mobile-server-public-toggle"));
+    expect(mockMutations.updateServer.mutateAsync).not.toHaveBeenCalled();
   });
 
   it("shows role and kick affordances only from the server-provided member actions", async () => {
@@ -524,6 +621,21 @@ describe("mobile server management", () => {
     expect(view.getByTestId("mobile-server-member-member-1")).toBeTruthy();
     expect(view.getByTestId("mobile-member-member-1-roles")).toBeTruthy();
     expect(view.getByTestId("mobile-member-member-1-kick")).toBeTruthy();
+  });
+
+  it("opens the server profile from the member list header", async () => {
+    resetMocks();
+    const onOpenServerProfile = jest.fn();
+    const view = await render(
+      <MobileServerMembersScreen
+        serverId="server-1"
+        onBack={jest.fn()}
+        onOpenServerProfile={onOpenServerProfile}
+      />,
+    );
+
+    await fireEvent.press(view.getByTestId("mobile-server-members-profile"));
+    expect(onOpenServerProfile).toHaveBeenCalledTimes(1);
   });
 
   it("renders the server role overview and creates a role through the managed mutation", async () => {

@@ -9,6 +9,10 @@ import { createPendingMessageAttachmentUpload } from "@/lib/attachments/upload-p
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getRedisRate } from "@/lib/redis";
 import { logError } from "@/lib/logger";
+import {
+  assertGroupIconUploadAllowed,
+  GroupIconUploadInputSchema,
+} from "@/lib/dm/group-icon-upload";
 import { getBearerTokenFromRequest } from "@/lib/mobile/auth";
 import {
   authorizeMobileMediaUpload,
@@ -17,12 +21,14 @@ import {
 
 const f = createUploadthing();
 
-export function isUploadUserAllowed(user: {
-  deletedAt?: Date | null;
-  emailVerified: boolean;
-  id: string;
-  isBanned: boolean;
-} | null): user is {
+export function isUploadUserAllowed(
+  user: {
+    deletedAt?: Date | null;
+    emailVerified: boolean;
+    id: string;
+    isBanned: boolean;
+  } | null,
+): user is {
   deletedAt?: null;
   emailVerified: true;
   id: string;
@@ -104,7 +110,9 @@ async function requireMessageUploadUser({ req }: { req: Request }) {
       throw error;
     }
     logError("[upload] Message attachment rate limit unavailable", error);
-    throw new UploadThingError("Upload checks are temporarily unavailable. Please try again shortly.");
+    throw new UploadThingError(
+      "Upload checks are temporarily unavailable. Please try again shortly.",
+    );
   }
 
   return { userId };
@@ -129,7 +137,44 @@ async function requireProfileAvatarUploadUser() {
       throw error;
     }
     logError("[upload] Profile avatar rate limit unavailable", error);
-    throw new UploadThingError("Upload checks are temporarily unavailable. Please try again shortly.");
+    throw new UploadThingError(
+      "Upload checks are temporarily unavailable. Please try again shortly.",
+    );
+  }
+
+  return { userId };
+}
+
+async function requireGroupIconUploadUser({ req }: { req: Request }) {
+  let userId: string;
+
+  // Web and mobile share this uploader, so the identity resolves the same way a
+  // message attachment does: a bearer token never falls back to a cookie session.
+  try {
+    userId = await resolveMessageUploadUserId({ request: req });
+  } catch {
+    throw new UploadThingError("Unauthorized");
+  }
+
+  try {
+    const allowed = await checkRateLimit(
+      getRedisRate(),
+      `rate:upload:group-icon:${userId}`,
+      10,
+      300,
+    );
+
+    if (!allowed) {
+      throw new UploadThingError("Too many image uploads. Please try again shortly.");
+    }
+  } catch (error) {
+    if (error instanceof UploadThingError) {
+      throw error;
+    }
+    logError("[upload] Group icon rate limit unavailable", error);
+    throw new UploadThingError(
+      "Upload checks are temporarily unavailable. Please try again shortly.",
+    );
   }
 
   return { userId };
@@ -151,6 +196,24 @@ async function createMessageAttachment({
 }
 
 export const uploadRouter: FileRouter = {
+  groupIconUploader: f({
+    image: {
+      maxFileCount: 1,
+      maxFileSize: "4MB",
+    },
+  })
+    .input(GroupIconUploadInputSchema)
+    .middleware(async ({ input, req }) => {
+      const { userId } = await requireGroupIconUploadUser({ req });
+      await assertGroupIconUploadAllowed({ conversationId: input.conversationId, userId });
+
+      return { userId };
+    })
+    .onUploadComplete(async ({ file }) => {
+      return {
+        url: file.ufsUrl,
+      };
+    }),
   mobileMediaUploader: f({
     "image/jpeg": {
       maxFileCount: 1,
@@ -213,7 +276,9 @@ export const uploadRouter: FileRouter = {
           throw error;
         }
         logError("[upload] Server icon rate limit unavailable", error);
-        throw new UploadThingError("Upload checks are temporarily unavailable. Please try again shortly.");
+        throw new UploadThingError(
+          "Upload checks are temporarily unavailable. Please try again shortly.",
+        );
       }
 
       return { userId };

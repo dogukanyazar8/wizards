@@ -391,9 +391,13 @@ function VoiceChannelViewContent({ channelId, serverId }: VoiceChannelViewProps)
     room,
     setActiveScreenShareId,
     setParticipantVolume,
+    setScreenShareAudioEnabled,
     setScreenShareQuality,
+    setScreenShareVolume,
     stopScreenShare,
+    screenShareAudioEnabled,
     screenShareQuality,
+    screenShareVolume,
     toggleCamera,
     toggleDeafen,
     toggleMute,
@@ -828,8 +832,13 @@ function VoiceChannelViewContent({ channelId, serverId }: VoiceChannelViewProps)
                   onStopShare={() => {
                     void stopScreenShare();
                   }}
+                  onResetShareVolume={() => setScreenShareVolume(100)}
+                  onSetShareVolume={setScreenShareVolume}
+                  onToggleShareAudio={setScreenShareAudioEnabled}
                   screenShares={screenShares}
                   selectedQuality={screenShareQuality}
+                  shareAudioEnabled={screenShareAudioEnabled}
+                  shareVolume={screenShareVolume}
                 />
               ) : participantCount > 0 ? (
                 <div

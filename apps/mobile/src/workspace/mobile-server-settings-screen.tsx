@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Image, Pressable, ScrollView, Text, TextInput, View } from "react-native";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { MOBILE_SERVER_ATTACHMENT_MAX_BYTES } from "@wizards/types";
 
+import { fetchMobileServerProfile } from "../about/mobile-community-invite-client";
 import { useMobileAuth } from "../auth/mobile-auth-context";
 import {
   BottomSheet,
@@ -37,6 +38,8 @@ export interface MobileServerSettingsScreenProps {
   onOpenChannelSettings?(channelId: string): void;
   onOpenInvites?(): void;
   onOpenMembers(): void;
+  /** S2 Section D: the read-only public card for this server, from a `serverId`. */
+  onOpenProfile?(): void;
   onOpenRoles?(): void;
 }
 
@@ -70,6 +73,7 @@ export function MobileServerSettingsScreen({
   onBack,
   onOpenInvites,
   onOpenMembers,
+  onOpenProfile,
   onOpenRoles,
   serverId,
 }: MobileServerSettingsScreenProps) {
@@ -95,11 +99,28 @@ export function MobileServerSettingsScreen({
   const canOpenMembers = canManageRoles || capabilities?.canKickMembers === true;
   const canOpenRoles = canManageRoles && onOpenRoles !== undefined;
   const canOpenInvites = canManageInvites && onOpenInvites !== undefined;
+  // No capability gate: the profile route serves any member (a joined viewer
+  // passes the `isPublic || discoverable || joined` check), so the only thing
+  // that can disable this row is a caller that did not wire the handler.
+  const canOpenProfile = onOpenProfile !== undefined;
 
   const rolesQuery = useMobileAssignableRolesQuery(apiClient, serverId, canManageRoles);
   const invitesQuery = useMobileServerInvitesQuery(apiClient, serverId, canManageInvites);
   const roleCount = canManageRoles ? rolesQuery.data?.roles.length : undefined;
   const inviteCount = canManageInvites ? invitesQuery.data?.invites.length : undefined;
+
+  // S3 Section C: `isPublic`/`discoverable`/`type` are not on the workspace
+  // detail payload (`WorkspaceServerDetailSchema`/`MobileWorkspaceServerDetailSchema`
+  // carry neither). The server profile read model (S2 Section A) is the only
+  // mobile surface that already exposes all three, so the visibility card
+  // sources its state from there instead of duplicating a formatter.
+  const visibilityQuery = useQuery({
+    enabled: serverId.length > 0,
+    queryFn: () => fetchMobileServerProfile(apiClient, serverId),
+    queryKey: mobileQueryKeys.aboutServerProfile(serverId),
+  });
+  const isCommunityServer = visibilityQuery.data?.type === "COMMUNITY";
+  const visibilityUnknown = visibilityQuery.isLoading || visibilityQuery.isError;
 
   const [editorField, setEditorField] = useState<EditorField | null>(null);
   const [draft, setDraft] = useState("");
@@ -109,11 +130,23 @@ export function MobileServerSettingsScreen({
   const [iconPreviewUri, setIconPreviewUri] = useState<string | null>(null);
   const [canonicalIconUrl, setCanonicalIconUrl] = useState<string | null>(null);
   const [failedIconUri, setFailedIconUri] = useState<string | null>(null);
+  const [isPublic, setIsPublic] = useState(false);
+  const [discoverable, setDiscoverable] = useState(false);
 
   useEffect(() => {
     setError(null);
     setNotice(null);
   }, [locale]);
+
+  // Mirrors the read model whenever it (re)loads; a toggle press below moves
+  // these two ahead of it optimistically and rolls back on failure, the same
+  // pattern the icon upload and the field editor already use in this screen.
+  useEffect(() => {
+    if (visibilityQuery.data) {
+      setIsPublic(visibilityQuery.data.isPublic);
+      setDiscoverable(visibilityQuery.data.discoverable);
+    }
+  }, [visibilityQuery.data]);
 
   const shownIcon = canonicalIconUrl ?? iconPreviewUri ?? server?.iconUrl ?? null;
   const isIconBroken = shownIcon !== null && shownIcon === failedIconUri;
@@ -169,6 +202,66 @@ export function MobileServerSettingsScreen({
     try {
       await mutations.updateServer.mutateAsync({ serverId, [key]: next });
     } catch {
+      setError(labels.serverSettingsError);
+    }
+  };
+
+  // S3 Section C binding rule: turning "Herkese açık" off forces
+  // "Keşfedilebilir" off too, and that has to land on the server in the same
+  // request -- sending it separately (or not at all) would leave a private
+  // server marked discoverable until something else corrects it.
+  const togglePublic = async (next: boolean) => {
+    if (!server || !canManageServer || isCommunityServer || mutations.updateServer.isPending) {
+      return;
+    }
+    setError(null);
+    setNotice(null);
+    const previousPublic = isPublic;
+    const previousDiscoverable = discoverable;
+    setIsPublic(next);
+    if (!next) {
+      setDiscoverable(false);
+    }
+    try {
+      await mutations.updateServer.mutateAsync(
+        next ? { isPublic: true, serverId } : { discoverable: false, isPublic: false, serverId },
+      );
+      // The profile read model (S2 Section A) is a separate cache entry from
+      // the workspace detail `updateServer` already invalidates; without this
+      // the S2 `ServerProfile` screen would keep showing the pre-toggle value.
+      void queryClient.invalidateQueries({
+        exact: true,
+        queryKey: mobileQueryKeys.aboutServerProfile(serverId),
+      });
+    } catch {
+      setIsPublic(previousPublic);
+      setDiscoverable(previousDiscoverable);
+      setError(labels.serverSettingsError);
+    }
+  };
+
+  const toggleDiscoverable = async (next: boolean) => {
+    if (
+      !server ||
+      !canManageServer ||
+      isCommunityServer ||
+      !isPublic ||
+      mutations.updateServer.isPending
+    ) {
+      return;
+    }
+    setError(null);
+    setNotice(null);
+    const previous = discoverable;
+    setDiscoverable(next);
+    try {
+      await mutations.updateServer.mutateAsync({ discoverable: next, serverId });
+      void queryClient.invalidateQueries({
+        exact: true,
+        queryKey: mobileQueryKeys.aboutServerProfile(serverId),
+      });
+    } catch {
+      setDiscoverable(previous);
       setError(labels.serverSettingsError);
     }
   };
@@ -581,6 +674,72 @@ export function MobileServerSettingsScreen({
         </View>
       </View>
 
+      {/* Visibility (S3 Section C) */}
+      <View style={styles.sectionLabel}>
+        <Text maxFontSizeMultiplier={2} style={styles.sectionLabelText}>
+          {labels.serverSettingsVisibility}
+        </Text>
+      </View>
+      <View style={styles.card}>
+        <View style={[styles.row, styles.rowDivider]}>
+          <View style={[styles.tile, styles.tileAccent]}>
+            <MobileLineIcon color={theme.accent.default} name="globe" size={17} />
+          </View>
+          <View style={styles.rowBody}>
+            <Text maxFontSizeMultiplier={2} style={styles.rowTitle}>
+              {labels.serverSettingsPublic}
+            </Text>
+            <Text maxFontSizeMultiplier={2} style={styles.rowSubtitle}>
+              {isCommunityServer
+                ? labels.serverSettingsVisibilityManagedByCommunity
+                : labels.serverSettingsPublicHint}
+            </Text>
+          </View>
+          <Toggle
+            accessibilityLabel={labels.serverSettingsPublic}
+            disabled={
+              !canManageServer ||
+              isCommunityServer ||
+              visibilityUnknown ||
+              mutations.updateServer.isPending
+            }
+            onValueChange={(next) => void togglePublic(next)}
+            testID="mobile-server-public-toggle"
+            value={isPublic}
+          />
+        </View>
+        <View style={styles.row}>
+          <View style={[styles.tile, styles.tileSuccess]}>
+            <MobileLineIcon color={theme.status.visualText} name="search" size={17} />
+          </View>
+          <View style={styles.rowBody}>
+            <Text maxFontSizeMultiplier={2} style={styles.rowTitle}>
+              {labels.serverSettingsDiscoverable}
+            </Text>
+            <Text maxFontSizeMultiplier={2} style={styles.rowSubtitle}>
+              {isCommunityServer
+                ? labels.serverSettingsVisibilityManagedByCommunity
+                : isPublic
+                  ? labels.serverSettingsDiscoverableHint
+                  : labels.serverSettingsDiscoverableRequiresPublicHint}
+            </Text>
+          </View>
+          <Toggle
+            accessibilityLabel={labels.serverSettingsDiscoverable}
+            disabled={
+              !canManageServer ||
+              isCommunityServer ||
+              !isPublic ||
+              visibilityUnknown ||
+              mutations.updateServer.isPending
+            }
+            onValueChange={(next) => void toggleDiscoverable(next)}
+            testID="mobile-server-discoverable-toggle"
+            value={discoverable}
+          />
+        </View>
+      </View>
+
       {/* Management */}
       <View style={styles.sectionLabel}>
         <Text maxFontSizeMultiplier={2} style={styles.sectionLabelText}>
@@ -588,6 +747,27 @@ export function MobileServerSettingsScreen({
         </Text>
       </View>
       <View style={styles.card}>
+        <Pressable
+          accessibilityLabel={labels.serverSettingsProfile}
+          accessibilityRole="button"
+          disabled={!canOpenProfile}
+          onPress={onOpenProfile}
+          style={({ pressed }) => [
+            styles.row,
+            styles.rowDivider,
+            pressed && canOpenProfile && styles.rowPressed,
+          ]}
+          testID="mobile-server-profile-row"
+        >
+          <View style={[styles.tile, styles.tileAccent]}>
+            <MobileLineIcon color={theme.accent.default} name="servers" size={17} />
+          </View>
+          <Text maxFontSizeMultiplier={2} style={[styles.rowTitle, styles.rowLabelOnly]}>
+            {labels.serverSettingsProfile}
+          </Text>
+          {chevron}
+        </Pressable>
+
         <Pressable
           accessibilityLabel={labels.serverSettingsRoles}
           accessibilityRole="button"
@@ -708,9 +888,7 @@ export function MobileServerSettingsScreen({
 
       <BottomSheet
         accessibilityLabel={
-          editorField
-            ? getServerFieldLabel(labels, editorField)
-            : labels.serverSettingsTitle
+          editorField ? getServerFieldLabel(labels, editorField) : labels.serverSettingsTitle
         }
         onClose={() => setEditorField(null)}
         open={editorField !== null}

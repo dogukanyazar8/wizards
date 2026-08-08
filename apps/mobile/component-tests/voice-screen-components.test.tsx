@@ -33,7 +33,6 @@ import {
   VoiceScreen,
 } from "../src/app/screens/voice-screen";
 import { createInitialMobileVoiceRuntimeState } from "../src/voice/mobile-voice-contract";
-import { MobileVoiceCameraGrid } from "../src/voice/mobile-camera-grid";
 import { MobileVoiceSettingsSheet } from "../src/voice/mobile-voice-settings-sheet";
 import type {
   MobileScreenShareTrackReference,
@@ -42,6 +41,15 @@ import type {
 } from "../src/voice/mobile-voice-room-contract";
 
 const copy = activeMobileCopy;
+
+/** A subscribed camera publication, minus the livekit machinery the UI never reads. */
+function createCameraTrackRef(): MobileVoiceRoomParticipant["cameraTrackRef"] {
+  return {
+    participant: {},
+    publication: { dimensions: { height: 720, width: 1280 } },
+    source: "camera",
+  } as MobileVoiceRoomParticipant["cameraTrackRef"];
+}
 
 function createParticipant(
   overrides: Partial<MobileVoiceRoomParticipant> = {},
@@ -609,63 +617,59 @@ describe("mobile voice component rendering", () => {
     expect(view.getAllByTestId(/^mobile-voice-audience-row-/)).toHaveLength(3);
   });
 
-  it("renders bounded camera tracks and exposes the camera flip action", async () => {
-    const trackRef = {
-      participant: {},
-      publication: {},
-      source: "camera",
-    } as MobileVoiceRoomParticipant["cameraTrackRef"];
-    const view = await render(
-      <MobileVoiceCameraGrid
-        cameraFacingMode="user"
-        canFlip
-        onFlip={() => undefined}
-        participants={[
-          createParticipant({ cameraTrackRef: trackRef, isCameraEnabled: true, isSelf: true }),
-        ]}
-      />,
+  it("mirrors the publisher's own front camera on the stage it actually ships", async () => {
+    const view = await renderVoiceScreen(
+      createVoiceScreenProps({
+        voiceRoomState: createConnectedVoiceRoom({
+          cameraFacingMode: "user",
+          participants: [
+            createParticipant({
+              cameraTrackRef: createCameraTrackRef(),
+              isCameraEnabled: true,
+              isSelf: true,
+              userId: "self",
+            }),
+          ],
+        }),
+      }),
     );
 
-    expect(view.getByTestId("mobile-voice-camera-grid")).toBeTruthy();
-    expect(view.getByTestId("mobile-voice-camera-flip")).toBeTruthy();
-    expect(view.getByTestId("mobile-livekit-video-track")).toBeTruthy();
-    // The publisher's own front camera is the only mirrored surface.
     expect(view.getByTestId("mobile-livekit-video-track").props.mirror).toBe(true);
   });
 
   it("never mirrors a remote tile or a rear-facing self view", async () => {
-    const trackRef = {
-      participant: {},
-      publication: {},
-      source: "camera",
-    } as MobileVoiceRoomParticipant["cameraTrackRef"];
-    const rearView = await render(
-      <MobileVoiceCameraGrid
-        cameraFacingMode="environment"
-        canFlip
-        onFlip={() => undefined}
-        participants={[
-          createParticipant({ cameraTrackRef: trackRef, isCameraEnabled: true, isSelf: true }),
-        ]}
-      />,
+    const rearView = await renderVoiceScreen(
+      createVoiceScreenProps({
+        voiceRoomState: createConnectedVoiceRoom({
+          cameraFacingMode: "environment",
+          participants: [
+            createParticipant({
+              cameraTrackRef: createCameraTrackRef(),
+              isCameraEnabled: true,
+              isSelf: true,
+              userId: "self",
+            }),
+          ],
+        }),
+      }),
     );
 
     expect(rearView.getByTestId("mobile-livekit-video-track").props.mirror).toBe(false);
 
-    const remoteView = await render(
-      <MobileVoiceCameraGrid
-        cameraFacingMode="user"
-        canFlip={false}
-        onFlip={() => undefined}
-        participants={[
-          createParticipant({
-            cameraTrackRef: trackRef,
-            isCameraEnabled: true,
-            isSelf: false,
-            userId: "remote-1",
-          }),
-        ]}
-      />,
+    const remoteView = await renderVoiceScreen(
+      createVoiceScreenProps({
+        voiceRoomState: createConnectedVoiceRoom({
+          cameraFacingMode: "user",
+          participants: [
+            createParticipant({
+              cameraTrackRef: createCameraTrackRef(),
+              isCameraEnabled: true,
+              isSelf: false,
+              userId: "remote-1",
+            }),
+          ],
+        }),
+      }),
     );
 
     expect(remoteView.getByTestId("mobile-livekit-video-track").props.mirror).toBe(false);

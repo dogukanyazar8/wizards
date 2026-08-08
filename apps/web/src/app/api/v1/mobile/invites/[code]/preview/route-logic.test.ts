@@ -2,10 +2,6 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { ApiError } from "@/lib/api";
-import {
-  buildMobileInvitePreviewResponse,
-  type MobileInvitePreviewSource,
-} from "@/lib/invites/mobile-invite-preview-service";
 
 const routes = import("./route-logic");
 
@@ -129,39 +125,12 @@ describe("mobile invite preview route logic", () => {
     assert.equal(previewCalled, false);
   });
 
-  it("never projects a channel the invite viewer cannot see", () => {
-    const source: MobileInvitePreviewSource = {
-      ...previewFixture(),
-      channels: [
-        {
-          liveCount: null,
-          name: "duyurular",
-          readOnly: true,
-          type: "text",
-          visible: true,
-        },
-        {
-          liveCount: null,
-          name: "gizli-yönetim",
-          readOnly: true,
-          type: "text",
-          visible: false,
-        },
-        {
-          liveCount: 14,
-          name: "topluluk-sesli",
-          readOnly: false,
-          type: "voice",
-          visible: true,
-        },
-      ],
-    };
-
-    assert.deepEqual(buildMobileInvitePreviewResponse(source).channels, [
-      { liveCount: null, name: "duyurular", readOnly: true, type: "text" },
-      { liveCount: 14, name: "topluluk-sesli", readOnly: false, type: "voice" },
-    ]);
-  });
+  // The "never projects a channel the invite viewer cannot see" case moved to
+  // server-public-profile-service.test.ts ("hides channels the default role
+  // cannot view") when Task 9 collapsed the invite preview's own permission
+  // pass into the shared `buildServerPublicProfile`. The local
+  // `buildMobileInvitePreviewResponse` it exercised had no production caller
+  // left afterwards.
 
   it("stops at the rate limit before reading route params", async () => {
     const { mobileInvitePreviewRoute } = await routes;

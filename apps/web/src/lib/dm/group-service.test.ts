@@ -3,21 +3,39 @@ import { describe, it } from "node:test";
 
 import {
   addGroupMembers,
+  toGroupEligibilityMap,
   createGroupConversation,
   leaveGroupConversation,
   removeGroupMember,
   resolveNextGroupOwner,
+  updateGroupConversation,
 } from "./group-service";
 
 type Deps = Parameters<typeof createGroupConversation>[2];
 
+/**
+ * Eligibility now arrives as one map for the whole picker, so a test that wants
+ * one bad target says so by name and everybody else stays a friend.
+ */
+function eligibility(overrides: Record<string, { blocked?: boolean; isFriend?: boolean }> = {}) {
+  return async (_actorId: string, targetIds: readonly string[]) =>
+    new Map(
+      targetIds.map((targetId) => [
+        targetId,
+        {
+          blocked: overrides[targetId]?.blocked ?? false,
+          isFriend: overrides[targetId]?.isFriend ?? true,
+        },
+      ]),
+    );
+}
+
 function buildDependencies(overrides: Partial<NonNullable<Deps>> = {}): NonNullable<Deps> {
   return {
-    areFriends: async () => true,
     deleteConversation: async () => {
       throw new Error("deleteConversation should not be called in this test");
     },
-    getBlockStatus: async () => ({ blocked: false }),
+    loadGroupEligibility: eligibility(),
     getDeletedMessageLabel: async () => "Silinen mesaj",
     loadConversation: async () => {
       throw new Error("loadConversation should not be called in this test");
@@ -42,6 +60,9 @@ function buildDependencies(overrides: Partial<NonNullable<Deps>> = {}): NonNulla
       ownerId: input.actorId,
       participantUserIds: input.participantUserIds,
     }),
+    writeGroupMetadata: async () => {
+      throw new Error("writeGroupMetadata should not be called in this test");
+    },
     writeRemovedMember: async () => {
       throw new Error("writeRemovedMember should not be called in this test");
     },
@@ -118,7 +139,7 @@ describe("createGroupConversation", () => {
 
   it("refuses a member who is not a friend of the actor", async () => {
     const dependencies = buildDependencies({
-      areFriends: async (_actorId, targetId) => targetId !== "user-3",
+      loadGroupEligibility: eligibility({ "user-3": { isFriend: false } }),
     });
 
     await assert.rejects(
@@ -133,8 +154,7 @@ describe("createGroupConversation", () => {
 
   it("refuses a member the actor has blocked or been blocked by", async () => {
     const dependencies = buildDependencies({
-      areFriends: async (_actorId, targetId) => targetId !== "user-2",
-      getBlockStatus: async (_actorId, targetId) => ({ blocked: targetId === "user-2" }),
+      loadGroupEligibility: eligibility({ "user-2": { blocked: true, isFriend: false } }),
     });
 
     await assert.rejects(
@@ -144,6 +164,45 @@ describe("createGroupConversation", () => {
         return true;
       },
     );
+  });
+
+  /**
+   * The writer loads the response projection inside its own transaction and
+   * returns it as `included`; the default `mapConversation` renders that instead
+   * of re-reading the row it just wrote. That only works if the service hands
+   * the writer's row through untouched — rebuilding it here would silently drop
+   * the payload and put the extra query back.
+   */
+  it("passes the writer's row to the mapper untouched, payload included", async () => {
+    const included = { id: "group-1", marker: "in-transaction" };
+    let mapped: unknown = null;
+    const dependencies = buildDependencies({
+      mapConversation: async (conversation) => {
+        mapped = (conversation as { included?: unknown }).included;
+        return {
+          iconUrl: null,
+          id: conversation.id,
+          lastMessage: null,
+          lastMessageAt: "2026-08-07T09:00:00.000Z",
+          name: null,
+          ownerId: null,
+          participants: [],
+          type: "GROUP_DM",
+        };
+      },
+      writeCreatedGroup: async (input) => ({
+        iconUrl: input.iconUrl,
+        id: "group-1",
+        included: included as never,
+        name: input.name,
+        ownerId: input.actorId,
+        participantUserIds: input.participantUserIds,
+      }),
+    });
+
+    await createGroupConversation("user-1", { userIds: ["user-2", "user-3"] }, dependencies);
+
+    assert.deepEqual(mapped, included);
   });
 
   it("stores a blank name as null so the title falls back to member names", async () => {
@@ -256,7 +315,7 @@ describe("addGroupMembers", () => {
   it("refuses a non-owner with NOT_GROUP_OWNER even when the requested member is ineligible", async () => {
     const dependencies = buildDependencies({
       loadConversation: async () => buildGroup(),
-      areFriends: async (_actorId, targetId) => targetId !== "user-4",
+      loadGroupEligibility: eligibility({ "user-4": { isFriend: false } }),
     });
 
     await assert.rejects(
@@ -548,5 +607,229 @@ describe("leaveGroupConversation", () => {
 
     assert.equal(deleted, "group-1");
     assert.equal(removeWrites, 0);
+  });
+});
+
+describe("updateGroupConversation", () => {
+  it("writes a NAME_CHANGED system row carrying the new name", async () => {
+    let written: { systemType: string; systemValue: string | null } | null = null;
+    const dependencies = buildDependencies({
+      loadConversation: async () => buildGroup(),
+      writeGroupMetadata: async (input) => {
+        written = { systemType: input.systemType, systemValue: input.systemValue };
+        return buildGroup({});
+      },
+    });
+
+    await updateGroupConversation("user-1", "group-1", { name: "Yeni ad" }, dependencies);
+
+    assert.deepEqual(written, { systemType: "NAME_CHANGED", systemValue: "Yeni ad" });
+  });
+
+  it("writes an ICON_CHANGED system row with no value", async () => {
+    let written: { systemType: string; systemValue: string | null } | null = null;
+    const dependencies = buildDependencies({
+      loadConversation: async () => buildGroup(),
+      writeGroupMetadata: async (input) => {
+        written = { systemType: input.systemType, systemValue: input.systemValue };
+        return buildGroup({});
+      },
+    });
+
+    await updateGroupConversation(
+      "user-1",
+      "group-1",
+      { iconUrl: "https://utfs.io/f/new.png" },
+      dependencies,
+    );
+
+    assert.deepEqual(written, { systemType: "ICON_CHANGED", systemValue: null });
+  });
+
+  /**
+   * Faz 7 §20.1(a). A request can carry both fields, and both have to reach the
+   * writer — but only one system row is written and the name is what it
+   * announces, because the name is the change other members read in the inbox
+   * row. This pins the whole rule: two writes, one announcement, name wins.
+   */
+  it("persists the name and the icon together while announcing only the name", async () => {
+    let writeCount = 0;
+    let written: {
+      iconUrl?: string | null | undefined;
+      name?: string | null | undefined;
+      systemType: string;
+      systemValue: string | null;
+    } | null = null;
+    const dependencies = buildDependencies({
+      loadConversation: async () => buildGroup(),
+      writeGroupMetadata: async (input) => {
+        writeCount += 1;
+        written = {
+          iconUrl: input.iconUrl,
+          name: input.name,
+          systemType: input.systemType,
+          systemValue: input.systemValue,
+        };
+        return buildGroup({});
+      },
+    });
+
+    await updateGroupConversation(
+      "user-1",
+      "group-1",
+      { iconUrl: "https://utfs.io/f/new.png", name: "Yeni ad" },
+      dependencies,
+    );
+
+    assert.equal(writeCount, 1);
+    assert.deepEqual(written, {
+      iconUrl: "https://utfs.io/f/new.png",
+      name: "Yeni ad",
+      systemType: "NAME_CHANGED",
+      systemValue: "Yeni ad",
+    });
+  });
+
+  /**
+   * Clearing the name and setting a photo in one request: the name still wins
+   * the announcement, and `systemValue` is null because there is no new name to
+   * quote. The icon must not be dropped by the name branch.
+   */
+  it("keeps the icon when the same request clears the name", async () => {
+    let written: {
+      iconUrl?: string | null | undefined;
+      name?: string | null | undefined;
+      systemType: string;
+      systemValue: string | null;
+    } | null = null;
+    const dependencies = buildDependencies({
+      loadConversation: async () => buildGroup(),
+      writeGroupMetadata: async (input) => {
+        written = {
+          iconUrl: input.iconUrl,
+          name: input.name,
+          systemType: input.systemType,
+          systemValue: input.systemValue,
+        };
+        return buildGroup({});
+      },
+    });
+
+    await updateGroupConversation(
+      "user-1",
+      "group-1",
+      { iconUrl: "https://utfs.io/f/new.png", name: null },
+      dependencies,
+    );
+
+    assert.deepEqual(written, {
+      iconUrl: "https://utfs.io/f/new.png",
+      name: null,
+      systemType: "NAME_CHANGED",
+      systemValue: null,
+    });
+  });
+
+  it("refuses a non-owner", async () => {
+    const dependencies = buildDependencies({ loadConversation: async () => buildGroup() });
+
+    await assert.rejects(
+      () => updateGroupConversation("user-2", "group-1", { name: "Yeni" }, dependencies),
+      (error: { code?: string }) => {
+        assert.equal(error.code, "NOT_GROUP_OWNER");
+        return true;
+      },
+    );
+  });
+
+  it("does nothing when the patch is empty", async () => {
+    let writeCount = 0;
+    const dependencies = buildDependencies({
+      loadConversation: async () => buildGroup(),
+      writeGroupMetadata: async () => {
+        writeCount += 1;
+        return buildGroup({});
+      },
+    });
+
+    await updateGroupConversation("user-1", "group-1", {}, dependencies);
+
+    assert.equal(writeCount, 0);
+  });
+
+  // patch.name === null (clearing the title) must be treated the same as any
+  // other name change. A truthiness check on patch.name would read `null` as
+  // "no change" and silently drop the clear — this test pins that it does not.
+  it("treats clearing the name to null as a real change, not a falsy no-op", async () => {
+    let written: {
+      name?: string | null | undefined;
+      systemType: string;
+      systemValue: string | null;
+    } | null = null;
+    const dependencies = buildDependencies({
+      loadConversation: async () => buildGroup(),
+      writeGroupMetadata: async (input) => {
+        written = {
+          name: input.name,
+          systemType: input.systemType,
+          systemValue: input.systemValue,
+        };
+        return buildGroup({});
+      },
+    });
+
+    await updateGroupConversation("user-1", "group-1", { name: null }, dependencies);
+
+    assert.deepEqual(written, { name: null, systemType: "NAME_CHANGED", systemValue: null });
+  });
+});
+
+describe("toGroupEligibilityMap", () => {
+  const targets = ["user-2", "user-3", "user-4"];
+
+  it("reads the target off whichever end of the row is not the actor", () => {
+    const map = toGroupEligibilityMap("user-1", targets, [
+      { receiverId: "user-2", senderId: "user-1", status: "ACCEPTED" },
+      { receiverId: "user-1", senderId: "user-3", status: "ACCEPTED" },
+    ]);
+
+    assert.equal(map.get("user-2")?.isFriend, true);
+    assert.equal(map.get("user-3")?.isFriend, true);
+  });
+
+  it("leaves a target no row mentions as a non-friend so the check fails closed", () => {
+    const map = toGroupEligibilityMap("user-1", targets, []);
+
+    assert.deepEqual(map.get("user-4"), { blocked: false, isFriend: false });
+  });
+
+  // Row order is whatever the database hands back, so the block has to survive
+  // both orders. Only the BLOCKED-first case catches an ACCEPTED row that clears
+  // an existing block.
+  it("keeps the block when the ACCEPTED row arrives after the BLOCKED one", () => {
+    const map = toGroupEligibilityMap("user-1", targets, [
+      { receiverId: "user-1", senderId: "user-2", status: "BLOCKED" },
+      { receiverId: "user-2", senderId: "user-1", status: "ACCEPTED" },
+    ]);
+
+    assert.deepEqual(map.get("user-2"), { blocked: true, isFriend: true });
+  });
+
+  it("keeps the block when the ACCEPTED row arrives before the BLOCKED one", () => {
+    const map = toGroupEligibilityMap("user-1", targets, [
+      { receiverId: "user-2", senderId: "user-1", status: "ACCEPTED" },
+      { receiverId: "user-1", senderId: "user-2", status: "BLOCKED" },
+    ]);
+
+    assert.deepEqual(map.get("user-2"), { blocked: true, isFriend: true });
+  });
+
+  it("ignores rows about somebody who was never a target", () => {
+    const map = toGroupEligibilityMap("user-1", targets, [
+      { receiverId: "user-9", senderId: "user-1", status: "BLOCKED" },
+    ]);
+
+    assert.equal(map.has("user-9"), false);
+    assert.equal(map.size, targets.length);
   });
 });

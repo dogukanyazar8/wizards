@@ -19,6 +19,16 @@ export type MobileRootStackParamList = {
   DirectMessage: {
     readonly conversationId: string;
   };
+  /**
+   * Faz 5 §13.2 group creation. A full route rather than a modal so the two
+   * steps (pick members, then name the group) each own a back press, and so the
+   * keyboard region the chat screens already solve applies unchanged.
+   */
+  GroupCreate: undefined;
+  /** Faz 5 §17.1 group roster and admin actions. */
+  GroupDetails: {
+    readonly conversationId: string;
+  };
   MessageThread: {
     readonly contextId: string;
     readonly messageId: string;
@@ -78,6 +88,14 @@ export type MobileRootStackParamList = {
   RoleDetail: { readonly roleId: string; readonly serverId: string };
   ServerMembers: { readonly serverId: string };
   ServerInvites: { readonly serverId: string };
+  /**
+   * S2 2g generalised to a `serverId` source (Section D). Always a concrete
+   * id — unlike `CommunityInvite`'s optional slug there is no flagship
+   * default to fall back to.
+   */
+  ServerProfile: { readonly serverId: string };
+  /** S3 Section D: browse public, discoverable servers. Cards route to `ServerProfile`. */
+  Discover: undefined;
   ChannelSettings: { readonly channelId: string; readonly serverId: string };
   /**
    * F7 mobile moderation triage. Root stack routes rather than a tab: the queue
@@ -109,6 +127,7 @@ export type MobileNavigationRouteIntent =
       readonly params: MobileRootStackParamList["DirectMessage"];
       readonly type: "route";
     }
+  | { readonly name: "GroupCreate"; readonly params: undefined; readonly type: "route" }
   | {
       readonly name: "MessageThread";
       readonly params: MobileRootStackParamList["MessageThread"];
@@ -153,6 +172,11 @@ export type MobileNavigationRouteIntent =
   | {
       readonly name: "CommunityInvite";
       readonly params: MobileRootStackParamList["CommunityInvite"];
+      readonly type: "route";
+    }
+  | {
+      readonly name: "ServerProfile";
+      readonly params: MobileRootStackParamList["ServerProfile"];
       readonly type: "route";
     }
   | { readonly name: "AdminIncidents"; readonly params: undefined; readonly type: "route" }

@@ -607,6 +607,19 @@ describe("mobile workspace management schemas", () => {
     assertRejects(MobileChannelUpdateRequestSchema, {});
   });
 
+  it("counts every server update field, so a visibility-only save is a valid update", () => {
+    assertAccepts(MobileServerUpdateRequestSchema, { isPublic: true });
+    assertAccepts(MobileServerUpdateRequestSchema, { discoverable: true });
+    assertAccepts(MobileServerUpdateRequestSchema, { discoverable: false, isPublic: false });
+
+    const empty = MobileServerUpdateRequestSchema.safeParse({});
+    assert.equal(empty.success, false, "An update carrying no field must stay rejected.");
+    assert.equal(
+      empty.success ? null : empty.error.issues[0]?.message,
+      "validation.form.atLeastOne",
+    );
+  });
+
   it("bounds inherited nested ids, invite codes, and member pagination", () => {
     const id129 = "i".repeat(129);
 

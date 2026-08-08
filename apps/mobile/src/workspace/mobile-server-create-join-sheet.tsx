@@ -27,6 +27,8 @@ export interface MobileServerCreateJoinSheetProps {
   onClose(): void;
   onCreate(input: { name: string }): Promise<{ serverId: string }>;
   onJoin(input: { inviteCode: string }): Promise<{ serverId: string }>;
+  /** S3 Section D: third menu branch, opens the public-server browse screen. */
+  onOpenDiscover(): void;
   onServerReady(serverId: string): void;
   onUploadServerIcon?(
     serverId: string,
@@ -86,6 +88,7 @@ export function MobileServerCreateJoinSheet({
   onClose,
   onCreate,
   onJoin,
+  onOpenDiscover,
   onServerReady,
   onUploadServerIcon,
   open,
@@ -127,6 +130,13 @@ export function MobileServerCreateJoinSheet({
   const goToStep = (nextStep: MobileServerSheetStep) => {
     setLocalError(null);
     setStep(nextStep);
+  };
+
+  // Discover is a full-screen destination, not a third sheet step: it opens
+  // and this sheet gets out of the way, the same way a completed join does.
+  const openDiscover = () => {
+    onOpenDiscover();
+    onClose();
   };
 
   const markServerReady = (serverId: string) => {
@@ -330,6 +340,14 @@ export function MobileServerCreateJoinSheet({
                 onPress={() => goToStep("join")}
                 testID="mobile-server-mode-join"
                 title={copy.workspaceServerJoinAction}
+              />
+              <MobileCreateSheetOptionCard
+                description={copy.workspaceServerDiscoverOptionDescription}
+                icon={<Ionicons color={theme.accent.default} name="compass-outline" size={19} />}
+                iconSurface={theme.accent.soft}
+                onPress={openDiscover}
+                testID="mobile-server-mode-discover"
+                title={copy.workspaceServerDiscoverAction}
               />
             </View>
             <MobileCreateSheetCancelButton

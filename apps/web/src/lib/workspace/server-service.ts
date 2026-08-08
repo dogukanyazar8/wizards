@@ -348,10 +348,12 @@ async function loadWorkspaceServerDetail(access: AccessContext): Promise<Workspa
           },
         },
         description: true,
+        discoverable: true,
         features: true,
         iconUrl: true,
         id: true,
         inviteCode: true,
+        isPublic: true,
         messageCharacterLimit: true,
         deletedMessageNoticeMinutes: true,
         members: {
@@ -414,6 +416,7 @@ async function loadWorkspaceServerDetail(access: AccessContext): Promise<Workspa
           },
         },
         shortName: true,
+        type: true,
       },
     }),
     canManageInvites
@@ -490,17 +493,20 @@ async function loadWorkspaceServerDetail(access: AccessContext): Promise<Workspa
       allowMemberAdds: mediaSettings.allowMemberAdds,
       defaultChannelId,
       description: server.description,
+      discoverable: server.discoverable,
       iconUrl: server.iconUrl,
       id: server.id,
       inviteCode: server.inviteCode,
       isAdmin,
       isOwner: access.accessLevel === "OWNER",
+      isPublic: server.isPublic,
       memberCount: server._count.members,
       messageCharacterLimit: server.messageCharacterLimit,
       deletedMessageNoticeMinutes: server.deletedMessageNoticeMinutes,
       mentionCount,
       name: server.name,
       shortName: server.shortName,
+      type: server.type,
       unreadCount,
     },
     ungroupedChannels,
@@ -1120,19 +1126,54 @@ export function assertVisibilityFieldsWritable(
   }
 }
 
+/**
+ * `discoverable` only means anything while `isPublic` is on (S3 Bölüm C).
+ * Pure so the invariant is assertable without a database: whatever the
+ * client sends, the resolved `discoverable` can never end up `true` while
+ * the resolved `isPublic` is `false` -- turning `isPublic` off (or it
+ * already being off) forces `discoverable` off in the same update, on the
+ * server, not just by the settings UI disabling its own switch.
+ */
+export function resolveVisibilityUpdateData(
+  currentIsPublic: boolean,
+  input: ServerVisibilityFields,
+): { discoverable?: boolean; isPublic?: boolean } {
+  const data: { discoverable?: boolean; isPublic?: boolean } = {};
+
+  if (input.isPublic !== undefined) {
+    data.isPublic = input.isPublic;
+  }
+
+  if (input.discoverable !== undefined) {
+    data.discoverable = input.discoverable;
+  }
+
+  const nextIsPublic = input.isPublic ?? currentIsPublic;
+  if (!nextIsPublic) {
+    data.discoverable = false;
+  }
+
+  return data;
+}
+
+/**
+ * The whole permission prelude of `updateWorkspaceServer`, in the order the
+ * route runs it. Extracted so a test can drive the real sequence -- gate,
+ * arguments and all -- without a database; asserting the gates in isolation
+ * would not catch the wrong variable being handed to one of them.
+ */
+export function assertServerUpdateAllowed(access: AccessContext, input: UpdateServerInput): void {
+  ensureServerPermission(access, PermissionBits.MANAGE_SERVER);
+  assertVisibilityFieldsWritable(access.type, input);
+}
+
 export async function updateWorkspaceServer(
   userId: string,
   serverId: string,
   input: UpdateServerInput,
 ) {
   const access = await getAccessContext(userId, serverId);
-  ensureServerPermission(access, PermissionBits.MANAGE_SERVER);
-
-  const currentServer = await prisma.server.findUniqueOrThrow({
-    select: { type: true },
-    where: { id: serverId },
-  });
-  assertVisibilityFieldsWritable(currentServer.type, input);
+  assertServerUpdateAllowed(access, input);
 
   const data: Prisma.ServerUpdateInput = {};
 
@@ -1156,13 +1197,7 @@ export async function updateWorkspaceServer(
     data.messageCharacterLimit = input.messageCharacterLimit;
   }
 
-  if (input.isPublic !== undefined) {
-    data.isPublic = input.isPublic;
-  }
-
-  if (input.discoverable !== undefined) {
-    data.discoverable = input.discoverable;
-  }
+  Object.assign(data, resolveVisibilityUpdateData(access.isPublic, input));
 
   if (input.deletedMessageNoticeMinutes !== undefined) {
     data.deletedMessageNoticeMinutes = input.deletedMessageNoticeMinutes;
@@ -1244,6 +1279,21 @@ function chunkServerMemberRooms(members: readonly { userId: string }[]): string[
   return chunks;
 }
 
+/**
+ * Same reason as `assertServerUpdateAllowed`: the community gate has to run
+ * before the owner check (a community server's owner is the admin who created
+ * it), and that ordering is only meaningful when it is asserted on the real
+ * sequence rather than on the gate alone.
+ */
+export function assertServerDeleteAllowed(access: AccessContext, input: DeleteServerInput): void {
+  assertServerIsDeletableByOwner(access.type);
+  ensureOwner(access);
+
+  if (input.confirmationName !== access.serverName) {
+    throw new ApiError("Server name confirmation did not match", 400);
+  }
+}
+
 export async function deleteWorkspaceServer(
   userId: string,
   serverId: string,
@@ -1251,17 +1301,7 @@ export async function deleteWorkspaceServer(
 ) {
   const access = await getAccessContext(userId, serverId);
 
-  const deletedServer = await prisma.server.findUniqueOrThrow({
-    select: { type: true },
-    where: { id: serverId },
-  });
-  assertServerIsDeletableByOwner(deletedServer.type);
-
-  ensureOwner(access);
-
-  if (input.confirmationName !== access.serverName) {
-    throw new ApiError("Server name confirmation did not match", 400);
-  }
+  assertServerDeleteAllowed(access, input);
 
   const members = await prisma.serverMember.findMany({
     where: {

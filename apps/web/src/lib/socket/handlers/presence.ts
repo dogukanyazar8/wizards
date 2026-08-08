@@ -12,10 +12,7 @@ import {
   markPresenceSocketActive,
   removePresenceSocket,
 } from "@/lib/socket/presence-helpers";
-import {
-  addServerOnlineMember,
-  removeServerOnlineMember,
-} from "@/lib/socket/server-online-presence";
+import { applyServerOnlinePresenceForSocket } from "@/lib/socket/server-online-presence";
 import type { HandlerContext } from "../context";
 import { createSocketErrorEmitter } from "../errors";
 import type { SocketHandlerRegistration } from ".";
@@ -33,17 +30,16 @@ async function initializePresence(ctx: HandlerContext) {
       ctx.socket.disconnect(true);
       return;
     }
+    // Assigned before the online-set write so `joinServerRoomsForUser`, which
+    // starts in the same synchronous tick and reads this field, cannot mark an
+    // invisible user online -- and so this chain's own write is decided by the
+    // shared eligibility predicate rather than by the status alone (a socket
+    // that disconnected while the presence lookup was in flight must not be
+    // re-added).
     ctx.socket.data.presenceStatus = presence.status;
     ctx.socket.data.presenceCustomStatus = presence.customStatus;
 
-    const presenceServerIds: string[] = ctx.socket.data.onlineServerIds ?? [];
-    const applyPresence =
-      presence.status === "OFFLINE" ? removeServerOnlineMember : addServerOnlineMember;
-    await Promise.all(
-      presenceServerIds.map((serverId) =>
-        applyPresence(getRedisOp(), serverId, ctx.socket.data.userId as string),
-      ),
-    );
+    await applyServerOnlinePresenceForSocket(getRedisOp(), ctx.socket, ctx.userId);
 
     await addPresenceSocket(ctx.redis, ctx.userId, ctx.socket.id);
 
@@ -101,14 +97,7 @@ export function registerPresenceHandlers(ctx: HandlerContext): SocketHandlerRegi
       ctx.socket.data.presenceStatus = presence.status;
       ctx.socket.data.presenceCustomStatus = presence.customStatus;
 
-      const presenceServerIds: string[] = ctx.socket.data.onlineServerIds ?? [];
-      const applyPresence =
-        presence.status === "OFFLINE" ? removeServerOnlineMember : addServerOnlineMember;
-      await Promise.all(
-        presenceServerIds.map((serverId) =>
-          applyPresence(getRedisOp(), serverId, ctx.socket.data.userId as string),
-        ),
-      );
+      await applyServerOnlinePresenceForSocket(getRedisOp(), ctx.socket, ctx.userId);
 
       await markPresenceSocketActive(ctx.redis, ctx.userId, ctx.socket.id);
       await broadcastPresenceUpdateToFriends(presence);

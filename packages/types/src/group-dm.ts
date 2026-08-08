@@ -34,14 +34,8 @@ const GroupIconUrlSchema = z
     }
   }, "HTTPS URL required");
 
-export const DMSystemMessageTypeSchema = z.enum([
-  "GROUP_CREATED",
-  "MEMBER_ADDED",
-  "MEMBER_REMOVED",
-  "MEMBER_LEFT",
-  "NAME_CHANGED",
-  "ICON_CHANGED",
-]);
+export { DMSystemMessageTypeSchema } from "./dm-system-message";
+export type { DMSystemMessageTypeValue } from "./dm-system-message";
 
 export const GroupDMCreateRequestSchema = z
   .object({
@@ -76,7 +70,6 @@ export const GroupDMConversationResponseSchema = z
   .object({ conversation: DMConversationDTOSchema })
   .strict();
 
-export type DMSystemMessageTypeValue = z.infer<typeof DMSystemMessageTypeSchema>;
 export type GroupDMAddMembersRequest = z.infer<typeof GroupDMAddMembersRequestSchema>;
 export type GroupDMCreateRequest = z.infer<typeof GroupDMCreateRequestSchema>;
 export type GroupDMUpdateRequest = z.infer<typeof GroupDMUpdateRequestSchema>;

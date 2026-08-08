@@ -1,3 +1,4 @@
+import React from "react";
 import { cn } from "@/lib/utils";
 
 type BadgeProps = {
@@ -13,7 +14,8 @@ export function Badge({ children, className, tone = "default" }: BadgeProps) {
         "inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.2em]",
         tone === "default" && "app-badge-accent",
         tone === "danger" && "app-badge-danger",
-        tone === "muted" && "border-[hsl(var(--border)/0.75)] bg-[hsl(var(--surface-soft)/0.58)] text-[hsl(var(--foreground))]",
+        tone === "muted" &&
+          "border-[hsl(var(--border)/0.75)] bg-[hsl(var(--surface-soft)/0.58)] text-[hsl(var(--foreground))]",
         className,
       )}
     >

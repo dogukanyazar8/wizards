@@ -76,6 +76,17 @@ export function getPreferredMobileScreenShareQualityId(): MobileScreenShareQuali
   return preferredMobileScreenShareQualityId;
 }
 
+/**
+ * `audio: false` is deliberate and unchanged: mobile never captures device audio
+ * with a share.
+ *
+ * The receiving side is a known gap, recorded here because mobile has no module
+ * that owns it. Web routes remote audio through `applyRemoteAudioState`, which
+ * now covers `Track.Source.ScreenShareAudio` as well as the microphone; mobile
+ * has no deafen or per-participant volume path at all, so a share-audio track
+ * published by any client simply plays. Closing that needs the volume/deafen
+ * infrastructure first, not a change here.
+ */
 export function getMobileScreenShareCaptureOptions(
   qualityId: unknown = getPreferredMobileScreenShareQualityId(),
 ): ScreenShareCaptureOptions {

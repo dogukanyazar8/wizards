@@ -1,0 +1,11 @@
+-- The S1 index `[type, discoverable, memberCount]` (Server_type_discoverable_memberCount_idx)
+-- is dead: no query anywhere filters on `Server.type` (discovery filters
+-- `discoverable`/`isPublic`; the admin server list searches name/description/
+-- inviteCode only). S3 already shipped its replacement,
+-- `[discoverable, isPublic, memberCount]` (20260808120000_server_discovery_index),
+-- which is what the discovery query actually uses.
+--
+-- The dead index was not free: it shared `memberCount` with the live index,
+-- so every join, leave and kick maintained a second B-tree that nothing ever
+-- read.
+DROP INDEX "Server_type_discoverable_memberCount_idx";

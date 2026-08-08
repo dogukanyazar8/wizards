@@ -1,4 +1,4 @@
-import { ChannelType, MessageType, prisma } from "@wizards/db";
+import { ChannelType, MessageType, Prisma, prisma } from "@wizards/db";
 import QRCode from "qrcode";
 import {
   MOBILE_INVITE_SHEET_DEFAULT_EXPIRES_IN_HOURS,
@@ -36,7 +36,7 @@ import {
 } from "@/lib/workspace/unread-service";
 import { PermissionBits } from "@/lib/workspace/permissions";
 import { mapInvites } from "@/lib/workspace/server-query-helpers";
-import { incrementServerMemberCount } from "@/lib/workspace/server-member-counter";
+import { reserveServerMemberCapacity } from "@/lib/workspace/server-member-counter";
 
 const workspaceInviteSelect = {
   channelId: true,
@@ -604,6 +604,154 @@ export async function buildMobileServerInviteQrCode(
   });
 }
 
+type ServerMembershipCreationInput = {
+  defaultRoleId: string | null;
+  joiningUserDisplayName: string;
+  preferredChannelId: string | null;
+  serverId: string;
+  userId: string;
+};
+
+type ServerMembershipCreationMessage = {
+  channelId: string;
+  createdAt: Date;
+  id: string;
+};
+
+type ServerMembershipCreationResult = {
+  message: ServerMembershipCreationMessage | null;
+};
+
+/**
+ * The membership-creation body every "become a member" entry point shares
+ * (invite accept, S3's invite-free public join): create the row, bump the
+ * live counter, assign the default role, and drop the "joined" system
+ * message. Takes an already-open transaction rather than opening its own, so
+ * a path-specific precondition that must commit atomically with the
+ * membership row — an invite's use-count claim, for instance — stays in the
+ * same transaction as the row it gates.
+ */
+async function createServerMembership(
+  tx: Prisma.TransactionClient,
+  input: ServerMembershipCreationInput,
+): Promise<ServerMembershipCreationResult> {
+  const capacityReserved = await reserveServerMemberCapacity(tx, input.serverId);
+
+  if (!capacityReserved) {
+    throw new ApiError("This server is full", 403, "SERVER_FULL");
+  }
+
+  const member = await tx.serverMember.create({
+    data: {
+      serverId: input.serverId,
+      userId: input.userId,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (input.defaultRoleId) {
+    await tx.memberRole.create({
+      data: {
+        memberId: member.id,
+        roleId: input.defaultRoleId,
+      },
+    });
+  }
+
+  const targetChannelId =
+    input.preferredChannelId ??
+    (
+      await tx.channel.findFirst({
+        orderBy: {
+          position: "asc",
+        },
+        select: {
+          id: true,
+        },
+        where: {
+          parentId: null,
+          serverId: input.serverId,
+          type: ChannelType.TEXT,
+        },
+      })
+    )?.id ??
+    null;
+
+  if (!targetChannelId) {
+    return { message: null };
+  }
+
+  const message = await tx.message.create({
+    data: {
+      channelId: targetChannelId,
+      content: `${input.joiningUserDisplayName} joined the server.`,
+      type: MessageType.SYSTEM_JOIN,
+      userId: input.userId,
+    },
+  });
+
+  return {
+    message: {
+      channelId: targetChannelId,
+      createdAt: message.createdAt,
+      id: message.id,
+    },
+  };
+}
+
+/**
+ * The socket/cache half of membership creation, run once the transaction
+ * above has committed -- a Redis invalidation or a socket emit is not a
+ * transactional resource, so neither belongs inside `$transaction`. Shared by
+ * the same two callers as `createServerMembership` for the same reason: one
+ * copy of "what happens right after someone joins," so the invite path and
+ * the public-join path can never drift on cache invalidation or room
+ * attachment the way two hand-written copies eventually would.
+ */
+async function finishServerMembershipCreation(
+  serverId: string,
+  userId: string,
+  message: ServerMembershipCreationMessage | null,
+): Promise<void> {
+  await Promise.all([
+    invalidateMemberPermissionCache(serverId, userId),
+    invalidateServerRoomIdsCache(userId),
+  ]);
+
+  if (message) {
+    const activeViewerUserIds = await getActiveChannelViewerUserIds(message.channelId);
+    await markChannelReadStates({
+      channelId: message.channelId,
+      lastReadAt: message.createdAt,
+      lastReadMessageId: message.id,
+      userIds: [userId, ...activeViewerUserIds],
+    });
+    const fullMessage = await getMessageById(message.id, userId);
+    if (fullMessage) {
+      getSocketServer()?.to(message.channelId).emit("message:new", fullMessage);
+    }
+    await emitServerUnreadUpdatesForServer(serverId);
+  }
+
+  const io = getSocketServer();
+
+  if (io) {
+    const sockets = await io.in(`user:${userId}`).fetchSockets();
+    for (const socket of sockets) {
+      socket.join(`server:${serverId}`);
+    }
+
+    io.to(`server:${serverId}`).emit("server:settings:updated", {
+      serverId,
+    });
+    io.to(`user:${userId}`).emit("server:settings:updated", {
+      serverId,
+    });
+  }
+}
+
 const workspaceJoinInviteSelect = {
   channelId: true,
   createdById: true,
@@ -699,6 +847,8 @@ export async function joinWorkspaceServerByInvite(userId: string, code: string) 
   });
 
   if (!existingMember) {
+    const defaultRole = invite.server.roles.find((role) => role.isDefault);
+
     const transactionResult = await prisma.$transaction(async (tx) => {
       await ensureUserNotServerBanned(tx, invite.server.id, userId);
 
@@ -733,111 +883,17 @@ export async function joinWorkspaceServerByInvite(userId: string, code: string) 
         });
       }
 
-      const targetChannelId =
-        invite.channelId ??
-        (
-          await tx.channel.findFirst({
-            orderBy: {
-              position: "asc",
-            },
-            select: {
-              id: true,
-            },
-            where: {
-              parentId: null,
-              serverId: invite.server.id,
-              type: ChannelType.TEXT,
-            },
-          })
-        )?.id ??
-        null;
-
-      const member = await tx.serverMember.create({
-        data: {
-          serverId: invite.server.id,
-          userId,
-        },
-        select: {
-          id: true,
-        },
+      return createServerMembership(tx, {
+        defaultRoleId: defaultRole?.id ?? null,
+        joiningUserDisplayName:
+          joiningUser.displayName ?? joiningUser.username ?? "A new Whispr user",
+        preferredChannelId: invite.channelId,
+        serverId: invite.server.id,
+        userId,
       });
-
-      await incrementServerMemberCount(tx, invite.server.id);
-
-      const defaultRole = invite.server.roles.find((role) => role.isDefault);
-
-      if (defaultRole) {
-        await tx.memberRole.create({
-          data: {
-            memberId: member.id,
-            roleId: defaultRole.id,
-          },
-        });
-      }
-
-      let systemMessage: {
-        channelId: string;
-        createdAt: Date;
-        id: string;
-      } | null = null;
-
-      if (targetChannelId) {
-        const message = await tx.message.create({
-          data: {
-            channelId: targetChannelId,
-            content: `${joiningUser?.displayName ?? joiningUser?.username ?? "A new Whispr user"} joined the server.`,
-            type: MessageType.SYSTEM_JOIN,
-            userId,
-          },
-        });
-
-        systemMessage = {
-          channelId: targetChannelId,
-          createdAt: message.createdAt,
-          id: message.id,
-        };
-      }
-
-      return { message: systemMessage };
     });
 
-    await Promise.all([
-      invalidateMemberPermissionCache(invite.server.id, userId),
-      invalidateServerRoomIdsCache(userId),
-    ]);
-
-    if (transactionResult.message) {
-      const activeViewerUserIds = await getActiveChannelViewerUserIds(
-        transactionResult.message.channelId,
-      );
-      await markChannelReadStates({
-        channelId: transactionResult.message.channelId,
-        lastReadAt: transactionResult.message.createdAt,
-        lastReadMessageId: transactionResult.message.id,
-        userIds: [userId, ...activeViewerUserIds],
-      });
-      const message = await getMessageById(transactionResult.message.id, userId);
-      if (message) {
-        getSocketServer()?.to(transactionResult.message.channelId).emit("message:new", message);
-      }
-      await emitServerUnreadUpdatesForServer(invite.server.id);
-    }
-
-    const io = getSocketServer();
-
-    if (io) {
-      const sockets = await io.in(`user:${userId}`).fetchSockets();
-      for (const socket of sockets) {
-        socket.join(`server:${invite.server.id}`);
-      }
-
-      io.to(`server:${invite.server.id}`).emit("server:settings:updated", {
-        serverId: invite.server.id,
-      });
-      io.to(`user:${userId}`).emit("server:settings:updated", {
-        serverId: invite.server.id,
-      });
-    }
+    await finishServerMembershipCreation(invite.server.id, userId, transactionResult.message);
 
     // Outside the transaction on purpose: the join is already committed, and a
     // badge counter must never be able to roll it back or hold it open.
@@ -876,4 +932,142 @@ export async function joinWorkspaceServerByInvite(userId: string, code: string) 
     channelId: targetChannel,
     serverId: invite.server.id,
   };
+}
+
+const JOIN_PUBLIC_SERVER_SELECT = {
+  id: true,
+  isPublic: true,
+  maxMembers: true,
+  memberCount: true,
+  roles: {
+    orderBy: {
+      position: "desc" as const,
+    },
+    select: {
+      id: true,
+      isDefault: true,
+    },
+  },
+} satisfies Prisma.ServerSelect;
+
+/**
+ * The invite-free join path: visibility resolves first, then everything
+ * else -- existence, ban, membership, capacity. Any failure means no
+ * membership row is created and `memberCount` never increments.
+ *
+ * A server that does not exist, and a private server the caller is not
+ * already a member of, are denied identically -- 404 `SERVER_NOT_FOUND`,
+ * never 403 -- so posting a private server's id here cannot be told apart
+ * from posting one that does not exist at all. That mirrors the access rule
+ * `getVisibleServerPublicProfile` already enforces for the profile card;
+ * this function does not re-derive it, it just applies the same outcome to
+ * the join mutation. Membership itself grants visibility, so an
+ * already-a-member caller is exempt from the `isPublic` gate -- which is why
+ * a banned member of a private server still gets `SERVER_BANNED` below
+ * rather than `SERVER_NOT_FOUND`: they could already see the server, so a
+ * 403 tells them nothing a 404 would have hidden.
+ *
+ * The membership row is read once (`existingMember`) and reused for both
+ * the visibility gate and the idempotent "already a member" return below it
+ * -- two facts, one query.
+ *
+ * Ban and capacity are re-verified inside the transaction, so a same-user
+ * double submit and a same-server concurrent join cannot slip through on the
+ * strength of a pre-transaction read that only ran once. Capacity is reserved
+ * through one conditional `UPDATE`, not a transaction-local read followed by
+ * a later increment. A concurrent duplicate join surfaces from
+ * `createServerMembership`'s insert as Postgres unique-violation `P2002` on
+ * `ServerMember`'s `[userId, serverId]` constraint (`schema.prisma`); that is
+ * caught around the transaction and answered with the same idempotent
+ * success shape the pre-existing-member branch above returns, rather than a
+ * 500. Visibility is not re-checked inside the transaction -- a server
+ * flipping public/private mid-join is not a race either check above closes,
+ * and `joinWorkspaceServerByInvite` does not re-derive its own analogous
+ * preconditions (target user, expiry) inside its transaction either.
+ */
+export async function joinPublicWorkspaceServer(
+  userId: string,
+  serverId: string,
+): Promise<{ alreadyMember: boolean; serverId: string }> {
+  const server = await prisma.server.findUnique({
+    select: JOIN_PUBLIC_SERVER_SELECT,
+    where: { id: serverId },
+  });
+
+  if (!server) {
+    throw new ApiError("Server not found", 404, "SERVER_NOT_FOUND");
+  }
+
+  const existingMember = await prisma.serverMember.findUnique({
+    where: {
+      userId_serverId: {
+        serverId,
+        userId,
+      },
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (!server.isPublic && !existingMember) {
+    throw new ApiError("Server not found", 404, "SERVER_NOT_FOUND");
+  }
+
+  await ensureUserNotServerBanned(prisma, serverId, userId);
+
+  if (existingMember) {
+    return { alreadyMember: true, serverId };
+  }
+
+  if (server.memberCount >= server.maxMembers) {
+    throw new ApiError("This server is full", 403, "SERVER_FULL");
+  }
+
+  const joiningUser = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { displayName: true, isBanned: true, username: true },
+  });
+
+  if (!joiningUser) {
+    throw new ApiError("User not found", 404);
+  }
+
+  if (joiningUser.isBanned) {
+    throw new ApiError("Your account has been suspended", 403);
+  }
+
+  const defaultRole = server.roles.find((role) => role.isDefault);
+
+  let transactionResult: ServerMembershipCreationResult;
+
+  try {
+    transactionResult = await prisma.$transaction(async (tx) => {
+      await ensureUserNotServerBanned(tx, serverId, userId);
+
+      return createServerMembership(tx, {
+        defaultRoleId: defaultRole?.id ?? null,
+        joiningUserDisplayName:
+          joiningUser.displayName ?? joiningUser.username ?? "A new Whispr user",
+        preferredChannelId: null,
+        serverId,
+        userId,
+      });
+    });
+  } catch (error) {
+    // Two same-user requests can both pass the `existingMember` pre-read
+    // above and both reach `createServerMembership`'s insert; the loser hits
+    // `ServerMember`'s `[userId, serverId]` unique constraint. That is the
+    // same outcome the pre-read's "already a member" branch reports above,
+    // so answer it the same way instead of letting a 500 escape.
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return { alreadyMember: true, serverId };
+    }
+
+    throw error;
+  }
+
+  await finishServerMembershipCreation(serverId, userId, transactionResult.message);
+
+  return { alreadyMember: false, serverId };
 }

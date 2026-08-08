@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { DMSystemMessageTypeSchema } from "./dm-system-message";
 import { BadgeIdSchema } from "./badges";
 import {
   ChatMessageSchema,
@@ -550,17 +551,44 @@ export const MobileDMConversationPreviewKindSchema = z.enum(["text", "voice", "f
  */
 export const MobileDMConversationPreviewDeliverySchema = z.enum(["sent", "delivered", "read"]);
 
-export const MobileDMConversationLastMessagePreviewSchema = z.object({
-  author: MobileDMConversationPreviewAuthorSchema,
-  authorIsCurrentUser: z.boolean(),
-  createdAt: z.string().datetime(),
-  deliveryStatus: MobileDMConversationPreviewDeliverySchema.nullable().default(null),
-  /** Voice-note length, seconds. Null for every other preview kind. */
-  durationSec: z.number().int().nonnegative().max(86_400).nullable().default(null),
-  id: z.string().min(1).max(128),
-  kind: MobileDMConversationPreviewKindSchema.default("text"),
-  text: z.string().min(1).max(240),
-});
+export const MobileDMConversationLastMessagePreviewSchema = z
+  .object({
+    author: MobileDMConversationPreviewAuthorSchema,
+    authorIsCurrentUser: z.boolean(),
+    createdAt: z.string().datetime(),
+    deliveryStatus: MobileDMConversationPreviewDeliverySchema.nullable().default(null),
+    /** Voice-note length, seconds. Null for every other preview kind. */
+    durationSec: z.number().int().nonnegative().max(86_400).nullable().default(null),
+    id: z.string().min(1).max(128),
+    kind: MobileDMConversationPreviewKindSchema.default("text"),
+    /**
+     * Group lifecycle rows carry no text: the sentence depends on the reader's
+     * locale, so the client builds it from these three fields the same way the
+     * chat stream does. Null on an ordinary message.
+     */
+    systemTargetUserIds: z.array(z.string().min(1).max(128)).max(32).default([]),
+    systemType: DMSystemMessageTypeSchema.nullable().default(null),
+    systemValue: z.string().max(100).nullable().default(null),
+    /** Empty exactly when `systemType` is set — see above. */
+    text: z.string().max(240),
+  })
+  .superRefine((value, context) => {
+    if (value.systemType !== null && value.text !== "") {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "System message previews must not carry localized text",
+        path: ["text"],
+      });
+    }
+
+    if (value.systemType === null && value.text.length === 0) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Message preview text is required",
+        path: ["text"],
+      });
+    }
+  });
 
 export const MobileDMConversationListItemSchema = MobileBootstrapDMConversationSummarySchema.extend(
   {

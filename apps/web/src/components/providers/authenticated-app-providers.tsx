@@ -24,8 +24,7 @@ export function AuthenticatedAppProviders({
 }: AuthenticatedAppProvidersProps) {
   const activeVoiceChannelId = useVoiceStore((state) => state.activeChannelId);
   const shouldEnableVoiceFeatures =
-    voiceFeatures === "always" ||
-    (voiceFeatures === "active" && Boolean(activeVoiceChannelId));
+    voiceFeatures === "always" || (voiceFeatures === "active" && Boolean(activeVoiceChannelId));
   const content = (
     <>
       <AppUpdateNotifier />

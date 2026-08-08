@@ -42,11 +42,13 @@ describe("MobileWorkspaceServerSwitcherSheet", () => {
     const onClose = jest.fn();
     const onOpenServer = jest.fn();
     const onOpenCreateJoin = jest.fn();
+    const onOpenDiscover = jest.fn();
     const view = await render(
       <MobileWorkspaceServerSwitcherSheet
         activeServerId="server-uat"
         onClose={onClose}
         onOpenCreateJoin={onOpenCreateJoin}
+        onOpenDiscover={onOpenDiscover}
         onOpenServer={onOpenServer}
         open
         servers={servers as never}
@@ -65,6 +67,12 @@ describe("MobileWorkspaceServerSwitcherSheet", () => {
 
     await fireEvent.press(view.getByTestId("mobile-server-switcher-create-join"));
     expect(onOpenCreateJoin).toHaveBeenCalledTimes(1);
+
+    // The discover entry used to live only behind the create/join sheet, so a
+    // user who never opened that sheet had no way to the public server list.
+    await fireEvent.press(view.getByTestId("mobile-server-switcher-discover"));
+    expect(onOpenDiscover).toHaveBeenCalledTimes(1);
+    expect(onOpenCreateJoin).toHaveBeenCalledTimes(1);
   });
 
   it("keeps the server-switcher actions above a three-button Android navigation bar", async () => {
@@ -74,6 +82,7 @@ describe("MobileWorkspaceServerSwitcherSheet", () => {
         activeServerId="server-uat"
         onClose={jest.fn()}
         onOpenCreateJoin={jest.fn()}
+        onOpenDiscover={jest.fn()}
         onOpenServer={jest.fn()}
         open
         servers={servers as never}
@@ -118,6 +127,7 @@ describe("MobileWorkspaceServerSwitcherSheet", () => {
         activeServerId="server-uat"
         onClose={jest.fn()}
         onOpenCreateJoin={jest.fn()}
+        onOpenDiscover={jest.fn()}
         onOpenServer={jest.fn()}
         open
         servers={servers as never}

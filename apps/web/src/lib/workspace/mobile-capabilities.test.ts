@@ -20,6 +20,7 @@ function access(
 
   return {
     accessLevel: "MEMBER",
+    isPublic: false,
     memberId: `member-${userId}`,
     ownerId: args.ownerId ?? "owner",
     roles: [
@@ -34,6 +35,7 @@ function access(
     ],
     serverId: "server-1",
     serverName: "Guild",
+    type: "PERSONAL",
     userId,
   };
 }

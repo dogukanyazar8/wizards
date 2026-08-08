@@ -294,6 +294,9 @@ export type UpdateMobileServerInput = {
   allowFileUploads?: boolean;
   allowGifs?: boolean;
   description?: string | null;
+  /** S3 Section C. COMMUNITY servers reject both (`assertVisibilityFieldsWritable`). */
+  discoverable?: boolean;
+  isPublic?: boolean;
   name?: string;
   serverId: string;
   shortName?: string | null;

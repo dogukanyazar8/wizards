@@ -1,7 +1,7 @@
 import { prisma } from "@wizards/db";
 import { getRedis } from "@/lib/redis";
 import { resolveLastSeenAtByUserId } from "@/lib/friends/last-seen";
-import { readPresenceMap } from "@/lib/presence";
+import { readPresenceState } from "@/lib/presence";
 import type {
   FriendDto,
   FriendRequestDto,
@@ -89,8 +89,8 @@ export async function listFriends(userId: string): Promise<FriendDto[]> {
   const friends = friendships.map((friendship) =>
     friendship.senderId === userId ? friendship.receiver : friendship.sender,
   );
-  const [presenceByUserId, lastSeenByUserId] = await Promise.all([
-    readPresenceMap(
+  const [{ hiddenUserIds, presenceByUserId }, lastSeenByUserId] = await Promise.all([
+    readPresenceState(
       getRedis(),
       friends.map((friend) => ({
         customStatus: friend.customStatus,
@@ -108,7 +108,9 @@ export async function listFriends(userId: string): Promise<FriendDto[]> {
     };
 
     return {
-      lastSeenAt: lastSeenByUserId.get(friend.id) ?? null,
+      // Invisible friends keep heartbeating behind an offline dot; publishing
+      // their last-seen would undo the mode they chose.
+      lastSeenAt: hiddenUserIds.has(friend.id) ? null : (lastSeenByUserId.get(friend.id) ?? null),
       id: friend.id,
       username: friend.username,
       displayName: friend.displayName,

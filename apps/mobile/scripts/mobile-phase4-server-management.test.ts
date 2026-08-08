@@ -407,4 +407,40 @@ describe("mobile Phase 4 server management", () => {
       /isCompactWorkspaceLayout\s*\r?\n?\s*\?\s*styles\.mobileWorkspaceCompactAddButton\s*\r?\n?\s*:\s*styles\.mobileWorkspaceHeaderIconButton/,
     );
   });
+
+  // The profile route serves any member, and web offers it to every member from
+  // the server header menu. Gating the mobile entry on a manage capability --
+  // the way the settings entry above is gated -- would leave a plain member with
+  // no way to the card at all.
+  it("offers the server profile entry to every member, not only managers", () => {
+    const source = read("../src/app/screens/workspace-browser.tsx");
+    const marker = source.indexOf("mobile-server-profile-open-");
+
+    assert.notEqual(marker, -1);
+
+    const entry = source.slice(source.lastIndexOf("{activeServerId", marker), marker + 160);
+
+    assert.match(entry, /navigate\("ServerProfile", \{ serverId: activeServerId \}\)/);
+    assert.doesNotMatch(entry, /canManage/);
+  });
+
+  // Discover used to be reachable only from the create/join sheet's third card,
+  // which a user with no servers -- the one who needs it most -- never opens.
+  it("routes every discover entry through one workspace handler", () => {
+    const source = read("../src/app/screens/workspace-browser.tsx");
+
+    assert.match(source, /const openDiscover = useCallback\(\(\) => \{/);
+
+    const switcher = source.slice(
+      source.indexOf("<MobileWorkspaceServerSwitcherSheet"),
+      source.indexOf("<MobileWorkspaceCreateSheets"),
+    );
+    assert.match(switcher, /onOpenDiscover=\{openDiscover\}/);
+
+    const emptyStart = source.indexOf("mobile-workspace-empty");
+    const empty = source.slice(emptyStart, emptyStart + 900);
+    assert.match(empty, /action=\{/);
+    assert.match(empty, /copy\.workspaceServerDiscoverAction/);
+    assert.match(empty, /onPress=\{openDiscover\}/);
+  });
 });

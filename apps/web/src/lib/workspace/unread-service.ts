@@ -1,7 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { ChannelType, Prisma, prisma } from "@wizards/db";
 import { getRedisOp } from "@/lib/redis";
-import { countServerOnlineMembers } from "@/lib/socket/server-online-presence";
+import {
+  countServerOnlineMembers,
+  type ServerOnlinePresenceRedis,
+} from "@/lib/socket/server-online-presence";
 import { getSocketServer } from "@/lib/socket/runtime";
 import { recordUnreadFanoutMetric } from "@/lib/workspace/performance-metrics";
 import {
@@ -628,6 +631,15 @@ export async function getActiveServerMemberUserIds(serverId: string) {
   );
 }
 
+let onlineServerMemberCountRedisForTest: ServerOnlinePresenceRedis | null = null;
+
+export function setOnlineServerMemberCountRedisForTest(redis: ServerOnlinePresenceRedis | null) {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("setOnlineServerMemberCountRedisForTest is not available in production.");
+  }
+  onlineServerMemberCountRedisForTest = redis;
+}
+
 /**
  * Counts distinct server-room members whose live socket presence is visible.
  * Reads the `server:<id>:online` Redis set (Task 8) that the socket lifecycle
@@ -637,15 +649,26 @@ export async function getActiveServerMemberUserIds(serverId: string) {
  * The pre-Task-8 version returned 0 whenever the socket server hadn't been
  * initialized yet rather than throwing; a not-yet-`ready` Redis client is the
  * same situation under the new backing store, so it gets the same fail-open
- * treatment instead of surfacing a connection error to an unrelated caller.
+ * treatment instead of surfacing a connection error to an unrelated caller —
+ * and so does a command that fails *after* that check passes (a mid-flight
+ * timeout or connection reset): this is one of the two callers in the
+ * `Promise.all` at server-service.ts, and an uncaught rejection there would
+ * fail the whole mobile server-detail load over what is, by design, best-effort
+ * derived state.
  */
-export async function getOnlineServerMemberCount(serverId: string) {
-  const redis = getRedisOp();
+export async function getOnlineServerMemberCount(
+  serverId: string,
+  redis: ServerOnlinePresenceRedis = onlineServerMemberCountRedisForTest ?? getRedisOp(),
+) {
   if (redis.status !== "ready") {
     return 0;
   }
 
-  return countServerOnlineMembers(redis, serverId);
+  try {
+    return await countServerOnlineMembers(redis, serverId);
+  } catch {
+    return 0;
+  }
 }
 
 export async function emitServerUnreadUpdateToUser(userId: string, serverId: string) {

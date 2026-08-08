@@ -81,6 +81,13 @@ const listDefaults: MobileDMListDependencies = {
 };
 
 function normalizePreviewText(message: NonNullable<DMConversationDTO["lastMessage"]>): string {
+  // A group lifecycle row has no text of its own, and falling through to the
+  // attachment branch below would label it "Attachment". The client renders the
+  // sentence from `systemType`, in the reader's own locale.
+  if (message.systemType) {
+    return "";
+  }
+
   const content = message.content.trim().replace(/\s+/g, " ");
   if (content) {
     return content.slice(0, 240);
@@ -154,6 +161,9 @@ function toMobileDMConversationListItem(
           kind: previewAttachment
             ? resolveMobileDMPreviewKind(previewAttachment.contentType)
             : ("text" as const),
+          systemTargetUserIds: lastMessage.systemTargetUserIds,
+          systemType: lastMessage.systemType,
+          systemValue: lastMessage.systemValue,
           text: normalizePreviewText(lastMessage),
         }
       : null,

@@ -64,7 +64,6 @@ import {
 import { getMobileVoiceInviteRowPresentation } from "../../voice/mobile-voice-invite-row";
 import type { MobileTheme } from "../../design/themes";
 import { useMobileBottomSystemSpacing } from "../use-mobile-bottom-system-spacing";
-import { MobileVoiceCameraGrid } from "../../voice/mobile-camera-grid";
 import {
   DEFAULT_MOBILE_CAMERA_FACING_MODE,
   type MobileCameraFacingMode,
@@ -120,7 +119,9 @@ export function VoiceScreen({
   onRefreshVoiceDevices = async () => undefined,
   onSelectVoiceAudioInput = async () => undefined,
   onSelectVoiceAudioOutputDevice = async () => undefined,
+  onSelectVoiceScreenShareAudioMuted,
   onSelectVoiceScreenShareQuality,
+  voiceScreenShareAudioMuted = false,
   voiceScreenShareQualityId = DEFAULT_MOBILE_SCREEN_SHARE_QUALITY_ID,
   serverName = null,
   testID = "mobile-voice-screen",
@@ -141,7 +142,10 @@ export function VoiceScreen({
   onSelectVoiceAudioInput?(id: string): Promise<void>;
   onSelectVoiceAudioOutputDevice?(id: string): Promise<void>;
   onSelectVoiceNoiseSuppression?(enabled: boolean): Promise<void>;
+  /** Listener-side mute for a remote share's audio. The picture keeps running. */
+  onSelectVoiceScreenShareAudioMuted?(muted: boolean): void;
   onSelectVoiceScreenShareQuality?(qualityId: MobileScreenShareQualityId): void;
+  voiceScreenShareAudioMuted?: boolean;
   serverName?: string | null;
   testID?: string;
   voiceScreenShareQualityId?: MobileScreenShareQualityId;
@@ -299,7 +303,11 @@ export function VoiceScreen({
         <ActiveVoiceRoomStage
           cameraFacingMode={voiceRoomState.cameraFacingMode}
           onFlipCamera={handleFlipCamera}
+          {...(onSelectVoiceScreenShareAudioMuted
+            ? { onToggleScreenShareAudioMuted: onSelectVoiceScreenShareAudioMuted }
+            : {})}
           participants={model.participants}
+          screenShareAudioMuted={voiceScreenShareAudioMuted}
         />
       ) : (
         <ActiveVoiceRoomAudience
@@ -754,11 +762,15 @@ function getVoiceParticipantBadgeColor(
 export function ActiveVoiceRoomStage({
   cameraFacingMode = DEFAULT_MOBILE_CAMERA_FACING_MODE,
   onFlipCamera,
+  onToggleScreenShareAudioMuted,
   participants,
+  screenShareAudioMuted = false,
 }: {
   cameraFacingMode?: MobileCameraFacingMode;
   onFlipCamera(): void;
+  onToggleScreenShareAudioMuted?(muted: boolean): void;
   participants: readonly MobileVoiceRoomParticipant[];
+  screenShareAudioMuted?: boolean;
 }) {
   const styles = useVoiceScreenStyles();
   const [pageIndex, setPageIndex] = useState(0);
@@ -805,6 +817,8 @@ export function ActiveVoiceRoomStage({
                 cameraFacingMode={cameraFacingMode}
                 isActive={index === activeIndex}
                 onFlipCamera={onFlipCamera}
+                {...(onToggleScreenShareAudioMuted ? { onToggleScreenShareAudioMuted } : {})}
+                screenShareAudioMuted={screenShareAudioMuted}
                 tiles={pageTiles}
               />
             </View>
@@ -833,11 +847,15 @@ function ActiveVoiceRoomStagePageGrid({
   cameraFacingMode,
   isActive,
   onFlipCamera,
+  onToggleScreenShareAudioMuted,
+  screenShareAudioMuted,
   tiles,
 }: {
   cameraFacingMode: MobileCameraFacingMode;
   isActive: boolean;
   onFlipCamera(): void;
+  onToggleScreenShareAudioMuted?(muted: boolean): void;
+  screenShareAudioMuted: boolean;
   tiles: readonly MobileVoiceStageTile[];
 }) {
   const styles = useVoiceScreenStyles();
@@ -859,6 +877,8 @@ function ActiveVoiceRoomStagePageGrid({
               cameraFacingMode={cameraFacingMode}
               isActive={isActive}
               onFlipCamera={onFlipCamera}
+              {...(onToggleScreenShareAudioMuted ? { onToggleScreenShareAudioMuted } : {})}
+              screenShareAudioMuted={screenShareAudioMuted}
               tile={tile}
             />
           ))}
@@ -872,11 +892,15 @@ function VoiceStageTile({
   cameraFacingMode,
   isActive,
   onFlipCamera,
+  onToggleScreenShareAudioMuted,
+  screenShareAudioMuted,
   tile,
 }: {
   cameraFacingMode: MobileCameraFacingMode;
   isActive: boolean;
   onFlipCamera(): void;
+  onToggleScreenShareAudioMuted?(muted: boolean): void;
+  screenShareAudioMuted: boolean;
   tile: MobileVoiceStageTile;
 }) {
   const styles = useVoiceScreenStyles();
@@ -990,8 +1014,10 @@ function VoiceStageTile({
         {overlay}
         <VoiceStageScreenFullscreen
           onClose={() => setExpanded(false)}
+          {...(onToggleScreenShareAudioMuted ? { onToggleScreenShareAudioMuted } : {})}
           open={expanded && Boolean(trackRef)}
           participant={participant}
+          screenShareAudioMuted={screenShareAudioMuted}
         />
       </Pressable>
     );
@@ -1049,14 +1075,61 @@ function VoiceStageAudienceRail({
   );
 }
 
+/**
+ * Listener-side mute for a remote share's audio. A switch, not a slider: the
+ * phone has no per-participant volume surface to hang a second control off, and
+ * the picture keeps running either way.
+ */
+function ScreenShareAudioMuteButton({
+  muted,
+  onToggle,
+  tone,
+}: {
+  muted: boolean;
+  onToggle: (muted: boolean) => void;
+  tone: "fullscreen" | "inline";
+}) {
+  const styles = useVoiceScreenStyles();
+  const theme = useVoiceRoomTheme();
+  const color = tone === "fullscreen" ? theme.media.text : theme.text.primary;
+
+  return (
+    <Pressable
+      accessibilityLabel={
+        muted ? copy.voiceScreenShareAudioUnmuteAction : copy.voiceScreenShareAudioMuteAction
+      }
+      accessibilityRole="button"
+      accessibilityState={{ selected: muted }}
+      onPress={() => onToggle(!muted)}
+      style={({ pressed }) => [
+        tone === "fullscreen"
+          ? styles.mobileVoiceScreenShareFullscreenClose
+          : styles.mobileVoiceScreenShareViewerAction,
+        pressed && styles.actionButtonPressed,
+      ]}
+      testID="mobile-voice-screen-share-audio-toggle"
+    >
+      <Ionicons
+        color={muted ? theme.text.soft : color}
+        name={muted ? "volume-mute-outline" : "volume-high-outline"}
+        size={tone === "fullscreen" ? 22 : 18}
+      />
+    </Pressable>
+  );
+}
+
 function VoiceStageScreenFullscreen({
   onClose,
+  onToggleScreenShareAudioMuted,
   open,
   participant,
+  screenShareAudioMuted = false,
 }: {
   onClose(): void;
+  onToggleScreenShareAudioMuted?(muted: boolean): void;
   open: boolean;
   participant: MobileVoiceRoomParticipant;
+  screenShareAudioMuted?: boolean;
 }) {
   const theme = useVoiceRoomTheme();
   const styles = useVoiceScreenStyles();
@@ -1078,6 +1151,13 @@ function VoiceStageScreenFullscreen({
               {title}
             </Text>
           </View>
+          {onToggleScreenShareAudioMuted ? (
+            <ScreenShareAudioMuteButton
+              muted={screenShareAudioMuted}
+              onToggle={onToggleScreenShareAudioMuted}
+              tone="fullscreen"
+            />
+          ) : null}
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={copy.voiceScreenShareCloseViewerAction}
@@ -1763,9 +1843,13 @@ function ScreenShareVideoSurface({
 }
 
 export function MobileScreenShareViewer({
+  onToggleScreenShareAudioMuted,
   participants,
+  screenShareAudioMuted = false,
 }: {
+  onToggleScreenShareAudioMuted?(muted: boolean): void;
   participants: readonly MobileVoiceRoomParticipant[];
+  screenShareAudioMuted?: boolean;
 }) {
   const theme = useVoiceRoomTheme();
   const styles = useVoiceScreenStyles();
@@ -1797,6 +1881,13 @@ export function MobileScreenShareViewer({
             {title}
           </Text>
         </View>
+        {onToggleScreenShareAudioMuted ? (
+          <ScreenShareAudioMuteButton
+            muted={screenShareAudioMuted}
+            onToggle={onToggleScreenShareAudioMuted}
+            tone="inline"
+          />
+        ) : null}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={copy.voiceScreenShareExpandViewerAction}

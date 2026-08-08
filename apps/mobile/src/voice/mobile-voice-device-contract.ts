@@ -29,6 +29,8 @@ export interface MobileVoiceDevicePreferences {
   readonly audioInputId: string | null;
   readonly audioOutputId: string | null;
   readonly noiseSuppressionEnabled: boolean;
+  /** Listener-side mute for remote screen-share audio. */
+  readonly screenShareAudioMuted: boolean;
   readonly screenShareQualityId: MobileScreenShareQualityId;
 }
 
@@ -41,6 +43,7 @@ export const DEFAULT_MOBILE_VOICE_DEVICE_PREFERENCES: MobileVoiceDevicePreferenc
   audioInputId: null,
   audioOutputId: null,
   noiseSuppressionEnabled: true,
+  screenShareAudioMuted: false,
   screenShareQualityId: DEFAULT_MOBILE_SCREEN_SHARE_QUALITY_ID,
 };
 
@@ -50,6 +53,8 @@ export const MOBILE_VOICE_NOISE_SUPPRESSION_STORAGE_KEY =
   "whispr.mobile.voice.noise-suppression.v1";
 export const MOBILE_VOICE_SCREEN_SHARE_QUALITY_STORAGE_KEY =
   "whispr.mobile.voice.screen-share-quality.v1";
+export const MOBILE_VOICE_SCREEN_SHARE_AUDIO_MUTED_STORAGE_KEY =
+  "whispr.mobile.voice.screen-share-audio-muted.v1";
 
 const MAX_MOBILE_VOICE_DEVICE_ID_LENGTH = 256;
 const MAX_MOBILE_VOICE_DEVICE_LABEL_LENGTH = 96;
@@ -137,12 +142,14 @@ export function toMobileVoiceOutputOptions(
 export async function loadMobileVoiceDevicePreferences(
   storage: MobileVoicePreferenceStorage,
 ): Promise<MobileVoiceDevicePreferences> {
-  const [audioInputId, audioOutputId, noiseSuppression, screenShareQuality] = await Promise.all([
-    storage.getItemAsync(MOBILE_VOICE_AUDIO_INPUT_STORAGE_KEY),
-    storage.getItemAsync(MOBILE_VOICE_AUDIO_OUTPUT_STORAGE_KEY),
-    storage.getItemAsync(MOBILE_VOICE_NOISE_SUPPRESSION_STORAGE_KEY),
-    storage.getItemAsync(MOBILE_VOICE_SCREEN_SHARE_QUALITY_STORAGE_KEY),
-  ]);
+  const [audioInputId, audioOutputId, noiseSuppression, screenShareQuality, screenShareAudioMuted] =
+    await Promise.all([
+      storage.getItemAsync(MOBILE_VOICE_AUDIO_INPUT_STORAGE_KEY),
+      storage.getItemAsync(MOBILE_VOICE_AUDIO_OUTPUT_STORAGE_KEY),
+      storage.getItemAsync(MOBILE_VOICE_NOISE_SUPPRESSION_STORAGE_KEY),
+      storage.getItemAsync(MOBILE_VOICE_SCREEN_SHARE_QUALITY_STORAGE_KEY),
+      storage.getItemAsync(MOBILE_VOICE_SCREEN_SHARE_AUDIO_MUTED_STORAGE_KEY),
+    ]);
 
   return {
     audioInputId: sanitizeMobileVoiceDeviceId(audioInputId),
@@ -151,6 +158,9 @@ export async function loadMobileVoiceDevicePreferences(
       noiseSuppression === "false"
         ? false
         : DEFAULT_MOBILE_VOICE_DEVICE_PREFERENCES.noiseSuppressionEnabled,
+    // Only an explicit "true" mutes: a missing or corrupt value must never
+    // silence a share the listener never asked to silence.
+    screenShareAudioMuted: screenShareAudioMuted === "true",
     screenShareQualityId: normalizeMobileScreenShareQualityId(screenShareQuality),
   };
 }
@@ -163,6 +173,7 @@ export async function saveMobileVoiceDevicePreferences(
     audioInputId: sanitizeMobileVoiceDeviceId(preferences.audioInputId),
     audioOutputId: sanitizeMobileVoiceDeviceId(preferences.audioOutputId),
     noiseSuppressionEnabled: preferences.noiseSuppressionEnabled === false ? false : true,
+    screenShareAudioMuted: preferences.screenShareAudioMuted === true,
     screenShareQualityId: normalizeMobileScreenShareQualityId(preferences.screenShareQualityId),
   };
 
@@ -176,6 +187,10 @@ export async function saveMobileVoiceDevicePreferences(
     storage.setItemAsync(
       MOBILE_VOICE_SCREEN_SHARE_QUALITY_STORAGE_KEY,
       normalized.screenShareQualityId,
+    ),
+    storage.setItemAsync(
+      MOBILE_VOICE_SCREEN_SHARE_AUDIO_MUTED_STORAGE_KEY,
+      String(normalized.screenShareAudioMuted),
     ),
   ]);
 

@@ -78,6 +78,9 @@ export function mapDMMessageToChatMessage(message: DMMessagePayload): ChatMessag
     editedAt: message.editedAt,
     deletedAt: message.deletedAt,
     deletedById: message.deletedById,
+    systemType: message.systemType,
+    systemTargetUserIds: message.systemTargetUserIds,
+    systemValue: message.systemValue,
   };
 }
 

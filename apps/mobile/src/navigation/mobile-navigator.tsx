@@ -38,6 +38,8 @@ import {
   SettingsTabScreenContainer,
   VoiceRoomStackScreenContainer,
   ProfileEditScreenContainer,
+  GroupCreateScreenContainer,
+  GroupDetailsScreenContainer,
   BlockedUsersScreenContainer,
   LegalDocumentScreenContainer,
   OpenSourceLicensesScreenContainer,
@@ -63,6 +65,8 @@ import {
   HelpCenterScreenContainer,
   BugReportScreenContainer,
   CommunityInviteScreenContainer,
+  ServerProfileScreenContainer,
+  DiscoverScreenContainer,
 } from "../app/screens/mobile-screen-containers";
 import { MobileAuthNavigator } from "./mobile-auth-navigator";
 import { createMobileLinkingOptions } from "./mobile-linking";
@@ -248,6 +252,8 @@ export function MobileNavigator({
           <RootStack.Screen name="UserProfile">
             {(props) => <UserProfileStackScreenContainer {...props} />}
           </RootStack.Screen>
+          <RootStack.Screen name="GroupCreate" component={GroupCreateScreenContainer} />
+          <RootStack.Screen name="GroupDetails" component={GroupDetailsScreenContainer} />
           <RootStack.Screen name="BlockedUsers" component={BlockedUsersScreenContainer} />
           <RootStack.Screen name="LegalDocument">
             {(props) => <LegalDocumentScreenContainer {...props} />}
@@ -314,6 +320,12 @@ export function MobileNavigator({
           </RootStack.Screen>
           <RootStack.Screen name="CommunityInvite">
             {(props) => <CommunityInviteScreenContainer {...props} />}
+          </RootStack.Screen>
+          <RootStack.Screen name="ServerProfile">
+            {(props) => <ServerProfileScreenContainer {...props} />}
+          </RootStack.Screen>
+          <RootStack.Screen name="Discover">
+            {(props) => <DiscoverScreenContainer {...props} />}
           </RootStack.Screen>
           <RootStack.Screen name="AdminIncidents">
             {(props) => <AdminIncidentsScreenContainer {...props} />}

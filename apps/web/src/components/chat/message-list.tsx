@@ -4,6 +4,10 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { ChevronDown } from "lucide-react";
 import type { ChatMessage } from "@wizards/types";
 import { MessageItem } from "./message-item";
+import {
+  DmSystemMessage,
+  type DmSystemMessageParticipant,
+} from "@/components/dm/dm-system-message";
 import { useI18n } from "@/components/providers/locale-provider";
 import { useMessages, type MessageMode } from "@/hooks/use-messages";
 import { useSocket } from "@/hooks/use-socket";
@@ -16,6 +20,11 @@ interface MessageListProps {
   currentUserId: string;
   canModerate: boolean;
   initialUnreadMessageId?: string | null;
+  /**
+   * Faz 6 §19.3. The roster a group system row resolves its ids against. Empty
+   * for a channel and for a 1:1, neither of which ever carries one.
+   */
+  participants?: readonly DmSystemMessageParticipant[] | undefined;
   onRemoveOptimistic: (id: string) => void;
   onReply: (id: string, author: string, content: string) => void;
   onRetry: (id: string) => void;
@@ -32,6 +41,7 @@ function MessageListContent({
   currentUserId,
   canModerate,
   initialUnreadMessageId = null,
+  participants = [],
   onRemoveOptimistic,
   onReply,
   onRetry,
@@ -426,18 +436,31 @@ function MessageListContent({
               <span className="h-px flex-1 bg-[hsl(var(--border)/0.62)]" />
             </div>
           ) : null}
-          <MessageItem
-            mode={mode}
-            message={message}
-            isGrouped={isGrouped}
-            currentUserId={currentUserId}
-            canModerate={canModerate}
-            onReact={handleReact}
-            onRemoveOptimistic={onRemoveOptimistic}
-            onReply={handleReply}
-            onRetry={onRetry}
-            onThread={onThread}
-          />
+          {/* §19.3: a group event is a note about the conversation, so it is
+              drawn before — and instead of — anything a bubble would add. */}
+          {message.systemType ? (
+            <DmSystemMessage
+              actorUserId={message.author.id}
+              currentUserId={currentUserId}
+              participants={participants}
+              systemTargetUserIds={message.systemTargetUserIds}
+              systemType={message.systemType}
+              systemValue={message.systemValue}
+            />
+          ) : (
+            <MessageItem
+              mode={mode}
+              message={message}
+              isGrouped={isGrouped}
+              currentUserId={currentUserId}
+              canModerate={canModerate}
+              onReact={handleReact}
+              onRemoveOptimistic={onRemoveOptimistic}
+              onReply={handleReply}
+              onRetry={onRetry}
+              onThread={onThread}
+            />
+          )}
         </div>
       ))}
 

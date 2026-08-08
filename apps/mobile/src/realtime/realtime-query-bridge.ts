@@ -82,6 +82,13 @@ export interface MobileRealtimeQueryBridge {
 }
 
 interface CreateMobileRealtimeQueryBridgeOptions {
+  /**
+   * How the open conversation is left when the viewer stops being a member.
+   * Injected rather than reached for: this module must stay free of React
+   * Native imports so the node test suite can load it, and the navigator lives
+   * behind one. The provider supplies the real pop.
+   */
+  readonly closeConversation?: (conversationId: string) => void;
   readonly getActiveTargets: () => MobileRealtimeActiveTargets;
   readonly getCurrentUserId?: () => string | null;
   readonly queryClient: QueryClient;
@@ -99,6 +106,7 @@ const defaultScheduler: MobileRealtimeQueryBridgeScheduler = {
 };
 
 export function createMobileRealtimeQueryBridge({
+  closeConversation = () => {},
   getActiveTargets,
   getCurrentUserId = () => null,
   queryClient,
@@ -657,6 +665,56 @@ export function createMobileRealtimeQueryBridge({
     return patched;
   };
 
+  /**
+   * Faz 5 §17.2. The three group lifecycle events carry no list projection to
+   * patch, so they invalidate instead. `removed` also has to close the screen:
+   * the viewer is no longer a participant, and an open conversation would keep
+   * polling a conversation the server now answers 403 for.
+   */
+  const applyGroupConversationLifecycleEvent = (event: MobileRealtimeEventEnvelope): boolean => {
+    if (
+      event.eventName !== "dm:conversation:created" &&
+      event.eventName !== "dm:conversation:members_changed" &&
+      event.eventName !== "dm:conversation:removed"
+    ) {
+      return false;
+    }
+
+    const payload =
+      event.payload && typeof event.payload === "object" && !Array.isArray(event.payload)
+        ? (event.payload as Record<string, unknown>)
+        : null;
+    const conversationId =
+      typeof payload?.conversationId === "string"
+        ? payload.conversationId
+        : (((payload?.conversation as { id?: unknown } | undefined)?.id as string | undefined) ??
+          event.conversationId);
+
+    void queryClient.invalidateQueries({ queryKey: mobileQueryKeys.dmConversations() });
+
+    if (event.eventName === "dm:conversation:members_changed") {
+      if (conversationId) {
+        void queryClient.invalidateQueries({
+          queryKey: mobileQueryKeys.dmDetails(conversationId),
+        });
+      }
+      return true;
+    }
+
+    void queryClient.invalidateQueries({ queryKey: mobileQueryKeys.bootstrap() });
+
+    if (event.eventName === "dm:conversation:removed" && conversationId) {
+      void queryClient.invalidateQueries({
+        queryKey: mobileQueryKeys.dmDetails(conversationId),
+      });
+      if (getActiveTargets().conversationId === conversationId) {
+        closeConversation(conversationId);
+      }
+    }
+
+    return true;
+  };
+
   const applyDMConversationUpdateEvent = (event: MobileRealtimeEventEnvelope): boolean => {
     if (event.eventName !== "dm:conversation:updated") {
       return false;
@@ -736,7 +794,12 @@ export function createMobileRealtimeQueryBridge({
                     : attachment
                       ? "file"
                       : "text",
-                text: preview.trim().slice(0, 240),
+                systemTargetUserIds: lastMessage.systemTargetUserIds,
+                systemType: lastMessage.systemType,
+                systemValue: lastMessage.systemValue,
+                // A group lifecycle row has no text of its own; the row builds
+                // the sentence from the fields above, in the reader's locale.
+                text: lastMessage.systemType ? "" : preview.trim().slice(0, 240),
               }
             : null,
           lastMessageAt: conversation.data.lastMessageAt,
@@ -1081,8 +1144,11 @@ export function createMobileRealtimeQueryBridge({
 
       const workspaceChannelPreviewPatched = patchWorkspaceChannelLastMessageFromEvent(event);
       const channelEventHandled = applyActiveChannelEvent(event);
+      const groupLifecycleHandled = applyGroupConversationLifecycleEvent(event);
       const dmConversationsPatched =
-        applyDMConversationUpdateEvent(event) || applyDMConversationReceiptEvent(event);
+        groupLifecycleHandled ||
+        applyDMConversationUpdateEvent(event) ||
+        applyDMConversationReceiptEvent(event);
       const dmStreamPatched = applyActiveDMEvent(event);
       const notificationApplied = applyNotificationEvent(event);
       const workspaceRefreshedImmediately = refreshWorkspaceImmediatelyForChannelEvent(
@@ -1099,7 +1165,8 @@ export function createMobileRealtimeQueryBridge({
        * read: dragging the inbox along behind them is what made sending a
        * message reload the conversation it was sent into.
        */
-      const isDMConversationEvent = event.eventName === "dm:conversation:updated";
+      const isDMConversationEvent =
+        event.eventName === "dm:conversation:updated" || groupLifecycleHandled;
       const dmScope = {
         conversations: isDMConversationEvent && !dmConversationsPatched,
         stream: !dmStreamPatched && !isDMConversationEvent,

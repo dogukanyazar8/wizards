@@ -153,9 +153,7 @@ export function LocaleProvider({
       },
       t: (key, values) => {
         const messages =
-          messagesByLocale[locale] ??
-          messagesByLocale[DEFAULT_APP_LOCALE] ??
-          initialMessages;
+          messagesByLocale[locale] ?? messagesByLocale[DEFAULT_APP_LOCALE] ?? initialMessages;
         const template = messages?.[key] ?? key;
         return interpolateMessage(template, values);
       },

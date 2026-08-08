@@ -103,6 +103,21 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+/**
+ * Listener-side ceiling on a shared surface's audio, in percent. It multiplies
+ * the sharer's participant volume rather than replacing it, so the two controls
+ * never fight: whichever is lower wins.
+ */
+export const DEFAULT_SCREEN_SHARE_VOLUME = 100;
+
+export function sanitizeScreenShareVolume(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return DEFAULT_SCREEN_SHARE_VOLUME;
+  }
+
+  return clampParticipantVolume(value);
+}
+
 function sanitizeParticipantVolumes(value: unknown): Record<string, number> {
   if (!isRecord(value)) {
     return {};
@@ -322,6 +337,10 @@ type PersistedVoiceStoreState = {
   participantVolumes: Record<string, number>;
   pushToTalkHangoverMs: number;
   pushToTalkShortcut: string;
+  /** Opt-in: capture the shared surface's audio too. Off by default. */
+  screenShareAudioEnabled: boolean;
+  /** Listener-side ceiling on remote share audio, in percent. */
+  screenShareVolume: number;
   screenShareQuality: ScreenShareQualityId;
   toggleDeafenShortcut: string;
   toggleMuteShortcut: string;
@@ -401,6 +420,8 @@ interface VoiceStoreState extends PersistedVoiceStoreState {
   setMuted: (isMuted: boolean) => void;
   setParticipantVolume: (userId: string, volume: number) => void;
   setScreenShareError: (error: string | null) => void;
+  setScreenShareAudioEnabled: (enabled: boolean) => void;
+  setScreenShareVolume: (volume: number) => void;
   setScreenShareQuality: (quality: ScreenShareQualityId) => void;
   setScreenShareState: (input: {
     activeSharerId?: string | null;
@@ -458,6 +479,8 @@ export const useVoiceStore = create<VoiceStoreState>()(
       screenShareConversationId: null,
       screenShareError: null,
       screenShareMode: null,
+      screenShareAudioEnabled: false,
+      screenShareVolume: DEFAULT_SCREEN_SHARE_VOLUME,
       screenShareQuality: DEFAULT_SCREEN_SHARE_QUALITY_ID,
       serverId: null,
       sessionId: null,
@@ -670,6 +693,28 @@ export const useVoiceStore = create<VoiceStoreState>()(
         set({
           screenShareError: error,
         }),
+      setScreenShareAudioEnabled: (enabled) =>
+        set((state) => {
+          if (state.screenShareAudioEnabled === enabled) {
+            return state;
+          }
+
+          return {
+            screenShareAudioEnabled: enabled,
+          };
+        }),
+      setScreenShareVolume: (volume) =>
+        set((state) => {
+          const nextVolume = sanitizeScreenShareVolume(volume);
+
+          if (state.screenShareVolume === nextVolume) {
+            return state;
+          }
+
+          return {
+            screenShareVolume: nextVolume,
+          };
+        }),
       setScreenShareQuality: (quality) =>
         set((state) => {
           if (state.screenShareQuality === quality) {
@@ -739,6 +784,8 @@ export const useVoiceStore = create<VoiceStoreState>()(
           participantVolumes: sanitizeParticipantVolumes(persistedState.participantVolumes),
           pushToTalkHangoverMs: sanitizePushToTalkHangoverMs(persistedState.pushToTalkHangoverMs),
           pushToTalkShortcut: desktopShortcuts.pushToTalkShortcut,
+          screenShareAudioEnabled: persistedState.screenShareAudioEnabled === true,
+          screenShareVolume: sanitizeScreenShareVolume(persistedState.screenShareVolume),
           screenShareQuality: sanitizeScreenShareQuality(persistedState.screenShareQuality),
           toggleDeafenShortcut: desktopShortcuts.toggleDeafenShortcut,
           toggleMuteShortcut: desktopShortcuts.toggleMuteShortcut,
@@ -764,6 +811,8 @@ export const useVoiceStore = create<VoiceStoreState>()(
         participantVolumes: state.participantVolumes,
         pushToTalkHangoverMs: state.pushToTalkHangoverMs,
         pushToTalkShortcut: state.pushToTalkShortcut,
+        screenShareAudioEnabled: state.screenShareAudioEnabled,
+        screenShareVolume: state.screenShareVolume,
         screenShareQuality: state.screenShareQuality,
         toggleDeafenShortcut: state.toggleDeafenShortcut,
         toggleMuteShortcut: state.toggleMuteShortcut,

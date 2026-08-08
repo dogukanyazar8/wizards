@@ -13,11 +13,13 @@ const routes = import("./route-logic");
 
 const actorAccess = {
   accessLevel: "OWNER",
+  isPublic: false,
   memberId: "member-actor",
   ownerId: "actor",
   roles: [],
   serverId: "server-1",
   serverName: "Guild",
+  type: "PERSONAL",
   userId: "actor",
 } satisfies AccessContext;
 

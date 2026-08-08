@@ -969,7 +969,17 @@ model Server {
   @@index([inviteCode])
   @@index([ownerId])
   @@index([discoverable])
-  @@index([type, discoverable, memberCount])
+  /// S3: the discovery query filters on `discoverable`/`isPublic` (not
+  /// `type` -- both PERSONAL and COMMUNITY servers can be discoverable) and
+  /// orders by `memberCount desc`. The S1 index `[type, discoverable,
+  /// memberCount]` could not serve that query: `type` unfiltered meant the
+  /// leading column bought nothing, and `isPublic` was not a member of that
+  /// index at all. `EXPLAIN` against a seeded local DB confirmed a
+  /// sequential scan on the old index alone; this one is what the discovery
+  /// query actually uses. The dead S1 index was dropped
+  /// (20260808130000_drop_server_type_discoverable_index) once a repo-wide
+  /// grep confirmed no query anywhere filters on `Server.type`.
+  @@index([discoverable, isPublic, memberCount])
 }
 
 model ServerMember {

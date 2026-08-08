@@ -131,9 +131,11 @@ test("DM details client bounds pagination and safely encodes conversation identi
     sharedAttachments: { files: [], media: [] },
   };
   const { calls, client } = createClient([response]);
-  assert.deepEqual(
-    await fetchMobileDMDetails(client, "dm/1", { cursor: "next", limit: 30 }),
-    response,
-  );
+  assert.deepEqual(await fetchMobileDMDetails(client, "dm/1", { cursor: "next", limit: 30 }), {
+    ...response,
+    // Group fields default in, so a 1:1 payload from an older server still parses.
+    members: [],
+    ownerId: null,
+  });
   assert.equal(calls[0]?.path, "/api/v1/mobile/dm/dm%2F1/details?limit=30&cursor=next");
 });

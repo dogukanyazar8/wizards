@@ -209,15 +209,18 @@ export const MobileServerJoinResponseSchema = z
   .strict();
 
 const MobileServerUpdateFieldsSchema = UpdateServerFieldsSchema.omit({ iconUrl: true }).strict();
+/**
+ * Read off the schema's own keys instead of a hand-written list. The manual
+ * version stopped counting `isPublic`/`discoverable` the moment they landed on
+ * `UpdateServerFieldsSchema`, which turned every visibility-only save into a
+ * "validation.form.atLeastOne" 400 -- the same drift the web twin already hit
+ * once. Extending the contract now extends the predicate with it.
+ */
+const MOBILE_SERVER_UPDATE_FIELDS = Object.keys(MobileServerUpdateFieldsSchema.shape) as Array<
+  keyof z.infer<typeof MobileServerUpdateFieldsSchema>
+>;
 const hasMobileServerUpdate = (value: z.infer<typeof MobileServerUpdateFieldsSchema>) =>
-  value.name !== undefined ||
-  value.shortName !== undefined ||
-  value.description !== undefined ||
-  value.messageCharacterLimit !== undefined ||
-  value.deletedMessageNoticeMinutes !== undefined ||
-  value.allowGifs !== undefined ||
-  value.allowFileUploads !== undefined ||
-  value.allowMemberAdds !== undefined;
+  MOBILE_SERVER_UPDATE_FIELDS.some((field) => value[field] !== undefined);
 export const MobileServerUpdateRequestSchema = MobileServerUpdateFieldsSchema.refine(
   hasMobileServerUpdate,
   { message: "validation.form.atLeastOne" },

@@ -72,7 +72,7 @@ import {
   getMobileVoiceParticipantTotal,
 } from "../mobile-sunucular-model";
 import { getMobileNotificationsQueryOptions } from "../../notifications/mobile-notification-query";
-import { EmptyState, Skeleton } from "../components/kit";
+import { Button, EmptyState, Skeleton } from "../components/kit";
 import { MobileLineIcon } from "../../design/mobile-line-icons";
 import { mobileNavigationRef } from "../../navigation/mobile-navigation-ref";
 import type { MobileChannelTypingUser } from "../../realtime/mobile-typing-state";
@@ -332,6 +332,14 @@ export function MobileWorkspaceBrowser({
     },
     [activeServerId, isSearchingChannels, toggleCollapsedSection],
   );
+  // One handler for every discover entry (create/join sheet, switcher sheet, and
+  // the zero-server empty state) so a new surface cannot ship a second, subtly
+  // different route into the same screen.
+  const openDiscover = useCallback(() => {
+    if (mobileNavigationRef.isReady()) {
+      mobileNavigationRef.navigate("Discover");
+    }
+  }, []);
   // 2a/2b: the header invite icon (1a) and the compact header button (1b) now
   // open the "Davet et" sheet. Sharing the link directly moved inside it, so
   // the entry points no longer mint an invite on tap.
@@ -542,6 +550,17 @@ export function MobileWorkspaceBrowser({
         {servers.length === 0 ? (
           <View style={styles.mobileWorkspaceEmpty} testID="mobile-workspace-empty">
             <EmptyState
+              action={
+                // A user with no servers cannot reach discover from the rail's
+                // create/join sheet without knowing the sheet holds it.
+                <Button
+                  icon="compass-outline"
+                  label={copy.workspaceServerDiscoverAction}
+                  onPress={openDiscover}
+                  testID="mobile-workspace-empty-discover"
+                  variant="primary"
+                />
+              }
               description={copy.homePrimaryServerEmpty}
               icon="server-outline"
               title={copy.homeNoServers}
@@ -626,6 +645,34 @@ export function MobileWorkspaceBrowser({
                   testID="mobile-workspace-search-toggle"
                 >
                   <MobileLineIcon color={theme.accent.default} name="search" size={16} />
+                </Pressable>
+              ) : null}
+              {/* Ungated on purpose: the profile route serves any member, and this is a
+                  plain member's only way to the card — the settings entry below needs a
+                  manage capability, and web offers the same item to everyone. */}
+              {activeServerId ? (
+                <Pressable
+                  accessibilityLabel={copy.serverSettingsProfile}
+                  accessibilityRole="button"
+                  hitSlop={6}
+                  onPress={() => {
+                    if (mobileNavigationRef.isReady()) {
+                      mobileNavigationRef.navigate("ServerProfile", { serverId: activeServerId });
+                    }
+                  }}
+                  style={({ pressed }) => [
+                    isCompactWorkspaceLayout
+                      ? styles.mobileWorkspaceCompactAddButton
+                      : styles.mobileWorkspaceHeaderIconButton,
+                    pressed && styles.compactListRowPressed,
+                  ]}
+                  testID={`mobile-server-profile-open-${activeServerId}`}
+                >
+                  <MobileLineIcon
+                    color={theme.accent.default}
+                    name="info"
+                    size={isCompactWorkspaceLayout ? 18 : 16}
+                  />
                 </Pressable>
               ) : null}
               {canManageInvites ? (
@@ -792,6 +839,7 @@ export function MobileWorkspaceBrowser({
         onClose={serverManagement.closeCreateJoinSheet}
         onCreate={serverManagement.createServer}
         onJoin={serverManagement.joinServer}
+        onOpenDiscover={openDiscover}
         onServerReady={serverManagement.selectServer}
         onUploadServerIcon={serverManagement.uploadServerIcon}
         open={serverManagement.isCreateJoinSheetOpen}
@@ -802,6 +850,7 @@ export function MobileWorkspaceBrowser({
         missedNotifications={missedNotifications}
         onClose={() => setServerSwitcherOpen(false)}
         onOpenCreateJoin={serverManagement.openCreateJoinSheet}
+        onOpenDiscover={openDiscover}
         onOpenServer={handleServerPress}
         onSeeAllMissed={() => {
           if (mobileNavigationRef.isReady()) {

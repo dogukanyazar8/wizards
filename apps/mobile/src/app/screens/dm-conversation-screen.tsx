@@ -16,6 +16,7 @@ import {
   useRef,
   useState,
 } from "../mobile-root-screen-shared";
+import { mobileNavigationRef } from "../../navigation/mobile-navigation-ref";
 import { DMComposer, type MobileComposerIntent } from "../composer/mobile-composer";
 import { MobileChatKeyboardRegion } from "../mobile-chat-keyboard-region";
 import {
@@ -44,6 +45,13 @@ import { useDMChatStyles } from "../components/dm-chat-primitives.styles";
 import { getMobileNavigationSampleId } from "../../performance/mobile-navigation-timing";
 
 export { formatDMLastSeenRelativeTime } from "../components/dm-chat-primitives";
+
+/**
+ * Stable across renders on purpose: `?? []` would mint a new array every time,
+ * and `participants` is a dependency of the message list's `renderItem` —
+ * a fresh identity there re-renders every mounted row of the transcript.
+ */
+const EMPTY_PARTICIPANTS: readonly [] = [];
 
 type DMSendIntent = {
   readonly attachments?: readonly UploadedAttachmentInput[];
@@ -148,6 +156,17 @@ export function DMConversationScreen({
           isOnline={isOnline}
           lastSeenAt={resolvedLastSeenAt}
           onBack={onBack}
+          {...(conversation.type === "GROUP_DM"
+            ? {
+                onOpenDetails: () => {
+                  if (mobileNavigationRef.isReady()) {
+                    mobileNavigationRef.navigate("GroupDetails", {
+                      conversationId: conversation.id,
+                    });
+                  }
+                },
+              }
+            : {})}
           {...(onStartVideoCall ? { onStartVideoCall } : {})}
           {...(onStartVoiceCall ? { onStartVoiceCall } : {})}
           partnerUserId={responsePartner?.userId ?? summaryPartner?.id ?? null}
@@ -363,6 +382,8 @@ export function DMConversationPreviewCard({
           onReplyMessage={handleReplyMessage}
           onRetryFailedMessage={onRetryMessage}
           onToggleReaction={onToggleMessageReaction}
+          // Faz 5 §16.3: the roster a system row resolves its ids against.
+          participants={responseConversation?.participants ?? EMPTY_PARTICIPANTS}
           partnerLastDeliveredAt={partnerLastDeliveredAt}
           partnerLastReadAt={partnerLastReadAt}
         />

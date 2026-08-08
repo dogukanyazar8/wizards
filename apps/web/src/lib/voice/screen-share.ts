@@ -78,17 +78,89 @@ export function getScreenShareQualityPreset(qualityId: ScreenShareQualityId) {
   return SCREEN_SHARE_PRESETS[qualityId];
 }
 
+/**
+ * The constraint a browser only knows about if it can capture the audio playing
+ * on the surface being shared. Chromium reports it; Firefox and Safari do not,
+ * and they also return a silent share, so this one name is the whole capability
+ * question.
+ */
+const SCREEN_SHARE_AUDIO_CONSTRAINT = "suppressLocalAudioPlayback";
+
+/** The slice of `MediaDevices` the capability probe reads. */
+export type ScreenShareAudioCapabilityProbe = {
+  getDisplayMedia?: unknown;
+  getSupportedConstraints?: () => unknown;
+};
+
+/**
+ * Whether this browser can capture the shared surface's audio at all.
+ *
+ * A capability probe, not a browser sniff: it asks whether display capture
+ * exists and whether the audio-playback constraint is among the supported
+ * constraints. A Chromium fork that drops the feature reports the truth, and a
+ * browser that later gains it starts working without a version table.
+ */
+export function isScreenShareAudioSupported(
+  mediaDevices: ScreenShareAudioCapabilityProbe | null | undefined = typeof navigator ===
+  "undefined"
+    ? null
+    : navigator.mediaDevices,
+): boolean {
+  if (typeof mediaDevices?.getDisplayMedia !== "function") {
+    return false;
+  }
+
+  if (typeof mediaDevices.getSupportedConstraints !== "function") {
+    return false;
+  }
+
+  try {
+    const constraints = mediaDevices.getSupportedConstraints() as Record<string, unknown> | null;
+
+    return constraints?.[SCREEN_SHARE_AUDIO_CONSTRAINT] === true;
+  } catch {
+    // A probe must never be the reason a share cannot start.
+    return false;
+  }
+}
+
+/**
+ * `shareSystemAudio` is the user's stored preference, off by default.
+ *
+ * When it is on the browser is asked for the surface's audio, told to offer
+ * system audio as a source, and told to stop playing the captured audio out of
+ * the sharer's own speakers — otherwise the sharer hears their own tab twice.
+ * `selfBrowserSurface: "exclude"` still keeps the Whispr tab itself out of the
+ * picker, so the call can never capture itself.
+ *
+ * None of this is a requirement: a browser without the feature, or a user who
+ * leaves the picker's audio checkbox unticked, simply produces a video-only
+ * stream. That is a normal share, not a failure.
+ */
 export function getScreenShareCaptureOptions(
   qualityId: ScreenShareQualityId,
+  { shareSystemAudio = false }: { shareSystemAudio?: boolean } = {},
 ): ScreenShareCaptureOptions {
   const preset = getScreenShareQualityPreset(qualityId);
 
+  if (!shareSystemAudio) {
+    return {
+      audio: false,
+      contentHint: "detail",
+      resolution: preset.resolution,
+      selfBrowserSurface: "exclude",
+      surfaceSwitching: "include",
+    };
+  }
+
   return {
-    audio: false,
+    audio: true,
     contentHint: "detail",
     resolution: preset.resolution,
     selfBrowserSurface: "exclude",
+    suppressLocalAudioPlayback: true,
     surfaceSwitching: "include",
+    systemAudio: "include",
   };
 }
 

@@ -2,8 +2,14 @@ import { validateMobileScreenShareQualityContract } from "./mobile-screen-share"
 
 export const VOICE_SCREEN_SHARE_STATE_TTL_SECONDS = 120;
 
+/**
+ * The audio sentence is not a nicety: `@livekit/react-native-webrtc`'s
+ * `getDisplayMedia()` takes no constraints and returns a single video track, so
+ * a phone physically cannot capture the device's sound. Without saying so, a
+ * sharer assumes the room hears the video they are playing.
+ */
 export const MOBILE_SCREEN_SHARE_PRIVACY_NOTICE =
-  "Your entire screen, including notifications and other apps, will be visible to participants until you stop sharing.";
+  "Your entire screen, including notifications and other apps, will be visible to participants until you stop sharing. Audio is not shared from a phone: participants see the picture without its sound.";
 
 export const MOBILE_SCREEN_SHARE_BACKGROUND_STOP_MESSAGE =
   "Screen sharing stopped because Whispr moved to the background.";
@@ -69,6 +75,12 @@ export function validateMobileScreenShareContract(): string[] {
     issues.push(
       "Mobile screen-share privacy copy must explicitly name screen, notifications, and other apps.",
     );
+  }
+
+  // A phone cannot capture its own audio, so the copy has to say so before the
+  // sharer finds out from the other side of the call.
+  if (!/audio is not shared/i.test(MOBILE_SCREEN_SHARE_PRIVACY_NOTICE)) {
+    issues.push("Mobile screen-share privacy copy must state that audio is not shared.");
   }
 
   if (!/stopped/i.test(MOBILE_SCREEN_SHARE_BACKGROUND_STOP_MESSAGE)) {

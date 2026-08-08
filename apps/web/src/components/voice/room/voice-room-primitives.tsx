@@ -6,6 +6,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type CSSProperties,
   type ReactNode,
 } from "react";
@@ -42,7 +43,11 @@ import {
   type VoiceScreenShareViewModel,
 } from "@/components/providers/voice-provider";
 import { VoiceSettingsModal } from "@/components/voice/voice-settings-modal";
-import { SCREEN_SHARE_QUALITY_OPTIONS, type ScreenShareQualityId } from "@/lib/voice/screen-share";
+import {
+  SCREEN_SHARE_QUALITY_OPTIONS,
+  isScreenShareAudioSupported,
+  type ScreenShareQualityId,
+} from "@/lib/voice/screen-share";
 import {
   resolveMirror,
   resolveVideoAspect,
@@ -889,6 +894,14 @@ export function VoiceControlBar({
   );
 }
 
+/**
+ * Screen-share audio support is a browser capability, so it can only be read
+ * after hydration — the server render must not claim the toggle exists.
+ */
+const subscribeToScreenShareAudioSupport = () => () => {};
+const getScreenShareAudioSupportSnapshot = () => isScreenShareAudioSupported();
+const getServerScreenShareAudioSupportSnapshot = () => false;
+
 export function ScreenShareStage({
   activeCameraParticipant,
   activeShare,
@@ -898,9 +911,14 @@ export function ScreenShareStage({
   onSelectShare,
   onSelectStageFocus,
   onSelectQuality,
+  onResetShareVolume,
+  onSetShareVolume,
   onStopShare,
+  onToggleShareAudio,
   screenShares,
   selectedQuality,
+  shareAudioEnabled = false,
+  shareVolume = 100,
   stageFocus,
 }: {
   activeCameraParticipant: VoiceParticipantViewModel | null;
@@ -911,13 +929,23 @@ export function ScreenShareStage({
   onSelectShare: (id: string) => void;
   onSelectStageFocus: (focus: VoiceStageFocus) => void;
   onSelectQuality: (qualityId: ScreenShareQualityId) => void;
+  onResetShareVolume?: () => void;
+  onSetShareVolume?: (volume: number) => void;
   onStopShare: () => void;
+  onToggleShareAudio?: (enabled: boolean) => void;
   screenShares: VoiceScreenShareViewModel[];
   selectedQuality: ScreenShareQualityId;
+  shareAudioEnabled?: boolean;
+  shareVolume?: number;
   stageFocus: VoiceStageFocus;
 }) {
   const { t } = useI18n();
   const stageRef = useRef<HTMLDivElement | null>(null);
+  const hasShareAudioSupport = useSyncExternalStore(
+    subscribeToScreenShareAudioSupport,
+    getScreenShareAudioSupportSnapshot,
+    getServerScreenShareAudioSupportSnapshot,
+  );
   const sharerName =
     activeShare?.displayName ?? activeShare?.username ?? t("voice.screenShare.unknownSharer");
   const activeCameraTrack = activeCameraParticipant?.cameraTrack ?? null;
@@ -1257,6 +1285,83 @@ export function ScreenShareStage({
                 </span>
               ))}
             </div>
+
+            {hasShareAudioSupport && onToggleShareAudio ? (
+              <button
+                aria-pressed={shareAudioEnabled}
+                className={cn(
+                  "mt-3 flex w-full items-start gap-2.5 rounded-2xl border p-3 text-left transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]",
+                  shareAudioEnabled
+                    ? "border-[hsl(var(--primary)/0.42)] bg-[hsl(var(--primary)/0.10)]"
+                    : "border-[hsl(var(--border)/0.72)] bg-[hsl(var(--surface-soft)/0.42)] hover:border-[hsl(var(--primary)/0.28)]",
+                )}
+                data-testid="screen-share-audio-toggle"
+                onClick={() => onToggleShareAudio(!shareAudioEnabled)}
+                type="button"
+              >
+                {shareAudioEnabled ? (
+                  <Volume2
+                    aria-hidden="true"
+                    className="mt-0.5 h-4 w-4 shrink-0 text-[hsl(var(--primary))]"
+                  />
+                ) : (
+                  <VolumeX aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-app-muted" />
+                )}
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold text-app-foreground">
+                    {t("voice.screenShare.audio.title")}
+                  </span>
+                  <span className="mt-0.5 block text-xs leading-4 text-app-muted">
+                    {t("voice.screenShare.audio.description")}
+                  </span>
+                </span>
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+
+        {activeShare && !activeShare.isLocal && onSetShareVolume ? (
+          <div className="mt-4 border-t border-app-border pt-4">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <span className="truncate text-xs font-semibold uppercase tracking-[0.2em] text-app-soft">
+                {t("voice.screenShare.audio.volume")}
+              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-app-foreground">{shareVolume}%</span>
+                {onResetShareVolume ? (
+                  <button
+                    aria-label={t("voice.screenShare.audio.resetVolume")}
+                    className="flex h-7 w-7 items-center justify-center rounded-full border border-[hsl(var(--border)/0.68)] bg-[hsl(var(--surface-soft)/0.52)] text-app-muted transition hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.55)]"
+                    data-testid="screen-share-audio-volume-reset"
+                    onClick={onResetShareVolume}
+                    type="button"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+                  </button>
+                ) : null}
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              {shareVolume === 0 ? (
+                <VolumeX aria-hidden="true" className="h-4 w-4 shrink-0 text-app-muted" />
+              ) : (
+                <Volume2 aria-hidden="true" className="h-4 w-4 shrink-0 text-app-muted" />
+              )}
+              <input
+                aria-label={t("voice.screenShare.audio.volume")}
+                className="h-2 w-full cursor-pointer appearance-none rounded-full bg-[hsl(var(--surface-soft)/0.86)] accent-[hsl(var(--primary))]"
+                data-testid="screen-share-audio-volume"
+                max={100}
+                min={0}
+                onChange={(event) => onSetShareVolume(Number(event.target.value))}
+                step={5}
+                type="range"
+                value={shareVolume}
+              />
+            </div>
+            <p className="mt-2 text-xs leading-4 text-app-muted">
+              {t("voice.screenShare.audio.volumeDescription")}
+            </p>
           </div>
         ) : null}
       </aside>

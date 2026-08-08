@@ -532,6 +532,16 @@ export const MobileDMSharedAttachmentSchema = z
     messageId: MobileBoundedIdSchema,
   })
   .strict();
+export const MobileDMGroupMemberSchema = z
+  .object({
+    avatarUrl: z.string().url().max(2048).nullable(),
+    displayName: z.string().max(100).nullable(),
+    id: MobileBoundedIdSchema,
+    isOwner: z.boolean(),
+    status: z.string().max(32),
+    username: z.string().max(100),
+  })
+  .strict();
 export const MobileDMDetailsResponseSchema = z
   .object({
     /**
@@ -540,9 +550,16 @@ export const MobileDMDetailsResponseSchema = z
      * so its length is a page artefact and the 1c header needs the real total.
      */
     mediaCount: z.number().int().nonnegative(),
+    /**
+     * Populated for a group; empty for a 1:1, where `participant` already is the
+     * other side. Ordered by `joinedAt`, same as the conversation payload.
+     */
+    members: z.array(MobileDMGroupMemberSchema).max(32).default([]),
     mutualServers: z.array(MobileDMMutualServerSchema).max(12),
     nextCursor: MobileBoundedIdSchema.nullable(),
-    participant: MobileProfileUserSchema.omit({ twoFactorEnabled: true }),
+    ownerId: MobileBoundedIdSchema.nullable().default(null),
+    /** Null in a group: there is no single counterpart to describe. */
+    participant: MobileProfileUserSchema.omit({ twoFactorEnabled: true }).nullable(),
     sharedAttachments: z
       .object({
         files: z.array(MobileDMSharedAttachmentSchema).max(30),
@@ -804,6 +821,8 @@ export type MobileUserReportRequest = z.infer<typeof MobileUserReportRequestSche
 export type MobileUserReportResponse = z.infer<typeof MobileUserReportResponseSchema>;
 export type MobileUserNoteUpdate = z.infer<typeof MobileUserNoteUpdateSchema>;
 export type MobileUserNoteResponse = z.infer<typeof MobileUserNoteResponseSchema>;
+export type MobileDMGroupMember = z.infer<typeof MobileDMGroupMemberSchema>;
+export type MobileDMDetailsResponse = z.infer<typeof MobileDMDetailsResponseSchema>;
 export type MobileDMAttachmentsTab = z.infer<typeof MobileDMAttachmentsTabSchema>;
 export type MobileDMAttachmentsQuery = z.infer<typeof MobileDMAttachmentsQuerySchema>;
 export type MobileDMAttachmentItem = z.infer<typeof MobileDMAttachmentItemSchema>;

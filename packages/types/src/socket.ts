@@ -7,6 +7,7 @@ import {
   type MessageReaction,
   type MessageThreadSummary,
 } from "./messages";
+import { DMSystemMessageTypeSchema, type DMSystemMessageTypeValue } from "./dm-system-message";
 
 export type DMPresenceStatus = "ONLINE" | "IDLE" | "DND" | "OFFLINE";
 export type DMConversationType = "DM" | "GROUP_DM";
@@ -64,6 +65,17 @@ export interface DMMessagePayload {
    * nobody else has a bubble to match it against.
    */
   clientNonce?: string | null | undefined;
+  /**
+   * Faz 5 §16. A group event rides the message stream as a row whose `content`
+   * is always `""` — the server never writes user-facing prose, because the
+   * sentence is locale-dependent and the locale belongs to the reader. Null on
+   * every ordinary message.
+   */
+  systemType: DMSystemMessageTypeValue | null;
+  /** Populated only for `MEMBER_ADDED` and `MEMBER_REMOVED`. */
+  systemTargetUserIds: string[];
+  /** Populated only for `NAME_CHANGED`. */
+  systemValue: string | null;
 }
 
 export interface DMParticipantDTO extends DMPresence {
@@ -144,6 +156,9 @@ export const DMMessagePayloadSchema: z.ZodType<DMMessagePayload> = z.lazy(() =>
     replyTo: DMMessagePayloadSchema.nullable(),
     deliveryStatus: z.enum(["sending", "failed"]).optional(),
     clientNonce: z.string().min(1).max(128).nullable().optional(),
+    systemType: DMSystemMessageTypeSchema.nullable().default(null),
+    systemTargetUserIds: z.array(z.string()).default([]),
+    systemValue: z.string().nullable().default(null),
   }),
 );
 

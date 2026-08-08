@@ -61,3 +61,4 @@ export { MobileAboutUpdateChannelScreen } from "./about-channel-screen";
 export { MobileHelpCenterScreen } from "./about-help-center-screen";
 export { MobileBugReportScreen } from "./about-bug-report-screen";
 export { MobileCommunityInviteScreen } from "./about-community-invite-screen";
+export { MobileServerProfileScreen } from "./about-community-invite-screen";

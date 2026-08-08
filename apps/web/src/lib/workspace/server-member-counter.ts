@@ -21,6 +21,26 @@ export async function incrementServerMemberCount(
 }
 
 /**
+ * Atomically claims one server slot before a membership row is created. A
+ * read followed by `increment` permits two concurrent joins to both observe
+ * the last slot; this single predicate update serializes them on the Server
+ * row, so exactly one transaction can proceed when the server is at capacity.
+ */
+export async function reserveServerMemberCapacity(
+  client: ServerMemberCounterClient,
+  serverId: string,
+): Promise<boolean> {
+  const affectedRows = await client.$executeRaw`
+    UPDATE "Server"
+    SET "memberCount" = "memberCount" + 1
+    WHERE "id" = ${serverId}
+      AND "memberCount" < "maxMembers"
+  `;
+
+  return affectedRows === 1;
+}
+
+/**
  * Prisma's `decrement` happily writes -1. A membership row can be removed by
  * more than one path (leave, kick, ban, account deletion), so the floor is
  * enforced in SQL instead of trusted at each call site.
@@ -51,7 +71,32 @@ export async function decrementServerMemberCounts(
   `;
 }
 
-/** Repair path for drift. Not scheduled anywhere in S1 — callable on demand. */
+export type ServerMemberCountRow = {
+  readonly id: string;
+  readonly memberCount: number;
+  readonly name: string;
+};
+
+export type ServerMemberCountDrift = ServerMemberCountRow & { readonly actual: number };
+
+/**
+ * Pure half of the drift sweep: the maintenance script reads the stored
+ * counters and the grouped membership totals, this decides which rows are
+ * wrong. A server with no membership rows never appears in the grouped result,
+ * so a missing entry means zero, not "skip".
+ */
+export function collectServerMemberCountDrift(
+  servers: readonly ServerMemberCountRow[],
+  actualCounts: ReadonlyMap<string, number>,
+): ServerMemberCountDrift[] {
+  return servers.flatMap((server) => {
+    const actual = actualCounts.get(server.id) ?? 0;
+
+    return actual === server.memberCount ? [] : [{ ...server, actual }];
+  });
+}
+
+/** Repair path for drift. Called by the admin recount route and the sweep script. */
 export async function recomputeServerMemberCount(
   client: ServerMemberCounterClient,
   serverId: string,

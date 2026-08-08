@@ -1480,10 +1480,6 @@ export function Fixture({ cap }: { cap: number }) {
   });
 
   it("keeps auth and legacy white-foreground controls on audited contrast pairs", () => {
-    const cameraGrid = readFileSync(
-      join(process.cwd(), "src", "voice", "mobile-camera-grid.tsx"),
-      "utf8",
-    );
     const authSecurityCard = readFileSync(
       join(process.cwd(), "src", "app", "components", "kit", "auth", "auth-security-card.tsx"),
       "utf8",
@@ -1501,8 +1497,6 @@ export function Fixture({ cap }: { cap: number }) {
       "utf8",
     );
 
-    assert.match(cameraGrid, /label: \{[\s\S]*?backgroundColor: theme\.surface\.inverse,/);
-    assert.match(cameraGrid, /flip: \{[\s\S]*?backgroundColor: theme\.surface\.inverse,/);
     assert.match(authSecurityCard, /icon: \{[\s\S]*?backgroundColor: theme\.status\.successSoft,/);
     assert.match(authSecurityCard, /color=\{theme\.status\.successText\}/);
     assert.match(uiAtoms, /homeMetricTile: \{[\s\S]*?backgroundColor: theme\.accent\.action,/);

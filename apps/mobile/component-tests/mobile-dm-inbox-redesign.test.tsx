@@ -218,3 +218,56 @@ describe("1c DM inbox redesign", () => {
     );
   });
 });
+
+/**
+ * A group lifecycle row stores no text — the sentence depends on the reader's
+ * locale. The list route used to answer "Attachment" for it, so the very first
+ * row a new group showed was a hardcoded English word.
+ */
+describe("group lifecycle preview", () => {
+  const systemConversation = {
+    ...groupConversation,
+    lastMessage: {
+      author: {
+        avatarUrl: null,
+        displayName: "Ada",
+        id: "user-ada",
+        status: "ONLINE",
+        username: "ada",
+      },
+      authorIsCurrentUser: false,
+      systemTargetUserIds: [],
+      systemType: "GROUP_CREATED",
+      systemValue: null,
+      text: "",
+    },
+    unreadCount: 0,
+  } as unknown as typeof groupConversation;
+
+  it("renders the localized sentence rather than an empty or English preview", async () => {
+    const view = await render(
+      <DirectMessageConversationCard
+        conversation={systemConversation}
+        currentUserId="user-me"
+        onOpenConversation={jest.fn()}
+        selected={false}
+      />,
+    );
+
+    expect(view.queryByText("Attachment")).toBeNull();
+    expect(view.getByText("Ada grubu oluşturdu")).toBeTruthy();
+  });
+
+  it("says 'Sen' when the viewer is the one who acted", async () => {
+    const view = await render(
+      <DirectMessageConversationCard
+        conversation={systemConversation}
+        currentUserId="user-ada"
+        onOpenConversation={jest.fn()}
+        selected={false}
+      />,
+    );
+
+    expect(view.getByText("Sen grubu oluşturdu")).toBeTruthy();
+  });
+});

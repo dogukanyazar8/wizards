@@ -1,6 +1,7 @@
 import { AdminServers, type AdminServersFilters } from "@/components/admin/sections/admin-servers";
+import { adminRoleHasCapability } from "@/lib/admin/capabilities";
 import { requireAdminModule } from "@/lib/admin/module-access";
-import { listAdminServers } from "@/lib/admin/management";
+import { listAdminServerAuditTrail, listAdminServers } from "@/lib/admin/management";
 import { getAdminServersSnapshot } from "@/lib/admin/snapshots";
 
 type AdminServersPageProps = {
@@ -11,14 +12,23 @@ export default async function AdminServersPage({ searchParams }: AdminServersPag
   const params = await searchParams;
   const query = params?.query?.slice(0, 120);
   const filters: AdminServersFilters = query ? { query } : {};
-  const [, result, snapshot] = await Promise.all([
+  const [admin, result, snapshot, auditTrail] = await Promise.all([
     requireAdminModule("server.read"),
     listAdminServers({
       ...(params?.page ? { page: params.page } : {}),
       ...(filters.query ? { query: filters.query } : {}),
     }),
     getAdminServersSnapshot(),
+    listAdminServerAuditTrail(),
   ]);
 
-  return <AdminServers filters={filters} result={result} serverHealth={snapshot.serverHealth} />;
+  return (
+    <AdminServers
+      auditTrail={auditTrail}
+      canWrite={adminRoleHasCapability(admin.role, "server.write")}
+      filters={filters}
+      result={result}
+      serverHealth={snapshot.serverHealth}
+    />
+  );
 }

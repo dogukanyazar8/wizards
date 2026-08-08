@@ -1,6 +1,8 @@
 "use client";
 
-import type { CSSProperties } from "react";
+// The default import is what the node test runner's classic JSX transform
+// resolves `<Avatar>`'s own elements against; Next's compiler does not need it.
+import React, { type CSSProperties } from "react";
 import { cn } from "@/lib/utils";
 
 type AvatarProps = {

@@ -24,6 +24,7 @@ const M1_MOBILE_RATE_LIMITS = {
   "mobile:server:create": { limit: 10, windowSeconds: 3_600 },
   "mobile:server:delete": { limit: 5, windowSeconds: 3_600 },
   "mobile:server:detail": { limit: 120, windowSeconds: 60 },
+  "mobile:server:discover": { limit: 120, windowSeconds: 60 },
   "mobile:server:invites:create": { limit: 20, windowSeconds: 600 },
   "mobile:server:invites:list": { limit: 60, windowSeconds: 60 },
   "mobile:server:invites:qr": { limit: 30, windowSeconds: 600 },
@@ -31,9 +32,11 @@ const M1_MOBILE_RATE_LIMITS = {
   "mobile:server:invites:sheet": { limit: 60, windowSeconds: 60 },
   "mobile:server:invites:target": { limit: 40, windowSeconds: 600 },
   "mobile:server:join": { limit: 20, windowSeconds: 600 },
+  "mobile:server:join-public": { limit: 10, windowSeconds: 3_600 },
   "mobile:server:member:kick": { limit: 30, windowSeconds: 600 },
   "mobile:server:member-roles:update": { limit: 40, windowSeconds: 600 },
   "mobile:server:members:list": { limit: 60, windowSeconds: 60 },
+  "mobile:server:profile": { limit: 120, windowSeconds: 60 },
   "mobile:server:roles:create": { limit: 20, windowSeconds: 10 * 60 },
   "mobile:server:roles:delete": { limit: 20, windowSeconds: 10 * 60 },
   "mobile:server:roles:list": { limit: 60, windowSeconds: 60 },
@@ -161,7 +164,7 @@ describe("API rate limit configuration", () => {
       )
       .sort();
 
-    assert.equal(expectedActions.length, 28);
+    assert.equal(expectedActions.length, 31);
     assert.deepEqual(actualActions, expectedActions);
 
     for (const [action, expectedConfig] of Object.entries(M1_MOBILE_RATE_LIMITS)) {

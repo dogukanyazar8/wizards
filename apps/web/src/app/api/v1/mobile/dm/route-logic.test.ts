@@ -44,6 +44,9 @@ describe("mobile DM create route", () => {
                   reactions: [],
                   replyTo: null,
                   replyToId: null,
+                  systemTargetUserIds: [],
+                  systemType: null,
+                  systemValue: null,
                   threadParentId: null,
                   userId: "user-2",
                 },
@@ -99,6 +102,9 @@ describe("mobile DM create route", () => {
             durationSec: null,
             id: "message-1",
             kind: "text",
+            systemTargetUserIds: [],
+            systemType: null,
+            systemValue: null,
             text: "Hello world",
           },
           lastMessageAt: "2026-07-15T12:00:00.000Z",
@@ -168,6 +174,9 @@ describe("mobile DM create route", () => {
               reactions: [],
               replyTo: null,
               replyToId: null,
+              systemTargetUserIds: [],
+              systemType: null,
+              systemValue: null,
               threadParentId: null,
               userId: "user-1",
             },
@@ -256,6 +265,9 @@ describe("mobile DM create route", () => {
               reactions: [],
               replyTo: null,
               replyToId: null,
+              systemTargetUserIds: [],
+              systemType: null,
+              systemValue: null,
               threadParentId: null,
               userId: "user-1",
             },
@@ -368,5 +380,74 @@ describe("mobile DM preview delivery status", () => {
   it("prefers read over a stale delivery mark and draws nothing for an incoming row", () => {
     assert.equal(resolvePreviewDeliveryStatus(true, sentAt, after, before), "read");
     assert.equal(resolvePreviewDeliveryStatus(false, sentAt, after, after), null);
+  });
+});
+
+describe("mobile DM list preview of a group lifecycle row", () => {
+  it("sends an empty text and the system type instead of labelling it an attachment", async () => {
+    const response = await mobileDMListRoute(new Request("https://whispr.test/api/v1/mobile/dm"), {
+      authenticate: async () => "user-1",
+      enforceRateLimit: async () => {},
+      getUnreadCount: async () => 0,
+      listDMs: async () => ({
+        conversations: [
+          {
+            iconUrl: null,
+            id: "group-1",
+            lastMessage: {
+              attachments: [],
+              author: {
+                avatarUrl: null,
+                customStatus: null,
+                displayName: "Ada",
+                id: "user-2",
+                status: "ONLINE",
+                username: "ada",
+              },
+              // A system row: no text of its own, and no attachment to fall
+              // back to. The old code answered "Attachment" here.
+              content: "",
+              conversationId: "group-1",
+              createdAt: "2026-08-08T12:00:00.000Z",
+              deletedAt: null,
+              deletedById: null,
+              editedAt: null,
+              id: "message-1",
+              reactions: [],
+              replyTo: null,
+              replyToId: null,
+              systemTargetUserIds: ["user-3"],
+              systemType: "MEMBER_ADDED",
+              systemValue: null,
+              threadParentId: null,
+              userId: "user-2",
+            },
+            lastMessageAt: "2026-08-08T12:00:00.000Z",
+            name: "Takım",
+            ownerId: "user-2",
+            participants: [],
+            type: "GROUP_DM",
+          },
+        ],
+        nextCursor: null,
+      }),
+      loadConversationContext: async () => new Map(),
+      recordDelivery: async () => [],
+    } as never);
+
+    const body = (await response.json()) as {
+      conversations: Array<{
+        lastMessage: {
+          systemTargetUserIds: string[];
+          systemType: string | null;
+          text: string;
+        };
+      }>;
+    };
+    const preview = body.conversations[0]!.lastMessage;
+
+    assert.equal(preview.text, "");
+    assert.equal(preview.systemType, "MEMBER_ADDED");
+    assert.deepEqual(preview.systemTargetUserIds, ["user-3"]);
   });
 });

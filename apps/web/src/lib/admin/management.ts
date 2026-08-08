@@ -295,6 +295,40 @@ function getServerWhere(filters: AdminServerListFilters) {
   };
 }
 
+/**
+ * The server console's own audit strip. It reads the shared trail filtered to
+ * `Server` targets rather than adding a second log table — every write in this
+ * screen already goes through `writeAdminAuditLog`.
+ */
+export async function listAdminServerAuditTrail(take = 12) {
+  const entries = await prisma.adminAuditLog.findMany({
+    orderBy: { createdAt: "desc" },
+    take,
+    where: { targetType: "Server" },
+    select: {
+      action: true,
+      adminUser: { select: { displayName: true, id: true, username: true } },
+      createdAt: true,
+      id: true,
+      targetId: true,
+    },
+  });
+
+  return entries.map((entry) => ({
+    action: entry.action,
+    actor: entry.adminUser
+      ? {
+          displayName: getDisplayName(entry.adminUser),
+          id: entry.adminUser.id,
+          username: entry.adminUser.username,
+        }
+      : null,
+    createdAt: entry.createdAt.toISOString(),
+    id: entry.id,
+    targetId: entry.targetId,
+  }));
+}
+
 export async function listAdminServers(filters: AdminServerListFilters = {}) {
   const pagination = normalizeAdminManagementPagination(filters);
   const where = getServerWhere(filters);
@@ -324,9 +358,11 @@ export async function listAdminServers(filters: AdminServerListFilters = {}) {
         createdAt: true,
         description: true,
         discoverable: true,
+        features: true,
         iconUrl: true,
         id: true,
         isPublic: true,
+        memberCount: true,
         name: true,
         owner: {
           select: {
@@ -336,6 +372,7 @@ export async function listAdminServers(filters: AdminServerListFilters = {}) {
           },
         },
         preferredLocale: true,
+        type: true,
         updatedAt: true,
       },
     }),
@@ -369,10 +406,16 @@ export async function listAdminServers(filters: AdminServerListFilters = {}) {
         createdAt: server.createdAt.toISOString(),
         description: server.description,
         discoverable: server.discoverable,
+        featured: server.features.includes("FEATURED"),
         iconUrl: server.iconUrl,
         id: server.id,
         isPublic: server.isPublic,
+        // The live count and the denormalized column, side by side: the console
+        // shows the difference so drift is visible before it is repaired.
         memberCount: server._count.members,
+        storedMemberCount: server.memberCount,
+        type: server.type,
+        verified: server.features.includes("VERIFIED"),
         messageCount: channelCounts.totalMessages,
         name: server.name,
         owner: {

@@ -17,6 +17,7 @@ import {
   setPreferredMobileScreenShareQualityId,
   validateMobileScreenShareQualityContract,
 } from "../src/voice/mobile-screen-share";
+import { mobileCopy } from "../src/locale/mobile-copy";
 import {
   MOBILE_SCREEN_SHARE_BACKGROUND_STOP_MESSAGE,
   MOBILE_SCREEN_SHARE_PRIVACY_NOTICE,
@@ -161,6 +162,9 @@ describe("mobile screen share contract", () => {
     assert.match(MOBILE_SCREEN_SHARE_PRIVACY_NOTICE, /entire screen/i);
     assert.match(MOBILE_SCREEN_SHARE_PRIVACY_NOTICE, /notifications/i);
     assert.match(MOBILE_SCREEN_SHARE_PRIVACY_NOTICE, /other apps/i);
+    // A phone cannot capture its own sound, so the sharer has to be told before
+    // they assume the room hears the video they are playing.
+    assert.match(MOBILE_SCREEN_SHARE_PRIVACY_NOTICE, /audio is not shared/i);
     assert.match(MOBILE_SCREEN_SHARE_BACKGROUND_STOP_MESSAGE, /stopped/i);
     assert.equal(isMobileScreenSharePermissionDenied(new Error("Permission denied")), true);
     assert.equal(
@@ -168,6 +172,24 @@ describe("mobile screen share contract", () => {
       "Screen share failed without exposing sensitive details.",
     );
     assert.deepEqual(validateMobileScreenShareContract(), []);
+  });
+
+  it("tells the sharer in both locales that a phone shares no audio", () => {
+    for (const consentCopy of [
+      mobileCopy.tr.voiceScreenShareConsentDescription,
+      mobileCopy.en.voiceScreenShareConsentDescription,
+    ]) {
+      assert.ok(consentCopy.length > 40);
+      assert.match(consentCopy, /ses|audio/i);
+    }
+
+    assert.match(mobileCopy.en.voiceScreenShareConsentDescription, /audio is not shared/i);
+    assert.match(mobileCopy.tr.voiceScreenShareConsentDescription, /ses paylaşılmaz/i);
+    assert.notEqual(
+      mobileCopy.tr.voiceScreenShareConsentDescription,
+      mobileCopy.en.voiceScreenShareConsentDescription,
+      "the Turkish copy must be translated, not copied",
+    );
   });
 
   it("keeps the mobile voice hook aligned with LiveKit screen share lifecycle", () => {

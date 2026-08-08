@@ -3,7 +3,10 @@
 import type { InfiniteData } from "@tanstack/react-query";
 import {
   DMConversationDTOSchema,
+  GroupDMConversationResponseSchema,
   type DMConversationDTO,
+  type GroupDMCreateRequest,
+  type GroupDMUpdateRequest,
 } from "@wizards/types";
 import type { FriendPresenceUpdateDto } from "@/lib/friends/types";
 import {
@@ -61,12 +64,10 @@ async function requestJson<T>(url: string, options: RequestOptions = {}): Promis
   }
 
   const response = await fetch(url, requestInit);
-  const payload = (await response.json().catch(() => null)) as
-    | {
-        code?: string;
-        error?: string;
-      }
-    | null;
+  const payload = (await response.json().catch(() => null)) as {
+    code?: string;
+    error?: string;
+  } | null;
 
   if (!response.ok) {
     throw new DMClientError(payload?.error ?? "Request failed", response.status, payload?.code);
@@ -401,10 +402,7 @@ export function applyDMConversationPresenceUpdate(
   }));
 }
 
-export function findOtherParticipant(
-  conversation: DMConversationDTO,
-  currentUserId: string,
-) {
+export function findOtherParticipant(conversation: DMConversationDTO, currentUserId: string) {
   return (
     conversation.participants.find((participant) => participant.userId !== currentUserId) ??
     conversation.participants[0] ??
@@ -428,8 +426,8 @@ export function getConversationPreview(
         ? isMessageGifContentType(firstAttachment.contentType)
           ? gifLabel
           : isMessageImageContentType(firstAttachment.contentType)
-          ? imageLabel
-          : fileLabel
+            ? imageLabel
+            : fileLabel
         : "";
 
   if (normalizedPreview.length <= maxLength) {
@@ -478,6 +476,49 @@ export async function createDMConversationRequest(userId: string) {
   return DMConversationDTOSchema.parse(payload);
 }
 
+/**
+ * Faz 6. Four writes, one response shape: the routes always answer with
+ * `{ conversation }`, re-parsed here so a server-side drift fails at the seam
+ * instead of half-rendering the sidebar.
+ */
+export async function createGroupConversationRequest(input: GroupDMCreateRequest) {
+  const payload = await requestJson<unknown>("/api/v1/dm/groups", {
+    method: "POST",
+    body: input,
+  });
+
+  return GroupDMConversationResponseSchema.parse(payload).conversation;
+}
+
+export async function addGroupMembersRequest(conversationId: string, userIds: readonly string[]) {
+  const payload = await requestJson<unknown>(
+    `/api/v1/dm/groups/${encodeURIComponent(conversationId)}/members`,
+    { method: "POST", body: { userIds: [...userIds] } },
+  );
+
+  return GroupDMConversationResponseSchema.parse(payload).conversation;
+}
+
+export async function updateGroupConversationRequest(
+  conversationId: string,
+  patch: GroupDMUpdateRequest,
+) {
+  const payload = await requestJson<unknown>(
+    `/api/v1/dm/groups/${encodeURIComponent(conversationId)}`,
+    { method: "PATCH", body: patch },
+  );
+
+  return GroupDMConversationResponseSchema.parse(payload).conversation;
+}
+
+/** Removing yourself is how leaving is spelled; the route routes it either way. */
+export async function removeGroupMemberRequest(conversationId: string, userId: string) {
+  return requestJson<void>(
+    `/api/v1/dm/groups/${encodeURIComponent(conversationId)}/members/${encodeURIComponent(userId)}`,
+    { method: "DELETE" },
+  );
+}
+
 export async function hideDMConversationRequest(conversationId: string) {
   return requestJson<{ success: true }>(`/api/v1/dm/${conversationId}`, {
     method: "DELETE",
@@ -496,10 +537,7 @@ export async function markDMConversationUnreadRequest(conversationId: string) {
   });
 }
 
-export async function setDMConversationMutedRequest(
-  conversationId: string,
-  muted: boolean,
-) {
+export async function setDMConversationMutedRequest(conversationId: string, muted: boolean) {
   return requestJson<{ success: true }>(`/api/v1/dm/${conversationId}/mute`, {
     method: "PATCH",
     body: { muted },

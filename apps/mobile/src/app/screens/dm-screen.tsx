@@ -169,6 +169,11 @@ export function MessagesScreen({
     <View style={[styles.chatScreen, styles.dmInboxScreen]} testID="mobile-dm-inbox-screen">
       <DMInboxHeader
         onCompose={() => setInboxSegment(inboxSegment === "conversations" ? "friends" : "requests")}
+        onCreateGroup={() => {
+          if (mobileNavigationRef.isReady()) {
+            mobileNavigationRef.navigate("GroupCreate");
+          }
+        }}
         segment={inboxSegment}
       />
       <DMInboxSegmentTabs

@@ -105,7 +105,10 @@ export function createMobileLinkingOptions({
          */
         CommunityInvite: "invite/:slug",
         DirectMessage: "channels/@me/:conversationId",
+        Discover: "discover",
+        GroupCreate: "channels/@me/new-group",
         HelpCenter: "help",
+        ServerProfile: "server/:serverId/about",
         ServerRoles: "server/:serverId/settings/roles",
         SettingsDetail: "settings/:section",
         UserProfile: "user/:userId",
@@ -134,6 +137,13 @@ export function resolveMobileRoutePathIntent(path: string): MobileNavigationRout
   const channelRoute = parseMobileChannelsRoutePath(path);
 
   if (channelRoute?.serverId === "@me") {
+    // Faz 5 §13.2: `new-group` sits where a conversation id would, so it has to
+    // be claimed before the DirectMessage branch — otherwise the link opens a
+    // chat whose id is the literal string "new-group".
+    if (channelRoute.channelId === "new-group") {
+      return { name: "GroupCreate", params: undefined, type: "route" };
+    }
+
     return channelRoute.channelId
       ? {
           name: "DirectMessage",
@@ -204,6 +214,18 @@ export function resolveMobileRoutePathIntent(path: string): MobileNavigationRout
     return {
       name: "ServerRoles",
       params: { serverId: decodePathSegment(serverRolesMatch[1]) },
+      type: "route",
+    };
+  }
+
+  // S2 2g generalised to a `serverId` source: mirrors the web route shape
+  // (binding decision 5: `/(main)/servers/[serverId]/about`) one segment
+  // short, matching this file's singular `server/:id` convention above.
+  const serverProfileMatch = /^\/server\/([^/]+)\/about$/.exec(pathname);
+  if (serverProfileMatch?.[1]) {
+    return {
+      name: "ServerProfile",
+      params: { serverId: decodePathSegment(serverProfileMatch[1]) },
       type: "route",
     };
   }

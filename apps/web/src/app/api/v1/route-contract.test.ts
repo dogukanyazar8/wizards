@@ -19,6 +19,15 @@ const UNAUTHENTICATED_ROUTE_PATHS = new Set([
   "mobile/auth/register",
   "mobile/auth/revoke",
   "mobile/auth/verification-email",
+  // S2 binding decision: the profile card is readable without a session — a
+  // signed-in caller's viewerId is still passed through when present, but
+  // this route never throws 401 for its absence. See
+  // servers/[serverId]/profile/route-logic.ts.
+  "servers/[serverId]/profile",
+  // Same anonymous-read stance as the profile card above: browsing public,
+  // discoverable servers does not require a session. See
+  // servers/discover/route-logic.ts.
+  "servers/discover",
 ]);
 
 const BODYLESS_MUTATING_METHOD_PATHS = new Set([
@@ -27,6 +36,9 @@ const BODYLESS_MUTATING_METHOD_PATHS = new Set([
   "DELETE admin/servers/[serverId]",
   // Recomputing clusters reads the feedback table; there is nothing to send.
   "POST admin/feedback/clusters",
+  // The server id is the whole request: the repaired count is derived from the
+  // membership rows, never sent by the caller.
+  "POST admin/servers/[serverId]/recount",
   // Claiming a case only records who opened it; the session is the payload.
   "POST admin/moderation/cases/[caseId]/claim",
   // The approver is the session; the decision itself carries no payload.
@@ -41,6 +53,9 @@ const BODYLESS_MUTATING_METHOD_PATHS = new Set([
   "POST channels/[channelId]/messages/[messageId]/pin",
   "PATCH channels/[channelId]/read",
   "DELETE dm/[conversationId]",
+  // The path is the whole request: who is removed and from which group. The
+  // caller gets 204 and the updated roster over the socket, not in a body.
+  "DELETE dm/groups/[conversationId]/members/[userId]",
   "PATCH dm/[conversationId]/read",
   "PATCH dm/[conversationId]/unread",
   "DELETE friends/[userId]",
@@ -55,7 +70,11 @@ const BODYLESS_MUTATING_METHOD_PATHS = new Set([
   "DELETE mobile/channels/[channelId]/messages/[messageId]",
   "DELETE mobile/channels/[channelId]/messages/[messageId]/pin",
   "POST mobile/channels/[channelId]/messages/[messageId]/pin",
+  // Hiding a conversation is the viewer's own switch; the path says which one.
+  "DELETE mobile/dm/[conversationId]",
   "DELETE mobile/dm/[conversationId]/messages/[messageId]",
+  // Same as the web route: the path carries the whole request.
+  "DELETE mobile/dm/groups/[conversationId]/members/[userId]",
   "PATCH mobile/dm/[conversationId]/read",
   "DELETE mobile/friends/[userId]",
   "DELETE mobile/friends/blocks/[userId]",
@@ -83,6 +102,9 @@ const BODYLESS_MUTATING_METHOD_PATHS = new Set([
   "DELETE servers/[serverId]/members/[memberId]",
   "DELETE servers/[serverId]/members/me",
   "DELETE servers/[serverId]/roles/[roleId]",
+  // The path is the whole request: which server, joined by whoever is asking.
+  "POST servers/[serverId]/join",
+  "POST mobile/servers/[serverId]/join",
 ]);
 
 const AUTH_GUARD_CALL_PATTERN =
@@ -106,6 +128,21 @@ const EXPECTED_RATE_LIMIT_ACTIONS = [
     action: "server:delete",
     method: "DELETE",
     routePath: "servers/[serverId]",
+  },
+  {
+    action: "server:profile",
+    method: "GET",
+    routePath: "servers/[serverId]/profile",
+  },
+  {
+    action: "server:discover",
+    method: "GET",
+    routePath: "servers/discover",
+  },
+  {
+    action: "server:join-public",
+    method: "POST",
+    routePath: "servers/[serverId]/join",
   },
   {
     action: "mobile:message:search",
@@ -136,6 +173,16 @@ const EXPECTED_RATE_LIMIT_ACTIONS = [
     action: "mobile:server:join",
     method: "POST",
     routePath: "mobile/servers/join",
+  },
+  {
+    action: "mobile:server:join-public",
+    method: "POST",
+    routePath: "mobile/servers/[serverId]/join",
+  },
+  {
+    action: "mobile:server:discover",
+    method: "GET",
+    routePath: "mobile/servers/discover",
   },
   {
     action: "mobile:server:detail",
@@ -222,6 +269,11 @@ const EXPECTED_RATE_LIMIT_ACTIONS = [
     action: "mobile:server:members:list",
     method: "GET",
     routePath: "mobile/servers/[serverId]/members",
+  },
+  {
+    action: "mobile:server:profile",
+    method: "GET",
+    routePath: "mobile/servers/[serverId]/profile",
   },
   {
     action: "mobile:server:roles:list",
@@ -993,6 +1045,12 @@ function routeContractSourcePaths(route: RouteFile) {
     ),
   );
 
+  // A route-logic module may itself delegate to another one — the mobile group
+  // handlers are bearer-auth wrappers around the web group logic — so the walk
+  // is transitive. Only modules named `route-logic` are ever followed.
+  const pendingFiles: ts.SourceFile[] = [route.sourceFile];
+  const scannedFiles = new Set<ts.SourceFile>();
+
   function addImportTarget(identifier: ts.Identifier) {
     const symbol = route.checker.getSymbolAtLocation(identifier);
     if (!symbol) {
@@ -1000,30 +1058,40 @@ function routeContractSourcePaths(route: RouteFile) {
     }
 
     for (const declaration of resolveAliasedSymbol(symbol, route.checker).declarations ?? []) {
-      sourcePaths.add(path.normalize(declaration.getSourceFile().fileName).toLowerCase());
+      const declarationFile = declaration.getSourceFile();
+      sourcePaths.add(path.normalize(declarationFile.fileName).toLowerCase());
+      pendingFiles.push(declarationFile);
     }
   }
 
-  for (const statement of route.sourceFile.statements) {
-    if (
-      !ts.isImportDeclaration(statement) ||
-      !ts.isStringLiteralLike(statement.moduleSpecifier) ||
-      !statement.moduleSpecifier.text.endsWith("route-logic")
-    ) {
+  while (pendingFiles.length > 0) {
+    const sourceFile = pendingFiles.pop();
+    if (!sourceFile || scannedFiles.has(sourceFile)) {
       continue;
     }
+    scannedFiles.add(sourceFile);
 
-    const importClause = statement.importClause;
-    if (importClause?.name) {
-      addImportTarget(importClause.name);
-    }
+    for (const statement of sourceFile.statements) {
+      if (
+        !ts.isImportDeclaration(statement) ||
+        !ts.isStringLiteralLike(statement.moduleSpecifier) ||
+        !statement.moduleSpecifier.text.endsWith("route-logic")
+      ) {
+        continue;
+      }
 
-    const bindings = importClause?.namedBindings;
-    if (bindings && ts.isNamespaceImport(bindings)) {
-      addImportTarget(bindings.name);
-    } else if (bindings) {
-      for (const element of bindings.elements) {
-        addImportTarget(element.name);
+      const importClause = statement.importClause;
+      if (importClause?.name) {
+        addImportTarget(importClause.name);
+      }
+
+      const bindings = importClause?.namedBindings;
+      if (bindings && ts.isNamespaceImport(bindings)) {
+        addImportTarget(bindings.name);
+      } else if (bindings) {
+        for (const element of bindings.elements) {
+          addImportTarget(element.name);
+        }
       }
     }
   }
@@ -1435,7 +1503,7 @@ describe("API v1 route contract", () => {
       )
       .sort();
 
-    assert.equal(expectedM1Mappings.length, 28);
+    assert.equal(expectedM1Mappings.length, 31);
     assert.deepEqual(actualM1Mappings, expectedM1Mappings);
   });
 

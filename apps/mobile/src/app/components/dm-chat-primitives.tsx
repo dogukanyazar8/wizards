@@ -72,6 +72,7 @@ import { mobileMessagingMetrics } from "../../design/tokens";
 import { MessageEmojiPicker } from "./message-emoji-picker";
 import { MessageReactionDetailSheet } from "./message-reaction-detail-sheet";
 import { useDMChatStyles } from "./dm-chat-primitives.styles";
+import { DMSystemMessageRow, type MobileDMSystemMessageParticipant } from "./dm-system-message-row";
 import {
   getMobileNavigationSampleId,
   markMobileNavigationPhase,
@@ -118,10 +119,13 @@ export function getDMChatMessageGroupModel(
   });
 }
 
-export type DMChatMessageItemType = "attachment" | "date" | "rich" | "status" | "text";
+export type DMChatMessageItemType = "attachment" | "date" | "rich" | "status" | "system" | "text";
 
 /** Fixed-cardinality recycling hint; it never derives a type from message data. */
 export function getDMChatMessageItemType(item: DMChatMessageGroupItem): DMChatMessageItemType {
+  // A system row shares no subtree with a bubble, so it must not recycle into
+  // one — FlashList would otherwise reuse a bubble's cell for a centred pill.
+  if (item.message.systemType) return "system";
   if (item.showDateSeparator) return "date";
   if (item.message.attachments.length > 0) return "attachment";
   if (
@@ -141,6 +145,7 @@ export function DMChatHeader({
   isOnline,
   lastSeenAt = null,
   onBack,
+  onOpenDetails,
   onStartVideoCall,
   onStartVoiceCall,
   partnerUserId = null,
@@ -153,6 +158,11 @@ export function DMChatHeader({
   readonly isOnline: boolean;
   readonly lastSeenAt?: string | null;
   readonly onBack: () => void;
+  /**
+   * Faz 5 §17.1. A group has no counterpart, so both identity presses open the
+   * group's own details screen instead of a person's card and profile page.
+   */
+  readonly onOpenDetails?: (() => void) | undefined;
   readonly onStartVideoCall?: () => void;
   readonly onStartVoiceCall?: () => void;
   /**
@@ -201,9 +211,15 @@ export function DMChatHeader({
         <Pressable
           accessibilityLabel={copy.profileCardOpenActionTemplate.replace("{name}", title)}
           accessibilityRole="button"
-          disabled={!partnerUserId}
+          disabled={!onOpenDetails && !partnerUserId}
           hitSlop={4}
-          onPress={() => (partnerUserId ? openProfileCard(partnerUserId, undefined) : undefined)}
+          onPress={() =>
+            onOpenDetails
+              ? onOpenDetails()
+              : partnerUserId
+                ? openProfileCard(partnerUserId, undefined)
+                : undefined
+          }
           style={styles.headerAvatarShell}
           testID="mobile-dm-header-profile-card"
         >
@@ -220,8 +236,8 @@ export function DMChatHeader({
         <Pressable
           accessibilityLabel={copy.profileCardViewProfileAction}
           accessibilityRole="button"
-          disabled={!partnerUserId}
-          onPress={openFullProfile}
+          disabled={!onOpenDetails && !partnerUserId}
+          onPress={onOpenDetails ?? openFullProfile}
           style={styles.headerText}
           testID="mobile-dm-header-open-profile"
         >
@@ -1057,6 +1073,7 @@ export function DMChatMessageList({
   onReplyMessage,
   onRetryFailedMessage,
   onToggleReaction,
+  participants = [],
   partnerLastDeliveredAt = null,
   partnerLastReadAt,
 }: {
@@ -1074,6 +1091,12 @@ export function DMChatMessageList({
   readonly onReplyMessage?: (message: MobileMessageActionTarget) => void;
   readonly onRetryFailedMessage?: (messageId: string) => void;
   readonly onToggleReaction?: (input: MobileMessageReactionToggleInput) => void;
+  /**
+   * Faz 5 §16.3. A system row names people, and the ids it carries only become
+   * names against the conversation's roster. Empty for a 1:1, where no system
+   * row is ever written.
+   */
+  readonly participants?: readonly MobileDMSystemMessageParticipant[];
   readonly partnerLastDeliveredAt?: string | null | undefined;
   readonly partnerLastReadAt: string | null;
 }) {
@@ -1213,44 +1236,57 @@ export function DMChatMessageList({
   // every mounted row of the conversation each time anything above this
   // component moved.
   const renderItem = useCallback(
-    ({ item }: { item: DMChatMessageGroupItem }) => (
-      // §1.2: 3px inside a group, 10px between groups, 14px when the group ends
-      // on reaction chips (they already ride 9px up onto the bubble).
-      <View
-        style={{
-          marginBottom: item.isGroupedWithNext
-            ? mobileMessagingMetrics.bubble.gap
-            : item.message.reactions.length > 0
-              ? mobileMessagingMetrics.bubble.groupGapWithReaction
-              : messageSpacing.groupGap,
-        }}
-      >
-        {item.showDateSeparator ? <DMChatDateSeparator createdAt={item.message.createdAt} /> : null}
-        <MemoizedDMChatMessageRow
-          {...item}
-          animateEntrance={enteringMessageIds.has(item.message.id)}
+    ({ item }: { item: DMChatMessageGroupItem }) =>
+      // A group event is drawn before anything a bubble would add: it has no
+      // author column, no reactions and no menu, so it never enters the bubble
+      // path at all.
+      item.message.systemType ? (
+        <DMSystemMessageRow
           currentUserId={currentUserId}
-          isHighlighted={item.message.id === highlightedMessageId}
-          isReactionMutationPending={isReactionMutationPending}
-          menuOpen={openMenuMessageId === item.message.id}
-          onOpenReply={handleOpenReply}
-          onRequestReactionDetails={requestReactionDetails}
-          onSetMenuMessage={handleSetMenuMessage}
-          partnerLastDeliveredAt={partnerLastDeliveredAt}
-          partnerLastReadAt={partnerLastReadAt}
-          {...(onDeleteMessage ? { onDeleteMessage } : {})}
-          {...(onDiscardFailedMessage ? { onDiscardFailedMessage } : {})}
-          {...(onEditMessage ? { onEditMessage } : {})}
-          {...(onForwardMessage ? { onForwardMessage } : {})}
-          {...(onOpenThread ? { onOpenThread } : {})}
-          {...(onReplyMessage ? { onReplyMessage } : {})}
-          {...(onRetryFailedMessage ? { onRetryFailedMessage } : {})}
-          {...(onToggleReaction ? { onToggleReaction } : {})}
+          message={item.message}
+          participants={participants}
         />
-      </View>
-    ),
+      ) : (
+        // §1.2: 3px inside a group, 10px between groups, 14px when the group
+        // ends on reaction chips (they already ride 9px up onto the bubble).
+        <View
+          style={{
+            marginBottom: item.isGroupedWithNext
+              ? mobileMessagingMetrics.bubble.gap
+              : item.message.reactions.length > 0
+                ? mobileMessagingMetrics.bubble.groupGapWithReaction
+                : messageSpacing.groupGap,
+          }}
+        >
+          {item.showDateSeparator ? (
+            <DMChatDateSeparator createdAt={item.message.createdAt} />
+          ) : null}
+          <MemoizedDMChatMessageRow
+            {...item}
+            animateEntrance={enteringMessageIds.has(item.message.id)}
+            currentUserId={currentUserId}
+            isHighlighted={item.message.id === highlightedMessageId}
+            isReactionMutationPending={isReactionMutationPending}
+            menuOpen={openMenuMessageId === item.message.id}
+            onOpenReply={handleOpenReply}
+            onRequestReactionDetails={requestReactionDetails}
+            onSetMenuMessage={handleSetMenuMessage}
+            partnerLastDeliveredAt={partnerLastDeliveredAt}
+            partnerLastReadAt={partnerLastReadAt}
+            {...(onDeleteMessage ? { onDeleteMessage } : {})}
+            {...(onDiscardFailedMessage ? { onDiscardFailedMessage } : {})}
+            {...(onEditMessage ? { onEditMessage } : {})}
+            {...(onForwardMessage ? { onForwardMessage } : {})}
+            {...(onOpenThread ? { onOpenThread } : {})}
+            {...(onReplyMessage ? { onReplyMessage } : {})}
+            {...(onRetryFailedMessage ? { onRetryFailedMessage } : {})}
+            {...(onToggleReaction ? { onToggleReaction } : {})}
+          />
+        </View>
+      ),
     [
       currentUserId,
+      participants,
       // Stable across batches by contract: the tracker mutates one Set rather
       // than minting a new one, so an arriving message does not re-mint
       // `renderItem` and with it every mounted row.

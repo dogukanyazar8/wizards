@@ -10,6 +10,7 @@ import {
   sanitizeDesktopVoiceShortcut,
   sanitizePushToTalkHangoverMs,
   sanitizeUniqueDesktopVoiceShortcut,
+  sanitizeScreenShareVolume,
   sanitizeVoiceInputMode,
 } from "./voice-store";
 import {
@@ -18,6 +19,23 @@ import {
   sanitizeDesktopGameOverlayAnchor,
   sanitizeDesktopGameOverlaySize,
 } from "@/lib/desktop/voice-mini";
+
+describe("screen share audio volume preference", () => {
+  it("keeps the listener ceiling inside 0-100 and rounds it", () => {
+    assert.equal(sanitizeScreenShareVolume(0), 0);
+    assert.equal(sanitizeScreenShareVolume(45.4), 45);
+    assert.equal(sanitizeScreenShareVolume(100), 100);
+    assert.equal(sanitizeScreenShareVolume(140), 100);
+    assert.equal(sanitizeScreenShareVolume(-20), 0);
+  });
+
+  it("falls back to full volume for anything that is not a number", () => {
+    assert.equal(sanitizeScreenShareVolume(undefined), 100);
+    assert.equal(sanitizeScreenShareVolume(null), 100);
+    assert.equal(sanitizeScreenShareVolume("70"), 100);
+    assert.equal(sanitizeScreenShareVolume(Number.NaN), 100);
+  });
+});
 
 describe("voice desktop preference sanitizers", () => {
   it("keeps push-to-talk opt-in mode explicit", () => {

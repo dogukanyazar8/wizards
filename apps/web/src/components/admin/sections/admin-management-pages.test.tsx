@@ -53,6 +53,7 @@ const servers: AdminServersResult = {
       createdAt: "2026-07-01T12:00:00.000Z",
       description: "Whispr merkezi",
       discoverable: true,
+      featured: false,
       iconUrl: null,
       id: "server-whispr",
       isPublic: true,
@@ -61,12 +62,25 @@ const servers: AdminServersResult = {
       name: "Whispr HQ",
       owner: { displayName: "Ada Yılmaz", id: "user-ada", username: "ada" },
       preferredLocale: "tr",
+      storedMemberCount: 126,
       textChannelCount: 3,
+      type: "COMMUNITY",
       updatedAt: "2026-07-01T12:00:00.000Z",
+      verified: true,
       voiceChannelCount: 1,
     },
   ],
 };
+
+const serverAuditTrail = [
+  {
+    action: "server.update",
+    actor: { displayName: "Ada Yılmaz", id: "user-ada", username: "ada" },
+    createdAt: "2026-07-02T09:30:00.000Z",
+    id: "audit-1",
+    targetId: "server-whispr",
+  },
+];
 
 describe("admin management pages", () => {
   it("renders users with the required filters, non-suspension KPI, and stable grid", () => {
@@ -106,6 +120,8 @@ describe("admin management pages", () => {
   it("renders servers with activity, discovery and public-state badges without invented fields", () => {
     const markup = renderToStaticMarkup(
       <AdminServers
+        auditTrail={serverAuditTrail}
+        canWrite={false}
         filters={{ query: "whispr" }}
         result={servers}
         serverHealth={{ activeServers: 9, publicServers: 7, totalServers: 12 }}
@@ -118,8 +134,78 @@ describe("admin management pages", () => {
 
     assert.doesNotMatch(markup, /Büyüme/u);
     assert.doesNotMatch(markup, /Ortak/u);
-    // The schema has no verification flag, so the panel must not claim one.
-    assert.doesNotMatch(markup, /Doğrulanmış/u);
     assert.match(markup, /\/admin\/servers\?query=whispr&amp;page=3/u);
+  });
+
+  it("hides every write control from a reader, and shows them to server.write", () => {
+    const readOnly = renderToStaticMarkup(
+      <AdminServers
+        auditTrail={serverAuditTrail}
+        canWrite={false}
+        filters={{}}
+        result={servers}
+        serverHealth={{ activeServers: 9, publicServers: 7, totalServers: 12 }}
+      />,
+    );
+
+    for (const control of ["Yeni sunucu", "Topluluğa terfi", "Kişiselleştir", "Öne çıkar", "Sil"]) {
+      assert.doesNotMatch(readOnly, new RegExp(control, "u"));
+    }
+
+    const writable = renderToStaticMarkup(
+      <AdminServers
+        auditTrail={serverAuditTrail}
+        canWrite
+        filters={{}}
+        result={servers}
+        serverHealth={{ activeServers: 9, publicServers: 7, totalServers: 12 }}
+      />,
+    );
+
+    for (const control of [
+      "Yeni sunucu",
+      // The fixture is a community server, so the row offers demotion.
+      "Kişiselleştir",
+      "Doğrulamayı kaldır",
+      "Öne çıkar",
+      "Sayacı yeniden hesapla",
+      "Sil",
+    ]) {
+      assert.match(writable, new RegExp(control, "u"));
+    }
+  });
+
+  it("shows the verification badge and the counter drift the server list reports", () => {
+    const markup = renderToStaticMarkup(
+      <AdminServers
+        auditTrail={serverAuditTrail}
+        canWrite
+        filters={{}}
+        result={servers}
+        serverHealth={{ activeServers: 9, publicServers: 7, totalServers: 12 }}
+      />,
+    );
+
+    assert.match(markup, /Doğrulanmış/u);
+    assert.match(markup, /Topluluk/u);
+    // Live 128 against the stored 126: the drift is visible before it is repaired.
+    assert.match(markup, /128 üye/u);
+    assert.match(markup, /sayaç: 126/u);
+  });
+
+  it("renders the audit trail of the server writes", () => {
+    const markup = renderToStaticMarkup(
+      <AdminServers
+        auditTrail={serverAuditTrail}
+        canWrite
+        filters={{}}
+        result={servers}
+        serverHealth={{ activeServers: 9, publicServers: 7, totalServers: 12 }}
+      />,
+    );
+
+    assert.match(markup, /Son sunucu işlemleri/u);
+    assert.match(markup, /@ada/u);
+    assert.match(markup, /güncelledi/u);
   });
 });

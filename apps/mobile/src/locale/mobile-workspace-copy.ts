@@ -34,6 +34,7 @@ type MobileServerMembersLabels = Readonly<{
   roles: string;
   rolesHint: string;
   rolesUnavailable: string;
+  serverProfile: string;
   status: Readonly<Record<string, string>>;
 }>;
 
@@ -146,6 +147,7 @@ export const mobileServerMembersCopy: Readonly<Record<MobileLocale, MobileServer
     roles: "Roles",
     rolesHint: "Tap a role to assign or remove it instantly.",
     rolesUnavailable: "No assignable roles are available.",
+    serverProfile: "Server profile",
     status: {
       DND: "Do not disturb",
       IDLE: "Idle",
@@ -168,6 +170,7 @@ export const mobileServerMembersCopy: Readonly<Record<MobileLocale, MobileServer
     roles: "Roller",
     rolesHint: "Rolü anında atamak veya kaldırmak için dokun.",
     rolesUnavailable: "Atanabilir rol bulunmuyor.",
+    serverProfile: "Sunucu profili",
     status: {
       DND: "Rahatsız etmeyin",
       IDLE: "Boşta",

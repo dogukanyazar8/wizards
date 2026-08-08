@@ -88,12 +88,10 @@ async function requestJson<T>(url: string, options: RequestOptions = {}): Promis
 
   const response = await fetch(url, requestInit);
 
-  const payload = (await response.json().catch(() => null)) as
-    | {
-        code?: string;
-        error?: string;
-      }
-    | null;
+  const payload = (await response.json().catch(() => null)) as {
+    code?: string;
+    error?: string;
+  } | null;
 
   if (!response.ok) {
     throw new WorkspaceClientError(
@@ -184,7 +182,9 @@ export async function updateServerRequest(
     allowGifs?: boolean;
     allowMemberAdds?: boolean;
     description?: string | null;
+    discoverable?: boolean;
     iconUrl?: string | null;
+    isPublic?: boolean;
     messageCharacterLimit?: number;
     deletedMessageNoticeMinutes?: number;
     name?: string;
@@ -248,13 +248,10 @@ export async function updateWorkspaceRoleRequest(
   roleId: string,
   input: UpdateWorkspaceRoleInput,
 ) {
-  const payload = await requestJson<unknown>(
-    `/api/v1/servers/${serverId}/roles/${roleId}`,
-    {
-      body: input,
-      method: "PATCH",
-    },
-  );
+  const payload = await requestJson<unknown>(`/api/v1/servers/${serverId}/roles/${roleId}`, {
+    body: input,
+    method: "PATCH",
+  });
   return WorkspaceRoleResponseSchema.parse(payload).role;
 }
 
@@ -269,13 +266,10 @@ export async function updateWorkspaceMemberRolesRequest(
   memberId: string,
   input: UpdateWorkspaceMemberRolesInput,
 ) {
-  return requestJson<{ success: true }>(
-    `/api/v1/servers/${serverId}/members/${memberId}/roles`,
-    {
-      body: input,
-      method: "PATCH",
-    },
-  );
+  return requestJson<{ success: true }>(`/api/v1/servers/${serverId}/members/${memberId}/roles`, {
+    body: input,
+    method: "PATCH",
+  });
 }
 
 export async function createCategoryRequest(serverId: string, name: string) {
@@ -285,33 +279,20 @@ export async function createCategoryRequest(serverId: string, name: string) {
   });
 }
 
-export async function updateCategoryRequest(
-  serverId: string,
-  categoryId: string,
-  name: string,
-) {
-  return requestJson<{ success: true }>(
-    `/api/v1/servers/${serverId}/categories/${categoryId}`,
-    {
-      body: { name },
-      method: "PATCH",
-    },
-  );
+export async function updateCategoryRequest(serverId: string, categoryId: string, name: string) {
+  return requestJson<{ success: true }>(`/api/v1/servers/${serverId}/categories/${categoryId}`, {
+    body: { name },
+    method: "PATCH",
+  });
 }
 
 export async function deleteCategoryRequest(serverId: string, categoryId: string) {
-  return requestJson<{ success: true }>(
-    `/api/v1/servers/${serverId}/categories/${categoryId}`,
-    {
-      method: "DELETE",
-    },
-  );
+  return requestJson<{ success: true }>(`/api/v1/servers/${serverId}/categories/${categoryId}`, {
+    method: "DELETE",
+  });
 }
 
-export async function createChannelRequest(
-  serverId: string,
-  input: CreateChannelInput,
-) {
+export async function createChannelRequest(serverId: string, input: CreateChannelInput) {
   return requestJson<{ id: string }>(`/api/v1/servers/${serverId}/channels`, {
     body: input,
     method: "POST",
@@ -389,10 +370,13 @@ export async function updateChannelNotificationSettings(
   channelId: string,
   level: "all" | "mentions" | "muted",
 ) {
-  const payload = await requestJson<unknown>(`/api/v1/channels/${channelId}/notification-settings`, {
-    body: { level },
-    method: "PATCH",
-  });
+  const payload = await requestJson<unknown>(
+    `/api/v1/channels/${channelId}/notification-settings`,
+    {
+      body: { level },
+      method: "PATCH",
+    },
+  );
   return ChannelNotificationSettingsResponseSchema.parse(payload);
 }
 

@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { DMSystemMessageTypeSchema } from "./dm-system-message";
+
 export const MESSAGE_CONTENT_HARD_LIMIT = 40000;
 export const MESSAGE_CONTENT_DEFAULT_LIMIT = 2000;
 
@@ -99,6 +101,15 @@ export const ChatMessageSchema = z.object({
    */
   clientNonce: z.string().min(1).max(128).nullable().optional(),
   errorMessage: z.string().optional(),
+  /**
+   * Faz 6 §19.1. A group DM event travels the same stream as a message, with an
+   * empty `content` the client turns into a localized sentence. Optional because
+   * a channel message never carries one — `type` is what marks a channel's own
+   * system rows.
+   */
+  systemType: DMSystemMessageTypeSchema.nullable().optional(),
+  systemTargetUserIds: z.array(z.string()).optional(),
+  systemValue: z.string().nullable().optional(),
   forwardedAt: z.string().datetime().nullable().optional(),
   editedAt: z.string().datetime().nullable(),
   deletedAt: z.string().datetime().nullable(),

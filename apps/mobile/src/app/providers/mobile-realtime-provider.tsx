@@ -22,6 +22,7 @@ import {
   createMobileRealtimeClient,
   type MobileRealtimeClient,
 } from "../../realtime/mobile-realtime-client";
+import { mobileNavigationRef } from "../../navigation/mobile-navigation-ref";
 import { createMobileRealtimeQueryBridge } from "../../realtime/realtime-query-bridge";
 import {
   createInitialMobileRealtimeSnapshot,
@@ -120,6 +121,14 @@ export function MobileRealtimeProvider({ children }: PropsWithChildren) {
   const setDMTyping = mobileTypingStoreWriters.patchDMs;
   const [bridge] = useState(() =>
     createMobileRealtimeQueryBridge({
+      // Faz 5 §17.2: being removed from a group leaves the viewer holding a
+      // conversation the server now refuses, so the open screen is popped back
+      // to the inbox rather than left to poll a 403.
+      closeConversation: () => {
+        if (mobileNavigationRef.isReady()) {
+          mobileNavigationRef.navigate("MainTabs", { screen: "messages" });
+        }
+      },
       getActiveTargets: () => {
         const { channelId, conversationId, serverId, voiceChannelId } =
           useMobileActiveTargetStore.getState();

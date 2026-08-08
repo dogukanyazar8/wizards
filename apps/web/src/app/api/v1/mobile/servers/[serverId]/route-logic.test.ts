@@ -10,11 +10,13 @@ const routes = import("./route-logic");
 
 const access = {
   accessLevel: "MEMBER",
+  isPublic: false,
   memberId: "member-1",
   ownerId: "owner-1",
   roles: [],
   serverId: "server-1",
   serverName: "Guild",
+  type: "PERSONAL",
   userId: "user-1",
 } satisfies AccessContext;
 
@@ -44,16 +46,19 @@ const detail = {
     defaultChannelId: "channel-1",
     deletedMessageNoticeMinutes: 60,
     description: "A guild",
+    discoverable: false,
     iconUrl: "https://cdn.whispr.test/icon.png",
     id: "server-1",
     inviteCode: null,
     isAdmin: true,
     isOwner: false,
+    isPublic: false,
     memberCount: 2,
     mentionCount: 1,
     messageCharacterLimit: 2_000,
     name: "Guild",
     shortName: "GLD",
+    type: "PERSONAL" as const,
     unreadCount: 3,
   },
   ungroupedChannels: [

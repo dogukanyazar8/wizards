@@ -19,6 +19,9 @@ export const MOBILE_REALTIME_SERVER_EVENTS = [
   "dm:conversation:updated",
   "dm:conversation:read",
   "dm:conversation:delivered",
+  "dm:conversation:created",
+  "dm:conversation:members_changed",
+  "dm:conversation:removed",
   "dm:call:incoming",
   "dm:call:accepted",
   "dm:call:declined",
@@ -126,6 +129,11 @@ const CHANNEL_WORKSPACE_REFRESH_EVENTS = new Set<MobileRealtimeServerEventName>(
 const DM_REFRESH_EVENTS = new Set<MobileRealtimeServerEventName>([
   "dm:conversation:updated",
   "dm:conversation:read",
+  // Faz 5 §17.2: a group appearing, changing hands, or losing the viewer each
+  // rewrites the inbox row, and none of them ride a message event.
+  "dm:conversation:created",
+  "dm:conversation:members_changed",
+  "dm:conversation:removed",
   "dm:message:new",
   "dm:message:updated",
   "dm:message:deleted",
@@ -145,6 +153,10 @@ const WORKSPACE_REFRESH_EVENTS = new Set<MobileRealtimeServerEventName>([
 const BOOTSTRAP_REFRESH_EVENTS = new Set<MobileRealtimeServerEventName>([
   "server:unread:update",
   "notification:new",
+  // The bootstrap payload carries the DM inventory, so a conversation gained or
+  // lost has to reach it too.
+  "dm:conversation:created",
+  "dm:conversation:removed",
 ]);
 
 const SOCIAL_REFRESH_EVENTS = new Set<MobileRealtimeServerEventName>([

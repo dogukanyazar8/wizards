@@ -24,6 +24,7 @@ export function MobileWorkspaceServerSwitcherSheet({
   missedNotifications = [],
   onClose,
   onOpenCreateJoin,
+  onOpenDiscover,
   onOpenServer,
   onSeeAllMissed,
   open,
@@ -35,6 +36,8 @@ export function MobileWorkspaceServerSwitcherSheet({
   missedNotifications?: readonly MobileNotificationItem[];
   onClose(): void;
   onOpenCreateJoin(): void;
+  /** Required, not optional: a hidden discover row is the gap this row closes. */
+  onOpenDiscover(): void;
   onOpenServer(serverId: string): void;
   onSeeAllMissed?(): void;
   open: boolean;
@@ -179,6 +182,27 @@ export function MobileWorkspaceServerSwitcherSheet({
               </Text>
               <Text style={styles.newServerMeta}>
                 {copy.workspaceServerSwitcherNewServerDescription}
+              </Text>
+            </View>
+          </Pressable>
+
+          <Pressable
+            accessibilityLabel={copy.workspaceServerDiscoverAction}
+            accessibilityRole="button"
+            onPress={() => {
+              onClose();
+              onOpenDiscover();
+            }}
+            style={({ pressed }) => [styles.newServerRow, pressed && styles.pressed]}
+            testID="mobile-server-switcher-discover"
+          >
+            <View style={styles.newServerIcon}>
+              <Ionicons name="compass-outline" size={21} color={theme.text.muted} />
+            </View>
+            <View style={styles.serverText}>
+              <Text style={styles.newServerTitle}>{copy.workspaceServerDiscoverAction}</Text>
+              <Text style={styles.newServerMeta}>
+                {copy.workspaceServerDiscoverOptionDescription}
               </Text>
             </View>
           </Pressable>

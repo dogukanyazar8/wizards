@@ -23,7 +23,19 @@ describe("server type and counter schema", () => {
     assert.ok(model, "model Server is missing");
     assert.match(model[1], /type\s+ServerType\s+@default\(PERSONAL\)/);
     assert.match(model[1], /memberCount\s+Int\s+@default\(0\)/);
-    assert.match(model[1], /@@index\(\[type, discoverable, memberCount\]\)/);
+  });
+
+  // S1 shipped `@@index([type, discoverable, memberCount])`. S3 replaced it
+  // with `[discoverable, isPublic, memberCount]` because no query filters on
+  // `Server.type`, and a later audit dropped the dead S1 index entirely
+  // (20260808130000_drop_server_type_discoverable_index) -- it shared
+  // `memberCount` with the live index, so every join/leave/kick maintained a
+  // second B-tree nothing ever read.
+  it("no longer carries the dead S1 index that duplicated memberCount writes", () => {
+    const model = schema.match(/model Server \{([\s\S]*?)\n\}/);
+    assert.ok(model, "model Server is missing");
+    assert.doesNotMatch(model[1], /@@index\(\[type, discoverable, memberCount\]\)/);
+    assert.match(model[1], /@@index\(\[discoverable, isPublic, memberCount\]\)/);
   });
 
   it("ships the migration in the directory Prisma actually reads", () => {

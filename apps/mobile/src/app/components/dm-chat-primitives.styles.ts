@@ -350,6 +350,27 @@ export const createDMChatStyles = (theme: MobileTheme) =>
       includeFontPadding: false,
     },
     errorRow: { gap: 8, paddingHorizontal: 16, paddingVertical: 12 },
+    /**
+     * Faz 5 §16.3. A group event is a note about the conversation, not a turn in
+     * it: centred, muted, no bubble, no avatar, no timestamp and nothing to long
+     * press.
+     */
+    systemMessageRow: { alignItems: "center", paddingHorizontal: 24, paddingVertical: 6 },
+    systemMessagePill: {
+      maxWidth: "100%",
+      borderRadius: 12,
+      backgroundColor: theme.messaging.segmentTrack,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+    },
+    systemMessageText: {
+      color: theme.messaging.textSecondary,
+      fontSize: 12,
+      lineHeight: 16,
+      textAlign: "center",
+      fontFamily: theme.typography.fontFamilyMedium,
+      includeFontPadding: false,
+    },
     ...createSharedStyles(theme),
   }) satisfies Record<string, ImageStyle | TextStyle | ViewStyle>;
 

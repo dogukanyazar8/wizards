@@ -19,6 +19,10 @@ import {
   useMemo,
   type MobileDMConversationListItem,
 } from "../mobile-root-screen-shared";
+import {
+  buildGroupSystemMessageSentence,
+  toGroupSystemMessageLabels,
+} from "../../dm/group-system-message-copy";
 import { getMobilePresenceColor } from "../../design/mobile-presence-color";
 import { MobileLineIcon } from "../../design/mobile-line-icons";
 import { mobileMessagingMetrics as msg } from "../../design/tokens";
@@ -69,9 +73,11 @@ export function useMobileDmSegmentSwipe(
  */
 export function DMInboxHeader({
   onCompose,
+  onCreateGroup,
   segment,
 }: {
   onCompose(): void;
+  onCreateGroup(): void;
   segment: MobileDMInboxSegment;
 }) {
   const theme = useTheme();
@@ -80,19 +86,37 @@ export function DMInboxHeader({
   return (
     <View style={styles.dmInboxHeader}>
       <Text style={styles.dmInboxTitle}>{copy.dmInboxTitle}</Text>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={composesChat ? copy.dmComposeAction : copy.dmAddFriendAction}
-        onPress={onCompose}
-        testID="mobile-dm-compose-button"
-        style={styles.dmComposeButton}
-      >
-        <MobileLineIcon
-          color={theme.messaging.surface}
-          name={composesChat ? "edit" : "person-plus"}
-          size={19}
-        />
-      </Pressable>
+      <View style={styles.dmInboxHeaderActions}>
+        {/*
+         * Faz 5 §13.1: group creation is a Chats-tab action. The Friends and
+         * Requests tabs are about people, not conversations, so the button is
+         * not drawn there at all rather than drawn disabled.
+         */}
+        {composesChat ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={copy.dmCreateGroupAction}
+            onPress={onCreateGroup}
+            testID="mobile-dm-create-group-button"
+            style={styles.dmComposeButton}
+          >
+            <MobileLineIcon color={theme.messaging.surface} name="plus" size={19} />
+          </Pressable>
+        ) : null}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={composesChat ? copy.dmComposeAction : copy.dmAddFriendAction}
+          onPress={onCompose}
+          testID="mobile-dm-compose-button"
+          style={styles.dmComposeButton}
+        >
+          <MobileLineIcon
+            color={theme.messaging.surface}
+            name={composesChat ? "edit" : "person-plus"}
+            size={19}
+          />
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -451,16 +475,49 @@ export const DirectMessageConversationCard = memo(function DirectMessageConversa
   // incoming preview has `deliveryStatus === null` and draws nothing.
   const previewDelivery = lastMessage?.deliveryStatus ?? null;
   const isVoicePreview = lastMessage?.kind === "voice";
+  /**
+   * A group lifecycle row arrives with empty `text`, because the sentence depends
+   * on the reader's locale. It is built here from the same helper the chat stream
+   * uses, so the row and the conversation never describe one event two ways.
+   */
+  const systemSentence = lastMessage?.systemType
+    ? buildGroupSystemMessageSentence({
+        currentUserId,
+        labels: toGroupSystemMessageLabels(copy),
+        message: {
+          systemTargetUserIds: lastMessage.systemTargetUserIds,
+          systemType: lastMessage.systemType,
+          systemValue: lastMessage.systemValue,
+          userId: lastMessage.author.id,
+        },
+        // The row carries only the first few participants, so the author is
+        // prepended: they are always the actor and may fall outside that slice.
+        participants: [
+          {
+            displayName: lastMessage.author.displayName,
+            userId: lastMessage.author.id,
+            username: lastMessage.author.username,
+          },
+          ...conversation.participants.map((participant) => ({
+            displayName: participant.displayName,
+            userId: participant.id,
+            username: participant.username,
+          })),
+        ],
+      })
+    : "";
   const preview = lastMessage
-    ? isVoicePreview
-      ? formatMobileVoicePreviewLabel(lastMessage.durationSec)
-      : `${
-          lastMessage.authorIsCurrentUser
-            ? `${copy.directMessagePreviewYouPrefix}: `
-            : isGroupConversation
-              ? `${lastMessage.author.displayName ?? lastMessage.author.username}: `
-              : ""
-        }${lastMessage.text}`
+    ? // The sentence already names who did what, so it takes no author prefix.
+      systemSentence ||
+      (isVoicePreview
+        ? formatMobileVoicePreviewLabel(lastMessage.durationSec)
+        : `${
+            lastMessage.authorIsCurrentUser
+              ? `${copy.directMessagePreviewYouPrefix}: `
+              : isGroupConversation
+                ? `${lastMessage.author.displayName ?? lastMessage.author.username}: `
+                : ""
+          }${lastMessage.text}`)
     : copy.homeContinueLatestDirectMessage;
 
   return (
