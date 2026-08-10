@@ -21,7 +21,7 @@
   "dependencies": {
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "tailwind-merge": "^3.2.0"
+    "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
     "@types/node": "^24.13.3",
@@ -29,7 +29,7 @@
     "prettier": "3.9.6",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "tsx": "^4.23.1",
+    "tsx": "^4.23.9",
     "typescript": "catalog:"
   },
   "peerDependencies": {
