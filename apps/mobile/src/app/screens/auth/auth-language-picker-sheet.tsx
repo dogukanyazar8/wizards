@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { BottomSheet } from "../../components/kit/bottom-sheet";
 import { Icon } from "../../components/kit/icon";
+import { Toggle } from "../../components/kit/toggle";
 import { useMobileHaptics } from "../../providers/mobile-haptics-provider";
 import { useTheme, useThemedStyles } from "../../providers/mobile-theme-provider";
 import {
@@ -53,7 +54,10 @@ export function AuthLanguagePickerSheet({
     : LANGUAGE_SHEET_COMPACT_HEIGHT;
   const sheetHeight = Math.max(240, Math.min(requestedSheetHeight, windowHeight - insets.top - 16));
   const languageOptions = useMemo<readonly MobileLocaleOption[]>(
-    () => [...MOBILE_LOCALE_OPTIONS].sort((left, right) => left.nativeName.localeCompare(right.nativeName, "tr")),
+    () =>
+      [...MOBILE_LOCALE_OPTIONS].sort((left, right) =>
+        left.nativeName.localeCompare(right.nativeName, "tr"),
+      ),
     [],
   );
   const visibleLanguageOptions = useMemo(() => {
@@ -134,7 +138,10 @@ export function AuthLanguagePickerSheet({
     >
       <View style={styles.content}>
         <ScrollView
-          contentContainerStyle={[styles.scrollContent, { paddingBottom: theme.layout.auth.languageSheet.contentPaddingBottom + insets.bottom }]}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingBottom: theme.layout.auth.languageSheet.contentPaddingBottom + insets.bottom },
+          ]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -231,17 +238,12 @@ export function AuthLanguagePickerSheet({
             <Text maxFontSizeMultiplier={2} style={styles.deviceRowLabel}>
               {copy.authLanguagePickerDeviceMode}
             </Text>
-            <Pressable
+            <Toggle
               accessibilityLabel={copy.authLanguagePickerDeviceMode}
-              accessibilityRole="switch"
-              accessibilityState={{ checked: usingDeviceLocale }}
-              hitSlop={8}
-              onPress={() => onSetUseDeviceLocale(!usingDeviceLocale)}
-              style={[styles.toggleTrack, usingDeviceLocale && styles.toggleTrackEnabled]}
+              onValueChange={onSetUseDeviceLocale}
               testID="mobile-auth-language-device-toggle"
-            >
-              <View style={[styles.toggleThumb, usingDeviceLocale && styles.toggleThumbEnabled]} />
-            </Pressable>
+              value={usingDeviceLocale}
+            />
           </View>
         </ScrollView>
       </View>

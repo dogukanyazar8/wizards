@@ -303,12 +303,19 @@ export function MobileDirectCallSurface({
       <MobileVoiceSettingsSheet
         audioInputs={voiceRoomState.availableAudioInputs}
         audioOutputs={voiceRoomState.availableAudioOutputs}
+        connectionStatus={voiceRoomState.status}
+        inputLevel={
+          voiceRoomState.participants.find((participant) => participant.isSelf)?.audioLevel ?? 0
+        }
+        micMuted={voiceRoomState.selfMuted}
         noiseSuppressionEnabled={voiceRoomState.noiseSuppressionEnabled}
         onClose={() => setSettingsOpen(false)}
         onRefresh={onRefreshVoiceDevices}
         onSelectAudioInput={onSelectVoiceAudioInput}
         onSelectAudioOutput={onSelectVoiceAudioOutputDevice}
         onSelectNoiseSuppression={onSelectVoiceNoiseSuppression}
+        onToggleMic={onToggleVoiceMute}
+        participantCount={voiceRoomState.participants.length}
         {...(onSelectVoiceScreenShareQuality
           ? { onSelectScreenShareQuality: onSelectVoiceScreenShareQuality }
           : {})}

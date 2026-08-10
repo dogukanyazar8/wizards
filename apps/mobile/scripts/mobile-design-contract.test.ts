@@ -80,6 +80,36 @@ function readMobileAuthImplementationSource() {
 }
 
 describe("mobile design contract", () => {
+  it("draws every switch with the shared kit toggle, and never dims a busy one", () => {
+    // `src/design` is the token table itself: it may still name a `toggleKnob`
+    // colour. The rule is about screens drawing their own control.
+    const sources = collectSourceFiles(join(process.cwd(), "src")).filter(
+      (path) =>
+        !path.endsWith(join("components", "kit", "toggle.tsx")) &&
+        !path.includes(join("src", "design")),
+    );
+
+    for (const path of sources) {
+      const source = readFileSync(path, "utf8");
+      const label = relative(process.cwd(), path);
+
+      // No screen re-draws a track and knob of its own, and none falls back to
+      // React Native's platform switch.
+      assert.doesNotMatch(source, /toggleTrack|toggleKnob/, `${label} draws its own toggle track`);
+      assert.doesNotMatch(source, /<Switch\b/, `${label} renders a platform Switch`);
+      // A request in flight is `readOnly` (full colour); `disabled` is reserved
+      // for permanently unavailable switches, so one pending switch never dims
+      // the switches beside it.
+      for (const block of source.match(/<Toggle\b[\s\S]*?\/>/g) ?? []) {
+        assert.doesNotMatch(
+          block,
+          /disabled=\{[^}]*isPending/,
+          `${label} dims a switch while a mutation is pending`,
+        );
+      }
+    }
+  });
+
   it("keeps the semantic theme outside crash and product providers", () => {
     const appSource = readFileSync(join(process.cwd(), "App.tsx"), "utf8");
     const providerOrder = [
@@ -535,8 +565,8 @@ describe("mobile design contract", () => {
     assert.match(voiceStylesSource, /activeVoiceRoomBackButton:[\s\S]*width: 36/);
     assert.match(voiceStylesSource, /activeVoiceRoomBackButton:[\s\S]*borderRadius: 13/);
     assert.match(voiceStylesSource, /activeVoiceRoomSessionStrip:[\s\S]*borderRadius: 16/);
-    assert.match(voiceStylesSource, /activeVoiceRoomNoiseToggle:[\s\S]*width: 36/);
-    assert.match(voiceStylesSource, /activeVoiceRoomNoiseToggle:[\s\S]*height: 21/);
+    // The noise switch is the shared `kit/toggle`, so the room draws no track of its own.
+    assert.doesNotMatch(voiceStylesSource, /activeVoiceRoomNoiseToggle/);
     assert.match(voiceStylesSource, /activeVoiceRoomSoloCard:[\s\S]*borderRadius: 28/);
     assert.match(voiceStylesSource, /activeVoiceRoomStatusBadge:[\s\S]*width: 30/);
     // Every colour in the room comes from the dedicated voice-room token group.

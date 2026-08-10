@@ -1,0 +1,431 @@
+{
+  "axis": "A2",
+  "axisTitle": "Performans",
+  "baseCommit": "5a2b3990733b17672cf65fba631b7ec44a7bf96a",
+  "generatedAt": "2026-08-08",
+  "generatedFrom": [
+    "scratchpad/scan-findmany2.mjs — 210 findMany cagri yerinin balanced-paren analizi",
+    "grep -rn 'fetchSockets' apps/web/src --include=*.ts",
+    "grep -rn -B4 'await prisma\\.' apps/web/src | grep -E 'for \\(|\\.map\\(async'",
+    "pnpm exec turbo typecheck --force (soguk sure)",
+    "pnpm --filter @wizards/web test (sure + sayim)",
+    "pnpm --filter @wizards/mobile test (sure + sayim)",
+    "graphify explain \"rate-limits.ts\""
+  ],
+  "surfaceCoverage": [
+    {
+      "surface": "Prisma findMany cagri yerleri (apps/web)",
+      "unitsTotal": 210,
+      "unitsInspected": 210,
+      "method": "AST'siz ama parantez-dengeli tarayici (scan-findmany2.mjs) her cagri yerini siniflandirdi: nesne literal + take / take yok / degisken arguman. Buyume riski yuksek modellerdeki 54 cagri elle acildi.",
+      "notCovered": []
+    },
+    {
+      "surface": "apps/web/src/app/api/**/route.ts",
+      "unitsTotal": 211,
+      "unitsInspected": 211,
+      "method": "statik desen taramasi (findMany/count/transaction/raw); tek tek okunmadi",
+      "notCovered": []
+    },
+    {
+      "surface": "apps/web/src/lib/socket/handlers",
+      "unitsTotal": 6,
+      "unitsInspected": 6,
+      "method": "typing.ts ve dm.ts satir satir; digerleri desen taramasi + rate-limits.ts tamami",
+      "notCovered": []
+    },
+    {
+      "surface": "Web istemci — en agir bilesenler",
+      "unitsTotal": 15,
+      "unitsInspected": 4,
+      "method": "message-list.tsx, thread-panel.tsx, message-item.tsx, server-member-panel.tsx acildi; sanallastirma icin apps/web/src/components tamami tarandi",
+      "notCovered": [
+        "live-voice-provider.tsx",
+        "settings-panel.tsx",
+        "channel-sidebar.tsx",
+        "wizards-shell.tsx",
+        "message-input.tsx",
+        "server-settings-overlay.tsx",
+        "diger 5 bilesen — render tetikleyici analizi yapilmadi"
+      ]
+    },
+    {
+      "surface": "Mobil ekranlar",
+      "unitsTotal": 12,
+      "unitsInspected": 2,
+      "method": "App.tsx acilis zinciri ve mobile-bootstrap.ts tamami okundu; query katmani (staleTime/invalidateQueries) sayim duzeyinde tarandi",
+      "notCovered": [
+        "voice-screen.tsx",
+        "settings-screen.tsx",
+        "dm-screen.tsx",
+        "chat ekranlari — liste yapilandirmasi ve render tetikleyicileri okunmadi"
+      ]
+    },
+    {
+      "surface": "apps/mobile/src/bootstrap",
+      "unitsTotal": 1,
+      "unitsInspected": 1,
+      "method": "mobile-bootstrap.ts (44 satir) tamami",
+      "notCovered": []
+    },
+    {
+      "surface": "Desktop kabuk IPC",
+      "unitsTotal": 26,
+      "unitsInspected": 26,
+      "method": "#[tauri::command] sayimi + async/sync ayrimi + std::fs cagri yerleri; Tauri 2'nin sync komut is parcacigi davranisi dogrulanamadigi icin bulgu yazilmadi (openQuestions)",
+      "notCovered": []
+    },
+    {
+      "surface": "Build / bundle",
+      "unitsTotal": 3,
+      "unitsInspected": 2,
+      "method": "soguk ve sicak typecheck suresi olculdu, bagimlilik sayilari alindi",
+      "notCovered": [
+        "pnpm --filter @wizards/web build ciktisi ve bundle boyutu olculmedi (ANALYZE=1 ile ayri tur gerekiyor)"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "A2-001",
+      "title": "Sicak yayin yollari oda genisliginde fetchSockets() cagiriyor: her okundu guncellemesinde odadaki tum soketler seri hale getiriliyor",
+      "severity": "high",
+      "confidence": "confirmed",
+      "platforms": ["backend"],
+      "category": "realtime",
+      "evidence": [
+        {
+          "file": "apps/web/src/lib/workspace/unread-service.ts",
+          "line": 604,
+          "quote": "  const sockets = await io.in(channelId).fetchSockets();"
+        },
+        {
+          "file": "apps/web/src/lib/workspace/unread-service.ts",
+          "line": 621,
+          "quote": "  const sockets = await io.in(`server:${serverId}`).fetchSockets();"
+        },
+        {
+          "file": "apps/web/src/lib/socket/server-online-presence.ts",
+          "line": 2,
+          "quote": " * `fetchSockets()` serialises every socket in a room just to count the distinct"
+        }
+      ],
+      "failureScenario": "1.000 uyeli bir sunucunun kanalinda 400 kullanici bagli. Her mesaj gonderiminde okundu servisi `getActiveChannelViewerUserIds` uzerinden `io.in(channelId).fetchSockets()` cagirir; amac yalnizca `socket.data.userId` kumesini cikarmak. Redis adapter bagli oldugu icin (A1'de dogrulandi) bu cagri her Node ornegine gider, her ornek eslesEN her soketi seri hale getirir ve tam nesneyi geri gonderir. 400 soket icin 400 nesne serilestirilir ve yalnizca bir string alani okunur. Mesaj hizi arttikca maliyet mesaj sayisi × oda buyuklugu olarak buyur.",
+      "impact": "Gercek zaman katmaninin ana olceklenme duvari. Ayni desen alti yerde var: unread-service (2), workspace-events.ts:69, member-service.ts:481, invite-service.ts:829, voice/service.ts:636. Repo bu maliyeti kendi yorumunda zaten kabul ediyor (server-online-presence.ts:2) ve orada bir kez cozulmus; okundu yolunda cozulmemis.",
+      "fix": {
+        "summary": "Oda uyeliginden turetilen 'aktif izleyici' kumesini Redis'te tut (socket connect/disconnect'te yaz), okuma tarafinda fetchSockets yerine o kumeyi oku. server-online-presence.ts'teki tek-yazici deseni orneklenebilir.",
+        "effort": "M",
+        "risk": "med",
+        "touches": [
+          "apps/web/src/lib/workspace/unread-service.ts",
+          "apps/web/src/lib/workspace/workspace-events.ts",
+          "apps/web/src/lib/socket/server-online-presence.ts"
+        ]
+      },
+      "parity": { "benchmark": "none" },
+      "wave": "W1",
+      "refutation": "Bir onbellek/kestirme yol arandi: unread-service icindeki iki fonksiyon da her cagrida dogrudan fetchSockets yapiyor, TTL'li onbellek yok (typing handler'inda boyle bir onbellek var — orada curutuldu, burada yok). Cagri yerlerinin sicak olup olmadigi kontrol edildi: getActiveChannelViewerUserIds okundu hesaplama yolunda, yani mesaj basina. Adapter'in bagli oldugu A1'de dogrulandi, yani cagri tek surec ici degil. Curutulemedi. Gercek gecikme olculmedi (openQuestions)."
+    },
+    {
+      "id": "A2-002",
+      "title": "Veri disa aktarma kullanicinin tum mesaj gecmisini tek seferde bellege aliyor (take yok, akis yok)",
+      "severity": "high",
+      "confidence": "confirmed",
+      "platforms": ["backend"],
+      "category": "database",
+      "evidence": [
+        {
+          "file": "apps/web/src/lib/account/privacy-service.ts",
+          "line": 185,
+          "quote": "    prisma.message.findMany({"
+        },
+        {
+          "file": "apps/web/src/lib/account/privacy-service.ts",
+          "line": 199,
+          "quote": "    prisma.dMMessage.findMany({"
+        },
+        {
+          "file": "apps/web/src/lib/account/privacy-service.ts",
+          "line": 246,
+          "quote": "    prisma.notification.findMany({"
+        }
+      ],
+      "failureScenario": "Bir yil boyunca aktif bir kullanici (gunde 200 mesaj = ~73.000 satir) hesap verilerini disa aktarmak ister. `prisma.message.findMany({ where: { userId } })` sinirsizdir: icerik alani dahil 73.000 satir tek sorguda cekilir ve Node heap'ine alinir, ayni istekte dMMessage ve notification icin ayni sey tekrarlanir. Istek ya zaman asimina ugrar ya da surecin bellegini sisirir; ayni surecte calisan Socket.IO da (server.ts) bu sirada etkilenir.",
+      "impact": "Tek bir kullanicinin tetikleyebildigi, tum surece yayilan bellek/gecikme etkisi. Web sunucusu ve Socket.IO ayni event loop'ta oldugu icin (server.ts:91-92) etki yalniz o istegi degil, o ornekteki tum gercek zaman trafigini vurur. Ayni sinirsiz desen admin kampanya yolunda da var: notification-campaigns.ts:167, 182, 196, 210 — dort ayri sinirsiz appSession taramasi.",
+      "fix": {
+        "summary": "Disa aktarmayi sayfalayarak (cursor + take) akis halinde yaz; buyuk hesaplar icin isi outbox/worker'a devret ve hazir oldugunda bildir.",
+        "effort": "M",
+        "risk": "low",
+        "touches": [
+          "apps/web/src/lib/account/privacy-service.ts",
+          "apps/web/src/lib/admin/notification-campaigns.ts"
+        ]
+      },
+      "parity": { "benchmark": "none" },
+      "wave": "W1",
+      "refutation": "Ust katmanda bir sinir arandi: cagri `Promise.all` icinde, cevresinde `take`/`cursor` yok ve rota tarafinda satir siniri uygulanmiyor. Kullanicinin mesaj sayisinin dogal olarak kucuk olabilecegi savi degerlendirildi ve reddedildi — Message tablosu urunun en hizli buyuyen tablosu. Not: 210 findMany icinde 148'i `take` tasimiyor ama cogunlugu dogal olarak sinirli kardinalitede (arkadas sayisi, kullanicinin kendi uyelikleri); bu bulgu yalniz **buyume ile sinirsizlasan** cagrilari kapsar. Curutulemedi."
+    },
+    {
+      "id": "A2-003",
+      "title": "Web mesaj listesi sanallastirilmiyor: sonsuz sorgunun tum sayfalari DOM'da birikiyor",
+      "severity": "medium",
+      "confidence": "confirmed",
+      "platforms": ["web"],
+      "category": "client-render",
+      "evidence": [
+        {
+          "file": "apps/web/src/components/chat/message-list.tsx",
+          "line": 414,
+          "quote": "      {groupedMessages.map(({ message, isGrouped, showDateSeparator }) => ("
+        },
+        {
+          "file": "apps/web/src/components/chat/message-list.tsx",
+          "line": 42,
+          "quote": "  const { data, error, fetchNextPage, hasNextPage, isLoading } = useMessages(mode, conversationId);"
+        }
+      ],
+      "failureScenario": "Kullanici bir kanalda gecmise dogru kaydirir. `fetchNextPage` her tetiklendiginde yeni sayfa `data.pages` icine eklenir; `message-list.tsx` tum sayfalari birlestirip `groupedMessages.map` ile **hepsini** render eder. 20 sayfa × 50 mesaj = 1.000 mesaj dugumu; her mesaj tepki listesi, ek dosya ve arac cubugu tasidigi icin DOM dugumu sayisi katlanir. Kaydirma takilir ve her yeni gercek zaman olayi 1.000 elemanli listeyi yeniden hesaplar.",
+      "impact": "Uzun oturumlarda web istemcisinin kacinilmaz yavaslamasi. `apps/web/src/components` altinda hicbir sanallastirma kutuphanesi yok (react-window / react-virtual / Virtuoso arandi, sifir eslesme). Mobil tarafta 23 dosya FlashList/FlatList kullaniyor, yani ayni sorun mobilde cozulmus — web'de cozulmemis. Somut kare suresi olculmedi.",
+      "fix": {
+        "summary": "Mesaj listesine pencereli render ekle (sanallastirma ya da eski sayfalari DOM'dan dusuren bir tavan). Once olc: 500/1000 mesajda kaydirma kare suresi.",
+        "effort": "L",
+        "risk": "med",
+        "touches": ["apps/web/src/components/chat/message-list.tsx"]
+      },
+      "parity": {
+        "benchmark": "discord",
+        "tag": "public-ref",
+        "note": "Discord web istemcisinde uzun kanal gecmisinde kaydirma sirasinda eski mesajlarin DOM'dan dusurulmesi kullanici tarafindan gozlemlenebilir bir davranistir."
+      },
+      "wave": "W2",
+      "refutation": "Bir tavan arandi: `slice`/`maxMessages` gibi bir kesme bulunamadi; `groupedMessages` `allMessages` uzerinden turetiliyor ve `allMessages` tum sayfalari kapsiyor. React'in kendi kaydirma optimizasyonu yok. Curutulemedi. Gercek FPS olculmedi, bu yuzden 'olculmus yavaslik' degil 'olculmemis ama kesin buyume' olarak yazildi."
+    },
+    {
+      "id": "A2-004",
+      "title": "Medya oturumu kapanisinda seri N+1: oturum basina uc ayri await, toplu islem yok",
+      "severity": "medium",
+      "confidence": "confirmed",
+      "platforms": ["backend"],
+      "category": "database",
+      "evidence": [
+        {
+          "file": "apps/web/src/lib/analytics/service.ts",
+          "line": 452,
+          "quote": "  for (const session of sessions) {"
+        },
+        {
+          "file": "apps/web/src/lib/analytics/service.ts",
+          "line": 455,
+          "quote": "    await prisma.mediaUsageSession.update({"
+        }
+      ],
+      "failureScenario": "Kullanici kamerasi ve ekran paylasimi acikken ses odasindan cikar. `endAllMediaUsageSessions` acik oturumlari ceker ve dongude her biri icin sirayla uc is yapar: `mediaUsageSession.update`, `incrementMetricAcrossInterval` (kendi sorgulari var) ve `onMediaSessionEnded`. Uc oturum = en az dokuz seri veritabani gidis donusu; hepsi kullanicinin 'odadan cik' istegini bekletir.",
+      "impact": "Odadan cikis gecikmesi ve gereksiz veritabani yuku. Etki oturum sayisiyla sinirli (kullanici basina az), bu yuzden critical degil; ama sicak yolda (ses odasi cikisi) duruyor ve toplu yazmaya cevrilmesi kolay.",
+      "fix": {
+        "summary": "`updateMany` ile sureleri toplu yaz, metrik artirimini tek toplu cagriya indir; dongudeki bagimsiz isleri Promise.all ile paralellestir.",
+        "effort": "S",
+        "risk": "low",
+        "touches": ["apps/web/src/lib/analytics/service.ts"]
+      },
+      "parity": { "benchmark": "none" },
+      "wave": "W1",
+      "refutation": "Dongunun paralellestirilebilir olup olmadigi kontrol edildi: her yineleme bagimsiz (oturum id'si ile calisiyor), ortak durum yazmiyor; yani seri olmasi bir gereklilik degil. Oturum sayisinin her zaman 1 olabilecegi savi reddedildi: fonksiyon adi ve yorumu (voice + broadcaster) birden cok es zamanli medya oturumunu varsayiyor. Curutulemedi."
+    },
+    {
+      "id": "A2-005",
+      "title": "Outbox yoklayicisi her web ornegi icinde ayrica calisiyor: adanmis worker'a ek olarak N ornek 5 saniyede bir veritabanini yokluyor",
+      "severity": "medium",
+      "confidence": "confirmed",
+      "platforms": ["backend", "infra"],
+      "category": "scalability",
+      "evidence": [
+        {
+          "file": "apps/web/server.ts",
+          "line": 92,
+          "quote": "  startOutboxWorker();"
+        },
+        {
+          "file": "apps/web/src/lib/outbox/worker.ts",
+          "line": 11,
+          "quote": "const DEFAULT_OUTBOX_WORKER_INTERVAL_MS = 5_000;"
+        }
+      ],
+      "failureScenario": "Web katmani uc ornege olceklenir. `server.ts:92` kosulsuz olarak `startOutboxWorker()` cagirdigi icin uc ornegin her biri 5 saniyede bir `claimOutboxJobs` calistirir; ayrica `railway.outbox-worker.toml` ile adanmis bir worker sureci daha ayni isi yapar. Dort yoklayici, dakikada 48 talep sorgusu uretir ve is olmasa bile veritabanina gider. Ornek sayisi arttikca yoklama yuku dogrusal buyur.",
+      "impact": "Bosta bile suren veritabani yuku ve olcek ile buyuyen gereksiz sorgu. Dogruluk riski yok — `claimOutboxJobs` `FOR UPDATE SKIP LOCKED` kullaniyor (service.ts:375), yani cift islem olmaz. Sorun tamamen kaynak israfi ve gorunurluk: hangi surecin isi cektigi belirsizlesir.",
+      "fix": {
+        "summary": "Web surecindeki yoklayiciyi ortam degiskeniyle kapatilabilir yap (varsayilan: adanmis worker varsa kapali); tek surecli gelistirme kurulumunda acik kalsin.",
+        "effort": "S",
+        "risk": "low",
+        "touches": ["apps/web/server.ts", "apps/web/src/lib/outbox/worker.ts"]
+      },
+      "parity": { "benchmark": "none" },
+      "wave": "W1",
+      "refutation": "Kosullu baslatma arandi: `server.ts:92`'de cagri kosulsuz, cevresinde ortam kontrolu yok. Cift islem riski arandi ve **curutuldu** — SKIP LOCKED var, bu yuzden bulgu 'dogruluk' degil 'israf' olarak yazildi ve severity high'dan medium'a dusuruldu."
+    }
+  ],
+  "metrics": [
+    {
+      "name": "findMany cagri yeri (apps/web)",
+      "value": 210,
+      "unit": "cagri",
+      "method": "scan-findmany2.mjs, parantez-dengeli tarama",
+      "treeState": "baseline"
+    },
+    {
+      "name": "findMany — nesne literal + take var",
+      "value": 58,
+      "unit": "cagri",
+      "method": "scan-findmany2.mjs",
+      "treeState": "baseline"
+    },
+    {
+      "name": "findMany — take yok",
+      "value": 148,
+      "unit": "cagri",
+      "method": "scan-findmany2.mjs; cogunlugu dogal kardinaliteyle sinirli, buyume riski tasiyanlar elle ayiklandi",
+      "treeState": "baseline"
+    },
+    {
+      "name": "findMany — degisken argumanli (tarayici karar veremez)",
+      "value": 4,
+      "unit": "cagri",
+      "method": "scan-findmany2.mjs; dordu de elle bakildi, hepsinde take queryArgs icinde",
+      "treeState": "baseline"
+    },
+    {
+      "name": "fetchSockets cagri yeri",
+      "value": 6,
+      "unit": "cagri",
+      "method": "grep -rn 'fetchSockets' apps/web/src --include=*.ts (test disi)",
+      "treeState": "baseline"
+    },
+    {
+      "name": "cursor tabanli sayfalama kullanimi",
+      "value": 40,
+      "unit": "cagri",
+      "method": "grep -rn 'cursor:' apps/web/src (test disi)",
+      "treeState": "baseline"
+    },
+    {
+      "name": "skip tabanli sayfalama kullanimi",
+      "value": 7,
+      "unit": "cagri",
+      "method": "grep -rn 'skip:' apps/web/src (test disi)",
+      "treeState": "baseline"
+    },
+    {
+      "name": "$transaction kullanimi",
+      "value": 56,
+      "unit": "cagri",
+      "method": "grep -rn '\\$transaction' apps/web/src (test disi)",
+      "treeState": "baseline"
+    },
+    {
+      "name": "ham SQL kullanimi",
+      "value": 27,
+      "unit": "cagri",
+      "method": "grep -rn 'queryRaw|executeRaw' apps/web/src (test disi)",
+      "treeState": "baseline"
+    },
+    {
+      "name": "web istemcide sanallastirma kutuphanesi",
+      "value": 0,
+      "unit": "dosya",
+      "method": "grep -rln 'react-window|react-virtual|Virtuoso' apps/web/src/components",
+      "treeState": "baseline"
+    },
+    {
+      "name": "mobilde FlashList/FlatList kullanan dosya",
+      "value": 23,
+      "unit": "dosya",
+      "method": "grep -rln 'FlashList|FlatList' apps/mobile/src",
+      "treeState": "baseline"
+    },
+    {
+      "name": "outbox yoklama araligi",
+      "value": 5000,
+      "unit": "ms",
+      "method": "apps/web/src/lib/outbox/worker.ts:11 DEFAULT_OUTBOX_WORKER_INTERVAL_MS",
+      "treeState": "baseline"
+    },
+    {
+      "name": "outbox toplu is boyutu",
+      "value": 25,
+      "unit": "kayit",
+      "method": "apps/web/src/lib/outbox/worker.ts:10 DEFAULT_OUTBOX_WORKER_BATCH_SIZE",
+      "treeState": "baseline"
+    },
+    {
+      "name": "soguk typecheck suresi (5 paket)",
+      "value": 8.6,
+      "unit": "saniye",
+      "method": "time pnpm exec turbo typecheck --force",
+      "treeState": "working"
+    },
+    {
+      "name": "onbellekli typecheck suresi",
+      "value": 2.9,
+      "unit": "saniye",
+      "method": "time pnpm typecheck (FULL TURBO, 5/5 cache hit)",
+      "treeState": "working"
+    },
+    {
+      "name": "web birim testi suresi",
+      "value": 32.8,
+      "unit": "saniye",
+      "method": "time pnpm --filter @wizards/web test",
+      "treeState": "working"
+    },
+    {
+      "name": "web birim testi sayisi",
+      "value": 2072,
+      "unit": "test",
+      "method": "pnpm --filter @wizards/web test — pass 2072, fail 0",
+      "treeState": "working"
+    },
+    {
+      "name": "mobil birim testi suresi",
+      "value": 20.2,
+      "unit": "saniye",
+      "method": "time pnpm --filter @wizards/mobile test",
+      "treeState": "working"
+    },
+    {
+      "name": "mobil birim testi sayisi",
+      "value": 1669,
+      "unit": "test",
+      "method": "pnpm --filter @wizards/mobile test — pass 1669, fail 0",
+      "treeState": "working"
+    },
+    {
+      "name": "web calisma zamani bagimliligi",
+      "value": 54,
+      "unit": "paket",
+      "method": "node -e Object.keys(require('./apps/web/package.json').dependencies).length",
+      "treeState": "working"
+    },
+    {
+      "name": "mobil calisma zamani bagimliligi",
+      "value": 63,
+      "unit": "paket",
+      "method": "node -e Object.keys(require('./apps/mobile/package.json').dependencies).length",
+      "treeState": "working"
+    },
+    {
+      "name": "tauri IPC komutu (sync / async)",
+      "value": 26,
+      "unit": "komut",
+      "method": "grep -c '#[tauri::command]' lib.rs; 24 sync, 2 async",
+      "treeState": "baseline"
+    }
+  ],
+  "openQuestions": [
+    "fetchSockets'in gercek gecikmesi olculmedi. Olcum: yerel Redis adapter ile 100/500/1000 sahte soket baglayip `io.in(room).fetchSockets()` suresini kaydet. A2-001'in severity'si bu olcumle kesinlesir.",
+    "Web bundle boyutu ve en agir import'lar olculmedi. Komut: `ANALYZE=1 pnpm --filter @wizards/web build`. turbo.json build gorevi ANALYZE degiskenini zaten tasiyor.",
+    "Mobil soguk acilis suresi olculmedi. Repo'da `apps/mobile/src/performance/**` ve `MobileStartupPerformanceMarker` bileseni var; gercek cihazda `pnpm --filter @wizards/mobile visual:capture:android` hattiyla olculebilir.",
+    "Tauri 2'de `async` olmayan `#[tauri::command]` fonksiyonlarinin hangi is parcaciginda kostugu bu turda dogrulanamadi. 24 sync komuttan bazilari std::fs cagriyor (lib.rs:2699, 2717, 2875, 2974). Ana is parcaciginda kosuyorlarsa pencere donuyor demektir. Olcum: `pnpm --filter @wizards/desktop measure:windows`.",
+    "Web istemcinin render tetikleyicileri (inline nesne prop, context degeri, memo eksikleri) 15 agir bilesenin 11'inde incelenmedi. Bu, A2 kapsamindaki en buyuk bosluk.",
+    "Mobil ekranlarda FlashList yapilandirmasi (getItemType, drawDistance, estimatedItemSize) 13 yerde geciyor ama dogru kullanildigi ekran ekran dogrulanmadi.",
+    "Redis round-trip sayisi ve pipeline kullanimi olculmedi; A6 kapasite modeli bunu zorunlu olarak acacak."
+  ]
+}

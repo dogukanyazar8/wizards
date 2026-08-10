@@ -631,8 +631,9 @@ export function MobileServerSettingsScreen({
           </View>
           <Toggle
             accessibilityLabel={labels.serverSettingsGifSharing}
-            disabled={!canManageServer || mutations.updateServer.isPending}
+            disabled={!canManageServer}
             onValueChange={(next) => void togglePermission("allowGifs", next)}
+            readOnly={mutations.updateServer.isPending}
             testID="mobile-server-gif-toggle"
             value={server.allowGifs}
           />
@@ -651,8 +652,9 @@ export function MobileServerSettingsScreen({
           </View>
           <Toggle
             accessibilityLabel={labels.serverSettingsFileUploads}
-            disabled={!canManageServer || mutations.updateServer.isPending}
+            disabled={!canManageServer}
             onValueChange={(next) => void togglePermission("allowFileUploads", next)}
+            readOnly={mutations.updateServer.isPending}
             testID="mobile-server-file-toggle"
             value={server.allowFileUploads}
           />
@@ -697,13 +699,9 @@ export function MobileServerSettingsScreen({
           </View>
           <Toggle
             accessibilityLabel={labels.serverSettingsPublic}
-            disabled={
-              !canManageServer ||
-              isCommunityServer ||
-              visibilityUnknown ||
-              mutations.updateServer.isPending
-            }
+            disabled={!canManageServer || isCommunityServer || visibilityUnknown}
             onValueChange={(next) => void togglePublic(next)}
+            readOnly={mutations.updateServer.isPending}
             testID="mobile-server-public-toggle"
             value={isPublic}
           />
@@ -726,14 +724,9 @@ export function MobileServerSettingsScreen({
           </View>
           <Toggle
             accessibilityLabel={labels.serverSettingsDiscoverable}
-            disabled={
-              !canManageServer ||
-              isCommunityServer ||
-              !isPublic ||
-              visibilityUnknown ||
-              mutations.updateServer.isPending
-            }
+            disabled={!canManageServer || isCommunityServer || !isPublic || visibilityUnknown}
             onValueChange={(next) => void toggleDiscoverable(next)}
+            readOnly={mutations.updateServer.isPending}
             testID="mobile-server-discoverable-toggle"
             value={discoverable}
           />

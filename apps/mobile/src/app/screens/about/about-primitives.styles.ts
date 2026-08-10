@@ -150,33 +150,6 @@ export const createMobileAboutPrimitiveStyles = (theme: MobileTheme) =>
       minWidth: 0,
     },
 
-    // §2 toggle: 44×26, 3px inset, 20px knob → 18px of travel.
-    toggleTrack: {
-      borderRadius: mobileAboutMetrics.toggleRadius,
-      height: mobileAboutMetrics.toggleHeight,
-      justifyContent: "center",
-      width: mobileAboutMetrics.toggleWidth,
-    },
-    toggleTrackOff: { backgroundColor: theme.about.toggleOff },
-    toggleTrackOn: { backgroundColor: theme.about.accent },
-    toggleDisabled: { opacity: 0.45 },
-    toggleKnob: {
-      borderRadius: theme.radii.pill,
-      height: mobileAboutMetrics.toggleKnob,
-      position: "absolute",
-      shadowColor: theme.about.text,
-      shadowOffset: { height: 1, width: 0 },
-      shadowOpacity: 0.25,
-      shadowRadius: 3,
-      elevation: 2,
-      width: mobileAboutMetrics.toggleKnob,
-    },
-    toggleKnobOff: { backgroundColor: theme.about.toggleKnobOff, left: 3 },
-    toggleKnobOn: {
-      backgroundColor: theme.about.toggleKnob,
-      left: mobileAboutMetrics.toggleWidth - mobileAboutMetrics.toggleKnob - 3,
-    },
-
     // §3.3: the 1c type chip is a fixed 62px so four rows share one text column.
     typePill: {
       alignItems: "center",

@@ -586,6 +586,26 @@ export const createSettingsScreenStyles = (theme: MobileTheme) => {
     settingsLocaleShortLabelSelected: {
       color: theme.accent.strong,
     },
+    /** Label + shared switch, so state controls read the same everywhere. */
+    settingsToggleRow: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: 12,
+      minHeight: mobileSizing.minTouchTarget,
+      minWidth: 0,
+    },
+    settingsToggleRowLabel: {
+      color: theme.text.primary,
+      flex: 1,
+      fontSize: 12.5,
+      fontFamily: theme.typography.fontFamilyExtraBold,
+      minWidth: 0,
+    },
+    settingsToggleRowValue: {
+      color: theme.text.muted,
+      fontSize: 11,
+      fontFamily: theme.typography.fontFamilyExtraBold,
+    },
     settingsPermissionActionButton: {
       minHeight: 30,
       maxWidth: 104,

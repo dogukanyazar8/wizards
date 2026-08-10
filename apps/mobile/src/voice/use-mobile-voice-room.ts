@@ -91,9 +91,11 @@ import {
 import { getMobileVoiceRoomSubscriptionOptions } from "./mobile-video-subscription";
 import {
   DEFAULT_MOBILE_VOICE_DEVICE_PREFERENCES,
+  getMobileVoiceAudioProcessing,
   sanitizeMobileVoiceDeviceId,
   toMobileVoiceInputOptions,
   toMobileVoiceOutputOptions,
+  type MobileVoiceAudioProcessing,
   type MobileVoiceDevicePreferences,
 } from "./mobile-voice-device-contract";
 import { hasMobileVoiceAudioRouteInputChanged } from "./mobile-voice-audio-route";
@@ -617,7 +619,7 @@ export function useMobileVoiceRoom({
         room.localParticipant,
         enabled,
         getMobileMicrophoneCaptureOptions(
-          voiceDevicePreferencesRef.current.noiseSuppressionEnabled,
+          getMobileVoiceAudioProcessing(voiceDevicePreferencesRef.current),
         ),
       );
       updateParticipantsFromRoom();
@@ -1308,7 +1310,7 @@ export function useMobileVoiceRoom({
           room.localParticipant,
           voiceInputMode === "voice-activity",
           getMobileMicrophoneCaptureOptions(
-            voiceDevicePreferencesRef.current.noiseSuppressionEnabled,
+            getMobileVoiceAudioProcessing(voiceDevicePreferencesRef.current),
           ),
         );
         if (!isCurrentSessionGeneration(generation)) {
@@ -1469,7 +1471,9 @@ export function useMobileVoiceRoom({
     await setMobileMicrophoneEnabledWithNoiseSuppression(
       room.localParticipant,
       nextEnabled,
-      getMobileMicrophoneCaptureOptions(voiceDevicePreferencesRef.current.noiseSuppressionEnabled),
+      getMobileMicrophoneCaptureOptions(
+        getMobileVoiceAudioProcessing(voiceDevicePreferencesRef.current),
+      ),
     );
     updateParticipantsFromRoom();
   }, [roomState.status, updateParticipantsFromRoom, voiceInputMode]);
@@ -1748,12 +1752,22 @@ export function useMobileVoiceRoom({
     [commitVoiceDevicePreferences],
   );
 
-  const selectNoiseSuppression = useCallback(
-    async (enabled: boolean) => {
+  /**
+   * Every capture filter lands the same way: restart the published microphone
+   * track with the new options, then persist. One path, so noise suppression,
+   * echo cancellation and auto gain can never drift apart.
+   */
+  const selectAudioProcessing = useCallback(
+    async (patch: Partial<MobileVoiceAudioProcessing>) => {
       const room = roomRef.current;
       if (!room || roomState.status !== "connected") {
         return;
       }
+
+      const nextPreferences: MobileVoiceDevicePreferences = {
+        ...voiceDevicePreferencesRef.current,
+        ...patch,
+      };
 
       try {
         const microphoneTrack = room.localParticipant.getTrackPublication(
@@ -1763,12 +1777,11 @@ export function useMobileVoiceRoom({
           room.localParticipant.isMicrophoneEnabled &&
           microphoneTrack instanceof LocalAudioTrack
         ) {
-          await microphoneTrack.restartTrack(getMobileMicrophoneCaptureOptions(enabled));
+          await microphoneTrack.restartTrack(
+            getMobileMicrophoneCaptureOptions(getMobileVoiceAudioProcessing(nextPreferences)),
+          );
         }
-        commitVoiceDevicePreferences({
-          ...voiceDevicePreferencesRef.current,
-          noiseSuppressionEnabled: enabled,
-        });
+        commitVoiceDevicePreferences(nextPreferences);
         setRoomState((current) => ({ ...current, errorMessage: null }));
       } catch (error) {
         setRoomState((current) => ({
@@ -1779,6 +1792,11 @@ export function useMobileVoiceRoom({
       }
     },
     [commitVoiceDevicePreferences, roomState.status],
+  );
+
+  const selectNoiseSuppression = useCallback(
+    async (enabled: boolean) => selectAudioProcessing({ noiseSuppressionEnabled: enabled }),
+    [selectAudioProcessing],
   );
 
   const syncParticipantsFromServer = useCallback(
@@ -2051,7 +2069,9 @@ export function useMobileVoiceRoom({
     selectAudioDeviceOutput,
     selectAudioInput,
     selectAudioOutput,
+    selectAudioProcessing,
     selectNoiseSuppression,
+    voiceAudioProcessing: getMobileVoiceAudioProcessing(voiceDevicePreferences),
     selectScreenShareAudioMuted,
     selectScreenShareQuality,
     syncParticipantAudioLevelFromServer,

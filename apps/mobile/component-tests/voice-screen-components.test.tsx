@@ -25,7 +25,9 @@ jest.mock("react-native-gesture-handler", () => {
 });
 
 import { activeMobileCopy } from "../src/locale/mobile-locale-preferences";
+import { lightTheme } from "../src/design/themes";
 import { ToastProvider } from "../src/app/components/kit/toast";
+import { TOGGLE_TRACK_HEIGHT, TOGGLE_TRACK_WIDTH } from "../src/app/components/kit/toggle";
 import {
   MobileScreenShareViewer,
   PushToTalkButton,
@@ -33,7 +35,10 @@ import {
   VoiceScreen,
 } from "../src/app/screens/voice-screen";
 import { createInitialMobileVoiceRuntimeState } from "../src/voice/mobile-voice-contract";
-import { MobileVoiceSettingsSheet } from "../src/voice/mobile-voice-settings-sheet";
+import {
+  getMobileVoiceInputMeterSegments,
+  MobileVoiceSettingsSheet,
+} from "../src/voice/mobile-voice-settings-sheet";
 import type {
   MobileScreenShareTrackReference,
   MobileVoiceRoomParticipant,
@@ -178,6 +183,11 @@ describe("mobile voice component rendering", () => {
     expect(off.getByTestId("mobile-voice-noise-toggle").props.accessibilityState).toEqual(
       expect.objectContaining({ checked: false }),
     );
+
+    // The room keeps its green "on" state while sharing the app-wide switch shape.
+    const onTrack = StyleSheet.flatten(on.getByTestId("mobile-voice-noise-toggle").props.style);
+    expect(onTrack.backgroundColor).toBe(lightTheme.voiceRoom.success);
+    expect(onTrack).toMatchObject({ height: TOGGLE_TRACK_HEIGHT, width: TOGGLE_TRACK_WIDTH });
   });
 
   it("applies the noise-suppression switch immediately and confirms it with a toast", async () => {
@@ -785,6 +795,7 @@ describe("mobile voice component rendering", () => {
       <MobileVoiceSettingsSheet
         audioInputs={[{ id: "mic-1", kind: "audioinput", label: "Phone microphone" }]}
         audioOutputs={[{ id: "speaker", kind: "audiooutput", labelKey: "speaker" }]}
+        connectionStatus="connected"
         noiseSuppressionEnabled
         onClose={() => undefined}
         onRefresh={() => undefined}
@@ -799,8 +810,85 @@ describe("mobile voice component rendering", () => {
 
     expect(view.getByTestId("mobile-voice-device-sheet-panel")).toBeTruthy();
     expect(view.getByTestId("mobile-voice-device-refresh")).toBeTruthy();
-    await fireEvent.press(view.getByTestId("mobile-voice-noise-toggle"));
+    expect(view.getByTestId("mobile-voice-audio-input-mic-1")).toBeTruthy();
+    expect(view.getByTestId("mobile-voice-audio-output-speaker")).toBeTruthy();
+    await fireEvent.press(view.getByTestId("mobile-voice-noise-suppression-toggle"));
     expect(onSelectNoiseSuppression).toHaveBeenCalledWith(false);
+  });
+
+  it("carries the live input meter, talk mode and the rest of the capture chain", async () => {
+    const onSelectAudioProcessing = jest.fn();
+    const onSelectInputMode = jest.fn();
+    const onToggleMic = jest.fn();
+    const view = await render(
+      <MobileVoiceSettingsSheet
+        audioInputs={[{ id: "mic-1", kind: "audioinput", label: "Phone microphone" }]}
+        audioOutputs={[{ id: "speaker", kind: "audiooutput", labelKey: "speaker" }]}
+        audioProcessing={{
+          autoGainControlEnabled: true,
+          echoCancellationEnabled: true,
+          noiseSuppressionEnabled: true,
+        }}
+        connectionStatus="connected"
+        inputLevel={0.3}
+        inputMode="voice-activity"
+        micMuted
+        noiseSuppressionEnabled
+        onClose={() => undefined}
+        onRefresh={() => undefined}
+        onSelectAudioInput={() => undefined}
+        onSelectAudioOutput={() => undefined}
+        onSelectAudioProcessing={onSelectAudioProcessing}
+        onSelectInputMode={onSelectInputMode}
+        onSelectNoiseSuppression={() => undefined}
+        onToggleMic={onToggleMic}
+        open
+        participantCount={3}
+        selectedAudioInputId="mic-1"
+        selectedAudioOutputId="speaker"
+      />,
+    );
+
+    // A muted microphone says so, offers the fix, and parks the meter at zero.
+    expect(view.getByTestId("mobile-voice-settings-muted-notice")).toBeTruthy();
+    const meter = view.getByLabelText(copy.voiceSettingsMicLevelLabel);
+    expect(meter.props.accessibilityValue).toMatchObject({ now: 0 });
+    await fireEvent.press(view.getByTestId("mobile-voice-settings-unmute"));
+    expect(onToggleMic).toHaveBeenCalled();
+
+    await fireEvent.press(view.getByTestId("mobile-voice-input-mode-push-to-talk"));
+    expect(onSelectInputMode).toHaveBeenCalledWith("push-to-talk");
+
+    await fireEvent.press(view.getByTestId("mobile-voice-echo-cancellation-toggle"));
+    expect(onSelectAudioProcessing).toHaveBeenCalledWith({ echoCancellationEnabled: false });
+    await fireEvent.press(view.getByTestId("mobile-voice-auto-gain-toggle"));
+    expect(onSelectAudioProcessing).toHaveBeenCalledWith({ autoGainControlEnabled: false });
+  });
+
+  it("fills the input meter from the live capture level", async () => {
+    const view = await render(
+      <MobileVoiceSettingsSheet
+        audioInputs={[]}
+        audioOutputs={[]}
+        connectionStatus="connected"
+        inputLevel={0.28}
+        noiseSuppressionEnabled
+        onClose={() => undefined}
+        onRefresh={() => undefined}
+        onSelectAudioInput={() => undefined}
+        onSelectAudioOutput={() => undefined}
+        onSelectNoiseSuppression={() => undefined}
+        open
+        selectedAudioInputId={null}
+        selectedAudioOutputId={null}
+      />,
+    );
+
+    expect(getMobileVoiceInputMeterSegments(0)).toBe(0);
+    expect(getMobileVoiceInputMeterSegments(0.28)).toBe(12);
+    expect(
+      view.getByLabelText(copy.voiceSettingsMicLevelLabel).props.accessibilityValue,
+    ).toMatchObject({ now: 12 });
   });
 
   it("updates the push-to-talk label and accessibility state while the user holds and releases", async () => {

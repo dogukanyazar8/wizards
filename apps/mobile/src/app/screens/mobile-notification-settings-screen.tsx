@@ -129,14 +129,14 @@ function NotificationToggleRow({
 }) {
   const styles = useMobileNotificationSettingsStyles();
   return (
-    <View
-      style={[styles.row, !isLast && styles.rowDivider, disabled && styles.rowDisabled]}
-      testID={testID}
-    >
-      <NotificationIconBox icon={icon} tone={tone} />
-      <View style={styles.rowText}>
-        <Text style={styles.rowLabel}>{label}</Text>
-        {hint ? <Text style={styles.rowHint}>{hint}</Text> : null}
+    <View style={[styles.row, !isLast && styles.rowDivider]} testID={testID}>
+      {/* Only the label side fades: the switch carries its own disabled tones. */}
+      <View style={[styles.rowLead, disabled && styles.rowDisabled]}>
+        <NotificationIconBox icon={icon} tone={tone} />
+        <View style={styles.rowText}>
+          <Text style={styles.rowLabel}>{label}</Text>
+          {hint ? <Text style={styles.rowHint}>{hint}</Text> : null}
+        </View>
       </View>
       <Toggle
         accessibilityLabel={label}
@@ -215,12 +215,10 @@ export function MobileNotificationSettingsScreen({ onBack }: { onBack(): void })
   const [exceptionsSheetOpen, setExceptionsSheetOpen] = useState(false);
 
   const pushDisabled = !preferences.allowNotifications;
-  const toggle =
-    (key: keyof typeof preferences) =>
-    (next: boolean) => {
-      selection();
-      updatePreferences({ [key]: next });
-    };
+  // `Toggle` fires the selection haptic itself; a second one here double-taps.
+  const toggle = (key: keyof typeof preferences) => (next: boolean) => {
+    updatePreferences({ [key]: next });
+  };
 
   return (
     <>

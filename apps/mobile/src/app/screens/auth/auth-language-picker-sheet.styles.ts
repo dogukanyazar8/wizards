@@ -148,26 +148,5 @@ export const createAuthLanguagePickerSheetStyles = (theme: MobileTheme) => {
       ...theme.typography.authLanguageSheetTitle,
       color: theme.text.primary,
     },
-    toggleThumb: {
-      backgroundColor: theme.text.onPrimary,
-      borderRadius: language.toggleThumb / 2,
-      height: language.toggleThumb,
-      width: language.toggleThumb,
-    },
-    toggleThumbEnabled: {
-      transform: [{ translateX: language.toggleWidth - language.toggleThumb - 6 }],
-    },
-    toggleTrack: {
-      alignItems: "flex-start" as const,
-      backgroundColor: theme.authLanguage.radio,
-      borderRadius: language.toggleHeight / 2,
-      height: language.toggleHeight,
-      justifyContent: "center" as const,
-      paddingHorizontal: 3,
-      width: language.toggleWidth,
-    },
-    toggleTrackEnabled: {
-      backgroundColor: theme.authLanguage.selectedBorder,
-    },
   } satisfies Record<string, TextStyle | ViewStyle>;
 };

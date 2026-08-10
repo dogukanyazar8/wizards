@@ -24,7 +24,11 @@ const mockSetItem = AsyncStorage.setItem as jest.MockedFunction<typeof AsyncStor
 const mockSetHapticsEnabled = jest.fn();
 
 jest.mock("../src/app/providers/mobile-haptics-provider", () => ({
-  useMobileHaptics: () => ({ enabled: true, setEnabled: mockSetHapticsEnabled }),
+  useMobileHaptics: () => ({
+    enabled: true,
+    selection: jest.fn(),
+    setEnabled: mockSetHapticsEnabled,
+  }),
 }));
 
 jest.mock("../src/media/use-mobile-image-upload", () => ({

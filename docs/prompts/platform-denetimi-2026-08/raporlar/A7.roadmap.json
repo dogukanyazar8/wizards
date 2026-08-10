@@ -1,0 +1,772 @@
+{
+  "baseCommit": "5a2b3990733b17672cf65fba631b7ec44a7bf96a",
+  "generatedAt": "2026-08-08",
+  "summary": {
+    "findingsTotal": 23,
+    "itemsTotal": 22,
+    "bySeverity": {
+      "critical": 0,
+      "high": 7,
+      "medium": 14,
+      "low": 2
+    },
+    "byAxis": {
+      "A1": 7,
+      "A2": 5,
+      "A3": 2,
+      "A4": 3,
+      "A5": 2,
+      "A6": 4
+    },
+    "byPlatform": {
+      "web": 9,
+      "mobile": 8,
+      "desktop": 0,
+      "backend": 16,
+      "infra": 6
+    },
+    "effortUnits": {
+      "W0": 3,
+      "W1": 16,
+      "W2": 54,
+      "W3": 43
+    }
+  },
+  "waves": [
+    {
+      "id": "W0",
+      "theme": "Kapiyi yesile dondur ve veri katmanindaki sessiz tuzagi kaldir.",
+      "window": "0–2 hafta",
+      "items": ["R-001", "R-002", "R-003"],
+      "exitGate": [
+        "pnpm audit --audit-level moderate sifir bulgu doner",
+        "ci.yml verify isinde @wizards/db test adimi kosar",
+        "packages/db/prisma/migrations/ altinda migration.sql kalmaz"
+      ]
+    },
+    {
+      "id": "W1",
+      "theme": "Olculmus performans kayiplarini ve kapi zafiyetlerini kapat.",
+      "window": "2–6 hafta",
+      "items": ["R-004", "R-005", "R-006", "R-007", "R-008", "R-009", "R-010", "R-011"],
+      "exitGate": [
+        "Kapsam esigi kapida uygulaniyor ve bugunku degerlerin altina dusus kapiyi kiriyor",
+        "unread-service icinde fetchSockets cagrisi kalmadi",
+        "Veri disa aktarma sayfali calisiyor, 10.000 satirlik hesapta bellek tavani asilmiyor",
+        "Iletme ve davet paylasma gövdeleri clientNonce tasiyor"
+      ]
+    },
+    {
+      "id": "W2",
+      "theme": "Yapisal sinirlari kur: paylasilan katman, sozlesme, olcek modeli.",
+      "window": "6–16 hafta",
+      "items": ["R-012", "R-013", "R-014", "R-015", "R-016", "R-017", "R-018", "R-019"],
+      "exitGate": [
+        "Gruplama, video yerlesimi ve mention/link ayristirma tek kaynaktan geliyor",
+        "Socket olay haritalari packages/types icinde ve mobil liste tipten turetiliyor",
+        "Izin kontrolu atlanan yikici servis cagrisi derlenmiyor",
+        "Okunmamis sayaci yazma zamanli ve golge donemde COUNT ile ayni sonucu veriyor"
+      ]
+    },
+    {
+      "id": "W3",
+      "theme": "Parite: ekosistem, kurumsal kimlik ve bildirim olgunlugu.",
+      "window": "16 hafta+",
+      "items": ["R-020", "R-021", "R-022"],
+      "exitGate": [
+        "Kurumsal kimlik tasarim belgesi onaylanmis ve OIDC girisi ucdan uca calisiyor",
+        "Anahtar kelime bildirimi uc yuzeyde de kullanilabilir",
+        "User modeli 60 alanin altinda"
+      ]
+    }
+  ],
+  "items": [
+    {
+      "id": "R-001",
+      "title": "Uc yuksek onemli bagimlilik zafiyeti acik; kok `ci` betiginin ilk adimi tam olarak bu kontrol, yani belgelenen kapi bugun gecemez",
+      "score": 69,
+      "severity": "high",
+      "confidence": "confirmed",
+      "platforms": ["infra", "mobile"],
+      "rootCause": "Uc gecisli npm bagimliligi (image-size ×2, nanoid) yuksek onemli DoS advisory'si tasiyor ve kok `ci` betiginin ilk adimi tam olarak bu kontrol.",
+      "sourceFindings": ["A3-001"],
+      "touches": ["package.json", "pnpm-lock.yaml", "patches/"],
+      "approach": "pnpm `overrides` alani ile uc paketi yamali surumlere sabitle (image-size >=2.0.3, nanoid >=3.3.17). Repoda `patches/` dizini ve daha once js-yaml icin ayni yontem kullanilmis; ayni deseni izle. Gecisli bagimlilik oldugu icin dogrudan yukseltme degil override gerekiyor. Lockfile yeniden uretilir, Expo zincirinin hala calistigi mobil testlerle dogrulanir.",
+      "testPlan": "Once RED: `pnpm audit --audit-level moderate` bugun sifir disi kodla cikiyor, cikti rapora yapistirilir. Override sonrasi ayni komut sifir donmeli. Ek olarak mobil suiti (`pnpm --filter @wizards/mobile test`) yesil kalmali — override Expo'nun bekledigi surumu bozmamali.",
+      "acceptance": [
+        "`pnpm audit --audit-level moderate` sifir bulgu ve sifir cikis kodu doner",
+        "`pnpm --filter @wizards/mobile test` 1669/1669 gecer",
+        "`pnpm --filter @wizards/mobile test:components` gecer"
+      ],
+      "gate": "pnpm audit --audit-level moderate && pnpm --filter @wizards/mobile test",
+      "effort": "S",
+      "risk": "low",
+      "dependsOn": [],
+      "rollback": "package.json overrides bloğu geri alinir, `pnpm install` ile lockfile eski haline doner.",
+      "owner": "infra",
+      "wave": "W0"
+    },
+    {
+      "id": "R-002",
+      "title": "packages/db/prisma/migrations/ olu dizin ama canli gorunuyor: 37 migration Prisma tarafindan hic okunmuyor",
+      "score": 69,
+      "severity": "high",
+      "confidence": "confirmed",
+      "platforms": ["backend", "infra"],
+      "rootCause": "prisma.config.ts migration yolunu rebaseline-migrations'a sabitliyor ama Prisma'nin sozlesmesel varsayilan dizini (prisma/migrations, 37 izlenen migration) hala duruyor ve canli gorunuyor.",
+      "sourceFindings": ["A1-001"],
+      "touches": ["packages/db/prisma/migrations/", "packages/db/prisma.config.ts"],
+      "approach": "Olu dizini git gecmisinde birakarak calisma agacindan kaldir. Yerine ayni yola `README.md` koy: yolun neden olu oldugunu ve dogru dizinin hangisi oldugunu yaz. packages/db/README icine prisma.config.ts `migrations.path` sozlesmesini not et. Sema degismedigi icin migration uretilmez.",
+      "testPlan": "Yeni test gerekmez; mevcut `pnpm --filter @wizards/db test` (R-003 ile CI'ya girecek) rebaseline gecmisi testlerini korur. Dogrulama: `prisma migrate status` calistirilabilen bir ortamda uygulanan migration setinin degismedigi gorulur.",
+      "acceptance": [
+        "packages/db/prisma/migrations/ altinda migration.sql kalmaz",
+        "Yol yerine acik uyari tasiyan bir README bulunur",
+        "packages/db/README prisma.config.ts migrations.path sozlesmesini belgeler"
+      ],
+      "gate": "pnpm --filter @wizards/db test && pnpm typecheck",
+      "effort": "S",
+      "risk": "low",
+      "dependsOn": ["R-003"],
+      "rollback": "git revert; dizin gecmiste duruyor.",
+      "owner": "backend",
+      "wave": "W0"
+    },
+    {
+      "id": "R-003",
+      "title": "@wizards/db test suiti (8 dosya) hicbir CI isinde kosmuyor",
+      "score": 29,
+      "severity": "medium",
+      "confidence": "confirmed",
+      "platforms": ["infra", "backend"],
+      "rootCause": "ci.yml types/ui/mobil/desktop suitlerini adiyla cagiriyor ama @wizards/db'yi cagirmiyor; `pnpm test` (turbo test) hicbir adimda kosmuyor.",
+      "sourceFindings": ["A4-003"],
+      "touches": [".github/workflows/ci.yml"],
+      "approach": "ci.yml verify isine 'Test database package' adimi ekle, types ve ui adimlarinin hemen yanina: `pnpm --filter @wizards/db test`. Prisma client zaten onceki adimda uretiliyor (`pnpm db:generate`), ek kurulum gerekmiyor. Alternatif olarak kapsam adimini `pnpm test` ile degistirmek daha genis olurdu ama kapsam raporunu bozar; adim eklemek daha guvenli.",
+      "testPlan": "RED: bugun db testlerinden biri elle bozuldugunda CI yesil kaliyor. Adim eklendikten sonra ayni bozma CI'yi kirmali. Yerel dogrulama: `pnpm --filter @wizards/db test` sifir kodla cikar.",
+      "acceptance": [
+        "ci.yml verify isinde `pnpm --filter @wizards/db test` adimi bulunur",
+        "`pnpm actionlint` temiz",
+        "Adim yerel olarak sifir kodla gecer"
+      ],
+      "gate": "pnpm --filter @wizards/db test && pnpm actionlint",
+      "effort": "S",
+      "risk": "low",
+      "dependsOn": [],
+      "rollback": "Adim ci.yml'den cikarilir.",
+      "owner": "infra",
+      "wave": "W0"
+    },
+    {
+      "id": "R-004",
+      "title": "Veri disa aktarma kullanicinin tum mesaj gecmisini tek seferde bellege aliyor (take yok, akis yok)",
+      "score": 20,
+      "severity": "high",
+      "confidence": "confirmed",
+      "platforms": ["backend"],
+      "rootCause": "privacy-service veri disa aktarmada Message/DMMessage/Notification tablolarini take'siz cekiyor; Socket.IO ayni surecte oldugu icin etki tum ornege yayiliyor.",
+      "sourceFindings": ["A2-002"],
+      "touches": [
+        "apps/web/src/lib/account/privacy-service.ts",
+        "apps/web/src/lib/admin/notification-campaigns.ts"
+      ],
+      "approach": "Disa aktarmayi cursor + take ile sayfalayan bir uretici (generator) haline getir ve ciktiyi akis halinde yaz. Buyuk hesaplar icin isi outbox'a devret: istek bir OutboxJob olusturur, worker hazirlar, kullaniciya bildirim gider. Ilk adimda sayfalama yeterli; outbox devri ayni kalemde ikinci asama.",
+      "testPlan": "Once test: enjekte edilen PrismaClient ile 3 sayfalik sahte veri uzerinde disa aktarmanin tum satirlari toplasigini ve her sorgunun `take` tasidigini dogrula. RED: bugunku kod tek sorgu yapiyor, `take` iddiasi kirilir.",
+      "acceptance": [
+        "privacy-service'teki uc findMany cagrisi da `take` ve `cursor` tasir",
+        "Sayfalama testi 3 sayfayi dogru birlestirdigini dogrular",
+        "Bellek tavani testi: 10.000 satirlik veri seti tek seferde bellege alinmaz"
+      ],
+      "gate": "pnpm --filter @wizards/web test && pnpm typecheck",
+      "effort": "M",
+      "risk": "low",
+      "dependsOn": [],
+      "rollback": "Tek commit; geri alinabilir. Sema degismiyor.",
+      "owner": "backend",
+      "wave": "W1"
+    },
+    {
+      "id": "R-005",
+      "title": "Sicak yayin yollari oda genisliginde fetchSockets() cagiriyor: her okundu guncellemesinde odadaki tum soketler seri hale getiriliyor",
+      "score": 17,
+      "severity": "high",
+      "confidence": "confirmed",
+      "platforms": ["backend"],
+      "rootCause": "Okundu hesaplama yolu aktif izleyicileri cikarmak icin oda genisliginde fetchSockets() cagiriyor; Redis adapter bagli oldugu icin cagri her Node ornegine gidiyor ve her soketi serilestiriyor.",
+      "sourceFindings": ["A2-001"],
+      "touches": [
+        "apps/web/src/lib/workspace/unread-service.ts",
+        "apps/web/src/lib/workspace/workspace-events.ts",
+        "apps/web/src/lib/socket/server-online-presence.ts"
+      ],
+      "approach": "Aktif izleyici kumesini Redis'te tut: socket connect/disconnect ve oda katilim/ayrilma anlarinda tek yazici ile guncelle. Okuma tarafinda fetchSockets yerine bu kumeyi oku. Desen repoda zaten var — server-online-presence.ts ayni problemi cozmus; ayni tek-yazici degismezini izle. Alti cagri yerinden once unread-service'teki ikisi degistirilir.",
+      "testPlan": "Once test: sahte Redis ile connect/disconnect dizisinden sonra aktif izleyici kumesinin dogru oldugunu dogrula; ayni kullanicinin iki soketi varsa tek kez sayilmali; disconnect'te fail-open davranisi korunmali. RED: bugun boyle bir kume yok.",
+      "acceptance": [
+        "unread-service'teki iki fetchSockets cagrisi kalkar",
+        "Coklu soket senaryosunda kullanici tek kez sayilir",
+        "Redis erisilemezse davranis bugunku fail-open ile ayni kalir",
+        "500 soketli odada okundu hesaplama suresi olculur ve rapora yazilir"
+      ],
+      "gate": "pnpm --filter @wizards/web test && pnpm typecheck",
+      "effort": "M",
+      "risk": "med",
+      "dependsOn": [],
+      "rollback": "Okuma tarafi bayrakla eski fetchSockets yoluna donebilir (tek fonksiyon).",
+      "owner": "backend",
+      "wave": "W1"
+    },
+    {
+      "id": "R-006",
+      "title": "Kapsam olculuyor ama hicbir esik yok: satir kapsami %41,16 ve dusmesi kapiyi kirmaz",
+      "score": 26,
+      "severity": "high",
+      "confidence": "confirmed",
+      "platforms": ["backend", "web", "infra"],
+      "rootCause": "run-coverage.ts yalniz API E2E on kontrolune gore cikiyor; yuzde esigi, onceki degerle karsilastirma veya dosya bazinda minimum yok.",
+      "sourceFindings": ["A4-001"],
+      "touches": ["apps/web/scripts/run-coverage.ts", ".github/workflows/ci.yml"],
+      "approach": "run-coverage.ts'e mutlak taban esigi ekle: satir %40, dal %75, fonksiyon %58 (bugunku degerlerin biraz altinda, gurultusuz baslangic). Esik asilmazsa sifir disi kodla cik ve hangi metrigin dustugunu yaz. Ikinci asama olarak degisen dosyalar icin daha yuksek yerel esik eklenebilir; bu kalemde kapsam disi.",
+      "testPlan": "Once test: sahte bir coverage-summary.json ile esigin altinda kalan girdide fonksiyonun hata dondurdugunu, ustunde kalan girdide gectigini dogrula. RED: bugun esik kontrolu hic yok.",
+      "acceptance": [
+        "Kapsam esigin altina duserse `pnpm test:coverage` sifir disi kodla cikar",
+        "Cikti hangi metrigin hangi degere dustugunu yazar",
+        "Bugunku degerlerle kapi yesil kalir"
+      ],
+      "gate": "pnpm --filter @wizards/web test:coverage",
+      "effort": "M",
+      "risk": "low",
+      "dependsOn": [],
+      "rollback": "Esik sabitleri kaldirilir; davranis eski haline doner.",
+      "owner": "infra",
+      "wave": "W1"
+    },
+    {
+      "id": "R-007",
+      "title": "Rota katmani ikiye bolunmus: 74 route-logic.ts DI deseni kullanirken 11 uretim rotasi Prisma'yi dogrudan cagiriyor",
+      "score": 8,
+      "severity": "medium",
+      "confidence": "confirmed",
+      "platforms": ["backend"],
+      "rootCause": "11 uretim rotasi Prisma'yi dogrudan cagiriyor; web birim testlerinde veritabani olmadigi icin bu mantik test edilemiyor.",
+      "sourceFindings": ["A1-005"],
+      "touches": [
+        "apps/web/src/app/api/v1/mobile/bootstrap/route.ts",
+        "apps/web/src/app/api/v1/users/me/settings/route.ts",
+        "apps/web/src/app/api/v1/users/[userId]/profile/route.ts",
+        "apps/web/src/app/api/v1/channels/[channelId]/read/route.ts"
+      ],
+      "approach": "Her rotayi mevcut route-logic.ts desenine tasi: saf karar fonksiyonu + enjekte edilen PrismaClient alan sorgu yarisi. Sirayla en sicak olanlar: mobile/bootstrap, users/me/settings, users/[userId]/profile, channels/[channelId]/read. Rota dosyasi yalnizca handler kabugu kalir.",
+      "testPlan": "Her rota icin once test: enjekte edilen bagimliliklarla route-logic cagrilir, yanit kodu ve gövdesi dogrulanir; yetkisiz erisim ve bos sonuc kollari kapsanir. RED: bugun bu dosyalarda test yok.",
+      "acceptance": [
+        "11 uretim rotasinin hicbiri route.ts icinde prisma cagirmaz",
+        "Her biri icin en az bir route-logic testi bulunur",
+        "route-contract.test.ts yesil kalir"
+      ],
+      "gate": "pnpm --filter @wizards/web test && pnpm typecheck",
+      "effort": "M",
+      "risk": "low",
+      "dependsOn": [],
+      "rollback": "Rota basina bagimsiz commit; tek tek geri alinabilir.",
+      "owner": "backend",
+      "wave": "W1"
+    },
+    {
+      "id": "R-008",
+      "title": "Mesaj iletme ve davet paylasma yollari clientNonce gondermiyor: tekrar denemede ayni mesaj iki kez olusur",
+      "score": 25,
+      "severity": "medium",
+      "confidence": "confirmed",
+      "platforms": ["mobile"],
+      "rootCause": "Iletme ve davet paylasma yollari clientNonce gondermiyor; sunucudaki (userId, clientNonce) benzersiz indeksi devre disi kaliyor.",
+      "sourceFindings": ["A5-001"],
+      "touches": [
+        "apps/mobile/src/query/use-mobile-message-mutations.ts",
+        "apps/mobile/src/invite/mobile-invite-message-sheet.tsx"
+      ],
+      "approach": "Iletme mutasyonunu iyimser gonderim sarmalayicisindan gecir; mumkun degilse cagri yerinde `createMobileOptimisticMessageId()` ile nonce uret. Davet paylasma sheet'inde ayni sekilde nonce uret ve mevcut `sendingId` kilidini koru. Sunucu tarafinda degisiklik gerekmiyor — indeks zaten var.",
+      "testPlan": "Once test: ayni iletme cagrisi iki kez tetiklendiginde API'ye giden gövdelerin ayni clientNonce'u tasidigini dogrula. RED: bugun gövdede clientNonce alani hic yok.",
+      "acceptance": [
+        "Iletme ve davet paylasma gövdeleri clientNonce tasir",
+        "Ayni etkilesimin iki kez tetiklenmesi tek nonce uretir",
+        "Mobil jest suiti yesil"
+      ],
+      "gate": "pnpm --filter @wizards/mobile test && pnpm --filter @wizards/mobile test:components",
+      "effort": "S",
+      "risk": "low",
+      "dependsOn": [],
+      "rollback": "Tek dosya degisikligi; geri alinabilir.",
+      "owner": "mobile",
+      "wave": "W1"
+    },
+    {
+      "id": "R-009",
+      "title": "Medya oturumu kapanisinda seri N+1: oturum basina uc ayri await, toplu islem yok",
+      "score": 25,
+      "severity": "medium",
+      "confidence": "confirmed",
+      "platforms": ["backend"],
+      "rootCause": "endAllMediaUsageSessions dongude oturum basina uc seri await yapiyor; yinelemeler bagimsiz oldugu icin seri olmasi gereksiz.",
+      "sourceFindings": ["A2-004"],
+      "touches": ["apps/web/src/lib/analytics/service.ts"],
+      "approach": "Sure guncellemelerini `updateMany` ile toplu yaz; metrik artirimini tek toplu cagriya indir; kalan bagimsiz isleri Promise.all ile paralellestir. Davranis degismiyor, yalnizca sira degisiyor.",
+      "testPlan": "Once test: uc acik oturumla cagirildiginda veritabani cagri sayisinin dokuzdan uce dustugunu sahte PrismaClient ile say. RED: bugun dokuz cagri yapiliyor.",
+      "acceptance": [
+        "Uc oturumlu senaryoda veritabani cagri sayisi ucten fazla degil",
+        "Sure ve metrik degerleri bugunku ile birebir ayni"
+      ],
+      "gate": "pnpm --filter @wizards/web test",
+      "effort": "S",
+      "risk": "low",
+      "dependsOn": [],
+      "rollback": "Tek fonksiyon; geri alinabilir.",
+      "owner": "backend",
+      "wave": "W1"
+    },
+    {
+      "id": "R-010",
+      "title": "Outbox yoklayicisi her web ornegi icinde ayrica calisiyor: adanmis worker'a ek olarak N ornek 5 saniyede bir veritabanini yokluyor",
+      "score": 29,
+      "severity": "medium",
+      "confidence": "confirmed",
+      "platforms": ["backend", "infra"],
+      "rootCause": "server.ts kosulsuz startOutboxWorker() cagiriyor; her web ornegi adanmis worker'a ek olarak 5 saniyede bir veritabanini yokluyor.",
+      "sourceFindings": ["A2-005"],
+      "touches": ["apps/web/server.ts", "apps/web/src/lib/outbox/worker.ts"],
+      "approach": "Yoklayiciyi ortam degiskeniyle kosullu hale getir: `WHISPR_OUTBOX_IN_PROCESS` (varsayilan: adanmis worker varsa kapali, gelistirmede acik). server.ts cagriyi bu bayraga baglar. Dogruluk riski yok — SKIP LOCKED zaten cift islemeyi engelliyor; bu yalnizca israfi kaldiriyor.",
+      "testPlan": "Once test: bayrak kapaliyken startOutboxWorker cagrilmadigini, acikken cagrildigini enjekte edilen sahte ile dogrula. RED: bugun kosul yok.",
+      "acceptance": [
+        "Bayrak kapaliyken web sureci outbox yoklamaz",
+        "Gelistirme varsayilaninda davranis degismez",
+        "Railway worker yapilandirmasi belgelenir"
+      ],
+      "gate": "pnpm --filter @wizards/web test && pnpm typecheck",
+      "effort": "S",
+      "risk": "low",
+      "dependsOn": [],
+      "rollback": "Bayrak varsayilani acik yapilir; eski davranis geri gelir.",
+      "owner": "infra",
+      "wave": "W1"
+    },
+    {
+      "id": "R-011",
+      "title": "Iki sema modeli olu: Webhook ve ScheduledEvent tablolari var, hicbir servis yolu yok",
+      "score": 25,
+      "severity": "medium",
+      "confidence": "confirmed",
+      "platforms": ["backend"],
+      "rootCause": "Webhook ve ScheduledEvent modelleri semada duruyor ama hicbir servis yolu yok; yaniltici yetenek sinyali ve bakim yuku uretiyorlar.",
+      "sourceFindings": ["A6-002"],
+      "touches": ["packages/db/prisma/schema.prisma"],
+      "approach": "Iki secenekten biri, sahibin karari: (a) modelleri semadan kaldiran bir migration yaz — tablolar bos oldugu icin veri kaybi yok; (b) yol haritasinda hangi dalgada uygulanacaklarini belirt ve sema icinde yorumla isaretle. Karar verilmeden uygulama baslamaz. Onerilen (a): genisletilebilirlik isi W3'te sifirdan tasarlanacak, bugunku sema o tasarimi kisitlamamali.",
+      "testPlan": "Migration yazilirsa: `pnpm --filter @wizards/db test` rebaseline gecmisi testleri yesil kalmali; `prisma validate` gecmeli. Yeni birim testi gerekmez.",
+      "acceptance": [
+        "Sema ile kod arasinda kullanilmayan model kalmaz (ya kaldirildi ya belgelendi)",
+        "`prisma validate` gecer",
+        "privacy-service'teki scheduledEvent cascade temizligi karara gore guncellenir"
+      ],
+      "gate": "pnpm --filter @wizards/db test && pnpm typecheck",
+      "effort": "S",
+      "risk": "low",
+      "dependsOn": [],
+      "rollback": "Migration geri alinir; tablolar bos oldugu icin veri riski yok.",
+      "owner": "backend",
+      "wave": "W1"
+    },
+    {
+      "id": "R-012",
+      "title": "Modul sinirlari yalniz gelenekle korunuyor: eslint tek bir ithali kisitliyor, katman kurali yok",
+      "score": 10,
+      "severity": "medium",
+      "confidence": "confirmed",
+      "platforms": ["web", "mobile"],
+      "rootCause": "Modul sinirlari yalniz gelenekle korunuyor; eslint tek bir ithali (requireAdminUser) kisitliyor, mobil tarafta hic sinir kurali yok.",
+      "sourceFindings": ["A1-004"],
+      "touches": ["apps/web/eslint.config.mjs", "apps/mobile/eslint.config.mjs"],
+      "approach": "eslint `no-restricted-imports` paths/patterns ile katman kurallari ekle: packages -> apps yasagi, components -> @wizards/db yasagi (browser alt export'u haric), alan klasorleri arasi derin ithal yasagi. Ayni kural ailesini apps/mobile/eslint.config.mjs'e de koy. Kurallar once uyari olarak eklenip mevcut ihlal sayisi olculur, sifirsa hataya yukseltilir.",
+      "testPlan": "Once test: apps/web/scripts/eslint-config.test.mjs icine yeni kurallarin var oldugunu ve beklenen desenleri kapsadigini dogrulayan iddia ekle. RED: bugun kural yok.",
+      "acceptance": [
+        "Yasak yonde ithal eden ornek bir dosya lint hatasi verir",
+        "Mevcut kod tabaninda sifir yeni ihlal",
+        "Mobil eslint yapilandirmasi ayni kurallari tasir"
+      ],
+      "gate": "pnpm lint && pnpm --filter @wizards/web test",
+      "effort": "M",
+      "risk": "low",
+      "dependsOn": [],
+      "rollback": "Kurallar yapilandirmadan cikarilir.",
+      "owner": "web",
+      "wave": "W2"
+    },
+    {
+      "id": "R-013",
+      "title": "Socket tel sozlesmesinin kaynagi apps/web icinde; mobil 35 olayi elle aynaliyor, iki liste tip veya testle baglanmamis",
+      "score": 9,
+      "severity": "medium",
+      "confidence": "confirmed",
+      "platforms": ["web", "mobile", "backend"],
+      "rootCause": "Socket tel sozlesmesinin kaynagi apps/web/src/lib/socket/events.ts icinde; mobil ayni sozlesmeyi 35 elemanli duz string dizisiyle elle aynaliyor ve iki liste tip ya da testle baglanmamis.",
+      "sourceFindings": ["A1-002"],
+      "touches": [
+        "apps/web/src/lib/socket/events.ts",
+        "packages/types/src/socket.ts",
+        "apps/mobile/src/realtime/mobile-realtime-contract.ts"
+      ],
+      "approach": "ClientToServerEvents/ServerToClientEvents haritalarini packages/types'a tasi (payload tipleri zaten orada). Mobil listeyi o tipten turet: `satisfies readonly (keyof ServerToClientEvents)[]`. Tasima sirasinda web tarafinda ithal yollari degisir, davranis degismez. Mobilin dinlemedigi olaylar (error, dm:error) acik bir dislama listesiyle belgelenir.",
+      "testPlan": "Once test: packages/types icinde iki listenin ortustugunu dogrulayan sozlesme testi. RED: bugun boyle bir test yok ve tip baglantisi da yok.",
+      "acceptance": [
+        "Olay haritalari packages/types icinde tanimli",
+        "Mobil liste tipten turetilmis, elle yazilmis string dizisi degil",
+        "Yeni bir olay eklendiginde mobil liste guncellenmezse derleme kirilir"
+      ],
+      "gate": "pnpm --filter @wizards/types test && pnpm typecheck && pnpm --filter @wizards/mobile test",
+      "effort": "M",
+      "risk": "med",
+      "dependsOn": [],
+      "rollback": "Tasima tek commit; geri alinabilir.",
+      "owner": "backend",
+      "wave": "W2"
+    },
+    {
+      "id": "R-014",
+      "title": "Paylasilan alan mantigi web ve mobilde iki kez yaziliyor; packages/ui 72 satir, yani gercek bir paylasim katmani yok + Mesaj gruplama yuklemi web ile mobilde ayrisiyor: sirasiz gelen mesajlar web'de gruplanir, mobilde gruplanmaz",
+      "score": 7,
+      "severity": "high",
+      "confidence": "confirmed",
+      "platforms": ["web", "mobile"],
+      "rootCause": "Paylasilan alan mantigi katmani yok (packages/ui 72 satir); ayni kurallar web ve mobilde bagimsiz yazilmis ve gruplama yukleminde olcelebilir sekilde ayrismis.",
+      "sourceFindings": ["A1-003", "A5-002"],
+      "touches": [
+        "packages/ui/",
+        "apps/web/src/lib/voice/video-layout.ts",
+        "apps/mobile/src/voice/mobile-video-layout.ts",
+        "apps/web/src/lib/dm/shared-media.ts",
+        "apps/mobile/src/app/mobile-mention.ts",
+        "apps/web/src/components/chat/message-list.tsx",
+        "apps/web/src/components/chat/thread-panel.tsx",
+        "apps/mobile/src/app/components/message-grouping.ts"
+      ],
+      "approach": "Saf, platformdan bagimsiz alan kurallarini yeni bir pakete tasi (packages/domain ya da packages/types altinda ayri modul). Ilk tasinacaklar olculmus ayrisma tasiyanlar: mesaj gruplama yuklemi, video yerlesim hesabi (resolveMirror/resolveVideoAspect/resolveVideoFit/resolveVideoSizeClass), link ve mention ayristirma. UI bileseni paylasilmaz, yalnizca kurallar. Gruplama icin kanon davranis mobil surumudur: sirasiz mesajlar gruplanmaz.",
+      "testPlan": "Once test: paylasilan pakette gruplama yuklemi icin sinir tablosu (negatif delta, tam pencere, NaN, gun siniri) ve video yerlesimi icin mevcut iki taraftaki testlerin birlesimi. RED: bugun iki ayri uygulama iki farkli sonuc veriyor — sirasiz mesaj vakasi kirmizi olur.",
+      "acceptance": [
+        "Gruplama yuklemi tek yerde tanimli ve iki istemci de oradan tuketiyor",
+        "Sirasiz mesaj vakasinda web ve mobil ayni sonucu uretir",
+        "video-layout dort fonksiyonu tek kaynaktan gelir",
+        "Kural sabitleri (5 dakika) tek yerde durur"
+      ],
+      "gate": "pnpm typecheck && pnpm --filter @wizards/web test && pnpm --filter @wizards/mobile test:components",
+      "effort": "L",
+      "risk": "med",
+      "dependsOn": ["R-013"],
+      "rollback": "Paket eklenmesi geri alinabilir; tuketiciler eski yerel uygulamalarina doner.",
+      "owner": "web",
+      "wave": "W2"
+    },
+    {
+      "id": "R-015",
+      "title": "Yetkilendirme yalniz servis katmaninda; rota duzeyinde statik olarak dogrulanamiyor ve hicbir arac eksikligi yakalamiyor",
+      "score": 3,
+      "severity": "medium",
+      "confidence": "confirmed",
+      "platforms": ["backend"],
+      "rootCause": "Yetkilendirme yalniz servis katmaninda; rota duzeyinde statik olarak dogrulanamiyor ve hicbir arac eksikligi yakalamiyor.",
+      "sourceFindings": ["A3-002"],
+      "touches": [
+        "apps/web/src/lib/workspace/permissions",
+        "apps/web/src/lib/workspace/channel-service.ts",
+        "apps/web/eslint.config.mjs"
+      ],
+      "approach": "Yetkilendirmeyi tip duzeyinde zorunlu kil: yikici servis fonksiyonlari argumaninda markali (branded) bir AccessContext tipi kabul etsin ve o tipi yalnizca ensureServerPermission uretsin. Boylece izin kontrolu atlanan bir cagri derlenmez. Once en riskli servis ailesinde (channel-service, member-service) uygulanir, sonra yayilir.",
+      "testPlan": "Once test: markali tip olmadan yikici fonksiyonu cagirmaya calisan bir tip testi (expectTypeError deseni ya da @wizards/types test altyapisi). RED: bugun boyle bir cagri sorunsuz derleniyor.",
+      "acceptance": [
+        "Izin kontrolu atlanan cagri derleme hatasi verir",
+        "En az uc yikici servis ailesi markali tipe gecirilmis",
+        "route-contract.test.ts yetkilendirme beklentisini de kaydeder"
+      ],
+      "gate": "pnpm typecheck && pnpm --filter @wizards/web test",
+      "effort": "L",
+      "risk": "med",
+      "dependsOn": ["R-012"],
+      "rollback": "Marka tipi kaldirilir; imzalar eski haline doner.",
+      "owner": "backend",
+      "wave": "W2"
+    },
+    {
+      "id": "R-016",
+      "title": "279 dosya sifir yurutulmus kapsamda; admin yazma rotalari dahil rota gövdeleri birim testlerinde hic calistirilmiyor",
+      "score": 3,
+      "severity": "medium",
+      "confidence": "confirmed",
+      "platforms": ["backend"],
+      "rootCause": "279 dosya sifir yurutulmus kapsamda; rota gövdeleri (guard sirasi, param ayristirma, hata esleme, yanit sekli) hicbir testte calistirilmiyor.",
+      "sourceFindings": ["A4-002"],
+      "touches": [
+        "apps/web/src/app/api/v1/admin/servers/[serverId]/",
+        "apps/web/src/app/api/v1/attachments/[attachmentId]/download/",
+        "apps/web/src/app/api/v1/admin/moderation/cases/"
+      ],
+      "approach": "En yuksek riskli 15-20 rota icin route-logic seviyesinde DI'li birim testi ekle. Oncelik: admin yazma uclari (servers PATCH/DELETE, moderation cases, flags), ek dosya indirme, desktop-session. Her test handler'i gercek girdi ile cagirir ve yanit kodu + gövde seklini dogrular.",
+      "testPlan": "Bu kalemin kendisi test yazma isi. RED kaniti: hedef rotalarin kapsam raporundaki %0 degeri, is oncesi ve sonrasi karsilastirilir.",
+      "acceptance": [
+        "Hedef 15-20 rotanin her birinde en az bir yurutulen test",
+        "Bu dosyalarin kapsami %0'dan cikar",
+        "Toplam satir kapsami R-006 esiginin uzerinde kalir"
+      ],
+      "gate": "pnpm --filter @wizards/web test:coverage",
+      "effort": "L",
+      "risk": "low",
+      "dependsOn": ["R-006", "R-007"],
+      "rollback": "Test eklemek geri alinabilir ama gerekmez.",
+      "owner": "backend",
+      "wave": "W2"
+    },
+    {
+      "id": "R-017",
+      "title": "Web mesaj listesi sanallastirilmiyor: sonsuz sorgunun tum sayfalari DOM'da birikiyor",
+      "score": 3,
+      "severity": "medium",
+      "confidence": "confirmed",
+      "platforms": ["web"],
+      "rootCause": "Web mesaj listesi sonsuz sorgunun tum sayfalarini render ediyor; apps/web/src/components altinda hicbir sanallastirma yok.",
+      "sourceFindings": ["A2-003"],
+      "touches": ["apps/web/src/components/chat/message-list.tsx"],
+      "approach": "Once olc: 500 ve 1000 mesajda kaydirma kare suresi ve DOM dugum sayisi. Olcum esigi asiyorsa pencereli render uygula — ya sanallastirma kutuphanesi ya da eski sayfalari DOM'dan dusuren bir tavan. Mobil tarafta ayni sorun FlashList ile cozulmus; oradaki davranis referans alinir.",
+      "testPlan": "Once test: 1000 mesajli veri setinde render edilen dugum sayisinin sabit bir tavanin altinda kaldigini dogrula. RED: bugun dugum sayisi mesaj sayisiyla dogrusal buyuyor.",
+      "acceptance": [
+        "1000 mesajda DOM dugum sayisi tavanin altinda",
+        "Kaydirma konumu sayfa yuklenirken korunur",
+        "Olcum oncesi/sonrasi kare suresi rapora yazilir"
+      ],
+      "gate": "pnpm --filter @wizards/web test && pnpm e2e:smoke",
+      "effort": "L",
+      "risk": "med",
+      "dependsOn": [],
+      "rollback": "Sanallastirma bayrakla kapatilabilir.",
+      "owner": "web",
+      "wave": "W2"
+    },
+    {
+      "id": "R-018",
+      "title": "God node'lar: live-voice-provider.tsx 2.965 satir / 141 baglanti, settings-panel.tsx 2.654 satir, mobil voice-screen + use-mobile-voice-room 4.401 satir",
+      "score": 3,
+      "severity": "medium",
+      "confidence": "confirmed",
+      "platforms": ["web", "mobile"],
+      "rootCause": "live-voice-provider.tsx 2.965 satir / 141 baglanti; mobil voice-screen + use-mobile-voice-room 4.401 satir. Tek dosya birden cok degisim sebebine hizmet ediyor.",
+      "sourceFindings": ["A1-006"],
+      "touches": [
+        "apps/web/src/components/providers/live-voice-provider.tsx",
+        "apps/mobile/src/voice/use-mobile-voice-room.ts",
+        "apps/mobile/src/app/screens/voice-screen.tsx"
+      ],
+      "approach": "Sorumluluk ekseninde bol: baglanti yasam dongusu, izin/cihaz, yayin (publish), abonelik/kalite, olay koprusu. Bolmeye mobil use-mobile-voice-room.ts ile basla — orada test kaplamasi daha yuksek, hata maliyeti daha dusuk. Web tarafi ayni sinirlarla izler. Davranis degismez; bu saf bir yeniden duzenleme.",
+      "testPlan": "Bolme oncesi mevcut ses testlerinin tamami yesil olmali ve bolme sonrasi ayni testler degismeden gecmeli. Yeni test eklenmez; testler degismezse davranis korunmus demektir.",
+      "acceptance": [
+        "Hicbir ses dosyasi 800 satiri asmaz",
+        "Mevcut ses testleri degistirilmeden gecer",
+        "graphify derecesi live-voice-provider icin dusmus olur"
+      ],
+      "gate": "pnpm --filter @wizards/web test && pnpm --filter @wizards/mobile test && pnpm e2e:realtime",
+      "effort": "L",
+      "risk": "med",
+      "dependsOn": [],
+      "rollback": "Yeniden duzenleme tek seride; geri alinabilir.",
+      "owner": "web",
+      "wave": "W2"
+    },
+    {
+      "id": "R-019",
+      "title": "Okunmamis sayaci her okumada COUNT ile hesaplaniyor: en hizli buyuyen tablo uzerinde kullanici × kanal carpiminda sorgu",
+      "score": 6,
+      "severity": "high",
+      "confidence": "confirmed",
+      "platforms": ["backend", "infra"],
+      "rootCause": "Okunmamis sayaci turetilmis okuma modeli: her okumada gorunur kanal sayisinca COUNT(*) calistiriliyor, en hizli buyuyen tablo uzerinde.",
+      "sourceFindings": ["A6-001"],
+      "touches": [
+        "apps/web/src/lib/workspace/unread-service.ts",
+        "packages/db/prisma/schema.prisma"
+      ],
+      "approach": "Okunmamisi yazma tarafina tasi: ChannelReadState uzerinde kanal basina artan bir sayac tut, mesaj yazildiginda artir, okundu isaretlendiginde sifirla. DMParticipant.unreadCount deseni repoda zaten var ve calisiyor; ayni degismezleri izle. Gecis iki asamali olmali: once sayac yazilir ve COUNT ile karsilastirilarak dogrulanir, sonra okuma yolu sayaca gecer.",
+      "testPlan": "Once test: mesaj yazma, okundu isaretleme, kanal ayrilma ve mesaj silme senaryolarinda sayacin COUNT sonucuyla ayni oldugunu dogrula. RED: bugun sayac yok. Ayrica telafi (repair) betigi icin test.",
+      "acceptance": [
+        "Kanal basina okunmamis sayaci yazma zamanli tutulur",
+        "Golge donemde sayac ile COUNT sonucu bir hafta boyunca ayni",
+        "Telafi betigi mevcut (repair-server-member-counts deseni)",
+        "300 kanalli hesapta okunmamis hesaplama suresi olculur ve oncesiyle karsilastirilir"
+      ],
+      "gate": "pnpm --filter @wizards/web test && pnpm --filter @wizards/db test && pnpm typecheck",
+      "effort": "L",
+      "risk": "high",
+      "dependsOn": ["R-005"],
+      "rollback": "Okuma yolu bayrakla COUNT'a doner; sayac kolonu kalir ama kullanilmaz. Migration geri alinmaz, kolon zararsizdir.",
+      "owner": "backend",
+      "wave": "W2"
+    },
+    {
+      "id": "R-020",
+      "title": "User modeli 103 alanla tum urun alanlarini tasiyor (sonraki en genis model 46 alan)",
+      "score": 1,
+      "severity": "medium",
+      "confidence": "probable",
+      "platforms": ["backend"],
+      "rootCause": "User modeli 103 alan tasiyor (sonraki en genis model 46); kolon ekleme migration'lari tum kullanici satirlarini kilitliyor ve okumalar gereginden genis.",
+      "sourceFindings": ["A1-007"],
+      "touches": ["packages/db/prisma/schema.prisma"],
+      "approach": "Once olc (A2 acik sorusu): okuma yollarinda select daraltmasinin ne kadar kullanildigini cikar. Olcum genis okuma gosteriyorsa sicak olmayan alan gruplarini ayri tablolara ayir — kullanim sayaclari, moderasyon durumu, tercihler. UserSettings zaten bu desenin ornegi. Iki asamali migration (kolon ekle, cift yaz, oku, eski kolonu birak) zorunlu.",
+      "testPlan": "Ayirma oncesi her alan grubu icin okuma/yazma testi yazilir; ayirma sonrasi ayni testler degismeden gecmeli. Migration testi rebaseline gecmisi ile dogrulanir.",
+      "acceptance": [
+        "User modeli 60 alanin altina iner",
+        "Tum mevcut testler degismeden gecer",
+        "Migration iki asamali uygulanir ve geri alma yolu belgelenir"
+      ],
+      "gate": "pnpm --filter @wizards/db test && pnpm --filter @wizards/web test && pnpm typecheck",
+      "effort": "XL",
+      "risk": "high",
+      "dependsOn": [],
+      "rollback": "Iki asamali migration'in ikinci asamasi uygulanmadan once her an geri donulebilir.",
+      "owner": "backend",
+      "wave": "W3"
+    },
+    {
+      "id": "R-021",
+      "title": "Kurumsal kimlik katmani yok: SSO/SAML/SCIM icin ne sema ne kod yolu var",
+      "score": 1,
+      "severity": "medium",
+      "confidence": "confirmed",
+      "platforms": ["backend", "web"],
+      "rootCause": "Kurumsal kimlik katmani yok: SSO/SAML/SCIM icin ne sema ne kod yolu var.",
+      "sourceFindings": ["A6-003"],
+      "touches": ["apps/web/src/auth.ts", "packages/db/prisma/schema.prisma"],
+      "approach": "Ayri bir dalga isi. Bilesenler: OIDC/SAML kurumsal baglayici (NextAuth saglayici modeli genisletilebilir), alan adi dogrulama, SCIM saglama/kaldirma ucu, zorunlu oturum politikasi ve merkezi oturum iptali. Oturum iptali mevcut session-revocation altyapisina baglanir. Kapsam buyuk oldugu icin once tasarim belgesi, sonra uygulama.",
+      "testPlan": "Tasarim asamasindan sonra belirlenir. En az: SCIM saglama/kaldirma sozlesme testleri, oturum iptalinin tum cihazlarda etkili oldugunu dogrulayan test.",
+      "acceptance": [
+        "Tasarim belgesi onaylanmis",
+        "OIDC baglayici ile ucdan uca giris calisir",
+        "SCIM ile kaldirilan kullanicinin oturumu 60 saniye icinde kapanir"
+      ],
+      "gate": "pnpm --filter @wizards/web test && pnpm typecheck && pnpm e2e:smoke",
+      "effort": "XL",
+      "risk": "high",
+      "dependsOn": ["R-011"],
+      "rollback": "Kurumsal baglayici bayrakla kapatilir; mevcut OAuth yollari etkilenmez.",
+      "owner": "backend",
+      "wave": "W3"
+    },
+    {
+      "id": "R-022",
+      "title": "Anahtar kelime bildirimi yok: kullanici yalnizca kendi adiyla anilinca haber alabiliyor",
+      "score": 3,
+      "severity": "low",
+      "confidence": "confirmed",
+      "platforms": ["backend", "web", "mobile"],
+      "rootCause": "Anahtar kelime bildirimi yok; bildirim modeli mention + kanal ayari ikilisiyle sinirli.",
+      "sourceFindings": ["A6-004"],
+      "touches": [
+        "packages/db/prisma/schema.prisma",
+        "apps/web/src/lib/workspace/message-notification-service.ts"
+      ],
+      "approach": "UserNotificationSettings uzerine anahtar kelime listesi alani ekle. message-notification-service icindeki mention cozumlemesine anahtar kelime eslemesi ekle (extractMentionUsernames yolunun yanina). Esleme buyuk/kucuk harf duyarsiz, kelime sinirli olmali. Web ve mobil ayar ekranlarina liste duzenleme yuzeyi eklenir.",
+      "testPlan": "Once test: anahtar kelime iceren mesajin bildirim uretmesi, icermeyenin uretmemesi, kismi kelime eslesmesinin (ornegin 'deploy' icinde 'deployment') bildirim uretmemesi. RED: bugun kavram yok.",
+      "acceptance": [
+        "Anahtar kelime listesi kaydedilir ve okunur",
+        "Esleme kelime sinirli ve buyuk/kucuk harf duyarsiz",
+        "Kendi mesajin anahtar kelime bildirimi uretmez"
+      ],
+      "gate": "pnpm --filter @wizards/web test && pnpm --filter @wizards/mobile test && pnpm typecheck",
+      "effort": "M",
+      "risk": "low",
+      "dependsOn": [],
+      "rollback": "Alan bos kalirsa davranis bugunku ile ayni; migration geri alinabilir.",
+      "owner": "backend",
+      "wave": "W3"
+    }
+  ],
+  "edges": [
+    {
+      "from": "R-006",
+      "to": "R-016",
+      "reason": "Kapsam esigi once konur, sonra kapsam yukseltilir; tersi sirada esik hangi degere gore konacagi belirsiz kalir."
+    },
+    {
+      "from": "R-005",
+      "to": "R-019",
+      "reason": "Ikisi de ayni sicak yolda (okundu hesaplama). Ucuz olan fetchSockets duzeltmesi once lander, yapisal okuma modeli degisikligi onun uzerine kurulur."
+    },
+    {
+      "from": "R-012",
+      "to": "R-015",
+      "reason": "Sinir zorlamasi altyapisi (eslint kural ailesi) once kurulur; yetkilendirme zorlamasi ayni disipline yaslanir."
+    },
+    {
+      "from": "R-013",
+      "to": "R-014",
+      "reason": "Sozlesme katmani once packages/types'a tasinir; paylasilan alan kurallari o katmanin yaninda konumlanir."
+    },
+    {
+      "from": "R-003",
+      "to": "R-002",
+      "reason": "Db test suiti CI'ya girmeden olu migration dizini kaldirilirsa rebaseline gecmisi testlerinin korumasi kapida olmaz."
+    },
+    {
+      "from": "R-011",
+      "to": "R-021",
+      "reason": "Olu Webhook modeli kaldirilmadan genisletilebilirlik tasarimi bugunku semaya yaslanmaya calisir."
+    },
+    {
+      "from": "R-007",
+      "to": "R-016",
+      "reason": "Rotalar route-logic desenine gecmeden gövde testleri yazilamaz (test edilebilir yuzey yok)."
+    }
+  ],
+  "devPlan": [
+    {
+      "area": "CI kapilari",
+      "today": "9 is kosuyor (verify, actionlint, semgrep, ts-compat, node22, dort Playwright, desktop-ops). @wizards/db testi kosmuyor; kapsam esigi yok; pnpm audit bugun kirmizi.",
+      "target": "Her paketin testi kapida; kapsam mutlak tabani zorunlu; bagimlilik denetimi yesil; hicbir adim susturulmamis.",
+      "firstStep": "R-003 ve R-006'yi uygula, sonra R-001 ile audit'i yesile dondur.",
+      "sourceFindings": ["A4-001", "A4-003", "A3-001"]
+    },
+    {
+      "area": "Test disiplini",
+      "today": "2072 web + 1669 mobil test, sifir skip, %5,4 zayif iddia — kalite yuksek. Ama rota gövdeleri hic calistirilmiyor (279 dosya %0) ve mutasyon dayanikliligi hic olculmedi.",
+      "target": "Yeni kod test-once yazilir; her yikici uc icin en az bir yurutulen rota testi; kritik saf fonksiyonlar icin 'bir satiri bozulsa hangi test kirilir' sorusu yanitlanmis.",
+      "firstStep": "R-016 kapsaminda ilk bes admin yazma ucu icin route-logic testi yaz; deseni sablon haline getir.",
+      "sourceFindings": ["A4-002"]
+    },
+    {
+      "area": "Sozlesme disiplini",
+      "today": "packages/types payload tiplerini tutuyor ama socket olay haritalari apps/web icinde; mobil elle aynaliyor. Paylasilan alan katmani yok (packages/ui 72 satir).",
+      "target": "Tel sozlesmesi ve platformdan bagimsiz alan kurallari tek kaynakta; iki istemci de oradan tuketiyor; ayrisma derleme hatasi uretiyor.",
+      "firstStep": "R-013 (olay haritalarini tasi), ardindan R-014 (alan kurallari).",
+      "sourceFindings": ["A1-002", "A1-003", "A5-002"]
+    },
+    {
+      "area": "Olcum dongusu",
+      "today": "Server-Timing, ClientHealthEvent ve mobil performans katmani var ama sicak yol p50/p95 esikleri tanimli degil; bu denetimde hicbir sicak yol suresi olculemedi.",
+      "target": "Dort sicak yol (mesaj gonder, sohbet ac, ses odasina gir, uygulama ac) icin p50/p95 surekli toplanir; esik asiminda alarm uretilir.",
+      "firstStep": "A2 acik sorularindaki dort olcumu bir kez calistir ve bugunku degerleri taban olarak kaydet.",
+      "sourceFindings": ["A2-001", "A2-003", "A6-001"]
+    },
+    {
+      "area": "Mimari sinirlarin araca baglanmasi",
+      "today": "Sinirlar yalniz gelenekle korunuyor; eslint tek bir ithali kisitliyor.",
+      "target": "Katman ihlali, istemciye Prisma sizmasi ve izin kontrolu atlamasi arac tarafindan reddedilir.",
+      "firstStep": "R-012 (eslint kural ailesi), ardindan R-015 (markali AccessContext).",
+      "sourceFindings": ["A1-004", "A3-002"]
+    },
+    {
+      "area": "Surum ritmi ve veri katmani",
+      "today": "Migration yalniz rebaseline-migrations'tan kosuyor ama olu dizin tuzagi duruyor; db testleri kapida degil; UAT'ye disaridan baglanilamiyor.",
+      "target": "Tek migration yolu, kapida korunan db testleri, iki asamali migration deseni (ekle, cift yaz, oku, birak) yazili kural.",
+      "firstStep": "R-003 sonra R-002; iki asamali desen R-019 ve R-020'de uygulanir.",
+      "sourceFindings": ["A1-001", "A4-003"]
+    },
+    {
+      "area": "Borc kaydi",
+      "today": "Bu denetimin acik sorulari yalniz raporlarda duruyor; kapatilmayan bulgular icin izlenen bir yer yok.",
+      "target": "Her acik soru ya bir dalgaya baglanir ya da acikca 'kabul edilen borc' olarak isaretlenir ve tarihi gelince gozden gecirilir.",
+      "firstStep": "A1–A6 raporlarindaki 40+ acik soruyu tek listede topla; A3 ve A5'in ikinci turlarini W1'e is olarak koy.",
+      "sourceFindings": ["A3-002", "A5-001"]
+    }
+  ],
+  "deferred": []
+}

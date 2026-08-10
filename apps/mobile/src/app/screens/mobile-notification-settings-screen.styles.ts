@@ -82,6 +82,8 @@ export const createMobileNotificationSettingsStyles = (theme: MobileTheme) =>
     iconBoxGreen: { backgroundColor: theme.status.successSoft },
     iconBoxDanger: { backgroundColor: theme.status.dangerSoft },
     iconBoxMuted: { backgroundColor: theme.surface.soft },
+    /** Icon + label column, so an unavailable row can fade it without the switch. */
+    rowLead: { alignItems: "center", flex: 1, flexDirection: "row", gap: 14, minWidth: 0 },
     rowText: { flex: 1, gap: 1, minWidth: 0 },
     rowLabel: {
       color: theme.text.primary,

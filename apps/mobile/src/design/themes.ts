@@ -260,8 +260,18 @@ export interface MobileTheme {
     /** Dashed outline on "add" affordances (1a rail +, 1c new-server row). */
     readonly dashedBorder: string;
     readonly separatorDot: string;
+    /** Toggle track colours. Single source for `kit/toggle`; §2 "1i".6 geometry. */
     readonly trackOff: string;
+    readonly trackOn: string;
     readonly trackThumb: string;
+    /**
+     * Unavailable switches. They are drawn in these lower-contrast tones at full
+     * opacity rather than faded: a settings row already dims its own label, and
+     * a second layer of transparency turned the control into a ghost.
+     */
+    readonly trackDisabled: string;
+    readonly trackDisabledOn: string;
+    readonly trackThumbDisabled: string;
   };
   readonly border: {
     readonly default: string;
@@ -675,8 +685,12 @@ export const lightTheme = deepFreeze({
     chevron: redesignLight.controlChevron,
     dashedBorder: redesignLight.controlDashedBorder,
     separatorDot: redesignLight.controlSeparatorDot,
-    trackOff: redesignLight.languageHandle,
-    trackThumb: mobilePalette.neutral.white,
+    trackOff: redesignMessagingLight.toggleOff,
+    trackOn: redesignMessagingLight.accent,
+    trackThumb: redesignMessagingLight.surface,
+    trackDisabled: redesignLight.hairline,
+    trackDisabledOn: redesignLight.languageRadio,
+    trackThumbDisabled: redesignMessagingLight.surface,
   },
   dark: false,
   elevation: {
@@ -1042,8 +1056,12 @@ export const darkTheme = deepFreeze({
     chevron: redesignDark.controlChevron,
     dashedBorder: redesignDark.controlDashedBorder,
     separatorDot: redesignDark.controlSeparatorDot,
-    trackOff: redesignDark.languageHandle,
-    trackThumb: mobilePalette.neutral.white,
+    trackOff: redesignMessagingDark.toggleOff,
+    trackOn: redesignMessagingDark.accent,
+    trackThumb: redesignMessagingDark.surface,
+    trackDisabled: redesignDark.hairline,
+    trackDisabledOn: redesignDark.languageHandle,
+    trackThumbDisabled: redesignDark.textFaint,
   },
   dark: true,
   elevation: {

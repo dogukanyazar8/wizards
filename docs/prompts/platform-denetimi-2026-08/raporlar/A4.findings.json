@@ -1,0 +1,337 @@
+{
+  "axis": "A4",
+  "axisTitle": "Test süreçleri ve kod kalitesi",
+  "baseCommit": "5a2b3990733b17672cf65fba631b7ec44a7bf96a",
+  "generatedAt": "2026-08-08",
+  "generatedFrom": [
+    "pnpm --filter @wizards/web test:coverage (c8 birlesik rapor)",
+    "scratchpad/scan-route-tests.mjs — 211 rota icin ayni klasorde test dosyasi taramasi",
+    "scratchpad/coverage-report.mjs — coverage-summary.json ozeti ve en dusuk 25 dosya",
+    ".github/workflows/ci.yml is/adim listesi",
+    "grep sayimlari: any, ts-ignore, as unknown as, TODO/FIXME, console.log, skip/todo, toBeTruthy"
+  ],
+  "surfaceCoverage": [
+    {
+      "surface": "Web birim testleri",
+      "unitsTotal": 307,
+      "unitsInspected": 307,
+      "method": "envanter + calistirma (2072 test / 462 suite); iddia kalitesi grep sayimlariyla olculdu, 4 dosya elle okundu",
+      "notCovered": []
+    },
+    {
+      "surface": "Mobil birim testleri",
+      "unitsTotal": 210,
+      "unitsInspected": 210,
+      "method": "envanter + calistirma (1669 test)",
+      "notCovered": ["dosya bazinda iddia kalitesi okunmadi"]
+    },
+    {
+      "surface": "Mobil bileşen testleri (jest)",
+      "unitsTotal": 124,
+      "unitsInspected": 124,
+      "method": "envanter; toBeTruthy kullanimi ornekleme ile RNTL varlik idiomu oldugu dogrulandi (auth-forgot-password-screen.test.tsx elle okundu)",
+      "notCovered": [
+        "calistirilmadi (A2'de 1669 mobil node testi kosuldu, jest suiti bu turda kosulmadi)"
+      ]
+    },
+    {
+      "surface": "Types testleri",
+      "unitsTotal": 13,
+      "unitsInspected": 13,
+      "method": "envanter + CI adimi dogrulandi",
+      "notCovered": []
+    },
+    {
+      "surface": "E2E (Playwright)",
+      "unitsTotal": 17,
+      "unitsInspected": 17,
+      "method": "envanter + ci.yml icindeki dort Playwright isi (smoke, firefox/webkit, a11y, visual) dogrulandi",
+      "notCovered": [
+        "spec icerikleri okunmadi — hangi kullanici yolculuklarini kapsadigi dogrulanmadi"
+      ]
+    },
+    {
+      "surface": "Desktop testleri",
+      "unitsTotal": 16,
+      "unitsInspected": 16,
+      "method": "envanter + ci.yml desktop-ops isinde cargo test ve pnpm --filter @wizards/desktop test adimlari dogrulandi",
+      "notCovered": []
+    },
+    {
+      "surface": "API rotalari (test matrisi)",
+      "unitsTotal": 211,
+      "unitsInspected": 211,
+      "method": "scan-route-tests.mjs ile ayni klasorde test dosyasi taramasi + coverage-summary.json ile gercek yurutulmus satir orani",
+      "notCovered": []
+    },
+    {
+      "surface": "CI kapilari",
+      "unitsTotal": 5,
+      "unitsInspected": 1,
+      "method": "ci.yml tamami okundu (9 is: verify, actionlint, semgrep, ts-compat, node22-compat, 4 Playwright, desktop-ops)",
+      "notCovered": [
+        "desktop-release.yml",
+        "mobile-release.yml",
+        "desktop-native-build.yml",
+        "mobile-redesign-device-gate-nightly.yml"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "A4-001",
+      "title": "Kapsam olculuyor ama hicbir esik yok: satir kapsami %41,16 ve dusmesi kapiyi kirmaz",
+      "severity": "high",
+      "confidence": "confirmed",
+      "platforms": ["backend", "web", "infra"],
+      "category": "test-coverage",
+      "evidence": [
+        {
+          "file": "apps/web/scripts/run-coverage.ts",
+          "line": 79,
+          "quote": "} else if (e2eMode.mode === \"fail\") {"
+        },
+        {
+          "file": ".github/workflows/ci.yml",
+          "line": 103,
+          "quote": "      - name: Test with coverage baseline"
+        }
+      ],
+      "failureScenario": "Bir gelistirici 300 satirlik yeni bir servis ekler ve hic test yazmaz. `pnpm test:coverage` calisir, birlesik c8 raporu uretilir, kapsam %41,16'dan %40,3'e duser — ve komut sifir kodla cikar. CI yesil kalir. Ayni sey mevcut testleri silen bir degisiklik icin de gecerli: kapsam raporu yalnizca uretilir, hicbir sayiyla karsilastirilmaz. run-coverage.ts icinde tek kapi API E2E on kontrolu; yuzde esigi, onceki degerle karsilastirma ya da dosya bazinda minimum yok.",
+      "impact": "Kapinin adi 'coverage baseline' ama bir baseline yok. Bugunku degerler: satir %41,16 (60.006/145.757), dal %76,72, fonksiyon %59,27. Satir kapsaminin dusuklugu tek basina kusur degil (890 dosyanin buyuk bolumu React bileseni ve rota kabugu) — kusur, bu sayinin hicbir sey yapmamasi. Gerileme sessizdir.",
+      "fix": {
+        "summary": "run-coverage.ts'e iki kapi ekle: (1) mutlak taban (bugunku degerlerin biraz altinda, ornegin satir %40 / dal %75 / fonksiyon %58), (2) degisen dosyalar icin daha yuksek yerel esik. Once uyari modunda bir tur kosup gurultuyu gor.",
+        "effort": "M",
+        "risk": "low",
+        "touches": ["apps/web/scripts/run-coverage.ts", ".github/workflows/ci.yml"]
+      },
+      "parity": {
+        "benchmark": "none"
+      },
+      "wave": "W1",
+      "refutation": "Esigin baska yerde olma ihtimali arandi: run-coverage.ts (100 satir) icinde threshold/min/percent gecmiyor; ci.yml'deki adim yalniz `pnpm test:coverage` cagiriyor ve ek bir karsilastirma adimi yok; turbo.json test:coverage gorevi cache:false disinda bir sey tanimlamiyor. c8 yapilandirmasinda `check-coverage` arandi, bulunamadi. Curutulemedi."
+    },
+    {
+      "id": "A4-002",
+      "title": "279 dosya sifir yurutulmus kapsamda; admin yazma rotalari dahil rota gövdeleri birim testlerinde hic calistirilmiyor",
+      "severity": "medium",
+      "confidence": "confirmed",
+      "platforms": ["backend"],
+      "category": "test-coverage",
+      "evidence": [
+        {
+          "file": "apps/web/src/app/api/v1/admin/servers/[serverId]/route.ts",
+          "line": 1,
+          "quote": "import { prisma } from \"@wizards/db\";"
+        },
+        {
+          "file": "apps/web/src/app/api/v1/attachments/[attachmentId]/download/route.ts",
+          "line": 1,
+          "quote": "import { prisma } from \"@wizards/db\";"
+        }
+      ],
+      "failureScenario": "Admin sunucu guncelleme ucunun (`PATCH /api/v1/admin/servers/[serverId]`, 95 satir, %0 kapsam) hata esleme kolu bozulur: `ApiError` yerine ham hata firlatilir ve 500 doner. Servis testleri yesil kalir cunku onlar `updateAdminServer` fonksiyonunu dogrudan cagiriyor; rota gövdesi hicbir testte calistirilmiyor. route-contract.test.ts de yakalamaz — o AST duzeyinde 'auth guard cagriliyor mu, JSON merkezi parse ediliyor mu, rate-limit eylemi kayitli mi' sorularini soruyor, gövdeyi calistirmiyor. Kusur ancak bir admin ucu kullandiginda gorulur.",
+      "impact": "Rota katmaninin davranisi (guard sirasi, param ayristirma, hata esleme, yanit sekli) yurutulerek dogrulanmiyor. 279 dosya (>=20 satir) %0 kapsamda; aralarinda admin sunucu PATCH/DELETE, admin moderasyon vaka uclari, feature flag uclari, ek dosya indirme ve desktop-session var. 211 rotanin yalniz 73'unde ayni klasorde test dosyasi mevcut.",
+      "fix": {
+        "summary": "Yuksek riskli 15-20 rota icin route-logic seviyesinde DI'li birim testi ekle (repo'nun mevcut deseni: enjekte edilen bagimliliklarla handler'i cagir, yanit kodunu ve gövdesini dogrula). Once admin yazma uclari ve ek dosya indirme.",
+        "effort": "L",
+        "risk": "low",
+        "touches": [
+          "apps/web/src/app/api/v1/admin/servers/[serverId]/",
+          "apps/web/src/app/api/v1/attachments/[attachmentId]/download/",
+          "apps/web/src/app/api/v1/admin/moderation/cases/"
+        ]
+      },
+      "parity": {
+        "benchmark": "none"
+      },
+      "wave": "W2",
+      "refutation": "Bu rotalarin servis katmaninda test edilip edilmedigi kontrol edildi ve **kismen curutuldu**: moderation (`appeal-service.test.ts`, `case-actions.test.ts`, `case-alert-service.test.ts`) ve feature-flags (`admin-service.test.ts`, `service.test.ts`) servisleri testli. Yani is mantigi kapsanmis durumda; kapsanmayan sey rota gövdesinin kendisi. Bu yuzden severity high degil medium ve baslik 'is mantigi test edilmiyor' degil 'rota gövdeleri calistirilmiyor'. E2E'nin bu bosluğu kapatma ihtimali de degerlendirildi: 17 spec var ama admin yazma uclarini kapsayip kapsamadiklari okunmadi (acik soru)."
+    },
+    {
+      "id": "A4-003",
+      "title": "@wizards/db test suiti (8 dosya) hicbir CI isinde kosmuyor",
+      "severity": "medium",
+      "confidence": "confirmed",
+      "platforms": ["infra", "backend"],
+      "category": "ci-gate",
+      "evidence": [
+        {
+          "file": ".github/workflows/ci.yml",
+          "line": 94,
+          "quote": "      - name: Test shared types package"
+        },
+        {
+          "file": "packages/db/package.json",
+          "line": 22,
+          "quote": "    \"test\": \"tsx --test src/prisma.test.ts src/seed-about-model.test.ts src/seed-options.test.ts src/seed-uat-test-users.test.ts && node --test scripts/prisma7-contract.test.mjs scripts/verify-prisma7-disposable.test.mjs scripts/rebaseline-uat-migration-history.test.mjs\""
+        }
+      ],
+      "failureScenario": "`packages/db/scripts/rebaseline-uat-migration-history.test.mjs` UAT migration gecmisinin yeniden temellendirilmesini dogruluyor; `prisma7-contract.test.mjs` Prisma 7 sozlesmesini koruyor. Bu testlerden biri kirilirsa CI bunu gormez: ci.yml types, ui, mobil ve desktop suitlerini adiyla cagiriyor ama db'yi cagirmiyor, `pnpm test` (turbo test) ise hicbir iste kosmuyor — kapsam adimi yalnizca `pnpm test:coverage` (sadece web). Migration gecmisi mantigindaki bir gerileme uretimde, deployment sirasinda ortaya cikar.",
+      "impact": "Veri katmaninin en riskli araclari (migration rebaseline, Prisma surum sozlesmesi, seed) kapinin disinda. A1-001 ile birlesince tablo netlesiyor: migration yolu hem yanlis dizin tuzagi tasiyor hem de o yolu koruyan testler CI'da kosmuyor.",
+      "fix": {
+        "summary": "ci.yml verify isine `pnpm --filter @wizards/db test` adimi ekle (types/ui adimlarinin yanina). Alternatif: kapsam adimini `pnpm test` ile degistirip turbo'nun tum paketleri kosmasini sagla.",
+        "effort": "S",
+        "risk": "low",
+        "touches": [".github/workflows/ci.yml"]
+      },
+      "parity": {
+        "benchmark": "none"
+      },
+      "wave": "W0",
+      "refutation": "Db testinin baska bir workflow'da kosma ihtimali arandi: `.github/workflows/` altinda `@wizards/db` gecen tum satirlar `db:generate` veya `db:migrate:deploy`; test cagrisi yok. `pnpm test` (turbo test, tum paketleri kapsardi) hicbir workflow adiminda gecmiyor. Curutulemedi."
+    }
+  ],
+  "metrics": [
+    {
+      "name": "web satir kapsami",
+      "value": 41.16,
+      "unit": "yuzde",
+      "method": "pnpm --filter @wizards/web test:coverage -> coverage/coverage-summary.json total.lines.pct",
+      "treeState": "working"
+    },
+    {
+      "name": "web dal kapsami",
+      "value": 76.72,
+      "unit": "yuzde",
+      "method": "coverage-summary.json total.branches.pct",
+      "treeState": "working"
+    },
+    {
+      "name": "web fonksiyon kapsami",
+      "value": 59.27,
+      "unit": "yuzde",
+      "method": "coverage-summary.json total.functions.pct",
+      "treeState": "working"
+    },
+    {
+      "name": "kapsanan satir",
+      "value": 60006,
+      "unit": "satir",
+      "method": "coverage-summary.json total.lines.covered / 145757",
+      "treeState": "working"
+    },
+    {
+      "name": "sifir kapsamli dosya (>=20 satir)",
+      "value": 279,
+      "unit": "dosya",
+      "method": "scratchpad/coverage-report.mjs",
+      "treeState": "working"
+    },
+    {
+      "name": "kapsam raporundaki dosya",
+      "value": 890,
+      "unit": "dosya",
+      "method": "coverage-summary.json anahtar sayisi",
+      "treeState": "working"
+    },
+    {
+      "name": "web testi / suite",
+      "value": 2072,
+      "unit": "test (462 suite)",
+      "method": "pnpm --filter @wizards/web test:coverage — pass 2072, fail 0, skipped 0, todo 0",
+      "treeState": "working"
+    },
+    {
+      "name": "mobil birim testi",
+      "value": 1669,
+      "unit": "test",
+      "method": "pnpm --filter @wizards/mobile test (A2 turunda olculdu)",
+      "treeState": "working"
+    },
+    {
+      "name": "ayni klasorde testi olan rota",
+      "value": 73,
+      "unit": "rota (211 icinde)",
+      "method": "scratchpad/scan-route-tests.mjs",
+      "treeState": "baseline"
+    },
+    {
+      "name": "route-contract.test.ts boyutu",
+      "value": 1931,
+      "unit": "satir",
+      "method": "wc -l apps/web/src/app/api/v1/route-contract.test.ts",
+      "treeState": "baseline"
+    },
+    {
+      "name": "web zayif iddia orani",
+      "value": 5.4,
+      "unit": "yuzde",
+      "method": "248 zayif (assert.ok/toBeDefined/toBeTruthy/length>0) / 4601 assert. cagrisi",
+      "treeState": "baseline"
+    },
+    {
+      "name": "uretim kodunda `any`",
+      "value": 1,
+      "unit": "kullanim",
+      "method": "grep -rn ': any|<any>|as any' apps/web/src apps/mobile/src (test disi)",
+      "treeState": "baseline"
+    },
+    {
+      "name": "@ts-ignore / @ts-expect-error",
+      "value": 0,
+      "unit": "kullanim",
+      "method": "grep -rn '@ts-ignore|@ts-expect-error' (test disi)",
+      "treeState": "baseline"
+    },
+    {
+      "name": "as unknown as",
+      "value": 31,
+      "unit": "kullanim",
+      "method": "grep -rn 'as unknown as' apps/web/src apps/mobile/src (test disi)",
+      "treeState": "baseline"
+    },
+    {
+      "name": "TODO/FIXME (uretim kodu)",
+      "value": 0,
+      "unit": "yorum",
+      "method": "grep -rn 'TODO|FIXME' apps/web/src apps/mobile/src (test disi)",
+      "treeState": "baseline"
+    },
+    {
+      "name": "console.log (uretim kodu)",
+      "value": 0,
+      "unit": "cagri",
+      "method": "grep -rn 'console\\.log\\(' apps/web/src apps/mobile/src (test disi)",
+      "treeState": "baseline"
+    },
+    {
+      "name": "skip/todo isaretli test",
+      "value": 7,
+      "unit": "test",
+      "method": "grep -rn 'it.skip(|test.skip(|describe.skip(|it.todo(|test.todo(|xit(|xdescribe('",
+      "treeState": "baseline"
+    },
+    {
+      "name": "snapshot testi",
+      "value": 0,
+      "unit": "test",
+      "method": "grep -rn 'toMatchSnapshot|toMatchInlineSnapshot'",
+      "treeState": "baseline"
+    },
+    {
+      "name": "CI isi sayisi",
+      "value": 9,
+      "unit": "is",
+      "method": "ci.yml: verify, actionlint, semgrep, typescript-native-shadow, node22-compat, e2e-smoke, firefox/webkit smoke, a11y, visual, desktop-ops",
+      "treeState": "baseline"
+    },
+    {
+      "name": "susturulmus CI adimi (continue-on-error / || true)",
+      "value": 0,
+      "unit": "adim",
+      "method": "grep -rn 'continue-on-error|\\|\\| true' .github/workflows/",
+      "treeState": "baseline"
+    }
+  ],
+  "openQuestions": [
+    "Kirilganlik (flake) icin uc tur kosulmadi. Web suiti bu oturumda iki kez bagimsiz kosuldu (2072 pass / 0 fail, her ikisinde de ayni) — iki tur stabil ama uc tur olcutu karsilanmadi. Mobil jest suiti bu turda hic kosulmadi.",
+    "17 Playwright spec'inin hangi kullanici yolculuklarini kapsadigi okunmadi. A4-002'nin gercek etkisi buna bagli: admin yazma uclari e2e'de kosuyorsa rota gövdeleri dolayli olarak calistiriliyor demektir.",
+    "Mutasyon dayanikliligi hic olculmedi. Kritik saf fonksiyonlar (izin hesaplama, oran siniri, sayac mantigi, mesaj gruplama) icin 'bir satiri bozulsa hangi test kirilir' sorusu yanitlanmadi.",
+    "31 `as unknown as` kullaniminin nerede yogunlastigi incelenmedi; tip kacaklari genelde bir sonraki hatanin yerini gosterir.",
+    "7 skip/todo testin nedenleri okunmadi.",
+    "mobile-redesign-device-gate-nightly.yml, mobile-release.yml, desktop-release.yml ve desktop-native-build.yml okunmadi — gece kosan kapinin kirildiginda kimin gordugu bilinmiyor.",
+    "Test yardimcilarinin tekrar edip etmedigi (fixture/factory disiplini) incelenmedi.",
+    "ci.yml calisma agacinda temel commit'ten farkli (15 ekleme / 38 silme, commit'lenmemis): 'Node 22 Native Compatibility' isi ve desktop-ops matrisi kaldirilmis gorunuyor. A4 bulgulari temel commit'e gore yazildi; @wizards/db testinin eksikligi her iki agacta da gecerli (dogrulandi)."
+  ]
+}

@@ -65,6 +65,8 @@ export function createMobileVoiceScreenProps({
   onSelectVoiceAudioInput,
   onSelectVoiceAudioOutput,
   onSelectVoiceAudioOutputDevice,
+  onSelectVoiceAudioProcessing,
+  onSelectVoiceInputMode,
   onSelectVoiceNoiseSuppression,
   onSelectVoiceScreenShareAudioMuted,
   onSelectVoiceScreenShareQuality,
@@ -72,6 +74,7 @@ export function createMobileVoiceScreenProps({
   onToggleVoiceCamera,
   onToggleVoiceMute,
   onToggleVoiceScreenShare,
+  voiceAudioProcessing,
   voiceInputMode,
   voicePushToTalkPhase,
   voiceRoomState,
@@ -89,6 +92,8 @@ export function createMobileVoiceScreenProps({
   readonly onSelectVoiceAudioInput: MobileVoiceScreenProps["onSelectVoiceAudioInput"];
   readonly onSelectVoiceAudioOutput: MobileVoiceScreenProps["onSelectVoiceAudioOutput"];
   readonly onSelectVoiceAudioOutputDevice: MobileVoiceScreenProps["onSelectVoiceAudioOutputDevice"];
+  readonly onSelectVoiceAudioProcessing: MobileVoiceScreenProps["onSelectVoiceAudioProcessing"];
+  readonly onSelectVoiceInputMode: MobileVoiceScreenProps["onSelectVoiceInputMode"];
   readonly onSelectVoiceNoiseSuppression: MobileVoiceScreenProps["onSelectVoiceNoiseSuppression"];
   readonly onSelectVoiceScreenShareAudioMuted: MobileVoiceScreenProps["onSelectVoiceScreenShareAudioMuted"];
   readonly onSelectVoiceScreenShareQuality: MobileVoiceScreenProps["onSelectVoiceScreenShareQuality"];
@@ -96,6 +101,7 @@ export function createMobileVoiceScreenProps({
   readonly onToggleVoiceCamera?: MobileVoiceScreenProps["onToggleVoiceCamera"];
   readonly onToggleVoiceMute: MobileVoiceScreenProps["onToggleVoiceMute"];
   readonly onToggleVoiceScreenShare?: MobileVoiceScreenProps["onToggleVoiceScreenShare"];
+  readonly voiceAudioProcessing: MobileVoiceScreenProps["voiceAudioProcessing"];
   readonly voiceInputMode: MobileVoiceScreenProps["voiceInputMode"];
   readonly voicePushToTalkPhase: MobileVoiceScreenProps["voicePushToTalkPhase"];
   readonly voiceRoomState: MobileVoiceRoomState;
@@ -114,6 +120,8 @@ export function createMobileVoiceScreenProps({
     ...(onSelectVoiceAudioInput ? { onSelectVoiceAudioInput } : {}),
     ...(onSelectVoiceAudioOutput ? { onSelectVoiceAudioOutput } : {}),
     ...(onSelectVoiceAudioOutputDevice ? { onSelectVoiceAudioOutputDevice } : {}),
+    ...(onSelectVoiceAudioProcessing ? { onSelectVoiceAudioProcessing } : {}),
+    ...(onSelectVoiceInputMode ? { onSelectVoiceInputMode } : {}),
     ...(onSelectVoiceNoiseSuppression ? { onSelectVoiceNoiseSuppression } : {}),
     ...(onSelectVoiceScreenShareAudioMuted ? { onSelectVoiceScreenShareAudioMuted } : {}),
     ...(onSelectVoiceScreenShareQuality ? { onSelectVoiceScreenShareQuality } : {}),
@@ -122,6 +130,7 @@ export function createMobileVoiceScreenProps({
     onToggleVoiceMute,
     ...(onToggleVoiceScreenShare ? { onToggleVoiceScreenShare } : {}),
     serverName: getMobileActiveVoiceRoomServerName({ bootstrapState, voiceRoomState }),
+    ...(voiceAudioProcessing ? { voiceAudioProcessing } : {}),
     voiceInputMode,
     voicePushToTalkPhase,
     voiceRoomState,

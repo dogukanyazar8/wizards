@@ -320,9 +320,8 @@ export function MobileRoleDetailScreen({ onBack, roleId, serverId }: MobileRoleD
               </View>
               <Toggle
                 accessibilityLabel={mobileRoleDetailPermissionLabels[locale][key]}
-                disabled={!editable || mutations.updateRole.isPending}
                 onValueChange={(next) => togglePermission(key, next)}
-                readOnly={!editable}
+                readOnly={!editable || mutations.updateRole.isPending}
                 testID={`mobile-role-permission-${key}`}
                 value={permissions.has(key)}
               />

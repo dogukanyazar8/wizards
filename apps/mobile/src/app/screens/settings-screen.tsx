@@ -69,7 +69,7 @@ import { MobileLanguageSettingsScreen } from "./mobile-language-settings-screen"
 import { MobileNotificationSettingsScreen } from "./mobile-notification-settings-screen";
 import { MobileSecuritySettingsScreen } from "./mobile-security-settings-screen";
 import { SocialAccountQuickActions } from "../../social/social-account-screens";
-import { Button, DestructiveConfirmationSheet, Skeleton } from "../components/kit";
+import { Button, DestructiveConfirmationSheet, Skeleton, Toggle } from "../components/kit";
 import { useToast } from "../components/kit/toast";
 import { Avatar } from "../components/kit/avatar";
 import { mobileNavigationRef } from "../../navigation/mobile-navigation-ref";
@@ -1538,27 +1538,18 @@ export function SettingsHapticsControl() {
   const label = enabled ? copy.settingsHapticsEnabled : copy.settingsHapticsDisabled;
 
   return (
-    <Pressable
-      accessibilityLabel={copy.settingsHapticsTitle}
-      accessibilityRole="switch"
-      accessibilityState={{ checked: enabled }}
-      onPress={() => setEnabled(!enabled)}
-      style={({ pressed }) => [
-        styles.settingsLocaleOption,
-        enabled && styles.settingsLocaleOptionSelected,
-        pressed && styles.actionButtonPressed,
-      ]}
-      testID="mobile-haptics-toggle"
-    >
-      <Text
-        style={[
-          styles.settingsLocaleOptionLabel,
-          enabled && styles.settingsLocaleOptionLabelSelected,
-        ]}
-      >
-        {label}
+    <View style={styles.settingsToggleRow}>
+      <Text numberOfLines={1} style={styles.settingsToggleRowLabel}>
+        {copy.settingsHapticsTitle}
       </Text>
-    </Pressable>
+      <Text style={styles.settingsToggleRowValue}>{label}</Text>
+      <Toggle
+        accessibilityLabel={copy.settingsHapticsTitle}
+        onValueChange={setEnabled}
+        testID="mobile-haptics-toggle"
+        value={enabled}
+      />
+    </View>
   );
 }
 
@@ -1655,37 +1646,19 @@ export function SettingsAppLockControl({
           ? copy.settingsAppLockUnavailableDescription
           : copy.settingsAppLockControlDescription}
       </Text>
-      <Pressable
-        accessibilityLabel={copy.settingsAppLockToggleLabel}
-        accessibilityRole="switch"
-        accessibilityState={{ checked: enabled, disabled: unavailable }}
-        disabled={unavailable}
-        onPress={() => onToggle(!enabled)}
-        style={({ pressed }) => [
-          styles.settingsLocaleOption,
-          enabled && !unavailable && styles.settingsLocaleOptionSelected,
-          pressed && styles.actionButtonPressed,
-        ]}
-        testID="mobile-settings-app-lock-toggle"
-      >
-        <Text
-          style={[
-            styles.settingsLocaleOptionLabel,
-            enabled && !unavailable && styles.settingsLocaleOptionLabelSelected,
-          ]}
-          numberOfLines={1}
-        >
+      <View style={styles.settingsToggleRow}>
+        <Text numberOfLines={1} style={styles.settingsToggleRowLabel}>
           {copy.settingsAppLockToggleLabel}
         </Text>
-        <Text
-          style={[
-            styles.settingsLocaleShortLabel,
-            enabled && !unavailable && styles.settingsLocaleShortLabelSelected,
-          ]}
-        >
-          {valueLabel}
-        </Text>
-      </Pressable>
+        <Text style={styles.settingsToggleRowValue}>{valueLabel}</Text>
+        <Toggle
+          accessibilityLabel={copy.settingsAppLockToggleLabel}
+          disabled={unavailable}
+          onValueChange={onToggle}
+          testID="mobile-settings-app-lock-toggle"
+          value={enabled && !unavailable}
+        />
+      </View>
     </View>
   );
 }

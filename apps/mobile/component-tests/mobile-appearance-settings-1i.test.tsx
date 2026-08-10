@@ -293,16 +293,10 @@ describe("MSG-1i appearance settings", () => {
         width: 22,
       });
       expect(styles.messageSliderStop).toMatchObject({ height: 5, width: 5 });
-      // §2 "1i".6 toggle: 46x28 r14 with a 24px thumb.
-      expect(styles.toggleTrack).toMatchObject({
-        backgroundColor: theme.messaging.toggleOff,
-        borderRadius: 14,
-        height: 28,
-        padding: 2,
-        width: 46,
-      });
-      expect(styles.toggleTrackOn.backgroundColor).toBe(theme.messaging.accent);
-      expect(styles.toggleThumb).toMatchObject({ height: 24, width: 24 });
+      // §2 "1i".6 toggle now lives in `kit/toggle`; only its tokens are per-theme.
+      expect(theme.control.trackOff).toBe(theme.messaging.toggleOff);
+      expect(theme.control.trackOn).toBe(theme.messaging.accent);
+      expect(theme.control.trackThumb).toBe(theme.messaging.surface);
       // §0.5: the in-card divider is inset past the row icon.
       expect(styles.toggleRowDivider).toMatchObject({ height: 1, marginLeft: 69 });
       expect(styles.toggleRow).toMatchObject({ paddingHorizontal: 16, paddingVertical: 14 });

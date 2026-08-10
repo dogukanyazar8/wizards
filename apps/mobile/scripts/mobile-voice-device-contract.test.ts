@@ -56,6 +56,8 @@ describe("mobile voice device contract", () => {
       await saveMobileVoiceDevicePreferences(storage, {
         audioInputId: " mic-1 ",
         audioOutputId: "speaker",
+        autoGainControlEnabled: true,
+        echoCancellationEnabled: false,
         noiseSuppressionEnabled: false,
         screenShareAudioMuted: true,
         screenShareQualityId: "h1080fps30",
@@ -63,6 +65,8 @@ describe("mobile voice device contract", () => {
       {
         audioInputId: "mic-1",
         audioOutputId: "speaker",
+        autoGainControlEnabled: true,
+        echoCancellationEnabled: false,
         noiseSuppressionEnabled: false,
         screenShareAudioMuted: true,
         screenShareQualityId: "h1080fps30",
@@ -71,6 +75,8 @@ describe("mobile voice device contract", () => {
     assert.deepEqual(await loadMobileVoiceDevicePreferences(storage), {
       audioInputId: "mic-1",
       audioOutputId: "speaker",
+      autoGainControlEnabled: true,
+      echoCancellationEnabled: false,
       noiseSuppressionEnabled: false,
       screenShareAudioMuted: true,
       screenShareQualityId: "h1080fps30",
@@ -88,6 +94,8 @@ describe("mobile voice device contract", () => {
     const saved = await saveMobileVoiceDevicePreferences(storage, {
       audioInputId: null,
       audioOutputId: null,
+      autoGainControlEnabled: true,
+      echoCancellationEnabled: true,
       noiseSuppressionEnabled: true,
       screenShareAudioMuted: false,
       screenShareQualityId: "h1440fps60" as never,

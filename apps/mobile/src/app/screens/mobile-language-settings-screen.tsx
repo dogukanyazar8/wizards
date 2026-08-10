@@ -100,10 +100,7 @@ function SoonRow({
   const theme = useTheme();
   const styles = useMobileLanguageSettingsStyles();
   return (
-    <View
-      style={[styles.row, !isLast && styles.rowDivider, styles.rowDisabled]}
-      testID={testID}
-    >
+    <View style={[styles.row, !isLast && styles.rowDivider, styles.rowDisabled]} testID={testID}>
       <View style={[styles.iconBox, styles.iconBoxMuted]}>
         <Ionicons color={theme.text.muted} name={icon} size={17} />
       </View>
@@ -147,7 +144,7 @@ export function MobileLanguageSettingsScreen({ onBack }: { onBack(): void }) {
   };
 
   const handleToggleDeviceLanguage = (enabled: boolean) => {
-    selection();
+    // `Toggle` fires the selection haptic itself; a second one here double-taps.
     setUseDeviceLocale(enabled);
     if (!enabled) {
       syncMobileAccountLocale(apiClient, locale, isSignedIn);

@@ -41,6 +41,9 @@ import {
 } from "../mobile-root-screen-shared";
 import { ActionButton, AvatarMark, StatusChip } from "../components/ui-atoms";
 import { Avatar } from "../components/kit/avatar";
+import { Toggle } from "../components/kit/toggle";
+import { DEFAULT_MOBILE_VOICE_INPUT_MODE } from "../../voice/mobile-voice-ptt-contract";
+import type { MobileVoiceAudioProcessing } from "../../voice/mobile-voice-device-contract";
 import { useToast } from "../components/kit/toast";
 import { useMobileHaptics } from "../providers/mobile-haptics-provider";
 import {
@@ -119,8 +122,12 @@ export function VoiceScreen({
   onRefreshVoiceDevices = async () => undefined,
   onSelectVoiceAudioInput = async () => undefined,
   onSelectVoiceAudioOutputDevice = async () => undefined,
+  onSelectVoiceAudioProcessing,
+  onSelectVoiceInputMode,
   onSelectVoiceScreenShareAudioMuted,
   onSelectVoiceScreenShareQuality,
+  voiceAudioProcessing,
+  voiceInputMode = DEFAULT_MOBILE_VOICE_INPUT_MODE,
   voiceScreenShareAudioMuted = false,
   voiceScreenShareQualityId = DEFAULT_MOBILE_SCREEN_SHARE_QUALITY_ID,
   serverName = null,
@@ -142,6 +149,11 @@ export function VoiceScreen({
   onSelectVoiceAudioInput?(id: string): Promise<void>;
   onSelectVoiceAudioOutputDevice?(id: string): Promise<void>;
   onSelectVoiceNoiseSuppression?(enabled: boolean): Promise<void>;
+  /** Echo cancellation and auto gain ride the same track restart as noise suppression. */
+  onSelectVoiceAudioProcessing?(patch: Partial<MobileVoiceAudioProcessing>): Promise<void>;
+  onSelectVoiceInputMode?(mode: MobileVoiceInputMode): void;
+  voiceAudioProcessing?: MobileVoiceAudioProcessing;
+  voiceInputMode?: MobileVoiceInputMode;
   /** Listener-side mute for a remote share's audio. The picture keeps running. */
   onSelectVoiceScreenShareAudioMuted?(muted: boolean): void;
   onSelectVoiceScreenShareQuality?(qualityId: MobileScreenShareQualityId): void;
@@ -390,16 +402,34 @@ export function VoiceScreen({
       <MobileVoiceSettingsSheet
         audioInputs={voiceRoomState.availableAudioInputs}
         audioOutputs={voiceRoomState.availableAudioOutputs}
+        connectionStatus={voiceRoomState.status}
+        durationLabel={model.durationLabel}
+        inputLevel={
+          voiceRoomState.participants.find((participant) => participant.isSelf)?.audioLevel ?? 0
+        }
+        inputMode={voiceInputMode}
+        micMuted={voiceRoomState.selfMuted}
         noiseSuppressionEnabled={voiceRoomState.noiseSuppressionEnabled}
         onClose={() => setSettingsOpen(false)}
         onRefresh={onRefreshVoiceDevices}
         onSelectAudioInput={onSelectVoiceAudioInput}
         onSelectAudioOutput={onSelectVoiceAudioOutputDevice}
         onSelectNoiseSuppression={onSelectVoiceNoiseSuppression}
+        onToggleMic={onToggleVoiceMute}
+        participantCount={voiceRoomState.participants.length}
+        {...(onSelectVoiceAudioProcessing
+          ? { onSelectAudioProcessing: onSelectVoiceAudioProcessing }
+          : {})}
+        {...(onSelectVoiceInputMode ? { onSelectInputMode: onSelectVoiceInputMode } : {})}
+        {...(onSelectVoiceScreenShareAudioMuted
+          ? { onSelectScreenShareAudioMuted: onSelectVoiceScreenShareAudioMuted }
+          : {})}
         {...(onSelectVoiceScreenShareQuality
           ? { onSelectScreenShareQuality: onSelectVoiceScreenShareQuality }
           : {})}
+        {...(voiceAudioProcessing ? { audioProcessing: voiceAudioProcessing } : {})}
         open={settingsOpen}
+        screenShareAudioMuted={voiceScreenShareAudioMuted}
         screenShareQualityId={voiceScreenShareQualityId}
         selectedAudioInputId={voiceRoomState.selectedAudioInputId}
         selectedAudioOutputId={voiceRoomState.selectedAudioOutputId}
@@ -411,9 +441,6 @@ export function VoiceScreen({
 /** The invite sheet stays a small overlay on the room, never a second screen. */
 const MOBILE_VOICE_INVITE_SHEET_HEIGHT_RATIO = 0.62;
 
-/** Distance the knob travels: track width minus knob width minus both insets. */
-const VOICE_NOISE_TOGGLE_TRAVEL = 15;
-const VOICE_NOISE_TOGGLE_DURATION_MS = 160;
 const VOICE_RECONNECT_PULSE_DURATION_MS = 700;
 const VOICE_RECONNECT_PULSE_MIN_OPACITY = 0.32;
 
@@ -530,44 +557,21 @@ export function ActiveVoiceRoomSessionStrip({
 }
 
 /**
- * A real switch, not the old read-only badge. RN's `Switch` cannot hold the
- * handoff's 36×21 track, so the track and knob are drawn here and the knob rides
- * a transform only.
+ * The shared §2 "1i".6 switch, drawn against the room's own theme and keeping
+ * the room's green "on" state.
  */
 function ActiveVoiceRoomNoiseToggle({ enabled, onToggle }: { enabled: boolean; onToggle(): void }) {
-  const styles = useVoiceScreenStyles();
-  const reducedMotion = useReducedMotion() === true;
-  const progress = useSharedValue(enabled ? 1 : 0);
-
-  useEffect(() => {
-    const target = enabled ? 1 : 0;
-    progress.value = reducedMotion
-      ? target
-      : withTiming(target, { duration: VOICE_NOISE_TOGGLE_DURATION_MS });
-  }, [enabled, progress, reducedMotion]);
-
-  const animatedKnobStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: progress.value * VOICE_NOISE_TOGGLE_TRAVEL }],
-  }));
-
   return (
-    <Pressable
+    <Toggle
       accessibilityLabel={
         enabled ? copy.voiceRoomNoiseOnAccessibility : copy.voiceRoomNoiseOffAccessibility
       }
-      accessibilityRole="switch"
-      accessibilityState={{ checked: enabled }}
-      hitSlop={12}
-      onPress={onToggle}
-      style={({ pressed }) => [
-        styles.activeVoiceRoomNoiseToggle,
-        enabled && styles.activeVoiceRoomNoiseToggleOn,
-        pressed && styles.actionButtonPressed,
-      ]}
+      onValueChange={onToggle}
+      surface="voiceRoom"
       testID="mobile-voice-noise-toggle"
-    >
-      <Animated.View style={[styles.activeVoiceRoomNoiseToggleKnob, animatedKnobStyle]} />
-    </Pressable>
+      tone="success"
+      value={enabled}
+    />
   );
 }
 

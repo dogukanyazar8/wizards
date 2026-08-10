@@ -514,24 +514,6 @@ export const createMobileAppearanceSettingsStyles = (theme: MobileTheme) =>
       fontFamily: theme.typography.fontFamilyMedium,
       fontSize: 12,
     },
-    /** §2 "1i".6: 46x28 r14, 2px padding, a 24px thumb that slides. */
-    toggleTrack: {
-      backgroundColor: theme.messaging.toggleOff,
-      borderRadius: 14,
-      height: 28,
-      justifyContent: "center",
-      padding: 2,
-      width: 46,
-    },
-    toggleTrackOn: { backgroundColor: theme.messaging.accent },
-    toggleThumb: {
-      backgroundColor: theme.messaging.surface,
-      borderRadius: 12,
-      height: 24,
-      width: 24,
-      ...theme.elevation.toggleThumb,
-    },
-    toggleThumbOn: { alignSelf: "flex-end" },
     /** §2 "1i".6 footer: 11.5 / 500, line-height 1.55. */
     footerNote: {
       color: theme.messaging.textSecondary,

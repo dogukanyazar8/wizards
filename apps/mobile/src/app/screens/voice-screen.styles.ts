@@ -396,29 +396,6 @@ export const createVoiceScreenStyles = (theme: MobileTheme) => {
       fontSize: 12.5,
       fontFamily: theme.typography.fontFamilyBold,
     },
-    activeVoiceRoomNoiseToggle: {
-      width: 36,
-      height: 21,
-      borderRadius: 11,
-      backgroundColor: theme.voiceRoom.toggleTrackOff,
-    },
-    activeVoiceRoomNoiseToggleOn: {
-      backgroundColor: theme.voiceRoom.success,
-    },
-    activeVoiceRoomNoiseToggleKnob: {
-      position: "absolute",
-      top: 2.5,
-      left: 2.5,
-      width: 16,
-      height: 16,
-      borderRadius: mobileRadii.pill,
-      backgroundColor: theme.voiceRoom.toggleKnob,
-      elevation: 2,
-      shadowColor: theme.voiceRoom.text,
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.2,
-      shadowRadius: 3,
-    },
     /** Solo room: one full-width card, exactly as the handoff draws it. */
     activeVoiceRoomSolo: {
       flex: 1,

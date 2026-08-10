@@ -7,7 +7,7 @@ import {
 } from "@wizards/types";
 
 import { AvatarMark } from "../app/components/ui-atoms";
-import { DestructiveConfirmationSheet } from "../app/components/kit";
+import { DestructiveConfirmationSheet, Toggle } from "../app/components/kit";
 import { copy } from "../app/mobile-root-screen-shared";
 import { useDmScreenStyles } from "../app/screens/dm-screen.styles";
 import { useTheme } from "../app/providers/mobile-theme-provider";
@@ -194,22 +194,23 @@ export function MobileGroupDetailsScreen({
         )}
 
         {onSetMuted ? (
-          <Pressable
-            accessibilityRole="switch"
-            accessibilityState={{ checked: isMuted }}
-            accessibilityLabel={copy.dmMutedLabel}
-            disabled={isPending}
-            onPress={() => void onSetMuted(!isMuted)}
-            style={styles.groupCreateFriendRow}
-            testID="mobile-group-mute"
-          >
+          <View style={styles.groupCreateFriendRow}>
             <MobileLineIcon
               color={theme.messaging.textSecondary}
               name={isMuted ? "bell-off" : "bell"}
               size={18}
             />
-            <Text style={styles.groupCreateFriendName}>{copy.dmMutedLabel}</Text>
-          </Pressable>
+            <Text style={[styles.groupCreateFriendName, styles.groupCreateFriendText]}>
+              {copy.dmMutedLabel}
+            </Text>
+            <Toggle
+              accessibilityLabel={copy.dmMutedLabel}
+              onValueChange={(next) => void onSetMuted(next)}
+              readOnly={isPending}
+              testID="mobile-group-mute"
+              value={isMuted}
+            />
+          </View>
         ) : null}
 
         {onHide ? (

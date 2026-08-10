@@ -7,6 +7,13 @@ import { renderWithMobileTheme as render } from "./render-with-mobile-theme";
 import { lightTheme } from "../src/design/themes";
 import { mobileAboutMetrics } from "../src/design/tokens";
 import {
+  TOGGLE_THUMB_INSET,
+  TOGGLE_THUMB_SIZE,
+  TOGGLE_THUMB_TRAVEL,
+  TOGGLE_TRACK_HEIGHT,
+  TOGGLE_TRACK_WIDTH,
+} from "../src/app/components/kit/toggle";
+import {
   AboutBrandLogo,
   AboutCard,
   AboutRow,
@@ -177,15 +184,17 @@ describe("about primitives", () => {
     );
 
     const offTrack = view.getByTestId("toggle-off");
-    expect(flatten(offTrack.props.style).width).toBe(mobileAboutMetrics.toggleWidth);
-    expect(flatten(offTrack.props.style).height).toBe(mobileAboutMetrics.toggleHeight);
+    expect(flatten(offTrack.props.style).width).toBe(TOGGLE_TRACK_WIDTH);
+    expect(flatten(offTrack.props.style).height).toBe(TOGGLE_TRACK_HEIGHT);
     expect(offTrack.props.accessibilityRole).toBe("switch");
     expect(offTrack.props.accessibilityState).toMatchObject({ checked: false });
     expect(view.getByTestId("toggle-on").props.accessibilityState).toMatchObject({ checked: true });
 
-    // 3px inset either side of a 20px knob in a 44px track: 18px of travel.
-    expect(flatten(view.getByTestId("toggle-off-knob").props.style).left).toBe(3);
-    expect(flatten(view.getByTestId("toggle-on-knob").props.style).left).toBe(21);
+    // 2px inset either side of a 24px thumb in a 46px track: 18px of travel.
+    expect(TOGGLE_THUMB_TRAVEL).toBe(18);
+    const knob = flatten(view.getByTestId("toggle-off-knob").props.style);
+    expect(knob.left).toBe(TOGGLE_THUMB_INSET);
+    expect(knob.width).toBe(TOGGLE_THUMB_SIZE);
 
     await fireEvent.press(offTrack);
     expect(onValueChange).toHaveBeenCalledWith(true);

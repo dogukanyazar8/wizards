@@ -1,3 +1,18 @@
+# Yalnız worker bundle'ını besleyen yollar izlenir. Boş bırakılırsa Railway her
+# push'ta yeniden derler; mobil-only commit'ler de web build'ini tetikler.
+# Kaynak-doğru: whispr-web servisinin watchPatterns listesiyle aynı tutulmalı.
+[build]
+watchPatterns = [
+  "/apps/web/**",
+  "/packages/db/**",
+  "/packages/types/**",
+  "/packages/ui/**",
+  "/package.json",
+  "/pnpm-lock.yaml",
+  "/pnpm-workspace.yaml",
+  "/turbo.json",
+]
+
 [deploy]
 startCommand = "WHISPR_OUTBOX_WORKER=true pnpm --filter @wizards/web start:outbox-worker"
 restartPolicyType = "ON_FAILURE"

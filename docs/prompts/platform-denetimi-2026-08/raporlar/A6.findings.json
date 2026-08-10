@@ -1,0 +1,677 @@
+{
+  "axis": "A6",
+  "axisTitle": "Ölçeklenme ve endüstri paritesi",
+  "baseCommit": "5a2b3990733b17672cf65fba631b7ec44a7bf96a",
+  "generatedAt": "2026-08-08",
+  "generatedFrom": [
+    "apps/web/src/lib/workspace/unread-service.ts:147-235 (ham SQL okuma modeli) okundu",
+    "apps/web/src/lib/dm/message-send-service.ts ve realtime-service.ts fan-out yollari okundu",
+    "apps/web/src/lib/workspace/channel-message-send-service.ts emit yollari okundu",
+    "apps/web/src/app/api/v1/mobile/bootstrap/route.ts sorgu sayimi",
+    "grep 'model ' packages/db/prisma/schema.prisma (69 model) + PermissionBits envanteri",
+    "yetenek isaretcisi taramasi: thread/pin/reaction/search/webhook/slash/sso/scim/keyword/recording/caption"
+  ],
+  "surfaceCoverage": [
+    {
+      "surface": "Kapasite modeli — sicak yollar",
+      "unitsTotal": 7,
+      "unitsInspected": 5,
+      "method": "Kanal mesaji, DM/grup DM mesaji, okunmamis hesaplama, mobil bootstrap ve bildirim/outbox yollari kod okumasiyla turetildi",
+      "notCovered": [
+        "Presence degisimi fan-out genisligi olculmedi",
+        "Ses odasi katilim maliyeti (token uretimi + presence yazimi) izlenmedi"
+      ]
+    },
+    {
+      "surface": "Duvar analizi — kaynaklar",
+      "unitsTotal": 6,
+      "unitsInspected": 3,
+      "method": "Postgres okuma modeli, Node/Socket.IO surec yapisi ve outbox yoklama analiz edildi",
+      "notCovered": [
+        "Redis anahtar buyumesi ve TTL disiplini olculmedi",
+        "Medya/depolama maliyet egrisi incelenmedi",
+        "Baglanti havuzu tavani okunmadi"
+      ]
+    },
+    {
+      "surface": "Veri modeli buyume analizi",
+      "unitsTotal": 69,
+      "unitsInspected": 69,
+      "method": "69 modelin tamami listelendi; buyume hizina gore siniflandirildi; olu model taramasi yapildi",
+      "notCovered": ["Gercek satir sayilari alinamadi (UAT veritabanina disaridan baglanilamiyor)"]
+    },
+    {
+      "surface": "Parite matrisi — yedi boyut",
+      "unitsTotal": 7,
+      "unitsInspected": 7,
+      "method": "Yetenek isaretcileri kod tabaninda arandi, sema modelleri ve PermissionBits envanteri ile capraz kontrol edildi; rakip sutunlari yalniz kamuya acik urun davranisina dayanir",
+      "notCovered": ["Her yetenegin UI derinligi dogrulanmadi (var/yok duzeyinde kalindi)"]
+    },
+    {
+      "surface": "Dayaniklilik ve isletme",
+      "unitsTotal": 6,
+      "unitsInspected": 2,
+      "method": "Outbox idempotansi (FOR UPDATE SKIP LOCKED) ve saglik ucu dogrulandi",
+      "notCovered": [
+        "Geri basinc (backpressure) davranisi",
+        "Kismi ariza (Redis dustugunde) davranisi",
+        "Zarif dagitim / yeniden baslatma",
+        "SLO tanimi ve alarm"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "A6-001",
+      "title": "Okunmamis sayaci her okumada COUNT ile hesaplaniyor: en hizli buyuyen tablo uzerinde kullanici × kanal carpiminda sorgu",
+      "severity": "high",
+      "confidence": "confirmed",
+      "platforms": ["backend", "infra"],
+      "category": "scalability",
+      "evidence": [
+        {
+          "file": "apps/web/src/lib/workspace/unread-service.ts",
+          "line": 169,
+          "quote": "SELECT COUNT(*)::bigint AS \"unreadCount\""
+        },
+        {
+          "file": "apps/web/src/lib/workspace/unread-service.ts",
+          "line": 177,
+          "quote": "LIMIT ${unreadCountCap}"
+        }
+      ],
+      "failureScenario": "Kullanici uygulamayi acar. Okunmamis rozetleri icin `buildServerChannelUnreadQuery` her gorunur kanal icin `Message` tablosunda `COUNT(*)` calistirir; sayim `unreadCountCap` ile sinirlanmis (varsayilan `UNCAPPED_UNREAD_COUNT`, yani pratikte sinirsiz cagirilan yollar var). 20 sunucuda 15'er kanali olan bir kullanici icin bu 300 kanallik bir sayim isi demektir ve her acilista, her sunucu gecisinde, her yeni mesajda tekrarlanir. `Message` urunun en hizli buyuyen tablosu oldugu icin sorgu maliyeti zamanla artar; 1.000 es zamanli kullanicida bu Postgres'in birincil yuku olur.",
+      "impact": "Ilk tukenecek kaynak Postgres. Okunmamis, denormalize bir sayac degil turetilmis bir okuma modeli; yazma ucuz, okuma pahali ve okuma cok daha sik. Ayni yolda A2-001 (fetchSockets) da duruyor, yani tek bir mesaj gonderimi hem oda genisliginde soket serilestirmesi hem de kanal sayisinca COUNT tetikliyor. Olcek duvari sirasi: (1) Postgres okuma yuku, (2) Node event loop (Socket.IO ayni surecte), (3) Redis.",
+      "fix": {
+        "summary": "Okunmamis sayacini yazma tarafinda tut (kanal basina `ChannelReadState` uzerinde artan sayac) ya da en azindan kullanici basina onbellege al ve socket olayiyla gecersiz kil. Once olc: 300 kanalli bir hesapta bugunku sorgu suresi.",
+        "effort": "L",
+        "risk": "high",
+        "touches": [
+          "apps/web/src/lib/workspace/unread-service.ts",
+          "packages/db/prisma/schema.prisma"
+        ]
+      },
+      "parity": {
+        "benchmark": "discord",
+        "tag": "assumption",
+        "note": "Discord'un okunmamis modelinin ic yapisi kamuya acik degil; bu olcekte okunmamis sayacinin yazma tarafinda tutulmasi yaygin bir cozumdur — varsayim olarak isaretlendi."
+      },
+      "wave": "W2",
+      "refutation": "Bir onbellek katmani arandi: unread-service icinde Redis onbellegi yok, sorgu her cagrida ham SQL olarak gidiyor. `unreadCountCap` bir sinir sagliyor ama `UNCAPPED_UNREAD_COUNT` varsayilani ile cagrilan yollar var (satir 188). Denormalize bir `unreadCount` kolonu arandi: `DMParticipant.unreadCount` var (DM tarafi yazma zamanli), ama kanal tarafinda karsiligi yok — yani desen repoda mevcut, kanallara uygulanmamis. Gercek sorgu suresi olculmedi; bu yuzden 'olculmus yavaslik' degil 'yapisal olcek duvari' olarak yazildi."
+    },
+    {
+      "id": "A6-002",
+      "title": "Iki sema modeli olu: Webhook ve ScheduledEvent tablolari var, hicbir servis yolu yok",
+      "severity": "medium",
+      "confidence": "confirmed",
+      "platforms": ["backend"],
+      "category": "data-model",
+      "evidence": [
+        {
+          "file": "packages/db/prisma/schema.prisma",
+          "line": 1629,
+          "quote": "model Webhook {"
+        },
+        {
+          "file": "packages/db/prisma/schema.prisma",
+          "line": 1692,
+          "quote": "model ScheduledEvent {"
+        },
+        {
+          "file": "apps/web/src/lib/account/privacy-service.ts",
+          "line": 522,
+          "quote": "await tx.scheduledEvent.deleteMany({ where: { creatorId: userId } });"
+        }
+      ],
+      "failureScenario": "Bir gelistirici webhook ozelligini uygulamaya baslar, semada `Webhook` modelini gorur ve altyapinin hazir oldugunu varsayar. Oysa `prisma.webhook` cagrisi kod tabaninda hic yok: tablo bos, indeks tanimlari denenmemis, iliski davranisi (sunucu silinince ne olur) hic calistirilmamis. Ayni sey `ScheduledEvent` icin de gecerli — tek referansi hesap silme yolundaki `deleteMany`. Yani model 'var' gorunuyor ama davranisi dogrulanmamis.",
+      "impact": "Yaniltici yetenek sinyali ve bakim yuku. 69 modelin ikisi hicbir urun akisina baglanmiyor; her migration ve her sema degisikligi bu tablolari tasimaya devam ediyor. Parite matrisinde 'webhook altyapisi var' demek yanlis olur — bu yuzden matriste 'yok' olarak isaretlendi.",
+      "fix": {
+        "summary": "Ya iki modeli semadan kaldir (migration ile), ya da hangi dalgada uygulanacaklarini yol haritasina bagla ve semada yorumla isaretle.",
+        "effort": "S",
+        "risk": "low",
+        "touches": ["packages/db/prisma/schema.prisma"]
+      },
+      "parity": {
+        "benchmark": "none"
+      },
+      "wave": "W1",
+      "refutation": "Modellerin baska bir yerden kullanilma ihtimali arandi: `prisma.webhook` ve `Webhook` icin apps/web/src/lib altinda tek eslesme yok; `scheduledEvent` icin tek eslesme hesap silme yolundaki cascade temizligi. Mobil tarafta da kullanim yok. Emoji modelinin ayni durumda olup olmadigi kontrol edilmedi (acik soru). Curutulemedi."
+    },
+    {
+      "id": "A6-003",
+      "title": "Kurumsal kimlik katmani yok: SSO/SAML/SCIM icin ne sema ne kod yolu var",
+      "severity": "medium",
+      "confidence": "confirmed",
+      "platforms": ["backend", "web"],
+      "category": "parity-gap",
+      "evidence": [
+        {
+          "file": "apps/web/src/auth.ts",
+          "line": 688,
+          "quote": "    GitHub({"
+        }
+      ],
+      "failureScenario": "Kurumsal bir musteri Whispr'i degerlendirir ve calisanlarini kendi kimlik saglayicisi (Okta/Entra) uzerinden baglamak ister. Bugun mumkun degil: kimlik saglayicilari yalniz GitHub ve Google OAuth; SAML/OIDC kurumsal baglayici, SCIM ile kullanici saglama/kaldirma, alan adi dogrulamasi ve zorunlu oturum politikasi yok. Calisan isten ayrildiginda hesabin merkezi olarak kapatilmasi da yok.",
+      "impact": "Slack ile ayni sinifta yarismayi engelleyen tek en buyuk kurumsal boslugu. Teknik olarak buyuk bir is: kimlik modeli, oturum politikasi, denetim kaydi ve saglama hattinin tamami. Bugun etkisi sifir (kurumsal musteri yok), firsat maliyeti yuksek.",
+      "fix": {
+        "summary": "Kurumsal kimlik katmani ayri bir dalga isi: OIDC/SAML baglayici, alan adi dogrulama, SCIM saglama ucu, zorunlu oturum politikasi. NextAuth saglayici modeli genisletilebilir, ama oturum iptali ve saglama tarafi sifirdan.",
+        "effort": "XL",
+        "risk": "high",
+        "touches": ["apps/web/src/auth.ts", "packages/db/prisma/schema.prisma"]
+      },
+      "parity": {
+        "benchmark": "slack",
+        "tag": "public-ref",
+        "note": "Slack kurumsal planlarinda SAML SSO ve SCIM saglama urun yuzeyinde acikca sunulur."
+      },
+      "wave": "W3",
+      "refutation": "Sema ve kod tabaninda SAML/SCIM/SSO arandi: `apps/web/src/lib` altinda gercek eslesme sifir (16 kaba eslesme 'session' gibi yanlis pozitiflerdi). `packages/db/prisma/schema.prisma` icinde kurumsal kimlik modeli yok. Account modeli yalniz OAuth saglayici baglantisi tutuyor. Curutulemedi."
+    },
+    {
+      "id": "A6-004",
+      "title": "Anahtar kelime bildirimi yok: kullanici yalnizca kendi adiyla anilinca haber alabiliyor",
+      "severity": "low",
+      "confidence": "confirmed",
+      "platforms": ["backend", "web", "mobile"],
+      "category": "parity-gap",
+      "evidence": [
+        {
+          "file": "packages/db/prisma/schema.prisma",
+          "line": 648,
+          "quote": "model UserNotificationSettings {"
+        }
+      ],
+      "failureScenario": "Kullanici 'deployment' kelimesi gecen her mesajdan haberdar olmak ister. Bugun tek yol tum kanali acik bildirime almak; sonuc gurultudur ve kullanici bildirimleri tamamen kapatir. Whispr'da anahtar kelime kavrami hic yok: kod tabaninda ve semada 'keyword' gecen tek bir yer bile bulunmadi.",
+      "impact": "Bildirim sinyal/gurultu oraninin en dogrudan carei. Bugun bildirim modeli mention + kanal ayari ikilisiyle sinirli; `UserNotificationSettings` ve `UserChannelSettings` modelleri var, anahtar kelime alani yok. Kullanici kaybettiren degil, yapiskanlik dusuren bir boslук.",
+      "fix": {
+        "summary": "`UserNotificationSettings` uzerine anahtar kelime listesi alani ekle; mesaj bildirim servisindeki mention cozumlemesine anahtar kelime eslemesi ekle (mevcut `extractMentionUsernames` yolunun yanina).",
+        "effort": "M",
+        "risk": "low",
+        "touches": [
+          "packages/db/prisma/schema.prisma",
+          "apps/web/src/lib/workspace/message-notification-service.ts"
+        ]
+      },
+      "parity": {
+        "benchmark": "slack",
+        "tag": "public-ref",
+        "note": "Slack'te 'anahtar kelime bildirimleri' (highlight words) kullanici bildirim tercihlerinde acikca sunulan bir ozelliktir."
+      },
+      "wave": "W3",
+      "refutation": "Anahtar kelime kavraminin baska adla var olma ihtimali arandi: 'keyword' icin sifir eslesme; `UserNotificationSettings` ve `UserChannelSettings` modelleri incelendi, alan yok. `message-notification-service.ts` yalniz `extractMentionUsernames` uzerinden calisiyor. Curutulemedi."
+    }
+  ],
+  "parityMatrix": [
+    {
+      "dimension": "Mesajlaşma",
+      "capability": "Thread / yanıt zinciri",
+      "whispr": "var",
+      "evidence": [
+        {
+          "file": "apps/web/src/components/chat/thread-panel.tsx",
+          "line": 13,
+          "quote": "const MESSAGE_GROUP_WINDOW_MS = 5 * 60 * 1000;"
+        }
+      ],
+      "discord": {
+        "state": "var",
+        "tag": "public-ref"
+      },
+      "slack": {
+        "state": "var",
+        "tag": "public-ref"
+      },
+      "zoom": {
+        "state": "kismi",
+        "tag": "public-ref"
+      },
+      "gap": "Boşluk yok.",
+      "effort": "S",
+      "wave": "—"
+    },
+    {
+      "dimension": "Mesajlaşma",
+      "capability": "Tepki, pin, düzenleme/silme, tam metin arama",
+      "whispr": "var",
+      "evidence": [
+        {
+          "file": "packages/db/prisma/schema.prisma",
+          "line": 1267,
+          "quote": "model Reaction {"
+        },
+        {
+          "file": "packages/db/prisma/schema.prisma",
+          "line": 1283,
+          "quote": "model PinnedMessage {"
+        }
+      ],
+      "discord": {
+        "state": "var",
+        "tag": "public-ref"
+      },
+      "slack": {
+        "state": "var",
+        "tag": "public-ref"
+      },
+      "zoom": {
+        "state": "kismi",
+        "tag": "public-ref"
+      },
+      "gap": "Boşluk yok. Reaction, PinnedMessage modelleri ve arama uçları mevcut.",
+      "effort": "S",
+      "wave": "—"
+    },
+    {
+      "dimension": "Mesajlaşma",
+      "capability": "Mesaj iletme (forward)",
+      "whispr": "kismi",
+      "evidence": [
+        {
+          "file": "apps/mobile/src/query/use-mobile-message-mutations.ts",
+          "line": 502,
+          "quote": "        ? sendMobileDMMessage(input.client, {"
+        }
+      ],
+      "discord": {
+        "state": "var",
+        "tag": "public-ref"
+      },
+      "slack": {
+        "state": "var",
+        "tag": "public-ref"
+      },
+      "zoom": {
+        "state": "ilgisiz",
+        "tag": "assumption"
+      },
+      "gap": "Yalnız mobilde var; web istemcisinde `forwardOfMessageId` hiç kullanılmıyor (A5 açık sorusu).",
+      "effort": "M",
+      "wave": "W2"
+    },
+    {
+      "dimension": "Mesajlaşma",
+      "capability": "Zamanlanmış mesaj",
+      "whispr": "yok",
+      "evidence": [
+        {
+          "file": "packages/db/prisma/schema.prisma",
+          "line": 1692,
+          "quote": "model ScheduledEvent {"
+        }
+      ],
+      "discord": {
+        "state": "yok",
+        "tag": "public-ref"
+      },
+      "slack": {
+        "state": "var",
+        "tag": "public-ref"
+      },
+      "zoom": {
+        "state": "ilgisiz",
+        "tag": "assumption"
+      },
+      "gap": "Outbox altyapısı (availableAt ile) mevcut, mesaj tarafına bağlanmamış.",
+      "effort": "M",
+      "wave": "W3"
+    },
+    {
+      "dimension": "Ses/video",
+      "capability": "Ekran paylaşımı (kalite + ses)",
+      "whispr": "var",
+      "evidence": [
+        {
+          "file": "apps/web/src/lib/voice/video-subscription.ts",
+          "line": 1,
+          "quote": "import { VideoQuality, type AdaptiveStreamSettings } from \"livekit-client\";"
+        }
+      ],
+      "discord": {
+        "state": "var",
+        "tag": "public-ref"
+      },
+      "slack": {
+        "state": "var",
+        "tag": "public-ref"
+      },
+      "zoom": {
+        "state": "var",
+        "tag": "public-ref"
+      },
+      "gap": "Boşluk yok; SVC ve kalite tercihi katmanı mevcut.",
+      "effort": "S",
+      "wave": "—"
+    },
+    {
+      "dimension": "Ses/video",
+      "capability": "Kayıt (meeting recording)",
+      "whispr": "yok",
+      "evidence": [
+        {
+          "file": "packages/db/prisma/schema.prisma",
+          "line": 1692,
+          "quote": "model ScheduledEvent {"
+        }
+      ],
+      "discord": {
+        "state": "kismi",
+        "tag": "public-ref"
+      },
+      "slack": {
+        "state": "var",
+        "tag": "public-ref"
+      },
+      "zoom": {
+        "state": "var",
+        "tag": "public-ref"
+      },
+      "gap": "Kayıt modeli, saklama politikası ve izin akışı yok. LiveKit tarafı destekliyor, ürün tarafı bağlanmamış.",
+      "effort": "L",
+      "wave": "W3"
+    },
+    {
+      "dimension": "Ses/video",
+      "capability": "Canlı altyazı / transkript",
+      "whispr": "yok",
+      "evidence": [
+        {
+          "file": "packages/db/prisma/schema.prisma",
+          "line": 648,
+          "quote": "model UserNotificationSettings {"
+        }
+      ],
+      "discord": {
+        "state": "kismi",
+        "tag": "public-ref"
+      },
+      "slack": {
+        "state": "kismi",
+        "tag": "public-ref"
+      },
+      "zoom": {
+        "state": "var",
+        "tag": "public-ref"
+      },
+      "gap": "Kod tabanında tek eşleşme bile yok. Erişilebilirlik açısından da eksik.",
+      "effort": "XL",
+      "wave": "W3"
+    },
+    {
+      "dimension": "Kimlik ve organizasyon",
+      "capability": "Rol / izin granülaritesi",
+      "whispr": "var",
+      "evidence": [
+        {
+          "file": "apps/web/src/lib/workspace/channel-service.ts",
+          "line": 366,
+          "quote": "  ensureServerPermission(access, PermissionBits.CLEAR_CHANNEL_HISTORY);"
+        }
+      ],
+      "discord": {
+        "state": "var",
+        "tag": "public-ref"
+      },
+      "slack": {
+        "state": "kismi",
+        "tag": "public-ref"
+      },
+      "zoom": {
+        "state": "kismi",
+        "tag": "public-ref"
+      },
+      "gap": "24 izin biti + kanal bazlı override. Bu boyutta rekabetçi.",
+      "effort": "S",
+      "wave": "—"
+    },
+    {
+      "dimension": "Kimlik ve organizasyon",
+      "capability": "SSO / SAML / SCIM",
+      "whispr": "yok",
+      "evidence": [
+        {
+          "file": "apps/web/src/auth.ts",
+          "line": 688,
+          "quote": "    GitHub({"
+        }
+      ],
+      "discord": {
+        "state": "yok",
+        "tag": "public-ref"
+      },
+      "slack": {
+        "state": "var",
+        "tag": "public-ref"
+      },
+      "zoom": {
+        "state": "var",
+        "tag": "public-ref"
+      },
+      "gap": "A6-003. Kurumsal satışın önkoşulu.",
+      "effort": "XL",
+      "wave": "W3"
+    },
+    {
+      "dimension": "Kimlik ve organizasyon",
+      "capability": "Denetim günlüğü + veri saklama/ihracat",
+      "whispr": "var",
+      "evidence": [
+        {
+          "file": "apps/web/src/lib/account/privacy-service.ts",
+          "line": 185,
+          "quote": "    prisma.message.findMany({"
+        }
+      ],
+      "discord": {
+        "state": "kismi",
+        "tag": "public-ref"
+      },
+      "slack": {
+        "state": "var",
+        "tag": "public-ref"
+      },
+      "zoom": {
+        "state": "var",
+        "tag": "public-ref"
+      },
+      "gap": "AdminAuditLog + AuditLog + veri ihracat yolu var; ihracat ölçeklenmiyor (A2-002).",
+      "effort": "M",
+      "wave": "W1"
+    },
+    {
+      "dimension": "Bildirim",
+      "capability": "Kanal/sunucu sessize alma, cihazlar arası okundu",
+      "whispr": "var",
+      "evidence": [
+        {
+          "file": "apps/web/src/lib/workspace/unread-service.ts",
+          "line": 169,
+          "quote": "SELECT COUNT(*)::bigint AS \"unreadCount\""
+        }
+      ],
+      "discord": {
+        "state": "var",
+        "tag": "public-ref"
+      },
+      "slack": {
+        "state": "var",
+        "tag": "public-ref"
+      },
+      "zoom": {
+        "state": "kismi",
+        "tag": "public-ref"
+      },
+      "gap": "Var ama okuma modeli ölçeklenmiyor (A6-001).",
+      "effort": "L",
+      "wave": "W2"
+    },
+    {
+      "dimension": "Bildirim",
+      "capability": "Anahtar kelime bildirimi",
+      "whispr": "yok",
+      "evidence": [
+        {
+          "file": "packages/db/prisma/schema.prisma",
+          "line": 648,
+          "quote": "model UserNotificationSettings {"
+        }
+      ],
+      "discord": {
+        "state": "kismi",
+        "tag": "public-ref"
+      },
+      "slack": {
+        "state": "var",
+        "tag": "public-ref"
+      },
+      "zoom": {
+        "state": "ilgisiz",
+        "tag": "assumption"
+      },
+      "gap": "A6-004.",
+      "effort": "M",
+      "wave": "W3"
+    },
+    {
+      "dimension": "Platform",
+      "capability": "Web + desktop (otomatik güncelleme, overlay) + mobil (push, çevrimdışı)",
+      "whispr": "var",
+      "evidence": [
+        {
+          "file": "apps/desktop/src-tauri/src/lib.rs",
+          "line": 1,
+          "quote": "use std::{"
+        }
+      ],
+      "discord": {
+        "state": "var",
+        "tag": "public-ref"
+      },
+      "slack": {
+        "state": "var",
+        "tag": "public-ref"
+      },
+      "zoom": {
+        "state": "var",
+        "tag": "public-ref"
+      },
+      "gap": "Üç yüzey de mevcut; desktop imzalı sürüm hattı ve OTA altyapısı kurulu.",
+      "effort": "S",
+      "wave": "—"
+    },
+    {
+      "dimension": "Genişletilebilirlik",
+      "capability": "Webhook / bot / slash komut / uygulama API'si",
+      "whispr": "yok",
+      "evidence": [
+        {
+          "file": "apps/web/src/lib/account/privacy-service.ts",
+          "line": 522,
+          "quote": "    await tx.scheduledEvent.deleteMany({ where: { creatorId: userId } });"
+        }
+      ],
+      "discord": {
+        "state": "var",
+        "tag": "public-ref"
+      },
+      "slack": {
+        "state": "var",
+        "tag": "public-ref"
+      },
+      "zoom": {
+        "state": "var",
+        "tag": "public-ref"
+      },
+      "gap": "`Webhook` modeli semada var ama hiçbir servis yolu yok (A6-002). Slash komut, bot kimliği, geliştirici portalı ve genel API yok. Ekosistem parite açısından en büyük boşluk.",
+      "effort": "XL",
+      "wave": "W3"
+    },
+    {
+      "dimension": "İşletme",
+      "capability": "Durum sayfası, SLO, olay yönetimi",
+      "whispr": "yok",
+      "evidence": [
+        {
+          "file": "apps/web/src/lib/health.ts",
+          "line": 1,
+          "quote": "import { prisma } from \"@wizards/db\";"
+        }
+      ],
+      "discord": {
+        "state": "var",
+        "tag": "public-ref"
+      },
+      "slack": {
+        "state": "var",
+        "tag": "public-ref"
+      },
+      "zoom": {
+        "state": "var",
+        "tag": "public-ref"
+      },
+      "gap": "Sağlık ucu ve ClientHealthEvent telemetrisi var; kamuya açık durum sayfası, tanımlı SLO ve alarm yok.",
+      "effort": "M",
+      "wave": "W2"
+    }
+  ],
+  "metrics": [
+    {
+      "name": "Prisma modeli",
+      "value": 69,
+      "unit": "model",
+      "method": "grep '^model ' packages/db/prisma/schema.prisma",
+      "treeState": "baseline"
+    },
+    {
+      "name": "olu model (hicbir servis yolu yok)",
+      "value": 2,
+      "unit": "model",
+      "method": "Webhook ve ScheduledEvent icin apps/** altinda kullanim taramasi",
+      "treeState": "baseline"
+    },
+    {
+      "name": "izin biti",
+      "value": 24,
+      "unit": "bit",
+      "method": "grep -oE 'PermissionBits\\.[A-Z_]+' apps/web/src/lib | sort -u",
+      "treeState": "baseline"
+    },
+    {
+      "name": "mobil bootstrap sorgu sayisi",
+      "value": 7,
+      "unit": "sorgu",
+      "method": "grep -c 'prisma\\.' apps/web/src/app/api/v1/mobile/bootstrap/route.ts — 6'si Promise.all icinde paralel",
+      "treeState": "baseline"
+    },
+    {
+      "name": "DM gonderiminde emit sayisi",
+      "value": 2,
+      "unit": "emit/katilimci",
+      "method": "message-send-service.ts:164 (gonderen odasi) + 169-172 dongusu (katilimci basina) + 197 konusma guncellemesi",
+      "treeState": "baseline"
+    },
+    {
+      "name": "parite boyutu",
+      "value": 7,
+      "unit": "boyut",
+      "method": "parityMatrix: Mesajlasma, Ses/video, Kimlik ve organizasyon, Bildirim, Platform, Genisletilebilirlik, Isletme",
+      "treeState": "baseline"
+    },
+    {
+      "name": "parite satiri — Whispr'da yok",
+      "value": 6,
+      "unit": "yetenek",
+      "method": "parityMatrix whispr === 'yok' sayimi",
+      "treeState": "baseline"
+    }
+  ],
+  "openQuestions": [
+    "Gercek satir sayilari alinamadi: UAT veritabanina disaridan baglanilamiyor, bu yuzden yillik veri buyumesi projeksiyonu somut sayilarla degil yalniz yapisal olarak yazildi. Olcum: son SUCCESS deployment ortaminda `SELECT relname, n_live_tup FROM pg_stat_user_tables ORDER BY n_live_tup DESC LIMIT 20`.",
+    "Presence degisiminin fan-out genisligi olculmedi (kac sokete gidiyor: arkadas × sunucu × kanal).",
+    "Redis anahtar buyumesi, TTL disiplini ve pipeline kullanimi incelenmedi.",
+    "Baglanti havuzu tavani ve Postgres max_connections yapilandirmasi okunmadi.",
+    "Geri basinc, kismi ariza (Redis dustugunde) ve zarif dagitim davranislari incelenmedi.",
+    "Medya/depolama maliyet egrisi (UploadThing saklama suresi, CDN) incelenmedi.",
+    "Emoji modelinin de olu olup olmadigi kontrol edilmedi (Webhook ve ScheduledEvent dogrulandi).",
+    "Parite matrisindeki yeteneklerin UI derinligi dogrulanmadi — var/yok duzeyinde kalindi. 'var' isaretli bir yetenegin rakip kalitesinde olup olmadigi ayri bir inceleme ister."
+  ]
+}

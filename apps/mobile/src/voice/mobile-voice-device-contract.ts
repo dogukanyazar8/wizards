@@ -28,10 +28,33 @@ export interface MobileVoiceOutputOption {
 export interface MobileVoiceDevicePreferences {
   readonly audioInputId: string | null;
   readonly audioOutputId: string | null;
+  /** WebRTC capture chain, all on by default — see `MobileVoiceAudioProcessing`. */
+  readonly autoGainControlEnabled: boolean;
+  readonly echoCancellationEnabled: boolean;
   readonly noiseSuppressionEnabled: boolean;
   /** Listener-side mute for remote screen-share audio. */
   readonly screenShareAudioMuted: boolean;
   readonly screenShareQualityId: MobileScreenShareQualityId;
+}
+
+/**
+ * The three capture filters the microphone track is published with. They are a
+ * single unit because changing any one of them restarts the same local track.
+ */
+export interface MobileVoiceAudioProcessing {
+  readonly autoGainControlEnabled: boolean;
+  readonly echoCancellationEnabled: boolean;
+  readonly noiseSuppressionEnabled: boolean;
+}
+
+export function getMobileVoiceAudioProcessing(
+  preferences: MobileVoiceDevicePreferences,
+): MobileVoiceAudioProcessing {
+  return {
+    autoGainControlEnabled: preferences.autoGainControlEnabled,
+    echoCancellationEnabled: preferences.echoCancellationEnabled,
+    noiseSuppressionEnabled: preferences.noiseSuppressionEnabled,
+  };
 }
 
 export interface MobileVoicePreferenceStorage {
@@ -42,6 +65,8 @@ export interface MobileVoicePreferenceStorage {
 export const DEFAULT_MOBILE_VOICE_DEVICE_PREFERENCES: MobileVoiceDevicePreferences = {
   audioInputId: null,
   audioOutputId: null,
+  autoGainControlEnabled: true,
+  echoCancellationEnabled: true,
   noiseSuppressionEnabled: true,
   screenShareAudioMuted: false,
   screenShareQualityId: DEFAULT_MOBILE_SCREEN_SHARE_QUALITY_ID,
@@ -51,6 +76,10 @@ export const MOBILE_VOICE_AUDIO_INPUT_STORAGE_KEY = "whispr.mobile.voice.audio-i
 export const MOBILE_VOICE_AUDIO_OUTPUT_STORAGE_KEY = "whispr.mobile.voice.audio-output.v1";
 export const MOBILE_VOICE_NOISE_SUPPRESSION_STORAGE_KEY =
   "whispr.mobile.voice.noise-suppression.v1";
+export const MOBILE_VOICE_ECHO_CANCELLATION_STORAGE_KEY =
+  "whispr.mobile.voice.echo-cancellation.v1";
+export const MOBILE_VOICE_AUTO_GAIN_CONTROL_STORAGE_KEY =
+  "whispr.mobile.voice.auto-gain-control.v1";
 export const MOBILE_VOICE_SCREEN_SHARE_QUALITY_STORAGE_KEY =
   "whispr.mobile.voice.screen-share-quality.v1";
 export const MOBILE_VOICE_SCREEN_SHARE_AUDIO_MUTED_STORAGE_KEY =
@@ -142,18 +171,31 @@ export function toMobileVoiceOutputOptions(
 export async function loadMobileVoiceDevicePreferences(
   storage: MobileVoicePreferenceStorage,
 ): Promise<MobileVoiceDevicePreferences> {
-  const [audioInputId, audioOutputId, noiseSuppression, screenShareQuality, screenShareAudioMuted] =
-    await Promise.all([
-      storage.getItemAsync(MOBILE_VOICE_AUDIO_INPUT_STORAGE_KEY),
-      storage.getItemAsync(MOBILE_VOICE_AUDIO_OUTPUT_STORAGE_KEY),
-      storage.getItemAsync(MOBILE_VOICE_NOISE_SUPPRESSION_STORAGE_KEY),
-      storage.getItemAsync(MOBILE_VOICE_SCREEN_SHARE_QUALITY_STORAGE_KEY),
-      storage.getItemAsync(MOBILE_VOICE_SCREEN_SHARE_AUDIO_MUTED_STORAGE_KEY),
-    ]);
+  const [
+    audioInputId,
+    audioOutputId,
+    noiseSuppression,
+    echoCancellation,
+    autoGainControl,
+    screenShareQuality,
+    screenShareAudioMuted,
+  ] = await Promise.all([
+    storage.getItemAsync(MOBILE_VOICE_AUDIO_INPUT_STORAGE_KEY),
+    storage.getItemAsync(MOBILE_VOICE_AUDIO_OUTPUT_STORAGE_KEY),
+    storage.getItemAsync(MOBILE_VOICE_NOISE_SUPPRESSION_STORAGE_KEY),
+    storage.getItemAsync(MOBILE_VOICE_ECHO_CANCELLATION_STORAGE_KEY),
+    storage.getItemAsync(MOBILE_VOICE_AUTO_GAIN_CONTROL_STORAGE_KEY),
+    storage.getItemAsync(MOBILE_VOICE_SCREEN_SHARE_QUALITY_STORAGE_KEY),
+    storage.getItemAsync(MOBILE_VOICE_SCREEN_SHARE_AUDIO_MUTED_STORAGE_KEY),
+  ]);
 
   return {
     audioInputId: sanitizeMobileVoiceDeviceId(audioInputId),
     audioOutputId: sanitizeMobileVoiceDeviceId(audioOutputId),
+    // Every capture filter is on unless it was explicitly turned off: a missing
+    // or corrupt value must never publish a raw, unprocessed microphone.
+    autoGainControlEnabled: autoGainControl !== "false",
+    echoCancellationEnabled: echoCancellation !== "false",
     noiseSuppressionEnabled:
       noiseSuppression === "false"
         ? false
@@ -172,6 +214,8 @@ export async function saveMobileVoiceDevicePreferences(
   const normalized: MobileVoiceDevicePreferences = {
     audioInputId: sanitizeMobileVoiceDeviceId(preferences.audioInputId),
     audioOutputId: sanitizeMobileVoiceDeviceId(preferences.audioOutputId),
+    autoGainControlEnabled: preferences.autoGainControlEnabled !== false,
+    echoCancellationEnabled: preferences.echoCancellationEnabled !== false,
     noiseSuppressionEnabled: preferences.noiseSuppressionEnabled === false ? false : true,
     screenShareAudioMuted: preferences.screenShareAudioMuted === true,
     screenShareQualityId: normalizeMobileScreenShareQualityId(preferences.screenShareQualityId),
@@ -183,6 +227,14 @@ export async function saveMobileVoiceDevicePreferences(
     storage.setItemAsync(
       MOBILE_VOICE_NOISE_SUPPRESSION_STORAGE_KEY,
       String(normalized.noiseSuppressionEnabled),
+    ),
+    storage.setItemAsync(
+      MOBILE_VOICE_ECHO_CANCELLATION_STORAGE_KEY,
+      String(normalized.echoCancellationEnabled),
+    ),
+    storage.setItemAsync(
+      MOBILE_VOICE_AUTO_GAIN_CONTROL_STORAGE_KEY,
+      String(normalized.autoGainControlEnabled),
     ),
     storage.setItemAsync(
       MOBILE_VOICE_SCREEN_SHARE_QUALITY_STORAGE_KEY,

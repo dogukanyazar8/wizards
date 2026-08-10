@@ -149,14 +149,14 @@ function SecurityRow({
 
   if (toggle) {
     return (
-      <View
-        style={[styles.row, !isLast && styles.rowDivider, disabled && styles.rowDisabled]}
-        testID={testID}
-      >
-        <SecurityIconBox icon={icon} tone={tone} />
-        <View style={styles.rowText}>
-          <Text style={styles.rowLabel}>{label}</Text>
-          {hint ? <Text style={styles.rowHint}>{hint}</Text> : null}
+      <View style={[styles.row, !isLast && styles.rowDivider]} testID={testID}>
+        {/* Only the label side fades: the switch carries its own disabled tones. */}
+        <View style={[styles.rowLead, disabled && styles.rowDisabled]}>
+          <SecurityIconBox icon={icon} tone={tone} />
+          <View style={styles.rowText}>
+            <Text style={styles.rowLabel}>{label}</Text>
+            {hint ? <Text style={styles.rowHint}>{hint}</Text> : null}
+          </View>
         </View>
         <Toggle
           accessibilityLabel={label}
@@ -332,7 +332,9 @@ export function MobileSecuritySettingsScreen({
     try {
       await changePassword.mutateAsync({ confirmPassword, currentPassword, newPassword });
     } catch (error) {
-      setPasswordError(getMobilePasswordFailureMessage(locale, getMobilePasswordChangeFailure(error)));
+      setPasswordError(
+        getMobilePasswordFailureMessage(locale, getMobilePasswordChangeFailure(error)),
+      );
       return;
     }
 
@@ -439,9 +441,7 @@ export function MobileSecuritySettingsScreen({
             onPress={onOpenTwoFactor}
             testID="mobile-settings-open-2fa"
             tone="green"
-            value={
-              account?.twoFactorEnabled ? copy.securitySettingsOn : copy.securitySettingsOff
-            }
+            value={account?.twoFactorEnabled ? copy.securitySettingsOn : copy.securitySettingsOff}
           />
           <SecurityRow
             disabled

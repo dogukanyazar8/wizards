@@ -98,31 +98,37 @@ Bunlar ölçüldü. Yeniden ölçme.
 
 ### 4.2 Ölçek (temel commit)
 
-| Yüzey                    | Dosya | Satır    |
-| ------------------------ | ----- | -------- |
-| `apps/web/src`           | 1.235 | ~204.900 |
-| `apps/mobile/src`        | 563   | ~142.600 |
-| `apps/desktop/src-tauri` | 5 rs  | 5.456    |
-| `packages/types/src`     | 33    | ~12.400  |
-| `packages/db` (kaynak)   | 19 ts | 1.634    |
-| `packages/ui`            | 8     | 88       |
+**A1'de düzeltildi.** İlk sürümdeki sayılar kirli çalışma ağacında ölçülmüştü; aşağıdakiler `5a2b3990` temel ağacında yeniden ölçüldü. Kirli ağaç değeri parantezte.
 
-- **228** API rotası (`apps/web/src/app/api/**/route.ts`).
-- **69** Prisma modeli, `schema.prisma` 2.042 satır.
-- **22** migration, tamamı `packages/db/prisma/rebaseline-migrations/`.
+| Yüzey                    | Dosya         | Satır              |
+| ------------------------ | ------------- | ------------------ |
+| `apps/web/src`           | 1.166 (1.235) | 192.338 (~204.900) |
+| `apps/mobile/src`        | 554 (563)     | 139.546 (~142.600) |
+| `apps/desktop/src-tauri` | 5 rs          | 5.456              |
+| `packages/types/src`     | 28 (33)       | 11.539 (~12.400)   |
+| `packages/db` (kaynak)   | 19 ts         | 1.634              |
+| `packages/ui`            | 8             | **72** (88)        |
+
+- **211** API rotası (`apps/web/src/app/api/**/route.ts`) — kirli ağaçta 228; aradaki 17 rota commit'lenmemiş.
+- **74** `route-logic.ts` (DI deseni); **11** üretim rotası Prisma'yı doğrudan çağırıyor (A1-005).
+- **69** Prisma modeli, `schema.prisma` 2.042 satır; `User` modeli tek başına **103 alan**.
+- **20** aktif migration (`rebaseline-migrations/`). Ayrıca `packages/db/prisma/migrations/` altında **37 ölü migration** var — Prisma orayı okumaz (A1-001).
+- Socket sözleşmesi: `ServerToClientEvents` **37** olay, `ClientToServerEvents` **33**; mobil bunların 35'ini elle aynalıyor (A1-002).
 - Socket katmanı: `apps/web/src/lib/socket/` — 6 handler dosyası (`channel`, `dm`, `message`, `presence`, `typing`, `voice`) + `rate-limits.ts`, `drain.ts`, `emitters.ts`.
 - `packages/ui` 88 satır: **paylaşılan bileşen kütüphanesi pratikte yok.** Web ve mobil kendi bileşenlerini ayrı taşıyor. Bu bir bulgu adayıdır, gerçek olarak not edildi.
 
 ### 4.3 Test envanteri (dosya sayısı, temel commit)
 
-| Süit                      | Konum                                    | Dosya |
-| ------------------------- | ---------------------------------------- | ----- |
-| Web birim (`node:test`)   | `apps/web/**/*.test.ts`                  | 329   |
-| Mobil birim (`node:test`) | `apps/mobile/scripts/*.test.ts`          | 214   |
-| Mobil bileşen (jest)      | `apps/mobile/component-tests/*.test.tsx` | 129   |
-| Types                     | `packages/types/**/*.test.ts`            | 15    |
-| E2E (Playwright)          | `apps/web/e2e/specs/**`                  | 17    |
-| Desktop (`node:test`)     | `apps/desktop/scripts/*.test.mjs`        | 16    |
+**A1'de düzeltildi** — temel ağaç değerleri; kirli ağaç parantezte.
+
+| Süit                      | Konum                                    | Dosya     |
+| ------------------------- | ---------------------------------------- | --------- |
+| Web birim (`node:test`)   | `apps/web/**/*.test.ts`                  | 307 (329) |
+| Mobil birim (`node:test`) | `apps/mobile/scripts/*.test.ts`          | 210 (214) |
+| Mobil bileşen (jest)      | `apps/mobile/component-tests/*.test.tsx` | 124 (129) |
+| Types                     | `packages/types/**/*.test.ts`            | 13 (15)   |
+| E2E (Playwright)          | `apps/web/e2e/specs/**`                  | 17        |
+| Desktop (`node:test`)     | `apps/desktop/scripts/*.test.mjs`        | 16        |
 
 Rust tarafında `src-tauri` içinde ayrı test dosyası yok; testler `lib.rs` içindeki `#[cfg(test)]` bloklarında aranmalı.
 

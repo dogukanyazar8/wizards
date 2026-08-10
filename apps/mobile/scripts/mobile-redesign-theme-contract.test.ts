@@ -184,10 +184,6 @@ describe("mobile redesign palette contract", () => {
       chipRadiusSmall: 5,
       chipRadiusMedium: 7,
       pillRadius: 11,
-      toggleWidth: 44,
-      toggleHeight: 26,
-      toggleRadius: 13,
-      toggleKnob: 20,
       typePillWidth: 62,
       cardMargin: 16,
       cardPadding: 16,
@@ -323,9 +319,6 @@ describe("mobile redesign palette contract", () => {
         rowRadius: 18,
         rowPaddingHorizontal: 15,
         rowPaddingVertical: 13,
-        toggleHeight: 26,
-        toggleThumb: 20,
-        toggleWidth: 44,
       },
     });
   });

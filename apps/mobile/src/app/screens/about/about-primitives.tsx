@@ -18,6 +18,7 @@ import Animated, {
 } from "react-native-reanimated";
 
 import { mobileAboutMetrics } from "../../../design/tokens";
+import { Toggle } from "../../components/kit/toggle";
 import { useTheme } from "../../providers/mobile-theme-provider";
 import {
   AuthWelcomeBrandMark,
@@ -339,9 +340,8 @@ export function AboutRow({
 }
 
 /**
- * §2's 44×26 toggle. `kit/toggle.tsx` is 46×27 with a 21px thumb — a different
- * handoff's geometry — so this one is written here rather than reshaping a
- * control twenty other screens already use.
+ * Kept as a named export so the about screens keep their call sites, but the
+ * control itself is now the shared §2 "1i".6 switch — one toggle design app-wide.
  */
 export function AboutToggle({
   accessibilityLabel,
@@ -356,27 +356,14 @@ export function AboutToggle({
   readonly testID?: string;
   readonly value: boolean;
 }) {
-  const styles = useMobileAboutPrimitiveStyles();
-
   return (
-    <Pressable
+    <Toggle
       accessibilityLabel={accessibilityLabel}
-      accessibilityRole="switch"
-      accessibilityState={{ checked: value, disabled }}
       disabled={disabled}
-      onPress={() => onValueChange(!value)}
-      style={[
-        styles.toggleTrack,
-        value ? styles.toggleTrackOn : styles.toggleTrackOff,
-        disabled && styles.toggleDisabled,
-      ]}
-      {...(testID === undefined ? {} : { testID })}
-    >
-      <View
-        style={[styles.toggleKnob, value ? styles.toggleKnobOn : styles.toggleKnobOff]}
-        {...(testID === undefined ? {} : { testID: `${testID}-knob` })}
-      />
-    </Pressable>
+      onValueChange={onValueChange}
+      value={value}
+      {...(testID === undefined ? {} : { testID, thumbTestID: `${testID}-knob` })}
+    />
   );
 }
 

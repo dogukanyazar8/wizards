@@ -1,0 +1,275 @@
+{
+  "axis": "A3",
+  "axisTitle": "Güvenlik",
+  "baseCommit": "5a2b3990733b17672cf65fba631b7ec44a7bf96a",
+  "generatedAt": "2026-08-08",
+  "generatedFrom": [
+    "scratchpad/scan-routes2.mjs — 211 rotanin ithal grafigi derinlik 2 izlenerek guard tablosu",
+    "grep -rhoE 'require[A-Za-z]+\\(' apps/web/src/app/api --include=route.ts | sort | uniq -c",
+    "grep -rhoE 'ensure[A-Za-z]+\\(|assert[A-Za-z]+\\(|PermissionBits\\.[A-Z_]+' apps/web/src/lib",
+    "pnpm audit --audit-level moderate --json",
+    "apps/web/next.config.ts securityHeaders okundu",
+    "apps/web/src/lib/e2e/route-guard.ts, lib/auth/oauth-email.ts, auth.ts callbacks okundu"
+  ],
+  "surfaceCoverage": [
+    {
+      "surface": "apps/web/src/app/api/**/route.ts",
+      "unitsTotal": 211,
+      "unitsInspected": 211,
+      "method": "Her rotanin ithal grafigi derinlik 2 izlenerek kimlik/yetki/oran siniri/sema sinyali cikarildi (scan-routes2.mjs). Statik sonuc guvenilmez cikinca 12 yuksek riskli rota elle okundu: e2e/auth/session, mobile/channels/[channelId]/history, mobile/notifications/[id]/read, mobile/auth/login, friends, dm/[conversationId]/read, desktop/download, app/updates/manifest ve digerleri.",
+      "notCovered": []
+    },
+    {
+      "surface": "Socket handler + rate-limits.ts",
+      "unitsTotal": 7,
+      "unitsInspected": 3,
+      "method": "rate-limits.ts tamami, socket/server.ts el sikismasi kimlik cozumleme bolumu, typing.ts okundu",
+      "notCovered": [
+        "handlers/channel.ts",
+        "handlers/dm.ts",
+        "handlers/message.ts",
+        "handlers/presence.ts — oda katilim yetkisi ve yayin hedefi dogrulanmadi"
+      ]
+    },
+    {
+      "surface": "apps/web/src/auth.ts + lib/auth/**",
+      "unitsTotal": 62,
+      "unitsInspected": 8,
+      "method": "auth.ts saglayici yapilandirmasi + signIn callback zinciri, lib/auth/api.ts export yuzeyi, session-cookies.ts, oauth-email.ts, totp-secret-encryption.ts, totp-replay.ts, mobile-login-attempts hattı, e2e/route-guard.ts",
+      "notCovered": [
+        "password-reset.ts",
+        "session-revocation.ts",
+        "reauth.ts / reauth-email.ts",
+        "two-factor.ts tam akis",
+        "turnstile.ts",
+        "attempt-tracker.ts",
+        "desktop-oauth-handoff.ts"
+      ]
+    },
+    {
+      "surface": "proxy.ts (Next 16 middleware esdegeri)",
+      "unitsTotal": 1,
+      "unitsInspected": 1,
+      "method": "apps/web/src/proxy.ts (286 satir) CSP uretimi ve guvenlik basligi ekleme bolumu okundu; apps/web/src/middleware.ts temel commit'te yok (yalniz middleware.test.ts var)",
+      "notCovered": ["proxy.ts icindeki origin/CSRF dogrulama bolumu (satir 200-286) okunmadi"]
+    },
+    {
+      "surface": "Yukleme / ek dosya yolu",
+      "unitsTotal": 6,
+      "unitsInspected": 3,
+      "method": "uploadthing/core.ts boyut sinirlari, attachments/scanner.ts tarama tavani, attachments/download-proxy.ts SSRF korumasi ve yonlendirme siniri",
+      "notCovered": [
+        "uploadthing callback dogrulamasi",
+        "dosya tipi beyaz listesi tam icerigi",
+        "attachment sahiplik kontrolu"
+      ]
+    },
+    {
+      "surface": "apps/mobile/src/security, storage, auth",
+      "unitsTotal": 3,
+      "unitsInspected": 2,
+      "method": "auth/ altindaki SecureStore adaptorleri (expo-secure-session-store.ts, expo-mobile-app-lock-preference-store.ts) okundu; security/ klasoru listelendi",
+      "notCovered": [
+        "apps/mobile/src/storage — SQLCipher anahtar yonetimi okunmadi",
+        "cihaz butunlugu tespitinin atlanabilirligi"
+      ]
+    },
+    {
+      "surface": "apps/mobile/src/deep-link",
+      "unitsTotal": 2,
+      "unitsInspected": 1,
+      "method": "mobile-deep-links.ts icindeki URL origin dogrulamasi (satir 270-271) okundu",
+      "notCovered": ["use-mobile-deep-links.ts", "cagri/davet parametrelerinin tam dogrulamasi"]
+    },
+    {
+      "surface": "apps/desktop/src-tauri",
+      "unitsTotal": 6,
+      "unitsInspected": 5,
+      "method": "capabilities/ altindaki bes JSON dosyasinin tamami okundu (pencere basina izin listesi ve remote URL beyaz listesi)",
+      "notCovered": ["lib.rs icindeki 26 IPC komutunun girdi dogrulamasi okunmadi"]
+    },
+    {
+      "surface": "Ortam degiskeni sozlesmesi",
+      "unitsTotal": 2,
+      "unitsInspected": 0,
+      "method": "okunmadi",
+      "notCovered": ["apps/web/src/lib/env.ts", ".env.example"]
+    },
+    {
+      "surface": "Bagimliliklar",
+      "unitsTotal": 2,
+      "unitsInspected": 1,
+      "method": "pnpm audit --audit-level moderate calistirildi (JSON ciktisiyla)",
+      "notCovered": ["cargo audit calistirilmadi (Rust toolchain turu gerekiyor)"]
+    }
+  ],
+  "findings": [
+    {
+      "id": "A3-001",
+      "title": "Uc yuksek onemli bagimlilik zafiyeti acik; kok `ci` betiginin ilk adimi tam olarak bu kontrol, yani belgelenen kapi bugun gecemez",
+      "severity": "high",
+      "confidence": "confirmed",
+      "platforms": ["infra", "mobile"],
+      "category": "dependency",
+      "evidence": [
+        {
+          "file": "package.json",
+          "line": 14,
+          "quote": "\"ci\": \"pnpm audit --audit-level moderate && pnpm test:toolchain && pnpm format && pnpm lint && pnpm typecheck && pnpm ty"
+        },
+        {
+          "file": "pnpm-lock.yaml",
+          "line": 1,
+          "quote": "lockfileVersion: '9.0'"
+        }
+      ],
+      "failureScenario": "`pnpm audit --audit-level moderate` bugun uc yuksek onemli bulgu donuyor ve sifir disi kodla cikiyor: image-size ICNS ayristiricisi sonsuz dongu (DoS, duzeltilmis >=2.0.3), image-size JXL/HEIF ayristiricilari sonsuz dongu (DoS, >=2.0.3) ve nanoid ozel ureteclerinin boyut sifirken sonsuz donmesi (>=3.3.17). Uc bagimlilik da Expo uzerinden gecisli (nanoid icin 100 yol). Kok `ci` betigi bu komutla basladigi icin zincir ilk adimda kirilir — yani ya CI bu betigi kosmuyor ya da kapi kirmizi.",
+      "impact": "Iki katmanli sorun. Birincisi zafiyetin kendisi: her uc bulgu da hizmet reddi sinifinda ve goruntu ayristirma yolu kullanici yukledigi dosyalarla beslenebilir. Ikincisi ve daha agir olani kapinin kendisi: 'pnpm audit temiz' varsayimi belgelenmis ama bugun yanlis; kapinin gercekten kostugu `ci.yml` icinden dogrulanmali (A4 kapsami).",
+      "fix": {
+        "summary": "Uc advisory icin pnpm overrides/patch uygula (repoda `patches/` dizini ve daha once js-yaml icin ayni yontem kullanilmis); ardindan `pnpm audit --audit-level moderate` ciktisinin sifir oldugunu kapida dogrula.",
+        "effort": "S",
+        "risk": "low",
+        "touches": ["package.json", "pnpm-lock.yaml", "patches/"]
+      },
+      "parity": {
+        "benchmark": "none"
+      },
+      "wave": "W0",
+      "refutation": "Bulgularin bayat olma ihtimali kontrol edildi: komut denetim sirasinda calistirildi ve JSON ciktisi uc advisory'yi ad ve duzeltilmis surumleriyle dondu. Lockfile'in calisma agacinda degistirilmis olma ihtimali kontrol edildi: pnpm-lock.yaml degistirilmis dosyalar listesinde degil, yani temel commit ile ayni. Son commit'in adi (`fix(security): patch js-yaml audit`) bu kapinin bilincli olarak isletildigini gosteriyor — yani bulgu 'bilinmiyor' degil, 'yeni olusmus ve henuz kapatilmamis'. Curutulemedi."
+    },
+    {
+      "id": "A3-002",
+      "title": "Yetkilendirme yalniz servis katmaninda; rota duzeyinde statik olarak dogrulanamiyor ve hicbir arac eksikligi yakalamiyor",
+      "severity": "medium",
+      "confidence": "confirmed",
+      "platforms": ["backend"],
+      "category": "authorization",
+      "evidence": [
+        {
+          "file": "apps/web/src/app/api/v1/mobile/channels/[channelId]/history/route-logic.ts",
+          "line": 47,
+          "quote": "    const userId = await dependencies.authenticate(request);"
+        },
+        {
+          "file": "apps/web/src/lib/workspace/channel-service.ts",
+          "line": 366,
+          "quote": "  ensureServerPermission(access, PermissionBits.CLEAR_CHANNEL_HISTORY);"
+        }
+      ],
+      "failureScenario": "Bir gelistirici yeni bir yikici uc ekler (ornegin kanal ayarlarini sifirlayan bir rota). Rota `requireApiUserId` cagirir, semayi dogrular, oran siniri uygular — mevcut her rota gibi gorunur. Servis tarafinda `getAccessContext` + `ensureServerPermission` cagirmayi unutur. Hicbir lint kurali, tip kisiti ya da sozlesme testi bunu yakalamaz; kod inceleme disinda tek savunma yoktur. Kusur ancak yetkisiz bir uye ucu cagirdiginda ortaya cikar.",
+      "impact": "Denetlenebilirlik acigi. Bu denetimde 211 rotanin yetkilendirme durumu statik olarak cikarilamadi: anahtar kelime taramasi once 177 yanlis pozitif, dogru yardimci adlari eklendikten sonra sifir bulgu verdi — yani tarama ne kaniti ne de yoklugu gosterebiliyor. Guvenlik gozden gecirmesi her seferinde 211 rotanin servis zincirini elle okumayi gerektiriyor; bu olceklenmez ve pratikte yapilmaz.",
+      "fix": {
+        "summary": "Yetkilendirmeyi tip duzeyinde zorunlu kil: yikici servis fonksiyonlari yalnizca `AccessContext` benzeri bir taniti (branded type) argumaninda kabul etsin, o taniti da yalnizca `ensureServerPermission` uretsin. Alternatif/ek: rota basina yetkilendirme beklentisini kaydeden bir sozlesme testi.",
+        "effort": "L",
+        "risk": "med",
+        "touches": [
+          "apps/web/src/lib/workspace/permissions",
+          "apps/web/src/lib/workspace/channel-service.ts",
+          "apps/web/eslint.config.mjs"
+        ]
+      },
+      "parity": {
+        "benchmark": "none"
+      },
+      "wave": "W2",
+      "refutation": "Bir zorlama mekanizmasi arandi: eslint yalniz `requireAdminUser` ithalini kisitliyor (A1-004), yetkilendirme icin kural yok. Rota sozlesme testlerinin bu bosluğu kapatip kapatmadigi kontrol edildi — `route-contract.test.ts` ailesi kimlik/sema kaydini zorluyor ama yetkilendirme cagrisini zorlamiyor. Bulgu 'bugun bir rota acikta' demiyor (aksine incelenen orneklerin hepsinde kontrol vardi); 'yarin acilan rota sessizce acik kalir' diyor. Curutulemedi."
+    }
+  ],
+  "metrics": [
+    {
+      "name": "API rotasi (guard tablosu kapsami)",
+      "value": 211,
+      "unit": "rota",
+      "method": "scan-routes2.mjs, ithal grafigi derinlik 2",
+      "treeState": "baseline"
+    },
+    {
+      "name": "kimlik kapisi tasimayan rota",
+      "value": 14,
+      "unit": "rota",
+      "method": "scan-routes2.mjs; 14'unun tamami elle dogrulandi ve tasarim geregi acik cikti (NextAuth, health, version, updates manifest, desktop download, e2e (uc katmanli kapi), 8 mobil auth ucu)",
+      "treeState": "baseline"
+    },
+    {
+      "name": "oran siniri tasiyan rota",
+      "value": 206,
+      "unit": "rota",
+      "method": "scan-routes2.mjs; sinirsiz tek yazma rotasi api/e2e/auth/session (uretimde kapali)",
+      "treeState": "baseline"
+    },
+    {
+      "name": "sema dogrulamasi tasiyan rota",
+      "value": 208,
+      "unit": "rota",
+      "method": "scan-routes2.mjs",
+      "treeState": "baseline"
+    },
+    {
+      "name": "yazma metodu tasiyan rota",
+      "value": 144,
+      "unit": "rota",
+      "method": "scan-routes2.mjs",
+      "treeState": "baseline"
+    },
+    {
+      "name": "yuksek onemli npm advisory",
+      "value": 3,
+      "unit": "advisory",
+      "method": "pnpm audit --audit-level moderate (image-size ×2, nanoid)",
+      "treeState": "working"
+    },
+    {
+      "name": "guvenlik basligi sayisi",
+      "value": 5,
+      "unit": "baslik",
+      "method": "next.config.ts securityHeaders + uretimde HSTS; CSP yok",
+      "treeState": "baseline"
+    },
+    {
+      "name": "ensureServerPermission cagri yeri",
+      "value": 31,
+      "unit": "cagri",
+      "method": "grep -rhoE 'ensureServerPermission\\(' apps/web/src/lib (test disi)",
+      "treeState": "baseline"
+    },
+    {
+      "name": "getAccessContext cagri yeri",
+      "value": 38,
+      "unit": "cagri",
+      "method": "grep -rhoE 'getAccessContext\\(' apps/web/src/lib (test disi)",
+      "treeState": "baseline"
+    },
+    {
+      "name": "repoda gomulu sir",
+      "value": 0,
+      "unit": "bulgu",
+      "method": "grep -rnE '(sk-[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY)' apps/ packages/ — tek eslesme bir test fixture'i",
+      "treeState": "baseline"
+    },
+    {
+      "name": "tauri capability dosyasi",
+      "value": 5,
+      "unit": "dosya",
+      "method": "apps/desktop/src-tauri/capabilities/*.json — uzak URL yukleyen pencerelerde permissions: []",
+      "treeState": "baseline"
+    },
+    {
+      "name": "CSP direktif sayisi",
+      "value": 14,
+      "unit": "direktif",
+      "method": "apps/web/src/proxy.ts buildCspHeader; uretimde script-src 'nonce-<n>' + 'strict-dynamic', object-src 'none', frame-ancestors 'none'",
+      "treeState": "baseline"
+    }
+  ],
+  "openQuestions": [
+    "proxy.ts icindeki CSP guclu (nonce + strict-dynamic). Tek gevseme `style-src 'unsafe-inline'` — Next'in inline stil enjeksiyonu yuzunden yaygin ve dusuk riskli; kaldirilabilirligi olculmedi, bulgu yazilmadi.",
+    "cargo audit calistirilmadi (Rust toolchain turu gerekiyor). Komut: pnpm --filter @wizards/desktop release:cargo-audit-summary.",
+    "Socket handler'larin dordu (channel, dm, message, presence) okunmadi: oda katilimindaki yetki kontrolu ve yayin hedefi genisligi dogrulanmadi. `dm:join` sonrasi cikarilan kullanicinin soketinin gercekten dusurulup dusurulmedigi acik.",
+    "TOTP akisinin tamami (kurtarma kodlari, brute-force siniri, yeniden kayit yetkisi) okunmadi; yalnizca secret sifreleme (AES) ve replay store (120 sn TTL) varligi dogrulandi.",
+    "Parola sifirlama, oturum iptali ve reauth akislari okunmadi — kimlik yuzeyinin en riskli uc akisi bunlar.",
+    "lib.rs icindeki 26 Tauri IPC komutunun girdi dogrulamasi okunmadi; capability dosyalari saglam ama komutlarin kendi parametre kontrolu bilinmiyor.",
+    "UploadThing callback imzasi/dogrulamasi ve attachment sahiplik kontrolu okunmadi.",
+    "apps/mobile/src/storage altindaki SQLCipher anahtarinin nerede saklandigi dogrulanmadi (oturum token'i SecureStore'da, veritabani anahtari ayri olabilir).",
+    "proxy.ts satir 200-286 arasindaki origin/CSRF dogrulamasi okunmadi; cookie tabanli oturum + POST uclari icin CSRF stratejisinin tamami dogrulanmadi."
+  ]
+}

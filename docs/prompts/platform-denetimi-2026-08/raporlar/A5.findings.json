@@ -1,0 +1,201 @@
+{
+  "axis": "A5",
+  "axisTitle": "Hata avı: kod hataları + UI/işlevsel kusurlar",
+  "baseCommit": "5a2b3990733b17672cf65fba631b7ec44a7bf96a",
+  "generatedAt": "2026-08-08",
+  "generatedFrom": [
+    "scratchpad/locale-diff.mjs — web tr/en ve mobil tr/en anahtar kumeleri karsilastirildi",
+    "setInterval/clearInterval dengesi taramasi (web + mobil, dosya bazinda)",
+    "grep -rn 'clientNonce' apps/mobile/src apps/web/src (gonderim yollari)",
+    "apps/mobile/src/query/use-mobile-message-mutations.ts satir 480-520 ve 740-765 okundu",
+    "apps/web/src/components/chat/message-list.tsx:300-315 ve apps/mobile/src/app/components/message-grouping.ts:38-52 karsilastirildi"
+  ],
+  "surfaceCoverage": [
+    {
+      "surface": "Mobil ekranlar (apps/mobile/src/app/screens)",
+      "unitsTotal": 24,
+      "unitsInspected": 5,
+      "method": "24 ekran icin dort durum sinyali grep ile sayildi (empty 13, error 10, loading 10, offline 2); bes ekran elle acildi (role-detail, invite-message-sheet, about-settings, account-settings ve messaging feature hook'u)",
+      "notCovered": [
+        "19 ekranin dort durum davranisi elle dogrulanmadi",
+        "klavye, kaydirma konumu, uzun icerik, dokunma hedefi, tema kontrasti hic incelenmedi"
+      ]
+    },
+    {
+      "surface": "Web sayfa/bileşen",
+      "unitsTotal": 20,
+      "unitsInspected": 3,
+      "method": "message-list.tsx, thread-panel.tsx, chat-area.tsx gruplama ve iyimser guncelleme yollari okundu",
+      "notCovered": ["17 bilesen okunmadi", "web rota agacinin dort durum davranisi incelenmedi"]
+    },
+    {
+      "surface": "On kritik akis × dort durum",
+      "unitsTotal": 40,
+      "unitsInspected": 6,
+      "method": "Yalniz mesaj gonderme/iletme ve davet paylasma akislarinin hata + yeniden giris durumlari izlendi",
+      "notCovered": [
+        "Kayit/e-posta dogrulama",
+        "Sunucu kur/davet/katil",
+        "Ses odasi",
+        "Bildirim rozeti dongusu",
+        "Profil/durum",
+        "Arama",
+        "Kesif",
+        "Oturum yenileme/cikis",
+        "Bu akislarin bos/yukleniyor/cevrimdisi durumlari"
+      ]
+    },
+    {
+      "surface": "Yerelleştirme",
+      "unitsTotal": 4,
+      "unitsInspected": 4,
+      "method": "web tr.ts/en.ts ve mobil mobileCopy.tr/mobileCopy.en anahtar kumeleri programatik olarak karsilastirildi",
+      "notCovered": []
+    },
+    {
+      "surface": "Desktop kabuk davranisi",
+      "unitsTotal": 4,
+      "unitsInspected": 0,
+      "method": "incelenmedi",
+      "notCovered": ["pencere durumu", "bildirim", "derin link", "oyun overlay"]
+    }
+  ],
+  "findings": [
+    {
+      "id": "A5-001",
+      "title": "Mesaj iletme ve davet paylasma yollari clientNonce gondermiyor: tekrar denemede ayni mesaj iki kez olusur",
+      "severity": "medium",
+      "confidence": "confirmed",
+      "platforms": ["mobile"],
+      "category": "idempotency",
+      "evidence": [
+        {
+          "file": "apps/mobile/src/query/use-mobile-message-mutations.ts",
+          "line": 502,
+          "quote": "        ? sendMobileDMMessage(input.client, {"
+        },
+        {
+          "file": "apps/mobile/src/query/use-mobile-message-mutations.ts",
+          "line": 204,
+          "quote": " * server, whose unique index on `(userId, clientNonce)` is the only thing that"
+        },
+        {
+          "file": "apps/mobile/src/invite/mobile-invite-message-sheet.tsx",
+          "line": 63,
+          "quote": "      await sendMobileDMMessage(apiClient, { content: shareUrl, conversationId });"
+        }
+      ],
+      "failureScenario": "Kullanici bir mesaji baska bir sohbete iletir. Ag yavastir; istek gider ama yanit gecikir. Kullanici butona ikinci kez basar (ya da istemci istegi yeniden dener). Iki istek de sunucuya ulasir ve iki ayri mesaj olusur — cunku bu cagri `clientNonce` tasimiyor. Ayni sey davet paylasma sayfasinda da gecerli: `sendMobileDMMessage(apiClient, { content: shareUrl, conversationId })` cagrisi nonce'suz gidiyor. Sonuc: hedef sohbette ayni mesajin iki kopyasi.",
+      "impact": "Tekilligin tek koruyucusu sunucudaki `(userId, clientNonce)` benzersiz indeksi — dosyanin kendi yorumu bunu satir 204'te yaziyor. Nonce gonderilmeyince o indeks devre disi kalir. Normal mesaj gonderme yolu korunuyor (iyimser mutasyon sarmalayicisi satir 243'te nonce uretiyor); korunmayanlar iletme ve davet paylasma. Kullanici acisindan geri alinamaz: cift mesaj karsi tarafta gorunur ve elle silinmesi gerekir.",
+      "fix": {
+        "summary": "Iletme mutasyonunu da iyimser gonderim sarmalayicisindan gecir ya da en azindan cagri yerinde `clientNonce: createMobileOptimisticMessageId()` uret; davet paylasma sheet'i icin ayni.",
+        "effort": "S",
+        "risk": "low",
+        "touches": [
+          "apps/mobile/src/query/use-mobile-message-mutations.ts",
+          "apps/mobile/src/invite/mobile-invite-message-sheet.tsx"
+        ]
+      },
+      "parity": {
+        "benchmark": "none"
+      },
+      "wave": "W1",
+      "refutation": "Ucuncu bir koruma katmani arandi. (1) Davet sheet'inde `sendingId !== null` kontrolu var (satir 56-58) — es zamanli cift dokunusu engelliyor, ama zaman asimi sonrasi yeniden denemeyi engellemiyor. (2) Iletme yolunda `forwardMutation` icin `isPending` kullanilabilirdi ama `use-mobile-messaging-feature.ts:253` yalniz `mutateAsync`'i cikariyor, `isPending`'i disari vermiyor. (3) Sunucu tarafinda icerik/zaman tabanli bir tekillestirme arandi (`message-send-service.ts`), yalniz clientNonce yolu var. Nihai UI bileseninde yerel bir gonderim kilidi olup olmadigi izlenemedi — bu yuzden 'cift dokunus' kolu kismen curutulebilir, ama 'yeniden deneme' kolu curutulemedi."
+    },
+    {
+      "id": "A5-002",
+      "title": "Mesaj gruplama yuklemi web ile mobilde ayrisiyor: sirasiz gelen mesajlar web'de gruplanir, mobilde gruplanmaz",
+      "severity": "low",
+      "confidence": "confirmed",
+      "platforms": ["web", "mobile"],
+      "category": "cross-platform-divergence",
+      "evidence": [
+        {
+          "file": "apps/web/src/components/chat/message-list.tsx",
+          "line": 318,
+          "quote": "          Math.abs("
+        },
+        {
+          "file": "apps/mobile/src/app/components/message-grouping.ts",
+          "line": 48,
+          "quote": "  return Number.isFinite(elapsed) && elapsed >= 0 && elapsed <= MOBILE_MESSAGE_GROUP_WINDOW_MS;"
+        },
+        {
+          "file": "apps/web/src/components/chat/thread-panel.tsx",
+          "line": 13,
+          "quote": "const MESSAGE_GROUP_WINDOW_MS = 5 * 60 * 1000;"
+        }
+      ],
+      "failureScenario": "Ayni yazarin iki mesaji sirasiz gelir (socket yarisi ya da istemci saat kaymasi yuzunden ikinci mesajin `createdAt` degeri birincisinden kucuktur). Web `Math.abs(...)` kullandigi icin farki pozitife cevirir ve iki mesaji gruplar: ikinci mesajda yazar adi ve avatar gizlenir. Mobil ayni veride `elapsed >= 0` kontrolu yuzunden gruplamaz ve avatari gosterir. Ayni sohbet iki cihazda farkli gorunur. Ikinci ayrisma tam sinirda: 300.000 ms farkta web gruplamaz (`<`), mobil gruplar (`<=`).",
+      "impact": "Gorsel tutarsizlik; veri kaybi yok. Etki dar (ayni yazar + sirasiz gelis ya da tam sinir), ama A1-003'un ongordugu ayrisma sinifinin davranis duzeyinde kanitidir: ayni kural iki yerde bagimsiz yazilmis ve zamanla ayrismis. Web tarafinda kural ayrica iki dosyada kopyalanmis (message-list.tsx:11 ve thread-panel.tsx:13), yani ucuncu bir kopya riski var.",
+      "fix": {
+        "summary": "Gruplama yuklemi tek bir paylasilan saf fonksiyona tasinsin (A1-003 ile ayni kalem); dogru davranis secilsin — sirasiz mesajlar gruplanmamali, yani mobil surumu kanon kabul edilmeli.",
+        "effort": "S",
+        "risk": "low",
+        "touches": [
+          "apps/web/src/components/chat/message-list.tsx",
+          "apps/web/src/components/chat/thread-panel.tsx",
+          "apps/mobile/src/app/components/message-grouping.ts"
+        ]
+      },
+      "parity": {
+        "benchmark": "none"
+      },
+      "wave": "W2",
+      "refutation": "Iki tarafin ayni sonucu uretme ihtimali kontrol edildi: sabit ayni (5 dakika) ama yuklem farkli — web `Math.abs(delta) < W`, mobil `delta >= 0 && delta <= W`. Gun siniri kontrolu de farkli uygulanmis (web `toDateString()`, mobil `getMobileDisplayMessageDayKey`). Sunucunun mesajlari her zaman sirali gonderdigi savi degerlendirildi: socket olayi ile HTTP yaniti farkli yollardan geldigi icin garanti degil (A1 §5 tek yazici sorusu). Curutulemedi."
+    }
+  ],
+  "metrics": [
+    {
+      "name": "web locale anahtari (tr / en)",
+      "value": 2145,
+      "unit": "anahtar",
+      "method": "scratchpad/locale-diff.mjs — tr 2145, en 2145, fark 0",
+      "treeState": "baseline"
+    },
+    {
+      "name": "mobil locale anahtari (tr / en)",
+      "value": 2116,
+      "unit": "anahtar",
+      "method": "scratchpad/locale-diff.mjs — tr 2116, en 2116, fark 0",
+      "treeState": "baseline"
+    },
+    {
+      "name": "temizlenmeyen setInterval",
+      "value": 0,
+      "unit": "dosya",
+      "method": "dosya bazinda setInterval/clearInterval sayimi (web + mobil, test disi)",
+      "treeState": "baseline"
+    },
+    {
+      "name": "yutulan hata isleyicisi",
+      "value": 158,
+      "unit": "yer",
+      "method": "grep 'catch {}|.catch(() => {})|.catch(() => undefined)' (test disi); ornekleme cogunun desktop fire-and-forget cagrisi oldugunu gosterdi",
+      "treeState": "baseline"
+    },
+    {
+      "name": "mobil ekran (dort durum sinyali)",
+      "value": 24,
+      "unit": "ekran",
+      "method": "empty 13, error 10, loading 10, offline 2; offline global MobileConnectivityBanner ile karsilaniyor",
+      "treeState": "baseline"
+    },
+    {
+      "name": "mobil useMutation",
+      "value": 49,
+      "unit": "kullanim",
+      "method": "grep -rn 'useMutation(' apps/mobile/src (test disi); hata cogunlukla cagri yerinde try/catch + setError ile isleniyor",
+      "treeState": "baseline"
+    }
+  ],
+  "openQuestions": [
+    "On kritik akisin sekizi hic izlenmedi (kayit, sunucu kurma/davet/katilim, ses odasi, bildirim rozeti dongusu, profil/durum, arama, kesif, oturum yenileme). Dort durum matrisinin 40 hucresinden yalniz 6'si dolduruldu.",
+    "UI kusur siniflari hic taranmadi: klavye davranisi, kaydirma konumu korunmasi, uzun icerik tasmasi, dokunma hedefi boyutu, ekran okuyucu etiketleri, tema kontrasti, sistem yazi tipi buyutmesi.",
+    "Tarih/saat, cogul kurallari, Unicode sinir degerleri incelenmedi.",
+    "Desktop kabuk davranisi (pencere durumu, bildirim, derin link, oyun overlay) hic incelenmedi.",
+    "Iletme akisinin nihai UI bileseninde yerel gonderim kilidi olup olmadigi izlenemedi — A5-001'in 'cift dokunus' kolu bu yuzden kismen acik.",
+    "Web'de mesaj iletme (forward) yetenegi hic yok gorunuyor (`forwardOfMessageId` yalniz servis katmaninda, istemcide kullanilmiyor). Kusur mu yoksa bilincli kapsam mi oldugu dogrulanmadi — A6 parite matrisine girmeli.",
+    "158 yutulan hata isleyicisinin tamami siniflandirilmadi; yalnizca ornekleme yapildi."
+  ]
+}

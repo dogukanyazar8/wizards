@@ -1,16 +1,29 @@
 import type { AudioCaptureOptions } from "livekit-client";
+import type { MobileVoiceAudioProcessing } from "./mobile-voice-device-contract";
 
 export interface MobileMicrophoneLocalParticipant {
   setMicrophoneEnabled(enabled: boolean, options?: AudioCaptureOptions): Promise<unknown>;
 }
 
+/**
+ * Accepts either the whole processing preference or the bare noise-suppression
+ * flag, so the older call sites keep reading the way they always did.
+ */
 export function getMobileMicrophoneCaptureOptions(
-  noiseSuppressionEnabled = true,
+  processing: MobileVoiceAudioProcessing | boolean = true,
 ): AudioCaptureOptions {
+  if (typeof processing === "boolean") {
+    return {
+      autoGainControl: true,
+      echoCancellation: true,
+      noiseSuppression: processing,
+    };
+  }
+
   return {
-    autoGainControl: true,
-    echoCancellation: true,
-    noiseSuppression: noiseSuppressionEnabled,
+    autoGainControl: processing.autoGainControlEnabled,
+    echoCancellation: processing.echoCancellationEnabled,
+    noiseSuppression: processing.noiseSuppressionEnabled,
   };
 }
 

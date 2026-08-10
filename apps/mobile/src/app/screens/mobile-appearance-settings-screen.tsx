@@ -27,6 +27,7 @@ import {
 import { MobileLineIcon } from "../../design/mobile-line-icons";
 import type { MobileThemeMode } from "../../design/mobile-theme-runtime";
 import { mobileCopy, type MobileLocale } from "../../locale/mobile-copy";
+import { Toggle } from "../components/kit/toggle";
 import { useMobileHaptics } from "../providers/mobile-haptics-provider";
 import { useMobileLocaleRuntime } from "../providers/mobile-locale-provider";
 import {
@@ -306,38 +307,6 @@ function MessageFontSizeSlider({
         <View style={[styles.messageSliderThumb, { left: trackWidth * progress }]} />
       </View>
     </View>
-  );
-}
-
-/** §2 "1i".6 toggle: 46x28 track, 24px thumb that parks on the active side. */
-function SettingsToggle({
-  label,
-  onToggle,
-  value,
-  testID,
-}: {
-  label: string;
-  onToggle(next: boolean): void;
-  value: boolean;
-  testID: string;
-}) {
-  const styles = useMobileAppearanceSettingsStyles();
-  const { selection } = useMobileHaptics();
-
-  return (
-    <Pressable
-      accessibilityLabel={label}
-      accessibilityRole="switch"
-      accessibilityState={{ checked: value }}
-      onPress={() => {
-        selection();
-        onToggle(!value);
-      }}
-      style={[styles.toggleTrack, value && styles.toggleTrackOn]}
-      testID={testID}
-    >
-      <View style={[styles.toggleThumb, value && styles.toggleThumbOn]} />
-    </Pressable>
   );
 }
 
@@ -764,9 +733,9 @@ export function MobileAppearanceSettingsScreen({ onBack }: { onBack(): void }) {
             <Text style={styles.toggleTitle}>{copy.appearanceSettingsCompactTitle}</Text>
             <Text style={styles.toggleSubtitle}>{copy.appearanceSettingsCompactSubtitle}</Text>
           </View>
-          <SettingsToggle
-            label={copy.appearanceSettingsCompactTitle}
-            onToggle={setMessageCompact}
+          <Toggle
+            accessibilityLabel={copy.appearanceSettingsCompactTitle}
+            onValueChange={setMessageCompact}
             testID="mobile-appearance-settings-compact-toggle"
             value={messageCompact}
           />
@@ -780,9 +749,9 @@ export function MobileAppearanceSettingsScreen({ onBack }: { onBack(): void }) {
             <Text style={styles.toggleTitle}>{copy.appearanceSettingsFollowSystemTitle}</Text>
             <Text style={styles.toggleSubtitle}>{copy.appearanceSettingsFollowSystemSubtitle}</Text>
           </View>
-          <SettingsToggle
-            label={copy.appearanceSettingsFollowSystemTitle}
-            onToggle={setMessageFollowSystemFont}
+          <Toggle
+            accessibilityLabel={copy.appearanceSettingsFollowSystemTitle}
+            onValueChange={setMessageFollowSystemFont}
             testID="mobile-appearance-settings-follow-system-toggle"
             value={messageFollowSystemFont}
           />

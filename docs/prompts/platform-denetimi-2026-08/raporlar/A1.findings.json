@@ -1,0 +1,459 @@
+{
+  "axis": "A1",
+  "axisTitle": "Mimari",
+  "baseCommit": "5a2b3990733b17672cf65fba631b7ec44a7bf96a",
+  "generatedAt": "2026-08-08",
+  "generatedFrom": [
+    "git worktree add --detach $SCRATCH/whispr-base 5a2b3990",
+    "graphify explain \"live-voice-provider.tsx\"",
+    "graphify query \"live-voice-provider settings-panel channel-sidebar\" --budget 6000",
+    "grep -rn \"from ['\\\"].*apps/\" packages/*/src",
+    "grep -rl \"prisma\\.\" apps/web/src/app/api --include=route.ts",
+    "awk '/^model /{m=$2;c=0} /^\\s+\\w+\\s+\\w/{c++} /^\\}/{if(m){print c, m; m=\"\"}}' packages/db/prisma/schema.prisma",
+    "sed -n '178,350p' apps/web/src/lib/socket/events.ts | grep -oE '^  \"?[a-zA-Z:]+\"?: *\\(' | comm ile mobil listeye karsi"
+  ],
+  "surfaceCoverage": [
+    {
+      "surface": "packages/types/src",
+      "unitsTotal": 28,
+      "unitsInspected": 28,
+      "method": "dosya listesi + export yuzeyi taramasi; socket.ts ve index.ts satir satir okundu",
+      "notCovered": []
+    },
+    {
+      "surface": "apps/web/src/lib/** ust klasorler",
+      "unitsTotal": 52,
+      "unitsInspected": 52,
+      "method": "klasor duzeyi listeleme; socket/, dm/, voice/, outbox/, admin/ dosya duzeyinde okundu",
+      "notCovered": []
+    },
+    {
+      "surface": "apps/web/src/app/api/**/route.ts",
+      "unitsTotal": 211,
+      "unitsInspected": 211,
+      "method": "tum rota dosyalari uzerinde statik desen taramasi (prisma. cagrisi, @wizards/db ithali, route-logic esligi); 11 uretim rotasi elle acildi",
+      "notCovered": []
+    },
+    {
+      "surface": "apps/mobile/src ust klasorler",
+      "unitsTotal": 37,
+      "unitsInspected": 37,
+      "method": "klasor duzeyi listeleme; realtime/, voice/, api/ dosya duzeyinde okundu",
+      "notCovered": []
+    },
+    {
+      "surface": "apps/desktop/src-tauri/src",
+      "unitsTotal": 5,
+      "unitsInspected": 5,
+      "method": "dosya listesi + satir sayimi; lib.rs sorumluluk sayimi icin baslik taramasi",
+      "notCovered": []
+    },
+    {
+      "surface": "packages/db + schema.prisma",
+      "unitsTotal": 69,
+      "unitsInspected": 69,
+      "method": "awk ile model basina alan sayimi, deletedAt/denormalize sayac taramasi, prisma.config.ts okundu",
+      "notCovered": []
+    },
+    {
+      "surface": "packages/ui",
+      "unitsTotal": 8,
+      "unitsInspected": 8,
+      "method": "tum dosyalar okundu (toplam 72 satir)",
+      "notCovered": []
+    },
+    {
+      "surface": "turbo.json, pnpm-workspace.yaml, tsconfig.base.json",
+      "unitsTotal": 3,
+      "unitsInspected": 3,
+      "method": "tamami okundu; gorev grafigi ve path alias'lari elle dogrulandi",
+      "notCovered": []
+    }
+  ],
+  "findings": [
+    {
+      "id": "A1-001",
+      "title": "packages/db/prisma/migrations/ olu dizin ama canli gorunuyor: 37 migration Prisma tarafindan hic okunmuyor",
+      "severity": "high",
+      "confidence": "confirmed",
+      "platforms": ["backend", "infra"],
+      "category": "data-model",
+      "evidence": [
+        {
+          "file": "packages/db/prisma.config.ts",
+          "line": 7,
+          "quote": "path: \"prisma/rebaseline-migrations\","
+        },
+        {
+          "file": "packages/db/prisma/migrations/20260422000000_add_fulltext_search_indexes/migration.sql",
+          "line": 1,
+          "quote": "-- Add full-text search support with GIN indexes"
+        }
+      ],
+      "failureScenario": "Gelistirici sema degisikligi icin elle bir migration klasoru acar ve Prisma'nin sozlesmesel varsayilan yeri olan packages/db/prisma/migrations/ altina koyar - orada git tarafindan izlenen 37 gercek migration klasoru (her biri migration.sql ile) durdugu icin dizin canli gorunur. prisma.config.ts icindeki `migrations.path` alani `prisma/rebaseline-migrations` degerine sabitlendigi icin `prisma migrate deploy` o dosyayi hic gormez: komut basarili doner, hicbir uyari cikmaz, kolon uretimde olusmaz. Kusur ancak yeni kolonu okuyan sorgu uretimde patladiginda fark edilir.",
+      "impact": "Veri katmani degisikliginin sessizce kaybolmasi. Railway UAT/prod veritabanina disaridan baglanilamadigi icin dogrulama yalnizca deployment sonrasi mumkun; hatanin ortaya cikma yeri uretim. Iki dizin ayni anda var oldugu surece her yeni migration bu kumar.",
+      "fix": {
+        "summary": "Olu dizini sil (gecmis git'te duruyor), yerine dizin adiyla ayni isimde bir README birak ya da rebaseline dizinine sembolik bir uyari dosyasi koy; prisma.config.ts'teki yolu packages/db/README icinde belgele.",
+        "effort": "S",
+        "risk": "low",
+        "touches": ["packages/db/prisma/migrations/", "packages/db/prisma.config.ts"]
+      },
+      "parity": {
+        "benchmark": "none"
+      },
+      "wave": "W0",
+      "refutation": "Prisma'nin iki dizini de okuma ihtimali arandi: prisma.config.ts tek bir `migrations.path` alani tasiyor ve package.json icinde `prisma` anahtari yok, yani ikinci bir kaynak yok. Dizini bayat isaretleyen README/DEPRECATED dosyasi arandi, bulunamadi; .gitignore da disarida birakmiyor (37 migration.sql git tarafindan izleniyor). Tek zayif ayirt edici sinyal: migration_lock.toml yalniz rebaseline-migrations altinda var, olu dizinde yok - ama bu eksik bir dosya, gorunur bir uyari degil. Curutulemedi."
+    },
+    {
+      "id": "A1-002",
+      "title": "Socket tel sozlesmesinin kaynagi apps/web icinde; mobil 35 olayi elle aynaliyor, iki liste tip veya testle baglanmamis",
+      "severity": "medium",
+      "confidence": "confirmed",
+      "platforms": ["web", "mobile", "backend"],
+      "category": "contract",
+      "evidence": [
+        {
+          "file": "apps/web/src/lib/socket/events.ts",
+          "line": 178,
+          "quote": "export interface ServerToClientEvents {"
+        },
+        {
+          "file": "apps/mobile/src/realtime/mobile-realtime-contract.ts",
+          "line": 1,
+          "quote": "export const MOBILE_REALTIME_SERVER_EVENTS = ["
+        },
+        {
+          "file": "packages/types/src/socket.ts",
+          "line": 11,
+          "quote": "export type DMPresenceStatus = \"ONLINE\" | \"IDLE\" | \"DND\" | \"OFFLINE\";"
+        }
+      ],
+      "failureScenario": "Sunucu tarafinda bir olay adi degistirilir (ornegin `server:unread:update` -> `server:unread:changed`). Web istemcisi `ServerToClientEvents` uzerinden tip hatasi verir ve derleme kirilir; mobil taraf olay adini duz string dizisinde tuttugu icin hicbir tip hatasi almaz. Mobil derlenir, testleri gecer, kullanicida okunmamis rozeti sessizce guncellenmeyi birakir.",
+      "impact": "Iki istemci arasinda sessiz davranis ayrilmasi. Bugun listeler ortusuyor (mobil 35 olay, web 37; fark yalniz `error` ve `dm:error`), yani aktif bir kusur yok — ama ayrisma kapisi tamamen acik ve ayrisma yalnizca uretimde gorulur. packages/types/src/socket.ts yalniz DM DTO'larini tasiyor, olay haritasini degil.",
+      "fix": {
+        "summary": "ClientToServerEvents/ServerToClientEvents haritalarini packages/types'a tasi; mobil listeyi o tipten turet (`satisfies Record<keyof ServerToClientEvents, ...>`) ya da en azindan iki listeyi karsilastiran bir sozlesme testi ekle.",
+        "effort": "M",
+        "risk": "med",
+        "touches": [
+          "apps/web/src/lib/socket/events.ts",
+          "packages/types/src/socket.ts",
+          "apps/mobile/src/realtime/mobile-realtime-contract.ts"
+        ]
+      },
+      "parity": {
+        "benchmark": "none"
+      },
+      "wave": "W2",
+      "refutation": "Iki listeyi capraz dogrulayan bir test arandi: `grep -rln MOBILE_REALTIME_SERVER_EVENTS` yalniz mobil tarafi doner; apps/mobile/scripts/mobile-realtime-contract.test.ts icinde ServerToClientEvents, events.ts ya da apps/web gecmiyor. `ServerToClientEvents` ithal eden dosyalarin tamami apps/web altinda. Iki liste bugun ortustugu icin bulgu 'aktif kusur' degil 'korumasiz sozlesme' olarak yazildi. Curutulemedi."
+    },
+    {
+      "id": "A1-003",
+      "title": "Paylasilan alan mantigi web ve mobilde iki kez yaziliyor; packages/ui 72 satir, yani gercek bir paylasim katmani yok",
+      "severity": "high",
+      "confidence": "confirmed",
+      "platforms": ["web", "mobile"],
+      "category": "cross-platform-divergence",
+      "evidence": [
+        {
+          "file": "apps/web/src/lib/voice/video-layout.ts",
+          "line": 85,
+          "quote": "flipped, and a rear camera is not a mirror of anything the publisher sees."
+        },
+        {
+          "file": "apps/mobile/src/voice/mobile-video-layout.ts",
+          "line": 86,
+          "quote": "flipped, and the rear camera is not a mirror of anything the publisher sees."
+        },
+        {
+          "file": "apps/web/src/lib/dm/shared-media.ts",
+          "line": 25,
+          "quote": "`LINK_PATTERN` (`apps/mobile/src/app/mobile-mention.ts`). Both sides must"
+        }
+      ],
+      "failureScenario": "Ses odasi kutucugu icin video oran/kirpma kurali degistirilir. `apps/web/src/lib/voice/video-layout.ts` ve `apps/mobile/src/voice/mobile-video-layout.ts` ayni dort fonksiyonu (`resolveMirror`, `resolveVideoAspect`, `resolveVideoFit`, `resolveVideoSizeClass`) bagimsiz olarak tanimlar; 95 ve 96 satirlik iki ayri kopya. Yalniz biri guncellenir, digeri derlenmeye devam eder ve testleri gecer. Ayni kamera ayni odada web'de dogru, mobilde ters aynalanmis gorunur. Ayni desen link/mention ayristiricisinda da var: `shared-media.ts` yorumu iki tarafin elle senkron tutulmasi gerektigini kendi yaziyor.",
+      "impact": "Platformlar arasi davranis ayrismasinin yapisal kaynagi. `packages/ui` toplam 72 satir; yani ortak kavramlar (mesaj gruplama, presence etiketi, video yerlesim kurali, mention/link ayristirma, rozet ailesi) icin tek kaynak yok. Ayrisma her ozellikte yeniden uretiliyor ve yalnizca elle yazilmis 'both sides must' yorumlariyla kontrol altinda tutuluyor — derleyici veya test degil.",
+      "fix": {
+        "summary": "Saf, platformdan bagimsiz alan mantigini (yerlesim hesabi, ayristirici, gruplama kurali) packages/types ya da yeni bir packages/domain paketine tasi; iki istemci de oradan tuketsin. UI bilesenleri paylasilmaz, kurallar paylasilir.",
+        "effort": "L",
+        "risk": "med",
+        "touches": [
+          "packages/ui/",
+          "apps/web/src/lib/voice/video-layout.ts",
+          "apps/mobile/src/voice/mobile-video-layout.ts",
+          "apps/web/src/lib/dm/shared-media.ts",
+          "apps/mobile/src/app/mobile-mention.ts"
+        ]
+      },
+      "parity": {
+        "benchmark": "slack",
+        "tag": "assumption",
+        "note": "Cok istemcili urunlerde alan kurallarinin ortak katmanda tutulmasi yaygin bir cozum; Slack/Discord'un ic yapisi hakkinda dogrulanabilir kamu bilgisi yok, bu yuzden varsayim olarak isaretlendi."
+      },
+      "wave": "W2",
+      "refutation": "Iki dosyanin gercekten kopya olup olmadigi kontrol edildi: dordu de ayni ada sahip dort export (`resolveMirror`, `resolveVideoAspect`, `resolveVideoFit`, `resolveVideoSizeClass`), satir sayilari 95/96. Ortak bir kaynaktan uretildiklerine dair jenerator/script arandi, bulunamadi. Iki tarafi karsilastiran bir test arandi, bulunamadi. Curutulemedi."
+    },
+    {
+      "id": "A1-004",
+      "title": "Modul sinirlari yalniz gelenekle korunuyor: eslint tek bir ithali kisitliyor, katman kurali yok",
+      "severity": "medium",
+      "confidence": "confirmed",
+      "platforms": ["web", "mobile"],
+      "category": "architecture",
+      "evidence": [
+        {
+          "file": "apps/web/eslint.config.mjs",
+          "line": 48,
+          "quote": "\"no-restricted-imports\": ["
+        },
+        {
+          "file": "apps/mobile/eslint.config.mjs",
+          "line": 1,
+          "quote": "import reactHooks from \"eslint-plugin-react-hooks\";"
+        }
+      ],
+      "failureScenario": "Bir gelistirici `apps/web/src/components/**` icindeki bir istemci bilesenine dogrudan `@wizards/db` (Prisma) ithali ekler ya da `apps/web/src/lib/dm/**` icinden `apps/web/src/lib/voice/**` ic detayina baglanir. Hicbir lint kurali bunu durdurmaz; kod derlenir, gozden kacarsa kalir. Bugun ihlal yok, ama sinir yalnizca inceleyenin dikkatiyle ayakta.",
+      "impact": "Mimari kararlar (istemci/sunucu ayrimi, alan klasorleri arasi bagimlilik yonu, packages -> apps yasagi) araca degil insana bagli. Ekip buyudukce ihlal kacinilmaz ve geriye donuk temizlik maliyeti buyur. apps/mobile tarafinda hic sinir kurali yok.",
+      "fix": {
+        "summary": "eslint'e `no-restricted-imports` paths/patterns ile katman kurallari ekle (packages -> apps yasagi, components -> @wizards/db yasagi, alan klasorleri arasi derin ithal yasagi); mobil eslint yapilandirmasina ayni ailenin kurallarini koy.",
+        "effort": "M",
+        "risk": "low",
+        "touches": ["apps/web/eslint.config.mjs", "apps/mobile/eslint.config.mjs"]
+      },
+      "parity": {
+        "benchmark": "none"
+      },
+      "wave": "W2",
+      "refutation": "Sinir zorlamasinin baska bir yerde olabilecegi kontrol edildi: tsconfig.base.json yalniz derleyici bayraklari tasiyor, path alias ya da project reference yok; @wizards/db package.json'u `./browser` alt export'u ile istemci-guvenli yuzeyi ayirmis (bu gercek bir onlem ve calisiyor — settings-panel.tsx `@wizards/db/browser` kullaniyor). Ama bu tek bir paket icin; genel katman kurali yok. Ayrica `packages/* -> apps/*` ithali arandi, hic bulunamadi (ihlal yok, kural da yok). Curutulemedi."
+    },
+    {
+      "id": "A1-005",
+      "title": "Rota katmani ikiye bolunmus: 74 route-logic.ts DI deseni kullanirken 11 uretim rotasi Prisma'yi dogrudan cagiriyor",
+      "severity": "medium",
+      "confidence": "confirmed",
+      "platforms": ["backend"],
+      "category": "architecture",
+      "evidence": [
+        {
+          "file": "apps/web/src/app/api/v1/mobile/bootstrap/route.ts",
+          "line": 33,
+          "quote": "        prisma.user.findUnique({"
+        },
+        {
+          "file": "apps/web/src/app/api/v1/users/[userId]/profile/route.ts",
+          "line": 19,
+          "quote": "    const user = await prisma.user.findUnique({"
+        }
+      ],
+      "failureScenario": "Mobil bootstrap ucunun (uygulamanin en sicak ve en genis yaniti) is mantigi degistirilmek istenir. Rota dosyasi Prisma'yi dogrudan cagirdigi icin saf/sorgu ayrimi yok; web birim testlerinde veritabani bulunmadigindan bu mantik icin test yazilamaz. Degisiklik ancak elle ya da e2e ile dogrulanabilir; regresyon kapiya takilmaz.",
+      "impact": "Repo'nun test edilebilirlik sozlesmesi (`getMobileInvitePreviewWithDatabase`, `buildServerPublicProfile` deseni) rotalarin %5'inde bozuk. Bozuk olanlar arasinda bootstrap, kullanici ayarlari, kanal okundu ve profil gibi sicak uclar var — yani en cok degisen yerler test disinda. A4'un test edilemez servis listesinin cekirdegi budur.",
+      "fix": {
+        "summary": "Bu 11 rotayi mevcut route-logic.ts desenine tasi: saf karar fonksiyonu + enjekte edilen PrismaClient alan sorgu yarisi.",
+        "effort": "M",
+        "risk": "low",
+        "touches": [
+          "apps/web/src/app/api/v1/mobile/bootstrap/route.ts",
+          "apps/web/src/app/api/v1/users/me/settings/route.ts",
+          "apps/web/src/app/api/v1/users/[userId]/profile/route.ts",
+          "apps/web/src/app/api/v1/channels/[channelId]/read/route.ts"
+        ]
+      },
+      "parity": {
+        "benchmark": "none"
+      },
+      "wave": "W1",
+      "refutation": "Dogrudan prisma cagiran 13 rotanin ikisi `api/e2e/**` altinda (test altyapisi, kapsam disi) — bunlar listeden cikarildi, kalan 11 uretim rotasi. Bu rotalarin baska bir dosyada test edilip edilmedigi kontrol edildi: route-logic.ts esligi yok, yani DI ile cagrilabilecek bir yuzey de yok. Curutulemedi."
+    },
+    {
+      "id": "A1-006",
+      "title": "God node'lar: live-voice-provider.tsx 2.965 satir / 141 baglanti, settings-panel.tsx 2.654 satir, mobil voice-screen + use-mobile-voice-room 4.401 satir",
+      "severity": "medium",
+      "confidence": "confirmed",
+      "platforms": ["web", "mobile"],
+      "category": "architecture",
+      "evidence": [
+        {
+          "file": "apps/web/src/components/providers/live-voice-provider.tsx",
+          "line": 204,
+          "quote": "export function LiveVoiceProvider("
+        },
+        {
+          "file": "apps/mobile/src/voice/use-mobile-voice-room.ts",
+          "line": 423,
+          "quote": "export function useMobileVoiceRoom({"
+        }
+      ],
+      "failureScenario": "Ses odasinda tek bir davranis degistirilmek istenir (ornegin arka plana gecerken kamera yayinini durdurmak). Degisiklik `live-voice-provider.tsx` icinde yapilir; dosya 141 baglantiya sahip ve baglanti yasam dongusu, izin, yayin, abonelik, kalite ve olay koprusu sorumluluklarini birlikte tasidigi icin ayni dosyada duran ilgisiz bir yol (davet, ekran paylasimi) bozulur. Iki ekip ayni sprintte ses odasina dokunursa catisma kacinilmazdir.",
+      "impact": "Degisim maliyeti ve catisma yuzeyi. Bu dosyalar urunun en sik degisen alaninda (ses/video) duruyor; her ozellik ayni dosyayi actigi icin paralel calisma zorlasiyor ve inceleme yuzeyi buyuyor. Mobil tarafta ayni sorumluluk iki dosyaya (2.365 + 2.036) yayilmis, yani ayrim var ama boyut hala tasinabilir olmaktan uzak.",
+      "fix": {
+        "summary": "Sorumluluk ekseninde bol: baglanti yasam dongusu, izin/cihaz, yayin (publish), abonelik/kalite, olay koprusu. Bolme once mobil `use-mobile-voice-room.ts` uzerinde denenmeli — orada test kaplamasi daha yuksek.",
+        "effort": "L",
+        "risk": "med",
+        "touches": [
+          "apps/web/src/components/providers/live-voice-provider.tsx",
+          "apps/mobile/src/voice/use-mobile-voice-room.ts",
+          "apps/mobile/src/app/screens/voice-screen.tsx"
+        ]
+      },
+      "parity": {
+        "benchmark": "none"
+      },
+      "wave": "W2",
+      "refutation": "Yalniz uzunluk bulgu sayilmadi: `mobile-copy.ts` (4.599 satir) ve `mobile-open-source-license-manifest.ts` (4.268 satir) daha uzun ama tek sorumluluklu veri dosyalari — bulgu disi birakildi. `live-voice-provider.tsx` icin graphify degree 141 olculdu ve dosyanin birden cok degisim sebebine hizmet ettigi icerik taramasiyla dogrulandi. Curutulemedi."
+    },
+    {
+      "id": "A1-007",
+      "title": "User modeli 103 alanla tum urun alanlarini tasiyor (sonraki en genis model 46 alan)",
+      "severity": "medium",
+      "confidence": "probable",
+      "platforms": ["backend"],
+      "category": "data-model",
+      "evidence": [
+        {
+          "file": "packages/db/prisma/schema.prisma",
+          "line": 349,
+          "quote": "model User {"
+        }
+      ],
+      "failureScenario": "Profil, rozet, bildirim tercihi, moderasyon durumu, oturum sayaci ve kullanim istatistikleri ayni satirda durdugu icin herhangi bir kullanici okumasi (mesaj yazari, uye listesi, presence) gereginden genis bir satir ceker. Yeni bir urun alani eklendiginde de degisiklik ayni tabloya duser: 103 alanli tabloda kolon ekleme migration'i tum kullanici satirlarini kilitler.",
+      "impact": "Yazma kilidi ve okuma genisligi. Kesin etki olculmedi — sorgu duzeyinde `select` daraltmasi kullaniliyor olabilir; bu yuzden confidence `probable`. A2'nin 'include sismesi' taramasi bu bulguyu ya dogrulayacak ya da dusurecek.",
+      "fix": {
+        "summary": "Sicak olmayan alan gruplarini (kullanim sayaclari, moderasyon durumu, tercihler) ayri tablolara ayir. UserSettings zaten var (29 alan) — desen mevcut, User'a uygulanmamis.",
+        "effort": "XL",
+        "risk": "high",
+        "touches": ["packages/db/prisma/schema.prisma"]
+      },
+      "parity": {
+        "benchmark": "none"
+      },
+      "wave": "W3",
+      "refutation": "Genisligin zararsiz olabilecegi ihtimali kontrol edildi: UserSettings ayri bir model olarak var, yani ayirma deseni repoda zaten uygulanmis — User'in 103 alani bilincli bir 'her sey tek tabloda' karari degil, birikim gorunuyor. Ancak okuma yollarinda `select` daraltmasinin ne kadar kullanildigi bu eksende olculmedi; bu yuzden confirmed degil probable. Kismen curutulebilir."
+    }
+  ],
+  "metrics": [
+    {
+      "name": "API rotasi (route.ts)",
+      "value": 211,
+      "unit": "rota",
+      "method": "find apps/web/src/app/api -name route.ts | wc -l",
+      "treeState": "baseline"
+    },
+    {
+      "name": "route-logic.ts dosyasi",
+      "value": 74,
+      "unit": "dosya",
+      "method": "find apps/web/src/app/api -name 'route-logic.ts' | wc -l",
+      "treeState": "baseline"
+    },
+    {
+      "name": "dogrudan prisma cagiran uretim rotasi",
+      "value": 11,
+      "unit": "rota",
+      "method": "grep -rl 'prisma\\.' apps/web/src/app/api --include=route.ts | grep -v '/e2e/'",
+      "treeState": "baseline"
+    },
+    {
+      "name": "olu migration dizini",
+      "value": 37,
+      "unit": "dizin",
+      "method": "ls -1 packages/db/prisma/migrations/ | wc -l",
+      "treeState": "baseline"
+    },
+    {
+      "name": "aktif migration dizini",
+      "value": 20,
+      "unit": "dizin",
+      "method": "ls -1 packages/db/prisma/rebaseline-migrations/ | wc -l (migration_lock.toml dahil 21 satir)",
+      "treeState": "baseline"
+    },
+    {
+      "name": "packages/ui toplam satir",
+      "value": 72,
+      "unit": "satir",
+      "method": "find packages/ui -name '*.ts*' -exec cat {} + | wc -l",
+      "treeState": "baseline"
+    },
+    {
+      "name": "User modeli alan sayisi",
+      "value": 103,
+      "unit": "alan",
+      "method": "awk '/^model User \\{/,/^\\}/' packages/db/prisma/schema.prisma | grep -cE '^\\s+\\w+\\s+\\w'",
+      "treeState": "baseline"
+    },
+    {
+      "name": "ServerToClientEvents olay sayisi",
+      "value": 37,
+      "unit": "olay",
+      "method": "sed -n '178,350p' apps/web/src/lib/socket/events.ts | grep -cE '^  \"?[a-zA-Z:]+\"?: *\\('",
+      "treeState": "baseline"
+    },
+    {
+      "name": "ClientToServerEvents olay sayisi",
+      "value": 33,
+      "unit": "olay",
+      "method": "sed -n '103,177p' apps/web/src/lib/socket/events.ts | grep -cE '^  \"?[a-zA-Z:]+\"?: *\\('",
+      "treeState": "baseline"
+    },
+    {
+      "name": "mobil elle aynalanan olay sayisi",
+      "value": 35,
+      "unit": "olay",
+      "method": "MOBILE_REALTIME_SERVER_EVENTS dizisi; comm ile web listesine karsi fark: yalniz 'error' ve 'dm:error' eksik",
+      "treeState": "baseline"
+    },
+    {
+      "name": "apps/web/src kaynak dosyasi",
+      "value": 1166,
+      "unit": "dosya",
+      "method": "find apps/web/src -type f \\( -name '*.ts' -o -name '*.tsx' \\) | wc -l",
+      "treeState": "baseline"
+    },
+    {
+      "name": "apps/web/src satir",
+      "value": 192338,
+      "unit": "satir",
+      "method": "find apps/web/src -type f \\( -name '*.ts' -o -name '*.tsx' \\) -exec cat {} + | wc -l",
+      "treeState": "baseline"
+    },
+    {
+      "name": "apps/mobile/src kaynak dosyasi",
+      "value": 554,
+      "unit": "dosya",
+      "method": "find apps/mobile/src -type f \\( -name '*.ts' -o -name '*.tsx' \\) | wc -l",
+      "treeState": "baseline"
+    },
+    {
+      "name": "apps/mobile/src satir",
+      "value": 139546,
+      "unit": "satir",
+      "method": "find apps/mobile/src -type f \\( -name '*.ts' -o -name '*.tsx' \\) -exec cat {} + | wc -l",
+      "treeState": "baseline"
+    },
+    {
+      "name": "packages/types dosyasi",
+      "value": 28,
+      "unit": "dosya",
+      "method": "ls -1 packages/types/src | wc -l",
+      "treeState": "baseline"
+    },
+    {
+      "name": "\"use client\" tasiyan web dosyasi",
+      "value": 173,
+      "unit": "dosya",
+      "method": "grep -rl '\"use client\"' apps/web/src | wc -l",
+      "treeState": "baseline"
+    },
+    {
+      "name": "live-voice-provider.tsx graf derecesi",
+      "value": 141,
+      "unit": "baglanti",
+      "method": "graphify explain \"live-voice-provider.tsx\"",
+      "treeState": "baseline"
+    }
+  ],
+  "openQuestions": [
+    "Soft delete yalniz uc modelde (User, Message, DMMessage). DMConversation, Channel, Server silindiginde cascade davranisinin urun acisindan dogru olup olmadigi bu eksende dogrulanmadi; somut bir basarisizlik senaryosu uretilemedigi icin bulgu yazilmadi. A5 'sinir degerler' bolumunde silinmis kayit senaryolariyla test edilmeli.",
+    "packages/db/src/generated/prisma ciktisinin depoya girip girmedigi ve db:generate cache anahtarinin dogrulugu olculmedi: turbo.json db:generate icin cache:false, bu dogru ama uretim suresi olculmedi. A2'de olculmeli: `pnpm typecheck` suresinin ne kadari db:generate.",
+    "Outbox worker ile dogrudan socket yayini arasindaki siralama garantisi okunmadi (apps/web/src/lib/outbox/worker.ts, 4 dosya). Bu bir mimari sozlesme sorusu ama yaris senaryosu uretmek A5/A6 kapsamina daha yakin; A6 kapasite modelinde 'bildirim' satiri bunu zorunlu olarak acacak.",
+    "apps/mobile/graphify-out/ altinda ikinci bir bilgi grafigi duruyor (kok graphify-out'tan ayri). Depo boyutu ve bakim acisindan gereksiz olabilir; kusur olarak dogrulanmadi."
+  ]
+}

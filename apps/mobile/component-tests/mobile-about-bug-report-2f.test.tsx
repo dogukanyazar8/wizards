@@ -26,7 +26,7 @@ jest.mock("../src/app/components/kit/toast", () => ({
 }));
 
 jest.mock("../src/app/providers/mobile-haptics-provider", () => ({
-  useMobileHaptics: () => ({ notification: mockNotification }),
+  useMobileHaptics: () => ({ notification: mockNotification, selection: jest.fn() }),
 }));
 
 jest.mock("../src/feedback/mobile-crash-screenshot", () => ({

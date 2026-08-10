@@ -1,48 +1,73 @@
 import { Pressable, View } from "react-native";
-import { useThemedStyles } from "../../providers/mobile-theme-provider";
+import { useMobileHaptics } from "../../providers/mobile-haptics-provider";
+import { useThemedStyles, useVoiceRoomThemedStyles } from "../../providers/mobile-theme-provider";
 import type { MobileTheme } from "../../../design/themes";
 
 export interface ToggleProps {
   readonly accessibilityLabel: string;
+  /** Permanently unavailable: dimmed and non-interactive. */
   readonly disabled?: boolean;
   readonly onValueChange: (next: boolean) => void;
-  /** Non-interactive but shown at full colour (reflects real state, no dimming). */
+  /**
+   * Non-interactive but shown at full colour (reflects real state, no dimming).
+   * Use this — not `disabled` — while a request is in flight, so one pending
+   * switch never dims the switches next to it.
+   */
   readonly readOnly?: boolean;
+  /** Which theme the switch reads its colours from. */
+  readonly surface?: "app" | "voiceRoom";
   readonly testID?: string;
+  /** Rendered on the thumb so callers can assert knob position. */
+  readonly thumbTestID?: string;
+  /** `success` keeps the voice room's green "on" state. */
+  readonly tone?: "accent" | "success";
   readonly value: boolean;
 }
 
-// Handoff geometry (#5a / #5h): 46×27 track, 21px thumb, 3px inset → 19px travel.
-const TRACK_WIDTH = 46;
-const TRACK_HEIGHT = 27;
-const THUMB_SIZE = 21;
-const THUMB_INSET = 3;
-const THUMB_TRAVEL = TRACK_WIDTH - THUMB_SIZE - THUMB_INSET * 2;
+/**
+ * §2 "1i".6 geometry — the appearance screen's "sıkı yerleşim" toggle is the
+ * reference every switch in the app matches: 46×28 r14 track, 2px inset, 24px
+ * thumb, so the knob parks 18px along.
+ *
+ * The knob is placed straight from `value` rather than driven by an animation:
+ * a switch's look then depends on nothing but its own prop, so re-renders,
+ * list recycling and theme swaps can never move one switch when a neighbour is
+ * pressed.
+ */
+export const TOGGLE_TRACK_WIDTH = 46;
+export const TOGGLE_TRACK_HEIGHT = 28;
+export const TOGGLE_THUMB_SIZE = 24;
+export const TOGGLE_THUMB_INSET = 2;
+export const TOGGLE_THUMB_TRAVEL = TOGGLE_TRACK_WIDTH - TOGGLE_THUMB_SIZE - TOGGLE_THUMB_INSET * 2;
 
 const createStyles = (theme: MobileTheme) => ({
   track: {
     borderRadius: 14,
-    height: TRACK_HEIGHT,
-    width: TRACK_WIDTH,
+    height: TOGGLE_TRACK_HEIGHT,
+    justifyContent: "center" as const,
+    width: TOGGLE_TRACK_WIDTH,
   },
   trackOff: { backgroundColor: theme.control.trackOff },
-  trackOn: { backgroundColor: theme.accent.default },
-  disabled: { opacity: 0.5 },
+  trackOn: { backgroundColor: theme.control.trackOn },
+  trackOnSuccess: { backgroundColor: theme.voiceRoom.success },
+  trackDisabledOff: { backgroundColor: theme.control.trackDisabled },
+  trackDisabledOn: { backgroundColor: theme.control.trackDisabledOn },
   thumb: {
     backgroundColor: theme.control.trackThumb,
-    borderRadius: theme.radii.pill,
-    elevation: 2,
-    height: THUMB_SIZE,
+    borderRadius: 12,
+    height: TOGGLE_THUMB_SIZE,
     position: "absolute" as const,
-    shadowColor: theme.surface.inverse,
-    shadowOffset: { height: 1, width: 0 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    top: THUMB_INSET,
-    width: THUMB_SIZE,
+    width: TOGGLE_THUMB_SIZE,
+    ...theme.elevation.toggleThumb,
   },
-  thumbOff: { left: THUMB_INSET },
-  thumbOn: { left: THUMB_INSET + THUMB_TRAVEL },
+  /** Unavailable: flat, lower-contrast, and never faded (see `control` tokens). */
+  thumbDisabled: {
+    backgroundColor: theme.control.trackThumbDisabled,
+    elevation: 0,
+    shadowOpacity: 0,
+  },
+  thumbOff: { left: TOGGLE_THUMB_INSET },
+  thumbOn: { left: TOGGLE_THUMB_INSET + TOGGLE_THUMB_TRAVEL },
 });
 
 export function Toggle({
@@ -50,10 +75,24 @@ export function Toggle({
   disabled = false,
   onValueChange,
   readOnly = false,
+  surface = "app",
   testID,
+  thumbTestID,
+  tone = "accent",
   value,
 }: ToggleProps) {
-  const styles = useThemedStyles(createStyles);
+  const appStyles = useThemedStyles(createStyles);
+  const voiceRoomStyles = useVoiceRoomThemedStyles(createStyles);
+  const styles = surface === "voiceRoom" ? voiceRoomStyles : appStyles;
+  const { selection } = useMobileHaptics();
+  const trackOn = tone === "success" ? styles.trackOnSuccess : styles.trackOn;
+  const track = disabled
+    ? value
+      ? styles.trackDisabledOn
+      : styles.trackDisabledOff
+    : value
+      ? trackOn
+      : styles.trackOff;
 
   return (
     <Pressable
@@ -62,11 +101,21 @@ export function Toggle({
       accessibilityState={{ checked: value, disabled: disabled || readOnly }}
       disabled={disabled || readOnly}
       hitSlop={{ bottom: 9, left: 8, right: 8, top: 9 }}
-      onPress={() => onValueChange(!value)}
-      style={[styles.track, value ? styles.trackOn : styles.trackOff, disabled && styles.disabled]}
-      testID={testID}
+      onPress={() => {
+        selection();
+        onValueChange(!value);
+      }}
+      style={[styles.track, track]}
+      {...(testID === undefined ? {} : { testID })}
     >
-      <View style={[styles.thumb, value ? styles.thumbOn : styles.thumbOff]} />
+      <View
+        style={[
+          styles.thumb,
+          value ? styles.thumbOn : styles.thumbOff,
+          disabled && styles.thumbDisabled,
+        ]}
+        {...(thumbTestID === undefined ? {} : { testID: thumbTestID })}
+      />
     </Pressable>
   );
 }
