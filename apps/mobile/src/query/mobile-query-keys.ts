@@ -96,6 +96,15 @@ export function createMobileQueryKeys(registry: MobileSearchKeyRegistry) {
     bootstrap: () => [...all, "bootstrap"] as const,
     channelMessagesRoot: () => [...all, "channel-messages"] as const,
     channelMessages: (channelId: string) => [...all, "channel-messages", channelId] as const,
+    /**
+     * A search hit opens a window in the middle of a channel's history. It is a
+     * sibling entry, not the live one: the realtime bridge patches
+     * `channelMessages(channelId)` and must not be made to keep two shapes of
+     * the same transcript in sync, and the offline stream must keep holding the
+     * tail rather than whatever slice was last searched.
+     */
+    channelMessagesAround: (channelId: string, messageId: string) =>
+      [...all, "channel-messages", channelId, "around", messageId] as const,
     channelPins: (channelId: string) => [...all, "channel-pins", channelId] as const,
     channelThread: (channelId: string, messageId: string) =>
       [...all, "channel-thread", channelId, messageId] as const,
@@ -145,6 +154,27 @@ export function createMobileQueryKeys(registry: MobileSearchKeyRegistry) {
       ] as const,
     /** S3 Section D: browse page, keyed by its trimmed search text. */
     serverDiscovery: (query: string) => [...all, "server-discovery", query.trim()] as const,
+    /**
+     * 6d/6e read the same profile `aboutServerProfile` already caches, so this is
+     * deliberately an alias rather than a second key: two names over one route
+     * would give the profile screen and the "⋯" menu separate cache entries that
+     * go stale independently — the messaging send-storm failure again.
+     */
+    serverProfile: (serverId: string) => [...all, "about", "server-profile", serverId] as const,
+    /**
+     * Events are their own key, not part of the profile: the profile carries one
+     * `upcomingEvent`, while the event screen lists them all (and optionally the
+     * past ones). An event mutation invalidates *both*.
+     */
+    serverEvents: (serverId: string) => [...all, "server-events", serverId] as const,
+    /**
+     * 6b's server-wide message search. Keyed by the trimmed query like
+     * `serverDiscovery`, not through the search-key registry: the workspace box
+     * has one text field and no filters, so a fingerprint would carry nothing
+     * the query string does not already say.
+     */
+    serverMessageSearch: (serverId: string, query: string) =>
+      [...all, "server-message-search", serverId, query.trim()] as const,
     workspaceRoot: () => [...all, "workspace"] as const,
     workspace: (serverId: string) => [...all, "workspace", serverId] as const,
     workspaceMembers: (serverId: string) => [...all, "workspace", serverId, "members"] as const,

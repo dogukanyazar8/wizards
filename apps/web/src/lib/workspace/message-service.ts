@@ -421,6 +421,82 @@ export async function getChannelMessages(
   };
 }
 
+/**
+ * The window a search hit opens into: the anchor message with history on both
+ * sides of it, instead of the newest page the plain read returns.
+ *
+ * Two bounded queries around one row, both keyed off the same Prisma cursor, so
+ * neither scans back through the channel to find the anchor. `hasNewer` is what
+ * tells the client it is *not* looking at the live tail — without it a reader
+ * parked in 2024 would have no way to know why nothing new arrives.
+ *
+ * A deleted or moved-to-thread anchor is a 404 rather than a silent fallback to
+ * the newest page: the caller asked for a specific message, and quietly showing
+ * a different part of the channel is worse than saying it is gone.
+ */
+export async function getChannelMessagesAround(
+  channelId: string,
+  messageId: string,
+  limit: number = 50,
+  viewerId?: string,
+) {
+  const where = {
+    channelId,
+    threadId: null,
+    AND: [{ OR: [{ threadParentId: null }, { alsoSentToChannel: true }] }, visibleMessageWhere()],
+  } satisfies Prisma.MessageWhereInput;
+
+  const anchor = (await prisma.message.findFirst({
+    where: { ...where, id: messageId },
+    include: messageInclude,
+  })) as RawMessage | null;
+
+  if (!anchor) {
+    throw new ApiError("Message not found", 404, "MESSAGE_NOT_FOUND");
+  }
+
+  // Half a page each side keeps the response the same size as a normal page,
+  // so the transcript's memory ceiling does not depend on how it was opened.
+  const sideLimit = Math.max(1, Math.floor(limit / 2));
+  const [older, newer] = await Promise.all([
+    prisma.message.findMany({
+      where,
+      include: messageInclude,
+      orderBy: { createdAt: "desc" as const },
+      cursor: { id: messageId },
+      skip: 1,
+      take: sideLimit + 1,
+    }) as Promise<RawMessage[]>,
+    prisma.message.findMany({
+      where,
+      include: messageInclude,
+      orderBy: { createdAt: "asc" as const },
+      cursor: { id: messageId },
+      skip: 1,
+      take: sideLimit + 1,
+    }) as Promise<RawMessage[]>,
+  ]);
+
+  const hasMore = older.length > sideLimit;
+  const hasNewer = newer.length > sideLimit;
+  const olderPage = hasMore ? older.slice(0, sideLimit) : older;
+  const newerPage = hasNewer ? newer.slice(0, sideLimit) : newer;
+  const pageMessages = [...olderPage.reverse(), anchor, ...newerPage];
+  const summaries = await getThreadSummaryMap(pageMessages.map((message) => message.id));
+  const formatted = pageMessages.map((message) =>
+    mapRawMessage(message, summaries.get(message.id), viewerId),
+  );
+  // Same meaning as the plain read: the id to page further back from.
+  const nextCursor = hasMore ? pageMessages[0]?.id : undefined;
+
+  return {
+    messages: formatted,
+    hasMore,
+    hasNewer,
+    ...(nextCursor && { nextCursor }),
+  };
+}
+
 export async function getChannelThreadMessages(
   channelId: string,
   parentMessageId: string,

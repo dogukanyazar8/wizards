@@ -427,6 +427,7 @@ model User {
   auditLogs               AuditLog[]
   voiceState              VoiceState?
   scheduledEvents         ScheduledEvent[]
+  scheduledEventInterests ScheduledEventInterest[]
   adminMembership         AdminMembership?          @relation("AdminMembershipUser")
   adminGrants             AdminMembership[]         @relation("AdminMembershipGrantedBy")
   adminAuditLogs          AdminAuditLog[]           @relation("AdminAuditActor")
@@ -945,6 +946,12 @@ model Server {
   type                        ServerType            @default(PERSONAL)
   memberCount                 Int                   @default(0)
   features                    String[]
+  /// Discovery labels, distinct from `features`: `features` is a capability
+  /// flag list the product writes (VERIFIED, FEATURED, TEXT_GIFS_DISABLED),
+  /// these are owner-authored slugs the discovery search matches on. Shape
+  /// (lowercase slug, 1..24 chars, max 5) is enforced in `@wizards/types`;
+  /// the column is a plain array.
+  tags                        String[]
   messageCharacterLimit       Int                   @default(2000)
   deletedMessageNoticeMinutes Int                   @default(60)
   createdAt                   DateTime              @default(now())
@@ -980,6 +987,10 @@ model Server {
   /// (20260808130000_drop_server_type_discoverable_index) once a repo-wide
   /// grep confirmed no query anywhere filters on `Server.type`.
   @@index([discoverable, isPublic, memberCount])
+  /// The discovery search matches a tag with an array-containment test
+  /// (`tags @> ARRAY[...]`), which a B-tree cannot serve at all. GIN is the
+  /// only index type Postgres offers for that operator on `text[]`.
+  @@index([tags], type: Gin)
 }
 
 model ServerMember {
@@ -1329,6 +1340,10 @@ model UserServerSettings {
   id                   String              @id @default(uuid())
   userId               String
   serverId             String
+  /// 6c "Yıldızla": pins the server to the top of the rail. A device-local
+  /// flag would disagree between a phone and the web client, so it lives here
+  /// and syncs. The row is created lazily, so "no row" reads as `false`.
+  starred              Boolean             @default(false)
   muted                Boolean             @default(false)
   mutedUntil           DateTime?
   messageNotifications MessageNotification @default(DEFAULT)
@@ -1705,12 +1720,34 @@ model ScheduledEvent {
   interestedCount  Int                      @default(0)
   createdAt        DateTime                 @default(now())
 
-  server  Server   @relation(fields: [serverId], references: [id], onDelete: Cascade)
-  channel Channel? @relation(fields: [channelId], references: [id], onDelete: Cascade)
-  creator User     @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  server    Server                   @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  channel   Channel?                 @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  creator   User                     @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  interests ScheduledEventInterest[]
 
   @@index([serverId])
   @@index([scheduledStartAt])
+  /// The profile card asks one question: the next SCHEDULED event of this
+  /// server at or after now, ordered by start. `[serverId]` alone would make
+  /// that a filter-and-sort over every past event the server ever had.
+  @@index([serverId, status, scheduledStartAt])
+}
+
+/// `interestedCount` on its own cannot be idempotent: a second "Hatırlat" tap
+/// from the same user would increment it again. This row is the uniqueness
+/// the counter borrows -- the write only touches the counter when the insert
+/// or delete actually changed something.
+model ScheduledEventInterest {
+  id        String   @id @default(uuid())
+  eventId   String
+  userId    String
+  createdAt DateTime @default(now())
+
+  event ScheduledEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@index([userId])
 }
 
 enum ClientHealthKind {

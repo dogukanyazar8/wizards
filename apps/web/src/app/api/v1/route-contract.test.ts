@@ -89,6 +89,9 @@ const BODYLESS_MUTATING_METHOD_PATHS = new Set([
   "DELETE mobile/servers/[serverId]/invites/[inviteId]",
   "DELETE mobile/servers/[serverId]/members/[memberId]",
   "DELETE mobile/servers/[serverId]/roles/[roleId]",
+  // Cancelling is the path plus the session: which event, cancelled by whoever
+  // holds MANAGE_SERVER. There is nothing else to send.
+  "DELETE mobile/servers/[serverId]/events/[eventId]",
   "POST mobile/account/two-factor/setup",
   "POST mobile/admin/cases/[caseId]/claim",
   "POST mobile/friends/requests/[id]/accept",
@@ -101,7 +104,11 @@ const BODYLESS_MUTATING_METHOD_PATHS = new Set([
   "DELETE servers/[serverId]/categories/[categoryId]",
   "DELETE servers/[serverId]/members/[memberId]",
   "DELETE servers/[serverId]/members/me",
+  // Mobile twin: the session says who leaves, the path says which server.
+  "DELETE mobile/servers/[serverId]/members/me",
   "DELETE servers/[serverId]/roles/[roleId]",
+  // Same as the mobile twin: the path plus the session is the whole request.
+  "DELETE servers/[serverId]/events/[eventId]",
   // The path is the whole request: which server, joined by whoever is asking.
   "POST servers/[serverId]/join",
   "POST mobile/servers/[serverId]/join",
@@ -133,6 +140,36 @@ const EXPECTED_RATE_LIMIT_ACTIONS = [
     action: "server:profile",
     method: "GET",
     routePath: "servers/[serverId]/profile",
+  },
+  {
+    action: "server:events:list",
+    method: "GET",
+    routePath: "servers/[serverId]/events",
+  },
+  {
+    action: "server:events:create",
+    method: "POST",
+    routePath: "servers/[serverId]/events",
+  },
+  {
+    action: "server:events:update",
+    method: "PATCH",
+    routePath: "servers/[serverId]/events/[eventId]",
+  },
+  {
+    action: "server:events:cancel",
+    method: "DELETE",
+    routePath: "servers/[serverId]/events/[eventId]",
+  },
+  {
+    action: "server:events:interest",
+    method: "POST",
+    routePath: "servers/[serverId]/events/[eventId]/interest",
+  },
+  {
+    action: "server:messages:search",
+    method: "GET",
+    routePath: "servers/[serverId]/messages/search",
   },
   {
     action: "server:discover",
@@ -274,6 +311,46 @@ const EXPECTED_RATE_LIMIT_ACTIONS = [
     action: "mobile:server:profile",
     method: "GET",
     routePath: "mobile/servers/[serverId]/profile",
+  },
+  {
+    action: "mobile:server:events:list",
+    method: "GET",
+    routePath: "mobile/servers/[serverId]/events",
+  },
+  {
+    action: "mobile:server:events:create",
+    method: "POST",
+    routePath: "mobile/servers/[serverId]/events",
+  },
+  {
+    action: "mobile:server:events:update",
+    method: "PATCH",
+    routePath: "mobile/servers/[serverId]/events/[eventId]",
+  },
+  {
+    action: "mobile:server:events:cancel",
+    method: "DELETE",
+    routePath: "mobile/servers/[serverId]/events/[eventId]",
+  },
+  {
+    action: "mobile:server:events:interest",
+    method: "POST",
+    routePath: "mobile/servers/[serverId]/events/[eventId]/interest",
+  },
+  {
+    action: "mobile:server:user-settings:update",
+    method: "PATCH",
+    routePath: "mobile/servers/[serverId]/settings",
+  },
+  {
+    action: "mobile:server:messages:search",
+    method: "GET",
+    routePath: "mobile/servers/[serverId]/messages/search",
+  },
+  {
+    action: "mobile:server:leave",
+    method: "DELETE",
+    routePath: "mobile/servers/[serverId]/members/me",
   },
   {
     action: "mobile:server:roles:list",
@@ -1503,7 +1580,10 @@ describe("API v1 route contract", () => {
       )
       .sort();
 
-    assert.equal(expectedM1Mappings.length, 31);
+    // 31 M1 routes, plus the six Faz 1 additions (five event endpoints and the
+    // per-user server settings PATCH), Faz 3's server-wide message search and
+    // its leave endpoint.
+    assert.equal(expectedM1Mappings.length, 39);
     assert.deepEqual(actualM1Mappings, expectedM1Mappings);
   });
 

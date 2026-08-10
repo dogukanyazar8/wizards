@@ -82,6 +82,11 @@ class MemoryServerRoomRedis {
     return this.onlineSets.get(key)?.size ?? 0;
   }
 
+  async smismember(key: string, ...members: string[]) {
+    const set = this.onlineSets.get(key);
+    return members.map((member) => (set?.has(member) ? 1 : 0));
+  }
+
   async expire(key: string) {
     this.onlineExpireCalls.push(key);
     return 1;
@@ -288,6 +293,7 @@ describe("socket server room joins", () => {
       },
       srem: redis.srem.bind(redis),
       scard: redis.scard.bind(redis),
+      smismember: redis.smismember.bind(redis),
       expire: redis.expire.bind(redis),
       status: redis.status,
     };
@@ -395,6 +401,7 @@ describe("socket disconnect cleanup", () => {
         expire: async () => 1,
         sadd: async () => 1,
         scard: async () => 0,
+        smismember: async () => [],
         srem: async (key: string) => {
           removed.push(key);
           return 1;
@@ -414,6 +421,9 @@ describe("socket disconnect cleanup", () => {
         throw new Error("ECONNRESET");
       },
       scard: async () => {
+        throw new Error("ECONNRESET");
+      },
+      smismember: async () => {
         throw new Error("ECONNRESET");
       },
       srem: async () => {

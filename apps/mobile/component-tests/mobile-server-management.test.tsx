@@ -203,6 +203,7 @@ function resetMocks() {
     deleteServer: createMutation(),
     joinServer: createMutation(),
     kickMember: createMutation(),
+    leaveServer: createMutation(),
     updateCategory: createMutation(),
     updateChannel: createMutation(),
     updateMemberRoles: createMutation(),
@@ -272,7 +273,7 @@ function resetMocks() {
   };
   mockInvitesQuery = { data: { invites: [] }, isLoading: false };
   mockVisibilityQuery = {
-    data: { discoverable: false, isPublic: true, type: "PERSONAL" },
+    data: { discoverable: false, isPublic: true, tags: ["turkce-sohbet"], type: "PERSONAL" },
     isError: false,
     isLoading: false,
   };
@@ -321,6 +322,113 @@ describe("mobile server management", () => {
     expect(onOpenRoles).toHaveBeenCalledTimes(1);
     expect(onOpenInvites).toHaveBeenCalledTimes(1);
     expect(onOpenProfile).toHaveBeenCalledTimes(1);
+  });
+
+  // 6c §E: a mobile-only admin has to be able to enter discovery tags, or the
+  // field Faz 1 opened is web-only in practice.
+  it("adds a discovery tag through the existing server update endpoint", async () => {
+    resetMocks();
+    const view = await render(
+      <MobileServerSettingsScreen
+        serverId="server-1"
+        onBack={jest.fn()}
+        onOpenMembers={jest.fn()}
+      />,
+    );
+
+    expect(view.getByText("turkce-sohbet")).toBeTruthy();
+
+    await fireEvent.changeText(view.getByTestId("mobile-server-tag-input"), "  Oyun-Gecesi ");
+    await fireEvent.press(view.getByTestId("mobile-server-tag-add"));
+
+    await waitFor(() =>
+      // The slug rules are `@wizards/types`': lowercased and trimmed there, not
+      // re-implemented here.
+      expect(mockMutations.updateServer.mutateAsync).toHaveBeenCalledWith({
+        serverId: "server-1",
+        tags: ["turkce-sohbet", "oyun-gecesi"],
+      }),
+    );
+  });
+
+  it("removes a tag by writing the remaining list, not a delete of its own", async () => {
+    resetMocks();
+    mockVisibilityQuery = {
+      ...mockVisibilityQuery,
+      data: { discoverable: false, isPublic: true, tags: ["alpha", "beta"], type: "PERSONAL" },
+    };
+    const view = await render(
+      <MobileServerSettingsScreen
+        serverId="server-1"
+        onBack={jest.fn()}
+        onOpenMembers={jest.fn()}
+      />,
+    );
+
+    await fireEvent.press(view.getByTestId("mobile-server-tag-remove-alpha"));
+
+    await waitFor(() =>
+      expect(mockMutations.updateServer.mutateAsync).toHaveBeenCalledWith({
+        serverId: "server-1",
+        tags: ["beta"],
+      }),
+    );
+  });
+
+  it("rejects a tag the shared schema refuses and stops at the shared limit", async () => {
+    resetMocks();
+    const view = await render(
+      <MobileServerSettingsScreen
+        serverId="server-1"
+        onBack={jest.fn()}
+        onOpenMembers={jest.fn()}
+      />,
+    );
+
+    await fireEvent.changeText(view.getByTestId("mobile-server-tag-input"), "Büyük Harf!");
+    await fireEvent.press(view.getByTestId("mobile-server-tag-add"));
+
+    expect(mockMutations.updateServer.mutateAsync).not.toHaveBeenCalled();
+    expect(view.getByText("Etiket yalnızca küçük harf, rakam ve tire içerebilir")).toBeTruthy();
+
+    // At the limit the input is gone rather than disabled.
+    mockVisibilityQuery = {
+      ...mockVisibilityQuery,
+      data: {
+        discoverable: false,
+        isPublic: true,
+        tags: ["a", "b", "c", "d", "e"],
+        type: "PERSONAL",
+      },
+    };
+    const full = await render(
+      <MobileServerSettingsScreen
+        serverId="server-1"
+        onBack={jest.fn()}
+        onOpenMembers={jest.fn()}
+      />,
+    );
+
+    expect(full.queryByTestId("mobile-server-tag-input")).toBeNull();
+    expect(full.getByText("En fazla 5 etiket")).toBeTruthy();
+  });
+
+  it("hides the tag editor from a member who cannot manage the server", async () => {
+    resetMocks();
+    mockWorkspaceQuery = {
+      ...mockWorkspaceQuery,
+      data: { detail: createDetail({ canManageServer: false }) },
+    };
+    const view = await render(
+      <MobileServerSettingsScreen
+        serverId="server-1"
+        onBack={jest.fn()}
+        onOpenMembers={jest.fn()}
+      />,
+    );
+
+    expect(view.queryByTestId("mobile-server-tag-input")).toBeNull();
+    expect(view.queryByTestId("mobile-server-tags-card")).toBeNull();
   });
 
   it("uses the approved server-icon claim target and exact name for deletion", async () => {

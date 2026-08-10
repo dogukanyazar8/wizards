@@ -60,6 +60,8 @@ appId: team.whispr.mobile
     visible: ".*: Phase4 Maestro UAT"
     timeout: 30000
 - tapOn: ".*: Phase4 Maestro UAT"
+- tapOn:
+    id: "mobile-workspace-server-menu-open"
 - extendedWaitUntil:
     visible:
       id: "mobile-server-settings-open-.*"
@@ -76,6 +78,8 @@ appId: team.whispr.mobile
     timeout: 30000
 # The native share chooser is closed before any evidence is captured.
 - tapOn: ".*: Phase4 Maestro UAT"
+- tapOn:
+    id: "mobile-workspace-server-menu-open"
 - tapOn:
     id: "mobile-server-settings-open-.*"
 - assertVisible:
@@ -104,7 +108,7 @@ appId: team.whispr.mobile
 - tapOn:
     id: "mobile-channel-save"
 - tapOn:
-    id: "mobile-server-members-open-.*"
+    id: "mobile-server-members-row"
 - assertVisible:
     id: "mobile-server-members-screen"
 - pressKey: BACK
@@ -141,6 +145,8 @@ appId: team.whispr.mobile
 - tapOn:
     id: "mobile-bottom-tab-overview"
 - tapOn: ".*: Phase4 Maestro UAT"
+- tapOn:
+    id: "mobile-workspace-server-menu-open"
 - extendedWaitUntil:
     visible:
       id: "mobile-server-settings-open-.*"

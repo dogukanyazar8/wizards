@@ -49,20 +49,40 @@ describe("1a compact servers redesign", () => {
       minHeight: 44,
     });
     expect(styles.mobileWorkspaceHeaderRail).not.toHaveProperty("backgroundColor");
+    // 6a: the two header buttons come from theme.workspace, one geometry per layout.
     expect(styles.mobileWorkspaceHeaderIconButton).toMatchObject({
-      borderRadius: 13,
-      height: 36,
-      width: 36,
+      backgroundColor: theme.workspace.headerIconButton.bg,
+      borderColor: theme.workspace.headerIconButton.border,
+      borderRadius: theme.workspace.headerIconButton.radius,
+      height: theme.workspace.headerIconButton.size,
+      width: theme.workspace.headerIconButton.size,
     });
-    expect(styles.mobileWorkspaceCompactAddButton).toMatchObject({
-      borderRadius: 15,
-      height: 42,
-      width: 42,
+    expect(styles.mobileWorkspaceHeaderIconButtonCompact).toMatchObject({
+      borderRadius: theme.workspace.headerIconButtonCompact.radius,
+      height: theme.workspace.headerIconButtonCompact.size,
+      width: theme.workspace.headerIconButtonCompact.size,
     });
-    expect(styles.mobileWorkspaceCreateButton).toMatchObject({
-      borderRadius: 13,
-      height: 36,
-      width: 36,
+    // The deleted header entries took their styles with them.
+    expect(styles).not.toHaveProperty("mobileWorkspaceCompactAddButton");
+    expect(styles).not.toHaveProperty("mobileWorkspaceCreateButton");
+    expect(styles).not.toHaveProperty("mobileWorkspaceSectionAddButton");
+    // 6a/6b filter strip and the labelled create pill.
+    expect(styles.mobileWorkspaceFilterTrack).toMatchObject({
+      backgroundColor: theme.workspace.filterTrack.bg,
+      borderRadius: theme.workspace.filterTrack.radius,
+      padding: theme.workspace.filterTrack.padding,
+    });
+    expect(styles.mobileWorkspaceFilterSegmentActive).toMatchObject({
+      backgroundColor: theme.workspace.filterSegmentActive.bg,
+    });
+    expect(styles.mobileWorkspaceFab).toMatchObject({
+      borderRadius: theme.workspace.fab.radius,
+      height: theme.workspace.fab.height,
+      paddingHorizontal: theme.workspace.fab.paddingHorizontal,
+    });
+    expect(styles.mobileWorkspaceFabAnchorCompact).toMatchObject({
+      bottom: theme.workspace.fabCompact.bottom,
+      right: theme.workspace.fabCompact.right,
     });
     expect(styles.mobileWorkspaceChannelIcon).toMatchObject({
       borderRadius: 11,
@@ -220,17 +240,30 @@ describe("1a compact servers redesign", () => {
       paddingTop: 8,
     });
     expect(styles.mobileWorkspaceSectionList).toMatchObject({ gap: 2 });
-    expect(styles.mobileServerRail).toMatchObject({ width: 66 });
+    // 6a B1: 62px rail, 42px avatars, 11px apart.
+    expect(styles.mobileServerRail).toMatchObject({ width: theme.workspace.railWidth });
     // The rail scrolls, so a member of many servers can still reach the add (+).
-    expect(styles.mobileServerRailScroll).toMatchObject({ flex: 1, width: 66 });
-    // 44px avatar inside a 52px slot: the active ring is a 2px bg gap + 2px primary.
-    expect(styles.mobileServerRailItem).toMatchObject({ height: 52, width: 52 });
-    expect(styles.mobileServerRailItemActive).toMatchObject({
-      backgroundColor: theme.surface.base,
-      borderColor: theme.accent.default,
-      borderWidth: 2,
+    expect(styles.mobileServerRailScroll).toMatchObject({
+      flex: 1,
+      width: theme.workspace.railWidth,
     });
-    expect(styles.mobileServerRailAvatarWrap).toMatchObject({ height: 44, width: 44 });
+    // 42px avatar inside a 50px slot: the active ring is a 2px bg gap + 2px primary.
+    expect(styles.mobileServerRailItem).toMatchObject({ height: 50, width: 50 });
+    expect(styles.mobileServerRailItemActive).toMatchObject({
+      backgroundColor: theme.workspace.railActiveRing.inner,
+      borderColor: theme.workspace.railActiveRing.outer,
+      borderWidth: theme.workspace.railActiveRing.outerWidth,
+    });
+    expect(styles.mobileServerRailActiveIndicator).toMatchObject({
+      backgroundColor: theme.workspace.railActiveBar.color,
+      height: theme.workspace.railActiveBar.height,
+      width: theme.workspace.railActiveBar.width,
+    });
+    expect(styles.mobileServerRailAvatarWrap).toMatchObject({
+      height: theme.workspace.railAvatarSize,
+      width: theme.workspace.railAvatarSize,
+    });
+    expect(styles.mobileServerRailList).toMatchObject({ gap: theme.workspace.railGap });
     // The (+) keeps the dashed "create" marker and the 44px avatar footprint, but sits
     // on the accent tint inside a 52px slot so it lines up with the server avatars.
     expect(styles.mobileServerRailAddButton).toMatchObject({
@@ -238,29 +271,21 @@ describe("1a compact servers redesign", () => {
       borderColor: theme.accent.default,
       borderStyle: "dashed",
       borderWidth: 2,
-      height: 44,
-      width: 44,
+      height: theme.workspace.railAvatarSize,
+      width: theme.workspace.railAvatarSize,
     });
-    expect(styles.mobileServerRailAddSlot).toMatchObject({ height: 52, width: 52 });
+    expect(styles.mobileServerRailAddSlot).toMatchObject({ height: 50, width: 50 });
     // The action zone is pinned under the scroller, split off by a hairline divider.
     expect(styles.mobileServerRailFooter).toMatchObject({ alignItems: "center", gap: 10 });
     expect(styles.mobileServerRailDivider).toMatchObject({
-      backgroundColor: theme.border.subtle,
-      height: 1.5,
-      width: 24,
-    });
-    // 1b floating (+): same accent outline as the rail tile, held off the screen edge.
-    expect(styles.mobileWorkspaceFab).toMatchObject({
-      borderColor: theme.accent.soft,
-      borderRadius: 20,
-      borderWidth: 2,
-      height: 54,
-      width: 54,
+      backgroundColor: theme.workspace.railDivider.color,
+      height: theme.workspace.railDivider.height,
+      width: theme.workspace.railDivider.width,
     });
     expect(styles.mobileWorkspaceFabAnchor).toMatchObject({
-      bottom: 18,
+      bottom: theme.workspace.fab.bottom,
       position: "absolute",
-      right: 6,
+      right: theme.workspace.fab.right,
     });
     expect(styles.mobileServerRailBadge).toMatchObject({
       backgroundColor: theme.mention.badge,
@@ -598,19 +623,32 @@ describe("1a compact servers redesign", () => {
     expect(onOpenChannel).toHaveBeenCalledWith(voiceChannel);
   });
 
-  it("uses the handoff's custom invite icon and 11px category chevron", () => {
-    const workspaceBrowser = readFileSync(
-      resolve(__dirname, "../src/app/screens/workspace-browser.tsx"),
-      "utf8",
-    );
+  it("keeps the 11px category chevron and drops every category create entry", () => {
     const channelSections = readFileSync(
       resolve(__dirname, "../src/app/screens/workspace-channel-section-list.tsx"),
       "utf8",
     );
 
-    expect(workspaceBrowser).toContain('name="invite-user"');
-    expect(workspaceBrowser).toContain("color={theme.accent.default}");
     expect(channelSections).toContain("size={11}");
+    // Acceptance 14/16: the per-category (+) is gone from the code, not hidden.
+    // The old testID is not spelled out even here — a repo-wide search for it
+    // has to come back empty.
+    expect(channelSections).not.toMatch(/section-create/);
+    expect(channelSections).not.toContain("onCreateInSection");
+  });
+
+  // Acceptance 5: an unauthorised member has no create entry at all — the FAB
+  // is not rendered, rather than rendered disabled.
+  it("renders the create pill only for a channel manager", () => {
+    const workspaceBrowser = readFileSync(
+      resolve(__dirname, "../src/app/screens/workspace-browser.tsx"),
+      "utf8",
+    );
+
+    expect(workspaceBrowser).toMatch(
+      /\{canManageChannels && servers\.length > 0 \? \(\s*<MobileWorkspaceCreateFab/,
+    );
+    expect(workspaceBrowser).not.toContain("mobile-workspace-create-open");
   });
 
   it("renders each rail badge from that server's live unread and mention counts", () => {

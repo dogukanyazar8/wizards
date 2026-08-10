@@ -22,28 +22,44 @@ import { mobileQueryKeys } from "./mobile-query-keys";
  */
 export const MOBILE_MESSAGE_STREAM_STALE_TIME_MS = 120_000;
 
+/**
+ * The channel transcript, live by default and anchored when a search hit names
+ * a message: page one is then the window around it, and every page after that
+ * walks backwards exactly like the live stream.
+ *
+ * One builder rather than two, because the anchored read is the same shape with
+ * a different first request — and a caller that had to choose between two
+ * hooks could not switch back to live without remounting the list.
+ */
 export function getMobileChannelMessagesQueryOptions(
   client: MobileApiClient,
   channelId: string,
   enabled = true,
+  aroundMessageId: string | null = null,
 ) {
   return infiniteQueryOptions({
     enabled: enabled && channelId.length > 0,
     getNextPageParam: (page: MobileChannelMessagesResponse) => page.nextCursor ?? undefined,
     initialPageParam: null as string | null,
     queryFn: ({ pageParam, signal }) =>
-      fetchMobileChannelMessages(client, { channelId, cursor: pageParam, signal }),
-    queryKey: mobileQueryKeys.channelMessages(channelId),
+      fetchMobileChannelMessages(client, {
+        ...(pageParam === null && aroundMessageId !== null ? { around: aroundMessageId } : {}),
+        channelId,
+        cursor: pageParam,
+        signal,
+      }),
+    /**
+     * A sibling cache entry, never the live one: the realtime bridge patches
+     * `channelMessages(channelId)` and must not be taught a second shape of the
+     * same transcript, and the offline stream must keep holding the tail rather
+     * than whatever slice was last searched.
+     */
+    queryKey:
+      aroundMessageId === null
+        ? mobileQueryKeys.channelMessages(channelId)
+        : mobileQueryKeys.channelMessagesAround(channelId, aroundMessageId),
     staleTime: MOBILE_MESSAGE_STREAM_STALE_TIME_MS,
   });
-}
-
-export function useMobileChannelMessagesQuery(
-  client: MobileApiClient,
-  channelId: string,
-  enabled = true,
-) {
-  return useInfiniteQuery(getMobileChannelMessagesQueryOptions(client, channelId, enabled));
 }
 
 export function getMobileDMMessagesQueryOptions(

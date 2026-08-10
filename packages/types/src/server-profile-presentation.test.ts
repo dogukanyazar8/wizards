@@ -2,10 +2,12 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
+  SERVER_SCHEDULED_EVENT_JOIN_WINDOW_MS,
   formatServerProfileCount,
   resolveServerProfileChannelBadge,
   resolveServerProfileFriendStack,
   resolveServerProfileJoinAction,
+  resolveServerScheduledEventAction,
 } from "./server-profile-presentation";
 
 describe("formatServerProfileCount", () => {
@@ -119,5 +121,49 @@ describe("resolveServerProfileJoinAction", () => {
       kind: "join",
       label: "Sunucuya katıl",
     });
+  });
+});
+
+describe("resolveServerScheduledEventAction", () => {
+  const startAtMs = Date.parse("2026-08-11T18:00:00.000Z");
+  const scheduled = { scheduledStartAt: "2026-08-11T18:00:00.000Z", status: "SCHEDULED" };
+
+  it("offers a reminder outside the 15 minute window", () => {
+    const action = resolveServerScheduledEventAction(
+      scheduled,
+      startAtMs - SERVER_SCHEDULED_EVENT_JOIN_WINDOW_MS - 1,
+    );
+
+    assert.deepEqual(action, { kind: "remind", label: "Hatırlat" });
+  });
+
+  it("switches to joining exactly at the threshold", () => {
+    const action = resolveServerScheduledEventAction(
+      scheduled,
+      startAtMs - SERVER_SCHEDULED_EVENT_JOIN_WINDOW_MS,
+    );
+
+    assert.deepEqual(action, { kind: "join", label: "Katıl" });
+  });
+
+  it("keeps joining once the event has started", () => {
+    const action = resolveServerScheduledEventAction(
+      { ...scheduled, status: "ACTIVE" },
+      startAtMs + 60_000,
+    );
+
+    assert.deepEqual(action, { kind: "join", label: "Katıl" });
+  });
+
+  it("offers nothing for a cancelled or completed event", () => {
+    assert.equal(resolveServerScheduledEventAction({ ...scheduled, status: "CANCELLED" }, 0), null);
+    assert.equal(resolveServerScheduledEventAction({ ...scheduled, status: "COMPLETED" }, 0), null);
+  });
+
+  it("offers nothing when the start time is unparseable", () => {
+    assert.equal(
+      resolveServerScheduledEventAction({ scheduledStartAt: "yarın", status: "SCHEDULED" }, 0),
+      null,
+    );
   });
 });

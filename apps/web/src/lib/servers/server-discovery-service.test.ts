@@ -21,6 +21,7 @@ function buildSource(
     memberCount: 12_400,
     name: "Whispr Topluluk",
     shortName: "WT",
+    tags: ["sohbet"],
     type: "COMMUNITY",
     ...overrides,
   } as ServerDiscoveryCardSource;
@@ -64,6 +65,7 @@ describe("buildServerDiscoveryCard", () => {
       "name",
       "onlineCount",
       "shortName",
+      "tags",
       "type",
       "verified",
     ]);
@@ -302,16 +304,19 @@ describe("listDiscoverableServersWithDatabase", () => {
     );
   });
 
-  it("adds a name-contains filter only when a query is given", async () => {
+  it("matches a query against the name or an exact tag when a query is given", async () => {
     const { calls, database } = fakeDatabase([]);
 
-    await listDiscoverableServersWithDatabase(database, fakeBatchRedis(), { query: "whispr" });
+    await listDiscoverableServersWithDatabase(database, fakeBatchRedis(), { query: "Whispr" });
 
     for (const args of calls as Array<Record<string, unknown>>) {
-      assert.deepEqual((args.where as Record<string, unknown>).name, {
-        contains: "whispr",
-        mode: "insensitive",
-      });
+      // 6d sends the tag's own text when a chip is tapped, so the tag arm is an
+      // exact (lowercased) containment test while free typing still falls back
+      // to the name `contains` this always had.
+      assert.deepEqual((args.where as Record<string, unknown>).OR, [
+        { name: { contains: "Whispr", mode: "insensitive" } },
+        { tags: { has: "whispr" } },
+      ]);
     }
   });
 
@@ -375,8 +380,9 @@ describe("listDiscoverableServersWithDatabase", () => {
     assert.equal(calls.length, 1);
     const query = calls[0] as DiscoveryRawQuery;
     assert.match(query.text, /"name" ILIKE/);
+    assert.match(query.text, /"tags" @> ARRAY\[\$\d+\]::text\[\]/);
     assert.match(query.text, /\("memberCount", "id"\) < \(\$\d+, \$\d+\)/);
-    assert.deepEqual(query.values, ["FEATURED", "%whispr%", 100, "s5", 21]);
+    assert.deepEqual(query.values, ["FEATURED", "%whispr%", "whispr", 100, "s5", 21]);
   });
 
   it("returns a null cursor when the page is not full", async () => {

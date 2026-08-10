@@ -58,6 +58,8 @@ const detail = {
     messageCharacterLimit: 2_000,
     name: "Guild",
     shortName: "GLD",
+    starred: false,
+    tags: [],
     type: "PERSONAL" as const,
     unreadCount: 3,
   },

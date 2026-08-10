@@ -71,6 +71,8 @@ export function mapServerSummary(args: {
   mentionCount: number;
   name: string;
   shortName: string | null;
+  /** 6c "Yıldızla"; absent when the lazy `UserServerSettings` row does not exist. */
+  starred?: boolean;
   unreadCount: number;
 }): WorkspaceServerSummary {
   return {
@@ -88,6 +90,7 @@ export function mapServerSummary(args: {
     mentionCount: args.mentionCount,
     name: args.name,
     shortName: args.shortName,
+    starred: args.starred ?? false,
     unreadCount: args.unreadCount,
   };
 }

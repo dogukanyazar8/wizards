@@ -1,14 +1,31 @@
-import type { ChannelType, Prisma, PrismaClient } from "@wizards/db";
-import type { ServerPublicProfile, ServerPublicProfileFriend } from "@wizards/types";
+import type { ChannelType, MessageNotification, Prisma, PrismaClient } from "@wizards/db";
+import type {
+  ServerNotificationLevel,
+  ServerProfileAccessLevel,
+  ServerPublicProfile,
+  ServerPublicProfileAdmin,
+  ServerPublicProfileFriend,
+  ServerScheduledEvent,
+} from "@wizards/types";
 
 import { ApiError } from "@/lib/api";
-import { getOnlineServerMemberCount } from "@/lib/workspace/unread-service";
+import { getServerWeeklyMessageCount } from "@/lib/servers/server-weekly-message-count";
+import {
+  getOnlineServerMemberCount,
+  getOnlineServerMemberIds,
+} from "@/lib/workspace/unread-service";
 import {
   PermissionBits,
   hasPermission,
   resolveChannelPermissions,
+  resolveServerPermissions,
   type RolePermissionRecord,
 } from "@/lib/workspace/permissions";
+import { getUpcomingServerScheduledEventWithDatabase } from "@/lib/workspace/scheduled-event-service";
+import {
+  DEFAULT_SERVER_USER_SETTINGS,
+  buildServerUserSettings,
+} from "@/lib/workspace/server-user-settings-service";
 
 const PREVIEWABLE_CHANNEL_TYPES = [
   "TEXT",
@@ -18,31 +35,81 @@ const PREVIEWABLE_CHANNEL_TYPES = [
   "FORUM",
 ] as const satisfies readonly ChannelType[];
 
+/** 6e shows at most three avatars on a voice row before it switches to a count. */
+const MAX_CHANNEL_PARTICIPANTS = 3;
+
+/** 6e's YÖNETİCİLER list; a server with more than this is showing a sample. */
+const MAX_PROFILE_ADMINS = 20;
+
+/**
+ * Presence is *not* derived from a last-seen window any more. The same card
+ * prints `onlineCount` (Redis `server:<id>:online`) next to the admin list, and
+ * a two-minute `AppSession.lastSeenAt` window could put "3 çevrimiçi" above an
+ * all-offline admin list. `AppSession` still backs `lastSeenAt` — 6e's "2 saat
+ * önce" line — but the boolean comes from the set the count comes from.
+ */
+
 export const SERVER_PUBLIC_PROFILE_SELECT = {
   bannerUrl: true,
   channels: {
-    orderBy: [{ position: "asc" as const }, { id: "asc" as const }],
+    /**
+     * Category position first: 6e groups the list by category and the mobile
+     * grouper takes first appearance as the design's order. Ordering by
+     * `channel.position` alone let a category whose channels happen to carry
+     * lower positions jump ahead of the category the server owner put first —
+     * `server-service.ts` already orders the workspace tree this way.
+     */
+    orderBy: [
+      { category: { position: "asc" as const } },
+      { position: "asc" as const },
+      { id: "asc" as const },
+    ],
     select: {
       _count: { select: { voiceStates: true } },
+      category: { select: { id: true, name: true } },
+      categoryId: true,
       id: true,
+      /**
+       * 6d/6e's right-hand column on a text row. A bounded `take: 1` nested
+       * select rather than a query per channel: the client is generated with
+       * `relationJoins`, so Prisma emits this as a LATERAL join inside the
+       * same statement (schema.prisma:12).
+       */
+      messages: {
+        orderBy: { createdAt: "desc" as const },
+        select: { createdAt: true },
+        take: 1,
+        where: { deletedAt: null },
+      },
       name: true,
       permissionOverrides: {
         select: { allow: true, deny: true, targetId: true, targetType: true },
       },
       type: true,
+      /** Same LATERAL-join reasoning as `messages` above. */
+      voiceStates: {
+        orderBy: { joinedAt: "asc" as const },
+        select: {
+          user: { select: { avatarUrl: true, displayName: true, id: true, username: true } },
+        },
+        take: MAX_CHANNEL_PARTICIPANTS,
+      },
     },
     where: { parentId: null, type: { in: [...PREVIEWABLE_CHANNEL_TYPES] } },
   },
+  createdAt: true,
   description: true,
   discoverable: true,
   features: true,
   iconUrl: true,
   id: true,
+  inviteCode: true,
   isPublic: true,
   memberCount: true,
   members: {
     select: {
       id: true,
+      joinedAt: true,
       roles: {
         select: {
           role: { select: { id: true, isDefault: true, name: true, permissions: true } },
@@ -53,12 +120,29 @@ export const SERVER_PUBLIC_PROFILE_SELECT = {
   },
   name: true,
   ownerId: true,
+  /**
+   * Every role, not only the default one. `buildServerPublicProfile` still
+   * resolves the viewer's permissions from the default role plus the roles
+   * their own membership carries -- selecting all of them here would be a
+   * privilege leak if they were fed into that merge, so the filter happens in
+   * the builder rather than in the query.
+   */
   roles: {
     select: { id: true, isDefault: true, name: true, permissions: true },
-    where: { isDefault: true },
   },
   shortName: true,
+  tags: true,
   type: true,
+  userServerSettings: {
+    select: {
+      messageNotifications: true,
+      muted: true,
+      mutedUntil: true,
+      starred: true,
+    },
+    take: 1,
+  },
+  vanityUrlCode: true,
 } satisfies Prisma.ServerSelect;
 
 export type ServerPublicProfileSource = Prisma.ServerGetPayload<{
@@ -66,14 +150,79 @@ export type ServerPublicProfileSource = Prisma.ServerGetPayload<{
 }>;
 
 export type ServerPublicProfileViewer = {
+  readonly admins: readonly ServerPublicProfileAdmin[];
   readonly mutualFriendCount: number;
   readonly mutualFriends: readonly ServerPublicProfileFriend[];
   readonly onlineCount: number;
+  readonly upcomingEvent: ServerScheduledEvent | null;
   readonly viewerId: string | null;
+  readonly weeklyMessageCount: number | null;
 };
 
 function isVoiceChannel(type: ChannelType): boolean {
   return type === "VOICE" || type === "STAGE";
+}
+
+/**
+ * The avatar fallback both 6e lists use. There is no `User.shortName` column
+ * (only servers carry one), so the two initials are derived from the display
+ * name here instead of every client inventing its own rule.
+ */
+export function toProfileMemberShortName(displayName: string): string | null {
+  const initials = displayName
+    .trim()
+    .split(/\s+/)
+    .filter((part) => part.length > 0)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
+
+  return initials.length > 0 ? initials : null;
+}
+
+/**
+ * `whispr.gg/<vanityUrlCode>` when the server has claimed one, otherwise the
+ * plain invite code. Pure so 6d's address line is assertable without a row.
+ */
+export function buildServerInviteAddress(server: {
+  readonly inviteCode: string;
+  readonly vanityUrlCode: string | null;
+}): string {
+  return `whispr.gg/${server.vanityUrlCode ?? server.inviteCode}`;
+}
+
+/**
+ * `approval` is deliberately unreachable: no column in the schema carries an
+ * approval gate today. 6e renders three states and the enum already has room
+ * for the third, so adding one later is a service change, not a contract one.
+ */
+export function resolveServerAccessLevel(server: {
+  readonly isPublic: boolean;
+}): ServerProfileAccessLevel {
+  return server.isPublic ? "public" : "invite";
+}
+
+type ViewerSettings = {
+  readonly muted: boolean;
+  readonly notificationLevel: ServerNotificationLevel;
+  readonly starred: boolean;
+};
+
+function resolveViewerSettings(
+  rows: readonly {
+    readonly messageNotifications: MessageNotification;
+    readonly muted: boolean;
+    readonly mutedUntil: Date | null;
+    readonly starred: boolean;
+  }[],
+): ViewerSettings {
+  const settings = rows[0] ? buildServerUserSettings(rows[0]) : DEFAULT_SERVER_USER_SETTINGS;
+
+  return {
+    muted: settings.muted,
+    notificationLevel: settings.notificationLevel,
+    starred: settings.starred,
+  };
 }
 
 /**
@@ -87,8 +236,9 @@ export function buildServerPublicProfile(
   viewer: ServerPublicProfileViewer,
 ): ServerPublicProfile {
   const membership = server.members[0] ?? null;
+  const defaultRoles = server.roles.filter((role) => role.isDefault);
   const roles: RolePermissionRecord[] = [
-    ...server.roles,
+    ...defaultRoles,
     ...(membership?.roles.map((entry) => entry.role) ?? []),
   ];
 
@@ -101,11 +251,37 @@ export function buildServerPublicProfile(
         roles,
         userId: viewer.viewerId ?? "",
       });
+      // "Private" is a property of the channel, not of the viewer: what
+      // @everyone can see, resolved without the viewer's own roles.
+      const everyonePermissions = resolveChannelPermissions({
+        memberId: null,
+        ownerId: server.ownerId,
+        overrides: channel.permissionOverrides,
+        roles: defaultRoles,
+        userId: "",
+      });
       const voice = isVoiceChannel(channel.type);
 
       return {
+        categoryId: channel.categoryId,
+        categoryName: channel.category?.name ?? null,
+        id: channel.id,
+        isPrivate: !hasPermission(everyonePermissions, PermissionBits.VIEW_CHANNEL),
+        lastActivityAt: channel.messages[0]?.createdAt.toISOString() ?? null,
         liveCount: voice ? channel._count.voiceStates : channel.type === "FORUM" ? 0 : null,
         name: channel.name,
+        // A non-member gets the channel list but not who is sitting in it.
+        participants:
+          membership === null
+            ? []
+            : channel.voiceStates.map((state) => ({
+                avatarUrl: state.user.avatarUrl,
+                displayName: state.user.displayName?.trim() || state.user.username,
+                id: state.user.id,
+                shortName: toProfileMemberShortName(
+                  state.user.displayName?.trim() || state.user.username,
+                ),
+              })),
         readOnly: !hasPermission(
           permissions,
           voice ? PermissionBits.CONNECT_VOICE : PermissionBits.SEND_MESSAGES,
@@ -117,23 +293,45 @@ export function buildServerPublicProfile(
     .filter((channel) => channel.visible)
     .map(({ visible: _visible, ...channel }) => channel);
 
+  const settings = resolveViewerSettings(server.userServerSettings);
+  const serverPermissions = resolveServerPermissions({
+    ownerId: server.ownerId,
+    roles,
+    userId: viewer.viewerId ?? "",
+  });
+
   return {
+    accessLevel: resolveServerAccessLevel(server),
+    admins: [...viewer.admins],
     bannerUrl: server.bannerUrl,
+    canManageServer:
+      membership !== null && hasPermission(serverPermissions, PermissionBits.MANAGE_SERVER),
+    channelCount: channels.length,
     channels,
+    createdAt: server.createdAt.toISOString(),
     description: server.description ?? "",
     discoverable: server.discoverable,
     iconUrl: server.iconUrl,
+    inviteAddress: buildServerInviteAddress(server),
     isPublic: server.isPublic,
     joined: membership !== null,
+    joinedAt: membership?.joinedAt.toISOString() ?? null,
     memberCount: server.memberCount,
+    muted: settings.muted,
     mutualFriendCount: viewer.mutualFriendCount,
     mutualFriends: [...viewer.mutualFriends],
     name: server.name,
+    notificationLevel: settings.notificationLevel,
     onlineCount: viewer.onlineCount,
     serverId: server.id,
     shortName: server.shortName,
+    starred: settings.starred,
+    tags: server.tags,
     type: server.type,
+    upcomingEvent: viewer.upcomingEvent,
     verified: server.features.includes("VERIFIED"),
+    voiceActiveCount: channels.reduce((total, channel) => total + (channel.liveCount ?? 0), 0),
+    weeklyMessageCount: viewer.weeklyMessageCount,
   };
 }
 
@@ -149,6 +347,10 @@ export async function getServerPublicProfileWithDatabase(
         ...SERVER_PUBLIC_PROFILE_SELECT.members,
         where: viewerId === null ? { id: "" } : { userId: viewerId },
       },
+      userServerSettings: {
+        ...SERVER_PUBLIC_PROFILE_SELECT.userServerSettings,
+        where: viewerId === null ? { id: "" } : { userId: viewerId },
+      },
     },
     where: { id: serverId },
   });
@@ -157,9 +359,10 @@ export async function getServerPublicProfileWithDatabase(
     throw new ApiError("Server not found", 404, "SERVER_NOT_FOUND");
   }
 
-  const viewer = await loadServerPublicProfileViewer(database, serverId, viewerId);
+  const source = server as ServerPublicProfileSource;
+  const viewer = await loadServerPublicProfileViewer(database, serverId, viewerId, source);
 
-  return buildServerPublicProfile(server as ServerPublicProfileSource, viewer);
+  return buildServerPublicProfile(source, viewer);
 }
 
 export async function getServerPublicProfile(
@@ -205,24 +408,163 @@ export async function getVisibleServerPublicProfile(
 }
 
 /**
+ * Owner plus everyone holding MANAGE_SERVER through a role. Resolved from the
+ * server's own role rows (already fetched) so the member query can filter on a
+ * role id list instead of scanning the membership table for a bitmask.
+ */
+export function resolveServerAdminRoleIds(
+  roles: readonly RolePermissionRecord[],
+): readonly string[] {
+  return roles.flatMap((role) =>
+    role.id && hasPermission(role.permissions, PermissionBits.MANAGE_SERVER) ? [role.id] : [],
+  );
+}
+
+type AdminMemberRow = {
+  readonly user: {
+    readonly avatarUrl: string | null;
+    readonly displayName: string | null;
+    readonly id: string;
+    readonly username: string;
+  };
+};
+
+/** Pure: the presence rule and the owner/admin split, assertable without a row. */
+export function buildServerProfileAdmins(
+  members: readonly AdminMemberRow[],
+  ownerId: string,
+  lastSeenByUserId: ReadonlyMap<string, Date>,
+  onlineUserIds: ReadonlySet<string>,
+): ServerPublicProfileAdmin[] {
+  return members
+    .map((member) => {
+      const displayName = member.user.displayName?.trim() || member.user.username;
+      const lastSeenAt = lastSeenByUserId.get(member.user.id) ?? null;
+
+      return {
+        avatarUrl: member.user.avatarUrl,
+        displayName,
+        id: member.user.id,
+        lastSeenAt: lastSeenAt?.toISOString() ?? null,
+        presence: onlineUserIds.has(member.user.id) ? ("online" as const) : ("offline" as const),
+        role: member.user.id === ownerId ? ("owner" as const) : ("admin" as const),
+        shortName: toProfileMemberShortName(displayName),
+        username: member.user.username,
+      };
+    })
+    .sort((left, right) => {
+      if (left.role !== right.role) {
+        return left.role === "owner" ? -1 : 1;
+      }
+
+      return left.displayName.localeCompare(right.displayName, "tr");
+    });
+}
+
+async function loadServerProfileAdmins(
+  database: PrismaClient,
+  serverId: string,
+  server: ServerPublicProfileSource,
+): Promise<ServerPublicProfileAdmin[]> {
+  const adminRoleIds = resolveServerAdminRoleIds(server.roles);
+  const members = await database.serverMember.findMany({
+    orderBy: [{ joinedAt: "asc" }, { id: "asc" }],
+    select: {
+      user: { select: { avatarUrl: true, displayName: true, id: true, username: true } },
+    },
+    take: MAX_PROFILE_ADMINS,
+    where: {
+      serverId,
+      OR: [
+        { userId: server.ownerId },
+        ...(adminRoleIds.length > 0
+          ? [{ roles: { some: { roleId: { in: [...adminRoleIds] } } } }]
+          : []),
+      ],
+    },
+  });
+
+  if (members.length === 0) {
+    return [];
+  }
+
+  const adminUserIds = members.map((member) => member.user.id);
+  /**
+   * Two reads, neither of which scales with the (capped) admin list: the newest
+   * `AppSession.lastSeenAt` per user for 6e's "en son görüldü" line — same
+   * source as the DM last-seen contract, never a last message, which is
+   * two-sided and lies — and one `SMISMEMBER` against the very set
+   * `onlineCount` is counted from, which is what makes the dot and the count
+   * agree by construction. `appSession.groupBy` is not a DB query per admin and
+   * `getOnlineServerMemberIds` is not a DB query at all, so the route's query
+   * budget is unchanged.
+   */
+  const [sessions, onlineUserIds] = await Promise.all([
+    database.appSession.groupBy({
+      by: ["userId"],
+      where: { userId: { in: adminUserIds } },
+      _max: { lastSeenAt: true },
+    }),
+    getOnlineServerMemberIds(serverId, adminUserIds),
+  ]);
+
+  const lastSeenByUserId = new Map<string, Date>();
+  for (const session of sessions) {
+    const lastSeenAt = session._max.lastSeenAt;
+    if (lastSeenAt) {
+      lastSeenByUserId.set(session.userId, lastSeenAt);
+    }
+  }
+
+  return buildServerProfileAdmins(members, server.ownerId, lastSeenByUserId, onlineUserIds);
+}
+
+/**
  * S3 binding decision 5: this and the discovery list's batch read must never
  * disagree about the same server's online count. `getOnlineServerMemberCount`
  * (unread-service.ts) already reads the same `server:<id>:online` Redis set
  * the discovery batch read does, so sourcing this from it -- instead of the
  * `serverMember.count` by `user.status` this used before S3 -- makes the two
  * surfaces agree by construction rather than by coincidence.
+ *
+ * Everything here runs concurrently and none of it scales with the channel or
+ * member count: the admin list is capped, the weekly count is one cached
+ * aggregate, and the upcoming event is a single indexed row.
  */
 async function loadServerPublicProfileViewer(
   database: PrismaClient,
   serverId: string,
   viewerId: string | null,
+  server: ServerPublicProfileSource,
 ): Promise<ServerPublicProfileViewer> {
+  /**
+   * The admin block is the only personal data this read model carries:
+   * usernames, avatars, live presence and a last-seen timestamp. Every screen
+   * that renders it (6d/6e, the mobile invite preview) sits behind a session;
+   * the web profile card renders none of it. `servers/[serverId]/profile` is
+   * an unauthenticated route (route-contract.test.ts), so an anonymous caller
+   * would otherwise be handed moderator identities and last-seen times for
+   * every public server. Withholding it costs no consumer anything -- and it
+   * drops `serverMember.findMany` + `appSession.groupBy` from the anonymous
+   * read, taking it from five queries to three.
+   */
+  const [admins, upcomingEvent, weeklyMessageCount] = await Promise.all([
+    viewerId === null
+      ? Promise.resolve<ServerPublicProfileAdmin[]>([])
+      : loadServerProfileAdmins(database, serverId, server),
+    getUpcomingServerScheduledEventWithDatabase(database, serverId, viewerId),
+    getServerWeeklyMessageCount(database, serverId),
+  ]);
+
   if (viewerId === null) {
     return {
+      admins,
       mutualFriendCount: 0,
       mutualFriends: [],
       onlineCount: await getOnlineServerMemberCount(serverId),
+      upcomingEvent,
       viewerId: null,
+      weeklyMessageCount,
     };
   }
 
@@ -257,6 +599,7 @@ async function loadServerPublicProfileViewer(
   ]);
 
   return {
+    admins,
     mutualFriendCount,
     mutualFriends: mutualFriendships.map((friendship) => {
       const friend = friendship.senderId === viewerId ? friendship.receiver : friendship.sender;
@@ -267,6 +610,8 @@ async function loadServerPublicProfileViewer(
       };
     }),
     onlineCount,
+    upcomingEvent,
     viewerId,
+    weeklyMessageCount,
   };
 }

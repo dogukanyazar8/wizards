@@ -226,6 +226,19 @@ function ServerProfileCardContent({ profile }: { profile: ServerPublicProfile })
               {profile.description}
             </p>
           ) : null}
+
+          {profile.tags.length > 0 ? (
+            <ul className="mt-[11px] flex flex-wrap gap-1.5" data-testid="server-profile-tags">
+              {profile.tags.map((tag) => (
+                <li
+                  className="rounded-full border border-[hsl(var(--border)/0.6)] bg-[hsl(var(--surface-card))] px-2.5 py-1 text-[11px] font-medium text-app-muted"
+                  key={tag}
+                >
+                  {tag}
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </div>
       </div>
 

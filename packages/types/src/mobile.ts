@@ -11,7 +11,12 @@ import {
 } from "./messages";
 import { isBcryptPasswordWithinLimit } from "./password";
 import { DMConversationDTOSchema, DMMessagePayloadSchema } from "./socket";
-import { WorkspaceChannelSchema, WorkspaceMemberSchema } from "./workspace";
+import {
+  ServerNotificationLevelSchema,
+  ServerPublicProfileSchema,
+  WorkspaceChannelSchema,
+  WorkspaceMemberSchema,
+} from "./workspace";
 
 export const MobileBootstrapFeatureStatusSchema = z.enum(
   ["available", "disabled", "requires-native-permission", "requires-server-contract"],
@@ -497,11 +502,30 @@ export const MobileBootstrapServerSummarySchema = z.object({
   channelCount: z.number().int().nonnegative(),
   iconUrl: z.string().url().nullable(),
   id: z.string().min(1),
+  /**
+   * `whispr.gg/<vanity ?? invite>` — the same string the profile read model
+   * builds, so 6c's identity row and 6d cannot disagree about a server's
+   * address. It rides the summary rather than being fetched on menu open: the
+   * profile read costs 5-7 queries and 6c needs one line of text from it.
+   */
+  inviteAddress: z.string().min(1).max(200).nullable().default(null),
   joinedAt: z.string().datetime(),
   memberCount: z.number().int().nonnegative(),
   mentionCount: z.number().int().nonnegative(),
+  /**
+   * 6c's three per-user preferences. Defaulted like the rest of this file's
+   * later additions: the bootstrap payload shipped before they existed and a
+   * device still holding an older response has to keep parsing.
+   *
+   * `muted` and `notificationLevel` are separate concepts — a temporary
+   * silence versus a standing preference — and neither derives from the other.
+   */
+  muted: z.boolean().default(false),
   name: z.string().min(1).max(120),
+  notificationLevel: ServerNotificationLevelSchema.default("all"),
   shortName: z.string().min(1).max(8).nullable(),
+  /** Drives the rail order through `sortMobileServersByStar`. */
+  starred: z.boolean().default(false),
   unreadCount: z.number().int().nonnegative(),
 });
 
@@ -881,6 +905,13 @@ export const MobileWorkspaceServerDetailResponseSchema = z.object({
 
 export const MobileChannelMessagesResponseSchema = MessagesResponseSchema.extend({
   channel: MobileWorkspaceChannelSummarySchema,
+  /**
+   * Present only on an `around` window: the page is a slice of history, not
+   * the live tail, so the transcript has to offer a way back to the present.
+   * Optional rather than defaulted so a page persisted by an older build still
+   * parses on hydration, and so a plain page carries nothing extra.
+   */
+  hasNewer: z.boolean().optional(),
   messages: z.array(ChatMessageSchema).max(30),
   nextCursor: z.string().nullable(),
 });
@@ -996,48 +1027,24 @@ export const MobileBugReportCategorySchema = z.enum([
   "performance",
   "other",
 ]);
-export const MobileInvitePreviewChannelTypeSchema = z.enum(["text", "voice"]);
-
-export const MobileInvitePreviewChannelSchema = z
-  .object({
-    liveCount: z.number().int().nonnegative().nullable(),
-    name: z.string().min(1).max(100),
-    readOnly: z.boolean(),
-    type: MobileInvitePreviewChannelTypeSchema,
-  })
-  .strict();
-
-export const MobileInvitePreviewMutualFriendSchema = z
-  .object({
-    avatarUrl: z.string().url().max(2048).nullable(),
-    displayName: z.string().min(1).max(120),
-    id: z.string().min(1).max(128),
-  })
-  .strict();
-
-/** 2g's authenticated, permission-filtered community invite preview. */
-export const MobileInvitePreviewResponseSchema = z
-  .object({
-    bannerUrl: z.string().url().max(2048).nullable(),
-    channels: z.array(MobileInvitePreviewChannelSchema).max(100),
-    description: z.string().max(1_000),
-    iconUrl: z.string().url().max(2048).nullable(),
-    joined: z.boolean(),
-    memberCount: z.number().int().nonnegative(),
-    mutualFriendCount: z.number().int().nonnegative(),
-    mutualFriends: z.array(MobileInvitePreviewMutualFriendSchema).max(8),
-    name: z.string().min(1).max(120),
-    onlineCount: z.number().int().nonnegative(),
-    serverId: z.string().min(1).max(128),
-    slug: z
-      .string()
-      .trim()
-      .min(1)
-      .max(96)
-      .regex(/^[A-Za-z0-9_-]+$/),
-    verified: z.boolean(),
-  })
-  .strict();
+/**
+ * 2g's authenticated, permission-filtered community invite preview.
+ *
+ * Faz 1 §B6.5/§C1: this is `ServerPublicProfileSchema` plus the slug that was
+ * resolved, not a parallel narrower payload. Faz 5 feeds the `ServerProfile`
+ * and `CommunityInvite` routes from one screen body, which is only possible if
+ * both routes answer with the same read model. The previously hand-listed
+ * channel and mutual-friend sub-schemas went with it -- they were a second
+ * description of fields `ServerPublicProfileSchema` already owns.
+ */
+export const MobileInvitePreviewResponseSchema = ServerPublicProfileSchema.extend({
+  slug: z
+    .string()
+    .trim()
+    .min(1)
+    .max(96)
+    .regex(/^[A-Za-z0-9_-]+$/),
+}).strict();
 
 export const MobileReleaseChangeSchema = z
   .object({
@@ -1319,9 +1326,6 @@ export type MobileHelpSearchQuery = z.infer<typeof MobileHelpSearchQuerySchema>;
 export type MobileHelpArticleViewResponse = z.infer<typeof MobileHelpArticleViewResponseSchema>;
 export type MobileBugReportRequest = z.infer<typeof MobileBugReportRequestSchema>;
 export type MobileBugReportResponse = z.infer<typeof MobileBugReportResponseSchema>;
-export type MobileInvitePreviewChannelType = z.infer<typeof MobileInvitePreviewChannelTypeSchema>;
-export type MobileInvitePreviewChannel = z.infer<typeof MobileInvitePreviewChannelSchema>;
-export type MobileInvitePreviewMutualFriend = z.infer<typeof MobileInvitePreviewMutualFriendSchema>;
 export type MobileInvitePreviewResponse = z.infer<typeof MobileInvitePreviewResponseSchema>;
 export type MobileReleaseVersionParams = z.infer<typeof MobileReleaseVersionParamsSchema>;
 export type MobileHelpArticleSlugParams = z.infer<typeof MobileHelpArticleSlugParamsSchema>;

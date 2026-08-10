@@ -31,6 +31,7 @@ function createDependencies(
     authenticate: async () => "user-1",
     authorizeChannel: async () => undefined,
     listMessages: async () => ({ hasMore: false, messages: [] }),
+    listMessagesAround: async () => ({ hasMore: false, hasNewer: false, messages: [] }),
     loadChannelSummary: async () => channel,
     readUserId: () => "user-1",
     ...overrides,
@@ -42,6 +43,49 @@ function request(url = "https://whispr.test/channels/channel-1/messages") {
 }
 
 describe("mobile channel messages GET route logic", () => {
+  /**
+   * A search hit opens the channel at the message, not at its newest page. The
+   * two reads are different queries, so `around` has to win outright rather
+   * than be merged with a cursor.
+   */
+  it("reads a window around the requested message and reports that newer ones exist", async () => {
+    const calls: string[] = [];
+    const response = await mobileChannelMessagesGetRoute(
+      request("https://whispr.test/channels/channel-1/messages?around=message-9&cursor=ignored"),
+      context,
+      createDependencies({
+        listMessages: async () => {
+          calls.push("plain");
+          return { hasMore: false, messages: [] };
+        },
+        listMessagesAround: async ({ messageId }) => {
+          calls.push(`around:${messageId}`);
+          return { hasMore: true, hasNewer: true, messages: [], nextCursor: "message-1" };
+        },
+      }),
+    );
+
+    const body = await response.json();
+    assert.deepEqual(calls, ["around:message-9"]);
+    assert.equal(body.hasNewer, true);
+    assert.equal(body.hasMore, true);
+    assert.equal(body.nextCursor, "message-1");
+  });
+
+  it("keeps the plain read for a page with no anchor and never claims newer messages", async () => {
+    const response = await mobileChannelMessagesGetRoute(
+      request("https://whispr.test/channels/channel-1/messages?cursor=message-5"),
+      context,
+      createDependencies({
+        listMessagesAround: async () => {
+          throw new Error("must not run without an anchor");
+        },
+      }),
+    );
+
+    assert.equal((await response.json()).hasNewer, false);
+  });
+
   // The permission read used to queue behind the session/user/rate-limit round
   // trip even though both only need the id inside the verified token.
   it("starts the permission read while authentication is still in flight", async () => {

@@ -39,6 +39,8 @@ export async function fetchMobileWorkspaceServer(
 }
 
 export function buildMobileChannelMessagesPath(input: {
+  /** Opens the channel at this message instead of at its newest page. */
+  around?: string | null;
   channelId: string;
   cursor?: string | null;
 }): string {
@@ -46,8 +48,12 @@ export function buildMobileChannelMessagesPath(input: {
     limit: String(MOBILE_CHANNEL_MESSAGES_LIMIT),
   });
 
+  // The anchor only applies to the first read; paging further back from it is
+  // an ordinary cursor page, so a request never carries both.
   if (input.cursor) {
     params.set("cursor", input.cursor);
+  } else if (input.around) {
+    params.set("around", input.around);
   }
 
   return `/api/v1/mobile/channels/${encodeURIComponent(input.channelId)}/messages?${params.toString()}`;
@@ -70,6 +76,7 @@ export async function markMobileChannelRead(
 export async function fetchMobileChannelMessages(
   client: MobileApiClient,
   input: {
+    around?: string | null;
     channelId: string;
     cursor?: string | null;
     /** TanStack's own signal: a cancelled query must stop costing the JS thread. */

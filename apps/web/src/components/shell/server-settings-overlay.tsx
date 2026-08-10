@@ -20,6 +20,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ServerIconField } from "@/components/shell/server-icon-field";
 import { ServerFeatureToggle } from "@/components/shell/server-feature-toggle";
+import { ServerEventsPanel } from "@/components/servers/server-events-panel";
+import { ServerTagsEditor } from "@/components/servers/server-tags-editor";
 import { useAppStore } from "@/lib/store";
 import { serverProfileQueryKeys } from "@/lib/servers/client";
 import {
@@ -33,7 +35,7 @@ import {
   workspaceQueryKeys,
 } from "@/lib/workspace/client";
 
-type SettingsTab = "overview" | "roles" | "members" | "invites" | "danger";
+type SettingsTab = "overview" | "roles" | "members" | "invites" | "events" | "danger";
 
 type ServerSettingsOverlayProps = {
   detail: WorkspaceServerDetail | null;
@@ -297,6 +299,7 @@ function ServerSettingsOverlayContent({
   const [overviewSaved, setOverviewSaved] = useState(false);
   const [isPublic, setIsPublic] = useState(detail?.server.isPublic ?? false);
   const [discoverable, setDiscoverable] = useState(detail?.server.discoverable ?? false);
+  const [tags, setTags] = useState<string[]>(detail?.server.tags ?? []);
   const [roleEditorId, setRoleEditorId] = useState<string | null>(null);
   const [roleName, setRoleName] = useState("");
   const [roleColor, setRoleColor] = useState<number>(DEFAULT_ROLE_COLOR);
@@ -347,6 +350,7 @@ function ServerSettingsOverlayContent({
         deletedMessageNoticeMinutes,
         name,
         shortName,
+        tags,
         // A COMMUNITY server's visibility is admin-owned; the service rejects
         // the write, so the fields are left out rather than sent and refused.
         ...(isCommunityServer ? {} : { discoverable, isPublic }),
@@ -520,6 +524,7 @@ function ServerSettingsOverlayContent({
     { id: "roles", label: t("serverSettings.tab.roles"), preview: true },
     { id: "members", label: t("serverSettings.tab.members") },
     { id: "invites", label: t("serverSettings.tab.invites") },
+    { id: "events", label: t("serverSettings.events.title") },
     { id: "danger", label: t("serverSettings.tab.danger") },
   ];
 
@@ -680,6 +685,11 @@ function ServerSettingsOverlayContent({
                     value={description}
                   />
                 </div>
+                <ServerTagsEditor
+                  disabled={updateMutation.isPending}
+                  onChange={setTags}
+                  tags={tags}
+                />
                 <div className="app-panel rounded-[28px] border p-4 sm:p-5">
                   <div className="mb-4">
                     <p className="text-app-soft text-xs font-semibold uppercase tracking-[0.2em]">
@@ -1450,6 +1460,15 @@ function ServerSettingsOverlayContent({
                   );
                 })}
               </div>
+            ) : null}
+
+            {tab === "events" ? (
+              <ServerEventsPanel
+                canManage={detail.server.isAdmin}
+                categories={detail.categories}
+                serverId={detail.server.id}
+                ungroupedChannels={detail.ungroupedChannels}
+              />
             ) : null}
 
             {tab === "danger" ? (

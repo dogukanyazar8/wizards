@@ -92,11 +92,13 @@ export function MobileChannelChatScreen({
   attachmentsFeature,
   canModerate = false,
   channel,
+  channelAnchorMessageId = null,
   channelFirstUnreadMessageId = null,
   channelPinnedMessages = [],
   currentUserId,
   forwardTargets,
   isReactionMutationPending,
+  isViewingChannelHistory = false,
   mediaState,
   memberCount,
   mentionCandidates,
@@ -119,6 +121,7 @@ export function MobileChannelChatScreen({
   onDeleteMessage,
   onDiscardMessage,
   onEditMessage,
+  onExitChannelHistory,
   onOpenThread,
   onOpenMembers,
   onRetryMessage,
@@ -134,7 +137,12 @@ export function MobileChannelChatScreen({
   /** MANAGE_MESSAGES holder: may pin and delete other members' messages. */
   canModerate?: boolean;
   channel: MobileWorkspaceChannelSummary;
+  /** A search hit opens the channel here instead of at its newest page. */
+  channelAnchorMessageId?: string | null;
   channelFirstUnreadMessageId?: string | null;
+  /** True while the transcript is an anchored slice rather than the live tail. */
+  isViewingChannelHistory?: boolean;
+  onExitChannelHistory?(): void;
   channelPinnedMessages?: readonly ChatMessage[];
   forwardTargets?: readonly MobileForwardTarget[];
   getAccessToken(): Promise<string | null>;
@@ -458,9 +466,12 @@ export function MobileChannelChatScreen({
 
         <MobileChatKeyboardRegion testID="mobile-channel-chat-keyboard-region">
           <ChannelMessageList
+            anchorMessageId={channelAnchorMessageId}
             canModerate={canModerate}
             currentUserId={currentUserId}
             firstUnreadMessageId={channelFirstUnreadMessageId}
+            isViewingHistory={isViewingChannelHistory}
+            {...(onExitChannelHistory ? { onExitHistory: onExitChannelHistory } : {})}
             isReactionMutationPending={isReactionMutationPending}
             {...(onLoadMore ? { onLoadMore } : {})}
             onRefresh={onRefresh}
@@ -652,10 +663,14 @@ export type ChannelMessageListHandle = {
 const ChannelMessageListComponent = forwardRef<
   ChannelMessageListHandle,
   {
+    /** Scrolled to and flashed once, when the anchored window arrives. */
+    anchorMessageId?: string | null;
     canModerate?: boolean;
     currentUserId: string;
     firstUnreadMessageId?: string | null;
     isReactionMutationPending?: boolean;
+    isViewingHistory?: boolean;
+    onExitHistory?(): void;
     onLoadMore?(): void;
     /** §2 "1g".1: lets the screen dim its header while the menu is up. */
     onMenuOpenChange?(open: boolean): void;
@@ -678,10 +693,13 @@ const ChannelMessageListComponent = forwardRef<
   }
 >(function ChannelMessageList(
   {
+    anchorMessageId = null,
     canModerate = false,
     currentUserId,
     firstUnreadMessageId = null,
     isReactionMutationPending = false,
+    isViewingHistory = false,
+    onExitHistory,
     onLoadMore,
     onMenuOpenChange,
     onRefresh,
@@ -867,6 +885,34 @@ const ChannelMessageListComponent = forwardRef<
     // this number says the renderer is keeping up.
     reportMobileListBlankArea("channel-messages", listRef.current, event.nativeEvent);
   }, []);
+  /**
+   * A search hit lands mid-history: the window is already loaded, so this only
+   * places the reader on the message and flashes it once. Guarded by a ref
+   * rather than the effect deps, because scrolling again on every list update
+   * would fight the reader for the scroll position.
+   */
+  const anchoredMessageIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (anchorMessageId === null) {
+      anchoredMessageIdRef.current = null;
+      return;
+    }
+
+    if (anchoredMessageIdRef.current === anchorMessageId) {
+      return;
+    }
+
+    const index = streamItems.findIndex((item) => item.message.id === anchorMessageId);
+    if (index < 0) {
+      return;
+    }
+
+    anchoredMessageIdRef.current = anchorMessageId;
+    requestAnimationFrame(() => {
+      listRef.current?.scrollToIndex({ animated: false, index, viewPosition: 0.5 });
+      highlightMessage(anchorMessageId);
+    });
+  }, [anchorMessageId, highlightMessage, streamItems]);
   const handleOpenReply = useCallback(
     (messageId: string) => {
       const index = streamItems.findIndex((item) => item.message.id === messageId);
@@ -1052,9 +1098,13 @@ const ChannelMessageListComponent = forwardRef<
           style={styles.mobileChannelChatBody}
           testID="mobile-channel-message-list"
         />
+        {/* Mid-history the same control means "back to the live end", which is a
+            refetch rather than a scroll — there is nothing below to scroll to. */}
         <ChannelScrollToBottomButton
-          onPress={() => scrollToLatestMessage(true)}
-          visible={showScrollToBottom && streamItems.length > 0}
+          onPress={() => (isViewingHistory ? onExitHistory?.() : scrollToLatestMessage(true))}
+          visible={
+            isViewingHistory ? streamItems.length > 0 : showScrollToBottom && streamItems.length > 0
+          }
         />
         {menuMessage ? (
           <ChannelMessageOverlays

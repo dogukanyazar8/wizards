@@ -1,9 +1,10 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useCallback, useEffect, useRef } from "react";
-import { Animated, Easing, Pressable } from "react-native";
+import { Animated, Easing, Pressable, Text } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 
 import { useTheme } from "../providers/mobile-theme-provider";
+import type { MobileWorkspaceLayout } from "../providers/mobile-workspace-layout-provider";
 import { useHomeScreenStyles } from "./home-screen.styles";
 
 /** Press depth: deep enough to feel like a button, short of a bounce. */
@@ -177,26 +178,33 @@ export function MobileServerRailAddButton({
 
 export interface MobileWorkspaceCreateFabProps {
   readonly accessibilityLabel: string;
+  /** 6a/6b: "+ Kanal" — the pill is labelled, never a bare (+). */
+  readonly label: string;
+  readonly layout?: MobileWorkspaceLayout;
   readonly onPress: () => void;
   readonly testID?: string;
 }
 
 /**
- * 1b compact floating create (+).
+ * 6a/6b "+ Kanal".
  *
- * Same design logic as the rail (+): brand gradient fill, an accent outline that separates the
- * button from whatever scrolls under it, and the shared press spring. It stays *filled* rather
- * than adopting the rail's dashed tint — it is the screen's highest-emphasis action, and the
- * dashed marker is reserved for low-emphasis create affordances.
+ * The only way into the create menu now that the header (+) and the per-category
+ * (+) are gone, which is why it carries a label instead of a bare glyph. Both
+ * layouts render it; only its geometry differs (`fab` vs `fabCompact`). The
+ * brand gradient fill and the shared press spring stay from the 1b floating (+).
  */
 export function MobileWorkspaceCreateFab({
   accessibilityLabel,
+  label,
+  layout = "compact",
   onPress,
   testID,
 }: MobileWorkspaceCreateFabProps) {
   const theme = useTheme();
   const styles = useHomeScreenStyles();
   const { handlePressIn, handlePressOut, iconScale, tileScale } = useAddActionPress();
+  const isCompact = layout === "compact";
+  const iconSize = isCompact ? theme.workspace.fabCompact.icon : theme.workspace.fab.icon;
 
   return (
     <Pressable
@@ -206,22 +214,33 @@ export function MobileWorkspaceCreateFab({
       onPress={onPress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
-      style={styles.mobileWorkspaceFabAnchor}
+      style={isCompact ? styles.mobileWorkspaceFabAnchorCompact : styles.mobileWorkspaceFabAnchor}
       testID={testID}
     >
-      <Animated.View style={[styles.mobileWorkspaceFab, { transform: [{ scale: tileScale }] }]}>
+      <Animated.View
+        style={[
+          styles.mobileWorkspaceFab,
+          isCompact && styles.mobileWorkspaceFabCompact,
+          { transform: [{ scale: tileScale }] },
+        ]}
+      >
         <LinearGradient
           colors={theme.gradients.primaryAction}
           pointerEvents="none"
-          style={styles.mobileWorkspaceFabFill}
+          style={[styles.mobileWorkspaceFabFill, isCompact && styles.mobileWorkspaceFabFillCompact]}
           {...(testID ? { testID: `${testID}-fill` } : {})}
         />
-        <Animated.View
-          pointerEvents="none"
-          style={[styles.mobileWorkspaceFabIcon, { transform: [{ scale: iconScale }] }]}
-        >
-          <Ionicons color={theme.text.onPrimary} name="add" size={26} />
+        <Animated.View pointerEvents="none" style={{ transform: [{ scale: iconScale }] }}>
+          <Ionicons color={theme.text.onPrimary} name="add" size={iconSize} />
         </Animated.View>
+        <Text
+          style={[
+            styles.mobileWorkspaceFabLabel,
+            isCompact && styles.mobileWorkspaceFabLabelCompact,
+          ]}
+        >
+          {label}
+        </Text>
       </Animated.View>
     </Pressable>
   );

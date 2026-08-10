@@ -9,6 +9,11 @@ import {
 import { getMobileBootstrapPayload, type MobileBootstrapHomeSummary } from "@/lib/mobile/bootstrap";
 import { evaluateFlagsForUser } from "@/lib/feature-flags/service";
 import { getAnalyticsClientInfo } from "@/lib/analytics/client-info";
+import { buildServerInviteAddress } from "@/lib/servers/server-public-profile-service";
+import {
+  DEFAULT_SERVER_USER_SETTINGS,
+  listServerUserSettingsWithDatabase,
+} from "@/lib/workspace/server-user-settings-service";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -64,8 +69,13 @@ export async function GET(request: Request) {
                 },
                 iconUrl: true,
                 id: true,
+                // 6c's identity row prints `whispr.gg/<vanity ?? invite>`. Both
+                // columns ride the query the rail already runs so opening the
+                // menu costs nothing.
+                inviteCode: true,
                 name: true,
                 shortName: true,
+                vanityUrlCode: true,
               },
             },
           },
@@ -148,10 +158,15 @@ export async function GET(request: Request) {
     }
 
     const recentServerIds = recentServerMemberships.map((membership) => membership.server.id);
-    const { mentionCounts, unreadCounts } = await timing.measure("db", () =>
-      getServerUnreadAndMentionCounts(userId, recentServerIds, {
-        unreadCountCap: MOBILE_UNREAD_COUNT_CAP,
-      }),
+    // A0.3: one `IN` query for every server's preferences, not one per server —
+    // the rail can hold 50 of them and this is the cold-start path.
+    const [{ mentionCounts, unreadCounts }, serverUserSettings] = await timing.measure("db", () =>
+      Promise.all([
+        getServerUnreadAndMentionCounts(userId, recentServerIds, {
+          unreadCountCap: MOBILE_UNREAD_COUNT_CAP,
+        }),
+        listServerUserSettingsWithDatabase(prisma, userId, recentServerIds),
+      ]),
     );
 
     const home: MobileBootstrapHomeSummary = {
@@ -179,17 +194,28 @@ export async function GET(request: Request) {
         unreadCount: Math.max(0, dmUnreadAggregate._sum.unreadCount ?? 0),
       },
       servers: {
-        recent: recentServerMemberships.map((membership) => ({
-          channelCount: membership.server._count.channels,
-          iconUrl: normalizeMobileImageUrl(membership.server.iconUrl),
-          id: membership.server.id,
-          joinedAt: membership.joinedAt.toISOString(),
-          memberCount: membership.server._count.members,
-          mentionCount: mentionCounts.get(membership.server.id) ?? 0,
-          name: membership.server.name,
-          shortName: membership.server.shortName,
-          unreadCount: unreadCounts.get(membership.server.id) ?? 0,
-        })),
+        recent: recentServerMemberships.map((membership) => {
+          // No row means the member never changed anything, which is the
+          // default rather than a miss (the row is created on first write).
+          const settings =
+            serverUserSettings.get(membership.server.id) ?? DEFAULT_SERVER_USER_SETTINGS;
+
+          return {
+            channelCount: membership.server._count.channels,
+            iconUrl: normalizeMobileImageUrl(membership.server.iconUrl),
+            id: membership.server.id,
+            inviteAddress: buildServerInviteAddress(membership.server),
+            joinedAt: membership.joinedAt.toISOString(),
+            memberCount: membership.server._count.members,
+            mentionCount: mentionCounts.get(membership.server.id) ?? 0,
+            muted: settings.muted,
+            name: membership.server.name,
+            notificationLevel: settings.notificationLevel,
+            shortName: membership.server.shortName,
+            starred: settings.starred,
+            unreadCount: unreadCounts.get(membership.server.id) ?? 0,
+          };
+        }),
         totalCount: serverTotalCount,
       },
     };

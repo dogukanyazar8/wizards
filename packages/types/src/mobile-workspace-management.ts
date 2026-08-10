@@ -7,6 +7,8 @@ import {
   CreateInviteSchema,
   CreateServerSchema,
   DeleteServerSchema,
+  ServerScheduledEventSchema,
+  ServerUserSettingsSchema,
   UpdateCategorySchema,
   UpdateChannelFieldsSchema,
   UpdateServerFieldsSchema,
@@ -178,6 +180,12 @@ export const MobileServerMemberParamsSchema = z
     serverId: MobileResourceIdSchema,
   })
   .strict();
+export const MobileServerEventParamsSchema = z
+  .object({
+    eventId: MobileResourceIdSchema,
+    serverId: MobileResourceIdSchema,
+  })
+  .strict();
 export const MobileChannelIdParamsSchema = z.object({ channelId: MobileResourceIdSchema }).strict();
 export const MobileServerRoleParamsSchema = z
   .object({ roleId: MobileResourceIdSchema, serverId: MobileResourceIdSchema })
@@ -228,6 +236,37 @@ export const MobileServerUpdateRequestSchema = MobileServerUpdateFieldsSchema.re
 export const MobileServerDeleteRequestSchema = DeleteServerSchema.extend({
   confirmationName: DeleteServerSchema.shape.confirmationName.max(64),
 }).strict();
+
+/**
+ * 6d event management. The bodies are the shared `@wizards/types` contracts
+ * verbatim -- the mobile form and the web admin surface write the same event,
+ * so a mobile-only variant of the body would be two contracts for one table.
+ */
+export const MobileServerScheduledEventsQuerySchema = z
+  .object({
+    includePast: z
+      .enum(["true", "false"])
+      .optional()
+      .transform((value) => value === "true"),
+  })
+  .strict();
+export const MobileServerScheduledEventsResponseSchema = z
+  .object({ events: z.array(ServerScheduledEventSchema) })
+  .strict();
+export const MobileServerScheduledEventResponseSchema = z
+  .object({ event: ServerScheduledEventSchema })
+  .strict();
+/**
+ * The request bodies themselves are not re-exported under a `Mobile` name: an
+ * alias would only be a second name for the same object, and the coverage
+ * assertion would then demand a duplicate fixture for it. Routes import
+ * `CreateServerScheduledEventSchema` and friends straight from `@wizards/types`.
+ */
+
+/** 6c writes `starred`/`muted`/`notificationLevel` through this one body. */
+export const MobileServerUserSettingsResponseSchema = z
+  .object({ settings: ServerUserSettingsSchema })
+  .strict();
 
 export const MobileServerInviteCreateRequestSchema = CreateInviteSchema.extend({
   channelId: MobileResourceIdSchema.nullable().optional(),
@@ -544,6 +583,19 @@ export type MobilePresenceUpdateEvent = z.infer<typeof MobilePresenceUpdateEvent
 export type MobileUserProfileUpdatedEvent = z.infer<typeof MobileUserProfileUpdatedEventSchema>;
 export type MobileServerIdParams = z.infer<typeof MobileServerIdParamsSchema>;
 export type MobileServerCategoryParams = z.infer<typeof MobileServerCategoryParamsSchema>;
+export type MobileServerEventParams = z.infer<typeof MobileServerEventParamsSchema>;
+export type MobileServerScheduledEventsQuery = z.infer<
+  typeof MobileServerScheduledEventsQuerySchema
+>;
+export type MobileServerScheduledEventsResponse = z.infer<
+  typeof MobileServerScheduledEventsResponseSchema
+>;
+export type MobileServerScheduledEventResponse = z.infer<
+  typeof MobileServerScheduledEventResponseSchema
+>;
+export type MobileServerUserSettingsResponse = z.infer<
+  typeof MobileServerUserSettingsResponseSchema
+>;
 export type MobileServerChannelParams = z.infer<typeof MobileServerChannelParamsSchema>;
 export type MobileServerMemberParams = z.infer<typeof MobileServerMemberParamsSchema>;
 export type MobileChannelIdParams = z.infer<typeof MobileChannelIdParamsSchema>;

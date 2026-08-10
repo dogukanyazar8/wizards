@@ -33,6 +33,8 @@ function buildOnlinePresenceRedis() {
       return 1;
     },
     scard: async (key) => sets.get(key)?.size ?? 0,
+    smismember: async (key, ...members) =>
+      members.map((member) => (sets.get(key)?.has(member) ? 1 : 0)),
     srem: async (key, member) => {
       sets.get(key)?.delete(member);
       return 1;

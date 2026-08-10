@@ -19,8 +19,19 @@ export const SERVER_DISCOVERY_SELECT = {
   memberCount: true,
   name: true,
   shortName: true,
+  tags: true,
   type: true,
 } satisfies Prisma.ServerSelect;
+
+/**
+ * A tag is a slug, so the search term only has to be lowercased to be
+ * comparable. 6d sends the tag's own text when a chip is tapped, which makes
+ * this an exact array-containment hit (`tags @> ARRAY[term]`, GIN-served);
+ * free typing still falls back to the name `ILIKE` it always had.
+ */
+export function normalizeServerDiscoveryTagQuery(query: string): string {
+  return query.trim().toLowerCase();
+}
 
 export type ServerDiscoveryCardSource = Prisma.ServerGetPayload<{
   select: typeof SERVER_DISCOVERY_SELECT;
@@ -46,6 +57,7 @@ export function buildServerDiscoveryCard(
     name: server.name,
     onlineCount,
     shortName: server.shortName,
+    tags: server.tags,
     type: server.type as ServerType,
     verified: server.features.includes("VERIFIED"),
   };
@@ -144,9 +156,10 @@ async function queryDeepCursorDiscoveryIds(
     : Prisma.sql`NOT ("features" @> ARRAY[${SERVER_DISCOVERY_FEATURED_FLAG}]::text[])`;
   // Deliberately the same (unescaped) `ILIKE '%value%'` shape Prisma's own
   // `contains` + `insensitive` filter compiles to below -- not a new or
-  // different search behavior, just the same filter expressed as raw SQL.
+  // different search behavior, just the same filter expressed as raw SQL. The
+  // tag arm mirrors the typed branch's `tags: { has: ... }`.
   const searchSql = trimmedQuery
-    ? Prisma.sql`AND "name" ILIKE ${`%${trimmedQuery}%`}`
+    ? Prisma.sql`AND ("name" ILIKE ${`%${trimmedQuery}%`} OR "tags" @> ARRAY[${normalizeServerDiscoveryTagQuery(trimmedQuery)}]::text[])`
     : Prisma.empty;
 
   const rows = await database.$queryRaw<DiscoveryIdRow[]>(Prisma.sql`
@@ -220,7 +233,14 @@ async function fetchDiscoveryPhaseRows(
       where: {
         discoverable: true,
         isPublic: true,
-        ...(trimmedQuery ? { name: { contains: trimmedQuery, mode: "insensitive" as const } } : {}),
+        ...(trimmedQuery
+          ? {
+              OR: [
+                { name: { contains: trimmedQuery, mode: "insensitive" as const } },
+                { tags: { has: normalizeServerDiscoveryTagQuery(trimmedQuery) } },
+              ],
+            }
+          : {}),
         ...(featured
           ? { features: { has: SERVER_DISCOVERY_FEATURED_FLAG } }
           : { NOT: { features: { has: SERVER_DISCOVERY_FEATURED_FLAG } } }),

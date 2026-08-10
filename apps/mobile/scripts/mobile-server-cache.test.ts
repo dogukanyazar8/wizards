@@ -12,7 +12,9 @@ import { getMobileWorkspaceQueryOptions } from "../src/query/mobile-workspace-qu
 import {
   confirmMobileServerIconPersisted,
   patchMobileServerIconCaches,
+  patchMobileServerUserSettingsCaches,
 } from "../src/query/mobile-server-cache";
+import { runMobileServerUserSettingsUpdate } from "../src/query/mobile-server-user-settings";
 
 const capabilities = {
   canClearHistory: false,
@@ -65,22 +67,30 @@ function createBootstrap(): MobileBootstrapPayload {
             channelCount: 1,
             iconUrl: "https://cdn.example.test/old-server-1.png",
             id: "server-1",
+            inviteAddress: null,
             joinedAt: "2026-07-13T12:00:00.000Z",
             memberCount: 1,
             mentionCount: 0,
+            muted: false,
             name: "First",
+            notificationLevel: "all",
             shortName: "F",
+            starred: false,
             unreadCount: 0,
           },
           {
             channelCount: 1,
             iconUrl: "https://cdn.example.test/old-server-2.png",
             id: "server-2",
+            inviteAddress: null,
             joinedAt: "2026-07-13T12:00:00.000Z",
             memberCount: 1,
             mentionCount: 0,
+            muted: false,
             name: "Second",
+            notificationLevel: "all",
             shortName: "S",
+            starred: false,
             unreadCount: 0,
           },
         ],
@@ -296,5 +306,239 @@ describe("mobile server icon cache", () => {
     });
 
     assert.equal(queryClient.getQueryData(mobileQueryKeys.bootstrap()), bootstrap);
+  });
+});
+
+describe("mobile server user settings cache", () => {
+  afterEach(() => {
+    for (const queryClient of testQueryClients) {
+      queryClient.clear();
+    }
+    testQueryClients.clear();
+  });
+
+  function createProfile(serverId: string) {
+    return {
+      muted: false,
+      notificationLevel: "all" as const,
+      serverId,
+      starred: false,
+    };
+  }
+
+  // 6c writes one endpoint and two caches: the rail summary the sheet reads its
+  // toggles from, and the profile read model 6d/6e render.
+  it("writes the patch into the bootstrap summary and the profile read model", () => {
+    const queryClient = createMobileTestQueryClient();
+    const bootstrap = createBootstrap();
+    queryClient.setQueryData(mobileQueryKeys.bootstrap(), bootstrap);
+    queryClient.setQueryData(
+      mobileQueryKeys.aboutServerProfile("server-1"),
+      createProfile("server-1"),
+    );
+
+    patchMobileServerUserSettingsCaches({
+      queryClient,
+      serverId: "server-1",
+      settings: { notificationLevel: "mentions", starred: true },
+    });
+
+    const nextBootstrap = queryClient.getQueryData<MobileBootstrapPayload>(
+      mobileQueryKeys.bootstrap(),
+    );
+
+    assert.equal(nextBootstrap?.home.servers.recent[0]?.starred, true);
+    assert.equal(nextBootstrap?.home.servers.recent[0]?.notificationLevel, "mentions");
+    // The patch carried neither, so neither moved: "sessize al" and "bildirim
+    // ayarları" are separate concepts and one must not reset the other.
+    assert.equal(nextBootstrap?.home.servers.recent[0]?.muted, false);
+    assert.equal(nextBootstrap?.home.servers.recent[1], bootstrap.home.servers.recent[1]);
+
+    assert.deepEqual(queryClient.getQueryData(mobileQueryKeys.aboutServerProfile("server-1")), {
+      muted: false,
+      notificationLevel: "mentions",
+      serverId: "server-1",
+      starred: true,
+    });
+  });
+
+  it("leaves an untouched server and an absent profile entry alone", () => {
+    const queryClient = createMobileTestQueryClient();
+    const bootstrap = createBootstrap();
+    queryClient.setQueryData(mobileQueryKeys.bootstrap(), bootstrap);
+
+    patchMobileServerUserSettingsCaches({
+      queryClient,
+      serverId: "server-2",
+      settings: { muted: true },
+    });
+
+    const nextBootstrap = queryClient.getQueryData<MobileBootstrapPayload>(
+      mobileQueryKeys.bootstrap(),
+    );
+
+    assert.equal(nextBootstrap?.home.servers.recent[0], bootstrap.home.servers.recent[0]);
+    assert.equal(nextBootstrap?.home.servers.recent[1]?.muted, true);
+    assert.equal(
+      queryClient.getQueryData(mobileQueryKeys.aboutServerProfile("server-2")),
+      undefined,
+    );
+  });
+
+  it("returns the same bootstrap object when nothing actually changes", () => {
+    const queryClient = createMobileTestQueryClient();
+    const bootstrap = createBootstrap();
+    queryClient.setQueryData(mobileQueryKeys.bootstrap(), bootstrap);
+
+    patchMobileServerUserSettingsCaches({
+      queryClient,
+      serverId: "server-1",
+      settings: { starred: false },
+    });
+
+    assert.equal(queryClient.getQueryData(mobileQueryKeys.bootstrap()), bootstrap);
+  });
+});
+
+describe("runMobileServerUserSettingsUpdate", () => {
+  afterEach(() => {
+    for (const queryClient of testQueryClients) {
+      queryClient.clear();
+    }
+    testQueryClients.clear();
+  });
+
+  function settingsClient(respond: (body: unknown) => Promise<unknown>): {
+    client: MobileApiClient;
+    bodies: unknown[];
+  } {
+    const bodies: unknown[] = [];
+    return {
+      bodies,
+      client: {
+        requestJson: (_path: string, init?: { body?: unknown }) => {
+          bodies.push(init?.body);
+          return respond(init?.body);
+        },
+      } as unknown as MobileApiClient,
+    };
+  }
+
+  function respondWith(settings: {
+    muted: boolean;
+    notificationLevel: "all" | "mentions" | "none";
+    starred: boolean;
+  }) {
+    return Promise.resolve({ settings: { ...settings, mutedUntil: null } });
+  }
+
+  it("paints the toggle before the request and publishes what the server answered", async () => {
+    const queryClient = createMobileTestQueryClient();
+    queryClient.setQueryData(mobileQueryKeys.bootstrap(), createBootstrap());
+    const { bodies, client } = settingsClient(() =>
+      respondWith({ muted: false, notificationLevel: "all", starred: true }),
+    );
+
+    const pending = runMobileServerUserSettingsUpdate({
+      client,
+      inFlight: new Set<string>(),
+      onError: () => assert.fail("a successful write must not report an error"),
+      queryClient,
+      serverId: "server-1",
+      settings: { starred: true },
+    });
+
+    // Optimistic: the star is already on while the request is still open.
+    assert.equal(
+      queryClient.getQueryData<MobileBootstrapPayload>(mobileQueryKeys.bootstrap())?.home.servers
+        .recent[0]?.starred,
+      true,
+    );
+
+    await pending;
+
+    assert.deepEqual(bodies, [{ starred: true }]);
+    assert.equal(
+      queryClient.getQueryData<MobileBootstrapPayload>(mobileQueryKeys.bootstrap())?.home.servers
+        .recent[0]?.starred,
+      true,
+    );
+  });
+
+  // Acceptance 3: a double tap is one request, not two racing ones.
+  it("drops a second press for the same preference while the first is in flight", async () => {
+    const queryClient = createMobileTestQueryClient();
+    queryClient.setQueryData(mobileQueryKeys.bootstrap(), createBootstrap());
+    const inFlight = new Set<string>();
+    const { bodies, client } = settingsClient(() =>
+      respondWith({ muted: true, notificationLevel: "all", starred: false }),
+    );
+
+    const first = runMobileServerUserSettingsUpdate({
+      client,
+      inFlight,
+      onError: () => undefined,
+      queryClient,
+      serverId: "server-1",
+      settings: { muted: true },
+    });
+    await runMobileServerUserSettingsUpdate({
+      client,
+      inFlight,
+      onError: () => undefined,
+      queryClient,
+      serverId: "server-1",
+      settings: { muted: false },
+    });
+    await first;
+
+    assert.deepEqual(bodies, [{ muted: true }]);
+    // The guard is per preference, so the star is still free to move.
+    await runMobileServerUserSettingsUpdate({
+      client,
+      inFlight,
+      onError: () => undefined,
+      queryClient,
+      serverId: "server-1",
+      settings: { starred: true },
+    });
+    assert.equal(bodies.length, 2);
+  });
+
+  it("rolls the optimistic write back and reports the failure", async () => {
+    const queryClient = createMobileTestQueryClient();
+    queryClient.setQueryData(mobileQueryKeys.bootstrap(), createBootstrap());
+    queryClient.setQueryData(mobileQueryKeys.aboutServerProfile("server-1"), {
+      muted: false,
+      notificationLevel: "all",
+      serverId: "server-1",
+      starred: false,
+    });
+    let errors = 0;
+    const { client } = settingsClient(() => Promise.reject(new Error("offline")));
+
+    await runMobileServerUserSettingsUpdate({
+      client,
+      inFlight: new Set<string>(),
+      onError: () => {
+        errors += 1;
+      },
+      queryClient,
+      serverId: "server-1",
+      settings: { notificationLevel: "none" },
+    });
+
+    assert.equal(errors, 1);
+    assert.equal(
+      queryClient.getQueryData<MobileBootstrapPayload>(mobileQueryKeys.bootstrap())?.home.servers
+        .recent[0]?.notificationLevel,
+      "all",
+    );
+    assert.deepEqual(queryClient.getQueryData(mobileQueryKeys.aboutServerProfile("server-1")), {
+      muted: false,
+      notificationLevel: "all",
+      serverId: "server-1",
+      starred: false,
+    });
   });
 });

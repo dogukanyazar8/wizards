@@ -20,6 +20,7 @@ export type ServerOnlinePresenceRedis = {
   expire: (key: string, seconds: number) => Promise<unknown>;
   sadd: (key: string, member: string) => Promise<unknown>;
   scard: (key: string) => Promise<number>;
+  smismember: (key: string, ...members: string[]) => Promise<number[]>;
   srem: (key: string, member: string) => Promise<unknown>;
   status: Redis["status"];
 };
@@ -71,6 +72,35 @@ export async function countServerOnlineMembers(
   serverId: string,
 ): Promise<number> {
   return redis.scard(buildServerOnlineKey(serverId));
+}
+
+/**
+ * Which of these users are in the same `server:<id>:online` set the count comes
+ * from. The profile screen prints "N çevrimiçi" and a per-admin presence dot on
+ * the same card; sourcing the dot from `AppSession.lastSeenAt` instead let the
+ * two contradict each other ("3 çevrimiçi" over an all-offline admin list).
+ *
+ * One `SMISMEMBER` for the whole (capped) admin list, and fails open exactly
+ * like `getOnlineServerMemberCount`: a not-ready or erroring Redis reports
+ * nobody online, which is the same answer the count degrades to. Consistently
+ * wrong beats mutually contradictory.
+ */
+export async function readServerOnlineMembers(
+  redis: ServerOnlinePresenceRedis,
+  serverId: string,
+  userIds: readonly string[],
+): Promise<ReadonlySet<string>> {
+  if (userIds.length === 0 || redis.status !== "ready") {
+    return new Set();
+  }
+
+  try {
+    const flags = await redis.smismember(buildServerOnlineKey(serverId), ...userIds);
+
+    return new Set(userIds.filter((_userId, index) => flags[index] === 1));
+  } catch {
+    return new Set();
+  }
 }
 
 export type ServerOnlinePresencePipeline = {

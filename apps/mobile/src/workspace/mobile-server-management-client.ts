@@ -133,6 +133,11 @@ export function buildMobileServerMembersPath(input: {
   return `${buildMobileServerPath(input)}/members?${params.toString()}`;
 }
 
+/** 6c "Sunucudan ayrıl": the session says who leaves, the path says where from. */
+export function buildMobileServerLeavePath(input: { serverId: string }): string {
+  return `${buildMobileServerPath(input)}/members/me`;
+}
+
 export function buildMobileServerRolesPath(input: { serverId: string }): string {
   return `${buildMobileServerPath(input)}/roles`;
 }
@@ -300,6 +305,8 @@ export type UpdateMobileServerInput = {
   name?: string;
   serverId: string;
   shortName?: string | null;
+  /** 6c §E discovery tags; validated by `ServerTagsSchema`, never here. */
+  tags?: readonly string[];
 };
 
 export async function updateMobileServer(
@@ -553,6 +560,23 @@ export async function kickMobileMember(
 ): Promise<MobileMutationSuccessResponse> {
   const params = MobileServerMemberParamsSchema.parse(input);
   const payload = await client.requestJson<unknown>(buildMobileServerMemberPath(params), {
+    method: "DELETE",
+  });
+
+  return MobileMutationSuccessResponseSchema.parse(payload);
+}
+
+/**
+ * The endpoint takes no body — a body would be a way to name somebody else —
+ * and every rule (owner refusal, member-count decrement, socket detach) stays
+ * on the server, shared with the web client.
+ */
+export async function leaveMobileServer(
+  client: MobileApiClient,
+  input: { serverId: string },
+): Promise<MobileMutationSuccessResponse> {
+  const params = MobileServerIdParamsSchema.parse(input);
+  const payload = await client.requestJson<unknown>(buildMobileServerLeavePath(params), {
     method: "DELETE",
   });
 

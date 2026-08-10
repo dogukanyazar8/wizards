@@ -146,6 +146,23 @@ describe("mobile workspace client", () => {
     );
   });
 
+  // A search hit opens the channel at the message. The anchor only applies to
+  // the first read, so a cursor page never carries it.
+  it("asks for a window around a message, and drops the anchor once paging back", () => {
+    assert.equal(
+      buildMobileChannelMessagesPath({ around: "message-9", channelId: "channel-1" }),
+      `/api/v1/mobile/channels/channel-1/messages?limit=${MOBILE_CHANNEL_MESSAGES_LIMIT}&around=message-9`,
+    );
+    assert.equal(
+      buildMobileChannelMessagesPath({
+        around: "message-9",
+        channelId: "channel-1",
+        cursor: "cursor-1",
+      }),
+      `/api/v1/mobile/channels/channel-1/messages?limit=${MOBILE_CHANNEL_MESSAGES_LIMIT}&cursor=cursor-1`,
+    );
+  });
+
   it("builds an encoded mobile channel message send endpoint path", () => {
     assert.equal(
       buildMobileChannelSendMessagePath({ channelId: "channel/id 1" }),

@@ -53,6 +53,7 @@ import {
   MobileServerCreateRequestSchema,
   MobileServerCreateResponseSchema,
   MobileServerDeleteRequestSchema,
+  MobileServerEventParamsSchema,
   MobileServerIdParamsSchema,
   MobileServerInviteCreateRequestSchema,
   MobileServerInviteCreateResponseSchema,
@@ -67,13 +68,33 @@ import {
   MobileServerMembersResponseSchema,
   MobileServerMembershipAddedEventSchema,
   MobileServerMembershipRemovedEventSchema,
+  MobileServerScheduledEventResponseSchema,
+  MobileServerScheduledEventsQuerySchema,
+  MobileServerScheduledEventsResponseSchema,
   MobileServerSettingsUpdatedEventSchema,
   MobileServerUpdateRequestSchema,
+  MobileServerUserSettingsResponseSchema,
   MobileUserProfileUpdatedEventSchema,
 } from "./mobile-workspace-management";
 import { assertAccepts, assertRejects, assertSchemaBehaviorCoverage } from "./schema-test-helpers";
 
 const resourceId = "resource-1";
+const scheduledEvent = {
+  attendeeCount: 3,
+  channelId: "c9",
+  channelName: "live-room",
+  description: null,
+  entityType: "VOICE" as const,
+  externalLocation: null,
+  id: "e1",
+  interestedCount: 12,
+  name: "Topluluk buluşması",
+  scheduledEndAt: null,
+  scheduledStartAt: "2026-08-11T18:00:00.000Z",
+  serverId: "s1",
+  status: "SCHEDULED" as const,
+  viewerInterested: false,
+};
 const capabilities = {
   canClearHistory: true,
   canDeleteServer: true,
@@ -205,6 +226,35 @@ describe("mobile workspace management schemas", () => {
         schema: MobileAssignableRoleSchema,
         valid: assignableRole,
         invalid: { ...assignableRole, permissions: ["ADMINISTRATOR"] },
+      },
+      MobileServerEventParamsSchema: {
+        schema: MobileServerEventParamsSchema,
+        valid: { eventId: "e1", serverId: "s1" },
+        invalid: { eventId: "e1" },
+      },
+      MobileServerScheduledEventsQuerySchema: {
+        schema: MobileServerScheduledEventsQuerySchema,
+        valid: { includePast: "true" },
+        invalid: { includePast: true },
+      },
+      MobileServerScheduledEventsResponseSchema: {
+        schema: MobileServerScheduledEventsResponseSchema,
+        valid: { events: [scheduledEvent] },
+        invalid: { events: [{ ...scheduledEvent, status: "CANCELED" }] },
+      },
+      MobileServerScheduledEventResponseSchema: {
+        schema: MobileServerScheduledEventResponseSchema,
+        valid: { event: scheduledEvent },
+        invalid: { event: scheduledEvent, extra: 1 },
+      },
+      MobileServerUserSettingsResponseSchema: {
+        schema: MobileServerUserSettingsResponseSchema,
+        valid: {
+          settings: { muted: false, mutedUntil: null, notificationLevel: "all", starred: true },
+        },
+        invalid: {
+          settings: { muted: false, mutedUntil: null, notificationLevel: "ALL", starred: true },
+        },
       },
       MobileAssignableRolesResponseSchema: {
         schema: MobileAssignableRolesResponseSchema,

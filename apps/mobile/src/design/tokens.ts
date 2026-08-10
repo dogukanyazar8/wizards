@@ -47,6 +47,26 @@ export const mobileSpacing = {
   row: 12,
 } as const;
 
+/**
+ * 6f server-name rule. Four surfaces print a server name — the 6a header, the
+ * 6b/6c card row, the 6d profile title and the 6e sticky header — and every one
+ * of them must clamp instead of truncating. The ramp lives here so
+ * `getMobileServerNameLayout` and `theme.workspace`/`theme.serverProfile` read
+ * the same numbers rather than each carrying a copy that can drift.
+ *
+ * `letterSpacing` is px, not em (React Native): `-.01em @19px = -0.19`,
+ * `-.02em @22px = -0.44`. The card and the sticky header carry no tracking in
+ * the handoff, so they stay at 0. The sticky header is the one line-height the
+ * handoff leaves open (it is a single, non-wrapping line); it follows the
+ * card's 1.2 ratio.
+ */
+export const mobileServerNameLayout = {
+  card: { fontSize: 15.5, letterSpacing: 0, lineHeight: 18.6, numberOfLines: 2 },
+  header: { fontSize: 19, letterSpacing: -0.19, lineHeight: 22.4, numberOfLines: 2 },
+  profile: { fontSize: 22, letterSpacing: -0.44, lineHeight: 25.3, numberOfLines: 2 },
+  sticky: { fontSize: 15, letterSpacing: 0, lineHeight: 18, numberOfLines: 1 },
+} as const;
+
 /** Measured from the canonical 390x844 reference extractor; do not normalize to the spacing scale. */
 export const mobileNavigationMetrics = {
   miniVoiceBarToTabBarGap: 14,

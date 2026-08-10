@@ -24,6 +24,7 @@ function pageFixture(): ServerDiscoveryPage {
         name: "Whispr Topluluk",
         onlineCount: 1_200,
         shortName: "WT",
+        tags: ["sohbet"],
         type: "COMMUNITY",
         verified: true,
       },

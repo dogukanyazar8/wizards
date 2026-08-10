@@ -382,20 +382,20 @@ describe("Phase 0 Maestro testID contract", () => {
     );
     assert.match(
       phase4FlowSource,
-      /id:\s*"mobile-server-create-submit"[\s\S]{0,300}?id:\s*"mobile-server-create-finish"[\s\S]{0,200}?id:\s*"mobile-server-settings-open-\.\*"/,
+      /id:\s*"mobile-server-create-submit"[\s\S]{0,300}?id:\s*"mobile-server-create-finish"[\s\S]{0,200}?id:\s*"mobile-workspace-server-menu-open"[\s\S]{0,120}?id:\s*"mobile-server-settings-open-\.\*"/,
     );
     assert.equal(phase4FlowSource.match(/- tapOn:\s*"\.\*: Phase4 Maestro UAT"/g)?.length, 3);
     assert.match(
       phase4FlowSource,
-      /id:\s*"mobile-server-create-finish"[\s\S]{0,220}?tapOn:\s*"\.\*: Phase4 Maestro UAT"[\s\S]{0,260}?id:\s*"mobile-server-invite-share-\.\*"/,
+      /id:\s*"mobile-server-create-finish"[\s\S]{0,220}?tapOn:\s*"\.\*: Phase4 Maestro UAT"[\s\S]{0,120}?id:\s*"mobile-workspace-server-menu-open"[\s\S]{0,260}?id:\s*"mobile-server-invite-share-\.\*"/,
     );
     assert.match(
       phase4FlowSource,
-      /mobile-server-invite-share-\.\*"[\s\S]{0,420}?tapOn:\s*"\.\*: Phase4 Maestro UAT"[\s\S]{0,220}?id:\s*"mobile-server-settings-open-\.\*"[\s\S]{0,180}?id:\s*"mobile-server-settings-screen"[\s\S]{0,100}?assertVisible:\s*"Phase4 Maestro UAT"/,
+      /mobile-server-invite-share-\.\*"[\s\S]{0,420}?tapOn:\s*"\.\*: Phase4 Maestro UAT"[\s\S]{0,120}?id:\s*"mobile-workspace-server-menu-open"[\s\S]{0,220}?id:\s*"mobile-server-settings-open-\.\*"[\s\S]{0,180}?id:\s*"mobile-server-settings-screen"[\s\S]{0,100}?assertVisible:\s*"Phase4 Maestro UAT"/,
     );
     assert.match(
       phase4FlowSource,
-      /tapOn:\s*"Koyu\|Dark"[\s\S]{0,420}?tapOn:\s*"\.\*: Phase4 Maestro UAT"[\s\S]{0,220}?id:\s*"mobile-server-settings-open-\.\*"[\s\S]{0,180}?id:\s*"mobile-server-settings-screen"[\s\S]{0,100}?assertVisible:\s*"Phase4 Maestro UAT"/,
+      /tapOn:\s*"Koyu\|Dark"[\s\S]{0,420}?tapOn:\s*"\.\*: Phase4 Maestro UAT"[\s\S]{0,120}?id:\s*"mobile-workspace-server-menu-open"[\s\S]{0,220}?id:\s*"mobile-server-settings-open-\.\*"[\s\S]{0,180}?id:\s*"mobile-server-settings-screen"[\s\S]{0,100}?assertVisible:\s*"Phase4 Maestro UAT"/,
     );
     assert.match(
       phase4FlowSource,
@@ -425,7 +425,7 @@ describe("Phase 0 Maestro testID contract", () => {
       "mobile-channel-create-open",
       "mobile-channel-type-text",
       "mobile-channel-save",
-      "mobile-server-members-open-.*",
+      "mobile-server-members-row",
       "mobile-server-icon-picker",
       "mobile-server-delete-confirm-input",
       "mobile-server-delete-confirm-confirm",
@@ -448,7 +448,12 @@ describe("Phase 0 Maestro testID contract", () => {
     assert.doesNotMatch(phase4FlowSource, /claimId|inviteCode|MAESTRO_UAT_(?:EMAIL|PASSWORD)/);
 
     const productionContracts = [
-      ["src/app/screens/workspace-browser.tsx", "mobile-server-settings-open-${activeServerId}"],
+      // 6a moved the settings entry out of the header and into the "..." menu.
+      ["src/app/screens/workspace-header-row.tsx", "mobile-workspace-server-menu-open"],
+      [
+        "src/app/screens/workspace-server-menu-sheet.tsx",
+        "mobile-server-settings-open-${serverId}",
+      ],
       ["src/workspace/mobile-server-settings-screen.tsx", "mobile-server-settings-screen"],
       ["src/workspace/mobile-server-settings-screen.tsx", "mobile-server-icon-picker"],
       ["src/workspace/mobile-workspace-editor-sheets.tsx", "mobile-category-editor-sheet"],

@@ -391,6 +391,8 @@ describe("workspace service characterization", { concurrency: false }, () => {
             },
           ],
           shortName: null,
+          tags: [],
+          userServerSettings: [],
         }),
         restores,
       );
@@ -450,6 +452,8 @@ describe("workspace service characterization", { concurrency: false }, () => {
             name: "Guild",
             ownerId: "owner",
             shortName: null,
+            tags: [],
+            userServerSettings: [],
           };
         },
         restores,
@@ -549,6 +553,8 @@ describe("workspace service characterization", { concurrency: false }, () => {
           name: "Guild",
           ownerId: "owner",
           shortName: null,
+          tags: [],
+          userServerSettings: [],
         }),
         restores,
       );
@@ -615,6 +621,8 @@ describe("workspace service characterization", { concurrency: false }, () => {
           name: "Guild",
           ownerId: "owner",
           shortName: null,
+          tags: [],
+          userServerSettings: [],
         }),
         restores,
       );
@@ -665,6 +673,8 @@ describe("workspace service characterization", { concurrency: false }, () => {
             name: "Guild",
             ownerId: "owner",
             shortName: null,
+            tags: [],
+            userServerSettings: [],
           };
         },
         restores,
@@ -1356,6 +1366,8 @@ describe("workspace service characterization", { concurrency: false }, () => {
             },
           ],
           shortName: null,
+          tags: [],
+          userServerSettings: [],
         }),
         restores,
       );

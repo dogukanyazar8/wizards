@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import type { MessageAttachment, UploadedAttachmentInput } from "@wizards/types";
 
 import type { MobileApiClient } from "../../api/mobile-api-client";
@@ -12,7 +12,7 @@ import {
   withMobileFailedSendOverlay,
 } from "../../query/mobile-failed-send-registry";
 import {
-  useMobileChannelMessagesQuery,
+  getMobileChannelMessagesQueryOptions,
   useMobileChannelPinsQuery,
 } from "../../query/mobile-message-queries";
 import { loadMoreMobileInfinitePages } from "../../query/mobile-query-pages";
@@ -42,6 +42,8 @@ const EMPTY_PINNED_MESSAGES: readonly never[] = [];
 
 /** Route-owned channel transcript, cache lifecycle and mutations. */
 export function useMobileChannelRouteState(input: {
+  /** Set by a search hit: opens the channel at this message, not at its tail. */
+  readonly anchorMessageId?: string | null;
   readonly apiClient: MobileApiClient;
   readonly channelId: string;
   readonly currentUser: MobileSessionUser | null;
@@ -51,17 +53,30 @@ export function useMobileChannelRouteState(input: {
 }) {
   const queryClient = useQueryClient();
   const userId = input.currentUser?.id ?? null;
+  const anchorMessageId = input.anchorMessageId ?? null;
+  const isAnchored = anchorMessageId !== null;
   const hydrationReady = useMobileMessageStreamHydration({
-    enabled: input.isSignedIn,
+    // An anchored window is a slice of history: the persisted stream holds the
+    // channel's tail, so waiting for it (or writing over it) would be wrong.
+    enabled: input.isSignedIn && !isAnchored,
     queryClient,
     scope: "channel",
     targetId: input.channelId,
     userId,
   });
-  const query = useMobileChannelMessagesQuery(
-    input.apiClient,
-    input.channelId,
-    input.isSignedIn && hydrationReady,
+  /**
+   * One hook, two option sets. The anchored read is a sibling cache entry — the
+   * realtime bridge patches the live key and must not be taught a second shape
+   * of the same transcript — and swapping the options is what makes going back
+   * to the live end a cache hit rather than a refetch.
+   */
+  const query = useInfiniteQuery(
+    getMobileChannelMessagesQueryOptions(
+      input.apiClient,
+      input.channelId,
+      input.isSignedIn && (isAnchored || hydrationReady),
+      anchorMessageId,
+    ),
   );
   const navigationSampleIdRef = useRef<string | null>(null);
   useEffect(() => {
@@ -80,7 +95,7 @@ export function useMobileChannelRouteState(input: {
   );
   useMobileMessageStreamPersistence({
     data: query.data,
-    enabled: input.isSignedIn,
+    enabled: input.isSignedIn && !isAnchored,
     error: query.error,
     hydrateOnMount: false,
     queryClient,
@@ -310,6 +325,13 @@ export function useMobileChannelRouteState(input: {
     firstUnreadMessageId,
     isMessageActionPending: isEditPending || isDeletePending,
     isReactionPending,
+    /**
+     * The reader is parked mid-history and messages exist past the end of this
+     * window, so the transcript has to offer a way back to the live end. Read
+     * from the first page: that is the anchored window itself; every page after
+     * it walks backwards.
+     */
+    isViewingHistory: isAnchored && query.data?.pages[0]?.hasNewer === true,
     loadMoreMessages,
     messagesState,
     pinMessage,

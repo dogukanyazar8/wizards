@@ -1,7 +1,4 @@
-import {
-  MessageSearchResponseSchema,
-  type MessageSearchResponse,
-} from "@wizards/types";
+import { MessageSearchResponseSchema, type MessageSearchResponse } from "@wizards/types";
 import type { MobileApiClient } from "../api/mobile-api-client";
 
 export const MOBILE_MESSAGE_SEARCH_DEFAULT_LIMIT = 20;
@@ -32,10 +29,7 @@ function normalizeSearchLimit(value: number | null | undefined) {
     return MOBILE_MESSAGE_SEARCH_DEFAULT_LIMIT;
   }
 
-  return Math.min(
-    Math.max(Math.trunc(value!), 1),
-    MOBILE_MESSAGE_SEARCH_MAX_LIMIT,
-  );
+  return Math.min(Math.max(Math.trunc(value!), 1), MOBILE_MESSAGE_SEARCH_MAX_LIMIT);
 }
 
 function appendOptionalSearchParam(
@@ -98,6 +92,51 @@ export async function searchMobileMessages(
   input: MobileMessageSearchInput,
 ): Promise<MessageSearchResponse> {
   const payload = await client.requestJson<unknown>(buildMobileMessageSearchPath(input));
+  return MessageSearchResponseSchema.parse(payload);
+}
+
+export type MobileServerMessageSearchInput = {
+  cursor?: string | null;
+  limit?: number | null;
+  query: string;
+  serverId: string;
+};
+
+/**
+ * 6b's box searches channel names locally and message content server-wide, so
+ * this is its own path rather than a third `scope` on the conversation search:
+ * the workspace box has no author/date/exact filters, and the endpoint it talks
+ * to takes none.
+ */
+export function buildMobileServerMessageSearchPath(input: MobileServerMessageSearchInput): string {
+  const serverId = normalizeSearchText(input.serverId);
+  if (serverId.length === 0) {
+    throw new Error("Mobile server message search requires a server id.");
+  }
+
+  const query = normalizeSearchText(input.query);
+  if (query.length < MOBILE_MESSAGE_SEARCH_MIN_QUERY_LENGTH) {
+    throw new Error("Mobile server message search requires at least 2 characters.");
+  }
+
+  if (query.length > MOBILE_MESSAGE_SEARCH_MAX_QUERY_LENGTH) {
+    throw new Error("Mobile server message search query is too long.");
+  }
+
+  const params = new URLSearchParams({
+    limit: String(normalizeSearchLimit(input.limit)),
+    q: query,
+  });
+  appendOptionalSearchParam(params, "cursor", input.cursor);
+
+  return `/api/v1/mobile/servers/${encodeURIComponent(serverId)}/messages/search?${params.toString()}`;
+}
+
+export async function searchMobileServerMessages(
+  client: MobileApiClient,
+  input: MobileServerMessageSearchInput,
+): Promise<MessageSearchResponse> {
+  const payload = await client.requestJson<unknown>(buildMobileServerMessageSearchPath(input));
   return MessageSearchResponseSchema.parse(payload);
 }
 

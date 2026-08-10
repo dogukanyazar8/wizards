@@ -390,22 +390,23 @@ describe("mobile Phase 4 server management", () => {
     assert.match(source, /removeQueries\(/);
   });
 
-  // The entry used to be gated on the compact layout, which left the default rail layout
-  // with no way into server settings at all.
+  // 6a cut the header down to two buttons, so the settings entry moved into the
+  // "..." sheet. What must not come back is the old capability gate *on the
+  // layout*: the rail once had no way into server settings at all.
   it("offers the server settings entry in both the rail and the compact workspace layouts", () => {
-    const source = read("../src/app/screens/workspace-browser.tsx");
-    const entry = source.slice(
-      source.indexOf("copy.workspaceServerSettingsAction") - 400,
-      source.indexOf("mobile-server-settings-open-") + 120,
-    );
+    const header = read("../src/app/screens/workspace-header-row.tsx");
+    const menu = read("../src/app/screens/workspace-server-menu-sheet.tsx");
 
-    assert.match(entry, /activeServerId && \(canManageServer \|\| canManageInvites\)/);
-    assert.doesNotMatch(entry, /isCompactWorkspaceLayout &&\s*\r?\n?\s*activeServerId/);
-    // Layout only picks the chrome, never whether the control exists.
+    // One menu button, drawn in both layouts; only its chrome depends on layout.
+    assert.match(header, /testID="mobile-workspace-server-menu-open"/);
     assert.match(
-      entry,
-      /isCompactWorkspaceLayout\s*\r?\n?\s*\?\s*styles\.mobileWorkspaceCompactAddButton\s*\r?\n?\s*:\s*styles\.mobileWorkspaceHeaderIconButton/,
+      header,
+      /isCompact\s*\?\s*styles\.mobileWorkspaceHeaderIconButtonCompact\s*:\s*styles\.mobileWorkspaceHeaderIconButton/,
     );
+    assert.doesNotMatch(header, /isCompact[\s\S]{0,80}mobile-workspace-server-menu-open/);
+
+    assert.match(menu, /canManageServer \|\| canManageInvites/);
+    assert.match(menu, /mobile-server-settings-open-\$\{serverId\}/);
   });
 
   // The profile route serves any member, and web offers it to every member from
@@ -413,15 +414,19 @@ describe("mobile Phase 4 server management", () => {
   // the way the settings entry above is gated -- would leave a plain member with
   // no way to the card at all.
   it("offers the server profile entry to every member, not only managers", () => {
-    const source = read("../src/app/screens/workspace-browser.tsx");
-    const marker = source.indexOf("mobile-server-profile-open-");
+    const menu = read("../src/app/screens/workspace-server-menu-sheet.tsx");
+    const marker = menu.indexOf("mobile-server-profile-open-");
 
     assert.notEqual(marker, -1);
 
-    const entry = source.slice(source.lastIndexOf("{activeServerId", marker), marker + 160);
+    // The first two rows are unconditional; the capability spread starts after.
+    const entry = menu.slice(menu.indexOf("const rows"), marker + 60);
 
-    assert.match(entry, /navigate\("ServerProfile", \{ serverId: activeServerId \}\)/);
     assert.doesNotMatch(entry, /canManage/);
+    assert.match(
+      read("../src/app/screens/workspace-browser.tsx"),
+      /navigate\("ServerProfile", \{ serverId: activeServerId \}\)/,
+    );
   });
 
   // Discover used to be reachable only from the create/join sheet's third card,

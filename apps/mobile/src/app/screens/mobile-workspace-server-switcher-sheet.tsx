@@ -15,7 +15,8 @@ import { BottomSheet } from "../components/kit";
 import { useTheme, useThemedStyles } from "../providers/mobile-theme-provider";
 import type { MobileTheme } from "../../design/themes";
 import { MobileLineIcon } from "../../design/mobile-line-icons";
-import { getMobileServerBadge } from "../mobile-sunucular-model";
+import { getMobileServerBadge, sortMobileServersByStar } from "../mobile-sunucular-model";
+import { useMemo } from "react";
 
 type MobileServerSummary = MobileBootstrapPayload["home"]["servers"]["recent"][number];
 
@@ -46,6 +47,10 @@ export function MobileWorkspaceServerSwitcherSheet({
   const styles = useThemedStyles(createMobileWorkspaceServerSwitcherSheetStyles);
   const theme = useTheme();
   const missed = missedNotifications;
+  // 6c's star pins a server to the top of both surfaces that list servers. The
+  // sheet sorts its own input rather than trusting the caller: the rule is one
+  // function, and applying it twice is idempotent.
+  const orderedServers = useMemo(() => sortMobileServersByStar(servers), [servers]);
 
   const goToNotifications = () => {
     onClose();
@@ -89,7 +94,7 @@ export function MobileWorkspaceServerSwitcherSheet({
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {servers.map((server) => {
+          {orderedServers.map((server) => {
             const selected = server.id === activeServerId;
             const badge = getMobileServerBadge(server);
             const isMention = !selected && badge.kind === "mention";

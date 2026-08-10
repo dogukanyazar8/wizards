@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import type { MobileInvitePreviewResponse } from "@wizards/types";
+
 import { ApiError } from "@/lib/api";
 
 const routes = import("./route-logic");
@@ -18,17 +20,54 @@ function context(params: Record<string, string>, onRead: () => void = () => unde
   };
 }
 
-function previewFixture() {
+/**
+ * Faz 1 §B6.5: the preview answers with the full `ServerPublicProfile` plus
+ * the slug, so the fixture is a profile rather than the narrower payload the
+ * preview used to carry.
+ */
+function previewFixture(): MobileInvitePreviewResponse {
   return {
+    accessLevel: "public",
+    admins: [],
     bannerUrl: null,
+    canManageServer: false,
+    channelCount: 2,
     channels: [
-      { liveCount: null, name: "duyurular", readOnly: true, type: "text" as const },
-      { liveCount: 14, name: "topluluk-sesli", readOnly: false, type: "voice" as const },
+      {
+        categoryId: null,
+        categoryName: null,
+        id: "channel-1",
+        isPrivate: false,
+        lastActivityAt: null,
+        liveCount: null,
+        name: "duyurular",
+        participants: [],
+        readOnly: true,
+        type: "text" as const,
+      },
+      {
+        categoryId: null,
+        categoryName: null,
+        id: "channel-2",
+        isPrivate: false,
+        lastActivityAt: null,
+        liveCount: 14,
+        name: "topluluk-sesli",
+        participants: [],
+        readOnly: false,
+        type: "voice" as const,
+      },
     ],
+    createdAt: "2026-01-02T03:04:05.000Z",
     description: "Yol haritasını burada tartışıyoruz.",
+    discoverable: true,
     iconUrl: null,
+    inviteAddress: "whispr.gg/whispr-community",
+    isPublic: true,
     joined: true,
+    joinedAt: "2026-02-03T04:05:06.000Z",
     memberCount: 12_400,
+    muted: false,
     mutualFriendCount: 1,
     mutualFriends: [
       {
@@ -38,10 +77,18 @@ function previewFixture() {
       },
     ],
     name: "Whispr Topluluk",
+    notificationLevel: "all",
     onlineCount: 1_200,
     serverId: "server-1",
+    shortName: null,
     slug: "whispr-community",
+    starred: false,
+    tags: [],
+    type: "COMMUNITY",
+    upcomingEvent: null,
     verified: true,
+    voiceActiveCount: 14,
+    weeklyMessageCount: null,
   };
 }
 

@@ -35,6 +35,7 @@ import {
   deleteMobileRole,
   deleteMobileServer,
   kickMobileMember,
+  leaveMobileServer,
   joinMobileServer,
   updateMobileCategory,
   updateMobileChannel,
@@ -383,6 +384,20 @@ export function useMobileServerManagementMutations(client: MobileApiClient) {
     }),
     deleteServer: useMutation({
       mutationFn: (input: { name: string; serverId: string }) => deleteMobileServer(client, input),
+      onSuccess: (_response, input) => {
+        removeServerScope(input.serverId);
+        void queryClient
+          .invalidateQueries({ exact: true, queryKey: mobileQueryKeys.bootstrap() })
+          .catch(() => undefined);
+      },
+    }),
+    /**
+     * Leaving drops the same caches deleting does — the workspace tree, the
+     * member and role reads — and then refetches the bootstrap, because the
+     * server rail is drawn from it and the row has to disappear.
+     */
+    leaveServer: useMutation({
+      mutationFn: (input: { serverId: string }) => leaveMobileServer(client, input),
       onSuccess: (_response, input) => {
         removeServerScope(input.serverId);
         void queryClient

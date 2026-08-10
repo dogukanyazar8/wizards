@@ -3,6 +3,7 @@ import { ChannelType, Prisma, prisma } from "@wizards/db";
 import { getRedisOp } from "@/lib/redis";
 import {
   countServerOnlineMembers,
+  readServerOnlineMembers,
   type ServerOnlinePresenceRedis,
 } from "@/lib/socket/server-online-presence";
 import { getSocketServer } from "@/lib/socket/runtime";
@@ -669,6 +670,20 @@ export async function getOnlineServerMemberCount(
   } catch {
     return 0;
   }
+}
+
+/**
+ * The per-user half of the same read. Shares the default client (and the test
+ * override) with `getOnlineServerMemberCount` on purpose: the profile card
+ * prints the count and the per-admin dot side by side, so they must never be
+ * able to answer from two different stores.
+ */
+export async function getOnlineServerMemberIds(
+  serverId: string,
+  userIds: readonly string[],
+  redis: ServerOnlinePresenceRedis = onlineServerMemberCountRedisForTest ?? getRedisOp(),
+): Promise<ReadonlySet<string>> {
+  return readServerOnlineMembers(redis, serverId, userIds);
 }
 
 export async function emitServerUnreadUpdateToUser(userId: string, serverId: string) {

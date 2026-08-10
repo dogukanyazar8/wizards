@@ -52,7 +52,10 @@ export {
 
 export function OverviewScreen({
   bootstrapState,
+  channelAnchorMessageId = null,
   channelFirstUnreadMessageId = null,
+  isViewingChannelHistory = false,
+  onExitChannelHistory,
   channelMessagesState,
   channelPinnedMessages = [],
   canRenderChannelChat = false,
@@ -92,7 +95,11 @@ export function OverviewScreen({
   onToggleMessageReaction,
 }: {
   bootstrapState: MobileBootstrapViewState;
+  /** A search hit opens the channel at this message instead of at its tail. */
+  channelAnchorMessageId?: string | null;
   channelFirstUnreadMessageId?: string | null;
+  isViewingChannelHistory?: boolean;
+  onExitChannelHistory?(): void;
   channelMessagesState: MobileChannelMessagesViewState;
   channelPinnedMessages?: readonly ChatMessage[];
   /** Set only by the pushed ChannelChat route — see MobileWorkspaceBrowser. */
@@ -158,7 +165,10 @@ export function OverviewScreen({
           attachmentsFeature={attachmentsFeature}
           bootstrapState={bootstrapState}
           canRenderChannelChat={canRenderChannelChat}
+          channelAnchorMessageId={channelAnchorMessageId}
           channelFirstUnreadMessageId={channelFirstUnreadMessageId}
+          isViewingChannelHistory={isViewingChannelHistory}
+          {...(onExitChannelHistory ? { onExitChannelHistory } : {})}
           channelMessagesState={channelMessagesState}
           channelPinnedMessages={channelPinnedMessages}
           isReactionMutationPending={isReactionMutationPending}

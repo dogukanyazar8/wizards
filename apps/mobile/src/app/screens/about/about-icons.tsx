@@ -300,43 +300,7 @@ export function AboutShareIcon({ color, size, strokeWidth = 1.9, testID }: About
   );
 }
 
-/** 2g's secondary action: copy the invite link. */
-export function AboutLinkIcon({ color, size, strokeWidth = 2, testID }: AboutStrokeIconProps) {
-  return (
-    <AboutIconCanvas size={size} testID={testID}>
-      <Path
-        d="M9 13.5a4 4 0 0 0 6 .5l2.5-2.5a4 4 0 0 0-5.5-5.5L10.5 7.5"
-        {...strokeProps(color, strokeWidth)}
-      />
-      <Path
-        d="M15 10.5a4 4 0 0 0-6-.5L6.5 12.5A4 4 0 0 0 12 18l1.5-1.5"
-        {...strokeProps(color, strokeWidth)}
-      />
-    </AboutIconCanvas>
-  );
-}
-
-/** 2g's text channel rows. */
-export function AboutHashIcon({ color, size, strokeWidth = 2, testID }: AboutStrokeIconProps) {
-  return (
-    <AboutIconCanvas size={size} testID={testID}>
-      <Path d="M6 4l-1 16M14 4l-1 16M4 9.5h16M3.5 15h16" {...strokeProps(color, strokeWidth)} />
-    </AboutIconCanvas>
-  );
-}
-
-/** 2g's voice channel rows. */
-export function AboutSpeakerIcon({ color, size, strokeWidth = 2, testID }: AboutStrokeIconProps) {
-  return (
-    <AboutIconCanvas size={size} testID={testID}>
-      <Path d="M11 6L6.5 9.5H4v5h2.5L11 18z" {...strokeProps(color, strokeWidth)} />
-      <Path d="M15 9.5a3.5 3.5 0 0 1 0 5" {...strokeProps(color, strokeWidth)} />
-      <Path d="M17.5 7a7 7 0 0 1 0 10" {...strokeProps(color, strokeWidth)} />
-    </AboutIconCanvas>
-  );
-}
-
-/** 2g's verified server badge. */
+/** The verified server badge, now owned by discovery's server cards. */
 export function AboutVerifiedIcon({
   color,
   size,

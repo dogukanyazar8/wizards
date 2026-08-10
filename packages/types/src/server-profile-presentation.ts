@@ -136,3 +136,37 @@ export type ServerProfileJoinAction = {
 export function resolveServerProfileJoinAction(joined: boolean): ServerProfileJoinAction {
   return joined ? { kind: "go", label: "Sunucuya git" } : { kind: "join", label: "Sunucuya katıl" };
 }
+
+export const SERVER_SCHEDULED_EVENT_JOIN_WINDOW_MS = 15 * 60 * 1000;
+
+export type ServerScheduledEventAction = {
+  readonly kind: "join" | "remind";
+  readonly label: string;
+};
+
+/**
+ * Faz 1 §C4: the 15-minute threshold is a pure function so web and mobile call
+ * it instead of each computing its own. Inside the window (and at any point
+ * after the start) the button connects to the event's channel; before it, the
+ * button toggles interest.
+ *
+ * A cancelled or completed event never offers either action — the caller gets
+ * `null` and hides the button rather than inventing a disabled state.
+ */
+export function resolveServerScheduledEventAction(
+  event: { readonly scheduledStartAt: string; readonly status: string },
+  nowMs: number,
+): ServerScheduledEventAction | null {
+  if (event.status === "CANCELLED" || event.status === "COMPLETED") {
+    return null;
+  }
+
+  const startMs = Date.parse(event.scheduledStartAt);
+  if (Number.isNaN(startMs)) {
+    return null;
+  }
+
+  return startMs - nowMs <= SERVER_SCHEDULED_EVENT_JOIN_WINDOW_MS
+    ? { kind: "join", label: "Katıl" }
+    : { kind: "remind", label: "Hatırlat" };
+}

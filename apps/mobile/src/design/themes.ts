@@ -17,15 +17,20 @@ import {
   redesignProfileBadgeLight,
   redesignProfileDark,
   redesignProfileLight,
+  redesignServerProfileDark,
+  redesignServerProfileLight,
   redesignToastDark,
   redesignToastLight,
   redesignVoiceRoomDark,
   redesignVoiceRoomLight,
+  redesignWorkspaceDark,
+  redesignWorkspaceLight,
 } from "./palette";
 import {
   mobileLayoutMetrics,
   mobileMessagingMetrics,
   mobileRadii,
+  mobileServerNameLayout,
   mobileSizing,
   mobileSpacing,
   mobileTypography,
@@ -169,6 +174,505 @@ export type MobileMessagingPalette = {
 export type MobileAboutPalette = {
   readonly [K in keyof typeof redesignAboutLight]: string;
 };
+
+/** The three weights the Sunucular handoff uses; RN wants them as strings. */
+export type MobileServerFontWeight = "600" | "700" | "800";
+
+/**
+ * 6f name ramp as a theme value. Identical in both themes — the rule is about
+ * clamping, not colour — and composed from `mobileServerNameLayout` so the
+ * theme and `getMobileServerNameLayout` can never print different sizes.
+ */
+export interface MobileServerNameTypography {
+  readonly fontSize: number;
+  readonly fontWeight: MobileServerFontWeight;
+  readonly letterSpacing: number;
+  readonly lineHeight: number;
+  readonly numberOfLines: number;
+}
+
+/**
+ * Sunucular redesign 6a-6c token group. Read through `theme.workspace`: no
+ * screen-specific size or colour is written as a `StyleSheet` literal (02 §C1).
+ */
+export interface MobileWorkspaceTokens {
+  readonly adminChip: {
+    readonly bg: string;
+    readonly letterSpacing: number;
+    readonly paddingHorizontal: number;
+    readonly paddingVertical: number;
+    readonly radius: number;
+    readonly text: string;
+    readonly textFontSize: number;
+    readonly textFontWeight: MobileServerFontWeight;
+  };
+  readonly categoryCollapsed: {
+    readonly chevron: string;
+    readonly label: string;
+    readonly unreadDot: string;
+  };
+  readonly categoryCount: {
+    readonly color: string;
+    readonly fontSize: number;
+    readonly fontWeight: MobileServerFontWeight;
+  };
+  readonly categoryLabel: {
+    readonly color: string;
+    readonly fontSize: number;
+    readonly fontWeight: MobileServerFontWeight;
+    readonly letterSpacing: number;
+  };
+  readonly channelRow: {
+    readonly iconBox: number;
+    readonly iconRadius: number;
+    readonly paddingHorizontal: number;
+    readonly paddingVertical: number;
+    readonly radius: number;
+  };
+  readonly channelRowActive: {
+    readonly bg: string;
+    readonly iconBg: string;
+    readonly name: string;
+    readonly nameFontWeight: MobileServerFontWeight;
+  };
+  readonly channelRowCompact: {
+    readonly iconBox: number;
+    readonly iconRadius: number;
+    readonly paddingHorizontal: number;
+    readonly paddingVertical: number;
+    readonly radius: number;
+  };
+  readonly dangerRow: string;
+  readonly fab: {
+    readonly bottom: number;
+    readonly height: number;
+    readonly icon: number;
+    readonly label: number;
+    readonly paddingHorizontal: number;
+    readonly radius: number;
+    readonly right: number;
+  };
+  readonly fabCompact: {
+    readonly bottom: number;
+    readonly height: number;
+    readonly icon: number;
+    readonly label: number;
+    readonly paddingHorizontal: number;
+    readonly radius: number;
+    readonly right: number;
+  };
+  readonly filterBadge: {
+    readonly bg: string;
+    readonly height: number;
+    readonly minWidth: number;
+    readonly radius: number;
+    readonly text: string;
+    readonly textFontSize: number;
+    readonly textFontWeight: MobileServerFontWeight;
+  };
+  readonly filterLabelActive: {
+    readonly color: string;
+    readonly fontSize: number;
+    readonly fontWeight: MobileServerFontWeight;
+  };
+  readonly filterLabelIdle: {
+    readonly color: string;
+    readonly fontSize: number;
+    readonly fontWeight: MobileServerFontWeight;
+  };
+  readonly filterSegmentActive: { readonly bg: string; readonly radius: number };
+  readonly filterTrack: {
+    readonly bg: string;
+    readonly padding: number;
+    readonly radius: number;
+  };
+  readonly headerIconButton: {
+    readonly bg: string;
+    readonly border: string;
+    readonly radius: number;
+    readonly size: number;
+  };
+  readonly headerIconButtonCompact: {
+    readonly bg: string;
+    readonly border: string;
+    readonly radius: number;
+    readonly size: number;
+  };
+  readonly mentionBadge: {
+    readonly bg: string;
+    readonly height: number;
+    readonly minWidth: number;
+    readonly radius: number;
+  };
+  /** 6c section 1: avatar, name, invite address and the "Profili gör" pill. */
+  readonly menuIdentity: {
+    readonly avatarRadius: number;
+    readonly avatarSize: number;
+    readonly gap: number;
+    readonly inviteAddress: {
+      readonly color: string;
+      readonly fontSize: number;
+      readonly fontWeight: MobileServerFontWeight;
+    };
+    readonly paddingBottom: number;
+    readonly paddingHorizontal: number;
+    readonly profileAction: {
+      readonly bg: string;
+      readonly paddingHorizontal: number;
+      readonly paddingVertical: number;
+      readonly radius: number;
+      readonly text: string;
+      readonly textFontSize: number;
+      readonly textFontWeight: MobileServerFontWeight;
+    };
+  };
+  readonly menuListCard: {
+    readonly bg: string;
+    readonly border: string;
+    readonly radius: number;
+  };
+  readonly menuRow: {
+    readonly chevron: string;
+    readonly chevronSize: number;
+    readonly divider: string;
+    readonly icon: string;
+    readonly iconSize: number;
+    readonly labelFontSize: number;
+    readonly labelFontWeight: MobileServerFontWeight;
+    readonly paddingHorizontal: number;
+    readonly paddingVertical: number;
+    readonly value: string;
+    readonly valueFontSize: number;
+    readonly valueFontWeight: MobileServerFontWeight;
+  };
+  readonly menuRowCheck: { readonly color: string; readonly size: number };
+  readonly metaSeparator: string;
+  readonly metaText: {
+    readonly color: string;
+    readonly fontSize: number;
+    readonly fontWeight: MobileServerFontWeight;
+  };
+  readonly metaVoice: {
+    readonly color: string;
+    readonly fontSize: number;
+    readonly fontWeight: MobileServerFontWeight;
+  };
+  readonly quickActionCard: {
+    /** The "on" look of a toggle card; an inert card never wears it. */
+    readonly activeBg: string;
+    readonly activeTint: string;
+    readonly bg: string;
+    readonly border: string;
+    readonly gap: number;
+    readonly icon: number;
+    readonly iconColor: string;
+    readonly label: string;
+    readonly labelFontSize: number;
+    readonly labelFontWeight: MobileServerFontWeight;
+    readonly paddingVertical: number;
+    readonly radius: number;
+    /** Spacing of the quartet itself, not of one card. */
+    readonly rowGap: number;
+    readonly rowPaddingBottom: number;
+  };
+  readonly railActiveBar: {
+    readonly color: string;
+    readonly height: number;
+    readonly radius: number;
+    readonly width: number;
+  };
+  readonly railActiveRing: {
+    readonly inner: string;
+    readonly innerWidth: number;
+    readonly outer: string;
+    readonly outerWidth: number;
+  };
+  readonly railAvatarRadius: number;
+  readonly railAvatarSize: number;
+  readonly railDivider: {
+    readonly color: string;
+    readonly height: number;
+    readonly width: number;
+  };
+  readonly railGap: number;
+  readonly railWidth: number;
+  /** 6b/6c row name. */
+  readonly serverNameCard: MobileServerNameTypography;
+  /** 6a header name. */
+  readonly serverNameTitle: MobileServerNameTypography;
+  readonly sheetBackdrop: string;
+  readonly sheetHandle: {
+    readonly color: string;
+    readonly height: number;
+    readonly marginBottom: number;
+    readonly radius: number;
+    readonly width: number;
+  };
+  readonly sheetPadding: {
+    readonly bottom: number;
+    readonly horizontal: number;
+    readonly top: number;
+  };
+  readonly sheetRadius: number;
+  readonly unreadBadge: {
+    readonly bg: string;
+    readonly height: number;
+    readonly minWidth: number;
+    readonly radius: number;
+  };
+  readonly voiceRowEmpty: {
+    readonly icon: string;
+    readonly iconBg: string;
+    readonly iconBorder: string;
+    readonly name: string;
+    readonly nameFontWeight: MobileServerFontWeight;
+    readonly sub: string;
+    readonly subFontSize: number;
+  };
+  readonly voiceRowLive: {
+    readonly bg: string;
+    readonly border: string;
+    readonly icon: string;
+    readonly iconBg: string;
+    readonly joinPill: string;
+    readonly sub: string;
+    readonly subFontSize: number;
+    readonly subFontWeight: MobileServerFontWeight;
+  };
+}
+
+/** Sunucular redesign 6d/6e token group. Same contract as `workspace` above. */
+export interface MobileServerProfileTokens {
+  readonly aboutRowLabel: {
+    readonly color: string;
+    readonly fontSize: number;
+    readonly fontWeight: MobileServerFontWeight;
+  };
+  readonly aboutRowValue: {
+    readonly color: string;
+    readonly fontSize: number;
+    readonly fontWeight: MobileServerFontWeight;
+  };
+  readonly bannerBlob: {
+    readonly color: string;
+    readonly offsetRight: number;
+    readonly offsetTop: number;
+    readonly size: number;
+  };
+  readonly bannerButton: {
+    readonly bg: string;
+    readonly icon: string;
+    readonly iconSize: number;
+    readonly radius: number;
+    readonly size: number;
+  };
+  readonly bannerGradient: {
+    readonly angle: number;
+    readonly colors: readonly string[];
+    readonly locations: readonly number[];
+  };
+  readonly bannerHeight: number;
+  readonly bannerOverlay: string;
+  readonly bottomBar: {
+    readonly bg: string;
+    readonly border: string;
+    readonly gap: number;
+    readonly iconButton: {
+      readonly bg: string;
+      readonly border: string;
+      readonly icon: string;
+      readonly iconSize: number;
+      readonly radius: number;
+      readonly size: number;
+    };
+    readonly leaveButton: { readonly bg: string; readonly icon: string };
+    readonly paddingBottom: number;
+    readonly paddingHorizontal: number;
+    readonly paddingTop: number;
+    readonly primary: {
+      readonly bg: string;
+      readonly height: number;
+      readonly radius: number;
+      readonly text: string;
+      readonly textFontSize: number;
+    };
+  };
+  readonly channelPreviewRow: {
+    readonly divider: string;
+    readonly iconBox: number;
+    readonly iconRadius: number;
+    readonly nameFontSize: number;
+    readonly nameFontWeight: MobileServerFontWeight;
+    readonly paddingHorizontal: number;
+    readonly paddingVertical: number;
+  };
+  readonly copyIcon: { readonly color: string; readonly size: number };
+  readonly description: {
+    readonly color: string;
+    readonly fontSize: number;
+    readonly lineHeight: number;
+    readonly numberOfLines: number;
+  };
+  readonly eventCard: {
+    readonly gap: number;
+    readonly paddingHorizontal: number;
+    readonly paddingVertical: number;
+    readonly radius: number;
+  };
+  readonly eventDateBlock: {
+    readonly bg: string;
+    readonly label: string;
+    readonly labelFontSize: number;
+    readonly labelFontWeight: MobileServerFontWeight;
+    readonly labelLetterSpacing: number;
+    readonly radius: number;
+    readonly time: string;
+    readonly timeFontSize: number;
+    readonly timeFontWeight: MobileServerFontWeight;
+    readonly width: number;
+  };
+  readonly eventJoinPill: {
+    readonly bg: string;
+    readonly paddingHorizontal: number;
+    readonly paddingVertical: number;
+    readonly radius: number;
+    readonly text: string;
+    readonly textFontSize: number;
+    readonly textFontWeight: MobileServerFontWeight;
+  };
+  readonly friendsRow: {
+    readonly avatar: number;
+    readonly overlap: number;
+    readonly paddingHorizontal: number;
+    readonly paddingVertical: number;
+    readonly radius: number;
+    readonly text: string;
+    readonly textFontSize: number;
+    readonly textFontWeight: MobileServerFontWeight;
+  };
+  readonly inviteAddress: {
+    readonly color: string;
+    readonly fontSize: number;
+    readonly fontWeight: MobileServerFontWeight;
+  };
+  readonly logo: {
+    readonly borderColor: string;
+    readonly borderWidth: number;
+    readonly fontSize: number;
+    readonly fontWeight: MobileServerFontWeight;
+    readonly marginTop: number;
+    readonly radius: number;
+    readonly size: number;
+  };
+  readonly privateChip: {
+    readonly bg: string;
+    readonly icon: string;
+    readonly iconSize: number;
+    readonly paddingHorizontal: number;
+    readonly paddingVertical: number;
+    readonly radius: number;
+    readonly text: string;
+    readonly textFontSize: number;
+    readonly textFontWeight: MobileServerFontWeight;
+  };
+  /** 6d title. */
+  readonly profileName: MobileServerNameTypography;
+  readonly roleChip: {
+    readonly letterSpacing: number;
+    readonly paddingHorizontal: number;
+    readonly paddingVertical: number;
+    readonly radius: number;
+    readonly textFontSize: number;
+    readonly textFontWeight: MobileServerFontWeight;
+  };
+  readonly roleChipAdmin: { readonly bg: string; readonly text: string };
+  readonly roleChipOwner: { readonly bg: string; readonly text: string };
+  readonly sheetRadius: number;
+  readonly sheetTop: number;
+  readonly statCard: {
+    readonly bg: string;
+    readonly border: string;
+    readonly cellPaddingVertical: number;
+    readonly radius: number;
+  };
+  readonly statDivider: { readonly color: string; readonly width: number };
+  readonly statLabel: {
+    readonly color: string;
+    readonly fontSize: number;
+    readonly fontWeight: MobileServerFontWeight;
+  };
+  readonly statValue: {
+    readonly color: string;
+    readonly fontSize: number;
+    readonly fontWeight: MobileServerFontWeight;
+    /** "Seste" is the one cell the handoff tints. */
+    readonly voice: string;
+  };
+  readonly statusChipEnv: {
+    readonly bg: string;
+    readonly text: string;
+    readonly textFontSize: number;
+    readonly textFontWeight: MobileServerFontWeight;
+  };
+  readonly statusChipOnline: {
+    readonly bg: string;
+    readonly dot: string;
+    readonly text: string;
+    readonly textFontSize: number;
+    readonly textFontWeight: MobileServerFontWeight;
+  };
+  readonly stickyHeader: {
+    readonly avatar: number;
+    readonly avatarRadius: number;
+    readonly back: number;
+    readonly backRadius: number;
+    readonly bg: string;
+    readonly border: string;
+    readonly menu: number;
+    readonly menuRadius: number;
+    /** 6e prints the name on one line; the ramp still comes from the 6f table. */
+    readonly name: MobileServerNameTypography;
+    readonly paddingBottom: number;
+    readonly paddingTop: number;
+  };
+  readonly tagChip: {
+    readonly bg: string;
+    readonly paddingHorizontal: number;
+    readonly paddingVertical: number;
+    readonly radius: number;
+    readonly text: string;
+    readonly textFontSize: number;
+    readonly textFontWeight: MobileServerFontWeight;
+  };
+  readonly verifiedBadge: {
+    readonly check: string;
+    readonly fill: string;
+    readonly size: number;
+  };
+}
+
+function createWorkspaceTokens(
+  tokens: typeof redesignWorkspaceLight | typeof redesignWorkspaceDark,
+): MobileWorkspaceTokens {
+  return {
+    ...tokens,
+    serverNameCard: { ...mobileServerNameLayout.card, ...tokens.serverNameCard },
+    serverNameTitle: { ...mobileServerNameLayout.header, ...tokens.serverNameTitle },
+  };
+}
+
+function createServerProfileTokens(
+  tokens: typeof redesignServerProfileLight | typeof redesignServerProfileDark,
+): MobileServerProfileTokens {
+  return {
+    ...tokens,
+    profileName: { ...mobileServerNameLayout.profile, ...tokens.profileName },
+    stickyHeader: {
+      ...tokens.stickyHeader,
+      name: { ...mobileServerNameLayout.sticky, fontWeight: "800" },
+    },
+  };
+}
 
 export interface MobileAuthProfileAccent {
   readonly badgeBorder: string;
@@ -319,6 +823,24 @@ export interface MobileTheme {
     readonly tabBar: MobileThemeElevationStyle;
     readonly toast: MobileThemeElevationStyle;
     readonly toggleThumb: MobileThemeElevationStyle;
+    /**
+     * Sunucular redesign 6a-6f (02 §B1). Raw `boxShadow` never reaches a screen;
+     * these six carry the handoff's shadows. Dark keeps the two brand-tinted
+     * lifts and flattens the four neutral surfaces, exactly like the messaging
+     * group above.
+     */
+    /** 6d/6e "Sunucuyu aç": `0 8px 18px rgba(79,70,229,.32)`. */
+    readonly serverProfilePrimaryAction: MobileThemeElevationStyle;
+    /** 6d/6e action bar: `0 -8px 24px rgba(30,34,53,.06)`. */
+    readonly serverProfileBottomBar: MobileThemeElevationStyle;
+    /** 6a/6b FAB: `0 10px 24px rgba(79,70,229,.42)`. */
+    readonly workspaceFab: MobileThemeElevationStyle;
+    /** 6a/6b active filter segment: `0 2px 6px rgba(30,34,53,.10)`. */
+    readonly workspaceFilterSegment: MobileThemeElevationStyle;
+    /** 6b server card: `0 4px 12px rgba(30,34,53,.05)`. */
+    readonly workspaceServerCard: MobileThemeElevationStyle;
+    /** 6c "⋯" sheet: `0 -12px 34px rgba(30,34,53,.18)`. */
+    readonly workspaceSheet: MobileThemeElevationStyle;
   };
   readonly gradients: {
     readonly appBackground: readonly [string, string];
@@ -557,6 +1079,8 @@ export interface MobileTheme {
    * gives the toast its own card colour; the component reads these and never
    * branches on `theme.dark` itself.
    */
+  /** Sunucular 6d/6e server profile; owned by the profile body and its sticky header. */
+  readonly serverProfile: MobileServerProfileTokens;
   readonly toast: {
     readonly card: string;
     readonly cardBorder: string;
@@ -616,6 +1140,8 @@ export interface MobileTheme {
     /** Reconnecting amber. */
     readonly warning: string;
   };
+  /** Sunucular 6a-6c servers screen: rail, filter strip, channel rows, "⋯" sheet. */
+  readonly workspace: MobileWorkspaceTokens;
 }
 
 function deepFreeze<T>(value: T): T {
@@ -817,6 +1343,48 @@ export const lightTheme = deepFreeze({
       shadowOpacity: 0.2,
       shadowRadius: 3,
     },
+    serverProfilePrimaryAction: {
+      elevation: 8,
+      shadowColor: redesignLight.primary,
+      shadowOffset: { height: 8, width: 0 },
+      shadowOpacity: 0.32,
+      shadowRadius: 18,
+    },
+    serverProfileBottomBar: {
+      elevation: 8,
+      shadowColor: redesignLight.inkSurface,
+      shadowOffset: { height: -8, width: 0 },
+      shadowOpacity: 0.06,
+      shadowRadius: 24,
+    },
+    workspaceFab: {
+      elevation: 10,
+      shadowColor: redesignLight.primary,
+      shadowOffset: { height: 10, width: 0 },
+      shadowOpacity: 0.42,
+      shadowRadius: 24,
+    },
+    workspaceFilterSegment: {
+      elevation: 2,
+      shadowColor: redesignLight.inkSurface,
+      shadowOffset: { height: 2, width: 0 },
+      shadowOpacity: 0.1,
+      shadowRadius: 6,
+    },
+    workspaceServerCard: {
+      elevation: 4,
+      shadowColor: redesignLight.inkSurface,
+      shadowOffset: { height: 4, width: 0 },
+      shadowOpacity: 0.05,
+      shadowRadius: 12,
+    },
+    workspaceSheet: {
+      elevation: 12,
+      shadowColor: redesignLight.inkSurface,
+      shadowOffset: { height: -12, width: 0 },
+      shadowOpacity: 0.18,
+      shadowRadius: 34,
+    },
     miniVoiceBar: {
       elevation: 10,
       shadowColor: redesignLight.inkSurface,
@@ -892,6 +1460,7 @@ export const lightTheme = deepFreeze({
     unreadDividerLine: "#E5484D55",
   },
   profileBadge: redesignProfileBadgeLight,
+  serverProfile: createServerProfileTokens(redesignServerProfileLight),
   profileCard: redesignProfileLight,
   profileSheet: {
     check: redesignLight.primary,
@@ -998,6 +1567,7 @@ export const lightTheme = deepFreeze({
   },
   typography: mobileTypography,
   voiceRoom: redesignVoiceRoomLight,
+  workspace: createWorkspaceTokens(redesignWorkspaceLight),
 } satisfies MobileTheme);
 
 export const darkTheme = deepFreeze({
@@ -1148,6 +1718,27 @@ export const darkTheme = deepFreeze({
       shadowOpacity: 0.45,
       shadowRadius: 40,
     },
+    // The two brand-tinted lifts survive on dark; the four neutral raised
+    // surfaces flatten, because a `#1E2235` card over a `#14172A` screen already
+    // separates without a shadow.
+    serverProfilePrimaryAction: {
+      elevation: 8,
+      shadowColor: redesignDark.primaryWithWhiteText,
+      shadowOffset: { height: 8, width: 0 },
+      shadowOpacity: 0.32,
+      shadowRadius: 18,
+    },
+    serverProfileBottomBar: MESSAGING_FLAT_ELEVATION,
+    workspaceFab: {
+      elevation: 10,
+      shadowColor: redesignDark.primaryWithWhiteText,
+      shadowOffset: { height: 10, width: 0 },
+      shadowOpacity: 0.42,
+      shadowRadius: 24,
+    },
+    workspaceFilterSegment: MESSAGING_FLAT_ELEVATION,
+    workspaceServerCard: MESSAGING_FLAT_ELEVATION,
+    workspaceSheet: MESSAGING_FLAT_ELEVATION,
   },
   gradients: {
     appBackground: [redesignDark.bg, redesignDark.card],
@@ -1191,6 +1782,7 @@ export const darkTheme = deepFreeze({
     unreadDividerLine: "#E5484D55",
   },
   profileBadge: redesignProfileBadgeDark,
+  serverProfile: createServerProfileTokens(redesignServerProfileDark),
   profileCard: redesignProfileDark,
   profileSheet: {
     check: redesignDark.accentText,
@@ -1294,4 +1886,5 @@ export const darkTheme = deepFreeze({
   },
   typography: mobileTypography,
   voiceRoom: redesignVoiceRoomDark,
+  workspace: createWorkspaceTokens(redesignWorkspaceDark),
 } satisfies MobileTheme);

@@ -14,6 +14,11 @@ export type MobileRootStackParamList = {
   VoiceRoom: undefined;
   ChannelChat: {
     readonly channelId: string;
+    /**
+     * Set by a search hit: the transcript opens at this message instead of at
+     * the channel's newest page, and flashes it once it is on screen.
+     */
+    readonly messageId?: string;
     readonly serverId: string;
   };
   DirectMessage: {
@@ -94,6 +99,14 @@ export type MobileRootStackParamList = {
    * default to fall back to.
    */
   ServerProfile: { readonly serverId: string };
+  /**
+   * Sunucular 6d/6e event management. Declared in Faz 2 so the client, the query
+   * keys and these params land together; the screens and their `RootStack.Screen`
+   * + container registrations arrive in Faz 5. Nothing navigates here yet.
+   */
+  ServerEvents: { readonly serverId: string };
+  /** Same route for create and edit — `eventId` absent means "new event". */
+  ServerEventForm: { readonly eventId?: string; readonly serverId: string };
   /** S3 Section D: browse public, discoverable servers. Cards route to `ServerProfile`. */
   Discover: undefined;
   ChannelSettings: { readonly channelId: string; readonly serverId: string };

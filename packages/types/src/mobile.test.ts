@@ -115,9 +115,6 @@ import {
   MobileBugReportCategorySchema,
   MobileBugReportRequestSchema,
   MobileBugReportResponseSchema,
-  MobileInvitePreviewChannelSchema,
-  MobileInvitePreviewChannelTypeSchema,
-  MobileInvitePreviewMutualFriendSchema,
   MobileInvitePreviewResponseSchema,
   MobileHelpArticleListQuerySchema,
   MobileHelpArticleListResponseSchema,
@@ -142,8 +139,59 @@ import {
   formatBugReportTicket,
 } from "./mobile";
 import { assertAccepts, assertRejects, assertSchemaBehaviorCoverage } from "./schema-test-helpers";
+import { ServerPublicProfileSchema } from "./workspace";
 
 const now = "2026-07-09T12:00:00.000Z";
+/**
+ * The invite preview is `ServerPublicProfileSchema` plus a slug (Faz 1 §B6.5),
+ * so the fixture is a full profile rather than the narrower payload the
+ * preview used to carry.
+ */
+const invitePreviewProfile = {
+  accessLevel: "public" as const,
+  admins: [],
+  bannerUrl: null,
+  canManageServer: false,
+  channelCount: 1,
+  channels: [
+    {
+      categoryId: null,
+      categoryName: null,
+      id: "channel-1",
+      isPrivate: false,
+      lastActivityAt: null,
+      liveCount: null,
+      name: "duyurular",
+      participants: [],
+      readOnly: true,
+      type: "text" as const,
+    },
+  ],
+  createdAt: "2026-01-02T03:04:05.000Z",
+  description: "Yol haritasını burada tartışıyoruz.",
+  discoverable: true,
+  iconUrl: null,
+  inviteAddress: "whispr.gg/whispr-community",
+  isPublic: true,
+  joined: false,
+  joinedAt: null,
+  memberCount: 12_400,
+  muted: false,
+  mutualFriendCount: 0,
+  mutualFriends: [],
+  name: "Whispr Topluluk",
+  notificationLevel: "all" as const,
+  onlineCount: 1_200,
+  serverId: "server-1",
+  shortName: null,
+  starred: false,
+  tags: [],
+  type: "COMMUNITY" as const,
+  upcomingEvent: null,
+  verified: true,
+  voiceActiveCount: 0,
+  weeklyMessageCount: null,
+};
 const uuid = "550e8400-e29b-41d4-a716-446655440000";
 
 describe("mobile update delivery contract", () => {
@@ -1382,53 +1430,10 @@ describe("mobile schemas", () => {
         valid: { createdAt: now, ticket: "WSP-24817" },
         invalid: { createdAt: now, ticket: "WSP-2481" },
       },
-      MobileInvitePreviewChannelTypeSchema: {
-        schema: MobileInvitePreviewChannelTypeSchema,
-        valid: "voice",
-        invalid: "stage",
-      },
-      MobileInvitePreviewChannelSchema: {
-        schema: MobileInvitePreviewChannelSchema,
-        valid: { liveCount: 14, name: "topluluk-sesli", readOnly: false, type: "voice" },
-        invalid: { liveCount: -1, name: "topluluk-sesli", readOnly: false, type: "voice" },
-      },
-      MobileInvitePreviewMutualFriendSchema: {
-        schema: MobileInvitePreviewMutualFriendSchema,
-        valid: { avatarUrl: null, displayName: "Ada", id: "friend-1" },
-        invalid: { avatarUrl: null, displayName: "", id: "friend-1" },
-      },
       MobileInvitePreviewResponseSchema: {
         schema: MobileInvitePreviewResponseSchema,
-        valid: {
-          bannerUrl: null,
-          channels: [{ liveCount: null, name: "duyurular", readOnly: true, type: "text" }],
-          description: "Yol haritasını burada tartışıyoruz.",
-          iconUrl: null,
-          joined: false,
-          memberCount: 12_400,
-          mutualFriendCount: 0,
-          mutualFriends: [],
-          name: "Whispr Topluluk",
-          onlineCount: 1_200,
-          serverId: "server-1",
-          slug: "whispr-community",
-          verified: true,
-        },
-        invalid: {
-          bannerUrl: null,
-          channels: [],
-          description: "",
-          iconUrl: null,
-          joined: false,
-          memberCount: 12_400,
-          mutualFriendCount: 0,
-          mutualFriends: [],
-          name: "Whispr Topluluk",
-          onlineCount: 1_200,
-          serverId: "server-1",
-          slug: "../admin",
-          verified: true,
-        },
+        valid: { ...invitePreviewProfile, slug: "whispr-community" },
+        invalid: { ...invitePreviewProfile, slug: "../admin" },
       },
       MobileReleaseVersionParamsSchema: {
         schema: MobileReleaseVersionParamsSchema,
@@ -1805,6 +1810,37 @@ describe("mobile schemas", () => {
     );
   });
 
+  // 6c reads the three preferences and the invite address straight off the
+  // server list, so a device on an older build — whose stored payload predates
+  // all four — still has to hydrate rather than throw.
+  it("defaults the 6c server preferences so a pre-6c bootstrap payload still parses", () => {
+    const parsed = assertAccepts(MobileBootstrapServerSummarySchema, bootstrapServer);
+
+    assert.equal(parsed?.starred, false);
+    assert.equal(parsed?.muted, false);
+    assert.equal(parsed?.notificationLevel, "all");
+    assert.equal(parsed?.inviteAddress, null);
+
+    const explicit = assertAccepts(MobileBootstrapServerSummarySchema, {
+      ...bootstrapServer,
+      inviteAddress: "whispr.gg/mobile-test",
+      muted: true,
+      notificationLevel: "mentions",
+      starred: true,
+    });
+
+    assert.equal(explicit?.starred, true);
+    assert.equal(explicit?.muted, true);
+    assert.equal(explicit?.notificationLevel, "mentions");
+    assert.equal(explicit?.inviteAddress, "whispr.gg/mobile-test");
+
+    assertRejects(
+      MobileBootstrapServerSummarySchema,
+      { ...bootstrapServer, notificationLevel: "everything" },
+      ["notificationLevel"],
+    );
+  });
+
   it("requires mobile message content or attachments and enforces transport limits", () => {
     for (const schema of [
       MobileDMSendMessageRequestSchema,
@@ -1882,5 +1918,66 @@ describe("mobile schemas", () => {
         userId: `user-${index + 1}`,
       })),
     });
+  });
+});
+
+/**
+ * The preview used to be a hand-written projection of thirteen profile fields.
+ * Spreading the whole read model into it (Faz 1 §B6.5) is what lets one screen
+ * body serve both routes -- but it also removed the boundary that used to make
+ * widening the payload a deliberate act. Someone holding an invite code to a
+ * *private* server is the audience here, so this locks the key set: adding a
+ * field to `ServerPublicProfileSchema` now fails here until the new exposure is
+ * looked at and the list is updated on purpose.
+ */
+describe("mobile invite preview exposure boundary", () => {
+  it("answers with exactly the profile read model plus the slug", () => {
+    const keys = Object.keys(MobileInvitePreviewResponseSchema.shape).sort();
+
+    assert.deepEqual(keys, [
+      "accessLevel",
+      "admins",
+      "bannerUrl",
+      "canManageServer",
+      "channelCount",
+      "channels",
+      "createdAt",
+      "description",
+      "discoverable",
+      "iconUrl",
+      "inviteAddress",
+      "isPublic",
+      "joined",
+      "joinedAt",
+      "memberCount",
+      "muted",
+      "mutualFriendCount",
+      "mutualFriends",
+      "name",
+      "notificationLevel",
+      "onlineCount",
+      "serverId",
+      "shortName",
+      "slug",
+      "starred",
+      "tags",
+      "type",
+      "upcomingEvent",
+      "verified",
+      "voiceActiveCount",
+      "weeklyMessageCount",
+    ]);
+  });
+
+  it("adds nothing to the profile read model except the slug", () => {
+    const previewKeys = new Set(Object.keys(MobileInvitePreviewResponseSchema.shape));
+    const profileKeys = Object.keys(ServerPublicProfileSchema.shape);
+
+    for (const key of profileKeys) {
+      assert.equal(previewKeys.has(key), true, `preview dropped ${key}`);
+      previewKeys.delete(key);
+    }
+
+    assert.deepEqual([...previewKeys], ["slug"]);
   });
 });

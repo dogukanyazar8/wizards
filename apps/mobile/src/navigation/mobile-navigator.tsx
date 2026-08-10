@@ -66,6 +66,8 @@ import {
   BugReportScreenContainer,
   CommunityInviteScreenContainer,
   ServerProfileScreenContainer,
+  ServerEventsScreenContainer,
+  ServerEventFormScreenContainer,
   DiscoverScreenContainer,
 } from "../app/screens/mobile-screen-containers";
 import { MobileAuthNavigator } from "./mobile-auth-navigator";
@@ -323,6 +325,12 @@ export function MobileNavigator({
           </RootStack.Screen>
           <RootStack.Screen name="ServerProfile">
             {(props) => <ServerProfileScreenContainer {...props} />}
+          </RootStack.Screen>
+          <RootStack.Screen name="ServerEvents">
+            {(props) => <ServerEventsScreenContainer {...props} />}
+          </RootStack.Screen>
+          <RootStack.Screen name="ServerEventForm">
+            {(props) => <ServerEventFormScreenContainer {...props} />}
           </RootStack.Screen>
           <RootStack.Screen name="Discover">
             {(props) => <DiscoverScreenContainer {...props} />}

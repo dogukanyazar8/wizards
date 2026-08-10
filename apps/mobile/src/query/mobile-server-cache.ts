@@ -2,6 +2,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import type {
   MobileBootstrapPayload,
   MobileManagedWorkspaceServerDetailResponse,
+  ServerNotificationLevel,
 } from "@wizards/types";
 
 import type { MobileApiClient } from "../api/mobile-api-client";
@@ -72,6 +73,69 @@ export function patchMobileServerIconCaches(input: {
         },
       };
     },
+  );
+}
+
+/** The subset of 6c's per-user preferences a single toggle can move. */
+export type MobileServerUserSettingsPatch = {
+  readonly muted?: boolean;
+  readonly notificationLevel?: ServerNotificationLevel;
+  readonly starred?: boolean;
+};
+
+/**
+ * 6c reads its toggles off the bootstrap rail summary and 6d/6e read the same
+ * three fields off the profile read model. One write, both caches — otherwise
+ * the star flips in the menu and the profile keeps claiming it is off until
+ * something else refetches.
+ *
+ * Only the keys the caller actually sent are applied: `muted` and
+ * `notificationLevel` are separate concepts and neither derives from the other.
+ */
+export function patchMobileServerUserSettingsCaches(input: {
+  queryClient: QueryClient;
+  serverId: string;
+  settings: MobileServerUserSettingsPatch;
+}): void {
+  const { queryClient, serverId, settings } = input;
+
+  queryClient.setQueryData<MobileBootstrapPayload>(mobileQueryKeys.bootstrap(), (current) => {
+    if (!current) {
+      return current;
+    }
+
+    let changed = false;
+    const recent = current.home.servers.recent.map((server) => {
+      if (server.id !== serverId) {
+        return server;
+      }
+
+      const next = { ...server, ...settings };
+      if (
+        next.muted === server.muted &&
+        next.notificationLevel === server.notificationLevel &&
+        next.starred === server.starred
+      ) {
+        return server;
+      }
+
+      changed = true;
+      return next;
+    });
+
+    return changed
+      ? {
+          ...current,
+          home: { ...current.home, servers: { ...current.home.servers, recent } },
+        }
+      : current;
+  });
+
+  // Typed loosely on purpose: the profile entry is only present once the
+  // profile route has been read, and the patch touches three fields of it.
+  queryClient.setQueryData<MobileServerUserSettingsPatch>(
+    mobileQueryKeys.serverProfile(serverId),
+    (current) => (current ? { ...current, ...settings } : current),
   );
 }
 

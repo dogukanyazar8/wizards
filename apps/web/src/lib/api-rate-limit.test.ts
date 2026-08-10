@@ -25,6 +25,11 @@ const M1_MOBILE_RATE_LIMITS = {
   "mobile:server:delete": { limit: 5, windowSeconds: 3_600 },
   "mobile:server:detail": { limit: 120, windowSeconds: 60 },
   "mobile:server:discover": { limit: 120, windowSeconds: 60 },
+  "mobile:server:events:cancel": { limit: 20, windowSeconds: 60 },
+  "mobile:server:events:create": { limit: 12, windowSeconds: 60 },
+  "mobile:server:events:interest": { limit: 60, windowSeconds: 60 },
+  "mobile:server:events:list": { limit: 60, windowSeconds: 60 },
+  "mobile:server:events:update": { limit: 30, windowSeconds: 60 },
   "mobile:server:invites:create": { limit: 20, windowSeconds: 600 },
   "mobile:server:invites:list": { limit: 60, windowSeconds: 60 },
   "mobile:server:invites:qr": { limit: 30, windowSeconds: 600 },
@@ -33,9 +38,12 @@ const M1_MOBILE_RATE_LIMITS = {
   "mobile:server:invites:target": { limit: 40, windowSeconds: 600 },
   "mobile:server:join": { limit: 20, windowSeconds: 600 },
   "mobile:server:join-public": { limit: 10, windowSeconds: 3_600 },
+  "mobile:server:leave": { limit: 20, windowSeconds: 600 },
   "mobile:server:member:kick": { limit: 30, windowSeconds: 600 },
   "mobile:server:member-roles:update": { limit: 40, windowSeconds: 600 },
   "mobile:server:members:list": { limit: 60, windowSeconds: 60 },
+  // Faz 3 A1: same budget as the sibling channel/DM search endpoints.
+  "mobile:server:messages:search": { limit: 40, windowSeconds: 60 },
   "mobile:server:profile": { limit: 120, windowSeconds: 60 },
   "mobile:server:roles:create": { limit: 20, windowSeconds: 10 * 60 },
   "mobile:server:roles:delete": { limit: 20, windowSeconds: 10 * 60 },
@@ -43,6 +51,7 @@ const M1_MOBILE_RATE_LIMITS = {
   "mobile:server:roles:overview:list": { limit: 60, windowSeconds: 60 },
   "mobile:server:roles:update": { limit: 40, windowSeconds: 10 * 60 },
   "mobile:server:update": { limit: 30, windowSeconds: 60 },
+  "mobile:server:user-settings:update": { limit: 60, windowSeconds: 60 },
 } as const;
 
 function fakeRateLimitDependencies(args: {
@@ -164,7 +173,10 @@ describe("API rate limit configuration", () => {
       )
       .sort();
 
-    assert.equal(expectedActions.length, 31);
+    // 31 reviewed M1 actions, the six Faz 1 additions (five event endpoints and
+    // the per-user server settings PATCH), Faz 3's server-wide search and the
+    // mobile leave endpoint.
+    assert.equal(expectedActions.length, 39);
     assert.deepEqual(actualActions, expectedActions);
 
     for (const [action, expectedConfig] of Object.entries(M1_MOBILE_RATE_LIMITS)) {

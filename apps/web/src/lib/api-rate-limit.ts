@@ -198,6 +198,17 @@ export const API_RATE_LIMITS = {
   "mobile:server:create": { limit: 10, windowSeconds: 60 * 60 },
   "mobile:server:delete": { limit: 5, windowSeconds: 60 * 60 },
   "mobile:server:detail": { limit: 120, windowSeconds: 60 },
+  // 6d event management. Cancelling and updating share the owner-write shape
+  // of mobile:server:update; creating is rarer and writes a durable row that
+  // fans out to every member, so it gets the tighter budget.
+  "mobile:server:events:cancel": { limit: 20, windowSeconds: 60 },
+  "mobile:server:events:create": { limit: 12, windowSeconds: 60 },
+  /** One "Hatırlat" tap per event; a loop here would be a stuck toggle. */
+  "mobile:server:events:interest": { limit: 60, windowSeconds: 60 },
+  "mobile:server:events:list": { limit: 60, windowSeconds: 60 },
+  "mobile:server:events:update": { limit: 30, windowSeconds: 60 },
+  /** Same budget as the sibling channel/DM search endpoints (mobile:message:search). */
+  "mobile:server:messages:search": { limit: 40, windowSeconds: 60 },
   "mobile:server:invites:create": { limit: 20, windowSeconds: 10 * 60 },
   "mobile:server:invites:list": { limit: 60, windowSeconds: 60 },
   "mobile:server:invites:qr": { limit: 30, windowSeconds: 10 * 60 },
@@ -212,6 +223,11 @@ export const API_RATE_LIMITS = {
   // POST mobile/servers/join. This is the invite-free path at
   // POST mobile/servers/[serverId]/join -- see server:join-public's comment
   // for why it needs the same tight, secret-independent ceiling.
+  /**
+   * Leaving is a one-shot, destructive membership write behind a confirmation
+   * sheet; the web twin (member:leave) uses the same 20/10min ceiling.
+   */
+  "mobile:server:leave": { limit: 20, windowSeconds: 10 * 60 },
   "mobile:server:join-public": { limit: 10, windowSeconds: 60 * 60 },
   "mobile:server:member:kick": { limit: 30, windowSeconds: 10 * 60 },
   "mobile:server:member-roles:update": { limit: 40, windowSeconds: 10 * 60 },
@@ -223,6 +239,12 @@ export const API_RATE_LIMITS = {
   "mobile:server:roles:overview:list": { limit: 60, windowSeconds: 60 },
   "mobile:server:roles:update": { limit: 40, windowSeconds: 10 * 60 },
   "mobile:server:update": { limit: 30, windowSeconds: 60 },
+  /**
+   * 6c toggles: "Yıldızla", "Sessize al" and the notification level all write
+   * through one endpoint, so this budget covers a user flicking several
+   * switches in one sheet visit.
+   */
+  "mobile:server:user-settings:update": { limit: 60, windowSeconds: 60 },
   "notification:clear": { limit: 30, windowSeconds: 60 },
   "notification:mark-read": { limit: 120, windowSeconds: 60 },
   "server:create": { limit: 10, windowSeconds: 60 * 60 },
@@ -231,6 +253,16 @@ export const API_RATE_LIMITS = {
   // Discovery is a browse surface (grid scroll + debounced search), so it
   // shares server:list/profile's generous read budget rather than a tighter one.
   "server:discover": { limit: 240, windowSeconds: 60 },
+  // 6d event management from the web admin surface. Same shape as the mobile
+  // twins: creating writes a durable row that fans out to every member, the
+  // rest are ordinary owner writes and one browse read.
+  "server:events:cancel": { limit: 20, windowSeconds: 60 },
+  "server:events:create": { limit: 12, windowSeconds: 60 },
+  "server:events:interest": { limit: 60, windowSeconds: 60 },
+  "server:events:list": { limit: 120, windowSeconds: 60 },
+  "server:events:update": { limit: 30, windowSeconds: 60 },
+  /** Web twin of mobile:server:messages:search; matches message:search. */
+  "server:messages:search": { limit: 80, windowSeconds: 60 },
   "server:list": { limit: 240, windowSeconds: 60 },
   // Invite-free join writes a membership row, bumps a shared counter, and fans
   // out a system message over sockets -- the same blast radius as creating a

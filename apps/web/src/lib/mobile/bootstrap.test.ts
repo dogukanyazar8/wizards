@@ -71,11 +71,15 @@ describe("mobile bootstrap payload", () => {
               channelCount: 3,
               iconUrl: null,
               id: "server_1",
+              inviteAddress: "whispr.gg/whispr-uat",
               joinedAt: "2026-06-25T10:00:00.000Z",
               memberCount: 12,
               mentionCount: 1,
+              muted: false,
               name: "Whispr UAT",
+              notificationLevel: "all",
               shortName: "WU",
+              starred: true,
               unreadCount: 2,
             },
           ],
@@ -99,6 +103,12 @@ describe("mobile bootstrap payload", () => {
     assert.equal(payload.home.directMessages.totalCount, 1);
     assert.equal(payload.home.directMessages.recent[0]?.unreadCount, 2);
     assert.equal(serialized.includes("content"), false);
+    // A0.3: 6c reads all four off the rail summary, so the payload builder must
+    // carry them rather than drop them on the way through the schema.
+    assert.equal(payload.home.servers.recent[0]?.starred, true);
+    assert.equal(payload.home.servers.recent[0]?.muted, false);
+    assert.equal(payload.home.servers.recent[0]?.notificationLevel, "all");
+    assert.equal(payload.home.servers.recent[0]?.inviteAddress, "whispr.gg/whispr-uat");
   });
 
   it("accepts a fuller bounded mobile server rail without changing payload shape", () => {
@@ -114,11 +124,15 @@ describe("mobile bootstrap payload", () => {
             channelCount: index + 1,
             iconUrl: null,
             id: `server_${index + 1}`,
+            inviteAddress: null,
             joinedAt: "2026-06-25T10:00:00.000Z",
             memberCount: 10 + index,
             mentionCount: index,
+            muted: false,
             name: `Whispr ${index + 1}`,
+            notificationLevel: "all" as const,
             shortName: `W${index + 1}`,
+            starred: false,
             unreadCount: index + 1,
           })),
           totalCount: 12,

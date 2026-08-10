@@ -213,6 +213,16 @@ export async function listWorkspaceServers(userId: string) {
             },
           },
           shortName: true,
+          /**
+           * 6c "Yıldızla". A bounded sub-select on the viewer's own settings
+           * row rather than a second query: the row is lazy, so an absent one
+           * simply reads as `starred: false`.
+           */
+          userServerSettings: {
+            select: { starred: true },
+            take: 1,
+            where: { userId },
+          },
         },
       },
     },
@@ -221,7 +231,7 @@ export async function listWorkspaceServers(userId: string) {
   const serverIds = memberships.map((membership) => membership.server.id);
   const { mentionCounts, unreadCounts } = await getServerUnreadAndMentionCounts(userId, serverIds);
 
-  return memberships.map((membership) => {
+  const summaries = memberships.map((membership) => {
     const mediaSettings = getServerMediaSettings(membership.server.features);
     const roles = mergeRoleRecords(
       membership.server.roles,
@@ -256,9 +266,25 @@ export async function listWorkspaceServers(userId: string) {
       mentionCount: mentionCounts.get(membership.server.id) ?? 0,
       name: membership.server.name,
       shortName: membership.server.shortName,
+      starred: membership.server.userServerSettings[0]?.starred ?? false,
       unreadCount: unreadCounts.get(membership.server.id) ?? 0,
     });
   });
+
+  return sortWorkspaceServerSummaries(summaries);
+}
+
+/**
+ * Faz 1 §C5: `starred desc`, then the order the query already produced (join
+ * date ascending). Written as a stable sort over the query result rather than
+ * an `orderBy` because the flag lives on a different table than the ordering
+ * the rail otherwise keeps -- and mobile's Faz 4 rail derives its order from
+ * this same rule.
+ */
+export function sortWorkspaceServerSummaries<T extends { readonly starred: boolean }>(
+  summaries: readonly T[],
+): T[] {
+  return [...summaries].sort((left, right) => Number(right.starred) - Number(left.starred));
 }
 
 async function loadWorkspaceServerDetail(access: AccessContext): Promise<WorkspaceServerDetail> {
@@ -416,7 +442,13 @@ async function loadWorkspaceServerDetail(access: AccessContext): Promise<Workspa
           },
         },
         shortName: true,
+        tags: true,
         type: true,
+        userServerSettings: {
+          select: { starred: true },
+          take: 1,
+          where: { userId },
+        },
       },
     }),
     canManageInvites
@@ -506,6 +538,8 @@ async function loadWorkspaceServerDetail(access: AccessContext): Promise<Workspa
       mentionCount,
       name: server.name,
       shortName: server.shortName,
+      starred: server.userServerSettings[0]?.starred ?? false,
+      tags: server.tags,
       type: server.type,
       unreadCount,
     },
@@ -1195,6 +1229,13 @@ export async function updateWorkspaceServer(
 
   if (input.messageCharacterLimit !== undefined) {
     data.messageCharacterLimit = input.messageCharacterLimit;
+  }
+
+  if (input.tags !== undefined) {
+    // Already lowercased, slug-checked, deduplicated and capped at five by
+    // `ServerTagsSchema`; the service writes what the contract produced rather
+    // than re-validating it (Faz 1 §C3).
+    data.tags = { set: input.tags };
   }
 
   Object.assign(data, resolveVisibilityUpdateData(access.isPublic, input));

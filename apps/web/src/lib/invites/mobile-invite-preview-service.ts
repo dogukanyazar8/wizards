@@ -68,19 +68,8 @@ async function getMobileInvitePreviewWithDatabase(
 
   const profile = await getServerPublicProfileWithDatabase(database, invite.server.id, userId);
 
-  return {
-    bannerUrl: profile.bannerUrl,
-    channels: profile.channels,
-    description: profile.description,
-    iconUrl: profile.iconUrl,
-    joined: profile.joined,
-    memberCount: profile.memberCount,
-    mutualFriendCount: profile.mutualFriendCount,
-    mutualFriends: profile.mutualFriends,
-    name: profile.name,
-    onlineCount: profile.onlineCount,
-    serverId: profile.serverId,
-    slug,
-    verified: profile.verified,
-  };
+  // Faz 1 §B6.5: the preview is the profile read model plus the slug that
+  // resolved it. Projecting a subset here is what would force Faz 5 to write a
+  // second screen body for the CommunityInvite route.
+  return { ...profile, slug };
 }

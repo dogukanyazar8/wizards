@@ -6,6 +6,10 @@ import { createSharedStyles } from "../styles/shared-styles";
 export const createHomeScreenStyles = (theme: MobileTheme) => {
   const mobileRadii = theme.radii;
   const mobileSizing = theme.sizing;
+  // 6a/6b: every value the servers screen redesign touches comes from this
+  // group (Faz 2 §2.1) — a colour or a measurement written as a literal here
+  // would be a value the two themes cannot both answer for.
+  const workspace = theme.workspace;
   const homeScreenStyles = {
     cardHeaderText: {
       flex: 1,
@@ -249,27 +253,28 @@ export const createHomeScreenStyles = (theme: MobileTheme) => {
       shadowRadius: 18,
       elevation: 4,
     },
+    // 6a B1: 62px rail, 42px avatars at r15, 11px apart.
     mobileServerRail: {
-      width: 66,
+      width: workspace.railWidth,
       alignItems: "center",
-      paddingVertical: 10,
+      paddingVertical: 12,
     },
     mobileServerRailScroll: {
       flex: 1,
-      width: 66,
+      width: workspace.railWidth,
     },
     // 1a rail create/join entry. The dashed outline is the design system's "create"
     // marker (shared with the 1c new-server row), but it now sits on the accent tint
     // instead of a bare card so the tile reads as an action next to the avatars.
     mobileServerRailAddButton: {
-      width: 44,
-      height: 44,
+      width: workspace.railAvatarSize,
+      height: workspace.railAvatarSize,
       alignItems: "center",
       justifyContent: "center",
       borderStyle: "dashed",
       borderWidth: 2,
       borderColor: theme.accent.default,
-      borderRadius: 16,
+      borderRadius: workspace.railAvatarRadius,
       backgroundColor: theme.accent.soft,
     },
     // Gradient layer that fades in while the tile is pressed. It sits over the border
@@ -299,15 +304,19 @@ export const createHomeScreenStyles = (theme: MobileTheme) => {
     // Attention wave behind the tile while the member has no servers yet.
     mobileServerRailAddPulse: {
       position: "absolute",
-      width: 44,
-      height: 44,
-      borderRadius: 16,
+      width: workspace.railAvatarSize,
+      height: workspace.railAvatarSize,
+      borderRadius: workspace.railAvatarRadius,
       backgroundColor: theme.accent.default,
     },
-    // Same 52px slot the server avatars use, so the (+) stays optically centred.
+    // The same ring slot the server avatars use, so the (+) stays optically centred.
     mobileServerRailAddSlot: {
-      width: 52,
-      height: 52,
+      width:
+        workspace.railAvatarSize +
+        2 * (workspace.railActiveRing.innerWidth + workspace.railActiveRing.outerWidth),
+      height:
+        workspace.railAvatarSize +
+        2 * (workspace.railActiveRing.innerWidth + workspace.railActiveRing.outerWidth),
       alignItems: "center",
       justifyContent: "center",
     },
@@ -321,7 +330,7 @@ export const createHomeScreenStyles = (theme: MobileTheme) => {
       position: "absolute",
       right: -3,
       top: -3,
-      minWidth: 17,
+      minWidth: workspace.mentionBadge.minWidth - 1,
       overflow: "hidden",
       borderWidth: 2,
       borderColor: theme.surface.base,
@@ -350,44 +359,52 @@ export const createHomeScreenStyles = (theme: MobileTheme) => {
     // Splits the rail into "servers you are in" and the create/join action, so the (+)
     // stops reading as one more (empty) server.
     mobileServerRailDivider: {
-      width: 24,
-      height: 1.5,
+      width: workspace.railDivider.width,
+      height: workspace.railDivider.height,
       borderRadius: mobileRadii.pill,
-      backgroundColor: theme.border.subtle,
+      backgroundColor: workspace.railDivider.color,
     },
     // 1a rail: the 44px avatar sits inside a 52px ring slot so the active server
     // can draw the handoff's "2px screen-bg gap + 2px primary ring" without
     // shifting the inactive avatars.
+    // The avatar sits inside a slot two ring widths wider, so the active
+    // server can draw 6a's "2px screen-bg gap + 2px primary" without shifting
+    // the inactive avatars.
     mobileServerRailItem: {
       position: "relative",
-      width: 52,
-      height: 52,
+      width:
+        workspace.railAvatarSize +
+        2 * (workspace.railActiveRing.innerWidth + workspace.railActiveRing.outerWidth),
+      height:
+        workspace.railAvatarSize +
+        2 * (workspace.railActiveRing.innerWidth + workspace.railActiveRing.outerWidth),
       alignItems: "center",
       justifyContent: "center",
-      borderRadius: 20,
+      borderRadius: workspace.railAvatarRadius + workspace.railActiveRing.innerWidth * 2,
     },
     mobileServerRailItemActive: {
-      backgroundColor: theme.surface.base,
-      borderColor: theme.accent.default,
-      borderWidth: 2,
+      backgroundColor: workspace.railActiveRing.inner,
+      borderColor: workspace.railActiveRing.outer,
+      borderWidth: workspace.railActiveRing.outerWidth,
     },
     mobileServerRailAvatarWrap: {
-      height: 44,
+      height: workspace.railAvatarSize,
       position: "relative",
-      width: 44,
+      width: workspace.railAvatarSize,
     },
+    // 6a: a 4x28 bar on the left edge of the active tile, rounded on its right.
     mobileServerRailActiveIndicator: {
       position: "absolute",
-      left: -7,
-      width: 4,
-      height: 30,
-      borderBottomRightRadius: 3,
-      borderTopRightRadius: 3,
-      backgroundColor: theme.accent.default,
+      left: -9,
+      width: workspace.railActiveBar.width,
+      height: workspace.railActiveBar.height,
+      borderBottomRightRadius: workspace.railActiveBar.radius,
+      borderTopRightRadius: workspace.railActiveBar.radius,
+      backgroundColor: workspace.railActiveBar.color,
     },
     mobileServerRailList: {
       alignItems: "center",
-      gap: 12,
+      gap: workspace.railGap,
       minWidth: 0,
     },
     mobileServerRailLogo: {
@@ -646,66 +663,400 @@ export const createHomeScreenStyles = (theme: MobileTheme) => {
       minHeight: 44,
       minWidth: 0,
     },
+    // 6f: the name may wrap to two lines, so the row is top-aligned and the
+    // buttons keep their own column instead of squeezing the name.
     mobileWorkspaceHeaderRow: {
-      alignItems: "center",
+      alignItems: "flex-start",
       flexDirection: "row",
       gap: 8,
       minWidth: 0,
+      paddingBottom: 2,
+      paddingTop: 6,
     },
-    // 1a header icons (search, invite): 36px squares, tap area widened by hitSlop.
+    mobileWorkspaceHeaderActions: {
+      alignItems: "center",
+      flexDirection: "row",
+      flexGrow: 0,
+      flexShrink: 0,
+      gap: 8,
+    },
+    // 6f: `flex: 1, minWidth: 0` is what lets the name wrap instead of pushing
+    // the buttons off the row — both halves are required in RN too.
+    mobileWorkspaceHeaderNameWrap: {
+      alignItems: "flex-start",
+      flex: 1,
+      flexDirection: "row",
+      gap: 6,
+      minWidth: 0,
+    },
+    mobileWorkspaceHeaderChevron: {
+      flexGrow: 0,
+      flexShrink: 0,
+      marginTop: 5,
+    },
+    // 6a/6b filter strip: three equal segments in a track, selection persisted
+    // per user and server.
+    mobileWorkspaceFilterTrack: {
+      backgroundColor: workspace.filterTrack.bg,
+      borderRadius: workspace.filterTrack.radius,
+      flexDirection: "row",
+      marginBottom: 10,
+      minWidth: 0,
+      padding: workspace.filterTrack.padding,
+    },
+    mobileWorkspaceFilterSegment: {
+      alignItems: "center",
+      borderRadius: workspace.filterSegmentActive.radius,
+      flex: 1,
+      flexDirection: "row",
+      gap: 5,
+      justifyContent: "center",
+      paddingVertical: 7,
+    },
+    mobileWorkspaceFilterSegmentActive: {
+      ...theme.elevation.workspaceFilterSegment,
+      backgroundColor: workspace.filterSegmentActive.bg,
+    },
+    mobileWorkspaceFilterLabel: {
+      color: workspace.filterLabelIdle.color,
+      fontFamily: theme.typography.fontFamilySemiBold,
+      fontSize: workspace.filterLabelIdle.fontSize,
+      includeFontPadding: false,
+      lineHeight: workspace.filterLabelIdle.fontSize + 4,
+    },
+    mobileWorkspaceFilterLabelActive: {
+      color: workspace.filterLabelActive.color,
+      fontFamily: theme.typography.fontFamilyExtraBold,
+    },
+    mobileWorkspaceFilterBadge: {
+      backgroundColor: workspace.filterBadge.bg,
+      borderRadius: workspace.filterBadge.radius,
+      color: workspace.filterBadge.text,
+      fontFamily: theme.typography.fontFamilyExtraBold,
+      fontSize: workspace.filterBadge.textFontSize,
+      includeFontPadding: false,
+      lineHeight: workspace.filterBadge.height,
+      minWidth: workspace.filterBadge.minWidth,
+      overflow: "hidden",
+      paddingHorizontal: 4,
+      textAlign: "center",
+    },
+    mobileWorkspaceFilterVoiceDot: {
+      backgroundColor: workspace.metaVoice.color,
+      borderRadius: 3,
+      height: 6,
+      width: 6,
+    },
+    // 6a category header: the count next to the label, and the muted tone a
+    // collapsed category takes (plus the dot that admits it hides unread rows).
+    mobileWorkspaceSectionCountText: {
+      color: workspace.categoryCount.color,
+      fontFamily: theme.typography.fontFamilyBold,
+      fontSize: workspace.categoryCount.fontSize,
+      includeFontPadding: false,
+      lineHeight: 14,
+    },
+    mobileWorkspaceSectionCollapsedLabel: {
+      color: workspace.categoryCollapsed.label,
+    },
+    mobileWorkspaceSectionCollapsedCount: {
+      color: workspace.categoryCollapsed.label,
+    },
+    mobileWorkspaceSectionCollapsedDot: {
+      backgroundColor: workspace.categoryCollapsed.unreadDot,
+      borderRadius: 3,
+      height: 6,
+      marginLeft: 2,
+      width: 6,
+    },
+    // 6a "Boş · sesli kanal": no card, no Katıl pill — tapping the row connects.
+    mobileWorkspaceVoiceEmptyIcon: {
+      backgroundColor: workspace.voiceRowEmpty.iconBg,
+      borderColor: workspace.voiceRowEmpty.iconBorder,
+      borderWidth: 1,
+    },
+    mobileWorkspaceVoiceEmptyName: {
+      color: workspace.voiceRowEmpty.name,
+      fontFamily: theme.typography.fontFamilySemiBold,
+    },
+    mobileWorkspaceVoiceEmptySub: {
+      color: workspace.voiceRowEmpty.sub,
+      fontFamily: theme.typography.fontFamily,
+      fontSize: workspace.voiceRowEmpty.subFontSize,
+      includeFontPadding: false,
+      lineHeight: 15,
+    },
+    // 6b search results: channel-name matches and server-wide message matches
+    // are two labelled sections, never one mixed list.
+    mobileWorkspaceSearchSectionLabel: {
+      color: workspace.categoryLabel.color,
+      fontFamily: theme.typography.fontFamilyExtraBold,
+      fontSize: workspace.categoryLabel.fontSize,
+      includeFontPadding: false,
+      letterSpacing: workspace.categoryLabel.letterSpacing,
+      lineHeight: 14,
+      paddingBottom: 5,
+      paddingHorizontal: 4,
+      paddingTop: 11,
+      textTransform: "uppercase",
+    },
+    mobileWorkspaceSearchMessageRow: {
+      borderRadius: workspace.channelRow.radius,
+      gap: 3,
+      minWidth: 0,
+      paddingHorizontal: workspace.channelRow.paddingHorizontal,
+      paddingVertical: workspace.channelRow.paddingVertical,
+    },
+    mobileWorkspaceSearchMessageHeader: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: 6,
+      minWidth: 0,
+    },
+    mobileWorkspaceSearchMessageChannel: {
+      color: workspace.channelRowActive.name,
+      flexShrink: 1,
+      fontFamily: theme.typography.fontFamilyExtraBold,
+      fontSize: workspace.metaText.fontSize,
+      includeFontPadding: false,
+      lineHeight: 15,
+    },
+    mobileWorkspaceSearchMessageAuthor: {
+      color: workspace.metaText.color,
+      flexShrink: 1,
+      fontFamily: theme.typography.fontFamilySemiBold,
+      fontSize: workspace.metaText.fontSize,
+      includeFontPadding: false,
+      lineHeight: 15,
+    },
+    mobileWorkspaceSearchMessageTime: {
+      color: workspace.categoryCount.color,
+      fontFamily: theme.typography.fontFamilySemiBold,
+      fontSize: workspace.categoryCount.fontSize,
+      includeFontPadding: false,
+      lineHeight: 14,
+      marginLeft: "auto",
+    },
+    mobileWorkspaceSearchMessagePreview: {
+      color: workspace.voiceRowEmpty.sub,
+      fontFamily: theme.typography.fontFamily,
+      fontSize: workspace.voiceRowEmpty.subFontSize,
+      includeFontPadding: false,
+      lineHeight: 16,
+    },
+    mobileWorkspaceSearchEmpty: {
+      color: workspace.metaText.color,
+      fontFamily: theme.typography.fontFamilySemiBold,
+      fontSize: workspace.metaText.fontSize,
+      includeFontPadding: false,
+      lineHeight: 18,
+      paddingHorizontal: 4,
+      paddingVertical: 8,
+    },
+    // 6c: handle → identity → quick actions → list card. The sheet's own
+    // padding is the handoff's `10px 16px 26px`, carried by the panel and the
+    // handle area rather than by this content block.
+    mobileWorkspaceMenuSheet: {
+      paddingHorizontal: workspace.sheetPadding.horizontal,
+    },
+    mobileWorkspaceMenuPanel: {
+      borderTopLeftRadius: workspace.sheetRadius,
+      borderTopRightRadius: workspace.sheetRadius,
+      paddingBottom: workspace.sheetPadding.bottom,
+      ...theme.elevation.workspaceSheet,
+    },
+    mobileWorkspaceMenuBackdrop: { backgroundColor: workspace.sheetBackdrop },
+    mobileWorkspaceMenuHandleArea: {
+      alignItems: "center",
+      paddingBottom: workspace.sheetHandle.marginBottom,
+      paddingTop: workspace.sheetPadding.top,
+    },
+    mobileWorkspaceMenuHandle: {
+      backgroundColor: workspace.sheetHandle.color,
+      borderRadius: workspace.sheetHandle.radius,
+      height: workspace.sheetHandle.height,
+      width: workspace.sheetHandle.width,
+    },
+    // 6c 1 — identity row.
+    mobileWorkspaceMenuIdentity: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: workspace.menuIdentity.gap,
+      paddingBottom: workspace.menuIdentity.paddingBottom,
+      paddingHorizontal: workspace.menuIdentity.paddingHorizontal,
+    },
+    mobileWorkspaceMenuIdentityText: { flex: 1, gap: 2, minWidth: 0 },
+    mobileWorkspaceMenuIdentityName: {
+      color: theme.text.primary,
+      fontFamily: theme.typography.fontFamilyExtraBold,
+      includeFontPadding: false,
+    },
+    mobileWorkspaceMenuIdentityAddress: {
+      color: workspace.menuIdentity.inviteAddress.color,
+      fontFamily: theme.typography.fontFamilySemiBold,
+      fontSize: workspace.menuIdentity.inviteAddress.fontSize,
+      includeFontPadding: false,
+    },
+    mobileWorkspaceMenuProfileAction: {
+      backgroundColor: workspace.menuIdentity.profileAction.bg,
+      borderRadius: workspace.menuIdentity.profileAction.radius,
+      paddingHorizontal: workspace.menuIdentity.profileAction.paddingHorizontal,
+      paddingVertical: workspace.menuIdentity.profileAction.paddingVertical,
+    },
+    mobileWorkspaceMenuProfileActionText: {
+      color: workspace.menuIdentity.profileAction.text,
+      fontFamily: theme.typography.fontFamilyExtraBold,
+      fontSize: workspace.menuIdentity.profileAction.textFontSize,
+      includeFontPadding: false,
+    },
+    // 6c 2 — quick action quartet. Equal widths: a hidden card widens the rest
+    // instead of leaving a gap, which is what `flex: 1` per card buys.
+    mobileWorkspaceMenuQuickRow: {
+      flexDirection: "row",
+      gap: workspace.quickActionCard.rowGap,
+      paddingBottom: workspace.quickActionCard.rowPaddingBottom,
+    },
+    mobileWorkspaceMenuQuickCard: {
+      alignItems: "center",
+      backgroundColor: workspace.quickActionCard.bg,
+      borderColor: workspace.quickActionCard.border,
+      borderRadius: workspace.quickActionCard.radius,
+      borderWidth: 1,
+      flex: 1,
+      gap: workspace.quickActionCard.gap,
+      minWidth: 0,
+      paddingVertical: workspace.quickActionCard.paddingVertical,
+    },
+    mobileWorkspaceMenuQuickCardActive: {
+      backgroundColor: workspace.quickActionCard.activeBg,
+      borderColor: workspace.quickActionCard.activeBg,
+    },
+    mobileWorkspaceMenuQuickLabel: {
+      color: workspace.quickActionCard.label,
+      fontFamily: theme.typography.fontFamilyBold,
+      fontSize: workspace.quickActionCard.labelFontSize,
+      includeFontPadding: false,
+      textAlign: "center",
+    },
+    mobileWorkspaceMenuQuickLabelActive: { color: workspace.quickActionCard.activeTint },
+    // 6c D1 — the notification-level layer swaps into the same panel rather
+    // than stacking a second sheet over this one.
+    mobileWorkspaceMenuLayerHeader: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: workspace.menuIdentity.gap,
+      paddingBottom: workspace.menuIdentity.paddingBottom,
+      paddingHorizontal: workspace.menuIdentity.paddingHorizontal,
+    },
+    mobileWorkspaceMenuLayerTitle: {
+      color: theme.text.primary,
+      flex: 1,
+      fontFamily: theme.typography.fontFamilyBold,
+      fontSize: workspace.menuRow.labelFontSize,
+      includeFontPadding: false,
+      minWidth: 0,
+    },
+    mobileWorkspaceMenuRowValue: {
+      color: workspace.menuRow.value,
+      fontFamily: theme.typography.fontFamilySemiBold,
+      fontSize: workspace.menuRow.valueFontSize,
+      includeFontPadding: false,
+    },
+    mobileWorkspaceMenuAdminChip: {
+      backgroundColor: workspace.adminChip.bg,
+      borderRadius: workspace.adminChip.radius,
+      paddingHorizontal: workspace.adminChip.paddingHorizontal,
+      paddingVertical: workspace.adminChip.paddingVertical,
+    },
+    mobileWorkspaceMenuAdminChipText: {
+      color: workspace.adminChip.text,
+      fontFamily: theme.typography.fontFamilyExtraBold,
+      fontSize: workspace.adminChip.textFontSize,
+      includeFontPadding: false,
+      letterSpacing: workspace.adminChip.letterSpacing,
+    },
+    mobileWorkspaceMenuCard: {
+      backgroundColor: workspace.menuListCard.bg,
+      borderColor: workspace.menuListCard.border,
+      borderRadius: workspace.menuListCard.radius,
+      borderWidth: 1,
+      minWidth: 0,
+      overflow: "hidden",
+    },
+    mobileWorkspaceMenuRow: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: 12,
+      minWidth: 0,
+      paddingHorizontal: workspace.menuRow.paddingHorizontal,
+      paddingVertical: workspace.menuRow.paddingVertical,
+    },
+    mobileWorkspaceMenuRowDivider: {
+      borderTopColor: workspace.menuRow.divider,
+      borderTopWidth: 1,
+    },
+    mobileWorkspaceMenuRowLabelDanger: {
+      color: workspace.dangerRow,
+    },
+    mobileWorkspaceMenuRowLabel: {
+      color: theme.text.primary,
+      flex: 1,
+      fontFamily: theme.typography.fontFamilyBold,
+      fontSize: workspace.menuRow.labelFontSize,
+      includeFontPadding: false,
+      lineHeight: 18,
+      minWidth: 0,
+    },
+    // 6a header icons: at most two (search + "⋯"), 34px squares in the rail
+    // layout and 42px in the compact one. Tap area widened by hitSlop.
     mobileWorkspaceHeaderIconButton: {
       alignItems: "center",
-      backgroundColor: theme.surface.card,
-      borderColor: theme.border.subtle,
-      borderRadius: 13,
+      backgroundColor: workspace.headerIconButton.bg,
+      borderColor: workspace.headerIconButton.border,
+      borderRadius: workspace.headerIconButton.radius,
       borderWidth: 1,
-      height: 36,
+      height: workspace.headerIconButton.size,
       justifyContent: "center",
-      width: 36,
+      width: workspace.headerIconButton.size,
     },
-    mobileWorkspaceCompactAddButton: {
+    mobileWorkspaceHeaderIconButtonCompact: {
       alignItems: "center",
-      backgroundColor: theme.surface.card,
-      borderColor: theme.border.subtle,
-      borderRadius: 15,
+      backgroundColor: workspace.headerIconButtonCompact.bg,
+      borderColor: workspace.headerIconButtonCompact.border,
+      borderRadius: workspace.headerIconButtonCompact.radius,
       borderWidth: 1,
-      height: 42,
+      height: workspace.headerIconButtonCompact.size,
       justifyContent: "center",
-      width: 42,
+      width: workspace.headerIconButtonCompact.size,
     },
-    // 1a header: admin create (+) entry that opens the 1d create menu.
-    mobileWorkspaceCreateButton: {
-      ...theme.elevation.primaryAction,
-      alignItems: "center",
-      backgroundColor: theme.accent.action,
-      borderRadius: 13,
-      height: 36,
-      justifyContent: "center",
-      width: 36,
-    },
-    // 1b compact: floating create (+) button, 18px above the tab bar and pulled a touch
-    // off the panel's right padding so it never grazes the screen edge.
+    // 6a/6b: the single create entry is now a labelled "+ Kanal" pill. The
+    // header (+) and the per-category (+) are both gone, so this is the only
+    // way into the 1d create menu.
     mobileWorkspaceFabAnchor: {
+      bottom: workspace.fab.bottom,
       position: "absolute",
-      bottom: 18,
-      right: 6,
+      right: workspace.fab.right,
     },
-    // Same design logic as the rail (+): gradient fill plus a 2px accent outline that
-    // holds the button apart from whatever scrolls underneath it.
+    mobileWorkspaceFabAnchorCompact: {
+      bottom: workspace.fabCompact.bottom,
+      position: "absolute",
+      right: workspace.fabCompact.right,
+    },
     mobileWorkspaceFab: {
+      ...theme.elevation.workspaceFab,
       alignItems: "center",
       backgroundColor: theme.accent.action,
-      borderColor: theme.accent.soft,
-      borderRadius: 20,
-      borderWidth: 2,
-      elevation: 8,
-      height: 54,
+      borderRadius: workspace.fab.radius,
+      flexDirection: "row",
+      gap: 7,
+      height: workspace.fab.height,
       justifyContent: "center",
-      shadowColor: theme.accent.action,
-      shadowOffset: { width: 0, height: 10 },
-      shadowOpacity: 0.42,
-      shadowRadius: 24,
-      width: 54,
+      paddingHorizontal: workspace.fab.paddingHorizontal,
+    },
+    mobileWorkspaceFabCompact: {
+      borderRadius: workspace.fabCompact.radius,
+      height: workspace.fabCompact.height,
+      paddingHorizontal: workspace.fabCompact.paddingHorizontal,
     },
     mobileWorkspaceFabFill: {
       position: "absolute",
@@ -713,35 +1064,31 @@ export const createHomeScreenStyles = (theme: MobileTheme) => {
       right: 0,
       bottom: 0,
       left: 0,
-      borderRadius: 18,
+      borderRadius: workspace.fab.radius,
       overflow: "hidden",
     },
-    mobileWorkspaceFabIcon: {
-      position: "absolute",
-      top: 0,
-      right: 0,
-      bottom: 0,
-      left: 0,
-      alignItems: "center",
-      justifyContent: "center",
+    mobileWorkspaceFabFillCompact: {
+      borderRadius: workspace.fabCompact.radius,
     },
-    // 1a/1b category header: chevron toggle row + admin (+) button that opens 1d.
+    mobileWorkspaceFabLabel: {
+      color: theme.text.onPrimary,
+      fontFamily: theme.typography.fontFamilyExtraBold,
+      fontSize: workspace.fab.label,
+      includeFontPadding: false,
+      lineHeight: workspace.fab.label + 4,
+    },
+    mobileWorkspaceFabLabelCompact: {
+      fontSize: workspace.fabCompact.label,
+      lineHeight: workspace.fabCompact.label + 4,
+    },
+    // 6a category header: chevron + label + count. No trailing button any more —
+    // creating a channel goes through the FAB, editing through a long press.
     mobileWorkspaceSectionHeaderToggle: {
       alignItems: "center",
       flex: 1,
       flexDirection: "row",
       gap: 6,
       minWidth: 0,
-    },
-    mobileWorkspaceSectionAddButton: {
-      alignItems: "center",
-      backgroundColor: theme.surface.card,
-      borderColor: theme.border.subtle,
-      borderRadius: 8,
-      borderWidth: 1,
-      height: 22,
-      justifyContent: "center",
-      width: 22,
     },
     mobileWorkspaceHeaderText: {
       flex: 1,

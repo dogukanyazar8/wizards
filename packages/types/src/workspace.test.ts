@@ -10,6 +10,7 @@ import {
   CreateChannelSchema,
   CreateInviteSchema,
   CreateServerSchema,
+  CreateServerScheduledEventSchema,
   CreateWorkspaceRoleSchema,
   DeleteServerSchema,
   ReorderCategoriesSchema,
@@ -18,16 +19,30 @@ import {
   ServerDiscoveryCardSchema,
   ServerDiscoveryPageSchema,
   ServerDiscoveryQuerySchema,
+  ServerNotificationLevelSchema,
+  ServerProfileAccessLevelSchema,
+  ServerPublicProfileAdminSchema,
   ServerPublicProfileChannelSchema,
   ServerPublicProfileFriendSchema,
+  ServerPublicProfileParticipantSchema,
   ServerPublicProfileSchema,
+  ServerScheduledEventEntityTypeSchema,
+  ServerScheduledEventSchema,
+  ServerScheduledEventStatusSchema,
+  ServerTagSchema,
+  ServerTagsSchema,
   ServerTypeSchema,
+  ServerUserSettingsSchema,
   ServerVerificationLevelSchema,
+  SetServerScheduledEventInterestSchema,
   UpdateCategorySchema,
   UpdateChannelFieldsSchema,
   UpdateChannelSchema,
   UpdateServerFieldsSchema,
   UpdateServerSchema,
+  UpdateServerScheduledEventSchema,
+  UpdateServerTagsSchema,
+  UpdateServerUserSettingsSchema,
   UpdateWorkspaceChannelPermissionsSchema,
   UpdateWorkspaceMemberRolesSchema,
   UpdateWorkspaceRoleSchema,
@@ -127,23 +142,65 @@ const serverDetail = {
   },
   ungroupedChannels: [channel],
 };
+const serverPublicProfileChannel = {
+  categoryId: null,
+  categoryName: null,
+  id: "c1",
+  isPrivate: false,
+  lastActivityAt: null,
+  liveCount: null,
+  name: "duyurular",
+  participants: [],
+  readOnly: true,
+  type: "text" as const,
+};
+const serverScheduledEvent = {
+  attendeeCount: 3,
+  channelId: "c9",
+  channelName: "live-room",
+  description: null,
+  entityType: "VOICE" as const,
+  externalLocation: null,
+  id: "e1",
+  interestedCount: 12,
+  name: "Topluluk buluşması",
+  scheduledEndAt: null,
+  scheduledStartAt: "2026-08-11T18:00:00.000Z",
+  serverId: "s1",
+  status: "SCHEDULED" as const,
+  viewerInterested: false,
+};
 const serverPublicProfile = {
+  accessLevel: "public" as const,
+  admins: [],
   bannerUrl: null,
-  channels: [{ liveCount: null, name: "duyurular", readOnly: true, type: "text" as const }],
+  canManageServer: false,
+  channelCount: 1,
+  channels: [serverPublicProfileChannel],
+  createdAt: "2026-01-02T03:04:05.000Z",
   description: "",
   discoverable: true,
   iconUrl: null,
+  inviteAddress: "whispr.gg/mobile-test",
   isPublic: true,
   joined: false,
+  joinedAt: null,
   memberCount: 12_400,
+  muted: false,
   mutualFriendCount: 0,
   mutualFriends: [],
   name: "Whispr Topluluk",
+  notificationLevel: "all" as const,
   onlineCount: 1_200,
   serverId: "s1",
   shortName: null,
+  starred: false,
+  tags: ["sohbet", "oyun"],
   type: "COMMUNITY" as const,
+  upcomingEvent: serverScheduledEvent,
   verified: true,
+  voiceActiveCount: 2,
+  weeklyMessageCount: 480,
 };
 
 describe("workspace schemas", () => {
@@ -188,6 +245,20 @@ describe("workspace schemas", () => {
         valid: { expiresInHours: 24, maxUses: 10 },
         invalid: { expiresInHours: 0 },
       },
+      CreateServerScheduledEventSchema: {
+        schema: CreateServerScheduledEventSchema,
+        valid: {
+          entityType: "VOICE",
+          name: "Topluluk buluşması",
+          scheduledStartAt: "2026-08-11T18:00:00.000Z",
+        },
+        invalid: {
+          entityType: "VOICE",
+          name: "Topluluk buluşması",
+          scheduledEndAt: "2026-08-11T17:00:00.000Z",
+          scheduledStartAt: "2026-08-11T18:00:00.000Z",
+        },
+      },
       CreateServerSchema: {
         schema: CreateServerSchema,
         valid: { name: "Whispr", shortName: "ws" },
@@ -229,6 +300,7 @@ describe("workspace schemas", () => {
           name: "Whispr Topluluk",
           onlineCount: 1_200,
           shortName: null,
+          tags: ["sohbet"],
           type: "COMMUNITY",
           verified: true,
         },
@@ -241,6 +313,7 @@ describe("workspace schemas", () => {
           name: "Whispr Topluluk",
           onlineCount: 1_200,
           shortName: null,
+          tags: ["sohbet"],
           type: "COMMUNITY",
           verified: true,
         },
@@ -255,20 +328,104 @@ describe("workspace schemas", () => {
         valid: { cursor: "12400|s1", limit: 20, query: "whispr" },
         invalid: { cursor: "12400|s1", limit: 20, query: "whispr", extra: true },
       },
+      ServerNotificationLevelSchema: {
+        schema: ServerNotificationLevelSchema,
+        valid: "mentions",
+        invalid: "MENTIONS",
+      },
+      ServerProfileAccessLevelSchema: {
+        schema: ServerProfileAccessLevelSchema,
+        valid: "invite",
+        invalid: "secret",
+      },
+      ServerPublicProfileAdminSchema: {
+        schema: ServerPublicProfileAdminSchema,
+        valid: {
+          avatarUrl: null,
+          displayName: "Ada",
+          id: "u1",
+          lastSeenAt: null,
+          presence: "offline",
+          role: "owner",
+          shortName: null,
+          username: "ada",
+        },
+        invalid: {
+          avatarUrl: null,
+          displayName: "Ada",
+          id: "u1",
+          lastSeenAt: null,
+          presence: "idle",
+          role: "owner",
+          shortName: null,
+          username: "ada",
+        },
+      },
       ServerPublicProfileChannelSchema: {
         schema: ServerPublicProfileChannelSchema,
-        valid: { liveCount: null, name: "duyurular", readOnly: true, type: "text" },
-        invalid: { liveCount: null, name: "duyurular", readOnly: true, type: "forum" },
+        valid: serverPublicProfileChannel,
+        invalid: { ...serverPublicProfileChannel, type: "forum" },
       },
       ServerPublicProfileFriendSchema: {
         schema: ServerPublicProfileFriendSchema,
         valid: { avatarUrl: null, displayName: "Ada", id: "friend-1" },
         invalid: { avatarUrl: null, displayName: "Ada", id: 1 },
       },
+      ServerPublicProfileParticipantSchema: {
+        schema: ServerPublicProfileParticipantSchema,
+        valid: { avatarUrl: null, displayName: "Ada", id: "u1", shortName: "AD" },
+        invalid: { avatarUrl: null, displayName: "Ada", id: "u1" },
+      },
       ServerPublicProfileSchema: {
         schema: ServerPublicProfileSchema,
         valid: serverPublicProfile,
         invalid: { ...serverPublicProfile, memberCount: -1 },
+      },
+      ServerScheduledEventEntityTypeSchema: {
+        schema: ServerScheduledEventEntityTypeSchema,
+        valid: "VOICE",
+        invalid: "voice",
+      },
+      ServerScheduledEventSchema: {
+        schema: ServerScheduledEventSchema,
+        valid: serverScheduledEvent,
+        invalid: { ...serverScheduledEvent, interestedCount: -1 },
+      },
+      ServerScheduledEventStatusSchema: {
+        schema: ServerScheduledEventStatusSchema,
+        valid: "SCHEDULED",
+        // The database enum doubles the L; a single-L spelling is a drift bug.
+        invalid: "CANCELED",
+      },
+      ServerTagSchema: {
+        schema: ServerTagSchema,
+        valid: "sohbet-odasi",
+        invalid: "sohbet odası",
+      },
+      ServerTagsSchema: {
+        schema: ServerTagsSchema,
+        valid: ["sohbet", "oyun"],
+        invalid: ["a", "b", "c", "d", "e", "f"],
+      },
+      ServerUserSettingsSchema: {
+        schema: ServerUserSettingsSchema,
+        valid: {
+          muted: false,
+          mutedUntil: null,
+          notificationLevel: "all",
+          starred: true,
+        },
+        invalid: {
+          muted: false,
+          mutedUntil: "yarın",
+          notificationLevel: "all",
+          starred: true,
+        },
+      },
+      SetServerScheduledEventInterestSchema: {
+        schema: SetServerScheduledEventInterestSchema,
+        valid: { interested: true },
+        invalid: { interested: true, extra: 1 },
       },
       ServerTypeSchema: {
         schema: ServerTypeSchema,
@@ -303,6 +460,21 @@ describe("workspace schemas", () => {
       UpdateServerSchema: {
         schema: UpdateServerSchema,
         valid: { name: "Updated server" },
+        invalid: {},
+      },
+      UpdateServerScheduledEventSchema: {
+        schema: UpdateServerScheduledEventSchema,
+        valid: { name: "Yeni ad" },
+        invalid: {},
+      },
+      UpdateServerTagsSchema: {
+        schema: UpdateServerTagsSchema,
+        valid: { tags: ["sohbet"] },
+        invalid: { tags: ["Sohbet Odası"] },
+      },
+      UpdateServerUserSettingsSchema: {
+        schema: UpdateServerUserSettingsSchema,
+        valid: { starred: true },
         invalid: {},
       },
       UpdateWorkspaceChannelPermissionsSchema: {
@@ -649,6 +821,7 @@ describe("server type contract", () => {
       messageCharacterLimit: 2000,
       name: "Updated server",
       shortName: "ws1",
+      tags: ["sohbet"],
     };
 
     // Derived from the schema's own keys, so a field that lands on
@@ -678,27 +851,97 @@ describe("server type contract", () => {
   });
 
   it("describes the canonical public profile payload", () => {
-    const profile = ServerPublicProfileSchema.parse({
-      bannerUrl: null,
-      channels: [{ liveCount: null, name: "duyurular", readOnly: true, type: "text" }],
-      description: "",
-      discoverable: true,
-      iconUrl: null,
-      isPublic: true,
-      joined: false,
-      memberCount: 12_400,
-      mutualFriendCount: 0,
-      mutualFriends: [],
-      name: "Whispr Topluluk",
-      onlineCount: 1_200,
-      serverId: "s1",
-      shortName: null,
-      type: "COMMUNITY",
-      verified: true,
-    });
+    const profile = ServerPublicProfileSchema.parse(serverPublicProfile);
 
     assert.equal(profile.channels[0]?.name, "duyurular");
     assert.equal(profile.type, "COMMUNITY");
+    assert.equal(profile.upcomingEvent?.channelName, "live-room");
+    assert.equal(profile.weeklyMessageCount, 480);
+  });
+
+  it("keeps the profile the single read model rather than a second schema", () => {
+    // Faz 1 §C1: every 6c/6d/6e field is on this schema, so Faz 5 has no
+    // reason to define a parallel profile contract.
+    for (const field of [
+      "accessLevel",
+      "admins",
+      "canManageServer",
+      "channelCount",
+      "createdAt",
+      "inviteAddress",
+      "joinedAt",
+      "muted",
+      "notificationLevel",
+      "starred",
+      "tags",
+      "upcomingEvent",
+      "voiceActiveCount",
+      "weeklyMessageCount",
+    ]) {
+      assert.equal(field in ServerPublicProfileSchema.shape, true, `${field} missing`);
+    }
+  });
+
+  it("lets the profile drop a weekly count without dropping the payload", () => {
+    const profile = ServerPublicProfileSchema.parse({
+      ...serverPublicProfile,
+      weeklyMessageCount: null,
+    });
+
+    assert.equal(profile.weeklyMessageCount, null);
+  });
+
+  it("normalises a tag to a lowercase slug and rejects anything else", () => {
+    assert.equal(ServerTagSchema.parse("  SOHBET  "), "sohbet");
+    assert.equal(ServerTagSchema.safeParse("sohbet odası").success, false);
+    assert.equal(ServerTagSchema.safeParse("").success, false);
+    assert.equal(ServerTagSchema.safeParse("a".repeat(25)).success, false);
+  });
+
+  it("drops repeated tags but still refuses a sixth one", () => {
+    assert.deepEqual(ServerTagsSchema.parse(["Sohbet", "sohbet", "oyun"]), ["sohbet", "oyun"]);
+    assert.equal(ServerTagsSchema.safeParse(["a", "b", "c", "d", "e", "f"]).success, false);
+  });
+
+  it("carries tags on the server update contract instead of a dedicated route", () => {
+    assert.equal("tags" in UpdateServerFieldsSchema.shape, true);
+    assert.equal(UpdateServerSchema.safeParse({ tags: [] }).success, true);
+    assert.equal(UpdateServerSchema.safeParse({ tags: ["Oyun"] }).success, true);
+  });
+
+  it("writes every per-user server preference through one body", () => {
+    assert.equal(UpdateServerUserSettingsSchema.safeParse({ muted: true }).success, true);
+    assert.equal(
+      UpdateServerUserSettingsSchema.safeParse({ notificationLevel: "mentions" }).success,
+      true,
+    );
+    assert.equal(UpdateServerUserSettingsSchema.safeParse({ mutedUntil: null }).success, true);
+    assert.equal(UpdateServerUserSettingsSchema.safeParse({}).success, false);
+    assert.equal(UpdateServerUserSettingsSchema.safeParse({ pinned: true }).success, false);
+  });
+
+  it("refuses an event that ends before it starts, on create and on update", () => {
+    const window = {
+      scheduledEndAt: "2026-08-11T17:00:00.000Z",
+      scheduledStartAt: "2026-08-11T18:00:00.000Z",
+    };
+
+    assert.equal(
+      CreateServerScheduledEventSchema.safeParse({
+        entityType: "VOICE",
+        name: "Buluşma",
+        ...window,
+      }).success,
+      false,
+    );
+    assert.equal(UpdateServerScheduledEventSchema.safeParse(window).success, false);
+    assert.equal(
+      UpdateServerScheduledEventSchema.safeParse({
+        scheduledEndAt: "2026-08-11T19:00:00.000Z",
+        scheduledStartAt: "2026-08-11T18:00:00.000Z",
+      }).success,
+      true,
+    );
   });
 
   it("rejects a privileged field smuggled into the consumer contract", () => {

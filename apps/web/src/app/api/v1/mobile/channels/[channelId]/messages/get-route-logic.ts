@@ -8,7 +8,7 @@ import { ChannelType, prisma } from "@wizards/db";
 import { ApiError, jsonError } from "@/lib/api";
 import { authorizeMobileApiRequest, readMobileApiClaimedUserId } from "@/lib/auth/api";
 import { createServerTimingForRequest } from "@/lib/server-timing";
-import { getChannelMessages } from "@/lib/workspace/message-service";
+import { getChannelMessages, getChannelMessagesAround } from "@/lib/workspace/message-service";
 import { requireChannelPermissionForUser } from "@/lib/workspace/permission-service";
 import { PermissionBits } from "@/lib/workspace/permissions";
 
@@ -20,6 +20,8 @@ export type MobileChannelMessagesGetRouteContext = {
 
 type MobileChannelMessagePage = {
   hasMore: boolean;
+  /** Only an `around` window can have newer messages beyond its own end. */
+  hasNewer?: boolean;
   messages: ChatMessage[];
   nextCursor?: string;
 };
@@ -31,6 +33,13 @@ export type MobileChannelMessagesGetRouteDependencies = {
     channelId: string;
     cursor?: string;
     limit: number;
+    viewerId: string;
+  }): Promise<MobileChannelMessagePage>;
+  /** The window a search hit opens into: history on both sides of one message. */
+  listMessagesAround(input: {
+    channelId: string;
+    limit: number;
+    messageId: string;
     viewerId: string;
   }): Promise<MobileChannelMessagePage>;
   loadChannelSummary(channelId: string): Promise<MobileWorkspaceChannelSummary>;
@@ -47,6 +56,8 @@ const defaultDependencies: MobileChannelMessagesGetRouteDependencies = {
   },
   listMessages: ({ channelId, cursor, limit, viewerId }) =>
     getChannelMessages(channelId, cursor, limit, viewerId),
+  listMessagesAround: ({ channelId, limit, messageId, viewerId }) =>
+    getChannelMessagesAround(channelId, messageId, limit, viewerId),
   loadChannelSummary: loadMobileChannelSummary,
   readUserId: readMobileApiClaimedUserId,
 };
@@ -85,6 +96,9 @@ export async function mobileChannelMessagesGetRoute(
     const { channelId } = await context.params;
     const url = new URL(request.url);
     const cursor = url.searchParams.get("before") || url.searchParams.get("cursor") || undefined;
+    // `around` wins over a cursor: they are two different reads, and honouring
+    // both at once would silently drop one of them.
+    const around = url.searchParams.get("around") || undefined;
     const limit = readLimit(url);
 
     const stopAuthTiming = timing.start("auth");
@@ -105,12 +119,19 @@ export async function mobileChannelMessagesGetRoute(
     const [channel, result] = await timing.measure("db", () =>
       Promise.all([
         dependencies.loadChannelSummary(channelId),
-        dependencies.listMessages({
-          channelId,
-          ...(cursor === undefined ? {} : { cursor }),
-          limit,
-          viewerId,
-        }),
+        around === undefined
+          ? dependencies.listMessages({
+              channelId,
+              ...(cursor === undefined ? {} : { cursor }),
+              limit,
+              viewerId,
+            })
+          : dependencies.listMessagesAround({
+              channelId,
+              limit,
+              messageId: around,
+              viewerId,
+            }),
       ]),
     );
 
@@ -118,6 +139,7 @@ export async function mobileChannelMessagesGetRoute(
       MobileChannelMessagesResponseSchema.parse({
         channel,
         hasMore: result.hasMore,
+        hasNewer: result.hasNewer ?? false,
         messages: result.messages,
         nextCursor: result.nextCursor ?? null,
       }),

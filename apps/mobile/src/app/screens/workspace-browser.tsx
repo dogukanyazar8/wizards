@@ -1,6 +1,4 @@
 import {
-  ActivityIndicator,
-  Ionicons,
   Pressable,
   ScrollView,
   Text,
@@ -35,7 +33,8 @@ import {
   type MobileWorkspaceChannelSummary,
   type MobileWorkspaceServerViewState,
 } from "../mobile-root-screen-shared";
-import type { ChatMessage, UploadedAttachmentInput } from "@wizards/types";
+import { Share } from "react-native";
+import type { ChatMessage, ServerNotificationLevel, UploadedAttachmentInput } from "@wizards/types";
 import { useMobileServerManagementFeature } from "../features/use-mobile-server-management-feature";
 import { useMobileChannelTypingLabels } from "../features/use-mobile-typing-labels";
 import { MobileServerCreateJoinSheet } from "../../workspace/mobile-server-create-join-sheet";
@@ -63,16 +62,34 @@ import {
 } from "./workspace-add-action-buttons";
 import { MobileWorkspaceServerSwitcherSheet } from "./mobile-workspace-server-switcher-sheet";
 import { useMobileCollapsedSections } from "../providers/use-mobile-collapsed-sections";
+import { useMobileWorkspaceFilter } from "../providers/use-mobile-workspace-filter";
+import { useMobileServerUserSettings } from "../../query/use-mobile-server-user-settings";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import {
   buildMobileCollapsedSectionKey,
+  collectMobileLiveVoiceChannelIds,
+  filterMobileWorkspaceSections,
   getMobileMissedNotifications,
   getMobileOtherServersUnreadTotal,
   getMobileServerBadge,
   getMobileVoiceParticipantTotal,
+  getMobileWorkspaceUnreadChannelCount,
+  hasMobileWorkspaceLiveVoice,
+  sortMobileServersByStar,
 } from "../mobile-sunucular-model";
+import { WorkspaceFilterStrip } from "./workspace-filter-strip";
+import { WorkspaceHeaderRow } from "./workspace-header-row";
+import { WorkspaceServerMenuSheet } from "./workspace-server-menu-sheet";
+import {
+  useMobileServerMessageSearchQuery,
+  WorkspaceMessageSearchResults,
+} from "./workspace-message-search-results";
+import {
+  MobileWorkspaceEditorSheets,
+  type MobileWorkspaceEditorState,
+} from "../../workspace/mobile-workspace-editor-sheets";
 import { getMobileNotificationsQueryOptions } from "../../notifications/mobile-notification-query";
-import { Button, EmptyState, Skeleton } from "../components/kit";
+import { Button, DestructiveConfirmationSheet, EmptyState, Skeleton } from "../components/kit";
 import { MobileLineIcon } from "../../design/mobile-line-icons";
 import { mobileNavigationRef } from "../../navigation/mobile-navigation-ref";
 import type { MobileChannelTypingUser } from "../../realtime/mobile-typing-state";
@@ -118,7 +135,10 @@ export function MobileWorkspaceBrowser({
   onPinMessage,
   onRetryMessage,
   onToggleMessageReaction,
+  channelAnchorMessageId = null,
   channelFirstUnreadMessageId = null,
+  isViewingChannelHistory = false,
+  onExitChannelHistory,
   channelPinnedMessages = [],
 }: {
   attachmentsFeature: MobileBootstrapFeature | null;
@@ -130,7 +150,11 @@ export function MobileWorkspaceBrowser({
    * is what showed the messages for an instant before the channel "opened".
    */
   canRenderChannelChat?: boolean;
+  /** A search hit opens the channel at this message instead of at its tail. */
+  channelAnchorMessageId?: string | null;
   channelFirstUnreadMessageId?: string | null;
+  isViewingChannelHistory?: boolean;
+  onExitChannelHistory?(): void;
   channelPinnedMessages?: readonly ChatMessage[];
   bootstrapState: MobileBootstrapViewState & {
     payload: MobileBootstrapPayload;
@@ -189,18 +213,27 @@ export function MobileWorkspaceBrowser({
   const { collapsedSections, toggleSection: toggleCollapsedSection } = useMobileCollapsedSections();
   const [isInviteSheetOpen, setInviteSheetOpen] = useState(false);
   const [isServerSwitcherOpen, setServerSwitcherOpen] = useState(false);
+  const [isServerMenuOpen, setServerMenuOpen] = useState(false);
+  const [isLeaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
   const [createState, setCreateState] = useState<MobileWorkspaceCreateState>(null);
+  const [editorState, setEditorState] = useState<MobileWorkspaceEditorState>(null);
   const [pendingCreatedChannelId, setPendingCreatedChannelId] = useState<string | null>(null);
   const [isChannelSearchOpen, setChannelSearchOpen] = useState(false);
+  const workspaceFilter = useMobileWorkspaceFilter(bootstrapState.payload.user.id);
   const serverManagement = useMobileServerManagementFeature({
     client: apiClient,
     onOpenServer,
   });
+  // 6c: the rail is ordered `starred desc` over whatever order the bootstrap
+  // produced. The bound is applied first — starring must not smuggle a 51st
+  // server past the render limit, only reorder the ones already drawn.
   const servers = useMemo(
     () =>
-      getBoundedMobileList(
-        bootstrapState.payload.home.servers.recent,
-        MOBILE_RENDER_LIMITS.servers,
+      sortMobileServersByStar(
+        getBoundedMobileList(
+          bootstrapState.payload.home.servers.recent,
+          MOBILE_RENDER_LIMITS.servers,
+        ),
       ),
     [bootstrapState.payload.home.servers.recent],
   );
@@ -213,8 +246,18 @@ export function MobileWorkspaceBrowser({
   const activeServerShortName =
     activeServer?.shortName ?? activeServerSummary?.shortName ?? activeServerName;
   const activeServerIconUrl = activeServer?.iconUrl ?? activeServerSummary?.iconUrl ?? null;
+  // 6c reads its three toggles and the invite address straight off the rail
+  // summary — opening the menu costs no request (04 §A0.3).
+  const activeServerInviteAddress = activeServerSummary?.inviteAddress ?? null;
+  const isActiveServerMuted = activeServerSummary?.muted ?? false;
+  const isActiveServerStarred = activeServerSummary?.starred ?? false;
+  const activeServerNotificationLevel: ServerNotificationLevel =
+    activeServerSummary?.notificationLevel ?? "all";
+  const serverUserSettings = useMobileServerUserSettings(apiClient, activeServerId);
   const voiceStatesQuery = useMobileVoiceStatesQuery(apiClient, activeServerId ?? "");
-  const voiceStates = voiceStatesQuery.data?.states ?? [];
+  // Memoized because the live-voice set below keys off it: `?? []` alone hands
+  // out a new empty array on every render and defeats every memo under it.
+  const voiceStates = useMemo(() => voiceStatesQuery.data?.states ?? [], [voiceStatesQuery.data]);
   const voiceParticipantTotal = getMobileVoiceParticipantTotal(voiceStates);
   const otherServersUnreadTotal = getMobileOtherServersUnreadTotal(servers, activeServerId);
   // "Kaçırdıkların" for the 1c sheet: only fetched while the switcher is open.
@@ -283,9 +326,43 @@ export function MobileWorkspaceBrowser({
       .filter((channel) => channel.type === "TEXT")
       .map((channel) => ({ id: channel.id, label: `#${channel.name}`, type: "channel" as const }));
   }, [workspacePayload]);
+  // A0.2: one set per render, shared by the filter, the strip's live-voice dot
+  // and the rows — `collectLiveVoiceChannelIds` used to run twice per render.
+  const liveVoiceChannelIds = useMemo(
+    () => collectMobileLiveVoiceChannelIds(voiceStates),
+    [voiceStates],
+  );
+  const activeFilter = workspaceFilter.filter(activeServerId ?? "");
+  // A0.1: the "all" path returns the same array, so this memo hands FlashList a
+  // stable reference on every presence tick.
+  const filteredChannelSections = useMemo(
+    () => filterMobileWorkspaceSections(channelSections, activeFilter, liveVoiceChannelIds),
+    [activeFilter, channelSections, liveVoiceChannelIds],
+  );
+  const unreadChannelCount = useMemo(
+    () => getMobileWorkspaceUnreadChannelCount(channelSections),
+    [channelSections],
+  );
+  const hasLiveVoice = useMemo(
+    () => hasMobileWorkspaceLiveVoice(channelSections, liveVoiceChannelIds),
+    [channelSections, liveVoiceChannelIds],
+  );
+  // Computed before the collapse pass empties a folded category's channels —
+  // afterwards there is nothing left to look at.
+  const unreadSectionIds = useMemo(
+    () =>
+      new Set(
+        filteredChannelSections
+          .filter((section) =>
+            section.channels.some((channel) => channel.unreadCount > 0 || channel.mentionCount > 0),
+          )
+          .map((section) => section.id),
+      ),
+    [filteredChannelSections],
+  );
   const visibleChannelSections = useMemo(() => {
     const collapsedMap = Object.fromEntries(
-      channelSections.map((section) => [
+      filteredChannelSections.map((section) => [
         section.id,
         isSearchingChannels || !activeServerId
           ? false
@@ -293,8 +370,15 @@ export function MobileWorkspaceBrowser({
       ]),
     );
 
-    return getVisibleMobileWorkspaceChannelSections(channelSections, collapsedMap);
-  }, [activeServerId, channelSections, collapsedSections, isSearchingChannels]);
+    return getVisibleMobileWorkspaceChannelSections(filteredChannelSections, collapsedMap);
+  }, [activeServerId, collapsedSections, filteredChannelSections, isSearchingChannels]);
+  // 6b: the box searches channel names locally and message content through the
+  // server-wide endpoint, which is what the placeholder promises.
+  const messageSearchQuery = useMobileServerMessageSearchQuery(
+    apiClient,
+    activeServerId ?? "",
+    channelQuery,
+  );
   const isActiveServerLoading =
     activeServerId !== null &&
     serverState.serverId === activeServerId &&
@@ -350,6 +434,78 @@ export function MobileWorkspaceBrowser({
 
     setInviteSheetOpen(true);
   }, [activeServerId]);
+  // 6c "Paylaş": the native sheet with the server's own address. The card is
+  // not rendered without one, so there is nothing to guard against here.
+  const handleShareServer = useCallback(() => {
+    if (!activeServerInviteAddress) {
+      return;
+    }
+
+    void Share.share({ message: activeServerInviteAddress }).catch(() => undefined);
+  }, [activeServerInviteAddress]);
+  // 6c: the server refuses an owner's leave, so the row is hidden rather than
+  // shown and answered with a 400.
+  const canLeaveActiveServer =
+    activeServerId !== null &&
+    workspacePayload !== null &&
+    ownerUserId !== bootstrapState.payload.user.id;
+  const handleLeaveServer = useCallback(async () => {
+    if (!activeServerId) {
+      return;
+    }
+
+    // Pick the replacement *before* the membership goes away: after the
+    // bootstrap refetch this server is no longer in the list to skip over.
+    const nextServerId = servers.find((server) => server.id !== activeServerId)?.id ?? null;
+    await serverManagement.leaveServer({ nextServerId, serverId: activeServerId });
+    setLeaveConfirmOpen(false);
+  }, [activeServerId, serverManagement, servers]);
+  // 6a B3: the category "+" is gone, so renaming and deleting a category live
+  // behind a long press on its header — through the existing editor sheet, not
+  // a second editing surface. Reordering is not offered: there is no drag
+  // affordance in this phase.
+  const handleEditSection = useCallback(
+    (sectionId: string, sectionName: string) => {
+      if (!canManageChannels || sectionId === "ungrouped") {
+        return;
+      }
+
+      setEditorState({ categoryId: sectionId, initialName: sectionName, kind: "category-edit" });
+    },
+    [canManageChannels],
+  );
+  // A message hit opens the channel it lives in: the chat surface is entered by
+  // channel, and jumping to a specific message id is not a route this app has.
+  /**
+   * A hit opens its channel *at that message*: the route carries the message id
+   * and the transcript loads the window around it. `onOpenChannel` still runs —
+   * it owns the selection, typing and read state — the navigate only adds the
+   * anchor the pushed screen reads.
+   */
+  const handleOpenSearchResult = useCallback(
+    (result: { readonly channelId?: string | null | undefined; readonly messageId: string }) => {
+      if (!workspacePayload || !result.channelId || !activeServerId) {
+        return;
+      }
+
+      const channel = getMobileWorkspaceChannels(workspacePayload.detail).find(
+        (entry) => entry.id === result.channelId,
+      );
+      if (!channel) {
+        return;
+      }
+
+      onOpenChannel(channel);
+      if (mobileNavigationRef.isReady()) {
+        mobileNavigationRef.navigate("ChannelChat", {
+          channelId: channel.id,
+          messageId: result.messageId,
+          serverId: activeServerId,
+        });
+      }
+    },
+    [activeServerId, onOpenChannel, workspacePayload],
+  );
 
   // 1e: once the created channel lands in the refreshed workspace payload, open
   // it (text → chat, voice → room) so the form's success flow ends on the channel.
@@ -384,7 +540,10 @@ export function MobileWorkspaceBrowser({
             attachmentsFeature={attachmentsFeature}
             channel={activeTextChannel}
             canModerate={canManageMessages}
+            channelAnchorMessageId={channelAnchorMessageId}
             channelFirstUnreadMessageId={channelFirstUnreadMessageId}
+            isViewingChannelHistory={isViewingChannelHistory}
+            {...(onExitChannelHistory ? { onExitChannelHistory } : {})}
             channelPinnedMessages={channelPinnedMessages}
             currentUserId={bootstrapState.payload.user.id}
             getAccessToken={getAccessToken}
@@ -510,9 +669,9 @@ export function MobileWorkspaceBrowser({
                   {isActive ? <View style={styles.mobileServerRailActiveIndicator} /> : null}
                   <View style={styles.mobileServerRailAvatarWrap}>
                     <AvatarMark
-                      avatarBorderRadius={16}
+                      avatarBorderRadius={theme.workspace.railAvatarRadius}
                       avatarBorderWidth={0}
-                      dimension={44}
+                      dimension={theme.workspace.railAvatarSize}
                       imageUrl={server.iconUrl}
                       label={server.shortName ?? server.name}
                       size="regular"
@@ -568,177 +727,28 @@ export function MobileWorkspaceBrowser({
           </View>
         ) : (
           <>
-            <View style={styles.mobileWorkspaceHeaderRow}>
-              <Pressable
-                accessibilityLabel={copy.openWorkspaceServerAction}
-                accessibilityRole="button"
-                onPress={() => setServerSwitcherOpen(true)}
-                style={({ pressed }) => [
-                  isCompactWorkspaceLayout
-                    ? styles.mobileWorkspaceHeader
-                    : styles.mobileWorkspaceHeaderRail,
-                  isCompactWorkspaceLayout && styles.mobileWorkspaceHeaderCompact,
-                  pressed && styles.compactListRowPressed,
-                ]}
-                testID="mobile-workspace-server-switcher-open"
-              >
-                {isCompactWorkspaceLayout ? (
-                  <View style={styles.mobileWorkspaceHeaderAvatarWrap}>
-                    <AvatarMark
-                      avatarBorderRadius={14}
-                      avatarBorderWidth={0}
-                      dimension={38}
-                      fallbackTextStyle={styles.mobileWorkspaceHeaderAvatarFallback}
-                      imageUrl={activeServerIconUrl}
-                      label={activeServerShortName}
-                      size="regular"
-                    />
-                    {otherServersUnreadTotal > 0 ? (
-                      <Text style={styles.mobileWorkspaceHeaderAvatarBadge}>
-                        {formatMobileUnreadCount(otherServersUnreadTotal)}
-                      </Text>
-                    ) : null}
-                  </View>
-                ) : null}
-                {isCompactWorkspaceLayout ? (
-                  // 1b: the pill stacks name over meta; 1a puts meta on its own row.
-                  <View style={styles.mobileWorkspaceHeaderText}>
-                    <Text
-                      style={[styles.mobileWorkspaceTitle, styles.mobileWorkspaceTitleCompact]}
-                      numberOfLines={1}
-                    >
-                      {activeServerName}
-                    </Text>
-                    {serverMeta}
-                  </View>
-                ) : (
-                  <Text style={styles.mobileWorkspaceTitle} numberOfLines={1}>
-                    {activeServerName}
-                  </Text>
-                )}
-                {isActiveServerLoading ? (
-                  <ActivityIndicator color={theme.accent.strong} size="small" />
-                ) : (
-                  <MobileLineIcon
-                    color={theme.text.visualSecondary}
-                    name="chevron-down"
-                    size={isCompactWorkspaceLayout ? 18 : 16}
-                  />
-                )}
-              </Pressable>
-              {!isCompactWorkspaceLayout ? (
-                <Pressable
-                  accessibilityLabel={copy.workspaceChannelSearchPlaceholder}
-                  accessibilityRole="button"
-                  hitSlop={6}
-                  onPress={() => {
-                    const next = !isChannelSearchOpen;
-                    setChannelSearchOpen(next);
-                    if (!next) {
-                      setChannelQuery("");
+            <WorkspaceHeaderRow
+              isLoading={isActiveServerLoading}
+              layout={workspaceLayout}
+              meta={serverMeta}
+              onOpenMenu={() => setServerMenuOpen(true)}
+              onOpenSwitcher={() => setServerSwitcherOpen(true)}
+              onToggleSearch={
+                isCompactWorkspaceLayout
+                  ? undefined
+                  : () => {
+                      const next = !isChannelSearchOpen;
+                      setChannelSearchOpen(next);
+                      if (!next) {
+                        setChannelQuery("");
+                      }
                     }
-                  }}
-                  style={({ pressed }) => [
-                    styles.mobileWorkspaceHeaderIconButton,
-                    pressed && styles.compactListRowPressed,
-                  ]}
-                  testID="mobile-workspace-search-toggle"
-                >
-                  <MobileLineIcon color={theme.accent.default} name="search" size={16} />
-                </Pressable>
-              ) : null}
-              {/* Ungated on purpose: the profile route serves any member, and this is a
-                  plain member's only way to the card — the settings entry below needs a
-                  manage capability, and web offers the same item to everyone. */}
-              {activeServerId ? (
-                <Pressable
-                  accessibilityLabel={copy.serverSettingsProfile}
-                  accessibilityRole="button"
-                  hitSlop={6}
-                  onPress={() => {
-                    if (mobileNavigationRef.isReady()) {
-                      mobileNavigationRef.navigate("ServerProfile", { serverId: activeServerId });
-                    }
-                  }}
-                  style={({ pressed }) => [
-                    isCompactWorkspaceLayout
-                      ? styles.mobileWorkspaceCompactAddButton
-                      : styles.mobileWorkspaceHeaderIconButton,
-                    pressed && styles.compactListRowPressed,
-                  ]}
-                  testID={`mobile-server-profile-open-${activeServerId}`}
-                >
-                  <MobileLineIcon
-                    color={theme.accent.default}
-                    name="info"
-                    size={isCompactWorkspaceLayout ? 18 : 16}
-                  />
-                </Pressable>
-              ) : null}
-              {canManageInvites ? (
-                <Pressable
-                  accessibilityLabel={copy.inviteSheetTitle}
-                  accessibilityRole="button"
-                  hitSlop={6}
-                  onPress={handleOpenInviteSheet}
-                  style={({ pressed }) => [
-                    isCompactWorkspaceLayout
-                      ? styles.mobileWorkspaceCompactAddButton
-                      : styles.mobileWorkspaceHeaderIconButton,
-                    pressed && styles.compactListRowPressed,
-                  ]}
-                  testID={`mobile-server-invite-share-${activeServerId}`}
-                >
-                  <MobileLineIcon
-                    color={theme.accent.default}
-                    name="invite-user"
-                    size={isCompactWorkspaceLayout ? 18 : 16}
-                  />
-                </Pressable>
-              ) : null}
-              {/* 1a (rail) and 1b (compact) both need the settings entry — it used to be
-                  gated on the compact layout, so the default rail layout had no way in. */}
-              {activeServerId && (canManageServer || canManageInvites) ? (
-                <Pressable
-                  accessibilityLabel={copy.workspaceServerSettingsAction}
-                  accessibilityRole="button"
-                  hitSlop={6}
-                  onPress={() => {
-                    if (mobileNavigationRef.isReady()) {
-                      mobileNavigationRef.navigate("ServerSettings", { serverId: activeServerId });
-                    }
-                  }}
-                  style={({ pressed }) => [
-                    isCompactWorkspaceLayout
-                      ? styles.mobileWorkspaceCompactAddButton
-                      : styles.mobileWorkspaceHeaderIconButton,
-                    pressed && styles.compactListRowPressed,
-                  ]}
-                  testID={`mobile-server-settings-open-${activeServerId}`}
-                >
-                  <Ionicons
-                    name="settings-outline"
-                    size={isCompactWorkspaceLayout ? 18 : 16}
-                    color={theme.accent.default}
-                  />
-                </Pressable>
-              ) : null}
-              {!isCompactWorkspaceLayout && canManageChannels ? (
-                <Pressable
-                  accessibilityLabel={copy.workspaceCreateMenuTitle}
-                  accessibilityRole="button"
-                  hitSlop={6}
-                  onPress={() => setCreateState({ categoryId: null, kind: "menu" })}
-                  style={({ pressed }) => [
-                    styles.mobileWorkspaceCreateButton,
-                    pressed && styles.compactListRowPressed,
-                  ]}
-                  testID="mobile-workspace-create-open"
-                >
-                  <Ionicons name="add" size={17} color={theme.text.onPrimary} />
-                </Pressable>
-              ) : null}
-            </View>
+              }
+              otherServersUnreadTotal={otherServersUnreadTotal}
+              serverIconUrl={activeServerIconUrl}
+              serverName={activeServerName}
+              serverShortName={activeServerShortName}
+            />
             {!isCompactWorkspaceLayout ? serverMeta : null}
             {isActiveServerLoading ? (
               <View style={styles.mobileWorkspaceSearchRow} testID="mobile-workspace-loading">
@@ -756,15 +766,15 @@ export function MobileWorkspaceBrowser({
                 ]}
               >
                 <View style={styles.mobileWorkspaceSearchBox}>
-                  <MobileLineIcon color={theme.text.visualPlaceholder} name="search" size={18} />
+                  <MobileLineIcon color={theme.text.visualPlaceholder} name="search" size={15} />
                   <TextInput
-                    accessibilityLabel={copy.workspaceChannelSearchPlaceholder}
+                    accessibilityLabel={copy.workspaceChannelSearchPlaceholderExpanded}
                     autoCapitalize="none"
                     autoCorrect={false}
                     autoFocus={!isCompactWorkspaceLayout && isChannelSearchOpen}
                     clearButtonMode="while-editing"
                     onChangeText={setChannelQuery}
-                    placeholder={copy.workspaceChannelSearchPlaceholder}
+                    placeholder={copy.workspaceChannelSearchPlaceholderExpanded}
                     placeholderTextColor={theme.text.visualPlaceholder}
                     returnKeyType="search"
                     style={styles.mobileWorkspaceSearchInput}
@@ -772,6 +782,17 @@ export function MobileWorkspaceBrowser({
                   />
                 </View>
               </View>
+            ) : null}
+
+            {/* The strip filters the list the user is looking at; while a search
+                is running the two labelled result sections replace it. */}
+            {!isSearchingChannels && activeServerId ? (
+              <WorkspaceFilterStrip
+                filter={activeFilter}
+                hasLiveVoice={hasLiveVoice}
+                onChange={(next) => workspaceFilter.setFilter(activeServerId, next)}
+                unreadChannelCount={unreadChannelCount}
+              />
             ) : null}
 
             {isActiveServerError ? (
@@ -797,26 +818,34 @@ export function MobileWorkspaceBrowser({
 
             {workspacePayload ? (
               <>
+                {isSearchingChannels ? (
+                  <Text style={styles.mobileWorkspaceSearchSectionLabel}>
+                    {copy.workspaceSearchChannelsSection}
+                  </Text>
+                ) : null}
                 <WorkspaceChannelSectionList
                   layout={workspaceLayout}
                   sections={visibleChannelSections}
                   selectedChannelId={selectedChannelId}
+                  unreadSectionIds={unreadSectionIds}
                   voiceStates={voiceStates}
                   isCollapseDisabled={isSearchingChannels}
-                  canCreateChannels={canManageChannels}
+                  canEditCategories={canManageChannels}
                   onOpenChannel={onOpenChannel}
                   onToggleSection={handleToggleSection}
-                  onCreateInSection={(sectionId) =>
-                    setCreateState({
-                      categoryId: sectionId === "ungrouped" ? null : sectionId,
-                      kind: "menu",
-                    })
-                  }
+                  onEditSection={handleEditSection}
                 />
                 {channelQuery.trim().length > 0 && channelSections.length === 0 ? (
                   <Text style={styles.contractDescription}>
                     {copy.workspaceNoChannelSearchResults}
                   </Text>
+                ) : null}
+                {isSearchingChannels ? (
+                  <WorkspaceMessageSearchResults
+                    isLoading={messageSearchQuery.isLoading}
+                    onOpenResult={handleOpenSearchResult}
+                    results={messageSearchQuery.data?.results ?? []}
+                  />
                 ) : null}
                 {workspacePayload.detail.hasMoreChannels ? (
                   <Text style={styles.workspaceHint}>{copy.workspaceMoreChannelsHidden}</Text>
@@ -825,9 +854,13 @@ export function MobileWorkspaceBrowser({
             ) : null}
           </>
         )}
-        {isCompactWorkspaceLayout && canManageChannels && servers.length > 0 ? (
+        {/* 6a/6b: the one create entry left. Rendered only for a channel manager
+            — 00 §2 forbids a disabled control standing in for a missing one. */}
+        {canManageChannels && servers.length > 0 ? (
           <MobileWorkspaceCreateFab
             accessibilityLabel={copy.workspaceCreateMenuTitle}
+            label={copy.workspaceCreateChannelFab}
+            layout={workspaceLayout}
             onPress={() => setCreateState({ categoryId: null, kind: "menu" })}
             testID="mobile-workspace-create-fab"
           />
@@ -868,6 +901,77 @@ export function MobileWorkspaceBrowser({
         serverName={activeServerName}
         state={createState}
       />
+      {activeServerId ? (
+        <WorkspaceServerMenuSheet
+          canManageInvites={canManageInvites}
+          canManageServer={canManageServer}
+          canLeaveServer={canLeaveActiveServer}
+          inviteAddress={activeServerInviteAddress}
+          isMuted={isActiveServerMuted}
+          isStarred={isActiveServerStarred}
+          memberCount={activeMemberCount}
+          notificationLevel={activeServerNotificationLevel}
+          onSelectNotificationLevel={(level) =>
+            serverUserSettings.update({ notificationLevel: level })
+          }
+          onShare={handleShareServer}
+          onToggleMute={(next) => serverUserSettings.update({ muted: next })}
+          onToggleStar={(next) => serverUserSettings.update({ starred: next })}
+          serverIconUrl={activeServerIconUrl}
+          serverShortName={activeServerShortName}
+          onClose={() => setServerMenuOpen(false)}
+          onLeave={() => {
+            setServerMenuOpen(false);
+            setLeaveConfirmOpen(true);
+          }}
+          onOpenInvite={() => {
+            setServerMenuOpen(false);
+            handleOpenInviteSheet();
+          }}
+          onOpenMembers={() => {
+            setServerMenuOpen(false);
+            if (mobileNavigationRef.isReady()) {
+              mobileNavigationRef.navigate("ServerMembers", { serverId: activeServerId });
+            }
+          }}
+          onOpenProfile={() => {
+            setServerMenuOpen(false);
+            if (mobileNavigationRef.isReady()) {
+              mobileNavigationRef.navigate("ServerProfile", { serverId: activeServerId });
+            }
+          }}
+          onOpenSettings={() => {
+            setServerMenuOpen(false);
+            if (mobileNavigationRef.isReady()) {
+              mobileNavigationRef.navigate("ServerSettings", { serverId: activeServerId });
+            }
+          }}
+          open={isServerMenuOpen}
+          serverId={activeServerId}
+          serverName={activeServerName}
+        />
+      ) : null}
+      {activeServerId ? (
+        <DestructiveConfirmationSheet
+          body={copy.serverMenuLeaveBody.replace("{server}", activeServerName)}
+          busy={serverManagement.isLeavingServer}
+          confirmLabel={copy.serverMenuLeave}
+          icon="log-out-outline"
+          onCancel={() => setLeaveConfirmOpen(false)}
+          onConfirm={handleLeaveServer}
+          open={isLeaveConfirmOpen}
+          testID="mobile-server-leave-confirm"
+          title={copy.serverMenuLeave}
+        />
+      ) : null}
+      {workspacePayload && activeServerId ? (
+        <MobileWorkspaceEditorSheets
+          detail={workspacePayload.detail}
+          editor={editorState}
+          onClose={() => setEditorState(null)}
+          serverId={activeServerId}
+        />
+      ) : null}
       <MobileInviteSheet
         canManageServer={canManageServer}
         onClose={() => setInviteSheetOpen(false)}

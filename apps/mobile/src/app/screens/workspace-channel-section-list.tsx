@@ -19,6 +19,7 @@ import type { MobileWorkspaceLayout } from "../providers/mobile-workspace-layout
 import { MobileLineIcon } from "../../design/mobile-line-icons";
 import { formatMobileChannelRowTimestamp } from "../../locale/mobile-date-separator";
 import {
+  getMobileCategoryHeaderState,
   getMobileChannelRowPreview,
   getMobileChannelRowTone,
   getMobileVoiceRowPresence,
@@ -30,24 +31,31 @@ import { mobileListLoadHandlers } from "../../performance/mobile-performance-met
 const VOICE_ROW_AVATAR_LIMIT = 3;
 
 export function WorkspaceChannelSectionList({
-  canCreateChannels = false,
+  canEditCategories = false,
   isCollapseDisabled,
   layout,
-  onCreateInSection,
+  onEditSection,
   onOpenChannel,
   onToggleSection,
   sections,
   selectedChannelId,
+  unreadSectionIds,
   voiceStates = [],
 }: {
-  canCreateChannels?: boolean;
+  canEditCategories?: boolean;
   isCollapseDisabled: boolean;
   layout: MobileWorkspaceLayout;
-  onCreateInSection?(sectionId: string): void;
+  onEditSection?(sectionId: string, sectionName: string): void;
   onOpenChannel(channel: MobileWorkspaceChannelSummary): void;
   onToggleSection(sectionId: string): void;
   sections: MobileVisibleWorkspaceChannelSection[];
   selectedChannelId: string | null;
+  /**
+   * Which categories still hold an unread channel. A collapsed section arrives
+   * here with an empty `channels` array — it has already been folded away — so
+   * the dot that admits it is hiding something has to be told from outside.
+   */
+  unreadSectionIds?: ReadonlySet<string>;
   voiceStates?: readonly MobileVoiceChannelState[];
 }) {
   const styles = useHomeScreenStyles();
@@ -65,9 +73,6 @@ export function WorkspaceChannelSectionList({
       kind: "channel" as const,
     })),
   ]);
-  // Only a channel-manager sees the per-category create (+); it opens 1d with
-  // that category preselected.
-  const showSectionAdd = canCreateChannels && onCreateInSection !== undefined;
 
   return (
     <FlashList
@@ -94,6 +99,12 @@ export function WorkspaceChannelSectionList({
         }
 
         const { section } = item;
+        // 6a: chevron + label + channel count, and nothing else. A collapsed
+        // category dims and, if it is hiding unread rows, admits it with a dot.
+        const headerState = getMobileCategoryHeaderState(section, section.isCollapsed);
+        const canEditSection =
+          canEditCategories && onEditSection !== undefined && section.id !== "ungrouped";
+
         return (
           <View
             style={
@@ -112,42 +123,51 @@ export function WorkspaceChannelSectionList({
               accessibilityState={{ disabled: isCollapseDisabled, expanded: !section.isCollapsed }}
               disabled={isCollapseDisabled}
               hitSlop={12}
+              onLongPress={
+                canEditSection ? () => onEditSection?.(section.id, section.name) : undefined
+              }
               onPress={() => onToggleSection(section.id)}
               style={({ pressed }) => [
                 styles.mobileWorkspaceSectionHeaderToggle,
                 pressed && styles.compactListRowPressed,
               ]}
+              testID={`mobile-workspace-section-${section.id}`}
             >
               <MobileLineIcon
-                color={theme.text.visualFaint}
-                name={section.isCollapsed ? "chevron-right" : "chevron-down"}
+                color={
+                  headerState.isCollapsed
+                    ? theme.workspace.categoryCollapsed.chevron
+                    : theme.workspace.categoryLabel.color
+                }
+                name={headerState.isCollapsed ? "chevron-right" : "chevron-down"}
                 size={11}
               />
               <Text
-                style={
+                style={[
                   isRailLayout
                     ? styles.mobileWorkspaceSectionTitleRail
-                    : styles.mobileWorkspaceSectionTitle
-                }
+                    : styles.mobileWorkspaceSectionTitle,
+                  headerState.isCollapsed && styles.mobileWorkspaceSectionCollapsedLabel,
+                ]}
               >
                 {section.name}
               </Text>
-            </Pressable>
-            {showSectionAdd ? (
-              <Pressable
-                accessibilityLabel={copy.workspaceCreateMenuTitle}
-                accessibilityRole="button"
-                hitSlop={11}
-                onPress={() => onCreateInSection?.(section.id)}
-                style={({ pressed }) => [
-                  styles.mobileWorkspaceSectionAddButton,
-                  pressed && styles.compactListRowPressed,
+              <Text
+                style={[
+                  styles.mobileWorkspaceSectionCountText,
+                  headerState.isCollapsed && styles.mobileWorkspaceSectionCollapsedCount,
                 ]}
-                testID={`mobile-workspace-section-create-${section.id}`}
+                testID={`mobile-workspace-section-count-${section.id}`}
               >
-                <Ionicons color={theme.text.visualSecondary} name="add" size={12} />
-              </Pressable>
-            ) : null}
+                {section.totalChannelCount}
+              </Text>
+              {headerState.isCollapsed && unreadSectionIds?.has(section.id) === true ? (
+                <View
+                  style={styles.mobileWorkspaceSectionCollapsedDot}
+                  testID={`mobile-workspace-section-unread-${section.id}`}
+                />
+              ) : null}
+            </Pressable>
           </View>
         );
       }}
@@ -265,10 +285,14 @@ export const WorkspaceChannelCompactRow = memo(function WorkspaceChannelCompactR
     );
   }
 
+  // 6a: an empty voice room is a plain row — no card, no Katıl pill. Tapping it
+  // connects, which is the same thing the pill did on the live variant.
+  const isEmptyVoiceRow = channel.type === "VOICE" && participants.length === 0;
   const preview = getMobileChannelRowPreview(channel);
-  const timestamp = channel.lastMessage
-    ? formatMobileChannelRowTimestamp(channel.lastMessage.createdAt, locale)
-    : "";
+  const timestamp =
+    !isEmptyVoiceRow && channel.lastMessage
+      ? formatMobileChannelRowTimestamp(channel.lastMessage.createdAt, locale)
+      : "";
 
   return (
     <Pressable
@@ -290,7 +314,8 @@ export const WorkspaceChannelCompactRow = memo(function WorkspaceChannelCompactR
         style={[
           isRailLayout ? styles.mobileWorkspaceChannelIconRail : styles.mobileWorkspaceChannelIcon,
           channel.type === "TEXT" && isSelected && styles.mobileWorkspaceChannelIconSelected,
-          channel.type === "VOICE" && styles.mobileWorkspaceChannelIconVoice,
+          channel.type === "VOICE" && !isEmptyVoiceRow && styles.mobileWorkspaceChannelIconVoice,
+          isEmptyVoiceRow && styles.mobileWorkspaceVoiceEmptyIcon,
         ]}
         testID={channel.type === "TEXT" ? "mobile-workspace-text-channel-icon" : undefined}
       >
@@ -312,7 +337,7 @@ export const WorkspaceChannelCompactRow = memo(function WorkspaceChannelCompactR
           </Text>
         ) : (
           <MobileLineIcon
-            color={theme.status.visualText}
+            color={isEmptyVoiceRow ? theme.workspace.voiceRowEmpty.icon : theme.status.visualText}
             name="speaker"
             size={isRailLayout ? 14 : 15}
           />
@@ -335,11 +360,20 @@ export const WorkspaceChannelCompactRow = memo(function WorkspaceChannelCompactR
               (isRailLayout
                 ? styles.mobileWorkspaceChannelNameRailActive
                 : styles.mobileWorkspaceChannelNameActive),
+            isEmptyVoiceRow && styles.mobileWorkspaceVoiceEmptyName,
           ]}
         >
           {channel.name}
         </Text>
-        {preview ? (
+        {isEmptyVoiceRow ? (
+          <Text
+            numberOfLines={1}
+            style={styles.mobileWorkspaceVoiceEmptySub}
+            testID="mobile-workspace-voice-empty-sub"
+          >
+            {copy.workspaceVoiceRowEmpty}
+          </Text>
+        ) : preview ? (
           <Text
             numberOfLines={1}
             style={[

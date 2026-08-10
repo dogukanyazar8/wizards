@@ -29,6 +29,8 @@ function buildRedis(status: string = "ready") {
         return 1;
       },
       scard: async (key: string) => sets.get(key)?.size ?? 0,
+      smismember: async (key: string, ...members: string[]) =>
+        members.map((member) => (sets.get(key)?.has(member) ? 1 : 0)),
       srem: async (key: string, member: string) => {
         sets.get(key)?.delete(member);
         return 1;
@@ -331,6 +333,8 @@ function buildBatchRedis(status: string = "ready") {
       // primitive against this same fixture; countServerOnlineMembersBatch
       // itself never reads this.
       scard: async (key: string) => sets.get(key)?.size ?? 0,
+      smismember: async (key: string, ...members: string[]) =>
+        members.map((member) => (sets.get(key)?.has(member) ? 1 : 0)),
       status,
     },
     sets,

@@ -4,11 +4,13 @@ import { describe, it } from "node:test";
 import type { MobileApiClient, MobileApiRequestOptions } from "../src/api/mobile-api-client";
 import {
   buildMobileServerCreatePath,
+  buildMobileServerLeavePath,
   buildMobileServerInviteCreatePath,
   buildMobileServerJoinPath,
   createMobileServer,
   createMobileServerInvite,
   joinMobileServer,
+  leaveMobileServer,
 } from "../src/workspace/mobile-server-management-client";
 
 const validInvite = {
@@ -21,6 +23,45 @@ const validInvite = {
   shareUrl: "https://uat.whispr.example/invite/invite-1",
   uses: 0,
 };
+
+// 6c "Sunucudan ayrıl". Own membership only: the path names the server, the
+// session names the member, and there is no body to name anyone else.
+describe("mobile server leave client", () => {
+  it("targets the caller's own membership and encodes the server id", () => {
+    assert.equal(
+      buildMobileServerLeavePath({ serverId: "server/id 1" }),
+      "/api/v1/mobile/servers/server%2Fid%201/members/me",
+    );
+  });
+
+  it("sends a bodyless DELETE and validates the response", async () => {
+    const requests: Array<{ options: MobileApiRequestOptions | undefined; path: string }> = [];
+    const client: MobileApiClient = {
+      async requestJson<TResponse>(path: string, options?: MobileApiRequestOptions) {
+        requests.push({ options, path });
+        return { success: true } as TResponse;
+      },
+    };
+
+    const response = await leaveMobileServer(client, { serverId: "server-1" });
+
+    assert.deepEqual(response, { success: true });
+    assert.deepEqual(requests, [
+      { options: { method: "DELETE" }, path: "/api/v1/mobile/servers/server-1/members/me" },
+    ]);
+  });
+
+  it("rejects a blank server id before it reaches transport", async () => {
+    const client: MobileApiClient = {
+      async requestJson<TResponse>() {
+        throw new Error("must not be called");
+        return undefined as TResponse;
+      },
+    };
+
+    await assert.rejects(() => leaveMobileServer(client, { serverId: "   " }));
+  });
+});
 
 describe("mobile server management client", () => {
   it("builds only the approved POST paths and encodes server identifiers", () => {

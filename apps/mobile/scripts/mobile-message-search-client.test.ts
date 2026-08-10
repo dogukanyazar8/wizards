@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import type { MobileApiClient } from "../src/api/mobile-api-client";
 import {
   buildMobileMessageSearchPath,
+  buildMobileServerMessageSearchPath,
   MOBILE_MESSAGE_SEARCH_DEFAULT_LIMIT,
   MOBILE_MESSAGE_SEARCH_MAX_LIMIT,
   searchMobileMessages,
@@ -146,5 +147,44 @@ describe("mobile message search client", () => {
 
   it("keeps the mobile search contract self-validating", () => {
     assert.deepEqual(validateMobileMessageSearchContract(), []);
+  });
+});
+
+// 6b's box says "Kanallarda ve mesajlarda ara", so the message half spans the
+// whole server and talks to its own endpoint.
+describe("buildMobileServerMessageSearchPath", () => {
+  it("targets the server-wide route with a normalized query and a clamped limit", () => {
+    const path = buildMobileServerMessageSearchPath({
+      limit: 500,
+      query: "  sürüm   notları ",
+      serverId: "server/one",
+    });
+
+    assert.ok(path.startsWith("/api/v1/mobile/servers/server%2Fone/messages/search?"));
+    assert.ok(path.includes(`limit=${MOBILE_MESSAGE_SEARCH_MAX_LIMIT}`));
+    assert.ok(path.includes("q=s%C3%BCr%C3%BCm+notlar%C4%B1"));
+  });
+
+  it("carries a keyset cursor and nothing else the workspace box cannot produce", () => {
+    const path = buildMobileServerMessageSearchPath({
+      cursor: "cursor-1",
+      query: "release",
+      serverId: "server-1",
+    });
+
+    assert.ok(path.includes("cursor=cursor-1"));
+    assert.ok(!path.includes("author="));
+    assert.ok(!path.includes("exact="));
+  });
+
+  it("refuses a query the endpoint would answer 400 for", () => {
+    assert.throws(
+      () => buildMobileServerMessageSearchPath({ query: "x", serverId: "server-1" }),
+      /at least 2 characters/,
+    );
+    assert.throws(
+      () => buildMobileServerMessageSearchPath({ query: "release", serverId: "  " }),
+      /requires a server id/,
+    );
   });
 });

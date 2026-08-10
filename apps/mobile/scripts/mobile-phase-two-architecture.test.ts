@@ -26,7 +26,9 @@ describe("mobile Phase 2 architecture", () => {
     const dmRouteSource = readFileSync(dmRouteState, "utf8");
     assert.doesNotMatch(source, /useMobileChannelMessagesQuery/);
     assert.doesNotMatch(source, /useMobileDMMessagesQuery/);
-    assert.match(channelRouteSource, /useMobileChannelMessagesQuery/);
+    // The channel route builds the transcript query itself: live or anchored on
+    // a search hit, one options builder either way.
+    assert.match(channelRouteSource, /getMobileChannelMessagesQueryOptions/);
     assert.match(dmRouteSource, /useMobileDMMessagesQuery/);
     assert.match(source, /useMobileMessageSearchQuery/);
     assert.match(source, /useMobileChannelMessageMutation/);

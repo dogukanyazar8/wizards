@@ -1,4 +1,12 @@
-import type { MobileNotificationItem, MobileWorkspaceChannelSummary } from "@wizards/types";
+import {
+  resolveServerScheduledEventAction,
+  type MobileNotificationItem,
+  type MobileWorkspaceChannelSummary,
+  type ServerProfileAccessLevel,
+  type ServerScheduledEventAction,
+} from "@wizards/types";
+import { mobileServerNameLayout } from "../design/tokens";
+import { mobileCopy, type MobileLocale } from "../locale/mobile-copy";
 import { parseMobileMentionSegments, type MobileMentionSegment } from "./mobile-mention";
 
 /**
@@ -254,6 +262,628 @@ export function parseMobileCollapsedSections(
 
 export function serializeMobileCollapsedSections(map: Readonly<Record<string, boolean>>): string {
   return JSON.stringify(map);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Sunucular 6a-6f (Faz 2)                                                     */
+/* -------------------------------------------------------------------------- */
+
+/** 6a/6b filter strip. Device-local: the choice is never sent to the server. */
+export type MobileWorkspaceFilterId = "all" | "unread" | "voice";
+
+const MOBILE_WORKSPACE_FILTER_IDS: readonly MobileWorkspaceFilterId[] = ["all", "unread", "voice"];
+
+/** The default segment; storing it would only grow the persisted map. */
+export const MOBILE_WORKSPACE_DEFAULT_FILTER: MobileWorkspaceFilterId = "all";
+
+export interface MobileWorkspaceFilterableChannel {
+  readonly id: string;
+  readonly mentionCount: number;
+  readonly type: MobileWorkspaceChannelSummary["type"];
+  readonly unreadCount: number;
+}
+
+export interface MobileWorkspaceFilterableSection<
+  TChannel extends MobileWorkspaceFilterableChannel,
+> {
+  readonly channels: readonly TChannel[];
+}
+
+/**
+ * Voice liveness is not on the channel summary — it arrives through the voice
+ * state query — so the two filter helpers take it as data instead of guessing.
+ * Structurally the same shape as `MobileVoiceChannelState`.
+ */
+export interface MobileWorkspaceVoicePresence {
+  readonly channelId: string;
+  readonly participants: readonly unknown[];
+}
+
+function isMobileChannelUnread(channel: MobileWorkspaceFilterableChannel): boolean {
+  return channel.unreadCount > 0 || channel.mentionCount > 0;
+}
+
+/**
+ * Either the raw voice-state list or the set a caller already built from it.
+ * The screen builds it once per render and hands the same set to every helper
+ * below, so a presence tick cannot rebuild it three times.
+ */
+export type MobileWorkspaceVoiceLiveness =
+  ReadonlySet<string> | readonly MobileWorkspaceVoicePresence[];
+
+export function collectMobileLiveVoiceChannelIds(
+  voiceStates: readonly MobileWorkspaceVoicePresence[],
+): ReadonlySet<string> {
+  return new Set(
+    voiceStates.filter((state) => state.participants.length > 0).map((state) => state.channelId),
+  );
+}
+
+function resolveLiveVoiceChannelIds(source: MobileWorkspaceVoiceLiveness): ReadonlySet<string> {
+  return Array.isArray(source)
+    ? collectMobileLiveVoiceChannelIds(source as readonly MobileWorkspaceVoicePresence[])
+    : (source as ReadonlySet<string>);
+}
+
+/**
+ * 6a/6b filter strip. `all` hands the tree back untouched; `unread` keeps the
+ * channels still waiting on the user and drops the categories that emptied out;
+ * `voice` keeps only voice rows, lifts the live ones to the top of their own
+ * category, and keeps the category grouping rather than flattening it.
+ *
+ * `all` returns the *same* array reference it was given: it is the default and
+ * the most common state, the servers tab re-renders on every presence tick, and
+ * a fresh array each time would kill FlashList's bail-out.
+ */
+export function filterMobileWorkspaceSections<
+  TChannel extends MobileWorkspaceFilterableChannel,
+  TSection extends MobileWorkspaceFilterableSection<TChannel>,
+>(
+  sections: readonly TSection[],
+  filter: MobileWorkspaceFilterId,
+  voiceStates: MobileWorkspaceVoiceLiveness = [],
+): readonly TSection[] {
+  if (filter === "all") {
+    return sections;
+  }
+
+  const liveVoiceChannelIds = resolveLiveVoiceChannelIds(voiceStates);
+
+  return sections
+    .map((section) => {
+      if (filter === "unread") {
+        return { ...section, channels: section.channels.filter(isMobileChannelUnread) };
+      }
+
+      const voiceChannels = section.channels.filter((channel) => channel.type === "VOICE");
+      const live = voiceChannels.filter((channel) => liveVoiceChannelIds.has(channel.id));
+      const idle = voiceChannels.filter((channel) => !liveVoiceChannelIds.has(channel.id));
+
+      return { ...section, channels: [...live, ...idle] };
+    })
+    .filter((section) => section.channels.length > 0) as TSection[];
+}
+
+/** Filter-strip badge: how many channels are still unread. Zero hides the badge. */
+export function getMobileWorkspaceUnreadChannelCount<
+  TChannel extends MobileWorkspaceFilterableChannel,
+>(sections: readonly MobileWorkspaceFilterableSection<TChannel>[]): number {
+  return sections.reduce(
+    (total, section) => total + section.channels.filter(isMobileChannelUnread).length,
+    0,
+  );
+}
+
+/** Green dot on the "Sesli" segment: one of *this* server's rooms has people in it. */
+export function hasMobileWorkspaceLiveVoice<TChannel extends MobileWorkspaceFilterableChannel>(
+  sections: readonly MobileWorkspaceFilterableSection<TChannel>[],
+  voiceStates: MobileWorkspaceVoiceLiveness,
+): boolean {
+  const liveVoiceChannelIds = resolveLiveVoiceChannelIds(voiceStates);
+
+  return sections.some((section) =>
+    section.channels.some(
+      (channel) => channel.type === "VOICE" && liveVoiceChannelIds.has(channel.id),
+    ),
+  );
+}
+
+/** The filter is per user *and* per server, exactly like the collapse map. */
+export function buildMobileWorkspaceFilterKey(userId: string, serverId: string): string {
+  return `${userId}:${serverId}`;
+}
+
+function isMobileWorkspaceFilterId(value: unknown): value is MobileWorkspaceFilterId {
+  return (
+    typeof value === "string" &&
+    MOBILE_WORKSPACE_FILTER_IDS.includes(value as MobileWorkspaceFilterId)
+  );
+}
+
+export function parseMobileWorkspaceFilters(
+  raw: string | null | undefined,
+): Record<string, MobileWorkspaceFilterId> {
+  if (!raw) {
+    return {};
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (parsed === null || typeof parsed !== "object") {
+      return {};
+    }
+
+    const result: Record<string, MobileWorkspaceFilterId> = {};
+    for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
+      if (isMobileWorkspaceFilterId(value) && value !== MOBILE_WORKSPACE_DEFAULT_FILTER) {
+        result[key] = value;
+      }
+    }
+
+    return result;
+  } catch {
+    return {};
+  }
+}
+
+export function serializeMobileWorkspaceFilters(
+  map: Readonly<Record<string, MobileWorkspaceFilterId>>,
+): string {
+  return JSON.stringify(map);
+}
+
+/** Back to "Tümü" means "no preference", so the entry is dropped rather than stored. */
+export function setMobileWorkspaceFilter(
+  map: Readonly<Record<string, MobileWorkspaceFilterId>>,
+  key: string,
+  filter: MobileWorkspaceFilterId,
+): Record<string, MobileWorkspaceFilterId> {
+  const next: Record<string, MobileWorkspaceFilterId> = {};
+  for (const [existingKey, value] of Object.entries(map)) {
+    if (existingKey !== key) {
+      next[existingKey] = value;
+    }
+  }
+
+  if (filter !== MOBILE_WORKSPACE_DEFAULT_FILTER) {
+    next[key] = filter;
+  }
+
+  return next;
+}
+
+export type MobileServerNameContext = keyof typeof mobileServerNameLayout;
+
+export interface MobileServerNameLayout {
+  readonly fontSize: number;
+  readonly letterSpacing: number;
+  readonly lineHeight: number;
+  readonly numberOfLines: number;
+}
+
+/**
+ * 6f: a server name is clamped, never truncated to one line. Every surface that
+ * prints one asks here instead of writing its own `numberOfLines`, so the rule
+ * cannot be applied to four screens and forgotten on the fifth. The sticky 6e
+ * header is the single-line exception the handoff draws that way; a blank name
+ * has nothing to wrap either.
+ */
+export function getMobileServerNameLayout(
+  name: string,
+  context: MobileServerNameContext,
+): MobileServerNameLayout {
+  const layout = mobileServerNameLayout[context];
+
+  return {
+    fontSize: layout.fontSize,
+    letterSpacing: layout.letterSpacing,
+    lineHeight: layout.lineHeight,
+    numberOfLines: name.trim().length === 0 ? 1 : layout.numberOfLines,
+  };
+}
+
+export interface MobileCategoryHeaderState {
+  readonly channelCount: number;
+  readonly chevronRotation: "-90deg" | "0deg";
+  readonly isCollapsed: boolean;
+  /** A collapsed category still has to admit it is hiding something unread. */
+  readonly showUnreadDot: boolean;
+  /** Maps to `theme.workspace.categoryLabel` / `categoryCollapsed` — colours stay in the theme. */
+  readonly tone: "collapsed" | "idle";
+}
+
+/**
+ * 6a/6b category header. A category with no channels left in it is always drawn
+ * collapsed, whatever the persisted map says: there is nothing to open.
+ */
+export function getMobileCategoryHeaderState<TChannel extends MobileWorkspaceFilterableChannel>(
+  section: MobileWorkspaceFilterableSection<TChannel>,
+  collapsed: boolean,
+): MobileCategoryHeaderState {
+  const channelCount = section.channels.length;
+  const isCollapsed = collapsed || channelCount === 0;
+
+  return {
+    channelCount,
+    chevronRotation: isCollapsed ? "-90deg" : "0deg",
+    isCollapsed,
+    showUnreadDot: isCollapsed && section.channels.some(isMobileChannelUnread),
+    tone: isCollapsed ? "collapsed" : "idle",
+  };
+}
+
+export type MobileServerProfileStatId = "channels" | "members" | "voice" | "weekly";
+
+export interface MobileServerProfileStat {
+  readonly id: MobileServerProfileStatId;
+  readonly value: string;
+}
+
+/** Placeholder for a stat the backend could not produce; 6d keeps the cell, not the number. */
+const MOBILE_SERVER_PROFILE_STAT_PLACEHOLDER = "—";
+
+/**
+ * 6d's four-cell stat card, in design order. `weeklyMessageCount` is nullable by
+ * contract (the count is cached and may fail), and the design keeps the cell
+ * with an em dash rather than collapsing the card.
+ */
+export function getMobileServerProfileStats(profile: {
+  readonly channelCount: number;
+  readonly memberCount: number;
+  readonly voiceActiveCount: number;
+  readonly weeklyMessageCount: number | null;
+}): MobileServerProfileStat[] {
+  return [
+    { id: "members", value: String(profile.memberCount) },
+    { id: "channels", value: String(profile.channelCount) },
+    { id: "voice", value: String(profile.voiceActiveCount) },
+    {
+      id: "weekly",
+      value:
+        profile.weeklyMessageCount === null
+          ? MOBILE_SERVER_PROFILE_STAT_PLACEHOLDER
+          : String(profile.weeklyMessageCount),
+    },
+  ];
+}
+
+export interface MobileProfileChannelGroup<TChannel> {
+  readonly categoryId: string | null;
+  readonly categoryName: string | null;
+  readonly channels: TChannel[];
+}
+
+/**
+ * 6e groups the profile's channel list under its categories. The profile route
+ * already returns channels in category-position then channel-position order
+ * (`server-public-profile-service.ts`), so first appearance *is* the design's
+ * order; re-sorting here would need a `position` the read model does not carry.
+ * Uncategorised channels collect into one trailing group.
+ */
+export function groupMobileProfileChannelsByCategory<
+  TChannel extends {
+    readonly categoryId: string | null;
+    readonly categoryName: string | null;
+  },
+>(channels: readonly TChannel[]): MobileProfileChannelGroup<TChannel>[] {
+  const groups: MobileProfileChannelGroup<TChannel>[] = [];
+  const byCategoryId = new Map<string, MobileProfileChannelGroup<TChannel>>();
+  let uncategorised: MobileProfileChannelGroup<TChannel> | null = null;
+
+  for (const channel of channels) {
+    if (channel.categoryId === null) {
+      uncategorised ??= { categoryId: null, categoryName: null, channels: [] };
+      uncategorised.channels.push(channel);
+      continue;
+    }
+
+    let group = byCategoryId.get(channel.categoryId);
+    if (!group) {
+      group = {
+        categoryId: channel.categoryId,
+        categoryName: channel.categoryName,
+        channels: [],
+      };
+      byCategoryId.set(channel.categoryId, group);
+      groups.push(group);
+    }
+
+    group.channels.push(channel);
+  }
+
+  return uncategorised ? [...groups, uncategorised] : groups;
+}
+
+export interface MobileProfileChannelPreview<TChannel> {
+  readonly groups: MobileProfileChannelGroup<TChannel>[];
+  /** Feeds "Kalan {count} kanalı gör"; zero hides the row. */
+  readonly remaining: number;
+}
+
+/**
+ * 6d shows a short preview of 6e's list. The cut runs across the whole list, not
+ * per category, so a category that falls entirely past the limit disappears
+ * instead of appearing empty.
+ */
+export function getMobileProfileChannelPreview<TChannel>(
+  groups: readonly MobileProfileChannelGroup<TChannel>[],
+  limit: number,
+): MobileProfileChannelPreview<TChannel> {
+  const total = groups.reduce((count, group) => count + group.channels.length, 0);
+  const budget = Math.max(0, limit);
+  let taken = 0;
+
+  const previewGroups: MobileProfileChannelGroup<TChannel>[] = [];
+  for (const group of groups) {
+    if (taken >= budget) {
+      break;
+    }
+
+    const channels = group.channels.slice(0, budget - taken);
+    taken += channels.length;
+    previewGroups.push({ ...group, channels });
+  }
+
+  return { groups: previewGroups, remaining: Math.max(0, total - taken) };
+}
+
+/**
+ * 6d/6e event button. The 15 minute threshold is Faz 1's pure function
+ * (`resolveServerScheduledEventAction`); mobile calls it rather than keeping a
+ * second copy of the window that can drift from the web one.
+ */
+export function resolveMobileEventAction(
+  event: { readonly scheduledStartAt: string; readonly status: string },
+  nowMs: number,
+): ServerScheduledEventAction | null {
+  return resolveServerScheduledEventAction(event, nowMs);
+}
+
+/**
+ * Month abbreviations are a table rather than `Intl.DateTimeFormat`: Hermes
+ * ships without a guaranteed ICU date catalogue, so a formatter would render
+ * differently on device than it does in this test run.
+ */
+const MOBILE_EVENT_MONTH_ABBREVIATIONS: Readonly<Record<MobileLocale, readonly string[]>> = {
+  en: ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"],
+  tr: ["OCA", "ŞUB", "MAR", "NİS", "MAY", "HAZ", "TEM", "AĞU", "EYL", "EKİ", "KAS", "ARA"],
+};
+
+export interface MobileEventDateBlock {
+  readonly label: string;
+  readonly time: string;
+}
+
+function padTwoDigits(value: number): string {
+  return value < 10 ? `0${value}` : String(value);
+}
+
+function daysBetweenLocalDates(from: Date, to: Date): number {
+  const fromMidnight = new Date(from.getFullYear(), from.getMonth(), from.getDate()).getTime();
+  const toMidnight = new Date(to.getFullYear(), to.getMonth(), to.getDate()).getTime();
+
+  return Math.round((toMidnight - fromMidnight) / 86_400_000);
+}
+
+/**
+ * 6d's date block: an uppercase day label over a 24h clock, both in the device's
+ * own timezone. "Today"/"tomorrow" are calendar-day comparisons, not 24/48 hour
+ * windows — an event at 23:50 tonight is still BUGÜN at 09:00.
+ */
+export function formatMobileEventDateBlock(
+  event: { readonly scheduledStartAt: string },
+  nowMs: number,
+  locale: MobileLocale,
+): MobileEventDateBlock {
+  const start = new Date(event.scheduledStartAt);
+  const time = `${padTwoDigits(start.getHours())}:${padTwoDigits(start.getMinutes())}`;
+  const dayOffset = daysBetweenLocalDates(new Date(nowMs), start);
+
+  if (dayOffset === 0) {
+    return { label: mobileCopy[locale].eventToday, time };
+  }
+
+  if (dayOffset === 1) {
+    return { label: mobileCopy[locale].eventTomorrow, time };
+  }
+
+  const month = MOBILE_EVENT_MONTH_ABBREVIATIONS[locale][start.getMonth()] ?? "";
+  return { label: `${start.getDate()} ${month}`, time };
+}
+
+/** 6d shows this many channels before "Kalan {count} kanalı gör" takes over. */
+export const MOBILE_SERVER_PROFILE_CHANNEL_PREVIEW_LIMIT = 5;
+
+/**
+ * Title-case month names for the surfaces that print a date inside a sentence
+ * rather than inside 6d's uppercase date block. Same reason as the abbreviation
+ * table above: Hermes has no guaranteed ICU catalogue, so `Intl.DateTimeFormat`
+ * would render differently on device than it does here. Turkish casing is the
+ * second reason — `"EKİ".toLowerCase()` is not `"eki"` in the default locale.
+ */
+const MOBILE_MONTH_SHORT_LABELS: Readonly<Record<MobileLocale, readonly string[]>> = {
+  en: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+  tr: ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"],
+};
+
+const MOBILE_MONTH_LONG_LABELS: Readonly<Record<MobileLocale, readonly string[]>> = {
+  en: [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ],
+  tr: [
+    "Ocak",
+    "Şubat",
+    "Mart",
+    "Nisan",
+    "Mayıs",
+    "Haziran",
+    "Temmuz",
+    "Ağustos",
+    "Eylül",
+    "Ekim",
+    "Kasım",
+    "Aralık",
+  ],
+};
+
+/** 6d/6e text-channel trailing label: `31 Tem`. A channel with no activity prints nothing. */
+export function formatMobileChannelActivityLabel(
+  lastActivityAt: string | null,
+  locale: MobileLocale,
+): string {
+  if (!lastActivityAt) {
+    return "";
+  }
+
+  const date = new Date(lastActivityAt);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return `${date.getDate()} ${MOBILE_MONTH_SHORT_LABELS[locale][date.getMonth()] ?? ""}`.trim();
+}
+
+/** 6e "Oluşturulma": `12 Mart 2025` / `March 12, 2025`. */
+export function formatMobileServerCreatedDate(createdAt: string, locale: MobileLocale): string {
+  const date = new Date(createdAt);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  const month = MOBILE_MONTH_LONG_LABELS[locale][date.getMonth()] ?? "";
+  return locale === "tr"
+    ? `${date.getDate()} ${month} ${date.getFullYear()}`
+    : `${month} ${date.getDate()}, ${date.getFullYear()}`;
+}
+
+export interface MobileServerEventSplit<TEvent> {
+  readonly past: TEvent[];
+  readonly upcoming: TEvent[];
+}
+
+/**
+ * The event list's two sections. The split follows `status`, not the clock: the
+ * backend owns when a scheduled event becomes completed, and a second, device
+ * local rule would disagree with it while a worker is behind.
+ */
+export function splitMobileServerEvents<
+  TEvent extends { readonly scheduledStartAt: string; readonly status: string },
+>(events: readonly TEvent[]): MobileServerEventSplit<TEvent> {
+  const upcoming: TEvent[] = [];
+  const past: TEvent[] = [];
+
+  for (const event of events) {
+    if (event.status === "SCHEDULED" || event.status === "ACTIVE") {
+      upcoming.push(event);
+    } else {
+      past.push(event);
+    }
+  }
+
+  const startMs = (event: TEvent) => Date.parse(event.scheduledStartAt);
+
+  return {
+    past: past.sort((left, right) => startMs(right) - startMs(left)),
+    upcoming: upcoming.sort((left, right) => startMs(left) - startMs(right)),
+  };
+}
+
+const MOBILE_EVENT_DATE_TIME_PATTERN = /^(\d{2})\.(\d{2})\.(\d{4})\s+(\d{2}):(\d{2})$/;
+
+/**
+ * The event form takes `GG.AA.YYYY SS:DD` in the device's own timezone and hands
+ * the API an instant. There is no date picker in the handoff, so the text field
+ * is the input and this is its only parser; anything it cannot read is rejected
+ * rather than coerced into a nearby date.
+ */
+export function parseMobileEventDateTimeInput(value: string): string | null {
+  const match = MOBILE_EVENT_DATE_TIME_PATTERN.exec(value.trim());
+  if (!match) {
+    return null;
+  }
+
+  const [day, month, year, hours, minutes] = match.slice(1).map(Number) as [
+    number,
+    number,
+    number,
+    number,
+    number,
+  ];
+  if (month < 1 || month > 12 || day < 1 || day > 31 || hours > 23 || minutes > 59) {
+    return null;
+  }
+
+  const date = new Date(year, month - 1, day, hours, minutes, 0, 0);
+  // A rolled-over date (31.02) comes back as a different day; that is a typo,
+  // not a request for the 3rd of March.
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
+    return null;
+  }
+
+  return date.toISOString();
+}
+
+/** The inverse, for the edit path's initial field values. */
+export function formatMobileEventDateTimeInput(value: string | null): string {
+  if (!value) {
+    return "";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return [
+    `${padTwoDigits(date.getDate())}.${padTwoDigits(date.getMonth() + 1)}.${date.getFullYear()}`,
+    `${padTwoDigits(date.getHours())}:${padTwoDigits(date.getMinutes())}`,
+  ].join(" ");
+}
+
+export interface MobileServerAccessLabels {
+  readonly serverAccessApproval: string;
+  readonly serverAccessInvite: string;
+  readonly serverAccessPublic: string;
+}
+
+/**
+ * 6e "Erişim". The labels come in from the locale dictionary rather than living
+ * here, so the model stays language-free while the mapping stays in one place.
+ */
+export function getMobileServerAccessLabel(
+  accessLevel: ServerProfileAccessLevel,
+  labels: MobileServerAccessLabels,
+): string {
+  switch (accessLevel) {
+    case "approval":
+      return labels.serverAccessApproval;
+    case "public":
+      return labels.serverAccessPublic;
+    default:
+      return labels.serverAccessInvite;
+  }
+}
+
+/**
+ * Faz 1 §C5's rail order, mobile side: `starred desc` over whatever order the
+ * caller already has. `Array.prototype.sort` is stable, so unstarred servers
+ * keep the sequence the API produced.
+ */
+export function sortMobileServersByStar<T extends { readonly starred: boolean }>(
+  servers: readonly T[],
+): T[] {
+  return [...servers].sort((left, right) => Number(right.starred) - Number(left.starred));
 }
 
 /** Flip one section; a collapsed section is stored as `true`, an expanded one is dropped so the map stays minimal. */

@@ -4,6 +4,7 @@ export const MOBILE_LINE_ICON_NAMES = [
   "alert-triangle",
   "arrow-down-tray",
   "arrow-up",
+  "arrow-up-tray",
   "audio-wave",
   "audit-log",
   "back-arrow",
@@ -22,6 +23,7 @@ export const MOBILE_LINE_ICON_NAMES = [
   "close",
   "code",
   "copy",
+  "dots-horizontal",
   "dots-vertical",
   "edit",
   "emoji",
@@ -45,6 +47,7 @@ export const MOBILE_LINE_ICON_NAMES = [
   "invite-user",
   "leave",
   "lightbulb",
+  "link",
   "loader-arc",
   "log-out",
   "lock",
@@ -490,11 +493,32 @@ export const MOBILE_LINE_ICON_DEFINITIONS = {
     strokeLinejoin: "round",
     children: [{ type: "path", d: "M13 2L4.5 13.5H11L9.5 22 19 10h-6.5z" }],
   },
+  /** 6a header "⋯": three filled dots, r 1.9 at cx 5/12/19 — a round cap of
+   *  that stroke width is the same disc without a second icon mode. */
+  "dots-horizontal": {
+    mode: "stroke",
+    defaultStrokeWidth: 3.8,
+    strokeLinecap: "round",
+    children: [{ type: "path", d: "M5 12h.01M12 12h.01M19 12h.01" }],
+  },
   "dots-vertical": {
     mode: "stroke",
     defaultStrokeWidth: 2.6,
     strokeLinecap: "round",
     children: [{ type: "path", d: "M12 5h.01M12 12h.01M12 19h.01" }],
+  },
+  /** 6d bottom bar "Bağlantı": the handoff's chain glyph, which the kit lacked. */
+  link: {
+    mode: "stroke",
+    defaultStrokeWidth: 1.9,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    children: [
+      {
+        type: "path",
+        d: "M10.6 13.4a4 4 0 006.1.5l2.4-2.4a4 4 0 00-5.7-5.7l-1.4 1.4M13.4 10.6a4 4 0 00-6.1-.5l-2.4 2.4a4 4 0 005.7 5.7l1.4-1.4",
+      },
+    ],
   },
   flag: {
     mode: "stroke",
@@ -638,6 +662,21 @@ export const MOBILE_LINE_ICON_DEFINITIONS = {
     strokeLinecap: "round",
     strokeLinejoin: "round",
     children: [{ type: "path", d: "M12 4v11M7.5 11l4.5 4.5L16.5 11M5 20h14" }],
+  },
+  /**
+   * 6c's "Paylaş" quick action, traced from the handoff: an arrow leaving an
+   * open tray. Not `arrow-down-tray` flipped -- the tray in the handoff is open
+   * at the top rather than a closed baseline.
+   */
+  "arrow-up-tray": {
+    mode: "stroke",
+    defaultStrokeWidth: 2,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    children: [
+      { type: "path", d: "M12 15V4M8.5 7.5L12 4l3.5 3.5" },
+      { type: "path", d: "M5 15v3.5a1.5 1.5 0 0 0 1.5 1.5h11a1.5 1.5 0 0 0 1.5-1.5V15" },
+    ],
   },
   /**
    * §1.5 voice-message transport. Filled, not stroked: the handoff draws the

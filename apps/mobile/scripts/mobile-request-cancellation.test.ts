@@ -81,7 +81,7 @@ describe("request cancellation", () => {
 
     assert.match(
       read("src/query/mobile-message-queries.ts"),
-      /queryFn: \(\{ pageParam, signal \}\) =>\s*fetchMobileChannelMessages\(client, \{ channelId, cursor: pageParam, signal \}\)/u,
+      /queryFn: \(\{ pageParam, signal \}\) =>\s*fetchMobileChannelMessages\(client, \{[\s\S]{0,200}?channelId,\s*cursor: pageParam,\s*signal,\s*\}\)/u,
     );
     assert.match(
       read("src/query/mobile-message-queries.ts"),

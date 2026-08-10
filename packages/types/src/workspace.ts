@@ -157,6 +157,30 @@ export const WorkspaceMemberPageSchema = z.object({
 
 export const ServerTypeSchema = z.enum(["PERSONAL", "COMMUNITY"]);
 
+/**
+ * A discovery label: lowercase slug, so "Türkçe Sohbet" and "türkçe-sohbet"
+ * can never become two different tags on two different servers. Normalisation
+ * lives here rather than in either client (Faz 1 §C3).
+ */
+export const ServerTagSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .min(1)
+  .max(24)
+  .regex(/^[a-z0-9-]+$/, "validation.server.tag");
+
+export const SERVER_TAG_LIMIT = 5;
+
+export const ServerTagsSchema = z
+  .array(ServerTagSchema)
+  .max(SERVER_TAG_LIMIT)
+  // Deduplication runs after the limit check on purpose: sending six tags is a
+  // client bug worth a 400, sending the same tag twice is a UI double-tap.
+  .transform((tags) => [...new Set(tags)]);
+
+export const UpdateServerTagsSchema = z.object({ tags: ServerTagsSchema }).strict();
+
 export const WorkspaceServerSummarySchema = z.object({
   allowFileUploads: z.boolean(),
   allowGifs: z.boolean(),
@@ -172,6 +196,11 @@ export const WorkspaceServerSummarySchema = z.object({
   defaultChannelId: z.string().nullable(),
   accessLevel: WorkspaceAccessLevelSchema,
   mentionCount: z.number().int().nonnegative().default(0),
+  /**
+   * 6c "Yıldızla", read by the web rail so a starred server sorts to the top
+   * on both clients from the same column instead of a device-local flag.
+   */
+  starred: z.boolean().default(false),
   unreadCount: z.number().int().nonnegative(),
 });
 
@@ -187,6 +216,8 @@ export const WorkspaceServerDetailSchema = z.object({
     isAdmin: z.boolean(),
     isOwner: z.boolean(),
     isPublic: z.boolean(),
+    /** 6d discovery labels, edited from the web settings overlay. */
+    tags: z.array(ServerTagSchema).max(SERVER_TAG_LIMIT).default([]),
     type: ServerTypeSchema,
   }),
   categories: z.array(WorkspaceCategorySchema),
@@ -296,6 +327,13 @@ export const UpdateServerFieldsSchema = z.object({
   messageCharacterLimit: z.number().int().min(250).max(40000).optional(),
   deletedMessageNoticeMinutes: z.number().int().min(5).max(10080).optional(),
   shortName: optionalServerShortName,
+  /**
+   * 6d edits tags through the existing `server:update` endpoint rather than a
+   * dedicated route — one owner-writes-server-fields budget, not two. The
+   * mobile request schema derives from this object, so both clients get the
+   * field from this one line.
+   */
+  tags: ServerTagsSchema.optional(),
 });
 
 const UPDATE_SERVER_FIELD_KEYS = Object.keys(UpdateServerFieldsSchema.shape) as ReadonlyArray<
@@ -409,9 +447,147 @@ export const UpdateWorkspaceMemberRolesSchema = z.object({
 
 export const UpdateWorkspaceChannelPermissionsSchema = WorkspaceChannelPermissionSettingsSchema;
 
+export const ServerScheduledEventStatusSchema = z.enum([
+  "SCHEDULED",
+  "ACTIVE",
+  "COMPLETED",
+  // The database enum spells this with two Ls (`ScheduledEventStatus`,
+  // schema.prisma:317). The contract follows the column rather than adding a
+  // rename layer between them.
+  "CANCELLED",
+]);
+
+export const ServerScheduledEventEntityTypeSchema = z.enum(["STAGE", "VOICE", "EXTERNAL"]);
+
+export const ServerScheduledEventSchema = z.object({
+  /** Live headcount of the bound voice channel; 0 for an external event. */
+  attendeeCount: z.number().int().nonnegative(),
+  channelId: z.string().nullable(),
+  channelName: z.string().nullable(),
+  description: z.string().nullable(),
+  entityType: ServerScheduledEventEntityTypeSchema,
+  externalLocation: z.string().nullable(),
+  id: z.string(),
+  interestedCount: z.number().int().nonnegative(),
+  name: z.string(),
+  scheduledEndAt: z.string().datetime().nullable(),
+  scheduledStartAt: z.string().datetime(),
+  serverId: z.string(),
+  status: ServerScheduledEventStatusSchema,
+  viewerInterested: z.boolean(),
+});
+
+const ServerScheduledEventFieldsSchema = z.object({
+  channelId: z.string().min(1).nullable().optional(),
+  description: z.string().trim().max(1000).nullable().optional(),
+  entityType: ServerScheduledEventEntityTypeSchema.optional(),
+  externalLocation: z.string().trim().max(200).nullable().optional(),
+  name: z.string().trim().min(1).max(100).optional(),
+  scheduledEndAt: z.string().datetime().nullable().optional(),
+  scheduledStartAt: z.string().datetime().optional(),
+});
+
+const SERVER_SCHEDULED_EVENT_FIELD_KEYS = Object.keys(
+  ServerScheduledEventFieldsSchema.shape,
+) as ReadonlyArray<keyof z.infer<typeof ServerScheduledEventFieldsSchema>>;
+
+/**
+ * An end before its own start is the one cross-field rule both the create and
+ * the update path need; everything else is per-field. Written once and reused
+ * so the two cannot disagree.
+ */
+function hasOrderedSchedule(value: {
+  readonly scheduledEndAt?: string | null | undefined;
+  readonly scheduledStartAt?: string | undefined;
+}): boolean {
+  if (!value.scheduledEndAt || !value.scheduledStartAt) {
+    return true;
+  }
+
+  return Date.parse(value.scheduledEndAt) > Date.parse(value.scheduledStartAt);
+}
+
+export const CreateServerScheduledEventSchema = ServerScheduledEventFieldsSchema.extend({
+  entityType: ServerScheduledEventEntityTypeSchema,
+  name: z.string().trim().min(1).max(100),
+  scheduledStartAt: z.string().datetime(),
+})
+  .strict()
+  .refine(hasOrderedSchedule, {
+    message: "validation.event.endBeforeStart",
+    path: ["scheduledEndAt"],
+  });
+
+export const UpdateServerScheduledEventSchema = ServerScheduledEventFieldsSchema.strict()
+  .refine((value) => SERVER_SCHEDULED_EVENT_FIELD_KEYS.some((key) => value[key] !== undefined), {
+    message: "validation.form.atLeastOne",
+  })
+  .refine(hasOrderedSchedule, {
+    message: "validation.event.endBeforeStart",
+    path: ["scheduledEndAt"],
+  });
+
+export const SetServerScheduledEventInterestSchema = z.object({ interested: z.boolean() }).strict();
+
+export const ServerNotificationLevelSchema = z.enum(["all", "mentions", "none"]);
+
+/**
+ * How a stranger gets in. `approval` has no backing column yet -- no server in
+ * the schema carries an approval gate -- so nothing produces it today; it is
+ * in the contract because 6e renders three states and Faz 5 must not have to
+ * widen the enum to add the third.
+ */
+export const ServerProfileAccessLevelSchema = z.enum(["invite", "public", "approval"]);
+
+export const ServerUserSettingsSchema = z.object({
+  muted: z.boolean(),
+  mutedUntil: z.string().datetime().nullable(),
+  notificationLevel: ServerNotificationLevelSchema,
+  starred: z.boolean(),
+});
+
+const UpdateServerUserSettingsFieldsSchema = z
+  .object({
+    muted: z.boolean().optional(),
+    mutedUntil: z.string().datetime().nullable().optional(),
+    notificationLevel: ServerNotificationLevelSchema.optional(),
+    starred: z.boolean().optional(),
+  })
+  .strict();
+
+const UPDATE_SERVER_USER_SETTINGS_FIELD_KEYS = Object.keys(
+  UpdateServerUserSettingsFieldsSchema.shape,
+) as ReadonlyArray<keyof z.infer<typeof UpdateServerUserSettingsFieldsSchema>>;
+
+/**
+ * Faz 1 §C2: `starred`, `muted` and `notificationLevel` are written through
+ * this one body. Faz 4 may not open a second endpoint per switch.
+ */
+export const UpdateServerUserSettingsSchema = UpdateServerUserSettingsFieldsSchema.refine(
+  (value) => UPDATE_SERVER_USER_SETTINGS_FIELD_KEYS.some((key) => value[key] !== undefined),
+  {
+    message: "validation.form.atLeastOne",
+  },
+);
+
+/** Up to three avatars on a 6e voice row; the row shows a count past that. */
+export const ServerPublicProfileParticipantSchema = z.object({
+  avatarUrl: z.string().nullable(),
+  displayName: z.string(),
+  id: z.string(),
+  shortName: z.string().nullable(),
+});
+
 export const ServerPublicProfileChannelSchema = z.object({
+  categoryId: z.string().nullable(),
+  categoryName: z.string().nullable(),
+  id: z.string(),
+  /** 6e renders these at 50% opacity and refuses the tap for a non-member. */
+  isPrivate: z.boolean(),
+  lastActivityAt: z.string().datetime().nullable(),
   liveCount: z.number().int().nonnegative().nullable(),
   name: z.string(),
+  participants: z.array(ServerPublicProfileParticipantSchema).max(3),
   readOnly: z.boolean(),
   type: z.enum(["text", "voice"]),
 });
@@ -423,27 +599,61 @@ export const ServerPublicProfileFriendSchema = z.object({
 });
 
 /**
+ * `presence` is derived from `AppSession.lastSeenAt`, the same source the DM
+ * last-seen contract uses -- never from a last message, which is two-sided and
+ * lies. An invisible user reaches this surface as `offline`.
+ */
+export const ServerPublicProfileAdminSchema = z.object({
+  avatarUrl: z.string().nullable(),
+  displayName: z.string(),
+  id: z.string(),
+  lastSeenAt: z.string().datetime().nullable(),
+  presence: z.enum(["online", "offline"]),
+  role: z.enum(["owner", "admin"]),
+  shortName: z.string().nullable(),
+  username: z.string(),
+});
+
+/**
  * One read model behind three surfaces: the 2g profile card, the discovery
  * card, and the invite preview. Keeping it single stops the permission filter
  * from being written twice and drifting.
  */
 export const ServerPublicProfileSchema = z.object({
+  accessLevel: ServerProfileAccessLevelSchema,
+  admins: z.array(ServerPublicProfileAdminSchema),
   bannerUrl: z.string().nullable(),
+  /** 6c gates "Sunucu ayarları" and the 6d/6e admin actions on this. */
+  canManageServer: z.boolean(),
+  channelCount: z.number().int().nonnegative(),
   channels: z.array(ServerPublicProfileChannelSchema),
+  createdAt: z.string().datetime(),
   description: z.string(),
   discoverable: z.boolean(),
   iconUrl: z.string().nullable(),
+  /** `whispr.gg/<vanityUrlCode>`, falling back to the plain invite code. */
+  inviteAddress: z.string().nullable(),
   isPublic: z.boolean(),
   joined: z.boolean(),
+  /** `null` for a non-member -- 6e hides the row rather than showing a dash. */
+  joinedAt: z.string().datetime().nullable(),
   memberCount: z.number().int().nonnegative(),
+  muted: z.boolean(),
   mutualFriendCount: z.number().int().nonnegative(),
   mutualFriends: z.array(ServerPublicProfileFriendSchema),
   name: z.string(),
+  notificationLevel: ServerNotificationLevelSchema,
   onlineCount: z.number().int().nonnegative(),
   serverId: z.string(),
   shortName: z.string().nullable(),
+  starred: z.boolean(),
+  tags: z.array(ServerTagSchema).max(SERVER_TAG_LIMIT),
   type: ServerTypeSchema,
+  upcomingEvent: ServerScheduledEventSchema.nullable(),
   verified: z.boolean(),
+  voiceActiveCount: z.number().int().nonnegative(),
+  /** `null` when the count could not be produced; 6d then renders "—". */
+  weeklyMessageCount: z.number().int().nonnegative().nullable(),
 });
 
 /**
@@ -464,6 +674,7 @@ export const ServerDiscoveryCardSchema = z.object({
   name: z.string(),
   onlineCount: z.number().int().nonnegative(),
   shortName: z.string().nullable(),
+  tags: z.array(ServerTagSchema).max(SERVER_TAG_LIMIT),
   type: ServerTypeSchema,
   verified: z.boolean(),
 });
@@ -521,8 +732,25 @@ export type ServerTypeValue = z.infer<typeof ServerTypeSchema>;
 export type AdminCreateServerInput = z.infer<typeof AdminCreateServerSchema>;
 export type AdminUpdateServerInput = z.infer<typeof AdminUpdateServerSchema>;
 export type ServerPublicProfile = z.infer<typeof ServerPublicProfileSchema>;
+export type ServerPublicProfileAdmin = z.infer<typeof ServerPublicProfileAdminSchema>;
 export type ServerPublicProfileChannel = z.infer<typeof ServerPublicProfileChannelSchema>;
 export type ServerPublicProfileFriend = z.infer<typeof ServerPublicProfileFriendSchema>;
+export type ServerPublicProfileParticipant = z.infer<typeof ServerPublicProfileParticipantSchema>;
+export type ServerProfileAccessLevel = z.infer<typeof ServerProfileAccessLevelSchema>;
+export type ServerNotificationLevel = z.infer<typeof ServerNotificationLevelSchema>;
+export type ServerTag = z.infer<typeof ServerTagSchema>;
+export type ServerTagsInput = z.input<typeof ServerTagsSchema>;
+export type UpdateServerTagsInput = z.input<typeof UpdateServerTagsSchema>;
+export type ServerUserSettings = z.infer<typeof ServerUserSettingsSchema>;
+export type UpdateServerUserSettingsInput = z.infer<typeof UpdateServerUserSettingsSchema>;
+export type ServerScheduledEvent = z.infer<typeof ServerScheduledEventSchema>;
+export type ServerScheduledEventStatus = z.infer<typeof ServerScheduledEventStatusSchema>;
+export type ServerScheduledEventEntityType = z.infer<typeof ServerScheduledEventEntityTypeSchema>;
+export type CreateServerScheduledEventInput = z.infer<typeof CreateServerScheduledEventSchema>;
+export type UpdateServerScheduledEventInput = z.infer<typeof UpdateServerScheduledEventSchema>;
+export type SetServerScheduledEventInterestInput = z.infer<
+  typeof SetServerScheduledEventInterestSchema
+>;
 export type ServerDiscoveryCard = z.infer<typeof ServerDiscoveryCardSchema>;
 export type ServerDiscoveryPage = z.infer<typeof ServerDiscoveryPageSchema>;
 export type ServerDiscoveryQuery = z.infer<typeof ServerDiscoveryQuerySchema>;

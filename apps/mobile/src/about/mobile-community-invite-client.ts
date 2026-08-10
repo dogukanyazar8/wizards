@@ -1,10 +1,25 @@
 import {
+  CreateServerScheduledEventSchema,
   MobileInvitePreviewResponseSchema,
   MobileMutationSuccessResponseSchema,
+  MobileServerEventParamsSchema,
+  MobileServerIdParamsSchema,
+  MobileServerScheduledEventResponseSchema,
+  MobileServerScheduledEventsResponseSchema,
+  MobileServerUserSettingsResponseSchema,
   ServerPublicProfileSchema,
+  SetServerScheduledEventInterestSchema,
+  UpdateServerScheduledEventSchema,
+  UpdateServerUserSettingsSchema,
+  type CreateServerScheduledEventInput,
   type MobileInvitePreviewResponse,
   type MobileServerJoinResponse,
+  type MobileServerScheduledEventResponse,
+  type MobileServerScheduledEventsResponse,
+  type MobileServerUserSettingsResponse,
   type ServerPublicProfile,
+  type UpdateServerScheduledEventInput,
+  type UpdateServerUserSettingsInput,
 } from "@wizards/types";
 
 import type { MobileApiClient } from "../api/mobile-api-client";
@@ -64,6 +79,133 @@ export async function fetchMobileServerProfile(
     method: "GET",
   });
   return ServerPublicProfileSchema.parse(payload);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Sunucular 6c/6d/6e — user settings and scheduled events (Faz 1 §B3/§B5)     */
+/* -------------------------------------------------------------------------- */
+
+export function buildMobileServerUserSettingsPath(serverId: string): string {
+  return `/api/v1/mobile/servers/${encodeURIComponent(serverId)}/settings`;
+}
+
+export function buildMobileServerEventsPath(serverId: string): string {
+  return `/api/v1/mobile/servers/${encodeURIComponent(serverId)}/events`;
+}
+
+export function buildMobileServerEventPath(serverId: string, eventId: string): string {
+  return `${buildMobileServerEventsPath(serverId)}/${encodeURIComponent(eventId)}`;
+}
+
+export function buildMobileServerEventInterestPath(serverId: string, eventId: string): string {
+  return `${buildMobileServerEventPath(serverId, eventId)}/interest`;
+}
+
+/**
+ * 6c writes `starred`, `muted` and `notificationLevel` through this one endpoint
+ * (Faz 1 binding decision 3) — Faz 4 may not open a switch-per-endpoint.
+ *
+ * Invalidation contract for the callers: this changes `serverProfile(serverId)`
+ * *and* the server list, because the rail's order depends on `starred`.
+ */
+export async function updateMobileServerUserSettings(
+  client: MobileApiClient,
+  serverId: string,
+  patch: UpdateServerUserSettingsInput,
+): Promise<MobileServerUserSettingsResponse> {
+  const params = MobileServerIdParamsSchema.parse({ serverId });
+  const body = UpdateServerUserSettingsSchema.parse(patch);
+  const payload = await client.requestJson<unknown>(
+    buildMobileServerUserSettingsPath(params.serverId),
+    { body, method: "PATCH" },
+  );
+
+  return MobileServerUserSettingsResponseSchema.parse(payload);
+}
+
+/** Without `includePast` the route returns only `SCHEDULED`/`ACTIVE` events. */
+export async function fetchMobileServerEvents(
+  client: MobileApiClient,
+  serverId: string,
+  options: { readonly includePast?: boolean } = {},
+): Promise<MobileServerScheduledEventsResponse> {
+  const params = MobileServerIdParamsSchema.parse({ serverId });
+  // The query schema is strict, so an unset flag must be an absent parameter
+  // rather than `includePast=false`.
+  const path =
+    options.includePast === true
+      ? `${buildMobileServerEventsPath(params.serverId)}?includePast=true`
+      : buildMobileServerEventsPath(params.serverId);
+  const payload = await client.requestJson<unknown>(path);
+
+  return MobileServerScheduledEventsResponseSchema.parse(payload);
+}
+
+export async function createMobileServerEvent(
+  client: MobileApiClient,
+  serverId: string,
+  input: CreateServerScheduledEventInput,
+): Promise<MobileServerScheduledEventResponse> {
+  const params = MobileServerIdParamsSchema.parse({ serverId });
+  const body = CreateServerScheduledEventSchema.parse(input);
+  const payload = await client.requestJson<unknown>(buildMobileServerEventsPath(params.serverId), {
+    body,
+    method: "POST",
+  });
+
+  return MobileServerScheduledEventResponseSchema.parse(payload);
+}
+
+export async function updateMobileServerEvent(
+  client: MobileApiClient,
+  input: { readonly eventId: string; readonly serverId: string },
+  patch: UpdateServerScheduledEventInput,
+): Promise<MobileServerScheduledEventResponse> {
+  const params = MobileServerEventParamsSchema.parse(input);
+  const body = UpdateServerScheduledEventSchema.parse(patch);
+  const payload = await client.requestJson<unknown>(
+    buildMobileServerEventPath(params.serverId, params.eventId),
+    { body, method: "PATCH" },
+  );
+
+  return MobileServerScheduledEventResponseSchema.parse(payload);
+}
+
+/**
+ * Cancelling never deletes the row (Faz 1 binding decision 7): the response is
+ * the same event carrying `status: "CANCELLED"`, so the caller replaces rather
+ * than removes it.
+ */
+export async function cancelMobileServerEvent(
+  client: MobileApiClient,
+  input: { readonly eventId: string; readonly serverId: string },
+): Promise<MobileServerScheduledEventResponse> {
+  const params = MobileServerEventParamsSchema.parse(input);
+  const payload = await client.requestJson<unknown>(
+    buildMobileServerEventPath(params.serverId, params.eventId),
+    { method: "DELETE" },
+  );
+
+  return MobileServerScheduledEventResponseSchema.parse(payload);
+}
+
+/**
+ * The body carries the desired state, not a toggle (Faz 1 binding decision 8),
+ * so two taps racing each other cannot cancel out.
+ */
+export async function setMobileServerEventInterest(
+  client: MobileApiClient,
+  input: { readonly eventId: string; readonly serverId: string },
+  interested: boolean,
+): Promise<MobileServerScheduledEventResponse> {
+  const params = MobileServerEventParamsSchema.parse(input);
+  const body = SetServerScheduledEventInterestSchema.parse({ interested });
+  const payload = await client.requestJson<unknown>(
+    buildMobileServerEventInterestPath(params.serverId, params.eventId),
+    { body, method: "POST" },
+  );
+
+  return MobileServerScheduledEventResponseSchema.parse(payload);
 }
 
 export function buildMobilePublicServerJoinPath(serverId: string): string {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import { useFocusEffect } from "@react-navigation/native";
 import { useQuery, useQueryClient, type InfiniteData } from "@tanstack/react-query";
@@ -50,6 +50,8 @@ import {
   MobileCommunityInviteScreen,
   MobileServerProfileScreen,
 } from "./about/about-screen-shells";
+import { MobileServerEventsScreen } from "./server-profile/server-events-screen";
+import { MobileServerEventFormScreen } from "./server-profile/server-event-form-screen";
 import { getMobileAppReleaseChannel } from "../../about/mobile-app-identity";
 import { MobileHelpCenterScreen } from "./about/about-help-center-screen";
 import { MobileAboutWhatsNewScreen } from "./about/about-whats-new-screen";
@@ -398,7 +400,20 @@ export function ChannelStackScreenContainer({
   const { channelId, serverId } = route.params;
   const auth = useMobileAuth();
   const { stopChannelTyping, updateChannelTyping } = useMobileRealtimeRuntime();
+  /**
+   * The anchor is route state the screen can drop: "canlıya dön" clears it and
+   * the transcript swaps back to the live cache entry, which is already warm.
+   * Kept in state rather than read straight from the params so leaving history
+   * does not have to rewrite the route.
+   */
+  const [anchorMessageId, setAnchorMessageId] = useState<string | null>(
+    route.params.messageId ?? null,
+  );
+  useEffect(() => {
+    setAnchorMessageId(route.params.messageId ?? null);
+  }, [route.params.messageId]);
   const routeState = useMobileChannelRouteState({
+    anchorMessageId,
     apiClient: auth.apiClient,
     channelId,
     currentUser: auth.session?.user ?? null,
@@ -466,8 +481,11 @@ export function ChannelStackScreenContainer({
       activeWorkspaceTextChannelId={channelId}
       activeWorkspaceVoiceChannelId={null}
       canRenderChannelChat
+      channelAnchorMessageId={anchorMessageId}
       channelFirstUnreadMessageId={routeState.firstUnreadMessageId}
       channelMessagesState={routeState.messagesState}
+      isViewingChannelHistory={routeState.isViewingHistory}
+      onExitChannelHistory={() => setAnchorMessageId(null)}
       channelPinnedMessages={routeState.pinnedMessages}
       isReactionMutationPending={routeState.isReactionPending || routeState.isMessageActionPending}
       onChannelDraftChange={routeState.draftChanged}
@@ -913,43 +931,106 @@ export function BugReportScreenContainer({
   );
 }
 
+/**
+ * Faz 5 §A: one 6d/6e body, two sources. The invite route hands it a slug, the
+ * profile route a `serverId`; everything below the fetch is identical, so the
+ * two containers differ only in that one field and in nothing else.
+ */
+function useServerProfileScreenHandlers(
+  navigation: NativeStackScreenProps<
+    MobileRootStackParamList,
+    "CommunityInvite" | "ServerProfile"
+  >["navigation"],
+) {
+  const { openWorkspaceRoute } = useMobileProductNavigationActions();
+
+  return {
+    onBack: () => navigation.goBack(),
+    onOpenDiscover: () => navigation.navigate("Discover"),
+    onOpenEvents: (serverId: string) => navigation.navigate("ServerEvents", { serverId }),
+    onOpenInvite: (serverId: string) => navigation.navigate("ServerInvites", { serverId }),
+    onOpenMembers: (serverId: string) => navigation.navigate("ServerMembers", { serverId }),
+    onOpenServer: (serverId: string, channelId?: string | null) => {
+      openWorkspaceRoute(serverId, channelId ?? null);
+      navigation.popTo("MainTabs", { screen: "overview" });
+    },
+    onOpenSettings: (serverId: string) => navigation.navigate("ServerSettings", { serverId }),
+    onOpenUserProfile: (userId: string, serverId: string) =>
+      navigation.navigate("UserProfile", { serverId, userId }),
+  };
+}
+
 export function CommunityInviteScreenContainer({
   navigation,
   route,
 }: NativeStackScreenProps<MobileRootStackParamList, "CommunityInvite">) {
-  const { openWorkspaceRoute } = useMobileProductNavigationActions();
+  const handlers = useServerProfileScreenHandlers(navigation);
   const runtime = getMobileRuntimeConfig();
 
   return (
     <MobileCommunityInviteScreen
-      onBack={() => navigation.goBack()}
-      onOpenServer={(serverId) => {
-        openWorkspaceRoute(serverId, null);
-        navigation.popTo("MainTabs", { screen: "overview" });
-      }}
-      slug={route.params?.slug ?? runtime.communityInviteSlug}
+      {...handlers}
+      source={{ kind: "invite", slug: route.params?.slug ?? runtime.communityInviteSlug }}
       webUrl={runtime.webUrl}
     />
   );
 }
 
-/** S2 Section D: the same 2g body, sourced by `serverId` (settings/members entry points, deep link). */
+/** The same body sourced by `serverId` (settings/members entry points, deep link). */
 export function ServerProfileScreenContainer({
   navigation,
   route,
 }: NativeStackScreenProps<MobileRootStackParamList, "ServerProfile">) {
-  const { openWorkspaceRoute } = useMobileProductNavigationActions();
+  const handlers = useServerProfileScreenHandlers(navigation);
   const runtime = getMobileRuntimeConfig();
 
   return (
     <MobileServerProfileScreen
+      {...handlers}
+      source={{ kind: "server", serverId: route.params.serverId }}
+      webUrl={runtime.webUrl}
+    />
+  );
+}
+
+/** Faz 5 §D1: the 6d event card's "see all" and the manager's list. */
+export function ServerEventsScreenContainer({
+  navigation,
+  route,
+}: NativeStackScreenProps<MobileRootStackParamList, "ServerEvents">) {
+  const { openWorkspaceRoute } = useMobileProductNavigationActions();
+
+  return (
+    <MobileServerEventsScreen
       onBack={() => navigation.goBack()}
-      onOpenServer={(serverId) => {
-        openWorkspaceRoute(serverId, null);
+      onOpenChannel={(serverId, channelId) => {
+        openWorkspaceRoute(serverId, channelId);
         navigation.popTo("MainTabs", { screen: "overview" });
       }}
+      onOpenForm={(serverId, eventId) =>
+        navigation.navigate("ServerEventForm", {
+          serverId,
+          ...(eventId === undefined ? {} : { eventId }),
+        })
+      }
       serverId={route.params.serverId}
-      webUrl={runtime.webUrl}
+    />
+  );
+}
+
+/** Faz 5 §D2: create and edit share the route — an absent `eventId` means "new". */
+export function ServerEventFormScreenContainer({
+  navigation,
+  route,
+}: NativeStackScreenProps<MobileRootStackParamList, "ServerEventForm">) {
+  const { eventId, serverId } = route.params;
+
+  return (
+    <MobileServerEventFormScreen
+      key={eventId ?? "new-event"}
+      onBack={() => navigation.goBack()}
+      serverId={serverId}
+      {...(eventId === undefined ? {} : { eventId })}
     />
   );
 }
@@ -1109,6 +1190,7 @@ export function ServerSettingsStackScreenContainer({
       serverId={serverId}
       onBack={() => navigation.goBack()}
       onOpenMembers={() => navigation.navigate("ServerMembers", { serverId })}
+      onOpenEvents={() => navigation.navigate("ServerEvents", { serverId })}
       onOpenProfile={() => navigation.navigate("ServerProfile", { serverId })}
       onOpenRoles={() => navigation.navigate("ServerRoles", { serverId })}
       onOpenInvites={() => navigation.navigate("ServerInvites", { serverId })}

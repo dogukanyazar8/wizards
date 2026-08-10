@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { Image, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { MOBILE_SERVER_ATTACHMENT_MAX_BYTES } from "@wizards/types";
+import {
+  MOBILE_SERVER_ATTACHMENT_MAX_BYTES,
+  SERVER_TAG_LIMIT,
+  ServerTagSchema,
+} from "@wizards/types";
 
 import { fetchMobileServerProfile } from "../about/mobile-community-invite-client";
 import { useMobileAuth } from "../auth/mobile-auth-context";
@@ -36,6 +40,8 @@ export interface MobileServerSettingsScreenProps {
   readonly serverId: string;
   onBack(): void;
   onOpenChannelSettings?(channelId: string): void;
+  /** Faz 5 §D1 manager entry into the scheduled-event list. */
+  onOpenEvents?(): void;
   onOpenInvites?(): void;
   onOpenMembers(): void;
   /** S2 Section D: the read-only public card for this server, from a `serverId`. */
@@ -71,6 +77,7 @@ function getServerFieldLabel(
 
 export function MobileServerSettingsScreen({
   onBack,
+  onOpenEvents,
   onOpenInvites,
   onOpenMembers,
   onOpenProfile,
@@ -127,11 +134,14 @@ export function MobileServerSettingsScreen({
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [leaveOpen, setLeaveOpen] = useState(false);
   const [iconPreviewUri, setIconPreviewUri] = useState<string | null>(null);
   const [canonicalIconUrl, setCanonicalIconUrl] = useState<string | null>(null);
   const [failedIconUri, setFailedIconUri] = useState<string | null>(null);
   const [isPublic, setIsPublic] = useState(false);
   const [discoverable, setDiscoverable] = useState(false);
+  const [tagDraft, setTagDraft] = useState("");
+  const [tagError, setTagError] = useState<string | null>(null);
 
   useEffect(() => {
     setError(null);
@@ -266,6 +276,59 @@ export function MobileServerSettingsScreen({
     }
   };
 
+  // 6c §E. The tag list lives on the profile read model, the same place the
+  // visibility card reads from, and is written through `server:update` — Faz 1
+  // §C4 forbids a route of its own.
+  const tags = useMemo<readonly string[]>(
+    () => visibilityQuery.data?.tags ?? [],
+    [visibilityQuery.data],
+  );
+
+  const writeTags = async (next: readonly string[]) => {
+    setError(null);
+    setNotice(null);
+    try {
+      await mutations.updateServer.mutateAsync({ serverId, tags: next });
+      // Tags are read back from the profile entry, which `updateServer` does
+      // not touch; without this the chip row keeps the pre-save list.
+      void queryClient.invalidateQueries({
+        exact: true,
+        queryKey: mobileQueryKeys.aboutServerProfile(serverId),
+      });
+      setNotice(labels.serverSettingsSaved);
+    } catch {
+      setError(labels.serverSettingsError);
+    }
+  };
+
+  const addTag = async () => {
+    if (!canManageServer || mutations.updateServer.isPending) {
+      return;
+    }
+    // Validation is the shared schema's, lowercasing included: a second rule
+    // here is how the two clients would start disagreeing about a slug.
+    const parsed = ServerTagSchema.safeParse(tagDraft);
+    if (!parsed.success) {
+      setTagError(labels.serverSettingsTagsInvalid);
+      return;
+    }
+    setTagError(null);
+    setTagDraft("");
+    if (tags.includes(parsed.data)) {
+      return;
+    }
+
+    await writeTags([...tags, parsed.data]);
+  };
+
+  const removeTag = async (tag: string) => {
+    if (!canManageServer || mutations.updateServer.isPending) {
+      return;
+    }
+    setTagError(null);
+    await writeTags(tags.filter((entry) => entry !== tag));
+  };
+
   const uploadIcon = async () => {
     if (!capabilities?.canUploadServerIcon || isUploadingIcon) {
       return;
@@ -326,6 +389,24 @@ export function MobileServerSettingsScreen({
     setCanonicalIconUrl(claimedIconUrl);
     void queryClient.invalidateQueries({ exact: true, queryKey: mobileQueryKeys.bootstrap() });
     setNotice(labels.serverSettingsSaved);
+  };
+
+  /**
+   * The row used to be a disabled "yakında" placeholder because mobile had no
+   * leave endpoint. It has one now (`DELETE mobile/servers/:id/members/me`), so
+   * the row is live for everyone the server would actually let leave — an owner
+   * still sees "Sunucuyu sil" instead, because the service refuses their leave.
+   */
+  const leaveServer = async () => {
+    setError(null);
+    try {
+      await mutations.leaveServer.mutateAsync({ serverId });
+      setLeaveOpen(false);
+      onBack();
+    } catch {
+      setError(labels.serverMenuLeaveFailed);
+      throw new Error("mobile-server-leave-failed");
+    }
   };
 
   const deleteServer = async () => {
@@ -733,6 +814,73 @@ export function MobileServerSettingsScreen({
         </View>
       </View>
 
+      {/* Tags (6c §E) — admins only; a member sees no card at all. */}
+      {canManageServer ? (
+        <>
+          <View style={styles.sectionLabel}>
+            <Text maxFontSizeMultiplier={2} style={styles.sectionLabelText}>
+              {labels.serverSettingsTagsSection}
+            </Text>
+          </View>
+          <View style={[styles.card, styles.tagsCard]} testID="mobile-server-tags-card">
+            {tags.length > 0 ? (
+              <View style={styles.tagsChipRow}>
+                {tags.map((tag) => (
+                  <Pressable
+                    accessibilityLabel={`${labels.serverSettingsTagsRemove}: ${tag}`}
+                    accessibilityRole="button"
+                    key={tag}
+                    onPress={() => void removeTag(tag)}
+                    style={({ pressed }) => [styles.tagChip, pressed && styles.rowPressed]}
+                    testID={`mobile-server-tag-remove-${tag}`}
+                  >
+                    <Text maxFontSizeMultiplier={2} style={styles.tagChipText}>
+                      {tag}
+                    </Text>
+                    <MobileLineIcon color={theme.accent.strong} name="close" size={12} />
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+            {tags.length < SERVER_TAG_LIMIT ? (
+              <View style={styles.tagsInputRow}>
+                <TextInput
+                  accessibilityLabel={labels.serverSettingsTagsSection}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  onChangeText={(value) => {
+                    setTagDraft(value);
+                    setTagError(null);
+                  }}
+                  placeholder={labels.serverSettingsTagsPlaceholder}
+                  placeholderTextColor={theme.text.visualPlaceholder}
+                  returnKeyType="done"
+                  style={[styles.input, styles.tagsInput]}
+                  testID="mobile-server-tag-input"
+                  value={tagDraft}
+                />
+                <Button
+                  label={labels.serverSettingsTagsAdd}
+                  onPress={() => void addTag()}
+                  testID="mobile-server-tag-add"
+                  variant="secondary"
+                />
+              </View>
+            ) : null}
+            <Text
+              accessibilityLiveRegion="polite"
+              maxFontSizeMultiplier={2}
+              style={styles.tagsHint}
+            >
+              {tagError ??
+                (tags.length >= SERVER_TAG_LIMIT
+                  ? labels.serverSettingsTagsLimit
+                  : labels.serverSettingsTagsHint)}
+            </Text>
+          </View>
+        </>
+      ) : null}
+
       {/* Management */}
       <View style={styles.sectionLabel}>
         <Text maxFontSizeMultiplier={2} style={styles.sectionLabelText}>
@@ -837,6 +985,29 @@ export function MobileServerSettingsScreen({
           {chevron}
         </Pressable>
 
+        {/*
+          Faz 5 §D1's manager entry. The 6d card only exists while there *is* an
+          upcoming event, so without this row the first event could never be
+          created from the phone. Mirrors the web settings overlay's tab.
+        */}
+        {canManageServer && onOpenEvents ? (
+          <Pressable
+            accessibilityLabel={labels.serverEventsTitle}
+            accessibilityRole="button"
+            onPress={onOpenEvents}
+            style={({ pressed }) => [styles.row, styles.rowDivider, pressed && styles.rowPressed]}
+            testID="mobile-server-events-row"
+          >
+            <View style={[styles.tile, styles.tileAccent]}>
+              <MobileLineIcon color={theme.accent.default} name="calendar" size={17} />
+            </View>
+            <Text maxFontSizeMultiplier={2} style={[styles.rowTitle, styles.rowLabelOnly]}>
+              {labels.serverEventsTitle}
+            </Text>
+            {chevron}
+          </Pressable>
+        ) : null}
+
         {/* Audit log has no mobile endpoint — surfaced disabled per handoff scope. */}
         <View style={[styles.row, styles.rowDisabled]}>
           <View style={[styles.tile, styles.tileNeutral]}>
@@ -867,15 +1038,20 @@ export function MobileServerSettingsScreen({
             </Text>
           </Pressable>
         ) : (
-          <View style={[styles.row, styles.rowDisabled]} testID="mobile-server-leave-disabled">
+          <Pressable
+            accessibilityLabel={labels.serverSettingsLeave}
+            accessibilityRole="button"
+            onPress={() => setLeaveOpen(true)}
+            style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+            testID="mobile-server-leave-open"
+          >
             <View style={[styles.tile, styles.tileDanger]}>
               <MobileLineIcon color={theme.status.dangerOnInverse} name="log-out" size={17} />
             </View>
             <Text maxFontSizeMultiplier={2} style={styles.dangerLabel}>
               {labels.serverSettingsLeave}
             </Text>
-            {soonBadge}
-          </View>
+          </Pressable>
         )}
       </View>
 
@@ -938,6 +1114,18 @@ export function MobileServerSettingsScreen({
           </View>
         </View>
       </BottomSheet>
+
+      <DestructiveConfirmationSheet
+        body={labels.serverMenuLeaveBody.replace("{server}", server.name)}
+        busy={mutations.leaveServer.isPending}
+        confirmLabel={labels.serverSettingsLeave}
+        icon="log-out-outline"
+        onCancel={() => setLeaveOpen(false)}
+        onConfirm={leaveServer}
+        open={leaveOpen}
+        testID="mobile-server-leave-confirm"
+        title={labels.serverSettingsLeave}
+      />
 
       <DestructiveConfirmationSheet
         body={labels.serverSettingsDeleteBody}

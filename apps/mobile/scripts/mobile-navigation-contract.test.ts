@@ -331,9 +331,10 @@ test("the ChannelChat route, not Overview state, owns the transcript query", () 
   const messagingFeature = read("../src/app/features/use-mobile-messaging-feature.ts");
 
   assert.match(containers, /useMobileChannelRouteState\(\{[\s\S]*channelId/);
+  // One builder, live or anchored: the route owns the transcript either way.
   assert.match(
     routeState,
-    /useMobileChannelMessagesQuery\(\s*input\.apiClient,\s*input\.channelId,/,
+    /getMobileChannelMessagesQueryOptions\(\s*input\.apiClient,\s*input\.channelId,/,
   );
   assert.doesNotMatch(messagingFeature, /useMobileChannelMessagesQuery/);
   assert.doesNotMatch(messagingFeature, /channelMessagesQuery/);

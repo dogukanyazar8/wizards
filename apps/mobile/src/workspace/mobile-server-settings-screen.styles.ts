@@ -243,6 +243,27 @@ export const createMobileServerSettingsStyles = (theme: MobileTheme) =>
       textTransform: "uppercase",
     },
 
+    // Tags (6c §E). A free-form block rather than a row list: the chips wrap.
+    tagsCard: { gap: 12, padding: 16 },
+    tagsChipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+    tagChip: {
+      alignItems: "center",
+      backgroundColor: theme.accent.soft,
+      borderRadius: theme.radii.pill,
+      flexDirection: "row",
+      gap: 6,
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+    },
+    tagChipText: {
+      color: theme.accent.strong,
+      fontFamily: theme.typography.fontFamilyBold,
+      fontSize: 12.5,
+    },
+    tagsInputRow: { alignItems: "center", flexDirection: "row", gap: 10 },
+    tagsInput: { flex: 1, minWidth: 0 },
+    tagsHint: { ...theme.typography.caption, color: theme.text.muted },
+
     // Editor sheet
     sheet: { gap: 12 },
     input: {

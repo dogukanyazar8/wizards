@@ -9,7 +9,10 @@ import {
   WorkspaceRoleSchema,
   ChatMessageSchema,
   type CreateChannelInput,
+  type CreateServerScheduledEventInput,
   type CreateWorkspaceRoleInput,
+  type ServerScheduledEvent,
+  type UpdateServerScheduledEventInput,
   type UpdateChannelInput,
   type UpdateWorkspaceChannelPermissionsInput,
   type UpdateWorkspaceMemberRolesInput,
@@ -46,6 +49,7 @@ export const workspaceQueryKeys = {
   roles: (serverId: string) => ["workspace", "server", serverId, "roles"] as const,
   server: (serverId: string) => ["workspace", "server", serverId] as const,
   servers: ["workspace", "servers"] as const,
+  serverEvents: (serverId: string) => ["workspace", "server", serverId, "events"] as const,
 };
 
 const WorkspaceChannelPinnedMessagesResponseSchema = z.object({
@@ -189,6 +193,7 @@ export async function updateServerRequest(
     deletedMessageNoticeMinutes?: number;
     name?: string;
     shortName?: string | null;
+    tags?: string[];
   },
 ) {
   return requestJson<{ detail: WorkspaceServerDetail }>(`/api/v1/servers/${serverId}`, {
@@ -570,4 +575,50 @@ export async function markChannelReadRequest(channelId: string) {
   }>(`/api/v1/channels/${channelId}/read`, {
     method: "PATCH",
   });
+}
+
+export async function listServerEventsRequest(serverId: string, includePast = false) {
+  return requestJson<{ events: ServerScheduledEvent[] }>(
+    `/api/v1/servers/${serverId}/events${includePast ? "?includePast=true" : ""}`,
+  );
+}
+
+export async function createServerEventRequest(
+  serverId: string,
+  input: CreateServerScheduledEventInput,
+) {
+  return requestJson<{ event: ServerScheduledEvent }>(`/api/v1/servers/${serverId}/events`, {
+    body: input,
+    method: "POST",
+  });
+}
+
+export async function updateServerEventRequest(
+  serverId: string,
+  eventId: string,
+  input: UpdateServerScheduledEventInput,
+) {
+  return requestJson<{ event: ServerScheduledEvent }>(
+    `/api/v1/servers/${serverId}/events/${eventId}`,
+    { body: input, method: "PATCH" },
+  );
+}
+
+/** Cancelling keeps the row, so the cancelled event comes back in the body. */
+export async function cancelServerEventRequest(serverId: string, eventId: string) {
+  return requestJson<{ event: ServerScheduledEvent }>(
+    `/api/v1/servers/${serverId}/events/${eventId}`,
+    { method: "DELETE" },
+  );
+}
+
+export async function setServerEventInterestRequest(
+  serverId: string,
+  eventId: string,
+  interested: boolean,
+) {
+  return requestJson<{ event: ServerScheduledEvent }>(
+    `/api/v1/servers/${serverId}/events/${eventId}/interest`,
+    { body: { interested }, method: "POST" },
+  );
 }

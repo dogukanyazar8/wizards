@@ -67,6 +67,22 @@ export function useMobileServerManagementFeature({
     (serverId: string) => mutations.createInvite.mutateAsync({ serverId }),
     [mutations.createInvite],
   );
+  /**
+   * 6c "Sunucudan ayrıl". The mutation drops the server's caches and refetches
+   * the bootstrap, so the selection has to move *before* the rail redraws:
+   * staying on a server the user just left would leave the screen pointed at a
+   * workspace read that now 403s.
+   */
+  const leaveServer = useCallback(
+    async (input: { nextServerId: string | null; serverId: string }) => {
+      await mutations.leaveServer.mutateAsync({ serverId: input.serverId });
+
+      if (input.nextServerId) {
+        selectServer(input.nextServerId);
+      }
+    },
+    [mutations.leaveServer, selectServer],
+  );
   const uploadServerIcon = useCallback(
     async (
       serverId: string,
@@ -123,6 +139,7 @@ export function useMobileServerManagementFeature({
       mutations.createInvite.isPending ||
       mutations.createServer.isPending ||
       mutations.joinServer.isPending ||
+      mutations.leaveServer.isPending ||
       isServerIconUploading,
     closeCreateJoinSheet: () => {
       setCreateJoinSheetOpen(false);
@@ -131,7 +148,9 @@ export function useMobileServerManagementFeature({
     createInvite,
     createServer,
     isCreateJoinSheetOpen,
+    isLeavingServer: mutations.leaveServer.isPending,
     joinServer,
+    leaveServer,
     openCreateJoinSheet: () => setCreateJoinSheetOpen(true),
     openServerIconUpload,
     selectServer,
