@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { E2EVoiceProvider } from "@/components/providers/e2e-voice-provider";
 import { LiveVoiceProvider } from "@/components/providers/live-voice-provider";
 import type { VoiceProviderProps } from "@/components/providers/voice-context";
+import { isExplicitE2ETestMode } from "@/lib/e2e/mode";
 import { getSocket } from "@/lib/socket/client";
 import type { UserProfileUpdatedPayload } from "@/lib/socket/events";
 
@@ -32,7 +33,11 @@ type VoiceProfileUpdate = {
 };
 
 function isE2EVoiceMockEnabled() {
-  return process.env.NEXT_PUBLIC_E2E_TEST_MODE === "true" && process.env.NODE_ENV !== "production";
+  return isExplicitE2ETestMode({
+    allowProductionBuild: process.env.NEXT_PUBLIC_E2E_ALLOW_PRODUCTION_BUILD,
+    nodeEnv: process.env.NODE_ENV,
+    testMode: process.env.NEXT_PUBLIC_E2E_TEST_MODE,
+  });
 }
 
 export function mergeVoiceCurrentUserProfile(

@@ -4225,8 +4225,8 @@
     "semantic_hash": ""
   },
   "apps/web/src/components/providers/voice-provider.tsx": {
-    "mtime": 1784891650.540068,
-    "ast_hash": "0bd9a8c7bc2ce2b51fe4d27e177b64c6",
+    "mtime": 1786479477.823556,
+    "ast_hash": "e821f5c0033997360064337e1c6bfa3b",
     "semantic_hash": ""
   },
   "apps/web/src/components/scene/aurora-background.tsx": {
@@ -5950,8 +5950,8 @@
     "semantic_hash": ""
   },
   "apps/web/src/lib/voice/service.ts": {
-    "mtime": 1785229149.705842,
-    "ast_hash": "a516c3b50296b66b37dd6f311df090a7",
+    "mtime": 1786479295.9354844,
+    "ast_hash": "5eda956021e4ad731917dd8b075f8162",
     "semantic_hash": ""
   },
   "apps/web/src/lib/voice/state-cache.test.ts": {
@@ -6145,8 +6145,8 @@
     "semantic_hash": ""
   },
   "apps/web/src/lib/workspace/server-query-helpers.ts": {
-    "mtime": 1786357490.3350637,
-    "ast_hash": "1b68e2073c5778d9de7d3fc083d9a319",
+    "mtime": 1786479385.3368456,
+    "ast_hash": "ef9c7f79823e233e7d3da85843c215ab",
     "semantic_hash": ""
   },
   "apps/web/src/lib/workspace/server-service.ts": {
@@ -6155,8 +6155,8 @@
     "semantic_hash": ""
   },
   "apps/web/src/lib/workspace/service.test.ts": {
-    "mtime": 1786357603.2429802,
-    "ast_hash": "34537ba2c00b468ec1bd88f14e6d331a",
+    "mtime": 1786479430.2107427,
+    "ast_hash": "7266b1352adae35d24c97c89f79ca61a",
     "semantic_hash": ""
   },
   "apps/web/src/lib/workspace/unread-service.test.ts": {
@@ -15322,6 +15322,16 @@
   "docs/superpowers/specs/2026-08-11-circleci-reliability-design.md": {
     "mtime": 1786475616.8552384,
     "ast_hash": "7d3fa06b7c7f14b7b5e6d6b830cfecae",
+    "semantic_hash": ""
+  },
+  "apps/web/src/lib/e2e/mode.test.ts": {
+    "mtime": 1786479274.3098896,
+    "ast_hash": "938a2ebd835e665e64bc3b3fa8e34f56",
+    "semantic_hash": ""
+  },
+  "apps/web/src/lib/e2e/mode.ts": {
+    "mtime": 1786479295.93448,
+    "ast_hash": "3448b729e6da37fdc6e5037a3d6f3b71",
     "semantic_hash": ""
   }
 }

@@ -1,4 +1,5 @@
 import { ChannelType } from "@wizards/db";
+import type Redis from "ioredis";
 import type {
   WorkspaceAccessLevel,
   WorkspaceCategory,
@@ -18,6 +19,15 @@ import {
 } from "@/lib/workspace/permissions";
 import { deriveAccessLevel } from "@/lib/workspace/role-helpers";
 import type { AccessContext, ChannelRecord, RoleRecord } from "@/lib/workspace/workspace-types";
+
+let serverMemberPresenceRedisForTest: Redis | null = null;
+
+export function setServerMemberPresenceRedisForTest(redis: Redis | null) {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("setServerMemberPresenceRedisForTest is not available in production.");
+  }
+  serverMemberPresenceRedisForTest = redis;
+}
 
 export function toWorkspaceChannel(
   channel: ChannelRecord,
@@ -114,7 +124,7 @@ export async function mapMembers(
   }>,
 ): Promise<WorkspaceMember[]> {
   const presenceByUserId = await readPresenceMap(
-    getRedis(),
+    serverMemberPresenceRedisForTest ?? getRedis(),
     members.map((member) => ({
       customStatus: member.user.customStatus,
       status: "OFFLINE",

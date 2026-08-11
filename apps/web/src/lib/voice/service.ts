@@ -9,6 +9,7 @@ import {
 } from "@/lib/analytics/service";
 import type { ClientAttribution } from "@/lib/analytics/client-attribution";
 import { broadcastVoiceRoomUpdateToFriends } from "@/lib/friends/service";
+import { isExplicitE2ETestMode } from "@/lib/e2e/mode";
 import { getLiveKitRoomServiceClient } from "@/lib/livekit/server";
 import { logError } from "@/lib/logger";
 import { getRedis } from "@/lib/redis";
@@ -67,7 +68,11 @@ type RedisLockReleaseClient = {
 };
 
 function isE2ETestMode() {
-  return process.env.E2E_TEST_MODE === "true" && process.env.NODE_ENV !== "production";
+  return isExplicitE2ETestMode({
+    allowProductionBuild: process.env.E2E_ALLOW_PRODUCTION_BUILD,
+    nodeEnv: process.env.NODE_ENV,
+    testMode: process.env.E2E_TEST_MODE,
+  });
 }
 
 export function getVoiceJoinLockSpecs(args: {

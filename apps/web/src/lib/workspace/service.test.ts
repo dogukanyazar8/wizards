@@ -7,6 +7,8 @@ import { setSocketServer, type AppSocketServer } from "@/lib/socket/runtime";
 import { setServerRoomIdsCacheRedisForTest } from "@/lib/socket/server-room-cache";
 import { setPermissionCacheRedisForTest } from "@/lib/workspace/permission-cache";
 import { PermissionBits } from "@/lib/workspace/permissions";
+import { setServerMemberPresenceRedisForTest } from "@/lib/workspace/server-query-helpers";
+import { setOnlineServerMemberCountRedisForTest } from "@/lib/workspace/unread-service";
 import { updateWorkspaceChannelPermissions } from "./channel-permission-service";
 import {
   clearWorkspaceChannelHistory,
@@ -57,6 +59,9 @@ async function withPatchedEnvironment(run: (restores: Restore[]) => Promise<void
   const originalPermissionCacheDisabled = process.env.PERMISSION_CACHE_DISABLED;
   process.env.PERMISSION_CACHE_ENABLED = "true";
   delete process.env.PERMISSION_CACHE_DISABLED;
+  setPermissionCacheRedisForTest(createPermissionRedis([]) as never);
+  setServerMemberPresenceRedisForTest(createPresenceRedis() as never);
+  setOnlineServerMemberCountRedisForTest({ status: "wait" } as never);
 
   try {
     await run(restores);
@@ -65,7 +70,9 @@ async function withPatchedEnvironment(run: (restores: Restore[]) => Promise<void
       restore();
     }
     setPermissionCacheRedisForTest(null);
+    setServerMemberPresenceRedisForTest(null);
     setServerRoomIdsCacheRedisForTest(null);
+    setOnlineServerMemberCountRedisForTest(null);
     setSocketServer(null as unknown as AppSocketServer);
     if (originalPermissionCacheEnabled === undefined) {
       delete process.env.PERMISSION_CACHE_ENABLED;
@@ -121,6 +128,25 @@ function createServerRoomRedis(operations: string[]) {
     get: async () => null,
     set: async () => "OK",
     status: "ready" as const,
+  };
+}
+
+function createPresenceRedis() {
+  return {
+    pipeline() {
+      return {
+        exec: async () => null,
+        type() {
+          return this;
+        },
+        zcard() {
+          return this;
+        },
+        zremrangebyscore() {
+          return this;
+        },
+      };
+    },
   };
 }
 
