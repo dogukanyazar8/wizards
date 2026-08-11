@@ -10,6 +10,7 @@ const mainConfigPath = join(root, ".circleci", "main.yml");
 const goldenImagePath = join(root, "docker", "ci", "IMAGE");
 const githubWorkflowPath = join(root, ".github", "workflows", "ci.yml");
 const goldenDockerfilePath = join(root, "docker", "ci", "Dockerfile");
+const mobileJestConfigPath = join(root, "apps", "mobile", "jest.config.js");
 const mobilePackagePath = join(root, "apps", "mobile", "package.json");
 const mobileTestRenderHelperPath = join(
   root,
@@ -229,12 +230,14 @@ test("Playwright starts the built Next application in production mode", () => {
 });
 
 test("mobile component tests release completed mutations without force-exit", () => {
+  const mobileJestConfig = readText(mobileJestConfigPath);
   const mobilePackage = JSON.parse(readText(mobilePackagePath));
   const command = mobilePackage.scripts["test:components"];
   const renderHelper = readText(mobileTestRenderHelperPath);
 
   assert.doesNotMatch(command, /--forceExit/u);
   assert.match(command, /--maxWorkers=2/u);
+  assert.match(mobileJestConfig, /workerIdleMemoryLimit: "512MB"/u);
   assert.match(renderHelper, /mutations: \{ gcTime: 0, retry: false \}/u);
 });
 

@@ -494,7 +494,9 @@ describe("2b — invite sheet, username tab", () => {
         ),
       ).toBe(true),
     );
-    expect(view.queryByTestId("mobile-invite-sheet-pending-invite-9")).toBeNull();
+    await waitFor(() =>
+      expect(view.queryByTestId("mobile-invite-sheet-pending-invite-9")).toBeNull(),
+    );
   });
 
   it("restores the pending row when the revoke fails", async () => {
