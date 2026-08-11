@@ -1,7 +1,12 @@
+import { z } from "zod";
 import {
   GroupDMAddMembersRequestSchema,
   GroupDMCreateRequestSchema,
+  GroupDMSettingsUpdateRequestSchema,
   GroupDMUpdateRequestSchema,
+  GroupMemberRoleUpdateRequestSchema,
+  GroupPinDismissRequestSchema,
+  GroupPinMessageRequestSchema,
   type DMConversationDTO,
 } from "@wizards/types";
 
@@ -11,24 +16,44 @@ import { requireApiUserId } from "@/lib/auth/api";
 import {
   emitGroupConversationCreated,
   emitGroupMembersChanged,
+  emitGroupPinChanged,
+  emitGroupRoleChanged,
+  emitGroupSettingsChanged,
   evictRemovedGroupMember,
   type GroupRealtimeServer,
 } from "@/lib/dm/group-realtime";
 import {
   addGroupMembers,
   createGroupConversation,
+  dismissPinnedStrip,
   removeGroupMember,
+  setPinnedMessage,
   updateGroupConversation,
+  updateGroupSettings,
+  updateMemberRole,
 } from "@/lib/dm/group-service";
 import { getDirectMessageConversationForUser } from "@/lib/dm/service";
 import { getSocketServer } from "@/lib/socket/runtime";
+
+/**
+ * V8. Carried on the existing DELETE rather than a second endpoint: leaving and
+ * handing the group over are one user action, and two requests would let the
+ * handover land without the departure.
+ */
+export const GroupLeaveRequestSchema = z
+  .object({ transferOwnershipTo: z.string().trim().min(1).max(128).optional() })
+  .strict();
 
 export type GroupRouteDependencies = {
   addMembers: typeof addGroupMembers;
   authenticate(request: Request): Promise<string>;
   createGroup: typeof createGroupConversation;
+  dismissPin: typeof dismissPinnedStrip;
   emitCreated: typeof emitGroupConversationCreated;
   emitMembersChanged: typeof emitGroupMembersChanged;
+  emitPinChanged: typeof emitGroupPinChanged;
+  emitRoleChanged: typeof emitGroupRoleChanged;
+  emitSettingsChanged: typeof emitGroupSettingsChanged;
   enforceRateLimit(userId: string, action: ApiRateLimitAction): Promise<void>;
   evictRemoved: typeof evictRemovedGroupMember;
   getIo(): GroupRealtimeServer | null;
@@ -38,15 +63,22 @@ export type GroupRouteDependencies = {
     userId: string,
   ): Promise<DMConversationDTO | null>;
   removeMember: typeof removeGroupMember;
+  setPin: typeof setPinnedMessage;
   updateGroup: typeof updateGroupConversation;
+  updateMemberRole: typeof updateMemberRole;
+  updateSettings: typeof updateGroupSettings;
 };
 
 const defaults: GroupRouteDependencies = {
   addMembers: addGroupMembers,
   authenticate: () => requireApiUserId(),
   createGroup: createGroupConversation,
+  dismissPin: dismissPinnedStrip,
   emitCreated: emitGroupConversationCreated,
   emitMembersChanged: emitGroupMembersChanged,
+  emitPinChanged: emitGroupPinChanged,
+  emitRoleChanged: emitGroupRoleChanged,
+  emitSettingsChanged: emitGroupSettingsChanged,
   enforceRateLimit: enforceApiRateLimit,
   evictRemoved: evictRemovedGroupMember,
   getIo: () => getSocketServer(),
@@ -58,7 +90,10 @@ const defaults: GroupRouteDependencies = {
     }
   },
   removeMember: removeGroupMember,
+  setPin: setPinnedMessage,
   updateGroup: updateGroupConversation,
+  updateMemberRole,
+  updateSettings: updateGroupSettings,
 };
 
 export async function groupCreateRoute(
@@ -73,8 +108,14 @@ export async function groupCreateRoute(
     // spreading the key with an undefined value would not survive the strict
     // optional property types.
     const conversation = await dependencies.createGroup(userId, {
+      ...(input.avatarColor === undefined ? {} : { avatarColor: input.avatarColor }),
+      ...(input.description === undefined ? {} : { description: input.description }),
+      ...(input.historyVisibility === undefined
+        ? {}
+        : { historyVisibility: input.historyVisibility }),
       ...(input.iconUrl === undefined ? {} : { iconUrl: input.iconUrl }),
       ...(input.name === undefined ? {} : { name: input.name }),
+      ...(input.permAddMembers === undefined ? {} : { permAddMembers: input.permAddMembers }),
       userIds: input.userIds,
     });
     const io = dependencies.getIo();
@@ -147,10 +188,17 @@ export async function groupRemoveMemberRoute(
   try {
     const userId = await dependencies.authenticate(request);
     await dependencies.enforceRateLimit(userId, "dm:group:members");
+    // A bodyless DELETE parses as `{}`, so removing somebody else stays a plain
+    // request and only a departing last admin has to say anything.
+    const { transferOwnershipTo } = await parseJsonBody(request, GroupLeaveRequestSchema);
     const { broadcastViewerId } = await dependencies.removeMember(
       userId,
       conversationId,
       targetUserId,
+      // The service's own default dependency set; only the options after it are
+      // the route's business.
+      undefined,
+      transferOwnershipTo === undefined ? {} : { transferOwnershipTo },
     );
     const io = dependencies.getIo();
 
@@ -174,6 +222,142 @@ export async function groupRemoveMemberRoute(
     }
 
     return new Response(null, { status: 204 });
+  } catch (error) {
+    return jsonError(error);
+  }
+}
+
+/**
+ * 2f §3 / 2c §5. Permissions, history window, description and colour. The
+ * response is the whole conversation because every one of those fields is drawn
+ * somewhere the client already holds a conversation for.
+ */
+export async function groupSettingsRoute(
+  request: Request,
+  conversationId: string,
+  dependencies: GroupRouteDependencies = defaults,
+): Promise<Response> {
+  try {
+    const userId = await dependencies.authenticate(request);
+    await dependencies.enforceRateLimit(userId, "dm:group:update");
+    const patch = await parseJsonBody(request, GroupDMSettingsUpdateRequestSchema);
+    const conversation = await dependencies.updateSettings(userId, conversationId, patch);
+    const io = dependencies.getIo();
+
+    if (io) {
+      dependencies.emitSettingsChanged(io, conversation);
+    }
+
+    return Response.json({ conversation });
+  } catch (error) {
+    return jsonError(error);
+  }
+}
+
+/** 2e §7. Promote, demote, or hand the group over. */
+export async function groupMemberRoleRoute(
+  request: Request,
+  conversationId: string,
+  targetUserId: string,
+  dependencies: GroupRouteDependencies = defaults,
+): Promise<Response> {
+  try {
+    const userId = await dependencies.authenticate(request);
+    await dependencies.enforceRateLimit(userId, "dm:group:update");
+    const input = await parseJsonBody(request, GroupMemberRoleUpdateRequestSchema);
+    const conversation = await dependencies.updateMemberRole(
+      userId,
+      conversationId,
+      targetUserId,
+      input,
+    );
+    const io = dependencies.getIo();
+
+    if (io) {
+      dependencies.emitRoleChanged(io, {
+        conversation,
+        role: input.transferOwnership === true ? "OWNER" : input.role,
+        userId: targetUserId,
+      });
+    }
+
+    return Response.json({ conversation });
+  } catch (error) {
+    return jsonError(error);
+  }
+}
+
+/** 2d §2. PUT pins, DELETE unpins; both answer with the updated conversation. */
+export async function groupPinRoute(
+  request: Request,
+  conversationId: string,
+  dependencies: GroupRouteDependencies = defaults,
+): Promise<Response> {
+  try {
+    const userId = await dependencies.authenticate(request);
+    await dependencies.enforceRateLimit(userId, "dm:group:update");
+    const { messageId } = await parseJsonBody(request, GroupPinMessageRequestSchema);
+
+    return await respondWithPin(
+      await dependencies.setPin(userId, conversationId, messageId),
+      dependencies,
+    );
+  } catch (error) {
+    return jsonError(error);
+  }
+}
+
+export async function groupUnpinRoute(
+  request: Request,
+  conversationId: string,
+  dependencies: GroupRouteDependencies = defaults,
+): Promise<Response> {
+  try {
+    const userId = await dependencies.authenticate(request);
+    await dependencies.enforceRateLimit(userId, "dm:group:update");
+
+    return await respondWithPin(
+      await dependencies.setPin(userId, conversationId, null),
+      dependencies,
+    );
+  } catch (error) {
+    return jsonError(error);
+  }
+}
+
+async function respondWithPin(
+  conversation: DMConversationDTO,
+  dependencies: GroupRouteDependencies,
+): Promise<Response> {
+  const io = dependencies.getIo();
+
+  if (io) {
+    dependencies.emitPinChanged(io, {
+      conversation,
+      pinnedMessage: conversation.pinnedMessage ?? null,
+    });
+  }
+
+  return Response.json({ conversation });
+}
+
+/**
+ * 2d §2, "kapatma yalnız o kullanıcı için gizler". Nothing is broadcast: the
+ * dismissal is one person's view state, and the client that sent it already
+ * closed the strip.
+ */
+export async function groupPinDismissRoute(
+  request: Request,
+  conversationId: string,
+  dependencies: GroupRouteDependencies = defaults,
+): Promise<Response> {
+  try {
+    const userId = await dependencies.authenticate(request);
+    await dependencies.enforceRateLimit(userId, "dm:group:update");
+    const { messageId } = await parseJsonBody(request, GroupPinDismissRequestSchema);
+    await dependencies.dismissPin(userId, conversationId, messageId);
+
+    return Response.json({ success: true });
   } catch (error) {
     return jsonError(error);
   }

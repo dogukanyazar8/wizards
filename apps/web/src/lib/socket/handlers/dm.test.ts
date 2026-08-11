@@ -43,6 +43,10 @@ describe("socket DM handlers", () => {
       "dm:leave",
       "dm:message:delivered",
       "dm:call:start",
+      // Faz 2 §D3. Joining an ongoing call and leaving one without ending it
+      // for everybody else.
+      "dm:call:join",
+      "dm:call:leave",
       "dm:call:accept",
       "dm:call:decline",
       "dm:call:cancel",

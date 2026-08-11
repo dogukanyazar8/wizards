@@ -303,6 +303,41 @@ function isMobileChannelUnread(channel: MobileWorkspaceFilterableChannel): boole
   return channel.unreadCount > 0 || channel.mentionCount > 0;
 }
 
+export interface MobileRealtimeTargetSnapshot {
+  readonly channelId: string | null;
+  readonly conversationId: string | null;
+  readonly serverId: string | null;
+}
+
+/**
+ * The realtime client emits `voice:states:watch` from the active-target store,
+ * and until now only the pushed `ChannelChat` route ever wrote a server into
+ * it. A user sitting on the Sunucular list had no watch at all, so the live
+ * voice row, the "N seste" meta and the "Sesli" segment's dot were frozen at
+ * whatever the first HTTP read returned.
+ *
+ * The list may claim the target, but only when nothing more specific owns it:
+ * a mounted channel or DM screen is the authority while it is open, and
+ * `setServer` would clear its channel id out from under it. Re-claiming the
+ * server that is already set is also skipped -- `setActiveTargets` only emits
+ * on a change, but a redundant store write would still re-render every
+ * subscriber.
+ */
+export function shouldClaimMobileVoiceWatchTarget(
+  current: MobileRealtimeTargetSnapshot,
+  serverId: string | null,
+): boolean {
+  if (serverId === null || serverId.length === 0) {
+    return false;
+  }
+
+  if (current.channelId !== null || current.conversationId !== null) {
+    return false;
+  }
+
+  return current.serverId !== serverId;
+}
+
 /**
  * Either the raw voice-state list or the set a caller already built from it.
  * The screen builds it once per render and hands the same set to every helper
@@ -545,6 +580,166 @@ export function getMobileServerProfileStats(profile: {
           : String(profile.weeklyMessageCount),
     },
   ];
+}
+
+/**
+ * 6d clamps the description to three lines and offers "Devamı" underneath. The
+ * link is only honest when there is a fourth line to reveal, so it waits for a
+ * real line count rather than for the text to be non-empty.
+ *
+ * `lineCount === null` means "not measured yet" and keeps the link hidden: a
+ * link that appears for one frame and then vanishes on a short description is
+ * worse than one that appears a frame late.
+ */
+export function shouldShowMobileDescriptionMore(input: {
+  readonly expanded: boolean;
+  readonly lineCount: number | null;
+  readonly maxLines: number;
+}): boolean {
+  if (input.expanded || input.lineCount === null) {
+    return false;
+  }
+
+  return input.lineCount > input.maxLines;
+}
+
+export interface MobileStrongTextSegment {
+  readonly strong: boolean;
+  readonly text: string;
+}
+
+/**
+ * 6d prints "Arkadaşlarından **3 kişi** bu sunucuda" with the middle span in
+ * 800 weight and the darker ink. Which words belong to that span is a property
+ * of the sentence, not of the layout — Turkish bolds a counter and its noun,
+ * English bolds a different slice — so each locale marks its own with `**`
+ * and the screen renders whatever it is handed.
+ *
+ * Unpaired markers are left as literal text rather than swallowed: a copy typo
+ * should look wrong, not silently delete a word.
+ */
+export function splitMobileStrongSegments(template: string): MobileStrongTextSegment[] {
+  const segments: MobileStrongTextSegment[] = [];
+  let index = 0;
+
+  while (index < template.length) {
+    const open = template.indexOf("**", index);
+    if (open < 0) {
+      break;
+    }
+
+    const close = template.indexOf("**", open + 2);
+    if (close < 0) {
+      break;
+    }
+
+    if (open > index) {
+      segments.push({ strong: false, text: template.slice(index, open) });
+    }
+
+    const strongText = template.slice(open + 2, close);
+    if (strongText.length > 0) {
+      segments.push({ strong: true, text: strongText });
+    }
+
+    index = close + 2;
+  }
+
+  if (index < template.length) {
+    segments.push({ strong: false, text: template.slice(index) });
+  }
+
+  return segments;
+}
+
+export interface MobileLiveVoiceParticipant {
+  readonly avatarUrl: string | null;
+  readonly displayName: string | null;
+  readonly userId: string;
+  readonly username: string;
+}
+
+interface MobileLiveVoiceProfileChannel {
+  readonly id: string;
+  readonly liveCount: number | null;
+  readonly participants: readonly {
+    readonly avatarUrl: string | null;
+    readonly displayName: string;
+    readonly id: string;
+    readonly shortName: string | null;
+  }[];
+  readonly type: "text" | "voice";
+}
+
+interface MobileLiveVoiceProfile {
+  readonly channels: readonly MobileLiveVoiceProfileChannel[];
+  readonly voiceActiveCount: number;
+}
+
+/**
+ * 6d reads its voice numbers from the profile HTTP payload, which is a snapshot:
+ * the "Seste" stat and every voice row froze the moment the screen opened. The
+ * socket already streams `voice:state:update` into the voice-states query, so
+ * this folds that live map over the snapshot instead of refetching the profile
+ * on every join and leave.
+ *
+ * Applied only once the voice read has actually answered -- an empty map from a
+ * still-loading query would otherwise zero out counts the server did produce.
+ * When nothing changes the input object is returned by identity, so a presence
+ * tick in an unrelated server cannot re-render the whole profile.
+ */
+export function applyMobileLiveVoiceToProfile<TProfile extends MobileLiveVoiceProfile>(
+  profile: TProfile,
+  liveByChannelId: ReadonlyMap<string, readonly MobileLiveVoiceParticipant[]> | null,
+): TProfile {
+  if (liveByChannelId === null) {
+    return profile;
+  }
+
+  let changed = false;
+  let voiceActiveCount = 0;
+
+  const channels = profile.channels.map((channel) => {
+    if (channel.type !== "voice") {
+      return channel;
+    }
+
+    const live = liveByChannelId.get(channel.id) ?? [];
+    voiceActiveCount += live.length;
+
+    const participants = live.map((participant) => ({
+      avatarUrl: participant.avatarUrl,
+      displayName: participant.displayName ?? participant.username,
+      id: participant.userId,
+      shortName: toMobileVoiceParticipantShortName(participant.displayName ?? participant.username),
+    }));
+
+    if (channel.liveCount === live.length && channel.participants.length === live.length) {
+      return channel;
+    }
+
+    changed = true;
+    return { ...channel, liveCount: live.length, participants };
+  });
+
+  if (!changed && voiceActiveCount === profile.voiceActiveCount) {
+    return profile;
+  }
+
+  return { ...profile, channels, voiceActiveCount };
+}
+
+/** Same two-initial rule the profile route applies server-side. */
+function toMobileVoiceParticipantShortName(displayName: string): string | null {
+  const initials = displayName
+    .trim()
+    .split(/\s+/)
+    .filter((part) => part.length > 0)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
+
+  return initials.length > 0 ? initials : null;
 }
 
 export interface MobileProfileChannelGroup<TChannel> {

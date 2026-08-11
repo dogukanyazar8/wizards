@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 import type { DMConversationDTO, DMMessagePayload, DMParticipantDTO } from "@wizards/types";
 
 import {
+  buildGroupReadReceipt,
   getConversationSearchTerms,
   getGroupAvatarParticipants,
   getGroupConversationTitle,
@@ -75,13 +76,39 @@ function conversation(overrides: Partial<DMConversationDTO> = {}): DMConversatio
 describe("group conversation presentation", () => {
   it("uses the group's own name when it has one", () => {
     assert.equal(
-      getGroupConversationTitle(conversation({ name: "Takım" }), "user-1", "fallback"),
+      getGroupConversationTitle(conversation({ name: "Takım" }), "user-1", "fallback", "tr"),
       "Takım",
     );
   });
 
   it("falls back to the other members' names, viewer excluded", () => {
-    assert.equal(getGroupConversationTitle(conversation(), "user-1", "fallback"), "Selin, Kaan");
+    assert.equal(
+      getGroupConversationTitle(conversation(), "user-1", "fallback", "tr"),
+      "Selin ve Kaan",
+    );
+  });
+
+  /**
+   * §4.4: this is the same string 2c's hint promises, so the separator has to
+   * follow the reader's locale rather than being a hard-coded comma.
+   */
+  it("localises the last separator", () => {
+    assert.equal(
+      getGroupConversationTitle(conversation(), "user-1", "fallback", "en"),
+      "Selin and Kaan",
+    );
+  });
+
+  it("uses the fallback when the viewer is the only member", () => {
+    assert.equal(
+      getGroupConversationTitle(
+        conversation({ participants: [participant({ displayName: "Ada", userId: "user-1" })] }),
+        "user-1",
+        "fallback",
+        "tr",
+      ),
+      "fallback",
+    );
   });
 
   it("counts every member, viewer included", () => {
@@ -142,5 +169,116 @@ describe("group conversation presentation", () => {
     // Searching your own name must not list every conversation you are in.
     assert.equal(terms.includes("Ada"), false);
     assert.equal(terms.includes("Selin"), true);
+  });
+});
+
+describe("buildGroupReadReceipt", () => {
+  const createdAt = new Date("2026-08-11T09:00:00.000Z");
+
+  function reader(userId: string, lastReadAt: string | null) {
+    return { lastReadAt: lastReadAt === null ? null : new Date(lastReadAt), userId };
+  }
+
+  it("counts the members whose read mark is at or past the message", () => {
+    const receipt = buildGroupReadReceipt({
+      authorId: "user-1",
+      createdAt,
+      participants: [
+        reader("user-1", "2026-08-11T09:05:00.000Z"),
+        reader("user-2", "2026-08-11T09:01:00.000Z"),
+        reader("user-3", "2026-08-11T08:59:00.000Z"),
+        reader("user-4", null),
+      ],
+    });
+
+    assert.deepEqual(receipt.readerIds, ["user-2"]);
+    assert.equal(receipt.count, 1);
+  });
+
+  it("never counts the author, however recently they read", () => {
+    // The author's own `lastReadAt` always moves past their own message, so
+    // counting it would make every bubble read "1 kişi okudu" instantly.
+    const receipt = buildGroupReadReceipt({
+      authorId: "user-1",
+      createdAt,
+      participants: [reader("user-1", "2026-08-11T09:05:00.000Z"), reader("user-2", null)],
+    });
+
+    assert.deepEqual(receipt.readerIds, []);
+    assert.equal(receipt.count, 0);
+  });
+
+  it("treats a mark exactly on the message as read", () => {
+    const receipt = buildGroupReadReceipt({
+      authorId: "user-1",
+      createdAt,
+      participants: [reader("user-1", null), reader("user-2", "2026-08-11T09:00:00.000Z")],
+    });
+
+    assert.equal(receipt.count, 1);
+  });
+
+  it("reports 'everyone' only when every other member has read it", () => {
+    const participants = [
+      reader("user-1", null),
+      reader("user-2", "2026-08-11T09:01:00.000Z"),
+      reader("user-3", "2026-08-11T09:02:00.000Z"),
+    ];
+
+    assert.equal(
+      buildGroupReadReceipt({ authorId: "user-1", createdAt, participants }).everyone,
+      true,
+    );
+    assert.equal(
+      buildGroupReadReceipt({
+        authorId: "user-1",
+        createdAt,
+        participants: [...participants, reader("user-4", null)],
+      }).everyone,
+      false,
+    );
+  });
+
+  it("is not 'everyone' when nobody else is left in the group", () => {
+    // One participant means the author is alone; "Herkes okudu" under a message
+    // nobody could read is a lie.
+    const receipt = buildGroupReadReceipt({
+      authorId: "user-1",
+      createdAt,
+      participants: [reader("user-1", "2026-08-11T09:05:00.000Z")],
+    });
+
+    assert.equal(receipt.everyone, false);
+    assert.equal(receipt.count, 0);
+  });
+
+  it("still measures against the other members when the author has left", () => {
+    const receipt = buildGroupReadReceipt({
+      authorId: "gone-1",
+      createdAt,
+      participants: [
+        reader("user-2", "2026-08-11T09:01:00.000Z"),
+        reader("user-3", "2026-08-11T09:02:00.000Z"),
+      ],
+    });
+
+    assert.equal(receipt.count, 2);
+    assert.equal(receipt.everyone, true);
+  });
+
+  it("keeps reader ids in the order the participants arrived", () => {
+    const receipt = buildGroupReadReceipt({
+      authorId: "user-1",
+      createdAt,
+      participants: [
+        reader("user-1", null),
+        reader("user-3", "2026-08-11T09:02:00.000Z"),
+        reader("user-2", "2026-08-11T09:01:00.000Z"),
+      ],
+    });
+
+    // The avatar stack is drawn in this order, and `joinedAt` is what the
+    // conversation projection already sorts by.
+    assert.deepEqual(receipt.readerIds, ["user-3", "user-2"]);
   });
 });

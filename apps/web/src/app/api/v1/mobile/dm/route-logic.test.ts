@@ -92,6 +92,9 @@ describe("mobile DM create route", () => {
     assert.deepEqual(await response.json(), {
       conversations: [
         {
+          // Faz 3 §B3: the four group fields ride the row. A 1:1 conversation
+          // carries their defaults rather than being a different shape.
+          avatarPair: [],
           iconUrl: null,
           id: "dm-1",
           lastMessage: {
@@ -111,6 +114,8 @@ describe("mobile DM create route", () => {
           mentionCount: 0,
           muted: false,
           name: null,
+          notifyLevel: "ALL",
+          overflowCount: 0,
           participantCount: 1,
           participants: [
             {
@@ -122,6 +127,7 @@ describe("mobile DM create route", () => {
               username: "ada",
             },
           ],
+          pinnedAt: null,
           type: "DM",
           unreadCount: 0,
         },

@@ -20,6 +20,7 @@ type DmSystemMessageProps = {
 };
 
 const TEMPLATE_KEYS: Record<DMSystemMessageTypeValue, string> = {
+  DISAPPEARING_CHANGED: "dm.group.system.disappearingChanged",
   GROUP_CREATED: "dm.group.system.created",
   ICON_CHANGED: "dm.group.system.iconChanged",
   MEMBER_ADDED: "dm.group.system.added",
@@ -27,6 +28,8 @@ const TEMPLATE_KEYS: Record<DMSystemMessageTypeValue, string> = {
   MEMBER_REMOVED: "dm.group.system.removed",
   NAME_CHANGED: "dm.group.system.nameChanged",
 };
+
+const DISAPPEARING_WINDOWS = new Set<string>(["OFF", "H24", "D7", "D90"]);
 
 function resolveName(
   participants: readonly DmSystemMessageParticipant[],
@@ -62,10 +65,19 @@ export function buildDmSystemMessageSentence(
     .filter((name): name is string => Boolean(name))
     .join(", ");
 
+  // K3 / C2. `systemValue` carries the enum, not prose — the row is stored once
+  // and read in whatever locale each member is using.
+  const value =
+    input.systemType === "DISAPPEARING_CHANGED" &&
+    input.systemValue &&
+    DISAPPEARING_WINDOWS.has(input.systemValue)
+      ? input.t(`dm.group.disappearing.${input.systemValue}`)
+      : (input.systemValue ?? "");
+
   return input.t(TEMPLATE_KEYS[input.systemType], {
     actor,
     targets,
-    value: input.systemValue ?? "",
+    value,
   });
 }
 

@@ -53,9 +53,16 @@ const BODYLESS_MUTATING_METHOD_PATHS = new Set([
   "POST channels/[channelId]/messages/[messageId]/pin",
   "PATCH channels/[channelId]/read",
   "DELETE dm/[conversationId]",
-  // The path is the whole request: who is removed and from which group. The
-  // caller gets 204 and the updated roster over the socket, not in a body.
-  "DELETE dm/groups/[conversationId]/members/[userId]",
+  // Unpinning names nothing but the group: the path is the whole request and
+  // the new state arrives over the socket.
+  "DELETE dm/groups/[conversationId]/pin",
+  // Faz 2 §B3. Rotating mints a fresh code server-side; a client-supplied code
+  // is exactly what the endpoint must never accept.
+  "POST dm/groups/[conversationId]/invite/rotate",
+  "POST mobile/dm/groups/[conversationId]/invite/rotate",
+  // The code in the path plus the session is the whole request.
+  "POST group-invites/[code]/join",
+  "POST mobile/group-invites/[code]/join",
   "PATCH dm/[conversationId]/read",
   "PATCH dm/[conversationId]/unread",
   "DELETE friends/[userId]",
@@ -74,7 +81,7 @@ const BODYLESS_MUTATING_METHOD_PATHS = new Set([
   "DELETE mobile/dm/[conversationId]",
   "DELETE mobile/dm/[conversationId]/messages/[messageId]",
   // Same as the web route: the path carries the whole request.
-  "DELETE mobile/dm/groups/[conversationId]/members/[userId]",
+  "DELETE mobile/dm/groups/[conversationId]/pin",
   "PATCH mobile/dm/[conversationId]/read",
   "DELETE mobile/friends/[userId]",
   "DELETE mobile/friends/blocks/[userId]",

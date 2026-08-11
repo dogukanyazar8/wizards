@@ -74,7 +74,7 @@ function buildItem(conversation: DMConversationDTO): DmConversationItemView {
   return {
     avatarUrl: conversation.iconUrl,
     conversation,
-    displayName: getGroupConversationTitle(conversation, "user-1", "?"),
+    displayName: getGroupConversationTitle(conversation, "user-1", "?", "tr"),
     groupAvatars: conversation.participants
       .filter((entry) => entry.userId !== "user-1")
       .map((entry) => ({
@@ -176,7 +176,9 @@ describe("DM sidebar group row", () => {
   it("titles an unnamed group with its members, viewer excluded", () => {
     const markup = renderSidebar(groupConversation(null));
 
-    assert.match(markup, /Selin, Kaan/);
+    // §4.4: the same string 2c promises ("… ve DY"), built by the shared rule in
+    // `@wizards/types` rather than by a comma join here.
+    assert.match(markup, /Selin ve Kaan/);
   });
 
   it("stacks member avatars and shows the member count instead of a handle", () => {

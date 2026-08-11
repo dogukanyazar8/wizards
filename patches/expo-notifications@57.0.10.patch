@@ -1,7 +1,9 @@
 diff --git a/build/utils/updateDevicePushTokenAsync.js b/build/utils/updateDevicePushTokenAsync.js
+index 41d1d531b24e22358fe19ca7dd21e05d338d0d41..e69e3aaebf5188a3a032da55662e5a55b0ba6bfb 100644
 --- a/build/utils/updateDevicePushTokenAsync.js
 +++ b/build/utils/updateDevicePushTokenAsync.js
-@@ -109,6 +109,6 @@ export async function updateDevicePushTokenAsync(signal, token) {
+@@ -109,7 +109,7 @@ export async function updateDevicePushTokenAsync(signal, token) {
+             //   https://github.com/github/fetch/blob/75d9455d380f365701151f3ac85c5bda4bbbde76/fetch.js#L505
              // - which creates exceptions like
              //   https://github.com/github/fetch/blob/75d9455d380f365701151f3ac85c5bda4bbbde76/fetch.js#L490-L494
 -            if (typeof error === 'object' && error?.name === 'AbortError') {
@@ -10,9 +12,11 @@ diff --git a/build/utils/updateDevicePushTokenAsync.js b/build/utils/updateDevic
                  // request is expected to succeed and we don't need this one, so let's
                  // just return.
 diff --git a/src/utils/updateDevicePushTokenAsync.ts b/src/utils/updateDevicePushTokenAsync.ts
+index 9ba72f9441009396b2a27b6bd1056e0a4b680ab5..ff0cafe465bd05cf73164309c8b0a9ab3ae2e405 100644
 --- a/src/utils/updateDevicePushTokenAsync.ts
 +++ b/src/utils/updateDevicePushTokenAsync.ts
-@@ -124,6 +124,6 @@ export async function updateDevicePushTokenAsync(signal: AbortSignal, token: Dev
+@@ -136,7 +136,7 @@ export async function updateDevicePushTokenAsync(signal: AbortSignal, token: Dev
+       //   https://github.com/github/fetch/blob/75d9455d380f365701151f3ac85c5bda4bbbde76/fetch.js#L505
        // - which creates exceptions like
        //   https://github.com/github/fetch/blob/75d9455d380f365701151f3ac85c5bda4bbbde76/fetch.js#L490-L494
 -      if (typeof error === 'object' && error?.name === 'AbortError') {

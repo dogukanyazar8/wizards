@@ -1,0 +1,10 @@
+# Published golden image reference used by every CircleCI executor.
+#
+# Single source of truth. scripts/quality/circleci-config-contract.test.mjs
+# asserts .circleci/main.yml references exactly this value.
+#
+# To update: build and push (see README.md), then paste the new digest here and
+# in .circleci/main.yml. Never point an executor at a floating tag.
+#
+# Published 2026-08-11 from docker/ci/Dockerfile with gitleaks 8.30.1.
+ghcr.io/dogukanyazar8/wizards-ci@sha256:20333aa986fc36c972cad63cc16c5ab787d257c357d21c9327861df0ed69f71d

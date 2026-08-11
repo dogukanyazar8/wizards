@@ -126,7 +126,12 @@ export function FriendsSidebar({ currentUserId, onNavigate, onPrefetch }: Friend
           conversation.participants.find((participant) => participant.userId === currentUserId)
             ?.unreadCount ?? 0;
         const displayName = isGroup
-          ? getGroupConversationTitle(conversation, currentUserId, t("dm.sidebar.unknownUser"))
+          ? getGroupConversationTitle(
+              conversation,
+              currentUserId,
+              t("dm.sidebar.unknownUser"),
+              locale,
+            )
           : (conversation.name ??
             otherParticipant?.displayName ??
             otherParticipant?.username ??

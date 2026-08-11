@@ -46,6 +46,12 @@ export async function createRealtimeDMMessage(args: {
   clientNonce?: string | null;
   content: string;
   conversationId: string;
+  /**
+   * K3 / C2. When the purge sweep removes this message, or null when the
+   * conversation's disappearing window is off. Computed by the caller so the
+   * whole send shares one instant.
+   */
+  expiresAt?: Date | null;
   forwardOfMessageId?: string | null;
   notification?: DMMessageNotificationContext;
   participants: DMRealtimeParticipant[];
@@ -65,6 +71,7 @@ export async function createRealtimeDMMessage(args: {
           replyToId: args.replyToId ?? null,
           threadParentId: args.threadParentId ?? null,
           forwardedAt: args.forwardOfMessageId ? new Date() : null,
+          expiresAt: args.expiresAt ?? null,
           clientNonce,
         },
         select: { id: true, createdAt: true },

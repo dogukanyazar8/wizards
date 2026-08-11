@@ -1,4 +1,5 @@
 import { prisma } from "@wizards/db";
+import { buildGroupAvatarPair } from "@wizards/types";
 import { ApiError, jsonError } from "@/lib/api";
 import { authorizeMobileApiRequest } from "@/lib/auth/api";
 import { createServerTimingForRequest } from "@/lib/server-timing";
@@ -69,9 +70,9 @@ export async function GET(request: Request) {
                 },
                 iconUrl: true,
                 id: true,
-                // 6c's identity row prints `whispr.gg/<vanity ?? invite>`. Both
-                // columns ride the query the rail already runs so opening the
-                // menu costs nothing.
+                // 6c's identity row prints `<origin host>/invite/<vanity ??
+                // invite>`. Both columns ride the query the rail already runs
+                // so opening the menu costs nothing.
                 inviteCode: true,
                 name: true,
                 shortName: true,
@@ -100,6 +101,11 @@ export async function GET(request: Request) {
           select: {
             mentionCount: true,
             muted: true,
+            // Faz 3 §B7: the inbox row carries the viewer's own notification tier
+            // and pin so a `dm:conversation:notify`/`:pin` event can patch the row
+            // instead of refetching the whole cold-start payload.
+            notifyLevel: true,
+            pinnedAt: true,
             unreadCount: true,
             conversation: {
               select: {
@@ -112,6 +118,8 @@ export async function GET(request: Request) {
                     joinedAt: "asc",
                   },
                   select: {
+                    joinedAt: true,
+                    nameColor: true,
                     user: {
                       select: {
                         avatarUrl: true,
@@ -171,25 +179,52 @@ export async function GET(request: Request) {
 
     const home: MobileBootstrapHomeSummary = {
       directMessages: {
-        recent: recentDMParticipants.map((participant) => ({
-          iconUrl: normalizeMobileImageUrl(participant.conversation.iconUrl),
-          id: participant.conversation.id,
-          lastMessageAt: participant.conversation.lastMessageAt.toISOString(),
-          mentionCount: Math.max(0, participant.mentionCount),
-          muted: participant.muted,
-          name: participant.conversation.name,
-          participantCount: participant.conversation._count.participants,
-          participants: participant.conversation.participants.map(({ user: conversationUser }) => ({
-            avatarUrl: normalizeMobileImageUrl(conversationUser.avatarUrl),
-            displayName: conversationUser.displayName,
-            id: conversationUser.id,
-            isBot: conversationUser.isBot,
-            status: conversationUser.status,
-            username: conversationUser.username,
-          })),
-          type: participant.conversation.type,
-          unreadCount: Math.max(0, participant.unreadCount),
-        })),
+        recent: recentDMParticipants.map((participant) => {
+          // V7. `participants` is ordered by `joinedAt` and capped at 4, so the
+          // first two *other* members are always inside the page; only the count
+          // of everyone they hide has to come from `_count`, which is the true
+          // total rather than the page length.
+          const { tiles } = buildGroupAvatarPair(
+            participant.conversation.participants.map((row) => ({
+              avatarUrl: row.user.avatarUrl,
+              displayName: row.user.displayName,
+              joinedAt: row.joinedAt.toISOString(),
+              nameColor: row.nameColor,
+              userId: row.user.id,
+              username: row.user.username,
+            })),
+            userId,
+          );
+
+          return {
+            avatarPair: participant.conversation.type === "GROUP_DM" ? tiles : [],
+            iconUrl: normalizeMobileImageUrl(participant.conversation.iconUrl),
+            id: participant.conversation.id,
+            lastMessageAt: participant.conversation.lastMessageAt.toISOString(),
+            mentionCount: Math.max(0, participant.mentionCount),
+            muted: participant.muted,
+            name: participant.conversation.name,
+            notifyLevel: participant.notifyLevel,
+            overflowCount:
+              participant.conversation.type === "GROUP_DM"
+                ? Math.max(0, participant.conversation._count.participants - 1 - tiles.length)
+                : 0,
+            participantCount: participant.conversation._count.participants,
+            participants: participant.conversation.participants.map(
+              ({ user: conversationUser }) => ({
+                avatarUrl: normalizeMobileImageUrl(conversationUser.avatarUrl),
+                displayName: conversationUser.displayName,
+                id: conversationUser.id,
+                isBot: conversationUser.isBot,
+                status: conversationUser.status,
+                username: conversationUser.username,
+              }),
+            ),
+            pinnedAt: participant.pinnedAt?.toISOString() ?? null,
+            type: participant.conversation.type,
+            unreadCount: Math.max(0, participant.unreadCount),
+          };
+        }),
         totalCount: dmTotalCount,
         unreadCount: Math.max(0, dmUnreadAggregate._sum.unreadCount ?? 0),
       },

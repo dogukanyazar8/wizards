@@ -129,11 +129,11 @@ describe("DM participant preferences", () => {
     const calls: Array<{ key: string; value: unknown }> = [];
 
     patchMethod(
-      prisma.dMParticipant,
+      prisma.dMConversation,
       "findUnique",
       async (args: unknown) => {
         calls.push({ key: "findUnique", value: args });
-        return { id: "participant-1" };
+        return { participants: [{ historyFromAt: null }], type: "DM" };
       },
       restores,
     );
@@ -153,14 +153,15 @@ describe("DM participant preferences", () => {
       assert.deepEqual(calls, [
         {
           key: "findUnique",
+          // The membership gate also answers "how far back may this member
+          // read", and it stays one statement: the participant row arrives as a
+          // filtered relation rather than a second findUnique.
           value: {
-            select: { id: true },
-            where: {
-              conversationId_userId: {
-                conversationId: "conversation-1",
-                userId: "user-1",
-              },
+            select: {
+              participants: { select: { historyFromAt: true }, where: { userId: "user-1" } },
+              type: true,
             },
+            where: { id: "conversation-1" },
           },
         },
         {
@@ -191,11 +192,11 @@ describe("DM participant preferences", () => {
     const calls: Array<{ key: string; value: unknown }> = [];
 
     patchMethod(
-      prisma.dMParticipant,
+      prisma.dMConversation,
       "findUnique",
       async (args: unknown) => {
         calls.push({ key: "findUnique", value: args });
-        return { id: "participant-1" };
+        return { participants: [{ historyFromAt: null }], type: "DM" };
       },
       restores,
     );
@@ -215,14 +216,15 @@ describe("DM participant preferences", () => {
       assert.deepEqual(calls, [
         {
           key: "findUnique",
+          // The membership gate also answers "how far back may this member
+          // read", and it stays one statement: the participant row arrives as a
+          // filtered relation rather than a second findUnique.
           value: {
-            select: { id: true },
-            where: {
-              conversationId_userId: {
-                conversationId: "conversation-1",
-                userId: "user-1",
-              },
+            select: {
+              participants: { select: { historyFromAt: true }, where: { userId: "user-1" } },
+              type: true,
             },
+            where: { id: "conversation-1" },
           },
         },
         {
@@ -264,7 +266,7 @@ describe("DM message mutation authorization", () => {
       restores,
     );
     patchMethod(
-      prisma.dMParticipant,
+      prisma.dMConversation,
       "findUnique",
       async () => {
         throw new Error("membership lookup must not run after a route mismatch");
@@ -306,9 +308,9 @@ describe("DM message mutation authorization", () => {
       restores,
     );
     patchMethod(
-      prisma.dMParticipant,
+      prisma.dMConversation,
       "findUnique",
-      async () => ({ id: "participant-1" }),
+      async () => ({ participants: [{ historyFromAt: null }], type: "DM" }),
       restores,
     );
     patchMethod(
@@ -349,9 +351,9 @@ describe("DM message mutation authorization", () => {
       restores,
     );
     patchMethod(
-      prisma.dMParticipant,
+      prisma.dMConversation,
       "findUnique",
-      async () => ({ id: "participant-1" }),
+      async () => ({ participants: [{ historyFromAt: null }], type: "DM" }),
       restores,
     );
     patchMethod(

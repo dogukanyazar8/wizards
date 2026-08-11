@@ -561,6 +561,7 @@ describe("mobile realtime query bridge", () => {
     const inboxKey = mobileQueryKeys.dmConversations();
     const streamKey = mobileQueryKeys.dmMessages("conversation-1");
     const existing = {
+      avatarPair: [],
       iconUrl: null,
       id: "conversation-1",
       lastMessage: null,
@@ -568,8 +569,11 @@ describe("mobile realtime query bridge", () => {
       mentionCount: 0,
       muted: false,
       name: null,
+      notifyLevel: "ALL" as const,
+      overflowCount: 0,
       participantCount: 2,
       participants: [],
+      pinnedAt: null,
       type: "DM" as const,
       unreadCount: 1,
     };

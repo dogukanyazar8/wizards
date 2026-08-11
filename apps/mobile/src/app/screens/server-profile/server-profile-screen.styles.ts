@@ -192,6 +192,20 @@ export const createMobileServerProfileStyles = (theme: MobileTheme) => {
       lineHeight: profile.description.lineHeight,
       marginTop: 8,
     },
+    /**
+     * The unclamped twin used to count the description's real lines. Absolute
+     * so it takes no space, `left/right: 0` so it wraps at exactly the width the
+     * visible copy does, and invisible rather than `display: none` — a node that
+     * is not laid out is never measured.
+     */
+    descriptionMeasure: {
+      left: 0,
+      marginTop: 0,
+      opacity: 0,
+      position: "absolute" as const,
+      right: 0,
+      top: 0,
+    },
     descriptionMore: {
       color: profile.eventJoinPill.text,
       fontFamily: theme.typography.fontFamilyExtraBold,
@@ -264,6 +278,11 @@ export const createMobileServerProfileStyles = (theme: MobileTheme) => {
       fontFamily: theme.typography.fontFamilySemiBold,
       fontSize: profile.friendsRow.textFontSize,
       minWidth: 0,
+    },
+    /** 6d sets the counter apart in 800 and the darker ink; the sentence stays 600. */
+    friendsTextStrong: {
+      color: profile.friendsRow.strongText,
+      fontFamily: theme.typography.fontFamilyExtraBold,
     },
 
     /* B5 upcoming event ------------------------------------------------ */

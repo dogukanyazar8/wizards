@@ -3,9 +3,16 @@ import {
   ChatMessageSchema,
   DMConversationDTOSchema,
   DMMessagePayloadSchema,
+  GroupCallStateDTOSchema,
   MOBILE_NOTIFICATION_FILTERS,
   MobileChannelMessagesStaleEventSchema,
+  MobileDMConversationNotifyEventSchema,
+  MobileDMConversationPinEventSchema,
   MobileDMDeliveredUpdatedEventSchema,
+  MobileDMGroupPinEventSchema,
+  MobileDMGroupRoleEventSchema,
+  MobileDMGroupSettingsEventSchema,
+  MobileDMMessageExpiredEventSchema,
   MobileDMReadUpdatedEventSchema,
   MobileFriendVoiceRoomUpdateEventSchema,
   MobileNotificationNewEventSchema,
@@ -17,6 +24,9 @@ import {
   MobileUserProfileUpdatedEventSchema,
   MobileVoiceScreenShareUpdateEventSchema,
   MobileVoiceStateUpdateEventSchema,
+  type DMConversationDTO,
+  type DMParticipantRole,
+  type GroupCallStateDTO,
   type MobileBootstrapPayload,
   type MobileChannelMessagesResponse,
   type MobileDMConversationsResponse,
@@ -27,6 +37,14 @@ import {
   type MobileUserProfile,
   type MobileVoiceStatesResponse,
 } from "@wizards/types";
+import {
+  patchMobileGroupConversationRow,
+  patchMobileGroupDetails,
+  patchMobileGroupMemberList,
+  patchMobileGroupMemberRole,
+  removeMobileExpiredMessages,
+  type MobileGroupConversationRowPatch,
+} from "../query/mobile-group-cache";
 import {
   appendOrReplaceMobileMessage,
   removeMobileMessage,
@@ -55,6 +73,7 @@ import {
   getMobileRealtimeRefreshTimerSource,
   isMobileRealtimeChannelMessagePayloadEvent,
   isMobileRealtimeDMMessagePayloadEvent,
+  isMobileRealtimeGroupPatchEvent,
   isMobileRealtimeValidatedPayloadEvent,
   isMobileRealtimeWorkspaceAffectingChannelEvent,
   MOBILE_REALTIME_REFRESH_DEBOUNCE_MS,
@@ -64,6 +83,16 @@ import {
 import type { MobileRealtimeActiveTargets } from "./mobile-realtime-state";
 import { applyMobileRealtimeChannelMessageEvent } from "../workspace/mobile-channel-message-state";
 import { applyMobileRealtimeNotificationEvent } from "../notifications/mobile-notification-realtime";
+
+/**
+ * What a roster cached on `groupMembers` looks like from here: the one field a
+ * role event moves. Kept structural so Faz 5 can widen the read without this
+ * module having to know its full shape.
+ */
+type MobileGroupRosterMember = {
+  readonly role?: DMParticipantRole | undefined;
+  readonly userId: string;
+};
 
 type MobileChannelMessagesInfiniteData = InfiniteData<MobileChannelMessagesResponse, string | null>;
 type MobileDMMessagesInfiniteData = InfiniteData<MobileDMMessagesResponse, string | null>;
@@ -382,6 +411,145 @@ export function createMobileRealtimeQueryBridge({
       }
       queryClient.setQueryData(queryKey, patch(current));
     }
+  };
+
+  /**
+   * Faz 3 §B7 / C4. The group events, answered by writing the cache rather than
+   * by invalidating: a 32-member group must not be re-read every time somebody's
+   * role chip changes.
+   *
+   * Every branch returns `true` even when nothing was cached — the event *was*
+   * handled, and falling through would schedule the refetch this exists to
+   * avoid. The contract also maps all of them to zero refresh sources, so there
+   * is nothing left to schedule anyway.
+   */
+  const applyGroupPatchEvent = (event: MobileRealtimeEventEnvelope): boolean => {
+    if (!isMobileRealtimeGroupPatchEvent(event.eventName) || event.payload === null) {
+      return false;
+    }
+
+    const conversationId = event.conversationId;
+    if (!conversationId) {
+      return true;
+    }
+
+    const detailsKey = mobileQueryKeys.groupDetails(conversationId);
+
+    if (event.eventName === "dm:group:settings") {
+      const parsed = MobileDMGroupSettingsEventSchema.safeParse(event.payload);
+      if (parsed.success) {
+        queryClient.setQueryData<DMConversationDTO>(detailsKey, (current) =>
+          patchMobileGroupDetails(current, {
+            avatarColor: parsed.data.avatarColor,
+            description: parsed.data.description,
+            disappearingAfter: parsed.data.disappearingAfter,
+            historyVisibility: parsed.data.historyVisibility,
+            permissions: parsed.data.permissions,
+          }),
+        );
+      }
+      return true;
+    }
+
+    if (event.eventName === "dm:group:role") {
+      const parsed = MobileDMGroupRoleEventSchema.safeParse(event.payload);
+      if (parsed.success) {
+        queryClient.setQueryData<DMConversationDTO>(detailsKey, (current) =>
+          patchMobileGroupMemberRole(current, parsed.data),
+        );
+        queryClient.setQueryData<{ members: MobileGroupRosterMember[] }>(
+          mobileQueryKeys.groupMembers(conversationId),
+          (current) => patchMobileGroupMemberList(current, parsed.data),
+        );
+      }
+      return true;
+    }
+
+    if (event.eventName === "dm:group:pin") {
+      const parsed = MobileDMGroupPinEventSchema.safeParse(event.payload);
+      if (parsed.success) {
+        queryClient.setQueryData<DMConversationDTO>(detailsKey, (current) =>
+          patchMobileGroupDetails(current, { pinnedMessage: parsed.data.pinnedMessage }),
+        );
+        // 2d §2: the strip sits above the transcript, and the pinned row is one
+        // of the messages in it — the open stream has to redraw with it.
+        void queryClient.invalidateQueries({
+          exact: true,
+          queryKey: mobileQueryKeys.dmMessages(conversationId),
+        });
+      }
+      return true;
+    }
+
+    if (event.eventName === "dm:group:invite") {
+      // The event carries the switch but never the code (Faz 2, karar 2), so the
+      // sheet that shows the link re-reads it; a patch here would have to invent
+      // a `code` the server deliberately withheld.
+      void queryClient.invalidateQueries({
+        exact: true,
+        queryKey: mobileQueryKeys.groupInvite(conversationId),
+      });
+      return true;
+    }
+
+    if (event.eventName === "dm:conversation:notify") {
+      const parsed = MobileDMConversationNotifyEventSchema.safeParse(event.payload);
+      if (parsed.success) {
+        patchGroupConversationRow(conversationId, {
+          // §4.2 on the client: authority and mirror in one write.
+          muted: parsed.data.notifyLevel === "NONE",
+          notifyLevel: parsed.data.notifyLevel,
+        });
+        queryClient.setQueryData<DMConversationDTO>(detailsKey, (current) =>
+          current ? { ...current, notifyLevel: parsed.data.notifyLevel } : current,
+        );
+      }
+      return true;
+    }
+
+    if (event.eventName === "dm:conversation:pin") {
+      const parsed = MobileDMConversationPinEventSchema.safeParse(event.payload);
+      if (parsed.success) {
+        patchGroupConversationRow(conversationId, { pinnedAt: parsed.data.pinnedAt });
+      }
+      return true;
+    }
+
+    if (event.eventName === "dm:message:expired") {
+      const parsed = MobileDMMessageExpiredEventSchema.safeParse(event.payload);
+      if (parsed.success) {
+        queryClient.setQueryData<MobileDMMessagesInfiniteData>(
+          mobileQueryKeys.dmMessages(conversationId),
+          (current) => removeMobileExpiredMessages(current, parsed.data.messageIds),
+        );
+      }
+      return true;
+    }
+
+    if (event.eventName === "dm:call:state") {
+      const parsed = GroupCallStateDTOSchema.safeParse(event.payload);
+      if (parsed.success) {
+        // The banner reads this payload and nothing else (Faz 2, karar 8), so it
+        // is cached whole rather than folded into the conversation.
+        queryClient.setQueryData<GroupCallStateDTO>(
+          mobileQueryKeys.groupCallState(conversationId),
+          parsed.data,
+        );
+      }
+      return true;
+    }
+
+    return true;
+  };
+
+  const patchGroupConversationRow = (
+    conversationId: string,
+    patch: MobileGroupConversationRowPatch,
+  ) => {
+    queryClient.setQueryData<MobileDMConversationsInfiniteData>(
+      mobileQueryKeys.dmConversations(),
+      (current) => patchMobileGroupConversationRow(current, conversationId, patch),
+    );
   };
 
   const applyValidatedManagementEvent = (event: MobileRealtimeEventEnvelope): boolean => {
@@ -765,6 +933,11 @@ export function createMobileRealtimeQueryBridge({
         const attachment = lastMessage?.attachments[0];
         const contentType = attachment?.contentType.toLowerCase() ?? "";
         const nextConversation: MobileDMConversationListItem = {
+          // The event's own group state wins when it carries it; otherwise the
+          // row keeps what it already had rather than dropping to a default —
+          // `dm:conversation:updated` is a message event and says nothing about
+          // the viewer's pin or notification tier.
+          avatarPair: conversation.data.avatarPair ?? existing?.avatarPair ?? [],
           iconUrl: existing?.iconUrl ?? null,
           id: conversation.data.id,
           lastMessage: lastMessage
@@ -806,6 +979,8 @@ export function createMobileRealtimeQueryBridge({
           mentionCount: existing?.mentionCount ?? 0,
           muted: self?.muted ?? existing?.muted ?? false,
           name: conversation.data.name,
+          notifyLevel: conversation.data.notifyLevel ?? existing?.notifyLevel ?? "ALL",
+          overflowCount: conversation.data.overflowCount ?? existing?.overflowCount ?? 0,
           participantCount: conversation.data.participants.length,
           participants: conversation.data.participants.slice(0, 4).map((participant) => ({
             avatarUrl: participant.avatarUrl,
@@ -818,6 +993,7 @@ export function createMobileRealtimeQueryBridge({
             status: participant.status,
             username: participant.username,
           })),
+          pinnedAt: conversation.data.pinnedAt ?? existing?.pinnedAt ?? null,
           type: conversation.data.type,
           unreadCount,
         };
@@ -1135,6 +1311,10 @@ export function createMobileRealtimeQueryBridge({
     },
     handleEvent(event) {
       if (isMobileRealtimeValidatedPayloadEvent(event.eventName) && event.payload === null) {
+        return;
+      }
+
+      if (applyGroupPatchEvent(event)) {
         return;
       }
 

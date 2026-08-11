@@ -119,6 +119,25 @@ export function createMobileQueryKeys(registry: MobileSearchKeyRegistry) {
       [...all, "dm-attachments", conversationId, tab] as const,
     dmThread: (conversationId: string, messageId: string) =>
       [...all, "dm-thread", conversationId, messageId] as const,
+    /**
+     * Grup sohbetleri 2a–2f §B5. Four reads that a group screen owns, kept apart
+     * from `dmDetails` on purpose: that key belongs to the 1:1 details body
+     * (mutual servers, the counterpart's profile) and its screen is replaced in
+     * Faz 5. One key over two shapes is how the messaging send-storm started.
+     */
+    groupDetails: (conversationId: string) => [...all, "group-details", conversationId] as const,
+    groupMembers: (conversationId: string) => [...all, "group-members", conversationId] as const,
+    groupMedia: (conversationId: string) => [...all, "group-media", conversationId] as const,
+    groupInvite: (conversationId: string) => [...all, "group-invite", conversationId] as const,
+    /**
+     * `dm:call:state` cached whole, per conversation: the banner reads the
+     * server's roster and never rebuilds it from the ring signals it witnessed
+     * (Faz 2, karar 8).
+     */
+    groupCallState: (conversationId: string) =>
+      [...all, "group-call-state", conversationId] as const,
+    /** Keyed by the code: a preview is about the link, not about a conversation. */
+    groupInvitePreview: (code: string) => [...all, "group-invite-preview", code] as const,
     feedbackRoot: () => [...all, "feedback"] as const,
     feedback: (feedbackId: string) => [...all, "feedback", feedbackId] as const,
     /**

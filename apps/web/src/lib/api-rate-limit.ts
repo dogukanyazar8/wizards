@@ -67,6 +67,14 @@ export const API_RATE_LIMITS = {
   "dm:conversation:read": { limit: 120, windowSeconds: 60 },
   "dm:conversations:list": { limit: 120, windowSeconds: 60 },
   "dm:create": { limit: 30, windowSeconds: 60 },
+  /**
+   * Faz 2 §B3. The two endpoints a code-guessing run would hammer. Keyed by
+   * user rather than by IP because both require a session — the account is the
+   * thing being spent, and this repo has no trusted-proxy validation that would
+   * make a client-supplied `x-forwarded-for` worth trusting.
+   */
+  "group-invite:preview": { limit: 20, windowSeconds: 60 },
+  "group-invite:join": { limit: 5, windowSeconds: 60 },
   "dm:group:create": { limit: 10, windowSeconds: 10 * 60 },
   "dm:group:members": { limit: 30, windowSeconds: 60 },
   "dm:group:update": { limit: 30, windowSeconds: 60 },
@@ -149,6 +157,9 @@ export const API_RATE_LIMITS = {
   "mobile:dm:group:create": { limit: 10, windowSeconds: 10 * 60 },
   "mobile:dm:group:members": { limit: 30, windowSeconds: 60 },
   "mobile:dm:group:update": { limit: 30, windowSeconds: 60 },
+  // Same ceilings as the web `group-invite:*` buckets they mirror.
+  "mobile:group-invite:preview": { limit: 20, windowSeconds: 60 },
+  "mobile:group-invite:join": { limit: 5, windowSeconds: 60 },
   // Same ceilings as the web `dm:hide` / `dm:mute` buckets they mirror.
   "mobile:dm:hide": { limit: 60, windowSeconds: 60 },
   "mobile:dm:mute": { limit: 60, windowSeconds: 60 },

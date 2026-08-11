@@ -2,6 +2,7 @@ import type {
   ChatMessage,
   DMConversationDTO,
   DMMessagePayload,
+  GroupCallStateDTO,
   MessageReaction,
   UploadedAttachmentInput,
 } from "@wizards/types";
@@ -145,6 +146,13 @@ export interface ClientToServerEvents {
   "dm:typing:start": (data: { conversationId: string }) => void;
   "dm:typing:stop": (data: { conversationId: string }) => void;
   "dm:call:start": (data: { conversationId: string; video: boolean }) => void;
+  /**
+   * Faz 2 §D3. Entering a group call that is already running — no ring, because
+   * the people inside are already talking.
+   */
+  "dm:call:join": (data: { conversationId: string; video?: boolean }) => void;
+  /** Faz 2 §D3. Leaving without ending the call for everybody else. */
+  "dm:call:leave": (data: { conversationId: string }) => void;
   "dm:call:accept": (data: { conversationId: string; fromUserId: string; video: boolean }) => void;
   "dm:call:decline": (data: { conversationId: string; fromUserId: string }) => void;
   "dm:call:cancel": (data: { conversationId: string }) => void;
@@ -235,6 +243,11 @@ export interface ServerToClientEvents {
     deletedById?: string;
   }) => void;
   "dm:message:removed": (data: { messageId: string; conversationId: string }) => void;
+  /**
+   * Faz 2 §C4. The disappearing sweep removed these messages for good. Sent
+   * *after* the delete (§4.10), so a client acting on it cannot re-fetch them.
+   */
+  "dm:message:expired": (data: { conversationId: string; messageIds: string[] }) => void;
   "dm:message:reaction_updated": (data: {
     messageId: string;
     reactions: MessageReaction[];
@@ -285,6 +298,13 @@ export interface ServerToClientEvents {
   "dm:call:declined": (data: { conversationId: string; userId: string }) => void;
   "dm:call:cancelled": (data: { conversationId: string; userId: string }) => void;
   "dm:call:ended": (data: { conversationId: string; userId: string }) => void;
+  /**
+   * Faz 2 §D3 / E4. Who is in the group call right now, sent to every member of
+   * the conversation on every change. The client reads this rather than
+   * reconstructing a roster from the ring and hang-up signals it happened to
+   * see; `active: false` is the call ending.
+   */
+  "dm:call:state": (data: GroupCallStateDTO) => void;
   "dm:error": (data: {
     code:
       | "UNAUTHORIZED"

@@ -41,13 +41,17 @@ describe("mobile bootstrap payload", () => {
         directMessages: {
           recent: [
             {
+              avatarPair: [],
               iconUrl: null,
               id: "conversation_1",
               lastMessageAt: "2026-06-26T11:00:00.000Z",
               mentionCount: 0,
               muted: false,
               name: null,
+              notifyLevel: "ALL" as const,
+              overflowCount: 0,
               participantCount: 2,
+              pinnedAt: null,
               participants: [
                 {
                   avatarUrl: null,

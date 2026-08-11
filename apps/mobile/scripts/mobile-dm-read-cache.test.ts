@@ -16,6 +16,7 @@ function buildConversation(
   mentionCount = 0,
 ): MobileDMConversationsResponse["conversations"][number] {
   return {
+    avatarPair: [],
     iconUrl: null,
     id,
     lastMessage: null,
@@ -23,8 +24,11 @@ function buildConversation(
     mentionCount,
     muted: false,
     name: null,
+    notifyLevel: "ALL",
+    overflowCount: 0,
     participantCount: 2,
     participants: [],
+    pinnedAt: null,
     type: "DM",
     unreadCount,
   };

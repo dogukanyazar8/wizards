@@ -22,6 +22,19 @@ export const MOBILE_REALTIME_SERVER_EVENTS = [
   "dm:conversation:created",
   "dm:conversation:members_changed",
   "dm:conversation:removed",
+  /**
+   * Grup sohbetleri 2a–2f §B7. Six group events plus the purge and the call
+   * roster. Every one is patch-only: `getMobileRealtimeRefreshSources` returns
+   * nothing for them, and the bridge writes the cache directly.
+   */
+  "dm:group:settings",
+  "dm:group:role",
+  "dm:group:pin",
+  "dm:group:invite",
+  "dm:conversation:notify",
+  "dm:conversation:pin",
+  "dm:message:expired",
+  "dm:call:state",
   "dm:call:incoming",
   "dm:call:accepted",
   "dm:call:declined",
@@ -174,6 +187,30 @@ type MobileValidatedRealtimePayload = {
 
 type MobileRealtimePayloadParser = (payload: unknown) => MobileValidatedRealtimePayload | null;
 
+/**
+ * Faz 3 §B7. Every group event is scoped to one conversation and to nothing
+ * else, so they all validate the same way: parse, then carry the id the bridge
+ * routes on.
+ */
+function parseMobileConversationScoped(
+  payload: unknown,
+  schema: {
+    safeParse(
+      value: unknown,
+    ): { data: { conversationId: string }; success: true } | { success: false };
+  },
+): MobileValidatedRealtimePayload | null {
+  const parsed = schema.safeParse(payload);
+  return parsed.success
+    ? {
+        channelId: null,
+        conversationId: parsed.data.conversationId,
+        payload: parsed.data,
+        serverId: null,
+      }
+    : null;
+}
+
 /** Decline, cancel and end all carry the same {conversationId, userId} shape. */
 function parseMobileDMCallSignal(payload: unknown): MobileValidatedRealtimePayload | null {
   const parsed = MobileDMCallSignalEventSchema.safeParse(payload);
@@ -213,6 +250,30 @@ const MOBILE_REALTIME_PAYLOAD_PARSERS = {
   "dm:call:declined": (payload) => parseMobileDMCallSignal(payload),
   "dm:call:cancelled": (payload) => parseMobileDMCallSignal(payload),
   "dm:call:ended": (payload) => parseMobileDMCallSignal(payload),
+  "dm:call:state": (payload) => {
+    const parsed = GroupCallStateDTOSchema.safeParse(payload);
+    return parsed.success
+      ? {
+          channelId: null,
+          conversationId: parsed.data.conversationId,
+          payload: parsed.data,
+          serverId: null,
+        }
+      : null;
+  },
+  "dm:group:settings": (payload) =>
+    parseMobileConversationScoped(payload, MobileDMGroupSettingsEventSchema),
+  "dm:group:role": (payload) =>
+    parseMobileConversationScoped(payload, MobileDMGroupRoleEventSchema),
+  "dm:group:pin": (payload) => parseMobileConversationScoped(payload, MobileDMGroupPinEventSchema),
+  "dm:group:invite": (payload) =>
+    parseMobileConversationScoped(payload, MobileDMGroupInviteEventSchema),
+  "dm:conversation:notify": (payload) =>
+    parseMobileConversationScoped(payload, MobileDMConversationNotifyEventSchema),
+  "dm:conversation:pin": (payload) =>
+    parseMobileConversationScoped(payload, MobileDMConversationPinEventSchema),
+  "dm:message:expired": (payload) =>
+    parseMobileConversationScoped(payload, MobileDMMessageExpiredEventSchema),
   "dm:conversation:read": (payload) => {
     const parsed = MobileDMReadUpdatedEventSchema.safeParse(payload);
     return parsed.success
@@ -329,6 +390,7 @@ export function getMobileRealtimeRefreshSources(
     eventName === "dm:call:declined" ||
     eventName === "dm:call:cancelled" ||
     eventName === "dm:call:ended" ||
+    isMobileRealtimeGroupPatchEvent(eventName) ||
     eventName === "voice:audio-level:update" ||
     eventName === "voice:invite:accepted" ||
     eventName === "voice:invite:error" ||
@@ -407,6 +469,27 @@ export function isMobileRealtimeDMMessagePayloadEvent(
   return DM_REFRESH_EVENTS.has(eventName);
 }
 
+/**
+ * Faz 3 §B7 / C4. The eight events the bridge answers by writing the cache. They
+ * map to no refresh source at all: scheduling one would undo the patch's whole
+ * point, and `dm:message:expired` in particular fires from a global sweep, so a
+ * refetch there would drag the inbox behind every purge tick.
+ */
+const GROUP_PATCH_EVENTS = new Set<MobileRealtimeServerEventName>([
+  "dm:group:settings",
+  "dm:group:role",
+  "dm:group:pin",
+  "dm:group:invite",
+  "dm:conversation:notify",
+  "dm:conversation:pin",
+  "dm:message:expired",
+  "dm:call:state",
+]);
+
+export function isMobileRealtimeGroupPatchEvent(eventName: MobileRealtimeServerEventName): boolean {
+  return GROUP_PATCH_EVENTS.has(eventName);
+}
+
 export function createMobileRealtimeEventEnvelope(
   eventName: MobileRealtimeServerEventName,
   payload: unknown,
@@ -470,6 +553,7 @@ export function validateMobileRealtimeContract(): string[] {
       eventName === "dm:call:declined" ||
       eventName === "dm:call:cancelled" ||
       eventName === "dm:call:ended" ||
+      isMobileRealtimeGroupPatchEvent(eventName) ||
       eventName === "voice:audio-level:update" ||
       eventName === "voice:invite:accepted" ||
       eventName === "voice:invite:error" ||
@@ -512,8 +596,16 @@ import {
   MobileDMCallAcceptedEventSchema,
   MobileDMCallIncomingEventSchema,
   MobileDMCallSignalEventSchema,
+  MobileDMConversationNotifyEventSchema,
+  MobileDMConversationPinEventSchema,
   MobileDMDeliveredUpdatedEventSchema,
+  MobileDMGroupInviteEventSchema,
+  MobileDMGroupPinEventSchema,
+  MobileDMGroupRoleEventSchema,
+  MobileDMGroupSettingsEventSchema,
+  MobileDMMessageExpiredEventSchema,
   MobileDMReadUpdatedEventSchema,
+  GroupCallStateDTOSchema,
   MobileFriendVoiceRoomUpdateEventSchema,
   MobileMessageHistoryClearedEventSchema,
   MobilePresenceUpdateEventSchema,

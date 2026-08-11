@@ -631,7 +631,7 @@ export const ServerPublicProfileSchema = z.object({
   description: z.string(),
   discoverable: z.boolean(),
   iconUrl: z.string().nullable(),
-  /** `whispr.gg/<vanityUrlCode>`, falling back to the plain invite code. */
+  /** `<origin host>/invite/<vanityUrlCode ?? inviteCode>`; `null` when the deployment origin is unset. */
   inviteAddress: z.string().nullable(),
   isPublic: z.boolean(),
   joined: z.boolean(),

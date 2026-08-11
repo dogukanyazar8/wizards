@@ -212,7 +212,7 @@ function ChatAreaContent({
   serverId,
   uploadthingEnabled,
 }: ChatAreaProps) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const isGroupConversation = Boolean(
     directMessageConversation && isGroupDm(directMessageConversation),
   );
@@ -221,6 +221,7 @@ function ChatAreaContent({
         directMessageConversation,
         currentUserId,
         t("dm.sidebar.unknownUser"),
+        locale,
       )
     : "";
   const socket = useSocket();

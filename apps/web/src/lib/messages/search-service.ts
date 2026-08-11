@@ -175,7 +175,15 @@ async function assertChannelSearchAccess(userId: string, channelId: string) {
   return channel;
 }
 
-async function assertDMSearchAccess(userId: string, conversationId: string) {
+/**
+ * Membership plus 2c §7's history floor. Search is the fifth read path over DM
+ * messages, and a floor enforced on four of them is a floor a member walks
+ * around by typing a word from the history they were not given.
+ */
+async function assertDMSearchAccess(
+  userId: string,
+  conversationId: string,
+): Promise<{ historyFromAt: Date | null }> {
   const participant = await prisma.dMParticipant.findUnique({
     where: {
       conversationId_userId: {
@@ -183,12 +191,14 @@ async function assertDMSearchAccess(userId: string, conversationId: string) {
         userId,
       },
     },
-    select: { id: true },
+    select: { historyFromAt: true },
   });
 
   if (!participant) {
     throw new ApiError("Conversation not found", 404, "CONVERSATION_NOT_FOUND");
   }
+
+  return participant;
 }
 
 export async function searchChannelMessages(args: {
@@ -398,7 +408,7 @@ export async function searchDMMessages(args: {
     return { nextCursor: null, results: [] };
   }
 
-  await assertDMSearchAccess(args.userId, args.conversationId);
+  const { historyFromAt } = await assertDMSearchAccess(args.userId, args.conversationId);
 
   const limit = normalizeLimit(args.limit);
   const cursor = decodeCursor(args.cursor);
@@ -424,6 +434,12 @@ export async function searchDMMessages(args: {
       )
     `
     : Prisma.empty;
+  const historyFloorSql = historyFromAt
+    ? Prisma.sql`AND m."createdAt" >= ${historyFromAt}`
+    : Prisma.empty;
+  // C4. Search is the third read path into DM messages; a filter on the other
+  // two would just make this the way to read an expired message.
+  const unexpiredSql = Prisma.sql`AND (m."expiresAt" IS NULL OR m."expiresAt" > ${new Date()})`;
 
   const rows = await prisma.$queryRaw<DMSearchRow[]>(Prisma.sql`
     SELECT
@@ -443,6 +459,8 @@ export async function searchDMMessages(args: {
       AND m."deletedAt" IS NULL
       AND m."threadParentId" IS NULL
       AND ${contentMatchSql}
+      ${historyFloorSql}
+      ${unexpiredSql}
       ${filterSql}
       ${cursorSql}
     ORDER BY m."createdAt" DESC, m."id" DESC

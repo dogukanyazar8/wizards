@@ -95,6 +95,7 @@ export function toMobileDMConversationSummaryFromStream(
     : undefined;
 
   return {
+    avatarPair: conversation.avatarPair ?? [],
     iconUrl: null,
     id: conversation.id,
     lastMessage: null,
@@ -102,6 +103,8 @@ export function toMobileDMConversationSummaryFromStream(
     mentionCount: 0,
     muted: viewer?.muted ?? false,
     name: conversation.name,
+    notifyLevel: conversation.notifyLevel ?? "ALL",
+    overflowCount: conversation.overflowCount ?? 0,
     participantCount: conversation.participants.length,
     participants: conversation.participants.map((participant) => ({
       avatarUrl: participant.avatarUrl,
@@ -111,6 +114,7 @@ export function toMobileDMConversationSummaryFromStream(
       status: participant.status,
       username: participant.username,
     })),
+    pinnedAt: conversation.pinnedAt ?? null,
     type: conversation.type,
     unreadCount: viewer?.unreadCount ?? 0,
   };

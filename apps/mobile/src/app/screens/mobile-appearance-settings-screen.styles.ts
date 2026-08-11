@@ -130,6 +130,8 @@ export const createMobileAppearanceSettingsStyles = (theme: MobileTheme) =>
     optionCardLayoutCompact: { flex: 1.1 },
     /** §2 "1i".2: 56px preview, r14, 2px accent edge when picked. */
     themePreview: {
+      /** Same centred-parent collapse as `layoutPreview` below; see its note. */
+      alignSelf: "stretch",
       borderColor: theme.messaging.cardBorder,
       borderRadius: 14,
       borderWidth: 1,
@@ -269,7 +271,16 @@ export const createMobileAppearanceSettingsStyles = (theme: MobileTheme) =>
       position: "absolute",
       width: 43,
     },
+    /**
+     * `alignSelf: "stretch"` is load-bearing. `optionCard` centres its children,
+     * and a centred child with no width is sized by its content — so this box
+     * collapsed to whatever it happened to contain (the tabbed variant to its
+     * 56px dot strip) and its percentage-width bars resolved against that,
+     * which read as artwork cropped on both sides. Stretching is also what
+     * makes `optionCardLayoutRail`/`Compact`'s 0.9/1.1 split visible at all.
+     */
     layoutPreview: {
+      alignSelf: "stretch",
       backgroundColor: MOBILE_APPEARANCE_PREVIEW.lightSurface,
       borderColor: MOBILE_APPEARANCE_PREVIEW.lightBorder,
       borderRadius: 13,

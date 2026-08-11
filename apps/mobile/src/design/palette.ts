@@ -666,6 +666,8 @@ export const redesignServerProfileLight = {
     paddingHorizontal: 12,
     paddingVertical: 10,
     radius: 16,
+    /** 6d: only the counter is 800 and primary ink; the rest of the line is 600. */
+    strongText: "#1E2235",
     text: "#4C5270",
     textFontSize: 12.5,
     textFontWeight: "600",
@@ -677,6 +679,12 @@ export const redesignServerProfileLight = {
     fontSize: 24,
     fontWeight: "800",
     marginTop: -30,
+    /**
+     * The frame's own corner is 24; its *inner* edge curves at 24 - 4. An
+     * avatar drawn at 24 inside it pokes past that curve at every corner,
+     * which is the gap between 6d's handoff and the first build.
+     */
+    innerRadius: 20,
     radius: 24,
     size: 74,
   },
@@ -815,6 +823,8 @@ export const redesignServerProfileDark = {
     paddingHorizontal: 12,
     paddingVertical: 10,
     radius: 16,
+    /** Dark twin of the light counter ink: the page's primary text colour. */
+    strongText: "#EDEFF7",
     text: "#9AA0BC",
     textFontSize: 12.5,
     textFontWeight: "600",
@@ -826,6 +836,12 @@ export const redesignServerProfileDark = {
     fontSize: 24,
     fontWeight: "800",
     marginTop: -30,
+    /**
+     * The frame's own corner is 24; its *inner* edge curves at 24 - 4. An
+     * avatar drawn at 24 inside it pokes past that curve at every corner,
+     * which is the gap between 6d's handoff and the first build.
+     */
+    innerRadius: 20,
     radius: 24,
     size: 74,
   },
@@ -1551,3 +1567,492 @@ export const redesignAvatarTintsDark = [
 
 /** Stable identity domain shared by every theme; palette order is a public visual contract. */
 export const MOBILE_AVATAR_TINT_SLOT_COUNT = redesignAvatarTintsLight.length;
+
+/**
+ * Grup sohbetleri 2a–2f, Faz 3 §B1 — colours only; the geometry is
+ * `mobileGroupChatMetrics` and the two are merged into `theme.groupChat`.
+ *
+ * Light values are read straight off `Whispr Mesajlaşma Redesign.dc.html` lines
+ * 32–460. Nothing here is invented: every value already appears in §0.1.
+ */
+export const redesignGroupChatLight = {
+  adminChip: { bg: "#FEF0E8", text: "#C77A2B" },
+  bottomBar: {
+    badgeBg: "rgba(255,255,255,.22)",
+    badgeText: "#FFFFFF",
+    bg: "#FFFFFF",
+    border: "#E7E9F4",
+    buttonBg: "#4F46E5",
+    disabledBg: "#D5D9EA",
+    label: "#FFFFFF",
+  },
+  chatHeader: {
+    actionBg: "#F1F2F9",
+    actionIconColor: "#4F46E5",
+    backIconColor: "#1E2235",
+    bg: "#FFFFFF",
+    meta: "#8A90B0",
+    metaSeparator: "#C9CDE3",
+    name: "#1E2235",
+    onlineDotColor: "#22C55E",
+    onlineText: "#1B8A55",
+    tileRingColor: "#FFFFFF",
+  },
+  /** §11.1's five avatar colours; identity, so both themes carry them unchanged. */
+  colorSwatch: {
+    options: ["#4F46E5", "#1B8A55", "#C77A2B", "#C2185B", "#1E2235"],
+    selectedInnerRingColor: "#F6F7FB",
+  },
+  composer: {
+    actionBg: "#4F46E5",
+    actionIconColor: "#FFFFFF",
+    bg: "#FFFFFF",
+    border: "#EAECF5",
+    emojiIconColor: "#8A90B0",
+    fieldBg: "#F1F2F9",
+    placeholder: "#8A90B0",
+    plusBg: "#F1F2F9",
+    plusIconColor: "#4F46E5",
+    value: "#1E2235",
+  },
+  dangerRow: { bg: "#FFFFFF", iconColor: "#DC4E5F", label: "#DC4E5F" },
+  dayDivider: { text: "#9AA0BC" },
+  filterChip: {
+    activeBg: "#1E2235",
+    activeText: "#FFFFFF",
+    count: "#4F46E5",
+    idleBg: "#ECEEF7",
+    idleText: "#6B7194",
+  },
+  formField: {
+    bg: "#FFFFFF",
+    border: "#E7E9F4",
+    caret: "#4F46E5",
+    counter: "#A2A8C3",
+    focusBorder: "#4F46E5",
+    focusRing: "rgba(79,70,229,.12)",
+    label: "#8A90B0",
+    overCounter: "#DC4E5F",
+    value: "#1E2235",
+  },
+  formHint: { iconColor: "#A2A8C3", strong: "#6B7194", text: "#8A90B0" },
+  formTextArea: { bg: "#ECEEF7", placeholder: "#8A90B0", value: "#1E2235" },
+  groupRow: {
+    hairline: "#E9EBF4",
+    memberCount: "#8A90B0",
+    nameMuted: "#3A3F5C",
+    nameRead: "#1E2235",
+    nameUnread: "#1E2235",
+    overflowBg: "#F0F1F8",
+    overflowText: "#8A90B0",
+    pinnedBg: "#FFFFFF",
+    /** HTML 68 vs 83: the lower tile's ring is the row's own background. */
+    pinnedTileRingColor: "#FFFFFF",
+    tileRingColor: "#F6F7FB",
+    timeRead: "#767CA0",
+    timeUnread: "#4F46E5",
+  },
+  identityAvatar: {
+    cameraBg: "#FFFFFF",
+    cameraBorder: "#E4E6F2",
+    cameraIconColor: "#4F46E5",
+    initials: "#FFFFFF",
+  },
+  incomingBubble: { bg: "#FFFFFF", text: "#1E2235", time: "#9AA0BC" },
+  infoIdentity: { initials: "#FFFFFF", meta: "#8A90B0", name: "#1E2235" },
+  mediaTile: {
+    fileBg: "#FCE9E9",
+    fileIconColor: "#DC4E5F",
+    fileLabel: "#B0455A",
+    iconColor: "#A2A8C3",
+    mediaBg: "#E4E7F3",
+    overflowBg: "#ECEEF7",
+    overflowText: "#6B7194",
+  },
+  memberRow: {
+    addIconColor: "#4F46E5",
+    addIconBg: "#EEF0FE",
+    addLabel: "#4F46E5",
+    adminChipBg: "#EEF0FE",
+    adminChipText: "#4F46E5",
+    divider: "#F0F1F8",
+    dotColor: "#22C55E",
+    dotRingColor: "#FFFFFF",
+    more: "#C0C5DC",
+    name: "#1E2235",
+    ownerChipBg: "#FEF0E8",
+    ownerChipText: "#C77A2B",
+    selfChipBg: "#F0F1F8",
+    selfChipText: "#8A90B0",
+    sub: "#8A90B0",
+  },
+  memberStrip: {
+    addBorder: "#C9CDE3",
+    addIconColor: "#8A90B0",
+    addLabel: "#8A90B0",
+    otherLabel: "#6B7194",
+    selfLabel: "#4F46E5",
+  },
+  mentionPill: {
+    incomingBg: "#EEF0FE",
+    incomingText: "#4F46E5",
+    outgoingBg: "rgba(255,255,255,.20)",
+    outgoingText: "#FFFFFF",
+  },
+  /** §0.2 keeps the outgoing bubble identical on dark; only its shadow drops. */
+  outgoingBubble: {
+    bg: "#4F46E5",
+    text: "#FFFFFF",
+    tick: "#FFFFFF",
+    time: "rgba(255,255,255,.68)",
+  },
+  pickerBlocked: { lockIconColor: "#A2A8C3" },
+  pickerRow: {
+    checkIconColor: "#FFFFFF",
+    checkboxBorder: "#D5D9EA",
+    checkboxSelectedBg: "#4F46E5",
+    dotColor: "#22C55E",
+    dotRingColor: "#F6F7FB",
+    name: "#1E2235",
+    username: "#8A90B0",
+  },
+  pickerSearch: { bg: "#ECEEF7", iconColor: "#8A90B0", placeholder: "#8A90B0", value: "#1E2235" },
+  pinnedSection: { iconColor: "#8A90B0", label: "#8A90B0" },
+  pinnedStrip: {
+    bg: "#FFFFFF",
+    border: "#F0F1F8",
+    close: "#A2A8C3",
+    /** HTML 295's `0 1px 0 #EAECF5`: a rule, not a shadow, so it survives dark. */
+    bottomRule: "#EAECF5",
+    label: "#4F46E5",
+    pinIconColor: "#4F46E5",
+    preview: "#3A3F5C",
+  },
+  quickAction: { bg: "#FFFFFF", iconColor: "#4F46E5", label: "#1E2235" },
+  radioRow: {
+    border: "#D5D9EA",
+    divider: "#F0F1F8",
+    dotColor: "#FFFFFF",
+    hint: "#8A90B0",
+    selectedBg: "#4F46E5",
+    title: "#1E2235",
+  },
+  reactionChip: {
+    mineBg: "#EEF0FE",
+    mineBorder: "#C7CBF5",
+    mineCount: "#4F46E5",
+    otherBg: "#FFFFFF",
+    otherBorder: "#E4E6F2",
+    otherCount: "#6B7194",
+  },
+  readStack: { label: "#9AA0BC", ringColor: "#F6F7FB" },
+  replyQuote: { text: "#8A90B0" },
+  rowBadges: {
+    mentionBg: "#DC4E5F",
+    mentionText: "#FFFFFF",
+    mutedBg: "#C9CDE3",
+    mutedText: "#FFFFFF",
+    unreadBg: "#4F46E5",
+    unreadText: "#FFFFFF",
+  },
+  rowMuted: { bell: "#A2A8C3" },
+  rowPreviewIcon: {
+    botChipBg: "#EEF0FE",
+    botChipText: "#4F46E5",
+    mediaIconColor: "#8A90B0",
+    text: "#6B7194",
+    tick: "#4F46E5",
+  },
+  rowTyping: { dotColor: "#1B8A55", text: "#1B8A55" },
+  sectionLabel: { action: "#4F46E5", count: "#C0C5DC", text: "#8A90B0" },
+  selectedChip: { bg: "#EEF0FE", close: "#4F46E5", label: "#4F46E5" },
+  settingsCard: {
+    bg: "#FFFFFF",
+    chevronColor: "#C0C5DC",
+    divider: "#F0F1F8",
+    iconColor: "#6B7194",
+    sub: "#8A90B0",
+    title: "#1E2235",
+    value: "#8A90B0",
+  },
+  stepBar: { empty: "#E4E6F2", filled: "#4F46E5" },
+  stepHeader: {
+    backIconColor: "#1E2235",
+    bg: "#FFFFFF",
+    counter: "#4F46E5",
+    counterTotal: "#A2A8C3",
+    subtitle: "#8A90B0",
+    title: "#1E2235",
+  },
+  surfaces: { card: "#FFFFFF", hairline: "#E9EBF4", screen: "#F6F7FB" },
+  systemCapsule: { bg: "#ECEEF7", strong: "#3A3F5C", text: "#6B7194" },
+  toggle: { off: "#D5D9EA", on: "#4F46E5", thumbColor: "#FFFFFF" },
+  typingRow: {
+    avatarRingColor: "#F6F7FB",
+    capsuleBg: "#FFFFFF",
+    dotColor: "#8A90B0",
+    text: "#6B7194",
+  },
+} as const;
+
+/**
+ * §B1's dark mapping. The handoff ships no dark group variant (HTML 459), so
+ * every value below is derived from §0.2 — which is the same table
+ * `redesignMessagingDark` was built from — and nothing is invented:
+ *
+ * - screen `#F6F7FB` → `#12141F`; card/header/composer `#FFFFFF` → `#1B1E2C`;
+ *   incoming bubble → `#1E2235` and its shadow drops.
+ * - field/chip fills (`#F1F2F9`, `#ECEEF7`, `#E4E7F3`) and every divider
+ *   (`#F0F1F8`, `#E9EBF4`, `#EAECF5`, `#E7E9F4`, `#E4E6F2`) collapse onto the
+ *   single dark edge `rgba(255,255,255,.07)`.
+ * - text primary / tertiary / secondary / meta → `#F2F3FA` / `rgba(…,.65)` /
+ *   `rgba(…,.55)` / `rgba(…,.45)`; the uppercase group label → `rgba(…,.42)`.
+ * - accent as a *fill* stays `#4F46E5`; accent as a *glyph or label* lifts to
+ *   `#A5A8FF`, and its soft surface `#EEF0FE` becomes `#2A2F45` (§0.2 R3/R5).
+ * - danger `#DC4E5F`/`#FCE9E9` → `#FF7A88`/`rgba(220,78,95,.16)`; the owner gold
+ *   pair and the neutral tint follow §0.2's avatar row.
+ * - the sender-name palette, the five group-avatar swatches and the outgoing
+ *   bubble are identity, not chrome: unchanged, exactly as §B1's table says.
+ *
+ * Two values had no mapping and were decided by the user (03 §F): the active
+ * filter chip becomes the brand fill (an ink chip would vanish against
+ * `#1B1E2C`), and the silenced unread badge becomes `rgba(255,255,255,.18)` on
+ * `rgba(255,255,255,.55)` text — the same de-emphasised neutral rank `#C9CDE3`
+ * holds on light.
+ */
+export const redesignGroupChatDark = {
+  adminChip: { bg: "#2A2F45", text: "#FFD1A3" },
+  bottomBar: {
+    badgeBg: "rgba(255,255,255,.22)",
+    badgeText: "#FFFFFF",
+    bg: "#1B1E2C",
+    border: "rgba(255,255,255,.07)",
+    buttonBg: "#4F46E5",
+    disabledBg: "rgba(255,255,255,.18)",
+    label: "#FFFFFF",
+  },
+  chatHeader: {
+    actionBg: "rgba(255,255,255,.07)",
+    actionIconColor: "#A5A8FF",
+    backIconColor: "#F2F3FA",
+    bg: "#1B1E2C",
+    meta: "rgba(255,255,255,.42)",
+    metaSeparator: "rgba(255,255,255,.28)",
+    name: "#F2F3FA",
+    onlineDotColor: "#22C55E",
+    onlineText: "#4ADE80",
+    tileRingColor: "#1B1E2C",
+  },
+  colorSwatch: {
+    options: ["#4F46E5", "#1B8A55", "#C77A2B", "#C2185B", "#1E2235"],
+    selectedInnerRingColor: "#12141F",
+  },
+  composer: {
+    actionBg: "#4F46E5",
+    actionIconColor: "#FFFFFF",
+    bg: "#1B1E2C",
+    border: "rgba(255,255,255,.07)",
+    emojiIconColor: "rgba(255,255,255,.45)",
+    fieldBg: "rgba(255,255,255,.07)",
+    placeholder: "rgba(255,255,255,.45)",
+    plusBg: "rgba(255,255,255,.07)",
+    plusIconColor: "#A5A8FF",
+    value: "#F2F3FA",
+  },
+  dangerRow: { bg: "#1B1E2C", iconColor: "#FF7A88", label: "#FF7A88" },
+  dayDivider: { text: "rgba(255,255,255,.45)" },
+  filterChip: {
+    activeBg: "#4F46E5",
+    activeText: "#FFFFFF",
+    count: "#A5A8FF",
+    idleBg: "rgba(255,255,255,.07)",
+    idleText: "rgba(255,255,255,.55)",
+  },
+  formField: {
+    bg: "#1B1E2C",
+    border: "rgba(255,255,255,.07)",
+    caret: "#A5A8FF",
+    counter: "rgba(255,255,255,.45)",
+    focusBorder: "#4F46E5",
+    focusRing: "rgba(79,70,229,.12)",
+    label: "rgba(255,255,255,.42)",
+    overCounter: "#FF7A88",
+    value: "#F2F3FA",
+  },
+  formHint: {
+    iconColor: "rgba(255,255,255,.45)",
+    strong: "rgba(255,255,255,.65)",
+    text: "rgba(255,255,255,.42)",
+  },
+  formTextArea: {
+    bg: "rgba(255,255,255,.07)",
+    placeholder: "rgba(255,255,255,.45)",
+    value: "#F2F3FA",
+  },
+  groupRow: {
+    hairline: "rgba(255,255,255,.07)",
+    memberCount: "rgba(255,255,255,.42)",
+    nameMuted: "rgba(255,255,255,.65)",
+    nameRead: "#F2F3FA",
+    nameUnread: "#F2F3FA",
+    overflowBg: "#2A2F45",
+    overflowText: "#C9CCD9",
+    pinnedBg: "#1B1E2C",
+    pinnedTileRingColor: "#1B1E2C",
+    tileRingColor: "#12141F",
+    timeRead: "rgba(255,255,255,.45)",
+    timeUnread: "#A5A8FF",
+  },
+  identityAvatar: {
+    cameraBg: "#1B1E2C",
+    cameraBorder: "rgba(255,255,255,.07)",
+    cameraIconColor: "#A5A8FF",
+    initials: "#FFFFFF",
+  },
+  incomingBubble: { bg: "#1E2235", text: "#F2F3FA", time: "rgba(255,255,255,.45)" },
+  infoIdentity: { initials: "#FFFFFF", meta: "rgba(255,255,255,.42)", name: "#F2F3FA" },
+  mediaTile: {
+    fileBg: "rgba(220,78,95,.16)",
+    fileIconColor: "#FF7A88",
+    fileLabel: "#FF7A88",
+    iconColor: "rgba(255,255,255,.45)",
+    mediaBg: "rgba(255,255,255,.07)",
+    overflowBg: "rgba(255,255,255,.07)",
+    overflowText: "rgba(255,255,255,.55)",
+  },
+  memberRow: {
+    addIconColor: "#A5A8FF",
+    addIconBg: "#2A2F45",
+    addLabel: "#A5A8FF",
+    adminChipBg: "#2A2F45",
+    adminChipText: "#A5A8FF",
+    divider: "rgba(255,255,255,.07)",
+    dotColor: "#22C55E",
+    dotRingColor: "#1B1E2C",
+    more: "rgba(255,255,255,.45)",
+    name: "#F2F3FA",
+    ownerChipBg: "#2A2F45",
+    ownerChipText: "#FFD1A3",
+    selfChipBg: "#2A2F45",
+    selfChipText: "#C9CCD9",
+    sub: "rgba(255,255,255,.42)",
+  },
+  memberStrip: {
+    addBorder: "rgba(255,255,255,.28)",
+    addIconColor: "rgba(255,255,255,.45)",
+    addLabel: "rgba(255,255,255,.42)",
+    otherLabel: "rgba(255,255,255,.55)",
+    selfLabel: "#A5A8FF",
+  },
+  mentionPill: {
+    incomingBg: "rgba(79,70,229,.30)",
+    incomingText: "#A5A8FF",
+    outgoingBg: "rgba(255,255,255,.20)",
+    outgoingText: "#FFFFFF",
+  },
+  outgoingBubble: {
+    bg: "#4F46E5",
+    text: "#FFFFFF",
+    tick: "#FFFFFF",
+    time: "rgba(255,255,255,.68)",
+  },
+  pickerBlocked: { lockIconColor: "rgba(255,255,255,.45)" },
+  pickerRow: {
+    checkIconColor: "#FFFFFF",
+    checkboxBorder: "rgba(255,255,255,.18)",
+    checkboxSelectedBg: "#4F46E5",
+    dotColor: "#22C55E",
+    dotRingColor: "#12141F",
+    name: "#F2F3FA",
+    username: "rgba(255,255,255,.42)",
+  },
+  pickerSearch: {
+    bg: "rgba(255,255,255,.07)",
+    iconColor: "rgba(255,255,255,.45)",
+    placeholder: "rgba(255,255,255,.45)",
+    value: "#F2F3FA",
+  },
+  pinnedSection: { iconColor: "rgba(255,255,255,.42)", label: "rgba(255,255,255,.42)" },
+  pinnedStrip: {
+    bg: "#1B1E2C",
+    border: "rgba(255,255,255,.07)",
+    bottomRule: "rgba(255,255,255,.07)",
+    close: "rgba(255,255,255,.45)",
+    label: "#A5A8FF",
+    pinIconColor: "#A5A8FF",
+    preview: "rgba(255,255,255,.65)",
+  },
+  quickAction: { bg: "#1B1E2C", iconColor: "#A5A8FF", label: "#F2F3FA" },
+  radioRow: {
+    border: "rgba(255,255,255,.18)",
+    divider: "rgba(255,255,255,.07)",
+    dotColor: "#FFFFFF",
+    hint: "rgba(255,255,255,.42)",
+    selectedBg: "#4F46E5",
+    title: "#F2F3FA",
+  },
+  reactionChip: {
+    mineBg: "#2E2C63",
+    mineBorder: "#4F46E5",
+    mineCount: "#C3C0FF",
+    otherBg: "#242838",
+    otherBorder: "rgba(255,255,255,.07)",
+    otherCount: "rgba(255,255,255,.6)",
+  },
+  readStack: { label: "rgba(255,255,255,.45)", ringColor: "#12141F" },
+  replyQuote: { text: "rgba(255,255,255,.5)" },
+  rowBadges: {
+    mentionBg: "#FF7A88",
+    mentionText: "#12141F",
+    mutedBg: "rgba(255,255,255,.18)",
+    mutedText: "rgba(255,255,255,.55)",
+    unreadBg: "#4F46E5",
+    unreadText: "#FFFFFF",
+  },
+  rowMuted: { bell: "rgba(255,255,255,.45)" },
+  rowPreviewIcon: {
+    botChipBg: "#2A2F45",
+    botChipText: "#A5A8FF",
+    mediaIconColor: "rgba(255,255,255,.45)",
+    text: "rgba(255,255,255,.55)",
+    tick: "#A5A8FF",
+  },
+  rowTyping: { dotColor: "#4ADE80", text: "#4ADE80" },
+  sectionLabel: {
+    action: "#A5A8FF",
+    count: "rgba(255,255,255,.45)",
+    text: "rgba(255,255,255,.42)",
+  },
+  selectedChip: { bg: "#2A2F45", close: "#A5A8FF", label: "#A5A8FF" },
+  settingsCard: {
+    bg: "#1B1E2C",
+    chevronColor: "rgba(255,255,255,.45)",
+    divider: "rgba(255,255,255,.07)",
+    iconColor: "rgba(255,255,255,.55)",
+    sub: "rgba(255,255,255,.42)",
+    title: "#F2F3FA",
+    value: "rgba(255,255,255,.42)",
+  },
+  stepBar: { empty: "rgba(255,255,255,.07)", filled: "#4F46E5" },
+  stepHeader: {
+    backIconColor: "#F2F3FA",
+    bg: "#1B1E2C",
+    counter: "#A5A8FF",
+    counterTotal: "rgba(255,255,255,.45)",
+    subtitle: "rgba(255,255,255,.42)",
+    title: "#F2F3FA",
+  },
+  surfaces: { card: "#1B1E2C", hairline: "rgba(255,255,255,.07)", screen: "#12141F" },
+  systemCapsule: {
+    bg: "rgba(255,255,255,.07)",
+    strong: "#F2F3FA",
+    text: "rgba(255,255,255,.55)",
+  },
+  toggle: { off: "rgba(255,255,255,.18)", on: "#4F46E5", thumbColor: "#FFFFFF" },
+  typingRow: {
+    avatarRingColor: "#12141F",
+    capsuleBg: "#1E2235",
+    dotColor: "rgba(255,255,255,.45)",
+    text: "rgba(255,255,255,.55)",
+  },
+} as const;

@@ -4,6 +4,14 @@ import { ApiError } from "@/lib/api";
 import { UNKNOWN_ATTRIBUTION } from "@/lib/analytics/client-attribution";
 import { assertUnblockedDMParticipants } from "@/lib/dm/blocking";
 import { recordDirectMessageDelivery } from "@/lib/dm/delivery-receipts";
+import {
+  joinGroupCall,
+  leaveGroupCall,
+  planGroupCallSignals,
+  readGroupCallState,
+  toGroupCallStateDTO,
+  type StoredGroupCallState,
+} from "@/lib/dm/group-call-state";
 import { isDMParticipant } from "@/lib/dm/participant-service";
 import { sendDirectMessage } from "@/lib/dm/message-send-service";
 import { deleteDMMessage, editDMMessage, getDMDisplayName, setDMReaction } from "@/lib/dm/service";
@@ -22,6 +30,7 @@ import {
   parseSocketPayload,
   SocketConversationPayloadSchema,
   SocketDMCallAcceptPayloadSchema,
+  SocketDMCallJoinPayloadSchema,
   SocketDMCallStartPayloadSchema,
   SocketDMCallTargetPayloadSchema,
   SocketDMMessageSendPayloadSchema,
@@ -99,6 +108,9 @@ export function registerDMHandlers(
     const participants = await prisma.dMParticipant.findMany({
       where: { conversationId },
       select: {
+        // E5. Rides the roster read the ring already does, so deciding who is
+        // allowed to be rung costs nothing extra.
+        notifyLevel: true,
         userId: true,
         user: {
           select: {
@@ -149,6 +161,23 @@ export function registerDMHandlers(
     return peer;
   }
 
+  /**
+   * D3. Broadcasts the current roster of a group call to every member of the
+   * conversation — the people inside it and the people who only need to see that
+   * it is happening.
+   */
+  function broadcastGroupCallState(
+    conversationId: string,
+    participantUserIds: readonly string[],
+    state: StoredGroupCallState | null,
+  ) {
+    const payload = toGroupCallStateDTO(conversationId, state);
+
+    for (const participantUserId of participantUserIds) {
+      io.to(`user:${participantUserId}`).emit("dm:call:state", payload);
+    }
+  }
+
   /** Relays a call lifecycle signal to every other participant of the conversation. */
   async function broadcastDMCallSignal(
     rawData: unknown,
@@ -171,6 +200,15 @@ export function registerDMHandlers(
         userId,
       });
     }
+
+    // D3. The sender is leaving the call either way, so the stored roster has to
+    // agree — otherwise the group keeps showing a call nobody is in.
+    const state = await leaveGroupCall(data.conversationId, userId);
+    broadcastGroupCallState(
+      data.conversationId,
+      participants.map((participant) => participant.userId),
+      state,
+    );
   }
 
   socket.on("dm:join", async (rawConversationId: string) => {
@@ -241,9 +279,25 @@ export function registerDMHandlers(
         return;
       }
 
+      // D2's race rule. "Start" is "join if one is already running", so two
+      // people pressing call at the same instant end up in one room rather than
+      // two — the second caller's write finds the first one's record.
+      const existingState = await readGroupCallState(data.conversationId);
+      const { ringUserIds, stateUserIds } = planGroupCallSignals(
+        userId,
+        participants,
+        existingState,
+      );
+      const state = await joinGroupCall(data.conversationId, {
+        joinedAt: new Date(),
+        userId,
+        video: data.video,
+      });
+
+      const ringing = new Set(ringUserIds);
       const expiresAt = new Date(Date.now() + DM_CALL_RING_TTL_MS).toISOString();
       for (const participant of participants) {
-        if (participant.userId === userId) {
+        if (!ringing.has(participant.userId)) {
           continue;
         }
 
@@ -260,7 +314,11 @@ export function registerDMHandlers(
         });
       }
 
-      const callees = participants.filter((participant) => participant.userId !== userId);
+      // Everybody, including the silenced members and the ones already inside:
+      // the badge and the "Katıl" button are drawn from this, not from the ring.
+      broadcastGroupCallState(data.conversationId, stateUserIds, state);
+
+      const callees = participants.filter((participant) => ringing.has(participant.userId));
       void sendDMCallPush({
         callerName: caller.user.displayName ?? caller.user.username,
         callerUserId: userId,
@@ -277,6 +335,70 @@ export function registerDMHandlers(
     }
   });
 
+  /**
+   * D3. Joining a call that is already running. No ring: the people inside are
+   * already talking, and 2e's "Katıl" is pressed by somebody who can see that.
+   */
+  socket.on("dm:call:join", async (rawData) => {
+    try {
+      const data = parseSocketPayload(SocketDMCallJoinPayloadSchema, rawData);
+      const participants = await requireUnblockedDMParticipants(data.conversationId);
+      if (!participants) {
+        emitDMError("FORBIDDEN", "You are not a participant in this DM");
+        return;
+      }
+
+      const state = await joinGroupCall(data.conversationId, {
+        joinedAt: new Date(),
+        userId,
+        ...(data.video === undefined ? {} : { video: data.video }),
+      });
+
+      broadcastGroupCallState(
+        data.conversationId,
+        participants.map((participant) => participant.userId),
+        state,
+      );
+    } catch (error) {
+      emitSafeDMError("FORBIDDEN", "Unable to join this call.", error);
+    }
+  });
+
+  /**
+   * D3. Leaving without ending it for everybody else. The last person out is
+   * what ends the call, and that is the `dm:call:ended` the others still expect.
+   */
+  socket.on("dm:call:leave", async (rawData) => {
+    try {
+      const data = parseSocketPayload(SocketConversationPayloadSchema, rawData);
+      const participants = await requireUnblockedDMParticipants(data.conversationId);
+      if (!participants) {
+        emitDMError("FORBIDDEN", "You are not a participant in this DM");
+        return;
+      }
+
+      const state = await leaveGroupCall(data.conversationId, userId);
+      const participantUserIds = participants.map((participant) => participant.userId);
+
+      broadcastGroupCallState(data.conversationId, participantUserIds, state);
+
+      if (!state) {
+        for (const participantUserId of participantUserIds) {
+          if (participantUserId === userId) {
+            continue;
+          }
+
+          io.to(`user:${participantUserId}`).emit("dm:call:ended", {
+            conversationId: data.conversationId,
+            userId,
+          });
+        }
+      }
+    } catch (error) {
+      emitSafeDMError("FORBIDDEN", "Unable to leave this call.", error);
+    }
+  });
+
   socket.on("dm:call:accept", async (rawData) => {
     try {
       const data = parseSocketPayload(SocketDMCallAcceptPayloadSchema, rawData);
@@ -290,6 +412,22 @@ export function registerDMHandlers(
         userId,
         video: data.video,
       });
+
+      // D3. Answering *is* entering the call, so the stored roster gains this
+      // user here rather than waiting for the client to also send `dm:call:join`
+      // — a client that forgot to would leave the group showing a one-person
+      // call for as long as the conversation lasted.
+      const state = await joinGroupCall(data.conversationId, {
+        joinedAt: new Date(),
+        userId,
+        video: data.video,
+      });
+      const participants = await getAuthorizedDMParticipants(data.conversationId);
+      broadcastGroupCallState(
+        data.conversationId,
+        (participants ?? []).map((participant) => participant.userId),
+        state,
+      );
     } catch (error) {
       emitSafeDMError("FORBIDDEN", "Unable to accept this call.", error);
     }

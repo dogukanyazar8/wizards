@@ -8,6 +8,19 @@ import {
   type MessageThreadSummary,
 } from "./messages";
 import { DMSystemMessageTypeSchema, type DMSystemMessageTypeValue } from "./dm-system-message";
+import {
+  DMNotifyLevelSchema,
+  DMParticipantRoleSchema,
+  GroupDisappearingWindowSchema,
+  GroupHistoryVisibilitySchema,
+  GroupPermissionsSchema,
+  type DMNotifyLevel,
+  type DMParticipantRole,
+  type GroupAvatarTile,
+  type GroupDisappearingWindow,
+  type GroupHistoryVisibility,
+  type GroupPermissions,
+} from "./group-dm-settings";
 
 export type DMPresenceStatus = "ONLINE" | "IDLE" | "DND" | "OFFLINE";
 export type DMConversationType = "DM" | "GROUP_DM";
@@ -76,6 +89,25 @@ export interface DMMessagePayload {
   systemTargetUserIds: string[];
   /** Populated only for `NAME_CHANGED`. */
   systemValue: string | null;
+  /**
+   * 2d §8. Present on exactly one message per page: the newest outgoing message
+   * of a group. Computing it for every bubble would be a query per message, and
+   * the design only ever draws it under the last one.
+   */
+  readReceipt?: DMReadReceipt | undefined;
+  /**
+   * K3. When this message is swept, or null when it is permanent. Optional
+   * because the field shipped after the UAT backend and an older payload must
+   * keep parsing; a client that does not know it simply never counts down.
+   */
+  expiresAt?: string | null | undefined;
+}
+
+/** 2d §8 — the avatar stack and the "4 kişi okudu" / "Herkes okudu" line. */
+export interface DMReadReceipt {
+  readerIds: string[];
+  count: number;
+  everyone: boolean;
 }
 
 export interface DMParticipantDTO extends DMPresence {
@@ -93,6 +125,25 @@ export interface DMParticipantDTO extends DMPresence {
    */
   lastSeenAt?: string | null | undefined;
   presence: DMPresence;
+  /**
+   * Faz 1 §B3. Group membership facts, carried on the participant row the DTO
+   * already ships rather than in a second `members` array — that array would
+   * repeat `presence` and `lastSeenAt` inside the same body.
+   *
+   * All three are optional: 1:1 conversations have no roles worth reading, and
+   * the hand-built fixtures that predate them must still parse.
+   */
+  role?: DMParticipantRole | undefined;
+  nameColor?: string | undefined;
+  joinedAt?: string | undefined;
+}
+
+/** 2d §2 / 2e §4. `dismissed` is the viewer's own strip state, not a group one. */
+export interface DMPinnedMessageDTO {
+  id: string;
+  authorName: string;
+  excerpt: string;
+  dismissed: boolean;
 }
 
 export interface DMConversationDTO {
@@ -104,6 +155,36 @@ export interface DMConversationDTO {
   lastMessageAt: string;
   participants: DMParticipantDTO[];
   lastMessage: DMMessagePayload | null;
+  /**
+   * Faz 1 §B3. Everything below is group management state. Every field is
+   * optional: the same schema carries 1:1 conversations, and a client built
+   * against the older payload must keep parsing this one.
+   */
+  /** The viewer's own role in this conversation. */
+  role?: DMParticipantRole | undefined;
+  /** The viewer's own notification tier (2f §2). `muted` is its derived mirror. */
+  notifyLevel?: DMNotifyLevel | undefined;
+  /** The viewer's own conversation pin (V3 / 2a §2). Valid on 1:1 DMs too. */
+  pinnedAt?: string | null | undefined;
+  description?: string | null | undefined;
+  avatarColor?: string | null | undefined;
+  permissions?: GroupPermissions | undefined;
+  historyVisibility?: GroupHistoryVisibility | undefined;
+  /**
+   * K3. The conversation's disappearing-message window. Carried here rather than
+   * behind its own read because it is a plain column on the row this DTO is
+   * already built from — no join, no extra statement.
+   */
+  disappearingAfter?: GroupDisappearingWindow | undefined;
+  pinnedMessage?: DMPinnedMessageDTO | null | undefined;
+  memberCount?: number | undefined;
+  onlineCount?: number | undefined;
+  /**
+   * V7. The two crossed tiles a group row draws, plus the members they hide.
+   * Resolved server-side so the row never has to walk `participants`.
+   */
+  avatarPair?: GroupAvatarTile[] | undefined;
+  overflowCount?: number | undefined;
 }
 
 export const DMPresenceStatusSchema = z.enum(["ONLINE", "IDLE", "DND", "OFFLINE"]);
@@ -136,6 +217,12 @@ export const DMMessageAttachmentSchema = z.object({
   scanStatus: AttachmentScanStatusSchema.optional(),
 });
 
+export const DMReadReceiptSchema: z.ZodType<DMReadReceipt> = z.object({
+  readerIds: z.array(z.string()),
+  count: z.number().int().nonnegative(),
+  everyone: z.boolean(),
+});
+
 export const DMMessagePayloadSchema: z.ZodType<DMMessagePayload> = z.lazy(() =>
   z.object({
     id: z.string(),
@@ -159,6 +246,8 @@ export const DMMessagePayloadSchema: z.ZodType<DMMessagePayload> = z.lazy(() =>
     systemType: DMSystemMessageTypeSchema.nullable().default(null),
     systemTargetUserIds: z.array(z.string()).default([]),
     systemValue: z.string().nullable().default(null),
+    readReceipt: DMReadReceiptSchema.optional(),
+    expiresAt: z.string().nullable().optional(),
   }),
 );
 
@@ -173,6 +262,23 @@ export const DMParticipantDTOSchema: z.ZodType<DMParticipantDTO> = z.object({
   status: DMPresenceStatusSchema,
   customStatus: z.string().nullable(),
   presence: DMPresenceSchema,
+  role: DMParticipantRoleSchema.optional(),
+  nameColor: z.string().optional(),
+  joinedAt: z.string().optional(),
+});
+
+export const DMPinnedMessageDTOSchema: z.ZodType<DMPinnedMessageDTO> = z.object({
+  id: z.string(),
+  authorName: z.string(),
+  excerpt: z.string(),
+  dismissed: z.boolean(),
+});
+
+export const DMGroupAvatarTileSchema: z.ZodType<GroupAvatarTile> = z.object({
+  accent: z.string(),
+  avatarUrl: z.string().nullable(),
+  initials: z.string(),
+  userId: z.string(),
 });
 
 export const DMConversationDTOSchema: z.ZodType<DMConversationDTO> = z.object({
@@ -184,4 +290,17 @@ export const DMConversationDTOSchema: z.ZodType<DMConversationDTO> = z.object({
   lastMessageAt: z.string(),
   participants: z.array(DMParticipantDTOSchema),
   lastMessage: DMMessagePayloadSchema.nullable(),
+  role: DMParticipantRoleSchema.optional(),
+  notifyLevel: DMNotifyLevelSchema.optional(),
+  pinnedAt: z.string().nullable().optional(),
+  description: z.string().nullable().optional(),
+  avatarColor: z.string().nullable().optional(),
+  permissions: GroupPermissionsSchema.optional(),
+  historyVisibility: GroupHistoryVisibilitySchema.optional(),
+  disappearingAfter: GroupDisappearingWindowSchema.optional(),
+  pinnedMessage: DMPinnedMessageDTOSchema.nullable().optional(),
+  memberCount: z.number().int().nonnegative().optional(),
+  onlineCount: z.number().int().nonnegative().optional(),
+  avatarPair: z.array(DMGroupAvatarTileSchema).optional(),
+  overflowCount: z.number().int().nonnegative().optional(),
 });

@@ -70,6 +70,12 @@ import {
   ServerEventFormScreenContainer,
   DiscoverScreenContainer,
 } from "../app/screens/mobile-screen-containers";
+import {
+  MobileGroupInfoPlaceholderScreen,
+  MobileGroupInvitePreviewPlaceholderScreen,
+  MobileGroupMembersPlaceholderScreen,
+  MobileGroupSettingsPlaceholderScreen,
+} from "../dm/mobile-group-route-placeholders";
 import { MobileAuthNavigator } from "./mobile-auth-navigator";
 import { createMobileLinkingOptions } from "./mobile-linking";
 import { isMobileTabId, type MobileTabId } from "./mobile-navigation";
@@ -256,6 +262,18 @@ export function MobileNavigator({
           </RootStack.Screen>
           <RootStack.Screen name="GroupCreate" component={GroupCreateScreenContainer} />
           <RootStack.Screen name="GroupDetails" component={GroupDetailsScreenContainer} />
+          {/*
+            Grup sohbetleri 2e/2f. Registered in Faz 3 against placeholders so
+            `/g/<code>` resolves and the params are typed; Faz 5 swaps in the
+            real containers without touching the router again.
+          */}
+          <RootStack.Screen name="GroupInfo" component={MobileGroupInfoPlaceholderScreen} />
+          <RootStack.Screen name="GroupSettings" component={MobileGroupSettingsPlaceholderScreen} />
+          <RootStack.Screen name="GroupMembers" component={MobileGroupMembersPlaceholderScreen} />
+          <RootStack.Screen
+            name="GroupInvitePreview"
+            component={MobileGroupInvitePreviewPlaceholderScreen}
+          />
           <RootStack.Screen name="BlockedUsers" component={BlockedUsersScreenContainer} />
           <RootStack.Screen name="LegalDocument">
             {(props) => <LegalDocumentScreenContainer {...props} />}

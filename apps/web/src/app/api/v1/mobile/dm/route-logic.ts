@@ -139,6 +139,10 @@ function toMobileDMConversationListItem(
   const previewAttachment = lastMessage?.attachments[0];
 
   return {
+    // Faz 3 §B3: resolved by the server (`buildGroupAvatarPair`) and read as-is.
+    // `participants` below is capped at 4, so a client-side rebuild would report
+    // the wrong overflow for anything larger.
+    avatarPair: conversation.avatarPair ?? [],
     iconUrl: conversation.iconUrl,
     id: conversation.id,
     lastMessage: lastMessage
@@ -171,6 +175,10 @@ function toMobileDMConversationListItem(
     mentionCount: context.mentionCount,
     muted: self?.muted ?? false,
     name: conversation.name,
+    // §4.2: `notifyLevel` is the authority and `muted` its mirror, so both come
+    // off the same conversation projection rather than being recomputed here.
+    notifyLevel: conversation.notifyLevel ?? "ALL",
+    overflowCount: conversation.overflowCount ?? 0,
     participantCount: conversation.participants.length,
     participants: conversation.participants.slice(0, 4).map((participant) => ({
       avatarUrl: participant.avatarUrl,
@@ -180,6 +188,7 @@ function toMobileDMConversationListItem(
       status: participant.status,
       username: participant.username,
     })),
+    pinnedAt: conversation.pinnedAt ?? null,
     type: conversation.type,
     unreadCount: self?.unreadCount ?? 0,
   };

@@ -1,0 +1,612 @@
+# Continuation configuration. .circleci/config.yml decides which pipeline
+# parameters are true, then hands this file to the continuation API.
+#
+# Shadow mode: .github/workflows/ci.yml remains the authoritative lane until the
+# two agree. Every gate here has a counterpart there; nothing was dropped.
+#
+# Two CircleCI constraints shape the layout:
+#   1. `when` is supported at workflow and step level, NOT on individual jobs in
+#      a workflow. Optional lanes are therefore separate workflows.
+#   2. Free plan storage is 2 GB. node_modules is never persisted to a
+#      workspace; the pnpm store is cached instead (one copy per lockfile) and
+#      every job installs from it. Workspaces carry only small generated output.
+
+version: 2.1
+
+parameters:
+  run-all:
+    type: boolean
+    default: false
+  run-web:
+    type: boolean
+    default: false
+  run-mobile:
+    type: boolean
+    default: false
+  run-desktop:
+    type: boolean
+    default: false
+
+executors:
+  # Golden image digest. Single source of truth is docker/ci/IMAGE and
+  # scripts/quality/circleci-config-contract.test.mjs asserts they match.
+  ci:
+    docker:
+      - image: ghcr.io/dogukanyazar8/wizards-ci@sha256:20333aa986fc36c972cad63cc16c5ab787d257c357d21c9327861df0ed69f71d
+        auth:
+          username: $GHCR_USERNAME
+          password: $GHCR_TOKEN
+    resource_class: medium
+    working_directory: ~/repo
+    environment:
+      NEXT_TELEMETRY_DISABLED: "1"
+      TURBO_TELEMETRY_DISABLED: "1"
+
+  ci-large:
+    docker:
+      - image: ghcr.io/dogukanyazar8/wizards-ci@sha256:20333aa986fc36c972cad63cc16c5ab787d257c357d21c9327861df0ed69f71d
+        auth:
+          username: $GHCR_USERNAME
+          password: $GHCR_TOKEN
+    resource_class: large
+    working_directory: ~/repo
+    environment:
+      NEXT_TELEMETRY_DISABLED: "1"
+      TURBO_TELEMETRY_DISABLED: "1"
+
+  # Postgres and Redis run as secondary containers on the same network, reachable
+  # at localhost. Digests are copied verbatim from .github/workflows/ci.yml and
+  # the contract test fails if the two lanes drift apart.
+  ci-db:
+    docker:
+      - image: ghcr.io/dogukanyazar8/wizards-ci@sha256:20333aa986fc36c972cad63cc16c5ab787d257c357d21c9327861df0ed69f71d
+        auth:
+          username: $GHCR_USERNAME
+          password: $GHCR_TOKEN
+        environment:
+          APP_URL: http://127.0.0.1:3000
+          AUTH_SECRET: whispr-e2e-auth-secret-change-me-local-only
+          AUTH_URL: http://127.0.0.1:3000
+          DATABASE_URL: postgresql://wizards:wizards@localhost:5432/whispr_e2e
+          E2E_BASE_URL: http://127.0.0.1:3000
+          E2E_DATABASE_URL: postgresql://wizards:wizards@localhost:5432/whispr_e2e
+          E2E_TEST_MODE: "true"
+          NEXT_PUBLIC_E2E_TEST_MODE: "true"
+          NEXT_TELEMETRY_DISABLED: "1"
+          NEXTAUTH_SECRET: whispr-e2e-auth-secret-change-me-local-only
+          NEXTAUTH_URL: http://127.0.0.1:3000
+          NODE_ENV: test
+          REDIS_URL: redis://localhost:6379
+          SOCKET_ALLOWED_ORIGINS: http://127.0.0.1:3000
+          TOTP_SECRET_ENCRYPTION_ACTIVE_KEY_VERSION: v1
+          TOTP_SECRET_ENCRYPTION_KEYS: '{"v1":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"}'
+          TURBO_TELEMETRY_DISABLED: "1"
+      - image: postgres:18.4-alpine@sha256:9a8afca54e7861fd90fab5fdf4c42477a6b1cb7d293595148e674e0a3181de15
+        environment:
+          POSTGRES_DB: whispr_e2e
+          POSTGRES_PASSWORD: wizards
+          POSTGRES_USER: wizards
+      - image: redis:8.8.0-alpine@sha256:9d317178eceac8454a2284a9e6df2466b93c745529947f0cd42a0fa9609d7005
+    resource_class: large
+    working_directory: ~/repo
+
+commands:
+  bootstrap:
+    description: >
+      Restore the pnpm store, install from it, and optionally attach the
+      generated Prisma client. Never restores node_modules from a workspace.
+    parameters:
+      attach-workspace:
+        type: boolean
+        default: true
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - pnpm-v1-{{ checksum "pnpm-lock.yaml" }}
+            - pnpm-v1-
+      - run:
+          name: Install dependencies
+          command: pnpm install --frozen-lockfile --prefer-offline
+      - when:
+          condition: << parameters.attach-workspace >>
+          steps:
+            - attach_workspace:
+                at: ~/repo
+
+  wait_for_services:
+    description: Block until the Postgres and Redis sidecars accept connections.
+    steps:
+      - run:
+          name: Wait for Postgres and Redis
+          command: |
+            set -euo pipefail
+            for _ in $(seq 1 60); do
+              if (echo > /dev/tcp/localhost/5432) >/dev/null 2>&1 &&
+                 (echo > /dev/tcp/localhost/6379) >/dev/null 2>&1; then
+                exit 0
+              fi
+              sleep 2
+            done
+            echo "Postgres or Redis never became reachable" >&2
+            exit 1
+
+  generate_e2e_password:
+    description: >
+      Mint the E2E password without it ever reaching argv or stdout. The GitHub
+      lane relied on ::add-mask:: which has no CircleCI equivalent, so the value
+      is written straight into BASH_ENV instead.
+    steps:
+      - run:
+          name: Generate E2E test password
+          command: |
+            node -e 'const fs=require("node:fs");const crypto=require("node:crypto");fs.appendFileSync(process.env.BASH_ENV,`export E2E_TEST_PASSWORD=${crypto.randomBytes(32).toString("base64url")}\n`)'
+
+jobs:
+  install:
+    executor: ci
+    steps:
+      - bootstrap:
+          attach-workspace: false
+      - save_cache:
+          key: pnpm-v1-{{ checksum "pnpm-lock.yaml" }}
+          paths:
+            - /home/node/.pnpm-store
+      - run:
+          name: Generate Prisma client
+          command: pnpm db:generate
+      - persist_to_workspace:
+          root: ~/repo
+          paths:
+            - packages/db/src/generated/prisma
+
+  static:
+    executor: ci
+    steps:
+      - bootstrap
+      # PRETTIER_BASE_REF is intentionally unset: outside GitHub Actions
+      # resolveBaseRef() already falls back to origin/uat then HEAD^.
+      - run:
+          name: Format
+          command: pnpm format
+      - run:
+          name: Lint
+          command: pnpm lint
+      - run:
+          name: Typecheck
+          command: pnpm typecheck
+
+  security:
+    executor: ci
+    steps:
+      - bootstrap
+      - run:
+          name: Check E2E password guard
+          command: node scripts/quality/e2e-password-guard.mjs
+      # `git` scans history, matching what gitleaks-action does on the GitHub
+      # lane. `detect` was deprecated in 8.19 and is hidden from --help; do not
+      # reintroduce it.
+      - run:
+          name: Secret scan
+          command: gitleaks git . --config .gitleaks.toml --no-banner --redact
+      - run:
+          name: Dependency audit
+          command: pnpm audit --audit-level moderate
+
+  # Semgrep keeps its digest-pinned container and read-only bind mount, which
+  # needs a real local Docker daemon. Remote Docker cannot bind-mount the job
+  # filesystem, so this is the one job on a machine executor.
+  semgrep:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: medium
+    working_directory: ~/repo
+    environment:
+      SEMGREP_IMAGE: semgrep/semgrep:1.164.0-nonroot@sha256:936bf4db37f44ac1948c8cb0ade539d990f2b9e17481bd76970067e0d6dfc403
+    steps:
+      - checkout
+      - run:
+          name: Test repository Semgrep rules
+          command: |
+            docker run --rm \
+              --volume "$PWD:/src:ro" \
+              --workdir /src \
+              "$SEMGREP_IMAGE" \
+              semgrep scan \
+                --oss-only \
+                --metrics=off \
+                --disable-version-check \
+                --strict \
+                --test \
+                --config .semgrep/rules .semgrep/tests
+      - run:
+          name: Scan repository with Semgrep CE
+          command: |
+            docker run --rm \
+              --volume "$PWD:/src:ro" \
+              --workdir /src \
+              "$SEMGREP_IMAGE" \
+              semgrep scan \
+                --oss-only \
+                --metrics=off \
+                --disable-version-check \
+                --strict \
+                --error \
+                --no-rewrite-rule-ids \
+                --max-lines-per-finding=5 \
+                --timeout=10 \
+                --timeout-threshold=1 \
+                --config .semgrep/rules \
+                --exclude=node_modules \
+                --exclude=.next \
+                --exclude=dist \
+                --exclude=coverage \
+                --exclude=packages/db/src/generated/prisma \
+                --exclude=graphify-out \
+                --exclude=target \
+                --exclude=build \
+                apps packages
+
+  unit-shared:
+    executor: ci
+    steps:
+      - bootstrap
+      - run:
+          name: Test shared types package
+          command: pnpm --filter @wizards/types test
+      - run:
+          name: Test shared UI package
+          command: pnpm --filter @wizards/ui test
+
+  unit-web:
+    executor: ci
+    steps:
+      - bootstrap
+      - run:
+          name: Test web package
+          command: pnpm --filter @wizards/web test
+
+  unit-mobile:
+    executor: ci
+    steps:
+      - bootstrap
+      - run:
+          name: Mobile script tests
+          command: pnpm --filter @wizards/mobile test
+      - run:
+          name: Mobile component tests
+          command: pnpm --filter @wizards/mobile test:components
+      - run:
+          name: Mobile environment contract
+          command: pnpm --filter @wizards/mobile validate:env
+      - run:
+          name: Mobile release contract
+          command: pnpm --filter @wizards/mobile release:check
+      - run:
+          name: Mobile quality contract
+          command: pnpm --filter @wizards/mobile quality:check
+
+  coverage:
+    executor: ci-large
+    environment:
+      WEB_COVERAGE_API_E2E: "0"
+    steps:
+      - bootstrap
+      - run:
+          name: Test with coverage baseline
+          command: pnpm test:coverage
+
+  ts-shadow:
+    executor: ci
+    steps:
+      - bootstrap
+      - run:
+          name: Run TypeScript toolchain contracts
+          command: pnpm test:toolchain
+      - run:
+          name: Run TypeScript 7 main typecheck
+          command: pnpm typecheck:main:ci
+      - run:
+          name: Run TypeScript 6 compatibility typecheck
+          command: pnpm typecheck:compat
+      - run:
+          name: Compare TS6 and TS7 declarations
+          command: pnpm typecheck:declarations
+      - store_artifacts:
+          path: artifacts/typescript
+
+  build-web:
+    executor: ci-large
+    steps:
+      - bootstrap
+      - run:
+          name: Build
+          command: pnpm build
+
+  # `suites` is a space-separated list of @wizards/web scripts run in order, so a
+  # single job can reproduce ci.yml's e2e-smoke lane (api, then smoke, then
+  # realtime) without three separate database setups.
+  e2e:
+    executor: ci-db
+    parameters:
+      suites:
+        type: string
+      install-browsers:
+        type: string
+        default: ""
+    steps:
+      - bootstrap
+      - generate_e2e_password
+      - wait_for_services
+      - run:
+          name: Apply E2E migration history
+          command: pnpm --filter @wizards/db db:migrate:deploy
+      - run:
+          name: Validate Playwright E2E environment
+          command: pnpm --filter @wizards/web e2e:check-env
+      - when:
+          condition: << parameters.install-browsers >>
+          steps:
+            - run:
+                name: Install extra Playwright browsers
+                command: pnpm --filter @wizards/web exec playwright install --with-deps << parameters.install-browsers >>
+      - run:
+          name: Run Playwright << parameters.suites >>
+          command: |
+            set -euo pipefail
+            for suite in << parameters.suites >>; do
+              pnpm --filter @wizards/web "$suite"
+            done
+      - store_artifacts:
+          path: apps/web/playwright-report
+      - store_artifacts:
+          path: apps/web/test-results
+
+  desktop:
+    executor: ci
+    environment:
+      CARGO_AUDIT_VERSION: 0.22.1
+      TAURI_WEB_URL: https://whispr.team
+      WHISPR_DESKTOP_RELEASE_RING: uat
+      WHISPR_DESKTOP_UPDATER_ENABLED: "false"
+    steps:
+      - bootstrap
+      - restore_cache:
+          keys:
+            - cargo-v1-{{ checksum "apps/desktop/src-tauri/Cargo.lock" }}
+            - cargo-v1-
+      - run:
+          name: Audit Rust dependencies
+          working_directory: ~/repo/apps/desktop/src-tauri
+          command: |
+            set -euo pipefail
+            expected_version="cargo-audit $CARGO_AUDIT_VERSION"
+            current_version=""
+
+            if command -v cargo-audit >/dev/null 2>&1; then
+              current_version="$(cargo audit --version)"
+            fi
+
+            if [ "$current_version" != "$expected_version" ]; then
+              cargo install cargo-audit --version "$CARGO_AUDIT_VERSION" --locked --force
+            fi
+
+            cargo metadata --locked --format-version 1 --no-deps > /dev/null
+            cargo audit --file Cargo.lock
+      - run:
+          name: Check Rust formatting
+          working_directory: ~/repo/apps/desktop/src-tauri
+          command: cargo fmt -- --check
+      - run:
+          name: Lint Rust
+          working_directory: ~/repo/apps/desktop/src-tauri
+          command: cargo clippy --locked --all-targets -- -D warnings
+      - run:
+          name: Test Rust
+          working_directory: ~/repo/apps/desktop/src-tauri
+          command: cargo test --locked
+      - save_cache:
+          key: cargo-v1-{{ checksum "apps/desktop/src-tauri/Cargo.lock" }}
+          paths:
+            - /usr/local/cargo/registry
+            - apps/desktop/src-tauri/target
+      - run:
+          name: Lint Rust with Clippy
+          command: pnpm --filter @wizards/desktop lint:rust
+      - run:
+          name: Validate desktop release operations contract
+          command: pnpm --filter @wizards/desktop release:ops
+      - run:
+          name: Run desktop script tests
+          command: pnpm --filter @wizards/desktop test
+      - run:
+          name: Generate desktop production config
+          command: pnpm --filter @wizards/desktop build:desktop:config
+      - run:
+          name: Build unsigned desktop native signal
+          command: pnpm --filter @wizards/desktop build:desktop -- --no-bundle
+
+  node22:
+    executor: ci
+    steps:
+      - bootstrap
+      - run:
+          name: Verify Node.js native dependencies under Node 22
+          command: |
+            set -euo pipefail
+            pnpm --filter @wizards/db db:generate
+            pnpm --filter @wizards/web exec node --input-type=module -e "const { default: sharp } = await import('sharp'); await sharp({ create: { width: 1, height: 1, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } }).png().toBuffer();"
+            pnpm --filter @wizards/web exec esbuild --version
+      - run:
+          name: Verify Tauri native toolchain
+          command: |
+            set -euo pipefail
+            pnpm --filter @wizards/desktop exec tauri --version
+            cargo check --locked --manifest-path apps/desktop/src-tauri/Cargo.toml
+
+  device-gate:
+    executor: ci
+    environment:
+      WHISPR_DEVICE_CAPTURE_DIRECTORY: artifacts/redesign
+    steps:
+      - bootstrap
+      - run:
+          name: Run committed device evidence gate
+          command: pnpm --filter @wizards/mobile visual:gate
+      - store_artifacts:
+          path: artifacts/redesign
+
+workflows:
+  core:
+    when:
+      not:
+        equal: ["nightly", << pipeline.schedule.name >>]
+    jobs:
+      - install:
+          context: [ghcr]
+      - static:
+          context: [ghcr]
+          requires: [install]
+      - security:
+          context: [ghcr]
+          requires: [install]
+      # No ghcr context: this job runs on a machine executor and pulls only the
+      # public, digest-pinned Semgrep image. Least privilege.
+      - semgrep
+      - unit-shared:
+          context: [ghcr]
+          requires: [install]
+      - unit-web:
+          context: [ghcr]
+          requires: [install]
+      - coverage:
+          context: [ghcr]
+          requires: [install]
+      - ts-shadow:
+          context: [ghcr]
+          requires: [install]
+      - build-web:
+          context: [ghcr]
+          requires: [install]
+      # Parity with ci.yml: on a branch push the smoke lane covers api, smoke and
+      # realtime, and the three specialised lanes run alongside it. Trimming the
+      # push lane is a Phase 2 decision, not a migration side effect.
+      - e2e:
+          name: e2e-smoke
+          context: [ghcr]
+          suites: e2e:api e2e:smoke e2e:realtime
+          requires: [install]
+      - e2e:
+          name: e2e-cross-browser
+          context: [ghcr]
+          suites: e2e:smoke:cross-browser
+          install-browsers: firefox webkit
+          requires: [install]
+      - e2e:
+          name: e2e-a11y
+          context: [ghcr]
+          suites: e2e:a11y
+          requires: [install]
+      - e2e:
+          name: e2e-visual
+          context: [ghcr]
+          suites: e2e:visual
+          requires: [install]
+
+  # Optional lanes are separate workflows because CircleCI has no job-level
+  # `when`. Protected branches always run them; feature branches only when the
+  # path filter says the area changed.
+  mobile:
+    when:
+      and:
+        - not:
+            equal: ["nightly", << pipeline.schedule.name >>]
+        - or:
+            - << pipeline.parameters.run-all >>
+            - << pipeline.parameters.run-mobile >>
+            - equal: [main, << pipeline.git.branch >>]
+            - equal: [staging, << pipeline.git.branch >>]
+            - equal: [uat, << pipeline.git.branch >>]
+    jobs:
+      - unit-mobile:
+          context: [ghcr]
+
+  desktop:
+    when:
+      and:
+        - not:
+            equal: ["nightly", << pipeline.schedule.name >>]
+        - or:
+            - << pipeline.parameters.run-all >>
+            - << pipeline.parameters.run-desktop >>
+            - equal: [main, << pipeline.git.branch >>]
+            - equal: [staging, << pipeline.git.branch >>]
+            - equal: [uat, << pipeline.git.branch >>]
+    jobs:
+      - desktop:
+          context: [ghcr]
+
+  # The schedule must be named exactly "nightly" in the CircleCI project
+  # settings. If the name does not match, these jobs simply never run — the
+  # condition fails closed rather than firing the heavy lane by accident.
+  nightly:
+    when:
+      equal: ["nightly", << pipeline.schedule.name >>]
+    jobs:
+      - install:
+          context: [ghcr]
+      - static:
+          context: [ghcr]
+          requires: [install]
+      - security:
+          context: [ghcr]
+          requires: [install]
+      - semgrep
+      - unit-shared:
+          context: [ghcr]
+          requires: [install]
+      - unit-web:
+          context: [ghcr]
+          requires: [install]
+      - unit-mobile:
+          context: [ghcr]
+          requires: [install]
+      - coverage:
+          context: [ghcr]
+          requires: [install]
+      - ts-shadow:
+          context: [ghcr]
+          requires: [install]
+      - build-web:
+          context: [ghcr]
+          requires: [install]
+      - desktop:
+          context: [ghcr]
+          requires: [install]
+      - node22:
+          context: [ghcr]
+          requires: [install]
+      - device-gate:
+          context: [ghcr]
+          requires: [install]
+      - e2e:
+          name: e2e-full
+          context: [ghcr]
+          suites: e2e
+          requires: [install]
+      - e2e:
+          name: e2e-a11y
+          context: [ghcr]
+          suites: e2e:a11y
+          requires: [install]
+      - e2e:
+          name: e2e-visual
+          context: [ghcr]
+          suites: e2e:visual
+          requires: [install]
+      - e2e:
+          name: e2e-cross-browser
+          context: [ghcr]
+          suites: e2e:smoke:cross-browser
+          install-browsers: firefox webkit
+          requires: [install]

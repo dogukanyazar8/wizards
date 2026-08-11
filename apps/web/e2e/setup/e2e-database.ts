@@ -186,7 +186,10 @@ export async function seedE2EData(prisma: PrismaClient): Promise<void> {
   const conversation = await prisma.dMConversation.create({
     data: {
       participants: {
-        create: [{ userId: alice.id }, { userId: bob.id }],
+        create: [
+          { nameColor: "#C2185B", userId: alice.id },
+          { nameColor: "#C77A2B", userId: bob.id },
+        ],
       },
       type: "DM",
     },

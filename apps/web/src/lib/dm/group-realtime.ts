@@ -1,4 +1,4 @@
-import type { DMConversationDTO } from "@wizards/types";
+import type { DMConversationDTO, DMNotifyLevel, DMPinnedMessageDTO } from "@wizards/types";
 
 /**
  * The minimum surface of the Socket.IO server this module touches. Depending on
@@ -34,6 +34,113 @@ export function emitGroupMembersChanged(
   io.to(rooms).emit("dm:conversation:members_changed", {
     conversation: input.conversation,
     conversationId: input.conversation.id,
+  });
+}
+
+/**
+ * Faz 1 §B9. 2f's switches change what the group is, so everybody in it needs
+ * the new state — a member sitting on the settings screen would otherwise keep
+ * showing permissions that stopped being true.
+ */
+export function emitGroupSettingsChanged(
+  io: GroupRealtimeServer,
+  conversation: DMConversationDTO,
+): void {
+  io.to(toUserRooms(conversation)).emit("dm:group:settings", {
+    avatarColor: conversation.avatarColor ?? null,
+    conversationId: conversation.id,
+    description: conversation.description ?? null,
+    // K3. Drives the countdown a client draws on new bubbles, so it has to
+    // travel with the rest of the settings rather than wait for a refetch.
+    disappearingAfter: conversation.disappearingAfter ?? "OFF",
+    historyVisibility: conversation.historyVisibility,
+    permissions: conversation.permissions,
+  });
+}
+
+/** 2e §6/§7. Everyone sees the chip change, not only the two people involved. */
+export function emitGroupRoleChanged(
+  io: GroupRealtimeServer,
+  input: { conversation: DMConversationDTO; role: string; userId: string },
+): void {
+  io.to(toUserRooms(input.conversation)).emit("dm:group:role", {
+    conversationId: input.conversation.id,
+    ownerId: input.conversation.ownerId,
+    role: input.role,
+    userId: input.userId,
+  });
+}
+
+/** 2d §2. `pinnedMessage: null` is an unpin. */
+export function emitGroupPinChanged(
+  io: GroupRealtimeServer,
+  input: { conversation: DMConversationDTO; pinnedMessage: DMPinnedMessageDTO | null },
+): void {
+  io.to(toUserRooms(input.conversation)).emit("dm:group:pin", {
+    conversationId: input.conversation.id,
+    // `dismissed` is per-viewer, and this payload goes to everybody at once. The
+    // server has just cleared every dismissal anyway, so it is false for all of
+    // them — sending one viewer's value would hide the strip from the rest.
+    pinnedMessage: input.pinnedMessage ? { ...input.pinnedMessage, dismissed: false } : null,
+  });
+}
+
+/** 2f §2. Personal state, so it goes to the one person it is about. */
+export function emitConversationNotifyChanged(
+  io: GroupRealtimeServer,
+  input: { conversationId: string; notifyLevel: DMNotifyLevel; userId: string },
+): void {
+  io.to(`user:${input.userId}`).emit("dm:conversation:notify", {
+    conversationId: input.conversationId,
+    notifyLevel: input.notifyLevel,
+  });
+}
+
+/** V3 / 2a §2. Also personal — a pinned conversation is one user's ordering. */
+export function emitConversationPinChanged(
+  io: GroupRealtimeServer,
+  input: { conversationId: string; pinnedAt: string | null; userId: string },
+): void {
+  io.to(`user:${input.userId}`).emit("dm:conversation:pin", {
+    conversationId: input.conversationId,
+    pinnedAt: input.pinnedAt,
+  });
+}
+
+/**
+ * Faz 2 §B2 step 10. Somebody redeemed the invite link. Two audiences, two
+ * different needs: the joiner's inbox has to gain a conversation it has never
+ * seen, and the members already inside only need their roster refreshed.
+ *
+ * `emitGroupMembersChanged` alone would not do — its conversation-room arm
+ * misses the joiner, who has not run `dm:join` yet, and its per-user arm sends
+ * a "members changed" for a conversation that client does not have.
+ */
+export function emitGroupMemberJoined(
+  io: GroupRealtimeServer,
+  input: { conversation: DMConversationDTO; userId: string },
+): void {
+  io.to(`user:${input.userId}`).emit("dm:conversation:created", {
+    conversation: input.conversation,
+  });
+
+  io.to(`dm:${input.conversation.id}`).emit("dm:conversation:members_changed", {
+    conversation: input.conversation,
+    conversationId: input.conversation.id,
+  });
+}
+
+/** 2f. The invite switch changed; everybody's settings sheet has to agree. */
+export function emitGroupInviteChanged(
+  io: GroupRealtimeServer,
+  input: { conversationId: string; enabled: boolean; participantUserIds: readonly string[] },
+): void {
+  // Deliberately without the code: this goes to every member, and a client that
+  // is not looking at the settings sheet has no reason to hold a live invite
+  // code in memory. The sheet re-reads the route when it opens.
+  io.to(input.participantUserIds.map((userId) => `user:${userId}`)).emit("dm:group:invite", {
+    conversationId: input.conversationId,
+    enabled: input.enabled,
   });
 }
 

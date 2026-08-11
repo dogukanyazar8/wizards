@@ -80,6 +80,18 @@ export const SocketDMCallStartPayloadSchema = z
   })
   .strict();
 
+/**
+ * Faz 2 §D3. Joining a call already in progress. `video` is optional and only
+ * ever upgrades the call — a joiner with their camera off must not turn
+ * everybody else's video call into a voice one.
+ */
+export const SocketDMCallJoinPayloadSchema = z
+  .object({
+    conversationId: SocketIdSchema,
+    video: z.boolean().optional(),
+  })
+  .strict();
+
 export const SocketDMCallAcceptPayloadSchema = z
   .object({
     conversationId: SocketIdSchema,

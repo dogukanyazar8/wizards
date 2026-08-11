@@ -76,7 +76,7 @@ describe("group DM request schemas", () => {
     assert.throws(() => GroupDMUpdateRequestSchema.parse({ iconUrl: "http://utfs.io/f/a.png" }));
   });
 
-  it("names all six system message types", async () => {
+  it("names all seven system message types", async () => {
     const { DMSystemMessageTypeSchema } = await groupDm;
     assert.deepEqual(DMSystemMessageTypeSchema.options, [
       "GROUP_CREATED",
@@ -85,6 +85,9 @@ describe("group DM request schemas", () => {
       "MEMBER_LEFT",
       "NAME_CHANGED",
       "ICON_CHANGED",
+      // Faz 2 §C2. The disappearing window is the one setting change loud
+      // enough to leave a row in the conversation.
+      "DISAPPEARING_CHANGED",
     ]);
   });
 

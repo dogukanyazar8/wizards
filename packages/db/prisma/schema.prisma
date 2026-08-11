@@ -302,6 +302,47 @@ enum DMSystemMessageType {
   MEMBER_LEFT
   NAME_CHANGED
   ICON_CHANGED
+  /// K3 / Faz 2 §C2. The one settings change loud enough to announce.
+  /// `systemValue` carries the new window.
+  DISAPPEARING_CHANGED
+}
+
+// Group DM roles. A conversation has exactly one OWNER, mirrored by
+// `DMConversation.ownerId`; ADMIN is the delegated tier 2e §6 draws a chip for.
+enum DMParticipantRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+// 2f §2. The authority for notification behaviour; `DMParticipant.muted` is its
+// derived mirror and the two are always written together.
+enum DMNotifyLevel {
+  ALL
+  MENTIONS
+  NONE
+}
+
+// 2f §3. The only two answers the permission rows offer.
+enum GroupPermissionLevel {
+  ALL
+  ADMINS
+}
+
+// 2c §7. How much history a member who joins now may read.
+enum GroupHistoryVisibility {
+  NONE
+  LAST_24H
+  LAST_30D
+  ALL
+}
+
+// K3 / Faz 2 §C1. How long a message written from now on survives.
+enum GroupDisappearingWindow {
+  OFF
+  H24
+  D7
+  D90
 }
 
 // Audit log target types
@@ -410,6 +451,7 @@ model User {
   bannedFromServers       ServerBan[]               @relation("BanUser")
   serverBans              ServerBan[]               @relation("BanModerator")
   serverInvites           ServerInvite[]
+  groupInvites            GroupInvite[]
   messages                Message[]                 @relation("MessageAuthor")
   reactions               Reaction[]
   messageMentions         MessageMention[]
@@ -1363,14 +1405,38 @@ model DMConversation {
   name          String?
   iconUrl       String?
   ownerId       String?
+  /// 2c §5. Free text the members read in the group info sheet.
+  description   String?          @db.VarChar(120)
+  /// 2c §2. One of the five swatches; null keeps the derived colour.
+  avatarColor   String?          @db.VarChar(7)
+  /// 2d §2. A real foreign key so a deleted message drops its own pin rather
+  /// than leaving a dangling id for the application layer to sweep up.
+  pinnedMessageId String?
+  pinnedById      String?
+  pinnedAt        DateTime?
+  /// 2f §3. Four independent permission rows, defaulted to the values the
+  /// design shows on a fresh group.
+  permSendMessage   GroupPermissionLevel   @default(ALL)
+  permAddMembers    GroupPermissionLevel   @default(ALL)
+  permEditInfo      GroupPermissionLevel   @default(ADMINS)
+  permPinMessage    GroupPermissionLevel   @default(ADMINS)
+  /// 2c §7 shows "Son 30 gün" pre-selected.
+  historyVisibility GroupHistoryVisibility @default(LAST_30D)
+  /// K3 / Faz 2 §C1. V6: changing this never re-stamps history, it only decides
+  /// what the next message is written with.
+  disappearingAfter GroupDisappearingWindow @default(OFF)
   lastMessageAt DateTime         @default(now())
   createdAt     DateTime         @default(now())
 
-  participants DMParticipant[]
-  messages     DMMessage[]
+  participants  DMParticipant[]
+  messages      DMMessage[]
+  pinnedMessage DMMessage?      @relation("DMConversationPinnedMessage", fields: [pinnedMessageId], references: [id], onDelete: SetNull)
+  /// Faz 2 §B1. At most one, enforced by the unique on `GroupInvite.conversationId`.
+  invite        GroupInvite?
 
   @@index([ownerId])
   @@index([lastMessageAt])
+  @@index([pinnedMessageId])
 }
 
 model DMParticipant {
@@ -1386,12 +1452,31 @@ model DMParticipant {
   muted          Boolean   @default(false)
   hiddenAt       DateTime?
   unreadCount    Int       @default(0)
+  /// 2e §6. OWNER duplicates `DMConversation.ownerId` on purpose: the roster
+  /// query needs the role without a second read of the conversation row.
+  role           DMParticipantRole @default(MEMBER)
+  /// 2f §2. Authority for notifications; `muted` mirrors `notifyLevel == NONE`
+  /// and the two are only ever written in the same update.
+  notifyLevel    DMNotifyLevel     @default(ALL)
+  /// §11.0/1. Assigned when the membership opens and fixed for its lifetime, so
+  /// the client reads it rather than deriving it from a shifting member list.
+  nameColor      String            @db.VarChar(7)
+  /// V3 / 2a §2. This participant's own pinned conversation. Valid on 1:1 DMs.
+  pinnedAt       DateTime?
+  /// 2c §7. Oldest message this participant may read. Null means no floor —
+  /// every member who predates the history window keeps their full history.
+  historyFromAt  DateTime?
+  /// 2d §2, "kapatma yalnız o kullanıcı için gizler". Holds the id of the
+  /// pinned message this participant dismissed, so the next pin shows again.
+  pinnedStripDismissedId String?
 
   conversation DMConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([conversationId, userId])
   @@index([userId, hiddenAt])
+  @@index([userId, pinnedAt])
+  @@index([conversationId, role])
 }
 
 model DMMessage {
@@ -1413,6 +1498,10 @@ model DMMessage {
   systemType           DMSystemMessageType?
   systemTargetUserIds  String[]             @default([])
   systemValue          String?              @db.VarChar(100)
+  /// K3 / Faz 2 §C1. When the purge worker removes this row for good. NULL is
+  /// permanent, which is what every message written before the window existed
+  /// keeps.
+  expiresAt            DateTime?
   createdAt            DateTime  @default(now())
 
   conversation  DMConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
@@ -1423,6 +1512,8 @@ model DMMessage {
   threadReplies DMMessage[]    @relation("DMMessageThreadParent")
   attachments   Attachment[]   @relation("DMMessageAttachment")
   reactions     DMReaction[]
+  /// Back-relation for `DMConversation.pinnedMessage`. Always zero or one row.
+  pinnedInConversations DMConversation[] @relation("DMConversationPinnedMessage")
 
   content_search Unsupported("tsvector")? @map("content_search")
 
@@ -1431,7 +1522,38 @@ model DMMessage {
   @@index([conversationId, placeholderRemovedAt])
   @@index([threadParentId, createdAt])
   @@index([userId])
+  /// The purge sweep's whole predicate. Without it the worker scans every DM
+  /// message once a minute.
+  @@index([expiresAt])
   @@unique([userId, clientNonce])
+}
+
+/// Faz 2 §B1 / K2. A group's one shareable link. `conversationId` is unique on
+/// purpose: the design has a single link and "yenile" rotates it in place, so a
+/// second concurrent invite cannot appear by accident.
+///
+/// `enabled = false` keeps the row but makes the code unusable; E2 ("kapalı
+/// davet = kod yok") is enforced above this by never returning the code while
+/// the switch is off.
+model GroupInvite {
+  id             String    @id @default(uuid())
+  code           String    @unique @db.VarChar(12)
+  conversationId String    @unique
+  createdById    String
+  enabled        Boolean   @default(false)
+  uses           Int       @default(0)
+  maxUses        Int?
+  expiresAt      DateTime?
+  /// Stamped by "yenile"; the previous code stops resolving the moment it moves.
+  rotatedAt      DateTime?
+  createdAt      DateTime  @default(now())
+
+  conversation DMConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  creator      User           @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  /// No separate index on `code` or `conversationId`: both uniques already are
+  /// b-tree indexes and a duplicate would only cost writes.
+  @@index([createdById])
 }
 
 model DMReaction {

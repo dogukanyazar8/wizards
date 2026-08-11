@@ -61,16 +61,18 @@ function notificationLevelLabel(level: ServerNotificationLevel): string {
  * rendered at all (PROMPT.md §0.2), quick action cards included — the quartet
  * shares its width between whatever cards survive.
  *
- * "Sunucudan ayrıl" is the last row and the only destructive one. It is hidden
- * for the owner: the server refuses an owner's leave (transfer or delete
- * instead), so offering it would be offering a 400.
+ * "Sunucudan ayrıl" is the last row and the only destructive one. `leaveAccess`
+ * carries all three of its states rather than a boolean that cannot express the
+ * middle one: the owner sees the row the handoff draws, but pressing it reports
+ * `onOwnerTransferNotice` instead of a confirmation — the service refuses an
+ * owner's leave, and a request that can only answer 400 is never sent.
  */
 export function WorkspaceServerMenuSheet({
-  canLeaveServer,
   canManageInvites,
   canManageServer,
   initialLayer = "menu",
   inviteAddress,
+  leaveAccess,
   isMuted,
   isStarred,
   memberCount,
@@ -78,6 +80,7 @@ export function WorkspaceServerMenuSheet({
   onClose,
   onLeave,
   onOpenInvite,
+  onOwnerTransferNotice,
   onOpenMembers,
   onOpenProfile,
   onOpenSettings,
@@ -91,7 +94,6 @@ export function WorkspaceServerMenuSheet({
   serverName,
   serverShortName,
 }: {
-  canLeaveServer: boolean;
   canManageInvites: boolean;
   canManageServer: boolean;
   /**
@@ -100,8 +102,14 @@ export function WorkspaceServerMenuSheet({
    * rather than stacking a second overlay on top of it.
    */
   initialLayer?: "menu" | "notifications";
-  /** `whispr.gg/…`; `null` hides the address line and the share card outright. */
+  /** `<origin host>/invite/<code>`; `null` hides the address line and the share card outright. */
   inviteAddress: string | null;
+  /**
+   * `hidden` for a non-member (and for an owner the profile could not resolve);
+   * `allowed` for an ordinary member; `owner-must-transfer` for the owner, whose
+   * row is drawn but answers with the transfer notice.
+   */
+  leaveAccess: "allowed" | "hidden" | "owner-must-transfer";
   isMuted: boolean;
   isStarred: boolean;
   memberCount: number;
@@ -109,6 +117,7 @@ export function WorkspaceServerMenuSheet({
   onClose(): void;
   onLeave(): void;
   onOpenInvite(): void;
+  onOwnerTransferNotice(): void;
   onOpenMembers(): void;
   onOpenProfile(): void;
   onOpenSettings(): void;
@@ -219,17 +228,17 @@ export function WorkspaceServerMenuSheet({
           },
         ]
       : []),
-    ...(canLeaveServer
-      ? [
+    ...(leaveAccess === "hidden"
+      ? []
+      : [
           {
             danger: true,
             icon: "log-out" as const,
             label: copy.serverMenuLeave,
-            onPress: onLeave,
+            onPress: leaveAccess === "owner-must-transfer" ? onOwnerTransferNotice : onLeave,
             testID: `mobile-server-leave-open-${serverId}`,
           },
-        ]
-      : []),
+        ]),
   ];
 
   return (

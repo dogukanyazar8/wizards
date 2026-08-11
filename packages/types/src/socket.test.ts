@@ -5,12 +5,15 @@ import * as socketSchemas from "./socket";
 import {
   DMConversationDTOSchema,
   DMConversationTypeSchema,
+  DMGroupAvatarTileSchema,
   DMMessageAttachmentSchema,
   DMMessageAuthorSchema,
   DMMessagePayloadSchema,
   DMParticipantDTOSchema,
+  DMPinnedMessageDTOSchema,
   DMPresenceSchema,
   DMPresenceStatusSchema,
+  DMReadReceiptSchema,
 } from "./socket";
 import { assertAccepts, assertRejects, assertSchemaBehaviorCoverage } from "./schema-test-helpers";
 
@@ -69,6 +72,26 @@ const participant = {
   username: "ada",
 };
 
+const avatarTile = {
+  accent: "#C2185B",
+  avatarUrl: null,
+  initials: "AL",
+  userId: "user-2",
+};
+
+const pinnedMessage = {
+  authorName: "Ada",
+  dismissed: false,
+  excerpt: "Toplantı 14:00'te",
+  id: "message-9",
+};
+
+const readReceipt = {
+  count: 2,
+  everyone: false,
+  readerIds: ["user-2", "user-3"],
+};
+
 const conversation = {
   iconUrl: null,
   id: "conversation-1",
@@ -93,6 +116,11 @@ describe("socket schemas", () => {
         valid: "GROUP_DM",
         invalid: "CHANNEL",
       },
+      DMGroupAvatarTileSchema: {
+        schema: DMGroupAvatarTileSchema,
+        valid: avatarTile,
+        invalid: { ...avatarTile, avatarUrl: 3 },
+      },
       DMMessageAttachmentSchema: {
         schema: DMMessageAttachmentSchema,
         valid: attachment,
@@ -113,6 +141,11 @@ describe("socket schemas", () => {
         valid: participant,
         invalid: { ...participant, unreadCount: -1 },
       },
+      DMPinnedMessageDTOSchema: {
+        schema: DMPinnedMessageDTOSchema,
+        valid: pinnedMessage,
+        invalid: { ...pinnedMessage, dismissed: "no" },
+      },
       DMPresenceSchema: {
         schema: DMPresenceSchema,
         valid: presence,
@@ -123,7 +156,92 @@ describe("socket schemas", () => {
         valid: "DND",
         invalid: "AWAY",
       },
+      DMReadReceiptSchema: {
+        schema: DMReadReceiptSchema,
+        valid: readReceipt,
+        invalid: { ...readReceipt, count: -1 },
+      },
     });
+  });
+
+  it("keeps every Faz 1 group field optional so a 1:1 payload still parses", () => {
+    // The group columns ride the same DTO as 1:1 conversations. A required field
+    // here would take every DM down the moment the server started sending it.
+    const parsed = assertAccepts(DMConversationDTOSchema, conversation);
+
+    assert.equal(parsed.role, undefined);
+    assert.equal(parsed.permissions, undefined);
+    assert.equal(parsed.pinnedMessage, undefined);
+    assert.equal(parsed.avatarPair, undefined);
+  });
+
+  it("carries the group management block when the server sends it", () => {
+    const parsed = assertAccepts(DMConversationDTOSchema, {
+      ...conversation,
+      avatarColor: "#4F46E5",
+      avatarPair: [avatarTile],
+      description: "Mobil ekibi",
+      historyVisibility: "LAST_30D",
+      memberCount: 6,
+      notifyLevel: "MENTIONS",
+      onlineCount: 3,
+      overflowCount: 3,
+      permissions: {
+        addMembers: "ALL",
+        editInfo: "ADMINS",
+        pinMessage: "ADMINS",
+        sendMessage: "ALL",
+      },
+      pinnedAt: "2026-08-11T09:00:00.000Z",
+      pinnedMessage,
+      role: "OWNER",
+      type: "GROUP_DM" as const,
+    });
+
+    assert.equal(parsed.role, "OWNER");
+    assert.equal(parsed.permissions?.editInfo, "ADMINS");
+    assert.equal(parsed.pinnedMessage?.dismissed, false);
+    assert.equal(parsed.overflowCount, 3);
+  });
+
+  it("rejects a permission level that is not one of the two the design offers", () => {
+    assertRejects(
+      DMConversationDTOSchema,
+      {
+        ...conversation,
+        permissions: {
+          addMembers: "ALL",
+          editInfo: "ADMINS",
+          pinMessage: "ADMINS",
+          sendMessage: "OWNER",
+        },
+      },
+      ["permissions", "sendMessage"],
+    );
+  });
+
+  it("carries the participant's group role, colour and join date", () => {
+    const parsed = assertAccepts(DMParticipantDTOSchema, {
+      ...participant,
+      joinedAt: "2026-08-01T09:00:00.000Z",
+      nameColor: "#C2185B",
+      role: "ADMIN",
+    });
+
+    assert.equal(parsed.role, "ADMIN");
+    assert.equal(parsed.nameColor, "#C2185B");
+    assertRejects(DMParticipantDTOSchema, { ...participant, role: "MODERATOR" }, ["role"]);
+  });
+
+  it("attaches a read receipt to a single message and leaves it off the rest", () => {
+    const parsed = assertAccepts(DMMessagePayloadSchema, createMessage({ readReceipt }));
+
+    assert.equal(parsed.readReceipt?.everyone, false);
+    assert.equal(assertAccepts(DMMessagePayloadSchema, createMessage()).readReceipt, undefined);
+    assertRejects(DMMessagePayloadSchema, createMessage({ readReceipt: { count: 2 } }), [
+      "readReceipt",
+      "readerIds",
+    ]);
   });
 
   it("parses recursive message replies and rejects malformed nested replies", () => {

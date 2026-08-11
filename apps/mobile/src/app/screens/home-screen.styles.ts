@@ -665,6 +665,8 @@ export const createHomeScreenStyles = (theme: MobileTheme) => {
     },
     // 6f: the name may wrap to two lines, so the row is top-aligned and the
     // buttons keep their own column instead of squeezing the name.
+    // 6a: `flex-start` so the "⋯" and search buttons pin to the *first* line of
+    // a two-line server name instead of drifting to its vertical centre (6f).
     mobileWorkspaceHeaderRow: {
       alignItems: "flex-start",
       flexDirection: "row",
@@ -672,6 +674,22 @@ export const createHomeScreenStyles = (theme: MobileTheme) => {
       minWidth: 0,
       paddingBottom: 2,
       paddingTop: 6,
+    },
+    /**
+     * 6b draws the same row with `align-items: center` (HTML §t6 line 115): the
+     * server card is a ~56px pill and the 42px "⋯" sits centred against it, not
+     * hugging its top edge the way 6a's buttons hug the name's first line.
+     *
+     * Its padding is 6a's too, and does not belong here: `6px 0 2px` exists so a
+     * wrapping name has room above the line, while 6b's container is
+     * `padding: 8px 16px 0` — the panel already supplies the 8 and the 16, so
+     * the row itself adds nothing. Keeping 6a's values pushed the card 6px down
+     * and left 2px of dead space under it.
+     */
+    mobileWorkspaceHeaderRowCompact: {
+      alignItems: "center",
+      paddingBottom: 0,
+      paddingTop: 0,
     },
     mobileWorkspaceHeaderActions: {
       alignItems: "center",

@@ -78,7 +78,9 @@ export function WorkspaceHeaderRow({
   );
 
   return (
-    <View style={styles.mobileWorkspaceHeaderRow}>
+    <View
+      style={[styles.mobileWorkspaceHeaderRow, isCompact && styles.mobileWorkspaceHeaderRowCompact]}
+    >
       {isCompact ? (
         <Pressable
           accessibilityLabel={copy.openWorkspaceServerAction}

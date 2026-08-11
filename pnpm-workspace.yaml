@@ -9,6 +9,15 @@ catalog:
 verifyDepsBeforeRun: false
 strictDepBuilds: true
 
+# image-size has no published fixed release for these two event-loop DoS
+# advisories. The package is patched below and pressure-tested by
+# scripts/quality/image-size-security.test.mjs, so audit ignores only the exact
+# advisories covered by that local fix.
+audit:
+  ignore:
+    - GHSA-5p2g-fcmc-qvqq
+    - GHSA-w3rx-r6r6-pgpr
+
 allowBuilds:
   "@prisma/client": true
   "@prisma/engines": true
@@ -31,6 +40,7 @@ overrides:
   fast-uri@3.1.4: 3.1.5
   js-yaml@3.15.0: 3.15.1
   js-yaml@4.2.0: 4.3.1
+  nanoid@3.3.16: 3.3.17
   postcss: 8.5.25
   sharp@0.34.5: 0.35.3
   socket.io-parser@4.2.6: 4.2.7
@@ -62,8 +72,28 @@ minimumReleaseAgeExclude:
   - "@turbo/windows-arm64@2.10.6"
   - turbo@2.10.6
   - "@hookform/resolvers@5.4.3"
+  - "@expo/cli@57.0.14"
+  - "@expo/fingerprint@0.20.7"
+  - "@expo/inline-modules@0.1.5"
+  - "@expo/local-build-cache-provider@57.0.6"
+  - "@expo/metro-config@57.0.8"
+  - "@expo/prebuild-config@57.0.11"
+  - expo-asset@57.0.10
+  - expo-constants@57.0.10
+  - expo-server@57.0.2
+  - expo@57.0.12
+  - expo-dev-client@57.0.11
+  - expo-dev-launcher@57.0.11
+  - expo-dev-menu@57.0.11
+  - expo-image-manipulator@57.0.9
+  - expo-image-picker@57.0.9
+  - expo-notifications@57.0.10
+  - expo-updates@57.0.13
+  - jest-expo@57.0.4
+  - nanoid@3.3.17
 
 patchedDependencies:
   brace-expansion@5.0.9: patches/brace-expansion@5.0.9.patch
-  expo-notifications@57.0.8: patches/expo-notifications@57.0.8.patch
+  expo-notifications@57.0.10: patches/expo-notifications@57.0.10.patch
+  image-size@1.2.1: patches/image-size@1.2.1.patch
   next-auth@5.0.0-beta.32: patches/next-auth@5.0.0-beta.32.patch

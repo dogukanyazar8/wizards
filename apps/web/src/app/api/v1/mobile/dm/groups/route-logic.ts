@@ -3,7 +3,12 @@ import { GroupDMConversationResponseSchema } from "@wizards/types";
 import {
   groupAddMembersRoute,
   groupCreateRoute,
+  groupMemberRoleRoute,
+  groupPinDismissRoute,
+  groupPinRoute,
   groupRemoveMemberRoute,
+  groupSettingsRoute,
+  groupUnpinRoute,
   groupUpdateRoute,
   type GroupRouteDependencies,
 } from "@/app/api/v1/dm/groups/route-logic";
@@ -12,13 +17,20 @@ import { requireMobileApiUserId } from "@/lib/auth/api";
 import {
   emitGroupConversationCreated,
   emitGroupMembersChanged,
+  emitGroupPinChanged,
+  emitGroupRoleChanged,
+  emitGroupSettingsChanged,
   evictRemovedGroupMember,
 } from "@/lib/dm/group-realtime";
 import {
   addGroupMembers,
   createGroupConversation,
+  dismissPinnedStrip,
   removeGroupMember,
+  setPinnedMessage,
   updateGroupConversation,
+  updateGroupSettings,
+  updateMemberRole,
 } from "@/lib/dm/group-service";
 import { getDirectMessageConversationForUser } from "@/lib/dm/service";
 import { getSocketServer } from "@/lib/socket/runtime";
@@ -27,8 +39,12 @@ export const mobileGroupDefaults: GroupRouteDependencies = {
   addMembers: addGroupMembers,
   authenticate: (request) => requireMobileApiUserId(request),
   createGroup: createGroupConversation,
+  dismissPin: dismissPinnedStrip,
   emitCreated: emitGroupConversationCreated,
   emitMembersChanged: emitGroupMembersChanged,
+  emitPinChanged: emitGroupPinChanged,
+  emitRoleChanged: emitGroupRoleChanged,
+  emitSettingsChanged: emitGroupSettingsChanged,
   enforceRateLimit: enforceApiRateLimit,
   evictRemoved: evictRemovedGroupMember,
   getIo: () => getSocketServer(),
@@ -40,7 +56,10 @@ export const mobileGroupDefaults: GroupRouteDependencies = {
     }
   },
   removeMember: removeGroupMember,
+  setPin: setPinnedMessage,
   updateGroup: updateGroupConversation,
+  updateMemberRole,
+  updateSettings: updateGroupSettings,
 };
 
 /**
@@ -117,5 +136,64 @@ export async function mobileGroupRemoveMemberRoute(
     conversationId,
     targetUserId,
     toMobileDependencies(dependencies, "members"),
+  );
+}
+
+export async function mobileGroupSettingsRoute(
+  request: Request,
+  conversationId: string,
+  dependencies: GroupRouteDependencies = mobileGroupDefaults,
+): Promise<Response> {
+  return await parseGroupResponse(
+    await groupSettingsRoute(request, conversationId, toMobileDependencies(dependencies, "update")),
+  );
+}
+
+export async function mobileGroupMemberRoleRoute(
+  request: Request,
+  conversationId: string,
+  targetUserId: string,
+  dependencies: GroupRouteDependencies = mobileGroupDefaults,
+): Promise<Response> {
+  return await parseGroupResponse(
+    await groupMemberRoleRoute(
+      request,
+      conversationId,
+      targetUserId,
+      toMobileDependencies(dependencies, "update"),
+    ),
+  );
+}
+
+export async function mobileGroupPinRoute(
+  request: Request,
+  conversationId: string,
+  dependencies: GroupRouteDependencies = mobileGroupDefaults,
+): Promise<Response> {
+  return await parseGroupResponse(
+    await groupPinRoute(request, conversationId, toMobileDependencies(dependencies, "update")),
+  );
+}
+
+export async function mobileGroupUnpinRoute(
+  request: Request,
+  conversationId: string,
+  dependencies: GroupRouteDependencies = mobileGroupDefaults,
+): Promise<Response> {
+  return await parseGroupResponse(
+    await groupUnpinRoute(request, conversationId, toMobileDependencies(dependencies, "update")),
+  );
+}
+
+/** No conversation body to re-validate — the answer is `{ success: true }`. */
+export async function mobileGroupPinDismissRoute(
+  request: Request,
+  conversationId: string,
+  dependencies: GroupRouteDependencies = mobileGroupDefaults,
+): Promise<Response> {
+  return await groupPinDismissRoute(
+    request,
+    conversationId,
+    toMobileDependencies(dependencies, "update"),
   );
 }

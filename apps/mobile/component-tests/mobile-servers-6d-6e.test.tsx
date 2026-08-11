@@ -600,19 +600,86 @@ describe("6d/6e bottom bar and menu", () => {
   });
 
   // Faz 4 §A0.5: the service refuses an owner's leave, so the row is absent.
-  it("never renders the leave row for the owner but does for a member", async () => {
+  /**
+   * 6c draws the row for every member, owner included. The owner's press opens
+   * the transfer notice rather than the confirmation sheet: the service refuses
+   * an owner's leave, so the destructive dialog would be promising a 400.
+   */
+  it("offers the owner the transfer notice and the member the leave confirmation", async () => {
     const owner = await renderProfile({ viewerId: "user-owner" });
     await owner.view.findByTestId("mobile-server-profile-name");
     await fireEvent.press(owner.view.getByTestId("mobile-server-profile-menu"));
+    await fireEvent.press(owner.view.getByTestId("mobile-server-leave-open-server-1"));
 
-    expect(owner.view.queryByTestId("mobile-server-leave-open-server-1")).toBeNull();
+    expect(owner.view.queryByTestId("mobile-server-profile-leave-confirm")).toBeNull();
     await cleanup();
 
     const member = await renderProfile({ viewerId: "user-1" });
     await member.view.findByTestId("mobile-server-profile-name");
     await fireEvent.press(member.view.getByTestId("mobile-server-profile-menu"));
+    await fireEvent.press(member.view.getByTestId("mobile-server-leave-open-server-1"));
 
-    expect(member.view.getByTestId("mobile-server-leave-open-server-1")).toBeTruthy();
+    expect(member.view.getByTestId("mobile-server-profile-leave-confirm")).toBeTruthy();
+  });
+});
+
+/**
+ * 6d clamps the description to three lines and offers "Devamı" beneath it. The
+ * link used to render whenever the description was non-empty, so a one-line
+ * blurb carried a link that revealed nothing.
+ */
+describe("6d description clamp", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  afterEach(async () => {
+    await cleanup();
+    queryClients.splice(0).forEach((client) => client.clear());
+  });
+
+  /**
+   * The measuring twin is hidden from the accessibility tree, which is also
+   * what RNTL filters on by default — so it has to be asked for explicitly.
+   * That the default query cannot see it is the point: no screen reader
+   * announces the description twice.
+   */
+  const hidden = { includeHiddenElements: true } as const;
+
+  async function measure(view: Awaited<ReturnType<typeof renderProfile>>["view"], lines: number) {
+    await fireEvent(
+      view.getByTestId("mobile-server-profile-description-measure", hidden),
+      "textLayout",
+      { nativeEvent: { lines: Array.from({ length: lines }, () => ({ text: "" })) } },
+    );
+  }
+
+  it("withholds the link while the description is still being measured", async () => {
+    const { view } = await renderProfile();
+    await view.findByTestId("mobile-server-profile-description");
+
+    expect(view.queryByTestId("mobile-server-profile-description-more")).toBeNull();
+  });
+
+  it("leaves the link off a description that fits the clamp", async () => {
+    const { view } = await renderProfile();
+    await view.findByTestId("mobile-server-profile-description");
+    await measure(view, 2);
+
+    expect(view.queryByTestId("mobile-server-profile-description-more")).toBeNull();
+    // Measured once: the off-screen twin retires rather than staying mounted.
+    expect(view.queryByTestId("mobile-server-profile-description-measure", hidden)).toBeNull();
+  });
+
+  it("offers the link, then drops it once expanded, when a line is hidden", async () => {
+    const { view } = await renderProfile();
+    await view.findByTestId("mobile-server-profile-description");
+    await measure(view, 5);
+
+    const more = view.getByTestId("mobile-server-profile-description-more");
+    await fireEvent.press(more);
+
+    expect(view.queryByTestId("mobile-server-profile-description-more")).toBeNull();
   });
 });
 

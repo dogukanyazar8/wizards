@@ -1,18 +1,46 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
+  DMConversationDTOSchema,
   GroupDMConversationResponseSchema,
+  GroupInviteJoinResponseSchema,
+  GroupInvitePreviewResponseSchema,
+  GroupInviteResponseSchema,
   type DMConversationDTO,
+  type DMNotifyLevel,
   type GroupDMCreateRequest,
+  type GroupDMSettingsUpdateRequest,
   type GroupDMUpdateRequest,
+  type GroupInviteDTO,
+  type GroupInvitePreviewDTO,
+  type GroupMemberRoleUpdateRequest,
+  type MobileDMConversationListItem,
 } from "@wizards/types";
 
 import type { MobileApiClient } from "../api/mobile-api-client";
+import {
+  patchMobileGroupConversationRow,
+  type MobileDMConversationsInfiniteData,
+} from "../query/mobile-group-cache";
 import { mobileQueryKeys } from "../query/mobile-query-keys";
 
 const MOBILE_GROUPS_PATH = "/api/v1/mobile/dm/groups";
+const MOBILE_DM_PATH = "/api/v1/mobile/dm";
+const MOBILE_GROUP_INVITES_PATH = "/api/v1/mobile/group-invites";
 
 function buildGroupPath(conversationId: string): string {
   return `${MOBILE_GROUPS_PATH}/${encodeURIComponent(conversationId)}`;
+}
+
+function buildConversationPath(conversationId: string): string {
+  return `${MOBILE_DM_PATH}/${encodeURIComponent(conversationId)}`;
+}
+
+function buildInvitePath(code: string, suffix: string): string {
+  return `${MOBILE_GROUP_INVITES_PATH}/${encodeURIComponent(code)}${suffix}`;
+}
+
+async function parseGroupInvite(payload: unknown): Promise<GroupInviteDTO> {
+  return GroupInviteResponseSchema.parse(payload).invite;
 }
 
 /**
@@ -93,9 +121,169 @@ export async function hideMobileDMConversation(
   client: MobileApiClient,
   conversationId: string,
 ): Promise<void> {
-  await client.requestJson<unknown>(`/api/v1/mobile/dm/${encodeURIComponent(conversationId)}`, {
+  await client.requestJson<unknown>(buildConversationPath(conversationId), {
     method: "DELETE",
   });
+}
+
+/* ------------------------------------------------------------------------- *
+ * Faz 3 §B5. Ten writes and two reads over the endpoints Faz 1 and Faz 2 added.
+ * Every one of them re-parses the response for the same reason the four above
+ * do: mobile ships on its own train, so a server-side drift has to fail loudly
+ * here instead of half-rendering a screen.
+ * ------------------------------------------------------------------------- */
+
+/** 2f §3/§4 + 2c §7. A partial patch — an absent key means "leave it alone". */
+export async function updateMobileGroupSettings(
+  client: MobileApiClient,
+  conversationId: string,
+  patch: GroupDMSettingsUpdateRequest,
+): Promise<DMConversationDTO> {
+  return await parseGroupConversation(
+    await client.requestJson<unknown>(`${buildGroupPath(conversationId)}/settings`, {
+      body: patch,
+      method: "PATCH",
+    }),
+  );
+}
+
+/** 2e §7. Promote, demote, or hand the group over — one endpoint, one union. */
+export async function updateMobileGroupMemberRole(
+  client: MobileApiClient,
+  conversationId: string,
+  userId: string,
+  patch: GroupMemberRoleUpdateRequest,
+): Promise<DMConversationDTO> {
+  return await parseGroupConversation(
+    await client.requestJson<unknown>(
+      `${buildGroupPath(conversationId)}/members/${encodeURIComponent(userId)}`,
+      { body: patch, method: "PATCH" },
+    ),
+  );
+}
+
+/** 2d §2 / 2e §4. `null` unpins; the two verbs are one call site here. */
+export async function setMobileGroupPinnedMessage(
+  client: MobileApiClient,
+  conversationId: string,
+  messageId: string | null,
+): Promise<DMConversationDTO> {
+  return await parseGroupConversation(
+    await client.requestJson<unknown>(
+      `${buildGroupPath(conversationId)}/pin`,
+      messageId === null ? { method: "DELETE" } : { body: { messageId }, method: "PUT" },
+    ),
+  );
+}
+
+/**
+ * 2d §2's close button. The id travels because the dismissal is about that pin:
+ * a dismissal that only said "hide the strip" would also hide the next pin, which
+ * this reader has never seen.
+ */
+export async function dismissMobileGroupPinnedStrip(
+  client: MobileApiClient,
+  conversationId: string,
+  messageId: string,
+): Promise<void> {
+  await client.requestJson<unknown>(`${buildGroupPath(conversationId)}/pin/dismiss`, {
+    body: { messageId },
+    method: "POST",
+  });
+}
+
+/**
+ * 2f §2. The authority behind the row's muted look; `PATCH /mute` stays only for
+ * clients that predate this endpoint (§4.2 — one write moves both columns).
+ */
+export async function setMobileConversationNotifyLevel(
+  client: MobileApiClient,
+  conversationId: string,
+  notifyLevel: DMNotifyLevel,
+): Promise<{ notifyLevel: DMNotifyLevel }> {
+  await client.requestJson<unknown>(`${buildConversationPath(conversationId)}/notify`, {
+    body: { notifyLevel },
+    method: "PATCH",
+  });
+
+  return { notifyLevel };
+}
+
+/** V3 / 2a §2. Per participant, and valid on a 1:1 row as well as a group. */
+export async function setMobileConversationPinned(
+  client: MobileApiClient,
+  conversationId: string,
+  pinned: boolean,
+): Promise<void> {
+  await client.requestJson<unknown>(`${buildConversationPath(conversationId)}/pin`, {
+    body: { pinned },
+    method: "PATCH",
+  });
+}
+
+/** 2f §4's invite row. Membership is enough to read it; `editInfo` to change it. */
+export async function fetchMobileGroupInvite(
+  client: MobileApiClient,
+  conversationId: string,
+): Promise<GroupInviteDTO> {
+  return await parseGroupInvite(
+    await client.requestJson<unknown>(`${buildGroupPath(conversationId)}/invite`),
+  );
+}
+
+/** K2: switching it off keeps the row and stops returning the code. */
+export async function setMobileGroupInviteEnabled(
+  client: MobileApiClient,
+  conversationId: string,
+  enabled: boolean,
+): Promise<GroupInviteDTO> {
+  return await parseGroupInvite(
+    await client.requestJson<unknown>(`${buildGroupPath(conversationId)}/invite`, {
+      body: { enabled },
+      method: "PATCH",
+    }),
+  );
+}
+
+/** A new code, `uses` back to zero; the old link stops resolving. */
+export async function rotateMobileGroupInvite(
+  client: MobileApiClient,
+  conversationId: string,
+): Promise<GroupInviteDTO> {
+  return await parseGroupInvite(
+    await client.requestJson<unknown>(`${buildGroupPath(conversationId)}/invite/rotate`, {
+      method: "POST",
+    }),
+  );
+}
+
+/** The stranger's view of a `/g/<code>` link: no member list, ever. */
+export async function previewMobileGroupInvite(
+  client: MobileApiClient,
+  code: string,
+): Promise<GroupInvitePreviewDTO> {
+  return GroupInvitePreviewResponseSchema.parse(
+    await client.requestJson<unknown>(buildInvitePath(code, "/preview")),
+  ).preview;
+}
+
+/**
+ * Redeeming the link. The response carries the conversation *plus*
+ * `alreadyMember`, which the strict conversation schema rejects, so the envelope
+ * and the DTO are parsed in two steps against the shared schemas.
+ */
+export async function joinMobileGroupViaInvite(
+  client: MobileApiClient,
+  code: string,
+): Promise<{ alreadyMember: boolean; conversation: DMConversationDTO }> {
+  const envelope = GroupInviteJoinResponseSchema.parse(
+    await client.requestJson<unknown>(buildInvitePath(code, "/join"), { method: "POST" }),
+  );
+
+  return {
+    alreadyMember: envelope.alreadyMember,
+    conversation: DMConversationDTOSchema.parse(envelope.conversation),
+  };
 }
 
 /**
@@ -153,6 +341,145 @@ export function useMobileGroupMutations(client: MobileApiClient, viewerId?: stri
       mutationFn: (input: { conversationId: string; patch: GroupDMUpdateRequest }) =>
         updateMobileGroup(client, input.conversationId, input.patch),
       onSuccess: (_data, input) => refreshConversationAndDetails(input.conversationId),
+    }),
+  };
+}
+
+/**
+ * Faz 3 §B5's invalidation contract, in one place so a screen cannot invent its
+ * own. Each entry lists exactly what a write moved — 2a going stale after a
+ * settings change is the failure this table exists to prevent — and nothing
+ * more: refetching a 32-member roster after a toggle is the opposite mistake.
+ */
+export const MOBILE_GROUP_INVALIDATIONS = {
+  conversationPin: (_conversationId: string) => [mobileQueryKeys.dmConversations()],
+  invite: (conversationId: string) => [
+    mobileQueryKeys.groupInvite(conversationId),
+    mobileQueryKeys.groupDetails(conversationId),
+  ],
+  join: (conversationId: string) => [
+    mobileQueryKeys.dmConversations(),
+    mobileQueryKeys.groupDetails(conversationId),
+  ],
+  notifyLevel: (conversationId: string) => [
+    mobileQueryKeys.dmConversations(),
+    mobileQueryKeys.groupDetails(conversationId),
+  ],
+  pinnedMessage: (conversationId: string) => [
+    mobileQueryKeys.groupDetails(conversationId),
+    mobileQueryKeys.dmMessages(conversationId),
+  ],
+  role: (conversationId: string) => [
+    mobileQueryKeys.groupDetails(conversationId),
+    mobileQueryKeys.groupMembers(conversationId),
+  ],
+  settings: (conversationId: string) => [mobileQueryKeys.groupDetails(conversationId)],
+} as const;
+
+/**
+ * The 2e/2f writes. Every toggle is optimistic — the switch turns the moment it
+ * is tapped — and rolls back to the exact snapshot it captured when the request
+ * fails, so a rejected write never leaves the row claiming the new state. The
+ * toast is the caller's: only the screen knows which sentence to show.
+ */
+export function useMobileGroupSettingsMutations(client: MobileApiClient) {
+  const queryClient = useQueryClient();
+
+  const invalidate = (queryKeys: readonly (readonly unknown[])[]) =>
+    Promise.all(
+      queryKeys.map((queryKey) => queryClient.invalidateQueries({ exact: true, queryKey })),
+    );
+
+  /**
+   * Writes the optimistic value into the inbox row and hands back the undo. The
+   * pending write is cancelled first: an in-flight list refetch that lands after
+   * this would overwrite the switch the reader is looking at.
+   */
+  const patchConversationRow = async (
+    conversationId: string,
+    patch: Partial<MobileDMConversationListItem>,
+  ) => {
+    const queryKey = mobileQueryKeys.dmConversations();
+    await queryClient.cancelQueries({ exact: true, queryKey });
+    const previous = queryClient.getQueryData(queryKey);
+
+    queryClient.setQueryData<MobileDMConversationsInfiniteData>(queryKey, (current) =>
+      patchMobileGroupConversationRow(current, conversationId, patch),
+    );
+
+    return () => queryClient.setQueryData(queryKey, previous);
+  };
+
+  return {
+    dismissPinnedStrip: useMutation({
+      mutationFn: (input: { conversationId: string; messageId: string }) =>
+        dismissMobileGroupPinnedStrip(client, input.conversationId, input.messageId),
+      onSuccess: (_data, input) =>
+        invalidate(MOBILE_GROUP_INVALIDATIONS.settings(input.conversationId)),
+    }),
+    joinViaInvite: useMutation({
+      mutationFn: (input: { code: string }) => joinMobileGroupViaInvite(client, input.code),
+      onSuccess: (result) => invalidate(MOBILE_GROUP_INVALIDATIONS.join(result.conversation.id)),
+    }),
+    rotateInvite: useMutation({
+      mutationFn: (input: { conversationId: string }) =>
+        rotateMobileGroupInvite(client, input.conversationId),
+      onSuccess: (_data, input) =>
+        invalidate(MOBILE_GROUP_INVALIDATIONS.invite(input.conversationId)),
+    }),
+    setConversationPinned: useMutation({
+      mutationFn: (input: { conversationId: string; pinned: boolean }) =>
+        setMobileConversationPinned(client, input.conversationId, input.pinned),
+      onMutate: (input) =>
+        patchConversationRow(input.conversationId, {
+          // The exact instant matters only for ordering among pins, and the
+          // server's own value arrives with the invalidation right after.
+          pinnedAt: input.pinned ? new Date().toISOString() : null,
+        }),
+      onError: (_error, _input, rollback) => rollback?.(),
+      onSuccess: (_data, input) =>
+        invalidate(MOBILE_GROUP_INVALIDATIONS.conversationPin(input.conversationId)),
+    }),
+    setInviteEnabled: useMutation({
+      mutationFn: (input: { conversationId: string; enabled: boolean }) =>
+        setMobileGroupInviteEnabled(client, input.conversationId, input.enabled),
+      onSuccess: (_data, input) =>
+        invalidate(MOBILE_GROUP_INVALIDATIONS.invite(input.conversationId)),
+    }),
+    setNotifyLevel: useMutation({
+      mutationFn: (input: { conversationId: string; notifyLevel: DMNotifyLevel }) =>
+        setMobileConversationNotifyLevel(client, input.conversationId, input.notifyLevel),
+      onMutate: (input) =>
+        // §4.2 again, on the client this time: the mirror is written in the same
+        // patch as the authority, never on its own.
+        patchConversationRow(input.conversationId, {
+          muted: input.notifyLevel === "NONE",
+          notifyLevel: input.notifyLevel,
+        }),
+      onError: (_error, _input, rollback) => rollback?.(),
+      onSuccess: (_data, input) =>
+        invalidate(MOBILE_GROUP_INVALIDATIONS.notifyLevel(input.conversationId)),
+    }),
+    setPinnedMessage: useMutation({
+      mutationFn: (input: { conversationId: string; messageId: string | null }) =>
+        setMobileGroupPinnedMessage(client, input.conversationId, input.messageId),
+      onSuccess: (_data, input) =>
+        invalidate(MOBILE_GROUP_INVALIDATIONS.pinnedMessage(input.conversationId)),
+    }),
+    updateMemberRole: useMutation({
+      mutationFn: (input: {
+        conversationId: string;
+        patch: GroupMemberRoleUpdateRequest;
+        userId: string;
+      }) => updateMobileGroupMemberRole(client, input.conversationId, input.userId, input.patch),
+      onSuccess: (_data, input) =>
+        invalidate(MOBILE_GROUP_INVALIDATIONS.role(input.conversationId)),
+    }),
+    updateSettings: useMutation({
+      mutationFn: (input: { conversationId: string; patch: GroupDMSettingsUpdateRequest }) =>
+        updateMobileGroupSettings(client, input.conversationId, input.patch),
+      onSuccess: (_data, input) =>
+        invalidate(MOBILE_GROUP_INVALIDATIONS.settings(input.conversationId)),
     }),
   };
 }

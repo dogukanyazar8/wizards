@@ -46,6 +46,9 @@ export function navigateMobileRouteIntent(intent: MobileNavigationRouteIntent): 
     case "GroupCreate":
       mobileNavigationRef.navigate("GroupCreate", undefined, ROUTE_INTENT_OPTIONS);
       break;
+    case "GroupInvitePreview":
+      mobileNavigationRef.navigate("GroupInvitePreview", intent.params, ROUTE_INTENT_OPTIONS);
+      break;
     case "MessageThread":
       mobileNavigationRef.navigate("MessageThread", intent.params, ROUTE_INTENT_OPTIONS);
       break;

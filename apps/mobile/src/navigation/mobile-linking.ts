@@ -107,6 +107,13 @@ export function createMobileLinkingOptions({
         DirectMessage: "channels/@me/:conversationId",
         Discover: "discover",
         GroupCreate: "channels/@me/new-group",
+        /**
+         * K2's group invite. Its own prefix rather than a second match under
+         * `invite/`: `whispr://invite/<code>` is claimed by `parseMobileDeepLink`
+         * as the *server* invite command intent, and adding a group shape there
+         * would make one of the two links open the wrong screen.
+         */
+        GroupInvitePreview: "g/:code",
         HelpCenter: "help",
         ServerProfile: "server/:serverId/about",
         ServerRoles: "server/:serverId/settings/roles",
@@ -165,6 +172,19 @@ export function resolveMobileRoutePathIntent(path: string): MobileNavigationRout
   }
 
   const pathname = getPathname(path);
+
+  // K2: `/g/<code>`. Matched before anything else that could widen into it, and
+  // deliberately not folded into the `/invite/` branch — the two prefixes are
+  // what keeps a server invite and a group invite apart (`GROUP_INVITE_PATH_PREFIX`).
+  const groupInviteMatch = /^\/g\/([^/]+)$/.exec(pathname);
+  if (groupInviteMatch?.[1]) {
+    return {
+      name: "GroupInvitePreview",
+      params: { code: decodePathSegment(groupInviteMatch[1]) },
+      type: "route",
+    };
+  }
+
   // `whispr://user/<id>` (11c). The optional `?serverId=` decides whether the
   // page can show role chips, so it rides along as a route param.
   const userProfileMatch = /^\/user\/([^/]+)$/.exec(pathname);

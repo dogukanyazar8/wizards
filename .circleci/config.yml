@@ -1,0 +1,43 @@
+# Setup pipeline. Its only job is to decide which parts of the monorepo changed
+# and hand the real configuration (.circleci/main.yml) to the continuation API.
+#
+# Shadow mode: .github/workflows/ci.yml is still the authoritative lane while
+# this one is being validated. See docs/prompts/cicd-circleci-2026-08/.
+
+version: 2.1
+setup: true
+
+orbs:
+  # Pin exactly; never @1 or @volatile. Confirm the current release with
+  #   circleci orb info circleci/path-filtering
+  # A stale pin fails loudly at config compile time, which is the intent.
+  path-filtering: circleci/path-filtering@1.3.0
+
+workflows:
+  setup:
+    jobs:
+      - path-filtering/filter:
+          name: resolve-changed-paths
+          base-revision: main
+          config-path: .circleci/main.yml
+          # Three whitespace-separated fields: path regex, pipeline parameter,
+          # value. Every rule that matches is applied, so a change under
+          # packages/ correctly lights up all three consumers.
+          #
+          # On main/staging/uat this diff is empty or misleading, so main.yml
+          # ignores these parameters on those branches and runs everything.
+          # Filtering only decides feature-branch pipelines.
+          mapping: |
+            apps/web/.*        run-web      true
+            apps/mobile/.*     run-mobile   true
+            apps/desktop/.*    run-desktop  true
+            packages/.*        run-web      true
+            packages/.*        run-mobile   true
+            packages/.*        run-desktop  true
+            scripts/.*         run-all      true
+            docker/.*          run-all      true
+            \.circleci/.*      run-all      true
+            pnpm-lock\.yaml    run-all      true
+            package\.json      run-all      true
+            turbo\.json        run-all      true
+            \.nvmrc            run-all      true

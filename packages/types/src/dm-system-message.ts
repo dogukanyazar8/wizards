@@ -15,6 +15,12 @@ export const DMSystemMessageTypeSchema = z.enum([
   "MEMBER_LEFT",
   "NAME_CHANGED",
   "ICON_CHANGED",
+  /**
+   * K3 / C2. The one settings change that announces itself. `systemValue`
+   * carries the new window (`OFF` | `H24` | `D7` | `D90`), so the reader builds
+   * the sentence in their own locale like every other system row.
+   */
+  "DISAPPEARING_CHANGED",
 ]);
 
 export type DMSystemMessageTypeValue = z.infer<typeof DMSystemMessageTypeSchema>;

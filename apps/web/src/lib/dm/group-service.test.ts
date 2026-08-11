@@ -5,10 +5,16 @@ import {
   addGroupMembers,
   toGroupEligibilityMap,
   createGroupConversation,
+  dismissPinnedStrip,
   leaveGroupConversation,
   removeGroupMember,
   resolveNextGroupOwner,
+  setConversationPin,
+  setNotifyLevel,
+  setPinnedMessage,
   updateGroupConversation,
+  updateGroupSettings,
+  updateMemberRole,
 } from "./group-service";
 
 type Deps = Parameters<typeof createGroupConversation>[2];
@@ -40,6 +46,7 @@ function buildDependencies(overrides: Partial<NonNullable<Deps>> = {}): NonNulla
     loadConversation: async () => {
       throw new Error("loadConversation should not be called in this test");
     },
+    loadPinnableMessage: async ({ messageId }) => ({ authorName: "Ada", id: messageId }),
     mapConversation: async (conversation) => ({
       iconUrl: conversation.iconUrl,
       id: conversation.id,
@@ -58,10 +65,19 @@ function buildDependencies(overrides: Partial<NonNullable<Deps>> = {}): NonNulla
       id: "group-1",
       name: input.name,
       ownerId: input.actorId,
-      participantUserIds: input.participantUserIds,
+      participantUserIds: input.participants.map((participant) => participant.userId),
     }),
     writeGroupMetadata: async () => {
       throw new Error("writeGroupMetadata should not be called in this test");
+    },
+    writeGroupSettings: async () => {
+      throw new Error("writeGroupSettings should not be called in this test");
+    },
+    writeMemberRole: async () => {
+      throw new Error("writeMemberRole should not be called in this test");
+    },
+    writePinnedMessage: async () => {
+      throw new Error("writePinnedMessage should not be called in this test");
     },
     writeRemovedMember: async () => {
       throw new Error("writeRemovedMember should not be called in this test");
@@ -70,18 +86,37 @@ function buildDependencies(overrides: Partial<NonNullable<Deps>> = {}): NonNulla
   } as NonNullable<Deps>;
 }
 
+function participantDependencies(count = 1) {
+  const writes: Array<{ conversationId: string; data: Record<string, unknown>; userId: string }> =
+    [];
+
+  return {
+    dependencies: {
+      updateParticipant: async (input: {
+        conversationId: string;
+        data: Record<string, unknown>;
+        userId: string;
+      }) => {
+        writes.push(input);
+        return count;
+      },
+    },
+    writes,
+  };
+}
+
 describe("createGroupConversation", () => {
   it("writes the creator plus the selected friends, creator first", async () => {
     let written: { participantUserIds: string[] } | null = null;
     const dependencies = buildDependencies({
       writeCreatedGroup: async (input) => {
-        written = { participantUserIds: input.participantUserIds };
+        written = { participantUserIds: input.participants.map((entry) => entry.userId) };
         return {
           iconUrl: input.iconUrl,
           id: "group-1",
           name: input.name,
           ownerId: input.actorId,
-          participantUserIds: input.participantUserIds,
+          participantUserIds: input.participants.map((entry) => entry.userId),
         };
       },
     });
@@ -95,13 +130,13 @@ describe("createGroupConversation", () => {
     let written: { participantUserIds: string[] } | null = null;
     const dependencies = buildDependencies({
       writeCreatedGroup: async (input) => {
-        written = { participantUserIds: input.participantUserIds };
+        written = { participantUserIds: input.participants.map((entry) => entry.userId) };
         return {
           iconUrl: input.iconUrl,
           id: "group-1",
           name: input.name,
           ownerId: input.actorId,
-          participantUserIds: input.participantUserIds,
+          participantUserIds: input.participants.map((entry) => entry.userId),
         };
       },
     });
@@ -196,7 +231,7 @@ describe("createGroupConversation", () => {
         included: included as never,
         name: input.name,
         ownerId: input.actorId,
-        participantUserIds: input.participantUserIds,
+        participantUserIds: input.participants.map((entry) => entry.userId),
       }),
     });
 
@@ -215,7 +250,7 @@ describe("createGroupConversation", () => {
           id: "group-1",
           name: input.name,
           ownerId: input.actorId,
-          participantUserIds: input.participantUserIds,
+          participantUserIds: input.participants.map((entry) => entry.userId),
         };
       },
     });
@@ -230,24 +265,57 @@ describe("createGroupConversation", () => {
   });
 });
 
+type TestParticipant = {
+  historyFromAt?: Date | null;
+  joinedAt: Date;
+  nameColor?: string;
+  role?: "OWNER" | "ADMIN" | "MEMBER";
+  userId: string;
+};
+
+function member(userId: string, day: number, overrides: Partial<TestParticipant> = {}) {
+  return {
+    historyFromAt: null,
+    joinedAt: new Date(`2026-08-0${day}T00:00:00.000Z`),
+    nameColor: "#C2185B",
+    role: "MEMBER" as const,
+    userId,
+    ...overrides,
+  };
+}
+
 function buildGroup(
   overrides: Partial<{
+    disappearingAfter: "OFF" | "H24" | "D7" | "D90";
+    historyVisibility: "NONE" | "LAST_24H" | "LAST_30D" | "ALL";
     ownerId: string | null;
-    participants: Array<{ joinedAt: Date; userId: string }>;
+    participants: TestParticipant[];
+    permAddMembers: "ALL" | "ADMINS";
+    permEditInfo: "ALL" | "ADMINS";
+    permPinMessage: "ALL" | "ADMINS";
+    permSendMessage: "ALL" | "ADMINS";
+    pinnedMessageId: string | null;
     type: string;
   }> = {},
 ) {
   return {
+    disappearingAfter: "OFF" as const,
+    historyVisibility: "LAST_30D" as const,
     iconUrl: null,
     id: "group-1",
     name: "Takım",
     ownerId: "user-1",
     participantUserIds: ["user-1", "user-2", "user-3"],
     participants: [
-      { joinedAt: new Date("2026-08-01T00:00:00.000Z"), userId: "user-1" },
-      { joinedAt: new Date("2026-08-02T00:00:00.000Z"), userId: "user-2" },
-      { joinedAt: new Date("2026-08-03T00:00:00.000Z"), userId: "user-3" },
+      member("user-1", 1, { nameColor: "#C2185B", role: "OWNER" }),
+      member("user-2", 2, { nameColor: "#C77A2B" }),
+      member("user-3", 3, { nameColor: "#1B8A55" }),
     ],
+    permAddMembers: "ALL" as const,
+    permEditInfo: "ADMINS" as const,
+    permPinMessage: "ADMINS" as const,
+    permSendMessage: "ALL" as const,
+    pinnedMessageId: null,
     type: "GROUP_DM",
     ...overrides,
   };
@@ -259,7 +327,10 @@ describe("addGroupMembers", () => {
     const dependencies = buildDependencies({
       loadConversation: async () => buildGroup(),
       writeAddedMembers: async (input) => {
-        written = { addedUserIds: input.addedUserIds, actorId: input.actorId };
+        written = {
+          addedUserIds: input.members.map((entry) => entry.userId),
+          actorId: input.actorId,
+        };
         return buildGroup();
       },
     });
@@ -274,7 +345,7 @@ describe("addGroupMembers", () => {
     const dependencies = buildDependencies({
       loadConversation: async () => buildGroup(),
       writeAddedMembers: async (input) => {
-        written = { addedUserIds: input.addedUserIds };
+        written = { addedUserIds: input.members.map((entry) => entry.userId) };
         return buildGroup();
       },
     });
@@ -299,33 +370,105 @@ describe("addGroupMembers", () => {
     assert.equal(writeCount, 0);
   });
 
-  it("refuses a member who is not the owner", async () => {
-    const dependencies = buildDependencies({ loadConversation: async () => buildGroup() });
+  /**
+   * K4. Ownership stopped being the rule here: `permAddMembers` is, and a fresh
+   * group leaves it on "Tüm üyeler" (2c §7). A plain member adding a friend is
+   * the designed behaviour, not a hole.
+   */
+  it("lets a plain member add somebody while the group allows it", async () => {
+    let written: { addedUserIds: string[] } | null = null;
+    const dependencies = buildDependencies({
+      loadConversation: async () => buildGroup(),
+      writeAddedMembers: async (input) => {
+        written = { addedUserIds: input.members.map((entry) => entry.userId) };
+        return buildGroup();
+      },
+    });
+
+    await addGroupMembers("user-2", "group-1", ["user-4"], dependencies);
+
+    assert.deepEqual(written, { addedUserIds: ["user-4"] });
+  });
+
+  it("refuses a plain member once the group restricts adding to admins", async () => {
+    const dependencies = buildDependencies({
+      loadConversation: async () => buildGroup({ permAddMembers: "ADMINS" }),
+    });
 
     await assert.rejects(
       () => addGroupMembers("user-2", "group-1", ["user-4"], dependencies),
       (error: { code?: string; status?: number }) => {
-        assert.equal(error.code, "NOT_GROUP_OWNER");
+        assert.equal(error.code, "FORBIDDEN");
         assert.equal(error.status, 403);
         return true;
       },
     );
   });
 
-  it("refuses a non-owner with NOT_GROUP_OWNER even when the requested member is ineligible", async () => {
+  it("checks the permission before it checks eligibility", async () => {
+    // Otherwise an unauthorised member learns from the error message whether the
+    // person they tried to add has blocked them.
     const dependencies = buildDependencies({
-      loadConversation: async () => buildGroup(),
+      loadConversation: async () => buildGroup({ permAddMembers: "ADMINS" }),
       loadGroupEligibility: eligibility({ "user-4": { isFriend: false } }),
     });
 
     await assert.rejects(
       () => addGroupMembers("user-2", "group-1", ["user-4"], dependencies),
       (error: { code?: string; status?: number }) => {
-        assert.equal(error.code, "NOT_GROUP_OWNER");
+        assert.equal(error.code, "FORBIDDEN");
         assert.equal(error.status, 403);
         return true;
       },
     );
+  });
+
+  it("stamps every new member with a colour and the group's history floor", async () => {
+    let written: Array<{ historyFromAt: Date | null; nameColor: string; role: string }> = [];
+    const dependencies = buildDependencies({
+      loadConversation: async () => buildGroup({ historyVisibility: "NONE" }),
+      writeAddedMembers: async (input) => {
+        written = input.members.map((entry) => ({
+          historyFromAt: entry.historyFromAt,
+          nameColor: entry.nameColor,
+          role: entry.role,
+        }));
+        return buildGroup();
+      },
+    });
+
+    const before = Date.now();
+    await addGroupMembers("user-1", "group-1", ["user-4", "user-5"], dependencies);
+
+    assert.equal(written.length, 2);
+    for (const entry of written) {
+      assert.equal(entry.role, "MEMBER");
+      // NONE means "from now on", so the floor is the join moment itself.
+      assert.ok(entry.historyFromAt !== null);
+      assert.ok((entry.historyFromAt?.getTime() ?? 0) >= before);
+    }
+    // The three sitting members hold #C2185B, #C77A2B and #1B8A55, so the two
+    // new ones must take the two colours nobody is using — and must not both
+    // take the same one.
+    assert.deepEqual(
+      written.map((entry) => entry.nameColor),
+      ["#8A46C7", "#4F46E5"],
+    );
+  });
+
+  it("leaves the history floor open when the group shares everything", async () => {
+    let written: Array<{ historyFromAt: Date | null }> = [];
+    const dependencies = buildDependencies({
+      loadConversation: async () => buildGroup({ historyVisibility: "ALL" }),
+      writeAddedMembers: async (input) => {
+        written = input.members.map((entry) => ({ historyFromAt: entry.historyFromAt }));
+        return buildGroup();
+      },
+    });
+
+    await addGroupMembers("user-1", "group-1", ["user-4"], dependencies);
+
+    assert.deepEqual(written, [{ historyFromAt: null }]);
   });
 
   it("refuses a 1:1 DM", async () => {
@@ -344,10 +487,9 @@ describe("addGroupMembers", () => {
   });
 
   it("refuses an addition that would exceed 32 members", async () => {
-    const participants = Array.from({ length: 32 }, (_, index) => ({
-      joinedAt: new Date("2026-08-01T00:00:00.000Z"),
-      userId: `user-${index + 1}`,
-    }));
+    const participants = Array.from({ length: 32 }, (_, index) =>
+      member(`user-${index + 1}`, 1, index === 0 ? { role: "OWNER" } : {}),
+    );
     const dependencies = buildDependencies({
       loadConversation: async () =>
         buildGroup({ participants, ownerId: "user-1", type: "GROUP_DM" }),
@@ -363,16 +505,15 @@ describe("addGroupMembers", () => {
   });
 
   it("allows adding one genuinely new member to a 31-person group even when already-members are mixed into the request (31 + 1 is legal)", async () => {
-    const participants = Array.from({ length: 31 }, (_, index) => ({
-      joinedAt: new Date("2026-08-01T00:00:00.000Z"),
-      userId: `user-${index + 1}`,
-    }));
+    const participants = Array.from({ length: 31 }, (_, index) =>
+      member(`user-${index + 1}`, 1, index === 0 ? { role: "OWNER" } : {}),
+    );
     let written: { addedUserIds: string[] } | null = null;
     const dependencies = buildDependencies({
       loadConversation: async () =>
         buildGroup({ participants, ownerId: "user-1", type: "GROUP_DM" }),
       writeAddedMembers: async (input) => {
-        written = { addedUserIds: input.addedUserIds };
+        written = { addedUserIds: input.members.map((entry) => entry.userId) };
         return buildGroup({ participants, ownerId: "user-1", type: "GROUP_DM" });
       },
     });
@@ -386,10 +527,9 @@ describe("addGroupMembers", () => {
   });
 
   it("does not throw GROUP_FULL when re-adding an already-member takes a 32-member group to the ceiling", async () => {
-    const participants = Array.from({ length: 32 }, (_, index) => ({
-      joinedAt: new Date("2026-08-01T00:00:00.000Z"),
-      userId: `user-${index + 1}`,
-    }));
+    const participants = Array.from({ length: 32 }, (_, index) =>
+      member(`user-${index + 1}`, 1, index === 0 ? { role: "OWNER" } : {}),
+    );
     let writeCount = 0;
     const dependencies = buildDependencies({
       loadConversation: async () =>
@@ -485,13 +625,100 @@ describe("removeGroupMember", () => {
     });
   });
 
-  it("refuses a non-owner removing somebody else", async () => {
+  it("refuses a plain member removing somebody else", async () => {
     const dependencies = buildDependencies({ loadConversation: async () => buildGroup() });
 
     await assert.rejects(
       () => removeGroupMember("user-2", "group-1", "user-3", dependencies),
-      (error: { code?: string }) => {
-        assert.equal(error.code, "NOT_GROUP_OWNER");
+      (error: { code?: string; status?: number }) => {
+        assert.equal(error.code, "NOT_GROUP_ADMIN");
+        assert.equal(error.status, 403);
+        return true;
+      },
+    );
+  });
+
+  it("lets an admin remove a plain member", async () => {
+    let written: { targetUserId: string } | null = null;
+    const dependencies = buildDependencies({
+      loadConversation: async () =>
+        buildGroup({
+          participants: [
+            member("user-1", 1, { role: "OWNER" }),
+            member("user-2", 2, { role: "ADMIN" }),
+            member("user-3", 3),
+          ],
+        }),
+      writeRemovedMember: async (input) => {
+        written = { targetUserId: input.targetUserId };
+      },
+    });
+
+    await removeGroupMember("user-2", "group-1", "user-3", dependencies);
+
+    assert.deepEqual(written, { targetUserId: "user-3" });
+  });
+
+  it("refuses one admin removing another — only the owner outranks an admin", async () => {
+    const dependencies = buildDependencies({
+      loadConversation: async () =>
+        buildGroup({
+          participants: [
+            member("user-1", 1, { role: "OWNER" }),
+            member("user-2", 2, { role: "ADMIN" }),
+            member("user-3", 3, { role: "ADMIN" }),
+          ],
+        }),
+    });
+
+    await assert.rejects(
+      () => removeGroupMember("user-2", "group-1", "user-3", dependencies),
+      (error: { code?: string; status?: number }) => {
+        assert.equal(error.code, "FORBIDDEN");
+        assert.equal(error.status, 403);
+        return true;
+      },
+    );
+  });
+
+  it("lets the owner remove an admin", async () => {
+    let written: { targetUserId: string } | null = null;
+    const dependencies = buildDependencies({
+      loadConversation: async () =>
+        buildGroup({
+          participants: [
+            member("user-1", 1, { role: "OWNER" }),
+            member("user-2", 2, { role: "ADMIN" }),
+            member("user-3", 3),
+          ],
+        }),
+      writeRemovedMember: async (input) => {
+        written = { targetUserId: input.targetUserId };
+      },
+    });
+
+    await removeGroupMember("user-1", "group-1", "user-2", dependencies);
+
+    assert.deepEqual(written, { targetUserId: "user-2" });
+  });
+
+  it("refuses to remove the owner, even by an admin", async () => {
+    const dependencies = buildDependencies({
+      loadConversation: async () =>
+        buildGroup({
+          participants: [
+            member("user-1", 1, { role: "OWNER" }),
+            member("user-2", 2, { role: "ADMIN" }),
+            member("user-3", 3),
+          ],
+        }),
+    });
+
+    await assert.rejects(
+      () => removeGroupMember("user-2", "group-1", "user-1", dependencies),
+      (error: { code?: string; status?: number }) => {
+        assert.equal(error.code, "FORBIDDEN");
+        assert.equal(error.status, 403);
         return true;
       },
     );
@@ -550,7 +777,7 @@ describe("leaveGroupConversation", () => {
           // The sole remaining participant is not the owner, so the old
           // owner-only guard could not reach this path.
           ownerId: "user-1",
-          participants: [{ joinedAt: new Date("2026-08-02T00:00:00.000Z"), userId: "user-2" }],
+          participants: [member("user-2", 2)],
         }),
     });
 
@@ -559,7 +786,25 @@ describe("leaveGroupConversation", () => {
     assert.equal(deleted, "group-1");
   });
 
-  it("passes ownership to the earliest remaining member when the owner leaves", async () => {
+  /**
+   * V8 / 2f §5. The owner is the group's only administrator in the default
+   * fixture, so leaving without naming a successor would leave nobody who can
+   * edit the group, remove anyone or appoint a replacement.
+   */
+  it("refuses the last admin's departure until a successor is named", async () => {
+    const dependencies = buildDependencies({ loadConversation: async () => buildGroup() });
+
+    await assert.rejects(
+      () => leaveGroupConversation("user-1", "group-1", dependencies),
+      (error: { code?: string; status?: number }) => {
+        assert.equal(error.code, "OWNER_TRANSFER_REQUIRED");
+        assert.equal(error.status, 409);
+        return true;
+      },
+    );
+  });
+
+  it("hands the group to the named successor", async () => {
     let written: { nextOwnerId: string | null } | null = null;
     const dependencies = buildDependencies({
       loadConversation: async () => buildGroup(),
@@ -568,9 +813,91 @@ describe("leaveGroupConversation", () => {
       },
     });
 
+    await leaveGroupConversation("user-1", "group-1", dependencies, {
+      transferOwnershipTo: "user-3",
+    });
+
+    assert.deepEqual(written, { nextOwnerId: "user-3" });
+  });
+
+  it("refuses a successor who is not in the group", async () => {
+    const dependencies = buildDependencies({ loadConversation: async () => buildGroup() });
+
+    await assert.rejects(
+      () =>
+        leaveGroupConversation("user-1", "group-1", dependencies, {
+          transferOwnershipTo: "user-9",
+        }),
+      (error: { code?: string; status?: number }) => {
+        assert.equal(error.code, "NOT_FOUND");
+        assert.equal(error.status, 404);
+        return true;
+      },
+    );
+  });
+
+  it("refuses a successor who is the departing member", async () => {
+    const dependencies = buildDependencies({ loadConversation: async () => buildGroup() });
+
+    await assert.rejects(
+      () =>
+        leaveGroupConversation("user-1", "group-1", dependencies, {
+          transferOwnershipTo: "user-1",
+        }),
+      (error: { code?: string; status?: number }) => {
+        assert.equal(error.code, "INVALID_OWNER_TRANSFER");
+        assert.equal(error.status, 400);
+        return true;
+      },
+    );
+  });
+
+  /**
+   * With another admin standing there is nothing to ask: the group keeps an
+   * administrator either way, so ownership moves silently and the prompt would
+   * only be a click in the way.
+   */
+  it("passes ownership to a remaining admin without asking", async () => {
+    let written: { nextOwnerId: string | null } | null = null;
+    const dependencies = buildDependencies({
+      loadConversation: async () =>
+        buildGroup({
+          participants: [
+            member("user-1", 1, { role: "OWNER" }),
+            member("user-2", 2),
+            member("user-3", 3, { role: "ADMIN" }),
+          ],
+        }),
+      writeRemovedMember: async (input) => {
+        written = { nextOwnerId: input.nextOwnerId };
+      },
+    });
+
     await leaveGroupConversation("user-1", "group-1", dependencies);
 
-    assert.deepEqual(written, { nextOwnerId: "user-2" });
+    // user-2 joined earlier, but user-3 is already an admin.
+    assert.deepEqual(written, { nextOwnerId: "user-3" });
+  });
+
+  it("lets a plain admin leave while the owner is still there", async () => {
+    let written: { nextOwnerId: string | null } | null = null;
+    const dependencies = buildDependencies({
+      loadConversation: async () =>
+        buildGroup({
+          participants: [
+            member("user-1", 1, { role: "OWNER" }),
+            member("user-2", 2, { role: "ADMIN" }),
+            member("user-3", 3),
+          ],
+        }),
+      writeRemovedMember: async (input) => {
+        written = { nextOwnerId: input.nextOwnerId };
+      },
+    });
+
+    await leaveGroupConversation("user-2", "group-1", dependencies);
+
+    assert.deepEqual(written, { nextOwnerId: null });
   });
 
   it("leaves ownership alone when a non-owner leaves", async () => {
@@ -596,7 +923,7 @@ describe("leaveGroupConversation", () => {
       },
       loadConversation: async () =>
         buildGroup({
-          participants: [{ joinedAt: new Date("2026-08-01T00:00:00.000Z"), userId: "user-1" }],
+          participants: [member("user-1", 1, { role: "OWNER" })],
         }),
       writeRemovedMember: async () => {
         removeWrites += 1;
@@ -730,16 +1057,37 @@ describe("updateGroupConversation", () => {
     });
   });
 
-  it("refuses a non-owner", async () => {
+  /**
+   * K4. The rule moved from ownership to `permEditInfo`, which a fresh group
+   * leaves on "Yöneticiler" (2f §3) — so the default answer for a plain member
+   * is unchanged, only the code that says so.
+   */
+  it("refuses a member while editInfo is restricted to admins", async () => {
     const dependencies = buildDependencies({ loadConversation: async () => buildGroup() });
 
     await assert.rejects(
       () => updateGroupConversation("user-2", "group-1", { name: "Yeni" }, dependencies),
-      (error: { code?: string }) => {
-        assert.equal(error.code, "NOT_GROUP_OWNER");
+      (error: { code?: string; status?: number }) => {
+        assert.equal(error.code, "FORBIDDEN");
+        assert.equal(error.status, 403);
         return true;
       },
     );
+  });
+
+  it("lets a member rename the group once editInfo is open to everyone", async () => {
+    let writes = 0;
+    const dependencies = buildDependencies({
+      loadConversation: async () => buildGroup({ permEditInfo: "ALL" }),
+      writeGroupMetadata: async () => {
+        writes += 1;
+        return buildGroup();
+      },
+    });
+
+    await updateGroupConversation("user-2", "group-1", { name: "Yeni" }, dependencies);
+
+    assert.equal(writes, 1);
   });
 
   it("does nothing when the patch is empty", async () => {
@@ -831,5 +1179,404 @@ describe("toGroupEligibilityMap", () => {
 
     assert.equal(map.has("user-9"), false);
     assert.equal(map.size, targets.length);
+  });
+});
+
+describe("updateGroupSettings", () => {
+  it("lets an admin change the four permissions and the history window", async () => {
+    let written: unknown = null;
+    const dependencies = buildDependencies({
+      loadConversation: async () => buildGroup(),
+      writeGroupSettings: async (input) => {
+        written = input.patch;
+        return buildGroup();
+      },
+    });
+
+    await updateGroupSettings(
+      "user-1",
+      "group-1",
+      { historyVisibility: "NONE", permSendMessage: "ADMINS" },
+      dependencies,
+    );
+
+    assert.deepEqual(written, { historyVisibility: "NONE", permSendMessage: "ADMINS" });
+  });
+
+  it("refuses a member while editInfo is restricted to admins", async () => {
+    const dependencies = buildDependencies({ loadConversation: async () => buildGroup() });
+
+    await assert.rejects(
+      () => updateGroupSettings("user-2", "group-1", { permSendMessage: "ADMINS" }, dependencies),
+      (error: { code?: string; status?: number }) => {
+        assert.equal(error.code, "FORBIDDEN");
+        assert.equal(error.status, 403);
+        return true;
+      },
+    );
+  });
+
+  it("lets a member through once the group opens editInfo to everyone", async () => {
+    let writes = 0;
+    const dependencies = buildDependencies({
+      loadConversation: async () => buildGroup({ permEditInfo: "ALL" }),
+      writeGroupSettings: async () => {
+        writes += 1;
+        return buildGroup();
+      },
+    });
+
+    await updateGroupSettings("user-2", "group-1", { description: "Yeni" }, dependencies);
+
+    assert.equal(writes, 1);
+  });
+
+  it("refuses a 1:1 conversation", async () => {
+    const dependencies = buildDependencies({
+      loadConversation: async () => buildGroup({ ownerId: null, type: "DM" }),
+    });
+
+    await assert.rejects(
+      () => updateGroupSettings("user-1", "dm-1", { permEditInfo: "ALL" }, dependencies),
+      (error: { code?: string; status?: number }) => {
+        assert.equal(error.code, "NOT_A_GROUP");
+        assert.equal(error.status, 400);
+        return true;
+      },
+    );
+  });
+
+  it("announces a disappearing-window change", async () => {
+    // K3 / C2. The one setting loud enough to leave a system row, because it
+    // changes what happens to everybody's future messages.
+    const written: Array<{ announceDisappearing?: string | undefined }> = [];
+    const dependencies = buildDependencies({
+      loadConversation: async () => buildGroup({ disappearingAfter: "OFF" }),
+      writeGroupSettings: async (input) => {
+        written.push(input);
+        return buildGroup();
+      },
+    });
+
+    await updateGroupSettings("user-1", "group-1", { disappearingAfter: "D7" }, dependencies);
+
+    assert.equal(written[0]?.announceDisappearing, "D7");
+  });
+
+  it("stays silent when the window is re-saved unchanged", async () => {
+    // Opening the settings screen and pressing save must not post a row saying
+    // nothing happened.
+    const written: Array<{ announceDisappearing?: string | undefined }> = [];
+    const dependencies = buildDependencies({
+      loadConversation: async () => buildGroup({ disappearingAfter: "D7" }),
+      writeGroupSettings: async (input) => {
+        written.push(input);
+        return buildGroup();
+      },
+    });
+
+    await updateGroupSettings("user-1", "group-1", { disappearingAfter: "D7" }, dependencies);
+
+    assert.equal(written[0]?.announceDisappearing, undefined);
+  });
+
+  it("stays silent for every other setting", async () => {
+    const written: Array<{ announceDisappearing?: string | undefined }> = [];
+    const dependencies = buildDependencies({
+      loadConversation: async () => buildGroup(),
+      writeGroupSettings: async (input) => {
+        written.push(input);
+        return buildGroup();
+      },
+    });
+
+    await updateGroupSettings("user-1", "group-1", { permSendMessage: "ADMINS" }, dependencies);
+
+    assert.equal(written[0]?.announceDisappearing, undefined);
+  });
+
+  it("refuses a member who tries to change the window while editInfo is locked", async () => {
+    const dependencies = buildDependencies({ loadConversation: async () => buildGroup() });
+
+    await assert.rejects(
+      () => updateGroupSettings("user-2", "group-1", { disappearingAfter: "H24" }, dependencies),
+      (error: { code?: string; status?: number }) => {
+        assert.equal(error.status, 403);
+        return true;
+      },
+    );
+  });
+});
+
+describe("updateMemberRole", () => {
+  it("lets the owner promote a member to admin", async () => {
+    let written: unknown = null;
+    const dependencies = buildDependencies({
+      loadConversation: async () => buildGroup(),
+      writeMemberRole: async (input) => {
+        written = input;
+        return buildGroup();
+      },
+    });
+
+    await updateMemberRole("user-1", "group-1", "user-2", { role: "ADMIN" }, dependencies);
+
+    assert.deepEqual(written, {
+      conversationId: "group-1",
+      nextOwnerId: null,
+      previousOwnerId: null,
+      role: "ADMIN",
+      targetUserId: "user-2",
+    });
+  });
+
+  /**
+   * The handover is one write set: the target becomes OWNER, the old owner drops
+   * to ADMIN and `ownerId` follows. Split across requests, a crash in the middle
+   * leaves the group with two owners or none.
+   */
+  it("moves ownership and demotes the previous owner in the same write", async () => {
+    let written: unknown = null;
+    const dependencies = buildDependencies({
+      loadConversation: async () => buildGroup(),
+      writeMemberRole: async (input) => {
+        written = input;
+        return buildGroup();
+      },
+    });
+
+    await updateMemberRole(
+      "user-1",
+      "group-1",
+      "user-2",
+      { transferOwnership: true },
+      dependencies,
+    );
+
+    assert.deepEqual(written, {
+      conversationId: "group-1",
+      nextOwnerId: "user-2",
+      previousOwnerId: "user-1",
+      role: "OWNER",
+      targetUserId: "user-2",
+    });
+  });
+
+  it("refuses an admin — appointing admins is the owner's alone", async () => {
+    const dependencies = buildDependencies({
+      loadConversation: async () =>
+        buildGroup({
+          participants: [
+            member("user-1", 1, { role: "OWNER" }),
+            member("user-2", 2, { role: "ADMIN" }),
+            member("user-3", 3),
+          ],
+        }),
+    });
+
+    await assert.rejects(
+      () => updateMemberRole("user-2", "group-1", "user-3", { role: "ADMIN" }, dependencies),
+      (error: { code?: string; status?: number }) => {
+        assert.equal(error.code, "NOT_GROUP_OWNER");
+        assert.equal(error.status, 403);
+        return true;
+      },
+    );
+  });
+
+  it("refuses a role change aimed at the caller", async () => {
+    const dependencies = buildDependencies({ loadConversation: async () => buildGroup() });
+
+    await assert.rejects(
+      () => updateMemberRole("user-1", "group-1", "user-1", { role: "MEMBER" }, dependencies),
+      (error: { code?: string; status?: number }) => {
+        assert.equal(error.code, "INVALID_ROLE_CHANGE");
+        assert.equal(error.status, 400);
+        return true;
+      },
+    );
+  });
+
+  it("refuses a target who is not in the group", async () => {
+    const dependencies = buildDependencies({ loadConversation: async () => buildGroup() });
+
+    await assert.rejects(
+      () => updateMemberRole("user-1", "group-1", "user-9", { role: "ADMIN" }, dependencies),
+      (error: { code?: string; status?: number }) => {
+        assert.equal(error.code, "NOT_FOUND");
+        assert.equal(error.status, 404);
+        return true;
+      },
+    );
+  });
+});
+
+describe("setPinnedMessage", () => {
+  it("pins a message the admin is allowed to pin", async () => {
+    let written: unknown = null;
+    const dependencies = buildDependencies({
+      loadConversation: async () => buildGroup(),
+      writePinnedMessage: async (input) => {
+        written = input;
+        return buildGroup();
+      },
+    });
+
+    await setPinnedMessage("user-1", "group-1", "message-1", dependencies);
+
+    assert.deepEqual(written, {
+      actorId: "user-1",
+      conversationId: "group-1",
+      messageId: "message-1",
+    });
+  });
+
+  it("refuses a member while pinning is restricted to admins", async () => {
+    const dependencies = buildDependencies({ loadConversation: async () => buildGroup() });
+
+    await assert.rejects(
+      () => setPinnedMessage("user-2", "group-1", "message-1", dependencies),
+      (error: { code?: string; status?: number }) => {
+        assert.equal(error.code, "FORBIDDEN");
+        assert.equal(error.status, 403);
+        return true;
+      },
+    );
+  });
+
+  it("refuses a message that belongs to another conversation", async () => {
+    // The foreign key alone would accept it, and the pinned strip would then
+    // quote content the members are not allowed to read.
+    const dependencies = buildDependencies({
+      loadConversation: async () => buildGroup(),
+      loadPinnableMessage: async () => null,
+    });
+
+    await assert.rejects(
+      () => setPinnedMessage("user-1", "group-1", "message-elsewhere", dependencies),
+      (error: { code?: string; status?: number }) => {
+        assert.equal(error.code, "NOT_FOUND");
+        assert.equal(error.status, 404);
+        return true;
+      },
+    );
+  });
+
+  it("unpins without looking a message up", async () => {
+    let lookups = 0;
+    let written: unknown = null;
+    const dependencies = buildDependencies({
+      loadConversation: async () => buildGroup(),
+      loadPinnableMessage: async () => {
+        lookups += 1;
+        return null;
+      },
+      writePinnedMessage: async (input) => {
+        written = input;
+        return buildGroup();
+      },
+    });
+
+    await setPinnedMessage("user-1", "group-1", null, dependencies);
+
+    assert.equal(lookups, 0);
+    assert.deepEqual(written, { actorId: "user-1", conversationId: "group-1", messageId: null });
+  });
+});
+
+describe("setNotifyLevel", () => {
+  /**
+   * §4.2's invariant. `muted` is a derived mirror, so the two columns move in one
+   * statement — code that writes them separately is rejected in review.
+   */
+  it("writes notifyLevel and its muted mirror in a single update", async () => {
+    const { dependencies, writes } = participantDependencies();
+
+    await setNotifyLevel("user-1", "group-1", "NONE", dependencies);
+
+    assert.equal(writes.length, 1);
+    assert.deepEqual(writes[0], {
+      conversationId: "group-1",
+      data: { muted: true, notifyLevel: "NONE" },
+      userId: "user-1",
+    });
+  });
+
+  it("clears muted for every tier that still notifies", async () => {
+    for (const level of ["ALL", "MENTIONS"] as const) {
+      const { dependencies, writes } = participantDependencies();
+
+      await setNotifyLevel("user-1", "group-1", level, dependencies);
+
+      assert.deepEqual(writes[0]?.data, { muted: false, notifyLevel: level });
+    }
+  });
+
+  it("answers 403 when the caller is not a participant", async () => {
+    const { dependencies } = participantDependencies(0);
+
+    await assert.rejects(
+      () => setNotifyLevel("stranger", "group-1", "NONE", dependencies),
+      (error: { code?: string; status?: number }) => {
+        assert.equal(error.code, "FORBIDDEN");
+        assert.equal(error.status, 403);
+        return true;
+      },
+    );
+  });
+});
+
+describe("setConversationPin", () => {
+  it("stamps the pin with the given moment", async () => {
+    const { dependencies, writes } = participantDependencies();
+    const now = new Date("2026-08-11T09:00:00.000Z");
+
+    const result = await setConversationPin("user-1", "dm-1", true, dependencies, now);
+
+    assert.deepEqual(writes[0]?.data, { pinnedAt: now });
+    assert.equal(result.pinnedAt, "2026-08-11T09:00:00.000Z");
+  });
+
+  it("clears the pin", async () => {
+    const { dependencies, writes } = participantDependencies();
+
+    const result = await setConversationPin("user-1", "dm-1", false, dependencies);
+
+    assert.deepEqual(writes[0]?.data, { pinnedAt: null });
+    assert.equal(result.pinnedAt, null);
+  });
+
+  it("answers 403 when the caller is not a participant", async () => {
+    const { dependencies } = participantDependencies(0);
+
+    await assert.rejects(
+      () => setConversationPin("stranger", "dm-1", true, dependencies),
+      (error: { status?: number }) => {
+        assert.equal(error.status, 403);
+        return true;
+      },
+    );
+  });
+});
+
+describe("dismissPinnedStrip", () => {
+  it("records which pin was dismissed rather than a boolean", async () => {
+    const { dependencies, writes } = participantDependencies();
+
+    await dismissPinnedStrip("user-1", "group-1", "message-1", dependencies);
+
+    assert.deepEqual(writes[0]?.data, { pinnedStripDismissedId: "message-1" });
+  });
+
+  it("answers 403 when the caller is not a participant", async () => {
+    const { dependencies } = participantDependencies(0);
+
+    await assert.rejects(
+      () => dismissPinnedStrip("stranger", "group-1", "message-1", dependencies),
+      (error: { status?: number }) => {
+        assert.equal(error.status, 403);
+        return true;
+      },
+    );
   });
 });

@@ -41,12 +41,15 @@ import {
 type Conversation = MobileBootstrapPayload["home"]["directMessages"]["recent"][number];
 
 const conversation: Conversation = {
+  avatarPair: [],
   iconUrl: null,
   id: "conversation-1",
   lastMessageAt: "2026-06-30T09:00:00.000Z",
   mentionCount: 0,
   muted: true,
   name: null,
+  notifyLevel: "NONE",
+  overflowCount: 0,
   participantCount: 3,
   participants: [
     {
@@ -74,6 +77,7 @@ const conversation: Conversation = {
       username: "carol",
     },
   ],
+  pinnedAt: null,
   type: "GROUP_DM",
   unreadCount: 2,
 };

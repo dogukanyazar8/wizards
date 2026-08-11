@@ -350,6 +350,7 @@ function makeDMConversations(
       {
         conversations: [
           {
+            avatarPair: [],
             iconUrl: null,
             id: "dm-1",
             lastMessage: {
@@ -369,8 +370,11 @@ function makeDMConversations(
             mentionCount: 0,
             muted: false,
             name: null,
+            notifyLevel: "ALL" as const,
+            overflowCount: 0,
             participantCount: 2,
             participants: [],
+            pinnedAt: null,
             type: "DM" as const,
             unreadCount: 0,
           },

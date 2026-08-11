@@ -184,15 +184,38 @@ describe("buildServerPublicProfile", () => {
     assert.equal(profile.mutualFriends[0]?.displayName, "Ada");
   });
 
-  it("prefers the vanity code over the raw invite code in the address", () => {
-    const plain = buildServerPublicProfile(buildSource() as never, EMPTY_VIEWER as never);
+  /**
+   * The handoff's `whispr.gg` was a mock: production is `whispr.team` and UAT is
+   * a Railway host. The address now follows the deployment's own origin, so the
+   * environment is an input rather than a constant baked into the build.
+   */
+  it("builds the address from the deployment origin and prefers the vanity code", () => {
+    const env = { NEXTAUTH_URL: "https://wizardsweb-uat.up.railway.app" };
+    const plain = buildServerPublicProfile(buildSource() as never, EMPTY_VIEWER as never, env);
     const vanity = buildServerPublicProfile(
       buildSource({ vanityUrlCode: "mobile-test" }) as never,
       EMPTY_VIEWER as never,
+      env,
     );
 
-    assert.equal(plain.inviteAddress, "whispr.gg/abcd1234");
-    assert.equal(vanity.inviteAddress, "whispr.gg/mobile-test");
+    assert.equal(plain.inviteAddress, "wizardsweb-uat.up.railway.app/invite/abcd1234");
+    assert.equal(vanity.inviteAddress, "wizardsweb-uat.up.railway.app/invite/mobile-test");
+  });
+
+  it("prints a production host without a scheme or a www prefix", () => {
+    const profile = buildServerPublicProfile(
+      buildSource({ vanityUrlCode: "mobile-test" }) as never,
+      EMPTY_VIEWER as never,
+      { APP_URL: "https://www.whispr.team/" },
+    );
+
+    assert.equal(profile.inviteAddress, "whispr.team/invite/mobile-test");
+  });
+
+  it("hides the address rather than printing a broken link when no origin is configured", () => {
+    const profile = buildServerPublicProfile(buildSource() as never, EMPTY_VIEWER as never, {});
+
+    assert.equal(profile.inviteAddress, null);
   });
 
   it("marks a channel private from what @everyone can see, not from the viewer", () => {

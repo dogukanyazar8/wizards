@@ -10,6 +10,9 @@ export type GroupSystemMessageLabels = {
   readonly actorSelf: string;
   readonly added: string;
   readonly created: string;
+  /** Faz 2 §C2. `{value}` is one of `disappearingWindows`, not a raw enum. */
+  readonly disappearingChanged: string;
+  readonly disappearingWindows: Readonly<Record<string, string>>;
   readonly iconChanged: string;
   readonly left: string;
   readonly nameChanged: string;
@@ -33,7 +36,27 @@ function selectTemplate(
       return labels.iconChanged;
     case "NAME_CHANGED":
       return labels.nameChanged;
+    case "DISAPPEARING_CHANGED":
+      return labels.disappearingChanged;
   }
+}
+
+/**
+ * Faz 2 §C2. The server stores the window enum, never prose — so the reader
+ * turns `H24` into "24 saat" here, the same way they turn the template into a
+ * sentence. An unknown value falls through unchanged rather than blanking the
+ * row, which is what a client older than a future window would do.
+ */
+function resolveSystemValue(
+  systemType: DMSystemMessageTypeValue,
+  systemValue: string | null,
+  labels: GroupSystemMessageLabels,
+): string {
+  if (systemType !== "DISAPPEARING_CHANGED" || !systemValue) {
+    return systemValue ?? "";
+  }
+
+  return labels.disappearingWindows[systemValue] ?? systemValue;
 }
 
 export function formatGroupSystemMessage(input: {
@@ -53,7 +76,7 @@ export function formatGroupSystemMessage(input: {
   return selectTemplate(input.systemType, input.labels)
     .replace("{actor}", input.isActorSelf ? input.labels.actorSelf : input.actorName)
     .replace("{targets}", input.targetNames.join(", "))
-    .replace("{value}", input.systemValue ?? "");
+    .replace("{value}", resolveSystemValue(input.systemType, input.systemValue, input.labels));
 }
 
 export type GroupSystemMessageParticipant = {
@@ -69,11 +92,16 @@ export type GroupSystemMessageSource = {
   readonly userId: string;
 };
 
-/** The seven strings the sentence is assembled from, pulled off the active copy. */
+/** The strings the sentence is assembled from, pulled off the active copy. */
 export function toGroupSystemMessageLabels(source: {
+  readonly groupDisappearing24h: string;
+  readonly groupDisappearing7d: string;
+  readonly groupDisappearing90d: string;
+  readonly groupDisappearingOff: string;
   readonly groupSystemActorSelf: string;
   readonly groupSystemAdded: string;
   readonly groupSystemCreated: string;
+  readonly groupSystemDisappearingChanged: string;
   readonly groupSystemIconChanged: string;
   readonly groupSystemLeft: string;
   readonly groupSystemNameChanged: string;
@@ -83,6 +111,13 @@ export function toGroupSystemMessageLabels(source: {
     actorSelf: source.groupSystemActorSelf,
     added: source.groupSystemAdded,
     created: source.groupSystemCreated,
+    disappearingChanged: source.groupSystemDisappearingChanged,
+    disappearingWindows: {
+      D7: source.groupDisappearing7d,
+      D90: source.groupDisappearing90d,
+      H24: source.groupDisappearing24h,
+      OFF: source.groupDisappearingOff,
+    },
     iconChanged: source.groupSystemIconChanged,
     left: source.groupSystemLeft,
     nameChanged: source.groupSystemNameChanged,

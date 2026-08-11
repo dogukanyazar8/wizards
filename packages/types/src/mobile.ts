@@ -2,6 +2,14 @@ import { z } from "zod";
 import { DMSystemMessageTypeSchema } from "./dm-system-message";
 import { BadgeIdSchema } from "./badges";
 import {
+  DMNotifyLevelSchema,
+  DMParticipantRoleSchema,
+  GroupAvatarTileSchema,
+  GroupDisappearingWindowSchema,
+  GroupHistoryVisibilitySchema,
+  GroupPermissionsSchema,
+} from "./group-dm-settings";
+import {
   ChatMessageSchema,
   MESSAGE_CONTENT_DEFAULT_LIMIT,
   MESSAGE_CONTENT_HARD_LIMIT,
@@ -503,7 +511,7 @@ export const MobileBootstrapServerSummarySchema = z.object({
   iconUrl: z.string().url().nullable(),
   id: z.string().min(1),
   /**
-   * `whispr.gg/<vanity ?? invite>` — the same string the profile read model
+   * `<origin host>/invite/<vanity ?? invite>` — the same string the profile read model
    * builds, so 6c's identity row and 6d cannot disagree about a server's
    * address. It rides the summary rather than being fetched on menu open: the
    * profile read costs 5-7 queries and 6c needs one line of text from it.
@@ -543,6 +551,15 @@ export const MobileBootstrapDMParticipantSchema = z.object({
 });
 
 export const MobileBootstrapDMConversationSummarySchema = z.object({
+  /**
+   * Faz 3 §B3/§B7. V7's crossed pair, resolved server-side — the row never walks
+   * `participants` to rebuild it, and `participants` is capped at 4 anyway so a
+   * client-side derivation would be wrong for a 6-person group.
+   *
+   * Defaulted rather than required: the same schema carries 1:1 rows, and the
+   * bootstrap payload of an older server has to keep parsing.
+   */
+  avatarPair: z.array(GroupAvatarTileSchema).max(2).default([]),
   iconUrl: z.string().url().nullable(),
   id: z.string().min(1),
   lastMessageAt: z.string().datetime(),
@@ -550,8 +567,17 @@ export const MobileBootstrapDMConversationSummarySchema = z.object({
   mentionCount: z.number().int().nonnegative().default(0),
   muted: z.boolean(),
   name: z.string().min(1).max(120).nullable(),
+  /**
+   * 2f §2. The authority behind the row's muted look; `muted` is its derived
+   * mirror (§4.2) and stays because 1a/1b already read it.
+   */
+  notifyLevel: DMNotifyLevelSchema.default("ALL"),
+  /** Members `avatarPair` does not draw. */
+  overflowCount: z.number().int().nonnegative().default(0),
   participantCount: z.number().int().nonnegative(),
   participants: z.array(MobileBootstrapDMParticipantSchema).max(4),
+  /** V3 / 2a §2. The viewer's own pin; valid on a 1:1 row too. */
+  pinnedAt: z.string().datetime().nullable().default(null),
   type: z.enum(["DM", "GROUP_DM"]),
   unreadCount: z.number().int().nonnegative(),
 });
@@ -752,6 +778,65 @@ export const MobileDMCallSignalEventSchema = z.object({
 
 export const MobileDMCallAcceptedEventSchema = MobileDMCallSignalEventSchema.extend({
   video: z.boolean().default(false),
+});
+
+/**
+ * Grup sohbetleri 2a–2f, Faz 3 §B7. The six group events the mobile bridge
+ * patches with. Each one mirrors exactly what `group-realtime.ts` emits — no
+ * more, so an event can never seed a field the server did not send.
+ *
+ * They are patch-only by design: none of them schedules a refetch, because
+ * re-reading a 32-member group on every role change is the cost §B7 removes.
+ */
+export const MobileDMGroupSettingsEventSchema = z.object({
+  avatarColor: z.string().max(32).nullable(),
+  conversationId: z.string().min(1).max(128),
+  description: z.string().max(240).nullable(),
+  disappearingAfter: GroupDisappearingWindowSchema,
+  historyVisibility: GroupHistoryVisibilitySchema,
+  permissions: GroupPermissionsSchema,
+});
+
+export const MobileDMGroupRoleEventSchema = z.object({
+  conversationId: z.string().min(1).max(128),
+  ownerId: z.string().min(1).max(128).nullable(),
+  role: DMParticipantRoleSchema,
+  userId: z.string().min(1).max(128),
+});
+
+/** `pinnedMessage: null` is an unpin. */
+export const MobileDMGroupPinEventSchema = z.object({
+  conversationId: z.string().min(1).max(128),
+  pinnedMessage: z
+    .object({
+      authorName: z.string().max(120),
+      dismissed: z.boolean(),
+      excerpt: z.string().max(240),
+      id: z.string().min(1).max(128),
+    })
+    .nullable(),
+});
+
+/** Carries the switch only; the code is fetched by the sheet that shows it. */
+export const MobileDMGroupInviteEventSchema = z.object({
+  conversationId: z.string().min(1).max(128),
+  enabled: z.boolean(),
+});
+
+export const MobileDMConversationNotifyEventSchema = z.object({
+  conversationId: z.string().min(1).max(128),
+  notifyLevel: DMNotifyLevelSchema,
+});
+
+export const MobileDMConversationPinEventSchema = z.object({
+  conversationId: z.string().min(1).max(128),
+  pinnedAt: z.string().datetime().nullable(),
+});
+
+/** K3. The rows are already gone server-side; the stream just drops them. */
+export const MobileDMMessageExpiredEventSchema = z.object({
+  conversationId: z.string().min(1).max(128),
+  messageIds: z.array(z.string().min(1).max(128)).max(500),
 });
 
 export const MobileDMMessagesResponseSchema = z.object({

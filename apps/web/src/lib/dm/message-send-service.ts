@@ -1,10 +1,22 @@
-import type { DMMessagePayload, UploadedAttachmentInput } from "@wizards/types";
+import {
+  resolveDisappearingExpiry,
+  type DMMessagePayload,
+  type GroupDisappearingWindow,
+  type UploadedAttachmentInput,
+} from "@wizards/types";
 
 import { prisma } from "@wizards/db";
 
 import { ApiError } from "@/lib/api";
 import type { ClientAttribution } from "@/lib/analytics/client-attribution";
 import { assertUnblockedDMParticipants } from "@/lib/dm/blocking";
+import { getBlockedUserIdsForUser } from "@/lib/friends/helpers";
+import {
+  assertGroupPermission,
+  groupAuthSelect,
+  toGroupAuthContext,
+  type GroupAuthConversationRow,
+} from "@/lib/dm/group-permissions";
 import { dmNotificationUserSelect, getDMDisplayName, mapDMMessagePayload } from "@/lib/dm/service";
 import {
   createRealtimeDMMessage,
@@ -90,26 +102,102 @@ function parseDMMessageInputs(input: SendDirectMessageInput): {
   return { attachmentInputs, content };
 }
 
-export async function sendDirectMessage(input: SendDirectMessageInput) {
-  const { attachmentInputs, content } = parseDMMessageInputs(input);
-  const participants = await prisma.dMParticipant.findMany({
-    where: { conversationId: input.conversationId },
-    select: {
-      muted: true,
-      userId: true,
-      user: {
-        select: dmNotificationUserSelect,
+/**
+ * K3 / C2. The gate's projection plus the one column the disappearing stamp
+ * needs. It rides the same row, so the window costs no extra statement.
+ */
+export type SendAuthConversationRow = GroupAuthConversationRow & {
+  readonly disappearingAfter: GroupDisappearingWindow;
+};
+
+/**
+ * The two reads that run in front of the permission gate, plus the write itself.
+ * That is deliberate: it makes "no permission, no write" and "the right deadline
+ * reaches the row" both testable without a database, and stops short of turning
+ * the rest of the send path into a seam nobody asked for.
+ */
+export type SendDirectMessageDependencies = {
+  createMessage: typeof createRealtimeDMMessage;
+  /** The third read in front of the write; same rationale as the two below. */
+  findBlockedUserIds(userId: string, candidateUserIds: readonly string[]): Promise<Set<string>>;
+  loadAuthConversation(
+    conversationId: string,
+    userId: string,
+  ): Promise<SendAuthConversationRow | null>;
+  loadNotificationParticipants(conversationId: string): Promise<
+    Array<{
+      muted: boolean;
+      user: { displayName: string | null; id: string; locale: string; username: string };
+      userId: string;
+    }>
+  >;
+  /** The instant the message is considered sent; the deadline derives from it. */
+  now(): Date;
+};
+
+const sendDefaults: SendDirectMessageDependencies = {
+  createMessage: createRealtimeDMMessage,
+  findBlockedUserIds: getBlockedUserIdsForUser,
+  loadAuthConversation: (conversationId, userId) =>
+    prisma.dMConversation.findUnique({
+      where: { id: conversationId },
+      select: {
+        ...groupAuthSelect,
+        disappearingAfter: true,
+        participants: {
+          where: { userId },
+          select: {
+            historyFromAt: true,
+            joinedAt: true,
+            notifyLevel: true,
+            pinnedStripDismissedId: true,
+            role: true,
+            userId: true,
+          },
+        },
       },
-    },
-  });
+    }),
+  loadNotificationParticipants: (conversationId) =>
+    prisma.dMParticipant.findMany({
+      where: { conversationId },
+      select: {
+        muted: true,
+        userId: true,
+        user: {
+          select: dmNotificationUserSelect,
+        },
+      },
+    }),
+  now: () => new Date(),
+};
+
+export async function sendDirectMessage(
+  input: SendDirectMessageInput,
+  dependencies: SendDirectMessageDependencies = sendDefaults,
+) {
+  const { attachmentInputs, content } = parseDMMessageInputs(input);
+  // §4.12 / K4. The `sendMessage` permission is checked here rather than in the
+  // route, because sending has two front doors — the HTTP route and the socket
+  // handler — and a guard in one of them is a guard the other walks past.
+  //
+  // The roster read the notification fan-out already needed carries the columns
+  // the gate wants, so the check costs one extra statement for the conversation
+  // row and none per participant.
+  const [conversation, participants] = await Promise.all([
+    dependencies.loadAuthConversation(input.conversationId, input.userId),
+    dependencies.loadNotificationParticipants(input.conversationId),
+  ]);
 
   const sender = participants.find((participant) => participant.userId === input.userId);
-  if (!sender) {
+  if (!conversation || !sender) {
     throw new ApiError("You are not a participant in this DM", 403, "FORBIDDEN");
   }
 
+  assertGroupPermission(toGroupAuthContext(conversation, input.userId), "sendMessage");
+
   await assertUnblockedDMParticipants({
     currentUserId: input.userId,
+    findBlockedUserIdsForUser: dependencies.findBlockedUserIds,
     participants,
   });
 
@@ -131,12 +219,17 @@ export async function sendDirectMessage(input: SendDirectMessageInput) {
       displayName: sender.user.displayName,
     });
 
-  const { deduplicated, message: createdMessage } = await createRealtimeDMMessage({
+  const { deduplicated, message: createdMessage } = await dependencies.createMessage({
     attachmentInputs,
     ...(input.attribution ? { attribution: input.attribution } : {}),
     clientNonce: input.clientNonce ?? null,
     content,
     conversationId: input.conversationId,
+    // C2. The one place a disappearing deadline is stamped, because this is the
+    // one path that creates a user message. V6 lives in the argument: the window
+    // is read now and applied to this message only — changing it later cannot
+    // reach back and re-date anything already written.
+    expiresAt: resolveDisappearingExpiry(conversation.disappearingAfter, dependencies.now()),
     forwardOfMessageId: input.forwardOfMessageId ?? null,
     notification: { participants, senderName },
     participants,

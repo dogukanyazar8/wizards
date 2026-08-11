@@ -75,8 +75,10 @@ import {
   getMobileVoiceParticipantTotal,
   getMobileWorkspaceUnreadChannelCount,
   hasMobileWorkspaceLiveVoice,
+  shouldClaimMobileVoiceWatchTarget,
   sortMobileServersByStar,
 } from "../mobile-sunucular-model";
+import { useMobileActiveTargetStore } from "../../state/mobile-active-target-store";
 import { WorkspaceFilterStrip } from "./workspace-filter-strip";
 import { WorkspaceHeaderRow } from "./workspace-header-row";
 import { WorkspaceServerMenuSheet } from "./workspace-server-menu-sheet";
@@ -89,7 +91,13 @@ import {
   type MobileWorkspaceEditorState,
 } from "../../workspace/mobile-workspace-editor-sheets";
 import { getMobileNotificationsQueryOptions } from "../../notifications/mobile-notification-query";
-import { Button, DestructiveConfirmationSheet, EmptyState, Skeleton } from "../components/kit";
+import {
+  Button,
+  DestructiveConfirmationSheet,
+  EmptyState,
+  Skeleton,
+  useToast,
+} from "../components/kit";
 import { MobileLineIcon } from "../../design/mobile-line-icons";
 import { mobileNavigationRef } from "../../navigation/mobile-navigation-ref";
 import type { MobileChannelTypingUser } from "../../realtime/mobile-typing-state";
@@ -206,6 +214,7 @@ export function MobileWorkspaceBrowser({
   onToggleMessageReaction(input: { emoji: string; messageId: string; shouldReact: boolean }): void;
 }) {
   const styles = useHomeScreenStyles();
+  const { showToast } = useToast();
   const theme = useTheme();
   const { layout: workspaceLayout } = useMobileWorkspaceLayoutPreference();
   const { apiClient, getAccessToken } = useMobileAuth();
@@ -255,6 +264,22 @@ export function MobileWorkspaceBrowser({
     activeServerSummary?.notificationLevel ?? "all";
   const serverUserSettings = useMobileServerUserSettings(apiClient, activeServerId);
   const voiceStatesQuery = useMobileVoiceStatesQuery(apiClient, activeServerId ?? "");
+  /**
+   * Declaring the server here is what turns the voice read live. The realtime
+   * client emits `voice:states:watch` off the active-target store, and only the
+   * pushed `ChannelChat` route used to write one -- so a user who opened the
+   * app straight onto Sunucular, or who switched servers in the rail, received
+   * no `voice:state:update` at all and read a snapshot that never moved.
+   *
+   * The guard lives in `shouldClaimMobileVoiceWatchTarget`: a mounted channel
+   * or DM owns the target while it is open, and this list must not clear it.
+   */
+  const setRealtimeServerTarget = useMobileActiveTargetStore((state) => state.setServer);
+  useEffect(() => {
+    if (shouldClaimMobileVoiceWatchTarget(useMobileActiveTargetStore.getState(), activeServerId)) {
+      setRealtimeServerTarget(activeServerId);
+    }
+  }, [activeServerId, setRealtimeServerTarget]);
   // Memoized because the live-voice set below keys off it: `?? []` alone hands
   // out a new empty array on every render and defeats every memo under it.
   const voiceStates = useMemo(() => voiceStatesQuery.data?.states ?? [], [voiceStatesQuery.data]);
@@ -443,12 +468,40 @@ export function MobileWorkspaceBrowser({
 
     void Share.share({ message: activeServerInviteAddress }).catch(() => undefined);
   }, [activeServerInviteAddress]);
-  // 6c: the server refuses an owner's leave, so the row is hidden rather than
-  // shown and answered with a 400.
-  const canLeaveActiveServer =
-    activeServerId !== null &&
-    workspacePayload !== null &&
-    ownerUserId !== bootstrapState.payload.user.id;
+  /**
+   * 6c draws the leave row unconditionally, and the service refuses an owner's
+   * leave. So the owner keeps the row and gets the transfer notice; only a
+   * viewer with no membership context loses it, because there is nothing to
+   * leave yet.
+   */
+  const leaveAccess: "allowed" | "hidden" | "owner-must-transfer" =
+    activeServerId === null || workspacePayload === null
+      ? "hidden"
+      : ownerUserId === bootstrapState.payload.user.id
+        ? "owner-must-transfer"
+        : "allowed";
+  const handleOwnerTransferNotice = useCallback(() => {
+    setServerMenuOpen(false);
+    showToast({
+      action: {
+        label: copy.serverMenuOwnerTransferAction,
+        onPress: () => {
+          if (activeServerId && mobileNavigationRef.isReady()) {
+            mobileNavigationRef.navigate("ServerSettings", { serverId: activeServerId });
+          }
+        },
+      },
+      subtitle: copy.serverMenuOwnerTransferBody,
+      title: copy.serverMenuOwnerTransferTitle,
+      variant: "info",
+    });
+  }, [
+    activeServerId,
+    copy.serverMenuOwnerTransferAction,
+    copy.serverMenuOwnerTransferBody,
+    copy.serverMenuOwnerTransferTitle,
+    showToast,
+  ]);
   const handleLeaveServer = useCallback(async () => {
     if (!activeServerId) {
       return;
@@ -905,7 +958,8 @@ export function MobileWorkspaceBrowser({
         <WorkspaceServerMenuSheet
           canManageInvites={canManageInvites}
           canManageServer={canManageServer}
-          canLeaveServer={canLeaveActiveServer}
+          leaveAccess={leaveAccess}
+          onOwnerTransferNotice={handleOwnerTransferNotice}
           inviteAddress={activeServerInviteAddress}
           isMuted={isActiveServerMuted}
           isStarred={isActiveServerStarred}

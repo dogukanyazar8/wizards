@@ -9,6 +9,8 @@ import {
   redesignAuthDark,
   redesignAuthLight,
   redesignDark,
+  redesignGroupChatDark,
+  redesignGroupChatLight,
   redesignLight,
   redesignLightbox,
   redesignMessagingDark,
@@ -26,6 +28,7 @@ import {
   redesignWorkspaceDark,
   redesignWorkspaceLight,
 } from "./palette";
+import { mobileGroupChatMetrics } from "./mobile-group-chat-metrics";
 import {
   mobileLayoutMetrics,
   mobileMessagingMetrics,
@@ -546,6 +549,7 @@ export interface MobileServerProfileTokens {
     readonly paddingHorizontal: number;
     readonly paddingVertical: number;
     readonly radius: number;
+    readonly strongText: string;
     readonly text: string;
     readonly textFontSize: number;
     readonly textFontWeight: MobileServerFontWeight;
@@ -560,6 +564,8 @@ export interface MobileServerProfileTokens {
     readonly borderWidth: number;
     readonly fontSize: number;
     readonly fontWeight: MobileServerFontWeight;
+    /** `radius - borderWidth`: the frame's inner curve, which the avatar must match. */
+    readonly innerRadius: number;
     readonly marginTop: number;
     readonly radius: number;
     readonly size: number;
@@ -660,6 +666,80 @@ function createWorkspaceTokens(
     serverNameTitle: { ...mobileServerNameLayout.header, ...tokens.serverNameTitle },
   };
 }
+
+/**
+ * Grup sohbetleri 2a–2f §B1. Every colour leaf widened to `string`, so the two
+ * palette blocks are checked against one shape: a key the dark block forgets is
+ * a compile error at `createGroupChatTokens(redesignGroupChatDark)`, not a
+ * screen that renders a light colour on a dark background.
+ */
+type MobileGroupChatColors = {
+  readonly [Group in keyof typeof redesignGroupChatLight]: {
+    readonly [
+      Token in keyof (typeof redesignGroupChatLight)[Group]
+    ]: (typeof redesignGroupChatLight)[Group][Token] extends readonly string[]
+      ? readonly string[]
+      : string;
+  };
+};
+
+/**
+ * §B1's token group. Geometry comes from `mobileGroupChatMetrics` and colour
+ * from the theme's own block; the merge is per sub-group so a screen reads one
+ * object (`theme.groupChat.filterChip`) instead of pairing a size with a colour
+ * at every call site. C1: group screens read this and nothing else.
+ */
+function createGroupChatTokens(colors: MobileGroupChatColors) {
+  const metrics = mobileGroupChatMetrics;
+
+  return {
+    adminChip: { ...metrics.adminChip, ...colors.adminChip },
+    bottomBar: { ...metrics.bottomBar, ...colors.bottomBar },
+    chatHeader: { ...metrics.chatHeader, ...colors.chatHeader },
+    colorSwatch: { ...metrics.colorSwatch, ...colors.colorSwatch },
+    composer: { ...metrics.composer, ...colors.composer },
+    dangerRow: { ...metrics.dangerRow, ...colors.dangerRow },
+    dayDivider: { ...metrics.dayDivider, ...colors.dayDivider },
+    filterChip: { ...metrics.filterChip, ...colors.filterChip },
+    formField: { ...metrics.formField, ...colors.formField },
+    formHint: { ...metrics.formHint, ...colors.formHint },
+    formTextArea: { ...metrics.formTextArea, ...colors.formTextArea },
+    groupRow: { ...metrics.groupRow, ...colors.groupRow },
+    identityAvatar: { ...metrics.identityAvatar, ...colors.identityAvatar },
+    incomingBubble: { ...metrics.incomingBubble, ...colors.incomingBubble },
+    infoIdentity: { ...metrics.infoIdentity, ...colors.infoIdentity },
+    mediaTile: { ...metrics.mediaTile, ...colors.mediaTile },
+    memberRow: { ...metrics.memberRow, ...colors.memberRow },
+    memberStrip: { ...metrics.memberStrip, ...colors.memberStrip },
+    mentionPill: { ...metrics.mentionPill, ...colors.mentionPill },
+    outgoingBubble: { ...metrics.outgoingBubble, ...colors.outgoingBubble },
+    pickerBlocked: { ...metrics.pickerBlocked, ...colors.pickerBlocked },
+    pickerRow: { ...metrics.pickerRow, ...colors.pickerRow },
+    pickerSearch: { ...metrics.pickerSearch, ...colors.pickerSearch },
+    pinnedSection: { ...metrics.pinnedSection, ...colors.pinnedSection },
+    pinnedStrip: { ...metrics.pinnedStrip, ...colors.pinnedStrip },
+    quickAction: { ...metrics.quickAction, ...colors.quickAction },
+    radioRow: { ...metrics.radioRow, ...colors.radioRow },
+    reactionChip: { ...metrics.reactionChip, ...colors.reactionChip },
+    readStack: { ...metrics.readStack, ...colors.readStack },
+    replyQuote: { ...metrics.replyQuote, ...colors.replyQuote },
+    rowBadges: { ...metrics.rowBadges, ...colors.rowBadges },
+    rowMuted: { ...metrics.rowMuted, ...colors.rowMuted },
+    rowPreviewIcon: { ...metrics.rowPreviewIcon, ...colors.rowPreviewIcon },
+    rowTyping: { ...metrics.rowTyping, ...colors.rowTyping },
+    sectionLabel: { ...metrics.sectionLabel, ...colors.sectionLabel },
+    selectedChip: { ...metrics.selectedChip, ...colors.selectedChip },
+    settingsCard: { ...metrics.settingsCard, ...colors.settingsCard },
+    stepBar: { ...metrics.stepBar, ...colors.stepBar },
+    stepHeader: { ...metrics.stepHeader, ...colors.stepHeader },
+    surfaces: { ...metrics.surfaces, ...colors.surfaces },
+    systemCapsule: { ...metrics.systemCapsule, ...colors.systemCapsule },
+    toggle: { ...metrics.toggle, ...colors.toggle },
+    typingRow: { ...metrics.typingRow, ...colors.typingRow },
+  };
+}
+
+export type MobileGroupChatTokens = ReturnType<typeof createGroupChatTokens>;
 
 function createServerProfileTokens(
   tokens: typeof redesignServerProfileLight | typeof redesignServerProfileDark,
@@ -841,6 +921,18 @@ export interface MobileTheme {
     readonly workspaceServerCard: MobileThemeElevationStyle;
     /** 6c "⋯" sheet: `0 -12px 34px rgba(30,34,53,.18)`. */
     readonly workspaceSheet: MobileThemeElevationStyle;
+    /**
+     * Grup sohbetleri 2a–2f. Three lifts the messaging group has no match for;
+     * the bubbles, the typing capsule and the toggle thumb reuse
+     * `messageBubbleIn`/`messageBubbleOut`/`toggleThumb` rather than restating
+     * the same shadow under a group-shaped name.
+     */
+    /** HTML 204/266 "İleri"/"Grubu oluştur": `0 8px 18px rgba(79,70,229,.30)`. */
+    readonly groupChatPrimaryAction: MobileThemeElevationStyle;
+    /** HTML 360 composer action: `0 6px 14px rgba(79,70,229,.30)`. */
+    readonly groupChatComposerAction: MobileThemeElevationStyle;
+    /** HTML 229 2c camera button: `0 3px 8px rgba(30,34,53,.10)`. */
+    readonly groupChatCameraButton: MobileThemeElevationStyle;
   };
   readonly gradients: {
     readonly appBackground: readonly [string, string];
@@ -849,6 +941,13 @@ export interface MobileTheme {
     readonly primaryAction: readonly [string, string];
     readonly softSurface: readonly [string, string];
   };
+  /**
+   * Grup sohbetleri 2a–2f. The five group surfaces read this and only this
+   * (§B1 C1): the bubble tokens they share with a DM are re-exported inside it,
+   * so a screen never pairs `theme.groupChat` with `theme.messaging` and picks
+   * up the 1:1 rules by accident.
+   */
+  readonly groupChat: MobileGroupChatTokens;
   readonly id: MobileThemeId;
   readonly interactive: {
     readonly disabled: string;
@@ -1414,6 +1513,27 @@ export const lightTheme = deepFreeze({
       shadowOpacity: 0.16,
       shadowRadius: 40,
     },
+    groupChatPrimaryAction: {
+      elevation: 8,
+      shadowColor: redesignLight.primary,
+      shadowOffset: { height: 8, width: 0 },
+      shadowOpacity: 0.3,
+      shadowRadius: 18,
+    },
+    groupChatComposerAction: {
+      elevation: 6,
+      shadowColor: redesignLight.primary,
+      shadowOffset: { height: 6, width: 0 },
+      shadowOpacity: 0.3,
+      shadowRadius: 14,
+    },
+    groupChatCameraButton: {
+      elevation: 3,
+      shadowColor: redesignLight.inkSurface,
+      shadowOffset: { height: 3, width: 0 },
+      shadowOpacity: 0.1,
+      shadowRadius: 8,
+    },
   },
   gradients: {
     appBackground: [redesignLight.bg, redesignLight.lavender],
@@ -1425,6 +1545,7 @@ export const lightTheme = deepFreeze({
     primaryAction: [redesignLight.primary, redesignLight.primaryStrong],
     softSurface: [redesignLight.card, redesignLight.lavender],
   },
+  groupChat: createGroupChatTokens(redesignGroupChatLight),
   id: "light",
   interactive: {
     disabled: mobilePalette.overlay.disabledLight,
@@ -1739,6 +1860,27 @@ export const darkTheme = deepFreeze({
     workspaceFilterSegment: MESSAGING_FLAT_ELEVATION,
     workspaceServerCard: MESSAGING_FLAT_ELEVATION,
     workspaceSheet: MESSAGING_FLAT_ELEVATION,
+    /**
+     * §0.3 again: dark keeps the brand-tinted lifts and flattens the neutral
+     * one, exactly as the messaging group does — the camera button is a white
+     * card on light and a `#1B1E2C` card on dark, where a drop shadow reads as
+     * dirt rather than depth.
+     */
+    groupChatPrimaryAction: {
+      elevation: 8,
+      shadowColor: redesignDark.primaryWithWhiteText,
+      shadowOffset: { height: 8, width: 0 },
+      shadowOpacity: 0.3,
+      shadowRadius: 18,
+    },
+    groupChatComposerAction: {
+      elevation: 6,
+      shadowColor: redesignDark.primaryWithWhiteText,
+      shadowOffset: { height: 6, width: 0 },
+      shadowOpacity: 0.3,
+      shadowRadius: 14,
+    },
+    groupChatCameraButton: MESSAGING_FLAT_ELEVATION,
   },
   gradients: {
     appBackground: [redesignDark.bg, redesignDark.card],
@@ -1747,6 +1889,7 @@ export const darkTheme = deepFreeze({
     primaryAction: [redesignDark.primaryWithWhiteText, redesignDark.primaryWithWhiteText],
     softSurface: [redesignDark.card, redesignDark.selectedSurface],
   },
+  groupChat: createGroupChatTokens(redesignGroupChatDark),
   id: "dark",
   interactive: {
     disabled: mobilePalette.overlay.disabledDark,

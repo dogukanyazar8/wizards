@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, Share, Text, View } from "react-native";
 import Animated, {
   Extrapolation,
@@ -39,16 +39,22 @@ import { mobileQueryKeys } from "../../../query/mobile-query-keys";
 import { useMobileServerUserSettings } from "../../../query/use-mobile-server-user-settings";
 import { useMobileServerManagementMutations } from "../../../query/use-mobile-server-management-mutations";
 import { useMobileWorkspaceQuery } from "../../../query/mobile-workspace-query";
+import { useMobileVoiceStatesQuery } from "../../../query/mobile-voice-states-query";
+import { useMobileActiveTargetStore } from "../../../state/mobile-active-target-store";
 import { DestructiveConfirmationSheet, Skeleton, useToast } from "../../components/kit";
 import { AvatarMark } from "../../components/ui-atoms";
 import { MobileCachedImage } from "../../components/mobile-cached-image";
 import { useMobileLocaleRuntime } from "../../providers/mobile-locale-provider";
 import { useTheme, useThemedStyles } from "../../providers/mobile-theme-provider";
 import {
+  applyMobileLiveVoiceToProfile,
   formatMobileChannelActivityLabel,
   formatMobileEventDateBlock,
   formatMobileServerCreatedDate,
   getMobileProfileChannelPreview,
+  shouldClaimMobileVoiceWatchTarget,
+  shouldShowMobileDescriptionMore,
+  splitMobileStrongSegments,
   getMobileServerAccessLabel,
   getMobileServerNameLayout,
   getMobileServerProfileStats,
@@ -138,8 +144,9 @@ export function MobileServerProfileScreen({
   });
 
   const activeQuery = source.kind === "invite" ? inviteQuery : profileQuery;
-  const profile: ServerPublicProfile | undefined = activeQuery.data;
-  const serverId = profile?.serverId ?? (source.kind === "server" ? source.serverId : "");
+  /** The HTTP snapshot. `profile` below is this with live voice folded over it. */
+  const rawProfile: ServerPublicProfile | undefined = activeQuery.data;
+  const serverId = rawProfile?.serverId ?? (source.kind === "server" ? source.serverId : "");
 
   // 6c's menu needs one thing the profile read model does not carry: the invite
   // capability. The workspace payload is the established source for it and is
@@ -148,10 +155,53 @@ export function MobileServerProfileScreen({
   // admin list names the owner.
   const workspaceQuery = useMobileWorkspaceQuery(
     auth.apiClient,
-    profile?.joined === true ? serverId : "",
+    rawProfile?.joined === true ? serverId : "",
   );
   const capabilities = workspaceQuery.data?.detail.capabilities;
   const viewerId = auth.session?.user.id ?? null;
+
+  /**
+   * 6d's "Seste" stat and every voice row come from the profile snapshot, which
+   * stops moving the moment it is read. The socket already streams
+   * `voice:state:update` into this query, so the screen watches the same feed
+   * the Sunucular list does and folds it over the snapshot below -- no profile
+   * refetch per join and leave.
+   *
+   * A non-member is excluded on purpose: the voice-states route answers 403 for
+   * them, and the invite preview has no live figures to show anyway.
+   */
+  const canWatchVoice = rawProfile?.joined === true && serverId.length > 0;
+  const voiceStatesQuery = useMobileVoiceStatesQuery(auth.apiClient, canWatchVoice ? serverId : "");
+  const setRealtimeServerTarget = useMobileActiveTargetStore((state) => state.setServer);
+  useEffect(() => {
+    if (
+      canWatchVoice &&
+      shouldClaimMobileVoiceWatchTarget(useMobileActiveTargetStore.getState(), serverId)
+    ) {
+      setRealtimeServerTarget(serverId);
+    }
+  }, [canWatchVoice, serverId, setRealtimeServerTarget]);
+  /**
+   * `null` until the read answers: an empty map from a still-loading query would
+   * zero out counts the server did produce.
+   */
+  const liveVoiceByChannelId = useMemo(() => {
+    const states = voiceStatesQuery.data?.states;
+    if (!states) {
+      return null;
+    }
+
+    return new Map(states.map((state) => [state.channelId, state.participants]));
+  }, [voiceStatesQuery.data]);
+  /**
+   * One merge point: the stat card, the channel preview and 6e's grouped list
+   * all read this, so none of them can disagree about who is in a room.
+   */
+  const profile = useMemo(
+    () =>
+      rawProfile ? applyMobileLiveVoiceToProfile(rawProfile, liveVoiceByChannelId) : rawProfile,
+    [liveVoiceByChannelId, rawProfile],
+  );
 
   const serverUserSettings = useMobileServerUserSettings(auth.apiClient, serverId || null);
   const mutations = useMobileServerManagementMutations(auth.apiClient);
@@ -160,6 +210,23 @@ export function MobileServerProfileScreen({
   const [menuLayer, setMenuLayer] = useState<"menu" | "notifications">("menu");
   const [leaveOpen, setLeaveOpen] = useState(false);
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
+  /**
+   * How many lines the description actually needs, measured unclamped. `null`
+   * until the measuring pass reports, which is what keeps "Devamı" from
+   * flashing on a one-line description.
+   *
+   * `onTextLayout` on the *clamped* Text cannot answer this: Android reports
+   * every line of the underlying layout while iOS reports only the ones inside
+   * the limit, so the same description would be truncatable on one platform and
+   * not on the other.
+   */
+  const [descriptionLineCount, setDescriptionLineCount] = useState<number | null>(null);
+  const description = rawProfile?.description ?? "";
+  useEffect(() => {
+    // A different server (or an edited description) has to be measured again.
+    setDescriptionLineCount(null);
+    setDescriptionExpanded(false);
+  }, [description]);
   const [channelsExpanded, setChannelsExpanded] = useState(false);
   const [joining, setJoining] = useState(false);
   const [stickyVisible, setStickyVisible] = useState(false);
@@ -217,6 +284,26 @@ export function MobileServerProfileScreen({
     },
     [copy.inviteSheetCopyFailed, copy.toastInviteLinkCopiedTitle, showToast],
   );
+
+  const handleOwnerTransferNotice = useCallback(() => {
+    setMenuOpen(false);
+    showToast({
+      action: {
+        label: copy.serverMenuOwnerTransferAction,
+        onPress: () => onOpenSettings(serverId),
+      },
+      subtitle: copy.serverMenuOwnerTransferBody,
+      title: copy.serverMenuOwnerTransferTitle,
+      variant: "info",
+    });
+  }, [
+    copy.serverMenuOwnerTransferAction,
+    copy.serverMenuOwnerTransferBody,
+    copy.serverMenuOwnerTransferTitle,
+    onOpenSettings,
+    serverId,
+    showToast,
+  ]);
 
   const joinServer = useCallback(async () => {
     if (!profile || joining) {
@@ -361,11 +448,18 @@ export function MobileServerProfileScreen({
     voice: copy.serverProfileStatVoice,
     weekly: copy.serverProfileStatWeekly,
   };
-  // Faz 4 §A0.5: the service refuses an owner's leave, so the row is hidden
-  // rather than offered and answered with a 400. An unresolvable owner is
-  // treated the same way — a hidden row beats a failing one.
+  /**
+   * 6c draws the leave row for every member, so the owner keeps it and answers
+   * with the transfer notice instead of a request the service can only refuse.
+   * A non-member has nothing to leave; an owner the admin list could not name
+   * falls back to `allowed`, which is what the service adjudicates anyway.
+   */
   const ownerId = profile.admins.find((admin) => admin.role === "owner")?.id ?? null;
-  const canLeaveServer = profile.joined && ownerId !== null && ownerId !== viewerId;
+  const leaveAccess: "allowed" | "hidden" | "owner-must-transfer" = !profile.joined
+    ? "hidden"
+    : ownerId !== null && ownerId === viewerId
+      ? "owner-must-transfer"
+      : "allowed";
 
   return (
     <View style={styles.root} testID="mobile-server-profile-screen">
@@ -407,9 +501,10 @@ export function MobileServerProfileScreen({
           <View style={styles.identityRow}>
             <View style={styles.logoFrame}>
               <AvatarMark
-                avatarBorderRadius={theme.serverProfile.logo.radius}
+                avatarBorderRadius={theme.serverProfile.logo.innerRadius}
                 avatarBorderWidth={0}
                 dimension={theme.serverProfile.logo.size}
+                identityId={profile.serverId}
                 imageUrl={profile.iconUrl}
                 label={shortName}
                 size="large"
@@ -487,7 +582,31 @@ export function MobileServerProfileScreen({
               >
                 {profile.description}
               </Text>
-              {descriptionExpanded ? null : (
+              {/*
+                The same string, same style, same width, laid out without the
+                clamp so its true line count can be read once. Absolutely
+                positioned so it occupies no space, invisible, and out of the
+                accessibility tree — and unmounted the moment it has answered.
+              */}
+              {descriptionLineCount === null ? (
+                <Text
+                  accessibilityElementsHidden
+                  aria-hidden
+                  importantForAccessibility="no-hide-descendants"
+                  maxFontSizeMultiplier={2}
+                  onTextLayout={(event) => setDescriptionLineCount(event.nativeEvent.lines.length)}
+                  pointerEvents="none"
+                  style={[styles.description, styles.descriptionMeasure]}
+                  testID="mobile-server-profile-description-measure"
+                >
+                  {profile.description}
+                </Text>
+              ) : null}
+              {shouldShowMobileDescriptionMore({
+                expanded: descriptionExpanded,
+                lineCount: descriptionLineCount,
+                maxLines: theme.serverProfile.description.numberOfLines,
+              }) ? (
                 <Pressable
                   accessibilityLabel={copy.serverProfileMore}
                   accessibilityRole="button"
@@ -499,7 +618,7 @@ export function MobileServerProfileScreen({
                     {copy.serverProfileMore}
                   </Text>
                 </Pressable>
-              )}
+              ) : null}
             </>
           ) : null}
 
@@ -571,7 +690,16 @@ export function MobileServerProfileScreen({
                 ))}
               </View>
               <Text maxFontSizeMultiplier={2} style={styles.friendsText}>
-                {fill(copy.serverProfileFriends, { count: String(profile.mutualFriendCount) })}
+                {splitMobileStrongSegments(
+                  fill(copy.serverProfileFriends, { count: String(profile.mutualFriendCount) }),
+                ).map((segment, index) => (
+                  <Text
+                    key={`${index}-${segment.text}`}
+                    style={segment.strong ? styles.friendsTextStrong : undefined}
+                  >
+                    {segment.text}
+                  </Text>
+                ))}
               </Text>
               <MobileLineIcon
                 color={theme.workspace.menuRow.chevron}
@@ -862,7 +990,8 @@ export function MobileServerProfileScreen({
 
       {profile.joined ? (
         <WorkspaceServerMenuSheet
-          canLeaveServer={canLeaveServer}
+          leaveAccess={leaveAccess}
+          onOwnerTransferNotice={handleOwnerTransferNotice}
           canManageInvites={capabilities?.canManageInvites === true}
           canManageServer={profile.canManageServer}
           initialLayer={menuLayer}

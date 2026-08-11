@@ -9,6 +9,7 @@ import type {
 } from "@wizards/types";
 
 import { ApiError } from "@/lib/api";
+import { resolveAppOriginDisplayHost, type AppOriginEnv } from "@/lib/app-origin";
 import { getServerWeeklyMessageCount } from "@/lib/servers/server-weekly-message-count";
 import {
   getOnlineServerMemberCount,
@@ -181,14 +182,37 @@ export function toProfileMemberShortName(displayName: string): string | null {
 }
 
 /**
- * `whispr.gg/<vanityUrlCode>` when the server has claimed one, otherwise the
- * plain invite code. Pure so 6d's address line is assertable without a row.
+ * 6c's identity row and 6d's address line, e.g.
+ * `wizardsweb-uat.up.railway.app/invite/mobile-test`.
+ *
+ * The handoff draws `whispr.gg/<code>`, and that literal shipped as a constant
+ * — wrong in every environment, including production, whose domain is
+ * `whispr.team`. The host now comes from the deployment's own canonical origin
+ * (`resolveAppOrigin`), so UAT prints a UAT host without a second variable to
+ * keep in sync.
+ *
+ * The `/invite/` segment is deliberate: this string is copied to the clipboard
+ * and handed to the native share sheet, so it has to be a URL that resolves.
+ * `/invite/<code>` accepts both a server's permanent `inviteCode` (mirrored
+ * into a `ServerInvite` row at creation) and its `vanityUrlCode`
+ * (`joinWorkspaceServerByInvite` falls back to the newest public link).
+ *
+ * `null` when the origin is not configured; both surfaces already hide the
+ * address line and the share action rather than print a broken link.
  */
-export function buildServerInviteAddress(server: {
-  readonly inviteCode: string;
-  readonly vanityUrlCode: string | null;
-}): string {
-  return `whispr.gg/${server.vanityUrlCode ?? server.inviteCode}`;
+export function buildServerInviteAddress(
+  server: {
+    readonly inviteCode: string;
+    readonly vanityUrlCode: string | null;
+  },
+  env: AppOriginEnv = process.env,
+): string | null {
+  const host = resolveAppOriginDisplayHost(env);
+  if (host === null) {
+    return null;
+  }
+
+  return `${host}/invite/${server.vanityUrlCode ?? server.inviteCode}`;
 }
 
 /**
@@ -234,6 +258,8 @@ function resolveViewerSettings(
 export function buildServerPublicProfile(
   server: ServerPublicProfileSource,
   viewer: ServerPublicProfileViewer,
+  /** Only the invite address reads it; passed in so the builder stays assertable. */
+  env: AppOriginEnv = process.env,
 ): ServerPublicProfile {
   const membership = server.members[0] ?? null;
   const defaultRoles = server.roles.filter((role) => role.isDefault);
@@ -312,7 +338,7 @@ export function buildServerPublicProfile(
     description: server.description ?? "",
     discoverable: server.discoverable,
     iconUrl: server.iconUrl,
-    inviteAddress: buildServerInviteAddress(server),
+    inviteAddress: buildServerInviteAddress(server, env),
     isPublic: server.isPublic,
     joined: membership !== null,
     joinedAt: membership?.joinedAt.toISOString() ?? null,

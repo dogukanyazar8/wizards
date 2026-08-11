@@ -1,12 +1,18 @@
 import { z } from "zod";
 
+import {
+  GROUP_DM_DESCRIPTION_MAX_LENGTH,
+  GROUP_DM_NAME_MAX_LENGTH,
+  GroupAvatarColorSchema,
+  GroupHistoryVisibilitySchema,
+  GroupPermissionLevelSchema,
+} from "./group-dm-settings";
 import { DMConversationDTOSchema } from "./socket";
 
 /** Creator included. Instagram's ceiling; keeps avatar stacks and fan-out sane. */
 export const GROUP_DM_MAX_PARTICIPANTS = 32;
 /** Creator + 2. Creator + 1 is already a 1:1 DM. */
 export const GROUP_DM_MIN_PARTICIPANTS = 3;
-export const GROUP_DM_NAME_MAX_LENGTH = 100;
 
 const GroupMemberIdSchema = z.string().trim().min(1).max(128);
 
@@ -37,10 +43,28 @@ const GroupIconUrlSchema = z
 export { DMSystemMessageTypeSchema } from "./dm-system-message";
 export type { DMSystemMessageTypeValue } from "./dm-system-message";
 
+const GroupDescriptionSchema = z
+  .string()
+  .max(GROUP_DM_DESCRIPTION_MAX_LENGTH)
+  .transform((value) => {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  });
+
+/**
+ * 2c fills the identity step and the "KATILIM" card in one pass, so creation
+ * accepts what that screen collects: colour, description, the history window and
+ * the one permission the card exposes. The other three permissions keep their
+ * defaults and move to 2f.
+ */
 export const GroupDMCreateRequestSchema = z
   .object({
+    avatarColor: GroupAvatarColorSchema.optional(),
+    description: GroupDescriptionSchema.optional(),
+    historyVisibility: GroupHistoryVisibilitySchema.optional(),
     iconUrl: GroupIconUrlSchema.optional(),
     name: GroupNameSchema.optional(),
+    permAddMembers: GroupPermissionLevelSchema.optional(),
     // The creator is implicit, so the client sends one fewer than the floor
     // and one fewer than the ceiling.
     userIds: z

@@ -84,6 +84,13 @@ const SAFE_ROUTE_PREFIXES = [
   "/settings",
   "/server",
   "/invite",
+  /**
+   * K2's group invite link. Separate from `/invite` on purpose: that prefix is
+   * the server invite and is claimed earlier as a command intent, while `/g/`
+   * resolves to the `GroupInvitePreview` route. The match is exact-or-`/g/…`,
+   * so this cannot swallow a future `/games`.
+   */
+  "/g",
   "/user",
   /**
    * 2e/2f. Like `/admin`, this is a routing decision only: both screens are

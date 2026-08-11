@@ -31,7 +31,8 @@ function flatStyle(node: { props: { style?: unknown } }): ViewStyle {
 
 function menuProps(overrides: Record<string, unknown> = {}) {
   return {
-    canLeaveServer: true,
+    leaveAccess: "allowed" as const,
+    onOwnerTransferNotice: jest.fn(),
     canManageInvites: true,
     canManageServer: true,
     inviteAddress: "whispr.gg/mobile-test",
@@ -204,10 +205,25 @@ describe("6c list card", () => {
       1,
     );
 
-    const owner = await render(
-      <WorkspaceServerMenuSheet {...menuProps({ canLeaveServer: false })} />,
+    const hidden = await render(
+      <WorkspaceServerMenuSheet {...menuProps({ leaveAccess: "hidden" as const })} />,
     );
-    expect(owner.queryByTestId("mobile-server-leave-open-server-1")).toBeNull();
+    expect(hidden.queryByTestId("mobile-server-leave-open-server-1")).toBeNull();
+  });
+
+  /**
+   * 6c draws the row for the owner too. The service refuses an owner's leave,
+   * so the press reports the transfer notice instead of a confirmation — the
+   * request that could only answer 400 is never sent.
+   */
+  it("keeps the row for the owner but routes the press to the transfer notice", async () => {
+    const props = menuProps({ leaveAccess: "owner-must-transfer" as const });
+    const view = await render(<WorkspaceServerMenuSheet {...props} />);
+
+    await fireEvent.press(view.getByTestId("mobile-server-leave-open-server-1"));
+
+    expect(props.onOwnerTransferNotice).toHaveBeenCalledTimes(1);
+    expect(props.onLeave).not.toHaveBeenCalled();
   });
 });
 

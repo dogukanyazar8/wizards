@@ -1,4 +1,10 @@
-import type { DMConversationDTO, DMParticipantDTO } from "@wizards/types";
+import {
+  buildGroupNameFromMembers,
+  type DMConversationDTO,
+  type DMParticipantDTO,
+  type DMReadReceipt,
+  type GroupNameLocale,
+} from "@wizards/types";
 
 /**
  * Faz 6 §18.3 / §19.3. Everything the web surfaces need to *describe* a group
@@ -26,21 +32,29 @@ export function getParticipantDisplayName(participant: {
 /**
  * The named group wins; otherwise the title is the members' names, viewer
  * excluded — a title that led with "you" would read the same on every row.
+ *
+ * Faz 3 §B3: the join itself is `buildGroupNameFromMembers` in `@wizards/types`,
+ * shared with 2c's live hint. `locale` is required rather than defaulted so a
+ * new call site cannot silently pick the wrong last separator.
  */
 export function getGroupConversationTitle(
   conversation: Pick<DMConversationDTO, "name" | "participants">,
   currentUserId: string,
   fallback: string,
+  locale: GroupNameLocale,
 ): string {
   if (conversation.name && conversation.name.trim().length > 0) {
     return conversation.name;
   }
 
-  const others = conversation.participants
-    .filter((participant) => participant.userId !== currentUserId)
-    .map(getParticipantDisplayName);
+  const derived = buildGroupNameFromMembers(
+    conversation.participants
+      .filter((participant) => participant.userId !== currentUserId)
+      .map(getParticipantDisplayName),
+    locale,
+  );
 
-  return others.length > 0 ? others.join(", ") : fallback;
+  return derived.length > 0 ? derived : fallback;
 }
 
 /** Avatar-stack source: the other members, newest-page order, capped by the caller. */
@@ -56,6 +70,42 @@ export function getGroupAvatarParticipants(
 
 export function getGroupMemberCount(conversation: Pick<DMConversationDTO, "participants">): number {
   return conversation.participants.length;
+}
+
+/**
+ * 2d §8 — the "4 kişi okudu" line under an outgoing bubble.
+ *
+ * §4.5: this is computed from a participant list the caller has already loaded,
+ * and only for the newest outgoing message of a group. A per-message version of
+ * this would be one query per bubble on every page of history.
+ */
+export function buildGroupReadReceipt(input: {
+  readonly authorId: string;
+  readonly createdAt: Date;
+  readonly participants: ReadonlyArray<{
+    readonly lastReadAt: Date | null;
+    readonly userId: string;
+  }>;
+}): DMReadReceipt {
+  const createdAtMs = input.createdAt.getTime();
+  // The author is dropped first: their own read mark always overtakes their own
+  // message, so counting it would put "1 kişi okudu" under every bubble the
+  // instant it was sent.
+  const others = input.participants.filter((participant) => participant.userId !== input.authorId);
+  const readerIds = others
+    .filter(
+      (participant) =>
+        participant.lastReadAt !== null && participant.lastReadAt.getTime() >= createdAtMs,
+    )
+    .map((participant) => participant.userId);
+
+  return {
+    count: readerIds.length,
+    // A group of one has nobody to have read it, so "Herkes okudu" would be a
+    // claim about an empty set.
+    everyone: others.length > 0 && readerIds.length === others.length,
+    readerIds,
+  };
 }
 
 /**

@@ -59,13 +59,18 @@ export function DmGroupDetailsPanel({
   onUpdate,
   variant = "panel",
 }: DmGroupDetailsPanelProps) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const [draftName, setDraftName] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [candidateSearch, setCandidateSearch] = useState("");
   const isOwner = conversation.ownerId !== null && conversation.ownerId === currentUserId;
   const isFull = conversation.participants.length >= GROUP_DM_MAX_PARTICIPANTS;
-  const title = getGroupConversationTitle(conversation, currentUserId, t("dm.sidebar.unknownUser"));
+  const title = getGroupConversationTitle(
+    conversation,
+    currentUserId,
+    t("dm.sidebar.unknownUser"),
+    locale,
+  );
   // A 30-friend list is a scroll, not a choice: the field is what makes the
   // picker usable once the roster grows.
   const visibleCandidates = (() => {

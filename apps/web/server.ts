@@ -3,6 +3,7 @@ import next from "next";
 import { assertWebEnvironment } from "./src/lib/env.js";
 import { getOperationalProbeResponse, HEALTH_RESPONSE_HEADERS } from "./src/lib/health.js";
 import { registerSentryErrorReporter } from "./src/lib/observability/register-sentry.js";
+import { startDisappearingMessageWorker } from "./src/lib/dm/disappearing-worker.js";
 import { startOutboxWorker } from "./src/lib/outbox/worker.js";
 import { initSocketServer } from "./src/lib/socket/server.js";
 
@@ -90,6 +91,10 @@ app.prepare().then(() => {
   });
   initSocketServer(httpServer);
   startOutboxWorker();
+  // Started after the socket server: the sweep announces its deletions over it,
+  // and a run that fired first would delete quietly. Its own Redis lock keeps
+  // multiple replicas from purging the same batch (Faz 2 §C3).
+  startDisappearingMessageWorker();
   httpServer.listen(PORT, () => {
     console.info(`Server running on http://localhost:${PORT}`);
   });

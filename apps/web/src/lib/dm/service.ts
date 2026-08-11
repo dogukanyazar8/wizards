@@ -1,8 +1,14 @@
 import { randomUUID } from "node:crypto";
 import {
+  buildGroupAvatarPair,
+  GROUP_MEMBER_NAME_COLORS,
+  GROUP_PINNED_EXCERPT_MAX_LENGTH,
   MESSAGE_CONTENT_DEFAULT_LIMIT,
+  pickNextMemberNameColor,
   type DMConversationDTO,
+  type DMConversationType,
   type DMMessagePayload,
+  type DMPinnedMessageDTO,
   type DMSystemMessageTypeValue,
   type DMParticipantDTO,
   type MessageReaction,
@@ -10,6 +16,7 @@ import {
 } from "@wizards/types";
 import { Prisma, prisma } from "@wizards/db";
 import { ApiError } from "@/lib/api";
+import { buildGroupReadReceipt } from "@/lib/dm/group-presentation";
 import { areFriends, getBlockStatus, haveMutualServers } from "@/lib/friends/helpers";
 import { resolveLastSeenAtByUserId } from "@/lib/friends/last-seen";
 import { getRedis } from "@/lib/redis";
@@ -81,7 +88,26 @@ export const dmConversationInclude = {
       unreadCount: true,
       muted: true,
       hiddenAt: true,
+      // Faz 1 §B3. Five scalars per row rather than a second `members` array:
+      // the array would repeat the presence and last-seen this row already has.
+      joinedAt: true,
+      nameColor: true,
+      notifyLevel: true,
+      pinnedAt: true,
+      pinnedStripDismissedId: true,
+      role: true,
       user: { select: dmParticipantUserSelect },
+    },
+  },
+  // A to-one relation, so this is one extra statement for a whole page of
+  // conversations rather than one per row. 2d §2's strip and 2e §4's card both
+  // read it, and both are reached from a conversation the client already has.
+  pinnedMessage: {
+    select: {
+      author: { select: { displayName: true, username: true } },
+      content: true,
+      deletedAt: true,
+      id: true,
     },
   },
   messages: {
@@ -113,6 +139,11 @@ type DMMessageNode = {
   systemType?: DMSystemMessageTypeValue | null;
   systemTargetUserIds?: string[];
   systemValue?: string | null;
+  /**
+   * K3 / Faz 2 §C4. Optional for the same reason: a hand-built node in a test,
+   * or a reply preview selected before the column existed, reads as permanent.
+   */
+  expiresAt?: Date | null;
   author: {
     id: string;
     username: string;
@@ -402,6 +433,37 @@ function mapDMParticipantWithPresence(
     status: presence.status,
     customStatus: presence.customStatus,
     presence,
+    joinedAt: participant.joinedAt.toISOString(),
+    nameColor: participant.nameColor,
+    role: participant.role,
+  };
+}
+
+/**
+ * 2d §2 / 2e §4. A soft-deleted pin reads as no pin: the row survives for the
+ * message list's "silinmiş mesaj" placeholder, but quoting it in the strip would
+ * put deleted content back on screen.
+ */
+function mapPinnedMessage(
+  conversation: RawDMConversation,
+  viewer: RawDMConversation["participants"][number] | undefined,
+): DMPinnedMessageDTO | null {
+  const pinned = conversation.pinnedMessage;
+
+  if (!pinned || pinned.deletedAt !== null) {
+    return null;
+  }
+
+  const excerpt = pinned.content.replace(/\s+/g, " ").trim();
+
+  return {
+    authorName: pinned.author.displayName ?? pinned.author.username,
+    dismissed: viewer?.pinnedStripDismissedId === pinned.id,
+    excerpt:
+      excerpt.length > GROUP_PINNED_EXCERPT_MAX_LENGTH
+        ? `${excerpt.slice(0, GROUP_PINNED_EXCERPT_MAX_LENGTH)}…`
+        : excerpt,
+    id: pinned.id,
   };
 }
 
@@ -465,6 +527,9 @@ function mapDMReply(
     systemType: message.systemType ?? null,
     systemTargetUserIds: message.systemTargetUserIds ?? [],
     systemValue: message.systemValue ?? null,
+    // C4. Lets the client count a bubble down instead of waiting for the sweep's
+    // event, which can be up to a minute behind the deadline.
+    expiresAt: message.expiresAt?.toISOString() ?? null,
   };
 }
 
@@ -530,7 +595,12 @@ function mapConversationLastMessage(
 ) {
   const latestMessage = conversation.messages[0];
 
-  if (!latestMessage) {
+  // C4. Checked here rather than in `dmConversationInclude`, which is a static
+  // object with no clock: the preview is one row already in memory, so an
+  // in-memory comparison costs nothing and keeps the shared include untouched.
+  // Between the deadline and the sweep the row simply has no preview, which is
+  // the same thing the conversation shows the moment the sweep lands.
+  if (!latestMessage || !isMessageUnexpired(latestMessage, new Date())) {
     return null;
   }
 
@@ -578,6 +648,32 @@ function mapDMConversationDTOWithPresence(
   lastSeenByUserId: Map<string, string>,
   hiddenUserIds: ReadonlySet<string>,
 ): DMConversationDTO {
+  const viewer = conversation.participants.find((participant) => participant.userId === viewerId);
+  const participants = conversation.participants.map((participant) =>
+    mapDMParticipantWithPresence(
+      participant,
+      presenceByUserId.get(participant.userId) ?? getPresenceFallback(participant),
+      // An invisible participant publishes OFFLINE while still heartbeating, so
+      // their last-seen would refresh forever and give the mode away.
+      hiddenUserIds.has(participant.userId)
+        ? null
+        : (lastSeenByUserId.get(participant.userId) ?? null),
+    ),
+  );
+  // V7. Resolved here so the row, the header and the web sidebar all draw the
+  // same two tiles instead of each walking `participants` its own way.
+  const avatarPair = buildGroupAvatarPair(
+    participants.map((participant) => ({
+      avatarUrl: participant.avatarUrl,
+      displayName: participant.displayName,
+      joinedAt: participant.joinedAt ?? "",
+      nameColor: participant.nameColor,
+      userId: participant.userId,
+      username: participant.username,
+    })),
+    viewerId,
+  );
+
   return {
     id: conversation.id,
     type: normalizeConversationType(conversation.type),
@@ -585,35 +681,108 @@ function mapDMConversationDTOWithPresence(
     iconUrl: conversation.iconUrl,
     ownerId: conversation.ownerId,
     lastMessageAt: conversation.lastMessageAt.toISOString(),
-    participants: conversation.participants.map((participant) =>
-      mapDMParticipantWithPresence(
-        participant,
-        presenceByUserId.get(participant.userId) ?? getPresenceFallback(participant),
-        // An invisible participant publishes OFFLINE while still heartbeating, so
-        // their last-seen would refresh forever and give the mode away.
-        hiddenUserIds.has(participant.userId)
-          ? null
-          : (lastSeenByUserId.get(participant.userId) ?? null),
-      ),
-    ),
+    participants,
     lastMessage: mapConversationLastMessage(conversation, deletedMessageLabel, viewerId),
+    avatarColor: conversation.avatarColor,
+    avatarPair: avatarPair.tiles,
+    description: conversation.description,
+    disappearingAfter: conversation.disappearingAfter,
+    historyVisibility: conversation.historyVisibility,
+    memberCount: conversation.participants.length,
+    notifyLevel: viewer?.notifyLevel ?? "ALL",
+    // Everybody who is not offline, the viewer included — 2d §1 reads
+    // "6 üye · 3 çevrimiçi" against the same member count.
+    onlineCount: participants.filter((participant) => participant.status !== "OFFLINE").length,
+    overflowCount: avatarPair.overflowCount,
+    permissions: {
+      addMembers: conversation.permAddMembers,
+      editInfo: conversation.permEditInfo,
+      pinMessage: conversation.permPinMessage,
+      sendMessage: conversation.permSendMessage,
+    },
+    pinnedAt: viewer?.pinnedAt?.toISOString() ?? null,
+    pinnedMessage: mapPinnedMessage(conversation, viewer),
+    role: viewer?.role ?? "MEMBER",
   };
 }
 
-export async function requireDMParticipant(userId: string, conversationId: string) {
-  const participant = await prisma.dMParticipant.findUnique({
-    where: {
-      conversationId_userId: {
-        conversationId,
-        userId,
-      },
-    },
-    select: { id: true },
-  });
+export type DMParticipantContext = {
+  /** 2c §7's floor. Null means the member may read the whole conversation. */
+  readonly historyFromAt: Date | null;
+  readonly type: DMConversationType;
+};
 
-  if (!participant) {
+/**
+ * The membership gate every DM read already went through — now it also answers
+ * "how far back may this member read". Returning the floor from the check that
+ * was happening anyway is what keeps 2c §7 enforced on all five read paths
+ * without a second query on any of them.
+ *
+ * Still one statement: the membership row arrives as a filtered relation on the
+ * conversation rather than as its own `findUnique`.
+ */
+export async function requireDMParticipant(
+  userId: string,
+  conversationId: string,
+): Promise<DMParticipantContext> {
+  const conversation = await prisma.dMConversation.findUnique({
+    where: { id: conversationId },
+    select: {
+      type: true,
+      participants: { where: { userId }, select: { historyFromAt: true } },
+    },
+  });
+  const participant = conversation?.participants[0];
+
+  if (!conversation || !participant) {
     throw new ApiError("You are not a participant in this conversation", 403);
   }
+
+  return {
+    historyFromAt: participant.historyFromAt,
+    type: normalizeConversationType(conversation.type),
+  };
+}
+
+/**
+ * Merges 2c §7's floor into a cursor's ceiling. One `createdAt` key or the other
+ * would silently drop whichever was written second.
+ */
+export function toHistoryWindowFilter(
+  historyFromAt: Date | null,
+  cursorCreatedAt: Date | null,
+): { createdAt: { gte?: Date; lt?: Date } } | Record<string, never> {
+  if (!historyFromAt && !cursorCreatedAt) {
+    return {};
+  }
+
+  return {
+    createdAt: {
+      ...(historyFromAt ? { gte: historyFromAt } : {}),
+      ...(cursorCreatedAt ? { lt: cursorCreatedAt } : {}),
+    },
+  };
+}
+
+/**
+ * C4. The read-side half of disappearing messages. The purge worker runs on a
+ * 60-second tick, so between a message's deadline and its deletion there is a
+ * window where the row is still there — every read filters it out so nobody sees
+ * a message that has already expired.
+ *
+ * Served by `DMMessage_expiresAt_idx` when the planner wants it, and by the
+ * conversation index otherwise; either way it never widens a page.
+ */
+export function toUnexpiredFilter(now: Date) {
+  return { OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] };
+}
+
+/** The same rule for a row already in memory. */
+export function isMessageUnexpired(
+  message: { expiresAt?: Date | null | undefined },
+  now: Date,
+): boolean {
+  return !message.expiresAt || message.expiresAt.getTime() > now.getTime();
 }
 
 async function findDirectConversation(userId: string, targetUserId: string) {
@@ -712,7 +881,16 @@ export async function createOrOpenDirectMessage(
     data: {
       type: "DM",
       participants: {
-        create: [{ userId }, { userId: targetUserId }],
+        // `nameColor` is NOT NULL on every membership row, 1:1 included: the
+        // column is required at compile time precisely so a new membership path
+        // cannot forget it and fail at runtime instead.
+        create: [
+          { nameColor: pickNextMemberNameColor([]), userId },
+          {
+            nameColor: pickNextMemberNameColor([GROUP_MEMBER_NAME_COLORS[0]]),
+            userId: targetUserId,
+          },
+        ],
       },
     },
     include: dmConversationInclude,
@@ -1011,7 +1189,7 @@ export async function listDMMessages(
   cursor: string | undefined,
   limit: number,
 ): Promise<DMMessagesResponse> {
-  await requireDMParticipant(userId, conversationId);
+  const membership = await requireDMParticipant(userId, conversationId);
 
   let cursorCreatedAt: Date | null = null;
   if (cursor) {
@@ -1035,13 +1213,10 @@ export async function listDMMessages(
       conversationId,
       threadParentId: null,
       placeholderRemovedAt: null,
-      ...(cursorCreatedAt
-        ? {
-            createdAt: {
-              lt: cursorCreatedAt,
-            },
-          }
-        : {}),
+      // 2c §7. Served by the existing `[conversationId, createdAt]` index.
+      ...toHistoryWindowFilter(membership.historyFromAt, cursorCreatedAt),
+      // C4. The sweep may be up to a minute behind; the reader must not be.
+      ...toUnexpiredFilter(new Date()),
     },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: limit + 1,
@@ -1052,19 +1227,57 @@ export async function listDMMessages(
   const pageMessages = hasMore ? messages.slice(0, limit) : messages;
   const nextCursor = hasMore ? (pageMessages[pageMessages.length - 1]?.id ?? null) : null;
   const messageIds = pageMessages.map((message) => message.id);
-  const [reactionsByMessageId, threadSummaryByMessageId] = await Promise.all([
+  const [reactionsByMessageId, threadSummaryByMessageId, readStates] = await Promise.all([
     getDMReactionMap(messageIds),
     getDMThreadSummaryMap(messageIds),
+    // 2d §8 lives under the newest outgoing bubble only, so older pages never
+    // pay for it — and neither does a 1:1, which has ticks instead.
+    membership.type === "GROUP_DM" && cursor === undefined
+      ? getDirectMessageParticipantReadStates(conversationId)
+      : Promise.resolve(null),
   ]);
 
+  const payloads = [...pageMessages]
+    .reverse()
+    .map((message) =>
+      mapDMMessagePayload(message, reactionsByMessageId, threadSummaryByMessageId, userId),
+    );
+
   return {
-    messages: [...pageMessages]
-      .reverse()
-      .map((message) =>
-        mapDMMessagePayload(message, reactionsByMessageId, threadSummaryByMessageId, userId),
-      ),
+    messages: readStates ? attachGroupReadReceipt(payloads, userId, readStates) : payloads,
     nextCursor,
   };
+}
+
+/**
+ * §4.5. One receipt per page, on the newest message the viewer sent — the design
+ * only ever draws it under the last outgoing bubble, and a per-message version
+ * would be a query per bubble.
+ */
+function attachGroupReadReceipt(
+  messages: DMMessagePayload[],
+  viewerId: string,
+  participants: ReadonlyArray<{ lastReadAt: Date | null; userId: string }>,
+): DMMessagePayload[] {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+
+    if (!message || message.userId !== viewerId || message.systemType || message.deletedAt) {
+      continue;
+    }
+
+    messages[index] = {
+      ...message,
+      readReceipt: buildGroupReadReceipt({
+        authorId: viewerId,
+        createdAt: new Date(message.createdAt),
+        participants,
+      }),
+    };
+    break;
+  }
+
+  return messages;
 }
 
 export async function listDMThreadMessages(
@@ -1074,7 +1287,7 @@ export async function listDMThreadMessages(
   cursor: string | undefined,
   limit: number,
 ): Promise<DMMessagesResponse & { parent: DMMessagePayload }> {
-  await requireDMParticipant(userId, conversationId);
+  const membership = await requireDMParticipant(userId, conversationId);
 
   const parent = await prisma.dMMessage.findFirst({
     where: {
@@ -1082,6 +1295,12 @@ export async function listDMThreadMessages(
       conversationId,
       threadParentId: null,
       placeholderRemovedAt: null,
+      // A thread is opened from its parent, so the parent has to be inside the
+      // window too — otherwise the deep link is a way around 2c §7.
+      ...toHistoryWindowFilter(membership.historyFromAt, null),
+      // Same reason for C4: an expired parent must not be readable through the
+      // thread route either.
+      ...toUnexpiredFilter(new Date()),
     },
     include: dmMessageInclude,
   });
@@ -1113,13 +1332,8 @@ export async function listDMThreadMessages(
       conversationId,
       threadParentId: parentMessageId,
       placeholderRemovedAt: null,
-      ...(cursorCreatedAt
-        ? {
-            createdAt: {
-              lt: cursorCreatedAt,
-            },
-          }
-        : {}),
+      ...toHistoryWindowFilter(membership.historyFromAt, cursorCreatedAt),
+      ...toUnexpiredFilter(new Date()),
     },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: limit + 1,

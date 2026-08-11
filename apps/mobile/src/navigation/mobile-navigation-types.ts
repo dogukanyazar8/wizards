@@ -28,12 +28,27 @@ export type MobileRootStackParamList = {
    * Faz 5 §13.2 group creation. A full route rather than a modal so the two
    * steps (pick members, then name the group) each own a back press, and so the
    * keyboard region the chat screens already solve applies unchanged.
+   *
+   * Grup sohbetleri 2b/2c: `step` lets 2c's "Düzenle" return to the picker
+   * without unwinding the stack. Optional, so `navigate("GroupCreate")` — which
+   * is how every current caller opens it — still means "start at the top".
    */
-  GroupCreate: undefined;
-  /** Faz 5 §17.1 group roster and admin actions. */
+  GroupCreate: { readonly step?: "identity" | "members" } | undefined;
+  /** Faz 5 §17.1 group roster and admin actions. Replaced by `GroupInfo` in Faz 5. */
   GroupDetails: {
     readonly conversationId: string;
   };
+  /**
+   * Grup sohbetleri 2e/2f. Declared in Faz 3 so the routes, their params and the
+   * deep link land together; the screens arrive in Faz 5 and these point at a
+   * placeholder until then.
+   */
+  GroupInfo: { readonly conversationId: string };
+  GroupSettings: { readonly conversationId: string };
+  /** 2e §6's "Tümü": the full roster on its own screen. */
+  GroupMembers: { readonly conversationId: string };
+  /** K2's `/g/<code>` landing. Keyed by the code, not by a conversation the viewer may not be in. */
+  GroupInvitePreview: { readonly code: string };
   MessageThread: {
     readonly contextId: string;
     readonly messageId: string;
@@ -141,6 +156,11 @@ export type MobileNavigationRouteIntent =
       readonly type: "route";
     }
   | { readonly name: "GroupCreate"; readonly params: undefined; readonly type: "route" }
+  | {
+      readonly name: "GroupInvitePreview";
+      readonly params: MobileRootStackParamList["GroupInvitePreview"];
+      readonly type: "route";
+    }
   | {
       readonly name: "MessageThread";
       readonly params: MobileRootStackParamList["MessageThread"];

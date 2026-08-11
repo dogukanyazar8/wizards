@@ -8,6 +8,7 @@ import {
 } from "../src/query/mobile-dm-conversations-query";
 
 const conversation = (id: string, unreadCount: number, mentionCount = 0) => ({
+  avatarPair: [],
   iconUrl: null,
   id,
   lastMessage: null,
@@ -15,8 +16,11 @@ const conversation = (id: string, unreadCount: number, mentionCount = 0) => ({
   mentionCount,
   muted: false,
   name: null,
+  notifyLevel: "ALL" as const,
+  overflowCount: 0,
   participantCount: 1,
   participants: [],
+  pinnedAt: null,
   type: "DM" as const,
   unreadCount,
 });

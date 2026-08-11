@@ -2,11 +2,15 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { MobileNotificationItem, MobileWorkspaceChannelSummary } from "@wizards/types";
 import {
+  applyMobileLiveVoiceToProfile,
   buildMobileCollapsedSectionKey,
   buildMobileWorkspaceFilterKey,
   collectMobileLiveVoiceChannelIds,
   filterMobileWorkspaceSections,
   formatMobileChannelActivityLabel,
+  shouldClaimMobileVoiceWatchTarget,
+  shouldShowMobileDescriptionMore,
+  splitMobileStrongSegments,
   formatMobileEventDateBlock,
   formatMobileEventDateTimeInput,
   formatMobileServerCreatedDate,
@@ -842,5 +846,192 @@ describe("mobile event date-time input", () => {
   it("prints an empty field for a missing value", () => {
     assert.equal(formatMobileEventDateTimeInput(null), "");
     assert.equal(formatMobileEventDateTimeInput("nope"), "");
+  });
+});
+
+/**
+ * The Sunucular list is the screen a cold launch lands on, and until it names a
+ * server the realtime client emits no `voice:states:watch` — every live figure
+ * on 6a, 6b and 6d froze at the first HTTP read.
+ */
+describe("shouldClaimMobileVoiceWatchTarget", () => {
+  const empty = { channelId: null, conversationId: null, serverId: null };
+
+  it("claims an unclaimed target", () => {
+    assert.equal(shouldClaimMobileVoiceWatchTarget(empty, "server-1"), true);
+  });
+
+  it("re-claims when the rail switches servers", () => {
+    assert.equal(
+      shouldClaimMobileVoiceWatchTarget({ ...empty, serverId: "server-1" }, "server-2"),
+      true,
+    );
+  });
+
+  it("does not rewrite the server it already holds", () => {
+    assert.equal(
+      shouldClaimMobileVoiceWatchTarget({ ...empty, serverId: "server-1" }, "server-1"),
+      false,
+    );
+  });
+
+  it("yields to an open channel or DM, whose screen owns the target", () => {
+    assert.equal(
+      shouldClaimMobileVoiceWatchTarget(
+        { ...empty, channelId: "c1", serverId: "server-1" },
+        "server-2",
+      ),
+      false,
+    );
+    assert.equal(
+      shouldClaimMobileVoiceWatchTarget({ ...empty, conversationId: "d1" }, "server-1"),
+      false,
+    );
+  });
+
+  it("claims nothing without a server", () => {
+    assert.equal(shouldClaimMobileVoiceWatchTarget(empty, null), false);
+    assert.equal(shouldClaimMobileVoiceWatchTarget(empty, ""), false);
+  });
+});
+
+describe("applyMobileLiveVoiceToProfile", () => {
+  type ProfileChannel = {
+    readonly id: string;
+    readonly liveCount: number | null;
+    readonly participants: readonly {
+      readonly avatarUrl: string | null;
+      readonly displayName: string;
+      readonly id: string;
+      readonly shortName: string | null;
+    }[];
+    readonly type: "text" | "voice";
+  };
+  const profile: { channels: readonly ProfileChannel[]; voiceActiveCount: number } = {
+    channels: [
+      { id: "voice-1", liveCount: 0, participants: [], type: "voice" },
+      { id: "text-1", liveCount: null, participants: [], type: "text" },
+    ],
+    voiceActiveCount: 0,
+  };
+
+  it("leaves the snapshot alone until the voice read answers", () => {
+    assert.equal(applyMobileLiveVoiceToProfile(profile, null), profile);
+  });
+
+  it("fills a room from the live map and totals the server", () => {
+    const next = applyMobileLiveVoiceToProfile(
+      profile,
+      new Map([
+        [
+          "voice-1",
+          [
+            { avatarUrl: null, displayName: "Ada Lovelace", userId: "u1", username: "ada" },
+            { avatarUrl: null, displayName: null, userId: "u2", username: "zoe" },
+          ],
+        ],
+      ]),
+    );
+
+    assert.equal(next.voiceActiveCount, 2);
+    assert.equal(next.channels[0]?.liveCount, 2);
+    assert.deepEqual(
+      next.channels[0]?.participants.map((participant) => participant.shortName),
+      ["AL", "Z"],
+    );
+    // A username stands in for a missing display name rather than an empty row.
+    assert.equal(next.channels[0]?.participants[1]?.displayName, "zoe");
+  });
+
+  it("empties a room the live map no longer lists", () => {
+    const busy = applyMobileLiveVoiceToProfile(
+      profile,
+      new Map([
+        ["voice-1", [{ avatarUrl: null, displayName: "Ada", userId: "u1", username: "ada" }]],
+      ]),
+    );
+    const quiet = applyMobileLiveVoiceToProfile(busy, new Map());
+
+    assert.equal(quiet.voiceActiveCount, 0);
+    assert.deepEqual(quiet.channels[0]?.participants, []);
+  });
+
+  it("returns the same object when nothing moved, so the screen does not re-render", () => {
+    assert.equal(applyMobileLiveVoiceToProfile(profile, new Map()), profile);
+  });
+
+  it("never touches a text channel", () => {
+    const next = applyMobileLiveVoiceToProfile(
+      profile,
+      new Map([
+        ["voice-1", [{ avatarUrl: null, displayName: "Ada", userId: "u1", username: "ada" }]],
+      ]),
+    );
+
+    assert.equal(next.channels[1], profile.channels[1]);
+  });
+});
+
+describe("splitMobileStrongSegments", () => {
+  it("splits 6d's friends line around its bold counter", () => {
+    assert.deepEqual(splitMobileStrongSegments("Arkadaşlarından **3 kişi** bu sunucuda"), [
+      { strong: false, text: "Arkadaşlarından " },
+      { strong: true, text: "3 kişi" },
+      { strong: false, text: " bu sunucuda" },
+    ]);
+  });
+
+  it("handles a sentence that opens on the bold span", () => {
+    assert.deepEqual(splitMobileStrongSegments("**3 of your friends** are here"), [
+      { strong: true, text: "3 of your friends" },
+      { strong: false, text: " are here" },
+    ]);
+  });
+
+  it("returns unmarked copy as one plain segment", () => {
+    assert.deepEqual(splitMobileStrongSegments("no markers"), [
+      { strong: false, text: "no markers" },
+    ]);
+  });
+
+  it("keeps an unpaired marker literal rather than swallowing the rest", () => {
+    assert.deepEqual(splitMobileStrongSegments("half **open"), [
+      { strong: false, text: "half **open" },
+    ]);
+  });
+});
+
+describe("shouldShowMobileDescriptionMore", () => {
+  it("stays hidden until the description has been measured", () => {
+    assert.equal(
+      shouldShowMobileDescriptionMore({ expanded: false, lineCount: null, maxLines: 3 }),
+      false,
+    );
+  });
+
+  it("stays hidden for a description that fits inside the clamp", () => {
+    assert.equal(
+      shouldShowMobileDescriptionMore({ expanded: false, lineCount: 1, maxLines: 3 }),
+      false,
+    );
+    // Exactly at the limit is still nothing to reveal.
+    assert.equal(
+      shouldShowMobileDescriptionMore({ expanded: false, lineCount: 3, maxLines: 3 }),
+      false,
+    );
+  });
+
+  it("appears only when a line is actually being hidden", () => {
+    assert.equal(
+      shouldShowMobileDescriptionMore({ expanded: false, lineCount: 4, maxLines: 3 }),
+      true,
+    );
+  });
+
+  it("disappears once the reader has expanded it", () => {
+    assert.equal(
+      shouldShowMobileDescriptionMore({ expanded: true, lineCount: 9, maxLines: 3 }),
+      false,
+    );
   });
 });
