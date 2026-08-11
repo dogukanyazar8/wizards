@@ -20,6 +20,10 @@ const webServerEnv = Object.fromEntries(
 
 webServerEnv.E2E_TEST_MODE = process.env.E2E_TEST_MODE ?? "true";
 webServerEnv.E2E_MOCK_GIPHY = process.env.E2E_MOCK_GIPHY ?? "true";
+if (isCI) {
+  webServerEnv.E2E_ALLOW_PRODUCTION_BUILD = "true";
+  webServerEnv.NEXT_PUBLIC_E2E_ALLOW_PRODUCTION_BUILD = "true";
+}
 webServerEnv.DATABASE_URL = process.env.E2E_DATABASE_URL ?? "";
 webServerEnv.APP_URL = baseURL;
 webServerEnv.AUTH_URL = baseURL;

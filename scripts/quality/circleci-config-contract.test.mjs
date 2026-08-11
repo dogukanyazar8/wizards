@@ -205,6 +205,21 @@ test("resource-heavy Node jobs have explicit memory and CPU bounds", () => {
   );
 });
 
+test("silent unit runners have bounded CircleCI output windows", () => {
+  const main = readText(mainConfigPath);
+
+  for (const stepName of ["Test web package", "Mobile component tests"]) {
+    assert.match(
+      main,
+      new RegExp(
+        `^ {10}name: ${stepName}\\r?\\n {10}no_output_timeout: 20m\\r?\\n {10}command:`,
+        "mu",
+      ),
+      `${stepName} may buffer output longer than CircleCI's ten-minute default`,
+    );
+  }
+});
+
 test("Playwright starts the built Next application in production mode", () => {
   const playwrightConfig = readText(playwrightConfigPath);
   const webPackage = JSON.parse(readText(webPackagePath));

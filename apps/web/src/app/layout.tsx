@@ -1,14 +1,6 @@
 import type { Metadata } from "next";
+import localFont from "next/font/local";
 import { headers } from "next/headers";
-import {
-  DM_Sans,
-  Inter,
-  Open_Sans,
-  Outfit,
-  Plus_Jakarta_Sans,
-  Raleway,
-  Space_Grotesk,
-} from "next/font/google";
 import "./globals.css";
 import { auth } from "@/auth";
 import { DesktopContextMenuGuard } from "@/components/desktop/desktop-context-menu-guard";
@@ -24,40 +16,46 @@ import { getMessagesForLocale } from "@/lib/locale";
 import { getRequestLocale } from "@/lib/locale/server";
 import { isDesktopStartPathname, WHISPR_REQUEST_PATHNAME_HEADER } from "@/lib/request-context";
 
-const bodyFont = Plus_Jakarta_Sans({
-  subsets: ["latin"],
+const bodyFont = localFont({
+  src: "./fonts/plus-jakarta-sans-latin.woff2",
   variable: "--font-sans",
+  weight: "200 800",
 });
 
-const displayFont = Space_Grotesk({
-  subsets: ["latin"],
+const displayFont = localFont({
+  src: "./fonts/space-grotesk-latin.woff2",
   variable: "--font-display",
+  weight: "300 700",
 });
 
-const authBodyFont = DM_Sans({
-  subsets: ["latin"],
+const authBodyFont = localFont({
+  src: "./fonts/dm-sans-latin.woff2",
   variable: "--font-auth-body",
-  weight: ["300", "400", "500", "600", "700"],
+  weight: "300 700",
 });
 
-const messageOpenSansFont = Open_Sans({
-  subsets: ["latin"],
+const messageOpenSansFont = localFont({
+  src: "./fonts/open-sans-latin.woff2",
   variable: "--font-message-open-sans",
+  weight: "300 800",
 });
 
-const messageInterFont = Inter({
-  subsets: ["latin"],
+const messageInterFont = localFont({
+  src: "./fonts/inter-latin.woff2",
   variable: "--font-message-inter",
+  weight: "100 900",
 });
 
-const messageRalewayFont = Raleway({
-  subsets: ["latin"],
+const messageRalewayFont = localFont({
+  src: "./fonts/raleway-latin.woff2",
   variable: "--font-message-raleway",
+  weight: "100 900",
 });
 
-const messageOutfitFont = Outfit({
-  subsets: ["latin"],
+const messageOutfitFont = localFont({
+  src: "./fonts/outfit-latin.woff2",
   variable: "--font-message-outfit",
+  weight: "100 900",
 });
 
 export const metadata: Metadata = {

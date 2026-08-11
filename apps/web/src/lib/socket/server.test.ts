@@ -7,11 +7,41 @@ import {
   listServerRoomIdsForUser,
   listServerRoomIdsPage,
   mergeHandshakeAttribution,
+  resolveSocketRequestOrigin,
   runSocketDisconnectCleanup,
   SOCKET_SERVER_ROOM_JOIN_BATCH_SIZE,
 } from "./server";
 
 describe("socket handshake attribution", () => {
+  it("keeps origin-less local production E2E polling on its explicit HTTP origin", () => {
+    assert.equal(
+      resolveSocketRequestOrigin({
+        host: "127.0.0.1:3000",
+        secureCookie: false,
+      }),
+      "http://127.0.0.1:3000",
+    );
+
+    assert.equal(
+      resolveSocketRequestOrigin({
+        host: "whispr.example.com",
+        secureCookie: true,
+      }),
+      "https://whispr.example.com",
+    );
+  });
+
+  it("trusts the proxy protocol over the cookie transport fallback", () => {
+    assert.equal(
+      resolveSocketRequestOrigin({
+        forwardedProto: "https",
+        host: "whispr.example.com",
+        secureCookie: false,
+      }),
+      "https://whispr.example.com",
+    );
+  });
+
   it("accepts the auth payload a browser has to use instead of headers", () => {
     const info = getAnalyticsClientInfo(
       mergeHandshakeAttribution(

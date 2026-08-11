@@ -140,6 +140,7 @@ export function TurnstileWidget({
         aria-busy={!scriptReady && !scriptFailed}
         aria-label={t("auth.turnstile.label")}
         className="auth-reference-turnstile-box"
+        role="group"
       >
         <div className="auth-reference-turnstile-mount" ref={containerRef} />
         {!scriptReady && !scriptFailed ? (

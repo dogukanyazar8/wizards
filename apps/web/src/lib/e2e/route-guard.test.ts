@@ -18,7 +18,7 @@ describe("E2E API route guard", () => {
     assert.doesNotThrow(() => assertE2EApiRouteEnabled("http://[::1]:3000/api/e2e", env));
   });
 
-  it("rejects production before considering E2E mode", () => {
+  it("rejects production unless the local production-build gate is explicit", () => {
     assert.throws(
       () =>
         assertE2EApiRouteEnabled("http://127.0.0.1:3000/api/e2e", {
@@ -30,6 +30,17 @@ describe("E2E API route guard", () => {
         error.status === 404 &&
         error.message === "E2E helper is unavailable in production",
     );
+  });
+
+  it("allows a production build only behind both E2E gates and loopback hosts", () => {
+    const env = {
+      APP_URL: "http://127.0.0.1:3000",
+      E2E_ALLOW_PRODUCTION_BUILD: "true",
+      E2E_TEST_MODE: "true",
+      NODE_ENV: "production",
+    };
+
+    assert.doesNotThrow(() => assertE2EApiRouteEnabled("http://127.0.0.1:3000/api/e2e", env));
   });
 
   it("rejects remote hosts even when E2E mode is enabled outside production", () => {

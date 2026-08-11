@@ -3,6 +3,7 @@ import { ApiError } from "@/lib/api";
 type E2ERouteEnv = {
   APP_URL?: string | undefined;
   AUTH_URL?: string | undefined;
+  E2E_ALLOW_PRODUCTION_BUILD?: string | undefined;
   E2E_BASE_URL?: string | undefined;
   E2E_TEST_MODE?: string | undefined;
   NEXTAUTH_URL?: string | undefined;
@@ -10,15 +11,13 @@ type E2ERouteEnv = {
 };
 
 const LOCAL_E2E_HOSTS = new Set(["localhost", "::1"]);
-const CONFIGURED_E2E_URL_KEYS = [
-  "APP_URL",
-  "AUTH_URL",
-  "E2E_BASE_URL",
-  "NEXTAUTH_URL",
-] as const;
+const CONFIGURED_E2E_URL_KEYS = ["APP_URL", "AUTH_URL", "E2E_BASE_URL", "NEXTAUTH_URL"] as const;
 
 function normalizeHostname(hostname: string) {
-  return hostname.trim().toLowerCase().replace(/^\[(.*)\]$/, "$1");
+  return hostname
+    .trim()
+    .toLowerCase()
+    .replace(/^\[(.*)\]$/, "$1");
 }
 
 export function isLocalE2EHost(hostname: string) {
@@ -31,11 +30,8 @@ export function isLocalE2EHost(hostname: string) {
   );
 }
 
-export function assertE2EApiRouteEnabled(
-  requestUrl: URL | string,
-  env: E2ERouteEnv = process.env,
-) {
-  if (env.NODE_ENV === "production") {
+export function assertE2EApiRouteEnabled(requestUrl: URL | string, env: E2ERouteEnv = process.env) {
+  if (env.NODE_ENV === "production" && env.E2E_ALLOW_PRODUCTION_BUILD !== "true") {
     throw new ApiError("E2E helper is unavailable in production", 404);
   }
 

@@ -1,7 +1,6 @@
 import { E2E_TURNSTILE_TOKEN } from "./turnstile-e2e";
 
-const TURNSTILE_SITEVERIFY_URL =
-  "https://challenges.cloudflare.com/turnstile/v0/siteverify";
+const TURNSTILE_SITEVERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
 const DEFAULT_TURNSTILE_ACTION = "register";
 const TURNSTILE_VERIFY_TIMEOUT_MS = 8000;
 
@@ -15,10 +14,7 @@ type TurnstileSiteVerifyResponse = {
 };
 
 export type TurnstileErrorCode =
-  | "ACTION_MISMATCH"
-  | "CONFIGURATION_ERROR"
-  | "INVALID_TOKEN"
-  | "VERIFY_FAILED";
+  "ACTION_MISMATCH" | "CONFIGURATION_ERROR" | "INVALID_TOKEN" | "VERIFY_FAILED";
 
 export class TurnstileVerificationError extends Error {
   constructor(
@@ -77,10 +73,7 @@ export function assertTurnstileHostnameAllowed(
   }
 
   if (hostname && !expectedHostnames.includes(hostname.toLowerCase())) {
-    throw new TurnstileVerificationError(
-      "ACTION_MISMATCH",
-      "Turnstile hostname mismatch.",
-    );
+    throw new TurnstileVerificationError("ACTION_MISMATCH", "Turnstile hostname mismatch.");
   }
 }
 
@@ -89,10 +82,7 @@ export function assertTurnstileActionAllowed(
   expectedAction: TurnstileAction = DEFAULT_TURNSTILE_ACTION,
 ) {
   if (action && action !== expectedAction) {
-    throw new TurnstileVerificationError(
-      "ACTION_MISMATCH",
-      "Turnstile action mismatch.",
-    );
+    throw new TurnstileVerificationError("ACTION_MISMATCH", "Turnstile action mismatch.");
   }
 }
 
@@ -105,16 +95,13 @@ export async function verifyTurnstileToken(
   if (
     normalizedToken === E2E_TURNSTILE_TOKEN &&
     process.env.E2E_TEST_MODE === "true" &&
-    process.env.NODE_ENV !== "production"
+    (process.env.NODE_ENV !== "production" || process.env.E2E_ALLOW_PRODUCTION_BUILD === "true")
   ) {
     return true;
   }
 
   if (!normalizedToken) {
-    throw new TurnstileVerificationError(
-      "INVALID_TOKEN",
-      "Turnstile token is required.",
-    );
+    throw new TurnstileVerificationError("INVALID_TOKEN", "Turnstile token is required.");
   }
 
   const body = new URLSearchParams({
@@ -152,19 +139,13 @@ export async function verifyTurnstileToken(
       throw error;
     }
 
-    throw new TurnstileVerificationError(
-      "VERIFY_FAILED",
-      "Turnstile verification failed.",
-    );
+    throw new TurnstileVerificationError("VERIFY_FAILED", "Turnstile verification failed.");
   } finally {
     clearTimeout(timeout);
   }
 
   if (!result.success) {
-    throw new TurnstileVerificationError(
-      "INVALID_TOKEN",
-      "Turnstile verification failed.",
-    );
+    throw new TurnstileVerificationError("INVALID_TOKEN", "Turnstile verification failed.");
   }
 
   assertTurnstileActionAllowed(result.action, options.expectedAction);

@@ -3,13 +3,12 @@ import { encode, getToken } from "next-auth/jwt";
 import { z } from "zod";
 import { prisma, UserStatus } from "@wizards/db";
 import { ApiError, jsonError, parseJsonBody } from "@/lib/api";
-import { getAuthSessionCookieConfig, getAuthSessionCookieOptions } from "@/lib/auth/session-cookies";
-import { assertE2EApiRouteEnabled } from "@/lib/e2e/route-guard";
 import {
-  e2eUsers,
-  getE2EUserByKey,
-  type E2EUserKey,
-} from "@/lib/e2e/test-fixtures";
+  getAuthSessionCookieConfig,
+  getAuthSessionCookieOptions,
+} from "@/lib/auth/session-cookies";
+import { assertE2EApiRouteEnabled } from "@/lib/e2e/route-guard";
+import { e2eUsers, getE2EUserByKey, type E2EUserKey } from "@/lib/e2e/test-fixtures";
 
 const E2ESessionSchema = z.object({
   userKey: z.enum(["alice", "bob", "charlie"]),
@@ -123,14 +122,15 @@ export async function DELETE(request: NextRequest) {
     assertE2EApiRouteEnabled(request.nextUrl);
 
     const secret = getAuthSecret();
-    const { cookieName } = getAuthSessionCookieConfig();
+    const { cookieName, secureCookie } = getAuthSessionCookieConfig();
     const token = await getToken({
       cookieName,
       req: request,
       secret,
-      secureCookie: process.env.NODE_ENV === "production",
+      secureCookie,
     });
-    const userId = typeof token?.id === "string" ? token.id : typeof token?.sub === "string" ? token.sub : null;
+    const userId =
+      typeof token?.id === "string" ? token.id : typeof token?.sub === "string" ? token.sub : null;
     const e2eEmails = Object.values(e2eUsers).map((user) => user.email);
 
     if (userId) {
@@ -157,4 +157,3 @@ export async function DELETE(request: NextRequest) {
     return jsonError(error);
   }
 }
-

@@ -7,10 +7,7 @@ import {
   getExpectedTurnstileHostnames,
   verifyTurnstileToken,
 } from "./turnstile";
-import {
-  E2E_TURNSTILE_TOKEN,
-  isE2ETurnstileBypassEnabled,
-} from "./turnstile-e2e";
+import { E2E_TURNSTILE_TOKEN, isE2ETurnstileBypassEnabled } from "./turnstile-e2e";
 
 describe("Turnstile hostname validation", () => {
   it("extracts expected hostnames from configured app URLs", () => {
@@ -28,22 +25,14 @@ describe("Turnstile hostname validation", () => {
     assert.throws(
       () => assertTurnstileHostnameAllowed("attacker.example", [], true),
       (error) =>
-        error instanceof TurnstileVerificationError &&
-        error.code === "CONFIGURATION_ERROR",
+        error instanceof TurnstileVerificationError && error.code === "CONFIGURATION_ERROR",
     );
   });
 
   it("rejects hostname mismatches", () => {
     assert.throws(
-      () =>
-        assertTurnstileHostnameAllowed(
-          "attacker.example",
-          ["app.example.test"],
-          true,
-        ),
-      (error) =>
-        error instanceof TurnstileVerificationError &&
-        error.code === "ACTION_MISMATCH",
+      () => assertTurnstileHostnameAllowed("attacker.example", ["app.example.test"], true),
+      (error) => error instanceof TurnstileVerificationError && error.code === "ACTION_MISMATCH",
     );
   });
 });
@@ -56,15 +45,13 @@ describe("Turnstile action validation", () => {
   it("rejects tokens issued for a different action", () => {
     assert.throws(
       () => assertTurnstileActionAllowed("register", "login"),
-      (error) =>
-        error instanceof TurnstileVerificationError &&
-        error.code === "ACTION_MISMATCH",
+      (error) => error instanceof TurnstileVerificationError && error.code === "ACTION_MISMATCH",
     );
   });
 });
 
 describe("Turnstile E2E bypass", () => {
-  it("reports the bypass as enabled only for non-production E2E runs", () => {
+  it("reports the bypass as enabled only for approved E2E runs", () => {
     assert.equal(
       isE2ETurnstileBypassEnabled({
         NEXT_PUBLIC_E2E_TEST_MODE: "true",
@@ -78,6 +65,14 @@ describe("Turnstile E2E bypass", () => {
         NODE_ENV: "production",
       }),
       false,
+    );
+    assert.equal(
+      isE2ETurnstileBypassEnabled({
+        NEXT_PUBLIC_E2E_ALLOW_PRODUCTION_BUILD: "true",
+        NEXT_PUBLIC_E2E_TEST_MODE: "true",
+        NODE_ENV: "production",
+      }),
+      true,
     );
   });
 
@@ -139,6 +134,39 @@ describe("Turnstile E2E bypass", () => {
         delete mutableEnv.NODE_ENV;
       } else {
         mutableEnv.NODE_ENV = originalEnv.NODE_ENV;
+      }
+    }
+  });
+
+  it("accepts the deterministic E2E token in an explicitly approved production test build", async () => {
+    const mutableEnv = process.env as Record<string, string | undefined>;
+    const originalEnv = {
+      E2E_ALLOW_PRODUCTION_BUILD: mutableEnv.E2E_ALLOW_PRODUCTION_BUILD,
+      E2E_TEST_MODE: mutableEnv.E2E_TEST_MODE,
+      NODE_ENV: mutableEnv.NODE_ENV,
+    };
+    const originalFetch = globalThis.fetch;
+    let calledFetch = false;
+
+    mutableEnv.E2E_ALLOW_PRODUCTION_BUILD = "true";
+    mutableEnv.E2E_TEST_MODE = "true";
+    mutableEnv.NODE_ENV = "production";
+    globalThis.fetch = (() => {
+      calledFetch = true;
+      throw new Error("fetch should not be called for the approved production E2E token");
+    }) as typeof fetch;
+
+    try {
+      assert.equal(await verifyTurnstileToken(E2E_TURNSTILE_TOKEN), true);
+      assert.equal(calledFetch, false);
+    } finally {
+      globalThis.fetch = originalFetch;
+      for (const [key, value] of Object.entries(originalEnv)) {
+        if (value === undefined) {
+          delete mutableEnv[key];
+        } else {
+          mutableEnv[key] = value;
+        }
       }
     }
   });

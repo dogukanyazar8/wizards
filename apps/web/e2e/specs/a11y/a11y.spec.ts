@@ -86,6 +86,7 @@ test.describe("accessibility smoke", () => {
     await expect(
       page.locator('[data-testid="settings-panel"][data-client-ready="true"]'),
     ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId("in-app-settings-overlay")).toHaveCSS("opacity", "1");
 
     const results = await new AxeBuilder({ page })
       .include('[data-testid="in-app-settings-overlay"]')

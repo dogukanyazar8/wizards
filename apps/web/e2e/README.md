@@ -415,7 +415,8 @@ Use `loginAs(page, "alice")` for most specs. It calls the test-only
 `/api/e2e/auth/session` route, which is unavailable unless:
 
 - `E2E_TEST_MODE=true`
-- `NODE_ENV` is not `production`
+- `NODE_ENV` is not `production`, or CI explicitly sets
+  `E2E_ALLOW_PRODUCTION_BUILD=true` for the local production-build smoke server
 - the request host is local loopback (`localhost`, `127.0.0.0/8`, or `::1`)
 - configured app URLs such as `APP_URL`, `AUTH_URL`, `NEXTAUTH_URL`, and
   `E2E_BASE_URL` are also local loopback URLs when present

@@ -9,6 +9,7 @@ import {
 } from "@/lib/analytics/service";
 import { getAnalyticsClientInfo } from "@/lib/analytics/client-info";
 import { resolveVerifiedAttribution } from "@/lib/analytics/client-attribution";
+import { getAuthSessionCookieConfig } from "@/lib/auth/session-cookies";
 import { logError } from "@/lib/logger";
 import {
   getBearerTokenFromHeaderValue,
@@ -186,17 +187,31 @@ function assignSocketUserData(socket: { data: SocketData }, user: SocketAuthUser
   socket.data.presenceStatus = "OFFLINE";
 }
 
-function getSocketRequestOrigin(request: IncomingMessage) {
-  const forwardedHost = getFirstHeaderValue(request.headers["x-forwarded-host"]);
-  const host = forwardedHost ?? request.headers.host;
+export function resolveSocketRequestOrigin(input: {
+  forwardedHost?: string | string[] | undefined;
+  forwardedProto?: string | string[] | undefined;
+  host?: string | undefined;
+  secureCookie: boolean;
+}) {
+  const forwardedHost = getFirstHeaderValue(input.forwardedHost);
+  const host = forwardedHost ?? input.host;
 
   if (!host?.trim()) {
     return null;
   }
 
-  const forwardedProto = getFirstHeaderValue(request.headers["x-forwarded-proto"]);
-  const proto = forwardedProto?.split(",")[0]?.trim() || "https";
+  const forwardedProto = getFirstHeaderValue(input.forwardedProto);
+  const proto = forwardedProto?.split(",")[0]?.trim() || (input.secureCookie ? "https" : "http");
   return getOrigin(`${proto}://${host}`);
+}
+
+function getSocketRequestOrigin(request: IncomingMessage) {
+  return resolveSocketRequestOrigin({
+    forwardedHost: request.headers["x-forwarded-host"],
+    forwardedProto: request.headers["x-forwarded-proto"],
+    host: request.headers.host,
+    secureCookie: getAuthSessionCookieConfig().secureCookie,
+  });
 }
 
 function isSocketRequestAllowed(request: IncomingMessage, allowedOrigins: Set<string>) {
@@ -506,10 +521,7 @@ export function initSocketServer(httpServer: HTTPServer) {
         return next(new Error("Missing AUTH_SECRET"));
       }
 
-      const cookieName =
-        process.env.NODE_ENV === "production"
-          ? "__Secure-authjs.session-token"
-          : "authjs.session-token";
+      const { cookieName, secureCookie } = getAuthSessionCookieConfig();
 
       const token = await getToken({
         req: {
@@ -522,6 +534,7 @@ export function initSocketServer(httpServer: HTTPServer) {
         },
         secret,
         cookieName,
+        secureCookie,
       });
 
       if (!token?.id || typeof token.id !== "string") {

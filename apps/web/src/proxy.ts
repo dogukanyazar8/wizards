@@ -91,6 +91,8 @@ export function buildContentSecurityPolicy(
   env: Record<string, string | undefined> = process.env,
 ) {
   const isDevelopment = env.NODE_ENV !== "production";
+  const shouldUpgradeInsecureRequests =
+    !isDevelopment && getAuthSessionCookieConfig(env).secureCookie;
   const appOrigins = unique([
     getOrigin(env.APP_URL),
     getOrigin(env.AUTH_URL),
@@ -150,7 +152,7 @@ export function buildContentSecurityPolicy(
     ]),
     "style-src": ["'self'", "'unsafe-inline'"],
     "worker-src": ["'self'", "blob:"],
-    ...(isDevelopment ? {} : { "upgrade-insecure-requests": [] }),
+    ...(shouldUpgradeInsecureRequests ? { "upgrade-insecure-requests": [] } : {}),
   };
 
   return Object.entries(directives)

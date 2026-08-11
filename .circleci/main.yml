@@ -283,6 +283,7 @@ jobs:
       - bootstrap
       - run:
           name: Test web package
+          no_output_timeout: 20m
           command: pnpm --filter @wizards/web test
 
   unit-mobile:
@@ -294,6 +295,7 @@ jobs:
           command: pnpm --filter @wizards/mobile test
       - run:
           name: Mobile component tests
+          no_output_timeout: 20m
           command: pnpm --filter @wizards/mobile test:components
       - run:
           name: Mobile environment contract

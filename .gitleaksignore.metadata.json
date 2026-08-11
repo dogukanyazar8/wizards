@@ -54,6 +54,36 @@
       "reason": "Synthetic Stripe-shaped logger-redaction fixture repeated in the observability test plan.",
       "owner": "@dogukanyazar8",
       "expiresOn": "2026-10-15"
+    },
+    {
+      "fingerprint": "558f05bcce841533dc0066ad40b28ae905bb6c50:apps/web/src/lib/auth/web-login-two-factor.test.ts:generic-api-key:9",
+      "reason": "Historical fingerprint for a deterministic secret-shaped fixture in the web two-factor login test.",
+      "owner": "@dogukanyazar8",
+      "expiresOn": "2026-10-15"
+    },
+    {
+      "fingerprint": "b4229c976f3e0b083428c983f58a2e090d3e12db:apps/mobile/component-tests/mobile-about-bug-report-2f.test.tsx:generic-api-key:334",
+      "reason": "Historical fingerprint for a deterministic token-shaped fixture in the mobile bug-report attachment test.",
+      "owner": "@dogukanyazar8",
+      "expiresOn": "2026-10-15"
+    },
+    {
+      "fingerprint": "b4229c976f3e0b083428c983f58a2e090d3e12db:apps/mobile/scripts/mobile-bug-report-model.test.ts:generic-api-key:137",
+      "reason": "Historical fingerprint for a deterministic token-shaped fixture in the mobile bug-report redaction test.",
+      "owner": "@dogukanyazar8",
+      "expiresOn": "2026-10-15"
+    },
+    {
+      "fingerprint": "b4229c976f3e0b083428c983f58a2e090d3e12db:apps/web/src/lib/support/bug-report-service.test.ts:generic-api-key:131",
+      "reason": "Historical fingerprint for a deterministic token-shaped fixture in the web bug-report attachment test.",
+      "owner": "@dogukanyazar8",
+      "expiresOn": "2026-10-15"
+    },
+    {
+      "fingerprint": "c5d4485b14a46db4a0273f3af644bab283a380c8:apps/web/src/lib/logger.test.ts:stripe-access-token:220",
+      "reason": "Historical fingerprint for a deterministic Stripe-shaped logger-redaction test fixture.",
+      "owner": "@dogukanyazar8",
+      "expiresOn": "2026-10-15"
     }
   ]
 }

@@ -89,6 +89,26 @@ describe("Content Security Policy", () => {
     assert.doesNotMatch(csp, /script-src[^;]*'unsafe-inline'/);
     assert.match(csp, /upgrade-insecure-requests/);
   });
+
+  it("does not upgrade explicit local production E2E assets to HTTPS", () => {
+    const localE2EEnv = {
+      APP_URL: "http://127.0.0.1:3000",
+      AUTH_URL: "http://127.0.0.1:3000",
+      E2E_ALLOW_PRODUCTION_BUILD: "true",
+      E2E_TEST_MODE: "true",
+      NEXTAUTH_URL: "http://127.0.0.1:3000",
+      NODE_ENV: "production",
+    };
+
+    assert.doesNotMatch(buildContentSecurityPolicy("e2e-nonce", localE2EEnv), /upgrade-insecure/);
+    assert.match(
+      buildContentSecurityPolicy("unsafe-e2e-nonce", {
+        ...localE2EEnv,
+        E2E_ALLOW_PRODUCTION_BUILD: undefined,
+      }),
+      /upgrade-insecure-requests/,
+    );
+  });
 });
 
 describe("auth middleware fail-closed contract", () => {
