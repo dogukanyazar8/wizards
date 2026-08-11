@@ -234,6 +234,7 @@ test("mobile component tests release completed mutations without force-exit", ()
   const renderHelper = readText(mobileTestRenderHelperPath);
 
   assert.doesNotMatch(command, /--forceExit/u);
+  assert.match(command, /--maxWorkers=2/u);
   assert.match(renderHelper, /mutations: \{ gcTime: 0, retry: false \}/u);
 });
 

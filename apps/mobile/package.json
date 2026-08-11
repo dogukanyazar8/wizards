@@ -30,7 +30,7 @@
     "release:check": "node --import tsx scripts/validate-mobile-release.ts",
     "release:evidence": "node --import tsx scripts/write-mobile-release-evidence.ts",
     "test": "node --test --import tsx scripts/*.test.ts",
-    "test:components": "jest",
+    "test:components": "jest --maxWorkers=2",
     "typecheck": "node ../../scripts/quality/typescript-project-runner.mjs --project=mobile --mode=check",
     "validate:env": "node --import tsx scripts/validate-mobile-env.ts",
     "visual:capture:android": "node --import tsx scripts/mobile-redesign-device-capture.ts --platform android",
