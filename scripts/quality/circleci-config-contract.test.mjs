@@ -260,9 +260,20 @@ test("the secret scan uses a supported gitleaks scanning mode", () => {
 
 test("desktop checks the installed cargo-audit binary without invoking Cargo", () => {
   const main = readText(mainConfigPath);
+  const dockerfile = readText(goldenDockerfilePath);
 
   assert.match(main, /current_version="\$\(cargo-audit --version\)"/u);
   assert.doesNotMatch(main, /current_version="\$\(cargo audit --version\)"/u);
+  assert.match(
+    dockerfile,
+    /chown -R node:node "\$\{CARGO_HOME\}" "\$\{RUSTUP_HOME\}"/u,
+    "the non-root CI user must own the prebuilt Rust toolchain and registry",
+  );
+  assert.doesNotMatch(
+    dockerfile,
+    /chmod -R a\+[a-zA-Z]*w[a-zA-Z]* "\$\{CARGO_HOME\}"/u,
+    "the Rust toolchain must not be world-writable",
+  );
 });
 
 test("the generated E2E password never reaches argv, stdout, or a log line", () => {

@@ -32,7 +32,7 @@ executors:
   # scripts/quality/circleci-config-contract.test.mjs asserts they match.
   ci:
     docker:
-      - image: ghcr.io/dogukanyazar8/wizards-ci@sha256:01f21b7671d130d604799ef1ebd4e70857dab6d84eeb4562742fa9c8aad05648
+      - image: ghcr.io/dogukanyazar8/wizards-ci@sha256:10a5cfdb7f458e4a3818420f9ae3bce73ff9444950f41d1876d737898253ff9b
         auth:
           username: $GHCR_USERNAME
           password: $GHCR_TOKEN
@@ -44,7 +44,7 @@ executors:
 
   ci-large:
     docker:
-      - image: ghcr.io/dogukanyazar8/wizards-ci@sha256:01f21b7671d130d604799ef1ebd4e70857dab6d84eeb4562742fa9c8aad05648
+      - image: ghcr.io/dogukanyazar8/wizards-ci@sha256:10a5cfdb7f458e4a3818420f9ae3bce73ff9444950f41d1876d737898253ff9b
         auth:
           username: $GHCR_USERNAME
           password: $GHCR_TOKEN
@@ -59,7 +59,7 @@ executors:
   # the contract test fails if the two lanes drift apart.
   ci-db:
     docker:
-      - image: ghcr.io/dogukanyazar8/wizards-ci@sha256:01f21b7671d130d604799ef1ebd4e70857dab6d84eeb4562742fa9c8aad05648
+      - image: ghcr.io/dogukanyazar8/wizards-ci@sha256:10a5cfdb7f458e4a3818420f9ae3bce73ff9444950f41d1876d737898253ff9b
         auth:
           username: $GHCR_USERNAME
           password: $GHCR_TOKEN

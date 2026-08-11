@@ -87,7 +87,7 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
     | sh -s -- -y --no-modify-path --profile minimal --default-toolchain "${RUST_VERSION}" \
       --component rustfmt --component clippy \
   && cargo install cargo-audit --version "${CARGO_AUDIT_VERSION}" --locked \
-  && chmod -R a+w "${CARGO_HOME}" "${RUSTUP_HOME}" \
+  && chown -R node:node "${CARGO_HOME}" "${RUSTUP_HOME}" \
   && rustc --version \
   && cargo-audit --version
 
