@@ -32,7 +32,7 @@ executors:
   # scripts/quality/circleci-config-contract.test.mjs asserts they match.
   ci:
     docker:
-      - image: ghcr.io/dogukanyazar8/wizards-ci@sha256:20333aa986fc36c972cad63cc16c5ab787d257c357d21c9327861df0ed69f71d
+      - image: ghcr.io/dogukanyazar8/wizards-ci@sha256:01f21b7671d130d604799ef1ebd4e70857dab6d84eeb4562742fa9c8aad05648
         auth:
           username: $GHCR_USERNAME
           password: $GHCR_TOKEN
@@ -44,7 +44,7 @@ executors:
 
   ci-large:
     docker:
-      - image: ghcr.io/dogukanyazar8/wizards-ci@sha256:20333aa986fc36c972cad63cc16c5ab787d257c357d21c9327861df0ed69f71d
+      - image: ghcr.io/dogukanyazar8/wizards-ci@sha256:01f21b7671d130d604799ef1ebd4e70857dab6d84eeb4562742fa9c8aad05648
         auth:
           username: $GHCR_USERNAME
           password: $GHCR_TOKEN
@@ -59,7 +59,7 @@ executors:
   # the contract test fails if the two lanes drift apart.
   ci-db:
     docker:
-      - image: ghcr.io/dogukanyazar8/wizards-ci@sha256:20333aa986fc36c972cad63cc16c5ab787d257c357d21c9327861df0ed69f71d
+      - image: ghcr.io/dogukanyazar8/wizards-ci@sha256:01f21b7671d130d604799ef1ebd4e70857dab6d84eeb4562742fa9c8aad05648
         auth:
           username: $GHCR_USERNAME
           password: $GHCR_TOKEN
@@ -188,7 +188,26 @@ jobs:
       # reintroduce it.
       - run:
           name: Secret scan
-          command: gitleaks git . --config .gitleaks.toml --no-banner --redact
+          command: |
+            set -uo pipefail
+            set +e
+            timeout --signal=TERM --kill-after=30s 30m \
+              gitleaks git . --config .gitleaks.toml --no-banner --redact &
+            scan_pid=$!
+            trap 'kill "$scan_pid" 2>/dev/null || true' TERM INT
+
+            while kill -0 "$scan_pid" 2>/dev/null; do
+              echo "Secret scan still running..."
+              for _ in $(seq 1 30); do
+                kill -0 "$scan_pid" 2>/dev/null || break
+                sleep 1
+              done
+            done
+
+            wait "$scan_pid"
+            scan_status=$?
+            trap - TERM INT
+            exit "$scan_status"
       - run:
           name: Dependency audit
           command: pnpm audit --audit-level moderate
@@ -289,6 +308,7 @@ jobs:
   coverage:
     executor: ci-large
     environment:
+      NODE_OPTIONS: "--max-old-space-size=4096"
       WEB_COVERAGE_API_E2E: "0"
     steps:
       - bootstrap
@@ -331,9 +351,6 @@ jobs:
     parameters:
       suites:
         type: string
-      install-browsers:
-        type: string
-        default: ""
     steps:
       - bootstrap
       - generate_e2e_password
@@ -344,12 +361,6 @@ jobs:
       - run:
           name: Validate Playwright E2E environment
           command: pnpm --filter @wizards/web e2e:check-env
-      - when:
-          condition: << parameters.install-browsers >>
-          steps:
-            - run:
-                name: Install extra Playwright browsers
-                command: pnpm --filter @wizards/web exec playwright install --with-deps << parameters.install-browsers >>
       - run:
           name: Run Playwright << parameters.suites >>
           command: |
@@ -384,7 +395,7 @@ jobs:
             current_version=""
 
             if command -v cargo-audit >/dev/null 2>&1; then
-              current_version="$(cargo audit --version)"
+              current_version="$(cargo-audit --version)"
             fi
 
             if [ "$current_version" != "$expected_version" ]; then
@@ -500,7 +511,6 @@ workflows:
           name: e2e-cross-browser
           context: [ghcr]
           suites: e2e:smoke:cross-browser
-          install-browsers: firefox webkit
           requires: [install]
       - e2e:
           name: e2e-a11y
@@ -608,5 +618,4 @@ workflows:
           name: e2e-cross-browser
           context: [ghcr]
           suites: e2e:smoke:cross-browser
-          install-browsers: firefox webkit
           requires: [install]

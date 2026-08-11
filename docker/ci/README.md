@@ -51,11 +51,11 @@ or if any executor uses a mutable tag instead of a digest.
 ## Verify the image locally
 
 ```bash
-docker run --rm ghcr.io/dogukanyazar8/wizards-ci@sha256:<digest> bash -lc "node -v && pnpm -v && cargo --version && cargo audit --version && gitleaks version && ls /ms-playwright"
+docker run --rm ghcr.io/dogukanyazar8/wizards-ci@sha256:<digest> bash -lc "node -v && pnpm -v && cargo --version && cargo-audit --version && gitleaks version && ls /ms-playwright"
 ```
 
 Expected: `v24.18.0`, `11.20.0`, a stable Rust, `cargo-audit 0.22.1`, the pinned
-gitleaks version, and a `chromium-*` directory.
+gitleaks version, and `chromium-*`, `firefox-*`, and `webkit-*` directories.
 
 Also confirm the gitleaks subcommand the `security` job uses actually exists in
 the version you pinned — gitleaks renamed `detect` in the 8.19 line, so the flag

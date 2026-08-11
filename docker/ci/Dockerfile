@@ -5,9 +5,6 @@
 # contracts on (.nvmrc, package.json packageManager, pnpm-lock.yaml).
 #
 # Deliberately NOT installed:
-#   - Firefox and WebKit Playwright browsers. Only the nightly cross-browser job
-#     needs them; keeping them out holds the image small enough that every
-#     hot-path job pays a smaller pull. That job installs them itself.
 #   - Android SDK / NDK / JDK. The mobile release lane provisions those through
 #     .github/scripts/setup-android-build-tools.sh and moves in a later phase.
 #
@@ -63,7 +60,7 @@ RUN corepack enable \
 # match the version pnpm-lock.yaml resolves for @playwright/test, otherwise
 # Playwright refuses to start with "browser not found".
 ARG PLAYWRIGHT_VERSION=1.61.1
-RUN npx --yes "playwright@${PLAYWRIGHT_VERSION}" install --with-deps chromium \
+RUN npx --yes "playwright@${PLAYWRIGHT_VERSION}" install --with-deps chromium firefox webkit \
   && rm -rf /var/lib/apt/lists/*
 
 # gitleaks replaces the gitleaks-action the GitHub lane uses. The action was
@@ -92,7 +89,7 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
   && cargo install cargo-audit --version "${CARGO_AUDIT_VERSION}" --locked \
   && chmod -R a+w "${CARGO_HOME}" "${RUSTUP_HOME}" \
   && rustc --version \
-  && cargo audit --version
+  && cargo-audit --version
 
 # Playwright refuses to launch Chromium as root without --no-sandbox, and the
 # repository's launchOptions do not pass it. Run as the image's unprivileged

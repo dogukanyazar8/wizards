@@ -34,6 +34,7 @@ webServerEnv.LIVEKIT_API_SECRET = process.env.LIVEKIT_API_SECRET ?? "e2e-livekit
 webServerEnv.LIVEKIT_URL = process.env.LIVEKIT_URL ?? "ws://127.0.0.1:7880";
 webServerEnv.NEXT_PUBLIC_LIVEKIT_URL =
   process.env.NEXT_PUBLIC_LIVEKIT_URL ?? webServerEnv.LIVEKIT_URL;
+webServerEnv.NODE_ENV = "production";
 webServerEnv.AUTH_SECRET = process.env.AUTH_SECRET ?? "whispr-e2e-auth-secret-change-me-local-only";
 webServerEnv.NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET ?? webServerEnv.AUTH_SECRET;
 webServerEnv.NODE_OPTIONS = [process.env.NODE_OPTIONS, "--max-old-space-size=4096"]

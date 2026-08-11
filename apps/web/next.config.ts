@@ -74,6 +74,7 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_WHISPR_VERSION: whisprVersion,
   },
   experimental: {
+    cpus: 4,
     useTypeScriptCli: false,
   },
   reactCompiler: true,

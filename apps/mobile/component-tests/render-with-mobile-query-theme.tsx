@@ -7,7 +7,10 @@ import { MobileLocaleProvider } from "../src/app/providers/mobile-locale-provide
 /** Theme + locale + an isolated query client for screens that fetch on mount. */
 export function renderWithMobileQueryTheme(ui: ReactElement, options?: RenderOptions) {
   const queryClient = new QueryClient({
-    defaultOptions: { mutations: { retry: false }, queries: { gcTime: 0, retry: false } },
+    defaultOptions: {
+      mutations: { gcTime: 0, retry: false },
+      queries: { gcTime: 0, retry: false },
+    },
   });
 
   return render(

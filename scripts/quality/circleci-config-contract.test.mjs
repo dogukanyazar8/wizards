@@ -9,6 +9,18 @@ const setupConfigPath = join(root, ".circleci", "config.yml");
 const mainConfigPath = join(root, ".circleci", "main.yml");
 const goldenImagePath = join(root, "docker", "ci", "IMAGE");
 const githubWorkflowPath = join(root, ".github", "workflows", "ci.yml");
+const goldenDockerfilePath = join(root, "docker", "ci", "Dockerfile");
+const mobilePackagePath = join(root, "apps", "mobile", "package.json");
+const mobileTestRenderHelperPath = join(
+  root,
+  "apps",
+  "mobile",
+  "component-tests",
+  "render-with-mobile-query-theme.tsx",
+);
+const nextConfigPath = join(root, "apps", "web", "next.config.ts");
+const playwrightConfigPath = join(root, "apps", "web", "playwright.config.ts");
+const webPackagePath = join(root, "apps", "web", "package.json");
 
 const placeholderDigest = `sha256:${"0".repeat(64)}`;
 const digestedImage = /^(?<name>[^\s:@]+(?::[^\s@]+)?)@(?<digest>sha256:[a-f0-9]{64})$/u;
@@ -164,16 +176,50 @@ test("workspaces never carry dependency trees", () => {
 
 test("Playwright browsers come from the golden image, not from job steps", () => {
   const main = readText(mainConfigPath);
+  const dockerfile = readText(goldenDockerfilePath);
   const installs = collectRunCommands(main).filter((command) =>
     /playwright install/u.test(command),
   );
 
-  assert.equal(
-    installs.length,
-    1,
-    "only the guarded extra-browser step may install Playwright browsers",
+  assert.equal(installs.length, 0, "jobs must never mutate the prebuilt browser toolchain");
+  assert.match(
+    dockerfile,
+    /playwright@\$\{PLAYWRIGHT_VERSION\}" install --with-deps chromium firefox webkit/u,
+    "the golden image must contain every browser used by the E2E matrix",
   );
-  assert.match(installs[0], /<< parameters\.install-browsers >>/u);
+});
+
+test("resource-heavy Node jobs have explicit memory and CPU bounds", () => {
+  const main = readText(mainConfigPath);
+  const nextConfig = readText(nextConfigPath);
+
+  assert.match(
+    main,
+    /^  coverage:\r?\n(?: {4}.*\r?\n)*? {4}environment:\r?\n(?: {6}.*\r?\n)*? {6}NODE_OPTIONS: "--max-old-space-size=4096"$/mu,
+    "coverage reporting needs a heap sized for c8's all-file merge",
+  );
+  assert.match(
+    nextConfig,
+    /experimental:\s*\{\s*cpus: 4,/u,
+    "Next must not infer its worker count from the container host",
+  );
+});
+
+test("Playwright starts the built Next application in production mode", () => {
+  const playwrightConfig = readText(playwrightConfigPath);
+  const webPackage = JSON.parse(readText(webPackagePath));
+
+  assert.equal(webPackage.scripts["e2e:web-server"], "pnpm run build && pnpm start");
+  assert.match(playwrightConfig, /webServerEnv\.NODE_ENV = "production";/u);
+});
+
+test("mobile component tests release completed mutations without force-exit", () => {
+  const mobilePackage = JSON.parse(readText(mobilePackagePath));
+  const command = mobilePackage.scripts["test:components"];
+  const renderHelper = readText(mobileTestRenderHelperPath);
+
+  assert.doesNotMatch(command, /--forceExit/u);
+  assert.match(renderHelper, /mutations: \{ gcTime: 0, retry: false \}/u);
 });
 
 test("end-to-end jobs reuse the shared install and never re-run migrations blind", () => {
@@ -207,6 +253,16 @@ test("the secret scan uses a supported gitleaks scanning mode", () => {
   );
   assert.match(scans[0], /--config \.gitleaks\.toml/u);
   assert.match(scans[0], /--redact/u);
+  assert.match(scans[0], /timeout --signal=TERM --kill-after=30s 30m/u);
+  assert.match(scans[0], /Secret scan still running/u);
+  assert.match(scans[0], /exit "\$scan_status"/u);
+});
+
+test("desktop checks the installed cargo-audit binary without invoking Cargo", () => {
+  const main = readText(mainConfigPath);
+
+  assert.match(main, /current_version="\$\(cargo-audit --version\)"/u);
+  assert.doesNotMatch(main, /current_version="\$\(cargo audit --version\)"/u);
 });
 
 test("the generated E2E password never reaches argv, stdout, or a log line", () => {
