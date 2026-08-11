@@ -95,8 +95,11 @@ function buildItem(conversation: DMConversationDTO): DmConversationItemView {
   };
 }
 
-function renderSidebar(conversation: DMConversationDTO) {
-  const item = buildItem(conversation);
+function renderSidebar(
+  conversation: DMConversationDTO,
+  overrides: Partial<DmConversationItemView> = {},
+) {
+  const item = { ...buildItem(conversation), ...overrides };
 
   return renderToStaticMarkup(
     <LocaleProvider initialLocale="tr" initialMessages={getMessagesForLocale("tr")}>
@@ -153,6 +156,7 @@ function renderSidebar(conversation: DMConversationDTO) {
           subtitle: "",
           unmute: "",
           unread: "",
+          pinnedSection: "Sabitlenen",
           unreadEmpty: "",
         }}
         unreadCount={0}
@@ -199,5 +203,37 @@ describe("DM sidebar group row", () => {
 
     assert.match(markup, /dm-filter-groups/);
     assert.match(markup, /dm-filter-unread/);
+  });
+
+  /** F2's three list indicators, in the order 2a draws them. */
+  it("lifts a pinned conversation under its own heading", () => {
+    const markup = renderSidebar(groupConversation("Takım"), {
+      pinnedAt: "2026-08-11T08:00:00.000Z",
+    });
+
+    assert.match(markup, /dm-conversation-pinned-section/);
+    assert.match(markup, /Sabitlenen/);
+  });
+
+  it("draws no pinned heading when nothing is pinned", () => {
+    assert.doesNotMatch(
+      renderSidebar(groupConversation("Takım")),
+      /dm-conversation-pinned-section/,
+    );
+  });
+
+  it("keeps the mention badge and the unread badge on the same row", () => {
+    const markup = renderSidebar(groupConversation("Takım"), {
+      mentionCount: 2,
+      unreadCount: 12,
+    });
+
+    assert.match(markup, /dm-conversation-dm-group-1-mention-badge/);
+    assert.match(markup, /dm-conversation-dm-group-1-unread-badge/);
+    // 2a §5: the mention badge is the left one.
+    assert.ok(
+      markup.indexOf("dm-conversation-dm-group-1-mention-badge") <
+        markup.indexOf("dm-conversation-dm-group-1-unread-badge"),
+    );
   });
 });

@@ -44,6 +44,10 @@ export type DmConversationItemView = {
   isGroup?: boolean | undefined;
   isMuted: boolean;
   memberCount?: number | undefined;
+  /** 2a §5 / F2. Unseen mentions, counted apart from `unreadCount`. */
+  mentionCount?: number | undefined;
+  /** V3 / 2a §2. The viewer's own pin; valid on a 1:1 row too. */
+  pinnedAt?: string | null | undefined;
   preview: string;
   searchText: string;
   status: DMPresenceStatus;
@@ -107,6 +111,7 @@ type DmSidebarProps = {
     quickStart: string;
     requests: string;
     requestsDescription: (count: number) => string;
+    pinnedSection: string;
     searchPlaceholder: string;
     subtitle: string;
     unmute: string;
@@ -450,9 +455,27 @@ function DmConversationItem({
                 aria-hidden="true"
               />
             ) : null}
-            {item.unreadCount > 0 ? (
+            {/*
+             * 2a §5. A row can hold an unseen mention and a stack of unread
+             * messages at once, so the two badges coexist and the mention is
+             * always the left one.
+             */}
+            {(item.mentionCount ?? 0) > 0 ? (
               <span
                 className={cn("shrink-0", item.isMuted ? "" : "ml-auto")}
+                data-testid={`dm-conversation-${item.conversation.id}-mention-badge`}
+              >
+                <Badge className="bg-[hsl(var(--danger))] px-2 py-0.5 tracking-normal text-[hsl(var(--danger-foreground))]">
+                  {`@${item.mentionCount}`}
+                </Badge>
+              </span>
+            ) : null}
+            {item.unreadCount > 0 ? (
+              <span
+                className={cn(
+                  "shrink-0",
+                  item.isMuted || (item.mentionCount ?? 0) > 0 ? "" : "ml-auto",
+                )}
                 data-testid={`dm-conversation-${item.conversation.id}-unread-badge`}
               >
                 <Badge className="px-2 py-0.5 tracking-normal">{item.unreadCount}</Badge>
@@ -555,22 +578,40 @@ function DmConversationList({
   onSetConversationMuted: (conversationId: string, muted: boolean) => Promise<void>;
   text: DmSidebarProps["text"];
 }) {
+  // V3 / 2a §2. The pinned block is a slice of the same ordering, not a second
+  // one, so a row cannot be in the heading and missing from the list.
+  const pinned = conversations.filter((item) => Boolean(item.pinnedAt));
+  const rest = conversations.filter((item) => !item.pinnedAt);
+  const renderItem = (conversation: DmConversationItemView) => (
+    <DmConversationItem
+      isHidingConversation={isHidingConversation}
+      item={conversation}
+      key={conversation.conversation.id}
+      onHideConversation={onHideConversation}
+      onMarkConversationRead={onMarkConversationRead}
+      onMarkConversationUnread={onMarkConversationUnread}
+      onOpen={onOpenConversation}
+      onPrefetch={onPrefetch}
+      onSetConversationMuted={onSetConversationMuted}
+      text={text}
+    />
+  );
+
   return (
     <div className="space-y-1" data-testid="dm-conversation-list">
-      {conversations.map((conversation) => (
-        <DmConversationItem
-          isHidingConversation={isHidingConversation}
-          item={conversation}
-          key={conversation.conversation.id}
-          onHideConversation={onHideConversation}
-          onMarkConversationRead={onMarkConversationRead}
-          onMarkConversationUnread={onMarkConversationUnread}
-          onOpen={onOpenConversation}
-          onPrefetch={onPrefetch}
-          onSetConversationMuted={onSetConversationMuted}
-          text={text}
-        />
-      ))}
+      {pinned.length > 0 ? (
+        <>
+          <div
+            className="flex items-center gap-1.5 px-1 pb-0.5 pt-1 text-[10.5px] font-semibold uppercase tracking-[0.2em] text-app-soft"
+            data-testid="dm-conversation-pinned-section"
+          >
+            <Pin className="h-3 w-3" />
+            {text.pinnedSection}
+          </div>
+          {pinned.map(renderItem)}
+        </>
+      ) : null}
+      {rest.map(renderItem)}
       {hasNextPage ? (
         <button
           className="mt-3 flex min-h-10 w-full items-center justify-center gap-2 rounded-[16px] bg-[hsl(var(--surface-soft)/0.38)] px-3 text-xs font-semibold text-app-muted transition hover:bg-[hsl(var(--surface-soft)/0.62)] hover:text-app-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring)/0.5)] disabled:cursor-not-allowed disabled:opacity-60"

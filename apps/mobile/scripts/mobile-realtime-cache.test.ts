@@ -99,6 +99,7 @@ function makeBootstrap(): MobileBootstrapPayload {
 
 function makeFriends(): MobileFriendsOverviewResponse {
   const target = {
+    allowsGroupInvites: true,
     avatarUrl: null,
     customStatus: null,
     device: null,
@@ -111,6 +112,7 @@ function makeFriends(): MobileFriendsOverviewResponse {
     voiceRoom: null,
   };
   const unaffected = {
+    allowsGroupInvites: true,
     avatarUrl: null,
     customStatus: "Busy",
     device: null,

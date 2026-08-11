@@ -3,7 +3,6 @@ import { render } from "@testing-library/react-native";
 import { createDmScreenStyles } from "../src/app/screens/dm-screen.styles";
 import {
   DMInboxHeader,
-  DMOnlineStrip,
   DirectMessageConversationCard,
   formatMobileVoicePreviewLabel,
 } from "../src/app/screens/dm-inbox";
@@ -120,6 +119,11 @@ describe("MSG-1a conversation rows", () => {
     expect(styles.dmConversationTimeUnread.color).toBe(lightTheme.messaging.accent);
   });
 
+  /**
+   * 2a §5 replaced the old either/or: the mention badge is always left of the
+   * unread badge and the two are drawn together, because a row can be holding
+   * an unseen mention and four unread messages at once.
+   */
   it("draws the mention badge from M4A's mentionCount, ahead of the unread pill", async () => {
     const view = await renderInTheme(
       <DirectMessageConversationCard
@@ -131,7 +135,8 @@ describe("MSG-1a conversation rows", () => {
     );
 
     expect(view.getByTestId("mobile-dm-conversation-mention-badge")).toBeTruthy();
-    expect(view.queryByText("4")).toBeNull();
+    expect(view.getByText("@2")).toBeTruthy();
+    expect(view.getByText("4")).toBeTruthy();
   });
 
   it('renders a voice preview as "Sesli mesaj · 0:42" from durationSec', async () => {
@@ -191,9 +196,11 @@ describe("MSG-1a conversation rows", () => {
   });
 
   it("marks a muted row with the bell and a read row with the double tick", async () => {
+    // 2a C4: the silenced look is driven by `notifyLevel`; `muted` is its
+    // derived mirror and is no longer read on this row.
     const muted = await renderInTheme(
       <DirectMessageConversationCard
-        conversation={conversation({ muted: true })}
+        conversation={conversation({ muted: true, notifyLevel: "NONE" })}
         currentUserId="user-1"
         onOpenConversation={() => {}}
         selected={false}
@@ -292,73 +299,6 @@ describe("MSG-1a conversation rows", () => {
   });
 });
 
-describe("MSG-1a online strip", () => {
-  const friend = {
-    avatarUrl: null,
-    displayName: "CodeX",
-    id: "friend-1",
-    status: "ONLINE" as const,
-    username: "codex",
-    voiceRoom: null,
-  };
-
-  it("marks a friend in a voice room with the wave tile, not a presence dot", async () => {
-    const view = await renderInTheme(
-      <DMOnlineStrip
-        friends={[
-          {
-            ...friend,
-            voiceRoom: {
-              channelId: "channel-1",
-              channelName: "live-room",
-              serverId: "server-1",
-              serverName: "paycore",
-            },
-          },
-        ]}
-        onAddFriend={() => {}}
-        onOpenFriendDM={() => {}}
-      />,
-    );
-
-    expect(view.getByTestId("mobile-dm-online-voice-friend-1")).toBeTruthy();
-    expect(view.queryByTestId("mobile-dm-online-dot-friend-1")).toBeNull();
-  });
-
-  it("falls back to the presence dot for a friend who is merely online", async () => {
-    const view = await renderInTheme(
-      <DMOnlineStrip friends={[friend]} onAddFriend={() => {}} onOpenFriendDM={() => {}} />,
-    );
-
-    expect(view.getByTestId("mobile-dm-online-dot-friend-1")).toBeTruthy();
-    expect(view.queryByTestId("mobile-dm-online-voice-friend-1")).toBeNull();
-  });
-
-  it("locks the strip cell to the 52/50/r17 scale and the dashed add tile", () => {
-    const styles = createDmScreenStyles(lightTheme);
-
-    expect(styles.dmOnlineStripCell.width).toBe(52);
-    expect(styles.dmOnlineStripAvatarWrap).toMatchObject({ height: 50, width: 50 });
-    expect(styles.dmOnlineStripVoiceTile).toMatchObject({
-      borderRadius: 7,
-      height: 19,
-      width: 19,
-    });
-    expect(styles.dmOnlineStripAddCell).toMatchObject({
-      borderRadius: 17,
-      borderStyle: "dashed",
-      borderWidth: 1.6,
-    });
-  });
-});
-
-/**
- * The handoff is drawn on a 390pt frame. On a wider phone every fixed metric
- * covers proportionally less screen, which is what made the shipped list read a
- * size smaller than "1a" — thinner rows, a presence dot that looked like a
- * speck. The factory takes the mapping as an argument so the design's own
- * numbers stay the baseline.
- */
 describe("MSG-1a proportional scale", () => {
   it("holds the 1a proportions on a wider screen and clamps past a phone", () => {
     expect(getMobileMessagingScale(390)).toBe(1);

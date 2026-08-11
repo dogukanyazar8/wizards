@@ -1,17 +1,23 @@
 import {
   buildGroupInviteDisplayUrl,
   buildGroupNameFromMembers,
-  canMemberDo,
+  getGroupCapabilities,
+  getGroupMemberActions,
   GROUP_DM_DESCRIPTION_MAX_LENGTH,
   GROUP_DM_NAME_MAX_LENGTH,
   GROUP_MEMBER_NAME_COLORS,
+  type DMNotifyLevel,
   type DMParticipantRole,
+  type GroupAction,
   type GroupAvatarTile,
   type GroupCallStateDTO,
+  type GroupCapabilities,
   type GroupDisappearingWindow,
   type GroupHistoryVisibility,
+  type GroupMemberAction,
   type GroupMemberNameColor,
   type GroupNameLocale,
+  type GroupPermissionLevel,
   type GroupPermissions,
 } from "@wizards/types";
 
@@ -261,6 +267,67 @@ export function getConversationFilterPredicate(
   }
 }
 
+export interface MobileConversationFilterCounts {
+  readonly groups: number;
+  readonly muted: number;
+  readonly unread: number;
+}
+
+/**
+ * 2a §1's `Okunmamış · 3` and `Gruplar · 4`. Counted with the very predicates
+ * the chips filter by, so the number on a chip and the length of the list it
+ * opens can never disagree — a chip that promised three rows and produced four
+ * is the failure this shares one rule to avoid.
+ *
+ * "Sessiz" carries no counter in the design, but it is counted anyway: one pass
+ * over the inbox answers all three, and the caller decides what to print.
+ */
+export function getConversationFilterCounts(
+  rows: readonly MobileConversationFilterRow[],
+): MobileConversationFilterCounts {
+  const isUnread = getConversationFilterPredicate("unread");
+  const isGroup = getConversationFilterPredicate("groups");
+  const isMuted = getConversationFilterPredicate("muted");
+  let groups = 0;
+  let muted = 0;
+  let unread = 0;
+
+  for (const row of rows) {
+    if (isUnread(row)) {
+      unread += 1;
+    }
+    if (isGroup(row)) {
+      groups += 1;
+    }
+    if (isMuted(row)) {
+      muted += 1;
+    }
+  }
+
+  return { groups, muted, unread };
+}
+
+export interface MobileConversationSplit<Row> {
+  readonly pinned: Row[];
+  readonly rest: Row[];
+}
+
+/**
+ * V3 / 2a §2. The SABİTLENEN block and the list under it, from one already
+ * sorted pass: the section is a slice of the ordering, not a second ordering,
+ * so a row cannot appear in one and be missing from the other.
+ */
+export function splitPinnedConversations<Row extends MobileConversationFilterRow>(
+  rows: readonly Row[],
+): MobileConversationSplit<Row> {
+  const sorted = sortConversationsForInbox(rows);
+  const pinnedCount = sorted.findIndex((row) => !row.pinnedAt);
+
+  return pinnedCount === -1
+    ? { pinned: sorted, rest: [] }
+    : { pinned: sorted.slice(0, pinnedCount), rest: sorted.slice(pinnedCount) };
+}
+
 /**
  * V3 / 2a §2. Pinned conversations lead the list, newest pin first, and the rest
  * keep the server's activity order. Sorted on a copy — the caller's array is the
@@ -281,91 +348,17 @@ export function sortConversationsForInbox<Row extends MobileConversationFilterRo
   });
 }
 
-export interface MobileGroupCapabilities {
-  readonly canAddMembers: boolean;
-  readonly canEditInfo: boolean;
-  readonly canManageRoles: boolean;
-  readonly canPin: boolean;
-  readonly canSend: boolean;
-  readonly canTransferOwnership: boolean;
-}
-
 /**
- * 2f §3 / 2e §7. A thin wrapper over `canMemberDo` so a screen asks one question
- * per control instead of pairing a role with a level at every call site.
- *
- * No `permissions` means a 1:1 conversation, where the server's own gate always
- * passes; the two role controls stay off because a 1:1 has no roles to manage.
+ * Faz 5 §H. The capability rule and the member-action list moved to
+ * `@wizards/types` when the web panels grew the same two screens: a permission
+ * that means one thing on a phone and another in a browser is exactly the drift
+ * K5 forbids. Re-exported under their mobile names so the five screens and the
+ * 106 model tests keep reading one module.
  */
-export function getGroupCapabilities(
-  role: DMParticipantRole | undefined,
-  permissions: GroupPermissions | undefined,
-): MobileGroupCapabilities {
-  const isOwner = role === "OWNER";
+export { getGroupCapabilities, getGroupMemberActions as getMemberSheetActions };
 
-  if (!permissions) {
-    return {
-      canAddMembers: true,
-      canEditInfo: true,
-      canManageRoles: false,
-      canPin: true,
-      canSend: true,
-      canTransferOwnership: false,
-    };
-  }
-
-  const effectiveRole = role ?? "MEMBER";
-
-  return {
-    canAddMembers: canMemberDo(effectiveRole, permissions.addMembers),
-    canEditInfo: canMemberDo(effectiveRole, permissions.editInfo),
-    canManageRoles: isOwner,
-    canPin: canMemberDo(effectiveRole, permissions.pinMessage),
-    canSend: canMemberDo(effectiveRole, permissions.sendMessage),
-    canTransferOwnership: isOwner,
-  };
-}
-
-export type MobileGroupMemberSheetAction = "demote" | "message" | "profile" | "promote" | "remove";
-
-/**
- * 2e §7, in the order the sheet lists them. C5 is binding: an action the viewer
- * may not take is absent, never greyed out — a disabled "Gruptan çıkar" tells a
- * member the control exists and only the tap is missing.
- *
- * Your own row opens no sheet: "message" and "profile" are about somebody else,
- * and the moderation half cannot target yourself (leaving is 2f's own row).
- */
-export function getMemberSheetActions(
-  viewerRole: DMParticipantRole | undefined,
-  targetRole: DMParticipantRole | undefined,
-  isSelf: boolean,
-): MobileGroupMemberSheetAction[] {
-  if (isSelf) {
-    return [];
-  }
-
-  const actions: MobileGroupMemberSheetAction[] = ["message", "profile"];
-
-  // The owner is not a moderation target: the group changes hands through the
-  // explicit transfer, never by demoting or removing whoever holds it.
-  if (targetRole === "OWNER") {
-    return actions;
-  }
-
-  if (viewerRole === "OWNER") {
-    actions.push(targetRole === "ADMIN" ? "demote" : "promote", "remove");
-    return actions;
-  }
-
-  // An admin moderates members only; two admins are peers, so neither can act
-  // on the other — that is the owner's call.
-  if (viewerRole === "ADMIN" && targetRole !== "ADMIN") {
-    actions.push("remove");
-  }
-
-  return actions;
-}
+export type MobileGroupCapabilities = GroupCapabilities;
+export type MobileGroupMemberSheetAction = GroupMemberAction;
 
 /**
  * §11.0.1. The colour is handed out at join time and stored on the membership
@@ -391,6 +384,331 @@ export function resolveSenderNameColor(member: {
     GROUP_MEMBER_NAME_COLORS[hash % GROUP_MEMBER_NAME_COLORS.length] ?? GROUP_MEMBER_NAME_COLORS[0];
 
   return fallback;
+}
+
+/* ------------------------------------------------------------------------- *
+ * Faz 5 §B/§C/§D. What 2d, 2e and 2f derive on top of the Faz 3 layer above.
+ * ------------------------------------------------------------------------- */
+
+export interface MobileGroupMemberSource {
+  readonly avatarUrl?: string | null | undefined;
+  readonly displayName?: string | null | undefined;
+  readonly joinedAt?: string | undefined;
+  readonly lastSeenAt?: string | null | undefined;
+  readonly nameColor?: string | null | undefined;
+  readonly role?: DMParticipantRole | undefined;
+  readonly status?: string | undefined;
+  readonly userId: string;
+  readonly username: string;
+}
+
+/**
+ * §11.0.1. One pass over the roster, so a bubble, a reply quote and its left
+ * rule all read the same map rather than each calling the resolver with a
+ * participant it happened to find. A message from somebody who has since left
+ * is not in the map — the caller falls back, it does not invent a colour here.
+ */
+export function getGroupSenderColors(
+  members: readonly MobileGroupMemberSource[],
+): Record<string, string> {
+  const colors: Record<string, string> = {};
+
+  for (const member of members) {
+    colors[member.userId] = resolveSenderNameColor(member);
+  }
+
+  return colors;
+}
+
+export interface MobileGroupMentionCandidate {
+  readonly avatarUrl: string | null;
+  /** Never null: the suggestion row prints a name, and a username is one. */
+  readonly displayName: string;
+  readonly userId: string;
+  readonly username: string;
+}
+
+/**
+ * 2d §B4. The `@` suggestions, from the group's own roster.
+ *
+ * Yourself is not a candidate — mentioning yourself notifies nobody — and
+ * `@everyone` is deliberately absent: it is a channel concept, and a group DM
+ * has no definition for it (§B4).
+ */
+export function getGroupMentionCandidates(
+  members: readonly MobileGroupMemberSource[],
+  viewerId: string,
+): MobileGroupMentionCandidate[] {
+  return members
+    .filter((member) => member.userId !== viewerId && member.username.trim().length > 0)
+    .map((member) => ({
+      avatarUrl: member.avatarUrl ?? null,
+      displayName: member.displayName?.trim() ? member.displayName : member.username,
+      userId: member.userId,
+      username: member.username,
+    }));
+}
+
+/**
+ * 2d §1's `6 üye · ● 3 çevrimiçi`. The online half is dropped rather than
+ * printed as a zero: "0 çevrimiçi" is a sentence about nobody, and the design
+ * only ever shows the dot beside a number that means something.
+ */
+export function formatGroupHeaderMeta(
+  memberCount: number,
+  onlineCount: number,
+  copy: { readonly groupChatMembersOnline: string },
+): { readonly members: string; readonly online: string | null } {
+  const members = Math.max(0, Math.trunc(memberCount));
+  const online = Math.max(0, Math.trunc(onlineCount));
+  const [membersPart, onlinePart] = copy.groupChatMembersOnline
+    .replace("{total}", String(members))
+    .replace("{online}", String(online))
+    .split("·");
+
+  return {
+    members: (membersPart ?? "").trim(),
+    online: online > 0 ? (onlinePart ?? "").trim() : null,
+  };
+}
+
+export type MobileGroupMemberSubtitle = "creator" | "lastSeen" | "username";
+
+export interface MobileGroupMemberRow {
+  readonly isSelf: boolean;
+  readonly member: MobileGroupMemberSource;
+  readonly online: boolean;
+  readonly role: DMParticipantRole;
+  readonly subtitle: MobileGroupMemberSubtitle;
+}
+
+const ROLE_ORDER: Record<DMParticipantRole, number> = { OWNER: 0, ADMIN: 1, MEMBER: 2 };
+
+/**
+ * 2e §6 / the full roster behind `Tümü`. Owner first, then the admins, then the
+ * members in join order — the same order on both screens, because the card is
+ * the first four rows of this list and not a second ordering (2a §2's rule,
+ * applied to people).
+ *
+ * The subtitle is decided here, not in the row: `Grubu oluşturdu` belongs to the
+ * owner, an offline member shows when they were last seen, and everybody else
+ * shows their username (HTML 408–411).
+ */
+export function getGroupMemberRows(
+  members: readonly MobileGroupMemberSource[],
+  viewerId: string,
+): MobileGroupMemberRow[] {
+  return [...members]
+    .map((member) => {
+      const role = member.role ?? "MEMBER";
+      const online = member.status === "ONLINE";
+
+      return {
+        isSelf: member.userId === viewerId,
+        member,
+        online,
+        role,
+        subtitle:
+          role === "OWNER"
+            ? ("creator" as const)
+            : !online && member.lastSeenAt
+              ? ("lastSeen" as const)
+              : ("username" as const),
+      };
+    })
+    .sort((left, right) => {
+      const byRole = ROLE_ORDER[left.role] - ROLE_ORDER[right.role];
+      if (byRole !== 0) {
+        return byRole;
+      }
+
+      const byJoin = (left.member.joinedAt ?? "").localeCompare(right.member.joinedAt ?? "");
+      return byJoin !== 0 ? byJoin : left.member.userId.localeCompare(right.member.userId);
+    });
+}
+
+/** 2e §6: the card holds the first four; the rest live behind `Tümü`. */
+export const GROUP_INFO_MEMBER_PREVIEW_COUNT = 4;
+
+export type MobileGroupQuickAction = "invite" | "mute" | "search" | "video";
+
+/**
+ * 2e §3. Four equal boxes — unless the viewer may not add anybody, in which case
+ * `Davet et` is *gone* rather than greyed out (§C1.3) and the remaining three
+ * spread. A disabled box would tell a member the control exists and only the
+ * tap is missing.
+ */
+export function getGroupQuickActions(
+  capabilities: Pick<MobileGroupCapabilities, "canAddMembers">,
+): MobileGroupQuickAction[] {
+  const actions: MobileGroupQuickAction[] = ["mute", "video", "search"];
+
+  if (capabilities.canAddMembers) {
+    actions.push("invite");
+  }
+
+  return actions;
+}
+
+export interface MobileGroupMediaTile {
+  readonly kind: "file" | "image" | "overflow" | "video";
+  /** File tiles print `12 dosya`; the overflow tile prints `+42`. */
+  readonly count: number;
+  readonly id: string;
+  readonly thumbnailUrl: string | null;
+}
+
+/** 2e §5's four-up strip: three attachments and, past that, one `+N` counter. */
+export const GROUP_MEDIA_STRIP_SIZE = 4;
+
+export interface MobileGroupMediaSource {
+  readonly contentType: string;
+  readonly id: string;
+  readonly thumbnailUrl?: string | null | undefined;
+  readonly url?: string | null | undefined;
+}
+
+/**
+ * 2e §5. The strip is four boxes wide: the newest three attachments and a `+N`
+ * that counts everything they hide, including the file group's own tail.
+ *
+ * `total` is the server's count, not `items.length`: the strip asks for a page
+ * of four and the header already prints the real total beside `MEDYA VE
+ * DOSYALAR`, so the two numbers have to come from the same place.
+ */
+export function getGroupMediaTiles(
+  items: readonly MobileGroupMediaSource[],
+  total: number,
+): MobileGroupMediaTile[] {
+  const shown = items.slice(0, GROUP_MEDIA_STRIP_SIZE - 1);
+  const tiles: MobileGroupMediaTile[] = shown.map((item) => ({
+    count: 1,
+    id: item.id,
+    kind: item.contentType.startsWith("image/")
+      ? ("image" as const)
+      : item.contentType.startsWith("video/")
+        ? ("video" as const)
+        : ("file" as const),
+    thumbnailUrl: item.thumbnailUrl ?? item.url ?? null,
+  }));
+
+  const hidden = Math.max(0, Math.trunc(total) - shown.length);
+
+  if (hidden > 0) {
+    tiles.push({ count: hidden, id: "overflow", kind: "overflow", thumbnailUrl: null });
+  }
+
+  return tiles;
+}
+
+export interface MobileGroupPermissionRow {
+  readonly action: GroupAction;
+  readonly level: GroupPermissionLevel;
+}
+
+/** 2f §3's four rows, in the order the design lists them (HTML 439–442). */
+export function getGroupPermissionRows(
+  permissions: GroupPermissions | undefined,
+): MobileGroupPermissionRow[] {
+  if (!permissions) {
+    return [];
+  }
+
+  return [
+    { action: "sendMessage", level: permissions.sendMessage },
+    { action: "addMembers", level: permissions.addMembers },
+    { action: "editInfo", level: permissions.editInfo },
+    { action: "pinMessage", level: permissions.pinMessage },
+  ];
+}
+
+/** 2f §2's three radio rows, in the order the design lists them. */
+export const MOBILE_GROUP_NOTIFY_LEVELS: readonly DMNotifyLevel[] = ["ALL", "MENTIONS", "NONE"];
+
+export type MobileGroupLeaveIntent = "confirm" | "transfer";
+
+/**
+ * V8 / 2f §5. An owner who is the last person able to run the group has to hand
+ * it over first; the server refuses with `409 OWNER_TRANSFER_REQUIRED` either
+ * way, and this only decides which sheet opens.
+ *
+ * An owner with another admin beside them leaves through the ordinary confirm:
+ * `resolveNextGroupOwner` already has somebody to promote.
+ */
+export function getGroupLeaveIntent(
+  viewerRole: DMParticipantRole | undefined,
+  members: readonly MobileGroupMemberSource[],
+): MobileGroupLeaveIntent {
+  if (viewerRole !== "OWNER") {
+    return "confirm";
+  }
+
+  const hasAnotherAdmin = members.some((member) => member.role === "ADMIN");
+  const hasAnybodyElse = members.some((member) => member.role !== "OWNER");
+
+  return hasAnotherAdmin || !hasAnybodyElse ? "confirm" : "transfer";
+}
+
+/**
+ * 2d §8. The receipt belongs to the **last outgoing bubble** and nothing else,
+ * so the transcript carries one line rather than one per message. Returns the
+ * id of that bubble, or `null` when the viewer's last word is not the last word.
+ *
+ * System rows are skipped: they are nobody's message, and a group event landing
+ * after your message must not take the receipt away from it.
+ */
+export function resolveGroupReadReceiptMessageId(
+  messages: readonly {
+    readonly author: { readonly id: string };
+    readonly id: string;
+    readonly systemType?: string | null | undefined;
+  }[],
+  viewerId: string,
+): string | null {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (!message || message.systemType) {
+      continue;
+    }
+
+    return message.author.id === viewerId ? message.id : null;
+  }
+
+  return null;
+}
+
+export interface MobileGroupReadStackEntry {
+  readonly avatarUrl: string | null;
+  readonly label: string;
+  readonly userId: string;
+}
+
+/** 2d §8's 16px stack. Three faces at most; the sentence carries the rest. */
+export const GROUP_READ_STACK_LIMIT = 3;
+
+/**
+ * 2d §8. Reader ids become faces against the roster the screen already holds —
+ * the receipt payload carries ids only (Faz 1), and a second read for three
+ * avatars is exactly the N+1 §4.5 forbids.
+ *
+ * A reader who has since left the group has no row to draw and is dropped from
+ * the stack; the count beside it still comes from the server.
+ */
+export function getGroupReadStack(
+  readerIds: readonly string[],
+  members: readonly MobileGroupMemberSource[],
+): MobileGroupReadStackEntry[] {
+  const byId = new Map(members.map((member) => [member.userId, member]));
+
+  return readerIds
+    .map((userId) => byId.get(userId))
+    .filter((member): member is MobileGroupMemberSource => member !== undefined)
+    .slice(0, GROUP_READ_STACK_LIMIT)
+    .map((member) => ({
+      avatarUrl: member.avatarUrl ?? null,
+      label: member.displayName?.trim() ? member.displayName : member.username,
+      userId: member.userId,
+    }));
 }
 
 export interface MobileGroupPinnedStripState {

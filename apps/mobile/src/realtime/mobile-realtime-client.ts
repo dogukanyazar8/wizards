@@ -24,6 +24,12 @@ export type MobileRealtimeClient = {
   emitDMCallCancel(input: { conversationId: string }): void;
   emitDMCallDecline(input: { conversationId: string; fromUserId: string }): void;
   emitDMCallEnd(input: { conversationId: string }): void;
+  /**
+   * Faz 5 §B5. Entering a call that is already running: no ring, because the
+   * people inside are already talking and 2d's banner is pressed by somebody who
+   * can see that.
+   */
+  emitDMCallJoin(input: { conversationId: string; video?: boolean }): void;
   emitDMCallStart(input: { conversationId: string; video: boolean }): void;
   /** §2 "1a".6.4: acknowledges that this device now holds the newest message. */
   emitDMMessageDelivered(conversationId: string): void;
@@ -219,6 +225,14 @@ export function createMobileRealtimeClient(
       }
 
       socket.emit("typing:stop", channelId);
+    },
+
+    emitDMCallJoin(input) {
+      if (!socket?.connected) {
+        return;
+      }
+
+      socket.emit("dm:call:join", input);
     },
 
     emitDMCallStart(input) {

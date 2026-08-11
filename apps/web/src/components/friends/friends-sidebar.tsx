@@ -122,9 +122,10 @@ export function FriendsSidebar({ currentUserId, onNavigate, onPrefetch }: Friend
       conversations.map((conversation) => {
         const isGroup = isGroupConversation(conversation);
         const otherParticipant = findOtherParticipant(conversation, currentUserId);
-        const unreadCount =
-          conversation.participants.find((participant) => participant.userId === currentUserId)
-            ?.unreadCount ?? 0;
+        const viewerParticipant = conversation.participants.find(
+          (participant) => participant.userId === currentUserId,
+        );
+        const unreadCount = viewerParticipant?.unreadCount ?? 0;
         const displayName = isGroup
           ? getGroupConversationTitle(
               conversation,
@@ -185,9 +186,17 @@ export function FriendsSidebar({ currentUserId, onNavigate, onPrefetch }: Friend
           handle: isGroup ? null : handle,
           isGroup,
           memberCount: isGroup ? getGroupMemberCount(conversation) : undefined,
+          /**
+           * 2a C4 / F2. `notifyLevel` is the authority and `muted` its derived
+           * mirror; a payload from before the column still answers with the
+           * mirror, which is why both are read here.
+           */
           isMuted:
-            conversation.participants.find((participant) => participant.userId === currentUserId)
-              ?.muted ?? false,
+            conversation.notifyLevel === undefined
+              ? (viewerParticipant?.muted ?? false)
+              : conversation.notifyLevel !== "ALL",
+          mentionCount: viewerParticipant?.mentionCount ?? 0,
+          pinnedAt: conversation.pinnedAt ?? null,
           isActive: activeConversationId === conversation.id,
           preview,
           searchText,
@@ -234,6 +243,7 @@ export function FriendsSidebar({ currentUserId, onNavigate, onPrefetch }: Friend
     <>
       <GroupCreateDialog
         friends={(friendsQuery.data ?? []).map((friend) => ({
+          allowsGroupInvites: friend.allowsGroupInvites,
           avatarUrl: friend.avatarUrl,
           displayName: friend.displayName,
           id: friend.id,
@@ -313,6 +323,7 @@ export function FriendsSidebar({ currentUserId, onNavigate, onPrefetch }: Friend
           subtitle: t("dm.sidebar.subtitle"),
           unmute: t("dm.sidebar.actions.unmute"),
           unread: t("dm.sidebar.filters.unread"),
+          pinnedSection: t("dm.sidebar.pinnedSection"),
           unreadEmpty: t("dm.sidebar.unreadEmpty"),
         }}
         unreadCount={unreadCount}

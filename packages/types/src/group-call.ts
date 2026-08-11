@@ -39,3 +39,13 @@ export const GroupCallStateDTOSchema: z.ZodType<GroupCallStateDTO> = z.object({
   video: z.boolean(),
   participants: z.array(GroupCallParticipantDTOSchema),
 });
+
+/**
+ * Faz 5 §B5. The same payload `dm:call:state` pushes, behind a GET so a screen
+ * that opens *after* the call started still draws the "Katıl" banner — the
+ * socket only broadcasts transitions, and a reader who was offline for the one
+ * that mattered would otherwise see a group that looks idle.
+ */
+export const GroupCallStateResponseSchema = z
+  .object({ callState: GroupCallStateDTOSchema })
+  .strict();

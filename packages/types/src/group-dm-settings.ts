@@ -114,6 +114,95 @@ export function canMemberDo(role: DMParticipantRole, level: GroupPermissionLevel
   return role === "OWNER" || role === "ADMIN";
 }
 
+export interface GroupCapabilities {
+  readonly canAddMembers: boolean;
+  readonly canEditInfo: boolean;
+  readonly canManageRoles: boolean;
+  readonly canPin: boolean;
+  readonly canSend: boolean;
+  readonly canTransferOwnership: boolean;
+}
+
+/**
+ * Faz 5 §D3 / §H. One question per control, asked once for the whole product:
+ * mobile's 2e/2f and the web panels call this, so a permission cannot mean two
+ * things on two clients. Written here rather than in either app for exactly that
+ * reason.
+ *
+ * No `permissions` means a 1:1 conversation, where the server's own gate always
+ * passes; the two role controls stay off because a 1:1 has no roles to manage.
+ */
+export function getGroupCapabilities(
+  role: DMParticipantRole | undefined,
+  permissions: GroupPermissions | undefined,
+): GroupCapabilities {
+  const isOwner = role === "OWNER";
+
+  if (!permissions) {
+    return {
+      canAddMembers: true,
+      canEditInfo: true,
+      canManageRoles: false,
+      canPin: true,
+      canSend: true,
+      canTransferOwnership: false,
+    };
+  }
+
+  const effectiveRole = role ?? "MEMBER";
+
+  return {
+    canAddMembers: canMemberDo(effectiveRole, permissions.addMembers),
+    canEditInfo: canMemberDo(effectiveRole, permissions.editInfo),
+    canManageRoles: isOwner,
+    canPin: canMemberDo(effectiveRole, permissions.pinMessage),
+    canSend: canMemberDo(effectiveRole, permissions.sendMessage),
+    canTransferOwnership: isOwner,
+  };
+}
+
+export type GroupMemberAction = "demote" | "message" | "profile" | "promote" | "remove";
+
+/**
+ * 2e §7 / §D3.3, in the order both clients list them. C5 is binding on web as
+ * well as on mobile: an action the viewer may not take is **absent**, never
+ * greyed out — a disabled "Gruptan çıkar" tells a member the control exists and
+ * only the click is missing.
+ *
+ * Your own row offers nothing: "message" and "profile" are about somebody else,
+ * and the moderation half cannot target yourself (leaving has its own control).
+ */
+export function getGroupMemberActions(
+  viewerRole: DMParticipantRole | undefined,
+  targetRole: DMParticipantRole | undefined,
+  isSelf: boolean,
+): GroupMemberAction[] {
+  if (isSelf) {
+    return [];
+  }
+
+  const actions: GroupMemberAction[] = ["message", "profile"];
+
+  // The owner is not a moderation target: the group changes hands through the
+  // explicit transfer, never by demoting or removing whoever holds it.
+  if (targetRole === "OWNER") {
+    return actions;
+  }
+
+  if (viewerRole === "OWNER") {
+    actions.push(targetRole === "ADMIN" ? "demote" : "promote", "remove");
+    return actions;
+  }
+
+  // An admin moderates members only; two admins are peers, so neither can act
+  // on the other — that is the owner's call.
+  if (viewerRole === "ADMIN" && targetRole !== "ADMIN") {
+    actions.push("remove");
+  }
+
+  return actions;
+}
+
 /**
  * 2c §7. The oldest message a member who joined at `joinedAt` may read. `null`
  * means "no floor" so the caller writes no `where` clause at all rather than a

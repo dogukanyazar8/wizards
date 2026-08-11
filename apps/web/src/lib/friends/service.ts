@@ -49,6 +49,9 @@ const notificationUserSelect = {
 const friendListUserSelect = {
   ...friendUserSelect,
   customStatus: true,
+  // 2b §7. The picker greys out a friend who takes no group invites, so the
+  // list that feeds it carries the switch rather than asking per row.
+  settings: { select: { allowGroupInvites: true } },
 } as const;
 
 type FriendRequestRecord = {
@@ -496,6 +499,9 @@ export async function listFriends(userId: string): Promise<FriendDto[]> {
     };
 
     return {
+      // A friend whose settings row does not exist yet is open, the same answer
+      // the column's own default gives.
+      allowsGroupInvites: friend.settings?.allowGroupInvites ?? true,
       id: friend.id,
       username: friend.username,
       displayName: friend.displayName,

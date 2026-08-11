@@ -27,6 +27,7 @@ const searchResult = {
 };
 const adaAsFriend = {
   ...ada,
+  allowsGroupInvites: true,
   customStatus: null,
   lastSeenAt: "2026-07-11T09:00:00.000Z",
   presence: { customStatus: null, status: "ONLINE" as const },

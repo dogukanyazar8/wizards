@@ -87,6 +87,7 @@ function friendsFor(userId: string, avatarUrl: string | null): MobileFriendsOver
     friends: [
       {
         ...user,
+        allowsGroupInvites: true,
         customStatus: null,
         device: null,
         lastSeenAt: null,
@@ -96,6 +97,7 @@ function friendsFor(userId: string, avatarUrl: string | null): MobileFriendsOver
       },
       {
         ...other,
+        allowsGroupInvites: true,
         customStatus: null,
         device: null,
         lastSeenAt: null,

@@ -10,6 +10,7 @@ import type {
   MobileDMConversationListItem,
   MobileDMMessagesViewState,
   MobileMediaRuntimeState,
+  MobileMessageSearchViewState,
   MobileSyncHealthSummary,
 } from "../mobile-root-screen-shared";
 
@@ -39,9 +40,21 @@ export type MobileMessagesScreenProps = {
   isReactionMutationPending: boolean;
   lastSeenAt?: string | null;
   mediaState: MobileMediaRuntimeState;
+  /**
+   * Faz 5 §C1.3 / V5. 2e's `Ara` is group message search, and the search state
+   * already lives once in the product shell — the channel screen and this one
+   * read the same slot rather than standing up a second search.
+   */
+  messageSearchState?: MobileMessageSearchViewState;
   selectedConversation: MobileDMConversationListItem | null;
   selectedConversationId: string | null;
   syncHealth: MobileSyncHealthSummary;
+  onClearMessageSearch?(): void;
+  onSearchMessages?(input: {
+    conversationId: string;
+    query: string;
+    scope: "channel" | "dm";
+  }): Promise<void>;
   onClearSelectedMediaAsset(): void;
   onCloseConversation(conversationId?: string): void;
   onDeleteMessage(messageId: string): Promise<boolean>;

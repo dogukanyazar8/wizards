@@ -18,6 +18,8 @@ export interface FriendPresenceDto {
 }
 
 export interface FriendDto extends FriendUserDto {
+  /** 2b §7. False when this friend has closed themselves to group invites. */
+  allowsGroupInvites: boolean;
   status: FriendPresenceStatus;
   customStatus: string | null;
   /** ISO timestamp behind the mobile invite sheet's "n sa önce görüldü" line. */
@@ -87,6 +89,11 @@ export const FriendPresenceSchema = z.object({
 });
 
 export const FriendSchema = FriendUserSchema.extend({
+  /**
+   * 2b §7 / F2. Defaulted to open so a response from a server that predates the
+   * column parses as the behaviour it had.
+   */
+  allowsGroupInvites: z.boolean().default(true),
   status: FriendPresenceStatusSchema,
   customStatus: z.string().nullable(),
   lastSeenAt: z.string().nullable(),

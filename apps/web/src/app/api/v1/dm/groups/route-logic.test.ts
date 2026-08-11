@@ -1,12 +1,16 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import { ApiError } from "@/lib/api";
+
 import {
   groupAddMembersRoute,
+  groupCallStateRoute,
   groupCreateRoute,
   groupMemberRoleRoute,
   groupPinDismissRoute,
   groupPinRoute,
+  groupReadRoute,
   groupRemoveMemberRoute,
   groupSettingsRoute,
   groupUnpinRoute,
@@ -30,6 +34,7 @@ function buildDependencies(overrides = {}) {
     authenticate: async () => "user-1",
     createGroup: async () => conversation,
     dismissPin: async () => {},
+    enableInvite: async () => {},
     emitCreated: () => {},
     emitMembersChanged: () => {},
     emitPinChanged: () => {},
@@ -38,7 +43,10 @@ function buildDependencies(overrides = {}) {
     enforceRateLimit: async () => {},
     evictRemoved: () => {},
     getIo: () => ({}) as never,
+    loadConversation: async () => conversation,
     loadConversationForBroadcast: async () => conversation,
+    readCallState: async () => null,
+    requireParticipant: async () => ({}),
     removeMember: async () => ({ broadcastViewerId: "user-1" }),
     setPin: async () => conversation,
     updateGroup: async () => conversation,
@@ -91,6 +99,55 @@ describe("group create route", () => {
     );
 
     assert.equal(response.status, 400);
+  });
+
+  /**
+   * K2 / 2c §7. The tick is not part of the conversation row, so it is spent
+   * here: the invite is minted for the group the same request just created, and
+   * the client never has to follow up with a second call it might not survive.
+   */
+  it("mints the invite link when the creator ticked it, before answering", async () => {
+    const calls: unknown[] = [];
+    const response = await groupCreateRoute(
+      new Request("https://whispr.test/api/v1/dm/groups", {
+        body: JSON.stringify({ inviteEnabled: true, userIds: ["user-2", "user-3"] }),
+        headers: { "content-type": "application/json" },
+        method: "POST",
+      }),
+      buildDependencies({
+        createGroup: async (_actorId: string, input: { inviteEnabled?: boolean }) => {
+          // The flag never reaches the conversation writer: it is about the
+          // invite row, and the service has no business with it.
+          assert.equal("inviteEnabled" in input, false);
+          calls.push("create");
+          return conversation;
+        },
+        enableInvite: async (actorId: string, conversationId: string) => {
+          calls.push({ actorId, conversationId });
+        },
+      }),
+    );
+
+    assert.equal(response.status, 201);
+    assert.deepEqual(calls, ["create", { actorId: "user-1", conversationId: "group-1" }]);
+  });
+
+  it("leaves the invite alone when the creator did not tick it", async () => {
+    const calls: string[] = [];
+    await groupCreateRoute(
+      new Request("https://whispr.test/api/v1/dm/groups", {
+        body: JSON.stringify({ inviteEnabled: false, userIds: ["user-2", "user-3"] }),
+        headers: { "content-type": "application/json" },
+        method: "POST",
+      }),
+      buildDependencies({
+        enableInvite: async () => {
+          calls.push("enabled");
+        },
+      }),
+    );
+
+    assert.deepEqual(calls, []);
   });
 });
 
@@ -567,5 +624,135 @@ describe("group create route, Faz 1 fields", () => {
     );
 
     assert.equal(response.status, 400);
+  });
+});
+
+/**
+ * Faz 5 §C1/§D1 + §B5. The two reads 2e, 2f and the call banner open on. They
+ * are the phase's only new endpoints, and both are membership-gated: everything
+ * they hand over is already visible to somebody inside the group.
+ */
+describe("group read route", () => {
+  it("answers with the conversation the two screens are built from", async () => {
+    const actions: string[] = [];
+    const response = await groupReadRoute(
+      new Request("https://whispr.test/api/v1/dm/groups/group-1"),
+      "group-1",
+      buildDependencies({
+        enforceRateLimit: async (_id: string, action: string) => {
+          actions.push(action);
+        },
+      }),
+    );
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { conversation });
+    assert.deepEqual(actions, ["dm:group:read"]);
+  });
+
+  it("passes the viewer through, because the body is viewer-scoped", async () => {
+    // `role`, `notifyLevel`, `pinnedAt` and the pinned strip's `dismissed` are
+    // all the reader's own state: a read that dropped the viewer would answer
+    // with somebody else's screen.
+    const calls: unknown[] = [];
+    await groupReadRoute(
+      new Request("https://whispr.test/api/v1/dm/groups/group-1"),
+      "group-1",
+      buildDependencies({
+        authenticate: async () => "user-9",
+        loadConversation: async (conversationId: string, userId: string) => {
+          calls.push({ conversationId, userId });
+          return conversation;
+        },
+      }),
+    );
+
+    assert.deepEqual(calls, [{ conversationId: "group-1", userId: "user-9" }]);
+  });
+
+  it("surfaces the service's 403 rather than an empty conversation", async () => {
+    const response = await groupReadRoute(
+      new Request("https://whispr.test/api/v1/dm/groups/group-1"),
+      "group-1",
+      buildDependencies({
+        loadConversation: async () => {
+          throw new ApiError("Not a participant", 403);
+        },
+      }),
+    );
+
+    assert.equal(response.status, 403);
+  });
+});
+
+describe("group call state route", () => {
+  it("hands over the stored roster whole", async () => {
+    const response = await groupCallStateRoute(
+      new Request("https://whispr.test/api/v1/dm/groups/group-1/call"),
+      "group-1",
+      buildDependencies({
+        readCallState: async () => ({
+          participants: [
+            { joinedAt: "2026-08-11T10:00:00.000Z", userId: "user-1" },
+            { joinedAt: "2026-08-11T10:01:00.000Z", userId: "user-2" },
+          ],
+          startedAt: "2026-08-11T10:00:00.000Z",
+          video: true,
+        }),
+      }),
+    );
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), {
+      callState: {
+        active: true,
+        conversationId: "group-1",
+        participants: [
+          { joinedAt: "2026-08-11T10:00:00.000Z", userId: "user-1" },
+          { joinedAt: "2026-08-11T10:01:00.000Z", userId: "user-2" },
+        ],
+        startedAt: "2026-08-11T10:00:00.000Z",
+        video: true,
+      },
+    });
+  });
+
+  it("answers the tombstone when nothing is running", async () => {
+    const response = await groupCallStateRoute(
+      new Request("https://whispr.test/api/v1/dm/groups/group-1/call"),
+      "group-1",
+      buildDependencies(),
+    );
+
+    assert.deepEqual(await response.json(), {
+      callState: {
+        active: false,
+        conversationId: "group-1",
+        participants: [],
+        startedAt: null,
+        video: false,
+      },
+    });
+  });
+
+  it("checks membership before it reads Redis", async () => {
+    const calls: string[] = [];
+    const response = await groupCallStateRoute(
+      new Request("https://whispr.test/api/v1/dm/groups/group-1/call"),
+      "group-1",
+      buildDependencies({
+        readCallState: async () => {
+          calls.push("read");
+          return null;
+        },
+        requireParticipant: async () => {
+          calls.push("gate");
+          throw new ApiError("Not a participant", 403);
+        },
+      }),
+    );
+
+    assert.equal(response.status, 403);
+    assert.deepEqual(calls, ["gate"]);
   });
 });

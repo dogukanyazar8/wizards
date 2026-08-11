@@ -87,6 +87,8 @@ export type GroupConversationDetail = GroupConversationRow & {
 /** Whether one target may be pulled into a group by one actor. */
 export type GroupMemberEligibility = {
   readonly blocked: boolean;
+  /** 2b §7. The target's own switch: a friend who takes no group invites. */
+  readonly closed: boolean;
   readonly isFriend: boolean;
 };
 
@@ -219,6 +221,12 @@ export async function assertGroupMembersEligible(
     if (!state?.isFriend) {
       throw new ApiError("You can only add friends to a group", 403, "NOT_FRIENDS");
     }
+
+    // Last, because it is the mildest of the three: a friend who is simply not
+    // taking invites should not be reported as a block.
+    if (state.closed) {
+      throw new ApiError("This user does not accept group invites", 403, "GROUP_INVITES_CLOSED");
+    }
   }
 
   return targets;
@@ -234,9 +242,19 @@ export function toGroupEligibilityMap(
   actorId: string,
   targetIds: readonly string[],
   rows: ReadonlyArray<{ receiverId: string; senderId: string; status: string }>,
+  /**
+   * 2b §7. Targets whose `UserSettings.allowGroupInvites` is off. A separate
+   * argument rather than a fourth row status: the switch belongs to the target
+   * alone and has nothing to do with the pair.
+   */
+  closedUserIds: Iterable<string> = [],
 ): Map<string, GroupMemberEligibility> {
+  const closed = new Set(closedUserIds);
   const eligibility = new Map<string, GroupMemberEligibility>(
-    targetIds.map((targetId) => [targetId, { blocked: false, isFriend: false }]),
+    targetIds.map((targetId) => [
+      targetId,
+      { blocked: false, closed: closed.has(targetId), isFriend: false },
+    ]),
   );
 
   for (const row of rows) {
@@ -250,8 +268,8 @@ export function toGroupEligibilityMap(
     eligibility.set(
       targetId,
       row.status === "BLOCKED"
-        ? { blocked: true, isFriend: state.isFriend }
-        : { blocked: state.blocked, isFriend: true },
+        ? { blocked: true, closed: state.closed, isFriend: state.isFriend }
+        : { blocked: state.blocked, closed: state.closed, isFriend: true },
     );
   }
 
@@ -276,19 +294,32 @@ const defaults: GroupServiceDependencies = {
   getDeletedMessageLabel,
   loadGroupEligibility: async (actorId, targetIds) => {
     // Friendship and blocks are both FriendRequest rows, so one read answers
-    // both questions for every target at once.
-    const rows = await prisma.friendRequest.findMany({
-      where: {
-        status: { in: ["ACCEPTED", "BLOCKED"] },
-        OR: [
-          { senderId: actorId, receiverId: { in: [...targetIds] } },
-          { receiverId: actorId, senderId: { in: [...targetIds] } },
-        ],
-      },
-      select: { receiverId: true, senderId: true, status: true },
-    });
+    // both questions for every target at once. The privacy switch is a second
+    // read because it lives on the target's settings, not on the pair; only the
+    // rows that are *off* come back, so the payload is empty in the normal case.
+    const [rows, closed] = await Promise.all([
+      prisma.friendRequest.findMany({
+        where: {
+          status: { in: ["ACCEPTED", "BLOCKED"] },
+          OR: [
+            { senderId: actorId, receiverId: { in: [...targetIds] } },
+            { receiverId: actorId, senderId: { in: [...targetIds] } },
+          ],
+        },
+        select: { receiverId: true, senderId: true, status: true },
+      }),
+      prisma.userSettings.findMany({
+        where: { allowGroupInvites: false, userId: { in: [...targetIds] } },
+        select: { userId: true },
+      }),
+    ]);
 
-    return toGroupEligibilityMap(actorId, targetIds, rows);
+    return toGroupEligibilityMap(
+      actorId,
+      targetIds,
+      rows,
+      closed.map((row) => row.userId),
+    );
   },
   loadConversation: async (conversationId) => {
     const conversation = await prisma.dMConversation.findUnique({

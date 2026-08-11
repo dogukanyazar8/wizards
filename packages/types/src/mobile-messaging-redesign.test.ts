@@ -29,6 +29,9 @@ describe("messaging redesign M4A schemas", () => {
       }),
       {
         ...friendUser,
+        // Faz 4: open to group invites is the default, so a payload from a
+        // server that predates the column still means "pickable".
+        allowsGroupInvites: true,
         customStatus: null,
         device: null,
         lastSeenAt: null,

@@ -54,7 +54,13 @@ const accountSettings = {
     pronouns: null,
     twoFactorEnabled: false,
   },
-  privacy: { dmPermission: "MUTUAL_SERVERS" as const, friendRequests: "MUTUAL_FRIENDS" as const },
+  privacy: {
+    dmPermission: "MUTUAL_SERVERS" as const,
+    friendRequests: "MUTUAL_FRIENDS" as const,
+    // 2b §7's switch. Defaulted open by the schema, so the parsed payload
+    // carries it even when the fixture predates the field.
+    groupInvites: true,
+  },
 };
 const sessionUser = {
   avatarUrl: null,

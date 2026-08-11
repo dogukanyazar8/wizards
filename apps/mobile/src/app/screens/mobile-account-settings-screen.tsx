@@ -65,7 +65,15 @@ const LOCAL_VISIBILITY_POLICIES: readonly MobileAccountLocalVisibility[] = [
   "NOBODY",
 ];
 
-type PolicySheet = "dm" | "friendRequests" | "presence" | "profile" | null;
+/**
+ * 2b §7's own side of the picker. Two values rather than the four-rung ladder:
+ * a group add is always made by a friend, so "ortak sunucular" has nothing to
+ * mean here. `EVERYONE`/`NOBODY` reuse the existing labels and map onto the
+ * boolean the settings endpoint stores.
+ */
+const GROUP_INVITE_POLICIES: readonly string[] = ["EVERYONE", "NOBODY"];
+
+type PolicySheet = "dm" | "friendRequests" | "groupInvites" | "presence" | "profile" | null;
 
 export interface MobileAccountSettingsViewProps {
   readonly error: string | null;
@@ -334,7 +342,12 @@ function PrivacyRow({
   value,
   withBorder,
 }: {
-  icon: "chatbubble-outline" | "eye-outline" | "person-add-outline" | "radio-button-on";
+  icon:
+    | "chatbubble-outline"
+    | "eye-outline"
+    | "people-outline"
+    | "person-add-outline"
+    | "radio-button-on";
   label: string;
   onPress(): void;
   testID: string;
@@ -519,7 +532,9 @@ export function MobileAccountSettingsView({
       ? DM_POLICIES
       : policySheet === "friendRequests"
         ? FRIEND_REQUEST_POLICIES
-        : LOCAL_VISIBILITY_POLICIES;
+        : policySheet === "groupInvites"
+          ? GROUP_INVITE_POLICIES
+          : LOCAL_VISIBILITY_POLICIES;
   const policyOptions = buildPolicyOptions(locale, policyValues);
   const policyPresentation: {
     icon: SheetIconName;
@@ -544,27 +559,37 @@ export function MobileAccountSettingsView({
             title: copy.accountSettingsFriendRequests,
             tone: "warning",
           }
-        : policySheet === "presence"
+        : policySheet === "groupInvites"
           ? {
-              icon: "radio-button-on",
-              selected: localVisibility.presence,
-              subtitle: copy.accountSettingsPresenceVisibilityHint,
-              title: copy.accountSettingsPresenceVisibility,
-              tone: "success",
-            }
-          : {
-              icon: "eye-outline",
-              selected: localVisibility.profile,
-              subtitle: copy.accountSettingsProfileVisibilityHint,
-              title: copy.accountSettingsProfileVisibility,
+              icon: "people-outline",
+              selected: settings.privacy.groupInvites ? "EVERYONE" : "NOBODY",
+              subtitle: copy.accountSettingsGroupInvitesHint,
+              title: copy.accountSettingsGroupInvites,
               tone: "accent",
-            };
+            }
+          : policySheet === "presence"
+            ? {
+                icon: "radio-button-on",
+                selected: localVisibility.presence,
+                subtitle: copy.accountSettingsPresenceVisibilityHint,
+                title: copy.accountSettingsPresenceVisibility,
+                tone: "success",
+              }
+            : {
+                icon: "eye-outline",
+                selected: localVisibility.profile,
+                subtitle: copy.accountSettingsProfileVisibilityHint,
+                title: copy.accountSettingsProfileVisibility,
+                tone: "accent",
+              };
 
   const selectPolicy = async (value: string) => {
     if (policySheet === "dm") {
       await onUpdatePrivacy({ dmPermission: value as MobileAccountDmPolicy });
     } else if (policySheet === "friendRequests") {
       await onUpdatePrivacy({ friendRequests: value as MobileAccountFriendRequestPolicy });
+    } else if (policySheet === "groupInvites") {
+      await onUpdatePrivacy({ groupInvites: value === "EVERYONE" });
     } else if (policySheet === "presence" || policySheet === "profile") {
       await onUpdateLocalVisibility(policySheet, value as MobileAccountLocalVisibility);
     }
@@ -738,6 +763,15 @@ export function MobileAccountSettingsView({
           testID="mobile-account-friend-requests-row"
           tone="warning"
           value={getPolicyLabel(locale, settings.privacy.friendRequests)}
+          withBorder
+        />
+        <PrivacyRow
+          icon="people-outline"
+          label={copy.accountSettingsGroupInvites}
+          onPress={() => setPolicySheet("groupInvites")}
+          testID="mobile-account-group-invites-row"
+          tone="accent"
+          value={getPolicyLabel(locale, settings.privacy.groupInvites ? "EVERYONE" : "NOBODY")}
           withBorder={false}
         />
       </View>

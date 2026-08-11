@@ -25,7 +25,7 @@ const settingsRecord: MobileAccountSettingsRecord = {
     pronouns: null,
     twoFactorEnabled: true,
   },
-  privacy: { dmPermission: "FRIENDS", friendRequests: "EVERYONE" },
+  privacy: { dmPermission: "FRIENDS", friendRequests: "EVERYONE", groupInvites: true },
 };
 
 describe("mobile account settings route", () => {
@@ -114,7 +114,7 @@ describe("mobile account settings route", () => {
           calls.push(`update:${userId}:${input.dmPermission}`);
           return {
             appearance: settingsRecord.appearance,
-            privacy: { dmPermission: "NOBODY", friendRequests: "EVERYONE" },
+            privacy: { dmPermission: "NOBODY", friendRequests: "EVERYONE", groupInvites: false },
           };
         },
       },

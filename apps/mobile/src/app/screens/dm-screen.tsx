@@ -1,19 +1,21 @@
 import { useMemo } from "react";
 import { View } from "react-native";
 import { copy, getMobileConversationTitle, useState } from "../mobile-root-screen-shared";
-import type { MobileForwardTarget } from "../components/message-forward-sheet";
 import { BootstrapStateNotice, MobileSyncHealthBanner } from "../components/ui-atoms";
 import { useDmScreenStyles } from "./dm-screen.styles";
-import { DMConversationBootSkeleton, DMConversationScreen } from "./dm-conversation-screen";
+import { DMConversationBootSkeleton } from "./dm-conversation-screen";
+import { DMConversationShell } from "./dm-conversation-shell";
 import {
-  DMInboxEmptyState,
+  DMInboxConversationsPane,
   DMInboxHeader,
-  DMInboxLoadingSkeleton,
   DMInboxSearchField,
   DMInboxSegmentTabs,
-  DirectMessageListCard,
   useMobileDmSegmentSwipe,
 } from "./dm-inbox";
+import { useToast } from "../components/kit/toast";
+import { useMobileConversationFilter } from "../features/use-mobile-conversation-filter";
+import { useMobileConversationRowActions } from "../features/use-mobile-conversation-row-actions";
+import { useMobileForwardTargets } from "../features/use-mobile-forward-targets";
 import type {
   MobileDMInboxSegment,
   MobileDMOnlineFriend,
@@ -24,16 +26,17 @@ import { useMobileAuth } from "../../auth/mobile-auth-context";
 import { mobileNavigationRef } from "../../navigation/mobile-navigation-ref";
 import { useMobileDMRowTyping } from "../features/use-mobile-dm-row-typing";
 import { useMobileDMTypingLabel } from "../features/use-mobile-typing-labels";
-import { useMobileFriendsQuery, useMobileSocialMutations } from "../../social/mobile-social-query";
+import { useMobileFriendsQuery } from "../../social/mobile-social-query";
 
 export { DMConversationScreen, DMConversationPreviewCard } from "./dm-conversation-screen";
-export {
-  DMInboxHeader,
-  DMInboxEmptyState,
-  DMInboxLoadingSkeleton,
-  DirectMessageConversationCard,
-  DirectMessageListCard,
-} from "./dm-inbox";
+export { DirectMessageConversationCard, DirectMessageListCard } from "./dm-inbox";
+
+/** 2a's FAB. Nothing to close over, so it is not rebuilt per render. */
+function openGroupCreate() {
+  if (mobileNavigationRef.isReady()) {
+    mobileNavigationRef.navigate("GroupCreate");
+  }
+}
 
 export function MessagesScreen({
   bootstrapState,
@@ -47,6 +50,9 @@ export function MessagesScreen({
   isEndToEndEncrypted,
   lastSeenAt,
   mediaState,
+  messageSearchState,
+  onClearMessageSearch,
+  onSearchMessages,
   selectedConversation,
   selectedConversationId,
   syncHealth,
@@ -78,7 +84,6 @@ export function MessagesScreen({
   const [searchQuery, setSearchQuery] = useState("");
   const { apiClient, status } = useMobileAuth();
   const friendsQuery = useMobileFriendsQuery(apiClient, status === "signed-in");
-  const socialMutations = useMobileSocialMutations(apiClient);
   const incomingRequestCount = friendsQuery.data?.pending.incoming.length ?? 0;
   const onlineFriends = useMemo<readonly MobileDMOnlineFriend[]>(
     () =>
@@ -96,32 +101,24 @@ export function MessagesScreen({
         })),
     [friendsQuery.data?.friends],
   );
-  const openFriendDM = async (userId: string) => {
-    const result = await socialMutations.openDM.mutateAsync(userId);
-    if (mobileNavigationRef.isReady()) {
-      mobileNavigationRef.navigate("DirectMessage", { conversationId: result.conversation.id });
-    }
-  };
+  const viewerId = bootstrapState.status === "ready" ? bootstrapState.payload.user.id : null;
+  // V4. Read synchronously from the hook's own state, so the stored chip is the
+  // one drawn on the first frame rather than a flash of "Tümü".
+  const { filter, setFilter } = useMobileConversationFilter(viewerId);
+  const { showToast } = useToast();
+  const rowActions = useMobileConversationRowActions(apiClient, dmConversations, viewerId, () =>
+    showToast({ title: copy.confirmationError, variant: "error" }),
+  );
   const rowTyping = useMobileDMRowTyping();
   // Same rule as the inbox rows: read the typing store here, so a conversation
   // nobody has open cannot re-render the app to move a label.
   const dmTypingLabel = useMobileDMTypingLabel(selectedConversationId);
   const swipeHandlers = useMobileDmSegmentSwipe(inboxSegment, setInboxSegment);
-  const forwardTargets = useMemo<readonly MobileForwardTarget[]>(
-    () =>
-      dmConversations.map((conversation) => ({
-        id: conversation.id,
-        label: getMobileConversationTitle(conversation, copy.directMessageFallback),
-        type: "dm" as const,
-      })),
-    [dmConversations],
-  );
-  const hasConversations = dmConversations.length > 0;
+  const forwardTargets = useMobileForwardTargets(dmConversations);
   const shouldShowEmpty =
-    bootstrapState.status === "ready" && !dmConversationsIsLoading && !hasConversations;
+    bootstrapState.status === "ready" && !dmConversationsIsLoading && dmConversations.length === 0;
   const attachmentsFeature =
     bootstrapState.status === "ready" ? bootstrapState.payload.features.attachments : null;
-
   if (canRenderConversation && !selectedConversation) {
     // The route is the conversation, so hold a chat-shaped frame instead of
     // dropping back to the inbox while the selection resolves.
@@ -130,37 +127,41 @@ export function MessagesScreen({
 
   if (canRenderConversation && selectedConversation) {
     return (
-      <DMConversationScreen
+      <DMConversationShell
         attachmentsFeature={attachmentsFeature}
         conversation={selectedConversation}
-        currentUserId={bootstrapState.status === "ready" ? bootstrapState.payload.user.id : ""}
+        currentUserId={viewerId ?? ""}
         {...(getAccessToken ? { getAccessToken } : {})}
         isReactionMutationPending={isReactionMutationPending}
         {...(isEndToEndEncrypted !== undefined ? { isEndToEndEncrypted } : {})}
         {...(lastSeenAt !== undefined ? { lastSeenAt } : {})}
-        typingLabel={dmTypingLabel}
-        state={dmMessagesState}
-        syncHealth={syncHealth}
         mediaState={mediaState}
-        onBack={onCloseConversation}
+        {...(messageSearchState ? { messageSearchState } : {})}
+        {...(onClearMessageSearch ? { onClearMessageSearch } : {})}
         onClearSelectedMediaAsset={onClearSelectedMediaAsset}
+        onCloseConversation={onCloseConversation}
+        onDeleteMessage={onDeleteMessage}
+        onDiscardMessage={onDiscardMessage}
+        onDraftChange={onDraftChange}
+        onEditMessage={onEditMessage}
+        {...(onForwardMessage ? { forwardTargets, onForwardMessage } : {})}
+        {...(onLoadMoreMessages ? { onLoadMoreMessages } : {})}
+        {...(onOpenThread ? { onOpenThread } : {})}
         onRefreshConversation={onRefreshConversation}
         onRefreshVisibleData={onRefreshVisibleData}
         onRequestDocumentPicker={onRequestDocumentPicker}
         onRequestPhotoLibraryPicker={onRequestPhotoLibraryPicker}
-        onSendMessage={onSendMessage}
-        {...(onSendGif ? { onSendGif } : {})}
-        onDraftChange={onDraftChange}
-        {...(onLoadMoreMessages ? { onLoadMoreMessages } : {})}
-        onDeleteMessage={onDeleteMessage}
-        onDiscardMessage={onDiscardMessage}
-        onEditMessage={onEditMessage}
-        {...(onForwardMessage ? { forwardTargets, onForwardMessage } : {})}
-        {...(onOpenThread ? { onOpenThread } : {})}
         onRetryMessage={onRetryMessage}
-        onToggleMessageReaction={onToggleMessageReaction}
+        {...(onSearchMessages ? { onSearchMessages } : {})}
+        {...(onSendGif ? { onSendGif } : {})}
+        onSendMessage={onSendMessage}
         {...(onStartVideoCall ? { onStartVideoCall } : {})}
         {...(onStartVoiceCall ? { onStartVoiceCall } : {})}
+        onToggleMessageReaction={onToggleMessageReaction}
+        state={dmMessagesState}
+        syncHealth={syncHealth}
+        typingLabel={dmTypingLabel}
+        viewerId={viewerId ?? ""}
       />
     );
   }
@@ -169,11 +170,7 @@ export function MessagesScreen({
     <View style={[styles.chatScreen, styles.dmInboxScreen]} testID="mobile-dm-inbox-screen">
       <DMInboxHeader
         onCompose={() => setInboxSegment(inboxSegment === "conversations" ? "friends" : "requests")}
-        onCreateGroup={() => {
-          if (mobileNavigationRef.isReady()) {
-            mobileNavigationRef.navigate("GroupCreate");
-          }
-        }}
+        onCreateGroup={openGroupCreate}
         segment={inboxSegment}
       />
       <DMInboxSegmentTabs
@@ -200,27 +197,23 @@ export function MessagesScreen({
       <BootstrapStateNotice state={bootstrapState} onRetry={onRefreshBootstrap} />
       <View style={styles.dmInboxBody} {...swipeHandlers}>
         {inboxSegment === "conversations" ? (
-          dmConversationsIsLoading ? (
-            <DMInboxLoadingSkeleton />
-          ) : hasConversations ? (
-            <DirectMessageListCard
-              conversations={dmConversations}
-              currentUserId={
-                bootstrapState.status === "ready" ? bootstrapState.payload.user.id : ""
-              }
-              hasNextPage={dmConversationsHasNextPage}
-              onlineFriends={onlineFriends}
-              onAddFriend={() => setInboxSegment("requests")}
-              onLoadMore={onLoadMoreConversations}
-              onOpenConversation={onOpenConversation}
-              onOpenFriendDM={(friendId) => void openFriendDM(friendId)}
-              query={searchQuery}
-              selectedConversationId={selectedConversationId}
-              typingByConversationId={rowTyping}
-            />
-          ) : shouldShowEmpty ? (
-            <DMInboxEmptyState onCompose={() => setInboxSegment("friends")} />
-          ) : null
+          <DMInboxConversationsPane
+            conversations={dmConversations}
+            currentUserId={viewerId ?? ""}
+            filter={filter}
+            hasNextPage={dmConversationsHasNextPage}
+            isLoading={dmConversationsIsLoading}
+            onCompose={() => setInboxSegment("friends")}
+            onLoadMore={onLoadMoreConversations}
+            onOpenConversation={onOpenConversation}
+            onSelectFilter={setFilter}
+            onlineFriends={onlineFriends}
+            query={searchQuery}
+            rowActions={rowActions}
+            selectedConversationId={selectedConversationId}
+            showEmpty={shouldShowEmpty}
+            typingByConversationId={rowTyping}
+          />
         ) : inboxSegment === "friends" ? (
           <FriendsHub
             embedded

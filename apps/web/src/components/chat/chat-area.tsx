@@ -747,8 +747,45 @@ function ChatAreaContent({
     setIsMembersDrawerRequested(true);
   };
 
+  /**
+   * Faz 5 §D3.4 / §11.0.1. One pass over the roster, so every name in the
+   * transcript reads the same map. Only a group has one: a channel resolves
+   * nothing here and a 1:1 answers "who is speaking" with the side of the
+   * screen the bubble is on.
+   */
+  const groupSenderColors = useMemo(() => {
+    if (mode !== "dm" || directMessageConversation?.type !== "GROUP_DM") {
+      return undefined;
+    }
+
+    const colors: Record<string, string> = {};
+    for (const participant of directMessageConversation.participants) {
+      if (participant.nameColor) {
+        colors[participant.userId] = participant.nameColor;
+      }
+    }
+
+    return colors;
+  }, [directMessageConversation, mode]);
+
   const messageConversationContent = (
     <>
+      {/* §D3.4: the group's pinned message, above the transcript, in the web
+          design language rather than 2d's strip pixels. */}
+      {mode === "dm" && directMessageConversation?.pinnedMessage ? (
+        <div
+          className="flex min-w-0 items-center gap-2 border-b border-[hsl(var(--border)/0.42)] bg-[hsl(var(--surface-soft)/0.48)] px-4 py-2"
+          data-testid="dm-group-pinned-strip"
+        >
+          <Pin className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--primary))]" />
+          <span className="shrink-0 text-[10px] font-black uppercase tracking-[0.16em] text-[hsl(var(--primary))]">
+            {t("dm.group.pinnedMessage")}
+          </span>
+          <span className="min-w-0 truncate text-xs font-semibold text-app-muted">
+            {`${directMessageConversation.pinnedMessage.authorName}: ${directMessageConversation.pinnedMessage.excerpt}`}
+          </span>
+        </div>
+      ) : null}
       <MessageList
         conversationId={conversationId}
         mode={mode}
@@ -756,6 +793,7 @@ function ChatAreaContent({
         canModerate={canModerate}
         initialUnreadMessageId={initialUnreadMessageId}
         participants={directMessageConversation?.participants ?? EMPTY_PARTICIPANTS}
+        {...(groupSenderColors ? { senderColors: groupSenderColors } : {})}
         onRemoveOptimistic={removeOptimisticMessage}
         onReply={handleReply}
         onRetry={retryOptimisticMessage}

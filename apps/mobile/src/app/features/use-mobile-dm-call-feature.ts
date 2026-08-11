@@ -17,7 +17,7 @@ import {
   openMobileVoiceRoom,
 } from "../../voice/mobile-voice-room-route-navigation";
 import { useMobileDMCallStore } from "../../state/mobile-dm-call-store";
-import { setMobileDirectCallStarter } from "./mobile-direct-call-bridge";
+import { setMobileDirectCallJoiner, setMobileDirectCallStarter } from "./mobile-direct-call-bridge";
 import { shouldAlertMobileIncomingCall } from "../../notifications/mobile-notification-preferences";
 import { useMobileNotificationPreferences } from "../providers/mobile-notification-preferences-provider";
 import { useToast } from "../components/kit/toast";
@@ -30,6 +30,8 @@ export type MobileDMCallEmitters = {
   emitDMCallCancel(input: { conversationId: string }): void;
   emitDMCallDecline(input: { conversationId: string; fromUserId: string }): void;
   emitDMCallEnd(input: { conversationId: string }): void;
+  /** Faz 5 §B5. Entering a call that is already running — no ring. */
+  emitDMCallJoin(input: { conversationId: string; video?: boolean }): void;
   emitDMCallStart(input: { conversationId: string; video: boolean }): void;
 };
 
@@ -49,6 +51,7 @@ export function useMobileDMCallFeature({
   emitDMCallCancel,
   emitDMCallDecline,
   emitDMCallEnd,
+  emitDMCallJoin,
   emitDMCallStart,
   joinDirectCall,
   leaveVoiceChannel,
@@ -107,6 +110,50 @@ export function useMobileDMCallFeature({
       }
     },
     [emitDMCallCancel, emitDMCallStart, joinDirectCall, readSession, setSession, teardown],
+  );
+
+  /**
+   * Faz 5 §B5. 2d's "Katıl". There is no ring to answer — the call is already
+   * running — so the session starts *connected* and the room opens straight
+   * away. A failed room join takes the local session down and leaves the server
+   * roster alone: `dm:call:join` is idempotent, and the leave the runtime sends
+   * on teardown is the thing that removes this user from it.
+   */
+  const joinOngoingCall = useCallback(
+    async ({
+      conversationId,
+      title,
+      video,
+    }: {
+      conversationId: string;
+      title: string;
+      video: boolean;
+    }) => {
+      if (readSession()) {
+        return;
+      }
+
+      setSession(
+        markMobileCallConnected(
+          createMobileOutgoingCall({ conversationId, now: Date.now(), title, video }),
+          video,
+        ),
+      );
+      emitDMCallJoin({ conversationId, video });
+
+      const joined = await launchMobileDirectCall({
+        conversationId,
+        joinDirectCall,
+        openVoiceRoom: openMobileVoiceRoom,
+        title,
+        video,
+      });
+
+      if (!joined) {
+        await teardown({ leaveRoom: false });
+      }
+    },
+    [emitDMCallJoin, joinDirectCall, readSession, setSession, teardown],
   );
 
   const acceptCall = useCallback(async () => {
@@ -262,6 +309,8 @@ export function useMobileDMCallFeature({
   // Published so surfaces outside the product shell (11b profile card) ring
   // through this same handshake rather than opening a parallel call path.
   useEffect(() => setMobileDirectCallStarter(startCall), [startCall]);
+  // Faz 5 §B5: same rule for joining — 2d's banner is a stack screen away.
+  useEffect(() => setMobileDirectCallJoiner(joinOngoingCall), [joinOngoingCall]);
 
   return {
     acceptCall,
@@ -272,6 +321,7 @@ export function useMobileDMCallFeature({
     incomingCallAlertsEnabled:
       preferences.vibration && shouldAlertMobileIncomingCall(preferences, new Date()),
     incomingCall: session?.status === "ringing-in" ? session : null,
+    joinOngoingCall,
     startCall,
   };
 }

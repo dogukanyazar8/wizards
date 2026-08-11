@@ -1,12 +1,14 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   DMConversationDTOSchema,
+  GroupCallStateResponseSchema,
   GroupDMConversationResponseSchema,
   GroupInviteJoinResponseSchema,
   GroupInvitePreviewResponseSchema,
   GroupInviteResponseSchema,
   type DMConversationDTO,
   type DMNotifyLevel,
+  type GroupCallStateDTO,
   type GroupDMCreateRequest,
   type GroupDMSettingsUpdateRequest,
   type GroupDMUpdateRequest,
@@ -90,15 +92,26 @@ export async function updateMobileGroup(
   );
 }
 
-/** Removing yourself is how leaving is spelled; the server routes it either way. */
+/**
+ * Removing yourself is how leaving is spelled; the server routes it either way.
+ *
+ * V8 / Faz 5 §D1.5: the handover rides on this same request rather than a second
+ * one. Two calls would let the promotion land without the departure — or, worse,
+ * the departure without the promotion, which is the state the server's
+ * `409 OWNER_TRANSFER_REQUIRED` exists to forbid.
+ */
 export async function removeMobileGroupMember(
   client: MobileApiClient,
   conversationId: string,
   userId: string,
+  transferOwnershipTo?: string,
 ): Promise<void> {
   await client.requestJson<unknown>(
     `${buildGroupPath(conversationId)}/members/${encodeURIComponent(userId)}`,
-    { method: "DELETE" },
+    {
+      method: "DELETE",
+      ...(transferOwnershipTo === undefined ? {} : { body: { transferOwnershipTo } }),
+    },
   );
 }
 
@@ -132,6 +145,34 @@ export async function hideMobileDMConversation(
  * do: mobile ships on its own train, so a server-side drift has to fail loudly
  * here instead of half-rendering a screen.
  * ------------------------------------------------------------------------- */
+
+/**
+ * Faz 5 §C1/§D1. The read 2e and 2f open on. It is the *same shape* the writes
+ * answer with and the realtime events patch, so a screen that opened cold and a
+ * screen that has been patched for an hour are looking at one object.
+ */
+export async function fetchMobileGroupDetails(
+  client: MobileApiClient,
+  conversationId: string,
+): Promise<DMConversationDTO> {
+  return await parseGroupConversation(
+    await client.requestJson<unknown>(buildGroupPath(conversationId)),
+  );
+}
+
+/**
+ * Faz 5 §B5. The banner's opening value. `dm:call:state` only fires on a
+ * transition, so a reader who opens a group while a call is already running has
+ * never seen one.
+ */
+export async function fetchMobileGroupCallState(
+  client: MobileApiClient,
+  conversationId: string,
+): Promise<GroupCallStateDTO> {
+  return GroupCallStateResponseSchema.parse(
+    await client.requestJson<unknown>(`${buildGroupPath(conversationId)}/call`),
+  ).callState;
+}
 
 /** 2f §3/§4 + 2c §7. A partial patch — an absent key means "leave it alone". */
 export async function updateMobileGroupSettings(
@@ -333,8 +374,17 @@ export function useMobileGroupMutations(client: MobileApiClient, viewerId?: stri
       onSuccess: (_data, input) => refreshConversationAndDetails(input.conversationId),
     }),
     removeMember: useMutation({
-      mutationFn: (input: { conversationId: string; userId: string }) =>
-        removeMobileGroupMember(client, input.conversationId, input.userId),
+      mutationFn: (input: {
+        conversationId: string;
+        transferOwnershipTo?: string;
+        userId: string;
+      }) =>
+        removeMobileGroupMember(
+          client,
+          input.conversationId,
+          input.userId,
+          input.transferOwnershipTo,
+        ),
       onSuccess: (_data, input) => refreshAfterRemoval(input.conversationId, input.userId),
     }),
     update: useMutation({
@@ -343,6 +393,42 @@ export function useMobileGroupMutations(client: MobileApiClient, viewerId?: stri
       onSuccess: (_data, input) => refreshConversationAndDetails(input.conversationId),
     }),
   };
+}
+
+/**
+ * Faz 5 §C1. The one read three screens share (2d's header, 2e, 2f), so they
+ * cannot disagree about a permission or a role: `staleTime` keeps a back-press
+ * from re-fetching, and every write and every realtime event already patches
+ * this exact key.
+ */
+export function useMobileGroupDetailsQuery(
+  client: MobileApiClient,
+  conversationId: string,
+  enabled = true,
+) {
+  return useQuery({
+    enabled,
+    queryFn: () => fetchMobileGroupDetails(client, conversationId),
+    queryKey: mobileQueryKeys.groupDetails(conversationId),
+    staleTime: 30_000,
+  });
+}
+
+/**
+ * Faz 5 §B5. Read once on open; from then on `dm:call:state` writes this key
+ * directly (Faz 3 §B7), so there is no polling and no second source.
+ */
+export function useMobileGroupCallStateQuery(
+  client: MobileApiClient,
+  conversationId: string,
+  enabled = true,
+) {
+  return useQuery({
+    enabled,
+    queryFn: () => fetchMobileGroupCallState(client, conversationId),
+    queryKey: mobileQueryKeys.groupCallState(conversationId),
+    staleTime: 15_000,
+  });
 }
 
 /**

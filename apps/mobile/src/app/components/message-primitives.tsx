@@ -262,11 +262,18 @@ export function MessageDeliveryTicks({
  * to the bubble's own translucent white.
  */
 export function MessageReplyQuote({
+  accentColor,
   authorName,
   excerpt,
   outgoing = false,
   testID,
 }: {
+  /**
+   * Faz 5 §B3 / §11.0.1: in a group the rule and the name take the colour of the
+   * person being quoted, not the accent. Absent everywhere else, where "who is
+   * being quoted" is already answered by which side of the screen it is on.
+   */
+  readonly accentColor?: string | undefined;
   readonly authorName: string;
   readonly excerpt: string;
   readonly outgoing?: boolean;
@@ -276,7 +283,13 @@ export function MessageReplyQuote({
 
   return (
     <View
-      style={[styles.messageInlineReplyQuote, outgoing && styles.messageInlineReplyQuoteOutgoing]}
+      style={[
+        styles.messageInlineReplyQuote,
+        outgoing && styles.messageInlineReplyQuoteOutgoing,
+        // Outgoing keeps its translucent white rule: a coloured line on the
+        // indigo bubble reads as a second accent rather than an identity.
+        accentColor && !outgoing ? { borderLeftColor: accentColor } : null,
+      ]}
       testID={testID}
     >
       <Text
@@ -284,6 +297,7 @@ export function MessageReplyQuote({
         style={[
           styles.messageInlineReplyQuoteName,
           outgoing && styles.messageInlineReplyQuoteNameOutgoing,
+          accentColor && !outgoing ? { color: accentColor } : null,
         ]}
       >
         {authorName}

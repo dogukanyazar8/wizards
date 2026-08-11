@@ -4,9 +4,13 @@ import type { InfiniteData } from "@tanstack/react-query";
 import {
   DMConversationDTOSchema,
   GroupDMConversationResponseSchema,
+  GroupInviteResponseSchema,
   type DMConversationDTO,
+  type DMNotifyLevel,
   type GroupDMCreateRequest,
+  type GroupDMSettingsUpdateRequest,
   type GroupDMUpdateRequest,
+  type GroupMemberRoleUpdateRequest,
 } from "@wizards/types";
 import type { FriendPresenceUpdateDto } from "@/lib/friends/types";
 import {
@@ -511,12 +515,99 @@ export async function updateGroupConversationRequest(
   return GroupDMConversationResponseSchema.parse(payload).conversation;
 }
 
-/** Removing yourself is how leaving is spelled; the route routes it either way. */
-export async function removeGroupMemberRequest(conversationId: string, userId: string) {
+/**
+ * Removing yourself is how leaving is spelled; the route routes it either way.
+ *
+ * V8 / Faz 5 §D3.2: the handover rides on this same request. Two calls would let
+ * the promotion land without the departure, which is the state the server's
+ * `409 OWNER_TRANSFER_REQUIRED` exists to forbid.
+ */
+export async function removeGroupMemberRequest(
+  conversationId: string,
+  userId: string,
+  transferOwnershipTo?: string,
+) {
   return requestJson<void>(
     `/api/v1/dm/groups/${encodeURIComponent(conversationId)}/members/${encodeURIComponent(userId)}`,
-    { method: "DELETE" },
+    {
+      method: "DELETE",
+      ...(transferOwnershipTo === undefined ? {} : { body: { transferOwnershipTo } }),
+    },
   );
+}
+
+/* ------------------------------------------------------------------------- *
+ * Faz 5 §D3.2. The web arm of 2f. Every one of these already had a mobile
+ * caller; the endpoints are the same, so the two clients cannot drift.
+ * ------------------------------------------------------------------------- */
+
+export async function readGroupConversationRequest(conversationId: string) {
+  const payload = await requestJson<unknown>(
+    `/api/v1/dm/groups/${encodeURIComponent(conversationId)}`,
+  );
+
+  return GroupDMConversationResponseSchema.parse(payload).conversation;
+}
+
+export async function updateGroupSettingsRequest(
+  conversationId: string,
+  patch: GroupDMSettingsUpdateRequest,
+) {
+  const payload = await requestJson<unknown>(
+    `/api/v1/dm/groups/${encodeURIComponent(conversationId)}/settings`,
+    { method: "PATCH", body: patch },
+  );
+
+  return GroupDMConversationResponseSchema.parse(payload).conversation;
+}
+
+export async function updateGroupMemberRoleRequest(
+  conversationId: string,
+  userId: string,
+  patch: GroupMemberRoleUpdateRequest,
+) {
+  const payload = await requestJson<unknown>(
+    `/api/v1/dm/groups/${encodeURIComponent(conversationId)}/members/${encodeURIComponent(userId)}`,
+    { method: "PATCH", body: patch },
+  );
+
+  return GroupDMConversationResponseSchema.parse(payload).conversation;
+}
+
+export async function readGroupInviteRequest(conversationId: string) {
+  const payload = await requestJson<unknown>(
+    `/api/v1/dm/groups/${encodeURIComponent(conversationId)}/invite`,
+  );
+
+  return GroupInviteResponseSchema.parse(payload).invite;
+}
+
+export async function setGroupInviteEnabledRequest(conversationId: string, enabled: boolean) {
+  const payload = await requestJson<unknown>(
+    `/api/v1/dm/groups/${encodeURIComponent(conversationId)}/invite`,
+    { method: "PATCH", body: { enabled } },
+  );
+
+  return GroupInviteResponseSchema.parse(payload).invite;
+}
+
+export async function rotateGroupInviteRequest(conversationId: string) {
+  const payload = await requestJson<unknown>(
+    `/api/v1/dm/groups/${encodeURIComponent(conversationId)}/invite/rotate`,
+    { method: "POST" },
+  );
+
+  return GroupInviteResponseSchema.parse(payload).invite;
+}
+
+export async function setConversationNotifyLevelRequest(
+  conversationId: string,
+  notifyLevel: DMNotifyLevel,
+) {
+  return requestJson<unknown>(`/api/v1/dm/${encodeURIComponent(conversationId)}/notify`, {
+    method: "PATCH",
+    body: { notifyLevel },
+  });
 }
 
 export async function hideDMConversationRequest(conversationId: string) {

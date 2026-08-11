@@ -11,6 +11,7 @@ const overview = {
   friends: [
     {
       ...user,
+      allowsGroupInvites: true,
       customStatus: null,
       device: null,
       lastSeenAt: null,

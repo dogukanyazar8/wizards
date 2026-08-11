@@ -1,11 +1,13 @@
-import { GroupDMConversationResponseSchema } from "@wizards/types";
+import { GroupCallStateResponseSchema, GroupDMConversationResponseSchema } from "@wizards/types";
 
 import {
   groupAddMembersRoute,
+  groupCallStateRoute,
   groupCreateRoute,
   groupMemberRoleRoute,
   groupPinDismissRoute,
   groupPinRoute,
+  groupReadRoute,
   groupRemoveMemberRoute,
   groupSettingsRoute,
   groupUnpinRoute,
@@ -14,6 +16,7 @@ import {
 } from "@/app/api/v1/dm/groups/route-logic";
 import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import { requireMobileApiUserId } from "@/lib/auth/api";
+import { readGroupCallState } from "@/lib/dm/group-call-state";
 import {
   emitGroupConversationCreated,
   emitGroupMembersChanged,
@@ -22,6 +25,7 @@ import {
   emitGroupSettingsChanged,
   evictRemovedGroupMember,
 } from "@/lib/dm/group-realtime";
+import { setGroupInviteEnabled } from "@/lib/dm/group-invite-service";
 import {
   addGroupMembers,
   createGroupConversation,
@@ -32,7 +36,7 @@ import {
   updateGroupSettings,
   updateMemberRole,
 } from "@/lib/dm/group-service";
-import { getDirectMessageConversationForUser } from "@/lib/dm/service";
+import { getDirectMessageConversationForUser, requireDMParticipant } from "@/lib/dm/service";
 import { getSocketServer } from "@/lib/socket/runtime";
 
 export const mobileGroupDefaults: GroupRouteDependencies = {
@@ -40,6 +44,7 @@ export const mobileGroupDefaults: GroupRouteDependencies = {
   authenticate: (request) => requireMobileApiUserId(request),
   createGroup: createGroupConversation,
   dismissPin: dismissPinnedStrip,
+  enableInvite: (actorId, conversationId) => setGroupInviteEnabled(actorId, conversationId, true),
   emitCreated: emitGroupConversationCreated,
   emitMembersChanged: emitGroupMembersChanged,
   emitPinChanged: emitGroupPinChanged,
@@ -48,6 +53,8 @@ export const mobileGroupDefaults: GroupRouteDependencies = {
   enforceRateLimit: enforceApiRateLimit,
   evictRemoved: evictRemovedGroupMember,
   getIo: () => getSocketServer(),
+  loadConversation: (conversationId, userId) =>
+    getDirectMessageConversationForUser(conversationId, userId),
   loadConversationForBroadcast: async (conversationId, userId) => {
     try {
       return await getDirectMessageConversationForUser(conversationId, userId);
@@ -55,6 +62,8 @@ export const mobileGroupDefaults: GroupRouteDependencies = {
       return null;
     }
   },
+  readCallState: readGroupCallState,
+  requireParticipant: requireDMParticipant,
   removeMember: removeGroupMember,
   setPin: setPinnedMessage,
   updateGroup: updateGroupConversation,
@@ -83,13 +92,43 @@ async function parseGroupResponse(response: Response): Promise<Response> {
  */
 function toMobileDependencies(
   dependencies: GroupRouteDependencies,
-  action: "create" | "members" | "update",
+  action: "create" | "members" | "read" | "update",
 ): GroupRouteDependencies {
   return {
     ...dependencies,
     enforceRateLimit: (userId) =>
       dependencies.enforceRateLimit(userId, `mobile:dm:group:${action}`),
   };
+}
+
+/** Faz 5 §C1/§D1. 2e and 2f open on this. */
+export async function mobileGroupReadRoute(
+  request: Request,
+  conversationId: string,
+  dependencies: GroupRouteDependencies = mobileGroupDefaults,
+): Promise<Response> {
+  return await parseGroupResponse(
+    await groupReadRoute(request, conversationId, toMobileDependencies(dependencies, "read")),
+  );
+}
+
+/** Faz 5 §B5. The banner's opening value, re-parsed like every other body. */
+export async function mobileGroupCallStateRoute(
+  request: Request,
+  conversationId: string,
+  dependencies: GroupRouteDependencies = mobileGroupDefaults,
+): Promise<Response> {
+  const response = await groupCallStateRoute(
+    request,
+    conversationId,
+    toMobileDependencies(dependencies, "read"),
+  );
+
+  if (response.status !== 200) {
+    return response;
+  }
+
+  return Response.json(GroupCallStateResponseSchema.parse(await response.json()));
 }
 
 export async function mobileGroupCreateRoute(

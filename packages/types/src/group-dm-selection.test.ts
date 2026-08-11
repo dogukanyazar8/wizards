@@ -1,12 +1,18 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { GROUP_DM_MAX_PARTICIPANTS, GROUP_DM_MIN_PARTICIPANTS } from "./group-dm";
+import {
+  GROUP_DM_MAX_PARTICIPANTS,
+  GROUP_DM_MIN_PARTICIPANTS,
+  GroupDMCreateRequestSchema,
+} from "./group-dm";
+import { GROUP_AVATAR_COLORS } from "./group-dm-settings";
 import {
   canAdvanceToIdentity,
   canSubmitGroup,
   createInitialGroupCreateState,
   getGroupSelectionCount,
+  hasGroupCreateProgress,
   isGroupSelectionFull,
   toGroupCreateRequest,
   toggleGroupMember,
@@ -114,5 +120,78 @@ describe("group create selection model", () => {
     assert.equal(state.step, "members");
     assert.equal(canSubmitGroup(state), false);
     assert.equal(canSubmitGroup({ ...state, step: "identity" }), true);
+  });
+});
+
+describe("2c identity fields", () => {
+  it("starts on the design's defaults: first swatch, everyone adds, 30 days, invite off", () => {
+    const state = createInitialGroupCreateState();
+
+    assert.equal(state.avatarColor, GROUP_AVATAR_COLORS[0]);
+    assert.equal(state.description, "");
+    assert.equal(state.historyVisibility, "LAST_30D");
+    assert.equal(state.permAddMembers, "ALL");
+    // K2: a link nobody asked for is a link nobody can close before it leaks.
+    assert.equal(state.inviteEnabled, false);
+  });
+
+  it("carries the KATILIM trio and the colour on every request", () => {
+    const state: GroupCreateState = {
+      ...selectMany(SELECTABLE_MIN),
+      avatarColor: "#C2185B",
+      historyVisibility: "NONE",
+      inviteEnabled: true,
+      permAddMembers: "ADMINS",
+      step: "identity",
+    };
+
+    const request = toGroupCreateRequest(state, null);
+
+    assert.equal(request.avatarColor, "#C2185B");
+    assert.equal(request.historyVisibility, "NONE");
+    assert.equal(request.inviteEnabled, true);
+    assert.equal(request.permAddMembers, "ADMINS");
+  });
+
+  it("drops a whitespace-only description rather than storing an empty one", () => {
+    const state: GroupCreateState = {
+      ...selectMany(SELECTABLE_MIN),
+      description: "   ",
+      step: "identity",
+    };
+
+    assert.equal("description" in toGroupCreateRequest(state, null), false);
+  });
+
+  it("sends a trimmed description", () => {
+    const state: GroupCreateState = {
+      ...selectMany(SELECTABLE_MIN),
+      description: "  Mobil ekip  ",
+      step: "identity",
+    };
+
+    assert.equal(toGroupCreateRequest(state, null).description, "Mobil ekip");
+  });
+
+  it("produces a body the write schema accepts", () => {
+    const state: GroupCreateState = {
+      ...selectMany(SELECTABLE_MIN),
+      avatarColor: "#1B8A55",
+      description: "Mobil ekip",
+      inviteEnabled: true,
+      name: "Whispr Mobil Ekibi",
+      step: "identity",
+    };
+
+    const parsed = GroupDMCreateRequestSchema.parse(toGroupCreateRequest(state, null));
+
+    assert.equal(parsed.name, "Whispr Mobil Ekibi");
+    assert.equal(parsed.inviteEnabled, true);
+    assert.equal(parsed.avatarColor, "#1B8A55");
+  });
+
+  it("asks before dropping the flow only once something has been picked", () => {
+    assert.equal(hasGroupCreateProgress(createInitialGroupCreateState()), false);
+    assert.equal(hasGroupCreateProgress(selectMany(1)), true);
   });
 });

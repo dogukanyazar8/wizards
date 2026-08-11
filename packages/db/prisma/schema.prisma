@@ -678,6 +678,10 @@ model UserSettings {
   explicitContentFilter UserExplicitContentFilter @default(DISABLED)
   friendRequestPolicy   FriendRequestPolicy       @default(EVERYONE)
   dmPolicy              DmPolicy                  @default(FRIENDS)
+  // 2b §7: "Grup davetlerine kapalı". A boolean rather than a policy enum
+  // because a group add is always made by a friend — `dmPolicy`'s EVERYONE /
+  // FRIENDS / NONE ladder has no third rung to offer here.
+  allowGroupInvites     Boolean                   @default(true)
   showReadReceipts      Boolean                   @default(true)
   nsfwAllowed           Boolean                   @default(false)
   serverRailWidth       Int                       @default(136)

@@ -1183,6 +1183,16 @@ export function useMobileMessagingFeature({
     isDMReactionPending,
     isDMMessageActionPending: isDMEditPending || isDMDeletePending,
     messageSearchState,
+    /**
+     * Faz 5 §C1.3 / V5. One search slot, two tabs: the channel screen and the
+     * group chat open the same panel, so the three props travel as one object
+     * rather than being listed — and re-listed in a dependency array — twice.
+     */
+    messageSearchProps: {
+      messageSearchState,
+      onClearMessageSearch: clearMessageSearch,
+      onSearchMessages: handleSearchMessages,
+    },
     productNavigationActions,
     refreshBootstrap,
     refreshChannelMessages,

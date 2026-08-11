@@ -23,13 +23,16 @@ type Deps = Parameters<typeof createGroupConversation>[2];
  * Eligibility now arrives as one map for the whole picker, so a test that wants
  * one bad target says so by name and everybody else stays a friend.
  */
-function eligibility(overrides: Record<string, { blocked?: boolean; isFriend?: boolean }> = {}) {
+function eligibility(
+  overrides: Record<string, { blocked?: boolean; closed?: boolean; isFriend?: boolean }> = {},
+) {
   return async (_actorId: string, targetIds: readonly string[]) =>
     new Map(
       targetIds.map((targetId) => [
         targetId,
         {
           blocked: overrides[targetId]?.blocked ?? false,
+          closed: overrides[targetId]?.closed ?? false,
           isFriend: overrides[targetId]?.isFriend ?? true,
         },
       ]),
@@ -181,6 +184,21 @@ describe("createGroupConversation", () => {
       () => createGroupConversation("user-1", { userIds: ["user-2", "user-3"] }, dependencies),
       (error: { code?: string; status?: number }) => {
         assert.equal(error.code, "NOT_FRIENDS");
+        assert.equal(error.status, 403);
+        return true;
+      },
+    );
+  });
+
+  it("refuses a friend who has closed themselves to group invites", async () => {
+    const dependencies = buildDependencies({
+      loadGroupEligibility: eligibility({ "user-3": { closed: true } }),
+    });
+
+    await assert.rejects(
+      () => createGroupConversation("user-1", { userIds: ["user-2", "user-3"] }, dependencies),
+      (error: { code?: string; status?: number }) => {
+        assert.equal(error.code, "GROUP_INVITES_CLOSED");
         assert.equal(error.status, 403);
         return true;
       },
@@ -1148,7 +1166,7 @@ describe("toGroupEligibilityMap", () => {
   it("leaves a target no row mentions as a non-friend so the check fails closed", () => {
     const map = toGroupEligibilityMap("user-1", targets, []);
 
-    assert.deepEqual(map.get("user-4"), { blocked: false, isFriend: false });
+    assert.deepEqual(map.get("user-4"), { blocked: false, closed: false, isFriend: false });
   });
 
   // Row order is whatever the database hands back, so the block has to survive
@@ -1160,7 +1178,7 @@ describe("toGroupEligibilityMap", () => {
       { receiverId: "user-2", senderId: "user-1", status: "ACCEPTED" },
     ]);
 
-    assert.deepEqual(map.get("user-2"), { blocked: true, isFriend: true });
+    assert.deepEqual(map.get("user-2"), { blocked: true, closed: false, isFriend: true });
   });
 
   it("keeps the block when the ACCEPTED row arrives before the BLOCKED one", () => {
@@ -1169,7 +1187,7 @@ describe("toGroupEligibilityMap", () => {
       { receiverId: "user-1", senderId: "user-2", status: "BLOCKED" },
     ]);
 
-    assert.deepEqual(map.get("user-2"), { blocked: true, isFriend: true });
+    assert.deepEqual(map.get("user-2"), { blocked: true, closed: false, isFriend: true });
   });
 
   it("ignores rows about somebody who was never a target", () => {

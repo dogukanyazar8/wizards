@@ -26,9 +26,22 @@ import {
 import { getMobilePresenceColor } from "../../design/mobile-presence-color";
 import { MobileLineIcon } from "../../design/mobile-line-icons";
 import { mobileMessagingMetrics as msg } from "../../design/tokens";
+import {
+  MOBILE_CONVERSATION_FILTERS,
+  formatGroupTypingLabel,
+  getConversationFilterCounts,
+  getConversationFilterPredicate,
+  getGroupAvatarPair,
+  splitPinnedConversations,
+  type MobileConversationFilterCounts,
+  type MobileConversationFilterId,
+} from "../mobile-group-chat-model";
+import { ActionSheet } from "../components/kit/sheet-primitives";
+import type { MobileConversationRowActions } from "../features/use-mobile-conversation-row-actions";
 import { AvatarMark, MetricMiniPill } from "../components/ui-atoms";
 import { useTheme } from "../providers/mobile-theme-provider";
 import { useDmScreenStyles } from "./dm-screen.styles";
+import { useGroupChatStyles, useGroupPressStyle } from "./group-chat.styles";
 import type { MobileDMInboxSegment, MobileDMOnlineFriend } from "./dm-screen.types";
 
 const DM_INBOX_SEGMENTS: readonly MobileDMInboxSegment[] = ["conversations", "friends", "requests"];
@@ -180,133 +193,235 @@ export function DMInboxSearchField({
   );
 }
 
-export function DMOnlineStrip({
-  friends,
-  onAddFriend,
-  onOpenFriendDM,
+const FILTER_LABELS: Readonly<Record<MobileConversationFilterId, string>> = {
+  all: copy.messagesFilterAll,
+  groups: copy.messagesFilterGroups,
+  muted: copy.messagesFilterMuted,
+  unread: copy.messagesFilterUnread,
+};
+
+/**
+ * 2a §1. Four chips over the list the reader already has: the counters come
+ * from the very predicates the chips filter by, so the number on a chip and the
+ * length of the list it opens cannot disagree.
+ *
+ * "Sessiz" carries no counter — the handoff draws none (HTML 61), and adding
+ * one would be the fourth number on a row the design gives three.
+ */
+export function DMInboxFilterChips({
+  counts,
+  filter,
+  onSelectFilter,
 }: {
-  friends: readonly MobileDMOnlineFriend[];
-  onAddFriend(): void;
-  onOpenFriendDM(friendId: string): void;
+  counts: MobileConversationFilterCounts;
+  filter: MobileConversationFilterId;
+  onSelectFilter(next: MobileConversationFilterId): void;
 }) {
-  const styles = useDmScreenStyles();
-  const theme = useTheme();
-  if (friends.length === 0) {
-    return null;
-  }
+  const styles = useGroupChatStyles();
+  const pressedStyle = useGroupPressStyle();
+
   return (
-    <View testID="mobile-dm-online-strip">
-      <View style={styles.dmOnlineStripLabelRow}>
-        <Text style={styles.dmOnlineStripLabel}>{copy.dmSectionOnlineLabel}</Text>
-        <Text style={styles.dmOnlineStripCount} testID="mobile-dm-online-strip-count">
-          {friends.length}
-        </Text>
-      </View>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.dmOnlineStripContent}
-      >
-        {friends.map((friend) => {
-          const title = friend.displayName ?? friend.username;
-          const presenceColor = getMobilePresenceColor(getMobilePresenceTone(friend.status), theme);
-          return (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`${copy.openConversationAction}: ${title}`}
-              key={friend.id}
-              onPress={() => onOpenFriendDM(friend.id)}
-              style={styles.dmOnlineStripCell}
-              testID={`mobile-dm-online-friend-${friend.id}`}
-            >
-              <View style={styles.dmOnlineStripAvatarWrap}>
-                <AvatarMark
-                  avatarBorderRadius={msg.avatar.onlineStripRadius}
-                  dimension={msg.avatar.onlineStrip}
-                  identityId={friend.id}
-                  imageUrl={friend.avatarUrl}
-                  label={title}
-                />
-                {friend.voiceRoom ? (
-                  <View
-                    style={styles.dmOnlineStripVoiceTile}
-                    testID={`mobile-dm-online-voice-${friend.id}`}
-                  >
-                    <MobileLineIcon
-                      accessibilityLabel={copy.dmVoiceRoomPresenceLabel}
-                      color={theme.messaging.accent}
-                      name="audio-wave"
-                      size={10}
-                    />
-                  </View>
-                ) : (
-                  <View
-                    style={[styles.dmOnlineStripDot, { backgroundColor: presenceColor }]}
-                    testID={`mobile-dm-online-dot-${friend.id}`}
-                  />
-                )}
-              </View>
-              <Text numberOfLines={1} style={styles.dmOnlineStripName}>
-                {friend.username}
+    <ScrollView
+      contentContainerStyle={styles.filterChipRow}
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      testID="mobile-dm-filter-chips"
+    >
+      {MOBILE_CONVERSATION_FILTERS.map((candidate) => {
+        const selected = candidate === filter;
+        const count =
+          candidate === "unread" ? counts.unread : candidate === "groups" ? counts.groups : 0;
+
+        return (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ selected }}
+            key={candidate}
+            onPress={() => onSelectFilter(candidate)}
+            style={({ pressed }) => [
+              styles.filterChip,
+              selected && styles.filterChipActive,
+              pressed && pressedStyle,
+            ]}
+            testID={`mobile-dm-filter-chip-${candidate}`}
+          >
+            <Text style={[styles.filterChipLabel, selected && styles.filterChipLabelActive]}>
+              {FILTER_LABELS[candidate]}
+            </Text>
+            {count > 0 && !selected ? (
+              <Text
+                style={styles.filterChipCount}
+                testID={`mobile-dm-filter-chip-count-${candidate}`}
+              >
+                {count}
               </Text>
-            </Pressable>
-          );
-        })}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={copy.dmAddFriendAction}
-          onPress={onAddFriend}
-          style={styles.dmOnlineStripCell}
-          testID="mobile-dm-online-add"
-        >
-          <View style={styles.dmOnlineStripAddCell}>
-            <MobileLineIcon color={theme.messaging.groupLabel} name="plus" size={18} />
+            ) : null}
+          </Pressable>
+        );
+      })}
+    </ScrollView>
+  );
+}
+
+/**
+ * §11.0.7 / V7. The 46px slot with two 30px tiles, the lower one ringed in the
+ * row's own background — which is white on a pinned row and the list tone
+ * everywhere else (HTML 68 vs 83), so the ring colour is an argument rather
+ * than a constant.
+ *
+ * The pair itself is resolved server-side and read here through the model: a
+ * row carries at most four participants, so rebuilding it from `participants`
+ * would be wrong for a six-person group.
+ */
+export function GroupAvatarPairMark({
+  avatarPair,
+  overflowCount,
+  ringColor,
+}: {
+  avatarPair: readonly {
+    accent: string;
+    avatarUrl: string | null;
+    initials: string;
+    userId: string;
+  }[];
+  overflowCount: number;
+  ringColor: string;
+}) {
+  const styles = useGroupChatStyles();
+  const groupTokens = useTheme().groupChat;
+  const pair = getGroupAvatarPair([...avatarPair], overflowCount);
+  const [first, second] = pair.tiles;
+
+  return (
+    <View style={styles.avatarPair} testID="mobile-dm-group-avatar-pair">
+      {first ? (
+        <View style={styles.avatarPairTopTile}>
+          <AvatarMark
+            avatarBorderRadius={groupTokens.groupRow.tileRadius}
+            dimension={groupTokens.groupRow.tileSize}
+            fallbackTextStyle={styles.avatarPairTileText}
+            identityId={first.userId}
+            imageUrl={first.avatarUrl}
+            label={first.initials}
+          />
+        </View>
+      ) : null}
+      <View style={styles.avatarPairBottomTile}>
+        {pair.overflowLabel ? (
+          <View
+            style={[styles.avatarPairOverflow, { borderColor: ringColor }]}
+            testID="mobile-dm-group-avatar-overflow"
+          >
+            <Text style={styles.avatarPairOverflowText}>{pair.overflowLabel}</Text>
           </View>
-          <Text numberOfLines={1} style={styles.dmOnlineStripAddLabel}>
-            {copy.dmOnlineStripAddLabel}
-          </Text>
-        </Pressable>
-      </ScrollView>
+        ) : second ? (
+          <AvatarMark
+            avatarBorderColor={ringColor}
+            avatarBorderRadius={groupTokens.groupRow.tileRadius}
+            avatarBorderWidth={groupTokens.groupRow.tileRing}
+            dimension={groupTokens.groupRow.tileSize}
+            fallbackTextStyle={styles.avatarPairTileText}
+            identityId={second.userId}
+            imageUrl={second.avatarUrl}
+            label={second.initials}
+          />
+        ) : null}
+      </View>
     </View>
   );
 }
 
+/**
+ * One entry of the 2a list. The section head is data rather than a header
+ * component so `getItemType` can tell the recycler about it (§F.5): a heading
+ * recycled into a row slot is the scroll glitch that rule exists to prevent.
+ */
+type MobileInboxListEntry =
+  | { readonly kind: "section"; readonly id: string }
+  | {
+      readonly conversation: MobileDMConversationListItem;
+      readonly kind: "row";
+      readonly last: boolean;
+      readonly pinned: boolean;
+    };
+
+const FILTER_EMPTY_COPY: Readonly<Record<MobileConversationFilterId, string>> = {
+  all: copy.directMessageFilteredEmpty,
+  groups: copy.messagesFilterEmptyGroups,
+  muted: copy.messagesFilterEmptyMuted,
+  unread: copy.messagesFilterEmptyUnread,
+};
+
 export function DirectMessageListCard({
   conversations,
   currentUserId = "",
+  filter = "all",
   hasNextPage,
   onlineFriends = [],
-  onAddFriend = () => {},
   onLoadMore,
+  onLongPressConversation,
   onOpenConversation,
-  onOpenFriendDM = () => {},
   query = "",
   selectedConversationId,
   typingByConversationId = {},
 }: {
   conversations: readonly MobileDMConversationListItem[];
   currentUserId?: string;
+  /** V4. The chip the reader last picked; persisted a level up. */
+  filter?: MobileConversationFilterId;
   hasNextPage: boolean;
   onlineFriends?: readonly MobileDMOnlineFriend[];
-  onAddFriend?(): void;
   onLoadMore(): void;
+  /** 2a §5's sheet. Absent means the row simply has no long press. */
+  onLongPressConversation?(conversationId: string): void;
   onOpenConversation(conversationId: string): void;
-  onOpenFriendDM?(friendId: string): void;
   query?: string;
   selectedConversationId: string | null;
   /** §2 "1a".6.2; defaulted so the list renders without the realtime provider. */
   typingByConversationId?: Readonly<Record<string, readonly string[]>>;
 }) {
   const styles = useDmScreenStyles();
-  const filteredConversations = useMemo(
-    () =>
-      filterMobileConversations(conversations, {
-        fallback: copy.directMessageFallback,
-        filter: "all",
-        query,
-      }),
-    [conversations, query],
-  );
+  const groupStyles = useGroupChatStyles();
+  const theme = useTheme();
+  /**
+   * Search first, chip second, order last. The two filters are kept apart on
+   * purpose: the search text is what the reader typed, and the chip is a stored
+   * preference — folding them into one predicate would make the stored chip a
+   * function of the search box.
+   */
+  const entries = useMemo<MobileInboxListEntry[]>(() => {
+    const matchesQuery = filterMobileConversations(conversations, {
+      fallback: copy.directMessageFallback,
+      filter: "all",
+      query,
+    });
+    const keep = getConversationFilterPredicate(filter);
+    const { pinned, rest } = splitPinnedConversations(matchesQuery.filter(keep));
+    const list: MobileInboxListEntry[] = [];
+
+    if (pinned.length > 0) {
+      list.push({ id: "pinned", kind: "section" });
+      pinned.forEach((conversation, index) => {
+        list.push({
+          conversation,
+          kind: "row",
+          last: index === pinned.length - 1 && rest.length === 0,
+          pinned: true,
+        });
+      });
+    }
+
+    rest.forEach((conversation, index) => {
+      list.push({
+        conversation,
+        kind: "row",
+        last: index === rest.length - 1,
+        pinned: false,
+      });
+    });
+
+    return list;
+  }, [conversations, filter, query]);
   // Live friend presence keyed by user id, so conversation rows match the strip.
   const presenceByUserId = useMemo(
     () => new Map(onlineFriends.map((friend) => [friend.id, friend.status] as const)),
@@ -326,46 +441,55 @@ export function DirectMessageListCard({
     <View style={styles.dmListCard}>
       <FlashList
         contentContainerStyle={styles.dmConversationList}
-        data={filteredConversations}
-        keyExtractor={(conversation) => conversation.id}
-        ListHeaderComponent={
-          <View>
-            {query.trim().length === 0 ? (
-              <DMOnlineStrip
-                friends={onlineFriends}
-                onAddFriend={onAddFriend}
-                onOpenFriendDM={onOpenFriendDM}
-              />
-            ) : null}
-            <Text style={styles.dmConversationsSectionLabel}>
-              {copy.dmSectionConversationsLabel}
-            </Text>
-          </View>
+        data={entries}
+        keyExtractor={(entry) =>
+          entry.kind === "section" ? `section:${entry.id}` : entry.conversation.id
+        }
+        /**
+         * §F.5. Three shapes share this list, and a recycler told they are one
+         * shape reuses a section head as a row.
+         */
+        getItemType={(entry) =>
+          entry.kind === "section"
+            ? "section"
+            : entry.conversation.type === "GROUP_DM"
+              ? "group"
+              : "dm"
         }
         onLoad={mobileListLoadHandlers.dmInbox}
         onEndReached={hasNextPage ? onLoadMore : undefined}
         onEndReachedThreshold={0.6}
-        renderItem={({ index, item: conversation }) => (
-          <>
-            <DirectMessageConversationCard
-              conversation={conversation}
-              currentUserId={currentUserId}
-              presenceByUserId={presenceByUserId}
-              selected={conversation.id === selectedConversationId}
-              onOpenConversation={onOpenConversation}
-              typingNames={typingByConversationId[conversation.id] ?? []}
-              voiceUserIds={voiceUserIds}
-            />
-            {index < filteredConversations.length - 1 ? (
-              <View
-                style={styles.dmConversationHairline}
-                testID="mobile-dm-conversation-hairline"
+        renderItem={({ item: entry }) =>
+          entry.kind === "section" ? (
+            <View style={groupStyles.pinnedSectionRow} testID="mobile-dm-pinned-section">
+              <MobileLineIcon
+                color={theme.groupChat.pinnedSection.iconColor}
+                name="pin"
+                size={theme.groupChat.pinnedSection.icon}
               />
-            ) : null}
-          </>
-        )}
+              <Text style={groupStyles.pinnedSectionLabel}>{copy.messagesPinnedSection}</Text>
+            </View>
+          ) : (
+            <>
+              <DirectMessageConversationCard
+                conversation={entry.conversation}
+                currentUserId={currentUserId}
+                {...(onLongPressConversation ? { onLongPressConversation } : {})}
+                onOpenConversation={onOpenConversation}
+                pinned={entry.pinned}
+                presenceByUserId={presenceByUserId}
+                selected={entry.conversation.id === selectedConversationId}
+                typingNames={typingByConversationId[entry.conversation.id] ?? []}
+                voiceUserIds={voiceUserIds}
+              />
+              {entry.last ? null : (
+                <View style={groupStyles.rowHairline} testID="mobile-dm-conversation-hairline" />
+              )}
+            </>
+          )
+        }
         ListEmptyComponent={
-          <Text style={styles.contractDescription}>{copy.directMessageFilteredEmpty}</Text>
+          <Text style={groupStyles.filterEmptyState}>{FILTER_EMPTY_COPY[filter]}</Text>
         }
         showsVerticalScrollIndicator={false}
         style={{ ...styles.dmConversationListViewport, ...styles.dmInboxListArea }}
@@ -432,7 +556,9 @@ export function formatMobileVoicePreviewLabel(durationSec: number | null): strin
 export const DirectMessageConversationCard = memo(function DirectMessageConversationCard({
   conversation,
   currentUserId = "",
+  onLongPressConversation,
   onOpenConversation,
+  pinned = false,
   presenceByUserId = EMPTY_PRESENCE_MAP,
   selected,
   typingNames = [],
@@ -440,7 +566,11 @@ export const DirectMessageConversationCard = memo(function DirectMessageConversa
 }: {
   conversation: MobileDMConversationListItem;
   currentUserId?: string;
+  /** 2a §5. Absent means this surface offers no row sheet. */
+  onLongPressConversation?(conversationId: string): void;
   onOpenConversation(conversationId: string): void;
+  /** 2a §2. Draws the row on white and rings the lower tile in the same tone. */
+  pinned?: boolean;
   presenceByUserId?: ReadonlyMap<string, string>;
   selected: boolean;
   typingNames?: readonly string[];
@@ -449,6 +579,8 @@ export const DirectMessageConversationCard = memo(function DirectMessageConversa
 }) {
   const theme = useTheme();
   const styles = useDmScreenStyles();
+  const groupStyles = useGroupChatStyles();
+  const groupTokens = theme.groupChat;
   const title = getMobileConversationTitle(conversation, copy.directMessageFallback, currentUserId);
   const presenceStatus = getMobileConversationPresenceStatus(
     conversation,
@@ -463,8 +595,18 @@ export const DirectMessageConversationCard = memo(function DirectMessageConversa
     voiceUserIds,
   );
   const isUnread = conversation.unreadCount > 0;
+  /**
+   * 2a C4. `notifyLevel` is the authority and `muted` its derived mirror
+   * (§4.2); reading the mirror here would draw a "Yalnız bahsetmeler" row as if
+   * it still notified everything.
+   */
+  const isMuted = (conversation.notifyLevel ?? "ALL") !== "ALL";
   const lastMessage = conversation.lastMessage;
-  const isTyping = typingNames.length > 0;
+  const typingLabel = isGroupConversation
+    ? formatGroupTypingLabel(typingNames, copy)
+    : typingNames.length > 0
+      ? copy.dmTypingShortLabel
+      : null;
   // M4A marks the bot participant; a 1:1 with a bot is what draws the badge.
   const isBotConversation =
     !isGroupConversation &&
@@ -475,6 +617,8 @@ export const DirectMessageConversationCard = memo(function DirectMessageConversa
   // incoming preview has `deliveryStatus === null` and draws nothing.
   const previewDelivery = lastMessage?.deliveryStatus ?? null;
   const isVoicePreview = lastMessage?.kind === "voice";
+  /** 2a C4's media lead: one glyph for a picture or a file, never for text. */
+  const isMediaPreview = lastMessage?.kind === "image" || lastMessage?.kind === "file";
   /**
    * A group lifecycle row arrives with empty `text`, because the sentence depends
    * on the reader's locale. It is built here from the same helper the chat stream
@@ -519,6 +663,10 @@ export const DirectMessageConversationCard = memo(function DirectMessageConversa
                 : ""
           }${lastMessage.text}`)
     : copy.homeContinueLatestDirectMessage;
+  /** HTML 68 vs 83: the lower tile is ringed in the row's own background. */
+  const rowBackground = pinned
+    ? groupTokens.groupRow.pinnedTileRingColor
+    : groupTokens.groupRow.tileRingColor;
 
   return (
     <Pressable
@@ -526,83 +674,113 @@ export const DirectMessageConversationCard = memo(function DirectMessageConversa
       accessibilityLabel={`${copy.openConversationAction}: ${title || copy.directMessageFallback}`}
       accessibilityState={{ selected }}
       testID="mobile-dm-conversation-row"
+      onLongPress={
+        onLongPressConversation ? () => onLongPressConversation(conversation.id) : undefined
+      }
       onPress={() => onOpenConversation(conversation.id)}
       style={({ pressed }) => [
         styles.dmConversationCard,
+        pinned && groupStyles.rowPinned,
         selected && styles.dmConversationCardSelected,
         pressed && styles.dmConversationCardPressed,
       ]}
     >
-      <View style={styles.dmConversationAvatarWrap}>
-        <AvatarMark
-          avatarBorderRadius={msg.avatar.conversationListRadius}
-          dimension={msg.avatar.conversationList}
-          identityId={conversation.id}
-          label={getMobileConversationInitialsLabel(
-            conversation,
-            copy.directMessageFallback,
-            currentUserId,
-          )}
-          imageUrl={getMobileConversationAvatarUrl(conversation, currentUserId)}
-          style={styles.dmConversationAvatar}
+      {isGroupConversation ? (
+        <GroupAvatarPairMark
+          // Four fields the payload gained in Faz 3. A page cached by an older
+          // build, or a fixture written before them, still has to draw a row
+          // rather than take the whole list down.
+          avatarPair={conversation.avatarPair ?? []}
+          overflowCount={conversation.overflowCount ?? 0}
+          ringColor={rowBackground}
         />
-        {isGroupConversation ? (
-          <View style={styles.dmConversationGroupBadge} testID="mobile-dm-conversation-group-badge">
-            <MobileLineIcon color={theme.messaging.accent} name="members" size={9} />
-          </View>
-        ) : isCounterpartInVoice ? (
-          <View style={styles.dmConversationVoiceTile} testID="mobile-dm-conversation-voice-tile">
-            <MobileLineIcon
-              accessibilityLabel={copy.dmVoiceRoomPresenceLabel}
-              color={theme.messaging.accent}
-              name="audio-wave"
-              size={9}
-            />
-          </View>
-        ) : presenceStatus ? (
-          <View
-            style={[
-              styles.dmActivePresenceDot,
-              {
-                backgroundColor: getMobilePresenceColor(
-                  getMobilePresenceTone(presenceStatus),
-                  theme,
-                ),
-              },
-            ]}
-            testID="mobile-dm-conversation-online-dot"
+      ) : (
+        <View style={styles.dmConversationAvatarWrap}>
+          <AvatarMark
+            avatarBorderRadius={msg.avatar.conversationListRadius}
+            dimension={msg.avatar.conversationList}
+            identityId={conversation.id}
+            label={getMobileConversationInitialsLabel(
+              conversation,
+              copy.directMessageFallback,
+              currentUserId,
+            )}
+            imageUrl={getMobileConversationAvatarUrl(conversation, currentUserId)}
+            style={styles.dmConversationAvatar}
           />
-        ) : null}
-      </View>
+          {isCounterpartInVoice ? (
+            <View style={styles.dmConversationVoiceTile} testID="mobile-dm-conversation-voice-tile">
+              <MobileLineIcon
+                accessibilityLabel={copy.dmVoiceRoomPresenceLabel}
+                color={theme.messaging.accent}
+                name="audio-wave"
+                size={9}
+              />
+            </View>
+          ) : presenceStatus ? (
+            <View
+              style={[
+                styles.dmActivePresenceDot,
+                {
+                  backgroundColor: getMobilePresenceColor(
+                    getMobilePresenceTone(presenceStatus),
+                    theme,
+                  ),
+                },
+              ]}
+              testID="mobile-dm-conversation-online-dot"
+            />
+          ) : null}
+        </View>
+      )}
       <View style={styles.dmConversationContent}>
         <View style={styles.dmConversationTitleRow}>
           <View style={styles.dmConversationNameRow}>
             <Text
-              style={[styles.dmConversationName, isUnread && styles.dmConversationNameUnread]}
+              style={[
+                styles.dmConversationName,
+                isUnread && styles.dmConversationNameUnread,
+                isMuted && groupStyles.nameMuted,
+              ]}
               numberOfLines={1}
             >
               {title || copy.directMessageFallback}
             </Text>
+            {isGroupConversation ? (
+              <Text
+                style={groupStyles.memberCount}
+                testID="mobile-dm-conversation-member-count"
+              >{`· ${conversation.participantCount}`}</Text>
+            ) : null}
+            {isMuted ? (
+              <MobileLineIcon
+                accessibilityLabel={copy.dmMutedLabel}
+                color={groupTokens.rowMuted.bell}
+                name="bell-off"
+                size={groupTokens.rowMuted.bellIcon}
+                testID="mobile-dm-conversation-muted-bell"
+              />
+            ) : null}
             {isBotConversation ? (
-              <View style={styles.dmBotBadge} testID="mobile-dm-conversation-bot-badge">
-                <Text style={styles.dmBotBadgeText}>{copy.dmBotBadge}</Text>
+              <View style={groupStyles.botChip} testID="mobile-dm-conversation-bot-badge">
+                <Text style={groupStyles.botChipText}>{copy.messageBotBadgeLabel}</Text>
               </View>
             ) : null}
           </View>
         </View>
-        {isTyping ? (
-          <View style={styles.dmConversationPreviewRow} testID="mobile-dm-conversation-typing">
-            <View style={styles.dmTypingDots}>
-              <View style={styles.dmTypingDot} />
-              <View style={[styles.dmTypingDot, styles.dmTypingDotSecond]} />
-              <View style={[styles.dmTypingDot, styles.dmTypingDotThird]} />
+        {typingLabel ? (
+          <View style={groupStyles.typingRow} testID="mobile-dm-conversation-typing">
+            <View style={groupStyles.typingDots}>
+              <View style={groupStyles.typingDot} />
+              <View style={[groupStyles.typingDot, groupStyles.typingDotSecond]} />
+              <View style={[groupStyles.typingDot, groupStyles.typingDotThird]} />
             </View>
-            <Text style={styles.dmTypingLabel} numberOfLines={1}>
-              {copy.dmTypingShortLabel}
+            <Text style={groupStyles.typingLabel} numberOfLines={1}>
+              {typingLabel}
             </Text>
           </View>
         ) : (
-          <View style={styles.dmConversationPreviewRow}>
+          <View style={groupStyles.previewRow}>
             {previewDelivery ? (
               <MobileLineIcon
                 accessibilityLabel={
@@ -613,21 +791,35 @@ export const DirectMessageConversationCard = memo(function DirectMessageConversa
                       : copy.dmChatSentLabel
                 }
                 color={
-                  previewDelivery === "read" ? theme.messaging.tickRead : theme.messaging.tickSent
+                  previewDelivery === "read"
+                    ? groupTokens.rowPreviewIcon.tick
+                    : groupTokens.rowPreviewIcon.mediaIconColor
                 }
                 name={previewDelivery === "sent" ? "tick-single" : "tick-double"}
-                size={msg.listTick.size}
+                size={groupTokens.rowPreviewIcon.tickIcon}
                 testID={`mobile-dm-conversation-tick-${previewDelivery}`}
               />
             ) : null}
             {isVoicePreview ? (
-              <MobileLineIcon color={theme.messaging.groupLabel} name="mic" size={13} />
+              <MobileLineIcon
+                color={groupTokens.rowPreviewIcon.mediaIconColor}
+                name="mic"
+                size={groupTokens.rowPreviewIcon.mediaIcon}
+              />
+            ) : isMediaPreview ? (
+              <MobileLineIcon
+                color={groupTokens.rowPreviewIcon.mediaIconColor}
+                name="image"
+                size={groupTokens.rowPreviewIcon.mediaIcon}
+                testID="mobile-dm-conversation-media-icon"
+              />
             ) : null}
             <Text
               style={[
                 styles.dmConversationPreview,
                 styles.dmConversationPreviewText,
                 isUnread && styles.dmConversationPreviewUnread,
+                isMuted && groupStyles.memberCount,
               ]}
               numberOfLines={1}
             >
@@ -642,31 +834,132 @@ export const DirectMessageConversationCard = memo(function DirectMessageConversa
             {lastActivity}
           </Text>
         ) : null}
-        {conversation.mentionCount > 0 ? (
-          <View style={styles.dmMentionBadge} testID="mobile-dm-conversation-mention-badge">
-            <MobileLineIcon
-              accessibilityLabel={copy.dmMentionBadgeLabel}
-              color={theme.text.onPrimary}
-              name="mention"
-              size={12}
-            />
-          </View>
-        ) : isUnread ? (
-          <Text style={styles.dmUnreadBadge}>
-            {formatMobileUnreadCount(conversation.unreadCount)}
-          </Text>
-        ) : conversation.muted ? (
-          <MobileLineIcon
-            accessibilityLabel={copy.dmMutedLabel}
-            color={theme.messaging.tickSent}
-            name="bell-off"
-            size={15}
-          />
-        ) : null}
+        {/*
+         * 2a §5. The mention badge is always left of the unread badge, and the
+         * two coexist: a row can be holding an unseen mention and nine unread
+         * messages, and dropping either loses something the reader needs.
+         */}
+        <View style={groupStyles.rowBadgeRow} testID="mobile-dm-conversation-badges">
+          {(conversation.mentionCount ?? 0) > 0 ? (
+            <View
+              style={[groupStyles.rowBadge, groupStyles.rowBadgeMention]}
+              testID="mobile-dm-conversation-mention-badge"
+            >
+              <Text
+                accessibilityLabel={copy.dmMentionBadgeLabel}
+                style={[groupStyles.rowBadgeText, groupStyles.rowBadgeMentionText]}
+              >
+                {`@${formatMobileUnreadCount(conversation.mentionCount)}`}
+              </Text>
+            </View>
+          ) : null}
+          {isUnread ? (
+            <View
+              style={[
+                groupStyles.rowBadge,
+                isMuted ? groupStyles.rowBadgeMuted : groupStyles.rowBadgeUnread,
+              ]}
+              testID="mobile-dm-conversation-unread-badge"
+            >
+              <Text
+                style={[
+                  groupStyles.rowBadgeText,
+                  isMuted ? groupStyles.rowBadgeMutedText : groupStyles.rowBadgeUnreadText,
+                ]}
+              >
+                {formatMobileUnreadCount(conversation.unreadCount)}
+              </Text>
+            </View>
+          ) : null}
+        </View>
       </View>
     </Pressable>
   );
 });
+
+/**
+ * 2a's whole chats tab: the chip row, the list under it, and the sheet a long
+ * press opens. It lives here rather than in the shell because every one of
+ * those three is about the inbox — the shell's job is which of the three tabs
+ * is showing, not what the conversation tab is made of.
+ */
+export function DMInboxConversationsPane({
+  conversations,
+  currentUserId,
+  filter,
+  hasNextPage,
+  isLoading,
+  onCompose,
+  onLoadMore,
+  onOpenConversation,
+  onSelectFilter,
+  onlineFriends,
+  query,
+  rowActions,
+  selectedConversationId,
+  showEmpty,
+  typingByConversationId,
+}: {
+  conversations: readonly MobileDMConversationListItem[];
+  currentUserId: string;
+  filter: MobileConversationFilterId;
+  hasNextPage: boolean;
+  isLoading: boolean;
+  onCompose(): void;
+  onLoadMore(): void;
+  onOpenConversation(conversationId: string): void;
+  onSelectFilter(next: MobileConversationFilterId): void;
+  onlineFriends: readonly MobileDMOnlineFriend[];
+  query: string;
+  rowActions: MobileConversationRowActions;
+  selectedConversationId: string | null;
+  showEmpty: boolean;
+  typingByConversationId: Readonly<Record<string, readonly string[]>>;
+}) {
+  // The counters describe the inbox, not the search: hiding a chip's number
+  // behind a query would make it jump while the reader is still typing.
+  const counts = useMemo(() => getConversationFilterCounts(conversations), [conversations]);
+
+  return (
+    <>
+      <DMInboxFilterChips counts={counts} filter={filter} onSelectFilter={onSelectFilter} />
+      {isLoading ? (
+        <DMInboxLoadingSkeleton />
+      ) : conversations.length > 0 ? (
+        <DirectMessageListCard
+          conversations={conversations}
+          currentUserId={currentUserId}
+          filter={filter}
+          hasNextPage={hasNextPage}
+          onlineFriends={onlineFriends}
+          onLoadMore={onLoadMore}
+          onLongPressConversation={rowActions.open}
+          onOpenConversation={onOpenConversation}
+          query={query}
+          selectedConversationId={selectedConversationId}
+          typingByConversationId={typingByConversationId}
+        />
+      ) : showEmpty ? (
+        <DMInboxEmptyState onCompose={onCompose} />
+      ) : null}
+      <ActionSheet
+        actions={rowActions.actions}
+        onClose={rowActions.close}
+        open={rowActions.conversation !== null}
+        testID="mobile-dm-row-actions"
+        title={
+          rowActions.conversation
+            ? getMobileConversationTitle(
+                rowActions.conversation,
+                copy.directMessageFallback,
+                currentUserId,
+              )
+            : copy.conversationActionsLabel
+        }
+      />
+    </>
+  );
+}
 
 export function DMInboxLoadingSkeleton() {
   const styles = useDmScreenStyles();

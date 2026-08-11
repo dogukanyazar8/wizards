@@ -74,6 +74,8 @@ interface MobileRealtimeRuntime {
   emitDMCallCancel(input: { conversationId: string }): void;
   emitDMCallDecline(input: { conversationId: string; fromUserId: string }): void;
   emitDMCallEnd(input: { conversationId: string }): void;
+  /** Faz 5 §B5. Entering a call that is already running — no ring. */
+  emitDMCallJoin(input: { conversationId: string; video?: boolean }): void;
   emitDMCallStart(input: { conversationId: string; video: boolean }): void;
   emitVoiceInviteAccept(input: { channelId: string; inviteId: string; serverId: string }): void;
   emitVoiceInviteDecline(input: { channelId: string; inviteId: string; serverId: string }): void;
@@ -592,6 +594,7 @@ export function MobileRealtimeProvider({ children }: PropsWithChildren) {
       emitDMCallCancel: (input) => clientRef.current?.emitDMCallCancel(input),
       emitDMCallDecline: (input) => clientRef.current?.emitDMCallDecline(input),
       emitDMCallEnd: (input) => clientRef.current?.emitDMCallEnd(input),
+      emitDMCallJoin: (input) => clientRef.current?.emitDMCallJoin(input),
       emitDMCallStart: (input) => clientRef.current?.emitDMCallStart(input),
       emitVoiceInviteAccept: (input) => clientRef.current?.emitVoiceInviteAccept(input),
       emitVoiceInviteDecline: (input) => clientRef.current?.emitVoiceInviteDecline(input),

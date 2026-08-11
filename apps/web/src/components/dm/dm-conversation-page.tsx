@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { ChatArea } from "@/components/chat/chat-area";
 import { DmDetailsPanel } from "@/components/dm/dm-details-panel";
 import { DmGroupDetailsPanel } from "@/components/dm/dm-group-details-panel";
+import { DmGroupSettingsPanel } from "@/components/dm/dm-group-settings-panel";
 import { useGroupConversationMutations } from "@/hooks/use-group-conversation";
 import { isGroupConversation } from "@/lib/dm/group-presentation";
 import { fetchFriends, friendsQueryKeys } from "@/lib/friends/client";
@@ -201,8 +202,28 @@ function DMConversationPageContent({
                     onOpenSearch={openSearchFromDetails}
                     onRemoveMember={groupMutations.removeMember}
                     onUpdate={groupMutations.update}
+                    onSetMemberRole={groupMutations.setMemberRole}
                     variant="drawer"
-                  />
+                  >
+                    {/* §D3.2: 2f lives under 2e rather than behind a second
+                        route — the web panel is one surface, and a settings
+                        page of its own would be a navigation this design has
+                        no answer for. */}
+                    <DmGroupSettingsPanel
+                      conversation={activeConversation}
+                      currentUserId={currentUserId}
+                      invite={groupMutations.invite}
+                      isPending={groupMutations.isPending}
+                      onLeave={(input) =>
+                        groupMutations.leave(currentUserId, input.transferOwnershipTo)
+                      }
+                      onRotateInvite={groupMutations.rotateInvite}
+                      onSetDisappearing={groupMutations.setDisappearing}
+                      onSetInviteEnabled={groupMutations.setInviteEnabled}
+                      onSetNotifyLevel={groupMutations.setNotifyLevel}
+                      onSetPermission={groupMutations.setPermission}
+                    />
+                  </DmGroupDetailsPanel>
                 ) : otherParticipant ? (
                   <DmDetailsPanel
                     conversation={activeConversation}
@@ -250,7 +271,21 @@ function DMConversationPageContent({
           onOpenSearch={openSearchFromDetails}
           onRemoveMember={groupMutations.removeMember}
           onUpdate={groupMutations.update}
-        />
+          onSetMemberRole={groupMutations.setMemberRole}
+        >
+          <DmGroupSettingsPanel
+            conversation={activeConversation}
+            currentUserId={currentUserId}
+            invite={groupMutations.invite}
+            isPending={groupMutations.isPending}
+            onLeave={(input) => groupMutations.leave(currentUserId, input.transferOwnershipTo)}
+            onRotateInvite={groupMutations.rotateInvite}
+            onSetDisappearing={groupMutations.setDisappearing}
+            onSetInviteEnabled={groupMutations.setInviteEnabled}
+            onSetNotifyLevel={groupMutations.setNotifyLevel}
+            onSetPermission={groupMutations.setPermission}
+          />
+        </DmGroupDetailsPanel>
       ) : otherParticipant ? (
         <DmDetailsPanel
           className="hidden w-[22rem] shrink-0 xl:flex 2xl:w-[23rem]"

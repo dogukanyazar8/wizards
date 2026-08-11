@@ -13,10 +13,10 @@ import {
   type MobileSyncHealthSummary,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "../mobile-root-screen-shared";
-import { mobileNavigationRef } from "../../navigation/mobile-navigation-ref";
 import { DMComposer, type MobileComposerIntent } from "../composer/mobile-composer";
 import { MobileChatKeyboardRegion } from "../mobile-chat-keyboard-region";
 import {
@@ -26,6 +26,19 @@ import {
   DMChatMessageList,
   DMChatTypingIndicator,
 } from "../components/dm-chat-primitives";
+import {
+  GroupCallBanner,
+  GroupChatHeader,
+  GroupPinnedStrip,
+  GroupSendBlockedNotice,
+  GroupTypingIndicator,
+} from "../components/group-chat-primitives";
+import {
+  GroupChatMenuSheet,
+  GroupLeaveFlow,
+  GroupReadersSheet,
+} from "../components/group-management-sheets";
+import type { MobileGroupChatState } from "../features/use-mobile-group-chat";
 import {
   MessageListSkeleton,
   type MobileMessageActionTarget,
@@ -60,12 +73,29 @@ type DMSendIntent = {
   readonly threadParentId?: string;
 };
 
+/**
+ * Grup sohbetleri 2a–2f, Faz 5 §B. The group half of this one chat surface.
+ *
+ * `state` is what the group *is* (read through `groupDetails`); the callbacks
+ * are what the shell can do about it. Absent for a 1:1 — every branch below is
+ * `group ? … : …`, so a direct message renders exactly the screen it did before.
+ */
+export interface MobileGroupChatBindings {
+  readonly muted: boolean;
+  readonly onJoinCall: () => void;
+  readonly onLeave: (input: { transferOwnershipTo?: string }) => void;
+  readonly onOpenSearch: () => void;
+  readonly onToggleMuted: () => void;
+  readonly state: MobileGroupChatState;
+}
+
 export function DMConversationScreen({
   attachmentsFeature,
   conversation,
   currentUserId,
   forwardTargets,
   getAccessToken,
+  group = null,
   isEndToEndEncrypted = false,
   isReactionMutationPending,
   lastSeenAt,
@@ -98,6 +128,8 @@ export function DMConversationScreen({
   currentUserId: string;
   forwardTargets?: readonly MobileForwardTarget[];
   getAccessToken?: () => Promise<string | null>;
+  /** Faz 5 §B. Present only for a `GROUP_DM`; null keeps 1d exactly as it was. */
+  group?: MobileGroupChatBindings | null;
   isEndToEndEncrypted?: boolean;
   isReactionMutationPending: boolean;
   lastSeenAt?: string | null;
@@ -128,7 +160,10 @@ export function DMConversationScreen({
   const styles = useDMChatStyles();
   // §2 "1g".1: the header dims behind an open long-press menu, nothing else does.
   const [isActionMenuOpen, setActionMenuOpen] = useState(false);
+  const [isGroupMenuOpen, setGroupMenuOpen] = useState(false);
+  const [isLeaveOpen, setLeaveOpen] = useState(false);
   const title =
+    group?.state.title ??
     state.payload?.conversation.name ??
     getMobileConversationTitle(conversation, copy.directMessageFallback, currentUserId);
   const responsePartner = state.payload?.conversation.participants.find(
@@ -149,30 +184,52 @@ export function DMConversationScreen({
   return (
     <View style={styles.root} testID="mobile-dm-conversation-screen">
       <View style={styles.root} testID="mobile-dm-chat-screen">
-        <DMChatHeader
-          avatarUrl={avatarUrl}
-          // §2 "1g".1: the header dims to .5 behind the menu; the composer does not.
-          dimmed={isActionMenuOpen}
-          isOnline={isOnline}
-          lastSeenAt={resolvedLastSeenAt}
-          onBack={onBack}
-          {...(conversation.type === "GROUP_DM"
-            ? {
-                onOpenDetails: () => {
-                  if (mobileNavigationRef.isReady()) {
-                    mobileNavigationRef.navigate("GroupDetails", {
-                      conversationId: conversation.id,
-                    });
-                  }
-                },
-              }
-            : {})}
-          {...(onStartVideoCall ? { onStartVideoCall } : {})}
-          {...(onStartVoiceCall ? { onStartVoiceCall } : {})}
-          partnerUserId={responsePartner?.userId ?? summaryPartner?.id ?? null}
-          title={title}
-          typing={typingLabel !== null}
-        />
+        {group ? (
+          // §B1 / §11.3/23-24: two icon buttons, the phone being the voice one;
+          // the video entry point exists only on 2e.
+          <GroupChatHeader
+            avatarPair={group.state.details?.avatarPair ?? conversation.avatarPair ?? []}
+            memberCount={
+              group.state.details?.memberCount ??
+              (group.state.members.length || conversation.participantCount)
+            }
+            onBack={onBack}
+            onOpenInfo={group.state.onOpenInfo}
+            onOpenMenu={() => setGroupMenuOpen(true)}
+            onlineCount={group.state.details?.onlineCount ?? 0}
+            overflowCount={group.state.details?.overflowCount ?? conversation.overflowCount ?? 0}
+            {...(onStartVoiceCall ? { onStartVoiceCall } : {})}
+            title={title}
+          />
+        ) : (
+          <DMChatHeader
+            avatarUrl={avatarUrl}
+            // §2 "1g".1: the header dims to .5 behind the menu; the composer does not.
+            dimmed={isActionMenuOpen}
+            isOnline={isOnline}
+            lastSeenAt={resolvedLastSeenAt}
+            onBack={onBack}
+            {...(onStartVideoCall ? { onStartVideoCall } : {})}
+            {...(onStartVoiceCall ? { onStartVoiceCall } : {})}
+            partnerUserId={responsePartner?.userId ?? summaryPartner?.id ?? null}
+            title={title}
+            typing={typingLabel !== null}
+          />
+        )}
+        {/* §B5: the banner rides above the pinned strip, in that order. */}
+        {group && group.state.callBanner.status === "ongoing" ? (
+          <GroupCallBanner
+            onJoin={group.onJoinCall}
+            participantCount={group.state.callBanner.count}
+          />
+        ) : null}
+        {group && group.state.pinnedStrip.visible ? (
+          <GroupPinnedStrip
+            onDismiss={group.state.onDismissPin}
+            onOpen={group.state.onOpenInfo}
+            preview={group.state.pinnedStrip.preview}
+          />
+        ) : null}
         <MobileSyncHealthBanner health={syncHealth} onRetry={onRefreshVisibleData} />
         <DMConversationPreviewCard
           attachmentsFeature={attachmentsFeature}
@@ -180,6 +237,7 @@ export function DMConversationScreen({
           currentUserId={currentUserId}
           {...(forwardTargets ? { forwardTargets } : {})}
           {...(getAccessToken ? { getAccessToken } : {})}
+          {...(group ? { group } : {})}
           isEndToEndEncrypted={isEndToEndEncrypted}
           isReactionMutationPending={isReactionMutationPending}
           mediaState={mediaState}
@@ -202,6 +260,31 @@ export function DMConversationScreen({
           state={state}
           typingLabel={typingLabel}
         />
+        {group ? (
+          <>
+            <GroupChatMenuSheet
+              muted={group.muted}
+              onClose={() => setGroupMenuOpen(false)}
+              onLeave={() => setLeaveOpen(true)}
+              onOpenInfo={group.state.onOpenInfo}
+              onOpenSettings={group.state.onOpenSettings}
+              onSearch={group.onOpenSearch}
+              onToggleMuted={group.onToggleMuted}
+              open={isGroupMenuOpen}
+            />
+            <GroupLeaveFlow
+              members={group.state.members}
+              onClose={() => setLeaveOpen(false)}
+              onLeave={(input) => {
+                setLeaveOpen(false);
+                group.onLeave(input);
+              }}
+              open={isLeaveOpen}
+              viewerId={currentUserId}
+              viewerRole={group.state.details?.role}
+            />
+          </>
+        ) : null}
       </View>
     </View>
   );
@@ -228,6 +311,7 @@ export function DMConversationPreviewCard({
   currentUserId,
   forwardTargets,
   getAccessToken,
+  group = null,
   isEndToEndEncrypted = false,
   isReactionMutationPending,
   mediaState,
@@ -255,6 +339,7 @@ export function DMConversationPreviewCard({
   currentUserId: string;
   forwardTargets?: readonly MobileForwardTarget[];
   getAccessToken?: () => Promise<string | null>;
+  group?: MobileGroupChatBindings | null;
   isEndToEndEncrypted?: boolean;
   isReactionMutationPending: boolean;
   mediaState: MobileMediaRuntimeState;
@@ -282,6 +367,17 @@ export function DMConversationPreviewCard({
   const navigationSampleIdRef = useRef(getMobileNavigationSampleId("DirectMessage"));
   const [composerIntent, setComposerIntent] = useState<MobileComposerIntent | null>(null);
   const [forwardSource, setForwardSource] = useState<MobileMessageActionTarget | null>(null);
+  // §B3: which message's readers are on screen. Held here rather than on the row
+  // because FlashList recycles a row out from under an open sheet.
+  const [readersMessageId, setReadersMessageId] = useState<string | null>(null);
+  const groupMembers = group?.state.members;
+  const handleOpenReaders = useCallback((messageId: string) => {
+    setReadersMessageId(messageId);
+  }, []);
+  const groupTranscript = useMemo(
+    () => (groupMembers ? { members: groupMembers, onOpenReaders: handleOpenReaders } : undefined),
+    [groupMembers, handleOpenReaders],
+  );
   const handleRequestForward = useCallback((message: MobileMessageActionTarget) => {
     setForwardSource(message);
   }, []);
@@ -370,6 +466,7 @@ export function DMConversationPreviewCard({
       {state.payload && state.payload.messages.length > 0 ? (
         <DMChatMessageList
           currentUserId={currentUserId}
+          {...(groupTranscript ? { group: groupTranscript } : {})}
           isReactionMutationPending={isReactionMutationPending}
           messages={state.payload.messages}
           onDeleteMessage={(messageId) => void onDeleteMessage(messageId)}
@@ -408,14 +505,25 @@ export function DMConversationPreviewCard({
         <DMChatEmptyState />
       ) : null}
       {state.status === "ready" && typingLabel ? (
-        <DMChatTypingIndicator avatarUrl={avatarUrl} participantId={partnerId} title={title} />
+        group ? (
+          // §B3: a group names who is typing and stacks their faces; a 1:1 has
+          // exactly one candidate and shows the dots alone.
+          <GroupTypingIndicator label={typingLabel} typists={group.state.members.slice(0, 2)} />
+        ) : (
+          <DMChatTypingIndicator avatarUrl={avatarUrl} participantId={partnerId} title={title} />
+        )
       ) : null}
-      {state.status === "ready" ? (
+      {state.status === "ready" && group && !group.state.capabilities.canSend ? (
+        // §B4: the server refuses the write anyway; this is what stops a member
+        // typing a message that was never going to land.
+        <GroupSendBlockedNotice />
+      ) : state.status === "ready" ? (
         <DMComposer
           attachmentsFeature={attachmentsFeature}
           {...(getAccessToken ? { getAccessToken } : {})}
           intent={composerIntent}
           mediaState={mediaState}
+          {...(group ? { mentionCandidates: group.state.mentionCandidates } : {})}
           onCancelIntent={() => setComposerIntent(null)}
           onClearSelectedMediaAsset={onClearSelectedMediaAsset}
           onDraftChange={onDraftChange}
@@ -426,6 +534,17 @@ export function DMConversationPreviewCard({
           placeholder={copy.dmChatComposerPlaceholder}
           sendActionLabel={copy.dmChatSendAction}
           variant="dm"
+        />
+      ) : null}
+      {group ? (
+        <GroupReadersSheet
+          members={group.state.members}
+          onClose={() => setReadersMessageId(null)}
+          open={readersMessageId !== null}
+          readerIds={
+            state.payload?.messages.find((message) => message.id === readersMessageId)?.readReceipt
+              ?.readerIds ?? []
+          }
         />
       ) : null}
     </MobileChatKeyboardRegion>

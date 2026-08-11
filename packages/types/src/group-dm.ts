@@ -63,6 +63,13 @@ export const GroupDMCreateRequestSchema = z
     description: GroupDescriptionSchema.optional(),
     historyVisibility: GroupHistoryVisibilitySchema.optional(),
     iconUrl: GroupIconUrlSchema.optional(),
+    /**
+     * K2 / 2c §7. The invite link is created with the group rather than by a
+     * second request: a client that had to follow up could fail between the two
+     * and leave a group whose 2f row disagrees with what the creator ticked.
+     * Absent and `false` both mean "no invite row is minted".
+     */
+    inviteEnabled: z.boolean().optional(),
     name: GroupNameSchema.optional(),
     permAddMembers: GroupPermissionLevelSchema.optional(),
     // The creator is implicit, so the client sends one fewer than the floor

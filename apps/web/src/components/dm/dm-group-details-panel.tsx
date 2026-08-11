@@ -1,11 +1,15 @@
 "use client";
 
 import React, { useState } from "react";
-import { X } from "lucide-react";
+import { Pin, X } from "lucide-react";
 import {
   GROUP_DM_MAX_PARTICIPANTS,
   GROUP_DM_NAME_MAX_LENGTH,
+  getGroupCapabilities,
+  getGroupMemberActions,
   type DMConversationDTO,
+  type DMParticipantDTO,
+  type GroupMemberAction,
 } from "@wizards/types";
 import { Button } from "@wizards/ui";
 import { Avatar } from "@/components/ui/avatar";
@@ -17,6 +21,8 @@ import { getGroupConversationTitle } from "@/lib/dm/group-presentation";
 import { cn } from "@/lib/utils";
 
 type DmGroupDetailsPanelProps = {
+  /** Faz 5 §D3.2: 2f's controls, mounted under this panel's own sections. */
+  children?: React.ReactNode;
   className?: string;
   conversation: DMConversationDTO;
   currentUserId: string;
@@ -29,13 +35,40 @@ type DmGroupDetailsPanelProps = {
     id: string;
     username: string;
   }[];
+  /** Faz 5 §D3.1: the strip's target, so the panel can jump into the transcript. */
+  onOpenPinnedMessage?: ((messageId: string) => void) | undefined;
   onClose?: (() => void) | undefined;
   onLeave?: (() => void) | undefined;
   onOpenSearch?: (() => void) | undefined;
   onRemoveMember?: ((userId: string) => void) | undefined;
+  /** Faz 5 §D3.3. Promote and demote; the endpoint is the mobile one. */
+  onSetMemberRole?: ((userId: string, role: "ADMIN" | "MEMBER") => void) | undefined;
   onUpdate?: ((patch: { iconUrl?: string | null; name?: string | null }) => void) | undefined;
   variant?: "drawer" | "panel";
 };
+
+/** §D3.3. Owner gold, other admins accent — the same two tints as 2e §6. */
+function MemberRoleBadge({ role }: { role: DMParticipantDTO["role"] }) {
+  const { t } = useI18n();
+
+  if (role !== "OWNER" && role !== "ADMIN") {
+    return null;
+  }
+
+  return (
+    <span
+      className={cn(
+        "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.12em]",
+        role === "OWNER"
+          ? "bg-[hsl(var(--warning)/0.14)] text-[hsl(var(--warning))]"
+          : "bg-[hsl(var(--primary)/0.12)] text-[hsl(var(--primary))]",
+      )}
+      data-testid={`dm-group-role-${role.toLocaleLowerCase()}`}
+    >
+      {t(role === "OWNER" ? "dm.group.ownerBadge" : "dm.group.adminBadge")}
+    </span>
+  );
+}
 
 /**
  * Faz 6 §19.2. The group arm of the details surface, a sibling of the 1:1 panel
@@ -47,6 +80,7 @@ type DmGroupDetailsPanelProps = {
  */
 export function DmGroupDetailsPanel({
   candidates = [],
+  children,
   className,
   conversation,
   currentUserId,
@@ -54,8 +88,10 @@ export function DmGroupDetailsPanel({
   onAddMembers,
   onClose,
   onLeave,
+  onOpenPinnedMessage,
   onOpenSearch,
   onRemoveMember,
+  onSetMemberRole,
   onUpdate,
   variant = "panel",
 }: DmGroupDetailsPanelProps) {
@@ -64,6 +100,18 @@ export function DmGroupDetailsPanel({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [candidateSearch, setCandidateSearch] = useState("");
   const isOwner = conversation.ownerId !== null && conversation.ownerId === currentUserId;
+  /**
+   * Faz 5 §D3. `getGroupCapabilities` is the shared rule (`@wizards/types`), so
+   * this panel and 2e answer the same question the same way.
+   *
+   * `role` falls back to `ownerId` for a conversation written before the column
+   * existed, and a group with no `permissions` at all falls back to K4's older
+   * "sahip yönetir" — an absent permission set is a payload from before Faz 1,
+   * not permission for everybody.
+   */
+  const viewerRole: DMParticipantDTO["role"] = conversation.role ?? (isOwner ? "OWNER" : "MEMBER");
+  const capabilities = getGroupCapabilities(viewerRole, conversation.permissions);
+  const canEditIdentity = conversation.permissions ? capabilities.canEditInfo : isOwner;
   const isFull = conversation.participants.length >= GROUP_DM_MAX_PARTICIPANTS;
   const title = getGroupConversationTitle(
     conversation,
@@ -125,12 +173,42 @@ export function DmGroupDetailsPanel({
           <div className="min-w-0">
             <h2 className="truncate text-base font-black text-app-foreground">{title}</h2>
             <p className="mt-0.5 text-xs font-semibold text-app-muted">
-              {t("dm.group.memberCount", { count: conversation.participants.length })}
+              {t("dm.group.memberCount", {
+                count: conversation.memberCount ?? conversation.participants.length,
+              })}
             </p>
+            {conversation.description ? (
+              <p
+                className="mt-1 text-xs font-semibold text-app-muted"
+                data-testid="dm-group-description"
+              >
+                {conversation.description}
+              </p>
+            ) : null}
           </div>
         </section>
 
-        {isOwner && onUpdate ? (
+        {/* §D3.1: no pin, no card — never an empty one. */}
+        {conversation.pinnedMessage ? (
+          <button
+            className="flex min-w-0 items-center gap-2.5 rounded-[20px] bg-[hsl(var(--surface-soft)/0.48)] px-3 py-2.5 text-left transition hover:bg-[hsl(var(--surface-soft)/0.7)]"
+            data-testid="dm-group-pinned-card"
+            onClick={() => onOpenPinnedMessage?.(conversation.pinnedMessage!.id)}
+            type="button"
+          >
+            <Pin className="h-4 w-4 shrink-0 text-[hsl(var(--primary))]" />
+            <span className="min-w-0">
+              <span className="block text-[11px] font-black uppercase tracking-[0.16em] text-[hsl(var(--primary))]">
+                {t("dm.group.pinnedMessage")}
+              </span>
+              <span className="block truncate text-xs font-semibold text-app-muted">
+                {`${conversation.pinnedMessage.authorName}: ${conversation.pinnedMessage.excerpt}`}
+              </span>
+            </span>
+          </button>
+        ) : null}
+
+        {canEditIdentity && onUpdate ? (
           <section className="flex flex-col gap-2">
             {/* Faz 7: the group exists, so the upload is authorized against it
                 rather than left inert the way a create-time icon is. */}
@@ -237,6 +315,19 @@ export function DmGroupDetailsPanel({
           <ul className="flex flex-col gap-1">
             {conversation.participants.map((member) => {
               const label = member.displayName ?? member.username;
+              /**
+               * §D3.3, the same rule mobile's sheet reads: an action the viewer
+               * may not take is absent, never disabled. `role` falls back to
+               * `ownerId` for a payload written before the column existed.
+               */
+              const role =
+                member.role ?? (conversation.ownerId === member.userId ? "OWNER" : "MEMBER");
+              const actions = getGroupMemberActions(
+                viewerRole,
+                role,
+                member.userId === currentUserId,
+              );
+              const may = (action: GroupMemberAction) => actions.includes(action);
 
               return (
                 <li
@@ -245,14 +336,28 @@ export function DmGroupDetailsPanel({
                 >
                   <Avatar alt={label} className="h-8 w-8" fallback={label} src={member.avatarUrl} />
                   <span className="min-w-0 flex-1 truncate text-sm font-semibold">{label}</span>
-                  {conversation.ownerId === member.userId ? (
+                  {member.userId === currentUserId ? (
                     <span className="shrink-0 text-[11px] font-black text-app-soft">
-                      {t("dm.group.ownerBadge")}
+                      {t("dm.group.selfLabel")}
                     </span>
+                  ) : null}
+                  <MemberRoleBadge role={role} />
+                  {onSetMemberRole && (may("promote") || may("demote")) ? (
+                    <button
+                      className="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-black text-app-muted transition hover:text-[hsl(var(--primary))]"
+                      data-testid={`dm-group-role-toggle-${member.userId}`}
+                      disabled={isPending}
+                      onClick={() =>
+                        onSetMemberRole(member.userId, may("promote") ? "ADMIN" : "MEMBER")
+                      }
+                      type="button"
+                    >
+                      {t(may("promote") ? "dm.group.promoteAction" : "dm.group.demoteAction")}
+                    </button>
                   ) : null}
                   {/* The owner never removes themselves from the roster; leaving
                       is the same write under its own label. */}
-                  {isOwner && onRemoveMember && member.userId !== currentUserId ? (
+                  {onRemoveMember && may("remove") ? (
                     <button
                       aria-label={t("dm.group.removeMemberAction")}
                       className="shrink-0 rounded-full p-1 text-app-muted transition hover:text-[hsl(var(--danger))]"
@@ -271,6 +376,8 @@ export function DmGroupDetailsPanel({
         </section>
 
         <DmConversationShortcuts onOpenSearch={onOpenSearch} />
+
+        {children}
 
         {onLeave ? (
           <Button

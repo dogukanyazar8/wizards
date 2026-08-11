@@ -67,6 +67,12 @@ import {
   type MobileMessageReactionToggleInput,
 } from "./message-primitives";
 import { isMobileVoiceAttachment } from "./message-voice-attachment";
+import { GroupReadReceipt, GroupSenderName } from "./group-chat-primitives";
+import {
+  getGroupSenderColors,
+  resolveGroupReadReceiptMessageId,
+  type MobileGroupMemberSource,
+} from "../mobile-group-chat-model";
 import { MobileLineIcon } from "../../design/mobile-line-icons";
 import { mobileMessagingMetrics } from "../../design/tokens";
 import { MessageEmojiPicker } from "./message-emoji-picker";
@@ -431,6 +437,7 @@ const DM_DRAW_DISTANCE = 250;
 export function DMChatMessageRow({
   animateEntrance = false,
   currentUserId,
+  groupMembers,
   isHighlighted = false,
   isReactionMutationPending,
   menuOpen = false,
@@ -439,6 +446,7 @@ export function DMChatMessageRow({
   onDiscardFailedMessage,
   onEditMessage,
   onForwardMessage,
+  onOpenReaders,
   onOpenReply,
   onOpenThread,
   onReplyMessage,
@@ -448,7 +456,11 @@ export function DMChatMessageRow({
   onToggleReaction,
   partnerLastDeliveredAt = null,
   partnerLastReadAt,
+  replyAccentColor,
+  senderColor,
   showAvatar,
+  showReadReceipt = false,
+  showSenderName = false,
   tailCorner,
 }: DMChatMessageGroupItem & {
   /**
@@ -458,6 +470,12 @@ export function DMChatMessageRow({
    */
   readonly animateEntrance?: boolean;
   readonly currentUserId: string;
+  /**
+   * Faz 5 §B3. The roster the read receipt turns ids into faces against. Only a
+   * group passes it, and it is memoised by the screen: a fresh array here would
+   * re-render every mounted row of the transcript.
+   */
+  readonly groupMembers?: readonly MobileGroupMemberSource[] | undefined;
   readonly isHighlighted?: boolean;
   readonly isReactionMutationPending: boolean;
   /** 10d: the list owns which message has its menu open, keyed by message id. */
@@ -470,6 +488,8 @@ export function DMChatMessageRow({
   readonly onDiscardFailedMessage?: (messageId: string) => void;
   readonly onEditMessage?: (message: MobileMessageActionTarget) => void;
   readonly onForwardMessage?: (message: MobileMessageActionTarget) => void;
+  /** Faz 5 §B3: the receipt row opens the readers sheet. */
+  readonly onOpenReaders?: (messageId: string) => void;
   readonly onOpenReply?: (messageId: string) => void;
   readonly onOpenThread?: (messageId: string) => void;
   readonly onReplyMessage?: (message: MobileMessageActionTarget) => void;
@@ -480,6 +500,14 @@ export function DMChatMessageRow({
   /** §2 "1a".6.4: newest "their client has it" mark, for the grey two-tick state. */
   readonly partnerLastDeliveredAt?: string | null | undefined;
   readonly partnerLastReadAt: string | null;
+  /** §11.0.1: the quoted person's colour, on the rule and the name. */
+  readonly replyAccentColor?: string | undefined;
+  /** §11.0.1: this sender's fixed colour, for the name above the bubble. */
+  readonly senderColor?: string | undefined;
+  /** §11.3/25: true on the last outgoing bubble of a group transcript only. */
+  readonly showReadReceipt?: boolean;
+  /** §11.0.2: true on the first bubble of an incoming group only. */
+  readonly showSenderName?: boolean;
 }) {
   const styles = useDMChatStyles();
   const theme = useTheme();
@@ -673,6 +701,11 @@ export function DMChatMessageRow({
         )
       ) : null}
       <View style={[styles.messageContent, own && styles.messageContentOwn]}>
+        {/* §11.0.2: the name belongs to the group's first bubble and to no
+            other; the ones under it keep the same left edge without it. */}
+        {showSenderName && senderColor ? (
+          <GroupSenderName color={senderColor} name={authorLabel} />
+        ) : null}
         {hasBody ? (
           <View
             style={[
@@ -704,6 +737,7 @@ export function DMChatMessageRow({
                 testID={`mobile-dm-reply-quote-${message.id}`}
               >
                 <MessageReplyQuote
+                  {...(replyAccentColor ? { accentColor: replyAccentColor } : {})}
                   authorName={replyAuthorLabel ?? ""}
                   excerpt={message.replyTo.content || copy.dmDeletedMessage}
                   outgoing={own}
@@ -792,6 +826,17 @@ export function DMChatMessageRow({
           own={own}
           {...(onToggleReaction ? { onToggleReaction } : {})}
         />
+        {/* §11.3/25: the receipt is the list's decision (one row carries it),
+            and the data is the server's — the client counts nothing. */}
+        {showReadReceipt && message.readReceipt && groupMembers ? (
+          <GroupReadReceipt
+            everyone={message.readReceipt.everyone}
+            members={groupMembers}
+            onPress={() => onOpenReaders?.(message.id)}
+            readerIds={message.readReceipt.readerIds}
+            total={message.readReceipt.count}
+          />
+        ) : null}
       </View>
     </View>
   );
@@ -880,14 +925,20 @@ export function areDMChatMessageRowPropsEqual(
     previous.message === next.message &&
     previous.animateEntrance === next.animateEntrance &&
     previous.currentUserId === next.currentUserId &&
+    previous.groupMembers === next.groupMembers &&
     previous.isHighlighted === next.isHighlighted &&
     previous.isReactionMutationPending === next.isReactionMutationPending &&
     previous.menuOpen === next.menuOpen &&
+    previous.replyAccentColor === next.replyAccentColor &&
+    previous.senderColor === next.senderColor &&
     previous.showAvatar === next.showAvatar &&
+    previous.showReadReceipt === next.showReadReceipt &&
+    previous.showSenderName === next.showSenderName &&
     previous.tailCorner === next.tailCorner &&
     previous.partnerLastDeliveredAt === next.partnerLastDeliveredAt &&
     previous.partnerLastReadAt === next.partnerLastReadAt &&
     previous.onDeleteMessage === next.onDeleteMessage &&
+    previous.onOpenReaders === next.onOpenReaders &&
     previous.onDiscardFailedMessage === next.onDiscardFailedMessage &&
     previous.onEditMessage === next.onEditMessage &&
     previous.onForwardMessage === next.onForwardMessage &&
@@ -1059,8 +1110,18 @@ function DMChatMessageOverlays({
 
 const MemoizedDMChatMessageRow = memo(DMChatMessageRow, areDMChatMessageRowPropsEqual);
 
+/**
+ * Faz 5 §B3. Everything the transcript needs to know about a *group*, in one
+ * object the screen memoises. Absent for a 1:1, where none of it applies.
+ */
+export interface MobileGroupTranscriptContext {
+  readonly members: readonly MobileGroupMemberSource[];
+  readonly onOpenReaders: (messageId: string) => void;
+}
+
 export function DMChatMessageList({
   currentUserId,
+  group,
   isReactionMutationPending = false,
   messages,
   onDeleteMessage,
@@ -1078,6 +1139,7 @@ export function DMChatMessageList({
   partnerLastReadAt,
 }: {
   readonly currentUserId: string;
+  readonly group?: MobileGroupTranscriptContext | undefined;
   readonly isReactionMutationPending?: boolean;
   readonly messages: readonly DMChatMessage[];
   readonly onDeleteMessage?: (messageId: string) => void;
@@ -1104,6 +1166,20 @@ export function DMChatMessageList({
   const theme = useTheme();
   const messageSpacing = useMobileMessageSpacing();
   const grouped = useMemo(() => getDMChatMessageGroupModel(messages), [messages]);
+  // §11.0.1: one pass over the roster, so every bubble, quote and rule in the
+  // transcript reads the same map instead of resolving a colour per render.
+  const groupMembers = group?.members;
+  const senderColors = useMemo(
+    () => (groupMembers ? getGroupSenderColors(groupMembers) : null),
+    [groupMembers],
+  );
+  // §11.3/25: which single bubble carries the receipt. Derived from the whole
+  // transcript, which is exactly why the row cannot decide it for itself.
+  const readReceiptMessageId = useMemo(
+    () => (groupMembers ? resolveGroupReadReceiptMessageId(messages, currentUserId) : null),
+    [currentUserId, groupMembers, messages],
+  );
+  const onOpenReaders = group?.onOpenReaders;
   const navigationSampleIdRef = useRef(getMobileNavigationSampleId("DirectMessage"));
   useEffect(() => {
     navigationSampleIdRef.current ??= getMobileNavigationSampleId("DirectMessage");
@@ -1245,6 +1321,7 @@ export function DMChatMessageList({
           currentUserId={currentUserId}
           message={item.message}
           participants={participants}
+          variant={senderColors ? "group" : "dm"}
         />
       ) : (
         // §1.2: 3px inside a group, 10px between groups, 14px when the group
@@ -1273,6 +1350,21 @@ export function DMChatMessageList({
             onSetMenuMessage={handleSetMenuMessage}
             partnerLastDeliveredAt={partnerLastDeliveredAt}
             partnerLastReadAt={partnerLastReadAt}
+            {...(senderColors
+              ? {
+                  ...(groupMembers ? { groupMembers } : {}),
+                  ...(onOpenReaders ? { onOpenReaders } : {}),
+                  ...(item.message.replyTo
+                    ? { replyAccentColor: senderColors[item.message.replyTo.userId] }
+                    : {}),
+                  senderColor: senderColors[item.message.author.id],
+                  showReadReceipt: item.message.id === readReceiptMessageId,
+                  // §11.0.2: the group's first bubble, and only an incoming one
+                  // — an outgoing block carries neither avatar nor name.
+                  showSenderName:
+                    !item.isGroupedWithPrevious && item.message.author.id !== currentUserId,
+                }
+              : {})}
             {...(onDeleteMessage ? { onDeleteMessage } : {})}
             {...(onDiscardFailedMessage ? { onDiscardFailedMessage } : {})}
             {...(onEditMessage ? { onEditMessage } : {})}
@@ -1286,6 +1378,10 @@ export function DMChatMessageList({
       ),
     [
       currentUserId,
+      groupMembers,
+      onOpenReaders,
+      readReceiptMessageId,
+      senderColors,
       participants,
       // Stable across batches by contract: the tracker mutates one Set rather
       // than minting a new one, so an arriving message does not re-mint

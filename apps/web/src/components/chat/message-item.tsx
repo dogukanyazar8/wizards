@@ -612,6 +612,14 @@ interface MessageItemProps {
   isGrouped: boolean;
   currentUserId: string;
   canModerate: boolean;
+  /**
+   * Faz 5 §D3.4 / §11.0.1. In a group the sender's name takes the colour
+   * their membership was given, so a reader can tell who is speaking from
+   * the colour alone. Absent in a channel and in a 1:1.
+   */
+  authorColor?: string | undefined;
+  /** §D3.4: drawn under the last outgoing message of a group only. */
+  readReceipt?: { count: number; everyone: boolean } | undefined;
   onReact: (messageId: string, emoji: string) => void;
   onRemoveOptimistic: (id: string) => void;
   onReply: (id: string, author: string, content: string) => void;
@@ -624,8 +632,10 @@ export const MessageItem = React.memo(
     mode,
     message,
     isGrouped,
+    authorColor,
     currentUserId,
     canModerate,
+    readReceipt,
     onReact,
     onRemoveOptimistic,
     onReply,
@@ -988,7 +998,11 @@ export const MessageItem = React.memo(
             <div className="relative min-w-0 pr-9 md:pr-0">
               {!isGrouped && (
                 <div className="flex min-w-0 items-center gap-1.5 pr-2 leading-5">
-                  <span className="min-w-0 truncate text-[15px] font-bold text-app-foreground">
+                  <span
+                    className="min-w-0 truncate text-[15px] font-bold text-app-foreground"
+                    data-testid={authorColor ? "chat-message-author" : undefined}
+                    style={authorColor ? { color: authorColor } : undefined}
+                  >
                     {message.author.displayName}
                   </span>
                   <span className="shrink-0 text-xs text-app-muted">{formattedTime}</span>
@@ -1075,6 +1089,20 @@ export const MessageItem = React.memo(
                 <div className="mt-1 inline-flex rounded-full border border-[hsl(var(--border)/0.7)] bg-[hsl(var(--surface-card)/0.85)] px-3 py-1 text-[11px] font-semibold text-app-muted shadow-[0_10px_24px_hsl(var(--shadow-color)/0.08)]">
                   {copyFeedback}
                 </div>
+              ) : null}
+
+              {/* §D3.4 / §11.3/25: the receipt belongs to the last outgoing
+                  message of a group transcript and to nothing else. The list
+                  decides which one that is; the count is the server's. */}
+              {readReceipt && readReceipt.count > 0 ? (
+                <p
+                  className="mt-1 text-[11px] font-semibold text-app-soft"
+                  data-testid="chat-message-read-receipt"
+                >
+                  {readReceipt.everyone
+                    ? t("dm.group.readByAll")
+                    : t("dm.group.readBy", { count: readReceipt.count })}
+                </p>
               ) : null}
 
               {threadReplyCount > 0 && !isEditing ? (

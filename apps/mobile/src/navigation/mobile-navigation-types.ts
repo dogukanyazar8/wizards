@@ -34,14 +34,10 @@ export type MobileRootStackParamList = {
    * is how every current caller opens it — still means "start at the top".
    */
   GroupCreate: { readonly step?: "identity" | "members" } | undefined;
-  /** Faz 5 §17.1 group roster and admin actions. Replaced by `GroupInfo` in Faz 5. */
-  GroupDetails: {
-    readonly conversationId: string;
-  };
   /**
    * Grup sohbetleri 2e/2f. Declared in Faz 3 so the routes, their params and the
-   * deep link land together; the screens arrive in Faz 5 and these point at a
-   * placeholder until then.
+   * deep link land together; Faz 5 gave them their screens and retired the older
+   * single `GroupDetails` route these replace.
    */
   GroupInfo: { readonly conversationId: string };
   GroupSettings: { readonly conversationId: string };

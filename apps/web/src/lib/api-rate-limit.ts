@@ -77,6 +77,12 @@ export const API_RATE_LIMITS = {
   "group-invite:join": { limit: 5, windowSeconds: 60 },
   "dm:group:create": { limit: 10, windowSeconds: 10 * 60 },
   "dm:group:members": { limit: 30, windowSeconds: 60 },
+  /**
+   * Faz 5 §C/§B5. 2e, 2f and the call banner all read on open, and the group
+   * screens are re-entered far more often than they are written to, so the read
+   * bucket is wider than `update`'s.
+   */
+  "dm:group:read": { limit: 120, windowSeconds: 60 },
   "dm:group:update": { limit: 30, windowSeconds: 60 },
   "dm:hide": { limit: 60, windowSeconds: 60 },
   "dm:mark-unread": { limit: 180, windowSeconds: 60 },
@@ -156,6 +162,7 @@ export const API_RATE_LIMITS = {
   "mobile:dm:create": { limit: 30, windowSeconds: 10 * 60 },
   "mobile:dm:group:create": { limit: 10, windowSeconds: 10 * 60 },
   "mobile:dm:group:members": { limit: 30, windowSeconds: 60 },
+  "mobile:dm:group:read": { limit: 120, windowSeconds: 60 },
   "mobile:dm:group:update": { limit: 30, windowSeconds: 60 },
   // Same ceilings as the web `group-invite:*` buckets they mirror.
   "mobile:group-invite:preview": { limit: 20, windowSeconds: 60 },

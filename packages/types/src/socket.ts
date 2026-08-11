@@ -116,6 +116,13 @@ export interface DMParticipantDTO extends DMPresence {
   displayName: string | null;
   avatarUrl: string | null;
   unreadCount: number;
+  /**
+   * 2a §5 / F2. Unseen `@you`s, counted apart from `unreadCount` because a row
+   * can be marked read and still be holding a mention. Optional: the mobile
+   * payload has carried it since Faz 3, this DTO gained it in Faz 4, and a
+   * fixture written before either must still parse.
+   */
+  mentionCount?: number | undefined;
   muted: boolean;
   /**
    * Newest `AppSession.lastSeenAt` for this participant — the same source the
@@ -257,6 +264,7 @@ export const DMParticipantDTOSchema: z.ZodType<DMParticipantDTO> = z.object({
   displayName: z.string().nullable(),
   avatarUrl: z.string().nullable(),
   unreadCount: z.number().int().nonnegative(),
+  mentionCount: z.number().int().nonnegative().optional(),
   muted: z.boolean(),
   lastSeenAt: z.string().nullable().optional(),
   status: DMPresenceStatusSchema,

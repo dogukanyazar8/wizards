@@ -219,15 +219,27 @@ describe("group routes and the /g/<code> link (§B6)", () => {
     assert.equal(parseMobileDeepLink("whispr://games/abc", { webUrl }).ok, false);
   });
 
-  it("registers the four new destinations against a placeholder, not a screen", () => {
+  /**
+   * Faz 5. Faz 3 registered these four against placeholders so the params and
+   * the deep link could land early; this is the assertion that says the
+   * placeholders are gone and the real containers took their place.
+   */
+  it("registers the four destinations against their real containers", () => {
     const navigator = read("../src/navigation/mobile-navigator.tsx");
 
-    for (const route of ["GroupInfo", "GroupSettings", "GroupMembers", "GroupInvitePreview"]) {
+    for (const [route, container] of [
+      ["GroupInfo", "GroupInfoScreenContainer"],
+      ["GroupSettings", "GroupSettingsScreenContainer"],
+      ["GroupMembers", "GroupMembersScreenContainer"],
+      ["GroupInvitePreview", "GroupInvitePreviewScreenContainer"],
+    ] as const) {
       assert.match(navigator, new RegExp(`name="${route}"`), route);
+      assert.match(navigator, new RegExp(`component=\\{${container}\\}`), container);
     }
 
-    const placeholders = read("../src/dm/mobile-group-route-placeholders.tsx");
-    assert.equal(placeholders.includes("StyleSheet"), false);
-    assert.equal((placeholders.match(/return null;/g) ?? []).length, 4);
+    // The placeholder module and the older single `GroupDetails` route died with
+    // them; a stray reference here means a screen is still pointing at nothing.
+    assert.doesNotMatch(navigator, /mobile-group-route-placeholders/);
+    assert.doesNotMatch(navigator, /name="GroupDetails"/);
   });
 });

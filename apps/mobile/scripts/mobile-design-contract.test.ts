@@ -316,7 +316,9 @@ describe("mobile design contract", () => {
     assert.match(screenSource, /testID="mobile-dm-filter-tabs"/);
     assert.match(screenSource, /styles\.dmConversationCard/);
     assert.match(screenSource, /styles\.dmConversationPreview/);
-    assert.match(screenSource, /styles\.dmConversationGroupBadge/);
+    // 2a §3: a group row says "group" with the crossed avatar pair, not with
+    // a badge stuck on a single avatar.
+    assert.match(screenSource, /testID="mobile-dm-group-avatar-pair"/);
     assert.match(screenSource, /copy\.homeContinueLatestDirectMessage/);
     assert.doesNotMatch(
       screenSource,

@@ -40,6 +40,7 @@ export type MobileAccountSettingsRecord = {
   privacy: {
     dmPermission: MobileAccountSettingsResponse["privacy"]["dmPermission"];
     friendRequests: MobileAccountSettingsResponse["privacy"]["friendRequests"];
+    groupInvites: boolean;
   };
 };
 
@@ -73,6 +74,7 @@ async function loadMobileAccountSettings(userId: string): Promise<MobileAccountS
       usernameChangedAt: true,
       settings: {
         select: {
+          allowGroupInvites: true,
           dmPolicy: true,
           friendRequestPolicy: true,
           messageBodyCompact: true,
@@ -111,6 +113,9 @@ async function loadMobileAccountSettings(userId: string): Promise<MobileAccountS
     privacy: {
       dmPermission: user.settings.dmPolicy,
       friendRequests: user.settings.friendRequestPolicy,
+      // 2b §7's other side: the switch a member flips on themselves, which the
+      // picker on somebody else's phone reads through the friends payload.
+      groupInvites: user.settings.allowGroupInvites,
     },
   };
 }
@@ -124,6 +129,7 @@ async function updateMobileAccountSettings(
     data: {
       ...(input.dmPermission !== undefined ? { dmPolicy: input.dmPermission } : {}),
       ...(input.friendRequests !== undefined ? { friendRequestPolicy: input.friendRequests } : {}),
+      ...(input.groupInvites !== undefined ? { allowGroupInvites: input.groupInvites } : {}),
       ...(input.messageCompact !== undefined ? { messageBodyCompact: input.messageCompact } : {}),
       ...(input.messageFollowSystemFont !== undefined
         ? { messageBodyFollowSystemFont: input.messageFollowSystemFont }
@@ -131,6 +137,7 @@ async function updateMobileAccountSettings(
       ...(input.messageFontSize !== undefined ? { messageBodySize: input.messageFontSize } : {}),
     },
     select: {
+      allowGroupInvites: true,
       dmPolicy: true,
       friendRequestPolicy: true,
       messageBodyCompact: true,
@@ -148,6 +155,7 @@ async function updateMobileAccountSettings(
     privacy: {
       dmPermission: settings.dmPolicy,
       friendRequests: settings.friendRequestPolicy,
+      groupInvites: settings.allowGroupInvites,
     },
   };
 }

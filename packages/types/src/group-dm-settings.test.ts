@@ -16,6 +16,8 @@ import {
   GroupPinDismissRequestSchema,
   GroupPinMessageRequestSchema,
   GroupDisappearingWindowSchema,
+  getGroupCapabilities,
+  getGroupMemberActions,
   isGroupNameWithinLimit,
   pickNextMemberNameColor,
   resolveDisappearingExpiry,
@@ -425,5 +427,101 @@ describe("GroupDMSettingsUpdateRequestSchema disappearing window", () => {
     assert.deepEqual(GroupDMSettingsUpdateRequestSchema.parse({ disappearingAfter: "D7" }), {
       disappearingAfter: "D7",
     });
+  });
+});
+
+/**
+ * Faz 5 §H. The two rules both clients read. They are tested here rather than
+ * only in the mobile model because this module is now their only home.
+ */
+describe("getGroupCapabilities", () => {
+  const permissions = {
+    addMembers: "ALL",
+    editInfo: "ADMINS",
+    pinMessage: "ADMINS",
+    sendMessage: "ALL",
+  } as const;
+
+  it("answers one question per control for a member", () => {
+    assert.deepEqual(getGroupCapabilities("MEMBER", permissions), {
+      canAddMembers: true,
+      canEditInfo: false,
+      canManageRoles: false,
+      canPin: false,
+      canSend: true,
+      canTransferOwnership: false,
+    });
+  });
+
+  it("gives the owner the two role controls and every ADMINS gate", () => {
+    assert.deepEqual(getGroupCapabilities("OWNER", permissions), {
+      canAddMembers: true,
+      canEditInfo: true,
+      canManageRoles: true,
+      canPin: true,
+      canSend: true,
+      canTransferOwnership: true,
+    });
+  });
+
+  it("treats an admin as an admin, not as a member", () => {
+    assert.equal(getGroupCapabilities("ADMIN", permissions).canEditInfo, true);
+    assert.equal(getGroupCapabilities("ADMIN", permissions).canManageRoles, false);
+  });
+
+  it("opens everything but the role controls for a 1:1", () => {
+    assert.deepEqual(getGroupCapabilities(undefined, undefined), {
+      canAddMembers: true,
+      canEditInfo: true,
+      canManageRoles: false,
+      canPin: true,
+      canSend: true,
+      canTransferOwnership: false,
+    });
+  });
+
+  it("falls back to MEMBER when the role is missing but the permissions are not", () => {
+    assert.equal(getGroupCapabilities(undefined, permissions).canEditInfo, false);
+  });
+});
+
+describe("getGroupMemberActions", () => {
+  it("offers nothing on your own row", () => {
+    assert.deepEqual(getGroupMemberActions("OWNER", "MEMBER", true), []);
+  });
+
+  it("lets the owner promote and remove a member", () => {
+    assert.deepEqual(getGroupMemberActions("OWNER", "MEMBER", false), [
+      "message",
+      "profile",
+      "promote",
+      "remove",
+    ]);
+  });
+
+  it("offers demote instead of promote for an admin", () => {
+    assert.deepEqual(getGroupMemberActions("OWNER", "ADMIN", false), [
+      "message",
+      "profile",
+      "demote",
+      "remove",
+    ]);
+  });
+
+  it("never makes the owner a moderation target", () => {
+    assert.deepEqual(getGroupMemberActions("OWNER", "OWNER", false), ["message", "profile"]);
+  });
+
+  it("lets an admin remove a member but not another admin", () => {
+    assert.deepEqual(getGroupMemberActions("ADMIN", "MEMBER", false), [
+      "message",
+      "profile",
+      "remove",
+    ]);
+    assert.deepEqual(getGroupMemberActions("ADMIN", "ADMIN", false), ["message", "profile"]);
+  });
+
+  it("gives a member the two read-only actions and nothing else", () => {
+    assert.deepEqual(getGroupMemberActions("MEMBER", "MEMBER", false), ["message", "profile"]);
   });
 });

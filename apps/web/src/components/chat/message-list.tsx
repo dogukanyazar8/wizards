@@ -25,6 +25,11 @@ interface MessageListProps {
    * for a channel and for a 1:1, neither of which ever carries one.
    */
   participants?: readonly DmSystemMessageParticipant[] | undefined;
+  /**
+   * Faz 5 §D3.4. `userId → nameColor`, resolved once by the caller from the
+   * conversation it already holds. Empty for a channel and for a 1:1.
+   */
+  senderColors?: Readonly<Record<string, string>> | undefined;
   onRemoveOptimistic: (id: string) => void;
   onReply: (id: string, author: string, content: string) => void;
   onRetry: (id: string) => void;
@@ -42,6 +47,7 @@ function MessageListContent({
   canModerate,
   initialUnreadMessageId = null,
   participants = [],
+  senderColors,
   onRemoveOptimistic,
   onReply,
   onRetry,
@@ -299,6 +305,30 @@ function MessageListContent({
     return () => window.clearTimeout(timeoutId);
   }, [allMessages, deletedNoticeNow]);
 
+  /**
+   * §D3.4 / §11.3/25. Which single message carries the receipt: the newest
+   * one, and only when the viewer wrote it. Derived from the whole transcript,
+   * which is exactly why a row cannot decide it for itself. System rows are
+   * skipped — a group event landing after your message must not take the
+   * receipt away from it.
+   */
+  const readReceiptMessageId = useMemo(() => {
+    if (!senderColors) {
+      return null;
+    }
+
+    for (let index = allMessages.length - 1; index >= 0; index -= 1) {
+      const message = allMessages[index];
+      if (!message || message.systemType) {
+        continue;
+      }
+
+      return message.author.id === currentUserId ? message.id : null;
+    }
+
+    return null;
+  }, [allMessages, currentUserId, senderColors]);
+
   const groupedMessages = useMemo(
     () =>
       allMessages.map((message, index) => {
@@ -452,6 +482,17 @@ function MessageListContent({
               mode={mode}
               message={message}
               isGrouped={isGrouped}
+              {...(senderColors?.[message.author.id]
+                ? { authorColor: senderColors[message.author.id] }
+                : {})}
+              {...(message.id === readReceiptMessageId && message.readReceipt
+                ? {
+                    readReceipt: {
+                      count: message.readReceipt.count,
+                      everyone: message.readReceipt.everyone,
+                    },
+                  }
+                : {})}
               currentUserId={currentUserId}
               canModerate={canModerate}
               onReact={handleReact}

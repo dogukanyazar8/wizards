@@ -14,6 +14,7 @@ import {
   formatGroupTypingLabel,
   formatHistoryLabel,
   formatReadReceiptLabel,
+  getConversationFilterCounts,
   getConversationFilterPredicate,
   getFrequentContacts,
   getGroupAvatarPair,
@@ -21,12 +22,24 @@ import {
   getGroupCapabilities,
   getGroupDescriptionCounter,
   getGroupNameCounter,
+  getGroupLeaveIntent,
+  getGroupMediaTiles,
+  getGroupMemberRows,
+  getGroupMentionCandidates,
+  getGroupPermissionRows,
+  getGroupQuickActions,
+  getGroupReadStack,
+  getGroupSenderColors,
+  formatGroupHeaderMeta,
   getMemberSheetActions,
   getPinnedStripState,
+  resolveGroupReadReceiptMessageId,
   resolveSenderNameColor,
   sortConversationsForInbox,
+  splitPinnedConversations,
   type MobileConversationFilterRow,
   type MobileFrequentContactSource,
+  type MobileGroupMemberSource,
 } from "../src/app/mobile-group-chat-model";
 import { mobileCopy } from "../src/locale/mobile-copy";
 
@@ -217,6 +230,62 @@ describe("getConversationFilterPredicate", () => {
     assert.equal(keep(row({ muted: true })), true);
     assert.equal(keep(row({ notifyLevel: "NONE" })), true);
     assert.equal(keep(row()), false);
+  });
+});
+
+describe("getConversationFilterCounts", () => {
+  it("counts each chip with the predicate that chip filters by", () => {
+    const counts = getConversationFilterCounts([
+      row({ id: "a", unreadCount: 3 }),
+      row({ id: "b", mentionCount: 1, unreadCount: 0 }),
+      row({ id: "c", type: "GROUP_DM" }),
+      row({ id: "d", muted: true, type: "GROUP_DM" }),
+      row({ id: "e" }),
+    ]);
+
+    // "b" holds an unseen mention with a zero counter, and the chip has to
+    // agree with the list the chip opens.
+    assert.deepEqual(counts, { groups: 2, muted: 1, unread: 2 });
+  });
+
+  it("counts nothing on an empty inbox rather than throwing", () => {
+    assert.deepEqual(getConversationFilterCounts([]), { groups: 0, muted: 0, unread: 0 });
+  });
+});
+
+describe("splitPinnedConversations", () => {
+  it("lifts the pinned rows out in pin order and leaves the rest by activity", () => {
+    const rows = [
+      row({ id: "a", lastMessageAt: "2026-08-11T10:00:00.000Z" }),
+      row({
+        id: "b",
+        lastMessageAt: "2026-08-11T09:00:00.000Z",
+        pinnedAt: "2026-08-10T08:00:00.000Z",
+      }),
+      row({
+        id: "c",
+        lastMessageAt: "2026-08-11T11:00:00.000Z",
+        pinnedAt: "2026-08-11T08:00:00.000Z",
+      }),
+    ];
+
+    const split = splitPinnedConversations(rows);
+
+    assert.deepEqual(
+      split.pinned.map((entry) => entry.id),
+      ["c", "b"],
+    );
+    assert.deepEqual(
+      split.rest.map((entry) => entry.id),
+      ["a"],
+    );
+  });
+
+  it("draws no pinned section when nothing is pinned", () => {
+    const split = splitPinnedConversations([row({ id: "a" })]);
+
+    assert.deepEqual(split.pinned, []);
+    assert.equal(split.rest.length, 1);
   });
 });
 
@@ -564,5 +633,307 @@ describe("getFrequentContacts", () => {
     );
 
     assert.deepEqual(contacts, []);
+  });
+});
+
+/* ------------------------------------------------------------------ Faz 5 */
+
+function member(
+  userId: string,
+  overrides: Partial<MobileGroupMemberSource> = {},
+): MobileGroupMemberSource {
+  return {
+    avatarUrl: null,
+    displayName: userId.toUpperCase(),
+    joinedAt: "2026-03-12T09:00:00.000Z",
+    lastSeenAt: null,
+    nameColor: null,
+    role: "MEMBER",
+    status: "OFFLINE",
+    userId,
+    username: userId,
+    ...overrides,
+  };
+}
+
+describe("getGroupSenderColors", () => {
+  it("reads the stored colour and falls back per user id", () => {
+    const colors = getGroupSenderColors([
+      member("a", { nameColor: "#C2185B" }),
+      member("b", { nameColor: null }),
+    ]);
+
+    assert.equal(colors["a"], "#C2185B");
+    assert.equal(colors["b"], resolveSenderNameColor({ userId: "b" }));
+  });
+
+  it("gives two members two entries rather than one shared value", () => {
+    const colors = getGroupSenderColors([
+      member("a", { nameColor: "#C2185B" }),
+      member("b", { nameColor: "#1B8A55" }),
+    ]);
+
+    assert.notEqual(colors["a"], colors["b"]);
+  });
+
+  it("returns an empty map for an empty roster", () => {
+    assert.deepEqual(getGroupSenderColors([]), {});
+  });
+});
+
+describe("getGroupMentionCandidates", () => {
+  it("offers the other members and never the viewer", () => {
+    assert.deepEqual(
+      getGroupMentionCandidates([member("a"), member("b")], "a").map(
+        (candidate) => candidate.username,
+      ),
+      ["b"],
+    );
+  });
+
+  it("never offers @everyone (§B4: undefined in a group DM)", () => {
+    assert.equal(
+      getGroupMentionCandidates([member("a"), member("b")], "a").some(
+        (candidate) => candidate.username === "everyone",
+      ),
+      false,
+    );
+  });
+
+  it("drops a member with no username to suggest", () => {
+    assert.deepEqual(getGroupMentionCandidates([member("b", { username: "  " })], "a"), []);
+  });
+});
+
+describe("formatGroupHeaderMeta", () => {
+  it("splits the template into the member half and the online half", () => {
+    assert.deepEqual(formatGroupHeaderMeta(6, 3, mobileCopy.tr), {
+      members: "6 üye",
+      online: "3 çevrimiçi",
+    });
+  });
+
+  it("drops the online half when nobody is online", () => {
+    assert.deepEqual(formatGroupHeaderMeta(6, 0, mobileCopy.tr), {
+      members: "6 üye",
+      online: null,
+    });
+  });
+
+  it("never prints a negative count", () => {
+    assert.deepEqual(formatGroupHeaderMeta(-4, -1, mobileCopy.tr), {
+      members: "0 üye",
+      online: null,
+    });
+  });
+});
+
+describe("getGroupMemberRows", () => {
+  const roster = [
+    member("c", { joinedAt: "2026-03-14T09:00:00.000Z" }),
+    member("owner", { joinedAt: "2026-03-12T09:00:00.000Z", role: "OWNER" }),
+    member("b", { joinedAt: "2026-03-13T09:00:00.000Z" }),
+    member("admin", { joinedAt: "2026-03-15T09:00:00.000Z", role: "ADMIN" }),
+  ];
+
+  it("orders owner, admins, then members by join time", () => {
+    assert.deepEqual(
+      getGroupMemberRows(roster, "b").map((row) => row.member.userId),
+      ["owner", "admin", "b", "c"],
+    );
+  });
+
+  it("marks the viewer's own row", () => {
+    assert.deepEqual(
+      getGroupMemberRows(roster, "b")
+        .filter((row) => row.isSelf)
+        .map((row) => row.member.userId),
+      ["b"],
+    );
+  });
+
+  it("gives the owner the 'Grubu oluşturdu' subtitle", () => {
+    assert.equal(getGroupMemberRows(roster, "b")[0]?.subtitle, "creator");
+  });
+
+  it("shows a last-seen subtitle only for an offline member that has one", () => {
+    assert.deepEqual(
+      getGroupMemberRows(
+        [
+          member("x", { lastSeenAt: "2026-03-14T07:00:00.000Z" }),
+          member("y", { lastSeenAt: "2026-03-14T07:00:00.000Z", status: "ONLINE" }),
+          member("z"),
+        ],
+        "viewer",
+      ).map((row) => row.subtitle),
+      ["lastSeen", "username", "username"],
+    );
+  });
+
+  it("breaks a join-time tie by user id so the order never flickers", () => {
+    assert.deepEqual(
+      getGroupMemberRows([member("z"), member("a")], "viewer").map((row) => row.member.userId),
+      ["a", "z"],
+    );
+  });
+
+  it("treats a participant with no role as a member", () => {
+    assert.equal(getGroupMemberRows([member("x", { role: undefined })], "v")[0]?.role, "MEMBER");
+  });
+});
+
+describe("getGroupQuickActions", () => {
+  it("draws four boxes when the viewer may add members", () => {
+    assert.deepEqual(getGroupQuickActions({ canAddMembers: true }), [
+      "mute",
+      "video",
+      "search",
+      "invite",
+    ]);
+  });
+
+  it("removes 'Davet et' rather than disabling it (§C1.3)", () => {
+    assert.deepEqual(getGroupQuickActions({ canAddMembers: false }), ["mute", "video", "search"]);
+  });
+});
+
+describe("getGroupMediaTiles", () => {
+  const attachment = (id: string, contentType: string) => ({
+    contentType,
+    id,
+    thumbnailUrl: null,
+    url: `https://cdn.test/${id}`,
+  });
+
+  it("draws three attachments and a +N counter for the rest", () => {
+    const tiles = getGroupMediaTiles(
+      [
+        attachment("1", "image/png"),
+        attachment("2", "video/mp4"),
+        attachment("3", "application/pdf"),
+        attachment("4", "image/png"),
+      ],
+      48,
+    );
+
+    assert.deepEqual(
+      tiles.map((tile) => tile.kind),
+      ["image", "video", "file", "overflow"],
+    );
+    assert.equal(tiles[3]?.count, 45);
+  });
+
+  it("draws no counter when the strip already shows everything", () => {
+    assert.deepEqual(
+      getGroupMediaTiles([attachment("1", "image/png")], 1).map((tile) => tile.kind),
+      ["image"],
+    );
+  });
+
+  it("returns nothing for a conversation with no attachments", () => {
+    assert.deepEqual(getGroupMediaTiles([], 0), []);
+  });
+
+  it("counts from the server total, not the page length", () => {
+    assert.equal(getGroupMediaTiles([attachment("1", "image/png")], 9)[1]?.count, 8);
+  });
+});
+
+describe("getGroupPermissionRows", () => {
+  it("lists the four actions in the design's order", () => {
+    assert.deepEqual(getGroupPermissionRows(permissions), [
+      { action: "sendMessage", level: "ALL" },
+      { action: "addMembers", level: "ALL" },
+      { action: "editInfo", level: "ADMINS" },
+      { action: "pinMessage", level: "ADMINS" },
+    ]);
+  });
+
+  it("draws nothing for a 1:1 conversation", () => {
+    assert.deepEqual(getGroupPermissionRows(undefined), []);
+  });
+});
+
+describe("getGroupLeaveIntent", () => {
+  it("asks a plain confirmation from an ordinary member", () => {
+    assert.equal(getGroupLeaveIntent("MEMBER", [member("owner", { role: "OWNER" })]), "confirm");
+  });
+
+  it("asks the last owner to hand the group over first (V8)", () => {
+    assert.equal(
+      getGroupLeaveIntent("OWNER", [member("owner", { role: "OWNER" }), member("b")]),
+      "transfer",
+    );
+  });
+
+  it("lets an owner leave outright when another admin can take over", () => {
+    assert.equal(
+      getGroupLeaveIntent("OWNER", [
+        member("owner", { role: "OWNER" }),
+        member("b", { role: "ADMIN" }),
+      ]),
+      "confirm",
+    );
+  });
+
+  it("lets the last person out without a transfer sheet", () => {
+    assert.equal(getGroupLeaveIntent("OWNER", [member("owner", { role: "OWNER" })]), "confirm");
+  });
+});
+
+describe("resolveGroupReadReceiptMessageId", () => {
+  const outgoing = { author: { id: "me" }, id: "m1" };
+  const incoming = { author: { id: "other" }, id: "m2" };
+
+  it("names the last outgoing bubble", () => {
+    assert.equal(resolveGroupReadReceiptMessageId([incoming, outgoing], "me"), "m1");
+  });
+
+  it("draws nothing when somebody else spoke last", () => {
+    assert.equal(resolveGroupReadReceiptMessageId([outgoing, incoming], "me"), null);
+  });
+
+  it("ignores a system row that landed after the message", () => {
+    assert.equal(
+      resolveGroupReadReceiptMessageId(
+        [outgoing, { author: { id: "other" }, id: "s1", systemType: "MEMBER_ADDED" }],
+        "me",
+      ),
+      "m1",
+    );
+  });
+
+  it("draws nothing in an empty transcript", () => {
+    assert.equal(resolveGroupReadReceiptMessageId([], "me"), null);
+  });
+});
+
+describe("getGroupReadStack", () => {
+  const roster = [member("a"), member("b"), member("c"), member("d")];
+
+  it("resolves reader ids against the roster the screen already holds", () => {
+    assert.deepEqual(
+      getGroupReadStack(["a", "b"], roster).map((entry) => entry.label),
+      ["A", "B"],
+    );
+  });
+
+  it("caps the stack at three faces", () => {
+    assert.equal(getGroupReadStack(["a", "b", "c", "d"], roster).length, 3);
+  });
+
+  it("drops a reader who has left the group", () => {
+    assert.deepEqual(
+      getGroupReadStack(["a", "gone"], roster).map((entry) => entry.userId),
+      ["a"],
+    );
+  });
+
+  it("falls back to the username when there is no display name", () => {
+    assert.equal(getGroupReadStack(["a"], [member("a", { displayName: null })])[0]?.label, "a");
+  });
+
+  it("returns nothing when nobody has read the message", () => {
+    assert.deepEqual(getGroupReadStack([], roster), []);
   });
 });

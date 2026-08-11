@@ -114,8 +114,14 @@ jest.mock(
         React.createElement(View, { testID: "mobile-profile-edit-screen" }),
       GroupCreateScreenContainer: () =>
         React.createElement(View, { testID: "mobile-group-create-screen" }),
-      GroupDetailsScreenContainer: () =>
-        React.createElement(View, { testID: "mobile-group-details-screen" }),
+      GroupInfoScreenContainer: () =>
+        React.createElement(View, { testID: "mobile-group-info-screen" }),
+      GroupMembersScreenContainer: () =>
+        React.createElement(View, { testID: "mobile-group-members-screen" }),
+      GroupSettingsScreenContainer: () =>
+        React.createElement(View, { testID: "mobile-group-settings-screen" }),
+      GroupInvitePreviewScreenContainer: () =>
+        React.createElement(View, { testID: "mobile-group-invite-preview-screen" }),
       BlockedUsersScreenContainer: () =>
         React.createElement(View, { testID: "mobile-blocked-users-screen" }),
       SecurityScreenContainer: () =>

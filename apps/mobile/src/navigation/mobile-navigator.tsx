@@ -39,7 +39,10 @@ import {
   VoiceRoomStackScreenContainer,
   ProfileEditScreenContainer,
   GroupCreateScreenContainer,
-  GroupDetailsScreenContainer,
+  GroupInfoScreenContainer,
+  GroupInvitePreviewScreenContainer,
+  GroupMembersScreenContainer,
+  GroupSettingsScreenContainer,
   BlockedUsersScreenContainer,
   LegalDocumentScreenContainer,
   OpenSourceLicensesScreenContainer,
@@ -70,12 +73,6 @@ import {
   ServerEventFormScreenContainer,
   DiscoverScreenContainer,
 } from "../app/screens/mobile-screen-containers";
-import {
-  MobileGroupInfoPlaceholderScreen,
-  MobileGroupInvitePreviewPlaceholderScreen,
-  MobileGroupMembersPlaceholderScreen,
-  MobileGroupSettingsPlaceholderScreen,
-} from "../dm/mobile-group-route-placeholders";
 import { MobileAuthNavigator } from "./mobile-auth-navigator";
 import { createMobileLinkingOptions } from "./mobile-linking";
 import { isMobileTabId, type MobileTabId } from "./mobile-navigation";
@@ -261,18 +258,15 @@ export function MobileNavigator({
             {(props) => <UserProfileStackScreenContainer {...props} />}
           </RootStack.Screen>
           <RootStack.Screen name="GroupCreate" component={GroupCreateScreenContainer} />
-          <RootStack.Screen name="GroupDetails" component={GroupDetailsScreenContainer} />
-          {/*
-            Grup sohbetleri 2e/2f. Registered in Faz 3 against placeholders so
-            `/g/<code>` resolves and the params are typed; Faz 5 swaps in the
-            real containers without touching the router again.
-          */}
-          <RootStack.Screen name="GroupInfo" component={MobileGroupInfoPlaceholderScreen} />
-          <RootStack.Screen name="GroupSettings" component={MobileGroupSettingsPlaceholderScreen} />
-          <RootStack.Screen name="GroupMembers" component={MobileGroupMembersPlaceholderScreen} />
+          {/* Grup sohbetleri 2e/2f + K2 deep link. Faz 3 registered the routes
+              against placeholders; Faz 5 swapped in the real containers and the
+              old single `GroupDetails` screen died with them. */}
+          <RootStack.Screen name="GroupInfo" component={GroupInfoScreenContainer} />
+          <RootStack.Screen name="GroupSettings" component={GroupSettingsScreenContainer} />
+          <RootStack.Screen name="GroupMembers" component={GroupMembersScreenContainer} />
           <RootStack.Screen
             name="GroupInvitePreview"
-            component={MobileGroupInvitePreviewPlaceholderScreen}
+            component={GroupInvitePreviewScreenContainer}
           />
           <RootStack.Screen name="BlockedUsers" component={BlockedUsersScreenContainer} />
           <RootStack.Screen name="LegalDocument">

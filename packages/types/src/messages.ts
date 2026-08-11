@@ -110,6 +110,19 @@ export const ChatMessageSchema = z.object({
   systemType: DMSystemMessageTypeSchema.nullable().optional(),
   systemTargetUserIds: z.array(z.string()).optional(),
   systemValue: z.string().nullable().optional(),
+  /**
+   * Faz 5 §D3.4 / 2d §8. Who has read this message, on the web transcript's own
+   * message shape. Optional and never present for a channel: it is the group
+   * conversation payload's field, carried here so the web list can draw the same
+   * "n kişi okudu" line the phone does without a second read.
+   */
+  readReceipt: z
+    .object({
+      count: z.number().int().nonnegative(),
+      everyone: z.boolean(),
+      readerIds: z.array(z.string()),
+    })
+    .optional(),
   forwardedAt: z.string().datetime().nullable().optional(),
   editedAt: z.string().datetime().nullable(),
   deletedAt: z.string().datetime().nullable(),

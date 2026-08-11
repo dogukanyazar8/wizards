@@ -86,6 +86,9 @@ export const dmConversationInclude = {
     select: {
       userId: true,
       unreadCount: true,
+      // F2 / 2a §5. Already a column; the web list badge is the reader that was
+      // missing, and reading it here costs the same query.
+      mentionCount: true,
       muted: true,
       hiddenAt: true,
       // Faz 1 §B3. Five scalars per row rather than a second `members` array:
@@ -428,6 +431,7 @@ function mapDMParticipantWithPresence(
     displayName: participant.user.displayName,
     avatarUrl: participant.user.avatarUrl,
     unreadCount: participant.unreadCount,
+    mentionCount: participant.mentionCount,
     muted: participant.muted,
     lastSeenAt,
     status: presence.status,

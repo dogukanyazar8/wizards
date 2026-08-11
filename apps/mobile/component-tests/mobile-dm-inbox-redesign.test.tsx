@@ -3,7 +3,6 @@ import { describe, expect, it, jest } from "@jest/globals";
 import type { MobileBootstrapPayload } from "@wizards/types";
 import { renderWithMobileTheme as render } from "./render-with-mobile-theme";
 import { DirectMessageConversationCard } from "../src/app/screens/dm-screen";
-import { DMOnlineStrip } from "../src/app/screens/dm-inbox";
 import { createDmScreenStyles } from "../src/app/screens/dm-screen.styles";
 import { getMobilePresenceColor } from "../src/design/mobile-presence-color";
 import { lightTheme } from "../src/design/themes";
@@ -52,7 +51,9 @@ describe("1c DM inbox redesign", () => {
 
     expect(view.getByText("Paycore ekip")).toBeTruthy();
     expect(view.getByText("2")).toBeTruthy();
-    expect(view.getByTestId("mobile-dm-conversation-group-badge")).toBeTruthy();
+    // 2a §3 replaced the corner badge with the crossed avatar pair; the row
+    // says "group" by its avatar now, not by a tile stuck on one.
+    expect(view.getByTestId("mobile-dm-group-avatar-pair")).toBeTruthy();
   });
 
   it("locks the MSG-1a row geometry to the messaging shape scale", () => {
@@ -190,32 +191,6 @@ describe("1c DM inbox redesign", () => {
     // Initials render only when the row falls back, and the row must fall back
     // to the counterpart instead of borrowing the viewer's photo.
     expect(view.getByText("OG")).toBeTruthy();
-  });
-
-  it("paints the online strip ring and dot with the per-status presence colour", async () => {
-    const view = await render(
-      <DMOnlineStrip
-        friends={[
-          { avatarUrl: null, displayName: null, id: "f-dnd", status: "DND", username: "dnd_user" },
-          {
-            avatarUrl: null,
-            displayName: null,
-            id: "f-idle",
-            status: "IDLE",
-            username: "idle_user",
-          },
-        ]}
-        onAddFriend={jest.fn()}
-        onOpenFriendDM={jest.fn()}
-      />,
-    );
-
-    expect(view.getByTestId("mobile-dm-online-dot-f-dnd").props.style).toEqual(
-      expect.arrayContaining([{ backgroundColor: lightTheme.status.danger }]),
-    );
-    expect(view.getByTestId("mobile-dm-online-dot-f-idle").props.style).toEqual(
-      expect.arrayContaining([{ backgroundColor: lightTheme.status.warning }]),
-    );
   });
 });
 

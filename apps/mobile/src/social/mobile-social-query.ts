@@ -135,6 +135,9 @@ function toOptimisticFriend(user: {
   username: string;
 }): MobileFriend {
   return {
+    // Open until the refetch says otherwise: the placeholder must not make a
+    // friend look closed to group invites for the second it is on screen.
+    allowsGroupInvites: true,
     avatarUrl: user.avatarUrl,
     customStatus: null,
     // Activity is a server-side join; the refetch fills it in moments later.

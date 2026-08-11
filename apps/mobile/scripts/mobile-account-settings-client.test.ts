@@ -42,6 +42,8 @@ const accountSettings = {
   privacy: {
     dmPermission: "FRIENDS" as const,
     friendRequests: "MUTUAL_SERVERS" as const,
+    // 2b §7's switch, defaulted open by the schema.
+    groupInvites: true,
   },
 };
 

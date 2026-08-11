@@ -68,6 +68,16 @@ export const MobileFriendVoiceRoomUpdateEventSchema = z
 export const MobileFriendDeviceSchema = z.enum(["MOBILE", "DESKTOP", "WEB"]);
 
 export const MobileFriendSchema = MobileFriendUserSchema.extend({
+  /**
+   * 2b §7. False means this friend has closed themselves to group invites, so
+   * the picker draws the row at `.55` with a lock and refuses the tap. The
+   * server re-checks it on create either way — this only stops the client from
+   * offering a pick it knows will be refused.
+   *
+   * Defaulted to open: the flag shipped with Faz 4 and an older payload has to
+   * keep parsing as the behaviour it had.
+   */
+  allowsGroupInvites: z.boolean().default(true),
   customStatus: z.string().max(128).nullable(),
   /** 1b: which client the friend is signed in from. */
   device: MobileFriendDeviceSchema.nullable().default(null),
@@ -433,6 +443,12 @@ export const MobileAccountSettingsResponseSchema = z
       .object({
         dmPermission: MobileAccountDmPolicySchema,
         friendRequests: MobileAccountFriendRequestPolicySchema,
+        /**
+         * 2b §7's "Grup davetlerine kapalı". Defaulted because it shipped with
+         * Faz 4 and an un-redeployed server answers without it; `true` is the
+         * open state, so an older server keeps behaving exactly as before.
+         */
+        groupInvites: z.boolean().default(true),
       })
       .strict(),
   })
@@ -441,6 +457,7 @@ export const MobileAccountSettingsUpdateSchema = z
   .object({
     dmPermission: MobileAccountDmPolicySchema.optional(),
     friendRequests: MobileAccountFriendRequestPolicySchema.optional(),
+    groupInvites: z.boolean().optional(),
     // The appearance slider writes on its own, without touching privacy, so
     // every field here is independently optional.
     messageCompact: z.boolean().optional(),

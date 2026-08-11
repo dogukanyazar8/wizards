@@ -8,6 +8,7 @@ import {
   GroupPinDismissRequestSchema,
   GroupPinMessageRequestSchema,
   type DMConversationDTO,
+  type GroupCallStateDTO,
 } from "@wizards/types";
 
 import { jsonError, parseJsonBody } from "@/lib/api";
@@ -22,6 +23,8 @@ import {
   evictRemovedGroupMember,
   type GroupRealtimeServer,
 } from "@/lib/dm/group-realtime";
+import { setGroupInviteEnabled } from "@/lib/dm/group-invite-service";
+import { readGroupCallState, toGroupCallStateDTO } from "@/lib/dm/group-call-state";
 import {
   addGroupMembers,
   createGroupConversation,
@@ -32,7 +35,7 @@ import {
   updateGroupSettings,
   updateMemberRole,
 } from "@/lib/dm/group-service";
-import { getDirectMessageConversationForUser } from "@/lib/dm/service";
+import { getDirectMessageConversationForUser, requireDMParticipant } from "@/lib/dm/service";
 import { getSocketServer } from "@/lib/socket/runtime";
 
 /**
@@ -49,6 +52,12 @@ export type GroupRouteDependencies = {
   authenticate(request: Request): Promise<string>;
   createGroup: typeof createGroupConversation;
   dismissPin: typeof dismissPinnedStrip;
+  /**
+   * K2 / 2c §7. Minting the link for a group that was created moments ago, in
+   * the same request. `setGroupInviteEnabled` re-checks `editInfo`, which the
+   * creator holds as owner.
+   */
+  enableInvite(actorId: string, conversationId: string): Promise<unknown>;
   emitCreated: typeof emitGroupConversationCreated;
   emitMembersChanged: typeof emitGroupMembersChanged;
   emitPinChanged: typeof emitGroupPinChanged;
@@ -57,11 +66,24 @@ export type GroupRouteDependencies = {
   enforceRateLimit(userId: string, action: ApiRateLimitAction): Promise<void>;
   evictRemoved: typeof evictRemovedGroupMember;
   getIo(): GroupRealtimeServer | null;
+  /**
+   * Faz 5 §C/§D. The read behind 2e and 2f: permissions, roster, roles, pinned
+   * message and the two windows all travel on the conversation DTO the writes
+   * already answer with, so the screens read the same shape they patch.
+   *
+   * Throws for a non-participant rather than answering an empty body — the
+   * screen's own gate is the 403, not a conversation with nothing in it.
+   */
+  loadConversation(conversationId: string, userId: string): Promise<DMConversationDTO>;
   /** Null once the group is gone — the last member left and it was deleted. */
   loadConversationForBroadcast(
     conversationId: string,
     userId: string,
   ): Promise<DMConversationDTO | null>;
+  /** Faz 5 §B5. Membership gate for the call read; cheaper than a whole DTO. */
+  requireParticipant(userId: string, conversationId: string): Promise<unknown>;
+  /** Faz 2 §D2's Redis record, as the client's opening value for the banner. */
+  readCallState: typeof readGroupCallState;
   removeMember: typeof removeGroupMember;
   setPin: typeof setPinnedMessage;
   updateGroup: typeof updateGroupConversation;
@@ -74,6 +96,7 @@ const defaults: GroupRouteDependencies = {
   authenticate: () => requireApiUserId(),
   createGroup: createGroupConversation,
   dismissPin: dismissPinnedStrip,
+  enableInvite: (actorId, conversationId) => setGroupInviteEnabled(actorId, conversationId, true),
   emitCreated: emitGroupConversationCreated,
   emitMembersChanged: emitGroupMembersChanged,
   emitPinChanged: emitGroupPinChanged,
@@ -82,6 +105,8 @@ const defaults: GroupRouteDependencies = {
   enforceRateLimit: enforceApiRateLimit,
   evictRemoved: evictRemovedGroupMember,
   getIo: () => getSocketServer(),
+  loadConversation: (conversationId, userId) =>
+    getDirectMessageConversationForUser(conversationId, userId),
   loadConversationForBroadcast: async (conversationId, userId) => {
     try {
       return await getDirectMessageConversationForUser(conversationId, userId);
@@ -89,6 +114,8 @@ const defaults: GroupRouteDependencies = {
       return null;
     }
   },
+  readCallState: readGroupCallState,
+  requireParticipant: requireDMParticipant,
   removeMember: removeGroupMember,
   setPin: setPinnedMessage,
   updateGroup: updateGroupConversation,
@@ -118,6 +145,15 @@ export async function groupCreateRoute(
       ...(input.permAddMembers === undefined ? {} : { permAddMembers: input.permAddMembers }),
       userIds: input.userIds,
     });
+
+    // K2. The link belongs to its own row and its own endpoint, so it is minted
+    // after the group exists rather than smuggled into the conversation write —
+    // but still inside this request, so the creator never sees 2f disagree with
+    // the switch they just ticked.
+    if (input.inviteEnabled === true) {
+      await dependencies.enableInvite(userId, conversation.id);
+    }
+
     const io = dependencies.getIo();
 
     if (io) {
@@ -125,6 +161,57 @@ export async function groupCreateRoute(
     }
 
     return Response.json({ conversation }, { status: 201 });
+  } catch (error) {
+    return jsonError(error);
+  }
+}
+
+/**
+ * Faz 5 §C1/§D1. What 2e and 2f open on. It answers with the whole conversation
+ * because every control on those two screens — the four permission rows, the
+ * roster with its role chips, the pinned card, the notification tier, the two
+ * windows — is a field of it; a second, narrower body would only be the same
+ * columns under a different name, and the realtime patches already write this
+ * shape into the cache.
+ */
+export async function groupReadRoute(
+  request: Request,
+  conversationId: string,
+  dependencies: GroupRouteDependencies = defaults,
+): Promise<Response> {
+  try {
+    const userId = await dependencies.authenticate(request);
+    await dependencies.enforceRateLimit(userId, "dm:group:read");
+    const conversation = await dependencies.loadConversation(conversationId, userId);
+
+    return Response.json({ conversation });
+  } catch (error) {
+    return jsonError(error);
+  }
+}
+
+/**
+ * Faz 5 §B5. The opening value for 2d's "{n} kişi görüşüyor · Katıl" banner.
+ *
+ * `dm:call:state` only fires on a transition, so a reader who opens the group
+ * while a call is already running has never seen one. Faz 2 karar 8 still holds:
+ * this hands over the stored roster whole, and the client derives nothing.
+ */
+export async function groupCallStateRoute(
+  request: Request,
+  conversationId: string,
+  dependencies: GroupRouteDependencies = defaults,
+): Promise<Response> {
+  try {
+    const userId = await dependencies.authenticate(request);
+    await dependencies.enforceRateLimit(userId, "dm:group:read");
+    // Membership, not permission: a call is visible to everyone in the group,
+    // including the members who silenced it (Faz 2 karar 9).
+    await dependencies.requireParticipant(userId, conversationId);
+    const state = await dependencies.readCallState(conversationId);
+    const callState: GroupCallStateDTO = toGroupCallStateDTO(conversationId, state);
+
+    return Response.json({ callState });
   } catch (error) {
     return jsonError(error);
   }

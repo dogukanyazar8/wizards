@@ -4,6 +4,7 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
   GROUP_DM_MAX_PARTICIPANTS,
+  buildGroupNameFromMembers,
   createInitialGroupCreateState,
   toGroupCreateRequest,
   toggleGroupMember,
@@ -15,8 +16,27 @@ import { LocaleProvider } from "@/components/providers/locale-provider";
 import { getMessagesForLocale } from "@/lib/locale";
 
 const FRIENDS = [
-  { avatarUrl: null, displayName: "Selin", id: "user-2", username: "selin_qa" },
-  { avatarUrl: null, displayName: "Kaan", id: "user-3", username: "kaan" },
+  {
+    allowsGroupInvites: true,
+    avatarUrl: null,
+    displayName: "Selin",
+    id: "user-2",
+    username: "selin_qa",
+  },
+  {
+    allowsGroupInvites: true,
+    avatarUrl: null,
+    displayName: "Kaan",
+    id: "user-3",
+    username: "kaan",
+  },
+  {
+    allowsGroupInvites: false,
+    avatarUrl: null,
+    displayName: "Mert",
+    id: "user-4",
+    username: "mert",
+  },
 ];
 
 function renderDialog() {
@@ -84,6 +104,46 @@ describe("group create dialog", () => {
     assert.equal(toGroupCreateRequest(state, null).name, "Takım");
   });
 
+  /** F2: the picker refuses what the server would refuse, before the request. */
+  it("locks the row of a friend who takes no group invites", () => {
+    const markup = renderDialog();
+
+    assert.match(markup, /data-testid="group-create-friend-user-4"[^>]*disabled/);
+    assert.match(markup, /Grup davetlerine kapalı/);
+    assert.doesNotMatch(markup, /data-testid="group-create-friend-user-2"[^>]*disabled/);
+  });
+
+  /**
+   * §4.4 on the web side: the dialog's hint and the mobile screen's hint are
+   * the same function, so the two surfaces promise the same name.
+   */
+  it("derives the same blank-name hint the mobile screen shows", () => {
+    const names = ["Atakan", "UAT Test", "DY"];
+
+    assert.equal(buildGroupNameFromMembers(names, "tr"), "Atakan, UAT Test ve DY");
+    assert.equal(buildGroupNameFromMembers(names, "en"), "Atakan, UAT Test and DY");
+  });
+
+  it("carries the 2c identity fields into the create body with the invite off", () => {
+    const state: GroupCreateState = {
+      ...selectMany(2),
+      avatarColor: "#C2185B",
+      description: "  Mobil ekip  ",
+      historyVisibility: "NONE",
+      permAddMembers: "ADMINS",
+      step: "identity",
+    };
+
+    const body = toGroupCreateRequest(state, null);
+
+    assert.equal(body.avatarColor, "#C2185B");
+    assert.equal(body.description, "Mobil ekip");
+    assert.equal(body.historyVisibility, "NONE");
+    assert.equal(body.permAddMembers, "ADMINS");
+    // K2: the link is not minted unless the creator ticked it.
+    assert.equal(body.inviteEnabled, false);
+  });
+
   it("carries the group copy in both locales", () => {
     for (const locale of ["tr", "en"] as const) {
       const messages: Record<string, string | undefined> = getMessagesForLocale(locale);
@@ -91,6 +151,15 @@ describe("group create dialog", () => {
       assert.ok(messages["dm.group.counter"]?.includes("{count}"));
       assert.ok(messages["dm.group.createAction"]);
       assert.ok(messages["dm.group.submitAction"]);
+      // The 2c fields the dialog gained in Faz 4.
+      assert.ok(messages["dm.group.nameHintTemplate"]?.includes("{names}"));
+      assert.ok(messages["dm.group.colorLabel"]);
+      assert.ok(messages["dm.group.descriptionPlaceholder"]);
+      assert.ok(messages["dm.group.joinLabel"]);
+      assert.ok(messages["dm.group.inviteLinkHint"]);
+      assert.ok(messages["dm.group.historyVisibility"]);
+      assert.ok(messages["dm.group.inviteClosed"]);
+      assert.ok(messages["dm.sidebar.pinnedSection"]);
     }
   });
 });

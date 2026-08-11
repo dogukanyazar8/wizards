@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import { useFocusEffect } from "@react-navigation/native";
 import { useQuery, useQueryClient, type InfiniteData } from "@tanstack/react-query";
-import { BackHandler } from "react-native";
+import { BackHandler, Share } from "react-native";
 import type { MobileDMConversationsResponse } from "@wizards/types";
 import type {
   NativeStackNavigationProp,
@@ -28,12 +28,27 @@ import {
 } from "../providers/mobile-product-screen-provider";
 import { useMobileRealtimeRuntime } from "../providers/mobile-realtime-provider";
 import { MessagesScreen } from "./dm-screen";
-import { MobileGroupCreateScreen } from "./group-create-screen";
-import { useMobileGroupMutations } from "../../dm/mobile-group-client";
+import { MobileGroupCreateScreen } from "./group-create/group-create-screen";
+import * as Clipboard from "expo-clipboard";
+import {
+  fetchMobileGroupInvite,
+  previewMobileGroupInvite,
+  useMobileGroupDetailsQuery,
+  useMobileGroupMutations,
+  useMobileGroupSettingsMutations,
+} from "../../dm/mobile-group-client";
 import { pickAndUploadMobileGroupIcon } from "../../dm/mobile-group-icon-upload";
 import { useMobileFriendsQuery } from "../../social/mobile-social-query";
-import { MobileGroupDetailsScreen } from "../../dm/mobile-group-details-screen";
-import { fetchMobileDMDetails } from "../../dm/mobile-dm-details-client";
+import { MobileGroupInfoScreen } from "./group-info/group-info-screen";
+import { MobileGroupMembersScreen } from "./group-info/group-members-screen";
+import { MobileGroupInvitePreviewScreen } from "./group-info/group-invite-preview-screen";
+import { MobileGroupSettingsScreen } from "./group-settings/group-settings-screen";
+import { fetchMobileDMAttachments } from "../../dm/mobile-dm-attachments-client";
+import { startMobileDirectCall } from "../features/mobile-direct-call-bridge";
+import { mobileNavigationRef } from "../../navigation/mobile-navigation-ref";
+import { useToast } from "../components/kit/toast";
+import { copy } from "../mobile-root-screen-shared";
+import type { MobileGroupMemberSheetAction } from "../mobile-group-chat-model";
 import { MobileMessageThreadScreen } from "./message-thread-screen";
 import { OverviewScreen } from "./home-screen";
 import { NotificationsScreen } from "./notifications-screen";
@@ -693,85 +708,348 @@ export function ProfileEditScreenContainer({
  */
 export function GroupCreateScreenContainer({
   navigation,
+  route,
 }: NativeStackScreenProps<MobileRootStackParamList, "GroupCreate">) {
-  const { apiClient, getAccessToken } = useMobileAuth();
+  const { apiClient, getAccessToken, session } = useMobileAuth();
   const friendsQuery = useMobileFriendsQuery(apiClient);
   const { create } = useMobileGroupMutations(apiClient);
+  const viewerId = session?.user.id ?? "";
+  const conversations = useMobileDMConversationsCache();
+  /**
+   * V9 reads the inbox the reader already has. The counterpart is resolved here
+   * rather than inside the picker because only this layer knows who the viewer
+   * is; a 1:1 row carries both sides.
+   */
+  const frequentSource = useMemo(
+    () =>
+      conversations.map((conversation) => ({
+        counterpartId:
+          conversation.participants.find((participant) => participant.id !== viewerId)?.id ?? null,
+        id: conversation.id,
+        lastMessageAt: conversation.lastMessageAt,
+        type: conversation.type,
+      })),
+    [conversations, viewerId],
+  );
+  const friends = useMemo(
+    () =>
+      (friendsQuery.data?.friends ?? []).map((friend) => ({
+        allowsGroupInvites: friend.allowsGroupInvites,
+        avatarUrl: friend.avatarUrl,
+        displayName: friend.displayName,
+        id: friend.id,
+        lastSeenAt: friend.lastSeenAt,
+        online: friend.status !== "OFFLINE",
+        username: friend.username,
+      })),
+    [friendsQuery.data?.friends],
+  );
 
   return (
     <MobileGroupCreateScreen
-      friends={friendsQuery.data?.friends ?? []}
+      conversations={frequentSource}
+      friends={friends}
+      {...(route.params?.step ? { initialStep: route.params.step } : {})}
       isPending={create.isPending}
       onCancel={() => navigation.goBack()}
       onCreated={(conversationId) => navigation.navigate("DirectMessage", { conversationId })}
       onPickPhoto={() => pickAndUploadMobileGroupIcon({ getAccessToken })}
       onSubmit={(input) => create.mutateAsync(input)}
+      {...(session?.user.displayName || session?.user.username
+        ? { viewerLabel: session.user.displayName ?? session.user.username }
+        : {})}
     />
   );
 }
 
-export function GroupDetailsScreenContainer({
-  navigation,
-  route,
-}: NativeStackScreenProps<MobileRootStackParamList, "GroupDetails">) {
-  const { conversationId } = route.params;
-  const { apiClient, getAccessToken, session } = useMobileAuth();
-  const currentUserId = session?.user.id ?? "";
-  const conversations = useMobileDMConversationsCache();
-  const conversation = conversations.find((entry) => entry.id === conversationId) ?? null;
-  const { addMembers, hide, removeMember, setMuted, update } = useMobileGroupMutations(
-    apiClient,
-    currentUserId,
-  );
-  const detailsQuery = useQuery({
-    queryFn: () => fetchMobileDMDetails(apiClient, conversationId),
-    queryKey: mobileQueryKeys.dmDetails(conversationId),
-    staleTime: 30_000,
-  });
-  // Only the owner can add anyone, so only the owner pays for the friend list.
-  const friendsQuery = useMobileFriendsQuery(
-    apiClient,
-    Boolean(detailsQuery.data?.ownerId && detailsQuery.data.ownerId === currentUserId),
+/**
+ * Grup sohbetleri 2a–2f, Faz 5 §C/§D. The four group routes, all reading the one
+ * `groupDetails` key: 2d's header, 2e, the roster and 2f can never disagree about
+ * a permission, a role or a pinned message, because there is nothing to disagree
+ * with — the same cached object answers all four.
+ */
+function useMobileGroupRoute(conversationId: string) {
+  const { apiClient, session } = useMobileAuth();
+  const viewerId = session?.user.id ?? "";
+  const detailsQuery = useMobileGroupDetailsQuery(apiClient, conversationId);
+  const { removeMember } = useMobileGroupMutations(apiClient, viewerId);
+  const settings = useMobileGroupSettingsMutations(apiClient);
+  const { showToast } = useToast();
+  const reportFailure = useCallback(
+    () => showToast({ title: copy.confirmationError, variant: "error" }),
+    [showToast],
   );
 
-  return (
-    <MobileGroupDetailsScreen
-      conversation={{
-        iconUrl: conversation?.iconUrl ?? null,
-        id: conversationId,
-        name: conversation?.name ?? null,
-        // The inbox row does not carry `ownerId`; the details read is the only
-        // source, so owner-only controls stay hidden until it lands.
-        ownerId: detailsQuery.data?.ownerId ?? null,
-      }}
-      currentUserId={currentUserId}
-      friends={friendsQuery.data?.friends ?? []}
-      isMuted={conversation?.muted ?? false}
-      isPending={
-        addMembers.isPending ||
-        hide.isPending ||
-        removeMember.isPending ||
-        setMuted.isPending ||
-        update.isPending
+  return {
+    apiClient,
+    conversation: detailsQuery.data ?? null,
+    removeMember,
+    reportFailure,
+    settings,
+    viewerId,
+  };
+}
+
+/**
+ * 2e §7's sheet, resolved in one place: both the info card and the full roster
+ * hand their choice here, so "Yönetici yap" means the same write on both.
+ */
+function useMobileGroupMemberAction(conversationId: string) {
+  const { removeMember, reportFailure, settings, viewerId } = useMobileGroupRoute(conversationId);
+
+  return useCallback(
+    (action: MobileGroupMemberSheetAction, userId: string) => {
+      if (action === "message") {
+        mobileNavigationRef.navigate("UserProfile", { userId });
+        return;
       }
-      members={detailsQuery.data?.members ?? []}
-      onAddMembers={(userIds) => addMembers.mutateAsync({ conversationId, userIds })}
+
+      if (action === "profile") {
+        mobileNavigationRef.navigate("UserProfile", { userId });
+        return;
+      }
+
+      if (action === "remove") {
+        void removeMember.mutateAsync({ conversationId, userId }).catch(reportFailure);
+        return;
+      }
+
+      void settings.updateMemberRole
+        .mutateAsync({
+          conversationId,
+          patch: { role: action === "promote" ? "ADMIN" : "MEMBER" },
+          userId,
+        })
+        .catch(reportFailure);
+    },
+    [conversationId, removeMember, reportFailure, settings.updateMemberRole, viewerId],
+  );
+}
+
+export function GroupInfoScreenContainer({
+  navigation,
+  route,
+}: NativeStackScreenProps<MobileRootStackParamList, "GroupInfo">) {
+  const { conversationId } = route.params;
+  const { apiClient, conversation, reportFailure, settings, viewerId } =
+    useMobileGroupRoute(conversationId);
+  const { getAccessToken } = useMobileAuth();
+  const { update } = useMobileGroupMutations(apiClient, viewerId);
+  const onMemberAction = useMobileGroupMemberAction(conversationId);
+  /**
+   * 2e §5's strip, from the gallery read 11f already ships. The count beside
+   * "MEDYA VE DOSYALAR" is this page's length: the attachments endpoint pages by
+   * message and carries no total, and inventing a counting query for a strip of
+   * four boxes is exactly the endpoint §2 forbids. A conversation past one page
+   * therefore understates — recorded as a known gap rather than papered over.
+   */
+  const mediaQuery = useQuery({
+    queryFn: () => fetchMobileDMAttachments(apiClient, conversationId, { limit: 30 }),
+    queryKey: mobileQueryKeys.groupMedia(conversationId),
+    staleTime: 60_000,
+  });
+  const media = useMemo(() => {
+    const items = (mediaQuery.data?.items ?? [])
+      // The `media` tab never yields link rows, but the union carries them and a
+      // narrowed read is cheaper than trusting the tab.
+      .filter((item) => item.kind !== "link")
+      .map((item) => ({
+        contentType: item.attachment.contentType,
+        id: item.attachment.id,
+        thumbnailUrl: item.attachment.thumbnailUrl ?? null,
+        url: item.attachment.url,
+      }));
+
+    return { items, total: items.length };
+  }, [mediaQuery.data?.items]);
+
+  return (
+    <MobileGroupInfoScreen
+      conversation={conversation}
+      media={media}
       onBack={() => navigation.goBack()}
-      onHide={async () => {
-        await hide.mutateAsync({ conversationId });
-        navigation.popTo("MainTabs", { screen: "messages" });
-      }}
-      onLeave={async () => {
-        await removeMember.mutateAsync({ conversationId, userId: currentUserId });
-        navigation.popTo("MainTabs", { screen: "messages" });
-      }}
-      onOpenSharedMedia={() => navigation.navigate("SharedMedia", { conversationId })}
-      // The group exists, so the upload is authorized against it rather than
-      // left inert the way a create-time icon is.
+      // 2e §3: "Davet et" is the member picker, not the invite link.
+      onInvite={() => navigation.navigate("GroupCreate", { step: "members" })}
+      onMemberAction={onMemberAction}
+      onOpenMedia={() => navigation.navigate("SharedMedia", { conversationId })}
+      onOpenMembers={() => navigation.navigate("GroupMembers", { conversationId })}
+      onOpenPinnedMessage={() => navigation.goBack()}
       onPickPhoto={() => pickAndUploadMobileGroupIcon({ conversationId, getAccessToken })}
-      onRemoveMember={(userId) => removeMember.mutateAsync({ conversationId, userId })}
-      onSetMuted={(muted) => setMuted.mutateAsync({ conversationId, muted })}
-      onUpdate={(patch) => update.mutateAsync({ conversationId, patch })}
+      onSaveIdentity={async (patch) => {
+        await update
+          .mutateAsync({
+            conversationId,
+            patch: { iconUrl: patch.iconUrl, name: patch.name.trim() || null },
+          })
+          .catch(reportFailure);
+        await settings.updateSettings
+          .mutateAsync({
+            conversationId,
+            patch: {
+              avatarColor: patch.avatarColor as never,
+              description: patch.description.trim() || null,
+            },
+          })
+          .catch(reportFailure);
+      }}
+      onSearch={() => navigation.goBack()}
+      onStartVideoCall={() => {
+        void startMobileDirectCall({
+          conversationId,
+          title: conversation?.name ?? "",
+          // §11.3/23: the only video entry point in the whole package.
+          video: true,
+        });
+      }}
+      onToggleMuted={() => {
+        void settings.setNotifyLevel
+          .mutateAsync({
+            conversationId,
+            notifyLevel: conversation?.notifyLevel === "NONE" ? "ALL" : "NONE",
+          })
+          .catch(reportFailure);
+      }}
+      viewerId={viewerId}
+    />
+  );
+}
+
+export function GroupMembersScreenContainer({
+  navigation,
+  route,
+}: NativeStackScreenProps<MobileRootStackParamList, "GroupMembers">) {
+  const { conversationId } = route.params;
+  const { conversation, viewerId } = useMobileGroupRoute(conversationId);
+  const onMemberAction = useMobileGroupMemberAction(conversationId);
+
+  return (
+    <MobileGroupMembersScreen
+      conversation={conversation}
+      onBack={() => navigation.goBack()}
+      onInvite={() => navigation.navigate("GroupCreate", { step: "members" })}
+      onMemberAction={onMemberAction}
+      viewerId={viewerId}
+    />
+  );
+}
+
+export function GroupSettingsScreenContainer({
+  navigation,
+  route,
+}: NativeStackScreenProps<MobileRootStackParamList, "GroupSettings">) {
+  const { conversationId } = route.params;
+  const { apiClient, conversation, removeMember, reportFailure, settings, viewerId } =
+    useMobileGroupRoute(conversationId);
+  const { hide } = useMobileGroupMutations(apiClient, viewerId);
+  const { showToast } = useToast();
+  const inviteQuery = useQuery({
+    queryFn: () => fetchMobileGroupInvite(apiClient, conversationId),
+    queryKey: mobileQueryKeys.groupInvite(conversationId),
+    staleTime: 30_000,
+  });
+
+  return (
+    <MobileGroupSettingsScreen
+      conversation={conversation}
+      hidden={false}
+      invite={inviteQuery.data ?? null}
+      onBack={() => navigation.goBack()}
+      onCopyInvite={(url) => {
+        void Clipboard.setStringAsync(url).then(() =>
+          showToast({ title: copy.groupInviteLinkCopied, variant: "success" }),
+        );
+      }}
+      onLeave={(input) => {
+        void removeMember
+          .mutateAsync({
+            conversationId,
+            ...(input.transferOwnershipTo
+              ? { transferOwnershipTo: input.transferOwnershipTo }
+              : {}),
+            userId: viewerId,
+          })
+          .then(() => navigation.popTo("MainTabs", { screen: "messages" }))
+          .catch(reportFailure);
+      }}
+      onRotateInvite={() => {
+        void settings.rotateInvite
+          .mutateAsync({ conversationId })
+          .then(() => showToast({ title: copy.groupInviteRotated, variant: "success" }))
+          .catch(reportFailure);
+      }}
+      onSetDisappearing={(disappearingAfter) => {
+        void settings.updateSettings
+          .mutateAsync({ conversationId, patch: { disappearingAfter } })
+          .catch(reportFailure);
+      }}
+      onSetHidden={(next) => {
+        if (!next) {
+          return;
+        }
+
+        void hide
+          .mutateAsync({ conversationId })
+          .then(() => navigation.popTo("MainTabs", { screen: "messages" }))
+          .catch(reportFailure);
+      }}
+      onSetInviteEnabled={(enabled) => {
+        void settings.setInviteEnabled
+          .mutateAsync({ conversationId, enabled })
+          .catch(reportFailure);
+      }}
+      onSetNotifyLevel={(notifyLevel) => {
+        void settings.setNotifyLevel
+          .mutateAsync({ conversationId, notifyLevel })
+          .catch(reportFailure);
+      }}
+      onSetPermission={(action, level) => {
+        void settings.updateSettings
+          .mutateAsync({
+            conversationId,
+            patch: {
+              addMembers: { permAddMembers: level },
+              editInfo: { permEditInfo: level },
+              pinMessage: { permPinMessage: level },
+              sendMessage: { permSendMessage: level },
+            }[action],
+          })
+          .catch(reportFailure);
+      }}
+      onShareInvite={(url) => {
+        void Share.share({ message: url });
+      }}
+      viewerId={viewerId}
+    />
+  );
+}
+
+/** K2's last mile: what a `/g/<code>` deep link opens. */
+export function GroupInvitePreviewScreenContainer({
+  navigation,
+  route,
+}: NativeStackScreenProps<MobileRootStackParamList, "GroupInvitePreview">) {
+  const { code } = route.params;
+  const { apiClient } = useMobileAuth();
+  const { joinViaInvite } = useMobileGroupSettingsMutations(apiClient);
+  const previewQuery = useQuery({
+    queryFn: () => previewMobileGroupInvite(apiClient, code),
+    queryKey: mobileQueryKeys.groupInvitePreview(code),
+    retry: false,
+    staleTime: 30_000,
+  });
+
+  return (
+    <MobileGroupInvitePreviewScreen
+      busy={joinViaInvite.isPending}
+      onBack={() => navigation.goBack()}
+      onJoin={() => {
+        void joinViaInvite.mutateAsync({ code }).then((result) => {
+          // 10g / Faz 4 karar: `navigate`, never `replace` — the router owns the
+          // stack, and a replaced preview is what leaves back pointing nowhere.
+          navigation.navigate("DirectMessage", { conversationId: result.conversation.id });
+        });
+      }}
+      preview={previewQuery.data ?? null}
     />
   );
 }

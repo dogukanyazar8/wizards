@@ -5,6 +5,7 @@ export type MobileDirectCallStarter = (input: {
 }) => Promise<void>;
 
 let starter: MobileDirectCallStarter | null = null;
+let joiner: MobileDirectCallStarter | null = null;
 
 /**
  * The DM call ring handshake lives in `useMobileDMCallFeature`, which is mounted
@@ -25,6 +26,21 @@ export function hasMobileDirectCallStarter(): boolean {
   return starter !== null;
 }
 
+/**
+ * Faz 5 §B5. The same slot for the other verb: entering a call that is already
+ * running. 2d's "Katıl" banner and any other surface outside the shell reach the
+ * one mounted flow rather than emitting `dm:call:join` on their own — a second
+ * emitter would put a user in the roster without a room.
+ */
+export function setMobileDirectCallJoiner(next: MobileDirectCallStarter | null): () => void {
+  joiner = next;
+  return () => {
+    if (joiner === next) {
+      joiner = null;
+    }
+  };
+}
+
 /** Resolves to false when no shell is mounted, so callers can stay silent. */
 export async function startMobileDirectCall(input: {
   conversationId: string;
@@ -36,5 +52,18 @@ export async function startMobileDirectCall(input: {
   }
 
   await starter(input);
+  return true;
+}
+
+export async function joinMobileOngoingCall(input: {
+  conversationId: string;
+  title: string;
+  video: boolean;
+}): Promise<boolean> {
+  if (!joiner) {
+    return false;
+  }
+
+  await joiner(input);
   return true;
 }

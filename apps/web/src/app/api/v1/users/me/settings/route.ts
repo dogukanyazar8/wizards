@@ -1,9 +1,5 @@
 import { z } from "zod";
-import {
-  DmPolicy,
-  FriendRequestPolicy,
-  prisma,
-} from "@wizards/db";
+import { DmPolicy, FriendRequestPolicy, prisma } from "@wizards/db";
 import { requireApiUserId } from "@/lib/auth/api";
 import { enforceApiRateLimit } from "@/lib/api-rate-limit";
 import { ApiError, jsonError, parseJsonBody } from "@/lib/api";
@@ -13,10 +9,7 @@ import {
   clampChannelSidebarWidth,
   clampServerRailWidth,
 } from "@/lib/appearance";
-import {
-  normalizeMessageFontId,
-  type MessageFontId,
-} from "@/lib/message-fonts";
+import { normalizeMessageFontId, type MessageFontId } from "@/lib/message-fonts";
 
 const PatchSettingsSchema = z.object({
   serverRailWidth: z.number().int().optional(),
@@ -36,6 +29,8 @@ const PatchSettingsSchema = z.object({
   notificationSoundFile: z.string().trim().min(1).max(64).optional(),
   dmPolicy: z.nativeEnum(DmPolicy).optional(),
   friendRequestPolicy: z.nativeEnum(FriendRequestPolicy).optional(),
+  /** 2b §7. The web half of the same switch the mobile settings screen writes. */
+  allowGroupInvites: z.boolean().optional(),
 });
 
 export type UserLayoutSettings = {
@@ -46,6 +41,7 @@ export type UserLayoutSettings = {
   notificationAutoClose: boolean;
   dmPolicy: DmPolicy;
   friendRequestPolicy: FriendRequestPolicy;
+  allowGroupInvites: boolean;
   desktopNotifications: boolean;
   mobileNotifications: boolean;
   emailNotifications: boolean;
@@ -70,6 +66,7 @@ function mapSettingsResponse(input: {
     notificationAutoClose: boolean;
     dmPolicy: DmPolicy;
     friendRequestPolicy: FriendRequestPolicy;
+    allowGroupInvites: boolean;
   };
   notificationSettings?: {
     desktopNotifications: boolean;
@@ -115,6 +112,7 @@ export async function GET() {
             notificationAutoClose: true,
             dmPolicy: true,
             friendRequestPolicy: true,
+            allowGroupInvites: true,
           },
         },
         notificationSettings: {
@@ -158,6 +156,7 @@ export async function PATCH(request: Request) {
       notificationAutoClose: boolean;
       dmPolicy: DmPolicy;
       friendRequestPolicy: FriendRequestPolicy;
+      allowGroupInvites: boolean;
     }> = {};
 
     if (body.serverRailWidth !== undefined) {
@@ -180,6 +179,9 @@ export async function PATCH(request: Request) {
     }
     if (body.friendRequestPolicy !== undefined) {
       layoutData.friendRequestPolicy = body.friendRequestPolicy;
+    }
+    if (body.allowGroupInvites !== undefined) {
+      layoutData.allowGroupInvites = body.allowGroupInvites;
     }
 
     const notificationSettingsData: Partial<{
@@ -218,6 +220,7 @@ export async function PATCH(request: Request) {
           notificationAutoClose: true,
           dmPolicy: true,
           friendRequestPolicy: true,
+          allowGroupInvites: true,
         },
       });
 

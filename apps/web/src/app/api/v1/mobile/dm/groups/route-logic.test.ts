@@ -1,12 +1,16 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import { ApiError } from "@/lib/api";
+
 import {
   mobileGroupAddMembersRoute,
+  mobileGroupCallStateRoute,
   mobileGroupCreateRoute,
   mobileGroupMemberRoleRoute,
   mobileGroupPinDismissRoute,
   mobileGroupPinRoute,
+  mobileGroupReadRoute,
   mobileGroupRemoveMemberRoute,
   mobileGroupSettingsRoute,
   mobileGroupUnpinRoute,
@@ -29,6 +33,7 @@ function buildDependencies(overrides = {}) {
     authenticate: async () => "user-1",
     createGroup: async () => conversation,
     dismissPin: async () => {},
+    enableInvite: async () => {},
     emitCreated: () => {},
     emitMembersChanged: () => {},
     emitPinChanged: () => {},
@@ -37,7 +42,10 @@ function buildDependencies(overrides = {}) {
     enforceRateLimit: async () => {},
     evictRemoved: () => {},
     getIo: () => null,
+    loadConversation: async () => conversation,
     loadConversationForBroadcast: async () => conversation,
+    readCallState: async () => null,
+    requireParticipant: async () => ({}),
     removeMember: async () => ({ broadcastViewerId: "user-1" }),
     setPin: async () => conversation,
     updateGroup: async () => conversation,
@@ -173,6 +181,67 @@ describe("mobile group management mirrors", () => {
         return true;
       },
     );
+  });
+
+  it("reads the group through the mobile read bucket and re-parses the body", async () => {
+    const actions: string[] = [];
+    const response = await mobileGroupReadRoute(
+      new Request("https://whispr.test/api/v1/mobile/dm/groups/group-1"),
+      "group-1",
+      buildDependencies({
+        enforceRateLimit: async (_id: string, action: string) => {
+          actions.push(action);
+        },
+      }),
+    );
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(actions, ["mobile:dm:group:read"]);
+    assert.deepEqual(await response.json(), { conversation });
+  });
+
+  it("reads the call roster through the same read bucket", async () => {
+    const actions: string[] = [];
+    const response = await mobileGroupCallStateRoute(
+      new Request("https://whispr.test/api/v1/mobile/dm/groups/group-1/call"),
+      "group-1",
+      buildDependencies({
+        enforceRateLimit: async (_id: string, action: string) => {
+          actions.push(action);
+        },
+        readCallState: async () => ({
+          participants: [{ joinedAt: "2026-08-11T10:00:00.000Z", userId: "user-2" }],
+          startedAt: "2026-08-11T10:00:00.000Z",
+          video: false,
+        }),
+      }),
+    );
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(actions, ["mobile:dm:group:read"]);
+    assert.deepEqual(await response.json(), {
+      callState: {
+        active: true,
+        conversationId: "group-1",
+        participants: [{ joinedAt: "2026-08-11T10:00:00.000Z", userId: "user-2" }],
+        startedAt: "2026-08-11T10:00:00.000Z",
+        video: false,
+      },
+    });
+  });
+
+  it("passes a 403 from the membership gate straight through", async () => {
+    const response = await mobileGroupCallStateRoute(
+      new Request("https://whispr.test/api/v1/mobile/dm/groups/group-1/call"),
+      "group-1",
+      buildDependencies({
+        requireParticipant: async () => {
+          throw new ApiError("Not a participant", 403);
+        },
+      }),
+    );
+
+    assert.equal(response.status, 403);
   });
 
   it("answers a dismissal without a conversation body", async () => {

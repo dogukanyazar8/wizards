@@ -1,4 +1,10 @@
 import { GROUP_DM_MAX_PARTICIPANTS, GROUP_DM_MIN_PARTICIPANTS } from "./group-dm";
+import {
+  GROUP_AVATAR_COLORS,
+  type GroupAvatarColor,
+  type GroupHistoryVisibility,
+  type GroupPermissionLevel,
+} from "./group-dm-settings";
 
 /**
  * Faz 5 §14. The group-create screen's rules live here rather than in the React
@@ -14,20 +20,55 @@ export const GROUP_SELECTABLE_MIN = GROUP_DM_MIN_PARTICIPANTS - 1;
 
 export type GroupCreateStep = "identity" | "members";
 
+/**
+ * 2c fills the identity step in one pass, so the five fields it collects live on
+ * the same state the picker writes: the "Düzenle" link walks back to step one and
+ * returns, and anything held in a second place would be lost on that trip.
+ */
 export type GroupCreateState = {
+  readonly avatarColor: GroupAvatarColor;
+  readonly description: string;
+  readonly historyVisibility: GroupHistoryVisibility;
+  /** K2. Off until somebody asks for it; switching it on mints the code at create. */
+  readonly inviteEnabled: boolean;
   readonly name: string;
+  readonly permAddMembers: GroupPermissionLevel;
   readonly selectedUserIds: readonly string[];
   readonly step: GroupCreateStep;
 };
 
 export type GroupCreateRequestBody = {
+  avatarColor: GroupAvatarColor;
+  description?: string;
+  historyVisibility: GroupHistoryVisibility;
   iconUrl?: string;
+  inviteEnabled: boolean;
   name?: string;
+  permAddMembers: GroupPermissionLevel;
   userIds: string[];
 };
 
+/** 2c's own defaults, read off the screen: first swatch, "Herkes", "Son 30 gün". */
 export function createInitialGroupCreateState(): GroupCreateState {
-  return { name: "", selectedUserIds: [], step: "members" };
+  return {
+    avatarColor: GROUP_AVATAR_COLORS[0],
+    description: "",
+    historyVisibility: "LAST_30D",
+    inviteEnabled: false,
+    name: "",
+    permAddMembers: "ALL",
+    selectedUserIds: [],
+    step: "members",
+  };
+}
+
+/**
+ * 2c §E2's exit guard. Leaving step one throws away the picking, which is the
+ * expensive part of the flow; leaving it untouched throws away nothing, and a
+ * confirmation there would be a dialog with no purpose.
+ */
+export function hasGroupCreateProgress(state: GroupCreateState): boolean {
+  return state.selectedUserIds.length > 0;
 }
 
 /** Creator included, so this is what the `{count}/32` counter shows. */
@@ -71,16 +112,26 @@ export function canSubmitGroup(state: GroupCreateState): boolean {
  * Absent keys, not null ones: the server reads a missing `name` as "no name" and
  * stores null itself, while an explicit null on create would have to be spelled
  * out in the schema for no gain.
+ *
+ * The four KATILIM/identity values are always sent, blank ones included: unlike
+ * the name and the description they are choices the screen shows a value for, and
+ * omitting one would let the server default disagree with the row 2c just drew.
  */
 export function toGroupCreateRequest(
   state: GroupCreateState,
   iconUrl: string | null,
 ): GroupCreateRequestBody {
   const trimmedName = state.name.trim();
+  const trimmedDescription = state.description.trim();
 
   return {
+    avatarColor: state.avatarColor,
+    ...(trimmedDescription.length > 0 ? { description: trimmedDescription } : {}),
+    historyVisibility: state.historyVisibility,
     ...(iconUrl ? { iconUrl } : {}),
+    inviteEnabled: state.inviteEnabled,
     ...(trimmedName.length > 0 ? { name: trimmedName } : {}),
+    permAddMembers: state.permAddMembers,
     userIds: [...state.selectedUserIds],
   };
 }
