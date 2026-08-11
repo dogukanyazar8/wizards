@@ -11,7 +11,7 @@ orbs:
   # Pin exactly; never @1 or @volatile. Confirm the current release with
   #   circleci orb info circleci/path-filtering
   # A stale pin fails loudly at config compile time, which is the intent.
-  path-filtering: circleci/path-filtering@1.3.0
+  path-filtering: circleci/path-filtering@2.1.0
 
 workflows:
   setup:

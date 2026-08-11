@@ -1,9 +1,9 @@
 # Faz 1 raporu — CircleCI temel katmanı (gölge mod)
 
-Tarih: 2026-08-11. Branch `uat`. **Commit edilmedi.**
+Tarih: 2026-08-11. Branch `uat`. **Bu düzeltme commit edilmedi.**
 
-Durum: yapılandırma ve sözleşme katmanı tamam, **CircleCI'de henüz tek bir koşu
-yok**. Faz kapısı açık; kapanması için kullanıcının iki adımı gerekiyor (aşağıda).
+Durum: İlk setup koşusu `path-filtering@1.3.0` kaynaklı PEP 668 hatasını gösterdi.
+`2.1.0` düzeltmesi yerelde hazır; uzak doğrulama commit/push sonrasını bekliyor.
 
 ## Güncelleme — 2026-08-11, aynı gün
 
@@ -23,7 +23,7 @@ yok**. Faz kapısı açık; kapanması için kullanıcının iki adımı gerekiy
   `semgrep` bilerek dışarıda (machine executor, yalnız public imaj çekiyor).
   Sözleşme testi bu eşlemeyi iki yönlü zorluyor: imajı çeken context almalı,
   çekmeyen almamalı.
-- Sözleşme testi 10 → **12 test**. `pnpm test:toolchain` **72/72**.
+- Sözleşme testi 10 → **12 test**. `pnpm test:toolchain` **73/73**.
 
 ---
 
@@ -34,9 +34,9 @@ yok**. Faz kapısı açık; kapanması için kullanıcının iki adımı gerekiy
 | `docker/ci/Dockerfile`                              | yeni    | Golden image: Node 24.18.0, pnpm 11.20.0, Playwright 1.61.1 Chromium, Rust + cargo-audit 0.22.1, gitleaks, Tauri Debian bağımlılıkları |
 | `docker/ci/IMAGE`                                   | yeni    | Yayınlanmış imaj referansı için tek doğru kaynak. Şu an **placeholder**                                                                |
 | `docker/ci/README.md`                               | yeni    | Basma, digest okuma, doğrulama ve yeniden basma yordamı                                                                                |
-| `.circleci/config.yml`                              | yeni    | Setup pipeline + `circleci/path-filtering@1.3.0` yol eşlemesi                                                                          |
+| `.circleci/config.yml`                              | yeni    | Setup pipeline + `circleci/path-filtering@2.1.0` yol eşlemesi                                                                          |
 | `.circleci/main.yml`                                | yeni    | 14 job, 3 executor, 4 workflow                                                                                                         |
-| `scripts/quality/circleci-config-contract.test.mjs` | yeni    | 10 sözleşme testi; `pnpm test:toolchain` glob'una otomatik giriyor                                                                     |
+| `scripts/quality/circleci-config-contract.test.mjs` | yeni    | 12 sözleşme testi; `pnpm test:toolchain` glob'una otomatik giriyor                                                                     |
 | `docs/prompts/cicd-circleci-2026-08/01-faz1-*.md`   | değişti | Sonuna rapora yönlendiren uygulama notu eklendi                                                                                        |
 
 `.github/workflows/` altındaki hiçbir dosyaya dokunulmadı (gölge mod, K5).
@@ -125,19 +125,20 @@ kapısı.
 (`1.0.46913-pre`) ama doğrulama sunucu tarafı derleyiciyi çağırıyor ve API token
 istiyor: `error: No CircleCI API token found`. Yerine yapılan: her iki dosya
 `js-yaml` ile ayrıştırıldı — YAML iyi biçimli, 14 job / 3 executor / 4 workflow
-beklenen şekilde çözülüyor. **Semantik doğrulama hâlâ yapılmadı**; orb sürümü,
-`<< pipeline.schedule.name >>` kullanımı ve executor şeması ilk gerçek koşuda
-sınanacak.
+beklenen şekilde çözülüyor. İlk gerçek setup pipeline'ı orb'u çözüp
+`resolve-changed-paths` job'unu başlattı; devam yapılandırmasındaki
+`<< pipeline.schedule.name >>` kullanımı ve executor şeması henüz sınanmadı.
 
 **S7 — Push şeridi daraltılmadı.** `e2e-cross-browser`, `e2e-a11y` ve `e2e-visual`
 bugün her push'ta koşuyor; CircleCI'de de öyle bırakıldı. Bunları nightly'ye
 taşımak Faz 2'nin kararı — Faz 1'de yapılırsa gölge mod karşılaştırması anlamını
 yitirir.
 
-**S8 — Yol filtresi orb sürümü doğrulanamadı.** `circleci/path-filtering@1.3.0`
-pinlendi; `circleci orb info` bu CLI sürümünde yok, kayıt defteri sorgusu da token
-istiyor. Sürüm yanlışsa `circleci config validate` **gürültülü** patlar (sessiz
-düşmez) ve düzeltmesi tek satır.
+**S8 — Yol filtresi orb sürümü doğrulandı ve düzeltildi.** İlk gerçek koşuda
+`circleci/path-filtering@1.3.0`, Python paket kurulumu sırasında PEP 668 nedeniyle
+`Set parameters` adımında exit 1 verdi. Python bootstrap kullanmayan, shell tabanlı
+ve full-checkout davranışını koruyan `circleci/path-filtering@2.1.0` pinlendi.
+Sözleşme testi artık bu tam sürümü zorunlu kılıyor.
 
 ---
 
@@ -145,8 +146,8 @@ düşmez) ve düzeltmesi tek satır.
 
 | Komut                                                           | Sonuç                                                                                                                                                                           |
 | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `node --test scripts/quality/circleci-config-contract.test.mjs` | **10/10 geçti**                                                                                                                                                                 |
-| `pnpm test:toolchain`                                           | **70/70 geçti** (yeni test glob'a girdi)                                                                                                                                        |
+| `node --test scripts/quality/circleci-config-contract.test.mjs` | **12/12 geçti**                                                                                                                                                                 |
+| `pnpm test:toolchain`                                           | **73/73 geçti** (yeni test glob'a girdi)                                                                                                                                        |
 | `js-yaml` ile `.circleci/*.yml` ayrıştırma                      | **geçti** — 14 job, 3 executor, 4 workflow                                                                                                                                      |
 | `pnpm format`                                                   | **kırmızı — bu fazdan bağımsız.** 34 dosya biçimsiz; hiçbiri bu fazın dosyası değil (hepsi devam eden grup DM işinin dosyaları). Bu fazın 6 dosyası prettier'dan temiz geçiyor. |
 | `circleci config validate`                                      | **koşturulamadı** — API token yok (S6)                                                                                                                                          |
@@ -217,10 +218,13 @@ paylaş.
 ## Bilinen boşluklar
 
 - ~~Golden image basılmadı~~ — kapandı, bkz. Güncelleme.
-- `circleci config validate` koşmadı (S6). Semantik hatalar ilk koşuda çıkacak.
-- Orb sürümü doğrulanmadı (S8).
-- `.circleci/` commit edilmedi. CircleCI yapılandırmayı depodan okur; push
-  olmadan hiçbir pipeline oluşmaz.
+- `circleci config validate` yerelde token olmadığı için koşmadı (S6). Devam
+  yapılandırmasının semantik kontrolü uzaktaki tekrar koşuyu bekliyor.
+- ~~Orb sürümü doğrulanmadı (S8)~~ — ilk gerçek koşudaki PEP 668 hatasından sonra
+  shell tabanlı `circleci/path-filtering@2.1.0` pinlendi; uzaktaki tekrar koşu push
+  sonrasını bekliyor.
+- Bu orb düzeltmesi commit/push edilmedi. CircleCI yapılandırmayı depodan okur;
+  yeni sürüm uzak pipeline'da henüz sınanmadı.
 - `actionlint` job'unun CircleCI karşılığı yok — `.github/workflows` yaşadığı
   sürece gerekmiyor, Faz 5'te tamamen kalkacak.
 - `gitleaks git .` tüm git geçmişini tarıyor (gitleaks-action paritesi). Uzun

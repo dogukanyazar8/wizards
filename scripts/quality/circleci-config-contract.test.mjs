@@ -60,11 +60,11 @@ function collectRunCommands(source) {
   return commands;
 }
 
-test("the CircleCI entrypoint is a setup pipeline with an exactly pinned path filter", () => {
+test("the CircleCI entrypoint pins the shell-based path filter orb", () => {
   const setup = readText(setupConfigPath);
 
   assert.match(setup, /^setup: true$/mu);
-  assert.match(setup, /^\s+path-filtering: circleci\/path-filtering@\d+\.\d+\.\d+$/mu);
+  assert.match(setup, /^\s+path-filtering: circleci\/path-filtering@2\.1\.0$/mu);
   assert.doesNotMatch(setup, /circleci\/path-filtering@(?:volatile|\d+(?:\.\d+)?$)/mu);
   assert.match(setup, /^\s+config-path: \.circleci\/main\.yml$/mu);
 });
