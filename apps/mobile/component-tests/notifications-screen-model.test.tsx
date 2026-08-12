@@ -82,6 +82,21 @@ describe("1d notification presentation model", () => {
     ).toBe(false);
   });
 
+  /**
+   * A badge row used to fall through to the generic system bell, so the one
+   * notification the app has that already knows what it is about looked like
+   * every other notice. It gets its own kind, and the row draws the badge.
+   */
+  it("gives a badge its own presentation instead of the system bell", () => {
+    expect(
+      getMobileNotificationPresentation({
+        ...todayMention,
+        badgeId: "founder",
+        type: "BADGE",
+      } as MobileNotificationItem),
+    ).toEqual({ canJoinVoice: false, icon: "ribbon-outline", kind: "badge" });
+  });
+
   it("renders structured reaction and server-member events without parsing their body copy", () => {
     expect(getMobileNotificationPresentation(reaction).kind).toBe("reaction");
     expect(getMobileNotificationPresentation(serverMemberJoined).kind).toBe("server-member");

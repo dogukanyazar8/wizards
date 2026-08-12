@@ -242,4 +242,18 @@ describe("group routes and the /g/<code> link (§B6)", () => {
     assert.doesNotMatch(navigator, /mobile-group-route-placeholders/);
     assert.doesNotMatch(navigator, /name="GroupDetails"/);
   });
+
+  /**
+   * A created group opened with `navigate` left the wizard on the stack under
+   * it, so the chat's own back button walked back into the form that made it.
+   * `popTo` consumes this screen on the way to the conversation.
+   */
+  it("hands the created group over without leaving the wizard under it", () => {
+    const containers = read("../src/app/screens/mobile-screen-containers.tsx");
+    const handOff = containers.match(/onCreated=\{[^}]*\}/u)?.[0];
+
+    assert.ok(handOff, "GroupCreateScreenContainer must still hand the created group over");
+    assert.match(handOff, /navigation\.popTo\("DirectMessage"/u);
+    assert.doesNotMatch(handOff, /navigation\.navigate\(/u);
+  });
 });

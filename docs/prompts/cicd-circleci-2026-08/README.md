@@ -1,5 +1,11 @@
 # CI/CD — GitHub Actions → CircleCI geçişi ve endüstri seviyesi boru hattı
 
+> **Arşiv / uygulanmıyor (2026-08-12):** CircleCI kredi limiti nedeniyle bu
+> geçiş iptal edildi. Aktif CI/CD mimarisi GitHub Actions + yerel Linux VM
+> runner'lardır. Güncel işletim belgesi:
+> `docs/operations/local-vm-github-actions.md`. Aşağıdaki dosyalar yalnızca
+> tarihsel karar/evidence kaydıdır.
+
 Beş fazlık uygulama paketi. Hedef: self-hosted Hyper-V runner'ları tamamen kapatmak, ücretsiz CircleCI katmanında kalmak, ve boru hattını PR sinyali 10 dakikanın altına inen, build-once/promote-always çalışan, mobil tarafta otomatik ramp/halt yapan bir yapıya çıkarmak.
 
 ## Dosyalar

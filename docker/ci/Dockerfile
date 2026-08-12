@@ -1,16 +1,16 @@
-# Wizards CI golden image.
+# Wizards local CI runner toolbox image.
 #
-# One image for every CircleCI job. Everything a job would otherwise install at
-# runtime is baked in here, pinned to the same versions the repository already
-# contracts on (.nvmrc, package.json packageManager, pnpm-lock.yaml).
+# Optional reproducible toolbox for provisioning or diagnosing the Linux VM
+# runners. GitHub Actions jobs execute natively on those runners; no workflow
+# silently depends on this image. Tool versions stay pinned to repository
+# contracts (.nvmrc, package.json packageManager, pnpm-lock.yaml).
 #
 # Deliberately NOT installed:
 #   - Android SDK / NDK / JDK. The mobile release lane provisions those through
 #     .github/scripts/setup-android-build-tools.sh and moves in a later phase.
 #
 # Build and publish: see docker/ci/README.md. The published digest belongs in
-# docker/ci/IMAGE and .circleci/main.yml, and scripts/quality/circleci-config-contract.test.mjs
-# asserts the two stay in sync.
+# docker/ci/IMAGE and is checked by the local VM CI contract.
 
 FROM node:24.18.0-bookworm-slim
 
@@ -63,10 +63,9 @@ ARG PLAYWRIGHT_VERSION=1.61.1
 RUN npx --yes "playwright@${PLAYWRIGHT_VERSION}" install --with-deps chromium firefox webkit \
   && rm -rf /var/lib/apt/lists/*
 
-# gitleaks replaces the gitleaks-action the GitHub lane uses. The action was
-# SHA-pinned, so the replacement must be checksum-verified too: both build args
-# are REQUIRED and the build fails without them. Take the checksum from the
-# release's gitleaks_<version>_checksums.txt, not from a mirror.
+# gitleaks is available for runner diagnosis and local scans. The GitHub Actions
+# workflow uses a SHA-pinned action. Both build args remain REQUIRED; take the
+# checksum from the official release checksum asset, never a mirror.
 ARG GITLEAKS_VERSION
 ARG GITLEAKS_SHA256
 RUN test -n "${GITLEAKS_VERSION}" || { echo "GITLEAKS_VERSION build arg is required"; exit 1; } \
@@ -79,8 +78,7 @@ RUN test -n "${GITLEAKS_VERSION}" || { echo "GITLEAKS_VERSION build arg is requi
   && rm -f /tmp/gitleaks.tar.gz \
   && gitleaks version
 
-# Rust for apps/desktop. cargo-audit is pinned to the version ci.yml expects, so
-# the desktop job's version check is a no-op instead of a five minute rebuild.
+# Rust for apps/desktop. cargo-audit is pinned to the version ci.yml expects.
 ARG RUST_VERSION=stable
 ARG CARGO_AUDIT_VERSION=0.22.1
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
@@ -102,8 +100,7 @@ RUN chown -R node:node /ms-playwright
 USER node
 WORKDIR /home/node
 
-# Keep the pnpm store on a stable path so CircleCI can cache exactly one
-# directory across every job.
+# Keep the pnpm store on a stable path for repeatable local-runner diagnostics.
 ENV PNPM_HOME=/home/node/.local/share/pnpm \
     PATH=/home/node/.local/share/pnpm/bin:$PATH
 RUN pnpm config set store-dir /home/node/.pnpm-store --global

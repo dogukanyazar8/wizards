@@ -169,7 +169,14 @@ export function WorkspaceServerMenuSheet({
       : []),
     {
       active: isMuted,
-      icon: "bell",
+      /*
+       * The glyph carries the state, not just the card tint: a bell that looks
+       * the same silenced as it does live leaves the reader reading a
+       * background colour to find out which one they are looking at. The
+       * silenced pair is `bell`/`bell-off`, the same one 2e's quick action and
+       * the inbox row already use.
+       */
+      icon: isMuted ? "bell-off" : "bell",
       label: copy.serverMenuMute,
       onPress: () => onToggleMute(!isMuted),
       testID: `mobile-server-mute-toggle-${serverId}`,
@@ -386,6 +393,9 @@ export function WorkspaceServerMenuSheet({
                     }
                     name={action.icon}
                     size={theme.workspace.quickActionCard.icon}
+                    // A toggle draws a different glyph in each state, so the
+                    // glyph is part of what a test asserts about the card.
+                    testID={`${action.testID}-icon-${action.icon}`}
                   />
                   <Text
                     numberOfLines={1}

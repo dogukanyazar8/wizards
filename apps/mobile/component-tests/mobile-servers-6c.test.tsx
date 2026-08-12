@@ -7,6 +7,9 @@ import { WorkspaceServerMenuSheet } from "../src/app/screens/workspace-server-me
 import { lightTheme } from "../src/design/themes";
 import { renderWithMobileTheme as render } from "./render-with-mobile-theme";
 
+/** An SVG glyph carries no accessibility role, so a query has to ask for it. */
+const HIDDEN_ELEMENTS = { includeHiddenElements: true } as const;
+
 // The sheet's own presentation is BottomSheet's contract, tested there; here it
 // is only a container, so it renders inline.
 jest.mock("../src/app/components/kit/bottom-sheet", () => {
@@ -134,6 +137,35 @@ describe("6c quick actions", () => {
     expect(flatStyle(muted).backgroundColor).toBe(lightTheme.workspace.quickActionCard.activeBg);
     expect(flatStyle(starred).backgroundColor).toBe(lightTheme.workspace.quickActionCard.bg);
     expect(muted.props.accessibilityState).toEqual({ selected: true });
+  });
+
+  /**
+   * The card tint was the only thing that changed when the server went silent,
+   * so a live bell and a silenced one were the same drawing on two backgrounds.
+   * The glyph says it now, the same `bell`/`bell-off` pair 2e and the inbox use.
+   */
+  it("silences the bell glyph itself, not only the card behind it", async () => {
+    const view = await render(<WorkspaceServerMenuSheet {...menuProps({ isMuted: true })} />);
+
+    // The glyph is an SVG with no accessibility role of its own, so it is only
+    // reachable with hidden elements included.
+    expect(
+      view.getByTestId("mobile-server-mute-toggle-server-1-icon-bell-off", HIDDEN_ELEMENTS),
+    ).toBeTruthy();
+    expect(
+      view.queryByTestId("mobile-server-mute-toggle-server-1-icon-bell", HIDDEN_ELEMENTS),
+    ).toBeNull();
+  });
+
+  it("keeps the plain bell while the server is not silenced", async () => {
+    const view = await render(<WorkspaceServerMenuSheet {...menuProps({ isMuted: false })} />);
+
+    expect(
+      view.getByTestId("mobile-server-mute-toggle-server-1-icon-bell", HIDDEN_ELEMENTS),
+    ).toBeTruthy();
+    expect(
+      view.queryByTestId("mobile-server-mute-toggle-server-1-icon-bell-off", HIDDEN_ELEMENTS),
+    ).toBeNull();
   });
 });
 

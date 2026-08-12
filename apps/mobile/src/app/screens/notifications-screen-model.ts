@@ -4,6 +4,7 @@ import { mobileCopy, type MobileLocale } from "../../locale/mobile-copy";
 import { getMobileIntlLocale } from "../../locale/mobile-locale-preferences";
 
 export type MobileNotificationPresentationKind =
+  | "badge"
   | "direct-message"
   | "feedback"
   | "friend"
@@ -21,6 +22,7 @@ export type MobileNotificationIcon =
   | "notifications-outline"
   | "people-outline"
   | "person-add-outline"
+  | "ribbon-outline"
   | "shield-checkmark-outline"
   | "volume-high-outline";
 
@@ -78,6 +80,13 @@ export function getMobileNotificationPresentation(
   }
 
   switch (notification.type) {
+    /**
+     * A badge is the one row that already knows what it is about: the catalog
+     * on the device turns `badgeId` into the badge's own glyph, name and tint,
+     * so it is drawn as the badge rather than as a generic bell (07 §4).
+     */
+    case "BADGE":
+      return { canJoinVoice: false, icon: "ribbon-outline", kind: "badge" };
     case "FEEDBACK":
       return { canJoinVoice: false, icon: "chatbubble-ellipses-outline", kind: "feedback" };
     case "DM":

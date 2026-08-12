@@ -347,11 +347,22 @@ export function useMobileGroupMutations(client: MobileApiClient, viewerId?: stri
   /**
    * Removing yourself is leaving, and the details read requires participation —
    * refetching it would only earn a 403. The inbox row still has to go.
+   *
+   * It is deliberately **not** awaited on that branch. React Query resolves
+   * `mutateAsync` only after `onSuccess` settles, so returning the invalidation
+   * held the caller — every leave handler navigates in its `.then` — on screen
+   * for a second round trip, showing the reader the group chat they had just
+   * left. Nothing they are about to look at depends on that refetch landing
+   * first; the inbox they are being sent to re-renders when it does.
    */
-  const refreshAfterRemoval = (conversationId: string, removedUserId: string) =>
-    viewerId !== undefined && removedUserId === viewerId
-      ? refreshConversations()
-      : refreshConversationAndDetails(conversationId);
+  const refreshAfterRemoval = (conversationId: string, removedUserId: string) => {
+    if (viewerId !== undefined && removedUserId === viewerId) {
+      void refreshConversations();
+      return;
+    }
+
+    return refreshConversationAndDetails(conversationId);
+  };
 
   return {
     addMembers: useMutation({

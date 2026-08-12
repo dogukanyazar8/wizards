@@ -4,6 +4,9 @@ import { fireEvent } from "@testing-library/react-native";
 import type { DMConversationDTO, GroupInviteDTO } from "@wizards/types";
 
 import { renderWithMobileTheme as render } from "./render-with-mobile-theme";
+import { MOBILE_LINE_ICON_DEFINITIONS } from "../src/design/mobile-line-icon-definitions";
+import { createGroupChatStyles } from "../src/app/screens/group-chat.styles";
+import { lightTheme } from "../src/design/themes";
 import { MobileGroupInfoScreen } from "../src/app/screens/group-info/group-info-screen";
 import { MobileGroupMembersScreen } from "../src/app/screens/group-info/group-members-screen";
 import { MobileGroupSettingsScreen } from "../src/app/screens/group-settings/group-settings-screen";
@@ -186,6 +189,24 @@ describe("2e §C1 identity and quick actions", () => {
     expect(handlers.onStartVideoCall).toHaveBeenCalled();
   });
 
+  /**
+   * The muted glyph used to be drawn from the bell's shoulder to its skirt and
+   * stop, so it had no left wall and read on the screen as a clipped icon.
+   * It is the same bell as `bell`, plus a slash.
+   */
+  it("draws the mute glyph as a closed bell, not a cut outline", () => {
+    const bell = MOBILE_LINE_ICON_DEFINITIONS.bell;
+    const muted = MOBILE_LINE_ICON_DEFINITIONS["bell-off"];
+    const paths = (definition: typeof bell) =>
+      definition.children.map((child) => ("d" in child ? child.d : ""));
+
+    expect(paths(muted).slice(0, 2)).toEqual(paths(bell));
+    // The body closes on itself; the third path is the slash and nothing else.
+    expect(paths(muted)[0]).toMatch(/Z$/u);
+    expect(paths(muted)).toHaveLength(paths(bell).length + 1);
+    expect(muted.defaultStrokeWidth).toBe(bell.defaultStrokeWidth);
+  });
+
   it("flips the mute label with the notification tier", async () => {
     const { view } = await renderInfo();
     expect(view.getByText(copy.groupInfoActionMute)).toBeTruthy();
@@ -282,6 +303,24 @@ describe("2e §C1.6 full roster", () => {
 
     expect(view.getByTestId("mobile-group-member-row-user-1")).toBeTruthy();
     expect(view.getByTestId("mobile-group-member-row-user-4")).toBeTruthy();
+  });
+});
+
+describe("2f header", () => {
+  /**
+   * The heading sat over the group's name in a column while wearing the row
+   * header's `flex: 1`, which on that axis is `flexBasis: 0` — a title with no
+   * height of its own, drawn half-clipped on the device.
+   */
+  it("gives the stacked title a height of its own", async () => {
+    const { view } = await renderSettings();
+    const title = view.getByText(copy.groupSettingsTitle);
+    const styles = createGroupChatStyles(lightTheme);
+
+    expect(title.props.style).not.toMatchObject({ flex: 1 });
+    expect(styles.stepHeaderTitle).not.toHaveProperty("flex");
+    // The row headers still need theirs; this is a two-layout sheet, not a typo.
+    expect(styles.detailHeaderTitle.flex).toBe(1);
   });
 });
 

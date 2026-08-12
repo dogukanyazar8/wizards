@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
+  buildGroupSystemMessageSentence,
   formatGroupSystemMessage,
   toGroupSystemMessageLabels,
 } from "../src/dm/group-system-message-copy";
@@ -80,6 +81,69 @@ describe("group system message copy", () => {
         targetNames: [],
       }),
       "",
+    );
+  });
+});
+
+describe("naming the actor of a system row", () => {
+  const leaver = {
+    author: { displayName: "Ada Lovelace", username: "ada" },
+    systemTargetUserIds: [],
+    systemType: "MEMBER_LEFT" as const,
+    systemValue: null,
+    userId: "user-2",
+  };
+
+  /**
+   * Leaving deletes the membership row, so by the time anybody reads
+   * "{actor} gruptan ayrıldı" the actor is gone from `participants` and the
+   * sentence used to start with a blank. The row's own author still names them.
+   */
+  it("names a leaver the roster no longer holds", () => {
+    assert.equal(
+      buildGroupSystemMessageSentence({
+        currentUserId: "user-1",
+        labels,
+        message: leaver,
+        participants: [{ displayName: "Sen", userId: "user-1", username: "me" }],
+      }),
+      "Ada Lovelace gruptan ayrıldı",
+    );
+  });
+
+  it("still prefers the roster, which carries the newer name", () => {
+    assert.equal(
+      buildGroupSystemMessageSentence({
+        currentUserId: "user-1",
+        labels,
+        message: { ...leaver, systemType: "NAME_CHANGED", systemValue: "Takım" },
+        participants: [{ displayName: "Ada Byron", userId: "user-2", username: "ada" }],
+      }),
+      'Ada Byron grup adını "Takım" olarak değiştirdi',
+    );
+  });
+
+  it("falls back to the handle when the author has no display name", () => {
+    assert.equal(
+      buildGroupSystemMessageSentence({
+        currentUserId: "user-1",
+        labels,
+        message: { ...leaver, author: { displayName: null, username: "ada" } },
+        participants: [],
+      }),
+      "ada gruptan ayrıldı",
+    );
+  });
+
+  it("says 'Sen' for the reader's own departure rather than their name", () => {
+    assert.equal(
+      buildGroupSystemMessageSentence({
+        currentUserId: "user-2",
+        labels,
+        message: leaver,
+        participants: [],
+      }),
+      "Sen gruptan ayrıldı",
     );
   });
 });

@@ -18,6 +18,11 @@ export interface MobileDMSystemMessageParticipant {
 export interface DMSystemMessageRowProps {
   readonly currentUserId: string;
   readonly message: {
+    /** The name a `MEMBER_LEFT` actor is read by — they left the roster. */
+    readonly author?:
+      | { readonly displayName?: string | null | undefined; readonly username: string }
+      | null
+      | undefined;
     readonly systemTargetUserIds?: readonly string[] | undefined;
     readonly systemType?: DMSystemMessageTypeValue | null | undefined;
     readonly systemValue?: string | null | undefined;

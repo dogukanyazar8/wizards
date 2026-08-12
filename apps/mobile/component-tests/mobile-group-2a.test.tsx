@@ -169,6 +169,30 @@ describe("2a §1 filter chips", () => {
     });
     expect(styles.filterChipActive.backgroundColor).toBe(lightTheme.groupChat.filterChip.activeBg);
   });
+
+  /**
+   * A horizontal `ScrollView` carries RN's `flexGrow: 1`. Left at that, the
+   * strip grew into every spare pixel of the inbox column and centred its chips
+   * in the hole — the empty bands above and below them on Sohbetler.
+   */
+  it("keeps the strip one chip tall instead of growing into the list's space", async () => {
+    const view = await render(
+      <DMInboxFilterChips
+        counts={{ groups: 0, muted: 0, unread: 0 }}
+        filter="all"
+        onSelectFilter={() => {}}
+      />,
+    );
+
+    expect(view.getByTestId("mobile-dm-filter-chips").props.style).toMatchObject({
+      flexGrow: 0,
+      flexShrink: 0,
+    });
+    expect(createGroupChatStyles(lightTheme).filterChipScroll).toEqual({
+      flexGrow: 0,
+      flexShrink: 0,
+    });
+  });
 });
 
 describe("2a §2 pinned section", () => {

@@ -98,16 +98,26 @@ export function MobileGroupMemberStep({
       .map((userId) => friendsById.get(userId))
       .filter((friend): friend is MobileGroupCreateFriend => Boolean(friend));
   }, [conversations, friendsById, needle, now]);
-  const frequentIds = useMemo(() => new Set(frequent.map((friend) => friend.id)), [frequent]);
-  const rest = useMemo(
-    () => friends.filter((friend) => !frequentIds.has(friend.id) && matchesQuery(friend, needle)),
-    [friends, frequentIds, needle],
+  /**
+   * "TÜM ARKADAŞLAR" is the whole roster, not the leftovers: subtracting the
+   * five shortcuts above emptied the section entirely for anybody with five
+   * friends or fewer, under a heading that was still counting all of them.
+   * The shortcut repeats a row; it does not take it away.
+   */
+  const allFriends = useMemo(
+    () => friends.filter((friend) => matchesQuery(friend, needle)),
+    [friends, needle],
   );
   const selectedFriends = state.selectedUserIds
     .map((userId) => friendsById.get(userId))
     .filter((friend): friend is MobileGroupCreateFriend => Boolean(friend));
 
-  const renderRow = (friend: MobileGroupCreateFriend) => {
+  /**
+   * `section` keys and names the row: the same friend can appear once as a
+   * shortcut and once in the roster, and the two must stay separately
+   * addressable — for React and for a test naming one of them.
+   */
+  const renderRow = (friend: MobileGroupCreateFriend, section: "all" | "frequent") => {
     const selected = state.selectedUserIds.includes(friend.id);
     // A full selection freezes the rows that are not part of it; the picked
     // ones stay live so the ceiling is never a dead end.
@@ -119,7 +129,7 @@ export function MobileGroupMemberStep({
         accessibilityRole="checkbox"
         accessibilityState={{ checked: selected, disabled }}
         disabled={disabled}
-        key={friend.id}
+        key={`${section}-${friend.id}`}
         onPress={() => onToggleMember(friend.id)}
         style={({ pressed }) => [
           styles.pickerRow,
@@ -127,7 +137,11 @@ export function MobileGroupMemberStep({
           capped ? styles.pickerRowCapped : null,
           pressed && !disabled ? pressedStyle : null,
         ]}
-        testID={`mobile-group-create-friend-${friend.id}`}
+        testID={
+          section === "frequent"
+            ? `mobile-group-create-frequent-friend-${friend.id}`
+            : `mobile-group-create-friend-${friend.id}`
+        }
       >
         <View style={styles.pickerRowAvatarWrap}>
           <AvatarMark
@@ -139,7 +153,14 @@ export function MobileGroupMemberStep({
             label={getFriendLabel(friend)}
           />
           {friend.online && friend.allowsGroupInvites ? (
-            <View style={styles.pickerRowDot} testID={`mobile-group-create-dot-${friend.id}`} />
+            <View
+              style={styles.pickerRowDot}
+              testID={
+                section === "frequent"
+                  ? `mobile-group-create-frequent-dot-${friend.id}`
+                  : `mobile-group-create-dot-${friend.id}`
+              }
+            />
           ) : null}
         </View>
         <View style={styles.pickerRowText}>
@@ -203,12 +224,13 @@ export function MobileGroupMemberStep({
       </View>
 
       {selectedFriends.length > 0 ? (
-        <ScrollView
-          contentContainerStyle={styles.selectedChipRow}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          testID="mobile-group-create-chips"
-        >
+        /*
+         * A plain wrapping row, not a horizontal `ScrollView`: that view carries
+         * RN's `flexGrow: 1`, so between the search pill and the list it grew
+         * into every spare pixel and left the chips floating in the middle of
+         * the screen. Wrapping also keeps a 32-person selection on screen.
+         */
+        <View style={styles.selectedChipRow} testID="mobile-group-create-chips">
           {selectedFriends.map((friend) => (
             <Pressable
               accessibilityLabel={getFriendLabel(friend)}
@@ -226,7 +248,9 @@ export function MobileGroupMemberStep({
                 imageUrl={friend.avatarUrl}
                 label={getFriendLabel(friend)}
               />
-              <Text style={styles.selectedChipLabel}>{getFriendLabel(friend)}</Text>
+              <Text numberOfLines={1} style={styles.selectedChipLabel}>
+                {getFriendLabel(friend)}
+              </Text>
               <MobileLineIcon
                 color={groupTokens.selectedChip.close}
                 name="close"
@@ -234,7 +258,7 @@ export function MobileGroupMemberStep({
               />
             </Pressable>
           ))}
-        </ScrollView>
+        </View>
       ) : null}
 
       <ScrollView keyboardShouldPersistTaps="handled" style={{ flex: 1 }}>
@@ -243,16 +267,17 @@ export function MobileGroupMemberStep({
             <View style={styles.listSectionRow} testID="mobile-group-create-frequent-section">
               <Text style={styles.listSectionLabel}>{copy.groupCreateFrequent}</Text>
             </View>
-            {frequent.map(renderRow)}
+            {frequent.map((friend) => renderRow(friend, "frequent"))}
           </>
         ) : null}
         <View style={styles.listSectionRow}>
           <Text style={styles.listSectionLabel}>{copy.groupCreateAllFriends}</Text>
+          {/* The count is what the section actually lists, search included. */}
           <Text style={styles.listSectionCount} testID="mobile-group-create-friend-count">
-            {friends.length}
+            {allFriends.length}
           </Text>
         </View>
-        {rest.map(renderRow)}
+        {allFriends.map((friend) => renderRow(friend, "all"))}
       </ScrollView>
     </>
   );

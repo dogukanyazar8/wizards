@@ -124,6 +124,16 @@ export const createMobileServerProfileStyles = (theme: MobileTheme) => {
       borderWidth: profile.logo.borderWidth,
       marginTop: profile.logo.marginTop,
     },
+    /**
+     * 6D draws the initials at 24/800 inside the 74pt tile. The kit avatar sizes
+     * its fallback text off its own `lg` preset, which is built for a much
+     * smaller mark — the handoff already carries the numbers, so the tile passes
+     * them in rather than inheriting a preset meant for a list row.
+     */
+    logoInitials: {
+      fontFamily: theme.typography.fontFamilyExtraBold,
+      fontSize: profile.logo.fontSize,
+    },
     statusChips: {
       alignItems: "flex-end" as const,
       flex: 1,

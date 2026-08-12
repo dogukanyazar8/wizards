@@ -46,7 +46,8 @@ export interface MobileGroupInfoScreenProps {
   onOpenMedia(): void;
   onOpenMembers(): void;
   onOpenPinnedMessage(): void;
-  onPickPhoto?(): void;
+  /** Resolves to the uploaded URL; null when cancelled or refused. */
+  onPickPhoto?(): Promise<string | null>;
   onSaveIdentity(patch: {
     avatarColor: string;
     description: string;
@@ -472,7 +473,12 @@ function MobileGroupIdentityEditor({
 }: {
   readonly conversation: DMConversationDTO;
   onCancel(): void;
-  onPickPhoto?(): void;
+  /**
+   * Resolves to the uploaded URL, or null when the reader backed out or the
+   * upload failed. It used to be declared `void`, so the picked photo was
+   * uploaded and then dropped on the floor — the tile never changed.
+   */
+  onPickPhoto?(): Promise<string | null>;
   onSave(patch: {
     avatarColor: string;
     description: string;
@@ -486,6 +492,20 @@ function MobileGroupIdentityEditor({
   const pressStyle = useGroupPressStyle();
   const [iconUrl, setIconUrl] = useState<string | null>(conversation.iconUrl);
   const [busy, setBusy] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const pickPhoto = onPickPhoto
+    ? async () => {
+        setIsUploadingPhoto(true);
+        try {
+          const picked = await onPickPhoto();
+          if (picked) {
+            setIconUrl(picked);
+          }
+        } finally {
+          setIsUploadingPhoto(false);
+        }
+      }
+    : null;
   const [state, setState] = useState<GroupCreateState>({
     // P2: the fallback is the palette's own first swatch, never a literal.
     avatarColor: (conversation.avatarColor ??
@@ -525,10 +545,11 @@ function MobileGroupIdentityEditor({
       </View>
       <MobileGroupIdentityStep
         iconUrl={iconUrl}
+        isUploadingPhoto={isUploadingPhoto}
         mode="edit"
         onChange={(patch) => setState((current) => ({ ...current, ...patch }))}
         onEditMembers={onCancel}
-        {...(onPickPhoto ? { onPickPhoto } : {})}
+        {...(pickPhoto ? { onPickPhoto: () => void pickPhoto() } : {})}
         onRemovePhoto={() => setIconUrl(null)}
         selectedFriends={[]}
         state={state}

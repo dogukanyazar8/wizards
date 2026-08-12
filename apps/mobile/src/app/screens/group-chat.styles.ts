@@ -39,6 +39,12 @@ export const createGroupChatStyles = (theme: MobileTheme, scale = 1) => {
 
   return {
     /* ----------------------------------------------------------------- 2a */
+    /**
+     * A horizontal `ScrollView` ships with RN's `flexGrow: 1`, so inside the
+     * inbox column it grows to eat every spare pixel and centres its chips in
+     * the hole it made. The strip is as tall as one chip and no taller.
+     */
+    filterChipScroll: { flexGrow: 0, flexShrink: 0 },
     /** HTML 57–62. Horizontally scrollable, so the row itself sets padding. */
     filterChipRow: {
       flexDirection: "row",
@@ -318,9 +324,14 @@ export const createGroupChatStyles = (theme: MobileTheme, scale = 1) => {
       fontSize: s(group.pickerSearch.placeholderFontSize),
       fontFamily: font(group.pickerSearch.placeholderFontWeight),
     },
-    /** HTML 164–167: the picked members, horizontally scrollable. */
+    /**
+     * HTML 164–167: the picked members. It wraps rather than scrolls sideways —
+     * a 32-person ceiling off the right edge of the screen is a list the reader
+     * cannot see, and the strip is the only place a pick can be undone.
+     */
     selectedChipRow: {
       flexDirection: "row",
+      flexWrap: "wrap",
       alignItems: "center",
       gap: s(group.selectedChip.rowGap),
       paddingTop: s(group.filterChip.paddingTop),
@@ -331,6 +342,10 @@ export const createGroupChatStyles = (theme: MobileTheme, scale = 1) => {
       flexDirection: "row",
       alignItems: "center",
       gap: s(group.selectedChip.gap),
+      // A long name shortens its own chip instead of pushing the line past the
+      // right edge; `maxWidth` keeps a single very long name on one line.
+      flexShrink: 1,
+      maxWidth: "100%",
       height: s(group.selectedChip.height),
       paddingHorizontal: s(group.selectedChip.paddingHorizontal),
       borderRadius: s(group.selectedChip.radius),
@@ -341,6 +356,7 @@ export const createGroupChatStyles = (theme: MobileTheme, scale = 1) => {
       fontFamily: font(group.selectedChip.avatarFontWeight),
     },
     selectedChipLabel: {
+      flexShrink: 1,
       color: group.selectedChip.label,
       fontSize: s(group.selectedChip.labelFontSize),
       fontFamily: font(group.selectedChip.labelFontWeight),
@@ -495,6 +511,22 @@ export const createGroupChatStyles = (theme: MobileTheme, scale = 1) => {
       fontSize: s(group.identityAvatar.initialsFontSize),
       fontFamily: font(group.identityAvatar.initialsFontWeight),
     },
+    /**
+     * The avatar while its photo is on the wire. A scrim rather than a swap: the
+     * tile the reader just acted on stays where it is and only goes quiet, which
+     * is what tells them the tap landed.
+     */
+    identityAvatarBusy: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      alignItems: "center",
+      justifyContent: "center",
+      width: s(group.identityAvatar.size),
+      height: s(group.identityAvatar.size),
+      borderRadius: s(group.identityAvatar.radius),
+      backgroundColor: theme.surface.imageScrim,
+    },
     identityCameraButton: {
       position: "absolute",
       right: s(group.identityAvatar.cameraOffset),
@@ -510,25 +542,41 @@ export const createGroupChatStyles = (theme: MobileTheme, scale = 1) => {
       ...theme.elevation.groupChatCameraButton,
     },
     identityColorColumn: { flex: 1, minWidth: 0, gap: s(8) },
-    colorSwatchRow: { flexDirection: "row", gap: s(group.colorSwatch.gap) },
+    /**
+     * The gap is the design's 8 minus the halo the buttons already carry on both
+     * sides, so the swatches keep HTML 233's `28 + 8` pitch: picking a colour
+     * paints a ring that was always reserved instead of resizing the row.
+     */
+    colorSwatchRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: s(Math.max(0, group.colorSwatch.gap - 2 * group.colorSwatch.selectedOuterRing)),
+    },
+    /**
+     * HTML 234's `0 0 0 2px zemin, 0 0 0 4px renk` is a shadow: it rings the
+     * swatch without taking a pixel of layout. RN has no such ring, so every
+     * swatch — picked or not — sits in a box that is already `2 + 2` wider on
+     * each side, and picking one only colours the border that box always had.
+     * Growing the picked one instead would push the row out of line, which is
+     * exactly what it used to do.
+     */
+    colorSwatchButton: {
+      alignItems: "center",
+      justifyContent: "center",
+      width: s(group.colorSwatch.size + 2 * group.colorSwatch.selectedOuterRing),
+      height: s(group.colorSwatch.size + 2 * group.colorSwatch.selectedOuterRing),
+      borderRadius: s(group.colorSwatch.radius + group.colorSwatch.selectedOuterRing),
+      borderWidth: s(group.colorSwatch.selectedOuterRing - group.colorSwatch.selectedInnerRing),
+      borderColor: "transparent",
+      flexGrow: 0,
+      flexShrink: 0,
+    },
+    /** The inner ring: the screen tone between the swatch and the colour ring. */
+    colorSwatchButtonSelected: { backgroundColor: group.colorSwatch.selectedInnerRingColor },
     colorSwatch: {
       width: s(group.colorSwatch.size),
       height: s(group.colorSwatch.size),
       borderRadius: s(group.colorSwatch.radius),
-    },
-    /**
-     * HTML 234's `0 0 0 2px zemin, 0 0 0 4px renk`. RN has no second ring, so
-     * the inner one is the swatch's own border in the screen tone and the outer
-     * one is a wrapper: the drawn result is the same two rings.
-     */
-    colorSwatchSelected: {
-      borderWidth: s(group.colorSwatch.selectedInnerRing),
-      borderColor: group.colorSwatch.selectedInnerRingColor,
-    },
-    colorSwatchSelectedRing: {
-      padding: s(group.colorSwatch.selectedOuterRing - group.colorSwatch.selectedInnerRing),
-      borderRadius: s(group.colorSwatch.radius + group.colorSwatch.selectedOuterRing),
-      borderWidth: s(group.colorSwatch.selectedOuterRing - group.colorSwatch.selectedInnerRing),
     },
     /** HTML 242/248/250: a label with its counter or link on the right. */
     fieldLabelRow: {
@@ -974,6 +1022,12 @@ export const createGroupChatStyles = (theme: MobileTheme, scale = 1) => {
       paddingBottom: s(12),
       paddingHorizontal: s(group.stepHeader.paddingHorizontal),
     },
+    /**
+     * A **row** header's title, and only that: `flex: 1` is what makes it take
+     * the slack beside the back arrow. Stacked over a subtitle it would mean
+     * `flexBasis: 0` on the column's main axis — a title with no height of its
+     * own, drawn half-clipped. That header uses `stepHeaderTitle`.
+     */
     detailHeaderTitle: {
       flex: 1,
       minWidth: 0,
@@ -1176,6 +1230,7 @@ export const createGroupChatStyles = (theme: MobileTheme, scale = 1) => {
     },
 
     /* ------------------------------------------------------------------ 2f */
+    /** The only stacked group header: a title over the group's own name. */
     settingsHeaderText: { flex: 1, minWidth: 0, gap: s(group.stepHeader.titleGap) },
     /** HTML 437: the "YÖNETİCİ" chip beside the permissions heading. */
     adminChip: {

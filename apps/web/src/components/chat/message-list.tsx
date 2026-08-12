@@ -470,6 +470,7 @@ function MessageListContent({
               drawn before — and instead of — anything a bubble would add. */}
           {message.systemType ? (
             <DmSystemMessage
+              actorFallbackName={message.author.displayName ?? message.author.username}
               actorUserId={message.author.id}
               currentUserId={currentUserId}
               participants={participants}

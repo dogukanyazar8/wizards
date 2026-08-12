@@ -41,6 +41,7 @@ import { useMobileServerManagementMutations } from "../../../query/use-mobile-se
 import { useMobileWorkspaceQuery } from "../../../query/mobile-workspace-query";
 import { useMobileVoiceStatesQuery } from "../../../query/mobile-voice-states-query";
 import { useMobileActiveTargetStore } from "../../../state/mobile-active-target-store";
+import { getMobileShellTopInset } from "../../mobile-app-shell";
 import { DestructiveConfirmationSheet, Skeleton, useToast } from "../../components/kit";
 import { AvatarMark } from "../../components/ui-atoms";
 import { MobileCachedImage } from "../../components/mobile-cached-image";
@@ -122,6 +123,14 @@ export function MobileServerProfileScreen({
   const theme = useTheme();
   const styles = useThemedStyles(createMobileServerProfileStyles);
   const safeArea = useSafeAreaInsets();
+  /**
+   * The app shell pads every signed-in screen down by this much, so a screen
+   * that means to run under the status bar has to reach back up by exactly it —
+   * the same move 11c's banner makes. Without it the banner started below the
+   * bar, the strip above stayed the shell's plain background, and the `light`
+   * bar style this screen forces painted white clock/battery glyphs onto it.
+   */
+  const shellTopInset = getMobileShellTopInset(safeArea.top);
   const { showToast } = useToast();
 
   const signedIn = auth.status === "signed-in";
@@ -474,7 +483,10 @@ export function MobileServerProfileScreen({
         style={styles.scroll}
         testID="mobile-server-profile-scroll"
       >
-        <View style={styles.banner} testID="mobile-server-profile-banner">
+        <View
+          style={[styles.banner, { marginTop: -shellTopInset }]}
+          testID="mobile-server-profile-banner"
+        >
           {profile.bannerUrl ? (
             <>
               <MobileCachedImage source={{ uri: profile.bannerUrl }} style={styles.bannerImage} />
@@ -504,6 +516,7 @@ export function MobileServerProfileScreen({
                 avatarBorderRadius={theme.serverProfile.logo.innerRadius}
                 avatarBorderWidth={0}
                 dimension={theme.serverProfile.logo.size}
+                fallbackTextStyle={styles.logoInitials}
                 identityId={profile.serverId}
                 imageUrl={profile.iconUrl}
                 label={shortName}
@@ -820,9 +833,18 @@ export function MobileServerProfileScreen({
         </View>
       </Animated.ScrollView>
 
+      {/*
+       * Both overlays reach back over the shell's inset the same way the banner
+       * does, so `safeArea.top` below is measured from the device edge rather
+       * than from a top that has already been padded once.
+       */}
       <Animated.View
         pointerEvents={stickyVisible ? "none" : "box-none"}
-        style={[styles.bannerActions, { paddingTop: safeArea.top + 6 }, bannerActionsStyle]}
+        style={[
+          styles.bannerActions,
+          { paddingTop: safeArea.top + 6, top: -shellTopInset },
+          bannerActionsStyle,
+        ]}
       >
         <Pressable
           accessibilityLabel={copy.authBackAction}
@@ -875,7 +897,7 @@ export function MobileServerProfileScreen({
 
       <Animated.View
         pointerEvents={stickyVisible ? "box-none" : "none"}
-        style={[styles.stickyHeader, stickyStyle]}
+        style={[styles.stickyHeader, { top: -shellTopInset }, stickyStyle]}
         testID="mobile-server-profile-sticky-header"
       >
         <View style={[styles.stickyRow, { paddingTop: safeArea.top + 6 }]}>

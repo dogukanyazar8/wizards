@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import {
   GROUP_AVATAR_COLORS,
   GROUP_DM_DESCRIPTION_MAX_LENGTH,
@@ -40,6 +40,7 @@ const PERMISSION_OPTIONS: readonly GroupPermissionLevel[] = ["ALL", "ADMINS"];
  */
 export function MobileGroupIdentityStep({
   iconUrl,
+  isUploadingPhoto = false,
   mode = "create",
   onChange,
   onEditMembers,
@@ -50,6 +51,8 @@ export function MobileGroupIdentityStep({
   viewerLabel,
 }: {
   readonly iconUrl: string | null;
+  /** A picked photo is on the wire: the tile says so and refuses a second tap. */
+  readonly isUploadingPhoto?: boolean;
   /**
    * Faz 5 §C2. 2e's pencil reuses this block rather than writing a second form:
    * `edit` keeps the identity half (avatar, colour, name, description) and drops
@@ -71,6 +74,15 @@ export function MobileGroupIdentityStep({
   const { locale } = useMobileLocaleRuntime();
   const [sheet, setSheet] = useState<IdentitySheet>(null);
   const [nameFocused, setNameFocused] = useState(false);
+  /**
+   * The hint sits between the name field and the description, and it goes on
+   * the very first keystroke — which used to collapse ~41pt out of the form
+   * while the reader was still typing into it, scrolling the description up
+   * under their finger. Its measured height is held as a spacer for as long as
+   * the name field has focus, so nothing moves mid-word; the space is given
+   * back on blur.
+   */
+  const [hintHeight, setHintHeight] = useState(0);
 
   const nameCounter = getGroupNameCounter(state.name);
   const descriptionCounter = getGroupDescriptionCounter(state.description);
@@ -108,18 +120,41 @@ export function MobileGroupIdentityStep({
                 </Text>
               </View>
             )}
+            {isUploadingPhoto ? (
+              <View
+                pointerEvents="none"
+                style={styles.identityAvatarBusy}
+                testID="mobile-group-create-photo-busy"
+              >
+                <ActivityIndicator
+                  color={groupTokens.identityAvatar.cameraIconColor}
+                  size="small"
+                />
+              </View>
+            ) : null}
             <Pressable
-              accessibilityLabel={copy.groupCreatePhotoAction}
+              accessibilityLabel={
+                isUploadingPhoto ? copy.groupPhotoUploadingTitle : copy.groupCreatePhotoAction
+              }
               accessibilityRole="button"
+              accessibilityState={{ busy: isUploadingPhoto, disabled: isUploadingPhoto }}
+              disabled={isUploadingPhoto}
               onPress={onPickPhoto}
               style={styles.identityCameraButton}
               testID="mobile-group-create-photo"
             >
-              <MobileLineIcon
-                color={groupTokens.identityAvatar.cameraIconColor}
-                name="camera"
-                size={groupTokens.identityAvatar.cameraIcon}
-              />
+              {isUploadingPhoto ? (
+                <ActivityIndicator
+                  color={groupTokens.identityAvatar.cameraIconColor}
+                  size="small"
+                />
+              ) : (
+                <MobileLineIcon
+                  color={groupTokens.identityAvatar.cameraIconColor}
+                  name="camera"
+                  size={groupTokens.identityAvatar.cameraIcon}
+                />
+              )}
             </Pressable>
           </View>
           <View style={styles.identityColorColumn}>
@@ -146,18 +181,17 @@ export function MobileGroupIdentityStep({
                         accessibilityState={{ selected }}
                         key={color}
                         onPress={() => onChange({ avatarColor: color })}
-                        style={
-                          selected ? [styles.colorSwatchSelectedRing, { borderColor: color }] : null
-                        }
+                        // Every swatch keeps the same box; only the ring's
+                        // colour changes, so picking one cannot break the row.
+                        style={[
+                          styles.colorSwatchButton,
+                          selected
+                            ? [styles.colorSwatchButtonSelected, { borderColor: color }]
+                            : null,
+                        ]}
                         testID={`mobile-group-create-color-${color.replace("#", "")}`}
                       >
-                        <View
-                          style={[
-                            styles.colorSwatch,
-                            { backgroundColor: color },
-                            selected ? styles.colorSwatchSelected : null,
-                          ]}
-                        />
+                        <View style={[styles.colorSwatch, { backgroundColor: color }]} />
                       </Pressable>
                     );
                   })}
@@ -191,7 +225,14 @@ export function MobileGroupIdentityStep({
           />
         </View>
         {state.name.trim().length === 0 ? (
-          <View style={styles.hintRow} testID="mobile-group-create-hint">
+          <View
+            onLayout={(event) => {
+              const { height } = event.nativeEvent.layout;
+              setHintHeight((current) => (current === height ? current : height));
+            }}
+            style={styles.hintRow}
+            testID="mobile-group-create-hint"
+          >
             <MobileLineIcon
               color={groupTokens.formHint.iconColor}
               name="info"
@@ -210,6 +251,12 @@ export function MobileGroupIdentityStep({
               })()}
             </Text>
           </View>
+        ) : nameFocused && hintHeight > 0 ? (
+          <View
+            pointerEvents="none"
+            style={{ height: hintHeight }}
+            testID="mobile-group-create-hint-spacer"
+          />
         ) : null}
 
         <View style={styles.fieldLabelRow}>

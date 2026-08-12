@@ -84,6 +84,7 @@ export function MobileGroupCreateScreen({
     ...(initialStep ? { step: initialStep } : {}),
   }));
   const [iconUrl, setIconUrl] = useState<string | null>(null);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [confirmingCancel, setConfirmingCancel] = useState(false);
   const [capWarning, setCapWarning] = useState(false);
@@ -174,9 +175,17 @@ export function MobileGroupCreateScreen({
       return;
     }
 
-    const picked = await onPickPhoto();
-    if (picked) {
-      setIconUrl(picked);
+    // The tile goes busy for the whole call. The picker covers it while the
+    // reader is choosing; what the flag is really for is the upload behind it,
+    // which is the part that used to leave the screen looking untouched.
+    setIsUploadingPhoto(true);
+    try {
+      const picked = await onPickPhoto();
+      if (picked) {
+        setIconUrl(picked);
+      }
+    } finally {
+      setIsUploadingPhoto(false);
     }
   }, [onPickPhoto]);
 
@@ -239,6 +248,7 @@ export function MobileGroupCreateScreen({
         <>
           <MobileGroupIdentityStep
             iconUrl={iconUrl}
+            isUploadingPhoto={isUploadingPhoto}
             onChange={(patch) => setState((current) => ({ ...current, ...patch }))}
             onEditMembers={() => setState((current) => ({ ...current, step: "members" }))}
             {...(onPickPhoto ? { onPickPhoto: () => void pickPhoto() } : {})}

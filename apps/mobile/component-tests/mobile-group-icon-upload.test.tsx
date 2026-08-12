@@ -53,19 +53,49 @@ describe("Faz 5 group icon upload", () => {
     expect(await uploadMobileGroupIcon({ accessToken: "token-1", file })).toBeNull();
   });
 
-  it("returns null when the picker is cancelled, without asking for a token", async () => {
+  /**
+   * Backing out and failing are two different answers: only one of them earns
+   * the reader a message, so the caller has to be able to tell them apart.
+   */
+  it("reports a cancelled picker as cancelled, without asking for a token", async () => {
     mockPickMobileImage.mockResolvedValue(null);
     const getAccessToken = jest.fn();
+    const onUploadStart = jest.fn();
 
-    expect(await pickAndUploadMobileGroupIcon({ getAccessToken })).toBeNull();
+    expect(await pickAndUploadMobileGroupIcon({ getAccessToken, onUploadStart })).toEqual({
+      status: "cancelled",
+    });
     expect(getAccessToken).not.toHaveBeenCalled();
+    expect(onUploadStart).not.toHaveBeenCalled();
     expect(mockUploadFiles).not.toHaveBeenCalled();
   });
 
-  it("returns null when there is no access token to upload with", async () => {
+  it("reports a missing access token as an error, not as a cancellation", async () => {
     mockPickMobileImage.mockResolvedValue({ file, localUri: "file:///group.png" });
 
-    expect(await pickAndUploadMobileGroupIcon({ getAccessToken: async () => null })).toBeNull();
+    expect(await pickAndUploadMobileGroupIcon({ getAccessToken: async () => null })).toEqual({
+      status: "error",
+    });
     expect(mockUploadFiles).not.toHaveBeenCalled();
+  });
+
+  it("announces the upload only once a file is in hand", async () => {
+    mockPickMobileImage.mockResolvedValue({ file, localUri: "file:///group.png" });
+    mockUploadFiles.mockResolvedValue([{ serverData: { url: "https://utfs.io/f/group.png" } }]);
+    const onUploadStart = jest.fn();
+
+    expect(
+      await pickAndUploadMobileGroupIcon({ getAccessToken: async () => "token-1", onUploadStart }),
+    ).toEqual({ status: "uploaded", url: "https://utfs.io/f/group.png" });
+    expect(onUploadStart).toHaveBeenCalledTimes(1);
+  });
+
+  it("turns a thrown upload into an error the caller can report", async () => {
+    mockPickMobileImage.mockResolvedValue({ file, localUri: "file:///group.png" });
+    mockUploadFiles.mockRejectedValue(new Error("network"));
+
+    expect(await pickAndUploadMobileGroupIcon({ getAccessToken: async () => "token-1" })).toEqual({
+      status: "error",
+    });
   });
 });

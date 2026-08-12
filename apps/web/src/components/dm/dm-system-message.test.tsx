@@ -15,6 +15,7 @@ const PARTICIPANTS = [
 ];
 
 function renderSystemMessage(input: {
+  actorFallbackName?: string | null;
   actorUserId: string;
   currentUserId?: string;
   systemTargetUserIds?: string[];
@@ -24,6 +25,7 @@ function renderSystemMessage(input: {
   return renderToStaticMarkup(
     <LocaleProvider initialLocale="tr" initialMessages={getMessagesForLocale("tr")}>
       <DmSystemMessage
+        actorFallbackName={input.actorFallbackName}
         actorUserId={input.actorUserId}
         currentUserId={input.currentUserId ?? "user-9"}
         participants={PARTICIPANTS}
@@ -77,5 +79,30 @@ describe("DM system message", () => {
 
   it("renders nothing for an ordinary message", () => {
     assert.equal(renderSystemMessage({ actorUserId: "user-1", systemType: null }), "");
+  });
+
+  /**
+   * Leaving deletes the membership row, so the roster cannot name the one
+   * person every `MEMBER_LEFT` sentence is about. The message's own author can.
+   */
+  it("names a leaver the roster no longer holds", () => {
+    const markup = renderSystemMessage({
+      actorFallbackName: "Ada Lovelace",
+      actorUserId: "user-gone",
+      systemType: "MEMBER_LEFT",
+    });
+
+    assert.match(markup, /Ada Lovelace gruptan ayrıldı/);
+  });
+
+  it("still prefers the roster, which carries the newer name", () => {
+    const markup = renderSystemMessage({
+      actorFallbackName: "Eski Ad",
+      actorUserId: "user-1",
+      systemType: "MEMBER_LEFT",
+    });
+
+    assert.match(markup, /Ada gruptan ayrıldı/);
+    assert.doesNotMatch(markup, /Eski Ad/);
   });
 });

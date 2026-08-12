@@ -702,9 +702,69 @@ export function ProfileEditScreenContainer({
 }
 
 /**
+ * Handoff 3b's loading variant, for the group photo: one card that stays put for
+ * the whole upload and then becomes its own result. Before this the reader
+ * picked a photo and the screen said nothing at all until the avatar changed —
+ * and said nothing whatsoever when the upload failed.
+ *
+ * The card opens only once a file is in hand, so the time spent in the picker is
+ * not reported as an upload.
+ */
+function useMobileGroupPhotoPicker(getAccessToken: () => Promise<string | null>) {
+  const { showToast } = useToast();
+
+  return useCallback(
+    async (conversationId?: string): Promise<string | null> => {
+      let upload: ReturnType<typeof showToast> | null = null;
+      const result = await pickAndUploadMobileGroupIcon({
+        ...(conversationId ? { conversationId } : {}),
+        getAccessToken,
+        onUploadStart: () => {
+          upload = showToast({
+            subtitle: copy.toastMediaUploadingSubtitle,
+            title: copy.groupPhotoUploadingTitle,
+            variant: "loading",
+          });
+        },
+      });
+
+      // Backing out of the picker is not an event: nothing was started, so
+      // there is nothing to report.
+      if (result.status === "cancelled") {
+        (upload as ReturnType<typeof showToast> | null)?.dismiss();
+        return null;
+      }
+
+      if (result.status === "error") {
+        (upload as ReturnType<typeof showToast> | null)?.resolve({
+          subtitle: copy.groupPhotoUploadFailedSubtitle,
+          title: copy.toastMediaUploadFailedTitle,
+          variant: "error",
+        });
+        return null;
+      }
+
+      (upload as ReturnType<typeof showToast> | null)?.resolve({
+        subtitle: copy.groupPhotoUploadedSubtitle,
+        title: copy.groupPhotoUploadedTitle,
+        variant: "success",
+      });
+      return result.url;
+    },
+    [getAccessToken, showToast],
+  );
+}
+
+/**
  * Faz 5 §15.3. The created conversation is opened directly instead of unwinding
  * to the inbox: the user just named a group, and the next thing they want is to
  * write in it.
+ *
+ * It is `popTo`, never `navigate`: pushing the new chat left the wizard sitting
+ * under it, so back out of a group the reader had just finished creating landed
+ * them on the form that created it. `popTo` drops this screen on the way — with
+ * no `DirectMessage` on the stack it removes the current route and adds the new
+ * one, and with one already there it reuses it rather than stacking a second.
  */
 export function GroupCreateScreenContainer({
   navigation,
@@ -713,6 +773,7 @@ export function GroupCreateScreenContainer({
   const { apiClient, getAccessToken, session } = useMobileAuth();
   const friendsQuery = useMobileFriendsQuery(apiClient);
   const { create } = useMobileGroupMutations(apiClient);
+  const pickGroupPhoto = useMobileGroupPhotoPicker(getAccessToken);
   const viewerId = session?.user.id ?? "";
   const conversations = useMobileDMConversationsCache();
   /**
@@ -752,8 +813,8 @@ export function GroupCreateScreenContainer({
       {...(route.params?.step ? { initialStep: route.params.step } : {})}
       isPending={create.isPending}
       onCancel={() => navigation.goBack()}
-      onCreated={(conversationId) => navigation.navigate("DirectMessage", { conversationId })}
-      onPickPhoto={() => pickAndUploadMobileGroupIcon({ getAccessToken })}
+      onCreated={(conversationId) => navigation.popTo("DirectMessage", { conversationId })}
+      onPickPhoto={() => pickGroupPhoto()}
       onSubmit={(input) => create.mutateAsync(input)}
       {...(session?.user.displayName || session?.user.username
         ? { viewerLabel: session.user.displayName ?? session.user.username }
@@ -835,6 +896,7 @@ export function GroupInfoScreenContainer({
     useMobileGroupRoute(conversationId);
   const { getAccessToken } = useMobileAuth();
   const { update } = useMobileGroupMutations(apiClient, viewerId);
+  const pickGroupPhoto = useMobileGroupPhotoPicker(getAccessToken);
   const onMemberAction = useMobileGroupMemberAction(conversationId);
   /**
    * 2e §5's strip, from the gallery read 11f already ships. The count beside
@@ -874,7 +936,7 @@ export function GroupInfoScreenContainer({
       onOpenMedia={() => navigation.navigate("SharedMedia", { conversationId })}
       onOpenMembers={() => navigation.navigate("GroupMembers", { conversationId })}
       onOpenPinnedMessage={() => navigation.goBack()}
-      onPickPhoto={() => pickAndUploadMobileGroupIcon({ conversationId, getAccessToken })}
+      onPickPhoto={() => pickGroupPhoto(conversationId)}
       onSaveIdentity={async (patch) => {
         await update
           .mutateAsync({

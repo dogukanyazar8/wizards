@@ -841,16 +841,23 @@ export const MOBILE_LINE_ICON_DEFINITIONS = {
     strokeLinecap: "round",
     children: [{ type: "path", d: "M5 10v4M10 6v12M15 8v8M20 11v2" }],
   },
-  /** §2 "1a".6: a muted conversation — the bell with its slash. */
+  /**
+   * §2 "1a".6: a muted conversation — the bell with its slash.
+   *
+   * The body and clapper are `bell`'s own, unchanged: the earlier outline began
+   * at the bell's shoulder and ended at its skirt, so it was drawn with no left
+   * wall at all and read as a clipped glyph rather than a silenced bell. The
+   * slash is the only thing this icon adds.
+   */
   "bell-off": {
     mode: "stroke",
-    defaultStrokeWidth: 2,
+    defaultStrokeWidth: 1.9,
     strokeLinecap: "round",
     strokeLinejoin: "round",
     children: [
-      { type: "path", d: "M8.5 4.5A5.5 5.5 0 0 1 17.5 9c0 5 2 6.5 2 6.5H6" },
-      { type: "path", d: "M10 19a2.2 2.2 0 0 0 4 0" },
-      { type: "path", d: "M3 3l18 18" },
+      { type: "path", d: "M18 9.5a6 6 0 0 0-12 0c0 4.5-2 6-2 6h16s-2-1.5-2-6Z" },
+      { type: "path", d: "M10.2 20a2 2 0 0 0 3.6 0" },
+      { type: "path", d: "M3.5 3.5 20.5 20.5" },
     ],
   },
   /** §2 "1a".5: the @ mark inside the 20px mention badge. */

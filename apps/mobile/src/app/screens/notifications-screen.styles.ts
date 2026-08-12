@@ -30,6 +30,21 @@ export const createNotificationsScreenStyles = (theme: MobileTheme) => {
     notificationFeedIconVoice: {
       backgroundColor: theme.status.successSoft,
     },
+    /**
+     * 07 §4. A badge row is drawn as the badge: the tile takes the badge's own
+     * tint and ring, so the feed reads like the badge sheet rather than like a
+     * system notice with a bell on it. The two colours come from the badge, so
+     * they are set inline.
+     */
+    notificationFeedIconBadge: {
+      borderWidth: 1.5,
+    },
+    /** The badge's own name, the line the row is actually about. */
+    notificationFeedHeadline: {
+      color: theme.text.primary,
+      fontFamily: theme.typography.fontFamilyExtraBold,
+      fontSize: 14,
+    },
     notificationFeedMeta: {
       color: theme.text.soft,
       fontFamily: theme.typography.fontFamilySemiBold,

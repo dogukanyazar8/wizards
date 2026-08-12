@@ -53,9 +53,14 @@ import {
   MobileServerProfileScreen,
   type MobileServerProfileSource,
 } from "../src/app/screens/server-profile/server-profile-screen";
+import { createMobileServerProfileStyles } from "../src/app/screens/server-profile/server-profile-screen.styles";
+import { getMobileShellTopInset } from "../src/app/mobile-app-shell";
+import { lightTheme } from "../src/design/themes";
 import { mobileCopy } from "../src/locale/mobile-copy";
 
 const copy = mobileCopy.tr;
+/** The harness frame's own top inset, mirrored so the shell maths is checkable. */
+const SAFE_AREA_TOP = 0;
 const PROFILE_PATH = "/api/v1/mobile/servers/server-1/profile";
 const PREVIEW_PATH = "/api/v1/mobile/invites/whispr-community/preview";
 const JOIN_PATH = "/api/v1/mobile/servers/server-1/join";
@@ -339,6 +344,40 @@ describe("6d server profile top block", () => {
     expect(view.getByText("12 Mart 2025")).toBeTruthy();
     expect(view.getByTestId("mobile-server-profile-about-joined")).toBeTruthy();
     expect(view.getByText(copy.serverAccessPublic)).toBeTruthy();
+  });
+
+  /**
+   * The tile inherited the kit avatar's `lg` fallback size, which is built for a
+   * list row, so 6D's 24/800 initials came out small inside the 74pt logo.
+   */
+  it("draws the logo initials at the handoff's own size", () => {
+    const styles = createMobileServerProfileStyles(lightTheme);
+
+    expect(styles.logoInitials).toMatchObject({
+      fontFamily: lightTheme.typography.fontFamilyExtraBold,
+      fontSize: lightTheme.serverProfile.logo.fontSize,
+    });
+    expect(styles.logoInitials.fontSize).toBe(24);
+  });
+
+  /**
+   * The shell pads every signed-in screen past the status bar. This screen forces
+   * a `light` bar style for the purple banner, so it has to reach back under the
+   * bar too — otherwise white clock/battery glyphs land on the shell's own plain
+   * background and the status bar reads as masked.
+   */
+  it("reaches the banner and both overlays back under the status bar", async () => {
+    const { view } = await renderProfile();
+    await view.findByTestId("mobile-server-profile-name");
+
+    const shellTopInset = getMobileShellTopInset(SAFE_AREA_TOP);
+    expect(shellTopInset).toBeGreaterThan(0);
+    expect(view.getByTestId("mobile-server-profile-banner").props.style).toEqual(
+      expect.arrayContaining([expect.objectContaining({ marginTop: -shellTopInset })]),
+    );
+    expect(view.getByTestId("mobile-server-profile-sticky-header").props.style).toEqual(
+      expect.arrayContaining([expect.objectContaining({ top: -shellTopInset })]),
+    );
   });
 
   it("keeps the weekly cell with an em dash rather than collapsing the card", async () => {

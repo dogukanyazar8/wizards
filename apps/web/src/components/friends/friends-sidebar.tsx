@@ -145,6 +145,9 @@ export function FriendsSidebar({ currentUserId, onNavigate, onPrefetch }: Friend
         // is why it takes no author prefix.
         const systemSentence = conversation.lastMessage
           ? buildDmSystemMessageSentence({
+              actorFallbackName:
+                conversation.lastMessage.author.displayName ??
+                conversation.lastMessage.author.username,
               actorUserId: conversation.lastMessage.userId,
               currentUserId,
               participants: conversation.participants,

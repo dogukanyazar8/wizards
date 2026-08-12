@@ -225,6 +225,7 @@ export function DMInboxFilterChips({
       contentContainerStyle={styles.filterChipRow}
       horizontal
       showsHorizontalScrollIndicator={false}
+      style={styles.filterChipScroll}
       testID="mobile-dm-filter-chips"
     >
       {MOBILE_CONVERSATION_FILTERS.map((candidate) => {

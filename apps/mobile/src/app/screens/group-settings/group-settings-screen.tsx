@@ -127,7 +127,12 @@ export function MobileGroupSettingsScreen({
           />
         </Pressable>
         <View style={styles.settingsHeaderText}>
-          <Text numberOfLines={1} style={styles.detailHeaderTitle}>
+          {/*
+           * The stacked title, not `detailHeaderTitle`: that one carries the
+           * `flex: 1` a row header needs, which inside this column reads as
+           * `flexBasis: 0` and left the heading drawn half its height.
+           */}
+          <Text numberOfLines={1} style={styles.stepHeaderTitle}>
             {copy.groupSettingsTitle}
           </Text>
           <Text numberOfLines={1} style={styles.stepHeaderSubtitle}>

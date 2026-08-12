@@ -41,27 +41,50 @@ export async function uploadMobileGroupIcon(input: {
 }
 
 /**
- * Picker + upload in one call, shaped for the create screen's `onPickPhoto`:
- * null means "no photo", whether the user backed out of the sheet or the upload
- * refused the file. The screen keeps its previous icon either way.
+ * Backing out of the picker and an upload that refused the file are two
+ * different answers, and only one of them is worth a message: the caller has to
+ * be able to tell them apart before it decides what to say.
+ */
+export type MobileGroupIconUploadResult =
+  | { readonly status: "cancelled" }
+  | { readonly status: "error" }
+  | { readonly status: "uploaded"; readonly url: string };
+
+/**
+ * Picker + upload in one call, shaped for the create screen's `onPickPhoto`.
+ * The screen keeps its previous icon on anything but `uploaded`.
+ *
+ * `onUploadStart` fires once a file is actually in hand — the caller's progress
+ * message belongs to the upload, not to the time the reader spends choosing.
  */
 export async function pickAndUploadMobileGroupIcon(input: {
   conversationId?: string | null;
   getAccessToken(): Promise<string | null>;
-}): Promise<string | null> {
+  onUploadStart?: () => void;
+}): Promise<MobileGroupIconUploadResult> {
   const picked = await pickMobileImage();
   if (!picked) {
-    return null;
+    return { status: "cancelled" };
   }
+
+  input.onUploadStart?.();
 
   const accessToken = await input.getAccessToken();
   if (!accessToken) {
-    return null;
+    return { status: "error" };
   }
 
-  return await uploadMobileGroupIcon({
-    accessToken,
-    conversationId: input.conversationId ?? null,
-    file: picked.file,
-  });
+  try {
+    const url = await uploadMobileGroupIcon({
+      accessToken,
+      conversationId: input.conversationId ?? null,
+      file: picked.file,
+    });
+
+    // A rejected file answers `null`; from here on that is a failure the reader
+    // is told about rather than a silently unchanged avatar.
+    return url ? { status: "uploaded", url } : { status: "error" };
+  } catch {
+    return { status: "error" };
+  }
 }

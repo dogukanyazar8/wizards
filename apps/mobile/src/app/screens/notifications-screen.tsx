@@ -1,5 +1,10 @@
 import { useState } from "react";
-import { MOBILE_NOTIFICATION_FILTERS, type MobileNotificationFilter } from "@wizards/types";
+import {
+  BADGE_CATALOG,
+  MOBILE_NOTIFICATION_FILTERS,
+  type BadgeId,
+  type MobileNotificationFilter,
+} from "@wizards/types";
 
 import {
   FlatList,
@@ -34,6 +39,8 @@ import {
   formatMobileMediaAssetMeta,
   getMobileMediaRuntimeText,
 } from "../components/media-primitives";
+import { MobileLineIcon } from "../../design/mobile-line-icons";
+import { resolveBadgeGlyph } from "../../social/profile-badges/profile-badge-chips";
 import { useNotificationsScreenStyles } from "./notifications-screen.styles";
 import { useTheme } from "../providers/mobile-theme-provider";
 import { useMobileLocaleRuntime } from "../providers/mobile-locale-provider";
@@ -397,7 +404,19 @@ function MobileNotificationFeedRow({
 }) {
   const styles = useNotificationsScreenStyles();
   const theme = useTheme();
+  const { locale } = useMobileLocaleRuntime();
   const presentation = getMobileNotificationPresentation(notification);
+  /**
+   * The row carries the badge id, never the badge's name: a stored name is
+   * stored in one language and the reader may have since changed theirs. The
+   * catalog on the device is what turns the id into a name, a glyph and a tint.
+   */
+  const badgeDefinition =
+    presentation.kind === "badge" && notification.badgeId
+      ? (BADGE_CATALOG[notification.badgeId as BadgeId] ?? null)
+      : null;
+  const badgeTint = badgeDefinition ? theme.profileBadge[badgeDefinition.tint] : null;
+  const badgeName = badgeDefinition?.copy[locale].name ?? null;
   const metadata = [notification.server?.name, notification.channel?.name]
     .filter((value): value is string => Boolean(value))
     .join(" · ");
@@ -444,6 +463,21 @@ function MobileNotificationFeedRow({
             </View>
           ) : null}
         </View>
+      ) : badgeTint ? (
+        <View
+          style={[
+            styles.notificationFeedIcon,
+            styles.notificationFeedIconBadge,
+            { backgroundColor: badgeTint.surface, borderColor: badgeTint.border },
+          ]}
+          testID={`mobile-notification-badge-icon-${notification.id}`}
+        >
+          <MobileLineIcon
+            color={badgeTint.icon}
+            name={resolveBadgeGlyph(notification.badgeId as BadgeId)}
+            size={20}
+          />
+        </View>
       ) : (
         <View
           style={[
@@ -464,6 +498,15 @@ function MobileNotificationFeedRow({
         </View>
       )}
       <View style={styles.notificationFeedText}>
+        {badgeName ? (
+          <Text
+            numberOfLines={1}
+            style={styles.notificationFeedHeadline}
+            testID={`mobile-notification-badge-name-${notification.id}`}
+          >
+            {copy.notificationsBadgeEarned.replace("{badge}", badgeName)}
+          </Text>
+        ) : null}
         <Text
           style={[
             styles.notificationFeedBody,

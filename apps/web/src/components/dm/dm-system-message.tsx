@@ -11,6 +11,12 @@ export type DmSystemMessageParticipant = Pick<
 >;
 
 type DmSystemMessageProps = {
+  /**
+   * The name to fall back on when the actor is no longer in `participants`.
+   * `MEMBER_LEFT` is written by the person leaving and their membership row is
+   * deleted, so the roster cannot name them: the message's own author can.
+   */
+  actorFallbackName?: string | null | undefined;
   actorUserId: string;
   currentUserId: string;
   participants: readonly DmSystemMessageParticipant[];
@@ -58,7 +64,9 @@ export function buildDmSystemMessageSentence(
   const actor =
     input.actorUserId === input.currentUserId
       ? input.t("dm.group.selfLabel")
-      : (resolveName(input.participants, input.actorUserId) ?? "");
+      : // The roster first — a name can change after the row is written — then
+        // the row's own author, who survives leaving the conversation.
+        (resolveName(input.participants, input.actorUserId) ?? input.actorFallbackName ?? "");
   // A target who has since left is dropped rather than printed as a blank name.
   const targets = (input.systemTargetUserIds ?? [])
     .map((userId) => resolveName(input.participants, userId))
@@ -86,6 +94,7 @@ export function buildDmSystemMessageSentence(
  * nothing to act on.
  */
 export function DmSystemMessage({
+  actorFallbackName,
   actorUserId,
   currentUserId,
   participants,
@@ -95,6 +104,7 @@ export function DmSystemMessage({
 }: DmSystemMessageProps) {
   const { t } = useI18n();
   const sentence = buildDmSystemMessageSentence({
+    actorFallbackName,
     actorUserId,
     currentUserId,
     participants,

@@ -86,6 +86,20 @@ export type GroupSystemMessageParticipant = {
 };
 
 export type GroupSystemMessageSource = {
+  /**
+   * The row's own author, carried on every message the server sends. It is what
+   * makes "{actor} gruptan ayrıldı" readable: `MEMBER_LEFT` is written by the
+   * person leaving, and by the time anybody reads the row that person is no
+   * longer in `participants` — the membership row is deleted, not flagged — so
+   * the lookup below finds nothing and the sentence used to start with a blank.
+   */
+  readonly author?:
+    | {
+        readonly displayName?: string | null | undefined;
+        readonly username: string;
+      }
+    | null
+    | undefined;
   readonly systemTargetUserIds?: readonly string[] | undefined;
   readonly systemType?: DMSystemMessageTypeValue | null | undefined;
   readonly systemValue?: string | null | undefined;
@@ -133,6 +147,11 @@ function resolveParticipantName(
   return participant ? (participant.displayName ?? participant.username) : null;
 }
 
+/** The name the row carries itself, for an actor who is no longer a member. */
+function resolveAuthorName(author: GroupSystemMessageSource["author"]): string | null {
+  return author ? (author.displayName ?? author.username) : null;
+}
+
 /**
  * Name resolution plus formatting, shared by the chat row and the inbox preview
  * so the two surfaces cannot drift into describing the same event differently.
@@ -145,7 +164,12 @@ export function buildGroupSystemMessageSentence(input: {
   readonly participants: readonly GroupSystemMessageParticipant[];
 }): string {
   return formatGroupSystemMessage({
-    actorName: resolveParticipantName(input.participants, input.message.userId) ?? "",
+    // The roster first — a member may have changed their display name since the
+    // row was written — then the row's own author, who survives leaving.
+    actorName:
+      resolveParticipantName(input.participants, input.message.userId) ??
+      resolveAuthorName(input.message.author) ??
+      "",
     isActorSelf: input.message.userId === input.currentUserId,
     labels: input.labels,
     systemType: input.message.systemType ?? null,
