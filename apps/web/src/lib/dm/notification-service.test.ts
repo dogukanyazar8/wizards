@@ -6,6 +6,7 @@ import {
   createDMMessageNotifications,
   getDMAttachmentLabelKey,
   getDMConversationPreview,
+  selectDMNotificationRecipients,
 } from "./notification-service";
 
 type Restore = () => void;
@@ -22,7 +23,10 @@ function patchMethod(target: object, key: string, value: unknown, restores: Rest
 
 describe("DM notification service helpers", () => {
   it("prefers message content for conversation previews", () => {
-    assert.equal(getDMConversationPreview("hello world", { contentType: "image/png" }), "hello world");
+    assert.equal(
+      getDMConversationPreview("hello world", { contentType: "image/png" }),
+      "hello world",
+    );
   });
 
   it("falls back to attachment previews by content type", () => {
@@ -35,7 +39,10 @@ describe("DM notification service helpers", () => {
   it("selects localized attachment label keys by content type", () => {
     assert.equal(getDMAttachmentLabelKey({ contentType: "image/gif" }), "chat.attachments.gif");
     assert.equal(getDMAttachmentLabelKey({ contentType: "image/png" }), "chat.attachments.image");
-    assert.equal(getDMAttachmentLabelKey({ contentType: "application/pdf" }), "chat.attachments.file");
+    assert.equal(
+      getDMAttachmentLabelKey({ contentType: "application/pdf" }),
+      "chat.attachments.file",
+    );
   });
 
   it("does not create notifications for muted DM participants", async () => {
@@ -163,5 +170,68 @@ describe("DM notification service helpers", () => {
         restore();
       }
     }
+  });
+});
+
+describe("selectDMNotificationRecipients", () => {
+  const roster = [
+    { muted: false, notifyLevel: "ALL" as const, user: { locale: "tr" }, userId: "all-1" },
+    {
+      muted: false,
+      notifyLevel: "MENTIONS" as const,
+      user: { locale: "tr" },
+      userId: "mentions-1",
+    },
+    { muted: true, notifyLevel: "NONE" as const, user: { locale: "tr" }, userId: "none-1" },
+    { muted: false, notifyLevel: "ALL" as const, user: { locale: "tr" }, userId: "sender-1" },
+  ];
+
+  function ids(input: Parameters<typeof selectDMNotificationRecipients>[0]) {
+    return selectDMNotificationRecipients(input).map((participant) => participant.userId);
+  }
+
+  it("leaves a MENTIONS member out of an ordinary message", () => {
+    assert.deepEqual(ids({ participants: roster, senderId: "sender-1" }), ["all-1"]);
+  });
+
+  it("includes a MENTIONS member the body names", () => {
+    assert.deepEqual(
+      ids({ mentionedUserIds: ["mentions-1"], participants: roster, senderId: "sender-1" }),
+      ["all-1", "mentions-1"],
+    );
+  });
+
+  it("includes a MENTIONS member the message replies to", () => {
+    assert.deepEqual(
+      ids({ participants: roster, replyToAuthorId: "mentions-1", senderId: "sender-1" }),
+      ["all-1", "mentions-1"],
+    );
+  });
+
+  it("never notifies NONE, even when mentioned", () => {
+    assert.equal(
+      ids({ mentionedUserIds: ["none-1"], participants: roster, senderId: "sender-1" }).includes(
+        "none-1",
+      ),
+      false,
+    );
+  });
+
+  it("never notifies the sender", () => {
+    assert.equal(
+      ids({ mentionedUserIds: ["sender-1"], participants: roster, senderId: "sender-1" }).includes(
+        "sender-1",
+      ),
+      false,
+    );
+  });
+
+  it("falls back to the muted mirror for a job queued before notifyLevel shipped", () => {
+    const legacy = [
+      { muted: false, user: { locale: "tr" }, userId: "legacy-open" },
+      { muted: true, user: { locale: "tr" }, userId: "legacy-muted" },
+    ];
+
+    assert.deepEqual(ids({ participants: legacy, senderId: "sender-1" }), ["legacy-open"]);
   });
 });

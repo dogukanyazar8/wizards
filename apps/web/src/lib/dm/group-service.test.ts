@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { describe, it } from "node:test";
 
 import {
@@ -18,6 +19,25 @@ import {
 } from "./group-service";
 
 type Deps = Parameters<typeof createGroupConversation>[2];
+
+describe("membership write guarantees", () => {
+  it("serializes and re-checks capacity before adding members", async () => {
+    const source = await readFile(new URL("./group-service.ts", import.meta.url), "utf8");
+    const writeAddedMembers = source.slice(
+      source.indexOf("writeAddedMembers: async (input)"),
+      source.indexOf("writeCreatedGroup: async (input)"),
+    );
+    const lockIndex = writeAddedMembers.indexOf("serializeGroupMembershipWrite");
+    const countIndex = writeAddedMembers.indexOf("tx.dMParticipant.findMany");
+
+    assert.notEqual(lockIndex, -1);
+    assert.ok(lockIndex < countIndex);
+    assert.match(writeAddedMembers, /GROUP_DM_MAX_PARTICIPANTS/);
+    assert.match(writeAddedMembers, /members = input\.members\.filter/);
+    assert.match(writeAddedMembers, /assignNameColors\(/);
+    assert.match(writeAddedMembers, /if \(members\.length > 0\)/);
+  });
+});
 
 /**
  * Eligibility now arrives as one map for the whole picker, so a test that wants

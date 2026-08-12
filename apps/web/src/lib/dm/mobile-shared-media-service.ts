@@ -2,7 +2,12 @@ import type { MobileDMAttachmentsResponse, MobileDMAttachmentsTab } from "@wizar
 import { prisma, type Prisma } from "@wizards/db";
 import { ApiError } from "@/lib/api";
 import { mapAttachmentsForViewer } from "@/lib/messages/attachment-visibility";
-import { dmAttachmentSelect, requireDMParticipant } from "@/lib/dm/service";
+import {
+  dmAttachmentSelect,
+  requireDMParticipant,
+  toHistoryWindowFilter,
+  toUnexpiredFilter,
+} from "@/lib/dm/service";
 import {
   getDmSharedMediaContentTypes,
   mapDmSharedMediaItems,
@@ -29,7 +34,7 @@ export type MobileDMAttachmentsInput = {
 export async function listMobileDMAttachments(
   input: MobileDMAttachmentsInput,
 ): Promise<MobileDMAttachmentsResponse> {
-  await requireDMParticipant(input.userId, input.conversationId);
+  const membership = await requireDMParticipant(input.userId, input.conversationId);
 
   const cursorCreatedAt = await resolveCursorCreatedAt(input.conversationId, input.cursor);
   const messages = await prisma.dMMessage.findMany({
@@ -38,7 +43,13 @@ export async function listMobileDMAttachments(
       deletedAt: null,
       placeholderRemovedAt: null,
       ...buildTabFilter(input.tab),
-      ...(cursorCreatedAt ? { createdAt: { lt: cursorCreatedAt } } : {}),
+      // 2c §7. The media grid is a read path into the same rows the message list
+      // serves, so it obeys the same floor — otherwise "Yeni üyeler geçmişi
+      // görür: Hiç" would hide the messages and hand over their attachments.
+      ...toHistoryWindowFilter(membership.historyFromAt, cursorCreatedAt ?? null),
+      // C4. Same reason the reader filters: the sweep can be a minute behind, and
+      // an expired attachment must not outlive its message here either.
+      ...toUnexpiredFilter(new Date()),
     },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: input.limit + 1,

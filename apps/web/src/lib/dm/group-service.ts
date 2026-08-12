@@ -25,6 +25,7 @@ import {
   toGroupAuthContext,
   type GroupAuthContext,
 } from "./group-permissions";
+import { serializeGroupMembershipWrite } from "./group-membership-lock";
 import {
   dmConversationInclude,
   getDeletedMessageLabel,
@@ -372,34 +373,65 @@ const defaults: GroupServiceDependencies = {
   },
   writeAddedMembers: async (input) =>
     prisma.$transaction(async (tx) => {
-      await tx.dMParticipant.createMany({
-        data: input.members.map((member) => ({
-          conversationId: input.conversationId,
-          historyFromAt: member.historyFromAt,
-          nameColor: member.nameColor,
-          role: member.role,
-          userId: member.userId,
-        })),
-        skipDuplicates: true,
-      });
+      await serializeGroupMembershipWrite(tx, input.conversationId);
 
-      await tx.dMMessage.create({
-        data: {
-          content: "",
-          conversationId: input.conversationId,
-          systemTargetUserIds: input.members.map((member) => member.userId),
-          systemType: "MEMBER_ADDED",
-          userId: input.actorId,
-        },
+      const currentParticipants = await tx.dMParticipant.findMany({
+        select: { nameColor: true, userId: true },
+        where: { conversationId: input.conversationId },
       });
+      const currentUserIds = new Set(currentParticipants.map((participant) => participant.userId));
+      const members = input.members.filter((member) => !currentUserIds.has(member.userId));
+      const colors = assignNameColors(
+        currentParticipants
+          .map((participant) => participant.nameColor)
+          .filter((color): color is string => typeof color === "string"),
+        members.map((member) => member.userId),
+      );
+
+      if (currentParticipants.length + members.length > GROUP_DM_MAX_PARTICIPANTS) {
+        throw new ApiError(
+          `A group holds at most ${GROUP_DM_MAX_PARTICIPANTS} people`,
+          400,
+          "GROUP_FULL",
+        );
+      }
+
+      if (members.length > 0) {
+        await tx.dMParticipant.createMany({
+          data: members.map((member) => ({
+            conversationId: input.conversationId,
+            historyFromAt: member.historyFromAt,
+            nameColor: colors.get(member.userId) ?? member.nameColor,
+            role: member.role,
+            userId: member.userId,
+          })),
+          skipDuplicates: true,
+        });
+
+        await tx.dMMessage.create({
+          data: {
+            content: "",
+            conversationId: input.conversationId,
+            systemTargetUserIds: members.map((member) => member.userId),
+            systemType: "MEMBER_ADDED",
+            userId: input.actorId,
+          },
+        });
+      }
 
       // A system row still moves the conversation up the inbox, but it must not
       // light anyone's unread badge — no participant counters are touched.
-      const conversation = await tx.dMConversation.update({
-        data: { lastMessageAt: new Date() },
-        select: { iconUrl: true, id: true, name: true, ownerId: true },
-        where: { id: input.conversationId },
-      });
+      const conversation =
+        members.length > 0
+          ? await tx.dMConversation.update({
+              data: { lastMessageAt: new Date() },
+              select: { iconUrl: true, id: true, name: true, ownerId: true },
+              where: { id: input.conversationId },
+            })
+          : await tx.dMConversation.findUniqueOrThrow({
+              select: { iconUrl: true, id: true, name: true, ownerId: true },
+              where: { id: input.conversationId },
+            });
 
       // One read instead of two: the roster this returns and the projection the
       // response needs are the same rows, and `dmConversationInclude` already

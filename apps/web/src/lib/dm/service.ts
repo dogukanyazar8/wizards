@@ -93,6 +93,7 @@ export const dmConversationInclude = {
       hiddenAt: true,
       // Faz 1 §B3. Five scalars per row rather than a second `members` array:
       // the array would repeat the presence and last-seen this row already has.
+      historyFromAt: true,
       joinedAt: true,
       nameColor: true,
       notifyLevel: true,
@@ -596,6 +597,8 @@ function mapConversationLastMessage(
   conversation: RawDMConversation,
   deletedMessageLabel: string,
   viewerId: string,
+  /** 2c §7's floor for this viewer; null means the whole history is theirs. */
+  historyFromAt?: Date | null,
 ) {
   const latestMessage = conversation.messages[0];
 
@@ -605,6 +608,13 @@ function mapConversationLastMessage(
   // Between the deadline and the sweep the row simply has no preview, which is
   // the same thing the conversation shows the moment the sweep lands.
   if (!latestMessage || !isMessageUnexpired(latestMessage, new Date())) {
+    return null;
+  }
+
+  // 2c §7 again. A member who joined under "Hiç" must not read the last message
+  // through the inbox row either — the preview is the same content the message
+  // list is refusing to serve them.
+  if (historyFromAt && latestMessage.createdAt < historyFromAt) {
     return null;
   }
 
@@ -644,6 +654,17 @@ export async function mapDMConversationDTO(
   );
 }
 
+/**
+ * Faz 1 §B3. A conversation row draws two tiles and two counters; a group
+ * detail screen draws the roster. `"row"` keeps the first and drops the rest,
+ * because a page of fifty 32-person groups otherwise ships 1600 participant
+ * objects — each with presence and last-seen — for tiles nobody renders.
+ *
+ * The counters are computed before the trim, so `memberCount` and `onlineCount`
+ * still describe the whole group.
+ */
+export type DMConversationRosterMode = "full" | "row";
+
 function mapDMConversationDTOWithPresence(
   conversation: RawDMConversation,
   viewerId: string,
@@ -651,6 +672,7 @@ function mapDMConversationDTOWithPresence(
   presenceByUserId: Map<string, PresenceFields>,
   lastSeenByUserId: Map<string, string>,
   hiddenUserIds: ReadonlySet<string>,
+  rosterMode: DMConversationRosterMode = "full",
 ): DMConversationDTO {
   const viewer = conversation.participants.find((participant) => participant.userId === viewerId);
   const participants = conversation.participants.map((participant) =>
@@ -677,6 +699,14 @@ function mapDMConversationDTOWithPresence(
     })),
     viewerId,
   );
+  // A 1:1 already has two participants, so the trim only ever bites on a group.
+  const rosterUserIds =
+    rosterMode === "row" && conversation.type === "GROUP_DM"
+      ? new Set<string>([viewerId, ...avatarPair.tiles.map((tile) => tile.userId)])
+      : null;
+  const roster = rosterUserIds
+    ? participants.filter((participant) => rosterUserIds.has(participant.userId))
+    : participants;
 
   return {
     id: conversation.id,
@@ -685,8 +715,13 @@ function mapDMConversationDTOWithPresence(
     iconUrl: conversation.iconUrl,
     ownerId: conversation.ownerId,
     lastMessageAt: conversation.lastMessageAt.toISOString(),
-    participants,
-    lastMessage: mapConversationLastMessage(conversation, deletedMessageLabel, viewerId),
+    participants: roster,
+    lastMessage: mapConversationLastMessage(
+      conversation,
+      deletedMessageLabel,
+      viewerId,
+      viewer?.historyFromAt ?? null,
+    ),
     avatarColor: conversation.avatarColor,
     avatarPair: avatarPair.tiles,
     description: conversation.description,
@@ -903,6 +938,18 @@ export async function createOrOpenDirectMessage(
   return await mapDMConversationDTO(conversation, userId, deletedMessageLabel);
 }
 
+/**
+ * V3 / 2a §2. Pinning has to be part of the *server's* order, not a sort the
+ * client applies to whatever page it happens to hold: a pinned conversation
+ * whose last message is old would otherwise sit on page three and never reach
+ * the SABİTLENEN section.
+ *
+ * `NULLS LAST` is expressed as a sentinel instead, because the same expression
+ * has to appear in the keyset comparison and a null there would never compare.
+ */
+const UNPINNED_SORT_KEY = new Date(0);
+const PINNED_SORT_KEY_SQL = Prisma.sql`COALESCE(p."pinnedAt", to_timestamp(0))`;
+
 export async function listDirectMessages(
   userId: string,
   options: {
@@ -915,31 +962,40 @@ export async function listDirectMessages(
   let cursorSql = Prisma.sql``;
 
   if (options.cursor) {
-    const cursorConversation = await prisma.dMConversation.findFirst({
+    const cursorParticipation = await prisma.dMParticipant.findFirst({
       where: {
-        id: options.cursor,
-        participants: {
-          some: {
-            userId,
+        conversationId: options.cursor,
+        userId,
+      },
+      select: {
+        pinnedAt: true,
+        conversation: {
+          select: {
+            id: true,
+            lastMessageAt: true,
           },
         },
       },
-      select: {
-        id: true,
-        lastMessageAt: true,
-      },
     });
 
-    if (!cursorConversation) {
+    if (!cursorParticipation) {
       throw new ApiError("Conversation not found", 404, "NOT_FOUND");
     }
 
+    const cursorPinnedAt = cursorParticipation.pinnedAt ?? UNPINNED_SORT_KEY;
+
     cursorSql = Prisma.sql`
       AND (
-        c."lastMessageAt" < ${cursorConversation.lastMessageAt}
+        ${PINNED_SORT_KEY_SQL} < ${cursorPinnedAt}
         OR (
-          c."lastMessageAt" = ${cursorConversation.lastMessageAt}
-          AND c."id" < ${cursorConversation.id}
+          ${PINNED_SORT_KEY_SQL} = ${cursorPinnedAt}
+          AND (
+            c."lastMessageAt" < ${cursorParticipation.conversation.lastMessageAt}
+            OR (
+              c."lastMessageAt" = ${cursorParticipation.conversation.lastMessageAt}
+              AND c."id" < ${cursorParticipation.conversation.id}
+            )
+          )
         )
       )
     `;
@@ -958,7 +1014,7 @@ export async function listDirectMessages(
         OR c."lastMessageAt" > p."hiddenAt"
       )
       ${cursorSql}
-    ORDER BY c."lastMessageAt" DESC, c."id" DESC
+    ORDER BY ${PINNED_SORT_KEY_SQL} DESC, c."lastMessageAt" DESC, c."id" DESC
     LIMIT ${limit + 1}
   `);
 
@@ -988,26 +1044,37 @@ export async function listDirectMessages(
   const participationById = new Map(
     participations.map((participant) => [participant.id, participant]),
   );
-  // One last-seen read for the whole page. Resolving it inside the per-row
-  // mapper would put a `groupBy` behind every conversation on the page.
-  const lastSeenByUserId = await resolveLastSeenAtByUserId(
-    participations.flatMap((participation) =>
-      participation.conversation.participants.map((participant) => participant.userId),
+  const pageParticipants = participations.flatMap(
+    (participation) => participation.conversation.participants,
+  );
+  // One last-seen read and one presence read for the whole page. Both used to be
+  // resolved inside the per-row mapper, which meant a `groupBy` and a Redis round
+  // trip per conversation — 50 of each for a full page, and every group multiplied
+  // the users each of those calls carried. `readPresenceState` dedupes ids itself.
+  const [lastSeenByUserId, presenceState] = await Promise.all([
+    resolveLastSeenAtByUserId(pageParticipants.map((participant) => participant.userId)),
+    readPresenceState(
+      getRedis(),
+      pageParticipants.map((participant) => ({
+        ...getPresenceFallback(participant),
+        userId: participant.userId,
+      })),
     ),
-  );
-  const conversations = await Promise.all(
-    pageRows
-      .map((row) => participationById.get(row.participantId))
-      .filter((participant): participant is NonNullable<typeof participant> => Boolean(participant))
-      .map((participant) =>
-        mapDMConversationDTO(
-          participant.conversation,
-          userId,
-          deletedMessageLabel,
-          lastSeenByUserId,
-        ),
+  ]);
+  const conversations = pageRows
+    .map((row) => participationById.get(row.participantId))
+    .filter((participant): participant is NonNullable<typeof participant> => Boolean(participant))
+    .map((participant) =>
+      mapDMConversationDTOWithPresence(
+        participant.conversation,
+        userId,
+        deletedMessageLabel,
+        presenceState.presenceByUserId,
+        lastSeenByUserId,
+        presenceState.hiddenUserIds,
+        "row",
       ),
-  );
+    );
 
   return {
     conversations,

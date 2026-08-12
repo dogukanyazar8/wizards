@@ -5,6 +5,7 @@ import { describe, it } from "node:test";
 import { ApiError } from "@/lib/api";
 
 import {
+  resolveDMMentionedUserIds,
   sendDirectMessage,
   type SendAuthConversationRow,
   type SendDirectMessageDependencies,
@@ -97,11 +98,13 @@ function dependencies(
     loadNotificationParticipants: async () => [
       {
         muted: false,
+        notifyLevel: "ALL" as const,
         user: { displayName: "Member", id: "member-1", locale: "tr", username: "member" },
         userId: "member-1",
       },
       {
         muted: false,
+        notifyLevel: "ALL" as const,
         user: { displayName: "Owner", id: "owner-1", locale: "tr", username: "owner" },
         userId: "owner-1",
       },
@@ -354,5 +357,64 @@ describe("socket send path", () => {
     // No direct message creation, and no second permission decision.
     assert.equal(/prisma\.dMMessage\.create/.test(handlerBody), false);
     assert.equal(/createRealtimeDMMessage/.test(handlerBody), false);
+  });
+});
+
+describe("resolveDMMentionedUserIds", () => {
+  const roster = [
+    { user: { username: "member" }, userId: "member-1" },
+    { user: { username: "Owner" }, userId: "owner-1" },
+  ];
+
+  it("resolves a handle against the roster, case-insensitively", () => {
+    assert.deepEqual(resolveDMMentionedUserIds("selam @owner", roster, "member-1"), ["owner-1"]);
+    assert.deepEqual(resolveDMMentionedUserIds("selam @OWNER", roster, "member-1"), ["owner-1"]);
+  });
+
+  it("ignores a handle nobody in the conversation answers to", () => {
+    assert.deepEqual(resolveDMMentionedUserIds("selam @nobody", roster, "member-1"), []);
+  });
+
+  it("never counts the sender mentioning themselves", () => {
+    assert.deepEqual(resolveDMMentionedUserIds("@member not me", roster, "member-1"), []);
+  });
+
+  it("ignores the reserved mass mentions", () => {
+    assert.deepEqual(resolveDMMentionedUserIds("@everyone @here", roster, "member-1"), []);
+  });
+
+  it("only matches a handle that starts a word", () => {
+    assert.deepEqual(resolveDMMentionedUserIds("mail@owner.com", roster, "member-1"), []);
+  });
+});
+
+describe("sendDirectMessage mentions", () => {
+  type MentionCapture = {
+    expiresAt?: Date | null;
+    mentionedUserIds?: string[];
+    notification?: { mentionedUserIds?: string[] };
+  };
+
+  it("hands the mentioned ids to the write and to the notification context", async () => {
+    const captured: MentionCapture[] = [];
+
+    await sendDirectMessage(
+      sendInput({ content: "selam @owner" }),
+      dependencies({ createMessage: stubCreateMessage(captured) }),
+    );
+
+    assert.deepEqual(captured[0]?.mentionedUserIds, ["owner-1"]);
+    assert.deepEqual(captured[0]?.notification?.mentionedUserIds, ["owner-1"]);
+  });
+
+  it("sends an empty mention list for an ordinary message", async () => {
+    const captured: MentionCapture[] = [];
+
+    await sendDirectMessage(
+      sendInput(),
+      dependencies({ createMessage: stubCreateMessage(captured) }),
+    );
+
+    assert.deepEqual(captured[0]?.mentionedUserIds, []);
   });
 });

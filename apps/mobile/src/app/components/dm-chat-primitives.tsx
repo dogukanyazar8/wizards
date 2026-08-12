@@ -69,8 +69,10 @@ import {
 import { isMobileVoiceAttachment } from "./message-voice-attachment";
 import { GroupReadReceipt, GroupSenderName } from "./group-chat-primitives";
 import {
+  buildLiveGroupReadReceipt,
   getGroupSenderColors,
   resolveGroupReadReceiptMessageId,
+  type MobileGroupReadReceiptView,
   type MobileGroupMemberSource,
 } from "../mobile-group-chat-model";
 import { MobileLineIcon } from "../../design/mobile-line-icons";
@@ -456,6 +458,7 @@ export function DMChatMessageRow({
   onToggleReaction,
   partnerLastDeliveredAt = null,
   partnerLastReadAt,
+  readReceipt,
   replyAccentColor,
   senderColor,
   showAvatar,
@@ -463,6 +466,11 @@ export function DMChatMessageRow({
   showSenderName = false,
   tailCorner,
 }: DMChatMessageGroupItem & {
+  /**
+   * 2d §8. The list derives this from the live read states; the payload's own
+   * `message.readReceipt` is the fetch-time fallback for a page that has none.
+   */
+  readonly readReceipt?: MobileGroupReadReceiptView | null | undefined;
   /**
    * §4's entrance belongs to a message that just landed. The list decides, and
    * defaults to off: a row rendered on its own (a preview, a test) is part of a
@@ -546,6 +554,7 @@ export function DMChatMessageRow({
   const read = own && partnerLastReadAt !== null && Date.parse(partnerLastReadAt) >= sentAt;
   const delivered =
     own && partnerLastDeliveredAt !== null && Date.parse(partnerLastDeliveredAt) >= sentAt;
+  const resolvedReadReceipt = readReceipt ?? message.readReceipt ?? null;
   const isFailed = message.deliveryStatus === "failed";
   const isSendPending = message.deliveryStatus === "sending";
   const isDeleted = message.deletedAt !== null;
@@ -826,15 +835,16 @@ export function DMChatMessageRow({
           own={own}
           {...(onToggleReaction ? { onToggleReaction } : {})}
         />
-        {/* §11.3/25: the receipt is the list's decision (one row carries it),
-            and the data is the server's — the client counts nothing. */}
-        {showReadReceipt && message.readReceipt && groupMembers ? (
+        {/* §11.3/25: the receipt is the list's decision (one row carries it).
+            The live states win over the fetch-time snapshot so the line moves
+            while the conversation is open. */}
+        {showReadReceipt && resolvedReadReceipt && groupMembers ? (
           <GroupReadReceipt
-            everyone={message.readReceipt.everyone}
+            everyone={resolvedReadReceipt.everyone}
             members={groupMembers}
             onPress={() => onOpenReaders?.(message.id)}
-            readerIds={message.readReceipt.readerIds}
-            total={message.readReceipt.count}
+            readerIds={resolvedReadReceipt.readerIds}
+            total={resolvedReadReceipt.count}
           />
         ) : null}
       </View>
@@ -929,6 +939,11 @@ export function areDMChatMessageRowPropsEqual(
     previous.isHighlighted === next.isHighlighted &&
     previous.isReactionMutationPending === next.isReactionMutationPending &&
     previous.menuOpen === next.menuOpen &&
+    // 2d §8. Only the receipt-bearing row ever receives one, and it is a fresh
+    // object whenever a read state moves — which is exactly when it must
+    // re-render. Compared by field so an unchanged recompute stays free.
+    previous.readReceipt?.count === next.readReceipt?.count &&
+    previous.readReceipt?.everyone === next.readReceipt?.everyone &&
     previous.replyAccentColor === next.replyAccentColor &&
     previous.senderColor === next.senderColor &&
     previous.showAvatar === next.showAvatar &&
@@ -1135,6 +1150,7 @@ export function DMChatMessageList({
   onRetryFailedMessage,
   onToggleReaction,
   participants = [],
+  participantReadStates,
   partnerLastDeliveredAt = null,
   partnerLastReadAt,
 }: {
@@ -1159,6 +1175,13 @@ export function DMChatMessageList({
    * row is ever written.
    */
   readonly participants?: readonly MobileDMSystemMessageParticipant[];
+  /**
+   * 2d §8. The same rows the tick already reads, kept live by
+   * `dm:conversation:read`. Passing them lets the group receipt be derived per
+   * render instead of frozen at fetch time.
+   */
+  readonly participantReadStates?:
+    readonly { readonly lastReadAt?: string | null; readonly userId: string }[] | undefined;
   readonly partnerLastDeliveredAt?: string | null | undefined;
   readonly partnerLastReadAt: string | null;
 }) {
@@ -1179,6 +1202,28 @@ export function DMChatMessageList({
     () => (groupMembers ? resolveGroupReadReceiptMessageId(messages, currentUserId) : null),
     [currentUserId, groupMembers, messages],
   );
+  /**
+   * 2d §8. Recomputed from the read states the socket keeps patching, so the
+   * line moves while the conversation is open instead of waiting for a refetch.
+   * `null` when the page carries no states — the row then falls back to the
+   * snapshot the server sent with the message.
+   */
+  const liveReadReceipt = useMemo(() => {
+    if (!groupMembers || !readReceiptMessageId || !participantReadStates) {
+      return null;
+    }
+
+    const receiptMessage = messages.find((entry) => entry.id === readReceiptMessageId);
+
+    return receiptMessage
+      ? buildLiveGroupReadReceipt({
+          createdAt: receiptMessage.createdAt,
+          memberCount: groupMembers.length,
+          readStates: participantReadStates,
+          viewerId: currentUserId,
+        })
+      : null;
+  }, [currentUserId, groupMembers, messages, participantReadStates, readReceiptMessageId]);
   const onOpenReaders = group?.onOpenReaders;
   const navigationSampleIdRef = useRef(getMobileNavigationSampleId("DirectMessage"));
   useEffect(() => {
@@ -1358,6 +1403,9 @@ export function DMChatMessageList({
                     ? { replyAccentColor: senderColors[item.message.replyTo.userId] }
                     : {}),
                   senderColor: senderColors[item.message.author.id],
+                  ...(item.message.id === readReceiptMessageId && liveReadReceipt
+                    ? { readReceipt: liveReadReceipt }
+                    : {}),
                   showReadReceipt: item.message.id === readReceiptMessageId,
                   // §11.0.2: the group's first bubble, and only an incoming one
                   // — an outgoing block carries neither avatar nor name.

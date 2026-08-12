@@ -149,10 +149,12 @@ async function renderChat({
   conversation = buildConversation(),
   group,
   messages = [message("m1", "user-2"), message("m2", "user-2"), message("m3", VIEWER)],
+  participantReadStates,
 }: {
   conversation?: DMConversationDTO;
   group?: Partial<MobileGroupChatBindings>;
   messages?: readonly ReturnType<typeof message>[];
+  participantReadStates?: readonly { lastReadAt: string | null; userId: string }[];
 } = {}) {
   const bindings = buildGroup(conversation, group ?? {});
 
@@ -193,7 +195,12 @@ async function renderChat({
       onToggleMessageReaction={() => {}}
       state={
         {
-          payload: { conversation, messages, nextCursor: null },
+          payload: {
+            conversation,
+            messages,
+            nextCursor: null,
+            ...(participantReadStates ? { participantReadStates } : {}),
+          },
           status: "ready",
         } as never
       }
@@ -334,6 +341,45 @@ describe("2d §B3 read receipt", () => {
 
     expect(view.getAllByTestId("mobile-group-read-receipt")).toHaveLength(1);
     expect(view.getByText("4 kişi okudu")).toBeTruthy();
+  });
+
+  it("follows the live read states over the fetch-time snapshot", async () => {
+    // The payload was captured when three people had read it. Since then the
+    // socket has said only one of them actually has — the line must follow the
+    // read states, not the snapshot the fetch happened to carry.
+    const sentAt = message("m3", VIEWER).createdAt;
+    const { view } = await renderChat({
+      messages: [
+        message("m1", "user-2"),
+        message("m3", VIEWER, {
+          readReceipt: { count: 3, everyone: true, readerIds: ["user-2", "user-3"] },
+        }),
+      ],
+      participantReadStates: [
+        { lastReadAt: new Date(Date.parse(sentAt) + 1000).toISOString(), userId: "user-2" },
+        { lastReadAt: new Date(Date.parse(sentAt) - 1000).toISOString(), userId: "user-3" },
+        { lastReadAt: new Date(Date.parse(sentAt) + 3000).toISOString(), userId: VIEWER },
+      ],
+    });
+
+    expect(view.getByText("1 kişi okudu")).toBeTruthy();
+  });
+
+  it("drops the line when the live states show nobody has read it yet", async () => {
+    const sentAt = message("m3", VIEWER).createdAt;
+    const { view } = await renderChat({
+      messages: [
+        message("m3", VIEWER, {
+          readReceipt: { count: 3, everyone: true, readerIds: ["user-2", "user-3"] },
+        }),
+      ],
+      participantReadStates: [
+        { lastReadAt: new Date(Date.parse(sentAt) - 1000).toISOString(), userId: "user-2" },
+        { lastReadAt: null, userId: "user-3" },
+      ],
+    });
+
+    expect(view.queryByTestId("mobile-group-read-receipt")).toBeNull();
   });
 
   it("draws nothing when nobody has read it", async () => {

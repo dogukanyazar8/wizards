@@ -481,6 +481,10 @@ export function DMConversationPreviewCard({
           onToggleReaction={onToggleMessageReaction}
           // Faz 5 §16.3: the roster a system row resolves its ids against.
           participants={responseConversation?.participants ?? EMPTY_PARTICIPANTS}
+          // 2d §8: the live source the group receipt is derived from.
+          {...(state.payload?.participantReadStates
+            ? { participantReadStates: state.payload.participantReadStates }
+            : {})}
           partnerLastDeliveredAt={partnerLastDeliveredAt}
           partnerLastReadAt={partnerLastReadAt}
         />

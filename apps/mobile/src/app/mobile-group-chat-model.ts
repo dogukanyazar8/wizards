@@ -677,6 +677,53 @@ export function resolveGroupReadReceiptMessageId(
   return null;
 }
 
+export interface MobileGroupReadReceiptView {
+  readonly count: number;
+  readonly everyone: boolean;
+  readonly readerIds: readonly string[];
+}
+
+/**
+ * 2d §8, live. The server computes the receipt once, for the page it serves —
+ * so a reader who opens the conversation a second later would never move the
+ * line until the next fetch. `dm:conversation:read` already patches
+ * `participantReadStates` into the same cache entry, so the receipt is derived
+ * from those instead of frozen at fetch time.
+ *
+ * Same rule as the server's `buildGroupReadReceipt`: the author never counts as
+ * a reader, and `everyone` means every *other* member has read it.
+ */
+export function buildLiveGroupReadReceipt(input: {
+  readonly createdAt: string;
+  readonly memberCount: number;
+  readonly readStates: readonly {
+    readonly lastReadAt?: string | null;
+    readonly userId: string;
+  }[];
+  readonly viewerId: string;
+}): MobileGroupReadReceiptView {
+  const sentAt = Date.parse(input.createdAt);
+  const readerIds = Number.isNaN(sentAt)
+    ? []
+    : input.readStates
+        .filter((state) => {
+          if (state.userId === input.viewerId || !state.lastReadAt) {
+            return false;
+          }
+
+          const readAt = Date.parse(state.lastReadAt);
+          return !Number.isNaN(readAt) && readAt >= sentAt;
+        })
+        .map((state) => state.userId);
+  const others = Math.max(input.memberCount - 1, 0);
+
+  return {
+    count: readerIds.length,
+    everyone: others > 0 && readerIds.length >= others,
+    readerIds,
+  };
+}
+
 export interface MobileGroupReadStackEntry {
   readonly avatarUrl: string | null;
   readonly label: string;

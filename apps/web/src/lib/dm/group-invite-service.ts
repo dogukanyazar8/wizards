@@ -26,6 +26,7 @@ import {
   type GroupAuthConversationRow,
   type GroupAuthParticipantRow,
 } from "./group-permissions";
+import { serializeGroupMembershipWrite } from "./group-membership-lock";
 import { getDirectMessageConversationForUser } from "./service";
 
 /**
@@ -73,6 +74,7 @@ export type GroupInviteRow = {
 export type GroupInviteJoinWrite = {
   readonly actorId: string;
   readonly conversationId: string;
+  readonly inviteCode: string;
   readonly inviteId: string;
   readonly member: {
     readonly historyFromAt: Date | null;
@@ -102,7 +104,7 @@ export type GroupInviteDependencies = {
     enabled: boolean;
     rotatedAt?: Date;
   }): Promise<GroupInviteRow>;
-  writeJoin(input: GroupInviteJoinWrite): Promise<void>;
+  writeJoin(input: GroupInviteJoinWrite): Promise<boolean>;
 };
 
 const inviteConversationSelect = {
@@ -194,23 +196,66 @@ const defaults: GroupInviteDependencies = {
       },
       select: inviteSelect,
     }),
-  writeJoin: async ({ actorId, conversationId, inviteId, member, systemValue }) => {
-    await prisma.$transaction(async (tx) => {
+  writeJoin: async ({ actorId, conversationId, inviteCode, inviteId, member, systemValue }) => {
+    return await prisma.$transaction(async (tx) => {
+      // Both ceilings are re-checked here, not only in `resolveJoinBlock`. That
+      // check reads a snapshot; two people tapping the same link at 31 members —
+      // or on the last use of a `maxUses` link — both pass it and both write.
+      // The transaction-scoped lock is shared with the admin add-member path.
+      // Once acquired, this transaction sees every roster write that won before
+      // it, so the count is authoritative rather than another racing snapshot.
+      await serializeGroupMembershipWrite(tx, conversationId);
+      const claimAt = new Date();
+
+      const participants = await tx.dMParticipant.findMany({
+        select: { nameColor: true, userId: true },
+        where: { conversationId },
+      });
+      const existingParticipant = participants.some(
+        (participant) => participant.userId === member.userId,
+      );
+      if (existingParticipant) {
+        return false;
+      }
+
+      if (participants.length >= GROUP_DM_MAX_PARTICIPANTS) {
+        const failure = JOIN_BLOCK_ERRORS.full;
+        throw new ApiError(failure.message, failure.status, failure.code);
+      }
+
+      // One statement decides and increments. The field reference is what lets
+      // `uses < maxUses` be a database comparison instead of a read the next
+      // transaction can invalidate; a null ceiling means unlimited.
+      const claimed = await tx.groupInvite.updateMany({
+        data: { uses: { increment: 1 } },
+        where: {
+          code: inviteCode,
+          enabled: true,
+          id: inviteId,
+          AND: [
+            { OR: [{ expiresAt: null }, { expiresAt: { gte: claimAt } }] },
+            { OR: [{ maxUses: null }, { uses: { lt: prisma.groupInvite.fields.maxUses } }] },
+          ],
+        },
+      });
+
+      if (claimed.count === 0) {
+        const failure = JOIN_BLOCK_ERRORS.exhausted;
+        throw new ApiError(failure.message, failure.status, failure.code);
+      }
+
       await tx.dMParticipant.create({
         data: {
           conversationId,
           historyFromAt: member.historyFromAt,
-          nameColor: member.nameColor,
+          nameColor: pickNextMemberNameColor(
+            participants
+              .map((participant) => participant.nameColor)
+              .filter((color): color is string => typeof color === "string"),
+          ),
           role: member.role,
           userId: member.userId,
         },
-      });
-
-      // Atomic, and in the same transaction as the membership row: two
-      // simultaneous joins each increment, where a read-modify-write loses one.
-      await tx.groupInvite.update({
-        data: { uses: { increment: 1 } },
-        where: { id: inviteId },
       });
 
       await tx.dMMessage.create({
@@ -232,6 +277,8 @@ const defaults: GroupInviteDependencies = {
         data: { lastMessageAt: new Date() },
         where: { id: conversationId },
       });
+
+      return true;
     });
   },
 };
@@ -484,9 +531,10 @@ export async function joinGroupViaInvite(
   // cannot land a hair apart.
   const joinedAt = dependencies.now();
 
-  await dependencies.writeJoin({
+  const joined = await dependencies.writeJoin({
     actorId: userId,
     conversationId: conversation.id,
+    inviteCode: invite.code,
     inviteId: invite.id,
     member: {
       historyFromAt: resolveHistoryFloor(conversation.historyVisibility, joinedAt),
@@ -502,7 +550,7 @@ export async function joinGroupViaInvite(
   });
 
   return {
-    alreadyMember: false,
+    alreadyMember: !joined,
     conversation: await dependencies.loadConversationForViewer(conversation.id, userId),
   };
 }

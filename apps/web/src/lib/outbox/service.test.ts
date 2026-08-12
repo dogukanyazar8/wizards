@@ -197,8 +197,11 @@ describe("notification jobs enqueue through the caller's transaction", () => {
       attachmentLabelKey: "",
       content: "selam",
       conversationId: "conversation-1",
+      mentionedUserIds: [],
       messageId: "message-3",
-      participants: [{ muted: false, user: { locale: "tr" }, userId: "user-2" }],
+      participants: [
+        { muted: false, notifyLevel: "ALL" as const, user: { locale: "tr" }, userId: "user-2" },
+      ],
       senderId: "user-1",
       senderName: "Dogukan",
     });

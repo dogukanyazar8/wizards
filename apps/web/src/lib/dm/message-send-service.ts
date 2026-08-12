@@ -1,6 +1,7 @@
 import {
   resolveDisappearingExpiry,
   type DMMessagePayload,
+  type DMNotifyLevel,
   type GroupDisappearingWindow,
   type UploadedAttachmentInput,
 } from "@wizards/types";
@@ -29,6 +30,7 @@ import {
 } from "@/lib/messages/attachments";
 import { deferMessageFanout } from "@/lib/messages/deferred-fanout";
 import type { AppSocketServer } from "@/lib/socket/runtime";
+import { extractMentionUsernames } from "@/lib/workspace/message-notification-service";
 
 export type SendDirectMessageInput = {
   attachments?: unknown;
@@ -45,12 +47,17 @@ export type SendDirectMessageInput = {
   userId: string;
 };
 
+/**
+ * Validates the reply target and hands back its author. 2f §2's `MENTIONS` tier
+ * reads "@adın geçtiğinde **ve yanıtlarda**", so the author id the check already
+ * had in hand is returned rather than thrown away and re-fetched.
+ */
 async function assertDMReplyTarget(input: {
   conversationId: string;
   replyToId: string | null | undefined;
-}) {
+}): Promise<string | null> {
   if (!input.replyToId) {
-    return;
+    return null;
   }
 
   const replyToMessage = await prisma.dMMessage.findFirst({
@@ -60,12 +67,46 @@ async function assertDMReplyTarget(input: {
       deletedAt: null,
       placeholderRemovedAt: null,
     },
-    select: { id: true },
+    select: { userId: true },
   });
 
   if (!replyToMessage) {
     throw new ApiError("Reply target was not found.", 404, "NOT_FOUND");
   }
+
+  return replyToMessage.userId;
+}
+
+/**
+ * Which participants the body addresses by name. The pattern is
+ * `extractMentionUsernames` — the same one the channel fan-out and the mobile
+ * highlighter use — so a token that renders as a pill is exactly a token that
+ * moves a counter.
+ *
+ * Resolution is in memory against the roster the send already loaded: no extra
+ * query, and a handle nobody in the conversation answers to simply matches
+ * nothing.
+ */
+export function resolveDMMentionedUserIds(
+  content: string,
+  participants: ReadonlyArray<{ user: { username: string }; userId: string }>,
+  senderId: string,
+): string[] {
+  const usernames = extractMentionUsernames(content);
+
+  if (usernames.length === 0) {
+    return [];
+  }
+
+  const wanted = new Set(usernames);
+
+  return participants
+    .filter(
+      (participant) =>
+        participant.userId !== senderId &&
+        wanted.has(participant.user.username.toLocaleLowerCase("en-US")),
+    )
+    .map((participant) => participant.userId);
 }
 
 async function assertDMThreadParent(input: {
@@ -127,6 +168,8 @@ export type SendDirectMessageDependencies = {
   loadNotificationParticipants(conversationId: string): Promise<
     Array<{
       muted: boolean;
+      /** 2f §2's tier. `muted` rides along as its mirror for older readers. */
+      notifyLevel: DMNotifyLevel;
       user: { displayName: string | null; id: string; locale: string; username: string };
       userId: string;
     }>
@@ -162,6 +205,7 @@ const sendDefaults: SendDirectMessageDependencies = {
       where: { conversationId },
       select: {
         muted: true,
+        notifyLevel: true,
         userId: true,
         user: {
           select: dmNotificationUserSelect,
@@ -201,7 +245,7 @@ export async function sendDirectMessage(
     participants,
   });
 
-  await Promise.all([
+  const [replyToAuthorId] = await Promise.all([
     assertDMReplyTarget({
       conversationId: input.conversationId,
       replyToId: input.replyToId,
@@ -211,6 +255,8 @@ export async function sendDirectMessage(
       threadParentId: input.threadParentId,
     }),
   ]);
+
+  const mentionedUserIds = resolveDMMentionedUserIds(content, participants, input.userId);
 
   const senderName =
     input.senderName ??
@@ -231,7 +277,13 @@ export async function sendDirectMessage(
     // reach back and re-date anything already written.
     expiresAt: resolveDisappearingExpiry(conversation.disappearingAfter, dependencies.now()),
     forwardOfMessageId: input.forwardOfMessageId ?? null,
-    notification: { participants, senderName },
+    mentionedUserIds,
+    notification: {
+      mentionedUserIds,
+      participants,
+      ...(replyToAuthorId ? { replyToAuthorId } : {}),
+      senderName,
+    },
     participants,
     replyToId: input.replyToId ?? null,
     threadParentId: input.threadParentId ?? null,

@@ -13,6 +13,7 @@ import {
   type StoredGroupCallState,
 } from "@/lib/dm/group-call-state";
 import { isDMParticipant } from "@/lib/dm/participant-service";
+import { assertGroupPermission, loadGroupAuthContext } from "@/lib/dm/group-permissions";
 import { sendDirectMessage } from "@/lib/dm/message-send-service";
 import { deleteDMMessage, editDMMessage, getDMDisplayName, setDMReaction } from "@/lib/dm/service";
 import { normalizeAppLocale, translate } from "@/lib/locale";
@@ -178,6 +179,15 @@ export function registerDMHandlers(
     }
   }
 
+  /**
+   * D3. Which calls this socket is inside. A tab that crashes, a phone that
+   * loses signal or an app the OS kills never sends `dm:call:leave`, and the
+   * stored roster has a six-hour TTL — so without this the group would show
+   * "3 kişi görüşüyor" long after the room emptied, and `shouldRingParticipant`
+   * would refuse to ring the ghost on the next call.
+   */
+  const joinedCallConversationIds = new Set<string>();
+
   /** Relays a call lifecycle signal to every other participant of the conversation. */
   async function broadcastDMCallSignal(
     rawData: unknown,
@@ -203,6 +213,7 @@ export function registerDMHandlers(
 
     // D3. The sender is leaving the call either way, so the stored roster has to
     // agree — otherwise the group keeps showing a call nobody is in.
+    joinedCallConversationIds.delete(data.conversationId);
     const state = await leaveGroupCall(data.conversationId, userId);
     broadcastGroupCallState(
       data.conversationId,
@@ -293,6 +304,7 @@ export function registerDMHandlers(
         userId,
         video: data.video,
       });
+      joinedCallConversationIds.add(data.conversationId);
 
       const ringing = new Set(ringUserIds);
       const expiresAt = new Date(Date.now() + DM_CALL_RING_TTL_MS).toISOString();
@@ -353,6 +365,7 @@ export function registerDMHandlers(
         userId,
         ...(data.video === undefined ? {} : { video: data.video }),
       });
+      joinedCallConversationIds.add(data.conversationId);
 
       broadcastGroupCallState(
         data.conversationId,
@@ -377,6 +390,7 @@ export function registerDMHandlers(
         return;
       }
 
+      joinedCallConversationIds.delete(data.conversationId);
       const state = await leaveGroupCall(data.conversationId, userId);
       const participantUserIds = participants.map((participant) => participant.userId);
 
@@ -616,10 +630,14 @@ export function registerDMHandlers(
         return;
       }
 
-      if (!(await isDMParticipant(userId, message.conversationId))) {
-        emitDMError("FORBIDDEN", "You are not a participant in this DM");
-        return;
-      }
+      // 2f §3. A reaction is a contribution to the conversation, so it answers
+      // to the same permission sending does: in a group where only admins may
+      // write, a member must not be able to write an emoji either. The gate also
+      // covers membership, which is why the old participant check is gone.
+      assertGroupPermission(
+        await loadGroupAuthContext(message.conversationId, userId),
+        "sendMessage",
+      );
 
       const reactions = await setDMReaction(data.messageId, userId, data.emoji, shouldReact);
       io.to(`dm:${message.conversationId}`).emit("dm:message:reaction_updated", {
@@ -650,5 +668,47 @@ export function registerDMHandlers(
     void handleDMReaction(rawData, false);
   });
 
-  return {};
+  return {
+    /**
+     * D3. The graceful paths above already clear their own entry, so by the time
+     * this runs the set holds exactly the calls this socket dropped out of. Each
+     * one is left and re-announced; a failure on one conversation must not stop
+     * the others, because a half-cleaned roster is the bug this exists to
+     * prevent.
+     */
+    async cleanup() {
+      const conversationIds = Array.from(joinedCallConversationIds);
+      joinedCallConversationIds.clear();
+
+      for (const conversationId of conversationIds) {
+        try {
+          const state = await leaveGroupCall(conversationId, userId);
+          const participants = await prisma.dMParticipant.findMany({
+            where: { conversationId },
+            select: { userId: true },
+          });
+          const participantUserIds = participants.map((participant) => participant.userId);
+
+          broadcastGroupCallState(conversationId, participantUserIds, state);
+
+          // Nobody left inside: the others need the same ending they would have
+          // received had this socket pressed hang up.
+          if (!state) {
+            for (const participantUserId of participantUserIds) {
+              if (participantUserId === userId) {
+                continue;
+              }
+
+              io.to(`user:${participantUserId}`).emit("dm:call:ended", {
+                conversationId,
+                userId,
+              });
+            }
+          }
+        } catch (error) {
+          logError("[dm] Group call disconnect cleanup failed", error);
+        }
+      }
+    },
+  };
 }

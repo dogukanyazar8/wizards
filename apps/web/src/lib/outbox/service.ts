@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { Prisma, prisma } from "@wizards/db";
+import type { DMNotifyLevel } from "@wizards/types";
 import { z } from "zod";
 
 import { recordMessageCreated } from "@/lib/analytics/service";
@@ -118,16 +119,21 @@ const DMMessageNotificationsPayloadSchema = z.object({
   attachmentLabelKey: z.string().min(1),
   content: z.string(),
   conversationId: z.string().min(1),
+  // Defaulted, not required: jobs queued by the previous deploy carry neither
+  // field and must still drain rather than fail their way to the dead letter.
+  mentionedUserIds: z.array(z.string().min(1)).default([]),
   messageId: z.string().min(1),
   participants: z.array(
     z.object({
       muted: z.boolean().default(false),
+      notifyLevel: z.enum(["ALL", "MENTIONS", "NONE"]).optional(),
       userId: z.string().min(1),
       user: z.object({
         locale: z.string().nullable(),
       }),
     }),
   ),
+  replyToAuthorId: z.string().min(1).optional(),
   senderId: z.string().min(1),
   senderName: z.string(),
 });
@@ -310,14 +316,17 @@ export async function enqueueDMMessageNotificationJob(
     attachmentLabelKey: string;
     content: string;
     conversationId: string;
+    mentionedUserIds: readonly string[];
     messageId: string;
     participants: Array<{
       muted: boolean;
+      notifyLevel: DMNotifyLevel;
       userId: string;
       user: {
         locale: string | null;
       };
     }>;
+    replyToAuthorId?: string;
     senderId: string;
     senderName: string;
   },

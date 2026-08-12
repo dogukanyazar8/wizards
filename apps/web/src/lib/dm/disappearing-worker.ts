@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
 
+import { prisma } from "@wizards/db";
+
 import { logError as logErrorDefault } from "@/lib/logger";
 import { getRedisOp } from "@/lib/redis";
 import { getSocketServer } from "@/lib/socket/runtime";
@@ -91,8 +93,31 @@ function purgeRuntimeDependencies() {
       conversationId: string;
       messageIds: string[];
     }) => {
+      if (!io) {
+        return;
+      }
+
       // Same room the ordinary removal uses, so a client needs one listener.
-      io?.to(`dm:${conversationId}`).emit("dm:message:expired", { conversationId, messageIds });
+      io.to(`dm:${conversationId}`).emit("dm:message:expired", { conversationId, messageIds });
+
+      // …and everyone else, because the people who matter here are usually *not*
+      // in the room: a client sitting on the inbox holds the expired message as
+      // its conversation preview and has no other reason to hear about it. Not
+      // awaited — the rows are already gone, and the sweep must not wait on a
+      // roster read to finish its batch.
+      void prisma.dMParticipant
+        .findMany({ where: { conversationId }, select: { userId: true } })
+        .then((participants) => {
+          for (const participant of participants) {
+            io.to(`user:${participant.userId}`).emit("dm:message:expired", {
+              conversationId,
+              messageIds,
+            });
+          }
+        })
+        .catch((error: unknown) => {
+          logErrorDefault("[dm] Disappearing expiry fan-out failed", error);
+        });
     },
     emitUnpinned: ({ conversationId }: { conversationId: string }) => {
       // The FK already cleared `pinnedMessageId`; this is what closes the strip

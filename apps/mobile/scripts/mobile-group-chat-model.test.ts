@@ -6,6 +6,7 @@ import type { GroupCallStateDTO, GroupPermissions } from "@wizards/types";
 import {
   buildGroupInviteDisplayUrl,
   buildGroupNameHint,
+  buildLiveGroupReadReceipt,
   buildMobileConversationFilterKey,
   parseMobileConversationFilters,
   serializeMobileConversationFilters,
@@ -935,5 +936,67 @@ describe("getGroupReadStack", () => {
 
   it("returns nothing when nobody has read the message", () => {
     assert.deepEqual(getGroupReadStack([], roster), []);
+  });
+});
+
+describe("buildLiveGroupReadReceipt", () => {
+  const createdAt = "2026-08-12T09:00:00.000Z";
+  const before = "2026-08-12T08:59:00.000Z";
+  const after = "2026-08-12T09:00:01.000Z";
+
+  it("counts only members whose read mark reaches the message", () => {
+    const receipt = buildLiveGroupReadReceipt({
+      createdAt,
+      memberCount: 4,
+      readStates: [
+        { lastReadAt: after, userId: "a" },
+        { lastReadAt: before, userId: "b" },
+        { lastReadAt: null, userId: "c" },
+      ],
+      viewerId: "me",
+    });
+
+    assert.deepEqual(receipt.readerIds, ["a"]);
+    assert.equal(receipt.count, 1);
+    assert.equal(receipt.everyone, false);
+  });
+
+  it("never counts the author", () => {
+    const receipt = buildLiveGroupReadReceipt({
+      createdAt,
+      memberCount: 2,
+      readStates: [{ lastReadAt: after, userId: "me" }],
+      viewerId: "me",
+    });
+
+    assert.equal(receipt.count, 0);
+    assert.equal(receipt.everyone, false);
+  });
+
+  it("says everyone once every other member has read it", () => {
+    const receipt = buildLiveGroupReadReceipt({
+      createdAt,
+      memberCount: 3,
+      readStates: [
+        { lastReadAt: after, userId: "a" },
+        { lastReadAt: after, userId: "b" },
+        { lastReadAt: after, userId: "me" },
+      ],
+      viewerId: "me",
+    });
+
+    assert.equal(receipt.count, 2);
+    assert.equal(receipt.everyone, true);
+  });
+
+  it("stays empty when the timestamp cannot be read", () => {
+    const receipt = buildLiveGroupReadReceipt({
+      createdAt: "not-a-date",
+      memberCount: 3,
+      readStates: [{ lastReadAt: after, userId: "a" }],
+      viewerId: "me",
+    });
+
+    assert.equal(receipt.count, 0);
   });
 });

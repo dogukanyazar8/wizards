@@ -1,4 +1,4 @@
-import type { UploadedAttachmentInput } from "@wizards/types";
+import type { DMNotifyLevel, UploadedAttachmentInput } from "@wizards/types";
 
 import { prisma } from "@wizards/db";
 
@@ -27,11 +27,16 @@ export type DMRealtimeParticipant = {
  * committed message cannot end up unannounced.
  */
 export type DMMessageNotificationContext = {
+  /** 2f §2. Who the body addressed by name; `MENTIONS` recipients need it. */
+  mentionedUserIds: string[];
   participants: Array<{
     muted: boolean;
+    notifyLevel: DMNotifyLevel;
     user: { locale: string | null };
     userId: string;
   }>;
+  /** The other half of `MENTIONS`: a reply reaches the person replied to. */
+  replyToAuthorId?: string;
   senderName: string;
 };
 
@@ -53,6 +58,12 @@ export async function createRealtimeDMMessage(args: {
    */
   expiresAt?: Date | null;
   forwardOfMessageId?: string | null;
+  /**
+   * 2a §5. The participants this body named. Their `mentionCount` moves in the
+   * same transaction as the message, so the badge can never describe a message
+   * that failed to commit.
+   */
+  mentionedUserIds?: readonly string[];
   notification?: DMMessageNotificationContext;
   participants: DMRealtimeParticipant[];
   replyToId?: string | null;
@@ -109,36 +120,55 @@ export async function createRealtimeDMMessage(args: {
           attachmentLabelKey: getDMAttachmentLabelKey(message.attachments[0]),
           content: args.content,
           conversationId: args.conversationId,
+          mentionedUserIds: args.notification.mentionedUserIds,
           messageId: createdMessage.id,
           participants: args.notification.participants,
+          ...(args.notification.replyToAuthorId
+            ? { replyToAuthorId: args.notification.replyToAuthorId }
+            : {}),
           senderId: args.userId,
           senderName: args.notification.senderName,
         });
       }
 
-      await Promise.all(
-        args.participants.map((participant) =>
-          tx.dMParticipant.update({
-            where: {
-              conversationId_userId: {
-                conversationId: args.conversationId,
-                userId: participant.userId,
-              },
-            },
-            data:
-              participant.userId === args.userId
-                ? {
-                    hiddenAt: null,
-                  }
-                : {
-                    hiddenAt: null,
-                    unreadCount: {
-                      increment: 1,
-                    },
-                  },
-          }),
-        ),
+      // Three set-based statements instead of one per participant. An
+      // interactive transaction runs on a single connection, so the old
+      // `Promise.all` of updates was 32 serialised round trips for a full group
+      // — with the transaction held open for all of them.
+      await tx.dMParticipant.update({
+        where: {
+          conversationId_userId: {
+            conversationId: args.conversationId,
+            userId: args.userId,
+          },
+        },
+        data: { hiddenAt: null },
+      });
+
+      await tx.dMParticipant.updateMany({
+        where: {
+          conversationId: args.conversationId,
+          userId: { not: args.userId },
+        },
+        data: {
+          hiddenAt: null,
+          unreadCount: { increment: 1 },
+        },
+      });
+
+      const mentionedUserIds = (args.mentionedUserIds ?? []).filter(
+        (userId) => userId !== args.userId,
       );
+
+      if (mentionedUserIds.length > 0) {
+        await tx.dMParticipant.updateMany({
+          where: {
+            conversationId: args.conversationId,
+            userId: { in: mentionedUserIds },
+          },
+          data: { mentionCount: { increment: 1 } },
+        });
+      }
 
       return message;
     });

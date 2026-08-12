@@ -124,10 +124,11 @@ describe("last-seen resolution", () => {
     }
   });
 
-  it("keeps the DM list on one last-seen read per page, not one per conversation", async () => {
-    // `mapDMConversationDTO` resolves last-seen itself when nothing hands it a
-    // map, which is right for a single conversation and an N+1 for a page. The
-    // list path must therefore resolve once and pass the map down.
+  it("keeps the DM list on one last-seen and one presence read per page", async () => {
+    // `mapDMConversationDTO` resolves both itself when nothing hands them over,
+    // which is right for a single conversation and an N+1 for a page — and with
+    // groups each of those calls carries up to 32 users. The list path must
+    // resolve once and pass both maps into the presence-aware mapper.
     const source = await readFile(path.join(sourceRoot, "lib", "dm", "service.ts"), "utf8");
     const listBody = source.slice(
       source.indexOf("export async function listDirectMessages"),
@@ -136,6 +137,9 @@ describe("last-seen resolution", () => {
 
     assert.ok(listBody.length > 0);
     assert.match(listBody, /resolveLastSeenAtByUserId\(/);
-    assert.match(listBody, /mapDMConversationDTO\([\s\S]*?lastSeenByUserId,/);
+    assert.match(listBody, /readPresenceState\(/);
+    assert.match(listBody, /mapDMConversationDTOWithPresence\([\s\S]*?lastSeenByUserId,/);
+    // The per-row resolver must not come back: it is the N+1 this guards.
+    assert.equal(/mapDMConversationDTO\(/.test(listBody), false);
   });
 });

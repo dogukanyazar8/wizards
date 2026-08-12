@@ -114,6 +114,36 @@ export function canMemberDo(role: DMParticipantRole, level: GroupPermissionLevel
   return role === "OWNER" || role === "ADMIN";
 }
 
+/**
+ * What 2f §2's middle option actually promises: "@adın geçtiğinde ve
+ * yanıtlarda". Both halves matter — a reply to your message is the other way a
+ * conversation asks for you by name, and dropping it would make `MENTIONS`
+ * silent for the most common form of being addressed.
+ */
+export interface DMNotificationTrigger {
+  readonly isMentioned: boolean;
+  readonly isReplyToViewer: boolean;
+}
+
+/**
+ * The one place the three notification tiers turn into a yes/no. Lives here
+ * rather than beside the fan-out because the inbox badge, the push sender and
+ * the call ring all have to agree with the row the user tapped in 2f.
+ */
+export function shouldNotifyForDMMessage(
+  notifyLevel: DMNotifyLevel,
+  trigger: DMNotificationTrigger,
+): boolean {
+  switch (notifyLevel) {
+    case "NONE":
+      return false;
+    case "MENTIONS":
+      return trigger.isMentioned || trigger.isReplyToViewer;
+    case "ALL":
+      return true;
+  }
+}
+
 export interface GroupCapabilities {
   readonly canAddMembers: boolean;
   readonly canEditInfo: boolean;

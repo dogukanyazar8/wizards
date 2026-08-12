@@ -22,6 +22,7 @@ import {
   pickNextMemberNameColor,
   resolveDisappearingExpiry,
   resolveHistoryFloor,
+  shouldNotifyForDMMessage,
   toGroupAvatarInitials,
 } from "./group-dm-settings";
 
@@ -523,5 +524,36 @@ describe("getGroupMemberActions", () => {
 
   it("gives a member the two read-only actions and nothing else", () => {
     assert.deepEqual(getGroupMemberActions("MEMBER", "MEMBER", false), ["message", "profile"]);
+  });
+});
+
+describe("shouldNotifyForDMMessage", () => {
+  const plain = { isMentioned: false, isReplyToViewer: false };
+
+  it("notifies for everything on ALL", () => {
+    assert.equal(shouldNotifyForDMMessage("ALL", plain), true);
+  });
+
+  it("stays silent for everything on NONE", () => {
+    assert.equal(shouldNotifyForDMMessage("NONE", plain), false);
+    assert.equal(
+      shouldNotifyForDMMessage("NONE", { isMentioned: true, isReplyToViewer: true }),
+      false,
+    );
+  });
+
+  it("keeps MENTIONS quiet for an ordinary message", () => {
+    assert.equal(shouldNotifyForDMMessage("MENTIONS", plain), false);
+  });
+
+  it("fires MENTIONS on both halves of 2f §2's promise", () => {
+    assert.equal(
+      shouldNotifyForDMMessage("MENTIONS", { isMentioned: true, isReplyToViewer: false }),
+      true,
+    );
+    assert.equal(
+      shouldNotifyForDMMessage("MENTIONS", { isMentioned: false, isReplyToViewer: true }),
+      true,
+    );
   });
 });

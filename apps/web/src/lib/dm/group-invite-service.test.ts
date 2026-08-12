@@ -131,6 +131,7 @@ function dependencies(
     },
     writeJoin: async (input) => {
       calls.joins.push(input);
+      return true;
     },
     ...overrides,
   };
@@ -522,6 +523,14 @@ describe("joinGroupViaInvite", () => {
     assert.deepEqual(calls.joins[0]?.member.historyFromAt, NOW);
   });
 
+  it("returns alreadyMember when a concurrent join won the roster lock", async () => {
+    const { deps } = dependencies({ writeJoin: async () => false });
+
+    const result = await joinGroupViaInvite("ABCDEFGH2345", "stranger-1", deps);
+
+    assert.equal(result.alreadyMember, true);
+  });
+
   it("refuses to join a 1:1 conversation even if a row somehow points at one", async () => {
     const { deps } = dependencies({}, { conversation: conversationRow({ type: "DM" }) });
 
@@ -557,7 +566,7 @@ describe("joinGroupViaInvite", () => {
  * the source that carries them.
  */
 describe("write guarantees", () => {
-  it("increments `uses` atomically inside the join transaction", async () => {
+  it("claims `uses` atomically inside the join transaction", async () => {
     // Two simultaneous joins must both count. A read-modify-write
     // (`uses: invite.uses + 1`) loses one of them; only the database-side
     // increment does not, and only inside the same transaction as the
@@ -566,9 +575,39 @@ describe("write guarantees", () => {
     const writeJoin = source.slice(source.indexOf("writeJoin: async ("));
 
     assert.match(writeJoin, /prisma\.\$transaction/);
-    assert.match(writeJoin, /groupInvite\.update\(\{\s*data: \{ uses: \{ increment: 1 \} \}/);
+    assert.match(writeJoin, /groupInvite\.updateMany\(\{\s*data: \{ uses: \{ increment: 1 \} \}/);
     // The counter must never be computed in application code.
     assert.equal(/uses:\s*[a-zA-Z]+\.uses\s*\+/.test(writeJoin), false);
+  });
+
+  it("re-checks both ceilings inside the transaction, not only in the snapshot", async () => {
+    // `resolveJoinBlock` reads a snapshot: at 31 members, or on the last use of
+    // a capped link, two concurrent joins both pass it. The transaction is what
+    // rejects the loser — a member count taken there, and a conditional claim
+    // that compares `uses` to `maxUses` in the database rather than in memory.
+    const source = await readFile(new URL("./group-invite-service.ts", import.meta.url), "utf8");
+    const writeJoin = source.slice(source.indexOf("writeJoin: async ("));
+
+    assert.match(writeJoin, /tx\.dMParticipant\.findMany\(/);
+    assert.match(writeJoin, /GROUP_DM_MAX_PARTICIPANTS/);
+    assert.match(writeJoin, /prisma\.groupInvite\.fields\.maxUses/);
+    assert.match(writeJoin, /claimed\.count === 0/);
+  });
+
+  it("serializes capacity checks per conversation and revalidates the invite claim", async () => {
+    const source = await readFile(new URL("./group-invite-service.ts", import.meta.url), "utf8");
+    const writeJoin = source.slice(source.indexOf("writeJoin: async ("));
+    const lockIndex = writeJoin.indexOf("serializeGroupMembershipWrite");
+    const countIndex = writeJoin.indexOf("tx.dMParticipant.findMany");
+
+    assert.notEqual(lockIndex, -1);
+    assert.ok(lockIndex < countIndex);
+    assert.match(writeJoin, /code:\s*inviteCode/);
+    assert.match(writeJoin, /enabled:\s*true/);
+    assert.match(writeJoin, /existingParticipant/);
+    assert.match(writeJoin, /return false/);
+    assert.match(writeJoin, /const claimAt = new Date\(\)/);
+    assert.match(writeJoin, /expiresAt:\s*\{\s*(?:gt|gte):\s*claimAt/);
   });
 
   it("keeps the invite code out of the create path's client input", async () => {
