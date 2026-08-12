@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   buildC8ReportArgs,
+  buildC8ReportEnv,
   buildNodeCoverageEnv,
   COVERAGE_THRESHOLDS,
   getApiE2ECoverageMode,
@@ -87,5 +88,30 @@ describe("coverage runner contract", () => {
       NODE_V8_COVERAGE: "coverage/.tmp/run-1",
       PATH: "bin",
     });
+  });
+
+  it("gives only the c8 report child enough heap for the all-file merge", () => {
+    assert.deepEqual(
+      buildC8ReportEnv({
+        NODE_OPTIONS: "--enable-source-maps",
+        PATH: "bin",
+      }),
+      {
+        NODE_OPTIONS: "--enable-source-maps --max-old-space-size=4096",
+        PATH: "bin",
+      },
+    );
+    assert.deepEqual(buildC8ReportEnv({ PATH: "bin" }), {
+      NODE_OPTIONS: "--max-old-space-size=4096",
+      PATH: "bin",
+    });
+    assert.deepEqual(
+      buildC8ReportEnv({
+        NODE_OPTIONS: "--max-old-space-size=2048 --enable-source-maps",
+      }),
+      {
+        NODE_OPTIONS: "--enable-source-maps --max-old-space-size=4096",
+      },
+    );
   });
 });

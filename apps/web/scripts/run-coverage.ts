@@ -3,15 +3,13 @@ import { mkdirSync } from "node:fs";
 import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  buildC8ReportEnv,
   buildC8ReportArgs,
   buildNodeCoverageEnv,
   type CoverageEnvironment,
   getApiE2ECoverageMode,
 } from "../src/lib/e2e/coverage";
-import {
-  formatE2EEnvironmentValidation,
-  validateE2EEnvironment,
-} from "../src/lib/e2e/environment";
+import { formatE2EEnvironmentValidation, validateE2EEnvironment } from "../src/lib/e2e/environment";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const webRoot = join(scriptDir, "..");
@@ -65,7 +63,12 @@ mkdirSync(coverageTempDirectory, { recursive: true });
 
 const coverageEnv = buildNodeCoverageEnv(process.env, coverageTempDirectory);
 
-runCommand("node unit/integration tests", process.execPath, ["scripts/run-node-tests.mjs"], coverageEnv);
+runCommand(
+  "node unit/integration tests",
+  process.execPath,
+  ["scripts/run-node-tests.mjs"],
+  coverageEnv,
+);
 
 const e2eValidation = validateE2EEnvironment(process.env);
 const e2eMode = getApiE2ECoverageMode(e2eValidation, process.env);
@@ -97,4 +100,5 @@ runPnpm(
       tempDirectory: toCliPath(coverageTempDirectory),
     }),
   ],
+  buildC8ReportEnv(process.env),
 );
